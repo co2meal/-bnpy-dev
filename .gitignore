@@ -10,15 +10,8 @@ bin/
 # These aren't of interest for tracking in a repository because
 #   (1) file sizes can be HUGE    
 #   (2) these files rarely mean anything to others except the person who ran the test
-results
-results/
-logs
-logs/
-figs/
-notes/
-profiles/
 local/
-optim/
+results/
 
 # ======================================================  EXCLUDE FILE PATTERNS
 # Exclude user-specific config options for where to read and write data
@@ -29,6 +22,7 @@ optim/
 *~lock*
 *.DS_Store
 .*.swp
+
 # Exclude weird NFS file system dumps
 .nfs*
 
