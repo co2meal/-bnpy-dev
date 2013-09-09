@@ -1,0 +1,69 @@
+
+in MixModel/DPMixModel.get_global_suff_stats:
+   SS = MixModelSSCompSet( N=[10,24,55,100,2017] )
+
+in obsCompSet.get_global_suff_stats
+  
+
+======== Init
+
+hmodel.init_global_params( InitData, initParams, jobParams)
+Returns:
+  Nothing?  
+  hmodel initialized in place [priors and comps], 
+  hmodel.isReady set to TRUE
+Logic:
+  if jobParams contains docontinue:
+      load everything directly from file
+  else:
+      
+
+======== IOutil
+save with every AllocModel:
+  K, infName, amodelName, etc.
+  
+save with every ObsModel:
+  K, infName, amodelName, etc.
+
+======== Model
+constructors should NOT require setting K.
+this is instead *always* done via initialization.
+
+note: this requires symmetric priors, which should be just fine
+
+AModel( infName, prior)
+
+
+======== Data
+standardize to using proper Data object throughout
+
+
+======== Local Params
+keep as a dict??
+
+for mix models:
+  LP['resp']
+for admix models
+  LP['resp'], LP['groupWeights'], LP['NperGroup']
+for HMMs
+  LP['resp'], LP['respPair']
+
+======== Suff Stats
+standardize to using proper SS object throughout (no dict!)
+
+light-weight object that represents the suff stats for ONE COMPONENT
+
+need to support ability to create either
+** ONE SINGLE COMPONENT
+input: chunk of data
+output: suff stats for that data
+
+or
+** VECTORIZED
+input: some Data, an LP object for that data
+
+SS object should just be an information container. All logic should happen in the model  specification.
+
+SSlist : list of SS components.
+
+can delete, add, reorder, etc. at will!
