@@ -81,7 +81,7 @@ class AllocModel(object):
   ##############################################################    
   ############################################################## human readable I/O  
   ##############################################################  
-  def get_simple_info_string( self):
+  def get_info_string( self):
     ''' Returns one-line human-readable terse description of this object
     '''
     pass

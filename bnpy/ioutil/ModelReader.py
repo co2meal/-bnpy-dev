@@ -1,45 +1,54 @@
+'''
+ModelReader.py
+
+Read in a bnpy model from disk
+
+Related
+-------
+ModelWriter.py
+'''
 import numpy as np
 import scipy.io
 import os
 
-from bnpy import *
 from bnpy.allocmodel import *
 from bnpy.obsmodel import *
 from bnpy.distr import *
-
 
 GDict = globals()
 
 def load_model( matfilepath, prefix='Best'):
   ''' Load model stored to disk by ModelWriter
   '''
+  # avoids circular import
+  import bnpy.HModel as HModel
   obsModel = load_obs_model(matfilepath, prefix)
   allocModel = load_alloc_model(matfilepath, prefix)
+  print allocModel.K
   return HModel(allocModel, obsModel)
   
-def load_alloc_model( matfilepath, prefix):
+def load_alloc_model(matfilepath, prefix):
   APDict = load_dict_from_matfile(os.path.join(matfilepath,'AllocPrior.mat'))
   ADict = load_dict_from_matfile(os.path.join(matfilepath,prefix+'AllocModel.mat'))
+  print ADict
   AllocConstr = GDict[ADict['name']]
   amodel = AllocConstr( ADict['inferType'], APDict )
   amodel.from_dict( ADict)
   return amodel
   
-def load_obs_model( matfilepath, prefix='Best'):
+def load_obs_model(matfilepath, prefix):
   obspriormatfile = os.path.join(matfilepath,'ObsPrior.mat')
   PDict = load_dict_from_matfile(obspriormatfile)
   if PDict['name'] == 'NoneType':
     obsPrior = None
   else:
     PriorConstr = GDict[PDict['name']]
-    obsPrior = PriorConstr( **PDict)
-  
+    obsPrior = PriorConstr( **PDict)  
   ODict = load_dict_from_matfile(os.path.join(matfilepath,prefix+'ObsModel.mat'))
   ObsConstr = GDict[ODict['name']]
   CompDicts = get_list_of_comp_dicts( ODict['K'], ODict)
   return ObsConstr.InitFromCompDicts( ODict, obsPrior, CompDicts)
   
-
 def get_list_of_comp_dicts( K, Dict ):
   ''' We store all component params stacked together in an array.
       This function extracts them into individual components.

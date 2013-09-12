@@ -75,7 +75,11 @@ def getType( defVal ):
     int( defVal )
     return int
   except Exception:
-    return str
+    try:
+      float(defVal)
+      return float
+    except Exception:
+      return str
     
 if __name__ == '__main__':
   print parseArgs( ['config/allocmodel.conf','config/obsmodel.conf'])

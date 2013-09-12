@@ -24,6 +24,15 @@ class MixModel(AllocModel):
       self.alpha0 = priorDict['alpha0']
     self.K = 0
     
+  def isReady(self):
+    try:
+      if self.inferType == 'EM':
+        return self.K > 0 and len(self.w) == self.K
+      else:
+        return self.K > 0 and len(self.alpha) == self.K
+    except AttributeError:
+      return False
+
   ##############################################################    
   ############################################################## set prior parameters  
   ############################################################## 
@@ -33,19 +42,16 @@ class MixModel(AllocModel):
   ##############################################################    
   ############################################################## human readable I/O  
   ##############################################################  
-  def get_simple_info_string( self):
+  def get_info_string( self):
     ''' Returns one-line human-readable terse description of this object
     '''
-    if self.isReady:
-      return 'Finite mixture with K=%d. Dir prior param %.2f' % (self.K, self.alpha0)
-    else:
-      return 'Finite mixture. Uninitialized.'
+    return 'Finite mixture with K=%d. Dir prior param %.2f' % (self.K, self.alpha0)
 
   def get_human_global_param_string(self):
     ''' Returns human-readable numerical repr. of parameters,
           for quick inspection of correctness
     '''
-    if not self.isReady:
+    if not self.isReady():
       return ''
     if self.inferType == 'EM':
       return np2flatstr( self.w, '%3.2f' )

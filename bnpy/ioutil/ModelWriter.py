@@ -5,7 +5,7 @@ import scipy.io
 import os
 from distutils.dir_util import mkpath
 
-def save_model(hmodel, fname, prefix, doSavePriorInfo=True):
+def save_model(hmodel, fname, prefix, doSavePriorInfo=True, doLinkBest=False):
   ''' saves HModel object to mat file persistently
       
       Args
@@ -17,23 +17,22 @@ def save_model(hmodel, fname, prefix, doSavePriorInfo=True):
   '''
   if not os.path.exists( fname):
     mkpath( fname )
-  save_alloc_model( hmodel.allocModel, fname, prefix )
-  save_obs_model( hmodel.obsModel, fname, prefix )
+  save_alloc_model( hmodel.allocModel, fname, prefix, doLinkBest=doLinkBest )
+  save_obs_model( hmodel.obsModel, fname, prefix, doLinkBest=doLinkBest )
   if doSavePriorInfo:
     save_alloc_prior( hmodel.allocModel, fname)
     save_obs_prior( hmodel.obsModel, fname)
     
-def save_alloc_model( amodel, fpath, prefix ):
+def save_alloc_model(amodel, fpath, prefix, doLinkBest=False):
   amatname = prefix + 'AllocModel.mat'
   outmatfile = os.path.join( fpath, amatname )
   adict = amodel.to_dict()
   adict.update( amodel.to_dict_essential() )
   scipy.io.savemat( outmatfile, adict, oned_as='row')
-  create_best_link( outmatfile, os.path.join(fpath,'BestAllocModel.mat'))
+  if doLinkBest and prefix != 'Best':
+    create_best_link( outmatfile, os.path.join(fpath,'BestAllocModel.mat'))
           
-def save_obs_model( obsmodel, fpath, prefix ):
-  '''
-  '''
+def save_obs_model(obsmodel, fpath, prefix, doLinkBest=False):  
   amatname = prefix + 'ObsModel.mat'
   outmatfile = os.path.join( fpath, amatname )
   compList = list()
@@ -41,9 +40,12 @@ def save_obs_model( obsmodel, fpath, prefix ):
     compList.append( obsmodel.comp[k].to_dict() )
   myDict = obsmodel.to_dict_essential()
   for key in compList[0].keys():
+    if key in myDict:
+      continue
     myDict[key] = np.squeeze(np.dstack([ compDict[key] for compDict in compList]))
   scipy.io.savemat( outmatfile, myDict, oned_as='row')
-  create_best_link( outmatfile, os.path.join(fpath,'BestObsModel.mat'))
+  if doLinkBest and prefix != 'Best':
+    create_best_link( outmatfile, os.path.join(fpath,'BestObsModel.mat'))
   
 def save_alloc_prior( amodel, fpath):
   outpath = os.path.join( fpath, 'AllocPrior.mat')

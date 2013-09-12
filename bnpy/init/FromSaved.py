@@ -6,7 +6,7 @@ Initialize params of a bnpy model from a previous result saved to disk.
 import numpy as np
 from bnpy.ioutil import ModelReader
 
-def init_global_params(hmodel, Data, initname=None, **kwargs):
+def init_global_params(hmodel, Data, initname=None, prefix='Best', **kwargs):
   ''' Initialize (in-place) the global params of the given hmodel
       by copying the global parameters of a previously saved hmodel
 
@@ -19,7 +19,7 @@ def init_global_params(hmodel, Data, initname=None, **kwargs):
       initname : valid filesystem path to stored result 
                  called "initname" because init from disk is one of many cmd line options.
   '''
-  storedModel = load_model(initname)
+  storedModel = ModelReader.load_model(initname, prefix)
   if storedModel.obsModel.D != Data.dim:
     raise ValueError("Stored model's output dimension does not match provided data!")
   aTypesMatch = type(storedModel.allocModel) == type(hmodel.allocModel)

@@ -21,14 +21,13 @@
 import os
 import sys
 import logging
-import data
 import json
 
 Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
 
-#import numpy as np
-#import bnpy
+import numpy as np
+import bnpy
 import BNPYArgParser
 
 ConfigPaths=['config/allocmodel.conf','config/obsmodel.conf', 
@@ -38,51 +37,65 @@ def main( jobID=1, taskID=1, LOGFILEPREFIX=None):
   ArgDict = BNPYArgParser.parseArgs(ConfigPaths)
   starttaskid = ArgDict['OutputPrefs']['taskid']
   nTask = ArgDict['OutputPrefs']['nTask']
-  for task in xrange(starttaskid, starttaskid+nTask):
-    run_training_task(ArgDict, taskid=0, nTask=1)
+  for taskid in xrange(starttaskid, starttaskid+nTask):
+    run_training_task(ArgDict, taskid=taskid, nTask=1)
   
 def run_training_task(ArgDict, taskid=0, nTask=1, doSaveToDisk=True, doWriteStdOut=True): 
     ''' Run training given specifications for data, model and inference
     '''
     
-    taskoutpath = getOutputPath(ArgDict, taskID=task)
+    taskoutpath = getOutputPath(ArgDict, taskID=taskid)
     if doSaveToDisk:
         createEmptyOutputPathOnDisk(taskoutpath)
         writeArgsToFile(ArgDict, taskoutpath)
     configLoggingToConsoleAndFile(taskoutpath, doSaveToDisk, doWriteStdOut)
     
     jobname = ArgDict['OutputPrefs']['jobname']
-    algseed = createUniqueRandomSeed(jobname, taskID=task)
-    dataseed = createUniqueRandomSeed('', taskID=task)
+    algseed = createUniqueRandomSeed(jobname, taskID=taskid)
+    dataseed = createUniqueRandomSeed('', taskID=taskid)
     
-    # Load data
-    Data, InitData = loadDataAndPrintSummary(ArgDict, taskID=task, dataseed=dataseed)
-  
-    # Create the model
-    model = createModelAndPrintSummary(Data, ArgDict, taskID=task)
-    
-    learnAlg = createLearnAlgAndPrintSummary(Data, model, ArgDict, algseed=algseed, 
-                                              taskID=0
-                                            )
-    printTaskSummary(task, nTask, algseed, dataseed)
+    Data, InitData = loadData(ArgDict, dataseed=dataseed)
 
-    #learnAlg.initialize( model, InitData, **ArgDict['init'] )
-    #learnAlg.fit( model, Data)
+    # Create and initialize model parameters
+    hmodel = createModel(Data, ArgDict)
+    hmodel.init_global_params(InitData, **ArgDict['Initialization'])
+
+    learnAlg = createLearnAlg(Data, hmodel, ArgDict, algseed=algseed, savepath=taskoutpath)
+
+    Log.info(Data.summary)
+    Log.info(hmodel.get_model_info())
+
+    printTaskSummary(taskid, nTask, algseed, dataseed)
+
+    learnAlg.fit(hmodel, Data)
   
   
-def loadDataAndPrintSummary( ArgDict, taskID=0, dataseed=0 ): 
-  Log.info( 'Data 123 and xyz' )
-  return dict(summary='abc123'), None
+def loadData(ArgDict, dataseed=0): 
+  sys.path.append(os.environ['BNPYDATADIR'])
+  datagenmod = __import__(ArgDict['dataName'],fromlist=[])
+  Data = datagenmod.get_data(seed=dataseed)
+  return Data, Data
   
-def createModelAndPrintSummary( Data, ArgDict, taskID=0 ):
-  return None 
-  
-def createLearnAlgAndPrintSummary( Data, model, ArgDict, algseed=0, taskID=0):
-  return None
-  
-def printTaskSummary( task, nTask, algseed, dataseed): 
+def createModel(Data, ArgDict):
+  algName = ArgDict['algName']
+  aName = ArgDict['allocModelName']
+  oName = ArgDict['obsModelName']
+  aPriorDict = ArgDict[aName]
+  oPriorDict = ArgDict[oName]
+  hmodel = bnpy.HModel.InitFromData(algName, aName, oName, aPriorDict, oPriorDict, Data)
+  return hmodel  
+
+def createLearnAlg(Data, model, ArgDict, algseed=0, savepath=None):
+  algName = ArgDict['algName']
+  if algName == 'EM' or algName == 'VB':
+    learnAlg = bnpy.learn.VBLearnAlg(savedir=savepath, seed=algseed, argDict=ArgDict[algName])
+  else:
+    raise NotImplementedError("Unknown learning algorithm " + algName)
+  return learnAlg
+
+def printTaskSummary( taskID, nTask, algseed, dataseed): 
   Log.info( 'Trial %2d/%d | alg. seed: %d | data seed: %d' \
-                 % (task, nTask, algseed, dataseed)
+                 % (taskID+1, nTask, algseed, dataseed)
             )
   
   
@@ -95,7 +108,6 @@ def createUniqueRandomSeed( jobname, taskID=0):
     jobname = jobname[:5]
   seed = int( hashlib.md5( jobname+str(taskID) ).hexdigest(), 16) % 1e7
   return int(seed)
-  
   
   
 def getOutputPath( ArgDict, taskID=0 ):

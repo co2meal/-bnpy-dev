@@ -8,7 +8,9 @@ import suffstats
 
 import allocmodel
 import obsmodel
-from HModel import HModel
+
+import HModel
+HModel = HModel.HModel
 
 import ioutil
 import init

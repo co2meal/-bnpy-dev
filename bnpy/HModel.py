@@ -117,10 +117,11 @@ class HModel( object ):
   #########################################################  
   #########################################################  Print to stdout
   ######################################################### 
-  def print_model_info( self ):
-    print 'Allocation Model:  %s'%  (self.allocModel.get_info_string() )
-    print 'Obs. Data  Model:  %s'%  (self.obsModel.get_info_string() )
-    print 'Obs. Data  Prior:  %s'%  (self.obsModel.get_info_string_prior() )
+  def get_model_info( self ):
+    s =  'Allocation Model:  %s\n'  % (self.allocModel.get_info_string())
+    s += 'Obs. Data  Model:  %s\n' % (self.obsModel.get_info_string())
+    s += 'Obs. Data  Prior:  %s\n' % (self.obsModel.get_info_string_prior())
+    return s
   
   def print_global_params( self ):
     print 'Allocation Model:'

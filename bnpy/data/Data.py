@@ -9,7 +9,8 @@ class Data(object):
   def __init__(self, *args, **kwargs):
     self.nObs = 0
     self.nObsTotal=0
-    
+    self.summary = ''
+
   def add_obs(self, *args, **kwargs):
     pass
     

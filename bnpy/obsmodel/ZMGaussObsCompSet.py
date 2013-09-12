@@ -55,10 +55,6 @@ class ZMGaussObsCompSet( ObsCompSet ):
     if min_covar is not None:
       self.min_covar = min_covar
       
-  def reset(self):
-    self.K = 0
-    self.comp = []  
-  
   ##############################################################    
   ############################################################## human readable I/O  
   ##############################################################  

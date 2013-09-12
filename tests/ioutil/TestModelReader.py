@@ -1,13 +1,13 @@
 '''
 Unit tests for ModelReader.py
 '''
-from bnpy.ioutil import ModelWriter
+from bnpy.ioutil import ModelWriter, ModelReader
 from bnpy import HModel
 from bnpy.data import XData
 import numpy as np
 import unittest
 
-class TestModelReader(unittest.TestCase):
+class TestModelReaderEMMixZM(unittest.TestCase):
   def shortDescription(self):
     return None
 
@@ -22,9 +22,23 @@ class TestModelReader(unittest.TestCase):
     initParams = dict(initname='randexamples', seed=0, K=5)
     self.hmodel.init_global_params(self.Data, **initParams)
 
-
-  def test_save_model(self):
-    prefix = 'Best'
+  def test_save_then_load_same_model(self, prefix='Test'):
+    ''' Verify that we can save model H to disk, load it back in as G, and 
+        get same results from calculations on H,G with same inputs
+    '''
     ModelWriter.save_model(self.hmodel, '/tmp/', prefix)
+    gmodel = ModelReader.load_model('/tmp/', prefix)
+    assert type(gmodel.allocModel) == type(self.hmodel.allocModel)
+    assert gmodel.allocModel.K == self.hmodel.allocModel.K
+    K = gmodel.allocModel.K
+    for k in range(K):
+      gSig = gmodel.obsModel.comp[k].Sigma
+      hSig = self.hmodel.obsModel.comp[k].Sigma
+      assert np.allclose(gSig, hSig)
+
+    # Make sure we get same responsibilities before and after
+    hLP = self.hmodel.calc_local_params(self.Data)
+    gLP = gmodel.calc_local_params(self.Data)
+    assert np.allclose(hLP['resp'], gLP['resp'])
     
 
