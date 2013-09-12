@@ -21,7 +21,8 @@ class TestZMGauss(object):
   
   def test_get_log_norm_const(self):
     logZ = self.distr.get_log_norm_const()
-    mylogZ = 0.5*self.Sigma.shape[0]*np.log(2*np.pi) +             0.5*np.log(np.linalg.det(self.Sigma))
+    logdetSigma = np.log(np.linalg.det(self.Sigma))
+    mylogZ = 0.5*self.Sigma.shape[0]*np.log(2*np.pi) + 0.5 * logdetSigma
     
   def test_dist_mahalanobis(self, N=10):
     X = np.random.randn(N, self.distr.D)
