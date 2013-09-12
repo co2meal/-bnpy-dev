@@ -36,7 +36,6 @@ class ZMGaussObsCompSet( ObsCompSet ):
         self.D = self.comp[k].D
     return self
     
-  
   @classmethod
   def InitFromData(cls, inferType, priorArgDict, Data):
     D = Data.dim

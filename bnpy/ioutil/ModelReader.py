@@ -1,25 +1,25 @@
 import numpy as np
 import scipy.io
 import os
-import inspect
 
+from bnpy import *
 from bnpy.allocmodel import *
 from bnpy.obsmodel import *
 from bnpy.distr import *
-from bnpy.HModel import HModel
+
 
 GDict = globals()
 
 def load_model( matfilepath, prefix='Best'):
-  '''
+  ''' Load model stored to disk by ModelWriter
   '''
   obsModel = load_obs_model(matfilepath, prefix)
   allocModel = load_alloc_model(matfilepath, prefix)
   return HModel(allocModel, obsModel)
   
 def load_alloc_model( matfilepath, prefix):
-  APDict = load_dict_from_matfile( os.path.join(matfilepath,'AllocPrior.mat'))
-  ADict = load_dict_from_matfile( os.path.join(matfilepath,prefix+'AllocModel.mat'))
+  APDict = load_dict_from_matfile(os.path.join(matfilepath,'AllocPrior.mat'))
+  ADict = load_dict_from_matfile(os.path.join(matfilepath,prefix+'AllocModel.mat'))
   AllocConstr = GDict[ADict['name']]
   amodel = AllocConstr( ADict['inferType'], APDict )
   amodel.from_dict( ADict)
@@ -34,7 +34,7 @@ def load_obs_model( matfilepath, prefix='Best'):
     PriorConstr = GDict[PDict['name']]
     obsPrior = PriorConstr( **PDict)
   
-  ODict = load_dict_from_matfile( os.path.join(matfilepath,prefix+'ObsModel.mat'))
+  ODict = load_dict_from_matfile(os.path.join(matfilepath,prefix+'ObsModel.mat'))
   ObsConstr = GDict[ODict['name']]
   CompDicts = get_list_of_comp_dicts( ODict['K'], ODict)
   return ObsConstr.InitFromCompDicts( ODict, obsPrior, CompDicts)

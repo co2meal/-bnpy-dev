@@ -5,13 +5,14 @@ import scipy.io
 import os
 from distutils.dir_util import mkpath
 
-def save_model( hmodel, fname, prefix, doSavePriorInfo=True):
-  ''' saves HModel to mat file persistently
-      Parameters
+def save_model(hmodel, fname, prefix, doSavePriorInfo=True):
+  ''' saves HModel object to mat file persistently
+      
+      Args
       --------
       hmodel: HModel to save
-      fname: directory to save in
-      prefix: 'Iter00004' or 'Best'
+      fname: absolute full path of directory to save in
+      prefix: prefix for file name, like 'Iter00004' or 'Best'
       doSavePriorInfo: whether to save prior info
   '''
   if not os.path.exists( fname):

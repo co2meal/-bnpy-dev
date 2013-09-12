@@ -24,25 +24,6 @@ class MixModel(AllocModel):
       self.alpha0 = priorDict['alpha0']
     self.K = 0
     
-  def reset(self, inferType=None):
-    ''' Remove all learned component information, but keep prior parameters
-    '''
-    self.K = 0
-    try:
-      if self.inferType == 'EM':
-        del self.w
-      else:
-        del self.alpha
-        del self.Elogw
-    except AttributeError:
-      pass # just ignore, must have been reset already
-
-  def is_nonparametric(self):
-    return False
-
-  def need_prev_local_params(self):
-    return False
-
   ##############################################################    
   ############################################################## set prior parameters  
   ############################################################## 
@@ -84,7 +65,6 @@ class MixModel(AllocModel):
   def from_dict(self, myDict):
     self.inferType = myDict['inferType']
     self.K = myDict['K']
-    self.isReady = True
     if self.inferType.count('VB') >0:
       self.alpha = myDict['alpha']
       self.Elogw = digamma( self.alpha ) - digamma( self.alpha.sum() )

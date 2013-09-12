@@ -1,7 +1,7 @@
 """
-The :mod:`init` module gathers initialization procedures
+The :mod:`init` module gathers initialization procedures for model parameters
 """
 
-from .GaussObsSetInitializer import GaussObsSetInitializer
+import FromScratchGauss, FromSaved
 
-__all__ = ['GaussObsSetInitializer']
+__all__ = ['FromScratchGauss', 'FromSaved']

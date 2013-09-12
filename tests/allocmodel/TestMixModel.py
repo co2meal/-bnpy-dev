@@ -7,7 +7,13 @@ from bnpy.allocmodel import MixModel
 from bnpy.suffstats import SuffStatCompSet
 
 class TestMixModelEMZeroAlpha(object):
+  def shortDescription(self):
+    return None
+
   def setUp(self):
+    '''
+    Create a stupid simple case for making sure we're calculating things correctly
+    '''
     self.alpha0 = 0.0
     self.allocM = MixModel('EM', dict(alpha0=self.alpha0))
     self.Nvec = np.asarray([1.,2.,3,4,5.])
