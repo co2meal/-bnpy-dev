@@ -27,7 +27,7 @@ def main():
   parser.add_argument('jobpath', type=str, default=None,
         help='absolute path to directory where bnpy model saved ' + \
               'Example: /home/myusername/bnpyresults/StarData/MixModel/ZMGauss/EM/abc/')
-  parser.add_argument('--taskids', type=str, default='None',
+  parser.add_argument('--taskids', type=str, default=None,
         help="int ids of the tasks (individual runs) of the given job to plot." +\
               'Ex: "1" or "3" or "1,2,3" or "1-6"')
   parser.add_argument('--savefilename', type=str, default=None,

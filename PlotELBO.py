@@ -19,6 +19,7 @@ Options
 from matplotlib import pylab
 import numpy as np
 import argparse
+import glob
 import os
 
 XLabelMap = dict(laps='num pass thru data',
@@ -28,8 +29,7 @@ XLabelMap = dict(laps='num pass thru data',
                   
 def parse_task_ids(args):
   if args.taskids is None:
-    fulltaskpaths = glob.glob(args.jobpath)
-    print fulltaskpaths
+    fulltaskpaths = glob.glob(os.path.join(args.jobpath,'*'))
     taskids = [os.path.split(tpath)[-1] for tpath in fulltaskpaths]
   elif args.taskids.count(',') > 0:
     taskids = [t for t in args.taskids.split(',')]
@@ -49,7 +49,7 @@ def main():
   parser.add_argument('jobpath', type=str, default=None,
         help='absolute path to directory where bnpy model saved ' + \
               'Example: /home/myusername/bnpyresults/StarData/MixModel/ZMGauss/EM/abc/')
-  parser.add_argument('--taskids', type=str, default='None',
+  parser.add_argument('--taskids', type=str, default=None,
         help="int ids of the tasks (individual runs) of the given job to plot." +\
               'Ex: "1" or "3" or "1,2,3" or "1-6"')
   parser.add_argument('--xvar', type=str, default='laps',
