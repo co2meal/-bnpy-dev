@@ -23,7 +23,7 @@ try:
   canPlot = True
 except ImportError:
   print "Error importing matplotlib. Plotting disabled."
-  print "Fix by making sure 'from matplotlib import pylab; pylab([1,2,3])' produces a figure on your system.
+  print "Fix by making sure 'from matplotlib import pylab; pylab([1,2,3])' produces a figure on your system."
 
 if canPlot:
   import viz
