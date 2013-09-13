@@ -16,7 +16,16 @@ import ioutil
 import init
 
 import learn
-import viz
+
+canPlot = False
+try:
+  from matplotlib import pylab
+  canPlot = True
+except ImportError:
+  print "Error importing matplotlib. Plotting disabled."
+  print "Fix by making sure 'from matplotlib import pylab; pylab([1,2,3])' produces a figure on your system.
+if canPlot:
+  import viz
 
 __all__ = ['learn', 'allocmodel','obsmodel', 'suffstats',
            'HModel', 'init', 'util','ioutil','viz','distr']
