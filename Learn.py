@@ -58,14 +58,16 @@ def run_training_task(ArgDict, taskid=0, nTask=1, doSaveToDisk=True, doWriteStdO
 
     # Create and initialize model parameters
     hmodel = createModel(Data, ArgDict)
-    hmodel.init_global_params(InitData, **ArgDict['Initialization'])
+    hmodel.init_global_params(InitData, seed=algseed, **ArgDict['Initialization'])
 
-    learnAlg = createLearnAlg(Data, hmodel, ArgDict, algseed=algseed, savepath=taskoutpath)
+    learnAlg = createLearnAlg(Data, hmodel, ArgDict, \
+                              algseed=algseed, savepath=taskoutpath)
 
     Log.info(Data.summary)
     Log.info(hmodel.get_model_info())
 
     printTaskSummary(taskid, nTask, algseed, dataseed)
+    Log.info('savepath: %s' % (taskoutpath))
 
     learnAlg.fit(hmodel, Data)
   
@@ -87,8 +89,11 @@ def createModel(Data, ArgDict):
 
 def createLearnAlg(Data, model, ArgDict, algseed=0, savepath=None):
   algName = ArgDict['algName']
+  algP = ArgDict[algName]
+  outputP = ArgDict['OutputPrefs']
   if algName == 'EM' or algName == 'VB':
-    learnAlg = bnpy.learn.VBLearnAlg(savedir=savepath, seed=algseed, argDict=ArgDict[algName])
+    learnAlg = bnpy.learn.VBLearnAlg(savedir=savepath, seed=algseed, \
+                                      algParams=algP, outputParams=outputP)
   else:
     raise NotImplementedError("Unknown learning algorithm " + algName)
   return learnAlg
@@ -97,8 +102,7 @@ def printTaskSummary( taskID, nTask, algseed, dataseed):
   Log.info( 'Trial %2d/%d | alg. seed: %d | data seed: %d' \
                  % (taskID+1, nTask, algseed, dataseed)
             )
-  
-  
+
   
 def createUniqueRandomSeed( jobname, taskID=0):
   ''' Get unique RNG seed from the jobname, reproducible on any machine
@@ -121,9 +125,9 @@ def getOutputPath( ArgDict, taskID=0 ):
 
 def createEmptyOutputPathOnDisk( taskoutpath ):
   from distutils.dir_util import mkpath
-  # Make sure the path (including all parent paths) exists
+  # Ensure the path (including all parent paths) exists
   mkpath( taskoutpath )
-  # Make sure the path is clean
+  # Ensure the path has no data from previous runs
   deleteAllFilesFromDir( taskoutpath )
   
 def deleteAllFilesFromDir( savefolder, prefix=None ):
@@ -149,8 +153,8 @@ def writeArgsToFile( ArgDict, taskoutpath ):
   for key in ArgDict:
     if key.count('Name') > 0 or key not in RelevantOpts:
       continue
-    with open( os.path.join(taskoutpath, key+'Args.txt'), 'w') as fout:
-      json.dump( ArgDict[key], fout)
+    with open( os.path.join(taskoutpath, 'args-'+key+'.txt'), 'w') as fout:
+      json.dump(ArgDict[key], fout)
 
 
 
@@ -170,139 +174,6 @@ def configLoggingToConsoleAndFile(taskoutpath, doSaveToDisk=True, doWriteStdOut=
     ch.setLevel(logging.DEBUG)
     ch.setFormatter(formatter)
     Log.addHandler(ch)
-  
-  
-  
-'''
-    ####################################################### Data Module parsing
-    dataParams = dict()
-    for argName in ['nBatch', 'nRep', 'batch_size', 'seed', 'orderseed', 'nObsTotal']:
-      dataParams[argName] = args.__getattribute__( argName )
-      
-    # Dynamically load module provided by user as data-generator
-    sys.path.append( os.environ['BNPYDATADIR'] )
-    datagenmod = __import__( args.datagenModule,fromlist=[])
-      
-    algName = args.algName
-    if args.doonline:
-      algName = 'o'+algName
-    elif args.doincremental or args.doi:
-      algName = 'i'+algName
-    if args.dosplitmerge:
-      algName = algName + 'sm'
-    
-    if args.algName.count('VB')>0 or args.algName.count('GS')>0:
-      obsPrior = PriorConstr[ args.obsName ]()
-    else:
-      obsPrior = None  
-    am = AllocModelConstructor[ args.modelName ]( qType=algName, **modelParams )
-    model = bnpy.HModel( am, args.obsName, obsPrior )
-
-    doAdmix = (args.modelName.count('Admix') + args.modelName.count('HDP') )> 0
-    doHMM = args.modelName.count('HMM') > 0
-
-    if 'get_short_name' in dir( datagenmod ):
-      datashortname = datagenmod.get_short_name()
-    else:
-      datashortname = args.datagenModule[:7]
-    jobpath = os.path.join(datashortname, args.modelName, args.obsName, algName, args.jobname)
-    
-    Data, dataSummaryStr = load_data( datagenmod, dataParams, args.doonline, args.doi, doAdmix, doHMM )
-
-    if args.doonline or args.doi:
-      InitData,_ = load_data( datagenmod, dataParams, False, False, doAdmix, doHMM )
-      nTotal = dataParams['batch_size']*dataParams['nBatch']
-      InitData['nTotal'] = nTotal
-      model.config_from_data( InitData, **obsPriorParams )
-    else:
-      model.config_from_data( Data, **obsPriorParams )
-
-    if args.dotest:
-      #ToDo: unused
-      TestData = load_test_data( datagenmod, dataParams, doAdmix, doHMM)
-
-    # Print Message!
-    if 'print_data_info' in dir( datagenmod ):
-      datagenmod.print_data_info( args.modelName )
-    print 'Data Specs:\n', dataSummaryStr
-    model.print_model_info()
-    print 'Learn Alg:  %s' % (algName)
-
-    ####################################################### Spawn individual tasks
-    for task in xrange( args.taskid, args.taskid+args.nTask ):    
-      if (args.doonline or args.doi): # and task is not args.taskid:
-        # Reload the data generator
-        dataParams['orderseed'] = task
-        Data, dataSummaryStr = load_data( datagenmod, dataParams, args.doonline, args.doi, doAdmix, doHMM )
-
-      # Get unique RNG seed from the jobname, reproducible on any machine
-      #seed = hash( args.jobname+str(task) ) % np.iinfo(int).max
-      seed = int( hashlib.md5( args.jobname[:5]+str(task) ).hexdigest(), 16) % 1e7
-      seed = int(seed)
-      algParams['seed'] = seed
-
-      basepath = os.path.join( os.environ['BNPYOUTDIR'], jobpath, str(task) )
-      mkpath(  basepath )
-      clear_folder( basepath )
-      algParams['savefilename'] = os.path.join( basepath, '' )
-
-      print 'Trial %2d/%d | alg. seed: %d | data seed: %d' \
-                 % (task, args.nTask, algParams['seed'], dataParams['seed'])
-      print '  savefile: %s' % (algParams['savefilename'])
-
-      if jobID > 1:
-        logpath = os.path.join( os.environ['BNPYLOGDIR'], jobpath )
-        mkpath( logpath )
-        clear_folder( logpath, prefix=str(task) )
-        os.symlink( LOGFILEPREFIX+'.out', '%s/%d.out' % (logpath, task) )
-        os.symlink( LOGFILEPREFIX+'.err', '%s/%d.err' % (logpath, task) )
-        print '   logfile: %s' % (logpath)
-    
-      curmodel = copy.deepcopy(model)
-
-      ##########################################################  Run Learning Alg
-      if args.doonline:
-        if args.dosplitmerge:
-          learnAlg = bnpy.learn.OnlineVBSMLearnAlg( **algParams )
-        else:
-          learnAlg = bnpy.learn.OnlineVBLearnAlg( **algParams )
-        learnAlg.init_global_params( curmodel, InitData, seed, nIterInit=args.nIterInit )
-        learnAlg.fit( curmodel, Data ) # remember, Data is a Generator object here!
-      elif algName == 'CGS':
-        learnAlg = bnpy.learn.GibbsSamplerAlg( **algParams )
-        learnAlg.fit( curmodel, Data, seed )
-      elif args.doi:
-        if args.dosplitmerge:
-          print 'iVB + SPLIT + MERGE'
-          learnAlg = bnpy.learn.iVBSMLearnAlg( **algParams )
-        else:
-          print 'iVB fixed truncation'
-          learnAlg = bnpy.learn.iVBLearnAlg(  **algParams )
-        
-        learnAlg.init_global_params( curmodel, InitData, seed, nIterInit=args.nIterInit )
-
-        if args.dodebugelbocalc:
-          assert InitData['nObs'] == args.batch_size*args.nBatch
-          learnAlg.fit( curmodel, Data, AllData=InitData ) # remember, Data is a Generator object here!
-        else:
-          learnAlg.fit( curmodel, Data ) # remember, Data is a Generator object here!
-      elif args.dobatch:
-        if args.dosplitmerge:
-          learnAlg = bnpy.learn.VBSMLearnAlg( **algParams )
-        elif args.doincremental:
-          learnAlg = bnpy.learn.IncrementalVBLearnAlg(  **algParams )
-        else:
-          learnAlg = bnpy.learn.VBLearnAlg(  **algParams )
-          
-        learnAlg.init_global_params( curmodel, Data, seed, nIterInit=args.nIterInit )
-        learnAlg.fit( curmodel, Data )
-            
-      if args.doprintfinal:
-        curmodel.print_global_params()
-
-    ##########################################################  Wrap Up
-    return None
-'''
 
 if __name__ == '__main__':
   main()

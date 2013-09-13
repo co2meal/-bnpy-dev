@@ -110,7 +110,7 @@ class MixModel(AllocModel):
     assert np.allclose( resp.sum(axis=1), 1.0 )
     if self.inferType == 'EM':
         LP['evidence'] = lprPerItem.sum()
-    
+    # Don't need this memory anymore
     del LP['E_log_soft_ev']
     return LP
     
@@ -144,7 +144,7 @@ class MixModel(AllocModel):
       if np.allclose( self.alpha0, 0.0 ):
         return LP['evidence']
       else:
-        raise ValueError("TO DO: log pdf dirichlet")
+        return LP['evidence'] + self.log_pdf_dirichlet(self.w)
         
     elif self.inferType.count('VB') >0:
       evW = self.E_logpW() - self.E_logqW()
@@ -179,3 +179,11 @@ class MixModel(AllocModel):
     '''
     return gammaln(self.alpha.sum())-gammaln(self.alpha).sum() \
              + np.inner( (self.alpha-1), self.Elogw )
+
+  def log_pdf_dirichlet( self, wvec=None, avec=None):
+    if wvec is None:
+      wvec = self.w
+    if avec is None:
+      avec = self.alpha0*np.ones(self.K)
+    logC = gammaln(np.sum(avec)) - np.sum(gammaln(avec))      
+    return logC + np.sum((avec-1.0)*np.log(wvec))

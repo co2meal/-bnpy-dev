@@ -105,7 +105,7 @@ class ObsCompSet( object ):
   def calc_local_params( self, Data, LP=dict()):
     if self.inferType == 'EM':
       LP['E_log_soft_ev'] = self.log_soft_ev_mat( Data )
-    elif self.qType.count('VB') >0:
+    elif self.inferType.count('VB') >0:
       LP['E_log_soft_ev'] = self.E_log_soft_ev_mat( Data )
     return LP
 

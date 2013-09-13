@@ -11,8 +11,8 @@ repeating the steps of a monotonic increasing objective function until convergen
 EM recovers the parameters for a *point-estimate* of quantities of interest
 while VB learns the parameters of an approximate *distribution* over quantities of interest
 '''
+from IPython import embed
 import numpy as np
-
 from bnpy.learn import LearnAlg
 
 class VBLearnAlg( LearnAlg ):
@@ -24,7 +24,7 @@ class VBLearnAlg( LearnAlg ):
     self.set_start_time_now()
     prevBound = -np.inf
     LP = None
-    for iterid in xrange(self.args['maxPassThruData']):
+    for iterid in xrange(self.algParams['maxPassThruData']):
       lap = iterid
       if iterid > 0:
         # M-step
@@ -38,7 +38,7 @@ class VBLearnAlg( LearnAlg ):
       evBound = hmodel.calc_evidence(Data, SS, LP)
       
       # Save and display progress
-      self.add_nObs(Data['nObs'])
+      self.add_nObs(Data.nObs)
       self.save_state(hmodel, iterid, lap, evBound)
       self.print_state(hmodel, iterid, lap, evBound)
 
@@ -48,12 +48,14 @@ class VBLearnAlg( LearnAlg ):
       isConverged = self.verify_evidence( evBound, prevBound )
 
       if isConverged:
-        status = 'converged.'
         break
       prevBound = evBound
 
-    #Finally, save, print and exit 
-    status = "max passes thru data exceeded."
+    #Finally, save, print and exit
     self.save_state(hmodel,iterid, lap, evBound, doFinal=True) 
+    if isConverged:
+      status = "converged."
+    else:
+      status = "max passes thru data exceeded."
     self.print_state(hmodel,iterid, lap, evBound, doFinal=True, status=status)
     return LP

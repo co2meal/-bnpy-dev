@@ -7,9 +7,12 @@ def parseArgs(ConfigPaths):
   parser.add_argument('allocModelName')
   parser.add_argument('obsModelName')
   parser.add_argument('algName')
-  
+  args, unkargs = parser.parse_known_args()
   for filepath in ConfigPaths:
-    addArgGroupFromConfigFile( parser, filepath)
+    if filepath.count('inference') > 0:
+      addArgGroupFromConfigFile(parser, filepath, args.algName)
+    else:
+      addArgGroupFromConfigFile(parser, filepath)
   args = parser.parse_args()
   argDict = dict( dataName=args.dataName,
                   allocModelName=args.allocModelName,
@@ -35,11 +38,14 @@ def addArgsToDictByConfigFile( argDict, args, filepath):
     secArgDict = dict([ (k,v) for (k,v) in vars(args).items() if k in DefDict])
     argDict[secName] = secArgDict
 
-def addArgGroupFromConfigFile( parser, confFilePath):
+def addArgGroupFromConfigFile(parser, confFilePath, targetSectionName=None):
   config = readConfigParser( confFilePath)
   for secName in config.sections():
     if secName.count("Help") > 0:
       continue
+    if targetSectionName is not None:
+      if secName != targetSectionName:
+        continue
     DefDict = dict( config.items( secName ) )
     try:
       HelpDict = dict( config.items( secName+"Help") )
@@ -62,11 +68,8 @@ def addArgGroupFromConfigFile( parser, confFilePath):
 
 '''
 Automatically determine what type the argument takes based on its default value
-  Decides between int/float based on whether a decimal point is included!
 '''
 def getType( defVal ):
-  if defVal.count('.') > 0:
-    return float
   if defVal == 'true' or defVal == 'True':
     return True
   if defVal == 'false' or defVal == 'False':
@@ -75,11 +78,12 @@ def getType( defVal ):
     int( defVal )
     return int
   except Exception:
-    try:
-      float(defVal)
-      return float
-    except Exception:
-      return str
+    pass
+  try:
+    float(defVal)
+    return float
+  except Exception:
+    return str
     
 if __name__ == '__main__':
   print parseArgs( ['config/allocmodel.conf','config/obsmodel.conf'])

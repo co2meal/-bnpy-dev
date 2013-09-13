@@ -19,24 +19,17 @@ Log.setLevel(logging.DEBUG)
 
 class LearnAlg(object):
 
-  def __init__(self, savedir=None, seed=0, argDict=dict()):
-    self.args = argDict
+  def __init__(self, savedir=None, seed=0, algParams=dict(), outputParams=dict()):
     self.savedir = os.path.splitext(savedir)[0]
-    self.TraceIters = dict()
-    self.SavedIters = dict()
+    self.PRNG = np.random.RandomState(seed)
+    self.algParams = algParams
+    self.outputParams = outputParams
+    self.TraceIters = set()
+    self.SavedIters = set()
+    self.PrintIters = set()
     self.nObsProcessed = 0
-    if 'printEvery' in argDict:
-      self.printEvery = argDict['printEvery']
-    else:
-      self.printEvery = 0
-    if 'saveEvery' in argDict:
-      self.saveEvery = argDict['saveEvery']
-    else:
-      self.saveEvery = 0
-    if 'convergeTHR' in argDict:
-      self.convergeTHR = argDict['convergeTHR']
     
-  def fit(self, hmodel, Data, seed):
+  def fit(self, hmodel, Data):
     ''' Execute learning algorithm for hmodel on Data
         This method is extended by any subclass of LearnAlg
 
@@ -64,10 +57,16 @@ class LearnAlg(object):
     ''' Compare current and previous evidence (ELBO) values,
         and verify that (within numerical tolerance) evidence increases monotonically
     '''
+    if np.isnan(evBound):
+      raise ValueError("Evidence should never be NaN")
+    if np.isinf(prevBound):
+      return False
     isIncreasing = prevBound <= evBound
     absDiff = np.abs(prevBound - evBound)
     percDiff = absDiff / np.abs(prevBound)
-    isWithinTHR = absDiff <= self.convergeTHR or percDiff <= self.convergeTHR
+
+    convergeTHR = self.algParams['convergeTHR']
+    isWithinTHR = absDiff <= convergeTHR or percDiff <= convergeTHR
     if not isIncreasing:
       if not isWithinEPS:
         warnMsg = 'WARNING: evidence decreased!\n' \
@@ -79,32 +78,41 @@ class LearnAlg(object):
 
   #########################################################  
   #########################################################  Save to file
-  #########################################################  
+  #########################################################      
   def save_state( self, hmodel, iterid, lap, evBound, doFinal=False):
-    if self.saveEvery <= 0:
+    ''' Save state of the hmodel's global parameters and evBound
+    '''
+    saveEvery = self.outputParams['saveEvery']
+    traceEvery = self.outputParams['traceEvery']
+    if saveEvery <= 0:
       return    
+
+    def mkfile(fname):
+      ''' Create valid path to file in this alg's output directory 
+      '''
+      return os.path.join(self.savedir, fname)
 
     if iterid not in self.TraceIters:
       if iterid == 0:
         mode = 'w'
       else:
         mode = 'a'
-      if doFinal or (iterid % (self.traceEvery)==0):
-        self.TraceIters[iterid] = True
-        with open( self.savedir+'iters.txt', mode) as f:        
+      if doFinal or (iterid % traceEvery == 0):
+        self.TraceIters.add(iterid)
+        with open( mkfile('iters.txt'), mode) as f:        
           f.write('%.d\n' % (iterid))
-        with open( self.savedir+'laps.txt', mode) as f:        
+        with open( mkfile('laps.txt'), mode) as f:        
           f.write('%.4f\n' % (lap))
-        with open( self.savedir+'evidence.txt', mode) as f:        
+        with open( mkfile('evidence.txt'), mode) as f:        
           f.write('%.9e\n' % (evBound))
-        with open( self.savedir+'nObs.txt', mode) as f:
+        with open( mkfile('nObs.txt'), mode) as f:
           f.write('%d\n' % (self.nObsProcessed))
-        with open( self.savedir+'times.txt', mode) as f:
+        with open( mkfile('times.txt'), mode) as f:
           f.write('%.3f\n' % (self.get_elapsed_time()))
 
     if iterid not in self.SavedIters:
-      if doFinal or iterid < 3 or ( iterid % (self.saveEvery)==0 ):
-        self.SavedIters[iterid] = True
+      if doFinal or iterid < 3 or ( iterid % saveEvery ==0 ):
+        self.SavedIters.add(iterid)
         prefix = 'Iter%05d'%(iterid)
         ModelWriter.save_model( hmodel, self.savedir, prefix, doSavePriorInfo=(iterid<1) )
 
@@ -112,23 +120,30 @@ class LearnAlg(object):
   #########################################################  Print State
   #########################################################  
   def print_state( self, hmodel, iterid, lap, evBound, doFinal=False, status='', rho=None):
-    if self.printEvery <= 0:
+    printEvery = self.outputParams['printEvery']
+    if printEvery <= 0:
       return None
-    doPrint = iterid < 3 or iterid % self.printEvery==0
+    doPrint = iterid < 3 or iterid % printEvery == 0
       
     if rho is None:
       rhoStr = ''
     else:
       rhoStr = '%.4f |' % (rho)
 
-    logmsg = '  %5d/%d after %6.0f sec. | K %4d | ev % .9e %s'
-    logmsg = logmsg % (iterid, 
-                        self.Niter, 
+    if iterid == lap:
+      lapStr = '%7d' % (lap)
+    else:
+      lapStr = '%7.2f' % (lap)
+
+    logmsg = '  %s/%d after %6.0f sec. | K %4d | ev % .9e %s'
+    logmsg = logmsg % (lapStr, 
+                        self.algParams['maxPassThruData'],
                         self.get_elapsed_time(),
                         hmodel.allocModel.K,
                         evBound, 
                         rhoStr)
-    
-    Log.info(logmsg)
+    if (doFinal or doPrint) and iterid not in self.PrintIters:
+      self.PrintIters.add(iterid)
+      Log.info(logmsg)
     if doFinal:
       Log.info('... done. %s' % (status))
