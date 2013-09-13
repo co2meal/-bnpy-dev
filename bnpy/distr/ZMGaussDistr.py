@@ -39,6 +39,9 @@ class ZMGaussDistr( Distr ):
   ##############################################################    
   ############################################################## Derived parameters
   ##############################################################
+  def ECovMat(self):
+    return self.get_covar()
+  
   def get_covar(self):
     if self.doSigma: 
       return self.Sigma

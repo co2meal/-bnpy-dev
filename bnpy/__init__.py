@@ -16,7 +16,7 @@ import ioutil
 import init
 
 import learn
-#import viz
+import viz
 
 __all__ = ['learn', 'allocmodel','obsmodel', 'suffstats',
            'HModel', 'init', 'util','ioutil','viz','distr']

@@ -38,10 +38,14 @@ def main( jobID=1, taskID=1, LOGFILEPREFIX=None):
   starttaskid = ArgDict['OutputPrefs']['taskid']
   nTask = ArgDict['OutputPrefs']['nTask']
   for taskid in xrange(starttaskid, starttaskid+nTask):
-    run_training_task(ArgDict, taskid=taskid, nTask=1)
+    run_training_task(ArgDict, taskid=taskid, nTask=nTask)
   
-def run_training_task(ArgDict, taskid=0, nTask=1, doSaveToDisk=True, doWriteStdOut=True): 
+def run_training_task(ArgDict, taskid=1, nTask=1, doSaveToDisk=True, doWriteStdOut=True): 
     ''' Run training given specifications for data, model and inference
+        Args
+        -------
+        ArgDict : dictionary of arguments, produced by BNPYArgParser
+        taskid  : int id of current run. Count starts at 1. 
     '''
     
     taskoutpath = getOutputPath(ArgDict, taskID=taskid)
@@ -62,11 +66,16 @@ def run_training_task(ArgDict, taskid=0, nTask=1, doSaveToDisk=True, doWriteStdO
 
     learnAlg = createLearnAlg(Data, hmodel, ArgDict, \
                               algseed=algseed, savepath=taskoutpath)
-
-    Log.info(Data.summary)
-    Log.info(hmodel.get_model_info())
-
-    printTaskSummary(taskid, nTask, algseed, dataseed)
+                              
+    if taskid == 1:
+      Log.info(Data.summary)
+      Log.info(Data.summarize_num_observations())
+      Log.info(hmodel.get_model_info())
+      Log.info('Learn Alg: %s' % (ArgDict['algName']))
+    
+    Log.info('Trial %2d/%d | alg. seed: %d | data seed: %d' \
+                 % (taskid, nTask, algseed, dataseed)
+            )
     Log.info('savepath: %s' % (taskoutpath))
 
     learnAlg.fit(hmodel, Data)
@@ -97,13 +106,7 @@ def createLearnAlg(Data, model, ArgDict, algseed=0, savepath=None):
   else:
     raise NotImplementedError("Unknown learning algorithm " + algName)
   return learnAlg
-
-def printTaskSummary( taskID, nTask, algseed, dataseed): 
-  Log.info( 'Trial %2d/%d | alg. seed: %d | data seed: %d' \
-                 % (taskID+1, nTask, algseed, dataseed)
-            )
-
-  
+ 
 def createUniqueRandomSeed( jobname, taskID=0):
   ''' Get unique RNG seed from the jobname, reproducible on any machine
   '''
@@ -146,7 +149,7 @@ def writeArgsToFile( ArgDict, taskoutpath ):
   ''' Save arguments as key/val pairs to a plain text file
       so that we can figure out what settings were used for a saved run later on
   '''
-  RelevantOpts = dict()
+  RelevantOpts = dict(Initialization=1, OutputPrefs=1)
   for key in ArgDict:
     if key.count('Name') > 0:
       RelevantOpts[ ArgDict[key] ] = 1

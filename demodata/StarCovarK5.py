@@ -38,10 +38,12 @@ def sample_data_from_comp( k, Nk, PRNG ):
   return Mu[k,:] + np.dot(cholSigma[k].T, PRNG.randn(D, Nk) ).T
 
 def get_short_name( ):
+  ''' Return short string used in filepaths to store solutions
+  '''
   return 'StarCovarK5'
 
 def get_data_info():
-  return 'Overlapping Star Toy Data. K=%d. D=%d.' % (K,D)
+  return 'Overlapping Star Toy Data. Ktrue=%d. D=%d.' % (K,D)
 
 ######################################################################  MixModel Data
 def get_X( seed, nObsTotal):
@@ -64,33 +66,3 @@ def get_data( seed=8675309, nObsTotal=25000, **kwargs ):
   Data = XData(X=X)
   Data.summary = get_data_info()
   return Data
-
-'''
-def minibatch_iterator( batch_size=5000, nBatch=10, nRep=1, seed=8675309, orderseed=42, **kwargs):
-  # NB: X, Z are already shuffled
-  X, TrueZ = get_X( seed, batch_size*nBatch )
-  Data = dict( X=X, nObs=X.shape[0])
-  MBG = MinibatchIterator( Data, nBatch=nBatch, batch_size=batch_size, nRep=nRep, orderseed=orderseed )
-  return MBG
-
-def minibatch_generator( batch_size=5000, nBatch=10, nRep=1, seed=8675309, orderseed=42, **kwargs):
-  # NB: X, Z are already shuffled
-  X, TrueZ = get_X( seed, batch_size*nBatch )
-
-  # Divide data into permanent set of minibatches
-  obsIDs = range( X.shape[0] )
-  obsIDByBatch = dict()
-  for batchID in range( nBatch):
-    obsIDByBatch[batchID] = obsIDs[:batch_size]
-    del obsIDs[:batch_size]
-
-  # Now generate the minibatches one at a time
-  PRNG = np.random.RandomState( orderseed )
-  for repID in range( nRep):
-    batchIDs = PRNG.permutation( nBatch )
-    print '-------------------------------------------------------  batchIDs=', batchIDs[:4], '...'
-    for passID,bID in enumerate(batchIDs):
-      curX = X[ obsIDByBatch[bID] ].copy()
-      curData = dict( X=curX, nObs=curX.shape[0], nTotal=batch_size*nBatch, bID=bID, passID=passID )
-      yield curData
-'''

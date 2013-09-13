@@ -120,7 +120,7 @@ class HModel( object ):
   def get_model_info( self ):
     s =  'Allocation Model:  %s\n'  % (self.allocModel.get_info_string())
     s += 'Obs. Data  Model:  %s\n' % (self.obsModel.get_info_string())
-    s += 'Obs. Data  Prior:  %s\n' % (self.obsModel.get_info_string_prior())
+    s += 'Obs. Data  Prior:  %s' % (self.obsModel.get_info_string_prior())
     return s
   
   def print_global_params( self ):

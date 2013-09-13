@@ -26,6 +26,9 @@ class XData(object):
   def __str__(self):
     return self.X.__str__()
     
+  def summarize_num_observations(self):
+    return '  num obs: %d' % (self.nObsTotal)
+    
   def check_dims( self ):
     assert self.X.ndim == 2
     assert self.X.flags.c_contiguous

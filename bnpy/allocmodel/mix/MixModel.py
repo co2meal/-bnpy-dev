@@ -19,9 +19,9 @@ class MixModel(AllocModel):
   def __init__(self, inferType, priorDict=None):
     self.inferType = inferType
     if priorDict is None:
-      self.alpha0 = 0
+      self.alpha0 = 1.0 # Uniform!
     else:
-      self.alpha0 = priorDict['alpha0']
+      self.set_prior(priorDict)
     self.K = 0
     
   def isReady(self):
@@ -38,7 +38,9 @@ class MixModel(AllocModel):
   ############################################################## 
   def set_prior(self, PriorParamDict):
     self.alpha0 = PriorParamDict['alpha0']
-    
+    if self.alpha0 < 1.0 and self.inferType == 'EM':
+      raise ValueError("Cannot perform MAP inference if Dir prior param alpha0 < 1")
+      
   ##############################################################    
   ############################################################## human readable I/O  
   ##############################################################  
@@ -110,7 +112,7 @@ class MixModel(AllocModel):
     assert np.allclose( resp.sum(axis=1), 1.0 )
     if self.inferType == 'EM':
         LP['evidence'] = lprPerItem.sum()
-    # Don't need this memory anymore
+    # Reclaim memory, don't need NxK matrix anymore
     del LP['E_log_soft_ev']
     return LP
     
@@ -118,7 +120,7 @@ class MixModel(AllocModel):
   ############################################################## Global Param Updates   
   ##############################################################
   def update_global_params_EM( self, SS, **kwargs):
-    if np.allclose(self.alpha0, 0.0):
+    if np.allclose(self.alpha0, 1.0):
       w = SS.Nvec
     else:
       w = SS.Nvec + self.alpha0 - 1.0  # MAP estimate. Requires alpha0>1
@@ -141,10 +143,7 @@ class MixModel(AllocModel):
   ##############################################################
   def calc_evidence( self, Data, SS, LP):
     if self.inferType == 'EM':
-      if np.allclose( self.alpha0, 0.0 ):
-        return LP['evidence']
-      else:
-        return LP['evidence'] + self.log_pdf_dirichlet(self.w)
+      return LP['evidence'] + self.log_pdf_dirichlet(self.w)
         
     elif self.inferType.count('VB') >0:
       evW = self.E_logpW() - self.E_logqW()

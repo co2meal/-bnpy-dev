@@ -100,7 +100,7 @@ class LearnAlg(object):
       if doFinal or (iterid % traceEvery == 0):
         self.TraceIters.add(iterid)
         with open( mkfile('iters.txt'), mode) as f:        
-          f.write('%.d\n' % (iterid))
+          f.write('%d\n' % (iterid))
         with open( mkfile('laps.txt'), mode) as f:        
           f.write('%.4f\n' % (lap))
         with open( mkfile('evidence.txt'), mode) as f:        
@@ -114,7 +114,8 @@ class LearnAlg(object):
       if doFinal or iterid < 3 or ( iterid % saveEvery ==0 ):
         self.SavedIters.add(iterid)
         prefix = 'Iter%05d'%(iterid)
-        ModelWriter.save_model( hmodel, self.savedir, prefix, doSavePriorInfo=(iterid<1) )
+        ModelWriter.save_model(hmodel, self.savedir, prefix,
+                                doSavePriorInfo=(iterid<1), doLinkBest=True)
 
   #########################################################  
   #########################################################  Print State

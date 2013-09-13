@@ -25,7 +25,6 @@ class VBLearnAlg( LearnAlg ):
     prevBound = -np.inf
     LP = None
     for iterid in xrange(self.algParams['maxPassThruData']):
-      lap = iterid
       if iterid > 0:
         # M-step
         hmodel.update_global_params(SS) 
@@ -39,12 +38,12 @@ class VBLearnAlg( LearnAlg ):
       
       # Save and display progress
       self.add_nObs(Data.nObs)
+      lap = iterid
       self.save_state(hmodel, iterid, lap, evBound)
       self.print_state(hmodel, iterid, lap, evBound)
 
       # Check for Convergence!
-      #  throw error if our bound calculation isn't working properly
-      #    but only if the gap is greater than some tolerance
+      #  report warning if bound isn't increasing monotonically
       isConverged = self.verify_evidence( evBound, prevBound )
 
       if isConverged:

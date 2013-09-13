@@ -24,13 +24,11 @@ def load_model( matfilepath, prefix='Best'):
   import bnpy.HModel as HModel
   obsModel = load_obs_model(matfilepath, prefix)
   allocModel = load_alloc_model(matfilepath, prefix)
-  print allocModel.K
   return HModel(allocModel, obsModel)
   
 def load_alloc_model(matfilepath, prefix):
   APDict = load_dict_from_matfile(os.path.join(matfilepath,'AllocPrior.mat'))
   ADict = load_dict_from_matfile(os.path.join(matfilepath,prefix+'AllocModel.mat'))
-  print ADict
   AllocConstr = GDict[ADict['name']]
   amodel = AllocConstr( ADict['inferType'], APDict )
   amodel.from_dict( ADict)

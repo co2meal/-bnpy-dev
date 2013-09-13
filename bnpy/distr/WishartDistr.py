@@ -15,6 +15,10 @@ class WishartDistr( Distr ):
 
   @classmethod
   def InitFromData( cls, argDict, Data):
+    ''' Create Wishart distr object indirectly
+        by ensuring that it matches dimension with Data
+        and that it has the expected covar matrix specified by argDict
+    '''
     D = Data.dim
     v  = np.maximum( argDict['dF'], D+2)
     if argDict['smatname'] == 'eye':
@@ -25,7 +29,7 @@ class WishartDistr( Distr ):
       raise ValueError( 'Unrecognized scale matrix name %s' %(smatname) )
     return cls( v=v, invW=Sigma*(v-D-1) )
 
-  def __init__( self, v=None, invW=None):
+  def __init__( self, v=None, invW=None, **kwargs):
     self.v = float(v)
     self.invW = np.asarray(invW)
     self.D = self.invW.shape[0]

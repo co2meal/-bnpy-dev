@@ -90,10 +90,10 @@ class ZMGaussObsCompSet( ObsCompSet ):
   #########################################################  
   #########################################################  Standard Gaussian accessors
   ######################################################### 
-  def get_mean( self, k):
+  def get_mean_for_comp( self, k):
     return np.zeros( self.D )
     
-  def get_covar_mat(self, k):
+  def get_covar_mat_for_comp(self, k):
     return self.comp[k].ECovMat()
   
   #########################################################  
