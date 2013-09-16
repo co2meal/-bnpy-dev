@@ -15,7 +15,7 @@ class TestFromScratchGauss(unittest.TestCase):
     X = PRNG.randn(100,2)
     self.Data = XData(X=X)
 
-    aPDict = dict(alpha0=0.0)
+    aPDict = dict(alpha0=1.0)
     oPDict = dict(min_covar=1e-9)
     self.hmodel = HModel.InitFromData('EM','MixModel','ZMGauss', aPDict, oPDict, self.Data)
 

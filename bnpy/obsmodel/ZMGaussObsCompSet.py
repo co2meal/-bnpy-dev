@@ -103,7 +103,8 @@ class ZMGaussObsCompSet( ObsCompSet ):
     SSxxT = np.zeros( (K, self.D, self.D) )
     for k in xrange(K):
       SSxxT[k] = dotATA(sqrtResp[:,k][:,np.newaxis]*Data.X )
-    SS.fillComps(ZMGaussSuffStat, xxT=SSxxT)
+    #SS.fillComps(ZMGaussSuffStat, xxT=SSxxT)
+    SS.xxT = SSxxT
     return SS
 
   #########################################################  
@@ -111,18 +112,21 @@ class ZMGaussObsCompSet( ObsCompSet ):
   #########################################################
   def update_obs_params_EM( self, SS, Krange, **kwargs):
     for k in Krange:
-      curSS = SS.comp[k]
+      #curSS = SS.comp[k]
+      curSS = SS.getComp(k)
       covMat  = curSS.xxT/curSS.N
       covMat  += self.min_covar*np.eye(self.D)
       self.comp[k] = ZMGaussDistr( Sigma=covMat )
            				 
   def update_obs_params_VB( self, SS, Krange, **kwargs):
     for k in Krange:
-      self.comp[k] = self.obsPrior.get_post_distr( SS.comp[k] )
+      curSS = SS.getComp(k)
+      self.comp[k] = self.obsPrior.get_post_distr(curSS)
 
   def update_obs_params_soVB( self, SS, rho, Krange, **kwargs):
     for k in Krange:
-      Dstar = self.obsPrior.get_post_distr( SS.comp[k] )
+      curSS = SS.getComp(k)
+      Dstar = self.obsPrior.get_post_distr(curSS)
       self.comp[k].post_update_soVB( rho, Dstar)
       
   #########################################################  
@@ -138,11 +142,11 @@ class ZMGaussObsCompSet( ObsCompSet ):
   def E_logpX( self, SS ):
     lpX = np.zeros( self.K )
     for k in range(self.K):
-      if SS.Nvec[k] == 0:
+      if SS.N[k] == 0:
         continue
-      lpX[k] = SS.Nvec[k]*self.comp[k].ElogdetLam() - \
-                 self.comp[k].E_traceLam( SS.comp[k].xxT )
-    return 0.5*np.sum( lpX ) - 0.5*np.sum(SS.Nvec)*self.D*LOGTWOPI
+      lpX[k] = SS.N[k]*self.comp[k].ElogdetLam() - \
+                 self.comp[k].E_traceLam( SS[k].xxT )
+    return 0.5*np.sum( lpX ) - 0.5*np.sum(SS.N)*self.D*LOGTWOPI
      
   def E_logpPhi( self ):
     return self.E_logpLam()

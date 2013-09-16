@@ -13,20 +13,22 @@ class TestMixZMEM(object):
   def setUp(self):
     X = np.random.randn(100, 3)
     self.Data = XData(X=X)
-    aPDict = dict(alpha0=0.0)
+    aPDict = dict(alpha0=1.0)
     oPDict = dict(min_covar=1e-9)
     self.hmodel = HModel.InitFromData('EM', 'MixModel', 'ZMGauss', aPDict, oPDict, self.Data)
     
   def test_dimension(self):
     assert self.hmodel.obsModel.D == self.Data.dim
     
+  #TODO
+  '''
   def test_get_global_suff_stats_one_cluster(self):
     # Make all data belong to a single cluster
     LP = dict(resp=np.ones((self.Data.nObs,1)))
     SS = self.hmodel.get_global_suff_stats(self.Data, LP)
-    assert np.sum(SS.Nvec) == self.Data.nObs
-    assert np.allclose( SS.comp[0].xxT, np.dot(self.Data.X.T, self.Data.X))
-
+    assert np.sum(SS.N) == self.Data.nObs
+    assert np.allclose( SS.getComp(0).xxT, np.dot(self.Data.X.T, self.Data.X))
+  '''
 ########################################## basic tests for 4-cluster model
 class TestMixZMEM_4Class2D(object):
   def setUp(self):
@@ -34,7 +36,7 @@ class TestMixZMEM_4Class2D(object):
     self.MakeHModel()
   
   def MakeHModel(self):
-    aPDict = dict(alpha0=0.0)
+    aPDict = dict(alpha0=1.0)
     oPDict = dict(min_covar=1e-9)
     self.hmodel = HModel.InitFromData('EM', 'MixModel', 'ZMGauss', aPDict, oPDict, self.Data)
   
@@ -62,7 +64,7 @@ class TestMixZMEM_4Class2D(object):
   def test_get_global_suff_stats(self):
     LP = dict(resp=self.trueresp)
     SS = self.hmodel.get_global_suff_stats(self.Data, LP)
-    assert np.allclose(SS.Nvec, np.sum(self.trueresp,axis=0))
+    assert np.allclose(SS.N, np.sum(self.trueresp,axis=0))
     
   def test_calc_local_params(self):  
     '''

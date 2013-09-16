@@ -11,7 +11,7 @@
 import numpy as np
 
 from bnpy.allocmodel import AllocModel
-from bnpy.suffstats import SuffStatCompSet
+from bnpy.suffstats import SuffStatCompSet, SuffStatDict
 from bnpy.util import logsumexp, np2flatstr, flatstr2np
 from bnpy.util import gammaln, digamma, EPS
 
@@ -85,11 +85,11 @@ class MixModel(AllocModel):
   ##############################################################    
   ############################################################## Suff Stat Calc   
   ##############################################################
-  def get_global_suff_stats(self, Data, LP, Ntotal=None, doPrecompEntropy=None, **kwargs ):
+  def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None, **kwargs):
     ''' 
     '''
     Nvec = np.sum( LP['resp'], axis=0 )
-    SS = SuffStatCompSet(Nvec=Nvec)
+    SS = SuffStatDict(N=Nvec)
     if doPrecompEntropy is not None:
       Elogq_vec = np.sum( LP['resp'] * np.log(EPS+LP['resp']), axis=0)
       SS.addPrecompEntropy( Elogq_vec )
@@ -98,7 +98,7 @@ class MixModel(AllocModel):
   ##############################################################    
   ############################################################## Local Param Updates   
   ##############################################################
-  def calc_local_params( self, Data, LP ):
+  def calc_local_params(self, Data, LP):
     ''' E-step
     '''
     if self.inferType.count('VB') > 0:
@@ -118,21 +118,21 @@ class MixModel(AllocModel):
   ##############################################################    
   ############################################################## Global Param Updates   
   ##############################################################
-  def update_global_params_EM( self, SS, **kwargs):
+  def update_global_params_EM(self, SS, **kwargs):
     if np.allclose(self.alpha0, 1.0):
-      w = SS.Nvec
+      w = SS.N
     else:
-      w = SS.Nvec + self.alpha0 - 1.0  # MAP estimate. Requires alpha0>1
+      w = SS.N + self.alpha0 - 1.0  # MAP estimate. Requires alpha0>1
     self.w = w / w.sum()
     self.K = SS.K
     
   def update_global_params_VB( self, SS, **kwargs):
-    self.alpha = self.alpha0 + SS.Nvec
+    self.alpha = self.alpha0 + SS.N
     self.Elogw = digamma( self.alpha ) - digamma( self.alpha.sum() )
     self.K = SS.K
 
   def update_global_params_soVB( self, SS, rho, **kwargs):
-    alphNew = self.alpha0 + SS.Nvec
+    alphNew = self.alpha0 + SS.N
     self.alpha = rho*alphNew + (1-rho)*self.alpha
     self.Elogw = digamma( self.alpha ) - digamma( self.alpha.sum() )
     self.K = SS.K
@@ -147,19 +147,19 @@ class MixModel(AllocModel):
     elif self.inferType.count('VB') >0:
       evW = self.E_logpW() - self.E_logqW()
       if SS.hasPrecompEntropy():
-        ElogqZ = np.sum( SS.Hvec )
+        ElogqZ = np.sum(SS.getPrecompEntropy())
       else:
-        ElogqZ = self.E_logqZ( LP )
+        ElogqZ = self.E_logqZ(LP)
       if SS.hasAmpFactor():
-        evZ = self.E_logpZ( SS ) -  SS.ampF * ElogqZ
+        evZ = self.E_logpZ(SS) -  SS.ampF * ElogqZ
       else:
-        evZ = self.E_logpZ( SS ) - ElogqZ
+        evZ = self.E_logpZ(SS) - ElogqZ
       return evZ + evW 
       
   def E_logpZ( self, SS ):
     ''' Bishop PRML eq. 10.72
     '''
-    return np.inner( SS.Nvec, self.Elogw )
+    return np.inner( SS.N, self.Elogw )
     
   def E_logqZ( self, LP ):
     ''' Bishop PRML eq. 10.75
