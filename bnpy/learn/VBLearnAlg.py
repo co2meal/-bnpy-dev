@@ -24,12 +24,12 @@ class VBLearnAlg( LearnAlg ):
     self.set_start_time_now()
     prevBound = -np.inf
     LP = None
-    for iterid in xrange(self.algParams['maxPassThruData']):
+    for iterid in xrange(self.algParams['nLap'] + 1):
+      # M step
       if iterid > 0:
-        # M-step
         hmodel.update_global_params(SS) 
       
-      # E-step 
+      # E step 
       LP = hmodel.calc_local_params(Data, LP)
       SS = hmodel.get_global_suff_stats(Data, LP)
 

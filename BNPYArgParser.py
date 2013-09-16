@@ -1,13 +1,20 @@
 import argparse
 import ConfigParser
 
-def parseArgs(ConfigPaths):
+ConfigPaths=['config/allocmodel.conf','config/obsmodel.conf', 
+             'config/init.conf', 'config/inference.conf', 'config/output.conf']
+OnlineDataConfigPath = 'config/onlinedata.conf'
+
+def parseArgs():
   parser = argparse.ArgumentParser()
   parser.add_argument('dataName')
   parser.add_argument('allocModelName')
   parser.add_argument('obsModelName')
   parser.add_argument('algName')
   args, unkargs = parser.parse_known_args()
+  if args.algName.count('o') > 0:
+    ConfigPaths.append(OnlineDataConfigPath)
+
   for filepath in ConfigPaths:
     if filepath.count('inference') > 0:
       addArgGroupFromConfigFile(parser, filepath, args.algName)

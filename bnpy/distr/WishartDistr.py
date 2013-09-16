@@ -15,8 +15,8 @@ class WishartDistr( Distr ):
 
   @classmethod
   def InitFromData( cls, argDict, Data):
-    ''' Create Wishart distr object indirectly
-        by ensuring that it matches dimension with Data
+    ''' Constructor for Wishart distr object 
+        ensures that it matches dimension with Data
         and that it has the expected covar matrix specified by argDict
     '''
     D = Data.dim

@@ -33,13 +33,15 @@ class SuffStatCompSet(object):
   def getNtotal(self):
     return np.sum(Nvec)
     
-  def setAmpFactor(self,ampF):
-    self.ampF = ampF
-  
   def hasAmpFactor(self):
-    return hasattr(self,'ampF')
-  
-  def applyAmpFactor(self):
+    return hasattr(self, 'ampF')  
+    
+  def applyAmpFactor(self, ampF):
+    ''' Apply scalar multiplicative factor to all suff stat quantities
+        so that looks as if data comes from dataset of different size
+    '''
+    self.ampF = ampF
+    self.Nvec *= self.ampF
     for comp in self.comp:
       comp.applyAmpFactor(self.ampF)  
      

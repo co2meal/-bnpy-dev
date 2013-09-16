@@ -92,12 +92,13 @@ class LearnAlg(object):
       '''
       return os.path.join(self.savedir, fname)
 
+    doTrace = np.allclose(lap % traceEvery, 0) or iterid < 3
     if iterid not in self.TraceIters:
       if iterid == 0:
         mode = 'w'
       else:
         mode = 'a'
-      if doFinal or (iterid % traceEvery == 0):
+      if doFinal or doTrace:
         self.TraceIters.add(iterid)
         with open( mkfile('iters.txt'), mode) as f:        
           f.write('%d\n' % (iterid))
@@ -111,7 +112,7 @@ class LearnAlg(object):
           f.write('%.3f\n' % (self.get_elapsed_time()))
 
     if iterid not in self.SavedIters:
-      if doFinal or iterid < 3 or ( iterid % saveEvery ==0 ):
+      if doFinal or iterid < 3 or np.allclose(lap % saveEvery, 0):
         self.SavedIters.add(iterid)
         prefix = 'Iter%05d'%(iterid)
         ModelWriter.save_model(hmodel, self.savedir, prefix,
@@ -124,7 +125,7 @@ class LearnAlg(object):
     printEvery = self.outputParams['printEvery']
     if printEvery <= 0:
       return None
-    doPrint = iterid < 3 or iterid % printEvery == 0
+    doPrint = iterid < 3 or np.allclose(lap % printEvery, 0, atol=1e-8)
       
     if rho is None:
       rhoStr = ''
@@ -136,9 +137,11 @@ class LearnAlg(object):
     else:
       lapStr = '%7.2f' % (lap)
 
-    logmsg = '  %s/%d after %6.0f sec. | K %4d | ev % .9e %s'
+    maxLapStr = '%d' % (self.algParams['nLap'])
+    
+    logmsg = '  %s/%s after %6.0f sec. | K %4d | ev % .9e %s'
     logmsg = logmsg % (lapStr, 
-                        self.algParams['maxPassThruData'],
+                        maxLapStr,
                         self.get_elapsed_time(),
                         hmodel.allocModel.K,
                         evBound, 

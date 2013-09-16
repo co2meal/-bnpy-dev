@@ -66,12 +66,17 @@ class HModel( object ):
   #########################################################  
   #########################################################  Suff Stat Calc
   #########################################################   
-  def get_global_suff_stats( self, Data, LP, **kwargs):
+  def get_global_suff_stats( self, Data, LP, Ntotal=None, **kwargs):
     ''' Calculate sufficient statistics for global parameters, given data and local responsibilities
         This is necessary prep for the M-step of EM/VB.
     '''
     SS = self.allocModel.get_global_suff_stats( Data, LP, **kwargs )
     SS = self.obsModel.get_global_suff_stats( Data, SS, LP, **kwargs )
+    # Change effective scale (nObs) of the suff stats 
+    # (useful for stochastic variational)
+    if Ntotal is not None:
+      ampF = Ntotal / Data.nObs
+      SS.applyAmpFactor(ampF)
     return SS
 
   #########################################################  

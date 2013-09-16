@@ -30,11 +30,11 @@ import numpy as np
 import bnpy
 import BNPYArgParser
 
-ConfigPaths=['config/allocmodel.conf','config/obsmodel.conf', 
-             'config/init.conf', 'config/inference.conf', 'config/output.conf']
+FullDataAlgSet = ['EM','VB']
+OnlineDataAlgSet = ['soVB', 'moVB']
 
 def main( jobID=1, taskID=1, LOGFILEPREFIX=None):
-  ArgDict = BNPYArgParser.parseArgs(ConfigPaths)
+  ArgDict = BNPYArgParser.parseArgs()
   starttaskid = ArgDict['OutputPrefs']['taskid']
   nTask = ArgDict['OutputPrefs']['nTask']
   for taskid in xrange(starttaskid, starttaskid+nTask):
@@ -61,7 +61,7 @@ def run_training_task(ArgDict, taskid=1, nTask=1, doSaveToDisk=True, doWriteStdO
     Data, InitData = loadData(ArgDict, dataseed=dataseed)
 
     # Create and initialize model parameters
-    hmodel = createModel(Data, ArgDict)
+    hmodel = createModel(InitData, ArgDict)
     hmodel.init_global_params(InitData, seed=algseed, **ArgDict['Initialization'])
 
     learnAlg = createLearnAlg(Data, hmodel, ArgDict, \
@@ -83,9 +83,17 @@ def run_training_task(ArgDict, taskid=1, nTask=1, doSaveToDisk=True, doWriteStdO
   
 def loadData(ArgDict, dataseed=0): 
   sys.path.append(os.environ['BNPYDATADIR'])
-  datagenmod = __import__(ArgDict['dataName'],fromlist=[])
-  Data = datagenmod.get_data(seed=dataseed)
-  return Data, Data
+  datamod = __import__(ArgDict['dataName'],fromlist=[])
+  algName = ArgDict['algName']
+  if algName in FullDataAlgSet:
+    Data = datamod.get_data(seed=dataseed)
+    return Data, Data
+  elif algName in OnlineDataAlgSet:
+    ArgDict[algName]['nLap'] = ArgDict['OnlineDataPrefs']['nLap']
+    InitData = datamod.get_data(seed=dataseed)
+    DataIterator = datamod.get_minibatch_iterator(seed=dataseed, **ArgDict['OnlineDataPrefs'])
+    return DataIterator, InitData
+
   
 def createModel(Data, ArgDict):
   algName = ArgDict['algName']
@@ -102,6 +110,12 @@ def createLearnAlg(Data, model, ArgDict, algseed=0, savepath=None):
   outputP = ArgDict['OutputPrefs']
   if algName == 'EM' or algName == 'VB':
     learnAlg = bnpy.learn.VBLearnAlg(savedir=savepath, seed=algseed, \
+                                      algParams=algP, outputParams=outputP)
+  elif algName == 'soVB':
+    learnAlg = bnpy.learn.StochasticOnlineVBLearnAlg(savedir=savepath, seed=algseed, \
+                                      algParams=algP, outputParams=outputP)
+  elif algName == 'moVB':
+    learnAlg = bnpy.learn.MemoizedOnlineVBLearnAlg(savedir=savepath, seed=algseed, \
                                       algParams=algP, outputParams=outputP)
   else:
     raise NotImplementedError("Unknown learning algorithm " + algName)

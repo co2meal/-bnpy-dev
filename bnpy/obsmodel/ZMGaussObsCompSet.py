@@ -14,8 +14,6 @@ from bnpy.util import np2flatstr, dotATA, dotATB, dotABT
 from bnpy.util import LOGPI, LOGTWOPI, LOGTWO, EPS
 from bnpy.suffstats import ZMGaussSuffStat
 
-PriorConstr = dict(EM=None, VB=WishartDistr)
-
 class ZMGaussObsCompSet( ObsCompSet ):
   
   @classmethod
@@ -39,11 +37,11 @@ class ZMGaussObsCompSet( ObsCompSet ):
   @classmethod
   def InitFromData(cls, inferType, priorArgDict, Data):
     D = Data.dim
-    if PriorConstr[inferType] is None:
+    if inferType == 'EM':
       obsPrior = None
       return cls(inferType, D, obsPrior, min_covar=priorArgDict['min_covar'])
     else:
-      obsPrior = PriorConstr[inferType].InitFromData(priorArgDict,Data)
+      obsPrior = WishartDistr.InitFromData(priorArgDict,Data)
       return cls(inferType, D, obsPrior)
   
   def __init__(self, inferType, D=None, obsPrior=None, min_covar=None):
@@ -100,7 +98,7 @@ class ZMGaussObsCompSet( ObsCompSet ):
   #########################################################  Suff Stat Calc
   ######################################################### 
   def get_global_suff_stats(self, Data, SS, LP, **kwargs):
-    sqrtResp = np.sqrt( LP['resp'] )
+    sqrtResp = np.sqrt(LP['resp'])
     K = sqrtResp.shape[1]
     SSxxT = np.zeros( (K, self.D, self.D) )
     for k in xrange(K):

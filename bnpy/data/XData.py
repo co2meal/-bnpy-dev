@@ -1,33 +1,47 @@
 '''
 XData.py
 
-General template for all data objects.
+Data object for holding a dense matrix X of real numbers,
+where each row of X is a single observation.
+
+This object guarantees underlying numpy array representation is best for math ops.
+This means byteorder and C-contiguity are standardized.
 '''
 import numpy as np
-import scipy.io
-np.set_printoptions( precision=5)
+from .DataObj import DataObj
 
-class XData(object):
+class XData(DataObj):
   
   @classmethod
-  def read_from_mat( cls, matfilepath, nObsTotal=None, **kwargs):
+  def read_from_mat(cls, matfilepath, nObsTotal=None, **kwargs):
+    ''' Static Constructor for building an instance of XData from disk
+    '''
+    import scipy.io
     InDict = scipy.io.loadmat( matfilepath, **kwargs)
     if 'X' not in InDict:
       raise KeyError('Stored matfile needs to have data in field named X')
     return cls( InDict['X'], nObsTotal )
   
   def __init__(self, X, nObsTotal=None):
+    ''' Constructor for building an instance of XData given an array
+        Ensures array is 2-dimensional with proper byteorder, contiguity, and ownership
+    '''
     X = np.asarray(X)
     if X.ndim < 2:
       X = X[np.newaxis,:]
     self.X = X.newbyteorder('=').copy()
     self.set_dependent_params(nObsTotal=nObsTotal)
-  
-  def __str__(self):
-    return self.X.__str__()
+    self.check_dims()
     
-  def summarize_num_observations(self):
-    return '  num obs: %d' % (self.nObsTotal)
+  #########################################################  internal methods
+  #########################################################   
+  def set_dependent_params( self, nObsTotal=None): 
+    self.nObs = self.X.shape[0]
+    self.dim = self.X.shape[1]
+    if nObsTotal is None:
+      self.nObsTotal = self.nObs
+    else:
+      self.nObsTotal = nObsTotal
     
   def check_dims( self ):
     assert self.X.ndim == 2
@@ -36,29 +50,19 @@ class XData(object):
     assert self.X.flags.aligned
     assert self.X.flags.writeable
     
-  def set_dependent_params( self, nObsTotal=None): 
-    self.nObs = self.X.shape[0]
-    self.dim = self.X.shape[1]
-    if nObsTotal is None:
-      self.nObsTotal = self.nObs
-    else:
-      self.nObsTotal = nObsTotal
-  
-  def subset_as_XData(self, mask):
-    return XData( self.X[mask], nObsTotal=self.nObsTotal )
-  
-  def add_obs( self, X):
-    if self.nObs != self.nObsTotal:
-      raise ValueError('Adding observations violates consistency of larger dataset!')
-    if type(X) == type( self):
-      self.add_obs_from_mat(X.X)
-    else:
-      self.add_obs_from_mat(X)
-      
-  def add_obs_from_mat(self,X):
-    ''' add numpy matrix X
+  #########################################################  DataObj operations
+  ######################################################### 
+  def select_subset_by_mask(self, mask):
+    ''' Creates new XData object by selecting certain rows (observations)
+        Ensures the nObsTotal attribute is the same.
     '''
-    Xnew = np.asarray(X).copy().newbyteorder('=')
-    self.X = np.vstack( [self.X, Xnew] )
-    self.check_dims()
-    self.set_dependent_params( )
+    return XData(self.X[mask], nObsTotal=self.nObsTotal)
+
+  #########################################################  I/O methods
+  ######################################################### 
+  def __str__(self):
+    np.set_printoptions(precision=5)
+    return self.X.__str__()
+    
+  def summarize_num_observations(self):
+    return '  num obs: %d' % (self.nObsTotal)

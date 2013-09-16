@@ -16,6 +16,12 @@ class ZMGaussSuffStat(SuffStat):
       assert self.xxT.size==1
       self.xxT = np.asarray([[np.squeeze(xxT)]])
     self.D = self.xxT.shape[0]
+
+  def applyAmpFactor(self, ampF):
+    ''' Amplify the current sufficient statistics by scalar multiplicative factor
+    '''
+    self.N *= ampF
+    self.xxT *= ampF  
     
   def toDict(self):
     return dict(N=self.N, xxT=self.xxT)

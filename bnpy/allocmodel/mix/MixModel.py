@@ -85,12 +85,11 @@ class MixModel(AllocModel):
   ##############################################################    
   ############################################################## Suff Stat Calc   
   ##############################################################
-  def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None, **kwargs ):
+  def get_global_suff_stats(self, Data, LP, Ntotal=None, doPrecompEntropy=None, **kwargs ):
     ''' 
     '''
     Nvec = np.sum( LP['resp'], axis=0 )
-    SS = SuffStatCompSet( Nvec=Nvec )
-
+    SS = SuffStatCompSet(Nvec=Nvec)
     if doPrecompEntropy is not None:
       Elogq_vec = np.sum( LP['resp'] * np.log(EPS+LP['resp']), axis=0)
       SS.addPrecompEntropy( Elogq_vec )

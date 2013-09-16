@@ -20,6 +20,11 @@ from MinibatchIterator import MinibatchIterator
 from XData import XData
 
 class MinibatchIteratorFromDisk( MinibatchIterator):
+
+  def __init__(self):
+    raise NotImplementedError("TODO")
+
+'''
   def __init__( self, fList, nObsTotal, nBatch=None, nRep=10, dataseed=42):
     if nBatch is None or nBatch > len(fList):
       nBatch = len(fList)
@@ -29,3 +34,4 @@ class MinibatchIteratorFromDisk( MinibatchIterator):
     
   def get_batch_as_XData( self, bID):
     return XData.read_from_mat( self.fList[bID], nObsTotal=self.nObsTotal )
+'''
