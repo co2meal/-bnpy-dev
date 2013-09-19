@@ -1,5 +1,5 @@
 '''
-Unit tests for basic EM learning for the Mix - ZMGauss hmodel 
+Unit tests for basic VB learning for the Mix - ZMGauss hmodel 
 '''
 import numpy as np
 np.set_printoptions(precision=3)
@@ -9,34 +9,38 @@ from bnpy.data import XData
 from bnpy.util import RandUtil
 
 ########################################## basic tests for 1-cluster model
-class TestMixZMEM(object):
+class TestMixZMVB(object):
   def setUp(self):
     X = np.random.randn(100, 3)
     self.Data = XData(X=X)
     aPDict = dict(alpha0=1.0)
-    oPDict = dict(min_covar=1e-9)
-    self.hmodel = HModel.InitFromData('EM', 'MixModel', 'ZMGauss', aPDict, oPDict, self.Data)
+    oPDict = dict(dF=5, smatname='eye', sF=1.0)
+    self.hmodel = HModel.InitFromData('VB', 'MixModel', 'ZMGauss', aPDict, oPDict, self.Data)
     
   def test_dimension(self):
     assert self.hmodel.obsModel.D == self.Data.dim
 
   def test_get_global_suff_stats_one_cluster(self):
-    # Make all data belong to a single cluster
+    ''' Verify correctness when all data forced to be in one cluster by responsibility
+    '''
     LP = dict(resp=np.ones((self.Data.nObs,1)))
     SS = self.hmodel.get_global_suff_stats(self.Data, LP)
     assert np.sum(SS.N) == self.Data.nObs
-    assert np.allclose( SS.getComp(0).xxT, np.dot(self.Data.X.T, self.Data.X))
+    assert np.allclose(SS.getComp(0).xxT, np.dot(self.Data.X.T, self.Data.X))
+    self.hmodel.update_global_params(SS)
+    assert np.allclose( self.hmodel.allocModel.Elogw, [0])
+
 
 ########################################## basic tests for 4-cluster model
-class TestMixZMEM_4Class2D(object):
+class TestMixZMVB_4Class2D(object):
   def setUp(self):
     self.MakeData()
     self.MakeHModel()
   
   def MakeHModel(self):
     aPDict = dict(alpha0=1.0)
-    oPDict = dict(min_covar=1e-9)
-    self.hmodel = HModel.InitFromData('EM', 'MixModel', 'ZMGauss', aPDict, oPDict, self.Data)
+    oPDict = dict(dF=5, smatname='eye', sF=1.0)
+    self.hmodel = HModel.InitFromData('VB', 'MixModel', 'ZMGauss', aPDict, oPDict, self.Data)
   
   def MakeData(self, N=10000):
     S1 = np.asarray([[100, 0], [0, 0.01]])
@@ -57,7 +61,6 @@ class TestMixZMEM_4Class2D(object):
     X = np.vstack(Xlist)
     self.Data = XData(X=X)
     self.trueresp = np.vstack(Rlist)
-    
     
   def test_get_global_suff_stats(self):
     LP = dict(resp=self.trueresp)
@@ -90,7 +93,7 @@ class TestMixZMEM_4Class2D(object):
     self.hmodel.update_global_params(SS)
     for k in range( self.Sigma.shape[2]):
       curSigma = self.Sigma[:,:,k]
-      curSigmaHat = self.hmodel.obsModel.comp[k].Sigma
+      curSigmaHat = self.hmodel.obsModel.comp[k].ECovMat()
       percDiff = np.abs(curSigma - curSigmaHat)/(0.00001+curSigma)
       absDiff = np.abs(curSigma - curSigmaHat)
       # Each entry in Sigma must be close to the entry in SigmaHat

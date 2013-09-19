@@ -1,22 +1,27 @@
 '''
 HModel.py
-Represents hierarchical Bayesian model with conditional distributions in exponential family.     
+
+Represents hierarchical Bayesian model with conditional distributions in exponential family. This 
+
+3 fundamental operations are exposed for learning/inference
+calc_local_params
+get_global_suff_stats
+update_global_params
+     
 '''
 from collections import defaultdict
 import numpy as np
 import os
 import copy
-import time
 
 import init
 from obsmodel import *
 from allocmodel import *
 
-# Dictionary map
+# Dictionary map that turns string input at command line into desired bnpy objects
 # string --> bnpy object constructor
-AllocConstr = {'MixModel':MixModel,'DPMixModel':DPMixModel}
-
-ObsConstr = {'ZMGauss':ZMGaussObsCompSet} #Gauss=GaussObsCompSet
+AllocConstr = {'MixModel':MixModel, 'DPMixModel':DPMixModel}
+ObsConstr = {'ZMGauss':ZMGaussObsCompSet, 'Gauss':GaussObsCompSet}
                    
 class HModel( object ):
 

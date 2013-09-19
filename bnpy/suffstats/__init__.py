@@ -1,7 +1,7 @@
-from SuffStat import SuffStat
-from SuffStatCompSet import SuffStatCompSet
-from ZMGaussSuffStat import ZMGaussSuffStat
+'''
+suffstats module defines objects that represent sufficient statistics
+'''
 
 from SuffStatDict import SuffStatDict
 
-__all__ = ['SuffStatDict', 'SuffStat','SuffStatCompSet','ZMGaussSuffStat']
+__all__ = ['SuffStatDict']

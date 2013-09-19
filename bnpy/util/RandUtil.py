@@ -25,6 +25,8 @@ def mvnrand(mu, Sigma, N=1, PRNG=np.random.RandomState()):
   return PRNG.multivariate_normal(mu, Sigma, (N))
   
 def rotateCovMat( Sigma, theta=np.pi/4):
+  ''' Returns valid covariance matrix with same eigen structure, rotated by theta radians
+  '''
   RotMat = [[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]]
   RotMat = np.asarray( RotMat)
   Lam,V = np.linalg.eig( Sigma )

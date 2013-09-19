@@ -18,6 +18,10 @@ def parseArgs():
   for filepath in ConfigPaths:
     if filepath.count('inference') > 0:
       addArgGroupFromConfigFile(parser, filepath, args.algName)
+    elif filepath.count('allocmodel') > 0:
+      addArgGroupFromConfigFile(parser, filepath, args.allocModelName)
+    elif filepath.count('obsmodel') > 0:
+      addArgGroupFromConfigFile(parser, filepath, args.obsModelName)
     else:
       addArgGroupFromConfigFile(parser, filepath)
   args = parser.parse_args()

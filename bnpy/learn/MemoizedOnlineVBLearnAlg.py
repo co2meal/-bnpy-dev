@@ -56,10 +56,12 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       self.print_state(hmodel, iterid, lapFrac, evBound)
 
       # Check for Convergence!
-      #  report warning if bound isn't increasing monotonically
-      isConverged = self.verify_evidence(evBound, prevBound)
-      if isConverged:
-        break
+      #  evBound will increase monotonically AFTER first lap of the data 
+      #  verify_evidence will warn if bound isn't increasing monotonically
+      if lapFrac > 1.0:
+        isConverged = self.verify_evidence(evBound, prevBound)
+        if isConverged:
+          break
       prevBound = evBound
 
     #Finally, save, print and exit

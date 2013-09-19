@@ -68,11 +68,11 @@ class LearnAlg(object):
     convergeTHR = self.algParams['convergeTHR']
     isWithinTHR = absDiff <= convergeTHR or percDiff <= convergeTHR
     if not isIncreasing:
-      if not isWithinEPS:
+      if not isWithinTHR:
         warnMsg = 'WARNING: evidence decreased!\n' \
           + '    prev = % .15e\n' % (prevBound) \
           + '     cur = % .15e\n' % (evBound)
-        Log.severe(warnMsg)
+        Log.error(warnMsg)
     return isWithinTHR 
 
 

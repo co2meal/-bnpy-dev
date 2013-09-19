@@ -1,5 +1,35 @@
-''' ZMGaussObsCompSet : object for managing a prior and set of K components
-       for a zero-mean Gaussian observation model
+'''
+ZMGaussObsCompSet.py
+
+Observation likelihood model for K components of zero-mean Gaussians.
+Includes as attributes
+  inferType : str type of inference performed (EM or VB or soVB or moVB)
+  obsPrior : prior distribution (None if EM, Wishart if VB)
+  comp : list of K component distributions (ZMGauss if EM, Wishart if VB)
+
+if EM is the inferType
+  seeks point-estimate 'Sigma' of the covar for each component.
+if VB (or soVB, moVB) is inferType
+  seeks proper Wishart distribution of the covar of each component.
+  
+Constructors
+-------
+From scratch (sets K=0 and has no parameters until initialized)
+
+Using a pre-created obsPrior object (or None)
+>> obsModel = ZMGaussObsCompSet('EM', min_covar=1e-9)
+>> obsModel = ZMGaussObsCompSet('VB', obsPrior=myWishartDistr)
+
+Create this object and an identity prior all in one line,
+ensuring the dimension matches the data object of interest "Data"
+>> obsModel = ZMGaussObsCompSet.InitFromData('VB', dict(smatname='eye'), Data)
+
+From pre-allocated parameters (sets K and parameters exactly)
+
+Here, we make an EM version with 10 covariance matrices (each scaled identity)
+>> oDict = dict(inferType='EM', min_covar=1e-9)
+>> cDictList = [dict(Sigma=k * np.eye(2)) for k in 10]
+>> obsModel = ZMGaussObsCompSet.InitFromCompDicts(oDict, None, cDictList)
 '''
 from IPython import embed
 import numpy as np
@@ -12,10 +42,18 @@ from bnpy.distr import ZMGaussDistr
 from bnpy.distr import WishartDistr
 from bnpy.util import np2flatstr, dotATA, dotATB, dotABT
 from bnpy.util import LOGPI, LOGTWOPI, LOGTWO, EPS
-from bnpy.suffstats import ZMGaussSuffStat
 
 class ZMGaussObsCompSet( ObsCompSet ):
   
+  def __init__(self, inferType, D=None, obsPrior=None, min_covar=None):
+    self.inferType = inferType
+    self.D = D
+    self.obsPrior = obsPrior
+    self.comp = list()
+    self.K = 0
+    if min_covar is not None:
+      self.min_covar = min_covar
+      
   @classmethod
   def InitFromCompDicts(cls, oDict, obsPrior, compDictList):
     if 'min_covar' in oDict:
@@ -44,48 +82,7 @@ class ZMGaussObsCompSet( ObsCompSet ):
       obsPrior = WishartDistr.InitFromData(priorArgDict,Data)
       return cls(inferType, D, obsPrior)
   
-  def __init__(self, inferType, D=None, obsPrior=None, min_covar=None):
-    self.inferType = inferType
-    self.D = D
-    self.obsPrior = obsPrior
-    self.comp = list()
-    self.K = 0
-    if min_covar is not None:
-      self.min_covar = min_covar
       
-  ##############################################################    
-  ############################################################## human readable I/O  
-  ##############################################################  
-  def get_name(self):
-    return 'ZMGauss'
-      
-  def get_info_string(self):
-    return 'Zero-mean Gaussian distribution'
-      
-  def get_info_string_prior(self):
-    if self.obsPrior is None:
-      return 'None'
-    else:
-      return 'Wishart on precision matrix \Lam \n' + self.obsPrior.to_string()
-
-  def get_human_global_param_string(self):
-    if self.qType == 'EM':
-      return '\n'.join( [np2flatstr(self.comp[k].get_covar(),'% 4.2f') for k in range(self.K)] )
-    else:
-      return '\n'.join( [np2flatstr(self.comp[k].invW,'% 4.2f') for k in range(self.K)])
-  
-
-  ##############################################################    
-  ############################################################## MAT file I/O  
-  ############################################################## 
-  def get_prior_dict( self ):
-    if self.obsPrior is None:
-      PDict = dict(min_covar=self.min_covar, name="NoneType")
-    else:
-      PDict = self.obsPrior.to_dict()
-    return PDict
-    
-  #########################################################  
   #########################################################  Standard Gaussian accessors
   ######################################################### 
   def get_mean_for_comp( self, k):
@@ -94,20 +91,22 @@ class ZMGaussObsCompSet( ObsCompSet ):
   def get_covar_mat_for_comp(self, k):
     return self.comp[k].ECovMat()
   
-  #########################################################  
   #########################################################  Suff Stat Calc
   ######################################################### 
   def get_global_suff_stats(self, Data, SS, LP, **kwargs):
+    ''' Calculate suff stats for the covariance matrix of each component
+        see ZMGaussDerivation
+        xxT[k] = E[ x * x.T ] where x is the col vector of each observation
+            = sum_{n=1}^N r_nk x * x.T
+    '''
     sqrtResp = np.sqrt(LP['resp'])
     K = sqrtResp.shape[1]
-    SSxxT = np.zeros( (K, self.D, self.D) )
+    xxT = np.zeros( (K, self.D, self.D) )
     for k in xrange(K):
-      SSxxT[k] = dotATA(sqrtResp[:,k][:,np.newaxis]*Data.X )
-    #SS.fillComps(ZMGaussSuffStat, xxT=SSxxT)
-    SS.xxT = SSxxT
+      xxT[k] = dotATA(sqrtResp[:,k][:,np.newaxis]*Data.X )
+    SS.xxT = xxT
     return SS
 
-  #########################################################  
   #########################################################  Global Param Update Calc
   #########################################################
   def update_obs_params_EM( self, SS, Krange, **kwargs):
@@ -129,12 +128,11 @@ class ZMGaussObsCompSet( ObsCompSet ):
       Dstar = self.obsPrior.get_post_distr(curSS)
       self.comp[k].post_update_soVB( rho, Dstar)
       
-  #########################################################  
   #########################################################  Evidence Calc
   #########################################################
   def calc_evidence( self, Data, SS, LP=None):
     if self.inferType == 'EM': 
-      # handled in alloc model
+      # handled in alloc model and aggregated in HModel
       return 0
     else:
       return self.E_logpX(SS) + self.E_logpPhi() - self.E_logqPhi()    
@@ -166,3 +164,34 @@ class ZMGaussObsCompSet( ObsCompSet ):
     for k in xrange( self.K):
       lp[k] = -1*self.comp[k].get_entropy()
     return lp.sum()
+
+  ############################################################## human readable I/O  
+  ##############################################################  
+  def get_name(self):
+    return 'ZMGauss'
+      
+  def get_info_string(self):
+    return 'Zero-mean Gaussian distribution'
+      
+  def get_info_string_prior(self):
+    if self.obsPrior is None:
+      return 'None'
+    else:
+      return 'Wishart on precision matrix \Lam \n' + self.obsPrior.to_string()
+
+  def get_human_global_param_string(self):
+    if self.qType == 'EM':
+      return '\n'.join( [np2flatstr(self.comp[k].get_covar(),'% 4.2f') for k in range(self.K)] )
+    else:
+      return '\n'.join( [np2flatstr(self.comp[k].invW,'% 4.2f') for k in range(self.K)])
+  
+
+  ############################################################## MAT file I/O  
+  ############################################################## 
+  def get_prior_dict( self ):
+    if self.obsPrior is None:
+      PDict = dict(min_covar=self.min_covar, name="NoneType")
+    else:
+      PDict = self.obsPrior.to_dict()
+    return PDict
+    

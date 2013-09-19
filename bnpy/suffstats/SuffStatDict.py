@@ -1,5 +1,24 @@
 '''
 SuffStatDict.py
+
+Container object for sufficient statistics for bnpy models.
+Each field should be an *additive* sufficient statistic,
+  represented by a numpy array
+  where first dimension is the number of components.
+  
+For example, to create suff stats for a 2-component mixture model with 10 and 50 members in each component
+>> S = SuffStatDict(N=[10, 50])  
+Next, add the covariance suff stats xxT
+>> SS.xxT = np.dstack([10*np.eye(2), 50*np.eye(2)])
+To get the second component (index = 2-1 = 1)
+>> S1 = SS.getComp(1)
+>> print S1
+dict(N=50, xxT=[[50,0],[0,50]]]  
+  
+Acts like a dictionary, so 
+  can add new fields with SS['N'] = [1,2,3,4]
+To access the suff stats for a single component,
+ getComp(compID) returns a SuffStatDict object associated with component compID 
 '''
 
 import numpy as np
@@ -14,9 +33,14 @@ class SuffStatDict(object):
       self.__setattr__(key, arr)
         
   def getComp(self, compID):
+    if compID < 0 or compID >= self.K:
+      raise IndexError('Bad compID. Valid range [0, %d] but provided %d' % (self.K-1, compID))
     compSS = SuffStatDict(K=1, D=self.D)
     for key in self.__compkeys__:
-      compSS[key] = self.__dict__[key][compID]
+      if self.K == 1:
+        compSS[key] = self.__dict__[key]
+      else:
+        compSS[key] = self.__dict__[key][compID]
     compSS.__compkeys__ = self.__compkeys__
     return compSS
 
@@ -90,8 +114,7 @@ class SuffStatDict(object):
 
     if self.K > 1 and arr.shape[0] != self.K and arr.size > 1:
       raise ValueError('Dimension mismatch. K=%d, Kfound=%d' % (self.K, arr.shape[0]))
-    if self.K > 1 and arr.shape[0] == self.K:
-      self.__compkeys__.add(key)
+    self.__compkeys__.add(key)
     self.__dict__[key] = arr
     
   def __getattr__(self, key):

@@ -1,17 +1,17 @@
 '''
-  MixModel.py
-     Bayesian parametric mixture model with a finite number of components K
+MixModel.py
+Bayesian parametric mixture model with fixed, finite number of components K
 
- Parameters
- -------
-   K        : # of components
-   alpha0   : scalar hyperparameter of symmetric Dirichlet prior on mix. weights
+Attributes
+-------
+  K        : # of components
+  alpha0   : scalar hyperparameter of symmetric Dirichlet prior on mix. weights
 
 '''
 import numpy as np
 
 from bnpy.allocmodel import AllocModel
-from bnpy.suffstats import SuffStatCompSet, SuffStatDict
+from bnpy.suffstats import SuffStatDict
 from bnpy.util import logsumexp, np2flatstr, flatstr2np
 from bnpy.util import gammaln, digamma, EPS
 
@@ -86,7 +86,20 @@ class MixModel(AllocModel):
   ############################################################## Suff Stat Calc   
   ##############################################################
   def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None, **kwargs):
-    ''' 
+    ''' Calculate the sufficient statistics for global parameter updates
+        Only adds stats relevant for this allocModel. Other stats added by the obsModel.
+        
+        Args
+        -------
+        Data : bnpy data object
+        LP : local param dict with fields
+              resp : Data.nObs x K array where resp[n,k] = posterior resp of comp k
+        doPrecompEntropy : boolean flag that indicates whether to precompute the entropy of the data responsibilities (used for evaluating the evidence)
+
+        Returns
+        -------
+        SS : SuffStatDict with K components, with field
+              N : K-len vector of effective number of observations assigned to each comp
     '''
     Nvec = np.sum( LP['resp'], axis=0 )
     SS = SuffStatDict(N=Nvec)
@@ -99,7 +112,21 @@ class MixModel(AllocModel):
   ############################################################## Local Param Updates   
   ##############################################################
   def calc_local_params(self, Data, LP):
-    ''' E-step
+    ''' Calculate posterior responsibilities for each data item and each component.    
+        This is part of the E-step of the EM/VB algorithm.
+        
+        Args
+        -------
+        Data : bnpy data object with Data.nObs observations
+        LP : local param dict with fields
+              E_log_soft_ev : Data.nObs x K array
+                  E_log_soft_ev[n,k] = log p(data obs n | comp k)
+        
+        Returns
+        -------
+        LP : local param dict with fields
+              resp : Data.nObs x K array whose rows sum to one
+                      resp[n,k] = posterior prob. that component k generated data n                
     '''
     if self.inferType.count('VB') > 0:
       lpr = self.Elogw + LP['E_log_soft_ev']
@@ -108,7 +135,6 @@ class MixModel(AllocModel):
     lprPerItem = logsumexp( lpr, axis=1 )
     resp   = np.exp( lpr-lprPerItem[:,np.newaxis] )
     LP['resp'] = resp
-    assert np.allclose( resp.sum(axis=1), 1.0 )
     if self.inferType == 'EM':
         LP['evidence'] = lprPerItem.sum()
     # Reclaim memory, don't need NxK matrix anymore
