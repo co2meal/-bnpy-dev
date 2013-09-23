@@ -1,21 +1,40 @@
-bnpy is Bayesian nonparametric unsupervised machine learning for python
-Author: Mike Hughes, mike@michaelchughes.com 
+bnpy is Bayesian nonparametric unsupervised machine learning for python.
+
+Contact:
+
+Mike Hughes, mike@michaelchughes.com 
 
 # About
-This python module provides code for training popular hierarchical Bayesian models from large datasets. We especially emphasize non-parametric models, such as the DP or HDP.
+This python module provides code for training popular Bayesian nonparametric models on massive datasets. bnpy supports the latest online learning algorithms as well as standard offline methods. 
 
-Current the following models are supported:
-** Gaussian mixture models (parametric and Dirichlet-process)
+Support probabilistic models include
 
-Learning is done via variational inference, an optimization-based method. The supported learning algorithms include
-** moVB: memoized online VB
-** soVB: stochastic online VB
-** VB: full-dataset (batch) VB
-** EM: full-dataset (batch) EM
+* Gaussian mixture models
+    * parametric and nonparametric (Dirichlet Process)
+
+Supported learning algorithms include:
+
+* EM: full-dataset (batch) EM
+* VB: full-dataset (batch) VB
+* moVB: memoized online VB
+* soVB: stochastic online VB
+
+These are all variants of *variational inference*, a family of optimization algorithms that perform coordinate ascent to learn parameters. 
 
 # Quick Start
-From the command line, 
->> python Learn.py <my dataset> MixModel Gaussian VB <<options>>
+
+Consider our simple "StarK5" toy dataset.  To compare a 5-component standard Gaussian mixture model (GMM) trained with EM to a Dirichlet process GMM trained with memoized online VB, we'd run
+
+```
+python Learn.py StarK5 MixModel ZMGauss EM --K 5
+python Learn.py StarK5 DPMixModel ZMGauss moVB --K 5
+```
+
+
+# Target Audience
+
+Primarly, we intend bnpy to be a platform for researchers pushing the state-of-the-art. By gathering many learning algorithms and popular models in one convenient, flexible repository, we hope to make it easier to cmopare and contrast approaches.
+
 
 # Repository Organization
   bnpy/ module-specific code
