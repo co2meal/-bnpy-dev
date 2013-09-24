@@ -5,7 +5,7 @@ Basic executable for plotting learned parameters for each component
 
 Usage
 -------
-python PlotComps.py /path/to/bnpy/saved/job/ [options]
+python PlotComps.py dataName allocModelName obsModelName algName [options]
 
 Options
 --------

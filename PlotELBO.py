@@ -5,7 +5,7 @@ Basic executable for plotting the ELBO vs. time/iterations/num. data items proce
 
 Usage
 -------
-python PlotELBO.py dataName allocModelName obsModelName inferAlg [options]
+python PlotELBO.py dataName allocModelName obsModelName algNames[comma-separated] [options]
 
 Options
 --------
@@ -22,7 +22,14 @@ import argparse
 import glob
 import os
 
-Colors = [(1,0,0), (1,0,1), (0,1,0), (0,1,1), (0,0,1), (1,0.6,0)]
+Colors = [(0,0,0), # black
+          (0,0,1), # blue
+          (1,0,0), # red
+          (0,1,0.25), # green (darker)
+          (1,0,1), # magenta
+          (0,1,1), # cyan
+          (1,0.6,0), #orange
+         ]
 
 XLabelMap = dict(laps='num pass thru data',
                   iters='num steps in alg',
@@ -66,6 +73,11 @@ def plot_all_tasks_for_job(jobpath, args, jobname=None, color=None):
     if color is None:
       pylab.plot(xs, ys, '.-', markersize=10, linewidth=2)
     else:
+      # remove first-lap content for moVB
+      if jobpath.count('moVB') > 0 and args.xvar == 'laps':
+        mask = xs >= 1.0
+        xs = xs[mask]
+        ys = ys[mask]
       if tt == 0:
         label = jobname
       else:
@@ -81,7 +93,7 @@ def plot_all_tasks_for_job(jobpath, args, jobname=None, color=None):
   if len(yAll) > 0:
     ymin = np.percentile(yAll, 1)
     ymax = np.max(yAll)
-    blankmargin = 0.03*(ymax - ymin)
+    blankmargin = 0.08*(ymax - ymin)
     pylab.ylim( [ymin, ymax + blankmargin])
     
   if args.doShowTaskNums and len(taskids) > 0:
@@ -132,7 +144,10 @@ def main():
       cID += 1
       if len(algnames) > 1:
         color = Colors[cID]
-        curjobname = algname + ' ' + jobname
+        if len(jobnames) > 1:
+          curjobname = algname + ' ' + jobname
+        else:
+          curjobname = algname
       elif len(jobnames) > 1:
         color = Colors[cID]
         curjobname = jobname
@@ -141,7 +156,7 @@ def main():
         curjobname = None
       plot_all_tasks_for_job(curjobpath, args, jobname=curjobname, color=color)    
   if cID > 1:
-    pylab.legend()
+    pylab.legend(loc='best')
   
   if args.savefilename is not None:
     pylab.show(block=False)
