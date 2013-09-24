@@ -47,10 +47,18 @@ def plotData(Data, nObsPlot=5000):
     pylab.plot(Data.X[pIDs,0], Data.X[pIDs,1], 'k.')  
   
 def main():
-  parser = argparse.ArgumentParser()
-  parser.add_argument('jobpath', type=str, default=None,
-        help='absolute path to directory where bnpy model saved ' + \
-              'Example: /home/myusername/bnpyresults/StarData/MixModel/ZMGauss/EM/abc/')
+  parser = argparse.ArgumentParser()  
+  parser.add_argument('dataName', type=str, \
+        help='name of python script that produces data to analyze.')
+  parser.add_argument('allocModelName', type=str, \
+        help='name of allocation model. {MixModel, DPMixModel}')
+  parser.add_argument('obsModelName', type=str, \
+        help='name of observation model. {Gauss, ZMGauss}')
+  parser.add_argument('algName', type=str, \
+        help='name of learning algorithms to consider, {EM, VB, moVB, soVB}.')
+  parser.add_argument('--jobname', type=str, default='defaultjob',
+        help='name of experiment whose results should be plotted')
+        
   parser.add_argument('--taskids', type=str, default=None,
         help="int ids of the tasks (individual runs) of the given job to plot." +\
               'Ex: "1" or "3" or "1,2,3" or "1-6"')
@@ -60,12 +68,17 @@ def main():
         help="if present, also plot training data")
   args = parser.parse_args()
 
-  if not os.path.exists(args.jobpath):
-    raise ValueError("No such path: %s" % (args.jobpath))
-  taskids = PlotELBO.parse_task_ids(args.jobpath, args.taskids)
+
+  rootpath = os.path.join(os.environ['BNPYOUTDIR'], args.dataName, \
+                              args.allocModelName, args.obsModelName)
+  jobpath = os.path.join(rootpath, args.algName, args.jobname)
+
+  if not os.path.exists(jobpath):
+    raise ValueError("No such path: %s" % (jobpath))
+  taskids = PlotELBO.parse_task_ids(jobpath, args.taskids)
 
   if args.doPlotData:
-    Data = loadData(args.jobpath)
+    Data = loadData(jobpath)
 
   if args.savefilename is not None and len(taskids) > 0:
     try:
@@ -75,7 +88,7 @@ def main():
                         (args.savefilename)
                       )  
   for taskid in taskids:
-    taskpath = os.path.join(args.jobpath, taskid)
+    taskpath = os.path.join(jobpath, taskid)
     hmodel = bnpy.ioutil.ModelReader.load_model(taskpath)
 
     pylab.figure()

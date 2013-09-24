@@ -5,7 +5,7 @@ Basic executable for plotting the ELBO vs. time/iterations/num. data items proce
 
 Usage
 -------
-python PlotELBO.py /path/to/bnpy/saved/job/ [options]
+python PlotELBO.py dataName allocModelName obsModelName inferAlg [options]
 
 Options
 --------
@@ -96,10 +96,17 @@ def plot_all_tasks_for_job(jobpath, args, jobname=None, color=None):
                   
 def main():
   parser = argparse.ArgumentParser()
-  parser.add_argument('jobpath', type=str, default=None,
-        help='absolute path to directory where bnpy model saved ' + \
-              'Example: /home/myusername/bnpyresults/StarData/MixModel/ZMGauss/EM/abc/')
-  parser.add_argument('--jobnames', type=str, default=None)
+  parser.add_argument('dataName', type=str, \
+        help='name of python script that produces data to analyze.')
+  parser.add_argument('allocModelName', type=str, \
+        help='name of allocation model. {MixModel, DPMixModel}')
+  parser.add_argument('obsModelName', type=str, \
+        help='name of observation model. {Gauss, ZMGauss}')
+  parser.add_argument('algNames', type=str, \
+        help='names of learning algorithms to consider, {EM, VB, moVB, soVB}. comma separated if multiple.')
+  parser.add_argument('--jobnames', type=str, default='defaultjob',
+        help='name of experiment whose results should be plotted')
+  
   parser.add_argument('--taskids', type=str, default=None,
         help="int ids of the tasks (individual runs) of the given job to plot." +\
               'Ex: "1" or "3" or "1,2,3" or "1-6"')
@@ -111,14 +118,29 @@ def main():
         help="if present, do show task numbers next to corresponding line plot")
   args = parser.parse_args()
 
-  if args.jobnames is None:
-    plot_all_tasks_for_job(args.jobpath, args)
-  else:
-    jobnames = args.jobnames.split(',')
-    for jj,jobname in enumerate(jobnames):
-      cID = jj % len(Colors)
-      curjobpath = os.path.join(args.jobpath, jobname)
-      plot_all_tasks_for_job(curjobpath, args, jobname=jobname, color=Colors[cID])    
+  rootpath = os.path.join(os.environ['BNPYOUTDIR'], args.dataName, \
+                              args.allocModelName, args.obsModelName)
+  algnames = args.algNames.split(',')
+  jobnames = args.jobnames.split(',')
+  
+  cID = 0
+  for algname in algnames:
+    for jobname in jobnames:
+      curjobpath = os.path.join(rootpath, algname, jobname)
+      if not os.path.exists(curjobpath):
+        continue
+      cID += 1
+      if len(algnames) > 1:
+        color = Colors[cID]
+        curjobname = algname + ' ' + jobname
+      elif len(jobnames) > 1:
+        color = Colors[cID]
+        curjobname = jobname
+      else:
+        color = None
+        curjobname = None
+      plot_all_tasks_for_job(curjobpath, args, jobname=curjobname, color=color)    
+  if cID > 1:
     pylab.legend()
   
   if args.savefilename is not None:
