@@ -26,8 +26,8 @@ ObsConstr = {'ZMGauss':ZMGaussObsCompSet, 'Gauss':GaussObsCompSet}
 class HModel( object ):
 
   @classmethod
-  def InitFromData(cls, inferType, allocModelName, obsModelName, allocPriorDict, obsPriorDict, Data):
-    ''' Constructor that assembles HModel and all its subcomponents in one call
+  def CreateEntireModel(cls, inferType, allocModelName, obsModelName, allocPriorDict, obsPriorDict, Data):
+    ''' Constructor that assembles HModel and all its submodels (alloc, obs) in one call
     '''
     allocModel = AllocConstr[allocModelName](inferType, allocPriorDict)
     obsModel = ObsConstr[obsModelName].InitFromData(inferType, obsPriorDict, Data)

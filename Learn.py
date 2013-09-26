@@ -81,7 +81,25 @@ def run_training_task(ArgDict, taskid=1, nTask=1, doSaveToDisk=True, doWriteStdO
     learnAlg.fit(hmodel, Data)
   
   
-def loadData(ArgDict, dataseed=0): 
+def loadData(ArgDict, dataseed=0):
+  ''' Load DataObj specified by the user, using particular random seed.
+      Returns
+      --------
+      either 
+        Data, InitData  
+      or
+        DataIterator, InitData
+
+      InitData must be a bnpy.data.DataObj object.
+      This DataObj is used for two early-stage steps in the training process
+        (a) Constructing observation model so that it has appropriate dimensions
+            For example, with 3D real data,
+            can only model the observations with a Gaussian over 3D vectors. 
+        (b) Initializing global model parameters
+            Esp. in online settings, avoiding local optima might require using parameters
+            that are initialized from a much bigger dataset than each individual batch.
+      For most full dataset learning scenarios, InitData can be the same as Data.
+  '''
   sys.path.append(os.environ['BNPYDATADIR'])
   datamod = __import__(ArgDict['dataName'],fromlist=[])
   algName = ArgDict['algName']
@@ -101,7 +119,7 @@ def createModel(Data, ArgDict):
   oName = ArgDict['obsModelName']
   aPriorDict = ArgDict[aName]
   oPriorDict = ArgDict[oName]
-  hmodel = bnpy.HModel.InitFromData(algName, aName, oName, aPriorDict, oPriorDict, Data)
+  hmodel = bnpy.HModel.CreateEntireModel(algName, aName, oName, aPriorDict, oPriorDict, Data)
   return hmodel  
 
 def createLearnAlg(Data, model, ArgDict, algseed=0, savepath=None):

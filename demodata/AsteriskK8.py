@@ -51,7 +51,7 @@ def get_data_info():
   return 'Asterisk Toy Data. Ktrue=%d. D=%d.' % (K,D)
 
 ######################################################################  MixModel Data
-def get_X( seed, nObsTotal):
+def get_X(seed, nObsTotal):
   PRNG = np.random.RandomState( seed )
   trueList = list()
   Npercomp = PRNG.multinomial( nObsTotal, w )
