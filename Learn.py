@@ -123,6 +123,13 @@ def createModel(Data, ArgDict):
   return hmodel  
 
 def createLearnAlg(Data, model, ArgDict, algseed=0, savepath=None):
+  '''
+    Creates a learning algorithm object, preparing a directory to save the data (savepath) and setting appropriate randomized seeds.
+    Returns
+    -------
+    learnAlg : bnpy.learn.LearnAlg [or subclass] object
+               type defined by ArgDict['algName'], one of {EM, VB, soVB, moVB}
+  '''
   algName = ArgDict['algName']
   algP = ArgDict[algName]
   outputP = ArgDict['OutputPrefs']
