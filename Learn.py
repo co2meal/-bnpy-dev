@@ -68,7 +68,7 @@ def run_training_task(ArgDict, taskid=1, nTask=1, doSaveToDisk=True, doWriteStdO
                               algseed=algseed, savepath=taskoutpath)
                               
     if taskid == 1:
-      Log.info(Data.summary)
+      Log.info(Data.get_text_summary())
       Log.info(Data.summarize_num_observations())
       Log.info(hmodel.get_model_info())
       Log.info('Learn Alg: %s' % (ArgDict['algName']))

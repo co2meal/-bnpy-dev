@@ -21,6 +21,14 @@ class DataObj(object):
     '''
     pass
     
+  def get_text_summary(self):
+    ''' Returns string with human-readable description of this dataset 
+        e.g. source, author/creator, etc.
+    '''
+    if hasattr(self, 'summary'):
+      return self.summary
+    return 'Generic %s Dataset' % (self.__class__.__name__)
+    
   def summarize_num_observations(self):
     ''' Returns string summary of number of observations in this data object
     '''
