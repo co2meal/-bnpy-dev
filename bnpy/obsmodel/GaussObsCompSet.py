@@ -1,8 +1,8 @@
 '''
 GaussObsCompSet.py
 
-  This object represents the explicit *prior* distribution (if any)
-     as well as the set/collection of mixture component parameters 1,2,... K   
+This object represents the explicit *prior* distribution (if any)
+as well as the set/collection of mixture component parameters 1,2,... K   
 '''
 from IPython import embed
 import numpy as np

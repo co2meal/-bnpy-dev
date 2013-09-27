@@ -1,12 +1,23 @@
 '''
 HModel.py
 
-Represents hierarchical Bayesian model with conditional distributions in exponential family. This 
+Generic class for representing hierarchical Bayesian models in bnpy.
 
-3 fundamental operations are exposed for learning/inference
-calc_local_params
-get_global_suff_stats
-update_global_params
+Attributes
+-------
+allocModel : a bnpy.allocmodel.AllocModel subclass
+              such as MixModel, DPMixModel, etc.
+             model for generating latent structure (such as cluster assignments) 
+              
+obsModel : a bnpy.obsmodel.ObsCompSet subclass
+              such as GaussObsCompSet or ZMGaussObsCompSet
+            model for generating observed data given latent structure
+
+Key functions
+-------
+* calc_local_params
+* get_global_suff_stats
+* update_global_params
      
 '''
 from collections import defaultdict

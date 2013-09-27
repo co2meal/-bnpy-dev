@@ -6,9 +6,9 @@ Joint Gaussian-Wishart distribution
 Attributes
 --------
 dF : scalar degrees of freedom for Wishart
-invW : scale matrix for Wishart
-m : mean vector for Gaussian
-kappa : precision parameter for Gaussian covariance
+invW : scale matrix for Wishart, size D x D
+m : mean vector for Gaussian, length D
+kappa : scalar precision parameter for Gaussian covariance
 '''
 import numpy as np
 import scipy.linalg

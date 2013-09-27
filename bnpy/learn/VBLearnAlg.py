@@ -10,6 +10,8 @@ repeating the steps of a monotonic increasing objective function until convergen
 
 EM recovers the parameters for a *point-estimate* of quantities of interest
 while VB learns the parameters of an approximate *distribution* over quantities of interest
+
+For more info, see the documentation [TODO]
 '''
 from IPython import embed
 import numpy as np

@@ -1,11 +1,12 @@
 '''
+LearnAlg.py
 Abstract base class for learning algorithms for HModel models
 
 Defines some generic routines for
-  ** saving global parameters
-  ** assessing convergence
-  ** printing progress updates to stdout
-  ** recording run-time
+  * saving global parameters
+  * assessing convergence
+  * printing progress updates to stdout
+  * recording run-time
 '''
 import numpy as np
 import time

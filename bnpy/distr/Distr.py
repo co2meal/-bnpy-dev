@@ -1,4 +1,5 @@
-''' Distr.py : 
+'''
+Distr.py 
 
 Generic exponential family probability distribution object
 '''
@@ -12,7 +13,6 @@ class Distr( object ):
   def __init__( self, *args, **kwargs):
     pass
 
-  ##############################################################    
   ############################################################## Param updates  
   ##############################################################
   def get_post_distr( self, SS ):
@@ -29,31 +29,9 @@ class Distr( object ):
     ''' Stochastic online update of internal params
     '''
     pass
-
-  ##############################################################    
-  ############################################################## Norm Constants  
-  ##############################################################
-  def get_log_norm_const(self):
-    ''' Returns log( Z ), where
-         PDF(x) :=  1/Z(theta) f( x | theta )
-    '''
-    pass
-  
-  def get_log_norm_const_from_stats(self):
-    ''' Returns log( Znew ), where
-            Znew = log norm const of post distr given suff stats
-    '''
-    pass
-    
-  def get_entropy( self ):
-    ''' Returns entropy of this distribution 
-          H[ p(x) ] = -1*\int p(x|theta) log p(x|theta) dx
-    '''
-    pass
     
     
-  ##############################################################    
-  ############################################################## Conditional Probs.  
+  ############################################################## E step cond probs.  
   ##############################################################
   def log_pdf( self ):
     ''' Returns log p( x | theta )
@@ -66,18 +44,26 @@ class Distr( object ):
     pass
     
     
+  ############################################################## Exp Fam Accessors  
+  ##############################################################
+  def get_log_norm_const(self):
+    ''' Returns log( Z ), where
+         PDF(x) :=  1/Z(theta) f( x | theta )
+    '''
+    pass
 
-  ##############################################################    
+  def get_entropy( self ):
+    ''' Returns entropy of this distribution 
+          H[ p(x) ] = -1*\int p(x|theta) log p(x|theta) dx
+    '''
+    pass
+
+    
+    
   ############################################################## I/O  
   ##############################################################
-  def from_string( self, mystr ):
-    pass
-
-  def to_string(self):
-    pass
-
   def to_dict(self):
     pass
     
-  def from_dict(self):
+  def from_dict(self, pDict):
     pass

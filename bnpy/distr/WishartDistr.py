@@ -1,5 +1,13 @@
 ''' 
-WishartDistr.py : Wishart probability distribution object
+WishartDistr.py 
+
+Wishart probability distribution object.
+
+Attributes
+-------
+v : degrees of freedom
+invW : scale matrix of size DxD
+D  : dimension of the scale matrix
 '''
 import numpy as np
 import scipy.linalg

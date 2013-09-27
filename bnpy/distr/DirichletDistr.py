@@ -1,10 +1,12 @@
 '''
-  Dirichlet distribution in D-dimensions
+DirichletDistr.py
+
+Dirichlet distribution in D-dimensions
     
-  Parameters
-  -------
-    lamvec  :  Dx1 vector of non-negative numbers
-                lamvec[d] > 0 for all d
+Attributes
+-------
+lamvec  :  Dx1 vector of non-negative numbers
+                lamvec[d] >= 0 for all d
   
 '''
 import numpy as np

@@ -1,4 +1,7 @@
-''' ObsCompSet : Generic object for managing a prior and set of K components
+'''
+ObsCompSet.py
+
+Generic object for managing a prior and set of K components
 '''
 from IPython import embed
 import numpy as np
@@ -19,14 +22,12 @@ class ObsCompSet( object ):
   def set_inferType( self, inferType):
     self.inferType = inferType
   
-  ##############################################################    
   ############################################################## set prior parameters  
   ############################################################## 
   @classmethod
   def InitFromData( cls, inferType, obsPriorParams, Data):
     pass
     
-  ##############################################################    
   ############################################################## human readable I/O  
   ##############################################################  
   def get_info_string( self):
@@ -40,7 +41,6 @@ class ObsCompSet( object ):
     '''
     pass
 
-  ##############################################################    
   ############################################################## MAT file I/O  
   ##############################################################  
   def to_dict_essential(self):
@@ -57,14 +57,12 @@ class ObsCompSet( object ):
   def get_prior_dict( self ):
     pass
         
-  #########################################################  
   #########################################################  Suff Stat Calc
   #########################################################   
   def get_global_suff_stats(self):
     pass
 
     
-  #########################################################  
   #########################################################  Param Update Calc
   ######################################################### 
   def update_obs_params_EM(self):
@@ -76,15 +74,11 @@ class ObsCompSet( object ):
   def update_obs_params_VB_soVB(self):
     pass
 
-  #########################################################  
   #########################################################  Evidence Calc
   #########################################################     
   def calc_evidence(self):
     pass 
-    
-  #########################################################  
-  #########################################################  DIRECTLY INHERITED
-  #########################################################  
+     
   def update_global_params( self, SS, rho=None, Krange=None):
     ''' M-step update
     '''
@@ -101,7 +95,7 @@ class ObsCompSet( object ):
       else:
         self.update_obs_params_soVB( SS, rho, Krange )
   
-  #########################################################  Soft Evidence Fcns  
+  ######################################################### Local Param updates  
   def calc_local_params( self, Data, LP=dict()):
     if self.inferType == 'EM':
       LP['E_log_soft_ev'] = self.log_soft_ev_mat( Data )
