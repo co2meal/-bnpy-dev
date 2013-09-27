@@ -1,6 +1,8 @@
 '''
-   Explore all the python functions in the user-specified directory
-       and decorate the appropriate functions with @profile
+decorate_for_profiling.py
+
+Explore all the python functions in the user-specified directory
+and decorate the appropriate functions with @profile
 '''
 
 import os
@@ -34,4 +36,3 @@ for key in list_of_files.keys():
   proffile.close()
   # NOW, REPLACE .py files with their .pyPROF counterparts
   os.rename( proffname, origfname)
-

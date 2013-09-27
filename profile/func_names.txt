@@ -1,5 +1,4 @@
 calc_evidence
-E_logpX
 E_dist_mahalanobis
 calc_local_params
 get_global_suff_stats
@@ -12,19 +11,6 @@ E_log_pdf
 dist_mahalanobis
 get_post_distr
 post_update
-rho_update
-get_covar
-run_split_move
-run_merge_move
-propose_split_candidate
-propose_merge_candidate
-log_post_predict
+post_update_soVB
 fit
-sample_local_params
-inc_suff_stats
-dec_suff_stats
-logpdf_mv_student_t
-predictive_posterior
-sample_from_pred_posterior
-__init__
-set_helper_params 
+set_helper_params

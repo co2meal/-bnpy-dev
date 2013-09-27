@@ -1,6 +1,8 @@
 '''
-   Explore all the python functions in the user-specified directory
-       and remove decoration @profile from appropriate functions
+undecorate_for_profiling.py
+
+Explore all the python functions in the user-specified directory,
+and remove decoration @profile from appropriate functions
 '''
 
 import os

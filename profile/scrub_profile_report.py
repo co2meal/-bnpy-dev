@@ -1,12 +1,14 @@
 '''
-   Remove blank function records from the overall report
+scrub_profile_report.py
+
+Remove blank function records from the overall report
 '''
 
 import os
 
 origfname  = 'profiles/pyprofile.txt'
 
-with open( origfname,'r') as f:
+with open(origfname,'r') as f:
   Records = list()
   line = f.readline()
   CurRecord = ''
@@ -24,8 +26,8 @@ with open( origfname,'r') as f:
   # Add final record
   Records.append( CurRecord )
 
-with open( origfname, 'w') as f:
-  f.write( Preamble)
+with open(origfname, 'w') as f:
+  f.write(Preamble)
   for Record in Records:
     lines = Record.split('\n')
     totalTime = lines[2]

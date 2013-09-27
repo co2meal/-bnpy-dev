@@ -62,7 +62,6 @@ class HModel( object ):
     self.allocModel.set_inferType(inferType)
     self.obsModel.set_inferType(inferType)
 
-  #########################################################  
   #########################################################  Local Param update
   #########################################################    
   def calc_local_params( self, Data, LP=None, **kwargs):
@@ -79,7 +78,6 @@ class HModel( object ):
     LP = self.allocModel.calc_local_params(Data, LP, **kwargs)
     return LP
 
-  #########################################################  
   #########################################################  Suff Stat Calc
   #########################################################   
   def get_global_suff_stats( self, Data, LP, Ntotal=None, **kwargs):
