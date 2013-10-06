@@ -41,7 +41,7 @@ class VBLearnAlg( LearnAlg ):
       # Save and display progress
       self.add_nObs(Data.nObs)
       lap = iterid
-      self.save_state(hmodel, iterid, lap, evBound)
+      #self.save_state(hmodel, iterid, lap, evBound)
       self.print_state(hmodel, iterid, lap, evBound)
 
       # Check for Convergence!
@@ -54,6 +54,8 @@ class VBLearnAlg( LearnAlg ):
 
     #Finally, save, print and exit
     self.save_state(hmodel,iterid, lap, evBound, doFinal=True) 
+    self.save_expectations(hmodel, iterid, Data, LP)
+    
     if isConverged:
       status = "converged."
     else:

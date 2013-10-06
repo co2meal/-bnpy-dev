@@ -31,8 +31,8 @@ from allocmodel import *
 
 # Dictionary map that turns string input at command line into desired bnpy objects
 # string --> bnpy object constructor
-AllocConstr = {'MixModel':MixModel, 'DPMixModel':DPMixModel}
-ObsConstr = {'ZMGauss':ZMGaussObsCompSet, 'Gauss':GaussObsCompSet}
+AllocConstr = {'MixModel':MixModel, 'DPMixModel':DPMixModel, 'SBM':SBM}
+ObsConstr = {'ZMGauss':ZMGaussObsCompSet, 'Gauss':GaussObsCompSet, 'Bern':BernObsModel}
                    
 class HModel( object ):
 
@@ -40,7 +40,7 @@ class HModel( object ):
   def CreateEntireModel(cls, inferType, allocModelName, obsModelName, allocPriorDict, obsPriorDict, Data):
     ''' Constructor that assembles HModel and all its submodels (alloc, obs) in one call
     '''
-    allocModel = AllocConstr[allocModelName](inferType, allocPriorDict)
+    allocModel = AllocConstr[allocModelName](inferType, allocPriorDict)   
     obsModel = ObsConstr[obsModelName].InitFromData(inferType, obsPriorDict, Data)
     return cls(allocModel, obsModel)
   
@@ -71,7 +71,7 @@ class HModel( object ):
     if LP is None:
       LP = dict()
     # Calculate the "soft evidence" each obsModel component has on each item
-    # Fills in LP['E_log_soft_ev']
+    # Fills in LP['E_log_soft_ev'], 
     LP = self.obsModel.calc_local_params(Data, LP, **kwargs)
     # Combine with allocModel probs of each cluster
     # Fills in LP['resp'], a Data.nObs x K matrix whose rows sum to one
@@ -84,6 +84,8 @@ class HModel( object ):
     ''' Calculate sufficient statistics for global parameters, given data and local responsibilities
         This is necessary prep for the M-step of EM/VB.
     '''
+    # SS is first initialized by calling get_global_suff_stats 
+    # which means calculating 
     SS = self.allocModel.get_global_suff_stats( Data, LP, **kwargs )
     SS = self.obsModel.get_global_suff_stats( Data, SS, LP, **kwargs )
     # Change effective scale (nObs) of the suff stats 
@@ -129,6 +131,8 @@ class HModel( object ):
       init.FromSaved.init_global_params(self, Data, **initArgs)
     elif str(type(self.obsModel)).count('Gauss') > 0:
       init.FromScratchGauss.init_global_params(self, Data, **initArgs)
+    elif str(type(self.obsModel)).count('Bern') > 0:
+      init.FromScratchBern.init_global_params(self, Data, **initArgs)
     else:
       # TODO: more observation types!
       raise NotImplementedError("to do")
@@ -147,5 +151,8 @@ class HModel( object ):
     print  self.allocModel.get_human_global_param_string()
     print 'Obs. Data Model:'
     print  self.obsModel.get_human_global_param_string()
+ ######################################################### 
+ ########### Write out Relational model Parameters #######
 
-
+ 
+ 

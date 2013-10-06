@@ -36,8 +36,15 @@ def save_obs_model(obsmodel, fpath, prefix, doLinkBest=False):
   amatname = prefix + 'ObsModel.mat'
   outmatfile = os.path.join( fpath, amatname )
   compList = list()
-  for k in xrange( obsmodel.K ):
-    compList.append( obsmodel.comp[k].to_dict() )
+  
+  if obsmodel.get_info_string() == 'BernObs':
+        for k in xrange( obsmodel.K ):
+            for l in xrange( obsmodel.K ):
+                compList.append( obsmodel.comp[k,l].to_dict() )
+  else:
+      for k in xrange( obsmodel.K ):
+        compList.append( obsmodel.comp[k].to_dict() )
+        
   myDict = obsmodel.to_dict_essential()
   for key in compList[0].keys():
     if key in myDict:
