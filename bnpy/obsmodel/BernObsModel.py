@@ -18,7 +18,7 @@ class BernObsModel( ObsCompSet ):
         self.inferType = inferType
         self.comp = list()
         self.obsPrior = obsPrior # specify prior distribution which is a beta
-    
+        self.bounds = dict()
     def reset(self):
         pass  
     
@@ -66,9 +66,9 @@ class BernObsModel( ObsCompSet ):
 #########################################################  Suff Stat Calc #########################################################   
     def get_global_suff_stats(self, Data, SS, LP, **kwargs):
             # sufficient statistic for lambda weights
-        sigmas = LP['sigmas']
+        phi = LP['phi']
         #rhos = LP['rhos']
-        K, _ = sigmas.shape 
+        K, _ = phi.shape 
         oa = np.zeros( (K,K) )
         ob = np.zeros( (K,K) )
         Y = Data.X
@@ -77,11 +77,11 @@ class BernObsModel( ObsCompSet ):
             i = Y[e,0]
             j = Y[e,1]
             if Y[e,2] == 1:
-                #oa += np.outer(sigmas[:,i], rhos[:,j])
-                oa += np.outer(sigmas[:,i], sigmas[:,j])
+                #oa += np.outer(phi[:,i], rhos[:,j])
+                oa += np.outer(phi[:,i], phi[:,j])
             else:
-                #ob += np.outer(sigmas[:,i], rhos[:,j])
-                ob += np.outer(sigmas[:,i], sigmas[:,j])
+                #ob += np.outer(phi[:,i], rhos[:,j])
+                ob += np.outer(phi[:,i], phi[:,j])
         SS['oa'] = oa
         SS['ob'] = ob
     
@@ -103,33 +103,45 @@ class BernObsModel( ObsCompSet ):
         pass
 
 #########################################################  Evidence Calc #########################################################     
-    def calc_evidence(self, Data, SS, LP):
+    def calc_evidence(self, Data, SS, LP):        
         ha = self.obsPrior.a
         hb = self.obsPrior.b
         
-        sigmas = LP["sigmas"]
+        phi = LP["phi"]
         #rhos = LP["rhos"]
         X = Data.X
         logY = LP["E_log_soft_ev"]
         
         # Calculate observation likelihoods
-        pY = 0
+        py = 0
         for e in xrange(Data.nObs):
             i = X[e,0]
             j = X[e,1]
-            #temp = np.outer(sigmas[:,i], rhos[:,j]) * logY[e,:,:]
-            temp = np.outer(sigmas[:,i], sigmas[:,j]) * logY[e,:,:]
-            pY += temp.sum()
+            #temp = np.outer(phi[:,i], rhos[:,j]) * logY[e,:,:]
+            temp = np.outer(phi[:,i], phi[:,j]) * logY[e,:,:]
+            py += temp.sum()
         
         # entropy of local parameters
-        qS = sigmas * np.log(sigmas)
+        qz = phi * np.log(phi+1e-10)
         #qR = rhos * np.log(rhos)
         
         # stochastic block matrix
-        pO = (gammaln(ha+hb)-gammaln(ha)-gammaln(hb)) + ((ha-1)*self.ElogW1) + ((hb-1)*self.ElogW2)
-        qO = gammaln(self.lambda_a + self.lambda_b) - gammaln(self.lambda_a) - gammaln(self.lambda_b) + (self.lambda_a - 1)*self.ElogW1 + (self.lambda_b - 1) * self.ElogW2
+        po = (gammaln(ha+hb)-gammaln(ha)-gammaln(hb)) + ((ha-1)*self.ElogW1) + ((hb-1)*self.ElogW2)
+        qo = gammaln(self.lambda_a + self.lambda_b) - gammaln(self.lambda_a) - gammaln(self.lambda_b) + (self.lambda_a - 1)*self.ElogW1 + (self.lambda_b - 1) * self.ElogW2
         #elbo_obs = pY + pO.sum() - qS.sum() - qR.sum() - qO.sum()
-        elbo_obs = pY + pO.sum() - qS.sum() - qO.sum()
+        elbo_obs = py + po.sum() - qz.sum() - qo.sum()
+        
+        if 'pY' not in self.bounds:
+            self.bounds['pY'] = [py]
+            self.bounds['qZ'] = [qz]
+            self.bounds['pO'] = [po]
+            self.bounds['qO'] = [qo]
+        else:
+            self.bounds['pY'].append(py)
+            self.bounds['qZ'].append(qz)
+            self.bounds['pO'].append(po)
+            self.bounds['qO'].append(qo)
+        
         return elbo_obs
         
      

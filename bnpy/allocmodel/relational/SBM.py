@@ -23,6 +23,7 @@ class SBM(AllocModel):
     else:
       self.set_prior(priorDict)
     self.K = 0
+    self.bounds = dict()
     
   def isReady(self):
     try:
@@ -93,7 +94,7 @@ class SBM(AllocModel):
         -------
         Data : bnpy data object
         LP : local param dict with fields
-              sigmas : N x K array with posterior responsibilities over source
+              phi : N x K array with posterior responsibilities over source
               rhos : N x K array with posterior responsibilities over receiver
         doPrecompEntropy : boolean flag that indicates whether to precompute the entropy of the data responsibilities (used for evaluating the evidence)
 
@@ -103,13 +104,13 @@ class SBM(AllocModel):
               N : K-len vector of effective number of observations assigned to each comp
     '''
 
-    sigmas = LP['sigmas']
+    phi = LP['phi']
     #rhos = LP['rhos']
-    K,N = sigmas.shape 
+    K,N = phi.shape 
     SS = SuffStatDict(K,N)
     # sufficient statistic for mixture component weights
-    #SS['u'] = np.sum( sigmas, 1) 
-    SS['u'] = np.sum( sigmas, 1) 
+    #SS['u'] = np.sum( phi, 1) 
+    SS['u'] = np.sum( phi, 1) 
     return SS
     
   ##############################################################    
@@ -129,7 +130,7 @@ class SBM(AllocModel):
         Returns
         -------
         LP : local param dict with fields
-              sigmas : Data.nObs x K array whose rows sum to one
+              phi : Data.nObs x K array whose rows sum to one
               rhos : Data.nObs x K arrawy            
     '''
     K = self.K
@@ -137,57 +138,57 @@ class SBM(AllocModel):
     if self.inferType.count('VB') > 0:
         #actual e-step check/ if rho exists, otherwise initialize that randomly
         
-        '''
-        if 'rhos' not in LP:
-            rhos = np.zeros((K, N)) + 1
+        if 'phi' not in LP:
+            phi = np.zeros((K, N)) + 1
             for i in xrange(N):
                 k = np.round(np.random.rand()*K)-1
-                rhos[k,i] += 10.0
-                rhos[:,i] = rhos[:,i] / rhos[:,i].sum()
+                phi[k,i] += 1.0
+                phi[:,i] = phi[:,i] / phi[:,i].sum()
         else:
-            rhos = LP['rhos']
-        '''
-        sigmas = np.zeros((K,N))
-        temp_s = np.zeros((K,N))
+            phi = LP['phi']
+        
+        #phi = np.zeros((K,N))
+        
+        temp = np.zeros((K,N))
         #temp_r = np.zeros((K,N))
         X = Data.X
         E_log_pdf = LP['E_log_soft_ev']
         
-        old_sigmas = sigmas
+        old_phi = phi
         #old_rhos = rhos
         for i in xrange(N):
             ind_i = [ii for ii, x in enumerate(X[:,0]) if x == i]
             ind_j = [jj for jj, x in enumerate(X[:,1]) if x == i]
             isconverged = False
             while not isconverged:
-                # Learn Sigmas            
+                # Learn phi            
                 for e in xrange(len(ind_i)):
                     j = X[ind_i[e],1]
-                    temp_s[:,i] += np.dot( E_log_pdf[ind_i[e],:,:], sigmas[:,j]  )
+                    temp[:,i] += np.dot( E_log_pdf[ind_i[e],:,:], phi[:,j]  )
 
                 for e in xrange(len(ind_j)):
                     j = X[ind_j[e],0]
-                    temp_s[:,i] += np.dot( sigmas[:,j] , E_log_pdf[ind_j[e],:,:])
+                    temp[:,i] += np.dot( phi[:,j] , E_log_pdf[ind_j[e],:,:])
                 
-                temp_s[:,i] += self.ElogBeta
-                sigmas[:,i] = np.exp(temp_s[:,i] - logsumexp(temp_s[:,i]))
+                temp[:,i] += self.ElogBeta
+                phi[:,i] = np.exp(temp[:,i] - logsumexp(temp[:,i]))
                 # Learn RhosS
                 '''
                 for e in xrange(len(ind_j)):
                     j = X[ind_j[e],0]
-                    temp_r[:,i] = np.dot(  E_log_pdf[ind_j[e],:,:], sigmas[:,j]  )
+                    temp_r[:,i] = np.dot(  E_log_pdf[ind_j[e],:,:], phi[:,j]  )
                 temp_r[:,i] += self.ElogBeta
                 rhos[:,i] = np.exp(temp_r[:,i]-logsumexp(temp_r[:,i]))
                 '''
-                #diff = np.absolute(sigmas[:,i]-old_sigmas[:,i]) + np.absolute(rhos[:,i]-old_rhos[:,i])
+                #diff = np.absolute(phi[:,i]-old_phi[:,i]) + np.absolute(rhos[:,i]-old_rhos[:,i])
 
-                #diff = np.absolute(sigmas[:,i]-old_sigmas[:,i]) 
-                #if diff.sum() <= 1e-3:
-                isconverged = True
-            old_sigmas[:,i] = sigmas[:,i]
+                diff = np.absolute(phi[:,i]-old_phi[:,i]) 
+                if diff.sum() <= 1e-3:
+                    isconverged = True
+            old_phi[:,i] = phi[:,i]
             #old_rhos[:,i] = rhos[:,i]
         
-        LP['sigmas'] = sigmas
+        LP['phi'] = phi
         #LP['rhos'] = rhos
     elif self.inferType == 'EM' > 0:
       pass
@@ -223,13 +224,23 @@ class SBM(AllocModel):
       return LP['evidence'] + self.log_pdf_dirichlet(self.w)
         
     elif self.inferType.count('VB') >0:
+        
       # E[p(s|beta)] + E[p(r_beta)] - q(beta)
-      ps = np.dot(self.ElogBeta,LP["sigmas"]).sum()
+      pz = np.dot(self.ElogBeta,LP["phi"]).sum()
       #pr = np.dot(self.ElogBeta,LP["rhos"]).sum()
-      pB = gammaln(self.K*self.alpha0) - gammaln(self.alpha0)*self.K + ((self.alpha0-1)*self.ElogBeta).sum()
-      qBeta = gammaln(SS.u.sum()) - gammaln(SS.u).sum() + ((SS.u-1)*self.ElogBeta).sum()
+      pb = gammaln(self.K*self.alpha0) - gammaln(self.alpha0)*self.K + ((self.alpha0-1)*self.ElogBeta).sum()
+      qb = gammaln(SS.u.sum()) - gammaln(SS.u).sum() + ((SS.u-1)*self.ElogBeta).sum()
       #elbo_alloc = ps + pr + pB - qBeta
-      elbo_alloc = ps + pB - qBeta
+      elbo_alloc = pz + pb - qb
+      
+      if 'pZ' not in self.bounds:
+          self.bounds["pZ"] = [pz]
+          self.bounds["pB"] = [pb]
+          self.bounds["qB"] = [qb]
+      else:    
+          self.bounds['pZ'].append(pz)
+          self.bounds['pB'].append(pb)
+          self.bounds['qB'].append(qb)
       return elbo_alloc
       
   def E_logpZ( self, SS ):

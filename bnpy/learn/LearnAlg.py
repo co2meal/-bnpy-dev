@@ -159,7 +159,7 @@ class LearnAlg(object):
     N = Data.N
     EY_Beta = np.zeros((N,N))
     EY_SR = np.zeros((N,N))
-    sigmas = LP["sigmas"]
+    phi = LP["phi"]
     #rhos = LP["rhos"]
     beta = amodel.allocModel.PostBeta
     EB = beta / beta.sum()
@@ -167,9 +167,12 @@ class LearnAlg(object):
     for i in xrange( N ):
         for j in xrange( N ):
             EY_Beta[i,j] = np.dot(np.dot(EB.T, EO), EB )
-            #EY_SR[i,j] = np.dot(np.dot(sigmas[:,i],EO), rhos[:,j].T )
-            EY_SR[i,j] = np.dot(np.dot(sigmas[:,i],EO), sigmas[:,j].T )
-    return dict(EY_Beta = EY_Beta, EY_SR = EY_SR, sigmas=sigmas, beta=beta, EB=EB, EO=EO, X=Data.X)
+            #EY_SR[i,j] = np.dot(np.dot(phi[:,i],EO), rhos[:,j].T )
+            EY_SR[i,j] = np.dot(np.dot(phi[:,i],EO), phi[:,j].T )
+            
+    # grab bounds from allocation model and observation model
+            
+    return dict(EY_Beta = EY_Beta, EY_SR = EY_SR, phi=phi, beta=beta, EB=EB, EO=EO, X=Data.X)
 
   def save_expectations(self, amodel, iterid, Data, LP):
     fname = self.savedir
@@ -178,4 +181,6 @@ class LearnAlg(object):
     amatname = 'gen_eY.mat'
     outmatfile = os.path.join( fname, amatname )
     myDict = self.calc_posterior_exp(amodel, Data, LP)
+    myDict.update(amodel.allocModel.bounds)
+    myDict.update(amodel.obsModel.bounds)
     scipy.io.savemat( outmatfile, myDict, oned_as='row')
