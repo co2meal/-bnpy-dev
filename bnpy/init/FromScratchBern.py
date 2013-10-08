@@ -20,7 +20,7 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
         #k = np.round(np.random.rand()*K)-1
         #rhos[k,i] += 1.0
         k = np.round(np.random.rand()*K)-1
-        phi[k,i] += 1.0
+        phi[k,i] += 10.0
         #rhos[:,i] = rhos[:,i] / rhos[:,i].sum()
         phi[:,i] = phi[:,i] / phi[:,i].sum()
     

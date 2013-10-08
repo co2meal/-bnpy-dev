@@ -7,7 +7,7 @@ import numpy as np
 from bnpy.data import GraphData, MinibatchIterator
 ######################################################################  Generate Toy Params
 
-def get_data(seed=8675309, K=5, N=100):
+def get_data(seed=8675309, K=10, N=100):
     X, TrueZ = get_X(seed, K, N)
     Data = GraphData(X=X)
     Data.summary = get_data_info()

@@ -107,7 +107,7 @@ class SBM(AllocModel):
     phi = LP['phi']
     #rhos = LP['rhos']
     K,N = phi.shape 
-    SS = SuffStatDict(K,N)
+    SS = SuffStatDict(K)
     # sufficient statistic for mixture component weights
     #SS['u'] = np.sum( phi, 1) 
     SS['u'] = np.sum( phi, 1) 

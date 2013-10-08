@@ -94,11 +94,16 @@ class BernObsModel( ObsCompSet ):
     
     def update_obs_params_VB(self, SS, Krange):
         # update lambda parameters
+        # update comp[k,l].update(SS)
+        for k in xrange(self.K):
+            for l in xrange(self.K):
+                self.comp[k,l] = self.obsPrior.get_post_distr( self, SS )
+        '''
         self.lambda_a = SS.oa + self.obsPrior.a
         self.lambda_b = SS.ob + self.obsPrior.b
         self.ElogW1 = digamma(self.lambda_a) - digamma(self.lambda_a + self.lambda_b)
         self.ElogW2 = digamma(self.lambda_b) - digamma(self.lambda_a + self.lambda_b)
-    
+        '''
     def update_obs_params_VB_soVB(self):
         pass
 
@@ -122,14 +127,14 @@ class BernObsModel( ObsCompSet ):
             py += temp.sum()
         
         # entropy of local parameters
-        qz = phi * np.log(phi+1e-10)
+        qz = (phi * np.log(phi+1e-10)).sum()
         #qR = rhos * np.log(rhos)
         
         # stochastic block matrix
-        po = (gammaln(ha+hb)-gammaln(ha)-gammaln(hb)) + ((ha-1)*self.ElogW1) + ((hb-1)*self.ElogW2)
-        qo = gammaln(self.lambda_a + self.lambda_b) - gammaln(self.lambda_a) - gammaln(self.lambda_b) + (self.lambda_a - 1)*self.ElogW1 + (self.lambda_b - 1) * self.ElogW2
+        po = ((gammaln(ha+hb)-gammaln(ha)-gammaln(hb)) + ((ha-1)*self.ElogW1) + ((hb-1)*self.ElogW2)).sum()
+        qo = (gammaln(self.lambda_a + self.lambda_b) - gammaln(self.lambda_a) - gammaln(self.lambda_b) + (self.lambda_a - 1)*self.ElogW1 + (self.lambda_b - 1) * self.ElogW2).sum()
         #elbo_obs = pY + pO.sum() - qS.sum() - qR.sum() - qO.sum()
-        elbo_obs = py + po.sum() - qz.sum() - qo.sum()
+        elbo_obs = py + po - qz - qo
         
         if 'pY' not in self.bounds:
             self.bounds['pY'] = [py]
@@ -148,6 +153,7 @@ class BernObsModel( ObsCompSet ):
     def update_global_params( self, SS, rho=None, Krange=None):
         ''' M-step update'''
         self.K = SS.K
+        # have something special for relational models
         if len(self.comp) != self.K:
             self.comp = np.zeros( (self.K, self.K), dtype=object)
             for k in xrange(self.K):

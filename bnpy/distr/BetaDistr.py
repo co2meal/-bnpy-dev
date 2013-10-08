@@ -27,15 +27,17 @@ class BetaDistr( object ):
     def set_helpers(self):
         #Calculate E[x] for beta
         self.mean = self.a / (self.a + self.b)
-        self.ElogA = digamma(self.a) - digamma(self.a + self.b)
-        self.ElogB = digamma(self.b) - digamma(self.a + self.b)  
+        self.lambda_a = self.a
+        self.lambda_b = self.b
+        self.ElogW1 = digamma(self.a) - digamma(self.a + self.b)
+        self.ElogW2 = digamma(self.b) - digamma(self.a + self.b)  
         
     ############################################################## Param updates  
     ##############################################################
     def get_post_distr( self, SS ):
         ''' Create new Distr object with posterior params'''
-        a = self.a + SS.Nheads
-        b = self.b + SS.Ntails
+        a = self.a + SS.oa #heads
+        b = self.b + SS.ob #tails
          
         return BetaDistr(a, b)
     
