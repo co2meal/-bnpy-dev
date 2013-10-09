@@ -69,7 +69,7 @@ class SuffStatDict(object):
     ''' Merge (in-place) all additive fields for components kA, kB
         into field index kA, and remove component kB entirely.
     '''
-    if not self.hasMergeEntropy():
+    if not self.hasPrecompMergeEntropy():
       raise ValueError("Attribute merge entropy not defined, required for merge")
     if not self.hasPrecompEntropy():
       raise ValueError("Attribute precomp entropy not defined, required for merge")
@@ -82,8 +82,8 @@ class SuffStatDict(object):
     self.removeComponent(kB)
     # New "merged" component kA's entries in mergeEntropy are no longer reliable
     key = '__mergeEntropy__'
-    self.__dict__[key][kA,:] = -np.inf
-    self.__dict__[key][:,kA] = -np.inf
+    self.__dict__[key][kA,kA+1:] = np.nan
+    self.__dict__[key][:kA,kA] = np.nan
 
   def removeComponent(self, kB):
     ''' Remove (in-place) the component kB from this SuffStatDict object.
@@ -98,11 +98,16 @@ class SuffStatDict(object):
       key = '__precompEntropy__'
       self.__dict__[key] = np.delete(self.__dict__[key], kB, axis=0)
     # Remove component from precomputed merge entropy (KxK matrix)
-    if self.hasMergeEntropy():
+    if self.hasPrecompMergeEntropy():
       key = '__mergeEntropy__'
       self.__dict__[key] = np.delete(self.__dict__[key], kB, axis=0)
       self.__dict__[key] = np.delete(self.__dict__[key], kB, axis=1)
     self.K = self.K - 1
+
+  def setToZeroPrecompMergeEntropy(self):
+    ''' Remove precomputed merge entropy if not needed anymore
+    '''
+    self.__dict__['__mergeEntropy__'].fill(0)
 
   def addPrecompMergeEntropy(self, Hmerge):
     ''' Add precomputed entropy for all possible merge pairs
@@ -113,8 +118,11 @@ class SuffStatDict(object):
     '''
     self.__dict__['__mergeEntropy__'] = Hmerge
 
-  def hasMergeEntropy(self):
+  def hasPrecompMergeEntropy(self):
     return  '__mergeEntropy__' in self.__dict__  
+
+  def getPrecompMergeEntropy(self):
+    return self.__dict__['__mergeEntropy__']
 
   def copy(self):
     newSS = SuffStatDict()
@@ -128,19 +136,25 @@ class SuffStatDict(object):
     for key in self.__compkeys__:
       sumSS[key] = self.__dict__[key] + SSobj[key]
     if self.hasPrecompEntropy():
-      sumSS.addPrecompEntropy(self.getPrecompEntropy() + SSobj.getPrecompEntropy())   
+      sumSS.addPrecompEntropy(self.getPrecompEntropy() + SSobj.getPrecompEntropy())
+    if self.hasPrecompMergeEntropy() or SSobj.hasPrecompMergeEntropy():
+      mergeH_1 = self.getPrecompMergeEntropy()
+      mergeH_2 = SSobj.getPrecompMergeEntropy()
+      sumSS.addPrecompMergeEntropy(mergeH_1 + mergeH_2)      
     return sumSS    
   
   def __sub__(self, SSobj):
     sumSS = SuffStatDict(K=self.K, D=self.D)
     for key in self.__compkeys__:
       sumSS[key] = self.__dict__[key] - SSobj[key]
-      
     if self.hasPrecompEntropy():
-      sumSS.addPrecompEntropy(self.getPrecompEntropy() - SSobj.getPrecompEntropy()) 
+      sumSS.addPrecompEntropy(self.getPrecompEntropy() - SSobj.getPrecompEntropy())
+    if self.hasPrecompMergeEntropy() or SSobj.hasPrecompMergeEntropy():
+      mergeH_1 = self.getPrecompMergeEntropy()
+      mergeH_2 = SSobj.getPrecompMergeEntropy()
+      sumSS.addPrecompMergeEntropy(mergeH_1 - mergeH_2)
     return sumSS    
-        
-        
+       
   def __getitem__(self, key):
     if type(key) == int:
       return self.getComp(key)

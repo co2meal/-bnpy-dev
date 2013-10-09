@@ -13,6 +13,9 @@ To force a merge of components "2" and "4"
 
 import numpy as np
 from ..util import EPS, discrete_single_draw
+import logging
+Log = logging.getLogger('bnpy')
+Log.setLevel(logging.DEBUG)
 
 def run_merge_move(curModel, Data, SS=None, curEv=None, doViz=False, \
                    kA=None, kB=None, excludeList=list(), \
@@ -48,6 +51,7 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doViz=False, \
       MoveInfo := dict of info about this merge move, with fields
             didAccept := boolean flag, true if candidate accepted
             msg := human-readable string about this move
+            kA, kB := indices of the components to be merged.
   ''' 
   if SS is None:
     LP = curModel.calc_local_params(Data)
@@ -62,7 +66,7 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doViz=False, \
     MoveInfo = dict(didAccept=0, msg="need >= 2 comps to merge")    
     return curModel, SS, curEv, MoveInfo  
   
-  if not SS.hasMergeEntropy():
+  if not SS.hasPrecompMergeEntropy():
     MoveInfo = dict(didAccept=0, msg="suff stats did not have merge entropy")    
     return curModel, SS, curEv, MoveInfo  
     
@@ -74,18 +78,25 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doViz=False, \
   # Enforce that kA < kB. 
   # This step is essential for indexing mergeEntropy matrix, etc.
   assert kA != kB
+  assert kA not in excludeList
+  assert kB not in excludeList
   kMin = np.minimum(kA,kB)
   kB  = np.maximum(kA,kB)
   kA = kMin
 
+  #Log.info('Merge Proposal: %d %d | K=%d' % (kA, kB, curModel.obsModel.K))
+  
   # Create candidate merged model
   propModel, propSS = propose_merge_candidate(curModel, SS, kA, kB)
 
   # Decide whether to accept the merge
   propEv = propModel.calc_evidence(SS=propSS)
 
+  if np.isnan(propEv) or np.isinf(propEv):
+    raise ValueError('propEv should never be nan/inf')
+
   if propEv > curEv:
-    MoveInfo = dict(didAccept=1, \
+    MoveInfo = dict(didAccept=1, kA=kA, kB=kB, \
                     msg="merged ev improved by %.3e" % (propEv - curEv))
     return propModel, propSS, propEv, MoveInfo
   else:
@@ -136,6 +147,7 @@ def select_merge_components(curModel, Data, SS, LP=None, \
     # kA ~ Unif({1, 2, ... K})
     if kA is None:
       unifps = np.ones(K)
+      unifps[excludeList] = 0
       kA = discrete_single_draw(unifps, randstate)
     # Sample kB
     # Pr(kb) \propto ratio of M(kA and kB) to M(kA)*M(kB)
@@ -162,6 +174,8 @@ def select_merge_components(curModel, Data, SS, LP=None, \
   kA = kMin
   assert kA < kB
   assert kB < K
+  assert kA not in excludeList
+  assert kB not in excludeList
   return kA, kB
 
 ############################################################ Construct new model

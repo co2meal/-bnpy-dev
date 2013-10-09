@@ -8,14 +8,11 @@ Defines some generic routines for
   * printing progress updates to stdout
   * recording run-time
 '''
+from bnpy.ioutil import ModelWriter
 import numpy as np
 import time
 import os
 import logging
-from IPython import embed
-
-from bnpy.ioutil import ModelWriter
-
 Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
 
