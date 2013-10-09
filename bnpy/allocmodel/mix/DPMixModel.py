@@ -92,7 +92,8 @@ class DPMixModel(AllocModel):
     
   ############################################################## Suff Stat Calc   
   ##############################################################
-  def get_global_suff_stats(self, Data, LP, doPrecompEntropy=False):
+  def get_global_suff_stats(self, Data, LP, \
+                            doPrecompEntropy=False, doPrecompMergeEntropy=False):
     ''' Calculate the sufficient statistics for global parameter updates
         Only adds stats relevant for this allocModel. Other stats added by the obsModel.
         
@@ -101,8 +102,9 @@ class DPMixModel(AllocModel):
         Data : bnpy data object
         LP : local param dict with fields
               resp : Data.nObs x K array where resp[n,k] = posterior resp of comp k
-        doPrecompEntropy : boolean flag that indicates whether to precompute the entropy of the data responsibilities (used for evaluating the evidence)
-              
+        doPrecompEntropy : boolean flag that indicates whether to precompute the entropy of the data responsibilities (used for evidence calculation for moVB)
+        doPrecompMergeEntropy : boolean flag, indicates whether to precompute the entropies for possible merges of components (used for merge moves)
+
         Returns
         -------
         SS : SuffStatDict with K components, with field
@@ -113,6 +115,19 @@ class DPMixModel(AllocModel):
     if doPrecompEntropy:
       Hvec = np.sum( LP['resp'] * np.log(EPS+LP['resp']), axis=0 )
       SS.addPrecompEntropy(Hvec)
+    if doPrecompMergeEntropy:
+      # Hmerge : KxK matrix of entropies for all possible pair-wise merges
+      # for example, if we had only 3 components {0,1,2}
+      # Hmerge = [ 0 H(0,1) H(0,2)
+      #            0   0    H(1,2)
+      #            0   0      0 ]      
+      #  where H(i,j) is entropy if components i and j merged.
+      Hmerge = np.zeros((self.K, self.K))
+      for jj in range(self.K):
+        compIDs = np.arange(jj+1, self.K)
+        Rcombo = LP['resp'][:,jj][:,np.newaxis] + LP['resp'][:,compIDs]
+        Hmerge[jj,compIDs] = np.sum(Rcombo*np.log(Rcombo+EPS), axis=0)
+      SS.addPrecompMergeEntropy(Hmerge)
     return SS
     
   ############################################################# Local Param Updates   
@@ -146,9 +161,10 @@ class DPMixModel(AllocModel):
   ##############################################################
   def update_global_params_VB( self, SS, **kwargs ):
     ''' Updates global params (stick-breaking Beta params qalpha1, qalpha0)
-        for conventional VB learning algorithm.
+          for conventional VB learning algorithm.
+        New parameters have exactly the number of components specified by SS. 
     '''
-    assert self.K == SS.K
+    self.K = SS.K
     qalpha1 = self.alpha1 + SS.N
     qalpha0 = self.alpha0 * np.ones(self.K)
     qalpha0[:-1] += SS.N[::-1].cumsum()[::-1][1:]

@@ -12,6 +12,7 @@ import numpy as np
 import time
 import os
 import logging
+from IPython import embed
 
 from bnpy.ioutil import ModelWriter
 
@@ -51,12 +52,18 @@ class LearnAlg(object):
   def get_elapsed_time(self):
     return time.time() - self.start_time
 
-  #########################################################  
-  #########################################################  Verify evidence monotonic
-  #########################################################  
+  ##################################################### Fcns for birth/merges
+  ##################################################### 
+  def hasMove(self, moveName):
+    if moveName in self.algParams:
+      return True
+    return False
+
+  ##################################################### Verify evidence monotonic
+  #####################################################  
   def verify_evidence(self, evBound=0.00001, prevBound=0, EPS=1e-9):
     ''' Compare current and previous evidence (ELBO) values,
-        and verify that (within numerical tolerance) evidence increases monotonically
+        verify that (within numerical tolerance) evidence increases monotonically
     '''
     if np.isnan(evBound):
       raise ValueError("Evidence should never be NaN")
@@ -77,7 +84,6 @@ class LearnAlg(object):
     return isWithinTHR 
 
 
-  #########################################################  
   #########################################################  Save to file
   #########################################################      
   def save_state( self, hmodel, iterid, lap, evBound, doFinal=False):
@@ -119,10 +125,10 @@ class LearnAlg(object):
         ModelWriter.save_model(hmodel, self.savedir, prefix,
                                 doSavePriorInfo=(iterid<1), doLinkBest=True)
 
-  #########################################################  
+
   #########################################################  Print State
   #########################################################  
-  def print_state( self, hmodel, iterid, lap, evBound, doFinal=False, status='', rho=None):
+  def print_state(self, hmodel, iterid, lap, evBound, doFinal=False, status='', rho=None):
     printEvery = self.outputParams['printEvery']
     if printEvery <= 0:
       return None
@@ -152,3 +158,6 @@ class LearnAlg(object):
       Log.info(logmsg)
     if doFinal:
       Log.info('... done. %s' % (status))
+
+  def print_msg(self, msg):
+      Log.info(msg)

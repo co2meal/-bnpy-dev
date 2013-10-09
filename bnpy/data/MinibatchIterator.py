@@ -88,6 +88,14 @@ class MinibatchIterator(object):
   def getObsIDsForCurrentBatch(self):
     return self.obsIDByBatch[self.batchOrderCurLap[self.curLapPos]]
 
+  def get_text_summary(self):
+    ''' Returns string with human-readable description of this dataset 
+        e.g. stats, source, etc.
+    '''
+    if hasattr(self, 'summary'):
+      return self.summary
+    return 'Minibatch Iterator: %d batches' % (self.nBatch)
+
   #########################################################  internal methods
   #########################################################           
   def configObsIDsForEachBatch(self):

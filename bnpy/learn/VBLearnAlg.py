@@ -26,6 +26,7 @@ class VBLearnAlg( LearnAlg ):
     self.set_start_time_now()
     prevBound = -np.inf
     LP = None
+    mergeFlags = dict(doPrecompEntropy=True, doPrecompMergeEntropy=True)
     for iterid in xrange(self.algParams['nLap'] + 1):
       # M step
       if iterid > 0:
@@ -33,11 +34,18 @@ class VBLearnAlg( LearnAlg ):
       
       # E step 
       LP = hmodel.calc_local_params(Data, LP)
-      SS = hmodel.get_global_suff_stats(Data, LP)
+      if self.hasMove('merge'):
+        SS = hmodel.get_global_suff_stats(Data, LP, **mergeFlags)
+      else:
+        SS = hmodel.get_global_suff_stats(Data, LP)
 
       # ELBO calculation
       evBound = hmodel.calc_evidence(Data, SS, LP)
-      
+
+      # Attempt birth/merge moves if available      
+      if self.hasMove('merge'):
+        hmodel, SS, evBound = self.run_merge_move(hmodel, Data, SS, LP, evBound)
+
       # Save and display progress
       self.add_nObs(Data.nObs)
       lap = iterid
@@ -60,3 +68,16 @@ class VBLearnAlg( LearnAlg ):
       status = "max passes thru data exceeded."
     self.print_state(hmodel,iterid, lap, evBound, doFinal=True, status=status)
     return LP
+
+
+  def run_merge_move(self, hmodel, Data, SS, LP, evBound):
+    ''' Run merge move on hmodel
+    ''' 
+    import MergeMove
+    if 'birth' in self.algParams:
+      pass
+    if 'merge' in self.algParams:
+      hmodel, SS, evBound, MoveInfo = MergeMove.run_merge_move( \
+                 hmodel, Data, SS, evBound, **self.algParams['merge'])
+      self.print_msg(MoveInfo['msg'])
+    return hmodel, SS, evBound

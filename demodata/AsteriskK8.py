@@ -68,7 +68,7 @@ def get_X(seed, nObsTotal):
 
 def get_data(seed=8675309, nObsTotal=25000, **kwargs):
   X, TrueZ = get_X(seed, nObsTotal)
-  Data = XData(X=X)
+  Data = XData(X=X, TrueZ=TrueZ)
   Data.summary = get_data_info()
   return Data
   

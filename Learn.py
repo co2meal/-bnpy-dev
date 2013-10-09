@@ -132,16 +132,23 @@ def createLearnAlg(Data, model, ArgDict, algseed=0, savepath=None):
   '''
   algName = ArgDict['algName']
   algP = ArgDict[algName]
+  if 'birth' in ArgDict:
+    algP['birth'] = ArgDict['birth']
+  if 'merge' in ArgDict:
+    algP['merge'] = ArgDict['merge']
   outputP = ArgDict['OutputPrefs']
   if algName == 'EM' or algName == 'VB':
-    learnAlg = bnpy.learn.VBLearnAlg(savedir=savepath, seed=algseed, \
-                                      algParams=algP, outputParams=outputP)
+    learnAlg = bnpy.learn.VBLearnAlg(\
+                          savedir=savepath, seed=algseed, \
+                          algParams=algP, outputParams=outputP)
   elif algName == 'soVB':
-    learnAlg = bnpy.learn.StochasticOnlineVBLearnAlg(savedir=savepath, seed=algseed, \
-                                      algParams=algP, outputParams=outputP)
+    learnAlg = bnpy.learn.StochasticOnlineVBLearnAlg( \
+                          savedir=savepath, seed=algseed, \
+                          algParams=algP, outputParams=outputP)
   elif algName == 'moVB':
-    learnAlg = bnpy.learn.MemoizedOnlineVBLearnAlg(savedir=savepath, seed=algseed, \
-                                      algParams=algP, outputParams=outputP)
+    learnAlg = bnpy.learn.MemoizedOnlineVBLearnAlg( \
+                          savedir=savepath, seed=algseed, \
+                          algParams=algP, outputParams=outputP)
   else:
     raise NotImplementedError("Unknown learning algorithm " + algName)
   return learnAlg
