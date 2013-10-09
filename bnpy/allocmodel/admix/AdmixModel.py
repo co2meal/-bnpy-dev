@@ -72,11 +72,22 @@ class AdmixModel( AllocModel ):
   ##############################################################    
   ############################################################## Suff Stat Calc   
   ##############################################################
-  def get_global_suff_stats( self, Data, SS, LP, Ntotal=None, **kwargs ):
+  def get_global_suff_stats( self, Data, LP, doPrecompEntropy=None, **kwargs):
     ''' Just count expected # assigned to each cluster across all Docs, as usual
     '''
-    Nvec = np.sum( LP['resp'], axis=0 )
+    phi = LP['phi']
+    K,total_obs = phi.shape
+    word_count = Data.word_count
+    groupid = Data.groupid
+    D = Data.D
+    Nvec = np.zeros( (K,D) )
+    # Loop through documents
+    for d in xrange(D):
+        start,stop = groupid[d]
+        # get document-level sufficient statistics 
+        Nvec[:, d] = np.dot( phi[:,start:stop], word_count[d].values() ) 
     SS = SuffStatDict(N=Nvec)
+    SS.K = K
     return SS
      
     

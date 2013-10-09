@@ -41,10 +41,11 @@ class DirichletDistr(object):
 
   ############################################################## Param updates  
   ##############################################################
-  def get_post_distr( self, SS ):
+  def get_post_distr( self, SS, k ):
     ''' Create new Distr object with posterior params
     '''
-    return DirichletDistr(SS.Nvec + self.lamvec)
+    Nvec = SS["lambda_kw"][k,:]
+    return DirichletDistr(Nvec + self.lamvec)
     
   def post_update( self, SS ):
     ''' Posterior update of internal params given data

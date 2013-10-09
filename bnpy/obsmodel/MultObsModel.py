@@ -10,9 +10,9 @@ from ..util import LOGTWO, LOGPI, LOGTWOPI, EPS
 from ..util import np2flatstr, dotATA, dotATB, dotABT
 from ..util import MVgammaln, MVdigamma
 
-EPS = np.finfo(float).eps
+from ObsCompSet import ObsCompSet
 
-class MultObsModel( object ):
+class MultObsModel( ObsCompSet ):
 
   def __init__( self, inferType, W=None, obsPrior=None,):
     self.inferType = inferType
@@ -42,7 +42,7 @@ class MultObsModel( object ):
       return 'Dirichlet'
 
   def get_human_global_param_string(self, fmtStr='%3.2f'):
-    if self.qType == 'EM':
+    if self.inferType == 'EM':
       return '\n'.join( [np2flatstr(self.qobsDistr[k].phi, fmtStr) for k in xrange(self.K)] )
     else:
       return '\n'.join( [np2flatstr(self.qobsDistr[k].lamvec/self.qobsDistr[k].lamsum, fmtStr) for k in xrange(self.K)] )
@@ -59,31 +59,21 @@ class MultObsModel( object ):
   def get_global_suff_stats( self, Data, SS, LP ):
     ''' Suff Stats
     '''
-    resp = LP['resp']
-    try:      
-      SS['TermCount'] = np.dot( resp.T, Data['X'] )
-      return SS
-    except KeyError:
-      TermCountMat  = np.zeros( (self.K, self.D) )      
-      for docID in xrange( Data['nGroup'] ):
-        docResp = LP['resp'][ Data['GroupIDs'][docID][0]:Data['GroupIDs'][docID][1] ]
-        TermCountMat[:, Data['wordIDs_perGroup'][docID] ]  += docResp.T
-        assert np.allclose( docResp.sum(axis=1), Data['wordCounts_perGroup'][docID] )
-        #TermCountMat[:, Data['wordIDs_perGroup'][docID] ]  += Data['wordCounts_perGroup'][docID]*docResp.T
-      SS['TermCount'] = TermCountMat
+    # Grab topic x word sufficient statistics
+    phi = LP['phi']
+    word_count = Data.word_count
+    V = Data.V
+    K,_ = phi.shape
+    lambda_kw = np.zeros( (K, V) )
+    # Loop through documents
+    ii = 0
+    for d in xrange(len(word_count)):
+        for word_id, word_freq in word_count[d].iteritems():
+            lambda_kw[:, word_id] += phi[:,ii] * word_freq  
+            ii += 1
+    # Return K x V matrix of sufficient stats (topic x word)
+    SS.lambda_kw = lambda_kw
     return SS
-
-  ################################################################## Param updates
-  def update_global_params( self, SS, rho=None, Ntotal=None, **kwargs):
-    ''' M-step update
-    '''
-    if self.qType == 'EM':
-        self.update_obs_params_EM( SS)
-    elif self.qType.count('VB')>0:
-      if rho is None:
-        self.update_obs_params_VB( SS )
-      else:
-        self.update_obs_params_VB_stochastic( SS, rho, Ntotal )
 
   def update_obs_params_EM( self, SS, **kwargs):
     phiHat = SS['TermCount']
@@ -91,9 +81,9 @@ class MultObsModel( object ):
     for k in xrange( self.K ):
       self.qobsDistr[k] = MultinomialDistr( phiHat[k] )
 
-  def update_obs_params_VB( self, SS, **kwargs):
-    for k in xrange( self.K):
-      self.qobsDistr[k] = self.obsPrior.getPosteriorDistr( SS['TermCount'][k] )
+  def update_obs_params_VB( self, SS, Krange, **kwargs):
+    for k in Krange:
+      self.comp[k] = self.obsPrior.get_post_distr( SS, k )
 
   def update_obs_params_VB_stochastic( self, SS, rho, Ntotal, **kwargs):
     ampF = Ntotal/SS['Ntotal']
@@ -106,7 +96,7 @@ class MultObsModel( object ):
       
   #########################################################  Soft Evidence Fcns  
   def calc_local_params( self, Data, LP):
-    if self.qType == 'EM':
+    if self.inferType == 'EM':
       LP['E_log_soft_ev'] = self.log_soft_ev_mat( Data )
     else:
       LP['E_log_soft_ev'] = self.E_log_soft_ev_mat( Data )
@@ -121,16 +111,16 @@ class MultObsModel( object ):
     return lpr
       
   def E_log_soft_ev_mat( self, Data ):
-    ''' E-step update, for VB-type
+    ''' E-step update, for word tokens
     '''
-    lpr = np.empty( (Data['nObs'], self.K) )
+    lpr = np.empty( (Data.nObsTotal, self.K) )
     for k in xrange( self.K ):
-      lpr[:,k] = self.qobsDistr[k].E_log_pdf( Data )
+      lpr[:,k] = self.comp[k].E_log_pdf( Data )
     return lpr
   
   #########################################################  Evidence Bound Fcns  
   def calc_evidence( self, Data, SS, LP):
-    if self.qType == 'EM':
+    if self.inferType == 'EM':
       return 0 # handled by alloc model
     return self.E_logpX( LP, SS) + self.E_logpPhi() - self.E_logqPhi()
   
