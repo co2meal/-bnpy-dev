@@ -22,7 +22,10 @@ Log.setLevel(logging.DEBUG)
 class LearnAlg(object):
 
   def __init__(self, savedir=None, seed=0, algParams=dict(), outputParams=dict()):
-    self.savedir = os.path.splitext(savedir)[0]
+    if type(savedir) == str:
+      self.savedir = os.path.splitext(savedir)[0]
+    else:
+      self.savedir = None
     self.PRNG = np.random.RandomState(seed)
     self.algParams = algParams
     self.outputParams = outputParams
@@ -91,7 +94,7 @@ class LearnAlg(object):
     '''
     saveEvery = self.outputParams['saveEvery']
     traceEvery = self.outputParams['traceEvery']
-    if saveEvery <= 0:
+    if saveEvery <= 0 or self.savedir is None:
       return    
 
     def mkfile(fname):

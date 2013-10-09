@@ -67,7 +67,7 @@ class VBLearnAlg( LearnAlg ):
     else:
       status = "max passes thru data exceeded."
     self.print_state(hmodel,iterid, lap, evBound, doFinal=True, status=status)
-    return LP
+    return LP, evBound
 
 
   def run_merge_move(self, hmodel, Data, SS, LP, evBound):
@@ -81,3 +81,6 @@ class VBLearnAlg( LearnAlg ):
                  hmodel, Data, SS, evBound, **self.algParams['merge'])
       self.print_msg(MoveInfo['msg'])
     return hmodel, SS, evBound
+
+
+

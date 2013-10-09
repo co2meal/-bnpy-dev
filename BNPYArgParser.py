@@ -1,29 +1,102 @@
 import argparse
 import ConfigParser
+from IPython import embed
 
-ConfigPaths=['config/allocmodel.conf','config/obsmodel.conf', 
-             'config/init.conf', 'config/inference.conf', 'config/output.conf']
+ConfigPaths={'config/allocmodel.conf':'allocModelName',
+             'config/obsmodel.conf':'obsModelName', 
+             'config/inference.conf':'algName',
+             'config/init.conf':None,
+             'config/output.conf':None}
+             
 OnlineDataConfigPath = 'config/onlinedata.conf'
 
+UNKARGLIST = None
+
+def parseUnknownArgs():
+  return arglist_to_kwargs(UNKARGLIST)
+
+def parseRequiredArgs():
+  parser = argparse.ArgumentParser()
+  parser.add_argument('dataName')
+  parser.add_argument('allocModelName')
+  parser.add_argument('obsModelName')
+  parser.add_argument('algName')
+  args, unk = parser.parse_known_args()
+  return args.__dict__
+  
+def parseKeywordArgs(ReqArgs, **kwargs):
+  global UNKARGLIST
+  from Learn import OnlineDataAlgSet
+  if ReqArgs['algName'] in OnlineDataAlgSet:
+    ConfigPaths[OnlineDataConfigPath] = None
+    
+  # BUILD parser using default opts in the config files
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--moves', type=str)
+    
+  for fpath, secName in ConfigPaths.items():
+    if secName is not None:
+      secName = ReqArgs[secName]
+    addArgGroupFromConfigFile(parser, fpath, secName) 
+    if fpath.count('infer') > 0:
+      addArgGroupFromConfigFile(parser, fpath, 'birth') 
+      addArgGroupFromConfigFile(parser, fpath, 'merge') 
+
+  # PARSE keyword args
+  if len(kwargs.keys()) > 0:
+    alist = kwargs_to_arglist(**kwargs)
+    args, UNKARGLIST = parser.parse_known_args(alist)
+  else:
+    args, UNKARGLIST = parser.parse_known_args()
+  if args.moves is not None:
+    args.moves = args.moves.split(',')
+  
+  # CONVERT parsed arg namespace to a nice dictionary
+  argDict = dict()
+  for fpath, secName in ConfigPaths.items():
+    if secName is not None:
+      secName = ReqArgs[secName]
+    addArgsToDictByConfigFile(argDict, args, fpath, secName)
+    if fpath.count('infer') > 0 and args.moves is not None:
+      for moveName in args.moves:
+        addArgsToDictByConfigFile(argDict, args, fpath, moveName)
+  return argDict
+
+def arglist_to_kwargs(alist):
+  kwargs = dict()
+  a = 0
+  while a < len(alist):
+    curarg = alist[a]
+    if curarg.startswith('--'):
+      argname = curarg[2:]
+      argval = alist[a+1]
+      curType = getType(argval)
+      kwargs[argname] = curType(argval)
+      a += 1
+    a += 1
+  return kwargs
+
+def kwargs_to_arglist(**kwargs):
+  arglist = list()
+  for key,val in kwargs.items():
+    arglist.append('--' + key)
+    arglist.append(str(val))
+  return arglist
+
+'''
 def parseArgs():
   parser = argparse.ArgumentParser()
   parser.add_argument('dataName')
   parser.add_argument('allocModelName')
   parser.add_argument('obsModelName')
   parser.add_argument('algName')
-  parser.add_argument('--moves', type=str, default=None)
   args, unkargs = parser.parse_known_args()
   if args.algName.count('o') > 0:
     ConfigPaths.append(OnlineDataConfigPath)
 
-  # Loop over all ConfigPaths, adding expected arguments to the parser object
   for filepath in ConfigPaths:
     if filepath.count('inference') > 0:
       addArgGroupFromConfigFile(parser, filepath, args.algName)
-      if args.moves is not None:
-        args.moves = args.moves.split(',')
-        for movename in args.moves:
-          addArgGroupFromConfigFile(parser, filepath, movename)      
     elif filepath.count('allocmodel') > 0:
       addArgGroupFromConfigFile(parser, filepath, args.allocModelName)
     elif filepath.count('obsmodel') > 0:
@@ -36,49 +109,22 @@ def parseArgs():
                   obsModelName=args.obsModelName,
                   algName=args.algName
                 )
-
-  # Loop over all ConfigPaths, adding key/value pairs to argDict
-  # from either user-provided args (priority) or defaults in the configfile
   for filepath in ConfigPaths:
-    addArgsToDictByConfigFile(argDict, args, filepath)
-  
+    addArgsToDictByConfigFile( argDict, args, filepath)
   return argDict
+'''
 
-def readConfigParser( filepath):
-  config = ConfigParser.SafeConfigParser()
-  config.optionxform = str
-  config.read( filepath )  
-  return config
-  
-def addArgsToDictByConfigFile(argDict, args, filepath):
-  config = readConfigParser(filepath)
+def addArgsToDictByConfigFile(argDict, args, filepath, targetSectionName=None):
+  config = readConfigParser( filepath)
   for secName in config.sections():
     if secName.count("Help") > 0:
       continue
-    if not doProcessSectionName(filepath, secName, args):
-      continue
-    DefDict = dict( config.items( secName ) )  
+    if targetSectionName is not None:
+      if secName != targetSectionName:
+        continue
+    DefDict = dict(config.items(secName))  
     secArgDict = dict([ (k,v) for (k,v) in vars(args).items() if k in DefDict])
     argDict[secName] = secArgDict
-
-def doProcessSectionName(fileName, secName, args):
-  if fileName.count('inference') > 0:
-    if secName == args.algName:
-      return True
-    elif args.moves is not None and secName in args.moves:
-      return True
-    else:
-      return False
-  if fileName.count('alloc'):
-    if secName == args.allocModelName:
-      return True
-    return False
-  if fileName.count('obs'):
-    if secName == args.obsModelName:
-      return True
-    return False
-  else:
-    return True
 
 def addArgGroupFromConfigFile(parser, confFilePath, targetSectionName=None):
   config = readConfigParser( confFilePath)
@@ -97,7 +143,6 @@ def addArgGroupFromConfigFile(parser, confFilePath, targetSectionName=None):
     group = parser.add_argument_group( secName )    
     for optName, defVal in DefDict.items():
       defType = getType( defVal)
-      
       if optName in HelpDict:
         helpMsg = '[def=%s] %s' % (defVal, HelpDict[optName])
       else:
@@ -108,8 +153,15 @@ def addArgGroupFromConfigFile(parser, confFilePath, targetSectionName=None):
       else:
         group.add_argument( '--%s' % (optName), default=defVal, help=helpMsg, type=defType)
 
+
+def readConfigParser(filepath):
+  config = ConfigParser.SafeConfigParser()
+  config.optionxform = str
+  config.read( filepath )  
+  return config
+
 def getType( defVal ):
-  ''' Auto determine what type the argument takes based on its default value.
+  ''' Determine Python type from the provided default value
       Returns
       ---------
       a Python type object
@@ -120,7 +172,7 @@ def getType( defVal ):
   if defVal == 'false' or defVal == 'False':
     return False
   try:
-    int( defVal )
+    int(defVal)
     return int
   except Exception:
     pass
@@ -129,7 +181,4 @@ def getType( defVal ):
     return float
   except Exception:
     return str
-    
-if __name__ == '__main__':
-  print parseArgs( ['config/allocmodel.conf','config/obsmodel.conf'])
 
