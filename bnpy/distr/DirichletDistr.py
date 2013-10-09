@@ -17,7 +17,15 @@ class DirichletDistr(object):
 
   @classmethod
   def InitFromData( cls, argDict, Data):
-    raise NotImplementedError("TODO after Data format for topic models")
+    # Data should contain information about dirichlet vocabulary size
+    V = Data.V
+    if argDict["gamma"] is not None:
+        gamma = argDict["gamma"]
+    else:
+        gamma = 1.0
+    
+    lamvec = np.zeros( (V,1) ) + gamma
+    return cls(lamvec = lamvec)
       
   def __init__(self, lamvec=None):
     self.lamvec = lamvec
@@ -96,8 +104,6 @@ class DirichletDistr(object):
     
 '''
   def E_log_pdf( self, Data ):
-    '''
-    '''
     try:
       Data['wordIDs_perGroup'][0]
       return self.log_pdf_from_list( Data )

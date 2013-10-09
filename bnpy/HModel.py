@@ -31,8 +31,8 @@ from allocmodel import *
 
 # Dictionary map that turns string input at command line into desired bnpy objects
 # string --> bnpy object constructor
-AllocConstr = {'MixModel':MixModel, 'DPMixModel':DPMixModel}
-ObsConstr = {'ZMGauss':ZMGaussObsCompSet, 'Gauss':GaussObsCompSet}
+AllocConstr = {'MixModel':MixModel, 'DPMixModel':DPMixModel, 'AdmixModel': AdmixModel}
+ObsConstr = {'ZMGauss':ZMGaussObsCompSet, 'Gauss':GaussObsCompSet, 'Mult':MultObsModel}
                    
 class HModel( object ):
 
@@ -129,6 +129,8 @@ class HModel( object ):
       init.FromSaved.init_global_params(self, Data, **initArgs)
     elif str(type(self.obsModel)).count('Gauss') > 0:
       init.FromScratchGauss.init_global_params(self, Data, **initArgs)
+    elif str(type(self.obsModel)).count('Mult') > 0:
+      init.FromScratchMult.init_global_params(self, Data, **initArgs)
     else:
       # TODO: more observation types!
       raise NotImplementedError("to do")
