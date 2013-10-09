@@ -59,4 +59,4 @@ class VBLearnAlg( LearnAlg ):
     else:
       status = "max passes thru data exceeded."
     self.print_state(hmodel,iterid, lap, evBound, doFinal=True, status=status)
-    return LP
+    return LP, evBound
