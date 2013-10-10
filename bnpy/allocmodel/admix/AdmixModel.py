@@ -47,7 +47,7 @@ class AdmixModel( AllocModel ):
     pass
       	
   def get_prior_dict( self ):
-    return dict( alpha0=self.alpha0, K=self.K, qType=self.qType )
+    return dict( alpha0=self.alpha0, K=self.K, inferType=self.inferType )
     
   def get_info_string( self):
     ''' Returns human-readable name of this object
@@ -75,17 +75,17 @@ class AdmixModel( AllocModel ):
   def get_global_suff_stats( self, Data, LP, doPrecompEntropy=None, **kwargs):
     ''' Just count expected # assigned to each cluster across all Docs, as usual
     '''
-    phi = LP['phi']
-    K,total_obs = phi.shape
+    resp = LP['resp']
+    total_obs,K = resp.shape
     word_count = Data.word_count
     groupid = Data.groupid
     D = Data.D
-    Nvec = np.zeros( (K,D) )
+    Nvec = np.zeros( (D, K) )
     # Loop through documents
     for d in xrange(D):
         start,stop = groupid[d]
         # get document-level sufficient statistics 
-        Nvec[:, d] = np.dot( phi[:,start:stop], word_count[d].values() ) 
+        Nvec[d,:] = np.dot( word_count[d].values(), resp[start:stop,:] ) 
     SS = SuffStatDict(N=Nvec)
     SS.K = K
     return SS
@@ -101,49 +101,67 @@ class AdmixModel( AllocModel ):
          and q(W)  (posterior on Doc-topic distribution)
     '''
     try:
-      LP['N_perDoc']
+      LP['doc_topic_weights']
     except KeyError:
-      LP['N_perDoc'] = np.zeros( (Data['nDoc'],self.K) )
+      total_obs, K = LP['E_log_soft_ev'].shape
+      LP['doc_topic_weights'] = np.zeros( (Data.D, K) )
 
-    DocIDs = Data['DocIDs']
-    nDocs = Data['nDoc']
+    groupid = Data.groupid
+    D = len(groupid)
+    #DocIDs = Data['DocIDs']
+    #nDocs = Data['nDoc']
     prevVec = None
     for rep in xrange( 4 ):
       LP = self.get_doc_theta( Data, LP)
       LP = self.get_word_phi( Data, LP)
-      for gg in range( nDocs ):
-        DocResp = LP['resp'][ DocIDs[gg][0]:DocIDs[gg][1] ]
-        LP['N_perDoc'][gg] = np.sum( DocResp, axis=0 )
-
-      curVec = LP['alpha_perDoc'].flatten()
+      #for gg in range( nDocs ):
+        #DocResp = LP['resp'][ DocIDs[gg][0]:DocIDs[gg][1] ]
+        #LP['doc_topic_weights'][gg] = np.sum( DocResp, axis=0 )
+        
+      for d in xrange( D ):
+        start,stop = groupid[d]
+        #doc_topic_weights = Freq of unique word counts for document d x responsibilities
+        LP['doc_topic_weights'][d,:] = np.dot( Data.word_count[d].values(), LP['resp'][start:stop,:] )  
+      curVec = LP['theta'].flatten()
       if prevVec is not None and np.allclose( prevVec, curVec ):
         break
       prevVec = curVec
+    
     return LP
     
   def get_doc_theta( self, Data, LP):
-    DocIDs = Data['DocIDs']
-    alpha_perDoc = self.alpha0 + LP['N_perDoc']
-    LP['alpha_perDoc'] = alpha_perDoc
-    LP['Elogw_perDoc'] = digamma( alpha_perDoc ) \
-                             - digamma( alpha_perDoc.sum(axis=1) )[:,np.newaxis]
+    
+    theta = self.alpha0 + LP['doc_topic_weights']
+    LP['theta'] = theta
+    LP['ElogTheta'] = digamma( theta ) \
+                             - digamma( theta.sum(axis=1) )[:,np.newaxis]
     # Added this line to aid human inspection. self.Elogw is never used except to print status
-    self.Elogw = LP['Elogw_perDoc']
+    self.ElogTheta = LP['ElogTheta']
     return LP
     
   def get_word_phi( self, Data, LP):
-    DocIDs = Data['DocIDs']
+    #DocIDs = Data['DocIDs']
+    groupid = Data.groupid
     lpr = LP['E_log_soft_ev'].copy() # so we can do += later
-    for gg in xrange( len(DocIDs) ):
-      lpr[ DocIDs[gg][0]:DocIDs[gg][1] ] += LP['Elogw_perDoc'][gg]
+    # Loop through documents and add expectations of document i and topics 1:K
+    # to all relevant observations
+    for d in xrange( Data.D ):
+        start,stop = groupid[d]
+        lpr[start:stop, :] += LP['ElogTheta'][d,:]
     lprPerItem = logsumexp( lpr, axis=1 )
     resp   = np.exp( lpr-lprPerItem[:,np.newaxis] )
     resp   /= resp.sum( axis=1)[:,np.newaxis] # row normalize
     assert np.allclose( resp.sum(axis=1), 1)
-    if 'wordIDs_perDoc' in Data:
-      for gg in xrange(len(DocIDs)):
-        resp[ DocIDs[gg][0]:DocIDs[gg][1] ] *= Data['wordCounts_perDoc'][gg][:,np.newaxis]
+    '''
+    ii = 0
+    for d in xrange(Data.D):
+        start,stop = groupid[d]
+        for (word_id, word_freq) in enumerate(word_count[d]):
+            resp[ :, ii] *= Data['wordCounts_perDoc'][d][:,np.newaxis]
+            ii += 1
+    '''
     LP['resp'] = resp
+    LP['resp_unorm'] = lpr
     return LP
 
 
@@ -160,48 +178,61 @@ class AdmixModel( AllocModel ):
   ############################################################## Evidence calc.   
   ##############################################################
   def calc_evidence( self, Data, SS, LP ):
-    DocIDs = Data['DocIDs']
+    #DocIDs = Data['DocIDs']
+    # assume for now that DocIDs is an index that contains all documents
+    DocIDs = range(Data.D)
+    respNorm = None
+    '''
     if 'wordCounts_perDoc' in Data:
       respNorm = LP['resp'] / LP['resp'].sum(axis=1)[:,np.newaxis]
     else:
       respNorm = None
+    '''
     if 'ampG' in SS:
       evW = SS['ampG']*self.E_logpW( LP) - SS['ampG']*self.E_logqW(LP)
     else:
-      evW = self.E_logpW( LP) - self.E_logqW(LP)
+      pPI = self.E_logpTheta( Data, LP ) # evidence of 
+      qPI = self.E_logqTheta( Data, LP ) # entropy of ...
     if 'ampG' in SS:
       evZ = SS['ampG']*self.E_logpZ( DocIDs, LP ) - SS['ampF']*self.E_logqZ( DocIDs, LP, respNorm )
     else:
-      evZ = self.E_logpZ( DocIDs, LP ) - self.E_logqZ( DocIDs, LP, respNorm )
-    return evZ + evW
+      #evZ = self.E_logpZ( DocIDs, LP ) - self.E_logqZ( DocIDs, LP, respNorm )
+      pz = self.E_logpZ( Data, LP )
+      qz = self.E_logqZ( Data, LP )
+    lb_alloc = pPI + pz - qPI - qz
+    print "pz: " + str(pz)
+    print "qz: " + str(qz)
+    print "pPI: " + str(pPI)
+    print "qPI: " + str(qPI)
+    return lb_alloc
 
-  def E_logpZ( self, DocIDs, LP ):
-    ElogpZ = 0
-    for gg in xrange( len(DocIDs) ):
-      ElogpZ += np.sum( LP['resp'][ DocIDs[gg][0]:DocIDs[gg][1] ] * LP['Elogw_perDoc'][gg] )
-    return ElogpZ
+  def E_logpZ( self, Data, LP ):
+    #for gg in xrange( len(DocIDs) ):
+      #ElogpZ += np.sum( LP['resp'][ DocIDs[gg][0]:DocIDs[gg][1] ] * LP['ElogTheta'][gg] )
+      
+    # p(z | pi)
+    ElogpZ = LP["doc_topic_weights"] * LP["ElogTheta"]
     
-  def E_logqZ( self, DocIDs, LP, respNorm=None ):
-    if respNorm is None:
-      ElogqZ = np.sum( LP['resp'] * np.log(EPS+LP['resp'] ) )
-    else:
-      ElogqZ = np.sum( LP['resp'] * np.log(EPS+respNorm ) )
-    return ElogqZ    
+    return ElogpZ.sum()
+    
+  def E_logqZ( self, Data, LP):  
+    ElogqZ = np.dot(np.log(EPS+LP['resp']), LP["doc_topic_weights"].T)    
+    return ElogqZ.sum()    
 
-  def E_logpW( self, LP ):
-    nDoc = len(LP['alpha_perDoc'])
-    ElogpW = gammaln(self.K*self.alpha0)-self.K*gammaln(self.alpha0)    
-    ElogpW *= nDoc  # same prior over each Doc of data!
-    for gg in xrange( nDoc ):
-      ElogpW += (self.alpha0-1)*LP['Elogw_perDoc'][gg].sum()
+  def E_logpTheta( self, Data, LP ):
+    D,K = LP['theta'].shape
+    ElogpW = gammaln(K*self.alpha0)-K*gammaln(self.alpha0)    
+    ElogpW *= D  # same prior over each Doc of data!
+    for gg in xrange( D ):
+      ElogpW += (self.alpha0-1)*LP['ElogTheta'][gg].sum()
     return ElogpW
  
-  def E_logqW( self, LP ):
+  def E_logqTheta( self, Data, LP ):
     ElogqW = 0
-    for gg in xrange( len(LP['alpha_perDoc']) ):
-      a_gg = LP['alpha_perDoc'][gg]
+    for gg in xrange( len(LP['theta']) ):
+      a_gg = LP['theta'][gg]
       ElogqW +=  gammaln(  a_gg.sum()) - gammaln(  a_gg ).sum() \
-                  + np.inner(  a_gg -1,  LP['Elogw_perDoc'][gg] )
+                  + np.inner(  a_gg -1,  LP['ElogTheta'][gg] )
     return ElogqW
 
   ##############################################################    

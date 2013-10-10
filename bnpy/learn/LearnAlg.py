@@ -12,7 +12,8 @@ import numpy as np
 import time
 import os
 import logging
-
+import scipy.io
+from distutils.dir_util import mkpath
 from bnpy.ioutil import ModelWriter
 
 Log = logging.getLogger('bnpy')
@@ -122,6 +123,32 @@ class LearnAlg(object):
   #########################################################  
   #########################################################  Print State
   #########################################################  
+  
+  def calc_posterior_exp(self, amodel, Data, LP):
+    theta = LP["theta"]
+    D,K = theta.shape
+    Etheta = np.zeros((D,K))
+    Elambda = np.zeros((K,Data.V))
+    for d in xrange (D):
+        Etheta[d,:] = theta[d,:] / theta[d,:].sum()
+    for k in xrange( K ):
+        lambda_k = amodel.obsModel.comp[k].lamvec
+        Elambda[k,:] = lambda_k / lambda_k.sum()
+    # grab bounds from allocation model and observation model
+            
+    return dict(Etheta = Etheta, Elambda = Elambda)
+
+  def save_expectations(self, amodel, iterid, Data, LP):
+    fname = self.savedir
+    if not os.path.exists( fname):
+        mkpath( fname )
+    amatname = 'gen_eY.mat'
+    outmatfile = os.path.join( fname, amatname )
+    myDict = self.calc_posterior_exp(amodel, Data, LP)
+    #myDict.update(amodel.allocModel.bounds)
+    #myDict.update(amodel.obsModel.bounds)
+    scipy.io.savemat( outmatfile, myDict, oned_as='row')
+  
   def print_state( self, hmodel, iterid, lap, evBound, doFinal=False, status='', rho=None):
     printEvery = self.outputParams['printEvery']
     if printEvery <= 0:

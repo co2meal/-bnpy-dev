@@ -30,6 +30,7 @@ class WordsData(DataObj):
     self.word_count = word_count
     self.groupid = groupid
     self.nObsTotal = nObsTotal
+    self.nObs = nObsTotal
     self.D = len(self.word_count)
     self.V = vocab_size
     #self.set_dependent_params(nObsTotal=nObsTotal)
