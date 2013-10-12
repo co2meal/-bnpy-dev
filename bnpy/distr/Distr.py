@@ -44,20 +44,16 @@ class Distr( object ):
     pass
     
     
+  ############################################################## Samplers
+  ##############################################################
+  def sample(self):
+    ''' Returns samples from Distr
+    '''
+    pass
+
+  
   ############################################################## Exp Fam Accessors  
   ##############################################################
-  def get_log_norm_const(self):
-    ''' Returns log( Z ), where
-         PDF(x) :=  1/Z(theta) f( x | theta )
-    '''
-    pass
-
-  def get_entropy( self ):
-    ''' Returns entropy of this distribution 
-          H[ p(x) ] = -1*\int p(x|theta) log p(x|theta) dx
-    '''
-    pass
-
     
     
   ############################################################## I/O  

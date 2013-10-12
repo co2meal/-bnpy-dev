@@ -113,8 +113,32 @@ class WishartDistr( Distr ):
     self.v = rho*starD.v + (1-rho)*self.v
     self.invW = rho*starD.invW + (1-rho)*self.invW
     self.Cache = dict()
+    
+  ############################################################## Samplers
+  ##############################################################
+  def sample(self,numSamples=1):
+    ''' Returns samples from self
+        References: 
+            1) "A Numerical Procedure to Generate a Sample Covariance Matrix" - Odell and Feiveson, JASA 1966
+            2) http://www.stat.duke.edu/~km68/materials/214.9%20(Wishart).pdf
+    '''
+    if(self.v<self.D):
+        raise Exception, 'Sampling not supported, when dof < dimesnion ' 
+    
+    samples = np.zeros([self.D,self.D,numSamples]);
+    for ctr in xrange(numSamples):
+        U = samples[:,:,ctr]#np.zeros([self.D,self.D]);
+        # generate diagonal elements from a chisquare distribution with df = v-i+1
+        U[np.diag_indices(self.D)] = [np.sqrt(np.random.chisquare(self.v-(i+1)+1)) for i in xrange(self.D-1) ]
+        # generate upper triangular elements from N(0,1) 
+        U[np.triu_indices(self.D, 1)] = np.random.normal(0,1,[0.5*self.D*(self.D-1)])
+        print U
+        # U ~ Wishart(v,I), use Bartlett decomposition to get U ~ Wishart(v,invW)
+        UPt = np.dot(U,self.cholinvW().T)
+        samples[:,:,ctr] = np.dot(UPt.T,UPt)
+    return samples
 
-  #######################################################
+  ####################################################### accessors
   def get_log_norm_const( self ):
     ''' Returns log( Z ), where
          PDF(x) :=  1/Z(theta) f( x | theta )

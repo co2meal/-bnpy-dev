@@ -128,7 +128,14 @@ class GaussDistr( Distr ):
     self.L = L
     self.m = np.linalg.solve(L, Lm) # invL*L*m = m
     self.Cache = dict()
-        
+  
+  ############################################################## Samplers
+  ##############################################################
+  def sample(self,numSamples=1):
+    ''' Returns samples from Distr
+    '''
+    return np.random.multivariate_normal(self.m,self.get_covar(),numSamples)     
+  
   ############################################################## Accessors  
   ##############################################################
   def get_covar(self):

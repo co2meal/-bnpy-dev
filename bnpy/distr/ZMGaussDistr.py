@@ -75,6 +75,13 @@ class ZMGaussDistr( Distr ):
     '''
     return self.get_log_norm_const() + 0.5*self.D
     
+  ############################################################## Samplers
+  ##############################################################
+  def sample(self,numSamples=1):
+    ''' Returns samples from self
+    '''
+    return np.random.multivariate_normal(np.zeros([1,self.D]),self.get_covar(),numSamples)   
+       
   ############################################################## Internal Accessors
   ############################################################## TODO: clean up
   def ECovMat(self):

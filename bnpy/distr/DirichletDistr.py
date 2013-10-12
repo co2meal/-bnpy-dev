@@ -83,6 +83,13 @@ class DirichletDistr(object):
     ''' Returns E[ log p( x | theta ) ] under q(theta) <- this distr
     '''
     raise NotImplementedError("TODO")    
+     
+  ############################################################## Samplers
+  ##############################################################
+  def sample(self,numSamples=1):
+    ''' Returns samples from self
+    '''
+    return np.random.dirichlet(self.lamvec, size=numSamples)   
 
   ############################################################## I/O  
   ##############################################################
@@ -94,7 +101,7 @@ class DirichletDistr(object):
     self.set_helpers()
 
     
-'''
+
   def E_log_pdf( self, Data ):
     '''
     '''
@@ -110,4 +117,3 @@ class DirichletDistr(object):
     for docID in xrange( Data['nGroup'] ):
       lpr[ GroupIDs[docID][0]:GroupIDs[docID][1] ] = self.Elogphi[:, Data['wordIDs_perGroup'][docID] ].T
     return lpr
-'''
