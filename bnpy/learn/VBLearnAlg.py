@@ -54,7 +54,8 @@ class VBLearnAlg( LearnAlg ):
 
     #Finally, save, print and exit
     self.save_state(hmodel,iterid, lap, evBound, doFinal=True)
-    self.save_expectations(hmodel, iterid, Data, LP)
+    self.plot_results(hmodel, Data, LP)
+    
     if isConverged:
       status = "converged."
     else:

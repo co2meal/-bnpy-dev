@@ -26,7 +26,6 @@ import json
 Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
 
-import numpy as np
 import bnpy
 import BNPYArgParser
 

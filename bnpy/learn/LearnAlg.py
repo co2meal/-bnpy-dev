@@ -120,34 +120,39 @@ class LearnAlg(object):
         ModelWriter.save_model(hmodel, self.savedir, prefix,
                                 doSavePriorInfo=(iterid<1), doLinkBest=True)
 
+    ## PLOT RESULTS ##
+    # Plot results depending on allocation model type
+  def plot_results(self, hmodel, Data, LP):
+    import matplotlib.pyplot as plt
+    
+    if hmodel.allocModel.get_model_name() == 'admixture':
+      plt.figure(1,figsize=(12,3))  
+      K = hmodel.allocModel.K
+      learned_tw = np.zeros( (K, Data.nWords) )
+      for k in xrange(K):
+        lamvec = hmodel.obsModel.comp[k].lamvec 
+        learned_tw[k,:] = lamvec / lamvec.sum()
+      if hasattr(Data, "true_tw"):
+        # Plot the true parameters and learned parameters
+        plt.subplot(121)
+        plt.imshow(Data.true_tw, interpolation="nearest", cmap="bone")
+        plt.colorbar()
+        plt.title('True Topic x Word')
+        plt.subplot(122)
+        plt.imshow(learned_tw, interpolation="nearest", cmap="bone")
+        plt.colorbar()
+        plt.title('Learned Topic x Word')
+      else:
+        # Plot just the learned parameters
+        plt.imshow(learned_tw, interpolation="nearest", cmap="bone")
+        plt.colorbar
+        plt.title('Learned Topic x Word')
+    plt.show()
+
+
   #########################################################  
   #########################################################  Print State
   #########################################################  
-  
-  def calc_posterior_exp(self, amodel, Data, LP):
-    theta = LP["theta"]
-    D,K = theta.shape
-    Etheta = np.zeros((D,K))
-    Elambda = np.zeros((K,Data.V))
-    for d in xrange (D):
-        Etheta[d,:] = theta[d,:] / theta[d,:].sum()
-    for k in xrange( K ):
-        lambda_k = amodel.obsModel.comp[k].lamvec
-        Elambda[k,:] = lambda_k / lambda_k.sum()
-    # grab bounds from allocation model and observation model
-            
-    return dict(Etheta = Etheta, Elambda = Elambda)
-
-  def save_expectations(self, amodel, iterid, Data, LP):
-    fname = self.savedir
-    if not os.path.exists( fname):
-        mkpath( fname )
-    amatname = 'gen_eY.mat'
-    outmatfile = os.path.join( fname, amatname )
-    myDict = self.calc_posterior_exp(amodel, Data, LP)
-    #myDict.update(amodel.allocModel.bounds)
-    #myDict.update(amodel.obsModel.bounds)
-    scipy.io.savemat( outmatfile, myDict, oned_as='row')
   
   def print_state( self, hmodel, iterid, lap, evBound, doFinal=False, status='', rho=None):
     printEvery = self.outputParams['printEvery']
@@ -179,3 +184,4 @@ class LearnAlg(object):
       Log.info(logmsg)
     if doFinal:
       Log.info('... done. %s' % (status))
+      

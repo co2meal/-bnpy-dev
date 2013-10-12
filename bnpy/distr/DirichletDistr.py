@@ -14,93 +14,83 @@ import scipy.linalg
 from scipy.special import digamma, gammaln
 
 class DirichletDistr(object):
-
-  @classmethod
-  def InitFromData( cls, argDict, Data):
-    # Data should contain information about dirichlet vocabulary size
-    V = Data.V
-    if argDict["gamma"] is not None:
-        gamma = argDict["gamma"]
-    else:
-        gamma = 1.0
+    @classmethod
+    def InitFromData( cls, argDict, Data):
+        # Data should contain information about dirichlet vocabulary size
+        nWords = Data.nWords
+        if argDict["gamma"] is not None:
+            gamma = argDict["gamma"]
+        else:
+            gamma = 1.0
     
-    lamvec = np.zeros( (V,1) ) + gamma
-    return cls(lamvec = lamvec)
+        lamvec = np.zeros( (nWords,1) ) + gamma
+        return cls(lamvec = lamvec)
       
-  def __init__(self, lamvec=None):
-    self.lamvec = lamvec
-    if lamvec is not None:
-      self.D = lamvec.size
-      self.set_helpers()
+    def __init__(self, lamvec=None):
+        self.lamvec = lamvec
+        if lamvec is not None:
+            self.D = lamvec.size
+            self.set_helpers()
 
-  def set_helpers(self):
-    self.lamsum = self.lamvec.sum()
-    self.digammalamvec = digamma(self.lamvec)
-    self.digammalamsum = digamma(self.lamsum)
-    self.Elogphi   = self.digammalamvec - self.digammalamsum
+    def set_helpers(self):
+        self.lamsum = self.lamvec.sum()
+        self.digammalamvec = digamma(self.lamvec)
+        self.digammalamsum = digamma(self.lamsum)
+        self.Elogphi   = self.digammalamvec - self.digammalamsum
 
-  ############################################################## Param updates  
-  ##############################################################
-  def get_post_distr( self, SS, k ):
-    ''' Create new Distr object with posterior params
-    '''
-    Nvec = SS["lambda_kw"][k,:]
-    return DirichletDistr(Nvec + self.lamvec.T)
+    ############################################################## Param updates  
+    def get_post_distr( self, SS, k ):
+        ''' Create new Distr object with posterior params'''
+        Nvec = SS["lambda_kw"][k,:]
+        return DirichletDistr(Nvec + self.lamvec.T)
     
-  def post_update( self, SS ):
-    ''' Posterior update of internal params given data
-    '''
-    self.lamvec += SS.Nvec
-    self.set_helpers()
+    def post_update( self, SS ):
+        ''' Posterior update of internal params given data'''
+        self.lamvec += SS.Nvec
+        self.set_helpers()
 
-  def post_update_soVB( self, rho, starD):
-    ''' Stochastic online update of internal params
-    '''
-    self.lamvec = rho*starD.lamvec + (1.0-rho)*self.lamvec
-    self.set_helpers()
+    def post_update_soVB( self, rho, starD):
+        ''' Stochastic online update of internal params'''
+        self.lamvec = rho*starD.lamvec + (1.0-rho)*self.lamvec
+        self.set_helpers()
 
 
   ############################################################## Norm Constants  
   ##############################################################
-  @classmethod
-  def calc_log_norm_const(cls, lamvec):
-    return gammaln(lamvec) - np.sum(gammaln(lamvec))
+    @classmethod
+    def calc_log_norm_const(cls, lamvec):
+        return gammaln(lamvec) - np.sum(gammaln(lamvec))
   
-  def get_log_norm_const(self):
-    ''' Returns log( Z ), where
-         PDF(x) :=  1/Z(theta) f( x | theta )
-    '''
-    return gammaln( self.lamsum ) - np.sum(gammaln(self.lamvec ))
+    def get_log_norm_const(self):
+        ''' Returns log( Z ), where PDF(x) :=  1/Z(theta) f( x | theta )'''
+        return gammaln( self.lamsum ) - np.sum(gammaln(self.lamvec ))
   
-  def get_log_norm_const_from_stats(self):
-    ''' Returns log( Znew ), where
-            Znew = log norm const of post distr given suff stats
-    '''
-    pass
+    def get_log_norm_const_from_stats(self):
+        ''' Returns log( Znew ), where
+            Znew = log norm const of post distr given suff stats'''
+        pass
     
-  def get_entropy( self ):
-    ''' Returns entropy of this distribution 
-          H[ p(x) ] = -1*\int p(x|theta) log p(x|theta) dx
-    '''
-    H = -1*self.get_log_norm_const()
-    H -= np.sum((self.lamvec-1)*self.Elogphi)
-    return H
+    def get_entropy( self ):
+        ''' Returns entropy of this distribution 
+          H[ p(x) ] = -1*\int p(x|theta) log p(x|theta) dx'''
+        H = -1*self.get_log_norm_const()
+        H -= np.sum((self.lamvec-1)*self.Elogphi)
+        return H
     
-  ############################################################## Conditional Probs.  
-  ##############################################################    
-  def E_log_pdf(self, Data):
-    ''' Returns E[ log p( x | theta ) ] under q(theta) <- this distr
-    '''
-    raise NotImplementedError("TODO")    
+    ############################################################## Conditional Probs.  
+    ##############################################################    
+    def E_log_pdf(self, Data):
+        ''' Returns E[ log p( x | theta ) ] under q(theta) <- this distr'''
+        raise NotImplementedError("TODO")    
 
-  ############################################################## I/O  
-  ##############################################################
-  def to_dict(self):
-    return dict(lamvec=self.lamvec)
+    ############################################################## I/O  
+    ##############################################################
+    def to_dict(self):
+        return dict(lamvec=self.lamvec)
     
-  def from_dict(self, PDict):
-    self.lamvec = PDict['lamvec']
-    self.set_helpers()
+    def from_dict(self, PDict):
+        self.lamvec = PDict['lamvec']
+        self.set_helpers()
 
     
 '''
