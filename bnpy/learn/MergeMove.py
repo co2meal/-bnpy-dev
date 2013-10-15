@@ -17,9 +17,9 @@ import logging
 Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
 
-def run_merge_move(curModel, Data, SS=None, curEv=None, doViz=False, \
-                   kA=None, kB=None, excludeList=list(), \
-                   mergename='marglik', randstate=np.random.RandomState(), \
+def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
+                   kA=None, kB=None, excludeList=list(),
+                   mergename='marglik', randstate=np.random.RandomState(),
                    **kwargs):
   ''' Creates candidate model with two components merged,
       and returns either candidate or current model,
@@ -29,18 +29,20 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doViz=False, \
       --------
        curModel : bnpy model whose components will be merged
        Data : bnpy Data object 
-       SS : bnpy sufficient stats object for Data under curModel
-                must contain precomputed merge entropy for merge to be attempted.
+       SS : bnpy SuffStatDict object for Data under curModel
+            must contain precomputed merge entropy in order to try a merge.
        curEv : current evidence bound, provided to save re-computation.
                 curEv = curModel.calc_evidence(SS=SS)
        kA, kB : (optional) integer ids for which components to merge
        excludeList : (optional) list of integer ids excluded when selecting
-                      which components to merge. useful when doing multiple rounds
-                      of merges, since the precomp merge entropy is only valid
-                      for one merge. e.g. if we merge 3 and 5 once and accept,
-                      attempting to merge 3 and 2 next will be rejected
-                      since the precomp entropy for pair (2,3) is not valid
-
+                      which components to merge. useful when doing multiple 
+                      rounds of merges, since the precomp merge entropy is only
+                      valid for one merge. e.g. if we merge 3 and 5 once and
+                      accept, if we immediately after attempt to merge 3 and 2
+                      this proposal must be rejected, since the precomputed
+                      merge entropy for pair (2,3) was for the old state 3,
+                      not the new combined state of 3 + 5.
+                      
       Returns
       --------
       hmodel, SS, evBound, MoveInfo
@@ -55,8 +57,8 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doViz=False, \
   ''' 
   if SS is None:
     LP = curModel.calc_local_params(Data)
-    SS = curModel.get_global_suff_stats(Data, LP, \
-                                        doPrecompEntropy=True, \
+    SS = curModel.get_global_suff_stats(Data, LP,
+                                        doPrecompEntropy=True,
                                         doPrecompMerge=True)
   if curEv is None:
     curEv = curModel.calc_evidence(SS=SS)
@@ -69,11 +71,15 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doViz=False, \
   if not SS.hasPrecompMergeEntropy():
     MoveInfo = dict(didAccept=0, msg="suff stats did not have merge entropy")    
     return curModel, SS, curEv, MoveInfo  
+
+  if kA in excludeList:
+    MoveInfo = dict(didAccept=0, msg="target comp kA must be excluded.")    
+    return curModel, SS, curEv, MoveInfo  
     
   # Select which 2 components kA, kB in {1, 2, ... K} to merge
   if kA or kB is None:
-    kA, kB = select_merge_components(curModel, Data, SS, \
-                                     kA=kA, excludeList=excludeList,\
+    kA, kB = select_merge_components(curModel, Data, SS,
+                                     kA=kA, excludeList=excludeList,
                                      mergename=mergename, randstate=randstate)
   # Enforce that kA < kB. 
   # This step is essential for indexing mergeEntropy matrix, etc.
@@ -94,21 +100,24 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doViz=False, \
 
   if np.isnan(propEv) or np.isinf(propEv):
     raise ValueError('propEv should never be nan/inf')
+    
+  if doVizMerge:
+    viz_merge_proposal(curModel, propModel, kA, kB, curEv, propEv)
 
   if propEv > curEv:
-    MoveInfo = dict(didAccept=1, kA=kA, kB=kB, \
-                    msg="merged ev improved by %.3e" % (propEv - curEv))
+    MoveInfo = dict(didAccept=1, kA=kA, kB=kB,
+                    msg="merge %3d + %3d | ev +%.3e" % (kA, kB, propEv - curEv))
     return propModel, propSS, propEv, MoveInfo
   else:
-    MoveInfo = dict(didAccept=0, \
-                    msg="merged ev worse by %.3e" % (curEv - propEv))
+    MoveInfo = dict(didAccept=0,
+                    msg="merge %3d + %3d | ev -%.3e" % (kA, kB, curEv - propEv))
     return curModel, SS, curEv, MoveInfo
 
 
-############################################################# Select kA,kB to merge
-#############################################################
-def select_merge_components(curModel, Data, SS, LP=None, \
-                            mergename='marglik', randstate=None, \
+########################################################## Select kA,kB to merge
+##########################################################
+def select_merge_components(curModel, Data, SS, LP=None,
+                            mergename='marglik', randstate=None,
                             kA=None, excludeList=[]):
   ''' Select which two existing components to merge when constructing
       a candidate "merged" model from curModel, which has K components.
@@ -209,27 +218,27 @@ def propose_merge_candidate(curModel, SS, kA=None, kB=None):
 
 ############################################################ Visualization
 ############################################################
-'''
-def viz_merge_proposal(curModel, candidate, kA, kB, origEv, newEv):
+def viz_merge_proposal(curModel, propModel, kA, kB, curEv, propEv):
+  ''' Visualize merge proposal (in 2D)
+  '''
   from ..viz import GaussViz
   from matplotlib import pylab
-    
+  
   fig = pylab.figure()
   hA = pylab.subplot(1,2,1)
-  GaussViz.plotGauss2DFromModel( curModel, Hrange=[kA, kB] )
+  GaussViz.plotGauss2DFromHModel(curModel, compsToHighlight=[kA, kB])
   pylab.title( 'Before Merge' )
-  pylab.xlabel( 'ELBO=  %.2e' % (origEv) )
+  pylab.xlabel( 'ELBO=  %.2e' % (curEv) )
     
   hB = pylab.subplot(1,2,2)
-  GaussViz.plotGauss2DFromModel( candidate, Hrange=[kA] )
+  GaussViz.plotGauss2DFromHModel(propModel, compsToHighlight=[kA])
   pylab.title( 'After Merge' )
-  pylab.xlabel( 'ELBO=  %.2e \n %d' % (newEv, newEv > origEv) )
-
+  pylab.xlabel( 'ELBO=  %.2e \n %d' % (propEv, propEv > curEv))
   pylab.show(block=False)
-
   try: 
     x = raw_input('Press any key to continue >>')
   except KeyboardInterrupt:
-    doViz = False
+    import sys
+    sys.exit(-1)
   pylab.close()
-'''
+

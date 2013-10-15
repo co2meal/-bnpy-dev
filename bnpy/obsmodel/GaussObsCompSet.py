@@ -33,7 +33,8 @@ class GaussObsCompSet( ObsCompSet ):
       
   @classmethod
   def InitFromCompDicts(cls, oDict, obsPrior, compDictList):
-    ''' Create GaussObsCompSet, all K component distrs, and its prior in one call
+    ''' Create GaussObsCompSet, all K component Distr objects, 
+        and the prior Distr object in one call
     '''
     if 'min_covar' in oDict:
       self = cls( oDict['inferType'], obsPrior=obsPrior, min_covar=oDict['min_covar'])
@@ -63,8 +64,8 @@ class GaussObsCompSet( ObsCompSet ):
       obsPrior = GaussWishDistr.InitFromData(priorArgDict,Data)
       return cls(inferType, D, obsPrior)
   
-  ############################################################## Gaussian accessors  
-  ##############################################################  
+  ######################################################### Gaussian accessors  
+  #########################################################  
   def get_mean_for_comp(self, kk):
     return self.comp[kk].m
     
@@ -74,8 +75,8 @@ class GaussObsCompSet( ObsCompSet ):
     else:
       return self.comp[kk].invW / (self.comp[kk].dF - self.D - 1)
       
-  ############################################################## Suff Stat  
-  ############################################################## 
+  ######################################################### Sufficient  
+  ######################################################### Statistics
   def get_global_suff_stats( self, Data, SS, LP, **kwargs):
     ''' Calculate suff stats for the global parameter update
         Args
@@ -107,8 +108,8 @@ class GaussObsCompSet( ObsCompSet ):
     SS.xxT = xxT
     return SS
     
-  ############################################################## Global Param updates  
-  ############################################################## 
+  ######################################################### Global Parameter   
+  #########################################################  updates (M-step)
   def update_obs_params_EM( self, SS, Krange, **kwargs):
     I = np.eye(self.D)
     for k in Krange:

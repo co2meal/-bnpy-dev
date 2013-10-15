@@ -32,6 +32,11 @@ class SuffStatDict(object):
     for key, arr in kwArrArgs.items():
       self.__setattr__(key, arr)
         
+  def copy(self):
+    newSS = SuffStatDict()
+    newSS.__dict__ = copy.deepcopy(self.__dict__)     
+    return newSS
+    
   def getComp(self, compID):
     if compID < 0 or compID >= self.K:
       raise IndexError('Bad compID. Valid range [0, %d] but provided %d' % (self.K-1, compID))
@@ -52,39 +57,36 @@ class SuffStatDict(object):
     for key in self.__compkeys__:
       self.__dict__[key] *= ampF      
 
-  ################################################################# Precomp Entropy
-  #################################################################
-  def hasPrecompEntropy(self):
-    return '__precompEntropy__' in self.__dict__  
-    
-  def addPrecompEntropy(self, precompEntropyVec):
-    self.__dict__['__precompEntropy__'] = precompEntropyVec
-  
-  def getPrecompEntropy(self):
-    return self.__dict__['__precompEntropy__']
 
-  ################################################################# Merge components
-  #################################################################
-  def mergeComponents(self, kA, kB):
-    ''' Merge (in-place) all additive fields for components kA, kB
-        into field index kA, and remove component kB entirely.
+  ######################################################### Insert comps
+  #########################################################
+  def insertComponents(self, SSextra):
+    ''' Insert (in-place) all components from SSextra into this object
     '''
-    if not self.hasPrecompMergeEntropy():
-      raise ValueError("Attribute merge entropy not defined, required for merge")
-    if not self.hasPrecompEntropy():
-      raise ValueError("Attribute precomp entropy not defined, required for merge")
-    assert np.maximum(kA,kB) < self.K
     for key in self.__compkeys__:
-      self.__dict__[key][kA] += self.__dict__[key][kB]     
-    # Fix the precomputed entropy for new "merged" component kA    
-    self.__dict__['__precompEntropy__'][kA] = self.__dict__['__mergeEntropy__'][kA,kB]
-    # Remove kB entirely from this object    
-    self.removeComponent(kB)
-    # New "merged" component kA's entries in mergeEntropy are no longer reliable
-    key = '__mergeEntropy__'
-    self.__dict__[key][kA,kA+1:] = np.nan
-    self.__dict__[key][:kA,kA] = np.nan
-
+      arrA = self.__dict__[key]
+      arrB = SSextra.__dict__[key]
+      arrC = np.insert(arrA, arrA.shape[0], arrB, axis=0)
+      self.__dict__[key] = arrC
+      # TODO: what about compkeys that are defined as KxK
+    if self.hasPrecompEntropy():      
+      key = '__precompEntropy__'
+      arrA = self.__dict__[key]
+      arrZ = np.zeros(SSextra.K, dtype=arrA.dtype)
+      arrC = np.insert(arrA, arrA.shape[0], arrZ, axis=0)
+      self.__dict__[key] = arrC
+    if self.hasPrecompMergeEntropy():  
+      key = '__mergeEntropy__'
+      arrA = self.__dict__[key]
+      bottomZ = np.zeros((SSextra.K, self.K), dtype=arrA.dtype)
+      arrC = np.vstack( [arrA, bottomZ])
+      rightZ = np.zeros((self.K + SSextra.K, SSextra.K), dtype=arrA.dtype)
+      arrC = np.hstack( [arrC, rightZ])
+      self.__dict__[key] = arrC  
+    self.K = self.K + SSextra.K
+    
+  ######################################################### Remove comp
+  #########################################################
   def removeComponent(self, kB):
     ''' Remove (in-place) the component kB from this SuffStatDict object.
     '''
@@ -104,6 +106,40 @@ class SuffStatDict(object):
       self.__dict__[key] = np.delete(self.__dict__[key], kB, axis=1)
     self.K = self.K - 1
 
+  ######################################################### Precomp Entropy
+  #########################################################
+  def hasPrecompEntropy(self):
+    return '__precompEntropy__' in self.__dict__  
+    
+  def addPrecompEntropy(self, precompEntropyVec):
+    self.__dict__['__precompEntropy__'] = np.asarray(precompEntropyVec)
+  
+  def getPrecompEntropy(self):
+    return self.__dict__['__precompEntropy__']
+
+  ######################################################### Precompute
+  #########################################################  Merge Entropy
+  def mergeComponents(self, kA, kB):
+    ''' Merge (in-place) all additive fields for components kA, kB
+        into field index kA, and remove component kB entirely.
+    '''
+    if not self.hasPrecompMergeEntropy():
+      raise ValueError("Attribute merge entropy not defined, required for merge")
+    if not self.hasPrecompEntropy():
+      raise ValueError("Attribute precomp entropy not defined, required for merge")
+    assert np.maximum(kA,kB) < self.K
+    for key in self.__compkeys__:
+      self.__dict__[key][kA] += self.__dict__[key][kB]     
+    # Fix the precomputed entropy for new "merged" component kA    
+    self.__dict__['__precompEntropy__'][kA] = self.__dict__['__mergeEntropy__'][kA,kB]
+    # Remove kB entirely from this object    
+    self.removeComponent(kB)
+    # New "merged" component kA's entries in mergeEntropy
+    # no longer represent the correct computation.
+    key = '__mergeEntropy__'
+    self.__dict__[key][kA,kA+1:] = np.nan
+    self.__dict__[key][:kA,kA] = np.nan
+
   def setToZeroPrecompMergeEntropy(self):
     ''' Remove precomputed merge entropy if not needed anymore
     '''
@@ -114,9 +150,9 @@ class SuffStatDict(object):
         Args
         --------
         Hmerge : KxK matrix where 
-                  Hmerge[i,j] = entropy if comps i,j were combined as single comp.
+                  Hmerge[i,j] = entropy if comps i,j were merged into one comp
     '''
-    self.__dict__['__mergeEntropy__'] = Hmerge
+    self.__dict__['__mergeEntropy__'] = np.asarray(Hmerge)
 
   def hasPrecompMergeEntropy(self):
     return  '__mergeEntropy__' in self.__dict__  
@@ -124,23 +160,20 @@ class SuffStatDict(object):
   def getPrecompMergeEntropy(self):
     return self.__dict__['__mergeEntropy__']
 
-  def copy(self):
-    newSS = SuffStatDict()
-    newSS.__dict__ = copy.deepcopy(self.__dict__)     
-    return newSS
-
-  ################################################################# Override + and -
-  #################################################################
+  ######################################################### Override
+  #########################################################  add / subtract
   def __add__(self, SSobj):
     sumSS = SuffStatDict(K=self.K, D=self.D)
     for key in self.__compkeys__:
       sumSS[key] = self.__dict__[key] + SSobj[key]
     if self.hasPrecompEntropy():
-      sumSS.addPrecompEntropy(self.getPrecompEntropy() + SSobj.getPrecompEntropy())
+      H1 = self.getPrecompEntropy()
+      H2 = SSobj.getPrecompEntropy()
+      sumSS.addPrecompEntropy(H1 + H2)
     if self.hasPrecompMergeEntropy() or SSobj.hasPrecompMergeEntropy():
-      mergeH_1 = self.getPrecompMergeEntropy()
-      mergeH_2 = SSobj.getPrecompMergeEntropy()
-      sumSS.addPrecompMergeEntropy(mergeH_1 + mergeH_2)      
+      mergeH1 = self.getPrecompMergeEntropy()
+      mergeH2 = SSobj.getPrecompMergeEntropy()
+      sumSS.addPrecompMergeEntropy(mergeH1 + mergeH2)      
     return sumSS    
   
   def __sub__(self, SSobj):
@@ -148,13 +181,18 @@ class SuffStatDict(object):
     for key in self.__compkeys__:
       sumSS[key] = self.__dict__[key] - SSobj[key]
     if self.hasPrecompEntropy():
-      sumSS.addPrecompEntropy(self.getPrecompEntropy() - SSobj.getPrecompEntropy())
+      H1 = self.getPrecompEntropy()
+      H2 = SSobj.getPrecompEntropy()
+      sumSS.addPrecompEntropy(H1 - H2)
     if self.hasPrecompMergeEntropy() or SSobj.hasPrecompMergeEntropy():
-      mergeH_1 = self.getPrecompMergeEntropy()
-      mergeH_2 = SSobj.getPrecompMergeEntropy()
-      sumSS.addPrecompMergeEntropy(mergeH_1 - mergeH_2)
+      mergeH1 = self.getPrecompMergeEntropy()
+      mergeH2 = SSobj.getPrecompMergeEntropy()
+      sumSS.addPrecompMergeEntropy(mergeH1 - mergeH2)
     return sumSS    
        
+       
+  ######################################################### Override 
+  #########################################################  getattr / setattr
   def __getitem__(self, key):
     if type(key) == int:
       return self.getComp(key)

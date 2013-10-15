@@ -10,12 +10,16 @@ from bnpy.learn import LearnAlg
 class MemoizedOnlineVBLearnAlg(LearnAlg):
 
   def __init__( self, **kwargs):
+    ''' Creates moVB object
+    '''
     super(type(self),self).__init__(**kwargs)
     self.SSmemory = dict()
     if self.hasMove('merge'):
       self.MergeLog = list()
 
   def fit(self, hmodel, DataIterator):
+    ''' fit hmodel to the provided dataset in DataIterator
+    '''
     self.set_start_time_now()
     prevBound = -np.inf
     LPchunk = None
@@ -43,8 +47,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         SS -= SSchunk
         assert SS.hasPrecompMergeEntropy()
 
-      SSchunk = hmodel.get_global_suff_stats(
-                       Dchunk, LPchunk,
+      SSchunk = hmodel.get_global_suff_stats(Dchunk, LPchunk,
                        doPrecompEntropy=True, 
                        doPrecompMergeEntropy=self.hasMove('merge')
                        )
@@ -57,10 +60,9 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       # ELBO calc
       evBound = hmodel.calc_evidence(SS=SS)
       
-      # Attempt merge moves if available      
+      # Merge move!      
       if self.hasMove('merge') and lapFrac % 1 == 0:
         hmodel, SS, evBound = self.run_merge_move(hmodel, None, SS, evBound)
-      assert SS.hasPrecompMergeEntropy()
 
       # Save and display progress
       self.add_nObs(Dchunk.nObs)
@@ -79,18 +81,24 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
     # Finally, save, print and exit
     if isConverged:
-      status = "converged."
+      msg = "converged."
     else:
-      status = "max passes thru data exceeded."
+      msg = "max passes thru data exceeded."
     self.save_state(hmodel, iterid, lapFrac, evBound, doFinal=True) 
-    self.print_state(hmodel, iterid, lapFrac, evBound, doFinal=True, status=status)
+    self.print_state(hmodel, iterid, lapFrac, evBound, doFinal=True, status=msg)
     return None, evBound
 
   #####################################################################
   #####################################################################
   def load_batch_suff_stat_from_memory(self, batchID):
+    ''' Load the suff stats stored in memory for provided batchID
+        Returns
+        -------
+        SSchunk : bnpy SuffStatDict object for batchID
+    '''
     SSchunk = self.SSmemory[batchID]
-    # Play merge forward
+    # Successful merges from the previous lap must be "replayed"
+    #  on the memoized suff stats
     if self.hasMove('merge'): 
       for MInfo in self.MergeLog:
         kA = MInfo['kA']
@@ -100,16 +108,38 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     return SSchunk  
 
   def save_batch_suff_stat_to_memory(self, batchID, SSchunk):
+    ''' Store the provided suff stats into the "memory" for later retrieval
+    '''
     self.SSmemory[batchID] = SSchunk
+
+
+  #####################################################################
+  #####################################################################
+  def run_birth_move(self, hmodel, Data, SS, evBound):
+    ''' Run birth moves on hmodel
+        Returns
+        -------
+        hmodel : bnpy HModel, with (possibly) new components
+        SS : bnpy SuffStatDict, with (possibly) new components
+    '''
+    pass
 
   #####################################################################
   #####################################################################
   def run_merge_move(self, hmodel, Data, SS, evBound):
-    ''' Run merge move on hmodel
+    ''' Run merge moves on hmodel
+        Returns
+        -------
+        hmodel : bnpy HModel, with (possibly) some merged components
+        SS : bnpy SuffStatDict, with (possibly) merged components
+        evBound : correct ELBO for returned hmodel
+                  guaranteed to be at least as large as input evBound    
     '''
     import MergeMove
     self.MergeLog = list() # clear memory of recent merges!
-    excludeList = list()    
+    excludeList = list()
+    
+    # Attempt several merges
     for trialID in range(self.algParams['merge']['mergePerLap']):
       hmodel, SS, evBound, MoveInfo = MergeMove.run_merge_move(
                  hmodel, Data, SS, evBound, randstate=self.PRNG,
@@ -129,5 +159,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         #  since precomputed entropy terms involving kA aren't good
         excludeList.append(kA)
     
+      if len(excludeList) > hmodel.obsModel.K - 2:
+        break
+        
     SS.setToZeroPrecompMergeEntropy()
     return hmodel, SS, evBound

@@ -48,3 +48,7 @@ class DataObj(object):
     '''
     pass
     
+  def add_data(self, DataObj):
+    ''' Updates (in-place) the dataset to include provided data
+    '''
+    pass

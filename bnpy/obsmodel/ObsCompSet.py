@@ -22,8 +22,8 @@ class ObsCompSet( object ):
   def set_inferType( self, inferType):
     self.inferType = inferType
   
-  ############################################################## set prior parameters  
-  ############################################################## 
+  ######################################################### set prior parameters  
+  ######################################################### 
   @classmethod
   def InitFromData( cls, inferType, obsPriorParams, Data):
     pass

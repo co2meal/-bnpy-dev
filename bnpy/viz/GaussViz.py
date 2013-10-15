@@ -21,6 +21,8 @@ def plotGauss2DFromHModel(hmodel, compListToPlot=None, compsToHighlight=None, wT
   '''
   if compsToHighlight is not None:
     compsToHighlight = np.asarray(compsToHighlight)
+  else:
+    compsToHighlight = list()  
   if compListToPlot is None:
     compListToPlot = np.arange(0, hmodel.allocModel.K)
   try:
@@ -30,11 +32,11 @@ def plotGauss2DFromHModel(hmodel, compListToPlot=None, compsToHighlight=None, wT
 
   colorID = 0
   for kk in compListToPlot:
-    if w[kk] < wTHR:
+    if w[kk] < wTHR and kk not in compsToHighlight:
       continue
     mu = hmodel.obsModel.get_mean_for_comp(kk)
     Sigma = hmodel.obsModel.get_covar_mat_for_comp(kk)
-    if compsToHighlight is None or kk in compsToHighlight:
+    if kk in compsToHighlight or len(compsToHighlight) == 0:
       plotGauss2DContour(mu, Sigma, color=Colors[colorID])
       colorID = (colorID + 1) % len(Colors)
     elif kk not in compsToHighlight:

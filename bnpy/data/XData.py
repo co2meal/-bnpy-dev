@@ -67,6 +67,15 @@ class XData(DataObj):
     '''
     return XData(self.X[mask], nObsTotal=self.nObsTotal)
 
+  def add_data(self, XDataObj):
+    ''' Updates (in-place) this object by adding new data
+    '''
+    if not self.dim == XDataObj.dim:
+      raise ValueError("Dimensions must match!")
+    self.nObs += XDataObj.nObs
+    self.nObsTotal += XDataObj.nObsTotal
+    self.X = np.vstack([self.X, XDataObj.X])
+
   #########################################################  I/O methods
   ######################################################### 
   def __str__(self):

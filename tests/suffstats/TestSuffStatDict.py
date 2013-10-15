@@ -11,6 +11,9 @@ class TestSSK2(unittest.TestCase):
 
   def setUp(self):
     self.SS = SuffStatDict(K=2, N=[10,20], xxT=np.random.rand(2, 4, 4))
+    self.mergeSS = self.SS.copy()
+    self.mergeSS.addPrecompEntropy( [1, 2])
+    self.mergeSS.addPrecompMergeEntropy( [[100, 200], [300,400]])
      
   def test_additivity(self):
     Sboth = self.SS + self.SS
@@ -18,6 +21,33 @@ class TestSSK2(unittest.TestCase):
     assert np.allclose(Sboth.xxT, self.SS.xxT + self.SS.xxT)
     assert Sboth.K == self.SS.K
 
+  def test_insert_component_with_merge_entropy(self):
+    ''' Verify that inserting new suff stats (as in a birth move)
+         succeeds without error and produces a valid suffstat obj
+    '''
+    mySS = self.mergeSS.copy()
+    myComp = mySS.getComp(0)
+    mySS.insertComponents(myComp)
+    Knew = self.mergeSS.K + 1
+    assert mySS.K == Knew
+    assert np.allclose(mySS.N, np.hstack([self.mergeSS.N, myComp.N]))
+    assert mySS.getPrecompMergeEntropy().shape[0] == Knew
+    assert mySS.getPrecompMergeEntropy().shape[1] == Knew
+    
+
+  def test_insert_component_without_merge_entropy(self):
+    ''' Verify that inserting new suff stats (as in a birth move)
+         succeeds without error and produces a valid suffstat obj
+    '''
+    mySS = self.SS.copy()
+    myComp = mySS.getComp(0)
+    mySS.insertComponents(myComp)
+    assert mySS.K == self.SS.K + myComp.K
+    assert np.allclose(mySS.N, np.hstack([self.SS.N, myComp.N]))
+    # Insert again!
+    mySS.insertComponents(self.SS)
+    assert mySS.K == self.SS.K * 2 + 1
+    
   def test_merge_component_without_entropy_raises_error(self):
     ''' Verify that calling mergeComponents without defining entropy
         raises an exception
