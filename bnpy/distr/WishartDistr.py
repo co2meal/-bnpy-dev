@@ -132,7 +132,6 @@ class WishartDistr( Distr ):
         U[np.diag_indices(self.D)] = [np.sqrt(np.random.chisquare(self.v-(i+1)+1)) for i in xrange(self.D-1) ]
         # generate upper triangular elements from N(0,1) 
         U[np.triu_indices(self.D, 1)] = np.random.normal(0,1,[0.5*self.D*(self.D-1)])
-        print U
         # U ~ Wishart(v,I), use Bartlett decomposition to get U ~ Wishart(v,invW)
         UPt = np.dot(U,self.cholinvW().T)
         samples[:,:,ctr] = np.dot(UPt.T,UPt)

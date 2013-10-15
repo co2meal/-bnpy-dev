@@ -8,7 +8,7 @@ Attributes
 dF : scalar degrees of freedom for Wishart
 invW : scale matrix for Wishart, size D x D
 m : mean vector for Gaussian, length D
-kappa : scalar precision parameter for Gaussian covariance
+kappa : scalar precision parameter for Gaussian precision
 '''
 import numpy as np
 import scipy.linalg
@@ -18,6 +18,7 @@ from bnpy.util import LOGTWO, LOGPI, LOGTWOPI, EPS
 from bnpy.util import gammaln, digamma
 
 from WishartDistr  import WishartDistr
+from GaussDistr  import GaussDistr
 from .Distr import Distr
 
 class GaussWishDistr( Distr ):
@@ -128,6 +129,28 @@ class GaussWishDistr( Distr ):
     Q  = np.linalg.solve( self.cholinvW(), dX )
     Q *= Q
     return np.sum( Q, axis=0)
+    
+  ############################################################# Samplers
+  ##############################################################
+  def sample(self,numSamples=1):
+    ''' Returns samples from a Gaussian Wishart distribution
+        Note the mean and precision parameters for the data generating Gaussian
+        is sampled once per call. Fixing them to their sampled values,
+        numSamples are generated from a Gaussian parameterized by the sampled mean
+        and precision parameters.
+    '''
+    wishartObj = WishartDistr( self.dF, self.invW)
+    # sample a precision matrix from the Wishart obj
+    P = wishartObj.sample(1);
+    gaussObj = GaussDistr(m = self.m,L = (self.kappa)*P[:,:,0]);
+    #print gaussObj
+    #print gaussObj.get_covar()
+    # get data mean
+    mu = gaussObj.sample(1);
+    # sample data
+    gaussObj_data = GaussDistr(mu[0],P[:,:,0]);
+    return gaussObj_data.sample(numSamples)
+
     
   ############################################################## Exp Fam accessors
   ##############################################################
