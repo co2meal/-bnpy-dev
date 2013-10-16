@@ -27,7 +27,7 @@ class WordsData(DataObj):
         '''
         self.WC = word_dict["WC"]
         self.DOC_ID = word_dict["DOC_ID"]
-        self.nObs = word_dict["nObs"]
+        self.nObsTotal = word_dict["nObs"]
         self.nWords = word_dict["nWords"]
         self.nDocs = word_dict["nDocs"]
         if 'true_tw' in word_dict:

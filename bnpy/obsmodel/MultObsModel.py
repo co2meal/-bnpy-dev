@@ -37,11 +37,14 @@ class MultObsModel( ObsCompSet ):
         _, K = wv.shape
         WC = Data.WC
         lambda_kw = np.zeros( (K, Data.nWords) )
+        
         # Loop through documents
-        for ii in xrange( Data.nObs ):
+        for ii in xrange( Data.nObsTotal ):
             word_ind = WC[ii,0] 
             lambda_kw[:, word_ind] += wv[ii,:] * WC[ii, 1]  
         # Return K x V matrix of sufficient stats (topic x word)
+        
+        #lambda_kw = Data.true_tw
         SS.lambda_kw = lambda_kw
         self.K = K
         return SS
@@ -68,7 +71,7 @@ class MultObsModel( ObsCompSet ):
     # Calculate at the word level the expectations associated with our observation model
     # For document d, word w, topic k, our local variational update is:
     #     phi_dwk \propto exp( E[log pi_ik ] + E[ log lambda_kw ] )
-    # Calc_local params creates a nObs x 1 array with values assocated with lambda_kw 
+    # Calc_local params creates a nObsTotal x 1 array with values assocated with lambda_kw 
     def calc_local_params( self, Data, LP):
         if self.inferType == 'EM':
             LP['E_log_obs_word'] = self.log_obs_word( Data )
@@ -77,23 +80,23 @@ class MultObsModel( ObsCompSet ):
         return LP
 
     def log_obs_word( self, Data ):
-        lpr = np.empty( (Data['nObs'], self.K) )
+        lpr = np.empty( (Data['nObsTotal'], self.K) )
         for k in xrange( self.K ):
             lpr[:,k] = self.obsPrior[k].log_pdf( Data )
         return lpr
     
-    # Returns a nObs x 1 array of expectations associated with the observation model  
+    # Returns a nObsTotal x 1 array of expectations associated with the observation model  
     def E_log_obs_word( self, Data ):
         WC = Data.WC
-        E_log_obs_word = np.empty( (Data.nObs, self.K) )
+        E_log_obs_word = np.empty( (Data.nObsTotal, self.K) )
         lambda_kw = np.zeros((self.K, Data.nWords))
         
         # Since priors are stored in comp, recreate as matrix for easier indexing
         for k in xrange(self.K):
             lambda_kw[k,:] = self.comp[k].Elogphi # returns topic by word matrix expectations
         
-        # Return a nObs x 1 array of expected[lambda_kw] relevant for word_id = w
-        for ii in xrange( Data.nObs ):
+        # Return a nObsTotal x 1 array of expected[lambda_kw] relevant for word_id = w
+        for ii in xrange( Data.nObsTotal ):
             E_log_obs_word[ii,:] = lambda_kw[:,WC[ii,0]]
         return E_log_obs_word
   
@@ -122,7 +125,7 @@ class MultObsModel( ObsCompSet ):
             elambda_kw[k,:] = self.comp[k].Elogphi
         # Calculate p(w | lambda, z )
         lpw = 0
-        for ii in xrange( Data.nObs ):
+        for ii in xrange( Data.nObsTotal ):
             lpw += Data.WC[ii,1] * np.dot(LP["word_variational"][ii,:] ,elambda_kw[:,Data.WC[ii,0]])    
         return lpw
     

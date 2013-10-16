@@ -43,10 +43,13 @@ class AdmixModel( AllocModel ):
         WC = Data.WC
         doc_variational_ss = np.zeros( (Data.nDocs, K) )
         # Loop through documents
+
         for d in xrange(Data.nDocs):
             start,stop = Data.DOC_ID[d,:]
             # get document-level sufficient statistics 
-            doc_variational_ss[d,:] = np.dot( WC[start:stop,1], wv[start:stop,:] ) 
+            doc_variational_ss[d,:] = np.dot( WC[start:stop,1], wv[start:stop,:] )
+
+        #doc_variational_ss = Data.true_td.T     
         SS = SuffStatDict(doc_variational_ss = doc_variational_ss)
         SS.K = K
         self.K = K

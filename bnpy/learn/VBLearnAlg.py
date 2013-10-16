@@ -39,7 +39,7 @@ class VBLearnAlg( LearnAlg ):
       evBound = hmodel.calc_evidence(Data, SS, LP)
       
       # Save and display progress
-      self.add_nObs(Data.nObs)
+      self.add_nObs(Data.nObsTotal)
       lap = iterid
       self.save_state(hmodel, iterid, lap, evBound)
       self.print_state(hmodel, iterid, lap, evBound)

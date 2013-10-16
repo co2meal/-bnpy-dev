@@ -124,7 +124,7 @@ class HModel( object ):
     '''
     initname = initArgs['initname']
     if initname.count('truth') > 0:
-      raise NotImplementedError("TODO")
+      init.FromScratchMult.init_global_params(self, Data, **initArgs)
     elif initname.count(os.path.sep) > 0:
       init.FromSaved.init_global_params(self, Data, **initArgs)
     elif str(type(self.obsModel)).count('Gauss') > 0:
