@@ -32,7 +32,7 @@ from allocmodel import *
 # Dictionary map that turns string input at command line into desired bnpy objects
 # string --> bnpy object constructor
 AllocConstr = {'MixModel':MixModel, 'DPMixModel':DPMixModel}
-ObsConstr = {'ZMGauss':ZMGaussObsCompSet, 'Gauss':GaussObsCompSet}
+ObsConstr = {'ZMGauss':ZMGaussObsCompSet, 'Gauss':GaussObsCompSet, 'DiagGauss': DiagGaussObsCompSet}
                    
 class HModel( object ):
 
