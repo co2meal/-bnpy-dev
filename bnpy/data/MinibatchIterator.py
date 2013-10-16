@@ -20,7 +20,7 @@ Batches are defined via a random partition of all data items
       
 Supports multiple laps through the data.  Specify # of laps with parameter nLap.
 Traversal order of the batch is randomized every lap through the full dataset
-Set the "dataseed" parameter to get repeatable orders.
+Set the "dataorderseed" parameter to get repeatable orders.
 
 Attributes
 -------
@@ -38,7 +38,7 @@ import numpy as np
 MAXSEED = 1000000
   
 class MinibatchIterator(object):
-  def __init__(self, Data, nBatch=10, nObsBatch=None, nLap=10, dataseed=42):
+  def __init__(self, Data, nBatch=10, nObsBatch=None, nLap=10, dataorderseed=42):
     ''' Constructor for creating an iterator over the batches of data
     '''
     self.Data = Data
@@ -52,7 +52,7 @@ class MinibatchIterator(object):
     # Config order in which batches are traversed
     self.curLapPos = -1
     self.lapID  = 0
-    self.dataseed = int(int(dataseed) % MAXSEED)
+    self.dataorderseed = int(int(dataorderseed) % MAXSEED)
     # Make list with entry for every distinct batch
     #   where each entry is itself a list of obsIDs in the full dataset
     self.obsIDByBatch = self.configObsIDsForEachBatch()
@@ -106,7 +106,7 @@ class MinibatchIterator(object):
         obsIDByBatch : list of length self.nBatch,
                        where obsIDByBatch[bID] : list of all obsIDs in batch bID 
     '''
-    PRNG = np.random.RandomState(self.dataseed)
+    PRNG = np.random.RandomState(self.dataorderseed)
     obsIDs = PRNG.permutation(self.Data.nObsTotal).tolist()
     obsIDByBatch = dict()
     for batchID in range(self.nBatch):
@@ -118,7 +118,7 @@ class MinibatchIterator(object):
     ''' Returns array of batchIDs, permuted in random order
         Order changes each time we traverse all items (each lap)
     '''
-    curseed = self.dataseed + self.lapID
+    curseed = self.dataorderseed + self.lapID
     PRNG = np.random.RandomState(curseed)
     return PRNG.permutation( self.nBatch )
 
