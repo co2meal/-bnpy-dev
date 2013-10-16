@@ -61,7 +61,7 @@ class LearnAlg(object):
 
   ##################################################### Verify evidence monotonic
   #####################################################  
-  def verify_evidence(self, evBound=0.00001, prevBound=0, EPS=1e-9):
+  def verify_evidence(self, evBound=0.00001, prevBound=0):
     ''' Compare current and previous evidence (ELBO) values,
         verify that (within numerical tolerance) evidence increases monotonically
     '''
@@ -153,6 +153,13 @@ class LearnAlg(object):
                         hmodel.allocModel.K,
                         evBound, 
                         rhoStr)
+    if self.hasMove('birth') and hasattr(self, 'BirthCompIDs'):
+      logmsg += "| Kbirth %3d " % (len(self.BirthCompIDs))
+    if self.hasMove('merge') and hasattr(self, 'MergeLog'):
+      logmsg += "| Kmerge %3d " % (len(self.MergeLog))
+
+
+
     if (doFinal or doPrint) and iterid not in self.PrintIters:
       self.PrintIters.add(iterid)
       Log.info(logmsg)

@@ -24,6 +24,8 @@ To access the suff stats for a single component,
 import numpy as np
 import copy
 
+FieldNamesThatDoNotExpand = set(['N'])
+
 class SuffStatDict(object):
 
   def __init__(self, K=None, D=None, **kwArrArgs):
@@ -57,12 +59,22 @@ class SuffStatDict(object):
     for key in self.__compkeys__:
       self.__dict__[key] *= ampF      
 
+  def subtractSpecificComponents(self, SSobj, compIDs):
+    ''' Subtract (in-place) from specific components "compIDs" of this object
+        the entire SuffStatDict object SSobj
+    '''
+    assert len(compIDs) == SSobj.K
+    for key in self.__compkeys__:
+      self.__dict__[key][compIDs] -= SSobj.__dict__[key]
 
   ######################################################### Insert comps
   #########################################################
   def insertComponents(self, SSextra):
     ''' Insert (in-place) all components from SSextra into this object
     '''
+    if self.K == 1:
+      self.expandSingletonDims()
+
     for key in self.__compkeys__:
       arrA = self.__dict__[key]
       arrB = SSextra.__dict__[key]
@@ -84,7 +96,41 @@ class SuffStatDict(object):
       arrC = np.hstack( [arrC, rightZ])
       self.__dict__[key] = arrC  
     self.K = self.K + SSextra.K
-    
+
+  def insertEmptyComponents(self, Kextra):
+    ''' Insert (in-place) Kextra empty components into this object
+    '''
+    if self.K == 1:
+      self.expandSingletonDims()
+
+    for key in self.__compkeys__:
+      arrA = self.__dict__[key]
+      if arrA.ndim == 3:
+        myShape = (Kextra, arrA.shape[1], arrA.shape[2])
+        zeroFill = np.zeros( myShape, dtype=arrA.dtype)
+      elif arrA.ndim == 2:
+        zeroFill = np.zeros( (Kextra, arrA.shape[1]), dtype=arrA.dtype)
+      else:
+        zeroFill = np.zeros(Kextra, dtype=arrA.dtype)
+      arrC = np.insert(arrA, arrA.shape[0], zeroFill, axis=0)
+      self.__dict__[key] = arrC
+      # TODO: what about compkeys that are defined as KxK
+    if self.hasPrecompEntropy():      
+      key = '__precompEntropy__'
+      arrA = self.__dict__[key]
+      zeroFill = np.zeros(Kextra, dtype=arrA.dtype)
+      arrC = np.insert(arrA, arrA.shape[0], zeroFill, axis=0)
+      self.__dict__[key] = arrC
+    if self.hasPrecompMergeEntropy():  
+      key = '__mergeEntropy__'
+      arrA = self.__dict__[key]
+      zeroFillBottom = np.zeros((Kextra, self.K), dtype=arrA.dtype)
+      arrC = np.vstack( [arrA, zeroFillBottom])
+      zeroFillRight = np.zeros((self.K + Kextra, Kextra), dtype=arrA.dtype)
+      arrC = np.hstack( [arrC, zeroFillRight])
+      self.__dict__[key] = arrC  
+    self.K = self.K + Kextra
+
   ######################################################### Remove comp
   #########################################################
   def removeComponent(self, kB):
@@ -105,6 +151,21 @@ class SuffStatDict(object):
       self.__dict__[key] = np.delete(self.__dict__[key], kB, axis=0)
       self.__dict__[key] = np.delete(self.__dict__[key], kB, axis=1)
     self.K = self.K - 1
+
+    if self.K == 1:
+      self.contractSingletonDims()
+
+  def expandSingletonDims(self):
+    for key in self.__compkeys__:
+      if not key in FieldNamesThatDoNotExpand:
+        newArr = self.__dict__[key][np.newaxis,:]
+        self.__dict__[key] = newArr
+
+  def contractSingletonDims(self):
+    for key in self.__compkeys__:
+      if not key in FieldNamesThatDoNotExpand:
+        newArr = np.squeeze(self.__dict__[key])
+        self.__dict__[key] = newArr
 
   ######################################################### Precomp Entropy
   #########################################################
@@ -129,11 +190,15 @@ class SuffStatDict(object):
       raise ValueError("Attribute precomp entropy not defined, required for merge")
     assert np.maximum(kA,kB) < self.K
     for key in self.__compkeys__:
-      self.__dict__[key][kA] += self.__dict__[key][kB]     
+      self.__dict__[key][kA] += self.__dict__[key][kB] 
+    
     # Fix the precomputed entropy for new "merged" component kA    
     self.__dict__['__precompEntropy__'][kA] = self.__dict__['__mergeEntropy__'][kA,kB]
-    # Remove kB entirely from this object    
+
+    # Remove kB entirely from this object
+    #  this call automatically updates self.K to be one less    
     self.removeComponent(kB)
+
     # New "merged" component kA's entries in mergeEntropy
     # no longer represent the correct computation.
     key = '__mergeEntropy__'

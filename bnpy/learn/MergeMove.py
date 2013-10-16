@@ -14,11 +14,14 @@ To force a merge of components "2" and "4"
 import numpy as np
 from ..util import EPS, discrete_single_draw
 import logging
+from collections import defaultdict
+
 Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
 
 def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
-                   kA=None, kB=None, excludeList=list(),
+                   kA=None, kB=None, excludeList=list(), 
+                   excludePairs=defaultdict(lambda: set()),
                    mergename='marglik', randstate=np.random.RandomState(),
                    **kwargs):
   ''' Creates candidate model with two components merged,
@@ -79,13 +82,15 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
   # Select which 2 components kA, kB in {1, 2, ... K} to merge
   if kA or kB is None:
     kA, kB = select_merge_components(curModel, Data, SS,
-                                     kA=kA, excludeList=excludeList,
+                                     kA=kA, excludeList=excludeList, 
+																		 excludePairs=excludePairs,
                                      mergename=mergename, randstate=randstate)
   # Enforce that kA < kB. 
   # This step is essential for indexing mergeEntropy matrix, etc.
   assert kA != kB
   assert kA not in excludeList
   assert kB not in excludeList
+  assert (kA,kB) not in excludePairs
   kMin = np.minimum(kA,kB)
   kB  = np.maximum(kA,kB)
   kA = kMin
@@ -109,7 +114,7 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
                     msg="merge %3d + %3d | ev +%.3e" % (kA, kB, propEv - curEv))
     return propModel, propSS, propEv, MoveInfo
   else:
-    MoveInfo = dict(didAccept=0,
+    MoveInfo = dict(didAccept=0, kA=kA, kB=kB,
                     msg="merge %3d + %3d | ev -%.3e" % (kA, kB, curEv - propEv))
     return curModel, SS, curEv, MoveInfo
 
@@ -118,7 +123,8 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
 ##########################################################
 def select_merge_components(curModel, Data, SS, LP=None,
                             mergename='marglik', randstate=None,
-                            kA=None, excludeList=[]):
+                            kA=None, excludeList=[], 
+														excludePairs=defaultdict(lambda:set)):
   ''' Select which two existing components to merge when constructing
       a candidate "merged" model from curModel, which has K components.
       We select components kA, kB by their integer ID, in {1, 2, ... K}
@@ -148,6 +154,8 @@ def select_merge_components(curModel, Data, SS, LP=None,
     if kA is None:
       kA = discrete_single_draw(ps, randstate)
     ps[kA] = 0
+    for kk in excludePairs[kA]:
+      ps[kk] = 0
     kB = discrete_single_draw(ps, randstate)
   elif mergename == 'overlap' and LP is not None:
     raise NotImplementedError("TODO")
@@ -163,16 +171,20 @@ def select_merge_components(curModel, Data, SS, LP=None,
     logmA = curModel.obsModel.calc_log_marg_lik_for_component(SS, kA)  
     logscore = -1 * np.inf * np.ones(K)    
     for kB in xrange(K):
-      if kB == kA or kB in excludeList:
-        continue
+      if kB == kA or kB in excludeList or kB in excludePairs[kA]:
+				continue
       logmB = curModel.obsModel.calc_log_marg_lik_for_component(SS, kB)
       logmCombo = curModel.obsModel.calc_log_marg_lik_for_component(SS, kA, kB)
       logscore[kB] = logmCombo - logmA - logmB
-    ps = np.exp(logscore - np.max(logscore))
-    if np.sum(ps) < EPS:
+    if np.all(np.isinf(logscore)):
       ps = np.ones(K)
       ps[kA] = 0
       ps[excludeList] = 0
+      ps[list(excludePairs[kA])] = 0
+      if np.sum(ps) < EPS:
+        raise ValueError("All possible choices excluded!")
+    else:
+      ps = np.exp(logscore - np.max(logscore))
     kB = discrete_single_draw(ps, randstate)
   else:
     raise NotImplementedError("Unknown mergename %s" % (mergename))

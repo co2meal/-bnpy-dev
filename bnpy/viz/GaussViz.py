@@ -21,6 +21,8 @@ def plotGauss2DFromHModel(hmodel, compListToPlot=None, compsToHighlight=None, wT
   '''
   if compsToHighlight is not None:
     compsToHighlight = np.asarray(compsToHighlight)
+    if compsToHighlight.ndim == 0:
+      compsToHighlight = np.asarray([compsToHighlight])
   else:
     compsToHighlight = list()  
   if compListToPlot is None:
