@@ -61,7 +61,7 @@ class LearnAlg(object):
 
   ##################################################### Verify evidence monotonic
   #####################################################  
-  def verify_evidence(self, evBound=0.00001, prevBound=0, EPS=1e-9):
+  def verify_evidence(self, evBound=0.00001, prevBound=0):
     ''' Compare current and previous evidence (ELBO) values,
         verify that (within numerical tolerance) evidence increases monotonically
     '''

@@ -57,6 +57,13 @@ class SuffStatDict(object):
     for key in self.__compkeys__:
       self.__dict__[key] *= ampF      
 
+  def subtractSpecificComponents(self, SSobj, compIDs):
+    ''' Subtract (in-place) from specific components "compIDs" of this object
+        the entire SuffStatDict object SSobj
+    '''
+    assert len(compIDs) == SSobj.K
+    for key in self.__compkeys__:
+      self.__dict__[key][compIDs] -= SSobj.__dict__[key]
 
   ######################################################### Insert comps
   #########################################################
@@ -84,7 +91,38 @@ class SuffStatDict(object):
       arrC = np.hstack( [arrC, rightZ])
       self.__dict__[key] = arrC  
     self.K = self.K + SSextra.K
-    
+
+  def insertEmptyComponents(self, Kextra):
+    ''' Insert (in-place) Kextra empty components into this object
+    '''
+    for key in self.__compkeys__:
+      arrA = self.__dict__[key]
+      if arrA.ndim == 3:
+        myShape = (Kextra, arrA.shape[1], arrA.shape[2])
+        zeroFill = np.zeros( myShape, dtype=arrA.dtype)
+      elif arrA.ndim == 2:
+        zeroFill = np.zeros( (Kextra, arrA.shape[1]), dtype=arrA.dtype)
+      else:
+        zeroFill = np.zeros(Kextra, dtype=arrA.dtype)
+      arrC = np.insert(arrA, arrA.shape[0], zeroFill, axis=0)
+      self.__dict__[key] = arrC
+      # TODO: what about compkeys that are defined as KxK
+    if self.hasPrecompEntropy():      
+      key = '__precompEntropy__'
+      arrA = self.__dict__[key]
+      zeroFill = np.zeros(Kextra, dtype=arrA.dtype)
+      arrC = np.insert(arrA, arrA.shape[0], zeroFill, axis=0)
+      self.__dict__[key] = arrC
+    if self.hasPrecompMergeEntropy():  
+      key = '__mergeEntropy__'
+      arrA = self.__dict__[key]
+      zeroFillBottom = np.zeros((Kextra, self.K), dtype=arrA.dtype)
+      arrC = np.vstack( [arrA, zeroFillBottom])
+      zeroFillRight = np.zeros((self.K + Kextra, Kextra), dtype=arrA.dtype)
+      arrC = np.hstack( [arrC, zeroFillRight])
+      self.__dict__[key] = arrC  
+    self.K = self.K + Kextra
+
   ######################################################### Remove comp
   #########################################################
   def removeComponent(self, kB):

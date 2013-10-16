@@ -3,9 +3,13 @@ MemoizedOnlineVBLearnAlg.py
 
 Implementation of Memoized Online VB (moVB) learn alg for bnpy models
 '''
-import copy
 import numpy as np
 from bnpy.learn import LearnAlg
+import logging
+from collections import defaultdict
+
+Log = logging.getLogger('bnpy')
+
 
 class MemoizedOnlineVBLearnAlg(LearnAlg):
 
@@ -16,6 +20,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     self.SSmemory = dict()
     if self.hasMove('merge'):
       self.MergeLog = list()
+    if self.hasMove('birth'):
+      self.BirthCompIDs = list()
 
   def fit(self, hmodel, DataIterator):
     ''' fit hmodel to the provided dataset in DataIterator
@@ -23,7 +29,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     self.set_start_time_now()
     prevBound = -np.inf
     LPchunk = None
-    lapFracPerBatch = DataIterator.nObsBatch / float(DataIterator.nObsTotal)
+    self.lapFracInc = DataIterator.nObsBatch / float(DataIterator.nObsTotal)
     iterid = -1
     lapFrac = 0
     while DataIterator.has_next_batch():
@@ -31,35 +37,52 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       Dchunk = DataIterator.get_next_batch()
       batchID = DataIterator.batchID
       iterid += 1
-      lapFrac = (iterid + 1) * lapFracPerBatch
+      lapFrac = (iterid + 1) * self.lapFracInc
 
       # M step
       if iterid > 0:
         hmodel.update_global_params(SS)
+      
+        # Birth moves!
+        if self.hasMove('birth') and lapFrac > 1.0:
+          hmodel, SS = self.run_birth_move(
+                                    hmodel, Dchunk, SS, LPchunk, lapFrac)
+          # Verify
+          if np.any(SS.N < 0):        
+            SS.N[SS.N < 0] = 0
+          assert hmodel.obsModel.K == SS.K
+          assert np.all(SS.N >= 0)
 
       # E step
-      LPchunk = hmodel.calc_local_params(Dchunk, LPchunk)
+      LPchunk = hmodel.calc_local_params(Dchunk, None)
+
+      if self.hasMove('birth'):
+        self.subsample_data_for_birth(Dchunk, LPchunk)
 
       # SS step
       if batchID in self.SSmemory:
-        assert SS.hasPrecompMergeEntropy()
         SSchunk = self.load_batch_suff_stat_from_memory(batchID)
+        assert SSchunk.K == SS.K
         SS -= SSchunk
-        assert SS.hasPrecompMergeEntropy()
 
       SSchunk = hmodel.get_global_suff_stats(Dchunk, LPchunk,
                        doPrecompEntropy=True, 
                        doPrecompMergeEntropy=self.hasMove('merge')
                        )
+
       if iterid == 0:
         SS = SSchunk.copy()
       else:
+        assert SSchunk.K == SS.K
         SS += SSchunk
-      self.save_batch_suff_stat_to_memory(batchID, SSchunk)
-      
+        if np.any(SS.N < 0):        
+          SS.N[SS.N < 0] = 0
+        
+      self.save_batch_suff_stat_to_memory(batchID, SSchunk)  
+
       # ELBO calc
       evBound = hmodel.calc_evidence(SS=SS)
-      
+
       # Merge move!      
       if self.hasMove('merge') and lapFrac % 1 == 0:
         hmodel, SS, evBound = self.run_merge_move(hmodel, None, SS, evBound)
@@ -99,6 +122,10 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     SSchunk = self.SSmemory[batchID]
     # Successful merges from the previous lap must be "replayed"
     #  on the memoized suff stats
+    if self.hasMove('birth'):
+      Kextra = len(self.BirthCompIDs)
+      if Kextra > 0:
+        SSchunk.insertEmptyComponents(Kextra)
     if self.hasMove('merge'): 
       for MInfo in self.MergeLog:
         kA = MInfo['kA']
@@ -115,19 +142,107 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
   #####################################################################
   #####################################################################
-  def run_birth_move(self, hmodel, Data, SS, evBound):
-    ''' Run birth moves on hmodel
+  def run_birth_move(self, hmodel, Dchunk, SS, LPchunk, lapFrac):
+    ''' Run birth moves on hmodel.
+        Internally handles subsampling data, suff stat bookkeeping, etc.
+
         Returns
         -------
         hmodel : bnpy HModel, with (possibly) new components
         SS : bnpy SuffStatDict, with (possibly) new components
     '''
-    pass
+    import BirthMove
+
+    if not hasattr(self, 'targetDataList'):
+      self.targetDataList = list()
+    if lapFrac > (0.8 * self.algParams['nLap']):
+      return hmodel, SS
+
+    isFirstBatch = np.allclose(lapFrac - np.floor(lapFrac), self.lapFracInc)
+    isLastBatch = lapFrac % 1 == 0
+
+    if isFirstBatch:
+      self.BirthCompIDs = list()
+      self.BirthInfoCurLap = list()
+
+      ## Run birth moves on current target data!
+      for tInfoDict in self.targetDataList:
+        targetData = tInfoDict['Data']
+        if targetData.nObs < self.algParams['birth']['minTargetObs']:
+          Log.info("Skipped birth at comp %d : target dataset too small (size %d)" % (tInfoDict['ktarget'], targetData.nObs))
+          continue
+        hmodel, SS, MoveInfo = BirthMove.run_birth_move(
+                 hmodel, targetData, SS, randstate=self.PRNG, 
+                 **self.algParams['birth'])
+        
+        if MoveInfo['didAddNew']:
+          self.BirthInfoCurLap.append(MoveInfo)
+        self.print_msg(MoveInfo['msg'])
+        self.BirthCompIDs.extend(MoveInfo['birthCompIDs'])
+
+      ## Sample new target data for next lap
+      self.targetDataList = list()
+      excludeList = list()
+      for posID in range(self.algParams['birth']['birthPerLap']):
+        try:
+          ktarget = BirthMove.select_birth_component(SS, randstate=self.PRNG,
+                          excludeList=excludeList, 
+                          **self.algParams['birth'])
+          #excludeList.append(ktarget)
+          tInfoDict = dict(ktarget=ktarget, Data=None)
+          self.targetDataList.append(tInfoDict)
+        except ValueError:
+          pass
+      print "Comps on deck: %s" % (str([x['ktarget'] for x in self.targetDataList]))
+
+    ## Handle removing "artificial mass" of fresh components
+    elif isLastBatch:
+      Nall = np.sum(SS.N)
+      didChangeSS = False
+      for MoveInfo in self.BirthInfoCurLap:
+        freshSS = MoveInfo['freshSS']
+        birthCompIDs = MoveInfo['birthCompIDs']
+        SS.subtractSpecificComponents(freshSS, birthCompIDs)
+        didChangeSS = True
+      if didChangeSS:
+        hmodel.update_global_params(SS)
+      Nall = np.sum(SS.N)
+      assert np.abs(Nall - Dchunk.nObsTotal) < 0.0001
+
+    return hmodel, SS
+
+    
+  def subsample_data_for_birth(self, Dchunk, LPchunk):
+    ''' Incrementally build-up a target dataset
+          for use when performing birth moves!
+    '''
+    import BirthMove
+
+    if not hasattr(self, 'targetDataList'):
+      self.targetDataList = list()
+    for tInfoDict in self.targetDataList:
+      ktarget = tInfoDict['ktarget']
+      if tInfoDict['Data'] is not None:
+        if tInfoDict['Data'].nObs > self.algParams['birth']['maxTargetObs']:
+          continue
+      # Sample data if more is needed
+      targetData = BirthMove.subsample_data(Dchunk, LPchunk, ktarget, 
+                          randstate=self.PRNG,
+                          **self.algParams['birth'])
+      if tInfoDict['Data'] is None:
+        tInfoDict['Data'] = targetData
+      else:
+        tInfoDict['Data'].add_data(targetData)
+
 
   #####################################################################
   #####################################################################
   def run_merge_move(self, hmodel, Data, SS, evBound):
-    ''' Run merge moves on hmodel
+    ''' Run (potentially many) merge moves on hmodel,
+          performing necessary bookkeeping to
+            (1) avoid trying the same merge twice
+            (2) avoid merging a component that has already been merged,
+                since the precomputed entropy will no longer be correct.
         Returns
         -------
         hmodel : bnpy HModel, with (possibly) some merged components
@@ -138,29 +253,64 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     import MergeMove
     self.MergeLog = list() # clear memory of recent merges!
     excludeList = list()
-    
-    # Attempt several merges
-    for trialID in range(self.algParams['merge']['mergePerLap']):
+    excludePairs = defaultdict(lambda:set())
+    nMergeAttempts = self.algParams['merge']['mergePerLap']
+    trialID = 0
+    while trialID < nMergeAttempts:
+
+      for kk in excludePairs:
+        if len(excludePairs[kk]) > hmodel.obsModel.K - 2:
+          if kk not in excludeList:
+            excludeList.append(kk)
+
+      if len(excludeList) > hmodel.obsModel.K - 2:
+        Log.info('Merge Done. No more options to try!')
+        break # when we don't have any more comps to merge
+        
+      if self.hasMove('birth') and len(self.BirthCompIDs) > 0:
+        kA = self.BirthCompIDs.pop()
+        if kA in excludeList:
+          continue
+      else:
+        kA = None
+
       hmodel, SS, evBound, MoveInfo = MergeMove.run_merge_move(
-                 hmodel, Data, SS, evBound, randstate=self.PRNG,
-                 excludeList=excludeList, **self.algParams['merge'])
+                 hmodel, None, SS, evBound, randstate=self.PRNG,
+                 excludeList=excludeList, excludePairs=excludePairs,
+                 kA=kA, **self.algParams['merge'])
+      trialID += 1
       self.print_msg(MoveInfo['msg'])
-      if MoveInfo['didAccept']:
+
+      if 'kA' in MoveInfo and 'kB' in MoveInfo:
         kA = MoveInfo['kA']
         kB = MoveInfo['kB']
+        excludePairs[kA].add(kB)
+        excludePairs[kB].add(kA)
+
+      if MoveInfo['didAccept']:
         self.MergeLog.append(dict(kA=kA, kB=kB))
 
-        # Adjust excludeList since components kB+1, kB+2, ... K
+        # Adjust excluded lists since components kB+1, kB+2, ... K
         #  have been shifted down by one due to removal of kB
         for kk in range(len(excludeList)):
           if excludeList[kk] > kB:
             excludeList[kk] -= 1
+
         # Exclude new merged component kA from future attempts        
         #  since precomputed entropy terms involving kA aren't good
         excludeList.append(kA)
     
-      if len(excludeList) > hmodel.obsModel.K - 2:
-        break
-        
+        # Adjust excluded pairs to remove kB and shift down kB+1, ... K
+        newExcludePairs = defaultdict(lambda:set())
+        for kk in excludePairs.keys():
+          ksarr = np.asarray(list(excludePairs[kk]))
+          ksarr[ksarr > kB] -= 1
+          if kk > kB:
+            newExcludePairs[kk-1] = set(ksarr)
+          elif kk < kB:
+            newExcludePairs[kk] = set(ksarr)
+        excludePairs = newExcludePairs
+
+
     SS.setToZeroPrecompMergeEntropy()
     return hmodel, SS, evBound

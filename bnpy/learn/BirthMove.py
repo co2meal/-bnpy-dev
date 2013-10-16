@@ -27,7 +27,7 @@ class BirthProposalError( ValueError):
 ###########################################################
 ###########################################################
 def subsample_data(DataObj, LP, targetCompID, targetProbThr=0.1,
-                  nTargetObs=100, randstate=np.random, **kwargs):
+                  maxTargetObs=100, randstate=np.random, **kwargs):
   ''' 
     Select a subsample of the given dataset
       which is primarily associated with component "targetCompID"
@@ -49,8 +49,9 @@ def subsample_data(DataObj, LP, targetCompID, targetProbThr=0.1,
   mask = LP['resp'][: , targetCompID] > targetProbThr
   objIDs = np.flatnonzero(mask)
   randstate.shuffle(objIDs)
-  targetObjIDs = objIDs[:nTargetObs]
+  targetObjIDs = objIDs[:maxTargetObs]
   TargetData = DataObj.select_subset_by_mask(targetObjIDs)
+  TargetData.nObsTotal = TargetData.nObs
   return TargetData
   
 ###########################################################
@@ -59,7 +60,6 @@ def run_birth_move(curModel, targetData, SS, randstate=np.random, **kwargs):
   ''' Create new model from curModel
         with up to Kbirth new components
   '''
-  Log.debug("nObs: %d" % (targetData.nObs))  
   try:
     freshModel = curModel.copy()
     freshSS = learn_fresh_model(freshModel, targetData, 
@@ -71,13 +71,15 @@ def run_birth_move(curModel, targetData, SS, randstate=np.random, **kwargs):
   
     newModel = curModel.copy()
     newModel.update_global_params(newSS)
-    MoveInfo = dict(msg='newModel has %d fresh comps' % (Kfresh),
+    MoveInfo = dict(didAddNew=True,
+                    msg='newModel has %d fresh comps' % (Kfresh),
+                    Kfresh=Kfresh,
                     birthCompIDs=range(Kold, Kold+Kfresh),
                     freshSS=freshSS)
     return newModel, newSS, MoveInfo
   except BirthProposalError, e:
-    MoveInfo = dict(msg=str(e),
-                    birthCompIDs=[])
+    MoveInfo = dict(didAddNew=False, msg=str(e),
+                    Kfresh=0, birthCompIDs=[])
     return curModel, SS, MoveInfo
 
 def learn_fresh_model(freshModel, targetData, Kfresh=10,
@@ -109,27 +111,30 @@ def learn_fresh_model(freshModel, targetData, Kfresh=10,
     targetSS.removeComponent(kreject)
     
   if targetSS.K < 2:
-    raise BirthProposalError( 'HALT. Failed to create more than 1 component with more than %d members' % (Nthr) )
-  #TODO: need to precompute entropy here???
+    raise BirthProposalError( 'HALT. Failed to create multiple comps with size %d from Data of size %d' % (Nthr, targetData.nObs) )
   return targetSS
   
   
 ###########################################################
 ###########################################################
 def select_birth_component(SS, targetselectname='sizebiased', 
-                           randstate=np.random, emptyTHR=100, **kwargs):
+                           randstate=np.random, emptyTHR=100, 
+                           excludeList=list(), **kwargs):
   ''' Choose a single component among indices {1,2,3, ... K-1, K}
       to target with a birth proposal.
   '''
   K = SS.K
+  if len(excludeList) >= K:
+    raise ValueError('All comps excluded. Selection failed.')
   ps = np.zeros(K)
   if targetselectname == 'uniform':
     ps = np.ones(K)
   elif targetselectname == 'sizebiased':
-    ps = SS['N']
+    ps = SS['N'].copy()
     ps[SS['N'] < emptyTHR] = 0
   if ps.sum() < EPS:
     ps = np.ones(K)
+  ps[excludeList] = 0
   kbirth = discrete_single_draw(ps, randstate)
   return kbirth
 
@@ -140,7 +145,7 @@ def select_birth_component(SS, targetselectname='sizebiased',
 ###########################################################  Visualization
 ###########################################################
 def viz_birth_proposal_2D( curmodel, newmodel, infoDict, origEv, newEv):
-  ''' Create before/after visualization of a split proposal
+  ''' Create before/after visualization of a birth move
   '''
   from ..viz import GaussViz
   from matplotlib import pylab
