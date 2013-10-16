@@ -153,6 +153,13 @@ class LearnAlg(object):
                         hmodel.allocModel.K,
                         evBound, 
                         rhoStr)
+    if self.hasMove('birth') and hasattr(self, 'BirthCompIDs'):
+      logmsg += "| Kbirth %3d " % (len(self.BirthCompIDs))
+    if self.hasMove('merge') and hasattr(self, 'MergeLog'):
+      logmsg += "| Kmerge %3d " % (len(self.MergeLog))
+
+
+
     if (doFinal or doPrint) and iterid not in self.PrintIters:
       self.PrintIters.add(iterid)
       Log.info(logmsg)

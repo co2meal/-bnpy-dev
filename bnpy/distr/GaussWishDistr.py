@@ -47,7 +47,7 @@ class GaussWishDistr( Distr ):
       self.dF = dF
       self.invW = np.asarray(invW)
       if self.invW.ndim > 2:
-        self.invW = self.invW[0]
+        self.invW = np.squeeze(self.invW)
       self.m     = np.asarray(m)
       if self.m.ndim > 1:
         self.m = self.m[0]

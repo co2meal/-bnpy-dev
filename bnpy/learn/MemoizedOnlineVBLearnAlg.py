@@ -22,6 +22,9 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       self.MergeLog = list()
     if self.hasMove('birth'):
       self.BirthCompIDs = list()
+      # Track the number of laps since birth last attempted
+      #  at each component, to encourage trying diversity
+      self.LapsSinceLastBirth = defaultdict(int)
 
   def fit(self, hmodel, DataIterator):
     ''' fit hmodel to the provided dataset in DataIterator
@@ -165,37 +168,49 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       self.BirthCompIDs = list()
       self.BirthInfoCurLap = list()
 
-      ## Run birth moves on current target data!
+      # Increment birth counter
+      for kk in range(SS.K):
+        self.LapsSinceLastBirth[kk] += 1
+
+      # Run birth moves on current target data!
       for tInfoDict in self.targetDataList:
+        ktarget = tInfoDict['ktarget']
         targetData = tInfoDict['Data']
         if targetData.nObs < self.algParams['birth']['minTargetObs']:
-          Log.info("Skipped birth at comp %d : target dataset too small (size %d)" % (tInfoDict['ktarget'], targetData.nObs))
+          Log.info("BIRTH Skipped at comp %d : target dataset too small (size %d)" % (tInfoDict['ktarget'], targetData.nObs))
           continue
         hmodel, SS, MoveInfo = BirthMove.run_birth_move(
                  hmodel, targetData, SS, randstate=self.PRNG, 
-                 **self.algParams['birth'])
+                 ktarget=ktarget, **self.algParams['birth'])
         
         if MoveInfo['didAddNew']:
           self.BirthInfoCurLap.append(MoveInfo)
+          for kk in MoveInfo['birthCompIDs']:
+            self.LapsSinceLastBirth[kk] = -1
         self.print_msg(MoveInfo['msg'])
         self.BirthCompIDs.extend(MoveInfo['birthCompIDs'])
 
-      ## Sample new target data for next lap
+      # Sample new components to target for the next birth proposal
       self.targetDataList = list()
-      excludeList = list()
+
+      # Ignore components that have just been added to the model,
+      #  as well as components that 
+      excludeList = [kk for kk in self.BirthCompIDs]
+
       for posID in range(self.algParams['birth']['birthPerLap']):
         try:
           ktarget = BirthMove.select_birth_component(SS, randstate=self.PRNG,
-                          excludeList=excludeList, 
+                          excludeList=excludeList, doVerbose=False,
+                          lapsSinceLastBirth=self.LapsSinceLastBirth,
                           **self.algParams['birth'])
-          #excludeList.append(ktarget)
+          self.LapsSinceLastBirth[ktarget] = 0
+          excludeList.append(ktarget)
           tInfoDict = dict(ktarget=ktarget, Data=None)
           self.targetDataList.append(tInfoDict)
-        except ValueError:
-          pass
-      print "Comps on deck: %s" % (str([x['ktarget'] for x in self.targetDataList]))
+        except BirthMove.BirthProposalError, e:
+          Log.debug(str(e))
 
-    ## Handle removing "artificial mass" of fresh components
+    # Handle removing "artificial mass" of fresh components
     elif isLastBatch:
       Nall = np.sum(SS.N)
       didChangeSS = False
@@ -206,15 +221,23 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         didChangeSS = True
       if didChangeSS:
         hmodel.update_global_params(SS)
-      Nall = np.sum(SS.N)
-      assert np.abs(Nall - Dchunk.nObsTotal) < 0.0001
+      assert np.abs(np.sum(SS.N) - Dchunk.nObsTotal) < 0.0001
 
+    # Return and exit. That's all folks.
     return hmodel, SS
 
     
   def subsample_data_for_birth(self, Dchunk, LPchunk):
-    ''' Incrementally build-up a target dataset
-          for use when performing birth moves!
+    ''' Incrementally build-up a target dataset to use as basis for BirthMove!
+        Calling this method updates the internal data objects.
+        Args
+        -------
+        Dchunk : data object to subsample from
+        LPchunk : local parameters for Dchunk
+
+        Returns
+        -------
+        None (all updates happen to internal data structures)
     '''
     import BirthMove
 
@@ -258,6 +281,14 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     trialID = 0
     while trialID < nMergeAttempts:
 
+      # Synchronize contents of the excludeList and excludePairs
+      # So that comp excluded in excludeList (due to accepted merge)
+      #  is automatically contained in the set of excluded pairs 
+      for kx in excludeList:
+        for kk in excludePairs:
+          excludePairs[kk].add(kx)
+          excludePairs[kx].add(kk)
+
       for kk in excludePairs:
         if len(excludePairs[kk]) > hmodel.obsModel.K - 2:
           if kk not in excludeList:
@@ -279,8 +310,10 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
                  excludeList=excludeList, excludePairs=excludePairs,
                  kA=kA, **self.algParams['merge'])
       trialID += 1
-      self.print_msg(MoveInfo['msg'])
+      if MoveInfo['didAccept']:
+        self.print_msg(MoveInfo['msg'])
 
+      # Begin Bookkeeping!
       if 'kA' in MoveInfo and 'kB' in MoveInfo:
         kA = MoveInfo['kA']
         kB = MoveInfo['kB']
@@ -311,6 +344,18 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
             newExcludePairs[kk] = set(ksarr)
         excludePairs = newExcludePairs
 
+        # Adjust internal tracking of laps since birth
+        if self.hasMove('birth'):
+          compList = self.LapsSinceLastBirth.keys()
+          newDict = defaultdict(int)
+          for kk in compList:
+            if kk == kA:
+              newDict[kA] = np.maximum(self.LapsSinceLastBirth[kA], self.LapsSinceLastBirth[kB])
+            elif kk < kB:
+              newDict[kk] = self.LapsSinceLastBirth[kk]
+            elif kk > kB:
+              newDict[kk-1] = self.LapsSinceLastBirth[kk]
+          self.LapsSinceLastBirth = newDict
 
     SS.setToZeroPrecompMergeEntropy()
     return hmodel, SS, evBound

@@ -20,7 +20,8 @@ Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
 
 def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
-                   kA=None, kB=None, excludeList=list(), excludePairs=None,
+                   kA=None, kB=None, excludeList=list(), 
+                   excludePairs=defaultdict(lambda: set()),
                    mergename='marglik', randstate=np.random.RandomState(),
                    **kwargs):
   ''' Creates candidate model with two components merged,
@@ -175,14 +176,15 @@ def select_merge_components(curModel, Data, SS, LP=None,
       logmB = curModel.obsModel.calc_log_marg_lik_for_component(SS, kB)
       logmCombo = curModel.obsModel.calc_log_marg_lik_for_component(SS, kA, kB)
       logscore[kB] = logmCombo - logmA - logmB
-    ps = np.exp(logscore - np.max(logscore))
-    if np.sum(ps) < EPS:
+    if np.all(np.isinf(logscore)):
       ps = np.ones(K)
       ps[kA] = 0
       ps[excludeList] = 0
       ps[list(excludePairs[kA])] = 0
       if np.sum(ps) < EPS:
         raise ValueError("All possible choices excluded!")
+    else:
+      ps = np.exp(logscore - np.max(logscore))
     kB = discrete_single_draw(ps, randstate)
   else:
     raise NotImplementedError("Unknown mergename %s" % (mergename))

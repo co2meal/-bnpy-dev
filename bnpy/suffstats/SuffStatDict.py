@@ -24,6 +24,8 @@ To access the suff stats for a single component,
 import numpy as np
 import copy
 
+FieldNamesThatDoNotExpand = set(['N'])
+
 class SuffStatDict(object):
 
   def __init__(self, K=None, D=None, **kwArrArgs):
@@ -70,6 +72,9 @@ class SuffStatDict(object):
   def insertComponents(self, SSextra):
     ''' Insert (in-place) all components from SSextra into this object
     '''
+    if self.K == 1:
+      self.expandSingletonDims()
+
     for key in self.__compkeys__:
       arrA = self.__dict__[key]
       arrB = SSextra.__dict__[key]
@@ -95,6 +100,9 @@ class SuffStatDict(object):
   def insertEmptyComponents(self, Kextra):
     ''' Insert (in-place) Kextra empty components into this object
     '''
+    if self.K == 1:
+      self.expandSingletonDims()
+
     for key in self.__compkeys__:
       arrA = self.__dict__[key]
       if arrA.ndim == 3:
@@ -144,6 +152,21 @@ class SuffStatDict(object):
       self.__dict__[key] = np.delete(self.__dict__[key], kB, axis=1)
     self.K = self.K - 1
 
+    if self.K == 1:
+      self.contractSingletonDims()
+
+  def expandSingletonDims(self):
+    for key in self.__compkeys__:
+      if not key in FieldNamesThatDoNotExpand:
+        newArr = self.__dict__[key][np.newaxis,:]
+        self.__dict__[key] = newArr
+
+  def contractSingletonDims(self):
+    for key in self.__compkeys__:
+      if not key in FieldNamesThatDoNotExpand:
+        newArr = np.squeeze(self.__dict__[key])
+        self.__dict__[key] = newArr
+
   ######################################################### Precomp Entropy
   #########################################################
   def hasPrecompEntropy(self):
@@ -167,11 +190,15 @@ class SuffStatDict(object):
       raise ValueError("Attribute precomp entropy not defined, required for merge")
     assert np.maximum(kA,kB) < self.K
     for key in self.__compkeys__:
-      self.__dict__[key][kA] += self.__dict__[key][kB]     
+      self.__dict__[key][kA] += self.__dict__[key][kB] 
+    
     # Fix the precomputed entropy for new "merged" component kA    
     self.__dict__['__precompEntropy__'][kA] = self.__dict__['__mergeEntropy__'][kA,kB]
-    # Remove kB entirely from this object    
+
+    # Remove kB entirely from this object
+    #  this call automatically updates self.K to be one less    
     self.removeComponent(kB)
+
     # New "merged" component kA's entries in mergeEntropy
     # no longer represent the correct computation.
     key = '__mergeEntropy__'
