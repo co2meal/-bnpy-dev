@@ -10,7 +10,7 @@ K = 6 # Number of topics
 V = 9 # Vocabulary Size
 D = 250 # number of total documents
 Nperdoc = 100 #words per document
-alpha = 2 # hyperparameter over document-topic distributions
+alpha = 0.5 # hyperparameter over document-topic distributions
 beta  = 0.1 # hyperparameter over topic by word distributions
 
 w = np.ones( K ) # vector of ones
@@ -97,61 +97,6 @@ def get_BoW(seed):
 def get_data_info():
     return 'Toy Bars Data. Ktrue=%d. D=%d.' % (K,D)
 
-'''
-def sample_data_as_dict():
-  BoW = list()
-  nObs = 0
-  GroupIDs = list()
-  nUniqueEntry = 0
-  for docID in xrange( D ):
-    w = np.random.dirichlet( alpha*np.ones(K) )
-    Npercomp = np.random.multinomial( Nperdoc, w)
-    docDict = defaultdict( int )
-    for k in xrange(K):
-      wordCounts =np.random.multinomial(  Npercomp[k], true_tw[k] )
-      for (wordID,count) in enumerate(wordCounts):
-        if count == 0: 
-          continue
-        docDict[wordID] += count
-        nObs += count
-    nDistinctEntry = len(docDict )
-    GroupIDs.append( (nUniqueEntry,nUniqueEntry+nDistinctEntry) )  
-    nUniqueEntry += nDistinctEntry
-    BoW.append( docDict)
-  return BoW, nObs, nUniqueEntry, GroupIDs
-
-def sample_data_as_matrix( Npercomp ):
-  X = np.zeros( (Npercomp.sum(), V) )  
-  for k in range(K):
-    wordCounts =np.random.multinomial(  Npercomp[k], true_tw[k] )
-    for (vv,count) in enumerate( wordCounts):
-      X[ rowID, vv] = count
-  return {'X':X, 'nObs':X.shape[0]}
-
-def sample_data_from_comp( k, Nk ):
-  return np.random.multinomial( Nk, true_tw[k] )
+def plot_documents():
+  words_dict = get_BoW(1234)
   
-def print_data_info( modelName ):
-  print 'Easy-to-learn toy data for K=3 Bernoulli Obs Model'
-  print '  Mix weights:  '
-  print '                ', np2flatstr( w )
-  print '  Topic-word Probs:  '
-  for k in range( K ):
-    print '                ', np2flatstr( true_tw[k] )
-
-def get_data_by_groups( seed=8675309, **kwargs ):
-  if seed is not None:
-    np.random.seed( seed )
-  BoW, nObs, nEntry, GroupIDs = sample_data_as_dict()
-  Data = dict( BoW=BoW, nObsEntry=nEntry, nObs=nObs, nDoc=D, nVocab=V, GroupIDs=GroupIDs, nGroup=len(GroupIDs) )
-  return Data
-
-def minibatch_generator(  batch_size=1000, nBatch=50, nRep=1, seed=8675309, **kwargs):
-  for repID in range( nRep ):
-    np.random.seed( seed )
-    for batchID in range( nBatch ):
-      pass
-
-def np2flatstr( X, fmt='% 7.2f' ):
-  return ' '.join( [fmt % x for x in X.flatten() ] )  
-'''
