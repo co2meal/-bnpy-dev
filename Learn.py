@@ -118,7 +118,7 @@ def _run_task_internal(jobname, taskid, nTask, \
         evBound : log evidence for the resulting model on the specified dataset
   '''
   algseed = createUniqueRandomSeed(jobname, taskID=taskid)
-  dataseed = createUniqueRandomSeed('', taskID=taskid)
+  dataorderseed = createUniqueRandomSeed('', taskID=taskid)
 
   if doSaveToDisk:
     taskoutpath = getOutputPath(ReqArgs, KwArgs, taskID=taskid)
@@ -129,7 +129,7 @@ def _run_task_internal(jobname, taskid, nTask, \
   configLoggingToConsoleAndFile(taskoutpath, doSaveToDisk, doWriteStdOut)
   
   if type(dataName) is str:   
-    Data, InitData = loadData(ReqArgs, KwArgs, UnkArgs, dataseed=dataseed)
+    Data, InitData = loadData(ReqArgs, KwArgs, UnkArgs, dataorderseed)
   else:
     Data = dataName
     InitData = dataName
@@ -148,8 +148,8 @@ def _run_task_internal(jobname, taskid, nTask, \
     Log.info(Data.summarize_num_observations())
     Log.info(hmodel.get_model_info())
     Log.info('Learn Alg: %s' % (algName))    
-  Log.info('Trial %2d/%d | alg. seed: %d | data seed: %d' \
-               % (taskid, nTask, algseed, dataseed))
+  Log.info('Trial %2d/%d | alg. seed: %d | data order seed: %d' \
+               % (taskid, nTask, algseed, dataorderseed))
   Log.info('savepath: %s' % (taskoutpath))
 
   # Fit the model to the data!
@@ -159,7 +159,7 @@ def _run_task_internal(jobname, taskid, nTask, \
 
 ############################################################### Load Data
 ###############################################################
-def loadData(ReqArgs, KwArgs, UnkArgs, dataseed=0):
+def loadData(ReqArgs, KwArgs, DataArgs, dataorderseed):
   ''' Load DataObj specified by the user, using particular random seed.
       Returns
       --------
@@ -181,14 +181,15 @@ def loadData(ReqArgs, KwArgs, UnkArgs, dataseed=0):
   sys.path.append(os.environ['BNPYDATADIR'])
   datamod = __import__(ReqArgs['dataName'],fromlist=[])
   algName = ReqArgs['algName']
-  # TODO: pass UnkArgs to the data module to 
   if algName in FullDataAlgSet:
-    Data = datamod.get_data(seed=dataseed)
+    Data = datamod.get_data(**DataArgs)
     return Data, Data
   elif algName in OnlineDataAlgSet:
     KwArgs[algName]['nLap'] = KwArgs['OnlineDataPrefs']['nLap']
-    InitData = datamod.get_data(seed=dataseed)
-    DataIterator = datamod.get_minibatch_iterator(seed=dataseed, **KwArgs['OnlineDataPrefs'])
+    InitData = datamod.get_data(**DataArgs)
+    OnlineDataArgs = KwArgs['OnlineDataPrefs']
+    OnlineDataArgs['dataorderseed'] = dataorderseed
+    DataIterator = datamod.get_minibatch_iterator(**OnlineDataArgs)
     return DataIterator, InitData
   
 ############################################################### Create Model
