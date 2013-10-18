@@ -39,7 +39,7 @@ import numpy as np
 MAXSEED = 1000000
   
 class AdmixMinibatchIterator(object):
-  def __init__(self, Data, nBatch=10, nObsBatch=None, nLap=20, dataseed=42, allocModelName=None):
+  def __init__(self, Data, nBatch=10, nObsBatch=None, nLap=20, dataorderseed=42, allocModelName=None):
     ''' Constructor for creating an iterator over the batches of data
     '''
     self.Data = Data
@@ -58,7 +58,7 @@ class AdmixMinibatchIterator(object):
     # Config order in which batches are traversed
     self.curLapPos = -1
     self.lapID  = 0
-    self.dataseed = int(int(dataseed) % MAXSEED)
+    self.dataorderseed = int(int(dataorderseed) % MAXSEED)
     # Make list with entry for every distinct batch
     #   where each entry is itself a list of obsIDs in the full dataset
     self.obsIDByBatch = self.configObsIDsForEachBatch()

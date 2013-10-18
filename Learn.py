@@ -23,7 +23,7 @@
 import os
 import sys
 import logging
-import json
+import numpy as np
 import bnpy
 import BNPYArgParser
 

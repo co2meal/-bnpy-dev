@@ -44,10 +44,10 @@ def get_data(seed=8675309, nObsTotal=25000, **kwargs):
     Data.summary = get_data_info()
     return Data
 
-def get_minibatch_iterator(seed=8675309, nBatch=10, nObsBatch=None, nObsTotal=25000, nLap=1, allocModelName=None):
+def get_minibatch_iterator(seed=8675309, nBatch=10, nObsBatch=None, nObsTotal=25000, nLap=1, allocModelName=None, dataorderseed=0, **kwargs):
     words_dict = get_BoW(seed)
     Data = WordsData( **words_dict )
-    DataIterator = AdmixMinibatchIterator(Data, nBatch=nBatch, nObsBatch=nObsBatch, nLap=nLap, dataseed=seed)
+    DataIterator = AdmixMinibatchIterator(Data, nBatch=nBatch, nObsBatch=nObsBatch, nLap=nLap, dataorderseed=dataorderseed)
     DataIterator.summary = get_data_info()
     return DataIterator
 
