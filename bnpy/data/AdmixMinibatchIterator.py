@@ -21,7 +21,7 @@ Batches are defined via a random partition of all data items
       
 Supports multiple laps through the data.  Specify # of laps with parameter nLap.
 Traversal order of the batch is randomized every lap through the full dataset
-Set the "dataseed" parameter to get repeatable orders.
+Set the "dataorderseed" parameter to get repeatable orders.
 
 Attributes
 -------
@@ -112,7 +112,7 @@ class AdmixMinibatchIterator(object):
         obsIDByBatch : list of length self.nBatch,
                        where obsIDByBatch[bID] : list of all obsIDs in batch bID 
     '''
-    PRNG = np.random.RandomState(self.dataseed)
+    PRNG = np.random.RandomState(self.dataorderseed)
     #Note that we're using nDocTotal to permute document ids
     obsIDs = PRNG.permutation(self.Data.nDocTotal).tolist()
     obsIDByBatch = dict()
@@ -125,7 +125,7 @@ class AdmixMinibatchIterator(object):
     ''' Returns array of batchIDs, permuted in random order
         Order changes each time we traverse all items (each lap)
     '''
-    curseed = self.dataseed + self.lapID
+    curseed = self.dataorderseed + self.lapID
     PRNG = np.random.RandomState(curseed)
     return PRNG.permutation( self.nBatch )
 

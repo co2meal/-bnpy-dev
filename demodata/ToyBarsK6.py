@@ -64,10 +64,10 @@ def get_BoW(seed):
         td_weights = PRNG.multinomial(3,unif) + .001
         true_td[:,d] = td_weights / td_weights.sum()
         #true_td[:,d] = PRNG.dirichlet( alpha*np.ones(K) ) 
-        Npercomp = np.random.multinomial( Nperdoc, true_td[:,d])
+        Npercomp = PRNG.multinomial( Nperdoc, true_td[:,d])
         temp_word_count = defaultdict( int )
         for k in xrange(K):
-            wordCounts = np.random.multinomial(  Npercomp[k], true_tw[k,:] )
+            wordCounts = PRNG.multinomial(  Npercomp[k], true_tw[k,:] )
             for (wordID,count) in enumerate(wordCounts):
                 if count == 0: 
                     continue
