@@ -18,11 +18,14 @@ class MultObsModel( ObsCompSet ):
 
     @classmethod
     def InitFromData(cls, inferType, priorArgDict, Data):
-        nDocs = Data.nDocs
-        if inferType == 'VB':
+        nDocTotal = Data.nDocTotal
+        # Something else probably needs to be done for EM here
+        if inferType == 'EM':
             # Defines the Dirichlet (topic x word) that is initialized to ensure it fits data dimensions
             obsPrior = DirichletDistr.InitFromData(priorArgDict, Data)
-        return cls(inferType, nDocs, obsPrior)
+        else:
+            obsPrior = DirichletDistr.InitFromData(priorArgDict, Data)
+        return cls(inferType, nDocTotal, obsPrior)
 
     def get_human_global_param_string(self, fmtStr='%3.2f'):
         if self.inferType == 'EM':
@@ -34,17 +37,16 @@ class MultObsModel( ObsCompSet ):
     def get_global_suff_stats( self, Data, SS, LP ):
         # Grab topic x word sufficient statistics
         wv = LP['word_variational']
-        _, K = wv.shape
-        WC = Data.WC
-        lambda_kw = np.zeros( (K, Data.nWords) )
+        nObs_mb, K = wv.shape
+        word_count = Data.word_count
+        word_id = Data.word_id
+        lambda_kw = np.zeros( (K, Data.vocab_size) )
         
-        # Loop through documents
-        for ii in xrange( Data.nObsTotal ):
-            word_ind = WC[ii,0] 
-            lambda_kw[:, word_ind] += wv[ii,:] * WC[ii, 1]  
+        # Loop through word tokens
+        for ii in xrange( nObs_mb ):
+            lambda_kw[:, word_id[ii]] += wv[ii,:] * word_count[ii]  
+            
         # Return K x V matrix of sufficient stats (topic x word)
-        
-        #lambda_kw = Data.true_tw
         SS.lambda_kw = lambda_kw
         self.K = K
         return SS
@@ -59,14 +61,11 @@ class MultObsModel( ObsCompSet ):
         for k in Krange:
             self.comp[k] = self.obsPrior.get_post_distr( SS, k )
 
-    def update_obs_params_VB_stochastic( self, SS, rho, Ntotal, **kwargs):
-        ampF = Ntotal/SS['Ntotal']
-        for k in xrange( self.K):
-            postDistr = self.obsPrior.getPosteriorDistr( ampF*SS['TermCount'][k] )
-            if self.obsPrior[k] is None:
-                self.obsPrior[k] = postDistr
-            else:
-                self.obsPrior[k].rho_update( rho, postDistr )
+    def update_obs_params_soVB( self, SS, rho, Krange, **kwargs):
+        # grab Dirichlet posterior for lambda and perform stochastic update
+        for k in Krange:
+            Dstar = self.obsPrior.get_post_distr(SS, k)
+            self.comp[k].post_update_soVB(rho, Dstar)
       
     # Calculate at the word level the expectations associated with our observation model
     # For document d, word w, topic k, our local variational update is:
@@ -87,17 +86,16 @@ class MultObsModel( ObsCompSet ):
     
     # Returns a nObsTotal x 1 array of expectations associated with the observation model  
     def E_log_obs_word( self, Data ):
-        WC = Data.WC
-        E_log_obs_word = np.empty( (Data.nObsTotal, self.K) )
-        lambda_kw = np.zeros((self.K, Data.nWords))
-        
+        E_log_obs_word = np.empty( (Data.nObs, self.K) )
+        lambda_kw = np.zeros((self.K, Data.vocab_size))
+        word_id = Data.word_id
         # Since priors are stored in comp, recreate as matrix for easier indexing
         for k in xrange(self.K):
             lambda_kw[k,:] = self.comp[k].Elogphi # returns topic by word matrix expectations
         
         # Return a nObsTotal x 1 array of expected[lambda_kw] relevant for word_id = w
-        for ii in xrange( Data.nObsTotal ):
-            E_log_obs_word[ii,:] = lambda_kw[:,WC[ii,0]]
+        for ii in xrange( Data.nObs ):
+            E_log_obs_word[ii,:] = lambda_kw[:, word_id[ii]]
         return E_log_obs_word
   
   #########################################################  Evidence Bound Fcns  
@@ -105,28 +103,31 @@ class MultObsModel( ObsCompSet ):
         if self.inferType == 'EM':
             return 0 # handled by alloc model
         # Calculate p(w | z, lambda) + p(lambda) - q(lambda)
-        pW = self.E_logpX( Data, LP, SS) 
-        pL = self.E_log_pLambda()
-        qL = self.E_log_qLambda()
-        lb_obs = pW + pL - qL
+        elbo_pWords = self.E_log_pW( Data, LP, SS) 
+        elbo_pLambda = self.E_log_pLambda()
+        elbo_qLambda = self.E_log_qLambda()
+        lb_obs = elbo_pWords + elbo_pLambda - elbo_qLambda
         
         # Print parts of the ELBO for debugging
         debug = False
         if debug is True:
-            print "pW: " + str(pW)
-            print "pL: " + str(pL)
-            print "qL: " + str(qL)
+            print "pW: " + str(elbo_pWords)
+            print "pL: " + str(elbo_pLambda)
+            print "qL: " + str(elbo_qLambda)
         return lb_obs
   
-    def E_logpX( self, Data, LP, SS ):
+    def E_log_pW( self, Data, LP, SS ):
         ''' E_{q(Z), q(Phi)} [ log p(X) ]'''
-        elambda_kw = np.zeros( (self.K, Data.nWords) )
+        elambda_kw = np.zeros( (self.K, Data.vocab_size) )
         for k in xrange( self.K ):
             elambda_kw[k,:] = self.comp[k].Elogphi
         # Calculate p(w | lambda, z )
         lpw = 0
-        for ii in xrange( Data.nObsTotal ):
-            lpw += Data.WC[ii,1] * np.dot(LP["word_variational"][ii,:] ,elambda_kw[:,Data.WC[ii,0]])    
+        
+        word_count = Data.word_count
+        word_id = Data.word_id
+        for ii in xrange( Data.nObs ):
+            lpw += word_count[ii] * np.dot(LP["word_variational"][ii,:] ,elambda_kw[:, word_id[ii]])    
         return lpw
     
     def E_log_pLambda( self ):

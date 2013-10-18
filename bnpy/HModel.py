@@ -88,8 +88,11 @@ class HModel( object ):
     SS = self.obsModel.get_global_suff_stats( Data, SS, LP, **kwargs )
     # Change effective scale (nObs) of the suff stats 
     # (useful for stochastic variational)
-    if Ntotal is not None:
-      ampF = Ntotal / Data.nObs
+    if hasattr(Data,"nDoc"):
+      ampF = Data.nDocTotal / Data.nDoc
+      SS.applyAmpFactor(ampF)
+    elif Ntotal is not None:
+      ampF = Ntotal / Data.nObsTotal
       SS.applyAmpFactor(ampF)
     return SS
 
