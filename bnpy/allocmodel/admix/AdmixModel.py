@@ -1,5 +1,5 @@
 '''
-  MixModel.py
+  AdMixModel.py
      Bayesian parametric admixture model with a finite number of components K
 
   Provides code for performing variational Bayesian inference,
@@ -40,14 +40,14 @@ class AdmixModel( AllocModel ):
         ''' Just count expected # assigned to each cluster across all Docs, as usual'''
         wv = LP['word_variational']
         _, K = wv.shape
-        WC = Data.WC
-        doc_variational_ss = np.zeros( (Data.nDocs, K) )
+        word_count = Data.word_count
+        doc_variational_ss = np.zeros( (Data.nDoc, K) )
         # Loop through documents
 
-        for d in xrange(Data.nDocs):
-            start,stop = Data.DOC_ID[d,:]
+        for d in xrange(Data.nDoc):
+            start,stop = Data.doc_range[d,:]
             # get document-level sufficient statistics 
-            doc_variational_ss[d,:] = np.dot( WC[start:stop,1], wv[start:stop,:] )
+            doc_variational_ss[d,:] = np.dot( word_count[start:stop].T, wv[start:stop,:] )
 
         #doc_variational_ss = Data.true_td.T     
         SS = SuffStatDict(doc_variational_ss = doc_variational_ss)
@@ -59,26 +59,26 @@ class AdmixModel( AllocModel ):
     def calc_local_params( self, Data, LP ):
         ''' E-step
           alternate between these updates until convergence
-             q(phi | z)  (posterior on topic-token assignment)
-         and q(theta | pi)  (posterior on Doc-topic distribution)'''
+             q(word_variational | word_token_variables)  (posterior on topic-token assignment)
+         and q(doc_variational | document_topic_variables)  (posterior on Doc-topic distribution)'''
         
         # doc_variational are the document level variational parameters phi
         # on the first iteration, initialize this to an empty array
         try:
             LP['doc_variational']
         except KeyError:
-            LP['doc_variational'] = np.zeros( (Data.nDocs, self.K) )
-
-        DOC_ID = Data.DOC_ID
-        WC = Data.WC
+            LP['doc_variational'] = np.zeros( (Data.nDoc, self.K) )
+        
+        doc_range = Data.doc_range
+        word_count = Data.word_count
         prevVec = None
         for ii in xrange( 4 ):
             LP = self.get_doc_variational( Data, LP)
             LP = self.get_word_variational( Data, LP)        
-            for d in xrange( Data.nDocs ):
-                start,stop = DOC_ID[d,:]
+            for d in xrange( Data.nDoc ):
+                start,stop = doc_range[d,:]
                 #doc_variational = Freq of unique word counts for document d x wvonsibilities
-                LP['doc_variational'][d,:] = np.dot( WC[start:stop,1], LP['word_variational'][start:stop,:] )  
+                LP['doc_variational'][d,:] = np.dot( word_count[start:stop], LP['word_variational'][start:stop,:] )  
             curVec = LP['doc_variational'].flatten()
             if prevVec is not None and np.allclose( prevVec, curVec ):
                 break
@@ -100,8 +100,8 @@ class AdmixModel( AllocModel ):
         wv_temp = LP['E_log_obs_word'].copy() # so we can do += later
         # Loop through documents and add expectations of document i and topics 1:K
         # Calculate the local variational parameters phi associated with our word-level observations
-        for d in xrange( Data.nDocs ):
-            start,stop = Data.DOC_ID[d,:]
+        for d in xrange( Data.nDoc ):
+            start,stop = Data.doc_range[d,:]
             wv_temp[start:stop, :] += LP['E_log_doc_variational'][d,:]
         lprPerItem = logsumexp( wv_temp, axis=1 )
         # Normalize wv_temp to get actual word level variational parameters
@@ -116,33 +116,34 @@ class AdmixModel( AllocModel ):
     # p(z | pi) + p(pi | alpha) - q( phi | z) - q(theta | pi)
     # where phi and theta represent our variational parameters
     def calc_evidence( self, Data, SS, LP ):
-        # PI refers to the parameters we use for the document x topic weights
-        # Z refers to the topic indicator assignments for individual word tokens
+        # pDocTopic refers to the parameters we use for the document x topic weights
+        # pWordToken refers to the topic indicator assignments for individual word tokens
+        # the q prefix denotes the entropy terms
         
-        # Calculate ELBO assignments for document level assignments pi
-        if 'ampG' in SS:
-            pPI = SS['ampG']*self.E_log_pPI( LP)
-            qPI = SS['ampG']*self.E_log_qPI(LP)
+        # Calculate ELBO assignments for document topic weights
+        if 'ampF' in SS:
+            elbo_pDocTopic = SS['ampF']*self.E_log_pPI( Data, LP)
+            elbo_qDocTopic = SS['ampF']*self.E_log_qPI( Data, LP)
         else:
-            pPI = self.E_log_pPI( Data, LP ) # evidence of 
-            qPI = self.E_log_pPI( Data, LP ) # entropy of ...
+            elbo_pDocTopic = self.E_log_pPI( Data, LP ) # evidence of 
+            elbo_qDocTopic = self.E_log_pPI( Data, LP ) # entropy of ...
         
-        # Calculate ELBO for word level assignments z   
-        if 'ampG' in SS:
-            pZ = SS['ampG']*self.E_log_pZ( Data, LP )
-            qZ = SS['ampF']*self.E_log_qZ( Data, LP )
+        # Calculate ELBO for word token assignment 
+        if 'ampF' in SS:
+            elbo_pWordToken = SS['ampF']*self.E_log_pZ( Data, LP )
+            elbo_qWordToken = SS['ampF']*self.E_log_qZ( Data, LP )
         else:
-            pZ = self.E_log_pZ( Data, LP )
-            qZ = self.E_log_qZ( Data, LP )
-        elbo_alloc = pPI + pZ - qPI - qZ
+            elbo_pWordToken = self.E_log_pZ( Data, LP )
+            elbo_qWordToken = self.E_log_qZ( Data, LP )
+        elbo_alloc = elbo_pDocTopic + elbo_pWordToken - elbo_qDocTopic - elbo_qWordToken
         
         # Debug parts of the ELBO
         debug = False
         if debug is True:
-            print "pZ: " + str(pZ)
-            print "qZ: " + str(qZ)
-            print "pPI: " + str(pPI)
-            print "qPI: " + str(qPI)
+            print "pZ: " + str(elbo_pWordToken)
+            print "qZ: " + str(elbo_qWordToken)
+            print "pPI: " + str(elbo_pDocTopic)
+            print "qPI: " + str(elbo_qDocTopic)
         return elbo_alloc
 
     #Part of the ELBO, calculates likelihood terms for word tokens z
@@ -153,13 +154,13 @@ class AdmixModel( AllocModel ):
     #Part of the ELBO, calculates entropy terms for word tokens z
     def E_log_qZ( self, Data, LP):  
         temp = LP["word_variational"] * np.log(EPS+LP['word_variational'])
-        E_log_qZ = np.dot(Data.WC[:,1].T, temp)
+        E_log_qZ = np.dot(Data.word_count.T, temp)
         return E_log_qZ.sum()    
 
     #Part of the ELBO, calculates likelihood terms for document-topic weights
     def E_log_pPI( self, Data, LP ):
         K = self.K
-        D = Data.nDocs
+        D = Data.nDoc
         E_log_pPI = gammaln(K*self.alpha0)-K*gammaln(self.alpha0)    
         E_log_pPI *= D  # same prior over each Doc of data!
         for d in xrange( D ):
@@ -169,7 +170,7 @@ class AdmixModel( AllocModel ):
     #Part of the ELBO, calculates entropy terms for document-topic weights
     def E_log_qPI( self, Data, LP ):
         E_log_qPI = 0
-        for d in xrange( Data.nDocs ):
+        for d in xrange( Data.nDoc ):
             theta = LP['doc_variational'][d]
             E_log_qPI +=  gammaln(  theta.sum()) - gammaln(  theta ).sum() \
                   + np.inner(  theta-1,  LP['E_log_doc_variational'][d] )

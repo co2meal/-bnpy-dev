@@ -1,13 +1,14 @@
 '''
-MinibatchIterator.py
+AdmixMinibatchIterator.py
 
 Generic object for iterating over a single bnpy Data set
 by considering one subset minibatch (often just called a batch) at a time
+for documents (not word tokens!)
 
 Usage
 --------
 Construct by providing the underlying full-dataset
->> MB = MinibatchIterator(Data, nBatch=10, nObsBatch=100)
+>> MB = AdmixMinibatchIterator(Data, nBatch=10, nObsBatch=100)
 Then call
      has_next_batch()  to test if more data is available
      get_next_batch()  to get the next batch (as a Data object)
@@ -26,7 +27,7 @@ Attributes
 -------
 nBatch : number of batches to divide full dataset into
 nObsBatch : number of observations in each batch (on average)
-nObsTotal : number of observations in entire full dataset
+nObsTotal : number of observations in entire full dataset (in terms of documents)
 nLap : number of times to pass thru all batches in dataset during iteration
 
 batchID : exact integer ID of the current batch. range=[0, nBatch-1]
@@ -37,16 +38,20 @@ from IPython import embed
 import numpy as np
 MAXSEED = 1000000
   
-class MinibatchIterator(object):
-  def __init__(self, Data, nBatch=10, nObsBatch=None, nLap=10, dataseed=42):
+class AdmixMinibatchIterator(object):
+  def __init__(self, Data, nBatch=10, nObsBatch=None, nLap=20, dataseed=42, allocModelName=None):
     ''' Constructor for creating an iterator over the batches of data
     '''
     self.Data = Data
     self.nBatch = nBatch
     self.nLap = nLap
+    # specify self.nObsTotal to be the total number of documents in the admixture case
+    # used only really to have stochastic online not break
+    self.nObsTotal = Data.nDocTotal #nDoc is the total number of documents in the given mini-batch
+    
+    # number of observations in batch
     if nObsBatch is None:
-        #self.nObsBatch = Data.nObsTotal/nBatch
-        self.nObsBatch = self.nObsTotal/nBatch
+        self.nObsBatch = Data.nDocTotal/nBatch
     else:
         self.nObsBatch = nObsBatch
     
@@ -108,7 +113,8 @@ class MinibatchIterator(object):
                        where obsIDByBatch[bID] : list of all obsIDs in batch bID 
     '''
     PRNG = np.random.RandomState(self.dataseed)
-    obsIDs = PRNG.permutation(self.Data.nObsTotal).tolist()
+    #Note that we're using nDocTotal to permute document ids
+    obsIDs = PRNG.permutation(self.Data.nDocTotal).tolist()
     obsIDByBatch = dict()
     for batchID in range(self.nBatch):
       obsIDByBatch[batchID] = obsIDs[:self.nObsBatch]
@@ -127,5 +133,5 @@ class MinibatchIterator(object):
   #########################################################    
   def summarize_num_observations(self):
     s = '  num batch %d, num obs per batch %d\n' % (self.nBatch, self.nObsBatch)
-    s += '  num obs (total across all batches): %d' % (self.Data.nObsTotal)
+    s += '  num documents (total across all batches): %d' % (self.Data.nDocTotal)
     return s

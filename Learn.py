@@ -108,6 +108,7 @@ def loadData(ArgDict, dataseed=0):
   elif algName in OnlineDataAlgSet:
     ArgDict[algName]['nLap'] = ArgDict['OnlineDataPrefs']['nLap']
     InitData = datamod.get_data(seed=dataseed)
+    #ArgDict['OnlineDataPrefs']['allocModelName'] = ArgDict['allocModelName']
     DataIterator = datamod.get_minibatch_iterator(seed=dataseed, **ArgDict['OnlineDataPrefs'])
     return DataIterator, InitData
 

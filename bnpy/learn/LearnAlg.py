@@ -128,7 +128,7 @@ class LearnAlg(object):
     if hmodel.allocModel.get_model_name() == 'admixture':
       plt.figure(1,figsize=(12,3))  
       K = hmodel.allocModel.K
-      learned_tw = np.zeros( (K, Data.nWords) )
+      learned_tw = np.zeros( (K, Data.vocab_size) )
       for k in xrange(K):
         lamvec = hmodel.obsModel.comp[k].lamvec 
         learned_tw[k,:] = lamvec / lamvec.sum()
