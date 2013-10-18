@@ -1,6 +1,17 @@
-======== Data
-standardize to using proper Data object throughout
+======== Birth Move
 
+after trying a birth move at comp k:
+  if fails (nothing new created): 
+    prob try again should be extremely low
+
+  if succeeds (some new comps created): 
+    should not try again until 2 or 3 laps done
+
+newborn component:
+  probably should not be tried until at least one lap is complete
+
+merged component:
+  probably should not be tried until at least a few laps are complete
 
 ======== Local Params
 keep as a dict??
@@ -11,12 +22,3 @@ for admix models
   LP['resp'], LP['groupWeights'], LP['NperGroup']
 for HMMs
   LP['resp'], LP['respPair']
-
-======== Suff Stats
-SS object should just be an information container.
-
-All logic should happen in the model specification.
-
-SSlist : list of SS components.
-
-can delete, add, reorder, etc. at will!

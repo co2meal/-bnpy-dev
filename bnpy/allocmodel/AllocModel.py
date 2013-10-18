@@ -60,14 +60,14 @@ class AllocModel(object):
     '''
     self.K = SS.K
     if self.inferType == 'EM':
-      self.update_global_params_EM( SS )
+      self.update_global_params_EM(SS)
     elif self.inferType == 'VB' or self.inferType == "moVB":
-      self.update_global_params_VB( SS )
+      self.update_global_params_VB(SS)
     elif self.inferType == 'soVB':
       if rho is None or rho==1:
-        self.update_global_params_VB( SS)
+        self.update_global_params_VB(SS)
       else: 
-        self.update_global_params_soVB( SS, rho)
+        self.update_global_params_soVB(SS, rho)
     else:
       raise ValueError( 'Unrecognized Inference Type! %s' % (self.inferType) )
     self.isReady = True

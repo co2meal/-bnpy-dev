@@ -126,8 +126,8 @@ class HModel( object ):
     ''' Initialize (in-place) global parameters
     '''
     initname = initArgs['initname']
-    if initname.count('truth') > 0:
-      init.FromScratchMult.init_global_params(self, Data, **initArgs)
+    if initname.count('true') > 0:
+      init.FromTruth.init_global_params(self, Data, **initArgs)
     elif initname.count(os.path.sep) > 0:
       init.FromSaved.init_global_params(self, Data, **initArgs)
     elif str(type(self.obsModel)).count('Gauss') > 0:
@@ -136,7 +136,7 @@ class HModel( object ):
       init.FromScratchMult.init_global_params(self, Data, **initArgs)
     else:
       # TODO: more observation types!
-      raise NotImplementedError("to do")
+      raise NotImplementedError("TODO")
     
   #########################################################  
   #########################################################  Print to stdout

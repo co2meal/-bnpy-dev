@@ -66,6 +66,7 @@ def main():
         help="absolute path to directory to save figure")
   parser.add_argument('--doPlotData', action='store_true', default=False,
         help="if present, also plot training data")
+  parser.add_argument('--iterid', type=int, default=None)
   args = parser.parse_args()
 
 
@@ -89,7 +90,11 @@ def main():
                       )  
   for taskid in taskids:
     taskpath = os.path.join(jobpath, taskid)
-    hmodel = bnpy.ioutil.ModelReader.load_model(taskpath)
+    if args.iterid is None:
+      prefix = "Best"
+    else:
+      prefix = "Iter%05d" % (args.iterid)
+    hmodel = bnpy.ioutil.ModelReader.load_model(taskpath, prefix)
 
     pylab.figure()
     if args.doPlotData:
