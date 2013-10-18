@@ -53,4 +53,4 @@ class StochasticOnlineVBLearnAlg(LearnAlg):
     
     status = "all data processed."
     self.print_state(hmodel,iterid, lapFrac, evBound, doFinal=True, status=status)
-    return LP
+    return None, evBound

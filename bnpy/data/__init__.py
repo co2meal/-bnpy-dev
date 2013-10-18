@@ -1,7 +1,8 @@
+from .DataObj import DataObj
 from .XData import XData
 from .WordsData import WordsData
 from .MinibatchIterator import MinibatchIterator
-from .MinibatchIteratorFromDisk import MinibatchIteratorFromDisk
 from .AdmixMinibatchIterator import AdmixMinibatchIterator
 
-__all__ = ['WordsData', 'XData', 'MinibatchIterator', 'MinibatchIteratorFromDisk', 'AdmixMinibatchIterator']
+__all__ = ['DataObj', 'WordsData', 'XData', 
+           'MinibatchIterator', 'AdmixMinibatchIterator']

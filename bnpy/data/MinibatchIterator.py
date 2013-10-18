@@ -95,7 +95,7 @@ class MinibatchIterator(object):
     '''
     if hasattr(self, 'summary'):
       return self.summary
-    return 'Generic %s Dataset' % (self.__class__.__name__)
+    return 'Minibatch Iterator: %d batches' % (self.nBatch)
 
   #########################################################  internal methods
   #########################################################           
@@ -124,7 +124,10 @@ class MinibatchIterator(object):
     return PRNG.permutation( self.nBatch )
 
   #########################################################  I/O methods
-  #########################################################    
+  ######################################################### 
+  def get_text_summary(self):
+    return self.Data.get_text_summary()
+     
   def summarize_num_observations(self):
     s = '  num batch %d, num obs per batch %d\n' % (self.nBatch, self.nObsBatch)
     s += '  num obs (total across all batches): %d' % (self.Data.nObsTotal)

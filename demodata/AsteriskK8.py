@@ -68,13 +68,14 @@ def get_X(seed, nObsTotal):
 
 def get_data(seed=8675309, nObsTotal=25000, **kwargs):
   X, TrueZ = get_X(seed, nObsTotal)
-  Data = XData(X=X)
+  Data = XData(X=X, TrueZ=TrueZ)
   Data.summary = get_data_info()
   return Data
   
 def get_minibatch_iterator(seed=8675309, nBatch=10, nObsBatch=None, nObsTotal=25000, nLap=1):
   X, TrueZ = get_X(seed, nObsTotal)
   Data = XData(X=X)
+  Data.summary = get_data_info()
   DataIterator = MinibatchIterator(Data, nBatch=nBatch, nObsBatch=nObsBatch, nLap=nLap, dataseed=seed)
-  DataIterator.summary = get_data_info()
   return DataIterator
+

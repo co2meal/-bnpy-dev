@@ -8,13 +8,12 @@ Defines some generic routines for
   * printing progress updates to stdout
   * recording run-time
 '''
+from bnpy.ioutil import ModelWriter
 import numpy as np
 import time
 import os
 import logging
 import scipy.io
-from distutils.dir_util import mkpath
-from bnpy.ioutil import ModelWriter
 
 Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
@@ -22,7 +21,10 @@ Log.setLevel(logging.DEBUG)
 class LearnAlg(object):
 
   def __init__(self, savedir=None, seed=0, algParams=dict(), outputParams=dict()):
-    self.savedir = os.path.splitext(savedir)[0]
+    if type(savedir) == str:
+      self.savedir = os.path.splitext(savedir)[0]
+    else:
+      self.savedir = None
     self.PRNG = np.random.RandomState(seed)
     self.algParams = algParams
     self.outputParams = outputParams
@@ -52,12 +54,18 @@ class LearnAlg(object):
   def get_elapsed_time(self):
     return time.time() - self.start_time
 
-  #########################################################  
-  #########################################################  Verify evidence monotonic
-  #########################################################  
-  def verify_evidence(self, evBound=0.00001, prevBound=0, EPS=1e-9):
+  ##################################################### Fcns for birth/merges
+  ##################################################### 
+  def hasMove(self, moveName):
+    if moveName in self.algParams:
+      return True
+    return False
+
+  ##################################################### Verify evidence monotonic
+  #####################################################  
+  def verify_evidence(self, evBound=0.00001, prevBound=0):
     ''' Compare current and previous evidence (ELBO) values,
-        and verify that (within numerical tolerance) evidence increases monotonically
+        verify that (within numerical tolerance) evidence increases monotonically
     '''
     if np.isnan(evBound):
       raise ValueError("Evidence should never be NaN")
@@ -78,7 +86,6 @@ class LearnAlg(object):
     return isWithinTHR 
 
 
-  #########################################################  
   #########################################################  Save to file
   #########################################################      
   def save_state( self, hmodel, iterid, lap, evBound, doFinal=False):
@@ -86,7 +93,7 @@ class LearnAlg(object):
     '''
     saveEvery = self.outputParams['saveEvery']
     traceEvery = self.outputParams['traceEvery']
-    if saveEvery <= 0:
+    if saveEvery <= 0 or self.savedir is None:
       return    
 
     def mkfile(fname):
@@ -120,9 +127,12 @@ class LearnAlg(object):
         ModelWriter.save_model(hmodel, self.savedir, prefix,
                                 doSavePriorInfo=(iterid<1), doLinkBest=True)
 
-    ## PLOT RESULTS ##
-    # Plot results depending on allocation model type
+
+  ######################################################### Plot Results
+  ######################################################### 
   def plot_results(self, hmodel, Data, LP):
+    ''' Plot learned model parameters
+    '''
     import matplotlib.pyplot as plt
     
     if hmodel.allocModel.get_model_name() == 'admixture':
@@ -149,12 +159,9 @@ class LearnAlg(object):
         plt.title('Learned Topic x Word')
     plt.show()
 
-
-  #########################################################  
   #########################################################  Print State
   #########################################################  
-  
-  def print_state( self, hmodel, iterid, lap, evBound, doFinal=False, status='', rho=None):
+  def print_state(self, hmodel, iterid, lap, evBound, doFinal=False, status='', rho=None):
     printEvery = self.outputParams['printEvery']
     if printEvery <= 0:
       return None
@@ -179,9 +186,21 @@ class LearnAlg(object):
                         hmodel.allocModel.K,
                         evBound, 
                         rhoStr)
+    if self.hasMove('birth') and hasattr(self, 'BirthCompIDs'):
+      logmsg += "| Kbirth %3d " % (len(self.BirthCompIDs))
+    if self.hasMove('merge') and hasattr(self, 'MergeLog'):
+      logmsg += "| Kmerge %3d " % (len(self.MergeLog))
+
+
+
     if (doFinal or doPrint) and iterid not in self.PrintIters:
       self.PrintIters.add(iterid)
       Log.info(logmsg)
     if doFinal:
       Log.info('... done. %s' % (status))
       
+  def print_msg(self, msg):
+      ''' Prints a string msg to stdout,
+            without needing to import logging method into subclass. 
+      '''
+      Log.info(msg)

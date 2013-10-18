@@ -21,6 +21,15 @@ class DataObj(object):
     '''
     pass
     
+  def get_short_name(self):
+    ''' Returns string with short name (at most 10 char) of this data object,
+          with no spaces and only alpha-numeric characters.
+        Useful for creating filepaths specific for this data object.
+    '''
+    if hasattr(self, 'shortname'):
+      return self.shortname
+    return "MyData%d" % (self.nObsTotal)
+       
   def get_text_summary(self):
     ''' Returns string with human-readable description of this dataset 
         e.g. source, author/creator, etc.
@@ -39,3 +48,7 @@ class DataObj(object):
     '''
     pass
     
+  def add_data(self, DataObj):
+    ''' Updates (in-place) the dataset to include provided data
+    '''
+    pass
