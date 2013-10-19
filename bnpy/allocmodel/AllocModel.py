@@ -13,8 +13,11 @@ class AllocModel(object):
   def is_nonparametric(self):
     return False 
 
-  def need_prev_local_params(self):
-    return False 
+  def get_keys_for_memoized_local_params(self):
+    ''' Return list of string names of the LP fields
+        that this object needs to memoize across visits to a particular batch
+    '''
+    return list() 
 
   ##############################################################    
   ############################################################## Suff Stat Calc   

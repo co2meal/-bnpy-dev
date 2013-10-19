@@ -31,6 +31,7 @@ class SuffStatDict(object):
   def __init__(self, K=None, D=None, **kwArrArgs):
     self.__dict__ = dict(K=K, D=D)
     self.__compkeys__ = set()
+    self.__precompELBOTerms__ = dict()
     for key, arr in kwArrArgs.items():
       self.__setattr__(key, arr)
         
@@ -167,6 +168,24 @@ class SuffStatDict(object):
         newArr = np.squeeze(self.__dict__[key])
         self.__dict__[key] = newArr
 
+
+  ######################################################### Precomp ELBO terms
+  #########################################################
+  def hasPrecompELBO(self):
+    keyList = self.__dict__['__precompELBOTerms__'].keys() 
+    return len(keyList) > 0
+    
+  def hasPrecompELBOTerm(self, name):
+    return name in self.__dict__['__precompELBOTerms__']
+
+  def addPrecompELBOTerm(self, name, value):
+    ''' Add a named term to precomputed ELBO terms
+    '''
+    self.__dict__['__precompELBOTerms__'][name] = np.asarray(value)
+
+  def getPrecompELBOTerm(self, name):
+    return self.__dict__['__precompELBOTerms__'][name]
+
   ######################################################### Precomp Entropy
   #########################################################
   def hasPrecompEntropy(self):
@@ -231,6 +250,11 @@ class SuffStatDict(object):
     sumSS = SuffStatDict(K=self.K, D=self.D)
     for key in self.__compkeys__:
       sumSS[key] = self.__dict__[key] + SSobj[key]
+    if self.hasPrecompELBO():
+      for key in self.__dict__['__precompELBOTerms__']:
+        arr1 = self.getPrecompELBOTerm(key)
+        arr2 = SSobj.getPrecompELBOTerm(key)
+        sumSS.addPrecompELBOTerm(key, arr1 + arr2)
     if self.hasPrecompEntropy():
       H1 = self.getPrecompEntropy()
       H2 = SSobj.getPrecompEntropy()
@@ -245,6 +269,11 @@ class SuffStatDict(object):
     sumSS = SuffStatDict(K=self.K, D=self.D)
     for key in self.__compkeys__:
       sumSS[key] = self.__dict__[key] - SSobj[key]
+    if self.hasPrecompELBO():
+      for key in self.__dict__['__precompELBOTerms__']:
+        arr1 = self.getPrecompELBOTerm(key)
+        arr2 = SSobj.getPrecompELBOTerm(key)
+        sumSS.addPrecompELBOTerm(key, arr1 - arr2)
     if self.hasPrecompEntropy():
       H1 = self.getPrecompEntropy()
       H2 = SSobj.getPrecompEntropy()

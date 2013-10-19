@@ -34,7 +34,7 @@ class StochasticOnlineVBLearnAlg(LearnAlg):
 
       # E step
       LP = hmodel.calc_local_params(Dchunk, LP)
-      SS = hmodel.get_global_suff_stats(Dchunk, LP)
+      SS = hmodel.get_global_suff_stats(Dchunk, LP, doAmplify=True)
 
       # ELBO calculation
       evBound = hmodel.calc_evidence(Dchunk, SS, LP)      

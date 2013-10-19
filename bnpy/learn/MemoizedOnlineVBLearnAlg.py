@@ -18,6 +18,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     '''
     super(type(self),self).__init__(**kwargs)
     self.SSmemory = dict()
+    self.LPmemory = dict()
     if self.hasMove('merge'):
       self.MergeLog = list()
     if self.hasMove('birth'):
@@ -31,10 +32,10 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     '''
     self.set_start_time_now()
     prevBound = -np.inf
-    LPchunk = None
     self.lapFracInc = DataIterator.nObsBatch / float(DataIterator.nObsTotal)
     iterid = -1
     lapFrac = 0
+    keyListLP = hmodel.allocModel.get_keys_for_memoized_local_params()
     while DataIterator.has_next_batch():
       # Grab new data and update counts
       Dchunk = DataIterator.get_next_batch()
@@ -50,14 +51,13 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         if self.hasMove('birth') and lapFrac > 1.0:
           hmodel, SS = self.run_birth_move(
                                     hmodel, Dchunk, SS, LPchunk, lapFrac)
-          # Verify
-          if np.any(SS.N < 0):        
-            SS.N[SS.N < 0] = 0
-          assert hmodel.obsModel.K == SS.K
-          assert np.all(SS.N >= 0)
 
       # E step
-      LPchunk = hmodel.calc_local_params(Dchunk, None)
+      if batchID in self.LPmemory:
+        oldLPchunk = self.load_batch_local_params_from_memory(batchID)
+        LPchunk = hmodel.calc_local_params(Dchunk, oldLPchunk)
+      else:
+        LPchunk = hmodel.calc_local_params(Dchunk)
 
       if self.hasMove('birth'):
         self.subsample_data_for_birth(Dchunk, LPchunk)
@@ -78,9 +78,10 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       else:
         assert SSchunk.K == SS.K
         SS += SSchunk
-        if np.any(SS.N < 0):        
+        if 'N' in SS.__compkeys__ and np.any(SS.N < 0):        
           SS.N[SS.N < 0] = 0
-        
+
+      self.save_batch_local_params_to_memory(batchID, LPchunk, keyListLP)          
       self.save_batch_suff_stat_to_memory(batchID, SSchunk)  
 
       # ELBO calc
@@ -114,8 +115,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     self.print_state(hmodel, iterid, lapFrac, evBound, doFinal=True, status=msg)
     return None, evBound
 
-  #####################################################################
-  #####################################################################
+  ######################################################### Load from memory
+  #########################################################
   def load_batch_suff_stat_from_memory(self, batchID):
     ''' Load the suff stats stored in memory for provided batchID
         Returns
@@ -137,11 +138,38 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         SSchunk.setToZeroPrecompMergeEntropy()
     return SSchunk  
 
+  def load_batch_local_params_from_memory(self, batchID):
+    ''' Load local parameter dict stored in memory for provided batchID
+        Returns
+        -------
+        LPchunk : bnpy local parameters dictionary for batchID
+    '''
+    LPchunk = self.LPmemory[batchID]
+    if self.hasMove('birth') and LPchunk is not None:
+      raise NotImplementedError('TODO')
+    if self.hasMove('merge') and LPchunk is not None:
+      raise NotImplementedError('TODO')
+    return LPchunk
+
+  ######################################################### Save to memory
+  #########################################################
   def save_batch_suff_stat_to_memory(self, batchID, SSchunk):
     ''' Store the provided suff stats into the "memory" for later retrieval
     '''
     self.SSmemory[batchID] = SSchunk
 
+  def save_batch_local_params_to_memory(self, batchID, LPchunk, memoKeySet):
+    ''' Store certain fields of the provided local parameters dict
+          into "memory" for later retrieval.
+    '''
+    allkeys = LPchunk.keys()
+    for key in allkeys:
+      if key not in memoKeySet:
+        del LPchunk[key]
+    if len(LPchunk.keys()) > 0:
+      self.LPmemory[batchID] = LPchunk
+    else:
+      self.LPmemory[batchID] = None
 
   #####################################################################
   #####################################################################

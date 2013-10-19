@@ -46,7 +46,7 @@ class MultObsModel( ObsCompSet ):
         else:
             return '\n'.join( [np2flatstr(self.obsPrior[k].lamvec/self.obsPrior[k].lamsum, fmtStr) for k in xrange(self.K)] )
 
-    def get_global_suff_stats(self, Data, SS, LP):
+    def get_global_suff_stats(self, Data, SS, LP, **kwargs):
         ''' Calculate and return sufficient statistics.
 
             Returns
@@ -63,7 +63,7 @@ class MultObsModel( ObsCompSet ):
         effCount = wv * Data.word_count[:, np.newaxis]
         for ii in xrange(nDistinctWords):
             TopicWordCounts[:, Data.word_id[ii]] += effCount[ii]
-            
+        
         SS.WordCounts = TopicWordCounts
         return SS
 
@@ -88,49 +88,73 @@ class MultObsModel( ObsCompSet ):
             Returns
             -------
             LP : bnpy local parameter dict, with updated fields
-                E_log_p_words : nDistinctWords x K matrix, where
+                E_logsoftev_WordsData : nDistinctWords x K matrix, where
                                 entry n,k = log p(word n | topic k)
         '''
         if self.inferType == 'EM':
             raise NotImplementedError('TODO')
         else:
-            LP['E_logp_WordsData'] = self.E_logp_WordsData(Data)
+            LP['E_logsoftev_WordsData'] = self.E_logsoftev_WordsData(Data)
         return LP
     
-    # Returns a nObsTotal x 1 array of expectations associated with the observation model  
-    def E_logp_WordsData(self, Data):
-        E_logp_words = np.empty((Data.nObs, self.K))
+    def E_logsoftev_WordsData(self, Data):
+        ''' Return log soft evidence probabilities for each word token.
 
-        # Obtain matrix where row k = Elog[ phi[k] ], for easier indexing
-        lambda_kw = np.zeros((self.K, Data.vocab_size))
-        for k in xrange(self.K):
-            lambda_kw[k,:] = self.comp[k].Elogphi
+            Returns
+            -------
+            E_logsoftev_words : nDistinctWords x K matrix
+                                entry n,k gives E log p( word n | topic k)
+        '''
+
+        # Obtain matrix where row k = E[ log phi[k] ], for easier indexing
+        Elogphi = self.getElogphiMatrix()
         
-        # Return nObsx1 array of expected[lambda_kw] relevant for word_id = w
+        E_logsoftev_words = np.empty((Data.nObs, self.K))
         for ii in xrange( Data.nObs ):
-            E_logp_words[ii,:] = lambda_kw[:, Data.word_id[ii]]
-        return E_logp_words
+            E_logsoftev_words[ii,:] = Elogphi[:, Data.word_id[ii]]
+        return E_logsoftev_words
   
-  #########################################################  Evidence Bound Fcns  
-    def calc_evidence( self, Data, SS, LP):
+    def getElogphiMatrix(self):
+      Elogphi = np.empty((self.K, self.comp[0].D))
+      for k in xrange(self.K):
+        Elogphi[k,:] = self.comp[k].Elogphi
+      return Elogphi
+
+  ######################################################### Evidence Bound Fcns  
+    def calc_evidence(self, Data, SS, LP):
         if self.inferType == 'EM':
             return 0 # handled by alloc model
         # Calculate p(w | z, lambda) + p(lambda) - q(lambda)
-        elbo_pWords = self.E_log_pW(Data, LP, SS) 
+        elbo_pWords = self.E_log_pW(SS)
         elbo_pLambda = self.E_log_pLambda()
         elbo_qLambda = self.E_log_qLambda()
         lb_obs = elbo_pWords + elbo_pLambda - elbo_qLambda
         
         return lb_obs
   
-    def E_log_pW(self, Data, LP, SS):
-        ''' E_{q(Z), q(Phi)} [ log p(X) ]'''
-        
-        Elambda_kw = np.zeros( (Data.vocab_size, self.K) )
-        for k in xrange(self.K):
-            Elambda_kw[:,k] = self.comp[k].Elogphi
+    def E_log_pW(self, SS):
+        ''' Calculate "data" term of the ELBO,
+                E_{q(Z), q(Phi)} [ log p(X) ]
+
+            which can be computed quickly as
+              for v in range(VocabSize):
+                for k in range(K):
+                    lpw += effectiveCount(word v in topic k) * Elogphi[k,v]
+            NOTE: ampFactor has already been applied to SS.WordCounts!
+        '''
+        Elogphi = self.getElogphiMatrix()
+        lpw = np.sum( SS.WordCounts * Elogphi )
+        return lpw
+
+    def E_log_pW_matrixproduct(self, Data, LP, SS):
+        ''' DEPRECATED, used only to check calculations
+            Calculates E_{q(Z), q(Phi)} [ log p(X) ]
+        '''        
+        # Obtain matrix where column k = E[ log phi[k] ], for easier indexing
+        Elogphi = self.getElogphiMatrix().T
+
         wid = np.int32(Data.word_id)
-        lpw = np.sum(Elambda_kw[wid,:] * LP['word_variational'], axis=1)
+        lpw = np.sum(Elogphi[wid,:] * LP['word_variational'], axis=1)
         lpw = np.inner(lpw, Data.word_count)
         if SS.hasAmpFactor():
           return SS.ampF * lpw
@@ -138,7 +162,9 @@ class MultObsModel( ObsCompSet ):
           return lpw
 
     def E_log_pW_forloop(self, Data, LP, SS):
-        ''' DEPRECATED! Loops over every word in corpus, so definitely too slow
+        ''' DEPRECATED! used only to double-check calculations.
+            Calculates E_{q(Z), q(Phi)} [ log p(X) ]
+            Loops over every word in corpus, so definitely too slow
         '''
         Elambda_kw = np.zeros((self.K, Data.vocab_size))
         for k in xrange(self.K):
@@ -178,15 +204,3 @@ class MultObsModel( ObsCompSet ):
                 return 'Symmetric Dirichlet, lambda=%.2f' % (lamvec[0])
             else:
                 return 'Dirichlet, lambda %s' % (np2flatstr(lamvec))
-
-'''
-    def set_obs_dims( self, Data):
-        self.D = Data['nVocab']
-        if self.obsPrior is not None:
-            self.obsPrior.set_dims( self.D )
-            
-    def save_params( self, filename):
-        pass
-            
-'''
-
