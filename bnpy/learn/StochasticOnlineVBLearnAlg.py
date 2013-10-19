@@ -45,12 +45,7 @@ class StochasticOnlineVBLearnAlg(LearnAlg):
       self.print_state(hmodel, iterid, lapFrac, evBound)
     
     #Finally, save, print and exit
-    self.save_state(hmodel,iterid, lapFrac, evBound, doFinal=True)
-    
-    # need to do separate this as you suggested in the near future 
-    # but useful for now to show that the stochastic is recovering the right topic x word distributions
-    self.plot_results(hmodel, Dchunk, LP) 
-    
     status = "all data processed."
-    self.print_state(hmodel,iterid, lapFrac, evBound, doFinal=True, status=status)
+    self.save_state(hmodel,iterid, lapFrac, evBound, doFinal=True)    
+    self.print_state(hmodel, iterid, lapFrac, evBound, doFinal=True, status=status)
     return None, evBound

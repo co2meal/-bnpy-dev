@@ -15,9 +15,8 @@ from scipy.special import digamma, gammaln
 
 class DirichletDistr(object):
     @classmethod
-    def InitFromData( cls, argDict, Data):
+    def InitFromData(cls, argDict, Data):
         # Data should contain information about dirichlet vocabulary size
-
         if argDict["gamma"] is not None:
             gamma = argDict["gamma"]
         else:
@@ -26,7 +25,7 @@ class DirichletDistr(object):
         lamvec = np.zeros( (Data.vocab_size,1) ) + gamma
         return cls(lamvec = lamvec)
       
-    def __init__(self, lamvec=None):
+    def __init__(self, lamvec=None, **kwargs):
         self.lamvec = lamvec
         if lamvec is not None:
             self.D = lamvec.size
@@ -39,19 +38,18 @@ class DirichletDistr(object):
         self.Elogphi   = self.digammalamvec - self.digammalamsum
 
     ############################################################## Param updates  
-    def get_post_distr( self, SS, k ):
+    def get_post_distr( self, SS):
         ''' Create new Distr object with posterior params'''
-        Nvec = SS["lambda_kw"][k,:]
-        return DirichletDistr(Nvec + self.lamvec.T)
+        return DirichletDistr(SS.WordCounts + self.lamvec.T)
     
     def post_update( self, SS ):
         ''' Posterior update of internal params given data'''
-        self.lamvec += SS.Nvec
+        self.lamvec += SS.WordCounts
         self.set_helpers()
 
     def post_update_soVB( self, rho, starD):
         ''' Stochastic online update of internal params'''
-        self.lamvec = rho*starD.lamvec + (1.0-rho)*self.lamvec
+        self.lamvec = rho * starD.lamvec + (1.0 - rho) * self.lamvec
         self.set_helpers()
 
   ############################################################## Norm Constants  
@@ -85,7 +83,7 @@ class DirichletDistr(object):
     ############################################################## I/O  
     ##############################################################
     def to_dict(self):
-        return dict(lamvec=self.lamvec)
+        return dict(name=self.__class__.__name__, lamvec=self.lamvec)
     
     def from_dict(self, PDict):
         self.lamvec = PDict['lamvec']

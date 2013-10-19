@@ -66,13 +66,11 @@ class VBLearnAlg( LearnAlg ):
       prevBound = evBound
 
     #Finally, save, print and exit
-    self.save_state(hmodel,iterid, lap, evBound, doFinal=True)
-    self.plot_results(hmodel, Data, LP)
-    
     if isConverged:
       status = "converged."
     else:
       status = "max passes thru data exceeded."
+    self.save_state(hmodel,iterid, lap, evBound, doFinal=True)    
     self.print_state(hmodel,iterid, lap, evBound, doFinal=True, status=status)
     return LP, evBound
 

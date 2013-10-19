@@ -1,7 +1,7 @@
 '''
-FromScratchGauss.py
+FromScratchMult.py
 
-Initialize params of a mixture model with gaussian observations from scratch.
+Initialize params of HModel with multinomial observations from scratch.
 '''
 import numpy as np
 
@@ -10,13 +10,15 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
     nObsTotal = Data.nObsTotal
     doc_range = Data.doc_range
     nDocTotal = Data.nDocTotal
+    PRNG = np.random.RandomState(seed)
     if initname == 'randexamples':
-        ''' Choose K items uniformly at random from the Data'''
+        ''' Choose K items uniformly at random from the Data
+        '''
         word_variational = np.zeros( (nObsTotal, K) ) + .1 # initialize local word-level variational parameters word_variational
         doc_variational = np.zeros( (nDocTotal, K) ) # initialize local document-level variational parameters doc_variational
          
         for i in xrange(nObsTotal):
-            k = np.round(np.random.rand()*K)-1
+            k = np.round(PRNG.rand()*K)-1
             word_variational[i,k] = 10.0
             word_variational[i,:] = word_variational[i,:] / word_variational[i,:].sum()
       
@@ -25,7 +27,6 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
             doc_variational[d,:] = np.sum(word_variational[start:stop,:],axis=0)
             
     elif initname == 'truth':
-        ''' Choose K items uniformly at random from the Data'''
         word_variational = np.zeros( (nObsTotal, K) ) + .1 # initialize local word-level variational parameters word_variational
         doc_variational = Data.true_td.T# initialize local document-level variational parameters doc_variational
         

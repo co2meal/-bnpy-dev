@@ -52,7 +52,7 @@ class GaussObsCompSet( ObsCompSet ):
     
   @classmethod
   def InitFromData(cls, inferType, priorArgDict, Data):
-    ''' Create GaussObCompSet and its prior distr in one call
+    ''' Create GaussObsCompSet and its prior distr in one call
         The resulting object then needs to be initialized via init_global_params,
         otherwise it has no components and can't be used in learn algs.
     '''

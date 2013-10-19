@@ -20,7 +20,10 @@ Log.setLevel(logging.DEBUG)
 
 class LearnAlg(object):
 
-  def __init__(self, savedir=None, seed=0, algParams=dict(), outputParams=dict()):
+  def __init__(self, savedir=None, seed=0, 
+                     algParams=dict(), outputParams=dict(),
+                     onLapCompleteFunc=lambda:None, onFinishFunc=lambda:None,
+               ): 
     if type(savedir) == str:
       self.savedir = os.path.splitext(savedir)[0]
     else:
@@ -65,7 +68,7 @@ class LearnAlg(object):
   #####################################################  
   def verify_evidence(self, evBound=0.00001, prevBound=0):
     ''' Compare current and previous evidence (ELBO) values,
-        verify that (within numerical tolerance) evidence increases monotonically
+        verify that (within numerical tolerance) increases monotonically
     '''
     if np.isnan(evBound):
       raise ValueError("Evidence should never be NaN")
@@ -133,31 +136,7 @@ class LearnAlg(object):
   def plot_results(self, hmodel, Data, LP):
     ''' Plot learned model parameters
     '''
-    import matplotlib.pyplot as plt
-    
-    if hmodel.allocModel.get_model_name() == 'admixture':
-      plt.figure(1,figsize=(12,3))  
-      K = hmodel.allocModel.K
-      learned_tw = np.zeros( (K, Data.vocab_size) )
-      for k in xrange(K):
-        lamvec = hmodel.obsModel.comp[k].lamvec 
-        learned_tw[k,:] = lamvec / lamvec.sum()
-      if hasattr(Data, "true_tw"):
-        # Plot the true parameters and learned parameters
-        plt.subplot(121)
-        plt.imshow(Data.true_tw, interpolation="nearest", cmap="bone")
-        plt.colorbar()
-        plt.title('True Topic x Word')
-        plt.subplot(122)
-        plt.imshow(learned_tw, interpolation="nearest", cmap="bone")
-        plt.colorbar()
-        plt.title('Learned Topic x Word')
-      else:
-        # Plot just the learned parameters
-        plt.imshow(learned_tw, interpolation="nearest", cmap="bone")
-        plt.colorbar
-        plt.title('Learned Topic x Word')
-    plt.show()
+    pass
 
   #########################################################  Print State
   #########################################################  
