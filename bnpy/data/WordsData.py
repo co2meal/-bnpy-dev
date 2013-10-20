@@ -56,8 +56,29 @@ The entire document collection is represented by concatenating these building-bl
 from .DataObj import DataObj
 from collections import defaultdict
 import numpy as np
+import scipy.sparse
 
 class WordsData(DataObj):
+
+    @classmethod
+    def makeRandomData(cls, nDoc=10, nWordsPerDoc=10, vocab_size=12, **kwargs):
+        ''' Creates an instance of WordsData from Matlab matfile
+        '''
+        PRNG = np.random.RandomState(0)
+        word_id = list()
+        word_count = list()
+        doc_range = np.zeros((nDoc, 2))
+        for dd in range(nDoc):
+            wID = PRNG.choice(vocab_size, size=nWordsPerDoc, replace=False)
+            wCount = PRNG.choice(np.arange(1,5),size=nWordsPerDoc, replace=True)
+            word_id.extend(wID)
+            word_count.extend(wCount)
+            start = nWordsPerDoc * dd
+            doc_range[dd,:] = [start, start + nWordsPerDoc]
+        myDict = dict(word_id=word_id, word_count=word_count)
+        myDict['doc_range'] = doc_range
+        myDict['vocab_size'] = vocab_size
+        return cls(**myDict)
 
     @classmethod
     def read_from_mat(cls, matfilepath, nObsTotal=None, **kwargs):
@@ -100,9 +121,21 @@ class WordsData(DataObj):
         # check if data contains a dictionary of vocabulary words
         if vocab_dict is not None:
             self.vocab_dict = vocab_dict
-        else:
-            print "Warning: Data doesn't contain the vocabulary dictionary, a qualitative assessment will be difficult"
 
+
+    def to_sparse_matrix(self):
+        ''' Create sparse matrix that represents this dataset
+            of size V x nDistinctWords
+            where only one entry in each column is non-zero
+        '''
+        if hasattr(self, "__sparseMat__"):
+            return self.__sparseMat__
+        
+        nDW = self.word_id.size
+        infoTuple = (self.word_count, self.word_id, np.arange(nDW+1))
+        shape = (self.vocab_size,nDW)
+        self.__sparseMat__ = scipy.sparse.csc_matrix(infoTuple, shape=shape)
+        return self.__sparseMat__
 
     def verify_dimensions(self):
         ''' Basic runtime checks to make sure things look good

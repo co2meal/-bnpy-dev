@@ -59,10 +59,15 @@ class MultObsModel( ObsCompSet ):
         wv = LP['word_variational']
         nDistinctWords, K = wv.shape
 
-        TopicWordCounts = np.zeros((K, Data.vocab_size))        
-        effCount = wv * Data.word_count[:, np.newaxis]
-        for ii in xrange(nDistinctWords):
-            TopicWordCounts[:, Data.word_id[ii]] += effCount[ii]
+        # IMPROVED: sparse matrix product!
+        WMat = Data.to_sparse_matrix()
+        TopicWordCounts = (WMat * wv).T
+
+        # OLD WAY: for loop
+        #TopicWordCounts = np.zeros((K, Data.vocab_size)) 
+        #effCount = wv * Data.word_count[:, np.newaxis]
+        #for ii in xrange(nDistinctWords):
+        #    TopicWordCounts[:, Data.word_id[ii]] += effCount[ii]
         
         SS.WordCounts = TopicWordCounts
         return SS
