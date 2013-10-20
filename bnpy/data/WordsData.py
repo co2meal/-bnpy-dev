@@ -61,25 +61,37 @@ class WordsData(DataObj):
 
     @classmethod
     def read_from_mat(cls, matfilepath, nObsTotal=None, **kwargs):
-        ''' Static Constructor for building an instance of WordsData from Matlab matfile
+        ''' Creates an instance of WordsData from Matlab matfile
         '''
         import scipy.io
-        InDict = scipy.io.loadmat( matfilepath, **kwargs)
+        InDict = scipy.io.loadmat(matfilepath, **kwargs)
         if 'word_id' not in InDict:
-            raise KeyError('Stored matfile needs to have data word_id')
-        
-        return cls( InDict['word_id'],InDict['word_count'], InDict['doc_range'], InDict['vocab_size'], InDict['vocab_dict'] )
+            raise KeyError('Stored matfile needs to have field "word_id"')
+        return cls(**InDict)
 
-    def __init__(self, word_id, word_count, doc_range, vocab_size, vocab_dict=None, true_tw=None, true_td=None, true_K=None):
+    def __init__(self, word_id=None, word_count=None, doc_range=None,
+                 vocab_size=0, vocab_dict=None, 
+                 true_tw=None, true_td=None, true_K=None, **kwargs):
         ''' Constructor for WordsData
+
+            Args
+            -------
+            word_id : nDistinctWords-length vector 
+                      entry i gives VocabWordID for distinct word i in corpus
+            word_count : nDistinctWords-length vector
+                      entry i gives count for word_id[i] in that document
+            doc_range : nDoc x 2 matrix
+                      doc_range[d,:] gives (start,stop) for document d
+                      where start/stop index rows in word_id,word_count
+            vocab_size : integer size of set of possible vocabulary words
         '''
-        # Variable definitions can be found here
-        self.word_id = word_id # list of distinct word ids within a document across the entire document corpus
-        self.word_count = word_count # each row defines the count of that word in a given document associated with word_id
-        self.doc_range = doc_range # no. of documents x 2 (col1 = start row of word_id, col2 = stop row of word_id)
-        self.vocab_size = vocab_size # no. of unique vocabulary words across the entire document corpus (not document specific)
+        self.word_id = np.asarray(np.squeeze(word_id), dtype=np.uint32)
+        self.word_count = np.asarray(np.squeeze(word_count), dtype=np.float32)
+        self.doc_range = doc_range
+        self.vocab_size = int(vocab_size)
         self.set_dependent_params()
-        
+        self.verify_dimensions()
+
         if true_tw is not None: # if generated from toy data, save to Data object
             self.true_tw = true_tw
             self.true_td = true_td
@@ -91,6 +103,15 @@ class WordsData(DataObj):
         else:
             print "Warning: Data doesn't contain the vocabulary dictionary, a qualitative assessment will be difficult"
 
+
+    def verify_dimensions(self):
+        ''' Basic runtime checks to make sure things look good
+        '''
+        # Make sure both are 1D vectors.  
+        # 2D vectors with shape (nDistinctWords,1) will screw up indexing!
+        assert self.word_id.ndim == 1
+        assert self.word_count.ndim == 1
+
     def set_dependent_params( self, nObsTotal=None):
         ''' Sets dependent parameters so that we don't have to store too many stuff
         '''
@@ -100,11 +121,17 @@ class WordsData(DataObj):
         self.nObs = self.nObsTotal
         
     def select_subset_by_mask(self, mask):
-        # Selects a subset of documents defined by mask and recreates the relevant fields
-        # In particular, note that nDoc and nObs now refers to the total subset of relevant documents and distinct tokens respectively
-        
-        # Since we are masking by documents, we need to figure out the size of our new minibatch
-        # with respect to the number of unique word tokens
+        '''
+            Selects subset of documents defined by mask
+             and returns a WordsData object representing that subset
+
+            Returns
+            --------
+            WordsData object, where
+                nDoc = number of documents in the subset (=len(mask))
+                nObs = nDistinctWords in the subset of docs
+                nObsTotal, nDocTotal define size of entire dataset (not subset)
+        '''
         subset_size = ( (self.doc_range[mask,1]) - self.doc_range[mask,0] ).sum()
         new_word_id = np.zeros( subset_size )
         new_word_count = np.zeros( subset_size )

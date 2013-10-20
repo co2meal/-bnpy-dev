@@ -3,9 +3,13 @@ HuffPost.py
 
 '''
 from bnpy.data import WordsData, AdmixMinibatchIterator
+import os
 
 data_dir = '/Users/daeil/Dropbox/research/liv-test/topic_models/data/huffpost/'
-matfilepath = data_dir + 'huff_bnpy.mat'
+matfilepath = os.environ['BNPYDATADIR'] + 'huff_bnpy.mat'
+if not os.path.exists(matfilepath):
+    matfilepath = data_dir + 'huff_bnpy.mat'
+
 
 def get_data(seed=8675309, nObsTotal=25000, **kwargs):
     ''' Grab data from matfile specified by matfilepath
