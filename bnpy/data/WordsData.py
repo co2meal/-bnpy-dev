@@ -58,24 +58,46 @@ from collections import defaultdict
 import numpy as np
 
 class WordsData(DataObj):
-  
-    def __init__(self, word_id, word_count, doc_range, nDocTotal, nDoc, nObsTotal, nObs, vocab_size, true_tw=None, true_td=None, true_K=None):
+
+    @classmethod
+    def read_from_mat(cls, matfilepath, nObsTotal=None, **kwargs):
+        ''' Static Constructor for building an instance of WordsData from Matlab matfile
+        '''
+        import scipy.io
+        InDict = scipy.io.loadmat( matfilepath, **kwargs)
+        if 'word_id' not in InDict:
+            raise KeyError('Stored matfile needs to have data word_id')
         
+        return cls( InDict['word_id'],InDict['word_count'], InDict['doc_range'], InDict['vocab_size'], InDict['vocab_dict'] )
+
+    def __init__(self, word_id, word_count, doc_range, vocab_size, vocab_dict=None, true_tw=None, true_td=None, true_K=None):
+        ''' Constructor for WordsData
+        '''
         # Variable definitions can be found here
         self.word_id = word_id # list of distinct word ids within a document across the entire document corpus
         self.word_count = word_count # each row defines the count of that word in a given document associated with word_id
         self.doc_range = doc_range # no. of documents x 2 (col1 = start row of word_id, col2 = stop row of word_id)
-        self.nDocTotal = nDocTotal # no. of total documents in the entire corpus
-        self.nObsTotal = nObsTotal # no. of unique word_tokens in corpus across all documents
-        self.nDoc = nDoc # if using a minibatch, specifies the number of documents for that minibatch
-        self.nObs = nObs # if using a minibatch, specifies the distinct number of unique vocabulary words within a document for that minibatch
         self.vocab_size = vocab_size # no. of unique vocabulary words across the entire document corpus (not document specific)
+        self.set_dependent_params()
         
         if true_tw is not None: # if generated from toy data, save to Data object
             self.true_tw = true_tw
             self.true_td = true_td
             self.true_K = true_K
+        
+        # check if data contains a dictionary of vocabulary words
+        if vocab_dict is not None:
+            self.vocab_dict = vocab_dict
+        else:
+            print "Warning: Data doesn't contain the vocabulary dictionary, a qualitative assessment will be difficult"
 
+    def set_dependent_params( self, nObsTotal=None):
+        ''' Sets dependent parameters so that we don't have to store too many stuff
+        '''
+        self.nDocTotal,_ = self.doc_range.shape
+        self.nDoc = self.nDocTotal
+        self.nObsTotal = len(self.word_id)
+        self.nObs = self.nObsTotal
         
     def select_subset_by_mask(self, mask):
         # Selects a subset of documents defined by mask and recreates the relevant fields

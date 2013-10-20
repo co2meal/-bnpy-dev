@@ -14,17 +14,24 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
     if initname == 'randexamples':
         ''' Choose K items uniformly at random from the Data
         '''
-        word_variational = np.zeros( (nObsTotal, K) ) + .1 # initialize local word-level variational parameters word_variational
+        print 'Initializing a completely random Admixture Model'
+        #word_variational = np.zeros( (nObsTotal, K) ) + .1 # initialize local word-level variational parameters word_variational
         doc_variational = np.zeros( (nDocTotal, K) ) # initialize local document-level variational parameters doc_variational
-         
+        
+        word_variational = PRNG.rand(nObsTotal, K)
+        word_variational /= word_variational.sum(axis=1)[:,np.newaxis]
+        
+        ''' 
         for i in xrange(nObsTotal):
             k = np.round(PRNG.rand()*K)-1
             word_variational[i,k] = 10.0
             word_variational[i,:] = word_variational[i,:] / word_variational[i,:].sum()
-      
+        '''
         for d in xrange(nDocTotal):
             start,stop = doc_range[d,:]
             doc_variational[d,:] = np.sum(word_variational[start:stop,:],axis=0)
+            
+        print 'Finished Random Initialization'
             
     elif initname == 'truth':
         word_variational = np.zeros( (nObsTotal, K) ) + .1 # initialize local word-level variational parameters word_variational

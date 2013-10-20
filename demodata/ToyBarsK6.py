@@ -95,14 +95,13 @@ def get_BoW(seed):
     myDict["true_tw"] = true_tw
     myDict["true_td"] = true_td # true 
     myDict["true_K"] = K
+    
+    # Necessary items
     myDict["doc_range"] = doc_range
     myDict["word_id"] = word_id
     myDict["word_count"] = word_count
-    myDict["nObsTotal"] = nUniqueEntry
-    myDict["nObs"] = nUniqueEntry
     myDict["vocab_size"] = V
-    myDict["nDocTotal"] = D
-    myDict["nDoc"] = D
+
     return myDict
 
 def get_data_info():
