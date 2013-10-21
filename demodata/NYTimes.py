@@ -1,15 +1,15 @@
 '''
-HuffPost.py
+NYTimes.py
 
 '''
 from bnpy.data import WordsData, AdmixMinibatchIterator
 import os
 
-data_dir = '/Users/daeil/Dropbox/research/liv-test/topic_models/data/huffpost/'
-matfilepath = os.environ['BNPYDATADIR'] + 'huff_bnpy.mat'
+data_dir = '/Users/daeil/Dropbox/research/liv-test/topic_models/data/nytimes_small/'
+matfilepath = os.environ['BNPYDATADIR'] + 'nyt_small_bnpy.mat'
 
 if not os.path.exists(matfilepath):
-    matfilepath = data_dir + 'huff_bnpy.mat'
+    matfilepath = data_dir + 'nyt_small_bnpy.mat'
 
 def get_data(seed=8675309, nObsTotal=25000, **kwargs):
     ''' Grab data from matfile specified by matfilepath
@@ -25,4 +25,4 @@ def get_minibatch_iterator(seed=8675309, nBatch=10, nObsBatch=None, nObsTotal=25
     return DataIterator
 
 def get_data_info(D, V):
-    return 'Huffington Post Data. D=%d. VocabSize=%d' % (D,V)
+    return 'NYTimes (Small) Data. D=%d. VocabSize=%d' % (D,V)
