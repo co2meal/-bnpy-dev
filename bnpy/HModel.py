@@ -31,7 +31,7 @@ from allocmodel import *
 
 # Dictionary map that turns string input at command line into desired bnpy objects
 # string --> bnpy object constructor
-AllocConstr = {'MixModel':MixModel, 'DPMixModel':DPMixModel, 'AdmixModel': AdmixModel}
+AllocConstr = {'MixModel':MixModel, 'DPMixModel':DPMixModel, 'AdmixModel': AdmixModel, 'HDPModel':HDPModel}
 ObsConstr = {'ZMGauss':ZMGaussObsCompSet, 'Gauss':GaussObsCompSet, 'Mult':MultObsModel}
                    
 class HModel( object ):
@@ -154,3 +154,5 @@ class HModel( object ):
     print  self.obsModel.get_human_global_param_string()
 
 
+  def getAllocModelName(self):
+    return self.allocModel.__class__.__name__

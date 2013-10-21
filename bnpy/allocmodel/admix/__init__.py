@@ -6,6 +6,7 @@ The :mod:`mix` module gathers point-estimate and variational approximations
 """
 
 from AdmixModel import AdmixModel
+from HDPModel import HDPModel
 import HDPVariationalOptimizer
 
-__all__ = ['AdmixModel', 'HDPVariationalOptimizer']
+__all__ = ['AdmixModel', 'HDPModel', 'HDPVariationalOptimizer']

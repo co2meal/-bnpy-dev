@@ -17,12 +17,12 @@ class DirichletDistr(object):
     @classmethod
     def InitFromData(cls, argDict, Data):
         # Data should contain information about dirichlet vocabulary size
-        if argDict["gamma"] is not None:
-            gamma = argDict["gamma"]
+        if argDict["lambda"] is not None:
+            lamda = argDict["lambda"]
         else:
-            gamma = 1.0
+            lamda = 1.0
     
-        lamvec = np.zeros( (Data.vocab_size,1) ) + gamma
+        lamvec = lamda * np.ones((Data.vocab_size,1)) 
         return cls(lamvec = lamvec)
       
     def __init__(self, lamvec=None, **kwargs):

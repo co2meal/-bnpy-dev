@@ -53,7 +53,7 @@ class MultObsModel( ObsCompSet ):
             -------
             SS : bnpy SuffStatDict object, with updated fields
                 WordCounts : K x VocabSize matrix
-                  WordCounts[k,v] = # times vocab word v seen with topic k            
+                  WordCounts[k,v] = # times vocab word v seen with topic k
         '''
         # Grab topic x word sufficient statistics
         wv = LP['word_variational']

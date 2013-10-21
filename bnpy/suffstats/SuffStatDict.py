@@ -28,10 +28,11 @@ FieldNamesThatDoNotExpand = set(['N'])
 
 class SuffStatDict(object):
 
-  def __init__(self, K=None, D=None, **kwArrArgs):
+  def __init__(self, K=None, doCheck=False, D=None, **kwArrArgs):
     self.__dict__ = dict(K=K, D=D)
     self.__compkeys__ = set()
     self.__precompELBOTerms__ = dict()
+    self.__doCheck__ = doCheck
     for key, arr in kwArrArgs.items():
       self.__setattr__(key, arr)
         
@@ -45,7 +46,7 @@ class SuffStatDict(object):
       raise IndexError('Bad compID. Valid range [0, %d] but provided %d' % (self.K-1, compID))
     compSS = SuffStatDict(K=1, D=self.D)
     for key in self.__compkeys__:
-      if self.K == 1:
+      if self.K == 1 or self.__dict__[key].size == 1:
         compSS[key] = self.__dict__[key]
       else:
         compSS[key] = self.__dict__[key][compID]
@@ -315,7 +316,7 @@ class SuffStatDict(object):
     if self.K is None:
       self.K = arr.shape[0]
 
-    if self.K > 1 and arr.shape[0] != self.K and arr.size > 1:
+    if self.__doCheck__ and self.K > 1 and arr.shape[0] != self.K and arr.size > 1:
       raise ValueError('Dimension mismatch. K=%d, Kfound=%d' % (self.K, arr.shape[0]))
     self.__compkeys__.add(key)
     self.__dict__[key] = arr

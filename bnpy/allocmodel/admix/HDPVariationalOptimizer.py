@@ -72,6 +72,7 @@ def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=2, sumLogPi=None, Pi=None, **kwa
     initU = np.hstack( [initSum*initMeanV, initSum*(1-initMeanV)])
     initU += 1 # so that it has a mode
   else:
+    # TODO: smarter init 
     initU = np.hstack( [np.ones(K), alpha0*np.ones(K)])      
   
   print "INITIAL GUESS:"
