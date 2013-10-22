@@ -28,7 +28,7 @@ import bnpy
 import BNPYArgParser
 
 Log = logging.getLogger('bnpy')
-#Log.setLevel(logging.DEBUG)
+Log.setLevel(logging.DEBUG)
 
 FullDataAlgSet = ['EM','VB']
 OnlineDataAlgSet = ['soVB', 'moVB']

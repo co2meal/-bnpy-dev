@@ -109,7 +109,7 @@ class WordsData(DataObj):
         nObsTotal = nObs
         myDict = dict(word_id = word_id, word_count=word_count, doc_range=doc_range, 
                       nDoc=nDoc, nDocTotal=nDocTotal, nObs=nObs, nObsTotal = nObsTotal,
-                      vocab_size=vocab_size, db_pull=True)
+                      vocab_size=vocab_size, db_pull=True, dbpath=dbpath)
         
         return cls(**myDict)
 
@@ -127,7 +127,7 @@ class WordsData(DataObj):
                  vocab_size=0, vocab_dict=None, 
                  true_tw=None, true_td=None, true_K=None, 
                  nDoc=None, nDocTotal=None, nObs=None,
-                 nObsTotal=None, db_pull=False, **kwargs):
+                 nObsTotal=None, db_pull=False, dbpath=None, **kwargs):
         ''' Constructor for WordsData
 
             Args
@@ -149,12 +149,14 @@ class WordsData(DataObj):
         # If we're not pulling from the database
         if db_pull is False:
             self.set_dependent_params()
-            self.verify_dimensions()
         else: # Set to full database corpus
+            self.dbpath = dbpath
             self.nDocTotal = nDocTotal
             self.nObsTotal = nObsTotal
             self.nDoc = nDoc
             self.nObs = nObs
+
+        self.verify_dimensions()
 
         if true_tw is not None: # if generated from toy data, save to Data object
             self.true_tw = true_tw

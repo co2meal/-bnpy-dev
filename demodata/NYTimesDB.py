@@ -4,14 +4,13 @@ NYTimes.py
 '''
 from bnpy.data import WordsData, AdmixMinibatchIteratorDB
 
-#dbpath = '/Users/daeil/Dropbox/research/local/nytimes_ldc'
+dbpath = '/Users/daeil/Dropbox/research/local/nytimes_ldc'
 ''' Use the dbpath below in order to connect to the nytimes database at Brown
 '''
-dbpath='/data/liv/nytimes/liv/nytimes_ldc'
+#dbpath='/data/liv/nytimes/liv/nytimes_ldc'
 
 D = 1816909
 V = 8000
-numMB=2000 #number of minibatches
 
 def get_data(seed=8675309, nObsTotal=25000, **kwargs):
     ''' Grab data from database to initialize (used only once really)
@@ -32,9 +31,10 @@ def get_minibatch_iterator(seed=8675309, nBatch=10000, nObsBatch=None, nObsTotal
     doc_id_select = range(1,500) # grab the first 500 documents
     query = 'select * from data where rowid in (' + ','.join(map(str, doc_id_select)) + ')'
     Data = WordsData.read_from_db( dbpath, query, nDoc=len(doc_id_select), nDocTotal = D, vocab_size = V )
+    #Data = get_data(nDocTotal = D, vocab_size = V)
     
     #Create iterator that grabs documents from the sqlite3 database
-    DataIterator = AdmixMinibatchIteratorDB(Data, dbpath, nBatch=numMB, nObsBatch=nObsBatch, nLap=nLap, dataorderseed=dataorderseed)
+    DataIterator = AdmixMinibatchIteratorDB(Data, nBatch=nBatch, nObsBatch=nObsBatch, nLap=nLap, dataorderseed=dataorderseed)
     DataIterator.summary = get_data_info(Data.nDocTotal, Data.vocab_size)
     return DataIterator
 

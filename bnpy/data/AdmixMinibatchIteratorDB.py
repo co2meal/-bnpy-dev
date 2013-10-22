@@ -2,8 +2,8 @@
 AdmixMinibatchIteratorDB.py
 
 Generic object for iterating over a single bnpy Data set
-by considering one subset minibatch (often just called a batch) at a time
-for documents (not word tokens!)
+by pulling a minibatch from an sqlite type database. 
+Support for more generic databases will come in the next version.
 
 Usage
 --------
@@ -11,7 +11,7 @@ Construct by providing the underlying full-dataset
 >> MB = AdmixMinibatchIterator(Data, nBatch=10, nObsBatch=100)
 Then call
      has_next_batch()  to test if more data is available
-     get_next_batch()  to get the next batch (as a Data object)
+     get_next_batch()  pull dataset from database in this function
      
 Batches are defined via a random partition of all data items
    e.g. for 100 items split into 20 batches
@@ -40,7 +40,7 @@ import sqlite3
 MAXSEED = 1000000
   
 class AdmixMinibatchIteratorDB(object):
-  def __init__(self, Data, dbpath, nBatch=None, nObsBatch=None, nLap=20, dataorderseed=42, allocModelName=None):
+  def __init__(self, Data, nBatch=None, nObsBatch=None, nLap=20, dataorderseed=42, allocModelName=None):
     ''' Constructor for creating an iterator over the batches of data
     '''
     self.Data = Data
@@ -49,9 +49,6 @@ class AdmixMinibatchIteratorDB(object):
     # specify self.nObsTotal to be the total number of documents in the admixture case
     # used only really to have stochastic online not break
     self.nObsTotal = Data.nDocTotal #nDoc is the total number of documents in the given mini-batch
-    
-    # Path to the database
-    self.dbpath = dbpath
     
     # number of observations in batch
     if nObsBatch is None:
@@ -95,7 +92,7 @@ class AdmixMinibatchIteratorDB(object):
     obsIDsCurBatch = self.obsIDByBatch[self.batchID]
     
     query = 'select * from data where rowid in (' + ','.join(map(str, obsIDsCurBatch)) + ')'
-    bData = self.Data.read_from_db( self.dbpath, query, nDoc=len(obsIDsCurBatch), nDocTotal = self.Data.nDocTotal, vocab_size = self.Data.vocab_size ) 
+    bData = self.Data.read_from_db( self.Data.dbpath, query, nDoc=len(obsIDsCurBatch), nDocTotal = self.Data.nDocTotal, vocab_size = self.Data.vocab_size ) 
     #bData = self.Data.select_subset_by_mask(obsIDsCurBatch)    
     return bData 
     
