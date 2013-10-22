@@ -145,8 +145,6 @@ class WordsData(DataObj):
         self.word_count = np.asarray(np.squeeze(word_count), dtype=np.float32)
         self.doc_range = doc_range
         self.vocab_size = int(vocab_size)
-        self.set_dependent_params(nDocTotal)
-        self.verify_dimensions()
         
         self.set_corpus_size_params(nDocTotal, nObsTotal)
         self.verify_dimensions()
