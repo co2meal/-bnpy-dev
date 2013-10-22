@@ -176,7 +176,7 @@ class AdmixModel(AllocModel):
                 E[ z_dwk ] * E[ log pi_{dk} ]
         '''
         E_log_pZ = LP["DocTopicCount"] * LP["E_log_doc_variational"]
-        return E_log_pZ
+        return np.sum(E_log_pZ, axis=0)
     
     def E_log_qZ( self, Data, LP):  
         ''' Returns K-length vector with E[ log q(Z) ] for each topic k

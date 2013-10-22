@@ -17,13 +17,14 @@ class StochasticOnlineVBLearnAlg(LearnAlg):
     self.set_start_time_now()
     LP = None
     rho = 1.0
-    nObsTotal = DataIterator.nObsTotal
-    lapFracPerBatch = DataIterator.nObsBatch / float(nObsTotal)
     iterid = -1
     lapFrac = 0
+    lapFracPerBatch = DataIterator.nObsBatch / float(DataIterator.nObsTotal)
     while DataIterator.has_next_batch():
-      # Grab new data and update counts
+      # Grab new data
       Dchunk = DataIterator.get_next_batch()
+
+      # Update progress-tracking variables
       iterid += 1
       lapFrac = (iterid+1) * lapFracPerBatch
 

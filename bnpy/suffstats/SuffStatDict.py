@@ -31,7 +31,9 @@ class SuffStatDict(object):
   def __init__(self, K=None, doCheck=False, D=None, **kwArrArgs):
     self.__dict__ = dict(K=K, D=D)
     self.__compkeys__ = set()
+    self.__scalars__ = dict()
     self.__precompELBOTerms__ = dict()
+    self.__precompMerge__ = dict()
     self.__doCheck__ = doCheck
     for key, arr in kwArrArgs.items():
       self.__setattr__(key, arr)
@@ -133,6 +135,13 @@ class SuffStatDict(object):
       self.__dict__[key] = arrC  
     self.K = self.K + Kextra
 
+  ######################################################### Insert comps
+  #########################################################
+  def addScalar(self, name, val):
+    ''' Add scalar unattached to any component
+    '''
+    self.__dict__['__scalars__'][name] = val
+
   ######################################################### Remove comp
   #########################################################
   def removeComponent(self, kB):
@@ -186,6 +195,29 @@ class SuffStatDict(object):
 
   def getPrecompELBOTerm(self, name):
     return self.__dict__['__precompELBOTerms__'][name]
+
+  ######################################################### Precomp Merge terms
+  #########################################################
+  def hasPrecompMerge(self):
+    keyList = self.__dict__['__precompMerge__'].keys() 
+    return len(keyList) > 0
+    
+  def hasPrecompMergeTerm(self, name):
+    return name in self.__dict__['__precompMerge__']
+
+  def addPrecompMergeTerm(self, name, value):
+    ''' Add a named term to precomputed merge terms
+    '''
+    self.__dict__['__precompMerge__'][name] = np.asarray(value)
+
+  def getPrecompMergeTerm(self, name):
+    return self.__dict__['__precompMerge__'][name]
+
+  def setToZeroAllPrecompMergeTerms(self):
+    ''' Zero out precomputed merge terms if not needed anymore
+    '''
+    for key in self.__dict__['__precompMerge__']:
+      self.__dict__['__precompMerge__'][key].fill(0)
 
   ######################################################### Precomp Entropy
   #########################################################
@@ -311,6 +343,10 @@ class SuffStatDict(object):
       self.__dict__['D'] = arr
       return
     arr = np.asarray(arr)
+
+    if self.K > 1 and arr.ndim == 0:
+      self.addScalar(key, float(arr))    
+      return
     if arr.ndim == 0:
       arr = arr[np.newaxis]
     if self.K is None:
@@ -322,6 +358,8 @@ class SuffStatDict(object):
     self.__dict__[key] = arr
     
   def __getattr__(self, key):
+    if key in self.__dict__['__scalars__']:
+      return self.__dict__['__scalars__'][key]
     return self.__dict__[key]
     
   def __repr__(self):
