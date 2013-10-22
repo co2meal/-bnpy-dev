@@ -146,24 +146,17 @@ class WordsData(DataObj):
         self.doc_range = doc_range
         self.vocab_size = int(vocab_size)
         
-        # If we're not pulling from the database
-        if db_pull is False:
-            self.set_dependent_params()
-        else: # Set to full database corpus
-            self.dbpath = dbpath
-            self.nDocTotal = nDocTotal
-            self.nObsTotal = nObsTotal
-            self.nDoc = nDoc
-            self.nObs = nObs
-
+        self.set_corpus_size_params(nDocTotal, nObsTotal)
         self.verify_dimensions()
+        
+        # Save "true" parameters from toy-data
+        if true_tw is not None:
 
-        if true_tw is not None: # if generated from toy data, save to Data object
             self.true_tw = true_tw
             self.true_td = true_td
             self.true_K = true_K
         
-        # check if data contains a dictionary of vocabulary words
+        # Add dictionary of vocab words, if provided
         if vocab_dict is not None:
             self.vocab_dict = vocab_dict
 
@@ -177,26 +170,37 @@ class WordsData(DataObj):
             return self.__sparseMat__
         
         nDW = self.word_id.size
-        infoTuple = (self.word_count, self.word_id, np.arange(nDW+1))
+        infoTuple = (self.word_count, np.int64(self.word_id), np.arange(nDW+1))
         shape = (self.vocab_size,nDW)
         self.__sparseMat__ = scipy.sparse.csc_matrix(infoTuple, shape=shape)
         return self.__sparseMat__
 
     def verify_dimensions(self):
-        ''' Basic runtime checks to make sure things look good
+        ''' Basic runtime checks to make sure dimensions are set correctly
         '''
         # Make sure both are 1D vectors.  
         # 2D vectors with shape (nDistinctWords,1) will screw up indexing!
         assert self.word_id.ndim == 1
         assert self.word_count.ndim == 1
+        assert self.word_id.max() < self.vocab_size
+        assert self.nDoc == self.doc_range.shape[0]
+        assert self.nObs == len(self.word_id)
 
-    def set_dependent_params( self, nObsTotal=None):
-        ''' Sets dependent parameters so that we don't have to store too many stuff
+    def set_corpus_size_params(self, nDocTotal=None, nObsTotal=None):
+        ''' Sets dependent parameters 
         '''
-        self.nDocTotal,_ = self.doc_range.shape
-        self.nDoc = self.nDocTotal
-        self.nObsTotal = len(self.word_id)
-        self.nObs = self.nObsTotal
+        self.nDoc = self.doc_range.shape[0]
+        self.nObs = len(self.word_id)
+
+        if nDocTotal is None:
+          self.nDocTotal = self.nDoc
+        else:
+          self.nDocTotal = nDocTotal
+        
+        if nObsTotal is None:
+          self.nObsTotal = self.nObs
+        else:
+          self.nObsTotal = nObsTotal
         
     def select_subset_by_mask(self, mask):
         '''
@@ -210,7 +214,7 @@ class WordsData(DataObj):
                 nObs = nDistinctWords in the subset of docs
                 nObsTotal, nDocTotal define size of entire dataset (not subset)
         '''
-        subset_size = ( (self.doc_range[mask,1]) - self.doc_range[mask,0] ).sum()
+        subset_size = np.sum( self.doc_range[mask,1] - self.doc_range[mask,0])
         new_word_id = np.zeros( subset_size )
         new_word_count = np.zeros( subset_size )
         new_doc_range = np.zeros( (len(mask),2) )

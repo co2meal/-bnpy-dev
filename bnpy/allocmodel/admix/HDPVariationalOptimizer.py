@@ -50,7 +50,7 @@ def createToyData(v, alpha0=1.0, gamma=0.5, nDoc=0, seed=42):
   Pi = PRNG.dirichlet( gamma*beta, size=nDoc)
   return dict(Pi=Pi, alpha0=alpha0, gamma=gamma, nDoc=nDoc, K=K)
 
-def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=2, sumLogPi=None, Pi=None, **kwargs):
+def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=2, sumLogPi=None, Pi=None, doVerbose=False, **kwargs):
   ''' Solve optimization problem to estimate parameters u
       for the approximate posterior on stick-breaking fractions v
       q(v | u) = Beta( v_k | u_k1, u_k0)
@@ -75,16 +75,17 @@ def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=2, sumLogPi=None, Pi=None, **kwa
     # TODO: smarter init 
     initU = np.hstack( [np.ones(K), alpha0*np.ones(K)])      
   
-  print "INITIAL GUESS:"
-  print "   U1   : ", initU[:K]
-  print "   U0   : ", initU[K:]
-  initBeta = v2beta(initU[:K]/(initU[:K]+initU[K:]))
-  print "   E[beta] : ", initBeta
+  if doVerbose:
+    print "INITIAL GUESS:"
+    print "   U1   : ", initU[:K]
+    print "   U0   : ", initU[K:]
+    initBeta = v2beta(initU[:K]/(initU[:K]+initU[K:]))
+    print "   E[beta] : ", initBeta
   
   myFunc = lambda Cvec: objectiveFunc(Cvec, alpha0, gamma, nDoc, sumLogPi)
   myGrad = lambda Cvec: objectiveGradient(Cvec, alpha0, gamma, nDoc, sumLogPi)
 
-  bestCvec = scipy.optimize.fmin_bfgs(myFunc, np.log(initU), fprime=myGrad)
+  bestCvec = scipy.optimize.fmin_bfgs(myFunc, np.log(initU), fprime=myGrad, disp=False)
   bestUvec = np.exp(bestCvec)
   bestU1 = bestUvec[:K]
   bestU0 = bestUvec[K:]

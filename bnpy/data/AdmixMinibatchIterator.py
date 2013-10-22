@@ -40,7 +40,7 @@ MAXSEED = 1000000
   
 class AdmixMinibatchIterator(object):
   def __init__(self, Data, nBatch=10, nObsBatch=None, nLap=20, dataorderseed=42, allocModelName=None):
-    ''' Constructor for creating an iterator over the batches of data
+    ''' Constructor for creating an iterator over batches of WordsData
     '''
     self.Data = Data
     self.nBatch = nBatch

@@ -152,9 +152,6 @@ def _run_task_internal(jobname, taskid, nTask, \
                % (taskid, nTask, algseed, dataorderseed))
   Log.info('savepath: %s' % (taskoutpath))
 
-#  from IPython import embed
-#  embed()
-
   # Fit the model to the data!
   LP, evBound = learnAlg.fit(hmodel, Data)                             
   return hmodel, LP, evBound

@@ -27,6 +27,15 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
             
         print 'Finished Random Initialization'
             
+    elif initname == 'randselect':
+        doc_variational = np.zeros( (nDocTotal, K) )
+        word_variational = np.zeros(nObsTotal, K)
+        # Pick K observed words at random
+        nSelect = np.maximum(Data.nObs/100, K)
+        selectIDs = PRNG.choice(Data.nObs, nSelect, replace=False)
+        for pos in range(len(selectIDs)):
+          word_variational[selectIDs[pos], pos % K] = 1.0
+
     elif initname == 'truth':
         word_variational = np.zeros( (nObsTotal, K) ) + .1
         doc_variational = Data.true_td.T
@@ -38,7 +47,10 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
             word_variational[start:stop,:] = doc_variational[d,:]
            
     if hmodel.getAllocModelName().count('HDP') > 0:
-      LP = dict(E_logPi=np.log(doc_variational + 1e-20),
+      zeroPad = np.zeros((Data.nDoc,1))
+      alph = np.hstack([doc_variational, zeroPad])
+      alph = np.maximum(alph, 1e-20)
+      LP = dict(E_logPi=np.log(alph),
                  word_variational=word_variational)
     else:
       LP = dict(doc_variational=doc_variational, 
