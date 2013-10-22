@@ -2,8 +2,8 @@
 AdmixMinibatchIteratorDB.py
 
 Generic object for iterating over a single bnpy Data set
-by considering one subset minibatch (often just called a batch) at a time
-for documents (not word tokens!)
+by pulling a minibatch from an sqlite type database. 
+Support for more generic databases will come in the next version.
 
 Usage
 --------
@@ -11,7 +11,7 @@ Construct by providing the underlying full-dataset
 >> MB = AdmixMinibatchIterator(Data, nBatch=10, nObsBatch=100)
 Then call
      has_next_batch()  to test if more data is available
-     get_next_batch()  to get the next batch (as a Data object)
+     get_next_batch()  pull dataset from database in this function
      
 Batches are defined via a random partition of all data items
    e.g. for 100 items split into 20 batches
@@ -40,22 +40,22 @@ import sqlite3
 MAXSEED = 1000000
   
 class AdmixMinibatchIteratorDB(object):
-  def __init__(self, Data, dbpath, nBatch=None, nObsBatch=None, nLap=20, dataorderseed=42, allocModelName=None):
+  def __init__(self, Data, dbpath=None, nDocTotal=None, nBatch=None, nObsBatch=None, nLap=20, dataorderseed=42, allocModelName=None):
     ''' Constructor for creating an iterator over the batches of data
     '''
     self.Data = Data
     self.nBatch = nBatch
     self.nLap = nLap
+    self.dbpath = dbpath
     # specify self.nObsTotal to be the total number of documents in the admixture case
     # used only really to have stochastic online not break
-    self.nObsTotal = Data.nDocTotal #nDoc is the total number of documents in the given mini-batch
-    
-    # Path to the database
-    self.dbpath = dbpath
+    self.nDocTotal = nDocTotal
+    self.nObsTotal = nDocTotal #nDoc is the total number of documents in the given mini-batch
+    self.vocab_size = Data.vocab_size
     
     # number of observations in batch
     if nObsBatch is None:
-        self.nObsBatch = Data.nDocTotal/nBatch
+        self.nObsBatch = nDocTotal/nBatch
     else:
         self.nObsBatch = nObsBatch
     
@@ -95,7 +95,7 @@ class AdmixMinibatchIteratorDB(object):
     obsIDsCurBatch = self.obsIDByBatch[self.batchID]
     
     query = 'select * from data where rowid in (' + ','.join(map(str, obsIDsCurBatch)) + ')'
-    bData = self.Data.read_from_db( self.dbpath, query, nDoc=len(obsIDsCurBatch), nDocTotal = self.Data.nDocTotal, vocab_size = self.Data.vocab_size ) 
+    bData = self.Data.read_from_db( self.dbpath, query, nDoc=len(obsIDsCurBatch), nDocTotal = self.nDocTotal, vocab_size = self.vocab_size ) 
     #bData = self.Data.select_subset_by_mask(obsIDsCurBatch)    
     return bData 
     
@@ -122,7 +122,7 @@ class AdmixMinibatchIteratorDB(object):
     '''
     PRNG = np.random.RandomState(self.dataorderseed)
     #Note that we're using nDocTotal to permute document ids
-    obsIDs = PRNG.permutation(self.Data.nDocTotal).tolist()
+    obsIDs = PRNG.permutation(self.nDocTotal).tolist()
     # need to add 1 to list of document indices since sql indexes rows starting with 1
     obsIDs = [x+1 for x in obsIDs]
     
@@ -144,5 +144,5 @@ class AdmixMinibatchIteratorDB(object):
   #########################################################    
   def summarize_num_observations(self):
     s = '  num batch %d, num obs per batch %d\n' % (self.nBatch, self.nObsBatch)
-    s += '  num documents (total across all batches): %d' % (self.Data.nDocTotal)
+    s += '  num documents (total across all batches): %d' % (self.nDocTotal)
     return s

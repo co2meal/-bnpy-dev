@@ -109,7 +109,7 @@ class WordsData(DataObj):
         nObsTotal = nObs
         myDict = dict(word_id = word_id, word_count=word_count, doc_range=doc_range, 
                       nDoc=nDoc, nDocTotal=nDocTotal, nObs=nObs, nObsTotal = nObsTotal,
-                      vocab_size=vocab_size, db_pull=True)
+                      vocab_size=vocab_size, db_pull=True, dbpath=dbpath)
         
         return cls(**myDict)
 
@@ -127,7 +127,7 @@ class WordsData(DataObj):
                  vocab_size=0, vocab_dict=None, 
                  true_tw=None, true_td=None, true_K=None, 
                  nDoc=None, nDocTotal=None, nObs=None,
-                 nObsTotal=None, db_pull=False, **kwargs):
+                 nObsTotal=None, db_pull=False, dbpath=None, **kwargs):
         ''' Constructor for WordsData
 
             Args
@@ -151,6 +151,7 @@ class WordsData(DataObj):
         
         # Save "true" parameters from toy-data
         if true_tw is not None:
+
             self.true_tw = true_tw
             self.true_td = true_td
             self.true_K = true_K
