@@ -57,6 +57,7 @@ from .DataObj import DataObj
 from collections import defaultdict
 import numpy as np
 import scipy.sparse
+import sqlite3
 
 class WordsData(DataObj):
 
@@ -81,6 +82,38 @@ class WordsData(DataObj):
         return cls(**myDict)
 
     @classmethod
+    def read_from_db(cls, dbpath, sqlquery, nDoc=None, nDocTotal=None, vocab_size=None, **kwargs):
+        ''' Creates an instance of WordsData from the database
+        '''
+        # Connect to sqlite database and retrieve results as string
+        conn = sqlite3.connect(dbpath)
+        conn.text_factory = str
+        result = conn.execute(sqlquery)
+        doc_data = result.fetchall()
+        
+        word_id = list()
+        word_count = list()
+        doc_range = np.zeros( (nDoc,2) )
+        ii = 0
+        for d in xrange( len(doc_data) ):
+            doc_range[d,0] = ii
+            # make sure we subtract 1 for word_ids since python indexes by 0
+            temp_word_id = [(int(n)-1) for n in doc_data[d][1].split()]
+            word_id.extend(temp_word_id)
+            word_count.extend([int(n) for n in doc_data[d][2].split()])
+            nUniqueWords = len(temp_word_id)
+            doc_range[d,1] = ii + nUniqueWords
+            ii += nUniqueWords + 1
+        
+        nObs = len(word_id)
+        nObsTotal = nObs
+        myDict = dict(word_id = word_id, word_count=word_count, doc_range=doc_range, 
+                      nDoc=nDoc, nDocTotal=nDocTotal, nObs=nObs, nObsTotal = nObsTotal,
+                      vocab_size=vocab_size, db_pull=True)
+        
+        return cls(**myDict)
+
+    @classmethod
     def read_from_mat(cls, matfilepath, nObsTotal=None, **kwargs):
         ''' Creates an instance of WordsData from Matlab matfile
         '''
@@ -91,8 +124,10 @@ class WordsData(DataObj):
         return cls(**InDict)
 
     def __init__(self, word_id=None, word_count=None, doc_range=None,
-                 vocab_size=0, vocab_dict=None, nDocTotal=None,
-                 true_tw=None, true_td=None, true_K=None, **kwargs):
+                 vocab_size=0, vocab_dict=None, 
+                 true_tw=None, true_td=None, true_K=None, 
+                 nDoc=None, nDocTotal=None, nObs=None,
+                 nObsTotal=None, db_pull=False, **kwargs):
         ''' Constructor for WordsData
 
             Args
@@ -112,7 +147,10 @@ class WordsData(DataObj):
         self.vocab_size = int(vocab_size)
         self.set_dependent_params(nDocTotal)
         self.verify_dimensions()
-
+        
+        self.set_corpus_size_params(nDocTotal, nObsTotal)
+        self.verify_dimensions()
+        
         # Save "true" parameters from toy-data
         if true_tw is not None:
             self.true_tw = true_tw
@@ -146,17 +184,24 @@ class WordsData(DataObj):
         assert self.word_id.ndim == 1
         assert self.word_count.ndim == 1
         assert self.word_id.max() < self.vocab_size
+        assert self.nDoc == self.doc_range.shape[0]
+        assert self.nObs == len(self.word_id)
 
-    def set_dependent_params( self, nDocTotal=None):
+    def set_corpus_size_params(self, nDocTotal=None, nObsTotal=None):
         ''' Sets dependent parameters 
         '''
-        if nDocTotal is not None:
-          self.nDocTotal = nDocTotal
-        else:
-          self.nDocTotal = self.doc_range.shape[0]
         self.nDoc = self.doc_range.shape[0]
-        self.nObsTotal = len(self.word_id)
-        self.nObs = self.nObsTotal
+        self.nObs = len(self.word_id)
+
+        if nDocTotal is None:
+          self.nDocTotal = self.nDoc
+        else:
+          self.nDocTotal = nDocTotal
+        
+        if nObsTotal is None:
+          self.nObsTotal = self.nObs
+        else:
+          self.nObsTotal = nObsTotal
         
     def select_subset_by_mask(self, mask):
         '''
