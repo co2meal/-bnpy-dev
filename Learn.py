@@ -189,6 +189,7 @@ def loadData(ReqArgs, KwArgs, DataArgs, dataorderseed):
     InitData = datamod.get_data(**DataArgs)
     OnlineDataArgs = KwArgs['OnlineDataPrefs']
     OnlineDataArgs['dataorderseed'] = dataorderseed
+    OnlineDataArgs.update(DataArgs)
     DataIterator = datamod.get_minibatch_iterator(**OnlineDataArgs)
     return DataIterator, InitData
   
