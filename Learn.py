@@ -28,7 +28,7 @@ import bnpy
 import BNPYArgParser
 
 Log = logging.getLogger('bnpy')
-Log.setLevel(logging.DEBUG)
+#Log.setLevel(logging.DEBUG)
 
 FullDataAlgSet = ['EM','VB']
 OnlineDataAlgSet = ['soVB', 'moVB']
@@ -152,8 +152,8 @@ def _run_task_internal(jobname, taskid, nTask, \
                % (taskid, nTask, algseed, dataorderseed))
   Log.info('savepath: %s' % (taskoutpath))
 
-  from IPython import embed
-  embed()
+#  from IPython import embed
+#  embed()
 
   # Fit the model to the data!
   LP, evBound = learnAlg.fit(hmodel, Data)                             

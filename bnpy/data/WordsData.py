@@ -57,6 +57,7 @@ from .DataObj import DataObj
 from collections import defaultdict
 import numpy as np
 import scipy.sparse
+import sqlite3
 
 class WordsData(DataObj):
 
@@ -81,6 +82,38 @@ class WordsData(DataObj):
         return cls(**myDict)
 
     @classmethod
+    def read_from_db(cls, dbpath, sqlquery, nDoc=None, nDocTotal=None, vocab_size=None, **kwargs):
+        ''' Creates an instance of WordsData from the database
+        '''
+        # Connect to sqlite database and retrieve results as string
+        conn = sqlite3.connect(dbpath)
+        conn.text_factory = str
+        result = conn.execute(sqlquery)
+        doc_data = result.fetchall()
+        
+        word_id = list()
+        word_count = list()
+        doc_range = np.zeros( (nDoc,2) )
+        ii = 0
+        for d in xrange( len(doc_data) ):
+            doc_range[d,0] = ii
+            # make sure we subtract 1 for word_ids since python indexes by 0
+            temp_word_id = [(int(n)-1) for n in doc_data[d][1].split()]
+            word_id.extend(temp_word_id)
+            word_count.extend([int(n) for n in doc_data[d][2].split()])
+            nUniqueWords = len(temp_word_id)
+            doc_range[d,1] = ii + nUniqueWords
+            ii += nUniqueWords + 1
+        
+        nObs = len(word_id)
+        nObsTotal = nObs
+        myDict = dict(word_id = word_id, word_count=word_count, doc_range=doc_range, 
+                      nDoc=nDoc, nDocTotal=nDocTotal, nObs=nObs, nObsTotal = nObsTotal,
+                      vocab_size=vocab_size, db_pull=True)
+        
+        return cls(**myDict)
+
+    @classmethod
     def read_from_mat(cls, matfilepath, nObsTotal=None, **kwargs):
         ''' Creates an instance of WordsData from Matlab matfile
         '''
@@ -92,7 +125,9 @@ class WordsData(DataObj):
 
     def __init__(self, word_id=None, word_count=None, doc_range=None,
                  vocab_size=0, vocab_dict=None, 
-                 true_tw=None, true_td=None, true_K=None, **kwargs):
+                 true_tw=None, true_td=None, true_K=None, 
+                 nDoc=None, nDocTotal=None, nObs=None,
+                 nObsTotal=None, db_pull=False, **kwargs):
         ''' Constructor for WordsData
 
             Args
@@ -110,8 +145,16 @@ class WordsData(DataObj):
         self.word_count = np.asarray(np.squeeze(word_count), dtype=np.float32)
         self.doc_range = doc_range
         self.vocab_size = int(vocab_size)
-        self.set_dependent_params()
-        self.verify_dimensions()
+        
+        # If we're not pulling from the database
+        if db_pull is False:
+            self.set_dependent_params()
+            self.verify_dimensions()
+        else: # Set to full database corpus
+            self.nDocTotal = nDocTotal
+            self.nObsTotal = nObsTotal
+            self.nDoc = nDoc
+            self.nObs = nObs
 
         if true_tw is not None: # if generated from toy data, save to Data object
             self.true_tw = true_tw
