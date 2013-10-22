@@ -28,14 +28,14 @@ def get_minibatch_iterator(seed=8675309, nBatch=10000, nObsBatch=None, nObsTotal
     Initialize with only a handful of documents however, specified by doc_id_select
     '''
     #Data object isn't passed in, is this bottom part necessary again?
-    doc_id_select = range(1,500) # grab the first 500 documents
-    query = 'select * from data where rowid in (' + ','.join(map(str, doc_id_select)) + ')'
-    Data = WordsData.read_from_db( dbpath, query, nDoc=len(doc_id_select), nDocTotal = D, vocab_size = V )
-    #Data = get_data(nDocTotal = D, vocab_size = V)
+    #doc_id_select = range(1,500) # grab the first 500 documents
+    #query = 'select * from data where rowid in (' + ','.join(map(str, doc_id_select)) + ')'
+    #Data = WordsData.read_from_db( dbpath, query, nDoc=len(doc_id_select), nDocTotal = D, vocab_size = V )
+    Data = get_data(nDocTotal = D, vocab_size = V)
     
     #Create iterator that grabs documents from the sqlite3 database
-    DataIterator = AdmixMinibatchIteratorDB(Data, nBatch=nBatch, nObsBatch=nObsBatch, nLap=nLap, dataorderseed=dataorderseed)
-    DataIterator.summary = get_data_info(Data.nDocTotal, Data.vocab_size)
+    DataIterator = AdmixMinibatchIteratorDB(Data, dbpath=dbpath, nDocTotal=D, nBatch=nBatch, nObsBatch=nObsBatch, nLap=nLap, dataorderseed=dataorderseed)
+    DataIterator.summary = get_data_info(D, V)
     return DataIterator
 
 def get_data_info(D, V):
