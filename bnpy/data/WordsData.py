@@ -91,7 +91,7 @@ class WordsData(DataObj):
         return cls(**InDict)
 
     def __init__(self, word_id=None, word_count=None, doc_range=None,
-                 vocab_size=0, vocab_dict=None, 
+                 vocab_size=0, vocab_dict=None, nDocTotal=None,
                  true_tw=None, true_td=None, true_K=None, **kwargs):
         ''' Constructor for WordsData
 
@@ -110,15 +110,16 @@ class WordsData(DataObj):
         self.word_count = np.asarray(np.squeeze(word_count), dtype=np.float32)
         self.doc_range = doc_range
         self.vocab_size = int(vocab_size)
-        self.set_dependent_params()
+        self.set_dependent_params(nDocTotal)
         self.verify_dimensions()
 
-        if true_tw is not None: # if generated from toy data, save to Data object
+        # Save "true" parameters from toy-data
+        if true_tw is not None:
             self.true_tw = true_tw
             self.true_td = true_td
             self.true_K = true_K
         
-        # check if data contains a dictionary of vocabulary words
+        # Add dictionary of vocab words, if provided
         if vocab_dict is not None:
             self.vocab_dict = vocab_dict
 
@@ -132,24 +133,28 @@ class WordsData(DataObj):
             return self.__sparseMat__
         
         nDW = self.word_id.size
-        infoTuple = (self.word_count, self.word_id, np.arange(nDW+1))
+        infoTuple = (self.word_count, np.int64(self.word_id), np.arange(nDW+1))
         shape = (self.vocab_size,nDW)
         self.__sparseMat__ = scipy.sparse.csc_matrix(infoTuple, shape=shape)
         return self.__sparseMat__
 
     def verify_dimensions(self):
-        ''' Basic runtime checks to make sure things look good
+        ''' Basic runtime checks to make sure dimensions are set correctly
         '''
         # Make sure both are 1D vectors.  
         # 2D vectors with shape (nDistinctWords,1) will screw up indexing!
         assert self.word_id.ndim == 1
         assert self.word_count.ndim == 1
+        assert self.word_id.max() < self.vocab_size
 
-    def set_dependent_params( self, nObsTotal=None):
-        ''' Sets dependent parameters so that we don't have to store too many stuff
+    def set_dependent_params( self, nDocTotal=None):
+        ''' Sets dependent parameters 
         '''
-        self.nDocTotal,_ = self.doc_range.shape
-        self.nDoc = self.nDocTotal
+        if nDocTotal is not None:
+          self.nDocTotal = nDocTotal
+        else:
+          self.nDocTotal = self.doc_range.shape[0]
+        self.nDoc = self.doc_range.shape[0]
         self.nObsTotal = len(self.word_id)
         self.nObs = self.nObsTotal
         
@@ -165,7 +170,7 @@ class WordsData(DataObj):
                 nObs = nDistinctWords in the subset of docs
                 nObsTotal, nDocTotal define size of entire dataset (not subset)
         '''
-        subset_size = ( (self.doc_range[mask,1]) - self.doc_range[mask,0] ).sum()
+        subset_size = np.sum( self.doc_range[mask,1] - self.doc_range[mask,0])
         new_word_id = np.zeros( subset_size )
         new_word_count = np.zeros( subset_size )
         new_doc_range = np.zeros( (len(mask),2) )

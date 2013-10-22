@@ -12,10 +12,7 @@ V = 9 # Vocabulary Size
 D = 250 # number of total documents
 Nperdoc = 100 #words per document
 alpha = 0.5 # hyperparameter over document-topic distributions
-beta  = 0.1 # hyperparameter over topic by word distributions
-
-w = np.ones( K ) # vector of ones
-w /= w.sum() # uniform distribution over topics
+lamda = 0.1 # hyperparameter over topic by word distributions
 
 # Create topic by word distribution
 true_tw = np.zeros( (K,V) )
@@ -25,20 +22,17 @@ true_tw[2,:] = [ 0, 0, 0, 0, 0, 0, 1, 1, 1]
 true_tw[3,:] = [ 1, 0, 0, 1, 0, 0, 1, 0, 0]
 true_tw[4,:] = [ 0, 1, 0, 0, 1, 0, 0, 1, 0]
 true_tw[5,:] = [ 0, 0, 1, 0, 0, 1, 0, 0, 1]
-
 # add prior
-true_tw += beta
-
-# total number of observations
-nObs = V * D
-
+true_tw += lamda
 # ensure that true_tw is a probability
 for k in xrange(K):
     true_tw[k,:] /= np.sum( true_tw[k,:] )
 
+# total number of observations
+nObs = V * D
+
 # 8675309, sounds like a phone number...
 def get_data(seed=8675309, nObsTotal=25000, **kwargs):
-# words is a dictionary that contains WC, DOCID
     words_dict = get_BoW(seed)
     Data = WordsData( **words_dict )
     Data.summary = get_data_info()

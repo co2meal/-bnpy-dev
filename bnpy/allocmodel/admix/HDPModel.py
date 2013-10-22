@@ -49,7 +49,7 @@ class HDPModel(AllocModel):
         self.set_prior(priorDict)
 
     def set_helper_params(self):
-      ''' Set dependent attributes of this model, given the primary params U1, U0
+      ''' Set dependent attribs of this model, given the primary params U1, U0
           This includes expectations of various stickbreaking quantities
       '''
       E = HVO.calcExpectations(self.U1, self.U0)
@@ -64,11 +64,10 @@ class HDPModel(AllocModel):
         '''
         wv = LP['word_variational']
         _, K = wv.shape
-        # Turn dim checking off, since some suff stats have dim K+1 instead of K
+        # Turn dim checking off, since some stats have dim K+1 instead of K
         SS = SuffStatDict(K=K, doCheck=False)
-        SS.sumLogPi = np.sum(LP['E_logPi'].sum(axis=0))
         SS.nDoc = Data.nDoc
-
+        SS.sumLogPi = np.sum(LP['E_logPi'], axis=0)
         if doPrecompEntropy:
             SS.addPrecompELBOTerm('ElogpZ', self.E_log_pZ(Data, LP))
             SS.addPrecompELBOTerm('ElogqZ', self.E_log_qZ(Data, LP))
@@ -119,6 +118,7 @@ class HDPModel(AllocModel):
                                            word_count[start:stop],        
                                            LP['word_variational'][start:stop,:]
                                            )
+
             # Assess convergence 
             curVec = LP['DocTopicCount'].flatten()
             if prevVec is not None and np.allclose(prevVec, curVec):
@@ -129,11 +129,11 @@ class HDPModel(AllocModel):
     def get_doc_variational( self, Data, LP):
         ''' Update and return document-topic variational parameters
         '''
-        zeroPad = np.zeros(Data.nDoc)
-        DocTopicCountZeroPadded = np.hstack([self.LP['DocTopicCount'], zeroPad])
-        alphPi = self.gamma*self.Ebeta + DocTopicCountZeroPadded
-        LP['E_logPi'] = digamma(alphPi) - digamma(alphPi.sum(axis=1))[:,np.newaxis]
-        LP['alphaPi'] = alphPi        
+        zeroPad = np.zeros((Data.nDoc,1))
+        DTCountMatZeroPadded = np.hstack([LP['DocTopicCount'], zeroPad])
+        alph = DTCountMatZeroPadded + self.gamma*self.Ebeta
+        LP['E_logPi'] = digamma(alph) - digamma(alph.sum(axis=1))[:,np.newaxis]
+        LP['alphaPi'] = alph        
         return LP
     
     def get_word_variational( self, Data, LP):
@@ -163,10 +163,15 @@ class HDPModel(AllocModel):
         E_logqV = self.E_logqV()
      
         E_logpPi = self.E_logpPi(SS)
-        E_logqPi = self.E_logqPi(SS)
+        E_logqPi = self.E_logqPi(LP)
         
-        E_logpZ = self.E_logpZ(Data, LP)
-        E_logqZ = self.E_logqZ(Data, LP)
+        E_logpZ = np.sum(self.E_logpZ(Data, LP))
+        E_logqZ = np.sum(self.E_logqZ(Data, LP))
+
+        if SS.hasAmpFactor():
+            E_logqPi *= SS.ampF
+            E_logpZ *= SS.ampF
+            E_logqZ *= SS.ampF
 
         elbo = (E_logpPi - E_logqPi) \
                + (E_logpZ - E_logqZ) \
@@ -178,8 +183,8 @@ class HDPModel(AllocModel):
         ''' Returns K-length vector with E[ log p(Z) ] for each topic k
                 E[ z_dwk ] * E[ log pi_{dk} ]
         '''
-        E_logpZ = LP["DocTopicCount"] * LP["E_logPi"]
-        return E_log_pZ
+        E_logpZ = LP["DocTopicCount"] * LP["E_logPi"][:, :self.K]
+        return E_logpZ
     
     def E_logqZ( self, Data, LP):  
         ''' Returns K-length vector with E[ log q(Z) ] for each topic k
@@ -195,11 +200,12 @@ class HDPModel(AllocModel):
     def E_logpPi(self, SS):
         ''' Returns scalar value of E[ log p(PI | alpha0)]
         '''
-        kvec = SS.K + 1 - np.arange(1, SS.K+1)
+        K = SS.K
+        kvec = K + 1 - np.arange(1, K+1)
         logDirNormC = gammaln(self.gamma) + (K+1) * np.log(self.gamma)
         logDirNormC += np.sum(self.Elogv) + np.inner(kvec, self.Elog1mv)
 
-        logDirPDF = np.inner(self.gamma * Ebeta - 1, SS.sumLogPi)
+        logDirPDF = np.inner(self.gamma * self.Ebeta - 1, SS.sumLogPi)
         return SS.nDoc * logDirNormC + logDirPDF
 
     def E_logqPi(self, LP):
@@ -207,26 +213,26 @@ class HDPModel(AllocModel):
         '''
         alph = LP['alphaPi']        
         logDirNormC = gammaln(alph.sum(axis=1)) - np.sum(gammaln(alph), axis=1)
-        logDirPDF = np.sum((alph - 1.)*LP['E_logPi'])
+        logDirPDF = np.sum((alph - 1.) * LP['E_logPi'])
         return np.sum(logDirNormC) + logDirPDF
 
     ####################################################### ELBO terms for V
-    def E_log_pV(self):
+    def E_logpV(self):
         logBetaNormC = gammaln(self.alpha0 + 1.) \
-                       - gammaln(self.alpha0) # gammaln(1) = 0
-        logBetaPDF = (self.alpha0-1.)*np.sum(self.Elog1mv)
-        return SS.K*logBetaNormC + logBetaPDF
+                       - gammaln(self.alpha0)
+        logBetaPDF = (self.alpha0-1.) * np.sum(self.Elog1mv)
+        return self.K*logBetaNormC + logBetaPDF
 
-    def E_log_qV(self):
+    def E_logqV(self):
         logBetaNormC = gammaln(self.U1 + self.U0) \
-                        - gammaln(U0) - gammaln(U1)
-        logBetaPDF =   np.inner(U1 - 1., self.Elogv) \
-                      + np.inner(U0 - 1., self.Elog1mv)
+                        - gammaln(self.U0) - gammaln(self.U1)
+        logBetaPDF =   np.inner(self.U1 - 1., self.Elogv) \
+                      + np.inner(self.U0 - 1., self.Elog1mv)
         return np.sum(logBetaNormC) + logBetaPDF
 
     ####################################################### Update global params
     #######################################################
-    def update_global_params(self, SS, rho=None, **kwargs ):
+    def update_global_params_VB(self, SS, **kwargs):
         ''' Admixtures have no global allocation parameters! 
             The mixture weights are document specific.
         '''
@@ -237,6 +243,14 @@ class HDPModel(AllocModel):
         self.U0 = U0
         self.set_helper_params()
         
+    def update_global_params_soVB(self, SS, rho, **kwargs):
+        assert self.K == SS.K
+        U1, U0 = HVO.estimate_u(K=self.K, alpha0=self.alpha0, gamma=self.gamma,
+                     sumLogPi=SS.sumLogPi, nDoc=SS.nDoc)
+        self.U1 = rho * U1 + (1-rho) * self.U1
+        self.U0 = rho * U0 + (1-rho) * self.U0
+        self.set_helper_params()
+
     #################### GET METHODS #############################
     def set_prior(self, PriorParamDict):
         self.alpha0 = PriorParamDict['alpha0']
