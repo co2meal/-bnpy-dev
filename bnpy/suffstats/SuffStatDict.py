@@ -98,7 +98,24 @@ class SuffStatDict(object):
       arrC = np.vstack( [arrA, bottomZ])
       rightZ = np.zeros((self.K + SSextra.K, SSextra.K), dtype=arrA.dtype)
       arrC = np.hstack( [arrC, rightZ])
-      self.__dict__[key] = arrC  
+      self.__dict__[key] = arrC
+    if self.hasPrecompELBO():
+      for key in self.__dict__['__precompELBOTerms__']:
+        arrA = self.__dict__['__precompELBOTerms__'][key]
+        if arrA.ndim == 0:
+          continue
+        zeroFill = np.zeros(Kextra, dtype=arrA.dtype)
+        arrC = np.insert(arrA, arrA.shape[0], zeroFill, axis=0)
+        self.__dict__['__precompELBOTerms__'][key] = arrC
+    if self.hasPrecompMerge():
+      Kextra = SSextra.K
+      for key in self.__dict__['__precompMerge__']:
+        arrA = self.__dict__['__precompMerge__'][key]
+        zeroFillBottom = np.zeros((Kextra, self.K), dtype=arrA.dtype)
+        arrC = np.vstack( [arrA, zeroFillBottom])
+        zeroFillRight = np.zeros((self.K + Kextra, Kextra), dtype=arrA.dtype)
+        arrC = np.hstack( [arrC, zeroFillRight])
+        self.__dict__['__precompMerge__'][key] = arrC 
     self.K = self.K + SSextra.K
 
   def insertEmptyComponents(self, Kextra):
@@ -133,6 +150,22 @@ class SuffStatDict(object):
       zeroFillRight = np.zeros((self.K + Kextra, Kextra), dtype=arrA.dtype)
       arrC = np.hstack( [arrC, zeroFillRight])
       self.__dict__[key] = arrC  
+    if self.hasPrecompELBO():
+      for key in self.__dict__['__precompELBOTerms__']:
+        arrA = self.__dict__['__precompELBOTerms__'][key]
+        if arrA.ndim == 0:
+          continue
+        zeroFill = np.zeros(Kextra, dtype=arrA.dtype)
+        arrC = np.insert(arrA, arrA.shape[0], zeroFill, axis=0)
+        self.__dict__['__precompELBOTerms__'][key] = arrC
+    if self.hasPrecompMerge():
+      for key in self.__dict__['__precompMerge__']:
+        arrA = self.__dict__['__precompMerge__'][key]
+        zeroFillBottom = np.zeros((Kextra, self.K), dtype=arrA.dtype)
+        arrC = np.vstack( [arrA, zeroFillBottom])
+        zeroFillRight = np.zeros((self.K + Kextra, Kextra), dtype=arrA.dtype)
+        arrC = np.hstack( [arrC, zeroFillRight])
+        self.__dict__['__precompMerge__'][key] = arrC 
     self.K = self.K + Kextra
 
   ######################################################### Insert comps
@@ -161,6 +194,18 @@ class SuffStatDict(object):
       key = '__mergeEntropy__'
       self.__dict__[key] = np.delete(self.__dict__[key], kB, axis=0)
       self.__dict__[key] = np.delete(self.__dict__[key], kB, axis=1)
+    if self.hasPrecompELBO():
+      for key in self.__dict__['__precompELBOTerms__']:
+        arr = self.__dict__['__precompELBOTerms__'][key]
+        if arr.ndim == 0:
+          continue
+        self.__dict__['__precompELBOTerms__'][key] = np.delete(arr, kB, axis=0)
+    if self.hasPrecompMerge():
+      for key in self.__dict__['__precompMerge__']:
+        sqArr = self.__dict__['__precompMerge__'][key]
+        sqArr = np.delete(sqArr, kB, axis=0)
+        sqArr = np.delete(sqArr, kB, axis=1)
+        self.__dict__['__precompMerge__'][key] = sqArr
     self.K = self.K - 1
 
     if self.K == 1:
@@ -236,16 +281,27 @@ class SuffStatDict(object):
     ''' Merge (in-place) all additive fields for components kA, kB
         into field index kA, and remove component kB entirely.
     '''
-    if not self.hasPrecompMergeEntropy():
-      raise ValueError("Attribute merge entropy not defined, required for merge")
-    if not self.hasPrecompEntropy():
-      raise ValueError("Attribute precomp entropy not defined, required for merge")
+    #if not self.hasPrecompMergeEntropy():
+    #  raise ValueError("Attribute merge entropy not defined, required for merge")
+    #if not self.hasPrecompEntropy():
+    #  raise ValueError("Attribute precomp entropy not defined, required for merge")
+    
     assert np.maximum(kA,kB) < self.K
     for key in self.__compkeys__:
       self.__dict__[key][kA] += self.__dict__[key][kB] 
     
     # Fix the precomputed entropy for new "merged" component kA    
-    self.__dict__['__precompEntropy__'][kA] = self.__dict__['__mergeEntropy__'][kA,kB]
+    if self.hasPrecompEntropy():
+      self.__dict__['__precompEntropy__'][kA] = self.__dict__['__mergeEntropy__'][kA,kB]
+
+    ELBOterms = self.__dict__['__precompELBOTerms__']
+    mergeELBOterms = self.__dict__['__precompMerge__']
+    if self.hasPrecompELBO():
+      for key in mergeELBOterms:
+        if key in ELBOterms:
+          ELBOterms[key][kA] = mergeELBOterms[key][kA,kB]
+        elif key in self.__dict__:
+          self.__dict__[key][kA] = mergeELBOterms[key][kA,kB]
 
     # Remove kB entirely from this object
     #  this call automatically updates self.K to be one less    
@@ -253,9 +309,14 @@ class SuffStatDict(object):
 
     # New "merged" component kA's entries in mergeEntropy
     # no longer represent the correct computation.
-    key = '__mergeEntropy__'
-    self.__dict__[key][kA,kA+1:] = np.nan
-    self.__dict__[key][:kA,kA] = np.nan
+    if self.hasPrecompMergeEntropy():
+      key = '__mergeEntropy__'
+      self.__dict__[key][kA,kA+1:] = np.nan
+      self.__dict__[key][:kA,kA] = np.nan
+    if self.hasPrecompMerge():
+      for key in self.__dict__['__precompMerge__']:
+        self.__dict__['__precompMerge__'][key][kA,kA+1:] = np.nan
+        self.__dict__['__precompMerge__'][key][:kA,kA] = np.nan
 
   def setToZeroPrecompMergeEntropy(self):
     ''' Remove precomputed merge entropy if not needed anymore
@@ -295,7 +356,17 @@ class SuffStatDict(object):
     if self.hasPrecompMergeEntropy() or SSobj.hasPrecompMergeEntropy():
       mergeH1 = self.getPrecompMergeEntropy()
       mergeH2 = SSobj.getPrecompMergeEntropy()
-      sumSS.addPrecompMergeEntropy(mergeH1 + mergeH2)      
+      sumSS.addPrecompMergeEntropy(mergeH1 + mergeH2)
+    if self.hasPrecompELBO():
+      for key in self.__dict__['__precompELBOTerms__']:
+        arrA = self.__dict__['__precompELBOTerms__'][key]
+        arrB = SSobj.__dict__['__precompELBOTerms__'][key]
+        sumSS.addPrecompELBOTerm(key, arrA + arrB)   
+    if self.hasPrecompMerge():
+      for key in self.__dict__['__precompMerge__']:
+        arrA = self.__dict__['__precompMerge__'][key]
+        arrB = SSobj.__dict__['__precompMerge__'][key]
+        sumSS.addPrecompMergeTerm(key, arrA + arrB)    
     return sumSS    
   
   def __sub__(self, SSobj):
@@ -315,6 +386,16 @@ class SuffStatDict(object):
       mergeH1 = self.getPrecompMergeEntropy()
       mergeH2 = SSobj.getPrecompMergeEntropy()
       sumSS.addPrecompMergeEntropy(mergeH1 - mergeH2)
+    if self.hasPrecompELBO():
+      for key in self.__dict__['__precompELBOTerms__']:
+        arrA = self.__dict__['__precompELBOTerms__'][key]
+        arrB = SSobj.__dict__['__precompELBOTerms__'][key]
+        sumSS.addPrecompELBOTerm(key, arrA - arrB)   
+    if self.hasPrecompMerge():
+      for key in self.__dict__['__precompMerge__']:
+        arrA = self.__dict__['__precompMerge__'][key]
+        arrB = SSobj.__dict__['__precompMerge__'][key]
+        sumSS.addPrecompMergeTerm(key, arrA - arrB)  
     return sumSS    
        
        

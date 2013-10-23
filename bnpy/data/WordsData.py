@@ -246,3 +246,63 @@ class WordsData(DataObj):
             myDict["true_K"] = self.true_K
         
         return WordsData(**myDict)
+
+    @classmethod
+    def genToyData(cls, seed=101, nDocTotal=None, nWordsPerDoc=None, 
+                      docTopicParamVec=None, TopicWordProbs=None,
+                      **kwargs):
+        ''' Generates toy dataset using defined global structure.
+        '''
+
+        TopicWordProbs /= TopicWordProbs.sum(axis=1)[:,np.newaxis]
+
+        K = TopicWordProbs.shape[0]
+        V = TopicWordProbs.shape[1]
+
+        PRNG = np.random.RandomState( seed )
+        doc_range = np.zeros((nDocTotal, 2))
+
+        # true document x topic proportions
+        true_td = np.zeros((K,nDocTotal)) 
+    
+        wordIDsPerDoc = list()
+        wordCountsPerDoc = list()
+
+        # counter for tracking the start index for current document 
+        #  within the corpus-wide word lists
+        startPos = 0
+        for d in xrange(nDocTotal):
+            true_td[:,d] = PRNG.dirichlet(docTopicParamVec) 
+            Npercomp = PRNG.multinomial(nWordsPerDoc, true_td[:,d])
+
+            # wordCountBins: V x 1 vector
+            #   entry v counts # times vocab word v appears in current doc
+            wordCountBins = np.zeros(V)
+            for k in xrange(K):
+                wordCountBins += PRNG.multinomial(Npercomp[k], TopicWordProbs[k,:])
+
+            wIDs = np.flatnonzero(wordCountBins > 0)
+            wCounts = wordCountBins[wIDs]
+            assert np.allclose( wCounts.sum(), nWordsPerDoc)
+        
+            wordIDsPerDoc.append(wIDs)
+            wordCountsPerDoc.append(wCounts)
+
+            #start and stop ids for documents
+            doc_range[d,0] = startPos
+            doc_range[d,1] = startPos + wIDs.size  
+            startPos += wIDs.size
+    
+        word_id = np.hstack(wordIDsPerDoc)
+        word_count = np.hstack(wordCountsPerDoc)
+
+        #Insert all important stuff in myDict
+        myDict = dict(true_K=K, true_beta=docTopicParamVec,
+                  true_tw=TopicWordProbs, true_td=true_td,
+                  )
+        # Necessary items
+        myDict["doc_range"] = doc_range
+        myDict["word_id"] = word_id
+        myDict["word_count"] = word_count
+        myDict["vocab_size"] = V
+        return WordsData(**myDict)

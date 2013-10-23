@@ -71,7 +71,7 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
     MoveInfo = dict(didAccept=0, msg="need >= 2 comps to merge")    
     return curModel, SS, curEv, MoveInfo  
   
-  if not SS.hasPrecompMergeEntropy():
+  if not SS.hasPrecompMergeEntropy() and not SS.hasPrecompMerge():
     MoveInfo = dict(didAccept=0, msg="suff stats did not have merge entropy")    
     return curModel, SS, curEv, MoveInfo  
 
@@ -111,11 +111,11 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
 
   if propEv > curEv:
     MoveInfo = dict(didAccept=1, kA=kA, kB=kB,
-                    msg="merge %3d + %3d | ev +%.3e" % (kA, kB, propEv - curEv))
+                    msg="merge %3d, %3d | ev +%.3e" % (kA, kB, propEv - curEv))
     return propModel, propSS, propEv, MoveInfo
   else:
     MoveInfo = dict(didAccept=0, kA=kA, kB=kB,
-                    msg="merge %3d + %3d | ev -%.3e" % (kA, kB, curEv - propEv))
+                    msg="merge %3d, %3d | ev -%.3e" % (kA, kB, curEv - propEv))
     return curModel, SS, curEv, MoveInfo
 
 

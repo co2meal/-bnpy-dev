@@ -38,10 +38,12 @@ true_tw += smoothMass
 for k in xrange(K):
     true_tw[k,:] /= np.sum( true_tw[k,:] )
 
-
 # GLOBAL PROB DISTRIBUTION OVER TOPICS
 trueBeta = np.asarray([4., 3, 2, 1, 4, 3, 2, 1], dtype=np.float64)
 trueBeta /= trueBeta.sum()
+
+Defaults['docTopicParamVec'] = gamma*trueBeta
+Defaults['TopicWordProbs'] = true_tw
 
 def get_data_info(**kwargs):
     if 'nDocTotal' in kwargs:
@@ -77,13 +79,22 @@ def get_minibatch_iterator(seed=8675309, nBatch=10, nLap=1,
     DataIterator.summary = get_data_info(**kwargs)
     return DataIterator
 
-def genWordsData(seed, nDocTotal=None, nWordsPerDoc=None, **kwargs):
+def genWordsData(seed=0, nDocTotal=None, nWordsPerDoc=None, 
+                      docTopicParamVec=None, TopicWordProbs=None,
+                      **kwargs):
     ''' Generates toy bars dataset using defined global structure.
     '''
     if nDocTotal is None:
       nDocTotal = Defaults['nDocTotal']
     if nWordsPerDoc is None:
       nWordsPerDoc = Defaults['nWordsPerDoc']
+    if docTopicParamVec is None:
+      docTopicParamVec = Defaults['docTopicParamVec']
+    if TopicWordProbs is None:
+      TopicWordProbs = Defaults['TopicWordProbs']
+
+    K = TopicWordProbs.shape[0]
+    V = TopicWordProbs.shape[1]
 
     PRNG = np.random.RandomState( seed )
     doc_range = np.zeros((nDocTotal, 2))
@@ -98,14 +109,14 @@ def genWordsData(seed, nDocTotal=None, nWordsPerDoc=None, **kwargs):
     #  within the corpus-wide word lists
     startPos = 0
     for d in xrange(nDocTotal):
-        true_td[:,d] = PRNG.dirichlet(gamma * trueBeta) 
+        true_td[:,d] = PRNG.dirichlet(docTopicParamVec) 
         Npercomp = PRNG.multinomial(nWordsPerDoc, true_td[:,d])
 
         # wordCountBins: V x 1 vector
         #   entry v counts # times vocab word v appears in current doc
         wordCountBins = np.zeros(V)
         for k in xrange(K):
-            wordCountBins += PRNG.multinomial(Npercomp[k], true_tw[k,:])
+            wordCountBins += PRNG.multinomial(Npercomp[k], TopicWordProbs[k,:])
 
         wIDs = np.flatnonzero(wordCountBins > 0)
         wCounts = wordCountBins[wIDs]
@@ -117,9 +128,7 @@ def genWordsData(seed, nDocTotal=None, nWordsPerDoc=None, **kwargs):
         #start and stop ids for documents
         doc_range[d,0] = startPos
         doc_range[d,1] = startPos + wIDs.size  
-        
         startPos += wIDs.size
-        
     
     word_id = np.hstack(wordIDsPerDoc)
     word_count = np.hstack(wordCountsPerDoc)

@@ -5,6 +5,60 @@ from bnpy.suffstats import SuffStatDict
 import numpy as np
 import unittest
 
+class TestSSK2Merge2(unittest.TestCase):
+  def shortDescription(self):
+    return None
+
+  def setUp(self):
+    xxT = np.reshape( np.vstack( [np.eye(3), 3*np.eye(3)]), (2,3,3))
+    self.SS = SuffStatDict(K=2, N=[10,20], xxT=xxT)
+    self.SS.addPrecompELBOTerm('avec', [1,2])
+    self.SS.addPrecompELBOTerm('xyz', [10,20])
+    self.SS.addPrecompELBOTerm('c', 4)
+    self.SS.addPrecompMergeTerm('avec', [[0, 3106], [0,0]])
+     
+  def test_additivity(self):
+    Sboth = self.SS + self.SS
+    assert np.allclose(Sboth.N, self.SS.N + self.SS.N)
+    assert np.allclose(Sboth.xxT, self.SS.xxT + self.SS.xxT)
+    oldELBOconst = self.SS.getPrecompELBOTerm('c')
+    newELBOconst = Sboth.getPrecompELBOTerm('c')
+    assert np.allclose(2*oldELBOconst, newELBOconst)
+    oldELBOvec = self.SS.getPrecompELBOTerm('avec')
+    newELBOvec = Sboth.getPrecompELBOTerm('avec')
+    assert np.allclose(2*oldELBOvec, newELBOvec)
+    assert Sboth.K == self.SS.K
+
+  def test_remove_component(self):
+    ''' Verify that removing a component leaves expected remaining attribs intact.
+    '''
+    SS = self.SS
+    SS1 = SS.getComp(1)    
+    SS.removeComponent(0)
+    assert SS.K == 1
+    assert np.allclose(SS.N, SS1.N)
+    assert np.allclose(SS.xxT, SS1.xxT)
+    assert SS.getPrecompELBOTerm('avec').size == 1
+    assert SS.getPrecompELBOTerm('c').size == 1
+
+  def test_merge_component(self):
+    SS = self.SS
+    C0 = SS.getComp(0).copy()
+    C1 = SS.getComp(1).copy()
+    SS.mergeComponents(0, 1)
+    print SS.xxT
+    print C0.xxT
+    print C1.xxT
+    assert np.allclose(SS.N, C0.N + C1.N)
+    assert np.allclose(SS.xxT, C0.xxT + C1.xxT)
+    assert SS.K == C0.K
+    assert SS.getPrecompELBOTerm('avec').size == 1
+    assert SS.getPrecompELBOTerm('c').size == 1
+    assert SS.getPrecompELBOTerm('avec')[0] == 3106
+    assert SS.getPrecompMergeTerm('avec').size == 1
+    assert np.allclose(SS.getPrecompMergeTerm('avec'), 0)
+
+
 class TestSSK2(unittest.TestCase):
   def shortDescription(self):
     return None
@@ -47,13 +101,7 @@ class TestSSK2(unittest.TestCase):
     # Insert again!
     mySS.insertComponents(self.SS)
     assert mySS.K == self.SS.K * 2 + 1
-    
-  def test_merge_component_without_entropy_raises_error(self):
-    ''' Verify that calling mergeComponents without defining entropy
-        raises an exception
-    '''
-    with self.assertRaises(ValueError) as context:
-      self.SS.mergeComponents(0,1)
+
 
   def test_merge_component(self):
     MSS = self.SS.copy()

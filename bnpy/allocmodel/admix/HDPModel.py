@@ -56,8 +56,8 @@ class HDPModel(AllocModel):
         
     ####################################################### Suff Stat Calc
     ####################################################### 
-    def get_global_suff_stats(self, Data, LP, 
-                            doPrecompEntropy=False, doPrecompMergeEntropy=False):
+    def get_global_suff_stats(self, Data, LP, doPrecompEntropy=False, 
+                                              doPrecompMergeEntropy=False):
         ''' Count expected number of times each topic is used across all docs    
         '''
         wv = LP['word_variational']
@@ -76,11 +76,16 @@ class HDPModel(AllocModel):
             ElogqPiConst, ElogqPiVec = self.E_logqPi_Memoized_from_LP(LP)
             SS.addPrecompELBOTerm('ElogqPiConst', ElogqPiConst)
             SS.addPrecompELBOTerm('ElogqPiVec', ElogqPiVec)
+
         if doPrecompMergeEntropy:
-            ElogpZMat, sumLogPiMat, ElogqPiMat = self.memo_elbo_terms_for_merge(LP)
+            ElogpZMat, sLgPiMat, ElogqPiMat = self.memo_elbo_terms_for_merge(LP)
             ElogqZMat = self.E_logqZ_memo_terms_for_merge(Data, LP)
+            SS.addPrecompMergeTerm('ElogpZ', ElogpZMat)
+            SS.addPrecompMergeTerm('ElogqZ', ElogqZMat)
+            SS.addPrecompMergeTerm('ElogqPiVec', ElogqPiMat)
+            SS.addPrecompMergeTerm('sumLogPi', sLgPiMat)
         return SS
-        
+
 
     ####################################################### Calc Local Params
     ####################################################### (E-step)
@@ -104,7 +109,8 @@ class HDPModel(AllocModel):
         # on the first iteration, initialize this to an empty array
         if 'DocTopicCount' not in LP:
             LP['DocTopicCount'] = np.zeros((Data.nDoc, self.K))
-        
+        else:
+            assert LP['DocTopicCount'].shape[1] == self.K
         doc_range = Data.doc_range
         word_count = Data.word_count
         prevVec = None
@@ -198,7 +204,7 @@ class HDPModel(AllocModel):
         E_logpZ = LP["DocTopicCount"] * LP["E_logPi"][:, :self.K]
         return np.sum(E_logpZ, axis=0)
     
-    def memo_elbo_terms_for_merge(self, Data, LP):
+    def memo_elbo_terms_for_merge(self, LP):
         ''' Calculate some ELBO terms for merge proposals for current batch
 
             Returns
@@ -217,16 +223,16 @@ class HDPModel(AllocModel):
         ElogqPiMat = np.zeros((self.K, self.K))
         for jj in range(self.K):
             # nDoc x M matrix, alpha_{dm} for each merge pair m with comp jj
-            mergeAlph = alph[:,jj][:np.newaxis] + alph[:, jj+1:]
+            mergeAlph = alph[:,jj][:,np.newaxis] + alph[:, jj+1:]
             # nDoc x M matrix, E[ log pi_m ] for each merge pair m with comp jj
             mergeElogPi = digamma(mergeAlph) - digammaPerDocSum
             # nDoc x M matrix, count for merged topic m each doc
-            mergeCMat = CMat[:, jj][:np.newaxis] + CMat[:, jj+1:]
+            mergeCMat = CMat[:, jj][:,np.newaxis] + CMat[:, jj+1:]
 
-            ElogpZMat[jj, jj+1:] = np.sum(mergeCMat*mergeElogPi[:,:-1], axis=0)
+            ElogpZMat[jj, jj+1:] = np.sum(mergeCMat * mergeElogPi, axis=0)
             sumLogPiMat[jj, jj+1:] = np.sum(mergeElogPi,axis=0)
 
-            ElogqPiMat[jj, jj+1:] = np.sum((mergeAlph - 1.)*mergeElogPi, axis=0) \
+            ElogqPiMat[jj, jj+1:] = np.sum((mergeAlph-1.)*mergeElogPi, axis=0) \
                                       - np.sum(gammaln(mergeAlph),axis=0)
         return ElogpZMat, sumLogPiMat, ElogqPiMat
 
@@ -238,7 +244,7 @@ class HDPModel(AllocModel):
         wv = LP['word_variational']
         wv_logwv = wv * np.log(EPS + wv)
         E_log_qZ = np.dot(Data.word_count, wv_logwv)
-        return E_log_qZ.sum(axis=0)    
+        return E_log_qZ
 
     def E_logqZ_memo_terms_for_merge(self, Data, LP):
         ''' Returns KxK matrix 

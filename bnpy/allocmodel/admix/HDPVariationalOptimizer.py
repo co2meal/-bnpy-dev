@@ -60,6 +60,8 @@ def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=2, sumLogPi=None, Pi=None, doVer
       u1 : 
       u0 : 
   '''
+  assert K + 1 == sumLogPi.size
+  assert sumLogPi.ndim == 1
   if nDoc == 0:
     initU = np.hstack( [0.1*np.ones(K), 0.1 * alpha0*np.ones(K)])
     sumLogPi = np.zeros(K+1)

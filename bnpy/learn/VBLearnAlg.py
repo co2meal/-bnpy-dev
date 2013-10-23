@@ -48,8 +48,8 @@ class VBLearnAlg( LearnAlg ):
 
       # Attempt merge move      
       if self.hasMove('merge'):
-        assert SS.hasPrecompMergeEntropy()
-        hmodel, SS, evBound = self.run_merge_move(hmodel, Data, SS, LP, evBound)
+        hmodel, SS, LP, evBound = self.run_merge_move(
+                                          hmodel, Data, SS, LP, evBound)
 
       # Save and display progress
       self.add_nObs(Data.nObsTotal)
@@ -123,12 +123,16 @@ class VBLearnAlg( LearnAlg ):
       else:
         kA = None
         
+      oldEv = hmodel.calc_evidence(SS=SS)
       hmodel, SS, evBound, MoveInfo = MergeMove.run_merge_move(
                  hmodel, Data, SS, evBound, kA=kA, randstate=self.PRNG,
                  excludeList=excludeList, **self.algParams['merge'])
+      newEv = hmodel.calc_evidence(SS=SS)
+      
       trialID += 1
       self.print_msg(MoveInfo['msg'])
       if MoveInfo['didAccept']:
+        assert newEv > oldEv
         kA = MoveInfo['kA']
         kB = MoveInfo['kB']
         # Adjust excludeList since components kB+1, kB+2, ... K
@@ -139,8 +143,15 @@ class VBLearnAlg( LearnAlg ):
         # Exclude new merged component kA from future attempts        
         #  since precomputed entropy terms involving kA aren't good
         excludeList.append(kA)
-   
-    return hmodel, SS, evBound
+
+        LPkeys = LP.keys()
+        for key in LPkeys:
+          if key in hmodel.allocModel.get_keys_for_memoized_local_params():
+            LP[key][:, kA] = LP[key][:, kA] + LP[key][:, kB]
+            LP[key] = np.delete(LP[key], kB, axis=1)
+          else:
+            del LP[key]
+    return hmodel, SS, LP, evBound
 
 
 
