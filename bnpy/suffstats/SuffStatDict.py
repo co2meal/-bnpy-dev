@@ -61,7 +61,9 @@ class SuffStatDict(object):
   def applyAmpFactor(self, ampF):
     self.__dict__['ampF'] = ampF
     for key in self.__compkeys__:
-      self.__dict__[key] *= ampF      
+      self.__dict__[key] *= ampF
+    for key in self.__scalars__:
+      self.__dict__['__scalars__'][key] *= ampF
 
   def subtractSpecificComponents(self, SSobj, compIDs):
     ''' Subtract (in-place) from specific components "compIDs" of this object
@@ -82,7 +84,10 @@ class SuffStatDict(object):
     for key in self.__compkeys__:
       arrA = self.__dict__[key]
       arrB = SSextra.__dict__[key]
-      arrC = np.insert(arrA, arrA.shape[0], arrB, axis=0)
+      if arrA.ndim == arrB.ndim:
+        arrC = np.append(arrA, arrB, axis=0)
+      else:
+        arrC = np.insert(arrA, arrA.shape[0], arrB, axis=0)
       self.__dict__[key] = arrC
       # TODO: what about compkeys that are defined as KxK
     if self.hasPrecompEntropy():      
@@ -367,6 +372,10 @@ class SuffStatDict(object):
         arrA = self.__dict__['__precompMerge__'][key]
         arrB = SSobj.__dict__['__precompMerge__'][key]
         sumSS.addPrecompMergeTerm(key, arrA + arrB)    
+    for key in self.__dict__['__scalars__']:
+      valA = self.__dict__['__scalars__'][key]
+      valB = SSobj.__dict__['__scalars__'][key]
+      sumSS.addScalar(key, valA + valB)
     return sumSS    
   
   def __sub__(self, SSobj):
@@ -395,7 +404,11 @@ class SuffStatDict(object):
       for key in self.__dict__['__precompMerge__']:
         arrA = self.__dict__['__precompMerge__'][key]
         arrB = SSobj.__dict__['__precompMerge__'][key]
-        sumSS.addPrecompMergeTerm(key, arrA - arrB)  
+        sumSS.addPrecompMergeTerm(key, arrA - arrB)
+    for key in self.__dict__['__scalars__']:
+      valA = self.__dict__['__scalars__'][key]
+      valB = SSobj.__dict__['__scalars__'][key]
+      sumSS.addScalar(key, valA - valB)
     return sumSS    
        
        

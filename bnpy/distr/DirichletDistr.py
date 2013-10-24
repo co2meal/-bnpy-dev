@@ -60,17 +60,12 @@ class DirichletDistr(object):
   
     def get_log_norm_const(self):
         ''' Returns log( Z ), where PDF(x) :=  1/Z(theta) f( x | theta )'''
-        return gammaln( self.lamsum ) - np.sum(gammaln(self.lamvec ))
-  
-    def get_log_norm_const_from_stats(self):
-        ''' Returns log( Znew ), where
-            Znew = log norm const of post distr given suff stats'''
-        pass
-    
+        return np.sum(gammaln(self.lamvec )) - gammaln( self.lamsum )
+
     def get_entropy( self ):
         ''' Returns entropy of this distribution 
           H[ p(x) ] = -1*\int p(x|theta) log p(x|theta) dx'''
-        H = -1*self.get_log_norm_const()
+        H = self.get_log_norm_const()
         H -= np.sum((self.lamvec-1)*self.Elogphi)
         return H
     

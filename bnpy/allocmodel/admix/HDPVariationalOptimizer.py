@@ -89,6 +89,10 @@ def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=2, sumLogPi=None, Pi=None, doVer
 
   bestCvec = scipy.optimize.fmin_bfgs(myFunc, np.log(initU), fprime=myGrad, disp=False)
   bestUvec = np.exp(bestCvec)
+
+  if np.allclose(bestUvec, initU):
+    print "WARNING: U estimation failed. Did not move from initial guess."
+
   bestU1 = bestUvec[:K]
   bestU0 = bestUvec[K:]
   return bestU1, bestU0

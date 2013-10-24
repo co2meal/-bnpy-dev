@@ -80,7 +80,7 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
     return curModel, SS, curEv, MoveInfo  
     
   # Select which 2 components kA, kB in {1, 2, ... K} to merge
-  if kA or kB is None:
+  if kA is None or kB is None:
     kA, kB = select_merge_components(curModel, Data, SS,
                                      kA=kA, excludeList=excludeList, 
 																		 excludePairs=excludePairs,
@@ -124,7 +124,7 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
 def select_merge_components(curModel, Data, SS, LP=None,
                             mergename='marglik', randstate=None,
                             kA=None, excludeList=[], 
-														excludePairs=defaultdict(lambda:set)):
+														excludePairs=defaultdict(lambda:set())):
   ''' Select which two existing components to merge when constructing
       a candidate "merged" model from curModel, which has K components.
       We select components kA, kB by their integer ID, in {1, 2, ... K}

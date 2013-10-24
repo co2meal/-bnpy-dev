@@ -180,7 +180,7 @@ class MultObsModel( ObsCompSet ):
         return lpw
  
     def E_log_pLambda( self ):
-        lp = self.obsPrior.get_log_norm_const()*np.ones( self.K)
+        lp = -1 * self.obsPrior.get_log_norm_const() * np.ones(self.K)
         for k in xrange( self.K):
             lp[k] += np.sum( (self.obsPrior.lamvec - 1)*self.comp[k].Elogphi )
         return lp.sum()

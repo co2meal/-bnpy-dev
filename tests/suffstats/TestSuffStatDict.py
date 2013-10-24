@@ -12,6 +12,7 @@ class TestSSK2Merge2(unittest.TestCase):
   def setUp(self):
     xxT = np.reshape( np.vstack( [np.eye(3), 3*np.eye(3)]), (2,3,3))
     self.SS = SuffStatDict(K=2, N=[10,20], xxT=xxT)
+    self.SS.nDoc = 42
     self.SS.addPrecompELBOTerm('avec', [1,2])
     self.SS.addPrecompELBOTerm('xyz', [10,20])
     self.SS.addPrecompELBOTerm('c', 4)
@@ -21,12 +22,30 @@ class TestSSK2Merge2(unittest.TestCase):
     Sboth = self.SS + self.SS
     assert np.allclose(Sboth.N, self.SS.N + self.SS.N)
     assert np.allclose(Sboth.xxT, self.SS.xxT + self.SS.xxT)
+    assert np.allclose(Sboth.nDoc, self.SS.nDoc + self.SS.nDoc)
     oldELBOconst = self.SS.getPrecompELBOTerm('c')
     newELBOconst = Sboth.getPrecompELBOTerm('c')
     assert np.allclose(2*oldELBOconst, newELBOconst)
     oldELBOvec = self.SS.getPrecompELBOTerm('avec')
     newELBOvec = Sboth.getPrecompELBOTerm('avec')
     assert np.allclose(2*oldELBOvec, newELBOvec)
+    assert Sboth.K == self.SS.K
+
+  def test_subtract(self):
+    SS2 = self.SS.copy()
+    SS2.applyAmpFactor(0.5)
+    Sboth = self.SS - SS2
+    assert np.allclose(Sboth.N, 0.5*self.SS.N)
+    assert np.allclose(Sboth.xxT, 0.5*self.SS.xxT)
+
+    assert np.allclose(Sboth.nDoc, 0.5*self.SS.nDoc)
+
+    oldELBOconst = self.SS.getPrecompELBOTerm('c')
+    newELBOconst = Sboth.getPrecompELBOTerm('c')
+    assert np.allclose(0, newELBOconst)
+    oldELBOvec = self.SS.getPrecompELBOTerm('avec')
+    newELBOvec = Sboth.getPrecompELBOTerm('avec')
+    assert np.all( np.abs(0 - newELBOvec)) < 1e-3
     assert Sboth.K == self.SS.K
 
   def test_remove_component(self):

@@ -106,46 +106,51 @@ class HDPModel(AllocModel):
                  row i has params for word i's Discrete distr over K active topics
               DocTopicCount : nDoc x K matrix
         '''
-        # on the first iteration, initialize this to an empty array
-        if 'DocTopicCount' not in LP:
-            LP['DocTopicCount'] = np.zeros((Data.nDoc, self.K))
+        # When given no previous local params LP, need to initialize from scratch
+        # Simplest thing to do is set the Dirichlet prior on each doc's topics
+        #   to the global expectated topic distribution, E[beta]
+        if 'alphaPi' not in LP:
+            LP['alphaPi'] = np.tile(self.Ebeta, (Data.nDoc,1))
+            LP = self.calc_ElogPi(LP)
         else:
-            assert LP['DocTopicCount'].shape[1] == self.K
-        doc_range = Data.doc_range
-        word_count = Data.word_count
-        prevVec = None
-      
+            assert LP['alphaPi'].shape[1] == self.K + 1
+
+        prevVec = LP['alphaPi'].flatten()
         # Repeat until converged...
         for ii in xrange(nCoordAscentIters):
-            # Update doc_variational field of LP
-            LP = self.get_doc_variational(Data, LP)
-
             # Update word_variational field of LP
             LP = self.get_word_variational(Data, LP)
         
             # Update DocTopicCount field of LP
+            LP['DocTopicCount'] = np.zeros((Data.nDoc,self.K))
             for d in xrange(Data.nDoc):
-                start,stop = doc_range[d,:]
+                start,stop = Data.doc_range[d,:]
                 LP['DocTopicCount'][d,:] = np.dot(
-                                           word_count[start:stop],        
+                                           Data.word_count[start:stop],        
                                            LP['word_variational'][start:stop,:]
                                            )
+            # Update doc_variational field of LP
+            LP = self.get_doc_variational(Data, LP)
+            LP = self.calc_ElogPi(LP)
 
             # Assess convergence 
-            curVec = LP['DocTopicCount'].flatten()
+            curVec = LP['alphaPi'].flatten()
             if prevVec is not None and np.allclose(prevVec, curVec):
                 break
             prevVec = curVec
         return LP
-    
+
+    def calc_ElogPi(self, LP):
+        alph = LP['alphaPi']
+        LP['E_logPi'] = digamma(alph) - digamma(alph.sum(axis=1))[:,np.newaxis]
+        return LP
+
     def get_doc_variational( self, Data, LP):
         ''' Update and return document-topic variational parameters
         '''
         zeroPad = np.zeros((Data.nDoc,1))
         DTCountMatZeroPadded = np.hstack([LP['DocTopicCount'], zeroPad])
-        alph = DTCountMatZeroPadded + self.gamma*self.Ebeta
-        LP['E_logPi'] = digamma(alph) - digamma(alph.sum(axis=1))[:,np.newaxis]
-        LP['alphaPi'] = alph        
+        LP['alphaPi'] = DTCountMatZeroPadded + self.gamma*self.Ebeta
         return LP
     
     def get_word_variational( self, Data, LP):
@@ -201,7 +206,8 @@ class HDPModel(AllocModel):
         ''' Returns K-length vector with E[ log p(Z) ] for each topic k
                 E[ z_dwk ] * E[ log pi_{dk} ]
         '''
-        E_logpZ = LP["DocTopicCount"] * LP["E_logPi"][:, :self.K]
+        K = LP['DocTopicCount'].shape[1]
+        E_logpZ = LP["DocTopicCount"] * LP["E_logPi"][:, :K]
         return np.sum(E_logpZ, axis=0)
     
     def memo_elbo_terms_for_merge(self, LP):
@@ -222,18 +228,24 @@ class HDPModel(AllocModel):
         sumLogPiMat = np.zeros((self.K, self.K))
         ElogqPiMat = np.zeros((self.K, self.K))
         for jj in range(self.K):
+            M = self.K - jj - 1
             # nDoc x M matrix, alpha_{dm} for each merge pair m with comp jj
             mergeAlph = alph[:,jj][:,np.newaxis] + alph[:, jj+1:]
             # nDoc x M matrix, E[ log pi_m ] for each merge pair m with comp jj
             mergeElogPi = digamma(mergeAlph) - digammaPerDocSum
+            assert mergeElogPi.shape[1] == M
             # nDoc x M matrix, count for merged topic m each doc
             mergeCMat = CMat[:, jj][:,np.newaxis] + CMat[:, jj+1:]
-
             ElogpZMat[jj, jj+1:] = np.sum(mergeCMat * mergeElogPi, axis=0)
+          
             sumLogPiMat[jj, jj+1:] = np.sum(mergeElogPi,axis=0)
 
-            ElogqPiMat[jj, jj+1:] = np.sum((mergeAlph-1.)*mergeElogPi, axis=0) \
+            curElogqPiMat = np.sum((mergeAlph-1.)*mergeElogPi, axis=0) \
                                       - np.sum(gammaln(mergeAlph),axis=0)
+            assert curElogqPiMat.size == M
+            ElogqPiMat[jj, jj+1:] = curElogqPiMat
+
+
         return ElogpZMat, sumLogPiMat, ElogqPiMat
 
     def E_logqZ( self, Data, LP):  
@@ -252,12 +264,14 @@ class HDPModel(AllocModel):
         wv = LP['word_variational']
         ElogqZMat = np.zeros((self.K, self.K))
         for jj in range(self.K):
+            J = self.K - jj - 1
             # curWV : nObs x J, resp for each data item under each merge with jj
             curWV = wv[:,jj][:,np.newaxis] + wv[:,jj+1:]
             # curRlogR : nObs x J, entropy for each data item
             curRlogR = curWV * np.log(EPS + curWV)
             # curE_logqZ : J-vector, entropy for all Data under each merge with jj
-            curE_logqZ = np.sum(np.dot(Data.word_count, curRlogR), axis=0)
+            curE_logqZ = np.dot(Data.word_count, curRlogR)
+            assert curE_logqZ.size == J
             ElogqZMat[jj,jj+1:] = curE_logqZ
         return ElogqZMat
 
@@ -271,7 +285,7 @@ class HDPModel(AllocModel):
         logDirNormC += np.sum(self.Elogv) + np.inner(kvec, self.Elog1mv)
 
         logDirPDF = np.inner(self.gamma * self.Ebeta - 1, SS.sumLogPi)
-        return SS.nDoc * logDirNormC + logDirPDF
+        return (SS.nDoc * logDirNormC) + logDirPDF
 
     def E_logqPi(self, LP):
         ''' Returns scalar value of E[ log q(PI)],
