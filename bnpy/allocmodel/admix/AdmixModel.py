@@ -216,6 +216,9 @@ class AdmixModel(AllocModel):
         '''
         self.K = SS.K
         
+    def set_global_params(self, true_K=0, **kwargs):
+        self.K = true_K
+
     #################### GET METHODS #############################
     def set_prior(self, PriorParamDict):
         self.alpha0 = PriorParamDict['alpha0']

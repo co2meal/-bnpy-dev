@@ -35,6 +35,7 @@ very different than the "true" beta
 import numpy as np
 import scipy.optimize
 from scipy.special import gammaln, digamma, polygamma
+import warnings
 
 EPS = 10*np.finfo(float).eps
 
@@ -74,7 +75,14 @@ def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=2, sumLogPi=None, Pi=None, doVer
     initU = np.hstack( [initSum*initMeanV, initSum*(1-initMeanV)])
     initU += 1 # so that it has a mode
   else:
-    # TODO: smarter init 
+    '''
+    initMeanBeta = np.exp(sumLogPi/nDoc)
+    initMeanBeta /= initMeanBeta.sum()
+    initMeanV = beta2v(initMeanBeta)
+    initSum = nDoc
+    initU = np.hstack( [initSum*initMeanV, initSum*(1-initMeanV)])
+    initU += 1 # so that it has a mode
+    '''
     initU = np.hstack( [np.ones(K), alpha0*np.ones(K)])      
   
   if doVerbose:
@@ -110,13 +118,14 @@ def objectiveFunc(Cvec, alpha0, gamma, nDoc, sumLogPi):
   ''' Calculate unconstrained objective function for HDP variational learning
   '''
   assert not np.any(np.isnan(Cvec))
+  assert not np.any(np.isinf(Cvec))
 
-  # UNPACK unconstrained input Cvec into intended params U
   Uvec = np.exp(Cvec)
+  assert not np.any(np.isinf(Uvec))
+
   K = Uvec.size/2
   U1 = Uvec[:K]
   U0 = Uvec[K:]
-
 
   # PREPARE building-block expectations
   E = calcExpectations(U1, U0)
@@ -231,8 +240,6 @@ def calcExpectations(U1, U0):
   E = dict()
   E['v'] = U1 / (U1 + U0)
   E['1mv'] = U0 / (U1 + U0)
-  assert not np.any(np.isnan(U1))
-  assert not np.any(np.isnan(U0))
   assert not np.any(np.isnan(E['v']))
 
   E['beta'] = v2beta(E['v'])

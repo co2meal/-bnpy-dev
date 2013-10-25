@@ -8,8 +8,9 @@ import numpy as np
 
 from bnpy.data import WordsData, AdmixMinibatchIterator
 
-# DEFAULT PARAMS (can be changed by cmdline args)
-Defaults = dict( nDocTotal=1000, nWordsPerDoc=100)
+Defaults = dict()
+Defaults['nDocTotal'] = 2000
+Defaults['nWordsPerDoc'] = 40
 
 # FIXED DATA GENERATION PARAMS
 K = 8 # Number of topics
@@ -27,23 +28,21 @@ true_tw[4,:] = [ 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]
 true_tw[5,:] = [ 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0]
 true_tw[6,:] = [ 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0]
 true_tw[7,:] = [ 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1]
-
 # Add "smoothing" term to each entry of the topic-word matrix
 # With V = 16 and 8 sets of bars,
 #  smoothMass=0.02 yields 0.944 probability of drawing "on topic" word
 smoothMass = 0.02
 true_tw += smoothMass
-
-# ensure that true_tw is a probability
+# Ensure each row of true_tw is a probability vector
 for k in xrange(K):
     true_tw[k,:] /= np.sum( true_tw[k,:] )
+Defaults['TopicWordProbs'] = true_tw
+
 
 # GLOBAL PROB DISTRIBUTION OVER TOPICS
-trueBeta = np.asarray([4., 3, 2, 1, 4, 3, 2, 1], dtype=np.float64)
+trueBeta = np.hstack([1.1*np.ones(K/2), np.ones(K/2)])
 trueBeta /= trueBeta.sum()
-
-Defaults['docTopicParamVec'] = gamma*trueBeta
-Defaults['TopicWordProbs'] = true_tw
+Defaults['docTopicParamVec'] = gamma * trueBeta
 
 def get_data_info(**kwargs):
     if 'nDocTotal' in kwargs:
@@ -60,7 +59,7 @@ def get_data(seed=8675309, **kwargs):
         nDocTotal
         nWordsPerDoc
     '''
-    Data = genWordsData(seed, **kwargs)
+    Data = genWordsData(seed=seed, **kwargs)
     Data.summary = get_data_info(**kwargs)
     return Data
 
@@ -73,78 +72,19 @@ def get_minibatch_iterator(seed=8675309, nBatch=10, nLap=1,
         nDocTotal
         nWordsPerDoc
     '''
-    Data = genWordsData(seed, **kwargs)
+    Data = genWordsData(seed=seed, **kwargs)
     DataIterator = AdmixMinibatchIterator(Data, 
                         nBatch=nBatch, nLap=nLap, dataorderseed=dataorderseed)
     DataIterator.summary = get_data_info(**kwargs)
     return DataIterator
 
-def genWordsData(seed=0, nDocTotal=None, nWordsPerDoc=None, 
-                      docTopicParamVec=None, TopicWordProbs=None,
-                      **kwargs):
-    ''' Generates toy bars dataset using defined global structure.
-    '''
-    if nDocTotal is None:
-      nDocTotal = Defaults['nDocTotal']
-    if nWordsPerDoc is None:
-      nWordsPerDoc = Defaults['nWordsPerDoc']
-    if docTopicParamVec is None:
-      docTopicParamVec = Defaults['docTopicParamVec']
-    if TopicWordProbs is None:
-      TopicWordProbs = Defaults['TopicWordProbs']
-
-    K = TopicWordProbs.shape[0]
-    V = TopicWordProbs.shape[1]
-
-    PRNG = np.random.RandomState( seed )
-    doc_range = np.zeros((nDocTotal, 2))
-
-    # true document x topic proportions
-    true_td = np.zeros((K,nDocTotal)) 
-    
-    wordIDsPerDoc = list()
-    wordCountsPerDoc = list()
-
-    # counter for tracking the start index for current document 
-    #  within the corpus-wide word lists
-    startPos = 0
-    for d in xrange(nDocTotal):
-        true_td[:,d] = PRNG.dirichlet(docTopicParamVec) 
-        Npercomp = PRNG.multinomial(nWordsPerDoc, true_td[:,d])
-
-        # wordCountBins: V x 1 vector
-        #   entry v counts # times vocab word v appears in current doc
-        wordCountBins = np.zeros(V)
-        for k in xrange(K):
-            wordCountBins += PRNG.multinomial(Npercomp[k], TopicWordProbs[k,:])
-
-        wIDs = np.flatnonzero(wordCountBins > 0)
-        wCounts = wordCountBins[wIDs]
-        assert np.allclose( wCounts.sum(), nWordsPerDoc)
-        
-        wordIDsPerDoc.append(wIDs)
-        wordCountsPerDoc.append(wCounts)
-
-        #start and stop ids for documents
-        doc_range[d,0] = startPos
-        doc_range[d,1] = startPos + wIDs.size  
-        startPos += wIDs.size
-    
-    word_id = np.hstack(wordIDsPerDoc)
-    word_count = np.hstack(wordCountsPerDoc)
-
-    #Insert all important stuff in myDict
-    myDict = dict(true_K=K, true_beta=trueBeta,
-                  true_tw=true_tw, true_td=true_td,
-                  )
-    # Necessary items
-    myDict["doc_range"] = doc_range
-    myDict["word_id"] = word_id
-    myDict["word_count"] = word_count
-    myDict["vocab_size"] = V
-    return WordsData(**myDict)
+def genWordsData(**kwargs):
+  for key in Defaults:
+    if key not in kwargs:
+      kwargs[key] = Defaults[key]
+  return WordsData.genToyData(**kwargs)
 
 if __name__ == '__main__':
   import bnpy.viz.BarsViz
-  WData = genWordsData(1234)
+  WData = genWordsData(seed=1234)
   bnpy.viz.BarsViz.plotExampleBarsDocs(WData)

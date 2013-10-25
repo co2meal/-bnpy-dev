@@ -46,6 +46,14 @@ class MultObsModel( ObsCompSet ):
         else:
             return '\n'.join( [np2flatstr(self.obsPrior[k].lamvec/self.obsPrior[k].lamsum, fmtStr) for k in xrange(self.K)] )
 
+    def set_global_params(self, true_tw=None, mass=100, **kwargs):
+        ''' Set global params to provided values
+        '''
+        self.K = true_tw.shape[0]
+        self.comp = list()
+        for k in range(self.K):
+          self.comp.append(DirichletDistr(mass * true_tw[k,:]))
+
     def get_global_suff_stats(self, Data, SS, LP, **kwargs):
         ''' Calculate and return sufficient statistics.
 

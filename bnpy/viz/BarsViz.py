@@ -32,8 +32,14 @@ def plotExampleBarsDocs(Data, docIDsToPlot=None, nDocToPlot=9, doShowNow=True):
     if doShowNow:
       pylab.show()
 
-def plotBarsFromHModel(hmodel, Data=None, doShowNow=True, width=12, height=3):
-    pylab.figure(figsize=(width,height))
+def plotBarsFromHModel(hmodel, Data=None, doShowNow=True, figH=None,
+                               compsToHighlight=None, width=12, height=3):
+    if Data is None:
+        width = width/2
+    if figH is None:
+      pylab.figure(figsize=(width,height))
+    else:
+      pylab.axes(figH)
     K = hmodel.allocModel.K
     VocabSize = hmodel.obsModel.comp[0].lamvec.size
     learned_tw = np.zeros( (K, VocabSize) )
@@ -55,5 +61,8 @@ def plotBarsFromHModel(hmodel, Data=None, doShowNow=True, width=12, height=3):
         pylab.imshow(learned_tw, interpolation="nearest", cmap="bone")
         pylab.colorbar
         pylab.title('Learned Topic x Word')
-    if doShowNow:
+    if compsToHighlight is not None:
+        ks = np.asarray(compsToHighlight)
+        pylab.yticks( ks, ['**** %d' % (k) for k in ks])
+    if doShowNow and figH is None:
       pylab.show()

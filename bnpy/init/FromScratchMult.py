@@ -4,6 +4,7 @@ FromScratchMult.py
 Initialize params of HModel with multinomial observations from scratch.
 '''
 import numpy as np
+from scipy.special import digamma
 
 def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwargs):
     
@@ -58,3 +59,23 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
 
     SS = hmodel.get_global_suff_stats(Data, LP)
     hmodel.update_global_params(SS)
+
+def getLPfromResp(Resp, Data, smoothMass=0.01):
+    D = Data.nDoc
+    K = Resp.shape[1]
+    # DocTopicCount matrix : D x K matrix
+    DocTopicC = np.zeros((D, K))
+    for dd in range(D):
+      start,stop = Data.doc_range[dd,:]
+      DocTopicC[dd,:] = np.dot(Data.word_count[start:stop],        
+                               Resp[start:stop,:]
+                               )
+    assert np.allclose(DocTopicC.sum(), Data.word_count.sum())
+    # Alpha and ElogPi : D x K+1 matrices
+    padCol = smoothMass * np.ones((D,1))
+    alph = np.hstack( [DocTopicC + smoothMass, padCol])    
+    ElogPi = digamma(alph) - digamma(alph.sum(axis=1))[:,np.newaxis]
+    assert ElogPi.shape == (D,K+1)
+    return dict(word_variational =Resp, 
+              E_logPi=ElogPi, alphaPi=alph,
+              DocTopicCount=DocTopicC)

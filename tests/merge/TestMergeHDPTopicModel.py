@@ -13,7 +13,7 @@ from bnpy.learn import MergeMove
 from scipy.special import digamma
 import copy
 
-class TestMergeHDP(object):
+class TestMergeHDP(unittest.testcase):
   def shortDescription(self):
     return None
 

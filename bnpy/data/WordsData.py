@@ -124,8 +124,8 @@ class WordsData(DataObj):
         return cls(**InDict)
 
     def __init__(self, word_id=None, word_count=None, doc_range=None,
-                 vocab_size=0, vocab_dict=None, 
-                 true_tw=None, true_td=None, true_K=None, 
+                 vocab_size=0, vocab_dict=None, true_t=None,
+                 true_tw=None, true_td=None, true_K=None, true_resp=None,
                  nDoc=None, nDocTotal=None, nObs=None,
                  nObsTotal=None, db_pull=False, dbpath=None, **kwargs):
         ''' Constructor for WordsData
@@ -151,11 +151,13 @@ class WordsData(DataObj):
         
         # Save "true" parameters from toy-data
         if true_tw is not None:
-
             self.true_tw = true_tw
             self.true_td = true_td
             self.true_K = true_K
-        
+        if true_resp is not None:
+            self.true_resp = true_resp
+        if true_t is not None:
+            self.true_t = true_t
         # Add dictionary of vocab words, if provided
         if vocab_dict is not None:
             self.vocab_dict = vocab_dict
@@ -240,11 +242,6 @@ class WordsData(DataObj):
         myDict["nObs"] = int(subset_size)
         myDict["vocab_size"] = self.vocab_size
         
-        if hasattr(self,'true_tw'):
-            myDict["true_tw"] = self.true_tw
-            myDict["true_td"] = self.true_td
-            myDict["true_K"] = self.true_K
-        
         return WordsData(**myDict)
 
     @classmethod
@@ -253,7 +250,6 @@ class WordsData(DataObj):
                       **kwargs):
         ''' Generates toy dataset using defined global structure.
         '''
-
         TopicWordProbs /= TopicWordProbs.sum(axis=1)[:,np.newaxis]
 
         K = TopicWordProbs.shape[0]
@@ -267,6 +263,7 @@ class WordsData(DataObj):
     
         wordIDsPerDoc = list()
         wordCountsPerDoc = list()
+        respPerDoc = list()
 
         # counter for tracking the start index for current document 
         #  within the corpus-wide word lists
@@ -285,8 +282,11 @@ class WordsData(DataObj):
             wCounts = wordCountBins[wIDs]
             assert np.allclose( wCounts.sum(), nWordsPerDoc)
         
+            curResp = (TopicWordProbs[:, wIDs] * true_td[:,d][:,np.newaxis]).T
+          
             wordIDsPerDoc.append(wIDs)
             wordCountsPerDoc.append(wCounts)
+            respPerDoc.append(curResp)
 
             #start and stop ids for documents
             doc_range[d,0] = startPos
@@ -295,12 +295,17 @@ class WordsData(DataObj):
     
         word_id = np.hstack(wordIDsPerDoc)
         word_count = np.hstack(wordCountsPerDoc)
+        assert respPerDoc[0].shape[1] == K
+        assert respPerDoc[1].shape[1] == K
+
+        true_resp = np.vstack(respPerDoc)
+        true_resp /= true_resp.sum(axis=1)[:,np.newaxis]
 
         #Insert all important stuff in myDict
-        myDict = dict(true_K=K, true_beta=docTopicParamVec,
+        myDict = dict(true_K=K, true_t=docTopicParamVec,
                   true_tw=TopicWordProbs, true_td=true_td,
+                  true_resp=true_resp,
                   )
-        # Necessary items
         myDict["doc_range"] = doc_range
         myDict["word_id"] = word_id
         myDict["word_count"] = word_count

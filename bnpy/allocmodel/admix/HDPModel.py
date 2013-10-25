@@ -103,18 +103,17 @@ class HDPModel(AllocModel):
               Pi : nDoc x K+1 matrix, 
                  row d has params for doc d's Dirichlet over K+1 topics
               word_variational : nDistinctWords x K matrix
-                 row i has params for word i's Discrete distr over K active topics
+                 row i has params for word i's Discrete distr over K topics
               DocTopicCount : nDoc x K matrix
         '''
-        # When given no previous local params LP, need to initialize from scratch
-        # Simplest thing to do is set the Dirichlet prior on each doc's topics
-        #   to the global expectated topic distribution, E[beta]
+        # When given no prev. local params LP, need to initialize from scratch
+        # this forces likelihood to drive the first round of local assignments
         if 'alphaPi' not in LP:
-            LP['alphaPi'] = np.tile(self.Ebeta, (Data.nDoc,1))
-            LP = self.calc_ElogPi(LP)
+            LP['alphaPi'] = np.ones((Data.nDoc,self.K+1))
         else:
             assert LP['alphaPi'].shape[1] == self.K + 1
 
+        LP = self.calc_ElogPi(LP)
         prevVec = LP['alphaPi'].flatten()
         # Repeat until converged...
         for ii in xrange(nCoordAscentIters):
@@ -136,6 +135,7 @@ class HDPModel(AllocModel):
             # Assess convergence 
             curVec = LP['alphaPi'].flatten()
             if prevVec is not None and np.allclose(prevVec, curVec):
+                print "converged after %d" % (ii)
                 break
             prevVec = curVec
         return LP
@@ -149,8 +149,8 @@ class HDPModel(AllocModel):
         ''' Update and return document-topic variational parameters
         '''
         zeroPad = np.zeros((Data.nDoc,1))
-        DTCountMatZeroPadded = np.hstack([LP['DocTopicCount'], zeroPad])
-        LP['alphaPi'] = DTCountMatZeroPadded + self.gamma*self.Ebeta
+        DTCountMatZeroPad = np.hstack([LP['DocTopicCount'], zeroPad])
+        LP['alphaPi'] = DTCountMatZeroPad + self.gamma*self.Ebeta
         return LP
     
     def get_word_variational( self, Data, LP):
@@ -345,6 +345,19 @@ class HDPModel(AllocModel):
         self.U0 = rho * U0 + (1-rho) * self.U0
         self.set_helper_params()
 
+    def set_global_params(self, true_t=None, **kwargs):
+        if true_t is not None:
+          beta = np.hstack([true_t, np.min(true_t)/10.0])
+          beta = beta/np.sum(beta)
+          vMean = HVO.beta2v(beta)
+          vMass = 100
+          self.U1 = vMass * vMean
+          self.U0 = vMass * (1-vMean)
+          self.set_helper_params()
+          self.K = vMean.size
+        else:
+          raise ValueError('Bad parameters')          
+
     #################### GET METHODS #############################
     def set_prior(self, PriorParamDict):
         self.alpha0 = PriorParamDict['alpha0']
@@ -372,7 +385,7 @@ class HDPModel(AllocModel):
         ''' Return list of string names of the LP fields
             that moVB needs to memoize across visits to a particular batch
         '''
-        return ['DocTopicCount']
+        return ['alphaPi']
 
     def is_nonparametric(self):
         return True
