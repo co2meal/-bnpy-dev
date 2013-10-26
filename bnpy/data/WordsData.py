@@ -58,6 +58,7 @@ from collections import defaultdict
 import numpy as np
 import scipy.sparse
 import sqlite3
+from ..util import RandUtil
 
 class WordsData(DataObj):
 
@@ -250,17 +251,16 @@ class WordsData(DataObj):
                       **kwargs):
         ''' Generates toy dataset using defined global structure.
         '''
+        PRNG = np.random.RandomState(seed)
         TopicWordProbs /= TopicWordProbs.sum(axis=1)[:,np.newaxis]
 
         K = TopicWordProbs.shape[0]
         V = TopicWordProbs.shape[1]
 
-        PRNG = np.random.RandomState( seed )
-        doc_range = np.zeros((nDocTotal, 2))
-
         # true document x topic proportions
         true_td = np.zeros((K,nDocTotal)) 
     
+        doc_range = np.zeros((nDocTotal, 2))
         wordIDsPerDoc = list()
         wordCountsPerDoc = list()
         respPerDoc = list()
@@ -270,13 +270,13 @@ class WordsData(DataObj):
         startPos = 0
         for d in xrange(nDocTotal):
             true_td[:,d] = PRNG.dirichlet(docTopicParamVec) 
-            Npercomp = PRNG.multinomial(nWordsPerDoc, true_td[:,d])
+            Npercomp = RandUtil.multinomial(nWordsPerDoc, true_td[:,d], PRNG)
 
             # wordCountBins: V x 1 vector
             #   entry v counts # times vocab word v appears in current doc
             wordCountBins = np.zeros(V)
             for k in xrange(K):
-                wordCountBins += PRNG.multinomial(Npercomp[k], TopicWordProbs[k,:])
+                wordCountBins += RandUtil.multinomial(Npercomp[k], TopicWordProbs[k,:], PRNG)
 
             wIDs = np.flatnonzero(wordCountBins > 0)
             wCounts = wordCountBins[wIDs]

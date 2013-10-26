@@ -99,7 +99,7 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
     if (evBound > bestEvBound):
       bestModel = hmodel
       bestLP = LP
-      bestEvBound = evBound                  
+      bestEvBound = evBound
   return bestModel, bestLP, bestEvBound
 
 ############################################################### RUN SINGLE TASK 

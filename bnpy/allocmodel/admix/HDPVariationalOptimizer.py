@@ -18,7 +18,7 @@ Then deterministically obtain beta
   beta[k] = v[k] prod(1 - v[:k])
 
 Generate each document-level distribution
-for d in [1, 2, ... d ... nDoc]: 
+for d in [1, 2, ... d ... nDoc]:
   pi[d] ~ Dirichlet_{K+1}( gamma * beta )
 
 Notes
@@ -95,7 +95,8 @@ def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=2, sumLogPi=None, Pi=None, doVer
   myFunc = lambda Cvec: objectiveFunc(Cvec, alpha0, gamma, nDoc, sumLogPi)
   myGrad = lambda Cvec: objectiveGradient(Cvec, alpha0, gamma, nDoc, sumLogPi)
 
-  bestCvec = scipy.optimize.fmin_bfgs(myFunc, np.log(initU), fprime=myGrad, disp=False)
+  bestCvec, bestf, Info = scipy.optimize.fmin_l_bfgs_b(myFunc, np.log(initU), fprime=myGrad, disp=None)
+  #bestCvec = scipy.optimize.fmin_bfgs(myFunc, np.log(initU), fprime=myGrad, disp=None)
   bestUvec = np.exp(bestCvec)
 
   if np.allclose(bestUvec, initU):

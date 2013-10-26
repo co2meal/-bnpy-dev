@@ -119,12 +119,10 @@ class MultObsModel( ObsCompSet ):
                                 entry n,k gives E log p( word n | topic k)
         '''
 
-        # Obtain matrix where row k = E[ log phi[k] ], for easier indexing
-        Elogphi = self.getElogphiMatrix()
-        
-        E_logsoftev_words = np.empty((Data.nObs, self.K))
-        for ii in xrange( Data.nObs ):
-            E_logsoftev_words[ii,:] = Elogphi[:, Data.word_id[ii]]
+        # Obtain matrix where col k = E[ log phi[k] ], for easier indexing
+        Elogphi = self.getElogphiMatrix().T.copy()
+        E_logsoftev_words = Elogphi[Data.word_id, :]
+
         return E_logsoftev_words
   
     def getElogphiMatrix(self):
@@ -156,7 +154,7 @@ class MultObsModel( ObsCompSet ):
             NOTE: ampFactor has already been applied to SS.WordCounts!
         '''
         Elogphi = self.getElogphiMatrix()
-        lpw = np.sum( SS.WordCounts * Elogphi )
+        lpw = np.sum(SS.WordCounts * Elogphi)
         return lpw
 
     def E_log_pW_matrixproduct(self, Data, LP, SS):
@@ -166,7 +164,6 @@ class MultObsModel( ObsCompSet ):
         # Obtain matrix where column k = E[ log phi[k] ], for easier indexing
         Elogphi = self.getElogphiMatrix().T
 
-        wid = np.int32(Data.word_id)
         lpw = np.sum(Elogphi[wid,:] * LP['word_variational'], axis=1)
         lpw = np.inner(lpw, Data.word_count)
         if SS.hasAmpFactor():
@@ -187,16 +184,16 @@ class MultObsModel( ObsCompSet ):
             lpw += Data.word_count[ii] * np.dot(LP["word_variational"][ii,:] ,Elambda_kw[:, Data.word_id[ii]]) 
         return lpw
  
-    def E_log_pLambda( self ):
+    def E_log_pLambda(self):
         lp = -1 * self.obsPrior.get_log_norm_const() * np.ones(self.K)
-        for k in xrange( self.K):
-            lp[k] += np.sum( (self.obsPrior.lamvec - 1)*self.comp[k].Elogphi )
+        for k in xrange(self.K):
+            lp[k] += np.sum((self.obsPrior.lamvec - 1)*self.comp[k].Elogphi)
         return lp.sum()
   
-    def E_log_qLambda( self ):
+    def E_log_qLambda(self):
         ''' Return negative entropy!'''    
-        lp = np.zeros( self.K)
-        for k in xrange( self.K):
+        lp = np.zeros(self.K)
+        for k in xrange(self.K):
             lp[k] = self.comp[k].get_entropy()
         return -1*lp.sum()
 

@@ -9,7 +9,7 @@ These are provided within a Data object, as a "TrueLabels" field
 import numpy as np
 import FromScratchMult
 
-def init_global_params(hmodel, Data, initname=None, seed=0, nRep=2, **kwargs):
+def init_global_params(hmodel, Data, initname=None, seed=0, nRepeatTrue=2, **kwargs):
   ''' Initialize (in-place) the global params of the given hmodel
       using the true labels associated with the Data
 
@@ -33,10 +33,10 @@ def init_global_params(hmodel, Data, initname=None, seed=0, nRep=2, **kwargs):
       resp = Data.true_resp  
     Ktrue = resp.shape[1]
     rowIDs = PRNG.permutation(Data.nObs)
-    L = len(rowIDs)/nRep
-    bigResp = np.zeros((Data.nObs, Ktrue*nRep))
+    L = len(rowIDs)/nRepeatTrue
+    bigResp = np.zeros((Data.nObs, Ktrue*nRepeatTrue))
     curLoc = 0
-    for r in range(nRep):
+    for r in range(nRepeatTrue):
       targetIDs = rowIDs[curLoc:curLoc+L]
       bigResp[targetIDs, r*Ktrue:(r+1)*Ktrue] = resp[targetIDs,:]
       curLoc += L

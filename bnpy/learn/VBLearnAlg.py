@@ -15,6 +15,7 @@ For more info, see the documentation [TODO]
 '''
 from IPython import embed
 import numpy as np
+from collections import defaultdict
 from bnpy.learn import LearnAlg
 
 class VBLearnAlg( LearnAlg ):
@@ -24,6 +25,8 @@ class VBLearnAlg( LearnAlg ):
     self.BirthLog = list()
     
   def fit( self, hmodel, Data ):
+    # memoLPkeys : list of keys for LP that should be retained across laps
+    self.memoLPkeys = hmodel.allocModel.get_keys_for_memoized_local_params()
     self.set_start_time_now()
     prevBound = -np.inf
     LP = None
@@ -45,6 +48,9 @@ class VBLearnAlg( LearnAlg ):
 
       # ELBO calculation
       evBound = hmodel.calc_evidence(Data, SS, LP)
+      if self.hasMove('merge'):
+        evBound2 = hmodel.calc_evidence(SS=SS)
+        assert np.allclose(evBound,evBound2)
 
       # Attempt merge move      
       if self.hasMove('merge'):
@@ -109,10 +115,24 @@ class VBLearnAlg( LearnAlg ):
     ''' 
     import MergeMove
     excludeList = list()
-    
+    excludePairs = defaultdict(lambda:set())    
     nMergeAttempts = self.algParams['merge']['mergePerLap']
     trialID = 0
     while trialID < nMergeAttempts:
+
+      # Synchronize contents of the excludeList and excludePairs
+      # So that comp excluded in excludeList (due to accepted merge)
+      #  is automatically contained in the set of excluded pairs 
+      for kx in excludeList:
+        for kk in excludePairs:
+          excludePairs[kk].add(kx)
+          excludePairs[kx].add(kk)
+
+      for kk in excludePairs:
+        if len(excludePairs[kk]) > hmodel.obsModel.K - 2:
+          if kk not in excludeList:
+            excludeList.append(kk)
+
       if len(excludeList) > hmodel.obsModel.K - 2:
         break # when we don't have any more comps to merge
         
@@ -126,11 +146,18 @@ class VBLearnAlg( LearnAlg ):
       oldEv = hmodel.calc_evidence(SS=SS)
       hmodel, SS, evBound, MoveInfo = MergeMove.run_merge_move(
                  hmodel, Data, SS, evBound, kA=kA, randstate=self.PRNG,
-                 excludeList=excludeList, **self.algParams['merge'])
+                 excludeList=excludeList, excludePairs=excludePairs,
+                  **self.algParams['merge'])
       newEv = hmodel.calc_evidence(SS=SS)
       
       trialID += 1
       self.print_msg(MoveInfo['msg'])
+      if 'kA' in MoveInfo and 'kB' in MoveInfo:
+        kA = MoveInfo['kA']
+        kB = MoveInfo['kB']
+        excludePairs[kA].add(kB)
+        excludePairs[kB].add(kA)
+
       if MoveInfo['didAccept']:
         assert newEv > oldEv
         kA = MoveInfo['kA']
@@ -144,9 +171,21 @@ class VBLearnAlg( LearnAlg ):
         #  since precomputed entropy terms involving kA aren't good
         excludeList.append(kA)
 
+        # Adjust excluded pairs to remove kB and shift down kB+1, ... K
+        newExcludePairs = defaultdict(lambda:set())
+        for kk in excludePairs.keys():
+          ksarr = np.asarray(list(excludePairs[kk]))
+          ksarr[ksarr > kB] -= 1
+          if kk > kB:
+            newExcludePairs[kk-1] = set(ksarr)
+          elif kk < kB:
+            newExcludePairs[kk] = set(ksarr)
+        excludePairs = newExcludePairs
+
+        # Update LP to reflect this merge!
         LPkeys = LP.keys()
         for key in LPkeys:
-          if key in hmodel.allocModel.get_keys_for_memoized_local_params():
+          if key in self.memoLPkeys:
             LP[key][:, kA] = LP[key][:, kA] + LP[key][:, kB]
             LP[key] = np.delete(LP[key], kB, axis=1)
           else:

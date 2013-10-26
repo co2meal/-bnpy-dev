@@ -30,12 +30,13 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
   def fit(self, hmodel, DataIterator):
     ''' fit hmodel to the provided dataset in DataIterator
     '''
+    # memoLPkeys : list of keys for LP that should be retained across laps
+    self.memoLPkeys = hmodel.allocModel.get_keys_for_memoized_local_params()
     self.set_start_time_now()
     prevBound = -np.inf
     self.lapFracInc = DataIterator.nObsBatch / float(DataIterator.nObsTotal)
     iterid = -1
     lapFrac = 0
-    keyListLP = hmodel.allocModel.get_keys_for_memoized_local_params()
     while DataIterator.has_next_batch():
       # Grab new data and update counts
       Dchunk = DataIterator.get_next_batch()
@@ -81,7 +82,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         if 'N' in SS.__compkeys__ and np.any(SS.N < 0):        
           SS.N[SS.N < 0] = 0
 
-      self.save_batch_local_params_to_memory(batchID, LPchunk, keyListLP)          
+      self.save_batch_local_params_to_memory(batchID, LPchunk)          
       self.save_batch_suff_stat_to_memory(batchID, SSchunk)  
 
       # ELBO calc
@@ -135,11 +136,17 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         kA = MInfo['kA']
         kB = MInfo['kB']
         SSchunk.mergeComponents(kA, kB)
+      # After any accepted merges are done
+      if SSchunk.hasPrecompMergeEntropy():
         SSchunk.setToZeroPrecompMergeEntropy()
+      elif SSchunk.hasPrecompMerge():
+        SSchunk.setToZeroAllPrecompMergeTerms()
     return SSchunk  
 
   def load_batch_local_params_from_memory(self, batchID):
     ''' Load local parameter dict stored in memory for provided batchID
+        Ensures "fast-forward" so that all recent merges/births
+          are accounted for in the returned LP
         Returns
         -------
         LPchunk : bnpy local parameters dictionary for batchID
@@ -148,7 +155,13 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     if self.hasMove('birth') and LPchunk is not None:
       raise NotImplementedError('TODO')
     if self.hasMove('merge') and LPchunk is not None:
-      raise NotImplementedError('TODO')
+      for MInfo in self.MergeLog:
+        kA = MInfo['kA']
+        kB = MInfo['kB']
+        for key in self.memoLPkeys:
+          LPchunk[key][:,kA] = LPchunk[key][:,kA] + LPchunk[key][:,kB]
+          LPchunk[key] = np.delete(LPchunk[key], kB, axis=1)
+          
     return LPchunk
 
   ######################################################### Save to memory
@@ -158,13 +171,14 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     '''
     self.SSmemory[batchID] = SSchunk
 
-  def save_batch_local_params_to_memory(self, batchID, LPchunk, memoKeySet):
+  def save_batch_local_params_to_memory(self, batchID, LPchunk):
     ''' Store certain fields of the provided local parameters dict
           into "memory" for later retrieval.
+        Fields to save determined by the memoLPkeys attribute of this alg.
     '''
     allkeys = LPchunk.keys()
     for key in allkeys:
-      if key not in memoKeySet:
+      if key not in self.memoLPkeys:
         del LPchunk[key]
     if len(LPchunk.keys()) > 0:
       self.LPmemory[batchID] = LPchunk
@@ -338,8 +352,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
                  excludeList=excludeList, excludePairs=excludePairs,
                  kA=kA, **self.algParams['merge'])
       trialID += 1
-      if MoveInfo['didAccept']:
-        self.print_msg(MoveInfo['msg'])
+      self.print_msg(MoveInfo['msg'])
 
       # Begin Bookkeeping!
       if 'kA' in MoveInfo and 'kB' in MoveInfo:
@@ -385,5 +398,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
               newDict[kk-1] = self.LapsSinceLastBirth[kk]
           self.LapsSinceLastBirth = newDict
 
-    SS.setToZeroPrecompMergeEntropy()
+    if SS.hasPrecompMergeEntropy():
+      SS.setToZeroPrecompMergeEntropy()
+    elif SS.hasPrecompMerge():
+      SS.setToZeroAllPrecompMergeTerms()
     return hmodel, SS, evBound

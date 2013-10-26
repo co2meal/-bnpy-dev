@@ -70,7 +70,6 @@ def getLPfromResp(Resp, Data, smoothMass=0.01):
       DocTopicC[dd,:] = np.dot(Data.word_count[start:stop],        
                                Resp[start:stop,:]
                                )
-    assert np.allclose(DocTopicC.sum(), Data.word_count.sum())
     # Alpha and ElogPi : D x K+1 matrices
     padCol = smoothMass * np.ones((D,1))
     alph = np.hstack( [DocTopicC + smoothMass, padCol])    

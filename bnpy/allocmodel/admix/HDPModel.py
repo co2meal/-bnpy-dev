@@ -26,8 +26,6 @@ Global Parameters (shared across all documents)
 U1, U0   : K-length vectors, params for variational distribution over 
            stickbreaking fractions v1, v2, ... vK
             q(v[k]) ~ Beta(U1[k], U0[k])
-
-
 '''
 import numpy as np
 
@@ -180,7 +178,6 @@ class HDPModel(AllocModel):
         E_logqV = self.E_logqV()
      
         E_logpPi = self.E_logpPi(SS)
-
         if SS.hasPrecompELBO():
           E_logqPi = SS.getPrecompELBOTerm('ElogqPiConst') \
                       + np.sum(SS.getPrecompELBOTerm('ElogqPiVec'))
@@ -196,9 +193,9 @@ class HDPModel(AllocModel):
             E_logpZ *= SS.ampF
             E_logqZ *= SS.ampF
 
-        elbo = (E_logpPi - E_logqPi) \
-               + (E_logpZ - E_logqZ) \
-               + (E_logpV - E_logqV)
+        elbo = E_logpPi - E_logqPi \
+               + E_logpZ - E_logqZ \
+               + E_logpV - E_logqV
         return elbo
 
     ####################################################### ELBO terms for Z
@@ -209,7 +206,86 @@ class HDPModel(AllocModel):
         K = LP['DocTopicCount'].shape[1]
         E_logpZ = LP["DocTopicCount"] * LP["E_logPi"][:, :K]
         return np.sum(E_logpZ, axis=0)
-    
+
+    def E_logqZ( self, Data, LP):  
+        ''' Returns K-length vector with E[ log q(Z) ] for each topic k
+                r_{dwk} * E[ log r_{dwk} ]
+            where z_{dw} ~ Discrete( r_dw1 , r_dw2, ... r_dwK )
+        '''
+        wv = LP['word_variational']
+        wv_logwv = wv * np.log(EPS + wv)
+        E_log_qZ = np.dot(Data.word_count, wv_logwv)
+        return E_log_qZ
+
+    def E_logqZ_memo_terms_for_merge(self, Data, LP):
+        ''' Returns KxK matrix 
+        ''' 
+        wv = LP['word_variational']
+        ElogqZMat = np.zeros((self.K, self.K))
+        for jj in range(self.K):
+            J = self.K - jj - 1
+            # curWV : nObs x J, resp for each data item under each merge with jj
+            curWV = wv[:,jj][:,np.newaxis] + wv[:,jj+1:]
+            # curRlogR : nObs x J, entropy for each data item
+            curRlogR = curWV * np.log(EPS + curWV)
+            # curE_logqZ : J-vector, entropy for Data under each merge with jj
+            curE_logqZ = np.dot(Data.word_count, curRlogR)
+            assert curE_logqZ.size == J
+            ElogqZMat[jj,jj+1:] = curE_logqZ
+        return ElogqZMat
+
+    ####################################################### ELBO terms for Pi
+    def E_logpPi(self, SS):
+        ''' Returns scalar value of E[ log p(PI | alpha0)]
+        '''
+        K = SS.K
+        kvec = K + 1 - np.arange(1, K+1)
+        # logDirNormC : scalar norm const that applies to each iid draw pi_d
+        logDirNormC = gammaln(self.gamma) + (K+1) * np.log(self.gamma)
+        logDirNormC += np.sum(self.Elogv) + np.inner(kvec, self.Elog1mv)
+        # logDirPDF : scalar sum over all doc's pi_d
+        logDirPDF = np.inner(self.gamma * self.Ebeta - 1., SS.sumLogPi)
+        return (SS.nDoc * logDirNormC) + logDirPDF
+
+    def E_logqPi(self, LP):
+        ''' Returns scalar value of E[ log q(PI)],
+              calculated directly from local param dict LP
+        '''
+        alph = LP['alphaPi']
+        # logDirNormC : nDoc -len vector    
+        logDirNormC = gammaln(alph.sum(axis=1)) - np.sum(gammaln(alph), axis=1)
+        logDirPDF = np.sum((alph - 1.) * LP['E_logPi'])
+        return np.sum(logDirNormC) + logDirPDF
+
+    def E_logqPi_Memoized_from_LP(self, LP):
+        ''' Returns pair of values, 
+                one scalar, one vector (length K+1)
+                whose sum is equal to E[log q(PI)]
+            when added to other results of this function from different batches,
+                the sum is equal to E[log q(PI)] of the entire dataset
+        '''
+        alph = LP['alphaPi']
+        logDirNormC = np.sum(gammaln(alph.sum(axis=1)))
+        piEntropyVec = np.sum((alph - 1.) * LP['E_logPi'], axis=0) \
+                     - np.sum(gammaln(alph),axis=0)
+        return logDirNormC, piEntropyVec
+
+
+    ####################################################### ELBO terms for V
+    def E_logpV(self):
+        logBetaNormC = gammaln(self.alpha0 + 1.) \
+                       - gammaln(self.alpha0)
+        logBetaPDF = (self.alpha0-1.) * np.sum(self.Elog1mv)
+        return self.K*logBetaNormC + logBetaPDF
+
+    def E_logqV(self):
+        logBetaNormC = gammaln(self.U1 + self.U0) \
+                       - gammaln(self.U0) - gammaln(self.U1)
+        logBetaPDF = np.inner(self.U1 - 1., self.Elogv) \
+                     + np.inner(self.U0 - 1., self.Elog1mv)
+        return np.sum(logBetaNormC) + logBetaPDF
+
+    ####################################################### ELBO terms merge
     def memo_elbo_terms_for_merge(self, LP):
         ''' Calculate some ELBO terms for merge proposals for current batch
 
@@ -245,84 +321,7 @@ class HDPModel(AllocModel):
             assert curElogqPiMat.size == M
             ElogqPiMat[jj, jj+1:] = curElogqPiMat
 
-
         return ElogpZMat, sumLogPiMat, ElogqPiMat
-
-    def E_logqZ( self, Data, LP):  
-        ''' Returns K-length vector with E[ log q(Z) ] for each topic k
-                r_{dwk} * E[ log r_{dwk} ]
-            where z_{dw} ~ Discrete( r_dw1 , r_dw2, ... r_dwK )
-        '''
-        wv = LP['word_variational']
-        wv_logwv = wv * np.log(EPS + wv)
-        E_log_qZ = np.dot(Data.word_count, wv_logwv)
-        return E_log_qZ
-
-    def E_logqZ_memo_terms_for_merge(self, Data, LP):
-        ''' Returns KxK matrix 
-        ''' 
-        wv = LP['word_variational']
-        ElogqZMat = np.zeros((self.K, self.K))
-        for jj in range(self.K):
-            J = self.K - jj - 1
-            # curWV : nObs x J, resp for each data item under each merge with jj
-            curWV = wv[:,jj][:,np.newaxis] + wv[:,jj+1:]
-            # curRlogR : nObs x J, entropy for each data item
-            curRlogR = curWV * np.log(EPS + curWV)
-            # curE_logqZ : J-vector, entropy for all Data under each merge with jj
-            curE_logqZ = np.dot(Data.word_count, curRlogR)
-            assert curE_logqZ.size == J
-            ElogqZMat[jj,jj+1:] = curE_logqZ
-        return ElogqZMat
-
-    ####################################################### ELBO terms for Pi
-    def E_logpPi(self, SS):
-        ''' Returns scalar value of E[ log p(PI | alpha0)]
-        '''
-        K = SS.K
-        kvec = K + 1 - np.arange(1, K+1)
-        logDirNormC = gammaln(self.gamma) + (K+1) * np.log(self.gamma)
-        logDirNormC += np.sum(self.Elogv) + np.inner(kvec, self.Elog1mv)
-
-        logDirPDF = np.inner(self.gamma * self.Ebeta - 1, SS.sumLogPi)
-        return (SS.nDoc * logDirNormC) + logDirPDF
-
-    def E_logqPi(self, LP):
-        ''' Returns scalar value of E[ log q(PI)],
-              calculated directly from local param dict LP
-        '''
-        alph = LP['alphaPi']        
-        logDirNormC = gammaln(alph.sum(axis=1)) - np.sum(gammaln(alph), axis=1)
-        logDirPDF = np.sum((alph - 1.) * LP['E_logPi'])
-        return np.sum(logDirNormC) + logDirPDF
-
-    def E_logqPi_Memoized_from_LP(self, LP):
-        ''' Returns pair of values, 
-                one scalar, one vector (length K+1)
-                whose sum is equal to E[log q(PI)]
-            when added to other results of this function from different batches,
-                the sum is equal to E[log q(PI)] of the entire dataset
-        '''
-        alph = LP['alphaPi']
-        logDirNormC = np.sum(gammaln(alph.sum(axis=1)))
-        piEntropyVec = np.sum((alph - 1.) * LP['E_logPi'], axis=0) \
-                     - np.sum(gammaln(alph),axis=0)
-        return logDirNormC, piEntropyVec
-
-
-    ####################################################### ELBO terms for V
-    def E_logpV(self):
-        logBetaNormC = gammaln(self.alpha0 + 1.) \
-                       - gammaln(self.alpha0)
-        logBetaPDF = (self.alpha0-1.) * np.sum(self.Elog1mv)
-        return self.K*logBetaNormC + logBetaPDF
-
-    def E_logqV(self):
-        logBetaNormC = gammaln(self.U1 + self.U0) \
-                        - gammaln(self.U0) - gammaln(self.U1)
-        logBetaPDF =   np.inner(self.U1 - 1., self.Elogv) \
-                      + np.inner(self.U0 - 1., self.Elog1mv)
-        return np.sum(logBetaNormC) + logBetaPDF
 
     ####################################################### Update global params
     #######################################################

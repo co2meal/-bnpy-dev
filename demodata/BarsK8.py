@@ -10,12 +10,13 @@ from bnpy.data import WordsData, AdmixMinibatchIterator
 
 Defaults = dict()
 Defaults['nDocTotal'] = 2000
-Defaults['nWordsPerDoc'] = 40
+Defaults['nWordsPerDoc'] = 100
+
+SEED = 8675309
 
 # FIXED DATA GENERATION PARAMS
 K = 8 # Number of topics
 V = 16 # Vocabulary Size
-nWordsPerDoc = 100 # words per document
 gamma = 0.5 # hyperparameter over doc-topic distribution
 
 # TOPIC by WORD distribution
@@ -51,7 +52,7 @@ def get_data_info(**kwargs):
       nDocTotal = Defaults['nDocTotal']
     return 'Toy Bars Data. Ktrue=%d. nDocTotal=%d.' % (K, nDocTotal)
 
-def get_data(seed=8675309, **kwargs):
+def get_data(**kwargs):
     ''' 
         Args
         -------
@@ -59,11 +60,11 @@ def get_data(seed=8675309, **kwargs):
         nDocTotal
         nWordsPerDoc
     '''
-    Data = genWordsData(seed=seed, **kwargs)
+    Data = genWordsData(seed=SEED, **kwargs)
     Data.summary = get_data_info(**kwargs)
     return Data
 
-def get_minibatch_iterator(seed=8675309, nBatch=10, nLap=1,
+def get_minibatch_iterator(seed=SEED, nBatch=10, nLap=1,
                            dataorderseed=0, **kwargs):
     '''
         Args
@@ -86,5 +87,5 @@ def genWordsData(**kwargs):
 
 if __name__ == '__main__':
   import bnpy.viz.BarsViz
-  WData = genWordsData(seed=1234)
+  WData = genWordsData(seed=SEED)
   bnpy.viz.BarsViz.plotExampleBarsDocs(WData)
