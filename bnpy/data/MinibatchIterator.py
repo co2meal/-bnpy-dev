@@ -33,7 +33,6 @@ batchID : exact integer ID of the current batch. range=[0, nBatch-1]
 curLapPos : integer count of current position in batch order. incremented 1 at a time.
 lapID : integer ID of the current lap
 '''
-from IPython import embed
 import numpy as np
 MAXSEED = 1000000
   

@@ -163,6 +163,18 @@ class WordsData(DataObj):
         if vocab_dict is not None:
             self.vocab_dict = vocab_dict
 
+    def getDocIDs(self, wordLocs):
+        ''' Retrieve the document ids corresponding to given word locations.
+        '''
+        docIDs = np.zeros(len(wordLocs))
+        for dd in range(self.nDoc):
+          if dd == 0:
+            matchMask = wordLocs < self.doc_range[dd,1] 
+          else:
+            matchMask = np.logical_and(wordLocs < self.doc_range[dd,1],
+                                       wordLocs >= self.doc_range[dd-1,1])
+          docIDs[matchMask] = dd
+        return docIDs                    
 
     def to_sparse_matrix(self):
         ''' Create sparse matrix that represents this dataset
@@ -205,10 +217,21 @@ class WordsData(DataObj):
         else:
           self.nObsTotal = nObsTotal
         
-    def select_subset_by_mask(self, mask):
+    def select_subset_by_mask(self, docMask=None, wordMask=None,
+                                    doTrackFullSize=True):
         '''
-            Selects subset of documents defined by mask
+            Selects subset of this dataset defined by mask arguments,
              and returns a WordsData object representing that subset
+
+            Args
+            -------
+            docMask : None, or list of document ids to select
+            wordMask : None, or list of words to select
+                       each entry is an index into self.word_id
+
+            doTrackFullSize : boolean indicator for whether resulting dataset
+                       should retain the total size of this set,
+                    or should be entirely self contained (nDoc=nDocTotal) 
 
             Returns
             --------
@@ -217,32 +240,54 @@ class WordsData(DataObj):
                 nObs = nDistinctWords in the subset of docs
                 nObsTotal, nDocTotal define size of entire dataset (not subset)
         '''
-        subset_size = np.sum( self.doc_range[mask,1] - self.doc_range[mask,0])
-        new_word_id = np.zeros( subset_size )
-        new_word_count = np.zeros( subset_size )
-        new_doc_range = np.zeros( (len(mask),2) )
-        ii = 0
+        if docMask is None and wordMask is None:
+          raise ValueError("Must provide either docMask or wordMask")
+
+        if docMask is not None:
+          nDoc = len(docMask)
+          nObs = np.sum(self.doc_range[docMask,1] - self.doc_range[docMask,0])
+          word_id = np.zeros(nObs)
+          word_count = np.zeros(nObs)
+          doc_range = np.zeros((nDoc,2))
         
-        # Create new word_id, word_count, and doc_range
-        for d in xrange(len(mask)):
-            start,stop = self.doc_range[mask[d],:]
-            num_distinct = stop-start
-            new_stop = ii + num_distinct
-            new_word_count[ii:new_stop] = self.word_count[start:stop]
-            new_word_id[ii:new_stop] = self.word_id[start:stop]
-            new_doc_range[d,:] = [ii,new_stop]
-            ii += num_distinct
-            
-        myDict = defaultdict()
-        myDict["doc_range"] = new_doc_range
-        myDict["word_id"] = new_word_id
-        myDict["word_count"] = new_word_count
-        myDict["nDocTotal"] = self.nDocTotal
-        myDict["nDoc"] = len(mask)
-        myDict["nObsTotal"] = self.nObsTotal
-        myDict["nObs"] = int(subset_size)
+          # Fill in new word_id, word_count, and doc_range
+          startLoc = 0
+          for d in xrange(nDoc):
+            start,stop = self.doc_range[docMask[d],:]
+            endLoc = startLoc + (stop - start)
+            word_count[startLoc:endLoc] = self.word_count[start:stop]
+            word_id[startLoc:endLoc] = self.word_id[start:stop]
+            doc_range[d,:] = [startLoc,endLoc]
+            startLoc += (stop - start)
+
+        elif wordMask is not None:
+          wordMask = np.sort(wordMask)
+          nObs = len(wordMask)
+          docIDs = self.getDocIDs(wordMask)
+          uDocIDs = np.unique(docIDs)
+          nDoc = uDocIDs.size
+          doc_range = np.zeros((nDoc,2))
+
+          # Fill in new word_id, word_count, and doc_range
+          word_id =  self.word_id[wordMask]
+          word_count = self.word_count[wordMask]
+          startLoc = 0
+          for dd in range(nDoc):
+            nWordsInCurDoc = np.sum(uDocIDs[dd] == docIDs)
+            doc_range[dd,:] = startLoc, startLoc + nWordsInCurDoc
+            startLoc += nWordsInCurDoc           
+
+        # Pack up all relevant params for creating new dataset    
+        myDict = dict()
+        myDict["doc_range"] = doc_range
+        myDict["word_id"] = word_id
+        myDict["word_count"] = word_count
+        myDict["nDoc"] = int(nDoc)
+        myDict["nObs"] = int(nObs)
         myDict["vocab_size"] = self.vocab_size
-        
+        if doTrackFullSize:
+          myDict["nObsTotal"] = self.nObsTotal
+          myDict["nDocTotal"] = self.nDocTotal
         return WordsData(**myDict)
 
     @classmethod
@@ -276,7 +321,8 @@ class WordsData(DataObj):
             #   entry v counts # times vocab word v appears in current doc
             wordCountBins = np.zeros(V)
             for k in xrange(K):
-                wordCountBins += RandUtil.multinomial(Npercomp[k], TopicWordProbs[k,:], PRNG)
+                wordCountBins += RandUtil.multinomial(Npercomp[k], 
+                                            TopicWordProbs[k,:], PRNG)
 
             wIDs = np.flatnonzero(wordCountBins > 0)
             wCounts = wordCountBins[wIDs]

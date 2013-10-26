@@ -13,7 +13,6 @@ while VB learns the parameters of an approximate *distribution* over quantities 
 
 For more info, see the documentation [TODO]
 '''
-from IPython import embed
 import numpy as np
 from collections import defaultdict
 from bnpy.learn import LearnAlg
@@ -35,12 +34,12 @@ class VBLearnAlg( LearnAlg ):
       # M step
       if iterid > 0:
         hmodel.update_global_params(SS) 
-      
         if self.hasMove('birth'):
           hmodel, LP = self.run_birth_move(hmodel, Data, SS, LP, iterid)
         
       # E step 
       LP = hmodel.calc_local_params(Data, LP)
+
       if self.hasMove('merge'):
         SS = hmodel.get_global_suff_stats(Data, LP, **mergeFlags)
       else:
@@ -188,8 +187,6 @@ class VBLearnAlg( LearnAlg ):
           if key in self.memoLPkeys:
             LP[key][:, kA] = LP[key][:, kA] + LP[key][:, kB]
             LP[key] = np.delete(LP[key], kB, axis=1)
-          else:
-            del LP[key]
     return hmodel, SS, LP, evBound
 
 

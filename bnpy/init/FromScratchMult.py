@@ -15,8 +15,6 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
     if initname == 'randexamples':
         ''' Choose K items uniformly at random from the Data
         '''
-        print 'Initializing a completely random Admixture Model'
-
         doc_variational = np.zeros( (nDocTotal, K) )
         
         word_variational = PRNG.rand(nObsTotal, K)
@@ -25,9 +23,7 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
         for d in xrange(nDocTotal):
             start,stop = doc_range[d,:]
             doc_variational[d,:] = np.sum(word_variational[start:stop,:],axis=0)
-            
-        print 'Finished Random Initialization'
-            
+ 
     elif initname == 'randselect':
         doc_variational = np.zeros( (nDocTotal, K) )
         word_variational = np.zeros(nObsTotal, K)

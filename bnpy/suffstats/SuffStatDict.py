@@ -24,7 +24,7 @@ To access the suff stats for a single component,
 import numpy as np
 import copy
 
-FieldNamesThatDoNotExpand = set(['N'])
+FieldNamesThatDoNotExpand = set(['N','sumLogPi','WordCounts'])
 
 class SuffStatDict(object):
 
@@ -71,7 +71,13 @@ class SuffStatDict(object):
     '''
     assert len(compIDs) == SSobj.K
     for key in self.__compkeys__:
-      self.__dict__[key][compIDs] -= SSobj.__dict__[key]
+      if key == 'sumLogPi':
+        cIDs = np.hstack([compIDs, self.K])
+        self.__dict__[key][cIDs] -= SSobj.__dict__[key]
+      else:
+        self.__dict__[key][compIDs] -= SSobj.__dict__[key]
+    for key in self.__dict__['__scalars__']:
+      self.__dict__['__scalars__'][key] -= SSobj.__dict__['__scalars__'][key]
 
   ######################################################### Insert comps
   #########################################################
@@ -84,7 +90,9 @@ class SuffStatDict(object):
     for key in self.__compkeys__:
       arrA = self.__dict__[key]
       arrB = SSextra.__dict__[key]
-      if arrA.ndim == arrB.ndim:
+      if key == 'sumLogPi':
+        arrC = np.hstack([arrA[:-1], arrB[:-1], arrA[-1]+arrB[-1]])
+      elif arrA.ndim == arrB.ndim:
         arrC = np.append(arrA, arrB, axis=0)
       else:
         arrC = np.insert(arrA, arrA.shape[0], arrB, axis=0)
@@ -105,6 +113,7 @@ class SuffStatDict(object):
       arrC = np.hstack( [arrC, rightZ])
       self.__dict__[key] = arrC
     if self.hasPrecompELBO():
+      Kextra = SSextra.K
       for key in self.__dict__['__precompELBOTerms__']:
         arrA = self.__dict__['__precompELBOTerms__'][key]
         if arrA.ndim == 0:
@@ -120,7 +129,9 @@ class SuffStatDict(object):
         arrC = np.vstack( [arrA, zeroFillBottom])
         zeroFillRight = np.zeros((self.K + Kextra, Kextra), dtype=arrA.dtype)
         arrC = np.hstack( [arrC, zeroFillRight])
-        self.__dict__['__precompMerge__'][key] = arrC 
+        self.__dict__['__precompMerge__'][key] = arrC
+    for key in self.__dict__['__scalars__']:
+      self.__dict__['__scalars__'][key] += SSextra.__dict__['__scalars__'][key]
     self.K = self.K + SSextra.K
 
   def insertEmptyComponents(self, Kextra):

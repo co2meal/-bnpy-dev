@@ -1,6 +1,5 @@
 import argparse
 import ConfigParser
-from IPython import embed
 
 ConfigPaths={'config/allocmodel.conf':'allocModelName',
              'config/obsmodel.conf':'obsModelName', 

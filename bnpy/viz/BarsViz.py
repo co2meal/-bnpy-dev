@@ -63,6 +63,8 @@ def plotBarsFromHModel(hmodel, Data=None, doShowNow=True, figH=None,
         pylab.title('Learned Topic x Word')
     if compsToHighlight is not None:
         ks = np.asarray(compsToHighlight)
+        if ks.ndim == 0:
+          ks = np.asarray([ks])
         pylab.yticks( ks, ['**** %d' % (k) for k in ks])
     if doShowNow and figH is None:
       pylab.show()

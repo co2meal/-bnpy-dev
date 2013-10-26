@@ -76,8 +76,8 @@ class MultObsModel( ObsCompSet ):
         #effCount = wv * Data.word_count[:, np.newaxis]
         #for ii in xrange(nDistinctWords):
         #    TopicWordCounts[:, Data.word_id[ii]] += effCount[ii]
-        
         SS.WordCounts = TopicWordCounts
+        SS.N = np.sum(SS.WordCounts, axis=1)
         return SS
 
     def update_obs_params_EM(self, SS, **kwargs):

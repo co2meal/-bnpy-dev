@@ -62,7 +62,7 @@ class HDPModel(AllocModel):
         _, K = wv.shape
         # Turn dim checking off, since some stats have dim K+1 instead of K
         SS = SuffStatDict(K=K, doCheck=False)
-        SS.nDoc = Data.nDoc
+        SS.addScalar('nDoc', Data.nDoc)
         SS.sumLogPi = np.sum(LP['E_logPi'], axis=0)
         if doPrecompEntropy:
             # Z terms
