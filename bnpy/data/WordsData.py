@@ -163,9 +163,16 @@ class WordsData(DataObj):
         if vocab_dict is not None:
             self.vocab_dict = vocab_dict
 
-    def getDocIDs(self, wordLocs):
+    def getDocIDs(self, wordLocs=None):
         ''' Retrieve the document ids corresponding to given word locations.
         '''
+        if wordLocs is None:
+          if hasattr(self, "__docid__"):
+            return self.__docid__
+          self.__docid__ = np.zeros(self.word_id.size, dtype=np.uint32)
+          for dd in range(self.nDoc):
+            self.__docid__[self.doc_range[dd,0]:self.doc_range[dd,1]] = dd
+          return self.__docid__
         docIDs = np.zeros(len(wordLocs))
         for dd in range(self.nDoc):
           if dd == 0:

@@ -156,17 +156,16 @@ class HDPModel(AllocModel):
         '''
         # We call this wv_temp, since this will become the unnormalized
         # variational parameter at the word level
-        log_wv_temp = LP['E_logsoftev_WordsData'].copy() # so we can do += later
-        K = log_wv_temp.shape[1]
-        for d in xrange( Data.nDoc ):
-            start,stop = Data.doc_range[d,:]
-            log_wv_temp[start:stop, :] += LP['E_logPi'][d,:K]
-        lprPerItem = logsumexp(log_wv_temp, axis=1 )
-        # Normalize wv_temp to get actual word level variational parameters
-        wv = np.exp(log_wv_temp - lprPerItem[:,np.newaxis])
-        wv /= wv.sum(axis=1)[:,np.newaxis] # row normalize
-        assert np.allclose(wv.sum(axis=1), 1)
-        LP['word_variational'] = wv
+        wv_temp = LP['E_logsoftev_WordsData'].copy() # so we can do += later
+        K = wv_temp.shape[1]
+        ElogPi = LP['E_logPi'][:,:K]
+        for d in xrange(Data.nDoc):
+            wv_temp[Data.doc_range[d,0]:Data.doc_range[d,1], :] += ElogPi[d,:]
+        wv_temp -= np.max(wv_temp, axis=1)[:,np.newaxis]
+        wv_temp = np.exp(wv_temp)
+        wv_temp /= wv_temp.sum(axis=1)[:,np.newaxis]
+        assert np.allclose(wv_temp.sum(axis=1), 1)
+        LP['word_variational'] = wv_temp
         return LP
 
     ####################################################### Calc ELBO

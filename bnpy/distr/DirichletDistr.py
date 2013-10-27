@@ -21,8 +21,7 @@ class DirichletDistr(object):
             lamda = argDict["lambda"]
         else:
             lamda = 1.0
-    
-        lamvec = lamda * np.ones((Data.vocab_size,1)) 
+        lamvec = lamda * np.ones(Data.vocab_size) 
         return cls(lamvec = lamvec)
       
     def __init__(self, lamvec=None, **kwargs):
@@ -32,15 +31,17 @@ class DirichletDistr(object):
             self.set_helpers()
 
     def set_helpers(self):
+        assert self.lamvec.ndim == 1
         self.lamsum = self.lamvec.sum()
-        self.digammalamvec = digamma(self.lamvec)
-        self.digammalamsum = digamma(self.lamsum)
-        self.Elogphi   = self.digammalamvec - self.digammalamsum
+        digammalamvec = digamma(self.lamvec)
+        digammalamsum = digamma(self.lamsum)
+        self.Elogphi   = digammalamvec - digammalamsum
+        
 
     ############################################################## Param updates  
-    def get_post_distr( self, SS):
+    def get_post_distr(self, SS):
         ''' Create new Distr object with posterior params'''
-        return DirichletDistr(SS.WordCounts + self.lamvec.T)
+        return DirichletDistr(SS.WordCounts + self.lamvec)
     
     def post_update( self, SS ):
         ''' Posterior update of internal params given data'''
@@ -60,13 +61,13 @@ class DirichletDistr(object):
   
     def get_log_norm_const(self):
         ''' Returns log( Z ), where PDF(x) :=  1/Z(theta) f( x | theta )'''
-        return np.sum(gammaln(self.lamvec )) - gammaln( self.lamsum )
+        return np.sum(gammaln(self.lamvec)) - gammaln(self.lamsum)
 
     def get_entropy( self ):
         ''' Returns entropy of this distribution 
           H[ p(x) ] = -1*\int p(x|theta) log p(x|theta) dx'''
         H = self.get_log_norm_const()
-        H -= np.sum((self.lamvec-1)*self.Elogphi)
+        H -= np.inner(self.lamvec - 1., self.Elogphi)
         return H
     
     ############################################################## Conditional Probs.  
@@ -81,22 +82,5 @@ class DirichletDistr(object):
         return dict(name=self.__class__.__name__, lamvec=self.lamvec)
     
     def from_dict(self, PDict):
-        self.lamvec = PDict['lamvec']
+        self.lamvec = np.squeeze(PDict['lamvec'])
         self.set_helpers()
-
-    
-'''
-  def E_log_pdf( self, Data ):
-    try:
-      Data['wordIDs_perGroup'][0]
-      return self.log_pdf_from_list( Data )
-    except KeyError:
-      return np.dot( Data['X'], self.Elogphi )
-
-  def log_pdf_from_list( self, Data ):
-    lpr = np.zeros( Data['nObs'] )
-    GroupIDs = Data['GroupIDs']
-    for docID in xrange( Data['nGroup'] ):
-      lpr[ GroupIDs[docID][0]:GroupIDs[docID][1] ] = self.Elogphi[:, Data['wordIDs_perGroup'][docID] ].T
-    return lpr
-'''

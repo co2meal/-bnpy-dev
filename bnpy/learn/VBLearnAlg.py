@@ -23,7 +23,7 @@ class VBLearnAlg( LearnAlg ):
     super(type(self), self).__init__( **kwargs )
     self.BirthLog = list()
     
-  def fit( self, hmodel, Data ):
+  def fit(self, hmodel, Data):
     # memoLPkeys : list of keys for LP that should be retained across laps
     self.memoLPkeys = hmodel.allocModel.get_keys_for_memoized_local_params()
     self.set_start_time_now()

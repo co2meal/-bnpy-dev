@@ -185,11 +185,10 @@ class MultObsModel( ObsCompSet ):
         return lpw
  
     def E_log_pLambda(self):
-        lp = -1 * self.obsPrior.get_log_norm_const() * np.ones(self.K)
-        for k in xrange(self.K):
-            lp[k] += np.sum((self.obsPrior.lamvec - 1)*self.comp[k].Elogphi)
-        return lp.sum()
-  
+        logNormC = -1 * self.obsPrior.get_log_norm_const()
+        logDirPDF = np.dot(self.getElogphiMatrix(), self.obsPrior.lamvec - 1.)
+        return np.sum(logDirPDF + logNormC)
+        
     def E_log_qLambda(self):
         ''' Return negative entropy!'''    
         lp = np.zeros(self.K)
