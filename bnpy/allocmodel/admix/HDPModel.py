@@ -113,6 +113,10 @@ class HDPModel(AllocModel):
 
         LP = self.calc_ElogPi(LP)
         prevVec = LP['alphaPi'].flatten()
+
+        # Allocate lots of memory once
+        LP['word_variational'] = np.zeros(LP['E_logsoftev_WordsData'].shape)
+
         # Repeat until converged...
         for ii in xrange(nCoordAscentIters):
             # Update word_variational field of LP
@@ -153,18 +157,16 @@ class HDPModel(AllocModel):
     def get_word_variational( self, Data, LP):
         ''' Update and return word-topic assignment variational parameters
         '''
-        # We call this wv_temp, since this will become the unnormalized
-        # variational parameter at the word level
-        wv_temp = LP['E_logsoftev_WordsData'].copy() # so we can do += later
-        K = wv_temp.shape[1]
+        wv = LP['word_variational']
+        wv[:] = LP['E_logsoftev_WordsData'] # so we can do += later
+        K = wv.shape[1]
         ElogPi = LP['E_logPi'][:,:K]
         for d in xrange(Data.nDoc):
-            wv_temp[Data.doc_range[d,0]:Data.doc_range[d,1], :] += ElogPi[d,:]
-        wv_temp -= np.max(wv_temp, axis=1)[:,np.newaxis]
-        wv_temp = np.exp(wv_temp)
-        wv_temp /= wv_temp.sum(axis=1)[:,np.newaxis]
-        assert np.allclose(wv_temp.sum(axis=1), 1)
-        LP['word_variational'] = wv_temp
+            wv[Data.doc_range[d,0]:Data.doc_range[d,1], :] += ElogPi[d,:]
+        wv -= np.max(wv, axis=1)[:,np.newaxis]
+        np.exp(wv, out=wv)
+        wv /= wv.sum(axis=1)[:,np.newaxis]
+        assert np.allclose(LP['word_variational'].sum(axis=1), 1)
         return LP
 
     ####################################################### Calc ELBO
@@ -328,8 +330,15 @@ class HDPModel(AllocModel):
             The mixture weights are document specific.
         '''
         self.K = SS.K
+        if hasattr(self, 'U1'):
+          initU1 = self.U1
+          initU0 = self.U0
+        else:
+          initU1 = None
+          initU0 = None
         U1, U0 = HVO.estimate_u(K=self.K, alpha0=self.alpha0, gamma=self.gamma,
-                     sumLogPi=SS.sumLogPi, nDoc=SS.nDoc)
+                     sumLogPi=SS.sumLogPi, nDoc=SS.nDoc, 
+                     initU1=initU1, initU0=initU0)
         self.U1 = U1
         self.U0 = U0
         self.set_helper_params()
@@ -337,7 +346,8 @@ class HDPModel(AllocModel):
     def update_global_params_soVB(self, SS, rho, **kwargs):
         assert self.K == SS.K
         U1, U0 = HVO.estimate_u(K=self.K, alpha0=self.alpha0, gamma=self.gamma,
-                     sumLogPi=SS.sumLogPi, nDoc=SS.nDoc)
+                     sumLogPi=SS.sumLogPi, nDoc=SS.nDoc,
+                     initU1=self.U1, initU0=self.U0)
         self.U1 = rho * U1 + (1-rho) * self.U1
         self.U0 = rho * U0 + (1-rho) * self.U0
         self.set_helper_params()
@@ -353,7 +363,7 @@ class HDPModel(AllocModel):
           self.set_helper_params()
           self.K = vMean.size
         else:
-          raise ValueError('Bad parameters')          
+          raise ValueError('Bad HDP parameters')          
 
     #################### GET METHODS #############################
     def set_prior(self, PriorParamDict):

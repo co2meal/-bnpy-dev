@@ -32,10 +32,11 @@ recovering true "beta" parameters is feasible
 Set gamma close to zero (even like 0.1) makes recovered E[beta]
 very different than the "true" beta
 '''
+import warnings
 import numpy as np
 import scipy.optimize
+import scipy.io
 from scipy.special import gammaln, digamma, polygamma
-import warnings
 
 EPS = 10*np.finfo(float).eps
 
@@ -51,7 +52,7 @@ def createToyData(v, alpha0=1.0, gamma=0.5, nDoc=0, seed=42):
   Pi = PRNG.dirichlet( gamma*beta, size=nDoc)
   return dict(Pi=Pi, alpha0=alpha0, gamma=gamma, nDoc=nDoc, K=K)
 
-def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=2, sumLogPi=None, Pi=None, doVerbose=False, method='l_bfgs', **kwargs):
+def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=2, sumLogPi=None, Pi=None, doVerbose=False, method='l_bfgs', initU1=None, initU0=None, **kwargs):
   ''' Solve optimization problem to estimate parameters u
       for the approximate posterior on stick-breaking fractions v
       q(v | u) = Beta( v_k | u_k1, u_k0)
@@ -63,28 +64,28 @@ def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=2, sumLogPi=None, Pi=None, doVer
   '''
   assert K + 1 == sumLogPi.size
   assert sumLogPi.ndim == 1
-  if nDoc == 0:
-    initU = np.hstack( [0.1*np.ones(K), 0.1 * alpha0*np.ones(K)])
-    sumLogPi = np.zeros(K+1)
-  elif Pi is not None:
-    logPi = np.maximum(np.log(Pi), -100)
-    sumLogPi = np.sum(logPi, axis=0)
-    initMeanBeta = np.mean(Pi, axis=0)
-    initMeanV = beta2v(initMeanBeta)
-    initSum = nDoc
-    initU = np.hstack( [initSum*initMeanV, initSum*(1-initMeanV)])
-    initU += 1 # so that it has a mode
+
+  if initU1 is not None and initU0 is not None:
+    if initU1.size != K:
+      initU = np.hstack( [np.ones(K), alpha0*np.ones(K)])        
+    else:
+      initU = np.hstack([initU1, initU0])
   else:
-    '''
-    initMeanBeta = np.exp(sumLogPi/nDoc)
-    initMeanBeta /= initMeanBeta.sum()
-    initMeanV = beta2v(initMeanBeta)
-    initSum = nDoc
-    initU = np.hstack( [initSum*initMeanV, initSum*(1-initMeanV)])
-    initU += 1 # so that it has a mode
-    '''
-    initU = np.hstack( [np.ones(K), alpha0*np.ones(K)])      
-  
+    if nDoc == 0:
+      initU = np.hstack( [0.1*np.ones(K), 0.1 * alpha0*np.ones(K)])
+      sumLogPi = np.zeros(K+1)
+    elif Pi is not None:
+      logPi = np.maximum(np.log(Pi), -100)
+      sumLogPi = np.sum(logPi, axis=0)
+      initMeanBeta = np.mean(Pi, axis=0)
+      initMeanV = beta2v(initMeanBeta)
+      initSum = nDoc
+      initU = np.hstack( [initSum*initMeanV, initSum*(1-initMeanV)])
+      initU += 1 # so that it has a mode
+    else:
+      initU = np.hstack( [np.ones(K), alpha0*np.ones(K)])   
+  assert initU.size == 2*K
+
   if doVerbose:
     print "INITIAL GUESS:"
     print "   U1   : ", initU[:K]
@@ -94,10 +95,9 @@ def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=2, sumLogPi=None, Pi=None, doVer
   
   myFunc = lambda Cvec: objectiveFunc(Cvec, alpha0, gamma, nDoc, sumLogPi)
   myGrad = lambda Cvec: objectiveGradient(Cvec, alpha0, gamma, nDoc, sumLogPi)
-
+  
   with warnings.catch_warnings():
-    warnings.filterwarnings('ignore', category=DeprecationWarning)
-    warnings.filterwarnings('error', category=RuntimeWarning)
+    warnings.filterwarnings('error', category=RuntimeWarning, message='overflow')
     try:
       if method == 'l_bfgs':
         bestCvec, bestf, Info = scipy.optimize.fmin_l_bfgs_b(myFunc, 
@@ -106,12 +106,17 @@ def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=2, sumLogPi=None, Pi=None, doVer
         bestCvec, bestf, Info = scipy.optimize.fmin_bfgs(myFunc, 
                                   np.log(initU), fprime=myGrad, disp=None)
     except RuntimeWarning:
-      from IPython import embed
-      embed()
-
+      ProbDict = dict(initU=initU, alpha0=alpha0, gamma=gamma, 
+                      nDoc=nDoc, sumLogPi=sumLogPi)
+      savefilepath = 'HDPVariationalOptimizerError.mat'
+      scipy.io.savemat(savefilepath, ProbDict)
+      print '----!!!!---- sumLogPi: '
+      print sumLogPi
+      raise ValueError('Overflow Error in HDP Optimizer. Input saved to matfile: %s' % (savefilepath))
+  
   bestUvec = np.exp(bestCvec)
 
-  if np.allclose(bestUvec, initU):
+  if np.allclose(bestUvec, initU) and K > 1:
     print "WARNING: U estimation failed. Did not move from initial guess."
 
   bestU1 = bestUvec[:K]

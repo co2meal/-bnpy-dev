@@ -82,9 +82,12 @@ class LearnAlg(object):
     isWithinTHR = absDiff <= convergeTHR or percDiff <= convergeTHR
     if not isIncreasing:
       if not isWithinTHR:
-        warnMsg = 'WARNING: evidence decreased!\n' \
-          + '    prev = % .15e\n' % (prevBound) \
-          + '     cur = % .15e\n' % (evBound)
+        if self.hasMove('birth'):
+          warnMsg = 'WARNING: ev decreased (during a birth)\n'
+        else:
+          warnMsg = 'WARNING: evidence decreased!\n'
+        warnMsg += '    prev = % .15e\n' % (prevBound) \
+                 + '     cur = % .15e\n' % (evBound)
         Log.error(warnMsg)
     return isWithinTHR 
 

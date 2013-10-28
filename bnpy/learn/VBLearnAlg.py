@@ -36,7 +36,7 @@ class VBLearnAlg( LearnAlg ):
         hmodel.update_global_params(SS) 
       
       if self.hasMove('birth') and iterid > 1:
-          hmodel, LP = self.run_birth_move(hmodel, Data, SS, LP, iterid)
+        hmodel, LP = self.run_birth_move(hmodel, Data, SS, LP, iterid)
         
       # E step 
       LP = hmodel.calc_local_params(Data, LP)
@@ -66,7 +66,6 @@ class VBLearnAlg( LearnAlg ):
       # Check for Convergence!
       #  report warning if bound isn't increasing monotonically
       isConverged = self.verify_evidence( evBound, prevBound )
-
       if isConverged:
         break
       prevBound = evBound

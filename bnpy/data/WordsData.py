@@ -224,6 +224,20 @@ class WordsData(DataObj):
         else:
           self.nObsTotal = nObsTotal
         
+    def add_data(self, WData):
+        ''' Append provided WordsData to the end of this dataset
+        '''
+        assert self.vocab_size == WData.vocab_size
+        self.word_id = np.hstack([self.word_id, WData.word_id])
+        self.word_count = np.hstack([self.word_count, WData.word_count])
+        sLoc = self.doc_range[-1,1]
+        self.doc_range = np.vstack([self.doc_range, sLoc + WData.doc_range])
+        self.nDoc += WData.nDoc
+        self.nObs += WData.nObs
+        self.nDocTotal += WData.nDocTotal
+        self.nObsTotal += WData.nObsTotal
+        self.verify_dimensions()
+
     def select_subset_by_mask(self, docMask=None, wordMask=None,
                                     doTrackFullSize=True):
         '''

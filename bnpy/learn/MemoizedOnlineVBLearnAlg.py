@@ -27,6 +27,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       self.targetDataList = list()
       # Track the components freshly added in current lap
       self.BirthCompIDs = list()
+      self.BirthInfoCurLap = list()
+
       # Track the number of laps since birth last attempted
       #  at each component, to encourage trying diversity
       self.LapsSinceLastBirth = defaultdict(int)
@@ -53,10 +55,9 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       if iterid > 0:
         hmodel.update_global_params(SS)
       
-        # Birth moves!
-        if self.hasMove('birth'):
-          hmodel, SS = self.run_birth_move(
-                                    hmodel, Dchunk, SS, LPchunk, lapFrac)
+      # Birth moves!
+      if self.hasMove('birth') and iterid > 0:
+        hmodel, SS = self.run_birth_move(hmodel, Dchunk, SS, lapFrac)
 
       # E step
       if batchID in self.LPmemory:
@@ -123,7 +124,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
   def verify_suff_stats(self, SS):
     if hasattr(SS, 'sumLogPi'):
-      if not np.all(SS.sumLogPi <= 1e-9):
+      if not np.all(SS.sumLogPi <= 1e-10):
         raise ValueError('sumLogPi should be less than zero!')
     if hasattr(SS, 'N'):
       if not np.all(SS.N >= -1e-9):
@@ -203,7 +204,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
   #####################################################################
   #####################################################################
    
-  def run_birth_move(self, hmodel, Dchunk, SS, LPchunk, lapFrac):
+  def run_birth_move(self, hmodel, Dchunk, SS, lapFrac):
     ''' Run birth moves on hmodel.
         Internally handles subsampling data, suff stat bookkeeping, etc.
 
@@ -216,9 +217,10 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     '''
     # Determine whether to run birth at the current lap
     if not self.do_birth_at_lap(lapFrac):
-      Log.info("BIRTH skipped. Exceeded target fraction of total laps.")
-      self.BirthCompIDs = list()
-      self.BirthInfoCurLap = list()
+      if self.isFirstBatch(lapFrac):
+        Log.info("BIRTH skipped. Exceeded target fraction of total laps.")
+        self.BirthCompIDs = list()
+        self.BirthInfoCurLap = list()
       return hmodel, SS
 
     if self.isFirstBatch(lapFrac):

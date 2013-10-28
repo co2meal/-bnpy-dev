@@ -44,11 +44,14 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
             word_variational[start:stop,:] = doc_variational[d,:]
            
     if hmodel.getAllocModelName().count('HDP') > 0:
-      zeroPad = np.zeros((Data.nDoc,1))
-      alph = np.hstack([doc_variational, zeroPad])
-      alph = np.maximum(alph, 1e-20)
-      LP = dict(E_logPi=np.log(alph),
-                 word_variational=word_variational)
+      LP = getLPfromResp(word_variational, Data)
+      #zeroPad = np.zeros((Data.nDoc,1))
+      #alph = np.hstack([doc_variational, zeroPad])
+      #alph = np.maximum(alph, 1e-20)
+      #LP = dict(alphaPi=alph,
+      #           word_variational=word_variational)
+      #LP = hmodel.allocModel.calc_ElogPi(LP)
+
     else:
       LP = dict(doc_variational=doc_variational, 
                 word_variational=word_variational)
@@ -59,7 +62,6 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
 def getLPfromResp(Resp, Data, smoothMass=0.01):
     D = Data.nDoc
     K = Resp.shape[1]
-    # DocTopicCount matrix : D x K matrix
     DocTopicC = np.zeros((D, K))
     for dd in range(D):
       start,stop = Data.doc_range[dd,:]
