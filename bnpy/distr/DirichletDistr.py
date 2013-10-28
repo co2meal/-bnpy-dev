@@ -25,7 +25,7 @@ class DirichletDistr(object):
         return cls(lamvec = lamvec)
       
     def __init__(self, lamvec=None, **kwargs):
-        self.lamvec = lamvec
+        self.lamvec = np.squeeze(lamvec)
         if lamvec is not None:
             self.D = lamvec.size
             self.set_helpers()

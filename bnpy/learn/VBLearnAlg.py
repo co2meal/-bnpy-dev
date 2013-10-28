@@ -34,7 +34,8 @@ class VBLearnAlg( LearnAlg ):
       # M step
       if iterid > 0:
         hmodel.update_global_params(SS) 
-        if self.hasMove('birth'):
+      
+      if self.hasMove('birth') and iterid > 1:
           hmodel, LP = self.run_birth_move(hmodel, Data, SS, LP, iterid)
         
       # E step 
@@ -87,7 +88,7 @@ class VBLearnAlg( LearnAlg ):
     ''' 
     import BirthMove # avoid circular import
     self.BirthLog = list()
-    if lap > 0.8 * self.algParams['nLap']:
+    if not self.do_birth_at_lap(lap):
       return hmodel, LP
       
     kbirth = BirthMove.select_birth_component(SS, 
@@ -99,7 +100,7 @@ class VBLearnAlg( LearnAlg ):
                           **self.algParams['birth'])
 
     hmodel, SS, MoveInfo = BirthMove.run_birth_move(
-                 hmodel, TargetData, SS, randstate=self.PRNG, 
+                 hmodel, TargetData, SS, ktarget=kbirth, randstate=self.PRNG, 
                  **self.algParams['birth'])
     self.print_msg(MoveInfo['msg'])
     self.BirthLog.extend(MoveInfo['birthCompIDs'])

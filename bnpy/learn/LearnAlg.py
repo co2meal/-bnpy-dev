@@ -183,3 +183,29 @@ class LearnAlg(object):
             without needing to import logging method into subclass. 
       '''
       Log.info(msg)
+
+  #########################################################
+  def isFirstBatch(self, lapFrac):
+    ''' Returns True/False for whether given batch is last (for current lap)
+    '''
+    if self.lapFracInc == 1.0: # Special case, nBatch == 1
+      isFirstBatch = True
+    else:
+      isFirstBatch = np.allclose(lapFrac - np.floor(lapFrac), self.lapFracInc)
+    return isFirstBatch
+
+  def isLastBatch(self, lapFrac):
+    ''' Returns True/False for whether given batch is last (for current lap)
+    '''
+    return lapFrac % 1 == 0
+
+  def do_birth_at_lap(self, lapFrac):
+    ''' Returns True/False for whether birth happens at given lap
+    '''
+    if 'birth' not in self.algParams:
+      return False
+    nLapTotal = self.algParams['nLap']
+    frac = self.algParams['birth']['fracLapsBirth']
+    if lapFrac > nLapTotal:
+      return False
+    return (nLapTotal <= 5) or (lapFrac <= np.ceil(frac * nLapTotal)) 

@@ -7,6 +7,7 @@ import numpy as np
 from bnpy.learn import LearnAlg
 import logging
 from collections import defaultdict
+import BirthMove
 
 Log = logging.getLogger('bnpy')
 
@@ -22,6 +23,9 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     if self.hasMove('merge'):
       self.MergeLog = list()
     if self.hasMove('birth'):
+      # Track subsampled data aggregated across batches
+      self.targetDataList = list()
+      # Track the components freshly added in current lap
       self.BirthCompIDs = list()
       # Track the number of laps since birth last attempted
       #  at each component, to encourage trying diversity
@@ -37,6 +41,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     self.lapFracInc = DataIterator.nObsBatch / float(DataIterator.nObsTotal)
     iterid = -1
     lapFrac = 0
+    SS = None
     while DataIterator.has_next_batch():
       # Grab new data and update counts
       Dchunk = DataIterator.get_next_batch()
@@ -49,7 +54,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         hmodel.update_global_params(SS)
       
         # Birth moves!
-        if self.hasMove('birth') and lapFrac > 1.0:
+        if self.hasMove('birth'):
           hmodel, SS = self.run_birth_move(
                                     hmodel, Dchunk, SS, LPchunk, lapFrac)
 
@@ -61,7 +66,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         LPchunk = hmodel.calc_local_params(Dchunk)
 
       if self.hasMove('birth'):
-        self.subsample_data_for_birth(Dchunk, LPchunk)
+        self.subsample_data_for_birth(Dchunk, LPchunk, lapFrac)
 
       # SS step
       if batchID in self.SSmemory:
@@ -73,14 +78,14 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
                        doPrecompEntropy=True, 
                        doPrecompMergeEntropy=self.hasMove('merge')
                        )
-
+      
       if iterid == 0:
         SS = SSchunk.copy()
       else:
         assert SSchunk.K == SS.K
         SS += SSchunk
-        if 'N' in SS.__compkeys__ and np.any(SS.N < 0):        
-          SS.N[SS.N < 0] = 0
+
+      self.verify_suff_stats(SS)
 
       self.save_batch_local_params_to_memory(batchID, LPchunk)          
       self.save_batch_suff_stat_to_memory(batchID, SSchunk)  
@@ -103,7 +108,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       #  verify_evidence will warn if bound isn't increasing monotonically
       if lapFrac > 1.0:
         isConverged = self.verify_evidence(evBound, prevBound)
-        if isConverged:
+        if isConverged and lapFrac > 5:
           break
       prevBound = evBound
 
@@ -115,6 +120,15 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     self.save_state(hmodel, iterid, lapFrac, evBound, doFinal=True) 
     self.print_state(hmodel, iterid, lapFrac, evBound, doFinal=True, status=msg)
     return None, evBound
+
+  def verify_suff_stats(self, SS):
+    if hasattr(SS, 'sumLogPi'):
+      if not np.all(SS.sumLogPi <= 1e-9):
+        raise ValueError('sumLogPi should be less than zero!')
+    if hasattr(SS, 'N'):
+      if not np.all(SS.N >= -1e-9):
+        raise ValueError('N should be >= 0!')
+      SS.N[SS.N < 0] = 0
 
   ######################################################### Load from memory
   #########################################################
@@ -153,7 +167,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     '''
     LPchunk = self.LPmemory[batchID]
     if self.hasMove('birth') and LPchunk is not None:
-      raise NotImplementedError('TODO')
+      if len(self.BirthCompIDs) > 0:
+        LPchunk = None # Forget the old LPchunk!
     if self.hasMove('merge') and LPchunk is not None:
       for MInfo in self.MergeLog:
         kA = MInfo['kA']
@@ -187,40 +202,39 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
   #####################################################################
   #####################################################################
+   
   def run_birth_move(self, hmodel, Dchunk, SS, LPchunk, lapFrac):
     ''' Run birth moves on hmodel.
         Internally handles subsampling data, suff stat bookkeeping, etc.
+
+        Only makes changes if first or last batch of data!
 
         Returns
         -------
         hmodel : bnpy HModel, with (possibly) new components
         SS : bnpy SuffStatDict, with (possibly) new components
     '''
-    import BirthMove
-
-    if not hasattr(self, 'targetDataList'):
-      self.targetDataList = list()
-    if lapFrac > (0.8 * self.algParams['nLap']):
+    # Determine whether to run birth at the current lap
+    if not self.do_birth_at_lap(lapFrac):
+      Log.info("BIRTH skipped. Exceeded target fraction of total laps.")
+      self.BirthCompIDs = list()
+      self.BirthInfoCurLap = list()
       return hmodel, SS
 
-    isFirstBatch = np.allclose(lapFrac - np.floor(lapFrac), self.lapFracInc)
-    isLastBatch = lapFrac % 1 == 0
-
-    if isFirstBatch:
+    if self.isFirstBatch(lapFrac):
       self.BirthCompIDs = list()
       self.BirthInfoCurLap = list()
 
-      # Increment birth counter
-      for kk in range(SS.K):
-        self.LapsSinceLastBirth[kk] += 1
-
-      # Run birth moves on current target data!
+      # Run birth moves on target data!
       for tInfoDict in self.targetDataList:
         ktarget = tInfoDict['ktarget']
         targetData = tInfoDict['Data']
+
         if targetData.nObs < self.algParams['birth']['minTargetObs']:
-          Log.info("BIRTH Skipped at comp %d : target dataset too small (size %d)" % (tInfoDict['ktarget'], targetData.nObs))
+          Log.info("BIRTH Skipped at comp %d : target data too small (size %d)"
+                           % (tInfoDict['ktarget'], targetData.nObs))
           continue
+
         hmodel, SS, MoveInfo = BirthMove.run_birth_move(
                  hmodel, targetData, SS, randstate=self.PRNG, 
                  ktarget=ktarget, **self.algParams['birth'])
@@ -232,28 +246,15 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         self.print_msg(MoveInfo['msg'])
         self.BirthCompIDs.extend(MoveInfo['birthCompIDs'])
 
-      # Sample new components to target for the next birth proposal
-      self.targetDataList = list()
-
-      # Ignore components that have just been added to the model,
-      #  as well as components that 
-      excludeList = [kk for kk in self.BirthCompIDs]
-
-      for posID in range(self.algParams['birth']['birthPerLap']):
-        try:
-          ktarget = BirthMove.select_birth_component(SS, randstate=self.PRNG,
-                          excludeList=excludeList, doVerbose=False,
-                          lapsSinceLastBirth=self.LapsSinceLastBirth,
-                          **self.algParams['birth'])
-          self.LapsSinceLastBirth[ktarget] = 0
-          excludeList.append(ktarget)
-          tInfoDict = dict(ktarget=ktarget, Data=None)
-          self.targetDataList.append(tInfoDict)
-        except BirthMove.BirthProposalError, e:
-          Log.debug(str(e))
+      # Prepare for the next lap birth moves,
+      #   by choosing the next target components
+      if self.do_birth_at_lap(lapFrac + 1):
+        self.targetDataList = self.on_first_batch_prep_for_next_lap_birth(SS)
+      else:
+        self.targetDataList = list()
 
     # Handle removing "artificial mass" of fresh components
-    elif isLastBatch:
+    if self.isLastBatch(lapFrac):
       Nall = np.sum(SS.N)
       didChangeSS = False
       for MoveInfo in self.BirthInfoCurLap:
@@ -261,15 +262,48 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         birthCompIDs = MoveInfo['birthCompIDs']
         SS.subtractSpecificComponents(freshSS, birthCompIDs)
         didChangeSS = True
-      if didChangeSS:
-        hmodel.update_global_params(SS)
-      assert np.abs(np.sum(SS.N) - Dchunk.nObsTotal) < 0.0001
+      #if didChangeSS:
+      #  hmodel.update_global_params(SS)
 
     # Return and exit. That's all folks.
     return hmodel, SS
 
-    
-  def subsample_data_for_birth(self, Dchunk, LPchunk):
+  def on_first_batch_prep_for_next_lap_birth(self, SS):
+    ''' Returns list of dicts, each one has info about a birth move to attempt
+
+        Prepares for next lap's birth moves, by
+          selecting which current model component to target
+
+        Returns
+        --------
+        targetList : list of dictionaries
+    '''
+    # Create empty list to aggregate subsampled data
+    targetList = list()
+
+    # Update counter for which components haven't been updated in a while
+    for kk in range(SS.K):
+      self.LapsSinceLastBirth[kk] += 1
+
+    # Ignore components that have just been added to the model.
+    excludeList = [kk for kk in self.BirthCompIDs]
+
+    # For each birth move, select the target comp
+    for posID in range(self.algParams['birth']['birthPerLap']):
+      try:
+        ktarget = BirthMove.select_birth_component(SS, randstate=self.PRNG,
+                          excludeList=excludeList, doVerbose=False,
+                          lapsSinceLastBirth=self.LapsSinceLastBirth,
+                          **self.algParams['birth'])
+        self.LapsSinceLastBirth[ktarget] = 0
+        excludeList.append(ktarget)
+        tInfoDict = dict(ktarget=ktarget, Data=None)
+        targetList.append(tInfoDict)
+      except BirthMove.BirthProposalError, e:
+        Log.debug(str(e))
+    return targetList
+
+  def subsample_data_for_birth(self, Dchunk, LPchunk, lapFrac):
     ''' Incrementally build-up a target dataset to use as basis for BirthMove!
         Calling this method updates the internal data objects.
         Args
@@ -283,8 +317,9 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     '''
     import BirthMove
 
-    if not hasattr(self, 'targetDataList'):
-      self.targetDataList = list()
+    if not self.do_birth_at_lap(lapFrac):
+      return
+
     for tInfoDict in self.targetDataList:
       ktarget = tInfoDict['ktarget']
       if tInfoDict['Data'] is not None:
@@ -294,6 +329,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       targetData = BirthMove.subsample_data(Dchunk, LPchunk, ktarget, 
                           randstate=self.PRNG,
                           **self.algParams['birth'])
+
       if tInfoDict['Data'] is None:
         tInfoDict['Data'] = targetData
       else:

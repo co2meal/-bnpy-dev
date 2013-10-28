@@ -84,8 +84,8 @@ class SuffStatDict(object):
   def insertComponents(self, SSextra):
     ''' Insert (in-place) all components from SSextra into this object
     '''
-    if self.K == 1:
-      self.expandSingletonDims()
+    #if self.K == 1:
+    #  self.expandSingletonDims()
 
     for key in self.__compkeys__:
       arrA = self.__dict__[key]
@@ -137,19 +137,22 @@ class SuffStatDict(object):
   def insertEmptyComponents(self, Kextra):
     ''' Insert (in-place) Kextra empty components into this object
     '''
-    if self.K == 1:
-      self.expandSingletonDims()
+    #if self.K == 1:
+    #  self.expandSingletonDims()
 
     for key in self.__compkeys__:
       arrA = self.__dict__[key]
-      if arrA.ndim == 3:
-        myShape = (Kextra, arrA.shape[1], arrA.shape[2])
-        zeroFill = np.zeros( myShape, dtype=arrA.dtype)
-      elif arrA.ndim == 2:
-        zeroFill = np.zeros( (Kextra, arrA.shape[1]), dtype=arrA.dtype)
+      if key == 'sumLogPi':
+        arrC = np.hstack([arrA[:-1], np.zeros(Kextra), arrA[-1]])
       else:
-        zeroFill = np.zeros(Kextra, dtype=arrA.dtype)
-      arrC = np.insert(arrA, arrA.shape[0], zeroFill, axis=0)
+        if arrA.ndim == 3:
+          myShape = (Kextra, arrA.shape[1], arrA.shape[2])
+          zeroFill = np.zeros( myShape, dtype=arrA.dtype)
+        elif arrA.ndim == 2:
+          zeroFill = np.zeros( (Kextra, arrA.shape[1]), dtype=arrA.dtype)
+        else:
+          zeroFill = np.zeros(Kextra, dtype=arrA.dtype)
+        arrC = np.insert(arrA, arrA.shape[0], zeroFill, axis=0)
       self.__dict__[key] = arrC
       # TODO: what about compkeys that are defined as KxK
     if self.hasPrecompEntropy():      
@@ -456,9 +459,10 @@ class SuffStatDict(object):
       arr = arr[np.newaxis]
     if self.K is None:
       self.K = arr.shape[0]
-
-    if self.__doCheck__ and self.K > 1 and arr.shape[0] != self.K and arr.size > 1:
-      raise ValueError('Dimension mismatch. K=%d, Kfound=%d' % (self.K, arr.shape[0]))
+    if self.__doCheck__:
+      if self.K > 1 and arr.shape[0] != self.K and arr.size > 1:
+        raise ValueError('Dimension mismatch. K=%d, Kfound=%d' 
+                              % (self.K, arr.shape[0]))
     self.__compkeys__.add(key)
     self.__dict__[key] = arr
     

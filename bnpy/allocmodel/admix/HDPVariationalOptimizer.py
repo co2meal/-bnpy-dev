@@ -51,7 +51,7 @@ def createToyData(v, alpha0=1.0, gamma=0.5, nDoc=0, seed=42):
   Pi = PRNG.dirichlet( gamma*beta, size=nDoc)
   return dict(Pi=Pi, alpha0=alpha0, gamma=gamma, nDoc=nDoc, K=K)
 
-def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=2, sumLogPi=None, Pi=None, doVerbose=False, **kwargs):
+def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=2, sumLogPi=None, Pi=None, doVerbose=False, method='l_bfgs', **kwargs):
   ''' Solve optimization problem to estimate parameters u
       for the approximate posterior on stick-breaking fractions v
       q(v | u) = Beta( v_k | u_k1, u_k0)
@@ -95,8 +95,20 @@ def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=2, sumLogPi=None, Pi=None, doVer
   myFunc = lambda Cvec: objectiveFunc(Cvec, alpha0, gamma, nDoc, sumLogPi)
   myGrad = lambda Cvec: objectiveGradient(Cvec, alpha0, gamma, nDoc, sumLogPi)
 
-  bestCvec, bestf, Info = scipy.optimize.fmin_l_bfgs_b(myFunc, np.log(initU), fprime=myGrad, disp=None)
-  #bestCvec = scipy.optimize.fmin_bfgs(myFunc, np.log(initU), fprime=myGrad, disp=None)
+  with warnings.catch_warnings():
+    warnings.filterwarnings('ignore', category=DeprecationWarning)
+    warnings.filterwarnings('error', category=RuntimeWarning)
+    try:
+      if method == 'l_bfgs':
+        bestCvec, bestf, Info = scipy.optimize.fmin_l_bfgs_b(myFunc, 
+                                  np.log(initU), fprime=myGrad, disp=None)
+      else:
+        bestCvec, bestf, Info = scipy.optimize.fmin_bfgs(myFunc, 
+                                  np.log(initU), fprime=myGrad, disp=None)
+    except RuntimeWarning:
+      from IPython import embed
+      embed()
+
   bestUvec = np.exp(bestCvec)
 
   if np.allclose(bestUvec, initU):

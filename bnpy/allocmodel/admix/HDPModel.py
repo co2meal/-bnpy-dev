@@ -133,7 +133,6 @@ class HDPModel(AllocModel):
             # Assess convergence 
             curVec = LP['alphaPi'].flatten()
             if prevVec is not None and np.allclose(prevVec, curVec):
-                print "converged after %d" % (ii)
                 break
             prevVec = curVec
         return LP
