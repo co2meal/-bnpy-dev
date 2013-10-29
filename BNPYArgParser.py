@@ -12,8 +12,6 @@ ConfigPaths={cfgroot + 'allocmodel.conf':'allocModelName',
 
 OnlineDataConfigPath =  cfgroot + 'onlinedata.conf'
 
-print ConfigPaths.keys()
-
 UNKARGLIST = None
 
 def parseUnknownArgs():
