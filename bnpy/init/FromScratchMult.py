@@ -5,6 +5,7 @@ Initialize params of HModel with multinomial observations from scratch.
 '''
 import numpy as np
 from scipy.special import digamma
+from scipy.cluster import vq
 
 def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwargs):
     
@@ -32,7 +33,27 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
         selectIDs = PRNG.choice(Data.nObs, nSelect, replace=False)
         for pos in range(len(selectIDs)):
           word_variational[selectIDs[pos], pos % K] = 1.0
-
+          
+    elif initname == 'kmeans':
+        # Runs the k-means initialization on sparse matrix dw
+        dw = Data.to_sparse_dw()
+        doc_range = Data.doc_range
+        # for now we will make it dense since scipy kmeans is not working all that well
+        dw_w = vq.whiten(dw.todense())
+        Z = vq.kmeans2(dw_w, K)
+        # will this be used?
+        # lambda_temp = Z[0] 
+        labels = Z[1] 
+        doc_variational = np.zeros((nDocTotal, K)) + 1.0
+        word_variational = np.zeros((nObsTotal, K)) + 1.0
+        # Loop through documents and put mass on k that k-means found for documents and tokens
+        for d in xrange(nDocTotal):
+            doc_variational[d, labels[d]] += doc_range[d,1] - doc_range[d,0]
+            word_variational[doc_range[d,0]:doc_range[d,1], labels[d]] += 1.0  
+        
+        # Need to normalize word_variational parameters
+        word_variational /= word_variational.sum(axis=1)[:,np.newaxis]
+        
     elif initname == 'truth':
         word_variational = np.zeros( (nObsTotal, K) ) + .1
         doc_variational = Data.true_td.T

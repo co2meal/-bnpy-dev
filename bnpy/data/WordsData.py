@@ -196,6 +196,25 @@ class WordsData(DataObj):
         shape = (self.vocab_size,nDW)
         self.__sparseMat__ = scipy.sparse.csc_matrix(infoTuple, shape=shape)
         return self.__sparseMat__
+    
+    def to_sparse_dw(self):
+        ''' Create sparse matrix that represents a document
+            by word (unique vocabulary) matrix. Used for 
+            efficient initialization of global parameters
+        '''
+        row_ind = list()
+        col_ind = list()
+        doc_range = self.doc_range
+        word_count = self.word_count
+        for d in xrange(self.nDocTotal):
+            numDistinct = doc_range[d,1] - doc_range[d,0]
+            doc_ind_temp = [d]*numDistinct
+            row_ind.extend(doc_ind_temp)
+            col_ind.extend(self.word_id[ (doc_range[d,0]):(doc_range[d,1]) ])
+        
+        print "Constructing Sparse Matrix (nDocTotal x vocab_size)"    
+        self.sparseDW = scipy.sparse.csr_matrix( ( word_count, (row_ind,col_ind) ), shape=(self.nDocTotal, self.vocab_size) )
+        return self.sparseDW
 
     def verify_dimensions(self):
         ''' Basic runtime checks to make sure dimensions are set correctly
