@@ -12,7 +12,7 @@ import os
 import copy
 
 from ..distr import GaussDistr
-from ..distr import GaussWishDistr
+from ..distr import GaussGammaDistr
 
 from ..util import LOGTWO, LOGPI, LOGTWOPI, EPS
 from ..util import np2flatstr, dotATA, dotATB, dotABT
@@ -46,7 +46,7 @@ class DiagGaussObsCompSet( ObsCompSet ):
       if self.inferType == 'EM':
         self.comp[k] = GaussDistr( **compDictList[k] )
       else:
-        self.comp[k] = GaussWishDistr( **compDictList[k]) 
+        self.comp[k] = GaussGammaDistr( **compDictList[k]) 
       self.D = self.comp[k].D
     return self
     
@@ -61,7 +61,7 @@ class DiagGaussObsCompSet( ObsCompSet ):
       obsPrior = None
       return cls(inferType, D, obsPrior, min_covar=priorArgDict['min_covar'])
     else:
-      obsPrior = GaussWishDistr.InitFromData(priorArgDict,Data)
+      obsPrior = GaussGammaDistr.InitFromData(priorArgDict,Data)
       return cls(inferType, D, obsPrior)
   
   ######################################################### Gaussian accessors  
@@ -107,7 +107,6 @@ class DiagGaussObsCompSet( ObsCompSet ):
   ######################################################### Global Parameter   
   #########################################################  updates (M-step)
   def update_obs_params_EM( self, SS, Krange, **kwargs):
-    I = np.eye(self.D)
     for k in Krange:
       mean    = SS['x'][k]/SS['N'][k]
       covMat_diag  = SS['xx'][k]/SS['N'][k] - np.square(mean)
@@ -131,22 +130,15 @@ class DiagGaussObsCompSet( ObsCompSet ):
     if self.inferType == 'EM':
      return 0 # handled by alloc model
     else:
-      return self.E_logpX( LP, SS) + self.E_logpPhi() - self.E_logqPhi()
+      return self.E_logpX( LP, SS, Data.X) + self.E_logpPhi() - self.E_logqPhi()
   
-  def E_logpX( self, LP, SS ):
+  def E_logpX( self, LP, SS, X):
     ''' E_{q(Z), q(Phi)} [ log p(X) ]
         Bishop PRML eq. 10.71
     '''
     lpX = -self.D*LOGTWOPI*np.ones( self.K )
     for k in range( self.K ):
-      if np.allclose( SS['N'][k], 0):
-        lpX[k] += self.comp[k].ElogdetLam() - self.D/self.comp[k].kappa
-      else:
-        mean    = SS['x'][k]/SS['N'][k]
-        covMat  = SS['xxT'][k]/SS['N'][k] - np.outer(mean,mean)
-        lpX[k] += self.comp[k].ElogdetLam() - self.D/self.comp[k].kappa \
-                - self.comp[k].dF* self.comp[k].traceW( covMat )  \
-                - self.comp[k].dF* self.comp[k].dist_mahalanobis(mean )
+        lpX[k] += self.comp[k].ElogdetLam() - self.comp[k].E_weightedSOS(X)
     return 0.5*np.inner(SS['N'],lpX)
     
   def E_logpPhi( self ):
@@ -160,11 +152,10 @@ class DiagGaussObsCompSet( ObsCompSet ):
     '''
     lp = np.empty( self.K)    
     for k in range( self.K ):
-      mWm = self.comp[k].dist_mahalanobis( self.obsPrior.m )
-      lp[k] = self.comp[k].ElogdetLam() \
-                -self.D*self.obsPrior.kappa/self.comp[k].kappa \
-                -self.obsPrior.kappa*self.comp[k].dF*mWm
-    lp += self.D*( np.log( self.obsPrior.kappa ) - LOGTWOPI)
+        lp[k] = self.obsPrior.beta*self.comp[k].a*np.sum(np.square(self.comp[k].m - self.obsPrior.m)/self.comp[k].b)
+        lp[k] += self.comp[k].ElogdetLam() \
+                - self.D*self.obsPrior.beta/self.comp[k].beta
+    lp += self.D*( np.log( self.obsPrior.beta ) - LOGTWOPI)
     return 0.5*lp.sum()
     
   def E_logpLam( self ):
@@ -172,9 +163,9 @@ class DiagGaussObsCompSet( ObsCompSet ):
     '''
     lp = np.empty( self.K) 
     for k in xrange( self.K ):
-      lp[k] = 0.5*(self.obsPrior.dF - self.D -1)*self.comp[k].ElogdetLam()
-      lp[k] -= 0.5*self.comp[k].dF*self.comp[k].traceW(self.obsPrior.invW)
-    return lp.sum() - self.K * self.obsPrior.logWishNormConst()
+      lp[k] = (self.obsPrior.a-1)*self.comp[k].ElogdetLam()
+      lp[k] -= self.obsPrior.a*np.sum(self.obsPrior.b/self.comp[k].b)
+    return lp.sum()
     
   def E_logqMu( self ):
     ''' First two RHS terms in Bishop 10.77
@@ -182,7 +173,7 @@ class DiagGaussObsCompSet( ObsCompSet ):
     lp = np.zeros( self.K)
     for k in xrange( self.K):
       lp[k] = 0.5*self.comp[k].ElogdetLam()
-      lp[k] += 0.5*self.D*( np.log( self.comp[k].kappa ) - LOGTWOPI )
+      lp[k] += 0.5*self.D*( np.log( self.comp[k].beta ) - LOGTWOPI )
     return lp.sum() - 0.5*self.D*self.K
                      
   def E_logqLam( self ):
@@ -190,7 +181,7 @@ class DiagGaussObsCompSet( ObsCompSet ):
     '''
     lp = np.zeros( self.K)
     for k in xrange( self.K):
-      lp[k] -= self.comp[k].entropyWish()
+      lp[k] -= self.comp[k].entropyGamma()
     return lp.sum()
  
   
