@@ -140,18 +140,30 @@ class GaussWishDistr( Distr ):
         and precision parameters.
     '''
     wishartObj = WishartDistr( self.dF, self.invW)
-    # sample a precision matrix from the Wishart obj
-    P = wishartObj.sample(1);
-    gaussObj = GaussDistr(m = self.m,L = (self.kappa)*P[:,:,0]);
-    #print gaussObj
-    #print gaussObj.get_covar()
-    # get data mean
-    mu = gaussObj.sample(1);
-    # sample data
-    gaussObj_data = GaussDistr(mu[0],P[:,:,0]);
-    return gaussObj_data.sample(numSamples)
-
-    
+    # sample precision matrices from the Wishart obj
+    L = wishartObj.sample(numSamples)
+    # store L,mu pairs
+    samples = []
+    for i in xrange(numSamples):
+        gaussObj = GaussDistr(m = self.m,L = (self.kappa)*L[:,:,i])
+        # get data mean
+        mu = gaussObj.sample(1)
+        samples.append([mu,L[:,:,i]])
+    return samples
+ 
+  def generate_data(self,numSamples=1):
+     '''
+     '''
+     wishartObj = WishartDistr( self.dF, self.invW)
+     # sample a precision matrix from the Wishart obj
+     L = wishartObj.sample(1)
+     gaussObj = GaussDistr(m = self.m,L = (self.kappa)*L[:,:,0])
+     # get data mean
+     mu = gaussObj.sample(1)
+     # sample data
+     gaussObj_data = GaussDistr(mu[0],L[:,:,0])
+     return gaussObj_data.sample(numSamples)   
+  
   ############################################################## Exp Fam accessors
   ##############################################################
   def get_log_norm_const( self ):

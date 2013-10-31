@@ -134,7 +134,18 @@ class GaussDistr( Distr ):
   def sample(self,numSamples=1):
     ''' Returns samples from Distr
     '''
-    return np.random.multivariate_normal(self.m,self.get_covar(),numSamples)     
+    # samples numSamples*D stores the generated samples
+    samples = np.ndarray(shape=(numSamples,self.D), dtype=float)
+    I = np.eye(self.D)
+    # invert the upper triangular cholesky matrix
+    U = np.linalg.solve(self.cholL(),I)
+    # generate samples from N(0,1)
+    x = np.reshape(np.random.standard_normal(numSamples*self.D),[numSamples,self.D])
+    # Generate samples from multivariate normal
+    samples = np.dot(x,U) + self.m
+
+    return samples
+    #return np.random.multivariate_normal(self.m,self.get_covar(),numSamples)     
   
   ############################################################## Accessors  
   ##############################################################

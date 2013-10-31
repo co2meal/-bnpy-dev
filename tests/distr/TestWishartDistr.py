@@ -7,7 +7,7 @@ import copy
 
 class TestWishart(object):
   def setUp(self):
-    self.v = 4
+    self.v = 14
     self.invW = np.eye(2)
     self.distr = WishartDistr(v=self.v, invW=self.invW)
     
@@ -45,3 +45,13 @@ class TestWishart(object):
       print self.distr.invW
       print postD.invW
       assert Hpost < Hprior
+      
+  def test_sample(self):
+       ''' Verifies the function sample produces samples from the appropriate distribution'''
+       # check that the empirical mean approximates true mean
+       samples = self.distr.sample(int(1e+5))
+       empirical_mean = np.mean(samples,2)
+       true_mean = self.v*self.invW
+       assert np.allclose(empirical_mean.flatten(),true_mean.flatten(),atol=1e-1)
+       print 'Empirical mean {} is within tolerance of true mean {}'.format(empirical_mean,true_mean)
+       
