@@ -87,7 +87,7 @@ class HModel( object ):
     SS = self.allocModel.get_global_suff_stats( Data, LP, **kwargs )
     SS = self.obsModel.get_global_suff_stats( Data, SS, LP, **kwargs )
     # Change effective scale (nObs) of the suff stats 
-    # (useful for stochastic variational)
+    # only useful for stochastic variational (soVB)
     if Ntotal is not None:
       ampF = Ntotal / Data.nObs
       SS.applyAmpFactor(ampF)
@@ -123,15 +123,15 @@ class HModel( object ):
     ''' Initialize (in-place) global parameters
     '''
     initname = initArgs['initname']
-    if initname.count('truth') > 0:
-      raise NotImplementedError("TODO")
+    if initname.count('true') > 0:
+      init.FromTruth.init_global_params(self, Data, **initArgs)
     elif initname.count(os.path.sep) > 0:
       init.FromSaved.init_global_params(self, Data, **initArgs)
     elif str(type(self.obsModel)).count('Gauss') > 0:
       init.FromScratchGauss.init_global_params(self, Data, **initArgs)
     else:
       # TODO: more observation types!
-      raise NotImplementedError("to do")
+      raise NotImplementedError("TODO")
     
   #########################################################  
   #########################################################  Print to stdout

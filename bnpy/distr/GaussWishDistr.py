@@ -47,9 +47,15 @@ class GaussWishDistr( Distr ):
     if invW is not None:
       self.dF = dF
       self.invW = np.asarray(invW)
-      self.kappa = kappa
+      if self.invW.ndim > 2:
+        self.invW = np.squeeze(self.invW)
       self.m     = np.asarray(m)
-      self.D = invW.shape[0]
+      if self.m.ndim > 1:
+        self.m = self.m[0]
+      self.kappa = kappa
+      self.D = self.invW.shape[0]
+      assert self.m.ndim == 1
+      assert self.invW.ndim == 2
       assert self.m.size == self.D
     else:
       self.dF = None
@@ -59,8 +65,8 @@ class GaussWishDistr( Distr ):
     self.Cache = dict()
     
     
-  ############################################################## Param updates (M step) 
-  ##############################################################
+  ######################################################### Param updates 
+  ######################################################### (M step)
   def get_post_distr( self, compSS):
     ''' Create new Distr object with posterior params
         See Bishop equations 10.59 - 10.63

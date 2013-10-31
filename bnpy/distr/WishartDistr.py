@@ -40,8 +40,12 @@ class WishartDistr( Distr ):
   def __init__( self, v=None, invW=None, **kwargs):
     self.v = float(v)
     self.invW = np.asarray(invW)
+    if self.invW.ndim > 2:
+      self.invW = np.squeeze(self.invW)
     self.D = self.invW.shape[0]
     self.Cache = dict()
+    assert self.invW.ndim == 2
+
 
   def cholinvW(self):
     try:

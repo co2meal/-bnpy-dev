@@ -22,7 +22,7 @@ class XData(DataObj):
       raise KeyError('Stored matfile needs to have data in field named X')
     return cls( InDict['X'], nObsTotal )
   
-  def __init__(self, X, nObsTotal=None):
+  def __init__(self, X, nObsTotal=None, TrueZ=None):
     ''' Constructor for building an instance of XData given an array
         Ensures array is 2-dimensional with proper byteorder, contiguity, and ownership
     '''
@@ -32,7 +32,16 @@ class XData(DataObj):
     self.X = X.newbyteorder('=').copy()
     self.set_dependent_params(nObsTotal=nObsTotal)
     self.check_dims()
+    if TrueZ is not None:
+      self.addTrueLabels(TrueZ)
     
+  def addTrueLabels(self, TrueZ):
+    ''' Adds a "true" discrete segmentation of this data,
+        so that each of the nObs items have a single label
+    '''
+    self.TrueLabels = TrueZ
+    assert self.nObs == TrueZ.size
+
   #########################################################  internal methods
   #########################################################   
   def set_dependent_params( self, nObsTotal=None): 
@@ -57,6 +66,15 @@ class XData(DataObj):
         Ensures the nObsTotal attribute is the same.
     '''
     return XData(self.X[mask], nObsTotal=self.nObsTotal)
+
+  def add_data(self, XDataObj):
+    ''' Updates (in-place) this object by adding new data
+    '''
+    if not self.dim == XDataObj.dim:
+      raise ValueError("Dimensions must match!")
+    self.nObs += XDataObj.nObs
+    self.nObsTotal += XDataObj.nObsTotal
+    self.X = np.vstack([self.X, XDataObj.X])
 
   #########################################################  I/O methods
   ######################################################### 
