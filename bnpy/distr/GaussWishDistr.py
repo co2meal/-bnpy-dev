@@ -158,7 +158,8 @@ class GaussWishDistr( Distr ):
     return samples
  
   def generate_data(self,numSamples=1):
-     '''
+     '''Generates data from a Gaussian distribution whose mean and precision 
+        have a Gaussian Wishart prior. 
      '''
      wishartObj = WishartDistr( self.dF, self.invW)
      # sample a precision matrix from the Wishart obj
