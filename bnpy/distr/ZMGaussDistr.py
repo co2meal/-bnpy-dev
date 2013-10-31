@@ -80,7 +80,18 @@ class ZMGaussDistr( Distr ):
   def sample(self,numSamples=1):
     ''' Returns samples from self
     '''
-    return np.random.multivariate_normal(np.zeros([1,self.D]),self.get_covar(),numSamples)   
+    # samples numSamples*D stores the generated samples
+    samples = np.ndarray(shape=(numSamples,self.D), dtype=float)
+    I = np.eye(self.D)
+    # invert the upper triangular cholesky matrix
+    U = np.linalg.solve(self.cholL(),I)
+    # generate samples from N(0,1)
+    x = np.reshape(np.random.standard_normal(numSamples*self.D),[numSamples,self.D])
+    # Generate samples from multivariate normal
+    samples = np.dot(x,U)
+
+    return samples
+    #return np.random.multivariate_normal(np.zeros([1,self.D]),self.get_covar(),numSamples)   
        
   ############################################################## Internal Accessors
   ############################################################## TODO: clean up
