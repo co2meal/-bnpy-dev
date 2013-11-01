@@ -48,19 +48,19 @@ def plotData(Data, nObsPlot=5000):
   
 def main():
   parser = argparse.ArgumentParser()  
-  parser.add_argument('dataName', type=str, \
+  parser.add_argument('dataName', type=str,
         help='name of python script that produces data to analyze.')
-  parser.add_argument('allocModelName', type=str, \
+  parser.add_argument('allocModelName', type=str,
         help='name of allocation model. {MixModel, DPMixModel}')
-  parser.add_argument('obsModelName', type=str, \
+  parser.add_argument('obsModelName', type=str,
         help='name of observation model. {Gauss, ZMGauss}')
-  parser.add_argument('algName', type=str, \
+  parser.add_argument('algName', type=str,
         help='name of learning algorithms to consider, {EM, VB, moVB, soVB}.')
   parser.add_argument('--jobname', type=str, default='defaultjob',
         help='name of experiment whose results should be plotted')
         
   parser.add_argument('--taskids', type=str, default=None,
-        help="int ids of the tasks (individual runs) of the given job to plot." +\
+        help="int ids for tasks (individual runs) of the given job to plot." + \
               'Ex: "1" or "3" or "1,2,3" or "1-6"')
   parser.add_argument('--savefilename', type=str, default=None,
         help="absolute path to directory to save figure")
@@ -96,11 +96,18 @@ def main():
       prefix = "Iter%05d" % (args.iterid)
     hmodel = bnpy.ioutil.ModelReader.load_model(taskpath, prefix)
 
-    pylab.figure()
+    figHandle = pylab.figure()
     if args.doPlotData:
       plotData(Data)
-    bnpy.viz.GaussViz.plotGauss2DFromHModel(hmodel)
-    
+
+    if type(hmodel.obsModel) == bnpy.obsmodel.GaussObsCompSet:
+      bnpy.viz.GaussViz.plotGauss2DFromHModel(hmodel)
+    elif args.dataName.count('Bars') > 0:
+      pylab.close(figHandle)
+      Data = loadData(jobpath)
+      bnpy.viz.BarsViz.plotBarsFromHModel(hmodel, Data=Data, doShowNow=False)
+    else:
+      raise NotImplementedError('TODO')
     if args.savefilename is not None:
       pylab.show(block=False)
       pylab.savefig(args.savefilename % (taskid))

@@ -1,24 +1,32 @@
-======== Birth Move
+========== verify evidence
+* change to equalAtMSigFigs
 
-after trying a birth move at comp k:
-  if fails (nothing new created): 
-    prob try again should be extremely low
+========== Learn.py
+return structure that allows inspecting the
+* evBound : final ev bound
+* evTrace :  nLap x 1 vector of ev bound at each step
+* random other fields?
 
-  if succeeds (some new comps created): 
-    should not try again until 2 or 3 laps done
+========== Learn.py seeds
+* use only first 5 characters of jobname as seed? or until the first non-alpha character
 
-newborn component:
-  probably should not be tried until at least one lap is complete
+========== Births
+* only perform if K < Kmax
+*    force Kfresh = min(Kfresh, Kmax-K) so that we always stay under Kmax
 
-merged component:
-  probably should not be tried until at least a few laps are complete
+========== SuffStatDict
 
-======== Local Params
-keep as a dict??
+Redesign, with
+* simpler internal structure (don't hide behind __dict__)
+* direct access to fields.  Don't use dictionary notation at all.
+* smarter handling of field dimensions. What happens in singleton case should be very well-defined.
 
-for mix models:
-  LP['resp']
-for admix models
-  LP['resp'], LP['groupWeights'], LP['NperGroup']
-for HMMs
-  LP['resp'], LP['respPair']
+=========== Logging
+have separate log transcripts for births/merges, so we can do detailed diagnostics?
+
+=========== Tests
+For each model:
+*** verify inits are repeatable
+*** verify that moVB with nBatch=1 is same as VB
+*** verify that soVB with nBatch=1,rhoexp=0 is same as VB
+*** verify that soVB, moVB, and VB end up at similar ballparks for ELBO vals

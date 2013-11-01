@@ -13,12 +13,17 @@ import numpy as np
 import time
 import os
 import logging
+import scipy.io
+
 Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
 
 class LearnAlg(object):
 
-  def __init__(self, savedir=None, seed=0, algParams=dict(), outputParams=dict()):
+  def __init__(self, savedir=None, seed=0, 
+                     algParams=dict(), outputParams=dict(),
+                     onLapCompleteFunc=lambda:None, onFinishFunc=lambda:None,
+               ): 
     if type(savedir) == str:
       self.savedir = os.path.splitext(savedir)[0]
     else:
@@ -63,7 +68,7 @@ class LearnAlg(object):
   #####################################################  
   def verify_evidence(self, evBound=0.00001, prevBound=0):
     ''' Compare current and previous evidence (ELBO) values,
-        verify that (within numerical tolerance) evidence increases monotonically
+        verify that (within numerical tolerance) increases monotonically
     '''
     if np.isnan(evBound):
       raise ValueError("Evidence should never be NaN")
@@ -77,9 +82,12 @@ class LearnAlg(object):
     isWithinTHR = absDiff <= convergeTHR or percDiff <= convergeTHR
     if not isIncreasing:
       if not isWithinTHR:
-        warnMsg = 'WARNING: evidence decreased!\n' \
-          + '    prev = % .15e\n' % (prevBound) \
-          + '     cur = % .15e\n' % (evBound)
+        if self.hasMove('birth'):
+          warnMsg = 'WARNING: ev decreased (during a birth)\n'
+        else:
+          warnMsg = 'WARNING: evidence decreased!\n'
+        warnMsg += '    prev = % .15e\n' % (prevBound) \
+                 + '     cur = % .15e\n' % (evBound)
         Log.error(warnMsg)
     return isWithinTHR 
 
@@ -126,6 +134,13 @@ class LearnAlg(object):
                                 doSavePriorInfo=(iterid<1), doLinkBest=True)
 
 
+  ######################################################### Plot Results
+  ######################################################### 
+  def plot_results(self, hmodel, Data, LP):
+    ''' Plot learned model parameters
+    '''
+    pass
+
   #########################################################  Print State
   #########################################################  
   def print_state(self, hmodel, iterid, lap, evBound, doFinal=False, status='', rho=None):
@@ -165,6 +180,35 @@ class LearnAlg(object):
       Log.info(logmsg)
     if doFinal:
       Log.info('... done. %s' % (status))
-
+      
   def print_msg(self, msg):
+      ''' Prints a string msg to stdout,
+            without needing to import logging method into subclass. 
+      '''
       Log.info(msg)
+
+  #########################################################
+  def isFirstBatch(self, lapFrac):
+    ''' Returns True/False for whether given batch is last (for current lap)
+    '''
+    if self.lapFracInc == 1.0: # Special case, nBatch == 1
+      isFirstBatch = True
+    else:
+      isFirstBatch = np.allclose(lapFrac - np.floor(lapFrac), self.lapFracInc)
+    return isFirstBatch
+
+  def isLastBatch(self, lapFrac):
+    ''' Returns True/False for whether given batch is last (for current lap)
+    '''
+    return lapFrac % 1 == 0
+
+  def do_birth_at_lap(self, lapFrac):
+    ''' Returns True/False for whether birth happens at given lap
+    '''
+    if 'birth' not in self.algParams:
+      return False
+    nLapTotal = self.algParams['nLap']
+    frac = self.algParams['birth']['fracLapsBirth']
+    if lapFrac > nLapTotal:
+      return False
+    return (nLapTotal <= 5) or (lapFrac <= np.ceil(frac * nLapTotal)) 

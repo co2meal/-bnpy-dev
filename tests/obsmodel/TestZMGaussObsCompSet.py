@@ -4,7 +4,6 @@ Unit tests for ZMGaussObsCompSet
 from bnpy.data import XData
 from bnpy.obsmodel import ZMGaussObsCompSet
 import numpy as np
-from IPython import embed
 
 class TestZMGaussObsCompSetEM(object):
   def setUp(self):

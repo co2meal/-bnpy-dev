@@ -12,6 +12,7 @@ ConfigPaths={cfgroot + 'allocmodel.conf':'allocModelName',
 
 OnlineDataConfigPath =  cfgroot + 'onlinedata.conf'
 
+
 UNKARGLIST = None
 
 def parseUnknownArgs():
@@ -84,37 +85,6 @@ def kwargs_to_arglist(**kwargs):
     arglist.append('--' + key)
     arglist.append(str(val))
   return arglist
-
-'''
-def parseArgs():
-  parser = argparse.ArgumentParser()
-  parser.add_argument('dataName')
-  parser.add_argument('allocModelName')
-  parser.add_argument('obsModelName')
-  parser.add_argument('algName')
-  args, unkargs = parser.parse_known_args()
-  if args.algName.count('o') > 0:
-    ConfigPaths.append(OnlineDataConfigPath)
-
-  for filepath in ConfigPaths:
-    if filepath.count('inference') > 0:
-      addArgGroupFromConfigFile(parser, filepath, args.algName)
-    elif filepath.count('allocmodel') > 0:
-      addArgGroupFromConfigFile(parser, filepath, args.allocModelName)
-    elif filepath.count('obsmodel') > 0:
-      addArgGroupFromConfigFile(parser, filepath, args.obsModelName)
-    else:
-      addArgGroupFromConfigFile(parser, filepath)
-  args = parser.parse_args()
-  argDict = dict( dataName=args.dataName,
-                  allocModelName=args.allocModelName,
-                  obsModelName=args.obsModelName,
-                  algName=args.algName
-                )
-  for filepath in ConfigPaths:
-    addArgsToDictByConfigFile( argDict, args, filepath)
-  return argDict
-'''
 
 def addArgsToDictByConfigFile(argDict, args, filepath, targetSectionName=None):
   config = readConfigParser( filepath)

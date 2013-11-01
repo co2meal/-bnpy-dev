@@ -31,7 +31,6 @@ Here, we make an EM version with 10 covariance matrices (each scaled identity)
 >> cDictList = [dict(Sigma=k * np.eye(2)) for k in 10]
 >> obsModel = ZMGaussObsCompSet.InitFromCompDicts(oDict, None, cDictList)
 '''
-from IPython import embed
 import numpy as np
 import scipy.linalg
 import os
