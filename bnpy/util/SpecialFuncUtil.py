@@ -16,9 +16,9 @@ def equalAtMSigFigs(A, B, M=12):
       True
       >>> equalAtMSigFigs(3.14159, np.pi, M=6)
       True
-      >>> equalAtMSigFigs(1.234e3, 1e3, M=1)
+      >>> equalAtMSigFigs(1234, 1000, M=1)
       True
-      >>> equalAtMSigFigs(1.234e3, 1e3, M=2)
+      >>> equalAtMSigFigs(1234, 1000, M=2)
       False
   '''
   signA, RA, PA = toSciNotationBase10(A, M)

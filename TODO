@@ -1,3 +1,19 @@
+========== verify evidence
+* change to equalAtMSigFigs
+
+========== Learn.py
+return structure that allows inspecting the
+* evBound : final ev bound
+* evTrace :  nLap x 1 vector of ev bound at each step
+* random other fields?
+
+========== Learn.py seeds
+* use only first 5 characters of jobname as seed? or until the first non-alpha character
+
+========== Births
+* only perform if K < Kmax
+*    force Kfresh = min(Kfresh, Kmax-K) so that we always stay under Kmax
+
 ========== SuffStatDict
 
 Redesign, with
