@@ -143,11 +143,6 @@ class WishartDistr( Distr ):
     H = self.get_log_norm_const() -0.5*(v-D-1)*self.ElogdetLam() + 0.5*v*D
     return H
    
-  def log_pdf( self ):
-    ''' Returns log p( x | theta )
-    '''
-    pass
-    
   def E_log_pdf( self, Data ):
     ''' Returns E[ log p( x | theta ) ] under q(theta) <- this distr
     '''

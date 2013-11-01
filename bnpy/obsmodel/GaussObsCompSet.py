@@ -4,7 +4,6 @@ GaussObsCompSet.py
 This object represents the explicit *prior* distribution (if any)
 as well as the set/collection of mixture component parameters 1,2,... K   
 '''
-from IPython import embed
 import numpy as np
 import scipy.io
 import scipy.linalg
@@ -52,7 +51,7 @@ class GaussObsCompSet( ObsCompSet ):
     
   @classmethod
   def InitFromData(cls, inferType, priorArgDict, Data):
-    ''' Create GaussObCompSet and its prior distr in one call
+    ''' Create GaussObsCompSet and its prior distr in one call
         The resulting object then needs to be initialized via init_global_params,
         otherwise it has no components and can't be used in learn algs.
     '''

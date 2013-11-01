@@ -256,7 +256,7 @@ class GaussWishDistr( Distr ):
   ############################################################## I/O 
   ##############################################################
   def to_dict(self):
-    return dict(name=self.__class__.__name__, \
+    return dict(name=self.__class__.__name__,
                  dF=self.dF, invW=self.invW, m=self.m, kappa=self.kappa)
     
   def from_dict(self, Dict):

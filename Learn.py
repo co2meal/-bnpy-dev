@@ -99,7 +99,7 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
     if (evBound > bestEvBound):
       bestModel = hmodel
       bestLP = LP
-      bestEvBound = evBound                  
+      bestEvBound = evBound
   return bestModel, bestLP, bestEvBound
 
 ############################################################### RUN SINGLE TASK 
@@ -189,6 +189,7 @@ def loadData(ReqArgs, KwArgs, DataArgs, dataorderseed):
     InitData = datamod.get_data(**DataArgs)
     OnlineDataArgs = KwArgs['OnlineDataPrefs']
     OnlineDataArgs['dataorderseed'] = dataorderseed
+    OnlineDataArgs.update(DataArgs)
     DataIterator = datamod.get_minibatch_iterator(**OnlineDataArgs)
     return DataIterator, InitData
   
@@ -241,11 +242,9 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
     learnAlg = bnpy.learn.VBLearnAlg(savedir=savepath, seed=algseed, \
                                       algParams=algP, outputParams=outputP)
   elif algName == 'soVB':
-    learnAlg = bnpy.learn.StochasticOnlineVBLearnAlg(savedir=savepath, seed=algseed, \
-                                      algParams=algP, outputParams=outputP)
+    learnAlg = bnpy.learn.StochasticOnlineVBLearnAlg(savedir=savepath, seed=algseed, algParams=algP, outputParams=outputP)
   elif algName == 'moVB':
-    learnAlg = bnpy.learn.MemoizedOnlineVBLearnAlg(savedir=savepath, seed=algseed, \
-                                      algParams=algP, outputParams=outputP)
+    learnAlg = bnpy.learn.MemoizedOnlineVBLearnAlg(savedir=savepath, seed=algseed, algParams=algP, outputParams=outputP)
   else:
     raise NotImplementedError("Unknown learning algorithm " + algName)
   return learnAlg

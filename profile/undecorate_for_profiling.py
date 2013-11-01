@@ -10,19 +10,19 @@ import os
 path = '../bnpy/'
 
 list_of_files = {}
-for (dirpath, dirnames, filenames) in os.walk(path):
-    for filename in filenames:
-        if filename[-3:] == '.py': 
-            list_of_files[filename] = os.sep.join([dirpath, filename])
+for (dirpath, contentdirs, contentfiles) in os.walk(path):
+    for fname in contentfiles:
+        if fname[-3:] == '.py':
+            fullpathkey = os.sep.join([dirpath,fname])
+            list_of_files[fullpathkey] = fname
 
-for key in list_of_files.keys():
-  origfname = list_of_files[key]
-  proffname = list_of_files[key]+'CLEAN'
-  proffile = open( proffname, 'w')
-  with open( origfname, 'r') as f:
+for origPath in list_of_files.keys():
+  profPath = origPath + 'CLEAN'
+  profFileObj = open(profPath, 'w')
+  with open(origPath, 'r') as f:
     for line in f.readlines():
       if line.count( '@profile' ) == 0:
-        proffile.write( line )
-  proffile.close()
-  os.rename( proffname, origfname)
+        profFileObj.write( line )
+  profFileObj.close()
+  os.rename(profPath, origPath)
 

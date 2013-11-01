@@ -31,7 +31,7 @@ with open(origfname, 'w') as f:
   for Record in Records:
     lines = Record.split('\n')
     totalTime = lines[2]
-    if totalTime.count( '0 s' ) > 0:
+    if totalTime.count( ' 0 s' ) > 0:
       continue
     for line in lines:
       f.write( line+'\n' )

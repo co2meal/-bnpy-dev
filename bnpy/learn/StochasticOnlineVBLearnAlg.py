@@ -17,13 +17,14 @@ class StochasticOnlineVBLearnAlg(LearnAlg):
     self.set_start_time_now()
     LP = None
     rho = 1.0
-    nObsTotal = DataIterator.nObsTotal
-    lapFracPerBatch = DataIterator.nObsBatch / float(nObsTotal)
     iterid = -1
     lapFrac = 0
+    lapFracPerBatch = DataIterator.nObsBatch / float(DataIterator.nObsTotal)
     while DataIterator.has_next_batch():
-      # Grab new data and update counts
+      # Grab new data
       Dchunk = DataIterator.get_next_batch()
+
+      # Update progress-tracking variables
       iterid += 1
       lapFrac = (iterid+1) * lapFracPerBatch
 
@@ -34,7 +35,7 @@ class StochasticOnlineVBLearnAlg(LearnAlg):
 
       # E step
       LP = hmodel.calc_local_params(Dchunk, LP)
-      SS = hmodel.get_global_suff_stats(Dchunk, LP, Ntotal=nObsTotal)
+      SS = hmodel.get_global_suff_stats(Dchunk, LP, doAmplify=True)
 
       # ELBO calculation
       evBound = hmodel.calc_evidence(Dchunk, SS, LP)      
@@ -45,7 +46,7 @@ class StochasticOnlineVBLearnAlg(LearnAlg):
       self.print_state(hmodel, iterid, lapFrac, evBound)
     
     #Finally, save, print and exit
-    self.save_state(hmodel,iterid, lapFrac, evBound, doFinal=True) 
     status = "all data processed."
-    self.print_state(hmodel,iterid, lapFrac, evBound, doFinal=True, status=status)
+    self.save_state(hmodel,iterid, lapFrac, evBound, doFinal=True)    
+    self.print_state(hmodel, iterid, lapFrac, evBound, doFinal=True, status=status)
     return None, evBound

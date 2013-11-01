@@ -45,7 +45,7 @@ def save_obs_model(obsmodel, fpath, prefix, doLinkBest=False):
     myDict[key] = np.squeeze(np.dstack([ compDict[key] for compDict in compList]))
   scipy.io.savemat( outmatfile, myDict, oned_as='row')
   if doLinkBest and prefix != 'Best':
-    create_best_link( outmatfile, os.path.join(fpath,'BestObsModel.mat'))
+    create_best_link( outmatfile, os.path.join(fpath,'BestObsModel.mat'))    
   
 def save_alloc_prior( amodel, fpath):
   outpath = os.path.join( fpath, 'AllocPrior.mat')

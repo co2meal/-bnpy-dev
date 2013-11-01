@@ -47,12 +47,20 @@ def subsample_data(DataObj, LP, targetCompID, targetProbThr=0.1,
     -------
     new DataObj that contains a subset of the data
   '''
-  mask = LP['resp'][: , targetCompID] > targetProbThr
+  if 'word_variational' in LP:
+    mask = LP['word_variational'][: , targetCompID] > targetProbThr
+  else:
+    mask = LP['resp'][: , targetCompID] > targetProbThr
   objIDs = np.flatnonzero(mask)
-  randstate.shuffle(objIDs)
-  targetObjIDs = objIDs[:maxTargetObs]
-  TargetData = DataObj.select_subset_by_mask(targetObjIDs)
-  TargetData.nObsTotal = TargetData.nObs
+  if 'word_variational' in LP:
+    # TODO: better control for the size of the subset??
+    TargetData = DataObj.select_subset_by_mask(wordMask=objIDs,
+                                                doTrackFullSize=False)
+  else:
+    randstate.shuffle(objIDs)
+    targetObjIDs = objIDs[:maxTargetObs]
+    TargetData = DataObj.select_subset_by_mask(targetObjIDs, 
+                                                doTrackFullSize=False)
   return TargetData
   
 ###########################################################
@@ -176,17 +184,23 @@ def select_birth_component(SS, targetSelectName='sizebiased',
 def viz_birth_proposal_2D(curModel, newModel, ktarget, freshCompIDs):
   ''' Create before/after visualization of a birth move (in 2D)
   '''
-  from ..viz import GaussViz
+  from ..viz import GaussViz, BarsViz
   from matplotlib import pylab
-  
 
   fig = pylab.figure()
-  hA = pylab.subplot(1,2,1)
-  GaussViz.plotGauss2DFromHModel(curModel, compsToHighlight=ktarget)
+  h1 = pylab.subplot(1,2,1)
+
+  if curModel.obsModel.__class__.__name__.count('Gauss'):
+    GaussViz.plotGauss2DFromHModel(curModel, compsToHighlight=ktarget)
+  else:
+    BarsViz.plotBarsFromHModel(curModel, compsToHighlight=ktarget, figH=h1)
   pylab.title( 'Before Birth' )
     
-  hB = pylab.subplot(1,2,2)
-  GaussViz.plotGauss2DFromHModel(newModel, compsToHighlight=freshCompIDs)
+  h2 = pylab.subplot(1,2,2)
+  if curModel.obsModel.__class__.__name__.count('Gauss'):
+    GaussViz.plotGauss2DFromHModel(newModel, compsToHighlight=freshCompIDs)
+  else:
+    BarsViz.plotBarsFromHModel(newModel, compsToHighlight=freshCompIDs, figH=h2)
   pylab.title( 'After Birth' )
   pylab.show(block=False)
   try: 
