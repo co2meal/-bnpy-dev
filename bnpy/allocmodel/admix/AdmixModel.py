@@ -68,7 +68,7 @@ class AdmixModel(AllocModel):
         ''' Return list of string names of the LP fields
             that moVB needs to memoize across visits to a particular batch
         '''
-        return ['DocTopicCount']
+        return ['alphaPi']
 
     def calc_local_params( self, Data, LP, nCoordAscentIters=10):
         ''' Calculate document-specific quantities (E-step)
@@ -87,61 +87,95 @@ class AdmixModel(AllocModel):
                   row i has params for word i's Discrete distr over K topics                        
               DocTopicCount : nDoc x K matrix
         '''
-        # doc_variational are the document level variational parameters phi
-        # on the first iteration, initialize this to an empty array
-        if 'DocTopicCount' not in LP:
-            LP['DocTopicCount'] = np.zeros((Data.nDoc, self.K))
-        
-        doc_range = Data.doc_range
-        word_count = Data.word_count
-        prevVec = None
-      
+        # When given no prev. local params LP, need to initialize from scratch
+        # this forces likelihood to drive the first round of local assignments
+        if 'alphaPi' not in LP:
+            LP['alphaPi'] = np.ones((Data.nDoc,self.K))
+        else:
+            assert LP['alphaPi'].shape[1] == self.K
+
+        LP = self.calc_ElogPi(LP)
+        prevVec = LP['alphaPi'].flatten()
+
+        # Allocate lots of memory once
+        LP['word_variational'] = np.zeros(LP['E_logsoftev_WordsData'].shape)
+
         # Repeat until converged...
         for ii in xrange(nCoordAscentIters):
-            # Update doc_variational field of LP
-            LP = self.get_doc_variational(Data, LP)
-
             # Update word_variational field of LP
             LP = self.get_word_variational(Data, LP)
         
             # Update DocTopicCount field of LP
+            LP['DocTopicCount'] = np.zeros((Data.nDoc,self.K))
             for d in xrange(Data.nDoc):
-                start,stop = doc_range[d,:]
+                start,stop = Data.doc_range[d,:]
                 LP['DocTopicCount'][d,:] = np.dot(
-                                           word_count[start:stop],        
-                                           LP['word_variational'][start:stop,:]     
+                                           Data.word_count[start:stop],        
+                                           LP['word_variational'][start:stop,:]
                                            )
+            # Update doc_variational field of LP
+            LP = self.get_doc_variational(Data, LP)
+            LP = self.calc_ElogPi(LP)
+
             # Assess convergence 
-            curVec = LP['DocTopicCount'].flatten()
+            curVec = LP['alphaPi'].flatten()
             if prevVec is not None and np.allclose(prevVec, curVec):
                 break
             prevVec = curVec
         return LP
     
+
     def get_doc_variational( self, Data, LP):
-        ''' Update and return document-topic variational parameters
+        ''' Update document-topic variational parameters
         '''
-        LP['doc_variational'] = self.alpha0 + LP['DocTopicCount']
-        LP['E_log_doc_variational'] = digamma( LP['doc_variational'] ) - digamma( LP['doc_variational'].sum(axis=1) )[:,np.newaxis]
+        LP['alphaPi'] = LP['DocTopicCount'] + self.alpha0
+        return LP
+
+    def calc_ElogPi(self, LP):
+        ''' Update expected log topic probability distr. for each document d
+        '''
+        alph = LP['alphaPi']
+        LP['E_logPi'] = digamma(alph) - digamma(alph.sum(axis=1))[:,np.newaxis]
         return LP
     
     def get_word_variational( self, Data, LP):
         ''' Update and return word-topic assignment variational parameters
         '''
-        # We call this wv_temp, since this will become the unnormalized
-        # variational parameter at the word level
-        log_wv_temp = LP['E_logsoftev_WordsData'].copy() # so we can do += later
-        for d in xrange( Data.nDoc ):
-            start,stop = Data.doc_range[d,:]
-            log_wv_temp[start:stop, :] += LP['E_log_doc_variational'][d,:]
-        lprPerItem = logsumexp(log_wv_temp, axis=1 )
-        # Normalize wv_temp to get actual word level variational parameters
-        wv = np.exp(log_wv_temp - lprPerItem[:,np.newaxis])
-        wv /= wv.sum(axis=1)[:,np.newaxis] # row normalize
-        assert np.allclose(wv.sum(axis=1), 1)
-        LP['word_variational'] = wv
+        # Operate on wv matrix, which is nDistinctWords x K
+        #  has been preallocated for speed (so we can do += later)
+        wv = LP['word_variational']         
+        K = wv.shape[1]        
+        # Fill in entries of wv with log likelihood terms
+        wv[:] = LP['E_logsoftev_WordsData']
+        # Add doc-specific log prior to certain rows
+        ElogPi = LP['E_logPi']
+        for d in xrange(Data.nDoc):
+            wv[Data.doc_range[d,0]:Data.doc_range[d,1], :] += ElogPi[d,:]
+        # Take exp of wv in numerically stable manner (first subtract the max)
+        #  in-place so no new allocations occur
+        wv -= np.max(wv, axis=1)[:,np.newaxis]
+        np.exp(wv, out=wv)
+        # Normalize, so rows of wv sum to one
+        wv /= wv.sum(axis=1)[:,np.newaxis]
+        assert np.allclose(LP['word_variational'].sum(axis=1), 1)
         return LP
-       
+
+
+    ####################################################### Calc Global Params
+    #######################################################   M-step
+    def update_global_params( self, SS, rho=None, **kwargs ):
+        ''' Update global parameters.
+            However, parametric admixtures have no global alloc. parameters! 
+            The mixture weights are document specific.
+        '''
+        self.K = SS.K
+        
+    def set_global_params(self, true_K=0, **kwargs):
+        self.K = true_K
+
+
+    ####################################################### Calc ELBO
+    #######################################################   
     def calc_evidence( self, Data, SS, LP ):
         ''' Calculate ELBO terms related to allocation model
             p(z | pi) + p(pi | alpha) - q( phi | z) - q(theta | pi)
@@ -175,7 +209,7 @@ class AdmixModel(AllocModel):
         ''' Returns K-length vector with E[ log p(Z) ] for each topic k
                 E[ z_dwk ] * E[ log pi_{dk} ]
         '''
-        E_log_pZ = LP["DocTopicCount"] * LP["E_log_doc_variational"]
+        E_log_pZ = LP['DocTopicCount'] * LP['E_logPi']
         return np.sum(E_log_pZ, axis=0)
     
     def E_log_qZ( self, Data, LP):  
@@ -189,52 +223,43 @@ class AdmixModel(AllocModel):
         return E_log_qZ.sum(axis=0)    
 
     def E_log_pPI( self, Data, LP ):
-        ''' Returns scalar value of E[ log p(PI | alpha0)]
+        ''' Returns scalar value of E[ log p(Pi | alpha0)]
         '''
         K = self.K
         D = Data.nDoc
-        E_log_pPI = gammaln(K*self.alpha0)-K*gammaln(self.alpha0)    
-        E_log_pPI *= D  # same prior over each Doc of data!
-        for d in xrange( D ):
-            E_log_pPI += (self.alpha0-1)*LP['E_log_doc_variational'][d,:].sum()
-        return E_log_pPI
+        logNormC = gammaln(K*self.alpha0)-K*gammaln(self.alpha0)
+        logDirPDF = (self.alpha0 - 1) * LP['E_logPi'].sum()
+        return (Data.nDoc * logNormC) + logDirPDF
     
     def E_log_qPI( self, Data, LP ):
-        ''' Returns scalar value of E[ log q(PI | doc_variational)]
+        ''' Returns scalar value of E[ log q(Pi | alphaPi)]
         '''
-        E_log_qPI = 0
-        for d in xrange( Data.nDoc ):
-            theta = LP['doc_variational'][d]
-            E_log_qPI += gammaln(theta.sum()) - gammaln(theta).sum()
-            E_log_qPI += np.inner(theta - 1,  LP['E_log_doc_variational'][d])
-        return E_log_qPI
+        alph = LP['alphaPi']
+        # logDirNormC : nDoc -len vector    
+        logDirNormC = gammaln(alph.sum(axis=1)) - np.sum(gammaln(alph), axis=1)
+        logDirPDF = np.sum((alph - 1.) * LP['E_logPi'])
+        return np.sum(logDirNormC) + logDirPDF
 
-    ##############################################################    
-    def update_global_params( self, SS, rho=None, **kwargs ):
-        ''' Admixtures have no global allocation parameters! 
-            The mixture weights are document specific.
-        '''
-        self.K = SS.K
-        
-    def set_global_params(self, true_K=0, **kwargs):
-        self.K = true_K
 
-    #################### GET METHODS #############################
+
+    ####################################################### Accessors
+    ####################################################### 
     def set_prior(self, PriorParamDict):
         self.alpha0 = PriorParamDict['alpha0']
-    
+
     def to_dict( self ):
         return dict()              
-  
+
     def from_dict(self, Dict):
         self.inferType = Dict['inferType']
         self.K = Dict['K']
-          
-    def get_prior_dict( self ):
-        return dict( alpha0=self.alpha0, K=self.K, inferType=self.inferType )
+
+    def get_prior_dict(self):
+        return dict(alpha0=self.alpha0, K=self.K, inferType=self.inferType)
     
-    def get_info_string( self):
-        ''' Returns human-readable name of this object'''
+    def get_info_string(self):
+        ''' Returns human-readable name of this object
+        '''
         return 'Finite admixture model with K=%d comps, alpha=%.2f' % (self.K, self.alpha0)
     
     def get_model_name(self ):
@@ -242,6 +267,3 @@ class AdmixModel(AllocModel):
  
     def is_nonparametric(self):
         return False 
-
-    def need_prev_local_params(self):
-        return True

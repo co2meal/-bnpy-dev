@@ -141,30 +141,39 @@ class HDPModel(AllocModel):
             prevVec = curVec
         return LP
 
-    def calc_ElogPi(self, LP):
-        alph = LP['alphaPi']
-        LP['E_logPi'] = digamma(alph) - digamma(alph.sum(axis=1))[:,np.newaxis]
-        return LP
-
     def get_doc_variational( self, Data, LP):
-        ''' Update and return document-topic variational parameters
+        ''' Update document-topic variational parameters
         '''
         zeroPad = np.zeros((Data.nDoc,1))
         DTCountMatZeroPad = np.hstack([LP['DocTopicCount'], zeroPad])
         LP['alphaPi'] = DTCountMatZeroPad + self.gamma*self.Ebeta
         return LP
+
+    def calc_ElogPi(self, LP):
+        ''' Update expected log topic probability distr. for each document d
+        '''
+        alph = LP['alphaPi']
+        LP['E_logPi'] = digamma(alph) - digamma(alph.sum(axis=1))[:,np.newaxis]
+        return LP
     
     def get_word_variational( self, Data, LP):
         ''' Update and return word-topic assignment variational parameters
         '''
-        wv = LP['word_variational']
-        wv[:] = LP['E_logsoftev_WordsData'] # so we can do += later
-        K = wv.shape[1]
+        # Operate on wv matrix, which is nDistinctWords x K
+        #  has been preallocated for speed (so we can do += later)
+        wv = LP['word_variational']         
+        K = wv.shape[1]        
+        # Fill in entries of wv with log likelihood terms
+        wv[:] = LP['E_logsoftev_WordsData']
+        # Add doc-specific log prior to certain rows
         ElogPi = LP['E_logPi'][:,:K]
         for d in xrange(Data.nDoc):
             wv[Data.doc_range[d,0]:Data.doc_range[d,1], :] += ElogPi[d,:]
+        # Take exp of wv in numerically stable manner (first subtract the max)
+        #  in-place so no new allocations occur
         wv -= np.max(wv, axis=1)[:,np.newaxis]
         np.exp(wv, out=wv)
+        # Normalize, so rows of wv sum to one
         wv /= wv.sum(axis=1)[:,np.newaxis]
         assert np.allclose(LP['word_variational'].sum(axis=1), 1)
         return LP
