@@ -1,14 +1,16 @@
 import argparse
 import ConfigParser
-from IPython import embed
+import os
 
-ConfigPaths={'config/allocmodel.conf':'allocModelName',
-             'config/obsmodel.conf':'obsModelName', 
-             'config/inference.conf':'algName',
-             'config/init.conf':None,
-             'config/output.conf':None}
-             
-OnlineDataConfigPath = 'config/onlinedata.conf'
+cfgroot = os.path.sep.join(os.path.abspath(__file__).split(os.path.sep)[:-1])
+cfgroot = os.path.join(cfgroot, 'config/')
+ConfigPaths={cfgroot + 'allocmodel.conf':'allocModelName',
+             cfgroot + 'obsmodel.conf':'obsModelName', 
+             cfgroot + 'inference.conf':'algName',
+             cfgroot + 'init.conf':None,
+             cfgroot + 'output.conf':None}             
+
+OnlineDataConfigPath =  cfgroot + 'onlinedata.conf'
 
 UNKARGLIST = None
 
