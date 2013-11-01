@@ -12,7 +12,7 @@ bin/
 #   (2) these files rarely mean anything to others except the person who ran the test
 local/
 results/
-
+profiles/
 # ======================================================  EXCLUDE FILE PATTERNS
 # Exclude user-specific config options for where to read and write data
 *.path
