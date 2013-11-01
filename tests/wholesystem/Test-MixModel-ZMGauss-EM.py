@@ -15,7 +15,7 @@ class TestMixZMEM(object):
     self.Data = XData(X=X)
     aPDict = dict(alpha0=1.0)
     oPDict = dict(min_covar=1e-9)
-    self.hmodel = HModel.InitFromData('EM', 'MixModel', 'ZMGauss', aPDict, oPDict, self.Data)
+    self.hmodel = HModel.CreateEntireModel('EM', 'MixModel', 'ZMGauss', aPDict, oPDict, self.Data)
     
   def test_dimension(self):
     assert self.hmodel.obsModel.D == self.Data.dim
@@ -36,7 +36,7 @@ class TestMixZMEM_4Class2D(object):
   def MakeHModel(self):
     aPDict = dict(alpha0=1.0)
     oPDict = dict(min_covar=1e-9)
-    self.hmodel = HModel.InitFromData('EM', 'MixModel', 'ZMGauss', aPDict, oPDict, self.Data)
+    self.hmodel = HModel.CreateEntireModel('EM', 'MixModel', 'ZMGauss', aPDict, oPDict, self.Data)
   
   def MakeData(self, N=10000):
     S1 = np.asarray([[100, 0], [0, 0.01]])

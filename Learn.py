@@ -90,17 +90,19 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
   starttaskid = KwArgs['OutputPrefs']['taskid']
   nTask = KwArgs['OutputPrefs']['nTask']
   
+  bestInfo = None
   bestEvBound = -np.inf
   for taskid in range(starttaskid, starttaskid + nTask):
-    hmodel, LP, evBound = _run_task_internal(jobname, taskid, nTask, \
+    hmodel, LP, Info = _run_task_internal(jobname, taskid, nTask, \
                       ReqArgs, KwArgs, UnkArgs, \
                       dataName, allocModelName, obsModelName, algName, \
                       doSaveToDisk, doWriteStdOut)
-    if (evBound > bestEvBound):
+    if (Info['evBound'] > bestEvBound):
       bestModel = hmodel
       bestLP = LP
-      bestEvBound = evBound
-  return bestModel, bestLP, bestEvBound
+      bestEvBound = Info['evBound']
+      bestInfo = Info
+  return bestModel, bestLP, bestInfo
 
 ############################################################### RUN SINGLE TASK 
 ###############################################################
@@ -115,7 +117,9 @@ def _run_task_internal(jobname, taskid, nTask, \
       -------
         hmodel : bnpy HModel, fit to the data
         LP : Local parameter (LP) dict for the specific dataset
-        evBound : log evidence for the resulting model on the specified dataset
+        RunInfo : dict of information about the run, with fields
+                'evBound' log evidence for hmodel on the specified dataset
+                'evTrace' vector of evBound at every traceEvery laps
   '''
   algseed = createUniqueRandomSeed(jobname, taskID=taskid)
   dataorderseed = createUniqueRandomSeed('', taskID=taskid)
@@ -153,8 +157,8 @@ def _run_task_internal(jobname, taskid, nTask, \
   Log.info('savepath: %s' % (taskoutpath))
 
   # Fit the model to the data!
-  LP, evBound = learnAlg.fit(hmodel, Data)                             
-  return hmodel, LP, evBound
+  LP, RunInfo = learnAlg.fit(hmodel, Data)                             
+  return hmodel, LP, RunInfo
   
 
 ############################################################### Load Data

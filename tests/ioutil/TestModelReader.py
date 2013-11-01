@@ -18,7 +18,7 @@ class TestModelReaderEMMixZM(unittest.TestCase):
 
     aPDict = dict(alpha0=1.0)
     oPDict = dict(min_covar=1e-9)
-    self.hmodel = HModel.InitFromData('EM','MixModel','ZMGauss', aPDict, oPDict, self.Data)
+    self.hmodel = HModel.CreateEntireModel('EM','MixModel','ZMGauss', aPDict, oPDict, self.Data)
     initParams = dict(initname='randexamples', seed=0, K=5)
     self.hmodel.init_global_params(self.Data, **initParams)
 
@@ -54,7 +54,7 @@ class TestModelReaderVBMixZM(unittest.TestCase):
     aPDict = dict(alpha0=1.0)
     oPDict = dict(dF=4.0, smatname='eye', sF=1.0)
 
-    self.hmodel = HModel.InitFromData('VB','MixModel','ZMGauss', aPDict, oPDict, self.Data)
+    self.hmodel = HModel.CreateEntireModel('VB','MixModel','ZMGauss', aPDict, oPDict, self.Data)
     initParams = dict(initname='randexamples', seed=0, K=5)
     self.hmodel.init_global_params(self.Data, **initParams)
 

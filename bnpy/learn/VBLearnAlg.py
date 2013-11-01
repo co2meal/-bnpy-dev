@@ -77,7 +77,7 @@ class VBLearnAlg( LearnAlg ):
       status = "max passes thru data exceeded."
     self.save_state(hmodel,iterid, lap, evBound, doFinal=True)    
     self.print_state(hmodel,iterid, lap, evBound, doFinal=True, status=status)
-    return LP, evBound
+    return LP, self.buildRunInfo(evBound, status)
 
 
   ########################################################### Birth Move

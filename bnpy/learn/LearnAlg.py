@@ -31,7 +31,8 @@ class LearnAlg(object):
     self.PRNG = np.random.RandomState(seed)
     self.algParams = algParams
     self.outputParams = outputParams
-    self.TraceIters = set()
+    self.TraceLaps = set()
+    self.evTrace = list()
     self.SavedIters = set()
     self.PrintIters = set()
     self.nObsProcessed = 0
@@ -57,6 +58,12 @@ class LearnAlg(object):
   def get_elapsed_time(self):
     return time.time() - self.start_time
 
+  def buildRunInfo(self, evBound, status):
+    ''' Create dictionary of information about the current run
+    '''
+    return dict(evBound=evBound, status=status,
+                evTrace=self.evTrace, lapTrace=self.TraceLaps)
+
   ##################################################### Fcns for birth/merges
   ##################################################### 
   def hasMove(self, moveName):
@@ -64,8 +71,8 @@ class LearnAlg(object):
       return True
     return False
 
-  ##################################################### Verify evidence monotonic
-  #####################################################  
+  ##################################################### Verify evidence
+  #####################################################  grows monotonically
   def verify_evidence(self, evBound=0.00001, prevBound=0):
     ''' Compare current and previous evidence (ELBO) values,
         verify that (within numerical tolerance) increases monotonically
@@ -108,13 +115,14 @@ class LearnAlg(object):
       return os.path.join(self.savedir, fname)
 
     doTrace = np.allclose(lap % traceEvery, 0) or iterid < 3
-    if iterid not in self.TraceIters:
+    if lap not in self.TraceLaps:
       if iterid == 0:
         mode = 'w'
       else:
         mode = 'a'
       if doFinal or doTrace:
-        self.TraceIters.add(iterid)
+        self.TraceLaps.add(lap)
+        self.evTrace.append(evBound)
         with open( mkfile('iters.txt'), mode) as f:        
           f.write('%d\n' % (iterid))
         with open( mkfile('laps.txt'), mode) as f:        
