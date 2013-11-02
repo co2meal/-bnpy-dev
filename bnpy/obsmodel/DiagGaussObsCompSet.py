@@ -138,8 +138,10 @@ class DiagGaussObsCompSet( ObsCompSet ):
     '''
     lpX = -self.D*LOGTWOPI*np.ones( self.K )
     for k in range( self.K ):
-        lpX[k] += self.comp[k].ElogdetLam() - self.comp[k].E_weightedSOS(X)
-    return 0.5*np.inner(SS['N'],lpX)
+        lpX[k] += self.comp[k].a * np.sum(SS['xx'][k,:] / self.comp[k].b)
+        lpX[k] -= 2*np.sum(self.comp[k].m*SS['x'][k,:])
+        lpX[k] += SS['N'][k]*np.sum(np.square(self.comp[k].m))
+    return 0.5*np.sum(lpX)
     
   def E_logpPhi( self ):
     return self.E_logpLam() + self.E_logpMu()

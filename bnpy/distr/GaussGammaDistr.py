@@ -1,14 +1,14 @@
 ''' 
 GaussGammaDistr.py 
 
-Joint Gaussian-Gamma distribution
+Joint Gaussian-Gamma distribution: D independent Gaussian-Gamma distributions
 
 Attributes
 --------
-dF : scalar degrees of freedom for Wishart
-invW : scale matrix for Wishart, size D x D
-m : mean vector for Gaussian, length D
-kappa : scalar precision parameter for Gaussian covariance
+m : mean for Gaussian, length D
+beta : scalar precision parameter for Gaussian covariance
+a : parameter for Gamma, scalar value
+b : parameter for Gamma, vector length D
 '''
 import numpy as np
 import scipy.linalg
@@ -17,7 +17,6 @@ from bnpy.util import MVgammaln, MVdigamma
 from bnpy.util import LOGTWO, LOGPI, LOGTWOPI, EPS
 from bnpy.util import gammaln, digamma
 
-from WishartDistr  import WishartDistr
 from .Distr import Distr
 
 class GaussGammaDistr( Distr ):
@@ -28,9 +27,9 @@ class GaussGammaDistr( Distr ):
     '''
     D = Data.dim
     m0 = 0 if 'm0' not in argDict else argDict['m0']
-    beta = 1 if 'beta' not in argDict else argDict['beta']
-    a = 0.1 if 'a' not in argDict else argDict['a']
-    b0 = 0.09 if 'b0' not in argDict else argDict['b0']
+    beta = 10 if 'beta' not in argDict else argDict['beta']
+    a = 10 if 'a' not in argDict else argDict['a']
+    b0 = 5 if 'b0' not in argDict else argDict['b0']
 
     m = np.ones(D)*m0
     b = np.ones(D)*b0
@@ -44,6 +43,7 @@ class GaussGammaDistr( Distr ):
     self.a = a
     self.b = b
     self.Cache = dict()
+    print self.to_string()
     
     
   ######################################################### Param updates 
@@ -55,10 +55,10 @@ class GaussGammaDistr( Distr ):
     EN = float(compSS.N)
     Ex = compSS.x
     Exx = compSS.xx
-    m = ( self.beta*self.m + Ex ) / self.beta
     beta = self.beta + EN
+    m = ( self.beta*self.m + Ex ) / beta
     a = self.a + 0.5*EN
-    b = self.b + 0.5*(Exx + self.beta*np.square(self.m) - self.beta*np.square(m))
+    b = self.b + 0.5*(Exx + self.beta*np.square(self.m) - beta*np.square(m))
     return GaussGammaDistr(m, beta, a, b)
     
   ############################################################## Local params (E step)
@@ -72,16 +72,18 @@ class GaussGammaDistr( Distr ):
     return logp
     
   def E_weightedSOS(self, X):
-    '''Calculate E[(x_n - m_k)T * lambda * (x_n -mk)]
+    '''Calculate d(X)[n] = E[(x_n - m_k)T * lambda * (x_n -mk)]
     '''           
     dX = (X-self.m)
-    return np.sum(np.square(dX))*self.a + self.D/self.beta
+    weighted_SOS = np.sum(np.square(dX)/self.b, axis=1)*self.a
+    weighted_SOS += self.D/self.beta
+    return weighted_SOS
     
   def ElogdetLam(self):
     try:
       return self.Cache['ElogdetLam']
     except KeyError:
-      self.Cache['ElogdetLam'] = 0.5*(self.D*digamma(self.a) - sum(self.b))
+      self.Cache['ElogdetLam'] = 0.5*(self.D*digamma(self.a) - sum(np.log(self.b)))
       return self.Cache['ElogdetLam']
       
   def entropyGamma(self):
@@ -108,9 +110,10 @@ class GaussGammaDistr( Distr ):
 
   def to_string(self):
     np.set_printoptions( precision=3, suppress=True)
-    msg = 'E[ Mean   ] = ' + str(self.m[:2] ) +'\n'
-    msg += 'Var[ Mean ] = \n'
-    msg += 'E[ Var ] = \n'
+    msg = 'm = ' + str(self.m[:2] ) +'\n'
+    msg += 'beta =' +str(self.beta) + '\n'
+    msg += 'a =' +str(self.a) + '\n'
+    msg += 'b =' +str(self.b[:2]) + '\n'
     if self.D > 2:
       msg += '...'
     return msg
