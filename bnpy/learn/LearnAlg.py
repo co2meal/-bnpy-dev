@@ -9,6 +9,7 @@ Defines some generic routines for
   * recording run-time
 '''
 from bnpy.ioutil import ModelWriter
+from bnpy.util import closeAtMSigFigs
 import numpy as np
 import time
 import os
@@ -82,11 +83,12 @@ class LearnAlg(object):
     if np.isinf(prevBound):
       return False
     isIncreasing = prevBound <= evBound
-    absDiff = np.abs(prevBound - evBound)
-    percDiff = absDiff / np.abs(prevBound)
-
-    convergeTHR = self.algParams['convergeTHR']
-    isWithinTHR = absDiff <= convergeTHR or percDiff <= convergeTHR
+    #absDiff = np.abs(prevBound - evBound)
+    #percDiff = absDiff / np.abs(prevBound)
+    #convergeTHR = self.algParams['convergeTHR']
+    #isWithinTHR = absDiff <= convergeTHR or percDiff <= convergeTHR
+    M = self.algParams['convergeSigFig']
+    isWithinTHR = closeAtMSigFigs(prevBound, evBound, M=M)
     if not isIncreasing:
       if not isWithinTHR:
         if self.hasMove('birth'):
@@ -106,6 +108,12 @@ class LearnAlg(object):
     '''
     saveEvery = self.outputParams['saveEvery']
     traceEvery = self.outputParams['traceEvery']
+    doTrace = np.allclose(lap % traceEvery, 0) or iterid < 3
+    if lap not in self.TraceLaps:
+      if doFinal or doTrace:
+        self.TraceLaps.add(lap)
+        self.evTrace.append(evBound)
+
     if saveEvery <= 0 or self.savedir is None:
       return    
 
@@ -114,15 +122,12 @@ class LearnAlg(object):
       '''
       return os.path.join(self.savedir, fname)
 
-    doTrace = np.allclose(lap % traceEvery, 0) or iterid < 3
     if lap not in self.TraceLaps:
       if iterid == 0:
         mode = 'w'
       else:
         mode = 'a'
       if doFinal or doTrace:
-        self.TraceLaps.add(lap)
-        self.evTrace.append(evBound)
         with open( mkfile('iters.txt'), mode) as f:        
           f.write('%d\n' % (iterid))
         with open( mkfile('laps.txt'), mode) as f:        

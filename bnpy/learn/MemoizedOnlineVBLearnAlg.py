@@ -120,7 +120,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       msg = "max passes thru data exceeded."
     self.save_state(hmodel, iterid, lapFrac, evBound, doFinal=True) 
     self.print_state(hmodel, iterid, lapFrac, evBound, doFinal=True, status=msg)
-    return None, self.buildRunInfo(evBound, status)
+    return None, self.buildRunInfo(evBound, msg)
 
   def verify_suff_stats(self, SS):
     if hasattr(SS, 'sumLogPi'):

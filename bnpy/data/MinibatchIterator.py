@@ -37,7 +37,7 @@ import numpy as np
 MAXSEED = 1000000
   
 class MinibatchIterator(object):
-  def __init__(self, Data, nBatch=10, nObsBatch=None, nLap=10, dataorderseed=42):
+  def __init__(self, Data, nBatch=10, nObsBatch=None, nLap=10, dataorderseed=42, **kwargs):
     ''' Constructor for creating an iterator over the batches of data
     '''
     self.Data = Data

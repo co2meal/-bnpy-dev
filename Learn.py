@@ -137,6 +137,9 @@ def _run_task_internal(jobname, taskid, nTask, \
   else:
     Data = dataName
     InitData = dataName
+    if algName in OnlineDataAlgSet:
+      Data = Data.to_minibatch_iterator(dataorderseed=dataorderseed,
+                                        **KwArgs['OnlineDataPrefs'])
 
   # Create and initialize model parameters
   hmodel = createModel(InitData, ReqArgs, KwArgs)
@@ -157,7 +160,7 @@ def _run_task_internal(jobname, taskid, nTask, \
   Log.info('savepath: %s' % (taskoutpath))
 
   # Fit the model to the data!
-  LP, RunInfo = learnAlg.fit(hmodel, Data)                             
+  LP, RunInfo = learnAlg.fit(hmodel, Data)
   return hmodel, LP, RunInfo
   
 
@@ -285,8 +288,11 @@ def createUniqueRandomSeed( jobname, taskID=0):
                 such as numpy's RandomState object.
   '''
   import hashlib
+  if jobname.count('-') > 0:
+    jobname = jobname.split('-')[0]
   if len(jobname) > 5:
     jobname = jobname[:5]
+  
   seed = int( hashlib.md5( jobname+str(taskID) ).hexdigest(), 16) % 1e7
   return int(seed)
   

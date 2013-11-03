@@ -9,6 +9,7 @@ This means byteorder and C-contiguity are standardized.
 '''
 import numpy as np
 from .DataObj import DataObj
+from .MinibatchIterator import MinibatchIterator
 
 class XData(DataObj):
   
@@ -39,8 +40,11 @@ class XData(DataObj):
     ''' Adds a "true" discrete segmentation of this data,
         so that each of the nObs items have a single label
     '''
-    self.TrueLabels = TrueZ
     assert self.nObs == TrueZ.size
+    self.TrueLabels = TrueZ
+  
+  def to_minibatch_iterator(self, **kwargs):
+    return MinibatchIterator(self, **kwargs)
 
   #########################################################  internal methods
   #########################################################   

@@ -32,7 +32,10 @@ def parseKeywordArgs(ReqArgs, **kwargs):
   from Learn import OnlineDataAlgSet
   if ReqArgs['algName'] in OnlineDataAlgSet:
     ConfigPaths[OnlineDataConfigPath] = None
-    
+  else:
+    if OnlineDataConfigPath in ConfigPaths:
+      del ConfigPaths[OnlineDataConfigPath]
+
   # BUILD parser using default opts in the config files
   parser = argparse.ArgumentParser()
   parser.add_argument('--moves', type=str)
@@ -99,7 +102,7 @@ def addArgsToDictByConfigFile(argDict, args, filepath, targetSectionName=None):
     argDict[secName] = secArgDict
 
 def addArgGroupFromConfigFile(parser, confFilePath, targetSectionName=None):
-  config = readConfigParser( confFilePath)
+  config = readConfigParser(confFilePath)
   for secName in config.sections():
     if secName.count("Help") > 0:
       continue
@@ -112,7 +115,7 @@ def addArgGroupFromConfigFile(parser, confFilePath, targetSectionName=None):
     except ConfigParser.NoSectionError:
       HelpDict = dict()
       
-    group = parser.add_argument_group( secName )    
+    group = parser.add_argument_group(secName)    
     for optName, defVal in DefDict.items():
       defType = getType( defVal)
       if optName in HelpDict:

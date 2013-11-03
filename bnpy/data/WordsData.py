@@ -53,6 +53,7 @@ The entire document collection is represented by concatenating these building-bl
   wordID    = [wordID(Doc 1)    wordID(Doc 2) ... wordID(Doc #nDoc)]
   wordCount = [wordCount(Doc 1) wordCount(Doc 2) ... wordCount(Doc #nDoc)]
 '''
+from .AdmixMinibatchIterator import AdmixMinibatchIterator
 from .DataObj import DataObj
 from collections import defaultdict
 import numpy as np
@@ -162,6 +163,9 @@ class WordsData(DataObj):
         # Add dictionary of vocab words, if provided
         if vocab_dict is not None:
             self.vocab_dict = vocab_dict
+
+    def to_minibatch_iterator(self, **kwargs):
+      return AdmixMinibatchIterator(self, **kwargs)
 
     def getDocIDs(self, wordLocs=None):
         ''' Retrieve the document ids corresponding to given word locations.

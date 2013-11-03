@@ -38,7 +38,7 @@ import numpy as np
 MAXSEED = 1000000
   
 class AdmixMinibatchIterator(object):
-  def __init__(self, Data, nBatch=10, nObsBatch=None, nLap=20, dataorderseed=42, allocModelName=None):
+  def __init__(self, Data, nBatch=10, nObsBatch=None, nLap=20, dataorderseed=42, allocModelName=None, **kwargs):
     ''' Constructor for creating an iterator over batches of WordsData
     '''
     self.Data = Data
