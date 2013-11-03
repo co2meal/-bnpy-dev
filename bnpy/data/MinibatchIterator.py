@@ -33,7 +33,6 @@ batchID : exact integer ID of the current batch. range=[0, nBatch-1]
 curLapPos : integer count of current position in batch order. incremented 1 at a time.
 lapID : integer ID of the current lap
 '''
-from IPython import embed
 import numpy as np
 MAXSEED = 1000000
   
@@ -46,9 +45,10 @@ class MinibatchIterator(object):
     self.nLap = nLap
     self.nObsTotal = Data.nObsTotal
     if nObsBatch is None:
-      self.nObsBatch = Data.nObsTotal/nBatch
+        self.nObsBatch = Data.nObsTotal/nBatch
     else:
-      self.nObsBatch = nObsBatch
+        self.nObsBatch = nObsBatch
+    
     # Config order in which batches are traversed
     self.curLapPos = -1
     self.lapID  = 0
@@ -90,7 +90,7 @@ class MinibatchIterator(object):
 
   def get_text_summary(self):
     ''' Returns string with human-readable description of this dataset 
-        e.g. stats, source, etc.
+        e.g. source, author/creator, etc.
     '''
     if hasattr(self, 'summary'):
       return self.summary

@@ -36,7 +36,7 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
             must contain precomputed merge entropy in order to try a merge.
        curEv : current evidence bound, provided to save re-computation.
                 curEv = curModel.calc_evidence(SS=SS)
-       kA, kB : (optional) integer ids for which components to merge
+       kA, kB : (optional) integer ids for which specific components to merge
        excludeList : (optional) list of integer ids excluded when selecting
                       which components to merge. useful when doing multiple 
                       rounds of merges, since the precomp merge entropy is only
@@ -71,7 +71,7 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
     MoveInfo = dict(didAccept=0, msg="need >= 2 comps to merge")    
     return curModel, SS, curEv, MoveInfo  
   
-  if not SS.hasPrecompMergeEntropy():
+  if not SS.hasPrecompMergeEntropy() and not SS.hasPrecompMerge():
     MoveInfo = dict(didAccept=0, msg="suff stats did not have merge entropy")    
     return curModel, SS, curEv, MoveInfo  
 
@@ -80,7 +80,7 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
     return curModel, SS, curEv, MoveInfo  
     
   # Select which 2 components kA, kB in {1, 2, ... K} to merge
-  if kA or kB is None:
+  if kA is None or kB is None:
     kA, kB = select_merge_components(curModel, Data, SS,
                                      kA=kA, excludeList=excludeList, 
 																		 excludePairs=excludePairs,
@@ -111,11 +111,12 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
 
   if propEv > curEv:
     MoveInfo = dict(didAccept=1, kA=kA, kB=kB,
-                    msg="merge %3d + %3d | ev +%.3e" % (kA, kB, propEv - curEv))
+                    msg="merge %3d & %3d | ev +%.3e ****ACCEPTED****" \
+                         % (kA, kB, propEv - curEv))
     return propModel, propSS, propEv, MoveInfo
   else:
     MoveInfo = dict(didAccept=0, kA=kA, kB=kB,
-                    msg="merge %3d + %3d | ev -%.3e" % (kA, kB, curEv - propEv))
+                    msg="merge %3d & %3d | ev -%.3e" % (kA, kB, curEv - propEv))
     return curModel, SS, curEv, MoveInfo
 
 
@@ -124,7 +125,7 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
 def select_merge_components(curModel, Data, SS, LP=None,
                             mergename='marglik', randstate=None,
                             kA=None, excludeList=[], 
-														excludePairs=defaultdict(lambda:set)):
+														excludePairs=defaultdict(lambda:set())):
   ''' Select which two existing components to merge when constructing
       a candidate "merged" model from curModel, which has K components.
       We select components kA, kB by their integer ID, in {1, 2, ... K}
@@ -233,22 +234,28 @@ def propose_merge_candidate(curModel, SS, kA=None, kB=None):
 def viz_merge_proposal(curModel, propModel, kA, kB, curEv, propEv):
   ''' Visualize merge proposal (in 2D)
   '''
-  from ..viz import GaussViz
+  from ..viz import GaussViz, BarsViz
   from matplotlib import pylab
   
   fig = pylab.figure()
-  hA = pylab.subplot(1,2,1)
-  GaussViz.plotGauss2DFromHModel(curModel, compsToHighlight=[kA, kB])
+  h1 = pylab.subplot(1,2,1)
+  if curModel.obsModel.__class__.__name__.count('Gauss'):
+    GaussViz.plotGauss2DFromHModel(curModel, compsToHighlight=[kA, kB])
+  else:
+    BarsViz.plotBarsFromHModel(curModel, compsToHighlight=[kA, kB], figH=h1)
   pylab.title( 'Before Merge' )
   pylab.xlabel( 'ELBO=  %.2e' % (curEv) )
     
-  hB = pylab.subplot(1,2,2)
-  GaussViz.plotGauss2DFromHModel(propModel, compsToHighlight=[kA])
+  h2 = pylab.subplot(1,2,2)
+  if curModel.obsModel.__class__.__name__.count('Gauss'):
+    GaussViz.plotGauss2DFromHModel(propModel, compsToHighlight=[kA])
+  else:
+    BarsViz.plotBarsFromHModel(propModel, compsToHighlight=[kA], figH=h2)
   pylab.title( 'After Merge' )
   pylab.xlabel( 'ELBO=  %.2e \n %d' % (propEv, propEv > curEv))
   pylab.show(block=False)
   try: 
-    x = raw_input('Press any key to continue >>')
+    x = raw_input('Press any key to continue / Ctrl-C to quit >>')
   except KeyboardInterrupt:
     import sys
     sys.exit(-1)

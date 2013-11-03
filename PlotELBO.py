@@ -31,6 +31,9 @@ Colors = [(0,0,0), # black
           (1,0.6,0), #orange
          ]
 
+YMin = None
+YMax = None
+
 XLabelMap = dict(laps='num pass thru data',
                   iters='num steps in alg',
                   times='elapsed time (sec)'
@@ -91,10 +94,17 @@ def plot_all_tasks_for_job(jobpath, args, jobname=None, color=None):
       
   # Zoom in to the useful part of the ELBO trace
   if len(yAll) > 0:
+    global YMin, YMax
     ymin = np.percentile(yAll, 1)
     ymax = np.max(yAll)
-    blankmargin = 0.08*(ymax - ymin)
-    pylab.ylim( [ymin, ymax + blankmargin])
+    if YMin is None:
+      YMin = ymin
+      YMax = ymax
+    else:
+      YMin = np.minimum(ymin, YMin)
+      YMax = np.maximum(YMax, ymax)
+    blankmargin = 0.08*(YMax - YMin)
+    pylab.ylim( [YMin, YMax + blankmargin])
     
   if args.doShowTaskNums and len(taskids) > 0:
     yNudge = 0.03 * (ymax - ymin)
@@ -118,7 +128,8 @@ def main():
         help='names of learning algorithms to consider, {EM, VB, moVB, soVB}. comma separated if multiple.')
   parser.add_argument('--jobnames', type=str, default='defaultjob',
         help='name of experiment whose results should be plotted')
-  
+  parser.add_argument('--legendnames', type=str, default=None,
+        help='comma sep list of names to show on legend for each job')
   parser.add_argument('--taskids', type=str, default=None,
         help="int ids of the tasks (individual runs) of the given job to plot." +\
               'Ex: "1" or "3" or "1,2,3" or "1-6"')
@@ -134,7 +145,9 @@ def main():
                               args.allocModelName, args.obsModelName)
   algnames = args.algNames.split(',')
   jobnames = args.jobnames.split(',')
-  
+  if args.legendnames is not None:
+    legnames = args.legendnames.split(',')
+    assert len(legnames) == len(jobnames)
   cID = 0
   for algname in algnames:
     for jobname in jobnames:
@@ -154,6 +167,8 @@ def main():
       else:
         color = None
         curjobname = None
+      if args.legendnames is not None:
+        curjobname = legnames[cID - 1]
       plot_all_tasks_for_job(curjobpath, args, jobname=curjobname, color=color)    
   if cID > 1:
     pylab.legend(loc='best')

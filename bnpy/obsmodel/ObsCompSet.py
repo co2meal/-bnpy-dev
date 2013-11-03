@@ -3,7 +3,6 @@ ObsCompSet.py
 
 Generic object for managing a prior and set of K components
 '''
-from IPython import embed
 import numpy as np
 import scipy.linalg
 import os

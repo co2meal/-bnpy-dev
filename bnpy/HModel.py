@@ -31,8 +31,8 @@ from allocmodel import *
 
 # Dictionary map that turns string input at command line into desired bnpy objects
 # string --> bnpy object constructor
-AllocConstr = {'MixModel':MixModel, 'DPMixModel':DPMixModel}
-ObsConstr = {'ZMGauss':ZMGaussObsCompSet, 'Gauss':GaussObsCompSet}
+AllocConstr = {'MixModel':MixModel, 'DPMixModel':DPMixModel, 'AdmixModel': AdmixModel, 'HDPModel':HDPModel}
+ObsConstr = {'ZMGauss':ZMGaussObsCompSet, 'Gauss':GaussObsCompSet, 'Mult':MultObsModel}
                    
 class HModel( object ):
 
@@ -80,17 +80,20 @@ class HModel( object ):
 
   #########################################################  Suff Stat Calc
   #########################################################   
-  def get_global_suff_stats( self, Data, LP, Ntotal=None, **kwargs):
+  def get_global_suff_stats( self, Data, LP, doAmplify=False, **kwargs):
     ''' Calculate sufficient statistics for global parameters, given data and local responsibilities
         This is necessary prep for the M-step of EM/VB.
     '''
     SS = self.allocModel.get_global_suff_stats( Data, LP, **kwargs )
     SS = self.obsModel.get_global_suff_stats( Data, SS, LP, **kwargs )
-    # Change effective scale (nObs) of the suff stats 
-    # only useful for stochastic variational (soVB)
-    if Ntotal is not None:
-      ampF = Ntotal / Data.nObs
-      SS.applyAmpFactor(ampF)
+    if doAmplify:
+      # Change effective scale (nObs) of the suff stats, for soVB learning
+      if hasattr(Data,"nDoc"):
+        ampF = Data.nDocTotal / Data.nDoc
+        SS.applyAmpFactor(ampF)
+      else:
+        ampF = Data.nObsTotal / Data.nObs
+        SS.applyAmpFactor(ampF)
     return SS
 
   #########################################################  
@@ -129,6 +132,8 @@ class HModel( object ):
       init.FromSaved.init_global_params(self, Data, **initArgs)
     elif str(type(self.obsModel)).count('Gauss') > 0:
       init.FromScratchGauss.init_global_params(self, Data, **initArgs)
+    elif str(type(self.obsModel)).count('Mult') > 0:
+      init.FromScratchMult.init_global_params(self, Data, **initArgs)
     else:
       # TODO: more observation types!
       raise NotImplementedError("TODO")
@@ -149,3 +154,5 @@ class HModel( object ):
     print  self.obsModel.get_human_global_param_string()
 
 
+  def getAllocModelName(self):
+    return self.allocModel.__class__.__name__
