@@ -68,13 +68,13 @@ class DiagGaussObsCompSet( ObsCompSet ):
   #########################################################  
   def get_mean_for_comp(self, kk):
     return self.comp[kk].m
-    
+
   def get_covar_mat_for_comp(self, kk):
     if self.inferType =='EM':
       return np.linalg.inv(self.comp[kk].L)
     else:
-      return self.comp[kk].invW / (self.comp[kk].dF - self.D - 1)
-      
+      return np.diag(self.comp[kk].b / self.comp[kk].a)
+    
   ######################################################### Sufficient  
   ######################################################### Statistics
   def get_global_suff_stats( self, Data, SS, LP, **kwargs):
@@ -137,10 +137,10 @@ class DiagGaussObsCompSet( ObsCompSet ):
         Bishop PRML eq. 10.71
     '''
     lpX = -self.D*LOGTWOPI*np.ones( self.K )
+    resp = LP['resp']
     for k in range( self.K ):
-        lpX[k] += self.comp[k].a * np.sum(SS['xx'][k,:] / self.comp[k].b)
-        lpX[k] -= 2*np.sum(self.comp[k].m*SS['x'][k,:])
-        lpX[k] += SS['N'][k]*np.sum(np.square(self.comp[k].m))
+        lpX[k] += SS['N'][k]*(self.comp[k].ElogdetLam() - self.D/self.comp[k].beta)
+        lpX[k] -= np.inner(resp[:,k], self.comp[k].E_weightedSOS(X))
     return 0.5*np.sum(lpX)
     
   def E_logpPhi( self ):
@@ -152,11 +152,12 @@ class DiagGaussObsCompSet( ObsCompSet ):
   def E_logpMu( self ):
     ''' First four RHS terms (inside sum over K) in Bishop 10.74
     '''
-    lp = np.empty( self.K)    
+    lp = np.zeros( self.K)    
     for k in range( self.K ):
-        lp[k] = self.obsPrior.beta*self.comp[k].a*np.sum(np.square(self.comp[k].m - self.obsPrior.m)/self.comp[k].b)
-        lp[k] += self.comp[k].ElogdetLam() \
-                - self.D*self.obsPrior.beta/self.comp[k].beta
+        comp = self.comp[k]
+        lp[k] -= self.obsPrior.beta*comp.a*np.sum(np.square(comp.m - self.obsPrior.m)/comp.b)
+        lp[k] += comp.ElogdetLam() \
+                - self.D*self.obsPrior.beta/comp.beta
     lp += self.D*( np.log( self.obsPrior.beta ) - LOGTWOPI)
     return 0.5*lp.sum()
     
@@ -166,7 +167,7 @@ class DiagGaussObsCompSet( ObsCompSet ):
     lp = np.empty( self.K) 
     for k in xrange( self.K ):
       lp[k] = (self.obsPrior.a-1)*self.comp[k].ElogdetLam()
-      lp[k] -= self.obsPrior.a*np.sum(self.obsPrior.b/self.comp[k].b)
+      lp[k] -= self.comp[k].a*np.sum(self.obsPrior.b/self.comp[k].b)
     return lp.sum()
     
   def E_logqMu( self ):

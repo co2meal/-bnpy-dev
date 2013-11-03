@@ -27,9 +27,9 @@ class GaussGammaDistr( Distr ):
     '''
     D = Data.dim
     m0 = 0 if 'm0' not in argDict else argDict['m0']
-    beta = 10 if 'beta' not in argDict else argDict['beta']
-    a = 10 if 'a' not in argDict else argDict['a']
-    b0 = 5 if 'b0' not in argDict else argDict['b0']
+    beta = 1 if 'beta' not in argDict else argDict['beta']
+    a = 1 if 'a' not in argDict else argDict['a']
+    b0 = 0.9 if 'b0' not in argDict else argDict['b0']
 
     m = np.ones(D)*m0
     b = np.ones(D)*b0
@@ -37,13 +37,13 @@ class GaussGammaDistr( Distr ):
     return cls(m=m, beta=beta, a=a, b=b)
     
   def __init__(self, m=None, beta=None, a=None, b=None, **kwargs):
+    print m
     self.D = b.shape[0]
     self.m = m
     self.beta = beta
     self.a = a
     self.b = b
     self.Cache = dict()
-    print self.to_string()
     
     
   ######################################################### Param updates 
@@ -74,7 +74,7 @@ class GaussGammaDistr( Distr ):
   def E_weightedSOS(self, X):
     '''Calculate d(X)[n] = E[(x_n - m_k)T * lambda * (x_n -mk)]
     '''           
-    dX = (X-self.m)
+    dX = (X-self.m) # NxD
     weighted_SOS = np.sum(np.square(dX)/self.b, axis=1)*self.a
     weighted_SOS += self.D/self.beta
     return weighted_SOS
@@ -83,7 +83,7 @@ class GaussGammaDistr( Distr ):
     try:
       return self.Cache['ElogdetLam']
     except KeyError:
-      self.Cache['ElogdetLam'] = 0.5*(self.D*digamma(self.a) - sum(np.log(self.b)))
+      self.Cache['ElogdetLam'] = (self.D*digamma(self.a) - np.sum(np.log(self.b)))
       return self.Cache['ElogdetLam']
       
   def entropyGamma(self):
