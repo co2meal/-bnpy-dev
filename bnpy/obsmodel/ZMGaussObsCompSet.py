@@ -142,7 +142,7 @@ class ZMGaussObsCompSet( ObsCompSet ):
       if SS.N[k] == 0:
         continue
       lpX[k] = SS.N[k]*self.comp[k].ElogdetLam() - \
-                 self.comp[k].E_traceLam( SS[k].xxT )
+                 self.comp[k].E_traceLam( SS.xxT[k] )
     return 0.5*np.sum( lpX ) - 0.5*np.sum(SS.N)*self.D*LOGTWOPI
      
   def E_logpPhi( self ):

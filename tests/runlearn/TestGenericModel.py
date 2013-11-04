@@ -12,8 +12,7 @@ import unittest
 import numpy as np
 
 class TestGenericModel(unittest.TestCase):
-  def setUp(self):
-    self.__test__ = False
+  __test__ = False
 
   def get_kwargs(self):
     kwargs = dict(saveEvery=-1, printEvery=-1, traceEvery=1)

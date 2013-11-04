@@ -102,6 +102,8 @@ def main():
 
     if type(hmodel.obsModel) == bnpy.obsmodel.GaussObsCompSet:
       bnpy.viz.GaussViz.plotGauss2DFromHModel(hmodel)
+    elif type(hmodel.obsModel) == bnpy.obsmodel.ZMGaussObsCompSet:
+      bnpy.viz.GaussViz.plotCovMatFromHModel(hmodel)
     elif args.dataName.count('Bars') > 0:
       pylab.close(figHandle)
       Data = loadData(jobpath)

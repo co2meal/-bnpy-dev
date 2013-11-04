@@ -84,9 +84,8 @@ def logsumexp(logA, axis=None):
   ''' Efficiently compute log(sum(exp(...))) for input matrix "logA"
       Computation is both vectorized and numerically stable.
   '''
-  logA = np.asarray( logA )
-  logAmax = logA.max( axis=axis )
-
+  logA = np.asarray(logA)
+  logAmax = logA.max(axis=axis)
   if axis is None:
     logA = logA - logAmax
   elif axis==1:

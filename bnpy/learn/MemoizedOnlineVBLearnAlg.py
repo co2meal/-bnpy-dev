@@ -109,7 +109,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       #  verify_evidence will warn if bound isn't increasing monotonically
       if lapFrac > 1.0:
         isConverged = self.verify_evidence(evBound, prevBound)
-        if isConverged and lapFrac > 5:
+        if isConverged and lapFrac > 5 and not self.hasMove('birth'):
           break
       prevBound = evBound
 

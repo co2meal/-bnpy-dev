@@ -72,4 +72,57 @@ def plotGauss2DContour(mu, Sigma, color='b', radiusLengths=[0.5, 1.25, 2]):
   # TODO: instead, choose radius by percentage of prob mass contained within
   for r in radiusLengths:
     Z = r * Zellipse + mu[:,np.newaxis]
-    pylab.plot(Z[0], Z[1], '.', markerfacecolor=color, markeredgecolor=color )
+    pylab.plot(Z[0], Z[1], '.', markerfacecolor=color, markeredgecolor=color)
+
+
+########################################################### Plot Covar Matrix
+###########################################################
+
+def plotCovMatFromHModel(hmodel, compListToPlot=None, compsToHighlight=None, wTHR=0.001):
+  ''' Plot cov matrix visualization for each "significant" component in hmodel
+      Args
+      -------
+      hmodel : bnpy HModel object
+      compListToPlot : array-like of integer IDs of components within hmodel
+      compsToHighlight : int or array-like of integer IDs to highlight
+                          if None, all components get unique colors
+                          if not None, only highlighted components get colors.
+      wTHR : float threshold on minimum weight assigned to comp tobe "plottable"      
+  '''
+  if compsToHighlight is not None:
+    compsToHighlight = np.asarray(compsToHighlight)
+    if compsToHighlight.ndim == 0:
+      compsToHighlight = np.asarray([compsToHighlight])
+  else:
+    compsToHighlight = list()  
+  if compListToPlot is None:
+    compListToPlot = np.arange(0, hmodel.allocModel.K)
+  try:
+    w = np.exp(hmodel.allocModel.Elogw)
+  except Exception:
+    w = hmodel.allocModel.w
+
+  nRow = 2
+  nCol = np.ceil(hmodel.obsModel.K/2.0)
+
+  colorID = 0
+  for plotID, kk in enumerate(compListToPlot):
+    if w[kk] < wTHR and kk not in compsToHighlight:
+      Sigma = getEmptyCompSigmaImage(hmodel.obsModel.D)
+      clim = [0, 1]
+    else:
+      Sigma = hmodel.obsModel.get_covar_mat_for_comp(kk)
+      clim = [-.25, 1]
+    pylab.subplot(nRow, nCol, plotID)
+    pylab.imshow(Sigma, interpolation='nearest', cmap='hot', clim=clim)
+    pylab.xticks([])
+    pylab.yticks([])
+    pylab.xlabel('%.2f' % (w[kk]))
+    if kk in compsToHighlight:
+      pylab.xlabel('***')
+  
+def getEmptyCompSigmaImage(D):
+  EmptySig = np.eye(D)
+  for dd in range(D):
+    EmptySig[dd, D - 1 - dd] = 1.0
+  return EmptySig
