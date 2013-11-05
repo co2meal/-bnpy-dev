@@ -7,6 +7,15 @@ LOGTWO = np.log(2.)
 LOGTWOPI = np.log( 2.*np.pi )
 EPS = 10*np.finfo(float).eps
 
+def isEvenlyDivisibleFloat(a, b, margin=1e-6):
+  ''' Returns true/false for whether a is evenly divisible by b (within tolerance)
+  '''
+  cexact = a/float(b)
+  cround = round(cexact)
+  if abs(cexact - cround) < margin:
+    return True
+  return False
+
 def closeAtMSigFigs(A, B, M=10, tol=5):
   ''' Returns true/false for whether A and B are numerically "close"
           aka roughly equal at M significant figures

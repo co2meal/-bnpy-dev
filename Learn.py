@@ -34,7 +34,8 @@ FullDataAlgSet = ['EM','VB']
 OnlineDataAlgSet = ['soVB', 'moVB']
 
 def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
-                      doSaveToDisk=True, doWriteStdOut=True, **kwargs):
+                      doSaveToDisk=True, doWriteStdOut=True, 
+                      taskID=None, **kwargs):
   ''' Fit specified model to data with learning algorithm.
     
       Usage
@@ -87,7 +88,12 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
   UnkArgs = BNPYArgParser.parseUnknownArgs()
   
   jobname = KwArgs['OutputPrefs']['jobname']
-  starttaskid = KwArgs['OutputPrefs']['taskid']
+
+  if taskID is None:
+    starttaskid = KwArgs['OutputPrefs']['taskid']
+  else:
+    starttaskid = taskID
+    KwArgs['OutputPrefs']['taskid'] = taskID
   nTask = KwArgs['OutputPrefs']['nTask']
   
   bestInfo = None
