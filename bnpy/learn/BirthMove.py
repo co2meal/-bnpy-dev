@@ -98,14 +98,20 @@ def run_birth_move(curModel, targetData, SS, randstate=np.random,
                     Kfresh=0, birthCompIDs=[])
     return curModel, SS, MoveInfo
 
-def learn_fresh_model(freshModel, targetData, Kfresh=10,
+def learn_fresh_model(freshModel, targetData, Kmax=500, Kfresh=10,
                       freshInitName='randexamples', freshAlgName='VB',
                       nFreshLap=50, randstate=np.random, **kwargs):
   ''' Learn a new model with Kfresh components
+      Enforces an "upper limit" on number of components Kmax,
+        so if Kexisting + Kfresh would exceed Kmax,
+          we only consider Kmax-Kexisting components
+
       Returns
       -------
       freshSS : bnpy SuffStatDict with Kfresh components
   '''
+  Kfresh = np.minimum(Kfresh, Kmax - freshModel.K)
+
   seed = randstate.choice(xrange(100000))
   freshModel.init_global_params(targetData, K=Kfresh, 
                                 seed=seed, initname=freshInitName)

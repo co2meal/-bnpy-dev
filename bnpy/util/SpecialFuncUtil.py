@@ -7,37 +7,57 @@ LOGTWO = np.log(2.)
 LOGTWOPI = np.log( 2.*np.pi )
 EPS = 10*np.finfo(float).eps
 
-def equalAtMSigFigs(A, B, M=12):
-  ''' Returns true/false for whether A and B are equal at M significant figures
-      
+def closeAtMSigFigs(A, B, M=10, tol=5):
+  ''' Returns true/false for whether A and B are numerically "close"
+          aka roughly equal at M significant figures
+
+      Only makes sense for numbers on scale of abs. value 1.0 or larger.      
+      Log evidences will definitely always be at this scale.
+
       Examples
       --------
-      >>> equalAtMSigFigs(3.14, np.pi, M=3)
+      >>> closeAtMSigFigs(1234, 1000, M=1)  # margin is 500 
       True
-      >>> equalAtMSigFigs(3.14159, np.pi, M=6)
+      >>> closeAtMSigFigs(1234, 1000, M=2)  # margin is 50 
+      False
+      >>> closeAtMSigFigs(1034, 1000, M=2)  # margin is 50 
       True
-      >>> equalAtMSigFigs(1234, 1000, M=1)
+      >>> closeAtMSigFigs(1005, 1000, M=3)  # margin is 5 
       True
-      >>> equalAtMSigFigs(1234, 1000, M=2)
+      >>> closeAtMSigFigs(44.5, 49.5, M=1) # margin is 5 
+      True
+      >>> closeAtMSigFigs(44.5, 49.501, M=1)
+      False
+      >>> closeAtMSigFigs(44.499, 49.5, M=1) 
       False
   '''
-  signA, RA, PA = toSciNotationBase10(A, M)
-  signB, RB, PB = toSciNotationBase10(B, M)
-  if signA == signB and PA == PB and RA == RB:
-    return True
-  return False
+  A = float(A)
+  B = float(B)
+  # Enforce abs(A) >= abs(B)
+  if abs(A) < abs(B):
+    tmp = A
+    A = B
+    B = tmp
+  assert abs(A) >= abs(B)
 
-def toSciNotationBase10(A, M=12):
-  ''' Returns tuple of integers representation of input floating-pt value A
-      (sign, mantissa, power-of-10)
-  '''
-  sign = np.sign(A)
-  A = sign * A
-  P10 = np.int32(np.floor(np.log10(A)))
-  R = A / (10**(P10))
-  M10 = 10**(M-1)
-  R = np.int64(np.round(R * M10))
-  return sign, R, P10
+  # Find the scale that A (the larger of the two) possesses
+  #  A ~= 10 ** (P10)
+  P10 = int(np.floor(np.log10(abs(A))))
+
+  # Compare the difference between A and B
+  #   to the allowed margin THR
+  diff = abs(A - B)
+  if P10 >= 0:
+    THR = tol * 10.0**(P10 - M)
+    THR = (1 + 1e-11) * THR 
+    # make THR just a little bigger to avoid issues where 2.0 and 1.95
+    # aren't equal at 0.05 margin due to rounding errors
+    return np.sign(A) == np.sign(B) and diff <= THR
+  else:
+    THR = tol * 10.0**(-M)
+    THR = (1 + 1e-11) * THR
+    return diff <= THR
+
 
 MVgCache = defaultdict( lambda: dict())
 def MVgammaln(x, D):

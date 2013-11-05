@@ -14,7 +14,7 @@ class TestLearnAlg(unittest.TestCase):
 
   def setUp(self):
     self.THR=1e-3
-    self.learnAlg = LearnAlg('/tmp/', dict(convergeTHR=self.THR))
+    self.learnAlg = LearnAlg('/tmp/', algParams=dict(convergeTHR=self.THR))
 
   def test_verify_evidence_small_pos_vals(self, x=1.0e-5):
     assert not self.learnAlg.verify_evidence( evBound=x+self.THR+0.0001, prevBound=x)
