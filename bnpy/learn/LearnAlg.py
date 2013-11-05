@@ -9,7 +9,7 @@ Defines some generic routines for
   * recording run-time
 '''
 from bnpy.ioutil import ModelWriter
-from bnpy.util import closeAtMSigFigs
+from bnpy.util import closeAtMSigFigs, isEvenlyDivisibleFloat
 import numpy as np
 import time
 import os
@@ -106,45 +106,53 @@ class LearnAlg(object):
   def save_state( self, hmodel, iterid, lap, evBound, doFinal=False):
     ''' Save state of the hmodel's global parameters and evBound
     '''
-    saveEvery = self.outputParams['saveEvery']
     traceEvery = self.outputParams['traceEvery']
+    if traceEvery <= 0:
+      traceEvery = -1
     doTrace = np.allclose(lap % traceEvery, 0) or iterid < 3
-    if lap not in self.TraceLaps:
-      if doFinal or doTrace:
-        self.TraceLaps.add(lap)
-        self.evTrace.append(evBound)
 
-    if saveEvery <= 0 or self.savedir is None:
-      return    
+    if traceEvery > 0 and (doFinal or doTrace) and lap not in self.TraceLaps:
+      # Record current evidence
+      self.evTrace.append(evBound)
+      self.TraceLaps.add(lap)
 
-    def mkfile(fname):
-      ''' Create valid path to file in this alg's output directory 
-      '''
-      return os.path.join(self.savedir, fname)
+      # Exit here if we're not saving to disk
+      if self.savedir is None:
+        return
 
-    if lap not in self.TraceLaps:
+      # Define temporary function that creates files in this alg's output dir
+      def mkfile(fname):
+        return os.path.join(self.savedir, fname)
+
+      # Record current state to plain-text files
       if iterid == 0:
         mode = 'w'
       else:
         mode = 'a'
-      if doFinal or doTrace:
-        with open( mkfile('iters.txt'), mode) as f:        
-          f.write('%d\n' % (iterid))
-        with open( mkfile('laps.txt'), mode) as f:        
-          f.write('%.4f\n' % (lap))
-        with open( mkfile('evidence.txt'), mode) as f:        
-          f.write('%.9e\n' % (evBound))
-        with open( mkfile('nObs.txt'), mode) as f:
-          f.write('%d\n' % (self.nObsProcessed))
-        with open( mkfile('times.txt'), mode) as f:
-          f.write('%.3f\n' % (self.get_elapsed_time()))
+      with open( mkfile('iters.txt'), mode) as f:        
+        f.write('%d\n' % (iterid))
+      with open( mkfile('laps.txt'), mode) as f:        
+        f.write('%.4f\n' % (lap))
+      with open( mkfile('evidence.txt'), mode) as f:        
+        f.write('%.9e\n' % (evBound))
+      with open( mkfile('nObs.txt'), mode) as f:
+        f.write('%d\n' % (self.nObsProcessed))
+      with open( mkfile('times.txt'), mode) as f:
+        f.write('%.3f\n' % (self.get_elapsed_time()))
+      if self.hasMove('birth') or self.hasMove('merge'):
+        with open( mkfile('K.txt'), mode) as f:
+          f.write('%d\n' % (hmodel.obsModel.K))
 
-    if iterid not in self.SavedIters:
-      if doFinal or iterid < 3 or np.allclose(lap % saveEvery, 0):
-        self.SavedIters.add(iterid)
-        prefix = 'Iter%05d'%(iterid)
-        ModelWriter.save_model(hmodel, self.savedir, prefix,
-                                doSavePriorInfo=(iterid<1), doLinkBest=True)
+    saveEvery = self.outputParams['saveEvery']
+    if saveEvery <= 0:
+      return
+
+    doSave = np.allclose(lap % saveEvery, 0) or iterid < 3
+    if (doFinal or doSave) and iterid not in self.SavedIters:
+      self.SavedIters.add(iterid)
+      prefix = 'Iter%05d'%(iterid)
+      ModelWriter.save_model(hmodel, self.savedir, prefix,
+                              doSavePriorInfo=(iterid<1), doLinkBest=True)
 
 
   ######################################################### Plot Results
@@ -160,8 +168,8 @@ class LearnAlg(object):
     printEvery = self.outputParams['printEvery']
     if printEvery <= 0:
       return None
-    doPrint = iterid < 3 or np.allclose(lap % printEvery, 0, atol=1e-8)
-      
+    doPrint = iterid < 3 or isEvenlyDivisibleFloat(lap, printEvery)
+  
     if rho is None:
       rhoStr = ''
     else:

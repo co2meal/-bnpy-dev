@@ -153,6 +153,7 @@ def main():
     for jobname in jobnames:
       curjobpath = os.path.join(rootpath, algname, jobname)
       if not os.path.exists(curjobpath):
+        print 'DOES NOT EXIST:', curjobpath
         continue
       cID += 1
       if len(algnames) > 1:

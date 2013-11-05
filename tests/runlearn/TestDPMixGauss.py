@@ -7,10 +7,9 @@ import numpy as np
 import unittest
 
 class TestDPMixGaussModel(TestGenericModel.TestGenericModel):
+  __test__ = True
 
   def setUp(self):
-    self.__test__ = True
-
     PRNG = np.random.RandomState(333)
     X = PRNG.randn(1000, 3)
     X = np.vstack([X, 5 + PRNG.randn(100, 3)])

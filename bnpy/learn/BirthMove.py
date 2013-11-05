@@ -110,7 +110,10 @@ def learn_fresh_model(freshModel, targetData, Kmax=500, Kfresh=10,
       -------
       freshSS : bnpy SuffStatDict with Kfresh components
   '''
-  Kfresh = np.minimum(Kfresh, Kmax - freshModel.K)
+  Kfresh = np.minimum(Kfresh, Kmax - freshModel.obsModel.K)
+
+  if Kfresh < 2:
+    raise BirthProposalError('BIRTH: Skipped to avoid exceeding user-specified limit of Kmax=%d components. ' % (Kmax))
 
   seed = randstate.choice(xrange(100000))
   freshModel.init_global_params(targetData, K=Kfresh, 
@@ -118,7 +121,7 @@ def learn_fresh_model(freshModel, targetData, Kmax=500, Kfresh=10,
  
   LearnAlgConstructor = dict()
   LearnAlgConstructor['VB'] = VBLearnAlg
-  algP = dict(nLap=nFreshLap, convergeTHR=1e-6)
+  algP = dict(nLap=nFreshLap, convergeSigFig=6)
   outP = dict(saveEvery=-1, traceEvery=-1, printEvery=-1)
   learnAlg = LearnAlgConstructor[freshAlgName](savedir=None, 
                     algParams=algP, outputParams=outP, seed=seed)

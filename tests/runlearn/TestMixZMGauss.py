@@ -1,16 +1,15 @@
 '''
-Unit-tests for full learning for full-mean, full-covariance Gaussian models
+Unit-tests for full learning for zero-mean, full-covariance Gaussian models
 '''
 import TestGenericModel
 import bnpy
 import numpy as np
 import unittest
 
-class TestMixGaussModel(TestGenericModel.TestGenericModel):
+class TestMixZMGaussModel(TestGenericModel.TestGenericModel):
+  __test__ = True
 
   def setUp(self):
-    self.__test__ = True
-
     PRNG = np.random.RandomState(333)
     X = PRNG.randn(1000, 3)
     self.Data = bnpy.data.XData(X)

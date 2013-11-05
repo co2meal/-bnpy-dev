@@ -43,6 +43,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     self.lapFracInc = DataIterator.nObsBatch / float(DataIterator.nObsTotal)
     iterid = -1
     lapFrac = 0
+    isConverged = False
     SS = None
     while DataIterator.has_next_batch():
       # Grab new data and update counts
@@ -52,8 +53,12 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       lapFrac = (iterid + 1) * self.lapFracInc
 
       # M step
-      if iterid > 0:
-        hmodel.update_global_params(SS)
+      if self.algParams['doFullPassBeforeMstep']:
+        if lapFrac >= 1.0:
+          hmodel.update_global_params(SS)
+      else:
+        if iterid > 0:
+          hmodel.update_global_params(SS)
       
       # Birth moves!
       if self.hasMove('birth') and iterid > 0:
@@ -109,7 +114,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       #  verify_evidence will warn if bound isn't increasing monotonically
       if lapFrac > 1.0:
         isConverged = self.verify_evidence(evBound, prevBound)
-        if isConverged and lapFrac > 5:
+        if isConverged and lapFrac > 5 and not self.hasMove('birth'):
           break
       prevBound = evBound
 

@@ -7,11 +7,9 @@ import bnpy
 import unittest
 
 class TestAdmixTopicModel(TestGenericModel.TestGenericModel):
+  __test__ = True
 
   def setUp(self):
-    self.__test__ = True
-    self.LearnAlgs = set(['VB'])
-
     self.Data = bnpy.data.WordsData.makeRandomData(nDoc=25, nWordsPerDoc=50, vocab_size=100)
     self.allocModelName = 'AdmixModel'
     self.obsModelName = 'Mult'  
