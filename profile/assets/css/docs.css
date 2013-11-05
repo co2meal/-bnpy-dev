@@ -762,6 +762,12 @@ h1[id] {
   background-color: #fff;
 }
 
+.table-borderless td,
+.table-borderless th {
+    border: 0;
+}
+
+
 /* Buttons */
 .bs-example > .btn,
 .bs-example > .btn-group {

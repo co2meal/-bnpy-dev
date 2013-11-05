@@ -11,6 +11,37 @@
   </head>
 
   <body>
+    <header class="navbar navbar-inverse navbar-fixed-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li class="active">
+              <a href="index.html">Summary</a>
+            </li>
+            <li>
+              <a href="graph.html">Graph</a>
+            </li>
+            <!-- <li> -->
+            <!--   <a href="#functions">Function</a> -->
+            <!-- </li> -->
+          </ul>
+          <ul class="nav navbar-nav navbar-right">
+            <li>
+              <a href="#">Back to Top</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
 
     <div class="container bs-docs-container">
       <div class="row">
@@ -33,14 +64,14 @@
 	  <div>
 	    <table class="table table-hover">
 	      <tr>
-		<td>Function Name</td>
-		<td>Calls</td>
-		<td>Total Time</td>
+		<th>Function Name</th>
+		<th>Calls</th>
+		<th>Total Time</th>
 		<!-- <td>Self Time</td> -->
-		<td>Total Time Plot</td>
+		<th>Total Time Plot</th>
 	      </tr>
 	      <tr>
-		<td><a href="functions/calc_local_params">calc_local_params</td>
+		<td><a href="function.html">calc_local_params</td>
 		<td>13</td>
 		<td>0.266698 s</td>
 		<td></td>

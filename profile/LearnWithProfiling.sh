@@ -15,7 +15,7 @@ pushd ..
 
 # Profile the execution of Learn.py
 # Write results to a lprof file.
-python profile/kernprof.py --line-by-line Learn.py $*
+python profile/line_profiler/kernprof.py --line-by-line Learn.py $*
 
 # Convert lprof file into a plain-text report
 # Called pyprofile.txt
