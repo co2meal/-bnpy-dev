@@ -213,7 +213,7 @@ def create_index_html(save_path, template_path, stats, unit):
     stream = open(save_path + 'index.html', mode='w')
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_path))
     template = env.get_template('index.template')
-    functions = [{'name':name, 'calls': max([0] + [t[1] for t in timings]), 'total_time':sum(t[2] for t in timings)} for (fn, lineno, name), timings in stats.items()]
+    functions = [{'name':name, 'fn': fn, 'fn-replace': fn.replace('/','-'), 'calls': max([0] + [t[1] for t in timings]), 'total_time':sum(t[2] for t in timings)} for (fn, lineno, name), timings in stats.items()]
     functions = sorted(functions, key=lambda f: f['total_time'], reverse=True)
     index = template.render(timestamp = time.strftime('%X %x %Z'), tunit=('%g' % unit), functions=functions)
     print >>stream, index
@@ -228,7 +228,6 @@ def create_graph_html(save_path, template_path, stats, unit):
     print >>stream, graph
 
 
-
 def create_func_html(save_path, template_path, filename, start_lineno, func_name, timings, unit):
     """ Create html presentation of a given function's results.
     """
@@ -237,15 +236,79 @@ def create_func_html(save_path, template_path, filename, start_lineno, func_name
     if not os.path.exists(save_path + 'functions'):
         os.makedirs(save_path + 'functions')
 
-    stream = open(save_path + 'functions/' + func_name + '.html', mode='w')
+    stream = open(save_path + 'functions/' + filename.replace('/', '-') + '-' + func_name + '.html', mode='w')
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_path))
     template = env.get_template('function.template')
+    parent_dir = '../../../'
+
+    if not os.path.exists(filename):
+        print ""
+        print "Could not find file %s" % filename
+        print "Continuing without the function's contents."
+        # Fake empty lines so we can see the timings, if not the code.
+        nlines = max(linenos) - min(min(linenos), start_lineno) + 1
+        sublines = [''] * nlines
+    else:
+        all_lines = linecache.getlines(filename)
+        sublines = inspect.getblock(all_lines[start_lineno-1:])
+
+    # line-by-line information and coverage results
+    max_len = 30
+    total_time = sum(t[2] for t in timings)
+    lines = []
+    num_code = 0
+    num_noncode = 0
+    num_run= 0
+    num_notrun = 0
+
+    d = dict()
+    for lineno, nhits, t in timings:
+        d[lineno] = (nhits, t, '%5.1f' % (100*t / total_time))
+
+    empty = (0, 0, 0.0)
+    linenos = range(start_lineno, start_lineno + len(sublines))
+    for lineno, line in zip(linenos, sublines):
+        nhits, t, percent = d.get(lineno, empty)
+        l = dict()
+        l['lineno'] = lineno
+        l['code_full'] = line.rstrip('\n').rstrip('\r')
+        if len(l['code_full']) == 0:
+            l['code_full'] = ' ' # make sure code has at least one character
+        if len(l['code_full']) > max_len:
+            l['code'] = l['code_full'][:max_len-3] + '...'
+        else:
+            l['code'] = l['code_full']
+        l['calls'] = nhits
+        l['time'] = '%g' % (t * unit)
+        l['percent'] = percent
+        lines.append(l)
+
+        # numbers used for coverage result
+        code = l['code'].strip()
+        if len(code) == 0:
+            num_noncode += 1
+        elif (code[0] == '#' or code[0] == '@'):
+            num_noncode += 1
+        else:
+            num_code += 1
+            if l['calls'] == 0:
+                num_notrun += 1
+            else:
+                num_run += 1
+
     func = template.render(timestamp = time.strftime('%X %x %Z'),
                            name = func_name,
-                           num_calls = max([0] + [t[1] for t in timings]), 
+                           num_calls = max([0] + [t[1] for t in timings]),
                            seconds = '%g' % (sum(t[2] for t in timings) * unit),
                            link = filename,
-                           parent_dir='../../../')
+                           parent_dir=parent_dir,
+                           lines = lines,
+                           total_lines = len(sublines),
+                           non_code_lines = num_noncode,
+                           code_lines = num_code,
+                           run = num_run,
+                           not_run = num_notrun,
+                           run_percent = '%5.1f' % (100*float(num_run)/float(num_code)))
     print >>stream, func
 
 # A %lprun magic for IPython.

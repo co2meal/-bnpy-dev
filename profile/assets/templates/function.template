@@ -8,16 +8,12 @@
     <!-- Bootstrap -->
     <link href="../../assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
     <link href="../../assets/css/docs.css" rel="stylesheet">
-    <!-- <style type="text/css">
-    .table-borderless td,
-    .table-borderless th {
-    border-top: none;
-    }
-    </style> -->
+    <!-- <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet"> -->
+    <link rel="stylesheet" href="../../assets/css/font-awesome/font-awesome.min.css">
   </head>
 
-  <body>
-    <header class="navbar navbar-inverse navbar-fixed-top bs-docs-nav" role="banner">
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
       <div class="container">
         <div class="navbar-header">
           <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
@@ -33,16 +29,8 @@
             <li>
               <a href="../index.html">Summary</a>
             </li>
-            <li>
-              <a href="../graph.html">Graph</a>
-            </li>
             <li class="active">
               <a href="#">{{ name }}</a>
-            </li>
-          </ul>
-          <ul class="nav navbar-nav navbar-right">
-            <li>
-              <a href="#">Back to Top</a>
             </li>
           </ul>
         </nav>
@@ -64,7 +52,7 @@
 	  </div>
 	</div>
         <div class="col-md-9">
-	  <div class="page-header" id="summary">
+	  <div class="page-header" id="function">
 	    <h1>{{ name }}</h1>
 	  </div>
 
@@ -100,6 +88,16 @@
                 <th>% Time</th>
                 <th>Time Plot</th>
               </tr>
+	      {% for l in lines %}
+              <tr>
+                <td><a href="#line{{ l['lineno'] }}">{{ l['lineno'] }}</td>
+                <td><pre class="prettyprint">{{ l['code'] }}</pre></td>
+		<td>{{ l['calls'] }}</td>
+                <td>{{ l['time'] }} s</td>
+                <td>{{ l['percent'] }}</td>
+                <td></td>
+              </tr>
+              {% endfor %}
             </table>
           </div>
 
@@ -114,6 +112,15 @@
                 <th>% Time</th>
                 <th>Time Plot</th>
               </tr>
+              {% for c in children %}
+              <tr>
+                <td>{{ c['name'] }}</td>
+                <td>{{ c['calls'] }}</td>
+                <td>{{ c['time'] }}</td>
+                <td>{{ c['percent'] }}</td>
+                <td></td>
+              </tr>
+              {% endfor %}
             </table>
           </div>
 
@@ -122,27 +129,27 @@
             <table class="table">
               <tr>
                 <td>Total lines in function</td>
-                <td>37</td>
+                <td>{{ total_lines }}</td>
               </tr>
               <tr>
                 <td>Non-code lines</td>
-                <td>26</td>
+                <td>{{ non_code_lines }}</td>
               </tr>
               <tr>
                 <td>Code lines</td>
-                <td>11</td>
+                <td>{{ code_lines }}</td>
               </tr>
               <tr>
                 <td>Code lines that did run</td>
-                <td>9</td>
+                <td>{{ run }}</td>
               </tr>
               <tr>
                 <td>Code lines that did not run</td>
-                <td>2</td>
+                <td>{{ not_run }}</td>
               </tr>
               <tr>
                 <td>Coverage (did run / can run)</td>
-                <td>81.82%</td>
+                <td>{{ run_percent }}%</td>
               </tr>
             </table>
           </div>
@@ -155,17 +162,29 @@
               <th>line</th>
               <th>code</th>
             </tr>
+            {% for line in lines %}
             <tr>
-              <td></td>
-              <td></td>
-              <td>1</td>
-              <td># one line of code</td>
+              <td>{{ line['time'] }}</td>
+              <td>{{ line['calls'] }}</td>
+              <td id="line{{ line['lineno'] }}">{{ line['lineno'] }}</td>
+              <td><pre class="prettyprint">{{ line['code_full'] }}</pre></td>
             </tr>
+            {% endfor %}
           </table>
 
         </div>
       </div>
     </div>
 
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="../../assets/js/bootstrap.min.js"></script>
+    <script src="../../assets/js/main.js"></script>
+    <script src="https://google-code-prettify.googlecode.com/svn/loader/run_prettify.js"></script>
   </body>
 </html>

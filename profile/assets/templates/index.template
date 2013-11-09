@@ -8,10 +8,11 @@
     <!-- Bootstrap -->
     <link href="../assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
     <link href="../assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/font-awesome.min.css">
   </head>
 
-  <body>
-    <header class="navbar navbar-inverse navbar-fixed-top bs-docs-nav" role="banner">
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
       <div class="container">
         <div class="navbar-header">
           <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
@@ -26,17 +27,6 @@
           <ul class="nav navbar-nav">
             <li class="active">
               <a href="index.html">Summary</a>
-            </li>
-            <li>
-              <a href="graph.html">Graph</a>
-            </li>
-            <!-- <li> -->
-            <!--   <a href="#functions">Function</a> -->
-            <!-- </li> -->
-          </ul>
-          <ul class="nav navbar-nav navbar-right">
-            <li>
-              <a href="#">Back to Top</a>
             </li>
           </ul>
         </nav>
@@ -65,6 +55,7 @@
 	    <table class="table table-hover">
 	      <tr>
 		<th>Function Name</th>
+		<th>File Name</th>
 		<th>Calls</th>
 		<th>Total Time</th>
 		<!-- <td>Self Time</td> -->
@@ -72,7 +63,8 @@
 	      </tr>
               {% for f in functions %}
 	      <tr>
-		<td><a href="functions/{{f['name']}}.html">{{ f['name'] }}</td>
+		<td><a href="functions/{{ f['fn-replace'] }}-{{ f['name'] }}.html">{{ f['name'] }}</td>
+		<td><a href="../../{{ f['fn'] }}">{{ f['fn'] }}</td>
 		<td>{{ f['calls'] }}</td>
 		<td>{{ f['total_time'] }}</td>
 		<td></td>
@@ -83,11 +75,16 @@
 	</div>
       </div>
     </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
     
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
     <script src="https://code.jquery.com/jquery.js"></script>
     <!-- Include all compiled plugins (below), or include individual files as needed -->
-    <script src="js/bootstrap.min.js"></script>    
+    <script src="../assets/js/bootstrap.min.js"></script>
+    <script src="../assets/js/main.js"></script>
   </body>
 
 </html>
