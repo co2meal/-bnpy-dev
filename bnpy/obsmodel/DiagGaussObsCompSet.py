@@ -132,6 +132,7 @@ class DiagGaussObsCompSet( ObsCompSet ):
     else:
       return self.E_logpX( LP, SS, Data.X) + self.E_logpPhi() - self.E_logqPhi()
   
+  """
   def E_logpX( self, LP, SS, X):
     ''' E_{q(Z), q(Phi)} [ log p(X) ]
         Bishop PRML eq. 10.71
@@ -142,7 +143,22 @@ class DiagGaussObsCompSet( ObsCompSet ):
         lpX[k] += SS['N'][k]*(self.comp[k].ElogdetLam() - self.D/self.comp[k].beta)
         lpX[k] -= np.inner(resp[:,k], self.comp[k].E_weightedSOS(X))
     return 0.5*np.sum(lpX)
-    
+    """
+
+  def E_logpX( self, LP, SS, X):
+    ''' E_{q(Z), q(Phi)} [ log p(X) ]
+        Bishop PRML eq. 10.71
+    '''
+    lpX = -self.D*LOGTWOPI*np.ones( self.K )
+    for k in range( self.K ):
+        lpX[k] += self.comp[k].ElogdetLam() 
+        lpX[k] -= self.D/self.comp[k].beta
+        mean = SS['x'][k]/SS['N'][k] #1xD
+        var = SS['xx'][k]/SS['N'][k] #1xD
+        comp_m = self.comp[k].m
+        lpX[k] -= self.comp[k].a*np.sum((var + np.square(comp_m) - 2*comp_m*mean)/self.comp[k].b)
+    return 0.5*np.inner(SS['N'], lpX)
+
   def E_logpPhi( self ):
     return self.E_logpLam() + self.E_logpMu()
       

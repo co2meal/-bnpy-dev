@@ -26,10 +26,10 @@ class GaussGammaDistr( Distr ):
         ensures that it matches dimension with Data
     '''
     D = Data.dim
-    m0 = 0 if 'm0' not in argDict else argDict['m0']
-    beta = 1 if 'beta' not in argDict else argDict['beta']
-    a = 1 if 'a' not in argDict else argDict['a']
-    b0 = 0.9 if 'b0' not in argDict else argDict['b0']
+    m0 = argDict['m0']
+    beta = argDict['beta']
+    a = argDict['a0']
+    b0 = argDict['b0']
 
     m = np.ones(D)*m0
     b = np.ones(D)*b0
@@ -37,7 +37,6 @@ class GaussGammaDistr( Distr ):
     return cls(m=m, beta=beta, a=a, b=b)
     
   def __init__(self, m=None, beta=None, a=None, b=None, **kwargs):
-    print m
     self.D = b.shape[0]
     self.m = m
     self.beta = beta
