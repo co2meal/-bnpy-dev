@@ -1,6 +1,23 @@
-========== Births
-* only perform if K < Kmax
-*    force Kfresh = min(Kfresh, Kmax-K) so that we always stay under Kmax
+========== REORGANIZATION
+
+Move "executables" inside of bnpy module.
+
+Example new syntax:
+  python -m bnpy.Run AsteriskK8 DPMixModel Gauss VB [opts]
+
+Example
+  python -m bnpy.PlotELBO [args
+  python -m bnpy.PlotComps [args]
+
+========== Learn.py
+
+Improve automatic help with "--help" argument
+
+Allow "restarting" existing runs from custom lap, with all same settings and reproducible random seeds
+ * should it save in the same directory?
+ * edit LearnAlgs to have rand-seed reset at each lap, with "startLap" as input arg
+
+Save files should use "Lap102.45-AllocModel.mat" as the desired format.
 
 ========== SuffStatDict
 

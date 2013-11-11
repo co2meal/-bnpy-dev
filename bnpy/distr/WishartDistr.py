@@ -46,7 +46,7 @@ class WishartDistr( Distr ):
         wHat[kID] = np.sum(Z==kk)
         CovHat[kID] = np.cov(Data.X[Z==kk].T, bias=1)
       wHat = wHat/np.sum(wHat)
-      Sigma = np.zeros((D,D))
+      Sigma = 1e-7 * np.eye(D)
       for kID in range(Kmax):
         Sigma += wHat[kID]*CovHat[kID]
     else:

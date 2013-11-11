@@ -6,7 +6,11 @@ Remove blank function records from the overall report
 
 import os
 
-origfname  = 'profiles/pyprofile.txt'
+if 'BNPYPROFREPORTDIR' in os.environ:
+  origfname  = os.path.join(os.environ['BNPYREPORTDIR'], 'report.txt')
+else:
+  origfname = 'profilerReports/report.txt'
+
 
 with open(origfname,'r') as f:
   Records = list()
