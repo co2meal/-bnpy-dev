@@ -9,7 +9,7 @@ Defines some generic routines for
   * recording run-time
 '''
 from bnpy.ioutil import ModelWriter
-from bnpy.util import closeAtMSigFigs
+from bnpy.util import closeAtMSigFigs, isEvenlyDivisibleFloat
 import numpy as np
 import time
 import os
@@ -185,8 +185,8 @@ class LearnAlg(object):
     printEvery = self.outputParams['printEvery']
     if printEvery <= 0:
       return None
-    doPrint = iterid < 3 or np.allclose(lap % printEvery, 0, atol=1e-8)
-      
+    doPrint = iterid < 3 or isEvenlyDivisibleFloat(lap, printEvery)
+  
     if rho is None:
       rhoStr = ''
     else:

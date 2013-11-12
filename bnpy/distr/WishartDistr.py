@@ -32,7 +32,23 @@ class WishartDistr( Distr ):
     if argDict['smatname'] == 'eye':
       Sigma = argDict['sF'] * np.eye(D)
     elif argDict['smatname'] == 'covdata':
-      Sigma = argDict['sF'] * np.cov( X.T, bias=1)
+      Sigma = argDict['sF'] * np.cov( Data.X.T, bias=1)
+    elif argDict['smatname'] == 'fromtruelabels':
+      ''' Set Cov. Matrix by empirical Bayes
+            average the within-class sample covariances
+      '''
+      Z = Data.TrueLabels
+      Zvals = np.unique(Z)
+      Kmax = len(Zvals)
+      CovHat = np.zeros((Kmax,D,D))
+      wHat = np.zeros(Kmax)
+      for kID,kk in enumerate(Zvals):
+        wHat[kID] = np.sum(Z==kk)
+        CovHat[kID] = np.cov(Data.X[Z==kk].T, bias=1)
+      wHat = wHat/np.sum(wHat)
+      Sigma = np.zeros((D,D))
+      for kID in range(Kmax):
+        Sigma += wHat[kID]*CovHat[kID]
     else:
       raise ValueError( 'Unrecognized scale matrix name %s' %(smatname) )
     return cls( v=v, invW=Sigma*(v-D-1) )
