@@ -11,3 +11,5 @@ Redesign, with
 
 =========== Logging
 have separate log transcripts for births/merges, so we can do detailed diagnostics?
+
+check stdout for all models... does it make sense?

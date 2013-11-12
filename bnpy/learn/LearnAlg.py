@@ -24,12 +24,15 @@ class LearnAlg(object):
   def __init__(self, savedir=None, seed=0, 
                      algParams=dict(), outputParams=dict(),
                      onLapCompleteFunc=lambda:None, onFinishFunc=lambda:None,
-               ): 
+               ):
+    ''' Constructs and returns a LearnAlg object
+    ''' 
     if type(savedir) == str:
       self.savedir = os.path.splitext(savedir)[0]
     else:
       self.savedir = None
-    self.PRNG = np.random.RandomState(seed)
+    self.seed = int(seed)
+    self.PRNG = np.random.RandomState(self.seed)
     self.algParams = algParams
     self.outputParams = outputParams
     self.TraceLaps = set()
@@ -47,6 +50,16 @@ class LearnAlg(object):
         LP : local params dictionary of resulting model
     '''
     pass
+
+
+  def set_random_seed_at_lap(self, lap):
+    ''' Set internal random generator deterministically
+          based on provided seed (unique to this run) and 
+          the number of passes thru the data,
+          so we can reproduce runs without starting over
+    '''
+    if 
+    self.PRNG = np.random.RandomState(self.seed + int(lap))
     
   def set_start_time_now(self):
     ''' Record start time (in seconds since 1970)
@@ -54,13 +67,19 @@ class LearnAlg(object):
     self.start_time = time.time()    
 
   def add_nObs(self, nObs):
+    ''' Update internal count of total number of data observations processed.
+        Each lap thru dataset of size N, this should be updated by N
+    '''
     self.nObsProcessed += nObs
 
   def get_elapsed_time(self):
+    ''' Returns float of elapsed time (in seconds) since this object's
+        set_start_time_now() method was called
+    '''
     return time.time() - self.start_time
 
   def buildRunInfo(self, evBound, status):
-    ''' Create dictionary of information about the current run
+    ''' Create dict of information about the current run
     '''
     return dict(evBound=evBound, status=status,
                 evTrace=self.evTrace, lapTrace=self.TraceLaps)
@@ -83,10 +102,6 @@ class LearnAlg(object):
     if np.isinf(prevBound):
       return False
     isIncreasing = prevBound <= evBound
-    #absDiff = np.abs(prevBound - evBound)
-    #percDiff = absDiff / np.abs(prevBound)
-    #convergeTHR = self.algParams['convergeTHR']
-    #isWithinTHR = absDiff <= convergeTHR or percDiff <= convergeTHR
     M = self.algParams['convergeSigFig']
     isWithinTHR = closeAtMSigFigs(prevBound, evBound, M=M)
     if not isIncreasing:
@@ -111,6 +126,14 @@ class LearnAlg(object):
       traceEvery = -1
     doTrace = np.allclose(lap % traceEvery, 0) or iterid < 3
 
+    # Define temporary function that creates files in this alg's output dir
+    def mkfile(fname):
+      return os.path.join(self.savedir, fname)
+    if not os.path.exists(mkfile('laps.txt')):
+      mode = 'w'
+    else:
+      mode = 'a'
+
     if traceEvery > 0 and (doFinal or doTrace) and lap not in self.TraceLaps:
       # Record current evidence
       self.evTrace.append(evBound)
@@ -120,17 +143,9 @@ class LearnAlg(object):
       if self.savedir is None:
         return
 
-      # Define temporary function that creates files in this alg's output dir
-      def mkfile(fname):
-        return os.path.join(self.savedir, fname)
-
       # Record current state to plain-text files
-      if iterid == 0:
-        mode = 'w'
-      else:
-        mode = 'a'
-      with open( mkfile('iters.txt'), mode) as f:        
-        f.write('%d\n' % (iterid))
+      #with open( mkfile('iters.txt'), mode) as f:        
+      #  f.write('%d\n' % (iterid))
       with open( mkfile('laps.txt'), mode) as f:        
         f.write('%.4f\n' % (lap))
       with open( mkfile('evidence.txt'), mode) as f:        
@@ -150,7 +165,9 @@ class LearnAlg(object):
     doSave = np.allclose(lap % saveEvery, 0) or iterid < 3
     if (doFinal or doSave) and iterid not in self.SavedIters:
       self.SavedIters.add(iterid)
-      prefix = 'Iter%05d'%(iterid)
+      with open( mkfile('laps-saved-params.txt'), mode) as f:        
+        f.write('%.4f\n' % (lap))
+      prefix = ModelWriter.makePrefixForLap(lap)
       ModelWriter.save_model(hmodel, self.savedir, prefix,
                               doSavePriorInfo=(iterid<1), doLinkBest=True)
 
@@ -178,7 +195,7 @@ class LearnAlg(object):
     if iterid == lap:
       lapStr = '%7d' % (lap)
     else:
-      lapStr = '%7.2f' % (lap)
+      lapStr = '%7.3f' % (lap)
 
     maxLapStr = '%d' % (self.algParams['nLap'])
     
@@ -189,12 +206,6 @@ class LearnAlg(object):
                         hmodel.allocModel.K,
                         evBound, 
                         rhoStr)
-    if self.hasMove('birth') and hasattr(self, 'BirthCompIDs'):
-      logmsg += "| Kbirth %3d " % (len(self.BirthCompIDs))
-    if self.hasMove('merge') and hasattr(self, 'MergeLog'):
-      logmsg += "| Kmerge %3d " % (len(self.MergeLog))
-
-
 
     if (doFinal or doPrint) and iterid not in self.PrintIters:
       self.PrintIters.add(iterid)

@@ -5,6 +5,9 @@ import scipy.io
 import os
 from distutils.dir_util import mkpath
 
+def makePrefixForLap(lap):
+  return 'Lap%08.3f' % (lap)
+
 def save_model(hmodel, fname, prefix, doSavePriorInfo=True, doLinkBest=False):
   ''' saves HModel object to mat file persistently
       

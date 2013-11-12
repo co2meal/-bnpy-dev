@@ -44,6 +44,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     iterid = -1
     lapFrac = 0
     SS = None
+    isConverged = False
     while DataIterator.has_next_batch():
       # Grab new data and update counts
       Dchunk = DataIterator.get_next_batch()
@@ -100,7 +101,6 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
       # Save and display progress
       self.add_nObs(Dchunk.nObs)
-      lap = iterid
       self.save_state(hmodel, iterid, lapFrac, evBound)
       self.print_state(hmodel, iterid, lapFrac, evBound)
 

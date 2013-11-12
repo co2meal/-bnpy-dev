@@ -11,11 +11,24 @@ import numpy as np
 import scipy.io
 import os
 
+from ModelWriter import makePrefixForLap
 from bnpy.allocmodel import *
 from bnpy.obsmodel import *
 from bnpy.distr import *
 
 GDict = globals()
+
+def loadModelForLap(matfilepath, lapQuery):
+  ''' Loads saved model with lap closest to provided lapQuery
+      Returns
+      -------
+      model, true-lap-id
+  '''
+  saveLaps = np.loadtxt(os.path.join(matfilepath,'laps-saved-params.txt'))
+  distances = np.abs(lapQuery - saveLaps)
+  bestLap = saveLaps[np.argmin(distances)]
+  model = load_model(matfilepath, prefix=makePrefixForLap(bestLap))
+  return model, bestLap
 
 def load_model( matfilepath, prefix='Best'):
   ''' Load model stored to disk by ModelWriter

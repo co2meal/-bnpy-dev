@@ -58,8 +58,11 @@ class VBLearnAlg( LearnAlg ):
                                           hmodel, Data, SS, LP, evBound)
 
       # Save and display progress
+      if 'startLap' in self.algParams:
+        lap = self.algParams['startLap'] + iterid
+      else:
+        lap = iterid
       self.add_nObs(Data.nObsTotal)
-      lap = iterid
       self.save_state(hmodel, iterid, lap, evBound)
       self.print_state(hmodel, iterid, lap, evBound)
 
