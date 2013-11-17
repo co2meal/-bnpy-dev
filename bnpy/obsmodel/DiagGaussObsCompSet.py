@@ -153,6 +153,7 @@ class DiagGaussObsCompSet( ObsCompSet ):
     for k in range( self.K ):
         lpX[k] += self.comp[k].ElogdetLam() 
         lpX[k] -= self.D/self.comp[k].beta
+        if np.allclose(SS['N'][k], 0): continue
         mean = SS['x'][k]/SS['N'][k] #1xD
         var = SS['xx'][k]/SS['N'][k] #1xD
         comp_m = self.comp[k].m
@@ -216,7 +217,7 @@ class DiagGaussObsCompSet( ObsCompSet ):
     if self.obsPrior is None:
       return 'None'
     else:
-      return 'Gaussian-Wishart jointly on \mu,\Lam\n'+ self.obsPrior.to_string()
+      return 'Gaussian-Gamma jointly on \mu,\Lam\n'+ self.obsPrior.to_string()
 
   def get_human_global_param_string(self):
     return '\n'.join( [np2flatstr(self.comp[k].m,'% 7.2f') for k in xrange(self.K)])
