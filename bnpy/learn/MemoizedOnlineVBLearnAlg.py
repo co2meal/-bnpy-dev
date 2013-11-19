@@ -5,6 +5,7 @@ Implementation of Memoized Online VB (moVB) learn alg for bnpy models
 '''
 import numpy as np
 from bnpy.learn import LearnAlg
+from bnpy.util import isEvenlyDivisibleFloat
 import logging
 from collections import defaultdict
 import BirthMove
@@ -38,27 +39,42 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     '''
     # memoLPkeys : list of keys for LP that should be retained across laps
     self.memoLPkeys = hmodel.allocModel.get_keys_for_memoized_local_params()
-    self.set_start_time_now()
-    prevBound = -np.inf
-    self.lapFracInc = DataIterator.nObsBatch / float(DataIterator.nObsTotal)
+
+    # Define how much of data we see at each mini-batch
+    nBatch = float(DataIterator.nBatch)
+    self.lapFracInc = 1.0/nBatch
+
+    # Set-up progress-tracking variables
     iterid = -1
-    lapFrac = 0
-    isConverged = False
+    lapFrac = np.maximum(0, self.algParams['startLap'] - 1.0/nBatch)
+    if lapFrac > 0:
+      # When restarting an existing run,
+      #  need to start with last update for final batch from previous lap
+      DataIterator.lapID = int(np.ceil(lapFrac)) - 1
+      DataIterator.curLapPos = nBatch - 2
+      iterid = int(nBatch * lapFrac) - 1
+
     SS = None
     isConverged = False
+    prevBound = -np.inf
+    self.set_start_time_now()
     while DataIterator.has_next_batch():
-      # Grab new data and update counts
+
+      # Grab new data
       Dchunk = DataIterator.get_next_batch()
       batchID = DataIterator.batchID
+      
+      # Update progress-tracking variables
       iterid += 1
       lapFrac = (iterid + 1) * self.lapFracInc
+      self.set_random_seed_at_lap(lapFrac)
 
       # M step
       if self.algParams['doFullPassBeforeMstep']:
-        if lapFrac >= 1.0:
+        if SS is not None:
           hmodel.update_global_params(SS)
       else:
-        if iterid > 0:
+        if SS is not None:
           hmodel.update_global_params(SS)
       
       # Birth moves!
@@ -86,14 +102,13 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
                        doPrecompMergeEntropy=self.hasMove('merge')
                        )
       
-      if iterid == 0:
+      if SS is None:
         SS = SSchunk.copy()
       else:
         assert SSchunk.K == SS.K
         SS += SSchunk
 
       self.verify_suff_stats(SS)
-
       self.save_batch_local_params_to_memory(batchID, LPchunk)          
       self.save_batch_suff_stat_to_memory(batchID, SSchunk)  
 
@@ -101,7 +116,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       evBound = hmodel.calc_evidence(SS=SS)
 
       # Merge move!      
-      if self.hasMove('merge') and lapFrac % 1 == 0:
+      if self.hasMove('merge') and isEvenlyDivisibleFloat(lapFrac, 1.):
         hmodel, SS, evBound = self.run_merge_move(hmodel, None, SS, evBound)
 
       # Save and display progress
@@ -112,7 +127,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       # Check for Convergence!
       #  evBound will increase monotonically AFTER first lap of the data 
       #  verify_evidence will warn if bound isn't increasing monotonically
-      if lapFrac > 1.0:
+      if lapFrac > self.algParams['startLap'] + 1.0:
         isConverged = self.verify_evidence(evBound, prevBound)
         if isConverged and lapFrac > 5 and not self.hasMove('birth'):
           break

@@ -13,26 +13,34 @@ class StochasticOnlineVBLearnAlg(LearnAlg):
     self.rhodelay = self.algParams['rhodelay']
     self.rhoexp = self.algParams['rhoexp']
 
-  def fit(self, hmodel, DataIterator):
-    self.set_start_time_now()
+  def fit(self, hmodel, DataIterator, SS=None):
     LP = None
     rho = 1.0
+    nBatch = float(DataIterator.nBatch)
     iterid = -1
-    lapFrac = 0
-    lapFracPerBatch = DataIterator.nObsBatch / float(DataIterator.nObsTotal)
+    lapFrac = np.maximum(0, self.algParams['startLap'] - 1.0/nBatch)
+    if lapFrac > 0:
+      # When restarting an existing run,
+      #  need to start with last update for final batch from previous lap
+      DataIterator.lapID = int(np.ceil(lapFrac)) - 1
+      DataIterator.curLapPos = nBatch - 2
+      iterid = int(nBatch * lapFrac) - 1
+    self.set_start_time_now()
+
     while DataIterator.has_next_batch():
       # Grab new data
       Dchunk = DataIterator.get_next_batch()
 
       # Update progress-tracking variables
       iterid += 1
-      lapFrac = (iterid+1) * lapFracPerBatch
+      lapFrac += 1.0/nBatch
+      self.set_random_seed_at_lap(lapFrac)
 
-      # M step with learning rate
-      if iterid > 0:
+      # M step with learning rate (need to build suff stats first)
+      if SS is not None:
         rho = (iterid + self.rhodelay) ** (-1.0 * self.rhoexp)
         hmodel.update_global_params(SS, rho)
-
+      
       # E step
       LP = hmodel.calc_local_params(Dchunk, LP)
       SS = hmodel.get_global_suff_stats(Dchunk, LP, doAmplify=True)

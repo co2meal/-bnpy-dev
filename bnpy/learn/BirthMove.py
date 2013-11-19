@@ -121,7 +121,7 @@ def learn_fresh_model(freshModel, targetData, Kmax=500, Kfresh=10,
  
   LearnAlgConstructor = dict()
   LearnAlgConstructor['VB'] = VBLearnAlg
-  algP = dict(nLap=nFreshLap, convergeSigFig=6)
+  algP = dict(nLap=nFreshLap, convergeSigFig=6, startLap=0)
   outP = dict(saveEvery=-1, traceEvery=-1, printEvery=-1)
   learnAlg = LearnAlgConstructor[freshAlgName](savedir=None, 
                     algParams=algP, outputParams=outP, seed=seed)

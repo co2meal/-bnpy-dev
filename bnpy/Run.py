@@ -14,7 +14,7 @@
   Quickstart (within python script)
   --------
   To do the same as above, just call the run method:
-  >> hmodel = Learn.run('AsteriskK8', 'MixModel', 'Gauss', 'EM', K=3)
+  >> hmodel = run('AsteriskK8', 'MixModel', 'Gauss', 'EM', K=3)
   
   Usage
   -------
@@ -272,12 +272,13 @@ def writeArgsToFile( ReqArgs, KwArgs, taskoutpath ):
   import json
   ArgDict = ReqArgs
   ArgDict.update(KwArgs)
-  RelevantOpts = dict(Initialization=1, OutputPrefs=1)
+  #RelevantOpts = dict(Initialization=1, OutputPrefs=1, OnlineDataPrefs=1, birth=1, merge=1)
+  #for key in ArgDict:
+  #  if key.count('Name') > 0:
+  #    RelevantOpts[ ArgDict[key] ] = 1
+  #print [k for k in ArgDict.keys()]
   for key in ArgDict:
     if key.count('Name') > 0:
-      RelevantOpts[ ArgDict[key] ] = 1
-  for key in ArgDict:
-    if key.count('Name') > 0 or key not in RelevantOpts:
       continue
     with open( os.path.join(taskoutpath, 'args-'+key+'.txt'), 'w') as fout:
       json.dump(ArgDict[key], fout)

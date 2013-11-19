@@ -58,8 +58,8 @@ class LearnAlg(object):
           the number of passes thru the data,
           so we can reproduce runs without starting over
     '''
-    if 
-    self.PRNG = np.random.RandomState(self.seed + int(lap))
+    if isEvenlyDivisibleFloat(lap, 1.0):
+      self.PRNG = np.random.RandomState(self.seed + int(lap))
     
   def set_start_time_now(self):
     ''' Record start time (in seconds since 1970)
@@ -117,23 +117,15 @@ class LearnAlg(object):
 
 
   #########################################################  Save to file
-  #########################################################      
-  def save_state( self, hmodel, iterid, lap, evBound, doFinal=False):
+  #########################################################  
+  def save_state(self, hmodel, iterid, lap, evBound, doFinal=False):
     ''' Save state of the hmodel's global parameters and evBound
-    '''
+    '''  
     traceEvery = self.outputParams['traceEvery']
     if traceEvery <= 0:
       traceEvery = -1
-    doTrace = np.allclose(lap % traceEvery, 0) or iterid < 3
-
-    # Define temporary function that creates files in this alg's output dir
-    def mkfile(fname):
-      return os.path.join(self.savedir, fname)
-    if not os.path.exists(mkfile('laps.txt')):
-      mode = 'w'
-    else:
-      mode = 'a'
-
+    doTrace = isEvenlyDivisibleFloat(lap, traceEvery) or iterid < 3
+    
     if traceEvery > 0 and (doFinal or doTrace) and lap not in self.TraceLaps:
       # Record current evidence
       self.evTrace.append(evBound)
@@ -142,36 +134,42 @@ class LearnAlg(object):
       # Exit here if we're not saving to disk
       if self.savedir is None:
         return
-
+    
       # Record current state to plain-text files
-      #with open( mkfile('iters.txt'), mode) as f:        
-      #  f.write('%d\n' % (iterid))
-      with open( mkfile('laps.txt'), mode) as f:        
+      with open( self.mkfile('laps.txt'), 'a') as f:        
         f.write('%.4f\n' % (lap))
-      with open( mkfile('evidence.txt'), mode) as f:        
+      with open( self.mkfile('evidence.txt'), 'a') as f:        
         f.write('%.9e\n' % (evBound))
-      with open( mkfile('nObs.txt'), mode) as f:
+      with open( self.mkfile('nObs.txt'), 'a') as f:
         f.write('%d\n' % (self.nObsProcessed))
-      with open( mkfile('times.txt'), mode) as f:
+      with open( self.mkfile('times.txt'), 'a') as f:
         f.write('%.3f\n' % (self.get_elapsed_time()))
       if self.hasMove('birth') or self.hasMove('merge'):
-        with open( mkfile('K.txt'), mode) as f:
+        with open( self.mkfile('K.txt'), 'a') as f:
           f.write('%d\n' % (hmodel.obsModel.K))
 
     saveEvery = self.outputParams['saveEvery']
-    if saveEvery <= 0:
+    if saveEvery <= 0 or self.savedir is None:
       return
 
-    doSave = np.allclose(lap % saveEvery, 0) or iterid < 3
+    doSave = isEvenlyDivisibleFloat(lap, saveEvery) or iterid < 3
     if (doFinal or doSave) and iterid not in self.SavedIters:
       self.SavedIters.add(iterid)
-      with open( mkfile('laps-saved-params.txt'), mode) as f:        
+      with open(self.mkfile('laps-saved-params.txt'), 'a') as f:        
         f.write('%.4f\n' % (lap))
       prefix = ModelWriter.makePrefixForLap(lap)
       ModelWriter.save_model(hmodel, self.savedir, prefix,
                               doSavePriorInfo=(iterid<1), doLinkBest=True)
 
+  # Define temporary function that creates files in this alg's output dir
+  def mkfile(self, fname):
+    return os.path.join(self.savedir, fname)
 
+  def getFileWriteMode(self):
+    if self.savedir is None:
+      return None
+    return 'a'
+    
   ######################################################### Plot Results
   ######################################################### 
   def plot_results(self, hmodel, Data, LP):
@@ -197,9 +195,15 @@ class LearnAlg(object):
     else:
       lapStr = '%7.3f' % (lap)
 
-    maxLapStr = '%d' % (self.algParams['nLap'])
+    maxLapStr = '%d' % (self.algParams['nLap'] + self.algParams['startLap'])
     
     logmsg = '  %s/%s after %6.0f sec. | K %4d | ev % .9e %s'
+    # Print asterisk for early iterations of memoized,
+    #  before the method has made one full pass thru data
+    if self.__class__.__name__.count('Memo') > 0:
+      if lap < self.algParams['startLap'] + 1.0:
+        logmsg = '  %s/%s after %6.0f sec. | K %4d |*ev % .9e %s'
+
     logmsg = logmsg % (lapStr, 
                         maxLapStr,
                         self.get_elapsed_time(),

@@ -31,6 +31,9 @@ class VBLearnAlg( LearnAlg ):
     LP = None
     mergeFlags = dict(doPrecompEntropy=True, doPrecompMergeEntropy=True)
     for iterid in xrange(self.algParams['nLap'] + 1):
+      lap = self.algParams['startLap'] + iterid
+      self.set_random_seed_at_lap(lap)
+
       # M step
       if iterid > 0:
         hmodel.update_global_params(SS) 
@@ -58,10 +61,6 @@ class VBLearnAlg( LearnAlg ):
                                           hmodel, Data, SS, LP, evBound)
 
       # Save and display progress
-      if 'startLap' in self.algParams:
-        lap = self.algParams['startLap'] + iterid
-      else:
-        lap = iterid
       self.add_nObs(Data.nObsTotal)
       self.save_state(hmodel, iterid, lap, evBound)
       self.print_state(hmodel, iterid, lap, evBound)

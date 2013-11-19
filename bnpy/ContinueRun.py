@@ -26,7 +26,8 @@ Log.setLevel(logging.DEBUG)
 FullDataAlgSet = ['EM','VB']
 OnlineDataAlgSet = ['soVB', 'moVB']
 
-def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
+def continueRun(dataName=None, allocModelName=None, obsModelName=None, 
+        algName=None,
         doSaveToDisk=True, doWriteStdOut=True, **kwargs):
   ''' Fit specified model to data with learning algorithm.
     
@@ -70,8 +71,8 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
   parser.add_argument('--taskid', default=1, type=int)
   parser.add_argument('--startLap', default=1.0, type=float)
   parser.add_argument('--nLap', default=10, type=int)
-  args, ignored = parser.parse_known_args()
-
+  #args, ignored = parser.parse_known_args()
+  args, ignored = BNPYArgParser.applyParserToKeywordArgDict(parser, **kwargs)
   hmodel, LP, Info = _continue_task_internal( \
                       args.jobname, args.taskid, args.startLap, args.nLap, \
                       dataName, allocModelName, obsModelName, algName, \
@@ -100,13 +101,17 @@ def _continue_task_internal(jobname, taskid, startLap, nLap, \
   taskoutpath = getOutputPath(ReqArgs, jobname, taskID=taskid)
   configLoggingToConsoleAndFile(taskoutpath, doSaveToDisk, doWriteStdOut)
 
+  # Create model from saved parameters
+  ModelReader = bnpy.ioutil.ModelReader
+  hmodel, startLap = ModelReader.loadModelForLap(taskoutpath, startLap)
+
   KwArgs, UnkArgs = readArgsFromFile(taskoutpath)
   if algName in FullDataAlgSet:
     KwArgs[algName]['nLap'] = nLap
   else:
     KwArgs['OnlineDataPrefs']['nLap'] = nLap
-  
-  if type(dataName) is str:   
+    KwArgs['OnlineDataPrefs']['startLap'] = startLap
+  if type(dataName) is str:
     Data, InitData = loadData(ReqArgs, KwArgs, UnkArgs, dataorderseed)
   else:
     Data = dataName
@@ -114,12 +119,6 @@ def _continue_task_internal(jobname, taskid, startLap, nLap, \
     if algName in OnlineDataAlgSet:
       Data = Data.to_minibatch_iterator(dataorderseed=dataorderseed,
                                         **KwArgs['OnlineDataPrefs'])
-
-  # Create model from saved parameters
-  print startLap
-  ModelReader = bnpy.ioutil.ModelReader
-  hmodel, startLap = ModelReader.loadModelForLap(taskoutpath, startLap)
-  Log.info('LOAD AT LAP %.3f' % (startLap))
 
   # Create learning algorithm
   KwArgs[algName]['startLap'] = startLap
@@ -313,4 +312,4 @@ def configLoggingToConsoleAndFile(taskoutpath, doSaveToDisk=True, doWriteStdOut=
 
 
 if __name__ == '__main__':
-  run()
+  continueRun()

@@ -1,6 +1,7 @@
 import argparse
 import ConfigParser
 import os
+import sys
 
 OnlineDataAlgSet = ['soVB', 'moVB']
 
@@ -30,6 +31,20 @@ def parseRequiredArgs():
   args, unk = parser.parse_known_args()
   return args.__dict__
   
+def applyParserToKeywordArgDict(parser, **kwargs):
+  ''' Use externally-defined parser to parse given kwargs
+      if none-provided, defaults to reading from stdin
+
+      Returns
+      --------
+  '''
+  if len(kwargs.keys()) > 0:
+    alist = kwargs_to_arglist(**kwargs)
+    args, UnkArgList = parser.parse_known_args(alist)
+  else:
+    args, UnkArgList = parser.parse_known_args()
+  return args, arglist_to_kwargs(UnkArgList)
+
 def parseKeywordArgs(ReqArgs, **kwargs):
   global UNKARGLIST
   if ReqArgs['algName'] in OnlineDataAlgSet:
@@ -41,7 +56,8 @@ def parseKeywordArgs(ReqArgs, **kwargs):
   # BUILD parser using default opts in the config files
   parser = argparse.ArgumentParser()
   parser.add_argument('--moves', type=str)
-    
+  parser.add_argument('--bighelp', action='store_true')
+  
   for fpath, secName in ConfigPaths.items():
     if secName is not None:
       secName = ReqArgs[secName]
@@ -59,6 +75,10 @@ def parseKeywordArgs(ReqArgs, **kwargs):
   if args.moves is not None:
     args.moves = args.moves.split(',')
   
+  if args.bighelp:
+    parser.print_help()
+    sys.exit(-1)
+
   # CONVERT parsed arg namespace to a nice dictionary
   argDict = dict()
   for fpath, secName in ConfigPaths.items():
