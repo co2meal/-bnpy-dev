@@ -1,37 +1,64 @@
 '''
 ParamBag.py
 
-Container object for related groups of parameters.
-For example, can group "means" and "variances" together.
+Container object for groups of related parameters in bnpy models.
 
-Create a new bag with
-  PB = ParamBag(K=5, D=3)
+For example, can keep mean/variance parameters for all components of a GMM.
 
-Add new fields with
-  PB.setField('name', value)
-  PB.setField('name', value, dims=('K','D'))
+Key functionality
+* run-time dimensionality verification, ensure matrices have correct size
+* easy access to the parameters for one component
+* remove/delete a particular component
+* insert new components
 
-Access fields using just attribute notation
-  PB.N
-  PB.x
-
-Access all fields related to single component with
-  PB.getComp(compID)
+Usage
+-------- 
+Create a new ParamBag
+>>> PB = ParamBag(K=1, D=3)
+Add K x D field for mean parameters
+>>> PB.setField('Mu', np.ones(D), dims=('K','D'))
+Add K x D x D field for all covar matrices
+>>> PB.setField('Sigma', np.eye(D), dims=('K','D','D'))
+>>> PB.Sigma
+[[1,0,0],
+[0,1,0],
+[0,0,1]]
+Insert an empty component
+>>> PB.insertEmptyComp(1)
+>>> PB.K
+2
+>>> PB.Mu
+[1 1 1]
+[0 0 0]
 '''
 import numpy as np
 import copy
 
 class ParamBag(object):
   def __init__(self, K=0, D=0):
+    ''' Create a ParamBag object with specified number of components.
+        
+        Args
+        --------
+        K : integer number of components this bag will contain
+        D : integer dimension of parameters this bag will contain
+    '''
     self.K = K
     self.D = D
     self._FieldDims = dict()
 
   def copy(self):
+    ''' Returns deep copy of this ParamBag object, with separate memory alloc.
+    '''
     return copy.deepcopy(self)
 
-  def setField(self, key, value, dims=None):
+  ######################################################### Set field 
+  #########################################################
+  def setField(self, key, rawArray, dims=None):
     ''' Set a named field to particular array value.
+
+        Raises ValueError if provided rawArray cannot be parsed into
+          shape expected by the provided dimensions tuple
     '''
     # Parse dims tuple
     if dims is None and key in self._FieldDims:
@@ -39,138 +66,20 @@ class ParamBag(object):
     else:
       self._FieldDims[key] = dims
     # Parse value as numpy array
-    setattr(self, key, self.parseArr(value, dims=dims, key=key))
-
-  ######################################################### 
-  #########################################################
-  def parseArr(self, arr, dims=None, key=None):
-    ''' Parse provided array-like variable into a standard numpy array
-        with provided dimensions "dims", as a tuple
-
-        Returns
-        --------
-        numpy array with expected dimensions
-    '''
-    K = self.K
-    D = self.D
-    if dims is not None:
-      if type(dims) == str:
-        dims = (dims) # force to tuple
-    arr = np.asarray(arr, dtype=np.float64)
-    expectedShape = self._getExpectedShape(dims=dims)
-    print arr.shape
-    print expectedShape
-    if arr.shape not in self._getAllowedShapes(expectedShape):
-      self._raiseDimError(dims, arr, key)
-    if arr.ndim == 0:
-      arr = np.float64(arr)
-    '''
-    # Handle converted arr, case by case
-    if arr.ndim == 0:
-      if dims is not None and (K > 1):
-        self._raiseDimError(dims, arr, key)
-      else:
-        arr = np.float64(arr)
-    # ----------------------------------------------------- Dim 1
-    elif arr.ndim == 1:
-      if dims is None or dims[0] != 'K':
-        self._raiseDimError(dims, arr, key)
-      if len(dims) == 1 and arr.size != getattr(self, dims[0]):
-        self._raiseDimError(dims, arr, key)
-      if len(dims) == 2:
-        expectedSize = getattr(self, dims[0])*getattr(self, dims[1])
-        if (K > 1 and D> 1) or (arr.size != expectedSize):
-          self._raiseDimError(dims, arr, key)
-    # ----------------------------------------------------- Dim 2
-    elif arr.ndim == 2:
-      if dims is None or dims[0] != 'K' or len(dims) < 2 or len(dims) > 3:
-        self._raiseDimError(dims, arr, key)
-      if len(dims) == 3 and not K == 1:
-        self._raiseDimError(dims, arr, key)
-      expectedSize = getattr(self, dims[0])*getattr(self, dims[1])
-      if len(dims) == 2 and arr.size != expectedSize:
-        self._raiseDimError(dims, arr, key)
-    # ----------------------------------------------------- Dim 3
-    elif arr.ndim == 3:
-      if dims is None or dims[0] != 'K' or len(dims) != 3:
-        self._raiseDimError(dims, arr, key)
-      expectedSize = getattr(self, dims[0]) * getattr(self, dims[1]) * getattr(self,dims[2])
-      if arr.size != expectedSize:
-        self._raiseDimError(dims, arr, key)
-    else:
-      raise NotImplementedError('Cannot handle more than 3 dims')
-    '''
-    if K == 1 or D == 1:
-      arr = np.squeeze(arr)
-    return arr
-
-  def _getExpectedShape(self, key=None, dims=None):
-    if key is not None:
-      dims = self._FieldDims[key]
-    if dims is None:
-      expectShape = ()
-    else:
-      shapeList = list()
-      for dim in dims:
-        shapeList.append(getattr(self,dim))
-      expectShape = tuple(shapeList)
-    return expectShape    
-
-  def _getAllowedShapes(self, shape):
-    ''' Return set of allowed shapes that can be squeezed into given shape
-        Examples
-        --------
-        () --> ()
-        (1) --> (), (1)
-        (2) --> (2)
-        (3,1) -->  (3) or (3,1)
-        (1,1) --> () or (1) or (1,1)
-        (3,2) --> (3,2)
-    '''
-    allowedShapes = set()
-    if len(shape) == 0:
-      allowedShapes.add(tuple())
-      return allowedShapes
-    shapeVec = np.asarray(shape, dtype=np.int32)
-    onesMask = shapeVec == 1
-    keepMask = np.logical_not(onesMask)
-    nOnes = sum(onesMask)
-    for b in range(2**nOnes):
-      bStr = np.binary_repr(b)
-      bStr = '0'*(nOnes - len(bStr)) + bStr
-      keepMask[onesMask] = np.asarray([int(x) > 0 for x in bStr])
-      curShape = shapeVec[keepMask]
-      allowedShapes.add(tuple(curShape))
-    return allowedShapes
-
-  def _raiseDimError(self, dims, badArr, key=None):
-    expectShape = self._getExpectedShape(dims=dims)
-    if key is None:
-      msg = 'Bad Dims. Expected %s, got %s' % (expectShape, badArr.shape)
-    else:
-      msg = 'Bad Dims for field %s. Expected %s, got %s' % (key, expectShape, badArr.shape)
-    raise ValueError(msg)
+    setattr(self, key, self.parseArr(rawArray, dims=dims, key=key))
 
   def setAllFieldsToZero(self):
+    ''' Update every field to be an array of all zeros.
+    '''
     for key, dims in self._FieldDims.items():
       curShape = getattr(self,key).shape
       self.setField(key, np.zeros(curShape), dims=dims)
 
-  # ===================================================== Insert / Remove / Get
-  def _getExpandedField(self, key, dims, K=None):
-      if K is None:
-        K = self.K
-      arr = getattr(self, key)
-      if arr.ndim < len(dims):
-        for dimID, dimName in enumerate(dims):      
-          if dimName == 'K' and K == 1:
-            arr = np.expand_dims(arr, axis=dimID)
-          elif getattr(self, dimName) == 1:
-            arr = np.expand_dims(arr, axis=dimID)
-      return arr
-  
+
+  ######################################################### Insert components
+  #########################################################
   def insertEmptyComps(self, Kextra):
-    '''  Insert Kextra additional components to self in-place
+    ''' Insert Kextra empty components to self in-place.
     '''
     origK = self.K
     self.K += Kextra
@@ -188,7 +97,7 @@ class ParamBag(object):
       self.setField(key, arr, dims=dims)
 
   def insertComps(self, PB):
-    ''' Insert additional components (as ParamBag) to self in-place
+    ''' Insert additional components to self in-place, from provided ParamBag.
     '''
     assert PB.D == self.D
     origK = self.K
@@ -204,6 +113,8 @@ class ParamBag(object):
         self.setField(key, getattr(self,key) + getattr(PB,key), dims=None)
  
 
+  ######################################################### Remove component 
+  #########################################################
   def removeComp(self, k):
     ''' Updates self in-place to remove component "k"
     '''
@@ -223,8 +134,10 @@ class ParamBag(object):
         self.setField(key, arr, dims)
 
 
+  ######################################################### Set component 
+  #########################################################
   def setComp(self, k, compPB):
-    ''' Set (in-place) component k to the parameters in compPB object
+    ''' Set (in-place) component k of self to provided compPB object.
     '''
     if k < 0 or k >= self.K:
       raise IndexError('Bad compID. Expected [0, %d] but provided %d' % (self.K-1, k))
@@ -237,10 +150,12 @@ class ParamBag(object):
         self.setField(key, getattr(compPB,key), dims=dims)
       else:
         bigArr = getattr(self, key)
-        bigArr[k] = getattr(compPB, key)
+        bigArr[k] = getattr(compPB, key) # in-place
 
+  ######################################################### Get component 
+  #########################################################
   def getComp(self, k):
-    ''' Returns ParamBag object for component "k"
+    ''' Returns ParamBag object for component "k" of self.
     '''
     if k < 0 or k >= self.K:
       raise IndexError('Bad compID. Expected [0, %d] but provided %d' % (self.K-1, k))
@@ -257,8 +172,12 @@ class ParamBag(object):
         cPB.setField(key, arr)
     return cPB
 
-  # ======================================================= Override add
+
+  ######################################################### Add bags together
+  #########################################################
   def __add__(self, PB):
+    ''' Add. Returns new ParamBag, with fields equal to self + PB
+    '''
     if self.K != PB.K or self.D != PB.D:
       raise ValueError('Dimension mismatch')
     PBsum = ParamBag(K=self.K, D=self.D)
@@ -269,6 +188,8 @@ class ParamBag(object):
     return PBsum
 
   def __iadd__(self, PB):
+    ''' In-place add. Updates self, with fields equal to self + PB.
+    '''
     if self.K != PB.K or self.D != PB.D:
       raise ValueError('Dimension mismatch')
     for key in self._FieldDims:
@@ -278,8 +199,11 @@ class ParamBag(object):
     return self
 
 
-  # ======================================================= Override subtract
+  ######################################################### Subtract bags
+  #########################################################
   def __sub__(self, PB):
+    ''' Subtract. Returns new ParamBag object with fields equal to self - PB.
+    '''
     if self.K != PB.K or self.D != PB.D:
       raise ValueError('Dimension mismatch')
     PBdiff = ParamBag(K=self.K, D=self.D)
@@ -290,6 +214,8 @@ class ParamBag(object):
     return PBdiff
 
   def __isub__(self, PB):
+    ''' In-place subtract. Updates self, with fields equal to self - PB.
+    '''
     if self.K != PB.K or self.D != PB.D:
       raise ValueError('Dimension mismatch')
     for key in self._FieldDims:
@@ -297,3 +223,120 @@ class ParamBag(object):
       arrB = getattr(PB, key)
       self.setField(key, arrA - arrB)
     return self
+
+  ######################################################### Array Parsing
+  #########################################################
+  def parseArr(self, arr, dims=None, key=None):
+    ''' Parse provided array-like variable into a standard numpy array
+        with provided dimensions "dims", as a tuple
+
+        Returns
+        --------
+        numpy array with expected dimensions
+    '''
+    K = self.K
+    D = self.D
+    arr = np.asarray(arr, dtype=np.float64)
+    # Verify shape is acceptable given expected dimensions
+    if dims is not None and type(dims) == str:
+        dims = (dims) # force to tuple
+    expectedShape = self._getExpectedShape(dims=dims)
+    if arr.shape not in self._getAllowedShapes(expectedShape):
+      self._raiseDimError(dims, arr, key)
+    # Squeeze into most economical shape possible
+    #  e.g. (3,1) --> (3,),  (1,1) --> ()
+    if K == 1 or D == 1:
+      arr = np.squeeze(arr)
+    if arr.ndim == 0:
+      arr = np.float64(arr)
+    return arr
+
+  def _getExpectedShape(self, key=None, dims=None):
+    ''' Returns tuple of numeric expected shape, given named dimensions dims
+        
+        Example
+        -------
+        >>> PB = ParamBag(K=3, D=2)
+        >>> PB._getExpectedShape(dims=('K','K'))
+        (3,3)
+        >>> PB._getExpectedShape(dims=('K','D','D'))
+        (3,2,2)
+    '''
+    if key is not None:
+      dims = self._FieldDims[key]
+    if dims is None:
+      expectShape = ()
+    else:
+      shapeList = list()
+      for dim in dims:
+        shapeList.append(getattr(self,dim))
+      expectShape = tuple(shapeList)
+    return expectShape    
+
+  def _getAllowedShapes(self, shape):
+    ''' Return set of allowed shapes that can be squeezed into given shape.
+
+        Examples
+        --------
+        >>> PB = ParamBag() # fixing K,D doesn't matter
+        >>> PB._getAllowedShapes(())
+        set([()])
+        >>> PB._getAllowedShapes((1))
+        set([(), (1,)])
+        >>> PB._getAllowedShapes((23))
+        set([(23)])
+        >>> PB._getAllowedShapes((3,1))
+        set([(3), (3,1)])
+        >>> PB._getAllowedShapes((1,1))
+        set([(), (1,), (1,1)])
+    '''
+    allowedShapes = set()
+    if len(shape) == 0:
+      allowedShapes.add(tuple())
+      return allowedShapes
+    shapeVec = np.asarray(shape, dtype=np.int32)
+    onesMask = shapeVec == 1
+    keepMask = np.logical_not(onesMask)
+    nOnes = sum(onesMask)
+    for b in range(2**nOnes):
+      bStr = np.binary_repr(b)
+      bStr = '0'*(nOnes - len(bStr)) + bStr
+      keepMask[onesMask] = np.asarray([int(x) > 0 for x in bStr])
+      curShape = shapeVec[keepMask]
+      allowedShapes.add(tuple(curShape))
+    return allowedShapes
+
+  def _raiseDimError(self, dims, badArr, key=None):
+    ''' Raise ValueError when expected dimensions for array are not met.
+    '''
+    expectShape = self._getExpectedShape(dims=dims)
+    if key is None:
+      msg = 'Bad Dims. Expected %s, got %s' % (expectShape, badArr.shape)
+    else:
+      msg = 'Bad Dims for field %s. Expected %s, got %s' % (key, expectShape, badArr.shape)
+    raise ValueError(msg)
+
+  def _getExpandedField(self, key, dims, K=None):
+    ''' Returns array expanded from squeezed form.
+
+        Example
+        --------
+        Suppose dims=('K','D') and K=1, D=2
+        Field stored as shape (2,) would be expanded to (1,2)  
+
+        Args
+        --------
+        key : name of field to expand
+        dims : tuple of named dimensions, like ('K') or ('K','D')
+        K : [optional] value for K to use, overrides self.K if provided      
+    '''
+    if K is None:
+      K = self.K
+    arr = getattr(self, key)
+    if arr.ndim < len(dims):
+      for dimID, dimName in enumerate(dims):      
+        if dimName == 'K' and K == 1:
+          arr = np.expand_dims(arr, axis=dimID)
+        elif getattr(self, dimName) == 1:
+          arr = np.expand_dims(arr, axis=dimID)
+    return arr

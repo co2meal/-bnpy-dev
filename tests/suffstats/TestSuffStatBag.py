@@ -10,6 +10,16 @@ class TestSuffStatBag(unittest.TestCase):
   def shortDescription(self):
     return None
   
+  def test_ampFactor(self, K=2, D=2):
+    SS = self.makeSuffStatBagAndFillWithOnes(K,D)
+    SS.applyAmpFactor(3.0)
+    assert np.allclose(SS.s, 3.0)
+    assert np.allclose(SS.N,  3.0*np.ones(K))   
+    assert np.allclose(SS.x,  3.0*np.ones((K,D)))   
+    assert np.allclose(SS.xxT,  3.0*np.ones((K,D,D)))   
+    assert SS.hasAmpFactor()
+    assert SS.ampF == 3.0
+
   def makeSuffStatBagAndFillWithOnes(self, K, D):
     SS = SuffStatBag(K=K, D=D)
     s = 1.0

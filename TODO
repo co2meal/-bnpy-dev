@@ -1,13 +1,4 @@
-========== Births
-* only perform if K < Kmax
-*    force Kfresh = min(Kfresh, Kmax-K) so that we always stay under Kmax
 
-========== SuffStatDict
-
-Redesign, with
-* simpler internal structure (don't hide behind __dict__)
-* direct access to fields.  Don't use dictionary notation at all.
-* smarter handling of field dimensions. What happens in singleton case should be very well-defined.
 
 =========== Logging
 have separate log transcripts for births/merges, so we can do detailed diagnostics?

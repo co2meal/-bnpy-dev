@@ -1,5 +1,14 @@
 '''
 SuffStatBag.py
+
+Container object for sufficient statistics in bnpy models.
+Uses ParamBag as internal representation.
+
+Tracks three possible sets of parameters, each with own ParamBag
+* sufficient statistics fields
+* precomputed ELBO terms
+* precomputed terms for potential merges
+
 '''
 import numpy as np
 from ParamBag import ParamBag
@@ -7,17 +16,31 @@ from ParamBag import ParamBag
 class SuffStatBag(object):
   def __init__(self, K=0, D=0):
     self._Fields = ParamBag(K=K, D=D)
-    self._ELBOTerms = ParamBag(K=K)
-    self._MergeTerms = ParamBag(K=K)
 
   def setField(self, key, value, dims=None):
     self._Fields.setField(key, value, dims=dims)
 
+  # ======================================================= Amp factor
+  def hasAmpFactor(self):
+    return hasattr(self, 'ampF')
+        
+  def applyAmpFactor(self, ampF):
+    self.ampF = ampF
+    for key in self._Fields._FieldDims:
+      arr = getattr(self._Fields, key)
+      if arr.ndim == 0:
+        # Edge case: in-place updates don't work with de-referenced 0-d arrays
+        setattr(self._Fields, key, arr * ampF)
+      else:
+        arr *= ampF
+      
   # ======================================================= ELBO terms
   def getELBOTerm(self, key):
     return getattr(self._ELBOTerms, key)
 
   def setELBOTerm(self, key, value, dims=None):
+    if not hasattr(self, '_ELBOTerms'):
+      self._ELBOTerms = ParamBag(K=self.K)
     self._ELBOTerms.setField(key, value, dims=dims)
 
   # ======================================================= ELBO merge terms
@@ -25,18 +48,10 @@ class SuffStatBag(object):
     return getattr(self._MergeTerms, key)
 
   def setMergeTerm(self, key, value, dims=None):
+    if not hasattr(self, '_MergeTerms'):
+      self._MergeTerms = ParamBag(K=self.K)
     self._MergeTerms.setField(key, value, dims=dims)
 
-
-  def hasAmpFactor(self):
-    return 'ampF' in self.__dict__
-        
-  def applyAmpFactor(self, ampF):
-    self.ampF = ampF
-    for key in self._Fields._FieldDims:
-      arr = getattr(self._Fields, key)
-      arr *= ampF
-      
 
   # ======================================================= Merge comps
   def mergeComps(self, kA, kB):
@@ -50,39 +65,49 @@ class SuffStatBag(object):
     SB = self._Fields.getComp(kB)
     self._Fields.setComp(kA, SA + SB)
 
-    for key, dims in self._ELBOTerms._FieldDims.items():
-      if key in self._MergeTerms._FieldDims and (dims == ('K') or dims == 'K'):
-        arr = getattr(self._ELBOTerms, key)
-        mArr = getattr(self._MergeTerms, key)
-        print arr, mArr
-        arr[kA] = mArr[kA,kB]
+    
+    if hasattr(self, '_ELBOTerms'):
+      for key, dims in self._ELBOTerms._FieldDims.items():
+        if key in self._MergeTerms._FieldDims and dims == ('K'):
+          arr = getattr(self._ELBOTerms, key)
+          mArr = getattr(self._MergeTerms, key)
+          arr[kA] = mArr[kA,kB]
 
-    for key, dims in self._MergeTerms._FieldDims.items():
-      if dims == ('K','K'):
-        mArr = getattr(self._MergeTerms, key)
-        mArr[kA,kA+1:] = np.nan
-        mArr[:kA,kA] = np.nan
+    if hasattr(self, '_MergeTerms'):
+      for key, dims in self._MergeTerms._FieldDims.items():
+        if dims == ('K','K'):
+          mArr = getattr(self._MergeTerms, key)
+          mArr[kA,kA+1:] = np.nan
+          mArr[:kA,kA] = np.nan
 
     self._Fields.removeComp(kB)
-    self._ELBOTerms.removeComp(kB)
-    self._MergeTerms.removeComp(kB)
+    if hasattr(self, '_ELBOTerms'):
+      self._ELBOTerms.removeComp(kB)
+    if hasattr(self, '_MergeTerms'):
+      self._MergeTerms.removeComp(kB)
 
   # ======================================================= Insert comps
   def insertComps(self, SS):
     self._Fields.insertComps(SS)
-    self._ELBOTerms.insertEmptyComps(SS.K)
-    self._MergeTerms.insertEmptyComps(SS.K)
+    if hasattr(self, '_ELBOTerms'):
+      self._ELBOTerms.insertEmptyComps(SS.K)
+    if hasattr(self, '_MergeTerms'):
+      self._MergeTerms.insertEmptyComps(SS.K)
 
   def insertEmptyComps(self, Kextra):
     self._Fields.insertEmptyComps(Kextra)
-    self._ELBOTerms.insertEmptyComps(Kextra)
-    self._MergeTerms.insertEmptyComps(Kextra)
+    if hasattr(self, '_ELBOTerms'):
+      self._ELBOTerms.insertEmptyComps(Kextra)
+    if hasattr(self, '_MergeTerms'):
+      self._MergeTerms.insertEmptyComps(Kextra)
 
   # ======================================================= Remove comp
   def removeComp(self, k):
     self._Fields.removeComp(k)
-    self._ELBOTerms.removeComp(k)
-    self._MergeTerms.removeComp(k)
+    if hasattr(self, '_ELBOTerms'):
+      self._ELBOTerms.removeComp(k)
+    if hasattr(self, '_MergeTerms'):
+      self._MergeTerms.removeComp(k)
 
   # ======================================================= Get comp
   def getComp(self, k):
@@ -112,16 +137,20 @@ class SuffStatBag(object):
       raise ValueError('Dimension mismatch')
     SSsum = SuffStatBag(K=self.K, D=self.D)
     SSsum._Fields = self._Fields - PB._Fields
-    SSsum._ELBOTerms = self._ELBOTerms - PB._ELBOTerms
-    SSsum._MergeTerms = self._MergeTerms - PB._MergeTerms
+    if hasattr(self, '_ELBOTerms'):
+      SSsum._ELBOTerms = self._ELBOTerms - PB._ELBOTerms
+    if hasattr(self, '_MergeTerms'):
+      SSsum._MergeTerms = self._MergeTerms - PB._MergeTerms
     return SSsum
 
   def __isub__(self, PB):
     if self.K != PB.K or self.D != PB.D:
       raise ValueError('Dimension mismatch')
     self._Fields -= PB._Fields
-    self._ELBOTerms -= PB._ELBOTerms
-    self._MergeTerms -= PB._MergeTerms
+    if hasattr(self, '_ELBOTerms'):
+      self._ELBOTerms -= PB._ELBOTerms
+    if hasattr(self, '_MergeTerms'):
+      self._MergeTerms -= PB._MergeTerms
     return self
 
   # ======================================================= Override getattr

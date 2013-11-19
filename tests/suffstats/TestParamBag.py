@@ -215,13 +215,16 @@ class TestParamBag(unittest.TestCase):
   ######################################################### Verify get
   def test_getComp_K1_D1(self):
     A = ParamBag(K=1,D=1)
+    A.setField('scalar', 1, dims=None)
     A.setField('N', 1, dims='K')
     A.setField('x', 1, dims=('K','D'))
     c = A.getComp(0)
     assert c.K == 1
     assert c.N == A.N
     assert c.x == A.x
+    assert id(c.scalar) != id(A.scalar)
     assert id(c.N) != id(A.N)
+    assert id(c.x) != id(A.x)
 
   def test_getComp_K3_D1(self):
     A = ParamBag(K=3,D=1)
@@ -231,6 +234,8 @@ class TestParamBag(unittest.TestCase):
     assert c.K == 1
     assert c.N == A.N[0]
     assert c.x == A.x[0]
+    assert id(c.N) != id(A.N)
+    assert id(c.x) != id(A.x)
 
   ######################################################### Verify add/subtract
   def test_add_K1_D1(self):
