@@ -25,7 +25,7 @@ rm Learn.py.lprof
 popd
 
 # Remove functions that didn't get any runtime from report
-python scrub_profile_report.py
+# python scrub_profile_report.py
 
 # Remove decorations from bnpy code
 python undecorate_for_profiling.py

@@ -213,8 +213,19 @@ def create_index_html(save_path, template_path, stats, unit):
     stream = open(save_path + 'index.html', mode='w')
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_path))
     template = env.get_template('index.template')
-    functions = [{'name':name, 'fn': fn, 'fn-replace': fn.replace('/','-'), 'calls': max([0] + [t[1] for t in timings]), 'total_time':sum(t[2] for t in timings)} for (fn, lineno, name), timings in stats.items()]
+    functions = [{'name':name, 
+                  'fn': fn, 
+                  'fn-replace': fn.replace('/','-'), 
+                  'calls': max([0] + [t[1] for t in timings]),
+                  'total_time':sum(t[2] for t in timings) * unit} 
+                 for (fn, lineno, name), timings in stats.items()]
     functions = sorted(functions, key=lambda f: f['total_time'], reverse=True)
+    for f in functions:
+        if f['total_time'] < 0.001:
+            f['total_time'] = '--'
+        else:
+            f['total_time'] = str(f['total_time']) + ' s'
+    
     index = template.render(timestamp = time.strftime('%X %x %Z'), tunit=('%g' % unit), functions=functions)
     print >>stream, index
 
