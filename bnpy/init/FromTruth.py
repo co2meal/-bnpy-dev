@@ -1,7 +1,7 @@
 '''
 FromTruth.py
 
-Initialize params of a bnpy model using "ground truth" side information,
+Initialize params of a bnpy model using "ground truth" information,
 such as human annotations 
 
 These are provided within a Data object, as a "TrueLabels" field

@@ -11,11 +11,24 @@ import numpy as np
 import scipy.io
 import os
 
+from ModelWriter import makePrefixForLap
 from bnpy.allocmodel import *
 from bnpy.obsmodel import *
 from bnpy.distr import *
 
 GDict = globals()
+
+def loadModelForLap(matfilepath, lapQuery):
+  ''' Loads saved model with lap closest to provided lapQuery
+      Returns
+      -------
+      model, true-lap-id
+  '''
+  saveLaps = np.loadtxt(os.path.join(matfilepath,'laps-saved-params.txt'))
+  distances = np.abs(lapQuery - saveLaps)
+  bestLap = saveLaps[np.argmin(distances)]
+  model = load_model(matfilepath, prefix=makePrefixForLap(bestLap))
+  return model, bestLap
 
 def load_model( matfilepath, prefix='Best'):
   ''' Load model stored to disk by ModelWriter
@@ -27,8 +40,10 @@ def load_model( matfilepath, prefix='Best'):
   return HModel(allocModel, obsModel)
   
 def load_alloc_model(matfilepath, prefix):
-  APDict = load_dict_from_matfile(os.path.join(matfilepath,'AllocPrior.mat'))
-  ADict = load_dict_from_matfile(os.path.join(matfilepath,prefix+'AllocModel.mat'))
+  apriorpath = os.path.join(matfilepath,'AllocPrior.mat')
+  amodelpath = os.path.join(matfilepath,prefix+'AllocModel.mat')
+  APDict = loadDictFromMatfile(apriorpath)
+  ADict = loadDictFromMatfile(amodelpath)
   AllocConstr = GDict[ADict['name']]
   amodel = AllocConstr( ADict['inferType'], APDict )
   amodel.from_dict( ADict)
@@ -36,16 +51,17 @@ def load_alloc_model(matfilepath, prefix):
   
 def load_obs_model(matfilepath, prefix):
   obspriormatfile = os.path.join(matfilepath,'ObsPrior.mat')
-  PDict = load_dict_from_matfile(obspriormatfile)
+  PDict = loadDictFromMatfile(obspriormatfile)
   if PDict['name'] == 'NoneType':
     obsPrior = None
   else:
     PriorConstr = GDict[PDict['name']]
-    obsPrior = PriorConstr( **PDict)  
-  ODict = load_dict_from_matfile(os.path.join(matfilepath,prefix+'ObsModel.mat'))
+    obsPrior = PriorConstr( **PDict)
+  obsmodelpath = os.path.join(matfilepath,prefix+'ObsModel.mat')
+  ODict = loadDictFromMatfile(obsmodelpath)
   ObsConstr = GDict[ODict['name']]
   CompDicts = get_list_of_comp_dicts( ODict['K'], ODict)
-  return ObsConstr.InitFromCompDicts( ODict, obsPrior, CompDicts)
+  return ObsConstr.CreateWithAllComps( ODict, obsPrior, CompDicts)
   
 def get_list_of_comp_dicts( K, Dict ):
   ''' We store all component params stacked together in an array.
@@ -65,7 +81,7 @@ def get_list_of_comp_dicts( K, Dict ):
         MyList[k][key] = x[:,:,k].copy()
   return MyList
   
-def load_dict_from_matfile(matfilepath):
+def loadDictFromMatfile(matfilepath):
   ''' Returns
       --------
        dict D where all numpy entries have good byte order, flags, etc.

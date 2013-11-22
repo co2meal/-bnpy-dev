@@ -1,7 +1,6 @@
-"""
-The :mod:`obsModel` module provides 
-"""
+'''
+'''
 
-from ZMGaussObsCompSet import ZMGaussObsCompSet
-from GaussObsCompSet import GaussObsCompSet
-from MultObsModel import MultObsModel
+from GaussObsModel import GaussObsModel
+from ZMGaussObsModel import ZMGaussObsModel
+#from MultObsModel import MultObsModel

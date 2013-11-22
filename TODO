@@ -1,30 +1,14 @@
-========== REORGANIZATION
+=========== BEFORE RELEASE
+* make sure visualizations work, especially interactive ones for births/merges
 
-Move "executables" inside of bnpy module.
+* simplify argparser.  only show birth/merge options when specified
 
-Example new syntax:
-  python -m bnpy.Run AsteriskK8 DPMixModel Gauss VB [opts]
+* stdout: how much to display for births/merges??  Set verbosity level??
 
-Example
-  python -m bnpy.PlotELBO [args
-  python -m bnpy.PlotComps [args]
+* lots of documentation!!?!!
 
-========== Learn.py
+* clean up topic model code???
 
-Improve automatic help with "--help" argument
-
-Allow "restarting" existing runs from custom lap, with all same settings and reproducible random seeds
- * should it save in the same directory?
- * edit LearnAlgs to have rand-seed reset at each lap, with "startLap" as input arg
-
-Save files should use "Lap102.45-AllocModel.mat" as the desired format.
-
-========== SuffStatDict
-
-Redesign, with
-* simpler internal structure (don't hide behind __dict__)
-* direct access to fields.  Don't use dictionary notation at all.
-* smarter handling of field dimensions. What happens in singleton case should be very well-defined.
-
-=========== Logging
+=========== LONG-Term
+* Logging
 have separate log transcripts for births/merges, so we can do detailed diagnostics?

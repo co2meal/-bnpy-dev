@@ -2,9 +2,9 @@
 Unit-tests for MixModel.py
 '''
 import numpy as np
-
+import bnpy
 from bnpy.allocmodel import MixModel
-from bnpy.suffstats import SuffStatDict
+from bnpy.suffstats import SuffStatBag
 
 class TestMixModelEMUnifAlpha(object):
   def shortDescription(self):
@@ -17,7 +17,8 @@ class TestMixModelEMUnifAlpha(object):
     self.alpha0 = 1.0
     self.allocM = MixModel('EM', dict(alpha0=self.alpha0))
     self.N = np.asarray([1.,2.,3,4,5.])
-    self.SS = SuffStatDict(K=5, N=self.N)
+    self.SS = SuffStatBag(K=5, D=1)
+    self.SS.setField('N', self.N, dims='K')
     self.resp = np.random.rand(100,3)
     self.precompEntropy = np.sum(self.resp * np.log(self.resp), axis=0)
     
@@ -31,8 +32,9 @@ class TestMixModelEMUnifAlpha(object):
     assert np.allclose(wTrue, wEst)
     
   def test_get_global_suff_stats(self):
-    SS = self.allocM.get_global_suff_stats(None, dict(resp=self.resp), doPrecompEntropy=True)
-    assert np.allclose(self.precompEntropy, SS.getPrecompEntropy())
+    Data = bnpy.data.XData(np.random.randn(10,1))
+    SS = self.allocM.get_global_suff_stats(Data, dict(resp=self.resp), doPrecompEntropy=True)
+    assert np.allclose(self.precompEntropy, SS.getELBOTerm('ElogqZ'))
     assert np.allclose( np.sum(self.resp, axis=0), SS.N)
 
 class TestMixModelEMNonunifAlpha(TestMixModelEMUnifAlpha):
@@ -40,6 +42,7 @@ class TestMixModelEMNonunifAlpha(TestMixModelEMUnifAlpha):
     self.alpha0 = 2.0
     self.allocM = MixModel('EM', dict(alpha0=self.alpha0))
     self.N = np.asarray([1.,2.,3,4,5.])
-    self.SS = SuffStatDict(N=self.N)
+    self.SS = SuffStatBag(K=5, D=1)
+    self.SS.setField('N', self.N, dims='K')
     self.resp = np.random.rand(100,3)
     self.precompEntropy = np.sum(self.resp * np.log(self.resp), axis=0)
