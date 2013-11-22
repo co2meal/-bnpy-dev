@@ -35,7 +35,7 @@ import numpy as np
 import copy
 
 class ParamBag(object):
-  def __init__(self, K=0, D=0):
+  def __init__(self, K=0, D=0, doCollapseK1=False):
     ''' Create a ParamBag object with specified number of components.
         
         Args
@@ -46,6 +46,7 @@ class ParamBag(object):
     self.K = K
     self.D = D
     self._FieldDims = dict()
+    self.doCollapseK1 = doCollapseK1
 
   def copy(self):
     ''' Returns deep copy of this ParamBag object, with separate memory alloc.
@@ -75,7 +76,6 @@ class ParamBag(object):
       curShape = getattr(self,key).shape
       self.setField(key, np.zeros(curShape), dims=dims)
 
-
   ######################################################### Insert components
   #########################################################
   def insertEmptyComps(self, Kextra):
@@ -87,7 +87,10 @@ class ParamBag(object):
       dims = self._FieldDims[key]
       if dims is None:
         continue
-      arr = self._getExpandedField(key, dims, K=origK)
+      if self.doCollapseK1:
+        arr = self._getExpandedField(key, dims, K=origK)
+      else:
+        arr = getattr(self, key)
       for dimID, dimName in enumerate(dims):      
         if dimName == 'K':
           curShape = list(arr.shape)
@@ -105,8 +108,12 @@ class ParamBag(object):
     for key in self._FieldDims:
       dims = self._FieldDims[key]
       if dims is not None and dims[0] == 'K':
-        arrA = self._getExpandedField(key, dims, K=origK)
-        arrB = PB._getExpandedField(key, dims)
+        if self.doCollapseK1:
+          arrA = self._getExpandedField(key, dims, K=origK)
+          arrB = PB._getExpandedField(key, dims)
+        else:
+          arrA = getattr(self, key)
+          arrB = getattr(PB, key)
         arrC = np.append(arrA, arrB, axis=0)
         self.setField(key, arrC, dims=dims)
       elif dims is None:
@@ -159,7 +166,7 @@ class ParamBag(object):
     '''
     if k < 0 or k >= self.K:
       raise IndexError('Bad compID. Expected [0, %d] but provided %d' % (self.K-1, k))
-    cPB = ParamBag(K=1, D=self.D)
+    cPB = ParamBag(K=1, D=self.D, doCollapseK1=True)
     for key in self._FieldDims:
       arr = getattr(self,key)
       dims = self._FieldDims[key]
@@ -180,7 +187,7 @@ class ParamBag(object):
     '''
     if self.K != PB.K or self.D != PB.D:
       raise ValueError('Dimension mismatch')
-    PBsum = ParamBag(K=self.K, D=self.D)
+    PBsum = ParamBag(K=self.K, D=self.D, doCollapseK1=self.doCollapseK1)
     for key in self._FieldDims:
       arrA = getattr(self, key)
       arrB = getattr(PB, key)
@@ -201,12 +208,24 @@ class ParamBag(object):
 
   ######################################################### Subtract bags
   #########################################################
+  def subtractSpecificComps(self, PB, compIDs):
+    ''' Subtract (in-place) from certain components of self the entire bag PB
+            self.Fields[compIDs] -= PB
+    '''
+    assert len(compIDs) == PB.K
+    for key in self._FieldDims:
+      arr = getattr(self, key)
+      if arr.ndim > 0:
+        arr[compIDs] -= getattr(PB, key)
+      else:
+        self.setField(key, arr - PB.arr, dims=None)
+
   def __sub__(self, PB):
     ''' Subtract. Returns new ParamBag object with fields equal to self - PB.
     '''
     if self.K != PB.K or self.D != PB.D:
       raise ValueError('Dimension mismatch')
-    PBdiff = ParamBag(K=self.K, D=self.D)
+    PBdiff = ParamBag(K=self.K, D=self.D, doCollapseK1=self.doCollapseK1)
     for key in self._FieldDims:
       arrA = getattr(self, key)
       arrB = getattr(PB, key)
@@ -241,12 +260,16 @@ class ParamBag(object):
     if dims is not None and type(dims) == str:
         dims = (dims) # force to tuple
     expectedShape = self._getExpectedShape(dims=dims)
-    if arr.shape not in self._getAllowedShapes(expectedShape):
-      self._raiseDimError(dims, arr, key)
-    # Squeeze into most economical shape possible
-    #  e.g. (3,1) --> (3,),  (1,1) --> ()
-    if K == 1 or D == 1:
-      arr = np.squeeze(arr)
+    if self.doCollapseK1:
+      if arr.shape not in self._getAllowedShapes(expectedShape):
+        self._raiseDimError(dims, arr, key)
+      # Squeeze into most economical shape possible
+      #  e.g. (3,1) --> (3,),  (1,1) --> ()
+      if K == 1 or D == 1:
+        arr = np.squeeze(arr)
+    else:
+      if arr.shape != expectedShape:
+        self._raiseDimError(dims, arr, key)
     if arr.ndim == 0:
       arr = np.float64(arr)
     return arr
@@ -316,7 +339,7 @@ class ParamBag(object):
       msg = 'Bad Dims for field %s. Expected %s, got %s' % (key, expectShape, badArr.shape)
     raise ValueError(msg)
 
-  def _getExpandedField(self, key, dims, K=None):
+  def _getExpandedField(self, key, dims, K=None, doExpandD=False):
     ''' Returns array expanded from squeezed form.
 
         Example
@@ -337,6 +360,6 @@ class ParamBag(object):
       for dimID, dimName in enumerate(dims):      
         if dimName == 'K' and K == 1:
           arr = np.expand_dims(arr, axis=dimID)
-        elif getattr(self, dimName) == 1:
+        elif getattr(self, dimName) == 1 and doExpandD:
           arr = np.expand_dims(arr, axis=dimID)
     return arr

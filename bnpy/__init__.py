@@ -1,6 +1,5 @@
 ''' bnpy module __init__ file
 '''
-
 import data
 import distr
 import util
@@ -13,8 +12,18 @@ from HModel import HModel
 import ioutil
 import init
 
-import learn
+import learnalg
 import Run
+
+########################################################### Config data
+###########################################################  location
+import os
+isValid = False
+if 'BNPYDATADIR' in os.environ and os.path.exists(os.environ['BNPYDATADIR']):
+  isValid = True
+if not isValid:
+  root = os.path.sep.join(os.path.abspath(__file__).split(os.path.sep)[:-2])
+  os.environ['BNPYDATADIR'] = os.path.join(root, 'demodata/')
 
 ########################################################### Optional: viz
 ###########################################################  package for plots

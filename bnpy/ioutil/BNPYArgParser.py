@@ -10,12 +10,11 @@ cfgroot = os.path.sep.join(os.path.abspath(__file__).split(os.path.sep)[:-2])
 cfgroot = os.path.join(cfgroot, 'config/')
 ConfigPaths={cfgroot + 'allocmodel.conf':'allocModelName',
              cfgroot + 'obsmodel.conf':'obsModelName', 
-             cfgroot + 'inference.conf':'algName',
+             cfgroot + 'learnalg.conf':'algName',
              cfgroot + 'init.conf':None,
              cfgroot + 'output.conf':None}             
 
 OnlineDataConfigPath =  cfgroot + 'onlinedata.conf'
-
 
 UNKARGLIST = None
 
@@ -55,14 +54,15 @@ def parseKeywordArgs(ReqArgs, **kwargs):
 
   # BUILD parser using default opts in the config files
   parser = argparse.ArgumentParser()
-  parser.add_argument('--moves', type=str)
-  parser.add_argument('--bighelp', action='store_true')
+  parser.add_argument('--moves', type=str,
+                       help="String names of moves to perform to escape local optima. Options: {birth,merge}. To perform multiple moves, separate with commas like 'birth,merge' (no spaces).")
+  parser.add_argument('--kwhelp', action='store_true', help="Include --kwhelp to print our keyword argument help and exit")
   
   for fpath, secName in ConfigPaths.items():
     if secName is not None:
       secName = ReqArgs[secName]
     addArgGroupFromConfigFile(parser, fpath, secName) 
-    if fpath.count('infer') > 0:
+    if fpath.count('learn') > 0:
       addArgGroupFromConfigFile(parser, fpath, 'birth') 
       addArgGroupFromConfigFile(parser, fpath, 'merge') 
 
@@ -74,8 +74,10 @@ def parseKeywordArgs(ReqArgs, **kwargs):
     args, UNKARGLIST = parser.parse_known_args()
   if args.moves is not None:
     args.moves = args.moves.split(',')
+
+    
   
-  if args.bighelp:
+  if args.kwhelp:
     parser.print_help()
     sys.exit(-1)
 
@@ -85,7 +87,7 @@ def parseKeywordArgs(ReqArgs, **kwargs):
     if secName is not None:
       secName = ReqArgs[secName]
     addArgsToDictByConfigFile(argDict, args, fpath, secName)
-    if fpath.count('infer') > 0 and args.moves is not None:
+    if fpath.count('learn') > 0 and args.moves is not None:
       for moveName in args.moves:
         addArgsToDictByConfigFile(argDict, args, fpath, moveName)
   return argDict
@@ -179,3 +181,50 @@ def getType( defVal ):
   except Exception:
     return str
 
+
+def addRequiredVizArgsToParser(parser):
+  ''' Update parser to include required args: data, model, learn algorithm
+  '''
+  parser.add_argument('dataName', type=str,
+        help='name of python script that produces data to analyze.')
+  parser.add_argument('allocModelName', type=str,
+        help='name of allocation model. {MixModel, DPMixModel}')
+  parser.add_argument('obsModelName', type=str,
+        help='name of observation model. {Gauss, ZMGauss}')
+  parser.add_argument('algNames', type=str,
+        help='name of learning algorithm, {EM, VB, moVB, soVB}. comma-separated if multiple')
+
+def addStandardVizArgsToParser(parser):
+  ''' Update parser to include standard visualization arguments
+  '''
+  parser.add_argument('--jobnames', type=str, default='defaultjob',
+        help='name of experiment whose results should be plotted')
+        
+  parser.add_argument('--taskids', type=str, default=None,
+        help="int ids for tasks (individual runs) of the given job to plot." + \
+              'Ex: "1" or "3" or "1,2,3" or "1-6"')
+  
+  parser.add_argument('--savefilename', type=str, default=None,
+        help="location where to save figure (absolute path directory)")
+
+          
+def parse_task_ids(jobpath, taskids=None):
+  ''' Return list of task ids
+  '''
+  import glob
+  import numpy as np
+  if taskids is None:
+    fulltaskpaths = glob.glob(os.path.join(jobpath,'*'))
+    taskids = [os.path.split(tpath)[-1] for tpath in fulltaskpaths]
+  elif taskids.count(',') > 0:
+    taskids = [t for t in taskids.split(',')]
+  elif taskids.count('-') > 0:
+    fields = taskids.split('-')
+    if not len(fields)==2:
+      raise ValueError("Bad taskids specification")
+    fields = np.int32(np.asarray(fields))
+    taskids = np.arange(fields[0],fields[1]+1)
+    taskids = [str(t) for t in taskids]
+  if type(taskids) is not list:
+    taskids = list(taskids)
+  return taskids

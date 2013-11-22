@@ -1,5 +1,5 @@
 '''
-Unit-tests for ParamBag
+Unit-tests for SuffStatBag
 '''
 
 from bnpy.suffstats.SuffStatBag import SuffStatBag
@@ -10,6 +10,17 @@ class TestSuffStatBag(unittest.TestCase):
   def shortDescription(self):
     return None
   
+  def test_copy(self, K=2, D=2):
+    SS = self.makeSuffStatBagAndFillWithOnes(K,D)
+    self.addELBOtoSuffStatBag(SS,K)
+    SS2 = SS.copy()
+    assert SS2.s == SS.s
+    assert np.all(SS2.N == SS.N)
+    assert np.all(SS2.getELBOTerm('Elogz') == SS.getELBOTerm('Elogz'))
+    assert id(SS2.s) != id(SS.s)
+    assert id(SS2.N) != id(SS.N)
+
+
   def test_ampFactor(self, K=2, D=2):
     SS = self.makeSuffStatBagAndFillWithOnes(K,D)
     SS.applyAmpFactor(3.0)
@@ -39,7 +50,7 @@ class TestSuffStatBag(unittest.TestCase):
     return SS
 
   def getExpectedMergedFields(self, K, D, kA=0):
-    s = 2.0
+    s = 1.0
     N = np.ones( K-1)
     N[kA] = 2
     x = np.ones((K-1, D))
@@ -53,7 +64,7 @@ class TestSuffStatBag(unittest.TestCase):
     SS.mergeComps(0, 1)
 
     assert SS.K == K - 1
-    assert np.allclose(SS.s, 2)
+    assert np.allclose(SS.s, 1)
     assert np.allclose(SS.N, 2)
     assert np.allclose(SS.x, 2*np.ones(D))
     assert np.allclose(SS.xxT, 2*np.ones((D,D)))
@@ -65,7 +76,7 @@ class TestSuffStatBag(unittest.TestCase):
     SS.mergeComps(0, 1)
 
     assert SS.K == K - 1
-    assert np.allclose(SS.s, 2)
+    assert np.allclose(SS.s, 1)
     assert np.allclose(SS.N, 2)
     assert np.allclose(SS.x, 2*np.ones(D))
     assert np.allclose(SS.xxT, 2*np.ones((D,D)))

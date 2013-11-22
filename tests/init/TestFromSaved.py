@@ -19,7 +19,7 @@ class TestFromScratchGauss(unittest.TestCase):
 
     aPDict = dict(alpha0=1.0)
     oPDict = dict(min_covar=1e-9)
-    self.hmodel = HModel.InitFromData('EM','MixModel','ZMGauss', aPDict, oPDict, self.Data)
+    self.hmodel = HModel.CreateEntireModel('EM','MixModel','ZMGauss', aPDict, oPDict, self.Data)
     modelB = self.hmodel.copy()    
     initParams = dict(initname='randexamples', seed=0, K=self.K)
     modelB.init_global_params(self.Data, **initParams)

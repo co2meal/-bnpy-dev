@@ -107,41 +107,14 @@ class TestParamBag(unittest.TestCase):
     assert np.allclose(A.xxT, np.zeros((K+2,D,D)))
     assert np.allclose(A.W, np.zeros((K+2,K+2)))
 
-  def test_insert_and_remove_K3_D2(self, K=3, D=2):
-    A = ParamBag(K=K, D=D)
-    s = 123
-    N = np.random.rand(K)
-    x = np.random.rand(K,D)
-    xxT = np.random.randn(K,D,D)
-    A.setField('s', s)
-    A.setField('N', N, dims='K')
-    A.setField('x', x, dims=('K','D'))
-    A.setField('xxT', xxT, dims=('K','D','D'))
-    Abig = A.copy()
-    # First remove a few fields
-    for k in range(K-1):
-      A.removeComp(0)
-      assert A.K == K - k - 1
-      assert A.s == s
-      assert np.allclose(A.getComp(0).x, x[k+1])
-      assert np.allclose(A.getComp(0).xxT, xxT[k+1])
-
-    # Now, insert the missing components again
-    for k in range(K-1):
-      A.insertComps(Abig.getComp(k))
-      assert A.K == k + 2
-      assert A.s == (k+2)*s
-      assert np.allclose(A.getComp(A.K-1).x, x[k])
-      assert np.allclose(A.getComp(A.K-1).xxT, xxT[k])
-
   ######################################################### Verify insert
   def test_insertComps_K1_D1(self):
     A = ParamBag(K=1,D=1)
     s = 123.456
     A.setField('scalar', s, dims=None)
-    A.setField('N', 1, dims='K')
-    A.setField('x', 1, dims=('K','D'))
-    A.setField('xxT', 1, dims=('K','D','D'))
+    A.setField('N', [1], dims='K')
+    A.setField('x', [[1]], dims=('K','D'))
+    A.setField('xxT', [[[1]]], dims=('K','D','D'))
 
     Abig = A.copy()
     Abig.insertComps(A)
@@ -163,9 +136,9 @@ class TestParamBag(unittest.TestCase):
     A = ParamBag(K=K,D=D)
     s = 123.456
     A.setField('scalar', s, dims=None)
-    A.setField('N', 1.0, dims='K')
-    A.setField('x', np.random.rand(D), dims=('K','D'))
-    A.setField('xxT', np.random.rand(D,D), dims=('K','D','D'))
+    A.setField('N', [1.0], dims='K')
+    A.setField('x', np.random.rand(K,D), dims=('K','D'))
+    A.setField('xxT', np.random.rand(K,D,D), dims=('K','D','D'))
 
     Abig = A.copy()
 
@@ -194,30 +167,50 @@ class TestParamBag(unittest.TestCase):
   ######################################################### Verify remove
   def test_removeComp_K1_D1(self):
     A = ParamBag(K=1,D=1)
-    A.setField('N', 1, dims='K')
-    A.setField('x', 1, dims=('K','D'))
+    A.setField('N', [1], dims='K')
+    A.setField('x', [[1]], dims=('K','D'))
     with self.assertRaises(ValueError):
       A.removeComp(0)
   
   def test_removeComp_K3_D1(self):
     A = ParamBag(K=3,D=1)
     A.setField('N', [1,2,3], dims='K')
-    A.setField('x', [4,5,6], dims=('K','D'))
+    A.setField('x', [[4],[5],[6]], dims=('K','D'))
     A.setField('W', np.ones((3,3)), dims=('K','K'))
     Aorig = A.copy()
     A.removeComp(1)
     assert Aorig.K == A.K + 1
     assert A.N[0] == Aorig.N[0]
     assert A.N[1] == Aorig.N[2]
-    assert np.allclose( A.x, [4,6])
+    assert np.allclose( A.x, [[4],[6]])
     assert np.allclose(A.W, np.ones((2,2)))
+
+
+  def test_remove_K3_D2(self, K=3, D=2):
+    A = ParamBag(K=K, D=D)
+    s = 123
+    N = np.random.rand(K)
+    x = np.random.rand(K,D)
+    xxT = np.random.randn(K,D,D)
+    A.setField('s', s)
+    A.setField('N', N, dims='K')
+    A.setField('x', x, dims=('K','D'))
+    A.setField('xxT', xxT, dims=('K','D','D'))
+    Abig = A.copy()
+    # First remove a few fields
+    for k in range(K-1):
+      A.removeComp(0)
+      assert A.K == K - k - 1
+      assert A.s == s
+      assert np.allclose(A.getComp(0).x, x[k+1])
+      assert np.allclose(A.getComp(0).xxT, xxT[k+1])
 
   ######################################################### Verify get
   def test_getComp_K1_D1(self):
     A = ParamBag(K=1,D=1)
     A.setField('scalar', 1, dims=None)
-    A.setField('N', 1, dims='K')
-    A.setField('x', 1, dims=('K','D'))
+    A.setField('N', [1], dims='K')
+    A.setField('x', [[1]], dims=('K','D'))
     c = A.getComp(0)
     assert c.K == 1
     assert c.N == A.N
@@ -229,7 +222,7 @@ class TestParamBag(unittest.TestCase):
   def test_getComp_K3_D1(self):
     A = ParamBag(K=3,D=1)
     A.setField('N', [1,2,3], dims='K')
-    A.setField('x', [4,5,6], dims=('K','D'))
+    A.setField('x', [[4],[5],[6]], dims=('K','D'))
     c = A.getComp(0)
     assert c.K == 1
     assert c.N == A.N[0]
@@ -243,10 +236,10 @@ class TestParamBag(unittest.TestCase):
     B = ParamBag(K=1,D=1)
     C = A + B
     assert C.K == A.K and C.D == A.D
-    A.setField('N', 1, dims='K')
-    B.setField('N', 10, dims='K')
+    A.setField('N', [1], dims='K')
+    B.setField('N', [10], dims='K')
     C = A + B
-    assert C.N == 11.0
+    assert C.N[0] == 11.0
 
   def test_add_K3_D2(self, K=3, D=2):
     A = ParamBag(K=K,D=D)
@@ -296,13 +289,11 @@ class TestParamBag(unittest.TestCase):
     
   ######################################################### Dim 0 parsing
   def test_parseArr_dim0_passes(self):
-    ''' Verify can parse arrays with 0-dim
-    '''
     PB1 = ParamBag(K=1, D=1)
     x = PB1.parseArr(1.23, dims=None)
     assert x.ndim == 0 and x.size == 1
-    x = PB1.parseArr(1.23, dims=('K'))
-    assert x.ndim == 0 and x.size == 1
+    x = PB1.parseArr([1.23], dims=('K'))
+    assert x.ndim == 1 and x.size == 1
 
     PB2 = ParamBag(K=2, D=1)
     x = PB2.parseArr(1.23, dims=None)
@@ -311,7 +302,7 @@ class TestParamBag(unittest.TestCase):
     PB5 = ParamBag(K=5, D=40)
     x = PB5.parseArr(1.23, dims=None)
     assert x.ndim == 0 and x.size == 1
-
+  
   def test_parseArr_dim0_fails(self):
     ''' Verify fails for 0-dim input when K > 1
     '''
@@ -327,30 +318,34 @@ class TestParamBag(unittest.TestCase):
     # K = 1, D = 1
     PB1 = ParamBag(K=1, D=1)
     x = PB1.parseArr([1.23], dims='K')
-    assert x.ndim == 0 and x.size == 1
-    x = PB1.parseArr([1.23], dims=('K','D'))
-    assert x.ndim == 0 and x.size == 1
+    assert x.ndim == 1 and x.size == 1
+    x = PB1.parseArr([[1.23]], dims=('K','D'))
+    assert x.ndim == 2 and x.size == 1
 
     # K = *, D = 1
     PB2 = ParamBag(K=2, D=1)
     x = PB2.parseArr([1.,2.], dims='K')
     assert x.ndim == 1 and x.size == 2
-    x = PB2.parseArr([1.,2.], dims=('K','D'))
-    assert x.ndim == 1 and x.size == 2
+    x = PB2.parseArr([[1.],[2.]], dims=('K','D'))
+    assert x.ndim == 2 and x.size == 2
 
     # K = 1, D = *
     PB3 = ParamBag(K=1, D=3)
-    x = PB3.parseArr([1., 2., 3.], dims=('K','D'))
-    assert x.ndim == 1 and x.size == 3
+    x = PB3.parseArr([[1., 2., 3.]], dims=('K','D'))
+    assert x.ndim == 2 and x.size == 3
 
     # K = *, D = *
     PB2 = ParamBag(K=4, D=1)
-    x = PB2.parseArr([1.,2.,3.,4.], dims='K')
-    assert x.ndim == 1 and x.size == 4
-    x = PB2.parseArr([1.,2.,3.,4.], dims=('K','D'))
-    assert x.ndim == 1 and x.size == 4
-
+    x = PB2.parseArr([[1.],[2.],[3.],[4.]], dims=('K','D'))
+    assert x.ndim == 2 and x.size == 4
+    N = PB2.parseArr([1.,2.,3.,4.], dims='K')
+    assert N.ndim == 1 and N.size == 4
+  
   def test_parseArr_dim1_fails(self):
+    PB1 = ParamBag(K=1, D=1)
+    with self.assertRaises(ValueError):
+      x = PB1.parseArr([1.23], dims=('K','D'))
+
     PB2 = ParamBag(K=2, D=1)
     with self.assertRaises(ValueError):
       x = PB2.parseArr([1.23], dims=('K'))
@@ -372,14 +367,10 @@ class TestParamBag(unittest.TestCase):
     x = PB2.parseArr(np.eye(2), dims=('K','D'))
     assert x.ndim == 2 and x.size == 4
 
-    PB1 = ParamBag(K=1, D=2)
-    x = PB1.parseArr(np.eye(2), dims=('K','D','D'))
-    assert x.ndim == 2 and x.size == 4
-
     PB31 = ParamBag(K=3, D=1)
     x = PB31.parseArr([[10],[11],[12]], dims=('K','D'))
-    assert x.ndim == 1 and x.size == 3
-
+    assert x.ndim == 2 and x.size == 3
+  
   def test_parseArr_dim2_fails(self):
     PB2 = ParamBag(K=2, D=2)    
     with self.assertRaises(ValueError):
@@ -391,8 +382,14 @@ class TestParamBag(unittest.TestCase):
     with self.assertRaises(ValueError):
       x = PB2.parseArr(np.eye(3), dims=('K','D'))
 
+    PB1 = ParamBag(K=1, D=2)
+    with self.assertRaises(ValueError):
+      # should be 1x2x2, not 2x2
+      x = PB1.parseArr(np.eye(2), dims=('K','D','D'))
+
 
   ######################################################### Dim 3 parsing
+  
   def test_parseArr_dim3_passes(self):
     K=2
     D=2
@@ -404,13 +401,14 @@ class TestParamBag(unittest.TestCase):
     D=2
     PB = ParamBag(K=K, D=D)
     x = PB.parseArr(np.random.rand(K,D,D), dims=('K','D', 'D'))
-    assert x.ndim == 2 and x.size == K*D*D
+    assert x.ndim == 3 and x.size == K*D*D
 
     K=3
     D=1
     PB = ParamBag(K=K, D=D)
     x = PB.parseArr(np.random.rand(K,D,D), dims=('K','D', 'D'))
-    assert x.ndim == 1 and x.size == K*D*D
+    assert x.ndim == 3 and x.size == K*D*D
+  
 
   def test_parseArr_dim3_fails(self):
     PB = ParamBag(K=2, D=2)    

@@ -1,6 +1,15 @@
 
+=========== BEFORE RELEASE
+* make sure visualizations work, especially interactive ones for births/merges
 
-=========== Logging
+* simplify argparser.  only show birth/merge options when specified
+
+* stdout: how much to display for births/merges??  Set verbosity level??
+
+* lots of documentation!!?!!
+
+* clean up topic model code???
+
+=========== LONG-Term
+* Logging
 have separate log transcripts for births/merges, so we can do detailed diagnostics?
-
-check stdout for all models... does it make sense?

@@ -16,7 +16,7 @@ class TestMixZMVB_4Class2D(object):
   
   def MakeHModel(self):
     aPDict = dict(alpha0=1.0)
-    oPDict = dict(dF=1, smatname='eye', sF=1.0, kappa=1e-6)
+    oPDict = dict(dF=1, ECovMat='eye', sF=1.0, kappa=1e-6)
     self.hmodel = HModel.CreateEntireModel('VB', 'MixModel', 'Gauss', aPDict, oPDict, self.Data)
   
   def MakeData(self, N=25000):

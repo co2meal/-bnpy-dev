@@ -12,7 +12,7 @@ from .RandUtil import discrete_single_draw, discrete_single_draw_vectorized
 from .SpecialFuncUtil import MVgammaln, MVdigamma, digamma, gammaln
 from .SpecialFuncUtil import LOGTWO, LOGPI, LOGTWOPI, EPS
 from .SpecialFuncUtil import logsumexp
-from .SpecialFuncUtil import closeAtMSigFigs, isEvenlyDivisibleFloat
+from .VerificationUtil import closeAtMSigFigs, isEvenlyDivisibleFloat
 
 __all__ = ['RandUtil', 
            'np2flatstr', 'flatstr2np', 

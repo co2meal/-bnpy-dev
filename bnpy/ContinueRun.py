@@ -212,7 +212,7 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs,
           
     Returns
     -------
-    learnAlg : bnpy.learn.LearnAlg [or subclass] object
+    learnAlg : LearnAlg [or subclass] object
                type defined by ArgDict['algName'], one of {EM, VB, soVB, moVB}
   '''
   algName = ReqArgs['algName']
@@ -223,12 +223,12 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs,
     algP['merge'] = KwArgs['merge']
   outputP = KwArgs['OutputPrefs']
   if algName == 'EM' or algName == 'VB':
-    learnAlg = bnpy.learn.VBLearnAlg(savedir=savepath, seed=algseed, \
+    learnAlg = bnpy.learnalg.VBLearnAlg(savedir=savepath, seed=algseed, \
                                       algParams=algP, outputParams=outputP)
   elif algName == 'soVB':
-    learnAlg = bnpy.learn.StochasticOnlineVBLearnAlg(savedir=savepath, seed=algseed, algParams=algP, outputParams=outputP)
+    learnAlg = bnpy.learnalg.StochasticOnlineVBLearnAlg(savedir=savepath, seed=algseed, algParams=algP, outputParams=outputP)
   elif algName == 'moVB':
-    learnAlg = bnpy.learn.MemoizedOnlineVBLearnAlg(savedir=savepath, seed=algseed, algParams=algP, outputParams=outputP)
+    learnAlg = bnpy.learnalg.MemoizedOnlineVBLearnAlg(savedir=savepath, seed=algseed, algParams=algP, outputParams=outputP)
   else:
     raise NotImplementedError("Unknown learning algorithm " + algName)
   return learnAlg

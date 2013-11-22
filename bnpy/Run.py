@@ -1,6 +1,6 @@
 '''
  User-facing executable script for running experiments that
-  train bnpy models using a variety of possible inference algorithms, such as
+  train bnpy models using a variety of possible inference algorithms
     ** Expectation Maximization (EM)
     ** Variational Bayesian Inference (VB)
     ** Stochastic Online Variational Bayesian Inference (soVB)
@@ -45,18 +45,18 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
       >> hmodel = run(Data, 'MixModel', 'Gauss', 'EM', K=3, nLap=10, printEvery=5)
 
       To load a dataset specified in a specific script
-        (See demodata/AsteriskK8.py for an example script)
-      >> hmodel = run('AsteriskK8', 'MixModel', 'Gauss', 'VB', K=3, alpha0=0.5)
+      For example, 2D toy data in demodata/AsteriskK8.py
+      >> hmodel = run('AsteriskK8', 'MixModel', 'Gauss', 'VB', K=3)
       
-      To run 5 tasks (separate initializations) and get the best of the 5 models:
-      >> opts = dict(initname='randexamples', K=8, nLap=100, printEvery=0)
-      >> hmodel = run('AsteriskK8', 'MixModel', 'Gauss', 'VB', nTask=5, **opts)
+      To run 5 tasks (separate initializations) and get best of 5 runs:
+      >> opts = dict(K=8, nLap=100, printEvery=0)
+      >> hmodel = run('AsteriskK8','MixModel','Gauss','VB', nTask=5, **opts)
 
       Args
       -------
       dataName : either one of
                   * bnpy Data object,
-                  * string filesystem path of a Data module within BNPYDATADIR
+                  * string filesystem path of Data module within BNPYDATADIR
       allocModelName : string name of allocation (latent structure) model
                         {MixModel, DPMixModel, AdmixModel, HMM, etc.}
       obsModelName : string name of observation (likelihood) model
@@ -76,7 +76,7 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
   hasReqArgs &= algName is not None
   
   if hasReqArgs:
-    ReqArgs = dict(dataName=dataName, allocModelName=allocModelName, \
+    ReqArgs = dict(dataName=dataName, allocModelName=allocModelName,
                     obsModelName=obsModelName, algName=algName)
   else:
     ReqArgs = BNPYArgParser.parseRequiredArgs()
@@ -99,9 +99,9 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
   bestInfo = None
   bestEvBound = -np.inf
   for taskid in range(starttaskid, starttaskid + nTask):
-    hmodel, LP, Info = _run_task_internal(jobname, taskid, nTask, \
-                      ReqArgs, KwArgs, UnkArgs, \
-                      dataName, allocModelName, obsModelName, algName, \
+    hmodel, LP, Info = _run_task_internal(jobname, taskid, nTask,
+                      ReqArgs, KwArgs, UnkArgs,
+                      dataName, allocModelName, obsModelName, algName,
                       doSaveToDisk, doWriteStdOut)
     if (Info['evBound'] > bestEvBound):
       bestModel = hmodel
@@ -112,9 +112,9 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
 
 ########################################################### RUN SINGLE TASK 
 ###########################################################
-def _run_task_internal(jobname, taskid, nTask, \
-                      ReqArgs, KwArgs, UnkArgs, \
-                      dataName, allocModelName, obsModelName, algName, \
+def _run_task_internal(jobname, taskid, nTask,
+                      ReqArgs, KwArgs, UnkArgs,
+                      dataName, allocModelName, obsModelName, algName,
                       doSaveToDisk, doWriteStdOut):
   ''' Internal method (should never be called by end-user!)
       Executes learning for a particular job and particular taskid.
@@ -149,10 +149,11 @@ def _run_task_internal(jobname, taskid, nTask, \
 
   # Create and initialize model parameters
   hmodel = createModel(InitData, ReqArgs, KwArgs)
-  hmodel.init_global_params(InitData, seed=algseed, **KwArgs['Initialization'])
+  hmodel.init_global_params(InitData, seed=algseed,
+                            **KwArgs['Initialization'])
 
   # Create learning algorithm
-  learnAlg = createLearnAlg(Data, hmodel, ReqArgs, KwArgs, \
+  learnAlg = createLearnAlg(Data, hmodel, ReqArgs, KwArgs,
                               algseed=algseed, savepath=taskoutpath)
 
   # Write descriptions to the log
@@ -183,13 +184,14 @@ def loadData(ReqArgs, KwArgs, DataArgs, dataorderseed):
 
       InitData must be a bnpy.data.DataObj object.
       This DataObj is used for two early-stage steps in the training process
-        (a) Constructing observation model so that it has appropriate dimensions
+        (a) Constructing observation model of appropriate dimensions
             For example, with 3D real data,
             can only model the observations with a Gaussian over 3D vectors. 
         (b) Initializing global model parameters
-            Esp. in online settings, avoiding local optima might require using parameters
-            that are initialized from a much bigger dataset than each individual batch.
-      For most full dataset learning scenarios, InitData can be the same as Data.
+            Esp. in online settings, avoiding local optima might require
+             using parameters initialized from a much bigger dataset
+             than each individual batch.
+      For full dataset learning scenarios, InitData can be the same as Data.
   '''
   sys.path.append(os.environ['BNPYDATADIR'])
   datamod = __import__(ReqArgs['dataName'],fromlist=[])
@@ -212,15 +214,16 @@ def createModel(Data, ReqArgs, KwArgs):
   ''' Creates a bnpy HModel object for the given Data
       This object is responsible for:
        * storing global parameters
-       * providing methods to perform model-specific subroutines for learning,
+       * methods to perform model-specific subroutines for learning,
           such as calc_local_params (E-step) or get_global_suff_stats
       Returns
       -------
-      hmodel : bnpy.HModel object, whose allocModel is of type ReqArgs['allocModelName']
-                                    and obsModel is of type ReqArgs['obsModelName']
-               This model has fully defined prior distribution parameters,
+      hmodel : bnpy.HModel object, 
+                 allocModel is of type ReqArgs['allocModelName']
+                 obsModel is of type ReqArgs['obsModelName']
+               This model has fully defined prior parameters,
                  but *will not* have initialized global parameters.
-               It must be initialized via hmodel.init_global_params(...) before use.
+              Need to run hmodel.init_global_params() before use.
   '''
   algName = ReqArgs['algName']
   aName = ReqArgs['allocModelName']
@@ -237,12 +240,13 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
   ''' Creates a bnpy LearnAlg object for the given Data and model
       This object is responsible for:
         * preparing a directory to save the data (savepath)
-        * setting appropriate random seeds specific to the *learning algorithm*
+        * setting random seeds specific to the *learning algorithm*
           
     Returns
     -------
-    learnAlg : bnpy.learn.LearnAlg [or subclass] object
-               type defined by ArgDict['algName'], one of {EM, VB, soVB, moVB}
+    learnAlg : LearnAlg [or subclass] object
+               type is defined by string in ReqArgs['algName']
+                one of {'EM', 'VB', 'soVB', 'moVB'}
   '''
   algName = ReqArgs['algName']
   algP = KwArgs[algName]
@@ -252,12 +256,12 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
     algP['merge'] = KwArgs['merge']
   outputP = KwArgs['OutputPrefs']
   if algName == 'EM' or algName == 'VB':
-    learnAlg = bnpy.learn.VBLearnAlg(savedir=savepath, seed=algseed, \
+    learnAlg = bnpy.learnalg.VBLearnAlg(savedir=savepath, seed=algseed, \
                                       algParams=algP, outputParams=outputP)
   elif algName == 'soVB':
-    learnAlg = bnpy.learn.StochasticOnlineVBLearnAlg(savedir=savepath, seed=algseed, algParams=algP, outputParams=outputP)
+    learnAlg = bnpy.learnalg.StochasticOnlineVBLearnAlg(savedir=savepath, seed=algseed, algParams=algP, outputParams=outputP)
   elif algName == 'moVB':
-    learnAlg = bnpy.learn.MemoizedOnlineVBLearnAlg(savedir=savepath, seed=algseed, algParams=algP, outputParams=outputP)
+    learnAlg = bnpy.learnalg.MemoizedOnlineVBLearnAlg(savedir=savepath, seed=algseed, algParams=algP, outputParams=outputP)
   else:
     raise NotImplementedError("Unknown learning algorithm " + algName)
   return learnAlg
@@ -267,7 +271,7 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
 ###########################################################
 def writeArgsToFile( ReqArgs, KwArgs, taskoutpath ):
   ''' Save arguments as key/val pairs to a plain text file
-      so that we can figure out what settings were used for a saved run later on
+      so that we inspect settings for a saved run later on
   '''
   import json
   ArgDict = ReqArgs
@@ -288,7 +292,7 @@ def writeArgsToFile( ReqArgs, KwArgs, taskoutpath ):
 def createUniqueRandomSeed( jobname, taskID=0):
   ''' Get unique seed for a random number generator,
        deterministically using the jobname and taskID.
-      This seed is reproducible on any machine, regardless of OS or 32/64 arch.
+      Seed is reproducible on any machine, regardless of OS or 32/64 arch.
       Returns
       -------
       seed : integer seed for a random number generator,
@@ -347,7 +351,7 @@ def deleteAllFilesFromDir( savefolder, prefix=None ):
 def configLoggingToConsoleAndFile(taskoutpath, doSaveToDisk=True, doWriteStdOut=True):
   Log.handlers = [] # remove pre-existing handlers!
   formatter = logging.Formatter('%(message)s')
-  ###### Config logger to save a transcript of log messages to plain-text file  
+  ###### Config logger to save transcript of log messages to plain-text file  
   if doSaveToDisk:
     fh = logging.FileHandler(os.path.join(taskoutpath,"transcript.txt"))
     fh.setLevel(logging.DEBUG)
@@ -359,7 +363,7 @@ def configLoggingToConsoleAndFile(taskoutpath, doSaveToDisk=True, doWriteStdOut=
     ch.setLevel(logging.DEBUG)
     ch.setFormatter(formatter)
     Log.addHandler(ch)
-  ##### Config a null logger to avoid error messages about no handler existing
+  ##### Config null logger, avoids error messages about no handler existing
   if not doSaveToDisk and not doWriteStdOut:
     Log.addHandler(logging.NullHandler())
 

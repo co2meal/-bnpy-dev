@@ -6,10 +6,11 @@ Uses ParamBag as internal representation.
 
 Tracks three possible sets of parameters, each with own ParamBag
 * sufficient statistics fields
-* precomputed ELBO terms
-* precomputed terms for potential merges
+* (optional) precomputed ELBO terms
+* (optional) precomputed terms for potential merges
 
 '''
+import copy
 import numpy as np
 from ParamBag import ParamBag
 
@@ -17,8 +18,14 @@ class SuffStatBag(object):
   def __init__(self, K=0, D=0):
     self._Fields = ParamBag(K=K, D=D)
 
+  def copy(self):
+    return copy.deepcopy(self)
+
   def setField(self, key, value, dims=None):
     self._Fields.setField(key, value, dims=dims)
+  
+  def setMergeFieldsToZero(self):
+    self._MergeTerms.setAllFieldsToZero()
 
   # ======================================================= Amp factor
   def hasAmpFactor(self):
@@ -35,6 +42,14 @@ class SuffStatBag(object):
         arr *= ampF
       
   # ======================================================= ELBO terms
+  def hasELBOTerms(self):
+    return hasattr(self, '_ELBOTerms')
+
+  def hasELBOTerm(self, key):
+    if not hasattr(self, '_ELBOTerms'):
+      return False
+    return hasattr(self._ELBOTerms, key)
+
   def getELBOTerm(self, key):
     return getattr(self._ELBOTerms, key)
 
@@ -44,6 +59,14 @@ class SuffStatBag(object):
     self._ELBOTerms.setField(key, value, dims=dims)
 
   # ======================================================= ELBO merge terms
+  def hasMergeTerms(self):
+    return hasattr(self, '_MergeTerms')
+
+  def hasMergeTerm(self, key):
+    if not hasattr(self, '_MergeTerms'):
+      return False
+    return hasattr(self._MergeTerms, key)
+
   def getMergeTerm(self, key):
     return getattr(self._MergeTerms, key)
 
@@ -61,19 +84,19 @@ class SuffStatBag(object):
       raise ValueError('Must have at least 2 components to merge.')
     if kB == kA:
       raise ValueError('Distinct component ids required.')
-    SA = self._Fields.getComp(kA)
-    SB = self._Fields.getComp(kB)
-    self._Fields.setComp(kA, SA + SB)
+    for key, dims in self._Fields._FieldDims.items():
+      if dims is not None and dims != ():
+        arr = getattr(self._Fields, key)
+        arr[kA] += arr[kB]
 
-    
-    if hasattr(self, '_ELBOTerms'):
+    if self.hasELBOTerms():
       for key, dims in self._ELBOTerms._FieldDims.items():
-        if key in self._MergeTerms._FieldDims and dims == ('K'):
+        if self.hasMergeTerm(key) and dims == ('K'):
           arr = getattr(self._ELBOTerms, key)
           mArr = getattr(self._MergeTerms, key)
           arr[kA] = mArr[kA,kB]
 
-    if hasattr(self, '_MergeTerms'):
+    if self.hasMergeTerms():
       for key, dims in self._MergeTerms._FieldDims.items():
         if dims == ('K','K'):
           mArr = getattr(self._MergeTerms, key)
@@ -81,9 +104,9 @@ class SuffStatBag(object):
           mArr[:kA,kA] = np.nan
 
     self._Fields.removeComp(kB)
-    if hasattr(self, '_ELBOTerms'):
+    if self.hasELBOTerms():
       self._ELBOTerms.removeComp(kB)
-    if hasattr(self, '_MergeTerms'):
+    if self.hasMergeTerms():
       self._MergeTerms.removeComp(kB)
 
   # ======================================================= Insert comps
@@ -119,16 +142,20 @@ class SuffStatBag(object):
       raise ValueError('Dimension mismatch')
     SSsum = SuffStatBag(K=self.K, D=self.D)
     SSsum._Fields = self._Fields + PB._Fields
-    SSsum._ELBOTerms = self._ELBOTerms + PB._ELBOTerms
-    SSsum._MergeTerms = self._MergeTerms + PB._MergeTerms
+    if hasattr(self, '_ELBOTerms'):
+      SSsum._ELBOTerms = self._ELBOTerms + PB._ELBOTerms
+    if hasattr(self, '_MergeTerms'):
+      SSsum._MergeTerms = self._MergeTerms + PB._MergeTerms
     return SSsum
 
   def __iadd__(self, PB):
     if self.K != PB.K or self.D != PB.D:
       raise ValueError('Dimension mismatch')
     self._Fields += PB._Fields
-    self._ELBOTerms += PB._ELBOTerms
-    self._MergeTerms += PB._MergeTerms
+    if hasattr(self, '_ELBOTerms'):
+      self._ELBOTerms += PB._ELBOTerms
+    if hasattr(self, '_MergeTerms'):
+      self._MergeTerms += PB._MergeTerms
     return self
 
   # ======================================================= Override subtract
@@ -155,8 +182,9 @@ class SuffStatBag(object):
 
   # ======================================================= Override getattr
   def __getattr__(self, key):
-    if key in self.__dict__:
-      return self.__dict__[key]
-    elif hasattr(self._Fields, key):
+    if hasattr(self._Fields, key):
       return getattr(self._Fields,key)
-    raise KeyError('Unknown field %s' % (key))
+    elif key == '__deepcopy__': # workaround to allow copying
+      return None
+    else:
+      return self.__dict__[key]

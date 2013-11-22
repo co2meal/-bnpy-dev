@@ -29,44 +29,45 @@ import init
 from obsmodel import *
 from allocmodel import *
 
-# Dictionary map that turns string input at command line into desired bnpy objects
+# Dictionary map
+#    turns string input at command line into desired bnpy objects
 # string --> bnpy object constructor
-AllocConstr = {'MixModel':MixModel, 'DPMixModel':DPMixModel, 'AdmixModel': AdmixModel, 'HDPModel':HDPModel}
-ObsConstr = {'ZMGauss':ZMGaussObsCompSet, 'Gauss':GaussObsCompSet, 'Mult':MultObsModel}
+AllocConstr = {'MixModel':MixModel, 'DPMixModel':DPMixModel}
+ObsConstr = {'Gauss':GaussObsModel,'ZMGauss':ZMGaussObsModel}
                    
 class HModel( object ):
 
-  @classmethod
-  def CreateEntireModel(cls, inferType, allocModelName, obsModelName, allocPriorDict, obsPriorDict, Data):
-    ''' Constructor that assembles HModel and all its submodels (alloc, obs) in one call
-    '''
-    allocModel = AllocConstr[allocModelName](inferType, allocPriorDict)
-    obsModel = ObsConstr[obsModelName].InitFromData(inferType, obsPriorDict, Data)
-    return cls(allocModel, obsModel)
-  
+  ######################################################### Constructors
+  #########################################################    
   def __init__( self, allocModel, obsModel ):
-    ''' Constructor that assembles HModel given fully valid subcomponents
+    ''' Constructor assembles HModel given fully valid subcomponents
     '''
     self.allocModel = allocModel
     self.obsModel = obsModel
     self.inferType = allocModel.inferType
+
+  @classmethod
+  def CreateEntireModel(cls, inferType, allocModelName, obsModelName, allocPriorDict, obsPriorDict, Data):
+    ''' Constructor assembles HModel and all its submodels in one call
+    '''
+    allocModel = AllocConstr[allocModelName](inferType, allocPriorDict)
+    obsModel = ObsConstr[obsModelName].CreateWithPrior(
+                                         inferType, obsPriorDict, Data)
+    return cls(allocModel, obsModel)
+  
     
   def copy( self ):
     ''' Create a clone of this object with distinct memory allocation
-        Any manipulation of clone's internal parameters will NOT reference self
+        Any manipulation of clone's parameters will NOT affect self
     '''
     return copy.deepcopy( self )
-      
-  def set_inferType( self, inferType):
-    self.inferType = inferType
-    self.allocModel.set_inferType(inferType)
-    self.obsModel.set_inferType(inferType)
 
-  #########################################################  Local Param update
+  ######################################################### Local Params
   #########################################################    
   def calc_local_params( self, Data, LP=None, **kwargs):
-    ''' Calculate the local parameters for each data item given global parameters.
-        This is the E-step of the EM/VB algorithm.        
+    ''' Calculate the local parameters specific to each data item,
+          given global parameters.
+        This is the E-step of the EM algorithm.        
     '''
     if LP is None:
       LP = dict()
@@ -78,16 +79,17 @@ class HModel( object ):
     LP = self.allocModel.calc_local_params(Data, LP, **kwargs)
     return LP
 
-  #########################################################  Suff Stat Calc
+  ######################################################### Suff Stats
   #########################################################   
   def get_global_suff_stats( self, Data, LP, doAmplify=False, **kwargs):
-    ''' Calculate sufficient statistics for global parameters, given data and local responsibilities
-        This is necessary prep for the M-step of EM/VB.
+    ''' Calculate sufficient statistics for each component,
+          given data and local responsibilities
+        This is necessary prep for the M-step of EM algorithm.
     '''
-    SS = self.allocModel.get_global_suff_stats( Data, LP, **kwargs )
-    SS = self.obsModel.get_global_suff_stats( Data, SS, LP, **kwargs )
+    SS = self.allocModel.get_global_suff_stats(Data, LP, **kwargs)
+    SS = self.obsModel.get_global_suff_stats(Data, SS, LP, **kwargs)
     if doAmplify:
-      # Change effective scale (nObs) of the suff stats, for soVB learning
+      # Change effective scale of the suff stats, for soVB learning
       if hasattr(Data,"nDoc"):
         ampF = Data.nDocTotal / Data.nDoc
         SS.applyAmpFactor(ampF)
@@ -95,32 +97,29 @@ class HModel( object ):
         ampF = Data.nObsTotal / Data.nObs
         SS.applyAmpFactor(ampF)
     return SS
-
-  #########################################################  
-  #########################################################  Global Param Update
+  
+  ######################################################### Global Params
   #########################################################   
   def update_global_params( self, SS, rho=None, **kwargs):
-    ''' Update (in-place) global parameters given provided sufficient statistics.
-        This is the M-step of EM/VB.
+    ''' Update (in-place) global parameters given provided suff stats.
+        This is the M-step of EM.
     '''
     self.allocModel.update_global_params(SS, rho, **kwargs)
-    self.obsModel.update_global_params( SS, rho, **kwargs)
+    self.obsModel.update_global_params(SS, rho, **kwargs)
   
-  #########################################################  
-  #########################################################  Evidence/Obj. Func. Calc
+  ######################################################### Evidence
   #########################################################     
   def calc_evidence( self, Data=None, SS=None, LP=None):
     ''' Compute the evidence lower bound (ELBO) of the objective function.
     '''
     if Data is not None and LP is None and SS is None:
-      LP = self.calc_local_params( Data )
-      SS = self.get_global_suff_stats( Data, LP)
-    evA = self.allocModel.calc_evidence( Data, SS, LP)
-    evObs = self.obsModel.calc_evidence( Data, SS, LP)
+      LP = self.calc_local_params(Data)
+      SS = self.get_global_suff_stats(Data, LP)
+    evA = self.allocModel.calc_evidence(Data, SS, LP)
+    evObs = self.obsModel.calc_evidence(Data, SS, LP)
     return evA + evObs
   
-  #########################################################  
-  #########################################################  Global Param initialization
+  ######################################################### Init Global Params
   #########################################################    
   def init_global_params(self, Data, **initArgs):
     ''' Initialize (in-place) global parameters
@@ -135,24 +134,18 @@ class HModel( object ):
     elif str(type(self.obsModel)).count('Mult') > 0:
       init.FromScratchMult.init_global_params(self, Data, **initArgs)
     else:
-      # TODO: more observation types!
       raise NotImplementedError("TODO")
-    
-  #########################################################  
-  #########################################################  Print to stdout
+
+  ######################################################### I/O Utils
   ######################################################### 
+  def getAllocModelName(self):
+    return self.allocModel.__class__.__name__
+
+  def getObsModelName(self):
+    return self.obsModel.__class__.__name__
+
   def get_model_info( self ):
     s =  'Allocation Model:  %s\n'  % (self.allocModel.get_info_string())
     s += 'Obs. Data  Model:  %s\n' % (self.obsModel.get_info_string())
     s += 'Obs. Data  Prior:  %s' % (self.obsModel.get_info_string_prior())
     return s
-  
-  def print_global_params( self ):
-    print 'Allocation Model:'
-    print  self.allocModel.get_human_global_param_string()
-    print 'Obs. Data Model:'
-    print  self.obsModel.get_human_global_param_string()
-
-
-  def getAllocModelName(self):
-    return self.allocModel.__class__.__name__
