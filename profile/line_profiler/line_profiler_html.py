@@ -272,9 +272,15 @@ def create_func_html(save_path, template_path, filename, start_lineno, func_name
     num_run= 0
     num_notrun = 0
 
+    sorted_timings = sorted([(t * unit if not t is None else 0) for (_,_,t) in timings], reverse=True)
+    if len(sorted_timings) >= 3:
+        threshold = sorted_timings[2]
+    else:
+        threshold = 0
+
     d = dict()
     for lineno, nhits, t in timings:
-        d[lineno] = (nhits, t, '%5.1f' % (100*t / total_time))
+        d[lineno] = (nhits, t * unit, '%5.1f' % (100*t / total_time))
 
     empty = (0, 0, 0.0)
     linenos = range(start_lineno, start_lineno + len(sublines))
@@ -290,8 +296,17 @@ def create_func_html(save_path, template_path, filename, start_lineno, func_name
         else:
             l['code'] = l['code_full']
         l['calls'] = nhits
-        l['time'] = '%g' % (t * unit)
+        if t == 0:
+            l['time'] = '--'
+        elif t < 0.01:
+            l['time'] = '< 0.01 s'
+        else:
+            l['time'] = '%.2g s' % t
         l['percent'] = percent
+        if t >= threshold and t != 0:
+            l['warn'] = 'danger'
+        else:
+            l['warn'] = ''
         lines.append(l)
 
         # numbers used for coverage result
@@ -307,6 +322,30 @@ def create_func_html(save_path, template_path, filename, start_lineno, func_name
             else:
                 num_run += 1
 
+    # full code listing
+    listing = ''
+    time_width = max([len(l['time']) for l in lines])
+    time_width = max(time_width, len('time')) + 4
+    calls_width = max([len(str(l['calls'])) for l in lines])
+    calls_width = max(calls_width, len('calls')) + 4
+    lineno_width = max([len(str(l['lineno'])) for l in lines])
+    lineno_width = max(lineno_width, len('line')) + 4
+    leading_spaces = min([(len(l['code_full']) - len(l['code_full'].lstrip())) for l in lines])
+    max_code_width = 80
+    
+    fmt = '{0:<%d}{1:<%d}{2:<%d}{3}\n' % (time_width, calls_width, lineno_width)
+    header = fmt.format('time', 'calls', 'line', 'code')
+    listing = header + '\n'
+    for l in lines:
+        l['code_full'] = l['code_full'][leading_spaces:]
+        if len(l['code_full']) < max_code_width:
+            listing += fmt.format(l['time'], l['calls'], l['lineno'], l['code_full'])
+        else:
+            indent = len(l['code_full']) - len(l['code_full'].lstrip())
+            listing += fmt.format(l['time'], l['calls'], l['lineno'], l['code_full'][:max_code_width])
+            listing += ' ' * indent
+            listing += fmt.format('', '', '', l['code_full'][max_code_width:])
+
     func = template.render(timestamp = time.strftime('%X %x %Z'),
                            name = func_name,
                            num_calls = max([0] + [t[1] for t in timings]),
@@ -314,6 +353,7 @@ def create_func_html(save_path, template_path, filename, start_lineno, func_name
                            link = filename,
                            parent_dir=parent_dir,
                            lines = lines,
+                           code_full = listing,
                            total_lines = len(sublines),
                            non_code_lines = num_noncode,
                            code_lines = num_code,
