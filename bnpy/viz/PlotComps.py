@@ -3,9 +3,9 @@ PlotComps.py
 
 Executable for plotting learned parameters for each component
 
-Usage
+Usage (command-line)
 -------
-python -m bnpy.viz.PlotComps dataName aModelName obsModelName algName [opts]
+python -m bnpy.viz.PlotComps dataName aModelName obsModelName algName [kwargs]
 
 '''
 from matplotlib import pylab
@@ -15,7 +15,7 @@ import os
 import sys
 import bnpy
 import bnpy.ioutil.BNPYArgParser as BNPYArgParser
-
+from bnpy.ioutil import ModelReader
 
 def main():
   args = parse_args()
@@ -23,7 +23,14 @@ def main():
 
   for taskid in taskids:
     taskpath = os.path.join(jobpath, taskid)
-    hmodel = bnpy.ioutil.ModelReader.load_model(taskpath, "Best")
+    if args.lap is not None:
+      prefix, bLap = ModelReader.getPrefixForLapQuery(taskpath, args.lap)      
+      if bLap != args.lap:
+        print 'Using saved lap: ', bLap
+    else:
+      prefix = 'Best' # default
+
+    hmodel = ModelReader.load_model(taskpath, prefix)
     plotModelInNewFigure(jobpath, hmodel, args)
     if args.savefilename is not None:
       pylab.show(block=False)
@@ -60,7 +67,6 @@ def plotData(Data, nObsPlot=5000):
 
 def loadData(jobpath):
   ''' Load in bnpy Data obj associated with given learning task.
-      TODO: make dataseed work
   '''
   bnpyoutdir = os.environ['BNPYOUTDIR']
   subdirpath = jobpath[len(bnpyoutdir):]
@@ -81,8 +87,11 @@ def parse_args():
    
   BNPYArgParser.addRequiredVizArgsToParser(parser)
   BNPYArgParser.addStandardVizArgsToParser(parser)
+  parser.add_argument('--lap', default=None, type=float,
+        help="Specific lap of provided experiment at which to plot parameters." \
+             + " If exact lap not available, instead plots nearest existing lap.")
   parser.add_argument('--doPlotData', action='store_true', default=False,
-        help="if present, also plot training data")
+        help="If present, also plot training data.")
   args = parser.parse_args()
   return args
 
@@ -105,7 +114,6 @@ def parse_jobpath_and_taskids(args):
                       )  
   return jobpath, taskids
 
-  
+
 if __name__ == "__main__":
   main()
-
