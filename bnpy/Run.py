@@ -42,7 +42,7 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
       -------
       To fit a Gauss MixModel to a custom dataset defined in matrix X 
       >> Data = bnpy.data.XData(X)
-      >> hmodel = run(Data, 'MixModel', 'Gauss', 'EM', K=3, nLap=10, printEvery=5)
+      >> hmodel = run(Data, 'MixModel', 'Gauss', 'EM', K=3, nLap=10)
 
       To load a dataset specified in a specific script
       For example, 2D toy data in demodata/AsteriskK8.py

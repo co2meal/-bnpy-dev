@@ -5,5 +5,5 @@ from .LearnAlg import LearnAlg
 from .VBLearnAlg import VBLearnAlg
 from .StochasticOnlineVBLearnAlg import StochasticOnlineVBLearnAlg
 from .MemoizedOnlineVBLearnAlg import MemoizedOnlineVBLearnAlg
-
-__all__ = ['LearnAlg', 'VBLearnAlg', 'StochasticOnlineVBLearnAlg', 'MemoizedOnlineVBLearnAlg']
+import MergeMove
+__all__ = ['LearnAlg', 'VBLearnAlg', 'StochasticOnlineVBLearnAlg', 'MemoizedOnlineVBLearnAlg', 'MergeMove']

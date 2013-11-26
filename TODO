@@ -1,7 +1,8 @@
 =========== BEFORE RELEASE
-* make sure visualizations work, especially interactive ones for births/merges
 
-* simplify argparser.  only show birth/merge options when specified
+* viz component parameters for any lapid
+
+* size instead of nObs for Data??
 
 * stdout: how much to display for births/merges??  Set verbosity level??
 

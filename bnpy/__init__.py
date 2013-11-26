@@ -15,7 +15,25 @@ import init
 import learnalg
 import Run
 
-########################################################### Config data
+
+########################################################### Configure save
+###########################################################  location
+import os
+isValid = False
+if 'BNPYOUTDIR' in os.environ:
+  outdir = os.environ['BNPYOUTDIR']
+  if os.path.exists(outdir):
+    try:
+      with open(os.path.join(outdir, 'bnpytest'), 'w') as f:
+        pass
+    except IOError:
+      sys.exit('BNPYOUTDIR not writeable: %s' % (outdir))
+    isValid = True
+
+if not isValid:
+  raise ValueError('Environment variable BNPYOUTDIR not specified. Cannot save results to disk')
+
+########################################################### Configure data
 ###########################################################  location
 import os
 isValid = False
