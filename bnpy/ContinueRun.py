@@ -71,11 +71,12 @@ def continueRun(dataName=None, allocModelName=None, obsModelName=None,
   parser.add_argument('--taskid', default=1, type=int)
   parser.add_argument('--startLap', default=1.0, type=float)
   parser.add_argument('--nLap', default=10, type=int)
-  #args, ignored = parser.parse_known_args()
-  args, ignored = BNPYArgParser.applyParserToKeywordArgDict(parser, **kwargs)
-  hmodel, LP, Info = _continue_task_internal( \
-                      args.jobname, args.taskid, args.startLap, args.nLap, \
-                      dataName, allocModelName, obsModelName, algName, \
+
+  argDict, ignored = BNPYArgParser.applyParserToKwArgDict(parser, **kwargs)
+  hmodel, LP, Info = _continue_task_internal(
+                      argDict['jobname'], argDict['taskid'],
+                      argDict['startLap'], argDict['nLap'],
+                      dataName, allocModelName, obsModelName, algName,
                       ReqArgs, doSaveToDisk, doWriteStdOut)
   return hmodel, LP, Info
 

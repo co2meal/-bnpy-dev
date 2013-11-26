@@ -84,8 +84,7 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
     allocModelName = ReqArgs['allocModelName']
     obsModelName = ReqArgs['obsModelName']
     algName = ReqArgs['algName']
-  KwArgs = BNPYArgParser.parseKeywordArgs(ReqArgs, **kwargs)
-  UnkArgs = BNPYArgParser.parseUnknownArgs()
+  KwArgs, UnkArgs = BNPYArgParser.parseKeywordArgs(ReqArgs, **kwargs)
   
   jobname = KwArgs['OutputPrefs']['jobname']
 

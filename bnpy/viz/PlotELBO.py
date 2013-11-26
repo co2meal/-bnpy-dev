@@ -4,9 +4,9 @@ PlotELBO.py
 Executable for plotting the learning objective function (log evidence)
   vs. time/number of passes thru data (laps)
 
-Usage
+Usage (command-line)
 -------
-python -m bnpy.viz.PlotELBO dataName aModelName obsModelName algName [opts]
+python -m bnpy.viz.PlotELBO dataName aModelName obsModelName algName [kwargs]
 '''
 from matplotlib import pylab
 import numpy as np
@@ -114,9 +114,8 @@ def parse_args():
   BNPYArgParser.addStandardVizArgsToParser(parser)
   parser.add_argument('--xvar', type=str, default='laps',
         help="name of x axis variable to plot. one of {iters,laps,times}")
-  parser.add_argument('--legendnames', type=str, default=None)
-  parser.add_argument('--doShowTaskNums', action='store_true', default=False,
-        help="if present, do show task numbers next to corresponding line plot")
+  parser.add_argument('--legendnames', type=str, default=None,
+        help="optional names to show on legend in place of jobnames")
   args = parser.parse_args()
   args.algNames = args.algNames.split(',')
   args.jobnames = args.jobnames.split(',')
@@ -128,11 +127,3 @@ def parse_args():
 if __name__ == "__main__":
   main()
 
-'''
-  if args.doShowTaskNums and len(taskids) > 0:
-    yNudge = 0.03 * (ymax - ymin)
-    for tt in range(len(taskids)):
-      xNudge = 0.05 * (np.max(xAll) - np.min(xAll))
-      xNudge += 0.25*np.random.randn() * xNudge
-      pylab.text( xLocs[tt] - xNudge, yLocs[tt] - yNudge, str(taskids[tt]))
-'''

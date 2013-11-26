@@ -1,7 +1,4 @@
 =========== BEFORE RELEASE
-
-* viz component parameters for any lapid
-
 * size instead of nObs for Data??
 
 * stdout: how much to display for births/merges??  Set verbosity level??

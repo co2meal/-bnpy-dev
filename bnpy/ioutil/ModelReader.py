@@ -18,16 +18,26 @@ from bnpy.distr import *
 
 GDict = globals()
 
+def getPrefixForLapQuery(taskpath, lapQuery):
+  ''' Search among the saved lap params in taskpath for the lap nearest query.
+
+      Returns
+      --------
+      prefix : string like 'Lap0001.000' that indicates lap for saved parameters.
+  '''
+  saveLaps = np.loadtxt(os.path.join(taskpath,'laps-saved-params.txt'))
+  distances = np.abs(lapQuery - saveLaps)
+  bestLap = saveLaps[np.argmin(distances)]
+  return makePrefixForLap(bestLap), bestLap
+
 def loadModelForLap(matfilepath, lapQuery):
   ''' Loads saved model with lap closest to provided lapQuery
       Returns
       -------
       model, true-lap-id
   '''
-  saveLaps = np.loadtxt(os.path.join(matfilepath,'laps-saved-params.txt'))
-  distances = np.abs(lapQuery - saveLaps)
-  bestLap = saveLaps[np.argmin(distances)]
-  model = load_model(matfilepath, prefix=makePrefixForLap(bestLap))
+  prefix, bestLap = getPrefixForLapQuery(matfilepath, lapQuery)
+  model = load_model(matfilepath, prefix=prefix)
   return model, bestLap
 
 def load_model( matfilepath, prefix='Best'):

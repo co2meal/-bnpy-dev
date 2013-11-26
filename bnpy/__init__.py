@@ -14,6 +14,7 @@ import init
 
 import learnalg
 import Run
+from Run import run
 
 
 ########################################################### Configure save
@@ -56,5 +57,5 @@ except ImportError:
 if canPlot:
   import viz
 
-__all__ = ['Run', 'learn', 'allocmodel','obsmodel', 'suffstats',
+__all__ = ['run', 'Run', 'learn', 'allocmodel','obsmodel', 'suffstats',
            'HModel', 'init', 'util','ioutil','viz','distr']
