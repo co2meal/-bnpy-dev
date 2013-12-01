@@ -1,6 +1,5 @@
-'''
+''' obsmodel gathers data-generating models
 '''
 
 from GaussObsModel import GaussObsModel
 from ZMGaussObsModel import ZMGaussObsModel
-#from MultObsModel import MultObsModel

@@ -41,9 +41,9 @@ def continueRun(dataName=None, allocModelName=None, obsModelName=None,
                   * bnpy Data object,
                   * string filesystem path of a Data module within BNPYDATADIR
       allocModelName : string name of allocation (latent structure) model
-                        {MixModel, DPMixModel, AdmixModel, HMM, etc.}
+                        {MixModel, DPMixModel, etc.}
       obsModelName : string name of observation (likelihood) model
-                        {Gauss, ZMGauss, WordCount, etc.}
+                        {Gauss, ZMGauss, etc.}
       algName : string name of algorithm
                         {EM, VB, moVB, soVB}
       Returns

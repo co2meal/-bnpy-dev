@@ -58,9 +58,9 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
                   * bnpy Data object,
                   * string filesystem path of Data module within BNPYDATADIR
       allocModelName : string name of allocation (latent structure) model
-                        {MixModel, DPMixModel, AdmixModel, HMM, etc.}
+                        {MixModel, DPMixModel, etc.}
       obsModelName : string name of observation (likelihood) model
-                        {Gauss, ZMGauss, WordCount, etc.}
+                        {Gauss, ZMGauss, etc.}
       **kwargs : keyword args defining properties of the model or alg
                   see Doc for details [TODO]
       Returns
