@@ -15,12 +15,10 @@ def isEvenlyDivisibleFloat(a, b, margin=1e-6):
       >>> isEvenlyDivisibleFloat( 1.0, 1./3)
       True
   '''
-  cexact = a/float(b)
-  cround = round(cexact)
-  if abs(cexact - cround) < margin:
-    return True
-  return False
-
+  cexact = np.asarray(a)/float(b)
+  cround = np.round(cexact)
+  return abs(cexact - cround) < margin
+  
 def closeAtMSigFigs(A, B, M=10, tol=5):
   ''' Returns true/false for whether A and B are numerically "close"
           aka roughly equal at M significant figures

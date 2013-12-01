@@ -69,6 +69,7 @@ def load_obs_model(matfilepath, prefix):
     obsPrior = PriorConstr( **PDict)
   obsmodelpath = os.path.join(matfilepath,prefix+'ObsModel.mat')
   ODict = loadDictFromMatfile(obsmodelpath)
+
   ObsConstr = GDict[ODict['name']]
   CompDicts = get_list_of_comp_dicts( ODict['K'], ODict)
   return ObsConstr.CreateWithAllComps( ODict, obsPrior, CompDicts)
@@ -83,7 +84,9 @@ def get_list_of_comp_dicts( K, Dict ):
       if type(Dict[key]) is not np.ndarray:
         continue
       x = Dict[key]
-      if x.ndim == 1 and x.size > 1:
+      if K == 1 and (key != 'min_covar' and key != 'K'):
+        MyList[k][key] = x.copy()
+      elif x.ndim == 1 and x.size > 1:
         MyList[k][key] = x[k].copy()
       elif x.ndim == 2:
         MyList[k][key] = x[:,k].copy()

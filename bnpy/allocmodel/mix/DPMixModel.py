@@ -238,6 +238,10 @@ class DPMixModel(AllocModel):
     self.K = myDict['K']
     self.qalpha1 = myDict['qalpha1']
     self.qalpha0 = myDict['qalpha0']
+    if self.qalpha0.ndim == 0:
+      self.qalpha0 = self.qalpha1[np.newaxis]
+    if self.qalpha0.ndim == 0:
+      self.qalpha0 = self.qalpha0[np.newaxis]
     self.set_helper_params()
     
   def get_prior_dict(self):

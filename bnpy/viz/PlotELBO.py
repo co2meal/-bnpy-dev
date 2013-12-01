@@ -13,6 +13,7 @@ import numpy as np
 import argparse
 import os
 import bnpy.ioutil.BNPYArgParser as BNPYArgParser
+import bnpy
 
 Colors = [(0,0,0), # black
           (0,0,1), # blue
@@ -60,6 +61,10 @@ def plot_all_tasks_for_job(jobpath, args, jobname=None, color=None):
     # remove first-lap of moVB, since ELBO is not accurate
     if jobpath.count('moVB') > 0 and args.xvar == 'laps':
       mask = xs >= 1.0
+      xs = xs[mask]
+      ys = ys[mask]
+    if args.traceEvery is not None:
+      mask = bnpy.util.isEvenlyDivisibleFloat(xs, args.traceEvery)
       xs = xs[mask]
       ys = ys[mask]
 
@@ -114,6 +119,9 @@ def parse_args():
   BNPYArgParser.addStandardVizArgsToParser(parser)
   parser.add_argument('--xvar', type=str, default='laps',
         help="name of x axis variable to plot. one of {iters,laps,times}")
+
+  parser.add_argument('--traceEvery', type=str, default=None,
+        help="Specifies how often to plot data points. For example, traceEvery=10 only plots data points associated with laps divisible by 10.")
   parser.add_argument('--legendnames', type=str, default=None,
         help="optional names to show on legend in place of jobnames")
   args = parser.parse_args()
@@ -121,7 +129,7 @@ def parse_args():
   args.jobnames = args.jobnames.split(',')
   if args.legendnames is not None:
     args.legendnames = args.legendnames.split(',')
-    assert len(args.legendnames) == len(args.jobnames)
+    assert len(args.legendnames) == len(args.jobnames) * len(args.algNames)
   return args
 
 if __name__ == "__main__":

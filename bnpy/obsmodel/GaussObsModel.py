@@ -62,6 +62,7 @@ class GaussObsModel( ObsModel ):
       self = cls(oDict['inferType'], obsPrior=obsPrior)
     self.K = len(compDictList)
     self.comp = [None for k in range(self.K)]
+    
     for k in xrange(self.K):
       if self.inferType == 'EM':
         self.comp[k] = GaussDistr(**compDictList[k])
