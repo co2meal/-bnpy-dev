@@ -7,7 +7,6 @@ such as human annotations
 These are provided within a Data object, as a "TrueLabels" field
 '''
 import numpy as np
-import FromScratchMult
 
 def init_global_params(hmodel, Data, initname=None, seed=0, nRepeatTrue=2, **kwargs):
   ''' Initialize (in-place) the global params of the given hmodel
@@ -50,8 +49,6 @@ def init_global_params(hmodel, Data, initname=None, seed=0, nRepeatTrue=2, **kwa
 
   if hmodel.obsModel.__class__.__name__.count('Gauss') > 0:
     LP = dict(resp=resp)
-  else:
-    LP = FromScratchMult.getLPfromResp(resp, Data)
   SS = hmodel.get_global_suff_stats(Data, LP)
   hmodel.update_global_params(SS)
 
