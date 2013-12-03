@@ -37,12 +37,12 @@ import numpy as np
 MAXSEED = 1000000
   
 class MinibatchIterator(object):
-  def __init__(self, Data, nBatch=10, nObsBatch=None, nLap=10, dataorderseed=42, **kwargs):
+  def __init__(self, Data, nBatch=10, nObsBatch=None, nLap=10, dataorderseed=42, startLap=0, **kwargs):
     ''' Constructor for creating an iterator over the batches of data
     '''
     self.Data = Data
     self.nBatch = nBatch
-    self.nLap = nLap
+    self.nLap = nLap + startLap
     self.nObsTotal = Data.nObsTotal
     if nObsBatch is None:
         self.nObsBatch = Data.nObsTotal/nBatch
@@ -51,14 +51,15 @@ class MinibatchIterator(object):
     
     # Config order in which batches are traversed
     self.curLapPos = -1
-    self.lapID  = 0
+    self.lapID  = startLap
     self.dataorderseed = int(int(dataorderseed) % MAXSEED)
+
     # Make list with entry for every distinct batch
     #   where each entry is itself a list of obsIDs in the full dataset
     self.obsIDByBatch = self.configObsIDsForEachBatch()
           
   #########################################################  accessor methods
-  #########################################################   
+  #########################################################
   def has_next_batch( self ):
     if self.lapID >= self.nLap:
       return False
@@ -88,14 +89,6 @@ class MinibatchIterator(object):
   def getObsIDsForCurrentBatch(self):
     return self.obsIDByBatch[self.batchOrderCurLap[self.curLapPos]]
 
-  def get_text_summary(self):
-    ''' Returns string with human-readable description of this dataset 
-        e.g. source, author/creator, etc.
-    '''
-    if hasattr(self, 'summary'):
-      return self.summary
-    return 'Minibatch Iterator: %d batches' % (self.nBatch)
-
   #########################################################  internal methods
   #########################################################           
   def configObsIDsForEachBatch(self):
@@ -118,14 +111,19 @@ class MinibatchIterator(object):
     ''' Returns array of batchIDs, permuted in random order
         Order changes each time we traverse all items (each lap)
     '''
-    curseed = self.dataorderseed + self.lapID
+    curseed = int(self.dataorderseed + self.lapID)
     PRNG = np.random.RandomState(curseed)
-    return PRNG.permutation( self.nBatch )
+    return PRNG.permutation(self.nBatch)
 
   #########################################################  I/O methods
   ######################################################### 
   def get_text_summary(self):
-    return self.Data.get_text_summary()
+    ''' Returns string with human-readable description of this dataset 
+        e.g. source, author/creator, etc.
+    '''
+    if hasattr(self, 'summary'):
+      return self.summary
+    return 'Minibatch Iterator: %d batches' % (self.nBatch)
      
   def summarize_num_observations(self):
     s = '  num batch %d, num obs per batch %d\n' % (self.nBatch, self.nObsBatch)

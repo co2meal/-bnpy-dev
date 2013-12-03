@@ -14,7 +14,7 @@ class TestMixZMVB(object):
     X = np.random.randn(100, 3)
     self.Data = XData(X=X)
     aPDict = dict(alpha0=1.0)
-    oPDict = dict(dF=5, smatname='eye', sF=1.0)
+    oPDict = dict(dF=5, ECovMat='eye', sF=1.0)
     self.hmodel = HModel.CreateEntireModel('VB', 'MixModel', 'ZMGauss', aPDict, oPDict, self.Data)
     
   def test_dimension(self):
@@ -39,7 +39,7 @@ class TestMixZMVB_4Class2D(object):
   
   def MakeHModel(self):
     aPDict = dict(alpha0=1.0)
-    oPDict = dict(dF=5, smatname='eye', sF=1.0)
+    oPDict = dict(dF=5, ECovMat='eye', sF=1.0)
     self.hmodel = HModel.CreateEntireModel('VB', 'MixModel', 'ZMGauss', aPDict, oPDict, self.Data)
   
   def MakeData(self, N=10000):

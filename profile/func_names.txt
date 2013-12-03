@@ -1,4 +1,11 @@
 fit
+save_state
+print_state
+save_model
+run_birth_move
+run_birth_moves
+run_merge_move
+subsample_data
 calc_evidence
 calc_local_params
 get_global_suff_stats

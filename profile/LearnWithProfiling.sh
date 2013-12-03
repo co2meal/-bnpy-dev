@@ -3,6 +3,10 @@
 #USAGE
 # LearnWithProfiling.sh [dataName] [allocModelName] [obsModelName] [algName] [opts]
 
+# Prepare directory for output
+reportDir=profilerReports/
+mkdir -p $reportDir
+
 # Remove any previous decorations from bnpy code
 # Just in case last profile run didn't clean up properly
 # Harmless if not needed
@@ -20,6 +24,7 @@ python profile/line_profiler/kernprof.py --line-by-line Learn.py $*
 # Convert lprof file into a plain-text report
 # Called pyprofile.txt
 python profile/line_profiler/line_profiler_html.py Learn.py.lprof profile/assets/templates/ profile/profiles/ 
+# python -m line_profiler Learn.py.lprof > $reportDir/report.txt
 rm Learn.py.lprof
 
 popd
@@ -32,3 +37,4 @@ python undecorate_for_profiling.py
 echo "Wrote final report to: profiles/index.html"
 
 
+# echo "Wrote final report to: $reportDir/report.txt"

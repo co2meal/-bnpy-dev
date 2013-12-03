@@ -1,5 +1,9 @@
-import numpy as np
+'''
+RandUtil.py
 
+Utilities for sampling (pseudo) random numbers
+'''
+import numpy as np
 
 def multinomial(Nsamp, ps, randstate=np.random):
   ps = np.asarray(ps, dtype=np.float64)

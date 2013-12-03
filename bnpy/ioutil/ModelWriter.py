@@ -5,6 +5,9 @@ import scipy.io
 import os
 from distutils.dir_util import mkpath
 
+def makePrefixForLap(lap):
+  return 'Lap%08.3f' % (lap)
+
 def save_model(hmodel, fname, prefix, doSavePriorInfo=True, doLinkBest=False):
   ''' saves HModel object to mat file persistently
       
@@ -71,17 +74,3 @@ def create_best_link( hardmatfile, linkmatfile):
     os.remove(linkmatfile)
   if os.path.exists( hardmatfile ):
     os.symlink( hardmatfile, linkmatfile )
-
-'''        
-def save_model_types( hmodel, fname ):
-  atype = type(hmodel.allocModel).__name__
-  otype = type(hmodel.obsModel).__name__ 
-  dtype = type(hmodel.obsModel.obsPrior).__name__
-  with open( os.path.join(fname, 'AllocModelType.txt'), 'w') as f:
-    f.write( atype)
-  with open( os.path.join(fname, 'ObsModelType.txt'),'w') as f:
-    f.write( otype)
-  if dtype is not None:
-    with open( os.path.join(fname, 'ObsDistrType.txt'),'w') as f:
-      f.write( dtype) 
-'''

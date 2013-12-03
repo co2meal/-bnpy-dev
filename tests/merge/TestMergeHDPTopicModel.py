@@ -9,7 +9,7 @@ import numpy as np
 import unittest
 
 import bnpy
-from bnpy.learn import MergeMove
+from bnpy.learnalg import MergeMove
 from scipy.special import digamma
 import copy
 
