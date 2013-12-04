@@ -5,6 +5,9 @@ import scipy.io
 import os
 from distutils.dir_util import mkpath
 
+def makePrefixForLap(lap):
+  return 'Lap%08.3f' % (lap)
+
 def save_model(hmodel, fname, prefix, doSavePriorInfo=True, doLinkBest=False):
   ''' saves HModel object to mat file persistently
       
@@ -45,7 +48,7 @@ def save_obs_model(obsmodel, fpath, prefix, doLinkBest=False):
     myDict[key] = np.squeeze(np.dstack([ compDict[key] for compDict in compList]))
   scipy.io.savemat( outmatfile, myDict, oned_as='row')
   if doLinkBest and prefix != 'Best':
-    create_best_link( outmatfile, os.path.join(fpath,'BestObsModel.mat'))
+    create_best_link( outmatfile, os.path.join(fpath,'BestObsModel.mat'))    
   
 def save_alloc_prior( amodel, fpath):
   outpath = os.path.join( fpath, 'AllocPrior.mat')
@@ -71,17 +74,3 @@ def create_best_link( hardmatfile, linkmatfile):
     os.remove(linkmatfile)
   if os.path.exists( hardmatfile ):
     os.symlink( hardmatfile, linkmatfile )
-
-'''        
-def save_model_types( hmodel, fname ):
-  atype = type(hmodel.allocModel).__name__
-  otype = type(hmodel.obsModel).__name__ 
-  dtype = type(hmodel.obsModel.obsPrior).__name__
-  with open( os.path.join(fname, 'AllocModelType.txt'), 'w') as f:
-    f.write( atype)
-  with open( os.path.join(fname, 'ObsModelType.txt'),'w') as f:
-    f.write( otype)
-  if dtype is not None:
-    with open( os.path.join(fname, 'ObsDistrType.txt'),'w') as f:
-      f.write( dtype) 
-'''

@@ -84,7 +84,7 @@ def get_data(seed=8675309, nObsTotal=25000, **kwargs):
   Data.summary = get_data_info()
   return Data
   
-def get_minibatch_iterator(seed=8675309, dataorderseed=0, nBatch=10, nObsBatch=None, nObsTotal=25000, nLap=1, **kwargs):
+def get_minibatch_iterator(seed=8675309, dataorderseed=0, nBatch=10, nObsBatch=None, nObsTotal=25000, nLap=1, startLap=0, **kwargs):
   '''
     Args
     --------
@@ -102,6 +102,6 @@ def get_minibatch_iterator(seed=8675309, dataorderseed=0, nBatch=10, nObsBatch=N
   X, TrueZ = get_X(seed, nObsTotal)
   Data = XData(X=X)
   Data.summary = get_data_info()
-  DataIterator = MinibatchIterator(Data, nBatch=nBatch, nObsBatch=nObsBatch, nLap=nLap, dataorderseed=dataorderseed)
+  DataIterator = MinibatchIterator(Data, nBatch=nBatch, nObsBatch=nObsBatch, nLap=nLap, startLap=startLap, dataorderseed=dataorderseed)
   return DataIterator
 

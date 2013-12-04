@@ -18,7 +18,7 @@ class TestFromScratchGauss(unittest.TestCase):
 
     aPDict = dict(alpha0=1.0)
     oPDict = dict(min_covar=1e-9)
-    self.hmodel = HModel.InitFromData('EM','MixModel','ZMGauss', aPDict, oPDict, self.Data)
+    self.hmodel = HModel.CreateEntireModel('EM','MixModel','ZMGauss', aPDict, oPDict, self.Data)
 
   def test_viable_init(self, K=7):
     ''' Verify hmodel after init can be used to perform E-step
@@ -54,7 +54,7 @@ class TestRandExamplesByDist(unittest.TestCase):
   def MakeModel(self):
     aPDict = dict(alpha0=1.0)
     oPDict = dict(min_covar=1e-9)
-    self.hmodel = HModel.InitFromData('EM','MixModel','Gauss', aPDict, oPDict, self.Data)
+    self.hmodel = HModel.CreateEntireModel('EM','MixModel','Gauss', aPDict, oPDict, self.Data)
     
   def MakeData(self, K=5, Nperclass=1000):
     PRNG = np.random.RandomState(867)
@@ -65,8 +65,8 @@ class TestRandExamplesByDist(unittest.TestCase):
       Xcur += k
       Xlist.append(Xcur)
     self.Data = XData(np.vstack(Xlist))
-    pylab.plot(self.Data.X[:,0], self.Data.X[:,1], 'k.')
-    pylab.show()
+    #pylab.plot(self.Data.X[:,0], self.Data.X[:,1], 'k.')
+    #pylab.show()
     
   def test_randexamplesbydist(self, nTrial=25):
     trialOutcomes = list()

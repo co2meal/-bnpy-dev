@@ -1,24 +1,12 @@
-======== Birth Move
+=========== BEFORE RELEASE
+* size instead of nObs for Data??
 
-after trying a birth move at comp k:
-  if fails (nothing new created): 
-    prob try again should be extremely low
+* stdout: how much to display for births/merges??  Set verbosity level??
 
-  if succeeds (some new comps created): 
-    should not try again until 2 or 3 laps done
+* lots of documentation!!?!!
 
-newborn component:
-  probably should not be tried until at least one lap is complete
+* clean up topic model code???
 
-merged component:
-  probably should not be tried until at least a few laps are complete
-
-======== Local Params
-keep as a dict??
-
-for mix models:
-  LP['resp']
-for admix models
-  LP['resp'], LP['groupWeights'], LP['NperGroup']
-for HMMs
-  LP['resp'], LP['respPair']
+=========== LONG-Term
+* Logging
+have separate log transcripts for births/merges, so we can do detailed diagnostics?

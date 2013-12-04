@@ -1,4 +1,5 @@
 import ModelWriter
 import ModelReader
+import BNPYArgParser
 
-__all__ = ['ModelWriter', 'ModelReader']
+__all__ = ['BNPYArgParser', 'ModelWriter', 'ModelReader']

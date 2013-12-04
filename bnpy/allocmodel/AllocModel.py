@@ -4,55 +4,38 @@ from __future__ import division
 
 class AllocModel(object):
 
+  ######################################################### Constructors
+  #########################################################
   def __init__(self, inferType):
     self.inferType = inferType
-    
-  def set_inferType(self, inferType):
-    self.inferType = inferType
-    
-  def is_nonparametric(self):
-    return False 
 
-  def need_prev_local_params(self):
-    return False 
-
-  ##############################################################    
-  ############################################################## Suff Stat Calc   
-  ##############################################################
-  def get_global_suff_stats( self, Data, SS, LP ):
-    ''' 
-    '''
-    pass
-    
-  def inc_suff_stats( self):
-    pass
-    
-  def dec_suff_stats( self):
+  def set_prior(self, **kwargs):
     pass  
     
-  ##############################################################    
-  ############################################################## Local Param Updates   
-  ##############################################################
+  ######################################################### Accessors
+  #########################################################
+  def get_keys_for_memoized_local_params(self):
+    ''' Return list of string names of the LP fields
+        that this object needs to memoize across visits to a particular batch
+    '''
+    return list()
+
+  ######################################################### Local Params
+  #########################################################
   def calc_local_params( self, Data, LP ):
     ''' 
     '''
     pass
- 
-  ##############################################################    
-  ############################################################## Evidence calc.   
-  ##############################################################
-  def calc_evidence(self):
+
+  ######################################################### Suff Stats
+  #########################################################
+  def get_global_suff_stats( self, Data, SS, LP ):
+    ''' 
+    '''
     pass
- 
-  ##############################################################    
-  ############################################################## Global parameters
-  ##############################################################
-  def add_component(self):
-    self.K += 1
-    
-  def remove_component( self, delID):
-    self.K -= 1
-    
+
+  ######################################################### Global Params
+  #########################################################
   def update_global_params( self, SS, rho=None, **kwargs ):
     ''' Update (in-place) global parameters for this allocation model object,
         given the provided suff stats object SS
@@ -70,25 +53,22 @@ class AllocModel(object):
         self.update_global_params_soVB(SS, rho)
     else:
       raise ValueError( 'Unrecognized Inference Type! %s' % (self.inferType) )
-    self.isReady = True
-    
-  ##############################################################    
-  ############################################################## set prior parameters  
-  ############################################################## 
-  def set_prior(self, **kwargs):
-    pass  
-    
-  ##############################################################    
-  ############################################################## human readable I/O  
-  ##############################################################  
+ 
+ 
+  ######################################################### Evidence
+  #########################################################
+  def calc_evidence(self):
+    pass
+
+  ######################################################### IO Utils
+  #########################################################   for humans
   def get_info_string( self):
     ''' Returns one-line human-readable terse description of this object
     '''
     pass
 
-  ##############################################################    
-  ############################################################## MAT file I/O  
-  ##############################################################  
+  ######################################################### IO Utils
+  #########################################################   for machines
   def to_dict_essential(self):
     PDict = dict(name=self.__class__.__name__, inferType=self.inferType)
     if hasattr(self,'K'):

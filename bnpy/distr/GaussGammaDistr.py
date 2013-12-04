@@ -47,13 +47,18 @@ class GaussGammaDistr( Distr ):
     
   ######################################################### Param updates 
   ######################################################### (M step)
-  def get_post_distr( self, compSS):
+  def get_post_distr( self, SS, k=None):
     ''' Create new Distr object with posterior params
         See Bishop equations 10.59 - 10.63 (modified for Gaussian-Gamma)
     '''
-    EN = float(compSS.N)
-    Ex = compSS.x
-    Exx = compSS.xx
+    if k is None:
+        EN = SS.N
+        Ex = SS.x
+        Exx = SS.xx
+    else:
+        EN = float(SS.N[k])
+        Ex = SS.x[k]
+        Exx = SS.xx[k]
     beta = self.beta + EN
     m = ( self.beta*self.m + Ex ) / beta
     a = self.a + 0.5*EN

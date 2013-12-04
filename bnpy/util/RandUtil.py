@@ -1,8 +1,20 @@
+'''
+RandUtil.py
+
+Utilities for sampling (pseudo) random numbers
+'''
 import numpy as np
 
-def discrete_single_draw_vectorized( Pmat, randstate=None):
-  Ts = np.cumsum( Pmat, axis=1)
-  throws = np.random.rand( Pmat.shape[0] )*Ts[:,-1]
+def multinomial(Nsamp, ps, randstate=np.random):
+  ps = np.asarray(ps, dtype=np.float64)
+  Pmat = np.tile(ps, (Nsamp,1))
+  choiceVec = discrete_single_draw_vectorized(Pmat, randstate)
+  choiceHist, bins = np.histogram(choiceVec, np.arange(-.5,ps.size + .5))
+  return choiceHist
+
+def discrete_single_draw_vectorized( Pmat, randstate=np.random):
+  Ts = np.cumsum(Pmat, axis=1)
+  throws = randstate.rand( Pmat.shape[0] )*Ts[:,-1]
   Ts[ Ts > throws[:,np.newaxis] ] = np.inf
   choices = np.argmax( Ts, axis=1 ) # relies on argmax returning first id
   return choices
