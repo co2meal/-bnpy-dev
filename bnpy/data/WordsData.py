@@ -109,8 +109,9 @@ class WordsData(DataObj):
         
         nObs = len(word_id)
         nObsTotal = nObs
-        myDict = dict(word_id = word_id, word_count=word_count, doc_range=doc_range, 
-                      nDoc=nDoc, nDocTotal=nDocTotal, nObs=nObs, nObsTotal = nObsTotal,
+        myDict = dict(word_id = word_id, word_count=word_count,
+                      doc_range=doc_range, nDoc=nDoc, nDocTotal=nDocTotal, 
+                      nObs=nObs, nObsTotal = nObsTotal,
                       vocab_size=vocab_size, db_pull=True, dbpath=dbpath)
         
         return cls(**myDict)

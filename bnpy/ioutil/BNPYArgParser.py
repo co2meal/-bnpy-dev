@@ -7,11 +7,11 @@ OnlineDataAlgSet = ['soVB', 'moVB']
 
 dataHelpStr = 'Name of dataset, defined by a python script in $BNPYDATADIR.'
 
-aModelChoices = set(['MixModel', 'DPMixModel'])
+aModelChoices = set(['MixModel', 'DPMixModel', 'AdmixModel'])
 choiceStr = ' {' + ','.join([x for x in (aModelChoices)]) + '}'
 aModelHelpStr = 'Name of allocation model.' + choiceStr
 
-oModelChoices = set(['Gauss', 'ZMGauss'])
+oModelChoices = set(['Gauss', 'ZMGauss', 'Mult'])
 choiceStr = ' {' + ','.join([x for x in (oModelChoices)]) + '}'
 oModelHelpStr = 'Name of observation model.' + choiceStr
 

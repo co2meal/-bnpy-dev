@@ -34,14 +34,26 @@ class GaussWishDistr( Distr ):
         kappa : precision parameter for Gaussian
         m : mean parameter for Gaussian
     '''
+    self.D = m.size
+    # Enforce expected dimensions for mean vector
+    if m.ndim > 1:
+      m = np.squeeze(m)
+    if m.ndim == 0:
+      m = m[np.newaxis]
+    assert m.shape == (self.D,)
+    # Enforce expected dims for scale matrix
+    if invW.ndim > 2:
+      invW = np.squeeze(invW)
+    if invW.ndim == 0:
+      invW = invW[np.newaxis]
+    if invW.ndim == 1:
+      invW = invW[:, np.newaxis]
+    assert invW.shape == (self.D, self.D)
+    # Assign attributes
+    self.m = m
+    self.invW = invW
     self.dF = dF
     self.kappa = kappa
-    self.invW = np.squeeze(invW)
-    self.m = np.squeeze(m)
-    self.D = self.invW.shape[0]
-    assert self.m.ndim == 1
-    assert self.invW.ndim == 2
-    assert self.m.size == self.D
     self.Cache = dict()
     
   @classmethod

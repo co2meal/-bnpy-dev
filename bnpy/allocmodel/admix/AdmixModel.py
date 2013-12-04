@@ -32,7 +32,7 @@ introduces a classic admixture model with Dirichlet-Mult observations.
 import numpy as np
 
 from ..AllocModel import AllocModel
-from bnpy.suffstats import SuffStatDict
+from bnpy.suffstats import SuffStatBag
 from ...util import digamma, gammaln, logsumexp
 from ...util import EPS, np2flatstr
 
@@ -50,16 +50,17 @@ class AdmixModel(AllocModel):
     ####################################################### Suff Stat Calc
     ####################################################### 
     def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None, **kwargs):
-        ''' Count expected number of times each topic is used across all docs    
+        ''' Calculate sufficient statistics.
+            Admixture models have no suff stats for allocation   
         '''
         wv = LP['word_variational']
         _, K = wv.shape
-        SS = SuffStatDict(K=K)
+        SS = SuffStatBag(K=K, D=Data.vocab_size)
         if doPrecompEntropy:
-            SS.addPrecompELBOTerm('ElogpZ', self.E_log_pZ(Data, LP))
-            SS.addPrecompELBOTerm('ElogqZ', self.E_log_qZ(Data, LP))
-            SS.addPrecompELBOTerm('ElogpPI', self.E_log_pPI(Data, LP))
-            SS.addPrecompELBOTerm('ElogqPI', self.E_log_qPI(Data, LP))
+            SS.setELBOTerm('ElogpZ', self.E_log_pZ(Data, LP), dims='K')
+            SS.setELBOTerm('ElogqZ', self.E_log_qZ(Data, LP), dims='K')
+            SS.setELBOTerm('ElogpPi', self.E_log_pPI(Data, LP), dims=None)
+            SS.setELBOTerm('ElogqPi', self.E_log_qPI(Data, LP), dims=None)
         return SS
          
     ####################################################### Calc Local Params
@@ -144,7 +145,6 @@ class AdmixModel(AllocModel):
         # Operate on wv matrix, which is nDistinctWords x K
         #  has been preallocated for speed (so we can do += later)
         wv = LP['word_variational']         
-        K = wv.shape[1]        
         # Fill in entries of wv with log likelihood terms
         wv[:] = LP['E_logsoftev_WordsData']
         # Add doc-specific log prior to certain rows
@@ -165,8 +165,8 @@ class AdmixModel(AllocModel):
     #######################################################   M-step
     def update_global_params( self, SS, rho=None, **kwargs ):
         ''' Update global parameters.
-            However, parametric admixtures have no global alloc. parameters! 
-            The mixture weights are document specific.
+            Parametric admixtures have no global alloc. parameters,
+            because mixture weights are document specific.
         '''
         self.K = SS.K
         
@@ -182,29 +182,28 @@ class AdmixModel(AllocModel):
             where phi and theta represent our variational parameters
         '''        
         # Calculate ELBO assignments for document topic weights
-        if SS.hasPrecompELBOTerm('ElogpPI'):
-            E_log_pPI = SS.getPrecompELBOTerm('ElogpPI')
-            E_log_qPI = SS.getPrecompELBOTerm('ElogqPI')
+        if SS.hasELBOTerm('ElogpPi'):
+            E_log_pPI = SS.getELBOTerm('ElogpPi')
+            E_log_qPI = SS.getELBOTerm('ElogqPi')
         elif SS.hasAmpFactor():
-            E_log_pPI = SS['ampF']*self.E_log_pPI( Data, LP)
-            E_log_qPI = SS['ampF']*self.E_log_qPI( Data, LP)
+            E_log_pPI = SS.ampF * self.E_log_pPI( Data, LP)
+            E_log_qPI = SS.ampF * self.E_log_qPI( Data, LP)
         else:
             E_log_pPI = self.E_log_pPI( Data, LP ) 
             E_log_qPI = self.E_log_qPI( Data, LP )
         
         # Calculate ELBO for word token assignment 
-        if SS.hasPrecompELBOTerm('ElogpZ'):
-            E_log_pZ = np.sum(SS.getPrecompELBOTerm('ElogpZ'))
-            E_log_qZ = np.sum(SS.getPrecompELBOTerm('ElogqZ'))
+        if SS.hasELBOTerm('ElogpZ'):
+            E_log_pZ = np.sum(SS.getELBOTerm('ElogpZ'))
+            E_log_qZ = np.sum(SS.getELBOTerm('ElogqZ'))
         elif SS.hasAmpFactor():
-            E_log_pZ = SS['ampF']*np.sum(self.E_log_pZ( Data, LP ))
-            E_log_qZ = SS['ampF']*np.sum(self.E_log_qZ( Data, LP ))
+            E_log_pZ = SS.ampF * np.sum(self.E_log_pZ( Data, LP ))
+            E_log_qZ = SS.ampF * np.sum(self.E_log_qZ( Data, LP ))
         else:
-            E_log_pZ = np.sum(self.E_log_pZ( Data, LP ))
-            E_log_qZ = np.sum(self.E_log_qZ( Data, LP ))
-        elbo_alloc = (E_log_pPI - E_log_qPI) + (E_log_pZ - E_log_qZ)        
-        return elbo_alloc
-
+            E_log_pZ = np.sum(self.E_log_pZ(Data, LP))
+            E_log_qZ = np.sum(self.E_log_qZ(Data, LP))
+        return (E_log_pPI - E_log_qPI) + (E_log_pZ - E_log_qZ)        
+        
     def E_log_pZ( self, Data, LP):
         ''' Returns K-length vector with E[ log p(Z) ] for each topic k
                 E[ z_dwk ] * E[ log pi_{dk} ]

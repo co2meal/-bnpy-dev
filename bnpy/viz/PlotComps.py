@@ -63,7 +63,13 @@ def plotData(Data, nObsPlot=5000):
   if type(Data) == bnpy.data.XData:
     PRNG = np.random.RandomState(nObsPlot)
     pIDs = PRNG.permutation(Data.nObs)[:nObsPlot]
-    pylab.plot(Data.X[pIDs,0], Data.X[pIDs,1], 'k.')  
+    if Data.dim > 1:
+      pylab.plot(Data.X[pIDs,0], Data.X[pIDs,1], 'k.')  
+    else:
+      hist, bin_edges = pylab.histogram(Data.X, bins=25)
+      xs = bin_edges[:-1]
+      ys = np.asarray(hist, dtype=np.float32) / np.sum(hist)
+      pylab.bar(xs, ys, width=0.8*(bin_edges[1]-bin_edges[0]), color='k')
 
 def loadData(jobpath):
   ''' Load in bnpy Data obj associated with given learning task.

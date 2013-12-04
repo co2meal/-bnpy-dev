@@ -199,12 +199,15 @@ def loadData(ReqArgs, KwArgs, DataArgs, dataorderseed):
     Data = datamod.get_data(**DataArgs)
     return Data, Data
   elif algName in OnlineDataAlgSet:
-    KwArgs[algName]['nLap'] = KwArgs['OnlineDataPrefs']['nLap']
     InitData = datamod.get_data(**DataArgs)
-    OnlineDataArgs = KwArgs['OnlineDataPrefs']
-    OnlineDataArgs['dataorderseed'] = dataorderseed
-    OnlineDataArgs.update(DataArgs)
-    DataIterator = datamod.get_minibatch_iterator(**OnlineDataArgs)
+    if 'OnlineDataPrefs' in KwArgs:
+      KwArgs[algName]['nLap'] = KwArgs['OnlineDataPrefs']['nLap']
+      OnlineDataArgs = KwArgs['OnlineDataPrefs']
+      OnlineDataArgs['dataorderseed'] = dataorderseed
+      OnlineDataArgs.update(DataArgs)
+      DataIterator = datamod.get_minibatch_iterator(**OnlineDataArgs)
+    else:
+      DataIterator = None
     return DataIterator, InitData
   
 ########################################################### Create Model

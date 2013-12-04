@@ -34,20 +34,29 @@ def plotGauss2DFromHModel(hmodel, compListToPlot=None, compsToHighlight=None, wT
 
   colorID = 0
   for kk in compListToPlot:
-    if w[kk] < wTHR and kk not in compsToHighlight:
-      continue
+    
     mu = hmodel.obsModel.get_mean_for_comp(kk)
     Sigma = hmodel.obsModel.get_covar_mat_for_comp(kk)
+    print w[kk], mu, Sigma
+    if w[kk] < wTHR and kk not in compsToHighlight:
+      continue
     if kk in compsToHighlight or len(compsToHighlight) == 0:
-      plotGauss2DContour(mu, Sigma, color=Colors[colorID])
+      if mu.size == 1:
+        plotGauss1D(mu, Sigma, color=Colors[colorID])
+      else:
+        plotGauss2DContour(mu, Sigma, color=Colors[colorID])
       colorID = (colorID + 1) % len(Colors)
     elif kk not in compsToHighlight:
-      plotGauss2DContour(mu, Sigma, color='k')
+      if mu.size == 1:
+        plotGauss1D(mu, Sigma, color='k')
+      else:
+        plotGauss2DContour(mu, Sigma, color='k')
       
-  pylab.axis('image')   
+  if mu.size > 1:
+    pylab.axis('image')   
   
 def plotGauss2DContour(mu, Sigma, color='b', radiusLengths=[0.5, 1.25, 2]):
-  ''' Plot elliptical contours for the first 2 dimensions of covariance matrix Sigma,
+  ''' Plot elliptical contours for first 2 dims of covariance matrix Sigma,
       location specified by corresponding dims from vector mu
   '''
   mu = np.asarray(mu)
@@ -74,6 +83,16 @@ def plotGauss2DContour(mu, Sigma, color='b', radiusLengths=[0.5, 1.25, 2]):
     Z = r * Zellipse + mu[:,np.newaxis]
     pylab.plot(Z[0], Z[1], '.', markerfacecolor=color, markeredgecolor=color)
 
+def plotGauss1D(mu, sigma2, color='b'):
+  mu = np.squeeze(mu)
+  sigma = np.sqrt(np.squeeze(sigma2))
+  
+  assert mu.size == 1 and mu.ndim == 0
+  assert sigma.size == 1 and sigma.ndim == 0
+
+  xs = mu + sigma * np.arange( -4, 4, 0.01)
+  ps = 1./np.sqrt(2*np.pi) * 1./sigma * np.exp( -0.5 * (xs-mu)**2 / sigma**2 )
+  pylab.plot( xs, ps, '.', markerfacecolor=color, markeredgecolor=color)
 
 ########################################################### Plot Covar Matrix
 ###########################################################

@@ -35,8 +35,7 @@ class MultObsModel(ObsModel):
         self.K = len(compDictList)
         self.comp = [None for k in range(self.K)]
         for k in xrange(self.K):
-            else:
-                self.comp[k] = DirichletDistr(**compDictList[k]) 
+            self.comp[k] = DirichletDistr(**compDictList[k]) 
         return self
 
   ######################################################### Accessors  
@@ -96,7 +95,7 @@ class MultObsModel(ObsModel):
         TopicWordCounts = (WMat * wv).T
 
         SS.setField('WordCounts', TopicWordCounts, dims=('K','D'))
-        SS.setField('N', np.sum(WordCounts,axis=1), dims=('K'))
+        SS.setField('N', np.sum(TopicWordCounts,axis=1), dims=('K'))
         return SS
 
   ######################################################### Global Params
@@ -107,12 +106,12 @@ class MultObsModel(ObsModel):
 
     def update_obs_params_VB(self, SS, Krange, **kwargs):
         for k in Krange:
-            self.comp[k] = self.obsPrior.get_post_distr(SS.getComp(k))
+            self.comp[k] = self.obsPrior.get_post_distr(SS, k)
 
     def update_obs_params_soVB( self, SS, rho, Krange, **kwargs):
         # grab Dirichlet posterior for lambda and perform stochastic update
         for k in Krange:
-            Dstar = self.obsPrior.get_post_distr(SS.getComp(k))
+            Dstar = self.obsPrior.get_post_distr(SS, k)
             self.comp[k].post_update_soVB(rho, Dstar)
 
     def set_global_params(self, true_tw=None, mass=100, **kwargs):
@@ -123,9 +122,6 @@ class MultObsModel(ObsModel):
         for k in range(self.K):
           self.comp.append(DirichletDistr(mass * true_tw[k,:]))
 
-
-      
-
   ######################################################### Evidence
   #########################################################
     def calc_evidence(self, Data, SS, LP):
@@ -135,9 +131,8 @@ class MultObsModel(ObsModel):
         elbo_pWords = self.E_log_pW(SS)
         elbo_pLambda = self.E_log_pLambda()
         elbo_qLambda = self.E_log_qLambda()
-        lb_obs = elbo_pWords + elbo_pLambda - elbo_qLambda
-        return lb_obs
-  
+        return elbo_pWords + elbo_pLambda - elbo_qLambda
+        
     def E_log_pW(self, SS):
         ''' Calculate "data" term of the ELBO,
                 E_{q(Z), q(Phi)} [ log p(X) ]

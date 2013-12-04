@@ -39,14 +39,9 @@ class DirichletDistr(object):
         
 
     ############################################################## Param updates  
-    def get_post_distr(self, SS):
+    def get_post_distr(self, SS, k=None):
         ''' Create new Distr object with posterior params'''
-        return DirichletDistr(SS.WordCounts + self.lamvec)
-    
-    def post_update( self, SS ):
-        ''' Posterior update of internal params given data'''
-        self.lamvec += SS.WordCounts
-        self.set_helpers()
+        return DirichletDistr(SS.WordCounts[k] + self.lamvec)
 
     def post_update_soVB( self, rho, starD):
         ''' Stochastic online update of internal params'''
