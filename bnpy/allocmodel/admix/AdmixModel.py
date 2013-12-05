@@ -219,7 +219,7 @@ class AdmixModel(AllocModel):
         wv = LP['word_variational']
         wv_logwv = wv * np.log(EPS + wv)
         E_log_qZ = np.dot(Data.word_count, wv_logwv)
-        return E_log_qZ.sum(axis=0)    
+        return E_log_qZ # already a K-len vector   
 
     def E_log_pPI( self, Data, LP ):
         ''' Returns scalar value of E[ log p(Pi | alpha0)]
