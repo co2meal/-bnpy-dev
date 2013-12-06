@@ -44,7 +44,6 @@ class HModel( object ):
     '''
     self.allocModel = allocModel
     self.obsModel = obsModel
-    print "self.obsModel",obsModel
     self.inferType = allocModel.inferType
 
   @classmethod
@@ -52,7 +51,6 @@ class HModel( object ):
     ''' Constructor assembles HModel and all its submodels in one call
     '''
     allocModel = AllocConstr[allocModelName](inferType, allocPriorDict)
-    print ObsConstr[obsModelName]
     obsModel = ObsConstr[obsModelName].CreateWithPrior(
                                          inferType, obsPriorDict, Data)
     return cls(allocModel, obsModel)
@@ -127,8 +125,6 @@ class HModel( object ):
     ''' Initialize (in-place) global parameters
     '''
     initname = initArgs['initname']
-    print str(type(self.obsModel))
-    print str(type(self.obsModel)).count('Gauss')
     if initname.count('true') > 0:
       init.FromTruth.init_global_params(self, Data, **initArgs)
     elif initname.count(os.path.sep) > 0:

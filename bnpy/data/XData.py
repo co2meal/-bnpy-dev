@@ -30,7 +30,8 @@ class XData(DataObj):
     X = np.asarray(X)
     if X.ndim < 2:
       X = X[np.newaxis,:]
-    self.X = X.newbyteorder('=').copy()
+    self.X = np.float64(X.newbyteorder('=').copy())
+    
     self.set_dependent_params(nObsTotal=nObsTotal)
     self.check_dims()
     if TrueZ is not None:
