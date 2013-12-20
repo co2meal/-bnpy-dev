@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="../../assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="../../assets/css/docs.css" rel="stylesheet">
+    <!-- <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet"> -->
+    <link rel="stylesheet" href="../../assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">{{ name }}</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">{{ name }}</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <li><a href="#lines">Lines</a></li>
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#coverage">Coverage</a></li>
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>{{ name }}</h1>
+	  </div>
+
+          <p>{{ num_calls }} Calls, {{ seconds }} s</p>
+	  <p>Generated {{ timestamp }}</p>
+          <p>Function in file <a href="{{ parent_dir }}/{{ link }}">{{ link }}</a></p>
+
+          <!-- <h3 id="parents">Parents</h3> -->
+          <!-- <div> -->
+          <!--   <table class="table table-hover"> -->
+          <!--     <tr> -->
+          <!--       <th>Function Name</th> -->
+          <!--       <\!-- <th>Function Type</th> -\-> -->
+          <!--       <th>Calls</th> -->
+          <!--     </tr> -->
+          <!--     {% for p in parents %} -->
+          <!--     <tr> -->
+          <!--       <td>{{ p['name'] }}</td> -->
+          <!--       <td>{{ p['calls'] }}</td> -->
+          <!--     </tr> -->
+          <!--     {% endfor %} -->
+          <!--   </table> -->
+          <!-- </div> -->
+
+          <h3 id="lines">Lines where the most time was spent</h3>
+          <div>
+            <table class="table table-hover table-condensed">
+              <tr>
+                <th>Line Number</th>
+                <th>Code</th>
+                <th>Calls</th>
+                <th>Total Time</th>
+                <th>% Time</th>
+                <th>Time Plot</th>
+              </tr>
+	      {% for l in lines %}
+              <tr class="{{ l['warn'] }}">
+                <td><a href="#line{{ l['lineno'] }}">{{ l['lineno'] }}</td>
+                <td><pre class="prettyprint">{{ l['code'] }}</pre></td>
+		<td>{{ l['calls'] }}</td>
+                <td>{{ l['time'] }}</td>
+                <td>{{ l['percent'] }}</td>
+                <td></td>
+              </tr>
+              {% endfor %}
+            </table>
+          </div>
+
+          <!-- <h3 id="children">Children</h3> -->
+          <!-- <div> -->
+          <!--   <table class="table table-hover"> -->
+          <!--     <tr> -->
+          <!--       <th>Function Name</th> -->
+          <!--       <\!-- <th>Function Type</th> -\-> -->
+          <!--       <th>Calls</th> -->
+          <!--       <th>Total Time</th> -->
+          <!--       <th>% Time</th> -->
+          <!--       <th>Time Plot</th> -->
+          <!--     </tr> -->
+          <!--     {% for c in children %} -->
+          <!--     <tr> -->
+          <!--       <td>{{ c['name'] }}</td> -->
+          <!--       <td>{{ c['calls'] }}</td> -->
+          <!--       <td>{{ c['time'] }}</td> -->
+          <!--       <td>{{ c['percent'] }}</td> -->
+          <!--       <td></td> -->
+          <!--     </tr> -->
+          <!--     {% endfor %} -->
+          <!--   </table> -->
+          <!-- </div> -->
+
+          <h3 id="coverage">Coverage results</h3>
+          <div>
+            <table class="table">
+              <tr>
+                <td>Total lines in function</td>
+                <td>{{ total_lines }}</td>
+              </tr>
+              <tr>
+                <td>Non-code lines</td>
+                <td>{{ non_code_lines }}</td>
+              </tr>
+              <tr>
+                <td>Code lines</td>
+                <td>{{ code_lines }}</td>
+              </tr>
+              <tr>
+                <td>Code lines that did run</td>
+                <td>{{ run }}</td>
+              </tr>
+              <tr>
+                <td>Code lines that did not run</td>
+                <td>{{ not_run }}</td>
+              </tr>
+              <tr>
+                <td>Coverage (did run / can run)</td>
+                <td>{{ run_percent }}%</td>
+              </tr>
+            </table>
+          </div>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            {% for i in range(total_lines) %}
+            <tr class="{{ lines[i]['warn'] }}">
+              <td>{{ lines[i]['time'] }}</td>
+              <td>{{ lines[i]['calls'] }}</td>
+              <td id="line{{ lines[i]['lineno'] }}">{{ lines[i]['lineno'] }}</td>
+              <td><pre class="prettyprint">{{ lines[i]['code_full'] }}</pre></td>
+            </tr>
+            {% endfor %}
+          </table>
+
+          <!-- <h3 id="listing">Function listing take 2</h3> -->
+	  <!-- <pre class="prettyprint">{{ code_full }}</pre> -->
+
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="../../assets/js/bootstrap.min.js"></script>
+    <script src="../../assets/js/main.js"></script>
+    <script src="https://google-code-prettify.googlecode.com/svn/loader/run_prettify.js"></script>
+  </body>
+</html>

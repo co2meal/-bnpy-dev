@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="css/docs.css" rel="stylesheet">
+    <!-- <style type="text/css">
+    .table-borderless td,
+    .table-borderless th {
+    border-top: none;
+    }
+    </style> -->
+  </head>
+
+  <body>
+    <header class="navbar navbar-inverse navbar-fixed-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="index.html">Summary</a>
+            </li>
+            <li>
+              <a href="#">Graph</a>
+            </li>
+            <li class="active">
+              <a href="#">Function</a>
+            </li>
+          </ul>
+          <ul class="nav navbar-nav navbar-right">
+            <li>
+              <a href="#">Back to Top</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-3">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">Name of Function</a></li>
+	      <li><a href="#parents">Parents</a></li>
+	      <li><a href="#lines">Lines</a></li>
+	      <li><a href="#children">Possible Children</a></li>
+	      <li><a href="#coverage">Coverage</a></li>
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-9">
+	  <div class="page-header" id="summary">
+	    <h1>Name of Function</h1>
+	  </div>
+
+          <p>3 Calls, 0.0274 sec</p>
+	  <p>Generated 03-11-2013 22:13:08</p>
+          <p>Function in file <a href="#">link to file</a></p>
+
+          <h3 id="parents">Parents</h3>
+          <div>
+            <table class="table table-hover">
+              <tr>
+                <th>Function Name</th>
+                <!-- <th>Function Type</th> -->
+                <th>Calls</th>
+              </tr>
+            </table>
+          </div>
+
+          <h3 id="lines">Lines where the most time was spent</h3>
+          <div>
+            <table class="table table-hover">
+              <tr>
+                <th>Line Number</th>
+                <th>Code</th>
+                <th>Calls</th>
+                <th>Total Time</th>
+                <th>% Time</th>
+                <th>Time Plot</th>
+              </tr>
+            </table>
+          </div>
+
+          <h3 id="children">Children</h3>
+          <div>
+            <table class="table table-hover">
+              <tr>
+                <th>Function Name</th>
+                <!-- <th>Function Type</th> -->
+                <th>Calls</th>
+                <th>Total Time</th>
+                <th>% Time</th>
+                <th>Time Plot</th>
+              </tr>
+            </table>
+          </div>
+
+          <h3 id="coverage">Coverage results</h3>
+          <div>
+            <table class="table">
+              <tr>
+                <td>Total lines in function</td>
+                <td>37</td>
+              </tr>
+              <tr>
+                <td>Non-code lines</td>
+                <td>26</td>
+              </tr>
+              <tr>
+                <td>Code lines</td>
+                <td>11</td>
+              </tr>
+              <tr>
+                <td>Code lines that did run</td>
+                <td>9</td>
+              </tr>
+              <tr>
+                <td>Code lines that did not run</td>
+                <td>2</td>
+              </tr>
+              <tr>
+                <td>Coverage (did run / can run)</td>
+                <td>81.82%</td>
+              </tr>
+            </table>
+          </div>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            <tr>
+              <td></td>
+              <td></td>
+              <td>1</td>
+              <td># one line of code</td>
+            </tr>
+          </table>
+
+        </div>
+      </div>
+    </div>
+
+  </body>
+</html>
