@@ -1,4 +1,7 @@
 fit
+select_merge_components
+run_birth_move
+run_merge_move
 calc_evidence
 calc_local_params
 get_global_suff_stats
