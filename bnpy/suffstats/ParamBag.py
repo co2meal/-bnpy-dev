@@ -218,7 +218,7 @@ class ParamBag(object):
       if arr.ndim > 0:
         arr[compIDs] -= getattr(PB, key)
       else:
-        self.setField(key, arr - PB.arr, dims=None)
+        self.setField(key, arr - getattr(PB, key), dims=None)
 
   def __sub__(self, PB):
     ''' Subtract. Returns new ParamBag object with fields equal to self - PB.

@@ -87,7 +87,12 @@ class SuffStatBag(object):
     for key, dims in self._Fields._FieldDims.items():
       if dims is not None and dims != ():
         arr = getattr(self._Fields, key)
-        arr[kA] += arr[kB]
+        if self.hasMergeTerm(key) and dims == ('K'):
+          # some special terms need to be precomputed, like sumLogPiActive
+          arr[kA] = getattr(self._MergeTerms, key)[kA,kB]
+        else:
+          # applies to vast majority of all fields
+          arr[kA] += arr[kB]
 
     if self.hasELBOTerms():
       for key, dims in self._ELBOTerms._FieldDims.items():

@@ -152,7 +152,7 @@ class TestMergeHDP(unittest.TestCase):
 
 
   ######################################################### Verify Z terms
-  ######################################################### (token-topic asgnments)
+  
   def test_ELBO_Z_terms_are_correct(self):
     ''' Verify that the ELBO terms for ElogpZ, ElogqZ are correct
     '''
@@ -298,6 +298,7 @@ class TestMergeHDP(unittest.TestCase):
     assert np.allclose(directElogpPi, memoElogpPi)
     assert np.allclose(directElogqPi, memoElogqPi)
 
+  
 
   def test_ELBO_Pi_terms_are_correct_merge(self):
     ''' Verify that the ELBO terms for ElogpPi, ElogqPi are correct
@@ -369,7 +370,7 @@ class TestMergeHDP(unittest.TestCase):
                     + SS.getELBOTerm('ElogqPiConst')\
                     + SS.getELBOTerm('ElogqPiUnused')
     assert np.allclose(directElogqPi, memoElogqPi)
-"""
+
 
   def test_ELBO_terms_are_correct_merge_duplicates(self):
     ''' Verify that the ELBO terms for ElogpPi, ElogqPi are correct
@@ -384,7 +385,7 @@ class TestMergeHDP(unittest.TestCase):
     beforeELBO = self.dupModel.calc_evidence(self.Data, SS, LP)
 
     # Perform merge via suff stats
-    SS.mergeComponents(kA,kB)
+    SS.mergeComps(kA,kB)
     newModel = self.dupModel.copy()
     newModel.update_global_params(SS)
     memoELBO = newModel.calc_evidence(SS=SS)
@@ -395,7 +396,7 @@ class TestMergeHDP(unittest.TestCase):
     mLP = self.calc_mergeLP(LP, kA, kB)
     mSS = self.dupModel.get_global_suff_stats(self.Data, mLP)
     assert np.allclose(mSS.WordCounts, SS.WordCounts)
-    assert np.allclose(mSS.sumLogPi, SS.sumLogPi)
+    assert np.allclose(mSS.sumLogPiActive, SS.sumLogPiActive)
 
     self.dupModel.update_global_params(mSS)
     assert self.dupModel.allocModel.K == 7
@@ -421,7 +422,7 @@ class TestMergeHDP(unittest.TestCase):
     beforeELBO = self.hmodel.calc_evidence(self.Data, SS, LP)
 
     # Perform merge via suff stats
-    SS.mergeComponents(kA,kB)
+    SS.mergeComps(kA,kB)
     newModel = self.hmodel.copy()
     newModel.update_global_params(SS)
     memoELBO = newModel.calc_evidence(SS=SS)
@@ -432,7 +433,7 @@ class TestMergeHDP(unittest.TestCase):
     mLP = self.calc_mergeLP(LP, kA, kB)
     mSS = self.hmodel.get_global_suff_stats(self.Data, mLP)
     assert np.allclose(mSS.WordCounts, SS.WordCounts)
-    assert np.allclose(mSS.sumLogPi, SS.sumLogPi)
+    assert np.allclose(mSS.sumLogPiActive, SS.sumLogPiActive)
 
     self.hmodel.update_global_params(mSS)
     assert self.hmodel.allocModel.K == 3
@@ -443,9 +444,9 @@ class TestMergeHDP(unittest.TestCase):
     print memoELBO
     assert np.allclose(directELBO, memoELBO)
     assert beforeELBO > directELBO
-"""
 
-"""
+
+
   ######################################################### run_merge_move
   #########################################################  full tests
   def test_run_merge_move_on_true_comps_fails(self):
@@ -492,7 +493,7 @@ class TestMergeHDP(unittest.TestCase):
     for Kstep in [1,2,3,5,6,7]:
       for kA in range(8 - Kstep):
         kB = kA + Kstep
-        newModel, newSS, newEv, MoveInfo = MergeMove.run_merge_move(self.dupModel,
+        newM, newSS, newEv, MoveInfo = MergeMove.run_merge_move(self.dupModel,
                                          self.Data, SS, kA=kA, kB=kB)
         print MoveInfo['msg']
         assert MoveInfo['didAccept'] == 0
@@ -559,4 +560,3 @@ class TestMergeHDP(unittest.TestCase):
     print "Expected rate: >.95"
     print "Measured rate: %.3f" % (rate)
     assert rate > 0.95
-"""
