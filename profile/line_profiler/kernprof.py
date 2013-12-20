@@ -1,7 +1,6 @@
-""" 
-kernprof.py
-
-Script to run profiler on Python code
+#!/usr/bin/env python
+# -*- coding: UTF-8 -*-
+""" Script to conveniently run profilers on code in a variety of circumstances.
 """
 
 import optparse
