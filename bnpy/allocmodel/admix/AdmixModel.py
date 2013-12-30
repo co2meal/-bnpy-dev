@@ -170,9 +170,8 @@ class AdmixModel(AllocModel):
         '''
         self.K = SS.K
         
-    def set_global_params(self, true_K=0, **kwargs):
-        self.K = true_K
-
+    def set_global_params(self, K=0, **kwargs):
+        self.K = K
 
     ####################################################### Calc ELBO
     #######################################################   

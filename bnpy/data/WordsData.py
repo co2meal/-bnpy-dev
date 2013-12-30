@@ -195,18 +195,19 @@ class WordsData(DataObj):
         '''
         if hasattr(self, "__sparseMat__"):
             return self.__sparseMat__
-        
         nDW = self.word_id.size
         infoTuple = (self.word_count, np.int64(self.word_id), np.arange(nDW+1))
         shape = (self.vocab_size,nDW)
         self.__sparseMat__ = scipy.sparse.csc_matrix(infoTuple, shape=shape)
         return self.__sparseMat__
     
-    def to_sparse_dw(self):
+    def to_sparse_docword_matrix(self):
         ''' Create sparse matrix that represents a document
-            by word (unique vocabulary) matrix. Used for 
+            by vocabulary word matrix. Used for 
             efficient initialization of global parameters
         '''
+        if hasattr(self, "__sparseDocWordMat__"):
+            return self.__sparseDocWordMat__
         row_ind = list()
         col_ind = list()
         doc_range = self.doc_range
@@ -216,10 +217,10 @@ class WordsData(DataObj):
             doc_ind_temp = [d]*numDistinct
             row_ind.extend(doc_ind_temp)
             col_ind.extend(self.word_id[ (doc_range[d,0]):(doc_range[d,1]) ])
-        
-        print "Constructing Sparse Matrix (nDocTotal x vocab_size)"    
-        self.sparseDW = scipy.sparse.csr_matrix( ( word_count, (row_ind,col_ind) ), shape=(self.nDocTotal, self.vocab_size) )
-        return self.sparseDW
+        self.__sparseDocWordMat__ = scipy.sparse.csr_matrix(
+                  (word_count, (row_ind,col_ind)),
+                  shape=(self.nDocTotal, self.vocab_size) )
+        return self.__sparseDocWordMat__
 
     def verify_dimensions(self):
         ''' Basic runtime checks to make sure dimensions are set correctly

@@ -42,8 +42,7 @@ def init_global_params(hmodel, Data, initname=None, seed=0, nRepeatTrue=2, **kwa
       curLoc += L
     resp = bigResp
   elif initname == 'trueparams':
-    hmodel.allocModel.set_global_params(**vars(Data))
-    hmodel.obsModel.set_global_params(**vars(Data))
+    hmodel.set_global_params(**vars(Data))
     return
   else:
     raise NotImplementedError('Unknown initname: %s' % (initname))

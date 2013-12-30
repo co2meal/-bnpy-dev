@@ -109,6 +109,10 @@ class HModel( object ):
     self.allocModel.update_global_params(SS, rho, **kwargs)
     self.obsModel.update_global_params(SS, rho, **kwargs)
   
+  def set_global_params(self, **kwargs):
+    self.allocModel.set_global_params(**kwargs)
+    self.obsModel.set_global_params(**kwargs)
+
   ######################################################### Evidence
   #########################################################     
   def calc_evidence( self, Data=None, SS=None, LP=None):

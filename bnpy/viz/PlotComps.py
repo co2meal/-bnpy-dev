@@ -55,7 +55,7 @@ def plotModelInNewFigure(jobpath, hmodel, args):
     Data = loadData(jobpath)
     bnpy.viz.BarsViz.plotBarsFromHModel(hmodel, Data=Data, doShowNow=False)
   else:
-    raise NotImplementedError('TODO')
+    raise NotImplementedError('Unrecognized data/obsmodel combo')
 
 def plotData(Data, nObsPlot=5000):
   ''' Plot data items, at most nObsPlot distinct points (for quick rendering)

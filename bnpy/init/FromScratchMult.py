@@ -14,35 +14,36 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
     nDocTotal = Data.nDocTotal
     PRNG = np.random.RandomState(seed)
     if initname == 'randexamples':
-        ''' Choose K items uniformly at random from the Data
+        ''' Choose K documents at random
         '''
-        doc_variational = np.zeros( (nDocTotal, K) )
-        
+        DocWord = Data.to_sparse_docword_matrix()
+        chosenDocIDs = PRNG.choice(Data.nDoc, K, replace=False)
+        PhiTopicWord = np.asarray(DocWord[chosenDocIDs].todense())
+        PhiTopicWord += 0.01 * PRNG.rand(K, Data.vocab_size)
+        PhiTopicWord /= PhiTopicWord.sum(axis=1)[:,np.newaxis]
+        beta = np.ones(K)
+        hmodel.set_global_params(K=K, beta=beta, phi=PhiTopicWord)
+        return None
+
+    elif initname == 'randsoftpartition':
+        ''' Assign responsibility for K topics at random to all words
+        '''        
         word_variational = PRNG.rand(nObsTotal, K)
         word_variational /= word_variational.sum(axis=1)[:,np.newaxis]
-        
+        doc_variational = np.zeros((nDocTotal, K))
         for d in xrange(nDocTotal):
             start,stop = doc_range[d,:]
             doc_variational[d,:] = np.sum(word_variational[start:stop,:],axis=0)
- 
-    elif initname == 'randselect':
-        doc_variational = np.zeros( (nDocTotal, K) )
-        word_variational = np.zeros(nObsTotal, K)
-        # Pick K observed words at random
-        nSelect = np.maximum(Data.nObs/100, K)
-        selectIDs = PRNG.choice(Data.nObs, nSelect, replace=False)
-        for pos in range(len(selectIDs)):
-          word_variational[selectIDs[pos], pos % K] = 1.0
           
     elif initname == 'kmeans':
+        ''' Create topics via kmeans analysis of the doc-word matrix
+            WARNING: Not sure if this is a good idea yet...
+        '''
         # Runs the k-means initialization on sparse matrix dw
-        dw = Data.to_sparse_dw()
+        dw = Data.to_sparse_docword_matrix()
         doc_range = Data.doc_range
-        # for now we will make it dense since scipy kmeans is not working all that well
         dw_w = vq.whiten(dw.todense())
         Z = vq.kmeans2(dw_w, K)
-        # will this be used?
-        # lambda_temp = Z[0] 
         labels = Z[1] 
         doc_variational = np.zeros((nDocTotal, K)) + 1.0
         word_variational = np.zeros((nObsTotal, K)) + 1.0
@@ -66,13 +67,6 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
            
     if hmodel.getAllocModelName().count('HDP') > 0:
       LP = getLPfromResp(word_variational, Data)
-      #zeroPad = np.zeros((Data.nDoc,1))
-      #alph = np.hstack([doc_variational, zeroPad])
-      #alph = np.maximum(alph, 1e-20)
-      #LP = dict(alphaPi=alph,
-      #           word_variational=word_variational)
-      #LP = hmodel.allocModel.calc_ElogPi(LP)
-
     else:
       LP = dict(doc_variational=doc_variational, 
                 word_variational=word_variational)

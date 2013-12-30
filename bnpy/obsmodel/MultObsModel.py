@@ -114,13 +114,17 @@ class MultObsModel(ObsModel):
             Dstar = self.obsPrior.get_post_distr(SS, k)
             self.comp[k].post_update_soVB(rho, Dstar)
 
-    def set_global_params(self, true_tw=None, mass=100, **kwargs):
+    def set_global_params(self, phi=None, mass=100, **kwargs):
         ''' Set global params to provided values
+
+            Params
+            --------
+            phi : K x V matrix, each row is a distr over V vocab words
         '''
-        self.K = true_tw.shape[0]
+        self.K = phi.shape[0]
         self.comp = list()
         for k in range(self.K):
-          self.comp.append(DirichletDistr(mass * true_tw[k,:]))
+          self.comp.append(DirichletDistr(mass * phi[k,:]))
 
   ######################################################### Evidence
   #########################################################

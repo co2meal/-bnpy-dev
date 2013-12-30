@@ -231,24 +231,27 @@ class HDPModel(AllocModel):
         self.U0 = rho * U0 + (1-rho) * self.U0
         self.set_helper_params()
 
-    def set_global_params(self, true_t=None, **kwargs):
-        if true_t is not None:
-          beta = np.hstack([true_t, np.min(true_t)/10.0])
+    def set_global_params(self, K=0, beta=None, U1=None, U0=None, **kwargs):
+        self.K = K
+        if U1 is not None and U0 is not None:
+          self.U1 = U1
+          self.U0 = U0
+        if beta is not None:
+          assert beta.size == K
+          beta = np.hstack([beta, np.min(beta)/100.])
           beta = beta/np.sum(beta)
           vMean = HVO.beta2v(beta)
           vMass = 100
           self.U1 = vMass * vMean
           self.U0 = vMass * (1-vMean)
-          self.set_helper_params()
-          self.K = vMean.size
         else:
           raise ValueError('Bad HDP parameters')          
-
-
-
+        assert self.U1.size == K
+        assert self.U0.size == K
+        self.set_helper_params()
+        
   ######################################################### Evidence
   #########################################################  
-
     def calc_evidence( self, Data, SS, LP ):
         ''' Calculate ELBO terms related to allocation model
         '''   
