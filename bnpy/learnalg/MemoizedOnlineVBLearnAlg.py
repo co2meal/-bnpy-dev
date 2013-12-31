@@ -233,7 +233,6 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
   ######################################################### Birth moves!
   #########################################################
-   
   def run_birth_move(self, hmodel, Dchunk, SS, lapFrac):
     ''' Run birth moves on hmodel.
         Internally handles 
@@ -393,9 +392,13 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     for tInfoDict in self.targetDataList:
       # Skip this move if enough data has been collected
       if tInfoDict['Data'] is not None:
-        if tInfoDict['Data'].nObs > self.algParams['birth']['maxTargetObs']:
-          continue
-      
+        if hasattr(tInfoDict['Data'], 'nDoc'):
+          if tInfoDict['Data'].nDoc > self.algParams['birth']['maxTargetSize']:
+            continue
+        else:
+          if tInfoDict['Data'].nObs > self.algParams['birth']['maxTargetObs']:
+            continue
+        
       # Sample data from current batch, if more is needed
       targetData = BirthMove.subsample_data(Dchunk, LPchunk,
                           tInfoDict['ktarget'], randstate=self.PRNG,
