@@ -225,7 +225,6 @@ def main(args):
             pass
     finally:
         prof.dump_stats(options.outfile)
-        print 'Wrote profile results to %s' % options.outfile
         if options.view:
             prof.print_stats()
 
