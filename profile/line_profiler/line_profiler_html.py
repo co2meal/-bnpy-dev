@@ -12,7 +12,6 @@ import time
 
 from _line_profiler import LineProfiler as CLineProfiler
 
-
 CO_GENERATOR = 0x0020
 def is_generator(f):
     """ Return True if a function is a generator.
@@ -217,7 +216,7 @@ def create_index_html(save_path, template_path, stats, unit):
                   'fn': fn, 
                   'fn-replace': fn.replace('/','-'), 
                   'calls': max([0] + [t[1] for t in timings]),
-                  'total_time':sum(t[2] for t in timings) * unit} 
+                  'total_time': '%.2f' % (sum(t[2] for t in timings) * unit)} 
                  for (fn, lineno, name), timings in stats.items()]
     functions = sorted(functions, key=lambda f: f['total_time'], reverse=True)
     for f in functions:
@@ -249,7 +248,7 @@ def create_func_html(save_path, template_path, filename, start_lineno, func_name
 
     stream = open(save_path + 'functions/' + filename.replace('/', '-') + '-' + func_name + '.html', mode='w')
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_path))
-    template = env.get_template('function.template')
+    template = env.get_template('single_func_page.template')
     parent_dir = '../../../'
 
     if not os.path.exists(filename):
@@ -274,7 +273,7 @@ def create_func_html(save_path, template_path, filename, start_lineno, func_name
 
     sorted_timings = sorted([(t * unit if not t is None else 0) for (_,_,t) in timings], reverse=True)
     if len(sorted_timings) >= 3:
-        threshold = sorted_timings[2]
+        threshold = sorted_timings[0]
     else:
         threshold = 0
 
