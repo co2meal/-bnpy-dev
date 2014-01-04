@@ -59,15 +59,14 @@
 		<th>Calls</th>
 		<th>Total Time</th>
 		<!-- <td>Self Time</td> -->
-		<th>Total Time Plot</th>
+		<!-- <th>Total Time Plot</th> -->
 	      </tr>
               {% for f in functions %}
 	      <tr>
 		<td><a href="functions/{{ f['fn-replace'] }}-{{ f['name'] }}.html">{{ f['name'] }}</td>
-		<td><a href="../../{{ f['fn'] }}">{{ f['fn'] }}</td>
+		<td><a href="{{ f['fn'] }}">{{ f['fn'] }}</td>
 		<td>{{ f['calls'] }}</td>
 		<td>{{ f['total_time'] }}</td>
-		<td></td>
 	      </tr>
               {% endfor %}
 	    </table>

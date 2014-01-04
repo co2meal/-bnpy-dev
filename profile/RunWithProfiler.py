@@ -20,18 +20,24 @@ except:
 print bnpyroot
 
 # Decorate codebase
+print "Decorating ...",
 decorate_for_profiling.main(bnpyroot)
+print '[DONE]'
 
 # Run line-by-line profiler
 ProfileCMD = "python line_profiler/kernprof.py --line-by-line %s %s" \
         % (os.path.join(bnpyroot,'Run.py'), ' '.join(sys.argv[1:]))
-print ProfileCMD
+print "Running script with profiling enabled ...",
 subprocess.call(ProfileCMD, shell=True)
+print '[DONE]'
 
+print "Building HTML ...",
 # Convert output to HTML
 toHTMLCMD = "python line_profiler/line_profiler_html.py Run.py.lprof assets/templates/ reports/" 
 subprocess.call(toHTMLCMD, shell=True)
+print '[DONE]'
 
 # Undecorate codebase
+print "Undecorating ...",
 undecorate_for_profiling.main(bnpyroot)
-
+print '[DONE]'
