@@ -170,9 +170,16 @@ def clean_up_fresh_model(targetData, curModel, freshModel,
   singleLP = singleModel.calc_local_params(targetData)
   singleSS = singleModel.get_global_suff_stats(targetData, singleLP,
                   doPrecompEntropy=True)
+  singleModel.update_global_params(singleSS)
+
   singleEvBound = singleModel.calc_evidence(SS=singleSS)
-  if singleEvBound > freshEvBound:
-    raise BirthProposalError("BIRTH: not better than single component")
+ 
+  improveEvBound = freshEvBound - singleEvBound
+  if improveEvBound <= 0 or improveEvBound < 0.00001 * abs(singleEvBound):
+    msg = "BIRTH terminated. Not better than single component on target data."
+    msg += "\n  K=%3d | %.7e" % (targetSS.K, freshEvBound)
+    msg += "\n  K=%3d | %.7e" % (singleSS.K, singleEvBound)
+    raise BirthProposalError(msg)
 
   # Step 2: perform many merges among the fresh components
   for trial in xrange(3):

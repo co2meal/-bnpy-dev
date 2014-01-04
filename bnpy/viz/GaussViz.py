@@ -37,7 +37,6 @@ def plotGauss2DFromHModel(hmodel, compListToPlot=None, compsToHighlight=None, wT
     
     mu = hmodel.obsModel.get_mean_for_comp(kk)
     Sigma = hmodel.obsModel.get_covar_mat_for_comp(kk)
-    print w[kk], mu, Sigma
     if w[kk] < wTHR and kk not in compsToHighlight:
       continue
     if kk in compsToHighlight or len(compsToHighlight) == 0:
