@@ -138,8 +138,10 @@ class SuffStatBag(object):
       self._MergeTerms.removeComp(k)
 
   # ======================================================= Get comp
-  def getComp(self, k):
-    return self._Fields.getComp(k)
+  def getComp(self, k, doCollapseK1=True):
+    SS = SuffStatBag(K=1, D=self.D)
+    SS._Fields = self._Fields.getComp(k, doCollapseK1=doCollapseK1)
+    return SS
 
   # ======================================================= Override add
   def __add__(self, PB):

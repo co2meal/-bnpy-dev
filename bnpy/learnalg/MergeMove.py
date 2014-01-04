@@ -253,3 +253,96 @@ def viz_merge_proposal(curModel, propModel, kA, kB, curEv, propEv):
     sys.exit(-1)
   pylab.close()
 
+
+############################################################ Many Merge Moves
+############################################################
+def run_many_merge_moves(hmodel, Data, SS,
+                               nMergeTrials=1, compList=list(), 
+                               doExcludePairsInList=False,
+                               randstate=np.random.RandomState(), 
+                              **mergeKwArgs):
+  ''' Run (potentially many) merge move on hmodel
+  ''' 
+  acceptedIDs = list()
+  excludeList = list()
+  excludePairs = defaultdict(lambda:set())
+  if doExcludePairsInList:
+    for kk in compList:
+      for jj in compList:
+        if jj != kk:
+          excludePairs[kk].add(jj)
+  
+  trialID = 0
+
+  if len(compList) > 0:
+    nMergeTrials = len(compList)
+
+  newEv = hmodel.calc_evidence(SS=SS)
+  while trialID < nMergeTrials:
+    oldEv = newEv  
+
+    # Synchronize contents of the excludeList and excludePairs
+    # So that comp excluded in excludeList (due to accepted merge)
+    #  is automatically contained in the set of excluded pairs 
+    for kx in excludeList:
+      for kk in excludePairs:
+        excludePairs[kk].add(kx)
+        excludePairs[kx].add(kk)
+
+    for kk in excludePairs:
+      if len(excludePairs[kk]) > hmodel.obsModel.K - 2:
+        if kk not in excludeList:
+          excludeList.append(kk)
+
+    if len(excludeList) > hmodel.obsModel.K - 2:
+      break # when we don't have any more comps to merge
+        
+    if len(compList) > 0:
+      kA = compList.pop()
+      if kA in excludeList:
+        continue
+    else:
+      kA = None
+
+    hmodel, SS, newEv, MoveInfo = run_merge_move(
+                 hmodel, Data, SS, oldEv, kA=kA, randstate=randstate,
+                 excludeList=excludeList, excludePairs=excludePairs,
+                 **mergeKwArgs)
+    trialID += 1
+    if 'kA' in MoveInfo and 'kB' in MoveInfo:
+      kA = MoveInfo['kA']
+      kB = MoveInfo['kB']
+      excludePairs[kA].add(kB)
+      excludePairs[kB].add(kA)
+
+    if MoveInfo['didAccept']:
+      assert newEv > oldEv
+      kA = MoveInfo['kA']
+      kB = MoveInfo['kB']
+
+      acceptedIDs.append(kA)
+      acceptedIDs.append(kB)
+
+      # Adjust excludeList since components kB+1, kB+2, ... K
+      #  have been shifted down by one due to removal of kB
+      for kk in range(len(excludeList)):
+        if excludeList[kk] > kB:
+          excludeList[kk] -= 1
+
+      # Exclude new merged component kA from future attempts        
+      #  since precomputed entropy terms involving kA aren't good
+      excludeList.append(kA)
+
+      # Adjust excluded pairs to remove kB and shift down kB+1, ... K
+      newExcludePairs = defaultdict(lambda:set())
+      for kk in excludePairs.keys():
+        ksarr = np.asarray(list(excludePairs[kk]))
+        ksarr[ksarr > kB] -= 1
+        if kk > kB:
+          newExcludePairs[kk-1] = set(ksarr)
+        elif kk < kB:
+          newExcludePairs[kk] = set(ksarr)
+      excludePairs = newExcludePairs
+  Info = dict(acceptedIDs=acceptedIDs)
+  return hmodel, SS, Info
+

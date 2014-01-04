@@ -129,7 +129,7 @@ def parse_args():
   args.jobnames = args.jobnames.split(',')
   if args.legendnames is not None:
     args.legendnames = args.legendnames.split(',')
-    assert len(args.legendnames) == len(args.jobnames) * len(args.algNames)
+    #assert len(args.legendnames) == len(args.jobnames) * len(args.algNames)
   return args
 
 if __name__ == "__main__":
