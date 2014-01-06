@@ -113,7 +113,7 @@ class ObsModel( object ):
   def calc_evidence(self):
     pass 
   
-  def calcLogMargLikForComp(self, SS, kA, kB=None):
+  def calcLogMargLikForComp(self, SS, kA, kB=None, **kwargs):
     ''' Calculate the log marginal likelihood of the data assigned
           to the given component (specified by integer ID).
         Requires Data pre-summarized into sufficient stats for each comp.
@@ -130,9 +130,9 @@ class ObsModel( object ):
         scalar log probability of data assigned to given component(s)
     '''
     if kB is None:
-      postDistr = self.obsPrior.get_post_distr(SS, kA)
+      postDistr = self.obsPrior.get_post_distr(SS, kA, **kwargs)
     else:
-      postDistr = self.obsPrior.get_post_distr(SS.getComp(kA) + SS.getComp(kB))
+      postDistr = self.obsPrior.get_post_distr(SS, kA, kB, **kwargs)
     return postDistr.get_log_norm_const()
 
 

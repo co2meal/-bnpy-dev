@@ -216,7 +216,7 @@ def create_index_html(save_path, template_path, stats, unit):
                   'fn': fn, 
                   'fn-replace': fn.replace('/','-'), 
                   'calls': max([0] + [t[1] for t in timings]),
-                  'total_time': '%.2f' % (sum(t[2] for t in timings) * unit)} 
+                  'total_time': float('%.2f' % (sum(t[2] for t in timings) * unit))} 
                  for (fn, lineno, name), timings in stats.items()]
     functions = sorted(functions, key=lambda f: f['total_time'], reverse=True)
     for f in functions:

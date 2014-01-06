@@ -161,13 +161,13 @@ def select_merge_components(curModel, Data, SS, LP=None,
       kA = discrete_single_draw(unifps, randstate)
     # Sample kB
     # Pr(kb) \propto ratio of M(kA and kB) to M(kA)*M(kB)
-    logmA = curModel.obsModel.calcLogMargLikForComp(SS, kA)  
+    logmA = curModel.obsModel.calcLogMargLikForComp(SS, kA, doNormConstOnly=True)  
     logscore = -1 * np.inf * np.ones(K)    
     for kB in xrange(K):
       if kB == kA or kB in excludeList or kB in excludePairs[kA]:
 				continue
-      logmB = curModel.obsModel.calcLogMargLikForComp(SS, kB)
-      logmCombo = curModel.obsModel.calcLogMargLikForComp(SS, kA, kB)
+      logmB = curModel.obsModel.calcLogMargLikForComp(SS, kB, doNormConstOnly=True)
+      logmCombo = curModel.obsModel.calcLogMargLikForComp(SS, kA, kB, doNormConstOnly=True)
       logscore[kB] = logmCombo - logmA - logmB
     if np.all(np.isinf(logscore)):
       ps = np.ones(K)

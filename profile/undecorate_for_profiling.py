@@ -24,3 +24,9 @@ def main(bnpyrootdir):
     profFileObj.close()
     os.rename(profPath, origPath)
 
+if __name__ == '__main__':
+  import argparse
+  parser = argparse.ArgumentParser()
+  parser.add_argument('rootdir')
+  args = parser.parse_args()
+  main(args.rootdir)

@@ -203,8 +203,8 @@ class HDPModel(AllocModel):
   ######################################################### Global Params
   #########################################################
     def update_global_params_VB(self, SS, **kwargs):
-        ''' Admixtures have no global allocation parameters! 
-            The mixture weights are document specific.
+        ''' Update global parameters that control topic probabilities beta
+            beta[k] ~ Beta( U1[k], U0[k])
         '''
         self.K = SS.K
         if hasattr(self, 'U1'):
@@ -305,13 +305,15 @@ class HDPModel(AllocModel):
         wv = LP['word_variational']
         ElogqZMat = np.zeros((self.K, self.K))
         for jj in range(self.K):
-            J = self.K - jj - 1
+            J = self.K - jj - 1 # num of pairs for comp jj
             # curWV : nObs x J, resp for each data item under each merge with jj
             curWV = wv[:,jj][:,np.newaxis] + wv[:,jj+1:]
             # curRlogR : nObs x J, entropy for each data item
-            curRlogR = curWV * np.log(EPS + curWV)
+            ###curRlogR = curWV * np.log(EPS + curWV)
+            curWV *= np.log(EPS + curWV)
             # curE_logqZ : J-vector, entropy for Data under each merge with jj
-            curE_logqZ = np.dot(Data.word_count, curRlogR)
+            ###curE_logqZ = np.dot(Data.word_count, curRlogR)
+            curE_logqZ = np.dot(Data.word_count, curWV)            
             assert curE_logqZ.size == J
             ElogqZMat[jj,jj+1:] = curE_logqZ
         return ElogqZMat

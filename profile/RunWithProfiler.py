@@ -21,6 +21,7 @@ print bnpyroot
 
 # Decorate codebase
 print "Decorating ...",
+undecorate_for_profiling.main(bnpyroot) # Remove previous decos, if any
 decorate_for_profiling.main(bnpyroot)
 print '[DONE]'
 
