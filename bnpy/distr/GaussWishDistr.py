@@ -95,14 +95,18 @@ class GaussWishDistr( Distr ):
 
   ######################################################### Param updates
   #########################################################   M-step
-  def get_post_distr( self, SS, k=None):
-    ''' Create new Distr object with posterior params
+  def get_post_distr( self, SS, k=None, kB=None, **kwargs):
+    ''' Create new GaussWishDistr object with posterior params
         See Bishop equations 10.59 - 10.63
     '''
     if k is None:
       EN = SS.N
       Ex = SS.x
       ExxT = SS.xxT
+    elif kB is not None:
+      EN = SS.N[k] + SS.N[kB]
+      Ex = SS.x[k] + SS.x[kB]
+      ExxT = SS.xxT[k] + SS.xxT[kB]
     else:
       EN = float(SS.N[k])
       Ex = SS.x[k]

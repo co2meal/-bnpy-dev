@@ -120,7 +120,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
       # Store batch-specific stats to memory
       self.verify_suff_stats(SS)
-      self.save_batch_local_params_to_memory(batchID, LPchunk)          
+      if self.algParams['doMemoizeLocalParams']:
+        self.save_batch_local_params_to_memory(batchID, LPchunk)          
       self.save_batch_suff_stat_to_memory(batchID, SSchunk)  
 
       # ELBO calc

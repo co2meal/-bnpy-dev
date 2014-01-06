@@ -2,7 +2,6 @@ PROFILE why births take so long
 FIX brown grid so that computation is fast
 
 move to completely vectorized obsmodel for BagOfWords
-improve initialization from random to rand-by-document
 
 =========== Topic Model algos
 * verify what's lost by moVB with and without memoizing the LP
@@ -12,7 +11,6 @@ improve initialization from random to rand-by-document
 
 run experiments on NIPS corpus
 
-=========== Topic Model Viz
 
 
 =========== LONG-Term

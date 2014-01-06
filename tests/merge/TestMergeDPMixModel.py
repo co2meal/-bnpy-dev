@@ -79,9 +79,13 @@ class TestMergeMove(unittest.TestCase):
                       self.Data, self.SS, randstate=PRNG, **birthArgs)
     assert newModel.obsModel.K > self.hmodel.obsModel.K
 
+  
   def test_run_many_merge_moves(self):
     ''' 
     '''
+    PRNG = np.random.RandomState(12345)
     newModel, newSS, Info = MergeMove.run_many_merge_moves(
-                    self.dupModel, self.Data, self.dupSS, nMergeTrials=6)
+                    self.dupModel, self.Data, self.dupSS, nMergeTrials=6,
+                    randstate=PRNG)
     assert newSS.K == self.SS.K
+    

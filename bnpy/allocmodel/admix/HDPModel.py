@@ -150,7 +150,7 @@ class HDPModel(AllocModel):
         K = wv.shape[1]        
         # Fill in entries of wv with log likelihood terms
         wv[:] = LP['E_logsoftev_WordsData']
-        # Add doc-specific log prior to certain rows
+        # Add doc-specific log prior to doc-specific rows
         ElogPi = LP['E_logPi'][:,:K]
         for d in xrange(Data.nDoc):
             wv[Data.doc_range[d,0]:Data.doc_range[d,1], :] += ElogPi[d,:]

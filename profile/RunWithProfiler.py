@@ -12,6 +12,9 @@ import os
 import sys
 import subprocess
 
+outroot = os.path.sep.join(os.path.abspath('__file__').split(os.path.sep)[:-1])
+outputhtmldir = os.path.join(outroot, "reports/MyProfile/")
+
 try:
   import bnpy
   bnpyroot = os.path.sep.join(os.path.abspath(bnpy.__file__).split(os.path.sep)[:-1])
@@ -34,7 +37,7 @@ print '[DONE]'
 
 print "Building HTML ...",
 # Convert output to HTML
-toHTMLCMD = "python line_profiler/line_profiler_html.py Run.py.lprof assets/templates/ reports/" 
+toHTMLCMD = "python line_profiler/line_profiler_html.py Run.py.lprof assets/templates/ " + outputhtmldir 
 subprocess.call(toHTMLCMD, shell=True)
 print '[DONE]'
 
@@ -42,6 +45,8 @@ print '[DONE]'
 print "Undecorating ...",
 undecorate_for_profiling.main(bnpyroot)
 print '[DONE]'
+
+print "Wrote HTML to %s/index.html" % (outputhtmldir)
 
 # Clean up extra files (Run.py.lprof)
 extrafilename = 'Run.py.lprof'
