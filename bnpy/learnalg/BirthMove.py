@@ -238,8 +238,7 @@ def select_birth_component(SS, targetSelectName='sizebiased',
   '''
   K = SS.K
   if len(excludeList) >= K:
-    raise BirthProposalError('All comps excluded. Selection failed.')
-  
+    raise BirthProposalError('BIRTH not possible. All possible K=%d targets used or excluded.' % (K))  
   ps = np.zeros(K)
   if targetSelectName == 'uniform':
     ps = np.ones(K)
@@ -263,7 +262,7 @@ def select_birth_component(SS, targetSelectName='sizebiased',
   # Make final selection at random
   ps[excludeList] = 0
   if np.sum(ps) < EPS:
-    raise BirthProposalError('All comps have zero probability. Selection failed.');
+    raise BirthProposalError('BIRTH not possible. All possible target comps have zero probability.')
   sortIDs = np.argsort(ps)[::-1]
   if doVerbose:
     for kk in sortIDs[:6]:
