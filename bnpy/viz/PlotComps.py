@@ -50,7 +50,7 @@ def plotModelInNewFigure(jobpath, hmodel, args):
     bnpy.viz.GaussViz.plotCovMatFromHModel(hmodel)
   elif hmodel.getObsModelName().count('Gauss'):
     bnpy.viz.GaussViz.plotGauss2DFromHModel(hmodel)
-  elif args.dataName.count('Bars') > 0:
+  elif args.dataName.lower().count('bars') > 0:
     pylab.close(figHandle)
     Data = loadData(jobpath)
     bnpy.viz.BarsViz.plotBarsFromHModel(hmodel, Data=Data, doShowNow=False)
