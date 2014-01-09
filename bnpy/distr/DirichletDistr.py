@@ -30,7 +30,7 @@ class DirichletDistr(object):
             self.D = lamvec.size
             self.set_helpers(**kwargs)
 
-    def set_helpers(self, doNormConstOnly=False):
+    def set_helpers(self, doNormConstOnly=False, **kwargs):
         assert self.lamvec.ndim == 1
         self.lamsum = self.lamvec.sum()
         if not doNormConstOnly:
