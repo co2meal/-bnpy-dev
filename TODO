@@ -9,9 +9,9 @@ move to completely vectorized obsmodel for BagOfWords
 
 * write-up with good notation, description of merge computations
 
-=========== Topic Model Viz
+run experiments on NIPS corpus
 
-* better averaging over soVB ELBO plots (running average?)
+
 
 =========== LONG-Term
 * Logging

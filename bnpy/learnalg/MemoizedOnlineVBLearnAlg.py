@@ -120,7 +120,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
       # Store batch-specific stats to memory
       self.verify_suff_stats(SS)
-      self.save_batch_local_params_to_memory(batchID, LPchunk)          
+      if self.algParams['doMemoizeLocalParams']:
+        self.save_batch_local_params_to_memory(batchID, LPchunk)          
       self.save_batch_suff_stat_to_memory(batchID, SSchunk)  
 
       # ELBO calc
@@ -296,26 +297,33 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
                2) assigned to brand-new fresh components 
     '''
     # Run birth moves on target data!
-    for tInfoDict in self.targetDataList:
+    nMoves = len(self.targetDataList)
+    for moveID, tInfoDict in enumerate(self.targetDataList):
       # Unpack data for current move
       ktarget = tInfoDict['ktarget']
       targetData = tInfoDict['Data']
-      # Verify targetData large enough that birth would be productive
-      if targetData.nObs < self.algParams['birth']['minTargetObs']:
-        Log.info("BIRTH Skipped at comp %d : target data too small (size %d)"
-                         % (tInfoDict['ktarget'], targetData.nObs))
-        continue
 
-      hmodel, SS, MoveInfo = BirthMove.run_birth_move(
+      if ktarget is None or targetData is None:
+        msg = tInfoDict['msg']
+
+      # Verify targetData large enough that birth would be productive
+      elif targetData.nObs < self.algParams['birth']['minTargetObs']:
+        msg = "BIRTH Skipped at comp %d : target data too small (size %d)"
+        msg = msg % (tInfoDict['ktarget'], targetData.nObs)
+
+      else:
+        hmodel, SS, MoveInfo = BirthMove.run_birth_move(
                  hmodel, targetData, SS, randstate=self.PRNG, 
                  ktarget=ktarget, **self.algParams['birth'])
-        
-      if MoveInfo['didAddNew']:
-        self.BirthInfoCurLap.append(MoveInfo)
-        for kk in MoveInfo['birthCompIDs']:
-          self.LapsSinceLastBirth[kk] = -1
-      self.print_msg(MoveInfo['msg'])
-      self.BirthCompIDs.extend(MoveInfo['birthCompIDs'])
+        msg = MoveInfo['msg']
+        if MoveInfo['didAddNew']:
+          self.BirthInfoCurLap.append(MoveInfo)
+          for kk in MoveInfo['birthCompIDs']:
+            self.LapsSinceLastBirth[kk] = -1
+          self.BirthCompIDs.extend(MoveInfo['birthCompIDs'])
+
+      self.print_msg( "%d/%d %s" % (moveID, nMoves, msg) )
+      
     return hmodel, SS
 
   def onBirthLastBatchRemoveExtraMass(self, SS):
@@ -363,7 +371,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         tInfoDict = dict(ktarget=ktarget, Data=None)
         targetList.append(tInfoDict)
       except BirthMove.BirthProposalError, e:
-        Log.debug(str(e))
+        tInfoDict = dict(ktarget=None, Data=None, msg=str(e))
+        targetList.append(tInfoDict)
     return targetList
 
   def subsample_data_for_birth(self, Dchunk, LPchunk, lapFrac):
@@ -390,6 +399,10 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     if not self.do_birth_at_lap(lapFrac):
       return
     for tInfoDict in self.targetDataList:
+      # Skip this move if component selection failed
+      if tInfoDict['ktarget'] is None:
+        continue
+
       # Skip this move if enough data has been collected
       if tInfoDict['Data'] is not None:
         if hasattr(tInfoDict['Data'], 'nDoc'):

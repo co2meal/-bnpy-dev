@@ -138,8 +138,10 @@ class SuffStatBag(object):
       self._MergeTerms.removeComp(k)
 
   # ======================================================= Get comp
-  def getComp(self, k):
-    return self._Fields.getComp(k)
+  def getComp(self, k, doCollapseK1=True):
+    SS = SuffStatBag(K=1, D=self.D)
+    SS._Fields = self._Fields.getComp(k, doCollapseK1=doCollapseK1)
+    return SS
 
   # ======================================================= Override add
   def __add__(self, PB):
@@ -191,5 +193,8 @@ class SuffStatBag(object):
       return getattr(self._Fields,key)
     elif key == '__deepcopy__': # workaround to allow copying
       return None
-    else:
+    elif key in self.__dict__:
       return self.__dict__[key]
+    # Field named 'key' doesnt exist. 
+    errmsg = "'SuffStatBag' object has no attribute '%s'" % (key)
+    raise AttributeError(errmsg)

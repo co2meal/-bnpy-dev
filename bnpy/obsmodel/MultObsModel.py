@@ -49,7 +49,7 @@ class MultObsModel(ObsModel):
 
   ######################################################### Local Params
   #########################################################   E-step
-    def calc_local_params( self, Data, LP):
+    def calc_local_params(self, Data, LP, **kwargs):
         ''' Calculate local parameters (E-step)
 
             Returns

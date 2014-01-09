@@ -107,11 +107,15 @@ class LearnAlg(object):
     if not isIncreasing:
       if not isWithinTHR:
         if self.hasMove('birth'):
-          warnMsg = 'WARNING: ev decreased (during a birth)\n'
+          warnMsg = 'WARNING: ev decreased during a birth'
+          warnMsg += ' (so monotonic increase not guaranteed)\n'
+        elif not self.algParams['doMemoizeLocalParams']:
+          warnMsg = 'WARNING: ev decreased when doMemoizeLocalParams=0'
+          warnMsg += ' (so monotonic increase not guaranteed)\n'
         else:
           warnMsg = 'WARNING: evidence decreased!\n'
-        warnMsg += '    prev = % .15e\n' % (prevBound) \
-                 + '     cur = % .15e\n' % (evBound)
+        warnMsg += '    prev = % .15e\n' % (prevBound)
+        warnMsg += '     cur = % .15e\n' % (evBound)
         Log.error(warnMsg)
     return isWithinTHR 
 

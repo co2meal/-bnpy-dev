@@ -73,7 +73,8 @@ def run_birth_move(curModel, targetData, SS, randstate=np.random,
   try:
     freshModel = curModel.copy()
     freshSS = learn_fresh_model(freshModel, targetData, 
-                              randstate=randstate, **kwargs)
+                              randstate=randstate, curModel=curModel, **kwargs)
+
     Kfresh = freshSS.K
     Kold = curModel.obsModel.K
     newSS = SS.copy()
@@ -100,7 +101,8 @@ def run_birth_move(curModel, targetData, SS, randstate=np.random,
 
 def learn_fresh_model(freshModel, targetData, Kmax=500, Kfresh=10,
                       freshInitName='randexamples', freshAlgName='VB',
-                      nFreshLap=50, randstate=np.random, **kwargs):
+                      nFreshLap=50, randstate=np.random,
+                      doSimpleThrTest=False, curModel=None, **kwargs):
   ''' Learn a new model with Kfresh components
       Enforces an "upper limit" on number of components Kmax,
         so if Kexisting + Kfresh would exceed Kmax,
@@ -129,18 +131,103 @@ def learn_fresh_model(freshModel, targetData, Kmax=500, Kfresh=10,
   targetLP, evBound = learnAlg.fit(freshModel, targetData)
   targetSS = freshModel.get_global_suff_stats(targetData, targetLP)
   
-  Nthr = np.maximum(100, 0.05 * targetData.nObs)
-  rejectIDs = np.flatnonzero(targetSS.N < Nthr)
-  rejectIDs = np.sort(rejectIDs)[::-1]
-  for kreject in rejectIDs:
-    targetSS.removeComp(kreject)
+  if doSimpleThrTest:
+    Nthr = np.maximum(100, 0.05 * targetData.nObs)
+    rejectIDs = np.flatnonzero(targetSS.N < Nthr)
+    rejectIDs = np.sort(rejectIDs)[::-1]
+    for kreject in rejectIDs:
+      targetSS.removeComp(kreject)
     
+  else:
+    targetSS = clean_up_fresh_model(targetData, curModel, freshModel, 
+                            randstate=randstate, **kwargs)
+  
   if targetSS.K < 2:
-    raise BirthProposalError( 'BIRTH: Did not create more than one comp of size %d from Data of size %d' % (Nthr, targetData.nObs) )
+    msg = 'BIRTH: Didnt create >1 useful comp from Data of size %d'
+    raise BirthProposalError(msg % (targetData.nObs))
   return targetSS
   
-  
-###########################################################
+def clean_up_fresh_model(targetData, curModel, freshModel, 
+                            randstate=np.random, **mergeKwArgs):
+  ''' Returns a "cleaned" fresh model,  
+      1) verifies fresh model improves over default (single component) model
+      2) perform merges within fresh, requiring improvement on target data
+      3) perform merges within full (combined) model,
+            aiming only to remove the new/fresh comps
+  '''
+  import MergeMove
+
+  # Step 1: verify fresh model preferred over single comp model
+  targetLP = freshModel.calc_local_params(targetData)
+  targetSS = freshModel.get_global_suff_stats(targetData, targetLP,
+                  doPrecompEntropy=True, doPrecompMergeEntropy=True)
+  freshEvBound = freshModel.calc_evidence(SS=targetSS)
+
+  singleModel = curModel.copy()
+  singleSS = targetSS.getComp(0, doCollapseK1=False)
+  singleModel.update_global_params(singleSS)
+
+  singleLP = singleModel.calc_local_params(targetData)
+  singleSS = singleModel.get_global_suff_stats(targetData, singleLP,
+                  doPrecompEntropy=True)
+  singleModel.update_global_params(singleSS)
+
+  singleEvBound = singleModel.calc_evidence(SS=singleSS)
+ 
+  improveEvBound = freshEvBound - singleEvBound
+  if improveEvBound <= 0 or improveEvBound < 0.00001 * abs(singleEvBound):
+    msg = "BIRTH terminated. Not better than single component on target data."
+    msg += "\n  K=%3d | %.7e" % (targetSS.K, freshEvBound)
+    msg += "\n  K=%3d | %.7e" % (singleSS.K, singleEvBound)
+    raise BirthProposalError(msg)
+
+  # Step 2: perform many merges among the fresh components
+  for trial in xrange(3):
+    if trial > 0:
+      targetLP = freshModel.calc_local_params(targetData)
+      targetSS = freshModel.get_global_suff_stats(targetData, targetLP,
+                    doPrecompEntropy=True, doPrecompMergeEntropy=True)
+    prevK = targetSS.K
+    freshModel, targetSS, Info = MergeMove.run_many_merge_moves(
+                               freshModel, targetData, targetSS,
+                               nMergeTrials=targetSS.K**2, 
+                               randstate=randstate, 
+                               **mergeKwArgs)
+    if targetSS.K == prevK:
+      break # no merges happened
+    else:
+      Log.info("**** Merged away %d fresh comps" % (prevK - targetSS.K))
+  """
+  # Step 3: create expanded model,
+  #          and try merging fresh comps with existing ones
+  origLP = curModel.calc_local_params(targetData)
+  expandSS = curModel.get_global_suff_stats(targetData, origLP) 
+  expandSS.insertComps(targetSS)
+  expandModel = curModel.copy()
+  expandModel.update_global_params(expandSS)
+
+  compList = list(curModel.obsModel.K + np.arange(targetSS.K))
+  expandLP = expandModel.calc_local_params(targetData)
+  expandSS = expandModel.get_global_suff_stats(targetData, expandLP,
+                  doPrecompEntropy=True, doPrecompMergeEntropy=True)
+  prevK = expandSS.K
+  expandModel, expandSS, Info = MergeMove.run_many_merge_moves(
+                               expandModel, targetData, expandSS,
+                               nMergeTrials=expandSS.K**2, 
+                               compList=compList,
+                               doExcludePairsInList=True,
+                               randstate=randstate, 
+                               **mergeKwArgs)
+
+  for k in reversed(sorted(Info['acceptedIDs'])):
+    ktarget = k - curModel.obsModel.K 
+    if ktarget >= 0:
+      targetSS.removeComp(ktarget)
+  """
+
+  return targetSS
+
+########################################################### Select birth comps
 ###########################################################
 def select_birth_component(SS, targetSelectName='sizebiased', 
                            randstate=np.random, emptyTHR=100,
@@ -151,8 +238,7 @@ def select_birth_component(SS, targetSelectName='sizebiased',
   '''
   K = SS.K
   if len(excludeList) >= K:
-    raise BirthProposalError('All comps excluded. Selection failed.')
-  
+    raise BirthProposalError('BIRTH not possible. All possible K=%d targets used or excluded.' % (K))  
   ps = np.zeros(K)
   if targetSelectName == 'uniform':
     ps = np.ones(K)
@@ -176,7 +262,7 @@ def select_birth_component(SS, targetSelectName='sizebiased',
   # Make final selection at random
   ps[excludeList] = 0
   if np.sum(ps) < EPS:
-    raise BirthProposalError('All comps have zero probability. Selection failed.');
+    raise BirthProposalError('BIRTH not possible. All possible target comps have zero probability.')
   sortIDs = np.argsort(ps)[::-1]
   if doVerbose:
     for kk in sortIDs[:6]:

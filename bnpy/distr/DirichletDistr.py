@@ -28,20 +28,25 @@ class DirichletDistr(object):
         self.lamvec = np.squeeze(lamvec)
         if lamvec is not None:
             self.D = lamvec.size
-            self.set_helpers()
+            self.set_helpers(**kwargs)
 
-    def set_helpers(self):
+    def set_helpers(self, doNormConstOnly=False):
         assert self.lamvec.ndim == 1
         self.lamsum = self.lamvec.sum()
-        digammalamvec = digamma(self.lamvec)
-        digammalamsum = digamma(self.lamsum)
-        self.Elogphi   = digammalamvec - digammalamsum
+        if not doNormConstOnly:
+          digammalamvec = digamma(self.lamvec)
+          digammalamsum = digamma(self.lamsum)
+          self.Elogphi   = digammalamvec - digammalamsum
         
 
     ############################################################## Param updates  
-    def get_post_distr(self, SS, k=None):
+    def get_post_distr(self, SS, k=None, kB=None, **kwargs):
         ''' Create new Distr object with posterior params'''
-        return DirichletDistr(SS.WordCounts[k] + self.lamvec)
+        if kB is not None:
+          return DirichletDistr(SS.WordCounts[k] + SS.WordCounts[kB] \
+                                + self.lamvec, **kwargs)
+        else:
+          return DirichletDistr(SS.WordCounts[k] + self.lamvec, **kwargs)
 
     def post_update_soVB( self, rho, starD):
         ''' Stochastic online update of internal params'''

@@ -240,10 +240,10 @@ def calcDerivatives(U1, U0, E=dict()):
   for m in xrange(K):
     dU1_Ebeta[m,m] = Q0[m] * E['beta'][m]/E['v'][m]
     dU0_Ebeta[m,m] = -Q1[m] * E['beta'][m]/E['v'][m]
-    for k in xrange(m+1, K+1):
-      dU1_Ebeta[m,k] = -Q0[m] * E['beta'][k]/E['1mv'][m]
-      dU0_Ebeta[m,k] = Q1[m] * E['beta'][k]/E['1mv'][m]
+    dU1_Ebeta[m,m+1:] = -Q0[m] * E['beta'][m+1:]/E['1mv'][m]
+    dU0_Ebeta[m,m+1:] = Q1[m] * E['beta'][m+1:]/E['1mv'][m]
 
+    
   dU1['Ebeta'] = dU1_Ebeta
   dU0['Ebeta'] = dU0_Ebeta
   return dU1, dU0

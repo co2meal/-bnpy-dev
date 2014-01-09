@@ -94,8 +94,8 @@ def parse_args():
   BNPYArgParser.addRequiredVizArgsToParser(parser)
   BNPYArgParser.addStandardVizArgsToParser(parser)
   parser.add_argument('--lap', default=None, type=float,
-        help="Specific lap of provided experiment at which to plot parameters." \
-             + " If exact lap not available, instead plots nearest existing lap.")
+        help="Specific lap at which to plot parameters." \
+             + " If exact lap not available, instead plots nearest lap.")
   parser.add_argument('--doPlotData', action='store_true', default=False,
         help="If present, also plot training data.")
   args = parser.parse_args()

@@ -33,7 +33,7 @@ class ObsModel( object ):
 
   ######################################################### Local Params
   #########################################################  E-step
-  def calc_local_params( self, Data, LP=dict()):
+  def calc_local_params( self, Data, LP=dict(), **kwargs):
     if self.inferType == 'EM':
       LP['E_log_soft_ev'] = self.log_soft_ev_mat( Data )
     elif self.inferType.count('VB') >0:
@@ -113,7 +113,7 @@ class ObsModel( object ):
   def calc_evidence(self):
     pass 
   
-  def calcLogMargLikForComp(self, SS, kA, kB=None):
+  def calcLogMargLikForComp(self, SS, kA, kB=None, **kwargs):
     ''' Calculate the log marginal likelihood of the data assigned
           to the given component (specified by integer ID).
         Requires Data pre-summarized into sufficient stats for each comp.
@@ -130,9 +130,9 @@ class ObsModel( object ):
         scalar log probability of data assigned to given component(s)
     '''
     if kB is None:
-      postDistr = self.obsPrior.get_post_distr(SS, kA)
+      postDistr = self.obsPrior.get_post_distr(SS, kA, **kwargs)
     else:
-      postDistr = self.obsPrior.get_post_distr(SS.getComp(kA) + SS.getComp(kB))
+      postDistr = self.obsPrior.get_post_distr(SS, kA, kB, **kwargs)
     return postDistr.get_log_norm_const()
 
 
