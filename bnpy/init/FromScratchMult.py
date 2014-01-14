@@ -9,9 +9,7 @@ from scipy.cluster import vq
 
 def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwargs):
     
-    nObsTotal = Data.nObsTotal
     doc_range = Data.doc_range
-    nDocTotal = Data.nDocTotal
     PRNG = np.random.RandomState(seed)
     if initname == 'randexamples':
         ''' Choose K documents at random
@@ -28,10 +26,10 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
     elif initname == 'randsoftpartition':
         ''' Assign responsibility for K topics at random to all words
         '''        
-        word_variational = PRNG.rand(nObsTotal, K)
+        word_variational = PRNG.rand(Data.nObs, K)
         word_variational /= word_variational.sum(axis=1)[:,np.newaxis]
-        doc_variational = np.zeros((nDocTotal, K))
-        for d in xrange(nDocTotal):
+        doc_variational = np.zeros((Data.nDoc, K))
+        for d in xrange(Data.nDoc):
             start,stop = doc_range[d,:]
             doc_variational[d,:] = np.sum(word_variational[start:stop,:],axis=0)
           
@@ -45,10 +43,10 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
         dw_w = vq.whiten(dw.todense())
         Z = vq.kmeans2(dw_w, K)
         labels = Z[1] 
-        doc_variational = np.zeros((nDocTotal, K)) + 1.0
-        word_variational = np.zeros((nObsTotal, K)) + 1.0
+        doc_variational = np.zeros((Data.nDoc, K)) + 1.0
+        word_variational = np.zeros((Data.nObs, K)) + 1.0
         # Loop through documents and put mass on k that k-means found for documents and tokens
-        for d in xrange(nDocTotal):
+        for d in xrange(Data.nDoc):
             doc_variational[d, labels[d]] += doc_range[d,1] - doc_range[d,0]
             word_variational[doc_range[d,0]:doc_range[d,1], labels[d]] += 1.0  
         
@@ -56,12 +54,12 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
         word_variational /= word_variational.sum(axis=1)[:,np.newaxis]
         
     elif initname == 'truth':
-        word_variational = np.zeros( (nObsTotal, K) ) + .1
+        word_variational = np.zeros( (Data.nObs, K) ) + .1
         doc_variational = Data.true_td.T
         
         # set each word-token variational parameter 
         #  to its true document x topic weights 
-        for d in xrange(nDocTotal):
+        for d in xrange(Data.nDoc):
             start,stop = doc_range[d,:]
             word_variational[start:stop,:] = doc_variational[d,:]
            

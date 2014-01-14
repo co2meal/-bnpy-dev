@@ -115,9 +115,10 @@ class AdmixMinibatchIterator(object):
     #Note that we're using nDocTotal to permute document ids
     obsIDs = PRNG.permutation(self.Data.nDocTotal).tolist()
     obsIDByBatch = dict()
-    for batchID in range(self.nBatch):
+    for batchID in range(self.nBatch-1):
       obsIDByBatch[batchID] = obsIDs[:self.nObsBatch]
       del obsIDs[:self.nObsBatch]
+    obsIDByBatch[self.nBatch-1] = obsIDs # Last batch may be slightly bigger
     return obsIDByBatch
 
   def get_rand_order_for_batchIDs_current_lap(self):

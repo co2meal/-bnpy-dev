@@ -12,46 +12,11 @@ Terminology
            0: apple        3: fruit
            1: berry        4: pear
            2: cardamom     5: walnut
-
-* VocabWordID : an integer that indexes into the Vocab collection
-        for example, the word "fruit" above has a VocabWordID of 3
-
 * Document : a collection of words, observed together from the same source
         For example: 
             "apple, berry, berry, pear, pear, pear, walnut"
 
 * nDoc : number of documents in the whole dataset
-
-* nTotalWords : number of total words in a document
-        The example document has 6 tokens, so nTotalTokens=6.
-     
-* DistinctWords : set of vocab words that appear at least ONCE in a document
-        The example document has *distinct* words
-            "apple, berry, pear, walnut"
-
-* nDistinctWords : number of distinct tokens in a document
-        The example document has nDistinctWords=4
-
-* wordCount : counts *how many* times each distinct word appears in a document
-        The example document has the following counts
-             apple: 1, berry: 2, pear: 3, walnut: 1
-
-Data Structure / Representation
--------
-Each document may be represented with two vectors:
-  wordID    : nDistinctWords-length vector (integers 0, 1, ... VocabSize)
-                  entry n gives vocab word ID for the n-th distinct word
-  wordCount : nDistinctWords-length vector (integers 0, 1, ... )
-                  entry n gives the count for the n-th distinct word
-
-  For the example document, we have the following encoding
-      wordID    = [0 1 4 5]
-      wordCount = [1 2 3 1]
-
-The entire document collection is represented by concatenating these building-blocks 
-
-  wordID    = [wordID(Doc 1)    wordID(Doc 2) ... wordID(Doc #nDoc)]
-  wordCount = [wordCount(Doc 1) wordCount(Doc 2) ... wordCount(Doc #nDoc)]
 '''
 from .AdmixMinibatchIterator import AdmixMinibatchIterator
 from .DataObj import DataObj
@@ -95,29 +60,26 @@ class WordsData(DataObj):
         
         word_id = list()
         word_count = list()
-        doc_range = np.zeros( (nDoc,2) )
+        doc_range = np.zeros((nDoc,2), dtype=np.uint32)
         ii = 0
         for d in xrange( len(doc_data) ):
-            doc_range[d,0] = ii
             # make sure we subtract 1 for word_ids since python indexes by 0
             temp_word_id = [(int(n)-1) for n in doc_data[d][1].split()]
             word_id.extend(temp_word_id)
             word_count.extend([int(n) for n in doc_data[d][2].split()])
             nUniqueWords = len(temp_word_id)
-            doc_range[d,1] = ii + nUniqueWords
-            ii += nUniqueWords + 1
+            doc_range[d,:] = [ii, ii + nUniqueWords]
+            ii += nUniqueWords
         
         nObs = len(word_id)
-        nObsTotal = nObs
-        myDict = dict(word_id = word_id, word_count=word_count,
-                      doc_range=doc_range, nDoc=nDoc, nDocTotal=nDocTotal, 
-                      nObs=nObs, nObsTotal = nObsTotal,
-                      vocab_size=vocab_size, db_pull=True, dbpath=dbpath)
-        
+        myDict = dict(word_id = word_id, word_count=word_count, 
+                      doc_range=doc_range, nDocTotal=nDocTotal, 
+                      vocab_size=vocab_size)
+        conn.close()
         return cls(**myDict)
 
     @classmethod
-    def read_from_mat(cls, matfilepath, nObsTotal=None, **kwargs):
+    def read_from_mat(cls, matfilepath, **kwargs):
         ''' Creates an instance of WordsData from Matlab matfile
         '''
         import scipy.io
@@ -129,8 +91,7 @@ class WordsData(DataObj):
     def __init__(self, word_id=None, word_count=None, doc_range=None,
                  vocab_size=0, vocab_dict=None, true_t=None,
                  true_tw=None, true_td=None, true_K=None, true_resp=None,
-                 nDoc=None, nDocTotal=None, nObs=None,
-                 nObsTotal=None, db_pull=False, dbpath=None, **kwargs):
+                 nDoc=None, nDocTotal=None, **kwargs):
         ''' Constructor for WordsData
 
             Args
@@ -146,10 +107,10 @@ class WordsData(DataObj):
         '''
         self.word_id = np.asarray(np.squeeze(word_id), dtype=np.uint32)
         self.word_count = np.asarray(np.squeeze(word_count), dtype=np.float32)
-        self.doc_range = doc_range
+        self.doc_range = np.asarray(doc_range, dtype=np.uint32)
         self.vocab_size = int(vocab_size)
         
-        self.set_corpus_size_params(nDocTotal, nObsTotal)
+        self.set_corpus_size_params(nDocTotal)
         self.verify_dimensions()
         
         # Save "true" parameters from toy-data
@@ -212,14 +173,15 @@ class WordsData(DataObj):
         col_ind = list()
         doc_range = self.doc_range
         word_count = self.word_count
-        for d in xrange(self.nDocTotal):
+        for d in xrange(self.nDoc):
             numDistinct = doc_range[d,1] - doc_range[d,0]
             doc_ind_temp = [d]*numDistinct
             row_ind.extend(doc_ind_temp)
             col_ind.extend(self.word_id[ (doc_range[d,0]):(doc_range[d,1]) ])
+        print len(row_ind), len(col_ind)
         self.__sparseDocWordMat__ = scipy.sparse.csr_matrix(
                   (word_count, (row_ind,col_ind)),
-                  shape=(self.nDocTotal, self.vocab_size) )
+                  shape=(self.nDoc, self.vocab_size) )
         return self.__sparseDocWordMat__
 
     def verify_dimensions(self):
@@ -232,8 +194,10 @@ class WordsData(DataObj):
         assert self.word_id.max() < self.vocab_size
         assert self.nDoc == self.doc_range.shape[0]
         assert self.nObs == len(self.word_id)
+        assert self.doc_range.shape[1] == 2
+        assert np.all( self.doc_range[:-1,1] == self.doc_range[1:,0])
 
-    def set_corpus_size_params(self, nDocTotal=None, nObsTotal=None):
+    def set_corpus_size_params(self, nDocTotal=None):
         ''' Sets dependent parameters 
         '''
         self.nDoc = self.doc_range.shape[0]
@@ -243,12 +207,7 @@ class WordsData(DataObj):
           self.nDocTotal = self.nDoc
         else:
           self.nDocTotal = nDocTotal
-        
-        if nObsTotal is None:
-          self.nObsTotal = self.nObs
-        else:
-          self.nObsTotal = nObsTotal
-        
+                
     def add_data(self, WData):
         ''' Append provided WordsData to the end of this dataset
         '''
@@ -260,7 +219,6 @@ class WordsData(DataObj):
         self.nDoc += WData.nDoc
         self.nObs += WData.nObs
         self.nDocTotal += WData.nDocTotal
-        self.nObsTotal += WData.nObsTotal
         self.verify_dimensions()
 
     def select_subset_by_mask(self, docMask=None, wordMask=None,
@@ -284,7 +242,7 @@ class WordsData(DataObj):
             WordsData object, where
                 nDoc = number of documents in the subset (=len(mask))
                 nObs = nDistinctWords in the subset of docs
-                nObsTotal, nDocTotal define size of entire dataset (not subset)
+                nDocTotal defines size of entire dataset (not subset)
         '''
         if docMask is None and wordMask is None:
           raise ValueError("Must provide either docMask or wordMask")
@@ -328,11 +286,8 @@ class WordsData(DataObj):
         myDict["doc_range"] = doc_range
         myDict["word_id"] = word_id
         myDict["word_count"] = word_count
-        myDict["nDoc"] = int(nDoc)
-        myDict["nObs"] = int(nObs)
         myDict["vocab_size"] = self.vocab_size
         if doTrackFullSize:
-          myDict["nObsTotal"] = self.nObsTotal
           myDict["nDocTotal"] = self.nDocTotal
         return WordsData(**myDict)
 
