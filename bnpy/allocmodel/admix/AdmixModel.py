@@ -71,7 +71,7 @@ class AdmixModel(AllocModel):
         '''
         return ['alphaPi']
 
-    def calc_local_params( self, Data, LP, nCoordAscentIters=10):
+    def calc_local_params( self, Data, LP, nCoordAscentItersLP=10):
         ''' Calculate document-specific quantities (E-step)
           Alternate updates to two terms until convergence
             (1) Approx posterior on topic-token assignment
@@ -102,7 +102,7 @@ class AdmixModel(AllocModel):
         LP['word_variational'] = np.zeros(LP['E_logsoftev_WordsData'].shape)
 
         # Repeat until converged...
-        for ii in xrange(nCoordAscentIters):
+        for ii in xrange(nCoordAscentItersLP):
             # Update word_variational field of LP
             LP = self.get_word_variational(Data, LP)
         

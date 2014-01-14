@@ -72,7 +72,7 @@ class DPMixModel(AllocModel):
 
   ######################################################### Local Params
   #########################################################
-  def calc_local_params(self, Data, LP):
+  def calc_local_params(self, Data, LP, **kwargs):
     ''' Calculate local parameters for each data item and each component.    
         This is part of the E-step.
         

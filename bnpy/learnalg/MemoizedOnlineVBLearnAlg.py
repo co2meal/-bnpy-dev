@@ -94,9 +94,9 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       # E step
       if batchID in self.LPmemory:
         oldLPchunk = self.load_batch_local_params_from_memory(batchID)
-        LPchunk = hmodel.calc_local_params(Dchunk, oldLPchunk)
+        LPchunk = hmodel.calc_local_params(Dchunk, oldLPchunk, **self.algParamsLP)
       else:
-        LPchunk = hmodel.calc_local_params(Dchunk)
+        LPchunk = hmodel.calc_local_params(Dchunk, **self.algParamsLP)
 
       if self.hasMove('birth'):
         self.subsample_data_for_birth(Dchunk, LPchunk, lapFrac)
