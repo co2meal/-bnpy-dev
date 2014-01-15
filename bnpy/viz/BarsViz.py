@@ -33,7 +33,8 @@ def plotExampleBarsDocs(Data, docIDsToPlot=None, nDocToPlot=9, doShowNow=True):
       pylab.show()
 
 def plotBarsFromHModel(hmodel, Data=None, doShowNow=True, figH=None,
-                               compsToHighlight=None, width=12, height=3):
+                               compsToHighlight=None, sortBySize=True,width=12, height=3):
+    scaleArgs = dict(vmin=0.0, vmax=0.25)
     if Data is None:
         width = width/2
     if figH is None:
@@ -46,6 +47,10 @@ def plotBarsFromHModel(hmodel, Data=None, doShowNow=True, figH=None,
     for k in xrange(K):
         lamvec = hmodel.obsModel.comp[k].lamvec 
         learned_tw[k,:] = lamvec / lamvec.sum()
+    if sortBySize:
+        sortIDs = np.argsort(hmodel.allocModel.Ebeta[:-1])[::-1]
+        print hmodel.allocModel.Ebeta[sortIDs]     
+        learned_tw = learned_tw[sortIDs] 
     if Data is not None and hasattr(Data, "true_tw"):
         # Plot the true parameters and learned parameters
         pylab.subplot(121)
@@ -58,7 +63,7 @@ def plotBarsFromHModel(hmodel, Data=None, doShowNow=True, figH=None,
         pylab.title('Learned Topic x Word')
     else:
         # Plot just the learned parameters
-        pylab.imshow(learned_tw, interpolation="nearest", cmap="bone")
+        pylab.imshow(learned_tw, interpolation="nearest", cmap="bone", **scaleArgs)
         pylab.colorbar
         pylab.title('Learned Topic x Word')
     if compsToHighlight is not None:

@@ -81,7 +81,8 @@ def loadData(jobpath):
   sys.path.append(os.environ['BNPYDATADIR'])
   datamodulepath = os.path.join(os.environ['BNPYDATADIR'], dataname+".py")
   if not os.path.exists(datamodulepath):
-    raise ValueError("Could not find data %s" % (dataname))
+    return None
+    #raise ValueError("Could not find data %s" % (dataname))
   datamod = __import__(dataname, fromlist=[])
   return datamod.get_data()
   
