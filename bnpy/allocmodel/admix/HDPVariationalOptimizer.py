@@ -37,22 +37,11 @@ import numpy as np
 import scipy.optimize
 import scipy.io
 from scipy.special import gammaln, digamma, polygamma
+import datetime
 
 EPS = 10*np.finfo(float).eps
 
-def createToyData(v, alpha0=1.0, gamma=0.5, nDoc=0, seed=42):
-  ''' Generate example Pi matrix, 
-        each row is a sample
-  '''
-  v = np.asarray(v, dtype=np.float64)
-  K = v.size  
-  beta = v2beta(v)
-
-  PRNG = np.random.RandomState(seed)
-  Pi = PRNG.dirichlet( gamma*beta, size=nDoc)
-  return dict(Pi=Pi, alpha0=alpha0, gamma=gamma, nDoc=nDoc, K=K)
-
-def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=2, sumLogPi=None, Pi=None, doVerbose=False, method='l_bfgs', initU1=None, initU0=None, **kwargs):
+def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=None, sumLogPi=None, initU1=None, initU0=None, Pi=None, doVerbose=False, method='l_bfgs', **kwargs):
   ''' Solve optimization problem to estimate parameters u
       for the approximate posterior on stick-breaking fractions v
       q(v | u) = Beta( v_k | u_k1, u_k0)
@@ -62,16 +51,24 @@ def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=2, sumLogPi=None, Pi=None, doVer
       u1 : 
       u0 : 
   '''
-  assert K + 1 == sumLogPi.size
-  assert sumLogPi.ndim == 1
+  alpha0 = float(alpha0)
+  gamma = float(gamma)
+  nDoc = int(nDoc)
+  if K is None:
+    K = sumLogPi.size - 1
+  K = int(K)
+  if sumLogPi is not None:
+    sumLogPi = np.squeeze(sumLogPi)
+    assert K + 1 == sumLogPi.size
 
   if initU1 is not None and initU0 is not None:
     if initU1.size != K:
       initU = np.hstack( [np.ones(K), alpha0*np.ones(K)])        
     else:
-      initU = np.hstack([initU1, initU0])
+      initU = np.hstack([np.squeeze(initU1), np.squeeze(initU0)])
   else:
     if nDoc == 0:
+      # set it away from true mode (1,alpha) to make sure it gets there
       initU = np.hstack( [0.1*np.ones(K), 0.1 * alpha0*np.ones(K)])
       sumLogPi = np.zeros(K+1)
     elif Pi is not None:
@@ -86,18 +83,14 @@ def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=2, sumLogPi=None, Pi=None, doVer
       initU = np.hstack( [np.ones(K), alpha0*np.ones(K)])   
   assert initU.size == 2*K
 
-  if doVerbose:
-    print "INITIAL GUESS:"
-    print "   U1   : ", initU[:K]
-    print "   U0   : ", initU[K:]
-    initBeta = v2beta(initU[:K]/(initU[:K]+initU[K:]))
-    print "   E[beta] : ", initBeta
-  
   myFunc = lambda Cvec: objectiveFunc(Cvec, alpha0, gamma, nDoc, sumLogPi)
   myGrad = lambda Cvec: objectiveGradient(Cvec, alpha0, gamma, nDoc, sumLogPi)
   
+  matpath = 'HDPOptimizerError-%06d.mat' 
+  matpath = matpath % (datetime.datetime.now().microsecond)
   with warnings.catch_warnings():
-    warnings.filterwarnings('error', category=RuntimeWarning, message='overflow')
+    warnings.filterwarnings('error', 
+                            category=RuntimeWarning, message='overflow')
     try:
       if method == 'l_bfgs':
         bestCvec, bestf, Info = scipy.optimize.fmin_l_bfgs_b(myFunc, 
@@ -105,32 +98,32 @@ def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=2, sumLogPi=None, Pi=None, doVer
       else:
         bestCvec, bestf, Info = scipy.optimize.fmin_bfgs(myFunc, 
                                   np.log(initU), fprime=myGrad, disp=None)
-    except RuntimeWarning:
+      bestUvec = np.exp(bestCvec)
+    except RuntimeWarning: #overflow error
       ProbDict = dict(initU=initU, alpha0=alpha0, gamma=gamma, 
-                      nDoc=nDoc, sumLogPi=sumLogPi)
+                      nDoc=nDoc, sumLogPi=sumLogPi, K=K)
       savefilepath = 'HDPVariationalOptimizerError.mat'
-      scipy.io.savemat(savefilepath, ProbDict)
-      print '----!!!!---- sumLogPi: '
-      print sumLogPi
-      raise ValueError('Overflow Error in HDP Optimizer. Input saved to matfile: %s' % (savefilepath))
-  
-  bestUvec = np.exp(bestCvec)
+      scipy.io.savemat(matpath, ProbDict, oned_as='row')
+      bestUvec = initU
+      msg = "WARNING: OverflowError. Input saved to %s" % (matpath)
+      pretty_print_warning(msg, initU, sumLogPi)
+
+    except AssertionError:
+      ProbDict = dict(initU=initU, alpha0=alpha0, gamma=gamma, 
+                      nDoc=nDoc, sumLogPi=sumLogPi, K=K)
+      savefilepath = 'HDPVariationalOptimizerError.mat'
+      scipy.io.savemat(matpath, ProbDict, oned_as='row')
+      bestUvec = initU
+      msg = "WARNING: AssertionError. Input saved to %s" % (matpath)
+      pretty_print_warning(msg, initU, sumLogPi)
 
   if np.allclose(bestUvec, initU) and K > 1:
     print "WARNING: U estimation failed. Did not move from initial guess."
-
+  elif np.allclose(bestUvec[:K], 1.) and K > 1:
+    print "WARNING: U estimation failed. U[k] set to prior (1,%d)." % (alpha0)
   bestU1 = bestUvec[:K]
   bestU0 = bestUvec[K:]
   return bestU1, bestU0
-
-def objectiveFunc2(Uvec, alpha0=1, gamma=1, nDoc=1, sumLogPi=1, **kwargs):
-  Cvec = np.log(Uvec)
-  return objectiveFunc(Cvec, alpha0, gamma, nDoc, sumLogPi)
-
-def objectiveGradient2(Uvec, alpha0, gamma, nDoc, sumLogPi):
-  Cvec = np.log(Uvec)
-  return objectiveGradient(Cvec, alpha0, gamma, nDoc, sumLogPi)
-
 
 def objectiveFunc(Cvec, alpha0, gamma, nDoc, sumLogPi):
   ''' Calculate unconstrained objective function for HDP variational learning
@@ -307,3 +300,46 @@ def beta2v( beta ):
   v = np.maximum(v,EPS)
   v = np.minimum(v,1-EPS)
   return v
+
+
+def pretty_print_warning(msg, initU, sumLogPi):
+  print msg
+  np.set_printoptions(precision=2, suppress=True, linewidth=120)
+  print "  sumLogPi ----------------------------"
+  print sumLogPi
+  pretty_print_U(initU)
+
+def pretty_print_U(initU):
+  K = initU.size/2
+  initBeta = v2beta(initU[:K]/(initU[:K]+initU[K:]))
+  print "  U1       ----------------------------"
+  print initU[:K]
+  print "  U0       ----------------------------"
+  print initU[K:]
+  print "  E[beta]  ----------------------------"
+  print initBeta
+
+########################################################### objective funcs
+###########################################################   in terms of U
+
+def objectiveFunc2(Uvec, alpha0=1, gamma=1, nDoc=1, sumLogPi=1, **kwargs):
+  Cvec = np.log(Uvec)
+  return objectiveFunc(Cvec, alpha0, gamma, nDoc, sumLogPi)
+
+def objectiveGradient2(Uvec, alpha0, gamma, nDoc, sumLogPi):
+  Cvec = np.log(Uvec)
+  return objectiveGradient(Cvec, alpha0, gamma, nDoc, sumLogPi)
+
+########################################################### Test utils
+###########################################################
+def createToyData(v, alpha0=1.0, gamma=0.5, nDoc=0, seed=42):
+  ''' Generate example Pi matrix, 
+        each row is a sample
+  '''
+  v = np.asarray(v, dtype=np.float64)
+  K = v.size  
+  beta = v2beta(v)
+
+  PRNG = np.random.RandomState(seed)
+  Pi = PRNG.dirichlet( gamma*beta, size=nDoc)
+  return dict(Pi=Pi, alpha0=alpha0, gamma=gamma, nDoc=nDoc, K=K)
