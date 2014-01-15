@@ -40,6 +40,10 @@ class LearnAlg(object):
     self.SavedIters = set()
     self.PrintIters = set()
     self.nObsProcessed = 0
+    self.algParamsLP = dict()
+    for k,v in algParams.items():
+      if k.count('LP') > 0:
+        self.algParamsLP[k] = v
     
   def fit(self, hmodel, Data):
     ''' Execute learning algorithm for hmodel on Data

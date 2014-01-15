@@ -178,7 +178,6 @@ class WordsData(DataObj):
             doc_ind_temp = [d]*numDistinct
             row_ind.extend(doc_ind_temp)
             col_ind.extend(self.word_id[ (doc_range[d,0]):(doc_range[d,1]) ])
-        print len(row_ind), len(col_ind)
         self.__sparseDocWordMat__ = scipy.sparse.csr_matrix(
                   (word_count, (row_ind,col_ind)),
                   shape=(self.nDoc, self.vocab_size) )

@@ -51,7 +51,7 @@ class VBLearnAlg( LearnAlg ):
         hmodel, LP = self.run_birth_move(hmodel, Data, SS, LP, iterid)
         
       # E step 
-      LP = hmodel.calc_local_params(Data, LP)
+      LP = hmodel.calc_local_params(Data, LP, **self.algParamsLP)
 
       # Suff Stat step
       if self.hasMove('merge'):

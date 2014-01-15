@@ -72,7 +72,7 @@ class HDPModel(AllocModel):
   ######################################################### Local Params
   #########################################################
 
-    def calc_local_params( self, Data, LP, nCoordAscentIters=10):
+    def calc_local_params( self, Data, LP, nCoordAscentItersLP=10, **kwargs):
         ''' Calculate document-specific quantities (E-step)
           Alternate updates to two terms until convergence
             (1) Approx posterior on topic-token assignment
@@ -103,7 +103,7 @@ class HDPModel(AllocModel):
         LP['word_variational'] = np.zeros(LP['E_logsoftev_WordsData'].shape)
 
         # Repeat until converged...
-        for ii in xrange(nCoordAscentIters):
+        for ii in xrange(nCoordAscentItersLP):
             # Update word_variational field of LP
             LP = self.get_word_variational(Data, LP)
         
@@ -119,7 +119,7 @@ class HDPModel(AllocModel):
             LP = self.get_doc_variational(Data, LP)
             LP = self.calc_ElogPi(LP)
 
-            # Assess convergence 
+            # Assess convergence
             curVec = LP['alphaPi'].flatten()
             if prevVec is not None and np.allclose(prevVec, curVec):
                 break
