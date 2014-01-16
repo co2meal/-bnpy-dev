@@ -1,18 +1,25 @@
-PROFILE why births take so long
-FIX brown grid so that computation is fast
+=========== TODAY
+* report on chib scores for NIPS, bars_normal, bars_bursty
+* * show for each method typical K and typical Ebeta
 
-move to completely vectorized obsmodel for BagOfWords
+=========== Memoized
+* adjust converge threshold to maximize perf when memoLP=0
+* consider setting maxTargetSize larger for births? maybe 1000 documents?
 
-=========== Topic Model algos
-* verify what's lost by moVB with and without memoizing the LP
-* better unit tests for birth moves
+=========== Stochastic
+* better computation of the evidence bound (avg across batches)
 
-* write-up with good notation, description of merge computations
+=========== need4speed
+* move to completely vectorized obsmodel for BagOfWords
+* merges
+* * faster selection of next component (maybe just try all of them??)
+* * only update obsmodel for new component!
+* births
+* * avoid computing ELBO when not necessary
 
-run experiments on NIPS corpus
 
 
 
 =========== LONG-Term
 * Logging
-have separate log transcripts for births/merges, so we can do detailed diagnostics?
+* * separate log transcripts for births/merges, so we can do detailed diagnostics?
