@@ -72,7 +72,7 @@ class HDPModel(AllocModel):
   ######################################################### Local Params
   #########################################################
 
-    def calc_local_params( self, Data, LP, nCoordAscentItersLP=10, **kwargs):
+    def calc_local_params(self, Data, LP, nCoordAscentItersLP=20, convThrLP=0.01, **kwargs):
         ''' Calculate document-specific quantities (E-step)
           Alternate updates to two terms until convergence
             (1) Approx posterior on topic-token assignment
@@ -121,7 +121,7 @@ class HDPModel(AllocModel):
 
             # Assess convergence
             curVec = LP['alphaPi'].flatten()
-            if prevVec is not None and np.allclose(prevVec, curVec):
+            if np.allclose(prevVec, curVec, atol=convThrLP):
                 break
             prevVec = curVec
         return LP

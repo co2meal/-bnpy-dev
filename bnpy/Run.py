@@ -155,12 +155,21 @@ def _run_task_internal(jobname, taskid, nTask,
   learnAlg = createLearnAlg(Data, hmodel, ReqArgs, KwArgs,
                               algseed=algseed, savepath=taskoutpath)
 
+  # Check if running on grid
+  try:
+    jobID = int(os.getenv('JOB_ID'))
+  except TypeError:
+    jobID = 0
+  if jobID > 0:
+    Log.info('SGE Grid Job ID: %d' % (jobID))
+
   # Write descriptions to the log
-  if taskid == 1:
+  if taskid == 1 or jobID > 0:
     Log.info(Data.get_text_summary())
     Log.info(Data.summarize_num_observations())
     Log.info(hmodel.get_model_info())
-    Log.info('Learn Alg: %s' % (algName))    
+    Log.info('Learn Alg: %s' % (algName))
+
   Log.info('Trial %2d/%d | alg. seed: %d | data order seed: %d' \
                % (taskid, nTask, algseed, dataorderseed))
   Log.info('savepath: %s' % (taskoutpath))
