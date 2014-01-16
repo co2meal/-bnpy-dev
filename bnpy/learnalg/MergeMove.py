@@ -304,10 +304,18 @@ def run_many_merge_moves(hmodel, Data, SS,
     else:
       kA = None
 
-    hmodel, SS, newEv, MoveInfo = run_merge_move(
+    try:
+      hmodel, SS, newEv, MoveInfo = run_merge_move(
                  hmodel, Data, SS, oldEv, kA=kA, randstate=randstate,
                  excludeList=excludeList, excludePairs=excludePairs,
                  **mergeKwArgs)
+    except ValueError as error:
+      msg = str(error)
+      if msg.count("All possible choices excluded!") > 0:
+        Log.info(str(error))
+        break
+      raise(error)
+
     trialID += 1
     if 'kA' in MoveInfo and 'kB' in MoveInfo:
       kA = MoveInfo['kA']
