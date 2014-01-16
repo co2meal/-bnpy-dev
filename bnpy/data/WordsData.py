@@ -221,7 +221,16 @@ class WordsData(DataObj):
         self.nDocTotal += WData.nDocTotal
         self.verify_dimensions()
 
-    def get_string_summary(self, pRange=[0,5, 50, 95, 100]):
+    def get_text_summary(self, doCommon=True):
+      if hasattr(self, 'summary') and doCommon:
+        s = self.summary
+      elif doCommon:
+        s = " nDoc %d, vocab_size %d\n" % (self.nDoc, self.vocab_size)
+      else:
+        s = ''
+      return s + self.get_doc_stats_summary()
+
+    def get_doc_stats_summary(self, pRange=[0,5, 50, 95, 100]):
         ''' Get string summarizing size of this data object
         '''
         nDistinctWordsPerDoc = np.zeros(self.nDoc)
@@ -232,7 +241,7 @@ class WordsData(DataObj):
           nTotalWordsPerDoc[d] = self.word_count[drange[0]:drange[1]].sum()
         assert np.sum(nDistinctWordsPerDoc) == self.word_id.size
         assert np.sum(nTotalWordsPerDoc) == np.sum(self.word_count)
-        s = '%d documents, %d vocab words\n' % (self.nDoc, self.vocab_size)
+        s = ''
         for p in pRange:
           if p == 0:
             sp = 'min'

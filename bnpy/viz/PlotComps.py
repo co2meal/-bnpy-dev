@@ -53,7 +53,8 @@ def plotModelInNewFigure(jobpath, hmodel, args):
   elif args.dataName.lower().count('bars') > 0:
     pylab.close(figHandle)
     Data = loadData(jobpath)
-    bnpy.viz.BarsViz.plotBarsFromHModel(hmodel, Data=Data, doShowNow=False)
+    bnpy.viz.BarsViz.plotBarsFromHModel(hmodel, Data=Data, sortBySize=True,
+                                          doShowNow=False)
   else:
     raise NotImplementedError('Unrecognized data/obsmodel combo')
 

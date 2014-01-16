@@ -167,6 +167,8 @@ def _run_task_internal(jobname, taskid, nTask,
   if taskid == 1 or jobID > 0:
     Log.info(Data.get_text_summary())
     Log.info(Data.summarize_num_observations())
+    if type(Data) != type(InitData):
+      Log.info(InitData.get_text_summary(doCommon=False))
     Log.info(hmodel.get_model_info())
     Log.info('Learn Alg: %s' % (algName))
 

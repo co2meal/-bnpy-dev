@@ -304,7 +304,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       targetData = tInfoDict['Data']
 
       if targetData is not None:
-        self.print_msg(targetData.get_string_summary())
+        self.print_msg("------------------ Target Dataset")
+        self.print_msg(targetData.get_text_summary())
 
       if ktarget is None or targetData is None:
         msg = tInfoDict['msg']
@@ -402,29 +403,36 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     if not self.do_birth_at_lap(lapFrac):
       return
     for tInfoDict in self.targetDataList:
+
       # Skip this move if component selection failed
       if tInfoDict['ktarget'] is None:
         continue
 
+      birthParams = dict(**self.algParams['birth'])
       # Skip this move if enough data has been collected
       if tInfoDict['Data'] is not None:
         if hasattr(tInfoDict['Data'], 'nDoc'):
-          if tInfoDict['Data'].nDoc > self.algParams['birth']['maxTargetSize']:
+          if tInfoDict['Data'].nDoc >= self.algParams['birth']['maxTargetSize']:
             continue
         else:
-          if tInfoDict['Data'].nObs > self.algParams['birth']['maxTargetObs']:
+          if tInfoDict['Data'].nObs >= self.algParams['birth']['maxTargetObs']:
             continue
-        
+        birthParams['maxTargetSize'] -= tInfoDict['Data'].nDoc
+
       # Sample data from current batch, if more is needed
       targetData = BirthMove.subsample_data(Dchunk, LPchunk,
                           tInfoDict['ktarget'], randstate=self.PRNG,
-                          **self.algParams['birth'])
-
+                          **birthParams)
       # Update Data for current entry in self.targetDataList
-      if tInfoDict['Data'] is None:
-        tInfoDict['Data'] = targetData
+      if targetData is None:
+        if tInfoDict['Data'] is None:
+          tInfoDict['msg'] = "TargetData: No samples for target comp found."
       else:
-        tInfoDict['Data'].add_data(targetData)
+        if tInfoDict['Data'] is None:
+          tInfoDict['Data'] = targetData
+        else:
+          tInfoDict['Data'].add_data(targetData)
+        tInfoDict['msg'] = "TargetData status: nObs %d" % (tInfoDict['Data'].nObs)
 
 
   ######################################################### Merge moves!

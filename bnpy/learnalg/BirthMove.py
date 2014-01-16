@@ -28,7 +28,8 @@ class BirthProposalError( ValueError):
 ###########################################################
 ###########################################################
 def subsample_data(DataObj, LP, targetCompID, targetProbThr=0.1,
-                  maxTargetObs=100, randstate=np.random, **kwargs):
+                    maxTargetObs=100, maxTargetSize=100, randstate=np.random, 
+                    subsampleroutine='keepentiredocuments', **kwargs):
   ''' 
     Select a subsample of the given dataset
       which is primarily associated with component "targetCompID"
@@ -48,15 +49,31 @@ def subsample_data(DataObj, LP, targetCompID, targetProbThr=0.1,
     new DataObj that contains a subset of the data
   '''
   if 'word_variational' in LP:
-    mask = LP['word_variational'][: , targetCompID] > targetProbThr
+    # -------------------------------------- WordsData code
+    if subsampleroutine == 'keeponlymatchingwords':
+      mask = LP['word_variational'][: , targetCompID] > targetProbThr
+      TargetData = DataObj.select_subset_by_mask(wordMask=np.flatnonzero(mask),
+                                                doTrackFullSize=False)    
+    elif subsampleroutine == 'keepentiredocuments':
+      Ndk = LP['DocTopicCount']
+      Ndk /= np.sum(Ndk,axis=1)[:,np.newaxis]
+      # Ndk : empirical doc-topic distribution
+      #       rows sum to one
+      docmask = Ndk[:, targetCompID] > targetProbThr
+      docIDs = np.flatnonzero(docmask)
+      if docIDs.size == 0:
+        return None
+      
+      # Select at most maxTargetSize of these docs, uniformly at random
+      randstate.shuffle(docIDs)
+      docIDs = docIDs[:maxTargetSize]
+  
+      TargetData = DataObj.select_subset_by_mask(docMask=docIDs,
+                                                doTrackFullSize=False)    
   else:
+    # -------------------------------------- XData code
     mask = LP['resp'][: , targetCompID] > targetProbThr
-  objIDs = np.flatnonzero(mask)
-  if 'word_variational' in LP:
-    # TODO: better control for the size of the subset??
-    TargetData = DataObj.select_subset_by_mask(wordMask=objIDs,
-                                                doTrackFullSize=False)
-  else:
+    objIDs = np.flatnonzero(mask)
     randstate.shuffle(objIDs)
     targetObjIDs = objIDs[:maxTargetObs]
     TargetData = DataObj.select_subset_by_mask(targetObjIDs, 
@@ -74,7 +91,6 @@ def run_birth_move(curModel, targetData, SS, randstate=np.random,
     freshModel = curModel.copy()
     freshSS = learn_fresh_model(freshModel, targetData, 
                               randstate=randstate, curModel=curModel, **kwargs)
-
     Kfresh = freshSS.K
     Kold = curModel.obsModel.K
     newSS = SS.copy()
@@ -89,7 +105,6 @@ def run_birth_move(curModel, targetData, SS, randstate=np.random,
                     Kfresh=Kfresh,
                     birthCompIDs=birthCompIDs,
                     freshSS=freshSS)
-
     if doVizBirth:
       viz_birth_proposal_2D(curModel, newModel, ktarget, birthCompIDs)
 

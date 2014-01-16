@@ -175,7 +175,7 @@ def select_merge_components(curModel, Data, SS, LP=None,
       ps[excludeList] = 0
       ps[list(excludePairs[kA])] = 0
       if np.sum(ps) < EPS:
-        raise ValueError("All possible choices excluded!")
+        raise ValueError("All possible choices excluded! Should never happen!")
     else:
       ps = np.exp(logscore - np.max(logscore))
     kB = discrete_single_draw(ps, randstate)
@@ -338,6 +338,7 @@ def run_many_merge_moves(hmodel, Data, SS,
       for kk in excludePairs.keys():
         ksarr = np.asarray(list(excludePairs[kk]))
         ksarr[ksarr > kB] -= 1
+        ksarr = ksarr[ksarr != kB] # remove entry kB
         if kk > kB:
           newExcludePairs[kk-1] = set(ksarr)
         elif kk < kB:

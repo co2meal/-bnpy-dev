@@ -132,6 +132,6 @@ class AdmixMinibatchIterator(object):
   #########################################################  I/O methods
   #########################################################    
   def summarize_num_observations(self):
-    s = '  num batch %d, num obs per batch %d\n' % (self.nBatch, self.nObsBatch)
-    s += '  num documents (total across all batches): %d' % (self.Data.nDocTotal)
+    s =  '  nBatch %d, nDocPerBatch %d\n' % (self.nBatch, self.nObsBatch)
+    s += '  nDocTotal %d (across all batches)' % (self.Data.nDocTotal)
     return s

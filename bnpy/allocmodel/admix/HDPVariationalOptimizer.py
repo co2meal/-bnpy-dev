@@ -38,7 +38,9 @@ import scipy.optimize
 import scipy.io
 from scipy.special import gammaln, digamma, polygamma
 import datetime
+import logging
 
+Log = logging.getLogger('bnpy')
 EPS = 10*np.finfo(float).eps
 
 def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=None, sumLogPi=None, initU1=None, initU0=None, Pi=None, doVerbose=False, method='l_bfgs', **kwargs):
@@ -117,10 +119,13 @@ def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=None, sumLogPi=None, initU1=None
       msg = "WARNING: AssertionError. Input saved to %s" % (matpath)
       pretty_print_warning(msg, initU, sumLogPi)
 
-  if np.allclose(bestUvec, initU) and K > 1:
-    print "WARNING: U estimation failed. Did not move from initial guess."
-  elif np.allclose(bestUvec[:K], 1.) and K > 1:
-    print "WARNING: U estimation failed. U[k] set to prior (1,%d)." % (alpha0)
+  if np.any(np.isnan(bestUvec)):
+    bestUvec = np.hstack( [np.ones(K), alpha0*np.ones(K)])     
+    msg =  "WARNING: U estimation failed. Found NaN values. Revert to prior."
+    pretty_print_warning(msg)
+  elif np.allclose(bestUvec, initU) and K > 1:
+    msg = "WARNING: U estimation failed. Did not move from initial guess."
+    pretty_print_warning(msg)
   bestU1 = bestUvec[:K]
   bestU0 = bestUvec[K:]
   return bestU1, bestU0
@@ -236,7 +241,6 @@ def calcDerivatives(U1, U0, E=dict()):
     dU1_Ebeta[m,m+1:] = -Q0[m] * E['beta'][m+1:]/E['1mv'][m]
     dU0_Ebeta[m,m+1:] = Q1[m] * E['beta'][m+1:]/E['1mv'][m]
 
-    
   dU1['Ebeta'] = dU1_Ebeta
   dU0['Ebeta'] = dU0_Ebeta
   return dU1, dU0
@@ -301,23 +305,24 @@ def beta2v( beta ):
   v = np.minimum(v,1-EPS)
   return v
 
-
-def pretty_print_warning(msg, initU, sumLogPi):
-  print msg
-  np.set_printoptions(precision=2, suppress=True, linewidth=120)
-  print "  sumLogPi ----------------------------"
-  print sumLogPi
-  pretty_print_U(initU)
+def pretty_print_warning(msg, initU=None, sumLogPi=None):
+  Log.warning(msg)
+  if sumLogPi is not None:
+    np.set_printoptions(precision=2, suppress=True, linewidth=120)
+    Log.warning( "  sumLogPi ----------------------------")
+    Log.warning( sumLogPi)
+  if initU is not None:
+    pretty_print_U(initU)
 
 def pretty_print_U(initU):
   K = initU.size/2
   initBeta = v2beta(initU[:K]/(initU[:K]+initU[K:]))
-  print "  U1       ----------------------------"
-  print initU[:K]
-  print "  U0       ----------------------------"
-  print initU[K:]
-  print "  E[beta]  ----------------------------"
-  print initBeta
+  Log.warning( "  U1       ----------------------------")
+  Log.warning( initU[:K])
+  Log.warning( "  U0       ----------------------------")
+  Log.warning( initU[K:])
+  Log.warning( "  E[beta]  ----------------------------")
+  Log.warning( initBeta)
 
 ########################################################### objective funcs
 ###########################################################   in terms of U
