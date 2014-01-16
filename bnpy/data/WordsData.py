@@ -16,7 +16,8 @@ Terminology
         For example: 
             "apple, berry, berry, pear, pear, pear, walnut"
 
-* nDoc : number of documents in the whole dataset
+* nDoc : number of documents in the current, in-memory dataset
+* nDocTotal : total number of docs, in entire dataset (for online applications)
 '''
 from .AdmixMinibatchIterator import AdmixMinibatchIterator
 from .DataObj import DataObj
@@ -219,6 +220,35 @@ class WordsData(DataObj):
         self.nObs += WData.nObs
         self.nDocTotal += WData.nDocTotal
         self.verify_dimensions()
+
+    def get_string_summary(self, pRange=[0,5, 50, 95, 100]):
+        ''' Get string summarizing size of this data object
+        '''
+        nDistinctWordsPerDoc = np.zeros(self.nDoc)
+        nTotalWordsPerDoc = np.zeros(self.nDoc)
+        for d in range(self.nDoc):
+          drange = self.doc_range[d,:]
+          nDistinctWordsPerDoc[d] = drange[1] - drange[0]
+          nTotalWordsPerDoc[d] = self.word_count[drange[0]:drange[1]].sum()
+        assert np.sum(nDistinctWordsPerDoc) == self.word_id.size
+        assert np.sum(nTotalWordsPerDoc) == np.sum(self.word_count)
+        s = '%d documents, %d vocab words\n' % (self.nDoc, self.vocab_size)
+        for p in pRange:
+          if p == 0:
+            sp = 'min'
+          elif p == 100:
+            sp = 'max'
+          else:
+            sp = "%d%%" % (p)
+          s += "%5s " % (sp)
+        s += '\n'
+        for p in pRange:
+          s += "%5s " % ("%.0f" % (np.percentile(nDistinctWordsPerDoc, p)))    
+        s += ' nDistinctWordsPerDoc\n'
+        for p in pRange:
+          s += "%5s " % ("%.0f" % (np.percentile(nTotalWordsPerDoc, p)))    
+        s += ' nTotalWordsPerDoc\n'
+        return s
 
     def select_subset_by_mask(self, docMask=None, wordMask=None,
                                     doTrackFullSize=True):

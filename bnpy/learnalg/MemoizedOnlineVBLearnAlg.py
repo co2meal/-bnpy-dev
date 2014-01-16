@@ -303,6 +303,9 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       ktarget = tInfoDict['ktarget']
       targetData = tInfoDict['Data']
 
+      if targetData is not None:
+        self.print_msg(targetData.get_string_summary())
+
       if ktarget is None or targetData is None:
         msg = tInfoDict['msg']
 
