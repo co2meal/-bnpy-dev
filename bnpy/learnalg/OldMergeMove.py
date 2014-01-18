@@ -13,72 +13,16 @@ To force a merge of components "2" and "4"
 '''
 
 import numpy as np
+from ..util import EPS, discrete_single_draw
 import logging
-
-from MergePairSelector import MergePairSelector
-from MergeTracker import MergeTracker
+from collections import defaultdict
 
 Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
 
-############################################################ Many Merge Moves
-############################################################
-def run_many_merge_moves(hmodel, Data, SS, evBound=None,
-                               nMergeTrials=1, compList=list(), 
-                               randstate=np.random, 
-                              **mergeKwArgs):
-  ''' Run (potentially many) merge move on hmodel
-
-      Args
-      -------
-      hmodel
-      Data
-      SS
-      nMergeTrials : number of merges to try
-      compList : list of components to include in attempted merges
-      randstate : random number generator
-
-      Returns
-      -------
-      hmodel
-      SS
-      Info
-  '''
-  nMergeTrials = np.maximum(nMergeTrials, len(compList))
-
-  MTracker = MergeTracker(SS.K)
-  MSelector = MergePairSelector()
-
-  if evBound is None:
-    newEv = hmodel.calc_evidence(SS=SS)
-  else:
-    newEv = evBound
-
-  trialID = 0
-  while trialID < nMergeTrials and MTracker.hasAvailablePairs():
-    oldEv = newEv  
-        
-    if len(compList) > 0:
-      kA = compList.pop()
-      if kA not in MTracker.getAvailableComps():
-        continue
-    else:
-      kA = None
-
-    hmodel, SS, newEv, MoveInfo = run_merge_move(
-                 hmodel, Data, SS, oldEv, kA=kA, randstate=randstate,
-                 MSelector=MSelector, MTracker=MTracker,
-                 **mergeKwArgs)
-    if MoveInfo['didAccept']:
-      assert newEv > oldEv
-    trialID += 1
-    MTracker.recordResult(**MoveInfo)
-
-  return hmodel, SS, newEv, MTracker
-
-
 def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
-                   kA=None, kB=None, MTracker=None, MSelector=None,
+                   kA=None, kB=None, excludeList=list(), 
+                   excludePairs=defaultdict(lambda: set()),
                    mergename='marglik', randstate=np.random.RandomState(),
                    **kwargs):
   ''' Creates candidate model with two components merged,
@@ -117,11 +61,7 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
                                         doPrecompMerge=True)
   if curEv is None:
     curEv = curModel.calc_evidence(SS=SS)
-  if MTracker is None:
-    MTracker = MergeTracker(SS.K)
-  if MSelector is None:
-    MSelector = MergePairSelector()
-
+    
   # Need at least two components to merge!
   if curModel.allocModel.K == 1:
     MoveInfo = dict(didAccept=0, msg="need >= 2 comps to merge")    
@@ -131,17 +71,26 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
     MoveInfo = dict(didAccept=0, msg="suff stats did not have merge terms")    
     return curModel, SS, curEv, MoveInfo  
 
-  if kA is not None and kA not in MTracker.getAvailableComps():
+  if kA in excludeList:
     MoveInfo = dict(didAccept=0, msg="target comp kA must be excluded.")    
     return curModel, SS, curEv, MoveInfo  
     
   # Select which 2 components kA, kB in {1, 2, ... K} to merge
   if kA is None or kB is None:
     kA, kB = select_merge_components(curModel, Data, SS,
-                                     kA=kA, MTracker=MTracker,
-                                     MSelector=MSelector,
+                                     kA=kA, excludeList=excludeList, 
+																		 excludePairs=excludePairs,
                                      mergename=mergename, 
                                      randstate=randstate)
+  # Enforce that kA < kB. 
+  # This step is essential for indexing mergeEntropy matrix, etc.
+  assert kA != kB
+  assert kA not in excludeList
+  assert kB not in excludeList
+  assert (kA,kB) not in excludePairs
+  kMin = np.minimum(kA,kB)
+  kB  = np.maximum(kA,kB)
+  kA = kMin
   
   # Create candidate merged model
   propModel, propSS = propose_merge_candidate(curModel, SS, kA, kB)
@@ -156,7 +105,6 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
     viz_merge_proposal(curModel, propModel, kA, kB, curEv, propEv)
 
   if propEv > curEv:
-    MSelector.reindexAfterMerge(kA, kB)
     msg = "merge %3d & %3d | ev +%.3e ****" % (kA, kB, propEv - curEv)
     MoveInfo = dict(didAccept=1, kA=kA, kB=kB, msg=msg)
     return propModel, propSS, propEv, MoveInfo
@@ -168,10 +116,10 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
 
 ########################################################## Select kA,kB to merge
 ##########################################################
-def select_merge_components(curModel, Data, SS, MTracker=None,
-                            MSelector=None,
+def select_merge_components(curModel, Data, SS, LP=None,
                             mergename='marglik', randstate=None,
-                            kA=None, **kwargs):
+                            kA=None, excludeList=[], 
+														excludePairs=defaultdict(lambda:set())):
   ''' Select which two existing components to merge when constructing
       a candidate "merged" model from curModel, which has K components.
       We select components kA, kB by their integer ID, in {1, 2, ... K}
@@ -193,13 +141,55 @@ def select_merge_components(curModel, Data, SS, MTracker=None,
 
       This method guarantees that kA < kB.
   '''
-  if MTracker is None:
-    MTracker = MergeTracker(SS.K)
-  if MSelector is None:
-    MSelector = MergePairSelector()
-  kA, kB = MSelector.select_merge_components(curModel, SS, MTracker,
-                                    mergename=mergename, 
-                                    kA=kA, randstate=randstate)
+  # Select routine for sampling component IDs kA, kB
+  K = curModel.obsModel.K
+  if mergename == 'random':
+    ps = np.ones(K)
+    ps[excludeList] = 0
+    if kA is None:
+      kA = discrete_single_draw(ps, randstate)
+    ps[kA] = 0
+    for kk in excludePairs[kA]:
+      ps[kk] = 0
+    kB = discrete_single_draw(ps, randstate)
+  elif mergename == 'marglik':
+    # Sample kA    
+    # kA ~ Unif({1, 2, ... K})
+    if kA is None:
+      unifps = np.ones(K)
+      unifps[excludeList] = 0
+      kA = discrete_single_draw(unifps, randstate)
+    # Sample kB
+    # Pr(kb) \propto ratio of M(kA and kB) to M(kA)*M(kB)
+    logmA = curModel.obsModel.calcLogMargLikForComp(SS, kA)  
+    logscore = -1 * np.inf * np.ones(K)    
+    for kB in xrange(K):
+      if kB == kA or kB in excludeList or kB in excludePairs[kA]:
+				continue
+      logmB = curModel.obsModel.calcLogMargLikForComp(SS, kB)
+      logmCombo = curModel.obsModel.calcLogMargLikForComp(SS, kA, kB)
+      logscore[kB] = logmCombo - logmA - logmB
+    if np.all(np.isinf(logscore)):
+      ps = np.ones(K)
+      ps[kA] = 0
+      ps[excludeList] = 0
+      ps[list(excludePairs[kA])] = 0
+      if np.sum(ps) < EPS:
+        raise ValueError("All possible choices excluded!")
+    else:
+      ps = np.exp(logscore - np.max(logscore))
+    kB = discrete_single_draw(ps, randstate)
+  else:
+    raise NotImplementedError("Unknown mergename %s" % (mergename))
+  # Here, we perform final validity checks on kA, kB
+  # ensuring that kA < kB always
+  kMin = np.minimum(kA,kB)
+  kB  = np.maximum(kA,kB)
+  kA = kMin
+  assert kA < kB
+  assert kB < K
+  assert kA not in excludeList
+  assert kB not in excludeList
   return kA, kB
 
 ############################################################ Construct new model

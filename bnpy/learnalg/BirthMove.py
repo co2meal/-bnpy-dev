@@ -203,7 +203,7 @@ def clean_up_fresh_model(targetData, curModel, freshModel,
       targetSS = freshModel.get_global_suff_stats(targetData, targetLP,
                     doPrecompEntropy=True, doPrecompMergeEntropy=True)
     prevK = targetSS.K
-    freshModel, targetSS, Info = MergeMove.run_many_merge_moves(
+    freshModel, targetSS, newEv, MTracker = MergeMove.run_many_merge_moves(
                                freshModel, targetData, targetSS,
                                nMergeTrials=targetSS.K**2, 
                                randstate=randstate, 
@@ -211,7 +211,7 @@ def clean_up_fresh_model(targetData, curModel, freshModel,
     if targetSS.K == prevK:
       break # no merges happened
     else:
-      Log.info("**** Merged away %d fresh comps" % (prevK - targetSS.K))
+      Log.info("  **** Merged away %d fresh comps" % (prevK - targetSS.K))
   """
   # Step 3: create expanded model,
   #          and try merging fresh comps with existing ones

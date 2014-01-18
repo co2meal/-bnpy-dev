@@ -114,7 +114,7 @@ class TestMergeHDP(unittest.TestCase):
     self.trueResp /= np.sum(self.trueResp,axis=1)[:,np.newaxis]
     assert np.allclose(1.0,np.sum(self.trueResp,axis=1))
     self.Data = Data
-
+  
 
   ######################################################### run_merge_move
   #########################################################  full tests
@@ -537,7 +537,6 @@ class TestMergeHDP(unittest.TestCase):
     assert rate > 0.1
     assert rate < 0.2
 
-
   def test_run_merge_move_on_dup_comps_succeeds_with_marglik_choice(self):
     ''' Consider Duplicated Comps model.
         Instead of random choice use marglik criteria to select candidates kA, kB.
@@ -552,8 +551,8 @@ class TestMergeHDP(unittest.TestCase):
     PRNG = np.random.RandomState(0)
     for trial in range(nTrial):
       newModel, newSS, newEv, MoveInfo = MergeMove.run_merge_move(self.dupModel, self.Data, SS, mergename='marglik', randstate=PRNG)
+      print MoveInfo['msg']
       if MoveInfo['didAccept']:
-        print MoveInfo['msg']
         nSuccess += 1
     assert nSuccess > 0
     rate = float(nSuccess)/float(nTrial)

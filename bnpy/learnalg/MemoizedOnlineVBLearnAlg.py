@@ -438,6 +438,12 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
   ######################################################### Merge moves!
   #########################################################
   def run_merge_move(self, hmodel, Data, SS, evBound):
+    if self.algParams['merge']['version'] > 0:
+      return self.run_merge_move_NEW(hmodel, Data, SS, evBound)
+    else:
+      return self.run_merge_move_OLD(hmodel, Data, SS, evBound)
+
+  def run_merge_move_NEW(self, hmodel, Data, SS, evBound):
     ''' Run (potentially many) merge moves on hmodel,
           performing necessary bookkeeping to
             (1) avoid trying the same merge twice
@@ -450,7 +456,70 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         evBound : correct ELBO for returned hmodel
                   guaranteed to be at least as large as input evBound    
     '''
-    import MergeMove
+    from MergeMove import run_many_merge_moves
+
+    if self.hasMove('birth') and len(self.BirthCompIDs) > 0:
+      compList = self.BirthCompIDs
+    else:
+      compList = list()
+
+    nMergeTrials = self.algParams['merge']['mergePerLap']
+
+    hmodel, SS, newEvBound, MTracker = run_many_merge_moves(
+                        hmodel, Data, SS, evBound=evBound, 
+                        randstate=self.PRNG, nMergeTrials=nMergeTrials,
+                        compList=compList, **self.algParams['merge'])
+
+    msg = 'MERGE: %3d/%3d accepted.' % (MTracker.nSuccess, MTracker.nTrial)
+    if MTracker.nSuccess > 0:
+      msg += ' ev improved + %.3e' % (newEvBound - evBound)
+    self.print_msg(msg)
+    for msg in MTracker.InfoLog:
+      self.print_msg(msg)
+
+    # ------ Adjust indexing for counter that determines which comp to target
+    if self.hasMove('birth'):
+      for kA, kB in MTracker.acceptedIDs:
+        self._adjustLapsSinceLastBirthForMerge(MTracker, kA, kB)
+    # ------ Record accepted moves, so can adjust memoized stats later
+    self.MergeLog = list()
+    for kA, kB in MTracker.acceptedIDs:
+      self.MergeLog.append(dict(kA=kA, kB=kB))
+    # ------ Reset all precalculated merge terms
+    if SS.hasMergeTerms():
+      SS.setMergeFieldsToZero()
+
+    return hmodel, SS, newEvBound
+
+  def _adjustLapsSinceLastBirthForMerge(self, MTracker, kA, kB):
+    ''' Adjust internal tracking of laps since birth
+    '''
+    compList = self.LapsSinceLastBirth.keys()
+    newDict = defaultdict(int)
+    for kk in compList:
+      if kk == kA:
+        newDict[kA] = np.maximum(self.LapsSinceLastBirth[kA], self.LapsSinceLastBirth[kB])
+      elif kk < kB:
+        newDict[kk] = self.LapsSinceLastBirth[kk]
+      elif kk > kB:
+        newDict[kk-1] = self.LapsSinceLastBirth[kk]
+    self.LapsSinceLastBirth = newDict
+
+
+  def run_merge_move_OLD(self, hmodel, Data, SS, evBound):
+    ''' Run (potentially many) merge moves on hmodel,
+          performing necessary bookkeeping to
+            (1) avoid trying the same merge twice
+            (2) avoid merging a component that has already been merged,
+                since the precomputed entropy will no longer be correct.
+        Returns
+        -------
+        hmodel : bnpy HModel, with (possibly) some merged components
+        SS : bnpy SuffStatBag, with (possibly) merged components
+        evBound : correct ELBO for returned hmodel
+                  guaranteed to be at least as large as input evBound    
+    '''
+    import OldMergeMove
     self.MergeLog = list() # clear memory of recent merges!
     excludeList = list()
     excludePairs = defaultdict(lambda:set())
@@ -482,7 +551,12 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       else:
         kA = None
 
-      hmodel, SS, evBound, MoveInfo = MergeMove.run_merge_move(
+      #if trialID == 0:
+      #  from IPython import embed
+      #  print "OLD right before run_merge_move!"
+      #  embed()
+
+      hmodel, SS, evBound, MoveInfo = OldMergeMove.run_merge_move(
                  hmodel, None, SS, evBound, randstate=self.PRNG,
                  excludeList=excludeList, excludePairs=excludePairs,
                  kA=kA, **self.algParams['merge'])
@@ -536,3 +610,4 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     if SS.hasMergeTerms():
       SS.setMergeFieldsToZero()
     return hmodel, SS, evBound
+  

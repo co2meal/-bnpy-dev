@@ -256,7 +256,7 @@ class WordsData(DataObj):
         s += ' nDistinctWordsPerDoc\n'
         for p in pRange:
           s += "%5s " % ("%.0f" % (np.percentile(nTotalWordsPerDoc, p)))    
-        s += ' nTotalWordsPerDoc\n'
+        s += ' nTotalWordsPerDoc'
         return s
 
     def select_subset_by_mask(self, docMask=None, wordMask=None,

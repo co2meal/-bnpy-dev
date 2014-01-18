@@ -5,6 +5,19 @@ Utilities for sampling (pseudo) random numbers
 '''
 import numpy as np
 
+def choice(candidates, ps=None, randstate=np.random):
+  ''' Choose one element at random from list of candidates.
+      ps[k] gives probability of candidate k
+      ps need not sum to one, but all entries must be positive
+  '''
+  if ps is None:
+    N = len(candidates)
+    ps = np.ones(N)/N
+  totals = np.cumsum(ps)
+  r = randstate.rand() * totals[-1]
+  k = np.searchsorted(totals, r)
+  return candidates[k]
+
 def multinomial(Nsamp, ps, randstate=np.random):
   ps = np.asarray(ps, dtype=np.float64)
   Pmat = np.tile(ps, (Nsamp,1))
