@@ -1,7 +1,7 @@
 '''
 '''
 from bnpy.distr import WishartDistr
-from bnpy.suffstats import SuffStatDict
+from bnpy.suffstats import SuffStatBag
 import numpy as np
 import copy
 
@@ -36,8 +36,12 @@ class TestWishart(object):
     for trial in range(3):
       X = PRNG.randn(N, self.distr.D)
       xxT = np.dot(X.T, X)
-      SS = SuffStatDict(K=1, N=N, xxT=xxT)
-      postD = self.distr.get_post_distr(SS)
+
+      SS = SuffStatBag(K=1, D=self.distr.D)
+      SS.setField('N', [N], dims='K')
+      SS.setField('xxT', [xxT], dims=('K','D','D'))
+
+      postD = self.distr.get_post_distr(SS, 0)
       assert postD.D == self.distr.D
       Hpost = postD.get_entropy()
       Hprior = self.distr.get_entropy()

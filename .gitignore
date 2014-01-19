@@ -12,8 +12,11 @@ bin/
 #   (2) these files rarely mean anything to others except the person who ran the test
 local/
 results/
-
+profile/
 # ======================================================  EXCLUDE FILE PATTERNS
+# Exclude script files
+run_bnpy.sh
+
 # Exclude user-specific config options for where to read and write data
 *.path
 

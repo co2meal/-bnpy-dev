@@ -7,22 +7,28 @@ Attributes
   K        : # of components
   alpha0   : scalar concentration hyperparameter of Dirichlet process prior
   
-  qalpha0 : K-len vector of neg Beta param for variational approx to stick-break distr
-  qalpha1 : K-len vector of pos Beta param for variational approx to stick-break distr
-  truncType : str type of truncation on the infinite tail of the Dirichlet Process
-              either 'z' (truncate on the assignments) 
-                  or 'v' (truncates actual stick-breaking distribution)
+  qalpha0 : K-length vector, params for variational factor q(v)
+  qalpha1 : K-length vector, params for variational factor q(v)
+            q(v[k]) ~ Beta(qalpha1[k], qalpha0[k])
+
+  truncType : str type of truncation for the Dirichlet Process
+              'z' : truncate on the assignments [default]
+           or 'v' : truncate stick-breaking distribution
 '''
 import numpy as np
 
 from bnpy.allocmodel import AllocModel
-from bnpy.suffstats import SuffStatDict
+from bnpy.suffstats import SuffStatBag
 from bnpy.util import logsumexp, np2flatstr, flatstr2np
 from bnpy.util import gammaln, digamma, EPS
 
 class DPMixModel(AllocModel):
-  
+
+  ######################################################### Constructors
+  #########################################################
   def __init__(self, inferType, priorDict=None):
+    if inferType == 'EM':
+      raise ValueError('EM not supported for DPMixModel')
     self.inferType = inferType
     if priorDict is None:
       self.alpha0 = 1.0 # Uniform!
@@ -32,14 +38,14 @@ class DPMixModel(AllocModel):
       self.set_prior(priorDict)
     self.K = 0
 
-  ############################################################## basic accessors
-  ############################################################## 
-  def is_nonparametric(self):
-    return True
+  def set_prior(self, PriorParamDict):
+    self.alpha1 = 1.0
+    self.alpha0 = PriorParamDict['alpha0']
+    self.truncType = PriorParamDict['truncType']
     
   def set_helper_params( self ):
-    ''' Set dependent attributes of this model given the primary global params.
-        For DP mixture, these include predcomputing digammas.
+    ''' Set dependent attributes given primary global params.
+        For DP mixture, this means precomputing digammas.
     '''
     DENOM = digamma(self.qalpha0 + self.qalpha1)
     self.ElogV      = digamma(self.qalpha1) - DENOM
@@ -55,86 +61,20 @@ class DPMixModel(AllocModel):
     self.Elogw = self.ElogV.copy() #copy so we can do += without modifying ElogV
     self.Elogw[1:] += self.Elog1mV[:-1].cumsum()
     
-  def set_prior(self, PriorParamDict):
-    self.alpha1 = 1.0
-    self.alpha0 = PriorParamDict['alpha0']
-    self.truncType = PriorParamDict['truncType']
-      
-  ############################################################## human readable I/O  
-  ##############################################################  
-  def get_info_string( self):
-    ''' Returns one-line human-readable terse description of this object
-    '''
-    return 'Unbounded mixture with K=%d. DP conc param %.2f' % (self.K, self.alpha0)
 
-  def get_human_global_param_string(self):
-    ''' Returns human-readable numerical repr. of parameters,
-          for quick inspection of correctness
+  ######################################################### Accessors
+  #########################################################
+  def get_keys_for_memoized_local_params(self):
+    ''' Return list of string names of the LP fields
+        that this object needs to memoize across visits to a particular batch
     '''
-    if not self.isReady():
-      return ''
-    raise NotImplementedError('TODO')
-  
-  ############################################################## MAT file I/O  
-  ##############################################################  
-  def to_dict(self): 
-    return dict(qalpha1=self.qalpha1, qalpha0=self.qalpha0)
-    
-  def from_dict(self, myDict):
-    self.inferType = myDict['inferType']
-    self.K = myDict['K']
-    self.qalpha1 = myDict['qalpha1']
-    self.qalpha0 = myDict['qalpha0']
-    self.set_helper_params()
-    
-  def get_prior_dict(self):
-    return dict(alpha1=self.alpha1, alpha0=self.alpha0, K=self.K, truncType=self.truncType)  
-    
-  ############################################################## Suff Stat Calc   
-  ##############################################################
-  def get_global_suff_stats(self, Data, LP, \
-                            doPrecompEntropy=False, doPrecompMergeEntropy=False):
-    ''' Calculate the sufficient statistics for global parameter updates
-        Only adds stats relevant for this allocModel. Other stats added by the obsModel.
-        
-        Args
-        -------
-        Data : bnpy data object
-        LP : local param dict with fields
-              resp : Data.nObs x K array where resp[n,k] = posterior resp of comp k
-        doPrecompEntropy : boolean flag that indicates whether to precompute the entropy of the data responsibilities (used for evidence calculation for moVB)
-        doPrecompMergeEntropy : boolean flag, indicates whether to precompute the entropies for possible merges of components (used for merge moves)
+    return list()
 
-        Returns
-        -------
-        SS : SuffStatDict with K components, with field
-              N : K-len vector of effective number of observations assigned to each comp
-    '''
-    Nvec = np.sum(LP['resp'], axis=0)
-    SS = SuffStatDict(N=Nvec)
-    if doPrecompEntropy:
-      Hvec = np.sum( LP['resp'] * np.log(EPS+LP['resp']), axis=0 )
-      SS.addPrecompEntropy(Hvec)
-    if doPrecompMergeEntropy:
-      # Hmerge : KxK matrix of entropies for all possible pair-wise merges
-      # for example, if we had only 3 components {0,1,2}
-      # Hmerge = [ 0 H(0,1) H(0,2)
-      #            0   0    H(1,2)
-      #            0   0      0 ]      
-      #  where H(i,j) is entropy if components i and j merged.
-      Hmerge = np.zeros((self.K, self.K))
-      for jj in range(self.K):
-        compIDs = np.arange(jj+1, self.K)
-        Rcombo = LP['resp'][:,jj][:,np.newaxis] + LP['resp'][:,compIDs]
-        Hmerge[jj,compIDs] = np.sum(Rcombo*np.log(Rcombo+EPS), axis=0)
-      SS.addPrecompMergeEntropy(Hmerge)
-    return SS
-    
-  ############################################################# Local Param Updates   
-  #############################################################
-  def calc_local_params( self, Data, LP, Krange=None ):
-    ''' Calculate posterior responsibilities for each data item and each component.    
-        This is part of the E-step of the EM/VB algorithm.
+  ######################################################### Local Params
+  #########################################################
+  def calc_local_params(self, Data, LP):
+    ''' Calculate local parameters for each data item and each component.    
+        This is part of the E-step.
         
         Args
         -------
@@ -147,18 +87,72 @@ class DPMixModel(AllocModel):
         -------
         LP : local param dict with fields
               resp : Data.nObs x K array whose rows sum to one
-                      resp[n,k] = posterior prob. that component k generated data n                
+              resp[n,k] = posterior responsibility that comp. k has for data n                
     '''
-    lpr = self.Elogw + LP['E_log_soft_ev']
-    lprPerItem = logsumexp( lpr, axis=1 )
-    resp   = np.exp( lpr-lprPerItem[:,np.newaxis] )
-    LP['resp'] = resp
-    # Reclaim memory, don't need NxK matrix anymore
-    del LP['E_log_soft_ev']
+    lpr = LP['E_log_soft_ev']
+    lpr += self.Elogw
+    # Calculate exp in numerically stable manner (first subtract the max)
+    #  perform this in-place so no new allocations occur
+    lpr -= np.max(lpr, axis=1)[:,np.newaxis]
+    np.exp(lpr, out=lpr)
+    # Normalize, so rows sum to one
+    lpr /= lpr.sum(axis=1)[:,np.newaxis]
+    LP['resp'] = lpr
+    assert np.allclose(lpr.sum(axis=1), 1)
     return LP
-    
-  ############################################################## Param Update   
-  ##############################################################
+
+  ######################################################### Suff Stats
+  #########################################################
+  def get_global_suff_stats(self, Data, LP,
+                             doPrecompEntropy=False, 
+                             doPrecompMergeEntropy=False):
+    ''' Calculate the sufficient statistics for global parameter updates
+        Only adds stats relevant for this allocModel. 
+        Other stats are added by the obsModel.
+        
+        Args
+        -------
+        Data : bnpy data object
+        LP : local param dict with fields
+              resp : Data.nObs x K array,
+                       where resp[n,k] = posterior resp of comp k
+        doPrecompEntropy : boolean flag
+                      indicates whether to precompute ELBO terms in advance
+                      used for memoized learning algorithms (moVB)
+        doPrecompMergeEntropy : boolean flag
+                      indicates whether to precompute ELBO terms in advance
+                      for all possible merges of pairs of components
+                      used for optional merge moves
+
+        Returns
+        -------
+        SS : SuffStats for K components, with field
+              N : vector of length-K,
+                   effective number of observations assigned to each comp
+    '''
+    Nvec = np.sum(LP['resp'], axis=0)
+    SS = SuffStatBag(K=Nvec.size, D=Data.dim)
+    SS.setField('N', Nvec, dims=('K'))
+    if doPrecompEntropy:
+      ElogqZ_vec = self.E_logqZ(LP)
+      SS.setELBOTerm('ElogqZ', ElogqZ_vec, dims=('K'))
+    if doPrecompMergeEntropy:
+      # Hmerge : KxK matrix of entropies for all possible pair-wise merges
+      # for example, if we had only 3 components {0,1,2}
+      # Hmerge = [ 0 H(0,1) H(0,2)
+      #            0   0    H(1,2)
+      #            0   0      0 ]      
+      #  where H(i,j) is entropy if components i and j merged.
+      Hmerge = np.zeros((self.K, self.K))
+      for jj in range(self.K):
+        compIDs = np.arange(jj+1, self.K)
+        Rcombo = LP['resp'][:,jj][:,np.newaxis] + LP['resp'][:,compIDs]
+        Hmerge[jj,compIDs] = np.sum(Rcombo*np.log(Rcombo+EPS), axis=0)
+      SS.setMergeTerm('ElogqZ', Hmerge, dims=('K','K'))
+    return SS
+
+  ######################################################### Global Params
+  #########################################################
   def update_global_params_VB( self, SS, **kwargs ):
     ''' Updates global params (stick-breaking Beta params qalpha1, qalpha0)
           for conventional VB learning algorithm.
@@ -184,18 +178,17 @@ class DPMixModel(AllocModel):
     self.qalpha1 = rho * qalpha1 + (1-rho) * self.qalpha1
     self.qalpha0 = rho * qalpha0 + (1-rho) * self.qalpha0
     self.set_helper_params()
-
-  ############################################################## Evidence calc.   
-  ##############################################################
+ 
+  ######################################################### Evidence
+  #########################################################
   def calc_evidence(self, Data, SS, LP=None ):
-    ''' Compute parts of the evidence lower bound (ELBO) of the objective function.
-        Parts relevant to the DP mixture include terms involving stick-break weights V and cluster assignments Z.
+    '''
     '''
     evV = self.E_logpV() - self.E_logqV()
-    if SS.hasPrecompEntropy():
-      evZq = np.sum(SS.getPrecompEntropy())     
+    if SS.hasELBOTerm('ElogqZ'):
+      evZq = np.sum(SS.getELBOTerm('ElogqZ'))     
     else:
-      evZq = self.E_logqZ( LP )
+      evZq = np.sum(self.E_logqZ(LP))
     if SS.hasAmpFactor():
       evZ = self.E_logpZ(SS) -  SS.ampF * evZq
     else:
@@ -203,37 +196,54 @@ class DPMixModel(AllocModel):
     return evZ + evV
          
   def E_logpZ(self, SS):
-    '''
-      E[ log p( Z | V ) ] = \sum_n E[ log p( Z[n] | V )
-         = \sum_n E[ log p( Z[n]=k | w(V) ) ]
-         = \sum_n \sum_k z_nk log w(V)_k
-    '''
-    return np.inner( SS['N'], self.Elogw ) 
+    return np.inner( SS.N, self.Elogw ) 
     
-  def E_logqZ( self, LP ):
-    return np.sum( LP['resp'] *np.log(LP['resp']+EPS) )
+  def E_logqZ(self, LP):
+    return np.sum(LP['resp'] * np.log(LP['resp']+EPS), axis=0)
     
   def E_logpV( self ):
-    '''
-      E[ log p( V | alpha ) ] = sum_{k=1}^K  E[log[ Z(alpha) Vk^(a1-1) * (1-Vk)^(a0-1) ]]
-         = sum_{k=1}^K log Z(alpha)  + (a1-1) E[ logV ] + (a0-1) E[ log (1-V) ]
-    '''
-    logZprior = gammaln( self.alpha0 + self.alpha1 ) - gammaln(self.alpha0) - gammaln( self.alpha1 )
-    logEterms  = (self.alpha1-1)*self.ElogV + (self.alpha0-1)*self.Elog1mV
+    logNormC = gammaln(self.alpha0 + self.alpha1) \
+                    - gammaln(self.alpha0) - gammaln(self.alpha1)
+    logBetaPDF = (self.alpha1-1)*self.ElogV + (self.alpha0-1)*self.Elog1mV
     if self.truncType == 'z':
-	    return self.K*logZprior + logEterms.sum()    
+	    return self.K*logNormC + logBetaPDF.sum()    
     elif self.truncType == 'v':
-      return self.K*logZprior + logEterms[:-1].sum()
+      return self.K*logNormC + logBetaPDF[:-1].sum()
 
   def E_logqV( self ):
-    '''
-      E[ log q( V | qa ) ] = sum_{k=1}^K  E[log[ Z(qa) Vk^(ak1-1) * (1-Vk)^(ak0-1)  ]]
-       = sum_{k=1}^K log Z(qa)   + (ak1-1) E[logV]  + (a0-1) E[ log(1-V) ]
-    '''
-    logZq = gammaln( self.qalpha0 + self.qalpha1 ) - gammaln(self.qalpha0) - gammaln( self.qalpha1 )
-    logEterms  = (self.qalpha1-1)*self.ElogV + (self.qalpha0-1)*self.Elog1mV
+    logNormC = gammaln(self.qalpha0 + self.qalpha1) \
+                      - gammaln(self.qalpha0) - gammaln(self.qalpha1)
+    logBetaPDF = (self.qalpha1-1)*self.ElogV + (self.qalpha0-1)*self.Elog1mV
     if self.truncType == 'z':
-      return logZq.sum() + logEterms.sum()
+      return logNormC.sum() + logBetaPDF.sum()
     elif self.truncType == 'v':
-      return logZq[:-1].sum() + logEterms[:-1].sum()  # entropy of deterministic draw =0
+      # skip last entry because entropy of Beta(1,0) = 0
+      return logNormC[:-1].sum() + logBetaPDF[:-1].sum()
     
+  ######################################################### IO Utils
+  #########################################################   for humans
+  def get_info_string( self):
+    ''' Returns one-line human-readable terse description of this object
+    '''
+    msgPattern = 'DP mixture with K=%d. Concentration alpha0= %.2f' 
+    return msgPattern % (self.K, self.alpha0)
+
+  ######################################################### IO Utils
+  #########################################################   for machines
+  def to_dict(self): 
+    return dict(qalpha1=self.qalpha1, qalpha0=self.qalpha0)
+    
+  def from_dict(self, myDict):
+    self.inferType = myDict['inferType']
+    self.K = myDict['K']
+    self.qalpha1 = myDict['qalpha1']
+    self.qalpha0 = myDict['qalpha0']
+    if self.qalpha0.ndim == 0:
+      self.qalpha0 = self.qalpha1[np.newaxis]
+    if self.qalpha0.ndim == 0:
+      self.qalpha0 = self.qalpha0[np.newaxis]
+    self.set_helper_params()
+    
+  def get_prior_dict(self):
+    return dict(alpha1=self.alpha1, alpha0=self.alpha0, K=self.K, 
+                  truncType=self.truncType)  

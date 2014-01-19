@@ -2,7 +2,7 @@
 Unit tests for GaussWishDistr.py
 '''
 from bnpy.distr import GaussWishDistr, WishartDistr
-from bnpy.suffstats import SuffStatDict
+from bnpy.suffstats import SuffStatBag
 import numpy as np
 import copy
 
@@ -61,8 +61,11 @@ class TestGaussWishDistr(object):
       X = PRNG.randn(N, self.distr.D) + self.distr.m
       x = np.sum(X,axis=0)
       xxT = np.dot(X.T,X)
-      SS = SuffStatDict(K=1, N=N, x=x, xxT=xxT)
-      postD = self.distr.get_post_distr(SS)
+      SS = SuffStatBag(K=1, D=self.distr.D)
+      SS.setField('N', [N], dims='K')
+      SS.setField('x', [x], dims=('K','D'))
+      SS.setField('xxT', [xxT], dims=('K','D','D'))
+      postD = self.distr.get_post_distr(SS, 0)
       assert postD.D == self.distr.D
       Hpost = postD.entropyWish()
       Hprior = self.distr.entropyWish()

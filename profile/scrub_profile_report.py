@@ -6,7 +6,11 @@ Remove blank function records from the overall report
 
 import os
 
-origfname  = 'profiles/pyprofile.txt'
+if 'BNPYPROFREPORTDIR' in os.environ:
+  origfname  = os.path.join(os.environ['BNPYREPORTDIR'], 'report.txt')
+else:
+  origfname = 'profilerReports/report.txt'
+
 
 with open(origfname,'r') as f:
   Records = list()
@@ -31,7 +35,7 @@ with open(origfname, 'w') as f:
   for Record in Records:
     lines = Record.split('\n')
     totalTime = lines[2]
-    if totalTime.count( '0 s' ) > 0:
+    if totalTime.count( ' 0 s' ) > 0:
       continue
     for line in lines:
       f.write( line+'\n' )

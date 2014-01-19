@@ -9,6 +9,7 @@ This means byteorder and C-contiguity are standardized.
 '''
 import numpy as np
 from .DataObj import DataObj
+from .MinibatchIterator import MinibatchIterator
 
 class XData(DataObj):
   
@@ -39,8 +40,11 @@ class XData(DataObj):
     ''' Adds a "true" discrete segmentation of this data,
         so that each of the nObs items have a single label
     '''
-    self.TrueLabels = TrueZ
     assert self.nObs == TrueZ.size
+    self.TrueLabels = TrueZ
+  
+  def to_minibatch_iterator(self, **kwargs):
+    return MinibatchIterator(self, **kwargs)
 
   #########################################################  internal methods
   #########################################################   
@@ -61,11 +65,14 @@ class XData(DataObj):
     
   #########################################################  DataObj operations
   ######################################################### 
-  def select_subset_by_mask(self, mask):
+  def select_subset_by_mask(self, mask, doTrackFullSize=True):
     ''' Creates new XData object by selecting certain rows (observations)
-        Ensures the nObsTotal attribute is the same.
+        If doTrackFullSize is True, 
+          ensure nObsTotal attribute is the same as the full dataset.
     '''
-    return XData(self.X[mask], nObsTotal=self.nObsTotal)
+    if doTrackFullSize:
+        return XData(self.X[mask], nObsTotal=self.nObsTotal)
+    return XData(self.X[mask])
 
   def add_data(self, XDataObj):
     ''' Updates (in-place) this object by adding new data

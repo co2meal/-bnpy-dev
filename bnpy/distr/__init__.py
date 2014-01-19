@@ -6,4 +6,5 @@ from WishartDistr import WishartDistr
 from GaussWishDistr import GaussWishDistr
 from DirichletDistr import DirichletDistr
 
+
 __all__ = ['WishartDistr', 'ZMGaussDistr', 'GaussDistr', 'GaussWishDistr','DirichletDistr']

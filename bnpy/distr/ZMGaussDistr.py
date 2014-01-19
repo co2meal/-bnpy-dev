@@ -5,10 +5,12 @@ Zero-mean, full-covariance Gaussian
 
 Attributes
 --------
-Can choose either covariance matrix or precision matrix representation.
-Covariance: provide DxD p.s.d. matrix Sigma,
-Precision: provide DxD p.s.d. matrix L
+Choose either covariance or precision representation.
 
+Covariance: DxD matrix Sigma
+Precision: DxD matrix L
+
+Matrices must *always* be symmetric, and positive definite.
 '''
 import numpy as np
 import scipy.linalg
@@ -34,14 +36,9 @@ class ZMGaussDistr( Distr ):
       raise ValueError("Need to specify L or Sigma")
     self.Cache = dict()
   
-  ############################################################## Param updates  
-  ##############################################################
-  '''
-  This class is for EM only, so param updates are handled in ZMGaussObsCompSet
-  '''
-  
-  ############################################################## Local Params  
-  ##############################################################
+
+  ######################################################### Log Cond. Prob.
+  #########################################################  E-step
   def log_pdf( self, Data ):
     ''' Returns log p( x | theta )
     '''
@@ -57,9 +54,15 @@ class ZMGaussDistr( Distr ):
       Q = dotABT(self.cholL(), X)
     Q *= Q
     return np.sum(Q, axis=0)
+
+  ######################################################### Global Updates 
+  #########################################################  M-step
+  ''' None.  This class is for EM only, M-step handled by ZMGaussObsModel.py
+  '''
+  
     
-  ############################################################## Exp Fam accessors  
-  ##############################################################
+  ######################################################### Basic properties
+  ######################################################### 
   def get_log_norm_const( self ):
     ''' Returns log( Z ), where
          PDF(x) :=  1/Z(theta) f( x | theta )
@@ -74,31 +77,12 @@ class ZMGaussDistr( Distr ):
           H[ p(x) ] = -1*\int p(x|theta) log p(x|theta) dx
     '''
     return self.get_log_norm_const() + 0.5*self.D
-    
-  ############################################################## Samplers
-  ##############################################################
-  def sample(self,numSamples=1):
-    ''' Returns samples from self
-    '''
-    # samples numSamples*D stores the generated samples
-    samples = np.ndarray(shape=(numSamples,self.D), dtype=float)
-    I = np.eye(self.D)
-    # invert the upper triangular cholesky matrix
-    U = np.linalg.solve(self.cholL(),I)
-    # generate samples from N(0,1)
-    x = np.reshape(np.random.standard_normal(numSamples*self.D),[numSamples,self.D])
-    # Generate samples from multivariate normal
-    samples = np.dot(x,U)
-
-    return samples
-    #return np.random.multivariate_normal(np.zeros([1,self.D]),self.get_covar(),numSamples)   
-       
-  ############################################################## Internal Accessors
-  ############################################################## TODO: clean up
-  def ECovMat(self):
-    return self.get_covar()
   
-  def get_covar(self):
+
+  ######################################################### Accessors
+  ######################################################### 
+
+  def ECovMat(self):
     if self.doSigma: 
       return self.Sigma
     else:
@@ -122,18 +106,35 @@ class ZMGaussDistr( Distr ):
     try:
       return self.Cache['cholL']
     except KeyError:
-      self.Cache['cholL'] = scipy.linalg.cholesky( self.L, lower=False)
+      self.Cache['cholL'] = scipy.linalg.cholesky(self.L, lower=False)
     return self.Cache['cholL']
           
   def logdetL(self):
     try:
       return self.Cache['logdetL']
     except KeyError:
-      self.Cache['logdetL'] = 2.0*np.sum(np.log(np.diag(self.cholL() )))
+      self.Cache['logdetL'] = 2.0*np.sum(np.log(np.diag(self.cholL())))
     return self.Cache['logdetL']
+ 
+ ############################################################## Samplers
+ ##############################################################
+ def sample(self,numSamples=1):
+     ''' Returns samples from self
+         '''
+     # samples numSamples*D stores the generated samples
+     samples = np.ndarray(shape=(numSamples,self.D), dtype=float)
+     I = np.eye(self.D)
+     # invert the upper triangular cholesky matrix
+     U = np.linalg.solve(self.cholL(),I)
+     # generate samples from N(0,1)
+     x = np.reshape(np.random.standard_normal(numSamples*self.D),[numSamples,self.D])
+     # Generate samples from multivariate normal
+     samples = np.dot(x,U)
+     
+     return samples
 
-  ############################################################## I/O  
-  ##############################################################
+  ######################################################### I/O Utils 
+  #########################################################
   def to_dict(self):
     if self.doSigma:
       return dict( Sigma=self.Sigma, name=self.__class__.__name__ )

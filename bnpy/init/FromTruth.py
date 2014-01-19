@@ -1,14 +1,15 @@
 '''
 FromTruth.py
 
-Initialize params of a bnpy model using "ground truth" side information,
+Initialize params of a bnpy model using "ground truth" information,
 such as human annotations 
 
 These are provided within a Data object, as a "TrueLabels" field
 '''
 import numpy as np
+import FromScratchMult
 
-def init_global_params(hmodel, Data, initname=None, seed=0, nRep=2, **kwargs):
+def init_global_params(hmodel, Data, initname=None, seed=0, nRepeatTrue=2, **kwargs):
   ''' Initialize (in-place) the global params of the given hmodel
       using the true labels associated with the Data
 
@@ -19,33 +20,47 @@ def init_global_params(hmodel, Data, initname=None, seed=0, nRep=2, **kwargs):
       initname : string name for the routine to use
                  'truelabels' or 'repeattruelabels'
   '''
-  TrueLabels = Data.TrueLabels
-  uniqueLabels = np.unique(TrueLabels)
-  Ktrue = len(uniqueLabels)
   PRNG = np.random.RandomState(seed)
   if initname == 'truelabels':
-    resp = np.zeros((Data.nObs, Ktrue))
-    for k in range(Ktrue):
-      mask = TrueLabels == uniqueLabels[k]
-      resp[mask,k] = 1.0
+    if hasattr(Data, 'TrueLabels'):
+      resp = calc_resp_from_true_labels(Data)
+    elif hasattr(Data, 'true_resp'):
+      resp = Data.true_resp
   elif initname == 'repeattruelabels':
-    resp = np.zeros((Data.nObs, nRep*Ktrue)) 
-    for k in range(Ktrue):
-      mask = TrueLabels == uniqueLabels[k]
-      if np.sum(mask) < nRep:
-        raise ValueError('Not enough examples of label %d' % (uniqueLabels[k]))
-      # Shuffle list in place!
-      obsIDs = np.flatnonzero(mask)
-      PRNG.shuffle(obsIDs)
-      curLoc = 0
-      L = len(obsIDs)/nRep
-      for r in range(nRep):
-        targetIDs = obsIDs[curLoc:curLoc+L]
-        resp[targetIDs, k + r*Ktrue] = 1.0
-        curLoc += L
+    if hasattr(Data, 'TrueLabels'):
+      resp = calc_resp_from_true_labels(Data)
+    elif hasattr(Data, 'true_resp'):
+      resp = Data.true_resp  
+    Ktrue = resp.shape[1]
+    rowIDs = PRNG.permutation(Data.nObs)
+    L = len(rowIDs)/nRepeatTrue
+    bigResp = np.zeros((Data.nObs, Ktrue*nRepeatTrue))
+    curLoc = 0
+    for r in range(nRepeatTrue):
+      targetIDs = rowIDs[curLoc:curLoc+L]
+      bigResp[targetIDs, r*Ktrue:(r+1)*Ktrue] = resp[targetIDs,:]
+      curLoc += L
+    resp = bigResp
+  elif initname == 'trueparams':
+    hmodel.allocModel.set_global_params(**vars(Data))
+    hmodel.obsModel.set_global_params(**vars(Data))
+    return
   else:
     raise NotImplementedError('Unknown initname: %s' % (initname))
 
-  LP = dict(resp=resp)
+  if hmodel.obsModel.__class__.__name__.count('Gauss') > 0:
+    LP = dict(resp=resp)
+  else:
+    LP = FromScratchMult.getLPfromResp(resp, Data)
   SS = hmodel.get_global_suff_stats(Data, LP)
   hmodel.update_global_params(SS)
+
+def calc_resp_from_true_labels(Data):
+  TrueLabels = Data.TrueLabels
+  uniqueLabels = np.unique(TrueLabels)
+  Ktrue = len(uniqueLabels)
+  resp = np.zeros((Data.nObs, Ktrue))
+  for k in range(Ktrue):
+    mask = TrueLabels == uniqueLabels[k]
+    resp[mask,k] = 1.0
+  return resp

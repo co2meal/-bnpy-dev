@@ -5,6 +5,7 @@ Initialize params of a mixture model with gaussian observations from scratch.
 '''
 import numpy as np
 from bnpy.util import discrete_single_draw
+from bnpy.data import XData
 
 def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwargs):
   PRNG = np.random.RandomState(seed)
@@ -39,7 +40,16 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
     '''
     resp = PRNG.rand(Data.nObs, K)
     resp = resp/np.sum(resp,axis=1)[:,np.newaxis]
-    
+
+  elif initname == 'randomnaive':
+    ''' Generate K "fake" examples from the diagonalized data covariance,
+        creating params by assigning each "fake" example to a component.
+    '''
+    Sig = np.sqrt(np.diag(np.cov(Data.X.T)))
+    Xfake = Sig * PRNG.randn(K, Data.dim)
+    Data = XData(Xfake)
+    resp = np.eye(K)
+  
   LP = dict(resp=resp)
   SS = hmodel.get_global_suff_stats(Data, LP)
   hmodel.update_global_params(SS)
