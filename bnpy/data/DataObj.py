@@ -30,13 +30,14 @@ class DataObj(object):
       return self.shortname
     return "MyData%d" % (self.nObsTotal)
        
-  def get_text_summary(self):
+  def get_text_summary(self, **kwargs):
     ''' Returns string with human-readable description of this dataset 
         e.g. source, author/creator, etc.
     '''
     if hasattr(self, 'summary'):
       return self.summary
-    return 'Generic %s Dataset' % (self.__class__.__name__)
+    s = '%s. nObs %d' % (self.__class__.__name__, self.nObs)
+    return s
     
   def summarize_num_observations(self):
     ''' Returns string summary of number of observations in this data object

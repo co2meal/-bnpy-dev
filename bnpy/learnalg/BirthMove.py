@@ -55,15 +55,14 @@ def subsample_data(DataObj, LP, targetCompID, targetProbThr=0.1,
       TargetData = DataObj.select_subset_by_mask(wordMask=np.flatnonzero(mask),
                                                 doTrackFullSize=False)    
     elif subsampleroutine == 'keepentiredocuments':
-      Ndk = LP['DocTopicCount']
-      Ndk /= np.sum(Ndk,axis=1)[:,np.newaxis]
       # Ndk : empirical doc-topic distribution
       #       rows sum to one
+      Ndk = LP['DocTopicCount'].copy()
+      Ndk /= np.sum(Ndk,axis=1)[:,np.newaxis]
       docmask = Ndk[:, targetCompID] > targetProbThr
       docIDs = np.flatnonzero(docmask)
       if docIDs.size == 0:
         return None
-      
       # Select at most maxTargetSize of these docs, uniformly at random
       randstate.shuffle(docIDs)
       docIDs = docIDs[:maxTargetSize]
@@ -95,7 +94,6 @@ def run_birth_move(curModel, targetData, SS, randstate=np.random,
     Kold = curModel.obsModel.K
     newSS = SS.copy()
     newSS.insertComps(freshSS)
-  
     newModel = curModel.copy()
     newModel.update_global_params(newSS)
 
@@ -172,7 +170,7 @@ def clean_up_fresh_model(targetData, curModel, freshModel,
   '''
   import MergeMove
 
-  # Step 1: verify fresh model preferred over single comp model
+  # Verify fresh model preferred over single comp model
   targetLP = freshModel.calc_local_params(targetData)
   targetSS = freshModel.get_global_suff_stats(targetData, targetLP,
                   doPrecompEntropy=True, doPrecompMergeEntropy=True)
@@ -185,19 +183,31 @@ def clean_up_fresh_model(targetData, curModel, freshModel,
   singleLP = singleModel.calc_local_params(targetData)
   singleSS = singleModel.get_global_suff_stats(targetData, singleLP,
                   doPrecompEntropy=True)
-  singleModel.update_global_params(singleSS)
+  singleModel.update_global_params(singleSS) # make it reflect targetData
 
   singleEvBound = singleModel.calc_evidence(SS=singleSS)
  
   improveEvBound = freshEvBound - singleEvBound
   if improveEvBound <= 0 or improveEvBound < 0.00001 * abs(singleEvBound):
     msg = "BIRTH terminated. Not better than single component on target data."
-    msg += "\n  K=%3d | %.7e" % (targetSS.K, freshEvBound)
-    msg += "\n  K=%3d | %.7e" % (singleSS.K, singleEvBound)
+    msg += "\n  fresh  | K=%3d | %.7e" % (targetSS.K, freshEvBound)
+    msg += "\n  single | K=%3d | %.7e" % (singleSS.K, singleEvBound)
     raise BirthProposalError(msg)
 
-  # Step 2: perform many merges among the fresh components
-  for trial in xrange(3):
+  # Verify fresh model improves over current model 
+  curLP = curModel.calc_local_params(targetData)
+  curSS = curModel.get_global_suff_stats(targetData, curLP, doPrecompEntropy=True)
+  curEvBound = curModel.calc_evidence(SS=curSS)
+  improveEvBound = freshEvBound - curEvBound
+  if improveEvBound <= 0 or improveEvBound < 0.00001 * abs(curEvBound):
+    msg = "BIRTH terminated. Not better than current model on target data."
+    msg += "\n  fresh | K=%3d | %.7e" % (targetSS.K, freshEvBound)
+    msg += "\n  cur   | K=%3d | %.7e" % (curSS.K, curEvBound)
+    raise BirthProposalError(msg)
+
+
+  # Perform many merges among the fresh components
+  for trial in xrange(5):
     if trial > 0:
       targetLP = freshModel.calc_local_params(targetData)
       targetSS = freshModel.get_global_suff_stats(targetData, targetLP,

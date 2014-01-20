@@ -6,6 +6,10 @@ Visualization tools for toy bars data for topic models.
 from matplotlib import pylab
 import numpy as np
 
+imshowArgs = dict(interpolation='nearest', cmap='bone', 
+                  vmin=0.0, vmax=0.3)
+
+
 def plotExampleBarsDocs(Data, docIDsToPlot=None, nDocToPlot=9, doShowNow=True):
     pylab.figure()
     V = Data.vocab_size
@@ -34,7 +38,6 @@ def plotExampleBarsDocs(Data, docIDsToPlot=None, nDocToPlot=9, doShowNow=True):
 
 def plotBarsFromHModel(hmodel, Data=None, doShowNow=True, figH=None,
                        compsToHighlight=None, sortBySize=False, width=12, height=3):
-    scaleArgs = dict(vmin=0.0, vmax=0.25)
     if Data is None:
         width = width/2
     if figH is None:
@@ -54,16 +57,16 @@ def plotBarsFromHModel(hmodel, Data=None, doShowNow=True, figH=None,
     if Data is not None and hasattr(Data, "true_tw"):
         # Plot the true parameters and learned parameters
         pylab.subplot(121)
-        pylab.imshow(Data.true_tw, interpolation="nearest", cmap="bone")
+        pylab.imshow(Data.true_tw, **imshowArgs)
         pylab.colorbar()
         pylab.title('True Topic x Word')
         pylab.subplot(122)
-        pylab.imshow(learned_tw, interpolation="nearest", cmap="bone")
+        pylab.imshow(learned_tw,  **imshowArgs)
         pylab.colorbar()
         pylab.title('Learned Topic x Word')
     else:
         # Plot just the learned parameters
-        pylab.imshow(learned_tw, interpolation="nearest", cmap="bone", **scaleArgs)
+        pylab.imshow(learned_tw, **imshowArgs)
         pylab.colorbar
         pylab.title('Learned Topic x Word')
     if compsToHighlight is not None:

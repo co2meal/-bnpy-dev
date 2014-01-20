@@ -50,7 +50,6 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     # Define how much of data we see at each mini-batch
     nBatch = float(DataIterator.nBatch)
     self.lapFracInc = 1.0/nBatch
-
     # Set-up progress-tracking variables
     iterid = -1
     lapFrac = np.maximum(0, self.algParams['startLap'] - 1.0/nBatch)
@@ -81,7 +80,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
       # M step
       if self.algParams['doFullPassBeforeMstep']:
-        if SS is not None:
+        if SS is not None and lapFrac > 1.0:
           hmodel.update_global_params(SS)
       else:
         if SS is not None:
@@ -98,6 +97,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       else:
         LPchunk = hmodel.calc_local_params(Dchunk, **self.algParamsLP)
 
+      # Collection of target data for birth
       if self.hasMove('birth'):
         self.subsample_data_for_birth(Dchunk, LPchunk, lapFrac)
 
@@ -119,12 +119,17 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         SS += SSchunk
 
       # Store batch-specific stats to memory
-      self.verify_suff_stats(SS)
       if self.algParams['doMemoizeLocalParams']:
         self.save_batch_local_params_to_memory(batchID, LPchunk)          
       self.save_batch_suff_stat_to_memory(batchID, SSchunk)  
 
+      # Handle removing "extra mass" of fresh components
+      #  to make SS have size exactly consistent with entire dataset
+      if self.hasMove('birth') and self.isLastBatch(lapFrac):
+        hmodel, SS = self.onBirthLastBatchRemoveExtraMass(hmodel, SS)
+
       # ELBO calc
+      self.verify_suff_stats(Dchunk, SS, lapFrac)
       evBound = hmodel.calc_evidence(SS=SS)
 
       # Merge move!      
@@ -140,7 +145,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       #  evBound will increase monotonically AFTER first lap of the data 
       #  verify_evidence will warn if bound isn't increasing monotonically
       if lapFrac > self.algParams['startLap'] + 1.0:
-        isConverged = self.verify_evidence(evBound, prevBound)
+        isConverged = self.verify_evidence(evBound, prevBound, lapFrac)
         if isConverged and lapFrac > 5 and not self.hasMove('birth'):
           break
       prevBound = evBound
@@ -154,7 +159,22 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     self.print_state(hmodel, iterid, lapFrac,evBound,doFinal=True,status=msg)
     return None, self.buildRunInfo(evBound, msg)
 
-  def verify_suff_stats(self, SS):
+  def verify_suff_stats(self, Dchunk, SS, lap):
+    ''' Run-time checks to make sure the suff stats
+        have expected values
+    '''
+    if hasattr(Dchunk, 'nDocTotal'):
+      if self.hasMove('birth') and len(self.BirthCompIDs) > 0:
+        if lap < np.ceil(lap):
+          assert SS.nDoc >= Dchunk.nDocTotal
+          assert np.sum(SS.WordCounts) >= 10*sum(Dchunk.word_count)
+        else:
+          if abs(SS.nDoc - Dchunk.nDocTotal) > 0.01:
+            print "WARNING @ lap %.2f | SS.nDoc=%d, nDocTotal=%d" % (lap, SS.nDoc, Dchunk.nDocTotal)
+          assert abs(SS.nDoc - Dchunk.nDocTotal) < 0.01
+      elif lap >= 1.0:
+        assert abs(SS.nDoc - Dchunk.nDocTotal) < 0.01
+
     if hasattr(SS, 'sumLogPi'):
       if not np.all(SS.sumLogPi <= 1e-10):
         raise ValueError('sumLogPi should be less than zero!')
@@ -207,7 +227,6 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         for key in self.memoLPkeys:
           LPchunk[key][:,kA] = LPchunk[key][:,kA] + LPchunk[key][:,kB]
           LPchunk[key] = np.delete(LPchunk[key], kB, axis=1)
-          
     return LPchunk
 
   ######################################################### Save to memory
@@ -271,11 +290,6 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       else:
         self.targetDataList = list()
 
-    # Handle removing "extra mass" of fresh components
-    #  to make SS have size exactly consistent with entire dataset
-    if self.isLastBatch(lapFrac):
-      SS = self.onBirthLastBatchRemoveExtraMass(SS)
-
     return hmodel, SS
 
   def onBirthFirstBatchCreateNewComps(self, hmodel, SS):
@@ -302,18 +316,18 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       # Unpack data for current move
       ktarget = tInfoDict['ktarget']
       targetData = tInfoDict['Data']
-
       if targetData is not None:
         self.print_msg("------------------ Target Dataset")
         self.print_msg(targetData.get_text_summary())
-
       if ktarget is None or targetData is None:
         msg = tInfoDict['msg']
-
       # Verify targetData large enough that birth would be productive
       elif targetData.nObs < self.algParams['birth']['minTargetObs']:
-        msg = "BIRTH Skipped at comp %d : target data too small (size %d)"
-        msg = msg % (tInfoDict['ktarget'], targetData.nObs)
+        msg = "BIRTH skipped. Target data too small (size %d)"
+        msg = msg % (targetData.nObs)
+      elif hasattr(targetData, 'nDoc') and targetData.nDoc < self.algParams['birth']['minTargetSize']:
+          msg = "BIRTH skipped. Target data too small (size %d)"
+          msg = msg % (targetData.nDoc)
 
       else:
         hmodel, SS, MoveInfo = BirthMove.run_birth_move(
@@ -325,23 +339,24 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
           for kk in MoveInfo['birthCompIDs']:
             self.LapsSinceLastBirth[kk] = -1
           self.BirthCompIDs.extend(MoveInfo['birthCompIDs'])
-
-      self.print_msg( "%d/%d %s" % (moveID, nMoves, msg) )
-      
+      self.print_msg( "%d/%d %s" % (moveID+1, nMoves, msg) )
     return hmodel, SS
 
-  def onBirthLastBatchRemoveExtraMass(self, SS):
+  def onBirthLastBatchRemoveExtraMass(self, hmodel, SS):
     ''' Returns updated suff stats with extra mass removed.
     '''
-    Nall = np.sum(SS.N)
     didChangeSS = False
     for MoveInfo in self.BirthInfoCurLap:
       freshSS = MoveInfo['freshSS']
       birthCompIDs = MoveInfo['birthCompIDs']
+      for bb in birthCompIDs:
+        assert bb in self.BirthCompIDs
       SS.subtractSpecificComps(freshSS, birthCompIDs)
       didChangeSS = True
-    return SS
-    # TODO should we update here?
+    if didChangeSS:
+      hmodel.update_global_params(SS)
+    return hmodel, SS
+
 
   def onBirthFirstBatchPrepForNextLapBirth(self, SS):
     ''' Return list of dicts, each one has info for one birth move to attempt
@@ -414,10 +429,10 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         if hasattr(tInfoDict['Data'], 'nDoc'):
           if tInfoDict['Data'].nDoc >= self.algParams['birth']['maxTargetSize']:
             continue
+          birthParams['maxTargetSize'] -= tInfoDict['Data'].nDoc
         else:
           if tInfoDict['Data'].nObs >= self.algParams['birth']['maxTargetObs']:
             continue
-        birthParams['maxTargetSize'] -= tInfoDict['Data'].nDoc
 
       # Sample data from current batch, if more is needed
       targetData = BirthMove.subsample_data(Dchunk, LPchunk,
@@ -432,7 +447,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
           tInfoDict['Data'] = targetData
         else:
           tInfoDict['Data'].add_data(targetData)
-        tInfoDict['msg'] = "TargetData status: nObs %d" % (tInfoDict['Data'].nObs)
+        tInfoDict['msg'] = "TargetData: nObs %d" % (tInfoDict['Data'].nObs)
 
 
   ######################################################### Merge moves!
@@ -459,7 +474,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     from MergeMove import run_many_merge_moves
 
     if self.hasMove('birth') and len(self.BirthCompIDs) > 0:
-      compList = self.BirthCompIDs
+      compList = [x for x in self.BirthCompIDs] # need a copy
     else:
       compList = list()
 
@@ -473,9 +488,12 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     msg = 'MERGE: %3d/%3d accepted.' % (MTracker.nSuccess, MTracker.nTrial)
     if MTracker.nSuccess > 0:
       msg += ' ev improved + %.3e' % (newEvBound - evBound)
-    self.print_msg(msg)
-    for msg in MTracker.InfoLog:
+    if self.algParams['merge']['doVerbose'] >= 0:
       self.print_msg(msg)
+    
+    if self.algParams['merge']['doVerbose'] > 0:
+      for msg in MTracker.InfoLog:
+        self.print_msg(msg)
 
     # ------ Adjust indexing for counter that determines which comp to target
     if self.hasMove('birth'):
@@ -550,11 +568,6 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
           continue
       else:
         kA = None
-
-      #if trialID == 0:
-      #  from IPython import embed
-      #  print "OLD right before run_merge_move!"
-      #  embed()
 
       hmodel, SS, evBound, MoveInfo = OldMergeMove.run_merge_move(
                  hmodel, None, SS, evBound, randstate=self.PRNG,

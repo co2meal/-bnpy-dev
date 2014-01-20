@@ -97,7 +97,7 @@ class LearnAlg(object):
 
   ##################################################### Verify evidence
   #####################################################  grows monotonically
-  def verify_evidence(self, evBound=0.00001, prevBound=0):
+  def verify_evidence(self, evBound=0.00001, prevBound=0, lapFrac=None):
     ''' Compare current and previous evidence (ELBO) values,
         verify that (within numerical tolerance) increases monotonically
     '''
@@ -108,19 +108,22 @@ class LearnAlg(object):
     isIncreasing = prevBound <= evBound
     M = self.algParams['convergeSigFig']
     isWithinTHR = closeAtMSigFigs(prevBound, evBound, M=M)
-    if not isIncreasing:
-      if not isWithinTHR:
-        if self.hasMove('birth'):
-          warnMsg = 'WARNING: ev decreased during a birth'
-          warnMsg += ' (so monotonic increase not guaranteed)\n'
-        elif not self.algParams['doMemoizeLocalParams']:
-          warnMsg = 'WARNING: ev decreased when doMemoizeLocalParams=0'
-          warnMsg += ' (so monotonic increase not guaranteed)\n'
-        else:
-          warnMsg = 'WARNING: evidence decreased!\n'
-        warnMsg += '    prev = % .15e\n' % (prevBound)
-        warnMsg += '     cur = % .15e\n' % (evBound)
-        Log.error(warnMsg)
+    if not isIncreasing and not isWithinTHR:
+      if self.hasMove('birth') and len(self.BirthCompIDs) > 0:
+        warnMsg = 'ev decreased during a birth'
+        warnMsg += ' (so monotonic increase not guaranteed)\n'
+      elif not self.algParams['doMemoizeLocalParams']:
+        warnMsg = 'ev decreased when doMemoizeLocalParams=0'
+        warnMsg += ' (so monotonic increase not guaranteed)\n'
+      else:
+        warnMsg = 'evidence decreased!\n'
+      warnMsg += '    prev = % .15e\n' % (prevBound)
+      warnMsg += '     cur = % .15e\n' % (evBound)
+      if lapFrac is None:
+        prefix = "WARNING: "
+      else:
+        prefix = "WARNING @ %.3f: " % (lapFrac)
+      Log.error(prefix + warnMsg)
     return isWithinTHR 
 
 

@@ -38,7 +38,6 @@ def main():
   
   if args.savefilename is None:
     pylab.show(block=True)
-
         
 def plotModelInNewFigure(jobpath, hmodel, args):
   figHandle = pylab.figure()
@@ -52,9 +51,12 @@ def plotModelInNewFigure(jobpath, hmodel, args):
     bnpy.viz.GaussViz.plotGauss2DFromHModel(hmodel)
   elif args.dataName.lower().count('bars') > 0:
     pylab.close(figHandle)
-    Data = loadData(jobpath)
-    bnpy.viz.BarsViz.plotBarsFromHModel(hmodel, Data=Data, sortBySize=True,
-                                          doShowNow=False)
+    if args.doPlotTruth:
+      Data = loadData(jobpath)
+    else:
+      Data = None
+    bnpy.viz.BarsViz.plotBarsFromHModel(hmodel, Data=Data, 
+                                        sortBySize=args.doSort, doShowNow=False)
   else:
     raise NotImplementedError('Unrecognized data/obsmodel combo')
 
@@ -100,6 +102,10 @@ def parse_args():
              + " If exact lap not available, instead plots nearest lap.")
   parser.add_argument('--doPlotData', action='store_true', default=False,
         help="If present, also plot training data.")
+  parser.add_argument('--doPlotTruth', action='store_true', default=False,
+        help="If present, also plot true model params that generated data.")
+  parser.add_argument('--doSort', action='store_true', default=False,
+        help="If present, sort parameters by global appearance probabilities.")
   args = parser.parse_args()
   return args
 
