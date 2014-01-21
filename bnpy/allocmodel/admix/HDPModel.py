@@ -303,16 +303,15 @@ class HDPModel(AllocModel):
         ''' Returns KxK matrix 
         ''' 
         wv = LP['word_variational']
+        wv += EPS # Make sure all entries > 0 before taking log
         ElogqZMat = np.zeros((self.K, self.K))
         for jj in range(self.K):
             J = self.K - jj - 1 # num of pairs for comp jj
             # curWV : nObs x J, resp for each data item under each merge with jj
             curWV = wv[:,jj][:,np.newaxis] + wv[:,jj+1:]
-            # curRlogR : nObs x J, entropy for each data item
-            ###curRlogR = curWV * np.log(EPS + curWV)
-            curWV *= np.log(EPS + curWV)
+            # curWV : nObs x J, entropy for each data item
+            curWV *= np.log(curWV)
             # curE_logqZ : J-vector, entropy for Data under each merge with jj
-            ###curE_logqZ = np.dot(Data.word_count, curRlogR)
             curE_logqZ = np.dot(Data.word_count, curWV)            
             assert curE_logqZ.size == J
             ElogqZMat[jj,jj+1:] = curE_logqZ

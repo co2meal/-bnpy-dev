@@ -80,7 +80,7 @@ def run_many_merge_moves(hmodel, Data, SS, evBound=None,
 def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
                    kA=None, kB=None, MTracker=None, MSelector=None,
                    mergename='marglik', randstate=np.random.RandomState(),
-                   **kwargs):
+                   doUpdateAllComps=1, **kwargs):
   ''' Creates candidate model with two components merged,
       and returns either candidate or current model,
       whichever has higher log probability (ELBO).
@@ -144,7 +144,7 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
                                      randstate=randstate)
   
   # Create candidate merged model
-  propModel, propSS = propose_merge_candidate(curModel, SS, kA, kB)
+  propModel, propSS = propose_merge_candidate(curModel, SS, kA, kB, doUpdateAllComps=doUpdateAllComps)
 
   # Decide whether to accept the merge
   propEv = propModel.calc_evidence(SS=propSS)
@@ -204,9 +204,18 @@ def select_merge_components(curModel, Data, SS, MTracker=None,
 
 ############################################################ Construct new model
 ############################################################
-def propose_merge_candidate(curModel, SS, kA=None, kB=None):
+def propose_merge_candidate(curModel, SS, kA=None, kB=None, 
+                             doUpdateAllComps=1):
   ''' Propose new bnpy model from the provided current model (with K comps),
       where components kA, kB are combined into one "merged" component
+
+      Args
+      --------
+      curModel := bnpy HModel object
+      SS := bnpy SuffStatBag object
+      kA := integer id of comp to merge (will be index of kA+kB in new model)
+      kB := integer id of comp to merge (will be removed from new model)
+      doUpdateAllComps := integer flag. if 1, all K obsModel global params updated. if 0, only the relevant component (kA) is updated. always, all allocModel comps are updated.
 
       Returns
       --------
@@ -223,7 +232,10 @@ def propose_merge_candidate(curModel, SS, kA=None, kB=None):
   propSS = SS.copy()
   propSS.mergeComps(kA, kB)
   assert propSS.K == SS.K - 1
-  propModel.update_global_params(propSS)
+  if doUpdateAllComps:
+    propModel.update_global_params(propSS)
+  else:
+    propModel.update_global_params(propSS, mergeCompA=kA, mergeCompB=kB)
 
   # Remember, after calling update_global_params
   #  propModel's components must exactly match propSS's.

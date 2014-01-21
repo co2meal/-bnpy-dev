@@ -183,7 +183,7 @@ def objectiveGradient(Cvec, alpha0, gamma, nDoc, sumLogPi, E=dict()):
 
   if E is None or len(E.keys()) == 0:
     E = calcExpectations(U1, U0)
-  dU1, dU0 = calcDerivatives(U1, U0, E=E)
+  dU1, dU0 = calcDerivativesFast(U1, U0, E=E)
 
   dU1_Elogp_v = (alpha0 - 1) * dU1['Elog1mv']
   dU0_Elogp_v = (alpha0 - 1) * dU0['Elog1mv']
@@ -209,6 +209,9 @@ def objectiveGradient(Cvec, alpha0, gamma, nDoc, sumLogPi, E=dict()):
   # Apply chain rule!
   gvecC = Uvec * gvecU
   return gvecC
+
+########################################################### calcDerivatives
+###########################################################
 
 def calcDerivatives(U1, U0, E=dict()):
   ''' Calculate derivatives of building-block terms
@@ -245,6 +248,45 @@ def calcDerivatives(U1, U0, E=dict()):
   dU0['Ebeta'] = dU0_Ebeta
   return dU1, dU0
 
+def calcDerivativesFast(U1, U0, E=dict()):
+  ''' Calculate derivatives of building-block terms
+  '''
+  U1 = np.asarray(U1, dtype=np.float64)
+  U0 = np.asarray(U0, dtype=np.float64)
+  K = U1.size
+
+  if E is None or len(E.keys()) == 0:
+    E = calcExpectations(U1, U0)
+
+  dU1 = dict()
+  dU0 = dict()
+  polygamma1Both = polygamma(1, U0 + U1)
+  dU1['Elogv'] = polygamma(1,U1) - polygamma1Both
+  dU0['Elogv'] = -polygamma1Both
+  dU1['Elog1mv'] = -polygamma1Both
+  dU0['Elog1mv'] = polygamma(1,U0) - polygamma1Both
+
+  Usum = U1 + U0
+  Q1 = U1 / (Usum * Usum)
+  Q0 = U0 / (Usum * Usum)
+
+  dU1_Ebeta = np.tile(E['beta'], (K,1))
+  dU1_Ebeta /= E['1mv'][:,np.newaxis]
+  diagIDs = np.diag_indices(K)
+  dU1_Ebeta[diagIDs] /= -E['v']/E['1mv']  
+  lowTriIDs = np.tril_indices(K, -1)
+  dU1_Ebeta[lowTriIDs] = 0
+
+  dU0_Ebeta = dU1_Ebeta * Q1[:,np.newaxis]
+  dU1_Ebeta *= -1 * Q0[:,np.newaxis]
+
+  dU1['Ebeta'] = dU1_Ebeta
+  dU0['Ebeta'] = dU0_Ebeta
+  return dU1, dU0
+
+########################################################### calcExpectations
+###########################################################
+
 def calcExpectations(U1, U0):
   ''' Calculate expectations of v and beta(v)
         under the model v[k] ~ Beta(U1[k], U0[k])
@@ -275,9 +317,11 @@ def v2beta(v):
       beta : K+1-len vector, with positive entries that sum to 1
   '''
   v = np.asarray(v)
-  c1mv = np.hstack([1.0, np.cumprod(1 - v)])
-  beta = np.hstack([v,1.0]) * c1mv
-  assert np.allclose(beta.sum(), 1)
+  beta = np.hstack([1.0, np.cumprod(1-v)])
+  beta[:-1] *= v
+  #c1mv = np.hstack([1.0, np.cumprod(1 - v)])
+  #beta = np.hstack([v,1.0]) * c1mv
+  #assert np.allclose(beta.sum(), 1)
   # Force away from edges 0 or 1 for numerical stability  
   beta = np.maximum(beta,EPS)
   beta = np.minimum(beta,1-EPS)
@@ -304,6 +348,9 @@ def beta2v( beta ):
   v = np.maximum(v,EPS)
   v = np.minimum(v,1-EPS)
   return v
+
+########################################################### pretty print 
+###########################################################  warnings
 
 def pretty_print_warning(msg, initU=None, sumLogPi=None):
   Log.warning(msg)

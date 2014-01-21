@@ -161,6 +161,6 @@ class MergeTracker(object):
     for kk in self.excludePairs:
       assert kk >= 0
       assert kk < self.K
-      karr = np.asarray(list(set(self.excludePairs[kk])))
+      karr = np.asarray(list(self.excludePairs[kk]))
       assert np.all(karr >= 0)
       assert np.all(karr < self.K)

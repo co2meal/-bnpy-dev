@@ -53,8 +53,8 @@ class DirichletDistr(object):
         self.lamvec = rho * starD.lamvec + (1.0 - rho) * self.lamvec
         self.set_helpers()
 
-  ############################################################## Norm Constants  
-  ##############################################################
+  ######################################################### Norm Constants  
+  #########################################################
     @classmethod
     def calc_log_norm_const(cls, lamvec):
         return gammaln(lamvec) - np.sum(gammaln(lamvec))
@@ -69,15 +69,9 @@ class DirichletDistr(object):
         H = self.get_log_norm_const()
         H -= np.inner(self.lamvec - 1., self.Elogphi)
         return H
-    
-    ############################################################## Conditional Probs.  
-    ##############################################################    
-    def E_log_pdf(self, Data):
-        ''' Returns E[ log p( x | theta ) ] under q(theta) <- this distr'''
-        raise NotImplementedError("TODO")    
 
-    ############################################################## I/O  
-    ##############################################################
+    ####################################################### I/O  
+    #######################################################
     def to_dict(self):
         return dict(name=self.__class__.__name__, lamvec=self.lamvec)
     

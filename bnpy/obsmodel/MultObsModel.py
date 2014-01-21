@@ -104,9 +104,13 @@ class MultObsModel(ObsModel):
     def update_obs_params_EM(self, SS, **kwargs):
         raise NotImplementedError("TODO")
 
-    def update_obs_params_VB(self, SS, Krange, **kwargs):
-        for k in Krange:
-            self.comp[k] = self.obsPrior.get_post_distr(SS, k)
+    def update_obs_params_VB(self, SS, mergeCompA=None, **kwargs):
+        if mergeCompA is None:
+            for k in xrange(self.K):
+                self.comp[k] = self.obsPrior.get_post_distr(SS, k)
+        else:
+            self.comp[mergeCompA] = self.obsPrior.get_post_distr(SS, mergeCompA)
+
 
     def update_obs_params_soVB( self, SS, rho, Krange, **kwargs):
         # grab Dirichlet posterior for lambda and perform stochastic update
