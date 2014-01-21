@@ -147,9 +147,9 @@ class MergeTracker(object):
     for kx in list(self.excludeList):
       assert kx >= 0
       assert kx < self.K
-      for kk in range(self.K):
+      self.excludePairs[kx].update(range(self.K))
+      for kk in xrange(self.K):
         self.excludePairs[kk].add(kx)
-        self.excludePairs[kx].add(kk)
 
     for kk in range(self.K):
       kset = self.excludePairs[kk]
