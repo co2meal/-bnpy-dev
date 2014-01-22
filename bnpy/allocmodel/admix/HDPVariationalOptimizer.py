@@ -43,7 +43,7 @@ import logging
 Log = logging.getLogger('bnpy')
 EPS = 10*np.finfo(float).eps
 
-def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=None, sumLogPi=None, initU1=None, initU0=None, Pi=None, doVerbose=False, method='l_bfgs', **kwargs):
+def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=None, sumLogPi=None, initU=None, initU1=None, initU0=None, Pi=None, **kwargs):
   ''' Solve optimization problem to estimate parameters u
       for the approximate posterior on stick-breaking fractions v
       q(v | u) = Beta( v_k | u_k1, u_k0)
@@ -68,7 +68,7 @@ def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=None, sumLogPi=None, initU1=None
       initU = np.hstack( [np.ones(K), alpha0*np.ones(K)])        
     else:
       initU = np.hstack([np.squeeze(initU1), np.squeeze(initU0)])
-  else:
+  elif initU is None:
     if nDoc == 0:
       # set it away from true mode (1,alpha) to make sure it gets there
       initU = np.hstack( [0.1*np.ones(K), 0.1 * alpha0*np.ones(K)])
@@ -90,37 +90,58 @@ def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=None, sumLogPi=None, initU1=None
   
   matpath = 'HDPOptimizerError-%06d.mat' 
   matpath = matpath % (datetime.datetime.now().microsecond)
-  with warnings.catch_warnings():
-    warnings.filterwarnings('error', 
-                            category=RuntimeWarning, message='overflow')
-    try:
-      if method == 'l_bfgs':
+
+  initf = myFunc(np.log(initU))
+  bestUvec = None
+
+  # Repeatedly try the optimization until it succeeds
+  # In the rare case of overflow errors (because optim step sizes are bad)
+  #   try to start optimization again from another safer init,
+  #   and return either that solution or initial guess,
+  #  whichever has higher objective function
+  # Repeat starts use a higher 'factr' value, 
+  #  which corresponds to reduced accuracy (in hopes of avoiding errors)
+  #    1e12 for low accuracy
+  #    1e7 for moderate accuracy
+
+  for trial in range(3):
+    if trial == 0:
+      initC = np.log(initU)
+      factr = 1.0e7
+    elif trial == 1:
+      initC = np.log(initU)
+      factr = 1.0e12
+    else:
+      initC = np.log(np.hstack([np.ones(K), alpha0*np.ones(K)]))
+    with warnings.catch_warnings():
+      warnings.filterwarnings('error', category=RuntimeWarning,
+                               message='overflow')
+      try:
         bestCvec, bestf, Info = scipy.optimize.fmin_l_bfgs_b(myFunc, 
-                                  np.log(initU), fprime=myGrad, disp=None)
-      else:
-        bestCvec, bestf, Info = scipy.optimize.fmin_bfgs(myFunc, 
-                                  np.log(initU), fprime=myGrad, disp=None)
-      bestUvec = np.exp(bestCvec)
-    except RuntimeWarning: #overflow error
-      ProbDict = dict(initU=initU, alpha0=alpha0, gamma=gamma, 
+                                  initC, fprime=myGrad, disp=None, factr=factr)
+        bestUvec = np.exp(bestCvec)
+        break # take the money and run!
+      except RuntimeWarning: #overflow error
+        ProbDict = dict(initU=np.exp(initC), alpha0=alpha0, gamma=gamma, 
                       nDoc=nDoc, sumLogPi=sumLogPi, K=K)
-      savefilepath = 'HDPVariationalOptimizerError.mat'
-      scipy.io.savemat(matpath, ProbDict, oned_as='row')
-      bestUvec = initU
-      msg = "WARNING: OverflowError. Input saved to %s" % (matpath)
-      pretty_print_warning(msg, initU, sumLogPi)
-
-    except AssertionError:
-      ProbDict = dict(initU=initU, alpha0=alpha0, gamma=gamma, 
+        scipy.io.savemat(matpath, ProbDict, oned_as='row')
+        msg = "WARNING: OverflowError. Input saved to %s" % (matpath)
+        pretty_print_warning(msg)
+      except AssertionError:
+        ProbDict = dict(initU=np.exp(initC), alpha0=alpha0, gamma=gamma, 
                       nDoc=nDoc, sumLogPi=sumLogPi, K=K)
-      savefilepath = 'HDPVariationalOptimizerError.mat'
-      scipy.io.savemat(matpath, ProbDict, oned_as='row')
-      bestUvec = initU
-      msg = "WARNING: AssertionError. Input saved to %s" % (matpath)
-      pretty_print_warning(msg, initU, sumLogPi)
+        scipy.io.savemat(matpath, ProbDict, oned_as='row')
+        msg = "WARNING: AssertionError. Input saved to %s" % (matpath)
+        pretty_print_warning(msg)
 
+  if bestUvec is None:
+    bestUvec = initU
+    bestf = initf
+  # Our goal is minimization. If our bestf is *greater* than initf, ignore it
+  if bestf > initf: 
+    bestUvec = initU
   if np.any(np.isnan(bestUvec)):
-    bestUvec = np.hstack( [np.ones(K), alpha0*np.ones(K)])     
+    bestUvec = np.hstack([np.ones(K), alpha0*np.ones(K)])     
     msg =  "WARNING: U estimation failed. Found NaN values. Revert to prior."
     pretty_print_warning(msg)
   elif np.allclose(bestUvec, initU) and K > 1:
@@ -353,7 +374,10 @@ def beta2v( beta ):
 ###########################################################  warnings
 
 def pretty_print_warning(msg, initU=None, sumLogPi=None):
-  Log.warning(msg)
+  if len(Log.handlers) > 0:
+    Log.warning(msg)
+  else:
+    print msg
   if sumLogPi is not None:
     np.set_printoptions(precision=2, suppress=True, linewidth=120)
     Log.warning( "  sumLogPi ----------------------------")

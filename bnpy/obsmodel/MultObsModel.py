@@ -112,23 +112,27 @@ class MultObsModel(ObsModel):
             self.comp[mergeCompA] = self.obsPrior.get_post_distr(SS, mergeCompA)
 
 
-    def update_obs_params_soVB( self, SS, rho, Krange, **kwargs):
-        # grab Dirichlet posterior for lambda and perform stochastic update
-        for k in Krange:
+    def update_obs_params_soVB( self, SS, rho, **kwargs):
+        ''' Grab Dirichlet posterior for lambda and perform stochastic update
+        '''
+        for k in xrange(self.K):
             Dstar = self.obsPrior.get_post_distr(SS, k)
             self.comp[k].post_update_soVB(rho, Dstar)
 
-    def set_global_params(self, phi=None, mass=100, **kwargs):
+    def set_global_params(self, phi=None, mass=10, Etopics=None, **kwargs):
         ''' Set global params to provided values
 
             Params
             --------
             phi : K x V matrix, each row is a distr over V vocab words
         '''
-        self.K = phi.shape[0]
+        if phi is not None:
+            Etopics = phi  
+        assert Etopics is not None
+        self.K = Etopics.shape[0]
         self.comp = list()
         for k in range(self.K):
-          self.comp.append(DirichletDistr(mass * phi[k,:]))
+            self.comp.append(DirichletDistr(mass * Etopics[k,:]))
 
   ######################################################### Evidence
   #########################################################

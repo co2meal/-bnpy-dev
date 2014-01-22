@@ -241,17 +241,24 @@ class HDPModel(AllocModel):
         self.U0 = rho * U0 + (1-rho) * self.U0
         self.set_helper_params()
 
-    def set_global_params(self, K=0, beta=None, U1=None, U0=None, **kwargs):
+    def set_global_params(self, K=0, beta=None, U1=None, U0=None, 
+                                Ebeta=None, EbetaLeftover=None, **kwargs):
         self.K = K
         if U1 is not None and U0 is not None:
           self.U1 = U1
           self.U0 = U0
-        if beta is not None:
+        if Ebeta is not None and EbetaLeftover is not None:
+          Ebeta = np.squeeze(Ebeta)
+          EbetaLeftover = np.squeeze(EbetaLeftover)
+          beta = np.hstack( [Ebeta, EbetaLeftover])
+        elif beta is not None:
           assert beta.size == K
           beta = np.hstack([beta, np.min(beta)/100.])
           beta = beta/np.sum(beta)
+        if beta is not None:
+          assert abs(np.sum(beta) - 1.0) < 0.01
           vMean = HVO.beta2v(beta)
-          vMass = 100
+          vMass = 10
           self.U1 = vMass * vMean
           self.U0 = vMass * (1-vMean)
         else:

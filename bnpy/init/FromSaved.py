@@ -4,30 +4,49 @@ FromSaved.py
 Initialize params of a bnpy model from a previous result saved to disk.
 '''
 import numpy as np
+import scipy.io
+import os
 from bnpy.ioutil import ModelReader
 
 def init_global_params(hmodel, Data, initname=None, prefix='Best', **kwargs):
   ''' Initialize (in-place) the global params of the given hmodel
       by copying the global parameters of a previously saved hmodel
 
-      This does NOT transfer prior parameter values, only the global parameters
+      Only global parameters are modified.
+      This does NOT alter settings of hmodel's prior distribution.
 
       Args
       -------
       hmodel : bnpy model object to initialize
       Data   : bnpy Data object whose dimensions must match resulting hmodel
       initname : valid filesystem path to stored result 
-                 called "initname" because init from disk is one of many cmd line options.
+            
+      Returns
+      -------
+      None. hmodel modified in-place.
   '''
+  if os.path.isdir(initname):
+    init_global_params_from_bnpy_format(hmodel, Data, initname)
+  elif initname.count('.mat') > 0:
+    # Handle external external formats (not bnpy models) saved as MAT file
+    MatDict = scipy.io.loadmat(initname)
+    hmodel.set_global_params(**MatDict)  
+  else:
+    raise ValueError('Unrecognized init file: %s' % (initname))
+
+
+def init_global_params_from_bnpy_format(hmodel, Data, initname, prefix):
   storedModel = ModelReader.load_model(initname, prefix)
   if storedModel.obsModel.D != Data.dim:
-    raise ValueError("Stored model's output dimension does not match provided data!")
+    msg = "Stored model's obsModel dimensions does not match provided data!"
+    raise ValueError(msg)
   aTypesMatch = type(storedModel.allocModel) == type(hmodel.allocModel)
   oTypesMatch = type(storedModel.obsModel) == type(hmodel.obsModel)
   inferTypesMatch = storedModel.inferType == hmodel.inferType
 
-  LP = storedModel.calc_local_params(Data)
-  SS = hmodel.get_global_suff_stats(Data, LP)
-  hmodel.update_global_params(SS)
-  # TODO: if aTypesMatch,oTypesMatch,inferTypesMatch all agree, should just copy params directly?
-  
+  if aTypesMatch and oTypesMatch and inferTypesMatch:
+    raise NotImplementedError("TODO: just copy params directly")
+  else:
+    LP = storedModel.calc_local_params(Data)
+    SS = hmodel.get_global_suff_stats(Data, LP)
+    hmodel.update_global_params(SS)

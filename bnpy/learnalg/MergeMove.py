@@ -14,6 +14,7 @@ To force a merge of components "2" and "4"
 
 import numpy as np
 import logging
+import os
 
 from MergePairSelector import MergePairSelector
 from MergeTracker import MergeTracker
@@ -76,11 +77,10 @@ def run_many_merge_moves(hmodel, Data, SS, evBound=None,
 
   return hmodel, SS, newEv, MTracker
 
-
 def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
                    kA=None, kB=None, MTracker=None, MSelector=None,
                    mergename='marglik', randstate=np.random.RandomState(),
-                   doUpdateAllComps=1, **kwargs):
+                   doUpdateAllComps=1, savedir=None, **kwargs):
   ''' Creates candidate model with two components merged,
       and returns either candidate or current model,
       whichever has higher log probability (ELBO).
@@ -155,16 +155,49 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
   if doVizMerge:
     viz_merge_proposal(curModel, propModel, kA, kB, curEv, propEv)
 
+  evDiff = propEv - curEv
   if propEv > curEv:
     MSelector.reindexAfterMerge(kA, kB)
     msg = "merge %3d & %3d | ev +%.3e ****" % (kA, kB, propEv - curEv)
-    MoveInfo = dict(didAccept=1, kA=kA, kB=kB, msg=msg)
+    MoveInfo = dict(didAccept=1, kA=kA, kB=kB, msg=msg, evDiff=evDiff)
+    log_merge_move(MoveInfo, MSelector, curModel, SS, savedir)
     return propModel, propSS, propEv, MoveInfo
   else:
     msg = "merge %3d & %3d | ev -%.3e" % (kA, kB, curEv - propEv)
-    MoveInfo = dict(didAccept=0, kA=kA, kB=kB, msg=msg)
+    MoveInfo = dict(didAccept=0, kA=kA, kB=kB, msg=msg, evDiff=evDiff)
+    log_merge_move(MoveInfo, MSelector, curModel, SS, savedir)
     return curModel, SS, curEv, MoveInfo
 
+########################################################## Log info to file
+##########################################################
+def log_merge_move(MoveInfo, MSelector, hmodel, SS, savedir):
+  if 'kA' not in MoveInfo or savedir is None:
+    return
+  assert os.path.exists(savedir)
+  headerfile = os.path.join(savedir, 'mergelog_marglik_header.csv')
+  savefile = os.path.join(savedir, 'mergelog_marglik.csv')
+  if not os.path.exists(savefile):
+    headerstring = "didAccept,evDiff,"
+    headerstring += "logmRatio,logmBoth,logmA,logmB,"
+    headerstring += "K,NA,NB,fracA,fracB"
+    with open(headerfile, 'w') as f:
+      f.write(headerstring + '\n')
+
+  kA = MoveInfo['kA']
+  kB = MoveInfo['kB']
+  mA = MSelector._calcLogMargLikForComp(hmodel, SS, kA)
+  mB = MSelector._calcLogMargLikForComp(hmodel, SS, kB)
+  mBoth = MSelector._calcLogMargLikForPair(hmodel, SS, kA, kB)
+  mRatio = mBoth - mA - mB
+  NA = SS.N[kA]
+  NB = SS.N[kB]
+  fracA = NA/np.sum(SS.N)
+  fracB = NB/np.sum(SS.N)
+  csvstring = "%d,%.3e," % (MoveInfo['didAccept'], MoveInfo['evDiff'])
+  csvstring += "%.3e,%.3e,%.3e,%.3e," % (mRatio, mBoth, mA, mB)
+  csvstring += "%d,%d,%d,%.3f,%.3f" % (SS.K, NA, NB, fracA, fracB)
+  with open(savefile, 'a') as f:
+    f.write( csvstring + '\n')
 
 ########################################################## Select kA,kB to merge
 ##########################################################
