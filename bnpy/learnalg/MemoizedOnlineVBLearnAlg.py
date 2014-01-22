@@ -483,7 +483,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     hmodel, SS, newEvBound, MTracker = run_many_merge_moves(
                         hmodel, Data, SS, evBound=evBound, 
                         randstate=self.PRNG, nMergeTrials=nMergeTrials,
-                        compList=compList, **self.algParams['merge'])
+                        compList=compList, savedir=self.savedir,
+                        **self.algParams['merge'])
 
     msg = 'MERGE: %3d/%3d accepted.' % (MTracker.nSuccess, MTracker.nTrial)
     if MTracker.nSuccess > 0:
