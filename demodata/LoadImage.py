@@ -11,7 +11,7 @@ def get_data(seed=123,**kwargs):
     '''
     #if kwargs is not None:
     #impath = kwargs['impath']; 
-    impath = '/Users/sghosh/Documents/Research/Projects/Data/Images/Images/8023.jpg'
+    impath = '/Users/sghosh/Documents/Research/Projects/Data/Images/BSDS300_images_humanSeg/images/test/8023.jpg'
     try:
         im = np.array(Image.open(impath))
         return XData(np.reshape(im,(-1,3))) 

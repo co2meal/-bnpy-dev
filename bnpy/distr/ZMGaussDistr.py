@@ -116,9 +116,9 @@ class ZMGaussDistr( Distr ):
       self.Cache['logdetL'] = 2.0*np.sum(np.log(np.diag(self.cholL())))
     return self.Cache['logdetL']
  
- ############################################################## Samplers
- ##############################################################
- def sample(self,numSamples=1):
+  ############################################################## Samplers
+  ##############################################################
+  def sample(self,numSamples=1):
      ''' Returns samples from self
          '''
      # samples numSamples*D stores the generated samples
