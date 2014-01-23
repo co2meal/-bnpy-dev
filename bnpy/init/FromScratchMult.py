@@ -4,6 +4,7 @@ FromScratchMult.py
 Initialize params of HModel with multinomial observations from scratch.
 '''
 import numpy as np
+import KMeansRex
 from scipy.special import digamma
 from scipy.cluster import vq
 
@@ -21,7 +22,7 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
         PhiTopicWord /= PhiTopicWord.sum(axis=1)[:,np.newaxis]
         beta = np.ones(K)
         hmodel.set_global_params(K=K, beta=beta, phi=PhiTopicWord)
-        return None
+        return
 
     elif initname == 'randsoftpartition':
         ''' Assign responsibility for K topics at random to all words
@@ -32,7 +33,23 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
         for d in xrange(Data.nDoc):
             start,stop = doc_range[d,:]
             doc_variational[d,:] = np.sum(word_variational[start:stop,:],axis=0)
-          
+    elif initname == 'plusplus':
+        DocWord = Data.to_sparse_docword_matrix().toarray()
+        PhiTopicWord = KMeansRex.SampleRowsPlusPlus(DocWord, K, seed=seed)
+        PhiTopicWord += 0.01 * PRNG.rand(K, Data.vocab_size)
+        PhiTopicWord /= PhiTopicWord.sum(axis=1)[:,np.newaxis]
+        beta = np.ones(K)
+        hmodel.set_global_params(K=K, beta=beta, phi=PhiTopicWord)
+        return
+    elif initname == 'kmeansplusplus':
+        DocWord = Data.to_sparse_docword_matrix().toarray()
+        PhiTopicWord, Z = KMeansRex.RunKMeans(DocWord, K, initname='plusplus',
+                                              Niter=10, seed=seed)
+        PhiTopicWord += 0.001 * PRNG.rand(K, Data.vocab_size)
+        PhiTopicWord /= PhiTopicWord.sum(axis=1)[:,np.newaxis]
+        beta = np.ones(K)
+        hmodel.set_global_params(K=K, beta=beta, phi=PhiTopicWord)
+        return      
     elif initname == 'kmeans':
         ''' Create topics via kmeans analysis of the doc-word matrix
             WARNING: Not sure if this is a good idea yet...
