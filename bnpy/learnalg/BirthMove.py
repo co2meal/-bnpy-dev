@@ -81,7 +81,7 @@ def subsample_data(DataObj, LP, targetCompID, targetProbThr=0.1,
     TargetData = DataObj.select_subset_by_mask(targetObjIDs, 
                                                 doTrackFullSize=False)
   return TargetData
-  
+
 ###########################################################
 ###########################################################
 def run_birth_move(curModel, targetData, SS, randstate=np.random, 

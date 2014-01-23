@@ -9,6 +9,8 @@ from bnpy.util import isEvenlyDivisibleFloat
 import logging
 from collections import defaultdict
 import BirthMove
+import joblib
+import os
 
 Log = logging.getLogger('bnpy')
 
@@ -163,11 +165,13 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     ''' Run-time checks to make sure the suff stats
         have expected values
     '''
+    SSfile = os.path.join(self.savedir, 'SSdump-Lap%03d.dat' % (lap))
+    if self.isLastBatch(lap):
+      joblib.dump(SS, SSfile)
     if hasattr(Dchunk, 'nDocTotal'):
       if self.hasMove('birth') and len(self.BirthCompIDs) > 0:
         if lap < np.ceil(lap):
-          assert SS.nDoc >= Dchunk.nDocTotal
-          assert np.sum(SS.WordCounts) >= 10*sum(Dchunk.word_count)
+          assert SS.nDoc - Dchunk.nDocTotal > -0.001
         else:
           if abs(SS.nDoc - Dchunk.nDocTotal) > 0.01:
             print "WARNING @ lap %.2f | SS.nDoc=%d, nDocTotal=%d" % (lap, SS.nDoc, Dchunk.nDocTotal)

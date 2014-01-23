@@ -120,7 +120,10 @@ def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=None, sumLogPi=None, initU=None,
         bestCvec, bestf, Info = scipy.optimize.fmin_l_bfgs_b(myFunc, 
                                   initC, fprime=myGrad, disp=None, factr=factr)
         bestUvec = np.exp(bestCvec)
-        break # take the money and run!
+        if np.any(np.isinf(bestUvec)):
+          bestUvec = None
+          raise AssertionError("bestUvec has inf values")
+        break # if we make it here, take the money and run!
       except RuntimeWarning: #overflow error
         ProbDict = dict(initU=np.exp(initC), alpha0=alpha0, gamma=gamma, 
                       nDoc=nDoc, sumLogPi=sumLogPi, K=K)
@@ -140,12 +143,17 @@ def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=None, sumLogPi=None, initU=None,
   # Our goal is minimization. If our bestf is *greater* than initf, ignore it
   if bestf > initf: 
     bestUvec = initU
+
+  if np.any(np.isinf(bestUvec)):
+    bestUvec = np.hstack([np.ones(K), alpha0*np.ones(K)])     
+    msg =  "WARNING: U estimation failed. Found inf values. Revert to prior."
+    pretty_print_warning(msg)
   if np.any(np.isnan(bestUvec)):
     bestUvec = np.hstack([np.ones(K), alpha0*np.ones(K)])     
     msg =  "WARNING: U estimation failed. Found NaN values. Revert to prior."
     pretty_print_warning(msg)
   elif np.allclose(bestUvec, initU) and K > 1:
-    msg = "WARNING: U estimation failed. Did not move from initial guess."
+    msg = "WARNING: U estimation did not move from initial guess."
     pretty_print_warning(msg)
   bestU1 = bestUvec[:K]
   bestU0 = bestUvec[K:]
