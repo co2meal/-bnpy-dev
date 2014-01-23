@@ -181,7 +181,7 @@ class WordsData(DataObj):
             col_ind.extend(self.word_id[ (doc_range[d,0]):(doc_range[d,1]) ])
         self.__sparseDocWordMat__ = scipy.sparse.csr_matrix(
                   (word_count, (row_ind,col_ind)),
-                  shape=(self.nDoc, self.vocab_size) )
+                  shape=(self.nDoc, self.vocab_size), dtype=np.float64)
         return self.__sparseDocWordMat__
 
     def verify_dimensions(self):
