@@ -119,7 +119,7 @@ class MultObsModel(ObsModel):
             Dstar = self.obsPrior.get_post_distr(SS, k)
             self.comp[k].post_update_soVB(rho, Dstar)
 
-    def set_global_params(self, phi=None, mass=10, Etopics=None, **kwargs):
+    def set_global_params(self, phi=None, Etopics=None, **kwargs):
         ''' Set global params to provided values
 
             Params
@@ -132,7 +132,13 @@ class MultObsModel(ObsModel):
         self.K = Etopics.shape[0]
         self.comp = list()
         for k in range(self.K):
-            self.comp.append(DirichletDistr(mass * Etopics[k,:]))
+            # Scale up Etopics to lamvec, a V-len vector of positive entries,
+            #   such that (1) E[phi] is still Etopics, and
+            #             (2) lamvec = obsPrior.lamvec + [some suff stats]
+            #   where (2) means that lamvec is a feasible posterior value
+            ii = np.argmin(Etopics[k,:])
+            lamvec = self.obsPrior.lamvec[ii]/Etopics[k,ii] * Etopics[k,:]
+            self.comp.append(DirichletDistr(lamvec))
 
   ######################################################### Evidence
   #########################################################
