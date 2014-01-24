@@ -246,11 +246,18 @@ class HDPModel(AllocModel):
           beta = np.hstack([beta, np.min(beta)/100.])
           beta = beta/np.sum(beta)
         if beta is not None:
-          assert abs(np.sum(beta) - 1.0) < 0.01
+          assert abs(np.sum(beta) - 1.0) < 0.005
           vMean = HVO.beta2v(beta)
-          vMass = 10
+          # for each k=1,2...K
+          #  find the multiplier vMass[k] such that both are true
+          #  1) vMass[k] * vMean[k] > 1.0
+          #  2) vMass[k] * (1-vMean[k]) > self.alpha0
+          vMass = np.maximum( 1./vMean , self.alpha0/(1.-vMean))
           self.U1 = vMass * vMean
           self.U0 = vMass * (1-vMean)
+          assert np.all( self.U1 >= 1.0 - 0.00001)
+          assert np.all( self.U0 >= self.alpha0 - 0.00001)
+
         else:
           raise ValueError('Bad HDP parameters')          
         assert self.U1.size == K
