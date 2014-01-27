@@ -156,6 +156,10 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
     viz_merge_proposal(curModel, propModel, kA, kB, curEv, propEv)
 
   evDiff = propEv - curEv
+
+  if propEv > 0 and curEv < 0:
+    MoveInfo = dict(didAccept=0, msg="CRAP. bad proposed evidence.")
+    return curModel, SS, curEv, MoveInfo
   if propEv > curEv:
     MSelector.reindexAfterMerge(kA, kB)
     msg = "merge %3d & %3d | ev +%.3e ****" % (kA, kB, propEv - curEv)
