@@ -52,6 +52,7 @@ def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=None, sumLogPi=None, initU=None,
       -------
       u1 : 
       u0 : 
+      Info : 
   '''
   alpha0 = float(alpha0)
   gamma = float(gamma)
@@ -133,6 +134,9 @@ def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=None, sumLogPi=None, initU=None,
         scipy.io.savemat(matpath, ProbDict, oned_as='row')
         msg = "WARNING: AssertionError. Input saved to %s" % (matpath)
         pretty_print_warning(msg)
+
+  if Info['warnflag'] > 1:
+    print '*********** BAD OPTIM:', Info['task']
 
   if bestUvec is None:
     bestUvec = initU
