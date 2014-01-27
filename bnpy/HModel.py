@@ -33,7 +33,7 @@ from allocmodel import *
 #    turns string input at command line into desired bnpy objects
 # string --> bnpy object constructor
 AllocConstr = {'MixModel':MixModel, 'DPMixModel':DPMixModel,
-                'AdmixModel':AdmixModel, 'HDPModel':HDPModel}
+                'AdmixModel':AdmixModel, 'HDPModel':HDPModel, 'HDPPE':HDPPE}
 ObsConstr = {'Gauss':GaussObsModel,'ZMGauss':ZMGaussObsModel,
                 'Mult':MultObsModel}
                    
