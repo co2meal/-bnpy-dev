@@ -108,11 +108,12 @@ class LearnAlg(object):
     isIncreasing = prevBound <= evBound
     M = self.algParams['convergeSigFig']
     isWithinTHR = closeAtMSigFigs(prevBound, evBound, M=M)
+    mLPkey = 'doMemoizeLocalParams'
     if not isIncreasing and not isWithinTHR:
       if self.hasMove('birth') and len(self.BirthCompIDs) > 0:
         warnMsg = 'ev decreased during a birth'
         warnMsg += ' (so monotonic increase not guaranteed)\n'
-      elif not self.algParams['doMemoizeLocalParams']:
+      elif mLPkey in self.algParams and not self.algParams[mLPkey]:
         warnMsg = 'ev decreased when doMemoizeLocalParams=0'
         warnMsg += ' (so monotonic increase not guaranteed)\n'
       else:

@@ -317,8 +317,9 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       ktarget = tInfoDict['ktarget']
       targetData = tInfoDict['Data']
       if targetData is not None:
-        self.print_msg("------------------ Target Dataset")
-        self.print_msg(targetData.get_text_summary())
+        pass
+        #self.print_msg("------------------ Target Dataset")
+        #self.print_msg(targetData.get_text_summary())
       if ktarget is None or targetData is None:
         msg = tInfoDict['msg']
       # Verify targetData large enough that birth would be productive

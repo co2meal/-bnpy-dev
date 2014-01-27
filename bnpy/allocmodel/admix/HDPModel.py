@@ -97,10 +97,13 @@ class HDPModel(AllocModel):
             assert LP['alphaPi'].shape[1] == self.K + 1
 
         LP = self.calc_ElogPi(LP)
-        prevVec = LP['alphaPi'].flatten()
-
+        alphaPi_old = LP['alphaPi']
+        
         # Allocate lots of memory once
+        if 'word_variational' in LP:
+          del LP['word_variational']
         LP['word_variational'] = np.zeros(LP['E_logsoftev_WordsData'].shape)
+        LP['DocTopicCount'] = np.zeros((Data.nDoc,self.K))
 
         # Repeat until converged...
         for ii in xrange(nCoordAscentItersLP):
@@ -108,7 +111,6 @@ class HDPModel(AllocModel):
             LP = self.get_word_variational(Data, LP)
         
             # Update DocTopicCount field of LP
-            LP['DocTopicCount'] = np.zeros((Data.nDoc,self.K))
             for d in xrange(Data.nDoc):
                 start,stop = Data.doc_range[d,:]
                 LP['DocTopicCount'][d,:] = np.dot(
@@ -120,10 +122,9 @@ class HDPModel(AllocModel):
             LP = self.calc_ElogPi(LP)
 
             # Assess convergence
-            curVec = LP['alphaPi'].flatten()
-            if np.allclose(prevVec, curVec, atol=convThrLP):
+            if np.allclose(alphaPi_old, LP['alphaPi'], atol=convThrLP):
                 break
-            prevVec = curVec
+            alphaPi_old = LP['alphaPi']
         return LP
 
     def get_doc_variational( self, Data, LP):
