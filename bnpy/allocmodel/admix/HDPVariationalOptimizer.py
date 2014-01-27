@@ -43,7 +43,7 @@ import logging
 Log = logging.getLogger('bnpy')
 EPS = 10*np.finfo(float).eps
 
-def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=None, sumLogPi=None, initU=None, initU1=None, initU0=None, Pi=None, **kwargs):
+def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=None, sumLogPi=None, initU=None, initU1=None, initU0=None, Pi=None, factr=1e7, **kwargs):
   ''' Solve optimization problem to estimate parameters u
       for the approximate posterior on stick-breaking fractions v
       q(v | u) = Beta( v_k | u_k1, u_k0)
@@ -84,6 +84,7 @@ def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=None, sumLogPi=None, initU=None,
     else:
       initU = np.hstack( [np.ones(K), alpha0*np.ones(K)])   
   assert initU.size == 2*K
+  
 
   myFunc = lambda Cvec: objectiveFunc(Cvec, alpha0, gamma, nDoc, sumLogPi)
   myGrad = lambda Cvec: objectiveGradient(Cvec, alpha0, gamma, nDoc, sumLogPi)
@@ -107,7 +108,6 @@ def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=None, sumLogPi=None, initU=None,
   for trial in range(3):
     if trial == 0:
       initC = np.log(initU)
-      factr = 1.0e7
     elif trial == 1:
       initC = np.log(initU)
       factr = 1.0e12
