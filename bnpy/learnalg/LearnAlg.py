@@ -110,12 +110,15 @@ class LearnAlg(object):
     isWithinTHR = closeAtMSigFigs(prevBound, evBound, M=M)
     mLPkey = 'doMemoizeLocalParams'
     if not isIncreasing and not isWithinTHR:
+      serious = True
       if self.hasMove('birth') and len(self.BirthCompIDs) > 0:
         warnMsg = 'ev decreased during a birth'
         warnMsg += ' (so monotonic increase not guaranteed)\n'
+        serious = False
       elif mLPkey in self.algParams and not self.algParams[mLPkey]:
         warnMsg = 'ev decreased when doMemoizeLocalParams=0'
         warnMsg += ' (so monotonic increase not guaranteed)\n'
+        serious = False
       else:
         warnMsg = 'evidence decreased!\n'
       warnMsg += '    prev = % .15e\n' % (prevBound)
@@ -124,7 +127,9 @@ class LearnAlg(object):
         prefix = "WARNING: "
       else:
         prefix = "WARNING @ %.3f: " % (lapFrac)
-      Log.error(prefix + warnMsg)
+
+      if serious or not self.algParams['doShowSeriousWarningsOnly']:
+        Log.error(prefix + warnMsg)
     return isWithinTHR 
 
 

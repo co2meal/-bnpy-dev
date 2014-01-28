@@ -125,7 +125,6 @@ class HDPModel(AllocModel):
             assert id(alphaPi_old) != id(LP['alphaPi'])
             if np.allclose(alphaPi_old, LP['alphaPi'], atol=convThrLP):
                 break
-
             alphaPi_old = LP['alphaPi']
         if doDocTopicFracLP:
           LP['DocTopicFrac'] = LP['DocTopicCount'].copy()
