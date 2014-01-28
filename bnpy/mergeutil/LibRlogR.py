@@ -16,7 +16,8 @@ import numpy as np
 from numpy.ctypeslib import ndpointer
 import ctypes
 
-lib = ctypes.cdll.LoadLibrary('librlogr.so')
+libpath = os.path.sep.join(os.path.abspath(__file__).split(os.path.sep)[:-1])
+lib = ctypes.cdll.LoadLibrary(os.path.join(libpath,'librlogr.so'))
 lib.CalcRlogR_AllPairs.restype = None
 lib.CalcRlogR_AllPairs.argtypes = \
                [ndpointer(ctypes.c_double),
