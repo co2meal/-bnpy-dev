@@ -320,8 +320,10 @@ class HDPModel(AllocModel):
         ''' 
         wv = LP['word_variational']
         wv += EPS # Make sure all entries > 0 before taking log
-        ElogqZMat = np.zeros((self.K, self.K))
         if mPairIDs is None:
+          ElogqZMat = LibRlogR.calcRlogR_allpairsdotv_c(wv, Data.word_count)
+          """
+          ElogqZMat = np.zeros((self.K, self.K))
           for jj in range(self.K):
             J = self.K - jj - 1 # num of pairs for comp jj
             # curWV : nObs x J, resp for each data item under each merge with jj
@@ -332,12 +334,13 @@ class HDPModel(AllocModel):
             curE_logqZ = np.dot(Data.word_count, curWV)            
             assert curE_logqZ.size == J
             ElogqZMat[jj,jj+1:] = curE_logqZ
+          """
         else:
-          ElogqZMat = LibRlogR.calcRlogR_allpairsdotv_c(wv, Data.word_count)
-          #for (kA, kB) in mPairIDs:
-          #  curWV = wv[:,kA] + wv[:, kB]
-          #  curWV *= np.log(curWV)
-          #  ElogqZMat[kA,kB] = np.dot(Data.word_count, curWV)
+          ElogqZMat = np.zeros((self.K, self.K))
+          for (kA, kB) in mPairIDs:
+            curWV = wv[:,kA] + wv[:, kB]
+            curWV *= np.log(curWV)
+            ElogqZMat[kA,kB] = np.dot(Data.word_count, curWV)
         return ElogqZMat
 
     ####################################################### ELBO terms for Pi

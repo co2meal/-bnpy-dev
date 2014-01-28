@@ -62,6 +62,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
     # memoLPkeys : keep list of params that should be retained across laps
     self.memoLPkeys = hmodel.allocModel.get_keys_for_memoized_local_params()
+    mPairIDs = None
 
     SS = None
     isConverged = False
@@ -91,10 +92,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         hmodel, SS = self.run_birth_move(hmodel, Dchunk, SS, lapFrac)
 
       if self.hasMove('merge'):
-        if self.algParams['merge']['doAllPairs']:
-          mPairIDs = None
-        else:
-          mPairIDs = -1 #[(0,1)]
+        if not self.algParams['merge']['doAllPairs']:
+          mPairIDs = [(0,1), (2,3), (4,5)]
 
       # E step
       if batchID in self.LPmemory:
