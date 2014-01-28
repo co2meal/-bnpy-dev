@@ -43,7 +43,22 @@ import logging
 Log = logging.getLogger('bnpy')
 EPS = 10*np.finfo(float).eps
 
-def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=None, sumLogPi=None, initU=None, initU1=None, initU0=None, Pi=None, **kwargs):
+def estimate_u_Debug(sumLogPi=None, nDoc=0, gamma=0.5, alpha0=1.0, factr=1e7, approx_grad=False, **kwargs):
+  K = sumLogPi.size - 1
+
+  myFunc = lambda Cvec: objectiveFunc(Cvec, alpha0, gamma, nDoc, sumLogPi)
+  myGrad = lambda Cvec: objectiveGradient(Cvec, alpha0, gamma, nDoc, sumLogPi)
+  
+  initU = np.hstack( [np.ones(K), alpha0*np.ones(K)])        
+  initC = np.log(initU)
+  bestC, bestf, Info = scipy.optimize.fmin_l_bfgs_b(myFunc, initC,
+                                          fprime=myGrad, disp=None, factr=factr,
+                                          approx_grad=approx_grad)
+
+  bestU = np.exp(bestC)
+  return bestU, bestf, Info
+
+def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=None, sumLogPi=None, initU=None, initU1=None, initU0=None, Pi=None, factr=1e7, **kwargs):
   ''' Solve optimization problem to estimate parameters u
       for the approximate posterior on stick-breaking fractions v
       q(v | u) = Beta( v_k | u_k1, u_k0)
@@ -52,7 +67,6 @@ def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=None, sumLogPi=None, initU=None,
       -------
       u1 : 
       u0 : 
-      Info : 
   '''
   alpha0 = float(alpha0)
   gamma = float(gamma)
@@ -85,6 +99,7 @@ def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=None, sumLogPi=None, initU=None,
     else:
       initU = np.hstack( [np.ones(K), alpha0*np.ones(K)])   
   assert initU.size == 2*K
+  
 
   myFunc = lambda Cvec: objectiveFunc(Cvec, alpha0, gamma, nDoc, sumLogPi)
   myGrad = lambda Cvec: objectiveGradient(Cvec, alpha0, gamma, nDoc, sumLogPi)
@@ -108,7 +123,6 @@ def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=None, sumLogPi=None, initU=None,
   for trial in range(3):
     if trial == 0:
       initC = np.log(initU)
-      factr = 1.0e7
     elif trial == 1:
       initC = np.log(initU)
       factr = 1.0e12
@@ -121,7 +135,10 @@ def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=None, sumLogPi=None, initU=None,
         bestCvec, bestf, Info = scipy.optimize.fmin_l_bfgs_b(myFunc, 
                                   initC, fprime=myGrad, disp=None, factr=factr)
         bestUvec = np.exp(bestCvec)
-        break # take the money and run!
+        if np.any(np.isinf(bestUvec)):
+          bestUvec = None
+          raise AssertionError("bestUvec has inf values")
+        break # if we make it here, take the money and run!
       except RuntimeWarning: #overflow error
         ProbDict = dict(initU=np.exp(initC), alpha0=alpha0, gamma=gamma, 
                       nDoc=nDoc, sumLogPi=sumLogPi, K=K)
@@ -144,12 +161,17 @@ def estimate_u(alpha0=1.0, gamma=0.5, nDoc=0, K=None, sumLogPi=None, initU=None,
   # Our goal is minimization. If our bestf is *greater* than initf, ignore it
   if bestf > initf: 
     bestUvec = initU
+
+  if np.any(np.isinf(bestUvec)):
+    bestUvec = np.hstack([np.ones(K), alpha0*np.ones(K)])     
+    msg =  "WARNING: U estimation failed. Found inf values. Revert to prior."
+    pretty_print_warning(msg)
   if np.any(np.isnan(bestUvec)):
     bestUvec = np.hstack([np.ones(K), alpha0*np.ones(K)])     
     msg =  "WARNING: U estimation failed. Found NaN values. Revert to prior."
     pretty_print_warning(msg)
   elif np.allclose(bestUvec, initU) and K > 1:
-    msg = "WARNING: U estimation failed. Did not move from initial guess."
+    msg = "WARNING: U estimation did not move from initial guess."
     pretty_print_warning(msg)
   bestU1 = bestUvec[:K]
   bestU0 = bestUvec[K:]

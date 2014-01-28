@@ -72,7 +72,7 @@ class HDPModel(AllocModel):
   ######################################################### Local Params
   #########################################################
 
-    def calc_local_params(self, Data, LP, nCoordAscentItersLP=20, convThrLP=0.01, **kwargs):
+    def calc_local_params(self, Data, LP, nCoordAscentItersLP=20, convThrLP=0.01, doDocTopicFracLP=0, **kwargs):
         ''' Calculate document-specific quantities (E-step)
           Alternate updates to two terms until convergence
             (1) Approx posterior on topic-token assignment
@@ -122,9 +122,13 @@ class HDPModel(AllocModel):
             LP = self.calc_ElogPi(LP)
 
             # Assess convergence
+            assert id(alphaPi_old) != id(LP['alphaPi'])
             if np.allclose(alphaPi_old, LP['alphaPi'], atol=convThrLP):
                 break
             alphaPi_old = LP['alphaPi']
+        if doDocTopicFracLP:
+          LP['DocTopicFrac'] = LP['DocTopicCount'].copy()
+          LP['DocTopicFrac'] /= LP['DocTopicFrac'].sum(axis=1)[:,np.newaxis]
         return LP
 
     def get_doc_variational( self, Data, LP):
@@ -180,6 +184,11 @@ class HDPModel(AllocModel):
         sumLogPi = np.sum(LP['E_logPi'], axis=0)
         SS.setField('sumLogPiActive', sumLogPi[:K], dims='K')
         SS.setField('sumLogPiUnused', sumLogPi[-1], dims=None)
+
+        if 'DocTopicFrac' in LP:
+          Nmajor = LP['DocTopicFrac']
+          Nmajor[Nmajor < 0.05] = 0
+          SS.setField('Nmajor', np.sum(Nmajor, axis=0), dims='K')
         if doPrecompEntropy:
             # Z terms
             SS.setELBOTerm('ElogpZ', self.E_logpZ(Data, LP), dims='K')

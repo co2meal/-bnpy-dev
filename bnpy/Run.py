@@ -211,6 +211,7 @@ def loadData(ReqArgs, KwArgs, DataArgs, dataorderseed):
     return Data, Data
   elif algName in OnlineDataAlgSet:
     InitData = datamod.get_data(**DataArgs)
+
     if 'OnlineDataPrefs' in KwArgs:
       KwArgs[algName]['nLap'] = KwArgs['OnlineDataPrefs']['nLap']
       OnlineDataArgs = KwArgs['OnlineDataPrefs']

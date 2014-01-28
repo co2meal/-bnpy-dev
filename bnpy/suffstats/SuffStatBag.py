@@ -189,7 +189,9 @@ class SuffStatBag(object):
 
   # ======================================================= Override getattr
   def __getattr__(self, key):
-    if hasattr(self._Fields, key):
+    if key == "_Fields":
+      return object.__getattribute__(self, key)
+    elif hasattr(self._Fields, key):
       return getattr(self._Fields,key)
     elif key == '__deepcopy__': # workaround to allow copying
       return None

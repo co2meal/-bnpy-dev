@@ -1,15 +1,16 @@
 '''
-PlotELBO.py
+PlotK.py
 
 Executable for plotting the learning objective function (log evidence)
   vs. time/number of passes thru data (laps)
 
 Usage (command-line)
 -------
-python -m bnpy.viz.PlotELBO dataName aModelName obsModelName algName [kwargs]
+python -m bnpy.viz.PlotK dataName aModelName obsModelName algName [kwargs]
 '''
 from matplotlib import pylab
 import numpy as np
+import scipy.io
 import argparse
 import os
 import bnpy.ioutil.BNPYArgParser as BNPYArgParser
@@ -59,17 +60,16 @@ def plot_all_tasks_for_job(jobpath, args, jobname=None, color=None):
   yLocs = list()
   for tt, taskid in enumerate(taskids):
     xs = np.loadtxt(os.path.join(jobpath, taskid, args.xvar+'.txt'))
-    ys = np.loadtxt(os.path.join(jobpath, taskid, 'evidence.txt'))
-    # remove first-lap of moVB, since ELBO is not accurate
-    if jobpath.count('moVB') > 0 and args.xvar == 'laps':
-      mask = xs >= 1.0
-      xs = xs[mask]
-      ys = ys[mask]
+    try:
+      ys = np.loadtxt(os.path.join(jobpath, taskid, 'K.txt'))
+    except IOError:
+      MatDict = scipy.io.loadmat(os.path.join(jobpath,taskid, 'AllocPrior.mat'))
+      Kfixed = int(MatDict['K'])
+      ys = Kfixed* np.ones(len(xs))
     if args.traceEvery is not None:
       mask = bnpy.util.isEvenlyDivisibleFloat(xs, args.traceEvery)
       xs = xs[mask]
       ys = ys[mask]
-
 
     plotargs = dict(markersize=10, linewidth=2, label=None,
                     color=color, markeredgecolor=color)
@@ -84,19 +84,16 @@ def plot_all_tasks_for_job(jobpath, args, jobname=None, color=None):
       
   # Zoom in to the useful part of the ELBO trace
   if len(yAll) > 0:
-    global YMin, YMax
-    ymin = np.percentile(yAll, 1)
+    global YMax
     ymax = np.max(yAll)
-    if YMin is None:
-      YMin = ymin
+    if YMax is None:
       YMax = ymax
     else:
-      YMin = np.minimum(ymin, YMin)
       YMax = np.maximum(YMax, ymax)
-    blankmargin = 0.08*(YMax - YMin)
-    pylab.ylim( [YMin, YMax + blankmargin])
+    blankmargin = 0.05*(YMax)
+    pylab.ylim( [0, YMax + blankmargin])
   pylab.xlabel(XLabelMap[args.xvar])
-  pylab.ylabel('log evidence')
+  pylab.ylabel('K')
    
 def job_to_plot_generator(args):
   ''' Generates tuples (jobpath, jobname, color), each specifies a line plot
@@ -133,7 +130,7 @@ def parse_args():
   args.jobnames = args.jobnames.split(',')
   if args.legendnames is not None:
     args.legendnames = args.legendnames.split(',')
-    #assert len(args.legendnames) == len(args.jobnames) * len(args.algNames)
+
   return args
 
 if __name__ == "__main__":

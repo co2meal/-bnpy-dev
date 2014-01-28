@@ -57,8 +57,11 @@ def subsample_data(DataObj, LP, targetCompID, targetProbThr=0.1,
     elif subsampleroutine == 'keepentiredocuments':
       # Ndk : empirical doc-topic distribution
       #       rows sum to one
-      Ndk = LP['DocTopicCount'].copy()
-      Ndk /= np.sum(Ndk,axis=1)[:,np.newaxis]
+      if 'DocTopicFrac' in LP:
+        Ndk = LP['DocTopicFrac']            
+      else:
+        Ndk = LP['DocTopicCount'].copy()
+        Ndk /= np.sum(Ndk,axis=1)[:,np.newaxis]
       docmask = Ndk[:, targetCompID] > targetProbThr
       docIDs = np.flatnonzero(docmask)
       if docIDs.size == 0:
@@ -78,7 +81,7 @@ def subsample_data(DataObj, LP, targetCompID, targetProbThr=0.1,
     TargetData = DataObj.select_subset_by_mask(targetObjIDs, 
                                                 doTrackFullSize=False)
   return TargetData
-  
+
 ###########################################################
 ###########################################################
 def run_birth_move(curModel, targetData, SS, randstate=np.random, 
@@ -93,6 +96,11 @@ def run_birth_move(curModel, targetData, SS, randstate=np.random,
     Kfresh = freshSS.K
     Kold = curModel.obsModel.K
     newSS = SS.copy()
+
+    # TODO: remove this hack!
+    if hasattr(SS, 'Nmajor'):
+      freshSS.setField('Nmajor', np.zeros(freshSS.K), dims='K')
+
     newSS.insertComps(freshSS)
     newModel = curModel.copy()
     newModel.update_global_params(newSS)
@@ -268,7 +276,10 @@ def select_birth_component(SS, targetSelectName='sizebiased',
   if targetSelectName == 'uniform':
     ps = np.ones(K)
   elif targetSelectName == 'sizebiased':
-    ps = SS.N.copy()
+    if hasattr(SS, 'Nmajor'):
+      ps = SS.Nmajor.copy()
+    else:
+      ps = SS.N.copy()
     ps[SS.N < emptyTHR] = 0
   elif targetSelectName == 'delaybiased':
     # Bias choice towards components that have not been selected in a long time
@@ -280,11 +291,14 @@ def select_birth_component(SS, targetSelectName='sizebiased',
     #  *and* which have many members
     lapDist = np.asarray([lapsSinceLastBirth[kk] for kk in range(K)])
     ps = np.maximum(lapDist + 1e-5, 0)
-    ps = ps * ps * SS.N
+    if hasattr(SS, 'Nmajor'):
+      ps = ps * SS.Nmajor
+    else:
+      ps = ps * SS.N
     ps[SS.N < emptyTHR] = 0
   else:
     raise NotImplementedError('Unrecognized procedure: ' + targetSelectName)
-  # Make final selection at random
+  # Make final selection via random draw
   ps[excludeList] = 0
   if np.sum(ps) < EPS:
     raise BirthProposalError('BIRTH not possible. All possible target comps have zero probability.')
