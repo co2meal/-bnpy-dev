@@ -24,6 +24,14 @@ class MergeTracker(object):
     self.removedIDs = list()
     self.InfoLog = list()
 
+  def addPairsToExclude(self, kAList, kBList):
+    for ii in xrange(len(kAList)):
+      kA = kAList[ii]
+      kB = kBList[ii]
+      self.excludePairs[kA].add(kB)
+      self.excludePairs[kB].add(kA)
+    self._synchronize_and_verify()
+
   def hasAvailablePairs(self):
     ''' Return True if not all candidates have been attempted, False otherwise
     '''

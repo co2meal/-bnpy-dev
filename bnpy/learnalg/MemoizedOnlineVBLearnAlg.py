@@ -64,6 +64,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
     # memoLPkeys : keep list of params that should be retained across laps
     self.memoLPkeys = hmodel.allocModel.get_keys_for_memoized_local_params()
+    mPairIDs = None
 
     SS = None
     isConverged = False
@@ -92,6 +93,10 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       if self.hasMove('birth') and iterid > 0:
         hmodel, SS = self.run_birth_move(hmodel, Dchunk, SS, lapFrac)
 
+      if self.hasMove('merge'):
+        if not self.algParams['merge']['doAllPairs']:
+          mPairIDs = [(0,1), (2,3), (4,5)]
+
       # E step
       if batchID in self.LPmemory:
         oldLPchunk = self.load_batch_local_params_from_memory(batchID)
@@ -111,7 +116,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
       SSchunk = hmodel.get_global_suff_stats(Dchunk, LPchunk,
                        doPrecompEntropy=True, 
-                       doPrecompMergeEntropy=self.hasMove('merge')
+                       doPrecompMergeEntropy=self.hasMove('merge'),
+                       mPairIDs=mPairIDs,
                        )
       
       if SS is None:
@@ -136,7 +142,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
       # Merge move!      
       if self.hasMove('merge') and isEvenlyDivisibleFloat(lapFrac, 1.):
-        hmodel, SS, evBound = self.run_merge_move(hmodel, None, SS, evBound)
+        hmodel, SS, evBound = self.run_merge_move(hmodel, SS, evBound)
 
       # Save and display progress
       self.add_nObs(Dchunk.nObs)
@@ -457,13 +463,13 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
   ######################################################### Merge moves!
   #########################################################
-  def run_merge_move(self, hmodel, Data, SS, evBound):
+  def run_merge_move(self, hmodel, SS, evBound):
     if self.algParams['merge']['version'] > 0:
-      return self.run_merge_move_NEW(hmodel, Data, SS, evBound)
+      return self.run_merge_move_NEW(hmodel, SS, evBound)
     else:
-      return self.run_merge_move_OLD(hmodel, Data, SS, evBound)
+      return self.run_merge_move_OLD(hmodel, None, SS, evBound)
 
-  def run_merge_move_NEW(self, hmodel, Data, SS, evBound):
+  def run_merge_move_NEW(self, hmodel, SS, evBound):
     ''' Run (potentially many) merge moves on hmodel,
           performing necessary bookkeeping to
             (1) avoid trying the same merge twice
@@ -486,7 +492,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     nMergeTrials = self.algParams['merge']['mergePerLap']
 
     hmodel, SS, newEvBound, MTracker = run_many_merge_moves(
-                        hmodel, Data, SS, evBound=evBound, 
+                        hmodel, None, SS, evBound=evBound, 
                         randstate=self.PRNG, nMergeTrials=nMergeTrials,
                         compList=compList, savedir=self.savedir,
                         **self.algParams['merge'])

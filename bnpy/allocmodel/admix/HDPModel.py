@@ -35,6 +35,7 @@ from ..AllocModel import AllocModel
 from bnpy.suffstats import SuffStatBag
 from ...util import digamma, gammaln, logsumexp
 from ...util import EPS, np2flatstr
+from ...mergeutil import LibRlogR
 import logging
 Log = logging.getLogger('bnpy')
 
@@ -175,7 +176,8 @@ class HDPModel(AllocModel):
   ######################################################### Suff Stats
   #########################################################
     def get_global_suff_stats(self, Data, LP, doPrecompEntropy=False, 
-                                              doPrecompMergeEntropy=False):
+                                              doPrecompMergeEntropy=False,
+                                              mPairIDs=None):
         ''' Count expected number of times each topic is used across all docs    
         '''
         wv = LP['word_variational']
@@ -205,7 +207,7 @@ class HDPModel(AllocModel):
 
         if doPrecompMergeEntropy:
             ElogpZMat, sLgPiMat, ElogqPiMat = self.memo_elbo_terms_for_merge(LP)
-            ElogqZMat = self.E_logqZ_memo_terms_for_merge(Data, LP)
+            ElogqZMat = self.E_logqZ_memo_terms_for_merge(Data, LP, mPairIDs)
             SS.setMergeTerm('ElogpZ', ElogpZMat, dims=('K','K'))
             SS.setMergeTerm('ElogqZ', ElogqZMat, dims=('K','K'))
             SS.setMergeTerm('ElogqPiActive', ElogqPiMat, dims=('K','K'))
@@ -338,13 +340,16 @@ class HDPModel(AllocModel):
         E_log_qZ = np.dot(Data.word_count, wv_logwv)
         return E_log_qZ
 
-    def E_logqZ_memo_terms_for_merge(self, Data, LP):
+    def E_logqZ_memo_terms_for_merge(self, Data, LP, mPairIDs=None):
         ''' Returns KxK matrix 
         ''' 
         wv = LP['word_variational']
         wv += EPS # Make sure all entries > 0 before taking log
-        ElogqZMat = np.zeros((self.K, self.K))
-        for jj in range(self.K):
+        if mPairIDs is None:
+          ElogqZMat = LibRlogR.calcRlogR_allpairsdotv_c(wv, Data.word_count)
+          """
+          ElogqZMat = np.zeros((self.K, self.K))
+          for jj in range(self.K):
             J = self.K - jj - 1 # num of pairs for comp jj
             # curWV : nObs x J, resp for each data item under each merge with jj
             curWV = wv[:,jj][:,np.newaxis] + wv[:,jj+1:]
@@ -354,6 +359,13 @@ class HDPModel(AllocModel):
             curE_logqZ = np.dot(Data.word_count, curWV)            
             assert curE_logqZ.size == J
             ElogqZMat[jj,jj+1:] = curE_logqZ
+          """
+        else:
+          ElogqZMat = np.zeros((self.K, self.K))
+          for (kA, kB) in mPairIDs:
+            curWV = wv[:,kA] + wv[:, kB]
+            curWV *= np.log(curWV)
+            ElogqZMat[kA,kB] = np.dot(Data.word_count, curWV)
         return ElogqZMat
 
     ####################################################### ELBO terms for Pi
