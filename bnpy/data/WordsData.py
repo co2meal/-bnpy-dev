@@ -107,7 +107,7 @@ class WordsData(DataObj):
             vocab_size : integer size of set of possible vocabulary words
         '''
         self.word_id = np.asarray(np.squeeze(word_id), dtype=np.uint32)
-        self.word_count = np.asarray(np.squeeze(word_count), dtype=np.float32)
+        self.word_count = np.asarray(np.squeeze(word_count), dtype=np.float64)
         self.doc_range = np.asarray(doc_range, dtype=np.uint32)
         self.vocab_size = int(vocab_size)
         

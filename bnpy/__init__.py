@@ -9,6 +9,7 @@ import allocmodel
 import obsmodel
 from HModel import HModel
 
+import mergeutil
 import ioutil
 import init
 
@@ -58,4 +59,4 @@ if canPlot:
   import viz
 
 __all__ = ['run', 'Run', 'learn', 'allocmodel','obsmodel', 'suffstats',
-           'HModel', 'init', 'util','ioutil','viz','distr']
+           'HModel', 'init', 'util','ioutil','viz','distr', 'mergeutil']
