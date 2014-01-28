@@ -29,11 +29,14 @@ U1, U0   : K-length vectors, params for variational distribution over
 '''
 import numpy as np
 
+import HDPFullVarOpt as FVO
 import HDPVariationalOptimizer as HVO
 from ..AllocModel import AllocModel
 from bnpy.suffstats import SuffStatBag
 from ...util import digamma, gammaln, logsumexp
 from ...util import EPS, np2flatstr
+import logging
+Log = logging.getLogger('bnpy')
 
 class HDPModel(AllocModel):
 
@@ -213,22 +216,34 @@ class HDPModel(AllocModel):
   ######################################################### Global Params
   #########################################################
     def update_global_params_VB(self, SS, **kwargs):
-        ''' Update global parameters that control topic probabilities beta
-            beta[k] ~ Beta( U1[k], U0[k])
+        ''' Update global parameters that control topic probabilities
+            v[k] ~ Beta( U1[k], U0[k])
         '''
         self.K = SS.K
-        if hasattr(self, 'U1'):
-          initU1 = self.U1
-          initU0 = self.U0
+        if hasattr(self, 'U1') and self.U1.size == self.K:
+          initU = np.hstack([self.U1, self.U0])
         else:
-          initU1 = None
-          initU0 = None
+          # Use the prior
+          initU = np.hstack([np.ones(self.K), self.alpha0*np.ones(self.K)])
         sumLogPi = np.hstack([SS.sumLogPiActive, SS.sumLogPiUnused])
-        U1, U0 = HVO.estimate_u(K=self.K, alpha0=self.alpha0, gamma=self.gamma,
-                     sumLogPi=sumLogPi, nDoc=SS.nDoc, 
-                     initU1=initU1, initU0=initU0)
-        self.U1 = U1
-        self.U0 = U0
+
+        try:
+          u, fofu, Info = FVO.estimate_u_multiple_tries(sumLogPi=sumLogPi,
+                                        nDoc=SS.nDoc,
+                                        gamma=self.gamma, alpha0=self.alpha0,
+                                        initU=initU)
+        except ValueError as error:
+          if str(error).count('FAILURE') == 0:
+            raise error
+          if hasattr(self, 'U1') and self.U1.size == self.K:
+            Log.error('***** Optim failed. Stay put. ' + str(error))
+            return # EXIT with current state, failed to update
+          else:
+            Log.error('***** Optim failed. Stuck at prior. ' + str(error))
+            u = initU # fall back on the prior otherwise
+        
+        self.U1 = u[:self.K]
+        self.U0 = u[self.K:]
         self.set_helper_params()
         
     def update_global_params_soVB(self, SS, rho, **kwargs):

@@ -80,7 +80,7 @@ def run_many_merge_moves(hmodel, Data, SS, evBound=None,
 def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
                    kA=None, kB=None, MTracker=None, MSelector=None,
                    mergename='marglik', randstate=np.random.RandomState(),
-                   doUpdateAllComps=1, savedir=None, **kwargs):
+                   doUpdateAllComps=1, savedir=None, doVerbose=False, **kwargs):
   ''' Creates candidate model with two components merged,
       and returns either candidate or current model,
       whichever has higher log probability (ELBO).
@@ -142,7 +142,8 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
                                      MSelector=MSelector,
                                      mergename=mergename, 
                                      randstate=randstate)
-  
+  if doVerbose:
+    print "  merging %3d+%3d" % (kA, kB)
   # Create candidate merged model
   propModel, propSS = propose_merge_candidate(curModel, SS, kA, kB, doUpdateAllComps=doUpdateAllComps)
 
@@ -156,9 +157,17 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
     viz_merge_proposal(curModel, propModel, kA, kB, curEv, propEv)
 
   evDiff = propEv - curEv
+  if doVerbose:
+    s = ''
+    if evDiff > 0:
+      if propEv < 0:
+        s = '***'
+      else:
+        s = '!!!!!!!!!!!!!!!!'
+    print "    new ev %.3e | diff %.3e |  %s" % (propEv, evDiff, s)
 
   if propEv > 0 and curEv < 0:
-    MoveInfo = dict(didAccept=0, msg="CRAP. bad proposed evidence.")
+    MoveInfo = dict(didAccept=0, kA=kA, kB=kB, msg="CRAP. bad proposed evidence.")
     return curModel, SS, curEv, MoveInfo
   if propEv > curEv:
     MSelector.reindexAfterMerge(kA, kB)

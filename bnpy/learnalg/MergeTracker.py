@@ -68,9 +68,12 @@ class MergeTracker(object):
         candidates.append(x)
     return candidates
 
-  def recordResult(self, kA=0, kB=1, didAccept=False, msg=None, **kwargs):
+  def recordResult(self, kA=None, kB=None, didAccept=False, msg=None, **kwargs):
     '''
     '''
+    if kA is None or kB is None:
+      return
+
     self.verifyPair(kA, kB)
     self.nTrial += 1
     self.InfoLog.append(msg)

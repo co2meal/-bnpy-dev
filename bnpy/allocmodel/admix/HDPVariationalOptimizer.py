@@ -43,18 +43,20 @@ import logging
 Log = logging.getLogger('bnpy')
 EPS = 10*np.finfo(float).eps
 
-def estimate_u_Debug(sumLogPi=None, nDoc=0, gamma=0.5, alpha0=1.0, factr=1e7, approx_grad=False, **kwargs):
+def estimate_u_Debug(sumLogPi=None, nDoc=0, gamma=0.5, alpha0=1.0, factr=1e7, approx_grad=False, initU=None, **kwargs):
   K = sumLogPi.size - 1
 
   myFunc = lambda Cvec: objectiveFunc(Cvec, alpha0, gamma, nDoc, sumLogPi)
   myGrad = lambda Cvec: objectiveGradient(Cvec, alpha0, gamma, nDoc, sumLogPi)
   
-  initU = np.hstack( [np.ones(K), alpha0*np.ones(K)])        
+  if initU is None:
+    initU = np.hstack( [np.ones(K), alpha0*np.ones(K)])        
   initC = np.log(initU)
   bestC, bestf, Info = scipy.optimize.fmin_l_bfgs_b(myFunc, initC,
                                           fprime=myGrad, disp=None, factr=factr,
                                           approx_grad=approx_grad)
 
+  Info['objFunc'] = lambda u: objectiveFunc2(u, alpha0, gamma, nDoc, sumLogPi)
   bestU = np.exp(bestC)
   return bestU, bestf, Info
 
@@ -251,6 +253,7 @@ def objectiveGradient(Cvec, alpha0, gamma, nDoc, sumLogPi, E=dict()):
 
   gvecU1 = dU1_Elogp_v + dU1_Elogp_pi - dU1_Elogq_v
   gvecU0 = dU0_Elogp_v + dU0_Elogp_pi - dU0_Elogq_v
+
   gvecU = -1 * np.hstack([gvecU1, gvecU0])
 
   # Apply chain rule!
