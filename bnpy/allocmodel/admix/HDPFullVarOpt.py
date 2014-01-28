@@ -43,6 +43,20 @@ EPS = 10*np.finfo(float).eps
 def estimate_u_multiple_tries(sumLogPi=None, nDoc=0, gamma=1.0, alpha0=1.0,
                               initu=None, initU=None, approx_grad=False,
                               fList=[1e7, 1e8, 1e10], **kwargs):
+  ''' Estimate 2K-vector "u" via gradient descent,
+        gracefully using multiple restarts with progressively weaker tolerances
+        until one succeeds
+
+      Returns
+      --------
+      u : 2K-vector of positive parameters
+      fofu : scalar value of minimization objective
+      Info : dict
+
+      Raises
+      --------
+      ValueError with FAILURE in message if all restarts fail
+  '''
   K = sumLogPi.size - 1
   if initU is not None:
     initu = initU
@@ -83,6 +97,10 @@ def estimate_u(sumLogPi=None, nDoc=0, gamma=1.0, alpha0=1.0, initu=None, approx_
       vhat : K-vector of values, 0 < v < 1
       fofvhat: objective function value at vhat
       Info : dict with info about estimation algorithm
+
+      Raises
+      --------
+      ValueError on an overflow, any detection of NaN, or failure to converge
   '''
   sumLogPi = np.squeeze(np.asarray(sumLogPi, dtype=np.float64))
   assert sumLogPi.ndim == 1
