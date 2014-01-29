@@ -179,7 +179,7 @@ def clean_up_fresh_model(targetData, curModel, freshModel,
   import MergeMove
 
   # Perform many merges among the fresh components
-  for trial in xrange(5):
+  for trial in xrange(10):
     targetLP = freshModel.calc_local_params(targetData)
     targetSS = freshModel.get_global_suff_stats(targetData, targetLP,
                     doPrecompEntropy=True, doPrecompMergeEntropy=True)
@@ -191,6 +191,9 @@ def clean_up_fresh_model(targetData, curModel, freshModel,
                                **mergeKwArgs)
     if targetSS.K == prevK:
       break # no merges happened, so quit trying
+
+  if targetSS.K < 2:
+    return targetSS # quit early, will reject
 
   #targetLP = freshModel.calc_local_params(targetData)
   #targetSS = freshModel.get_global_suff_stats(targetData, targetLP,
@@ -255,7 +258,6 @@ def clean_up_fresh_model(targetData, curModel, freshModel,
     if ktarget >= 0:
       targetSS.removeComp(ktarget)
   """
-
   return targetSS
 
 ########################################################### Select birth comps
