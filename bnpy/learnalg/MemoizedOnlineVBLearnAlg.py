@@ -96,8 +96,13 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
       if self.hasMove('merge') and not self.algParams['merge']['doAllPairs']:
         if self.isFirstBatch(lapFrac):
+          if self.hasMove('birth'):
+            compIDs = self.BirthCompIDs
+          else:
+            compIDs = []
           mPairIDs = MergeMove.preselect_all_merge_candidates(hmodel, SS, 
-                           randstate=self.PRNG, **self.algParams['merge'])
+                           randstate=self.PRNG, compIDs=compIDs,
+                           **self.algParams['merge'])
 
       # E step
       if batchID in self.LPmemory:
@@ -143,7 +148,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
       # Merge move!      
       if self.hasMove('merge') and isEvenlyDivisibleFloat(lapFrac, 1.):
-        hmodel, SS, evBound = self.run_merge_move(hmodel, SS, evBound)
+        hmodel, SS, evBound = self.run_merge_move(hmodel, SS, evBound, mPairIDs)
 
       # Save and display progress
       self.add_nObs(Dchunk.nObs)
@@ -516,13 +521,13 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
   ######################################################### Merge moves!
   #########################################################
-  def run_merge_move(self, hmodel, SS, evBound):
+  def run_merge_move(self, hmodel, SS, evBound, mPairIDs=None):
     if self.algParams['merge']['version'] > 0:
-      return self.run_merge_move_NEW(hmodel, SS, evBound)
+      return self.run_merge_move_NEW(hmodel, SS, evBound, mPairIDs)
     else:
       return self.run_merge_move_OLD(hmodel, None, SS, evBound)
 
-  def run_merge_move_NEW(self, hmodel, SS, evBound):
+  def run_merge_move_NEW(self, hmodel, SS, evBound, mPairIDs=None):
     ''' Run (potentially many) merge moves on hmodel,
           performing necessary bookkeeping to
             (1) avoid trying the same merge twice
@@ -545,7 +550,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     nMergeTrials = self.algParams['merge']['mergePerLap']
 
     hmodel, SS, newEvBound, MTracker = run_many_merge_moves(
-                        hmodel, None, SS, evBound=evBound, 
+                        hmodel, None, SS, evBound=evBound,
+                        mPairIDs=mPairIDs, 
                         randstate=self.PRNG, nMergeTrials=nMergeTrials,
                         compList=compList, savedir=self.savedir,
                         **self.algParams['merge'])

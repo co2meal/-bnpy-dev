@@ -1,25 +1,22 @@
 =========== TODAY
-* report on chib scores for NIPS, bars_normal, bars_bursty
+* report on chib scores for NIPS, huffpost
 * * show for each method typical K and typical Ebeta
 
-=========== Memoized
-* adjust converge threshold to maximize perf when memoLP=0
-* consider setting maxTargetSize larger for births? maybe 1000 documents?
+* plot K vs nLap, ELBO vs nLap for bnpy runs
+* * compare tau=0.1 to 0.01, HDPM to HDPPE
+
+* check on the "initfrom" case, make sure we dont tank in predictive liklihood
+
+* make figure of predictive likelihood vs. K at several different checkpoints
+
+* speed up births? speed up merges more?
 
 =========== Stochastic
 * better computation of the evidence bound (avg across batches)
 
 =========== need4speed
 * move to completely vectorized obsmodel for BagOfWords
-* merges
-* * faster selection of next component (maybe just try all of them??)
-* * only update obsmodel for new component!
-* births
-* * avoid computing ELBO when not necessary
 
-
-
-
-=========== LONG-Term
+=========== Long-Term
 * Logging
 * * separate log transcripts for births/merges, so we can do detailed diagnostics?

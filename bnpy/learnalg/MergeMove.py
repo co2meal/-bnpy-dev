@@ -26,7 +26,7 @@ Log.setLevel(logging.DEBUG)
 ############################################################
 def run_many_merge_moves(hmodel, Data, SS, evBound=None,
                                nMergeTrials=1, compList=list(), 
-                               randstate=np.random, 
+                               randstate=np.random, mPairIDs=None,
                               **mergeKwArgs):
   ''' Run (potentially many) merge move on hmodel
 
@@ -69,26 +69,59 @@ def run_many_merge_moves(hmodel, Data, SS, evBound=None,
     newEv = evBound
 
   trialID = 0
+  shift = np.zeros(SS.K, dtype=np.int32)
   while trialID < nMergeTrials and MTracker.hasAvailablePairs():
     oldEv = newEv  
         
-    if len(compList) > 0:
+    if mPairIDs is not None:
+      if len(mPairIDs) == 0:
+        break
+      kA, kB = mPairIDs.pop(0)
+      try:
+        MTracker.verifyPair(kA, kB)
+      except AssertionError:
+        print '  AssertionError skipped with mPairIDs!', kA, kB
+        continue
+    elif len(compList) > 0:
       kA = compList.pop()
       if kA not in MTracker.getAvailableComps():
         continue
+      kB = None
     else:
       kA = None
+      kB = None
 
     hmodel, SS, newEv, MoveInfo = run_merge_move(
-                 hmodel, Data, SS, oldEv, kA=kA, randstate=randstate,
+                 hmodel, Data, SS, oldEv, kA=kA, kB=kB, randstate=randstate,
                  MSelector=MSelector, MTracker=MTracker,
                  **mergeKwArgs)
     if MoveInfo['didAccept']:
       assert newEv > oldEv
+      if mPairIDs is not None:
+        mPairIDs = _reindexCandidatePairsAfterAcceptedMerge(mPairIDs, kA, kB)
     trialID += 1
     MTracker.recordResult(**MoveInfo)
 
   return hmodel, SS, newEv, MTracker
+
+def _reindexCandidatePairsAfterAcceptedMerge(mPairIDs, kA, kB):
+  ''' 
+      Args
+      --------
+      mPairIDs : list of tuples representing candidate pairs
+      
+      Returns
+      --------
+      mPairIDs, with updated, potentially fewer entries
+  '''
+  newPairIDs = list()
+  for x0,x1 in mPairIDs:
+    if x0 == kA or x1 == kA or x1 == kB or x0 == kB:
+      continue
+    if x0 > kB: x0 -= 1
+    if x1 > kB: x1 -= 1
+    newPairIDs.append((x0,x1))
+  return newPairIDs
 
 def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
                    kA=None, kB=None, MTracker=None, MSelector=None,
@@ -155,8 +188,6 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
                                      MSelector=MSelector,
                                      mergename=mergename, 
                                      randstate=randstate)
-  if doVerbose:
-    print "  merging %3d+%3d" % (kA, kB)
   # Create candidate merged model
   propModel, propSS = propose_merge_candidate(curModel, SS, kA, kB, doUpdateAllComps=doUpdateAllComps)
 
@@ -170,14 +201,14 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
     viz_merge_proposal(curModel, propModel, kA, kB, curEv, propEv)
 
   evDiff = propEv - curEv
-  if doVerbose:
-    s = ''
-    if evDiff > 0:
-      if propEv < 0:
-        s = '***'
-      else:
-        s = '!!!!!!!!!!!!!!!!'
-    print "    new ev %.3e | diff %.3e |  %s" % (propEv, evDiff, s)
+  #if doVerbose:
+  #  s = ''
+  #  if evDiff > 0:
+  #    if propEv < 0:
+  #      s = '***'
+  #    else:
+  #      s = '!!!!!!!!!!!!!!!!'
+  #  print "    new ev %.3e | diff %.3e |  %s" % (propEv, evDiff, s)
 
   if propEv > 0 and curEv < 0:
     MoveInfo = dict(didAccept=0, kA=kA, kB=kB, msg="CRAP. bad proposed evidence.")
@@ -263,7 +294,7 @@ def select_merge_components(curModel, Data, SS, MTracker=None,
 
 def preselect_all_merge_candidates(curModel, SS, randstate=np.random,
                                    preselectroutine='random', mergePerLap=10,
-                                   **kwargs):
+                                   compIDs=list(), **kwargs):
   ''' 
       Returns
       --------
@@ -272,15 +303,49 @@ def preselect_all_merge_candidates(curModel, SS, randstate=np.random,
   '''
   nMergeTrials = mergePerLap
   K = curModel.allocModel.K
-  if SS is None:
+  if preselectroutine == 'marglik' and SS is None: # Handle first lap
     preselectroutine = 'random'
-
-  if preselectroutine == 'random':
+  aList = list()
+  bList = list()
+  if preselectroutine == 'freshallpairs':
+    compIDs = sorted(compIDs)
+    L = len(compIDs)
+    for aa in xrange(L-1):
+      for bb in xrange(aa+1, L):
+        aList.append(compIDs[aa])
+        bList.append(compIDs[bb])
+    aList = aList[:nMergeTrials]
+    bList = bList[:nMergeTrials]
+  elif preselectroutine == 'freshbestmatch':
+    compIDs = sorted(compIDs)
+    L = len(compIDs)
     MTracker = MergeTracker(K)
     MSelector = MergePairSelector()
     trial = 0
-    aList = list()
-    bList = list()
+    while MTracker.hasAvailablePairs() and trial < np.minimum(L,nMergeTrials):
+      kA = compIDs[trial]
+      kA, kB = MSelector.select_merge_components(curModel, SS, MTracker,
+                                    mergename='marglik', kA=kA,
+                                    randstate=randstate)
+      MTracker.recordResult(kA=kA, kB=kB)
+      aList.append(kA)
+      bList.append(kB)
+      trial += 1
+    # at this point, we've added each fresh comp once
+    # continue to add to list until we've maxed out nMergeTrials 
+    while MTracker.hasAvailablePairs() and trial < nMergeTrials:
+      kA, kB = MSelector.select_merge_components(curModel, SS, MTracker,
+                                    mergename='marglik',
+                                    randstate=randstate)
+      MTracker.recordResult(kA=kA, kB=kB)
+      aList.append(kA)
+      bList.append(kB)
+      trial += 1
+
+  elif preselectroutine == 'random':
+    MTracker = MergeTracker(K)
+    MSelector = MergePairSelector()
+    trial = 0
     while MTracker.hasAvailablePairs() and trial < nMergeTrials:
       trial += 1      
       kA, kB = MSelector.select_merge_components(curModel, SS, MTracker,
@@ -305,7 +370,6 @@ def preselect_all_merge_candidates(curModel, SS, randstate=np.random,
     bList = bestcs[:nMergeTrials].tolist()
   assert len(aList) == len(bList)
   assert len(aList) <= nMergeTrials
-
   return zip(aList, bList)
 
 ############################################################ Construct new model
