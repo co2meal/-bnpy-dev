@@ -261,6 +261,53 @@ def select_merge_components(curModel, Data, SS, MTracker=None,
                                     kA=kA, randstate=randstate)
   return kA, kB
 
+def preselect_all_merge_candidates(curModel, SS, randstate=np.random,
+                                   preselectroutine='random', mergePerLap=10,
+                                   **kwargs):
+  ''' 
+      Returns
+      --------
+      mPairList : list of component ID candidates for positions kA, kB
+                    each entry is a tuple of two integers
+  '''
+  nMergeTrials = mergePerLap
+  K = curModel.allocModel.K
+  if SS is None:
+    preselectroutine = 'random'
+
+  if preselectroutine == 'random':
+    MTracker = MergeTracker(K)
+    MSelector = MergePairSelector()
+    trial = 0
+    aList = list()
+    bList = list()
+    while MTracker.hasAvailablePairs() and trial < nMergeTrials:
+      trial += 1      
+      kA, kB = MSelector.select_merge_components(curModel, SS, MTracker,
+                                    mergename='random', 
+                                    randstate=randstate)
+      MTracker.recordResult(kA=kA, kB=kB)
+      aList.append(kA)
+      bList.append(kB)
+  elif preselectroutine == 'marglik':
+    MSelector = MergePairSelector()
+    M = np.zeros((K, K))
+    for kA in xrange(K):
+      for kB in xrange(kA+1, K):
+         M[kA, kB] = MSelector._calcMScoreForCandidatePair(curModel, SS, kA, kB)
+    # find the n largest non-zero entries
+    flatM = M.flatten()
+    bestIDs = np.argsort(flatM)[::-1]
+    bestIDs = bestIDs[ flatM[bestIDs] != 0]
+    bestrs, bestcs = np.unravel_index(bestIDs, M.shape)
+    assert np.all(bestrs < bestcs)
+    aList = bestrs[:nMergeTrials].tolist()
+    bList = bestcs[:nMergeTrials].tolist()
+  assert len(aList) == len(bList)
+  assert len(aList) <= nMergeTrials
+
+  return zip(aList, bList)
+
 ############################################################ Construct new model
 ############################################################
 def propose_merge_candidate(curModel, SS, kA=None, kB=None, 

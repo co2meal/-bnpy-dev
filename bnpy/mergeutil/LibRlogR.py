@@ -30,6 +30,13 @@ lib.CalcRlogR_AllPairsDotV.argtypes = \
                 ndpointer(ctypes.c_double), ndpointer(ctypes.c_double),
                 ctypes.c_int, ctypes.c_int]
 
+lib.CalcRlogR_SpecificPairsDotV.restype = None
+lib.CalcRlogR_SpecificPairsDotV.argtypes = \
+               [ndpointer(ctypes.c_double),
+                ndpointer(ctypes.c_double), ndpointer(ctypes.c_double),
+                ndpointer(ctypes.c_double), ndpointer(ctypes.c_double),
+                ctypes.c_int, ctypes.c_int, ctypes.c_int]
+
 ########################################################### all-pairs
 ###########################################################  with vector
 
@@ -49,6 +56,31 @@ def calcRlogR_allpairsdotv_numpy(R, v):
     curR *= np.log(curR)
     Z[jj,jj+1:] = np.dot(v,curR)
   return Z
+
+########################################################### specific-pairs
+###########################################################  with vector
+
+def calcRlogR_specificpairsdotv_c(R, v, mPairs):
+  R = np.asarray(R, order='F')
+  v = np.asarray(v, order='F')
+  aList, bList = zip(*mPairs)
+  avec = np.asarray(aList, order='F', dtype=np.float64)
+  bvec = np.asarray(bList, order='F', dtype=np.float64)
+  N,K = R.shape
+  Z = np.zeros((K,K), order='F' )
+  lib.CalcRlogR_SpecificPairsDotV( R, v, avec, bvec, Z, N, len(avec), K)
+  return Z
+
+def calcRlogR_specificpairsdotv_numpy(R, v, mPairs):
+  K = R.shape[1]
+  ElogqZMat = np.zeros((K, K))
+  for (kA, kB) in mPairs:
+    curWV = R[:,kA] + R[:, kB]
+    curWV *= np.log(curWV)
+    ElogqZMat[kA,kB] = np.dot(v, curWV)
+  return ElogqZMat
+
+
 
 ########################################################### all-pairs
 ###########################################################

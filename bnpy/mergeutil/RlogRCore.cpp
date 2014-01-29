@@ -15,7 +15,8 @@ using namespace std;
 extern "C" {
   void CalcRlogR_AllPairs(double *R, double *ElogqZ, int N, int K);
   void CalcRlogR_AllPairsDotV(double *R, double *V, double *ElogqZ, int N, int K);
-  //void CalcRlogR_Vectorized(double *R, double *Z, int N, int K);
+  void CalcRlogR_SpecificPairsDotV(double *R, double *V, double *as, double *bs, 
+                                double *ElogqZ, int N, int nPairs, int K);
 }
 
 // ======================================================== Custom Defs
@@ -59,6 +60,27 @@ void CalcRlogR_AllPairsDotV(double *R_IN, double *V_IN,
       mergeR *= V;
       ElogqZ(kk, kB) = mergeR.sum();
     }
+  }
+}
+
+
+void CalcRlogR_SpecificPairsDotV(double *R_IN, double *V_IN, 
+                            double *a_IN, double *b_IN,
+                            double *ElogqZ_OUT, int N, int nPairs, int K) {
+  ExtMat R  ( R_IN, N, K);
+  ExtVec V  ( V_IN, N);
+  ExtVec avec  ( a_IN, nPairs);
+  ExtVec bvec  ( b_IN, nPairs);
+  ExtMat ElogqZ ( ElogqZ_OUT, K, K);
+
+  Vec mergeR = Vec::Zero(N);
+  for (int kk=0; kk<nPairs; kk++) {
+      int kA = (int) avec(kk);
+      int kB = (int) bvec(kk);
+      mergeR = R.col(kA) + R.col(kB);
+      mergeR *= log(mergeR);
+      mergeR *= V;
+      ElogqZ(kA, kB) = mergeR.sum();
   }
 }
 

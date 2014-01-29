@@ -361,11 +361,15 @@ class HDPModel(AllocModel):
             ElogqZMat[jj,jj+1:] = curE_logqZ
           """
         else:
+          ElogqZMat = LibRlogR.calcRlogR_specificpairsdotv_c(wv, 
+                                                Data.word_count, mPairIDs)
+          """
           ElogqZMat = np.zeros((self.K, self.K))
           for (kA, kB) in mPairIDs:
             curWV = wv[:,kA] + wv[:, kB]
             curWV *= np.log(curWV)
             ElogqZMat[kA,kB] = np.dot(Data.word_count, curWV)
+          """
         return ElogqZMat
 
     ####################################################### ELBO terms for Pi

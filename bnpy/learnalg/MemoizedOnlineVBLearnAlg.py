@@ -9,6 +9,7 @@ from bnpy.util import isEvenlyDivisibleFloat
 import logging
 from collections import defaultdict
 import BirthMove
+import MergeMove
 import joblib
 import os
 
@@ -93,9 +94,10 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       if self.hasMove('birth') and iterid > 0:
         hmodel, SS = self.run_birth_move(hmodel, Dchunk, SS, lapFrac)
 
-      if self.hasMove('merge'):
-        if not self.algParams['merge']['doAllPairs']:
-          mPairIDs = [(0,1), (2,3), (4,5)]
+      if self.hasMove('merge') and not self.algParams['merge']['doAllPairs']:
+        if self.isFirstBatch(lapFrac):
+          mPairIDs = MergeMove.preselect_all_merge_candidates(hmodel, SS, 
+                           randstate=self.PRNG, **self.algParams['merge'])
 
       # E step
       if batchID in self.LPmemory:
