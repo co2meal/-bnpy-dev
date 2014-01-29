@@ -175,7 +175,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     SSfile = os.path.join(self.savedir, 'SSdump-Lap%03d.dat' % (lap))
     if self.isLastBatch(lap):
       joblib.dump(SS, SSfile)
-    if hasattr(Dchunk, 'nDocTotal'):
+    if hasattr(Dchunk, 'nDocTotal') and Dchunk.nDocTotal < 4000:
       if self.hasMove('birth') and len(self.BirthCompIDs) > 0:
         if self.algParams['birth']['earlyLap'] > 0:
           pass
