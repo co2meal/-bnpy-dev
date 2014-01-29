@@ -112,8 +112,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
       # Suff Stat step
       if batchID in self.SSmemory:
-        SSchunk = self.load_batch_suff_stat_from_memory(batchID)
-        assert SSchunk.K == SS.K
+        SSchunk = self.load_batch_suff_stat_from_memory(batchID, SS.K)
         SS -= SSchunk
 
       SSchunk = hmodel.get_global_suff_stats(Dchunk, LPchunk,
@@ -178,7 +177,9 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       joblib.dump(SS, SSfile)
     if hasattr(Dchunk, 'nDocTotal'):
       if self.hasMove('birth') and len(self.BirthCompIDs) > 0:
-        if lap < np.ceil(lap):
+        if self.algParams['birth']['earlyLap'] > 0:
+          pass
+        elif lap < np.ceil(lap):
           assert SS.nDoc - Dchunk.nDocTotal > -0.001
         else:
           if abs(SS.nDoc - Dchunk.nDocTotal) > 0.01:
@@ -197,7 +198,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
   ######################################################### Load from memory
   #########################################################
-  def load_batch_suff_stat_from_memory(self, batchID):
+  def load_batch_suff_stat_from_memory(self, batchID, K):
     ''' Load the suff stats stored in memory for provided batchID
         Returns
         -------
@@ -210,6 +211,9 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       Kextra = len(self.BirthCompIDs)
       if Kextra > 0:
         SSchunk.insertEmptyComps(Kextra)
+      Kextra = K - SSchunk.K
+      if Kextra > 0: # early births
+        SSchunk.insertEmptyComps(Kextra)
     if self.hasMove('merge'): 
       for MInfo in self.MergeLog:
         kA = MInfo['kA']
@@ -218,6 +222,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       # After any accepted merges are done
       if SSchunk.hasMergeTerms():
         SSchunk.setMergeFieldsToZero()
+    assert SSchunk.K == K
     return SSchunk  
 
   def load_batch_local_params_from_memory(self, batchID):
@@ -302,6 +307,52 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       else:
         self.targetDataList = list()
 
+    elif lapFrac <= self.algParams['birth']['earlyLap']:
+      hmodel, SS = self.onBirthEarlyBatchCreateNewComps(hmodel, SS, Dchunk)
+
+    return hmodel, SS
+
+  def onBirthEarlyBatchCreateNewComps(self, hmodel, SS, Dchunk):
+    ''' Returns hmodel, SS with (potentially) several new components
+
+       Internal Updates
+       ----------------
+         BirthInfoCurLap : list of MoveInfo from each birth attempted
+         BirthCompIDs : list of all comp IDs added from all births
+         LapsSinceLastBirth : dict, compID -> num. of laps since last birth
+
+       Returns
+       -------
+         hmodel : 
+         SS : bnpy suff stats, with same number of components as hmodel
+              if new components were added, SS will have extra mass
+              because it contains 2 interpretations of targetData:
+               1) mostly assigned to single component ktarget
+               2) assigned to brand-new fresh components 
+    '''
+    if SS is None:
+      return hmodel, SS
+
+    Dmax = self.algParams['birth']['maxTargetSize']
+    docMask = self.PRNG.permutation(Dchunk.nDoc)[:Dmax]
+    TargetData = Dchunk.select_subset_by_mask(docMask=docMask,
+                                                doTrackFullSize=False)
+    assert TargetData.nDoc <= Dmax
+
+    if TargetData.nDoc < self.algParams['birth']['minTargetSize']:
+      msg = "target data too small"
+    else:
+      hmodel, SS, MoveInfo = BirthMove.run_birth_move(
+                 hmodel, TargetData, SS, randstate=self.PRNG, 
+                 **self.algParams['birth'])
+      msg = MoveInfo['msg']
+      if MoveInfo['didAddNew']:
+        self.BirthInfoCurLap.append(MoveInfo)
+        for kk in MoveInfo['birthCompIDs']:
+          self.LapsSinceLastBirth[kk] = -1
+        self.BirthCompIDs.extend(MoveInfo['birthCompIDs'])
+
+    self.print_msg( "EARLY %s" % (msg) )
     return hmodel, SS
 
   def onBirthFirstBatchCreateNewComps(self, hmodel, SS):
