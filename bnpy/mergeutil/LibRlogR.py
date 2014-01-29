@@ -63,17 +63,22 @@ def calcRlogR_allpairsdotv_numpy(R, v):
 def calcRlogR_specificpairsdotv_c(R, v, mPairs):
   R = np.asarray(R, order='F')
   v = np.asarray(v, order='F')
+  N,K = R.shape
+  Z = np.zeros((K,K), order='F' )
+  if K == 1 or len(mPairs) == 0:
+    return Z
   aList, bList = zip(*mPairs)
   avec = np.asarray(aList, order='F', dtype=np.float64)
   bvec = np.asarray(bList, order='F', dtype=np.float64)
-  N,K = R.shape
-  Z = np.zeros((K,K), order='F' )
+
   lib.CalcRlogR_SpecificPairsDotV( R, v, avec, bvec, Z, N, len(avec), K)
   return Z
 
 def calcRlogR_specificpairsdotv_numpy(R, v, mPairs):
   K = R.shape[1]
   ElogqZMat = np.zeros((K, K))
+  if K == 1:
+    return Z
   for (kA, kB) in mPairs:
     curWV = R[:,kA] + R[:, kB]
     curWV *= np.log(curWV)
