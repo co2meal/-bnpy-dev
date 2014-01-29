@@ -145,7 +145,7 @@ def learn_fresh_model(freshModel, targetData, Kmax=500, Kfresh=10,
   LearnAlgConstructor = dict()
   LearnAlgConstructor['VB'] = VBLearnAlg
   algP = dict(nLap=nFreshLap, convergeSigFig=6, startLap=0)
-  outP = dict(saveEvery=-1, traceEvery=-1, printEvery=-1)
+  outP = dict(saveEvery=-1, traceEvery=1, printEvery=5)
   learnAlg = LearnAlgConstructor[freshAlgName](savedir=None, 
                     algParams=algP, outputParams=outP, seed=seed)
 
@@ -196,6 +196,7 @@ def clean_up_fresh_model(targetData, curModel, freshModel,
   singleEvBound = singleModel.calc_evidence(SS=singleSS)
  
   improveEvBound = freshEvBound - singleEvBound
+
   if improveEvBound <= 0 or improveEvBound < 0.00001 * abs(singleEvBound):
     msg = "BIRTH terminated. Not better than single component on target data."
     msg += "\n  fresh  | K=%3d | %.7e" % (targetSS.K, freshEvBound)

@@ -12,6 +12,7 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
     
     doc_range = Data.doc_range
     PRNG = np.random.RandomState(seed)
+    LP = None
     if initname == 'randexamples':
         ''' Choose K documents at random
         '''
@@ -23,7 +24,17 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
         beta = np.ones(K)
         hmodel.set_global_params(K=K, beta=beta, phi=PhiTopicWord)
         return
-
+    elif initname == 'randxwithupdate':
+        ''' Choose K documents at random, and do one Mstep on InitData
+        '''
+        DocWord = Data.to_sparse_docword_matrix()
+        chosenDocIDs = PRNG.choice(Data.nDoc, K, replace=False)
+        PhiTopicWord = np.asarray(DocWord[chosenDocIDs].todense())
+        PhiTopicWord += 0.01 * PRNG.rand(K, Data.vocab_size)
+        PhiTopicWord /= PhiTopicWord.sum(axis=1)[:,np.newaxis]
+        beta = np.ones(K)
+        hmodel.set_global_params(K=K, beta=beta, phi=PhiTopicWord)
+        LP = hmodel.calc_local_params(Data)
     elif initname == 'randsoftpartition':
         ''' Assign responsibility for K topics at random to all words
         '''        
@@ -80,10 +91,11 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
             start,stop = doc_range[d,:]
             word_variational[start:stop,:] = doc_variational[d,:]
            
-    if hmodel.getAllocModelName().count('HDP') > 0:
-      LP = getLPfromResp(word_variational, Data)
-    else:
-      LP = dict(doc_variational=doc_variational, 
+    if LP is None:
+      if hmodel.getAllocModelName().count('HDP') > 0:
+        LP = getLPfromResp(word_variational, Data)
+      else:
+        LP = dict(doc_variational=doc_variational, 
                 word_variational=word_variational)
 
     SS = hmodel.get_global_suff_stats(Data, LP)
