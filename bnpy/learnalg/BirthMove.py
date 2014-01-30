@@ -178,21 +178,38 @@ def clean_up_fresh_model(targetData, curModel, freshModel,
   '''
   import MergeMove
 
-  # Verify fresh model preferred over single comp model
-  targetLP = freshModel.calc_local_params(targetData)
-  targetSS = freshModel.get_global_suff_stats(targetData, targetLP,
-                  doPrecompEntropy=True, doPrecompMergeEntropy=True)
-  freshEvBound = freshModel.calc_evidence(SS=targetSS)
+  # Perform many merges among the fresh components
+  for trial in xrange(10):
+    targetLP = freshModel.calc_local_params(targetData)
+    targetSS = freshModel.get_global_suff_stats(targetData, targetLP,
+                    doPrecompEntropy=True, doPrecompMergeEntropy=True)
+    prevK = targetSS.K
+    freshModel, targetSS, freshEvBound, MTracker = MergeMove.run_many_merge_moves(
+                               freshModel, targetData, targetSS,
+                               nMergeTrials=targetSS.K**2, 
+                               randstate=randstate, 
+                               **mergeKwArgs)
+    if targetSS.K == prevK:
+      break # no merges happened, so quit trying
 
+  if targetSS.K < 2:
+    return targetSS # quit early, will reject
+
+  #targetLP = freshModel.calc_local_params(targetData)
+  #targetSS = freshModel.get_global_suff_stats(targetData, targetLP,
+  #                doPrecompEntropy=True)
+  #freshEvBound = freshModel.calc_evidence(SS=targetSS)
+
+  # Verify fresh model preferred over single comp model
+  # create K=1 model
   singleModel = curModel.copy()
   singleSS = targetSS.getComp(0, doCollapseK1=False)
   singleModel.update_global_params(singleSS)
-
+  # compute tight bound
   singleLP = singleModel.calc_local_params(targetData)
   singleSS = singleModel.get_global_suff_stats(targetData, singleLP,
                   doPrecompEntropy=True)
   singleModel.update_global_params(singleSS) # make it reflect targetData
-
   singleEvBound = singleModel.calc_evidence(SS=singleSS)
  
   improveEvBound = freshEvBound - singleEvBound
@@ -214,22 +231,6 @@ def clean_up_fresh_model(targetData, curModel, freshModel,
     raise BirthProposalError(msg)
 
 
-  # Perform many merges among the fresh components
-  for trial in xrange(5):
-    if trial > 0:
-      targetLP = freshModel.calc_local_params(targetData)
-      targetSS = freshModel.get_global_suff_stats(targetData, targetLP,
-                    doPrecompEntropy=True, doPrecompMergeEntropy=True)
-    prevK = targetSS.K
-    freshModel, targetSS, newEv, MTracker = MergeMove.run_many_merge_moves(
-                               freshModel, targetData, targetSS,
-                               nMergeTrials=targetSS.K**2, 
-                               randstate=randstate, 
-                               **mergeKwArgs)
-    if targetSS.K == prevK:
-      break # no merges happened
-    else:
-      Log.info("  **** Merged away %d fresh comps" % (prevK - targetSS.K))
   """
   # Step 3: create expanded model,
   #          and try merging fresh comps with existing ones
@@ -257,7 +258,6 @@ def clean_up_fresh_model(targetData, curModel, freshModel,
     if ktarget >= 0:
       targetSS.removeComp(ktarget)
   """
-
   return targetSS
 
 ########################################################### Select birth comps

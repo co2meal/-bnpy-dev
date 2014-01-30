@@ -215,16 +215,18 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     if self.hasMove('birth'):
       Kextra = len(self.BirthCompIDs)
       if Kextra > 0:
-        SSchunk.insertEmptyComps(Kextra)
-      Kextra = K - SSchunk.K
-      if Kextra > 0: # early births
-        SSchunk.insertEmptyComps(Kextra)
+        SSchunk.insertEmptyComps(Kextra)      
     if self.hasMove('merge'): 
       for MInfo in self.MergeLog:
         kA = MInfo['kA']
         kB = MInfo['kB']
-        SSchunk.mergeComps(kA, kB)
-      # After any accepted merges are done
+        if kA < SSchunk.K and kB < SSchunk.K:
+          SSchunk.mergeComps(kA, kB)
+    if self.hasMove('birth') and self.algParams['birth']['earlyLap'] > 0:
+      Kextra = K - SSchunk.K
+      if Kextra > 0: # early births
+        SSchunk.insertEmptyComps(Kextra)
+    if self.hasMove('merge'): 
       if SSchunk.hasMergeTerms():
         SSchunk.setMergeFieldsToZero()
     assert SSchunk.K == K

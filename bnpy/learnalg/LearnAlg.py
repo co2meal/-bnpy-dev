@@ -82,10 +82,10 @@ class LearnAlg(object):
     '''
     return time.time() - self.start_time
 
-  def buildRunInfo(self, evBound, status):
+  def buildRunInfo(self, evBound, status, nLap=None):
     ''' Create dict of information about the current run
     '''
-    return dict(evBound=evBound, status=status,
+    return dict(evBound=evBound, status=status, nLap=nLap,
                 evTrace=self.evTrace, lapTrace=self.TraceLaps)
 
   ##################################################### Fcns for birth/merges

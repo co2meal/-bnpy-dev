@@ -1,7 +1,7 @@
 '''
 '''
 import numpy as np
-
+import copy
 from ..distr import DirichletDistr
 from ..util import np2flatstr, EPS
 
@@ -119,13 +119,17 @@ class MultObsModel(ObsModel):
             Dstar = self.obsPrior.get_post_distr(SS, k)
             self.comp[k].post_update_soVB(rho, Dstar)
 
-    def set_global_params(self, phi=None, Etopics=None, **kwargs):
+    def set_global_params(self, hmodel=None, phi=None, Etopics=None, **kwargs):
         ''' Set global params to provided values
 
             Params
             --------
             phi : K x V matrix, each row is a distr over V vocab words
         '''
+        if hmodel is not None:
+            self.K = hmodel.obsModel.K
+            self.comp = copy.deepcopy(hmodel.obsModel.comp)
+            return
         if phi is not None:
             Etopics = phi  
         assert Etopics is not None

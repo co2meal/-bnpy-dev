@@ -258,8 +258,14 @@ class HDPModel(AllocModel):
         self.U0 = rho * U0 + (1-rho) * self.U0
         self.set_helper_params()
 
-    def set_global_params(self, K=0, beta=None, U1=None, U0=None, 
+    def set_global_params(self, hmodel=None, K=0, beta=None, U1=None, U0=None, 
                                 Ebeta=None, EbetaLeftover=None, **kwargs):
+        if hmodel is not None:
+          self.K = hmodel.allocModel.K
+          self.U1 = hmodel.allocModel.U1
+          self.U0 = hmodel.allocModel.U0
+          self.set_helper_params()
+          return
         self.K = K
         if U1 is not None and U0 is not None:
           self.U1 = U1
