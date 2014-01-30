@@ -5,8 +5,6 @@
 * plot K vs nLap, ELBO vs nLap for bnpy runs
 * * compare tau=0.1 to 0.01, HDPM to HDPPE
 
-* check on the "initfrom" case, make sure we dont tank in predictive liklihood
-
 * make figure of predictive likelihood vs. K at several different checkpoints
 
 * speed up births? speed up merges more?
