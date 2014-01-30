@@ -303,7 +303,7 @@ def preselect_all_merge_candidates(curModel, SS, randstate=np.random,
   '''
   nMergeTrials = mergePerLap
   K = curModel.allocModel.K
-  if preselectroutine == 'marglik' and SS is None: # Handle first lap
+  if SS is None: # Handle first lap
     preselectroutine = 'random'
   aList = list()
   bList = list()
