@@ -210,7 +210,7 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
   #      s = '!!!!!!!!!!!!!!!!'
   #  print "    new ev %.3e | diff %.3e |  %s" % (propEv, evDiff, s)
 
-  if propEv > 0 and curEv < 0:
+  if (propEv > 0 and curEv < 0) or abs(propEv-curEv) > 0.1*abs(curEv):
     MoveInfo = dict(didAccept=0, kA=kA, kB=kB, msg="CRAP. bad proposed evidence.")
     return curModel, SS, curEv, MoveInfo
   if propEv > curEv:

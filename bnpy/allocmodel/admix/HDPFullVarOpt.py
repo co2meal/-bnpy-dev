@@ -67,6 +67,8 @@ def estimate_u_multiple_tries(sumLogPi=None, nDoc=0, gamma=1.0, alpha0=1.0,
 
   nOverflow = 0
   u = None
+  Info = dict()
+  msg = ''
   for trial, myTuple in enumerate(itertools.product(uList, fList)):
     initu, factr = myTuple
     try:
@@ -81,12 +83,13 @@ def estimate_u_multiple_tries(sumLogPi=None, nDoc=0, gamma=1.0, alpha0=1.0,
     except ValueError as err:
       if str(err).count('FAILURE') == 0:
         raise err
+      msg = str(err)
       if str(err).count('overflow') > 0:
         nOverflow += 1
 
-  Info['nOverflow'] = nOverflow
   if u is None:
-    raise ValueError("FAILURE!")
+    raise ValueError("FAILURE! " + msg)
+  Info['nOverflow'] = nOverflow
   return u, fofu, Info      
 
 def estimate_u(sumLogPi=None, nDoc=0, gamma=1.0, alpha0=1.0, initu=None, approx_grad=False, factr=1.0e7, **kwargs):
@@ -127,7 +130,6 @@ def estimate_u(sumLogPi=None, nDoc=0, gamma=1.0, alpha0=1.0, initu=None, approx_
     except AssertionError:
       raise ValueError("FAILURE: NaN found!")
       
-
   if Info['warnflag'] > 1:
     raise ValueError("FAILURE: " + Info['task'])
 
