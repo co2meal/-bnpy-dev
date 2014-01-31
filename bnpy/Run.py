@@ -142,9 +142,13 @@ def _run_task_internal(jobname, taskid, nTask,
   else:
     Data = dataName
     InitData = dataName
+    assert str(type(InitData)).count('bnpy.data') > 0
     if algName in OnlineDataAlgSet:
-      Data = Data.to_minibatch_iterator(dataorderseed=dataorderseed,
-                                        **KwArgs['OnlineDataPrefs'])
+      KwArgs[algName]['nLap'] = KwArgs['OnlineDataPrefs']['nLap']
+      OnlineDataArgs = KwArgs['OnlineDataPrefs']
+      OnlineDataArgs['dataorderseed'] = dataorderseed
+      OnlineDataArgs.update(UnkArgs) # add custom args
+      Data = Data.to_minibatch_iterator(**OnlineDataArgs)
 
   # Create and initialize model parameters
   hmodel = createModel(InitData, ReqArgs, KwArgs)
