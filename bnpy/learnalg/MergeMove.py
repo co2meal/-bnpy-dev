@@ -201,14 +201,6 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
     viz_merge_proposal(curModel, propModel, kA, kB, curEv, propEv)
 
   evDiff = propEv - curEv
-  #if doVerbose:
-  #  s = ''
-  #  if evDiff > 0:
-  #    if propEv < 0:
-  #      s = '***'
-  #    else:
-  #      s = '!!!!!!!!!!!!!!!!'
-  #  print "    new ev %.3e | diff %.3e |  %s" % (propEv, evDiff, s)
 
   if (propEv > 0 and curEv < 0) or abs(propEv-curEv) > 0.1*abs(curEv):
     MoveInfo = dict(didAccept=0, kA=kA, kB=kB, msg="CRAP. bad proposed evidence.")
@@ -316,6 +308,41 @@ def preselect_all_merge_candidates(curModel, SS, randstate=np.random,
         bList.append(compIDs[bb])
     aList = aList[:nMergeTrials]
     bList = bList[:nMergeTrials]
+  elif preselectroutine == 'freshbestmatch3':
+    # Loop thru and find 3 best pairs for each comp in list
+    compIDs = sorted(compIDs)
+    L = len(compIDs)
+    MTracker = MergeTracker(K)
+    MSelector = MergePairSelector()
+    cID = 0
+    trial = 0
+    while MTracker.hasAvailablePairs() and cID < L and len(aList) < nMergeTrials:
+      nPartners = 0
+      while MTracker.hasAvailablePartnersForComp(compIDs[cID]) and nPartners < 3:
+        kA, kB = MSelector.select_merge_components(curModel, SS, MTracker,
+                                    mergename='marglik', kA=compIDs[cID],
+                                    randstate=randstate)
+        MTracker.recordResult(kA=kA, kB=kB)
+        aList.append(kA)
+        bList.append(kB)
+        nPartners += 1
+        trial += 1
+      cID += 1
+    # reindex aList, bList so we're likely to try all compIDs once
+    aList = aList[::3] + aList[1::3] + aList[2::3]
+    bList = bList[::3] + bList[1::3] + bList[2::3]
+    aList = aList[:nMergeTrials]
+    bList = bList[:nMergeTrials]
+    # at this point, we've added each fresh comp once
+    # continue to add random pairs to list until we've maxed out nMergeTrials 
+    while MTracker.hasAvailablePairs() and trial < nMergeTrials:
+      kA, kB = MSelector.select_merge_components(curModel, SS, MTracker,
+                                    mergename='marglik',
+                                    randstate=randstate)
+      MTracker.recordResult(kA=kA, kB=kB)
+      aList.append(kA)
+      bList.append(kB)
+      trial += 1    
   elif preselectroutine == 'freshbestmatch':
     compIDs = sorted(compIDs)
     L = len(compIDs)

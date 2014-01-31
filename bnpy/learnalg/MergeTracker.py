@@ -43,6 +43,17 @@ class MergeTracker(object):
       return False
     return True
 
+  def hasAvailablePartnersForComp(self, kA):
+    ''' Return True if some viable partners for kA remain, False otherwise
+    '''
+    # NOTE: this is way overkill
+    if len(self.excludeList) > self.K - 2:
+      return False
+    candidates = self.getAvailablePartnersForComp(kA)
+    if len(candidates) < 1:
+      return False
+    return True
+
   def verifyPair(self, kA, kB):
     ''' Verify that kA,kB make a valid merge pair that 
         * obeys kA < kB
