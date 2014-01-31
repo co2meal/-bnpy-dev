@@ -135,10 +135,13 @@ class GaussObsModel( ObsModel ):
       precMat = np.linalg.solve( covMat, I )
       self.comp[k] = GaussDistr(m=mean, L=precMat)
            				 
-  def update_obs_params_VB( self, SS, Krange, **kwargs):
-    for k in Krange:
-      self.comp[k] = self.obsPrior.get_post_distr(SS, k)
-      
+  def update_obs_params_VB( self, SS, mergeCompA=None, **kwargs):
+    if mergeCompA is None:
+      for k in xrange(self.K):
+        self.comp[k] = self.obsPrior.get_post_distr(SS, k)
+    else:
+      self.comp[mergeCompA] = self.obsPrior.get_post_distr(SS, mergeCompA)
+
   def update_obs_params_soVB( self, SS, rho, Krange, **kwargs):
     for k in Krange:
       Dstar = self.obsPrior.get_post_distr(SS, k)

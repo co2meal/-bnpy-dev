@@ -17,11 +17,12 @@ import learnalg
 import Run
 from Run import run
 
+import os
+import sys
 
 ########################################################### Configure save
 ###########################################################  location
-import os
-isValid = False
+hasWriteableOutdir = False
 if 'BNPYOUTDIR' in os.environ:
   outdir = os.environ['BNPYOUTDIR']
   if os.path.exists(outdir):
@@ -30,20 +31,19 @@ if 'BNPYOUTDIR' in os.environ:
         pass
     except IOError:
       sys.exit('BNPYOUTDIR not writeable: %s' % (outdir))
-    isValid = True
-
-if not isValid:
+    hasWriteableOutdir = True
+if not hasWriteableOutdir:
   raise ValueError('Environment variable BNPYOUTDIR not specified. Cannot save results to disk')
 
 ########################################################### Configure data
 ###########################################################  location
-import os
-isValid = False
-if 'BNPYDATADIR' in os.environ and os.path.exists(os.environ['BNPYDATADIR']):
-  isValid = True
-if not isValid:
-  root = os.path.sep.join(os.path.abspath(__file__).split(os.path.sep)[:-2])
-  os.environ['BNPYDATADIR'] = os.path.join(root, 'demodata/')
+root = os.path.sep.join(os.path.abspath(__file__).split(os.path.sep)[:-2])
+sys.path.append(os.path.join(root, 'demodata/'))
+if 'BNPYDATADIR' in os.environ:
+  if os.path.exists(os.environ['BNPYDATADIR']):
+    sys.path.append(os.environ['BNPYDATADIR'])
+  else:
+    print "Warning: Environment variable BNPYDATADIR not a valid directory"
 
 ########################################################### Optional: viz
 ###########################################################  package for plots

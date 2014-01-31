@@ -21,12 +21,12 @@
   TODO: write better doc
 '''
 import os
-import sys
 import logging
 import numpy as np
 import bnpy
 from bnpy.ioutil import BNPYArgParser
 
+# Configure Logger
 Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
 
@@ -207,7 +207,6 @@ def loadData(ReqArgs, KwArgs, DataArgs, dataorderseed):
              than each individual batch.
       For full dataset learning scenarios, InitData can be the same as Data.
   '''
-  sys.path.append(os.environ['BNPYDATADIR'])
   datamod = __import__(ReqArgs['dataName'],fromlist=[])
   algName = ReqArgs['algName']
   if algName in FullDataAlgSet:

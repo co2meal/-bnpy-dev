@@ -4,9 +4,14 @@ FromScratchMult.py
 Initialize params of HModel with multinomial observations from scratch.
 '''
 import numpy as np
-import KMeansRex
 from scipy.special import digamma
 from scipy.cluster import vq
+
+hasRexAvailable = True
+try:
+  import KMeansRex
+except ImportError:
+  hasRexAvailable = False
 
 def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwargs):
     
@@ -24,17 +29,6 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
         beta = np.ones(K)
         hmodel.set_global_params(K=K, beta=beta, phi=PhiTopicWord)
         return
-    elif initname == 'randxwithupdate':
-        ''' Choose K documents at random, and do one Mstep on InitData
-        '''
-        DocWord = Data.to_sparse_docword_matrix()
-        chosenDocIDs = PRNG.choice(Data.nDoc, K, replace=False)
-        PhiTopicWord = np.asarray(DocWord[chosenDocIDs].todense())
-        PhiTopicWord += 0.01 * PRNG.rand(K, Data.vocab_size)
-        PhiTopicWord /= PhiTopicWord.sum(axis=1)[:,np.newaxis]
-        beta = np.ones(K)
-        hmodel.set_global_params(K=K, beta=beta, phi=PhiTopicWord)
-        LP = hmodel.calc_local_params(Data)
     elif initname == 'randsoftpartition':
         ''' Assign responsibility for K topics at random to all words
         '''        
@@ -45,6 +39,8 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
             start,stop = doc_range[d,:]
             doc_variational[d,:] = np.sum(word_variational[start:stop,:],axis=0)
     elif initname == 'plusplus':
+        if not hasRexAvailable:
+          raise NotImplementedError("KMeansRex must be on python path")
         DocWord = Data.to_sparse_docword_matrix().toarray()
         PhiTopicWord = KMeansRex.SampleRowsPlusPlus(DocWord, K, seed=seed)
         PhiTopicWord += 0.01 * PRNG.rand(K, Data.vocab_size)
@@ -53,6 +49,8 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
         hmodel.set_global_params(K=K, beta=beta, phi=PhiTopicWord)
         return
     elif initname == 'kmeansplusplus':
+        if not hasRexAvailable:
+          raise NotImplementedError("KMeansRex must be on python path")
         DocWord = Data.to_sparse_docword_matrix().toarray()
         PhiTopicWord, Z = KMeansRex.RunKMeans(DocWord, K, initname='plusplus',
                                               Niter=10, seed=seed)
