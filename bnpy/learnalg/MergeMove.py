@@ -126,7 +126,8 @@ def _reindexCandidatePairsAfterAcceptedMerge(mPairIDs, kA, kB):
 def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
                    kA=None, kB=None, MTracker=None, MSelector=None,
                    mergename='marglik', randstate=np.random.RandomState(),
-                   doUpdateAllComps=1, savedir=None, doVerbose=False, **kwargs):
+                   doUpdateAllComps=1, savedir=None, doVerbose=False, 
+                   doWriteLog=False, **kwargs):
   ''' Creates candidate model with two components merged,
       and returns either candidate or current model,
       whichever has higher log probability (ELBO).
@@ -209,12 +210,14 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
     MSelector.reindexAfterMerge(kA, kB)
     msg = "merge %3d & %3d | ev +%.3e ****" % (kA, kB, propEv - curEv)
     MoveInfo = dict(didAccept=1, kA=kA, kB=kB, msg=msg, evDiff=evDiff)
-    log_merge_move(MoveInfo, MSelector, curModel, SS, savedir)
+    if doWriteLog:
+      log_merge_move(MoveInfo, MSelector, curModel, SS, savedir)
     return propModel, propSS, propEv, MoveInfo
   else:
     msg = "merge %3d & %3d | ev -%.3e" % (kA, kB, curEv - propEv)
     MoveInfo = dict(didAccept=0, kA=kA, kB=kB, msg=msg, evDiff=evDiff)
-    log_merge_move(MoveInfo, MSelector, curModel, SS, savedir)
+    if doWriteLog:
+      log_merge_move(MoveInfo, MSelector, curModel, SS, savedir)
     return curModel, SS, curEv, MoveInfo
 
 ########################################################## Log info to file

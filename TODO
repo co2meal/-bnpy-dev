@@ -2,7 +2,7 @@
 * are we redundantly adding topics? should we merge in the expanded model?
 
 =========== merges
-* log_merge_move is expensive! need to get rid of it?
+* log_merge_move is expensive! need to get rid of it? DONE (via doWriteLog merge flag)
 
 =========== ObsModel
 * move to completely vectorized obsmodel for BagOfWords

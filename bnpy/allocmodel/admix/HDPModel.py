@@ -39,8 +39,8 @@ from ...mergeutil import LibRlogR
 import logging
 Log = logging.getLogger('bnpy')
 
-class HDPModel(AllocModel):
 
+class HDPModel(AllocModel):
 
   ######################################################### Constructors
   #########################################################
@@ -163,12 +163,7 @@ class HDPModel(AllocModel):
         ElogPi = LP['E_logPi'][:,:K]
         for d in xrange(Data.nDoc):
             wv[Data.doc_range[d,0]:Data.doc_range[d,1], :] += ElogPi[d,:]
-        # Take exp of wv in numerically stable manner (first subtract the max)
-        #  in-place so no new allocations occur
-        wv -= np.max(wv, axis=1)[:,np.newaxis]
-        np.exp(wv, out=wv)
-        # Normalize, so rows of wv sum to one
-        wv /= wv.sum(axis=1)[:,np.newaxis]
+        LibRlogR.safeExpAndNormalizeRows_numexpr(wv)
         assert np.allclose(LP['word_variational'].sum(axis=1), 1)
         return LP
 
@@ -342,9 +337,11 @@ class HDPModel(AllocModel):
             where z_{dw} ~ Discrete( r_dw1 , r_dw2, ... r_dwK )
         '''
         wv = LP['word_variational']
-        wv_logwv = wv * np.log(EPS + wv)
-        E_log_qZ = np.dot(Data.word_count, wv_logwv)
-        return E_log_qZ
+        wv += EPS # Make sure all entries > 0 before taking log
+        return LibRlogR.calcRlogRdotv_numexpr(wv, Data.word_count)
+        #wv_logwv = wv * np.log(wv)
+        #E_log_qZ = np.dot(Data.word_count, wv_logwv)
+        #return E_log_qZ
 
     def E_logqZ_memo_terms_for_merge(self, Data, LP, mPairIDs=None):
         ''' Returns KxK matrix 
@@ -352,30 +349,10 @@ class HDPModel(AllocModel):
         wv = LP['word_variational']
         wv += EPS # Make sure all entries > 0 before taking log
         if mPairIDs is None:
-          ElogqZMat = LibRlogR.calcRlogR_allpairsdotv_c(wv, Data.word_count)
-          """
-          ElogqZMat = np.zeros((self.K, self.K))
-          for jj in range(self.K):
-            J = self.K - jj - 1 # num of pairs for comp jj
-            # curWV : nObs x J, resp for each data item under each merge with jj
-            curWV = wv[:,jj][:,np.newaxis] + wv[:,jj+1:]
-            # curWV : nObs x J, entropy for each data item
-            curWV *= np.log(curWV)
-            # curE_logqZ : J-vector, entropy for Data under each merge with jj
-            curE_logqZ = np.dot(Data.word_count, curWV)            
-            assert curE_logqZ.size == J
-            ElogqZMat[jj,jj+1:] = curE_logqZ
-          """
+          ElogqZMat = LibRlogR.calcRlogRdotv_allpairs_numexpr(wv, Data.word_count)
         else:
-          ElogqZMat = LibRlogR.calcRlogR_specificpairsdotv_c(wv, 
+          ElogqZMat = LibRlogR.calcRlogRdotv_specificpairs_numexpr(wv, 
                                                 Data.word_count, mPairIDs)
-          """
-          ElogqZMat = np.zeros((self.K, self.K))
-          for (kA, kB) in mPairIDs:
-            curWV = wv[:,kA] + wv[:, kB]
-            curWV *= np.log(curWV)
-            ElogqZMat[kA,kB] = np.dot(Data.word_count, curWV)
-          """
         return ElogqZMat
 
     ####################################################### ELBO terms for Pi

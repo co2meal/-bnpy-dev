@@ -13,8 +13,11 @@ However, we do *return* values that are F-ordered by default.
 '''
 import os
 import numpy as np
+import numexpr as ne
 from numpy.ctypeslib import ndpointer
 import ctypes
+if 'OMP_NUM_THREADS' in os.environ:
+  ne.set_num_threads(os.environ['OMP_NUM_THREADS'])
 
 libpath = os.path.sep.join(os.path.abspath(__file__).split(os.path.sep)[:-1])
 
@@ -45,12 +48,78 @@ except OSError:
   doUseLib = False  
 
 
+
+########################################################### safeExpAndNormalizeRows
+###########################################################
+def safeExpAndNormalizeRows_numpy(R):
+  # Take exp of wv in numerically stable manner (first subtract the max)
+  #  in-place so no new allocations occur
+  R -= np.max(R, axis=1)[:,np.newaxis]
+  np.exp(R, out=R)
+  # Normalize, so rows of wv sum to one
+  R /= R.sum(axis=1)[:,np.newaxis]
+
+def safeExpAndNormalizeRows_numexpr(R):
+  # Take exp of wv in numerically stable manner (first subtract the max)
+  #  in-place so no new allocations occur
+  R -= np.max(R, axis=1)[:,np.newaxis]
+  ne.evaluate("exp(R)", out=R)
+  # Normalize, so rows of wv sum to one
+  R /= R.sum(axis=1)[:,np.newaxis]
+
+########################################################### standard R * log(R)
+###########################################################
+def calcRlogR_numpy(R):
+  return np.sum(R * np.log(R), axis=0)
+
+def calcRlogR_numexpr(R):
+  return ne.evaluate("sum(R*log(R), axis=0)")
+
+
+########################################################### standard R * log(R)
+###########################################################
+def calcRlogRdotv_numpy(R, v):
+  return np.dot( v, R * np.log(R))
+
+def calcRlogRdotv_numexpr(R, v):
+  RlogR = ne.evaluate("R*log(R)")
+  return np.dot(v, RlogR)
+
+########################################################### all-pairs
+###########################################################
+def calcRlogR_allpairs_c(R):
+  if not doUseLib:
+    return calcRlogR_allpairs_numpy(R, v, mPairs)
+  R = np.asarray(R, order='F')
+  N,K = R.shape
+  Z = np.zeros((K,K), order='F' )
+  lib.CalcRlogR_AllPairs( R, Z, N, K)
+  return Z
+
+def calcRlogR_allpairs_numpy(R):
+  K = R.shape[1]
+  Z = np.zeros((K,K))
+  for jj in xrange(K-1):
+    curR = R[:,jj][:,np.newaxis] + R[:, jj+1:]
+    curR *= np.log(curR)
+    Z[jj,jj+1:] = np.sum(curR, axis=0)
+  return Z
+
+def calcRlogR_allpairs_numexpr(R):
+  K = R.shape[1]
+  Z = np.zeros((K,K))
+  for jj in xrange(K-1):
+    curR = R[:,jj][:,np.newaxis] + R[:, jj+1:]
+    curZ = ne.evaluate("sum(curR * log(curR), axis=0)")
+    Z[jj,jj+1:] = curZ
+  return Z
+
+
 ########################################################### all-pairs
 ###########################################################  with vector
-
-def calcRlogR_allpairsdotv_c(R, v):
+def calcRlogRdotv_allpairs_c(R, v):
   if not doUseLib:
-    return calcRlogR_allpairsdotv_numpy(R,v)
+    return calcRlogRdotv_allpairs_numexpr(R,v)
   R = np.asarray(R, order='F')
   v = np.asarray(v, order='F')
   N,K = R.shape
@@ -58,7 +127,7 @@ def calcRlogR_allpairsdotv_c(R, v):
   lib.CalcRlogR_AllPairsDotV( R, v, Z, N, K)
   return Z
 
-def calcRlogR_allpairsdotv_numpy(R, v):
+def calcRlogRdotv_allpairs_numpy(R, v):
   K = R.shape[1]
   Z = np.zeros((K,K))
   for jj in range(K):
@@ -67,10 +136,43 @@ def calcRlogR_allpairsdotv_numpy(R, v):
     Z[jj,jj+1:] = np.dot(v,curR)
   return Z
 
+def calcRlogRdotv_allpairs_numexpr(R, v):
+  K = R.shape[1]
+  Z = np.zeros((K,K))
+  for jj in xrange(K-1):
+    curR = R[:,jj][:,np.newaxis] + R[:, jj+1:]
+    ne.evaluate("curR * log(curR)", out=curR)
+    curZ = np.dot(v, curR)
+    Z[jj,jj+1:] = curZ
+  return Z
+
+
 ########################################################### specific-pairs
 ###########################################################  with vector
 
-def calcRlogR_specificpairsdotv_c(R, v, mPairs):
+def calcRlogRdotv_specificpairs_numpy(R, v, mPairs):
+  K = R.shape[1]
+  ElogqZMat = np.zeros((K, K))
+  if K == 1:
+    return Z
+  for (kA, kB) in mPairs:
+    curWV = R[:,kA] + R[:, kB]
+    curWV *= np.log(curWV)
+    ElogqZMat[kA,kB] = np.dot(v, curWV)
+  return ElogqZMat
+
+def calcRlogRdotv_specificpairs_numexpr(R, v, mPairs):
+  K = R.shape[1]
+  ElogqZMat = np.zeros((K, K))
+  if K == 1:
+    return Z
+  for (kA, kB) in mPairs:
+    curR = R[:,kA] + R[:, kB]
+    ne.evaluate("curR * log(curR)", out=curR)
+    ElogqZMat[kA,kB] = np.dot(v, curR)
+  return ElogqZMat
+
+def calcRlogRdotv_specificpairs_c(R, v, mPairs):
   if not doUseLib:
     return calcRlogR_specificpairsdotv_numpy(R, v, mPairs)
   R = np.asarray(R, order='F')
@@ -86,34 +188,3 @@ def calcRlogR_specificpairsdotv_c(R, v, mPairs):
   lib.CalcRlogR_SpecificPairsDotV( R, v, avec, bvec, Z, N, len(avec), K)
   return Z
 
-def calcRlogR_specificpairsdotv_numpy(R, v, mPairs):
-  K = R.shape[1]
-  ElogqZMat = np.zeros((K, K))
-  if K == 1:
-    return Z
-  for (kA, kB) in mPairs:
-    curWV = R[:,kA] + R[:, kB]
-    curWV *= np.log(curWV)
-    ElogqZMat[kA,kB] = np.dot(v, curWV)
-  return ElogqZMat
-
-########################################################### all-pairs
-###########################################################
-
-def calcRlogR_allpairs_c(R):
-  if not doUseLib:
-    return calcRlogR_allpairs_numpy(R, v, mPairs)
-  R = np.asarray(R, order='F')
-  N,K = R.shape
-  Z = np.zeros((K,K), order='F' )
-  lib.CalcRlogR_AllPairs( R, Z, N, K)
-  return Z
-
-def calcRlogR_allpairs_numpy(R):
-  K = R.shape[1]
-  Z = np.zeros((K,K))
-  for jj in range(K):
-    curR = R[:,jj][:,np.newaxis] + R[:, jj+1:]
-    curR *= np.log(curR)
-    Z[jj,jj+1:] = np.sum(curR, axis=0)
-  return Z
