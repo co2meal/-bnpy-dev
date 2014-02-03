@@ -1,6 +1,6 @@
 #!/bin/sh
-
-export BNPYDATADIR=/data/NIPS/
+export PYTHONPATH=/home/mhughes/git/bnpy2/
+export BNPYDATADIR=/data/liv/liv-x/topic_models/data/nips/
 
 ModelArgs=" --alpha0 5 --gamma 0.5"
 AlgArgs=" --K 100 --nLap 3 --nCoordAscentItersLP 10 --doMemoizeLocalParams 0"
