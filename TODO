@@ -1,20 +1,48 @@
-=========== TODAY
-* report on chib scores for NIPS, huffpost
-* * show for each method typical K and typical Ebeta
+=========== ObsModel
+* move to completely vectorized obsmodel for BagOfWords
 
-* plot K vs nLap, ELBO vs nLap for bnpy runs
-* * compare tau=0.1 to 0.01, HDPM to HDPPE
-
-* make figure of predictive likelihood vs. K at several different checkpoints
-
-* speed up births? speed up merges more?
+=========== AllocModel
+* HDPFull : full posterior for both v and r
+* HDPPE : full posterior for r, 
+* HDPFullHard : full posterior for v, hard assignments for r
+* HDPPEHard : point estimates for v, hard assignments for r
 
 =========== Stochastic
 * better computation of the evidence bound (avg across batches)
 
-=========== need4speed
-* move to completely vectorized obsmodel for BagOfWords
+=========== LOGGING
 
-=========== Long-Term
-* Logging
-* * separate log transcripts for births/merges, so we can do detailed diagnostics?
+DataSet/allocModel/obsModel/infAlg/jobname/taskid/
+vs
+Dataset/jobname/taskid/ [with maybe reset default behavior to not overwrite previous run if done by different allocModel/obsModel??]
+
+
+Human-Readable logs
+logs/
+* log-status.txt
+* log-warnings-serious.txt
+* log-birth.txt
+* log-merge.txt
+
+Arguments
+args/
+* args-Initialization.txtdict
+* args-moVB.txtdict
+
+Plain-text records
+records/
+* records-evidence.txtdata
+* records-laps.txtdata
+* records-K.txtdata
+...
+
+* SuffStats/
+* * Lap0001.000SuffStats.dump
+
+* Prior/
+* * ObsPrior.mat
+* * AllocPrior.mat
+
+* Models/
+* * Lap0001.020AllocModel.mat
+* * Lap0001.020ObsModel.mat
