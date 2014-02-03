@@ -141,8 +141,7 @@ class BagOfWordsObsModel(ObsModel):
   def Elogq_Lam(self):
     '''
     '''
-    logNormC = np.sum(gammaln(self.Lam)) \
-               - np.sum(gammaln(self.LamSum))
+    logNormC = np.sum(gammaln(self.Lam)) - np.sum(gammaln(self.LamSum))
     Elogphi = self.Elogphi() 
     logDirPDF = np.sum(Elogphi * (1.0 - self.Lam))
     return -1.0 * (logNormC + logDirPDF)

@@ -33,6 +33,8 @@ class DirichletDistr(object):
     def set_helpers(self, doNormConstOnly=False, **kwargs):
         assert self.lamvec.ndim == 1
         self.lamsum = self.lamvec.sum()
+        if hasattr(self, '_logNormC'):
+          del self._logNormC
         if not doNormConstOnly:
           digammalamvec = digamma(self.lamvec)
           digammalamsum = digamma(self.lamsum)
@@ -61,7 +63,10 @@ class DirichletDistr(object):
   
     def get_log_norm_const(self):
         ''' Returns log( Z ), where PDF(x) :=  1/Z(theta) f( x | theta )'''
-        return np.sum(gammaln(self.lamvec)) - gammaln(self.lamsum)
+        if hasattr(self, '_logNormC'):
+          return self._logNormC
+        self._logNormC = np.sum(gammaln(self.lamvec)) - gammaln(self.lamsum)
+        return self._logNormC 
 
     def get_entropy( self ):
         ''' Returns entropy of this distribution 

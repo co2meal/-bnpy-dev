@@ -1,7 +1,15 @@
+=========== births
+* are we redundantly adding topics? should we merge in the expanded model?
+
+=========== merges
+* log_merge_move is expensive! need to get rid of it?
+
 =========== ObsModel
 * move to completely vectorized obsmodel for BagOfWords
 
 =========== AllocModel
+* HDPFull : better optimization for u based on reparameterization of its Beta distr
+
 * HDPFull : full posterior for both v and r
 * HDPPE : full posterior for r, 
 * HDPFullHard : full posterior for v, hard assignments for r
