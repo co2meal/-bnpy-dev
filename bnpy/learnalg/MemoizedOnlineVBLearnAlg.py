@@ -193,9 +193,6 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       elif lap >= 1.0:
         assert abs(SS.nDoc - Dchunk.nDocTotal) < 0.01
 
-    if hasattr(SS, 'sumLogPi'):
-      if not np.all(SS.sumLogPi <= 1e-10):
-        raise ValueError('sumLogPi should be less than zero!')
     if hasattr(SS, 'N'):
       if not np.all(SS.N >= -1e-9):
         raise ValueError('N should be >= 0!')

@@ -19,11 +19,12 @@ def choice(candidates, ps=None, randstate=np.random):
   return candidates[k]
 
 def multinomial(Nsamp, ps, randstate=np.random):
-  ps = np.asarray(ps, dtype=np.float64)
-  Pmat = np.tile(ps, (Nsamp,1))
-  choiceVec = discrete_single_draw_vectorized(Pmat, randstate)
-  choiceHist, bins = np.histogram(choiceVec, np.arange(-.5,ps.size + .5))
-  return choiceHist
+  return randstate.multinomial(Nsamp, ps/ps.sum() )
+  #ps = np.asarray(ps, dtype=np.float64)
+  #Pmat = np.tile(ps, (Nsamp,1))
+  #choiceVec = discrete_single_draw_vectorized(Pmat, randstate)
+  #choiceHist, bins = np.histogram(choiceVec, np.arange(-.5,ps.size + .5))
+  #return choiceHist
 
 def discrete_single_draw_vectorized( Pmat, randstate=np.random):
   Ts = np.cumsum(Pmat, axis=1)
@@ -32,17 +33,21 @@ def discrete_single_draw_vectorized( Pmat, randstate=np.random):
   choices = np.argmax( Ts, axis=1 ) # relies on argmax returning first id
   return choices
 
-def discrete_single_draw( ps, randstate=None):
-  ''' Given vector of K weights "ps",
-         draw a single integer assignment in {1,2, ...K}
-      such that Prob( choice=k) = ps[k]
+def discrete_single_draw( ps, randstate=np.random):
+  ''' Given vector of K positive real weights "ps",
+      draw a single integer assignment in {1,2, ...K}
+      such that Prob(choice=k) = ps[k]
+
+      Args
+      --------
+      ps : K-length numpy vector of positive real numbers
+
+      Returns
+      --------
+      choice : integer in range 0, 1, ... K
   '''
   totals = np.cumsum(ps)
-  if randstate is None:
-    throw = np.random.rand()*totals[-1]
-  else:
-    throw = randstate.rand()*totals[-1]
-  return np.searchsorted(totals, throw)
+  return np.searchsorted(totals, randstate.rand()*totals[-1])
 
 def mvnrand(mu, Sigma, N=1, PRNG=np.random.RandomState()):
   if type(PRNG) == int:

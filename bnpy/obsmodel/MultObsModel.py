@@ -119,29 +119,31 @@ class MultObsModel(ObsModel):
             Dstar = self.obsPrior.get_post_distr(SS, k)
             self.comp[k].post_update_soVB(rho, Dstar)
 
-    def set_global_params(self, hmodel=None, phi=None, Etopics=None, **kwargs):
+    def set_global_params(self, hmodel=None, topics=None, 
+                                Etopics=None, **kwargs):
         ''' Set global params to provided values
 
             Params
             --------
-            phi : K x V matrix, each row is a distr over V vocab words
+            topics : K x V matrix, each row has positive reals that sum to one
+                     topics[k,v] = probability of word v under topic k
         '''
         if hmodel is not None:
             self.K = hmodel.obsModel.K
             self.comp = copy.deepcopy(hmodel.obsModel.comp)
             return
-        if phi is not None:
-            Etopics = phi  
-        assert Etopics is not None
-        self.K = Etopics.shape[0]
+        if Etopics is not None:
+            topics = Etopics
+        assert topics is not None
+        self.K = topics.shape[0]
         self.comp = list()
         for k in range(self.K):
             # Scale up Etopics to lamvec, a V-len vector of positive entries,
             #   such that (1) E[phi] is still Etopics, and
             #             (2) lamvec = obsPrior.lamvec + [some suff stats]
             #   where (2) means that lamvec is a feasible posterior value
-            ii = np.argmin(Etopics[k,:])
-            lamvec = self.obsPrior.lamvec[ii]/Etopics[k,ii] * Etopics[k,:]
+            ii = np.argmin(topics[k,:])
+            lamvec = self.obsPrior.lamvec[ii]/topics[k,ii] * topics[k,:]
             self.comp.append(DirichletDistr(lamvec))
 
   ######################################################### Evidence

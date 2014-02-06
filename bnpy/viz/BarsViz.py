@@ -66,7 +66,10 @@ def plotBarsFromHModel(hmodel, Data=None, doShowNow=True, figH=None,
         pylab.title('Learned Topic x Word')
     else:
         # Plot just the learned parameters
-        pylab.imshow(learned_tw, **imshowArgs)
+        aspectR = learned_tw.shape[1]/learned_tw.shape[0]
+        while imshowArgs['vmax'] > 2 * learned_tw.max():
+          imshowArgs['vmax'] /= 5
+        pylab.imshow(learned_tw, aspect=aspectR, **imshowArgs)
         pylab.colorbar
         pylab.title('Learned Topic x Word')
     if compsToHighlight is not None:

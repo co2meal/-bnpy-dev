@@ -27,7 +27,7 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
         PhiTopicWord += 0.01 * PRNG.rand(K, Data.vocab_size)
         PhiTopicWord /= PhiTopicWord.sum(axis=1)[:,np.newaxis]
         beta = np.ones(K)
-        hmodel.set_global_params(K=K, beta=beta, phi=PhiTopicWord)
+        hmodel.set_global_params(K=K, beta=beta, topics=PhiTopicWord)
         return
     elif initname == 'randsoftpartition':
         ''' Assign responsibility for K topics at random to all words
@@ -46,7 +46,7 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
         PhiTopicWord += 0.01 * PRNG.rand(K, Data.vocab_size)
         PhiTopicWord /= PhiTopicWord.sum(axis=1)[:,np.newaxis]
         beta = np.ones(K)
-        hmodel.set_global_params(K=K, beta=beta, phi=PhiTopicWord)
+        hmodel.set_global_params(K=K, beta=beta, topics=PhiTopicWord)
         return
     elif initname == 'kmeansplusplus':
         if not hasRexAvailable:
@@ -57,7 +57,7 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
         PhiTopicWord += 0.001 * PRNG.rand(K, Data.vocab_size)
         PhiTopicWord /= PhiTopicWord.sum(axis=1)[:,np.newaxis]
         beta = np.ones(K)
-        hmodel.set_global_params(K=K, beta=beta, phi=PhiTopicWord)
+        hmodel.set_global_params(K=K, beta=beta, topics=PhiTopicWord)
         return      
     elif initname == 'kmeans':
         ''' Create topics via kmeans analysis of the doc-word matrix
@@ -79,16 +79,6 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
         # Need to normalize word_variational parameters
         word_variational /= word_variational.sum(axis=1)[:,np.newaxis]
         
-    elif initname == 'truth':
-        word_variational = np.zeros( (Data.nObs, K) ) + .1
-        doc_variational = Data.true_td.T
-        
-        # set each word-token variational parameter 
-        #  to its true document x topic weights 
-        for d in xrange(Data.nDoc):
-            start,stop = doc_range[d,:]
-            word_variational[start:stop,:] = doc_variational[d,:]
-           
     if LP is None:
       if hmodel.getAllocModelName().count('HDP') > 0:
         LP = getLPfromResp(word_variational, Data)

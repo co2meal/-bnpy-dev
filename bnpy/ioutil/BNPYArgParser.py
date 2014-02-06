@@ -7,7 +7,8 @@ OnlineDataAlgSet = ['soVB', 'moVB']
 
 dataHelpStr = 'Name of dataset, defined by a python script in $BNPYDATADIR.'
 
-aModelChoices = ['MixModel', 'DPMixModel', 'AdmixModel', 'HDPModel', 'HDPPE']
+aModelChoices = ['MixModel', 'DPMixModel', 'AdmixModel', 'HDPModel',
+                   'HDPPE', 'HDPFullHard']
 aModelChoices = set(aModelChoices)
 choiceStr = ' {' + ','.join([x for x in (aModelChoices)]) + '}'
 aModelHelpStr = 'Name of allocation model.' + choiceStr

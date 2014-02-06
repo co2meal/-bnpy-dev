@@ -258,7 +258,9 @@ class HDPModel(AllocModel):
         self.U0 = rho * U0 + (1-rho) * self.U0
         self.set_helper_params()
 
-    def set_global_params(self, hmodel=None, K=0, beta=None, U1=None, U0=None, 
+    def set_global_params(self, hmodel=None, 
+                                U1=None, U0=None, 
+                                K=0, beta=None, topic_prior=None,
                                 Ebeta=None, EbetaLeftover=None, **kwargs):
         if hmodel is not None:
           self.K = hmodel.allocModel.K
@@ -266,11 +268,19 @@ class HDPModel(AllocModel):
           self.U0 = hmodel.allocModel.U0
           self.set_helper_params()
           return
-        self.K = K
+
         if U1 is not None and U0 is not None:
           self.U1 = U1
           self.U0 = U0
-        if Ebeta is not None and EbetaLeftover is not None:
+          self.K = U1.size
+          self.set_helper_params()
+          return
+
+        self.K = K
+        if topic_prior is not None:
+          beta = np.hstack([topic_prior, np.min(topic_prior)/100.])
+          beta = beta/np.sum(beta)
+        elif Ebeta is not None and EbetaLeftover is not None:
           Ebeta = np.squeeze(Ebeta)
           EbetaLeftover = np.squeeze(EbetaLeftover)
           beta = np.hstack( [Ebeta, EbetaLeftover])
@@ -278,21 +288,22 @@ class HDPModel(AllocModel):
           assert beta.size == K
           beta = np.hstack([beta, np.min(beta)/100.])
           beta = beta/np.sum(beta)
-        if beta is not None:
-          assert abs(np.sum(beta) - 1.0) < 0.005
-          vMean = HVO.beta2v(beta)
-          # for each k=1,2...K
-          #  find the multiplier vMass[k] such that both are true
-          #  1) vMass[k] * vMean[k] > 1.0
-          #  2) vMass[k] * (1-vMean[k]) > self.alpha0
-          vMass = np.maximum( 1./vMean , self.alpha0/(1.-vMean))
-          self.U1 = vMass * vMean
-          self.U0 = vMass * (1-vMean)
-          assert np.all( self.U1 >= 1.0 - 0.00001)
-          assert np.all( self.U0 >= self.alpha0 - 0.00001)
-
         else:
-          raise ValueError('Bad HDP parameters')          
+          raise ValueError('Bad parameters. Vector beta not specified.')
+
+        # Now, use the specified value of beta to find the best U1, U0
+        assert beta.size == K + 1
+        assert abs(np.sum(beta) - 1.0) < 0.001
+        vMean = HVO.beta2v(beta)
+        # for each k=1,2...K
+        #  find the multiplier vMass[k] such that both are true
+        #  1) vMass[k] * vMean[k] > 1.0
+        #  2) vMass[k] * (1-vMean[k]) > self.alpha0
+        vMass = np.maximum( 1./vMean , self.alpha0/(1.-vMean))
+        self.U1 = vMass * vMean
+        self.U0 = vMass * (1-vMean)
+        assert np.all( self.U1 >= 1.0 - 0.00001)
+        assert np.all( self.U0 >= self.alpha0 - 0.00001)
         assert self.U1.size == K
         assert self.U0.size == K
         self.set_helper_params()
