@@ -21,7 +21,7 @@ total of cuberoot(V) words on a side.  if we did V=8000, then side-length=20
 
 
 =========== merges
-* log_merge_move is expensive! need to get rid of it?
+* log_merge_move is expensive! need to get rid of it? DONE (via doWriteLog merge flag)
 
 =========== ObsModel
 * move to completely vectorized obsmodel for BagOfWords
