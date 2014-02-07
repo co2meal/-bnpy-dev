@@ -126,9 +126,9 @@ class GaussObsModel( ObsModel ):
 
   ######################################################### Global Params
   #########################################################  M-step
-  def update_obs_params_EM( self, SS, Krange, **kwargs):
+  def update_obs_params_EM( self, SS, **kwargs):
     I = np.eye(self.D)
-    for k in Krange:
+    for k in xrange(self.K):
       mean    = SS.x[k] / SS.N[k]
       covMat  = SS.xxT[k] / SS.N[k] - np.outer(mean,mean)
       covMat  += self.min_covar * I      
@@ -142,10 +142,18 @@ class GaussObsModel( ObsModel ):
     else:
       self.comp[mergeCompA] = self.obsPrior.get_post_distr(SS, mergeCompA)
 
-  def update_obs_params_soVB( self, SS, rho, Krange, **kwargs):
-    for k in Krange:
+  def update_obs_params_soVB( self, SS, rho, **kwargs):
+    for k in xrange(self.K):
       Dstar = self.obsPrior.get_post_distr(SS, k)
       self.comp[k].post_update_soVB(rho, Dstar)
+
+
+  def set_global_params(self, hmodel=None, **kwargs):
+    ''' Set global parameters to provided values
+    '''
+    if hmodel is not None:
+      self.comp = [copy.deepcopy(c) for c in hmodel.obsModel.comp]
+      self.K = hmodel.obsModel.K
 
   ######################################################### Evidence  
   ######################################################### 

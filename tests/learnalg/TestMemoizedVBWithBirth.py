@@ -1,8 +1,10 @@
 '''
 Unit tests for moVB with birth moves.
 
-Verifies:
-* births occur at the expected times
+Coverage
+--------
+* do_birth_at_lap
+  * verify births occur at the expected times (when lap < fracLapsBirth*nLap)
 '''
 import bnpy
 import unittest

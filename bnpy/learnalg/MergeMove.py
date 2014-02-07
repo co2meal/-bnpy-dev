@@ -43,7 +43,8 @@ def run_many_merge_moves(hmodel, Data, SS, evBound=None,
       -------
       hmodel
       SS
-      Info
+      evBound
+      MTracker
   '''
   nMergeTrials = np.maximum(nMergeTrials, len(compList))
 
@@ -252,7 +253,7 @@ def log_merge_move(MoveInfo, MSelector, hmodel, SS, savedir):
 ##########################################################
 def select_merge_components(curModel, Data, SS, MTracker=None,
                             MSelector=None,
-                            mergename='marglik', randstate=None,
+                            mergename='marglik', randstate=np.random,
                             kA=None, **kwargs):
   ''' Select which two existing components to merge when constructing
       a candidate "merged" model from curModel, which has K components.

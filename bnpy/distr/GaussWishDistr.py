@@ -34,6 +34,8 @@ class GaussWishDistr( Distr ):
         kappa : precision parameter for Gaussian
         m : mean parameter for Gaussian
     '''
+    m = np.asarray(m)
+    invW = np.asarray(invW)
     self.D = m.size
     # Enforce expected dimensions for mean vector
     if m.ndim > 1:

@@ -159,7 +159,7 @@ def learn_fresh_model(freshModel, targetData, Kmax=500, Kfresh=10,
     for kreject in rejectIDs:
       targetSS.removeComp(kreject)
     
-  else:
+  elif curModel is not None:
     targetSS = clean_up_fresh_model(targetData, curModel, freshModel, 
                             randstate=randstate, **kwargs)
   
@@ -195,23 +195,19 @@ def clean_up_fresh_model(targetData, curModel, freshModel,
   if targetSS.K < 2:
     return targetSS # quit early, will reject
 
-  #targetLP = freshModel.calc_local_params(targetData)
-  #targetSS = freshModel.get_global_suff_stats(targetData, targetLP,
-  #                doPrecompEntropy=True)
-  #freshEvBound = freshModel.calc_evidence(SS=targetSS)
-
-  # Verify fresh model preferred over single comp model
-  # create K=1 model
+  # Create K=1 model
   singleModel = curModel.copy()
   singleSS = targetSS.getComp(0, doCollapseK1=False)
   singleModel.update_global_params(singleSS)
-  # compute tight bound
   singleLP = singleModel.calc_local_params(targetData)
   singleSS = singleModel.get_global_suff_stats(targetData, singleLP,
                   doPrecompEntropy=True)
   singleModel.update_global_params(singleSS) # make it reflect targetData
+
+  # Calculate evidence under K=1 model
   singleEvBound = singleModel.calc_evidence(SS=singleSS)
  
+  # Verify fresh model preferred over K=1 model
   improveEvBound = freshEvBound - singleEvBound
   if improveEvBound <= 0 or improveEvBound < 0.00001 * abs(singleEvBound):
     msg = "BIRTH terminated. Not better than single component on target data."
@@ -230,6 +226,7 @@ def clean_up_fresh_model(targetData, curModel, freshModel,
     msg += "\n  cur   | K=%3d | %.7e" % (curSS.K, curEvBound)
     raise BirthProposalError(msg)
 
+  return targetSS
 
   """
   # Step 3: create expanded model,
@@ -258,7 +255,6 @@ def clean_up_fresh_model(targetData, curModel, freshModel,
     if ktarget >= 0:
       targetSS.removeComp(ktarget)
   """
-  return targetSS
 
 ########################################################### Select birth comps
 ###########################################################

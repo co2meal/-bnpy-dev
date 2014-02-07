@@ -24,8 +24,8 @@ algHelpStr = 'Name of learning algorithm.' + choiceStr
 MovesHelpStr = "String names of moves to perform to escape local optima. Options: {birth,merge}. To perform multiple moves, separate with commas like 'birth,merge' (no spaces)."
 KwhelpHelpStr = "Include --kwhelp to print our keyword argument help and exit"
 
-########################################################### User-facing functions
-###########################################################
+########################################################### User-facing 
+###########################################################  functions
 def parseRequiredArgs():
   ''' Returns parsed required arguments for bnpy, as a dict.
   '''

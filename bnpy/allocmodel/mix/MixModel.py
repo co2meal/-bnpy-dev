@@ -127,6 +127,26 @@ class MixModel(AllocModel):
     self.Elogw = digamma( self.alpha ) - digamma( self.alpha.sum() )
     self.K = SS.K
  
+  def set_global_params(self, hmodel=None, K=None, w=None, 
+                              alpha=None, **kwargs):
+    ''' Directly set global parameters alpha to provided values
+    '''
+    if hmodel is not None:
+      self.K = hmodel.allocModel.K
+      if self.inferType == 'EM':
+        self.w = hmodel.allocModel.w
+      else:
+        self.alpha = hmodel.allocModel.alpha
+        self.Elogw = digamma( self.alpha ) - digamma( self.alpha.sum() )
+      return
+    else:
+      self.K = K
+      if self.inferType == 'EM':
+        self.w = w
+      else:
+        self.alpha = alpha
+        self.Elogw = digamma( self.alpha ) - digamma( self.alpha.sum() )
+
   ######################################################### Evidence
   #########################################################
   def calc_evidence( self, Data, SS, LP):

@@ -9,10 +9,6 @@ alpha0   : scalar symmetric Dirichlet prior on mixture weights
 
 Local Parameters (document-specific)
 --------
-doc_variational : nDoc x K matrix, 
-                  row d has params for doc d's Dirichlet over the K topics
-E_log_doc_variational : nDoc x K matrix
-                  row d has E[ log mixture-weights for doc d ]
 word_variational : nDistinctWords x K matrix
                   row i has params for word i's Discrete distr over K topics                        
 DocTopicCount : nDoc x K matrix
@@ -46,22 +42,6 @@ class AdmixModel(AllocModel):
             self.alpha0 = 1.0 # Uniform!
         else:
             self.set_prior(priorDict)
-
-    ####################################################### Suff Stat Calc
-    ####################################################### 
-    def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None, **kwargs):
-        ''' Calculate sufficient statistics.
-            Admixture models have no suff stats for allocation   
-        '''
-        wv = LP['word_variational']
-        _, K = wv.shape
-        SS = SuffStatBag(K=K, D=Data.vocab_size)
-        if doPrecompEntropy:
-            SS.setELBOTerm('ElogpZ', self.E_log_pZ(Data, LP), dims='K')
-            SS.setELBOTerm('ElogqZ', self.E_log_qZ(Data, LP), dims='K')
-            SS.setELBOTerm('ElogpPi', self.E_log_pPI(Data, LP), dims=None)
-            SS.setELBOTerm('ElogqPi', self.E_log_qPI(Data, LP), dims=None)
-        return SS
          
     ####################################################### Calc Local Params
     ####################################################### (E-step)
@@ -71,7 +51,8 @@ class AdmixModel(AllocModel):
         '''
         return ['alphaPi']
 
-    def calc_local_params( self, Data, LP, nCoordAscentItersLP=10):
+    def calc_local_params( self, Data, LP, nCoordAscentItersLP=10, 
+                                 convThrLP=0.01, **kwargs):
         ''' Calculate document-specific quantities (E-step)
           Alternate updates to two terms until convergence
             (1) Approx posterior on topic-token assignment
@@ -94,12 +75,12 @@ class AdmixModel(AllocModel):
             LP['alphaPi'] = np.ones((Data.nDoc,self.K))
         else:
             assert LP['alphaPi'].shape[1] == self.K
-
+        
         LP = self.calc_ElogPi(LP)
-        prevVec = LP['alphaPi'].flatten()
 
         # Allocate lots of memory once
         LP['word_variational'] = np.zeros(LP['E_logsoftev_WordsData'].shape)
+        alphaPi_old = LP['alphaPi']
 
         # Repeat until converged...
         for ii in xrange(nCoordAscentItersLP):
@@ -119,10 +100,9 @@ class AdmixModel(AllocModel):
             LP = self.calc_ElogPi(LP)
 
             # Assess convergence 
-            curVec = LP['alphaPi'].flatten()
-            if prevVec is not None and np.allclose(prevVec, curVec):
+            if np.allclose(alphaPi_old, LP['alphaPi'], atol=convThrLP):
                 break
-            prevVec = curVec
+            alphaPi_old = LP['alphaPi']
         return LP
     
 
@@ -160,6 +140,22 @@ class AdmixModel(AllocModel):
         assert np.allclose(LP['word_variational'].sum(axis=1), 1)
         return LP
 
+    ####################################################### Suff Stat Calc
+    ####################################################### 
+    def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None, **kwargs):
+        ''' Calculate sufficient statistics.
+            Admixture models have no suff stats for allocation   
+        '''
+        wv = LP['word_variational']
+        _, K = wv.shape
+        SS = SuffStatBag(K=K, D=Data.vocab_size)
+        SS.setField('nDoc', Data.nDoc, dims=None)
+        if doPrecompEntropy:
+            SS.setELBOTerm('ElogpZ', self.E_log_pZ(Data, LP), dims='K')
+            SS.setELBOTerm('ElogqZ', self.E_log_qZ(Data, LP), dims='K')
+            SS.setELBOTerm('ElogpPi', self.E_log_pPI(Data, LP), dims=None)
+            SS.setELBOTerm('ElogqPi', self.E_log_qPI(Data, LP), dims=None)
+        return SS
 
     ####################################################### Calc Global Params
     #######################################################   M-step
