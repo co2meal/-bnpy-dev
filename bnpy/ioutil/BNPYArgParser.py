@@ -165,7 +165,7 @@ def _getConfigFileDict(ReqArgs):
              cfgroot + 'obsmodel.conf':'obsModelName', 
              cfgroot + 'learnalg.conf':'algName',
              cfgroot + 'init.conf':None,
-             cfgroot + 'output.conf':None}             
+             cfgroot + 'output.conf':None}
   OnlineDataConfigPath =  cfgroot + 'onlinedata.conf'
   if ReqArgs['algName'] in OnlineDataAlgSet:
     ConfigPaths[OnlineDataConfigPath] = None
@@ -269,8 +269,6 @@ def _addArgsToDictByConfigFile(argDict, kwargs, confFile, targetSecName=None):
     BigSecDict = dict(config.items(secName))
     secDict = dict([ (k,v) for (k,v) in kwargs.items() if k in BigSecDict])
     argDict[secName] = secDict
-
-
 
 ########################################################### Parse args for viz
 ###########################################################

@@ -6,12 +6,8 @@ Bayesian nonparametric admixture model with unbounded number of components K,
 '''
 import numpy as np
 
-import HDPFullVarOpt as FVO
 from .HDPModel import HDPModel
 from bnpy.suffstats import SuffStatBag
-from ...util import digamma, gammaln, logsumexp
-from ...util import EPS, np2flatstr
-from ...mergeutil import LibRlogR
 
 import scipy.sparse
 import logging

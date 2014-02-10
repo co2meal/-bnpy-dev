@@ -29,8 +29,9 @@ import numpy as np
 
 from ..AllocModel import AllocModel
 from bnpy.suffstats import SuffStatBag
-from ...util import digamma, gammaln, logsumexp
-from ...util import EPS, np2flatstr
+from ...util import digamma, gammaln
+from ...util import EPS
+from ...util import NumericUtil
 
 class AdmixModel(AllocModel):
     def __init__(self, inferType, priorDict=None):
@@ -131,12 +132,7 @@ class AdmixModel(AllocModel):
         ElogPi = LP['E_logPi']
         for d in xrange(Data.nDoc):
             wv[Data.doc_range[d,0]:Data.doc_range[d,1], :] += ElogPi[d,:]
-        # Take exp of wv in numerically stable manner (first subtract the max)
-        #  in-place so no new allocations occur
-        wv -= np.max(wv, axis=1)[:,np.newaxis]
-        np.exp(wv, out=wv)
-        # Normalize, so rows of wv sum to one
-        wv /= wv.sum(axis=1)[:,np.newaxis]
+        NumericUtil.inplaceExpAndNormalizeRows(wv)
         assert np.allclose(LP['word_variational'].sum(axis=1), 1)
         return LP
 

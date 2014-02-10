@@ -245,7 +245,6 @@ def readArgsFromFile(taskoutpath):
   import glob
   KwArgs = dict()
   for argfilepath in glob.glob(os.path.join(taskoutpath,'args-*.txt')):
-    print argfilepath
     curKey = argfilepath.split('-')[1].split('.txt')[0]
     with open(argfilepath, 'r') as f:
       curDict = json.load(f)

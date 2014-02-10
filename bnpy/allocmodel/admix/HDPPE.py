@@ -27,14 +27,11 @@ v   : K-length vector, point estimate for stickbreaking fractions v1, v2, ... vK
 '''
 import numpy as np
 
-import HDPPointEstimateOptimizer as PEO
+import OptimizerForHDPPE as OptimPE
 from .HDPModel import HDPModel
-from bnpy.suffstats import SuffStatBag
-from ...util import digamma, gammaln, logsumexp
-from ...util import EPS, np2flatstr
+from ...util import gammaln
 
 class HDPPE(HDPModel):
-
 
   ######################################################### Constructors
   #########################################################
@@ -42,7 +39,7 @@ class HDPPE(HDPModel):
   '''
         
   def set_helper_params(self):
-    self.Ebeta = PEO.v2beta(self.v)
+    self.Ebeta = OptimPE.v2beta(self.v)
 
   ######################################################### Accessors
   #########################################################
@@ -72,7 +69,7 @@ class HDPPE(HDPModel):
     assert sumLogPi.size == self.K + 1
     
     try:
-      v, fofv, Info = PEO.estimate_v(alpha0=self.alpha0, gamma=self.gamma,
+      v, fofv, Info = OptimPE.estimate_v(alpha0=self.alpha0, gamma=self.gamma,
                             sumLogPi=sumLogPi, nDoc=SS.nDoc)
       self.v = v
     except ValueError as v:
@@ -80,7 +77,7 @@ class HDPPE(HDPModel):
         if self.v.size != self.K:
           beta = np.hstack([SS.N, 0.01])
           beta /= beta.sum()
-          self.v = PEO.beta2v(beta)
+          self.v = OptimPE.beta2v(beta)
         else:
           pass # keep current estimate of v!
     assert self.v.size == self.K
@@ -111,7 +108,7 @@ class HDPPE(HDPModel):
       beta = beta/np.sum(beta)
     if beta is not None:
       assert abs(np.sum(beta) - 1.0) < 0.005
-      self.v = PEO.beta2v(beta)
+      self.v = OptimPE.beta2v(beta)
     assert self.v.size == self.K
     self.set_helper_params()
         

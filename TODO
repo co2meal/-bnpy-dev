@@ -1,44 +1,20 @@
-=========== data
-better synthetic data, with realistic vocab scale, but reasonable (10 or 20) number of topics
+=========== TESTS
 
-vocab_size = 10000
-K = 20
-
-"cube"
-3 faces, each with 2 orientations
-= x6 multiplier
-
-suppose we have B bars on a single side
-then we have 6*B^2 total topics (assuming all are used)
-
-setting B=2 gives 24 total topics
-setting B=3 gives 54 total topics
-
-total of cuberoot(V) words on a side.  if we did V=8000, then side-length=20
+=========== SPEED AND GRACEFUL FALLBACK
+perform some automatic quick tests to decide if 
+  numexpr is better than numpy for different tasks
 
 =========== births
 * are we redundantly adding topics? should we merge in the expanded model?
 
-
-=========== merges
-* log_merge_move is expensive! need to get rid of it? DONE (via doWriteLog merge flag)
-
-=========== ObsModel
-* move to completely vectorized obsmodel for BagOfWords
-
 =========== AllocModel
 * HDPFull : better optimization for u based on reparameterization of its Beta distr
 
-* HDPFull : full posterior for both v and r
-* HDPPE : full posterior for r, 
-* HDPFullHard : full posterior for v, hard assignments for r
-* HDPPEHard : point estimates for v, hard assignments for r
-
 =========== Stochastic
 * better computation of the evidence bound (avg across batches)
+* what are the correct updates for v* from the point estimate HDP?
 
 =========== LOGGING
-
 DataSet/allocModel/obsModel/infAlg/jobname/taskid/
 vs
 Dataset/jobname/taskid/ [with maybe reset default behavior to not overwrite previous run if done by different allocModel/obsModel??]

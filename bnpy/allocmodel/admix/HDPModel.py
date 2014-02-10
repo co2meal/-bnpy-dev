@@ -29,13 +29,13 @@ U1, U0   : K-length vectors, params for variational distribution over
 '''
 import numpy as np
 
-import HDPFullVarOpt as FVO
-import HDPVariationalOptimizer as HVO
+import OptimizerForHDPFullVarModel as OptimHDP
 from ..AllocModel import AllocModel
+
 from bnpy.suffstats import SuffStatBag
-from ...util import digamma, gammaln, logsumexp
+from ...util import NumericUtil
+from ...util import digamma, gammaln
 from ...util import EPS, np2flatstr
-from ...mergeutil import LibRlogR
 import logging
 Log = logging.getLogger('bnpy')
 
@@ -59,11 +59,10 @@ class HDPModel(AllocModel):
       ''' Set dependent attribs of this model, given the primary params U1, U0
           This includes expectations of various stickbreaking quantities
       '''
-      E = HVO.calcExpectations(self.U1, self.U0)
+      E = OptimHDP._calcExpectations(self.U1, self.U0)
       self.Ebeta = E['beta']
       self.Elogv = E['logv']
-      self.Elog1mv = E['log1mv']
-        
+      self.Elog1mv = E['log1-v']
 
   ######################################################### Accessors
   #########################################################
@@ -163,7 +162,7 @@ class HDPModel(AllocModel):
         ElogPi = LP['E_logPi'][:,:K]
         for d in xrange(Data.nDoc):
             wv[Data.doc_range[d,0]:Data.doc_range[d,1], :] += ElogPi[d,:]
-        LibRlogR.safeExpAndNormalizeRows_numexpr(wv)
+        NumericUtil.inplaceExpAndNormalizeRows(wv)
         assert np.allclose(LP['word_variational'].sum(axis=1), 1)
         return LP
 
@@ -212,11 +211,28 @@ class HDPModel(AllocModel):
 
   ######################################################### Global Params
   #########################################################
+
     def update_global_params_VB(self, SS, **kwargs):
         ''' Update global parameters that control topic probabilities
             v[k] ~ Beta( U1[k], U0[k])
         '''
         self.K = SS.K
+        u = self._estimate_u(SS)
+        self.U1 = u[:self.K]
+        self.U0 = u[self.K:]
+        self.set_helper_params()
+        
+    def update_global_params_soVB(self, SS, rho, **kwargs):
+        assert self.K == SS.K
+        u = self._estimate_u(SS)
+        self.U1 = rho * u[:self.K] + (1-rho) * self.U1
+        self.U0 = rho * u[self.K:] + (1-rho) * self.U0
+        self.set_helper_params()
+
+    def _estimate_u(self, SS, **kwargs):
+        ''' Calculate best 2*K-vector u via L-BFGS gradient descent
+              performing multiple tries in case of numerical issues
+        '''
         if hasattr(self, 'U1') and self.U1.size == self.K:
           initU = np.hstack([self.U1, self.U0])
         else:
@@ -225,7 +241,7 @@ class HDPModel(AllocModel):
         sumLogPi = np.hstack([SS.sumLogPiActive, SS.sumLogPiUnused])
 
         try:
-          u, fofu, Info = FVO.estimate_u_multiple_tries(sumLogPi=sumLogPi,
+          u, fofu, Info = OptimHDP.estimate_u_multiple_tries(sumLogPi=sumLogPi,
                                         nDoc=SS.nDoc,
                                         gamma=self.gamma, alpha0=self.alpha0,
                                         initU=initU)
@@ -238,20 +254,7 @@ class HDPModel(AllocModel):
           else:
             Log.error('***** Optim failed. Stuck at prior. ' + str(error))
             u = initU # fall back on the prior otherwise
-        
-        self.U1 = u[:self.K]
-        self.U0 = u[self.K:]
-        self.set_helper_params()
-        
-    def update_global_params_soVB(self, SS, rho, **kwargs):
-        assert self.K == SS.K
-        sumLogPi = np.hstack([SS.sumLogPiActive, SS.sumLogPiUnused])
-        U1, U0 = HVO.estimate_u(K=self.K, alpha0=self.alpha0, gamma=self.gamma,
-                     sumLogPi=sumLogPi, nDoc=SS.nDoc,
-                     initU1=self.U1, initU0=self.U0)
-        self.U1 = rho * U1 + (1-rho) * self.U1
-        self.U0 = rho * U0 + (1-rho) * self.U0
-        self.set_helper_params()
+        return u
 
     def set_global_params(self, hmodel=None, 
                                 U1=None, U0=None, 
@@ -289,7 +292,7 @@ class HDPModel(AllocModel):
         # Now, use the specified value of beta to find the best U1, U0
         assert beta.size == K + 1
         assert abs(np.sum(beta) - 1.0) < 0.001
-        vMean = HVO.beta2v(beta)
+        vMean = OptimHDP.beta2v(beta)
         # for each k=1,2...K
         #  find the multiplier vMass[k] such that both are true
         #  1) vMass[k] * vMean[k] > 1.0
@@ -349,7 +352,7 @@ class HDPModel(AllocModel):
         '''
         wv = LP['word_variational']
         wv += EPS # Make sure all entries > 0 before taking log
-        return LibRlogR.calcRlogRdotv_numexpr(wv, Data.word_count)
+        return NumericUtil.calcRlogRdotv(wv, Data.word_count)
         #wv_logwv = wv * np.log(wv)
         #E_log_qZ = np.dot(Data.word_count, wv_logwv)
         #return E_log_qZ
@@ -360,9 +363,9 @@ class HDPModel(AllocModel):
         wv = LP['word_variational']
         wv += EPS # Make sure all entries > 0 before taking log
         if mPairIDs is None:
-          ElogqZMat = LibRlogR.calcRlogRdotv_allpairs_numexpr(wv, Data.word_count)
+          ElogqZMat = NumericUtil.calcRlogRdotv_allpairs(wv, Data.word_count)
         else:
-          ElogqZMat = LibRlogR.calcRlogRdotv_specificpairs_numexpr(wv, 
+          ElogqZMat = NumericUtil.calcRlogRdotv_specificpairs(wv, 
                                                 Data.word_count, mPairIDs)
         return ElogqZMat
 

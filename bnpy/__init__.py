@@ -9,7 +9,6 @@ import allocmodel
 import obsmodel
 from HModel import HModel
 
-import mergeutil
 import ioutil
 import init
 
