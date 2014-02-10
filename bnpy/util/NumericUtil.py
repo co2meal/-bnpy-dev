@@ -135,7 +135,7 @@ def calcRlogR_allpairs(R):
           since we restrict potential pairs a,b to satisfy a < b
   '''
   if Config['calcRlogR'] == "numexpr" and hasNumexpr:
-    return calcRlog_allpairs_numexpr(R)
+    return calcRlogR_allpairs_numexpr(R)
   else:  
     return calcRlogR_allpairs_numpy(R)
 
@@ -181,9 +181,9 @@ def calcRlogRdotv_allpairs(R, v):
           since we restrict potential pairs a,b to satisfy a < b
   '''
   if Config['calcRlogRdotv'] == "numexpr" and hasNumexpr:
-    return calcRlogdotv_allpairs_numexpr(R)
+    return calcRlogRdotv_allpairs_numexpr(R, v)
   else:  
-    return calcRlogRdotv_allpairs_numpy(R)
+    return calcRlogRdotv_allpairs_numpy(R, v)
 
 def calcRlogRdotv_allpairs_numpy(R, v):
   K = R.shape[1]
@@ -205,7 +205,7 @@ def calcRlogRdotv_allpairs_numexpr(R, v):
   return Z
 
 def calcRlogRdotv_allpairs_c(R, v):
-  return LibRlogR.calcRlogRdotv_allpairs_c(R)
+  return LibRlogR.calcRlogRdotv_allpairs_c(R, v)
 
 ########################################################### specific-pairs
 ###########################################################  RlogRdotv
@@ -230,9 +230,9 @@ def calcRlogRdotv_specificpairs(R, v, mPairs):
           since we restrict potential pairs a,b to satisfy a < b
   '''
   if Config['calcRlogRdotv'] == "numexpr" and hasNumexpr:
-    return calcRlogRdotv_specificpairs_numexpr(R)
+    return calcRlogRdotv_specificpairs_numexpr(R, v, mPairs)
   else:  
-    return calcRlogRdotv_specificpairs_numpy(R)
+    return calcRlogRdotv_specificpairs_numpy(R, v, mPairs)
 
 def calcRlogRdotv_specificpairs_numpy(R, v, mPairs):
   K = R.shape[1]
@@ -257,8 +257,7 @@ def calcRlogRdotv_specificpairs_numexpr(R, v, mPairs):
   return ElogqZMat
 
 def calcRlogRdotv_specificpairs_c(R, v, mPairs):
-  return LibRlogR.calcRlogRdotv_specificpairs_c(R)
-
+  return LibRlogR.calcRlogRdotv_specificpairs_c(R, v, mPairs)
 
 ########################################################### AutoConfigure
 ###########################################################

@@ -53,14 +53,15 @@ def run_many_merge_moves(hmodel, Data, SS, evBound=None,
 
   # Exclude all pairs for which we did not compute the combined entropy Hz
   #  Hz is always stored in KxK matrix. Pairs that were skipped have zeros.
-  Hz = SS.getMergeTerm('ElogqZ')
   aList = list()
   bList = list()
-  for kA in xrange(SS.K):
-    for kB in xrange(kA+1, SS.K):
-      if Hz[kA, kB] == 0:
-        aList.append(kA)
-        bList.append(kB)
+  if SS.hasMergeTerm('ElogqZ'):
+    Hz = SS.getMergeTerm('ElogqZ')
+    for kA in xrange(SS.K):
+      for kB in xrange(kA+1, SS.K):
+        if Hz[kA, kB] == 0:
+          aList.append(kA)
+          bList.append(kB)
   if len(aList) > 0:
     MTracker.addPairsToExclude(aList, bList)
 
