@@ -79,7 +79,7 @@ class WordsData(DataObj):
     if nDocTotal is None:
       self.nDocTotal = self.nDoc
     else:
-      self.nDocTotal = nDocTotal
+      self.nDocTotal = int(nDocTotal)
 
   def _verify_attributes(self):
     ''' Basic runtime checks to make sure dimensions are set correctly
@@ -335,9 +335,10 @@ class WordsData(DataObj):
     # Repackage the doc_data into word_id, word_count attributes
     word_id = list()
     word_count = list()
+    nDoc = len(doc_data)
     doc_range = np.zeros((nDoc,2), dtype=np.uint32)
     ii = 0
-    for d in xrange( len(doc_data) ):
+    for d in xrange( nDoc ):
       # make sure we subtract 1 for word_ids since python indexes by 0
       temp_word_id = [(int(n)-1) for n in doc_data[d][1].split()]
       temp_word_count = [int(n) for n in doc_data[d][2].split()]
