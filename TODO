@@ -1,8 +1,8 @@
-=========== TESTS
+=========== DiagGauss
+* merge in chau's DiagGauss material?
 
-=========== SPEED AND GRACEFUL FALLBACK
-perform some automatic quick tests to decide if 
-  numexpr is better than numpy for different tasks
+=========== docs
+* update to ipython notebook format?
 
 =========== births
 * are we redundantly adding topics? should we merge in the expanded model?
