@@ -1,5 +1,5 @@
 '''
-HDPPointEstimateOptimizer.py
+OptimizerForHDPPE.py
 
 Model Notation
 --------
