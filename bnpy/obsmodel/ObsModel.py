@@ -34,10 +34,11 @@ class ObsModel( object ):
   ######################################################### Local Params
   #########################################################  E-step
   def calc_local_params( self, Data, LP=dict()):
+    #LP['E_log_soft_ev'] = np.zeros( (Data.nObs, self.K) )
     if self.inferType == 'EM':
-      LP['E_log_soft_ev'] = self.log_soft_ev_mat( Data )
+        return self.log_soft_ev_mat( Data )
     elif self.inferType.count('VB') >0:
-      LP['E_log_soft_ev'] = self.E_log_soft_ev_mat( Data )
+        return self.E_log_soft_ev_mat( Data )
     return LP
 
   def log_soft_ev_mat( self, Data, Krange=None):
@@ -67,7 +68,7 @@ class ObsModel( object ):
 
   ######################################################### Global Params
   #########################################################  M-step
-  def update_global_params(self, SS, rho=None, Krange=None):
+  def update_global_params(self, SS, rho=None, Krange=None,**kwargs):
     ''' M-step update of global parameters for each component of this obs model.
         After this update, self will have exactly the number of 
           components specified by SS.K.
@@ -91,12 +92,12 @@ class ObsModel( object ):
       Krange = xrange(self.K)
 
     if self.inferType == 'EM':
-      self.update_obs_params_EM(SS, Krange)
+      self.update_obs_params_EM(SS, Krange,**kwargs)
     elif self.inferType.count('VB') > 0:
       if rho is None or rho == 1.0:
-        self.update_obs_params_VB(SS, Krange)
+        self.update_obs_params_VB(SS, Krange,**kwargs)
       else:
-        self.update_obs_params_soVB(SS, rho, Krange)
+        self.update_obs_params_soVB(SS, rho, Krange,**kwargs)
   
   def update_obs_params_EM(self):
     pass

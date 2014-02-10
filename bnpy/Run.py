@@ -74,7 +74,16 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
   hasReqArgs &= allocModelName is not None
   hasReqArgs &= obsModelName is not None
   hasReqArgs &= algName is not None
-  
+    
+  #### Debug ########
+  import pdb
+  pdb.set_trace()
+  ###################      
+  #### TEMPORARY HACK ######
+  temp_obsModelName = obsModelName
+  obsModelName = BNPYArgParser.parseObsModelName(obsModelName)[0]
+  ##########################
+      
   if hasReqArgs:
     ReqArgs = dict(dataName=dataName, allocModelName=allocModelName,
                     obsModelName=obsModelName, algName=algName)
@@ -95,13 +104,19 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
     KwArgs['OutputPrefs']['taskid'] = taskID
   nTask = KwArgs['OutputPrefs']['nTask']
   
+  ######## Temporary Hack: FIX THIS ###########
+  KwArgs[temp_obsModelName] = KwArgs[obsModelName]
+  obsModelName = temp_obsModelName
+  ReqArgs['obsModelName'] =obsModelName
+  #############################################
+  
   bestInfo = None
   bestEvBound = -np.inf
   for taskid in range(starttaskid, starttaskid + nTask):
     hmodel, LP, Info = _run_task_internal(jobname, taskid, nTask,
                       ReqArgs, KwArgs, UnkArgs,
                       dataName, allocModelName, obsModelName, algName,
-                      doSaveToDisk, doWriteStdOut)
+                      doSaveToDisk, doWriteStdOut)                               
     if (Info['evBound'] > bestEvBound):
       bestModel = hmodel
       bestLP = LP
@@ -128,7 +143,6 @@ def _run_task_internal(jobname, taskid, nTask,
   '''
   algseed = createUniqueRandomSeed(jobname, taskID=taskid)
   dataorderseed = createUniqueRandomSeed('', taskID=taskid)
-
   if doSaveToDisk:
     taskoutpath = getOutputPath(ReqArgs, KwArgs, taskID=taskid)
     createEmptyOutputPathOnDisk(taskoutpath)
@@ -142,9 +156,13 @@ def _run_task_internal(jobname, taskid, nTask,
   else:
     Data = dataName
     InitData = dataName
+    assert str(type(InitData)).count('bnpy.data') > 0
     if algName in OnlineDataAlgSet:
-      Data = Data.to_minibatch_iterator(dataorderseed=dataorderseed,
-                                        **KwArgs['OnlineDataPrefs'])
+      KwArgs[algName]['nLap'] = KwArgs['OnlineDataPrefs']['nLap']
+      OnlineDataArgs = KwArgs['OnlineDataPrefs']
+      OnlineDataArgs['dataorderseed'] = dataorderseed
+      OnlineDataArgs.update(UnkArgs) # add custom args
+      Data = Data.to_minibatch_iterator(**OnlineDataArgs)
 
   # Create and initialize model parameters
   hmodel = createModel(InitData, ReqArgs, KwArgs)
@@ -227,6 +245,11 @@ def createModel(Data, ReqArgs, KwArgs):
   algName = ReqArgs['algName']
   aName = ReqArgs['allocModelName']
   oName = ReqArgs['obsModelName']
+  #########################
+  ## Debug
+  #import pdb
+  #pdb.set_trace()
+  #######################
   aPriorDict = KwArgs[aName]
   oPriorDict = KwArgs[oName]
   hmodel = bnpy.HModel.CreateEntireModel(algName, aName, oName, aPriorDict, oPriorDict, Data)

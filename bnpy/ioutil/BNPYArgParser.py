@@ -69,7 +69,25 @@ def parseKeywordArgs(ReqArgs, **kwargs):
   #  into a multi-level dict, with sections for 'EM', 'Gauss', 'MixModel', etc.
   kwargs = _organizeParsedKeywordArgsIntoSections(ReqArgs, Moves, kwargs)
   return kwargs, unkDict
-
+  
+def parseObsModelName(obsModelName):
+    ''' Parses observation model name into (if required) multiple names.
+        >>> print parseObsModelName('Gaussian2&Mult')
+        ['Gaussian', 'Gaussian', 'Mult']
+        >>> print parseObsModelName('Gaussian')
+        ['Gaussian']
+    '''
+    obsModelNamesList = []
+    if(obsModelName):
+        obsModelNames = obsModelName.split('&')
+        for modelName in obsModelNames:
+            if (modelName[-1].isdigit()):
+                for ctr in xrange(int(modelName[-1])):
+                    obsModelNamesList.append(modelName[:-1])
+            else:
+                obsModelNamesList.append(modelName)
+    return obsModelNamesList                
+            
 ########################################################### Parser Utils
 ########################################################### 
 def applyParserToKwArgDict(parser, **kwargs):
@@ -136,12 +154,25 @@ def _createParserFromConfigFiles(ReqArgs, Moves):
       -------
        parser : argparse.ArgumentParser, with updated expected args
   '''
+
   parser = argparse.ArgumentParser()
   configFiles = _getConfigFileDict(ReqArgs)
+  #import pdb
+  #pdb.set_trace()
   for fpath, secName in configFiles.items():
     if secName is not None:
+      #if secName=='obsModelName': 
+      #  secName = (parseObsModelName(ReqArgs[secName]))
+      #  secName = secName[0]
+      #  print secName
+      #else:
       secName = ReqArgs[secName]
-    _addArgsFromConfigFileToParser(parser, fpath, secName) 
+    _addArgsFromConfigFileToParser(parser, fpath, secName)     
+      #if(len(secName)>1):    
+      #  for sName in secName:        
+      #      _addArgsFromConfigFileToParser(parser, fpath, sName) 
+      #else:
+      #      _addArgsFromConfigFileToParser(parser, fpath, secName)        
     if fpath.count('learn') > 0:
       for moveName in Moves: 
         _addArgsFromConfigFileToParser(parser, fpath, moveName)
@@ -175,7 +206,7 @@ def _addArgsFromConfigFileToParser(parser, confFile, targetSectionName=None):
       Returns
       -------
       None. Parser object will be updated afterwards.
-  '''
+  '''  
   config = _readConfigFile(confFile)
   for curSecName in config.sections():
     if curSecName.count("Help") > 0:

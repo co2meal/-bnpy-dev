@@ -113,14 +113,19 @@ class GaussObsModel( ObsModel ):
     K = resp.shape[1]
     
     # Expected mean for each k
-    SS.setField('x', dotATB(resp, X), dims=('K','D'))
-
+    #if(kwargs['obsModelId']>0):
+    SS.setField('x'+str(kwargs['obsModelId']), dotATB(resp, X), dims=('K','D'))
+    #else:    
+        #SS.setField('x', dotATB(resp, X), dims=('K','D'))
     # Expected covar for each k 
     sqrtResp = np.sqrt(resp)
     xxT = np.zeros( (K, self.D, self.D) )
     for k in xrange(K):
       xxT[k] = dotATA(sqrtResp[:,k][:,np.newaxis]*Data.X )
-    SS.setField('xxT', xxT, dims=('K','D','D'))
+    #if(kwargs['obsModelId']>0):  
+    SS.setField('xxT'+str(kwargs['obsModelId']), xxT, dims=('K','D','D'))
+    #else:
+    #    SS.setField('xxT', xxT, dims=('K','D','D'))
     return SS
     
 
@@ -129,11 +134,15 @@ class GaussObsModel( ObsModel ):
   def update_obs_params_EM( self, SS, Krange, **kwargs):
     I = np.eye(self.D)
     for k in Krange:
-      mean    = SS.x[k] / SS.N[k]
-      covMat  = SS.xxT[k] / SS.N[k] - np.outer(mean,mean)
-      covMat  += self.min_covar * I      
-      precMat = np.linalg.solve( covMat, I )
-      self.comp[k] = GaussDistr(m=mean, L=precMat)
+     #if(kwargs['obsModelId']==0):    
+     #   mean    = SS.x[k] / SS.N[k]
+     #   covMat  = SS.xxT[k] / SS.N[k] - np.outer(mean,mean)
+     #else:   
+     mean    = SS.__getattr__('x'+str(kwargs['obsModelId']))[k] / SS.N[k]
+     covMat  = SS.__getattr__('xxT'+str(kwargs['obsModelId']))[k] / SS.N[k] - np.outer(mean,mean)
+     covMat  += self.min_covar * I      
+     precMat = np.linalg.solve( covMat, I )
+     self.comp[k] = GaussDistr(m=mean, L=precMat)
            				 
   def update_obs_params_VB( self, SS, Krange, **kwargs):
     for k in Krange:
@@ -146,13 +155,13 @@ class GaussObsModel( ObsModel ):
 
   ######################################################### Evidence  
   ######################################################### 
-  def calc_evidence( self, Data, SS, LP):
+  def calc_evidence( self, Data, SS, LP,**kwargs):
     if self.inferType == 'EM':
      return 0 # handled by alloc model
     else:
-      return self.E_logpX(LP, SS) + self.E_logpPhi() - self.E_logqPhi()
+     return self.E_logpX(LP, SS,**kwargs) + self.E_logpPhi() - self.E_logqPhi()
   
-  def E_logpX( self, LP, SS ):
+  def E_logpX( self, LP, SS,**kwargs ):
     ''' E_{q(Z), q(Phi)} [ log p(X) ]
         Bishop PRML eq. 10.71
     '''
@@ -161,11 +170,11 @@ class GaussObsModel( ObsModel ):
       if SS.N[k] < 1e-9:
         lpX[k] += self.comp[k].ElogdetLam() - self.D/self.comp[k].kappa
       else:
-        mean    = SS.x[k]/SS.N[k]
-        covMat  = SS.xxT[k]/SS.N[k] - np.outer(mean,mean)
+        mean    = SS.__getattr__('x'+str(kwargs['obsModelId']))[k] / SS.N[k]
+        covMat  = SS.__getattr__('xxT'+str(kwargs['obsModelId']))[k] / SS.N[k] - np.outer(mean,mean)
         lpX[k] += self.comp[k].ElogdetLam() - self.D/self.comp[k].kappa \
-                - self.comp[k].dF* self.comp[k].traceW( covMat )  \
-                - self.comp[k].dF* self.comp[k].dist_mahalanobis(mean )
+                    - self.comp[k].dF* self.comp[k].traceW( covMat )  \
+                    - self.comp[k].dF* self.comp[k].dist_mahalanobis(mean )
     return 0.5*np.inner(SS.N,lpX)
     
   def E_logpPhi( self ):

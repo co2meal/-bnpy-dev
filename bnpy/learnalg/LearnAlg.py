@@ -153,13 +153,14 @@ class LearnAlg(object):
       return
 
     doSave = isEvenlyDivisibleFloat(lap, saveEvery) or iterid < 3
-    if (doFinal or doSave) and iterid not in self.SavedIters:
-      self.SavedIters.add(iterid)
-      with open(self.mkfile('laps-saved-params.txt'), 'a') as f:        
-        f.write('%.4f\n' % (lap))
-      prefix = ModelWriter.makePrefixForLap(lap)
-      ModelWriter.save_model(hmodel, self.savedir, prefix,
-                              doSavePriorInfo=(iterid<1), doLinkBest=True)
+    # UNCOMMENT AFTER FIXING.
+    #if (doFinal or doSave) and iterid not in self.SavedIters:
+    #  self.SavedIters.add(iterid)
+    #  with open(self.mkfile('laps-saved-params.txt'), 'a') as f:        
+    #    f.write('%.4f\n' % (lap))
+    #  prefix = ModelWriter.makePrefixForLap(lap)
+    #  ModelWriter.save_model(hmodel, self.savedir, prefix,
+    #                          doSavePriorInfo=(iterid<1), doLinkBest=True)
 
   # Define temporary function that creates files in this alg's output dir
   def mkfile(self, fname):

@@ -1,7 +1,8 @@
 '''
-FromScratchGauss.py
+FromScratchDiverse.py
 
-Initialize params of a mixture model with gaussian observations from scratch.
+Initialize params of a mixture model with different (Gaussian, Multinomial etc) 
+observations from scratch.
 '''
 import numpy as np
 from bnpy.util import discrete_single_draw
@@ -13,7 +14,6 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
   pdb.set_trace()
   ##############  
   PRNG = np.random.RandomState(seed)
-  X = Data.X
   if initname == 'randexamples':
     ''' Choose K items uniformly at random from the Data
         then component params by M-step given those single items
@@ -27,17 +27,7 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
         selecting the first at random,
         then subsequently proportional to euclidean distance to the closest item
     '''
-    objID = discrete_single_draw(np.ones(Data.nObs), PRNG)
-    chosenObjIDs = list([objID])
-    minDistVec = np.inf * np.ones(Data.nObs)
-    for k in range(1, K):
-      curDistVec = np.sum((Data.X - Data.X[objID])**2, axis=1)
-      minDistVec = np.minimum(minDistVec, curDistVec)
-      objID = discrete_single_draw(minDistVec, PRNG)
-      chosenObjIDs.append(objID)
-    resp = np.zeros((Data.nObs, K))
-    for k in xrange(K):
-      resp[chosenObjIDs[k], k] = 1.0
+    raise NotImplementedError('TODO?')
   elif initname == 'randsoftpartition':
     ''' Randomly assign all data items some mass in each of K components
         then create component params by M-step given that soft partition
@@ -49,10 +39,7 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
     ''' Generate K "fake" examples from the diagonalized data covariance,
         creating params by assigning each "fake" example to a component.
     '''
-    Sig = np.sqrt(np.diag(np.cov(Data.X.T)))
-    Xfake = Sig * PRNG.randn(K, Data.dim)
-    Data = XData(Xfake)
-    resp = np.eye(K)
+    raise NotImplementedError('TODO?')
   
   LP = dict(resp=resp)
  
