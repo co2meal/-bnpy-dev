@@ -302,7 +302,7 @@ def configLoggingToConsoleAndFile(taskoutpath, doSaveToDisk=True, doWriteStdOut=
     Log.addHandler(fh)
   ###### Config logger that can write to stdout
   if doWriteStdOut:
-    ch = logging.StreamHandler()
+    ch = logging.StreamHandler(sys.stdout)
     ch.setLevel(logging.DEBUG)
     ch.setFormatter(formatter)
     Log.addHandler(ch)
