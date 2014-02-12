@@ -2,7 +2,7 @@
 FromScratchDiverse.py
 
 Initialize params of a mixture model with different (Gaussian, Multinomial etc) 
-observations from scratch.
+observation models from scratch.
 '''
 import numpy as np
 from bnpy.util import discrete_single_draw

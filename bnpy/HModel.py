@@ -59,7 +59,7 @@ class HModel( object ):
     pdb.set_trace()
     ########
     if(str(type(Data)).count('DiverseData')>0):
-        assert len(obsModelNames)==len(Data.DataList)
+        assert len(obsModelNames)==len(Data.DataList),'Data List and Model List must match'
         for obsModelPartName,DataPart in zip(obsModelNames,Data.DataList):
             obsModel.append(ObsConstr[obsModelPartName].CreateWithPrior(
                                             inferType, obsPriorDict, DataPart))
@@ -109,9 +109,13 @@ class HModel( object ):
         This is necessary prep for the M-step of EM algorithm.
     '''
     SS = []
-    for i,obsModel in enumerate(self.obsModel):
-        SS.append(self.allocModel.get_global_suff_stats(Data.DataList[i], LP, **kwargs))
-        SS[i] = self.obsModel[i].get_global_suff_stats(Data.DataList[i], SS[i], LP, obsModelId=i, **kwargs)
+    if(str(type(Data)).count('DiverseData')>0):
+        for i,obsModel in enumerate(self.obsModel):
+            SS.append(self.allocModel.get_global_suff_stats(Data.DataList[i], LP, **kwargs))
+            SS[i] = self.obsModel[i].get_global_suff_stats(Data.DataList[i], SS[i], LP,  **kwargs)
+    else:
+         SS.append(self.allocModel.get_global_suff_stats(Data, LP, **kwargs))
+         SS[0] = self.obsModel[0].get_global_suff_stats(Data, SS[0], LP,  **kwargs)       
     if doAmplify:
       # Change effective scale of the suff stats, for soVB learning
       if hasattr(Data,"nDoc"):
@@ -130,9 +134,10 @@ class HModel( object ):
     ''' Update (in-place) global parameters given provided suff stats.
         This is the M-step of EM.
     '''
+    ##### Could compute alloc params using *any* SS object from the SS list.
     self.allocModel.update_global_params(SS[0], rho, **kwargs)
     for i,obsModel in enumerate(self.obsModel):
-        self.obsModel[i].update_global_params(SS[i], rho, obsModelId=i, **kwargs)
+        self.obsModel[i].update_global_params(SS[i], rho,  **kwargs)
   
   ######################################################### Evidence
   #########################################################     
@@ -166,8 +171,8 @@ class HModel( object ):
     elif initname.count(os.path.sep) > 0:
       #init.FromSaved.init_global_params(self, Data, **initArgs)
       raise NotImplementedError("TODO")
-    if len(self.obsModel)==1: 
-        obsModelPart = obsModel[0] 
+    if str(type(Data)).count('DiverseData')==0: 
+        obsModelPart = self.obsModel[0] 
         if str(type(obsModelPart)).count('Gauss') > 0:
             init.FromScratchGauss.init_global_params(self, Data, **initArgs)
         elif str(type(obsModelPart)).count('Mult') > 0:

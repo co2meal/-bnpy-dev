@@ -66,15 +66,7 @@ class DiverseData(DataObj):
       nObs = self.nObs
       for data in self.DataList:
           assert data.nObs==nObs, 'The number of observations must be constant across the data list provided to DiverseData' 
-      #nObs = self.X[0].shape[0]
-      #for X in self.X:
-      #  assert X.shape[0]==nObs, 'The number of observations must be constant across data list provided to DiverseData'  
-      #  assert X.ndim == 2
-      #  assert X.flags.c_contiguous
-      #  assert X.flags.owndata
-      #  assert X.flags.aligned
-      #  assert X.flags.writeable
-      #assert len(self.X)==len(self.dim)  
+   
   #########################################################  DataObj operations
   ######################################################### 
   def select_subset_by_mask(self, mask, doTrackFullSize=True):
@@ -82,7 +74,7 @@ class DiverseData(DataObj):
         If doTrackFullSize is True, 
           ensure nObsTotal attribute is the same as the full dataset.
     '''
-    # TODO: if doTrackFullSize:
+    # if doTrackFullSize:
     #    return XData(self.X[mask], nObsTotal=self.nObsTotal)
     #return XData(self.X[mask])
     raise NotImplementedError

@@ -114,18 +114,18 @@ class GaussObsModel( ObsModel ):
     
     # Expected mean for each k
     #if(kwargs['obsModelId']>0):
-    SS.setField('x'+str(kwargs['obsModelId']), dotATB(resp, X), dims=('K','D'))
+    #SS.setField('x'+str(kwargs['obsModelId']), dotATB(resp, X), dims=('K','D'))
     #else:    
-        #SS.setField('x', dotATB(resp, X), dims=('K','D'))
+    SS.setField('x', dotATB(resp, X), dims=('K','D'))
     # Expected covar for each k 
     sqrtResp = np.sqrt(resp)
     xxT = np.zeros( (K, self.D, self.D) )
     for k in xrange(K):
       xxT[k] = dotATA(sqrtResp[:,k][:,np.newaxis]*Data.X )
     #if(kwargs['obsModelId']>0):  
-    SS.setField('xxT'+str(kwargs['obsModelId']), xxT, dims=('K','D','D'))
+    #SS.setField('xxT'+str(kwargs['obsModelId']), xxT, dims=('K','D','D'))
     #else:
-    #    SS.setField('xxT', xxT, dims=('K','D','D'))
+    SS.setField('xxT', xxT, dims=('K','D','D'))
     return SS
     
 
@@ -135,11 +135,11 @@ class GaussObsModel( ObsModel ):
     I = np.eye(self.D)
     for k in Krange:
      #if(kwargs['obsModelId']==0):    
-     #   mean    = SS.x[k] / SS.N[k]
-     #   covMat  = SS.xxT[k] / SS.N[k] - np.outer(mean,mean)
+     mean    = SS.x[k] / SS.N[k]
+     covMat  = SS.xxT[k] / SS.N[k] - np.outer(mean,mean)
      #else:   
-     mean    = SS.__getattr__('x'+str(kwargs['obsModelId']))[k] / SS.N[k]
-     covMat  = SS.__getattr__('xxT'+str(kwargs['obsModelId']))[k] / SS.N[k] - np.outer(mean,mean)
+     #mean    = SS.__getattr__('x'+str(kwargs['obsModelId']))[k] / SS.N[k]
+     #covMat  = SS.__getattr__('xxT'+str(kwargs['obsModelId']))[k] / SS.N[k] - np.outer(mean,mean)
      covMat  += self.min_covar * I      
      precMat = np.linalg.solve( covMat, I )
      self.comp[k] = GaussDistr(m=mean, L=precMat)
@@ -170,8 +170,8 @@ class GaussObsModel( ObsModel ):
       if SS.N[k] < 1e-9:
         lpX[k] += self.comp[k].ElogdetLam() - self.D/self.comp[k].kappa
       else:
-        mean    = SS.__getattr__('x'+str(kwargs['obsModelId']))[k] / SS.N[k]
-        covMat  = SS.__getattr__('xxT'+str(kwargs['obsModelId']))[k] / SS.N[k] - np.outer(mean,mean)
+        mean    = SS.x[k] / SS.N[k]
+        covMat  = SS.xxT[k] / SS.N[k] - np.outer(mean,mean)
         lpX[k] += self.comp[k].ElogdetLam() - self.D/self.comp[k].kappa \
                     - self.comp[k].dF* self.comp[k].traceW( covMat )  \
                     - self.comp[k].dF* self.comp[k].dist_mahalanobis(mean )
