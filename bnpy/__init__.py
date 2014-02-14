@@ -11,6 +11,7 @@ from HModel import HModel
 
 import ioutil
 load_model = ioutil.ModelReader.load_model
+save_model = ioutil.ModelWriter.save_model
 
 import init
 
