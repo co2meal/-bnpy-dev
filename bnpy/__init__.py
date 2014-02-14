@@ -10,6 +10,8 @@ import obsmodel
 from HModel import HModel
 
 import ioutil
+load_model = ioutil.ModelReader.load_model
+
 import init
 
 import learnalg
