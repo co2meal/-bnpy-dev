@@ -83,10 +83,18 @@ class LearnAlg(object):
     return time.time() - self.start_time
 
   def buildRunInfo(self, evBound, status, nLap=None):
-    ''' Create dict of information about the current run
+    ''' Create dict of information about the current run,
+        to return to end-user after learning algorithm is terminated.
     '''
+    lapTrace = np.asarray(sorted(list(self.TraceLaps)))
+    evTrace = np.asarray(self.evTrace)
+    if self.__class__.__name__.count('Memo') > 0:
+        mask = lapTrace >= self.algParams['startLap'] + 1
+        lapTrace = lapTrace[mask]
+        evTrace = evTrace[mask]
     return dict(evBound=evBound, status=status, nLap=nLap,
-                evTrace=self.evTrace, lapTrace=self.TraceLaps)
+                evTrace=evTrace, lapTrace=lapTrace,
+                savedir=self.savedir)
 
   ##################################################### Fcns for birth/merges
   ##################################################### 
