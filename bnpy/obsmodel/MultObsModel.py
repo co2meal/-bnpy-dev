@@ -137,6 +137,7 @@ class MultObsModel(ObsModel):
         assert topics is not None
         self.K = topics.shape[0]
         self.comp = list()
+
         for k in range(self.K):
             # Scale up Etopics to lamvec, a V-len vector of positive entries,
             #   such that (1) E[phi] is still Etopics, and
@@ -144,6 +145,8 @@ class MultObsModel(ObsModel):
             #   where (2) means that lamvec is a feasible posterior value
             ii = np.argmin(topics[k,:])
             lamvec = self.obsPrior.lamvec[ii]/topics[k,ii] * topics[k,:]
+            # Cut-off values that are way way too big
+            lamvec = np.minimum(lamvec, 1e9)
             self.comp.append(DirichletDistr(lamvec))
 
   ######################################################### Evidence
