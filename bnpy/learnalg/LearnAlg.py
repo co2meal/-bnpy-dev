@@ -14,7 +14,6 @@ import numpy as np
 import time
 import os
 import logging
-import scipy.io
 
 Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
@@ -153,7 +152,7 @@ class LearnAlg(object):
       return
 
     doSave = isEvenlyDivisibleFloat(lap, saveEvery) or iterid < 3
-    # UNCOMMENT AFTER FIXING.
+    # UNCOMMENT AFTER FIXING.####################
     #if (doFinal or doSave) and iterid not in self.SavedIters:
     #  self.SavedIters.add(iterid)
     #  with open(self.mkfile('laps-saved-params.txt'), 'a') as f:        
@@ -161,6 +160,7 @@ class LearnAlg(object):
     #  prefix = ModelWriter.makePrefixForLap(lap)
     #  ModelWriter.save_model(hmodel, self.savedir, prefix,
     #                          doSavePriorInfo=(iterid<1), doLinkBest=True)
+    ####################################################
 
   # Define temporary function that creates files in this alg's output dir
   def mkfile(self, fname):

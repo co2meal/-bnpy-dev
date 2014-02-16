@@ -28,7 +28,7 @@ import copy
 import init
 from obsmodel import *
 from allocmodel import *
-from bnpy.ioutil import BNPYArgParser
+
 # Dictionary map
 #    turns string input at command line into desired bnpy objects
 # string --> bnpy object constructor
@@ -53,16 +53,14 @@ class HModel( object ):
     allocModel = AllocConstr[allocModelName](inferType, allocPriorDict)
     # support for multiple observation models
     obsModel = []
-    obsModelNames = BNPYArgParser.parseObsModelName(obsModelName)
-    #######
-    import pdb
-    pdb.set_trace()
-    ########
+    obsModelNames = obsModelName
+    #obsModelNames = BNPYArgParser.parseObsModelName(obsModelName)
+
     if(str(type(Data)).count('DiverseData')>0):
         assert len(obsModelNames)==len(Data.DataList),'Data List and Model List must match'
-        for obsModelPartName,DataPart in zip(obsModelNames,Data.DataList):
+        for obsModelPartName,DataPart,obsPriorDictPart in zip(obsModelNames,Data.DataList,obsPriorDict):
             obsModel.append(ObsConstr[obsModelPartName].CreateWithPrior(
-                                            inferType, obsPriorDict, DataPart))
+                                            inferType, obsPriorDictPart, DataPart))
     else:
         # only one type of data and observation model
         assert len(obsModelNames)==1,'Data List and Model List must match'
@@ -160,10 +158,6 @@ class HModel( object ):
     ''' Initialize (in-place) global parameters
         TODO: Only supports initialization from scratch. FIX THIS.
     '''
-    ####
-    import pdb
-    pdb.set_trace()
-    #####
     initname = initArgs['initname']
     if initname.count('true') > 0:
       #init.FromTruth.init_global_params(self, Data, **initArgs)

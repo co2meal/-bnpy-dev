@@ -2,6 +2,7 @@ import argparse
 import ConfigParser
 import os
 import sys
+import pdb
 
 OnlineDataAlgSet = ['soVB', 'moVB']
 
@@ -57,7 +58,7 @@ def parseKeywordArgs(ReqArgs, **kwargs):
   
   # Create parser, fill with default options from files
   parser = _createParserFromConfigFiles(ReqArgs, Moves)
-  parser.add_argument('--kwhelp', action='store_true', help=KwhelpHelpStr)
+  parser.add_argument('--kwhelp', action='store_true', help=KwhelpHelpStr) 
 
   # Apply the parser to input arguments
   kwargs, unkDict = applyParserToKwArgDict(parser, **kwargs)
@@ -157,22 +158,16 @@ def _createParserFromConfigFiles(ReqArgs, Moves):
 
   parser = argparse.ArgumentParser()
   configFiles = _getConfigFileDict(ReqArgs)
-  #import pdb
-  #pdb.set_trace()
   for fpath, secName in configFiles.items():
     if secName is not None:
-      #if secName=='obsModelName': 
-      #  secName = (parseObsModelName(ReqArgs[secName]))
-      #  secName = secName[0]
-      #  print secName
-      #else:
       secName = ReqArgs[secName]
-    _addArgsFromConfigFileToParser(parser, fpath, secName)     
-      #if(len(secName)>1):    
-      #  for sName in secName:        
-      #      _addArgsFromConfigFileToParser(parser, fpath, sName) 
-      #else:
-      #      _addArgsFromConfigFileToParser(parser, fpath, secName)        
+    if str(type(secName)).count('list')>0:
+     # Support for multiple obsModels
+     for sName in set(secName):
+        _addArgsFromConfigFileToParser(parser, fpath, sName)
+    else:    
+        _addArgsFromConfigFileToParser(parser, fpath, secName)     
+          
     if fpath.count('learn') > 0:
       for moveName in Moves: 
         _addArgsFromConfigFileToParser(parser, fpath, moveName)
@@ -280,26 +275,33 @@ def _organizeParsedKeywordArgsIntoSections(ReqArgs, Moves, kwargs):
     if secName is not None:
       secName = ReqArgs[secName]
     _addArgsToDictByConfigFile(finalArgDict, kwargs, fpath, secName)
+    
     if fpath.count('learn') > 0:
       for moveName in Moves:
-        _addArgsToDictByConfigFile(finalArgDict, kwargs, fpath, moveName)
+        _addArgsToDictByConfigFile(finalArgDict, kwargs, fpath, moveName)    
   return finalArgDict
 
 def _addArgsToDictByConfigFile(argDict, kwargs, confFile, targetSecName=None):
   ''' Transfer 'flat' dictionary kwargs into argDict by section
   '''
   config = _readConfigFile(confFile)
+  if str(type(targetSecName)).count('list')>0:
+      # add unique obsModelName to argDict
+      for tSecName in set(targetSecName):
+          _updateArgDict(argDict,kwargs,tSecName,config)
+  else:    
+     _updateArgDict(argDict,kwargs,targetSecName,config)
+
+def _updateArgDict(argDict,kwargs,targetSecName,config):
   for secName in config.sections():
     if secName.count("Help") > 0:
-      continue
+      continue 
     if targetSecName is not None:
       if secName != targetSecName:
         continue
     BigSecDict = dict(config.items(secName))
     secDict = dict([ (k,v) for (k,v) in kwargs.items() if k in BigSecDict])
     argDict[secName] = secDict
-
-
 
 ########################################################### Parse args for viz
 ###########################################################

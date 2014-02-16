@@ -9,10 +9,6 @@ from bnpy.util import discrete_single_draw
 from bnpy.data import XData
 
 def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwargs):
-  ############
-  import pdb
-  pdb.set_trace()
-  ##############  
   PRNG = np.random.RandomState(seed)
   if initname == 'randexamples':
     ''' Choose K items uniformly at random from the Data

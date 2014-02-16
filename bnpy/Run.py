@@ -25,6 +25,7 @@ import sys
 import logging
 import numpy as np
 import bnpy
+import pdb
 from bnpy.ioutil import BNPYArgParser
 
 Log = logging.getLogger('bnpy')
@@ -74,15 +75,8 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
   hasReqArgs &= allocModelName is not None
   hasReqArgs &= obsModelName is not None
   hasReqArgs &= algName is not None
-    
-  #### Debug ########
-  import pdb
-  pdb.set_trace()
-  ###################      
-  #### TEMPORARY HACK ######
-  temp_obsModelName = obsModelName
-  obsModelName = BNPYArgParser.parseObsModelName(obsModelName)[0]
-  ##########################
+
+  obsModelName = BNPYArgParser.parseObsModelName(obsModelName)
       
   if hasReqArgs:
     ReqArgs = dict(dataName=dataName, allocModelName=allocModelName,
@@ -103,12 +97,6 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
     starttaskid = taskID
     KwArgs['OutputPrefs']['taskid'] = taskID
   nTask = KwArgs['OutputPrefs']['nTask']
-  
-  ######## Temporary Hack: FIX THIS ###########
-  KwArgs[temp_obsModelName] = KwArgs[obsModelName]
-  obsModelName = temp_obsModelName
-  ReqArgs['obsModelName'] =obsModelName
-  #############################################
   
   bestInfo = None
   bestEvBound = -np.inf
@@ -245,13 +233,11 @@ def createModel(Data, ReqArgs, KwArgs):
   algName = ReqArgs['algName']
   aName = ReqArgs['allocModelName']
   oName = ReqArgs['obsModelName']
-  #########################
-  ## Debug
-  #import pdb
-  #pdb.set_trace()
-  #######################
+ 
   aPriorDict = KwArgs[aName]
-  oPriorDict = KwArgs[oName]
+  oPriorDict = []
+  for oNamePart in (oName):
+    oPriorDict.append(KwArgs[oNamePart])
   hmodel = bnpy.HModel.CreateEntireModel(algName, aName, oName, aPriorDict, oPriorDict, Data)
   return hmodel  
 
