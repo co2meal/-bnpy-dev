@@ -66,7 +66,7 @@ def plotBarsFromHModel(hmodel, Data=None, doShowNow=True, figH=None,
     else:
         # Plot just the learned parameters
         aspectR = learned_tw.shape[1]/learned_tw.shape[0]
-        while imshowArgs['vmax'] > 2 * learned_tw.max():
+        while imshowArgs['vmax'] > 2 * np.percentile(learned_tw, 95):
           imshowArgs['vmax'] /= 5
         pylab.imshow(learned_tw, aspect=aspectR, **imshowArgs)
         if figH is None:
