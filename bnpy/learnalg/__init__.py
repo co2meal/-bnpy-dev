@@ -6,4 +6,10 @@ from .VBLearnAlg import VBLearnAlg
 from .StochasticOnlineVBLearnAlg import StochasticOnlineVBLearnAlg
 from .MemoizedOnlineVBLearnAlg import MemoizedOnlineVBLearnAlg
 import MergeMove
-__all__ = ['LearnAlg', 'VBLearnAlg', 'StochasticOnlineVBLearnAlg', 'MemoizedOnlineVBLearnAlg', 'MergeMove']
+
+from .MergePairSelector import MergePairSelector
+from .MergeTracker import MergeTracker
+
+__all__ = ['LearnAlg', 'VBLearnAlg', 'StochasticOnlineVBLearnAlg',
+           'MemoizedOnlineVBLearnAlg', 'MergeMove',
+            'MergeTracker', 'MergePairSelector']

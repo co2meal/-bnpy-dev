@@ -87,7 +87,12 @@ class SuffStatBag(object):
     for key, dims in self._Fields._FieldDims.items():
       if dims is not None and dims != ():
         arr = getattr(self._Fields, key)
-        arr[kA] += arr[kB]
+        if self.hasMergeTerm(key) and dims == ('K'):
+          # some special terms need to be precomputed, like sumLogPiActive
+          arr[kA] = getattr(self._MergeTerms, key)[kA,kB]
+        else:
+          # applies to vast majority of all fields
+          arr[kA] += arr[kB]
 
     if self.hasELBOTerms():
       for key, dims in self._ELBOTerms._FieldDims.items():
@@ -133,8 +138,10 @@ class SuffStatBag(object):
       self._MergeTerms.removeComp(k)
 
   # ======================================================= Get comp
-  def getComp(self, k):
-    return self._Fields.getComp(k)
+  def getComp(self, k, doCollapseK1=True):
+    SS = SuffStatBag(K=1, D=self.D)
+    SS._Fields = self._Fields.getComp(k, doCollapseK1=doCollapseK1)
+    return SS
 
   # ======================================================= Override add
   def __add__(self, PB):
@@ -182,9 +189,14 @@ class SuffStatBag(object):
 
   # ======================================================= Override getattr
   def __getattr__(self, key):
-    if hasattr(self._Fields, key):
+    if key == "_Fields":
+      return object.__getattribute__(self, key)
+    elif hasattr(self._Fields, key):
       return getattr(self._Fields,key)
     elif key == '__deepcopy__': # workaround to allow copying
       return None
-    else:
+    elif key in self.__dict__:
       return self.__dict__[key]
+    # Field named 'key' doesnt exist. 
+    errmsg = "'SuffStatBag' object has no attribute '%s'" % (key)
+    raise AttributeError(errmsg)

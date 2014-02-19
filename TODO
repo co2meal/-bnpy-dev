@@ -1,12 +1,51 @@
-=========== BEFORE RELEASE
-* size instead of nObs for Data??
+=========== DiagGauss
+* merge in chau's DiagGauss material?
 
-* stdout: how much to display for births/merges??  Set verbosity level??
+=========== docs
+* update to ipython notebook format?
 
-* lots of documentation!!?!!
+=========== births
+* are we redundantly adding topics? should we merge in the expanded model?
 
-* clean up topic model code???
+=========== AllocModel
+* HDPFull : better optimization for u based on reparameterization of its Beta distr
 
-=========== LONG-Term
-* Logging
-have separate log transcripts for births/merges, so we can do detailed diagnostics?
+=========== Stochastic
+* better computation of the evidence bound (avg across batches)
+* what are the correct updates for v* from the point estimate HDP?
+
+=========== LOGGING
+DataSet/allocModel/obsModel/infAlg/jobname/taskid/
+vs
+Dataset/jobname/taskid/ [with maybe reset default behavior to not overwrite previous run if done by different allocModel/obsModel??]
+
+
+Human-Readable logs
+logs/
+* log-status.txt
+* log-warnings-serious.txt
+* log-birth.txt
+* log-merge.txt
+
+Arguments
+args/
+* args-Initialization.txtdict
+* args-moVB.txtdict
+
+Plain-text records
+records/
+* records-evidence.txtdata
+* records-laps.txtdata
+* records-K.txtdata
+...
+
+* SuffStats/
+* * Lap0001.000SuffStats.dump
+
+* Prior/
+* * ObsPrior.mat
+* * AllocPrior.mat
+
+* Models/
+* * Lap0001.020AllocModel.mat
+* * Lap0001.020ObsModel.mat

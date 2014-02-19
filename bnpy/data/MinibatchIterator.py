@@ -102,9 +102,11 @@ class MinibatchIterator(object):
     PRNG = np.random.RandomState(self.dataorderseed)
     obsIDs = PRNG.permutation(self.Data.nObsTotal).tolist()
     obsIDByBatch = dict()
-    for batchID in range(self.nBatch):
+    for batchID in range(self.nBatch-1):
       obsIDByBatch[batchID] = obsIDs[:self.nObsBatch]
       del obsIDs[:self.nObsBatch]
+    # Last batch gets leftovers, may be bigger
+    obsIDByBatch[self.nBatch-1] = obsIDs 
     return obsIDByBatch
 
   def get_rand_order_for_batchIDs_current_lap(self):

@@ -51,7 +51,7 @@ class VBLearnAlg( LearnAlg ):
         hmodel, LP = self.run_birth_move(hmodel, Data, SS, LP, iterid)
         
       # E step 
-      LP = hmodel.calc_local_params(Data, LP)
+      LP = hmodel.calc_local_params(Data, LP, **self.algParamsLP)
 
       # Suff Stat step
       if self.hasMove('merge'):
@@ -68,7 +68,7 @@ class VBLearnAlg( LearnAlg ):
                                           hmodel, Data, SS, LP, evBound)
 
       # Save and display progress
-      self.add_nObs(Data.nObsTotal)
+      self.add_nObs(Data.nObs)
       self.save_state(hmodel, iterid, lap, evBound)
       self.print_state(hmodel, iterid, lap, evBound)
 
@@ -86,7 +86,7 @@ class VBLearnAlg( LearnAlg ):
       status = "max passes thru data exceeded."
     self.save_state(hmodel,iterid, lap, evBound, doFinal=True)    
     self.print_state(hmodel,iterid, lap, evBound, doFinal=True, status=status)
-    return LP, self.buildRunInfo(evBound, status)
+    return LP, self.buildRunInfo(evBound, status, nLap=lap)
 
 
   ########################################################### Birth Move

@@ -20,7 +20,8 @@ import bnpy.allocmodel.admix.HDPVariationalOptimizer as HVO
 import unittest
 
 EPS = 1e-12
-    
+nDoc=4000
+
 class TestHVOK2(unittest.TestCase):
   def shortDescription(self):
     return None
@@ -41,7 +42,7 @@ class TestHVOK2(unittest.TestCase):
     self.truebeta /= np.sum(self.truebeta)
   
   def MakeData(self):
-    self.nDoc = 1000
+    self.nDoc = nDoc
     PRNG = np.random.RandomState(0)
     self.Pi = PRNG.dirichlet(self.gamma * self.truebeta, size=self.nDoc)
     self.Pi = np.maximum(self.Pi, 1e-20)
@@ -64,13 +65,13 @@ class TestHVOK2(unittest.TestCase):
       U1, U0 = HVO.estimate_u(**vars(self))
       Ev = U1 / (U1 + U0)
       Ebeta = HVO.v2beta(Ev)
-      if np.all(np.abs(Ebeta - self.truebeta) < .025):
+      if np.all(np.abs(Ebeta - self.truebeta) < .024):
         success += 1
       else:
         print U1
         print U0
         print Ebeta
-    print "%d/%d suceeded." % (success, nTrial)
+    print "%d/%d succeeded." % (success, nTrial)
     assert success == nTrial
 
     
@@ -96,4 +97,22 @@ class TestHVOK128(TestHVOK2):
     self.truebeta = np.hstack( [np.ones(self.K), 1e-5])
     self.truebeta /= np.sum(self.truebeta)
 
+
+######################################################### K= 300
+######################################################### 
+class TestHVOK300(TestHVOK2):   
+  def MakeModel(self):
+    self.alpha0 = 1.0
+    self.gamma = 0.99
+    self.K = 300
+    self.truebeta = np.hstack( [np.ones(self.K), 1e-5])
+    self.truebeta /= np.sum(self.truebeta)
+
+class TestHVOK300nonuniform(TestHVOK2):   
+  def MakeModel(self):
+    self.alpha0 = 1.0
+    self.gamma = 0.99
+    self.K = 300
+    self.truebeta = np.hstack( [np.random.rand(self.K), 1e-5])
+    self.truebeta /= np.sum(self.truebeta)
 

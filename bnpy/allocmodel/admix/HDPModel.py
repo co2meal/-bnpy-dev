@@ -29,13 +29,21 @@ U1, U0   : K-length vectors, params for variational distribution over
 '''
 import numpy as np
 
-import HDPVariationalOptimizer as HVO
+import OptimizerForHDPFullVarModel as OptimHDP
 from ..AllocModel import AllocModel
-from bnpy.suffstats import SuffStatDict
-from ...util import digamma, gammaln, logsumexp
+
+from bnpy.suffstats import SuffStatBag
+from ...util import NumericUtil
+from ...util import digamma, gammaln
 from ...util import EPS, np2flatstr
+import logging
+Log = logging.getLogger('bnpy')
+
 
 class HDPModel(AllocModel):
+
+  ######################################################### Constructors
+  #########################################################
     def __init__(self, inferType, priorDict=None):
         if inferType == "EM":
             raise ValueError('HDPModel cannot do EM. Only VB possible.')
@@ -43,51 +51,31 @@ class HDPModel(AllocModel):
         self.K = 0
         self.set_prior(priorDict)
 
+    def set_prior(self, PriorParamDict):
+        self.alpha0 = PriorParamDict['alpha0']
+        self.gamma = PriorParamDict['gamma']
+    
     def set_helper_params(self):
       ''' Set dependent attribs of this model, given the primary params U1, U0
           This includes expectations of various stickbreaking quantities
       '''
-      E = HVO.calcExpectations(self.U1, self.U0)
+      E = OptimHDP._calcExpectations(self.U1, self.U0)
       self.Ebeta = E['beta']
       self.Elogv = E['logv']
-      self.Elog1mv = E['log1mv']
-        
-    ####################################################### Suff Stat Calc
-    ####################################################### 
-    def get_global_suff_stats(self, Data, LP, doPrecompEntropy=False, 
-                                              doPrecompMergeEntropy=False):
-        ''' Count expected number of times each topic is used across all docs    
+      self.Elog1mv = E['log1-v']
+
+  ######################################################### Accessors
+  #########################################################
+    def get_keys_for_memoized_local_params(self):
+        ''' Return list of string names of the LP fields
+            that moVB needs to memoize across visits to a particular batch
         '''
-        wv = LP['word_variational']
-        _, K = wv.shape
-        # Turn dim checking off, since some stats have dim K+1 instead of K
-        SS = SuffStatDict(K=K, doCheck=False)
-        SS.addScalar('nDoc', Data.nDoc)
-        SS.sumLogPi = np.sum(LP['E_logPi'], axis=0)
-        if doPrecompEntropy:
-            # Z terms
-            SS.addPrecompELBOTerm('ElogpZ', self.E_logpZ(Data, LP))
-            SS.addPrecompELBOTerm('ElogqZ', self.E_logqZ(Data, LP))
-            # Pi terms
-            # Note: no terms needed for ElogpPI
-            # SS already has field sumLogPi, which is sufficient for this term
-            ElogqPiConst, ElogqPiVec = self.E_logqPi_Memoized_from_LP(LP)
-            SS.addPrecompELBOTerm('ElogqPiConst', ElogqPiConst)
-            SS.addPrecompELBOTerm('ElogqPiVec', ElogqPiVec)
+        return ['alphaPi']
 
-        if doPrecompMergeEntropy:
-            ElogpZMat, sLgPiMat, ElogqPiMat = self.memo_elbo_terms_for_merge(LP)
-            ElogqZMat = self.E_logqZ_memo_terms_for_merge(Data, LP)
-            SS.addPrecompMergeTerm('ElogpZ', ElogpZMat)
-            SS.addPrecompMergeTerm('ElogqZ', ElogqZMat)
-            SS.addPrecompMergeTerm('ElogqPiVec', ElogqPiMat)
-            SS.addPrecompMergeTerm('sumLogPi', sLgPiMat)
-        return SS
+  ######################################################### Local Params
+  #########################################################
 
-
-    ####################################################### Calc Local Params
-    ####################################################### (E-step)
-    def calc_local_params( self, Data, LP, nCoordAscentIters=10):
+    def calc_local_params(self, Data, LP, nCoordAscentItersLP=20, convThrLP=0.01, doDocTopicFracLP=0, **kwargs):
         ''' Calculate document-specific quantities (E-step)
           Alternate updates to two terms until convergence
             (1) Approx posterior on topic-token assignment
@@ -112,18 +100,20 @@ class HDPModel(AllocModel):
             assert LP['alphaPi'].shape[1] == self.K + 1
 
         LP = self.calc_ElogPi(LP)
-        prevVec = LP['alphaPi'].flatten()
-
+        alphaPi_old = LP['alphaPi']
+        
         # Allocate lots of memory once
+        if 'word_variational' in LP:
+          del LP['word_variational']
         LP['word_variational'] = np.zeros(LP['E_logsoftev_WordsData'].shape)
+        LP['DocTopicCount'] = np.zeros((Data.nDoc,self.K))
 
         # Repeat until converged...
-        for ii in xrange(nCoordAscentIters):
+        for ii in xrange(nCoordAscentItersLP):
             # Update word_variational field of LP
             LP = self.get_word_variational(Data, LP)
         
             # Update DocTopicCount field of LP
-            LP['DocTopicCount'] = np.zeros((Data.nDoc,self.K))
             for d in xrange(Data.nDoc):
                 start,stop = Data.doc_range[d,:]
                 LP['DocTopicCount'][d,:] = np.dot(
@@ -134,11 +124,14 @@ class HDPModel(AllocModel):
             LP = self.get_doc_variational(Data, LP)
             LP = self.calc_ElogPi(LP)
 
-            # Assess convergence 
-            curVec = LP['alphaPi'].flatten()
-            if prevVec is not None and np.allclose(prevVec, curVec):
+            # Assess convergence
+            assert id(alphaPi_old) != id(LP['alphaPi'])
+            if np.allclose(alphaPi_old, LP['alphaPi'], atol=convThrLP):
                 break
-            prevVec = curVec
+            alphaPi_old = LP['alphaPi']
+        if doDocTopicFracLP:
+          LP['DocTopicFrac'] = LP['DocTopicCount'].copy()
+          LP['DocTopicFrac'] /= LP['DocTopicFrac'].sum(axis=1)[:,np.newaxis]
         return LP
 
     def get_doc_variational( self, Data, LP):
@@ -165,21 +158,156 @@ class HDPModel(AllocModel):
         K = wv.shape[1]        
         # Fill in entries of wv with log likelihood terms
         wv[:] = LP['E_logsoftev_WordsData']
-        # Add doc-specific log prior to certain rows
+        # Add doc-specific log prior to doc-specific rows
         ElogPi = LP['E_logPi'][:,:K]
         for d in xrange(Data.nDoc):
             wv[Data.doc_range[d,0]:Data.doc_range[d,1], :] += ElogPi[d,:]
-        # Take exp of wv in numerically stable manner (first subtract the max)
-        #  in-place so no new allocations occur
-        wv -= np.max(wv, axis=1)[:,np.newaxis]
-        np.exp(wv, out=wv)
-        # Normalize, so rows of wv sum to one
-        wv /= wv.sum(axis=1)[:,np.newaxis]
+        NumericUtil.inplaceExpAndNormalizeRows(wv)
         assert np.allclose(LP['word_variational'].sum(axis=1), 1)
         return LP
 
-    ####################################################### Calc ELBO
-    #######################################################
+
+  ######################################################### Suff Stats
+  #########################################################
+    def get_global_suff_stats(self, Data, LP, doPrecompEntropy=False, 
+                                              doPrecompMergeEntropy=False,
+                                              mPairIDs=None):
+        ''' Count expected number of times each topic is used across all docs    
+        '''
+        wv = LP['word_variational']
+        _, K = wv.shape
+        # Turn dim checking off, since some stats have dim K+1 instead of K
+        SS = SuffStatBag(K=K, D=Data.vocab_size)
+        SS.setField('nDoc', Data.nDoc, dims=None)
+        sumLogPi = np.sum(LP['E_logPi'], axis=0)
+        SS.setField('sumLogPiActive', sumLogPi[:K], dims='K')
+        SS.setField('sumLogPiUnused', sumLogPi[-1], dims=None)
+
+        if 'DocTopicFrac' in LP:
+          Nmajor = LP['DocTopicFrac']
+          Nmajor[Nmajor < 0.05] = 0
+          SS.setField('Nmajor', np.sum(Nmajor, axis=0), dims='K')
+        if doPrecompEntropy:
+            # Z terms
+            SS.setELBOTerm('ElogpZ', self.E_logpZ(Data, LP), dims='K')
+            SS.setELBOTerm('ElogqZ', self.E_logqZ(Data, LP), dims='K')
+            # Pi terms
+            # Note: no terms needed for ElogpPI
+            # SS already has field sumLogPi, which is sufficient for this term
+            ElogqPiC, ElogqPiA, ElogqPiU = self.E_logqPi_Memoized_from_LP(LP)
+            SS.setELBOTerm('ElogqPiConst', ElogqPiC, dims=None)
+            SS.setELBOTerm('ElogqPiActive', ElogqPiA, dims='K')
+            SS.setELBOTerm('ElogqPiUnused', ElogqPiU, dims=None)
+
+        if doPrecompMergeEntropy:
+            ElogpZMat, sLgPiMat, ElogqPiMat = self.memo_elbo_terms_for_merge(LP)
+            ElogqZMat = self.E_logqZ_memo_terms_for_merge(Data, LP, mPairIDs)
+            SS.setMergeTerm('ElogpZ', ElogpZMat, dims=('K','K'))
+            SS.setMergeTerm('ElogqZ', ElogqZMat, dims=('K','K'))
+            SS.setMergeTerm('ElogqPiActive', ElogqPiMat, dims=('K','K'))
+            SS.setMergeTerm('sumLogPiActive', sLgPiMat, dims=('K','K'))
+        return SS
+
+
+  ######################################################### Global Params
+  #########################################################
+
+    def update_global_params_VB(self, SS, **kwargs):
+        ''' Update global parameters that control topic probabilities
+            v[k] ~ Beta( U1[k], U0[k])
+        '''
+        self.K = SS.K
+        u = self._estimate_u(SS)
+        self.U1 = u[:self.K]
+        self.U0 = u[self.K:]
+        self.set_helper_params()
+        
+    def update_global_params_soVB(self, SS, rho, **kwargs):
+        assert self.K == SS.K
+        u = self._estimate_u(SS)
+        self.U1 = rho * u[:self.K] + (1-rho) * self.U1
+        self.U0 = rho * u[self.K:] + (1-rho) * self.U0
+        self.set_helper_params()
+
+    def _estimate_u(self, SS, **kwargs):
+        ''' Calculate best 2*K-vector u via L-BFGS gradient descent
+              performing multiple tries in case of numerical issues
+        '''
+        if hasattr(self, 'U1') and self.U1.size == self.K:
+          initU = np.hstack([self.U1, self.U0])
+        else:
+          # Use the prior
+          initU = np.hstack([np.ones(self.K), self.alpha0*np.ones(self.K)])
+        sumLogPi = np.hstack([SS.sumLogPiActive, SS.sumLogPiUnused])
+
+        try:
+          u, fofu, Info = OptimHDP.estimate_u_multiple_tries(sumLogPi=sumLogPi,
+                                        nDoc=SS.nDoc,
+                                        gamma=self.gamma, alpha0=self.alpha0,
+                                        initU=initU)
+        except ValueError as error:
+          if str(error).count('FAILURE') == 0:
+            raise error
+          if hasattr(self, 'U1') and self.U1.size == self.K:
+            Log.error('***** Optim failed. Stay put. ' + str(error))
+            return # EXIT with current state, failed to update
+          else:
+            Log.error('***** Optim failed. Stuck at prior. ' + str(error))
+            u = initU # fall back on the prior otherwise
+        return u
+
+    def set_global_params(self, hmodel=None, 
+                                U1=None, U0=None, 
+                                K=0, beta=None, topic_prior=None,
+                                Ebeta=None, EbetaLeftover=None, **kwargs):
+        if hmodel is not None:
+          self.K = hmodel.allocModel.K
+          self.U1 = hmodel.allocModel.U1
+          self.U0 = hmodel.allocModel.U0
+          self.set_helper_params()
+          return
+
+        if U1 is not None and U0 is not None:
+          self.U1 = U1
+          self.U0 = U0
+          self.K = U1.size
+          self.set_helper_params()
+          return
+
+        self.K = K
+        if topic_prior is not None:
+          beta = np.hstack([topic_prior, np.min(topic_prior)/100.])
+          beta = beta/np.sum(beta)
+        elif Ebeta is not None and EbetaLeftover is not None:
+          Ebeta = np.squeeze(Ebeta)
+          EbetaLeftover = np.squeeze(EbetaLeftover)
+          beta = np.hstack( [Ebeta, EbetaLeftover])
+        elif beta is not None:
+          assert beta.size == K
+          beta = np.hstack([beta, np.min(beta)/100.])
+          beta = beta/np.sum(beta)
+        else:
+          raise ValueError('Bad parameters. Vector beta not specified.')
+
+        # Now, use the specified value of beta to find the best U1, U0
+        assert beta.size == K + 1
+        assert abs(np.sum(beta) - 1.0) < 0.001
+        vMean = OptimHDP.beta2v(beta)
+        # for each k=1,2...K
+        #  find the multiplier vMass[k] such that both are true
+        #  1) vMass[k] * vMean[k] > 1.0
+        #  2) vMass[k] * (1-vMean[k]) > self.alpha0
+        vMass = np.maximum( 1./vMean , self.alpha0/(1.-vMean))
+        self.U1 = vMass * vMean
+        self.U0 = vMass * (1-vMean)
+        assert np.all( self.U1 >= 1.0 - 0.00001)
+        assert np.all( self.U0 >= self.alpha0 - 0.00001)
+        assert self.U1.size == K
+        assert self.U0.size == K
+        self.set_helper_params()
+        
+  ######################################################### Evidence
+  #########################################################  
     def calc_evidence( self, Data, SS, LP ):
         ''' Calculate ELBO terms related to allocation model
         '''   
@@ -187,11 +315,12 @@ class HDPModel(AllocModel):
         E_logqV = self.E_logqV()
      
         E_logpPi = self.E_logpPi(SS)
-        if SS.hasPrecompELBO():
-          E_logqPi = SS.getPrecompELBOTerm('ElogqPiConst') \
-                      + np.sum(SS.getPrecompELBOTerm('ElogqPiVec'))
-          E_logpZ = np.sum(SS.getPrecompELBOTerm('ElogpZ'))
-          E_logqZ = np.sum(SS.getPrecompELBOTerm('ElogqZ'))
+        if SS.hasELBOTerms():
+          E_logqPi = SS.getELBOTerm('ElogqPiConst') \
+                      + SS.getELBOTerm('ElogqPiUnused') \
+                      + np.sum(SS.getELBOTerm('ElogqPiActive'))
+          E_logpZ = np.sum(SS.getELBOTerm('ElogpZ'))
+          E_logqZ = np.sum(SS.getELBOTerm('ElogqZ'))
         else:
           E_logqPi = self.E_logqPi(LP)
           E_logpZ = np.sum(self.E_logpZ(Data, LP))
@@ -222,25 +351,22 @@ class HDPModel(AllocModel):
             where z_{dw} ~ Discrete( r_dw1 , r_dw2, ... r_dwK )
         '''
         wv = LP['word_variational']
-        wv_logwv = wv * np.log(EPS + wv)
-        E_log_qZ = np.dot(Data.word_count, wv_logwv)
-        return E_log_qZ
+        wv += EPS # Make sure all entries > 0 before taking log
+        return NumericUtil.calcRlogRdotv(wv, Data.word_count)
+        #wv_logwv = wv * np.log(wv)
+        #E_log_qZ = np.dot(Data.word_count, wv_logwv)
+        #return E_log_qZ
 
-    def E_logqZ_memo_terms_for_merge(self, Data, LP):
+    def E_logqZ_memo_terms_for_merge(self, Data, LP, mPairIDs=None):
         ''' Returns KxK matrix 
         ''' 
         wv = LP['word_variational']
-        ElogqZMat = np.zeros((self.K, self.K))
-        for jj in range(self.K):
-            J = self.K - jj - 1
-            # curWV : nObs x J, resp for each data item under each merge with jj
-            curWV = wv[:,jj][:,np.newaxis] + wv[:,jj+1:]
-            # curRlogR : nObs x J, entropy for each data item
-            curRlogR = curWV * np.log(EPS + curWV)
-            # curE_logqZ : J-vector, entropy for Data under each merge with jj
-            curE_logqZ = np.dot(Data.word_count, curRlogR)
-            assert curE_logqZ.size == J
-            ElogqZMat[jj,jj+1:] = curE_logqZ
+        wv += EPS # Make sure all entries > 0 before taking log
+        if mPairIDs is None:
+          ElogqZMat = NumericUtil.calcRlogRdotv_allpairs(wv, Data.word_count)
+        else:
+          ElogqZMat = NumericUtil.calcRlogRdotv_specificpairs(wv, 
+                                                Data.word_count, mPairIDs)
         return ElogqZMat
 
     ####################################################### ELBO terms for Pi
@@ -253,7 +379,8 @@ class HDPModel(AllocModel):
         logDirNormC = gammaln(self.gamma) + (K+1) * np.log(self.gamma)
         logDirNormC += np.sum(self.Elogv) + np.inner(kvec, self.Elog1mv)
         # logDirPDF : scalar sum over all doc's pi_d
-        logDirPDF = np.inner(self.gamma * self.Ebeta - 1., SS.sumLogPi)
+        sumLogPi = np.hstack([SS.sumLogPiActive, SS.sumLogPiUnused])
+        logDirPDF = np.inner(self.gamma * self.Ebeta - 1., sumLogPi)
         return (SS.nDoc * logDirNormC) + logDirPDF
 
     def E_logqPi(self, LP):
@@ -267,8 +394,10 @@ class HDPModel(AllocModel):
         return np.sum(logDirNormC) + logDirPDF
 
     def E_logqPi_Memoized_from_LP(self, LP):
-        ''' Returns pair of values, 
-                one scalar, one vector (length K+1)
+        ''' Returns three variables 
+                logDirNormC (scalar),
+                logqPiActive (length K)
+                logqPiUnused (scalar)
                 whose sum is equal to E[log q(PI)]
             when added to other results of this function from different batches,
                 the sum is equal to E[log q(PI)] of the entire dataset
@@ -277,7 +406,7 @@ class HDPModel(AllocModel):
         logDirNormC = np.sum(gammaln(alph.sum(axis=1)))
         piEntropyVec = np.sum((alph - 1.) * LP['E_logPi'], axis=0) \
                      - np.sum(gammaln(alph),axis=0)
-        return logDirNormC, piEntropyVec
+        return logDirNormC, piEntropyVec[:-1], piEntropyVec[-1]
 
 
     ####################################################### ELBO terms for V
@@ -316,7 +445,7 @@ class HDPModel(AllocModel):
             M = self.K - jj - 1
             # nDoc x M matrix, alpha_{dm} for each merge pair m with comp jj
             mergeAlph = alph[:,jj][:,np.newaxis] + alph[:, jj+1:]
-            # nDoc x M matrix, E[ log pi_m ] for each merge pair m with comp jj
+            # nDoc x M matrix, E[log pi_m] for each merge pair m with comp jj
             mergeElogPi = digamma(mergeAlph) - digammaPerDocSum
             assert mergeElogPi.shape[1] == M
             # nDoc x M matrix, count for merged topic m each doc
@@ -332,53 +461,15 @@ class HDPModel(AllocModel):
 
         return ElogpZMat, sumLogPiMat, ElogqPiMat
 
-    ####################################################### Update global params
-    #######################################################
-    def update_global_params_VB(self, SS, **kwargs):
-        ''' Admixtures have no global allocation parameters! 
-            The mixture weights are document specific.
-        '''
-        self.K = SS.K
-        if hasattr(self, 'U1'):
-          initU1 = self.U1
-          initU0 = self.U0
-        else:
-          initU1 = None
-          initU0 = None
-        U1, U0 = HVO.estimate_u(K=self.K, alpha0=self.alpha0, gamma=self.gamma,
-                     sumLogPi=SS.sumLogPi, nDoc=SS.nDoc, 
-                     initU1=initU1, initU0=initU0)
-        self.U1 = U1
-        self.U0 = U0
-        self.set_helper_params()
-        
-    def update_global_params_soVB(self, SS, rho, **kwargs):
-        assert self.K == SS.K
-        U1, U0 = HVO.estimate_u(K=self.K, alpha0=self.alpha0, gamma=self.gamma,
-                     sumLogPi=SS.sumLogPi, nDoc=SS.nDoc,
-                     initU1=self.U1, initU0=self.U0)
-        self.U1 = rho * U1 + (1-rho) * self.U1
-        self.U0 = rho * U0 + (1-rho) * self.U0
-        self.set_helper_params()
-
-    def set_global_params(self, true_t=None, **kwargs):
-        if true_t is not None:
-          beta = np.hstack([true_t, np.min(true_t)/10.0])
-          beta = beta/np.sum(beta)
-          vMean = HVO.beta2v(beta)
-          vMass = 100
-          self.U1 = vMass * vMean
-          self.U0 = vMass * (1-vMean)
-          self.set_helper_params()
-          self.K = vMean.size
-        else:
-          raise ValueError('Bad HDP parameters')          
-
-    #################### GET METHODS #############################
-    def set_prior(self, PriorParamDict):
-        self.alpha0 = PriorParamDict['alpha0']
-        self.gamma = PriorParamDict['gamma']
+  ######################################################### IO Utils
+  #########################################################   for humans
     
+    def get_info_string( self):
+        ''' Returns human-readable name of this object'''
+        return 'HDP admixture model with K=%d comps. alpha=%.2f, gamma=%.2f' % (self.K, self.alpha0, self.gamma)
+     
+  ######################################################### IO Utils
+  #########################################################   for machines
     def to_dict( self ):
         return dict(U1=self.U1, U0=self.U0)              
   
@@ -392,16 +483,4 @@ class HDPModel(AllocModel):
 
     def get_prior_dict( self ):
         return dict(K=self.K, alpha0=self.alpha0, gamma=self.gamma)
-    
-    def get_info_string( self):
-        ''' Returns human-readable name of this object'''
-        return 'HDP admixture model with K=%d comps. alpha=%.2f,gamma=%.2f' % (self.K, self.alpha0, self.gamma)
-     
-    def get_keys_for_memoized_local_params(self):
-        ''' Return list of string names of the LP fields
-            that moVB needs to memoize across visits to a particular batch
-        '''
-        return ['alphaPi']
 
-    def is_nonparametric(self):
-        return True

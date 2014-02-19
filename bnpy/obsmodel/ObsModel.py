@@ -33,7 +33,7 @@ class ObsModel( object ):
 
   ######################################################### Local Params
   #########################################################  E-step
-  def calc_local_params( self, Data, LP=dict()):
+  def calc_local_params( self, Data, LP=dict(), **kwargs):
     if self.inferType == 'EM':
       LP['E_log_soft_ev'] = self.log_soft_ev_mat( Data )
     elif self.inferType.count('VB') >0:
@@ -67,7 +67,7 @@ class ObsModel( object ):
 
   ######################################################### Global Params
   #########################################################  M-step
-  def update_global_params(self, SS, rho=None, Krange=None):
+  def update_global_params(self, SS, rho=None, mergeCompA=None, mergeCompB=None, **kwargs):
     ''' M-step update of global parameters for each component of this obs model.
         After this update, self will have exactly the number of 
           components specified by SS.K.
@@ -81,22 +81,24 @@ class ObsModel( object ):
         -------
         None (update happens *in-place*).         
     '''
-    # TODO: if Krange specified, can we smartly do a component-specific update?
-
     # Components of updated model exactly match those of suff stats
     self.K = SS.K
     if len(self.comp) != self.K:
-      self.comp = [copy.deepcopy(self.obsPrior) for k in xrange(self.K)]
-    if Krange is None:
-      Krange = xrange(self.K)
+      if mergeCompB is None:
+        self.comp = [copy.deepcopy(self.obsPrior) for k in xrange(self.K)]
+      else:
+        for kk in xrange(mergeCompB, SS.K):
+          self.comp[kk] = self.comp[kk+1]
+        del self.comp[-1]
+    assert len(self.comp) == self.K
 
     if self.inferType == 'EM':
-      self.update_obs_params_EM(SS, Krange)
+      self.update_obs_params_EM(SS)
     elif self.inferType.count('VB') > 0:
       if rho is None or rho == 1.0:
-        self.update_obs_params_VB(SS, Krange)
+        self.update_obs_params_VB(SS, mergeCompA=mergeCompA)
       else:
-        self.update_obs_params_soVB(SS, rho, Krange)
+        self.update_obs_params_soVB(SS, rho)
   
   def update_obs_params_EM(self):
     pass
@@ -113,7 +115,7 @@ class ObsModel( object ):
   def calc_evidence(self):
     pass 
   
-  def calcLogMargLikForComp(self, SS, kA, kB=None):
+  def calcLogMargLikForComp(self, SS, kA, kB=None, **kwargs):
     ''' Calculate the log marginal likelihood of the data assigned
           to the given component (specified by integer ID).
         Requires Data pre-summarized into sufficient stats for each comp.
@@ -130,9 +132,9 @@ class ObsModel( object ):
         scalar log probability of data assigned to given component(s)
     '''
     if kB is None:
-      postDistr = self.obsPrior.get_post_distr(SS, kA)
+      postDistr = self.obsPrior.get_post_distr(SS, kA, **kwargs)
     else:
-      postDistr = self.obsPrior.get_post_distr(SS.getComp(kA) + SS.getComp(kB))
+      postDistr = self.obsPrior.get_post_distr(SS, kA, kB, **kwargs)
     return postDistr.get_log_norm_const()
 
 

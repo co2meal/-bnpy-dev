@@ -1,7 +1,7 @@
 '''
 '''
 import numpy as np
-
+import copy
 from ..distr import DirichletDistr
 from ..util import np2flatstr, EPS
 
@@ -35,8 +35,7 @@ class MultObsModel(ObsModel):
         self.K = len(compDictList)
         self.comp = [None for k in range(self.K)]
         for k in xrange(self.K):
-            else:
-                self.comp[k] = DirichletDistr(**compDictList[k]) 
+            self.comp[k] = DirichletDistr(**compDictList[k]) 
         return self
 
   ######################################################### Accessors  
@@ -50,7 +49,7 @@ class MultObsModel(ObsModel):
 
   ######################################################### Local Params
   #########################################################   E-step
-    def calc_local_params( self, Data, LP):
+    def calc_local_params(self, Data, LP, **kwargs):
         ''' Calculate local parameters (E-step)
 
             Returns
@@ -96,7 +95,7 @@ class MultObsModel(ObsModel):
         TopicWordCounts = (WMat * wv).T
 
         SS.setField('WordCounts', TopicWordCounts, dims=('K','D'))
-        SS.setField('N', np.sum(WordCounts,axis=1), dims=('K'))
+        SS.setField('N', np.sum(TopicWordCounts,axis=1), dims=('K'))
         return SS
 
   ######################################################### Global Params
@@ -105,26 +104,50 @@ class MultObsModel(ObsModel):
     def update_obs_params_EM(self, SS, **kwargs):
         raise NotImplementedError("TODO")
 
-    def update_obs_params_VB(self, SS, Krange, **kwargs):
-        for k in Krange:
-            self.comp[k] = self.obsPrior.get_post_distr(SS.getComp(k))
+    def update_obs_params_VB(self, SS, mergeCompA=None, **kwargs):
+        if mergeCompA is None:
+            for k in xrange(self.K):
+                self.comp[k] = self.obsPrior.get_post_distr(SS, k)
+        else:
+            self.comp[mergeCompA] = self.obsPrior.get_post_distr(SS, mergeCompA)
 
-    def update_obs_params_soVB( self, SS, rho, Krange, **kwargs):
-        # grab Dirichlet posterior for lambda and perform stochastic update
-        for k in Krange:
-            Dstar = self.obsPrior.get_post_distr(SS.getComp(k))
+
+    def update_obs_params_soVB( self, SS, rho, **kwargs):
+        ''' Grab Dirichlet posterior for lambda and perform stochastic update
+        '''
+        for k in xrange(self.K):
+            Dstar = self.obsPrior.get_post_distr(SS, k)
             self.comp[k].post_update_soVB(rho, Dstar)
 
-    def set_global_params(self, true_tw=None, mass=100, **kwargs):
+    def set_global_params(self, hmodel=None, topics=None, 
+                                Etopics=None, **kwargs):
         ''' Set global params to provided values
+
+            Params
+            --------
+            topics : K x V matrix, each row has positive reals that sum to one
+                     topics[k,v] = probability of word v under topic k
         '''
-        self.K = true_tw.shape[0]
+        if hmodel is not None:
+            self.K = hmodel.obsModel.K
+            self.comp = copy.deepcopy(hmodel.obsModel.comp)
+            return
+        if Etopics is not None:
+            topics = Etopics
+        assert topics is not None
+        self.K = topics.shape[0]
         self.comp = list()
+
         for k in range(self.K):
-          self.comp.append(DirichletDistr(mass * true_tw[k,:]))
-
-
-      
+            # Scale up Etopics to lamvec, a V-len vector of positive entries,
+            #   such that (1) E[phi] is still Etopics, and
+            #             (2) lamvec = obsPrior.lamvec + [some suff stats]
+            #   where (2) means that lamvec is a feasible posterior value
+            ii = np.argmin(topics[k,:])
+            lamvec = self.obsPrior.lamvec[ii]/topics[k,ii] * topics[k,:]
+            # Cut-off values that are way way too big
+            lamvec = np.minimum(lamvec, 1e9)
+            self.comp.append(DirichletDistr(lamvec))
 
   ######################################################### Evidence
   #########################################################
@@ -135,9 +158,8 @@ class MultObsModel(ObsModel):
         elbo_pWords = self.E_log_pW(SS)
         elbo_pLambda = self.E_log_pLambda()
         elbo_qLambda = self.E_log_qLambda()
-        lb_obs = elbo_pWords + elbo_pLambda - elbo_qLambda
-        return lb_obs
-  
+        return elbo_pWords + elbo_pLambda - elbo_qLambda
+        
     def E_log_pW(self, SS):
         ''' Calculate "data" term of the ELBO,
                 E_{q(Z), q(Phi)} [ log p(X) ]

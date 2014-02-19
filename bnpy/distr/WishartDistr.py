@@ -67,12 +67,15 @@ class WishartDistr( Distr ):
 
   ######################################################### Global Updates  
   #########################################################  M-step
-  def get_post_distr(self, SS, k=None):
+  def get_post_distr(self, SS, k=None, kB=None, **kwargs):
     ''' Create new Distr object with posterior params
     '''
     if k is None:
       EN = SS.N
       ExxT = SS.xxT
+    elif kB is not None:
+      EN = SS.N[k] + SS.N[kB]
+      ExxT = SS.xxT[k] + SS.xxT[kB]
     else:
       EN = SS.N[k]
       ExxT = SS.xxT[k]

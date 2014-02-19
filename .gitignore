@@ -3,19 +3,19 @@
 # ======================================================  EXCLUDE DIRECTORIES
 # Exclude everything in the bin directory,
 #   which holds compiled binaries for executing on grid
-# These can all be built automatically using the build_*.sh scripts in the code directory
 bin/
 
 # Exclude everything in these directories
 # These aren't of interest for tracking in a repository because
 #   (1) file sizes can be HUGE    
 #   (2) these files rarely mean anything to others except the person who ran the test
+logs/
 local/
 results/
 profile/
 # ======================================================  EXCLUDE FILE PATTERNS
 # Exclude script files
-run_bnpy.sh
+*.sh
 
 # Exclude user-specific config options for where to read and write data
 *.path

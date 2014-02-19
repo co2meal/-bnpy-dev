@@ -28,40 +28,45 @@ class DirichletDistr(object):
         self.lamvec = np.squeeze(lamvec)
         if lamvec is not None:
             self.D = lamvec.size
-            self.set_helpers()
+            self.set_helpers(**kwargs)
 
-    def set_helpers(self):
+    def set_helpers(self, doNormConstOnly=False, **kwargs):
         assert self.lamvec.ndim == 1
         self.lamsum = self.lamvec.sum()
-        digammalamvec = digamma(self.lamvec)
-        digammalamsum = digamma(self.lamsum)
-        self.Elogphi   = digammalamvec - digammalamsum
+        if hasattr(self, '_logNormC'):
+          del self._logNormC
+        if not doNormConstOnly:
+          digammalamvec = digamma(self.lamvec)
+          digammalamsum = digamma(self.lamsum)
+          self.Elogphi   = digammalamvec - digammalamsum
         
 
     ############################################################## Param updates  
-    def get_post_distr(self, SS):
+    def get_post_distr(self, SS, k=None, kB=None, **kwargs):
         ''' Create new Distr object with posterior params'''
-        return DirichletDistr(SS.WordCounts + self.lamvec)
-    
-    def post_update( self, SS ):
-        ''' Posterior update of internal params given data'''
-        self.lamvec += SS.WordCounts
-        self.set_helpers()
+        if kB is not None:
+          return DirichletDistr(SS.WordCounts[k] + SS.WordCounts[kB] \
+                                + self.lamvec, **kwargs)
+        else:
+          return DirichletDistr(SS.WordCounts[k] + self.lamvec, **kwargs)
 
     def post_update_soVB( self, rho, starD):
         ''' Stochastic online update of internal params'''
         self.lamvec = rho * starD.lamvec + (1.0 - rho) * self.lamvec
         self.set_helpers()
 
-  ############################################################## Norm Constants  
-  ##############################################################
+  ######################################################### Norm Constants  
+  #########################################################
     @classmethod
     def calc_log_norm_const(cls, lamvec):
         return gammaln(lamvec) - np.sum(gammaln(lamvec))
   
     def get_log_norm_const(self):
         ''' Returns log( Z ), where PDF(x) :=  1/Z(theta) f( x | theta )'''
-        return np.sum(gammaln(self.lamvec)) - gammaln(self.lamsum)
+        if hasattr(self, '_logNormC'):
+          return self._logNormC
+        self._logNormC = np.sum(gammaln(self.lamvec)) - gammaln(self.lamsum)
+        return self._logNormC 
 
     def get_entropy( self ):
         ''' Returns entropy of this distribution 
@@ -69,15 +74,9 @@ class DirichletDistr(object):
         H = self.get_log_norm_const()
         H -= np.inner(self.lamvec - 1., self.Elogphi)
         return H
-    
-    ############################################################## Conditional Probs.  
-    ##############################################################    
-    def E_log_pdf(self, Data):
-        ''' Returns E[ log p( x | theta ) ] under q(theta) <- this distr'''
-        raise NotImplementedError("TODO")    
 
-    ############################################################## I/O  
-    ##############################################################
+    ####################################################### I/O  
+    #######################################################
     def to_dict(self):
         return dict(name=self.__class__.__name__, lamvec=self.lamvec)
     

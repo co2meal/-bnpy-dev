@@ -27,6 +27,7 @@ import numpy as np
 import bnpy
 from bnpy.ioutil import BNPYArgParser
 
+# Configure Logger
 Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
 
@@ -142,9 +143,13 @@ def _run_task_internal(jobname, taskid, nTask,
   else:
     Data = dataName
     InitData = dataName
+    assert str(type(InitData)).count('bnpy.data') > 0
     if algName in OnlineDataAlgSet:
-      Data = Data.to_minibatch_iterator(dataorderseed=dataorderseed,
-                                        **KwArgs['OnlineDataPrefs'])
+      KwArgs[algName]['nLap'] = KwArgs['OnlineDataPrefs']['nLap']
+      OnlineDataArgs = KwArgs['OnlineDataPrefs']
+      OnlineDataArgs['dataorderseed'] = dataorderseed
+      OnlineDataArgs.update(UnkArgs) # add custom args
+      Data = Data.to_minibatch_iterator(**OnlineDataArgs)
 
   # Create and initialize model parameters
   hmodel = createModel(InitData, ReqArgs, KwArgs)
@@ -155,12 +160,27 @@ def _run_task_internal(jobname, taskid, nTask,
   learnAlg = createLearnAlg(Data, hmodel, ReqArgs, KwArgs,
                               algseed=algseed, savepath=taskoutpath)
 
+  # Check if running on grid
+  try:
+    jobID = int(os.getenv('JOB_ID'))
+  except TypeError:
+    jobID = 0
+  if jobID > 0:
+    Log.info('SGE Grid Job ID: %d' % (jobID))
+    # Create symlinks of the captured stdout, stdout and log in bnpy output directory
+    #  so everything is in the same place
+    os.symlink(os.getenv('SGE_STDOUT_PATH'), os.path.join(taskoutpath, 'stdout.log'))
+    os.symlink(os.getenv('SGE_STDERR_PATH'), os.path.join(taskoutpath, 'stderr.log'))
+
   # Write descriptions to the log
-  if taskid == 1:
+  if taskid == 1 or jobID > 0:
     Log.info(Data.get_text_summary())
     Log.info(Data.summarize_num_observations())
+    if type(Data) != type(InitData):
+      Log.info(InitData.get_text_summary(doCommon=False))
     Log.info(hmodel.get_model_info())
-    Log.info('Learn Alg: %s' % (algName))    
+    Log.info('Learn Alg: %s' % (algName))
+
   Log.info('Trial %2d/%d | alg. seed: %d | data order seed: %d' \
                % (taskid, nTask, algseed, dataorderseed))
   Log.info('savepath: %s' % (taskoutpath))
@@ -192,19 +212,22 @@ def loadData(ReqArgs, KwArgs, DataArgs, dataorderseed):
              than each individual batch.
       For full dataset learning scenarios, InitData can be the same as Data.
   '''
-  sys.path.append(os.environ['BNPYDATADIR'])
   datamod = __import__(ReqArgs['dataName'],fromlist=[])
   algName = ReqArgs['algName']
   if algName in FullDataAlgSet:
     Data = datamod.get_data(**DataArgs)
     return Data, Data
   elif algName in OnlineDataAlgSet:
-    KwArgs[algName]['nLap'] = KwArgs['OnlineDataPrefs']['nLap']
     InitData = datamod.get_data(**DataArgs)
-    OnlineDataArgs = KwArgs['OnlineDataPrefs']
-    OnlineDataArgs['dataorderseed'] = dataorderseed
-    OnlineDataArgs.update(DataArgs)
-    DataIterator = datamod.get_minibatch_iterator(**OnlineDataArgs)
+
+    if 'OnlineDataPrefs' in KwArgs:
+      KwArgs[algName]['nLap'] = KwArgs['OnlineDataPrefs']['nLap']
+      OnlineDataArgs = KwArgs['OnlineDataPrefs']
+      OnlineDataArgs['dataorderseed'] = dataorderseed
+      OnlineDataArgs.update(DataArgs)
+      DataIterator = datamod.get_minibatch_iterator(**OnlineDataArgs)
+    else:
+      DataIterator = None
     return DataIterator, InitData
   
 ########################################################### Create Model
@@ -358,7 +381,7 @@ def configLoggingToConsoleAndFile(taskoutpath, doSaveToDisk=True, doWriteStdOut=
     Log.addHandler(fh)
   ###### Config logger that can write to stdout
   if doWriteStdOut:
-    ch = logging.StreamHandler()
+    ch = logging.StreamHandler(sys.stdout)
     ch.setLevel(logging.DEBUG)
     ch.setFormatter(formatter)
     Log.addHandler(ch)

@@ -40,6 +40,10 @@ class LearnAlg(object):
     self.SavedIters = set()
     self.PrintIters = set()
     self.nObsProcessed = 0
+    self.algParamsLP = dict()
+    for k,v in algParams.items():
+      if k.count('LP') > 0:
+        self.algParamsLP[k] = v
     
   def fit(self, hmodel, Data):
     ''' Execute learning algorithm for hmodel on Data
@@ -78,11 +82,19 @@ class LearnAlg(object):
     '''
     return time.time() - self.start_time
 
-  def buildRunInfo(self, evBound, status):
-    ''' Create dict of information about the current run
+  def buildRunInfo(self, evBound, status, nLap=None):
+    ''' Create dict of information about the current run,
+        to return to end-user after learning algorithm is terminated.
     '''
-    return dict(evBound=evBound, status=status,
-                evTrace=self.evTrace, lapTrace=self.TraceLaps)
+    lapTrace = np.asarray(sorted(list(self.TraceLaps)))
+    evTrace = np.asarray(self.evTrace)
+    if self.__class__.__name__.count('Memo') > 0:
+        mask = lapTrace >= self.algParams['startLap'] + 1
+        lapTrace = lapTrace[mask]
+        evTrace = evTrace[mask]
+    return dict(evBound=evBound, status=status, nLap=nLap,
+                evTrace=evTrace, lapTrace=lapTrace,
+                savedir=self.savedir)
 
   ##################################################### Fcns for birth/merges
   ##################################################### 
@@ -93,7 +105,7 @@ class LearnAlg(object):
 
   ##################################################### Verify evidence
   #####################################################  grows monotonically
-  def verify_evidence(self, evBound=0.00001, prevBound=0):
+  def verify_evidence(self, evBound=0.00001, prevBound=0, lapFrac=None):
     ''' Compare current and previous evidence (ELBO) values,
         verify that (within numerical tolerance) increases monotonically
     '''
@@ -104,15 +116,28 @@ class LearnAlg(object):
     isIncreasing = prevBound <= evBound
     M = self.algParams['convergeSigFig']
     isWithinTHR = closeAtMSigFigs(prevBound, evBound, M=M)
-    if not isIncreasing:
-      if not isWithinTHR:
-        if self.hasMove('birth'):
-          warnMsg = 'WARNING: ev decreased (during a birth)\n'
-        else:
-          warnMsg = 'WARNING: evidence decreased!\n'
-        warnMsg += '    prev = % .15e\n' % (prevBound) \
-                 + '     cur = % .15e\n' % (evBound)
-        Log.error(warnMsg)
+    mLPkey = 'doMemoizeLocalParams'
+    if not isIncreasing and not isWithinTHR:
+      serious = True
+      if self.hasMove('birth') and len(self.BirthCompIDs) > 0:
+        warnMsg = 'ev decreased during a birth'
+        warnMsg += ' (so monotonic increase not guaranteed)\n'
+        serious = False
+      elif mLPkey in self.algParams and not self.algParams[mLPkey]:
+        warnMsg = 'ev decreased when doMemoizeLocalParams=0'
+        warnMsg += ' (so monotonic increase not guaranteed)\n'
+        serious = False
+      else:
+        warnMsg = 'evidence decreased!\n'
+      warnMsg += '    prev = % .15e\n' % (prevBound)
+      warnMsg += '     cur = % .15e\n' % (evBound)
+      if lapFrac is None:
+        prefix = "WARNING: "
+      else:
+        prefix = "WARNING @ %.3f: " % (lapFrac)
+
+      if serious or not self.algParams['doShowSeriousWarningsOnly']:
+        Log.error(prefix + warnMsg)
     return isWithinTHR 
 
 

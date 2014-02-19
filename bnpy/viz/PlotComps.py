@@ -38,7 +38,6 @@ def main():
   
   if args.savefilename is None:
     pylab.show(block=True)
-
         
 def plotModelInNewFigure(jobpath, hmodel, args):
   figHandle = pylab.figure()
@@ -50,12 +49,16 @@ def plotModelInNewFigure(jobpath, hmodel, args):
     bnpy.viz.GaussViz.plotCovMatFromHModel(hmodel)
   elif hmodel.getObsModelName().count('Gauss'):
     bnpy.viz.GaussViz.plotGauss2DFromHModel(hmodel)
-  elif args.dataName.count('Bars') > 0:
+  elif args.dataName.lower().count('bars') > 0:
     pylab.close(figHandle)
-    Data = loadData(jobpath)
-    bnpy.viz.BarsViz.plotBarsFromHModel(hmodel, Data=Data, doShowNow=False)
+    if args.doPlotTruth:
+      Data = loadData(jobpath)
+    else:
+      Data = None
+    bnpy.viz.BarsViz.plotBarsFromHModel(hmodel, Data=Data, 
+                                        sortBySize=args.doSort, doShowNow=False)
   else:
-    raise NotImplementedError('TODO')
+    raise NotImplementedError('Unrecognized data/obsmodel combo')
 
 def plotData(Data, nObsPlot=5000):
   ''' Plot data items, at most nObsPlot distinct points (for quick rendering)
@@ -63,7 +66,13 @@ def plotData(Data, nObsPlot=5000):
   if type(Data) == bnpy.data.XData:
     PRNG = np.random.RandomState(nObsPlot)
     pIDs = PRNG.permutation(Data.nObs)[:nObsPlot]
-    pylab.plot(Data.X[pIDs,0], Data.X[pIDs,1], 'k.')  
+    if Data.dim > 1:
+      pylab.plot(Data.X[pIDs,0], Data.X[pIDs,1], 'k.')  
+    else:
+      hist, bin_edges = pylab.histogram(Data.X, bins=25)
+      xs = bin_edges[:-1]
+      ys = np.asarray(hist, dtype=np.float32) / np.sum(hist)
+      pylab.bar(xs, ys, width=0.8*(bin_edges[1]-bin_edges[0]), color='k')
 
 def loadData(jobpath):
   ''' Load in bnpy Data obj associated with given learning task.
@@ -75,7 +84,8 @@ def loadData(jobpath):
   sys.path.append(os.environ['BNPYDATADIR'])
   datamodulepath = os.path.join(os.environ['BNPYDATADIR'], dataname+".py")
   if not os.path.exists(datamodulepath):
-    raise ValueError("Could not find data %s" % (dataname))
+    return None
+    #raise ValueError("Could not find data %s" % (dataname))
   datamod = __import__(dataname, fromlist=[])
   return datamod.get_data()
   
@@ -88,10 +98,14 @@ def parse_args():
   BNPYArgParser.addRequiredVizArgsToParser(parser)
   BNPYArgParser.addStandardVizArgsToParser(parser)
   parser.add_argument('--lap', default=None, type=float,
-        help="Specific lap of provided experiment at which to plot parameters." \
-             + " If exact lap not available, instead plots nearest existing lap.")
+        help="Specific lap at which to plot parameters." \
+             + " If exact lap not available, instead plots nearest lap.")
   parser.add_argument('--doPlotData', action='store_true', default=False,
         help="If present, also plot training data.")
+  parser.add_argument('--doPlotTruth', action='store_true', default=False,
+        help="If present, also plot true model params that generated data.")
+  parser.add_argument('--doSort', action='store_true', default=False,
+        help="If present, sort parameters by global appearance probabilities.")
   args = parser.parse_args()
   return args
 

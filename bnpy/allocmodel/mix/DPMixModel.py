@@ -72,7 +72,7 @@ class DPMixModel(AllocModel):
 
   ######################################################### Local Params
   #########################################################
-  def calc_local_params(self, Data, LP):
+  def calc_local_params(self, Data, LP, **kwargs):
     ''' Calculate local parameters for each data item and each component.    
         This is part of the E-step.
         
@@ -105,7 +105,7 @@ class DPMixModel(AllocModel):
   #########################################################
   def get_global_suff_stats(self, Data, LP,
                              doPrecompEntropy=False, 
-                             doPrecompMergeEntropy=False):
+                             doPrecompMergeEntropy=False, mPairIDs=None):
     ''' Calculate the sufficient statistics for global parameter updates
         Only adds stats relevant for this allocModel. 
         Other stats are added by the obsModel.
@@ -177,6 +177,23 @@ class DPMixModel(AllocModel):
     
     self.qalpha1 = rho * qalpha1 + (1-rho) * self.qalpha1
     self.qalpha0 = rho * qalpha0 + (1-rho) * self.qalpha0
+    self.set_helper_params()
+
+  def set_global_params(self, hmodel=None, K=None, qalpha1=None, 
+                              qalpha0=None, **kwargs):
+    ''' Directly set global parameters qalpha0, qalpha1 to provided values
+    '''
+    if hmodel is not None:
+      self.K = hmodel.allocModel.K
+      self.qalpha1 = hmodel.allocModel.qalpha1
+      self.qalpha0 = hmodel.allocModel.qalpha0
+      self.set_helper_params()
+      return
+    if type(qalpha1) != np.ndarray or qalpha1.size != K or qalpha0.size != K:
+      raise ValueError("Bad DP Parameters")
+    self.K = K
+    self.qalpha1 = qalpha1
+    self.qalpha0 = qalpha0
     self.set_helper_params()
  
   ######################################################### Evidence

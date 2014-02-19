@@ -161,12 +161,12 @@ class ParamBag(object):
 
   ######################################################### Get component 
   #########################################################
-  def getComp(self, k):
+  def getComp(self, k, doCollapseK1=True):
     ''' Returns ParamBag object for component "k" of self.
     '''
     if k < 0 or k >= self.K:
       raise IndexError('Bad compID. Expected [0, %d] but provided %d' % (self.K-1, k))
-    cPB = ParamBag(K=1, D=self.D, doCollapseK1=True)
+    cPB = ParamBag(K=1, D=self.D, doCollapseK1=doCollapseK1)
     for key in self._FieldDims:
       arr = getattr(self,key)
       dims = self._FieldDims[key]
@@ -174,7 +174,13 @@ class ParamBag(object):
         if self.K == 1:
           cPB.setField(key, arr, dims=dims)
         else:
-          cPB.setField(key, arr[k], dims=dims)
+          singleArr = arr[k]
+          if doCollapseK1:
+            cPB.setField(key, singleArr, dims=dims)
+          elif singleArr.ndim == 0:
+            cPB.setField(key, singleArr[np.newaxis], dims=dims)
+          else:
+            cPB.setField(key, singleArr[np.newaxis,:], dims=dims)
       else:
         cPB.setField(key, arr)
     return cPB
@@ -218,7 +224,7 @@ class ParamBag(object):
       if arr.ndim > 0:
         arr[compIDs] -= getattr(PB, key)
       else:
-        self.setField(key, arr - PB.arr, dims=None)
+        self.setField(key, arr - getattr(PB, key), dims=None)
 
   def __sub__(self, PB):
     ''' Subtract. Returns new ParamBag object with fields equal to self - PB.

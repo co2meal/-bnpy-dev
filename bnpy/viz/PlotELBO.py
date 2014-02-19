@@ -14,6 +14,8 @@ import argparse
 import os
 import bnpy.ioutil.BNPYArgParser as BNPYArgParser
 import bnpy
+import matplotlib
+matplotlib.rcParams['text.usetex'] = False
 
 Colors = [(0,0,0), # black
           (0,0,1), # blue
@@ -68,7 +70,9 @@ def plot_all_tasks_for_job(jobpath, args, jobname=None, color=None):
       xs = xs[mask]
       ys = ys[mask]
 
-    plotargs = dict(markersize=10, linewidth=2, color=color, label=None)
+
+    plotargs = dict(markersize=10, linewidth=2, label=None,
+                    color=color, markeredgecolor=color)
     if tt == 0:
       plotargs['label'] = jobname
     pylab.plot(xs, ys, '.-', **plotargs)
@@ -129,7 +133,7 @@ def parse_args():
   args.jobnames = args.jobnames.split(',')
   if args.legendnames is not None:
     args.legendnames = args.legendnames.split(',')
-    assert len(args.legendnames) == len(args.jobnames) * len(args.algNames)
+    #assert len(args.legendnames) == len(args.jobnames) * len(args.algNames)
   return args
 
 if __name__ == "__main__":

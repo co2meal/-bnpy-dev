@@ -6,6 +6,10 @@ Visualization tools for toy bars data for topic models.
 from matplotlib import pylab
 import numpy as np
 
+imshowArgs = dict(interpolation='nearest', cmap='bone', 
+                  vmin=0.0, vmax=0.3)
+
+
 def plotExampleBarsDocs(Data, docIDsToPlot=None, nDocToPlot=9, doShowNow=True):
     pylab.figure()
     V = Data.vocab_size
@@ -33,7 +37,7 @@ def plotExampleBarsDocs(Data, docIDsToPlot=None, nDocToPlot=9, doShowNow=True):
       pylab.show()
 
 def plotBarsFromHModel(hmodel, Data=None, doShowNow=True, figH=None,
-                               compsToHighlight=None, width=12, height=3):
+                       compsToHighlight=None, sortBySize=False, width=12, height=3):
     if Data is None:
         width = width/2
     if figH is None:
@@ -46,21 +50,27 @@ def plotBarsFromHModel(hmodel, Data=None, doShowNow=True, figH=None,
     for k in xrange(K):
         lamvec = hmodel.obsModel.comp[k].lamvec 
         learned_tw[k,:] = lamvec / lamvec.sum()
+    if sortBySize:
+        sortIDs = np.argsort(hmodel.allocModel.Ebeta[:-1])[::-1]
+        print hmodel.allocModel.Ebeta[sortIDs]     
+        learned_tw = learned_tw[sortIDs] 
     if Data is not None and hasattr(Data, "true_tw"):
         # Plot the true parameters and learned parameters
         pylab.subplot(121)
-        pylab.imshow(Data.true_tw, interpolation="nearest", cmap="bone")
+        pylab.imshow(Data.true_tw, **imshowArgs)
         pylab.colorbar()
         pylab.title('True Topic x Word')
         pylab.subplot(122)
-        pylab.imshow(learned_tw, interpolation="nearest", cmap="bone")
-        pylab.colorbar()
+        pylab.imshow(learned_tw,  **imshowArgs)
         pylab.title('Learned Topic x Word')
     else:
         # Plot just the learned parameters
-        pylab.imshow(learned_tw, interpolation="nearest", cmap="bone")
-        pylab.colorbar
-        pylab.title('Learned Topic x Word')
+        aspectR = learned_tw.shape[1]/learned_tw.shape[0]
+        while imshowArgs['vmax'] > 2 * learned_tw.max():
+          imshowArgs['vmax'] /= 5
+        pylab.imshow(learned_tw, aspect=aspectR, **imshowArgs)
+        if figH is None:
+          pylab.title('Learned Topic x Word')
     if compsToHighlight is not None:
         ks = np.asarray(compsToHighlight)
         if ks.ndim == 0:

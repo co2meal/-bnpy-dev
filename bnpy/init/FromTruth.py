@@ -21,16 +21,19 @@ def init_global_params(hmodel, Data, initname=None, seed=0, nRepeatTrue=2, **kwa
                  'truelabels' or 'repeattruelabels'
   '''
   PRNG = np.random.RandomState(seed)
+  if initname.count('truelabels') > 0:
+    if hasattr(Data, 'TrueLabels'):
+      resp = calc_resp_from_true_labels(Data)
+    elif hasattr(Data, 'TrueParams'):
+      if 'resp' in Data.TrueParams:
+        resp = Data.TrueParams['resp']
+      if 'word_variational' in Data.TrueParams:
+        resp = Data.TrueParams['word_variational']
+      
+
   if initname == 'truelabels':
-    if hasattr(Data, 'TrueLabels'):
-      resp = calc_resp_from_true_labels(Data)
-    elif hasattr(Data, 'true_resp'):
-      resp = Data.true_resp
+    pass # have everything we need
   elif initname == 'repeattruelabels':
-    if hasattr(Data, 'TrueLabels'):
-      resp = calc_resp_from_true_labels(Data)
-    elif hasattr(Data, 'true_resp'):
-      resp = Data.true_resp  
     Ktrue = resp.shape[1]
     rowIDs = PRNG.permutation(Data.nObs)
     L = len(rowIDs)/nRepeatTrue
@@ -42,8 +45,7 @@ def init_global_params(hmodel, Data, initname=None, seed=0, nRepeatTrue=2, **kwa
       curLoc += L
     resp = bigResp
   elif initname == 'trueparams':
-    hmodel.allocModel.set_global_params(**vars(Data))
-    hmodel.obsModel.set_global_params(**vars(Data))
+    hmodel.set_global_params(**Data.TrueParams)
     return
   else:
     raise NotImplementedError('Unknown initname: %s' % (initname))
@@ -54,6 +56,8 @@ def init_global_params(hmodel, Data, initname=None, seed=0, nRepeatTrue=2, **kwa
     LP = FromScratchMult.getLPfromResp(resp, Data)
   SS = hmodel.get_global_suff_stats(Data, LP)
   hmodel.update_global_params(SS)
+
+
 
 def calc_resp_from_true_labels(Data):
   TrueLabels = Data.TrueLabels
