@@ -9,18 +9,12 @@ import os
 import sys
 import jinja2
 import time
-<<<<<<< HEAD
-
-from _line_profiler import LineProfiler as CLineProfiler
-
-=======
 from distutils.dir_util import mkpath
 
 from _line_profiler import LineProfiler as CLineProfiler
 
 ### Use absolute not relative paths to allow relocating html files after runs
 ROOTDIR = os.path.sep.join(os.path.abspath(__file__).split(os.path.sep)[:-3])
->>>>>>> master
 
 CO_GENERATOR = 0x0020
 def is_generator(f):
@@ -205,19 +199,12 @@ def show_text(stats, unit, stream=None):
 def create_html(save_path, template_path, stats, unit):
     """ Create html presentation for the given timings.
     """
-<<<<<<< HEAD
-    stats = {k:timings for (k,timings) in stats.items() if sum(t[2] for t in timings) != 0}
-
-    create_index_html(save_path, template_path, stats, unit)
-    create_graph_html(save_path, template_path, stats, unit)
-=======
     # Create save path (and all necessary parent directories)
     mkpath(save_path)
 
     stats = {k:timings for (k,timings) in stats.items() if sum(t[2] for t in timings) != 0}
 
     create_index_html(save_path, template_path, stats, unit)
->>>>>>> master
 
     # show_text(stats, unit, stream)
     # print >>stream, 'Timer unit: %g s' % unit
@@ -235,11 +222,7 @@ def create_index_html(save_path, template_path, stats, unit):
                   'fn': fn, 
                   'fn-replace': fn.replace('/','-'), 
                   'calls': max([0] + [t[1] for t in timings]),
-<<<<<<< HEAD
-                  'total_time':sum(t[2] for t in timings) * unit} 
-=======
                   'total_time': float('%.2f' % (sum(t[2] for t in timings) * unit))} 
->>>>>>> master
                  for (fn, lineno, name), timings in stats.items()]
     functions = sorted(functions, key=lambda f: f['total_time'], reverse=True)
     for f in functions:
@@ -248,11 +231,7 @@ def create_index_html(save_path, template_path, stats, unit):
         else:
             f['total_time'] = str(f['total_time']) + ' s'
     
-<<<<<<< HEAD
-    index = template.render(timestamp = time.strftime('%X %x %Z'), tunit=('%g' % unit), functions=functions)
-=======
     index = template.render(timestamp = time.strftime('%X %x %Z'), tunit=('%g' % unit), functions=functions, rootdir=ROOTDIR)
->>>>>>> master
     print >>stream, index
 
 def create_graph_html(save_path, template_path, stats, unit):
@@ -268,16 +247,6 @@ def create_graph_html(save_path, template_path, stats, unit):
 def create_func_html(save_path, template_path, filename, start_lineno, func_name, timings, unit):
     """ Create html presentation of a given function's results.
     """
-<<<<<<< HEAD
-
-    # create directory if doesn't exist
-    if not os.path.exists(save_path + 'functions'):
-        os.makedirs(save_path + 'functions')
-
-    stream = open(save_path + 'functions/' + filename.replace('/', '-') + '-' + func_name + '.html', mode='w')
-    env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_path))
-    template = env.get_template('function.template')
-=======
     # create directory if doesn't exist
     func_out_path = os.path.join(save_path, 'functions')
     if not os.path.exists(func_out_path):
@@ -286,7 +255,6 @@ def create_func_html(save_path, template_path, filename, start_lineno, func_name
     stream = open(os.path.join(func_out_path, htmlname), mode='w')
     env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_path))
     template = env.get_template('single_func_page.template')
->>>>>>> master
     parent_dir = '../../../'
 
     if not os.path.exists(filename):
@@ -311,11 +279,7 @@ def create_func_html(save_path, template_path, filename, start_lineno, func_name
 
     sorted_timings = sorted([(t * unit if not t is None else 0) for (_,_,t) in timings], reverse=True)
     if len(sorted_timings) >= 3:
-<<<<<<< HEAD
-        threshold = sorted_timings[2]
-=======
         threshold = sorted_timings[0]
->>>>>>> master
     else:
         threshold = 0
 
@@ -342,11 +306,7 @@ def create_func_html(save_path, template_path, filename, start_lineno, func_name
         elif t < 0.01:
             l['time'] = '< 0.01 s'
         else:
-<<<<<<< HEAD
-            l['time'] = '%.2g s' % t
-=======
             l['time'] = '% 5.2f s' % t
->>>>>>> master
         l['percent'] = percent
         if t >= threshold and t != 0:
             l['warn'] = 'danger'
@@ -391,18 +351,11 @@ def create_func_html(save_path, template_path, filename, start_lineno, func_name
             listing += ' ' * indent
             listing += fmt.format('', '', '', l['code_full'][max_code_width:])
 
-<<<<<<< HEAD
-    func = template.render(timestamp = time.strftime('%X %x %Z'),
-                           name = func_name,
-                           num_calls = max([0] + [t[1] for t in timings]),
-                           seconds = '%g' % (sum(t[2] for t in timings) * unit),
-=======
     func = template.render(rootdir=ROOTDIR,
                            timestamp = time.strftime('%X %x %Z'),
                            name = func_name,
                            num_calls = max([0] + [t[1] for t in timings]),
                            seconds = '%.2f' % (sum(t[2] for t in timings) * unit),
->>>>>>> master
                            link = filename,
                            parent_dir=parent_dir,
                            lines = lines,
