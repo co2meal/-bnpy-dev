@@ -18,7 +18,7 @@ import logging
 import numpy as np
 import bnpy
 import argparse
-from bnpy.ioutil import BNPYArgParser
+BNPYArgParser = bnpy.ioutil.BNPYArgParser
 
 Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
