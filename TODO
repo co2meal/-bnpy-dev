@@ -4,9 +4,6 @@
 =========== docs
 * update to ipython notebook format?
 
-=========== births
-* are we redundantly adding topics? should we merge in the expanded model?
-
 =========== AllocModel
 * HDPFull : better optimization for u based on reparameterization of its Beta distr
 

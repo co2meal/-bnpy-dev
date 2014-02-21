@@ -37,7 +37,7 @@ def run_many_merge_moves(hmodel, Data, SS, evBound=None,
       SS
       nMergeTrials : number of merges to try
       compList : list of components to include in attempted merges
-      randstate : random number generator
+      randstate : numpy random number generator
 
       Returns
       -------
@@ -293,6 +293,19 @@ def preselect_all_merge_candidates(curModel, SS, randstate=np.random,
                                    preselectroutine='random', mergePerLap=10,
                                    compIDs=list(), **kwargs):
   ''' 
+      Create and return a list of tuples,
+        where each tuple represents a set of component IDs to try to merge
+
+      Args
+      --------
+      curModel : bnpy HModel 
+      SS : bnpy SuffStatBag. If None, defaults to random selection.
+      randstate : numpy random number generator
+      preselectroutine : name of procedure to select candidate pairs
+                          {'random', 'marglik', 'freshallpairs'}
+      mergePerLap : int number of candidates to identify 
+                      (may be less if K small)            
+
       Returns
       --------
       mPairList : list of component ID candidates for positions kA, kB
@@ -304,7 +317,10 @@ def preselect_all_merge_candidates(curModel, SS, randstate=np.random,
     preselectroutine = 'random'
   aList = list()
   bList = list()
-  if preselectroutine == 'freshallpairs':
+
+  partnerIDs = set(range(K))
+  partnerIDs.difference_update(compIDs)
+  if preselectroutine == 'allpairsfromlist':
     compIDs = sorted(compIDs)
     L = len(compIDs)
     for aa in xrange(L-1):
@@ -313,7 +329,16 @@ def preselect_all_merge_candidates(curModel, SS, randstate=np.random,
         bList.append(compIDs[bb])
     aList = aList[:nMergeTrials]
     bList = bList[:nMergeTrials]
-  elif preselectroutine == 'freshbestmatch3':
+  elif preselectroutine == 'allpairsfromlistbipartite':
+    compIDs = sorted(compIDs)
+    L = len(compIDs)
+    for kA in compIDs:
+      for kB in list(partnerIDs):
+        aList.append(np.minimum(kA, kB))
+        bList.append(np.maximum(kA, kB))
+    aList = aList[:nMergeTrials]
+    bList = bList[:nMergeTrials]
+  elif preselectroutine == 'bestnmatchfromlist':
     # Loop thru and find 3 best pairs for each comp in list
     compIDs = sorted(compIDs)
     L = len(compIDs)
@@ -321,9 +346,11 @@ def preselect_all_merge_candidates(curModel, SS, randstate=np.random,
     MSelector = MergePairSelector()
     cID = 0
     trial = 0
-    while MTracker.hasAvailablePairs() and cID < L and len(aList) < nMergeTrials:
+    hasPairs = MTracker.hasAvailablePairs
+    while hasPairs() and cID < L and len(aList) < nMergeTrials:
       nPartners = 0
-      while MTracker.hasAvailablePartnersForComp(compIDs[cID]) and nPartners < 3:
+      hasPartners = MTracker.hasAvailablePartnersForComp
+      while hasPartners(compIDs[cID]) and nPartners < 3:
         kA, kB = MSelector.select_merge_components(curModel, SS, MTracker,
                                     mergename='marglik', kA=compIDs[cID],
                                     randstate=randstate)
@@ -347,7 +374,7 @@ def preselect_all_merge_candidates(curModel, SS, randstate=np.random,
       MTracker.recordResult(kA=kA, kB=kB)
       aList.append(kA)
       bList.append(kB)
-      trial += 1    
+      trial += 1
   elif preselectroutine == 'freshbestmatch':
     compIDs = sorted(compIDs)
     L = len(compIDs)
@@ -391,7 +418,7 @@ def preselect_all_merge_candidates(curModel, SS, randstate=np.random,
     M = np.zeros((K, K))
     for kA in xrange(K):
       for kB in xrange(kA+1, K):
-         M[kA, kB] = MSelector._calcMScoreForCandidatePair(curModel, SS, kA, kB)
+        M[kA, kB] = MSelector._calcMScoreForCandidatePair(curModel, SS, kA, kB)
     # find the n largest non-zero entries
     flatM = M.flatten()
     bestIDs = np.argsort(flatM)[::-1]
@@ -400,6 +427,30 @@ def preselect_all_merge_candidates(curModel, SS, randstate=np.random,
     assert np.all(bestrs < bestcs)
     aList = bestrs[:nMergeTrials].tolist()
     bList = bestcs[:nMergeTrials].tolist()
+  elif preselectroutine == 'marglikfromlistbipartite':
+    ''' consider best candidates for each comp in list,
+            only partnering with nodes outside the list
+    '''
+    MTracker = MergeTracker(K)
+    MSelector = MergePairSelector()
+    M = np.zeros((K, K))
+    for kA in sorted(compIDs):
+      for kB in list(partnerIDs):
+        M[kA, kB] = MSelector._calcMScoreForCandidatePair(curModel, SS, kA, kB)
+      # find the L largest non-zero entries
+      bestIDs = np.argsort( M[kA,:])[::-1]
+      bestIDs = bestIDs[ M[kA, bestIDs] != 0]
+      bestIDs = bestIDs[:3]
+      for kB in bestIDs:
+        MTracker.recordResult(kA=np.minimum(kA, kB), kB=np.maximum(kA, kB))
+        aList.append(np.minimum(kA,kB))
+        bList.append(np.maximum(kA,kB))
+
+    # reindex aList, bList so we're likely to try all compIDs once
+    aList = aList[::3] + aList[1::3] + aList[2::3]
+    bList = bList[::3] + bList[1::3] + bList[2::3]
+    aList = aList[:nMergeTrials]
+    bList = bList[:nMergeTrials]
   assert len(aList) == len(bList)
   assert len(aList) <= nMergeTrials
   return zip(aList, bList)
