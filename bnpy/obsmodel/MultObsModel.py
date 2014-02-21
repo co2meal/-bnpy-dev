@@ -133,7 +133,11 @@ class MultObsModel(ObsModel):
             self.comp = copy.deepcopy(hmodel.obsModel.comp)
             return
         if Etopics is not None:
-            topics = Etopics
+            if np.min(Etopics[-1]) == np.max(Etopics[-1]):
+              # Skip the last topic, since it wasn't actively assigned
+              topics = Etopics[:-1]
+            else:
+              topics = Etopics
         assert topics is not None
         self.K = topics.shape[0]
         self.comp = list()
