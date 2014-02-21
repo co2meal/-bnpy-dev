@@ -274,23 +274,22 @@ class HDPModel(AllocModel):
           self.set_helper_params()
           return
 
-        self.K = K
-        if topic_prior is not None:
-          beta = np.hstack([topic_prior, np.min(topic_prior)/100.])
-          beta = beta/np.sum(beta)
-        elif Ebeta is not None and EbetaLeftover is not None:
+        if Ebeta is not None and EbetaLeftover is not None:
           Ebeta = np.squeeze(Ebeta)
           EbetaLeftover = np.squeeze(EbetaLeftover)
           beta = np.hstack( [Ebeta, EbetaLeftover])
+          self.K = beta.size - 1
+          
         elif beta is not None:
           assert beta.size == K
           beta = np.hstack([beta, np.min(beta)/100.])
           beta = beta/np.sum(beta)
+          self.K = beta.size - 1
         else:
           raise ValueError('Bad parameters. Vector beta not specified.')
 
         # Now, use the specified value of beta to find the best U1, U0
-        assert beta.size == K + 1
+        assert beta.size == self.K + 1
         assert abs(np.sum(beta) - 1.0) < 0.001
         vMean = OptimHDP.beta2v(beta)
         # for each k=1,2...K
@@ -302,8 +301,8 @@ class HDPModel(AllocModel):
         self.U0 = vMass * (1-vMean)
         assert np.all( self.U1 >= 1.0 - 0.00001)
         assert np.all( self.U0 >= self.alpha0 - 0.00001)
-        assert self.U1.size == K
-        assert self.U0.size == K
+        assert self.U1.size == self.K
+        assert self.U0.size == self.K
         self.set_helper_params()
         
   ######################################################### Evidence
