@@ -34,7 +34,7 @@ from allocmodel import *
 # string --> bnpy object constructor
 AllocConstr = {'MixModel':MixModel, 'DPMixModel':DPMixModel,
                 'AdmixModel':AdmixModel, 'HDPModel':HDPModel, 'HDPPE':HDPPE,
-                'HDPFullHard':HDPFullHard}
+                'HDPFullHard':HDPFullHard, 'HDPSoft2Hard':HDPSoft2Hard}
 ObsConstr = {'Gauss':GaussObsModel,'ZMGauss':ZMGaussObsModel,
                 'Mult':MultObsModel}
                    
