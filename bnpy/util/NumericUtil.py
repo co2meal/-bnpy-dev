@@ -45,6 +45,27 @@ def LoadConfig():
   cfgfilepath = os.path.join(root, 'config', 'numeric.platform-config')
   Config = readConfigFileIntoDict(cfgfilepath, 'LibraryPrefs')
 
+
+########################################################### inplace exp
+###########################################################
+def inplaceExp(R):
+  ''' Calculate exp of each entry of input matrix, done in-place.
+  '''
+  if Config['inplaceExpAndNormalizeRows'] == "numexpr" and hasNumexpr:
+    return inplaceExp_numexpr(R)
+  else:  
+    return inplaceExp_numpy(R)
+
+def inplaceExp_numpy(R):
+  ''' Calculate exp of each entry of input matrix, done in-place.
+  '''
+  np.exp(R, out=R)
+
+def inplaceExp_numexpr(R):
+  ''' Calculate exp of each entry of input matrix, done in-place.
+  '''
+  ne.evaluate("exp(R)", out=R)
+
 ########################################################### exp and normalize
 ###########################################################
 def inplaceExpAndNormalizeRows(R):
@@ -255,6 +276,25 @@ def calcRlogRdotv_specificpairs_numexpr(R, v, mPairs):
     ne.evaluate("curR * log(curR)", out=curR)
     ElogqZMat[kA,kB] = np.dot(v, curR)
   return ElogqZMat
+
+def calcRlogRdotv_specificpairs_numpyvec(R, v, mPairs):
+  ''' Attempt to speed up by handling all partners of comp kA at once.
+      Surprisingly seems to be much slower. Forget it.
+  '''
+  from collections import defaultdict
+  PartnerDict = defaultdict(lambda: list())
+  for kA, kB in mPairs:
+    PartnerDict[kA].append(kB)
+  K = R.shape[1]
+  ElogqZMat = np.zeros((K, K))
+  if K == 1:
+    return Z
+  for kA in PartnerDict:
+    curWV = R[:,kA][:,np.newaxis] + R[:, PartnerDict[kA]]
+    curWV *= np.log(curWV)
+    ElogqZMat[kA,PartnerDict[kA]] = np.dot(v, curWV)
+  return ElogqZMat
+
 
 def calcRlogRdotv_specificpairs_c(R, v, mPairs):
   return LibRlogR.calcRlogRdotv_specificpairs_c(R, v, mPairs)

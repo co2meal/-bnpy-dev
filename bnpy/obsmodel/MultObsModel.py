@@ -150,7 +150,9 @@ class MultObsModel(ObsModel):
             ii = np.argmin(topics[k,:])
             lamvec = self.obsPrior.lamvec[ii]/topics[k,ii] * topics[k,:]
             # Cut-off values that are way way too big
-            lamvec = np.minimum(lamvec, 1e9)
+            if np.any( lamvec > 1e9):
+              lamvec = np.minimum(lamvec, 1e9)
+              print "WARNING: mucking with lamvec"
             self.comp.append(DirichletDistr(lamvec))
 
   ######################################################### Evidence
