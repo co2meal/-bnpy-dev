@@ -6,15 +6,9 @@
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Bootstrap -->
-<<<<<<< HEAD
-    <link href="../assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
-    <link href="../assets/css/docs.css" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/font-awesome.min.css">
-=======
     <link href="{{rootdir}}/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
     <link href="{{rootdir}}/profile/assets/css/docs.css" rel="stylesheet">
     <link rel="stylesheet" href="{{rootdir}}/profile/assets/css/font-awesome.min.css">
->>>>>>> master
   </head>
 
   <body id="top">
@@ -65,25 +59,14 @@
 		<th>Calls</th>
 		<th>Total Time</th>
 		<!-- <td>Self Time</td> -->
-<<<<<<< HEAD
-		<th>Total Time Plot</th>
-=======
 		<!-- <th>Total Time Plot</th> -->
->>>>>>> master
 	      </tr>
               {% for f in functions %}
 	      <tr>
 		<td><a href="functions/{{ f['fn-replace'] }}-{{ f['name'] }}.html">{{ f['name'] }}</td>
-<<<<<<< HEAD
-		<td><a href="../../{{ f['fn'] }}">{{ f['fn'] }}</td>
-		<td>{{ f['calls'] }}</td>
-		<td>{{ f['total_time'] }}</td>
-		<td></td>
-=======
 		<td><a href="{{ f['fn'] }}">{{ f['fn'] }}</td>
 		<td>{{ f['calls'] }}</td>
 		<td>{{ f['total_time'] }}</td>
->>>>>>> master
 	      </tr>
               {% endfor %}
 	    </table>
@@ -99,13 +82,8 @@
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
     <script src="https://code.jquery.com/jquery.js"></script>
     <!-- Include all compiled plugins (below), or include individual files as needed -->
-<<<<<<< HEAD
-    <script src="../assets/js/bootstrap.min.js"></script>
-    <script src="../assets/js/main.js"></script>
-=======
     <script src="{{rootdir}}/profile/assets/js/bootstrap.min.js"></script>
     <script src="{{rootdir}}/profile/assets/js/main.js"></script>
->>>>>>> master
   </body>
 
 </html>
