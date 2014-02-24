@@ -1,5 +1,5 @@
 '''
-HDPFullVarOpt.py
+OptimizerForHDPFullVarModel.py
 
 Model Notation
 --------

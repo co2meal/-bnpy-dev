@@ -18,7 +18,7 @@ import logging
 import numpy as np
 import bnpy
 import argparse
-from bnpy.ioutil import BNPYArgParser
+BNPYArgParser = bnpy.ioutil.BNPYArgParser
 
 Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
@@ -245,7 +245,6 @@ def readArgsFromFile(taskoutpath):
   import glob
   KwArgs = dict()
   for argfilepath in glob.glob(os.path.join(taskoutpath,'args-*.txt')):
-    print argfilepath
     curKey = argfilepath.split('-')[1].split('.txt')[0]
     with open(argfilepath, 'r') as f:
       curDict = json.load(f)
@@ -303,7 +302,7 @@ def configLoggingToConsoleAndFile(taskoutpath, doSaveToDisk=True, doWriteStdOut=
     Log.addHandler(fh)
   ###### Config logger that can write to stdout
   if doWriteStdOut:
-    ch = logging.StreamHandler()
+    ch = logging.StreamHandler(sys.stdout)
     ch.setLevel(logging.DEBUG)
     ch.setFormatter(formatter)
     Log.addHandler(ch)

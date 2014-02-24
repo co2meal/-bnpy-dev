@@ -50,6 +50,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
                         {'converged', 'max passes exceeded'}
     
     '''
+    origmodel = hmodel
+
     # Define how much of data we see at each mini-batch
     nBatch = float(DataIterator.nBatch)
     self.lapFracInc = 1.0/nBatch
@@ -171,15 +173,22 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       msg = "max passes thru data exceeded."
     self.save_state(hmodel, iterid, lapFrac, evBound, doFinal=True) 
     self.print_state(hmodel, iterid, lapFrac,evBound,doFinal=True,status=msg)
+
+    # Births and merges require copies of original model object
+    #  we need to make sure original reference has updated parameters, etc.
+    if id(origmodel) != id(hmodel):
+      origmodel.allocModel = hmodel.allocModel
+      origmodel.obsModel = hmodel.obsModel
     return None, self.buildRunInfo(evBound, msg)
 
   def verify_suff_stats(self, Dchunk, SS, lap):
     ''' Run-time checks to make sure the suff stats
         have expected values
     '''
-    SSfile = os.path.join(self.savedir, 'SSdump-Lap%03d.dat' % (lap))
-    if self.isLastBatch(lap):
-      joblib.dump(SS, SSfile)
+    if self.savedir is not None:
+      SSfile = os.path.join(self.savedir, 'SSdump-Lap%03d.dat' % (lap))
+      if self.isLastBatch(lap):
+        joblib.dump(SS, SSfile)
     if hasattr(Dchunk, 'nDocTotal') and Dchunk.nDocTotal < 4000:
       if self.hasMove('birth') and len(self.BirthCompIDs) > 0:
         if self.algParams['birth']['earlyLap'] > 0:
@@ -193,9 +202,6 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       elif lap >= 1.0:
         assert abs(SS.nDoc - Dchunk.nDocTotal) < 0.01
 
-    if hasattr(SS, 'sumLogPi'):
-      if not np.all(SS.sumLogPi <= 1e-10):
-        raise ValueError('sumLogPi should be less than zero!')
     if hasattr(SS, 'N'):
       if not np.all(SS.N >= -1e-9):
         raise ValueError('N should be >= 0!')

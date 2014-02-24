@@ -90,8 +90,8 @@ class ZMGaussObsModel(ObsModel):
 
   ######################################################### Global Params
   #########################################################  M-step
-  def update_obs_params_EM( self, SS, Krange, **kwargs):
-    for k in Krange:
+  def update_obs_params_EM( self, SS, **kwargs):
+    for k in xrange(self.K):
       covMat  = SS.xxT[k]/SS.N[k]
       covMat  += self.min_covar * np.eye(self.D)
       self.comp[k] = ZMGaussDistr( Sigma=covMat )
@@ -103,10 +103,17 @@ class ZMGaussObsModel(ObsModel):
     else:
       self.comp[mergeCompA] = self.obsPrior.get_post_distr(SS, mergeCompA)
 
-  def update_obs_params_soVB( self, SS, rho, Krange, **kwargs):
-    for k in Krange:
+  def update_obs_params_soVB( self, SS, rho, **kwargs):
+    for k in xrange(self.K):
       Dstar = self.obsPrior.get_post_distr(SS, k)
       self.comp[k].post_update_soVB( rho, Dstar)
+
+  def set_global_params(self, hmodel=None, **kwargs):
+    ''' Set global parameters to provided values
+    '''
+    if hmodel is not None:
+      self.comp = [copy.deepcopy(c) for c in hmodel.obsModel.comp]
+      self.K = hmodel.obsModel.K
 
   ######################################################### Evidence
   ######################################################### 

@@ -21,6 +21,7 @@
   TODO: write better doc
 '''
 import os
+import sys
 import logging
 import numpy as np
 import bnpy
@@ -166,6 +167,10 @@ def _run_task_internal(jobname, taskid, nTask,
     jobID = 0
   if jobID > 0:
     Log.info('SGE Grid Job ID: %d' % (jobID))
+    # Create symlinks of the captured stdout, stdout and log in bnpy output directory
+    #  so everything is in the same place
+    os.symlink(os.getenv('SGE_STDOUT_PATH'), os.path.join(taskoutpath, 'stdout.log'))
+    os.symlink(os.getenv('SGE_STDERR_PATH'), os.path.join(taskoutpath, 'stderr.log'))
 
   # Write descriptions to the log
   if taskid == 1 or jobID > 0:
@@ -376,7 +381,7 @@ def configLoggingToConsoleAndFile(taskoutpath, doSaveToDisk=True, doWriteStdOut=
     Log.addHandler(fh)
   ###### Config logger that can write to stdout
   if doWriteStdOut:
-    ch = logging.StreamHandler()
+    ch = logging.StreamHandler(sys.stdout)
     ch.setLevel(logging.DEBUG)
     ch.setFormatter(formatter)
     Log.addHandler(ch)

@@ -123,6 +123,7 @@ def run_birth_move(curModel, targetData, SS, randstate=np.random,
 def learn_fresh_model(freshModel, targetData, Kmax=500, Kfresh=10,
                       freshInitName='randexamples', freshAlgName='VB',
                       nFreshLap=50, randstate=np.random,
+                      doRemoveRedundant=True,
                       doSimpleThrTest=False, curModel=None, **kwargs):
   ''' Learn a new model with Kfresh components
       Enforces an "upper limit" on number of components Kmax,
@@ -159,18 +160,74 @@ def learn_fresh_model(freshModel, targetData, Kmax=500, Kfresh=10,
     for kreject in rejectIDs:
       targetSS.removeComp(kreject)
     
-  else:
+  elif curModel is not None:
     targetSS = clean_up_fresh_model(targetData, curModel, freshModel, 
                             randstate=randstate, **kwargs)
-  
+
+  if targetSS.K < 2:
+    msg = 'BIRTH: Didnt create >1 useful comp from Data of size %d'
+    raise BirthProposalError(msg % (targetData.nObs))
+
+  if doRemoveRedundant:
+    targetSS = clean_up_expanded_suff_stats(targetData, curModel, targetSS,
+                            randstate=randstate, **kwargs)
+
   if targetSS.K < 2:
     msg = 'BIRTH: Didnt create >1 useful comp from Data of size %d'
     raise BirthProposalError(msg % (targetData.nObs))
   return targetSS
   
+def clean_up_expanded_suff_stats(targetData, curModel, targetSS,
+                                  randstate=np.random, **kwargs):
+  ''' Create expanded model combining original and brand-new comps
+        and try to identify brand-new comps that are redundant copies of   
+        originals and can be removed 
+  '''
+  import MergeMove
+  Korig = curModel.allocModel.K
+  origLP = curModel.calc_local_params(targetData)
+  expandSS = curModel.get_global_suff_stats(targetData, origLP) 
+  expandSS.insertComps(targetSS)
+  expandModel = curModel.copy()
+  expandModel.update_global_params(expandSS)
+
+  expandLP = expandModel.calc_local_params(targetData)
+  expandSS = expandModel.get_global_suff_stats(targetData, expandLP,
+                  doPrecompEntropy=True, doPrecompMergeEntropy=True)
+  Kexpand = expandSS.K
+
+  '''
+  mPairIDs = list()
+  for kA in range(Korig):
+    for kB in range(Korig, Kexpand):
+      mPairIDs.append( (kA, kB) )
+  '''
+  mPairIDs = MergeMove.preselect_all_merge_candidates(
+              expandModel, expandSS, randstate=np.random,
+              preselectroutine=kwargs['cleanuppreselectroutine'], 
+              mergePerLap=kwargs['cleanupNumMergeTrials']*(Kexpand-Korig),
+              compIDs=range(Korig, Kexpand))
+
+  xModel, xSS, xEv, MTracker = MergeMove.run_many_merge_moves(
+                               expandModel, targetData, expandSS,
+                               nMergeTrials=expandSS.K**2, 
+                               mPairIDs=mPairIDs,
+                               randstate=randstate, **kwargs)
+  # Now remove from targetSS all the comps whose merges were accepted
+  kBList = [kB for kA,kB in MTracker.acceptedOrigIDs]
+
+  if len(kBList) == targetSS.K:
+    msg = 'BIRTH terminated. all new comps redundant with originals.'
+    raise BirthProposalError(msg)
+  for kB in reversed(sorted(kBList)):
+    ktarget = kB - Korig
+    if ktarget >= 0:
+      targetSS.removeComp(ktarget)
+  return targetSS
+
 def clean_up_fresh_model(targetData, curModel, freshModel, 
                             randstate=np.random, **mergeKwArgs):
-  ''' Returns a "cleaned" fresh model,  
+  ''' Returns set of suff stats that summarize the fresh model
       1) verifies fresh model improves over default (single component) model
       2) perform merges within fresh, requiring improvement on target data
       3) perform merges within full (combined) model,
@@ -195,23 +252,19 @@ def clean_up_fresh_model(targetData, curModel, freshModel,
   if targetSS.K < 2:
     return targetSS # quit early, will reject
 
-  #targetLP = freshModel.calc_local_params(targetData)
-  #targetSS = freshModel.get_global_suff_stats(targetData, targetLP,
-  #                doPrecompEntropy=True)
-  #freshEvBound = freshModel.calc_evidence(SS=targetSS)
-
-  # Verify fresh model preferred over single comp model
-  # create K=1 model
+  # Create K=1 model
   singleModel = curModel.copy()
   singleSS = targetSS.getComp(0, doCollapseK1=False)
   singleModel.update_global_params(singleSS)
-  # compute tight bound
   singleLP = singleModel.calc_local_params(targetData)
   singleSS = singleModel.get_global_suff_stats(targetData, singleLP,
                   doPrecompEntropy=True)
   singleModel.update_global_params(singleSS) # make it reflect targetData
+
+  # Calculate evidence under K=1 model
   singleEvBound = singleModel.calc_evidence(SS=singleSS)
  
+  # Verify fresh model preferred over K=1 model
   improveEvBound = freshEvBound - singleEvBound
   if improveEvBound <= 0 or improveEvBound < 0.00001 * abs(singleEvBound):
     msg = "BIRTH terminated. Not better than single component on target data."
@@ -230,35 +283,8 @@ def clean_up_fresh_model(targetData, curModel, freshModel,
     msg += "\n  cur   | K=%3d | %.7e" % (curSS.K, curEvBound)
     raise BirthProposalError(msg)
 
-
-  """
-  # Step 3: create expanded model,
-  #          and try merging fresh comps with existing ones
-  origLP = curModel.calc_local_params(targetData)
-  expandSS = curModel.get_global_suff_stats(targetData, origLP) 
-  expandSS.insertComps(targetSS)
-  expandModel = curModel.copy()
-  expandModel.update_global_params(expandSS)
-
-  compList = list(curModel.obsModel.K + np.arange(targetSS.K))
-  expandLP = expandModel.calc_local_params(targetData)
-  expandSS = expandModel.get_global_suff_stats(targetData, expandLP,
-                  doPrecompEntropy=True, doPrecompMergeEntropy=True)
-  prevK = expandSS.K
-  expandModel, expandSS, Info = MergeMove.run_many_merge_moves(
-                               expandModel, targetData, expandSS,
-                               nMergeTrials=expandSS.K**2, 
-                               compList=compList,
-                               doExcludePairsInList=True,
-                               randstate=randstate, 
-                               **mergeKwArgs)
-
-  for k in reversed(sorted(Info['acceptedIDs'])):
-    ktarget = k - curModel.obsModel.K 
-    if ktarget >= 0:
-      targetSS.removeComp(ktarget)
-  """
   return targetSS
+
 
 ########################################################### Select birth comps
 ###########################################################

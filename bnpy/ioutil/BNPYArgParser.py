@@ -7,7 +7,8 @@ OnlineDataAlgSet = ['soVB', 'moVB']
 
 dataHelpStr = 'Name of dataset, defined by a python script in $BNPYDATADIR.'
 
-aModelChoices = ['MixModel', 'DPMixModel', 'AdmixModel', 'HDPModel', 'HDPPE']
+aModelChoices = ['MixModel', 'DPMixModel', 'AdmixModel', 'HDPModel',
+                   'HDPPE', 'HDPFullHard', 'HDPSoft2Hard']
 aModelChoices = set(aModelChoices)
 choiceStr = ' {' + ','.join([x for x in (aModelChoices)]) + '}'
 aModelHelpStr = 'Name of allocation model.' + choiceStr
@@ -23,8 +24,8 @@ algHelpStr = 'Name of learning algorithm.' + choiceStr
 MovesHelpStr = "String names of moves to perform to escape local optima. Options: {birth,merge}. To perform multiple moves, separate with commas like 'birth,merge' (no spaces)."
 KwhelpHelpStr = "Include --kwhelp to print our keyword argument help and exit"
 
-########################################################### User-facing functions
-###########################################################
+########################################################### User-facing 
+###########################################################  functions
 def parseRequiredArgs():
   ''' Returns parsed required arguments for bnpy, as a dict.
   '''
@@ -164,7 +165,7 @@ def _getConfigFileDict(ReqArgs):
              cfgroot + 'obsmodel.conf':'obsModelName', 
              cfgroot + 'learnalg.conf':'algName',
              cfgroot + 'init.conf':None,
-             cfgroot + 'output.conf':None}             
+             cfgroot + 'output.conf':None}
   OnlineDataConfigPath =  cfgroot + 'onlinedata.conf'
   if ReqArgs['algName'] in OnlineDataAlgSet:
     ConfigPaths[OnlineDataConfigPath] = None
@@ -268,8 +269,6 @@ def _addArgsToDictByConfigFile(argDict, kwargs, confFile, targetSecName=None):
     BigSecDict = dict(config.items(secName))
     secDict = dict([ (k,v) for (k,v) in kwargs.items() if k in BigSecDict])
     argDict[secName] = secDict
-
-
 
 ########################################################### Parse args for viz
 ###########################################################
