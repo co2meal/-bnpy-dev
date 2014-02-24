@@ -443,7 +443,7 @@ class WordsData(DataObj):
     respLP = np.vstack(respPerDoc)
     respLP /= respLP.sum(axis=1)[:,np.newaxis]
 
-    TrueParams = dict(K=K, topics=topics, topic_prior=topic_prior,
+    TrueParams = dict(K=K, topics=topics, beta=topic_prior,
                       word_variational=respLP, alphaPi=alphaLP)
     return WordsData(word_id, word_count, doc_range, V,
                     nDocTotal=nDocTotal, TrueParams=TrueParams)
