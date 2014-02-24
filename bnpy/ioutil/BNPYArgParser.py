@@ -13,7 +13,7 @@ aModelChoices = set(aModelChoices)
 choiceStr = ' {' + ','.join([x for x in (aModelChoices)]) + '}'
 aModelHelpStr = 'Name of allocation model.' + choiceStr
 
-oModelChoices = set(['Gauss', 'ZMGauss', 'Mult'])
+oModelChoices = set(['Gauss', 'ZMGauss', 'DiagGauss', 'Mult'])
 choiceStr = ' {' + ','.join([x for x in (oModelChoices)]) + '}'
 oModelHelpStr = 'Name of observation model.' + choiceStr
 

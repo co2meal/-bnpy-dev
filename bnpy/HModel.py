@@ -35,8 +35,10 @@ from allocmodel import *
 AllocConstr = {'MixModel':MixModel, 'DPMixModel':DPMixModel,
                 'AdmixModel':AdmixModel, 'HDPModel':HDPModel, 'HDPPE':HDPPE,
                 'HDPFullHard':HDPFullHard, 'HDPSoft2Hard':HDPSoft2Hard}
-ObsConstr = {'Gauss':GaussObsModel,'ZMGauss':ZMGaussObsModel,
-                'Mult':MultObsModel}
+ObsConstr = {'Gauss':GaussObsModel,
+             'ZMGauss':ZMGaussObsModel,
+             'DiagGauss':DiagGaussObsModel,
+             'Mult':MultObsModel}
                    
 class HModel( object ):
 
