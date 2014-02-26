@@ -13,7 +13,6 @@ However, we do *return* values that are F-ordered by default.
 '''
 import os
 import numpy as np
-import numexpr as ne
 from numpy.ctypeslib import ndpointer
 import ctypes
 

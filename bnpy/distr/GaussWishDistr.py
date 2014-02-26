@@ -138,7 +138,7 @@ class GaussWishDistr( Distr ):
   ######################################################### Basic properties
   ######################################################### 
   def get_log_norm_const( self ):
-    ''' p(mu,Lam) = MNIW( . | self)
+    ''' p(mu,Lam) = NormalWishart( . | self)
                    = 1/Z f(mu|Lam) g(Lam), where Z is const w.r.t mu,Lam
         This function returns 
             log( Z )= log \int f() g() d mu d Lam
@@ -148,18 +148,7 @@ class GaussWishDistr( Distr ):
     return 0.5*D*dF*LOGTWO + MVgammaln(0.5*dF, D) \
               + 0.5*dF*self.logdetW() \
               + 0.5*D*np.log(self.kappa)
-    
-  def get_natural_params( self ):
-    etatuple = self.dF, self.kappa, self.kappa*self.m, self.invW + self.kappa*np.outer(self.m, self.m)
-    return etatuple
-
-  def set_natural_params( self, etatuple ):
-    self.dF = etatuple[0]
-    self.kappa = etatuple[1]
-    self.m = etatuple[2]/self.kappa
-    self.invW = etatuple[3] - self.kappa*np.outer( self.m,self.m)
-    self.Cache = dict()
-    
+   
   def logWishNormConst(self):
     return WishartDistr.calc_log_norm_const(self.logdetW(), self.dF, self.D)
 
@@ -170,6 +159,17 @@ class GaussWishDistr( Distr ):
     return self.logWishNormConst() \
            - 0.5*(self.dF-self.D-1)*self.ElogdetLam() \
            + 0.5*self.D*self.dF
+
+  def get_natural_params( self ):
+    etatuple = self.dF, self.kappa, self.kappa*self.m, self.invW + self.kappa*np.outer(self.m, self.m)
+    return etatuple
+
+  def set_natural_params( self, etatuple ):
+    self.dF = etatuple[0]
+    self.kappa = etatuple[1]
+    self.m = etatuple[2]/self.kappa
+    self.invW = etatuple[3] - self.kappa*np.outer( self.m,self.m)
+    self.Cache = dict()
 
   ######################################################### Accessors
   #########################################################

@@ -70,7 +70,8 @@ class DirichletDistr(object):
 
     def get_entropy( self ):
         ''' Returns entropy of this distribution 
-          H[ p(x) ] = -1*\int p(x|theta) log p(x|theta) dx'''
+          H[ p(x) ] = -1*\int p(x|theta) log p(x|theta) dx
+        '''
         H = self.get_log_norm_const()
         H -= np.inner(self.lamvec - 1., self.Elogphi)
         return H

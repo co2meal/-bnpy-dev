@@ -26,17 +26,8 @@ import os
 import copy
 
 import init
-from obsmodel import *
-from allocmodel import *
-
-# Dictionary map
-#    turns string input at command line into desired bnpy objects
-# string --> bnpy object constructor
-AllocConstr = {'MixModel':MixModel, 'DPMixModel':DPMixModel,
-                'AdmixModel':AdmixModel, 'HDPModel':HDPModel, 'HDPPE':HDPPE,
-                'HDPFullHard':HDPFullHard, 'HDPSoft2Hard':HDPSoft2Hard}
-ObsConstr = {'Gauss':GaussObsModel,'ZMGauss':ZMGaussObsModel,
-                'Mult':MultObsModel}
+from allocmodel import AllocModelConstructorsByName
+from obsmodel import ObsModelConstructorsByName
                    
 class HModel( object ):
 
@@ -53,9 +44,11 @@ class HModel( object ):
   def CreateEntireModel(cls, inferType, allocModelName, obsModelName, allocPriorDict, obsPriorDict, Data):
     ''' Constructor assembles HModel and all its submodels in one call
     '''
-    allocModel = AllocConstr[allocModelName](inferType, allocPriorDict)
-    obsModel = ObsConstr[obsModelName].CreateWithPrior(
-                                         inferType, obsPriorDict, Data)
+    AllocConstr = AllocModelConstructorsByName[allocModelName]
+    allocModel = AllocConstr(inferType, allocPriorDict)
+
+    ObsConstr = ObsModelConstructorsByName[obsModelName]
+    obsModel = ObsConstr.CreateWithPrior(inferType, obsPriorDict, Data)
     return cls(allocModel, obsModel)
   
     

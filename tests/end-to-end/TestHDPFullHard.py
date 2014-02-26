@@ -17,6 +17,6 @@ class TestHDPFullHard(TestGenericModel.TestGenericModel):
     self.kwargs['lambda'] = 1
     self.kwargs['doMemoizeLocalParams'] = 1
     self.kwargs['doFullPassBeforeMstep'] = 1
-    self.kwargs['convergeSigFig'] = 25 # dont converge early!
+    self.kwargs['convergeSigFig'] = 15 # dont converge early!
 
     self.mustRetainLPAcrossLapsForGuarantees = True
