@@ -7,4 +7,4 @@ The :mod:`mix` module gathers point-estimate and variational approximations
 
 from MixModel import MixModel
 from DPMixModel import DPMixModel
-__all__ = ['MixModel', 'DPMixModel']
+#__all__ = ['MixModel', 'DPMixModel']
