@@ -19,7 +19,7 @@ import numpy as np
 
 from bnpy.allocmodel import AllocModel
 from bnpy.suffstats import SuffStatBag
-from bnpy.util import logsumexp, np2flatstr, flatstr2np
+from bnpy.util import NumericUtil
 from bnpy.util import gammaln, digamma, EPS
 
 class DPMixModel(AllocModel):
@@ -93,10 +93,7 @@ class DPMixModel(AllocModel):
     lpr += self.Elogw
     # Calculate exp in numerically stable manner (first subtract the max)
     #  perform this in-place so no new allocations occur
-    lpr -= np.max(lpr, axis=1)[:,np.newaxis]
-    np.exp(lpr, out=lpr)
-    # Normalize, so rows sum to one
-    lpr /= lpr.sum(axis=1)[:,np.newaxis]
+    NumericUtil.inplaceExpAndNormalizeRows(lpr)
     LP['resp'] = lpr
     assert np.allclose(lpr.sum(axis=1), 1)
     return LP

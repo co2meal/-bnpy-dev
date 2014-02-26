@@ -14,10 +14,11 @@ Library of efficient vectorized implementations of
 
 import os
 import ConfigParser
-import numpy as np
-from numpy.ctypeslib import ndpointer
 import ctypes
+import numpy as np
+import scipy.sparse
 import timeit
+
 import LibRlogR
 
 def readConfigFileIntoDict(confFile, targetSecName=None):
@@ -92,6 +93,24 @@ def inplaceExpAndNormalizeRows_numexpr(R):
   R -= np.max(R, axis=1)[:,np.newaxis]
   ne.evaluate("exp(R)", out=R)
   R /= R.sum(axis=1)[:,np.newaxis]
+
+###########################################################
+###########################################################
+def toHardAssignmentMatrix(P):
+  ''' Convert "soft" log probability matrix to hard assignments
+      
+      Example
+      ------
+      >>> logpMat = np.asarray( [[-10, -20], [-33, -21]] )
+      [ 1 0 
+        0 1 ]
+  '''
+  N, K = P.shape
+  colIDs = np.argmax(P, axis=1)
+  Phard = scipy.sparse.csr_matrix(
+              (np.ones(N), colIDs, np.arange(N+1)),
+              shape=(N, K), dtype=np.float64)
+  return Phard.toarray()
 
 ########################################################### standard RlogR
 ###########################################################
