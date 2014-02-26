@@ -34,7 +34,7 @@ class HardDPMixModel(DPMixModel):
     lpr = LP['E_log_soft_ev']
     lpr += self.Elogw
     LP['resp'] = NumericUtil.toHardAssignmentMatrix(lpr)
-    assert np.allclose(lpr.sum(axis=1), 1)
+    assert np.allclose(LP['resp'].sum(axis=1), 1)
     return LP
 
   ######################################################### Suff Stats

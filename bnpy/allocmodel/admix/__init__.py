@@ -5,4 +5,3 @@ The :mod:`admix` module gathers point-estimate and variational approximations
 
 from AdmixModel import AdmixModel
 from HDPModel import HDPModel
-#__all__ = ['HDPModel', 'AdmixModel']

@@ -10,9 +10,6 @@ from admix.HDPPE import HDPPE
 from admix.HDPFullHard import HDPFullHard
 from admix.HDPSoft2Hard import HDPSoft2Hard
 
-#__all__ = ['MixModel', 'DPMixModel', 'AdmixModel', 'HDPModel', 'HDPPE', 'HDPFullHard', 'HDPSoft2Hard']
-
-
 AllocModelConstructorsByName = { \
            'MixModel':MixModel,
            'DPMixModel':DPMixModel,
@@ -25,3 +22,7 @@ AllocModelConstructorsByName = { \
           }
 
 AllocModelNameSet = set(AllocModelConstructorsByName.keys())
+
+__all__ = list()
+for name in AllocModelConstructorsByName:
+  __all__.append(name)
