@@ -8,16 +8,14 @@ Contains information for accessing and updating
 * parameters for the prior distribution on these data-generating parameters
 '''
 import numpy as np
-import scipy.io
 import scipy.linalg
 import os
-import copy
 
 from ..distr import GaussDistr
 from ..distr import GaussWishDistr
 
 from ..util import LOGTWO, LOGPI, LOGTWOPI, EPS
-from ..util import np2flatstr, dotATA, dotATB, dotABT
+from ..util import dotATA, dotATB, dotABT
 from ..util import MVgammaln, MVdigamma
 
 from ObsModel import ObsModel

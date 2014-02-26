@@ -138,7 +138,7 @@ class GaussWishDistr( Distr ):
   ######################################################### Basic properties
   ######################################################### 
   def get_log_norm_const( self ):
-    ''' p(mu,Lam) = MNIW( . | self)
+    ''' p(mu,Lam) = NormalWishart( . | self)
                    = 1/Z f(mu|Lam) g(Lam), where Z is const w.r.t mu,Lam
         This function returns 
             log( Z )= log \int f() g() d mu d Lam

@@ -7,21 +7,19 @@ OnlineDataAlgSet = ['soVB', 'moVB']
 
 dataHelpStr = 'Name of dataset, defined by a python script in $BNPYDATADIR.'
 
-aModelChoices = ['MixModel', 'DPMixModel', 'AdmixModel', 'HDPModel',
-                   'HDPPE', 'HDPFullHard', 'HDPSoft2Hard']
-aModelChoices = set(aModelChoices)
-choiceStr = ' {' + ','.join([x for x in (aModelChoices)]) + '}'
+from bnpy.allocmodel import AllocModelNameSet
+choiceStr = ' {' + ','.join([x for x in (AllocModelNameSet)]) + '}'
 aModelHelpStr = 'Name of allocation model.' + choiceStr
 
-oModelChoices = set(['Gauss', 'ZMGauss', 'DiagGauss', 'Mult'])
-choiceStr = ' {' + ','.join([x for x in (oModelChoices)]) + '}'
+from bnpy.obsmodel import ObsModelNameSet
+choiceStr = ' {' + ','.join([x for x in (ObsModelNameSet)]) + '}'
 oModelHelpStr = 'Name of observation model.' + choiceStr
 
 algChoices = set(['EM','VB','moVB','soVB'])
 choiceStr = ' {' + ','.join([x for x in (algChoices)]) + '}'
 algHelpStr = 'Name of learning algorithm.' + choiceStr
 
-MovesHelpStr = "String names of moves to perform to escape local optima. Options: {birth,merge}. To perform multiple moves, separate with commas like 'birth,merge' (no spaces)."
+MovesHelpStr = "String names of moves to perform to escape local optima. Options: {birth,merge}. To perform several move types, separate with commas like 'birth,merge' (no spaces)."
 KwhelpHelpStr = "Include --kwhelp to print our keyword argument help and exit"
 
 ########################################################### User-facing 
@@ -38,9 +36,9 @@ def parseRequiredArgs():
   parser.add_argument('algName', 
                        type=str, help=algHelpStr)
   args, unk = parser.parse_known_args()
-  if args.allocModelName not in aModelChoices:
+  if args.allocModelName not in AllocModelNameSet:
     raise ValueError('Unrecognized allocModelName %s' % (args.allocModelName))
-  if args.obsModelName not in oModelChoices:
+  if args.obsModelName not in ObsModelNameSet:
     raise ValueError('Unrecognized obsModelName %s' % (args.obsModelName))
   if args.algName not in algChoices:
     raise ValueError('Unrecognized learning algName %s' % (args.algName))
