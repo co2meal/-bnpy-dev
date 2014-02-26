@@ -37,7 +37,7 @@ def plotExampleBarsDocs(Data, docIDsToPlot=None, nDocToPlot=9, doShowNow=True):
       pylab.show()
 
 def plotBarsFromHModel(hmodel, Data=None, doShowNow=True, figH=None,
-                       compsToHighlight=None, sortBySize=False, width=12, height=3):
+                       compsToHighlight=None, sortBySize=False, width=12, height=3, Ktop=None):
     if Data is None:
         width = width/2
     if figH is None:
@@ -52,7 +52,7 @@ def plotBarsFromHModel(hmodel, Data=None, doShowNow=True, figH=None,
         learned_tw[k,:] = lamvec / lamvec.sum()
     if sortBySize:
         sortIDs = np.argsort(hmodel.allocModel.Ebeta[:-1])[::-1]
-        print hmodel.allocModel.Ebeta[sortIDs]     
+        sortIDs = sortIDs[:Ktop]
         learned_tw = learned_tw[sortIDs] 
     if Data is not None and hasattr(Data, "true_tw"):
         # Plot the true parameters and learned parameters
