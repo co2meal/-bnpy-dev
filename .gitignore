@@ -13,6 +13,8 @@ logs/
 local/
 results/
 profile/
+.ipynb_checkpoints/
+
 # ======================================================  EXCLUDE FILE PATTERNS
 # Exclude script files
 *.sh
