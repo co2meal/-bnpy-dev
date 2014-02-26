@@ -29,8 +29,13 @@ decorate_for_profiling.main(bnpyroot)
 print '[DONE]'
 
 # Run line-by-line profiler
-ProfileCMD = "python line_profiler/kernprof.py --line-by-line %s %s" \
-        % (os.path.join(bnpyroot,'Run.py'), ' '.join(sys.argv[1:]))
+if 'PYTHONEXE' in os.environ:
+  pycmdstr = os.environ['PYTHONEXE']
+else:
+  pycmdstr = 'python'
+
+ProfileCMD = "%s line_profiler/kernprof.py --line-by-line %s %s" \
+        % (pycmdstr, os.path.join(bnpyroot,'Run.py'), ' '.join(sys.argv[1:]))
 print "Running script with profiling enabled ...",
 subprocess.call(ProfileCMD, shell=True)
 print '[DONE]'
