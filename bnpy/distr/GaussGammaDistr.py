@@ -25,14 +25,30 @@ class GaussGammaDistr( Distr ):
   ######################################################### Constructor  
   #########################################################
 
-  def __init__(self, m=None, kappa=None, a=None, b=None, **kwargs):
-    # UNPACK
-    self.m = np.squeeze(m)
-    self.kappa = float(np.squeeze(kappa))
+  def __init__(self, a=None, b=None, m=None, kappa=None, **kwargs):
+    ''' Create new GaussGammaDistr object, with specified parameter values
+
+        Args
+        -------
+        a : numpy 1D array_like, length D
+        b : numpy 1D array_like, length D
+        m : numpy 1D array_like, length D
+        kappa : float
+
+        Returns 
+        -------
+        D : bnpy GaussGammaDistr object, with provided parameters
+    '''
+    # Unpack
     self.a = np.squeeze(np.asarray(a))
     self.b = np.squeeze(np.asarray(b))
-    # Dimension
+    self.m = np.squeeze(np.asarray(m))
+    self.kappa = float(kappa)
+
+    # Dimension check
     assert self.b.ndim <= 1
+    assert self.m.shape == self.b.shape
+    assert self.a.shape == self.m.shape
     self.D = self.b.size
     self.Cache = dict()
     
@@ -43,31 +59,35 @@ class GaussGammaDistr( Distr ):
         Provided argDict specifies prior's expected mean and variance.
     '''
     D = Data.dim
-    m0 = argDict['m0']
-    kappa = argDict['kappa']
     a0 = argDict['a0']
     b0 = argDict['b0']
+    m0 = argDict['m0']
+    kappa = argDict['kappa']
     m = m0 * np.ones(D)
     a = a0 * np.ones(D)
     b = b0 * np.ones(D)
-    return cls(m=m, kappa=kappa, a=a, b=b)
+    return cls(a=a, b=b, m=m, kappa=kappa)
     
 
   ######################################################### Log Cond. Prob.  
   #########################################################   E-step
 
   def E_log_pdf( self, Data ):
-    ''' Calculate E[ log p( x_n | theta ) ] under q(theta) <- this distr
+    ''' Calculate E[ log p( x_n | theta ) ] for each x_n in Data.X
+        
+        Args
+        -------
+        Data : bnpy XData object
+                with attribute Data.X, numpy 2D array of size nObs x D
+
+        Returns
+        -------
+        logp : numpy 1D array, length nObs
     '''
     logPDFConst = -0.5 * self.D * LOGTWOPI + 0.5 * np.sum(self.E_logLam())
     logPDFData = -0.5 * self.E_distMahalanobis(Data.X)
     return logPDFConst + logPDFData
-    """
-    logp = 0.5*self.ElogdetLam() \
-          -0.5*self.D*LOGTWOPI\
-          -0.5*self.E_weightedSOS(Data.X)
-    return logp
-    """    
+
 
   def E_distMahalanobis(self, X):
     ''' Calculate E[ (x_n - \mu)^T diag(\lambda) (x_n - mu) ]
@@ -75,11 +95,13 @@ class GaussGammaDistr( Distr ):
 
         Args
         -------
-        X : nObs x D matrix
+        X : numpy array, nObs x D
 
         Returns
         -------
-        dist : nObs-length vector, entry n = distance(X[n])
+        dist : numpy 1D array, length nObs
+                dist[n] = E[ (X[n] - \mu)^T diag(\lambda) (X[n] - mu) ]
+                        = expected mahalanobis distance to observation n
     '''
     Elambda = self.a / self.b
     if X.ndim == 2:
@@ -89,19 +111,24 @@ class GaussGammaDistr( Distr ):
     weighted_SOS += self.D/self.kappa
     return weighted_SOS
 
-  def E_weightedSOS(self, X):
-    '''Calculate d(X)[n] = E[(x_n - m_k)T * lambda * (x_n -mk)]
-    '''           
-    dX = (X-self.m) # NxD
-    weighted_SOS = np.sum(np.square(dX)/self.b, axis=1)*self.a
-    weighted_SOS += self.D/self.kappa
-    return weighted_SOS
-
   ######################################################### Param updates 
   ######################################################### (M step)
   def get_post_distr( self, SS, k=None, kB=None, **kwargs):
-    ''' Create new Distr object with posterior params
-        See Bishop equations 10.59 - 10.63 (modified for Gaussian-Gamma)
+    ''' Create new GaussGammaDistr as posterior given sufficient stats
+           for a particular component (or components)
+
+        Args
+        ------
+        SS : bnpy SuffStatBag, with K components
+        k  : int specifying component of SS to use.
+              Range {0, 1, ... K-1}.
+        kB : [optional] int specifying additional component of SS to use
+              if provided, k-th and kB-th entry of SS are *merged* additively
+              Range {0, 1, ... K-1}. 
+
+        Returns
+        -------
+        D : bnpy.distr.GaussGammaDistr, with updated posterior parameters
     '''
     if k is None:
       EN = SS.N
@@ -119,10 +146,32 @@ class GaussGammaDistr( Distr ):
     m = (self.kappa * self.m + Ex) / kappa
     a = self.a + 0.5*EN
     b = self.b + 0.5*(Exx + self.kappa*np.square(self.m) - kappa*np.square(m))
-    return GaussGammaDistr(m, kappa, a, b)
+    return GaussGammaDistr(a, b, m, kappa)
      
+  def post_update_soVB( self, rho, refDistr, **kwargs):
+    ''' In-place update of this GaussGammaDistr's internal parameters,
+          via the stochastic online variational algorithm.
+  
+        Updates via interpolation between self and reference.
+          self = self * (1-rho) + refDistr * rho
 
-  ######################################################### Basic properties
+        Args
+        -----
+        rho : float, learning rate to use for the update
+        refDistr : bnpy GaussGammaDistr, reference distribution for update
+
+        Returns
+        -------
+        None. 
+    '''
+    etaCUR = self.get_natural_params()
+    etaSTAR = refDistr.get_natural_params()
+    etaNEW = list(etaCUR)
+    for i in xrange(len(etaCUR)):
+      etaNEW[i] = rho*etaSTAR[i] + (1-rho)*etaCUR[i]
+    self.set_natural_params(tuple(etaNEW))
+
+  ######################################################### Required accessors
   ######################################################### 
   @classmethod
   def calc_log_norm_const(cls, a, b, m, kappa):
@@ -131,10 +180,16 @@ class GaussGammaDistr( Distr ):
     return logNormConstNormal + logNormConstGamma
   
   def get_log_norm_const(self):
-    ''' p(mu,Lam) = NormalGamma( . | self)
-                   = 1/Z f(mu|Lam) g(Lam), where Z is const w.r.t mu,Lam
-        This function returns 
-            log( Z )= log \int f() g() d mu d Lam
+    ''' Calculate log normalization constant (aka log partition function)
+          for this Gauss-Gamma distribution.
+
+        p(mu,Lam) = NormalGamma( mu, Lam | a, b, m, kappa)
+                  = 1/Z f(mu|Lam) g(Lam), where Z is const w.r.t mu,Lam
+        Normalization constant = Z = \int f() g() dmu dLam
+
+        Returns
+        --------
+        logZ : float
     '''
     D = self.D
     a = self.a
@@ -144,7 +199,16 @@ class GaussGammaDistr( Distr ):
     return logNormConstNormal + logNormConstGamma
     
   def E_log_pdf_Phi(self, Distr, doNormConst=True):
-    ''' Evaluate expectation of log PDF for companion distribution
+    ''' Evaluate expectation of log PDF for given GaussGammaDistr
+
+        Args
+        -------
+        Distr : bnpy GaussGammaDistr
+        doNormConst : boolean, if True then Distr's log norm const is included
+
+        Returns
+        -------
+        logPDF : float
     '''
     assert Distr.D == self.D
     selfELam = self.a / self.b
@@ -158,33 +222,42 @@ class GaussGammaDistr( Distr ):
   def get_entropy(self):
     ''' Calculate entropy of this Gauss-Gamma disribution,
     '''
-    entropyGamma = self.entropyGamma()
-    
-
-  def entropyGamma(self):
-    '''Calculate entropy of this Gamma distribution,
-         as defined in Bishop PRML B.31
+    return -1.0 * self.E_log_pdf_Phi(self)
+     
+  def get_natural_params(self):
     '''
-    a = self.a
-    b = self.b
-    return np.sum(gammaln(a)) - np.inner(a-1.0, digamma(a)) \
-                  + np.sum(a) - np.sum(np.log(b))
-  """
-    return self.D*gammaln(self.a) \
-           - self.D*(self.a-1)*digamma(self.a) + self.D*self.a \
-           - np.sum(np.log(self.b))
-  """        
-  ######################################################### Accessors
+    '''
+    t1 = self.a
+    t2 = self.b + 0.5 * self.kappa * np.square(self.m)
+    t3 = self.kappa * self.m    
+    t4 = self.kappa
+    etatuple = t1, t2, t3, t4
+    return etatuple
+
+  def set_natural_params(self, etatuple):
+    self.a = etatuple[0]
+    self.kappa = etatuple[3]
+    self.m = etatuple[2]/self.kappa
+    self.b = etatuple[1] - 0.5 * self.kappa * np.square(self.m)
+    self.Cache = dict()
+
+  ######################################################### Custom Accessors
   #########################################################
   def E_logLam(self):
     ''' E[ \log \lambda_d ]
-        Returns vector, length D
+        
+        Returns
+        -------
+        1D array, length D
     '''
     return digamma(self.a) - np.log(self.b)
 
   def E_sumlogLam(self):
     ''' \sum_d E[ \log \lambda_d ]
-        Returns scalar
+    
+        Returns
+        -------
+        float, scalar
     '''
     return np.sum(digamma(self.a) - np.log(self.b))
 
@@ -206,23 +279,26 @@ class GaussGammaDistr( Distr ):
     '''
     return (self.a / self.b) * np.square(self.m) + 1./self.kappa
 
-  """
-  def ElogdetLam(self):
-    try:
-      return self.Cache['ElogdetLam']
-    except KeyError:
-      self.Cache['ElogdetLam'] = self.D*digamma(self.a) \
-                                 - np.sum(np.log(self.b))
-      return self.Cache['ElogdetLam']
-  """
-
   ############################################################## I/O 
   ##############################################################
   def to_dict(self):
+    ''' Convert attributes of this GaussGammaDistr into a dict
+          useful for long-term storage to disk, pickling, etc.
+
+        Returns
+        -------
+        Dict with entries for each named parameter: a, b, m, kappa
+    '''
     return dict(name=self.__class__.__name__, \
                  m=self.m, kappa=self.kappa, a=self.a, b=self.b)
     
   def from_dict(self, Dict):
+    ''' Internally set this GaussGammaDistr's parameters via provided dict
+
+        Returns
+        --------
+        None.  This Distr's parameters set to new values.
+    '''
     self.m = Dict['m']
     self.a = Dict['a']
     self.b = Dict['b']
@@ -231,10 +307,12 @@ class GaussGammaDistr( Distr ):
     self.Cache = dict()
 
   def to_string(self, offset="  "):
-    Estddev = self.a / self.b[:2]
-    np.set_printoptions(precision=3, suppress=False)
-    msg  = offset + 'Expected Mean    ' + str(self.m[:2] ) + '\n'
-    msg += offset + 'Expected Std Dev ' + str(Estddev) + '\n'
+    Elam = self.a[:2] / self.b[:2]
     if self.D > 2:
-      msg += '...'
+      sfx = '...\n'
+    else:
+      sfx = '\n'
+    np.set_printoptions(precision=3, suppress=False)
+    msg  = offset + 'E[ mean \mu ]         ' + str(self.m[:2]) + sfx
+    msg += offset + 'E[ precision \lambda ]' + str(Elam) + sfx
     return msg
