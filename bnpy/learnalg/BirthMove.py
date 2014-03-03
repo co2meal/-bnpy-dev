@@ -85,7 +85,7 @@ def subsample_data(DataObj, LP, targetCompID, targetProbThr=0.1,
 ###########################################################
 ###########################################################
 def run_birth_move(curModel, targetData, SS, randstate=np.random, 
-                   doVizBirth=False, ktarget=None, **kwargs):
+                    ktarget=None, **kwargs):
   ''' Create new model that expands curModel with several new components
 
       Args
@@ -94,7 +94,6 @@ def run_birth_move(curModel, targetData, SS, randstate=np.random,
       targetData : bnpy DataObj
       SS : bnpy SuffStatBag
       randstate : numpy random number generator
-      doVizBirth : boolean
       ktarget : int id of target component (for visualization only)
       
       Returns
@@ -103,8 +102,6 @@ def run_birth_move(curModel, targetData, SS, randstate=np.random,
       SS : bnpy SuffStatBag
       MoveInfo : dict, with fields
   '''
-  kwargs['doVizBirth'] = doVizBirth
-
   try:
     if SS is None:
       raise BirthProposalError("SS must be a valid SuffStatBag, not None.")
@@ -139,7 +136,8 @@ def run_birth_move(curModel, targetData, SS, randstate=np.random,
                     modifiedCompIDs=modifiedCompIDs,
                     birthCompIDs=birthCompIDs,
                     extraSS=freshSS)
-    if doVizBirth:
+
+    if 'doVizBirth' in kwargs and kwargs['doVizBirth']:
       viz_birth_proposal_2D(curModel, newModel, ktarget, birthCompIDs)
 
     return newModel, newSS, MoveInfo

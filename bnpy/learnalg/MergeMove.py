@@ -128,7 +128,7 @@ def _reindexCandidatePairsAfterAcceptedMerge(mPairIDs, kA, kB):
 def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
                    kA=None, kB=None, MTracker=None, MSelector=None,
                    mergename='marglik', randstate=np.random.RandomState(),
-                   doUpdateAllComps=1, savedir=None, doVerbose=False, 
+                   doUpdateAllComps=0, savedir=None, doVerbose=False, 
                    doWriteLog=False, **kwargs):
   ''' Creates candidate model with two components merged,
       and returns either candidate or current model,
