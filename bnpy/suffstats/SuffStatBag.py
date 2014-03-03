@@ -23,7 +23,10 @@ class SuffStatBag(object):
 
   def setField(self, key, value, dims=None):
     self._Fields.setField(key, value, dims=dims)
-  
+
+  def setELBOFieldsToZero(self):
+    self._ELBOTerms.setAllFieldsToZero()
+
   def setMergeFieldsToZero(self):
     self._MergeTerms.setAllFieldsToZero()
 

@@ -119,7 +119,8 @@ class LearnAlg(object):
     mLPkey = 'doMemoizeLocalParams'
     if not isIncreasing and not isWithinTHR:
       serious = True
-      if self.hasMove('birth') and len(self.BirthCompIDs) > 0:
+      if self.hasMove('birth') \
+         and (len(self.BirthCompIDs) > 0 or len(self.ModifiedCompIDs) > 0):
         warnMsg = 'ev decreased during a birth'
         warnMsg += ' (so monotonic increase not guaranteed)\n'
         serious = False

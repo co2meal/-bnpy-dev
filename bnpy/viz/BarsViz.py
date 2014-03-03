@@ -37,7 +37,8 @@ def plotExampleBarsDocs(Data, docIDsToPlot=None, nDocToPlot=9, doShowNow=True):
       pylab.show()
 
 def plotBarsFromHModel(hmodel, Data=None, doShowNow=True, figH=None,
-                       compsToHighlight=None, sortBySize=False, width=12, height=3, Ktop=None):
+                       compsToHighlight=None, sortBySize=False,
+                       width=12, height=3, Ktop=None):
     if Data is None:
         width = width/2
     if figH is None:

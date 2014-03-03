@@ -128,7 +128,7 @@ def _reindexCandidatePairsAfterAcceptedMerge(mPairIDs, kA, kB):
 def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
                    kA=None, kB=None, MTracker=None, MSelector=None,
                    mergename='marglik', randstate=np.random.RandomState(),
-                   doUpdateAllComps=1, savedir=None, doVerbose=False, 
+                   doUpdateAllComps=0, savedir=None, doVerbose=False, 
                    doWriteLog=False, **kwargs):
   ''' Creates candidate model with two components merged,
       and returns either candidate or current model,
@@ -205,9 +205,14 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
 
   evDiff = propEv - curEv
 
-  if (propEv > 0 and curEv < 0) or abs(propEv-curEv) > 0.1*abs(curEv):
+  
+  if (propEv > 0 and curEv < 0) and hasattr(Data, 'nDoc'):
+    print 'CRAP! ---------------------------------------!!!!@@@@@@$$$$$'
+    print '    propEv % .5e' % (propEv)
+    print '    curEv  % .5e' % (curEv)
     MoveInfo = dict(didAccept=0, kA=kA, kB=kB, msg="CRAP. bad proposed evidence.")
     return curModel, SS, curEv, MoveInfo
+  
   if propEv > curEv:
     MSelector.reindexAfterMerge(kA, kB)
     msg = "merge %3d & %3d | ev +%.3e ****" % (kA, kB, propEv - curEv)

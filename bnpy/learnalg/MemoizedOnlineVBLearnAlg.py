@@ -4,14 +4,16 @@ MemoizedOnlineVBLearnAlg.py
 Implementation of Memoized Online VB (moVB) learn alg for bnpy models
 '''
 import numpy as np
-from LearnAlg import LearnAlg
-from bnpy.util import isEvenlyDivisibleFloat
-import logging
-from collections import defaultdict
-import BirthMove
-import MergeMove
 import joblib
 import os
+import logging
+from collections import defaultdict
+
+from bnpy.util import isEvenlyDivisibleFloat
+import BirthMove
+import MergeMove
+from LearnAlg import LearnAlg
+from bnpy.suffstats import SuffStatBag
 
 Log = logging.getLogger('bnpy')
 
@@ -29,10 +31,10 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       self.MergeLog = list()
     if self.hasMove('birth'):
       # Track subsampled data aggregated across batches
-      self.targetDataList = list()
+      #self.targetDataList = list()
       # Track the components freshly added in current lap
       self.BirthCompIDs = list()
-      self.BirthInfoCurLap = list()
+      self.ModifiedCompIDs = list()
       # Track the number of laps since birth last attempted
       #  at each component, to encourage trying diversity
       self.LapsSinceLastBirth = defaultdict(int)
@@ -69,6 +71,11 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     self.memoLPkeys = hmodel.allocModel.get_keys_for_memoized_local_params()
     mPairIDs = None
 
+    BirthPlans = list()
+    BirthResults = None
+    batchBirthResults = None
+    prevBirthResults = None
+
     SS = None
     isConverged = False
     prevBound = -np.inf
@@ -93,9 +100,32 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
           hmodel.update_global_params(SS)
       
       # Birth moves!
-      if self.hasMove('birth') and iterid > 0:
-        hmodel, SS = self.run_birth_move(hmodel, Dchunk, SS, lapFrac)
+      if self.hasMove('birth') and self.do_birth_at_lap(lapFrac - 1.0):
+        if self.isFirstBatch(lapFrac):
+          prevBirthResults = BirthResults
 
+      if self.hasMove('birth') and self.do_birth_at_lap(lapFrac):
+        birthParams = self.algParams['birth']
+        if self.isFirstBatch(lapFrac):
+          batchBirthResults = list()
+          hmodel, SS, BirthResults = self.birth_create_new_comps(
+                                            hmodel, SS, BirthPlans)
+        if lapFrac < birthParams['batchBirthLapLimit'] \
+           and lapFrac - np.floor(lapFrac) <= birthParams['batchBirthFrac'] \
+           and lapFrac - np.floor(lapFrac) > 1e-7 :
+          hmodel, SS, BirthRes = self.birth_create_new_comps(
+                                            hmodel, SS, Data=Dchunk)
+          BirthResults.extend(BirthRes)
+        if not self.isFirstBatch(lapFrac):
+          batchBirthResults.extend(BirthRes)
+        self.BirthCompIDs = self.birth_get_all_new_comps(BirthResults)
+        self.ModifiedCompIDs = self.birth_get_all_modified_comps(BirthResults)
+
+      else:
+        self.BirthCompIDs = list() # no new components
+
+
+      # Select which components to merge
       if self.hasMove('merge') and not self.algParams['merge']['doAllPairs']:
         if self.isFirstBatch(lapFrac):
           if self.hasMove('birth'):
@@ -108,14 +138,22 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
       # E step
       if batchID in self.LPmemory:
-        oldLPchunk = self.load_batch_local_params_from_memory(batchID)
-        LPchunk = hmodel.calc_local_params(Dchunk, oldLPchunk, **self.algParamsLP)
+        oldLPchunk = self.load_batch_local_params_from_memory(
+                                           batchID, prevBirthResults)
+        LPchunk = hmodel.calc_local_params(Dchunk, oldLPchunk,
+                                           **self.algParamsLP)
       else:
         LPchunk = hmodel.calc_local_params(Dchunk, **self.algParamsLP)
 
-      # Collection of target data for birth
-      if self.hasMove('birth'):
-        self.subsample_data_for_birth(Dchunk, LPchunk, lapFrac)
+      # Collect target data for birth
+      if self.hasMove('birth') and self.do_birth_at_lap(lapFrac+1.0):
+        if self.isFirstBatch(lapFrac):
+          BirthPlans = self.birth_select_targets_for_next_lap(
+                                hmodel, SS, BirthResults)
+        BirthPlans = self.birth_collect_target_subsample(
+                                Dchunk, LPchunk, BirthPlans)
+      else:
+        BirthPlans = list()
 
       # Suff Stat step
       if batchID in self.SSmemory:
@@ -127,7 +165,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
                        doPrecompMergeEntropy=self.hasMove('merge'),
                        mPairIDs=mPairIDs,
                        )
-      
+
       if SS is None:
         SS = SSchunk.copy()
       else:
@@ -142,10 +180,10 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       # Handle removing "extra mass" of fresh components
       #  to make SS have size exactly consistent with entire dataset
       if self.hasMove('birth') and self.isLastBatch(lapFrac):
-        hmodel, SS = self.onBirthLastBatchRemoveExtraMass(hmodel, SS)
+        hmodel, SS = self.birth_remove_extra_mass(hmodel, SS, BirthResults)
 
       # ELBO calc
-      self.verify_suff_stats(Dchunk, SS, lapFrac)
+      #self.verify_suff_stats(Dchunk, SS, lapFrac)
       evBound = hmodel.calc_evidence(SS=SS)
 
       # Merge move!      
@@ -190,7 +228,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       if self.isLastBatch(lap):
         joblib.dump(SS, SSfile)
     if hasattr(Dchunk, 'nDocTotal') and Dchunk.nDocTotal < 4000:
-      if self.hasMove('birth') and len(self.BirthCompIDs) > 0:
+      if self.hasMove('birth') and self.do_birth_at_lap(lap):
         if self.algParams['birth']['earlyLap'] > 0:
           pass
         elif lap < np.ceil(lap):
@@ -219,7 +257,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     # Successful merges from the previous lap must be "replayed"
     #  on the memoized suff stats
     if self.hasMove('birth'):
-      Kextra = len(self.BirthCompIDs)
+      Kextra = K - SSchunk.K
       if Kextra > 0:
         SSchunk.insertEmptyComps(Kextra)      
     if self.hasMove('merge'): 
@@ -228,17 +266,17 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         kB = MInfo['kB']
         if kA < SSchunk.K and kB < SSchunk.K:
           SSchunk.mergeComps(kA, kB)
-    if self.hasMove('birth') and self.algParams['birth']['earlyLap'] > 0:
-      Kextra = K - SSchunk.K
-      if Kextra > 0: # early births
-        SSchunk.insertEmptyComps(Kextra)
     if self.hasMove('merge'): 
       if SSchunk.hasMergeTerms():
         SSchunk.setMergeFieldsToZero()
+    if self.hasMove('birth') and self.algParams['birth']['batchBirthFrac'] > 0:   
+      Kextra = K - SSchunk.K
+      if Kextra > 0:
+        SSchunk.insertEmptyComps(Kextra)      
     assert SSchunk.K == K
     return SSchunk  
 
-  def load_batch_local_params_from_memory(self, batchID):
+  def load_batch_local_params_from_memory(self, batchID, BirthResults):
     ''' Load local parameter dict stored in memory for provided batchID
         Ensures "fast-forward" so that all recent merges/births
           are accounted for in the returned LP
@@ -248,13 +286,19 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     '''
     LPchunk = self.LPmemory[batchID]
     if self.hasMove('birth') and LPchunk is not None:
-      if len(self.BirthCompIDs) > 0:
-        LPchunk = None # Forget the old LPchunk!
+      if BirthResults is not None and len(BirthResults) > 0:
+        # new components have been "born", so discard old results
+        #   since they no longer matter
+        LPchunk = None
+
     if self.hasMove('merge') and LPchunk is not None:
       for MInfo in self.MergeLog:
         kA = MInfo['kA']
         kB = MInfo['kB']
         for key in self.memoLPkeys:
+          if kB >= LPchunk[key].shape[1]:
+            # Birth occured in previous lap, after this batch was visited.
+            return None
           LPchunk[key][:,kA] = LPchunk[key][:,kA] + LPchunk[key][:,kB]
           LPchunk[key] = np.delete(LPchunk[key], kB, axis=1)
     return LPchunk
@@ -283,128 +327,47 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
   ######################################################### Birth moves!
   #########################################################
-  def run_birth_move(self, hmodel, Dchunk, SS, lapFrac):
-    ''' Run birth moves on hmodel.
-        Internally handles 
-          * creating new components, 
-          * suff stat bookkeeping, etc.
-
-        On first batch of data in current lap, 
-          * new components created, using data in self.targetDataList
-          * target components for births on next lap selected
-
-        On last batch in current lap,
-          * suff stats adjusted to remove 'extra mass'
+  def birth_create_new_comps(self, hmodel, SS, BirthPlans=list(), Data=None):
+    ''' Create new components 
 
         Returns
         -------
         hmodel : bnpy HModel, with (possibly) new components
         SS : bnpy SuffStatBag, with (possibly) new components
+        BirthResults : list of dictionaries, one entry per birth move
+                        each entry has fields
+                        * TODO
     '''
-    # Determine whether to run birth now (at current lap)
-    if not self.do_birth_at_lap(lapFrac):
-      if self.isFirstBatch(lapFrac):
-        Log.info("BIRTH skipped. Exceeded target fraction of total laps.")
-        self.BirthCompIDs = list()
-        self.BirthInfoCurLap = list()
-      return hmodel, SS
-
-    if self.isFirstBatch(lapFrac):
-      self.BirthCompIDs = list()
-      self.BirthInfoCurLap = list()
-      hmodel, SS = self.onBirthFirstBatchCreateNewComps(hmodel, SS)
-      # Prepare for the next lap birth moves,
-      #   by choosing the next target components
-      if self.do_birth_at_lap(lapFrac + 1):
-        self.targetDataList = self.onBirthFirstBatchPrepForNextLapBirth(SS)
+    if Data is not None:
+      if hasattr(Data, 'nDoc'):
+        targetData = Data.get_random_sample(
+                                self.algParams['birth']['maxTargetSize'],
+                                randstate=self.PRNG)
       else:
-        self.targetDataList = list()
+        targetData = Data.get_random_sample(
+                                self.algParams['birth']['maxTargetObs'],
+                                randstate=self.PRNG)
+      Plan = dict(Data=targetData, ktarget=-1)
+      BirthPlans = [Plan]
 
-    elif lapFrac <= self.algParams['birth']['earlyLap']:
-      hmodel, SS = self.onBirthEarlyBatchCreateNewComps(hmodel, SS, Dchunk)
-
-    return hmodel, SS
-
-  def onBirthEarlyBatchCreateNewComps(self, hmodel, SS, Dchunk):
-    ''' Returns hmodel, SS with (potentially) several new components
-
-       Internal Updates
-       ----------------
-         BirthInfoCurLap : list of MoveInfo from each birth attempted
-         BirthCompIDs : list of all comp IDs added from all births
-         LapsSinceLastBirth : dict, compID -> num. of laps since last birth
-
-       Returns
-       -------
-         hmodel : 
-         SS : bnpy suff stats, with same number of components as hmodel
-              if new components were added, SS will have extra mass
-              because it contains 2 interpretations of targetData:
-               1) mostly assigned to single component ktarget
-               2) assigned to brand-new fresh components 
-    '''
-    if SS is None:
-      return hmodel, SS
-
-    Dmax = self.algParams['birth']['maxTargetSize']
-    docMask = self.PRNG.permutation(Dchunk.nDoc)[:Dmax]
-    TargetData = Dchunk.select_subset_by_mask(docMask=docMask,
-                                                doTrackFullSize=False)
-    assert TargetData.nDoc <= Dmax
-
-    if TargetData.nDoc < self.algParams['birth']['minTargetSize']:
-      msg = "target data too small"
-    else:
-      hmodel, SS, MoveInfo = BirthMove.run_birth_move(
-                 hmodel, TargetData, SS, randstate=self.PRNG, 
-                 **self.algParams['birth'])
-      msg = MoveInfo['msg']
-      if MoveInfo['didAddNew']:
-        self.BirthInfoCurLap.append(MoveInfo)
-        for kk in MoveInfo['birthCompIDs']:
-          self.LapsSinceLastBirth[kk] = -1
-        self.BirthCompIDs.extend(MoveInfo['birthCompIDs'])
-
-    self.print_msg( "EARLY %s" % (msg) )
-    return hmodel, SS
-
-  def onBirthFirstBatchCreateNewComps(self, hmodel, SS):
-    ''' Returns hmodel, SS with (potentially) several new components
-
-       Internal Updates
-       ----------------
-         BirthInfoCurLap : list of MoveInfo from each birth attempted
-         BirthCompIDs : list of all comp IDs added from all births
-         LapsSinceLastBirth : dict, compID -> num. of laps since last birth
-
-       Returns
-       -------
-         hmodel : 
-         SS : bnpy suff stats, with same number of components as hmodel
-              if new components were added, SS will have extra mass
-              because it contains 2 interpretations of targetData:
-               1) mostly assigned to single component ktarget
-               2) assigned to brand-new fresh components 
-    '''
-    # Run birth moves on target data!
-    nMoves = len(self.targetDataList)
-    for moveID, tInfoDict in enumerate(self.targetDataList):
+    nMoves = len(BirthPlans)
+    BirthResults = list()
+    for moveID, Plan in enumerate(BirthPlans):
       # Unpack data for current move
-      ktarget = tInfoDict['ktarget']
-      targetData = tInfoDict['Data']
-      if targetData is not None:
-        pass
-        #self.print_msg("------------------ Target Dataset")
-        #self.print_msg(targetData.get_text_summary())
+      ktarget = Plan['ktarget']
+      targetData = Plan['Data']
+
       if ktarget is None or targetData is None:
-        msg = tInfoDict['msg']
-      # Verify targetData large enough that birth would be productive
+        msg = Plan['msg']
+
       elif targetData.nObs < self.algParams['birth']['minTargetObs']:
+        # Verify targetData large enough that birth would be productive
         msg = "BIRTH skipped. Target data too small (size %d)"
         msg = msg % (targetData.nObs)
-      elif hasattr(targetData, 'nDoc') and targetData.nDoc < self.algParams['birth']['minTargetSize']:
-          msg = "BIRTH skipped. Target data too small (size %d)"
-          msg = msg % (targetData.nDoc)
+      elif hasattr(targetData, 'nDoc') \
+           and targetData.nDoc < self.algParams['birth']['minTargetSize']:
+        msg = "BIRTH skipped. Target data too small (size %d)"
+        msg = msg % (targetData.nDoc)
 
       else:
         hmodel, SS, MoveInfo = BirthMove.run_birth_move(
@@ -412,119 +375,162 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
                  ktarget=ktarget, **self.algParams['birth'])
         msg = MoveInfo['msg']
         if MoveInfo['didAddNew']:
-          self.BirthInfoCurLap.append(MoveInfo)
+          BirthResults.append(MoveInfo)
+
           for kk in MoveInfo['birthCompIDs']:
             self.LapsSinceLastBirth[kk] = -1
-          self.BirthCompIDs.extend(MoveInfo['birthCompIDs'])
-      self.print_msg( "%d/%d %s" % (moveID+1, nMoves, msg) )
-    return hmodel, SS
 
-  def onBirthLastBatchRemoveExtraMass(self, hmodel, SS):
-    ''' Returns updated suff stats with extra mass removed.
+      if Data is None:
+          self.print_msg( "%d/%d %s" % (moveID+1, nMoves, msg) )
+      else:
+          self.print_msg( "%d/%d BATCH %s" % (moveID+1, nMoves, msg) )
+
+    return hmodel, SS, BirthResults
+
+  def birth_remove_extra_mass(self, hmodel, SS, BirthResults):
+    ''' Adjust hmodel and suff stats to remove the "extra mass"
+          added during a birth move to brand-new components.
+        After this call, SS should have scale exactly consistent with 
+          the entire dataset (all B batches).
+
+        Returns
+        -------
+        hmodel : bnpy HModel
+        SS : bnpy SuffStatBag
     '''
     didChangeSS = False
-    for MoveInfo in self.BirthInfoCurLap:
-      freshSS = MoveInfo['freshSS']
-      birthCompIDs = MoveInfo['birthCompIDs']
-      for bb in birthCompIDs:
-        assert bb in self.BirthCompIDs
-      SS.subtractSpecificComps(freshSS, birthCompIDs)
-      didChangeSS = True
+    for MoveInfo in BirthResults:
+      if MoveInfo['didAddNew']:
+        extraSS = MoveInfo['extraSS']
+        compIDs = MoveInfo['modifiedCompIDs']
+        assert extraSS.K == len(compIDs)
+        SS.subtractSpecificComps(extraSS, compIDs)
+        didChangeSS = True
     if didChangeSS:
       hmodel.update_global_params(SS)
     return hmodel, SS
 
-
-  def onBirthFirstBatchPrepForNextLapBirth(self, SS):
-    ''' Return list of dicts, each one has info for one birth move to attempt
-
-        Prepares for next lap's birth moves, by
-          selecting which current model component to target
-
+  def birth_select_targets_for_next_lap(self, hmodel, SS, BirthResults):
+    ''' Create plans for next lap's birth moves
+    
         Returns
-        --------
-        targetList : list of dictionaries
+        -------
+        BirthPlans : list of dicts, 
+                     each entry represents the plan for one future birth move
     '''
-    # Create empty list to aggregate subsampled data
-    targetList = list()
+    if SS is not None:
+      assert hmodel.allocModel.K == SS.K
+    K =  hmodel.allocModel.K
 
     # Update counter for which components haven't been updated in a while
-    for kk in range(SS.K):
+    for kk in range(K):
       self.LapsSinceLastBirth[kk] += 1
 
     # Ignore components that have just been added to the model.
-    excludeList = [kk for kk in self.BirthCompIDs]
+    excludeList = self.birth_get_all_new_comps(BirthResults)
 
-    # For each birth move, select the target comp
+    # For each birth move, create a "plan"
+    BirthPlans = list()
     for posID in range(self.algParams['birth']['birthPerLap']):
       try:
-        ktarget = BirthMove.select_birth_component(SS, randstate=self.PRNG,
+        ktarget = BirthMove.select_birth_component(SS, K=K, 
+                          randstate=self.PRNG,
                           excludeList=excludeList, doVerbose=False,
                           lapsSinceLastBirth=self.LapsSinceLastBirth,
                           **self.algParams['birth'])
         self.LapsSinceLastBirth[ktarget] = 0
         excludeList.append(ktarget)
-        tInfoDict = dict(ktarget=ktarget, Data=None)
-        targetList.append(tInfoDict)
+        Plan = dict(ktarget=ktarget, Data=None)
       except BirthMove.BirthProposalError, e:
-        tInfoDict = dict(ktarget=None, Data=None, msg=str(e))
-        targetList.append(tInfoDict)
-    return targetList
+        Plan = dict(ktarget=None, Data=None, msg=str(e))
 
-  def subsample_data_for_birth(self, Dchunk, LPchunk, lapFrac):
-    ''' Incrementally build-up a target dataset to use as basis for BirthMove
-        Calling this method updates the internal data objects.
+      BirthPlans.append(Plan)
+    return BirthPlans
 
-        Args
-        -------
-        Dchunk : data object to subsample from
-        LPchunk : local parameters for Dchunk
-
-        Internal Updates
-        -------
-        targetDataList : list of dicts, each with info for one intended birth 
-            each entry has fields:
-                * ktarget : integer id of component targeted by this move
-                * Data : bnpy.data.Data object, target dataset for this move
+  def birth_collect_target_subsample(self, Dchunk, LPchunk, BirthPlans):
+    ''' Collect subsample of the data in Dchunk, and add that subsample
+          to overall targeted subsample stored in input list BirthPlans
+        This overall sample is aggregated across many batches of data.
+        Data from Dchunk is only collected if more data is needed.
 
         Returns
         -------
-        None (all updates happen to internal data structures)
+        BirthPlans : list of planned births for the next lap,
+                      updated to include data from Dchunk if needed
     '''
     import BirthMove
-    if not self.do_birth_at_lap(lapFrac):
-      return
-    for tInfoDict in self.targetDataList:
-
+    
+    for Plan in BirthPlans:
       # Skip this move if component selection failed
-      if tInfoDict['ktarget'] is None:
+      if Plan['ktarget'] is None:
         continue
 
       birthParams = dict(**self.algParams['birth'])
-      # Skip this move if enough data has been collected
-      if tInfoDict['Data'] is not None:
-        if hasattr(tInfoDict['Data'], 'nDoc'):
-          if tInfoDict['Data'].nDoc >= self.algParams['birth']['maxTargetSize']:
+      # Skip collection if have enough data already
+      if Plan['Data'] is not None:
+        if hasattr(Plan['Data'], 'nDoc'):
+          if Plan['Data'].nDoc >= self.algParams['birth']['maxTargetSize']:
             continue
-          birthParams['maxTargetSize'] -= tInfoDict['Data'].nDoc
+          birthParams['maxTargetSize'] -= Plan['Data'].nDoc
         else:
-          if tInfoDict['Data'].nObs >= self.algParams['birth']['maxTargetObs']:
+          if Plan['Data'].nObs >= self.algParams['birth']['maxTargetObs']:
             continue
 
       # Sample data from current batch, if more is needed
       targetData = BirthMove.subsample_data(Dchunk, LPchunk,
-                          tInfoDict['ktarget'], randstate=self.PRNG,
+                          Plan['ktarget'], randstate=self.PRNG,
                           **birthParams)
       # Update Data for current entry in self.targetDataList
       if targetData is None:
-        if tInfoDict['Data'] is None:
-          tInfoDict['msg'] = "TargetData: No samples for target comp found."
+        if Plan['Data'] is None:
+          Plan['msg'] = "TargetData: No samples for target comp found."
       else:
-        if tInfoDict['Data'] is None:
-          tInfoDict['Data'] = targetData
+        if Plan['Data'] is None:
+          Plan['Data'] = targetData
         else:
-          tInfoDict['Data'].add_data(targetData)
-        tInfoDict['msg'] = "TargetData: nObs %d" % (tInfoDict['Data'].nObs)
+          Plan['Data'].add_data(targetData)
+        Plan['msg'] = "TargetData: nObs %d" % (Plan['Data'].nObs)
+
+    return BirthPlans
+
+  def birth_get_all_new_comps(self, BirthResults):
+    ''' Returns list of integer ids of all new components added by
+          birth moves summarized in BirthResults
+
+        Returns
+        -------
+        birthCompIDs : list of integers, each entry is index of a new component
+    '''
+    birthCompIDs = list()
+    for MoveInfo in BirthResults:
+      birthCompIDs.extend(MoveInfo['birthCompIDs'])
+    return birthCompIDs
+
+  def birth_get_all_modified_comps(self, BirthResults):
+    ''' Returns list of integer ids of all new components added by
+          birth moves summarized in BirthResults
+
+        Returns
+        -------
+        mCompIDs : list of integers, each entry is index of modified comp
+    '''
+    mCompIDs = list()
+    for MoveInfo in BirthResults:
+      mCompIDs.extend(MoveInfo['modifiedCompIDs'])
+    return mCompIDs
+
+  def birth_count_new_comps(self, BirthResults):
+    ''' Returns total number of new components added by moves 
+          summarized by BirthResults
+    
+        Returns
+        -------
+        Kextra : int number of components added by given list of moves
+    '''
+    Kextra = 0
+    for MoveInfo in BirthResults:
+      Kextra += len(MoveInfo['birthCompIDs'])
+    return Kextra
 
 
   ######################################################### Merge moves!
