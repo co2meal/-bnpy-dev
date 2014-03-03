@@ -169,6 +169,22 @@ class WordsData(DataObj):
     self.nDocTotal += WData.nDocTotal
     self._verify_attributes()
 
+  def get_random_sample(self, nDoc, randstate=np.random):
+    ''' Create WordsData object for random subsample of this dataset
+
+        Args
+        -----
+        nDoc : number of documents to choose
+        randstate : numpy random number generator
+
+        Returns
+        -------
+        WordsData : bnpy WordsData instance, with at most nDoc documents
+    '''
+    docMask = randstate.permutation(self.nDoc)[:nDoc]
+    return self.select_subset_by_mask(docMask=docMask,
+                                                doTrackFullSize=False)
+
   def select_subset_by_mask(self, docMask=None, wordMask=None,
                                 doTrackFullSize=True):
     ''' Returns WordsData object representing a subset of this object,

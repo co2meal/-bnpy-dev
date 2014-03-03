@@ -86,38 +86,66 @@ def subsample_data(DataObj, LP, targetCompID, targetProbThr=0.1,
 ###########################################################
 def run_birth_move(curModel, targetData, SS, randstate=np.random, 
                    doVizBirth=False, ktarget=None, **kwargs):
-  ''' Create new model from curModel
-        with up to Kbirth new components
+  ''' Create new model that expands curModel with several new components
+
+      Args
+      --------
+      curModel : bnpy HModel
+      targetData : bnpy DataObj
+      SS : bnpy SuffStatBag
+      randstate : numpy random number generator
+      doVizBirth : boolean
+      ktarget : int id of target component (for visualization only)
+      
+      Returns
+      --------
+      model : bnpy HModel
+      SS : bnpy SuffStatBag
+      MoveInfo : dict, with fields
   '''
+  kwargs['doVizBirth'] = doVizBirth
+
   try:
+    if SS is None:
+      raise BirthProposalError("SS must be a valid SuffStatBag, not None.")
+
     freshModel = curModel.copy()
     freshSS = learn_fresh_model(freshModel, targetData, 
                               randstate=randstate, curModel=curModel, **kwargs)
     Kfresh = freshSS.K
     Kold = curModel.obsModel.K
-    newSS = SS.copy()
+    assert Kold == SS.K
 
     # TODO: remove this hack!
     if hasattr(SS, 'Nmajor'):
       freshSS.setField('Nmajor', np.zeros(freshSS.K), dims='K')
+    newSS = SS.copy()
 
-    newSS.insertComps(freshSS)
+    if kwargs['doRemoveRedundant'] and kwargs['cleanupModifyOrigComps']:
+      newSS.insertEmptyComps(Kfresh - Kold)
+      newSS += freshSS
+      birthCompIDs = range(Kold, Kfresh)
+      modifiedCompIDs = range(Kfresh)
+    else:
+      newSS.insertComps(freshSS)
+      birthCompIDs = range(Kold, Kold+Kfresh)
+      modifiedCompIDs = range(Kold, Kold+Kfresh)
+    
     newModel = curModel.copy()
     newModel.update_global_params(newSS)
 
-    birthCompIDs = range(Kold, Kold+Kfresh)
     MoveInfo = dict(didAddNew=True,
-                    msg='BIRTH: %d fresh comps' % (Kfresh),
-                    Kfresh=Kfresh,
+                    msg='BIRTH: %d fresh comps' % (len(birthCompIDs)),
+                    modifiedCompIDs=modifiedCompIDs,
                     birthCompIDs=birthCompIDs,
-                    freshSS=freshSS)
+                    extraSS=freshSS)
     if doVizBirth:
       viz_birth_proposal_2D(curModel, newModel, ktarget, birthCompIDs)
 
     return newModel, newSS, MoveInfo
   except BirthProposalError, e:
     MoveInfo = dict(didAddNew=False, msg=str(e),
-                    Kfresh=0, birthCompIDs=[])
+                    birthCompIDs=[], modifiedCompIDs=[])
     return curModel, SS, MoveInfo
 
 def learn_fresh_model(freshModel, targetData, Kmax=500, Kfresh=10,
@@ -165,16 +193,21 @@ def learn_fresh_model(freshModel, targetData, Kmax=500, Kfresh=10,
                             randstate=randstate, **kwargs)
 
   if targetSS.K < 2:
-    msg = 'BIRTH: Didnt create >1 useful comp from Data of size %d'
+    msg = 'BIRTH: Did not create >1 useful comps. TargetData size %d'
     raise BirthProposalError(msg % (targetData.nObs))
 
   if doRemoveRedundant:
     targetSS = clean_up_expanded_suff_stats(targetData, curModel, targetSS,
                             randstate=randstate, **kwargs)
 
-  if targetSS.K < 2:
-    msg = 'BIRTH: Didnt create >1 useful comp from Data of size %d'
-    raise BirthProposalError(msg % (targetData.nObs))
+  if kwargs['cleanupModifyOrigComps']:
+    didCreateNewComps = (targetSS.K - curModel.obsModel.K) >= 1
+  else:
+    didCreateNewComps = targetSS.K >= 1
+
+  if not didCreateNewComps:
+      msg = 'BIRTH: Did not create any new comps after cleanup.'
+      raise BirthProposalError(msg)
   return targetSS
   
 def clean_up_expanded_suff_stats(targetData, curModel, targetSS,
@@ -196,33 +229,43 @@ def clean_up_expanded_suff_stats(targetData, curModel, targetSS,
                   doPrecompEntropy=True, doPrecompMergeEntropy=True)
   Kexpand = expandSS.K
 
-  '''
-  mPairIDs = list()
-  for kA in range(Korig):
-    for kB in range(Korig, Kexpand):
-      mPairIDs.append( (kA, kB) )
-  '''
   mPairIDs = MergeMove.preselect_all_merge_candidates(
               expandModel, expandSS, randstate=np.random,
               preselectroutine=kwargs['cleanuppreselectroutine'], 
               mergePerLap=kwargs['cleanupNumMergeTrials']*(Kexpand-Korig),
               compIDs=range(Korig, Kexpand))
 
+  mPairIDsOrig = [x for x in mPairIDs]
+
   xModel, xSS, xEv, MTracker = MergeMove.run_many_merge_moves(
                                expandModel, targetData, expandSS,
                                nMergeTrials=expandSS.K**2, 
                                mPairIDs=mPairIDs,
                                randstate=randstate, **kwargs)
-  # Now remove from targetSS all the comps whose merges were accepted
-  kBList = [kB for kA,kB in MTracker.acceptedOrigIDs]
 
-  if len(kBList) == targetSS.K:
-    msg = 'BIRTH terminated. all new comps redundant with originals.'
-    raise BirthProposalError(msg)
-  for kB in reversed(sorted(kBList)):
-    ktarget = kB - Korig
-    if ktarget >= 0:
-      targetSS.removeComp(ktarget)
+  if kwargs['doVizBirth']:
+    viz_birth_proposal_2D(expandModel, xModel, None, None,
+                          title1='expanded model',
+                          title2='after merge')
+
+  for x in MTracker.acceptedOrigIDs:
+    assert x in mPairIDsOrig
+  
+  if kwargs['cleanupModifyOrigComps']:
+    targetSS = xSS
+    targetSS.setELBOFieldsToZero()
+    targetSS.setMergeFieldsToZero()
+  else:
+    # Remove from targetSS all the comps whose merges were accepted
+    kBList = [kB for kA,kB in MTracker.acceptedOrigIDs]
+
+    if len(kBList) == targetSS.K:
+      msg = 'BIRTH terminated. all new comps redundant with originals.'
+      raise BirthProposalError(msg)
+    for kB in reversed(sorted(kBList)):
+      ktarget = kB - Korig
+      if ktarget >= 0:
+        targetSS.removeComp(ktarget)
   return targetSS
 
 def clean_up_fresh_model(targetData, curModel, freshModel, 
@@ -288,14 +331,21 @@ def clean_up_fresh_model(targetData, curModel, freshModel,
 
 ########################################################### Select birth comps
 ###########################################################
-def select_birth_component(SS, targetSelectName='sizebiased', 
+def select_birth_component(SS, K=None, targetSelectName='sizebiased', 
                            randstate=np.random, emptyTHR=100,
                            lapsSinceLastBirth=defaultdict(int),
                            excludeList=list(), doVerbose=False, **kwargs):
   ''' Choose a single component among indices {1,2,3, ... K-1, K}
       to target with a birth proposal.
   '''
-  K = SS.K
+  if SS is None:
+    targetSelectName = 'uniform'
+    assert K is not None
+  elif K is None:
+    K = SS.K
+  else:
+    assert K == SS.K
+  
   if len(excludeList) >= K:
     raise BirthProposalError('BIRTH not possible. All possible K=%d targets used or excluded.' % (K))  
   ps = np.zeros(K)
@@ -341,7 +391,9 @@ def select_birth_component(SS, targetSelectName='sizebiased',
 
 ###########################################################  Visualization
 ###########################################################
-def viz_birth_proposal_2D(curModel, newModel, ktarget, freshCompIDs):
+def viz_birth_proposal_2D(curModel, newModel, ktarget, freshCompIDs,
+                          title1='Before Birth',
+                          title2='After Birth'):
   ''' Create before/after visualization of a birth move (in 2D)
   '''
   from ..viz import GaussViz, BarsViz
@@ -354,14 +406,14 @@ def viz_birth_proposal_2D(curModel, newModel, ktarget, freshCompIDs):
     GaussViz.plotGauss2DFromHModel(curModel, compsToHighlight=ktarget)
   else:
     BarsViz.plotBarsFromHModel(curModel, compsToHighlight=ktarget, figH=h1)
-  pylab.title( 'Before Birth' )
+  pylab.title(title1)
     
   h2 = pylab.subplot(1,2,2)
   if curModel.obsModel.__class__.__name__.count('Gauss'):
     GaussViz.plotGauss2DFromHModel(newModel, compsToHighlight=freshCompIDs)
   else:
     BarsViz.plotBarsFromHModel(newModel, compsToHighlight=freshCompIDs, figH=h2)
-  pylab.title( 'After Birth' )
+  pylab.title(title2)
   pylab.show(block=False)
   try: 
     x = raw_input('Press any key to continue >>')

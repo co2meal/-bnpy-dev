@@ -84,6 +84,12 @@ class XData(DataObj):
     self.nObsTotal += XDataObj.nObsTotal
     self.X = np.vstack([self.X, XDataObj.X])
 
+  def get_random_sample(self, nObs, randstate=np.random):
+    nObs = np.minimum(nObs, self.nObs)
+    mask = randstate.permutation(self.nObs)[:nObs]
+    Data = self.select_subset_by_mask(mask, doTrackFullSize=False)
+    return Data
+
   #########################################################  I/O methods
   ######################################################### 
   def __str__(self):
