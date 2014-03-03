@@ -60,9 +60,9 @@ class WishartDistr( Distr ):
        If X is a matrix, we compute a vector of distances to each row vector
              dist(X)[n] = dX[n]'*E[Lambda]*dX[n]
     '''
-    Q = np.linalg.solve(self.cholinvW(), X.T)
-    Q *= Q
-    return self.v*np.sum(Q, axis=0)
+    xWx = np.linalg.solve(self.cholinvW(), X.T)
+    xWx *= xWx
+    return self.v * np.sum(xWx, axis=0)
 
 
   ######################################################### Global Updates  
@@ -88,8 +88,8 @@ class WishartDistr( Distr ):
   def post_update_soVB( self, rho, starD ):
     ''' Online update of internal params
     '''
-    self.v = rho*starD.v + (1-rho)*self.v
-    self.invW = rho*starD.invW + (1-rho)*self.invW
+    self.v = rho * starD.v + (1.0 - rho) * self.v
+    self.invW = rho * starD.invW + (1.0 - rho) * self.invW
     self.Cache = dict()
 
   ######################################################### Basic properties  
@@ -148,18 +148,7 @@ class WishartDistr( Distr ):
       self.Cache['ECovMat'] = self.invW/(self.v-self.D-1)
       return self.Cache['ECovMat']
    
-  def ELam(self):
-    try:
-      return self.Cache['ELam']
-    except KeyError:
-      self.Cache['ELam'] = self.v*np.linalg.solve(self.invW,np.eye(self.D))
-      return self.Cache['ELam']
-
-  def traceW( self, S):
-    '''Calculate trace( S* self.W ) in numerically stable way
-    '''
-    return np.trace( np.linalg.solve(self.invW, S)  )
-    
+ 
   def E_traceLam( self, S=None, cholS=None):
     '''Calculate trace( S* E[Lambda] ) in numerically stable way
     '''
@@ -177,7 +166,6 @@ class WishartDistr( Distr ):
       sfx = ' ...'
     else:
       sfx = ''
-
     np.set_printoptions( precision=3, suppress=True)
     msg = offset + 'E[ CovMat[k] ] = \n'
     msg +=  str(self.ECovMat()[:2,:2]) + sfx
@@ -224,3 +212,20 @@ class WishartDistr( Distr ):
     else:
       raise ValueError( 'Unrecognized scale matrix name %s' %(smatname) )
     return ESigma
+
+
+  ######################################################### DEPRECATED
+  """
+  def ELam(self):
+    try:
+      return self.Cache['ELam']
+    except KeyError:
+      self.Cache['ELam'] = self.v*np.linalg.solve(self.invW,np.eye(self.D))
+      return self.Cache['ELam']
+  """
+  """
+  def traceW( self, S):
+    '''Calculate trace( S* self.W ) in numerically stable way
+    '''
+    return np.trace( np.linalg.solve(self.invW, S)  )
+  """
