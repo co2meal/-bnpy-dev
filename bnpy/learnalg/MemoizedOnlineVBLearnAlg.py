@@ -98,30 +98,30 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         if SS is not None:
           hmodel.update_global_params(SS)
       
-      # Birth moves!
-      if self.hasMove('birth') and self.do_birth_at_lap(lapFrac - 1.0):
-        if self.isFirstBatch(lapFrac):
+      # Birth move : track birth info from previous lap
+      if self.isFirstBatch(lapFrac):
+        if self.hasMove('birth') and self.do_birth_at_lap(lapFrac - 1.0):
           prevBirthResults = BirthResults
+        else:
+          prevBirthResults = list()
 
+      # Birth move : create new components
       if self.hasMove('birth') and self.do_birth_at_lap(lapFrac):
-        birthParams = self.algParams['birth']
-        if self.isFirstBatch(lapFrac):
-
+        if self.doBirthWithPlannedData(lapFrac):
           hmodel, SS, BirthResults = self.birth_create_new_comps(
                                             hmodel, SS, BirthPlans)
-        if lapFrac < birthParams['batchBirthLapLimit'] \
-           and lapFrac - np.floor(lapFrac) <= birthParams['batchBirthFrac'] \
-           and lapFrac - np.floor(lapFrac) > 1e-7 :
+
+        if self.doBirthWithDataFromCurrentBatch(lapFrac):
           hmodel, SS, BirthRes = self.birth_create_new_comps(
                                             hmodel, SS, Data=Dchunk)
           BirthResults.extend(BirthRes)
 
         self.BirthCompIDs = self.birth_get_all_new_comps(BirthResults)
         self.ModifiedCompIDs = self.birth_get_all_modified_comps(BirthResults)
-
       else:
-        self.BirthCompIDs = list() # no new components
-
+        BirthResults = list()
+        self.BirthCompIDs = list() # no births = no new components
+        self.ModifiedCompIDs = list()
 
       # Select which components to merge
       if self.hasMove('merge') and not self.algParams['merge']['doAllPairs']:
@@ -252,22 +252,17 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         SSchunk : bnpy SuffStatDict object for batchID
     '''
     SSchunk = self.SSmemory[batchID]
-    # Successful merges from the previous lap must be "replayed"
-    #  on the memoized suff stats
-    if self.hasMove('birth'):
-      Kextra = K - SSchunk.K
-      if Kextra > 0:
-        SSchunk.insertEmptyComps(Kextra)      
+    # "replay" accepted merges from end of previous lap 
     if self.hasMove('merge'): 
       for MInfo in self.MergeLog:
         kA = MInfo['kA']
         kB = MInfo['kB']
         if kA < SSchunk.K and kB < SSchunk.K:
           SSchunk.mergeComps(kA, kB)
-    if self.hasMove('merge'): 
       if SSchunk.hasMergeTerms():
         SSchunk.setMergeFieldsToZero()
-    if self.hasMove('birth') and self.algParams['birth']['batchBirthFrac'] > 0:   
+    # "replay" generic and batch-specific births from this lap
+    if self.hasMove('birth'):   
       Kextra = K - SSchunk.K
       if Kextra > 0:
         SSchunk.insertEmptyComps(Kextra)
@@ -325,6 +320,17 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
   ######################################################### Birth moves!
   #########################################################
+  def doBirthWithPlannedData(self, lapFrac):
+    return self.isFirstBatch(lapFrac)
+
+  def doBirthWithDataFromCurrentBatch(self, lapFrac):
+    if self.isLastBatch(lapFrac):
+      return False
+    rem = lapFrac - np.floor(lapFrac)
+    isWithinFrac = rem < self.algParams['birth']['batchBirthFrac']
+    isWithinLimit = lapFrac < self.algParams['birth']['batchBirthLapLimit']
+    return isWithinFrac and isWithinLimit
+
   def birth_create_new_comps(self, hmodel, SS, BirthPlans=list(), Data=None):
     ''' Create new components 
 
