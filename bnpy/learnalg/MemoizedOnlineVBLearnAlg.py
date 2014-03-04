@@ -73,7 +73,6 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
     BirthPlans = list()
     BirthResults = None
-    batchBirthResults = None
     prevBirthResults = None
 
     SS = None
@@ -107,7 +106,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       if self.hasMove('birth') and self.do_birth_at_lap(lapFrac):
         birthParams = self.algParams['birth']
         if self.isFirstBatch(lapFrac):
-          batchBirthResults = list()
+
           hmodel, SS, BirthResults = self.birth_create_new_comps(
                                             hmodel, SS, BirthPlans)
         if lapFrac < birthParams['batchBirthLapLimit'] \
@@ -116,8 +115,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
           hmodel, SS, BirthRes = self.birth_create_new_comps(
                                             hmodel, SS, Data=Dchunk)
           BirthResults.extend(BirthRes)
-        if not self.isFirstBatch(lapFrac):
-          batchBirthResults.extend(BirthRes)
+
         self.BirthCompIDs = self.birth_get_all_new_comps(BirthResults)
         self.ModifiedCompIDs = self.birth_get_all_modified_comps(BirthResults)
 
@@ -272,7 +270,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     if self.hasMove('birth') and self.algParams['birth']['batchBirthFrac'] > 0:   
       Kextra = K - SSchunk.K
       if Kextra > 0:
-        SSchunk.insertEmptyComps(Kextra)      
+        SSchunk.insertEmptyComps(Kextra)
     assert SSchunk.K == K
     return SSchunk  
 

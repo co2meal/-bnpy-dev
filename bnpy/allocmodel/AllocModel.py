@@ -20,6 +20,12 @@ class AllocModel(object):
     '''
     return list()
 
+  def requireMergeTerms(self):
+    ''' Return boolean indicator for whether this model
+         requires precomputed merge terms
+    '''
+    return True
+
   ######################################################### Local Params
   #########################################################
   def calc_local_params( self, Data, LP ):

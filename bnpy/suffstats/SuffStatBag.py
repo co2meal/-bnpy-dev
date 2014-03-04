@@ -25,10 +25,12 @@ class SuffStatBag(object):
     self._Fields.setField(key, value, dims=dims)
 
   def setELBOFieldsToZero(self):
-    self._ELBOTerms.setAllFieldsToZero()
+    if self.hasELBOTerms():
+      self._ELBOTerms.setAllFieldsToZero()
 
   def setMergeFieldsToZero(self):
-    self._MergeTerms.setAllFieldsToZero()
+    if self.hasMergeTerms():
+      self._MergeTerms.setAllFieldsToZero()
 
   # ======================================================= Amp factor
   def hasAmpFactor(self):

@@ -12,6 +12,9 @@ from bnpy.util import gammaln, digamma, EPS
 
 class HardDPMixModel(DPMixModel):
 
+  def requireMergeTerms(self):
+    return False
+
   ######################################################### Local Params
   #########################################################
   def calc_local_params(self, Data, LP, **kwargs):
