@@ -90,9 +90,14 @@ class MultObsModel(ObsModel):
                 WordCounts : K x VocabSize matrix
                   WordCounts[k,v] = # times vocab word v seen with topic k
         '''
-        wv = LP['word_variational']
-        WMat = Data.to_sparse_matrix()
-        TopicWordCounts = (WMat * wv).T
+        if 'hard_mult' in LP:
+          Nmat = LP['hard_mult'] # N x K
+          BMat = Data.to_sparse_matrix(doBinary=True) # V x N 
+          TopicWordCounts = (BMat * Nmat).T # matrix-matrix product
+        else:
+          wv = LP['word_variational']  # N x K
+          WMat = Data.to_sparse_matrix() # V x N
+          TopicWordCounts = (WMat * wv).T # matrix-matrix product
 
         SS.setField('WordCounts', TopicWordCounts, dims=('K','D'))
         SS.setField('N', np.sum(TopicWordCounts,axis=1), dims=('K'))
