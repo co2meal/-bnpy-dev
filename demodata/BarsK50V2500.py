@@ -34,7 +34,7 @@ PRNG = np.random.RandomState(SEED)
 # FIXED DATA GENERATION PARAMS
 K = 50 # Number of topics
 V = 2500 # Vocabulary Size
-gamma = 0.9 # hyperparameter over doc-topic distribution
+gamma = 0.75 # hyperparameter over doc-topic distribution
 
 Defaults = dict()
 Defaults['nDocTotal'] = 2000

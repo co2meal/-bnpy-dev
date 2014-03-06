@@ -42,7 +42,7 @@ def plotBarsFromHModel(hmodel, Data=None, doShowNow=True, figH=None,
     if Data is None:
         width = width/2
     if figH is None:
-      pylab.figure(figsize=(width,height))
+      figH = pylab.figure(figsize=(width,height))
     else:
       pylab.axes(figH)
     K = hmodel.allocModel.K
@@ -70,8 +70,7 @@ def plotBarsFromHModel(hmodel, Data=None, doShowNow=True, figH=None,
         while imshowArgs['vmax'] > 2 * np.percentile(learned_tw, 97):
           imshowArgs['vmax'] /= 5
         pylab.imshow(learned_tw, aspect=aspectR, **imshowArgs)
-        if figH is None:
-          pylab.title('Learned Topic x Word')
+
     if compsToHighlight is not None:
         ks = np.asarray(compsToHighlight)
         if ks.ndim == 0:
