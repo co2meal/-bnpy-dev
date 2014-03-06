@@ -76,7 +76,7 @@ class HDPModel(AllocModel):
   #########################################################
   def calc_local_params(self, Data, LP, 
                           nCoordAscentItersLP=20, 
-                          convThrLP=0.01, doOnlySomeDocsLP=False, **kwargs):
+                          convThrLP=0.01, doOnlySomeDocsLP=True, **kwargs):
     ''' Calculate document-specific quantities (E-step)
           Alternate updates to two terms until convergence
             (1) Approx posterior on topic-token assignment
@@ -93,6 +93,15 @@ class HDPModel(AllocModel):
                  row i has params for word i's Discrete distr over K topics
               DocTopicCount : nDoc x K matrix
     '''
+    return self.calc_local_params_fast(Data, LP, 
+                                        nCoordAscentItersLP, 
+                                        convThrLP, 
+                                        doOnlySomeDocsLP)
+
+  def calc_local_params_fast(self, Data, LP, 
+                                        nCoordAscentItersLP, 
+                                        convThrLP, 
+                                        doOnlySomeDocsLP):
     # When given no local params LP as input, need to initialize from scratch
     # this forces likelihood to drive the first round of local assignments
     if 'alphaPi' not in LP:
@@ -110,9 +119,11 @@ class HDPModel(AllocModel):
     expEloglik -= expEloglik.max(axis=1)[:,np.newaxis] 
     NumericUtil.inplaceExp(expEloglik)
 
-    # rSum : nDistinctWords-length vector, row n = \sum_{k} r_{nk}, 
-    #         where r_nk is responsibility of topic k for word token n
-    rSum = np.zeros(Data.nObs)
+    # SumRTilde : nDistinctWords-length vector of reals
+    #   row n = \sum_{k} \tilde{r}_{nk}, 
+    #             where \tilde{r}_nk = \exp{ Elog[\pi_d] + Elog[\phi_dvk] }
+    #   each entry is the "normalizer" for each row of LP['word_variational']
+    SumRTilde = np.zeros(Data.nObs)
 
     # Repeat until old_alphaPi has stopped changing...
     old_alphaPi = LP['alphaPi'].copy()
@@ -133,13 +144,14 @@ class HDPModel(AllocModel):
         # subset of expEloglik, has rows belonging to doc d 
         expEloglik_d = expEloglik[start:stop]
         
-        # rSum_d : subset of rSum vector belonging to doc d
-        rSum_d = np.dot(expEloglik_d, expElogpi[d])
-        rSum[start:stop] = rSum_d
+        # SumRTilde_d : subset of SumRTilde vector belonging to doc d
+        SumRTilde_d = np.dot(expEloglik_d, expElogpi[d])
+        SumRTilde[start:stop] = SumRTilde_d
 
         # Update DocTopicCount field of LP
+        #  Remember: expElogpi will be multiplied in here in following step 
         LP['DocTopicCount'][d,:] = np.dot(expEloglik_d.T, 
-                                    Data.word_count[start:stop] / rSum_d
+                                    Data.word_count[start:stop] / SumRTilde_d
                                          )
 
       # Element-wise multiply with nDoc x K prior prob matrix
@@ -170,7 +182,7 @@ class HDPModel(AllocModel):
       start = Data.doc_range[d,0]
       stop  = Data.doc_range[d,1]
       LP['word_variational'][start:stop] *= expElogpi[d]
-    LP['word_variational'] /= rSum[:, np.newaxis]
+    LP['word_variational'] /= SumRTilde[:, np.newaxis]
 
     del LP['E_logsoftev_WordsData']
     assert np.allclose( LP['word_variational'].sum(axis=1), 1.0)
