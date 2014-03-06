@@ -13,7 +13,7 @@ class HDPSoft2Hard(HDPModel):
 
   ######################################################### Local Params
   #########################################################
-  def calc_local_params(self, Data, LP, nCoordAscentItersLP=20, convThrLP=0.01, nHardItersLP=1, **kwargs):
+  def calc_local_params(self, Data, LP, nCoordAscentItersLP=20, convThrLP=0.01, nHardItersLP=1, doOnlySomeDocsLP=True, **kwargs):
     ''' Calculate document-specific quantities (E-step) using hard assignments.
 
         Alternate updates to two terms until convergence
@@ -33,45 +33,14 @@ class HDPSoft2Hard(HDPModel):
                  row i has params for word i's Discrete distr over K topics
             DocTopicCount : nDoc x K matrix
     '''
-    # When given no prev. local params LP, need to initialize from scratch
-    # this forces likelihood to drive the first round of local assignments
-    if 'alphaPi' not in LP:
-      LP['alphaPi'] = np.ones((Data.nDoc,self.K+1))
-    else:
-      assert LP['alphaPi'].shape[1] == self.K + 1
+    # First, run soft assignments for nCoordAscentIters
+    LP = self.calc_local_params_fast(Data, LP, 
+                                        nCoordAscentItersLP,
+                                        convThrLP,
+                                        doOnlySomeDocsLP,
+                                     )
 
-    LP = self.calc_ElogPi(LP)
-    alphaPi_old = LP['alphaPi']
-        
-    # Allocate lots of memory once
-    if 'word_variational' in LP:
-      del LP['word_variational']
-    LP['word_variational'] = np.zeros(LP['E_logsoftev_WordsData'].shape)
-    LP['DocTopicCount'] = np.zeros((Data.nDoc,self.K))
-
-    # Repeat until converged...
-    for rep in xrange(nCoordAscentItersLP):
-      # Update word_variational field of LP
-      LP = self.get_word_variational(Data, LP)
-        
-      # Update DocTopicCount field of LP
-      for d in xrange(Data.nDoc):
-        start = Data.doc_range[d,0]
-        stop = Data.doc_range[d,1]
-        LP['DocTopicCount'][d,:] = np.dot(
-                                       Data.word_count[start:stop],        
-                                       LP['word_variational'][start:stop,:]
-                                         )
-        # Update doc_variational field of LP
-        LP = self.get_doc_variational(Data, LP)
-        LP = self.calc_ElogPi(LP)
-
-        # Assess convergence
-        assert id(alphaPi_old) != id(LP['alphaPi'])
-        if np.allclose(alphaPi_old, LP['alphaPi'], atol=convThrLP):
-          break
-        alphaPi_old = LP['alphaPi']
-
+    # Next, finish with hard assignments
     for rep in xrange(nHardItersLP):
       LP = self.get_hard_word_variational(Data, LP)
       # Update DocTopicCount field of LP
@@ -86,16 +55,15 @@ class HDPSoft2Hard(HDPModel):
       LP = self.get_doc_variational(Data, LP)
       LP = self.calc_ElogPi(LP)
 
-      # Assess convergence
-      assert id(alphaPi_old) != id(LP['alphaPi'])
-      if np.allclose(alphaPi_old, LP['alphaPi'], atol=convThrLP):
-        break
-      alphaPi_old = LP['alphaPi']
     return LP
 
   def get_hard_word_variational(self, Data, LP):
     ''' Update and return word-topic assignment variational parameters
     '''
+    LP['word_variational'] = NumericUtil.toHardAssignmentMatrix(
+                                                    LP['word_variational'])
+    return LP
+    """
     # Operate on wv matrix, which is nDistinctWords x K
     #  has been preallocated for speed (so we can do += later)
     wv = LP['word_variational']         
@@ -114,6 +82,7 @@ class HDPSoft2Hard(HDPModel):
     LP['word_variational'] = R.toarray()
     assert np.allclose(LP['word_variational'].sum(axis=1), 1)
     return LP
+    """
 
   ######################################################### Suff Stats
   #########################################################

@@ -99,25 +99,35 @@ class WordsData(DataObj):
 
   ######################################################### Sparse matrix
   #########################################################  representations
-  def to_sparse_matrix(self):
+  def to_sparse_matrix(self, doBinary=False):
     ''' Make sparse matrix counting vocab usage across all words in dataset
 
         Returns
         --------
-        C : sparse (CSC-format) matrix, of shape nObs-x-vocab_size, where
+        C : sparse (CSC-format) matrix, size nObs x vocab_size
              C[n,v] = word_count[n] iff word_id[n] = v
                       0 otherwise
              That is, each word token n is represented by one entire row
                       with only one non-zero entry: at column word_id[n]
 
     '''
-    if hasattr(self, "__sparseMat__"):
+    if hasattr(self, "__sparseMat__") and not doBinary:
       return self.__sparseMat__
+    if hasattr(self, '__sparseBinMat__') and doBinary:
+      return self.__sparseBinMat__
+
     indptr = np.arange(self.nObs+1) # define buckets for one entry per row
-    self.__sparseMat__ = scipy.sparse.csc_matrix(
+    if doBinary:
+      self.__sparseBinMat__ = scipy.sparse.csc_matrix(
+                        (np.ones(self.nObs), np.int64(self.word_id), indptr),
+                        shape=(self.vocab_size, self.nObs))
+      return self.__sparseBinMat__
+
+    else:
+      self.__sparseMat__ = scipy.sparse.csc_matrix(
                         (self.word_count, np.int64(self.word_id), indptr),
                         shape=(self.vocab_size, self.nObs))
-    return self.__sparseMat__
+      return self.__sparseMat__
   
   def to_sparse_docword_matrix(self):
     ''' Make sparse matrix counting vocab usage for each document in dataset
