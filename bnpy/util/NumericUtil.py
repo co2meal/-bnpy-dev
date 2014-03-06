@@ -94,23 +94,6 @@ def inplaceExpAndNormalizeRows_numexpr(R):
   ne.evaluate("exp(R)", out=R)
   R /= R.sum(axis=1)[:,np.newaxis]
 
-###########################################################
-###########################################################
-def toHardAssignmentMatrix(P):
-  ''' Convert "soft" log probability matrix to hard assignments
-      
-      Example
-      ------
-      >>> logpMat = np.asarray( [[-10, -20], [-33, -21]] )
-      [ 1 0 
-        0 1 ]
-  '''
-  N, K = P.shape
-  colIDs = np.argmax(P, axis=1)
-  Phard = scipy.sparse.csr_matrix(
-              (np.ones(N), colIDs, np.arange(N+1)),
-              shape=(N, K), dtype=np.float64)
-  return Phard.toarray()
 
 ########################################################### standard RlogR
 ###########################################################

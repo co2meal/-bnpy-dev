@@ -145,8 +145,10 @@ class HDPSoft2Hard(HDPModel):
       E_logqPi *= SS.ampF
       E_logpZ *= SS.ampF
 
-    elbo = E_logpPi - E_logqPi 
+
+    elbo = E_logpPi - E_logqPi
     elbo += E_logpZ
-    elbo -= E_logpV - E_logqV
+    elbo += E_logpV - E_logqV
     return elbo
+
 

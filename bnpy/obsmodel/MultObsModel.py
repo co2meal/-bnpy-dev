@@ -90,8 +90,8 @@ class MultObsModel(ObsModel):
                 WordCounts : K x VocabSize matrix
                   WordCounts[k,v] = # times vocab word v seen with topic k
         '''
-        if 'hard_mult' in LP:
-          Nmat = LP['hard_mult'] # N x K
+        if 'hard_asgn' in LP:
+          Nmat = LP['hard_asgn'] # N x K
           BMat = Data.to_sparse_matrix(doBinary=True) # V x N 
           TopicWordCounts = (BMat * Nmat).T # matrix-matrix product
         else:

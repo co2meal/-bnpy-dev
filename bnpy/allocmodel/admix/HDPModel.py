@@ -384,9 +384,9 @@ class HDPModel(AllocModel):
             E_logpZ *= SS.ampF
             E_logqZ *= SS.ampF
 
-        elbo = E_logpPi - E_logqPi \
-               + E_logpZ - E_logqZ \
-               + E_logpV - E_logqV
+        elbo = E_logpPi - E_logqPi
+        elbo += E_logpZ - E_logqZ
+        elbo += E_logpV - E_logqV
         return elbo
 
   ####################################################### ELBO terms for Z

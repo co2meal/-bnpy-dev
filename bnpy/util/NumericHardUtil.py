@@ -9,8 +9,33 @@ import numpy as np
 import scipy.sparse
 from scipy.special import gammaln
 
+
 def create_lookup_table_logfactorial(Nmax):
-  return gammaln(np.arange(Nmax) + 1)  
+  return gammaln(np.arange(Nmax) + 1)
+
+###########################################################
+###########################################################
+def toHardAssignmentMatrix(P, dtype=np.float64):
+  ''' Convert "soft" log probability matrix to hard assignments
+      
+      Example
+      ------
+      >>> logpMat = np.asarray( [[-10, -20], [-33, -21]] )
+      [ 1 0 
+        0 1 ]
+  '''
+  N, K = P.shape
+  colIDs = np.argmax(P, axis=1)
+  Phard = scipy.sparse.csr_matrix(
+              (np.ones(N, dtype=dtype), colIDs, np.arange(N+1)),
+              shape=(N, K), dtype=dtype)
+  return Phard.toarray()
+
+
+###########################################################
+###########################################################
+def findMode_Mult(Nvec, Wmat):
+  return findMode_Mult_fastest_skipsingles(Nvec, Wmat)
 
 def findMode_Mult_1D(N, w):
     w = np.asarray(w, dtype=np.float64)
@@ -25,7 +50,16 @@ def findMode_Mult_1D(N, w):
     assert np.abs(n.sum() - N) < 0.0001
     return n
 
-def findMode_Mult(Nvec, Wmat):
+def findMode_Mult_loop(Nvec, Wmat):
+  Nmat = np.zeros( Wmat.shape, dtype=np.int64)
+  for row in xrange(Nvec.size):
+    if Nvec[row] == 1:
+      Nmat[row, np.argmax(Wmat[row])] = 1
+    else:
+      Nmat[row,:] = findMode_Mult_1D(Nvec[row], Wmat[row])
+  return Nmat
+
+def findMode_Mult_basic(Nvec, Wmat):
   ''' Find modes to multinomial with given parameters
         vectorized to solve many problems simultaneously
 
@@ -157,16 +191,17 @@ def findMode_Mult_fastest(Nvec, Wmat):
   # Allocate and create initial guess, 
   #  which is guaranteed to have rows that sum to less than Nvec
   Nmat = np.zeros(Wmat.shape, dtype=np.int64)
-  np.floor(Nvec[:,np.newaxis] * Wmat, out=Nmat)
+  Nmatorig = Nvec[:,np.newaxis] * Wmat
+  np.floor(Nmatorig, out=Nmat)
 
   # Run Alg. 1 from paper
   activeErrors = Nvec - Nmat.sum(axis=1)
   activeRows = np.flatnonzero(activeErrors)
 
   if len(activeRows) > 0:
-    f = Nvec[:,np.newaxis] * Wmat - Nmat
-    q = (1 - f)/ Wmat
-    q = np.take(q, activeRows, axis=0)
+    q = 1.0 - np.take(Nmatorig, activeRows, axis=0) \
+            + np.take(Nmat, activeRows, axis=0)
+    q /= np.take(Wmat, activeRows, axis=0)
     activeErrors = np.take(activeErrors, activeRows)
 
   while len(activeRows) > 0:
@@ -189,9 +224,77 @@ def findMode_Mult_fastest(Nvec, Wmat):
       q.ravel()[qids] += 1.0 / Wmat.ravel()[ids]
 
   # Double-check Nmat satisfies constraints          
-  #assert np.all(np.abs(Nmat.sum(axis=1) - Nvec) < 0.0001)
+  assert np.all(np.abs(Nmat.sum(axis=1) - Nvec) < 0.0001)
   return Nmat
 
+
+def findMode_Mult_fastest_skipsingles(Nvec, Wmat):
+  ''' Find modes to multinomial with given parameters
+        vectorized to solve many problems simultaneously
+        tries to handle "single" case (Nvec=1) very fast
+
+      Args
+      ------
+      Nvec : 1D array, size P
+             contains non-negative integers
+      Wmat : 2D array, size P x K
+             each row is valid probability vector of length K
+             Wmat[p] has non-negative entries, sums to one
+
+      Returns
+      -------
+      Nmat : 2D sparse array, size P x K
+          Nmat[p,:] = argmax_{n} \log p_{mult}( Nmat[p] | Nvec[p], Wmat[p] ) 
+  '''
+  # Unpack and parse input
+  Nvec = np.asarray(Nvec, dtype=np.int64)
+  if Nvec.ndim < 1:
+    Nvec = Nvec[np.newaxis]
+  Wmat = np.asarray(Wmat, dtype=np.float64)
+  if Wmat.ndim < 2:
+    Wmat = Wmat[np.newaxis, :]
+
+  
+  Nmat = toHardAssignmentMatrix(Wmat, dtype=np.int64)
+
+  bigRows = np.flatnonzero(Nvec > 1)
+  Nmatorig = np.take(Wmat, bigRows, axis=0)
+  Nmatorig *= Nvec[bigRows, np.newaxis]
+  np.floor(Nmatorig, out=np.take(Nmat, bigRows, axis=0))
+
+  # Run Alg. 1 from paper
+  activeErrors = Nvec - Nmat.sum(axis=1)
+  activeMask = activeErrors > 0
+  activeRows = np.flatnonzero(activeErrors)
+
+  if len(activeRows) > 0:
+    q = 1.0 - np.take(Nmatorig, np.flatnonzero(activeMask[bigRows]), axis=0) \
+            + np.take(Nmat, activeRows, axis=0)
+    q /= np.take(Wmat, activeRows, axis=0)
+    activeErrors = np.take(activeErrors, activeRows)
+
+  while len(activeRows) > 0:
+    minIDs = np.argmin(q, axis=1)
+    ids = np.ravel_multi_index([activeRows, minIDs], Nmat.shape)
+    Nmat.ravel()[ids] += 1
+    activeErrors -= 1
+
+    stillActiveMask = activeErrors > 0
+    activeRows = activeRows[stillActiveMask]   
+
+    # Prepare for next round...
+    if len(activeRows) > 0:
+      activeErrors = activeErrors[stillActiveMask]
+      ids = ids[stillActiveMask]
+      minIDs = minIDs[stillActiveMask]
+
+      q = np.take(q, np.flatnonzero(stillActiveMask), axis=0)
+      qids = np.ravel_multi_index([np.arange(len(minIDs)), minIDs], q.shape)
+      q.ravel()[qids] += 1.0 / Wmat.ravel()[ids]
+
+  # Double-check Nmat satisfies constraints          
+  assert np.all(np.abs(Nmat.sum(axis=1) - Nvec) < 0.0001)
+  return Nmat
 
 def findMode_Mult_sort(Nvec, Wmat):
   ''' Find modes to multinomial with given parameters
@@ -370,6 +473,8 @@ def colwisesumLogFactorial_fastlookup(N):
       H : 1D array, size K
           H[k] = np.sum( log factorial(N[:,k]))
   '''
+  if not N.dtype == MTYPE:
+    N = np.asarray(N, dtype=MTYPE)
   if not N.dtype == MTYPE:
     raise TypeError('Lookup table requires input to be type np.int64')
   return np.sum(np.take(logfactorialLookupArr, N), axis=0)
