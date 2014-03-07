@@ -358,7 +358,22 @@ class HDPModel(AllocModel):
         assert self.U1.size == self.K
         assert self.U0.size == self.K
         self.set_helper_params()
-        
+
+  def insert_global_params(self, beta=None, **kwargs):
+    Knew = beta.size
+    beta = np.hstack([beta, np.min(beta)/100.])
+    beta = beta/np.sum(beta)
+    vMean = OptimHDP.beta2v(beta)
+    vMass = np.maximum( 1./vMean , self.alpha0/(1.-vMean))
+
+    self.K += Knew
+    np.append(self.U1, vMass * vMean )
+    np.append(self.U0, vMass * (1-vMean))
+
+    assert self.U1.size == self.K
+    assert self.U0.size == self.K
+    self.set_helper_params()    
+
   ######################################################### Evidence
   #########################################################  
   def calc_evidence( self, Data, SS, LP ):

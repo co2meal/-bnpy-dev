@@ -160,6 +160,34 @@ class MultObsModel(ObsModel):
               print "WARNING: mucking with lamvec"
             self.comp.append(DirichletDistr(lamvec))
 
+    def insert_global_params(self, topics=None, **kwargs):
+        ''' Insert provided params into this object's global params,
+              appending them after the existing params
+
+            Args
+            --------
+            topics : K x V matrix, each row has positive reals that sum to one
+                     topics[k,v] = probability of word v under topic k
+        '''
+        assert topics is not None
+        self.K = self.K + topics.shape[0]
+        for k in xrange(topics.shape[0]):
+            lamvec = self.convert_topic2lamvec(topics[k,:])
+            self.comp.append(DirichletDistr(lamvec))
+
+    def convert_topic2lamvec(topic):
+      # Scale up Etopics to lamvec, a V-len vector of positive entries,
+      #   such that (1) E[phi] is still Etopics, and
+      #             (2) lamvec = obsPrior.lamvec + [some suff stats]
+      #   where (2) means that lamvec is a feasible posterior value      
+      ii = np.argmin(topic)
+      lamvec = self.obsPrior.lamvec[ii]/topic[ii] * topic
+      # Cut-off values that are way way too big
+      if np.any( lamvec > 1e9):
+        lamvec = np.minimum(lamvec, 1e9)
+        print "WARNING: mucking with lamvec"
+      return lamvec
+
   ######################################################### Evidence
   #########################################################
     def calc_evidence(self, Data, SS, LP):
