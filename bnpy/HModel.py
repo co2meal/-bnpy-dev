@@ -29,11 +29,11 @@ import init
 from allocmodel import AllocModelConstructorsByName
 from obsmodel import ObsModelConstructorsByName
                    
-class HModel( object ):
+class HModel(object):
 
   ######################################################### Constructors
   #########################################################    
-  def __init__( self, allocModel, obsModel ):
+  def __init__(self, allocModel, obsModel):
     ''' Constructor assembles HModel given fully valid subcomponents
     '''
     self.allocModel = allocModel
@@ -52,7 +52,7 @@ class HModel( object ):
     return cls(allocModel, obsModel)
   
     
-  def copy( self ):
+  def copy(self):
     ''' Create a clone of this object with distinct memory allocation
         Any manipulation of clone's parameters will NOT affect self
     '''
@@ -60,7 +60,7 @@ class HModel( object ):
 
   ######################################################### Local Params
   #########################################################    
-  def calc_local_params( self, Data, LP=None, **kwargs):
+  def calc_local_params(self, Data, LP=None, **kwargs):
     ''' Calculate the local parameters specific to each data item,
           given global parameters.
         This is the E-step of the EM algorithm.        
@@ -77,7 +77,7 @@ class HModel( object ):
 
   ######################################################### Suff Stats
   #########################################################   
-  def get_global_suff_stats( self, Data, LP, doAmplify=False, **kwargs):
+  def get_global_suff_stats(self, Data, LP, doAmplify=False, **kwargs):
     ''' Calculate sufficient statistics for each component,
           given data and local responsibilities
         This is necessary prep for the M-step of EM algorithm.
@@ -92,11 +92,12 @@ class HModel( object ):
       else:
         ampF = Data.nObsTotal / Data.nObs
         SS.applyAmpFactor(ampF)
+
     return SS
   
   ######################################################### Global Params
   #########################################################   
-  def update_global_params( self, SS, rho=None, **kwargs):
+  def update_global_params(self, SS, rho=None, **kwargs):
     ''' Update (in-place) global parameters given provided suff stats.
         This is the M-step of EM.
     '''
@@ -109,7 +110,7 @@ class HModel( object ):
 
   ######################################################### Evidence
   #########################################################     
-  def calc_evidence( self, Data=None, SS=None, LP=None):
+  def calc_evidence(self, Data=None, SS=None, LP=None):
     ''' Compute the evidence lower bound (ELBO) of the objective function.
     '''
     if Data is not None and LP is None and SS is None:
