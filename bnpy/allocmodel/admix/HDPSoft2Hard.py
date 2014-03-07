@@ -3,7 +3,7 @@ import numpy as np
 
 from .HDPModel import HDPModel
 from bnpy.suffstats import SuffStatBag
-from bnpy.util import NumericUtil
+from bnpy.util import NumericUtil, NumericHardUtil
 
 import scipy.sparse
 import logging
@@ -60,7 +60,7 @@ class HDPSoft2Hard(HDPModel):
   def get_hard_word_variational(self, Data, LP):
     ''' Update and return word-topic assignment variational parameters
     '''
-    LP['word_variational'] = NumericUtil.toHardAssignmentMatrix(
+    LP['word_variational'] = NumericHardUtil.toHardAssignmentMatrix(
                                                     LP['word_variational'])
     return LP
     """
