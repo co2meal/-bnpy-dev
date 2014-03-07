@@ -9,9 +9,24 @@ import numpy as np
 import scipy.sparse
 from scipy.special import gammaln
 
+def colwisesumLogFactorial_allpairs(Nmat):
+  '''
+  '''
+  K = Nmat.shape[1]
+  logFactMat = np.zeros((K,K))
+  for jj in xrange(K-1):
+    curNmat = Nmat[:,jj][:,np.newaxis] + Nmat[:, jj+1:]
+    logFactMat[jj,jj+1:] = colwisesumLogFactorial(curNmat)
+  return logFactMat
 
-def create_lookup_table_logfactorial(Nmax):
-  return gammaln(np.arange(Nmax) + 1)
+def colwisesumLogFactorial_specificpairs(Nmat, mPairs):
+  '''
+  '''
+  K = Nmat.shape[1]
+  logFactMat = np.zeros((K,K))
+  for kA, kB in mPairs:
+    logFactMat[kA, kB] = colwisesumLogFactorial(Nmat[:,kA] + Nmat[:,kB])
+  return logFactMat
 
 ###########################################################
 ###########################################################
@@ -31,6 +46,22 @@ def toHardAssignmentMatrix(P, dtype=np.float64):
               shape=(N, K), dtype=dtype)
   return Phard.toarray()
 
+def toHardAssignmentMatrix_direct(P, dtype=np.float64):
+  ''' Convert "soft" log probability matrix to hard assignments
+      
+      Example
+      ------
+      >>> logpMat = np.asarray( [[-10, -20], [-33, -21]] )
+      [ 1 0 
+        0 1 ]
+  '''
+  N, K = P.shape
+  Phard = np.zeros((N,K), dtype=dtype)
+  rowIDs = np.arange(N, dtype=np.int64)
+  colIDs = np.argmax(P, axis=1)
+  ids = np.ravel_multi_index([rowIDs, colIDs], P.shape)
+  Phard.ravel()[ids] = 1
+  return Phard
 
 ###########################################################
 ###########################################################
@@ -253,13 +284,12 @@ def findMode_Mult_fastest_skipsingles(Nvec, Wmat):
   Wmat = np.asarray(Wmat, dtype=np.float64)
   if Wmat.ndim < 2:
     Wmat = Wmat[np.newaxis, :]
-
   
   Nmat = toHardAssignmentMatrix(Wmat, dtype=np.int64)
 
   bigRows = np.flatnonzero(Nvec > 1)
   Nmatorig = np.take(Wmat, bigRows, axis=0)
-  Nmatorig *= Nvec[bigRows, np.newaxis]
+  Nmatorig *= Nvec[bigRows][:, np.newaxis]
   np.floor(Nmatorig, out=np.take(Nmat, bigRows, axis=0))
 
   # Run Alg. 1 from paper
@@ -500,6 +530,11 @@ def colwisesumLogFactorial_sparselookup(N):
                            N.data[N.indptr[k]:N.indptr[k+1]]
                           ))
   return H
+
+########################################################### create_lookup_table
+########################################################### 
+def create_lookup_table_logfactorial(Nmax):
+  return gammaln(np.arange(Nmax) + 1)
 
 ########################################################### Main
 ########################################################### 

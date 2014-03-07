@@ -87,9 +87,8 @@ class HDPHardMult(HDPModel):
       SS.setMergeTerm('ElogqPiActive', ElogqPiMat, dims=('K','K'))
       SS.setMergeTerm('sumLogPiActive', sLgPiMat, dims=('K','K'))
 
-      raise NotImplementedError('TODO')
-      SS.setELBOTerm('ElogfactorialZ', 
-                     self.E_logfactorialZ_merge(LP),
+      SS.setMergeTerm('logFactZ', 
+                     self.memo_factorial_term_for_merge(LP, mPairIDs),
                      dims=('K', 'K'))
     return SS
 
@@ -130,3 +129,12 @@ class HDPHardMult(HDPModel):
     logFactData = NumericHardUtil.colwisesumLogFactorial(Data.word_count)
     logFactHardAsgn = NumericHardUtil.colwisesumLogFactorial(LP['hard_asgn'])
     return logFactData, logFactHardAsgn
+
+  def memo_factorial_term_for_merge(self, LP, mPairIDs):
+    if mPairIDs is None:
+      logFactZMerge = NumericHardUtil.colwisesumLogFactorial_allpairs(
+                              LP['hard_asgn'])
+    else:
+      logFactZMerge = NumericHardUtil.colwisesumLogFactorial_specificpairs(
+                              LP['hard_asgn'], mPairIDs)
+    return logFactZMerge
