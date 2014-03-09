@@ -104,11 +104,14 @@ def run_birth_move(curModel, targetData, SS, randstate=np.random,
   '''
   try:
     if SS is None:
-      raise BirthProposalError("BIRTH failed. SS must be valid SuffStatBag, not None.")
+      msg = "BIRTH failed. SS must be valid SuffStatBag, not None."
+      raise BirthProposalError(msg)
 
     if kwargs['topicmodelbirth']:
-      freshSS = BirthMoveTopicModels.create_expanded_suff_stats(
-                                targetData, curModel, 
+      assert hasattr(targetData, 'nDoc')
+      import BirthMoveTopicModel
+      freshSS = BirthMoveTopicModel.create_expanded_suff_stats(
+                                targetData, curModel, SS,
                                 randstate=randstate, **kwargs)
       kwargs['doRemoveRedundant'] = True
       kwargs['cleanupModifyOrigComps'] = True
@@ -116,6 +119,7 @@ def run_birth_move(curModel, targetData, SS, randstate=np.random,
       freshModel = curModel.copy()
       freshSS = learn_fresh_model(freshModel, targetData, 
                               randstate=randstate, curModel=curModel, **kwargs)
+
     Kfresh = freshSS.K
     Kold = curModel.obsModel.K
     assert Kold == SS.K

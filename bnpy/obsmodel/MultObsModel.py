@@ -109,10 +109,12 @@ class MultObsModel(ObsModel):
     def update_obs_params_EM(self, SS, **kwargs):
         raise NotImplementedError("TODO")
 
-    def update_obs_params_VB(self, SS, mergeCompA=None, **kwargs):
+    def update_obs_params_VB(self, SS, mergeCompA=None, comps=None, **kwargs):
         if mergeCompA is None:
-            for k in xrange(self.K):
-                self.comp[k] = self.obsPrior.get_post_distr(SS, k)
+            if comps is None:
+              comps = xrange(self.K)
+            for k in comps:
+              self.comp[k] = self.obsPrior.get_post_distr(SS, k)
         else:
             self.comp[mergeCompA] = self.obsPrior.get_post_distr(SS, mergeCompA)
 
@@ -175,7 +177,7 @@ class MultObsModel(ObsModel):
             lamvec = self.convert_topic2lamvec(topics[k,:])
             self.comp.append(DirichletDistr(lamvec))
 
-    def convert_topic2lamvec(topic):
+    def convert_topic2lamvec(self, topic):
       # Scale up Etopics to lamvec, a V-len vector of positive entries,
       #   such that (1) E[phi] is still Etopics, and
       #             (2) lamvec = obsPrior.lamvec + [some suff stats]
