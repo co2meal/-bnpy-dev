@@ -20,22 +20,32 @@ def create_expanded_suff_stats(Data, curModel, allSS, **kwargs):
   Kexpand = expandModel.obsModel.K
   Korig = curModel.obsModel.K
 
-  from IPython import embed
-  embed()
-
   # TODO: should we remember the xLP from previous laps?
   for lap in xrange(kwargs['nFreshLap']):
     xLP = expandModel.calc_local_params(Data)
     xSS = expandModel.get_global_suff_stats(Data, xLP)
-    expandModel.update_global_params(xSS, comps=range(Korig, Kexpand))
+    unusedRatio = np.abs(xSS.sumLogPiUnused) / np.abs(allSS.sumLogPiUnused)
+    if unusedRatio > 100:
+      msg = 'BIRTH failed. proposed suff stats invalid. %.2f' % (unusedRatio)
+      raise BirthProposalError(msg)
+    expandModel.obsModel.update_global_params(xSS, comps=range(Korig, Kexpand))
+    expandModel.allocModel.update_global_params(xSS)
 
+  
   # Remove empty topics (assigned to less than 10 words in the target set
   for k in reversed(xrange(Korig, xSS.K)):
     if xSS.N[k] < 10:
       xSS.removeComp(k)
       del expandModel.obsModel.comp[k]
-  expandModel.obsModel.K = xSS.K
-  expandModel.allocModel.update_global_params(xSS)
+      expandModel.obsModel.K = xSS.K
+  if xSS.K < expandModel.allocModel.K:
+    expandModel.allocModel.update_global_params(xSS)
+
+  unusedRatio = np.abs(xSS.sumLogPiUnused) / np.abs(allSS.sumLogPiUnused)
+  if unusedRatio > 100:
+    msg = 'BIRTH failed. proposed suff stats invalid. %.4f' % (unusedRatio)
+    raise BirthProposalError(msg)
+
   assert xSS.K == expandModel.allocModel.K
   Ebeta = expandModel.allocModel.Ebeta
   if np.allclose(Ebeta[:3], [1./2, 1./4, 1./8]):
@@ -45,12 +55,8 @@ def create_expanded_suff_stats(Data, curModel, allSS, **kwargs):
   assert np.allclose(curModel.obsModel.comp[0].lamvec,
                      expandModel.obsModel.comp[0].lamvec)
 
-  if np.abs(xSS.sumLogPiUnused) > 1e10:
-    msg = 'BIRTH failed. proposed suff stats invalid.'
-    raise BirthProposalError(msg)
-
   # Merge within new comps only
-  expandModel, xELBO = cleanup_mergenewcompsonly(Data, expandModel, 
+  expandModel, xSS, xLP, xELBO = cleanup_mergenewcompsonly(Data, expandModel, 
                                                     Korig=Korig, **kwargs)
   if hasattr(Data, 'nDoc') and xELBO > 0:
     msg = 'BIRTH failed. proposed model ELBO invalid.'
@@ -72,9 +78,13 @@ def create_expanded_suff_stats(Data, curModel, allSS, **kwargs):
     raise BirthProposalError(msg)
 
   # Merge between new comps and orig comps
-  xLP = expandModel.calc_local_params(Data)
-  xSS, xELBO = cleanup_mergenewcompsintoexisting(Data, expandModel, xLP,
+  xSS, xELBO = cleanup_mergenewcompsintoexisting(Data, expandModel, xSS, xLP,
                                                     Korig=Korig, **kwargs)
+
+  if hasattr(Data, 'nDoc') and xELBO > 0:
+    msg = 'BIRTH failed. proposed model ELBO invalid.'
+    raise BirthProposalError(msg)
+
   if xSS.K == Korig:
     msg = 'BIRTH failed. unable to create useful new comps'
     raise BirthProposalError(msg)
@@ -89,7 +99,6 @@ def create_expanded_suff_stats(Data, curModel, allSS, **kwargs):
 
   xSS.setELBOFieldsToZero()
   xSS.setMergeFieldsToZero()
-
   return xSS
 
 def calc_ELBO_for_data_under_just_one_topic(Data, curModel, anySS):
@@ -105,20 +114,24 @@ def calc_ELBO_for_data_under_just_one_topic(Data, curModel, anySS):
   singleELBO = singleModel.calc_evidence(SS=singleSS)
   return singleELBO
 
-def cleanup_mergenewcompsintoexisting(Data, expandModel, xLP, 
+def cleanup_mergenewcompsintoexisting(Data, expandModel, xSS, xLP,
                                             Korig=0, **kwargs):
   import MergeMove
-  
-  xSS = expandModel.get_global_suff_stats(Data, xLP,
-                  doPrecompEntropy=True, doPrecompMergeEntropy=True)
-  Kexpand = xSS.K
 
+  Kexpand = xSS.K
   mPairIDs = MergeMove.preselect_all_merge_candidates(
               expandModel, xSS, randstate=kwargs['randstate'],
               preselectroutine=kwargs['cleanuppreselectroutine'], 
               mergePerLap=kwargs['cleanupNumMergeTrials']*(Kexpand-Korig),
               compIDs=range(Korig, Kexpand))
-  mPairIDsOrig = [x for x in mPairIDs]
+  mPairIDsOrig = [x for x in mPairIDs]  
+
+  if xLP['K'] != xSS.K:
+    # Provided local params are stale, so need to recompute!
+    xLP = expandModel.calc_local_params(Data)
+  xSS = expandModel.get_global_suff_stats(Data, xLP,
+                  doPrecompEntropy=True, doPrecompMergeEntropy=True,
+                  mPairIDs=mPairIDs)
 
   assert 'randstate' in kwargs
   mergexModel, mergexSS, mergexEv, MTracker = MergeMove.run_many_merge_moves(
@@ -150,6 +163,7 @@ def cleanup_mergenewcompsonly(Data, expandModel, Korig=0, **kwargs):
         mPairIDs.append( (kA,kB) )
 
     mLP = mergeModel.calc_local_params(Data)
+    mLP['K'] = mergeModel.allocModel.K
     mSS = mergeModel.get_global_suff_stats(Data, mLP,
                     doPrecompEntropy=True, doPrecompMergeEntropy=True,
                     mPairIDs=mPairIDs)
@@ -165,7 +179,7 @@ def cleanup_mergenewcompsonly(Data, expandModel, Korig=0, **kwargs):
     Ktotal = mergeSS.K
 
 
-  return mergeModel, mergeEv
+  return mergeModel, mergeSS, mLP, mergeEv
 
 
 def create_expanded_model_with_critical_need_topics(Data, curModel, curLP,
@@ -205,21 +219,27 @@ def create_expanded_model_with_critical_need_topics(Data, curModel, curLP,
 
   Korig = curModel.obsModel.K
   expandModel = curModel.copy()
-  if kwargs['expandbydirectappend']:
-    expandModel.insert_global_params( beta=np.ones(Kfresh)/Kfresh, K=Kfresh,
-                                    topics=DocWordFreq_clusterctrs
-                                   )
 
-  else:
-    freshModel = curModel.copy()
-    freshModel.set_global_params(beta=np.ones(Kfresh)/Kfresh, K=Kfresh,
+  """ Here is an old, very bad way to construct the expanded model
+      it is bad because we basically keep all old global topic probabilities
+      so that the new ones are only allowed to split the mass that "remains"
+        which can be very very very small (like 1e-8),
+        and results in numerical issues
+
+     expandModel.insert_global_params( beta=np.ones(Kfresh)/Kfresh, K=Kfresh,
                                     topics=DocWordFreq_clusterctrs
                                    )
-    freshLP = freshModel.calc_local_params(Data)
-    freshSS = freshModel.get_global_suff_stats(Data, freshLP)
-    expandSS = allSS.copy()
-    expandSS.insertComps(freshSS)
-    expandModel.update_global_params( expandSS)
+  """
+
+  freshModel = curModel.copy()
+  freshModel.set_global_params(beta=np.ones(Kfresh)/Kfresh, K=Kfresh,
+                                    topics=DocWordFreq_clusterctrs
+                                   )
+  freshLP = freshModel.calc_local_params(Data)
+  freshSS = freshModel.get_global_suff_stats(Data, freshLP)
+  expandSS = allSS.copy()
+  expandSS.insertComps(freshSS)
+  expandModel.update_global_params( expandSS)
 
   assert expandModel.allocModel.K == Korig + Kfresh
   assert expandModel.obsModel.K == Korig + Kfresh
