@@ -59,6 +59,8 @@ class HDPModel(AllocModel):
       ''' Set dependent attribs of this model, given the primary params U1, U0
           This includes expectations of various stickbreaking quantities
       '''
+      assert self.U1.size == self.K
+      assert self.U0.size == self.K
       E = OptimHDP._calcExpectations(self.U1, self.U0)
       self.Ebeta = E['beta']
       self.Elogv = E['logv']
@@ -266,14 +268,21 @@ class HDPModel(AllocModel):
   ######################################################### Global Params
   #########################################################
 
-  def update_global_params_VB(self, SS, **kwargs):
+  def update_global_params_VB(self, SS, comps=None, **kwargs):
         ''' Update global parameters that control topic probabilities
             v[k] ~ Beta( U1[k], U0[k])
         '''
         self.K = SS.K
-        u = self._estimate_u(SS)
-        self.U1 = u[:self.K]
-        self.U0 = u[self.K:]
+        u = self._estimate_u(SS, **kwargs)
+        if comps is None:
+          self.U1 = u[:self.K]
+          self.U0 = u[self.K:]
+        else:
+          self.U1[comps] = u[comps]
+          self.U0[comps] = u[self.K + np.asarray(comps, dtype=np.int64)]
+        if self.U1.size > self.K:
+          self.U1 = self.U1[:self.K]
+          self.U0 = self.U1[:self.K]
         self.set_helper_params()
         
   def update_global_params_soVB(self, SS, rho, **kwargs):
@@ -283,12 +292,18 @@ class HDPModel(AllocModel):
         self.U0 = rho * u[self.K:] + (1-rho) * self.U0
         self.set_helper_params()
 
-  def _estimate_u(self, SS, **kwargs):
+  def _estimate_u(self, SS, mergeCompB=None, **kwargs):
         ''' Calculate best 2*K-vector u via L-BFGS gradient descent
               performing multiple tries in case of numerical issues
         '''
         if hasattr(self, 'U1') and self.U1.size == self.K:
           initU = np.hstack([self.U1, self.U0])
+        elif hasattr(self, 'U1') and mergeCompB is not None \
+                                 and self.U1.size == self.K + 1:
+          U1 = np.delete(self.U1, mergeCompB)
+          U0 = np.delete(self.U0, mergeCompB)
+          assert U0.size == self.K
+          initU = np.hstack([U1, U0])
         else:
           # Use the prior
           initU = np.hstack([np.ones(self.K), self.alpha0*np.ones(self.K)])
@@ -303,9 +318,11 @@ class HDPModel(AllocModel):
           if str(error).count('FAILURE') == 0:
             raise error
           if hasattr(self, 'U1') and self.U1.size == self.K:
+            print 'failed'
             Log.error('***** Optim failed. Stay put. ' + str(error))
             return # EXIT with current state, failed to update
           else:
+            print 'prior'
             Log.error('***** Optim failed. Stuck at prior. ' + str(error))
             u = initU # fall back on the prior otherwise
         return u
@@ -341,24 +358,51 @@ class HDPModel(AllocModel):
           self.K = beta.size - 1
         else:
           raise ValueError('Bad parameters. Vector beta not specified.')
-
-        # Now, use the specified value of beta to find the best U1, U0
         assert beta.size == self.K + 1
-        assert abs(np.sum(beta) - 1.0) < 0.001
-        vMean = OptimHDP.beta2v(beta)
-        # for each k=1,2...K
-        #  find the multiplier vMass[k] such that both are true
-        #  1) vMass[k] * vMean[k] > 1.0
-        #  2) vMass[k] * (1-vMean[k]) > self.alpha0
-        vMass = np.maximum( 1./vMean , self.alpha0/(1.-vMean))
-        self.U1 = vMass * vMean
-        self.U0 = vMass * (1-vMean)
+    
+        # Now, use the specified value of beta to find the best U1, U0
+        self.U1, self.U0 = self._convert_beta2u(beta)        
         assert np.all( self.U1 >= 1.0 - 0.00001)
         assert np.all( self.U0 >= self.alpha0 - 0.00001)
         assert self.U1.size == self.K
         assert self.U0.size == self.K
         self.set_helper_params()
-        
+
+  def _convert_beta2u(self, beta):
+    ''' Given a vector beta (size K+1),
+          return educated guess for vectors u1, u0
+
+        Returns
+        --------
+          U1 : 1D array, size K
+          U0 : 1D array, size K
+    '''
+    assert abs(np.sum(beta) - 1.0) < 0.001
+    vMean = OptimHDP.beta2v(beta)
+    # for each k=1,2...K
+    #  find the multiplier vMass[k] such that both are true
+    #  1) vMass[k] * vMean[k] > 1.0
+    #  2) vMass[k] * (1-vMean[k]) > self.alpha0
+    vMass = np.maximum( 1./vMean , self.alpha0/(1.-vMean))
+    U1 = vMass * vMean
+    U0 = vMass * (1-vMean)
+    return U1, U0    
+    
+  def insert_global_params(self, beta=None, **kwargs):
+    Knew = beta.size
+    beta = np.hstack([beta, np.min(beta)/100.])
+    beta = beta/np.sum(beta)
+    vMean = OptimHDP.beta2v(beta)
+    vMass = np.maximum( 1./vMean , self.alpha0/(1.-vMean))
+
+    self.K += Knew
+    self.U1 = np.append(self.U1, vMass * vMean )
+    self.U0 = np.append(self.U0, vMass * (1-vMean))
+
+    assert self.U1.size == self.K
+    assert self.U0.size == self.K
+    self.set_helper_params()    
+
   ######################################################### Evidence
   #########################################################  
   def calc_evidence( self, Data, SS, LP ):

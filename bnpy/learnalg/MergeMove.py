@@ -205,7 +205,13 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
 
   evDiff = propEv - curEv
 
-  
+
+  if (propEv - curEv) > 1e10:
+    print 'CRAP! ---------------------------------------!!!!@@@@@@$$$$$'
+    print '    propEv % .5e' % (propEv)
+    print '    curEv  % .5e' % (curEv)
+    from IPython import embed
+    embed()
   if (propEv > 0 and curEv < 0) and hasattr(Data, 'nDoc'):
     print 'CRAP! ---------------------------------------!!!!@@@@@@$$$$$'
     print '    propEv % .5e' % (propEv)

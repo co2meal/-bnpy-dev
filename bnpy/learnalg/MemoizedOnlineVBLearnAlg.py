@@ -327,8 +327,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     if self.isLastBatch(lapFrac):
       return False
     rem = lapFrac - np.floor(lapFrac)
-    isWithinFrac = rem < self.algParams['birth']['batchBirthFrac']
-    isWithinLimit = lapFrac < self.algParams['birth']['batchBirthLapLimit']
+    isWithinFrac = rem <= self.algParams['birth']['batchBirthFrac'] + 1e-6
+    isWithinLimit = lapFrac <= self.algParams['birth']['batchBirthLapLimit'] 
     return isWithinFrac and isWithinLimit
 
   def birth_create_new_comps(self, hmodel, SS, BirthPlans=list(), Data=None):

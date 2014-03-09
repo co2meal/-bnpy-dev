@@ -96,7 +96,7 @@ class ObsModel( object ):
       self.update_obs_params_EM(SS)
     elif self.inferType.count('VB') > 0:
       if rho is None or rho == 1.0:
-        self.update_obs_params_VB(SS, mergeCompA=mergeCompA)
+        self.update_obs_params_VB(SS, mergeCompA=mergeCompA, **kwargs)
       else:
         self.update_obs_params_soVB(SS, rho)
   
