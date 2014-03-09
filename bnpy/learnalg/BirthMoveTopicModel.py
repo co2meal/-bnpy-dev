@@ -52,7 +52,13 @@ def create_expanded_suff_stats(Data, curModel, allSS, **kwargs):
     msg = 'BIRTH failed. new topic probabilities invalid.'
     raise BirthProposalError(msg)
 
-  assert np.allclose(curModel.obsModel.comp[0].lamvec,
+  # Double-check that we aren't modifying the params for original topics
+  diffInputSSandInputParams = curModel.obsModel.comp[0].lamvec[:4] \
+                              - allSS.WordCounts[0, :4]
+  isSynced = np.allclose(diffInputSSandInputParams,          
+                         curModel.obsModel.obsPrior.lamvec[:4])
+  if isSynced:
+    assert np.allclose(curModel.obsModel.comp[0].lamvec,
                      expandModel.obsModel.comp[0].lamvec)
 
   # Merge within new comps only
