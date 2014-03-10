@@ -261,7 +261,7 @@ def calcRlogRdotv_specificpairs_numpy(R, v, mPairs):
   K = R.shape[1]
   ElogqZMat = np.zeros((K, K))
   if K == 1:
-    return Z
+    return ElogqZMat
   for (kA, kB) in mPairs:
     curWV = R[:,kA] + R[:, kB]
     curWV *= np.log(curWV)
@@ -272,7 +272,7 @@ def calcRlogRdotv_specificpairs_numexpr(R, v, mPairs):
   K = R.shape[1]
   ElogqZMat = np.zeros((K, K))
   if K == 1:
-    return Z
+    return ElogqZMat
   for (kA, kB) in mPairs:
     curR = R[:,kA] + R[:, kB]
     ne.evaluate("curR * log(curR)", out=curR)
@@ -290,7 +290,7 @@ def calcRlogRdotv_specificpairs_numpyvec(R, v, mPairs):
   K = R.shape[1]
   ElogqZMat = np.zeros((K, K))
   if K == 1:
-    return Z
+    return ElogqZMat
   for kA in PartnerDict:
     curWV = R[:,kA][:,np.newaxis] + R[:, PartnerDict[kA]]
     curWV *= np.log(curWV)
