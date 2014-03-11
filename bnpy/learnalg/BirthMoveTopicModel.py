@@ -11,6 +11,11 @@ def create_expanded_suff_stats(Data, curModel, allSS, **kwargs):
         expandSS : SuffStatBag with K + Kfresh components
                    will have scale of the provided target dataset Data
   '''
+  Kfresh = np.minimum(kwargs['Kfresh'], kwargs['Kmax'] - curModel.obsModel.K)
+  if Kfresh < 2:
+    raise BirthProposalError('BIRTH: Skipped to avoid exceeding user-specified limit of Kmax=%d components. ' % (kwargs['Kmax']))
+  kwargs['Kfresh'] = Kfresh
+
   curLP = curModel.calc_local_params(Data)
   curSS = curModel.get_global_suff_stats(Data, curLP, doPrecompEntropy=True)
   curELBO = curModel.calc_evidence(SS=curSS)
@@ -68,20 +73,22 @@ def create_expanded_suff_stats(Data, curModel, allSS, **kwargs):
     msg = 'BIRTH failed. proposed model ELBO invalid.'
     raise BirthProposalError(msg)
 
+  if expandModel.obsModel.K == Korig:
+    msg = 'BIRTH failed. unable to create useful new comps'
+    raise BirthProposalError(msg)
+
   """ 9 March 2014: removed check for single elbo.
                     seemed to halt growth on NIPS corpus in bad way
+  """
   # Verify expanded model preferred over K=1 model
+  singleELBO = calc_ELBO_for_data_under_just_one_topic(Data, curModel, xSS)
   improveEvBound = xELBO - singleELBO
   if improveEvBound <= 0 or improveEvBound < 0.00001 * abs(singleELBO):
     msg = "BIRTH terminated. Not better than single component on target data."
     msg += "\n  expanded | K=%3d | %.7e" % (expandModel.obsModel.K, xELBO)
     msg += "\n  single   | K=%3d | %.7e" % (1, singleELBO)
     raise BirthProposalError(msg)
-  """
 
-  if expandModel.obsModel.K == Korig:
-    msg = 'BIRTH failed. unable to create useful new comps'
-    raise BirthProposalError(msg)
 
   # Merge between new comps and orig comps
   xSS, xELBO = cleanup_mergenewcompsintoexisting(Data, expandModel, xSS, xLP,
@@ -98,7 +105,7 @@ def create_expanded_suff_stats(Data, curModel, allSS, **kwargs):
   # Verify expanded model preferred over current model
   improveEvBound = xELBO - curELBO
   if improveEvBound <= 0 or improveEvBound < 0.00001 * abs(curELBO):
-    msg = "BIRTH terminated. Not better than single component on target data."
+    msg = "BIRTH terminated. Not better than current model on target data."
     msg += "\n  expanded  | K=%3d | %.7e" % (xSS.K, xELBO)
     msg += "\n  current   | K=%3d | %.7e" % (curSS.K, curELBO)
     raise BirthProposalError(msg)
@@ -128,6 +135,7 @@ def cleanup_mergenewcompsintoexisting(Data, expandModel, xSS, xLP,
   mPairIDs = MergeMove.preselect_all_merge_candidates(
               expandModel, xSS, randstate=kwargs['randstate'],
               preselectroutine=kwargs['cleanuppreselectroutine'], 
+              preselectListOnly=True,
               mergePerLap=kwargs['cleanupNumMergeTrials']*(Kexpand-Korig),
               compIDs=range(Korig, Kexpand))
   mPairIDsOrig = [x for x in mPairIDs]  
@@ -183,7 +191,6 @@ def cleanup_mergenewcompsonly(Data, expandModel, Korig=0, **kwargs):
     if mergeSS.K == Ktotal:
       break # no merges happened, so quit trying
     Ktotal = mergeSS.K
-
 
   return mergeModel, mergeSS, mLP, mergeEv
 

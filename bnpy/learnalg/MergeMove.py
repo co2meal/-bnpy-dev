@@ -210,8 +210,6 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
     print 'CRAP! ---------------------------------------!!!!@@@@@@$$$$$'
     print '    propEv % .5e' % (propEv)
     print '    curEv  % .5e' % (curEv)
-    from IPython import embed
-    embed()
   if (propEv > 0 and curEv < 0) and hasattr(Data, 'nDoc'):
     print 'CRAP! ---------------------------------------!!!!@@@@@@$$$$$'
     print '    propEv % .5e' % (propEv)
@@ -300,9 +298,11 @@ def select_merge_components(curModel, Data, SS, MTracker=None,
                                     kA=kA, randstate=randstate)
   return kA, kB
 
-def preselect_all_merge_candidates(curModel, SS, randstate=np.random,
+def preselect_all_merge_candidates(curModel, SS, 
+                                   compIDs=list(), preselectListOnly=True,
+                                   randstate=np.random,
                                    preselectroutine='random', mergePerLap=10,
-                                   compIDs=list(), **kwargs):
+                                   **kwargs):
   ''' 
       Create and return a list of tuples,
         where each tuple represents a set of component IDs to try to merge
@@ -313,7 +313,6 @@ def preselect_all_merge_candidates(curModel, SS, randstate=np.random,
       SS : bnpy SuffStatBag. If None, defaults to random selection.
       randstate : numpy random number generator
       preselectroutine : name of procedure to select candidate pairs
-                          {'random', 'marglik', 'freshallpairs'}
       mergePerLap : int number of candidates to identify 
                       (may be less if K small)            
 
@@ -322,150 +321,191 @@ def preselect_all_merge_candidates(curModel, SS, randstate=np.random,
       mPairList : list of component ID candidates for positions kA, kB
                     each entry is a tuple of two integers
   '''
-  nMergeTrials = mergePerLap
-  K = curModel.allocModel.K
-  if SS is None: # Handle first lap
-    preselectroutine = 'random'
-  aList = list()
-  bList = list()
+  kwargs['preselectroutine'] = preselectroutine
+  kwargs['randstate'] = randstate
+  kwargs['mergePerLap'] = mergePerLap
 
-  partnerIDs = set(range(K))
-  partnerIDs.difference_update(compIDs)
-  if preselectroutine == 'allpairsfromlist':
-    compIDs = sorted(compIDs)
-    L = len(compIDs)
-    for aa in xrange(L-1):
-      for bb in xrange(aa+1, L):
-        aList.append(compIDs[aa])
-        bList.append(compIDs[bb])
-    aList = aList[:nMergeTrials]
-    bList = bList[:nMergeTrials]
-  elif preselectroutine == 'allpairsfromlistbipartite':
-    compIDs = sorted(compIDs)
-    L = len(compIDs)
-    for kA in compIDs:
-      for kB in list(partnerIDs):
-        aList.append(np.minimum(kA, kB))
-        bList.append(np.maximum(kA, kB))
-    aList = aList[:nMergeTrials]
-    bList = bList[:nMergeTrials]
-  elif preselectroutine == 'bestnmatchfromlist':
-    # Loop thru and find 3 best pairs for each comp in list
-    compIDs = sorted(compIDs)
-    L = len(compIDs)
-    MTracker = MergeTracker(K)
-    MSelector = MergePairSelector()
-    cID = 0
-    trial = 0
-    hasPairs = MTracker.hasAvailablePairs
-    while hasPairs() and cID < L and len(aList) < nMergeTrials:
-      nPartners = 0
-      hasPartners = MTracker.hasAvailablePartnersForComp
-      while hasPartners(compIDs[cID]) and nPartners < 3:
-        kA, kB = MSelector.select_merge_components(curModel, SS, MTracker,
-                                    mergename='marglik', kA=compIDs[cID],
-                                    randstate=randstate)
-        MTracker.recordResult(kA=kA, kB=kB)
-        aList.append(kA)
-        bList.append(kB)
-        nPartners += 1
-        trial += 1
-      cID += 1
-    # reindex aList, bList so we're likely to try all compIDs once
-    aList = aList[::3] + aList[1::3] + aList[2::3]
-    bList = bList[::3] + bList[1::3] + bList[2::3]
-    aList = aList[:nMergeTrials]
-    bList = bList[:nMergeTrials]
-    # at this point, we've added each fresh comp once
-    # continue to add random pairs to list until we've maxed out nMergeTrials 
-    while MTracker.hasAvailablePairs() and trial < nMergeTrials:
-      kA, kB = MSelector.select_merge_components(curModel, SS, MTracker,
-                                    mergename='marglik',
-                                    randstate=randstate)
-      MTracker.recordResult(kA=kA, kB=kB)
-      aList.append(kA)
-      bList.append(kB)
-      trial += 1
-  elif preselectroutine == 'freshbestmatch':
-    compIDs = sorted(compIDs)
-    L = len(compIDs)
-    MTracker = MergeTracker(K)
-    MSelector = MergePairSelector()
-    trial = 0
-    while MTracker.hasAvailablePairs() and trial < np.minimum(L,nMergeTrials):
-      kA = compIDs[trial]
-      kA, kB = MSelector.select_merge_components(curModel, SS, MTracker,
-                                    mergename='marglik', kA=kA,
-                                    randstate=randstate)
-      MTracker.recordResult(kA=kA, kB=kB)
-      aList.append(kA)
-      bList.append(kB)
-      trial += 1
-    # at this point, we've added each fresh comp once
-    # continue to add to list until we've maxed out nMergeTrials 
-    while MTracker.hasAvailablePairs() and trial < nMergeTrials:
-      kA, kB = MSelector.select_merge_components(curModel, SS, MTracker,
-                                    mergename='marglik',
-                                    randstate=randstate)
-      MTracker.recordResult(kA=kA, kB=kB)
-      aList.append(kA)
-      bList.append(kB)
-      trial += 1
+  if compIDs is not None and preselectroutine.count('fromlist') > 0:
+    aList, bList = _preselect_mergepairs_fromlist(curModel, SS, compIDs,
+                                                   **kwargs)
 
-  elif preselectroutine == 'random':
-    MTracker = MergeTracker(K)
-    MSelector = MergePairSelector()
-    trial = 0
-    while MTracker.hasAvailablePairs() and trial < nMergeTrials:
-      trial += 1      
-      kA, kB = MSelector.select_merge_components(curModel, SS, MTracker,
-                                    mergename='random', 
-                                    randstate=randstate)
-      MTracker.recordResult(kA=kA, kB=kB)
-      aList.append(kA)
-      bList.append(kB)
-  elif preselectroutine == 'marglik':
-    MSelector = MergePairSelector()
-    M = np.zeros((K, K))
-    for kA in xrange(K):
-      for kB in xrange(kA+1, K):
-        M[kA, kB] = MSelector._calcMScoreForCandidatePair(curModel, SS, kA, kB)
-    # find the n largest non-zero entries
-    flatM = M.flatten()
-    bestIDs = np.argsort(flatM)[::-1]
-    bestIDs = bestIDs[ flatM[bestIDs] != 0]
-    bestrs, bestcs = np.unravel_index(bestIDs, M.shape)
-    assert np.all(bestrs < bestcs)
-    aList = bestrs[:nMergeTrials].tolist()
-    bList = bestcs[:nMergeTrials].tolist()
-  elif preselectroutine == 'marglikfromlistbipartite':
-    ''' consider best candidates for each comp in list,
-            only partnering with nodes outside the list
-    '''
-    MTracker = MergeTracker(K)
-    MSelector = MergePairSelector()
-    M = np.zeros((K, K))
-    for kA in sorted(compIDs):
-      for kB in list(partnerIDs):
-        M[kA, kB] = MSelector._calcMScoreForCandidatePair(curModel, SS, kA, kB)
-      # find the L largest non-zero entries
-      bestIDs = np.argsort( M[kA,:])[::-1]
-      bestIDs = bestIDs[ M[kA, bestIDs] != 0]
-      bestIDs = bestIDs[:3]
-      for kB in bestIDs:
-        MTracker.recordResult(kA=np.minimum(kA, kB), kB=np.maximum(kA, kB))
-        aList.append(np.minimum(kA,kB))
-        bList.append(np.maximum(kA,kB))
+    if not preselectListOnly and mergePerLap > len(aList):
+      kwargs['mergePerLap'] = mergePerLap - len(aList)
+      excludePairs = zip(aList, bList)
+      aListR, bListR = _preselect_mergepairs_simple(curModel, SS, 
+                                                   excludePairs=excludePairs,
+                                                   **kwargs)
+      aList.extend(aListR)
+      bList.extend(bListR)
+  else:
+    aList, bList = _preselect_mergepairs_simple(curModel, SS, 
+                                                   **kwargs)
 
-    # reindex aList, bList so we're likely to try all compIDs once
-    aList = aList[::3] + aList[1::3] + aList[2::3]
-    bList = bList[::3] + bList[1::3] + bList[2::3]
-    aList = aList[:nMergeTrials]
-    bList = bList[:nMergeTrials]
   assert len(aList) == len(bList)
-  assert len(aList) <= nMergeTrials
+  assert len(aList) <= mergePerLap
   return zip(aList, bList)
 
+def _preselect_mergepairs_simple(curModel, SS, excludePairs=list(), **kwargs):
+  '''
+  '''
+  assert 'preselectroutine' in kwargs
+  K = curModel.allocModel.K  
+  if SS is None: # Handle first lap
+    kwargs['preselectroutine'] = 'random'
+
+  nMergeTrials = kwargs['mergePerLap']
+  if kwargs['preselectroutine'].count('random') > 0:
+    M = kwargs['randstate'].rand(K, K)
+    M[np.tril_indices(K)] = 0
+    M[zip(*excludePairs)] = 0
+  elif kwargs['preselectroutine'].count('marglik') > 0:
+    MSelector = MergePairSelector()
+    M = np.zeros((K, K))
+    excludeSet = set(excludePairs)
+    for kA in xrange(K):
+      for kB in xrange(kA+1, K):
+        if (kA,kB) not in excludeSet:
+          M[kA, kB] = MSelector._calcMScoreForCandidatePair(curModel,
+                                                            SS, kA, kB)
+  else:
+    raise NotImplementedError(kwargs['preselectroutine'])
+
+  if kwargs['preselectroutine'].count('balanced') > 0:
+    aList, bList = _scorematrix2rankedlist_balanced(M, kwargs['mergePerLap'])
+  else:
+    aList, bList = _scorematrix2rankedlist_greedy(M, kwargs['mergePerLap'])
+
+  minPairs = np.minimum(K * (K-1)/2, kwargs['mergePerLap'])
+  minPairs -= len(excludePairs)
+
+  # Return completed lists
+  assert len(aList) == len(bList)
+  assert len(aList) <= kwargs['mergePerLap']
+  assert len(aList) <= K * (K-1)/2
+  assert np.all( np.asarray(aList) < np.asarray(bList))
+  
+  # doesnt matter so much, may not strictly be true but 99% of time is
+  #assert len(aList) >= minPairs 
+  return aList, bList
+
+
+def _getAllPairs(K):
+  mPairIDs = list()
+  for kA in xrange(K):
+    for kB in xrange(kA+1, K):
+      mPairIDs.append( (kA,kB) )
+  return mPairIDs
+
+def _preselect_mergepairs_fromlist(curModel, SS, compIDs, **kwargs):
+  '''
+  '''
+  K = curModel.obsModel.K
+  partnerIDs = set(range(K))
+  partnerIDs.difference_update(compIDs)
+  partnerIDs = list(partnerIDs)
+
+  allPairs = set(_getAllPairs(K))
+  includePairs = list()
+  if kwargs['preselectroutine'].count('inclusive') > 0:
+    for aa, kA in enumerate(compIDs):
+      for kB in compIDs[aa+1:]:
+        if kA < kB:
+          includePairs.append( (kA, kB) )
+        elif kB < kA:
+          includePairs.append( (kB, kA) )
+  elif kwargs['preselectroutine'].count('bipartite') > 0:
+    for kA in compIDs:
+      for kB in partnerIDs:
+        if kA < kB:
+          includePairs.append( (kA, kB) )
+        elif kB < kA:
+          includePairs.append( (kB, kA) )
+  allPairs.difference_update(includePairs)
+  excludePairs = list(allPairs)
+  return _preselect_mergepairs_simple(curModel, SS, excludePairs=excludePairs,
+                                          **kwargs)
+  
+def _scorematrix2rankedlist_greedy(M, mergePerLap):
+  '''
+      Args
+      -------
+        M : score matrix, K x K
+            should have only entries kA,kB where kA <= kB
+
+      Returns
+      --------
+        aList : list of integer ids for rows of M
+        bList : list of integer ids for cols of M
+
+      Example
+      ---------
+      _scorematrix2rankedlist( [0 2 3], [0 0 1], [0 0 0], 3)
+      >> [ (0,2), (0,1), (1,2)]
+  '''
+  Mflat = M.flatten()
+  sortIDs = np.argsort(-1*Mflat)
+  sortIDs = sortIDs[Mflat[sortIDs] != 0]
+  bestrs, bestcs = np.unravel_index(sortIDs, M.shape)
+  return bestrs[:mergePerLap].tolist(), bestcs[:mergePerLap].tolist()
+
+
+def _scorematrix2rankedlist_balanced(M, mergePerLap):
+  ''' Return ranked list of entries in upper-triangular score matrix M,
+        *balanced* so that each set of K entries has one each of {1,2,...K}
+
+      Args
+      -------
+        M : score matrix, K x K
+            should have only entries kA,kB where kA <= kB
+
+      Returns
+      --------
+        aList : list of integer ids for rows of M
+        bList : list of integer ids for cols of M
+  '''
+  K = M.shape[0]
+  nKeep = mergePerLap / K + 5
+  outPartners = -1 * np.ones( (K, nKeep), dtype=np.int32 )
+  outScores = np.zeros( (K, nKeep) )
+  for k in xrange(K):
+    partnerScores = np.hstack( [M[:k, k], [0], M[k, k+1:]] )
+    sortIDs = np.argsort( -1 * partnerScores )
+    sortIDs = sortIDs[ partnerScores[sortIDs] != 0 ]
+    nK = np.minimum( len(sortIDs), nKeep)
+    outPartners[k, :nK] = sortIDs[:nKeep]
+    outScores[k, :nK] = partnerScores[sortIDs[:nKeep]]
+
+  mPairSet = set()
+  mPairs = list()
+  colID = 0
+  while len(mPairs) < mergePerLap and colID < nKeep:
+    # Pop the next set of scores
+    mask = outScores[:, colID] != 0
+    curScores = outScores[mask, colID]
+    curPartners = outPartners[mask, colID]
+    comps = np.arange(K, dtype=np.int32)[mask]
+    
+    assert not np.any(comps == curPartners)
+    aList = np.minimum(comps, curPartners)
+    bList = np.maximum(comps, curPartners)
+
+    for k in np.argsort(-1*curScores):
+      a = aList[k]
+      b = bList[k]
+      if (a, b) not in mPairSet:
+        mPairs.append( (a,b))
+        mPairSet.add((a,b))
+    colID += 1
+  mPairs = mPairs[:mergePerLap]
+  if len(mPairs) < 1:
+    return [], []
+  elif len(mPairs) == 1:
+    return [mPairs[0][0]], [mPairs[0][1]]
+  else:
+    a,b = zip(*mPairs)
+  return list(a), list(b)
+
+  
 ############################################################ Construct new model
 ############################################################
 def propose_merge_candidate(curModel, SS, kA=None, kB=None, 
