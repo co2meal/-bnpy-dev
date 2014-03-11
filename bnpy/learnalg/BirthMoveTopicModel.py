@@ -11,6 +11,12 @@ def create_expanded_suff_stats(Data, curModel, allSS, **kwargs):
         expandSS : SuffStatBag with K + Kfresh components
                    will have scale of the provided target dataset Data
   '''
+  Kfresh = np.minimum(kwargs['Kfresh'], kwargs['Kmax'] - curModel.obsModel.K)
+  if Kfresh < 2:
+    msg = 'BIRTH: Skipped to avoid exceeding specified limit Kmax=%d'
+    raise BirthProposalError(msg % (kwargs['Kmax']))
+  kwargs['Kfresh'] = Kfresh
+
   curLP = curModel.calc_local_params(Data)
   curSS = curModel.get_global_suff_stats(Data, curLP, doPrecompEntropy=True)
   curELBO = curModel.calc_evidence(SS=curSS)
@@ -98,13 +104,17 @@ def create_expanded_suff_stats(Data, curModel, allSS, **kwargs):
   # Verify expanded model preferred over current model
   improveEvBound = xELBO - curELBO
   if improveEvBound <= 0 or improveEvBound < 0.00001 * abs(curELBO):
-    msg = "BIRTH terminated. Not better than single component on target data."
+    msg = "BIRTH terminated. Not better than current model on target data."
     msg += "\n  expanded  | K=%3d | %.7e" % (xSS.K, xELBO)
     msg += "\n  current   | K=%3d | %.7e" % (curSS.K, curELBO)
     raise BirthProposalError(msg)
 
   xSS.setELBOFieldsToZero()
   xSS.setMergeFieldsToZero()
+
+  from IPython import embed
+  embed()
+
   return xSS
 
 def calc_ELBO_for_data_under_just_one_topic(Data, curModel, anySS):
