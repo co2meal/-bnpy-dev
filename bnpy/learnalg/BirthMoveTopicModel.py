@@ -112,9 +112,6 @@ def create_expanded_suff_stats(Data, curModel, allSS, **kwargs):
   xSS.setELBOFieldsToZero()
   xSS.setMergeFieldsToZero()
 
-  from IPython import embed
-  embed()
-
   return xSS
 
 def calc_ELBO_for_data_under_just_one_topic(Data, curModel, anySS):
