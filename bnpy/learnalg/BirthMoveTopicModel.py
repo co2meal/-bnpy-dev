@@ -1,6 +1,8 @@
 import numpy as np
+import logging
+Log = logging.getLogger('bnpy')
+Log.setLevel(logging.DEBUG)
 import KMeansRex
-
 from BirthMove import BirthProposalError
 
 def create_expanded_suff_stats(Data, curModel, allSS, **kwargs):
@@ -23,8 +25,8 @@ def create_expanded_suff_stats(Data, curModel, allSS, **kwargs):
 
   expandModel = create_expanded_model_with_critical_need_topics(
                       Data, curModel, curLP, allSS=allSS, **kwargs)
-  Kexpand = expandModel.obsModel.K
   Korig = curModel.obsModel.K
+  Kexpand = expandModel.obsModel.K
 
   # TODO: should we remember the xLP from previous laps?
   for lap in xrange(kwargs['nFreshLap']):
@@ -37,7 +39,9 @@ def create_expanded_suff_stats(Data, curModel, allSS, **kwargs):
     expandModel.obsModel.update_global_params(xSS, comps=range(Korig, Kexpand))
     expandModel.allocModel.update_global_params(xSS)
 
-  
+  if kwargs['birthVerbose']:
+    Log.info("K= %3d | BRAND NEW FRESH MODEL" % (xSS.K))
+
   # Remove empty topics (assigned to less than 10 words in the target set
   for k in reversed(xrange(Korig, xSS.K)):
     if xSS.N[k] < 10:
@@ -45,7 +49,10 @@ def create_expanded_suff_stats(Data, curModel, allSS, **kwargs):
       del expandModel.obsModel.comp[k]
       expandModel.obsModel.K = xSS.K
   if xSS.K < expandModel.allocModel.K:
+    xLP = None
     expandModel.allocModel.update_global_params(xSS)
+    if kwargs['birthVerbose']:
+      Log.info("K= %3d | after removal of empties" % (xSS.K))
 
   unusedRatio = np.abs(xSS.sumLogPiUnused) / np.abs(allSS.sumLogPiUnused)
   if unusedRatio > 100:
@@ -67,31 +74,39 @@ def create_expanded_suff_stats(Data, curModel, allSS, **kwargs):
     assert np.allclose(curModel.obsModel.comp[0].lamvec,
                      expandModel.obsModel.comp[0].lamvec)
 
-  # Merge within new comps only
-  expandModel, xSS, xLP, xELBO = cleanup_mergenewcompsonly(Data, expandModel, 
-                                                    Korig=Korig, **kwargs)
-  if hasattr(Data, 'nDoc') and xELBO > 0:
-    msg = 'BIRTH failed. proposed model ELBO invalid.'
-    raise BirthProposalError(msg)
-
-  """ 9 March 2014: removed check for single elbo.
-                    seemed to halt growth on NIPS corpus in bad way
-  # Verify expanded model preferred over K=1 model
-  improveEvBound = xELBO - singleELBO
-  if improveEvBound <= 0 or improveEvBound < 0.00001 * abs(singleELBO):
-    msg = "BIRTH terminated. Not better than single component on target data."
-    msg += "\n  expanded | K=%3d | %.7e" % (expandModel.obsModel.K, xELBO)
-    msg += "\n  single   | K=%3d | %.7e" % (1, singleELBO)
-    raise BirthProposalError(msg)
-  """
+  if kwargs['cleanupByDeletion']:
+    expandModel, xLP, xSS, xELBO = delete_comps_that_improve_ELBO(
+                                                      Data, expandModel,
+                                                      Korig=Korig, **kwargs)
+    if kwargs['birthVerbose']:
+      Log.info( "K= %3d | %.3e | after deletion" % (xSS.K, xELBO))
 
   if expandModel.obsModel.K == Korig:
     msg = 'BIRTH failed. unable to create useful new comps'
     raise BirthProposalError(msg)
 
-  # Merge between new comps and orig comps
-  xSS, xELBO = cleanup_mergenewcompsintoexisting(Data, expandModel, xSS, xLP,
+
+  # Merge within new comps only
+  expandModel, xSS, xLP, xELBO = cleanup_mergenewcompsonly(Data, expandModel,
+                                                    LP=xLP,  
                                                     Korig=Korig, **kwargs)
+  if kwargs['birthVerbose']:
+    Log.info("K= %3d | %.3e | after merges new-new" % (xSS.K, xELBO))
+
+  if hasattr(Data, 'nDoc') and xELBO > 0:
+    msg = 'BIRTH failed. proposed model ELBO invalid.'
+    raise BirthProposalError(msg)
+
+  if expandModel.obsModel.K == Korig:
+    msg = 'BIRTH failed. unable to create useful new comps'
+    raise BirthProposalError(msg)
+
+  if kwargs['cleanupModifyOrigComps']:
+    # Merge between new comps and orig comps
+    xSS, xELBO = cleanup_mergenewcompsintoexisting(Data, expandModel, xSS, xLP,
+                                                    Korig=Korig, **kwargs)
+    if kwargs['birthVerbose']:
+      Log.info( "K= %3d | %.3e | after merges old-new" % (xSS.K, xELBO))
 
   if hasattr(Data, 'nDoc') and xELBO > 0:
     msg = 'BIRTH failed. proposed model ELBO invalid.'
@@ -111,8 +126,42 @@ def create_expanded_suff_stats(Data, curModel, allSS, **kwargs):
 
   xSS.setELBOFieldsToZero()
   xSS.setMergeFieldsToZero()
-
   return xSS
+
+def delete_comps_that_improve_ELBO(Data, model, Korig=0, LP=None,
+                                   SS=None, ELBO=None, **kwargs):
+  if LP is None:
+    LP = model.calc_local_params(Data)
+  if SS is None:
+    SS = model.get_global_suff_stats(Data, LP, doPrecompEntropy=True)
+  if ELBO is None:
+    ELBO = model.calc_evidence(SS=SS)
+
+  ''' Iteratively attempt deleting comps K, K-1, K-2, ... Korig
+        going in this order makes it easiest to remove components
+  '''
+  K = SS.K
+  for k in reversed(range(Korig, K)):
+    rmodel = model.copy()
+    rSS = SS.copy()
+    rSS.removeComp(k)
+    rmodel.obsModel.K = rSS.K
+    rmodel.allocModel.update_global_params(rSS, mergeCompB=k)
+    del rmodel.obsModel.comp[k]
+
+    rLP = rmodel.calc_local_params(Data)
+    rSS = rmodel.get_global_suff_stats(Data, rLP, doPrecompEntropy=True)
+    rELBO = rmodel.calc_evidence(SS=rSS)
+
+    if kwargs['doVizBirth'] == 2:
+      viz_deletion_sidebyside(model, rmodel, ELBO, rELBO)
+
+    if rELBO >= ELBO:
+      SS = rSS
+      LP = rLP
+      model = rmodel
+      ELBO = rELBO      
+  return model, LP, SS, ELBO
 
 def calc_ELBO_for_data_under_just_one_topic(Data, curModel, anySS):
   singleModel = curModel.copy()
@@ -162,7 +211,8 @@ def cleanup_mergenewcompsintoexisting(Data, expandModel, xSS, xLP,
 
   return mergexSS, mergexEv
 
-def cleanup_mergenewcompsonly(Data, expandModel, Korig=0, **kwargs):
+def cleanup_mergenewcompsonly(Data, expandModel, LP=None, 
+                                    Korig=0, **kwargs):
   import MergeMove
 
   mergeModel = expandModel
@@ -175,7 +225,10 @@ def cleanup_mergenewcompsonly(Data, expandModel, Korig=0, **kwargs):
       for kB in xrange(kA+1, Ktotal):
         mPairIDs.append( (kA,kB) )
 
-    mLP = mergeModel.calc_local_params(Data)
+    if trial == 0 and LP is not None:
+      mLP = LP
+    else:
+      mLP = mergeModel.calc_local_params(Data)
     mLP['K'] = mergeModel.allocModel.K
     mSS = mergeModel.get_global_suff_stats(Data, mLP,
                     doPrecompEntropy=True, doPrecompMergeEntropy=True,
@@ -183,7 +236,7 @@ def cleanup_mergenewcompsonly(Data, expandModel, Korig=0, **kwargs):
 
     assert 'randstate' in kwargs
     mergeModel, mergeSS, mergeEv, MTracker = MergeMove.run_many_merge_moves(
-                               mergeModel, Data, mSS,
+                               mergeModel, Data, mSS, 
                                nMergeTrials=len(mPairIDs),
                                mPairIDs=mPairIDs, 
                                **kwargs)
@@ -252,7 +305,12 @@ def create_expanded_model_with_critical_need_topics(Data, curModel, curLP,
   freshSS = freshModel.get_global_suff_stats(Data, freshLP)
   expandSS = allSS.copy()
   expandSS.insertComps(freshSS)
-  expandModel.update_global_params( expandSS)
+  expandModel.update_global_params(expandSS)
+
+  if kwargs['doVizBirth'] == 2:
+    viz_docwordfreq_sidebyside(DocWordFreq_missing, 
+                               DocWordFreq_empirical.T[sortedDocIDs[:Nkeep]],
+                               block=True)
 
   assert expandModel.allocModel.K == Korig + Kfresh
   assert expandModel.obsModel.K == Korig + Kfresh
@@ -265,8 +323,19 @@ def calcKLdivergence_discrete(P1, P2, axis=0):
   KL = KL.sum(axis=axis)
   return KL
 
+def viz_deletion_sidebyside(model, rmodel, ELBO, rELBO, block=False):
+  from ..viz import BarsViz
+  from matplotlib import pylab
+  pylab.figure()
+  h=pylab.subplot(1,2,1)
+  BarsViz.plotBarsFromHModel(model, figH=h)
+  h=pylab.subplot(1,2,2)
+  BarsViz.plotBarsFromHModel(rmodel, figH=h)
+  pylab.xlabel("%.3e" % (rELBO - ELBO))
+  pylab.show(block=block)
+
 def viz_docwordfreq_sidebyside(P1, P2, title1='', title2='', 
-                                vmax=None, aspect=None):
+                                vmax=None, aspect=None, block=False):
   from matplotlib import pylab
   pylab.figure()
 
@@ -287,7 +356,4 @@ def viz_docwordfreq_sidebyside(P1, P2, title1='', title2='',
   pylab.imshow(P2, aspect=aspect, interpolation='nearest', vmin=0, vmax=vmax)
   if len(title2) > 0:
     pylab.title(title2)
-  pylab.show(block=False)
-
-
-  
+  pylab.show(block=block)
