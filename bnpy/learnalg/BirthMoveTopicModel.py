@@ -23,8 +23,8 @@ def create_expanded_suff_stats(Data, curModel, allSS, **kwargs):
   curSS = curModel.get_global_suff_stats(Data, curLP, doPrecompEntropy=True)
   curELBO = curModel.calc_evidence(SS=curSS)
 
-  expandModel = create_expanded_model_with_critical_need_topics(
-                      Data, curModel, curLP, allSS=allSS, **kwargs)
+  expandModel = create_expanded_model(Data, curModel, allSS=allSS, 
+                                            curLP=curLP, curSS=curSS, **kwargs)
   Korig = curModel.obsModel.K
   Kexpand = expandModel.obsModel.K
 
@@ -65,15 +65,6 @@ def create_expanded_suff_stats(Data, curModel, allSS, **kwargs):
     msg = 'BIRTH failed. new topic probabilities invalid.'
     raise BirthProposalError(msg)
 
-  # Double-check that we aren't modifying the params for original topics
-  diffInputSSandInputParams = curModel.obsModel.comp[0].lamvec[:4] \
-                              - allSS.WordCounts[0, :4]
-  isSynced = np.allclose(diffInputSSandInputParams,          
-                         curModel.obsModel.obsPrior.lamvec[:4])
-  if isSynced:
-    assert np.allclose(curModel.obsModel.comp[0].lamvec,
-                     expandModel.obsModel.comp[0].lamvec)
-
   if kwargs['cleanupByDeletion']:
     expandModel, xLP, xSS, xELBO = delete_comps_that_improve_ELBO(
                                                       Data, expandModel,
@@ -100,6 +91,16 @@ def create_expanded_suff_stats(Data, curModel, allSS, **kwargs):
   if expandModel.obsModel.K == Korig:
     msg = 'BIRTH failed. unable to create useful new comps'
     raise BirthProposalError(msg)
+
+
+  # Double-check that we aren't modifying the params for original topics
+  diffInputSSandInputParams = curModel.obsModel.comp[0].lamvec[:4] \
+                              - allSS.WordCounts[0, :4]
+  isSynced = np.allclose(diffInputSSandInputParams,          
+                         curModel.obsModel.obsPrior.lamvec[:4])
+  if isSynced:
+    assert np.allclose(curModel.obsModel.comp[0].lamvec,
+                     expandModel.obsModel.comp[0].lamvec)
 
   if kwargs['cleanupModifyOrigComps']:
     # Merge between new comps and orig comps
@@ -137,7 +138,7 @@ def delete_comps_that_improve_ELBO(Data, model, Korig=0, LP=None,
   if ELBO is None:
     ELBO = model.calc_evidence(SS=SS)
 
-  ''' Iteratively attempt deleting comps K, K-1, K-2, ... Korig
+  ''' Iteratively attempt deleting comps Kall, Kall-1, Kall-2, ... Korig
         going in this order makes it easiest to remove components
   '''
   K = SS.K
@@ -247,46 +248,85 @@ def cleanup_mergenewcompsonly(Data, expandModel, LP=None,
 
   return mergeModel, mergeSS, mLP, mergeEv
 
+def create_expanded_model(Data, curModel, \
+                          curLP=None, curSS=None, allSS=None, **kwargs):
+  ''' Create new model with K + Kfresh components
 
-def create_expanded_model_with_critical_need_topics(Data, curModel, curLP,
-                                              fracKeep=0.5, 
-                                              allSS=None,
-                                              Kfresh=10, **kwargs):
+      Args
+      ---------
+      Data : target dataset
+      curModel : bnpy HModel with K components
+
+      Returns
+      ---------
+      expandModel : bnpy HModel with K + Kfresh new components
   '''
-  '''
-  K = curModel.obsModel.K
-
-  Lik = np.exp(curModel.obsModel.getElogphiMatrix())
-  Prior = np.exp(curLP['E_logPi'][:,:K])
-
-  # DocWordFreq : vocab_size x nDoc
-  DocWordFreq_model = np.dot( Lik.T, Prior.T )
-  DocWordFreq_model = DocWordFreq_model / DocWordFreq_model.sum(axis=0)
-
-  DocWordFreq_empirical = Data.to_sparse_docword_matrix().toarray().T
-  DocWordFreq_empirical = DocWordFreq_empirical + 1e-100
-  DocWordFreq_empirical /= DocWordFreq_empirical.sum(axis=0)
-
-  KLperDoc = calcKLdivergence_discrete(DocWordFreq_empirical, DocWordFreq_model)
-
-  sortedDocIDs = np.argsort( -1 * KLperDoc )
-
-  Nkeep = int(fracKeep * len(sortedDocIDs))
-  DocWordFreq_missing = DocWordFreq_empirical[:, sortedDocIDs[:Nkeep]] \
-                         - DocWordFreq_model[:, sortedDocIDs[:Nkeep]] 
-  DocWordFreq_missing = np.maximum(1e-7, DocWordFreq_missing)
-  DocWordFreq_missing /= DocWordFreq_missing.sum(axis=0)
-  DocWordFreq_missing = DocWordFreq_missing.T.copy(order='F')
-
-  DocWordFreq_clusterctrs, Z = KMeansRex.RunKMeans(DocWordFreq_missing, Kfresh,
-                               initname='plusplus',
-                               Niter=10, seed=0)
-  DocWordFreq_clusterctrs /= DocWordFreq_clusterctrs.sum(axis=1)[:,np.newaxis]
-
+  Kfresh = kwargs['Kfresh']
   Korig = curModel.obsModel.K
+
+  if kwargs['creationroutine'] == 'datadriven':
+    topics = create_critical_need_topics(Data, curModel, curLP, 
+                                          allSS=allSS, **kwargs)
+  elif kwargs['creationroutine'] == 'fromtargetstats':
+    ''' Similar to Mike Bryant's style proposal
+    '''
+    if Kfresh <= Korig:
+      topicIDs = kwargs['randstate'].choice(Korig, Kfresh, replace=False)
+    else:
+      topicIDs = kwargs['randstate'].choice(Korig, Kfresh, replace=True)
+    topics = curSS.WordCounts[topicIDs,:]
+    topics += curModel.obsModel.obsPrior.lamvec
+    topics /= topics.sum(axis=1)[:,np.newaxis]
+
+    # Draw random perturbations
+    uniftopics = kwargs['randstate'].rand(Kfresh, Data.vocab_size)
+    uniftopics /= uniftopics.sum(axis=1)[:,np.newaxis]
+    
+    topics = 0.95 * topics + 0.05 * uniftopics
+
+  elif kwargs['creationroutine'] == 'randomfromexisting':
+    # Select Kfresh topics from current set, at random
+    topics = np.exp(curModel.obsModel.getElogphiMatrix())
+    if Kfresh <= Korig:
+      rowIDs = kwargs['randstate'].choice(Korig, Kfresh, replace=False)
+    else:
+      rowIDs = kwargs['randstate'].choice(Korig, Kfresh, replace=True)
+    topics = topics[rowIDs]
+    topics /= topics.sum(axis=1)[:,np.newaxis]
+
+    # Draw random perturbations
+    uniftopics = kwargs['randstate'].rand(Kfresh, Data.vocab_size)
+    uniftopics /= uniftopics.sum(axis=1)[:,np.newaxis]
+    
+    topics = 0.9 * topics + 0.1 * uniftopics
+
+  elif kwargs['creationroutine'] == 'randomfromprior':
+    topics = kwargs['randstate'].gamma(curModel.obsModel.obsPrior.lamvec, 1.0, 
+                                       (Kfresh, Data.vocab_size))
+    topics = np.maximum(topics, 1e-6)
+    topics /= topics.sum(axis=1)[:,np.newaxis]
+  else:
+    msg = "Unrecognised creationroutine: %s" % (kwargs['creationroutine'])
+    raise NotImplementedError(msg)
+
+  freshModel = curModel.copy()
+  freshModel.set_global_params(beta=np.ones(Kfresh)/Kfresh, K=Kfresh,
+                                    topics=topics
+                                   )
+  freshLP = freshModel.calc_local_params(Data)
+  freshSS = freshModel.get_global_suff_stats(Data, freshLP)
+
+  expandSS = allSS.copy()
   expandModel = curModel.copy()
 
-  """ Here is an old, very bad way to construct the expanded model
+  expandSS.insertComps(freshSS)
+  expandModel.update_global_params(expandSS)
+
+  assert expandModel.allocModel.K == Korig + Kfresh
+  assert expandModel.obsModel.K == Korig + Kfresh
+  return expandModel
+
+""" Here is an old, very bad way to construct the expanded model
       it is bad because we basically keep all old global topic probabilities
       so that the new ones are only allowed to split the mass that "remains"
         which can be very very very small (like 1e-8),
@@ -295,29 +335,71 @@ def create_expanded_model_with_critical_need_topics(Data, curModel, curLP,
      expandModel.insert_global_params( beta=np.ones(Kfresh)/Kfresh, K=Kfresh,
                                     topics=DocWordFreq_clusterctrs
                                    )
-  """
+"""
+def create_critical_need_topics(Data, curModel, curLP,
+                                              fracKeep=0.5, 
+                                              allSS=None,
+                                              Kfresh=10, **kwargs):
+  '''
+      Returns
+      -------
+      topics : 2D array, K x vocab_size
+               each row has non-negative entries that sum to one
+  '''
+  K = curModel.obsModel.K
 
-  freshModel = curModel.copy()
-  freshModel.set_global_params(beta=np.ones(Kfresh)/Kfresh, K=Kfresh,
-                                    topics=DocWordFreq_clusterctrs
-                                   )
-  freshLP = freshModel.calc_local_params(Data)
-  freshSS = freshModel.get_global_suff_stats(Data, freshLP)
-  expandSS = allSS.copy()
-  expandSS.insertComps(freshSS)
-  expandModel.update_global_params(expandSS)
+  DocWordMat = Data.to_sparse_docword_matrix()
 
+  # Build empirical distribution for each document
+  # DocWordFreq : nDoc x vocab_size
+  DocWordFreq_empirical = DocWordMat.toarray() + 1e-100
+  DocWordFreq_empirical /= DocWordFreq_empirical.sum(axis=1)[:,np.newaxis]
+
+  # Build model's mixture distribution for each document
+  #   Prior : nDoc x K
+  #   Lik   : K x vocab_size
+  Prior = np.exp(curLP['E_logPi'][:,:K])
+  Lik = np.exp(curModel.obsModel.getElogphiMatrix())
+  DocWordFreq_model = np.dot(Prior, Lik)
+  DocWordFreq_model /= DocWordFreq_model.sum(axis=1)[:,np.newaxis]
+
+  # If desired, filter out docs that are "too small"
+  if kwargs['birthWordsPerDocThr'] > 0:
+    wordsPerDoc = np.squeeze(np.asarray(DocWordMat.sum(axis=1)))
+    bigEnoughDocIDs = np.flatnonzero(wordsPerDoc > kwargs['birthWordsPerDocThr'])
+    DocWordFreq_empirical = DocWordFreq_empirical[bigEnoughDocIDs]
+    DocWordFreq_model = DocWordFreq_model[bigEnoughDocIDs]
+
+  # Rank documents in terms of KL divergence
+  KLperDoc = calcKLdivergence_discrete(DocWordFreq_empirical, DocWordFreq_model)
+  if np.percentile(KLperDoc, 10) < 1.0:
+    # Keep only a subset of documents (those with larger KL)
+    sortedDocIDs = np.argsort(-1 * KLperDoc)
+    Nkeep = int(fracKeep * sortedDocIDs.size)
+    keepDocIDs = sortedDocIDs[:Nkeep]
+    DocWordFreq_missing = DocWordFreq_empirical[keepDocIDs] \
+                         - DocWordFreq_model[keepDocIDs] 
+  else:
+    DocWordFreq_missing = DocWordFreq_empirical \
+                         - DocWordFreq_model
+
+  # Construct good "missing topics" for each document
+  DocWordFreq_missing = np.maximum(1e-7, DocWordFreq_missing)
+  DocWordFreq_missing /= DocWordFreq_missing.sum(axis=1)[:,np.newaxis]
+  DocWordFreq_missing = DocWordFreq_missing.copy(order='F')
+
+  DocWordFreq_clusterctrs, Z = KMeansRex.RunKMeans(DocWordFreq_missing, Kfresh,
+                               initname='plusplus',
+                               Niter=10, seed=kwargs['randstate'].randint(1000))
+  DocWordFreq_clusterctrs /= DocWordFreq_clusterctrs.sum(axis=1)[:,np.newaxis]
   if kwargs['doVizBirth'] == 2:
     viz_docwordfreq_sidebyside(DocWordFreq_missing, 
-                               DocWordFreq_empirical.T[sortedDocIDs[:Nkeep]],
+                               DocWordFreq_empirical,
                                block=True)
-
-  assert expandModel.allocModel.K == Korig + Kfresh
-  assert expandModel.obsModel.K == Korig + Kfresh
-  return expandModel
+  return DocWordFreq_clusterctrs
 
 
-def calcKLdivergence_discrete(P1, P2, axis=0):
+def calcKLdivergence_discrete(P1, P2, axis=1):
   KL = np.log(P1) - np.log(P2)
   KL *= P1
   KL = KL.sum(axis=axis)
@@ -342,7 +424,10 @@ def viz_docwordfreq_sidebyside(P1, P2, title1='', title2='',
   if vmax is None:
     vmax = 1.0
     P1limit = np.percentile(P1.flatten(), 97)
-    P2limit = np.percentile(P2.flatten(), 97)
+    if P2 is not None:
+      P2limit = np.percentile(P2.flatten(), 97)
+    else:
+      P2limit = P1limit
     while vmax > P1limit and vmax > P2limit:
       vmax = 0.8 * vmax
 
@@ -352,8 +437,9 @@ def viz_docwordfreq_sidebyside(P1, P2, title1='', title2='',
   pylab.imshow(P1, aspect=aspect, interpolation='nearest', vmin=0, vmax=vmax)
   if len(title1) > 0:
     pylab.title(title1)
-  pylab.subplot(1, 2, 2)
-  pylab.imshow(P2, aspect=aspect, interpolation='nearest', vmin=0, vmax=vmax)
-  if len(title2) > 0:
-    pylab.title(title2)
+  if P2 is not None:
+    pylab.subplot(1, 2, 2)
+    pylab.imshow(P2, aspect=aspect, interpolation='nearest', vmin=0, vmax=vmax)
+    if len(title2) > 0:
+      pylab.title(title2)
   pylab.show(block=block)

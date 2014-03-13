@@ -344,13 +344,22 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     '''
     if Data is not None:
       if hasattr(Data, 'nDoc'):
+        wordPerDocThr = self.algParams['birth']['birthWordsPerDocThr']
+        if wordPerDocThr > 0:
+          nWordPerDoc = np.asarray(Data.to_sparse_docword_matrix().sum(axis=1))
+          candidates = nWordPerDoc >= wordPerDocThr
+          candidates = np.flatnonzero(candidates)
+        else:
+          candidates = None
         targetData = Data.get_random_sample(
                                 self.algParams['birth']['maxTargetSize'],
-                                randstate=self.PRNG)
+                                randstate=self.PRNG, candidates=candidates)
       else:
         targetData = Data.get_random_sample(
                                 self.algParams['birth']['maxTargetObs'],
                                 randstate=self.PRNG)
+
+
       Plan = dict(Data=targetData, ktarget=-1)
       BirthPlans = [Plan]
 
