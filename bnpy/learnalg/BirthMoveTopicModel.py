@@ -92,7 +92,6 @@ def create_expanded_suff_stats(Data, curModel, allSS, **kwargs):
     msg = 'BIRTH failed. unable to create useful new comps'
     raise BirthProposalError(msg)
 
-
   # Double-check that we aren't modifying the params for original topics
   diffInputSSandInputParams = curModel.obsModel.comp[0].lamvec[:4] \
                               - allSS.WordCounts[0, :4]
@@ -185,6 +184,7 @@ def cleanup_mergenewcompsintoexisting(Data, expandModel, xSS, xLP,
   mPairIDs = MergeMove.preselect_all_merge_candidates(
               expandModel, xSS, randstate=kwargs['randstate'],
               preselectroutine=kwargs['cleanuppreselectroutine'], 
+              preselectListOnly=True,
               mergePerLap=kwargs['cleanupNumMergeTrials']*(Kexpand-Korig),
               compIDs=range(Korig, Kexpand))
   mPairIDsOrig = [x for x in mPairIDs]  
@@ -244,7 +244,6 @@ def cleanup_mergenewcompsonly(Data, expandModel, LP=None,
     if mergeSS.K == Ktotal:
       break # no merges happened, so quit trying
     Ktotal = mergeSS.K
-
 
   return mergeModel, mergeSS, mLP, mergeEv
 

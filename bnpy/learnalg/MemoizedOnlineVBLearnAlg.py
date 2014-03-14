@@ -74,6 +74,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     BirthPlans = list()
     BirthResults = None
     prevBirthResults = None
+    preselectroutine = None
 
     SS = None
     isConverged = False
@@ -125,6 +126,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
       # Select which components to merge
       if self.hasMove('merge') and not self.algParams['merge']['doAllPairs']:
+        preselectroutine = self.algParams['merge']['preselectroutine']
         if self.isFirstBatch(lapFrac):
           if self.hasMove('birth'):
             compIDs = self.BirthCompIDs
@@ -133,6 +135,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
           mPairIDs = MergeMove.preselect_all_merge_candidates(hmodel, SS, 
                            randstate=self.PRNG, compIDs=compIDs,
                            **self.algParams['merge'])
+          if SS is not None and SS.hasSelectionTerms():
+            SS._SelectTerms.setAllFieldsToZero()
 
       # E step
       if batchID in self.LPmemory:
@@ -162,6 +166,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
                        doPrecompEntropy=True, 
                        doPrecompMergeEntropy=self.hasMove('merge'),
                        mPairIDs=mPairIDs,
+                       preselectroutine=preselectroutine
                        )
 
       if SS is None:
@@ -301,6 +306,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
   def save_batch_suff_stat_to_memory(self, batchID, SSchunk):
     ''' Store the provided suff stats into the "memory" for later retrieval
     '''
+    if SSchunk.hasSelectionTerms():
+      del SSchunk._SelectTerms
     self.SSmemory[batchID] = SSchunk
 
   def save_batch_local_params_to_memory(self, batchID, LPchunk):
