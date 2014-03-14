@@ -351,6 +351,8 @@ def _preselect_mergepairs_simple(curModel, SS, excludePairs=list(), **kwargs):
   assert 'preselectroutine' in kwargs
   K = curModel.allocModel.K  
   if SS is None: # Handle first lap
+    if kwargs['preselectroutine'].count('skipfirstlap') > 0:
+      return [], []
     kwargs['preselectroutine'] = 'random'
 
   nMergeTrials = kwargs['mergePerLap']

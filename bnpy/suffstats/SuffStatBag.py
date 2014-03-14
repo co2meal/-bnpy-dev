@@ -131,10 +131,12 @@ class SuffStatBag(object):
       for key, dims in self._SelectTerms._FieldDims.items():
         mArr = getattr(self._SelectTerms, key)
         if dims == ('K','K'):
-          mArr[kA,kA+1:] = np.nan
-          mArr[:kA,kA] = np.nan
+          ab = mArr[kB, kB] + 2 * mArr[kA, kB] + mArr[kA,kA]
+          mArr[kA,:] += mArr[kB,:]
+          mArr[:,kA] += mArr[:, kB]
+          mArr[kA,kA] = ab
         elif dims == ('K'):
-          mArr[kA] = np.nan
+          mArr[kA] = mArr[kA] + mArr[kB]
 
     self._Fields.removeComp(kB)
     if self.hasELBOTerms():
