@@ -154,7 +154,7 @@ def delete_comps_that_improve_ELBO(Data, model, Korig=0, LP=None,
     rSS = rmodel.get_global_suff_stats(Data, rLP, doPrecompEntropy=True)
     rELBO = rmodel.calc_evidence(SS=rSS)
 
-    if kwargs['doVizBirth'] == 2:
+    if kwargs['doVizBirth'] == 3:
       viz_deletion_sidebyside(model, rmodel, ELBO, rELBO)
 
     if rELBO >= ELBO:
@@ -352,8 +352,8 @@ def create_critical_need_topics(Data, curModel, curLP,
 
   # Build empirical distribution for each document
   # DocWordFreq : nDoc x vocab_size
-  DocWordFreq_empirical = DocWordMat.toarray() + 1e-100
-  DocWordFreq_empirical /= DocWordFreq_empirical.sum(axis=1)[:,np.newaxis]
+  DocWordFreq_empirical = DocWordMat.toarray()
+  DocWordFreq_empirical /= (1e-9 + DocWordFreq_empirical.sum(axis=1)[:,np.newaxis])
 
   # Build model's mixture distribution for each document
   #   Prior : nDoc x K
@@ -362,73 +362,143 @@ def create_critical_need_topics(Data, curModel, curLP,
   Lik = np.exp(curModel.obsModel.getElogphiMatrix())
   DocWordFreq_model = np.dot(Prior, Lik)
   DocWordFreq_model /= DocWordFreq_model.sum(axis=1)[:,np.newaxis]
+  
+  if kwargs['doVizBirth'] == 2:
+    viz_missing_docwordfreq_stats(DocWordFreq_empirical, DocWordFreq_model)
 
   # If desired, filter out docs that are "too small"
   if kwargs['birthWordsPerDocThr'] > 0:
     wordsPerDoc = np.squeeze(np.asarray(DocWordMat.sum(axis=1)))
-    bigEnoughDocIDs = np.flatnonzero(wordsPerDoc > kwargs['birthWordsPerDocThr'])
-    DocWordFreq_empirical = DocWordFreq_empirical[bigEnoughDocIDs]
-    DocWordFreq_model = DocWordFreq_model[bigEnoughDocIDs]
+    bigEnoughDocIDs = np.flatnonzero(wordsPerDoc >= kwargs['birthWordsPerDocThr'])
+    if len(bigEnoughDocIDs) < DocWordMat.shape[0]:
+      # this can happen with targeted dataset
+      DocWordFreq_empirical = DocWordFreq_empirical[bigEnoughDocIDs]
+      DocWordFreq_model = DocWordFreq_model[bigEnoughDocIDs]
+  
 
   # Rank documents in terms of KL divergence
   KLperDoc = calcKLdivergence_discrete(DocWordFreq_empirical, DocWordFreq_model)
-  if np.percentile(KLperDoc, 10) < 1.0:
-    # Keep only a subset of documents (those with larger KL)
-    sortedDocIDs = np.argsort(-1 * KLperDoc)
-    Nkeep = int(fracKeep * sortedDocIDs.size)
-    keepDocIDs = sortedDocIDs[:Nkeep]
-    DocWordFreq_missing = DocWordFreq_empirical[keepDocIDs] \
-                         - DocWordFreq_model[keepDocIDs] 
-  else:
-    DocWordFreq_missing = DocWordFreq_empirical \
-                         - DocWordFreq_model
+
+  if kwargs['birthVerbose']:
+    print '           %5.0f %5.0f %5.0f' % (5, 50, 95)
+    print ' KLperDoc  %5.2f %5.2f %5.2f' % (np.percentile(KLperDoc,5),
+                                            np.percentile(KLperDoc,50),
+                                            np.percentile(KLperDoc,95),
+                                           )
 
   # Construct good "missing topics" for each document
-  DocWordFreq_missing = np.maximum(1e-7, DocWordFreq_missing)
-  DocWordFreq_missing /= DocWordFreq_missing.sum(axis=1)[:,np.newaxis]
-  DocWordFreq_missing = DocWordFreq_missing.copy(order='F')
+  DocWordFreq_missing = DocWordFreq_empirical - DocWordFreq_model
+  DocWordFreq_missing = np.maximum(0, DocWordFreq_missing)
+  #DocWordFreq_missing /= DocWordFreq_missing.sum(axis=1)[:,np.newaxis]
+  #DocWordFreq_missing = DocWordFreq_missing.copy(order='F')
 
 
-  if kwargs['creationroutine'] == 'datadriven-targetwords':
-    nToughWords = Data.nDoc
+  if kwargs['creationroutine'].count('targetwords'):
 
-    perWordScores = np.percentile( DocWordFreq_missing, 75, axis=0)
-    sortedWords  = np.argsort( -1 * perWordScores )
-    toughWords = sortedWords[:Data.nDoc]
-    _, Z = KMeansRex.RunKMeans(DocWordFreq_missing[:,toughWords], Kfresh,
+    nDocPerWord = np.sum(DocWordFreq_missing > 0, axis=0)
+    perWordScores = np.sum(DocWordFreq_missing, axis=0)
+
+    candidateWords = np.flatnonzero(nDocPerWord >= kwargs['targetMinDocPerWord'])
+
+    if len(candidateWords) < 2:
+      raise BirthProposalError('No candidate words available.')
+
+    # Score each candidate vocab word by how often it is "missing"
+    #   and then create small list of "most missed" words
+    candidateScores = perWordScores[candidateWords]
+    sortIDs = np.argsort(-1 * candidateScores)    
+    rankedWords = candidateWords[sortIDs][:2 * Data.nDoc]
+
+    nTargetsPerDoc = np.sum(DocWordFreq_missing[:,rankedWords] > 0, axis=1)
+    relevantDocs = np.flatnonzero(nTargetsPerDoc > kwargs['targetRelDocThr'])
+
+    # Cluster relevant documents X into indicators Z
+    #   based on their use of the ranked, targeted words
+    if len(relevantDocs) < Kfresh:
+      X = DocWordFreq_missing[relevantDocs,:]
+    else:
+      X = DocWordFreq_missing
+    _, Z = KMeansRex.RunKMeans(X[:, rankedWords], Kfresh,
                                initname='plusplus',
                                Niter=10, seed=kwargs['randstate'].randint(1000))
     Z = np.squeeze(Z)
+
+    # Propose new topics from the empirical distribution
+    #   of each cluster of relevant documents
     DocWordFreq_clusterctrs = np.zeros((Kfresh, Data.vocab_size))
     for k in xrange(Kfresh):
-      DocWordFreq_clusterctrs[k,:] = np.sum(DocWordFreq_missing[Z==k], axis=0)
+      DocWordFreq_clusterctrs[k,:] = np.sum(X[Z==k], axis=0)
   else:
-    DocWordFreq_clusterctrs, Z = KMeansRex.RunKMeans(DocWordFreq_missing, Kfresh,
+    X = DocWordFreq_missing
+    DocWordFreq_clusterctrs, Z = KMeansRex.RunKMeans(X, Kfresh,
                                initname='plusplus',
                                Niter=10, seed=kwargs['randstate'].randint(1000))
 
-  if kwargs['birthFixOutliers']:
+
+  # Filter out very small clusters, replace with subclusters of biggest cluster
+  if kwargs['creationFixOutliers']:
     Z = np.squeeze(Z)
     Nk, bins = np.histogram(Z, range=(0,Kfresh), bins=Kfresh)
-    outliers = np.flatnonzero( Nk < 0.02 * Data.nDoc)
-    # Filter out outliers and replace with better guesses
+    bigClusterID = np.argmax(Nk)
+    bigDocs = np.flatnonzero(Z==bigClusterID)      
+    outliers = np.flatnonzero( Nk < 3)
     for k in outliers:
-      bigClusterID = np.argmax(Nk)
-      bigDocs = np.flatnonzero(Z==bigClusterID)
-      chosenDocs = kwargs['randstate'].choice(bigDocs, len(bigDocs)/10,
+      nDocToPick = np.maximum(5, len(bigDocs)/10)
+      if len(bigDocs) < nDocToPick:
+        Log.error("bigDocs is TOO SMALL!")
+        continue 
+      chosenDocs = kwargs['randstate'].choice(bigDocs, nDocToPick,
                                                      replace=False)
-      DocWordFreq_clusterctrs[k,:] = DocWordFreq_missing[chosenDocs].mean(axis=0)
+      DocWordFreq_clusterctrs[k,:] = X[chosenDocs].mean(axis=0)
 
-  DocWordFreq_clusterctrs /= DocWordFreq_clusterctrs.sum(axis=1)[:,np.newaxis]
-  if kwargs['doVizBirth'] == 2:
+  if kwargs['creationSmoothTopics']:
+    DocWordFreq_clusterctrs /= DocWordFreq_clusterctrs.sum(axis=1)[:,np.newaxis] \
+                                 + 1e-7
+    nRow, nCol = DocWordFreq_clusterctrs.shape
+    NearlyUniformWordFreq = np.random.rand(nRow, nCol)
+    NearlyUniformWordFreq /= NearlyUniformWordFreq.sum(axis=1)[:,np.newaxis]
+    DocWordFreq_clusterctrs = 0.95 * DocWordFreq_clusterctrs \
+                            + 0.05 * NearlyUniformWordFreq
+  else:
+    DocWordFreq_clusterctrs += 1e-7
+    DocWordFreq_clusterctrs /= DocWordFreq_clusterctrs.sum(axis=1)[:,np.newaxis]   
+
+  if kwargs['doVizBirth'] == 3:
     viz_docwordfreq_sidebyside(DocWordFreq_missing, 
                                DocWordFreq_empirical,
                                block=True)
   return DocWordFreq_clusterctrs
 
 
+def viz_missing_docwordfreq_stats(DocWordFreq_emp, DocWordFreq_model):
+  from matplotlib import pylab
+  DocWordFreq_missing = np.maximum(DocWordFreq_emp - DocWordFreq_model, 0)
+
+  nnzEmp = count_num_nonzero(DocWordFreq_emp)
+  nnzMiss = count_num_nonzero(DocWordFreq_missing)
+  frac_nzMiss = nnzMiss / float(nnzEmp)
+
+  nzMissPerDoc = np.sum(DocWordFreq_missing > 0, axis=1)
+  CDF_nzMissPerDoc = np.sort(nzMissPerDoc)
+  nzMissPerWord = np.sum(DocWordFreq_missing > 0, axis=0)
+  CDF_nzMissPerWord = np.sort(nzMissPerWord)
+
+  pylab.subplot(1,2,1)
+  pylab.plot(CDF_nzMissPerDoc)
+  pylab.ylabel('Num Nonzero Entries in Doc')
+  pylab.xlabel('Document rank | frac= %.4f'% (frac_nzMiss))
+  pylab.subplot(1,2,2)
+  pylab.plot(CDF_nzMissPerWord)
+  pylab.ylabel('Num Nonzero Entries per Word')
+  pylab.xlabel('Word rank')
+
+  pylab.show(block=True)
+
+def count_num_nonzero(Amat):
+  return np.sum(Amat != 0)
+
 def calcKLdivergence_discrete(P1, P2, axis=1):
-  KL = np.log(P1) - np.log(P2)
+  KL = np.log(P1 + 1e-100) - np.log(P2 + 1e-100)
   KL *= P1
   KL = KL.sum(axis=axis)
   return KL
