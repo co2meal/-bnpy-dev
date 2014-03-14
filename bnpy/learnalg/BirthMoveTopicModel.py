@@ -264,7 +264,7 @@ def create_expanded_model(Data, curModel, \
   Kfresh = kwargs['Kfresh']
   Korig = curModel.obsModel.K
 
-  if kwargs['creationroutine'] == 'datadriven':
+  if kwargs['creationroutine'].count('datadriven'):
     topics = create_critical_need_topics(Data, curModel, curLP, 
                                           allSS=allSS, **kwargs)
   elif kwargs['creationroutine'] == 'fromtargetstats':
@@ -388,9 +388,37 @@ def create_critical_need_topics(Data, curModel, curLP,
   DocWordFreq_missing /= DocWordFreq_missing.sum(axis=1)[:,np.newaxis]
   DocWordFreq_missing = DocWordFreq_missing.copy(order='F')
 
-  DocWordFreq_clusterctrs, Z = KMeansRex.RunKMeans(DocWordFreq_missing, Kfresh,
+
+  if kwargs['creationroutine'] == 'datadriven-targetwords':
+    nToughWords = Data.nDoc
+
+    perWordScores = np.percentile( DocWordFreq_missing, 75, axis=0)
+    sortedWords  = np.argsort( -1 * perWordScores )
+    toughWords = sortedWords[:Data.nDoc]
+    _, Z = KMeansRex.RunKMeans(DocWordFreq_missing[:,toughWords], Kfresh,
                                initname='plusplus',
                                Niter=10, seed=kwargs['randstate'].randint(1000))
+    Z = np.squeeze(Z)
+    DocWordFreq_clusterctrs = np.zeros((Kfresh, Data.vocab_size))
+    for k in xrange(Kfresh):
+      DocWordFreq_clusterctrs[k,:] = np.sum(DocWordFreq_missing[Z==k], axis=0)
+  else:
+    DocWordFreq_clusterctrs, Z = KMeansRex.RunKMeans(DocWordFreq_missing, Kfresh,
+                               initname='plusplus',
+                               Niter=10, seed=kwargs['randstate'].randint(1000))
+
+  if kwargs['birthFixOutliers']:
+    Z = np.squeeze(Z)
+    Nk, bins = np.histogram(Z, range=(0,Kfresh), bins=Kfresh)
+    outliers = np.flatnonzero( Nk < 0.02 * Data.nDoc)
+    # Filter out outliers and replace with better guesses
+    for k in outliers:
+      bigClusterID = np.argmax(Nk)
+      bigDocs = np.flatnonzero(Z==bigClusterID)
+      chosenDocs = kwargs['randstate'].choice(bigDocs, len(bigDocs)/10,
+                                                     replace=False)
+      DocWordFreq_clusterctrs[k,:] = DocWordFreq_missing[chosenDocs].mean(axis=0)
+
   DocWordFreq_clusterctrs /= DocWordFreq_clusterctrs.sum(axis=1)[:,np.newaxis]
   if kwargs['doVizBirth'] == 2:
     viz_docwordfreq_sidebyside(DocWordFreq_missing, 
