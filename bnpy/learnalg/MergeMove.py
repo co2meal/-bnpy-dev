@@ -373,7 +373,9 @@ def _preselect_mergepairs_simple(curModel, SS, excludePairs=list(), **kwargs):
 
     # TODO: we *can* handle accepted merges, but for now just
     #  eliminate pairs kA,kB that have been merged from consideration
+
     nanIDs = np.isnan(Smat)
+    offlimitcompIDs = np.logical_or(np.isnan(svec), svec == 0)
     Smat[nanIDs] = 0
     svec[np.isnan(svec)] = 0
 
@@ -382,6 +384,7 @@ def _preselect_mergepairs_simple(curModel, SS, excludePairs=list(), **kwargs):
     assert varc.min() >= 0
 
     sqrtc = np.sqrt(varc)
+    sqrtc[offlimitcompIDs] = 1e-20
     CorrMat = CovMat / np.outer(sqrtc, sqrtc)
 
     # Now, filter to leave only *positive* entries in upper diagonal

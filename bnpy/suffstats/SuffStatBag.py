@@ -151,6 +151,8 @@ class SuffStatBag(object):
       self._ELBOTerms.insertEmptyComps(SS.K)
     if hasattr(self, '_MergeTerms'):
       self._MergeTerms.insertEmptyComps(SS.K)
+    if hasattr(self, '_SelectTerms'):
+      self._SelectTerms.insertEmptyComps(SS.K)
 
   def insertEmptyComps(self, Kextra):
     self._Fields.insertEmptyComps(Kextra)
@@ -158,6 +160,8 @@ class SuffStatBag(object):
       self._ELBOTerms.insertEmptyComps(Kextra)
     if hasattr(self, '_MergeTerms'):
       self._MergeTerms.insertEmptyComps(Kextra)
+    if hasattr(self, '_SelectTerms'):
+      self._SelectTerms.insertEmptyComps(Kextra)
 
   # ======================================================= Remove comp
   def removeComp(self, k):
@@ -183,7 +187,7 @@ class SuffStatBag(object):
       SSsum._ELBOTerms = self._ELBOTerms + PB._ELBOTerms
     if hasattr(self, '_MergeTerms'):
       SSsum._MergeTerms = self._MergeTerms + PB._MergeTerms
-    if hasattr(self, '_SelectTerms'):
+    if hasattr(self, '_SelectTerms') and hasattr(PB, '_SelectTerms'):
       SSsum._SelectTerms = self._SelectTerms + PB._SelectTerms
     return SSsum
 
@@ -195,7 +199,7 @@ class SuffStatBag(object):
       self._ELBOTerms += PB._ELBOTerms
     if hasattr(self, '_MergeTerms'):
       self._MergeTerms += PB._MergeTerms
-    if hasattr(self, '_SelectTerms'):
+    if hasattr(self, '_SelectTerms') and hasattr(PB, '_SelectTerms'):
       self._SelectTerms += PB._SelectTerms
     return self
 
