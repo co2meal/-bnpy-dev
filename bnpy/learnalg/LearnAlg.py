@@ -83,18 +83,10 @@ class LearnAlg(object):
     return time.time() - self.start_time
 
   def buildRunInfo(self, evBound, status, nLap=None):
-    ''' Create dict of information about the current run,
-        to return to end-user after learning algorithm is terminated.
+    ''' Create dict of information about the current run
     '''
-    lapTrace = np.asarray(sorted(list(self.TraceLaps)))
-    evTrace = np.asarray(self.evTrace)
-    if self.__class__.__name__.count('Memo') > 0:
-        mask = lapTrace >= self.algParams['startLap'] + 1
-        lapTrace = lapTrace[mask]
-        evTrace = evTrace[mask]
     return dict(evBound=evBound, status=status, nLap=nLap,
-                evTrace=evTrace, lapTrace=lapTrace,
-                savedir=self.savedir)
+                evTrace=self.evTrace, lapTrace=self.TraceLaps)
 
   ##################################################### Fcns for birth/merges
   ##################################################### 
@@ -272,4 +264,24 @@ class LearnAlg(object):
     frac = self.algParams['birth']['fracLapsBirth']
     if lapFrac > nLapTotal:
       return False
-    return (nLapTotal <= 5) or (lapFrac <= np.ceil(frac * nLapTotal)) 
+    return (nLapTotal <= 5) or (lapFrac <= np.ceil(frac * nLapTotal))
+
+  def eval_custom_func(self, hmodel, iterid, lapFrac):
+      ''' Evaluates a custom hook function called customFunc.py in the path specified in algParams['customFuncPath']
+      '''
+      import ast
+      customFuncPath = self.algParams['customFuncPath']
+      customFuncArgs_string = self.algParams['customFuncArgs']
+      nLapTotal = self.algParams['nLap']
+      percentDone = lapFrac/nLapTotal
+      if customFuncPath is not None:
+        import sys
+        sys.path.append(customFuncPath)
+        customFuncArgs = {}
+        import customFunc
+        if lapFrac % 1 != 0:
+            customFunc.onBatchComplete(hmodel, percentDone , customFuncArgs)
+        elif lapFrac % 1 == 0 and lapFrac < nLapTotal:
+            customFunc.onLapComplete(hmodel, percentDone , customFuncArgs)
+        else:
+            customFunc.onAlgorithmComplete(hmodel, percentDone , customFuncArgs)

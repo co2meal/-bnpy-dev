@@ -50,8 +50,6 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
                         {'converged', 'max passes exceeded'}
     
     '''
-    origmodel = hmodel
-
     # Define how much of data we see at each mini-batch
     nBatch = float(DataIterator.nBatch)
     self.lapFracInc = 1.0/nBatch
@@ -156,6 +154,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       self.add_nObs(Dchunk.nObs)
       self.save_state(hmodel, iterid, lapFrac, evBound)
       self.print_state(hmodel, iterid, lapFrac, evBound)
+      self.eval_custom_func(hmodel, iterid, lapFrac)
 
       # Check for Convergence!
       #  evBound will increase monotonically AFTER first lap of the data 
@@ -173,12 +172,6 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       msg = "max passes thru data exceeded."
     self.save_state(hmodel, iterid, lapFrac, evBound, doFinal=True) 
     self.print_state(hmodel, iterid, lapFrac,evBound,doFinal=True,status=msg)
-
-    # Births and merges require copies of original model object
-    #  we need to make sure original reference has updated parameters, etc.
-    if id(origmodel) != id(hmodel):
-      origmodel.allocModel = hmodel.allocModel
-      origmodel.obsModel = hmodel.obsModel
     return None, self.buildRunInfo(evBound, msg)
 
   def verify_suff_stats(self, Dchunk, SS, lap):

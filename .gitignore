@@ -14,6 +14,7 @@ local/
 results/
 profile/
 .ipynb_checkpoints/
+__init__.py
 
 # ======================================================  EXCLUDE FILE PATTERNS
 # Exclude script files
@@ -35,6 +36,7 @@ profile/
 *.amc
 *.asf
 *.key
+
 
 # Exclude videos
 *.avi
