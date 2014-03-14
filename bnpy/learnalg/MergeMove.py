@@ -367,6 +367,29 @@ def _preselect_mergepairs_simple(curModel, SS, excludePairs=list(), **kwargs):
         if (kA,kB) not in excludeSet:
           M[kA, kB] = MSelector._calcMScoreForCandidatePair(curModel,
                                                             SS, kA, kB)
+  elif kwargs['preselectroutine'].count('doctopiccorr') > 0:
+    Smat = SS.getSelectionTerm('DocTopicPairMat')
+    svec = SS.getSelectionTerm('DocTopicSum')
+
+    # TODO: we *can* handle accepted merges, but for now just
+    #  eliminate pairs kA,kB that have been merged from consideration
+    nanIDs = np.isnan(Smat)
+    Smat[nanIDs] = 0
+    svec[np.isnan(svec)] = 0
+
+    CovMat = Smat / SS.nDoc - np.outer(svec / SS.nDoc, svec / SS.nDoc)
+    varc = np.diag(CovMat)
+    assert varc.min() >= 0
+
+    sqrtc = np.sqrt(varc)
+    CorrMat = CovMat / np.outer(sqrtc, sqrtc)
+
+    # Now, filter to leave only *positive* entries in upper diagonal
+    #  we shouldn't even bother trying to merge topics with neg correlations
+    CorrMat[np.tril_indices(K)] = 0
+    CorrMat[CorrMat < 0] = 0
+    CorrMat[nanIDs] = 0
+    M = CorrMat # use correlation matrix as score for selecting candidates!
   else:
     raise NotImplementedError(kwargs['preselectroutine'])
 

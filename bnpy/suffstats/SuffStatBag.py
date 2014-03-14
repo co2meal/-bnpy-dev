@@ -81,6 +81,17 @@ class SuffStatBag(object):
     self._MergeTerms.setField(key, value, dims=dims)
 
 
+  def hasSelectionTerms(self):
+    return hasattr(self, '_SelectTerms')
+
+  def getSelectionTerm(self, key):
+    return getattr(self._SelectTerms, key)
+
+  def setSelectionTerm(self, key, value, dims=None):
+    if not hasattr(self, '_SelectTerms'):
+      self._SelectTerms = ParamBag(K=self.K)
+    self._SelectTerms.setField(key, value, dims=dims)
+
   # ======================================================= Merge comps
   def mergeComps(self, kA, kB):
     ''' Merge components kA, kB into a single component
@@ -112,12 +123,26 @@ class SuffStatBag(object):
           mArr = getattr(self._MergeTerms, key)
           mArr[kA,kA+1:] = np.nan
           mArr[:kA,kA] = np.nan
+        elif dims == ('K'):
+          mArr = getattr(self._MergeTerms, key)
+          mArr[kA] = np.nan
+
+    if self.hasSelectionTerms():
+      for key, dims in self._SelectTerms._FieldDims.items():
+        mArr = getattr(self._SelectTerms, key)
+        if dims == ('K','K'):
+          mArr[kA,kA+1:] = np.nan
+          mArr[:kA,kA] = np.nan
+        elif dims == ('K'):
+          mArr[kA] = np.nan
 
     self._Fields.removeComp(kB)
     if self.hasELBOTerms():
       self._ELBOTerms.removeComp(kB)
     if self.hasMergeTerms():
       self._MergeTerms.removeComp(kB)
+    if self.hasSelectionTerms():
+      self._SelectTerms.removeComp(kB)
 
   # ======================================================= Insert comps
   def insertComps(self, SS):
@@ -158,6 +183,8 @@ class SuffStatBag(object):
       SSsum._ELBOTerms = self._ELBOTerms + PB._ELBOTerms
     if hasattr(self, '_MergeTerms'):
       SSsum._MergeTerms = self._MergeTerms + PB._MergeTerms
+    if hasattr(self, '_SelectTerms'):
+      SSsum._SelectTerms = self._SelectTerms + PB._SelectTerms
     return SSsum
 
   def __iadd__(self, PB):
@@ -168,6 +195,8 @@ class SuffStatBag(object):
       self._ELBOTerms += PB._ELBOTerms
     if hasattr(self, '_MergeTerms'):
       self._MergeTerms += PB._MergeTerms
+    if hasattr(self, '_SelectTerms'):
+      self._SelectTerms += PB._SelectTerms
     return self
 
   # ======================================================= Override subtract

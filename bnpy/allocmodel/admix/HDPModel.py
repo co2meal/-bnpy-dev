@@ -226,8 +226,9 @@ class HDPModel(AllocModel):
   ######################################################### Suff Stats
   #########################################################
   def get_global_suff_stats(self, Data, LP, doPrecompEntropy=False, 
-                                              doPrecompMergeEntropy=False,
-                                              mPairIDs=None):
+                                            doPrecompMergeEntropy=False,
+                                            preselectroutine=None,
+                                            mPairIDs=None):
         ''' Count expected number of times each topic is used across all docs    
         '''
         wv = LP['word_variational']
@@ -262,6 +263,12 @@ class HDPModel(AllocModel):
             SS.setMergeTerm('ElogqZ', ElogqZMat, dims=('K','K'))
             SS.setMergeTerm('ElogqPiActive', ElogqPiMat, dims=('K','K'))
             SS.setMergeTerm('sumLogPiActive', sLgPiMat, dims=('K','K'))
+
+        if preselectroutine == 'doctopiccorr':
+            Tmat = LP['DocTopicCount']
+            SS.setSelectionTerm('DocTopicPairMat',
+                               np.dot(Tmat.T, Tmat), dims=('K','K'))
+            SS.setSelectionTerm('DocTopicSum', np.sum(Tmat, axis=0), dims='K')
         return SS
 
 
