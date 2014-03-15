@@ -133,6 +133,8 @@ class HModel( object ):
       init.FromScratchGauss.init_global_params(self, Data, **initArgs)
     elif str(type(self.obsModel)).count('Mult') > 0:
       init.FromScratchMult.init_global_params(self, Data, **initArgs)
+    elif str(type(self.obsModel)).count('BernRel') > 0:
+      init.FromScratchBernRel.init_global_params(self, Data, **initArgs)
     else:
       raise NotImplementedError("TODO")
 
