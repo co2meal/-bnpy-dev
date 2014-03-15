@@ -264,7 +264,8 @@ class HDPModel(AllocModel):
             SS.setMergeTerm('ElogqPiActive', ElogqPiMat, dims=('K','K'))
             SS.setMergeTerm('sumLogPiActive', sLgPiMat, dims=('K','K'))
 
-        if preselectroutine == 'doctopiccorr':
+        if preselectroutine is not None:
+          if preselectroutine.count('doctopiccorr') > 0:
             Tmat = LP['DocTopicCount']
             SS.setSelectionTerm('DocTopicPairMat',
                                np.dot(Tmat.T, Tmat), dims=('K','K'))

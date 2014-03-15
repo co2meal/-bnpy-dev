@@ -462,7 +462,7 @@ def create_critical_need_topics(Data, curModel, curLP,
     DocWordFreq_clusterctrs /= DocWordFreq_clusterctrs.sum(axis=1)[:,np.newaxis] \
                                  + 1e-7
     nRow, nCol = DocWordFreq_clusterctrs.shape
-    NearlyUniformWordFreq = np.random.rand(nRow, nCol)
+    NearlyUniformWordFreq = kwargs['randstate'].rand(nRow, nCol)
     NearlyUniformWordFreq /= NearlyUniformWordFreq.sum(axis=1)[:,np.newaxis]
     DocWordFreq_clusterctrs = 0.95 * DocWordFreq_clusterctrs \
                             + 0.05 * NearlyUniformWordFreq
