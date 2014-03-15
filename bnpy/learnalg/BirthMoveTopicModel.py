@@ -92,6 +92,7 @@ def create_expanded_suff_stats(Data, curModel, allSS, **kwargs):
     msg = 'BIRTH failed. unable to create useful new comps'
     raise BirthProposalError(msg)
 
+
   # Double-check that we aren't modifying the params for original topics
   diffInputSSandInputParams = curModel.obsModel.comp[0].lamvec[:4] \
                               - allSS.WordCounts[0, :4]
@@ -184,7 +185,6 @@ def cleanup_mergenewcompsintoexisting(Data, expandModel, xSS, xLP,
   mPairIDs = MergeMove.preselect_all_merge_candidates(
               expandModel, xSS, randstate=kwargs['randstate'],
               preselectroutine=kwargs['cleanuppreselectroutine'], 
-              preselectListOnly=True,
               mergePerLap=kwargs['cleanupNumMergeTrials']*(Kexpand-Korig),
               compIDs=range(Korig, Kexpand))
   mPairIDsOrig = [x for x in mPairIDs]  
@@ -244,6 +244,7 @@ def cleanup_mergenewcompsonly(Data, expandModel, LP=None,
     if mergeSS.K == Ktotal:
       break # no merges happened, so quit trying
     Ktotal = mergeSS.K
+
 
   return mergeModel, mergeSS, mLP, mergeEv
 
@@ -414,13 +415,19 @@ def create_critical_need_topics(Data, curModel, curLP,
     # Cluster relevant documents X into indicators Z
     #   based on their use of the ranked, targeted words
     if len(relevantDocs) < Kfresh:
-      X = DocWordFreq_missing[relevantDocs,:]
-    else:
       X = DocWordFreq_missing
+    else:
+      X = DocWordFreq_missing[relevantDocs,:]
+
+    if X.shape[0] < Kfresh or X.ndim == 1:
+      raise BirthProposalError('target data size too small.')
+
     _, Z = KMeansRex.RunKMeans(X[:, rankedWords], Kfresh,
                                initname='plusplus',
                                Niter=10, seed=kwargs['randstate'].randint(1000))
     Z = np.squeeze(Z)
+    if Z.ndim != 1 or Z.min() != 0 or Z.max() != Kfresh - 1:
+      raise BirthProposalError('Badness. Kmeans went wrong.')
 
     # Propose new topics from the empirical distribution
     #   of each cluster of relevant documents
@@ -429,10 +436,11 @@ def create_critical_need_topics(Data, curModel, curLP,
       DocWordFreq_clusterctrs[k,:] = np.sum(X[Z==k], axis=0)
   else:
     X = DocWordFreq_missing
+    if X.shape[0] < Kfresh or X.ndim == 1:
+      raise BirthProposalError('target data size too small.')
     DocWordFreq_clusterctrs, Z = KMeansRex.RunKMeans(X, Kfresh,
                                initname='plusplus',
                                Niter=10, seed=kwargs['randstate'].randint(1000))
-
 
   # Filter out very small clusters, replace with subclusters of biggest cluster
   if kwargs['creationFixOutliers']:
