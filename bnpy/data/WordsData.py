@@ -129,7 +129,7 @@ class WordsData(DataObj):
                         shape=(self.vocab_size, self.nObs))
       return self.__sparseMat__
   
-  def to_sparse_docword_matrix(self):
+  def to_sparse_docword_matrix(self, weights=None, thr=None, **kwargs):
     ''' Make sparse matrix counting vocab usage for each document in dataset
         Used for efficient initialization of global parameters.
 
@@ -138,7 +138,7 @@ class WordsData(DataObj):
         C : sparse (CSR-format) matrix, of shape nDoc-x-vocab_size, where
             C[d,v] = total count of vocab word v in document d
     '''
-    if hasattr(self, "__sparseDocWordMat__"):
+    if hasattr(self, "__sparseDocWordMat__") and weights is None:
       return self.__sparseDocWordMat__
     row_ind = list()
     col_ind = list()
@@ -148,12 +148,24 @@ class WordsData(DataObj):
       numDistinct = doc_range[d,1] - doc_range[d,0]
       doc_ind_temp = [d]*numDistinct
       row_ind.extend(doc_ind_temp)
-      col_ind.extend(self.word_id[ (doc_range[d,0]):(doc_range[d,1]) ])
-    self.__sparseDocWordMat__ = scipy.sparse.csr_matrix(
-                               (word_count, (row_ind,col_ind)),
+      col_ind.extend(self.word_id[doc_range[d,0]:doc_range[d,1]])
+    if weights is None:
+      weights = self.word_count
+    else:
+      if thr is not None:
+        mask = np.flatnonzero(weights > thr)
+        weights = weights[mask] * self.word_count[mask]
+        row_ind = np.asarray(row_ind)[mask]
+        col_ind = np.asarray(col_ind)[mask]
+      else:
+        weights = weights * self.word_count
+    sparseDocWordmat = scipy.sparse.csr_matrix(
+                               (weights, (row_ind,col_ind)),
                                shape=(self.nDoc, self.vocab_size), 
                                dtype=np.float64)
-    return self.__sparseDocWordMat__
+    if weights is None:
+      self.__sparseDocWordMat__ = sparseDocWordmat
+    return sparseDocWordmat
 
   ######################################################### DataObj interface
   #########################################################  methods

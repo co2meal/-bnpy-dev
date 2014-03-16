@@ -10,7 +10,8 @@ imshowArgs = dict(interpolation='nearest', cmap='bone',
                   vmin=0.0, vmax=0.3)
 
 
-def plotExampleBarsDocs(Data, docIDsToPlot=None, nDocToPlot=9, doShowNow=True):
+def plotExampleBarsDocs(Data, docIDsToPlot=None,
+                              vmax=None, nDocToPlot=9, doShowNow=True):
     pylab.figure()
     V = Data.vocab_size
     sqrtV = int(np.sqrt(V))
@@ -21,7 +22,10 @@ def plotExampleBarsDocs(Data, docIDsToPlot=None, nDocToPlot=9, doShowNow=True):
       docIDsToPlot = np.random.choice(Data.nDoc, size=nDocToPlot, replace=False)
     nRows = np.floor(np.sqrt(nDocToPlot))
     nCols = np.ceil(nDocToPlot / nRows)
-
+    if vmax is None:
+      DocWordArr = Data.to_sparse_docword_matrix().toarray()
+      vmax = int(np.max(np.percentile(DocWordArr, 98, axis=0)))
+      
     for plotPos, docID in enumerate(docIDsToPlot):
         # Parse current document
         start,stop = Data.doc_range[docID,:]
@@ -32,7 +36,7 @@ def plotExampleBarsDocs(Data, docIDsToPlot=None, nDocToPlot=9, doShowNow=True):
         squareIm = np.reshape(docWordHist, (np.sqrt(V), np.sqrt(V)))
 
         pylab.subplot(nRows, nCols, plotPos)
-        pylab.imshow(squareIm, interpolation='nearest')
+        pylab.imshow(squareIm, interpolation='nearest', vmin=0, vmax=vmax)
     if doShowNow:
       pylab.show()
 
