@@ -56,7 +56,7 @@ class HDPHardMult(HDPModel):
   #########################################################
   def get_global_suff_stats(self, Data, LP, doPrecompEntropy=False, 
                                               doPrecompMergeEntropy=False,
-                                              mPairIDs=None):
+                                              mPairIDs=None, **kwargs):
     ''' Count expected number of times each topic is used across all docs    
     '''
     K = LP['DocTopicCount'].shape[1]
