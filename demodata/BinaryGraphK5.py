@@ -64,4 +64,4 @@ def get_minibatch_iterator(nBatch=10, nLap=1, dataorderseed=0, **kwargs):
     pass
 
 def get_data_info(K,N,E):
-    return 'Toy Binary Graph Dataset where K=%d . D=%d. VocabSize=%d' % (K,N,E)
+    return 'Toy Binary Graph Dataset where K=%d . N=%d. E=%d' % (K,N,E)

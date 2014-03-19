@@ -17,6 +17,7 @@ class BernRelObsModel(ObsModel):
   def __init__(self, inferType, obsPrior=None):
     self.inferType = inferType
     self.obsPrior = obsPrior
+    self.comp = list()
 
   @classmethod
   def CreateWithPrior(cls, inferType, priorArgDict, Data):
@@ -27,9 +28,19 @@ class BernRelObsModel(ObsModel):
     return cls(inferType, obsPrior)
 
   @classmethod
-  def CreateWithAllComps(cls):
-    raise NotImplementedError('TODO')
+  def CreateWithAllComps(cls, oDict, obsPrior, compDictList):
+    ''' Create MultObsModel, all K component Distr objects,
+         and the prior Distr object in one call
+    '''
+    if oDict['inferType'] == 'EM':
+      raise NotImplementedError("TODO")
 
+    self = cls(oDict['inferType'], obsPrior=obsPrior)
+    self.K = len(compDictList)
+    self.comp = [None for k in range(self.K)]
+    for k in xrange(self.K):
+      self.comp[k] = BetaDistr(**compDictList[k])
+    return self
 
   ######################################################### Accessors
   #########################################################  
@@ -93,30 +104,34 @@ class BernRelObsModel(ObsModel):
   def update_obs_params_soVB( self, SS, rho, **kwargs):
     raise NotImplementedError("TODO")  
 
-  def set_global_params(self, hmodel=None, phi=None, Etopics=None, **kwargs):
+  def set_global_params(self, hmodel=None, lamA=None, lamB=None, theta=None, **kwargs):
     ''' Set global params to provided values
 
-        Args
-        -------
-        
-        Returns
-        -------
-        None. Internal fields Lam, K updated
+        Params
+        --------
+        sb : K x K matrix, each entry represents
+        topics[k,v] = probability of word v under topic k
     '''
     if hmodel is not None:
-      self.K = hmodel.obsModel.K
-      return
-    if phi is not None:
-      Etopics = phi  
-    assert Etopics is not None
-    assert type(Etopics) == np.ndarray
-    assert Etopics.ndim == 2
+        self.K = hmodel.obsModel.K
+        self.comp = copy.deepcopy(hmodel.obsModel.comp)
+        return
+    self.K = theta.shape[1]
+    self.comp = list()
 
-    self.K = Etopics.shape[0]
-    minIDVec = np.argmin(Etopics, axis=1)
-    massVec = self.obsPrior.lamvec[minIDVec]/np.min(Etopics,axis=1)
-    self.Lam = Etopics * massVec[:,np.newaxis]
-    self.LamSum = np.sum(self.Lam, axis=1)
+    for k in range(self.K):
+        # Scale up Etopics to lamvec, a V-len vector of positive entries,
+        #   such that (1) E[phi] is still Etopics, and
+        #             (2) lamvec = obsPrior.lamvec + [some suff stats]
+        #   where (2) means that lamvec is a feasible posterior value
+        ii = np.argmin(topics[k,:])
+        lamvec = self.obsPrior.lamvec[ii]/topics[k,ii] * topics[k,:]
+        # Cut-off values that are way way too big
+        if np.any( lamvec > 1e9):
+          lamvec = np.minimum(lamvec, 1e9)
+          print "WARNING: mucking with lamvec"
+        self.comp.append(BetaDistr(lamA, lamB))
+
 
   ######################################################### Evidence
   #########################################################
@@ -126,7 +141,7 @@ class BernRelObsModel(ObsModel):
     elbo_qLam  = self.Elogq_Lam()
     return elbo_pData + elbo_pLam - elbo_qLam
 
-  def Elogp_Words(self, SS):
+  def Elogp_Edges(self, SS):
     '''
     '''
     return np.sum(SS.WordCounts * self.Elogphi())

@@ -13,6 +13,7 @@ logs/
 local/
 results/
 profile/
+.idea/
 .ipynb_checkpoints/
 __init__.py
 

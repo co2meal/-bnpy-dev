@@ -1,5 +1,5 @@
 '''
-WordsData.py
+GraphData.py
 
 Data object that represents word counts across a collection of documents.
 
@@ -49,6 +49,26 @@ class GraphData(DataObj):
     if TrueParams is not None:
       self.TrueParams = TrueParams
 
+  ######################################################### Create Toy Data
+  def to_sparse_matrix(self):
+    ''' Make sparse matrix counting vocab usage across all words in dataset
+
+        Returns
+        --------
+        C : sparse (CSC-format) matrix, of shape nObs-x-vocab_size, where
+             C[n,v] = word_count[n] iff word_id[n] = v
+                      0 otherwise
+             That is, each word token n is represented by one entire row
+                      with only one non-zero entry: at column word_id[n]
+
+    '''
+    if hasattr(self, "__sparseMat__"):
+      return self.__sparseMat__
+    edge_values = np.ones(self.nEdgeTotal)
+    self.__sparseMat__ = scipy.sparse.csc_matrix(
+                        (edge_values, ( np.int64(self.edge_id[:,0]), np.int64(self.edge_id[:,1]) ) ),
+                        shape=(self.nNodeTotal, self.nNodeTotal))
+    return self.__sparseMat__
 
   ######################################################### Create from MAT
   #########################################################  (class method)
@@ -65,6 +85,3 @@ class GraphData(DataObj):
   @classmethod
   def read_from_db(cls, dbpath, sqlquery, vocab_size=None, nDocTotal=None):
     pass
-
-  ######################################################### Create Toy Data
-
