@@ -52,7 +52,7 @@ class WordsData(DataObj):
     '''
     self.word_id = np.asarray(np.squeeze(word_id), dtype=np.uint32)
     self.word_count = np.asarray(np.squeeze(word_count), dtype=np.float64)
-    self.doc_range = np.asarray(doc_range, dtype=np.uint32)
+    self.doc_range = np.asarray(doc_range, dtype=np.int32)
     self.vocab_size = int(vocab_size)
   
     self._set_corpus_size_attributes(nDocTotal)
@@ -174,8 +174,8 @@ class WordsData(DataObj):
     # row_ind will look like 0000, 111, 22, 33333, 444, 55
     col_ind = np.arange(self.nObs)
 
-    indptr = np.hstack([Data.doc_range[0,0], Data.doc_range[:,1]])
-    return scipy.sparse.csr_matrix( (data, (row_ind, col_ind)),
+    indptr = np.hstack([self.doc_range[0,0], self.doc_range[:,1]])
+    return scipy.sparse.csr_matrix( (data, col_ind, indptr),
                                     shape=(self.nDoc, self.nObs),
                                     dtype=np.float64)
 
