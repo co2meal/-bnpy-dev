@@ -155,7 +155,6 @@ class HDPModel(AllocModel):
         LP['DocTopicCount'][d,:] = np.dot(expEloglik_d.T, 
                                     Data.word_count[start:stop] / SumRTilde_d
                                          )
-
       # Element-wise multiply with nDoc x K prior prob matrix
       LP['DocTopicCount'][docIDs] *= expElogpi[docIDs]
 

@@ -167,6 +167,18 @@ class WordsData(DataObj):
       self.__sparseDocWordMat__ = sparseDocWordmat
     return sparseDocWordmat
 
+  def get_nObs2nDoc_mat(self):
+    ''' Returns nDoc x nObs sparse matrix
+    '''
+    data = np.ones(self.nObs)
+    # row_ind will look like 0000, 111, 22, 33333, 444, 55
+    col_ind = np.arange(self.nObs)
+
+    indptr = np.hstack([Data.doc_range[0,0], Data.doc_range[:,1]])
+    return scipy.sparse.csr_matrix( (data, (row_ind, col_ind)),
+                                    shape=(self.nDoc, self.nObs),
+                                    dtype=np.float64)
+
   ######################################################### DataObj interface
   #########################################################  methods
   def to_minibatch_iterator(self, **kwargs):
@@ -486,3 +498,30 @@ class WordsData(DataObj):
     return WordsData(word_id, word_count, doc_range, V,
                     nDocTotal=nDocTotal, TrueParams=TrueParams)
 
+
+  ######################################################### Write to file
+  #########################################################  (instance method)
+  def WriteToFile_ldac(self, filepath, min_word_index=0):
+    ''' Write contents of this dataset to plain-text file in "ldac" format.
+        
+        Args
+
+        Returns
+        -------
+        None. Writes to file instead.
+
+        Each line of file represents one document, and has format
+        [U] [term1:count1] [term2:count2] ... [termU:countU]
+    '''
+    word_id = self.word_id
+    if min_word_index > 0:
+      word_id = word_id + min_word_index
+    with open(filepath, 'w') as f:
+      for d in xrange(self.nDoc):
+        dstart = self.doc_range[d,0]
+        dstop = self.doc_range[d,1]
+        nUniqueInDoc = dstop - dstart
+        idct_list = ["%d:%d" % (word_id[n], self.word_count[n]) \
+                              for n in xrange(dstart, dstop)]
+        docstr = "%d %s" % (nUniqueInDoc, ' '.join(idct_list)) 
+        f.write(docstr + '\n')
