@@ -394,10 +394,12 @@ class HDPModel(AllocModel):
     ''' Returns scalar value of E[ log q(PI)],
           calculated directly from local param dict LP
     '''
-    alph = LP['theta']
-    # logDirNormC : nDoc -len vector    
-    logDirNormC = gammaln(alph.sum(axis=1)) - np.sum(gammaln(alph), axis=1)
-    logDirPDF = np.sum((alph - 1.) * LP['E_logPi'])
+    theta = LP['theta']
+    utheta = LP['theta_u']
+    logDirNormC = gammaln(utheta + theta.sum(axis=1)) \
+                  - (gammaln(utheta) + np.sum(gammaln(theta), axis=1))
+    logDirPDF = np.sum((theta - 1.) * LP['E_logPi']) \
+                  + (utheta - 1.) * np.sum(LP['E_logPi_u'])
     return np.sum(logDirNormC) + logDirPDF
 
   def E_logqPi_Memoized_from_LP(self, LP):
@@ -409,11 +411,12 @@ class HDPModel(AllocModel):
             when added to other results of this function from different batches,
                 the sum is equal to E[log q(PI)] of the entire dataset
     '''
+    nDoc = LP['theta'].shape[0]
     logDirNormC = np.sum(gammaln(LP['theta_u'] + LP['theta'].sum(axis=1)))
     piEntropyVec = np.sum((LP['theta'] - 1.) * LP['E_logPi'], axis=0) \
                      - np.sum(gammaln(LP['theta']),axis=0)
     piEntropyUnused = np.sum(LP['theta_u'] * LP['E_logPi_u'], axis=0) \
-                     - np.sum(gammaln(LP['theta_u']),axis=0)  
+                     - nDoc * gammaln(LP['theta_u']) 
     return logDirNormC, piEntropyVec, piEntropyUnused
 
 
