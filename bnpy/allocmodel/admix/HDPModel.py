@@ -86,7 +86,7 @@ class HDPModel(AllocModel):
           Returns
           -------
           LP : local params dict, with fields
-              theta : nDoc x K+1 matrix, 
+              theta : nDoc x K matrix, 
                  row d has params for doc d's Dirichlet over K+1 topics
               E_logPi : nDoc x K+1 matrix,
                  row d has doc d's expected log probability of each topic
@@ -94,6 +94,9 @@ class HDPModel(AllocModel):
                  row i has params for word i's Discrete distr over K topics
               DocTopicCount : nDoc x K matrix
     '''
+    return _calc_local_params_fast(Data, LP, **kwargs)
+
+  def _calc_local_params_fast(self, Data, LP, **kwargs):
     LP = LocalStepBagOfWords.calcLocalDocParams(Data, LP, 
                                   self.gamma*self.Ebeta[:-1],
                                   unusedTopicPrior=self.gamma*self.Ebeta[-1],
@@ -108,41 +111,6 @@ class HDPModel(AllocModel):
 
     assert np.allclose( LP['word_variational'].sum(axis=1), 1.0)
     return LP
-
-
-
-  def get_doc_variational( self, Data, LP):
-    ''' Update document-topic variational parameters
-    '''
-    zeroPad = np.zeros((Data.nDoc,1))
-    DTCountMatZeroPad = np.hstack([LP['DocTopicCount'], zeroPad])
-    LP['theta'] = DTCountMatZeroPad + self.gamma*self.Ebeta
-    return LP
-
-  def calc_ElogPi(self, LP):
-        ''' Update expected log topic probability distr. for each document d
-        '''
-        alph = LP['theta']
-        LP['E_logPi'] = digamma(alph) - digamma(alph.sum(axis=1))[:,np.newaxis]
-        return LP
-    
-  def get_word_variational( self, Data, LP):
-        ''' Update and return word-topic assignment variational parameters
-        '''
-        # Operate on wv matrix, which is nDistinctWords x K
-        #  has been preallocated for speed (so we can do += later)
-        wv = LP['word_variational']         
-        K = wv.shape[1]        
-        # Fill in entries of wv with log likelihood terms
-        wv[:] = LP['E_logsoftev_WordsData']
-        # Add doc-specific log prior to doc-specific rows
-        ElogPi = LP['E_logPi'][:,:K]
-        for d in xrange(Data.nDoc):
-            wv[Data.doc_range[d,0]:Data.doc_range[d,1], :] += ElogPi[d,:]
-        NumericUtil.inplaceExpAndNormalizeRows(wv)
-        assert np.allclose(LP['word_variational'].sum(axis=1), 1)
-        return LP
-
 
   ######################################################### Suff Stats
   #########################################################

@@ -8,6 +8,31 @@ from scipy.special import digamma
 
 from ...util import NumericUtil 
 
+def update_DocTopicCount(Data, LP):
+  assert 'word_variational' in LP
+  if 'DocTopicCount' not in LP:
+    K = LP['word_variational'].shape[1]
+    LP['DocTopicCount'] = np.zeros((Data.nDoc, K))
+  for d in xrange(Data.nDoc):
+    start = Data.doc_range[d,0]
+    stop = Data.doc_range[d,1]
+    LP['DocTopicCount'][d,:] = np.dot(
+                                     Data.word_count[start:stop],        
+                                     LP['word_variational'][start:stop,:]
+                                     )
+  return LP
+
+def update_theta(LP, topicPrior, unusedTopicPrior=None):
+  assert 'DocTopicCount' in LP
+  K =  LP['DocTopicCount'].shape[1]
+  if 'theta' not in LP:
+    LP['theta'] = LP['DocTopicCount'] + topicPrior[np.newaxis,:]
+  else:
+    LP['theta'][:] = LP['DocTopicCount'] + topicPrior[np.newaxis,:]
+  if unusedTopicPrior is not None:
+    LP['theta_u'] = unusedTopicPrior
+  return LP
+
 def update_ElogPi(LP, unusedTopicPrior=None):
   ''' Update expected log topic appearance probabilities in each doc
   '''
