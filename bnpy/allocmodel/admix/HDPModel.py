@@ -70,10 +70,10 @@ class HDPModel(AllocModel):
   ######################################################### Accessors
   #########################################################
   def get_keys_for_memoized_local_params(self):
-        ''' Return list of string names of the LP fields
-            that moVB needs to memoize across visits to a particular batch
-        '''
-        return ['theta']
+    ''' Return list of string names of the LP fields
+        that moVB needs to memoize across visits to a particular batch
+    '''
+    return ['theta']
 
   ######################################################### Local Params
   #########################################################
@@ -411,12 +411,15 @@ class HDPModel(AllocModel):
             when added to other results of this function from different batches,
                 the sum is equal to E[log q(PI)] of the entire dataset
     '''
-    nDoc = LP['theta'].shape[0]
-    logDirNormC = np.sum(gammaln(LP['theta_u'] + LP['theta'].sum(axis=1)))
-    piEntropyVec = np.sum((LP['theta'] - 1.) * LP['E_logPi'], axis=0) \
-                     - np.sum(gammaln(LP['theta']),axis=0)
-    piEntropyUnused = np.sum(LP['theta_u'] * LP['E_logPi_u'], axis=0) \
-                     - nDoc * gammaln(LP['theta_u']) 
+    theta = LP['theta']    # nDoc x K
+    utheta = LP['theta_u'] # scalar
+    nDoc = theta.shape[0]
+
+    logDirNormC = np.sum(gammaln(utheta + theta.sum(axis=1)))
+    piEntropyVec = np.sum( (theta - 1.0) * LP['E_logPi'], axis=0) \
+                     - np.sum(gammaln(theta),axis=0)
+    piEntropyUnused = (utheta - 1.0) * np.sum( LP['E_logPi_u'], axis=0) \
+                     - nDoc * gammaln(utheta) 
     return logDirNormC, piEntropyVec, piEntropyUnused
 
 
