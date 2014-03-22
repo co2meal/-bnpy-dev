@@ -394,8 +394,8 @@ class HDPModel(AllocModel):
     ''' Returns scalar value of E[ log q(PI)],
           calculated directly from local param dict LP
     '''
-    theta = LP['theta']
-    utheta = LP['theta_u']
+    theta = LP['theta']    # nDoc x K
+    utheta = LP['theta_u'] # scalar
     logDirNormC = gammaln(utheta + theta.sum(axis=1)) \
                   - (gammaln(utheta) + np.sum(gammaln(theta), axis=1))
     logDirPDF = np.sum((theta - 1.) * LP['E_logPi']) \
@@ -414,7 +414,6 @@ class HDPModel(AllocModel):
     theta = LP['theta']    # nDoc x K
     utheta = LP['theta_u'] # scalar
     nDoc = theta.shape[0]
-
     logDirNormC = np.sum(gammaln(utheta + theta.sum(axis=1)))
     piEntropyVec = np.sum( (theta - 1.0) * LP['E_logPi'], axis=0) \
                      - np.sum(gammaln(theta),axis=0)
@@ -447,8 +446,8 @@ class HDPModel(AllocModel):
         sumLogPiMat : KxK matrix
         ElogqPiMat  : KxK matrix
     '''
-    CMat = LP['DocTopicCount']
-    theta = LP['theta']
+    CMat = LP['DocTopicCount']# nDoc x K
+    theta = LP['theta']       # nDoc x K
     digammasumTheta = digamma(LP['theta_u'] + theta.sum(axis=1))[:, np.newaxis]
 
     ElogpZMat = np.zeros((self.K, self.K))
@@ -467,7 +466,7 @@ class HDPModel(AllocModel):
           
       sumLogPiMat[jj, jj+1:] = np.sum(mergeElogPi,axis=0)
       curElogqPiMat = np.sum((mergeTheta-1.) * mergeElogPi, axis=0) \
-                                      - np.sum(gammaln(mergeTheta),axis=0)
+                       - np.sum(gammaln(mergeTheta),axis=0)
       assert curElogqPiMat.size == M
       ElogqPiMat[jj, jj+1:] = curElogqPiMat
 
