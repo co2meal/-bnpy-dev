@@ -62,8 +62,9 @@ class HDPSoft2Hard(HDPModel):
     SS = SuffStatBag(K=K, D=Data.vocab_size)
     SS.setField('nDoc', Data.nDoc, dims=None)
     sumLogPi = np.sum(LP['E_logPi'], axis=0)
-    SS.setField('sumLogPiActive', sumLogPi[:K], dims='K')
-    SS.setField('sumLogPiUnused', sumLogPi[-1], dims=None)
+    SS.setField('sumLogPiActive', sumLogPi, dims='K')
+    SS.setField('sumLogPiUnused', np.sum(LP['E_logPi_u'], axis=0), dims=None)
+
 
     if 'DocTopicFrac' in LP:
       Nmajor = LP['DocTopicFrac']

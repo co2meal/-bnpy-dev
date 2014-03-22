@@ -94,7 +94,7 @@ class HDPModel(AllocModel):
                  row i has params for word i's Discrete distr over K topics
               DocTopicCount : nDoc x K matrix
     '''
-    return _calc_local_params_fast(Data, LP, **kwargs)
+    return self._calc_local_params_fast(Data, LP, **kwargs)
 
   def _calc_local_params_fast(self, Data, LP, **kwargs):
     LP = LocalStepBagOfWords.calcLocalDocParams(Data, LP, 
