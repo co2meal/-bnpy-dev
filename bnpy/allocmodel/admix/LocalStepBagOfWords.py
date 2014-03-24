@@ -52,7 +52,7 @@ def update_ElogPi(LP, unusedTopicPrior=None):
 def calcLocalDocParams(Data, LP, topicPrior, **kwargs):
   ''' User-facing function for local step in topic models
   '''
-  if kwargs['do_nObs2nDoc_fast'] < 0:
+  if 'localmethod' in kwargs and kwargs['localmethod'] == 'forloop':
     return calcLocalDocParams_forloopoverdocs(Data, LP, topicPrior, **kwargs)
   return calcLocalDocParams_vectorized(Data, LP, topicPrior, **kwargs)
 
@@ -64,7 +64,7 @@ def calcLocalDocParams_vectorized(Data, LP, topicPrior,
                              nCoordAscentItersLP=20,
                              convThrLP=0.01,
                              doUniformFirstTime=False, 
-                             do_nObs2nDoc_fast=False, **kwargs):
+                             **kwargs):
   ''' Returns 
       -------
       LP : dictionary with fields
@@ -86,9 +86,6 @@ def calcLocalDocParams_vectorized(Data, LP, topicPrior,
   else:
     LP['theta'] = np.zeros((Data.nDoc, K))
     doUniformFirstTime = True
-
-  if do_nObs2nDoc_fast:
-    B = Data.get_nObs2nDoc_mat()
 
   ######## Allocate token-specific variables
   # sumRTilde : nDistinctWords-length vector of reals
@@ -118,15 +115,10 @@ def calcLocalDocParams_vectorized(Data, LP, topicPrior,
 
       np.dot(expEloglik_d, expElogpi[d], out=sumRTilde[start:stop])
 
-      if not do_nObs2nDoc_fast:
-        np.dot(Data.word_count[start:stop] / sumRTilde[start:stop],
+      np.dot(Data.word_count[start:stop] / sumRTilde[start:stop],
                expEloglik_d,
                out=LP['DocTopicCount'][d,:]
-              )
-
-    if do_nObs2nDoc_fast == 1:
-      B.data = Data.word_count / sumRTilde
-      LP['DocTopicCount'][activeDocs] = B[activeDocs] * expEloglik
+            )
 
     if not (doUniformFirstTime and ii == 0):
       # Element-wise multiply with nDoc x K prior prob matrix
