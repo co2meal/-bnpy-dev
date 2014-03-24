@@ -49,18 +49,12 @@ def update_ElogPi(LP, unusedTopicPrior=None):
   return LP
 
 
-def calcLocalDocParams(Data, LP, topicPrior, 
-                             unusedTopicPrior=None,
-                             nCoordAscentItersLP=20,
-                             convThrLP=0.01,
-                             do_nObs2nDoc_fast=False, **kwargs):
+def calcLocalDocParams(Data, LP, topicPrior, **kwargs):
   ''' User-facing function for local step in topic models
   '''
-  return calcLocalDocParams_vectorized(Data, LP, topicPrior, 
-                             unusedTopicPrior,
-                             nCoordAscentItersLP,
-                             convThrLP,
-                             do_nObs2nDoc_fast)
+  if kwargs['do_nObs2nDoc_fast'] < 0:
+    return calcLocalDocParams_forloopoverdocs(Data, LP, topicPrior, **kwargs)
+  return calcLocalDocParams_vectorized(Data, LP, topicPrior, **kwargs)
 
 ########################################################### vectorized version
 ###########################################################
@@ -70,7 +64,7 @@ def calcLocalDocParams_vectorized(Data, LP, topicPrior,
                              nCoordAscentItersLP=20,
                              convThrLP=0.01,
                              doUniformFirstTime=False, 
-                             do_nObs2nDoc_fast=False):
+                             do_nObs2nDoc_fast=False, **kwargs):
   ''' Returns 
       -------
       LP : dictionary with fields
@@ -122,17 +116,15 @@ def calcLocalDocParams_vectorized(Data, LP, topicPrior,
       stop  = Data.doc_range[d,1]
       expEloglik_d = expEloglik[start:stop]
 
-      # sumRTilde_d : subset of sumRTilde vector belonging to doc d
-      sumRTilde_d = np.dot(expEloglik_d, expElogpi[d])
-      sumRTilde[start:stop] = sumRTilde_d
+      np.dot(expEloglik_d, expElogpi[d], out=sumRTilde[start:stop])
 
       if not do_nObs2nDoc_fast:
-        LP['DocTopicCount'][d,:] = np.dot( 
-                                    Data.word_count[start:stop] / sumRTilde_d,
-                                    expEloglik_d
-                                         )
+        np.dot(Data.word_count[start:stop] / sumRTilde[start:stop],
+               expEloglik_d,
+               out=LP['DocTopicCount'][d,:]
+              )
 
-    if do_nObs2nDoc_fast:
+    if do_nObs2nDoc_fast == 1:
       B.data = Data.word_count / sumRTilde
       LP['DocTopicCount'][activeDocs] = B[activeDocs] * expEloglik
 
@@ -143,7 +135,7 @@ def calcLocalDocParams_vectorized(Data, LP, topicPrior,
     # Update theta
     LP['theta'] = LP['DocTopicCount'] + topicPrior[np.newaxis,:]
 
-    # Update expected value of log(Pi[d,k])
+    # Update expected value of log Pi[d,k]
     LP = update_ElogPi(LP, unusedTopicPrior)
     
     # Assess convergence
@@ -175,7 +167,7 @@ def calcLocalDocParams_forloopoverdocs(Data, LP, topicPrior,
                              unusedTopicPrior=None,
                              nCoordAscentItersLP=20,
                              convThrLP=0.01,
-                             doUniformFirstTime=False):
+                             doUniformFirstTime=False, **kwargs):
   ''' 
 
       Returns 
@@ -200,6 +192,9 @@ def calcLocalDocParams_forloopoverdocs(Data, LP, topicPrior,
     LP['theta'] = np.zeros((Data.nDoc, K))
     LP['E_logPi'] = np.zeros((Data.nDoc, K))
     doUniformFirstTime = True
+
+  expElogpi = np.zeros( (Data.nDoc, K))
+  sumRTilde = np.zeros(Data.nObs)
 
   for d in xrange(Data.nDoc):
 
@@ -247,7 +242,14 @@ def calcLocalDocParams_forloopoverdocs(Data, LP, topicPrior,
       old_theta[:] = LP['theta'][d,:]
       ### end loop over alternating-ascent updates
   
+    expElogpi[d,:] = expElogpi_d
+    sumRTilde[start:stop] = sumRTilde_d
+    ### end loop over documents
+
   ######## 
+  LP['expElogpi'] = expElogpi
+  LP['expEloglik'] = expEloglik
+  LP['sumRTilde'] = sumRTilde
   return LP
 
 
