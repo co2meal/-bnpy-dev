@@ -4,6 +4,7 @@ import numpy as np
 from .HDPModel import HDPModel
 from bnpy.suffstats import SuffStatBag
 from bnpy.util import NumericUtil, NumericHardUtil
+import LocalStepBagOfWords
 
 import scipy.sparse
 import logging
@@ -13,7 +14,7 @@ class HDPSoft2Hard(HDPModel):
 
   ######################################################### Local Params
   #########################################################
-  def calc_local_params(self, Data, LP, nCoordAscentItersLP=20, convThrLP=0.01, nHardItersLP=1, doOnlySomeDocsLP=True, **kwargs):
+  def calc_local_params(self, Data, LP, nHardItersLP=1, **kwargs):
     ''' Calculate document-specific quantities (E-step) using hard assignments.
 
         Alternate updates to two terms until convergence
@@ -34,55 +35,19 @@ class HDPSoft2Hard(HDPModel):
             DocTopicCount : nDoc x K matrix
     '''
     # First, run soft assignments for nCoordAscentIters
-    LP = self.calc_local_params_fast(Data, LP, 
-                                        nCoordAscentItersLP,
-                                        convThrLP,
-                                        doOnlySomeDocsLP,
-                                     )
+    LP = self._calc_local_params_fast(Data, LP, **kwargs)
 
     # Next, finish with hard assignments
     for rep in xrange(nHardItersLP):
-      LP = self.get_hard_word_variational(Data, LP)
-      # Update DocTopicCount field of LP
-      for d in xrange(Data.nDoc):
-        start = Data.doc_range[d,0]
-        stop = Data.doc_range[d,1]
-        LP['DocTopicCount'][d,:] = np.dot(
-                                     Data.word_count[start:stop],        
-                                     LP['word_variational'][start:stop,:]
-                                       )
-      # Update doc_variational field of LP
-      LP = self.get_doc_variational(Data, LP)
-      LP = self.calc_ElogPi(LP)
-
-    return LP
-
-  def get_hard_word_variational(self, Data, LP):
-    ''' Update and return word-topic assignment variational parameters
-    '''
-    LP['word_variational'] = NumericHardUtil.toHardAssignmentMatrix(
+      LP['word_variational'] = NumericHardUtil.toHardAssignmentMatrix(
                                                     LP['word_variational'])
+
+      LP = LocalStepBagOfWords.update_DocTopicCount(Data, LP)
+      LP = LocalStepBagOfWords.update_theta(LP, self.gamma*self.Ebeta[:-1],
+                                                self.gamma*self.Ebeta[-1])
+      LP = LocalStepBagOfWords.update_ElogPi(LP, self.gamma*self.Ebeta[-1])
+
     return LP
-    """
-    # Operate on wv matrix, which is nDistinctWords x K
-    #  has been preallocated for speed (so we can do += later)
-    wv = LP['word_variational']         
-    K = wv.shape[1]        
-    # Fill in entries of wv with log likelihood terms
-    wv[:] = LP['E_logsoftev_WordsData']
-    # Add doc-specific log prior to doc-specific rows
-    ElogPi = LP['E_logPi'][:,:K]
-    for d in xrange(Data.nDoc):
-      wv[Data.doc_range[d,0]:Data.doc_range[d,1], :] += ElogPi[d,:]
-    colIDs = np.argmax(wv, axis=1)
-    # TODO: worry about sparsity of hard assign mat?
-    R = scipy.sparse.csr_matrix(
-              (np.ones(Data.nObs), colIDs, np.arange(Data.nObs+1)),
-              shape=(Data.nObs, K), dtype=np.float64)
-    LP['word_variational'] = R.toarray()
-    assert np.allclose(LP['word_variational'].sum(axis=1), 1)
-    return LP
-    """
 
   ######################################################### Suff Stats
   #########################################################
@@ -97,8 +62,9 @@ class HDPSoft2Hard(HDPModel):
     SS = SuffStatBag(K=K, D=Data.vocab_size)
     SS.setField('nDoc', Data.nDoc, dims=None)
     sumLogPi = np.sum(LP['E_logPi'], axis=0)
-    SS.setField('sumLogPiActive', sumLogPi[:K], dims='K')
-    SS.setField('sumLogPiUnused', sumLogPi[-1], dims=None)
+    SS.setField('sumLogPiActive', sumLogPi, dims='K')
+    SS.setField('sumLogPiUnused', np.sum(LP['E_logPi_u'], axis=0), dims=None)
+
 
     if 'DocTopicFrac' in LP:
       Nmajor = LP['DocTopicFrac']

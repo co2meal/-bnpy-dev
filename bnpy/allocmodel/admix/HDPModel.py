@@ -10,9 +10,9 @@ gamma    : scalar conc. param for document-level mixture weights pi[d]
 
 Local Parameters (document-specific)
 --------
-alphaPi : nDoc x K matrix, 
+theta : nDoc x K matrix, 
              row d has params for doc d's distribution pi[d] over the K topics
-             q( pi[d] ) ~ Dir( alphaPi[d] )
+             q( pi[d] ) ~ Dir( theta[d] )
 E_logPi : nDoc x K matrix
              row d has E[ log pi[d] ]
 DocTopicCount : nDoc x K matrix
@@ -29,6 +29,7 @@ U1, U0   : K-length vectors, params for variational distribution over
 '''
 import numpy as np
 
+import LocalStepBagOfWords
 import OptimizerForHDPFullVarModel as OptimHDP
 from ..AllocModel import AllocModel
 
@@ -69,16 +70,14 @@ class HDPModel(AllocModel):
   ######################################################### Accessors
   #########################################################
   def get_keys_for_memoized_local_params(self):
-        ''' Return list of string names of the LP fields
-            that moVB needs to memoize across visits to a particular batch
-        '''
-        return ['alphaPi']
+    ''' Return list of string names of the LP fields
+        that moVB needs to memoize across visits to a particular batch
+    '''
+    return ['theta']
 
   ######################################################### Local Params
   #########################################################
-  def calc_local_params(self, Data, LP, 
-                          nCoordAscentItersLP=20, 
-                          convThrLP=0.01, doOnlySomeDocsLP=True, **kwargs):
+  def calc_local_params(self, Data, LP, **kwargs):
     ''' Calculate document-specific quantities (E-step)
           Alternate updates to two terms until convergence
             (1) Approx posterior on topic-token assignment
@@ -87,7 +86,7 @@ class HDPModel(AllocModel):
           Returns
           -------
           LP : local params dict, with fields
-              alphaPi : nDoc x K+1 matrix, 
+              theta : nDoc x K matrix, 
                  row d has params for doc d's Dirichlet over K+1 topics
               E_logPi : nDoc x K+1 matrix,
                  row d has doc d's expected log probability of each topic
@@ -95,133 +94,23 @@ class HDPModel(AllocModel):
                  row i has params for word i's Discrete distr over K topics
               DocTopicCount : nDoc x K matrix
     '''
-    return self.calc_local_params_fast(Data, LP, 
-                                        nCoordAscentItersLP, 
-                                        convThrLP, 
-                                        doOnlySomeDocsLP)
+    return self._calc_local_params_fast(Data, LP, **kwargs)
 
-  def calc_local_params_fast(self, Data, LP, 
-                                        nCoordAscentItersLP, 
-                                        convThrLP, 
-                                        doOnlySomeDocsLP):
-    # When given no local params LP as input, need to initialize from scratch
-    # this forces likelihood to drive the first round of local assignments
-    if 'alphaPi' not in LP:
-      LP['alphaPi'] = np.ones((Data.nDoc,self.K+1))
-    else:
-      assert LP['alphaPi'].shape[1] == self.K + 1
+  def _calc_local_params_fast(self, Data, LP, **kwargs):
+    LP = LocalStepBagOfWords.calcLocalDocParams(Data, LP, 
+                                  self.gamma*self.Ebeta[:-1],
+                                  unusedTopicPrior=self.gamma*self.Ebeta[-1],
+                                  **kwargs)
 
-    # Allocate other doc-specific variables
-    LP['DocTopicCount'] = np.zeros((Data.nDoc, self.K))
-    LP['E_logPi'] = digamma(LP['alphaPi']) \
-                        - digamma(np.sum(LP['alphaPi'], axis=1))[:,np.newaxis]
-
-    # Precompute ONCE exp( E_logsoftevidence ), in-place
-    expEloglik = LP['E_logsoftev_WordsData']
-    expEloglik -= expEloglik.max(axis=1)[:,np.newaxis] 
-    NumericUtil.inplaceExp(expEloglik)
-
-    # SumRTilde : nDistinctWords-length vector of reals
-    #   row n = \sum_{k} \tilde{r}_{nk}, 
-    #             where \tilde{r}_nk = \exp{ Elog[\pi_d] + Elog[\phi_dvk] }
-    #   each entry is the "normalizer" for each row of LP['word_variational']
-    SumRTilde = np.zeros(Data.nObs)
-
-    # Repeat until old_alphaPi has stopped changing...
-    old_alphaPi = LP['alphaPi'].copy()
-
-    docIDs = range(Data.nDoc)
-
-    for ii in xrange(nCoordAscentItersLP):
-
-      # nDoc x K matrix
-      if len(docIDs) == Data.nDoc:
-        expElogpi = np.exp(LP['E_logPi'][:, :-1])    
-      else:
-        expElogpi[docIDs] = np.exp(LP['E_logPi'][docIDs, :-1])    
-
-      for d in docIDs:
-        start = Data.doc_range[d,0]
-        stop  = Data.doc_range[d,1]
-        # subset of expEloglik, has rows belonging to doc d 
-        expEloglik_d = expEloglik[start:stop]
-        
-        # SumRTilde_d : subset of SumRTilde vector belonging to doc d
-        SumRTilde_d = np.dot(expEloglik_d, expElogpi[d])
-        SumRTilde[start:stop] = SumRTilde_d
-
-        # Update DocTopicCount field of LP
-        #  Remember: expElogpi will be multiplied in here in following step 
-        LP['DocTopicCount'][d,:] = np.dot(expEloglik_d.T, 
-                                    Data.word_count[start:stop] / SumRTilde_d
-                                         )
-
-      # Element-wise multiply with nDoc x K prior prob matrix
-      LP['DocTopicCount'][docIDs] *= expElogpi[docIDs]
-
-      # Update doc_variational field of LP
-      LP['alphaPi'] = np.tile(self.gamma * self.Ebeta, (Data.nDoc,1))
-      LP['alphaPi'][:,:-1] += LP['DocTopicCount']
-
-      # Update expected value of log(Pi)
-      digamma(LP['alphaPi'], out=LP['E_logPi'])
-      LP['E_logPi'] -= digamma(np.sum(LP['alphaPi'],axis=1))[:,np.newaxis]
-
-      # Assess convergence
-      docDiffs = np.max(np.abs(old_alphaPi - LP['alphaPi']), axis=1)
-      if np.max(docDiffs) < convThrLP:
-        break
-      if doOnlySomeDocsLP:
-        docIDs = np.flatnonzero(docDiffs > convThrLP)
-
-      # Store previous value for next convergence test
-      # the "[:]" syntax ensures we do NOT copy data over
-      old_alphaPi[:] = LP['alphaPi']
-
-    LP['docIDs'] = docIDs
-    LP['word_variational'] = expEloglik
+    LP['word_variational'] = LP['expEloglik']
     for d in xrange(Data.nDoc):
       start = Data.doc_range[d,0]
       stop  = Data.doc_range[d,1]
-      LP['word_variational'][start:stop] *= expElogpi[d]
-    LP['word_variational'] /= SumRTilde[:, np.newaxis]
+      LP['word_variational'][start:stop] *= LP['expElogpi'][d]
+    LP['word_variational'] /= LP['sumRTilde'][:, np.newaxis]
 
-    del LP['E_logsoftev_WordsData']
     assert np.allclose( LP['word_variational'].sum(axis=1), 1.0)
     return LP
-
-  def get_doc_variational( self, Data, LP):
-        ''' Update document-topic variational parameters
-        '''
-        zeroPad = np.zeros((Data.nDoc,1))
-        DTCountMatZeroPad = np.hstack([LP['DocTopicCount'], zeroPad])
-        LP['alphaPi'] = DTCountMatZeroPad + self.gamma*self.Ebeta
-        return LP
-
-  def calc_ElogPi(self, LP):
-        ''' Update expected log topic probability distr. for each document d
-        '''
-        alph = LP['alphaPi']
-        LP['E_logPi'] = digamma(alph) - digamma(alph.sum(axis=1))[:,np.newaxis]
-        return LP
-    
-  def get_word_variational( self, Data, LP):
-        ''' Update and return word-topic assignment variational parameters
-        '''
-        # Operate on wv matrix, which is nDistinctWords x K
-        #  has been preallocated for speed (so we can do += later)
-        wv = LP['word_variational']         
-        K = wv.shape[1]        
-        # Fill in entries of wv with log likelihood terms
-        wv[:] = LP['E_logsoftev_WordsData']
-        # Add doc-specific log prior to doc-specific rows
-        ElogPi = LP['E_logPi'][:,:K]
-        for d in xrange(Data.nDoc):
-            wv[Data.doc_range[d,0]:Data.doc_range[d,1], :] += ElogPi[d,:]
-        NumericUtil.inplaceExpAndNormalizeRows(wv)
-        assert np.allclose(LP['word_variational'].sum(axis=1), 1)
-        return LP
-
 
   ######################################################### Suff Stats
   #########################################################
@@ -229,49 +118,43 @@ class HDPModel(AllocModel):
                                             doPrecompMergeEntropy=False,
                                             preselectroutine=None,
                                             mPairIDs=None):
-        ''' Count expected number of times each topic is used across all docs    
-        '''
-        wv = LP['word_variational']
-        _, K = wv.shape
-        # Turn dim checking off, since some stats have dim K+1 instead of K
-        SS = SuffStatBag(K=K, D=Data.vocab_size)
-        SS.setField('nDoc', Data.nDoc, dims=None)
-        sumLogPi = np.sum(LP['E_logPi'], axis=0)
-        SS.setField('sumLogPiActive', sumLogPi[:K], dims='K')
-        SS.setField('sumLogPiUnused', sumLogPi[-1], dims=None)
+    ''' Calculate sufficient statistics
+    '''
+    wv = LP['word_variational']
+    _, K = wv.shape
+    SS = SuffStatBag(K=K, D=Data.vocab_size)
+    SS.setField('nDoc', Data.nDoc, dims=None)
+    sumLogPi = np.sum(LP['E_logPi'], axis=0)
+    SS.setField('sumLogPiActive', sumLogPi, dims='K')
+    SS.setField('sumLogPiUnused', np.sum(LP['E_logPi_u'], axis=0), dims=None)
 
-        if 'DocTopicFrac' in LP:
-          Nmajor = LP['DocTopicFrac']
-          Nmajor[Nmajor < 0.05] = 0
-          SS.setField('Nmajor', np.sum(Nmajor, axis=0), dims='K')
-        if doPrecompEntropy:
-            # Z terms
-            SS.setELBOTerm('ElogpZ', self.E_logpZ(Data, LP), dims='K')
-            SS.setELBOTerm('ElogqZ', self.E_logqZ(Data, LP), dims='K')
-            # Pi terms
-            # Note: no terms needed for ElogpPI
-            # SS already has field sumLogPi, which is sufficient for this term
-            ElogqPiC, ElogqPiA, ElogqPiU = self.E_logqPi_Memoized_from_LP(LP)
-            SS.setELBOTerm('ElogqPiConst', ElogqPiC, dims=None)
-            SS.setELBOTerm('ElogqPiActive', ElogqPiA, dims='K')
-            SS.setELBOTerm('ElogqPiUnused', ElogqPiU, dims=None)
+    if doPrecompEntropy:
+      # Z terms
+      SS.setELBOTerm('ElogpZ', self.E_logpZ(Data, LP), dims='K')
+      SS.setELBOTerm('ElogqZ', self.E_logqZ(Data, LP), dims='K')
+      # Pi terms
+      # Note: no terms needed for ElogpPI
+      # SS already has field sumLogPi, which is sufficient for this term
+      ElogqPiC, ElogqPiA, ElogqPiU = self.E_logqPi_Memoized_from_LP(LP)
+      SS.setELBOTerm('ElogqPiConst', ElogqPiC, dims=None)
+      SS.setELBOTerm('ElogqPiActive', ElogqPiA, dims='K')
+      SS.setELBOTerm('ElogqPiUnused', ElogqPiU, dims=None)
 
-        if doPrecompMergeEntropy:
-            ElogpZMat, sLgPiMat, ElogqPiMat = self.memo_elbo_terms_for_merge(LP)
-            ElogqZMat = self.E_logqZ_memo_terms_for_merge(Data, LP, mPairIDs)
-            SS.setMergeTerm('ElogpZ', ElogpZMat, dims=('K','K'))
-            SS.setMergeTerm('ElogqZ', ElogqZMat, dims=('K','K'))
-            SS.setMergeTerm('ElogqPiActive', ElogqPiMat, dims=('K','K'))
-            SS.setMergeTerm('sumLogPiActive', sLgPiMat, dims=('K','K'))
+    if doPrecompMergeEntropy:
+      ElogpZMat, sLgPiMat, ElogqPiMat = self.memo_elbo_terms_for_merge(LP)
+      ElogqZMat = self.E_logqZ_memo_terms_for_merge(Data, LP, mPairIDs)
+      SS.setMergeTerm('ElogpZ', ElogpZMat, dims=('K','K'))
+      SS.setMergeTerm('ElogqZ', ElogqZMat, dims=('K','K'))
+      SS.setMergeTerm('ElogqPiActive', ElogqPiMat, dims=('K','K'))
+      SS.setMergeTerm('sumLogPiActive', sLgPiMat, dims=('K','K'))
 
-        if preselectroutine is not None:
-          if preselectroutine.count('doctopiccorr') > 0:
-            Tmat = LP['DocTopicCount']
-            SS.setSelectionTerm('DocTopicPairMat',
-                               np.dot(Tmat.T, Tmat), dims=('K','K'))
-            SS.setSelectionTerm('DocTopicSum', np.sum(Tmat, axis=0), dims='K')
-        return SS
-
+    if preselectroutine is not None:
+      if preselectroutine.count('doctopiccorr') > 0:
+        Tmat = LP['DocTopicCount']
+        SS.setSelectionTerm('DocTopicPairMat',
+                           np.dot(Tmat.T, Tmat), dims=('K','K'))
+        SS.setSelectionTerm('DocTopicSum', np.sum(Tmat, axis=0), dims='K')
+    return SS
 
   ######################################################### Global Params
   #########################################################
@@ -443,33 +326,30 @@ class HDPModel(AllocModel):
 
   ####################################################### ELBO terms for Z
   def E_logpZ( self, Data, LP):
-        ''' Returns K-length vector with E[ log p(Z) ] for each topic k
-                E[ z_dwk ] * E[ log pi_{dk} ]
-        '''
-        K = LP['DocTopicCount'].shape[1]
-        E_logpZ = LP["DocTopicCount"] * LP["E_logPi"][:, :K]
-        return np.sum(E_logpZ, axis=0)
+    ''' Returns K-length vector with E[log p(Z)] for each topic k
+    '''
+    return np.sum(LP['DocTopicCount'] * LP['E_logPi'], axis=0)
 
   def E_logqZ( self, Data, LP):  
-        ''' Returns K-length vector with E[ log q(Z) ] for each topic k
-                r_{dwk} * E[ log r_{dwk} ]
-            where z_{dw} ~ Discrete( r_dw1 , r_dw2, ... r_dwK )
-        '''
-        wv = LP['word_variational']
-        wv += EPS # Make sure all entries > 0 before taking log
-        return NumericUtil.calcRlogRdotv(wv, Data.word_count)
+    ''' Returns K-length vector with E[ log q(Z) ] for each topic k
+            r_{dwk} * E[ log r_{dwk} ]
+        where z_{dw} ~ Discrete( r_dw1 , r_dw2, ... r_dwK )
+    '''
+    wv = LP['word_variational']
+    wv += EPS # Make sure all entries > 0 before taking log
+    return NumericUtil.calcRlogRdotv(wv, Data.word_count)
 
   def E_logqZ_memo_terms_for_merge(self, Data, LP, mPairIDs=None):
-        ''' Returns KxK matrix 
-        ''' 
-        wv = LP['word_variational']
-        wv += EPS # Make sure all entries > 0 before taking log
-        if mPairIDs is None:
-          ElogqZMat = NumericUtil.calcRlogRdotv_allpairs(wv, Data.word_count)
-        else:
-          ElogqZMat = NumericUtil.calcRlogRdotv_specificpairs(wv, 
+    ''' Returns KxK matrix 
+    ''' 
+    wv = LP['word_variational']
+    wv += EPS # Make sure all entries > 0 before taking log
+    if mPairIDs is None:
+      ElogqZMat = NumericUtil.calcRlogRdotv_allpairs(wv, Data.word_count)
+    else:
+      ElogqZMat = NumericUtil.calcRlogRdotv_specificpairs(wv, 
                                                 Data.word_count, mPairIDs)
-        return ElogqZMat
+    return ElogqZMat
 
   ####################################################### ELBO terms for Pi
   def E_logpPi(self, SS):
@@ -489,10 +369,12 @@ class HDPModel(AllocModel):
     ''' Returns scalar value of E[ log q(PI)],
           calculated directly from local param dict LP
     '''
-    alph = LP['alphaPi']
-    # logDirNormC : nDoc -len vector    
-    logDirNormC = gammaln(alph.sum(axis=1)) - np.sum(gammaln(alph), axis=1)
-    logDirPDF = np.sum((alph - 1.) * LP['E_logPi'])
+    theta = LP['theta']    # nDoc x K
+    utheta = LP['theta_u'] # scalar
+    logDirNormC = gammaln(utheta + theta.sum(axis=1)) \
+                  - (gammaln(utheta) + np.sum(gammaln(theta), axis=1))
+    logDirPDF = np.sum((theta - 1.) * LP['E_logPi']) \
+                  + (utheta - 1.) * np.sum(LP['E_logPi_u'])
     return np.sum(logDirNormC) + logDirPDF
 
   def E_logqPi_Memoized_from_LP(self, LP):
@@ -504,11 +386,15 @@ class HDPModel(AllocModel):
             when added to other results of this function from different batches,
                 the sum is equal to E[log q(PI)] of the entire dataset
     '''
-    alph = LP['alphaPi']
-    logDirNormC = np.sum(gammaln(alph.sum(axis=1)))
-    piEntropyVec = np.sum((alph - 1.) * LP['E_logPi'], axis=0) \
-                     - np.sum(gammaln(alph),axis=0)
-    return logDirNormC, piEntropyVec[:-1], piEntropyVec[-1]
+    theta = LP['theta']    # nDoc x K
+    utheta = LP['theta_u'] # scalar
+    nDoc = theta.shape[0]
+    logDirNormC = np.sum(gammaln(utheta + theta.sum(axis=1)))
+    piEntropyVec = np.sum( (theta - 1.0) * LP['E_logPi'], axis=0) \
+                     - np.sum(gammaln(theta),axis=0)
+    piEntropyUnused = (utheta - 1.0) * np.sum( LP['E_logPi_u'], axis=0) \
+                     - nDoc * gammaln(utheta) 
+    return logDirNormC, piEntropyVec, piEntropyUnused
 
 
   ####################################################### ELBO terms for V
@@ -535,28 +421,27 @@ class HDPModel(AllocModel):
         sumLogPiMat : KxK matrix
         ElogqPiMat  : KxK matrix
     '''
-    CMat = LP["DocTopicCount"]
-    alph = LP["alphaPi"]
-    digammaPerDocSum = digamma(alph.sum(axis=1))[:, np.newaxis]
-    alph = alph[:, :-1] # ignore last column ("remainder" topic)
+    CMat = LP['DocTopicCount']# nDoc x K
+    theta = LP['theta']       # nDoc x K
+    digammasumTheta = digamma(LP['theta_u'] + theta.sum(axis=1))[:, np.newaxis]
 
     ElogpZMat = np.zeros((self.K, self.K))
     sumLogPiMat = np.zeros((self.K, self.K))
     ElogqPiMat = np.zeros((self.K, self.K))
     for jj in range(self.K):
       M = self.K - jj - 1
-      # nDoc x M matrix, alpha_{dm} for each merge pair m with comp jj
-      mergeAlph = alph[:,jj][:,np.newaxis] + alph[:, jj+1:]
+      # nDoc x M matrix, theta_{dm} for each merge pair m with comp jj
+      mergeTheta = theta[:,jj][:,np.newaxis] + theta[:, jj+1:]
       # nDoc x M matrix, E[log pi_m] for each merge pair m with comp jj
-      mergeElogPi = digamma(mergeAlph) - digammaPerDocSum
+      mergeElogPi = digamma(mergeTheta) - digammasumTheta
       assert mergeElogPi.shape[1] == M
       # nDoc x M matrix, count for merged topic m each doc
       mergeCMat = CMat[:, jj][:,np.newaxis] + CMat[:, jj+1:]
       ElogpZMat[jj, jj+1:] = np.sum(mergeCMat * mergeElogPi, axis=0)
           
       sumLogPiMat[jj, jj+1:] = np.sum(mergeElogPi,axis=0)
-      curElogqPiMat = np.sum((mergeAlph-1.)*mergeElogPi, axis=0) \
-                                      - np.sum(gammaln(mergeAlph),axis=0)
+      curElogqPiMat = np.sum((mergeTheta-1.) * mergeElogPi, axis=0) \
+                       - np.sum(gammaln(mergeTheta),axis=0)
       assert curElogqPiMat.size == M
       ElogqPiMat[jj, jj+1:] = curElogqPiMat
 
