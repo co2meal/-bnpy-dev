@@ -6,53 +6,91 @@ def expand_then_refine(freshModel, freshSS, freshData,
                          **kwargs):
   ''' Create expanded model with K + K' comps, 
         then refine components K+1, K+2, ... K+K' via several VB iterations
+
+      Guarantees that the original comps of bigModel.obsModel are not altered.
+
+      Returns
+      -------
+      model : HModel with K + Kfresh comps
+               * allocModel has scale bigSS + freshSS
+               * obsModel has scale bigSS + freshSS
+      freshSS : SuffStatBag with K + Kfresh comps
+                * has scale freshSS
+      xbigSS : SuffStatBag with K + Kfresh comps
+                * has scale bigSS + freshSS
   '''
-  xSS = bigSS.copy()
-  xSS.insertComps(freshSS)
-  xModel = freshModel # no need to copy!
+  xbigSS = bigSS.copy()
+  xbigSS.insertComps(freshSS)
 
-  xModel.allocModel.update_global_params(xSS)
-  xModel.obsModel.update_global_params(xSS, comps=range(bigSS.K, xSS.K))
+  ### Create expanded model, K + Kfresh comps
+  xbigModel = freshModel # no need to copy!
+  xbigModel.update_global_params(xbigSS)
 
-  xModel, xSS, xLP = refine_with_multiple_VB_iters(
-                              xModel, freshData, Korig=bigSS.K, **kwargs)
+  xbigSS.subtractSpecificComps(freshSS, range(bigSS.K, bigSS.K + freshSS.K))
+  xbigModel, xfreshSS, xfreshLP = refine_expanded_model_with_VB_iters(
+                                xbigModel, freshData, 
+                                xbigSS=xbigSS, Korig=bigSS.K, **kwargs)
+
+  if hasattr(xfreshSS, 'nDoc'):
+    assert xbigSS.nDoc == bigSS.nDoc
+    assert xfreshSS.nDoc == freshData.nDoc
 
   if kwargs['cleanupDeleteToImprove']:
-    xModel, xSS, xLP, xELBO = BirthCleanup.delete_comps_to_improve_ELBO(
-                                  freshData, xModel, 
-                                  LP=xLP, SS=xSS, ELBO=xELBO,
+    if xfreshSS.hasELBOTerms():
+      xfreshELBO = xbigModel.calc_evidence(SS=xfreshSS)
+    else:
+      xfreshELBO = None
+    xbigModel, xbigSS, xfreshSS = \
+              BirthCleanup.delete_comps_from_expanded_model_to_improve_ELBO(
+                                  freshData, xbigModel, 
+                                  xbigSS, xfreshSS,
                                   Korig=bigSS.K)
+  if hasattr(xfreshSS, 'nDoc'):
+    assert xbigSS.nDoc == bigSS.nDoc
+    assert xfreshSS.nDoc == freshData.nDoc
+  xbigSS += xfreshSS
 
-  # TODO 
-  # Compare to competitor model using only K existing comps for freshData
-  return xModel, xSS
+  return xbigModel, xbigSS, xfreshSS
 
 
-def refine_with_multiple_VB_iters(model, freshData, Korig=0, **kwargs):
+def refine_expanded_model_with_VB_iters(xbigModel, freshData,
+                                        xbigSS=None, Korig=0, **kwargs):
   ''' Execute multiple local/global update steps for the current model
       
-      If Korig provided, only components Korig+1, ... K-1, K are altered.
+      Args
+      --------
+      xbigSS : SuffStatBag, with K + Kfresh comps,
+                                 scale equal to bigData only
+
+      Returns
+      --------
+      model : HModel, with K + Kfresh comps
+                      scale equal to bigData + freshData
+      freshSS : SuffStatBag, with K + Kfresh comps
+                      scale equal to freshData
+      freshLP : dict of local parameters for freshData
   '''
-  for _ in xrange(kwargs['refineNumIters']):
-    LP = model.calc_local_params(freshData)
-    SS = model.get_global_suff_stats(freshData, LP)
+  for riter in xrange(kwargs['refineNumIters']):
+    xfreshLP = xbigModel.calc_local_params(freshData)
+    xfreshSS = xbigModel.get_global_suff_stats(freshData, xfreshLP)
 
-    if kwargs['cleanupDeleteEmpty']:
-      for k in reversed(range(Korig, SS.K)):
-        if SS.N[k] < kwargs['cleanupMinSize']:
-          SS.removeComp(k)
-          del model.obsModel.comp[k]
+    # For all but last iteration, attempt removing empty topics
+    if kwargs['cleanupDeleteEmpty'] and riter < kwargs['refineNumIters'] - 1:
+      for k in reversed(range(Korig, xfreshSS.K)):
+        if xfreshSS.N[k] < kwargs['cleanupMinSize']:
+          xfreshSS.removeComp(k)
+          xbigSS.removeComp(k)
 
-      if SS.K < model.allocModel.K:
-        model.obsModel.K = SS.K
-
-    if SS.K == Korig:
+    if xfreshSS.K == Korig:
       msg = "BIRTH failed. No new comps above cleanupMinSize."
       raise BirthProposalError(msg)
 
-    model.allocModel.update_global_params(SS)
-    model.obsModel.update_global_params(SS, comps=range(Korig, SS.K))
+    xbigSS += xfreshSS
+    xbigModel.allocModel.update_global_params(xbigSS)
+    xbigModel.obsModel.update_global_params(xbigSS)
+    xbigSS -= xfreshSS
 
-  LP = model.calc_local_params(freshData)
-  SS = model.get_global_suff_stats(freshData, LP, doPrecompEntropy=True)
-  return model, SS, LP
+  xfreshLP = xbigModel.calc_local_params(freshData)
+  xfreshSS = xbigModel.get_global_suff_stats(freshData, xfreshLP,
+                                               doPrecompEntropy=True)
+  return xbigModel, xfreshSS, xfreshLP
