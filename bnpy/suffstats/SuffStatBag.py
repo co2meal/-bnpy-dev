@@ -18,8 +18,17 @@ class SuffStatBag(object):
   def __init__(self, K=0, D=0):
     self._Fields = ParamBag(K=K, D=D)
 
-  def copy(self):
-    return copy.deepcopy(self)
+  def copy(self, includeELBOTerms=True, includeMergeTerms=False):
+    if not includeELBOTerms:
+      E = self.removeELBOTerms()
+    if not includeMergeTerms:
+      M = self.removeMergeTerms()
+    copySS = copy.deepcopy(self)
+    if not includeELBOTerms:
+      self.restoreELBOTerms(E)
+    if not includeMergeTerms:
+      self.restoreMergeTerms(M)    
+    return copySS
 
   def setField(self, key, value, dims=None):
     self._Fields.setField(key, value, dims=dims)
@@ -31,6 +40,38 @@ class SuffStatBag(object):
   def setMergeFieldsToZero(self):
     if self.hasMergeTerms():
       self._MergeTerms.setAllFieldsToZero()
+
+  # ======================================================= strip/restore fields
+  def removeELBOandMergeTerms(self):
+    E = self.removeELBOTerms()
+    M = self.removeMergeTerms()
+    return E, M
+
+  def restoreELBOandMergeTerms(self, E, M):
+    self.restoreELBOTerms(E)
+    self.restoreMergeTerms(M)
+
+  def removeELBOTerms(self):
+    if not self.hasELBOTerms():
+      return None
+    _ELBOTerms = self._ELBOTerms
+    del self._ELBOTerms
+    return _ELBOTerms
+
+  def removeMergeTerms(self):
+    if not self.hasMergeTerms():
+      return None
+    MergeTerms = self._MergeTerms
+    del self._MergeTerms
+    return MergeTerms
+
+  def restoreELBOTerms(self, ELBOTerms):
+    if ELBOTerms is not None:
+      self._ELBOTerms = ELBOTerms
+
+  def restoreMergeTerms(self, MergeTerms):
+    if MergeTerms is not None:
+      self._MergeTerms = MergeTerms
 
   # ======================================================= Amp factor
   def hasAmpFactor(self):
@@ -185,9 +226,9 @@ class SuffStatBag(object):
       raise ValueError('Dimension mismatch')
     SSsum = SuffStatBag(K=self.K, D=self.D)
     SSsum._Fields = self._Fields + PB._Fields
-    if hasattr(self, '_ELBOTerms'):
+    if hasattr(self, '_ELBOTerms') and hasattr(PB, '_ELBOTerms'):
       SSsum._ELBOTerms = self._ELBOTerms + PB._ELBOTerms
-    if hasattr(self, '_MergeTerms'):
+    if hasattr(self, '_MergeTerms') and hasattr(PB, '_MergeTerms'):
       SSsum._MergeTerms = self._MergeTerms + PB._MergeTerms
     if hasattr(self, '_SelectTerms') and hasattr(PB, '_SelectTerms'):
       SSsum._SelectTerms = self._SelectTerms + PB._SelectTerms
@@ -197,9 +238,9 @@ class SuffStatBag(object):
     if self.K != PB.K or self.D != PB.D:
       raise ValueError('Dimension mismatch')
     self._Fields += PB._Fields
-    if hasattr(self, '_ELBOTerms'):
+    if hasattr(self, '_ELBOTerms') and hasattr(PB, '_ELBOTerms'):
       self._ELBOTerms += PB._ELBOTerms
-    if hasattr(self, '_MergeTerms'):
+    if hasattr(self, '_MergeTerms') and hasattr(PB, '_MergeTerms'):
       self._MergeTerms += PB._MergeTerms
     if hasattr(self, '_SelectTerms') and hasattr(PB, '_SelectTerms'):
       self._SelectTerms += PB._SelectTerms
@@ -211,19 +252,20 @@ class SuffStatBag(object):
       raise ValueError('Dimension mismatch')
     SSsum = SuffStatBag(K=self.K, D=self.D)
     SSsum._Fields = self._Fields - PB._Fields
-    if hasattr(self, '_ELBOTerms'):
+    if hasattr(self, '_ELBOTerms') and hasattr(PB, '_ELBOTerms'):
       SSsum._ELBOTerms = self._ELBOTerms - PB._ELBOTerms
-    if hasattr(self, '_MergeTerms'):
+    if hasattr(self, '_MergeTerms') and hasattr(PB, '_MergeTerms'):
       SSsum._MergeTerms = self._MergeTerms - PB._MergeTerms
     return SSsum
 
   def __isub__(self, PB):
+    print '******* isub'
     if self.K != PB.K or self.D != PB.D:
       raise ValueError('Dimension mismatch')
     self._Fields -= PB._Fields
-    if hasattr(self, '_ELBOTerms'):
+    if hasattr(self, '_ELBOTerms') and hasattr(PB, '_ELBOTerms'):
       self._ELBOTerms -= PB._ELBOTerms
-    if hasattr(self, '_MergeTerms'):
+    if hasattr(self, '_MergeTerms') and hasattr(PB, '_MergeTerms'):
       self._MergeTerms -= PB._MergeTerms
     return self
 

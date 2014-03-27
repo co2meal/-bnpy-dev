@@ -39,30 +39,34 @@ def delete_comps_from_expanded_model_to_improve_ELBO(Data,
     rfreshSS.removeComp(k)
     
     rSS = rbigSS + rfreshSS
-    rbigModel.allocModel.update_global_params(rSS, mergeCompB=k)
-    rbigModel.obsModel.K -= 1
-    rbigModel.obsModel.update_global_params(rSS, comps=range(Korig, rbigSS.K))
+    rbigModel.update_global_params(rSS)
 
+    # TODO: consider direct construction of deleted state from LP
     rLP = rbigModel.calc_local_params(Data)
     rfreshSS = rbigModel.get_global_suff_stats(Data, rLP, doPrecompEntropy=True)
     rfreshELBO = rbigModel.calc_evidence(SS=rfreshSS)
 
     # If ELBO has improved, set current model to delete component k
+    didAccept = False
     if rfreshELBO >= xfreshELBO:
       xbigSS = rbigSS
-      print '****', xbigSS.WordCounts.sum(), wc
       xfreshSS = rfreshSS
       xbigModel = rbigModel
       xfreshELBO = rfreshELBO
-    else:
-      print '    ', xbigSS.WordCounts.sum(), wc
+      didAccept = True
+
     if xfreshSS.K == 1:
       break
     ### end loop over comps to delete
 
   if xbigSS.K == Korig:
     msg = "BIRTH failed. Deleting all new comps improves ELBO."
-    raise BirthProposalError(msg)  
+    raise BirthProposalError(msg)
+
+  if didAccept:
+    # Make sure that final model has correct scale
+    xbigModel.update_global_params(xbigSS + xfreshSS)
+
   return xbigModel, xbigSS, xfreshSS
 
 

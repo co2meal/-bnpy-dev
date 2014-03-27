@@ -6,17 +6,25 @@ import numpy as np
 import bnpy
 
 kwargs = dict(creationroutine='randexamples', cleanupMinSize=25,
-               expandorder='expandthenrefine', refineNumIters=10,
-               Kfresh=10, randstate=np.random.RandomState(0),
-               cleanupDeleteEmpty=1, cleanupDeleteToImprove=0
+               expandorder='expandThenRefine', refineNumIters=10,
+               Kfresh=10, Kmax=25, randstate=np.random.RandomState(0),
+               cleanupDeleteEmpty=1, cleanupDeleteToImprove=0,
+               birthRetainExtraMass=0,
+               birthVerifyELBOIncrease=0,
              )
 
+BarsName = None
 BarsData = None
-def getBarsData():
-  global BarsData
-  if BarsData is None:
-    import BarsK6V9
-    BarsData = BarsK6V9.get_data(nDocTotal=100)
+def getBarsData(name=None):
+  global BarsData, BarsName
+  if BarsData is None or name != BarsName:
+    BarsName = name
+    if name == 'BarsK10V900':
+      import BarsK10V900
+      BarsData = BarsK10V900.get_data(nDocTotal=300, nWordsPerDoc=300)
+    else:
+      import BarsK6V9
+      BarsData = BarsK6V9.get_data(nDocTotal=100)
   return BarsData
 
 def MakeModelWithTrueTopics(Data):
@@ -27,6 +35,20 @@ def MakeModelWithTrueTopics(Data):
   hmodel = bnpy.HModel.CreateEntireModel('VB', 'HDPModel', 'Mult', 
                                           aDict, oDict, Data)
   hmodel.init_global_params(Data, initname='trueparams')
+  LP = hmodel.calc_local_params(Data)
+  SS = hmodel.get_global_suff_stats(Data, LP)
+  hmodel.update_global_params(SS)
+  return hmodel, SS, LP
+
+def MakeModelWithFiveTopics(Data):
+  ''' Create new model.
+  '''
+  aDict = dict(alpha0=5.0, gamma=0.5)
+  oDict = {'lambda':0.1}
+  hmodel = bnpy.HModel.CreateEntireModel('VB', 'HDPModel', 'Mult', 
+                                          aDict, oDict, Data)
+  hmodel.init_global_params(Data, K=5, initname='randexamples',
+                                    seed=0)
   LP = hmodel.calc_local_params(Data)
   SS = hmodel.get_global_suff_stats(Data, LP)
   hmodel.update_global_params(SS)
@@ -58,6 +80,7 @@ def verify_obsmodel_at_desired_scale( obsModel, word_count=0):
   lamsum = 0
   for k in range(obsModel.K):
     lamsum += obsModel.comp[k].lamvec.sum() - priorsum
+  print lamsum, word_count
   assert np.allclose(lamsum, word_count)
 
 

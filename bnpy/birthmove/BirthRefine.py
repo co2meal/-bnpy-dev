@@ -11,19 +11,20 @@ def expand_then_refine(freshModel, freshSS, freshData,
 
       Returns
       -------
-      model : HModel with K + Kfresh comps
+      xbigModel : HModel with K + Kfresh comps
                * allocModel has scale bigSS + freshSS
                * obsModel has scale bigSS + freshSS
-      freshSS : SuffStatBag with K + Kfresh comps
-                * has scale freshSS
       xbigSS : SuffStatBag with K + Kfresh comps
                 * has scale bigSS + freshSS
+      xfreshSS : SuffStatBag with K + Kfresh comps
+                * has scale freshSS
+      
   '''
-  xbigSS = bigSS.copy()
+  xbigSS = bigSS.copy(includeELBOTerms=False, includeMergeTerms=False)
   xbigSS.insertComps(freshSS)
 
   ### Create expanded model, K + Kfresh comps
-  xbigModel = freshModel # no need to copy!
+  xbigModel = freshModel.copy()
   xbigModel.update_global_params(xbigSS)
 
   xbigSS.subtractSpecificComps(freshSS, range(bigSS.K, bigSS.K + freshSS.K))
@@ -69,6 +70,12 @@ def refine_expanded_model_with_VB_iters(xbigModel, freshData,
       freshSS : SuffStatBag, with K + Kfresh comps
                       scale equal to freshData
       freshLP : dict of local parameters for freshData
+
+
+      Updates (in-place)
+      ----------
+      xbigSS : SuffStatBag, with K + Kfresh comps
+                       scale with equal to bigData only
   '''
   for riter in xrange(kwargs['refineNumIters']):
     xfreshLP = xbigModel.calc_local_params(freshData)
