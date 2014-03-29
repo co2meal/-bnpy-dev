@@ -9,6 +9,7 @@ from admix.HDPModel import HDPModel
 from admix.HDPPE import HDPPE
 from admix.HDPFullHard import HDPFullHard
 from admix.HDPSoft2Hard import HDPSoft2Hard
+from admix.HDPRelModel import HDPRelAssortModel
 
 AllocModelConstructorsByName = { \
            'MixModel':MixModel,
@@ -19,6 +20,7 @@ AllocModelConstructorsByName = { \
            'HDPPE':HDPPE,
            'HDPFullHard':HDPFullHard,
            'HDPSoft2Hard':HDPSoft2Hard,
+           'HDPRelAssortModel':HDPRelAssortModel,
           }
 
 AllocModelNameSet = set(AllocModelConstructorsByName.keys())

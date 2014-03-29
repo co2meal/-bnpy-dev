@@ -31,7 +31,9 @@ sb[4,4] = .9
 def gen_graph(K, N, sb):
 
     # define the edge indices and edge values
-    edge_id = list()
+    edge_val = list()
+    edge_exclude = list() # edges to exclude (10%)
+    exclusion_thresh = 0.9 # 1 = no excluded edges
 
     # generate community memberships
     pi = np.zeros( (N,K) )
@@ -40,24 +42,33 @@ def gen_graph(K, N, sb):
         pi[ii,:] = PRNG.dirichlet(alpha)
 
     for ii in xrange(N):
-        for jj in xrange(N):
+        for jj in xrange(ii+1,N):
             if ii != jj and ii < jj:
                 s = PRNG.choice(5, 1, p=pi[ii,:])
                 r = PRNG.choice(5, 1, p=pi[jj,:])
-                if PRNG.rand() < sb[s,r]:
-                    edge_id.append([ii,jj])
+                # If this edge is not being exlcuded, just add to edge_id
+                if PRNG.rand() <= exclusion_thresh:
+                    if PRNG.rand() < sb[s,r]:
+                        edge_val.append([ii,jj,1])
+                else: # include this as an edge that needs to be excluded
+                    if PRNG.rand() < sb[s,r]:
+                        edge_exclude.append([ii,jj,1])
+                    else:
+                        edge_exclude.append([ii,jj,0])
 
-    E = len(edge_id)
-    edge_weight = np.ones(E)
-    return (edge_id, edge_weight)
+    edge_val = np.asarray(np.squeeze(edge_val), dtype=np.int32)
+    edge_exclude = np.asarray(np.squeeze(edge_exclude), dtype=np.int32)
+
+    return (edge_val, edge_exclude)
 
 # template function to wrap data in bnpy format
 def get_data(**kwargs):
     ''' Grab data from matfile specified by matfilepath
     '''
-    edge_id, edge_weight = gen_graph(K,N,sb)
-    Data = GraphData(edge_id=edge_id, edge_value=edge_weight, nNodeTotal=N)
+    edge_val, edge_exclude = gen_graph(K,N,sb)
+    Data = GraphData(edge_val = edge_val, nNodeTotal=N, edge_exclude=edge_exclude)
     Data.summary = get_data_info(K, Data.nNodeTotal, Data.nEdgeTotal)
+    Data.get_edges_all() # Grab the full set of edges for inference
     return Data
 
 def get_minibatch_iterator(nBatch=10, nLap=1, dataorderseed=0, **kwargs):

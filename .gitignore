@@ -13,13 +13,15 @@ logs/
 local/
 results/
 profile/
-.idea/
+.idea/*
 .ipynb_checkpoints/
 __init__.py
 
 # ======================================================  EXCLUDE FILE PATTERNS
 # Exclude script files
 *.sh
+.*
+!/.gitignore
 
 # Exclude user-specific config options for where to read and write data
 *.path

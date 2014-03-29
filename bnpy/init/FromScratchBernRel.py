@@ -30,8 +30,8 @@ def init_global_params(hmodel, Data, initname='randexamples',
     # Generate a sparse matrix given observed positive edges
     #Data.to_sparse_matrix()
     # Create assortative stochastic block matrix
-    lamA = np.zeros( K ) + 0.1 # assortative ( K x 1 ) vs. (K x K)
-    lamB = np.zeros( K ) + 0.1 # assortative
+    lamA = np.zeros( K ) + (Data.nPosEdges / K) # assortative ( K x 1 ) vs. (K x K)
+    lamB = np.zeros( K ) + (Data.nAbsEdges / (K*K)) # assortative
     # Create theta used for
     theta = np.zeros( (N,K) )
     alpha = np.ones(K) / K

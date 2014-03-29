@@ -17,6 +17,7 @@ class BernRelObsModel(ObsModel):
   def __init__(self, inferType, obsPrior=None):
     self.inferType = inferType
     self.obsPrior = obsPrior
+    self.epsilon = 1e-3
     self.comp = list()
 
   @classmethod
@@ -67,8 +68,40 @@ class BernRelObsModel(ObsModel):
     if self.inferType == 'EM':
       raise NotImplementedError('TODO')
     else:
-      LP['E_logsoftev_WordsData'] = self.Elogphi.T[Data.word_id,:]
+      LP['E_logsoftev_EdgeLik'], LP['E_logsoftev_EdgeEps'] = self.E_logsoftev_EdgeData(Data, LP)
     return LP
+
+  def E_logsoftev_EdgeData(self, Data, LP):
+    ''' Return log soft evidence probabilities for each word token.
+
+        Returns
+        -------
+        E_logsoftev_Edges : nDistinctEdges x K matrix
+                                entry n,k gives E log p( edge_ij | community k)
+    '''
+
+    # Obtain matrix where col k = E[ log phi[k] ], for easier indexing
+    N = Data.nNodeTotal # number of nodes
+    E = Data.nEdgeTotal # number of distinct edges (1s and 0s)
+
+    ElogLamA = np.zeros(self.K)
+    ElogLamB = np.zeros(self.K)
+    E_logsoftev_EdgeLik = np.zeros( (Data.nEdgeTotal, self.K) ) # actual responsibilities for edges
+    E_logsoftev_EdgeEps = np.zeros( Data.nEdgeTotal ) # actual responsibilities for edges
+
+    ElogEps1 = np.log(self.epsilon)
+    ElogEps0 = np.log(1-self.epsilon)
+
+    for k in xrange(self.K):
+      ElogLamA[k] = self.comp[k].ElogLamA
+      ElogLamB[k] = self.comp[k].ElogLamB
+
+    E_logsoftev_EdgeLik[Data.ind1,:] = ElogLamA
+    E_logsoftev_EdgeLik[Data.ind0,:] = ElogLamB
+    E_logsoftev_EdgeEps[Data.ind1] = ElogEps1
+    E_logsoftev_EdgeEps[Data.ind0] = ElogEps0
+
+    return (E_logsoftev_EdgeLik, E_logsoftev_EdgeEps)
 
   ######################################################### Suff Stats
   #########################################################
@@ -81,12 +114,12 @@ class BernRelObsModel(ObsModel):
                 WordCounts : K x VocabSize matrix
                   WordCounts[k,v] = # times vocab word v seen with topic k
     '''
-    wv = LP['word_variational']
-    WMat = Data.to_sparse_matrix()
-    TopicWordCounts = (WMat * wv).T
-
-    SS.setField('WordCounts', TopicWordCounts, dims=('K','D'))
-    SS.setField('N', np.sum(TopicWordCounts,axis=1), dims=('K'))
+    ev = LP['edge_variational']
+    E, K = ev.shape
+    sb_ss0 = np.sum(ev[Data.ind0,:], axis=0)
+    sb_ss1 = np.sum(ev[Data.ind1,:], axis=0)
+    SS.setField('sb_ss0', sb_ss0, dims=('K'))
+    SS.setField('sb_ss1', sb_ss1, dims=('K'))
     return SS
 
   ######################################################### Global Params
@@ -109,8 +142,8 @@ class BernRelObsModel(ObsModel):
 
         Params
         --------
-        sb : K x K matrix, each entry represents
-        topics[k,v] = probability of word v under topic k
+        lamA and lamB: the global variational parameters for the stochastic block matrix
+        theta: the global variational parameters for node-community memberships
     '''
     if hmodel is not None:
         self.K = hmodel.obsModel.K
@@ -119,63 +152,65 @@ class BernRelObsModel(ObsModel):
     self.K = theta.shape[1]
     self.comp = list()
 
+    # Initialize each community to have an equal amount of edges
     for k in range(self.K):
-        # Scale up Etopics to lamvec, a V-len vector of positive entries,
-        #   such that (1) E[phi] is still Etopics, and
-        #             (2) lamvec = obsPrior.lamvec + [some suff stats]
-        #   where (2) means that lamvec is a feasible posterior value
-        ii = np.argmin(topics[k,:])
-        lamvec = self.obsPrior.lamvec[ii]/topics[k,ii] * topics[k,:]
-        # Cut-off values that are way way too big
-        if np.any( lamvec > 1e9):
-          lamvec = np.minimum(lamvec, 1e9)
-          print "WARNING: mucking with lamvec"
-        self.comp.append(BetaDistr(lamA, lamB))
+        lamAp = self.obsPrior.lamA + lamA[k]
+        lamBp = self.obsPrior.lamB + lamB[k]
+        self.comp.append(BetaDistr(lamAp, lamBp))
 
 
   ######################################################### Evidence
   #########################################################
   def calc_evidence(self, Data, SS, LP):
-    elbo_pData = self.Elogp_Words(SS)
+    elbo_pData = self.Elogp_Edges(SS, LP)
     elbo_pLam  = self.Elogp_Lam()
     elbo_qLam  = self.Elogq_Lam()
     return elbo_pData + elbo_pLam - elbo_qLam
 
-  def Elogp_Edges(self, SS):
+  def Elogp_Edges(self, SS, LP):
+    ''' This should be different depending on assorative / non-assortative model
     '''
-    '''
-    return np.sum(SS.WordCounts * self.Elogphi())
+    Elogp_Edges = np.sum(LP['edge_variational'] * LP['E_logsoftev_EdgeLik']) \
+                + np.sum( (1 - np.sum(LP['edge_variational'], axis=1)) * LP['E_logsoftev_EdgeEps'])
+    return Elogp_Edges
 
   def Elogp_Lam(self):
+    ''' Get the log pdf of the beta for ELBO
     '''
-    '''
-    logNormC = -1 * self.obsPrior.get_log_norm_const()
-    logDirPDF = np.dot(self.Elogphi(), self.obsPrior.lamvec - 1.0)
-    return np.sum(logDirPDF + logNormC)
+    logNormC = gammaln(self.obsPrior.lamA + self.obsPrior.lamB) \
+             - gammaln(self.obsPrior.lamA) - gammaln(self.obsPrior.lamB)
+    logPDF = 0
+    for k in xrange(self.K):
+        logPDF += (self.obsPrior.lamA - 1.0)*self.comp[k].ElogLamA \
+                + (self.obsPrior.lamB - 1.0)*self.comp[k].ElogLamB
+    return np.sum(logPDF + (self.K * logNormC) )
 
   def Elogq_Lam(self):
     '''
     '''
-    logNormC = np.sum(gammaln(self.Lam)) - np.sum(gammaln(self.LamSum))
-    Elogphi = self.Elogphi() 
-    logDirPDF = np.sum(Elogphi * (1.0 - self.Lam))
-    return -1.0 * (logNormC + logDirPDF)
+    logNormC = 0
+    logPDF = 0
+    for k in xrange(self.K):
+        logNormC += gammaln(self.comp[k].lamA + self.comp[k].lamB) \
+                  - gammaln(self.comp[k].lamA) - gammaln(self.comp[k].lamB)
+
+        logPDF += (self.comp[k].lamA - 1.0)*self.comp[k].ElogLamA \
+                + (self.comp[k].lamB - 1.0)*self.comp[k].ElogLamB
+    return -1.0 * (logNormC + logPDF)
 
 
   ######################################################### I/O Utils
   #########################################################  for humans
   def get_info_string(self):
-    return 'Multinomial distribution'
+    return 'Bernoulli distribution'
   
   def get_info_string_prior(self):
     if self.obsPrior is None:
       return 'None'
     else:
-      lamvec = self.obsPrior.lamvec
-      if np.allclose(lamvec, lamvec[0]):
-        return 'Symmetric Dirichlet, lambda=%.2f' % (lamvec[0])
-      else:
-        return 'Dirichlet, lambda %s' % (np2flatstr(lamvec[:3]))
+      lamA = self.obsPrior.lamA
+      lamB = self.obsPrior.lamB
+      return 'Beta, lambda_A %s, lambda_B %s' % (lamA,lamB)
 
   ######################################################### I/O Utils
   #########################################################  for machines
