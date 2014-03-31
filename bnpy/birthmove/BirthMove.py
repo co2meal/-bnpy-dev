@@ -65,7 +65,6 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
       # Compare ELBO
       curELBO  = curbigModel.calc_evidence(SS=curfreshSS)
       ELBOstr = " propEv %.4e | curEv %.4e" % (propELBO, curELBO)
-      print ELBOstr
 
       if propELBO > curELBO:
         pass # Accepted!

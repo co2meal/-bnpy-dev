@@ -7,6 +7,8 @@ Logic for *creating* new components given
 *  existing suff stats (with K comps, of scale N)
 
 '''
+import numpy as np
+
 from BirthProposalError import BirthProposalError
 import BirthCleanup
 
@@ -52,6 +54,8 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, **kwargs):
 
 def create_new_model_findmissingtopics(freshModel, freshData, 
                                         bigModel, LP=None, **kwargs):
+  import KMeansRex
+
   Kfresh = kwargs['Kfresh']
   K = bigModel.obsModel.K
 
@@ -63,7 +67,7 @@ def create_new_model_findmissingtopics(freshModel, freshData,
   DocWordFreq_model = np.dot(Prior, Lik)
   DocWordFreq_model /= DocWordFreq_model.sum(axis=1)[:,np.newaxis]
 
-  DocWordFreq_emp = Data.to_sparse_docword_matrix()
+  DocWordFreq_emp = freshData.to_sparse_docword_matrix().toarray()
   DocWordFreq_emp /= 1e-9 + DocWordFreq_emp.sum(axis=1)[:,np.newaxis]
 
   DocWordFreq_missing = DocWordFreq_emp - DocWordFreq_model 

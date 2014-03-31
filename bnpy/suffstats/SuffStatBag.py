@@ -259,7 +259,6 @@ class SuffStatBag(object):
     return SSsum
 
   def __isub__(self, PB):
-    print '******* isub'
     if self.K != PB.K or self.D != PB.D:
       raise ValueError('Dimension mismatch')
     self._Fields -= PB._Fields
