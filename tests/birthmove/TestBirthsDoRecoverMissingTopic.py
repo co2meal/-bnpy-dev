@@ -77,6 +77,7 @@ class Test_BarsK6V9(unittest.TestCase):
     model, SS, LP = U.MakeModelWithTrueTopicsButMissingOne(Data, 
                                                  kmissing=kmissing
                                                  )      
+    print SS.sumLogPiActive
     didPass, msg, Info = runBirthTargetedAtMissingCompAndVerifyChange(
                                                  model, SS, Data, 
                                                  kmissing=kmissing,
@@ -84,7 +85,8 @@ class Test_BarsK6V9(unittest.TestCase):
                                                  )
     argstring = ' '.join(sys.argv)
     if argstring.count('nocapture') > 0:
-      viz_bars_and_wait_for_key_press(Info)
+      print Info['SS'].sumLogPiActive
+      U.viz_bars_and_wait_for_key_press(Info)
     print msg
     assert didPass
 
@@ -112,6 +114,24 @@ class Test_BarsK10V900_findmissingtopics(Test_BarsK6V9):
     mykwargs['Kfresh'] = 5
     mykwargs['targetMaxSize'] = 100
     mykwargs['creationroutine'] = 'findmissingtopics'
+    mykwargs['refineNumIters'] = 10
+    mykwargs['cleanupDeleteEmpty'] = 1
+    mykwargs['cleanupDeleteToImprove'] = 1
+    mykwargs['birthVerifyELBOIncrease'] = 1
+    mykwargs['birthRetainExtraMass'] = 0
+    self.kwargs = mykwargs
+
+
+
+class Test_BarsK10V900_findmissingtopics_adjusted(Test_BarsK6V9):
+
+  def setUp(self):
+    self.dataName = 'BarsK10V900'
+    mykwargs = dict(**U.kwargs)
+    mykwargs['Kfresh'] = 5
+    mykwargs['targetMaxSize'] = 100
+    mykwargs['creationroutine'] = 'findmissingtopics'
+    mykwargs['expandAdjustSuffStats'] = 1
     mykwargs['refineNumIters'] = 10
     mykwargs['cleanupDeleteEmpty'] = 1
     mykwargs['cleanupDeleteToImprove'] = 1

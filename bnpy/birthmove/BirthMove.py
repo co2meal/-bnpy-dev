@@ -47,7 +47,7 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
       # BirthRefine.refine_then_expand()
 
     assert xbigModel.obsModel.K == xbigSS.K
-    from IPython import embed; embed()
+
     ELBOstr = ''
     if kwargs['birthVerifyELBOIncrease']:
       assert xfreshSS.hasELBOTerms()

@@ -21,7 +21,11 @@ def expand_then_refine(freshModel, freshSS, freshData,
       
   '''
   xbigSS = bigSS.copy(includeELBOTerms=False, includeMergeTerms=False)
-  xbigSS.insertComps(freshSS)
+  if kwargs['expandAdjustSuffStats'] \
+                 and hasattr(freshModel.allocModel, 'insertCompsIntoSuffStatBag'):
+    xbigSS = freshModel.allocModel.insertCompsIntoSuffStatBag(xbigSS, freshSS)
+  else:
+    xbigSS.insertComps(freshSS)
 
   ### Create expanded model, K + Kfresh comps
   xbigModel = freshModel.copy()

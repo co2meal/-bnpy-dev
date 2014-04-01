@@ -101,6 +101,8 @@ class Test_NIPS(Test_BarsK6V9):
   def setUp(self):
     self.dataName = 'NIPSCorpus'
     os.environ['BNPYDATADIR'] = '/data/NIPS/'
+    if not os.path.exists(os.environ['BNPYDATADIR']):
+      os.environ['BNPYDATADIR'] = '/data/liv/liv-x/topic_models/data/nips/'
     sys.path.append(os.environ['BNPYDATADIR'])
 
     mykwargs = dict(**U.kwargs)
@@ -108,6 +110,7 @@ class Test_NIPS(Test_BarsK6V9):
     mykwargs['targetMinWordsPerDoc'] = 100
     mykwargs['targetMaxSize'] = 100
     mykwargs['creationroutine'] = 'findmissingtopics'
+    mykwargs['expandAdjustSuffStats'] = 1
     mykwargs['refineNumIters'] = 10
     mykwargs['cleanupDeleteEmpty'] = 1
     mykwargs['cleanupDeleteToImprove'] = 1

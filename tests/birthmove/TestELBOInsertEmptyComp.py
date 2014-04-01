@@ -18,6 +18,12 @@ def createModelWithEmptyLastComp__viaSS(model, SS):
   xmodel.update_global_params(xSS)
   return xmodel, xSS
 
+def createModelWithEmptyLastComp__viaSScorrected2(model, SS):
+  xSS = SS.copy()
+  xmodel = model.copy()
+  xSS = xmodel.allocModel.insertEmptyCompsForSuffStatBag( xSS, 1)
+  xmodel.update_global_params(xSS)
+  return xmodel, xSS
 
 def createModelWithEmptyLastComp__viaSScorrected(model, SS, Data):
   xSS = SS.copy()
@@ -81,6 +87,9 @@ def createModelWithEmptyLastComp__viaLP(model, LP, Data):
 def np2flatstr(xvec):
   return ' '.join( ['%9.3f' % (x) for x in xvec])
 
+
+
+
 Data = U.getBarsData('BarsK6V9')
 model, SS, LP = U.MakeModelWithTrueTopics(Data)
 LP = model.calc_local_params(Data)
@@ -89,13 +98,66 @@ SS = model.get_global_suff_stats(Data, LP, doPrecompEntropy=True)
 xmodel, xSS = createModelWithEmptyLastComp__viaSS(model, SS)
 xmodelC, xSSC = createModelWithEmptyLastComp__viaSScorrected(model, SS, Data)
 xmodel2, xSS2 = createModelWithEmptyLastComp__viaLP(model, LP, Data)
+xmodelC2, xSSC2 = createModelWithEmptyLastComp__viaSScorrected2(model, SS)
 model.update_global_params(SS)
+
+class Test_BarsK6V9(unittest.TestCase):
+
+  def shortDescription(self):
+    return None
+
+  def setUp(self):
+    pass
+
+  def test_equivalent_sumLogPiActive(self):
+    print "orig        ", np2flatstr(SS.sumLogPiActive)
+    print "expanded_LP ", np2flatstr(xSS2.sumLogPiActive)
+    print "expanded_SSC", np2flatstr(xSSC.sumLogPiActive)
+    print "expanded_2c ", np2flatstr(xSSC2.sumLogPiActive)
+    assert np.allclose( xSS2.sumLogPiActive, xSSC.sumLogPiActive)
+    assert np.allclose( xSS2.sumLogPiActive, xSSC2.sumLogPiActive)
+
+  def test_equivalent_Ebeta(self):
+    print "orig        ", np2flatstr(model.allocModel.Ebeta)
+    print "expanded_LP ", np2flatstr(xmodel2.allocModel.Ebeta)
+    print "expanded_SSC", np2flatstr(xmodelC.allocModel.Ebeta)
+    print "expanded_2c ", np2flatstr(xmodelC2.allocModel.Ebeta)
+    assert np.allclose( xmodel2.allocModel.Ebeta, xmodelC.allocModel.Ebeta)
+    assert np.allclose( xmodel2.allocModel.Ebeta, xmodelC2.allocModel.Ebeta)
+    assert np.allclose( xmodel2.allocModel.Ebeta[:-2], 
+                        model.allocModel.Ebeta[:-1], atol=0.001)
+
+  def test_equivalent_allocELBO(self):
+    def allocELBO(m, SS):
+      return getattr(m,'allocModel').calc_evidence(None, SS, None)
+    print "orig        ", allocELBO(model, SS)
+    print "expanded_LP ", allocELBO(xmodel2, xSS2)
+    print "expanded_SSC", allocELBO(xmodelC, xSSC)
+    print "expanded_2c ", allocELBO(xmodelC2, xSSC2)
+    assert np.allclose( allocELBO(xmodel2, xSS2), allocELBO(xmodelC, xSSC))
+    assert np.allclose( allocELBO(xmodel2, xSS2), allocELBO(xmodelC2, xSSC2))
+
+  def test_equivalent_obsmodelELBO(self):
+    def allocELBO(m, SS):
+      return getattr(m,'obsModel').calc_evidence(None, SS, None)
+    print "orig        ", allocELBO(model, SS)
+    print "expanded_LP ", allocELBO(xmodel2, xSS2)
+    print "expanded_SSC", allocELBO(xmodelC, xSSC)
+    print "expanded_2c ", allocELBO(xmodelC2, xSSC2)
+    assert np.allclose( allocELBO(model, SS), allocELBO(xmodelC, xSSC))
+    assert np.allclose( allocELBO(xmodel2, xSS2), allocELBO(xmodelC, xSSC))
+    assert np.allclose( allocELBO(xmodel2, xSS2), allocELBO(xmodelC2, xSSC2))
+
+
+
+"""
 
 print '................... alloc model E[beta]'
 print "orig        ", np2flatstr(model.allocModel.Ebeta)
 print "expanded_SS ", np2flatstr(xmodel.allocModel.Ebeta)
 print "expanded_SSc", np2flatstr(xmodelC.allocModel.Ebeta)
 print "expanded_LP ", np2flatstr(xmodel2.allocModel.Ebeta)
+print "expanded_2c ", np2flatstr(xmodelC2.allocModel.Ebeta)
 
 
 print '................... alloc model U1'
@@ -114,9 +176,11 @@ print "orig        ", np2flatstr(SS.sumLogPiActive)
 print "expanded_SS ", np2flatstr(xSS.sumLogPiActive)
 print "expanded_SSC", np2flatstr(xSSC.sumLogPiActive)
 print "expanded_LP ", np2flatstr(xSS2.sumLogPiActive)
+print "expanded_2c ", np2flatstr(xSSC2.sumLogPiActive)
 
 xELBO_SS = xmodel.obsModel.calc_evidence(None, xSS, None)
 xELBO_SSC = xmodelC.obsModel.calc_evidence(None, xSSC, None)
+xELBO_SSC2 = xmodelC2.obsModel.calc_evidence(None, xSSC2, None)
 xELBO_LP = xmodel2.obsModel.calc_evidence(None, xSS2, None)
 curELBO = model.obsModel.calc_evidence(None, SS, None)
 
@@ -125,9 +189,11 @@ print "%.9e" % (curELBO)
 print "%.9e" % (xELBO_SS)
 print "%.9e" % (xELBO_SSC)
 print "%.9e" % (xELBO_LP)
+print "%.9e" % (xELBO_SSC2)
 
 xELBO_SS = xmodel.allocModel.calc_evidence(None, xSS, None)
 xELBO_SSC = xmodelC.allocModel.calc_evidence(None, xSSC, None)
+xELBO_SSC2 = xmodelC2.allocModel.calc_evidence(None, xSSC2, None)
 xELBO_LP = xmodel2.allocModel.calc_evidence(None, xSS2, None)
 curELBO = model.allocModel.calc_evidence(None, SS, None)
 print '................... alloc model ELBO'
@@ -135,16 +201,13 @@ print "%.9e" % (curELBO)
 print "%.9e" % (xELBO_SS)
 print "%.9e" % (xELBO_SSC)
 print "%.9e" % (xELBO_LP)
+print "%.9e" % (xELBO_SSC2)
 
 Cdict = xmodelC.allocModel.calc_evidence(None, xSSC, None, todict=True)
-for key in Cdict:
-  print key, Cdict[key]
-
 Rdict = xmodel2.allocModel.calc_evidence(None, xSS2, None, todict=True)
-for key in Rdict:
-  print key, Rdict[key]
+for key in Cdict:
+  print key, np.allclose(Rdict[key], Cdict[key])
 
-"""
 
 print '................... alloc model E[logpZ]'
 print xSS2.getELBOTerm('ElogpZ')

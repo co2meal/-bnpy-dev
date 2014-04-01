@@ -41,9 +41,10 @@ def update_ElogPi(LP, unusedTopicPrior=None):
   else:
     LP['E_logPi'] = digamma(LP['theta'])
   if unusedTopicPrior is None:
-    digammasumTheta = digamma(np.sum(LP['theta'], axis=1))
+    sumTheta = np.sum(LP['theta'], axis=1)
   else:
-    digammasumTheta = digamma(np.sum(LP['theta'], axis=1) + unusedTopicPrior)
+    sumTheta = np.sum(LP['theta'], axis=1) + unusedTopicPrior
+  digammasumTheta = digamma(sumTheta)
   LP['E_logPi'] -= digammasumTheta[:,np.newaxis]
   LP['digammasumTheta'] = digammasumTheta
   return LP
@@ -149,6 +150,7 @@ def calcLocalDocParams_vectorized(Data, LP, topicPrior,
   LP['expElogpi'] = expElogpi
   LP['expEloglik'] = expEloglik
   del LP['E_logsoftev_WordsData']
+  assert 'digammasumTheta' in LP
   return LP
 
 
