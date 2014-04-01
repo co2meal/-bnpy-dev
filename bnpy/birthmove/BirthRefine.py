@@ -46,6 +46,7 @@ def expand_then_refine(freshModel, freshSS, freshData,
                                   freshData, xbigModel, 
                                   xbigSS, xfreshSS,
                                   Korig=bigSS.K)
+  
   if hasattr(xfreshSS, 'nDoc'):
     assert xbigSS.nDoc == bigSS.nDoc
     assert xfreshSS.nDoc == freshData.nDoc

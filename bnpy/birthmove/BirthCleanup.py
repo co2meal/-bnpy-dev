@@ -69,7 +69,7 @@ def delete_comps_from_expanded_model_to_improve_ELBO(Data,
 
   return xbigModel, xbigSS, xfreshSS
 
-
+"""
 def delete_comps_to_improve_ELBO(Data, model,
                                   SS=None, LP=None, ELBO=None, 
                                   Korig=0, **kwargs):
@@ -124,7 +124,7 @@ def delete_comps_to_improve_ELBO(Data, model,
     raise BirthProposalError(msg)
   
   return model, SS, LP, ELBO
-
+"""
 
 def delete_empty_comps(Data, model, SS=None, 
                                   Korig=0, **kwargs):
