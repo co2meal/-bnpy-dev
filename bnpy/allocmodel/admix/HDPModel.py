@@ -296,7 +296,7 @@ class HDPModel(AllocModel):
 
   ######################################################### Evidence
   #########################################################  
-  def calc_evidence( self, Data, SS, LP ):
+  def calc_evidence( self, Data, SS, LP, todict=False):
         ''' Calculate ELBO terms related to allocation model
         '''   
         E_logpV = self.E_logpV()
@@ -318,6 +318,11 @@ class HDPModel(AllocModel):
             E_logqPi *= SS.ampF
             E_logpZ *= SS.ampF
             E_logqZ *= SS.ampF
+
+        if todict:
+          return dict(ElogpPi=E_logpPi, ElogqPi=E_logqPi,
+                      ElogpZ=E_logpZ, ElogqZ=E_logqZ,
+                      ElogpV=E_logpV, ElogqV=E_logqV)
 
         elbo = E_logpPi - E_logqPi
         elbo += E_logpZ - E_logqZ
