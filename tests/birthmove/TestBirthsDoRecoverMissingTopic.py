@@ -88,20 +88,6 @@ class Test_BarsK6V9(unittest.TestCase):
     print msg
     assert didPass
 
-def viz_bars_and_wait_for_key_press(Info):
-  from matplotlib import pylab
-  from bnpy.viz import BarsViz
-  #topics = np.exp(Info['model'].obsModel.getElogphiMatrix())
-  #pylab.imshow(topics, aspect=topics.shape[1]/topics.shape[0])
-  BarsViz.plotBarsFromHModel( Info['model'], doShowNow=False)
-  pylab.show(block=False)
-  try: 
-    _ = raw_input('Press any key to continue >>')
-    pylab.close()
-  except KeyboardInterrupt:
-    sys.exit(-1)
-
-
 class Test_BarsK10V900(Test_BarsK6V9):
 
   def setUp(self):

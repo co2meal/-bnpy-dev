@@ -18,7 +18,7 @@ class SuffStatBag(object):
   def __init__(self, K=0, D=0):
     self._Fields = ParamBag(K=K, D=D)
 
-  def copy(self, includeELBOTerms=True, includeMergeTerms=False):
+  def copy(self, includeELBOTerms=True, includeMergeTerms=True):
     if not includeELBOTerms:
       E = self.removeELBOTerms()
     if not includeMergeTerms:

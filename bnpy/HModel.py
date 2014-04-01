@@ -70,6 +70,7 @@ class HModel(object):
     # Calculate the "soft evidence" each obsModel component has on each item
     # Fills in LP['E_log_soft_ev']
     LP = self.obsModel.calc_local_params(Data, LP, **kwargs)
+
     # Combine with allocModel probs of each cluster
     # Fills in LP['resp'], a Data.nObs x K matrix whose rows sum to one
     LP = self.allocModel.calc_local_params(Data, LP, **kwargs)

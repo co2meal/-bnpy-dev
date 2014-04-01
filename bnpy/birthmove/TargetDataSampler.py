@@ -10,14 +10,36 @@ Sample selection criteria
 '''
 import numpy as np
 
+def getSize(Data):
+  ''' Return the integer size of the provided dataset
+  '''
+  if Data is None:
+    return 0
+  elif hasattr(Data, 'nDoc'):
+    return Data.nDoc
+  else:
+    return Data.nObs
+
+########################################################### sample_target_data
+###########################################################
 def sample_target_data(Data, model=None, LP=None, **kwargs):
+  ''' Obtain subsample of provided dataset, 
+
+      Returns
+      -------
+      targetData : bnpy DataObj, with size at most kwargs['targetMaxSize']
+  '''
   if hasattr(Data, 'nDoc'):
     return _sample_target_WordsData(Data, model, LP, **kwargs)
   else:
     raise NotImplementedError('TODO: sample_target_data for mix models')
 
+########################################################### WordsData sampling
+###########################################################
 def _sample_target_WordsData(Data, model=None, LP=None, **kwargs):
-  '''
+  ''' Obtain a subsample of provided set of documents,
+        which satisfy criteria set by provided keyword arguments, including
+        minimum size of each document, relationship to targeted component, etc.
 
     Keyword Args
     --------
@@ -39,7 +61,6 @@ def _sample_target_WordsData(Data, model=None, LP=None, **kwargs):
                   with at most targetMaxSize documents
   '''
   DocWordMat = Data.to_sparse_docword_matrix()
-
   if kwargs['targetMinWordsPerDoc'] > 0:
     nWordPerDoc = np.asarray(DocWordMat.sum(axis=1))
     candidates = nWordPerDoc >= kwargs['targetMinWordsPerDoc']
@@ -82,8 +103,6 @@ def _sample_target_WordsData(Data, model=None, LP=None, **kwargs):
                            randstate=kwargs['randstate'],
                            candidates=candidates, p=probCandidates) 
   return targetData
-
-
 
 def calcKLdivergence_discrete(P1, P2):
   KL = np.log(P1 + 1e-100) - np.log(P2 + 1e-100)

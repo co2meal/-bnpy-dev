@@ -158,4 +158,4 @@ class TestBirthRefineBarsK10V900(TestBirthRefineBarsK6V9):
 
   def test_data_size(self):
     assert U.BarsData.TrueParams['K'] == 10
-    assert U.BarsData.nDoc == 300
+    assert U.BarsData.nDoc > 100

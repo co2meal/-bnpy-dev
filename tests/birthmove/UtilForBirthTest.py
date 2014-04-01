@@ -6,13 +6,16 @@ import numpy as np
 import bnpy
 
 kwargs = dict(randstate=np.random.RandomState(0),
-               targetMaxSize=100,
-               targetMinWordsPerDoc=100,
-               targetMinKLPerDoc=0,
-               creationroutine='randexamples', cleanupMinSize=25,
-               expandorder='expandThenRefine', refineNumIters=10,
                Kfresh=10, Kmax=25, 
-               cleanupDeleteEmpty=1, cleanupDeleteToImprove=0,
+               targetMaxSize=100,
+               targetMinWordsPerDoc=0,
+               targetMinKLPerDoc=0,
+               creationRoutine='randexamples', 
+               cleanupMinSize=25,
+               expandOrder='expandThenRefine',
+               refineNumIters=10,
+               cleanupDeleteEmpty=1,
+               cleanupDeleteToImprove=0,
                birthRetainExtraMass=0,
                birthVerifyELBOIncrease=0,
              )
@@ -25,11 +28,26 @@ def getBarsData(name=None):
     BarsName = name
     if name == 'BarsK10V900':
       import BarsK10V900
-      BarsData = BarsK10V900.get_data(nDocTotal=300, nWordsPerDoc=300)
+      BarsData = BarsK10V900.get_data(nDocTotal=500, nWordsPerDoc=300)
+      # NOTE: tests for donotchangeorigmodel are very sensitive to nDocTotal
+      #  be careful when we change this! 
+      #   nDocTotal=300, for example, will cause tests to fail
     else:
       import BarsK6V9
       BarsData = BarsK6V9.get_data(nDocTotal=100)
   return BarsData
+
+def viz_bars_and_wait_for_key_press(Info):
+  from matplotlib import pylab
+  from bnpy.viz import BarsViz
+  BarsViz.plotBarsFromHModel( Info['model'], doShowNow=False)
+  pylab.show(block=False)
+  try: 
+    _ = raw_input('Press any key to continue >>')
+    pylab.close()
+  except KeyboardInterrupt:
+    sys.exit(-1)
+
 
 def loadData(name, **kwargs):
   datamod = __import__(name, fromlist=[])
@@ -46,6 +64,8 @@ def MakeModelWithTrueTopics(Data):
   LP = hmodel.calc_local_params(Data)
   SS = hmodel.get_global_suff_stats(Data, LP)
   hmodel.update_global_params(SS)
+  LP = hmodel.calc_local_params(Data)
+  SS = hmodel.get_global_suff_stats(Data, LP)
   return hmodel, SS, LP
 
 def MakeModelWithTrueTopicsButMissingOne(Data, kmissing=0):

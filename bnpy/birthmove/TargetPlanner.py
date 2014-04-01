@@ -8,6 +8,7 @@ Key methods
   * select_target_comp
 '''
 import numpy as np
+from collections import defaultdict
 
 import BirthProposalError
 
@@ -37,6 +38,7 @@ def select_target_comp(K, SS=None, model=None, LP=None, Data=None,
       -------
       BirthProposalError, if cannot select a valid choice
   '''
+  targetSelectName = kwargs['targetSelectName']
   if SS is None:
     targetSelectName = 'uniform'
     assert K is not None
@@ -49,7 +51,6 @@ def select_target_comp(K, SS=None, model=None, LP=None, Data=None,
 
   ######## Build vector ps: gives probability of each choice
   ########
-  targetSelectName = kwargs['targetSelectName']
   ps = np.zeros(K)
   if targetSelectName == 'uniform':
     ps = np.ones(K)

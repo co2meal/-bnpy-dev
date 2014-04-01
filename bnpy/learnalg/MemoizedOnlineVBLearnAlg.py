@@ -9,14 +9,13 @@ import os
 import logging
 from collections import defaultdict
 
-from bnpy.util import isEvenlyDivisibleFloat
-import BirthMove
 import MergeMove
 from LearnAlg import LearnAlg
-from bnpy.suffstats import SuffStatBag
+from ..suffstats import SuffStatBag
+from ..util import isEvenlyDivisibleFloat
+from ..birthmove import TargetPlanner, TargetDataSampler, BirthMove
 
 Log = logging.getLogger('bnpy')
-
 
 class MemoizedOnlineVBLearnAlg(LearnAlg):
 
@@ -150,7 +149,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       # Collect target data for birth
       if self.hasMove('birth') and self.do_birth_at_lap(lapFrac+1.0):
         if self.isFirstBatch(lapFrac):
-          BirthPlans = self.birth_select_targets_for_next_lap(
+          BirthPlans = self.birth_plan_targets_for_next_lap(
                                 hmodel, SS, BirthResults)
         BirthPlans = self.birth_collect_target_subsample(
                                 Dchunk, LPchunk, BirthPlans)
@@ -186,7 +185,6 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         hmodel, SS = self.birth_remove_extra_mass(hmodel, SS, BirthResults)
 
       # ELBO calc
-      #self.verify_suff_stats(Dchunk, SS, lapFrac)
       evBound = hmodel.calc_evidence(SS=SS)
 
       # Merge move!      
@@ -222,6 +220,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       origmodel.obsModel = hmodel.obsModel
     return None, self.buildRunInfo(evBound, msg)
 
+  """
   def verify_suff_stats(self, Dchunk, SS, lap):
     ''' Run-time checks to make sure the suff stats
         have expected values
@@ -247,6 +246,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       if not np.all(SS.N >= -1e-9):
         raise ValueError('N should be >= 0!')
       SS.N[SS.N < 0] = 0
+  """
 
   ######################################################### Load from memory
   #########################################################
@@ -334,8 +334,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     if self.isLastBatch(lapFrac):
       return False
     rem = lapFrac - np.floor(lapFrac)
-    isWithinFrac = rem <= self.algParams['birth']['batchBirthFrac'] + 1e-6
-    isWithinLimit = lapFrac <= self.algParams['birth']['batchBirthLapLimit'] 
+    isWithinFrac = rem <= self.algParams['birth']['birthBatchFrac'] + 1e-6
+    isWithinLimit = lapFrac <= self.algParams['birth']['birthBatchLapLimit'] 
     return isWithinFrac and isWithinLimit
 
   def birth_create_new_comps(self, hmodel, SS, BirthPlans=list(), Data=None):
@@ -343,32 +343,21 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
         Returns
         -------
-        hmodel : bnpy HModel, with (possibly) new components
-        SS : bnpy SuffStatBag, with (possibly) new components
-        BirthResults : list of dictionaries, one entry per birth move
-                        each entry has fields
-                        * TODO
+        hmodel : bnpy HModel, either existing model or one with more comps
+        SS : bnpy SuffStatBag, either existing SS or one with more comps
+        BirthResults : list of dicts, one entry per birth move
     '''
+    kwargs = dict(**self.algParams['birth'])
+
     if Data is not None:
-      if hasattr(Data, 'nDoc'):
-        wordPerDocThr = self.algParams['birth']['birthWordsPerDocThr']
-        if wordPerDocThr > 0:
-          nWordPerDoc = np.asarray(Data.to_sparse_docword_matrix().sum(axis=1))
-          candidates = nWordPerDoc >= wordPerDocThr
-          candidates = np.flatnonzero(candidates)
-        else:
-          candidates = None
-        targetData = Data.get_random_sample(
-                                self.algParams['birth']['maxTargetSize'],
-                                randstate=self.PRNG, candidates=candidates)
-      else:
-        targetData = Data.get_random_sample(
-                                self.algParams['birth']['maxTargetObs'],
-                                randstate=self.PRNG)
-
-
+      targetData = TargetDataSampler.sample_target_data(
+                                        Data, model=hmodel, LP=None,
+                                        **kwargs)
       Plan = dict(Data=targetData, ktarget=-1)
       BirthPlans = [Plan]
+      kwargs['birthRetainExtraMass'] = 0
+    else:
+      kwargs['birthRetainExtraMass'] = 1
 
     nMoves = len(BirthPlans)
     BirthResults = list()
@@ -376,27 +365,26 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       # Unpack data for current move
       ktarget = Plan['ktarget']
       targetData = Plan['Data']
+      targetSize = TargetDataSampler.getSize(targetData)
 
       if ktarget is None or targetData is None:
         msg = Plan['msg']
-
-      elif targetData.nObs < self.algParams['birth']['minTargetObs']:
-        # Verify targetData large enough that birth would be productive
-        msg = "BIRTH skipped. Target data too small (size %d)"
-        msg = msg % (targetData.nObs)
-      elif hasattr(targetData, 'nDoc') \
-           and targetData.nDoc < self.algParams['birth']['minTargetSize']:
-        msg = "BIRTH skipped. Target data too small (size %d)"
-        msg = msg % (targetData.nDoc)
-
+      elif targetSize < kwargs['targetMinSize']:
+        msg = "BIRTH skipped. Target data too small. Size %d."
+        msg = msg % (targetSize)
       else:
+        oldSize = SS.N.sum()
         hmodel, SS, MoveInfo = BirthMove.run_birth_move(
-                 hmodel, targetData, SS, randstate=self.PRNG, 
-                 ktarget=ktarget, **self.algParams['birth'])
+                                           hmodel, SS, targetData, 
+                                           randstate=self.PRNG, 
+                                           **kwargs)
+        if MoveInfo['didAddNew']:
+          newSize = SS.N.sum()
+          assert np.allclose(newSize- oldSize, targetData.word_count.sum())
+
         msg = MoveInfo['msg']
         if MoveInfo['didAddNew']:
           BirthResults.append(MoveInfo)
-
           for kk in MoveInfo['birthCompIDs']:
             self.LapsSinceLastBirth[kk] = -1
 
@@ -404,7 +392,6 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
           self.print_msg( "%d/%d %s" % (moveID+1, nMoves, msg) )
       else:
           self.print_msg( "%d/%d BATCH %s" % (moveID+1, nMoves, msg) )
-
     return hmodel, SS, BirthResults
 
   def birth_remove_extra_mass(self, hmodel, SS, BirthResults):
@@ -420,7 +407,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     '''
     didChangeSS = False
     for MoveInfo in BirthResults:
-      if MoveInfo['didAddNew']:
+      if MoveInfo['didAddNew'] and 'extraSS' in MoveInfo:
         extraSS = MoveInfo['extraSS']
         compIDs = MoveInfo['modifiedCompIDs']
         assert extraSS.K == len(compIDs)
@@ -430,7 +417,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       hmodel.update_global_params(SS)
     return hmodel, SS
 
-  def birth_select_targets_for_next_lap(self, hmodel, SS, BirthResults):
+  def birth_plan_targets_for_next_lap(self, hmodel, SS, BirthResults):
     ''' Create plans for next lap's birth moves
     
         Returns
@@ -442,10 +429,9 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       assert hmodel.allocModel.K == SS.K
     K =  hmodel.allocModel.K
 
-    # Update counter for which components haven't been updated in a while
+    # Update counter for duration since last targeted-birth for each comp
     for kk in range(K):
       self.LapsSinceLastBirth[kk] += 1
-
     # Ignore components that have just been added to the model.
     excludeList = self.birth_get_all_new_comps(BirthResults)
 
@@ -453,17 +439,18 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     BirthPlans = list()
     for posID in range(self.algParams['birth']['birthPerLap']):
       try:
-        ktarget = BirthMove.select_birth_component(SS, K=K, 
-                          randstate=self.PRNG,
-                          excludeList=excludeList, doVerbose=False,
-                          lapsSinceLastBirth=self.LapsSinceLastBirth,
-                          **self.algParams['birth'])
+        ktarget = TargetPlanner.select_target_comp(
+                             K, SS=SS, 
+                             randstate=self.PRNG,
+                             excludeList=excludeList,
+                             lapsSinceLastBirth=self.LapsSinceLastBirth,
+                              **self.algParams['birth'])
         self.LapsSinceLastBirth[ktarget] = 0
         excludeList.append(ktarget)
         Plan = dict(ktarget=ktarget, Data=None)
       except BirthMove.BirthProposalError, e:
+        # Happens when no component is eligible for selection (all excluded)
         Plan = dict(ktarget=None, Data=None, msg=str(e))
-
       BirthPlans.append(Plan)
     return BirthPlans
 
@@ -478,8 +465,6 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         BirthPlans : list of planned births for the next lap,
                       updated to include data from Dchunk if needed
     '''
-    import BirthMove
-    
     for Plan in BirthPlans:
       # Skip this move if component selection failed
       if Plan['ktarget'] is None:
@@ -488,18 +473,18 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       birthParams = dict(**self.algParams['birth'])
       # Skip collection if have enough data already
       if Plan['Data'] is not None:
-        if hasattr(Plan['Data'], 'nDoc'):
-          if Plan['Data'].nDoc >= self.algParams['birth']['maxTargetSize']:
+        targetSize = TargetDataSampler.getSize( Plan['Data'])
+        if targetSize >= birthParams['targetMaxSize']:
             continue
-          birthParams['maxTargetSize'] -= Plan['Data'].nDoc
-        else:
-          if Plan['Data'].nObs >= self.algParams['birth']['maxTargetObs']:
-            continue
+        birthParams['maxTargetSize'] -= targetSize
 
       # Sample data from current batch, if more is needed
-      targetData = BirthMove.subsample_data(Dchunk, LPchunk,
-                          Plan['ktarget'], randstate=self.PRNG,
+      targetData = TargetDataSampler.sample_target_data(
+                          Dchunk, LP=LPchunk,
+                          targetCompID=Plan['ktarget'],
+                          randstate=self.PRNG,
                           **birthParams)
+
       # Update Data for current entry in self.targetDataList
       if targetData is None:
         if Plan['Data'] is None:
@@ -509,8 +494,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
           Plan['Data'] = targetData
         else:
           Plan['Data'].add_data(targetData)
-        Plan['msg'] = "TargetData: nObs %d" % (Plan['Data'].nObs)
-
+        size = TargetDataSampler.getSize(Plan['Data'])
+        Plan['msg'] = "TargetData: size %d" % (size)
     return BirthPlans
 
   def birth_get_all_new_comps(self, BirthResults):

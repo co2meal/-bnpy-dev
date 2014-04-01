@@ -38,7 +38,7 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
     #          but original comps won't lose influence of bigSS
     #  xbigSS has scale bigData + freshData
     #  xbigModel has scale bigData + freshData
-    if kwargs['expandorder'] == 'expandThenRefine':
+    if kwargs['expandOrder'] == 'expandThenRefine':
       xbigModel, xbigSS, xfreshSS = BirthRefine.expand_then_refine(
                                            freshModel, freshSS, freshData,    
                                                bigModel, bigSS, **kwargs)
@@ -48,6 +48,7 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
 
     assert xbigModel.obsModel.K == xbigSS.K
 
+    ELBOstr = ''
     if kwargs['birthVerifyELBOIncrease']:
       assert xfreshSS.hasELBOTerms()
       propELBO = xbigModel.calc_evidence(SS=xfreshSS)
@@ -79,8 +80,9 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
     Kcur = bigSS.K
     Ktotal = xbigSS.K
     birthCompIDs = range(Kcur, Ktotal)
+    msg = 'BIRTH: %d fresh comps. %s.' % (len(birthCompIDs), ELBOstr)
     MoveInfo = dict(didAddNew=True,
-                    msg='BIRTH: %d fresh comps' % (len(birthCompIDs)),
+                    msg=msg,
                     modifiedCompIDs=[],
                     birthCompIDs=birthCompIDs,
                     )

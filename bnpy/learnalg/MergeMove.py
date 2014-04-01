@@ -206,19 +206,23 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
 
   evDiff = propEv - curEv
 
-  if hasattr(SS, 'nDoc') and np.abs(propEv - curEv) > 0.05 * np.abs(curEv):
-    print 'CRAP! ---------------------------------------!!!!$$$$$$$$'
-    print '    propEv % .5e' % (propEv)
-    print '    curEv  % .5e' % (curEv)
-    MoveInfo = dict(didAccept=0, kA=kA, kB=kB, msg="CRAP. bad proposed evidence.")
-    return curModel, SS, curEv, MoveInfo
+  if hasattr(SS, 'nDoc') and propEv >= curEv:
+    if (propEv - curEv) > 0.05 * np.abs(curEv):
+      print 'CRAP! ---------------------------------------!!!!$$$$$$$$'
+      print '    propEv % .5e' % (propEv)
+      print '    curEv  % .5e' % (curEv)
+      msg = "CRAP. bad proposed evidence."
+      MoveInfo = dict(didAccept=0, kA=kA, kB=kB, msg=msg)
+      return curModel, SS, curEv, MoveInfo
 
-  if hasattr(SS, 'nDoc') and (propEv > 0 and curEv < 0):
-    print 'CRAP! ---------------------------------------!!!!@@@@@@@@'
-    print '    propEv % .5e' % (propEv)
-    print '    curEv  % .5e' % (curEv)
-    MoveInfo = dict(didAccept=0, kA=kA, kB=kB, msg="CRAP. bad proposed evidence.")
-    return curModel, SS, curEv, MoveInfo
+    if (propEv > 0 and curEv < 0):
+      print 'CRAP! ---------------------------------------!!!!@@@@@@@@'
+      print '    propEv % .5e' % (propEv)
+      print '    curEv  % .5e' % (curEv)
+      msg = "CRAP. bad proposed evidence."
+      MoveInfo = dict(didAccept=0, kA=kA, kB=kB, msg=msg)
+      return curModel, SS, curEv, MoveInfo
+
 
   if propEv >= curEv:
     MSelector.reindexAfterMerge(kA, kB)
