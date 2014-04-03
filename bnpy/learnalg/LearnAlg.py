@@ -274,7 +274,7 @@ class LearnAlg(object):
       customFuncArgs_string = self.algParams['customFuncArgs']
       nLapTotal = self.algParams['nLap']
       percentDone = lapFrac/nLapTotal
-      if customFuncPath is not None:
+      if customFuncPath is not None and customFuncPath != 'None':
         import sys
         sys.path.append(customFuncPath)
         customFuncArgs = {}
