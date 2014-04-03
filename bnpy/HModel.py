@@ -128,18 +128,28 @@ class HModel(object):
   #########################################################    
   def init_global_params(self, Data, **initArgs):
     ''' Initialize (in-place) global parameters
+
+        Keyword Args
+        -------
+        K : number of components
+        initname : string name of routine for initialization
     '''
     initname = initArgs['initname']
     if initname.count('true') > 0:
       init.FromTruth.init_global_params(self, Data, **initArgs)
     elif initname.count(os.path.sep) > 0:
       init.FromSaved.init_global_params(self, Data, **initArgs)
-    elif str(type(self.obsModel)).count('Gauss') > 0:
-      init.FromScratchGauss.init_global_params(self, Data, **initArgs)
-    elif str(type(self.obsModel)).count('Mult') > 0:
-      init.FromScratchMult.init_global_params(self, Data, **initArgs)
     else:
-      raise NotImplementedError("TODO")
+      # Set hmodel global parameters "from scratch"
+      self.allocModel.init_global_params(Data, **initArgs)
+      if str(type(self.obsModel)).count('Gauss') > 0:
+        init.FromScratchGauss.init_global_params(self.obsModel, 
+                                                           Data, **initArgs)
+      elif str(type(self.obsModel)).count('Mult') > 0:
+        init.FromScratchMult.init_global_params(self.obsModel,
+                                                           Data, **initArgs)
+      else:
+        raise NotImplementedError('Unrecognized initname procedure.')
 
   ######################################################### I/O Utils
   ######################################################### 
