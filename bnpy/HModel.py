@@ -139,6 +139,11 @@ class HModel(object):
       init.FromTruth.init_global_params(self, Data, **initArgs)
     elif initname.count(os.path.sep) > 0:
       init.FromSaved.init_global_params(self, Data, **initArgs)
+    elif initname.count('LP') > 0:
+      # Set hmodel global parameters using some local parameters
+      LP = self.allocModel.make_init_local_params(Data, **initArgs)
+      SS = self.get_global_suff_stats(Data, LP)
+      self.update_global_params(SS)
     else:
       # Set hmodel global parameters "from scratch"
       self.allocModel.init_global_params(Data, **initArgs)

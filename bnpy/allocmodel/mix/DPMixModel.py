@@ -176,6 +176,16 @@ class DPMixModel(AllocModel):
     self.qalpha0 = rho * qalpha0 + (1-rho) * self.qalpha0
     self.set_helper_params()
 
+  def init_global_params(self, Data, K=None, **kwargs):
+    self.K = K
+    Nvec = np.ones(K)
+    qalpha1 = self.alpha1 + Nvec
+    qalpha0 = self.alpha0 * np.ones(self.K)
+    qalpha0[:-1] += Nvec[::-1].cumsum()[::-1][1:]
+    self.qalpha1 = qalpha1
+    self.qalpha0 = qalpha0
+    self.set_helper_params()
+
   def set_global_params(self, hmodel=None, K=None, qalpha1=None, 
                               qalpha0=None, **kwargs):
     ''' Directly set global parameters qalpha0, qalpha1 to provided values

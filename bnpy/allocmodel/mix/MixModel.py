@@ -127,6 +127,16 @@ class MixModel(AllocModel):
     self.Elogw = digamma( self.alpha ) - digamma( self.alpha.sum() )
     self.K = SS.K
  
+  def init_global_params(self, Data, K=None, **kwargs):
+    ''' Initialize global parameters "from scratch"         
+    '''
+    self.K = K
+    if self.inferType == 'EM':
+      self.w = 1.0/K * np.ones(K)
+    else:
+      self.alpha = self.alpha0 + np.ones(K)
+      self.Elogw = digamma( self.alpha ) - digamma( self.alpha.sum() )
+
   def set_global_params(self, hmodel=None, K=None, w=None, 
                               alpha=None, **kwargs):
     ''' Directly set global parameters alpha to provided values
