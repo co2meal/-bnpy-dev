@@ -47,6 +47,8 @@ def update_ElogPi(LP, unusedTopicPrior=None):
   digammasumTheta = digamma(sumTheta)
   LP['E_logPi'] -= digammasumTheta[:,np.newaxis]
   LP['digammasumTheta'] = digammasumTheta
+  if unusedTopicPrior is not None:
+    LP['E_logPi_u'] = digamma(unusedTopicPrior) - digammasumTheta
   return LP
 
 

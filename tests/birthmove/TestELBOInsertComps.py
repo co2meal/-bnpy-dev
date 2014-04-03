@@ -131,8 +131,7 @@ class Test_BarsK6V9(unittest.TestCase):
     print "expanded_SS ", xSSC2.sumLogPiUnused
     print "expanded_SS3", xSSC3.sumLogPiUnused
     print "wrong       ", xSS.sumLogPiUnused
-    #assert np.allclose( xSS2.sumLogPiActive, xSSC.sumLogPiActive)
-    #assert np.allclose( xSS2.sumLogPiActive, xSSC2.sumLogPiActive)
+    assert np.allclose( xSS2.sumLogPiUnused, xSSC2.sumLogPiUnused)
 
   def test_equivalent_sumLogPiActive(self):
     print ''
@@ -141,8 +140,7 @@ class Test_BarsK6V9(unittest.TestCase):
     print "expanded_SS ", np2flatstr(xSSC2.sumLogPiActive)
     print "expanded_SS3", np2flatstr(xSSC3.sumLogPiActive)
     print "wrong       ", np2flatstr(xSS.sumLogPiActive)
-    #assert np.allclose( xSS2.sumLogPiActive, xSSC.sumLogPiActive)
-    #assert np.allclose( xSS2.sumLogPiActive, xSSC2.sumLogPiActive)
+    assert np.allclose( xSS2.sumLogPiActive, xSSC2.sumLogPiActive)
 
   def test_equivalent_Ebeta(self):
     print ''
@@ -151,8 +149,7 @@ class Test_BarsK6V9(unittest.TestCase):
     print "expanded_SS ", np2flatstr(xmodelC2.allocModel.Ebeta)
     print "expanded_SS3", np2flatstr(xmodelC3.allocModel.Ebeta)
     print "wrong       ", np2flatstr(xmodel.allocModel.Ebeta)
-    #assert np.allclose( xmodel2.allocModel.Ebeta, xmodelC.allocModel.Ebeta)
-    #assert np.allclose( xmodel2.allocModel.Ebeta, xmodelC2.allocModel.Ebeta)
-    #assert np.allclose( xmodel2.allocModel.Ebeta[:-2], 
-    #                    model.allocModel.Ebeta[:-1], atol=0.001)
+    assert np.allclose( xmodel2.allocModel.Ebeta, xmodelC2.allocModel.Ebeta)
+    assert np.allclose( xmodel2.allocModel.Ebeta[:-(5+1)], 
+                          model.allocModel.Ebeta[:-1], atol=0.01)
 

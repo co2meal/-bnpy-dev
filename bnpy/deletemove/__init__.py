@@ -1,0 +1,4 @@
+''' deletemove module
+'''
+
+import DeleteMoveBagOfWords
