@@ -90,11 +90,14 @@ def construct_LP_with_comps_removed(Data, model, compIDs=0, LP=None,
 
   assert rvec.size == nObs
   assert rvec.ndim == 1
-  Rnew /= (1.0 - rvec)[:,np.newaxis]
-  Rnew[rvec > THR] = 1./Knew
+  #Rnew /= (1.0 - rvec)[:,np.newaxis]
+  Rnew /= np.sum(Rnew, axis=1)[:,np.newaxis]
+  
+  mask = np.abs(1.0 - np.sum(Rnew, axis=1)) > 1e-7
+  if np.sum(mask) > 0:
+    Rnew[mask] = 1./Knew # fallback to 
+    print 'NUM MANUALLY RESCUED:  %d/%d' % (np.sum(mask), mask.size)
   assert np.allclose(1.0, np.sum(Rnew, axis=1))
-
-  print 'NUM OVER THR: %d/%d' % (np.sum(rvec > THR), Rnew.shape[0])
 
   newLP = dict()
   newLP['word_variational'] = Rnew

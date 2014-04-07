@@ -40,3 +40,19 @@ class TestBarsK6V9(unittest.TestCase):
         assert newSS.K == SS.K
         print Info['msg']
 
+
+class TestBarsK10V900(TestBarsK6V9):
+
+  def setUp(self):
+    self.dataName = 'BarsK10V900'
+    mykwargs = dict(**DU.kwargs)
+    self.kwargs = mykwargs
+
+class TestBarsK50V2500(TestBarsK6V9):
+
+  def setUp(self):
+    self.dataName = 'BarsK50V2500'
+    mykwargs = dict(**DU.kwargs)
+    self.kwargs = mykwargs
+
+
