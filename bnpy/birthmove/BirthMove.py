@@ -9,6 +9,12 @@ from BirthProposalError import BirthProposalError
 
 def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
   ''' Run birth move on provided target data, creating up to Kfresh new comps
+
+      Returns
+      -------
+      bigmodel
+      bigSS
+      MoveInfo
   '''
   kwargs = dict(**kwargsIN) # make local copy!
   origids = dict( bigModel=id(bigModel), bigSS=id(bigSS) )

@@ -113,10 +113,10 @@ def verify_obsmodel_at_desired_scale( obsModel, word_count=0):
 
 ########################################################### Visual debugging
 ########################################################### 
-def viz_bars_and_wait_for_key_press(Info):
+def viz_bars_and_wait_for_key_press(model):
   from matplotlib import pylab
   from bnpy.viz import BarsViz
-  BarsViz.plotBarsFromHModel( Info['model'], doShowNow=False)
+  BarsViz.plotBarsFromHModel( model, doShowNow=False)
   pylab.show(block=False)
   try: 
     _ = raw_input('Press any key to continue >>')
