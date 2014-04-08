@@ -18,6 +18,9 @@ def getBarsData(name=None):
     if name == 'BarsK10V900':
       import BarsK10V900
       BarsData = BarsK10V900.get_data(nDocTotal=500, nWordsPerDoc=300)
+    elif name == 'BarsK50V2500':
+      import BarsK50V2500
+      BarsData = BarsK50V2500.get_data(nDocTotal=800, nWordsPerDoc=300)
     else:
       import BarsK6V9
       BarsData = BarsK6V9.get_data(nDocTotal=100)

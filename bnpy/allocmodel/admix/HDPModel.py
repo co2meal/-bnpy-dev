@@ -131,7 +131,8 @@ class HDPModel(AllocModel):
 
     ## Special field for better inserting empty components
     if 'digammasumTheta' in LP:
-      SS.setField('sumDigammaSumTheta', np.sum(LP['digammasumTheta']), dims=None)
+      SS.setField('sumDigammaSumTheta', np.sum(LP['digammasumTheta']),
+                                        dims=None)
 
     if doPrecompEntropy:
       # Z terms
@@ -164,47 +165,83 @@ class HDPModel(AllocModel):
   def insertCompsIntoSuffStatBag(self, SS, freshSS, correctFresh=False):
     ''' Model-specific correction to SuffStatBag's built-in method for
           inserting components.
+
+        Returns
+        -------
+        SS : SuffStatBag, with SS.K + freshSS.K components,
+                          with scale consistent with SS + freshSS
+        AdjustInfo: dict, with fields indicating which entries in SS
+                          have been adjusted, and what the "per document" 
+                            adjustment factor is
     '''
+    AdjustInfo = dict()
+    ReplaceInfo = dict()
+
     Kextra = freshSS.K
 
-    # Obtain corrected theta terms for new components
+    ## Calculate corrected theta terms for new components K+1,K+2,... K+Kfresh
+    ## Essentially, divide up the existing "left-over" mass among Kfresh comps
+    ##   using the stick-breaking prior as the division procedure
     remEbeta = self.Ebeta[-1]
     newEbeta = np.zeros(Kextra)
     for k in xrange(Kextra):
       newEbeta[k] = 1.0/(1.0+self.alpha0) * remEbeta
       remEbeta = remEbeta - newEbeta[k]
-    assert np.allclose(np.sum(newEbeta) + remEbeta, 1.0 - np.sum(self.Ebeta[:-1]))
+    assert np.allclose(np.sum(newEbeta) + remEbeta, self.Ebeta[-1])
     newTheta = self.gamma * newEbeta
 
-    # Correct sumLogPi term
+    ## Determine "adjustment" that will occur for each SS field
+    ##   on a per-document basis document 
+    ##   to create a sensible expanded theta parameter
     nDoc = SS.nDoc
     sumDigammaSumTheta = SS.sumDigammaSumTheta
 
-    SS.insertComps(freshSS)
-    SS.sumLogPiActive[-Kextra:] += nDoc * digamma(newTheta) \
-                                   - sumDigammaSumTheta
-    SS.sumLogPiUnused = nDoc * digamma(self.gamma * remEbeta) \
-                                   - sumDigammaSumTheta \
-                        + freshSS.sumLogPiUnused
+    AdjustInfo['sumLogPiActive'] = np.zeros(SS.K + Kextra)
+    AdjustInfo['sumLogPiActive'][-Kextra:] = digamma(newTheta) \
+                                              - sumDigammaSumTheta
+    ReplaceInfo['sumLogPiUnused'] = digamma(self.gamma * remEbeta) \
+                                              - sumDigammaSumTheta
 
+    SS.insertComps(freshSS)
+
+    arr = SS.sumLogPiActive
+    arr += nDoc * AdjustInfo['sumLogPiActive']
+    SS.setField('sumLogPiActive', arr, dims='K')
+    sumLogPiUnused = nDoc * ReplaceInfo['sumLogPiUnused'] \
+                        + freshSS.sumLogPiUnused
+    SS.setField('sumLogPiUnused', sumLogPiUnused, dims=None)
+
+    # If desired, make additional correction for expanding freshSS to have      
+    #  its first K topics "empty" before combining with bigSS. 
     if correctFresh:
+      raise NotImplementedError("TODO: fix so we don't call setattr on SS")
       freshTheta = self.gamma * self.Ebeta[:-1]
       SS.sumLogPiActive[:-Kextra] += freshSS.nDoc*digamma(freshTheta) \
                                      - freshSS.sumDigammaSumTheta
 
+    return SS, AdjustInfo, ReplaceInfo
+
+    ''' DEPRECATED!
     # Correct related ELBO terms
     if SS.hasELBOTerms():
+      AdjustInfo['ElogqPiActive'] = np.zeros(SS.K + Kextra)
+      AdjustInfo['ElogqPiActive'][-Kextra:] = (newTheta-1) \
+                                              * (digamma(newTheta)
+                                                   - sumDigammaSumTheta)
+                                              - gammaln(newTheta)
       ElogqPiActive = SS.getELBOTerm('ElogqPiActive')
-      ElogqPiActive[-Kextra:] = (newTheta - 1) * SS.sumLogPiActive[-Kextra:] \
-                                    - SS.nDoc * gammaln(newTheta)
+      ElogqPiActive += nDoc * AdjustInfo['ElogqPiActive']
       SS.setELBOTerm('ElogqPiActive', ElogqPiActive, dims='K')
+      #ElogqPiActive[-Kextra:] = (newTheta - 1) * SS.sumLogPiActive[-Kextra:] \
+      #                              - SS.nDoc * gammaln(newTheta)
 
       ElogqPiUnused = (self.gamma * remEbeta - 1) * SS.sumLogPiUnused \
                                     - SS.nDoc * gammaln(self.gamma * remEbeta)
       SS.setELBOTerm('ElogqPiUnused', ElogqPiUnused, dims=None)
     
     # TODO: Correct MERGE terms
-    return SS
+    return SS, AdjustInfo, ReplaceInfo
+    '''
 
   def insertEmptyCompsForSuffStatBag(self, SS, Kextra):
     ''' Model-specific correction to SuffStatBag's built-in method for

@@ -158,7 +158,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
       # Suff Stat step
       if batchID in self.SSmemory:
-        SSchunk = self.load_batch_suff_stat_from_memory(batchID, SS.K)
+        SSchunk = self.load_batch_suff_stat_from_memory(batchID, SS.K, 
+                                                        BirthResults)
         SS -= SSchunk
 
       SSchunk = hmodel.get_global_suff_stats(Dchunk, LPchunk,
@@ -250,7 +251,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
   ######################################################### Load from memory
   #########################################################
-  def load_batch_suff_stat_from_memory(self, batchID, K):
+  def load_batch_suff_stat_from_memory(self, batchID, K, 
+                                          BirthResults):
     ''' Load the suff stats stored in memory for provided batchID
         Returns
         -------
@@ -272,6 +274,23 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       if Kextra > 0:
         SSchunk.insertEmptyComps(Kextra)
     assert SSchunk.K == K
+    # Adjust / replace terms related to expansion
+    if BirthResults is not None:
+      for MoveInfo in BirthResults:
+        if 'AdjustInfo' in MoveInfo:
+          AInfo = MoveInfo['AdjustInfo']
+          for key in AInfo:
+            if hasattr(SSchunk, key):
+              Kmax = AInfo[key].size
+              arr = getattr(SSchunk, key)
+              arr[:Kmax] += SSchunk.nDoc * AInfo[key]
+        if 'ReplaceInfo' in MoveInfo:
+          RInfo = MoveInfo['ReplaceInfo']
+          for key in RInfo:
+            if hasattr(SSchunk, key):
+              arr = getattr(SSchunk, key)
+              arr += SSchunk.nDoc * RInfo[key]
+              SSchunk.setField(key, arr, dims=None)
     return SSchunk  
 
   def load_batch_local_params_from_memory(self, batchID, BirthResults):

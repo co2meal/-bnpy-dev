@@ -19,15 +19,16 @@ def delete_comps_from_expanded_model_to_improve_ELBO(Data,
   assert xbigSS.K == xfreshSS.K
   assert xbigModel.obsModel.K == K
 
+  origIDs = np.arange(Korig, K)
+
   if K == 1:
-    return xbigModel, xbigSS, xfreshSS
+    return xbigModel, xbigSS, xfreshSS, origIDs
 
   nDoc = xbigSS.nDoc
   wc = xbigSS.WordCounts.sum()
 
   xfreshELBO = xbigModel.calc_evidence(SS=xfreshSS)
-  for k in reversed(range(Korig, K)):
-    #verify_suffstats_at_desired_scale(xbigSS, nDoc=nDoc, word_count=wc)
+  for posID, k in enumerate(reversed(range(Korig, K))):
     assert xbigSS.nDoc == nDoc
     assert np.allclose(xbigSS.WordCounts.sum(), wc)
 
@@ -54,6 +55,8 @@ def delete_comps_from_expanded_model_to_improve_ELBO(Data,
       xbigModel = rbigModel
       xfreshELBO = rfreshELBO
       didAccept = True
+      del origIDs[posID]
+
 
     if xfreshSS.K == 1:
       break
@@ -67,7 +70,7 @@ def delete_comps_from_expanded_model_to_improve_ELBO(Data,
     # Make sure that final model has correct scale
     xbigModel.update_global_params(xbigSS + xfreshSS)
 
-  return xbigModel, xbigSS, xfreshSS
+  return xbigModel, xbigSS, xfreshSS, origIDs
 
 """
 def delete_comps_to_improve_ELBO(Data, model,

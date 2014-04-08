@@ -36,7 +36,7 @@ def update_theta(LP, topicPrior, unusedTopicPrior=None):
 def update_ElogPi(LP, unusedTopicPrior=None):
   ''' Update expected log topic appearance probabilities in each doc
   '''
-  if 'E_logPi' in LP:
+  if 'E_logPi' in LP and LP['E_logPi'].shape[1] == LP['theta'].shape[1]:
     digamma(LP['theta'], out=LP['E_logPi'])
   else:
     LP['E_logPi'] = digamma(LP['theta'])
@@ -84,7 +84,7 @@ def calcLocalDocParams_vectorized(Data, LP, topicPrior,
 
   ######## Allocate document-specific variables
   LP['DocTopicCount'] = np.zeros((Data.nDoc, K))
-  if 'theta' in LP:
+  if 'theta' in LP and LP['theta'].shape[1] == K:
     LP = update_ElogPi(LP, unusedTopicPrior)
   else:
     LP['theta'] = np.zeros((Data.nDoc, K))
@@ -116,7 +116,10 @@ def calcLocalDocParams_vectorized(Data, LP, topicPrior,
       stop  = Data.doc_range[d,1]
       expEloglik_d = expEloglik[start:stop]
 
-      np.dot(expEloglik_d, expElogpi[d], out=sumRTilde[start:stop])
+      try:
+        np.dot(expEloglik_d, expElogpi[d], out=sumRTilde[start:stop])
+      except ValueError:
+        from IPython import embed; embed()
 
       np.dot(Data.word_count[start:stop] / sumRTilde[start:stop],
                expEloglik_d,

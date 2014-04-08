@@ -45,7 +45,7 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
     #  xbigSS has scale bigData + freshData
     #  xbigModel has scale bigData + freshData
     if kwargs['expandOrder'] == 'expandThenRefine':
-      xbigModel, xbigSS, xfreshSS = BirthRefine.expand_then_refine(
+      xbigModel, xbigSS, xfreshSS, AI, RI = BirthRefine.expand_then_refine(
                                            freshModel, freshSS, freshData,    
                                                bigModel, bigSS, **kwargs)
     else:
@@ -89,18 +89,19 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
     msg = 'BIRTH: %d fresh comps. %s.' % (len(birthCompIDs), ELBOstr)
     MoveInfo = dict(didAddNew=True,
                     msg=msg,
+                    AdjustInfo=AI, ReplaceInfo=RI,
                     modifiedCompIDs=[],
                     birthCompIDs=birthCompIDs,
                     )
-     
     if kwargs['birthRetainExtraMass']:
       MoveInfo['extraSS'] = xfreshSS
       MoveInfo['modifiedCompIDs'] = range(Ktotal)
     else:
-      # Restore xbigSS to same scale original "big" dataset
+      # Restore xbigSS to same scale as original "big" dataset
       xbigSS -= xfreshSS
       assert np.allclose(xbigSS.N.sum(), bigSS.N.sum())
 
+    # TODO: fix ELBO terms with AdjustInfo/ReplaceInfo
     if bigSS.hasMergeTerms():
       MergeTerms = bigSS._MergeTerms.copy()
       MergeTerms.insertEmptyComps(Ktotal-Kcur)
