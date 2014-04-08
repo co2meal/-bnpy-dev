@@ -19,7 +19,7 @@ def delete_comps_from_expanded_model_to_improve_ELBO(Data,
   assert xbigSS.K == xfreshSS.K
   assert xbigModel.obsModel.K == K
 
-  origIDs = np.arange(Korig, K)
+  origIDs = range(0, K)
 
   if K == 1:
     return xbigModel, xbigSS, xfreshSS, origIDs
@@ -28,7 +28,7 @@ def delete_comps_from_expanded_model_to_improve_ELBO(Data,
   wc = xbigSS.WordCounts.sum()
 
   xfreshELBO = xbigModel.calc_evidence(SS=xfreshSS)
-  for posID, k in enumerate(reversed(range(Korig, K))):
+  for k in reversed(range(Korig, K)):
     assert xbigSS.nDoc == nDoc
     assert np.allclose(xbigSS.WordCounts.sum(), wc)
 
@@ -55,8 +55,7 @@ def delete_comps_from_expanded_model_to_improve_ELBO(Data,
       xbigModel = rbigModel
       xfreshELBO = rfreshELBO
       didAccept = True
-      del origIDs[posID]
-
+      del origIDs[k]
 
     if xfreshSS.K == 1:
       break

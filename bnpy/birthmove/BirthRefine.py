@@ -33,19 +33,23 @@ def expand_then_refine(freshModel, freshSS, freshData,
     RInfo = None
 
   ### Create expanded model, K + Kfresh comps
+  Kx = xbigSS.K
   xbigModel = freshModel.copy()
   xbigModel.update_global_params(xbigSS)
 
   xbigSS.subtractSpecificComps(freshSS, range(bigSS.K, bigSS.K + freshSS.K))
+
+  ### Refine expanded model with VB iterations
   xbigModel, xfreshSS, xfreshLP, origIDs = refine_expanded_model_with_VB_iters(
                                 xbigModel, freshData, 
                                 xbigSS=xbigSS, Korig=bigSS.K, **kwargs)
-
-  from IPython import embed; embed()
+  if AInfo is not None and len(origIDs) < Kx:
+    for key in AInfo:
+      AInfo[key] = AInfo[key][origIDs]
   assert np.allclose(xbigSS.sumLogPiUnused,
                       RInfo['sumLogPiUnused'] * bigSS.nDoc)
-  assert np.allclose(xbigSS.sumLogPiActive[-freshSS.K:], 
-                      AInfo['sumLogPiActive'][-freshSS.K:] * bigSS.nDoc)
+  assert np.allclose(xbigSS.sumLogPiActive[bigSS.K:], 
+                      AInfo['sumLogPiActive'][bigSS.K:] * bigSS.nDoc)
   
   if hasattr(xfreshSS, 'nDoc'):
     assert xbigSS.nDoc == bigSS.nDoc
@@ -56,11 +60,20 @@ def expand_then_refine(freshModel, freshSS, freshData,
       xfreshELBO = xbigModel.calc_evidence(SS=xfreshSS)
     else:
       xfreshELBO = None
+    Kx = xbigSS.K
     xbigModel, xbigSS, xfreshSS, origIDs = \
               BirthCleanup.delete_comps_from_expanded_model_to_improve_ELBO(
                                   freshData, xbigModel, 
                                   xbigSS, xfreshSS,
                                   Korig=bigSS.K)
+    from IPython import embed; embed()
+    if AInfo is not None and len(origIDs) < Kx:
+      for key in AInfo:
+        if AInfo[key].size == Kx:
+          AInfo[key] = AInfo[key][origIDs]
+    assert np.allclose(xbigSS.sumLogPiActive[bigSS.K:], 
+                      AInfo['sumLogPiActive'][bigSS.K:] * bigSS.nDoc)
+
   
   if hasattr(xfreshSS, 'nDoc'):
     assert xbigSS.nDoc == bigSS.nDoc
@@ -93,7 +106,7 @@ def refine_expanded_model_with_VB_iters(xbigModel, freshData,
       xbigSS : SuffStatBag, with K + Kfresh comps
                        scale with equal to bigData only
   '''
-  origIDs = np.arange(Korig, xbigSS.K)
+  origIDs = range(0, xbigSS.K)
 
   for riter in xrange(kwargs['refineNumIters']):
     xfreshLP = xbigModel.calc_local_params(freshData)
@@ -101,11 +114,11 @@ def refine_expanded_model_with_VB_iters(xbigModel, freshData,
 
     # For all but last iteration, attempt removing empty topics
     if kwargs['cleanupDeleteEmpty'] and riter < kwargs['refineNumIters'] - 1:
-      for posID, k in enumerate(reversed(range(Korig, xfreshSS.K))):
+      for k in reversed(range(Korig, xfreshSS.K)):
         if xfreshSS.N[k] < kwargs['cleanupMinSize']:
           xfreshSS.removeComp(k)
           xbigSS.removeComp(k)
-          del origIDs[posID]
+          del origIDs[k]
 
     if xfreshSS.K == Korig:
       msg = "BIRTH failed. No new comps above cleanupMinSize."
