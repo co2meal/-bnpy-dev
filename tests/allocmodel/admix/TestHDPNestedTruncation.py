@@ -18,6 +18,7 @@ The hope is that both versions have essentially the same posterior over the firs
 import sys
 import numpy as np
 import unittest
+from matplotlib import pylab
 
 import bnpy.allocmodel.admix.OptimizerForHDPFullVarModel as HVO
 
@@ -47,7 +48,7 @@ class TestNestedTrunc(unittest.TestCase):
     ''' Create a model and some test data for quick experiments.
     '''
     self.alpha0 = 1.0
-    self.gamma = 0.99
+    self.gamma = 0.5
     self.K = 5
     self.beta = np.asarray( [0.350, 0.150, 0.300, 0.100, 0.060, 0.040] )
     assert np.allclose(1.0, self.beta.sum())
@@ -81,18 +82,16 @@ class TestNestedTrunc(unittest.TestCase):
           whose E[beta] is very close to the true beta
     '''
     print ''
-    u = None
-    for a in range(4):
-      u, fofu, Info = HVO.estimate_u_multiple_tries(
+    u, fofu, Info = HVO.estimate_u_multiple_tries(
                           sumLogPi=sumLogPi,
                           nDoc=self.nDoc,
                           gamma=self.gamma, alpha0=self.alpha0,
-                          initu=u, approx_grad=True)
+                          initu=None, approx_grad=False)
     Ebeta = HVO.u2beta(u)
     print 'f(u):  %.5e' % (fofu)
     print 'E[beta]'
-    print np2flatstr(truebeta), '  truth ******'
-    print np2flatstr(Ebeta), '  estimated'
+    print '    ', np2flatstr(truebeta), '  truth'
+    print '    ', np2flatstr(Ebeta), '  estimated'
     u1, u0 = HVO._unpack(u)
     print ''
     print 'u1  ', np2flatstr(u1)
@@ -111,3 +110,37 @@ class TestNestedTrunc(unittest.TestCase):
     assert absDiffPasses
     assert percDiffPasses
     return absDiffPasses and percDiffPasses
+
+
+  def test_plot(self):
+    sumLogPi = self.sumLogPi_K5
+    u, fofu, Info = HVO.estimate_u_multiple_tries(
+                          sumLogPi=sumLogPi,
+                          nDoc=self.nDoc,
+                          gamma=self.gamma, alpha0=self.alpha0,
+                          initu=None, approx_grad=False)
+    K = u.size/2
+    bestomega = np.zeros(K)
+    for k in xrange(K):
+      pylab.subplot(K, 1, k+1)
+      bestomega[k] = self.plot_objective_vary_omega(u, k, sumLogPi)
+    pylab.show(block=True)
+    # Last component should have more variance (smaller best omega)
+    assert bestomega[0] > bestomega[-1]
+
+  def plot_objective_vary_omega(self, u, k, sumLogPi):
+    u = u.copy()
+    K = u.size/2
+    Ev = HVO.u2v(u)
+    omega = np.linspace(0.5*self.nDoc, 10*self.nDoc, 1000)
+    f = np.zeros_like(omega)
+    for ii in xrange(len(omega)):
+      u[k] = Ev[k] * omega[ii]
+      u[K + k] = (1 - Ev[k]) * omega[ii]
+      f[ii] = HVO.objFunc_u(u, sumLogPi, 
+                                self.nDoc, self.gamma, self.alpha0)
+    bestomega = omega[f.argmin()]
+    pylab.plot( omega, f, 'k.-')
+    # Plot vertical line to indicate minimum value
+    pylab.plot( bestomega*np.ones(2), [f.min(), f.max()], 'r--')
+    return bestomega
