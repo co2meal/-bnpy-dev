@@ -35,9 +35,11 @@ class GraphData(DataObj):
 
         Args
         -------
-        edge_id : the source and receiver node ids that have present edges
-        edge_weight : this might be a vector of all ones if binary graph, if it contains heldout, those are set to -1
+        edge_val : the source and receiver node ids that have present edges
         nNodeTotal : total number of nodes
+        nEdgeTotal : total number of edges in our graph
+        nPosEdges : total number of 1's or present edges
+        nAbsEdges : total number of 0's or absent edges
         TrueParams : None [default], or dict of attributes
         edge_exclude: nDistinctEdges x 3 (row id, column id, value) of edges that shouldn't be used during inference
     '''
@@ -49,6 +51,7 @@ class GraphData(DataObj):
     self.graphType = 'undirected'
 
     # If there are edges that need to be heldout, concatenate edge_id and edge_weights
+    # edge_exclude is a num_to_exclude x 3 matrix columns --> (row_id, col_id, value={0,1})
     if edge_exclude is not None:
         self.nExcludeEdges = len(edge_exclude)
         ind0 = np.nonzero(edge_exclude[:,2]==0)
@@ -64,7 +67,9 @@ class GraphData(DataObj):
     if TrueParams is not None:
       self.TrueParams = TrueParams
 
-    # Create a sparse matrix for these edges to use in analysis (algorithm depends on this)
+    ''' Create a sparse matrix for these edges to use in analysis (algorithm depends on this)
+    We then sample from this sparse matrix to get a list of "0" or absent edges more efficiently
+    '''
     self.sparseY = self.to_sparse_matrix()
 
   ######################################################### Create Toy Data
@@ -98,11 +103,13 @@ class GraphData(DataObj):
     N = self.nNodeTotal
     edges = np.zeros( (E,3) )
     e = 0
+    # Loop through all possible edges and store them in 'edges'
     for ii in xrange(N):
         for jj in xrange(ii+1,N):
             edges[e,:] = [ii,jj,self.sparseY[ii,jj]]
             e += 1
     np.asarray(np.squeeze(edges), dtype=np.int8)
+    # Make sure to get edges that are not heldout which have values < 0
     self.indTrain = np.asarray(np.squeeze(np.nonzero(edges[:,2] >= 0)))
     self.edges = edges[self.indTrain,:]
     self.ind0 = np.asarray(np.squeeze(np.nonzero(self.edges[:,2]==0)))

@@ -46,8 +46,8 @@ class BetaDistr(object):
     ############################################################## Param updates  
     def get_post_distr(self, SS, k=None, kB=None, **kwargs):
         ''' Create new Distr object with posterior params'''
-        if kB is not None:
-          return BetaDistr(SS.sb_ss1 + self.lamA, SS.sb_ss0 + self.lamB, **kwargs)
+        if k is not None:
+          return BetaDistr(SS.sb_ss1[k] + self.lamA, SS.sb_ss0[k] + self.lamB, **kwargs)
         else:
           return BetaDistr(SS.sb_ss1 + self.lamA, SS.sb_ss0 + self.lamB, **kwargs)
 

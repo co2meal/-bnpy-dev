@@ -2,7 +2,9 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/../.idea/bnpy.iml" filepath="$PROJECT_DIR$/../.idea/bnpy.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/bnpy-dev.iml" filepath="$PROJECT_DIR$/.idea/bnpy-dev.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../local/hdp_relational/.idea/hdp_relational.iml" filepath="$PROJECT_DIR$/../local/hdp_relational/.idea/hdp_relational.iml" />
     </modules>
   </component>
 </project>

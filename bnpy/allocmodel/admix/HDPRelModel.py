@@ -1,5 +1,5 @@
 '''
-HDPModel.py
+HDPRelModel.py
 Bayesian nonparametric admixture model with unbounded number of components K
 
 Attributes
@@ -10,22 +10,21 @@ gamma    : scalar conc. param for document-level mixture weights pi[d]
 
 Local Parameters (document-specific)
 --------
-alphaPi : nDoc x K matrix, 
-             row d has params for doc d's distribution pi[d] over the K topics
-             q( pi[d] ) ~ Dir( alphaPi[d] )
-E_logPi : nDoc x K matrix
-             row d has E[ log pi[d] ]
-DocTopicCount : nDoc x K matrix
-                  entry d,k gives the expected number of times
-                              that topic k is used in document d
-word_variational : nDistinctWords x K matrix
-                  row i has params for word i's Discrete distr over K topics
+edge_variational : nDistinctEdges x K matrix
+                  row i has params for word i's Discrete distr over K topics/communities
 
 Global Parameters (shared across all documents)
 --------
 U1, U0   : K-length vectors, params for variational distribution over 
            stickbreaking fractions v1, v2, ... vK
             q(v[k]) ~ Beta(U1[k], U0[k])
+
+theta : nNodes x K matrix, <-- Treating theta like a boss over here (i.e global)
+        row d has params for node d's distribution pi[d] over the K topics
+        q( pi[d] ) ~ Dir( alphaPi[d] )
+
+E_logPi : nDoc x K matrix row d has E[ log pi[d] ] < -- stored inside the LP
+
 '''
 import numpy as np
 
@@ -67,6 +66,7 @@ class HDPRelAssortModel(AllocModel):
       self.Elog1mv = E['log1-v']
       self.ElogEps1 = np.log(self.epsilon)
       self.ElogEps0 = np.log(1-self.epsilon)
+      # Treating theta like a boss over here (i.e global)
       self.ElogTheta = digamma(self.theta) \
                         - digamma(np.sum(self.theta, axis=1))[:,np.newaxis]
 
@@ -95,58 +95,63 @@ class HDPRelAssortModel(AllocModel):
                  row d has params for doc d's Dirichlet over K+1 topics
               E_logPi : nDoc x K+1 matrix,
                  row d has doc d's expected log probability of each topic
-              word_variational : nDistinctWords x K matrix
+              edge_variational : nDistinctEdge x K matrix
                  row i has params for word i's Discrete distr over K topics
               DocTopicCount : nDoc x K matrix
 
           Returns
           -------
           LP : local params dict, with fields
-              edge_variational : nDistinctEdges x K matrix
-                 row i has params for edge i's Discrete distr over K topics
-              DocTopicCount : nDoc x K matrix
+               edge_variational : nDistinctEdges x K matrix
+                                row i has params for edge ij's Discrete distr over K topics
+
     '''
     # When given no local params LP as input, need to initialize from scratch
     # this forces likelihood to drive the first round of local assignments
 
-    # Allocate other doc-specific variables
+    # Create an array for
     LP['edge_variational'] = np.zeros( (Data.nEdgeTotal, self.K) )
+
+    # These terms below are mostly used to create an edge list of relevant terms used for faster updates
     LP['E_logsoftev_NormConst'] = np.zeros(Data.nEdgeTotal)
     LP['E_logsoftev_pi_i'] = np.zeros( (Data.nEdgeTotal, self.K) )
     LP['E_logsoftev_pi_j'] = np.zeros( (Data.nEdgeTotal, self.K) )
-    E_logPiSumD = np.sum(self.ElogTheta, axis=1)
-    E_logEdgeLik = LP['E_logsoftev_EdgeLik']
-    E_logEdgeEps = LP['E_logsoftev_EdgeEps']
+    LP['E_pi_i_exp'] = np.zeros( (Data.nEdgeTotal, self.K) )
+    LP['E_pi_j_exp'] = np.zeros( (Data.nEdgeTotal, self.K) )
+    LP['E_pi_i_exp_sum'] = np.zeros( Data.nEdgeTotal )
+    LP['E_pi_j_exp_sum'] = np.zeros( Data.nEdgeTotal )
 
     for e in xrange(Data.nEdgeTotal):
       row_id = Data.edges[e,0]
       col_id = Data.edges[e,1]
 
-      # edge variational for diagonal edge variational parameters
+      # These LP terms are used mostly for efficient computation of terms across all edges (i.e ELBO)
+      LP['E_logsoftev_pi_i'][e,:] = self.ElogTheta[row_id,:self.K] # store E[log pi_i] for every edge ij
+      LP['E_logsoftev_pi_j'][e,:] = self.ElogTheta[col_id,:self.K] # store E[log pi_j] for every edge ij
+      LP['E_pi_i_exp'][e,:] = np.exp(LP['E_logsoftev_pi_i'][e,:])
+      LP['E_pi_j_exp'][e,:] = np.exp(LP['E_logsoftev_pi_j'][e,:])
+      LP['E_pi_i_exp_sum'][e] = np.sum( LP['E_pi_i_exp'][e,:])
+      LP['E_pi_j_exp_sum'][e] = np.sum( LP['E_pi_j_exp'][e,:])
+
+      # edge variational or edge responsibilities
       LP['edge_variational'][e,:] = self.ElogTheta[row_id,:self.K] \
-                                     + self.ElogTheta[col_id,:self.K] \
-                                     + E_logEdgeLik[e,:]
-      # phi_temp = exp(psiPI(1:K,rowNode) + psiPI(1:K,colNode)) .* (psiW1e(1:K) - eps);
-      # phi_temp + exp(log(eps) + log(psiPIe(1:K,rowNode)) + log(sum(psiPIe(1:K,colNode))));#
-      LP['E_logsoftev_NormConst'][e] = np.sum( np.exp( self.ElogTheta[row_id,:self.K] \
-                                     + self.ElogTheta[col_id,:self.K] \
-                                     + E_logEdgeEps[e] )  \
-                                     + np.exp ( self.ElogTheta[row_id,:self.K] \
-                                     + self.ElogTheta[col_id,:self.K] ) \
-                                     * ( np.exp(E_logEdgeLik[e,:]) - np.exp(E_logEdgeEps[e]) )  )
+                                  + self.ElogTheta[col_id,:self.K] \
+                                  + LP['E_logsoftev_EdgeLik'][e,:]
 
-      LP['E_logsoftev_pi_i'][e,:] = self.ElogTheta[row_id,:self.K]
-      LP['E_logsoftev_pi_j'][e,:] = self.ElogTheta[col_id,:self.K]
+      # we compute the normalization constant here in O(K)
+      LP['E_logsoftev_NormConst'][e] = np.log( np.exp( np.log(LP['E_pi_i_exp_sum'][e]) + np.log(LP['E_pi_j_exp_sum'][e]) + LP['E_logsoftev_EdgeEps'][e] )  \
+                                     + np.sum( np.exp( self.ElogTheta[row_id,:self.K] + self.ElogTheta[col_id,:self.K] )  \
+                                     * ( np.exp(LP['E_logsoftev_EdgeLik'][e,:]) - np.exp(LP['E_logsoftev_EdgeEps'][e]) ) ) )
 
-    expEloglik = LP['edge_variational']
-    expEloglik -= expEloglik.max(axis=1)[:,np.newaxis]
-    NumericUtil.inplaceExpAndNormalizeRows(expEloglik)
-    LP['E_logsoftev_EdgeVar'] = expEloglik
-    LP['E_logPiSumD'] = E_logPiSumD
+      # normalize responsibilities
+      LP['edge_variational'][e,:] -= LP['E_logsoftev_NormConst'][e] # normalize
+
+    # Turn these terms into regular probabilities
+    LP['edge_variational'] = np.exp(LP['edge_variational'])
+
+    # Used later for computations of global stick-breaking weights
+    LP['E_logPiSumD'] = np.sum(self.ElogTheta, axis=1)
     LP['E_logPiSumK'] = np.sum(self.ElogTheta, axis=0)
-    LP['E_pi_i_sum'] = np.sum(LP['E_logsoftev_pi_i'], axis=1)
-    LP['E_pi_j_sum'] = np.sum(LP['E_logsoftev_pi_j'], axis=1)
-
     return LP
 
   def calc_ElogPi(self, LP):
@@ -155,24 +160,6 @@ class HDPRelAssortModel(AllocModel):
         alph = LP['alphaPi']
         LP['E_logPi'] = digamma(alph) - digamma(alph.sum(axis=1))[:,np.newaxis]
         return LP
-    
-  def get_edge_variational( self, Data, LP):
-        ''' Update and return edge-topic assignment variational parameters
-        '''
-        #  Operate on ev matrix, which is nDistinctEdges x K
-        #  has been preallocated for speed (so we can do += later)
-        ev = LP['edge_variational']
-        K = ev.shape[1]
-        # Fill in entries of wv with log likelihood terms
-        ev[:] = LP['E_logsoftev_WordsData']
-        # Add doc-specific log prior to doc-specific rows
-        ElogPi = LP['E_logPi'][:,:K]
-        for d in xrange(Data.nDoc):
-            ev[Data.doc_range[d,0]:Data.doc_range[d,1], :] += ElogPi[d,:]
-        NumericUtil.inplaceExpAndNormalizeRows(ev)
-        assert np.allclose(LP['word_variational'].sum(axis=1), 1)
-        return LP
-
 
   ######################################################### Suff Stats
   #########################################################
@@ -181,31 +168,36 @@ class HDPRelAssortModel(AllocModel):
                                               mPairIDs=None):
         ''' Theta is a global parameter here so we need to get its sufficient stats
           Sufficient statistics for these require precomputing certain terms
-
+          node_ss_lik: nNodes x K matrix of likelihood sufficient statistics from responsibilities ev
+          node_ss_eps: nNodes x K matrix of epsilon likelihood terms needed to update theta (is there a better way?)
         '''
         E, K = LP['E_logsoftev_EdgeLik'].shape
-        # Turn dim checking off, since some stats have dim K+1 instead of K
         N = Data.nNodeTotal
         SS = SuffStatBag(K=K, D=N)
 
         # Summary statistics
-        node_ss = np.zeros((N, K))
-        node_z_ss = np.zeros((N, K))
-        node_offset = np.zeros((E, K)) # used to cache ELBO
+        node_ss_lik = np.zeros((N, K))
+        node_ss_eps = np.zeros((N, K))
         ev = LP['edge_variational']
-        edgeEps = LP['E_logsoftev_EdgeEps']
 
         for e in xrange(E):
           ii = Data.edges[e,0]
           jj = Data.edges[e,1]
-          node_ss[ii,:] += ev[e]
-          node_ss[jj,:] += ev[e]
-          node_z_ss[ii,:] += LP['E_logsoftev_EdgeEps'][e] # need to check this if there's a better way
+          node_ss_lik[ii,:] += ev[e,:]
+          node_ss_lik[jj,:] += ev[e,:]
+          node_ss_eps[ii,:] += np.exp( self.ElogTheta[ii,:self.K] + LP['E_logsoftev_EdgeEps'][e] \
+                           + np.log(LP['E_pi_j_exp_sum'][e] - LP['E_pi_j_exp'][e,:]) \
+                           - LP['E_logsoftev_NormConst'][e] )# need to check this if there's a better way
+          node_ss_eps[jj,:] += np.exp( self.ElogTheta[jj,:self.K] + LP['E_logsoftev_EdgeEps'][e] \
+                           + np.log(LP['E_pi_i_exp_sum'][e] - LP['E_pi_i_exp'][e,:]) \
+                           - LP['E_logsoftev_NormConst'][e] )
 
         SS.setField('nNodeTotal', N, dims=None)
         SS.setField('nEdgeTotal', E, dims=None)
-        SS.setField('node_ss', node_ss, dims=('D','K'))
-        SS.setField('node_z_ss', node_z_ss, dims=('D', 'K'))
+        SS.setField('nDoc', N, dims=None)
+        SS.setField('node_ss_lik', node_ss_lik, dims=('D','K'))
+        SS.setField('node_ss_eps', node_ss_eps, dims=('D','K'))
+        # This used in updating global stick breaking weights
         SS.setField('sumLogPiActive', LP['E_logPiSumK'][:self.K], dims='K')
         SS.setField('sumLogPiUnused', LP['E_logPiSumK'][-1], dims=None)
 
@@ -223,15 +215,21 @@ class HDPRelAssortModel(AllocModel):
             theta ~ Dirichlet(alpha
         '''
         self.K = SS.K
+        '''
+        Commented out to show that the ELBO calculations are much smoother if u is not updated
+        Turning this on results in big swings of the ELBO.
+
         u = self._estimate_u(SS)
         self.U1 = u[:self.K]
         self.U0 = u[self.K:]
-
-        theta = self._estimate_theta(SS)
-        self.theta = theta
+        '''
+        self.theta = self._estimate_theta(SS)
         self.set_helper_params()
         
   def update_global_params_soVB(self, SS, rho, **kwargs):
+        '''
+        TODO: Need to modify in the future
+        '''
         assert self.K == SS.K
         u = self._estimate_u(SS)
         self.U1 = rho * u[:self.K] + (1-rho) * self.U1
@@ -239,11 +237,11 @@ class HDPRelAssortModel(AllocModel):
         self.set_helper_params()
 
   def _estimate_theta(self, SS, **kwargs):
-        ''' grabs update for theta, requires SS + calculation of normalization
-        constant terms z_ij
+        ''' grabs update for theta, requires SS
         '''
-        theta = np.zeros((SS.nNodeTotal, SS.K))
-        theta += SS.node_ss + SS.node_z_ss + (self.alpha0 * self.Ebeta)
+        theta = np.zeros((SS.nNodeTotal, SS.K+1))
+        theta[:,:self.K] = SS.node_ss_lik + SS.node_ss_eps
+        theta += (self.gamma * self.Ebeta)[np.newaxis,:]
         return theta
 
   def _estimate_u(self, SS, **kwargs):
@@ -335,49 +333,42 @@ class HDPRelAssortModel(AllocModel):
   #########################################################  
   def calc_evidence( self, Data, SS, LP ):
         ''' Calculate ELBO terms related to allocation model
-        '''   
+        '''
+
+        # Removed these terms
         E_logpV = self.E_logpV() # shouldn't have to modify
         E_logqV = self.E_logqV() # shouldn't have to modify
-     
+
         E_logpPi = self.E_logpPi(SS) # should be fine
         E_logqPi = self.E_logqPi(LP) # should be fine
         E_logpZ =  self.E_logpZ(Data, LP) # need to modify
         E_logqZ =  self.E_logqZ(Data, LP)
 
-        elbo = E_logpPi - E_logqPi \
-               + E_logpZ - E_logqZ \
-               + E_logpV - E_logqV
-        return elbo
+        elbo_alloc = E_logpPi - E_logqPi \
+                   + E_logpZ - E_logqZ
+                   #+ E_logpV - E_logqV \
+        return elbo_alloc
 
   ####################################################### ELBO terms for Z
   def E_logpZ( self, Data, LP):
-        ''' This term is a bit complicated for the structured mean-field approach
-        We have to calculate Z_ij, which we have in LP
+        ''' for r_ijkk only  (where k != l)
+         for r_ijkl, this term actually cancels out with a portion of the entropy term
         '''
-        E_pi_i_sum = np.sum(LP['E_logsoftev_pi_i'], axis=1)
-        E_pi_j_sum = np.sum(LP['E_logsoftev_pi_j'], axis=1)
+        E_logpZ = np.sum(LP['edge_variational'] * (LP['E_logsoftev_pi_i'] + LP['E_logsoftev_pi_j']))
+        return E_logpZ
 
-        E_logpZ = ( LP['edge_variational'] \
-                + np.exp( LP['E_logsoftev_pi_i'] + LP['E_logsoftev_EdgeEps'][:,np.newaxis] ) \
-                * ( np.exp(E_pi_j_sum[:,np.newaxis]) - np.exp(LP['E_logsoftev_pi_j']) ) )\
-                * LP['E_logsoftev_pi_i']
-        E_logpZ += ( LP['edge_variational'] \
-                + np.exp( LP['E_logsoftev_pi_j'] + LP['E_logsoftev_EdgeEps'][:,np.newaxis] ) \
-                * ( np.exp(E_pi_i_sum[:,np.newaxis]) - np.exp(LP['E_logsoftev_pi_i']) ) )\
-                * LP['E_logsoftev_pi_j']
-        return np.sum(E_logpZ)
-
-  def E_logqZ( self, Data, LP):  
-        ''' Returns K-length vector with E[ log q(Z) ] for each topic k
-                r_{dwk} * E[ log r_{dwk} ]
-            where z_{dw} ~ Discrete( r_dw1 , r_dw2, ... r_dwK )
+  def E_logqZ( self, Data, LP):
         '''
-        E_logqZ = np.sum(LP['E_logsoftev_epsilon_ii'], axis=1) \
-           + np.sum(LP['E_logsoftev_epsilon_jj'], axis=1) \
-           + LP['E_logsoftev_EdgeEps'] * ( 1 - np.sum(LP['edge_variational'],axis=1) ) \
-           + np.sum( LP['E_logsoftev_EdgeLik']*LP['edge_variational'] \
-           - np.log(LP['E_logsoftev_NormConst'][:,np.newaxis]) )
-        return np.sum(E_logqZ)
+        entropy calculations, we need to only calculate portions of the entropy due to
+        the cancellation of terms for the epsilon likelihoods with E_logpZ
+        '''
+        E_logqZlik = np.sum( LP['edge_variational'] * np.log(LP['edge_variational']))
+        E_logqZeps = np.sum( (LP['E_logsoftev_EdgeEps'] - LP['E_logsoftev_NormConst']) \
+               * np.exp( (LP['E_logsoftev_EdgeEps'] - LP['E_logsoftev_NormConst']) ) \
+               * LP['E_pi_i_exp_sum'] * LP['E_pi_j_exp_sum'] )
+        E_logqZ = E_logqZlik + E_logqZeps
+
+        return E_logqZ
 
   def E_logqZ_memo_terms_for_merge(self, Data, LP, mPairIDs=None):
         ''' Returns KxK matrix 
@@ -395,6 +386,7 @@ class HDPRelAssortModel(AllocModel):
   def E_logpPi(self, SS):
     ''' Returns scalar value of E[ log p(PI | alpha0)]
     '''
+    '''
     K = SS.K
     kvec = K + 1 - np.arange(1, K+1)
     # logDirNormC : scalar norm const that applies to each iid draw pi_d
@@ -403,17 +395,25 @@ class HDPRelAssortModel(AllocModel):
     # logDirPDF : scalar sum over all doc's pi_d
     sumLogPi = np.hstack([SS.sumLogPiActive, SS.sumLogPiUnused])
     logDirPDF = np.inner(self.gamma * self.Ebeta - 1., sumLogPi)
-    return (SS.nNodeTotal * logDirNormC) + logDirPDF
+    '''
+
+    # rewrote the code here to make it a little easier for me
+    sticks = self.gamma * self.Ebeta
+    logNormPi = gammaln( np.sum(sticks) ) - np.sum(gammaln(sticks))
+    logDirPDFp = (sticks - 1) * np.sum(self.ElogTheta, axis=0)
+    E_logpPi = (SS.nNodeTotal * logNormPi) + np.sum( logDirPDFp )
+
+    #return (SS.nNodeTotal * logDirNormC) + logDirPDF
+    return E_logpPi
 
   def E_logqPi(self, LP):
     ''' Returns scalar value of E[ log q(PI)],
           calculated directly from local param dict LP
     '''
-    alph = self.theta
-    # logDirNormC : nDoc -len vector    
-    logDirNormC = gammaln(alph.sum(axis=1)) - np.sum(gammaln(alph), axis=1)
-    logDirPDF = np.sum((alph - 1.) * self.ElogTheta)
-    return np.sum(logDirNormC) + logDirPDF
+    logDirNormC = gammaln( np.sum(self.theta,axis=1) ) - np.sum(gammaln(self.theta), axis=1)
+    logDirPDFq = np.sum((self.theta - 1) * self.ElogTheta)
+    E_logqPi = np.sum(logDirNormC) + logDirPDFq
+    return E_logqPi
 
   def E_logqPi_Memoized_from_LP(self, LP):
     ''' Returns three variables 
@@ -493,7 +493,11 @@ class HDPRelAssortModel(AllocModel):
   ######################################################### IO Utils
   #########################################################   for machines
   def to_dict( self ):
-    return dict(U1=self.U1, U0=self.U0)              
+    N, K = self.theta.shape
+    e_theta = np.zeros( (N,K) )
+    for ii in xrange(N):
+      e_theta[ii,:] = self.theta[ii,:] / np.sum(self.theta[ii,:])
+    return dict(U1=self.U1, U0=self.U0, theta=self.theta, e_theta = e_theta )
   
   def from_dict(self, Dict):
     self.inferType = Dict['inferType']

@@ -25,7 +25,7 @@ def save_model(hmodel, fname, prefix, doSavePriorInfo=True, doLinkBest=False):
   if doSavePriorInfo:
     save_alloc_prior( hmodel.allocModel, fname)
     save_obs_prior( hmodel.obsModel, fname)
-    
+
 def save_alloc_model(amodel, fpath, prefix, doLinkBest=False):
   amatname = prefix + 'AllocModel.mat'
   outmatfile = os.path.join( fpath, amatname )

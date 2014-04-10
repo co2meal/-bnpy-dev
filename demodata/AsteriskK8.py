@@ -66,7 +66,7 @@ def get_X(seed, nObsTotal):
   TrueZ = TrueZ[permIDs]
   return X, TrueZ
 
-########################################################### User-facing 
+###########################################################  User-facing accessors
 def get_data(seed=8675309, nObsTotal=25000, **kwargs):
   '''
     Args
@@ -105,16 +105,3 @@ def get_minibatch_iterator(seed=8675309, dataorderseed=0, nBatch=10, nObsBatch=N
   DataIterator = MinibatchIterator(Data, nBatch=nBatch, nObsBatch=nObsBatch, nLap=nLap, startLap=startLap, dataorderseed=dataorderseed)
   return DataIterator
 
-def plot_true_clusters():
-  from bnpy.viz import GaussViz
-  for k in range(K):
-    c = k % len(GaussViz.Colors)
-    GaussViz.plotGauss2DContour( Mu[k], Sigma[k], color=GaussViz.Colors[c] )
-
-########################################################### Main
-if __name__ == "__main__":
-  from matplotlib import pylab
-  pylab.figure()
-  Data = get_data(nObsTotal=5000)
-  plot_true_clusters()
-  pylab.show(block=True)

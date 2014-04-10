@@ -1,5 +1,5 @@
 '''
-FromScratchMult.py
+FromScratchBernRelational.py
 
 Initialize params of HModel with multinomial observations from scratch.
 '''
@@ -22,7 +22,7 @@ def init_global_params(hmodel, Data, initname='randexamples',
       Nothing. hmodel is updated in place.
       Global Paramters are:
         lamA, lamB = K x K stochastic block matrix
-        theta = N x K matrix of community membership probabilities
+        theta = N x K+1 matrix of community membership probabilities
   '''
   PRNG = np.random.RandomState(seed)
   N = Data.nNodeTotal
@@ -33,13 +33,17 @@ def init_global_params(hmodel, Data, initname='randexamples',
     lamA = np.zeros( K ) + (Data.nPosEdges / K) # assortative ( K x 1 ) vs. (K x K)
     lamB = np.zeros( K ) + (Data.nAbsEdges / (K*K)) # assortative
     # Create theta used for
-    theta = np.zeros( (N,K) )
-    alpha = np.ones(K) / K
-    for ii in xrange(N):
-        theta[ii, :] = PRNG.dirichlet(alpha)
-
-    # Initialize global stick-breaking weights beta to be 1/K (uniform)
+    theta = np.zeros( (N,K+1) )
+    alpha = np.ones(K)
     beta = np.ones(K) / K
+
+    for ii in xrange(N):
+        theta[ii,:K] = PRNG.dirichlet(alpha)
+        theta[ii,:] += 1
+
+    #theta = Data.true_pi
+    # Initialize global stick-breaking weights beta to be 1/K (uniform)
+
     # Set the global parameters for the hmodel
     hmodel.set_global_params(K=K, beta=beta, lamA=lamA, lamB=lamB, theta=theta)
     return

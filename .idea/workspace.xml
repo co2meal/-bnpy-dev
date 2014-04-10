@@ -2,13 +2,22 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="bbf67785-dead-4460-9b42-d213358d5380" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.gitignore" afterPath="$PROJECT_DIR$/.gitignore" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/demodata/Bars2D.py" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/demodata/BarsK10V900.py" afterPath="" />
+      <change type="DELETED" beforePath="$PROJECT_DIR$/demodata/BarsK50V2500.py" afterPath="" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/demodata/AsteriskK8.py" afterPath="$PROJECT_DIR$/demodata/AsteriskK8.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/demodata/BarsK8.py" afterPath="$PROJECT_DIR$/demodata/BarsK8.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/bnpy/obsmodel/BernRelObsModel.py" afterPath="$PROJECT_DIR$/bnpy/obsmodel/BernRelObsModel.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/bnpy/distr/BetaDistr.py" afterPath="$PROJECT_DIR$/bnpy/distr/BetaDistr.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/demodata/BinaryGraphK5.py" afterPath="$PROJECT_DIR$/demodata/BinaryGraphK5.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/bnpy/init/FromScratchBernRel.py" afterPath="$PROJECT_DIR$/bnpy/init/FromScratchBernRel.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/bnpy/data/GraphData.py" afterPath="$PROJECT_DIR$/bnpy/data/GraphData.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/bnpy/allocmodel/__init__.py" afterPath="$PROJECT_DIR$/bnpy/allocmodel/__init__.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/bnpy/config/allocmodel.conf" afterPath="$PROJECT_DIR$/bnpy/config/allocmodel.conf" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/bnpy/allocmodel/admix/HDPRelModel.py" afterPath="$PROJECT_DIR$/bnpy/allocmodel/admix/HDPRelModel.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/bnpy/ioutil/ModelWriter.py" afterPath="$PROJECT_DIR$/bnpy/ioutil/ModelWriter.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/demodata/NIPS.py" afterPath="$PROJECT_DIR$/demodata/NIPS.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/bnpy-dev.iml" afterPath="$PROJECT_DIR$/.idea/bnpy-dev.iml" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/modules.xml" afterPath="$PROJECT_DIR$/.idea/modules.xml" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
     </list>
     <ignored path="bnpy-dev.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -30,13 +39,22 @@
     <favorites_list name="bnpy-dev" />
   </component>
   <component name="FileEditorManager">
-    <splitter split-orientation="horizontal" split-proportion="0.4863719">
+    <splitter split-orientation="horizontal" split-proportion="0.5283688">
       <split-first>
         <leaf>
-          <file leaf-file-name="FromScratchBernRel.py" pinned="false" current="false" current-in-tab="false">
-            <entry file="file://$PROJECT_DIR$/bnpy/init/FromScratchBernRel.py">
+          <file leaf-file-name="HDPRelModel.py" pinned="false" current="false" current-in-tab="false">
+            <entry file="file://$PROJECT_DIR$/bnpy/allocmodel/admix/HDPRelModel.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state line="32" column="66" selection-start="983" selection-end="983" vertical-scroll-proportion="0.0" vertical-offset="26" max-vertical-offset="765">
+                <state line="425" column="7" selection-start="17933" selection-end="17933" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="7620">
+                  <folding />
+                </state>
+              </provider>
+            </entry>
+          </file>
+          <file leaf-file-name="BinaryGraphK5.py" pinned="false" current="true" current-in-tab="true">
+            <entry file="file://$PROJECT_DIR$/../scripts/BinaryGraphK5.py">
+              <provider selected="true" editor-type-id="text-editor">
+                <state line="12" column="0" selection-start="269" selection-end="269" vertical-scroll-proportion="0.20576131" vertical-offset="0" max-vertical-offset="1455">
                   <folding />
                 </state>
               </provider>
@@ -45,43 +63,72 @@
           <file leaf-file-name="BernRelObsModel.py" pinned="false" current="false" current-in-tab="false">
             <entry file="file://$PROJECT_DIR$/bnpy/obsmodel/BernRelObsModel.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state line="194" column="61" selection-start="6850" selection-end="6850" vertical-scroll-proportion="0.0" vertical-offset="1187" max-vertical-offset="3285">
+                <state line="166" column="25" selection-start="6057" selection-end="6057" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="3690">
+                  <folding>
+                    <element signature="e#270#288#0" expanded="true" />
+                  </folding>
+                </state>
+              </provider>
+            </entry>
+          </file>
+          <file leaf-file-name="obsmodel.conf" pinned="false" current="false" current-in-tab="false">
+            <entry file="file://$PROJECT_DIR$/bnpy/config/obsmodel.conf">
+              <provider selected="true" editor-type-id="text-editor">
+                <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="885">
                   <folding />
                 </state>
               </provider>
             </entry>
           </file>
-          <file leaf-file-name="__init__.py" pinned="false" current="false" current-in-tab="false">
-            <entry file="file://$PROJECT_DIR$/bnpy/allocmodel/__init__.py">
+          <file leaf-file-name="GraphData.py" pinned="false" current="false" current-in-tab="false">
+            <entry file="file://$PROJECT_DIR$/bnpy/data/GraphData.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state line="11" column="0" selection-start="346" selection-end="346" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="525">
+                <state line="74" column="75" selection-start="3095" selection-end="3095" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="2085">
                   <folding />
                 </state>
               </provider>
             </entry>
           </file>
-          <file leaf-file-name="Run.py" pinned="false" current="false" current-in-tab="false">
-            <entry file="file://$PROJECT_DIR$/bnpy/Run.py">
+          <file leaf-file-name="FromScratchBernRel.py" pinned="false" current="false" current-in-tab="false">
+            <entry file="file://$PROJECT_DIR$/bnpy/init/FromScratchBernRel.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state line="252" column="0" selection-start="9814" selection-end="9814" vertical-scroll-proportion="0.0" vertical-offset="3479" max-vertical-offset="5925">
+                <state line="33" column="27" selection-start="1040" selection-end="1040" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="825">
                   <folding />
                 </state>
               </provider>
             </entry>
           </file>
-          <file leaf-file-name="HDPRelModel.py" pinned="false" current="true" current-in-tab="true">
-            <entry file="file://$PROJECT_DIR$/bnpy/allocmodel/admix/HDPRelModel.py">
+          <file leaf-file-name="HModel.py" pinned="false" current="false" current-in-tab="false">
+            <entry file="file://$PROJECT_DIR$/bnpy/HModel.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state line="146" column="4" selection-start="6231" selection-end="6231" vertical-scroll-proportion="0.55964655" vertical-offset="1675" max-vertical-offset="7560">
+                <state line="122" column="63" selection-start="4719" selection-end="4719" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="2280">
                   <folding />
                 </state>
               </provider>
             </entry>
           </file>
-          <file leaf-file-name="LearnAlg.py" pinned="false" current="false" current-in-tab="false">
-            <entry file="file://$PROJECT_DIR$/bnpy/learnalg/LearnAlg.py">
+          <file leaf-file-name="AllocModel.py" pinned="false" current="false" current-in-tab="false">
+            <entry file="file://$PROJECT_DIR$/bnpy/allocmodel/AllocModel.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state line="158" column="0" selection-start="5405" selection-end="5405" vertical-scroll-proportion="0.0" vertical-offset="2061" max-vertical-offset="4305">
+                <state line="47" column="0" selection-start="1600" selection-end="1600" vertical-scroll-proportion="0.0" vertical-offset="577" max-vertical-offset="1380">
+                  <folding />
+                </state>
+              </provider>
+            </entry>
+          </file>
+          <file leaf-file-name="VBLearnAlg.py" pinned="false" current="false" current-in-tab="false">
+            <entry file="file://$PROJECT_DIR$/bnpy/learnalg/VBLearnAlg.py">
+              <provider selected="true" editor-type-id="text-editor">
+                <state line="62" column="0" selection-start="1959" selection-end="1959" vertical-scroll-proportion="0.0" vertical-offset="472" max-vertical-offset="3135">
+                  <folding />
+                </state>
+              </provider>
+            </entry>
+          </file>
+          <file leaf-file-name="AdmixModel.py" pinned="false" current="false" current-in-tab="false">
+            <entry file="file://$PROJECT_DIR$/bnpy/allocmodel/admix/AdmixModel.py">
+              <provider selected="true" editor-type-id="text-editor">
+                <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="3975">
                   <folding />
                 </state>
               </provider>
@@ -91,38 +138,13 @@
       </split-first>
       <split-second>
         <leaf>
-          <file leaf-file-name="HDPModel.py" pinned="false" current="false" current-in-tab="false">
-            <entry file="file://$PROJECT_DIR$/bnpy/allocmodel/admix/HDPModel.py">
+          <file leaf-file-name="TestHDPRelModel.py" pinned="false" current="false" current-in-tab="true">
+            <entry file="file://$PROJECT_DIR$/../local/hdp_relational/TestHDPRelModel.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state line="225" column="8" selection-start="8798" selection-end="8852" vertical-scroll-proportion="0.0" vertical-offset="1741" max-vertical-offset="7800">
-                  <folding />
-                </state>
-              </provider>
-            </entry>
-          </file>
-          <file leaf-file-name="MultObsModel.py" pinned="false" current="false" current-in-tab="false">
-            <entry file="file://$PROJECT_DIR$/bnpy/obsmodel/MultObsModel.py">
-              <provider selected="true" editor-type-id="text-editor">
-                <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="990" max-vertical-offset="3270">
-                  <folding />
-                </state>
-              </provider>
-            </entry>
-          </file>
-          <file leaf-file-name="HModel.py" pinned="false" current="false" current-in-tab="false">
-            <entry file="file://$PROJECT_DIR$/bnpy/HModel.py">
-              <provider selected="true" editor-type-id="text-editor">
-                <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="1158" max-vertical-offset="2280">
-                  <folding />
-                </state>
-              </provider>
-            </entry>
-          </file>
-          <file leaf-file-name="BetaDistr.py" pinned="false" current="false" current-in-tab="true">
-            <entry file="file://$PROJECT_DIR$/bnpy/distr/BetaDistr.py">
-              <provider selected="true" editor-type-id="text-editor">
-                <state line="90" column="0" selection-start="3193" selection-end="3193" vertical-scroll-proportion="1.351049" vertical-offset="354" max-vertical-offset="1410">
-                  <folding />
+                <state line="246" column="47" selection-start="8472" selection-end="8472" vertical-scroll-proportion="-0.2992021" vertical-offset="3915" max-vertical-offset="5520">
+                  <folding>
+                    <element signature="e#25#43#0" expanded="true" />
+                  </folding>
                 </state>
               </provider>
             </entry>
@@ -159,16 +181,13 @@
         <option value="$PROJECT_DIR$/bnpy/util/NumericUtil.py" />
         <option value="$PROJECT_DIR$/bnpy/config/learnalg.conf" />
         <option value="$PROJECT_DIR$/bnpy/learnalg/MemoizedOnlineVBLearnAlg.py" />
-        <option value="$PROJECT_DIR$/../../../web/mlrun/start_mlrun.sh" />
         <option value="$PROJECT_DIR$/bnpy/__init__.py" />
-        <option value="$PROJECT_DIR$/../../../web/mlrun/mlrun/templates/data/data_analysis.html" />
         <option value="$PROJECT_DIR$/../../../web/mlrun/mlrun/static/assets/js/analysis/analysis_run.js" />
         <option value="$PROJECT_DIR$/bnpy/learnalg/LearnAlg.py" />
         <option value="$PROJECT_DIR$/../scripts/customFunc.py" />
         <option value="$PROJECT_DIR$/tests/learnalg/TestCustomHookFunc.py" />
         <option value="$PROJECT_DIR$/.gitignore" />
         <option value="$PROJECT_DIR$/../../../web/mlrun/config.py" />
-        <option value="$PROJECT_DIR$/../../../web/mlrun/mlrun/views.py" />
         <option value="$PROJECT_DIR$/bnpy/init/FromScratchBern.py" />
         <option value="$PROJECT_DIR$/demodata/BinaryGraphK4.py" />
         <option value="$PROJECT_DIR$/bnpy/obsmodel/__init__.py" />
@@ -176,24 +195,38 @@
         <option value="$PROJECT_DIR$/bnpy/distr/__init__.py" />
         <option value="$PROJECT_DIR$/bnpy/config/obsmodel.conf" />
         <option value="$PROJECT_DIR$/bnpy/init/__init__.py" />
-        <option value="$PROJECT_DIR$/bnpy/HModel.py" />
-        <option value="$PROJECT_DIR$/demodata/BinaryGraphK5.py" />
         <option value="$PROJECT_DIR$/bnpy/obsmodel/MultObsModel.py" />
-        <option value="$PROJECT_DIR$/bnpy/init/FromScratchBernRel.py" />
         <option value="$PROJECT_DIR$/bnpy/distr/DirichletDistr.py" />
-        <option value="$PROJECT_DIR$/bnpy/distr/BetaDistr.py" />
         <option value="$PROJECT_DIR$/bnpy/allocmodel/__init__.py" />
         <option value="$PROJECT_DIR$/bnpy/config/allocmodel.conf" />
-        <option value="$PROJECT_DIR$/bnpy/obsmodel/BernRelObsModel.py" />
+        <option value="$PROJECT_DIR$/bnpy/distr/BetaDistr.py" />
+        <option value="$PROJECT_DIR$/demodata/BinaryGraphK5.py" />
+        <option value="$PROJECT_DIR$/../scripts/HuffPost.py" />
+        <option value="$PROJECT_DIR$/../../../web/mlrun/mlrun/views.py" />
+        <option value="$PROJECT_DIR$/../../../web/mlrun/start_mlrun.sh" />
+        <option value="$PROJECT_DIR$/../../../web/mlrun/mlrun/webapp/views.py" />
+        <option value="$PROJECT_DIR$/../../../web/mlrun/mlrun/templates/data/data_analysis.html" />
+        <option value="$PROJECT_DIR$/../../../web/mlrun/bnpy/bnpy-dev/bnpy/allocmodel/admix/HDPRelModel.py" />
+        <option value="$PROJECT_DIR$/../../../web/mlrun/mlrun/data/storage/models.py" />
+        <option value="$PROJECT_DIR$/bnpy/HModel.py" />
+        <option value="$PROJECT_DIR$/bnpy/ioutil/ModelWriter.py" />
+        <option value="$PROJECT_DIR$/bnpy/learnalg/VBLearnAlg.py" />
+        <option value="$PROJECT_DIR$/tests/end-to-end/TestHDPRelModel.py" />
+        <option value="$PROJECT_DIR$/../local/hdp_relational/data/__init__.py" />
+        <option value="$PROJECT_DIR$/../local/hdp_relational/GraphData.py" />
+        <option value="$PROJECT_DIR$/../local/hdp_relational/TestHDPRelModel.py" />
         <option value="$PROJECT_DIR$/bnpy/data/GraphData.py" />
+        <option value="$PROJECT_DIR$/bnpy/init/FromScratchBernRel.py" />
         <option value="$PROJECT_DIR$/bnpy/allocmodel/admix/HDPRelModel.py" />
+        <option value="$PROJECT_DIR$/bnpy/obsmodel/BernRelObsModel.py" />
+        <option value="$PROJECT_DIR$/../scripts/BinaryGraphK5.py" />
       </list>
     </option>
   </component>
   <component name="ProjectFrameBounds">
     <option name="y" value="22" />
     <option name="width" value="1920" />
-    <option name="height" value="1120" />
+    <option name="height" value="1174" />
   </component>
   <component name="ProjectLevelVcsManager" settingsEditedManually="false">
     <OptionsSetting value="true" id="Add" />
@@ -238,6 +271,16 @@
               <option name="myItemId" value="" />
               <option name="myItemType" value="" />
             </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT USER_OBJECT="Root">
+              <option name="myItemId" value="" />
+              <option name="myItemType" value="" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT USER_OBJECT="bnpy-dev">
+              <option name="myItemId" value="" />
+              <option name="myItemType" value="" />
+            </PATH_ELEMENT>
             <PATH_ELEMENT USER_OBJECT="bnpy-dev">
               <option name="myItemId" value="" />
               <option name="myItemType" value="" />
@@ -245,6 +288,10 @@
           </PATH>
           <PATH>
             <PATH_ELEMENT USER_OBJECT="Root">
+              <option name="myItemId" value="" />
+              <option name="myItemType" value="" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT USER_OBJECT="bnpy-dev">
               <option name="myItemId" value="" />
               <option name="myItemType" value="" />
             </PATH_ELEMENT>
@@ -263,20 +310,6 @@
               <option name="myItemType" value="" />
             </PATH_ELEMENT>
             <PATH_ELEMENT USER_OBJECT="bnpy-dev">
-              <option name="myItemId" value="" />
-              <option name="myItemType" value="" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT USER_OBJECT="bnpy">
-              <option name="myItemId" value="" />
-              <option name="myItemType" value="" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT USER_OBJECT="suffstats">
-              <option name="myItemId" value="" />
-              <option name="myItemType" value="" />
-            </PATH_ELEMENT>
-          </PATH>
-          <PATH>
-            <PATH_ELEMENT USER_OBJECT="Root">
               <option name="myItemId" value="" />
               <option name="myItemType" value="" />
             </PATH_ELEMENT>
@@ -302,11 +335,15 @@
               <option name="myItemId" value="" />
               <option name="myItemType" value="" />
             </PATH_ELEMENT>
+            <PATH_ELEMENT USER_OBJECT="bnpy-dev">
+              <option name="myItemId" value="" />
+              <option name="myItemType" value="" />
+            </PATH_ELEMENT>
             <PATH_ELEMENT USER_OBJECT="bnpy">
               <option name="myItemId" value="" />
               <option name="myItemType" value="" />
             </PATH_ELEMENT>
-            <PATH_ELEMENT USER_OBJECT="learnalg">
+            <PATH_ELEMENT USER_OBJECT="init">
               <option name="myItemId" value="" />
               <option name="myItemType" value="" />
             </PATH_ELEMENT>
@@ -317,20 +354,6 @@
               <option name="myItemType" value="" />
             </PATH_ELEMENT>
             <PATH_ELEMENT USER_OBJECT="bnpy-dev">
-              <option name="myItemId" value="" />
-              <option name="myItemType" value="" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT USER_OBJECT="bnpy">
-              <option name="myItemId" value="" />
-              <option name="myItemType" value="" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT USER_OBJECT="distr">
-              <option name="myItemId" value="" />
-              <option name="myItemType" value="" />
-            </PATH_ELEMENT>
-          </PATH>
-          <PATH>
-            <PATH_ELEMENT USER_OBJECT="Root">
               <option name="myItemId" value="" />
               <option name="myItemType" value="" />
             </PATH_ELEMENT>
@@ -356,57 +379,15 @@
               <option name="myItemId" value="" />
               <option name="myItemType" value="" />
             </PATH_ELEMENT>
+            <PATH_ELEMENT USER_OBJECT="bnpy-dev">
+              <option name="myItemId" value="" />
+              <option name="myItemType" value="" />
+            </PATH_ELEMENT>
             <PATH_ELEMENT USER_OBJECT="bnpy">
               <option name="myItemId" value="" />
               <option name="myItemType" value="" />
             </PATH_ELEMENT>
             <PATH_ELEMENT USER_OBJECT="config">
-              <option name="myItemId" value="" />
-              <option name="myItemType" value="" />
-            </PATH_ELEMENT>
-          </PATH>
-          <PATH>
-            <PATH_ELEMENT USER_OBJECT="Root">
-              <option name="myItemId" value="" />
-              <option name="myItemType" value="" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT USER_OBJECT="bnpy-dev">
-              <option name="myItemId" value="" />
-              <option name="myItemType" value="" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT USER_OBJECT="bnpy">
-              <option name="myItemId" value="" />
-              <option name="myItemType" value="" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT USER_OBJECT="allocmodel">
-              <option name="myItemId" value="" />
-              <option name="myItemType" value="" />
-            </PATH_ELEMENT>
-          </PATH>
-          <PATH>
-            <PATH_ELEMENT USER_OBJECT="Root">
-              <option name="myItemId" value="" />
-              <option name="myItemType" value="" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT USER_OBJECT="bnpy-dev">
-              <option name="myItemId" value="" />
-              <option name="myItemType" value="" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT USER_OBJECT="bnpy">
-              <option name="myItemId" value="" />
-              <option name="myItemType" value="" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT USER_OBJECT="allocmodel">
-              <option name="myItemId" value="" />
-              <option name="myItemType" value="" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT USER_OBJECT="admix">
-              <option name="myItemId" value="" />
-              <option name="myItemType" value="" />
-            </PATH_ELEMENT>
-          </PATH>
-          <PATH>
-            <PATH_ELEMENT USER_OBJECT="Root">
               <option name="myItemId" value="" />
               <option name="myItemType" value="" />
             </PATH_ELEMENT>
@@ -420,7 +401,7 @@
     <property name="options.lastSelected" value="com.jetbrains.python.configuration.PythonContentEntriesConfigurable" />
     <property name="recentsLimit" value="5" />
     <property name="ChangesBrowser.SHOW_FLATTEN" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/../../../web/mlrun" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/../scripts/BinaryGraphK5.py" />
     <property name="restartRequiresConfirmation" value="false" />
     <property name="FullScreen" value="false" />
     <property name="options.splitter.details.proportions" value="0.2" />
@@ -560,6 +541,29 @@
       <ConfigurationWrapper RunnerId="PythonRunner" />
       <method />
     </configuration>
+    <configuration default="false" name="TestHDPRelModel" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+        <env name="BNPYROOT" value="$PROJECT_DIR$/" />
+        <env name="BNPYOUTDIR" value="$PROJECT_DIR$/../results/" />
+        <env name="BNPYDATADIR" value="$PROJECT_DIR$/../scripts/" />
+      </envs>
+      <option name="SDK_HOME" value="/Library/Frameworks/Python.framework/Versions/2.7/bin/python" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../local/hdp_relational" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="hdp_relational" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/../local/hdp_relational/TestHDPRelModel.py" />
+      <option name="PARAMETERS" value="" />
+      <RunnerSettings RunnerId="PyDebugRunner" />
+      <RunnerSettings RunnerId="PythonRunner" />
+      <ConfigurationWrapper RunnerId="PyDebugRunner" />
+      <ConfigurationWrapper RunnerId="PythonRunner" />
+      <method />
+    </configuration>
     <configuration default="true" type="tests" factoryName="py.test">
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -690,7 +694,7 @@
     </configuration>
     <configuration default="false" name="NIPS MoVB" type="PythonConfigurationType" factoryName="Python" singleton="true">
       <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
+      <option name="PARENT_ENVS" value="false" />
       <envs>
         <env name="PYTHONUNBUFFERED" value="1" />
         <env name="BNPYROOT" value="$PROJECT_DIR$/" />
@@ -715,10 +719,10 @@
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
       <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
         <env name="BNPYROOT" value="$PROJECT_DIR$/" />
         <env name="BNPYOUTDIR" value="$PROJECT_DIR$/../results/" />
-        <env name="PYTHONUNBUFFERED" value="1" />
-        <env name="BNPYDATADIR" value="$PROJECT_DIR$/demodata/" />
+        <env name="BNPYDATADIR" value="$PROJECT_DIR$/../scripts/" />
       </envs>
       <option name="SDK_HOME" value="/Library/Frameworks/Python.framework/Versions/2.7/bin/python" />
       <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/bnpy" />
@@ -727,25 +731,75 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <module name="bnpy-dev" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/bnpy/Run.py" />
-      <option name="PARAMETERS" value="BinaryGraphK5 HDPRelAssortModel BernRel VB --K=5 --nLap=50" />
+      <option name="PARAMETERS" value="BinaryGraphK5 HDPRelAssortModel BernRel VB --K=5 --nLap=150" />
       <RunnerSettings RunnerId="PyDebugRunner" />
+      <RunnerSettings RunnerId="PythonRunner" />
       <ConfigurationWrapper RunnerId="PyDebugRunner" />
+      <ConfigurationWrapper RunnerId="PythonRunner" />
       <method />
     </configuration>
-    <list size="6">
+    <configuration default="false" name="HuffPost VB" type="PythonConfigurationType" factoryName="Python">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+        <env name="BNPYROOT" value="$PROJECT_DIR$/" />
+        <env name="BNPYOUTDIR" value="$PROJECT_DIR$/../results/" />
+        <env name="BNPYDATADIR" value="$PROJECT_DIR$/../scripts/" />
+      </envs>
+      <option name="SDK_HOME" value="/Library/Frameworks/Python.framework/Versions/2.7/bin/python" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/bnpy" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="bnpy-dev" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/bnpy/Run.py" />
+      <option name="PARAMETERS" value="HuffPost HDPModel Mult VB --K=50 --nLap=100 --gamma=0.5 --alpha0=5" />
+      <RunnerSettings RunnerId="PyDebugRunner" />
+      <RunnerSettings RunnerId="PythonRunner" />
+      <ConfigurationWrapper RunnerId="PyDebugRunner" />
+      <ConfigurationWrapper RunnerId="PythonRunner" />
+      <method />
+    </configuration>
+    <configuration default="false" name="HuffPost MoVB" type="PythonConfigurationType" factoryName="Python">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+        <env name="BNPYROOT" value="$PROJECT_DIR$/" />
+        <env name="BNPYOUTDIR" value="$PROJECT_DIR$/../results/" />
+        <env name="BNPYDATADIR" value="$PROJECT_DIR$/../scripts/" />
+      </envs>
+      <option name="SDK_HOME" value="/Library/Frameworks/Python.framework/Versions/2.7/bin/python" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/bnpy" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="bnpy-dev" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/bnpy/Run.py" />
+      <option name="PARAMETERS" value="HuffPost HDPModel Mult moVB --K=50 --nLap=100 --gamma=0.5 --alpha0=5 --moves=birth,merge --birthPerLap=10 --mergePerLap=10 --nFreshLap=25" />
+      <RunnerSettings RunnerId="PythonRunner" />
+      <ConfigurationWrapper RunnerId="PythonRunner" />
+      <method />
+    </configuration>
+    <list size="9">
       <item index="0" class="java.lang.String" itemvalue="Python.NIPS MoVB" />
       <item index="1" class="java.lang.String" itemvalue="Python.ToyGraph K5" />
-      <item index="2" class="java.lang.String" itemvalue="Python tests.Unittests in TestBirthMove" />
-      <item index="3" class="java.lang.String" itemvalue="Python tests.Unittests in TestHDPBetaOptimizer" />
-      <item index="4" class="java.lang.String" itemvalue="Python tests.Unittests in TestGlobalStickbreakOptimizer" />
-      <item index="5" class="java.lang.String" itemvalue="Python tests.Unittests in TestHDPVariationalOptimizer" />
+      <item index="2" class="java.lang.String" itemvalue="Python.HuffPost VB" />
+      <item index="3" class="java.lang.String" itemvalue="Python.HuffPost MoVB" />
+      <item index="4" class="java.lang.String" itemvalue="Python tests.Unittests in TestBirthMove" />
+      <item index="5" class="java.lang.String" itemvalue="Python tests.Unittests in TestHDPBetaOptimizer" />
+      <item index="6" class="java.lang.String" itemvalue="Python tests.Unittests in TestGlobalStickbreakOptimizer" />
+      <item index="7" class="java.lang.String" itemvalue="Python tests.Unittests in TestHDPVariationalOptimizer" />
+      <item index="8" class="java.lang.String" itemvalue="Python.TestHDPRelModel" />
     </list>
     <recent_temporary>
-      <list size="4">
-        <item index="0" class="java.lang.String" itemvalue="Python tests.Unittests in TestHDPBetaOptimizer" />
-        <item index="1" class="java.lang.String" itemvalue="Python tests.Unittests in TestHDPVariationalOptimizer" />
-        <item index="2" class="java.lang.String" itemvalue="Python tests.Unittests in TestGlobalStickbreakOptimizer" />
-        <item index="3" class="java.lang.String" itemvalue="Python tests.Unittests in TestBirthMove" />
+      <list size="5">
+        <item index="0" class="java.lang.String" itemvalue="Python.TestHDPRelModel" />
+        <item index="1" class="java.lang.String" itemvalue="Python tests.Unittests in TestHDPBetaOptimizer" />
+        <item index="2" class="java.lang.String" itemvalue="Python tests.Unittests in TestHDPVariationalOptimizer" />
+        <item index="3" class="java.lang.String" itemvalue="Python tests.Unittests in TestGlobalStickbreakOptimizer" />
+        <item index="4" class="java.lang.String" itemvalue="Python tests.Unittests in TestBirthMove" />
       </list>
     </recent_temporary>
   </component>
@@ -776,23 +830,23 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="0" y="22" width="1920" height="1120" extended-state="6" />
+    <frame x="0" y="22" width="1920" height="1174" extended-state="6" />
     <editor active="true" />
     <layout>
       <window_info id="Changes" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="5" side_tool="false" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="8" side_tool="false" content_ui="tabs" />
-      <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.24947146" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.13059504" sideWeight="0.7013388" order="0" side_tool="false" content_ui="combo" />
-      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.27864078" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
+      <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.14797261" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.109004736" sideWeight="0.7013388" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.42791128" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="1" side_tool="true" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.3341615" sideWeight="0.16677195" order="1" side_tool="true" content_ui="tabs" />
-      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.2757764" sideWeight="0.83322805" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Run" active="true" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.26709798" sideWeight="0.83322805" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.32919255" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.25" sideWeight="0.5" order="9" side_tool="false" content_ui="tabs" />
       <window_info id="Message" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Ant Build" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
-      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.32994455" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Commander" active="false" anchor="right" auto_hide="false" internal_type="SLIDING" type="SLIDING" visible="false" weight="0.4" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Hierarchy" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.25" sideWeight="0.5" order="2" side_tool="false" content_ui="combo" />
       <window_info id="Inspection" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.4" sideWeight="0.5" order="10" side_tool="false" content_ui="tabs" />
@@ -804,15 +858,15 @@
       <window_info id="Message" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Ant Build" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
-      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.45268542" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
+      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.2942857" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="1" side_tool="true" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.3341615" sideWeight="0.16677195" order="1" side_tool="true" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.32919255" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.33" sideWeight="0.5" order="8" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.24947146" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Commander" active="false" anchor="right" auto_hide="false" internal_type="SLIDING" type="SLIDING" visible="false" weight="0.4" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.17477097" sideWeight="0.7013388" order="0" side_tool="false" content_ui="combo" />
-      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.2757764" sideWeight="0.83322805" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.2022117" sideWeight="0.7013388" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" weight="0.26802218" sideWeight="0.83322805" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Inspection" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.4" sideWeight="0.5" order="10" side_tool="false" content_ui="tabs" />
       <window_info id="Hierarchy" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" weight="0.25" sideWeight="0.5" order="2" side_tool="false" content_ui="combo" />
     </layout-to-restore>
@@ -839,326 +893,302 @@
           <option name="timeStamp" value="28" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="python-line">
-          <url>file://$PROJECT_DIR$/bnpy/allocmodel/admix/HDPRelModel.py</url>
-          <line>374</line>
-          <option name="timeStamp" value="90" />
+          <url>file://$PROJECT_DIR$/bnpy/Run.py</url>
+          <line>220</line>
+          <option name="timeStamp" value="123" />
         </line-breakpoint>
       </breakpoints>
-      <option name="time" value="91" />
+      <option name="time" value="163" />
     </breakpoint-manager>
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/bnpy/config/obsmodel.conf">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="208" max-vertical-offset="885">
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/bnpy/obsmodel/__init__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="345">
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/mlrun/templates/data/data_experiments.html">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="76" column="25" selection-start="5386" selection-end="5387" vertical-scroll-proportion="-22.8" vertical-offset="0" max-vertical-offset="1740" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/mlrun/templates/data/data_visual.html">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="46.25" vertical-offset="1110" max-vertical-offset="1860" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/mlrun/templates/data/data_list.html">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="43" max-vertical-offset="1125" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/mlrun/templates/data/data_summary.html">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="738" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/start_mlrun.sh">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="6" column="13" selection-start="283" selection-end="283" vertical-scroll-proportion="0.0" vertical-offset="90" max-vertical-offset="195" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/bnpy/learnalg/MemoizedOnlineVBLearnAlg.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="176" column="47" selection-start="6316" selection-end="6316" vertical-scroll-proportion="0.0" vertical-offset="2160" max-vertical-offset="10560" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/mlrun/templates/data/data_analysis.html">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="21" column="30" selection-start="1164" selection-end="1164" vertical-scroll-proportion="0.0" vertical-offset="105" max-vertical-offset="1365" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/mlrun/static/assets/js/analysis/analysis_run.js">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="21" column="46" selection-start="443" selection-end="443" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="495" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/.gitignore">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="38" column="0" selection-start="877" selection-end="877" vertical-scroll-proportion="1.4943503" vertical-offset="41" max-vertical-offset="1095" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/config.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="23" column="0" selection-start="855" selection-end="855" vertical-scroll-proportion="-13.2" vertical-offset="0" max-vertical-offset="420" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/bnpy/allocmodel/admix/AdmixModel.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="3885" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/mlrun/views.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="226" column="39" selection-start="8655" selection-end="8655" vertical-scroll-proportion="0.0" vertical-offset="3244" max-vertical-offset="4275" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/demodata/AsteriskK8.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="1830" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/demodata/NIPS.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="7" column="0" selection-start="90" selection-end="984" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="525" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/demodata/StarCovarK5.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="75" column="0" selection-start="2163" selection-end="2218" vertical-scroll-proportion="0.0" vertical-offset="510" max-vertical-offset="1545" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/demodata/Bars2D.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="1031" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/demodata/BarsK50V2500.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="1455" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/demodata/BarsK8.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="75" column="48" selection-start="2246" selection-end="2246" vertical-scroll-proportion="0.7090204" vertical-offset="394" max-vertical-offset="1425" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/bnpy/ioutil/BNPYArgParser.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="41" column="0" selection-start="1753" selection-end="1753" vertical-scroll-proportion="0.0" vertical-offset="349" max-vertical-offset="4875" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/bnpy/data/__init__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="8" column="56" selection-start="348" selection-end="348" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="240" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/bnpy/distr/__init__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="10" column="121" selection-start="417" selection-end="417" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="255" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/bnpy/config/init.conf">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="677" />
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/bnpy/init/__init__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="7" column="95" selection-start="277" selection-end="277" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="210">
-          <folding>
-            <element signature="e#86#126#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file:///Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/site-packages/scipy/sparse/coo.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="133" column="0" selection-start="4277" selection-end="4277" vertical-scroll-proportion="0.0" vertical-offset="1870" max-vertical-offset="5865">
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/bnpy/data/WordsData.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="117" column="50" selection-start="4485" selection-end="4493" vertical-scroll-proportion="0.795756" vertical-offset="1395" max-vertical-offset="6780">
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/bnpy/distr/GaussDistr.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="1755">
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/bnpy/obsmodel/BagOfWordsObsModel.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="2535">
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/bnpy/config/obsmodel.conf">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="208" max-vertical-offset="885">
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/bnpy/obsmodel/__init__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="285">
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/bnpy/init/FromScratchMult.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="105" max-vertical-offset="2055">
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file:///Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/site-packages/numpy/core/numeric.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="319" column="0" selection-start="9534" selection-end="9534" vertical-scroll-proportion="0.0" vertical-offset="4279" max-vertical-offset="38775">
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/demodata/BinaryGraphK5.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="776" max-vertical-offset="1215">
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/bnpy/__init__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="34" column="57" selection-start="762" selection-end="762" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="960">
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/bnpy/suffstats/ParamBag.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="345" column="0" selection-start="11565" selection-end="11565" vertical-scroll-proportion="0.0" vertical-offset="5014" max-vertical-offset="5625">
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/bnpy/obsmodel/MultObsModel.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="990" max-vertical-offset="3270">
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/bnpy/HModel.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="1158" max-vertical-offset="2280">
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/bnpy/distr/DirichletDistr.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="57" column="0" selection-start="1878" selection-end="2683" vertical-scroll-proportion="0.0" vertical-offset="611" max-vertical-offset="1350">
-          <folding />
-        </state>
+        <state line="44" column="0" selection-start="1311" selection-end="1675" vertical-scroll-proportion="0.0" vertical-offset="432" max-vertical-offset="1350" />
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/bnpy/config/allocmodel.conf">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="45" column="13" selection-start="1143" selection-end="1143" vertical-scroll-proportion="0.8235294" vertical-offset="115" max-vertical-offset="795">
+        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="-0.9390244" vertical-offset="385" max-vertical-offset="795" />
+      </provider>
+    </entry>
+    <entry file="file:///Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/site-packages/scipy/io/matlab/mio.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="78" column="0" selection-start="2315" selection-end="2315" vertical-scroll-proportion="0.0" vertical-offset="879" max-vertical-offset="4605" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../scripts/customFunc.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="6" column="98" selection-start="320" selection-end="320" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="465" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/bnpy/learnalg/MemoizedOnlineVBLearnAlg.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="156" column="6" selection-start="5470" selection-end="5516" vertical-scroll-proportion="0.0" vertical-offset="1950" max-vertical-offset="10440" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../scripts/HuffPost.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="23" column="74" selection-start="771" selection-end="771" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="495" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/bnpy/config/onlinedata.conf">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="521" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/bnpy/config/init.conf">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="300" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/bnpy/config/learnalg.conf">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="375" max-vertical-offset="2040" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/mlrun/static/assets/js/visual/mlrun.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="34" column="35" selection-start="974" selection-end="974" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="3960" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/setup_env.sh">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="1" column="0" selection-start="12" selection-end="12" vertical-scroll-proportion="0.0" vertical-offset="15" max-vertical-offset="195" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/config.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="420" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/mlrun/webapp/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="422" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/mlrun/webapp/customFunc.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="855" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/mlrun/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="16" column="0" selection-start="493" selection-end="493" vertical-scroll-proportion="0.0" vertical-offset="298" max-vertical-offset="720" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/start_mlrun.sh">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="150" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/mlrun/templates/data/data_settings_popup.html">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="975" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/mlrun/templates/data/data_filter_settings_popup.html">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="-0.0" vertical-offset="0" max-vertical-offset="405" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/mlrun/templates/users/profile.html">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="2" column="79" selection-start="125" selection-end="125" vertical-scroll-proportion="0.077922076" vertical-offset="0" max-vertical-offset="1665" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/mlrun/templates/data/upload_manual.html">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="42" column="60" selection-start="1616" selection-end="1618" vertical-scroll-proportion="0.3115183" vertical-offset="511" max-vertical-offset="1380" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/mlrun/templates/login.html">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="18" column="50" selection-start="882" selection-end="884" vertical-scroll-proportion="0.46835443" vertical-offset="85" max-vertical-offset="480" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/mlrun/templates/base.html">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="7" column="13" selection-start="280" selection-end="282" vertical-scroll-proportion="0.2748691" vertical-offset="0" max-vertical-offset="1215" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/bnpy/bnpy-dev/bnpy/allocmodel/admix/HDPRelModel.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="340" column="41" selection-start="14400" selection-end="14400" vertical-scroll-proportion="0.0" vertical-offset="4665" max-vertical-offset="7890" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/mlrun/data/storage/models.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="76" column="35" selection-start="2459" selection-end="2459" vertical-scroll-proportion="0.0" vertical-offset="875" max-vertical-offset="2205" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/mlrun/templates/data/ex_list.html">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="8" column="0" selection-start="425" selection-end="425" vertical-scroll-proportion="-0.0" vertical-offset="120" max-vertical-offset="1095" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/mlrun/templates/data/data_list.html">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="39" column="26" selection-start="736" selection-end="747" vertical-scroll-proportion="-4.375" vertical-offset="480" max-vertical-offset="1305" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/mlrun/webapp/views.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="225" max-vertical-offset="1920" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/mlrun/webapp/upload.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="1" column="0" selection-start="10" selection-end="10" vertical-scroll-proportion="0.0" vertical-offset="15" max-vertical-offset="1695" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/mlrun/webapp/pubsub.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="525" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/mlrun/webapp/forms.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="660" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../../../web/mlrun/mlrun/webapp/topicmodel.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="1" column="0" selection-start="15" selection-end="15" vertical-scroll-proportion="0.0" vertical-offset="15" max-vertical-offset="2130" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/bnpy/allocmodel/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="11" column="0" selection-start="346" selection-end="346" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="525" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/bnpy/init/FromScratchMult.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="36" column="28" selection-start="1019" selection-end="1036" vertical-scroll-proportion="0.0" vertical-offset="270" max-vertical-offset="2055" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/bnpy/allocmodel/admix/HDPModel.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="223" column="34" selection-start="8713" selection-end="8713" vertical-scroll-proportion="0.0" vertical-offset="2865" max-vertical-offset="7800">
           <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/bnpy/Run.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="252" column="0" selection-start="9814" selection-end="9814" vertical-scroll-proportion="0.0" vertical-offset="3479" max-vertical-offset="5925">
+        <state line="220" column="0" selection-start="8451" selection-end="8451" vertical-scroll-proportion="0.0" vertical-offset="2980" max-vertical-offset="5925">
           <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/bnpy/allocmodel/admix/HDPModel.py">
+    <entry file="file://$PROJECT_DIR$/bnpy/ioutil/ModelWriter.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="225" column="8" selection-start="8798" selection-end="8852" vertical-scroll-proportion="0.0" vertical-offset="1741" max-vertical-offset="7800">
+        <state line="76" column="0" selection-start="2693" selection-end="2693" vertical-scroll-proportion="0.960733" vertical-offset="361" max-vertical-offset="1185" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/bnpy/distr/BetaDistr.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="29" column="24" selection-start="749" selection-end="749" vertical-scroll-proportion="0.0" vertical-offset="333" max-vertical-offset="1410">
           <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/bnpy/init/FromScratchBernRel.py">
+    <entry file="file://$PROJECT_DIR$/bnpy/data/DataObj.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="32" column="66" selection-start="983" selection-end="983" vertical-scroll-proportion="0.0" vertical-offset="26" max-vertical-offset="765">
+        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="900" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/bnpy/learnalg/LearnAlg.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="104" column="0" selection-start="3312" selection-end="3312" vertical-scroll-proportion="0.0" vertical-offset="1216" max-vertical-offset="4305" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../local/hdp_relational/GraphData.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="1055" max-vertical-offset="1995">
+          <folding>
+            <element signature="e#733#751#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/bnpy/allocmodel/admix/AdmixModel.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="2670" max-vertical-offset="3885">
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/bnpy/allocmodel/AllocModel.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="47" column="0" selection-start="1600" selection-end="1600" vertical-scroll-proportion="0.0" vertical-offset="577" max-vertical-offset="1380">
           <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/bnpy/learnalg/VBLearnAlg.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="70" column="0" selection-start="2239" selection-end="2239" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="3135">
+        <state line="62" column="0" selection-start="1959" selection-end="1959" vertical-scroll-proportion="0.0" vertical-offset="772" max-vertical-offset="3135">
           <folding />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/bnpy/data/GraphData.py">
+    <entry file="file://$PROJECT_DIR$/../local/hdp_relational/TestHDPRelModel.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="110" column="51" selection-start="4548" selection-end="4548" vertical-scroll-proportion="0.0" vertical-offset="1156" max-vertical-offset="1980">
-          <folding />
+        <state line="246" column="47" selection-start="8472" selection-end="8472" vertical-scroll-proportion="-0.2992021" vertical-offset="3915" max-vertical-offset="5520">
+          <folding>
+            <element signature="e#25#43#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/bnpy/distr/BetaDistr.py">
+    <entry file="file://$PROJECT_DIR$/bnpy/HModel.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="90" column="0" selection-start="3193" selection-end="3193" vertical-scroll-proportion="1.351049" vertical-offset="354" max-vertical-offset="1410">
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/bnpy/suffstats/SuffStatBag.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="201" column="0" selection-start="6795" selection-end="6795" vertical-scroll-proportion="0.84042555" vertical-offset="2432" max-vertical-offset="3090">
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/bnpy/learnalg/LearnAlg.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="158" column="0" selection-start="5405" selection-end="5405" vertical-scroll-proportion="0.0" vertical-offset="2141" max-vertical-offset="4305">
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/bnpy/obsmodel/BernRelObsModel.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="194" column="61" selection-start="6850" selection-end="6850" vertical-scroll-proportion="0.0" vertical-offset="1746" max-vertical-offset="3285">
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/bnpy/allocmodel/__init__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state line="11" column="0" selection-start="346" selection-end="346" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="525">
+        <state line="122" column="63" selection-start="4719" selection-end="4719" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="2280">
           <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/bnpy/allocmodel/admix/HDPRelModel.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="146" column="4" selection-start="6231" selection-end="6231" vertical-scroll-proportion="0.55964655" vertical-offset="1675" max-vertical-offset="7560">
+        <state line="425" column="7" selection-start="17933" selection-end="17933" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="7620">
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/bnpy/config/obsmodel.conf">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="0" column="0" selection-start="0" selection-end="0" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="885">
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/bnpy/obsmodel/BernRelObsModel.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="166" column="25" selection-start="6057" selection-end="6057" vertical-scroll-proportion="0.0" vertical-offset="1185" max-vertical-offset="3690">
+          <folding>
+            <element signature="e#270#288#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/bnpy/init/FromScratchBernRel.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="33" column="27" selection-start="1040" selection-end="1040" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="825">
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/bnpy/data/GraphData.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="74" column="75" selection-start="3095" selection-end="3095" vertical-scroll-proportion="0.0" vertical-offset="0" max-vertical-offset="2085">
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/../scripts/BinaryGraphK5.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state line="12" column="0" selection-start="269" selection-end="269" vertical-scroll-proportion="0.20576131" vertical-offset="0" max-vertical-offset="1455">
           <folding />
         </state>
       </provider>

@@ -1,5 +1,11 @@
 ''' 
-BagOfWordsObsModel.py
+BernRelObsModel.py
+
+The main observation model class for the assortative HDP relational model using
+the efficient structured mean-field approach.
+
+Contains elements of the stochastic block matrix phi which is K x K
+Sufficient statistics stored in lamA and lamB
 '''
 import numpy as np
 import copy
@@ -17,7 +23,7 @@ class BernRelObsModel(ObsModel):
   def __init__(self, inferType, obsPrior=None):
     self.inferType = inferType
     self.obsPrior = obsPrior
-    self.epsilon = 1e-3
+    self.epsilon = 1e-6
     self.comp = list()
 
   @classmethod
@@ -30,8 +36,8 @@ class BernRelObsModel(ObsModel):
 
   @classmethod
   def CreateWithAllComps(cls, oDict, obsPrior, compDictList):
-    ''' Create MultObsModel, all K component Distr objects,
-         and the prior Distr object in one call
+    ''' Create BernRelObsModel, all K component are Beta objects,
+         and the prior Beta object in one call
     '''
     if oDict['inferType'] == 'EM':
       raise NotImplementedError("TODO")
@@ -62,8 +68,11 @@ class BernRelObsModel(ObsModel):
         Returns
         -------
         LP : bnpy local parameter dict, with updated fields
-        E_logsoftev_WordsData : nDistinctWords x K matrix, where
-                               entry n,k = log p(word n | topic k)
+        E_logsoftev_EdgeLik : nDistinctEdges x K matrix, where
+                              each entry represents the relevant E[log phi_k] if y_{ij}=1
+                              or E[log(1-phi_k)] if y_ij} = 0
+        E_logsoftev_EdgeEps : nDistinctEdges x K matrix, similar to E_logsoftev_EdgeLik,
+                              except for epsilon terms
     '''
     if self.inferType == 'EM':
       raise NotImplementedError('TODO')
@@ -76,8 +85,11 @@ class BernRelObsModel(ObsModel):
 
         Returns
         -------
-        E_logsoftev_Edges : nDistinctEdges x K matrix
-                                entry n,k gives E log p( edge_ij | community k)
+        E_logsoftev_EdgeLik : nDistinctEdges x K matrix, where
+                              each entry represents the relevant E[log phi_k] if y_{ij}=1
+                              or E[log(1-phi_k)] if y_ij} = 0
+        E_logsoftev_EdgeEps : nDistinctEdges x K matrix, similar to E_logsoftev_EdgeLik,
+                              except for epsilon terms
     '''
 
     # Obtain matrix where col k = E[ log phi[k] ], for easier indexing
@@ -111,11 +123,13 @@ class BernRelObsModel(ObsModel):
         Returns
         -------
         SS : bnpy SuffStatDict object, with updated fields
-                WordCounts : K x VocabSize matrix
-                  WordCounts[k,v] = # times vocab word v seen with topic k
+            sb_ss0 = number of pseudo-counts of 0 for each community
+            sb_ss1 = number of pseudo-counts of 1 for each community
     '''
+    # ev is the local responsibilities for each edge stored in nDistinctEdges x K matrix
     ev = LP['edge_variational']
     E, K = ev.shape
+
     sb_ss0 = np.sum(ev[Data.ind0,:], axis=0)
     sb_ss1 = np.sum(ev[Data.ind1,:], axis=0)
     SS.setField('sb_ss0', sb_ss0, dims=('K'))
@@ -130,14 +144,15 @@ class BernRelObsModel(ObsModel):
 
   def update_obs_params_VB(self, SS, mergeCompA=None, **kwargs):
     if mergeCompA is None:
-      self.Lam[mergeCompA] = SS.WordCounts[mergeCompA] + self.obsPrior.lamvec    
+      for k in xrange(self.K):
+        self.comp[k] = self.obsPrior.get_post_distr(SS, k)
     else:
       self.Lam = SS.WordCounts + self.obsPrior.lamvec    
 
   def update_obs_params_soVB( self, SS, rho, **kwargs):
     raise NotImplementedError("TODO")  
 
-  def set_global_params(self, hmodel=None, lamA=None, lamB=None, theta=None, **kwargs):
+  def set_global_params(self, hmodel=None, lamA=None, lamB=None,  **kwargs):
     ''' Set global params to provided values
 
         Params
@@ -149,7 +164,7 @@ class BernRelObsModel(ObsModel):
         self.K = hmodel.obsModel.K
         self.comp = copy.deepcopy(hmodel.obsModel.comp)
         return
-    self.K = theta.shape[1]
+    self.K = lamA.shape[0]
     self.comp = list()
 
     # Initialize each community to have an equal amount of edges
@@ -162,10 +177,14 @@ class BernRelObsModel(ObsModel):
   ######################################################### Evidence
   #########################################################
   def calc_evidence(self, Data, SS, LP):
+
     elbo_pData = self.Elogp_Edges(SS, LP)
     elbo_pLam  = self.Elogp_Lam()
     elbo_qLam  = self.Elogq_Lam()
-    return elbo_pData + elbo_pLam - elbo_qLam
+
+    elbo_obs = elbo_pData + elbo_pLam - elbo_qLam
+
+    return elbo_obs
 
   def Elogp_Edges(self, SS, LP):
     ''' This should be different depending on assorative / non-assortative model
@@ -196,7 +215,9 @@ class BernRelObsModel(ObsModel):
 
         logPDF += (self.comp[k].lamA - 1.0)*self.comp[k].ElogLamA \
                 + (self.comp[k].lamB - 1.0)*self.comp[k].ElogLamB
-    return -1.0 * (logNormC + logPDF)
+
+    E_logqLam = (logNormC + logPDF)
+    return E_logqLam
 
 
   ######################################################### I/O Utils
