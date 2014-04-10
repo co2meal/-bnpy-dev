@@ -2,22 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="bbf67785-dead-4460-9b42-d213358d5380" name="Default" comment="">
-      <change type="DELETED" beforePath="$PROJECT_DIR$/demodata/Bars2D.py" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/demodata/BarsK10V900.py" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/demodata/BarsK50V2500.py" afterPath="" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/demodata/AsteriskK8.py" afterPath="$PROJECT_DIR$/demodata/AsteriskK8.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/demodata/BarsK8.py" afterPath="$PROJECT_DIR$/demodata/BarsK8.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/bnpy/obsmodel/BernRelObsModel.py" afterPath="$PROJECT_DIR$/bnpy/obsmodel/BernRelObsModel.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/bnpy/distr/BetaDistr.py" afterPath="$PROJECT_DIR$/bnpy/distr/BetaDistr.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/demodata/BinaryGraphK5.py" afterPath="$PROJECT_DIR$/demodata/BinaryGraphK5.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/bnpy/init/FromScratchBernRel.py" afterPath="$PROJECT_DIR$/bnpy/init/FromScratchBernRel.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/bnpy/data/GraphData.py" afterPath="$PROJECT_DIR$/bnpy/data/GraphData.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/bnpy/allocmodel/admix/HDPRelModel.py" afterPath="$PROJECT_DIR$/bnpy/allocmodel/admix/HDPRelModel.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/bnpy/ioutil/ModelWriter.py" afterPath="$PROJECT_DIR$/bnpy/ioutil/ModelWriter.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/demodata/NIPS.py" afterPath="$PROJECT_DIR$/demodata/NIPS.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/bnpy-dev.iml" afterPath="$PROJECT_DIR$/.idea/bnpy-dev.iml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/modules.xml" afterPath="$PROJECT_DIR$/.idea/modules.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/docs/allocmodel/HDPRelAssort.ipynb" afterPath="$PROJECT_DIR$/docs/allocmodel/HDPRelAssort.ipynb" />
     </list>
     <ignored path="bnpy-dev.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -54,7 +39,7 @@
           <file leaf-file-name="BinaryGraphK5.py" pinned="false" current="true" current-in-tab="true">
             <entry file="file://$PROJECT_DIR$/../scripts/BinaryGraphK5.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state line="12" column="0" selection-start="269" selection-end="269" vertical-scroll-proportion="0.20576131" vertical-offset="0" max-vertical-offset="1455">
+                <state line="80" column="0" selection-start="2578" selection-end="2578" vertical-scroll-proportion="0.73719674" vertical-offset="623" max-vertical-offset="1365">
                   <folding />
                 </state>
               </provider>
@@ -1188,7 +1173,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/../scripts/BinaryGraphK5.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state line="12" column="0" selection-start="269" selection-end="269" vertical-scroll-proportion="0.20576131" vertical-offset="0" max-vertical-offset="1455">
+        <state line="80" column="0" selection-start="2578" selection-end="2578" vertical-scroll-proportion="0.73719674" vertical-offset="623" max-vertical-offset="1365">
           <folding />
         </state>
       </provider>
