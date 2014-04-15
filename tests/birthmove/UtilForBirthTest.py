@@ -54,10 +54,10 @@ def loadData(name, **kwargs):
   datamod = __import__(name, fromlist=[])
   return datamod.get_data(**kwargs)
 
-def MakeModelWithTrueTopics(Data):
+def MakeModelWithTrueTopics(Data, alpha0=5.0, gamma=0.5):
   ''' Create new model.
   '''
-  aDict = dict(alpha0=5.0, gamma=0.5)
+  aDict = dict(alpha0=alpha0, gamma=gamma)
   oDict = {'lambda':0.1}
   hmodel = bnpy.HModel.CreateEntireModel('VB', 'HDPModel', 'Mult', 
                                           aDict, oDict, Data)

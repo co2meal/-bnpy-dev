@@ -21,6 +21,7 @@ import unittest
 from matplotlib import pylab
 
 import bnpy.allocmodel.admix.OptimizerForHDPFullVarModel as HVO
+import bnpy.allocmodel.admix.OptimizerForHDP2 as HO
 
 np.set_printoptions(precision=3, suppress=False, linewidth=140)
 def np2flatstr(xvec):
@@ -87,15 +88,24 @@ class TestNestedTrunc(unittest.TestCase):
                           nDoc=self.nDoc,
                           gamma=self.gamma, alpha0=self.alpha0,
                           initu=None, approx_grad=False)
+    rho, omega, f, Info2 = HO.find_optimum_multiple_tries(
+                          sumLogPi=sumLogPi,
+                          nDoc=self.nDoc,
+                          gamma=self.gamma, alpha0=self.alpha0,
+                          initu=None, approx_grad=False)
     Ebeta = HVO.u2beta(u)
+    Ebeta2 = HO._v2beta(rho)
+
     print 'f(u):  %.5e' % (fofu)
     print 'E[beta]'
     print '    ', np2flatstr(truebeta), '  truth'
     print '    ', np2flatstr(Ebeta), '  estimated'
+    print '    ', np2flatstr(Ebeta2), '  estimated(rho)'
     u1, u0 = HVO._unpack(u)
-    print ''
-    print 'u1  ', np2flatstr(u1)
-    print 'u0  ', np2flatstr(u0)
+    
+    print 'omega'
+    print '   ', np2flatstr(u1+u0), '  u version'
+    print '   ', np2flatstr(omega), '  rho version'
     assert self.verify_beta(Ebeta, truebeta)
 
   def verify_beta(self, Ebeta, truebeta=None):
@@ -113,8 +123,16 @@ class TestNestedTrunc(unittest.TestCase):
 
 
   def test_plot(self):
+    argstring = ' '.join(sys.argv[1:])
+    if argstring.count('nocapture') == 0:
+      return True
     sumLogPi = self.sumLogPi_K5
     u, fofu, Info = HVO.estimate_u_multiple_tries(
+                          sumLogPi=sumLogPi,
+                          nDoc=self.nDoc,
+                          gamma=self.gamma, alpha0=self.alpha0,
+                          initu=None, approx_grad=False)
+    rho, omega, f, Info2 = HO.find_optimum_multiple_tries(
                           sumLogPi=sumLogPi,
                           nDoc=self.nDoc,
                           gamma=self.gamma, alpha0=self.alpha0,
@@ -122,13 +140,22 @@ class TestNestedTrunc(unittest.TestCase):
     K = u.size/2
     bestomega = np.zeros(K)
     for k in xrange(K):
+      pylab.figure(101)
       pylab.subplot(K, 1, k+1)
-      bestomega[k] = self.plot_objective_vary_omega(u, k, sumLogPi)
+      bestomega[k] = self.plot_uobjective_vary_omega(u, k, sumLogPi)
+      if k < K - 1:
+        pylab.xticks([])
+      pylab.figure(102)
+      pylab.subplot(K, 1, k+1)
+      _ = self.plot_rhoomegaobjective_vary_omega(rho, omega, k, sumLogPi)
+      if k < K - 1:
+        pylab.xticks([])
+
     pylab.show(block=True)
     # Last component should have more variance (smaller best omega)
     assert bestomega[0] > bestomega[-1]
 
-  def plot_objective_vary_omega(self, u, k, sumLogPi):
+  def plot_uobjective_vary_omega(self, u, k, sumLogPi):
     u = u.copy()
     K = u.size/2
     Ev = HVO.u2v(u)
@@ -143,4 +170,20 @@ class TestNestedTrunc(unittest.TestCase):
     pylab.plot( omega, f, 'k.-')
     # Plot vertical line to indicate minimum value
     pylab.plot( bestomega*np.ones(2), [f.min(), f.max()], 'r--')
+    return bestomega
+
+
+  def plot_rhoomegaobjective_vary_omega(self, rho, omega, k, sumLogPi):
+    K = rho.size
+    omegas = np.linspace(0.5*self.nDoc, 10*self.nDoc, 1000)
+    fs = np.zeros_like(omegas)
+    for ii in xrange(len(omegas)):
+      omega[k] = omegas[ii]
+      fs[ii] = HO.objFunc_constrained(np.hstack([rho,omega]), sumLogPi=sumLogPi, 
+                         nDoc=self.nDoc, gamma=self.gamma, 
+                         alpha=self.alpha0, approx_grad=True)
+    bestomega = omegas[fs.argmin()]
+    pylab.plot( omegas, fs, 'k.-')
+    # Plot vertical line to indicate minimum value
+    pylab.plot( bestomega*np.ones(2), [fs.min(), fs.max()], 'r--')
     return bestomega

@@ -189,6 +189,7 @@ class HDPModel(AllocModel):
       remEbeta = remEbeta - newEbeta[k]
     assert np.allclose(np.sum(newEbeta) + remEbeta, self.Ebeta[-1])
     newTheta = self.gamma * newEbeta
+    newTheta_u = self.gamma * remEbeta
 
     ## Determine "adjustment" that will occur for each SS field
     ##   on a per-document basis document 
@@ -198,26 +199,19 @@ class HDPModel(AllocModel):
 
     AdjustInfo['sumLogPiActive'] = np.zeros(SS.K + Kextra)
     AdjustInfo['sumLogPiActive'][-Kextra:] = digamma(newTheta) \
-                                              - sumDigammaSumTheta
-    ReplaceInfo['sumLogPiUnused'] = digamma(self.gamma * remEbeta) \
-                                              - sumDigammaSumTheta
+                                              - sumDigammaSumTheta / nDoc
+    ReplaceInfo['sumLogPiUnused'] = digamma(newTheta_u) \
+                                              - sumDigammaSumTheta / nDoc
 
     SS.insertComps(freshSS)
 
     arr = SS.sumLogPiActive
     arr += nDoc * AdjustInfo['sumLogPiActive']
     SS.setField('sumLogPiActive', arr, dims='K')
-    sumLogPiUnused = nDoc * ReplaceInfo['sumLogPiUnused'] \
-                        + freshSS.sumLogPiUnused
-    SS.setField('sumLogPiUnused', sumLogPiUnused, dims=None)
 
-    # If desired, make additional correction for expanding freshSS to have      
-    #  its first K topics "empty" before combining with bigSS. 
-    if correctFresh:
-      raise NotImplementedError("TODO: fix so we don't call setattr on SS")
-      freshTheta = self.gamma * self.Ebeta[:-1]
-      SS.sumLogPiActive[:-Kextra] += freshSS.nDoc*digamma(freshTheta) \
-                                     - freshSS.sumDigammaSumTheta
+    sumLogPiUnused = nDoc * ReplaceInfo['sumLogPiUnused'] 
+    sumLogPiUnused += freshSS.sumLogPiUnused
+    SS.setField('sumLogPiUnused', sumLogPiUnused, dims=None)
 
     return SS, AdjustInfo, ReplaceInfo
 

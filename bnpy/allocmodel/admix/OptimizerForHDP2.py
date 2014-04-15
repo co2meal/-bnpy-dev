@@ -28,15 +28,14 @@ import scipy.io
 from scipy.special import gammaln, digamma, polygamma
 import datetime
 import logging
-import itertools
 
 Log = logging.getLogger('bnpy')
 EPS = 10*np.finfo(float).eps
 
-def find_optimum_multiple_tries(
-          sumLogPi=None, nDoc=0, gamma=1.0, alpha=1.0,
-          initrho=None, initomega=None,
-          approx_grad=False, fList=[1e7, 1e8, 1e10], **kwargs):
+def find_optimum_multiple_tries(sumLogPi=None, nDoc=0, gamma=1.0, alpha=1.0,
+                                initrho=None, initomega=None,
+                                approx_grad=False, factrList=[1e5, 1e7, 1e9],
+                                **kwargs):
   ''' Estimate vectors rho and omega via gradient descent,
         gracefully using multiple restarts
          with progressively weaker tolerances until one succeeds
@@ -52,22 +51,15 @@ def find_optimum_multiple_tries(
       --------
       ValueError with FAILURE in message if all restarts fail
   '''
-  K = sumLogPi.size - 1
-  if initEta is not None:
-    uList = [initEta, None]
-  else:
-    uList = [None] 
-
   nOverflow = 0
-  u = None
+  rhoomega = None
   Info = dict()
   msg = ''
-  for trial, myTuple in enumerate(itertools.product(uList, fList)):
-    initeta, factr = myTuple
+  for trial, factr in enumerate(factrList):
     try:
-      eta, feta, Info = estimate_eta(sumLogPi, nDoc, gamma, alpha0,
-                                initeta=initeta, factr=factr, 
-                                approx_grad=approx_grad)
+      rhoomega, f, Info = find_optimum(sumLogPi, nDoc, gamma, alpha,
+                                       initrho=initrho, initomega=initomega,
+                                       factr=factr, approx_grad=approx_grad)
       Info['nRestarts'] = trial
       Info['factr'] = factr
       Info['msg'] = Info['task']
@@ -81,15 +73,15 @@ def find_optimum_multiple_tries(
       if str(err).count('overflow') > 0:
         nOverflow += 1
 
-  if eta is None:
+  if rhoomega is None:
     raise ValueError("FAILURE! " + msg)
   Info['nOverflow'] = nOverflow
-  return eta, feta, Info      
+  rho, omega, K = _unpack(rhoomega)
+  return rho, omega, f, Info      
 
-def find_optimum(
-          sumLogPi=None, nDoc=0, gamma=1.0, alpha=1.0,
-          initrho=None, initomega=None,
-          approx_grad=False, factr=1.0e7, **kwargs):
+def find_optimum(sumLogPi=None, nDoc=0, gamma=1.0, alpha=1.0,
+                 initrho=None, initomega=None,
+                 approx_grad=False, factr=1.0e7, **kwargs):
   ''' Run gradient optimization to estimate best vectors
         rho, omega for specified problem
 
@@ -224,8 +216,6 @@ def objFunc_constrained(rhoomega,
 
   u1 = rho * omega
   u0 = (1 - rho) * omega
-
-
   logc = np.sum(gammaln(u1) + gammaln(u0) - gammaln(omega))
   if nDoc > 0:
     logc = logc/nDoc
