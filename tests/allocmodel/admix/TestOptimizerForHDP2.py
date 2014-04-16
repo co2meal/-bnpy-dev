@@ -279,6 +279,32 @@ class TestOptimizationK5(unittest.TestCase):
                                             alpha=self.alpha0,
                                             approx_grad=False)
 
+  def test__optimum_does_not_move_with_successive_runs(self):
+    ''' Verify for K=5 data that we recover variational parameters
+          whose E[beta] is very close to the true beta
+    '''
+    rho, omega, f, Info = self.verify__beta_near_truth__multiple_tries(
+                                            self.beta, self.nDoc, 
+                                            sumLogPi=self.sumLogPi,
+                                            alpha=self.alpha0,
+                                            approx_grad=False)
+    print '% .8e' % (f) 
+    print '             ', np2flatstr(rho)
+    Orig = dict(rho=rho, omega=omega, f=f)
+    for trial in range(10):
+      rho, omega, f, Info = self.verify__beta_near_truth__multiple_tries(
+                                            self.beta, self.nDoc, 
+                                            sumLogPi=self.sumLogPi,
+                                            alpha=self.alpha0,
+                                            initrho=rho, initomega=omega,
+                                            approx_grad=False)
+      print '% .8e' % (f) 
+      print '             ', np2flatstr( rho - Orig['rho'])
+      assert np.allclose(f, Orig['f'])
+      assert np.allclose(rho, Orig['rho'], atol=1e-6)
+      
+
+
   def test__same_answer_as_old_optimizer__nDoc2000(self):
     ''' Verify for K=5 data that we recover variational parameters
           whose E[beta] is very close to the true beta
