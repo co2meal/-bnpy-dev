@@ -116,10 +116,7 @@ def calcLocalDocParams_vectorized(Data, LP, topicPrior,
       stop  = Data.doc_range[d,1]
       expEloglik_d = expEloglik[start:stop]
 
-      try:
-        np.dot(expEloglik_d, expElogpi[d], out=sumRTilde[start:stop])
-      except ValueError:
-        from IPython import embed; embed()
+      np.dot(expEloglik_d, expElogpi[d], out=sumRTilde[start:stop])
 
       np.dot(Data.word_count[start:stop] / sumRTilde[start:stop],
                expEloglik_d,

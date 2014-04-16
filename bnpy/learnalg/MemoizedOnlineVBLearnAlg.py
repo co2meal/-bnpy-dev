@@ -56,6 +56,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     # Define how much of data we see at each mini-batch
     nBatch = float(DataIterator.nBatch)
     self.lapFracInc = 1.0/nBatch
+    self.nBatch = nBatch
     # Set-up progress-tracking variables
     iterid = -1
     lapFrac = np.maximum(0, self.algParams['startLap'] - 1.0/nBatch)
@@ -213,7 +214,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       msg = "max passes thru data exceeded."
     self.save_state(hmodel, iterid, lapFrac, evBound, doFinal=True) 
     self.print_state(hmodel, iterid, lapFrac,evBound,doFinal=True,status=msg)
-
+    self.SS = SS # hack so we can examine global suff stats
     # Births and merges require copies of original model object
     #  we need to make sure original reference has updated parameters, etc.
     if id(origmodel) != id(hmodel):
@@ -252,7 +253,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
   ######################################################### Load from memory
   #########################################################
   def load_batch_suff_stat_from_memory(self, batchID, K, 
-                                          BirthResults):
+                                       prevBirthResults=None, BirthResults=None):
     ''' Load the suff stats stored in memory for provided batchID
         Returns
         -------
@@ -275,22 +276,40 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         SSchunk.insertEmptyComps(Kextra)
     assert SSchunk.K == K
     # Adjust / replace terms related to expansion
+    MoveInfoList = list()
+    if prevBirthResults is not None:
+      MoveInfoList.extend(prevBirthResults)
     if BirthResults is not None:
-      for MoveInfo in BirthResults:
-        if 'AdjustInfo' in MoveInfo:
-          AInfo = MoveInfo['AdjustInfo']
-          for key in AInfo:
-            if hasattr(SSchunk, key):
-              Kmax = AInfo[key].size
-              arr = getattr(SSchunk, key)
-              arr[:Kmax] += SSchunk.nDoc * AInfo[key]
-        if 'ReplaceInfo' in MoveInfo:
-          RInfo = MoveInfo['ReplaceInfo']
-          for key in RInfo:
-            if hasattr(SSchunk, key):
-              arr = getattr(SSchunk, key)
-              arr += SSchunk.nDoc * RInfo[key]
-              SSchunk.setField(key, arr, dims=None)
+      MoveInfoList.extend(BirthResults)
+    for MInfo in MoveInfoList:
+      if 'AdjustInfo' in MInfo:
+        if 'bchecklist' not in MInfo:
+          MInfo['bchecklist'] = np.zeros(self.nBatch)
+        bchecklist = MInfo['bchecklist']
+        if bchecklist[batchID] > 0:
+          continue
+        # Do the adjustment work
+        for key in MInfo['AdjustInfo']:
+          if hasattr(SSchunk, key):
+            Kmax = MInfo['AdjustInfo'][key].size
+            arr = getattr(SSchunk, key)
+            arr[:Kmax] += SSchunk.nDoc *  MInfo['AdjustInfo'][key]
+            SSchunk.setField(key, arr, dims=SSchunk._FieldDims[key])
+          # TODO: ELBO??
+        # Record visit, so adjustment is only done once
+        bchecklist[batchID] = 1
+    # Run backwards through results to find most recent ReplaceInfo
+    for MInfo in reversed(MoveInfoList):
+      if 'ReplaceInfo' in MInfo:
+        if MInfo['bchecklist'] > 1:
+          break # this batch has had replacements done already
+        for key in MInfo['ReplaceInfo']:
+          if hasattr(SSchunk, key):
+            arr = getattr(SSchunk, key)
+            arr += SSchunk.nDoc * MInfo['ReplaceInfo'][key]
+            SSchunk.setField(key, arr, dims=SSchunk._FieldDims[key])
+        MInfo['bchecklist'][batchID] = 2
+        break # Stop after the first ReplaceInfo
     return SSchunk  
 
   def load_batch_local_params_from_memory(self, batchID, BirthResults):

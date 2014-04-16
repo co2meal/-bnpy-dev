@@ -31,9 +31,10 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, **kwargs):
   elif kwargs['creationRoutine'] == 'spectral':
     freshModel = create_new_model_spectral(freshModel, freshData, **kwargs)
   else:
-    freshModel.init_global_params(freshData, K=kwargs['Kfresh'],
-                                             initname=kwargs['creationRoutine'],
-                                             randstate=kwargs['randstate']) 
+    freshModel.init_global_params(freshData, 
+                                  K=kwargs['Kfresh'],
+                                  initname=kwargs['creationRoutine'],
+                                  randstate=kwargs['randstate']) 
     
   # TODO: do fast LP calculation, since we're just checking for empties
   freshLP = freshModel.calc_local_params(freshData)
@@ -49,8 +50,8 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, **kwargs):
 
   return freshModel, freshSS
 
-########################################################### Topic-model creation
-###########################################################  
+########################################################### Topic-model 
+###########################################################  creation
 
 def create_new_model_findmissingtopics(freshModel, freshData, 
                                         bigModel, LP=None, 

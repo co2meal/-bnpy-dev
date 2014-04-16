@@ -261,12 +261,12 @@ class TestOptimizationK5(unittest.TestCase):
 
     K = rhoomega.size/2
     assert np.allclose(rhoomega[:K], rhoomega2[:K], atol=0.0001)
-    assert np.allclose(rhoomega[K:], rhoomega2[K:], rtol=0.2)
     if self.K < 10:
+      assert np.allclose(rhoomega[K:], rhoomega2[K:], rtol=0.5)
       assert np.max(np.abs(grad)) < 1e-3
       assert np.max(np.abs(grad2)) < 1e-3
     else:
-      assert np.max(np.abs(grad)) < 1e-2
+      assert np.max(np.abs(grad2)) < 1e-2
 
 
   def test__find_optimum_multiple_tries__nDoc2000(self):
