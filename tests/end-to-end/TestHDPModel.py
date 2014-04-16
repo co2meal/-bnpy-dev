@@ -19,3 +19,4 @@ class TestHDPModel(TestGenericModel.TestGenericModel):
     self.kwargs['doFullPassBeforeMstep'] = 1
 
     self.mustRetainLPAcrossLapsForGuarantees = True
+    self.learnAlgs = ['VB', 'moVB', 'soVB']

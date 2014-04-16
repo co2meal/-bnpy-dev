@@ -18,3 +18,5 @@ class TestMixZMGaussModel(TestGenericModel.TestGenericModel):
     self.kwargs = dict(nLap=30, K=4, alpha0=0.5)
     self.kwargs['smatname'] = 'eye'
     self.kwargs['sF'] = 0.01
+
+    self.learnAlgs = ['EM', 'VB', 'moVB', 'soVB']

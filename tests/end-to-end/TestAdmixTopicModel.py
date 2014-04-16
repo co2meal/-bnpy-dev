@@ -18,3 +18,4 @@ class TestAdmixTopicModel(TestGenericModel.TestGenericModel):
     self.kwargs['doMemoizeLocalParams'] = 1
 
     self.mustRetainLPAcrossLapsForGuarantees = True
+    self.learnAlgs = ['VB', 'moVB', 'soVB']
