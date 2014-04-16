@@ -18,3 +18,5 @@ class TestDPMixGaussModel(TestGenericModel.TestGenericModel):
     self.obsModelName = 'Gauss'  
     self.kwargs = dict(nLap=30, K=5, alpha0=1)
     self.kwargs['smatname'] = 'eye'
+
+    self.learnAlgs = ['VB', 'soVB', 'moVB']
