@@ -12,7 +12,7 @@ class TreeData(object):
         '''
         pass
     
-    def get_collection_data(self, n):
+    def get_single_tree(self, n):
         '''
         Get the nth tree in the array
         '''

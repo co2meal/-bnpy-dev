@@ -58,9 +58,9 @@ def get_data_info():
     return 'Simple HMT data with %d-D Gaussian observations with total states of K=%d' % (D,K)
 
 def generateQuadTreeObservations(seed=8675309, totalObs=16384):
-    Tree, Z, totalNodes = generateObservations(seed, totalObs)
+    X, Z, totalNodes = generateObservations(seed, totalObs)
     l = list()
     l.append(totalNodes-1)
-    Data = QuadTreeData(Tree=Tree, TrueZ=Z, nObsTotal=totalNodes, nCollectionTotal=l)
+    Data = QuadTreeData(X=X, TrueZ=Z, nTrees=1, tree_delims=l)
     Data.summary = get_data_info()
     return Data
