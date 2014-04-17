@@ -1,0 +1,50 @@
+'''
+Unit tests to verify that our proposed proximity function over covariance matrices clearly separates all prototypical Sigma matrices from StarCovarK5
+'''
+
+import unittest
+import numpy as np
+
+import bnpy
+import Util
+
+class TestStarCovarK5(unittest.TestCase):
+  def setUp(self):
+    import StarCovarK5
+    self.Sigma = StarCovarK5.Sigma.copy()
+    self.SigmaHat = np.zeros_like(self.Sigma)
+    for k in range(5):
+      Xk = Util.MakeZMGaussData(self.Sigma[k], 10000, seed=k)
+      self.SigmaHat[k] = np.cov(Xk.T, bias=1)
+
+  def test_CovMatProxFunc(self):
+    print ''
+    K = self.Sigma.shape[0]
+    for k in xrange(K):
+      isG = Util.CovMatProxFunc(self.Sigma[k], self.SigmaHat[k])
+      if not np.all(isG):
+        Util.pprint( self.Sigma[k], 'true')
+        Util.pprint( self.SigmaHat[k], 'est')
+        Util.pprint( np.diag(isG).min())
+        from IPython import embed; embed()
+      assert np.all(isG)
+    for k in xrange(K):
+      for j in xrange(k+1, K):
+        print k,j
+        isG = Util.CovMatProxFunc(self.Sigma[k], self.SigmaHat[j])
+        if np.all(isG):
+          print self.Sigma[k]
+          print self.SigmaHat[j]
+        assert not np.all(isG)
+
+
+
+class TestDeadLeavesD25(TestStarCovarK5):
+  def setUp(self):
+    import DeadLeavesD25
+    self.Sigma = DeadLeavesD25.DL.Sigma.copy()
+    self.SigmaHat = np.zeros_like(self.Sigma)
+    for k in range(8):
+      Xk = Util.MakeZMGaussData(self.Sigma[k], 10000, seed=k)
+      self.SigmaHat[k] = np.cov(Xk.T, bias=1)
+
