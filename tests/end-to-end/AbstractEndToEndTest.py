@@ -1,5 +1,18 @@
 '''
 Generic unit tests for end-to-end model training with bnpy.
+
+----------------- EM
+* verify evidence monotonically increasing, repeatable with same seed
+* verify run started at ideal params ("from truth") does not wander away
+* verify runs 'from scratch' finds ideal params, for some fraction of all runs
+
+----------------- VB
+* verify evidence monotonically increasing, repeatable with same seed
+* verify run started at ideal params ("from truth") does not wander away
+TODO
+* verify runs 'from scratch' finds ideal params, for some fraction of all runs
+TODO
+
 '''
 import sys
 import numpy as np
