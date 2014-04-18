@@ -8,6 +8,19 @@ import numpy as np
 import bnpy
 import Util
 
+class TestVectorProxFunc(unittest.TestCase):
+  def test_vectorproxfunc(self):
+    avec = np.asarray([1, 0, 0])
+    bvec = np.asarray([0.91, 0.03, 0.08])
+    assert np.all( Util.VectorProxFunc(avec, bvec))
+
+    bvec = np.asarray([0.91, -0.03, -0.08])
+    assert np.all( Util.VectorProxFunc(avec, bvec))
+
+    bvec = np.asarray([0.99, 0.11, 0.12])
+    assert not np.all( Util.VectorProxFunc(avec, bvec))
+
+
 class TestStarCovarK5(unittest.TestCase):
   def setUp(self):
     import StarCovarK5

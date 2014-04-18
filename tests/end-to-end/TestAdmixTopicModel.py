@@ -1,12 +1,14 @@
 '''
 Unit-tests for full learning for topic models
 '''
-import TestGenericModel
-import bnpy
-
+import numpy as np
 import unittest
 
-class TestAdmixTopicModel(TestGenericModel.TestGenericModel):
+import bnpy
+from AbstractEndToEndTest import AbstractEndToEndTest
+import Util
+
+class TestAdmixTopicModel(AbstractEndToEndTest):
   __test__ = True
 
   def setUp(self):

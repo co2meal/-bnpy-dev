@@ -146,12 +146,17 @@ class GaussObsModel( ObsModel ):
       self.comp[k].post_update_soVB(rho, Dstar)
 
 
-  def set_global_params(self, hmodel=None, **kwargs):
+  def set_global_params(self, hmodel=None, m=None, L=None, **kwargs):
     ''' Set global parameters to provided values
     '''
     if hmodel is not None:
       self.comp = [copy.deepcopy(c) for c in hmodel.obsModel.comp]
       self.K = hmodel.obsModel.K
+    elif L is not None:
+      self.K = L.shape[0]
+      self.comp = [None for k in range(self.K)]
+      for k in range(self.K):
+        self.comp[k] = GaussDistr(m=m[k], L=L[k])
 
   ######################################################### Evidence  
   ######################################################### 

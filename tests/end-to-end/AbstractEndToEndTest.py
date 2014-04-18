@@ -172,7 +172,7 @@ class AbstractEndToEndTest(unittest.TestCase):
       raise SkipTest
     if not hasattr(self, 'fromScratchTrials'):
       self.fromScratchTrials = 5
-      self.fromScratchSuccessRate = 1
+      self.fromScratchSuccessRate = 0.4
     mask = np.zeros(self.fromScratchTrials)
     for task in range(self.fromScratchTrials):
       mask[task] = self.run_EM__fromScratch(task+1)

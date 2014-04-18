@@ -1,5 +1,9 @@
 import numpy as np
 
+def VectorProxFunc(xa, xb, atol=0.1, rtol=0.15):
+  return np.abs(xa - xb) <= atol * (np.abs(xa)< atol) \
+                             + rtol * np.maximum(np.abs(xa), np.abs(xb))
+
 def CovMatProxFunc(Sa, Sb, rtol=0.1):
   if Sa.ndim == 3:
     mask = np.zeros(Sa.shape[0])
@@ -22,8 +26,8 @@ def CovMatProxFunc(Sa, Sb, rtol=0.1):
     mask[np.diag_indices(D)] = diagMask 
     return mask
 
-def ProbVectorProxFunc(p, q, atol=0.01, rtol=0.05):
-  return np.abs(p - q) <= (atol + rtol * np.abs(p))  
+def ProbVectorProxFunc(p, q, atol=0.01):
+  return np.abs(p - q) <= atol
 
 
 def pprint( arr, msg='', fmt='% 9.3f', replaceVal=None, replaceText='-', rstart=0, cstart=0, Kmax=7):
@@ -76,6 +80,25 @@ def MakeZMGaussData(Sigma, Nk, seed=1234):
   Xlist = list()
   for k in range(K):
     Xk = PRNG.multivariate_normal(np.zeros(Sigma.shape[-1]), Sigma[k], Nk)
+    Xlist.append(Xk)
+  X = np.vstack(Xlist)
+  Cache[seed] = X
+  return X
+
+
+Cache = dict()
+def MakeGaussData(Mu, Sigma, Nk, seed=1234):
+  if seed in Cache:
+    return Cache[seed]
+  PRNG = np.random.RandomState(seed)
+  if Sigma.ndim == 3:
+    K = Sigma.shape[0]
+  else:
+    K = 1
+    Sigma = Sigma[np.newaxis,:]
+  Xlist = list()
+  for k in range(K):
+    Xk = PRNG.multivariate_normal(Mu[k], Sigma[k], Nk)
     Xlist.append(Xk)
   X = np.vstack(Xlist)
   Cache[seed] = X
