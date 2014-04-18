@@ -1,5 +1,7 @@
 '''
-Unit tests to verify that our proposed proximity function over covariance matrices clearly separates all prototypical Sigma matrices from StarCovarK5
+Unit tests to verify that our proposed proximity functions work as expected.
+
+Proximity function (defined in Util) are used to determine if two estimated parameters are "close enough" within some numerical tolerance to be treated as equivalent. We eventually use these functions to assess whether learning algorithms like EM are able to estimate "true"/"ideal" parameters for toy data.
 '''
 
 import unittest
@@ -22,6 +24,9 @@ class TestVectorProxFunc(unittest.TestCase):
 
 
 class TestStarCovarK5(unittest.TestCase):
+  ''' Verify CovMatProxFunc discriminates between all StarCovarK5 cov matrices.
+  '''
+
   def setUp(self):
     import StarCovarK5
     self.Sigma = StarCovarK5.Sigma.copy()
@@ -53,6 +58,8 @@ class TestStarCovarK5(unittest.TestCase):
 
 
 class TestDeadLeavesD25(TestStarCovarK5):
+  ''' Verify CovMatProxFunc discriminates between DeadLeavesD25 cov matrices.
+  '''
   def setUp(self):
     import DeadLeavesD25
     self.Sigma = DeadLeavesD25.DL.Sigma.copy()

@@ -17,111 +17,8 @@ class AbstractEndToEndTest(unittest.TestCase):
   def shortDescription(self):
     return None
 
-  def get_kwargs(self, **kwargsIN):
-    ''' Keyword args for calling bnpy.run, avoiding saving to disk
-    '''
-    kwargs = dict(saveEvery=-1, printEvery=-1, traceEvery=1)
-    kwargs['doSaveToDisk'] = False
-    kwargs['doWriteStdOut'] = False
-    kwargs['convergeSigFig'] = 12
-    if hasattr(self, 'kwargs'):
-      kwargs.update(self.kwargs)
-    kwargs.update(**kwargsIN)
-    return kwargs
-
-  def get_kwargs_do_save_disk(self):
-    ''' Keyword arguments for bnpy.run when tests need to write to disk
-    '''
-    kwargs = dict(saveEvery=1, printEvery=1, traceEvery=1)
-    kwargs['doSaveToDisk'] = True
-    kwargs['doWriteStdOut'] = False
-    if hasattr(self, 'kwargs'):
-      kwargs.update(self.kwargs)
-    return kwargs
-
-  def verify_close(self, arrTrue, arrEst, key):
-    ''' Returns True if two provided arrays are close, False otherwise.
-    '''
-    arrTrue = arrTrue.copy()
-    arrEst = arrEst.copy()
-    if hasattr(self, 'ProxFunc') and key in self.ProxFunc:
-      mask = self.ProxFunc[key](arrTrue, arrEst)
-    else:
-      mask = np.allclose(arrTrue, arrEst)
-    if np.all(mask):
-      return True
-    return False
-
-  def pprint_mismatched_entries(self, arrTrue, arrEst, key, replaceVal=-123):
-    arrTrue = arrTrue.copy()
-    arrEst = arrEst.copy()
-    if key in self.ProxFunc:
-      mask = self.ProxFunc[key](arrTrue, arrEst)
-    else:
-      mask = np.allclose(arrTrue, arrEst)
-    arrTrue[mask] = replaceVal
-    arrEst[mask] = replaceVal
-    Util.pprint(arrTrue, 'true', replaceVal=replaceVal)
-    Util.pprint(arrEst, 'est', replaceVal=replaceVal)
-
-  def verify_close_under_some_perm(self, arrTrue, arrEst, key, **kwargs):
-    ''' Returns True if arrays are numerically close under some permutation.
-    '''
-    arrTrue = np.asarray(arrTrue).copy()
-    arrEst = np.asarray(arrEst).copy()
-    K = arrEst.shape[0]
-    K2 = arrTrue.shape[0]
-    assert K == K2
-    true2est = -1 * np.ones(K, dtype=np.int32)
-    est2true = -1 * np.ones(K, dtype=np.int32)
-    for k in range(K):
-      for c in range(K):
-        if est2true[c] >= 0:
-          continue
-        if self.verify_close(arrTrue[k], arrEst[c], key, **kwargs):
-          true2est[k] = c
-          est2true[c] = k
-          break
-    return np.all(true2est >= 0), true2est
-
-  def verify_monotonic(self, ELBOvec):
-    ''' Returns True if monotonically increasing, False otherwise.
-    '''
-    ELBOvec = np.asarray(ELBOvec, dtype=np.float64)
-    assert ELBOvec.ndim == 1
-    diff = ELBOvec[1:] - ELBOvec[:-1]
-    maskIncrease = diff > 0
-    maskWithinPercDiff = np.abs(diff)/np.abs(ELBOvec[:-1]) < 0.0000001
-    mask = np.logical_or(maskIncrease, maskWithinPercDiff)
-    mask = np.asarray(mask, dtype=np.float64)
-    return np.abs(np.sum(mask) - float(diff.size)) < 0.000001
-
-  def test__verify_monotonic_catches_bad(self):
-    assert self.verify_monotonic( [502.3, 503.1, 504.01, 504.00999999])
-    assert not self.verify_monotonic( [502.3, 503.1, 504.01, 504.00989999])
-    assert not self.verify_monotonic( [401.3, 400.99, 405.12])
-
-  def test__verify_close_under_some_perm(self):
-    isG, permIDs = self.verify_close_under_some_perm([1,2,3,4], [4,3,2,1], '')
-    assert isG
-    assert np.allclose(permIDs, [3,2,1,0])
-
-    avec = np.asarray([1,2,3,4,5,6,7,8])
-    bvec = np.asarray([2,4,6,8,1,3,5,7])
-    isG, permIDs = self.verify_close_under_some_perm(avec, bvec, '')
-    assert isG
-    print permIDs
-    assert np.allclose(permIDs, [4, 0, 5, 1, 6, 2, 7, 3])
-    assert np.allclose(avec, bvec[permIDs])
-
-    avec = np.asarray([1,2,3,4])
-    bvec = np.asarray([2,4,6,8])
-    isG, permIDs = self.verify_close_under_some_perm(avec, bvec, '')
-    assert not isG
-
   ######################################################### EM tests
   #########################################################
-
   def test_EM__evidence_repeatable_and_monotonic(self):
     if 'EM' not in self.learnAlgs:
       raise SkipTest
@@ -136,11 +33,18 @@ class AbstractEndToEndTest(unittest.TestCase):
     assert self.verify_monotonic(Info1['evTrace'])
 
   def test_EM__fromTruth(self):
+    ''' Verify EM alg will not drastically alter model init'd to ideal params.
+
+        Performs one run of EM on provided dataset, using 'trueparams' init.
+    '''
     print '' # new line for nosetests
     if 'EM' not in self.learnAlgs or not hasattr(self, 'TrueParams'):
       raise SkipTest
+    # Create keyword args for "trueparams" initialization
     kwargs = self.get_kwargs(initname='trueparams')
     self.Data.TrueParams = self.TrueParams
+    self.Data.TrueParams['K'] = self.K
+    # Run EM from a "trueparams" init
     model, LP, Info = run(self.Data, self.allocModelName, self.obsModelName,
                           'EM', **kwargs)
     assert self.verify_monotonic(Info['evTrace'])
@@ -166,20 +70,26 @@ class AbstractEndToEndTest(unittest.TestCase):
           assert self.verify_close(arrTrue, arrEst, key)
 
   def test_EM__fromScratch(self):
-    ''' Verify recovery of true parameters "from scratch". Requires many runs.
+    ''' Verify EM alg can estimate params near 'ideal', over many runs.
+
+        Performs fromScratchTrials trials, and verifies some fraction succeed.
+        Local optima issues will prevent all runs from reaching the ideal.
     '''
     if 'EM' not in self.learnAlgs or not hasattr(self, 'TrueParams'):
       raise SkipTest
     if not hasattr(self, 'fromScratchTrials'):
       self.fromScratchTrials = 5
       self.fromScratchSuccessRate = 0.4
-    mask = np.zeros(self.fromScratchTrials)
+    successMask = np.zeros(self.fromScratchTrials)
+    # Run many trials of EM, record each as 0/1 (failure/success)
     for task in range(self.fromScratchTrials):
-      mask[task] = self.run_EM__fromScratch(task+1)
-    assert mask.sum() >= self.fromScratchSuccessRate * self.fromScratchTrials
+      successMask[task] = self.run_EM__fromScratch(task+1)
+    nSuccess_expected = self.fromScratchSuccessRate * self.fromScratchTrials
+    nSuccess_observed = successMask.sum()
+    assert nSuccess_observed >= nSuccess_expected
       
   def run_EM__fromScratch(self, taskid=0):
-    ''' Returns True if true params recovered, False otherwise.'
+    ''' Returns True/False for whether single run of EM finds ideal params.
     '''
     print '' # new line for nosetests
     print '============================================== task %d' % (taskid)
@@ -203,7 +113,6 @@ class AbstractEndToEndTest(unittest.TestCase):
           isG, permIDs = self.verify_close_under_some_perm(arrTrue, arrEst, key)
           if not isG:
             print ' FAILED TO FIND IDEAL PARAMS'
-            # This EM run failed to reach best known solution.
             argstring = ' '.join(sys.argv[1:])
             if 'nocapture' in argstring:
               from matplotlib import pylab
@@ -227,7 +136,9 @@ class AbstractEndToEndTest(unittest.TestCase):
 
   ######################################################### VB tests
   #########################################################
-  def test_vb_repeatable(self):
+  def test_vb_repeatable_and_monotonic(self):
+    ''' Verify VB runs with same seed produce exact same output, monotonic ELBO.
+    '''
     if 'VB' not in self.learnAlgs:
       raise SkipTest
     kwargs = self.get_kwargs()
@@ -237,7 +148,7 @@ class AbstractEndToEndTest(unittest.TestCase):
                           self.obsModelName, 'VB', **kwargs)
     assert len(Info1['evTrace']) == len(Info2['evTrace'])
     assert np.allclose( Info1['evTrace'], Info2['evTrace'])
-
+    assert self.verify_monotonic(Info1['evTrace'])
 
   def test_vb_repeatable_when_continued(self):
     if 'VB' not in self.learnAlgs:
@@ -350,6 +261,111 @@ class AbstractEndToEndTest(unittest.TestCase):
     assert closeAtMSigFigs(vbEv, movbEv, M=2)
     assert closeAtMSigFigs(vbEv, sovbEv, M=2)
 
+  ######################################################### keyword accessors
+  #########################################################
+  def get_kwargs(self, **kwargsIN):
+    ''' Keyword args for calling bnpy.run, avoiding saving to disk
+    '''
+    kwargs = dict(saveEvery=-1, printEvery=-1, traceEvery=1)
+    kwargs['doSaveToDisk'] = False
+    kwargs['doWriteStdOut'] = False
+    kwargs['convergeSigFig'] = 12
+    if hasattr(self, 'kwargs'):
+      kwargs.update(self.kwargs)
+    kwargs.update(**kwargsIN)
+    return kwargs
+
+  def get_kwargs_do_save_disk(self):
+    ''' Keyword arguments for bnpy.run when tests need to write to disk
+    '''
+    kwargs = dict(saveEvery=1, printEvery=1, traceEvery=1)
+    kwargs['doSaveToDisk'] = True
+    kwargs['doWriteStdOut'] = False
+    if hasattr(self, 'kwargs'):
+      kwargs.update(self.kwargs)
+    return kwargs
 
 
+  ######################################################### verify_close
+  #########################################################
+  def verify_close(self, arrTrue, arrEst, key):
+    ''' Returns True if two provided arrays are close, False otherwise.
+    '''
+    arrTrue = arrTrue.copy()
+    arrEst = arrEst.copy()
+    if hasattr(self, 'ProxFunc') and key in self.ProxFunc:
+      mask = self.ProxFunc[key](arrTrue, arrEst)
+    else:
+      mask = np.allclose(arrTrue, arrEst)
+    if np.all(mask):
+      return True
+    return False
 
+  def verify_close_under_some_perm(self, arrTrue, arrEst, key, **kwargs):
+    ''' Returns True if arrays are numerically close under some permutation.
+    '''
+    arrTrue = np.asarray(arrTrue).copy()
+    arrEst = np.asarray(arrEst).copy()
+    K = arrEst.shape[0]
+    K2 = arrTrue.shape[0]
+    assert K == K2
+    true2est = -1 * np.ones(K, dtype=np.int32)
+    est2true = -1 * np.ones(K, dtype=np.int32)
+    for k in range(K):
+      for c in range(K):
+        if est2true[c] >= 0:
+          continue
+        if self.verify_close(arrTrue[k], arrEst[c], key, **kwargs):
+          true2est[k] = c
+          est2true[c] = k
+          break
+    return np.all(true2est >= 0), true2est
+
+  def pprint_mismatched_entries(self, arrTrue, arrEst, key, replaceVal=-123):
+    arrTrue = arrTrue.copy()
+    arrEst = arrEst.copy()
+    if key in self.ProxFunc:
+      mask = self.ProxFunc[key](arrTrue, arrEst)
+    else:
+      mask = np.allclose(arrTrue, arrEst)
+    arrTrue[mask] = replaceVal
+    arrEst[mask] = replaceVal
+    Util.pprint(arrTrue, 'true', replaceVal=replaceVal)
+    Util.pprint(arrEst, 'est', replaceVal=replaceVal)
+
+  def test__verify_close_under_some_perm(self):
+    isG, permIDs = self.verify_close_under_some_perm([1,2,3,4], [4,3,2,1], '')
+    assert isG
+    assert np.allclose(permIDs, [3,2,1,0])
+
+    avec = np.asarray([1,2,3,4,5,6,7,8])
+    bvec = np.asarray([2,4,6,8,1,3,5,7])
+    isG, permIDs = self.verify_close_under_some_perm(avec, bvec, '')
+    assert isG
+    print permIDs
+    assert np.allclose(permIDs, [4, 0, 5, 1, 6, 2, 7, 3])
+    assert np.allclose(avec, bvec[permIDs])
+
+    avec = np.asarray([1,2,3,4])
+    bvec = np.asarray([2,4,6,8])
+    isG, permIDs = self.verify_close_under_some_perm(avec, bvec, '')
+    assert not isG
+
+  ######################################################### verify_monotonic
+  #########################################################
+  def verify_monotonic(self, ELBOvec):
+    ''' Returns True if monotonically increasing, False otherwise.
+    '''
+    ELBOvec = np.asarray(ELBOvec, dtype=np.float64)
+    assert ELBOvec.ndim == 1
+    diff = ELBOvec[1:] - ELBOvec[:-1]
+    maskIncrease = diff > 0
+    maskWithinPercDiff = np.abs(diff)/np.abs(ELBOvec[:-1]) < 0.0000001
+    mask = np.logical_or(maskIncrease, maskWithinPercDiff)
+    mask = np.asarray(mask, dtype=np.float64)
+    return np.abs(np.sum(mask) - float(diff.size)) < 0.000001
+
+  def test__verify_monotonic_catches_bad(self):
+    assert self.verify_monotonic( [502.3, 503.1, 504.01, 504.00999999])
+    assert not self.verify_monotonic( [502.3, 503.1, 504.01, 504.00989999])
+    assert not self.verify_monotonic( [401.3, 400.99, 405.12])
