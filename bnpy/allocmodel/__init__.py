@@ -8,7 +8,6 @@ from admix.AdmixModel import AdmixModel
 from admix.HDPModel import HDPModel
 from admix.HDPModel2 import HDPModel2
 from admix.HDPPE import HDPPE
-from admix.HDPFullHard import HDPFullHard
 from admix.HDPSoft2Hard import HDPSoft2Hard
 from admix.HDPHardMult import HDPHardMult
 
@@ -20,7 +19,6 @@ AllocModelConstructorsByName = { \
            'HDPModel':HDPModel,
            'HDPModel2':HDPModel2,
            'HDPPE':HDPPE,
-           'HDPFullHard':HDPFullHard,
            'HDPSoft2Hard':HDPSoft2Hard,
            'HDPHardMult':HDPHardMult,
           }

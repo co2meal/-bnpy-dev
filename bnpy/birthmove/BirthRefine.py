@@ -46,10 +46,10 @@ def expand_then_refine(freshModel, freshSS, freshData,
   if AInfo is not None and len(origIDs) < Kx:
     for key in AInfo:
       AInfo[key] = AInfo[key][origIDs]
-  assert np.allclose(xbigSS.sumLogPiUnused,
-                      RInfo['sumLogPiUnused'] * bigSS.nDoc)
-  assert np.allclose(xbigSS.sumLogPiActive[bigSS.K:], 
-                      AInfo['sumLogPiActive'][bigSS.K:] * bigSS.nDoc)
+    assert np.allclose(xbigSS.sumLogPiUnused,
+                       RInfo['sumLogPiUnused'] * bigSS.nDoc)
+    assert np.allclose(xbigSS.sumLogPiActive[bigSS.K:], 
+                       AInfo['sumLogPiActive'][bigSS.K:] * bigSS.nDoc)
   
   if hasattr(xfreshSS, 'nDoc'):
     assert xbigSS.nDoc == bigSS.nDoc
@@ -66,13 +66,13 @@ def expand_then_refine(freshModel, freshSS, freshData,
                                   freshData, xbigModel, 
                                   xbigSS, xfreshSS,
                                   Korig=bigSS.K)
-    from IPython import embed; embed()
+
     if AInfo is not None and len(origIDs) < Kx:
       for key in AInfo:
         if AInfo[key].size == Kx:
           AInfo[key] = AInfo[key][origIDs]
-    assert np.allclose(xbigSS.sumLogPiActive[bigSS.K:], 
-                      AInfo['sumLogPiActive'][bigSS.K:] * bigSS.nDoc)
+      assert np.allclose(xbigSS.sumLogPiActive[bigSS.K:], 
+                         AInfo['sumLogPiActive'][bigSS.K:] * bigSS.nDoc)
 
   
   if hasattr(xfreshSS, 'nDoc'):

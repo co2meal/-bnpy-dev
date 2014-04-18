@@ -5,11 +5,21 @@ import numpy as np
 
 import bnpy
 
-kwargs = dict(randstate=np.random.RandomState(0),
+outArgs = dict(traceEvery=1, saveEvery=0, printEvery=1)
+
+algArgs = dict(doFullPassBeforeMstep=0,
+            convergeSigFig=6,
+            startLap=0,
+            doMemoizeLocalParams=1,
+            nCoordAscentItersLP=10,
+            convThrLP=0.01,
+            nHardItersLP=1,
+            doDocTopicFracLP=0,
+            doOnlySomeDocsLP=1,
+            doShowSeriousWarningsOnly=1)
+
+birthArgs = dict(
                Kfresh=10, Kmax=25, 
-               targetMaxSize=100,
-               targetMinWordsPerDoc=0,
-               targetMinKLPerDoc=0,
                creationRoutine='randexamples', 
                cleanupMinSize=25,
                expandAdjustSuffStats=0,
@@ -19,6 +29,19 @@ kwargs = dict(randstate=np.random.RandomState(0),
                cleanupDeleteToImprove=0,
                birthRetainExtraMass=0,
                birthVerifyELBOIncrease=0,
+               fracLapsBirth=0.9,
+               birthPerLap=1,
+               birthBatchFrac=0.0,
+               birthBatchLapLimit=10,
+               doVizBirth=0,
+               ### TargetPlanner
+               targetSelectName='delayandsizebiased',
+               ### TargetDataSampler
+               targetMinSize=50,
+               targetMaxSize=300,
+               targetCompFrac=0.1,
+               targetMinWordsPerDoc=100,
+               targetMinKLPerDoc=0,
              )
 
 BarsName = None
@@ -54,12 +77,12 @@ def loadData(name, **kwargs):
   datamod = __import__(name, fromlist=[])
   return datamod.get_data(**kwargs)
 
-def MakeModelWithTrueTopics(Data, alpha0=5.0, gamma=0.5, aModel='HDPModel'):
+def MakeModelWithTrueTopics(Data, alpha0=5.0, gamma=0.5):
   ''' Create new model.
   '''
   aDict = dict(alpha0=alpha0, gamma=gamma)
   oDict = {'lambda':0.1}
-  hmodel = bnpy.HModel.CreateEntireModel('VB', aModel, 'Mult', 
+  hmodel = bnpy.HModel.CreateEntireModel('VB', 'HDPModel', 'Mult', 
                                           aDict, oDict, Data)
   hmodel.init_global_params(Data, initname='trueparams')
   LP = hmodel.calc_local_params(Data)
@@ -68,7 +91,6 @@ def MakeModelWithTrueTopics(Data, alpha0=5.0, gamma=0.5, aModel='HDPModel'):
   LP = hmodel.calc_local_params(Data)
   SS = hmodel.get_global_suff_stats(Data, LP)
   return hmodel, SS, LP
-
 
 def MakeModelWithTrueTopicsButMissingOne(Data, kmissing=0):
   ''' Create new model.

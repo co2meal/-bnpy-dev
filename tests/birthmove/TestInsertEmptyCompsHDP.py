@@ -33,23 +33,31 @@ def createModelWithEmptyLastComp__viaSScorrected(model, SS, Data):
   # Correction of sumLogPi term!
   nWordPerDoc = np.asarray(Data.to_sparse_docword_matrix().sum(axis=1))
   remEbeta = model.allocModel.Ebeta[-1]
-  EbetaKp1 = alpha * priorFrac * remEbeta
-  EbetaKp2 = alpha * (1-priorFrac) * remEbeta
+  EbetaKp1 = priorFrac * remEbeta
+  EbetaKp2 = (1-priorFrac) * remEbeta
+
+  print '** before  ', EbetaKp1
+  print '**         ', EbetaKp2
+
+  thetaKp1 = alpha * EbetaKp1
+  thetaKp2 = alpha * EbetaKp2
 
   sumDigamma_Nalpha = np.sum(digamma(alpha + nWordPerDoc))
-  xSS.sumLogPiActive[-1] = Data.nDoc * digamma(EbetaKp1) - sumDigamma_Nalpha
-  xSS.sumLogPiUnused = Data.nDoc * digamma(EbetaKp2) - sumDigamma_Nalpha
+  xSS.sumLogPiActive[-1] = Data.nDoc * digamma(thetaKp1) - sumDigamma_Nalpha
+  xSS.sumLogPiUnused = Data.nDoc * digamma(thetaKp2) - sumDigamma_Nalpha
 
   # Correction of ELBOterm ElogqPiUnused
   ElogqPiActive = xSS.getELBOTerm('ElogqPiActive')
-  ElogqPiActive[-1] = (EbetaKp1-1) * xSS.sumLogPiActive[-1] \
-                    - Data.nDoc * gammaln(EbetaKp1)
-  ElogqPiUnused = (EbetaKp2-1) * xSS.sumLogPiUnused \
-                    - Data.nDoc * gammaln(EbetaKp2)
+  ElogqPiActive[-1] = (thetaKp1-1) * xSS.sumLogPiActive[-1] \
+                    - Data.nDoc * gammaln(thetaKp1)
+  ElogqPiUnused = (thetaKp2-1) * xSS.sumLogPiUnused \
+                    - Data.nDoc * gammaln(thetaKp2)
   xSS.setELBOTerm('ElogqPiActive', ElogqPiActive, dims=('K')) 
   xSS.setELBOTerm('ElogqPiUnused', ElogqPiUnused, dims=None)
 
   xmodel.update_global_params(xSS)
+  print '** after   ', xmodel.allocModel.Ebeta[-2]
+  print '**         ', xmodel.allocModel.Ebeta[-1]
   return xmodel, xSS
 
 def createModelWithEmptyLastComp__viaLP(model, LP, Data):
@@ -85,7 +93,7 @@ def createModelWithEmptyLastComp__viaLP(model, LP, Data):
   return xmodel, xSS
 
 def np2flatstr(xvec):
-  return ' '.join( ['%9.3f' % (x) for x in xvec])
+  return ' '.join( ['%9.5f' % (x) for x in xvec])
 
 
 
@@ -109,7 +117,8 @@ class Test_BarsK6V9(unittest.TestCase):
   def setUp(self):
     pass
 
-  def test_equivalent_sumLogPiActive(self):
+  def test_eq_sumLogPiActive(self):
+    print ''
     print "orig        ", np2flatstr(SS.sumLogPiActive)
     print "expanded_LP ", np2flatstr(xSS2.sumLogPiActive)
     print "expanded_SSC", np2flatstr(xSSC.sumLogPiActive)
@@ -117,19 +126,22 @@ class Test_BarsK6V9(unittest.TestCase):
     assert np.allclose( xSS2.sumLogPiActive, xSSC.sumLogPiActive)
     assert np.allclose( xSS2.sumLogPiActive, xSSC2.sumLogPiActive)
 
-  def test_equivalent_Ebeta(self):
+  def test_eq_Ebeta(self):
+    print ''
     print "orig        ", np2flatstr(model.allocModel.Ebeta)
     print "expanded_LP ", np2flatstr(xmodel2.allocModel.Ebeta)
     print "expanded_SSC", np2flatstr(xmodelC.allocModel.Ebeta)
     print "expanded_2c ", np2flatstr(xmodelC2.allocModel.Ebeta)
     assert np.allclose( xmodel2.allocModel.Ebeta, xmodelC.allocModel.Ebeta)
     assert np.allclose( xmodel2.allocModel.Ebeta, xmodelC2.allocModel.Ebeta)
+    # Verify beta weight for original topics has not changed much
     assert np.allclose( xmodel2.allocModel.Ebeta[:-2], 
                         model.allocModel.Ebeta[:-1], atol=0.001)
 
-  def test_equivalent_allocELBO(self):
+  def test_eq_allocELBO__xFromLP_and_xFromSS(self):
     def allocELBO(m, SS):
       return getattr(m,'allocModel').calc_evidence(None, SS, None)
+    print ''
     print "orig        ", allocELBO(model, SS)
     print "expanded_LP ", allocELBO(xmodel2, xSS2)
     print "expanded_SSC", allocELBO(xmodelC, xSSC)
@@ -137,9 +149,10 @@ class Test_BarsK6V9(unittest.TestCase):
     assert np.allclose( allocELBO(xmodel2, xSS2), allocELBO(xmodelC, xSSC))
     assert np.allclose( allocELBO(xmodel2, xSS2), allocELBO(xmodelC2, xSSC2))
 
-  def test_equivalent_obsmodelELBO(self):
+  def test_eq_obsmodelELBO__orig_and_expanded(self):
     def allocELBO(m, SS):
       return getattr(m,'obsModel').calc_evidence(None, SS, None)
+    print ''
     print "orig        ", allocELBO(model, SS)
     print "expanded_LP ", allocELBO(xmodel2, xSS2)
     print "expanded_SSC", allocELBO(xmodelC, xSSC)
