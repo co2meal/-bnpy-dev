@@ -1,12 +1,14 @@
 '''
 Unit-tests for full learning for full-mean, full-covariance Gaussian models
 '''
-import TestGenericModel
-import bnpy
 import numpy as np
 import unittest
 
-class TestDPMixGaussModel(TestGenericModel.TestGenericModel):
+import bnpy
+from AbstractEndToEndTest import AbstractEndToEndTest
+import Util
+
+class TestDPMixGaussModel(AbstractEndToEndTest):
   __test__ = True
 
   def setUp(self):
@@ -18,3 +20,5 @@ class TestDPMixGaussModel(TestGenericModel.TestGenericModel):
     self.obsModelName = 'Gauss'  
     self.kwargs = dict(nLap=30, K=5, alpha0=1)
     self.kwargs['smatname'] = 'eye'
+
+    self.learnAlgs = ['VB', 'soVB', 'moVB']
