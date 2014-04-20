@@ -24,16 +24,27 @@ transPi = np.asarray([[0.0, 1.0, 0.0, 0.0], \
 
 initState = 1
 
-mus = np.asarray([[8, 0], \
-                  [0, 8], \
-                  [-8, 0], \
-                  [0, -8]])
+#mus = np.asarray([[0, 0], \
+#                  [0, 10], \
+#                  [10, 0], \
+#                  [10, 10]])
+
+#sigmas = np.empty((4,2,2))
+#sigmas[0,:,:] = np.asarray([[400, 0], [0, 400]])
+#sigmas[1,:,:] = np.asarray([[400, 0], [0, 400]])
+#sigmas[2,:,:] = np.asarray([[400, 0], [0, 400]])
+#sigmas[3,:,:] = np.asarray([[400, 0], [0, 400]])
+
+mus = np.asarray([[0, 0], \
+                  [0, 1], \
+                  [1, 0], \
+                  [1, 1]])
 
 sigmas = np.empty((4,2,2))
-sigmas[0,:,:] = np.asarray([[1, 0], [0, 1]])
-sigmas[1,:,:] = np.asarray([[1, 0], [0, 1]])
-sigmas[2,:,:] = np.asarray([[1, 0], [0, 1]])
-sigmas[3,:,:] = np.asarray([[1, 0], [0, 1]])
+sigmas[0,:,:] = np.asarray([[4, 0], [0, 4]])
+sigmas[1,:,:] = np.asarray([[4, 0], [0, 4]])
+sigmas[2,:,:] = np.asarray([[4, 0], [0, 4]])
+sigmas[3,:,:] = np.asarray([[4, 0], [0, 4]])
 
 
 def get_X(seed, nObsTotal):
@@ -51,8 +62,8 @@ def get_X(seed, nObsTotal):
 
     Z = np.asarray(Z)
     X = np.vstack(X)
-    #print 'X = ', X[0:10]
-    #print 'Z = ', Z[0:10]
+    print 'X = ', X[0:10]
+    print 'Z = ', Z[0:10]
     return X, Z
 
 

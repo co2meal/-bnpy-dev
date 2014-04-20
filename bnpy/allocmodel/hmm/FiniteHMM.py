@@ -15,17 +15,19 @@ class FiniteHMM(AllocModel):
     def __init__(self, inferType, priorDict):
         self.inferType = inferType
 
-        self.K = 4 #Number of states  TODO : get this to not be set here...
+        self.K = 0 #Number of states
         self.initPi = None #Starting distribution
         self.transPi = None #Transition matrix
-        self.alpha0 = 1
+        self.initAlpha = 0.0
+        self.transAlpha = .1 #TODO : This needs to do something!
 
-        print 'heyo'
 
 
     #TODO: actually set up priors in config/allocmodel.conf
-    def set_prior(self, alpha0):
-        self.alpha0 = alpha0
+    def set_prior(self, initAlpha):
+        self.initAlpha = initAlpha #Dirichlet parameter for initPi
+        self.transAlphas = transAlphas #Array of dirichlet parameters for 
+                                          #transPi
 
 
   ######################################################### Local Params
@@ -66,11 +68,9 @@ class FiniteHMM(AllocModel):
                     self.transPi[k,:] /= self.K
 
             #TODO : is logMargPrSeq actually the "evidence"?
-            #print self.initPi
-            #print 'lpr = ', lpr[0:3,:]
             gamma, psi, logMargPrSeq = \
                 HMMUtil.FwdBwdAlg(self.initPi, self.transPi, lpr)
-            #blah = raw_input()
+
             LP.update({'gamma':gamma})
             LP.update({'psi':psi})
             LP.update({'evidence':logMargPrSeq})
@@ -111,7 +111,7 @@ class FiniteHMM(AllocModel):
 
         (see the documentation for information about psi and gamma)
         '''
-
+        
         if doPrecompEntropy is not None:
             print '*********\n FiniteHMM.get_global_suff_stats() currently ',\
                 'doesn\'t support doPrecompEntropy \n ********'
@@ -119,6 +119,7 @@ class FiniteHMM(AllocModel):
         #This method is called before calc_local_params() during initialization,
             #in which case gamma and psi won't exist
         if ('gamma' not in LP) or ('psi' not in LP):
+            self.K = LP['resp'].shape[1]
             gamma = np.ones((Data.nObs, self.K)) / self.K
             psi = np.ones((Data.nObs, self.K, self.K)) / (self.K * self.K)
             LP.update({'gamma':gamma})
@@ -128,8 +129,6 @@ class FiniteHMM(AllocModel):
         psi = LP['psi']
         
         gamma1 = gamma[0,:]
-        #print gamma[0:5, :]
-        #print np.shape(gamma)
         psiSums = np.sum(psi[1:Data.nObs,:,:], axis = 0)
         N = np.sum(gamma, axis = 0)
 
@@ -164,7 +163,8 @@ class FiniteHMM(AllocModel):
             self.initPi = np.ones(self.K)
             self.transPi = np.ones((self.K, self.K))
 
-        self.initPi = SS.gamma1 / SS.gamma1.sum()
+        self.initPi = (SS.gamma1 + self.initAlpha) \
+            / (SS.gamma1.sum() + self.K * self.initAlpha)
 
         normFactor = np.sum(SS.psiSums, axis = 1)
         for i in xrange(SS.K):
@@ -183,6 +183,7 @@ class FiniteHMM(AllocModel):
             self.transPi = transPi
 
 
+
     def calc_evidence(self, Data, SS, LP):
         if self.inferType == 'EM':
             return LP['evidence']
@@ -191,6 +192,7 @@ class FiniteHMM(AllocModel):
         if self.inferType == 'EM':
             return dict(initPi = self.initPi, transPi = self.transPi)
     def get_prior_dict(self):
-        return dict(alpha0 = self.alpha0, K = self.K)
+        return dict(initAlpha = self.initAlpha, transAlpha = self.transAlpha, \
+                        K = self.K)
 
 
