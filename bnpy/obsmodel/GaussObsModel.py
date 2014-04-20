@@ -129,7 +129,7 @@ class GaussObsModel( ObsModel ):
     for k in xrange(self.K):
       mean    = SS.x[k] / SS.N[k]
       covMat  = SS.xxT[k] / SS.N[k] - np.outer(mean,mean)
-      covMat  += self.min_covar * I      
+      covMat  += self.min_covar * I
       precMat = np.linalg.solve( covMat, I )
       self.comp[k] = GaussDistr(m=mean, L=precMat)
            				 

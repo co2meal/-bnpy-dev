@@ -54,7 +54,7 @@ def FwdBwdAlg(PiInit, PiMat, logSoftEv):
   
   fmsg, margPrObs = FwdAlg(PiInit, PiMat, SoftEv )
   bmsg = BwdAlg( PiInit, PiMat, SoftEv, margPrObs)
-  
+
   respPair = np.zeros( (T,K,K) )
   for t in xrange( 1, T ):
     respPair[t] = PiMat * np.outer(fmsg[t-1], bmsg[t] * SoftEv[t]) / margPrObs[t]
