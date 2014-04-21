@@ -40,6 +40,23 @@ import itertools
 Log = logging.getLogger('bnpy')
 EPS = 10*np.finfo(float).eps
 
+lowTriIDsDict = dict()
+def get_lowTriIDs(K):
+  if K in lowTriIDsDict:
+    return lowTriIDsDict[K]
+  else:
+    ltIDs = np.tril_indices(K, -1)
+    lowTriIDsDict[K] = ltIDs
+    return ltIDs
+
+def get_lowTriIDs_flat(K):
+  if K in lowTriIDsDict:
+    return lowTriIDsDict[K]
+  else:
+    ltIDs = np.tril_indices(K, -1)
+    lowTriIDsDict[K] = np.ravel_multi_index(ltIDs, (K,K))
+    return ltIDs
+
 def estimate_u_multiple_tries(sumLogPi=None, nDoc=0, gamma=1.0, alpha0=1.0,
                               initu=None, initU=None, approx_grad=False,
                               fList=[1e7, 1e8, 1e10], **kwargs):
@@ -264,8 +281,18 @@ def _calcGradients(u1, u0, E):
   dU1_Ebeta /= E['1-v'][:,np.newaxis]
   diagIDs = np.diag_indices(K)
   dU1_Ebeta[diagIDs] /= -E['v']/E['1-v']  
-  lowTriIDs = np.tril_indices(K, -1)
+
+  # Slow way to force lower-triangle of dU1 to be all zeros
+  #lowTriIDs = np.tril_indices(K, -1)
+  #dU1_Ebeta[lowTriIDs] = 0
+
+  # Fast way
+  lowTriIDs = get_lowTriIDs(K)
   dU1_Ebeta[lowTriIDs] = 0
+
+  # Fastest way
+  #lowTriIDs = get_lowTriIDs_flat(K)
+  #dU1_Ebeta.ravel()[flatlowTriIDs] = 0
 
   dU0_Ebeta = dU1_Ebeta * Q1[:,np.newaxis]
   dU1_Ebeta *= -1 * Q0[:,np.newaxis]

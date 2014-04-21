@@ -94,23 +94,6 @@ def inplaceExpAndNormalizeRows_numexpr(R):
   ne.evaluate("exp(R)", out=R)
   R /= R.sum(axis=1)[:,np.newaxis]
 
-###########################################################
-###########################################################
-def toHardAssignmentMatrix(P):
-  ''' Convert "soft" log probability matrix to hard assignments
-      
-      Example
-      ------
-      >>> logpMat = np.asarray( [[-10, -20], [-33, -21]] )
-      [ 1 0 
-        0 1 ]
-  '''
-  N, K = P.shape
-  colIDs = np.argmax(P, axis=1)
-  Phard = scipy.sparse.csr_matrix(
-              (np.ones(N), colIDs, np.arange(N+1)),
-              shape=(N, K), dtype=np.float64)
-  return Phard.toarray()
 
 ########################################################### standard RlogR
 ###########################################################
@@ -278,7 +261,7 @@ def calcRlogRdotv_specificpairs_numpy(R, v, mPairs):
   K = R.shape[1]
   ElogqZMat = np.zeros((K, K))
   if K == 1:
-    return Z
+    return ElogqZMat
   for (kA, kB) in mPairs:
     curWV = R[:,kA] + R[:, kB]
     curWV *= np.log(curWV)
@@ -289,7 +272,7 @@ def calcRlogRdotv_specificpairs_numexpr(R, v, mPairs):
   K = R.shape[1]
   ElogqZMat = np.zeros((K, K))
   if K == 1:
-    return Z
+    return ElogqZMat
   for (kA, kB) in mPairs:
     curR = R[:,kA] + R[:, kB]
     ne.evaluate("curR * log(curR)", out=curR)
@@ -307,7 +290,7 @@ def calcRlogRdotv_specificpairs_numpyvec(R, v, mPairs):
   K = R.shape[1]
   ElogqZMat = np.zeros((K, K))
   if K == 1:
-    return Z
+    return ElogqZMat
   for kA in PartnerDict:
     curWV = R[:,kA][:,np.newaxis] + R[:, PartnerDict[kA]]
     curWV *= np.log(curWV)

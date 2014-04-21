@@ -191,6 +191,7 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
                                      MSelector=MSelector,
                                      mergename=mergename, 
                                      randstate=randstate)
+
   # Create candidate merged model
   propModel, propSS = propose_merge_candidate(curModel, SS, kA, kB, doUpdateAllComps=doUpdateAllComps)
 
@@ -205,9 +206,15 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
 
   evDiff = propEv - curEv
 
-  
-  if (propEv > 0 and curEv < 0) and hasattr(Data, 'nDoc'):
-    print 'CRAP! ---------------------------------------!!!!@@@@@@$$$$$'
+  if hasattr(SS, 'nDoc') and np.abs(propEv - curEv) > 0.05 * np.abs(curEv):
+    print 'CRAP! ---------------------------------------!!!!$$$$$$$$'
+    print '    propEv % .5e' % (propEv)
+    print '    curEv  % .5e' % (curEv)
+    MoveInfo = dict(didAccept=0, kA=kA, kB=kB, msg="CRAP. bad proposed evidence.")
+    return curModel, SS, curEv, MoveInfo
+
+  if hasattr(SS, 'nDoc') and (propEv > 0 and curEv < 0):
+    print 'CRAP! ---------------------------------------!!!!@@@@@@@@'
     print '    propEv % .5e' % (propEv)
     print '    curEv  % .5e' % (curEv)
     MoveInfo = dict(didAccept=0, kA=kA, kB=kB, msg="CRAP. bad proposed evidence.")

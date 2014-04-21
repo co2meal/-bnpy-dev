@@ -99,27 +99,37 @@ class WordsData(DataObj):
 
   ######################################################### Sparse matrix
   #########################################################  representations
-  def to_sparse_matrix(self):
+  def to_sparse_matrix(self, doBinary=False):
     ''' Make sparse matrix counting vocab usage across all words in dataset
 
         Returns
         --------
-        C : sparse (CSC-format) matrix, of shape nObs-x-vocab_size, where
+        C : sparse (CSC-format) matrix, size nObs x vocab_size
              C[n,v] = word_count[n] iff word_id[n] = v
                       0 otherwise
              That is, each word token n is represented by one entire row
                       with only one non-zero entry: at column word_id[n]
 
     '''
-    if hasattr(self, "__sparseMat__"):
+    if hasattr(self, "__sparseMat__") and not doBinary:
       return self.__sparseMat__
+    if hasattr(self, '__sparseBinMat__') and doBinary:
+      return self.__sparseBinMat__
+
     indptr = np.arange(self.nObs+1) # define buckets for one entry per row
-    self.__sparseMat__ = scipy.sparse.csc_matrix(
+    if doBinary:
+      self.__sparseBinMat__ = scipy.sparse.csc_matrix(
+                        (np.ones(self.nObs), np.int64(self.word_id), indptr),
+                        shape=(self.vocab_size, self.nObs))
+      return self.__sparseBinMat__
+
+    else:
+      self.__sparseMat__ = scipy.sparse.csc_matrix(
                         (self.word_count, np.int64(self.word_id), indptr),
                         shape=(self.vocab_size, self.nObs))
-    return self.__sparseMat__
+      return self.__sparseMat__
   
-  def to_sparse_docword_matrix(self):
+  def to_sparse_docword_matrix(self, weights=None, thr=None, **kwargs):
     ''' Make sparse matrix counting vocab usage for each document in dataset
         Used for efficient initialization of global parameters.
 
@@ -128,7 +138,7 @@ class WordsData(DataObj):
         C : sparse (CSR-format) matrix, of shape nDoc-x-vocab_size, where
             C[d,v] = total count of vocab word v in document d
     '''
-    if hasattr(self, "__sparseDocWordMat__"):
+    if hasattr(self, "__sparseDocWordMat__") and weights is None:
       return self.__sparseDocWordMat__
     row_ind = list()
     col_ind = list()
@@ -138,12 +148,36 @@ class WordsData(DataObj):
       numDistinct = doc_range[d,1] - doc_range[d,0]
       doc_ind_temp = [d]*numDistinct
       row_ind.extend(doc_ind_temp)
-      col_ind.extend(self.word_id[ (doc_range[d,0]):(doc_range[d,1]) ])
-    self.__sparseDocWordMat__ = scipy.sparse.csr_matrix(
-                               (word_count, (row_ind,col_ind)),
+      col_ind.extend(self.word_id[doc_range[d,0]:doc_range[d,1]])
+    if weights is None:
+      weights = self.word_count
+    else:
+      if thr is not None:
+        mask = np.flatnonzero(weights > thr)
+        weights = weights[mask] * self.word_count[mask]
+        row_ind = np.asarray(row_ind)[mask]
+        col_ind = np.asarray(col_ind)[mask]
+      else:
+        weights = weights * self.word_count
+    sparseDocWordmat = scipy.sparse.csr_matrix(
+                               (weights, (row_ind,col_ind)),
                                shape=(self.nDoc, self.vocab_size), 
                                dtype=np.float64)
-    return self.__sparseDocWordMat__
+    if weights is None:
+      self.__sparseDocWordMat__ = sparseDocWordmat
+    return sparseDocWordmat
+
+  def get_nObs2nDoc_mat(self):
+    ''' Returns nDoc x nObs sparse matrix
+    '''
+    data = np.ones(self.nObs)
+    # row_ind will look like 0000, 111, 22, 33333, 444, 55
+    col_ind = np.arange(self.nObs)
+
+    indptr = np.hstack([Data.doc_range[0,0], Data.doc_range[:,1]])
+    return scipy.sparse.csr_matrix( (data, (row_ind, col_ind)),
+                                    shape=(self.nDoc, self.nObs),
+                                    dtype=np.float64)
 
   ######################################################### DataObj interface
   #########################################################  methods
@@ -169,7 +203,7 @@ class WordsData(DataObj):
     self.nDocTotal += WData.nDocTotal
     self._verify_attributes()
 
-  def get_random_sample(self, nDoc, randstate=np.random):
+  def get_random_sample(self, nDoc, randstate=np.random, candidates=None):
     ''' Create WordsData object for random subsample of this dataset
 
         Args
@@ -181,7 +215,10 @@ class WordsData(DataObj):
         -------
         WordsData : bnpy WordsData instance, with at most nDoc documents
     '''
-    docMask = randstate.permutation(self.nDoc)[:nDoc]
+    if candidates is None:
+      docMask = randstate.permutation(self.nDoc)[:nDoc]
+    else:
+      docMask = randstate.permutation(candidates)[:nDoc]
     return self.select_subset_by_mask(docMask=docMask,
                                                 doTrackFullSize=False)
 
@@ -464,3 +501,30 @@ class WordsData(DataObj):
     return WordsData(word_id, word_count, doc_range, V,
                     nDocTotal=nDocTotal, TrueParams=TrueParams)
 
+
+  ######################################################### Write to file
+  #########################################################  (instance method)
+  def WriteToFile_ldac(self, filepath, min_word_index=0):
+    ''' Write contents of this dataset to plain-text file in "ldac" format.
+        
+        Args
+
+        Returns
+        -------
+        None. Writes to file instead.
+
+        Each line of file represents one document, and has format
+        [U] [term1:count1] [term2:count2] ... [termU:countU]
+    '''
+    word_id = self.word_id
+    if min_word_index > 0:
+      word_id = word_id + min_word_index
+    with open(filepath, 'w') as f:
+      for d in xrange(self.nDoc):
+        dstart = self.doc_range[d,0]
+        dstop = self.doc_range[d,1]
+        nUniqueInDoc = dstop - dstart
+        idct_list = ["%d:%d" % (word_id[n], self.word_count[n]) \
+                              for n in xrange(dstart, dstop)]
+        docstr = "%d %s" % (nUniqueInDoc, ' '.join(idct_list)) 
+        f.write(docstr + '\n')

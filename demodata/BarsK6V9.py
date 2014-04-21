@@ -1,28 +1,11 @@
 '''
-BarsK50V2500.py
+BarsK6V9.py
 
-Toy Bars data, with K=50 topics and V=2500 vocabulary size.
-25 horizontal bars, and 25 vertical vertical ones.
+Toy Bars data, with K=6 topics and vocabulary size 9.
+3 horizontal bars, and 3 vertical bars.
 
 Generated via the standard LDA generative model
   see WordsData.CreateToyDataFromLDAModel for details.
-
-Usage
----------
-To visualize example documents, execute this file as a script 
->> python BarsK50V2500.py
-
-To visualize document "1" from within Python
->> Data = BarsK50V2500.get_data(nDocTotal=5)
->> wid1 = Data.word_id[ Data.doc_range[0,0]:Data.doc_range[0,1] ]
->> wct1 = Data.word_count[ Data.doc_range[0,0]:Data.doc_range[0,1] ]
-Make histogram with counts for each of the vocab word types
->> whist = np.zeros(Data.vocab_size)
->> whist[wid1] = wct1
-# Plot it as a 2D image
->> whist2D = np.reshape( whist, (50, 50) )
->> pylab.imshow(whist2D, interpolation='nearest')
-
 '''
 import numpy as np
 from bnpy.data import WordsData, AdmixMinibatchIterator
@@ -32,13 +15,13 @@ SEED = 8675309
 PRNG = np.random.RandomState(SEED)
 
 # FIXED DATA GENERATION PARAMS
-K = 50 # Number of topics
-V = 2500 # Vocabulary Size
-gamma = 0.75 # hyperparameter over doc-topic distribution
+K = 6 # Number of topics
+V = 9 # Vocabulary Size
+gamma = 0.5 # hyperparameter over doc-topic distribution
 
 Defaults = dict()
-Defaults['nDocTotal'] = 2000
-Defaults['nWordsPerDoc'] = 5 * V / (K/2)
+Defaults['nDocTotal'] = 200
+Defaults['nWordsPerDoc'] = 25
 
 # GLOBAL PROB DISTRIBUTION OVER TOPICS
 trueBeta = np.ones(K)
@@ -53,7 +36,7 @@ def get_data_info(**kwargs):
       nDocTotal = kwargs['nDocTotal']
     else:
       nDocTotal = Defaults['nDocTotal']
-    return 'Toy Bars Data. Ktrue=%d. nDocTotal=%d. Typically 2-4 bars per doc' % (K, nDocTotal)
+    return 'Toy Bars Data. Ktrue=%d. nDocTotal=%d. Typically 1-3 bars per doc.' % (K, nDocTotal)
 
 def get_data(**kwargs):
     ''' 

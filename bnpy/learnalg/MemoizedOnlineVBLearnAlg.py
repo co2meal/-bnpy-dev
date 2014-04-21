@@ -52,8 +52,6 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
                         {'converged', 'max passes exceeded'}
     
     '''
-    origmodel = hmodel
-
     # Define how much of data we see at each mini-batch
     nBatch = float(DataIterator.nBatch)
     self.lapFracInc = 1.0/nBatch
@@ -99,30 +97,30 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         if SS is not None:
           hmodel.update_global_params(SS)
       
-      # Birth moves!
-      if self.hasMove('birth') and self.do_birth_at_lap(lapFrac - 1.0):
-        if self.isFirstBatch(lapFrac):
+      # Birth move : track birth info from previous lap
+      if self.isFirstBatch(lapFrac):
+        if self.hasMove('birth') and self.do_birth_at_lap(lapFrac - 1.0):
           prevBirthResults = BirthResults
+        else:
+          prevBirthResults = list()
 
+      # Birth move : create new components
       if self.hasMove('birth') and self.do_birth_at_lap(lapFrac):
-        birthParams = self.algParams['birth']
-        if self.isFirstBatch(lapFrac):
-
+        if self.doBirthWithPlannedData(lapFrac):
           hmodel, SS, BirthResults = self.birth_create_new_comps(
                                             hmodel, SS, BirthPlans)
-        if lapFrac < birthParams['batchBirthLapLimit'] \
-           and lapFrac - np.floor(lapFrac) <= birthParams['batchBirthFrac'] \
-           and lapFrac - np.floor(lapFrac) > 1e-7 :
+
+        if self.doBirthWithDataFromCurrentBatch(lapFrac):
           hmodel, SS, BirthRes = self.birth_create_new_comps(
                                             hmodel, SS, Data=Dchunk)
           BirthResults.extend(BirthRes)
 
         self.BirthCompIDs = self.birth_get_all_new_comps(BirthResults)
         self.ModifiedCompIDs = self.birth_get_all_modified_comps(BirthResults)
-
       else:
-        self.BirthCompIDs = list() # no new components
-
+        BirthResults = list()
+        self.BirthCompIDs = list() # no births = no new components
+        self.ModifiedCompIDs = list()
 
       # Select which components to merge
       if self.hasMove('merge') and not self.algParams['merge']['doAllPairs']:
@@ -193,6 +191,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       self.add_nObs(Dchunk.nObs)
       self.save_state(hmodel, iterid, lapFrac, evBound)
       self.print_state(hmodel, iterid, lapFrac, evBound)
+      self.eval_custom_func(hmodel, iterid, lapFrac)
 
       # Check for Convergence!
       #  evBound will increase monotonically AFTER first lap of the data 
@@ -210,12 +209,6 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       msg = "max passes thru data exceeded."
     self.save_state(hmodel, iterid, lapFrac, evBound, doFinal=True) 
     self.print_state(hmodel, iterid, lapFrac,evBound,doFinal=True,status=msg)
-    self.SS = SS # hack so we can examine global suff stats
-    # Births and merges require copies of original model object
-    #  we need to make sure original reference has updated parameters, etc.
-    if id(origmodel) != id(hmodel):
-      origmodel.allocModel = hmodel.allocModel
-      origmodel.obsModel = hmodel.obsModel
     return None, self.buildRunInfo(evBound, msg)
 
   def verify_suff_stats(self, Dchunk, SS, lap):
@@ -246,77 +239,29 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
   ######################################################### Load from memory
   #########################################################
-<<<<<<< HEAD
   def load_batch_suff_stat_from_memory(self, batchID, K):
-=======
-  def load_batch_suff_stat_from_memory(self, batchID, K, 
-                                       prevBirthResults=None, BirthResults=None):
->>>>>>> 792d1ed... INPROGRESS improved tests for expanding the nested truncation for HDPModel and HDPModel2
     ''' Load the suff stats stored in memory for provided batchID
         Returns
         -------
         SSchunk : bnpy SuffStatDict object for batchID
     '''
     SSchunk = self.SSmemory[batchID]
-    # Successful merges from the previous lap must be "replayed"
-    #  on the memoized suff stats
-    if self.hasMove('birth'):
-      Kextra = K - SSchunk.K
-      if Kextra > 0:
-        SSchunk.insertEmptyComps(Kextra)      
+    # "replay" accepted merges from end of previous lap 
     if self.hasMove('merge'): 
       for MInfo in self.MergeLog:
         kA = MInfo['kA']
         kB = MInfo['kB']
         if kA < SSchunk.K and kB < SSchunk.K:
           SSchunk.mergeComps(kA, kB)
-    if self.hasMove('merge'): 
       if SSchunk.hasMergeTerms():
         SSchunk.setMergeFieldsToZero()
-    if self.hasMove('birth') and self.algParams['birth']['batchBirthFrac'] > 0:   
+    # "replay" generic and batch-specific births from this lap
+    if self.hasMove('birth'):   
       Kextra = K - SSchunk.K
       if Kextra > 0:
         SSchunk.insertEmptyComps(Kextra)
     assert SSchunk.K == K
-<<<<<<< HEAD
-=======
-    # Adjust / replace terms related to expansion
-    MoveInfoList = list()
-    if prevBirthResults is not None:
-      MoveInfoList.extend(prevBirthResults)
-    if BirthResults is not None:
-      MoveInfoList.extend(BirthResults)
-    for MInfo in MoveInfoList:
-      if 'AdjustInfo' in MInfo:
-        if 'bchecklist' not in MInfo:
-          MInfo['bchecklist'] = np.zeros(self.nBatch)
-        bchecklist = MInfo['bchecklist']
-        if bchecklist[batchID] > 0:
-          continue
-        # Do the adjustment work
-        for key in MInfo['AdjustInfo']:
-          if hasattr(SSchunk, key):
-            Kmax = MInfo['AdjustInfo'][key].size
-            arr = getattr(SSchunk, key)
-            arr[:Kmax] += SSchunk.nDoc *  MInfo['AdjustInfo'][key]
-            SSchunk.setField(key, arr, dims=SSchunk._FieldDims[key])
-          # TODO: ELBO??
-        # Record visit, so adjustment is only done once
-        bchecklist[batchID] = 1
-    # Run backwards through results to find most recent ReplaceInfo
-    for MInfo in reversed(MoveInfoList):
-      if 'ReplaceInfo' in MInfo:
-        if MInfo['bchecklist'] > 1:
-          break # this batch has had replacements done already
-        for key in MInfo['ReplaceInfo']:
-          if hasattr(SSchunk, key):
-            arr = getattr(SSchunk, key)
-            arr += SSchunk.nDoc * MInfo['ReplaceInfo'][key]
-            SSchunk.setField(key, arr, dims=SSchunk._FieldDims[key])
-        MInfo['bchecklist'][batchID] = 2
-        break # Stop after the first ReplaceInfo
->>>>>>> 792d1ed... INPROGRESS improved tests for expanding the nested truncation for HDPModel and HDPModel2
-    return SSchunk  
+    return SSchunk
 
   def load_batch_local_params_from_memory(self, batchID, BirthResults):
     ''' Load local parameter dict stored in memory for provided batchID
@@ -369,6 +314,17 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
   ######################################################### Birth moves!
   #########################################################
+  def doBirthWithPlannedData(self, lapFrac):
+    return self.isFirstBatch(lapFrac)
+
+  def doBirthWithDataFromCurrentBatch(self, lapFrac):
+    if self.isLastBatch(lapFrac):
+      return False
+    rem = lapFrac - np.floor(lapFrac)
+    isWithinFrac = rem <= self.algParams['birth']['batchBirthFrac'] + 1e-6
+    isWithinLimit = lapFrac <= self.algParams['birth']['batchBirthLapLimit'] 
+    return isWithinFrac and isWithinLimit
+
   def birth_create_new_comps(self, hmodel, SS, BirthPlans=list(), Data=None):
     ''' Create new components 
 
@@ -382,13 +338,22 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     '''
     if Data is not None:
       if hasattr(Data, 'nDoc'):
+        wordPerDocThr = self.algParams['birth']['birthWordsPerDocThr']
+        if wordPerDocThr > 0:
+          nWordPerDoc = np.asarray(Data.to_sparse_docword_matrix().sum(axis=1))
+          candidates = nWordPerDoc >= wordPerDocThr
+          candidates = np.flatnonzero(candidates)
+        else:
+          candidates = None
         targetData = Data.get_random_sample(
                                 self.algParams['birth']['maxTargetSize'],
-                                randstate=self.PRNG)
+                                randstate=self.PRNG, candidates=candidates)
       else:
         targetData = Data.get_random_sample(
                                 self.algParams['birth']['maxTargetObs'],
                                 randstate=self.PRNG)
+
+
       Plan = dict(Data=targetData, ktarget=-1)
       BirthPlans = [Plan]
 
