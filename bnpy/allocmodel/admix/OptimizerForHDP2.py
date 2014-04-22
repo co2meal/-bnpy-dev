@@ -34,7 +34,8 @@ EPS = 10*np.finfo(float).eps
 
 def find_optimum_multiple_tries(sumLogPi=None, nDoc=0, gamma=1.0, alpha=1.0,
                                 initrho=None, initomega=None,
-                                approx_grad=False, factrList=[1e5, 1e7, 1e9],
+                                approx_grad=False,
+                                factrList=[1e5, 1e7, 1e9, 1e10, 1e11],
                                 **kwargs):
   ''' Estimate vectors rho and omega via gradient descent,
         gracefully using multiple restarts

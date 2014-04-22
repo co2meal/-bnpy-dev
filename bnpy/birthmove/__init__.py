@@ -10,3 +10,5 @@ import BirthMove
 
 import TargetDataSampler
 import TargetPlanner
+
+import VizBirth

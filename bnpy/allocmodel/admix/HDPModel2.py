@@ -140,6 +140,7 @@ class HDPModel2(HDPModel):
         rho = self.rho
         omega = self.omega
       else:
+        from IPython import embed; embed()
         Log.error('***** Optim failed. Set to prior. ' + str(error))
         omega = (self.alpha0 + 1 ) * np.ones(SS.K)
         rho = 1/float(1+self.alpha0) * np.ones(SS.K)
@@ -225,9 +226,9 @@ class HDPModel2(HDPModel):
       E_logqZ *= SS.ampF
 
     if todict:
-      return dict(ElogpPi=E_logpPi, ElogqPi=E_logqPi,
-                  ElogpZ=E_logpZ, ElogqZ=E_logqZ,
-                  ElogpV=E_logpV, ElogqV=E_logqV)
+      return dict(pi_Elogp=E_logpPi, pi_Elogq=E_logqPi,
+                  z_Elogp=E_logpZ, z_Elogq=E_logqZ,
+                  v_Elogp=E_logpV, v_Elogq=E_logqV)
 
     elbo = ((E_logpPi - E_logqPi)
             + (E_logpZ - E_logqZ)

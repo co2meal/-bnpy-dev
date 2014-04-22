@@ -62,7 +62,9 @@ class Test_BarsK6V9(unittest.TestCase):
 
   def setUp(self):
     self.dataName = 'BarsK6V9'
+
     mykwargs = dict(**U.kwargs)
+    mykwargs['randstate'] = np.random.RandomState(123)
     mykwargs['Kfresh'] = 5
     mykwargs['targetMinWordsPerDoc'] = 0
     mykwargs['targetMaxSize'] = 100
@@ -72,6 +74,8 @@ class Test_BarsK6V9(unittest.TestCase):
     mykwargs['cleanupDeleteToImprove'] = 1
     mykwargs['birthVerifyELBOIncrease'] = 1
     mykwargs['birthRetainExtraMass'] = 0
+    mykwargs['expandAdjustSuffStats'] = 1
+
     self.kwargs = mykwargs
     self.Kexpected = np.minimum(6, mykwargs['Kmax'])
 

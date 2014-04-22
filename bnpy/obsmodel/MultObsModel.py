@@ -192,13 +192,18 @@ class MultObsModel(ObsModel):
 
   ######################################################### Evidence
   #########################################################
-    def calc_evidence(self, Data, SS, LP):
+    def calc_evidence(self, Data, SS, LP, todict=False):
         if self.inferType == 'EM':
             return 0 # handled by alloc model
         # Calculate p(w | z, lambda) + p(lambda) - q(lambda)
         elbo_pWords = self.E_log_pW(SS)
         elbo_pLambda = self.E_log_pLambda()
         elbo_qLambda = self.E_log_qLambda()
+        if todict:
+          return dict(data_Elogp=elbo_pWords,
+                      phi_Elogp=elbo_pLambda,
+                      phi_Elogq=elbo_qLambda,
+                     )
         return elbo_pWords + elbo_pLambda - elbo_qLambda
         
     def E_log_pW(self, SS):

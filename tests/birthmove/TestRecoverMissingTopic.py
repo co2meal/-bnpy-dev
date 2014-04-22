@@ -58,6 +58,7 @@ class Test_BarsK6V9(unittest.TestCase):
   def setUp(self):
     self.dataName = 'BarsK6V9'
     mykwargs = dict(**U.kwargs)
+    mykwargs['randstate'] = np.random.RandomState(3692468)
     mykwargs['Kfresh'] = 5
     mykwargs['targetMaxSize'] = 100
     mykwargs['creationroutine'] = 'randexamples'
@@ -66,6 +67,8 @@ class Test_BarsK6V9(unittest.TestCase):
     mykwargs['cleanupDeleteToImprove'] = 1
     mykwargs['birthVerifyELBOIncrease'] = 1
     mykwargs['birthRetainExtraMass'] = 0
+    mykwargs['expandAdjustSuffStats'] = 1
+    mykwargs['doVizBirth'] = 1
     self.kwargs = mykwargs
 
   def test_birth_targets_missing_comp_does_add_new(self):
@@ -74,10 +77,10 @@ class Test_BarsK6V9(unittest.TestCase):
       self.verify_birth_targets_missing_comp_does_add_new(Data, kmissing)
 
   def verify_birth_targets_missing_comp_does_add_new(self, Data, kmissing=0):
-    model, SS, LP = U.MakeModelWithTrueTopicsButMissingOne(Data, 
+    model, SS = U.MakeModelWithTrueTopicsButMissingOne(Data, 
+                                                 aModel='HDPModel2',
                                                  kmissing=kmissing
                                                  )      
-    print SS.sumLogPiActive
     didPass, msg, Info = runBirthTargetedAtMissingCompAndVerifyChange(
                                                  model, SS, Data, 
                                                  kmissing=kmissing,
@@ -86,7 +89,7 @@ class Test_BarsK6V9(unittest.TestCase):
     argstring = ' '.join(sys.argv)
     if argstring.count('nocapture') > 0:
       print Info['SS'].sumLogPiActive
-      U.viz_bars_and_wait_for_key_press(Info)
+      U.viz_bars_and_wait_for_key_press(Info['model'])
     print msg
     assert didPass
 
@@ -105,7 +108,7 @@ class Test_BarsK10V900(Test_BarsK6V9):
     mykwargs['birthRetainExtraMass'] = 0
     self.kwargs = mykwargs
 
-
+"""
 class Test_BarsK10V900_findmissingtopics(Test_BarsK6V9):
 
   def setUp(self):
@@ -138,3 +141,4 @@ class Test_BarsK10V900_findmissingtopics_adjusted(Test_BarsK6V9):
     mykwargs['birthVerifyELBOIncrease'] = 1
     mykwargs['birthRetainExtraMass'] = 0
     self.kwargs = mykwargs
+"""

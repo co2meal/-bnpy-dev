@@ -6,6 +6,7 @@ import BirthCreate
 import BirthRefine
 import BirthCleanup
 from BirthProposalError import BirthProposalError
+import VizBirth
 
 def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
   ''' Run birth move on provided target data, creating up to Kfresh new comps
@@ -54,35 +55,47 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
 
     assert xbigModel.obsModel.K == xbigSS.K
 
-    ELBOstr = ''
     if kwargs['birthVerifyELBOIncrease']:
       assert xfreshSS.hasELBOTerms()
+
+      curbigModel = bigModel.copy()
+      nStep = 3
+      for step in range(nStep):
+        doELBO = (step == nStep-1) # only on last step
+        curfreshLP = curbigModel.calc_local_params(freshData)
+        curfreshSS = curbigModel.get_global_suff_stats(freshData, curfreshLP,
+                                                       doPrecompEntropy=doELBO)
+        curbigModel.update_global_params(bigSS + curfreshSS)
+   
+      curELBO  = curbigModel.calc_evidence(SS=curfreshSS)
       propELBO = xbigModel.calc_evidence(SS=xfreshSS)
 
-      curfreshLP = bigModel.calc_local_params(freshData)
-      curfreshSS = bigModel.get_global_suff_stats(freshData, curfreshLP,
-                                                          doPrecompEntropy=True)
-      curbigModel = bigModel.copy()
-      curbigModel.update_global_params(bigSS + curfreshSS)
+      percDiff = (propELBO - curELBO)/np.abs(curELBO)
+      didPass = propELBO > curELBO and percDiff > 0.0001      
+      ELBOmsg = " propEv %.4e | curEv %.4e" % (propELBO, curELBO)
+    else:
+      didPass = True
+      propELBO = None
+      curELBO = None
+      ELBOmsg = ''
 
-      # Compare ELBO
-      curELBO  = curbigModel.calc_evidence(SS=curfreshSS)
-      ELBOstr = " propEv %.4e | curEv %.4e" % (propELBO, curELBO)
-
-      if propELBO > curELBO:
-        pass # Accepted!
-      else:
-        # Reject. Abandon the move.
-        msg = "BIRTH failed. No improvement over current model."
-        msg += " propEv %.4e | curEv %.4e" % (propELBO, curELBO)
-        raise BirthProposalError(msg)
-
-    assert xbigModel.obsModel.K == xbigSS.K
-    ### Create dict of info about this birth move
+    # Visualize, if desired
     Kcur = bigSS.K
     Ktotal = xbigSS.K
     birthCompIDs = range(Kcur, Ktotal)
-    msg = 'BIRTH: %d fresh comps. %s.' % (len(birthCompIDs), ELBOstr)
+    if 'doVizBirth' in kwargs and kwargs['doVizBirth']:
+      VizBirth.viz_birth_proposal(bigModel, xbigModel, birthCompIDs,
+                                  curELBO=curELBO, propELBO=propELBO, **kwargs)
+      from IPython import embed; embed()
+
+    # Reject. Abandon the move.
+    if not didPass:
+      msg = "BIRTH failed. No improvement over current model." + ELBOmsg
+      raise BirthProposalError(msg)
+
+    assert xbigModel.obsModel.K == xbigSS.K
+    ### Create dict of info about this birth move
+    msg = 'BIRTH: %d fresh comps. %s.' % (len(birthCompIDs), ELBOmsg)
     MoveInfo = dict(didAddNew=True,
                     msg=msg,
                     AdjustInfo=AI, ReplaceInfo=RI,
@@ -118,8 +131,6 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
             ELBOTerms.setField(key, bigSS.nDoc * RI[key], dims=None)
       xbigSS.restoreELBOTerms(ELBOTerms)
 
-    if 'doVizBirth' in kwargs and kwargs['doVizBirth']:
-      viz_birth_proposal(bigModel, xbigModel, birthCompIDs, **kwargs)
     return xbigModel, xbigSS, MoveInfo
   except BirthProposalError, e:
     ### Clean-up code when birth proposal fails for any reason, including:

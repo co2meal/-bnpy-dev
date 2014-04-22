@@ -62,12 +62,11 @@ def MakeModelWithTrueTopics(Data, alpha0=5.0, gamma=0.5, aModel='HDPModel'):
   hmodel = bnpy.HModel.CreateEntireModel('VB', aModel, 'Mult', 
                                           aDict, oDict, Data)
   hmodel.init_global_params(Data, initname='trueparams')
-  LP = hmodel.calc_local_params(Data)
-  SS = hmodel.get_global_suff_stats(Data, LP)
-  hmodel.update_global_params(SS)
-  LP = hmodel.calc_local_params(Data)
-  SS = hmodel.get_global_suff_stats(Data, LP)
-  return hmodel, SS, LP
+  for _ in range(5):
+    LP = hmodel.calc_local_params(Data)
+    SS = hmodel.get_global_suff_stats(Data, LP)
+    hmodel.update_global_params(SS)
+  return hmodel, SS
 
 
 def MakeModelWithTrueTopicsButMissingOne(Data, kmissing=0, aModel='HDPModel'):
@@ -78,17 +77,20 @@ def MakeModelWithTrueTopicsButMissingOne(Data, kmissing=0, aModel='HDPModel'):
   hmodel = bnpy.HModel.CreateEntireModel('VB', aModel, 'Mult', 
                                           aDict, oDict, Data)
   hmodel.init_global_params(Data, initname='trueparams')
+
+  # Remove specific comp from the model
   LP = hmodel.calc_local_params(Data)
   SS = hmodel.get_global_suff_stats(Data, LP)
-  # Remove the comp from SS and the model itself
   SS.removeComp(kmissing)
   hmodel.update_global_params(SS)
 
-  # Perform local/summary/global updates so everything is at desired scale
-  LP = hmodel.calc_local_params(Data)
-  SS = hmodel.get_global_suff_stats(Data, LP)
-  hmodel.update_global_params(SS)
-  return hmodel, SS, LP
+  # Perform several local/summary/global updates
+  #  so everything is at desired scale
+  for _ in range(5):
+    LP = hmodel.calc_local_params(Data)
+    SS = hmodel.get_global_suff_stats(Data, LP)
+    hmodel.update_global_params(SS)
+  return hmodel, SS
 
 def MakeModelWithFiveTopics(Data, aModel='HDPModel'):
   ''' Create new model.

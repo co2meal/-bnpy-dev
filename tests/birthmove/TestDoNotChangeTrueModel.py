@@ -34,12 +34,15 @@ def runBirthAndVerifyNoChange(bigmodel, bigSS, bigData, **kwargs):
   if Info['didAddNew']:
     #U.viz_bars_and_wait_for_key_press(newModel)
     didPass = False
-    msg = 'added new comp.'
     freshLP = newModel.calc_local_params(Data)
     freshSS = newModel.get_global_suff_stats(Data, freshLP)
     print freshSS.N
     newM, newELBO = runCoordAscent(newModel, bigData, nIters=10)
     curM, curELBO = runCoordAscent(bigmodel, bigData, nIters=10)
+    #elboA, elboB = compare_ELBO(bigmodel, newModel, bigData)
+    if not curELBO[0] > newELBO[0]:
+      print 'WHOA! FOUND CONFIG BETTER THAN TRUTH!'
+      print curELBO - newELBO
   elif not id(newModel) == id(bigmodel):
     didPass = False
     msg = 'model id changed'
@@ -49,6 +52,38 @@ def runBirthAndVerifyNoChange(bigmodel, bigSS, bigData, **kwargs):
   Info['model'] = newModel
   Info['SS'] = newSS
   return didPass, msg, Info
+
+def pprint_ELBO(elboA, elboB=None):
+  for target in ['data', 'phi', 'v', 'pi', 'z']:
+    x = 0
+    y = 0
+    for key in elboA.keys():
+      if key.startswith(target):
+        if key.endswith('q'):
+          x -= elboA[key]
+          if elboB is not None:
+            y -= elboB[key]
+        else:
+          x += elboA[key]
+          if elboB is not None:  
+            y += elboB[key]
+    print '%16s %8.0f' % (target, x - y)
+
+def compare_ELBO(modelA, modelB, Data):
+  modelA = modelA.copy()
+  modelB = modelB.copy()
+
+  aLP = modelA.calc_local_params(Data)
+  aSS = modelA.get_global_suff_stats(Data, aLP)
+  modelA.update_global_params(aSS)
+
+  bLP = modelB.calc_local_params(Data)
+  bSS = modelB.get_global_suff_stats(Data, bLP)
+  modelB.update_global_params(bSS)
+
+  elboA = modelA.calc_evidence(Data, aSS, aLP, todict=1)
+  elboB = modelB.calc_evidence(Data, bSS, bLP, todict=1)
+  return elboA, elboB
 
 def runCoordAscent(model, Data, nIters=10):
   model = model.copy()
@@ -92,15 +127,26 @@ class TestBarsK6V9(unittest.TestCase):
     mykwargs['birthRetainExtraMass'] = 0
     self.kwargs = mykwargs
 
-  def test_no_change_after_birth(self):
+  def test_no_change_after_birth(self, nTrial=25, nMistakesAllowed=3):
     Data = U.getBarsData(self.dataName)
-    model, SS, LP = U.MakeModelWithTrueTopics(Data, aModel='HDPModel2')  
+    model, SS = U.MakeModelWithTrueTopics(Data, aModel='HDPModel2')  
 
-    for trial in range(10):
-      didPass, msg, Info = runBirthAndVerifyNoChange(model, SS, 
+    if hasattr(self, 'creationRoutines'):
+      cRoutines = self.creationRoutines
+    else:
+      cRoutines = [self.kwargs['creationRoutine']]
+
+    for cr in cRoutines:
+      print '=================================', cr
+      self.kwargs['creationRoutine'] = cr
+
+      results = np.zeros(nTrial)
+      for trial in range(nTrial):
+        didPass, msg, Info = runBirthAndVerifyNoChange(model, SS, 
                                                       Data, **self.kwargs)
-      print msg
-      assert didPass
+        print msg
+        results[trial] = didPass
+      assert np.sum(results) >= nTrial - nMistakesAllowed
 
 
 class TestBarsK10V900(TestBarsK6V9):
@@ -121,30 +167,11 @@ class TestBarsK10V900(TestBarsK6V9):
     self.kwargs = mykwargs
 
 
-class TestBarsK10V900_findmissingtopics(
-                                    TestBarsK6V9):
+class TestBarsK10V900_adjusted(TestBarsK6V9):
 
   def setUp(self):
     self.dataName = 'BarsK10V900'
-    mykwargs = dict(**U.kwargs)
-    mykwargs['randstate'] = np.random.RandomState(123)
-    mykwargs['Kfresh'] = 5
-    mykwargs['targetMaxSize'] = 100
-    mykwargs['targetMinWordsPerDoc'] = 0
-    mykwargs['creationRoutine'] = 'randexamples'
-    mykwargs['refineNumIters'] = 20
-    mykwargs['cleanupDeleteEmpty'] = 1
-    mykwargs['cleanupDeleteToImprove'] = 1
-    mykwargs['birthVerifyELBOIncrease'] = 1
-    mykwargs['birthRetainExtraMass'] = 0
-    self.kwargs = mykwargs
-
-
-class TestBarsK10V900_findmissingtopics_adjusted(
-                                    TestBarsK6V9):
-
-  def setUp(self):
-    self.dataName = 'BarsK10V900'
+    self.creationRoutines = ['randexamples', 'findmissingtopics']
     mykwargs = dict(**U.kwargs)
     mykwargs['randstate'] = np.random.RandomState(123)
     mykwargs['Kfresh'] = 5
@@ -160,13 +187,13 @@ class TestBarsK10V900_findmissingtopics_adjusted(
     self.kwargs = mykwargs
 
 
-class TestBarsK10V900_findmissingtopics_adjusted_nodelete(
-                                    TestBarsK6V9):
+class TestBarsK10V900_adjusted_nodelete(TestBarsK6V9):
 
   def setUp(self):
     self.dataName = 'BarsK10V900'
+    self.creationRoutines = ['randexamples', 'findmissingtopics']
     mykwargs = dict(**U.kwargs)
-    mykwargs['randstate'] = np.random.RandomState(123)
+    mykwargs['randstate'] = np.random.RandomState(456)
     mykwargs['Kfresh'] = 2
     mykwargs['targetMaxSize'] = 100
     mykwargs['targetMinWordsPerDoc'] = 0
