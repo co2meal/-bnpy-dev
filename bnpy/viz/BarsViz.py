@@ -74,7 +74,6 @@ def plotBarsFromHModel(hmodel, Data=None, doShowNow=True, figH=None,
         while imshowArgs['vmax'] > 2 * np.percentile(learned_tw, 97):
           imshowArgs['vmax'] /= 5
         pylab.imshow(learned_tw, aspect=aspectR, **imshowArgs)
-
     if compsToHighlight is not None:
         ks = np.asarray(compsToHighlight)
         if ks.ndim == 0:

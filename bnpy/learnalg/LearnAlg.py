@@ -8,13 +8,15 @@ Defines some generic routines for
   * printing progress updates to stdout
   * recording run-time
 '''
-from bnpy.ioutil import ModelWriter
-from bnpy.util import closeAtMSigFigs, isEvenlyDivisibleFloat
 import numpy as np
 import time
-import os
 import logging
+import os
+import sys
 import scipy.io
+
+from bnpy.ioutil import ModelWriter
+from bnpy.util import closeAtMSigFigs, isEvenlyDivisibleFloat
 
 Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
@@ -23,7 +25,6 @@ class LearnAlg(object):
 
   def __init__(self, savedir=None, seed=0, 
                      algParams=dict(), outputParams=dict(),
-                     onLapCompleteFunc=lambda:None, onFinishFunc=lambda:None,
                ):
     ''' Constructs and returns a LearnAlg object
     ''' 
@@ -83,18 +84,10 @@ class LearnAlg(object):
     return time.time() - self.start_time
 
   def buildRunInfo(self, evBound, status, nLap=None):
-    ''' Create dict of information about the current run,
-        to return to end-user after learning algorithm is terminated.
+    ''' Create dict of information about the current run
     '''
-    lapTrace = np.asarray(sorted(list(self.TraceLaps)))
-    evTrace = np.asarray(self.evTrace)
-    if self.__class__.__name__.count('Memo') > 0:
-        mask = lapTrace >= self.algParams['startLap'] + 1
-        lapTrace = lapTrace[mask]
-        evTrace = evTrace[mask]
     return dict(evBound=evBound, status=status, nLap=nLap,
-                evTrace=evTrace, lapTrace=lapTrace,
-                savedir=self.savedir)
+                evTrace=self.evTrace, lapTrace=self.TraceLaps)
 
   ##################################################### Fcns for birth/merges
   ##################################################### 
@@ -273,4 +266,29 @@ class LearnAlg(object):
     frac = self.algParams['birth']['fracLapsBirth']
     if lapFrac > nLapTotal:
       return False
-    return (nLapTotal <= 5) or (lapFrac <= np.ceil(frac * nLapTotal)) 
+    return (nLapTotal <= 5) or (lapFrac <= np.ceil(frac * nLapTotal))
+
+  def eval_custom_func(self, lapFrac, **kwargs):
+      ''' Evaluates a custom hook function 
+      '''
+      cFuncPath = self.outputParams['customFuncPath']
+      if cFuncPath is None or cFuncPath == 'None':
+        return None
+
+      cFuncArgs_string = self.outputParams['customFuncArgs']
+      nLapTotal = self.algParams['nLap']
+      if type(cFuncPath) == str:
+        sys.path.append(cFuncPath)
+        cFuncModule = __import__(cFuncPath)  
+      else:
+        cFuncModule = cFuncPath # directly passed in as object
+      
+      kwargs['lapFrac'] = lapFrac
+      if hasattr(cFuncModule, 'onBatchComplete'):
+        cFuncModule.onBatchComplete(args=cFuncArgs_string, **kwargs)
+      if hasattr(cFuncModule, 'onLapComplete') \
+         and isEvenlyDivisibleFloat(lapFrac, 1.0):
+        cFuncModule.onLapComplete(args=cFuncArgs_string, **kwargs)
+      if hasattr(cFuncModule, 'onAlgorithmComplete') \
+         and lapFrac == nLapTotal:
+        cFuncModule.onAlgorithmComplete(args=cFuncArgs_string, **kwargs)

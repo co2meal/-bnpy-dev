@@ -160,8 +160,15 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       # Suff Stat step
       if batchID in self.SSmemory:
         SSchunk = self.load_batch_suff_stat_from_memory(batchID, SS.K, 
+                                                        prevBirthResults,
                                                         BirthResults)
         SS -= SSchunk
+      else:
+        # Record this batch as updated to reflect all current birth moves
+        for MInfo in BirthResults:
+          if 'bchecklist' not in MInfo:
+            MInfo['bchecklist'] = np.zeros(self.nBatch)
+          MInfo['bchecklist'][batchID] = 2 # mark as resolved
 
       SSchunk = hmodel.get_global_suff_stats(Dchunk, LPchunk,
                        doPrecompEntropy=True, 
@@ -190,13 +197,17 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       evBound = hmodel.calc_evidence(SS=SS)
 
       # Merge move!      
-      if self.hasMove('merge') and isEvenlyDivisibleFloat(lapFrac, 1.):
+      if self.hasMove('merge') and self.isLastBatch(lapFrac):
         hmodel, SS, evBound = self.run_merge_move(hmodel, SS, evBound, mPairIDs)
 
       # Save and display progress
       self.add_nObs(Dchunk.nObs)
       self.save_state(hmodel, iterid, lapFrac, evBound)
       self.print_state(hmodel, iterid, lapFrac, evBound)
+      self.eval_custom_func(lapFrac, hmodel=hmodel, SS=SS, Dchunk=Dchunk, 
+                                     SSchunk=SSchunk, learnAlg=self,
+                                     BirthResults=BirthResults,
+                                     prevBirthResults=prevBirthResults)
 
       # Check for Convergence!
       #  evBound will increase monotonically AFTER first lap of the data 
@@ -253,7 +264,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
   ######################################################### Load from memory
   #########################################################
   def load_batch_suff_stat_from_memory(self, batchID, K, 
-                                       prevBirthResults=None, BirthResults=None):
+                                       prevBirthResults=None, 
+                                       BirthResults=None):
     ''' Load the suff stats stored in memory for provided batchID
         Returns
         -------
@@ -275,6 +287,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       if Kextra > 0:
         SSchunk.insertEmptyComps(Kextra)
     assert SSchunk.K == K
+
     # Adjust / replace terms related to expansion
     MoveInfoList = list()
     if prevBirthResults is not None:
@@ -282,7 +295,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     if BirthResults is not None:
       MoveInfoList.extend(BirthResults)
     for MInfo in MoveInfoList:
-      if 'AdjustInfo' in MInfo:
+      if 'AdjustInfo' in MInfo and MInfo['AdjustInfo'] is not None:
         if 'bchecklist' not in MInfo:
           MInfo['bchecklist'] = np.zeros(self.nBatch)
         bchecklist = MInfo['bchecklist']
@@ -295,19 +308,27 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
             arr = getattr(SSchunk, key)
             arr[:Kmax] += SSchunk.nDoc *  MInfo['AdjustInfo'][key]
             SSchunk.setField(key, arr, dims=SSchunk._FieldDims[key])
-          # TODO: ELBO??
+          elif SSchunk.hasELBOTerm(key):
+            Kmax = MInfo['AdjustInfo'][key].size
+            arr = SSchunk.getELBOTerm(key)
+            arr[:Kmax] += SSchunk.nDoc *  MInfo['AdjustInfo'][key]
+            SSchunk.setELBOTerm(key, arr, dims='K')
+
         # Record visit, so adjustment is only done once
         bchecklist[batchID] = 1
     # Run backwards through results to find most recent ReplaceInfo
     for MInfo in reversed(MoveInfoList):
-      if 'ReplaceInfo' in MInfo:
-        if MInfo['bchecklist'] > 1:
+      if 'ReplaceInfo' in MInfo and MInfo['ReplaceInfo'] is not None:
+        if MInfo['bchecklist'][batchID] > 1:
           break # this batch has had replacements done already
         for key in MInfo['ReplaceInfo']:
           if hasattr(SSchunk, key):
-            arr = getattr(SSchunk, key)
-            arr += SSchunk.nDoc * MInfo['ReplaceInfo'][key]
+            arr = SSchunk.nDoc * MInfo['ReplaceInfo'][key]
             SSchunk.setField(key, arr, dims=SSchunk._FieldDims[key])
+          elif SSchunk.hasELBOTerm(key):
+            arr = SSchunk.nDoc * MInfo['ReplaceInfo'][key]
+            SSchunk.setELBOTerm(key, arr, dims=None)
+
         MInfo['bchecklist'][batchID] = 2
         break # Stop after the first ReplaceInfo
     return SSchunk  
@@ -390,12 +411,11 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     if Data is not None:
       targetData = TargetDataSampler.sample_target_data(
                                         Data, model=hmodel, LP=None,
+                                        randstate=self.PRNG,
                                         **kwargs)
       Plan = dict(Data=targetData, ktarget=-1)
       BirthPlans = [Plan]
       kwargs['birthRetainExtraMass'] = 0
-    else:
-      kwargs['birthRetainExtraMass'] = 1
 
     nMoves = len(BirthPlans)
     BirthResults = list()
@@ -411,12 +431,13 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         msg = "BIRTH skipped. Target data too small. Size %d."
         msg = msg % (targetSize)
       else:
-        oldSize = SS.N.sum()
+        if SS is not None:
+          oldSize = SS.N.sum()
         hmodel, SS, MoveInfo = BirthMove.run_birth_move(
                                            hmodel, SS, targetData, 
                                            randstate=self.PRNG, 
                                            **kwargs)
-        if MoveInfo['didAddNew']:
+        if MoveInfo['didAddNew'] and kwargs['birthRetainExtraMass']:
           newSize = SS.N.sum()
           assert np.allclose(newSize- oldSize, targetData.word_count.sum())
 

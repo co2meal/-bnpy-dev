@@ -10,16 +10,6 @@ Sample selection criteria
 '''
 import numpy as np
 
-def getSize(Data):
-  ''' Return the integer size of the provided dataset
-  '''
-  if Data is None:
-    return 0
-  elif hasattr(Data, 'nDoc'):
-    return Data.nDoc
-  else:
-    return Data.nObs
-
 ########################################################### sample_target_data
 ###########################################################
 def sample_target_data(Data, model=None, LP=None, **kwargs):
@@ -71,8 +61,11 @@ def _sample_target_WordsData(Data, model=None, LP=None, **kwargs):
     candidates = None
 
   if 'targetCompID' in kwargs and LP is not None:
-    Ndk = LP['DocTopicCount'][candidates].copy()
-    Ndk /= np.sum(Ndk,axis=1)[:,np.newaxis]
+    if candidates is None:
+      Ndk = LP['DocTopicCount'].copy()
+    else:
+      Ndk = LP['DocTopicCount'][candidates].copy()
+    Ndk /= np.sum(Ndk,axis=1)[:,np.newaxis] + 1e-9
     mask = Ndk[:, kwargs['targetCompID']] > kwargs['targetCompFrac']
     if np.sum(mask) < 1:
       return None
@@ -108,3 +101,14 @@ def calcKLdivergence_discrete(P1, P2):
   KL = np.log(P1 + 1e-100) - np.log(P2 + 1e-100)
   KL *= P1
   return KL.sum(axis=1)
+
+
+def getSize(Data):
+  ''' Return the integer size of the provided dataset
+  '''
+  if Data is None:
+    return 0
+  elif hasattr(Data, 'nDoc'):
+    return Data.nDoc
+  else:
+    return Data.nObs

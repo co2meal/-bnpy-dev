@@ -38,10 +38,10 @@ def getBarsData(name=None):
       BarsData = BarsK6V9.get_data(nDocTotal=100)
   return BarsData
 
-def viz_bars_and_wait_for_key_press(Info):
+def viz_bars_and_wait_for_key_press(model):
   from matplotlib import pylab
   from bnpy.viz import BarsViz
-  BarsViz.plotBarsFromHModel( Info['model'], doShowNow=False)
+  BarsViz.plotBarsFromHModel(model, doShowNow=False)
   pylab.show(block=False)
   try: 
     _ = raw_input('Press any key to continue >>')
@@ -70,12 +70,12 @@ def MakeModelWithTrueTopics(Data, alpha0=5.0, gamma=0.5, aModel='HDPModel'):
   return hmodel, SS, LP
 
 
-def MakeModelWithTrueTopicsButMissingOne(Data, kmissing=0):
+def MakeModelWithTrueTopicsButMissingOne(Data, kmissing=0, aModel='HDPModel'):
   ''' Create new model.
   '''
   aDict = dict(alpha0=5.0, gamma=0.5)
   oDict = {'lambda':0.1}
-  hmodel = bnpy.HModel.CreateEntireModel('VB', 'HDPModel', 'Mult', 
+  hmodel = bnpy.HModel.CreateEntireModel('VB', aModel, 'Mult', 
                                           aDict, oDict, Data)
   hmodel.init_global_params(Data, initname='trueparams')
   LP = hmodel.calc_local_params(Data)
@@ -90,12 +90,12 @@ def MakeModelWithTrueTopicsButMissingOne(Data, kmissing=0):
   hmodel.update_global_params(SS)
   return hmodel, SS, LP
 
-def MakeModelWithFiveTopics(Data):
+def MakeModelWithFiveTopics(Data, aModel='HDPModel'):
   ''' Create new model.
   '''
   aDict = dict(alpha0=5.0, gamma=0.5)
   oDict = {'lambda':0.1}
-  hmodel = bnpy.HModel.CreateEntireModel('VB', 'HDPModel', 'Mult', 
+  hmodel = bnpy.HModel.CreateEntireModel('VB', aModel, 'Mult', 
                                           aDict, oDict, Data)
   hmodel.init_global_params(Data, K=5, initname='randexamples',
                                     seed=0)
@@ -104,12 +104,12 @@ def MakeModelWithFiveTopics(Data):
   hmodel.update_global_params(SS)
   return hmodel, SS, LP
 
-def MakeModelWithOneTopic(Data):
+def MakeModelWithOneTopic(Data, aModel='HDPModel'):
   ''' Create new model.
   '''
   aDict = dict(alpha0=5.0, gamma=0.5)
   oDict = {'lambda':0.1}
-  hmodel = bnpy.HModel.CreateEntireModel('VB', 'HDPModel', 'Mult', 
+  hmodel = bnpy.HModel.CreateEntireModel('VB', aModel, 'Mult', 
                                           aDict, oDict, Data)
   hmodel.init_global_params(Data, K=1, initname='randomfromprior',
                                     seed=0)

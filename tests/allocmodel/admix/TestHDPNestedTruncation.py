@@ -24,8 +24,8 @@ import bnpy.allocmodel.admix.OptimizerForHDPFullVarModel as HVO
 import bnpy.allocmodel.admix.OptimizerForHDP2 as HO
 
 np.set_printoptions(precision=3, suppress=False, linewidth=140)
-def np2flatstr(xvec):
-  return ' '.join( ['%9.3f' % (x) for x in xvec])
+def np2flatstr(xvec, fmt='%9.3f'):
+  return ' '.join( [fmt % (x) for x in xvec])
 
 def makePiMatrix(beta, nDoc=1000, gamma=0.5):
   PRNG = np.random.RandomState(0)
@@ -64,12 +64,30 @@ class TestNestedTrunc(unittest.TestCase):
     self.sumLogPi_K5 = summarizePi(Pi5)
     self.sumLogPi_K4 = summarizePi(Pi4)
 
+  def test__rhoK4_not_equal_rhoK5(self):
+    ''' Verify solution rho varies when truncation K changes
+    '''
+    rho, omega, f, Info = HO.find_optimum_multiple_tries(
+                          sumLogPi=self.sumLogPi_K5,
+                          nDoc=self.nDoc,
+                          gamma=self.gamma, alpha=self.alpha0,
+                          approx_grad=False)
+    rho2, omega2, f2, Info2 = HO.find_optimum_multiple_tries(
+                          sumLogPi=self.sumLogPi_K4,
+                          nDoc=self.nDoc,
+                          gamma=self.gamma, alpha=self.alpha0,
+                          approx_grad=False)
+    print ''
+    print np2flatstr(rho, '%10.6f')
+    print np2flatstr(rho2, '%10.6f')
+    assert np.allclose(self.sumLogPi_K4[:4], self.sumLogPi_K5[:4])
+    assert not np.allclose(rho[:4], rho2[:4])
+
   def test_K5__estimated_beta_near_truth(self, nTrial=1):
     ''' Verify for K=5 data that we recover variational parameters
           whose E[beta] is very close to the true beta
     '''
     self.verify__estimated_beta_near_truth(self.beta, self.sumLogPi_K5)
-
 
   def test_K4__estimated_beta_near_truth(self, nTrial=1):
     ''' Verify for K=4 data that we recover variational parameters

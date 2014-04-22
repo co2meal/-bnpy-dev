@@ -58,15 +58,11 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
     if kwargs['birthVerifyELBOIncrease']:
       assert xfreshSS.hasELBOTerms()
       propELBO = xbigModel.calc_evidence(SS=xfreshSS)
-      xfreshSS.removeELBOTerms()
 
       curfreshLP = bigModel.calc_local_params(freshData)
       curfreshSS = bigModel.get_global_suff_stats(freshData, curfreshLP,
                                                           doPrecompEntropy=True)
-      # Use already allocated model as placeholder
-      #  for tracking what the current model would look like if 
-      #  its parameters were updated to include freshData
-      curbigModel = freshModel
+      curbigModel = bigModel.copy()
       curbigModel.update_global_params(bigSS + curfreshSS)
 
       # Compare ELBO
@@ -93,6 +89,10 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
                     modifiedCompIDs=[],
                     birthCompIDs=birthCompIDs,
                     )
+
+    assert not xbigSS.hasELBOTerms()
+    assert not xbigSS.hasMergeTerms()
+    xfreshSS.removeELBOTerms()
     if kwargs['birthRetainExtraMass']:
       MoveInfo['extraSS'] = xfreshSS
       MoveInfo['modifiedCompIDs'] = range(Ktotal)
@@ -101,7 +101,6 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
       xbigSS -= xfreshSS
       assert np.allclose(xbigSS.N.sum(), bigSS.N.sum())
 
-    # TODO: fix ELBO terms with AdjustInfo/ReplaceInfo
     if bigSS.hasMergeTerms():
       MergeTerms = bigSS._MergeTerms.copy()
       MergeTerms.insertEmptyComps(Ktotal-Kcur)
@@ -109,11 +108,18 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
     if bigSS.hasELBOTerms():
       ELBOTerms = bigSS._ELBOTerms.copy()
       ELBOTerms.insertEmptyComps(Ktotal-Kcur)
+      if AI is not None:
+        for key in AI:
+          if hasattr(ELBOTerms, key):
+            arr = getattr(ELBOTerms, key) + bigSS.nDoc * AI[key]
+            ELBOTerms.setField(key, arr, dims='K')
+        for key in RI:
+          if hasattr(ELBOTerms, key):
+            ELBOTerms.setField(key, bigSS.nDoc * RI[key], dims=None)
       xbigSS.restoreELBOTerms(ELBOTerms)
 
     if 'doVizBirth' in kwargs and kwargs['doVizBirth']:
-      viz_birth_proposal(curModel, xbigModel, birthCompIDs, **kwargs)
-
+      viz_birth_proposal(bigModel, xbigModel, birthCompIDs, **kwargs)
     return xbigModel, xbigSS, MoveInfo
   except BirthProposalError, e:
     ### Clean-up code when birth proposal fails for any reason, including:

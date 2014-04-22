@@ -36,7 +36,7 @@ class TestBirthRefineBarsK6V9(unittest.TestCase):
     mykwargs['refineNumIters'] = 1
     mykwargs['cleanupDeleteEmpty'] = 0
     mykwargs['cleanupDeleteToImprove'] = 0
-    xbigModel, xbigSS, freshSS = BirthRefine.expand_then_refine(
+    xbigModel, xbigSS, freshSS, AI, RI = BirthRefine.expand_then_refine(
                               freshModel, freshSS, Data,
                               model, SS, **mykwargs)
     assert xbigSS.K == SS.K + Knew
@@ -50,7 +50,7 @@ class TestBirthRefineBarsK6V9(unittest.TestCase):
     mykwargs['refineNumIters'] = 5
     mykwargs['cleanupDeleteEmpty'] = 1
     mykwargs['cleanupDeleteToImprove'] = 0
-    xbigModel, xbigSS, xfreshSS = BirthRefine.expand_then_refine(
+    xbigModel, xbigSS, xfreshSS, AI, RI = BirthRefine.expand_then_refine(
                               freshModel, freshSS, Data,
                               model, SS, **mykwargs)
 
@@ -72,7 +72,7 @@ class TestBirthRefineBarsK6V9(unittest.TestCase):
     mykwargs['refineNumIters'] = 5
     mykwargs['cleanupDeleteEmpty'] = 1
     mykwargs['cleanupDeleteToImprove'] = 0
-    xbigModel, xbigSS, xfreshSS = BirthRefine.expand_then_refine(
+    xbigModel, xbigSS, xfreshSS, AI, RI = BirthRefine.expand_then_refine(
                               freshModel, freshSS, Data,
                               model, SS, **mykwargs)
     U.verify_obsmodel_at_desired_scale(xbigModel.obsModel,
@@ -91,7 +91,7 @@ class TestBirthRefineBarsK6V9(unittest.TestCase):
     mykwargs['refineNumIters'] = 2
     mykwargs['cleanupDeleteEmpty'] = 1
     mykwargs['cleanupDeleteToImprove'] = 1
-    xbigModel, xbigSS, xfreshSS = BirthRefine.expand_then_refine(
+    xbigModel, xbigSS, xfreshSS, AI, RI = BirthRefine.expand_then_refine(
                               freshModel, freshSS, Data,
                               model, SS, **mykwargs)
     assert xbigSS.K < model.obsModel.K + freshSS.K
@@ -116,7 +116,7 @@ class TestBirthRefineBarsK6V9(unittest.TestCase):
     mykwargs['refineNumIters'] = 2
     mykwargs['cleanupDeleteEmpty'] = 1
     mykwargs['cleanupDeleteToImprove'] = 1
-    xbigModel, xbigSS, xfreshSS = BirthRefine.expand_then_refine(
+    xbigModel, xbigSS, xfreshSS, AI, RI = BirthRefine.expand_then_refine(
                               freshModel, freshSS, Data,
                               model, SS, **mykwargs)
     assert xbigSS.K < model.obsModel.K + freshSS.K
@@ -142,7 +142,7 @@ class TestBirthRefineBarsK6V9(unittest.TestCase):
     mykwargs['cleanupDeleteEmpty'] = 1
     mykwargs['cleanupDeleteToImprove'] = 1
     with self.assertRaises(BirthProposalError):
-      xbigModel, xbigSS, xfreshSS = BirthRefine.expand_then_refine(
+      xbigModel, xbigSS, xfreshSS, AI, RI = BirthRefine.expand_then_refine(
                               freshModel, freshSS, Data,
                               model, SS, **mykwargs)
 
