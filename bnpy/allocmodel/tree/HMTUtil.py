@@ -4,6 +4,7 @@ HMTUtil.py
 Provides sum-product algorithm for HMTs
 '''
 import numpy as np
+import math
 
 def SumProductAlg_QuadTree(PiInit, PiMat, logSoftEv):
 	'''Execute sum-product algorithm given HMT state
@@ -41,11 +42,12 @@ def SumProductAlg_QuadTree(PiInit, PiMat, logSoftEv):
 	umsg = UpwardPass(PiInit, PiMat, SoftEv)
 	dmsg = DownwardPass(PiInit, PiMat, SoftEv)
 
-  respPair = np.zeros( (N,K,K) )
+  respPair = np.zeros( (4,((N-1)/4)+1,K,K) )
   for n in xrange( 1, N ):
     parent = get_parent_index(n)
     branch = get_branch(n)
-    respPair[n] = PiMat[branch,:,:] * np.outer(dmsg[parent], umsg[n] * SoftEv[n])
+    place = math.ceil(float(n)/4)
+    respPair[branch,place,:,:] = PiMat[branch,:,:] * np.outer(dmsg[parent], umsg[n] * SoftEv[n])
 
   resp = dmsg * umsg
   return resp, respPair
