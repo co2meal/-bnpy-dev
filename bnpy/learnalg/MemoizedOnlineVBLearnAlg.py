@@ -408,6 +408,9 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     '''
     kwargs = dict(**self.algParams['birth'])
 
+    if 'birthRetainExtraMass' not in kwargs:
+      kwargs['birthRetainExtraMass'] = 1
+
     if Data is not None:
       targetData = TargetDataSampler.sample_target_data(
                                         Data, model=hmodel, LP=None,
@@ -535,7 +538,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         targetSize = TargetDataSampler.getSize( Plan['Data'])
         if targetSize >= birthParams['targetMaxSize']:
             continue
-        birthParams['maxTargetSize'] -= targetSize
+        birthParams['targetMaxSize'] -= targetSize
 
       # Sample data from current batch, if more is needed
       targetData = TargetDataSampler.sample_target_data(

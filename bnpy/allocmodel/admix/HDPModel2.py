@@ -140,7 +140,6 @@ class HDPModel2(HDPModel):
         rho = self.rho
         omega = self.omega
       else:
-        from IPython import embed; embed()
         Log.error('***** Optim failed. Set to prior. ' + str(error))
         omega = (self.alpha0 + 1 ) * np.ones(SS.K)
         rho = 1/float(1+self.alpha0) * np.ones(SS.K)

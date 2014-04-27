@@ -75,7 +75,13 @@ def find_optimum_multiple_tries(sumLogPi=None, nDoc=0, gamma=1.0, alpha=1.0,
         nOverflow += 1
 
   if rhoomega is None:
-    raise ValueError("FAILURE! " + msg)
+    if initomega is not None:
+      # last ditch attempt with different initial values
+      return find_optimum_multiple_tries(sumLogPi, nDoc, gamma=gamma, 
+                                         alpha=alpha, approx_grad=approx_grad,
+                                         **kwargs)
+    else:
+      raise ValueError("FAILURE! " + msg)
   Info['nOverflow'] = nOverflow
   rho, omega, K = _unpack(rhoomega)
   return rho, omega, f, Info      
@@ -133,7 +139,7 @@ def find_optimum(sumLogPi=None, nDoc=0, gamma=1.0, alpha=1.0,
     except RuntimeWarning:
       raise ValueError("FAILURE: overflow!" )
     except AssertionError:
-      raise ValueError("FAILURE: NaN found!")
+      raise ValueError("FAILURE: NaN/Inf/Boundary found!")
       
   if Info['warnflag'] > 1:
     raise ValueError("FAILURE: " + Info['task'])
@@ -179,7 +185,10 @@ def rhoomega2c( rhoomega):
 def sigmoid(c):
   ''' sigmoid(c) = 1./(1+exp(-c))
   '''
-  return 1.0/(1.0 + np.exp(-c))
+  v = 1.0/(1.0 + np.exp(-c))
+  assert np.all(v >= EPS)
+  assert np.all(v <= 1 - EPS)
+  return v
 
 def invsigmoid(v):
   ''' Returns the inverse of the sigmoid function
@@ -211,13 +220,23 @@ def objFunc_constrained(rhoomega,
            where L is ELBO objective function (log posterior prob)
       g := gradient of f
   '''
-  assert not np.any(np.isnan(rhoomega))
   rho, omega, K = _unpack(rhoomega)
-  Ebeta = _v2beta(rho)
+  assert not np.any(np.isnan(rhoomega))
+  assert not np.any(np.isinf(omega))
 
+  Ebeta = _v2beta(rho)
   u1 = rho * omega
   u0 = (1 - rho) * omega
-  logc = np.sum(gammaln(u1) + gammaln(u0) - gammaln(omega))
+
+  gammalnomega = gammaln(omega)
+  digammaomega =  digamma(omega)
+  psiP_omega = polygamma(1, omega)
+
+  assert not np.any(np.isinf(gammalnomega))
+  assert not np.any(np.isinf(digammaomega))
+  assert not np.any(np.isinf(psiP_omega))
+
+  logc = np.sum(gammaln(u1) + gammaln(u0) - gammalnomega)
   if nDoc > 0:
     logc = logc/nDoc
     B1 = 1 + (1.0 - u1)/nDoc
@@ -242,7 +261,6 @@ def objFunc_constrained(rhoomega,
 
   psiP_u1 = polygamma(1, u1)
   psiP_u0 = polygamma(1, u0)
-  psiP_omega = polygamma(1, omega)
 
   gradrho = B1 * omega * psiP_u1 - C1 * omega * psiP_u0
   gradomega = B1 * (   rho * psiP_u1 - psiP_omega) \

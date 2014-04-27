@@ -110,7 +110,7 @@ class Test_BarsK10V900(Test_BarsK6V9):
     mykwargs['birthVerifyELBOIncrease'] = 1
     mykwargs['birthRetainExtraMass'] = 0
     mykwargs['expandAdjustSuffStats'] = 1
-    mykwargs['doVizBirth'] = 1
+    #mykwargs['doVizBirth'] = 1
     self.kwargs = mykwargs
 
 
@@ -129,7 +129,7 @@ class Test_BarsK10V900_findmissing(Test_BarsK6V9):
     mykwargs['birthVerifyELBOIncrease'] = 1
     mykwargs['birthRetainExtraMass'] = 0
     mykwargs['expandAdjustSuffStats'] = 1
-    mykwargs['doVizBirth'] = 1
+    #mykwargs['doVizBirth'] = 1
     self.kwargs = mykwargs
 
 
