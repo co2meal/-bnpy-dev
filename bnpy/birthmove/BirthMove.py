@@ -86,7 +86,6 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
     if 'doVizBirth' in kwargs and kwargs['doVizBirth']:
       VizBirth.viz_birth_proposal(bigModel, xbigModel, birthCompIDs,
                                   curELBO=curELBO, propELBO=propELBO, **kwargs)
-      from IPython import embed; embed()
 
     # Reject. Abandon the move.
     if not didPass:
