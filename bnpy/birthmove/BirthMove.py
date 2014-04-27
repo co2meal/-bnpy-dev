@@ -65,14 +65,21 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
         curfreshLP = curbigModel.calc_local_params(freshData)
         curfreshSS = curbigModel.get_global_suff_stats(freshData, curfreshLP,
                                                        doPrecompEntropy=doELBO)
-        curbigModel.update_global_params(bigSS + curfreshSS)
+        if not doELBO: # all but the last step
+          curbigModel.update_global_params(bigSS + curfreshSS)
    
       curELBO  = curbigModel.calc_evidence(SS=curfreshSS)
       propELBO = xbigModel.calc_evidence(SS=xfreshSS)
 
-      percDiff = (propELBO - curELBO)/np.abs(curELBO)
-      didPass = propELBO > curELBO and percDiff > 0.0001      
-      ELBOmsg = " propEv %.4e | curEv %.4e" % (propELBO, curELBO)
+      # Sanity check
+      # TODO: type check to avoid this on Gauss models
+      if propELBO > 0 and curELBO < 0:
+        didPass = False
+        ELBOmsg = " propEv %.4e is INSANE!" % (propELBO)
+      else:
+        percDiff = (propELBO - curELBO)/np.abs(curELBO)
+        didPass = propELBO > curELBO and percDiff > 0.0001      
+        ELBOmsg = " propEv %.4e | curEv %.4e" % (propELBO, curELBO)
     else:
       didPass = True
       propELBO = None
