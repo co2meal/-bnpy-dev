@@ -127,6 +127,7 @@ class MultObsModel(ObsModel):
             self.comp[k].post_update_soVB(rho, Dstar)
 
     def set_global_params(self, hmodel=None, topics=None, 
+                                wordcountTotal=1000.0,
                                 Etopics=None, **kwargs):
         ''' Set global params to provided values
 
@@ -148,7 +149,11 @@ class MultObsModel(ObsModel):
         assert topics is not None
         self.K = topics.shape[0]
         self.comp = list()
-
+        wc = wordcountTotal / float(self.K)
+        for k in range(self.K):
+          lamvec = topics[k,:] * wc + self.obsPrior.lamvec
+          self.comp.append(DirichletDistr(lamvec))          
+        '''
         for k in range(self.K):
             # Scale up Etopics to lamvec, a V-len vector of positive entries,
             #   such that (1) E[phi] is still Etopics, and
@@ -161,22 +166,9 @@ class MultObsModel(ObsModel):
               lamvec = np.minimum(lamvec, 1e9)
               print "WARNING: mucking with lamvec"
             self.comp.append(DirichletDistr(lamvec))
-
-    def insert_global_params(self, topics=None, **kwargs):
-        ''' Insert provided params into this object's global params,
-              appending them after the existing params
-
-            Args
-            --------
-            topics : K x V matrix, each row has positive reals that sum to one
-                     topics[k,v] = probability of word v under topic k
         '''
-        assert topics is not None
-        self.K = self.K + topics.shape[0]
-        for k in xrange(topics.shape[0]):
-            lamvec = self.convert_topic2lamvec(topics[k,:])
-            self.comp.append(DirichletDistr(lamvec))
 
+    '''
     def convert_topic2lamvec(self, topic):
       # Scale up Etopics to lamvec, a V-len vector of positive entries,
       #   such that (1) E[phi] is still Etopics, and
@@ -189,6 +181,7 @@ class MultObsModel(ObsModel):
         lamvec = np.minimum(lamvec, 1e9)
         print "WARNING: mucking with lamvec"
       return lamvec
+    '''
 
   ######################################################### Evidence
   #########################################################

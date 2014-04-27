@@ -17,6 +17,7 @@ kwargs = dict(randstate=np.random.RandomState(0),
                refineNumIters=10,
                cleanupDeleteEmpty=1,
                cleanupDeleteToImprove=0,
+               cleanupDeleteViaLP=0,
                birthRetainExtraMass=0,
                birthVerifyELBOIncrease=0,
              )
@@ -82,7 +83,12 @@ def MakeModelWithTrueTopicsButMissingOne(Data, kmissing=0, aModel='HDPModel'):
   LP = hmodel.calc_local_params(Data)
   SS = hmodel.get_global_suff_stats(Data, LP)
   SS.removeComp(kmissing)
-  hmodel.update_global_params(SS)
+  hmodel.obsModel.update_global_params(SS)
+
+  K = SS.K
+  remMass = 0.02
+  hmodel.allocModel.Ebeta = (1 - remMass)/K * np.ones(K+1)
+  hmodel.allocModel.Ebeta[-1] = remMass
 
   # Perform several local/summary/global updates
   #  so everything is at desired scale
@@ -132,7 +138,6 @@ def verify_obsmodel_at_desired_scale( obsModel, word_count=0):
   lamsum = 0
   for k in range(obsModel.K):
     lamsum += obsModel.comp[k].lamvec.sum() - priorsum
-  print lamsum, word_count
   assert np.allclose(lamsum, word_count)
 
 

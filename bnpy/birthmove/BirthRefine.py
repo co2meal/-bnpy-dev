@@ -67,7 +67,7 @@ def expand_then_refine(freshModel, freshSS, freshData,
               BirthCleanup.delete_comps_from_expanded_model_to_improve_ELBO(
                                   freshData, xbigModel, 
                                   xbigSS, xfreshSS,
-                                  Korig=bigSS.K)
+                                  Korig=bigSS.K, xfreshLP=xfreshLP, **kwargs)
 
     if AInfo is not None and len(origIDs) < Kx:
       for key in AInfo:

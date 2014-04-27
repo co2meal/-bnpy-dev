@@ -218,9 +218,11 @@ class WordsData(DataObj):
         WordsData : bnpy WordsData instance, with at most nDoc documents
     '''
     if candidates is None:
-      docMask = randstate.choice(self.nDoc, nDoc)
+      nSamples = np.minimum(self.nDoc, nDoc)
+      docMask = randstate.choice(self.nDoc, nSamples, replace=False)
     else:
-      docMask = randstate.choice(candidates, nDoc, p=p)
+      nSamples = np.minimum(len(candidates), nDoc)
+      docMask = randstate.choice(candidates, nSamples, replace=False, p=p)
     return self.select_subset_by_mask(docMask=docMask,
                                                 doTrackFullSize=False)
 

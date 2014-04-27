@@ -19,7 +19,8 @@ def plotExampleBarsDocs(Data, docIDsToPlot=None,
     if docIDsToPlot is not None:
       nDocToPlot = len(docIDsToPlot)
     else:
-      docIDsToPlot = np.random.choice(Data.nDoc, size=nDocToPlot, replace=False)
+      size = np.minimum(Data.nDoc, nDocToPlot)
+      docIDsToPlot = np.random.choice(Data.nDoc, size=size, replace=False)
     nRows = np.floor(np.sqrt(nDocToPlot))
     nCols = np.ceil(nDocToPlot / nRows)
     if vmax is None:

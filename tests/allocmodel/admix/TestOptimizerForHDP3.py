@@ -4,7 +4,8 @@ import numpy as np
 import warnings
 import unittest
 from matplotlib import pylab
-import bnpy.allocmodel.admix.OptimizerForHDP2 as HO
+import bnpy.allocmodel.admix.OptimizerForHDP3 as HO
+import bnpy.allocmodel.admix.OptimizerForHDP2 as HO2
 import bnpy.allocmodel.admix.OptimizerForHDPFullVarModel as HVO
 
 np.set_printoptions(precision=3, suppress=False, linewidth=140)
@@ -83,30 +84,6 @@ class TestBasics(unittest.TestCase):
       assert np.allclose(1.0, beta.sum())
 
 
-  def test__objFunc_compareToU1U0Version(self):
-    ''' Verify *constrained* objective function
-          * has same value as the old version with parameters u1, u0
-    '''
-    print ''
-    kwargs = dict(sumLogPi=0, nDoc=0, alpha=0.5, gamma=1.0)
-    ukwargs = dict(sumLogPi=0, nDoc=0, alpha0=0.5, gamma=1.0)
-    for s in [2, 3, 4, 5, 6, 7, 8]:
-      rho = 1.0 / s * np.ones(4)
-      omega = 5.5 * s * np.ones(4)
-      rhoomega = np.hstack([rho, omega])
-      u = np.hstack([rho*omega, (1-rho)*omega])
-      f, grad = HO.objFunc_constrained(rhoomega, **kwargs)
-      fofu = HVO.objFunc_u(u, **ukwargs)
-      print '  %.6e f(rho, omega)' % (f)
-      print '  %.6e f(u1, u0)' % (fofu)
-      assert np.asarray(f).ndim == 0
-      assert np.asarray(fofu).ndim == 0
-
-      absDiff = np.abs(f- fofu)
-      percDiff = absDiff / np.abs(f)
-      assert percDiff < 0.001
-
-
   def test__objFunc_constrained(self):
     ''' Verify *constrained* objective function
           * delivers scalar func value, grad vector of correct size
@@ -175,6 +152,75 @@ class TestOptimizationK5(unittest.TestCase):
 
     self.sumLogPi = summarizePi(Pi5)
 
+  def verify__estimated_beta_near_truth(self, truebeta, 
+                                              nDoc, sumLogPi,
+                                              **kwargs):
+    ''' Verify that we recover variational parameters
+          whose E[beta] is very close to the true beta
+    '''
+    assert 'alpha' in kwargs
+    assert 'gamma' in kwargs
+    print ''
+    rhoomega, f, Info = HO.find_optimum(
+                          sumLogPi=sumLogPi,
+                          nDoc=nDoc,
+                          thetaVersion=0,
+                          **kwargs)
+
+    rho, omega, K = HO._unpack(rhoomega)
+    assert K == sumLogPi.size - 1
+
+    Ebeta = HO._v2beta(rho)
+    print 'E[beta]'
+    print '    ', np2flatstr(truebeta), '  truth'
+    print '    ', np2flatstr(Ebeta), '  estimated'
+    assert self.verify_beta(Ebeta, truebeta)
+    return rhoomega, f, Info
+
+  def verify_beta(self, Ebeta, truebeta=None):
+    ''' Verify that given vector Ebeta is "close enough" to desired beta
+    '''
+    if truebeta is None:
+      truebeta = self.beta
+    absDiff = np.abs(Ebeta - truebeta)
+    percDiff = absDiff / truebeta
+    absDiffPasses = np.all(absDiff[:-1] < 0.04)
+    if self.K < 10:
+      percDiffPasses = np.all(percDiff[:-1] < 0.16)
+    else:
+      percDiffPasses = np.all(percDiff[:-1] < 0.20)
+
+    assert absDiffPasses
+    assert percDiffPasses
+    return absDiffPasses and percDiffPasses
+
+  def verify__beta_near_truth__multiple_tries(self, truebeta, 
+                                              nDoc, sumLogPi,
+                                              alpha=None, 
+                                              **kwargs):
+    ''' Verify that we recover variational parameters
+          whose E[beta] is very close to the true beta
+    '''
+    if alpha is None:
+      alpha = self.alpha0
+
+    print ''
+    rho, omega, f, Info = HO.find_optimum_multiple_tries(
+                          sumLogPi=sumLogPi[:-1],
+                          nDoc=nDoc,
+                          gamma=self.gamma,
+                          alpha=alpha,
+                          **kwargs)
+
+
+    Ebeta = HO._v2beta(rho)
+    print 'E[beta]'
+    print '    ', np2flatstr(truebeta), '  truth'
+    print '    ', np2flatstr(Ebeta), '  estimated'
+    assert self.verify_beta(Ebeta, truebeta)
+    return rho, omega, f, Info
+  
+  ######################################################### tests
   def test__find_optimum__nDoc0_approxgrad(self):
     ''' Verify for K=5 data that we recover variational parameters
           whose E[beta] is very close to the true beta
@@ -191,18 +237,15 @@ class TestOptimizationK5(unittest.TestCase):
     ''' Verify for K=5 data that we recover variational parameters
           whose E[beta] is very close to the true beta
     '''
+    gamma = 0.5
     for alpha in [0.5, 1.0, 1.5, 2.0, 5.0]:
       beta0 = HO._v2beta( 1.0/(1+alpha) * np.ones(self.K))
       sumLogPi = np.zeros(self.K + 1)
       rhoomega, f, Info = self.verify__estimated_beta_near_truth(
                                             beta0, 0, sumLogPi,
-                                            alpha=alpha,
+                                            alpha=alpha, gamma=gamma,
                                             approx_grad=False, factr=1e6)
       f, grad = Info['objFunc'](rhoomega)
-      if grad.size < 20:
-        print grad
-      else:
-        print np.abs(grad).max()
       if self.K < 10:
         assert np.max(np.abs(grad)) < 1e-4
       else:
@@ -221,7 +264,7 @@ class TestOptimizationK5(unittest.TestCase):
                                             alpha=alpha,
                                             approx_grad=False, factr=1e6)
 
-  def plot__find_optimum__nDocSensitivity(self):
+  def test__find_optimum__nDocSensitivity(self):
     nDocVals = [100, 200, 400, 800, 1600, 3200, 6400]
     omegaVals = np.zeros( (len(nDocVals), self.K))
     rhoVals = np.zeros( (len(nDocVals), self.K))
@@ -235,18 +278,21 @@ class TestOptimizationK5(unittest.TestCase):
                           nDoc=nDoc,
                           gamma=self.gamma,
                           alpha=self.alpha0,
+                          thetaVersion=0,
                           approx_grad=True)
       rho2, omega2, f2, Info2 = HO.find_optimum_multiple_tries(
                           sumLogPi=sumLogPi,
                           nDoc=nDoc,
                           gamma=self.gamma,
                           alpha=self.alpha0,
+                          thetaVersion=0,
                           approx_grad=False)
       assert np.allclose(rho, rho2, atol=0.001)
       omegaVals[ii] = omega2
       rhoVals[ii] = rho2
       betaVals[ii] = HO._v2beta(rho2)
       
+    from IPython import embed; embed()
     from matplotlib import pylab
     pylab.subplot(3, 1, 1)
     pylab.plot( nDocVals, omegaVals[:, -1], 'm--')
@@ -261,6 +307,7 @@ class TestOptimizationK5(unittest.TestCase):
     pylab.ylabel('beta (leftover)')
     pylab.xlabel('nDoc')
 
+
   def test__find_optimum__nDoc2000__compareApproxAndExact(self):
     rhoomega, f, Info = self.verify__estimated_beta_near_truth(self.beta, 
                                             self.nDoc, self.sumLogPi,
@@ -270,6 +317,7 @@ class TestOptimizationK5(unittest.TestCase):
                                             self.nDoc, self.sumLogPi,
                                             alpha=self.alpha0,
                                             approx_grad=False, factr=1e5)
+
     f, grad = Info['objFunc'](rhoomega)
     f2, grad2 = Info2['objFunc'](rhoomega2)
 
@@ -299,10 +347,10 @@ class TestOptimizationK5(unittest.TestCase):
       print '  %.3f exact' % (np.max(np.abs(grad2)))
 
     K = rhoomega.size/2
-    assert np.allclose(rhoomega[:K], rhoomega2[:K], atol=0.0001)
+    assert np.allclose(rhoomega[:K], rhoomega2[:K], atol=0.003)
     if self.K < 10:
       assert np.allclose(rhoomega[K:], rhoomega2[K:], rtol=0.5)
-      assert np.max(np.abs(grad)) < 1e-3
+      assert np.max(np.abs(grad)) < 1e-2
       assert np.max(np.abs(grad2)) < 1e-3
     else:
       assert np.max(np.abs(grad2)) < 1e-2
@@ -335,52 +383,18 @@ class TestOptimizationK5(unittest.TestCase):
                                             self.beta, self.nDoc, 
                                             sumLogPi=self.sumLogPi,
                                             alpha=self.alpha0,
+                                            gamma=self.gamma,
                                             initrho=rho, initomega=omega,
                                             approx_grad=False)
       print '% .8e' % (f) 
       print '             ', np2flatstr( rho - Orig['rho'])
       assert np.allclose(f, Orig['f'])
-      assert np.allclose(rho, Orig['rho'], atol=1e-6)
-      
-
-
-  def test__same_answer_as_old_optimizer__nDoc2000(self):
-    ''' Verify for K=5 data that we recover variational parameters
-          whose E[beta] is very close to the true beta
-    '''
-    rhoomega, f, Info = HO.find_optimum(alpha=self.alpha0,
-                                        gamma=self.gamma,
-                                        sumLogPi=self.sumLogPi,
-                                        nDoc=self.nDoc,
-                                        approx_grad=False, factr=1e7)
-    rho, omega, K = HO._unpack(rhoomega)
-
-    u, f2, Info2 = HVO.estimate_u(alpha0=self.alpha0,
-                                  gamma=self.gamma,
-                                  sumLogPi=self.sumLogPi,
-                                  nDoc=self.nDoc,
-                                  approx_grad=False, factr=1e7)
-    u1, u0 = HVO._unpack(u)
-    rho2 = u1 / (u1 + u0)
-    omega2 = u1 + u0
-    print '------------------- rho'
-    print np2flatstr(rho)
-    print np2flatstr(rho2)
-    assert np.allclose( rho, rho2, atol=0.001)
-
-    print '------------------- omega'
-    print np2flatstr(omega)
-    print np2flatstr(omega2)
-
-    ## Get comparable objective functions
-    ff1, gg1 = Info['objFunc'](np.hstack([rho, omega]))
-    ff2, gg2 = Info['objFunc'](np.hstack([rho2, omega2]))
-    print '  %.6e' % (ff1)
-    print '  %.6e' % (ff2)
-    percDiff = np.abs(ff2 - ff1)/ np.abs(ff1)
-    assert percDiff < 0.005
-    assert ff1 < ff2
-
+      if self.K < 10:
+        assert np.allclose(rho, Orig['rho'], atol=1e-6)
+      else:
+        print rho[-5:]
+        print Orig['rho'][-5:]
+        assert np.allclose(rho[:self.K-3], Orig['rho'][:self.K-3], atol=1e-3)
 
   def test__find_optimum__sensitivityToInit(self):
     factr = 1e5
@@ -411,7 +425,8 @@ class TestOptimizationK5(unittest.TestCase):
     percDiff = (np.max(fs) - np.min(fs)) / np.min(fs)
     print 'percDiff(fvals for solutions)=', percDiff
     assert percDiff < 0.0002
-  
+
+
   def test__find_optimum__sensitivityToFactr(self):
     factrs = [1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9]  #1e10 is bad!
     fs = np.zeros_like(factrs)
@@ -433,76 +448,6 @@ class TestOptimizationK5(unittest.TestCase):
     print 'percDiff(fvals for solutions)=', percDiff
     assert percDiff < 0.0002
   
-  def verify__estimated_beta_near_truth(self, truebeta, 
-                                              nDoc, sumLogPi,
-                                              alpha=None, 
-                                              **kwargs):
-    ''' Verify that we recover variational parameters
-          whose E[beta] is very close to the true beta
-    '''
-    if alpha is None:
-      alpha = self.alpha0
-
-    print ''
-    rhoomega, f, Info = HO.find_optimum(
-                          sumLogPi=sumLogPi,
-                          nDoc=nDoc,
-                          gamma=self.gamma,
-                          alpha=alpha,
-                          **kwargs)
-
-    rho, omega, K = HO._unpack(rhoomega)
-    assert K == sumLogPi.size - 1
-
-    Ebeta = HO._v2beta(rho)
-    print 'E[beta]'
-    print '    ', np2flatstr(truebeta), '  truth'
-    print '    ', np2flatstr(Ebeta), '  estimated'
-    assert self.verify_beta(Ebeta, truebeta)
-    return rhoomega, f, Info
-
-  def verify_beta(self, Ebeta, truebeta=None):
-    ''' Verify that given vector Ebeta is "close enough" to desired beta
-    '''
-    if truebeta is None:
-      truebeta = self.beta
-    absDiff = np.abs(Ebeta - truebeta)
-    percDiff = absDiff / truebeta
-    absDiffPasses = np.all(absDiff < 0.02)
-    if self.K < 10:
-      percDiffPasses = np.all(percDiff < 0.10)
-    else:
-      percDiffPasses = np.all(percDiff < 0.16)
-
-    assert absDiffPasses
-    assert percDiffPasses
-    return absDiffPasses and percDiffPasses
-
-  def verify__beta_near_truth__multiple_tries(self, truebeta, 
-                                              nDoc, sumLogPi,
-                                              alpha=None, 
-                                              **kwargs):
-    ''' Verify that we recover variational parameters
-          whose E[beta] is very close to the true beta
-    '''
-    if alpha is None:
-      alpha = self.alpha0
-
-    print ''
-    rho, omega, f, Info = HO.find_optimum_multiple_tries(
-                          sumLogPi=sumLogPi,
-                          nDoc=nDoc,
-                          gamma=self.gamma,
-                          alpha=alpha,
-                          **kwargs)
-
-
-    Ebeta = HO._v2beta(rho)
-    print 'E[beta]'
-    print '    ', np2flatstr(truebeta), '  truth'
-    print '    ', np2flatstr(Ebeta), '  estimated'
-    assert self.verify_beta(Ebeta, truebeta)
-    return rho, omega, f, Info
 
 class TestOptimizationK50(TestOptimizationK5):
   ''' Unit tests for accuracy and consistency of gradient-descent

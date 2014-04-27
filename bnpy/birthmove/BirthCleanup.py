@@ -1,10 +1,11 @@
 import numpy as np
 
+from ..deletemove.DeleteMoveBagOfWords import construct_LP_with_comps_removed
 from BirthProposalError import BirthProposalError
 
 def delete_comps_from_expanded_model_to_improve_ELBO(Data, 
                               xbigModel, xbigSS, 
-                              xfreshSS, 
+                              xfreshSS, xfreshLP=None,
                               Korig=0, **kwargs):
   ''' Attempts deleting components K, K-1, K-2, ... Korig,
        keeping (and building on) any proposals that improve the ELBO
@@ -28,24 +29,21 @@ def delete_comps_from_expanded_model_to_improve_ELBO(Data,
   wc = xbigSS.WordCounts.sum()
 
   xfreshELBO = xbigModel.calc_evidence(SS=xfreshSS)
+
   for k in reversed(range(Korig, K)):
     assert xbigSS.nDoc == nDoc
     assert np.allclose(xbigSS.WordCounts.sum(), wc)
 
-    rbigModel = xbigModel.copy()
-    rbigSS = xbigSS.copy()
-    rfreshSS = xfreshSS.copy()
-
-    rbigSS.removeComp(k)
-    rfreshSS.removeComp(k)
-    
-    rSS = rbigSS + rfreshSS
-    rbigModel.update_global_params(rSS)
-
-    # TODO: consider direct construction of deleted state from LP
-    rLP = rbigModel.calc_local_params(Data)
-    rfreshSS = rbigModel.get_global_suff_stats(Data, rLP, doPrecompEntropy=True)
-    rfreshELBO = rbigModel.calc_evidence(SS=rfreshSS)
+    if kwargs['cleanupDeleteViaLP']:
+      rbigModel, rbigSS, rfreshSS, rfreshELBO, rfreshLP = _make_candidate_LP(
+                                                    xbigModel, Data,
+                                                    xbigSS, xfreshSS, xfreshLP, 
+                                                    k)
+    else:
+      rbigModel, rbigSS, rfreshSS, rfreshELBO = _make_candidate(
+                                                    xbigModel, Data,
+                                                    xbigSS, xfreshSS, 
+                                                    k)
 
     # If ELBO has improved, set current model to delete component k
     didAccept = False
@@ -54,6 +52,8 @@ def delete_comps_from_expanded_model_to_improve_ELBO(Data,
       xfreshSS = rfreshSS
       xbigModel = rbigModel
       xfreshELBO = rfreshELBO
+      if kwargs['cleanupDeleteViaLP']:
+        xfreshLP = rfreshLP
       didAccept = True
       del origIDs[k]
 
@@ -70,6 +70,42 @@ def delete_comps_from_expanded_model_to_improve_ELBO(Data,
     xbigModel.update_global_params(xbigSS + xfreshSS)
 
   return xbigModel, xbigSS, xfreshSS, origIDs
+
+
+def _make_candidate(xbigModel, Data, xbigSS, xfreshSS, k):
+  rbigModel = xbigModel.copy()
+  rbigSS = xbigSS.copy()
+  rfreshSS = xfreshSS.copy()
+
+  rbigSS.removeComp(k)
+  rfreshSS.removeComp(k)
+    
+  rSS = rbigSS + rfreshSS
+  rbigModel.update_global_params(rSS)
+
+  rLP = rbigModel.calc_local_params(Data)
+  rfreshSS = rbigModel.get_global_suff_stats(Data, rLP, doPrecompEntropy=True)
+  rfreshELBO = rbigModel.calc_evidence(SS=rfreshSS)
+
+  return rbigModel, rbigSS, rfreshSS, rfreshELBO
+
+
+def _make_candidate_LP(xbigModel, Data, xbigSS, xfreshSS, xfreshLP, k):
+  rfreshLP = construct_LP_with_comps_removed(Data, xbigModel,
+                                             compIDs=[k], LP=xfreshLP)
+
+  rfreshSS = xbigModel.get_global_suff_stats(Data, rfreshLP, 
+                                             doPrecompEntropy=True)
+
+  rbigModel = xbigModel.copy()
+  rbigSS = xbigSS.copy()
+  rbigSS.removeComp(k)
+    
+  rbigModel.update_global_params(rbigSS + rfreshSS)
+  rfreshELBO = rbigModel.calc_evidence(SS=rfreshSS)
+
+  return rbigModel, rbigSS, rfreshSS, rfreshELBO, rfreshLP
+
 
 """
 def delete_comps_to_improve_ELBO(Data, model,

@@ -39,29 +39,29 @@ def runBirthTargetedAtRandomAndVerifyChange(bigmodel, bigSS,
   msg = ''
   if not Info['didAddNew']:
     didPass = False
-    msg = 'failed to add new comp.'
+    #msg = 'failed to add new comp.'
   elif id(newModel) == id(bigmodel):
     didPass = False
-    msg = 'model id did not change.'
+    #msg = 'model id did not change.'
   elif newSS.K == bigSS.K:
     didPass = False
-    msg = 'SuffStats contents did not change number of comps.'
+    #msg = 'SuffStats contents did not change number of comps.'
   elif newModel.obsModel.K != newSS.K:
     didPass = False
-    msg = 'SuffStats and model should have same num components!'
+    #msg = 'SuffStats and model should have same num components!'
 
   Info['model'] = newModel
   Info['SS'] = newSS
   return didPass, msg, Info
 
 
-class Test_BarsK6V9(unittest.TestCase):
+class Test_BarsK10V900(unittest.TestCase):
 
   def shortDescription(self):
     return None
 
   def setUp(self):
-    self.dataName = 'BarsK6V9'
+    self.dataName = 'BarsK10V900'
 
     mykwargs = dict(**U.kwargs)
     mykwargs['randstate'] = np.random.RandomState(123)
@@ -75,11 +75,13 @@ class Test_BarsK6V9(unittest.TestCase):
     mykwargs['birthVerifyELBOIncrease'] = 1
     mykwargs['birthRetainExtraMass'] = 0
     mykwargs['expandAdjustSuffStats'] = 1
+    mykwargs['doVizBirth'] = 1
 
     self.kwargs = mykwargs
-    self.Kexpected = np.minimum(6, mykwargs['Kmax'])
+    self.Kexpected = np.minimum(11, mykwargs['Kmax'])
 
   def test_birth_does_add_new(self):
+    print ''
     Data = U.loadData(self.dataName)
     model, SS, LP = U.MakeModelWithOneTopic(Data)
 
@@ -94,13 +96,12 @@ class Test_BarsK6V9(unittest.TestCase):
                                                  **self.kwargs
                                                  )
       print msg
-      assert didPass
       model = Info['model']
       SS = Info['SS']
       
 
 
-class Test_NIPS(Test_BarsK6V9):
+class Test_NIPS(Test_BarsK10V900):
 
   def setUp(self):
     self.dataName = 'NIPSCorpus'
@@ -114,17 +115,18 @@ class Test_NIPS(Test_BarsK6V9):
     mykwargs['targetMinWordsPerDoc'] = 100
     mykwargs['targetMaxSize'] = 100
     mykwargs['creationroutine'] = 'findmissingtopics'
-    mykwargs['expandAdjustSuffStats'] = 1
     mykwargs['refineNumIters'] = 10
     mykwargs['cleanupDeleteEmpty'] = 1
     mykwargs['cleanupDeleteToImprove'] = 1
     mykwargs['birthVerifyELBOIncrease'] = 1
     mykwargs['birthRetainExtraMass'] = 0
-    self.kwargs = mykwargs
+    mykwargs['expandAdjustSuffStats'] = 1
 
+    self.kwargs = mykwargs
     self.Kexpected = np.minimum(20, mykwargs['Kmax'])
 
-class Test_huffpost(Test_BarsK6V9):
+
+class Test_huffpost(Test_BarsK10V900):
   ''' 
       Notes
       --------
@@ -142,11 +144,13 @@ class Test_huffpost(Test_BarsK6V9):
     mykwargs['targetMinWordsPerDoc'] = 100
     mykwargs['targetMaxSize'] = 300
     mykwargs['creationroutine'] = 'findmissingtopics'
-    mykwargs['refineNumIters'] = 50
+    mykwargs['refineNumIters'] = 10
     mykwargs['cleanupDeleteEmpty'] = 1
     mykwargs['cleanupDeleteToImprove'] = 1
     mykwargs['birthVerifyELBOIncrease'] = 1
     mykwargs['birthRetainExtraMass'] = 0
+    mykwargs['expandAdjustSuffStats'] = 1
+
     self.kwargs = mykwargs
 
     self.Kexpected = np.minimum(20, mykwargs['Kmax'])

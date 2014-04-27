@@ -28,8 +28,6 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, **kwargs):
     freshModel = create_new_model_findmissingtopics(
                                   freshModel, freshData, 
                                   bigModel, **kwargs)
-  elif kwargs['creationRoutine'] == 'spectral':
-    freshModel = create_new_model_spectral(freshModel, freshData, **kwargs)
   else:
     freshModel.init_global_params(freshData, 
                                   K=kwargs['Kfresh'],
@@ -47,7 +45,6 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, **kwargs):
     freshSS = freshModel.get_global_suff_stats(freshData, freshLP)
 
   # TODO: sort new comps in largest-to-smallest order
-
   return freshModel, freshSS
 
 ########################################################### Topic-model 
@@ -90,10 +87,7 @@ def create_new_model_findmissingtopics(freshModel, freshData,
   WordFreq_ctrs /= WordFreq_ctrs.sum(axis=1)[:,np.newaxis]
 
   freshModel.set_global_params(beta=np.ones(Kfresh)/Kfresh, K=Kfresh,
-                               topics=WordFreq_ctrs
+                               topics=WordFreq_ctrs,
+                               wordcountTotal=freshData.word_count.sum()
                               )
   return freshModel
-
-
-def create_new_model_spectral(freshModel, freshData, **kwargs):
-  pass
