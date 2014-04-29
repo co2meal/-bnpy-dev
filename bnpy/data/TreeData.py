@@ -23,5 +23,11 @@ class TreeData(object):
         Get the index of nth node's parent
         '''
         pass
+
+    def set_mask(self, nBranches):
+        '''
+        Set mask vectors to collect the nodes on the same branch
+        '''
+        pass
     
     
