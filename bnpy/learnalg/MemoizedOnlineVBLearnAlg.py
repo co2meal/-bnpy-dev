@@ -206,6 +206,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       self.print_state(hmodel, iterid, lapFrac, evBound)
       self.eval_custom_func(lapFrac, hmodel=hmodel, SS=SS, Dchunk=Dchunk, 
                                      SSchunk=SSchunk, learnAlg=self,
+                                     evBound=evBound,
                                      BirthResults=BirthResults,
                                      prevBirthResults=prevBirthResults)
 

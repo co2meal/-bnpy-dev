@@ -28,6 +28,7 @@ birthArgs = dict(
                refineNumIters=10,
                cleanupDeleteEmpty=0,
                cleanupDeleteToImprove=0,
+               cleanupDeleteViaLP=0,
                birthRetainExtraMass=0,
                birthVerifyELBOIncrease=0,
                fracLapsBirth=0.9,

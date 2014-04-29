@@ -278,8 +278,11 @@ class LearnAlg(object):
       cFuncArgs_string = self.outputParams['customFuncArgs']
       nLapTotal = self.algParams['nLap']
       if type(cFuncPath) == str:
-        sys.path.append(cFuncPath)
-        cFuncModule = __import__(cFuncPath)  
+        pathParts = cFuncPath.split(os.path.sep)
+        cFuncDir = os.path.sep.join( pathParts[:-1])
+        cFuncModName = pathParts[-1].split('.py')[0]
+        sys.path.append(cFuncDir)
+        cFuncModule = __import__(cFuncModName, fromlist=[]) 
       else:
         cFuncModule = cFuncPath # directly passed in as object
       

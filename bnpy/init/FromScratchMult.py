@@ -8,10 +8,15 @@ from scipy.special import digamma
 from scipy.cluster import vq
 
 hasRexAvailable = True
+hasSpectralAvailable = True
 try:
   import KMeansRex
 except ImportError:
   hasRexAvailable = False
+try:
+  import LearnAnchorTopics
+except ImportError:
+  hasSpectralAvailable = False
 
 def init_global_params(hmodel, Data, initname='randexamples',
                                seed=0, K=0, initarg=None, **kwargs):
@@ -83,8 +88,16 @@ def init_global_params(hmodel, Data, initname='randexamples',
                                           Niter=10, seed=seed)
     PhiTopicWord += 0.01 * PRNG.rand(K, Data.vocab_size)
     PhiTopicWord /= PhiTopicWord.sum(axis=1)[:,np.newaxis]
-    beta = np.ones(K)
+    beta = 1.0/K * np.ones(K) 
     hmodel.set_global_params(K=K, beta=beta, topics=PhiTopicWord)
+    return
+  elif initname == 'spectral':
+    if not hasSpectralAvailable:
+      raise NotImplementedError("AnchorWords must be on python path")
+    DocWord = Data.to_sparse_docword_matrix()
+    topics = LearnAnchorTopics.run(DocWord, K)
+    beta = 1.0/K * np.ones(K) 
+    hmodel.set_global_params(K=K, beta=beta, topics=topics)
     return
   else:
     raise NotImplementedError('Unrecognized initname ' + initname)

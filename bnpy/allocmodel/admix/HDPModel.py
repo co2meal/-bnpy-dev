@@ -418,8 +418,8 @@ class HDPModel(AllocModel):
 
         if todict:
           return dict(pi_Elogp=E_logpPi, pi_Elogq=E_logqPi,
-                      v_Elogp=E_logpZ, z_Elogq=E_logqZ,
-                      z_Elogp=E_logpV, v_Elogq=E_logqV)
+                      v_Elogp=E_logpV, z_Elogp=E_logpZ,
+                      v_Elogq=E_logqV, z_Elogq=E_logqZ)
 
         elbo = E_logpPi - E_logqPi
         elbo += E_logpZ - E_logqZ
