@@ -40,17 +40,19 @@ def SumProductAlg_QuadTree(PiInit, PiMat, logSoftEv):
 	SoftEv, lognormC = expLogLik(logSoftEv)
 
 	umsg = UpwardPass(PiInit, PiMat, SoftEv)
-	dmsg = DownwardPass(PiInit, PiMat, SoftEv)
+	dmsg, margPrObs = DownwardPass(PiInit, PiMat, SoftEv)
 
-  respPair = np.zeros( (4,((N-1)/4)+1,K,K) )
+  respPair = np.zeros( (N,K,K) )
   for n in xrange( 1, N ):
     parent = get_parent_index(n)
     branch = get_branch(n)
-    place = math.ceil(float(n)/4)
-    respPair[branch,place,:,:] = PiMat[branch,:,:] * np.outer(dmsg[parent], umsg[n] * SoftEv[n])
+    respPair[n,:,:] = PiMat[branch,:,:] * np.outer(dmsg[parent], umsg[n] * SoftEv[n])
+    respPair[n,:,:] = respPair[n,:,:] / np.sum(respPair[n,:,:])
+
+  logMargPrSeq = np.log(margPrObs).sum() + lognormC.sum()
 
   resp = dmsg * umsg
-  return resp, respPair
+  return resp, respPair, logMargPrSeq
 
 def UpwardPass(PiInit, PiMat, SoftEv):
 	'''Propagate messages upwards along the tree, starting from the leaves
@@ -114,6 +116,7 @@ def DownwardPass(PiInit, PiMat, SoftEv):
   for d in xrange(0, 4):
     PiTMat[d,:,:] = PiMat[d,:,:].T
 
+  margPrObs = np.zeros(N)
   dmsg = np.empty( (N,K) )
   for n in xrange( 0, N ):
     if n == 0:
@@ -122,9 +125,9 @@ def DownwardPass(PiInit, PiMat, SoftEv):
       parent_index = get_parent_index(n)
       branch = get_branch(n)
       dmsg[n] = np.dot(PiTMat[branch,:,:], dmsg[parent_index]) * SoftEv[n]
-    normalization_const = np.sum(dmsg[n])
-    dmsg[n] /= normalization_const
-  return dmsg
+    margPrObs[n] = np.sum(dmsg[n])
+    dmsg[n] /= margPrObs[n]
+  return dmsg, margPrObs
 
 def get_parent_index(child_index):
   if n == 0:
