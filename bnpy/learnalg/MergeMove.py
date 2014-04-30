@@ -402,6 +402,8 @@ def _preselect_mergepairs_simple(curModel, SS, excludePairs=list(), **kwargs):
     CorrMat[CorrMat < 0] = 0
     CorrMat[nanIDs] = 0
     M = CorrMat # use correlation matrix as score for selecting candidates!
+    M[zip(*excludePairs)] = 0
+
   else:
     raise NotImplementedError(kwargs['preselectroutine'])
 
