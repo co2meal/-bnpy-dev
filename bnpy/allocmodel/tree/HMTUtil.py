@@ -6,9 +6,10 @@ Provides sum-product algorithm for HMTs
 import numpy as np
 import math
 
+
 def SumProductAlg_QuadTree(PiInit, PiMat, logSoftEv):
-	'''Execute sum-product algorithm given HMT state
-       transition params and log likelihoods of each observation
+  '''Execute sum-product algorithm given HMT state
+     transition params and log likelihoods of each observation
 
      Args
      -------
@@ -32,17 +33,17 @@ def SumProductAlg_QuadTree(PiInit, PiMat, logSoftEv):
                               * parent of node n assigned to state j
                         p( z[pa(n),j] = 1, z[n,k] = 1 | x[1], x[2], ... x[N])
             respPair[0,:,:] is undefined, but kept to match indexing consistent. 
+
   '''
-	PiInit, PiMat, K = _parseInput_TransParams(PiInit, PiMat)
-	logSoftEv = _parseInput_SoftEv(logSoftEv, K)
-	N = logSoftEv.shape[0]
+  PiInit, PiMat, K = _parseInput_TransParams(PiInit, PiMat)
+  logSoftEv = _parseInput_SoftEv(logSoftEv, K)
+  N = logSoftEv.shape[0]
 
-	SoftEv, lognormC = expLogLik(logSoftEv)
+  SoftEv, lognormC = expLogLik(logSoftEv)
+  umsg = UpwardPass(PiInit, PiMat, SoftEv)
+  dmsg, margPrObs = DownwardPass(PiInit, PiMat, SoftEv)
 
-	umsg = UpwardPass(PiInit, PiMat, SoftEv)
-	dmsg, margPrObs = DownwardPass(PiInit, PiMat, SoftEv)
-
-  respPair = np.zeros( (N,K,K) )
+  respPair = np.zeros((N,K,K))
   for n in xrange( 1, N ):
     parent = get_parent_index(n)
     branch = get_branch(n)
@@ -54,9 +55,9 @@ def SumProductAlg_QuadTree(PiInit, PiMat, logSoftEv):
   resp = dmsg * umsg
   return resp, respPair, logMargPrSeq
 
-def UpwardPass(PiInit, PiMat, SoftEv):
-	'''Propagate messages upwards along the tree, starting from the leaves
 
+def UpwardPass(PiInit, PiMat, SoftEv):
+  '''Propagate messages upwards along the tree, starting from the leaves
     Args
      -------
      piInit : 1D array, size K
@@ -75,12 +76,12 @@ def UpwardPass(PiInit, PiMat, SoftEv):
                   probability of state k on latent variable n, given all 
                   observations from its predecessors and its observation
                   umsg[n,k] = p( z[n,k] = 1 | x[c(c(n))]...x[c(n)] ... x[n] )
-	'''
+  '''
   N = SoftEv.shape[0]
   K = PiInit.size
 
   umsg = np.ones( (N, K) )
-  start = get_last_nonleaf_node(N)
+  start = find_last_nonleaf_node(N)
   for n in xrange(start, -1, -1):
     children = get_children_indices(n, N)
     for child in children:
@@ -89,6 +90,7 @@ def UpwardPass(PiInit, PiMat, SoftEv):
     normalization_const = np.sum(umsg[n])
     umsg[n] /= normalization_const
   return umsg
+
 
 def DownwardPass(PiInit, PiMat, SoftEv):
   '''Propagate messages downwards along the tree, starting from the root
@@ -110,7 +112,7 @@ def DownwardPass(PiInit, PiMat, SoftEv):
         dmsg : 2D array, size N x K
                   dmsg[n,k] = p( x[p(n)], x[p(p(n))], ... x[1] |  z[n,k] = 1 )
   '''
-	N = SoftEv.shape[0]
+  N = SoftEv.shape[0]
   K = PiInit.size
   PiTMat = np.empty( (4,K,K) )
   for d in xrange(0, 4):
