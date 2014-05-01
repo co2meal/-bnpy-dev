@@ -6,6 +6,7 @@ Initialize params of HModel with multinomial observations from scratch.
 import numpy as np
 from scipy.special import digamma
 from scipy.cluster import vq
+import time
 
 hasRexAvailable = True
 hasSpectralAvailable = True
@@ -95,8 +96,11 @@ def init_global_params(hmodel, Data, initname='randexamples',
     if not hasSpectralAvailable:
       raise NotImplementedError("AnchorWords must be on python path")
     DocWord = Data.to_sparse_docword_matrix()
-    topics = LearnAnchorTopics.run(DocWord, K)
-    beta = 1.0/K * np.ones(K) 
+    stime = time.time()
+    topics = LearnAnchorTopics.run(DocWord, K, seed=seed, loss='L2')
+    elapsedtime = time.time() - stime
+    print 'SPECTRAL\n %5.1f sec | D=%d, K=%d' % (elapsedtime, DocWord.shape[0], K)
+    beta = 1.0/K * np.ones(K)
     hmodel.set_global_params(K=K, beta=beta, topics=topics)
     return
   else:
