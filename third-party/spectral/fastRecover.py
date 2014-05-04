@@ -70,8 +70,7 @@ def fastQuadSolveExpGrad(y, x, eps, initialStepsize, recoveryLog, anchorsTimesAn
         anchorsTimesAnchors = dot(x, x.transpose())
     targetTimesAnchors = dot(y, x.transpose())
 
-    alpha = ones(K)/K
-    log_alpha = log(alpha)
+    alpha = 1.0/K * ones(K)
 
     iteration = 1 
     eta = 0.1 
@@ -83,28 +82,23 @@ def fastQuadSolveExpGrad(y, x, eps, initialStepsize, recoveryLog, anchorsTimesAn
 
     while 1:
     # Set the learning rate
-        eta = initialStepsize/(iteration**0.5)
+        eta = initialStepsize/sqrt(iteration)
         iteration += 1
 
-        # Save previous values for convergence tests
-        old_obj = new_obj
-        old_alpha = copy(alpha)
-
         # Add the gradient and renormalize in logspace, then exponentiate
-        log_alpha += -eta*proj
-        log_alpha -= logsum_exp(log_alpha)
+        log_alpha = log(alpha) - eta*proj
 
-        alpha = exp(log_alpha)
+        alpha = exp(log_alpha - max(log_alpha))
+        alpha /= alpha.sum()
+
+        # ORIGINAL
+        #log_alpha -= logsum_exp(log_alpha)
+        #alpha = exp(log_alpha)
         
         # Recalculate the gradient and check for convergence
         proj = -2*(targetTimesAnchors - dot(alpha,anchorsTimesAnchors))
-        new_obj = linalg.norm(proj,2)
 
-        # Stop if the L2 norm of the change in alpha OR 
-        #  the % change in L2 norm of the gradient are below tolerance.
-        #convergence = min(linalg.norm(alpha-old_alpha, 2), abs(new_obj-old_obj)/old_obj)
-        
-        # stop if the primal-dual gap < eps
+        # Stop if the primal-dual gap < eps
         lam = copy(proj)
         lam -= lam.min()
 
@@ -113,9 +107,9 @@ def fastQuadSolveExpGrad(y, x, eps, initialStepsize, recoveryLog, anchorsTimesAn
         if gap < eps and iteration > 1:
             break
 
-        if iteration % 10000 == 0:
-            print  "iter", iteration, "obj", old_obj, "gap", gap
-
+        #if iteration % 10000 == 0:
+        #    print  "iter", iteration, "obj", old_obj, "gap", gap
+    new_obj = linalg.norm(proj,2)
     return alpha, iteration, new_obj, None, gap
 
 def quadSolveExpGrad(y, x, eps, alpha=None, XX=None): 

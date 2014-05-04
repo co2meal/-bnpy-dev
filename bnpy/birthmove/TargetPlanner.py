@@ -69,6 +69,10 @@ def select_target_comp(K, SS=None, model=None, LP=None, Data=None,
     ps = np.maximum(lapDist + 1e-5, 0)
     ps = ps * ps * SS.N
     ps[SS.N < MIN_SIZE] = 0
+  elif targetSelectName == 'predictionQuality':
+    ps = calc_underprediction_scores_per_topic(K, model, Data, LP, **kwargs)
+    ps = ps * ps # make more peaked!
+    ps[SS.N < MIN_SIZE] = 0
   else:
     raise NotImplementedError('Unrecognized procedure: ' + targetSelectName)
 
@@ -91,6 +95,44 @@ def select_target_comp(K, SS=None, model=None, LP=None, Data=None,
       msg = "comp %3d : %.2f prob | %3d delay | %8d size"
       print msg % (kk, ps[kk], lapsSinceLastBirth[kk], SS.N[kk])
 '''
+
+
+def select_target_words(K, model=None, LP=None, Data=None, SS=None,
+                           excludeList=list(), doVerbose=False, 
+                           **kwargs):
+  ''' Choose a set of vocabulary words to target with a birth proposal.
+
+      Keyword Args
+      -------
+      randstate : numpy RandomState object, allows random choice of relWords
+      targetSelectName : string, identifies procedure for selecting ktarget
+                          {'uniform','predictionQuality'}
+
+      Returns
+      -------
+      relWords : list, each entry in {0, 1, ... Data.vocab_size-1}
+
+      Raises
+      -------
+      BirthProposalError, if cannot select a valid choice
+  '''
+  targetSelectName = kwargs['targetSelectName']
+  if targetSelectName == 'uniform':
+    pWords = np.ones(Data.vocab_size)
+  elif targetSelectName == 'predictionQuality':
+    pWords = calc_underprediction_scores_per_word(model, 
+                                                  Data, LP=None, **kwargs)
+  else:
+    raise NotImplementedError('Unrecognized procedure: ' + targetSelectName)
+  pWords[excludeList] = 0
+  if np.sum(pWords) < EPS:
+    msg = 'BIRTH not possible. All words have zero probability.'
+    raise BirthProposalError(msg)
+  relWords = sample_related_words_by_score(Data, pWords, **kwargs)
+  if relWords is None or len(relWords) < 1:
+    msg = 'BIRTH not possible. Word selection failed.'
+    raise BirthProposalError(msg)
+  return relWords
 
 def calc_underprediction_scores_per_topic(K, model, Data, 
                                                 LP=None, **kwargs):
@@ -117,9 +159,12 @@ def calc_underprediction_scores_per_topic(K, model, Data,
 
       score[k] += LP['theta'][d,k] * calcKL_discrete(empWordFreq_k, 
                                                      modelWordFreq_k)
+  # Make score a valid probability vector
+  score = np.maximum(score, 0)
+  score /= score.sum()
   return score
 
-def calc_underprediction_scores_per_word(K, model, Data, LP=None, **kwargs):
+def calc_underprediction_scores_per_word(model, Data, LP=None, **kwargs):
   ''' Calculate for each vocab word a scalar score. Larger => worse prediction.
   '''
   if LP is None:

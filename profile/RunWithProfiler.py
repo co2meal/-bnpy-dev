@@ -20,12 +20,19 @@ try:
   bnpyroot = os.path.sep.join(os.path.abspath(bnpy.__file__).split(os.path.sep)[:-1])
 except:
   bnpyroot = os.path.abspath('../bnpy/')
+
+fparts = bnpyroot.split(os.path.sep)[:-1]
+fparts.append('third-party')
+thirdpartyroot = os.path.sep.join(fparts)
 print bnpyroot
+print thirdpartyroot
 
 # Decorate codebase
 print "Decorating ...",
 undecorate_for_profiling.main(bnpyroot) # Remove previous decos, if any
 decorate_for_profiling.main(bnpyroot)
+undecorate_for_profiling.main(thirdpartyroot)
+decorate_for_profiling.main(thirdpartyroot)
 print '[DONE]'
 
 # Run line-by-line profiler
@@ -49,6 +56,7 @@ print '[DONE]'
 # Undecorate codebase
 print "Undecorating ...",
 undecorate_for_profiling.main(bnpyroot)
+undecorate_for_profiling.main(thirdpartyroot)
 print '[DONE]'
 
 print "Wrote HTML to %s/index.html" % (outputhtmldir)

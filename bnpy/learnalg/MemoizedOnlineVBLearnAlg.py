@@ -151,7 +151,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       if self.hasMove('birth') and self.do_birth_at_lap(lapFrac+1.0):
         if self.isFirstBatch(lapFrac):
           BirthPlans = self.birth_plan_targets_for_next_lap(
-                                hmodel, SS, BirthResults)
+                                Dchunk, hmodel, SS, LPchunk, BirthResults)
         BirthPlans = self.birth_collect_target_subsample(
                                 Dchunk, LPchunk, BirthPlans)
       else:
@@ -480,7 +480,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       hmodel.update_global_params(SS)
     return hmodel, SS
 
-  def birth_plan_targets_for_next_lap(self, hmodel, SS, BirthResults):
+  def birth_plan_targets_for_next_lap(self, Data, hmodel, SS, LP,
+                                            BirthResults):
     ''' Create plans for next lap's birth moves
     
         Returns
@@ -503,7 +504,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     for posID in range(self.algParams['birth']['birthPerLap']):
       try:
         ktarget = TargetPlanner.select_target_comp(
-                             K, SS=SS, 
+                             K, SS=SS, Data=Data, model=hmodel,
                              randstate=self.PRNG,
                              excludeList=excludeList,
                              lapsSinceLastBirth=self.LapsSinceLastBirth,

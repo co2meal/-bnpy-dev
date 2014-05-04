@@ -12,7 +12,7 @@ root = os.path.abspath(__file__)
 root = os.path.sep.join(root.split(os.path.sep)[:-1])
 settings_file = os.path.join(root, 'settings.conf')
 
-def run(DocWordMat, K=10, loss='L2', settings_file=settings_file):
+def run(DocWordMat, K=10, loss='L2', seed=0, settings_file=settings_file):
   '''
     Args
     -------
@@ -23,30 +23,29 @@ def run(DocWordMat, K=10, loss='L2', settings_file=settings_file):
     topics : numpy 2D array, size K x V
 
   '''
-  params = Params(settings_file)
+  params = Params(settings_file, seed=seed)
 
   if type(DocWordMat) == str:
     DocWordMat = scipy.io.loadmat(DocWordMat)['M']
   
   if not str(type(DocWordMat)).count('csr_matrix') > 0:
     raise NotImplementedError('Need CSR matrix')  
-  DocWordMat = DocWordMat.T
     
-  #forms Q matrix from document-word matrix
-  Q = generate_Q_matrix(DocWordMat)
-
-  anchors = selectAnchorWords(DocWordMat, Q, K, params)
+  Q = generate_Q_matrix(DocWordMat.T)
+  anchors = selectAnchorWords(DocWordMat.tocsc(), Q, K, params)
   topics, topic_likelihoods = do_recovery(Q, anchors, loss, params) 
   return topics.T
 
-def selectAnchorWords(M, Q, K, params):
-  candidate_anchors = []
-  #only accept anchors that appear in a significant number of docs
-  for i in xrange(M.shape[0]):
-    if len(np.nonzero(M[i, :])[1]) > params.anchor_thresh:
-        candidate_anchors.append(i)
 
-  anchors = findAnchors(Q, K, params, candidate_anchors)
+def selectAnchorWords(DocWordMat, Q, K, params):
+  
+  if not str(type(DocWordMat)).count('csc_matrix') > 0:
+    raise NotImplementedError('Need CSC matrix')  
+    
+  nDocsPerWord = np.diff(DocWordMat.indptr)
+  candidateWords = np.flatnonzero(nDocsPerWord > params.anchor_thresh)
+
+  anchors = findAnchors(Q, K, params, candidateWords.tolist())
   return anchors
 
 
@@ -69,10 +68,10 @@ def print_topics(topics, vocab_file, Ntop=10, anchors=None):
 
 class Params:
 
-    def __init__(self, filename):
+    def __init__(self, filename, seed=0):
         self.log_prefix=None
         self.checkpoint_prefix=None
-        self.seed = 0
+        self.seed = seed
 
         for l in file(filename):
             if l == "\n" or l[0] == "#":
