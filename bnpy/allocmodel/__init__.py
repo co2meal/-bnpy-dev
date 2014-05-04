@@ -11,6 +11,7 @@ from admix.HDPPE import HDPPE
 from admix.HDPPE2 import HDPPE2
 from admix.HDPSoft2Hard import HDPSoft2Hard
 from admix.HDPHardMult import HDPHardMult
+from admix.HDPStickBreak import HDPStickBreak
 
 AllocModelConstructorsByName = { \
            'MixModel':MixModel,
@@ -23,6 +24,7 @@ AllocModelConstructorsByName = { \
            'HDPPE2':HDPPE2,
            'HDPSoft2Hard':HDPSoft2Hard,
            'HDPHardMult':HDPHardMult,
+           'HDPStickBreak':HDPStickBreak,
           }
 
 AllocModelNameSet = set(AllocModelConstructorsByName.keys())
