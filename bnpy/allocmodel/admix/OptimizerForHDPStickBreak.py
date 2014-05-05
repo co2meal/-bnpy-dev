@@ -87,7 +87,7 @@ def find_optimum_multiple_tries(sumLogVd=0, sumLog1mVd=0, nDoc=0,
 
 def find_optimum(sumLogVd=0, sumLog1mVd=0, nDoc=0, gamma=1.0, alpha=1.0,
                  initrho=None, initomega=None,
-                 approx_grad=False, factr=1.0e7, **kwargs):
+                 approx_grad=False, factr=1.0e5, **kwargs):
   ''' Run gradient optimization to estimate best parameters rho, omega
 
       Returns
@@ -100,22 +100,24 @@ def find_optimum(sumLogVd=0, sumLog1mVd=0, nDoc=0, gamma=1.0, alpha=1.0,
       --------
       ValueError on an overflow, any NaN, or failure to converge
   '''
-  sumLogVd = np.squeeze(np.asarray(sumLogVd, dtype=np.float64))
-  sumLog1mVd = np.squeeze(np.asarray(sumLog1mVd, dtype=np.float64))
+  if sumLogVd.ndim > 1:
+    sumLogVd = np.squeeze(np.asarray(sumLogVd, dtype=np.float64))
+    sumLog1mVd = np.squeeze(np.asarray(sumLog1mVd, dtype=np.float64))
 
   assert sumLogVd.ndim == 1
   K = sumLogVd.size
 
   ## Determine initial value
-  if initrho is None:
+  if initrho is None or initrho.min() <= EPS or initrho.max() >= 1 - EPS:
     initrho = create_initrho(K)
-  if initomega is None:
-    initomega = (nDoc/4 + 1) * np.ones(K)
+  if initomega is None or initomega.min() <= EPS:
+    initomega = np.linspace(nDoc/2 + alpha + 1, nDoc/4 + alpha + 0.5, K)
   assert initrho.size == K
   assert initomega.size == K
-  assert initrho.min() > 0.0
-  assert initrho.max() < 1.0
-  assert initomega.min() > 0.0
+  assert initrho.min() > EPS
+  assert initrho.max() < 1.0 - EPS
+  assert initomega.min() > EPS
+
   initrhoomega = np.hstack([initrho, initomega])
   initc = rhoomega2c(initrhoomega)
 
@@ -151,7 +153,9 @@ def find_optimum(sumLogVd=0, sumLog1mVd=0, nDoc=0, gamma=1.0, alpha=1.0,
   return rhoomega, fhat, Info
 
 def create_initrho(K):
-  rem = 1.0/(K*K)
+  if K == 1:
+    return 0.9 * np.ones(K)
+  rem = np.minimum( 0.1, 1.0/(K*K))
   beta = (1.0 - rem)/K * np.ones(K+1)
   beta[-1] = rem
   return _beta2v(beta)
