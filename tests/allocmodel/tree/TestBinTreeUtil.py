@@ -70,3 +70,17 @@ class TestBinTreeUtil_7Nodes(TestBinTreeUtil_3Nodes):
   def test_get_child_indices(self):
     print ''
     print BTU.get_child_indices(0, 0)
+
+class TestBinTreeUtil_4States(TestBinTreeUtil_3Nodes):
+  def setUp(self):
+    PiInit = np.asarray([0.3, 0.1, 0.4, 0.2])
+    PiMat = np.asarray([[0.1, 0.5, 0.2, 0.2],
+                        [0.2, 0.1, 0.3, 0.4],
+                        [0.4, 0.2, 0.1, 0.3],
+                        [0.2, 0.2, 0.5, 0.1]])
+    SoftEv = 0.25 * np.ones((7,4))
+    logSoftEv = np.log(SoftEv)
+    self.PiInit = PiInit
+    self.PiMat = PiMat
+    self.logSoftEv = logSoftEv
+    self.SoftEv = SoftEv
