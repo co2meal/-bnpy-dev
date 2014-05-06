@@ -50,7 +50,7 @@ def SumProductAlg_QuadTree(PiInit, PiMat, logSoftEv):
     respPair[n,:,:] = PiMat[branch,:,:] * np.outer(dmsg[parent], umsg[n] * SoftEv[n])
     respPair[n,:,:] = respPair[n,:,:] / np.sum(respPair[n,:,:])
 
-  logMargPrSeq = np.log(margPrObs).sum() + lognormC.sum()
+  logMargPrSeq = np.log(margPrObs) + lognormC.sum()
 
   resp = dmsg * umsg
   return resp, respPair, logMargPrSeq
@@ -82,7 +82,7 @@ def UpwardPass(PiInit, PiMat, SoftEv):
 
   umsg = np.ones( (N, K) )
   start = find_last_nonleaf_node(N)
-  for n in xrange(start, -1, -1):
+  for n in xrange(start-1, -1, -1):
     children = get_children_indices(n, N)
     for child in children:
       branch = get_branch(child)
@@ -118,17 +118,25 @@ def DownwardPass(PiInit, PiMat, SoftEv):
   for d in xrange(0, 4):
     PiTMat[d,:,:] = PiMat[d,:,:].T
 
-  margPrObs = np.zeros(N)
+  margPrObs = 0
   dmsg = np.empty( (N,K) )
   for n in xrange( 0, N ):
     if n == 0:
       dmsg[n] = PiInit * SoftEv[0]
+      margPrObs = np.sum(dmsg[n])
     else:
       parent_index = get_parent_index(n)
+      siblings = get_children_indices(parent_index, N)
+      siblings.remove(n)
+      message = 1
+      message *= dmsg[parent_index]
+      for s in siblings:
+        branch = get_branch(s)
+        message *= np.dot(PiMat[branch,:,:], SoftEv[s]) * umsg[s]
       branch = get_branch(n)
-      dmsg[n] = np.dot(PiTMat[branch,:,:], dmsg[parent_index]) * SoftEv[n]
-    margPrObs[n] = np.sum(dmsg[n])
-    dmsg[n] /= margPrObs[n]
+      dmsg[n] = np.dot(PiTMat[branch,:,:], message) * SoftEv[n]
+    margPrObs = np.sum(dmsg[n])
+    dmsg[n] /= margPrObs
   return dmsg, margPrObs
 
 def get_parent_index(child_index):
@@ -157,15 +165,15 @@ def get_branch(child_index):
 def find_last_nonleaf_node(N):
   '''Get the index of last nonleaf node in the data
   '''
-  i = 0
-  temp = N
-  while True:
-    nodes = pow(4, i)
-    if temp - nodes <= 0:
-      return N - temp
-    else:
-      temp = temp - nodes
-      i += 1
+  if N == 1:
+    return None
+  else:
+    height = 1
+    total = 1
+    while (total + height*4) < N:
+      total += height*4
+      height += 1
+    return total
 
 ########################################################### expLogLik
 ###########################################################

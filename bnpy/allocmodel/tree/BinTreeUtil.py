@@ -63,7 +63,7 @@ def DownwardPass(PiInit, PiMat, SoftEv, umsg):
   for n in xrange( 0, N ):
     if n == 0:
       dmsg[n] = PiInit * SoftEv[0]
-      margPrObs[n] = np.sum(dmsg[n])
+      margPrObs = np.sum(dmsg[n])
     else:
       parent_index = get_parent_index(n)
       siblings = get_children_indices(parent_index, N)

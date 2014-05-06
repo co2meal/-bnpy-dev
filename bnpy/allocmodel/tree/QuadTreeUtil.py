@@ -24,7 +24,7 @@ def calcRespBySumProduct(PiInit, PiMat, logSoftEv):
     respPair[n,:,:] = PiMat * np.outer(dmsg[parent], umsg[n] * SoftEv[n])
     respPair[n,:,:] = respPair[n,:,:] / np.sum(respPair[n,:,:])
 
-  logMargPrSeq = np.log(margPrObs[N-1]) + lognormC.sum()
+  logMargPrSeq = np.log(margPrObs) + lognormC.sum()
 
   resp = dmsg * umsg
   resp = resp / resp.sum(axis=1)[:,np.newaxis]
@@ -58,12 +58,12 @@ def DownwardPass(PiInit, PiMat, SoftEv, umsg):
   K = PiInit.size
   PiT = PiMat.T
 
-  margPrObs = np.zeros(N)
+  margPrObs = 0
   dmsg = np.empty( (N,K) )
   for n in xrange( 0, N ):
     if n == 0:
       dmsg[n] = PiInit * SoftEv[0]
-      margPrObs[n] = np.sum(dmsg[n])
+      margPrObs = np.sum(dmsg[n])
     else:
       parent_index = get_parent_index(n)
       siblings = get_children_indices(parent_index, N)
@@ -73,8 +73,8 @@ def DownwardPass(PiInit, PiMat, SoftEv, umsg):
       for s in siblings:
         message *= np.dot(PiMat, SoftEv[s]) * umsg[s]
       dmsg[n] = np.dot(PiT, message) * SoftEv[n]
-      margPrObs[n] = np.sum(dmsg[n])
-      dmsg[n] /= margPrObs[n]  
+      margPrObs = np.sum(dmsg[n])
+      dmsg[n] /= margPrObs
   return dmsg, margPrObs
 
 ########################################################### Brute Force
