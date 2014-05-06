@@ -106,6 +106,41 @@ def _make_candidate_LP(xbigModel, Data, xbigSS, xfreshSS, xfreshLP, k):
 
   return rbigModel, rbigSS, rfreshSS, rfreshELBO, rfreshLP
 
+def delete_empty_comps(Data, model, SS=None, 
+                                  Korig=0, **kwargs):
+  ''' Removes any component K, K-1, K-2, ... Korig that is too small,
+        as measured by SS.N[k]    
+
+      * does change allocmodel global params
+      * does not alter any obsmodel global params for any comps.
+
+     Returns
+     ---------
+      model : HModel, modified in-place to remove empty comps
+      SS : SuffStatBag, modified in-place to remove empty comps
+  '''
+
+  if SS is None:
+    LP = model.calc_local_params(Data)
+    SS = model.get_global_suff_stats(Data, LP)
+
+  K = SS.K
+  for k in reversed(range(Korig, K)):
+    if SS.N[k] < kwargs['cleanupMinSize']:
+      if SS.K > 1:
+        SS.removeComp(k)
+        del model.obsModel.comp[k]
+      else:
+        msg = 'BIRTH failed. Cleanup found all new components empty.'
+        raise BirthProposalError(msg)
+
+  if SS.K < model.allocModel.K:
+    model.allocModel.update_global_params(SS)
+    model.obsModel.K = SS.K
+
+  return model, SS
+
+
 
 """
 def delete_comps_to_improve_ELBO(Data, model,
@@ -164,36 +199,3 @@ def delete_comps_to_improve_ELBO(Data, model,
   return model, SS, LP, ELBO
 """
 
-def delete_empty_comps(Data, model, SS=None, 
-                                  Korig=0, **kwargs):
-  ''' Removes any component K, K-1, K-2, ... Korig that is too small,
-        as measured by SS.N[k]    
-
-      * does change allocmodel global params
-      * does not alter any obsmodel global params for any comps.
-
-     Returns
-     ---------
-      model : HModel, modified in-place to remove empty comps
-      SS : SuffStatBag, modified in-place to remove empty comps
-  '''
-
-  if SS is None:
-    LP = model.calc_local_params(Data)
-    SS = model.get_global_suff_stats(Data, LP, doPrecompEntropy=True)
-
-  K = SS.K
-  for k in reversed(range(Korig, K)):
-    if SS.N[k] < kwargs['cleanupMinSize']:
-      if SS.K > 1:
-        SS.removeComp(k)
-        del model.obsModel.comp[k]
-      else:
-        msg = 'BIRTH failed. Cleanup found all new components empty.'
-        raise BirthProposalError(msg)
-
-  if SS.K < model.allocModel.K:
-    model.allocModel.update_global_params(SS)
-    model.obsModel.K = SS.K
-
-  return model, SS
