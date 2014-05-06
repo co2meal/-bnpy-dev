@@ -203,7 +203,7 @@ class TestBasics_nDoc0_K4(unittest.TestCase):
     print '  %s exact ' % (np2flatstr(g))
     print '  %s approx' % (np2flatstr(ga))
 
-    roguess = np.hstack([self.v, self.kwargs['nDoc']*np.ones(K)])
+    roguess = np.hstack([self.v, 1+self.kwargs['nDoc']*np.ones(K)])
     fguess = OptimSB.objFunc_constrained(roguess, approx_grad=1, **self.kwargs)
 
     print '  %s rhoguess' % (np2flatstr(roguess[:K]))
