@@ -23,6 +23,7 @@ AllocModelConstructorsByName = { \
            'HDPSoft2Hard':HDPSoft2Hard,
            'HDPHardMult':HDPHardMult,
            'HDPRelAssortModel':HDPRelAssortModel,
+           'FiniteHMT':FiniteHMT
           }
 
 AllocModelNameSet = set(AllocModelConstructorsByName.keys())
