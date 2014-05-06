@@ -12,6 +12,9 @@ from admix.HDPSoft2Hard import HDPSoft2Hard
 from admix.HDPHardMult import HDPHardMult
 from admix.HDPRelModel import HDPRelAssortModel
 
+from tree.FiniteHMT import FiniteHMT
+
+
 AllocModelConstructorsByName = { \
            'MixModel':MixModel,
            'DPMixModel':DPMixModel,
