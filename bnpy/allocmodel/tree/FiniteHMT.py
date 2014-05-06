@@ -28,18 +28,9 @@ class FiniteHMT(AllocModel):
 		if self.inferType.count('VB') > 0:
       print 'inferType VB yet not supported for FiniteHMT'
     elif self.inferType == 'EM' > 0:
-      if self.initPi is None:
-        self.initPi = np.ones(self.K)
-        self.initPi /= self.K
-      if self.transPi is None:
-        self.transPi = np.ones((self.maxBranch, self.K, self.K))
-        for b in xrange(self.maxBranch):
-          for k in xrange(self.K):
-            self.transPi[b,k,:] /= self.K
-      gamma, psi, logMargPrSeq = HMTUtil.SumProductAlg_QuadTree(self.initPi, self.transPi, lpr)
-      LP.update({'gamma':gamma})
-      LP.update({'psi':psi})
-      LP.update({'resp':gamma})
+      resp, respPair, logMargPrSeq = HMTUtil.SumProductAlg_QuadTree(self.initPi, self.transPi, lpr)
+      LP.update({'resp':resp})
+      LP.update({'respPair':respPair})
       LP.update({'evidence':logMargPrSeq})
 
       return LP
@@ -47,25 +38,18 @@ class FiniteHMT(AllocModel):
   ######################################################### Suff Stats
 	#########################################################
 
-	def get_global_suff_stats( self, Data, SS, LP ):
-		if ('gamma' not in LP) or ('psi' not in LP):
-      self.K = LP['resp'].shape[1]
-      gamma = np.ones((Data.nObs, self.K)) / self.K
-      psi = np.ones((Data,nObs, self.K, self.K)) / (self.K * self.K)
-      LP.update({'gamma':gamma})
-      LP.update({'psi':psi})
-          
-    gamma = LP['gamma']
-    psi = LP['psi']
+	def get_global_suff_stats( self, Data, SS, LP ):   
+    resp = LP['resp']
+    respPair = LP['respPair']
     
-    gamma1 = gamma[0,:]
-    N = np.sum(gamma, axis = 1)
+    FirstStateCount = resp[0,:]
+    N = np.sum(resp, axis = 1)
     for b in xrange(self.maxBranch):
-      psiSums = np.sum(psi[Data.mask[b],:,:], axis = 0)
-      SS.setField('psiSums'+str(b), psiSums, dims=('K','K'))
+      PairCounts = np.sum(respPair[Data.mask[b],:,:], axis = 0)
+      SS.setField('PairCounts'+str(b), PairCounts, dims=('K','K'))
 
     SS = SuffStatBag(K = self.K , D = Data.dim)
-    SS.setField('gamma1', gamma1, dims=('K'))
+    SS.setField('FirstStateCount', FirstStateCount, dims=('K'))
     SS.setField('N', N, dims=('K'))
 
     return SS
@@ -79,13 +63,12 @@ class FiniteHMT(AllocModel):
       self.initPi = np.ones(self.K)
       self.transPi = np.ones((self.maxBranch, self.K, self.K))
 
-    self.initPi = (SS.gamma1 + self.initAlpha) / (SS.gamma1.sum() + self.K * self.initAlpha)
+    self.initPi = (SS.FirstStateCount + self.initAlpha) / (SS.FirstStateCount.sum() + self.K * self.initAlpha)
 
     for b in xrange(self.maxBranch):
-      normFactor = np.sum(SS.psiSums, axis = 1)
-      psiSums = getattr(SS._Fields, 'psiSums'+str(b))
-      for k in xrange(SS.K):
-        self.transPi[b,k,:] = psiSums[k,:] / normFactor[k]
+      PairCounts = getattr(SS._Fields, 'PairCounts'+str(b))
+      normFactor = np.sum(PairCounts, axis = 1)
+      self.transPi[b,:] = psiSums / normFactor[:,np.newaxis]
 
   def set_global_params(self, hmodel=None, K=None, initPi=None, transPi=None, maxBranch=None,**kwargs):
     if hmodel is not None:
@@ -109,11 +92,3 @@ class FiniteHMT(AllocModel):
   def to_dict(self):
     if self.inferType == 'EM':
       return dict(initPi = self.initPi, transPi = self.transPi)
-
-  def get_branch(child_index):
-    '''Find on which branch of its parent this child lies
-    '''
-    if (child_index%4 == 0):
-      return 4
-    else:
-      return (child_index%4 - 1)
