@@ -19,7 +19,6 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
   '''
   kwargs = dict(**kwargsIN) # make local copy!
   origids = dict( bigModel=id(bigModel), bigSS=id(bigSS) )
-
   try:
     if bigSS is None:
       msg = "BIRTH failed. SS must be valid SuffStatBag, not None."
@@ -32,13 +31,40 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
       msg = msg % (kwargs['Kmax'])
       raise BirthProposalError(msg)
 
+    # Determine baseline ELBO 
+    if kwargs['birthVerifyELBOIncrease']:
+      curbigModel = bigModel.copy()
+      nStep = 3
+      for step in range(nStep):
+        doELBO = (step == nStep-1) # only on last step
+        curfreshLP = curbigModel.calc_local_params(freshData)
+        curfreshSS = curbigModel.get_global_suff_stats(freshData, curfreshLP,
+                                                       doPrecompEntropy=doELBO)
+        if not doELBO: # all but the last step
+          curbigModel.update_global_params(bigSS + curfreshSS)   
+      curELBO  = curbigModel.calc_evidence(SS=curfreshSS)
+    
+
     # Create freshModel, freshSS, both with Kfresh comps
     #  freshSS has scale freshData
     #  freshModel has arbitrary scale
     freshModel, freshSS = BirthCreate.create_model_with_new_comps(
                                             bigModel, bigSS, freshData,
                                             **kwargs)
-    
+
+    earlyAdmission = -1
+    if kwargs['birthVerifyELBOIncrease']:
+      for step in range(nStep):
+        doELBO = (step == nStep-1) # only on last step
+        freshLP = freshModel.calc_local_params(freshData)
+        freshSS = freshModel.get_global_suff_stats(freshData, freshLP,
+                                                       doPrecompEntropy=doELBO)
+        if not doELBO: # all but the last step
+          freshModel.update_global_params(freshSS)   
+      propELBO  = freshModel.calc_evidence(SS=freshSS)
+      earlyAdmission, ELBOmsg = make_acceptance_decision(curELBO, propELBO)
+      didPass = earlyAdmission
+
     # Create xbigModel and xbigSS, with K + Kfresh comps
     #      freshData can be assigned to any of the K+Kfresh comps
     #      so, any of the K+Kfresh comps may be changed 
@@ -56,35 +82,15 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
     assert xbigModel.obsModel.K == xbigSS.K
 
     if kwargs['birthVerifyELBOIncrease']:
-      assert xfreshSS.hasELBOTerms()
-
-      curbigModel = bigModel.copy()
-      nStep = 3
-      for step in range(nStep):
-        doELBO = (step == nStep-1) # only on last step
-        curfreshLP = curbigModel.calc_local_params(freshData)
-        curfreshSS = curbigModel.get_global_suff_stats(freshData, curfreshLP,
-                                                       doPrecompEntropy=doELBO)
-        if not doELBO: # all but the last step
-          curbigModel.update_global_params(bigSS + curfreshSS)
-   
-      curELBO  = curbigModel.calc_evidence(SS=curfreshSS)
-      propELBO = xbigModel.calc_evidence(SS=xfreshSS)
-
-      # Sanity check
-      # TODO: type check to avoid this on Gauss models
-      if propELBO > 0 and curELBO < 0:
-        didPass = False
-        ELBOmsg = " propEv %.4e is INSANE!" % (propELBO)
-      else:
-        percDiff = (propELBO - curELBO)/np.abs(curELBO)
-        didPass = propELBO > curELBO and percDiff > 0.0001      
-        ELBOmsg = " propEv %.4e | curEv %.4e" % (propELBO, curELBO)
+      if earlyAdmission == -1 or earlyAdmission == 0:
+        assert xfreshSS.hasELBOTerms()
+        propELBO = xbigModel.calc_evidence(SS=xfreshSS)
+        didPass, ELBOmsg = make_acceptance_decision(curELBO, propELBO)
     else:
       didPass = True
-      propELBO = None
-      curELBO = None
       ELBOmsg = ''
+      propELBO = None # needed for kwarg for viz_birth_proposal
+      curELBO = None
 
     # Visualize, if desired
     Kcur = bigSS.K
@@ -93,7 +99,7 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
     if 'doVizBirth' in kwargs and kwargs['doVizBirth']:
       VizBirth.viz_birth_proposal(bigModel, xbigModel, birthCompIDs,
                                   curELBO=curELBO, propELBO=propELBO, **kwargs)
-
+    #from IPython import embed; embed()
     # Reject. Abandon the move.
     if not didPass:
       msg = "BIRTH failed. No improvement over current model." + ELBOmsg
@@ -101,6 +107,8 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
 
     assert xbigModel.obsModel.K == xbigSS.K
     ### Create dict of info about this birth move
+    if earlyAdmission == 1:
+      ELBOmsg = '*early*' + ELBOmsg
     msg = 'BIRTH: %d fresh comps. %s.' % (len(birthCompIDs), ELBOmsg)
     MoveInfo = dict(didAddNew=True,
                     msg=msg,
@@ -108,7 +116,7 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
                     modifiedCompIDs=[],
                     birthCompIDs=birthCompIDs,
                     )
-
+    
     assert not xbigSS.hasELBOTerms()
     assert not xbigSS.hasMergeTerms()
     xfreshSS.removeELBOTerms()
@@ -154,3 +162,14 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
                     birthCompIDs=[])
     return bigModel, bigSS, MoveInfo
 
+def make_acceptance_decision(curELBO, propELBO):
+  # Sanity check
+  # TODO: type check to avoid this on Gauss models
+  if propELBO > 0 and curELBO < 0:
+    didPass = False
+    ELBOmsg = " propEv %.4e is INSANE!" % (propELBO)
+  else:
+    percDiff = (propELBO - curELBO)/np.abs(curELBO)
+    didPass = propELBO > curELBO and percDiff > 0.0001      
+    ELBOmsg = " propEv %.4e | curEv %.4e" % (propELBO, curELBO)
+  return didPass, ELBOmsg

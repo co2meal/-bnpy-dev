@@ -87,7 +87,7 @@ def find_optimum_multiple_tries(sumLogVd=0, sumLog1mVd=0, nDoc=0,
 
 def find_optimum(sumLogVd=0, sumLog1mVd=0, nDoc=0, gamma=1.0, alpha=1.0,
                  initrho=None, initomega=None,
-                 approx_grad=False, factr=1.0e7, **kwargs):
+                 approx_grad=False, factr=1.0e5, **kwargs):
   ''' Run gradient optimization to estimate best parameters rho, omega
 
       Returns
@@ -100,22 +100,24 @@ def find_optimum(sumLogVd=0, sumLog1mVd=0, nDoc=0, gamma=1.0, alpha=1.0,
       --------
       ValueError on an overflow, any NaN, or failure to converge
   '''
-  sumLogVd = np.squeeze(np.asarray(sumLogVd, dtype=np.float64))
-  sumLog1mVd = np.squeeze(np.asarray(sumLog1mVd, dtype=np.float64))
+  if sumLogVd.ndim > 1:
+    sumLogVd = np.squeeze(np.asarray(sumLogVd, dtype=np.float64))
+    sumLog1mVd = np.squeeze(np.asarray(sumLog1mVd, dtype=np.float64))
 
   assert sumLogVd.ndim == 1
   K = sumLogVd.size
 
   ## Determine initial value
-  if initrho is None:
+  if initrho is None or initrho.min() <= EPS or initrho.max() >= 1 - EPS:
     initrho = create_initrho(K)
-  if initomega is None:
-    initomega = (nDoc/4 + 1) * np.ones(K)
+  if initomega is None or initomega.min() <= EPS:
+    initomega = np.linspace(nDoc/2 + alpha + 1, nDoc/4 + alpha + 0.5, K)
   assert initrho.size == K
   assert initomega.size == K
-  assert initrho.min() > 0.0
-  assert initrho.max() < 1.0
-  assert initomega.min() > 0.0
+  assert initrho.min() > EPS
+  assert initrho.max() < 1.0 - EPS
+  assert initomega.min() > EPS
+
   initrhoomega = np.hstack([initrho, initomega])
   initc = rhoomega2c(initrhoomega)
 
@@ -151,7 +153,9 @@ def find_optimum(sumLogVd=0, sumLog1mVd=0, nDoc=0, gamma=1.0, alpha=1.0,
   return rhoomega, fhat, Info
 
 def create_initrho(K):
-  rem = 1.0/(K*K)
+  if K == 1:
+    return 0.9 * np.ones(K)
+  rem = np.minimum( 0.1, 1.0/(K*K))
   beta = (1.0 - rem)/K * np.ones(K+1)
   beta[-1] = rem
   return _beta2v(beta)
@@ -159,12 +163,13 @@ def create_initrho(K):
 ########################################################### Objective
 ###########################################################  unconstrained
 def objFunc_unconstrained(c, approx_grad=False, **kwargs):
-  rhoomega, drodc = c2rhoomega(c, doGrad=True)
   if approx_grad:
+    rhoomega = c2rhoomega(c, doGrad=0)
     f = objFunc_constrained(rhoomega, approx_grad=True, **kwargs)
     return f
+  rhoomega, drodc = c2rhoomega(c, doGrad=1)
   f, grad = objFunc_constrained(rhoomega, **kwargs)
-  return f, grad
+  return f, grad * drodc
 
 def c2rhoomega(c, doGrad=False):
   K = c.size/2
@@ -285,6 +290,122 @@ def objFunc_constrained(rhoomega,
   return -1.0 * elbo, -1.0 * grad
   
 
+########################################################### Objective
+###########################################################  constrained
+def rhoFunc_constrained(rho, omega=0,
+                     sumLogVd=0, sumLog1mVd=0, nDoc=0, gamma=1.0, alpha=1.0,
+                     approx_grad=False):
+  ''' Returns constrained objective function and its gradient
+
+      Args
+      -------
+      rho := 1D array, size K
+
+      Returns
+      -------
+      f := -1 * L(rhoomega), 
+           where L is ELBO objective function (log posterior prob)
+      g := gradient of f
+  '''
+  K = rho.size
+  assert not np.any(np.isinf(omega))
+  u1 = rho * omega
+  u0 = (1 - rho) * omega
+
+  gammalnomega = gammaln(omega)
+  digammaomega =  digamma(omega)
+  assert not np.any(np.isinf(gammalnomega))
+  assert not np.any(np.isinf(digammaomega))
+
+  logc = np.sum(gammaln(u1) + gammaln(u0) - gammalnomega)
+  if nDoc > 0:
+    logc = logc/nDoc
+    B1 = 1 + (1.0 - u1)/nDoc
+    kvec = K + 1 - np.arange(1, K+1)
+    C1 = kvec + (alpha - u0)/nDoc
+  else:
+    B1 = 1 - u1
+    C1 = alpha - u0
+    
+  B2 = digamma(u1) - digammaomega
+  C2 = digamma(u0) - digammaomega
+
+  elbo = logc + np.inner( B1, B2) \
+              + np.inner( C1, C2)
+  if nDoc > 0:
+    rho1m = 1 - rho
+    cumprod1mrho = np.ones(K)
+    cumprod1mrho[1:] = np.cumprod(rho1m[:-1])
+    P = sumLogVd/nDoc
+    Q = sumLog1mVd/nDoc
+    rPand1mrQ = rho * P + (1-rho) * Q
+    elbo += gamma * np.inner(cumprod1mrho, rPand1mrQ) 
+  if approx_grad:
+    return -1.0 * elbo
+  
+  psiP_u1 = polygamma(1, u1)
+  psiP_u0 = polygamma(1, u0)
+  gradrho = B1 * omega * psiP_u1 - C1 * omega * psiP_u0
+  if nDoc > 0:
+    RMat = calc_drho_dcumprod1mrho(cumprod1mrho, rho, K)
+    gB = np.dot(RMat, rPand1mrQ) + cumprod1mrho * (P-Q)
+    gradrho += gamma * gB
+  return -1.0 * elbo, -1.0 * gradrho
+
+
+def omegaFunc_constrained(omega, rho=0,
+                     sumLogVd=0, sumLog1mVd=0, nDoc=0, gamma=1.0, alpha=1.0,
+                     approx_grad=False):
+  ''' Returns constrained objective function and its gradient
+
+      Args
+      -------
+      rhoomega := 1D array, size 2*K
+
+      Returns
+      -------
+      f := -1 * L(rhoomega), 
+           where L is ELBO objective function (log posterior prob)
+      g := gradient of f
+  '''
+  K = omega.size
+  assert not np.any(np.isinf(omega))
+
+  u1 = rho * omega
+  u0 = (1 - rho) * omega
+
+  gammalnomega = gammaln(omega)
+  digammaomega =  digamma(omega)
+  assert not np.any(np.isinf(gammalnomega))
+  assert not np.any(np.isinf(digammaomega))
+  if not approx_grad:
+    psiP_omega = polygamma(1, omega)
+    assert not np.any(np.isinf(psiP_omega))
+
+  logc = np.sum(gammaln(u1) + gammaln(u0) - gammalnomega)
+  if nDoc > 0:
+    logc = logc/nDoc
+    B1 = 1 + (1.0 - u1)/nDoc
+    kvec = K + 1 - np.arange(1, K+1)
+    C1 = kvec + (alpha - u0)/nDoc
+  else:
+    B1 = 1 - u1
+    C1 = alpha - u0
+    
+  B2 = digamma(u1) - digammaomega
+  C2 = digamma(u0) - digammaomega
+
+  elbo = logc + np.inner( B1, B2) \
+              + np.inner( C1, C2)
+  if approx_grad:
+    return -1.0 * elbo
+  
+  psiP_u1 = polygamma(1, u1)
+  psiP_u0 = polygamma(1, u0)
+  gradomega = B1 * (   rho * psiP_u1 - psiP_omega) \
+            + C1 * ((1-rho)* psiP_u0 - psiP_omega)
+  return -1.0 * elbo, -1.0 * gradomega
+
 ###########################################################
 ###########################################################
 
@@ -368,3 +489,11 @@ def _get_lowTriIDs(K):
     lowTriIDsDict[K] = ltIDs
     return ltIDs
 
+def calc_omega_vs_objFunc_1D(rho, omega, k, nVals=100, MAXOMEGA=1e8, **kwargs):
+  oVals = np.linspace(10, MAXOMEGA, nVals)
+  fVals = np.zeros(nVals)
+  omega = omega.copy()
+  for oo, oVal in enumerate(oVals):
+    omega[k] = oVal
+    fVals[oo] = objFunc_constrained( np.hstack([rho,omega]), approx_grad=1, **kwargs)
+  return oVals, fVals

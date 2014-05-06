@@ -12,6 +12,8 @@ import numpy as np
 from BirthProposalError import BirthProposalError
 import BirthCleanup
 
+fastParams = dict(nCoordAscentItersLP=10, convThrLP=0.05)
+
 def create_model_with_new_comps(bigModel, bigSS, freshData, **kwargs):
   '''
 
@@ -34,8 +36,17 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, **kwargs):
                                   initname=kwargs['creationRoutine'],
                                   randstate=kwargs['randstate']) 
     
-  # TODO: do fast LP calculation, since we're just checking for empties
-  freshLP = freshModel.calc_local_params(freshData)
+  freshLP = freshModel.calc_local_params(freshData, **fastParams)
+  freshSS = freshModel.get_global_suff_stats(freshData, freshLP)
+
+  ## Sort new comps in largest-to-smallest order
+  # TODO: better update for allocModel reorderComps
+  # currently, relying on init allocModel being "uniform", so order dont matter
+  bigtosmallIDs = np.argsort(-1 * freshSS.N)
+  freshSS.reorderComps(bigtosmallIDs)
+  freshModel.obsModel.update_global_params(freshSS) 
+
+  freshLP = freshModel.calc_local_params(freshData, **fastParams)
   freshSS = freshModel.get_global_suff_stats(freshData, freshLP)
 
   if kwargs['cleanupDeleteEmpty']:
@@ -44,7 +55,6 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, **kwargs):
     freshLP = freshModel.calc_local_params(freshData)
     freshSS = freshModel.get_global_suff_stats(freshData, freshLP)
 
-  # TODO: sort new comps in largest-to-smallest order
   return freshModel, freshSS
 
 ########################################################### Topic-model 

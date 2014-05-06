@@ -16,6 +16,8 @@ from ...util import NumericUtil
 from ...util import digamma, gammaln
 from ...util import EPS
 
+MAXOMEGA = 1e7
+
 class HDPStickBreak(AllocModel):
 
   ######################################################### Constructors
@@ -45,9 +47,14 @@ class HDPStickBreak(AllocModel):
     self.Elogv = digamma(self.rho * self.omega) - digammaomega
     self.Elog1mv = digamma((1-self.rho) * self.omega) - digammaomega
 
-  def _calc_cumprod1mrho(self):
-    cumprod1mrho = np.ones(self.K)
-    np.cumprod(1-self.rho[:-1], out=cumprod1mrho[1:])
+  def _calc_cumprod1mrho(self, rho=None):
+    if rho is None:
+      rho = self.rho
+    K = rho.size
+    cumprod1mrho = np.ones(K)
+    if K == 1:
+      return cumprod1mrho
+    np.cumprod(1-rho[:-1], out=cumprod1mrho[1:])
     return cumprod1mrho
 
   ######################################################### Accessors
@@ -116,7 +123,7 @@ class HDPStickBreak(AllocModel):
   
 
 
-  def insertCompsIntoSuffStatBag(self, SS, freshSS, correctFresh=False):
+  def insertCompsIntoSuffStatBag(self, SS, freshSS, doUpdateModel=1):
     ''' Model-specific correction to SuffStatBag's built-in method for
           inserting components.
 
@@ -130,8 +137,16 @@ class HDPStickBreak(AllocModel):
     '''
     nDoc = SS.nDoc
     AInfo, RInfo = self.calcSSAdjustmentsForExpansion(SS, freshSS.K)
-    SS.insertComps(freshSS)
 
+    new_rho = 1.0 / (1.0 + self.alpha0) * np.ones(freshSS.K)
+    new_omega = (1 + self.alpha0) * np.ones(freshSS.K)
+    if doUpdateModel:
+      self.K = self.K + freshSS.K
+      self.rho = np.hstack([self.rho, new_rho])
+      self.omega = np.hstack([self.omega, new_omega])
+      self.set_helper_params()
+
+    SS.insertComps(freshSS)
     arr = SS.sumLogVd + nDoc * AInfo['sumLogVd']
     SS.setField('sumLogVd', arr, dims='K')
     arr = SS.sumLog1mVd + nDoc * AInfo['sumLog1mVd']
@@ -241,6 +256,11 @@ class HDPStickBreak(AllocModel):
         Log.error('***** Optim failed. Set to prior. ' + str(error))
         omega = (self.alpha0 + 1 ) * np.ones(SS.K)
         rho = 1/float(1+self.alpha0) * np.ones(SS.K)
+
+    nBad = np.sum(omega > MAXOMEGA)
+    if nBad > 0:
+      Log.error('***** Enforced MAXOMEGA for %d entries.' % (nBad)) 
+      omega = np.minimum(omega, MAXOMEGA)
     return rho, omega
 
   def set_global_params(self, hmodel=None, 
@@ -265,7 +285,9 @@ class HDPStickBreak(AllocModel):
       beta = np.hstack([np.squeeze(Ebeta), np.squeeze(EbetaLeftover)])
           
     elif beta is not None:
-      beta = np.hstack([np.squeeze(beta), np.min(beta)/100.])
+      Ktmp = beta.size
+      rem = np.minimum( 0.5, 1./(Ktmp))
+      beta = np.hstack([np.squeeze(beta), rem])
       beta = beta/np.sum(beta)
     else:
       raise ValueError('Bad parameters. Vector beta not specified.')
@@ -288,8 +310,7 @@ class HDPStickBreak(AllocModel):
     '''
     assert abs(np.sum(beta) - 1.0) < 0.001
     rho = OptimHDPSB._beta2v(beta)
-    K = rho.size
-    omega = nDoc * np.ones(K)
+    omega = nDoc * np.ones(rho.size)
     return rho, omega    
     
 
@@ -320,6 +341,12 @@ class HDPStickBreak(AllocModel):
     elbo = ((E_logpVd - E_logqVd)
             + (E_logpZ - E_logqZ)
             + (E_logpV - E_logqV))
+
+    if todict:
+      return dict(elbo=elbo, v_Elogp=E_logpV, v_Elogq=E_logqV,
+                             z_Elogp=E_logpZ, z_Elogq=E_logqZ,
+                             vd_Elogp=E_logpVd, vd_Elogq=E_logqVd)
+
     return elbo
 
   ####################################################### ELBO terms for Z
@@ -413,11 +440,19 @@ class HDPStickBreak(AllocModel):
   
   def from_dict(self, Dict):
     self.inferType = Dict['inferType']
-    self.K = Dict['K']
-    self.rho = Dict['rho']
-    self.omega = Dict['omega']
+    self.K = int(Dict['K'])
+    self.rho = _to1D(np.asarray(Dict['rho'], dtype=np.float64))
+    self.omega = _to1D(np.asarray(Dict['omega'], dtype=np.float64))  
     self.set_helper_params()
 
   def get_prior_dict( self ):
     return dict(K=self.K, alpha0=self.alpha0, gamma=self.gamma)
+
+def _to1D(arr):
+  if arr.ndim == 0:
+    arr = arr[np.newaxis]
+  elif arr.ndim > 1:
+    arr = np.squeeze(arr)
+  assert arr.ndim ==1
+  return arr
 

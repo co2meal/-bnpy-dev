@@ -23,21 +23,23 @@ def expand_then_refine(freshModel, freshSS, freshData,
       AdjustInfo : dict with adjustment factors
       ReplaceInfo : dict with replacement factors
   '''
+  xbigModel = bigModel.copy()
   xbigSS = bigSS.copy(includeELBOTerms=False, includeMergeTerms=False)
   if kwargs['expandAdjustSuffStats'] \
         and hasattr(freshModel.allocModel, 'insertCompsIntoSuffStatBag'):
-    xbigSS, AInfo, RInfo = bigModel.allocModel.insertCompsIntoSuffStatBag(
+    xbigSS, AInfo, RInfo = xbigModel.allocModel.insertCompsIntoSuffStatBag(
                                                             xbigSS, freshSS)
   else:
     xbigSS.insertComps(freshSS)
     AInfo = None
     RInfo = None
 
-
   ### Create expanded model, K + Kfresh comps
   Kx = xbigSS.K
-  xbigModel = freshModel.copy()
-  xbigModel.update_global_params(xbigSS)
+  if xbigModel.allocModel.K < Kx:
+    xbigModel.allocModel.update_global_params(xbigSS)
+  if xbigModel.obsModel.K < Kx:
+    xbigModel.obsModel.update_global_params(xbigSS)
 
   xbigSS.subtractSpecificComps(freshSS, range(bigSS.K, bigSS.K + freshSS.K))
 

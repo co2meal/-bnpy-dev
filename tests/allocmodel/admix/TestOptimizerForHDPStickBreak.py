@@ -1,4 +1,3 @@
-
 import sys
 import numpy as np
 from nose.plugins.skip import Skip, SkipTest
@@ -15,14 +14,18 @@ def np2flatstr(xvec, Kmax=10):
 def sampleVd(v, nDoc=100, gamma=0.5):
   K = v.size
   PRNG = np.random.RandomState(0)
-  cumprodv = np.ones(K)
-  cumprodv[1:] = np.cumprod(1 - v[:-1])
+  cumprod1mv = np.ones(K)
+  cumprod1mv[1:] = np.cumprod(1 - v[:-1])
 
   Vd = np.zeros((nDoc, K))
   for k in xrange(K):
-    Vd[:,k] = PRNG.beta( gamma * cumprodv[k] * v[k],
-                         gamma * cumprodv[k] * (1-v[k]),
+    # Warning: beta rand generator can fail when params are very small (~1e-8)
+    Vd[:,k] = PRNG.beta( gamma * cumprod1mv[k] * v[k],
+                         gamma * cumprod1mv[k] * (1-v[k]),
                          size=nDoc)
+    if np.any(np.isnan(Vd[:,k])):
+      Vd[:,k] = PRNG.choice([0, 1], nDoc, replace=True)
+  assert not np.any(np.isnan(Vd))
   return Vd
 
 def summarizeVd(Vd):
@@ -32,17 +35,20 @@ def summarizeVd(Vd):
     logVd = np.log(Vd)
     log1mVd = np.log(1-Vd)
 
+  assert not np.any(np.isnan(logVd))
   infmask = np.isinf(logVd)
   if np.any(infmask):
-    logVd[infmask] = -10000
+    print 'REPLACING %d values in logVd' % (np.sum(infmask))
+    logVd[infmask] = -40
   infmask = np.isinf(log1mVd)
   if np.any(infmask):
-    log1mVd[infmask] = -10000
+    print 'REPLACING %d values in log1mVd' % (np.sum(infmask))
+    log1mVd[infmask] = -40
   return np.sum(logVd, axis=0), np.sum(log1mVd, axis=0)
 
 ########################################################### TestBasics
 ###########################################################
-class TestBasics_nDoc0(unittest.TestCase):
+class TestBasics_nDoc0_K4(unittest.TestCase):
   def shortDescription(self):
     return None
 
@@ -177,7 +183,7 @@ class TestBasics_nDoc0(unittest.TestCase):
     '''
     print ''
     K = self.v.size
-    epsvec = np.hstack([1e-12*np.ones(K), 1e-8*np.ones(K)])
+    epsvec = np.hstack([1e-10*np.ones(K), 1e-8*np.ones(K)])
 
     objFunc = lambda r : OptimSB.objFunc_constrained(r, approx_grad=1,
                                              **self.kwargs)
@@ -185,16 +191,26 @@ class TestBasics_nDoc0(unittest.TestCase):
     ro, f, Info = OptimSB.find_optimum(approx_grad=1, **self.kwargs)
     f, g = OptimSB.objFunc_constrained(ro, approx_grad=0,
                                              **self.kwargs)
+    assert not np.any(np.isnan(g))
     ga = approx_fprime(ro, objFunc, epsvec)    
 
     absDiff = np.abs(g - ga)
     denom = np.abs(g)
     percDiff = np.abs(g - ga)/denom
-    percDiff[denom < 0.01] = absDiff    
-    maxError = np.max(percDiff)
-    print '-------------------------- perc diff %.4f ****' % (maxError)
+    if np.sum(denom < 0.01) > 0:
+      percDiff[denom < 0.01] = absDiff[denom < 0.01]
+    print '-------------------------- Gradients AT OPT ****'
     print '  %s exact ' % (np2flatstr(g))
     print '  %s approx' % (np2flatstr(ga))
+
+    roguess = np.hstack([self.v, 1+self.kwargs['nDoc']*np.ones(K)])
+    fguess = OptimSB.objFunc_constrained(roguess, approx_grad=1, **self.kwargs)
+
+    print '  %s rhoguess' % (np2flatstr(roguess[:K]))
+    print '  %s rho' % (np2flatstr(ro[:K]))
+    print '  %.4e fguess' % (fguess)
+    print '  %.4e f' % (f)
+    maxError = np.max(percDiff)
     assert maxError < 0.03
 
     PRNG = np.random.RandomState(0)
@@ -279,9 +295,28 @@ class TestBasics_nDoc0(unittest.TestCase):
     assert sumLog1mVd.size == self.v.size
 
 
+class TestBasics_nDoc0_K1(TestBasics_nDoc0_K4):
+  def shortDescription(self):
+    return None
+
+  def setUp(self):
+    K = 1
+    self.v = 0.5 * np.ones(K)
+    self.kwargs = dict(sumLogVd=np.zeros(K), sumLog1mVd=np.zeros(K), nDoc=0, 
+                       alpha=5.0, gamma=0.99)
 
 
-class TestBasics_nDoc50(TestBasics_nDoc0):
+class TestBasics_nDoc50_K1(TestBasics_nDoc0_K4):
+
+  def setUp(self):
+    self.v = np.asarray([0.98]) # test near the boundary!
+    self.nDoc = 50
+    self.Vd = sampleVd(self.v, nDoc=self.nDoc, gamma=0.99)
+    sumLogVd, sumLog1mVd = summarizeVd(self.Vd)
+    self.kwargs = dict(sumLogVd=sumLogVd, sumLog1mVd=sumLog1mVd, nDoc=self.nDoc, 
+                       alpha=5.0, gamma=0.99)
+
+class TestBasics_nDoc50_K4(TestBasics_nDoc0_K4):
 
   def setUp(self):
     self.v = np.asarray([0.1, 0.2, 0.3, 0.4])
@@ -291,7 +326,27 @@ class TestBasics_nDoc50(TestBasics_nDoc0):
     self.kwargs = dict(sumLogVd=sumLogVd, sumLog1mVd=sumLog1mVd, nDoc=self.nDoc, 
                        alpha=5.0, gamma=0.99)
 
+class TestBasics_nDoc5000_K2(TestBasics_nDoc0_K4):
 
+  def setUp(self):
+    self.v = np.asarray([0.91, 0.3])
+    self.nDoc = 5000
+    self.Vd = sampleVd(self.v, nDoc=self.nDoc, gamma=0.99)
+    sumLogVd, sumLog1mVd = summarizeVd(self.Vd)
+    self.kwargs = dict(sumLogVd=sumLogVd, sumLog1mVd=sumLog1mVd, nDoc=self.nDoc, 
+                       alpha=5.0, gamma=0.99)
+
+
+class TestBasics_nDoc5000_K32(TestBasics_nDoc0_K4):
+
+  def setUp(self):
+    self.v = 0.42 * np.ones(32)
+    self.nDoc = 5000
+    self.Vd = sampleVd(self.v, nDoc=self.nDoc, gamma=0.99)
+    sumLogVd, sumLog1mVd = summarizeVd(self.Vd)
+    self.kwargs = dict(sumLogVd=sumLogVd, sumLog1mVd=sumLog1mVd, nDoc=self.nDoc, 
+                       alpha=5.0, gamma=0.99)
+'''
 class TestBasics_nDoc500(TestBasics_nDoc0):
 
   def setUp(self):
@@ -312,3 +367,4 @@ class TestBasics_nDoc5000(TestBasics_nDoc0):
     self.kwargs = dict(sumLogVd=sumLogVd, sumLog1mVd=sumLog1mVd, nDoc=self.nDoc, 
                        alpha=5.0, gamma=0.99)
 
+'''
