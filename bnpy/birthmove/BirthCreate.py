@@ -24,6 +24,7 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, **kwargs):
     freshSS : SuffStatBag with Kfresh components,
                    scale will be consistent with target dataset
   '''
+  Info = dict()
   freshModel = bigModel.copy()
 
   if kwargs['creationRoutine'] == 'findmissingtopics':
@@ -35,19 +36,25 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, **kwargs):
                                   K=kwargs['Kfresh'],
                                   initname=kwargs['creationRoutine'],
                                   randstate=kwargs['randstate']) 
-    
+
   freshLP = freshModel.calc_local_params(freshData, **fastParams)
   freshSS = freshModel.get_global_suff_stats(freshData, freshLP)
 
   ## Sort new comps in largest-to-smallest order
-  # TODO: better update for allocModel reorderComps
-  # currently, relying on init allocModel being "uniform", so order dont matter
+  # TODO: improve update for allocModel reorderComps
+  # currently, relies on init allocModel being "uniform", so order dont matter
   bigtosmallIDs = np.argsort(-1 * freshSS.N)
   freshSS.reorderComps(bigtosmallIDs)
-  freshModel.obsModel.update_global_params(freshSS) 
+  freshModel.obsModel.update_global_params(freshSS)
 
-  freshLP = freshModel.calc_local_params(freshData, **fastParams)
-  freshSS = freshModel.get_global_suff_stats(freshData, freshLP)
+  # Record initial model for posterity
+  Info['freshModelInit'] = freshModel.copy()
+
+  for step in xrange(kwargs['creationNumIters']):
+    freshLP = freshModel.calc_local_params(freshData, **fastParams)
+    freshSS = freshModel.get_global_suff_stats(freshData, freshLP)
+    freshModel.update_global_params(freshSS)
+    Info['freshModelRefined'] = freshModel.copy()
 
   if kwargs['cleanupDeleteEmpty']:
     freshModel, freshSS = BirthCleanup.delete_empty_comps(
@@ -55,7 +62,12 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, **kwargs):
     freshLP = freshModel.calc_local_params(freshData)
     freshSS = freshModel.get_global_suff_stats(freshData, freshLP)
 
-  return freshModel, freshSS
+  if kwargs['cleanupDeleteToImproveFresh']:
+    freshModel, freshSS, ELBO = BirthCleanup.delete_comps_to_improve_ELBO(
+                                             freshData, freshModel, LP=freshLP)
+    Info['freshModelPostDelete'] = freshModel.copy()
+    Info['evBound'] = ELBO
+  return freshModel, freshSS, Info
 
 ########################################################### Topic-model 
 ###########################################################  creation

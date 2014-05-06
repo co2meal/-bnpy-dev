@@ -60,7 +60,8 @@ def _sample_target_WordsData(Data, model=None, LP=None, **kwargs):
   else:
     candidates = None
 
-  if 'targetCompID' in kwargs and LP is not None:
+  hasCompID = 'targetCompID' in kwargs and kwargs['targetCompID'] is not None
+  if hasCompID and LP is not None:
     if candidates is None:
       Ndk = LP['DocTopicCount'].copy()
     else:
@@ -95,6 +96,17 @@ def _sample_target_WordsData(Data, model=None, LP=None, **kwargs):
   targetData = Data.get_random_sample(kwargs['targetMaxSize'],
                            randstate=kwargs['randstate'],
                            candidates=candidates, p=probCandidates) 
+
+  if 'targetHoldout' in kwargs and kwargs['targetHoldout']:
+    nHoldout = targetData.nDoc / 5
+    holdIDs = kwargs['randstate'].choice(targetData.nDoc, nHoldout, replace=False)
+    trainIDs = [x for x in xrange(targetData.nDoc) if x not in holdIDs]
+    holdData = targetData.select_subset_by_mask(docMask=holdIDs, 
+                                             doTrackFullSize=False)
+    targetData = targetData.select_subset_by_mask(docMask=trainIDs,
+                                              doTrackFullSize=False)
+    return targetData, holdData
+
   return targetData
 
 def calcKLdivergence_discrete(P1, P2):

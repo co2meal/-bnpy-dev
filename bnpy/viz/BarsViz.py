@@ -10,9 +10,10 @@ imshowArgs = dict(interpolation='nearest', cmap='bone',
                   vmin=0.0, vmax=0.3)
 
 
-def plotExampleBarsDocs(Data, docIDsToPlot=None,
-                              vmax=None, nDocToPlot=9, doShowNow=True):
-    pylab.figure()
+def plotExampleBarsDocs(Data, docIDsToPlot=None, figID=None,
+                              vmax=None, nDocToPlot=16, doShowNow=True):
+    if figID is None:
+      pylab.figure()
     V = Data.vocab_size
     sqrtV = int(np.sqrt(V))
     assert np.allclose(sqrtV * sqrtV, V)
@@ -26,7 +27,7 @@ def plotExampleBarsDocs(Data, docIDsToPlot=None,
     if vmax is None:
       DocWordArr = Data.to_sparse_docword_matrix().toarray()
       vmax = int(np.max(np.percentile(DocWordArr, 98, axis=0)))
-      
+
     for plotPos, docID in enumerate(docIDsToPlot):
         # Parse current document
         start,stop = Data.doc_range[docID,:]
@@ -38,12 +39,16 @@ def plotExampleBarsDocs(Data, docIDsToPlot=None,
 
         pylab.subplot(nRows, nCols, plotPos)
         pylab.imshow(squareIm, interpolation='nearest', vmin=0, vmax=vmax)
+        pylab.axis('image')
+        pylab.xticks([])
+        pylab.yticks([])
+    pylab.tight_layout()
     if doShowNow:
       pylab.show()
 
 def plotBarsFromHModel(hmodel, Data=None, doShowNow=True, figH=None,
                        compsToHighlight=None, sortBySize=False,
-                       width=12, height=3, Ktop=None):
+                       width=12, height=3, Ktop=None, Kmax=None):
     if Data is None:
         width = width/2
     if figH is None:
@@ -70,6 +75,11 @@ def plotBarsFromHModel(hmodel, Data=None, doShowNow=True, figH=None,
         pylab.imshow(learned_tw,  **imshowArgs)
         pylab.title('Learned Topic x Word')
     else:
+        ltw = learned_tw
+        if Kmax is not None:
+          learned_tw = np.zeros((Kmax, ltw.shape[1]))
+          Kmax = np.minimum(Kmax, ltw.shape[0])
+          learned_tw[:Kmax] = ltw[:Kmax]
         # Plot just the learned parameters
         aspectR = learned_tw.shape[1]/float(learned_tw.shape[0])
         while imshowArgs['vmax'] > 2 * np.percentile(learned_tw, 97):

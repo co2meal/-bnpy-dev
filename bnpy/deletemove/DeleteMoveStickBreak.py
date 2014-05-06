@@ -55,9 +55,7 @@ def _makeInfo(curELBO, propELBO, compIDs):
   return dict(didRemoveComps=didRemoveComps, msg=msg, compIDs=compIDs,
                                              elbo=elbo)
 
-def construct_LP_with_comps_removed(Data, model, compIDs=0, LP=None,
-                                    betamethod='current',
-                                    remBetaMaxFactor=1.1):
+def construct_LP_with_comps_removed(Data, model, compIDs=0, LP=None):
   ''' Create local params consistent with deleting component at compID.
       Every field in returned dict LP will have scale consistent with Data.
 
@@ -72,7 +70,11 @@ def construct_LP_with_comps_removed(Data, model, compIDs=0, LP=None,
   if LP is None:
     LP = model.calc_local_params(Data)
 
-  nObs, K = LP['word_variational'].shape  
+  nObs, K = LP['word_variational'].shape
+
+  if K == 1:
+    raise NotImplementedError('cannot delete when K==1')
+
   Knew = K - len(compIDs)
   Rnew = np.zeros((nObs, Knew))
   if len(compIDs) == 1:

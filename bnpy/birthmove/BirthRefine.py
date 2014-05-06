@@ -23,6 +23,7 @@ def expand_then_refine(freshModel, freshSS, freshData,
       AdjustInfo : dict with adjustment factors
       ReplaceInfo : dict with replacement factors
   '''
+  Info = dict()
   xbigModel = bigModel.copy()
   xbigSS = bigSS.copy(includeELBOTerms=False, includeMergeTerms=False)
   if kwargs['expandAdjustSuffStats'] \
@@ -40,22 +41,18 @@ def expand_then_refine(freshModel, freshSS, freshData,
     xbigModel.allocModel.update_global_params(xbigSS)
   if xbigModel.obsModel.K < Kx:
     xbigModel.obsModel.update_global_params(xbigSS)
-
   xbigSS.subtractSpecificComps(freshSS, range(bigSS.K, bigSS.K + freshSS.K))
+  Info['xbigModelInit'] = xbigModel.copy()
 
   ### Refine expanded model with VB iterations
   xbigModel, xfreshSS, xfreshLP, origIDs = refine_expanded_model_with_VB_iters(
                                 xbigModel, freshData, 
                                 xbigSS=xbigSS, Korig=bigSS.K, **kwargs)
+  Info['xbigModelRefined'] = xbigModel.copy()
+
   if AInfo is not None and len(origIDs) < Kx:
     for key in AInfo:
       AInfo[key] = AInfo[key][origIDs]
-    '''
-    assert np.allclose(xbigSS.sumLogPiUnused,
-                       RInfo['sumLogPiUnused'] * bigSS.nDoc)
-    assert np.allclose(xbigSS.sumLogPiActive[bigSS.K:], 
-                       AInfo['sumLogPiActive'][bigSS.K:] * bigSS.nDoc)
-    '''  
 
   if hasattr(xfreshSS, 'nDoc'):
     assert xbigSS.nDoc == bigSS.nDoc
@@ -72,22 +69,20 @@ def expand_then_refine(freshModel, freshSS, freshData,
                                   freshData, xbigModel, 
                                   xbigSS, xfreshSS,
                                   Korig=bigSS.K, xfreshLP=xfreshLP, **kwargs)
-
+    Info['xbigModelPostDelete'] = xbigModel.copy()
     if AInfo is not None and len(origIDs) < Kx:
       for key in AInfo:
         if AInfo[key].size == Kx:
           AInfo[key] = AInfo[key][origIDs]
-      '''
-      assert np.allclose(xbigSS.sumLogPiActive[bigSS.K:], 
-                         AInfo['sumLogPiActive'][bigSS.K:] * bigSS.nDoc)
-      '''
   
   if hasattr(xfreshSS, 'nDoc'):
     assert xbigSS.nDoc == bigSS.nDoc
     assert xfreshSS.nDoc == freshData.nDoc
   xbigSS += xfreshSS
 
-  return xbigModel, xbigSS, xfreshSS, AInfo, RInfo
+  Info['AInfo'] = AInfo
+  Info['RInfo'] = RInfo
+  return xbigModel, xbigSS, xfreshSS, Info
 
 
 def refine_expanded_model_with_VB_iters(xbigModel, freshData,

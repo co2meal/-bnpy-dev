@@ -17,7 +17,7 @@ MIN_SIZE = 25
 
 def select_target_comp(K, SS=None, model=None, LP=None, Data=None,
                            lapsSinceLastBirth=defaultdict(int),
-                           excludeList=list(), doVerbose=False, 
+                           excludeList=list(), doVerbose=False, return_ps=False,
                            **kwargs):
   ''' Choose a single component among possible choices {0,2,3, ... K-2, K-1}
       to target with a birth proposal.
@@ -86,6 +86,8 @@ def select_target_comp(K, SS=None, model=None, LP=None, Data=None,
   assert np.allclose( np.sum(ps), 1.0)
 
   ktarget = kwargs['randstate'].choice(K, p=ps)
+  if return_ps:
+    return ktarget, ps
   return ktarget
 
 '''

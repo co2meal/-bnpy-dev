@@ -19,6 +19,17 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
   '''
   kwargs = dict(**kwargsIN) # make local copy!
   origids = dict( bigModel=id(bigModel), bigSS=id(bigSS) )
+
+  # Create train/test split of the freshData  
+  if kwargs['birthHoldoutData']:
+    nHoldout = freshData.nDoc / 5
+    holdIDs = kwargs['randstate'].choice(freshData.nDoc, nHoldout, replace=False)
+    trainIDs = [x for x in xrange(freshData.nDoc) if x not in holdIDs]
+    holdData = freshData.select_subset_by_mask(docMask=holdIDs, 
+                                             doTrackFullSize=False)
+    freshData = freshData.select_subset_by_mask(docMask=trainIDs,
+                                              doTrackFullSize=False)
+
   try:
     if bigSS is None:
       msg = "BIRTH failed. SS must be valid SuffStatBag, not None."
@@ -44,11 +55,10 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
           curbigModel.update_global_params(bigSS + curfreshSS)   
       curELBO  = curbigModel.calc_evidence(SS=curfreshSS)
     
-
     # Create freshModel, freshSS, both with Kfresh comps
     #  freshSS has scale freshData
     #  freshModel has arbitrary scale
-    freshModel, freshSS = BirthCreate.create_model_with_new_comps(
+    freshModel, freshSS, freshInfo = BirthCreate.create_model_with_new_comps(
                                             bigModel, bigSS, freshData,
                                             **kwargs)
 
@@ -72,12 +82,12 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
     #  xbigSS has scale bigData + freshData
     #  xbigModel has scale bigData + freshData
     if kwargs['expandOrder'] == 'expandThenRefine':
-      xbigModel, xbigSS, xfreshSS, AI, RI = BirthRefine.expand_then_refine(
-                                           freshModel, freshSS, freshData,    
+      xbigModel, xbigSS, xfreshSS, xInfo = BirthRefine.expand_then_refine(
+                                               freshModel, freshSS, freshData,    
                                                bigModel, bigSS, **kwargs)
     else:
       raise NotImplementedError('TODO')
-      # BirthRefine.refine_then_expand()
+
 
     assert xbigModel.obsModel.K == xbigSS.K
 
@@ -112,10 +122,12 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
     msg = 'BIRTH: %d fresh comps. %s.' % (len(birthCompIDs), ELBOmsg)
     MoveInfo = dict(didAddNew=True,
                     msg=msg,
-                    AdjustInfo=AI, ReplaceInfo=RI,
+                    AdjustInfo=xInfo['AInfo'], ReplaceInfo=xInfo['RInfo'],
                     modifiedCompIDs=[],
                     birthCompIDs=birthCompIDs,
                     )
+    MoveInfo['xInfo'] = xInfo
+    MoveInfo['freshInfo'] = freshInfo
     
     assert not xbigSS.hasELBOTerms()
     assert not xbigSS.hasMergeTerms()
@@ -135,14 +147,15 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
     if bigSS.hasELBOTerms():
       ELBOTerms = bigSS._ELBOTerms.copy()
       ELBOTerms.insertEmptyComps(Ktotal-Kcur)
-      if AI is not None:
-        for key in AI:
+      if xInfo['AInfo'] is not None:
+        for key in xInfo['AInfo']:
           if hasattr(ELBOTerms, key):
-            arr = getattr(ELBOTerms, key) + bigSS.nDoc * AI[key]
+            arr = getattr(ELBOTerms, key) + bigSS.nDoc * xInfo['AInfo'][key]
             ELBOTerms.setField(key, arr, dims='K')
-        for key in RI:
+      if xInfo['RInfo'] is not None:
+        for key in xInfo['RInfo']:
           if hasattr(ELBOTerms, key):
-            ELBOTerms.setField(key, bigSS.nDoc * RI[key], dims=None)
+            ELBOTerms.setField(key, bigSS.nDoc * xInfo['RInfo'][key], dims=None)
       xbigSS.restoreELBOTerms(ELBOTerms)
 
     return xbigModel, xbigSS, MoveInfo
