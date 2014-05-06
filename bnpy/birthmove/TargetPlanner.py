@@ -193,8 +193,12 @@ def sample_related_words_by_score(Data, pscore, nWords=3, anchor=None,
   ''' Sample set of words that have high underprediction score AND cooccur.
   '''
   DocWordArr = Data.to_sparse_docword_matrix().toarray()
-  Corr = np.corrcoef(DocWordArr.T, bias=1)
+  Cov = np.cov(DocWordArr.T, bias=1)
+  sigs = np.sqrt(np.diag(Cov))
+  Corr = Cov / np.maximum(np.outer(sigs, sigs), 1e-10)
   posCorr = np.maximum(Corr, 0)
+  assert not np.any(np.isnan(posCorr))
+
   randstate = kwargs['randstate']
   if anchor is None:
     anchors = randstate.choice(Data.vocab_size, nWords, replace=False, p=pscore)
@@ -204,7 +208,7 @@ def sample_related_words_by_score(Data, pscore, nWords=3, anchor=None,
     curWords = [firstWord]
     while len(curWords) < nWords:
       relWordProbs = calc_prob_related_words(posCorr, pscore, curWords)
-      if np.sum(relWordProbs) < 1e-14:
+      if np.sum(relWordProbs) < 1e-14 or np.any(np.isnan(relWordProbs)):
         break
       newWord = randstate.choice(Data.vocab_size, 1, replace=False,
                                                      p=relWordProbs)
