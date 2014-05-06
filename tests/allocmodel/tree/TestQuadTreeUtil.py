@@ -79,3 +79,21 @@ class TestQuadTreeUtil_21Nodes(unittest.TestCase):
     print logPrObs
     print '------------- BruteForce'
     print logPrObs2
+
+class TestQuadTreeUtil_NonuniformLik(TestQuadTreeUtil_5Nodes):
+    def setUp(self):
+        PiInit = np.asarray([0.3, 0.1, 0.4, 0.2])
+        PiMat = np.asarray([[0.1, 0.5, 0.2, 0.2],
+                            [0.2, 0.1, 0.3, 0.4],
+                            [0.4, 0.2, 0.1, 0.3],
+                            [0.2, 0.2, 0.5, 0.1]])
+        SoftEv = np.asarray([[0.2, 0.2, 0.35, 0.25],
+                             [0.3, 0.4, 0.2, 0.1], 
+                             [0.25, 0.1, 0.15, 0.5], 
+                             [0.23, 0.37, 0.3, 0.1], 
+                             [0.12, 0.28, 0.4, 0.2]])
+        logSoftEv = np.log(SoftEv)
+        self.PiInit = PiInit
+        self.PiMat = PiMat
+        self.logSoftEv = logSoftEv
+        self.SoftEv = SoftEv

@@ -16,7 +16,7 @@ def calcRespBySumProduct(PiInit, PiMat, logSoftEv):
 
   SoftEv, lognormC = expLogLik(logSoftEv)
   umsg = UpwardPass(PiInit, PiMat, SoftEv)
-  dmsg, margPrObs = DownwardPass(PiInit, PiMat, SoftEv)
+  dmsg, margPrObs = DownwardPass(PiInit, PiMat, SoftEv, umsg)
 
   respPair = np.zeros((N,K,K))
   for n in xrange( 1, N ):
@@ -24,7 +24,7 @@ def calcRespBySumProduct(PiInit, PiMat, logSoftEv):
     respPair[n,:,:] = PiMat * np.outer(dmsg[parent], umsg[n] * SoftEv[n])
     respPair[n,:,:] = respPair[n,:,:] / np.sum(respPair[n,:,:])
 
-  logMargPrSeq = np.log(margPrObs).sum() + lognormC.sum()
+  logMargPrSeq = np.log(margPrObs) + np.sum(lognormC)
 
   resp = dmsg * umsg
   resp = resp / resp.sum(axis=1)[:,np.newaxis]
@@ -42,7 +42,7 @@ def UpwardPass(PiInit, PiMat, SoftEv):
   if start is None:
     # Base case N=1. Only the root exists.
     return umsg
-  for n in xrange(start, -1, -1):
+  for n in xrange(start-1, -1, -1):
     children = get_children_indices(n, N)
     for child in children:
       umsg[n] = umsg[n] * np.dot(PiMat, umsg[child] * SoftEv[child])
@@ -51,23 +51,30 @@ def UpwardPass(PiInit, PiMat, SoftEv):
   return umsg
 
 
-def DownwardPass(PiInit, PiMat, SoftEv):
+def DownwardPass(PiInit, PiMat, SoftEv, umsg):
   '''Propagate messages downwards along the tree, starting from the root
   '''
   N = SoftEv.shape[0]
   K = PiInit.size
   PiT = PiMat.T
 
-  margPrObs = np.zeros(N)
+  margPrObs = 0
   dmsg = np.empty( (N,K) )
   for n in xrange( 0, N ):
     if n == 0:
       dmsg[n] = PiInit * SoftEv[0]
+      margPrObs[n] = np.sum(dmsg[n])
     else:
       parent_index = get_parent_index(n)
-      dmsg[n] = np.dot(PiT, dmsg[parent_index]) * SoftEv[n]
-    margPrObs[n] = np.sum(dmsg[n])
-    dmsg[n] /= margPrObs[n]
+      siblings = get_children_indices(parent_index, N)
+      siblings.remove(n)
+      message = 1
+      message *= dmsg[parent_index]
+      for s in siblings:
+        message *= np.dot(PiMat, SoftEv[s]) * umsg[s]
+      dmsg[n] = np.dot(PiT, message) * SoftEv[n]
+      margPrObs = np.sum(dmsg[n])
+      dmsg[n] /= margPrObs
   return dmsg, margPrObs
 
 ########################################################### Brute Force
@@ -157,7 +164,13 @@ def find_last_nonleaf_node(N):
   '''
   if N == 1:
     return None
-  return N - 3
+  else:
+    height = 1
+    total = 1
+    while (total + height*2) < N:
+      total += height*2
+      height += 1
+    return total
 
 ########################################################### expLogLik
 ###########################################################

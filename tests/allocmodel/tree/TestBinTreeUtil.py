@@ -84,3 +84,17 @@ class TestBinTreeUtil_4States(TestBinTreeUtil_3Nodes):
     self.PiMat = PiMat
     self.logSoftEv = logSoftEv
     self.SoftEv = SoftEv
+
+class TestBinTreeUtil_NonuniformLik(TestBinTreeUtil_3Nodes):
+    def setUp(self):
+        PiInit = np.asarray([0.3, 0.7])
+        PiMat = np.asarray([[0.6, 0.4],
+                            [0.2, 0.8]])
+        SoftEv = np.asarray([[0.8, 0.2],
+                             [0.3, 0.7],
+                             [0.42, 0.58]])
+        logSoftEv = np.log(SoftEv)
+        self.PiInit = PiInit
+        self.PiMat = PiMat
+        self.logSoftEv = logSoftEv
+        self.SoftEv = SoftEv

@@ -16,7 +16,7 @@ def calcRespBySumProduct(PiInit, PiMat, logSoftEv):
 
   SoftEv, lognormC = expLogLik(logSoftEv)
   umsg = UpwardPass(PiInit, PiMat, SoftEv)
-  dmsg, margPrObs = DownwardPass(PiInit, PiMat, SoftEv)
+  dmsg, margPrObs = DownwardPass(PiInit, PiMat, SoftEv, umsg)
 
   respPair = np.zeros((N,K,K))
   for n in xrange( 1, N ):
@@ -24,7 +24,7 @@ def calcRespBySumProduct(PiInit, PiMat, logSoftEv):
     respPair[n,:,:] = PiMat * np.outer(dmsg[parent], umsg[n] * SoftEv[n])
     respPair[n,:,:] = respPair[n,:,:] / np.sum(respPair[n,:,:])
 
-  logMargPrSeq = np.log(margPrObs).sum() + lognormC.sum()
+  logMargPrSeq = np.log(margPrObs[N-1]) + lognormC.sum()
 
   resp = dmsg * umsg
   resp = resp / resp.sum(axis=1)[:,np.newaxis]
@@ -42,7 +42,7 @@ def UpwardPass(PiInit, PiMat, SoftEv):
   if start is None:
     # Base case N=1. Only the root exists.
     return umsg
-  for n in xrange(start, -1, -1):
+  for n in xrange(start-1, -1, -1):
     children = get_children_indices(n, N)
     for child in children:
       umsg[n] = umsg[n] * np.dot(PiMat, umsg[child] * SoftEv[child])
@@ -51,7 +51,7 @@ def UpwardPass(PiInit, PiMat, SoftEv):
   return umsg
 
 
-def DownwardPass(PiInit, PiMat, SoftEv):
+def DownwardPass(PiInit, PiMat, SoftEv, umsg):
   '''Propagate messages downwards along the tree, starting from the root
   '''
   N = SoftEv.shape[0]
@@ -63,11 +63,18 @@ def DownwardPass(PiInit, PiMat, SoftEv):
   for n in xrange( 0, N ):
     if n == 0:
       dmsg[n] = PiInit * SoftEv[0]
+      margPrObs[n] = np.sum(dmsg[n])
     else:
       parent_index = get_parent_index(n)
-      dmsg[n] = np.dot(PiT, dmsg[parent_index]) * SoftEv[n]
-    margPrObs[n] = np.sum(dmsg[n])
-    dmsg[n] /= margPrObs[n]
+      siblings = get_children_indices(parent_index, N)
+      siblings.remove(n)
+      message = 1
+      message *= dmsg[parent_index]
+      for s in siblings:
+        message *= np.dot(PiMat, SoftEv[s]) * umsg[s]
+      dmsg[n] = np.dot(PiT, message) * SoftEv[n]
+      margPrObs[n] = np.sum(dmsg[n])
+      dmsg[n] /= margPrObs[n]  
   return dmsg, margPrObs
 
 ########################################################### Brute Force
@@ -85,7 +92,7 @@ def calcRespByBruteForce(PiInit, PiMat, logSoftEv):
   PiInit, PiMat, K = _parseInput_TransParams(PiInit, PiMat)
   logSoftEv = _parseInput_SoftEv(logSoftEv, K)
   SoftEv, lognormC = expLogLik(logSoftEv)
-  if N > 40:
+  if N > 21:
     raise ValueError("Brute force is too expensive for N=%d!" % (N))
   resp = np.zeros((N,K))
   respPair = np.zeros((N,K,K))
@@ -141,10 +148,10 @@ def calcProbOfTree(Ztree, PiInit, PiMat, SoftEv):
 def get_parent_index(n):
   if n == 0:
     return None # it is a root
-  elif n % 2 == 0:
-    return (n-1)/2
+  elif n % 4 == 0:
+    return (n-1)/4
   else:
-    return n/2
+    return n/4
 
 def get_children_indices(n, N):
   if 4 * n + 1 >= N:
