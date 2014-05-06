@@ -54,7 +54,7 @@ def runBirthAndVerifyNoChange(bigmodel, bigSS, bigData, **kwargs):
   return didPass, msg, Info
 
 def pprint_ELBO(elboA, elboB=None):
-  for target in ['data', 'phi', 'v', 'pi', 'z']:
+  for target in ['data', 'phi', 'v', 'pi', 'z', 'vd']:
     x = 0
     y = 0
     for key in elboA.keys():
