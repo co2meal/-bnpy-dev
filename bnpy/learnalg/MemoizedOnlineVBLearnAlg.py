@@ -435,15 +435,10 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         msg = "BIRTH skipped. Target data too small. Size %d."
         msg = msg % (targetSize)
       else:
-        if SS is not None:
-          oldSize = SS.N.sum()
         hmodel, SS, MoveInfo = BirthMove.run_birth_move(
                                            hmodel, SS, targetData, 
                                            randstate=self.PRNG, 
                                            **kwargs)
-        if MoveInfo['didAddNew'] and kwargs['birthRetainExtraMass']:
-          newSize = SS.N.sum()
-          assert np.allclose(newSize- oldSize, targetData.word_count.sum())
 
         msg = MoveInfo['msg']
         if MoveInfo['didAddNew']:

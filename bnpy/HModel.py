@@ -39,6 +39,9 @@ class HModel(object):
     self.allocModel = allocModel
     self.obsModel = obsModel
     self.inferType = allocModel.inferType
+    if hasattr(obsModel, 'setupWithAllocModel'):
+      # Tell the obsModel whether to model docs or words
+      obsModel.setupWithAllocModel(allocModel)
 
   @classmethod
   def CreateEntireModel(cls, inferType, allocModelName, obsModelName, allocPriorDict, obsPriorDict, Data):

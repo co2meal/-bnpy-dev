@@ -61,13 +61,20 @@ def _sample_target_WordsData(Data, model=None, LP=None, **kwargs):
     candidates = None
 
   hasCompID = 'targetCompID' in kwargs and kwargs['targetCompID'] is not None
-  if hasCompID and LP is not None:
-    if candidates is None:
-      Ndk = LP['DocTopicCount'].copy()
+  hasDocTopicCountInLP = LP is not None and 'DocTopicCount' in LP
+  hasRespInLP = LP is not None and 'resp' in LP
+  if hasCompID:
+    if hasDocTopicCountInLP:
+      if candidates is None:
+        Ndk = LP['DocTopicCount'].copy()
+      else:
+        Ndk = LP['DocTopicCount'][candidates].copy()
+      Ndk /= np.sum(Ndk,axis=1)[:,np.newaxis] + 1e-9
+      mask = Ndk[:, kwargs['targetCompID']] > kwargs['targetCompFrac']
+    elif hasRespInLP:
+      mask = LP['resp'][:, kwargs['targetCompID']] > kwargs['targetCompFrac']
     else:
-      Ndk = LP['DocTopicCount'][candidates].copy()
-    Ndk /= np.sum(Ndk,axis=1)[:,np.newaxis] + 1e-9
-    mask = Ndk[:, kwargs['targetCompID']] > kwargs['targetCompFrac']
+      raise ValueError('LP must have either DocTopicCount or resp')
     if np.sum(mask) < 1:
       return None
     if candidates is None:

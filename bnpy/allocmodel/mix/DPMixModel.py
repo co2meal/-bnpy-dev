@@ -101,6 +101,7 @@ class DPMixModel(AllocModel):
   ######################################################### Suff Stats
   #########################################################
   def get_global_suff_stats(self, Data, LP,
+                             preselectroutine=None,
                              doPrecompEntropy=False, 
                              doPrecompMergeEntropy=False, mPairIDs=None):
     ''' Calculate the sufficient statistics for global parameter updates
@@ -128,7 +129,11 @@ class DPMixModel(AllocModel):
                    effective number of observations assigned to each comp
     '''
     Nvec = np.sum(LP['resp'], axis=0)
-    SS = SuffStatBag(K=Nvec.size, D=Data.dim)
+    if hasattr(Data, 'dim'):
+      SS = SuffStatBag(K=Nvec.size, D=Data.dim)
+    else:
+      SS = SuffStatBag(K=Nvec.size, D=Data.vocab_size)
+
     SS.setField('N', Nvec, dims=('K'))
     if doPrecompEntropy:
       ElogqZ_vec = self.E_logqZ(LP)
@@ -150,7 +155,7 @@ class DPMixModel(AllocModel):
 
   ######################################################### Global Params
   #########################################################
-  def update_global_params_VB( self, SS, **kwargs ):
+  def update_global_params_VB( self, SS, **kwargs):
     ''' Updates global params (stick-breaking Beta params qalpha1, qalpha0)
           for conventional VB learning algorithm.
         New parameters have exactly the number of components specified by SS. 
@@ -177,7 +182,7 @@ class DPMixModel(AllocModel):
     self.set_helper_params()
 
   def set_global_params(self, hmodel=None, K=None, qalpha1=None, 
-                              qalpha0=None, **kwargs):
+                              qalpha0=None, beta=None, nObs=10, **kwargs):
     ''' Directly set global parameters qalpha0, qalpha1 to provided values
     '''
     if hmodel is not None:
@@ -186,6 +191,20 @@ class DPMixModel(AllocModel):
       self.qalpha0 = hmodel.allocModel.qalpha0
       self.set_helper_params()
       return
+    if beta is not None:
+      if K is None:
+        K = beta.size
+      # convert to expected stick-lengths v
+      import bnpy.allocmodel.admix.OptimizerForHDPStickBreak as OptimSB
+      if beta.size == K:
+        rem = np.minimum(0.01, 1.0/K)
+        rem = np.minimum(1.0/K, beta.min()/K)
+        beta = np.hstack( [beta, rem])
+      beta = beta / beta.sum()
+      Ev = OptimSB._beta2v(beta)
+      qalpha1 = Ev * nObs
+      qalpha0 = (1-Ev) * nObs
+
     if type(qalpha1) != np.ndarray or qalpha1.size != K or qalpha0.size != K:
       raise ValueError("Bad DP Parameters")
     self.K = K
@@ -195,7 +214,7 @@ class DPMixModel(AllocModel):
  
   ######################################################### Evidence
   #########################################################
-  def calc_evidence(self, Data, SS, LP=None ):
+  def calc_evidence(self, Data, SS, LP=None, todict=False, **kwargs):
     '''
     '''
     evV = self.E_logpV() - self.E_logqV()
@@ -207,6 +226,13 @@ class DPMixModel(AllocModel):
       evZ = self.E_logpZ(SS) -  SS.ampF * evZq
     else:
       evZ = self.E_logpZ(SS) - evZq
+
+    if todict:
+      return dict(z_Elogp=self.E_logpZ(SS),
+                  z_Elogq=evZq,
+                  v_Elogp=self.E_logpV(),
+                  v_Elogq=self.E_logqV())
+
     return evZ + evV
          
   def E_logpZ(self, SS):

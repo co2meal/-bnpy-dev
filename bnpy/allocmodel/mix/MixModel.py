@@ -98,7 +98,11 @@ class MixModel(AllocModel):
                    effective number of observations assigned to each comp
     '''
     Nvec = np.sum( LP['resp'], axis=0 )
-    SS = SuffStatBag(K=Nvec.size, D=Data.dim)
+    if hasattr(Data, 'dim'):
+      SS = SuffStatBag(K=Nvec.size, D=Data.dim)
+    elif hasattr(Data, 'vocab_size'):
+      SS = SuffStatBag(K=Nvec.size, D=Data.vocab_size)
+
     SS.setField('N', Nvec, dims=('K'))
     if doPrecompEntropy is not None:
       ElogqZ_vec = self.E_logqZ(LP)
@@ -127,10 +131,12 @@ class MixModel(AllocModel):
     self.Elogw = digamma( self.alpha ) - digamma( self.alpha.sum() )
     self.K = SS.K
  
-  def set_global_params(self, hmodel=None, K=None, w=None, 
-                              alpha=None, **kwargs):
+  def set_global_params(self, hmodel=None, K=None, w=None, beta=None,
+                              alpha=None, nObs=10, **kwargs):
     ''' Directly set global parameters alpha to provided values
     '''
+    if beta is not None:
+      w = beta
     if hmodel is not None:
       self.K = hmodel.allocModel.K
       if self.inferType == 'EM':
@@ -144,12 +150,15 @@ class MixModel(AllocModel):
       if self.inferType == 'EM':
         self.w = w
       else:
-        self.alpha = alpha
+        if w is not None:
+          self.alpha = w * nObs
+        elif alpha is not None:
+          self.alpha = alpha
         self.Elogw = digamma( self.alpha ) - digamma( self.alpha.sum() )
 
   ######################################################### Evidence
   #########################################################
-  def calc_evidence( self, Data, SS, LP):
+  def calc_evidence(self, Data, SS, LP, todict=False):
     if self.inferType == 'EM':
       return LP['evidence'] + self.log_pdf_dirichlet(self.w)
     elif self.inferType.count('VB') > 0:

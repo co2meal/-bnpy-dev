@@ -11,9 +11,10 @@ class MultObsModel(ObsModel):
     
   ######################################################### Constructors
   #########################################################
-    def __init__(self, inferType, obsPrior=None):
+    def __init__(self, inferType, dataAtomType='word', obsPrior=None):
         self.inferType = inferType
         self.obsPrior = obsPrior
+        self.dataAtomType = dataAtomType
         self.comp = list()
 
     @classmethod
@@ -22,7 +23,7 @@ class MultObsModel(ObsModel):
             raise NotImplementedError('TODO')
         else:
             obsPrior = DirichletDistr.InitFromData(priorArgDict, Data)
-        return cls(inferType, obsPrior)
+        return cls(inferType, obsPrior=obsPrior)
 
     @classmethod
     def CreateWithAllComps(cls, oDict, obsPrior, compDictList):
@@ -46,6 +47,18 @@ class MultObsModel(ObsModel):
         Elogphi[k,:] = self.comp[k].Elogphi
       return Elogphi
 
+    def setupWithAllocModel(self, allocModel):
+      '''
+      '''
+      if type(allocModel) != str:
+        allocModel = str(type(allocModel))
+      if allocModel.lower().count('HDP') or allocModel.lower().count('Admix'):
+        self.setDataAtomType('word')
+      else:
+        self.setDataAtomType('doc')
+
+    def setDataAtomType(self, dataAtomType):
+      self.dataAtomType = dataAtomType
 
   ######################################################### Local Params
   #########################################################   E-step
@@ -60,10 +73,20 @@ class MultObsModel(ObsModel):
         '''
         if self.inferType == 'EM':
             raise NotImplementedError('TODO')
+        elif self.dataAtomType == 'doc':
+            DocWordMat = Data.to_sparse_docword_matrix()
+            LP['E_log_soft_ev'] = self.E_logsoftev_DocData(DocWordMat)
         else:
             LP['E_logsoftev_WordsData'] = self.E_logsoftev_WordsData(Data)
         return LP
-    
+
+    def E_logsoftev_DocData(self, DocWordMat):
+      ''' Return log soft evidence probabilities for each document
+      '''
+      Elogphi = self.getElogphiMatrix().T # V x K matrix
+      return DocWordMat * Elogphi # D x K matrix
+          
+
     def E_logsoftev_WordsData(self, Data):
         ''' Return log soft evidence probabilities for each word token.
 
@@ -94,13 +117,18 @@ class MultObsModel(ObsModel):
           Nmat = LP['hard_asgn'] # N x K
           BMat = Data.to_sparse_matrix(doBinary=True) # V x N 
           TopicWordCounts = (BMat * Nmat).T # matrix-matrix product
+        elif self.dataAtomType == 'doc':
+          DocWordMat = Data.to_sparse_docword_matrix() # D x V
+          TopicWordCounts = LP['resp'].T * DocWordMat # mat-mat product
         else:
           wv = LP['word_variational']  # N x K
           WMat = Data.to_sparse_matrix() # V x N
           TopicWordCounts = (WMat * wv).T # matrix-matrix product
 
         SS.setField('WordCounts', TopicWordCounts, dims=('K','D'))
-        SS.setField('N', np.sum(TopicWordCounts,axis=1), dims=('K'))
+
+        if self.dataAtomType == 'word':
+          SS.setField('N', np.sum(TopicWordCounts,axis=1), dims=('K'))
         return SS
 
   ######################################################### Global Params
@@ -202,14 +230,8 @@ class MultObsModel(ObsModel):
     def E_log_pW(self, SS):
         ''' Calculate "data" term of the ELBO,
                 E_{q(Z), q(Phi)} [ log p(X) ]
-
-            which can be computed quickly as
-              for v in range(VocabSize):
-                for k in range(K):
-                    lpw += effectiveCount(word v in topic k) * Elogphi[k,v]
-            NOTE: ampFactor has already been applied to SS.WordCounts!
         '''
-        Elogphi = self.getElogphiMatrix()
+        Elogphi = self.getElogphiMatrix()  # K x V
         lpw = np.sum(SS.WordCounts * Elogphi)
         return lpw
  
