@@ -11,7 +11,6 @@ THR=0.99999999
 
 def run_delete_move(Data, model, SS, LP, ELBO=None, compIDs=[], 
                                                     **kwargs):
-
   if ELBO is None:
     if SS.hasELBOTerms():
       ELBO = model.calc_evidence(SS=SS)

@@ -42,44 +42,37 @@ def expand_then_refine(freshModel, freshSS, freshData,
   if xbigModel.obsModel.K < Kx:
     xbigModel.obsModel.update_global_params(xbigSS)
   xbigSS.subtractSpecificComps(freshSS, range(bigSS.K, bigSS.K + freshSS.K))
-  Info['xbigModelInit'] = xbigModel.copy()
+
+  if kwargs['birthDebug']:
+    Info['xbigModelInit'] = xbigModel.copy()
 
   ### Refine expanded model with VB iterations
   xbigModel, xfreshSS, xfreshLP, origIDs = refine_expanded_model_with_VB_iters(
                                 xbigModel, freshData, 
                                 xbigSS=xbigSS, Korig=bigSS.K, **kwargs)
-  Info['xbigModelRefined'] = xbigModel.copy()
-
-  if AInfo is not None and len(origIDs) < Kx:
-    for key in AInfo:
-      AInfo[key] = AInfo[key][origIDs]
+  if kwargs['birthDebug']:
+    Info['xbigModelRefined'] = xbigModel.copy()
+  AInfo = _delete_from_AInfo(AInfo, origIDs, Kx)
 
   if hasattr(xfreshSS, 'nDoc'):
     assert xbigSS.nDoc == bigSS.nDoc
     assert xfreshSS.nDoc == freshData.nDoc
 
   if kwargs['cleanupDeleteToImprove']:
-    if xfreshSS.hasELBOTerms():
-      xfreshELBO = xbigModel.calc_evidence(SS=xfreshSS)
-    else:
-      xfreshELBO = None
     Kx = xbigSS.K
     xbigModel, xbigSS, xfreshSS, origIDs = \
               BirthCleanup.delete_comps_from_expanded_model_to_improve_ELBO(
                                   freshData, xbigModel, 
                                   xbigSS, xfreshSS,
                                   Korig=bigSS.K, xfreshLP=xfreshLP, **kwargs)
-    Info['xbigModelPostDelete'] = xbigModel.copy()
-    if AInfo is not None and len(origIDs) < Kx:
-      for key in AInfo:
-        if AInfo[key].size == Kx:
-          AInfo[key] = AInfo[key][origIDs]
+    AInfo = _delete_from_AInfo(AInfo, origIDs, Kx)
+    if kwargs['birthDebug']:
+      Info['xbigModelPostDelete'] = xbigModel.copy()
   
   if hasattr(xfreshSS, 'nDoc'):
     assert xbigSS.nDoc == bigSS.nDoc
     assert xfreshSS.nDoc == freshData.nDoc
   xbigSS += xfreshSS
-
   Info['AInfo'] = AInfo
   Info['RInfo'] = RInfo
   return xbigModel, xbigSS, xfreshSS, Info
@@ -123,7 +116,7 @@ def refine_expanded_model_with_VB_iters(xbigModel, freshData,
           del origIDs[k]
 
     if xfreshSS.K == Korig:
-      msg = "BIRTH failed. No new comps above cleanupMinSize."
+      msg = "BIRTH failed. After refining, no new comps above cleanupMinSize."
       raise BirthProposalError(msg)
 
     xbigSS += xfreshSS
@@ -135,3 +128,9 @@ def refine_expanded_model_with_VB_iters(xbigModel, freshData,
   xfreshSS = xbigModel.get_global_suff_stats(freshData, xfreshLP,
                                                doPrecompEntropy=True)
   return xbigModel, xfreshSS, xfreshLP, origIDs
+
+def _delete_from_AInfo(AInfo, origIDs, Kx):
+  if AInfo is not None and len(origIDs) < Kx:
+    for key in AInfo:
+      AInfo[key] = AInfo[key][origIDs]
+  return AInfo

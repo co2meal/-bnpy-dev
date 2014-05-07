@@ -18,6 +18,7 @@ Attributes
 import numpy as np
 
 from bnpy.allocmodel import AllocModel
+from bnpy.deletemove import DeleteUtil
 from bnpy.suffstats import SuffStatBag
 from bnpy.util import NumericUtil
 from bnpy.util import gammaln, digamma, EPS
@@ -97,6 +98,14 @@ class DPMixModel(AllocModel):
     LP['resp'] = lpr
     assert np.allclose(lpr.sum(axis=1), 1)
     return LP
+
+  def delete_comps_from_local_params(self, Data, LP, compIDs, **kwargs):
+    ''' Create new local params with certain components deleted
+    '''
+    newLP = dict()
+    newLP['resp'] = DeleteUtil.delete_comps_from_resp_matrix(LP['resp'],
+                                                             compIDs)
+    return newLP
 
   ######################################################### Suff Stats
   #########################################################

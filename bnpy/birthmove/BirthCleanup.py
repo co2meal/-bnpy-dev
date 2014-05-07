@@ -42,7 +42,7 @@ def delete_comps_to_improve_ELBO(Data, model,
       SS = rSS
       LP = rLP
       ELBO = rELBO
-      print 'delete accepted.  %.4e > %.4e' % (rELBO, ELBO)
+      #print 'delete accepted.  %.4e > %.4e' % (rELBO, ELBO)
 
     if SS.K == 1:
       break
@@ -53,16 +53,23 @@ def delete_comps_to_improve_ELBO(Data, model,
   #  raise BirthProposalError(msg)
   return model, SS, ELBO
 
-def _make_del_candidate__viaLP(Data, model, LP, k):
-  ''' Construct candidate model with deleted comp k by manipulating local params
+def _delete_comps_from_LP(Data, model, LP, k):
+  ''' Construct local params dict with components removed.
   '''
-  # Select function for creating local parameters
-  if str(type(model.allocModel)).count('StickBreak') > 0:
-    makeLPfunc = DMSB.construct_LP_with_comps_removed
+  if hasattr(model.allocModel, 'delete_comps_from_local_params'):
+    rLP = model.allocModel.delete_comps_from_local_params(Data, LP, k)
   else:
-    makeLPfunc = construct_LP_with_comps_removed
+    if str(type(model.allocModel)).count('StickBreak') > 0:
+      makeLPfunc = DMSB.construct_LP_with_comps_removed
+    else:
+      makeLPfunc = construct_LP_with_comps_removed
+    rLP = makeLPfunc(Data, model, compIDs=[k], LP=LP)
+  return rLP
 
-  rLP = makeLPfunc(Data, model, compIDs=[k], LP=LP)
+def _make_del_candidate__viaLP(Data, model, LP, k):
+  ''' Construct candidate model with deleted comp k from local params.
+  '''
+  rLP = _delete_comps_from_LP(Data, model, LP, k)
   rSS = model.get_global_suff_stats(Data, rLP, doPrecompEntropy=True)
 
   rmodel = model.copy()
@@ -123,7 +130,7 @@ def delete_comps_from_expanded_model_to_improve_ELBO(Data,
     ### end loop over comps to delete
 
   if xbigSS.K == Korig:
-    msg = "BIRTH failed. Deleting all expanded comps improves ELBO."
+    msg = "BIRTH failed. After expansion, deleting all new comps improves ELBO."
     raise BirthProposalError(msg)
 
   if didAccept:
@@ -152,9 +159,7 @@ def _make_xcandidate(xbigModel, Data, xbigSS, xfreshSS, k):
 
 
 def _make_xcandidate_LP(xbigModel, Data, xbigSS, xfreshSS, xfreshLP, k):
-  rfreshLP = construct_LP_with_comps_removed(Data, xbigModel,
-                                             compIDs=[k], LP=xfreshLP)
-
+  rfreshLP = _delete_comps_from_LP(Data, xbigModel, xfreshLP, k)
   rfreshSS = xbigModel.get_global_suff_stats(Data, rfreshLP, 
                                              doPrecompEntropy=True)
 
@@ -195,7 +200,7 @@ def delete_empty_comps(Data, model, SS=None,
         SS.removeComp(k)
         del model.obsModel.comp[k]
       else:
-        msg = 'BIRTH failed. Cleanup found all new components empty.'
+        msg = 'BIRTH failed. After creation, all new comps below cleanupMinSize.'
         raise BirthProposalError(msg)
 
   if SS.K < model.allocModel.K:

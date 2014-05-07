@@ -48,13 +48,15 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, **kwargs):
   freshModel.obsModel.update_global_params(freshSS)
 
   # Record initial model for posterity
-  Info['freshModelInit'] = freshModel.copy()
+  if kwargs['birthDebug']:
+    Info['freshModelInit'] = freshModel.copy()
 
   for step in xrange(kwargs['creationNumIters']):
     freshLP = freshModel.calc_local_params(freshData, **fastParams)
     freshSS = freshModel.get_global_suff_stats(freshData, freshLP)
     freshModel.update_global_params(freshSS)
-    Info['freshModelRefined'] = freshModel.copy()
+    if kwargs['birthDebug']:
+      Info['freshModelRefined'] = freshModel.copy()
 
   if kwargs['cleanupDeleteEmpty']:
     freshModel, freshSS = BirthCleanup.delete_empty_comps(
@@ -65,8 +67,10 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, **kwargs):
   if kwargs['cleanupDeleteToImproveFresh']:
     freshModel, freshSS, ELBO = BirthCleanup.delete_comps_to_improve_ELBO(
                                              freshData, freshModel, LP=freshLP)
-    Info['freshModelPostDelete'] = freshModel.copy()
     Info['evBound'] = ELBO
+    if kwargs['birthDebug']:
+      Info['freshModelPostDelete'] = freshModel.copy()
+    
   return freshModel, freshSS, Info
 
 ########################################################### Topic-model 
