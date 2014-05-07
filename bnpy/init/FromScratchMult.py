@@ -83,7 +83,7 @@ def init_global_params(obsModel, Data, K=0, seed=0,
                                           Niter=10, seed=seed)
     PhiTopicWord += 0.01 * PRNG.rand(K, Data.vocab_size)
     PhiTopicWord /= PhiTopicWord.sum(axis=1)[:,np.newaxis]
-    obsModel.set_global_params(K=K, beta=beta, topics=PhiTopicWord)
+    obsModel.set_global_params(K=K, topics=PhiTopicWord)
 
   elif initname == 'spectral':
     # Set topic-word prob vectors to output of anchor-words spectral method
