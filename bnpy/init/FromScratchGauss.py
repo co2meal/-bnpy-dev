@@ -6,8 +6,11 @@ Initialize params of a mixture model with gaussian observations from scratch.
 import numpy as np
 from bnpy.util import discrete_single_draw
 from bnpy.data import XData
+from bnpy.suffstats import SuffStatBag
 
-def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwargs):
+def init_global_params(obsModel, Data, K=0, seed=0,
+                                       initname='randexamples',
+                                       **kwargs):
   PRNG = np.random.RandomState(seed)
   X = Data.X
   if initname == 'randexamples':
@@ -50,6 +53,7 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
     Data = XData(Xfake)
     resp = np.eye(K)
   
-  LP = dict(resp=resp)
-  SS = hmodel.get_global_suff_stats(Data, LP)
-  hmodel.update_global_params(SS)
+  tempLP = dict(resp=resp)
+  SS = SuffStatBag(K=K, D=Data.dim)
+  SS = obsModel.get_global_suff_stats(Data, SS, tempLP)
+  obsModel.update_global_params(SS)

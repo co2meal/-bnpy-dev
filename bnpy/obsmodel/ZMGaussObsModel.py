@@ -82,6 +82,12 @@ class ZMGaussObsModel(ObsModel):
     '''
     sqrtResp = np.sqrt(LP['resp'])
     K = sqrtResp.shape[1]
+    # Expected count for each k
+    #  Usually computed by allocmodel. But just in case...
+    if not hasattr(SS, 'N'):
+      SS.setField('N', np.sum(LP['resp'], axis=0), dims='K')
+
+    # Expected sum of outer-products for each k
     xxT = np.zeros((K, self.D, self.D))
     for k in xrange(K):
       xxT[k] = dotATA(sqrtResp[:,k][:,np.newaxis]*Data.X )
