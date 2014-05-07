@@ -124,8 +124,8 @@ class HModel(object):
     evObs = self.obsModel.calc_evidence(Data, SS, LP)
     return evA + evObs
   
-  ######################################################### Init Global Params
-  #########################################################    
+  ######################################################### Init params
+  #########################################################
   def init_global_params(self, Data, **initArgs):
     ''' Initialize (in-place) global parameters
 
@@ -140,19 +140,19 @@ class HModel(object):
     elif initname.count(os.path.sep) > 0:
       init.FromSaved.init_global_params(self, Data, **initArgs)
     elif initname.count('LP') > 0:
-      # Set hmodel global parameters using some local parameters
-      LP = self.allocModel.make_init_local_params(Data, **initArgs)
-      SS = self.get_global_suff_stats(Data, LP)
-      self.update_global_params(SS)
+      # Set global parameters using provided local params
+      raise NotImplementedError('TODO')
     else:
-      # Set hmodel global parameters "from scratch"
+      # Set hmodel global parameters "from scratch", in two stages
+      # * init allocmodel to "uniform" prob over comps
+      # * init obsmodel in likelihood-specific, data-driven fashion
       self.allocModel.init_global_params(Data, **initArgs)
       if str(type(self.obsModel)).count('Gauss') > 0:
         init.FromScratchGauss.init_global_params(self.obsModel, 
-                                                           Data, **initArgs)
+                                                 Data, **initArgs)
       elif str(type(self.obsModel)).count('Mult') > 0:
         init.FromScratchMult.init_global_params(self.obsModel,
-                                                           Data, **initArgs)
+                                                Data, **initArgs)
       else:
         raise NotImplementedError('Unrecognized initname procedure.')
 

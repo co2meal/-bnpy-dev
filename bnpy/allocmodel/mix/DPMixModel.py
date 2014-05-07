@@ -176,7 +176,21 @@ class DPMixModel(AllocModel):
     self.qalpha0 = rho * qalpha0 + (1-rho) * self.qalpha0
     self.set_helper_params()
 
-  def init_global_params(self, Data, K=None, **kwargs):
+  def init_global_params(self, Data, K=0, **kwargs):
+    ''' Initialize global parameters "from scratch" to prep for learning.
+
+        Will yield uniform distribution (or close to) for all K components,
+        by performing a "pseudo" update in which only one observation was
+        assigned to each of the K comps.
+
+        Internal Updates
+        --------
+        Sets attributes qalpha1, qalpha0 (for VB) to viable values
+
+        Returns
+        --------
+        None. 
+    '''
     self.K = K
     Nvec = np.ones(K)
     qalpha1 = self.alpha1 + Nvec

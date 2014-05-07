@@ -127,8 +127,20 @@ class MixModel(AllocModel):
     self.Elogw = digamma( self.alpha ) - digamma( self.alpha.sum() )
     self.K = SS.K
  
-  def init_global_params(self, Data, K=None, **kwargs):
-    ''' Initialize global parameters "from scratch"         
+  def init_global_params(self, Data, K=0, **kwargs):
+    ''' Initialize global parameters "from scratch" to prep for learning.
+
+        Will yield uniform distribution (or close to) for all K components,
+        by performing a "pseudo" update in which only one observation was
+        assigned to each of the K comps.
+
+        Internal Updates
+        --------
+        Sets attributes w (for EM) or alpha (for VB)
+
+        Returns
+        --------
+        None. 
     '''
     self.K = K
     if self.inferType == 'EM':
