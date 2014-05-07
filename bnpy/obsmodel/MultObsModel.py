@@ -52,7 +52,7 @@ class MultObsModel(ObsModel):
       '''
       if type(allocModel) != str:
         allocModel = str(type(allocModel))
-      if allocModel.lower().count('HDP') or allocModel.lower().count('Admix'):
+      if allocModel.lower().count('hdp') or allocModel.lower().count('admix'):
         self.setDataAtomType('word')
       else:
         self.setDataAtomType('doc')
