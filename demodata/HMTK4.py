@@ -32,7 +32,7 @@ pi0 = np.asarray([.25,.25,.25,.25])
 def sampleFromGaussian(state):
     return np.random.multivariate_normal(means[state,:], sigmas[state,:,:])
 
-def generateObservations(seed,totalObs):
+def generateObservations(seed,nObsTotal):
     PRNG = np.random.RandomState(seed)
     stateList = list()
     observationList = list()
@@ -40,7 +40,7 @@ def generateObservations(seed,totalObs):
     stateList.append(initialState)
     observationList.append(sampleFromGaussian(initialState))
     totalNonleafNodes = 0
-    obs = totalObs/4
+    obs = nObsTotal/4
     while obs > 0:
         totalNonleafNodes += obs
         obs /= 4
@@ -51,16 +51,22 @@ def generateObservations(seed,totalObs):
             stateList.append(state)
             observationList.append(sampleFromGaussian(state))
     observationList = np.vstack(observationList)
-    stateList = np.asarray(stateList)
-    return observationList, stateList, totalNonleafNodes+totalObs
+    stateList = np.hstack(stateList)
+    return observationList, stateList, totalNonleafNodes+nObsTotal
 
 def get_data_info():
     return 'Simple HMT data with %d-D Gaussian observations with total states of K=%d' % (D,K)
 
-def generateQuadTreeObservations(seed=8675309, totalObs=16384):
-    X, Z, totalNodes = generateObservations(seed, totalObs)
+
+def get_data(seed=8675309, nObsTotal=256, **kwargs):
+    X, Z, totalNodes = generateObservations(seed, nObsTotal)
     l = list()
     l.append(totalNodes-1)
     Data = QuadTreeData(X=X, TrueZ=Z, nTrees=1, tree_delims=l)
     Data.summary = get_data_info()
     return Data
+
+def get_short_name( ):
+    ''' Return short string used in filepaths to store solutions
+    '''
+    return 'HMTK4'

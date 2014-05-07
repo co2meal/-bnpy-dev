@@ -9,7 +9,7 @@ class FiniteHMT(AllocModel):
     ######################################################### Constructors
     #########################################################
 
-    def __init__(self, inferType):
+    def __init__(self, inferType, allocPriorDict):
         self.inferType = inferType
         self.K = 0
         self.initPi = None
@@ -38,17 +38,17 @@ class FiniteHMT(AllocModel):
     ######################################################### Suff Stats
     #########################################################
 
-    def get_global_suff_stats( self, Data, SS, LP ):   
+    def get_global_suff_stats( self, Data, LP , **kwargs):   
         resp = LP['resp']
         respPair = LP['respPair']
         
         FirstStateCount = resp[0,:]
         N = np.sum(resp, axis = 1)
+        SS = SuffStatBag(K = self.K , D = Data.dim)
         for b in xrange(self.maxBranch):
             PairCounts = np.sum(respPair[Data.mask[b],:,:], axis = 0)
             SS.setField('PairCounts'+str(b), PairCounts, dims=('K','K'))
 
-        SS = SuffStatBag(K = self.K , D = Data.dim)
         SS.setField('FirstStateCount', FirstStateCount, dims=('K'))
         SS.setField('N', N, dims=('K'))
 

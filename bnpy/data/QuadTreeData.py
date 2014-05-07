@@ -47,7 +47,7 @@ class QuadTreeData(TreeData, DataObj):
         self.set_dependent_params(nTrees, tree_delims)
         if TrueZ is not None:
             self.add_true_labels(TrueZ)
-        set_mask(4)
+        self.set_mask(4)
         
         
     def set_dependent_params(self, nTrees, tree_delims):
@@ -135,4 +135,4 @@ class QuadTreeData(TreeData, DataObj):
     def set_mask(self, nBranches):
         self.mask = np.empty((nBranches, (self.nObs-1)/4))
         for b in xrange(nBranches):
-            self.mask[b,:] = [i for i in xrange(b+1, nBranches, nObs+1)]
+            self.mask[b,:] = [i for i in xrange(b+1, self.nObs, nBranches)]
