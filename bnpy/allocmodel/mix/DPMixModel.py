@@ -59,7 +59,7 @@ class DPMixModel(AllocModel):
       self.Elog1mV[-1] = np.log(1e-40) # log(0) => -INF, never used
 		
 		# Calculate expected mixture weights E[ log w_k ]	 
-    self.Elogw = self.ElogV.copy() #copy so we can do += without modifying ElogV
+    self.Elogw = self.ElogV.copy() # copy allows += without modifying ElogV
     self.Elogw[1:] += self.Elog1mV[:-1].cumsum()
     
 
@@ -88,7 +88,8 @@ class DPMixModel(AllocModel):
         -------
         LP : local param dict with fields
               resp : Data.nObs x K array whose rows sum to one
-              resp[n,k] = posterior responsibility that comp. k has for data n                
+              resp[n,k] = posterior responsibility that 
+                          comp. k has for data n                
     '''
     lpr = LP['E_log_soft_ev']
     lpr += self.Elogw
@@ -188,6 +189,30 @@ class DPMixModel(AllocModel):
     
     self.qalpha1 = rho * qalpha1 + (1-rho) * self.qalpha1
     self.qalpha0 = rho * qalpha0 + (1-rho) * self.qalpha0
+    self.set_helper_params()
+
+  def init_global_params(self, Data, K=0, **kwargs):
+    ''' Initialize global parameters "from scratch" to prep for learning.
+
+        Will yield uniform distribution (or close to) for all K components,
+        by performing a "pseudo" update in which only one observation was
+        assigned to each of the K comps.
+
+        Internal Updates
+        --------
+        Sets attributes qalpha1, qalpha0 (for VB) to viable values
+
+        Returns
+        --------
+        None. 
+    '''
+    self.K = K
+    Nvec = np.ones(K)
+    qalpha1 = self.alpha1 + Nvec
+    qalpha0 = self.alpha0 * np.ones(self.K)
+    qalpha0[:-1] += Nvec[::-1].cumsum()[::-1][1:]
+    self.qalpha1 = qalpha1
+    self.qalpha0 = qalpha0
     self.set_helper_params()
 
   def set_global_params(self, hmodel=None, K=None, qalpha1=None, 

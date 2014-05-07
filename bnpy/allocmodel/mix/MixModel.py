@@ -54,7 +54,7 @@ class MixModel(AllocModel):
         -------
         LP : local param dict with fields
               resp : Data.nObs x K array whose rows sum to one
-              resp[n,k] = posterior responsibility that comp. k has for data n                
+              resp[n,k] = posterior responsibility that comp. k has for data n
     '''
     lpr = LP['E_log_soft_ev']
     if self.inferType.count('VB') > 0:
@@ -131,6 +131,28 @@ class MixModel(AllocModel):
     self.Elogw = digamma( self.alpha ) - digamma( self.alpha.sum() )
     self.K = SS.K
  
+  def init_global_params(self, Data, K=0, **kwargs):
+    ''' Initialize global parameters "from scratch" to prep for learning.
+
+        Will yield uniform distribution (or close to) for all K components,
+        by performing a "pseudo" update in which only one observation was
+        assigned to each of the K comps.
+
+        Internal Updates
+        --------
+        Sets attributes w (for EM) or alpha (for VB)
+
+        Returns
+        --------
+        None. 
+    '''
+    self.K = K
+    if self.inferType == 'EM':
+      self.w = 1.0/K * np.ones(K)
+    else:
+      self.alpha = self.alpha0 + np.ones(K)
+      self.Elogw = digamma( self.alpha ) - digamma( self.alpha.sum() )
+
   def set_global_params(self, hmodel=None, K=None, w=None, beta=None,
                               alpha=None, nObs=10, **kwargs):
     ''' Directly set global parameters alpha to provided values

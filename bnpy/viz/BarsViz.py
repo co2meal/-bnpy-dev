@@ -62,7 +62,10 @@ def plotBarsFromHModel(hmodel, Data=None, doShowNow=True, figH=None,
         lamvec = hmodel.obsModel.comp[k].lamvec 
         learned_tw[k,:] = lamvec / lamvec.sum()
     if sortBySize:
-        sortIDs = np.argsort(hmodel.allocModel.Ebeta[:-1])[::-1]
+        try:
+          sortIDs = np.argsort(hmodel.allocModel.Ebeta[:-1])[::-1]
+        except AttributeError:
+          sortIDs = np.arange(np.minimum(Ktop, hmodel.allocModel.K))
         sortIDs = sortIDs[:Ktop]
         learned_tw = learned_tw[sortIDs] 
     if Data is not None and hasattr(Data, "true_tw"):
