@@ -34,8 +34,8 @@ class HDPStickBreak(AllocModel):
     self.gamma = float(priorDict['gamma'])
 
   def set_helper_params(self):
-    ''' Set dependent attribs of this model, given the primary params U1, U0
-        This includes expectations of various stickbreaking quantities
+    ''' Set dependent attribs of this model, given primary parameters.
+        This includes expectations of various stickbreaking quantities.
     '''
     assert self.rho.size == self.K
     assert self.omega.size == self.K
@@ -224,8 +224,60 @@ class HDPStickBreak(AllocModel):
   def update_global_params_soVB(self, SS, rho, **kwargs):
     raise NotImplementedError('TODO')
 
+  #________________________________________________________ init_global_params
+ 
+  def init_global_params(self, Data, K=0, **initArgs):
+    ''' Initialize global parameters "from scratch".
+    '''
+    self.K = K
+    self.rho = self._get_rho_for_uniform_topic_probs(K)
+    self.omega = (1.0 + self.alpha0) * np.ones(K)
+    self.set_helper_params()
+
+  #________________________________________________________ set_global_params
+  def set_global_params(self, hmodel=None, 
+                              rho=None, omega=None, 
+                              **kwargs):
+    if hmodel is not None:
+      self.K = hmodel.allocModel.K
+      self.rho = hmodel.allocModel.rho
+      self.omega = hmodel.allocModel.omega
+      self.set_helper_params()
+    elif rho is not None and omega is not None:
+      self.rho = rho
+      self.omega = omega
+      self.K = omega.size
+      self.set_helper_params()
+    else:
+      self._set_global_params_from_scratch(**kwargs)
+
+  def _set_global_params_from_scratch(self, beta=None, nDoc=10,
+                              Ebeta=None, EbetaLeftover=None, **kwargs):
+    if Ebeta is not None and EbetaLeftover is not None:
+      beta = np.hstack([np.squeeze(Ebeta), np.squeeze(EbetaLeftover)])
+    elif beta is not None:
+      Ktmp = beta.size
+      rem = np.minimum( 0.05, 1./(Ktmp))
+      beta = np.hstack([np.squeeze(beta), rem])
+      beta = beta/np.sum(beta)
+    else:
+      raise ValueError('Bad parameters. Vector beta not specified.')
+    self.K = beta.size - 1
+    
+    # Now, use the specified value of beta to find the best U1, U0
+    self.rho, self.omega = self._convert_beta2rhoomega(beta, nDoc)
+    assert self.rho.size == self.K
+    assert self.omega.size == self.K
+    self.set_helper_params()
+
+  #-------------------------------------------------------- find_optimum
   def _find_optimum_rhoomega(self, SS, **kwargs):
-    ''' 
+    ''' Run numerical optimization to find optimal rho, omega parameters
+
+        Args
+        --------
+        SS : bnpy SuffStatBag, with K components
+
         Returns
         --------
         rho : 1D array, length K
@@ -263,45 +315,10 @@ class HDPStickBreak(AllocModel):
       omega = np.minimum(omega, MAXOMEGA)
     return rho, omega
 
-  def set_global_params(self, hmodel=None, 
-                              rho=None, omega=None, 
-                              **kwargs):
-    if hmodel is not None:
-      self.K = hmodel.allocModel.K
-      self.rho = hmodel.allocModel.rho
-      self.omega = hmodel.allocModel.omega
-      self.set_helper_params()
-    elif rho is not None and omega is not None:
-      self.rho = rho
-      self.omega = omega
-      self.K = omega.size
-      self.set_helper_params()
-    else:
-      self._set_global_params_from_scratch(**kwargs)
 
-  def _set_global_params_from_scratch(self, beta=None, nDoc=10,
-                              Ebeta=None, EbetaLeftover=None, **kwargs):
-    if Ebeta is not None and EbetaLeftover is not None:
-      beta = np.hstack([np.squeeze(Ebeta), np.squeeze(EbetaLeftover)])
-          
-    elif beta is not None:
-      Ktmp = beta.size
-      rem = np.minimum( 0.5, 1./(Ktmp))
-      beta = np.hstack([np.squeeze(beta), rem])
-      beta = beta/np.sum(beta)
-    else:
-      raise ValueError('Bad parameters. Vector beta not specified.')
-    self.K = beta.size - 1
-    
-    # Now, use the specified value of beta to find the best U1, U0
-    self.rho, self.omega = self._convert_beta2rhoomega(beta, nDoc)
-    assert self.rho.size == self.K
-    assert self.omega.size == self.K
-    self.set_helper_params()
 
   def _convert_beta2rhoomega(self, beta, nDoc=10):
-    ''' Given a vector beta (size K+1),
-          return educated guess for vectors rho, omega
+    ''' Find vectors rho, omega that are probable given beta
 
         Returns
         --------
@@ -312,7 +329,16 @@ class HDPStickBreak(AllocModel):
     rho = OptimHDPSB._beta2v(beta)
     omega = nDoc * np.ones(rho.size)
     return rho, omega    
-    
+
+  def _get_rho_for_uniform_topic_probs(self, K=0):
+    ''' Find vector rho of size K, such that E[beta_k] ~= 1/K
+    '''
+    rem = np.minimum( 0.05, 1.0/K)
+    beta = (1.0-rem)/K * np.ones(K+1)
+    beta[-1] = rem
+    rho = OptimHDPSB._beta2v(beta)
+    assert rho.size == K
+    return rho
 
 
   ######################################################### Evidence
