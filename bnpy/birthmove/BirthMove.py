@@ -63,7 +63,7 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
                                             **kwargs)
 
     earlyAdmission = -1
-    if kwargs['birthVerifyELBOIncrease']:
+    if kwargs['birthVerifyELBOIncreaseFresh']:
       for step in range(nStep):
         doELBO = (step == nStep-1) # only on last step
         freshLP = freshModel.calc_local_params(freshData)
