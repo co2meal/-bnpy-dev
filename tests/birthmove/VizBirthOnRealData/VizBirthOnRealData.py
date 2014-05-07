@@ -160,7 +160,7 @@ def RunBirthMoveDemo(Data, initName, selectName, seed, savepath=None, **kwargs):
       pylab.savefig(savefile, bbox='tight')
   
   #################################################### ELBO traces
-  figID, ax = pylab.subplots(3, 1, sharex=1, figsize=(6.0, 10.0))
+  figID, ax = pylab.subplots(3, 1, sharex=1, figsize=(7.0, 10.0))
   pylab.subplot(3,1,1)
   plotELBOTraces(targetData, 'target D=%d' % (targetData.nDoc), model, Info)
   pylab.subplot(3,1,2)
