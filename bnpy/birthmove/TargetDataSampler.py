@@ -73,6 +73,8 @@ def _sample_target_WordsData(Data, model=None, LP=None, **kwargs):
       mask = Ndk[:, kwargs['targetCompID']] > kwargs['targetCompFrac']
     elif hasRespInLP:
       mask = LP['resp'][:, kwargs['targetCompID']] > kwargs['targetCompFrac']
+      if candidates is not None:
+        mask = mask[candidates]
     else:
       raise ValueError('LP must have either DocTopicCount or resp')
     if np.sum(mask) < 1:

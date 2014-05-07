@@ -69,7 +69,7 @@ def _make_del_candidate__viaLP(Data, model, LP, k):
   rmodel.update_global_params(rSS)
   return rmodel, rSS, rLP
 
-########################################################### delete comps expanded
+########################################################### delete expanded
 ###########################################################
 def delete_comps_from_expanded_model_to_improve_ELBO(Data, 
                               xbigModel, xbigSS, 
@@ -92,14 +92,9 @@ def delete_comps_from_expanded_model_to_improve_ELBO(Data,
   if K == 1:
     return xbigModel, xbigSS, xfreshSS, origIDs
 
-  nDoc = xbigSS.nDoc
-  wc = xbigSS.WordCounts.sum()
-
   xfreshELBO = xbigModel.calc_evidence(SS=xfreshSS)
 
   for k in reversed(range(Korig, K)):
-    assert xbigSS.nDoc == nDoc
-    assert np.allclose(xbigSS.WordCounts.sum(), wc)
     if kwargs['cleanupDeleteViaLP']:
       rbigModel, rbigSS, rfreshSS, rfreshELBO, rfreshLP = _make_xcandidate_LP(
                                                     xbigModel, Data,
