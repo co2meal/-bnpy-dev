@@ -70,6 +70,7 @@ def DownwardPass(PiInit, PiMat, SoftEv, umsg):
 		if n == 0:
 			dmsg[n] = PiInit * SoftEv[0]
 			margPrObs = np.sum(dmsg[n])
+			#dmsg[n] /= margPrObs[n]
 		else:
 			parent_index = get_parent_index(n)
 			siblings = get_children_indices(parent_index, N)
@@ -173,8 +174,8 @@ def find_last_nonleaf_node(N):
 	else:
 		height = 1
 		total = 1
-		while (total + height*4) < N:
-			total += height*4
+		while (total + 4**height) < N:
+			total += 4**height
 			height += 1
 		return total
 

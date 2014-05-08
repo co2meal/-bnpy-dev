@@ -26,7 +26,7 @@ class FiniteHMT(AllocModel):
     def calc_local_params(self, Data, LP, **kwargs):
         lpr = LP['E_log_soft_ev']
         if self.inferType.count('VB') > 0:
-            print 'inferType VB yet not supported for FiniteHMT'
+            print 'inferType VB not yet supported for FiniteHMT'
         elif self.inferType == 'EM' > 0:
             resp, respPair, logMargPrSeq = HMTUtil.SumProductAlg_QuadTree(self.initPi, self.transPi, lpr)
             LP.update({'resp':resp})
@@ -58,10 +58,6 @@ class FiniteHMT(AllocModel):
     def update_global_params_EM( self, SS, **kwargs ):
         self.K = SS.K
 
-        if (self.initPi is None) or (self.transPi is None):
-            self.initPi = np.ones(self.K)
-            self.transPi = np.ones((self.maxBranch, self.K, self.K))
-
         self.initPi = (SS.FirstStateCount) / (SS.FirstStateCount.sum())
 
         for b in xrange(self.maxBranch):
@@ -80,7 +76,7 @@ class FiniteHMT(AllocModel):
         else:
             print 'inferType other than EM are not yet supported for FiniteHMT'
 
-    def set_global_params(self, hmodel=None, K=None, initPi=None, transPi=None, maxBranch=None,**kwargs):
+    def set_global_params(self, trueParams=None, hmodel=None, K=None, initPi=None, transPi=None, maxBranch=None,**kwargs):
         if hmodel is not None:
             self.K = hmodel.allocModel.K
             self.initPi = hmodel.allocModel.initPi
@@ -89,6 +85,11 @@ class FiniteHMT(AllocModel):
                 self.maxBranch = 4
             else:
                 self.maxBranch = maxBranch
+        elif trueParams is not None:
+            self.initPi = trueParams[initPi]
+            self.transPi = trueParams[transPi]
+            self.mu = trueParams[mu]
+            self.Sigma = trueParams[Sigma]
         else:
             self.K = K
             self.initPi = initPi

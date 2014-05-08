@@ -62,7 +62,8 @@ def get_data(seed=8675309, nObsTotal=256, **kwargs):
     X, Z, totalNodes = generateObservations(seed, nObsTotal)
     l = list()
     l.append(totalNodes-1)
-    Data = QuadTreeData(X=X, TrueZ=Z, nTrees=1, tree_delims=l)
+    trueParams = dict(initPi=pi0, transPi=transition, mu=means, Sigma=sigmas)
+    Data = QuadTreeData(X=X, TrueZ=Z, nTrees=1, tree_delims=l, TrueParams=trueParams)
     Data.summary = get_data_info()
     return Data
 

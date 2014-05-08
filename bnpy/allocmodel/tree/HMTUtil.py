@@ -176,8 +176,8 @@ def find_last_nonleaf_node(N):
 	else:
 		height = 1
 		total = 1
-		while (total + height**4) < N:
-			total += height*4
+		while (total + 4**height) < N:
+			total += 4**height
 			height += 1
 		return total
 

@@ -35,13 +35,15 @@ class QuadTreeData(TreeData, DataObj):
         return cls( InDict['X'], nTrees )
 
 
-    def __init__(self, X, nTrees=None, tree_delims=None,TrueZ=None):
+    def __init__(self, X, nTrees=None, tree_delims=None, TrueZ=None, TrueParams=None):
         '''
         Create an instance of QuadTreeData given an array (X) of observations
         nTrees: Number of trees in the collection
         tree_delims: A list that contains the end index for each tree in the collection
         TrueZ: True labels for each observation
         '''
+        if TrueParams is not None:
+            self.TrueParams = TrueParams
         X = np.asarray(X)
         self.X = np.float64(X.newbyteorder('=').copy())
         self.set_dependent_params(nTrees, tree_delims)
