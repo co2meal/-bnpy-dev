@@ -21,7 +21,13 @@ def calcRespBySumProduct(PiInit, PiMat, logSoftEv):
 	respPair = np.zeros((N,K,K))
 	for n in xrange( 1, N ):
 		parent = get_parent_index(n)
-		respPair[n,:,:] = PiMat * np.outer(dmsg[parent], umsg[n] * SoftEv[n])
+		siblings = get_children_indices(parent,N)
+		siblings.remove(n)
+		message = 1
+		message *= dmsg[parent]
+		for s in siblings:
+			message *= np.dot(PiMat, SoftEv[s]) * umsg[s]
+		respPair[n,:,:] = PiMat * np.outer(message, umsg[n] * SoftEv[n])
 		respPair[n,:,:] = respPair[n,:,:] / np.sum(respPair[n,:,:])
 
 	logMargPrSeq = np.log(margPrObs) + np.sum(lognormC)
@@ -167,8 +173,8 @@ def find_last_nonleaf_node(N):
 	else:
 		height = 1
 		total = 1
-		while (total + height*2) < N:
-			total += height*2
+		while (total + 2**height) < N:
+			total += 2**height
 			height += 1
 		return total
 
