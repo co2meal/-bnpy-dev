@@ -9,16 +9,16 @@ class FiniteHMT(AllocModel):
     ######################################################### Constructors
     #########################################################
 
-    def __init__(self, inferType, allocPriorDict):
+    def __init__(self, inferType, priorDict=dict()):
         self.inferType = inferType
         self.K = 0
         self.initPi = None
         self.transPi = None
-        self.initAlpha = 0.0
-        self.maxBranch = 0
+        self.maxBranch = 4
+        self.set_prior(**priorDict)
 
-    def set_prior(self, initAlpha):
-        self.initAlpha = initAlpha
+    def set_prior(self, alpha0=1.0, **kwargs):
+        self.alpha0 = alpha0
 
     ######################################################### Local Params
     #########################################################
@@ -43,12 +43,11 @@ class FiniteHMT(AllocModel):
         respPair = LP['respPair']
         
         FirstStateCount = resp[0,:]
-        N = np.sum(resp, axis = 1)
+        N = np.sum(resp, axis = 0)
         SS = SuffStatBag(K = self.K , D = Data.dim)
         for b in xrange(self.maxBranch):
             PairCounts = np.sum(respPair[Data.mask[b],:,:], axis = 0)
             SS.setField('PairCounts'+str(b), PairCounts, dims=('K','K'))
-
         SS.setField('FirstStateCount', FirstStateCount, dims=('K'))
         SS.setField('N', N, dims=('K'))
 
@@ -63,12 +62,23 @@ class FiniteHMT(AllocModel):
             self.initPi = np.ones(self.K)
             self.transPi = np.ones((self.maxBranch, self.K, self.K))
 
-        self.initPi = (SS.FirstStateCount + self.initAlpha) / (SS.FirstStateCount.sum() + self.K * self.initAlpha)
+        self.initPi = (SS.FirstStateCount) / (SS.FirstStateCount.sum())
 
         for b in xrange(self.maxBranch):
             PairCounts = getattr(SS._Fields, 'PairCounts'+str(b))
             normFactor = np.sum(PairCounts, axis = 1)
-            self.transPi[b,:] = psiSums / normFactor[:,np.newaxis]
+            self.transPi[b,:,:] = PairCounts / normFactor[:,np.newaxis]
+
+    def init_global_params(self, Data, K=0, **kwargs):
+        self.K = K
+        branchNo = 4
+        if self.inferType == 'EM':
+            self.initPi = 1.0/K * np.ones(K)
+            self.transPi = np.empty((branchNo, K, K))
+            for b in xrange(branchNo):
+                self.transPi[b,:,:] = np.ones(K)[:,np.newaxis]/K * np.ones((K,K))
+        else:
+            print 'inferType other than EM are not yet supported for FiniteHMT'
 
     def set_global_params(self, hmodel=None, K=None, initPi=None, transPi=None, maxBranch=None,**kwargs):
         if hmodel is not None:
@@ -89,6 +99,18 @@ class FiniteHMT(AllocModel):
         if self.inferType == 'EM':
             return LP['evidence']
 
+    def from_dict(self, myDict):
+        self.inferType = myDict['inferType']
+        self.K = myDict['K']
+        if self.inferType == 'VB':
+            print 'VB is not supported yet for FiniteHMT'
+        elif self.inferType == 'EM':
+            self.initPit = myDict['initPi']
+            self.transPi = myDict['transPi']
+
     def to_dict(self):
         if self.inferType == 'EM':
             return dict(initPi = self.initPi, transPi = self.transPi)
+
+    def get_prior_dict(self):
+        return dict(alpha0=self.alpha0, K=self.K)

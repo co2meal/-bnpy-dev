@@ -21,8 +21,14 @@ def calcRespBySumProduct(PiInit, PiMat, logSoftEv):
 	respPair = np.zeros((N,K,K))
 	for n in xrange( 1, N ):
 		parent = get_parent_index(n)
-		respPair[n,:,:] = PiMat * np.outer(dmsg[parent], umsg[n] * SoftEv[n])
-		respPair[n,:,:] = respPair[n,:,:] / np.sum(respPair[n,:,:])
+		siblings = get_children_indices(parent,N)
+		siblings.remove(n)
+		message = 1
+		message *= dmsg[parent]
+		for s in siblings:
+			message *= np.dot(PiMat, SoftEv[s]) * umsg[s]
+		respPair[n,:,:] = PiMat * np.outer(message, umsg[n] * SoftEv[n])
+		respPair[n,:,:] /= np.sum(respPair[n,:,:])
 
 	logMargPrSeq = np.log(margPrObs) + lognormC.sum()
 

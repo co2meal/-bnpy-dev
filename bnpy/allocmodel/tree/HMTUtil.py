@@ -41,18 +41,25 @@ def SumProductAlg_QuadTree(PiInit, PiMat, logSoftEv):
 
 	SoftEv, lognormC = expLogLik(logSoftEv)
 	umsg = UpwardPass(PiInit, PiMat, SoftEv)
-	dmsg, margPrObs = DownwardPass(PiInit, PiMat, SoftEv)
+	dmsg, margPrObs = DownwardPass(PiInit, PiMat, SoftEv, umsg)
 
 	respPair = np.zeros((N,K,K))
+
 	for n in xrange( 1, N ):
 		parent = get_parent_index(n)
-		branch = get_branch(n)
-    	respPair[n,:,:] = PiMat[branch,:,:] * np.outer(dmsg[parent], umsg[n] * SoftEv[n])
-    	respPair[n,:,:] = respPair[n,:,:] / np.sum(respPair[n,:,:])
+		siblings = get_children_indices(parent,N)
+		siblings.remove(n)
+		message = 1
+		message *= dmsg[parent]
+		for s in siblings:
+			branch = get_branch(s)
+			message *= np.dot(PiMat[branch,:,:], SoftEv[s]) * umsg[s]
+		respPair[n] = PiMat[get_branch(n),:,:] * np.outer(message, umsg[n] * SoftEv[n])
+		respPair[n] /= np.sum(respPair[n])
 
 	logMargPrSeq = np.log(margPrObs) + lognormC.sum()
-
 	resp = dmsg * umsg
+	resp = resp / resp.sum(axis=1)[:,np.newaxis]
 	return resp, respPair, logMargPrSeq
 
 
@@ -79,7 +86,6 @@ def UpwardPass(PiInit, PiMat, SoftEv):
 	'''
 	N = SoftEv.shape[0]
 	K = PiInit.size
-
 	umsg = np.ones( (N, K) )
 	start = find_last_nonleaf_node(N)
 	for n in xrange(start-1, -1, -1):
@@ -92,7 +98,7 @@ def UpwardPass(PiInit, PiMat, SoftEv):
 	return umsg
 
 
-def DownwardPass(PiInit, PiMat, SoftEv):
+def DownwardPass(PiInit, PiMat, SoftEv, umsg):
 	'''Propagate messages downwards along the tree, starting from the root
 
     Args
@@ -140,16 +146,16 @@ def DownwardPass(PiInit, PiMat, SoftEv):
 	return dmsg, margPrObs
 
 def get_parent_index(child_index):
-	if n == 0:
+	if child_index == 0:
 		return None #it is a root
-	elif n%4 == 0:
-		return (n-1)/4
+	elif child_index%4 == 0:
+		return (child_index-1)/4
 	else:
-		return n/4
+		return child_index/4
 
 def get_children_indices(parent, N):
 	if 4*parent+1 > N:
-		return None
+		return []
 	else:
 		myList = [4*parent+j+1 for j in range(4)]
 		return myList
@@ -158,7 +164,7 @@ def get_branch(child_index):
 	'''Find on which branch of its parent this child lies
 	'''
 	if (child_index%4 == 0):
-		return 4
+		return 3
 	else:
 		return (child_index%4 - 1)
 
@@ -170,7 +176,7 @@ def find_last_nonleaf_node(N):
 	else:
 		height = 1
 		total = 1
-		while (total + height*4) < N:
+		while (total + height**4) < N:
 			total += height*4
 			height += 1
 		return total

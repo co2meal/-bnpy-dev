@@ -133,6 +133,6 @@ class QuadTreeData(TreeData, DataObj):
             return n/4
 
     def set_mask(self, nBranches):
-        self.mask = np.empty((nBranches, (self.nObs-1)/4))
+        self.mask = np.empty((nBranches, (self.nObs-1)/4), dtype=np.int32)
         for b in xrange(nBranches):
             self.mask[b,:] = [i for i in xrange(b+1, self.nObs, nBranches)]
