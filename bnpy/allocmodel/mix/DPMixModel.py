@@ -149,6 +149,16 @@ class DPMixModel(AllocModel):
       ElogqZ_vec = self.E_logqZ(LP)
       SS.setELBOTerm('ElogqZ', ElogqZ_vec, dims=('K'))
     if doPrecompMergeEntropy:
+      resp = LP['resp'] + EPS
+      if mPairIDs is None:
+        ElogqZMat = NumericUtil.calcRlogR_allpairs(resp)
+      else:
+        ElogqZMat = NumericUtil.calcRlogR_specificpairs(resp, mPairIDs)
+      SS.setMergeTerm('ElogqZ', ElogqZMat, dims=('K','K'))
+
+    return SS
+
+  '''
       # Hmerge : KxK matrix of entropies for all possible pair-wise merges
       # for example, if we had only 3 components {0,1,2}
       # Hmerge = [ 0 H(0,1) H(0,2)
@@ -161,7 +171,7 @@ class DPMixModel(AllocModel):
         Rcombo = LP['resp'][:,jj][:,np.newaxis] + LP['resp'][:,compIDs]
         Hmerge[jj,compIDs] = np.sum(Rcombo*np.log(Rcombo+EPS), axis=0)
       SS.setMergeTerm('ElogqZ', Hmerge, dims=('K','K'))
-    return SS
+  '''
 
   ######################################################### Global Params
   #########################################################

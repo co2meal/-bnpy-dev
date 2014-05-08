@@ -183,6 +183,53 @@ def calcRlogR_allpairs_numexpr(R):
 def calcRlogR_allpairs_c(R):
   return LibRlogR.calcRlogR_allpairs_c(R)
 
+########################################################### specific-pairs
+###########################################################  RlogR
+def calcRlogR_specificpairs(R, mPairs):
+  ''' Calculate \sum_n R[n] log R[n]
+
+      Uses faster numexpr library if available, but safely falls back
+        to plain numpy otherwise.      
+
+      Args
+      --------
+      R : NxK matrix
+      mPairs : list of possible merge pairs, where each pair is a tuple
+                 [(a,b), (c,d), (e,f)]
+
+      Returns
+      --------
+      Z : KxK matrix, where Z[a,b] = v dot (Rab*log(Rab)), Rab = R[:,a] + R[:,b]
+          only upper-diagonal entries of Z specified by mPairs are non-zero,
+          since we restrict potential pairs a,b to satisfy a < b
+  '''
+  if Config['calcRlogR'] == "numexpr" and hasNumexpr:
+    return calcRlogR_specificpairs_numexpr(R, mPairs)
+  else:  
+    return calcRlogR_specificpairs_numpy(R, mPairs)
+
+def calcRlogR_specificpairs_numpy(R, mPairs):
+  K = R.shape[1]
+  ElogqZMat = np.zeros((K,K))
+  if K == 1:
+    return ElogqZMat
+  for kA, kB in mPairs:
+    curR = R[:,kA] + R[:, kB]
+    curR *= np.log(curR)
+    ElogqZMat[kA, kB] = np.sum(curR, axis=0)
+  return ElogqZMat
+
+def calcRlogR_specificpairs_numexpr(R, mPairs):
+  K = R.shape[1]
+  ElogqZMat = np.zeros((K, K))
+  if K == 1:
+    return ElogqZMat
+  for (kA, kB) in mPairs:
+    curR = R[:,kA] + R[:, kB]
+    ElogqZMat[kA,kB] = ne.evaluate("sum(curR * log(curR), axis=0)")
+  return ElogqZMat
+
+
 ########################################################### all-pairs
 ###########################################################  RlogRdotv
 def calcRlogRdotv_allpairs(R, v):

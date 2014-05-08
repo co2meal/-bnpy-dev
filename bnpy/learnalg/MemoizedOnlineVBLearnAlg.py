@@ -29,8 +29,6 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     if self.hasMove('merge'):
       self.MergeLog = list()
     if self.hasMove('birth'):
-      # Track subsampled data aggregated across batches
-      #self.targetDataList = list()
       # Track the components freshly added in current lap
       self.BirthCompIDs = list()
       self.ModifiedCompIDs = list()
@@ -234,33 +232,6 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       origmodel.obsModel = hmodel.obsModel
     return None, self.buildRunInfo(evBound, msg)
 
-  """
-  def verify_suff_stats(self, Dchunk, SS, lap):
-    ''' Run-time checks to make sure the suff stats
-        have expected values
-    '''
-    if self.savedir is not None:
-      SSfile = os.path.join(self.savedir, 'SSdump-Lap%03d.dat' % (lap))
-      if self.isLastBatch(lap):
-        joblib.dump(SS, SSfile)
-    if hasattr(Dchunk, 'nDocTotal') and Dchunk.nDocTotal < 4000:
-      if self.hasMove('birth') and self.do_birth_at_lap(lap):
-        if self.algParams['birth']['earlyLap'] > 0:
-          pass
-        elif lap < np.ceil(lap):
-          assert SS.nDoc - Dchunk.nDocTotal > -0.001
-        else:
-          if abs(SS.nDoc - Dchunk.nDocTotal) > 0.01:
-            print "WARNING @ lap %.2f | SS.nDoc=%d, nDocTotal=%d" % (lap, SS.nDoc, Dchunk.nDocTotal)
-          assert abs(SS.nDoc - Dchunk.nDocTotal) < 0.01
-      elif lap >= 1.0:
-        assert abs(SS.nDoc - Dchunk.nDocTotal) < 0.01
-
-    if hasattr(SS, 'N'):
-      if not np.all(SS.N >= -1e-9):
-        raise ValueError('N should be >= 0!')
-      SS.N[SS.N < 0] = 0
-  """
 
   ######################################################### Load from memory
   #########################################################
