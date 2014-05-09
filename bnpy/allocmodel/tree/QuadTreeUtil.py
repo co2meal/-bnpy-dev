@@ -26,13 +26,13 @@ def calcRespBySumProduct(PiInit, PiMat, logSoftEv):
 		message = 1
 		message *= dmsg[parent]
 		for s in siblings:
-			message *= np.dot(PiMat, SoftEv[s]) * umsg[s]
+			message *= np.dot(PiMat, umsg[s] * SoftEv[s])
 		respPair[n,:,:] = PiMat * np.outer(message, umsg[n] * SoftEv[n])
 		respPair[n,:,:] /= np.sum(respPair[n,:,:])
 
-	logMargPrSeq = np.log(margPrObs) + lognormC.sum()
-
+	#logMargPrSeq = np.log(np.sum(umsg[4]*margPrObs[N-1])) + lognormC.sum()
 	resp = dmsg * umsg
+	logMargPrSeq = np.log(resp[N-1].sum()) + lognormC.sum()
 	resp = resp / resp.sum(axis=1)[:,np.newaxis]
 	return resp, respPair, logMargPrSeq
 
@@ -53,7 +53,7 @@ def UpwardPass(PiInit, PiMat, SoftEv):
 		for child in children:
 			umsg[n] = umsg[n] * np.dot(PiMat, umsg[child] * SoftEv[child])
 		normalization_const = np.sum(umsg[n])
-		umsg[n] /= normalization_const
+		#umsg[n] /= normalization_const
 	return umsg
 
 
@@ -64,12 +64,12 @@ def DownwardPass(PiInit, PiMat, SoftEv, umsg):
 	K = PiInit.size
 	PiT = PiMat.T
 
-	margPrObs = 0
+	margPrObs = np.empty( N )
 	dmsg = np.empty( (N,K) )
 	for n in xrange( 0, N ):
 		if n == 0:
 			dmsg[n] = PiInit * SoftEv[0]
-			margPrObs = np.sum(dmsg[n])
+			margPrObs[n] = np.sum(dmsg[n])
 			#dmsg[n] /= margPrObs[n]
 		else:
 			parent_index = get_parent_index(n)
@@ -78,10 +78,10 @@ def DownwardPass(PiInit, PiMat, SoftEv, umsg):
 			message = 1
 			message *= dmsg[parent_index]
 			for s in siblings:
-				message *= np.dot(PiMat, SoftEv[s]) * umsg[s]
+				message *= np.dot(PiMat, umsg[s]* SoftEv[s])
 			dmsg[n] = np.dot(PiT, message) * SoftEv[n]
-			margPrObs = np.sum(dmsg[n])
-			dmsg[n] /= margPrObs
+			margPrObs[n] = np.sum(dmsg[n])
+			#dmsg[n] /= margPrObs[n]
 	return dmsg, margPrObs
 
 ########################################################### Brute Force

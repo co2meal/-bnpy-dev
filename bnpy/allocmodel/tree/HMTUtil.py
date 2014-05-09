@@ -53,12 +53,13 @@ def SumProductAlg_QuadTree(PiInit, PiMat, logSoftEv):
 		message *= dmsg[parent]
 		for s in siblings:
 			branch = get_branch(s)
-			message *= np.dot(PiMat[branch,:,:], SoftEv[s]) * umsg[s]
+			message *= np.dot(PiMat[branch,:,:], umsg[s] * SoftEv[s])
 		respPair[n] = PiMat[get_branch(n),:,:] * np.outer(message, umsg[n] * SoftEv[n])
 		respPair[n] /= np.sum(respPair[n])
 
-	logMargPrSeq = np.log(margPrObs) + lognormC.sum()
+	#logMargPrSeq = np.log(margPrObs[N-1]) + lognormC.sum()
 	resp = dmsg * umsg
+	logMargPrSeq = np.log(resp[N-1].sum()) + lognormC.sum()
 	resp = resp / resp.sum(axis=1)[:,np.newaxis]
 	return resp, respPair, logMargPrSeq
 
@@ -94,7 +95,7 @@ def UpwardPass(PiInit, PiMat, SoftEv):
 			branch = get_branch(child)
 			umsg[n] = umsg[n] * np.dot(PiMat[branch,:,:], umsg[child]*SoftEv[child])
 		normalization_const = np.sum(umsg[n])
-		umsg[n] /= normalization_const
+		#umsg[n] /= normalization_const
 	return umsg
 
 
@@ -124,12 +125,13 @@ def DownwardPass(PiInit, PiMat, SoftEv, umsg):
 	for d in xrange(0, 4):
 		PiTMat[d,:,:] = PiMat[d,:,:].T
 
-	margPrObs = 0
+	margPrObs = np.empty( N )
 	dmsg = np.empty( (N,K) )
 	for n in xrange( 0, N ):
 		if n == 0:
 			dmsg[n] = PiInit * SoftEv[0]
-			margPrObs = np.sum(dmsg[n])
+			margPrObs[n] = np.sum(dmsg[n])
+			#dmsg[n] /= margPrObs[n]
 		else:
 			parent_index = get_parent_index(n)
 			siblings = get_children_indices(parent_index, N)
@@ -138,11 +140,11 @@ def DownwardPass(PiInit, PiMat, SoftEv, umsg):
 			message *= dmsg[parent_index]
 			for s in siblings:
 				branch = get_branch(s)
-				message *= np.dot(PiMat[branch,:,:], SoftEv[s]) * umsg[s]
+				message *= np.dot(PiMat[branch,:,:], umsg[s]* SoftEv[s])
 			branch = get_branch(n)
 			dmsg[n] = np.dot(PiTMat[branch,:,:], message) * SoftEv[n]
-		margPrObs = np.sum(dmsg[n])
-		dmsg[n] /= margPrObs
+		margPrObs[n] = np.sum(dmsg[n])
+		#dmsg[n] /= margPrObs[n]
 	return dmsg, margPrObs
 
 def get_parent_index(child_index):

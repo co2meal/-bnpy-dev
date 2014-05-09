@@ -21,18 +21,18 @@ class TestQuadTreeUtil_5Nodes(unittest.TestCase):
 		print ''
 		resp, respPair, logPrObs = QTU.calcRespBySumProduct(
 									   self.PiInit, self.PiMat, self.logSoftEv)
-		resp2, respPair2, logPrObs2 = QTU.calcRespByBruteForce(
-										  self.PiInit, self.PiMat, self.logSoftEv)
+		#resp2, respPair2, logPrObs2 = QTU.calcRespByBruteForce(
+		#								  self.PiInit, self.PiMat, self.logSoftEv)
 		print '============================= resp'
 		print '------------- SumProduct'
 		print resp
-		print '------------- BruteForce'
-		print resp2
+		#print '------------- BruteForce'
+		#print resp2
 		print '============================= logPrObs'
 		print '------------- SumProduct'
 		print logPrObs
-		print '------------- BruteForce'
-		print logPrObs2
+		#print '------------- BruteForce'
+		#print logPrObs2
 
 class TestQuadTreeUtil_4States(TestQuadTreeUtil_5Nodes):
 
@@ -97,3 +97,17 @@ class TestQuadTreeUtil_NonuniformLik(TestQuadTreeUtil_5Nodes):
         self.PiMat = PiMat
         self.logSoftEv = logSoftEv
         self.SoftEv = SoftEv
+
+class TestQuadTreeUtil_NonuniformLik21(TestQuadTreeUtil_NonuniformLik):
+	def setUp(self):
+		PiInit = np.asarray([0.3, 0.7])
+		PiMat = np.asarray([[0.6, 0.4],
+							[0.2, 0.8]])
+		PRNG = np.random.RandomState(0)
+		p = PRNG.rand(21,1)
+		SoftEv = np.hstack([p, 1-p])
+		logSoftEv = np.log(SoftEv)
+		self.PiInit = PiInit
+		self.PiMat = PiMat
+		self.logSoftEv = logSoftEv
+		self.SoftEv = SoftEv

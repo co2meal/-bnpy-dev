@@ -59,7 +59,7 @@ class FiniteHMT(AllocModel):
         self.K = SS.K
 
         self.initPi = (SS.FirstStateCount) / (SS.FirstStateCount.sum())
-
+        
         for b in xrange(self.maxBranch):
             PairCounts = getattr(SS._Fields, 'PairCounts'+str(b))
             normFactor = np.sum(PairCounts, axis = 1)
