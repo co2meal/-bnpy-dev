@@ -64,7 +64,7 @@ def get_data(seed=8675309, nObsTotal=256, **kwargs):
     X, Z, totalNodes = generateObservations(seed, nObsTotal)
     l = list()
     l.append(totalNodes-1)
-    comp = list()
+    '''comp = list()
     I = np.eye(2)
     for b in range(K):
         precMat = np.linalg.solve( sigmas[b], I )
@@ -72,8 +72,8 @@ def get_data(seed=8675309, nObsTotal=256, **kwargs):
     lpr = np.zeros( (341, K) )
     for k in range(K):
       lpr[:,k] = comp[k].log_pdf( QuadTreeData(X) )
-    resp, respPair, logMargPrSeq = HMTUtil.SumProductAlg_QuadTree(pi0, transition, lpr)
-    trueParams = dict(initPi=pi0, transPi=transition, mu=means, Sigma=sigmas, resp=resp, respPair=respPair)
+    resp, respPair, logMargPrSeq = HMTUtil.SumProductAlg_QuadTree(pi0, transition, lpr)'''
+    trueParams = dict(initPi=pi0, transPi=transition, mu=means, Sigma=sigmas)
     Data = QuadTreeData(X=X, TrueZ=Z, nTrees=1, tree_delims=l, TrueParams=trueParams)
     Data.summary = get_data_info()
     return Data
