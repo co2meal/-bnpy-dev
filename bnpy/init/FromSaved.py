@@ -26,7 +26,11 @@ def init_global_params(hmodel, Data, initname=None, prefix='Best', **kwargs):
       None. hmodel modified in-place.
   '''
   if os.path.isdir(initname):
-    init_global_params_from_bnpy_format(hmodel, Data, initname, prefix)
+    try:
+      init_global_params_from_bnpy_format(hmodel, Data, initname, prefix)
+    except:
+      initname2 = os.path.join(initname, str(kwargs['taskid']))
+      init_global_params_from_bnpy_format(hmodel, Data, initname2, prefix)
   elif initname.count('.mat') > 0:
     # Handle external external formats (not bnpy models) saved as MAT file
     MatDict = scipy.io.loadmat(initname)

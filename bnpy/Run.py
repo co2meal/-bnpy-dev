@@ -153,7 +153,7 @@ def _run_task_internal(jobname, taskid, nTask,
 
   # Create and initialize model parameters
   hmodel = createModel(InitData, ReqArgs, KwArgs)
-  hmodel.init_global_params(InitData, seed=algseed,
+  hmodel.init_global_params(InitData, seed=algseed, taskid=taskid,
                             **KwArgs['Initialization'])
 
   # Create learning algorithm
