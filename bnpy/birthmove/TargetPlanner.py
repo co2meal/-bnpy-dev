@@ -10,10 +10,9 @@ Key methods
 import numpy as np
 from collections import defaultdict
 
-import BirthProposalError
+from BirthProposalError import BirthProposalError
 
 EPS = 1e-14
-MIN_SIZE = 25
 
 def select_target_comp(K, SS=None, model=None, LP=None, Data=None,
                            lapsSinceLastBirth=defaultdict(int),
@@ -56,7 +55,6 @@ def select_target_comp(K, SS=None, model=None, LP=None, Data=None,
     ps = np.ones(K)
   elif targetSelectName == 'sizebiased':
     ps = SS.N.copy()
-    ps[SS.N < MIN_SIZE] = 0
   elif targetSelectName == 'delaybiased':
     # Bias choice towards components that have not been selected in a long time
     lapDist = np.asarray([lapsSinceLastBirth[kk] for kk in range(K)])
@@ -68,19 +66,18 @@ def select_target_comp(K, SS=None, model=None, LP=None, Data=None,
     lapDist = np.asarray([lapsSinceLastBirth[kk] for kk in range(K)])
     ps = np.maximum(lapDist + 1e-5, 0)
     ps = ps * ps * SS.N
-    ps[SS.N < MIN_SIZE] = 0
   elif targetSelectName == 'predictionQuality':
     ps = calc_underprediction_scores_per_topic(K, model, Data, LP, **kwargs)
     ps = ps * ps # make more peaked!
-    ps[SS.N < MIN_SIZE] = 0
   else:
     raise NotImplementedError('Unrecognized procedure: ' + targetSelectName)
+  ps[SS.N < kwargs['targetMinSize']] = 0
 
   ######## Make a choice using vector ps, if possible. Otherwise, raise error.
   ########
   ps[excludeList] = 0
   if np.sum(ps) < EPS:
-    msg = 'BIRTH not possible. All K=%d targets have zero probability.' % (K)
+    msg = 'BIRTH not possible. All K=%d targets too small or excluded.' % (K)
     raise BirthProposalError(msg)
   ps = ps / np.sum(ps)  
   assert np.allclose( np.sum(ps), 1.0)
