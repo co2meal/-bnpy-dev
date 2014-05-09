@@ -151,7 +151,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
           BirthPlans = self.birth_plan_targets_for_next_lap(
                                 Dchunk, hmodel, SS, LPchunk, BirthResults)
         BirthPlans = self.birth_collect_target_subsample(
-                                Dchunk, LPchunk, BirthPlans)
+                                Dchunk, hmodel, LPchunk, BirthPlans)
       else:
         BirthPlans = list()
 
@@ -484,7 +484,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       BirthPlans.append(Plan)
     return BirthPlans
 
-  def birth_collect_target_subsample(self, Dchunk, LPchunk, BirthPlans):
+  def birth_collect_target_subsample(self, Dchunk, model, LPchunk, BirthPlans):
     ''' Collect subsample of the data in Dchunk, and add that subsample
           to overall targeted subsample stored in input list BirthPlans
         This overall sample is aggregated across many batches of data.
@@ -508,9 +508,13 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
             continue
         birthParams['targetMaxSize'] -= targetSize
 
+      if Plan['Data'] is not None and birthParams['targetExample']:
+        x = TargetDataSampler.getDataExemplar(Plan['Data'])
+        birthParams['targetExample'] = x
+
       # Sample data from current batch, if more is needed
       targetData = TargetDataSampler.sample_target_data(
-                          Dchunk, LP=LPchunk,
+                          Dchunk, model=model, LP=LPchunk,
                           targetCompID=Plan['ktarget'],
                           randstate=self.PRNG,
                           **birthParams)

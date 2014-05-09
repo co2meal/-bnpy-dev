@@ -18,7 +18,7 @@ def select_target_comp(K, SS=None, model=None, LP=None, Data=None,
                            lapsSinceLastBirth=defaultdict(int),
                            excludeList=list(), doVerbose=False, return_ps=False,
                            **kwargs):
-  ''' Choose a single component among possible choices {0,2,3, ... K-2, K-1}
+  ''' Choose a single component among possible choices {0,1,2, ... K-2, K-1}
       to target with a birth proposal.
 
       Keyword Args
@@ -67,11 +67,13 @@ def select_target_comp(K, SS=None, model=None, LP=None, Data=None,
     ps = np.maximum(lapDist + 1e-5, 0)
     ps = ps * ps * SS.N
   elif targetSelectName == 'predictionQuality':
-    ps = calc_underprediction_scores_per_topic(K, model, Data, LP, **kwargs)
+    ps = calc_underprediction_scores_per_topic(K, model, Data, LP,
+                                               excludeList, **kwargs)
     ps = ps * ps # make more peaked!
   else:
     raise NotImplementedError('Unrecognized procedure: ' + targetSelectName)
-  ps[SS.N < kwargs['targetMinSize']] = 0
+  if SS is not None:
+    ps[SS.N < kwargs['targetMinSize']] = 0
 
   ######## Make a choice using vector ps, if possible. Otherwise, raise error.
   ########
@@ -133,8 +135,46 @@ def select_target_words(K, model=None, LP=None, Data=None, SS=None,
     raise BirthProposalError(msg)
   return relWords
 
-def calc_underprediction_scores_per_topic(K, model, Data, 
-                                                LP=None, **kwargs):
+def calc_underprediction_scores_per_topic(K, model, Data, LP=None, 
+                                             excludeList=list(), **kwargs):
+  ''' Calculate for each topic a scalar weight. Larger => worse prediction.
+  '''
+  if str(type(model.allocModel)).count('HDP') > 0:
+    return _hdp_calc_underprediction_scores(K, model, Data, LP, excludeList, 
+                                            **kwargs)
+  else:
+    return _dp_calc_underprediction_scores(K, model, Data, LP, excludeList,         
+                                            **kwargs)
+
+def _dp_calc_underprediction_scores(K, model, Data, LP, xList, **kwargs):
+  ''' Calculate for each topic a scalar weight. Larger => worse prediction.
+  '''
+  if LP is None:
+    LP = model.calc_local_params(Data)
+  assert K == model.allocModel.K
+
+  # Empirical word frequencies (only for docs with enough words)
+  empWordFreq = Data.to_sparse_docword_matrix()
+  Nd = np.squeeze(np.asarray( empWordFreq.sum(axis=1)))
+  candidateDocs = np.flatnonzero(Nd > kwargs['targetMinWordsPerDoc'])
+  empWordFreq = empWordFreq[candidateDocs].toarray()
+  empWordFreq /= empWordFreq.sum(axis=1)[:,np.newaxis]    
+  resp = LP['resp'][candidateDocs]
+
+  # Compare to model's expected frequencies
+  score = np.zeros(K)
+  for k in range(K):
+    if k in xList:
+      continue
+    lamvec = model.obsModel.comp[k].lamvec
+    modelWordFreq_k = lamvec / lamvec.sum()
+    for d in np.flatnonzero(resp[:,k] > kwargs['targetCompFrac']):
+      score[k] += resp[d,k] * calcKL_discrete(empWordFreq, modelWordFreq_k)
+  score = np.maximum(score, 0)
+  score /= score.sum()
+  return score
+
+def _hdp_calc_underprediction_scores(K, model, Data, LP, xList, **kwargs):
   ''' Calculate for each topic a scalar weight. Larger => worse prediction.
   '''
   if LP is None:
@@ -143,6 +183,8 @@ def calc_underprediction_scores_per_topic(K, model, Data,
   NdkThr = 1.0/K * kwargs['targetMinWordsPerDoc']
   score = np.zeros(K)
   for k in range(K):
+    if k in xList:
+      continue
     lamvec = model.obsModel.comp[k].lamvec
     modelWordFreq_k = lamvec / lamvec.sum()
     candidateDocs = np.flatnonzero(LP['DocTopicCount'][:,k] > NdkThr)
@@ -155,8 +197,8 @@ def calc_underprediction_scores_per_topic(K, model, Data,
       empWordFreq_k = np.zeros(Data.vocab_size)
       empWordFreq_k[word_id] = (resp * word_count)
       empWordFreq_k = empWordFreq_k / empWordFreq_k.sum()
-
-      score[k] += LP['theta'][d,k] * calcKL_discrete(empWordFreq_k, 
+      probInDoc_k = LP['theta'][d,k] / LP['theta'][d,:].sum()
+      score[k] += probInDoc_k * calcKL_discrete(empWordFreq_k, 
                                                      modelWordFreq_k)
   # Make score a valid probability vector
   score = np.maximum(score, 0)

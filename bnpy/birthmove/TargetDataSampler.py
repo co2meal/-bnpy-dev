@@ -9,6 +9,7 @@ Sample selection criteria
 
 '''
 import numpy as np
+from scipy.spatial.distance import cdist
 
 ########################################################### sample_target_data
 ###########################################################
@@ -87,7 +88,7 @@ def _sample_target_WordsData(Data, model=None, LP=None, **kwargs):
   if kwargs['targetMinKLPerDoc'] > 0:
     ### Build model's expected word distribution for each document
     Prior = np.exp( LP['E_logPi'][candidates])
-    Lik = np.exp(curModel.obsModel.getElogphiMatrix()[candidates])
+    Lik = np.exp(model.obsModel.getElogphiMatrix())
     DocWordFreq_model = np.dot(Prior, Lik)
     DocWordFreq_model /= DocWordFreq_model.sum(axis=1)[:,np.newaxis]
   
@@ -98,18 +99,38 @@ def _sample_target_WordsData(Data, model=None, LP=None, **kwargs):
 
     mask = KLperDoc >= kwargs['targetMinKLPerDoc']
     candidates = candidates[mask]
-    probCandidates = probCandidates[mask]
+    probCandidates = KLperDoc[mask]
+  elif type(kwargs['targetExample']) != int:
+    topic = model.obsModel.comp[kwargs['targetCompID']].lamvec
+    thr = 5 + model.obsModel.obsPrior.lamvec
+    onTopicWs = np.flatnonzero( topic > thr )
+    if len(onTopicWs) == 0:
+      probCandidates = None
+    else:
+      DocWordFreq_emp = DocWordMat[candidates].toarray()
+      DocWordFreq_emp[ DocWordFreq_emp > 0] = 1.0
+      intersect = np.dot(DocWordFreq_emp[:,onTopicWs],
+                         kwargs['targetExample'][onTopicWs] > 0)
+      intersect[intersect < 4] = 0
+      probCandidates = intersect 
   else:
     probCandidates = None
+
+  if probCandidates is not None:
+    if probCandidates.ndim == 0:
+      probCandidates = probCandidates[np.newaxis]
+    probCandidates = probCandidates * probCandidates # make more peaked
+    probCandidates /= probCandidates.sum()
 
   targetData = Data.get_random_sample(kwargs['targetMaxSize'],
                            randstate=kwargs['randstate'],
                            candidates=candidates, p=probCandidates) 
 
   if 'targetHoldout' in kwargs and kwargs['targetHoldout']:
-    nHoldout = targetData.nDoc / 5
-    holdIDs = kwargs['randstate'].choice(targetData.nDoc, nHoldout, replace=False)
-    trainIDs = [x for x in xrange(targetData.nDoc) if x not in holdIDs]
+    nDoc = targetData.nDoc
+    nHoldout = nDoc / 5
+    holdIDs = kwargs['randstate'].choice(nDoc, nHoldout, replace=False)
+    trainIDs = [x for x in xrange(nDoc) if x not in holdIDs]
     holdData = targetData.select_subset_by_mask(docMask=holdIDs, 
                                              doTrackFullSize=False)
     targetData = targetData.select_subset_by_mask(docMask=trainIDs,
@@ -123,6 +144,17 @@ def calcKLdivergence_discrete(P1, P2):
   KL *= P1
   return KL.sum(axis=1)
 
+
+def getDataExemplar(Data):
+  ''' Return 'exemplar' for this dataset
+  '''
+  if Data is None:
+    return 0
+  start = 0
+  stop = Data.doc_range[0,1]
+  wordFreq = np.zeros(Data.vocab_size)
+  wordFreq[ Data.word_id[ start:stop]] = Data.word_count[start:stop]
+  return wordFreq / wordFreq.sum()
 
 def getSize(Data):
   ''' Return the integer size of the provided dataset
