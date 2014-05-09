@@ -240,8 +240,16 @@ class HDPStickBreak(AllocModel):
                               **kwargs):
     if hmodel is not None:
       self.K = hmodel.allocModel.K
-      self.rho = hmodel.allocModel.rho
-      self.omega = hmodel.allocModel.omega
+      if hasattr(hmodel.allocModel, 'rho'):
+        self.rho = hmodel.allocModel.rho
+        self.omega = hmodel.allocModel.omega
+      elif hasattr(hmodel.allocModel, 'qalpha1'):
+        u1 = hmodel.allocModel.qalpha1
+        u0 = hmodel.allocModel.qalpha0
+        self.rho = u1 / (u1 + u0)
+        self.omega = u1 + u0
+      else:
+        raise AttributeError('Unrecognized hmodel')
       self.set_helper_params()
     elif rho is not None and omega is not None:
       self.rho = rho

@@ -37,14 +37,10 @@ def init_global_params(hmodel, Data, initname=None, prefix='Best', **kwargs):
 
 def init_global_params_from_bnpy_format(hmodel, Data, initname, prefix):
   storedModel = ModelReader.load_model(initname, prefix)
-  # TODO check if dimension matches
-  aTypesMatch = type(storedModel.allocModel) == type(hmodel.allocModel)
-  oTypesMatch = type(storedModel.obsModel) == type(hmodel.obsModel)
-  inferTypesMatch = storedModel.inferType == hmodel.inferType
-
-  if aTypesMatch and oTypesMatch and inferTypesMatch:
+  try:
     hmodel.set_global_params(hmodel=storedModel)
-  else:
+  except AttributeError:
     LP = storedModel.calc_local_params(Data)
     SS = hmodel.get_global_suff_stats(Data, LP)
     hmodel.update_global_params(SS)
+  
