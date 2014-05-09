@@ -102,7 +102,7 @@ def _sample_target_WordsData(Data, model=None, LP=None, **kwargs):
     probCandidates = KLperDoc[mask]
   elif type(kwargs['targetExample']) != int:
     topic = model.obsModel.comp[kwargs['targetCompID']].lamvec
-    thr = 5 + model.obsModel.obsPrior.lamvec
+    thr = kwargs['targetMinSize'] + model.obsModel.obsPrior.lamvec
     onTopicWs = np.flatnonzero( topic > thr )
     if len(onTopicWs) == 0:
       probCandidates = None
