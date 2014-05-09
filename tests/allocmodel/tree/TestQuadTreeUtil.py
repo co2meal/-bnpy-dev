@@ -8,7 +8,7 @@ class TestQuadTreeUtil_5Nodes(unittest.TestCase):
   def setUp(self):
     PiInit = np.asarray([0.3, 0.7])
     PiMat = np.asarray([[0.6, 0.4],
-							[0.2, 0.8]])
+						[0.2, 0.8]])
     SoftEv = 0.5 * np.ones((5,2))
     logSoftEv = np.log(SoftEv)
     self.PiInit = PiInit
@@ -24,14 +24,17 @@ class TestQuadTreeUtil_5Nodes(unittest.TestCase):
 										  self.PiInit, self.PiMat, self.logSoftEv)
     print '============================= resp'
     print '------------- SumProduct'
-    print resp
+    print respPair
     print '------------- BruteForce'
-    print resp2
+    print respPair2
     print '============================= logPrObs'
     print '------------- SumProduct'
     print logPrObs
     print '------------- BruteForce'
     print logPrObs2
+    assert np.allclose(respPair, respPair2)
+    assert np.allclose(logPrObs, logPrObs2)
+    assert np.allclose(resp, resp2)
 
 
 class TestQuadTreeUtil_5NodesNonUniformLik(TestQuadTreeUtil_5Nodes):
@@ -81,31 +84,18 @@ class TestQuadTreeUtil_4StatesNonUniformLik(TestQuadTreeUtil_5Nodes):
         self.logSoftEv = logSoftEv
         self.SoftEv = SoftEv
 
-<<<<<<< HEAD
-class TestQuadTreeUtil_NonuniformLik21(TestQuadTreeUtil_NonuniformLik):
-=======
-
-class TestQuadTreeUtil_21Nodes(TestQuadTreeUtil_5Nodes):
-
->>>>>>> 77ebc5fc97825e5feb786582974c32f307fcb6e6
+class TestQuadTreeUtil_NonuniformLik21(TestQuadTreeUtil_5Nodes):
 	def setUp(self):
 		PiInit = np.asarray([0.3, 0.7])
 		PiMat = np.asarray([[0.6, 0.4],
 							[0.2, 0.8]])
-<<<<<<< HEAD
 		PRNG = np.random.RandomState(0)
 		p = PRNG.rand(21,1)
 		SoftEv = np.hstack([p, 1-p])
-=======
-		SoftEv = 0.5 * np.ones((21,2))
->>>>>>> 77ebc5fc97825e5feb786582974c32f307fcb6e6
 		logSoftEv = np.log(SoftEv)
 		self.PiInit = PiInit
 		self.PiMat = PiMat
 		self.logSoftEv = logSoftEv
-<<<<<<< HEAD
-		self.SoftEv = SoftEv
-=======
 		self.SoftEv = SoftEv
 
 
@@ -113,7 +103,7 @@ class TestQuadTreeUtil_21NodesNonUniformLik(TestQuadTreeUtil_5Nodes):
   def setUp(self):
     PiInit = np.asarray([0.3, 0.7])
     PiMat = np.asarray([[0.6, 0.4],
-							[0.2, 0.8]])
+						[0.2, 0.8]])
     PRNG = np.random.RandomState(0)
     SoftEv = PRNG.rand( 21, 2)
     SoftEv /= SoftEv.sum(axis=1)[:,np.newaxis]
@@ -124,4 +114,3 @@ class TestQuadTreeUtil_21NodesNonUniformLik(TestQuadTreeUtil_5Nodes):
     self.PiMat = PiMat
     self.logSoftEv = logSoftEv
     self.SoftEv = SoftEv
->>>>>>> 77ebc5fc97825e5feb786582974c32f307fcb6e6

@@ -15,7 +15,7 @@ def calcRespBySumProduct(PiInit, PiMat, logSoftEv):
 	N = logSoftEv.shape[0]
 
 	SoftEv, lognormC = expLogLik(logSoftEv)
-	umsg = UpwardPass(PiInit, PiMat, SoftEv)
+	'''umsg = UpwardPass(PiInit, PiMat, SoftEv)
 	dmsg, margPrObs = DownwardPass(PiInit, PiMat, SoftEv, umsg)
 
 	respPair = np.zeros((N,K,K))
@@ -34,6 +34,15 @@ def calcRespBySumProduct(PiInit, PiMat, logSoftEv):
 	resp = dmsg * umsg
 	logMargPrSeq = np.log(resp[N-1].sum()) + lognormC.sum()
 	resp = resp / resp.sum(axis=1)[:,np.newaxis]
+	return resp, respPair, logMargPrSeq'''
+	umsg, umsg_helper, margStateDist, margPrObs = UpwardPass_Smoothed(PiInit, PiMat, SoftEv)
+	dmsg = DownwardPass_Smoothed(PiInit, PiMat, SoftEv, umsg, umsg_helper, margStateDist)
+	resp = umsg*dmsg
+	respPair = np.zeros((N,K,K))
+	for n in xrange( 1, N ):
+		parent = get_parent_index(n)
+		respPair[n] = PiMat * np.outer(resp[parent]/umsg_helper[n], umsg[n]/margStateDist[n])
+	logMargPrSeq = np.log(margPrObs).sum() + lognormC.sum()
 	return resp, respPair, logMargPrSeq
 
 
@@ -83,6 +92,48 @@ def DownwardPass(PiInit, PiMat, SoftEv, umsg):
 			margPrObs[n] = np.sum(dmsg[n])
 			#dmsg[n] /= margPrObs[n]
 	return dmsg, margPrObs
+
+def UpwardPass_Smoothed(PiInit, PiMat, SoftEv):
+	'''Upward pass with normalized messages
+	'''
+	N = SoftEv.shape[0]
+	K = PiInit.size
+	PiT = PiMat.T
+	start = find_last_nonleaf_node(N)
+	umsg = np.ones( (N,K) )
+	margStateDist = np.empty( (N,K) )
+	umsg_helper = np.empty( (N,K) )
+	margStateDist[0] = PiInit
+	margPrObs = np.empty( N )
+	for n in xrange(1, N):
+		margStateDist[n] = np.dot(PiT, margStateDist[get_parent_index(n)])
+	for n in xrange(N-1, -1, -1):
+		if(n > start-1):
+			umsg[n] = SoftEv[n] * margStateDist[n]
+			margPrObs[n] = np.sum(umsg[n])
+			umsg[n] /= margPrObs[n]
+			umsg_helper[n] = np.dot(PiMat, umsg[n]/margStateDist[n])
+		else:
+			children = get_children_indices(n, N)
+			for c in children:
+				umsg[n] = umsg[n] * umsg_helper[c]
+			umsg[n] = umsg[n] * (SoftEv[n] * margStateDist[n])
+			margPrObs[n] = np.sum(umsg[n])
+			umsg[n] /= margPrObs[n]
+			umsg_helper[n] = np.dot(PiMat, umsg[n]/margStateDist[n])
+	return umsg, umsg_helper, margStateDist, margPrObs
+
+def DownwardPass_Smoothed(PiInit, PiMat, SoftEv, umsg, umsg_helper, margStateDist):
+	'''Downward pass with normalized messages
+	'''
+	N = SoftEv.shape[0]
+	K = PiInit.size
+	PiT = PiMat.T
+	dmsg = np.ones( (N,K) )
+	for n in xrange(1, N):
+		parent = get_parent_index(n)
+		dmsg[n] = np.dot(PiT, (dmsg[parent]*umsg[parent])/umsg_helper[n]) / margStateDist[n]
+	return dmsg
 
 ########################################################### Brute Force
 ###########################################################
