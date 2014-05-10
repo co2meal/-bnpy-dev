@@ -32,6 +32,10 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
   ######## Allocate document-specific variables
   if 'DocTopicCount' in LP:
     doUniformFirstTime = False
+    # Update U1, U0
+    LP = update_U1U0_SB(LP, topicPrior1, topicPrior0)
+    # Update expected value of log Pi[d,k]
+    LP = update_ElogPi_SB(LP)
   else:
     LP['DocTopicCount'] = np.zeros((Data.nDoc, K))
     doUniformFirstTime = True
