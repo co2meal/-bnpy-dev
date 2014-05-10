@@ -63,7 +63,7 @@ class HDPStickBreak(AllocModel):
     ''' Return list of string names of the LP fields
         that moVB needs to memoize across visits to a particular batch
     '''
-    return []
+    return ['DocTopicCount']
 
   ######################################################### Local Params
   #########################################################
