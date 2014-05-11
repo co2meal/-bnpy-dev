@@ -90,7 +90,21 @@ def init_global_params(obsModel, Data, K=0, seed=0,
     #  which solves an objective similar to LDA
     if not hasSpectralAvailable:
       raise NotImplementedError("AnchorWords must be on python path")
+    MAX_NUM_DOCS = 3000 # too many results in very slow speed
+    if Data.nDoc > MAX_NUM_DOCS:
+      from bnpy.birthmove.TargetDataSampler import _sample_target_WordsData
+      targetDataArgs = dict(targetMinKLPerDoc=0, 
+                            targetMinWordsPerDoc=100,
+                            targetExample=0,
+                            targetMinSize=25,
+                            targetMaxSize=MAX_NUM_DOCS,
+                            randstate=PRNG)
+      Data = _sample_target_WordsData(Data, **targetDataArgs)
+      print 'INIT DATA: %d docs' % (Data.nDoc)
+      print Data.get_doc_stats_summary()
+
     DocWord = Data.to_sparse_docword_matrix()
+
     stime = time.time()
     topics = LearnAnchorTopics.run(DocWord, K, seed=seed, loss='L2')
     elapsedtime = time.time() - stime
