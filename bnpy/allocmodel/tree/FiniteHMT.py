@@ -1,8 +1,10 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 from bnpy.allocmodel import AllocModel
 from bnpy.suffstats import SuffStatBag
 from bnpy.allocmodel.tree import HMTUtil
+from bnpy.allocmodel.tree import HMTViterbi
 
 class FiniteHMT(AllocModel):
 
@@ -28,6 +30,9 @@ class FiniteHMT(AllocModel):
         if self.inferType.count('VB') > 0:
             print 'inferType VB not yet supported for FiniteHMT'
         elif self.inferType == 'EM' > 0:
+            #encoding = HMTViterbi.ViterbiAlg(self.initPi, self.transPi, lpr)
+            #plt.scatter(Data.X[:,0], Data.X[:,1], c=encoding, alpha=.7)
+            #plt.show()
             resp, respPair, logMargPrSeq = HMTUtil.SumProductAlg_QuadTree(self.initPi, self.transPi, lpr)
             LP.update({'resp':resp})
             LP.update({'respPair':respPair})

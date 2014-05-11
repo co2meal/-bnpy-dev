@@ -4,6 +4,7 @@ HMTK4.py
 A module to create HMT data with 4 states
 '''
 import numpy as np
+import matplotlib.pyplot as plt
 from bnpy.data.QuadTreeData import QuadTreeData
 from bnpy.distr.GaussDistr import GaussDistr
 from bnpy.allocmodel.tree import HMTUtil
@@ -75,6 +76,8 @@ def get_data(seed=8675309, nObsTotal=256, **kwargs):
     resp, respPair, logMargPrSeq = HMTUtil.SumProductAlg_QuadTree(pi0, transition, lpr)'''
     trueParams = dict(initPi=pi0, transPi=transition, mu=means, Sigma=sigmas)
     Data = QuadTreeData(X=X, TrueZ=Z, nTrees=1, tree_delims=l, TrueParams=trueParams)
+    #plt.scatter(X[:,0], X[:,1], c=Z, alpha=.7)
+    #plt.show()
     Data.summary = get_data_info()
     return Data
 
