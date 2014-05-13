@@ -3,28 +3,15 @@ WordsData.py
 
 Data object that represents word counts across a collection of documents.
 
-Terminology
--------
-* Vocab : The finite collection of possible words.  
-    {apple, berry, cardamom, fruit, pear, walnut}
-  We assume this set has a fixed ordering, so each word is associated 
-  with a particular integer in the set 0, 1, ... vocab_size-1
-     0: apple        3: fruit
-     1: berry        4: pear
-     2: cardamom     5: walnut
-* Document : a collection of words, observed together from the same source
-  For example: 
-      "apple, berry, berry, pear, pear, pear, walnut"
-
 * nDoc : number of documents in the current, in-memory dataset
 * nDocTotal : total number of docs, in entire dataset (for online applications)
 '''
 
-from .AdmixMinibatchIterator import AdmixMinibatchIterator
-from .DataObj import DataObj
 import numpy as np
 import scipy.sparse
-from ..util import RandUtil
+
+from bnpy.data.DataObj import DataObj
+from bnpy.util import RandUtil
 
 class WordsData(DataObj):
 
@@ -50,7 +37,7 @@ class WordsData(DataObj):
                     (in case this obj represents a minibatch)
         TrueParams : None [default], or dict of attributes
     '''
-    self.word_id = np.asarray(np.squeeze(word_id), dtype=np.uint32)
+    self.word_id = np.asarray(np.squeeze(word_id), dtype=np.int32)
     self.word_count = np.asarray(np.squeeze(word_count), dtype=np.float64)
     self.doc_range = np.asarray(doc_range, dtype=np.int32)
     self.vocab_size = int(vocab_size)
@@ -130,41 +117,25 @@ class WordsData(DataObj):
       return self.__sparseMat__
   
   def to_sparse_docword_matrix(self, weights=None, thr=None, **kwargs):
-    ''' Make sparse matrix counting vocab usage for each document in dataset
-        Used for efficient initialization of global parameters.
+    ''' Make sparse matrix counting vocab usage for each document in dataset.
 
         Returns
         -------
         C : sparse (CSR-format) matrix, of shape nDoc-x-vocab_size, where
             C[d,v] = total count of vocab word v in document d
     '''
-    if hasattr(self, "__sparseDocWordMat__") and weights is None:
-      return self.__sparseDocWordMat__
-    row_ind = list()
-    col_ind = list()
-    doc_range = self.doc_range
-    word_count = self.word_count
-    for d in xrange(self.nDoc):
-      numDistinct = doc_range[d,1] - doc_range[d,0]
-      doc_ind_temp = [d]*numDistinct
-      row_ind.extend(doc_ind_temp)
-      col_ind.extend(self.word_id[doc_range[d,0]:doc_range[d,1]])
-    if weights is None:
-      weights = self.word_count
-    else:
-      if thr is not None:
-        mask = np.flatnonzero(weights > thr)
-        weights = weights[mask] * self.word_count[mask]
-        row_ind = np.asarray(row_ind)[mask]
-        col_ind = np.asarray(col_ind)[mask]
-      else:
-        weights = weights * self.word_count
+    if hasattr(self, '_sparseDocWordMat') and weights is None:
+      return self._sparseDocWordMat
+    if weights is not None:
+      raise NotImplementedError('TODO')
+
+    indptr = np.hstack( [self.doc_range[0,0], self.doc_range[:,1]])
     sparseDocWordmat = scipy.sparse.csr_matrix(
-                               (weights, (row_ind,col_ind)),
-                               shape=(self.nDoc, self.vocab_size), 
-                               dtype=np.float64)
+                             (self.word_count, self.word_id, indptr),
+                             shape=(self.nDoc, self.vocab_size), 
+                             dtype=np.float64)
     if weights is None:
-      self.__sparseDocWordMat__ = sparseDocWordmat
+      self._sparseDocWordMat = sparseDocWordmat
     return sparseDocWordmat
 
   def get_nObs2nDoc_mat(self):
@@ -188,6 +159,7 @@ class WordsData(DataObj):
         -------
           see AdmixMinibatchIterator
     '''
+    from AdmixMinibatchIterator import AdmixMinibatchIterator
     return AdmixMinibatchIterator(self, **kwargs)
    
   def add_data(self, WData):
@@ -306,7 +278,7 @@ class WordsData(DataObj):
     if wordLocs is None:
       if hasattr(self, "__docid__"):
         return self.__docid__
-      self.__docid__ = np.zeros(self.word_id.size, dtype=np.uint32)
+      self.__docid__ = np.zeros(self.word_id.size, dtype=np.int32)
       for dd in range(self.nDoc):
         self.__docid__[self.doc_range[dd,0]:self.doc_range[dd,1]] = dd
       return self.__docid__
@@ -393,7 +365,7 @@ class WordsData(DataObj):
     word_id = list()
     word_count = list()
     nDoc = len(doc_data)
-    doc_range = np.zeros((nDoc,2), dtype=np.uint32)
+    doc_range = np.zeros((nDoc,2), dtype=np.int32)
     ii = 0
     for d in xrange( nDoc ):
       # make sure we subtract 1 for word_ids since python indexes by 0
