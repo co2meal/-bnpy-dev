@@ -154,8 +154,8 @@ def _run_task_internal(jobname, taskid, nTask,
   # Create and initialize model parameters
   hmodel = createModel(InitData, ReqArgs, KwArgs)
   hmodel.init_global_params(InitData, seed=algseed, taskid=taskid,
+                            savepath=taskoutpath,
                             **KwArgs['Initialization'])
-
   # Create learning algorithm
   learnAlg = createLearnAlg(Data, hmodel, ReqArgs, KwArgs,
                               algseed=algseed, savepath=taskoutpath)

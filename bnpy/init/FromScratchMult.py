@@ -7,6 +7,7 @@ import numpy as np
 from scipy.special import digamma
 from scipy.cluster import vq
 import time
+import os
 
 hasRexAvailable = True
 hasSpectralAvailable = True
@@ -85,12 +86,19 @@ def init_global_params(obsModel, Data, K=0, seed=0,
     PhiTopicWord /= PhiTopicWord.sum(axis=1)[:,np.newaxis]
     obsModel.set_global_params(K=K, topics=PhiTopicWord)
 
-  elif initname == 'spectral':
+  elif initname.count('spectral'):
     # Set topic-word prob vectors to output of anchor-words spectral method
     #  which solves an objective similar to LDA
     if not hasSpectralAvailable:
       raise NotImplementedError("AnchorWords must be on python path")
-    MAX_NUM_DOCS = 3000 # too many results in very slow speed
+    if initarg is None:
+      MAX_NUM_DOCS = 3000 # too many results in very slow speed
+    else:
+      try:
+        MAX_NUM_DOCS = int(initarg)
+      except:
+        MAX_NUM_DOCS = 3000
+      MAX_NUM_DOCS = max(MAX_NUM_DOCS, 3000)
     if Data.nDoc > MAX_NUM_DOCS:
       from bnpy.birthmove.TargetDataSampler import _sample_target_WordsData
       targetDataArgs = dict(targetMinKLPerDoc=0, 
@@ -109,6 +117,15 @@ def init_global_params(obsModel, Data, K=0, seed=0,
     topics = LearnAnchorTopics.run(DocWord, K, seed=seed, loss='L2')
     elapsedtime = time.time() - stime
     print 'SPECTRAL\n %5.1f sec | D=%d, K=%d' % (elapsedtime, DocWord.shape[0], K)
+    
+    if 'savepath' in kwargs:
+      import scipy.io
+      scipy.io.savemat(os.path.join(kwargs['savepath'], 'InitTopics.mat'),
+                       dict(topics=topics), oned_as='row')
+    
+    if initname.count('only'):
+      import sys
+      sys.exit(1)
     obsModel.set_global_params(K=K, topics=topics)
 
   else:
