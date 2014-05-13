@@ -93,7 +93,10 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
     # Here, the "[:]" syntax ensures we do NOT copy the pointer
     old_DocTopicCount[:] = LP['DocTopicCount']
     ### end loop over alternating-ascent updates
-  
+
+  LP['didConverge'] = np.max(docDiffs) < convThrLP
+  LP['maxDocDiff'] = np.max(docDiffs)
+  LP['nCoordAscentIters'] = ii
   LP['sumRTilde'] = sumRTilde
   LP['expElogpi'] = expElogpi
   LP['expEloglik'] = expEloglik
