@@ -4,13 +4,14 @@
 import numpy as np
 from scipy.special import digamma, gammaln
 
-from bnpy.util import NumericUtil 
+from bnpy.util import NumericUtil, LibLocalStep
 
 ########################################################### doc-level beta
 ###########################################################  version
 def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0, 
                              nCoordAscentItersLP=20,
                              convThrLP=0.01,
+                             methodLP='numpy',
                              doUniformFirstTime=False, 
                              **kwargs):
   ''' Calculate local paramters for all documents, given topic prior
@@ -22,66 +23,66 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
       -------
       LP : dictionary with fields
   '''
+  D = Data.nDoc
   K = topicPrior1.size
 
   # Precompute ONCE exp( E_logsoftev ), in-place
   expEloglik = LP['E_logsoftev_WordsData']
   expEloglik -= expEloglik.max(axis=1)[:,np.newaxis] 
   NumericUtil.inplaceExp(expEloglik)  
+  if methodLP != 'numpy':
+    if not np.isfortran(expEloglik):
+      expEloglik = np.asfortranarray(expEloglik)
+
 
   ######## Allocate document-specific variables
+  docptr = np.hstack([0, Data.doc_range[:,1]])
   if 'DocTopicCount' in LP:
     doUniformFirstTime = False
     # Update U1, U0
     LP = update_U1U0_SB(LP, topicPrior1, topicPrior0)
     # Update expected value of log Pi[d,k]
     LP = update_ElogPi_SB(LP)
+    if methodLP == 'numpy':
+      expElogpi = np.exp(LP['E_logPi'])
+    else:
+      expElogpi = np.empty((D,K), order='F')
+      np.exp(LP['E_logPi'], out=expElogpi)
   else:
-    LP['DocTopicCount'] = np.zeros((Data.nDoc, K))
+    if methodLP == 'numpy':
+      LP['DocTopicCount'] = np.zeros((D, K))
+      expElogpi = np.ones((D,K))
+    else:
+      LP['DocTopicCount'] = np.zeros((D, K), order='F')
+      expElogpi = np.ones((D,K), order='F')
     doUniformFirstTime = True
 
   ######## Allocate token-specific variables
-  # sumRTilde : nDistinctWords-length vector of reals
-  #   row n = \sum_{k} \tilde{r}_{nk}, 
-  #             where \tilde{r}_nk = \exp{ Elog[\pi_d] + Elog[\phi_dvk] }
-  #   each entry is the "normalizer" for each row of LP['resp']
+  # sumRTilde : nDistinctWords vector. row n = \sum_{k} \tilde{r}_{nk} 
   sumRTilde = np.zeros(Data.nObs)
 
   ######## Repeat updates until old_theta has stopped changing ...
-  activeDocs = range(Data.nDoc)
+  activeDocs = np.arange(D)
   old_DocTopicCount = LP['DocTopicCount'].copy()
+
   for ii in xrange(nCoordAscentItersLP):
 
     # Update expElogpi for active documents
-    if doUniformFirstTime and ii == 0:
-      expElogpi = np.ones((Data.nDoc, K))
-    else:
-      if len(activeDocs) == Data.nDoc:
-        expElogpi = np.exp(LP['E_logPi'])
-      else:
-        expElogpi[activeDocs] = np.exp(LP['E_logPi'][activeDocs])    
+    if ii > 0:
+      expElogpi[activeDocs] = np.exp(LP['E_logPi'][activeDocs])
 
-    for d in activeDocs:
-      start = Data.doc_range[d,0]
-      stop  = Data.doc_range[d,1]
-      expEloglik_d = expEloglik[start:stop]
-
-      np.dot(expEloglik_d, expElogpi[d], out=sumRTilde[start:stop])
-
-      np.dot(Data.word_count[start:stop] / sumRTilde[start:stop],
-               expEloglik_d,
-               out=LP['DocTopicCount'][d,:]
-            )
-
-    if not (doUniformFirstTime and ii == 0):
-      # Element-wise multiply with nDoc x K prior prob matrix
-      LP['DocTopicCount'][activeDocs] *= expElogpi[activeDocs]
+    sumRTilde, LP['DocTopicCount'] = LibLocalStep.calcDocTopicCount(
+                                       activeDocs, docptr,
+                                       Data.word_count, expElogpi, expEloglik,
+                                       sumRTilde, LP['DocTopicCount'],
+                                       methodLP=methodLP,
+                                     )
 
     # Update U1, U0
     LP = update_U1U0_SB(LP, topicPrior1, topicPrior0)
 
     # Update expected value of log Pi[d,k]
-    LP = update_ElogPi_SB(LP)
+    LP = update_ElogPi_SB(LP, activeDocs)
     
     # Assess convergence
     docDiffs = np.max(np.abs(old_DocTopicCount - LP['DocTopicCount']), axis=1)
@@ -119,13 +120,38 @@ def update_U1U0_SB(LP, topicPrior1, topicPrior0):
     LP['U0'] += topicPrior0
   return LP
 
-def update_ElogPi_SB(LP):
+def update_ElogPi_SB(LP, activeDocs=None):
   ''' Update expected log topic appearance probabilities in each doc
   '''
-  shape = LP['U1'].shape 
-  digammaBoth = digamma(LP['U0']+LP['U1'])
-  LP['E_logVd'] = digamma(LP['U1']) - digammaBoth
-  LP['E_log1-Vd'] = digamma(LP['U0']) - digammaBoth
+  shp = LP['U1'].shape
+  if 'digammaBoth' not in LP or shp != LP['digammaBoth'].shape:
+    LP['digammaBoth'] = np.empty(shp)
+    LP['E_logVd'] = np.empty(shp)
+    LP['E_log1-Vd'] = np.empty(shp)
+
+  np.add(LP['U0'], LP['U1'], out=LP['digammaBoth'])    
+  if activeDocs is None or activeDocs.size > 0.75 * shp[0]:
+    digamma(LP['digammaBoth'], out=LP['digammaBoth'])  
+    digamma(LP['U0'], out=LP['E_log1-Vd'])
+    digamma(LP['U1'], out=LP['E_logVd'])
+    LP['E_log1-Vd'] -= LP['digammaBoth']
+    LP['E_logVd'] -= LP['digammaBoth']
+  else:
+    # Fast, optimized version (allocates small memory)
+    dBoth = LP['digammaBoth'].take(activeDocs, axis=0)
+    digamma(dBoth, out=dBoth)
+    d1 = LP['U1'].take(activeDocs,axis=0)
+    digamma(d1, out=d1)
+    LP['E_logVd'][activeDocs] = d1 - dBoth
+    digamma(LP['U0'].take(activeDocs,axis=0), out=d1)
+    LP['E_log1-Vd'][activeDocs] = d1 - dBoth
+    # Slower, but still decent version
+    #LP['digammaBoth'][activeDocs] = digamma(LP['digammaBoth'][activeDocs])
+    #LP['E_log1-Vd'][activeDocs] = digamma(LP['U0'][activeDocs])
+    #LP['E_logVd'][activeDocs] = digamma(LP['U1'][activeDocs])
+    #LP['E_log1-Vd'][activeDocs] -= LP['digammaBoth'].take(activeDocs,axis=0)
+    #LP['E_logVd'][activeDocs] -= LP['digammaBoth'].take(activeDocs,axis=0)
+
 
   LP['E_logPi'] = LP['E_logVd'].copy()
   LP['E_logPi'][:, 1:] += np.cumsum(LP['E_log1-Vd'][:,:-1], axis=1)
