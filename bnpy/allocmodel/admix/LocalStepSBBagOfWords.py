@@ -36,7 +36,7 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
 
 
   ######## Allocate document-specific variables
-  docptr = np.hstack([0, Data.doc_range[:,1]])
+  docptr = np.asarray(np.hstack([0, Data.doc_range[:,1]]), dtype=np.int32)
   if 'DocTopicCount' in LP:
     doUniformFirstTime = False
     # Update U1, U0
@@ -62,7 +62,7 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
   sumRTilde = np.zeros(Data.nObs)
 
   ######## Repeat updates until old_theta has stopped changing ...
-  activeDocs = np.arange(D)
+  activeDocs = np.arange(D, dtype=np.int32)
   old_DocTopicCount = LP['DocTopicCount'].copy()
 
   for ii in xrange(nCoordAscentItersLP):
@@ -88,7 +88,7 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
     docDiffs = np.max(np.abs(old_DocTopicCount - LP['DocTopicCount']), axis=1)
     if np.max(docDiffs) < convThrLP:
       break
-    activeDocs = np.flatnonzero(docDiffs > convThrLP)
+    activeDocs = np.int32(np.flatnonzero(docDiffs > convThrLP))
 
     # Store DocTopicCount for next round's convergence test
     # Here, the "[:]" syntax ensures we do NOT copy the pointer
