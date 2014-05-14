@@ -34,10 +34,9 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
     if not np.isfortran(expEloglik):
       expEloglik = np.asfortranarray(expEloglik)
 
-
   ######## Allocate document-specific variables
   docptr = np.asarray(np.hstack([0, Data.doc_range[:,1]]), dtype=np.int32)
-  if 'DocTopicCount' in LP:
+  if 'DocTopicCount' in LP and LP['DocTopicCount'].shape[1] == K:
     doUniformFirstTime = False
     # Update U1, U0
     LP = update_U1U0_SB(LP, topicPrior1, topicPrior0)
