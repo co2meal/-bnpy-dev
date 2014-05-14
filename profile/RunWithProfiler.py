@@ -29,9 +29,9 @@ except:
 fparts = bnpyroot.split(os.path.sep)[:-1]
 fparts.append('third-party')
 thirdpartyroot = os.path.sep.join(fparts)
-print "DIRECTORIES TO BE PROFILED:"
-print bnpyroot
-print thirdpartyroot
+#print "DIRECTORIES TO BE PROFILED:"
+#print bnpyroot
+#print thirdpartyroot
 
 # Decorate codebase
 print "Decorating ...",
@@ -49,9 +49,9 @@ else:
 
 ProfileCMD = "%s line_profiler/kernprof.py -o %s.lprof --line-by-line %s %s" \
         % (pycmdstr, nowstr, os.path.join(bnpyroot,'Run.py'), ' '.join(sys.argv[1:]))
-print "Running script with profiling enabled ...",
+#print "Running script with profiling enabled ...",
 subprocess.call(ProfileCMD, shell=True)
-print '[DONE]'
+#print '[DONE]'
 
 
 print "Building HTML ...",
