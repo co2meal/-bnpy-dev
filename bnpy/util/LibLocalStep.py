@@ -100,7 +100,6 @@ def calcDocTopicCount_c(
   D, K = Prior.shape
   N, K2 = Lik.shape
   assert K == K2
-
   if sumR is None:
     sumR = np.zeros(N)
   if DocTopicCount is None:
@@ -141,7 +140,7 @@ def make_quick_args(D=5, N=85, K=4, A=4, order='F'):
   else:
     docIndices = PRNG.choice(range(N), D-1, replace=False)
     docIndices = np.hstack([0, np.sort(docIndices), N])
-    docIndicies = np.asarray(docIndices, dtype=np.int32)
+    docIndices = np.asarray(docIndices, dtype=np.int32)
 
   word_count = PRNG.rand(N)
   #word_count = np.ones(N, dtype=np.float64)
@@ -158,10 +157,11 @@ def make_quick_args(D=5, N=85, K=4, A=4, order='F'):
   return (activeDocs, docIndices, word_count,
           Prior, Lik, sumR, DTMat)
 
-def test_speed(D=100, N=30000, K=5, A=None, nTrial=5):
+def test_speed(D=4000, N=400, K=100, A=None, nTrial=5):
   import time
   if A is None:
     A = D / 2
+  N = N * D
 
   args = make_quick_args(D=D, N=N, K=K, A=A, order='C')
   args2 = make_quick_args(D=D, N=N, K=K, A=A, order='F')
@@ -184,6 +184,7 @@ def test_speed(D=100, N=30000, K=5, A=None, nTrial=5):
 def test_quick_c():
   args = make_quick_args()
   Q = unpack_args(args)
+  
   sR, DTM = calcDocTopicCount_c(*args)
   pprint_arr(sR, 'sumR')
   pprint_arr(DTM, 'DocTopicCount')

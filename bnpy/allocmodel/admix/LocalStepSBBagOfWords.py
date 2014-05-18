@@ -11,7 +11,7 @@ from bnpy.util import NumericUtil, LibLocalStep
 def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0, 
                              nCoordAscentItersLP=20,
                              convThrLP=0.01,
-                             methodLP='numpy',
+                             methodLP='scratch',
                              doUniformFirstTime=False, 
                              doInPlaceLP=1,
                              **kwargs):
@@ -38,10 +38,11 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
   if methodLP == 'c' and not np.isfortran(expEloglik):
       expEloglik = np.asfortranarray(expEloglik)
 
-
   ######## Allocate document-specific variables
-  docptr = np.hstack([0, Data.doc_range[:,1]])
-  if 'DocTopicCount' in LP and methodLP != 'scratch':
+  docptr = np.asarray(np.hstack([0, Data.doc_range[:,1]]), dtype=np.int32)
+  hasCountOfCorrectSize = 'DocTopicCount' in LP \
+                           and LP['DocTopicCount'].shape[1] == K 
+  if hasCountOfCorrectSize and methodLP != 'scratch' :
     doUniformFirstTime = False
     # Update U1, U0
     LP = update_U1U0_SB(LP, topicPrior1, topicPrior0)
@@ -66,7 +67,7 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
   sumRTilde = np.zeros(Data.nObs)
 
   ######## Repeat updates until old_theta has stopped changing ...
-  activeDocs = np.arange(D)
+  activeDocs = np.arange(D, dtype=np.int32)
   old_DocTopicCount = LP['DocTopicCount'].copy()
 
   for ii in xrange(nCoordAscentItersLP):
@@ -92,13 +93,16 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
     docDiffs = np.max(np.abs(old_DocTopicCount - LP['DocTopicCount']), axis=1)
     if np.max(docDiffs) < convThrLP:
       break
-    activeDocs = np.flatnonzero(docDiffs > convThrLP)
+    activeDocs = np.int32(np.flatnonzero(docDiffs > convThrLP))
 
     # Store DocTopicCount for next round's convergence test
     # Here, the "[:]" syntax ensures we do NOT copy the pointer
     old_DocTopicCount[:] = LP['DocTopicCount']
     ### end loop over alternating-ascent updates
-  
+
+  LP['didConverge'] = np.max(docDiffs) < convThrLP
+  LP['maxDocDiff'] = np.max(docDiffs)
+  LP['nCoordAscentIters'] = ii
   LP['sumRTilde'] = sumRTilde
   LP['expElogpi'] = expElogpi
   LP['expEloglik'] = expEloglik

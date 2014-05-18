@@ -16,7 +16,7 @@ from ...util import NumericUtil
 from ...util import digamma, gammaln
 from ...util import EPS
 
-MAXOMEGA = 1e7
+#MAXOMEGA = 1e7
 
 class HDPStickBreak(AllocModel):
 
@@ -365,10 +365,10 @@ class HDPStickBreak(AllocModel):
         omega = (self.alpha0 + 1 ) * np.ones(SS.K)
         rho = 1/float(1+self.alpha0) * np.ones(SS.K)
 
-    nBad = np.sum(omega > MAXOMEGA)
-    if nBad > 0:
-      Log.error('***** Enforced MAXOMEGA for %d entries.' % (nBad)) 
-      omega = np.minimum(omega, MAXOMEGA)
+    #nBad = np.sum(omega > MAXOMEGA)
+    #if nBad > 0:
+    #  Log.error('***** Enforced MAXOMEGA for %d entries.' % (nBad)) 
+    #  omega = np.minimum(omega, MAXOMEGA)
     return rho, omega
 
 

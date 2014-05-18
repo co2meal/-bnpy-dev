@@ -158,20 +158,6 @@ class DPMixModel(AllocModel):
 
     return SS
 
-  '''
-      # Hmerge : KxK matrix of entropies for all possible pair-wise merges
-      # for example, if we had only 3 components {0,1,2}
-      # Hmerge = [ 0 H(0,1) H(0,2)
-      #            0   0    H(1,2)
-      #            0   0      0 ]      
-      #  where H(i,j) is entropy if components i and j merged.
-      Hmerge = np.zeros((self.K, self.K))
-      for jj in range(self.K):
-        compIDs = np.arange(jj+1, self.K)
-        Rcombo = LP['resp'][:,jj][:,np.newaxis] + LP['resp'][:,compIDs]
-        Hmerge[jj,compIDs] = np.sum(Rcombo*np.log(Rcombo+EPS), axis=0)
-      SS.setMergeTerm('ElogqZ', Hmerge, dims=('K','K'))
-  '''
 
   ######################################################### Global Params
   #########################################################
@@ -283,8 +269,9 @@ class DPMixModel(AllocModel):
     return np.inner( SS.N, self.Elogw ) 
     
   def E_logqZ(self, LP):
-    return np.sum(LP['resp'] * np.log(LP['resp']+EPS), axis=0)
-    
+    #return np.sum(LP['resp'] * np.log(LP['resp']+EPS), axis=0)
+    return NumericUtil.calcRlogR(LP['resp']+EPS)
+
   def E_logpV( self ):
     logNormC = gammaln(self.alpha0 + self.alpha1) \
                     - gammaln(self.alpha0) - gammaln(self.alpha1)

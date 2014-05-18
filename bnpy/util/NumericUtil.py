@@ -427,10 +427,15 @@ def runTimingExperiment_calcRlogRdotv(N=2e5, D=100, repeat=3):
 hasNumexpr = True
 try:
   import numexpr as ne
-  if 'OMP_NUM_THREADS' in os.environ:
-    ne.set_num_threads(os.environ['OMP_NUM_THREADS'])
-except:
+except ImportError:
   hasNumexpr = False
-
+if hasNumexpr and 'OMP_NUM_THREADS' in os.environ:
+  try:
+    nThreads = int(os.environ['OMP_NUM_THREADS'])
+    ne.set_num_threads(nThreads)
+  except TypeError, ValueError:
+    print 'Unrecognized OMP_NUM_THREADS', os.environ['OMP_NUM_THREADS']
+    pass
+ 
 LoadConfig()
 

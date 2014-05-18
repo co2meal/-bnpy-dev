@@ -11,9 +11,14 @@ import undecorate_for_profiling
 import os
 import sys
 import subprocess
+import datetime
+
+nowobj = datetime.datetime.now()
+nowstr = '%4d%02d%02d-%02d%02d-%06d' % (nowobj.year, nowobj.month, nowobj.day, nowobj.hour, nowobj.minute, nowobj.microsecond)
 
 outroot = os.path.sep.join(os.path.abspath('__file__').split(os.path.sep)[:-1])
-outputhtmldir = os.path.join(outroot, "reports/MyProfile/")
+outputhtmldir = os.path.join(outroot, "reports/%s/" % (nowstr))
+outputlinkdir = os.path.join(outroot, "reports/latest") # important that this DOESNOT have a trailing slash
 
 try:
   import bnpy
@@ -24,8 +29,9 @@ except:
 fparts = bnpyroot.split(os.path.sep)[:-1]
 fparts.append('third-party')
 thirdpartyroot = os.path.sep.join(fparts)
-print bnpyroot
-print thirdpartyroot
+#print "DIRECTORIES TO BE PROFILED:"
+#print bnpyroot
+#print thirdpartyroot
 
 # Decorate codebase
 print "Decorating ...",
@@ -41,15 +47,16 @@ if 'PYTHONEXE' in os.environ:
 else:
   pycmdstr = 'python'
 
-ProfileCMD = "%s line_profiler/kernprof.py --line-by-line %s %s" \
-        % (pycmdstr, os.path.join(bnpyroot,'Run.py'), ' '.join(sys.argv[1:]))
-print "Running script with profiling enabled ...",
+ProfileCMD = "%s line_profiler/kernprof.py -o %s.lprof --line-by-line %s %s" \
+        % (pycmdstr, nowstr, os.path.join(bnpyroot,'Run.py'), ' '.join(sys.argv[1:]))
+#print "Running script with profiling enabled ...",
 subprocess.call(ProfileCMD, shell=True)
-print '[DONE]'
+#print '[DONE]'
+
 
 print "Building HTML ...",
 # Convert output to HTML
-toHTMLCMD = "python line_profiler/line_profiler_html.py Run.py.lprof assets/templates/ " + outputhtmldir 
+toHTMLCMD = "python line_profiler/line_profiler_html.py " + nowstr + ".lprof assets/templates/ " + outputhtmldir 
 subprocess.call(toHTMLCMD, shell=True)
 print '[DONE]'
 
@@ -62,6 +69,11 @@ print '[DONE]'
 print "Wrote HTML to %s/index.html" % (outputhtmldir)
 
 # Clean up extra files (Run.py.lprof)
-extrafilename = 'Run.py.lprof'
+extrafilename = '%s.lprof' % (nowstr)
 if os.path.exists(extrafilename):
   os.remove(extrafilename)
+
+# Make symbolic link to "latest" folder"
+if os.path.islink(outputlinkdir):
+  os.unlink(outputlinkdir)
+os.symlink(outputhtmldir, outputlinkdir)
