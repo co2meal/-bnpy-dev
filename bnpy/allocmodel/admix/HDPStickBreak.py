@@ -67,11 +67,42 @@ class HDPStickBreak(AllocModel):
 
   ######################################################### Local Params
   #########################################################
-  def calc_local_params(self, Data, LP, **kwargs):
-    LP = LocalStepSBBagOfWords.calcLocalDocParams(Data, LP, 
+  def calc_local_params(self, Data, LP, methodLP='memo', **kwargs):
+    methods = methodLP.split(',')
+    if len(methods) == 1:
+      if 'doInPlaceLP' not in kwargs:
+        kwargs['doInPlaceLP'] = 1
+      LP = LocalStepSBBagOfWords.calcLocalDocParams(Data, LP, 
                                   self.topicPrior1, self.topicPrior0,
-                                  **kwargs)
+                                  methodLP=methodLP, **kwargs)
+      bestLP = self._local_update_Resp(Data, LP)
+    else:
+      bestLP = None
+      for mID, mname in enumerate(reversed(sorted(methods))):
+        initLP = dict(**LP)
+        if mname == 'memo' and 'DocTopicCount' not in LP:
+          continue
+        
+        curLP = self.calc_local_params(Data, dict(**initLP), methodLP=mname, 
+                                                     doInPlaceLP=0, **kwargs) 
+        curELBO = self.calcPerDocELBO(Data, curLP)
+        
+        if bestLP == None:
+          bestELBO = curELBO
+          bestLP = curLP
+        else:
+          # determine which docs have it better under current method
+          docIDs = curELBO > bestELBO + 1e-8 # ensure difference is meaningful
+          if np.sum(docIDs) > 0:
+            bestELBO[docIDs] = curELBO[docIDs]
+            bestLP = self._swap_LP_for_specific_docs(Data, bestLP, 
+                                                           curLP, docIDs)
 
+      bestLP['perDocELBO'] = bestELBO
+    assert np.allclose( bestLP['word_variational'].sum(axis=1), 1.0)
+    return bestLP
+
+  def _local_update_Resp(self, Data, LP):
     LP['word_variational'] = LP['expEloglik']
     for d in xrange(Data.nDoc):
       start = Data.doc_range[d,0]
@@ -79,7 +110,24 @@ class HDPStickBreak(AllocModel):
       LP['word_variational'][start:stop] *= LP['expElogpi'][d]
     LP['word_variational'] /= LP['sumRTilde'][:, np.newaxis]
 
-    assert np.allclose( LP['word_variational'].sum(axis=1), 1.0)
+    # make it safe to take logs
+    np.maximum(LP['word_variational'], 1e-300, out=LP['word_variational'])
+    return LP
+
+  def _swap_LP_for_specific_docs(self, Data, LP, LP2, docIDs):
+    ''' For each doc in docIDs, move relevant parameters from LP2 into LP
+    '''
+    for d in np.flatnonzero(docIDs):
+      start = Data.doc_range[d,0]
+      stop  = Data.doc_range[d,1]
+      LP['word_variational'][start:stop] = LP2['word_variational'][start:stop]
+    LP['DocTopicCount'][docIDs] = LP2['DocTopicCount'][docIDs]
+    LP['E_logVd'][docIDs] = LP2['E_logVd'][docIDs]
+    LP['E_log1-Vd'][docIDs] = LP2['E_log1-Vd'][docIDs]
+    LP['E_logPi'][docIDs] = LP2['E_logPi'][docIDs]
+
+    LP['U1'][docIDs] = LP2['U1'][docIDs]
+    LP['U0'][docIDs] = LP2['U0'][docIDs]
     return LP
 
   ######################################################### Suff Stats
@@ -383,6 +431,31 @@ class HDPStickBreak(AllocModel):
 
     return elbo
 
+
+  ####################################################### ELBO per doc 
+  def calcPerDocELBO(self, Data, LP):
+    ''' Returns scalar ELBO for each document
+    '''
+    perDocELBO = np.sum( gammaln(LP['U1'])
+                       + gammaln(LP['U0'])
+                       - gammaln(LP['U1'] + LP['U0']), axis=1)
+    perDocELBOdata = np.zeros_like(perDocELBO)
+    perDocELBOh = np.zeros_like(perDocELBO)
+
+    for d in xrange(Data.nDoc):
+      start = Data.doc_range[d,0]
+      stop = Data.doc_range[d,1]
+      perDocResp = LP['word_variational'][start:stop]
+      perDocWC = Data.word_count[start:stop]
+      perDocELBOdata[d] = np.sum( perDocWC[:,np.newaxis] * perDocResp \
+                                 * LP['E_logsoftev_WordsData'][start:stop])
+      perDocELBOh[d] = np.sum(NumericUtil.calcRlogRdotv(perDocResp,
+                                                        perDocWC))
+    #print '%.8e' % (perDocELBO.sum())
+    #print '%.8e' % (perDocELBOdata.sum())
+    #print '%.8e' % (perDocELBOh.sum())      
+    return perDocELBO + perDocELBOdata - perDocELBOh
+
   ####################################################### ELBO terms for Z
   def E_logpZ( self, Data, LP):
     ''' Returns K-length vector with E[log p(Z)] for each topic k
@@ -395,14 +468,12 @@ class HDPStickBreak(AllocModel):
         where z_{dw} ~ Discrete( r_dw1 , r_dw2, ... r_dwK )
     '''
     wv = LP['word_variational']
-    wv += EPS # Make sure all entries > 0 before taking log
     return NumericUtil.calcRlogRdotv(wv, Data.word_count)
 
   def E_logqZ_memo_terms_for_merge(self, Data, LP, mPairIDs=None):
     ''' Returns KxK matrix 
     ''' 
     wv = LP['word_variational']
-    wv += EPS # Make sure all entries > 0 before taking log
     if mPairIDs is None:
       ElogqZMat = NumericUtil.calcRlogRdotv_allpairs(wv, Data.word_count)
     else:

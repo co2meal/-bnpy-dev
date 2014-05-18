@@ -11,7 +11,6 @@ Library of efficient vectorized implementations of
 * calcRlogR_specificpairs
 
 '''
-
 import os
 import ConfigParser
 import ctypes

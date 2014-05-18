@@ -6,13 +6,14 @@ from scipy.special import digamma, gammaln
 
 from bnpy.util import NumericUtil, LibLocalStep
 
-########################################################### doc-level beta
+########################################################### doc-level stickbrk
 ###########################################################  version
 def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0, 
                              nCoordAscentItersLP=20,
                              convThrLP=0.01,
                              methodLP='numpy',
                              doUniformFirstTime=False, 
+                             doInPlaceLP=1,
                              **kwargs):
   ''' Calculate local paramters for all documents, given topic prior
 
@@ -26,30 +27,33 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
   D = Data.nDoc
   K = topicPrior1.size
 
-  # Precompute ONCE exp( E_logsoftev ), in-place
-  expEloglik = LP['E_logsoftev_WordsData']
+  if doInPlaceLP:
+    # Precompute ONCE exp( E_logsoftev ), in-place
+    expEloglik = LP['E_logsoftev_WordsData']
+  else:
+    expEloglik = LP['E_logsoftev_WordsData'].copy()
+
   expEloglik -= expEloglik.max(axis=1)[:,np.newaxis] 
   NumericUtil.inplaceExp(expEloglik)  
-  if methodLP != 'numpy':
-    if not np.isfortran(expEloglik):
+  if methodLP == 'c' and not np.isfortran(expEloglik):
       expEloglik = np.asfortranarray(expEloglik)
 
 
   ######## Allocate document-specific variables
   docptr = np.hstack([0, Data.doc_range[:,1]])
-  if 'DocTopicCount' in LP:
+  if 'DocTopicCount' in LP and methodLP != 'scratch':
     doUniformFirstTime = False
     # Update U1, U0
     LP = update_U1U0_SB(LP, topicPrior1, topicPrior0)
     # Update expected value of log Pi[d,k]
     LP = update_ElogPi_SB(LP)
-    if methodLP == 'numpy':
+    if not methodLP == 'c':
       expElogpi = np.exp(LP['E_logPi'])
     else:
       expElogpi = np.empty((D,K), order='F')
       np.exp(LP['E_logPi'], out=expElogpi)
   else:
-    if methodLP == 'numpy':
+    if not methodLP == 'c':
       LP['DocTopicCount'] = np.zeros((D, K))
       expElogpi = np.ones((D,K))
     else:
@@ -98,9 +102,9 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
   LP['sumRTilde'] = sumRTilde
   LP['expElogpi'] = expElogpi
   LP['expEloglik'] = expEloglik
-  del LP['E_logsoftev_WordsData']
+  if doInPlaceLP:
+    del LP['E_logsoftev_WordsData']
   return LP
-
 
 
 ########################################################### doc-level beta
