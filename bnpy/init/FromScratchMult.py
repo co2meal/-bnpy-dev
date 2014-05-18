@@ -9,6 +9,8 @@ from scipy.cluster import vq
 import time
 import os
 
+from bnpy.birthmove.TargetDataSampler import _sample_target_WordsData
+
 hasRexAvailable = True
 hasSpectralAvailable = True
 try:
@@ -32,6 +34,20 @@ def init_global_params(obsModel, Data, K=0, seed=0,
   '''    
   PRNG = np.random.RandomState(seed)
 
+  initMinWordsPerDoc = kwargs['initMinWordsPerDoc']
+  if initMinWordsPerDoc > 0:
+    print initMinWordsPerDoc
+    targetDataArgs = dict(targetMinKLPerDoc=0, 
+                            targetMinWordsPerDoc=initMinWordsPerDoc,
+                            targetExample=0,
+                            targetMinSize=0,
+                            targetMaxSize=Data.nDoc,
+                            randstate=PRNG)
+    Data = _sample_target_WordsData(Data, **targetDataArgs)
+  print 'INIT DATA: %d docs' % (Data.nDoc)
+  print Data.get_doc_stats_summary()
+
+  wc = Data.word_count.sum()
   if initname == 'randexamples':
     # Choose K documents at random, then do
     #  M-step to make K clusters, each based on one document
@@ -40,15 +56,14 @@ def init_global_params(obsModel, Data, K=0, seed=0,
     PhiTopicWord = np.asarray(DocWord[chosenDocIDs].todense())
     PhiTopicWord += 0.01 * PRNG.rand(K, Data.vocab_size)
     PhiTopicWord /= PhiTopicWord.sum(axis=1)[:,np.newaxis]
-    obsModel.set_global_params(K=K, topics=PhiTopicWord)
-
+    obsModel.set_global_params(K=K, topics=PhiTopicWord, wordcountTotal=wc)
   elif initname == 'randomfromarg':
     # Draw K topic-word probability vectors 
     #  from a Dirichlet with symmetric parameter initarg
     PhiTopicWord = PRNG.gamma(initarg, 1., (K,Data.vocab_size))
     PhiTopicWord += 1e-200
     PhiTopicWord /= PhiTopicWord.sum(axis=1)[:,np.newaxis]
-    obsModel.set_global_params(K=K, topics=PhiTopicWord)
+    obsModel.set_global_params(K=K, topics=PhiTopicWord, wordcountTotal=wc)
 
   elif initname == 'randomfromprior':
     # Draw K topic-word probability vectors from their prior
@@ -56,7 +71,7 @@ def init_global_params(obsModel, Data, K=0, seed=0,
     PhiTopicWord = PRNG.gamma(lamvec, 1., (K,Data.vocab_size))
     PhiTopicWord += 1e-200
     PhiTopicWord /= PhiTopicWord.sum(axis=1)[:,np.newaxis]
-    obsModel.set_global_params(K=K, topics=PhiTopicWord)
+    obsModel.set_global_params(K=K, topics=PhiTopicWord, wordcountTotal=wc)
 
   elif initname == 'randsoftpartition':
     # Assign responsibility for K topics at random to all words
@@ -72,7 +87,7 @@ def init_global_params(obsModel, Data, K=0, seed=0,
     PhiTopicWord = KMeansRex.SampleRowsPlusPlus(DocWord, K, seed=seed)
     PhiTopicWord += 0.01 * PRNG.rand(K, Data.vocab_size)
     PhiTopicWord /= PhiTopicWord.sum(axis=1)[:,np.newaxis]
-    obsModel.set_global_params(K=K, topics=PhiTopicWord)
+    obsModel.set_global_params(K=K, topics=PhiTopicWord, wordcountTotal=wc)
 
   elif initname == 'kmeansplusplus':
     # Set topic-word prob vectors to output cluster centers of Kmeans
@@ -84,32 +99,13 @@ def init_global_params(obsModel, Data, K=0, seed=0,
                                           Niter=10, seed=seed)
     PhiTopicWord += 0.01 * PRNG.rand(K, Data.vocab_size)
     PhiTopicWord /= PhiTopicWord.sum(axis=1)[:,np.newaxis]
-    obsModel.set_global_params(K=K, topics=PhiTopicWord)
+    obsModel.set_global_params(K=K, topics=PhiTopicWord, wordcountTotal=wc)
 
   elif initname.count('spectral'):
     # Set topic-word prob vectors to output of anchor-words spectral method
     #  which solves an objective similar to LDA
     if not hasSpectralAvailable:
       raise NotImplementedError("AnchorWords must be on python path")
-    if initarg is None:
-      MAX_NUM_DOCS = 3000 # too many results in very slow speed
-    else:
-      try:
-        MAX_NUM_DOCS = int(initarg)
-      except:
-        MAX_NUM_DOCS = 3000
-      MAX_NUM_DOCS = max(MAX_NUM_DOCS, 3000)
-    if Data.nDoc > MAX_NUM_DOCS:
-      from bnpy.birthmove.TargetDataSampler import _sample_target_WordsData
-      targetDataArgs = dict(targetMinKLPerDoc=0, 
-                            targetMinWordsPerDoc=100,
-                            targetExample=0,
-                            targetMinSize=25,
-                            targetMaxSize=MAX_NUM_DOCS,
-                            randstate=PRNG)
-      Data = _sample_target_WordsData(Data, **targetDataArgs)
-      print 'INIT DATA: %d docs' % (Data.nDoc)
-      print Data.get_doc_stats_summary()
 
     DocWord = Data.to_sparse_docword_matrix()
 
@@ -123,10 +119,7 @@ def init_global_params(obsModel, Data, K=0, seed=0,
       scipy.io.savemat(os.path.join(kwargs['savepath'], 'InitTopics.mat'),
                        dict(topics=topics), oned_as='row')
     
-    if initname.count('only'):
-      import sys
-      sys.exit(1)
-    obsModel.set_global_params(K=K, topics=topics)
+    obsModel.set_global_params(K=K, topics=topics, wordcountTotal=wc)
 
   else:
     raise NotImplementedError('Unrecognized initname ' + initname)
