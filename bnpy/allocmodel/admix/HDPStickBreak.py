@@ -81,7 +81,7 @@ class HDPStickBreak(AllocModel):
       for mID, mname in enumerate(reversed(sorted(methods))):
         initLP = dict(**LP)
         if mname == 'memo' and 'DocTopicCount' not in LP:
-          continue
+          continue        
         
         curLP = self.calc_local_params(Data, dict(**initLP), methodLP=mname, 
                                                      doInPlaceLP=0, **kwargs) 

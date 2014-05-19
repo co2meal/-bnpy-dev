@@ -3,6 +3,7 @@
 
 import numpy as np
 from scipy.special import digamma, gammaln
+import scipy.optimize
 
 from bnpy.util import NumericUtil, LibLocalStep
 
@@ -12,7 +13,6 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
                              nCoordAscentItersLP=20,
                              convThrLP=0.01,
                              methodLP='scratch',
-                             doUniformFirstTime=False, 
                              doInPlaceLP=1,
                              **kwargs):
   ''' Calculate local paramters for all documents, given topic prior
@@ -33,6 +33,11 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
   else:
     expEloglik = LP['E_logsoftev_WordsData'].copy()
 
+  if methodLP == 'nnls':
+    L = LP['topics']
+    L -= L.max(axis=1)[:,np.newaxis]
+    NumericUtil.inplaceExp(L)
+
   expEloglik -= expEloglik.max(axis=1)[:,np.newaxis] 
   NumericUtil.inplaceExp(expEloglik)  
   if methodLP == 'c' and not np.isfortran(expEloglik):
@@ -42,8 +47,7 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
   docptr = np.asarray(np.hstack([0, Data.doc_range[:,1]]), dtype=np.int32)
   hasCountOfCorrectSize = 'DocTopicCount' in LP \
                            and LP['DocTopicCount'].shape[1] == K 
-  if hasCountOfCorrectSize and methodLP != 'scratch' :
-    doUniformFirstTime = False
+  if hasCountOfCorrectSize and methodLP == 'memo':
     # Update U1, U0
     LP = update_U1U0_SB(LP, topicPrior1, topicPrior0)
     # Update expected value of log Pi[d,k]
@@ -56,11 +60,14 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
   else:
     if not methodLP == 'c':
       LP['DocTopicCount'] = np.zeros((D, K))
-      expElogpi = np.ones((D,K))
     else:
       LP['DocTopicCount'] = np.zeros((D, K), order='F')
-      expElogpi = np.ones((D,K), order='F')
-    doUniformFirstTime = True
+
+    expElogpi = np.ones_like(LP['DocTopicCount'])
+    if methodLP == 'nnls' or methodLP == 'memo':
+      for d in xrange(Data.nDoc):
+        expElogpi[d], blah = scipy.optimize.nnls(L,
+                                                 Data.get_wordfreq_for_doc(d))
 
   ######## Allocate token-specific variables
   # sumRTilde : nDistinctWords vector. row n = \sum_{k} \tilde{r}_{nk} 

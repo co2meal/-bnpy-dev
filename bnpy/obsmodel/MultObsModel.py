@@ -77,7 +77,8 @@ class MultObsModel(ObsModel):
             DocWordMat = Data.to_sparse_docword_matrix()
             LP['E_log_soft_ev'] = self.E_logsoftev_DocData(DocWordMat)
         else:
-            LP['E_logsoftev_WordsData'] = self.E_logsoftev_WordsData(Data)
+            LP['E_logsoftev_WordsData'], L = self.E_logsoftev_WordsData(Data)
+            LP['topics'] = L
         return LP
 
     def E_logsoftev_DocData(self, DocWordMat):
@@ -99,7 +100,7 @@ class MultObsModel(ObsModel):
         # Obtain matrix where col k = E[ log phi[k] ], for easier indexing
         Elogphi = self.getElogphiMatrix().T.copy()
         E_logsoftev_words = Elogphi[Data.word_id, :]
-        return E_logsoftev_words
+        return E_logsoftev_words, Elogphi
   
 
   ######################################################### Suff Stats

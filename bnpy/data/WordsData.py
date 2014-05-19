@@ -150,6 +150,15 @@ class WordsData(DataObj):
                                     shape=(self.nDoc, self.nObs),
                                     dtype=np.float64)
 
+  def get_wordfreq_for_doc(self, docID):
+    ''' Returns vector of counts for each vocabulary word in document docID
+    '''
+    x = np.zeros(self.vocab_size)
+    start = self.doc_range[docID, 0]
+    stop = self.doc_range[docID, 1]
+    x[self.word_id[start:stop]] = self.word_count[start:stop]
+    return x
+
   ######################################################### DataObj interface
   #########################################################  methods
   def to_minibatch_iterator(self, **kwargs):
