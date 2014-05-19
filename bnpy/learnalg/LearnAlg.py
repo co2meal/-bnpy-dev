@@ -44,6 +44,9 @@ class LearnAlg(object):
     self.algParamsLP = dict()
     for k,v in algParams.items():
       if k.count('LP') > 0:
+        if k == 'logdirLP' and v:
+          v = self.savedir
+          print v
         self.algParamsLP[k] = v
     
   def fit(self, hmodel, Data):

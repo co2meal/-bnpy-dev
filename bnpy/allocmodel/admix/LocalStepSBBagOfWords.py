@@ -4,6 +4,7 @@
 import numpy as np
 from scipy.special import digamma, gammaln
 import scipy.optimize
+import os
 
 from bnpy.util import NumericUtil, LibLocalStep
 
@@ -14,6 +15,7 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
                              convThrLP=0.01,
                              methodLP='scratch',
                              doInPlaceLP=1,
+                             logdirLP=None,
                              **kwargs):
   ''' Calculate local paramters for all documents, given topic prior
 
@@ -100,12 +102,17 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
     docDiffs = np.max(np.abs(old_DocTopicCount - LP['DocTopicCount']), axis=1)
     if np.max(docDiffs) < convThrLP:
       break
-    activeDocs = np.int32(np.flatnonzero(docDiffs > convThrLP))
+    activeDocs = np.asarray(np.flatnonzero(docDiffs > convThrLP),
+                            dtype=np.int32)
 
     # Store DocTopicCount for next round's convergence test
-    # Here, the "[:]" syntax ensures we do NOT copy the pointer
-    old_DocTopicCount[:] = LP['DocTopicCount']
+    # Here, the "[:]" syntax ensures we do NOT copy by reference
+    old_DocTopicCount[activeDocs] = LP['DocTopicCount'][activeDocs]
     ### end loop over alternating-ascent updates
+
+    if logdirLP and ii % 10 == 0:
+      write_to_log(docDiffs, ii, 0, nCoordAscentItersLP, Data, methodLP, logdirLP)
+
 
   LP['didConverge'] = np.max(docDiffs) < convThrLP
   LP['maxDocDiff'] = np.max(docDiffs)
@@ -115,8 +122,30 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
   LP['expEloglik'] = expEloglik
   if doInPlaceLP:
     del LP['E_logsoftev_WordsData']
+
+  if logdirLP:
+    write_to_log(docDiffs, ii, 1, nCoordAscentItersLP, Data, methodLP, logdirLP)
   return LP
 
+def write_to_log(docDiffs, ii, isFinal, nCoordAscentItersLP, Data, methodLP, logdirLP):
+    dataid = np.sum(Data.word_id[:3]) * np.sum( Data.doc_range[:3, 1])
+    dataid = hash(dataid) % 1000
+    if isFinal:
+      filestr = 'LP-id%03d-%s.txt' % (dataid, methodLP)
+    else:
+      filestr = 'LP-id%03d-%s-%02d.txt' % (dataid, methodLP, ii+1)
+    with open(os.path.join(logdirLP, filestr),'a') as f:
+      line = '%3d %3d %8.3f %8.3f %8.3f %8.3f %5d\n' % (
+                        ii+1,
+                        nCoordAscentItersLP,
+                        np.median(docDiffs),
+                        np.percentile(docDiffs, 90),
+                        np.percentile(docDiffs, 95),
+                        np.max(docDiffs),
+                        Data.nDoc
+                        )
+
+      f.write(line)
 
 ########################################################### doc-level beta
 ########################################################### helpers
