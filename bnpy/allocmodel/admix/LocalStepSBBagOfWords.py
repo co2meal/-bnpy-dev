@@ -35,11 +35,6 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
   else:
     expEloglik = LP['E_logsoftev_WordsData'].copy()
 
-  if methodLP == 'nnls':
-    L = LP['topics']
-    L -= L.max(axis=1)[:,np.newaxis]
-    NumericUtil.inplaceExp(L)
-
   expEloglik -= expEloglik.max(axis=1)[:,np.newaxis] 
   NumericUtil.inplaceExp(expEloglik)  
   if methodLP == 'c' and not np.isfortran(expEloglik):
@@ -67,6 +62,9 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
 
     expElogpi = np.ones_like(LP['DocTopicCount'])
     if methodLP == 'nnls' or methodLP == 'memo':
+      L = LP['topics']
+      L -= L.max(axis=1)[:,np.newaxis]
+      NumericUtil.inplaceExp(L)
       for d in xrange(Data.nDoc):
         expElogpi[d], blah = scipy.optimize.nnls(L,
                                                  Data.get_wordfreq_for_doc(d))
