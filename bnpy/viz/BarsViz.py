@@ -37,7 +37,7 @@ def plotExampleBarsDocs(Data, docIDsToPlot=None, figID=None,
         docWordHist[wIDs] = wCts
         squareIm = np.reshape(docWordHist, (np.sqrt(V), np.sqrt(V)))
 
-        pylab.subplot(nRows, nCols, plotPos)
+        pylab.subplot(nRows, nCols, plotPos+1)
         pylab.imshow(squareIm, interpolation='nearest', vmin=0, vmax=vmax)
         pylab.axis('image')
         pylab.xticks([])

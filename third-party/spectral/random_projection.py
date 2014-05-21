@@ -1,9 +1,25 @@
 import numpy as np
 import math
 
-# Project the columns of the matrix M into the
-# lower dimension new_dim
 def Random_Projection(M, new_dim, prng):
+    ''' Project *columns* of input matrix M into lower-dimension new_dim
+
+       Args
+       --------
+       M : 2D array, old_dim x nFeatures
+
+       Returns
+       --------
+       M_red : 2D array, new_dim x nFeatures
+
+       Internals
+       --------
+       Creates R : 2D array, new_dim x old_dim
+                   projection matrix
+                   each column is a random vector of size new_dim,
+                      with entries in {-sqrt(3), 0, sqrt(3)}
+                           with associated probabilities 1/6, 2/3, 1/6
+    '''
     old_dim = M[:, 0].size
     p = np.array([1./6, 2./3, 1./6])
     c = np.cumsum(p)
