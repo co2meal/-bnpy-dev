@@ -303,6 +303,50 @@ class WordsData(DataObj):
       docIDs[matchMask] = dd
     return docIDs     
 
+  ######################################################### word-word cooccur
+  #########################################################
+  def to_wordword_cooccur_matrix(self):
+    Q, sameWordVec, _, _ = self.to_wordword_cooccur_building_blocks()
+    return self._calc_wordword_cooccur(Q, sameWordVec, self.nDoc)
+
+  def to_wordword_cooccur_building_blocks(self, dtype=np.float32):
+    nDocsPerWord = np.zeros(self.vocab_size)
+    sameWordVec = np.zeros(self.vocab_size)
+    data = np.zeros(self.word_count.shape, dtype=dtype)
+
+    wordcount = self.word_count
+    wordid = self.word_id
+
+    for docID in xrange(self.nDoc):
+      start = self.doc_range[docID,0]
+      stop = self.doc_range[docID,1]
+      N = wordcount[start:stop].sum()
+      NNm1 = N * (N-1)
+      sameWordVec[wordid[start:stop]] += wordcount[start:stop] / NNm1
+      data[start:stop] = wordcount[start:stop]/np.sqrt(NNm1)
+      nDocsPerWord[wordid[start:stop]] += 1
+
+    ## Now, create a sparse matrix that's D x V
+    indptr = np.hstack( [self.doc_range[0,0], self.doc_range[:,1]])
+    sparseDocWordMat = scipy.sparse.csr_matrix(
+                             (data, wordid, indptr),
+                             shape=(self.nDoc, self.vocab_size), 
+                             dtype=dtype)
+    ## Q : V x V
+    from sklearn.utils.extmath import safe_sparse_dot
+    Q = safe_sparse_dot(sparseDocWordMat.T, sparseDocWordMat, dense_output=1)
+    return Q, sameWordVec, self.nDoc, nDocsPerWord
+
+  def _calc_wordword_cooccur(self, Q, sameWordVec, nDoc):
+    Q /= self.nDoc
+    sameWordVec /= self.nDoc
+    diagIDs = np.diag_indices(self.vocab_size)
+    Q[diagIDs] -= sameWordVec
+    
+    # Fix small numerical issues (like diag entries of -1e-15 instead of 0)
+    np.maximum( Q, 0, out=Q)
+    return Q
+
   ######################################################### Text summary
   ######################################################### 
   def get_text_summary(self, doCommon=True):
