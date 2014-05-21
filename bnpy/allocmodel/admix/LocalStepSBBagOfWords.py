@@ -11,7 +11,8 @@ from bnpy.util import NumericUtil, LibLocalStep
 ########################################################### doc-level stickbrk
 ###########################################################  version
 def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0, 
-                             nCoordAscentItersLP=20,
+                             nCoordAscentItersLP=10,
+                             nCoordAscentFromScratchLP=25,
                              convThrLP=0.01,
                              methodLP='scratch',
                              doInPlaceLP=1,
@@ -35,11 +36,6 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
   else:
     expEloglik = LP['E_logsoftev_WordsData'].copy()
 
-  if methodLP == 'nnls':
-    L = LP['topics']
-    L -= L.max(axis=1)[:,np.newaxis]
-    NumericUtil.inplaceExp(L)
-
   expEloglik -= expEloglik.max(axis=1)[:,np.newaxis] 
   NumericUtil.inplaceExp(expEloglik)  
   if methodLP == 'c' and not np.isfortran(expEloglik):
@@ -59,14 +55,19 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
     else:
       expElogpi = np.empty((D,K), order='F')
       np.exp(LP['E_logPi'], out=expElogpi)
+    
   else:
+    nCoordAscentItersLP = nCoordAscentFromScratchLP
     if not methodLP == 'c':
       LP['DocTopicCount'] = np.zeros((D, K))
     else:
       LP['DocTopicCount'] = np.zeros((D, K), order='F')
 
     expElogpi = np.ones_like(LP['DocTopicCount'])
-    if methodLP == 'nnls' or methodLP == 'memo':
+    if methodLP == 'nnls':
+      L = LP['topics']
+      L -= L.max(axis=1)[:,np.newaxis]
+      NumericUtil.inplaceExp(L)
       for d in xrange(Data.nDoc):
         expElogpi[d], blah = scipy.optimize.nnls(L,
                                                  Data.get_wordfreq_for_doc(d))
@@ -145,6 +146,16 @@ def write_to_log(docDiffs, ii, isFinal, nCoordAscentItersLP, Data, methodLP, log
                         Data.nDoc
                         )
 
+      f.write(line)
+
+
+def write_method_wins_to_log(Data, methodLP, nWins, nTotal, logdirLP):
+    dataid = np.sum(Data.word_id[:3]) * np.sum( Data.doc_range[:3, 1])
+    dataid = hash(dataid) % 1000
+
+    filestr = 'LP-id%03d-%s-wins.txt' % (dataid, methodLP)
+    with open(os.path.join(logdirLP, filestr),'a') as f:
+      line = '%5d %5d\n' % (nWins, nTotal)
       f.write(line)
 
 ########################################################### doc-level beta

@@ -78,6 +78,7 @@ class HDPStickBreak(AllocModel):
       bestLP = self._local_update_Resp(Data, LP)
     else:
       bestLP = None
+      bestMethod = np.zeros(Data.nDoc)
       for mID, mname in enumerate(reversed(sorted(methods))):
         initLP = dict(**LP)
         if mname == 'memo' and 'DocTopicCount' not in LP:
@@ -90,15 +91,23 @@ class HDPStickBreak(AllocModel):
         if bestLP == None:
           bestELBO = curELBO
           bestLP = curLP
+          bestMethod[:] = mID
         else:
           # determine which docs have it better under current method
           docIDs = curELBO > bestELBO + 1e-8 # ensure difference is meaningful
           if np.sum(docIDs) > 0:
+            bestMethod[docIDs] = mID
             bestELBO[docIDs] = curELBO[docIDs]
             bestLP = self._swap_LP_for_specific_docs(Data, bestLP, 
                                                            curLP, docIDs)
-
       bestLP['perDocELBO'] = bestELBO
+      # Record the best method to file
+      if kwargs['logdirLP']:
+        write_wins_to_log = LocalStepSBBagOfWords.write_method_wins_to_log
+        for mID, mname in enumerate(reversed(sorted(methods))):
+          nWins = np.sum(bestMethod == mID)
+          nTotal = bestMethod.size
+          write_wins_to_log(Data, mname, nWins, nTotal, kwargs['logdirLP'])
     assert np.allclose( bestLP['word_variational'].sum(axis=1), 1.0)
     return bestLP
 
