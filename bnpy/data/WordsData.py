@@ -305,8 +305,8 @@ class WordsData(DataObj):
 
   ######################################################### word-word cooccur
   #########################################################
-  def to_wordword_cooccur_matrix(self):
-    Q, sameWordVec, _, _ = self.to_wordword_cooccur_building_blocks()
+  def to_wordword_cooccur_matrix(self, dtype=np.float64):
+    Q, sameWordVec, _, _ = self.to_wordword_cooccur_building_blocks(dtype=dtype)
     return self._calc_wordword_cooccur(Q, sameWordVec, self.nDoc)
 
   def to_wordword_cooccur_building_blocks(self, dtype=np.float32):
@@ -344,7 +344,7 @@ class WordsData(DataObj):
     Q[diagIDs] -= sameWordVec
     
     # Fix small numerical issues (like diag entries of -1e-15 instead of 0)
-    np.maximum( Q, 0, out=Q)
+    #np.maximum( Q, 0, out=Q)
     return Q
 
   ######################################################### Text summary

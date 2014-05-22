@@ -342,6 +342,7 @@ def fastRecover(args):
     K = len(anchors)
     alpha = zeros(K)
     gap = None
+
     if v in anchors:
         alpha[anchors.index(v)] = 1
         it = -1
