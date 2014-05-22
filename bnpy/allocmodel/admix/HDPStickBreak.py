@@ -102,7 +102,7 @@ class HDPStickBreak(AllocModel):
                                                            curLP, docIDs)
       bestLP['perDocELBO'] = bestELBO
       # Record the best method to file
-      if kwargs['logdirLP']:
+      if 'logdirLP' in kwargs and kwargs['logdirLP']:
         write_wins_to_log = LocalStepSBBagOfWords.write_method_wins_to_log
         for mID, mname in enumerate(reversed(sorted(methods))):
           nWins = np.sum(bestMethod == mID)

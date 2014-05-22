@@ -9,26 +9,6 @@ import bnpy
 
 dumppath = '/data/liv/liv-x/bnpy/local/dump/'
 
-def plotELBOForManyRestarts(RunInfo, SInfo=None, MInfo=None, block=False):
-  from matplotlib import pylab
-  pylab.figure()
-  for Info in RunInfo:
-    pylab.plot( Info['iters'], Info['elbo'], '.--', markersize=3, linewidth=1)
-  if SInfo is not None:
-    pylab.plot( SInfo['iters'], SInfo['elbo'], '.-', markersize=3, linewidth=2, label='scratch')
-  if MInfo is not None:
-    pylab.plot( MInfo['iters'], MInfo['elbo'], '.-', markersize=3, linewidth=2, label='memo')
-  pylab.legend()
-
-  pylab.show(block=block)
-
-def plotScatterELBOvsReconstructError(RunInfo, SInfo=None):
-  from matplotlib import pylab
-  pylab.figure()
-  for Info in RunInfo:
-    pylab.plot( Info['err'], Info['elbo'][-1], '.', markersize=8)
-  pylab.show(block=False)
-
 def loadDataAndRun(docID=0, nRestarts=2, Niters=100, convThrLP=1e-5, doSave=0):
   global dumppath
   DUMP = joblib.load(os.path.join(dumppath, 'MemoLPELBODrop.dump'))
