@@ -17,12 +17,16 @@ settings_file = os.path.join(root, 'settings.conf')
 
 def runMike(Data, K=10, loss='L2', lowerDim=1000, doRecover=1,
                                    seed=0, minDocPerWord=10, eps=1e-4,
-                                   dtype=np.float64):
+                                   ):
   '''
      Returns
      -------
      topics : 2D array, size K x V, rows sum to one
   '''
+  if Data.vocab_size > 2000:
+    dtype = np.float32
+  else:
+    dtype = np.float64
   Q = Data.to_wordword_cooccur_matrix(dtype=dtype)
   DWMat = Data.to_sparse_docword_matrix().toarray()
 
@@ -32,7 +36,6 @@ def runMike(Data, K=10, loss='L2', lowerDim=1000, doRecover=1,
   anchorRows, dist = GramSchmidtUtil.FindAnchorsForSizeKBasis(Q, K, 
                                                     candidateRows=candidateRows,
                                                     lowerDim=lowerDim)
-
 
   if doRecover:
     params = Params(settings_file, seed=seed)

@@ -7,6 +7,7 @@ import scipy.optimize
 import os
 
 from bnpy.util import NumericUtil, LibLocalStep
+from bnpy.allocmodel.admix import OptimizerForMAPDocTopicSticks as MAPOptimizer
 
 ########################################################### doc-level stickbrk
 ###########################################################  version
@@ -55,13 +56,14 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
     else:
       expElogpi = np.empty((D,K), order='F')
       np.exp(LP['E_logPi'], out=expElogpi)
-    
+ 
   else:
     nCoordAscentItersLP = nCoordAscentFromScratchLP
-    if not methodLP == 'c':
-      LP['DocTopicCount'] = np.zeros((D, K))
-    else:
-      LP['DocTopicCount'] = np.zeros((D, K), order='F')
+    if not hasCountOfCorrectSize:
+      if not methodLP == 'c':
+        LP['DocTopicCount'] = np.zeros((D, K))
+      else:
+        LP['DocTopicCount'] = np.zeros((D, K), order='F')
 
     expElogpi = np.ones_like(LP['DocTopicCount'])
     if methodLP == 'nnls':
@@ -71,6 +73,29 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
       for d in xrange(Data.nDoc):
         expElogpi[d], blah = scipy.optimize.nnls(L,
                                                  Data.get_wordfreq_for_doc(d))
+    elif methodLP.count('piMAP'):
+      nFailure = 0
+      for d in xrange(Data.nDoc):
+        start = Data.doc_range[d,0]
+        stop = Data.doc_range[d,1]
+        Xd = Data.word_count[start:stop]
+        Ld = expEloglik[start:stop,:]
+
+        if methodLP.count('sneaky'):
+          initeta = LP['DocTopicCount'][d]
+        else:
+          initeta = None
+        try:
+          expElogpi[d], f, Info = MAPOptimizer.find_optimum_multiple_tries(Xd=Xd, Ld=Ld, 
+                                                           avec=topicPrior1,
+                                                           bvec=topicPrior0,
+                                                           initeta=initeta,
+                                                           return_pi=1)
+        except ValueError:
+          expElogpi[d,:] = 1./K * np.ones(K)
+          nFailure += 1
+      if nFailure > 0:
+        print "WARNING: %d failures" % (nFailure)
 
   ######## Allocate token-specific variables
   # sumRTilde : nDistinctWords vector. row n = \sum_{k} \tilde{r}_{nk} 
@@ -206,7 +231,6 @@ def update_ElogPi_SB(LP, activeDocs=None):
     #LP['E_logVd'][activeDocs] = digamma(LP['U1'][activeDocs])
     #LP['E_log1-Vd'][activeDocs] -= LP['digammaBoth'].take(activeDocs,axis=0)
     #LP['E_logVd'][activeDocs] -= LP['digammaBoth'].take(activeDocs,axis=0)
-
 
   LP['E_logPi'] = LP['E_logVd'].copy()
   LP['E_logPi'][:, 1:] += np.cumsum(LP['E_log1-Vd'][:,:-1], axis=1)

@@ -109,7 +109,7 @@ def init_global_params(obsModel, Data, K=0, seed=0,
     DocWord = Data.to_sparse_docword_matrix()
 
     stime = time.time()
-    topics, anchors = LearnAnchorTopics.run(DocWord, K, seed=seed, loss='L2')
+    topics = LearnAnchorTopics.run(DocWord, K, seed=seed, loss='L2')
     elapsedtime = time.time() - stime
     print 'SPECTRAL\n %5.1f sec | D=%d, K=%d' \
             % (elapsedtime, DocWord.shape[0], K)
