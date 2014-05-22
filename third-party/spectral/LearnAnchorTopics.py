@@ -8,11 +8,47 @@ from fastRecover import do_recovery
 from anchors import findAnchors
 from Q_matrix import generate_Q_matrix 
 
+import bnpy
+from bnpy.util import GramSchmidtUtil
+
 root = os.path.abspath(__file__)
 root = os.path.sep.join(root.split(os.path.sep)[:-1])
 settings_file = os.path.join(root, 'settings.conf')
 
-def run(DocWordMat, K=10, loss='L2', seed=0, settings_file=settings_file):
+def runMike(Data, K=10, loss='L2', lowerDim=1000, doRecover=1,
+                                   seed=0, minDocPerWord=10, eps=1e-4,
+                                   dtype=np.float64):
+  '''
+     Returns
+     -------
+     topics : 2D array, size K x V, rows sum to one
+  '''
+  Q = Data.to_wordword_cooccur_matrix(dtype=dtype)
+  DWMat = Data.to_sparse_docword_matrix().toarray()
+
+  # Select anchors, only among candidate words that appear in many unique docs
+  nDocPerWord = (DWMat > 0).sum(axis=0)
+  candidateRows = np.flatnonzero(nDocPerWord >= minDocPerWord)
+  anchorRows, dist = GramSchmidtUtil.FindAnchorsForSizeKBasis(Q, K, 
+                                                    candidateRows=candidateRows,
+                                                    lowerDim=lowerDim)
+
+
+  if doRecover:
+    params = Params(settings_file, seed=seed)
+    params.eps = eps
+    topics, _ = do_recovery(Q, anchorRows.tolist(), loss, params)
+    topics = topics.T
+  else:
+    Qanchor = np.asarray(Q[anchorRows], dtype=np.float64)
+    Qanchor = Qanchor / Qanchor.sum(axis=1)[:,np.newaxis]
+    topics = Qanchor
+  
+  assert np.allclose(topics.sum(axis=1), 1.0)
+  return topics, anchorRows
+
+def run(DocWordMat, K=10, loss='L2', seed=0, doRecover=1,
+                    lowerDim=None, settings_file=settings_file):
   '''
     Args
     -------
@@ -23,19 +59,28 @@ def run(DocWordMat, K=10, loss='L2', seed=0, settings_file=settings_file):
     topics : numpy 2D array, size K x V
 
   '''
-  params = Params(settings_file, seed=seed)
+  params = Params(settings_file, seed=seed, lowerDim=lowerDim)
 
   if type(DocWordMat) == str:
     DocWordMat = scipy.io.loadmat(DocWordMat)['M']
-  
+  elif type(DocWordMat) == bnpy.data.WordsData:
+    DocWordMat = DocWordMat.to_sparse_docword_matrix()
+
   if not str(type(DocWordMat)).count('csr_matrix') > 0:
     raise NotImplementedError('Need CSR matrix')  
     
-  Q = generate_Q_matrix(DocWordMat.T)
-  anchors = selectAnchorWords(DocWordMat.tocsc(), Q, K, params)
-  topics, topic_likelihoods = do_recovery(Q, anchors, loss, params) 
-  return topics.T
+  Q = generate_Q_matrix(DocWordMat.copy().T)
 
+  anchors = selectAnchorWords(DocWordMat.tocsc(), Q, K, params)
+
+  if doRecover:
+    topics, topic_likelihoods = do_recovery(Q, anchors, loss, params)
+    topics = topics.T 
+  else:
+    topics = Q[anchors]
+
+  topics = topics/topics.sum(axis=1)[:,np.newaxis]
+  return topics
 
 def selectAnchorWords(DocWordMat, Q, K, params):
   
@@ -68,10 +113,11 @@ def print_topics(topics, vocab_file, Ntop=10, anchors=None):
 
 class Params:
 
-    def __init__(self, filename, seed=0):
+    def __init__(self, filename, seed=0, lowerDim=None):
         self.log_prefix=None
         self.checkpoint_prefix=None
         self.seed = seed
+        self.lowerDim = lowerDim
 
         for l in file(filename):
             if l == "\n" or l[0] == "#":

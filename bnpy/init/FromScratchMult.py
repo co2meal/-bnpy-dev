@@ -101,18 +101,43 @@ def init_global_params(obsModel, Data, K=0, seed=0,
     PhiTopicWord /= PhiTopicWord.sum(axis=1)[:,np.newaxis]
     obsModel.set_global_params(K=K, topics=PhiTopicWord, wordcountTotal=wc)
 
-  elif initname.count('spectral'):
+  elif initname == 'spectral':
     # Set topic-word prob vectors to output of anchor-words spectral method
-    #  which solves an objective similar to LDA
     if not hasSpectralAvailable:
       raise NotImplementedError("AnchorWords must be on python path")
 
     DocWord = Data.to_sparse_docword_matrix()
 
     stime = time.time()
-    topics = LearnAnchorTopics.run(DocWord, K, seed=seed, loss='L2')
+    topics, anchors = LearnAnchorTopics.run(DocWord, K, seed=seed, loss='L2')
     elapsedtime = time.time() - stime
-    print 'SPECTRAL\n %5.1f sec | D=%d, K=%d' % (elapsedtime, DocWord.shape[0], K)
+    print 'SPECTRAL\n %5.1f sec | D=%d, K=%d' \
+            % (elapsedtime, DocWord.shape[0], K)
+    
+    if 'savepath' in kwargs:
+      import scipy.io
+      scipy.io.savemat(os.path.join(kwargs['savepath'], 'InitTopics.mat'),
+                       dict(topics=topics), oned_as='row')
+    
+    obsModel.set_global_params(K=K, topics=topics, wordcountTotal=wc)
+
+  elif initname.count('mikespectral'):
+    if not hasSpectralAvailable:
+      raise NotImplementedError("AnchorWords must be on python path")
+
+    stime = time.time()
+    lowerDim = kwargs['spectralDim']
+    topics, anchorRows = LearnAnchorTopics.runMike(Data, K, 
+                        seed=seed, 
+                        loss='L2',
+                        minDocPerWord=kwargs['spectralMinDocPerWord'],
+                        eps=kwargs['spectralEPS'],
+                        doRecover=kwargs['spectralDoRecover'],
+                        lowerDim=lowerDim,
+                                      )
+    elapsedtime = time.time() - stime
+    print 'MIKE SPECTRAL\n %5.1f sec | D=%d, K=%d, V=%d, lowerDim=%d' \
+           % (elapsedtime, Data.nDoc, K, Data.vocab_size, lowerDim)
     
     if 'savepath' in kwargs:
       import scipy.io
