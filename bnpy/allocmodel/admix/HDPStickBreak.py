@@ -16,8 +16,6 @@ from ...util import NumericUtil
 from ...util import digamma, gammaln
 from ...util import EPS
 
-#MAXOMEGA = 1e7
-
 class HDPStickBreak(AllocModel):
 
   ######################################################### Constructors
@@ -64,6 +62,9 @@ class HDPStickBreak(AllocModel):
         that moVB needs to memoize across visits to a particular batch
     '''
     return ['DocTopicCount']
+
+  def get_active_comp_probs(self):
+    return OptimHDPSB._v2beta(self.rho)[:-1]
 
   ######################################################### Local Params
   #########################################################

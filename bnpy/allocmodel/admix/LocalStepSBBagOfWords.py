@@ -12,9 +12,9 @@ from bnpy.allocmodel.admix import OptimizerForMAPDocTopicSticks as MAPOptimizer
 ########################################################### doc-level stickbrk
 ###########################################################  version
 def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0, 
-                             nCoordAscentItersLP=10,
+                             nCoordAscentItersLP=2,
                              nCoordAscentFromScratchLP=25,
-                             convThrLP=0.01,
+                             convThrLP=0.0001,
                              methodLP='scratch',
                              doInPlaceLP=1,
                              logdirLP=None,
@@ -86,7 +86,8 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
         else:
           initeta = None
         try:
-          expElogpi[d], f, Info = MAPOptimizer.find_optimum_multiple_tries(Xd=Xd, Ld=Ld, 
+          expElogpi[d], f, Info = MAPOptimizer.find_optimum_multiple_tries(
+                                                           Xd=Xd, Ld=Ld, 
                                                            avec=topicPrior1,
                                                            bvec=topicPrior0,
                                                            initeta=initeta,
@@ -190,14 +191,14 @@ def update_U1U0_SB(LP, topicPrior1, topicPrior0):
   '''
   assert 'DocTopicCount' in LP
   K =  LP['DocTopicCount'].shape[1]
-  if 'U1' not in LP:
-    LP['U1'] = LP['DocTopicCount'] + topicPrior1
-    LP['U0'] = calcDocTopicRemCount(LP['DocTopicCount']) + topicPrior0
-  else:
+  if 'U1' in LP and LP['U1'].shape == LP['DocTopicCount'].shape:
     # no new memory allocated here
     LP['U1'][:] = LP['DocTopicCount'] + topicPrior1
     calcDocTopicRemCount(LP['DocTopicCount'], out=LP['U0'][:,::-1])
     LP['U0'] += topicPrior0
+  else:
+    LP['U1'] = LP['DocTopicCount'] + topicPrior1
+    LP['U0'] = calcDocTopicRemCount(LP['DocTopicCount']) + topicPrior0
   return LP
 
 def update_ElogPi_SB(LP, activeDocs=None):
