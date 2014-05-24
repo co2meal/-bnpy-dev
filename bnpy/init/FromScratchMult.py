@@ -25,6 +25,7 @@ except ImportError:
 def init_global_params(obsModel, Data, K=0, seed=0,
                                        initname='randexamples',
                                        initarg=None,
+                                       initMinWordsPerDoc=100,
                                        **kwargs):
   ''' Initialize parameters for Mult obsModel, in place.
 
@@ -34,7 +35,6 @@ def init_global_params(obsModel, Data, K=0, seed=0,
   '''    
   PRNG = np.random.RandomState(seed)
 
-  initMinWordsPerDoc = kwargs['initMinWordsPerDoc']
   if initMinWordsPerDoc > 0:
     print initMinWordsPerDoc
     targetDataArgs = dict(targetMinKLPerDoc=0, 
@@ -67,7 +67,7 @@ def init_global_params(obsModel, Data, K=0, seed=0,
 
   elif initname == 'randomfromprior':
     # Draw K topic-word probability vectors from their prior
-    lamvec = hmodel.obsModel.obsPrior.lamvec
+    lamvec = obsModel.obsPrior.lamvec
     PhiTopicWord = PRNG.gamma(lamvec, 1., (K,Data.vocab_size))
     PhiTopicWord += 1e-200
     PhiTopicWord /= PhiTopicWord.sum(axis=1)[:,np.newaxis]
