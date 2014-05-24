@@ -135,8 +135,8 @@ def objFunc_unconstrained(eta, Xd, Ld, avec, bvec, approx_grad=False):
 ########################################################### Var conversion funcs
 ########################################################### 
 def pi2eta(pi):
-  pi = np.hstack([pi, 1e-100])
-  pi = pi/ pi.sum()
+  pi = np.asarray(pi)
+  pi = np.hstack([pi, 1-pi.sum()])
   return invsigmoid(_beta2v(pi))
 
 def eta2pi(eta):
