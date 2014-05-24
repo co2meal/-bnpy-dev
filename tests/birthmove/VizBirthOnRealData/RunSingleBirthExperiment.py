@@ -48,6 +48,29 @@ BirthArgsIN = dict(
                cleanupMinSize=50,
                 )
 
+def MakeLeanSaveInfo(Info, doTraceBeta=0):
+  Results = dict(traceELBO=Info['traceELBO'])
+  if doTraceBeta:
+    Q = dict( traceBeta=Info['traceBeta'],
+              traceN=Info['traceN']
+             )
+    Results.update(Q)
+  if 'xbigModelInit' in Info:
+    Q = dict( initTopics=makeTopics(Info['xbigModelInit']),
+              finalTopics=makeTopics(Info['xbigModelRefined'])
+            )
+    Q['Korig'] = Info['Korig']
+    Results.update(Q)
+  return Results
+
+def makeTopics(model):
+  K = model.obsModel.K
+  topics = np.zeros((K, model.obsModel.comp[0].lamvec.size))
+  for k in xrange(K):
+    topics[k,:] = model.obsModel.comp[k].lamvec
+  topics /= topics.sum(axis=1)[:,np.newaxis]
+  return topics
+
 def RunCurrentModelOnTargetData(outPath, model, bigSS, bigData, targetData,
                                          seed=0, **kwargs):
   ''' Play current model forward on the targeted dataset
@@ -60,8 +83,9 @@ def RunCurrentModelOnTargetData(outPath, model, bigSS, bigData, targetData,
   xmodel, _, _, Info = BirthRefine.refine_expanded_model_with_VB_iters(
                                           fwdmodel, targetData,
                                           xbigSS=bigSS, **BirthArgs)
-  Q = dict(fwdmodel=xmodel, fwdInfo=Info)
-  joblib.dump(Q, outPath)
+
+  Results = MakeLeanSaveInfo(Info)
+  joblib.dump(Results, outPath)
   print '... Wrote all results to file: ', outPath
   
 
@@ -89,10 +113,13 @@ def RunBirthOnTargetData(outPath, model, bigSS, bigData, targetData,
   xmodel, xSS, Info = BirthMove.run_birth_move(model, bigSS, targetData,
                                                            Q=Q,
                                                            **BirthArgs)
-
-  Results = dict(xmodel=xmodel, Info=Info, xSS=xSS,
-           model=model, bigSS=bigSS, targetData=targetData,
-           cachefile=cachefile)
+ 
+  #Results = dict(xmodel=xmodel, Info=Info, xSS=xSS,
+  #         model=model, bigSS=bigSS, targetData=targetData,
+  #         cachefile=cachefile, CACHEDIR=CACHEDIR)
+  Results = MakeLeanSaveInfo(Info, doTraceBeta=1)
+  Results['targetData'] = targetData
+  Results['cachefile']=cachefile
   joblib.dump(Results, outPath)
   print 'Wrote all results to file: ', outPath
 
@@ -226,7 +253,7 @@ def MakeBigModel(Data, initName, nIters=20):
   if initName.count('K='):
     K = int(initName.split('=')[1])
     model = InitModelWithKTopics(Data, K=K)
-  elif initName.count('missing-'):
+  elif initName.count('missing='):
     kmissing = int(initName.split('=')[1])
     model = InitModelWithOneMissing(Data, kmissing=kmissing)
   else:
