@@ -125,6 +125,7 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, **kwargsIN):
                     AdjustInfo=xInfo['AInfo'], ReplaceInfo=xInfo['RInfo'],
                     modifiedCompIDs=[],
                     birthCompIDs=birthCompIDs,
+                    Korig=bigSS.K,
                     )
     MoveInfo.update(xInfo)
     MoveInfo.update(freshInfo)

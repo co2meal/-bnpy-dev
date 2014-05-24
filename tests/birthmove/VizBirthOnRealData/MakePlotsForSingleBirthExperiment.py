@@ -10,31 +10,26 @@ import bnpy
 from bnpy.birthmove import BirthMove, TargetPlanner, TargetDataSampler
 from bnpy.allocmodel.admix import OptimizerForHDPStickBreak as OptimHDPSB
 
+vmin=0
+vmax=0.01
+
 def MakePlotsForSavedBirthMove(birthmovefile, savepath=None):
   if not os.path.exists(birthmovefile):
     birthmovefile = os.path.join(CACHEDIR, birthmovefile)
 
   assert os.path.exists(birthmovefile)
 
-  FFWD = joblib.load(os.path.join(birthmovefile, 'FastForwardResults.dump'))
-  fwdInfo = FFWD['fwdInfo']
+  fwdInfo = joblib.load(os.path.join(birthmovefile, 'FastForwardResults.dump'))
+  #fwdInfo = FFWD['fwdInfo']
 
-  Q = joblib.load(os.path.join(birthmovefile, 'BirthResults.dump'))
-  xmodel = Q['xmodel']
-  targetData = Q['targetData']
-  Info = Q['Info']
-
-  QQ = joblib.load(Q['cachefile'])
-  bigData = QQ['Data']
-  model = QQ['model']
-  bigSS = QQ['SS']
+  Info = joblib.load(os.path.join(birthmovefile, 'BirthResults.dump'))
+  targetData = Info['targetData']
   
-  if hasattr(bigData, 'TrueParams'):
-    plotBarsDataAndSaveToDisk(bigData, 'ExampleDocs-BigData.png', figID=1)
-    plotBarsDataAndSaveToDisk(targetData, 'ExampleDocs-TargetData.png', figID=2)
-    plotBarsTopicsBeforeAndAfter(model, xmodel, Info, Kmax=15)
+  #plotBarsDataAndSaveToDisk(bigData, 'ExampleDocs-BigData.png', figID=1)
+  plotBarsDataAndSaveToDisk(targetData, 'ExampleDocs-TargetData.png', figID=2)
+  plotBarsTopicsBeforeAndAfter(Info)
   
-  plotTraceStats(Info, Korig=bigSS.K)
+  plotTraceStats(Info, Korig=Info['Korig'])
  
   figH = pylab.figure(num=123)
   plotELBOTrace(Info, style='ro-', label='expanded')
@@ -112,20 +107,30 @@ def plotBarsDataAndSaveToDisk(Data, titleStr='', figID=100, savepath=None):
     pylab.savefig(savefile, bbox='tight')
   pylab.show(block=False)
 
-def plotBarsTopicsAndSaveToDisk(model, Kmax=None, savepath=None):
-  bnpy.viz.BarsViz.plotBarsFromHModel(model, Kmax=Kmax)
+def _plotBarsTopics(topicsIN, Kmax=15):
+  K, V = topicsIN.shape
+  topics = np.zeros((Kmax, V))
+  if K < Kmax:
+    topics[:K] = topicsIN
+  else:
+    topics[:Kmax] = topicsIN[:Kmax]
+  pylab.imshow(topics, vmin=vmin, vmax=vmax, interpolation='nearest',
+                       cmap='gray', aspect=float(V)/Kmax)
+  
 
-def plotBarsTopicsBeforeAndAfter(model, xmodel, Info, Kmax=None, savepath=None):
-  nRows = 2
+def plotBarsTopicsBeforeAndAfter(Info, savepath=None):
+  nRows = 1
   nCols = 2
   figID, ax = pylab.subplots(nrows=nRows, ncols=nCols, figsize=(8, 8))
-  bnpy.viz.BarsViz.plotBarsFromHModel(model, Kmax=Kmax,
-                                      figH=pylab.subplot(nRows,nCols,1))
+  pylab.subplot( nRows, nCols, 1)
   pylab.title('BEFORE')
-  bnpy.viz.BarsViz.plotBarsFromHModel(xmodel, Kmax=Kmax,
-                                     figH=pylab.subplot(nRows,nCols,2))
-  pylab.title('AFTER')
+  _plotBarsTopics(Info['initTopics'])
 
+  pylab.subplot( nRows, nCols, 2)
+  pylab.title('AFTER')
+  _plotBarsTopics(Info['finalTopics'])
+
+  '''
   bnpy.viz.BarsViz.plotBarsFromHModel(Info['xbigModelInit'],
                                       Kmax=Kmax,
                                       figH=pylab.subplot(nRows,nCols,3))
@@ -135,7 +140,7 @@ def plotBarsTopicsBeforeAndAfter(model, xmodel, Info, Kmax=None, savepath=None):
                                       Kmax=Kmax,
                                       figH=pylab.subplot(nRows,nCols,4))
   pylab.title('Expanded CLEAN')
-
+  '''
   figID.tight_layout()
   if savepath is not None:
     savefile = os.path.join(savepath, 'topics.png')
