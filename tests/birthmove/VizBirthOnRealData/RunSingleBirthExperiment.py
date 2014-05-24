@@ -1,3 +1,13 @@
+#! /contrib/projects/EnthoughtPython/epd64/bin/python -W ignore::DeprecationWarning
+#$ -S /contrib/projects/EnthoughtPython/epd64/bin/python
+# ------ set working directory
+#$ -cwd 
+# ------ attach environment variables
+#$ -v PYTHONPATH -v BNPYOUTDIR -v BNPYDATADIR -v OMP_NUM_THREADS
+# ------ send to particular queue
+#$ -o /data/liv/liv-x/topic_models/birth-results/logs/$JOB_ID.$TASK_ID.out
+#$ -e /data/liv/liv-x/topic_models/birth-results/logs/$JOB_ID.$TASK_ID.err
+
 import argparse
 from matplotlib import pylab
 import numpy as np
@@ -12,7 +22,7 @@ from bnpy.allocmodel.admix import OptimizerForHDPStickBreak as OptimHDPSB
 
 CACHEDIR = '/Users/mhughes/git/bnpy2/local/dump/'
 if not os.path.exists(CACHEDIR):
-  CACHEDIR = '/data/liv/liv-x/bnpy/local/dump/'
+  CACHEDIR = '/data/liv/liv-x/topic_models/birth-results/'
 assert os.path.exists(CACHEDIR)
 
 TargetSamplerArgsIN = dict(
@@ -226,7 +236,7 @@ def MakeBigModel(Data, initName, nIters=20):
   if initName.count('K='):
     K = int(initName.split('=')[1])
     model = InitModelWithKTopics(Data, K=K)
-  elif initName.count('missing-'):
+  elif initName.count('missing='):
     kmissing = int(initName.split('=')[1])
     model = InitModelWithOneMissing(Data, kmissing=kmissing)
   else:
@@ -262,7 +272,7 @@ def LoadModelAndData(dataName, initName):
 
 def createOutPath(args, basename='BirthResults.dump'):
   outPath = os.path.join(CACHEDIR, args.data, 
-                         args.initName + '+' + args.jobName, str(args.task))
+                         args.jobName, str(args.task))
   mkpath(outPath)
   outPath = os.path.join(outPath, basename)
   return outPath
@@ -281,7 +291,11 @@ if __name__ == '__main__':
   kwargs = bnpy.ioutil.BNPYArgParser.arglist_to_kwargs(unkList)
   if len(args.jobName) == 0:
     args.jobName = args.selectName
-    
+  taskKey = 'SGE_TASK_ID'
+  if taskKey in os.environ:
+    args.task = int(os.environ[taskKey])
+  print "TASK ", args.task
+
   Data, model, SS, LP, cachefile = LoadModelAndData(args.data, args.initName)
 
   targetData = MakeTargetData(args.selectName, Data, model, SS, LP,
