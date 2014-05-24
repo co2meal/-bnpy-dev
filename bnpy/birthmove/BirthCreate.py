@@ -9,12 +9,13 @@ Logic for *creating* new components given
 '''
 import numpy as np
 
+from bnpy.util import GramSchmidtUtil as GSU
 from BirthProposalError import BirthProposalError
 import BirthCleanup
 
-fastParams = dict(nCoordAscentItersLP=10, convThrLP=0.05)
+fastParams = dict(nCoordAscentItersLP=10, convThrLP=0.001)
 
-def create_model_with_new_comps(bigModel, bigSS, freshData, **kwargs):
+def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None, **kwargs):
   '''
 
     Returns
@@ -31,6 +32,11 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, **kwargs):
     freshModel = create_new_model_findmissingtopics(
                                   freshModel, freshData, 
                                   bigModel, **kwargs)
+  elif kwargs['creationRoutine'] == 'xspectral':
+    assert Q is not None
+    freshModel = create_new_model_expandedspectral(freshModel, Q, freshData,
+                                                   bigModel, **kwargs)
+
   else:
     freshModel.init_global_params(freshData, 
                                   K=kwargs['Kfresh'],
@@ -44,8 +50,23 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, **kwargs):
   # TODO: improve update for allocModel reorderComps
   # currently, relies on init allocModel being "uniform", so order dont matter
   bigtosmallIDs = np.argsort(-1 * freshSS.N)
+  for loc, newLoc in enumerate(bigtosmallIDs):
+    freshModel.obsModel.comp[loc] = freshModel.obsModel.comp[newLoc]
+
   freshSS.reorderComps(bigtosmallIDs)
-  freshModel.obsModel.update_global_params(freshSS)
+
+
+  if not kwargs['creationDoUpdateFresh']:
+    # Create freshSS that would produce (nearly) same freshModel.obsModel
+    #   after a call to update_global_params
+    freshSS._Fields.setAllFieldsToZero()
+    if hasattr(freshSS, 'WordCounts'):
+      topics = freshSS.WordCounts
+      priorvec = freshModel.obsModel.obsPrior.lamvec
+      for k in xrange(freshSS.K):
+        topics[k,:] = freshModel.obsModel.comp[k].lamvec - priorvec
+      freshSS.setField('WordCounts', topics, dims=('K','D'))
+    return freshModel, freshSS, Info
 
   # Record initial model for posterity
   if kwargs['birthDebug']:
@@ -88,7 +109,8 @@ def create_new_model_findmissingtopics(freshModel, freshData,
   if LP is None:
     LP = bigModel.calc_local_params(freshData)
   Prior = np.exp(LP['E_logPi'])
-  Lik = np.exp(bigModel.obsModel.getElogphiMatrix())
+  Lik = bigModel.obsModel.getElogphiMatrix()
+  Lik = np.exp(Lik - Lik.max(axis=1)[:,np.newaxis])
 
   DocWordFreq_model = np.dot(Prior, Lik)
   DocWordFreq_model /= DocWordFreq_model.sum(axis=1)[:,np.newaxis]
@@ -114,6 +136,23 @@ def create_new_model_findmissingtopics(freshModel, freshData,
 
   freshModel.set_global_params(beta=np.ones(Kfresh)/Kfresh, K=Kfresh,
                                topics=WordFreq_ctrs,
+                               wordcountTotal=freshData.word_count.sum()
+                              )
+  return freshModel
+
+def create_new_model_expandedspectral(freshModel, Q, freshData, bigModel,
+                                                  **kwargs):
+  K = bigModel.obsModel.K
+  topics = np.zeros((K, Q.shape[1]))
+  for k in xrange(K):
+    topics[k,:] = bigModel.obsModel.comp[k].lamvec
+    topics[k,:] = topics[k,:] / topics[k,:].sum()
+
+  Kfresh = kwargs['Kfresh']
+  bestRows = GSU.FindAnchorsForExpandedBasis(Q, topics, Kfresh)
+  newTopics = Q[bestRows] / Q[bestRows].sum(axis=1)[:,np.newaxis]
+  freshModel.set_global_params(beta=np.ones(Kfresh)/Kfresh, K=Kfresh,
+                               topics=newTopics,
                                wordcountTotal=freshData.word_count.sum()
                               )
   return freshModel

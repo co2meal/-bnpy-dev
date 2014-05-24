@@ -47,12 +47,17 @@ def expand_then_refine(freshModel, freshSS, freshData,
     Info['xbigModelInit'] = xbigModel.copy()
 
   ### Refine expanded model with VB iterations
-  xbigModel, xfreshSS, xfreshLP, origIDs = refine_expanded_model_with_VB_iters(
+  xbigModel, xfreshSS, xfreshLP, xInfo = refine_expanded_model_with_VB_iters(
                                 xbigModel, freshData, 
                                 xbigSS=xbigSS, Korig=bigSS.K, **kwargs)
   if kwargs['birthDebug']:
     Info['xbigModelRefined'] = xbigModel.copy()
-  AInfo = _delete_from_AInfo(AInfo, origIDs, Kx)
+    Info['traceN'] = xInfo['traceN']
+    Info['traceBeta'] = xInfo['traceBeta']
+    Info['traceELBO'] = xInfo['traceELBO']
+
+
+  AInfo = _delete_from_AInfo(AInfo, xInfo['origIDs'], Kx)
 
   if hasattr(xfreshSS, 'nDoc'):
     assert xbigSS.nDoc == bigSS.nDoc
@@ -101,11 +106,24 @@ def refine_expanded_model_with_VB_iters(xbigModel, freshData,
       xbigSS : SuffStatBag, with K + Kfresh comps
                        scale with equal to bigData only
   '''
+  xInfo = dict()
   origIDs = range(0, xbigSS.K)
 
-  for riter in xrange(kwargs['refineNumIters']):
-    xfreshLP = xbigModel.calc_local_params(freshData)
+  nIters = kwargs['refineNumIters']
+  traceBeta = np.zeros((nIters, xbigSS.K))
+  traceN = np.zeros((nIters, xbigSS.K))
+  traceELBO = np.zeros(nIters)
+
+  xfreshLP = None
+  for riter in xrange(nIters):
+    xfreshLP = xbigModel.calc_local_params(freshData, xfreshLP, **kwargs)
     xfreshSS = xbigModel.get_global_suff_stats(freshData, xfreshLP)
+
+    if kwargs['birthDebug']:
+      traceBeta[riter, origIDs] = xbigModel.allocModel.get_active_comp_probs()
+      traceN[riter, origIDs] = xfreshSS.N
+      traceELBO[riter] = xbigModel.calc_evidence(freshData, xfreshSS, xfreshLP)
+      print ' '.join(['%8.2f' % (x) for x in xfreshSS.N[Korig:]])
 
     # For all but last iteration, attempt removing empty topics
     if kwargs['cleanupDeleteEmpty'] and riter < kwargs['refineNumIters'] - 1:
@@ -119,15 +137,21 @@ def refine_expanded_model_with_VB_iters(xbigModel, freshData,
       msg = "BIRTH failed. After refining, no new comps above cleanupMinSize."
       raise BirthProposalError(msg)
 
+
     xbigSS += xfreshSS
     xbigModel.allocModel.update_global_params(xbigSS)
     xbigModel.obsModel.update_global_params(xbigSS)
     xbigSS -= xfreshSS
 
-  xfreshLP = xbigModel.calc_local_params(freshData)
+  xfreshLP = xbigModel.calc_local_params(freshData, xfreshLP, **kwargs)
   xfreshSS = xbigModel.get_global_suff_stats(freshData, xfreshLP,
                                                doPrecompEntropy=True)
-  return xbigModel, xfreshSS, xfreshLP, origIDs
+  if kwargs['birthDebug']:
+    xInfo['traceBeta'] = traceBeta
+    xInfo['traceN'] = traceN
+    xInfo['traceELBO'] = traceELBO
+  xInfo['origIDs'] = origIDs
+  return xbigModel, xfreshSS, xfreshLP, xInfo
 
 def _delete_from_AInfo(AInfo, origIDs, Kx):
   if AInfo is not None and len(origIDs) < Kx:

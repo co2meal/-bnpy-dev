@@ -85,6 +85,15 @@ def _sample_target_WordsData(Data, model=None, LP=None, **kwargs):
     else:
       candidates = candidates[mask]
 
+  hasWordIDs = 'targetWordIDs' in kwargs and kwargs['targetWordIDs'] is not None
+  if hasWordIDs:
+    wordIDs = kwargs['targetWordIDs']
+    print wordIDs
+    TinyMatrix = DocWordMat[candidates, :].toarray()[:, wordIDs]
+    targetCountPerDoc = np.sum(TinyMatrix > 0, axis=1)
+    mask = targetCountPerDoc >= kwargs['targetWordMinCount']
+    candidates = candidates[mask]
+
   if kwargs['targetMinKLPerDoc'] > 0:
     ### Build model's expected word distribution for each document
     Prior = np.exp( LP['E_logPi'][candidates])

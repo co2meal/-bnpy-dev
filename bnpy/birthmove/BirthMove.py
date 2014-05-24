@@ -8,7 +8,7 @@ import BirthCleanup
 from BirthProposalError import BirthProposalError
 import VizBirth
 
-def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
+def run_birth_move(bigModel, bigSS, freshData, Q=None, **kwargsIN):
   ''' Run birth move on provided target data, creating up to Kfresh new comps
 
       Returns
@@ -59,7 +59,7 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
     #  freshSS has scale freshData
     #  freshModel has arbitrary scale
     freshModel, freshSS, freshInfo = BirthCreate.create_model_with_new_comps(
-                                            bigModel, bigSS, freshData,
+                                            bigModel, bigSS, freshData, Q=Q,
                                             **kwargs)
 
     earlyAdmission = -1
@@ -109,7 +109,7 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
     if 'doVizBirth' in kwargs and kwargs['doVizBirth']:
       VizBirth.viz_birth_proposal(bigModel, xbigModel, birthCompIDs,
                                   curELBO=curELBO, propELBO=propELBO, **kwargs)
-    #from IPython import embed; embed()
+
     # Reject. Abandon the move.
     if not didPass:
       msg = "BIRTH failed. No improvement over current model." + ELBOmsg
@@ -126,8 +126,8 @@ def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):
                     modifiedCompIDs=[],
                     birthCompIDs=birthCompIDs,
                     )
-    MoveInfo['xInfo'] = xInfo
-    MoveInfo['freshInfo'] = freshInfo
+    MoveInfo.update(xInfo)
+    MoveInfo.update(freshInfo)
     
     assert not xbigSS.hasELBOTerms()
     assert not xbigSS.hasMergeTerms()

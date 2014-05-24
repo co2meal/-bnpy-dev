@@ -10,6 +10,7 @@ Key methods
 import numpy as np
 from collections import defaultdict
 
+import bnpy.util.GramSchmidtUtil as GramSchmidtUtil
 from BirthProposalError import BirthProposalError
 
 EPS = 1e-14
@@ -89,16 +90,10 @@ def select_target_comp(K, SS=None, model=None, LP=None, Data=None,
     return ktarget, ps
   return ktarget
 
-'''
-  if doVerbose:
-    sortIDs = np.argsort(-1.0 * ps) # sort in decreasing order
-    for kk in sortIDs[:6]:
-      msg = "comp %3d : %.2f prob | %3d delay | %8d size"
-      print msg % (kk, ps[kk], lapsSinceLastBirth[kk], SS.N[kk])
-'''
-
-
-def select_target_words(K, model=None, LP=None, Data=None, SS=None,
+########################################################### select_target_words
+###########################################################
+def select_target_words(nWords=3, model=None, 
+                           LP=None, Data=None, SS=None, Q=None,
                            excludeList=list(), doVerbose=False, 
                            **kwargs):
   ''' Choose a set of vocabulary words to target with a birth proposal.
@@ -118,18 +113,28 @@ def select_target_words(K, model=None, LP=None, Data=None, SS=None,
       BirthProposalError, if cannot select a valid choice
   '''
   targetSelectName = kwargs['targetSelectName']
-  if targetSelectName == 'uniform':
+  if targetSelectName == 'wordUniform':
     pWords = np.ones(Data.vocab_size)
-  elif targetSelectName == 'predictionQuality':
-    pWords = calc_underprediction_scores_per_word(model, 
-                                                  Data, LP=None, **kwargs)
+  elif targetSelectName == 'wordPredictionQuality':
+    pWords = calc_underprediction_scores_per_word(model,
+                                                  Data, LP=LP, **kwargs)
+  elif targetSelectName == 'anchorWords':
+    assert Q is not None
+    K = model.obsModel.K
+    topics = np.zeros((K, Q.shape[1]))
+    for k in xrange(K):
+      topics[k,:] = model.obsModel.comp[k].lamvec
+      topics[k,:] = topics[k,:] / topics[k,:].sum()
+    anchors = GramSchmidtUtil.FindAnchorsForExpandedBasis(Q, topics, nWords)
+    return anchors.tolist()
   else:
     raise NotImplementedError('Unrecognized procedure: ' + targetSelectName)
   pWords[excludeList] = 0
   if np.sum(pWords) < EPS:
     msg = 'BIRTH not possible. All words have zero probability.'
     raise BirthProposalError(msg)
-  relWords = sample_related_words_by_score(Data, pWords, **kwargs)
+  relWords = sample_related_words_by_score(Data, pWords, nWords=nWords,
+                                                         **kwargs)
   if relWords is None or len(relWords) < 1:
     msg = 'BIRTH not possible. Word selection failed.'
     raise BirthProposalError(msg)
@@ -197,7 +202,10 @@ def _hdp_calc_underprediction_scores(K, model, Data, LP, xList, **kwargs):
       empWordFreq_k = np.zeros(Data.vocab_size)
       empWordFreq_k[word_id] = (resp * word_count)
       empWordFreq_k = empWordFreq_k / empWordFreq_k.sum()
-      probInDoc_k = LP['theta'][d,k] / LP['theta'][d,:].sum()
+      if 'theta' in LP:
+        probInDoc_k = LP['theta'][d,k] / LP['theta'][d,:].sum()
+      else:
+        probInDoc_k = LP['U1'][d,k] * np.prod(1.0-LP['U0'][d,:k])
       score[k] += probInDoc_k * calcKL_discrete(empWordFreq_k, 
                                                      modelWordFreq_k)
   # Make score a valid probability vector
