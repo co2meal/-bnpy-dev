@@ -13,32 +13,37 @@ from bnpy.allocmodel.admix import OptimizerForHDPStickBreak as OptimHDPSB
 vmin=0
 vmax=0.01
 
-def MakePlotsForSavedBirthMove(birthmovefile, savepath=None):
+def MakePlotsForSavedBirthMove(birthmovefile, doSave=1):
   if not os.path.exists(birthmovefile):
     birthmovefile = os.path.join(CACHEDIR, birthmovefile)
 
   assert os.path.exists(birthmovefile)
 
   fwdInfo = joblib.load(os.path.join(birthmovefile, 'FastForwardResults.dump'))
-  #fwdInfo = FFWD['fwdInfo']
 
   Info = joblib.load(os.path.join(birthmovefile, 'BirthResults.dump'))
   targetData = Info['targetData']
   
-  #plotBarsDataAndSaveToDisk(bigData, 'ExampleDocs-BigData.png', figID=1)
-  plotBarsDataAndSaveToDisk(targetData, 'ExampleDocs-TargetData.png', figID=2)
+  plotBarsData(targetData)
+  saveCurrentFig(doSave, birthmovefile, 'TargetData.png')
+
   plotBarsTopicsBeforeAndAfter(Info)
+  saveCurrentFig(doSave, birthmovefile, 'Topics.png')
   
+
   plotTraceStats(Info, Korig=Info['Korig'])
- 
+  saveCurrentFig(doSave, birthmovefile, 'TraceStats.png')
+
   figH = pylab.figure(num=123)
   plotELBOTrace(Info, style='ro-', label='expanded')
   plotELBOTrace(fwdInfo, style='k.-', label='original')
   pylab.legend(loc='lower right')
-
   pylab.draw()
-  if savepath is not None:
-    savefile = os.path.join(savepath, 'traceELBO.png')
+  saveCurrentFig(doSave, birthmovefile, 'TraceELBO.png')
+
+def saveCurrentFig(doSave, birthmovefile, basename):
+  if doSave:
+    savefile = os.path.join(birthmovefile, basename)
     pylab.savefig(savefile, bbox='tight')
 
 ########################################################### User-facing funcs ###########################################################  for diagnostics
@@ -99,12 +104,9 @@ def plotELBOTraces(Data):
   #plotELBOTraces(Data, 'all D=%d' % (Data.nDoc), model, Info)
   #pylab.legend(loc='lower right')
 
-def plotBarsDataAndSaveToDisk(Data, titleStr='', figID=100, savepath=None):
-  figID = pylab.figure(figID)
+def plotBarsData(Data, savepath=None):
+  figID = pylab.figure()
   bnpy.viz.BarsViz.plotExampleBarsDocs(Data, nDocToPlot=25, figID=figID, doShowNow=False)
-  if savepath is not None and len(titleStr) > 0:
-    savefile = os.path.join(savepath, titleStr)
-    pylab.savefig(savefile, bbox='tight')
   pylab.show(block=False)
 
 def _plotBarsTopics(topicsIN, Kmax=15):
@@ -152,6 +154,7 @@ def plotBarsTopicsBeforeAndAfter(Info, savepath=None):
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('path', default=None)
+  parser.add_argument('--doSave', type=int, default=1)
   parser.add_argument('--data', default='BarsK10V900')
   parser.add_argument('--initName', default='K1')
   parser.add_argument('--jobName', type=str, default='')
@@ -169,7 +172,8 @@ if __name__ == '__main__':
   print path
   assert os.path.exists(path)
 
-  MakePlotsForSavedBirthMove(path)
-  
-  pylab.show(block=False)
-  keypress = raw_input('Press any key>>')
+  MakePlotsForSavedBirthMove(path, doSave=1)
+
+  if not args.doSave:  
+    pylab.show(block=False)
+    keypress = raw_input('Press any key>>')
