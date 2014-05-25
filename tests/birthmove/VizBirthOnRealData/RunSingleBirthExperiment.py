@@ -88,6 +88,7 @@ def RunCurrentModelOnTargetData(outPath, model, bigSS, bigData, targetData,
   BirthArgs = dict(**BirthArgsIN)
   BirthArgs.update(**kwargs)
   BirthArgs['randstate'] = np.random.RandomState(seed)
+  BirthArgs['seed'] = seed
 
   fwdmodel = model.copy()
   xmodel, _, _, Info = BirthRefine.refine_expanded_model_with_VB_iters(
@@ -99,11 +100,12 @@ def RunCurrentModelOnTargetData(outPath, model, bigSS, bigData, targetData,
   print '... Wrote all results to file: ', outPath
   
 
-def RunBirthOnTargetData(outPath, model, bigSS, bigData, targetData, 
+def RunBirthOnTargetData(outPath, model, bigSS, bigData, targetData, targetInfo,
                                cachefile='', seed=0, **kwargs): 
   BirthArgs = dict(**BirthArgsIN)
   BirthArgs.update(**kwargs)
   BirthArgs['randstate'] = np.random.RandomState(seed)
+  BirthArgs['seed'] = seed
 
   assert bigData.nDoc == bigSS.nDoc
 
@@ -124,11 +126,9 @@ def RunBirthOnTargetData(outPath, model, bigSS, bigData, targetData,
                                                            Q=Q,
                                                            **BirthArgs)
  
-  #Results = dict(xmodel=xmodel, Info=Info, xSS=xSS,
-  #         model=model, bigSS=bigSS, targetData=targetData,
-  #         cachefile=cachefile, CACHEDIR=CACHEDIR)
   Results = MakeLeanSaveInfo(Info, doTraceBeta=1)
   Results['targetData'] = targetData
+  Results['targetInfo'] = targetInfo
   Results['cachefile']=cachefile
   joblib.dump(Results, outPath)
   print 'Wrote all results to file: ', outPath
@@ -159,8 +159,11 @@ def MakeTargetData(selectName, Data, model, SS, LP, initName=None,
   TargetSamplerArgs.update(kwargs)
   TargetSamplerArgs['randstate'] = np.random.RandomState(seed)
 
+  targetData = None
   anchors = None
   ktarget = None
+  ps = None
+  ktrue = None
   if selectName == 'none':
     ktarget = None
   elif selectName == 'best':
@@ -175,7 +178,7 @@ def MakeTargetData(selectName, Data, model, SS, LP, initName=None,
     ktrue = findMostMissingTrueTopic( TrueTopics, EstTopics, Ktrue, Kest)
     docRanks = np.argsort( -1*Data.TrueParams['alphaPi'][:, ktrue] )
     targetMaxSize = TargetSamplerArgs['targetMaxSize']
-    return Data.select_subset_by_mask(docRanks[:targetMaxSize])
+    targetData = Data.select_subset_by_mask(docRanks[:targetMaxSize])
   elif selectName == 'anchorWords':
     Q = Data.to_wordword_cooccur_matrix()
     goodWords = Data.getWordsThatAppearInAtLeastNDocs(50)
@@ -184,9 +187,9 @@ def MakeTargetData(selectName, Data, model, SS, LP, initName=None,
                            targetSelectName=selectName,
                            excludeList=list())
   elif selectName.lower().count('word'):
-    anchors = TargetPlanner.select_target_words(nWords=5, model=model, 
+    anchors, ps = TargetPlanner.select_target_words(nWords=5, model=model, 
                            Data=Data, LP=LP, 
-                           targetSelectName=selectName,
+                           targetSelectName=selectName, return_ps=1,
                            **TargetSamplerArgs)
   else:
     ktarget, ps = TargetPlanner.select_target_comp(SS.K, 
@@ -196,13 +199,14 @@ def MakeTargetData(selectName, Data, model, SS, LP, initName=None,
                                                 return_ps=1,
                                                 **TargetSamplerArgs)
 
-
-  targetData = TargetDataSampler.sample_target_data(Data, 
+  if targetData is None:
+    targetData = TargetDataSampler.sample_target_data(Data, 
                                                model=model, LP=LP,
                                                targetWordIDs=anchors,
                                                targetCompID=ktarget,
                                                **TargetSamplerArgs)
-  return targetData
+  Info = dict(ktarget=ktarget, targetWordIDs=anchors, ps=ps, ktrue=ktrue)
+  return targetData, Info
 
 def findMostMissingTrueTopic(TrueTopics, EstTopics, Ktrue, Kest):
   Dist = np.zeros( (Ktrue,Kest))
@@ -325,10 +329,10 @@ if __name__ == '__main__':
 
   Data, model, SS, LP, cachefile = LoadModelAndData(args.data, args.initName)
 
-  targetData = MakeTargetData(args.selectName, Data, model, SS, LP,
+  targetData, targetInfo = MakeTargetData(args.selectName, Data, model, SS, LP,
                               seed=args.task, **kwargs)
   outPath = createOutPath(args)
-  RunBirthOnTargetData(outPath, model, SS, Data, targetData,
+  RunBirthOnTargetData(outPath, model, SS, Data, targetData, targetInfo,
                              cachefile=cachefile, seed=args.task, **kwargs)
 
   outPath = createOutPath(args, 'FastForwardResults.dump')

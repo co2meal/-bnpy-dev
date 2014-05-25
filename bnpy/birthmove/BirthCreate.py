@@ -46,15 +46,17 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None, **kwargs):
   freshLP = freshModel.calc_local_params(freshData, **fastParams)
   freshSS = freshModel.get_global_suff_stats(freshData, freshLP)
 
+  '''
   ## Sort new comps in largest-to-smallest order
   # TODO: improve update for allocModel reorderComps
   # currently, relies on init allocModel being "uniform", so order dont matter
   bigtosmallIDs = np.argsort(-1 * freshSS.N)
+  newList = [None for x in xrange(len(freshModel.obsModel.comp))]
   for loc, newLoc in enumerate(bigtosmallIDs):
-    freshModel.obsModel.comp[loc] = freshModel.obsModel.comp[newLoc]
-
+    newList[loc] = freshModel.obsModel.comp[newLoc]
+  freshModel.obsModel.comp = newList
   freshSS.reorderComps(bigtosmallIDs)
-
+  '''
 
   if not kwargs['creationDoUpdateFresh']:
     # Create freshSS that would produce (nearly) same freshModel.obsModel
@@ -100,6 +102,7 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None, **kwargs):
 def create_new_model_findmissingtopics(freshModel, freshData, 
                                         bigModel, LP=None, 
                                         MIN_CLUSTER_SIZE = 3,
+                                        seed=0,
                                         **kwargs):
   import KMeansRex
 
@@ -124,7 +127,7 @@ def create_new_model_findmissingtopics(freshModel, freshData,
 
   WordFreq_ctrs, Z = KMeansRex.RunKMeans(DocWordFreq_missing, Kfresh,
                                initname='plusplus',
-                               Niter=10, seed=0)
+                               Niter=10, seed=seed)
   Nk, binedges = np.histogram(np.squeeze(Z), np.arange(-0.5, Kfresh))
 
   if np.any(Nk < MIN_CLUSTER_SIZE):

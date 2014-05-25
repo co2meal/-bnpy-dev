@@ -94,7 +94,7 @@ def select_target_comp(K, SS=None, model=None, LP=None, Data=None,
 ###########################################################
 def select_target_words(nWords=3, model=None, 
                            LP=None, Data=None, SS=None, Q=None,
-                           excludeList=list(), doVerbose=False, 
+                           excludeList=list(), doVerbose=False, return_ps=0,
                            **kwargs):
   ''' Choose a set of vocabulary words to target with a birth proposal.
 
@@ -138,6 +138,9 @@ def select_target_words(nWords=3, model=None,
   if relWords is None or len(relWords) < 1:
     msg = 'BIRTH not possible. Word selection failed.'
     raise BirthProposalError(msg)
+
+  if return_ps:
+    return relWords, pWords
   return relWords
 
 def calc_underprediction_scores_per_topic(K, model, Data, LP=None, 
@@ -223,15 +226,20 @@ def calc_underprediction_scores_per_word(model, Data, LP=None, **kwargs):
   uError = np.maximum( DocWordFreq_emp - DocWordFreq_model, 0)
   # For each word, identify set of relevant documents
   DocWordMat = Data.to_sparse_docword_matrix().toarray()
-  medianWordCount = np.median(DocWordMat, axis=0)
   score = np.zeros(Data.vocab_size)
+  # TODO: only consider words with many docs overall
   for vID in xrange(Data.vocab_size):
-    candidateDocs = np.flatnonzero(DocWordMat[:, vID] > medianWordCount[vID])
+    countPerDoc = DocWordMat[:, vID]
+    typicalWordCount = np.median( countPerDoc[countPerDoc > 0] )
+    candidateDocs = np.flatnonzero(countPerDoc > typicalWordCount)
     if len(candidateDocs) < 10:
       continue
     score[vID] = np.sum(uError[candidateDocs])
-  score = score - np.mean(score) # Center the scores!
+
+  # Only give positive probability to words with above average score
+  score = score - np.mean(score) 
   score = np.maximum(score, 0)
+  score = score * score # make more peaked!
   score /= score.sum()
   return score
                   
