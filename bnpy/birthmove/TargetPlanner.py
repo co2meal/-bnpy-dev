@@ -185,8 +185,8 @@ def _dp_calc_underprediction_scores(K, model, Data, LP, xList, **kwargs):
 def _hdp_calc_underprediction_scores(K, model, Data, LP, xList, **kwargs):
   ''' Calculate for each topic a scalar weight. Larger => worse prediction.
   '''
-  if LP is None:
-    LP = model.calc_local_params(Data)
+  if LP is None or 'word_variational' not in LP:
+    LP = model.calc_local_params(Data, LP, methodLP='memo')
   assert K == model.allocModel.K
   NdkThr = 1.0/K * kwargs['targetMinWordsPerDoc']
   score = np.zeros(K)
