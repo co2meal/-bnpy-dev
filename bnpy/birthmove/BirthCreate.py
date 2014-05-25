@@ -40,8 +40,8 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None, **kwargs):
   else:
     freshModel.init_global_params(freshData, 
                                   K=kwargs['Kfresh'],
-                                  initname=kwargs['creationRoutine'],
-                                  randstate=kwargs['randstate']) 
+                                  initname=kwargs['creationRoutine'],                                  
+                                  **kwargs) 
 
   freshLP = freshModel.calc_local_params(freshData, **fastParams)
   freshSS = freshModel.get_global_suff_stats(freshData, freshLP)
