@@ -53,6 +53,17 @@ class WordsData(DataObj):
     if vocab_dict is not None:
       self.vocab_dict = vocab_dict
 
+  def deleteNonEssentialAttributes(self):
+    ''' Remove extra attributes that save recomputation, but waste memory
+    '''
+    if hasattr(self, '__sparseMat__'):
+      del self.__sparseMat__
+    if hasattr(self, '_sparseDocWordMat'):
+      del self._sparseDocWordMat
+    if hasattr(self, 'TrueParams'):
+      if 'word_variational' in self.TrueParams:
+        del self.TrueParams['word_variational']
+
   def _set_corpus_size_attributes(self, nDocTotal=None):
     ''' Sets nDoc, nObs, and nDocTotal attributes of this WordsData object
 

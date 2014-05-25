@@ -117,6 +117,7 @@ def RunBirthOnTargetData(outPath, model, bigSS, bigData, targetData, targetInfo,
                                                            **BirthArgs)
  
   Results = MakeLeanSaveInfo(Info, doTraceBeta=1)
+  targetData.deleteNonEssentialAttributes()
   Results['targetData'] = targetData
   Results['targetInfo'] = targetInfo
   Results['cachefile']=cachefile
@@ -271,6 +272,13 @@ def MakeBigModel(Data, initName, nIters=20):
     if (ii+1) % 5 == 0:
       print '%d/%d' % (ii+1, nIters)
 
+  del LP['E_logsoftev_WordsData']
+  del LP['word_variational']
+  del LP['expEloglik']
+  del LP['expElogpi']
+  del LP['digammaBoth']
+  del LP['topics']
+
   return model, SS, LP
 
 def LoadModelAndData(dataName, initName):
@@ -288,6 +296,8 @@ def LoadModelAndData(dataName, initName):
   else:
     Data = LoadData(dataName)
     model, SS, LP = MakeBigModel(Data, initName)
+    Data.deleteNonEssentialAttributes()
+    
     joblib.dump(dict(Data=Data, model=model, SS=SS, LP=LP), cachepath)
   return Data, model, SS, LP, cachepath
 
