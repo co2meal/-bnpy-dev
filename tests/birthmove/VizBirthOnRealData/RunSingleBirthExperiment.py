@@ -141,13 +141,20 @@ def LoadData(dataname):
   if dataname.count('Bars'):
     import BarsK10V900
     Data = BarsK10V900.get_data(nDocTotal=2000, nWordsPerDoc=250)
-  else:
+  elif dataname.count('NIPS'):
     os.environ['BNPYDATADIR'] = '/data/NIPS/'
     if not os.path.exists(os.environ['BNPYDATADIR']):
       os.environ['BNPYDATADIR'] = '/data/liv/liv-x/topic_models/data/nips/'
     sys.path.append(os.environ['BNPYDATADIR'])
     import NIPSCorpus
     Data = NIPSCorpus.get_data()
+  elif dataname.count('huffpost'):
+    os.environ['BNPYDATADIR'] = '/data/liv/liv-x/topic_models/data/huffpost/'
+    sys.path.append(os.environ['BNPYDATADIR'])
+    import huffpost
+    Data = huffpost.get_data()
+  else:
+    raise NotImplementedError(dataname)
   return Data
 
 
