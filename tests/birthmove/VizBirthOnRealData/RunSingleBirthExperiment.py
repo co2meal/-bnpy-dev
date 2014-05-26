@@ -188,16 +188,14 @@ def MakeTargetData(selectName, Data, model, SS, LP, initName=None,
     docRanks = np.argsort( -1*Data.TrueParams['alphaPi'][:, ktrue] )
     targetMaxSize = TargetSamplerArgs['targetMaxSize']
     targetData = Data.select_subset_by_mask(docRanks[:targetMaxSize])
-  elif selectName == 'anchorWords':
-    Q = Data.to_wordword_cooccur_matrix()
-    goodWords = Data.getWordsThatAppearInAtLeastNDocs(50)
-    Q = Q[goodWords]
-    anchors = TargetPlanner.select_target_words(model=model, Q=Q, 
-                           targetSelectName=selectName,
-                           excludeList=list(), **TargetSamplerArgs)
   elif selectName.lower().count('word'):
+
+    if selectName.count('anchor'):
+      Q = Data.to_wordword_cooccur_matrix()
+    else:
+      Q = None
     anchors, ps = TargetPlanner.select_target_words(model=model, 
-                           Data=Data, LP=LP, 
+                           Data=Data, LP=LP, Q=Q,
                            targetSelectName=selectName, return_ps=1,
                            **TargetSamplerArgs)
   else:
