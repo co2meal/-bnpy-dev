@@ -92,8 +92,8 @@ def select_target_comp(K, SS=None, model=None, LP=None, Data=None,
 
 ########################################################### select_target_words
 ###########################################################
-def select_target_words(nWords=3, model=None, 
-                           LP=None, Data=None, SS=None, Q=None,
+def select_target_words(model=None, 
+                        LP=None, Data=None, SS=None, Q=None,
                            excludeList=list(), doVerbose=False, return_ps=0,
                            **kwargs):
   ''' Choose a set of vocabulary words to target with a birth proposal.
@@ -112,6 +112,7 @@ def select_target_words(nWords=3, model=None,
       -------
       BirthProposalError, if cannot select a valid choice
   '''
+  nWords = kwargs['targetNumWords']
   targetSelectName = kwargs['targetSelectName']
   if targetSelectName == 'wordUniform':
     pWords = np.ones(Data.vocab_size)
