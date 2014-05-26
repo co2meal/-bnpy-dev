@@ -11,7 +11,10 @@ imshowArgs = dict(interpolation='nearest', cmap='bone',
 
 
 def plotExampleBarsDocs(Data, docIDsToPlot=None, figID=None,
-                              vmax=None, nDocToPlot=16, doShowNow=True):
+                              vmax=None, nDocToPlot=16, doShowNow=True,
+                              seed=0, randstate=np.random.RandomState(0)):
+    if seed is not None:
+      randstate = np.random.RandomState(seed)
     if figID is None:
       pylab.figure()
     V = Data.vocab_size
@@ -21,7 +24,7 @@ def plotExampleBarsDocs(Data, docIDsToPlot=None, figID=None,
       nDocToPlot = len(docIDsToPlot)
     else:
       size = np.minimum(Data.nDoc, nDocToPlot)
-      docIDsToPlot = np.random.choice(Data.nDoc, size=size, replace=False)
+      docIDsToPlot = randstate.choice(Data.nDoc, size=size, replace=False)
     nRows = np.floor(np.sqrt(nDocToPlot))
     nCols = np.ceil(nDocToPlot / nRows)
     if vmax is None:

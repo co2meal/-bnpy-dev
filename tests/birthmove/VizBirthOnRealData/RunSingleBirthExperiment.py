@@ -178,7 +178,7 @@ def MakeTargetData(selectName, Data, model, SS, LP, initName=None,
                            targetSelectName=selectName,
                            excludeList=list())
   elif selectName.lower().count('word'):
-    anchors, ps = TargetPlanner.select_target_words(nWords=5, model=model, 
+    anchors, ps = TargetPlanner.select_target_words(nWords=10, model=model, 
                            Data=Data, LP=LP, 
                            targetSelectName=selectName, return_ps=1,
                            **TargetSamplerArgs)
