@@ -165,14 +165,16 @@ def calc_word_scores_for_anchor(model, Q, Data, **kwargs):
     topics[k,:] = topics[k,:] / topics[k,:].sum()
   # Normalization happens internally in this function
   choice = GramSchmidtUtil.FindAnchorsForExpandedBasis(Q[goodWords], topics, 
-                                                           10)
-  kwargs['randstate'].shuffle(choice)
+                                                           1)
   chosenWord = goodWords[choice[0]]
   if hasattr(Data, 'vocab_dict'):
     Vocab = [str(x[0][0]) for x in Data.vocab_dict]
     print 'CHOSEN ANCHOR WORD: %s' % (Vocab[chosenWord])
   score = np.zeros(Data.vocab_size)
   score[goodWords] =  Q[chosenWord, goodWords]
+
+  # make more peaked!
+  score = score * score
   score /= score.sum()
   return score
 
@@ -251,7 +253,10 @@ def _hdp_calc_underprediction_scores(K, model, Data, LP, xList, **kwargs):
 
 def get_good_words(Data):
   nDPerWord = Data.getNumDocsPerWord()
-  goodWords = np.flatnonzero( (nDPerWord < 0.15*Data.nDoc) \
+  UpLimit = 0.15*Data.nDoc
+  if nDPerWord.min() > UpLimit:
+    UpLimit = Data.nDoc # only toy data hits this line
+  goodWords = np.flatnonzero( (nDPerWord < UpLimit) \
                             * (nDPerWord > 25))
   return goodWords
 
@@ -272,14 +277,16 @@ def calc_word_scores_for_closest_pair_of_underpredicted_docs(model,
   mostUnexplainedDocs = np.argsort(-1*uErrorPerDoc)[:150]
   uErrBiggest = uError[mostUnexplainedDocs]
 
+  binErrBig = uErrBiggest > 0
+
   # Find the two most similar docs among this top list
   from scipy.spatial.distance import cdist
   D = cdist( uErrBiggest, uErrBiggest, 'cityblock')
   D[ D==0] = Data.vocab_size  # make bad pairs impossible to pick
 
   # Narrow down to the top ten pairs
-  bestPairs = np.argsort(D.flatten())[:10]
-  bestIndex = kwargs['randstate'].choice( len(bestPairs) )
+  bestPairs = np.argsort(D.flatten())[::2][:10]
+  bestIndex = kwargs['randstate'].choice( bestPairs )
 
   i, j = np.unravel_index(bestIndex, D.shape)
  
@@ -287,7 +294,7 @@ def calc_word_scores_for_closest_pair_of_underpredicted_docs(model,
   score = np.zeros(Data.vocab_size)
   score[goodWords] = uErrBiggest[i] + uErrBiggest[j] 
   score = np.maximum(score, 0)
-  score = score * score # make more peaked!
+  score = score ** 2 # make more peaked!
   score /= score.sum()
   if hasattr(Data, 'vocab_dict'):
     Vocab = [str(x[0][0]) for x in Data.vocab_dict]
@@ -295,7 +302,8 @@ def calc_word_scores_for_closest_pair_of_underpredicted_docs(model,
     print ' '.join([Vocab[goodWords[w]] for w in np.argsort(-1*uErrBiggest[i])[:20]])
     print 'Anchor Doc 2'
     print ' '.join([Vocab[goodWords[w]] for w in np.argsort(-1*uErrBiggest[j])[:20]])
-
+    print 'BOTH'
+    print ' '.join([Vocab[w] for w in np.argsort(-1*score)[:20]])
   return score
 
 def calc_underprediction_scores_per_word(model, Data, LP=None, **kwargs):
