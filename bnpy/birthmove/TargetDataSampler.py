@@ -88,13 +88,22 @@ def _sample_target_WordsData(Data, model=None, LP=None, **kwargs):
   hasWordIDs = 'targetWordIDs' in kwargs and kwargs['targetWordIDs'] is not None
   if hasWordIDs:
     wordIDs = kwargs['targetWordIDs']
-    print wordIDs
     TinyMatrix = DocWordMat[candidates, :].toarray()[:, wordIDs]
     targetCountPerDoc = np.sum(TinyMatrix > 0, axis=1)
     mask = targetCountPerDoc >= kwargs['targetWordMinCount']
     candidates = candidates[mask]
+    probCandidates = None
 
-  if kwargs['targetMinKLPerDoc'] > 0:
+    if hasattr(Data, 'vocab_dict'):
+      Vocab = [str(x[0][0]) for x in Data.vocab_dict]
+      X = Data.select_subset_by_mask(candidates)
+      X = X.to_sparse_docword_matrix().toarray()
+      print 'EXAMPLE TARGET DOCS'
+      for dd in range(np.minimum(X.shape[0],10)):
+        print ' '.join([Vocab[w] for w in np.argsort(-1*X[dd,:])[:10]])
+        print '     ', ' '.join([Vocab[wordIDs[w]] for w in np.argsort(-1*X[dd,wordIDs])[:4]])
+
+  elif kwargs['targetMinKLPerDoc'] > 0:
     ### Build model's expected word distribution for each document
     Prior = np.exp( LP['E_logPi'][candidates])
     Lik = np.exp(model.obsModel.getElogphiMatrix())
