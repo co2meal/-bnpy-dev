@@ -92,8 +92,8 @@ def select_target_comp(K, SS=None, model=None, LP=None, Data=None,
 
 ########################################################### select_target_words
 ###########################################################
-def select_target_words(nWords=3, model=None, 
-                           LP=None, Data=None, SS=None, Q=None,
+def select_target_words(model=None, 
+                        LP=None, Data=None, SS=None, Q=None,
                            excludeList=list(), doVerbose=False, return_ps=0,
                            **kwargs):
   ''' Choose a set of vocabulary words to target with a birth proposal.
@@ -112,12 +112,19 @@ def select_target_words(nWords=3, model=None,
       -------
       BirthProposalError, if cannot select a valid choice
   '''
+  nWords = kwargs['targetNumWords']
   targetSelectName = kwargs['targetSelectName']
   if targetSelectName == 'wordUniform':
     pWords = np.ones(Data.vocab_size)
+    doRelWords = 0
   elif targetSelectName == 'wordPredictionQuality':
     pWords = calc_underprediction_scores_per_word(model,
                                                   Data, LP=LP, **kwargs)
+    doRelWords = 1
+  elif targetSelectName == 'wordQualityClosestPair':
+    pWords = calc_word_scores_for_closest_pair_of_underpredicted_docs(
+                                                  model, Data, LP)
+    doRelWords = 0
   elif targetSelectName == 'anchorWords':
     assert Q is not None
     K = model.obsModel.K
@@ -125,23 +132,27 @@ def select_target_words(nWords=3, model=None,
     for k in xrange(K):
       topics[k,:] = model.obsModel.comp[k].lamvec
       topics[k,:] = topics[k,:] / topics[k,:].sum()
-    anchors = GramSchmidtUtil.FindAnchorsForExpandedBasis(Q, topics, nWords)
-    return anchors.tolist()
+    wordvec = GramSchmidtUtil.FindAnchorsForExpandedBasis(Q, topics, nWords)
+    return wordvec.tolist()
   else:
     raise NotImplementedError('Unrecognized procedure: ' + targetSelectName)
   pWords[excludeList] = 0
   if np.sum(pWords) < EPS:
     msg = 'BIRTH not possible. All words have zero probability.'
     raise BirthProposalError(msg)
-  relWords = sample_related_words_by_score(Data, pWords, nWords=nWords,
+
+  if doRelWords:
+    words = sample_related_words_by_score(Data, pWords, nWords=nWords,
                                                          **kwargs)
-  if relWords is None or len(relWords) < 1:
+  else:
+    words = kwargs['randstate'].choice(Data.vocab_size, nWords, p=pWords)
+  if words is None or len(words) < 1:
     msg = 'BIRTH not possible. Word selection failed.'
     raise BirthProposalError(msg)
 
   if return_ps:
-    return relWords, pWords
-  return relWords
+    return words, pWords
+  return words
 
 def calc_underprediction_scores_per_topic(K, model, Data, LP=None, 
                                              excludeList=list(), **kwargs):
@@ -216,6 +227,30 @@ def _hdp_calc_underprediction_scores(K, model, Data, LP, xList, **kwargs):
   score /= score.sum()
   return score
 
+def calc_word_scores_for_closest_pair_of_underpredicted_docs(model, 
+                                                            Data, LP, **kwargs):
+  DocWordFreq_emp = calcWordFreqPerDoc_empirical(Data)
+  DocWordFreq_model = calcWordFreqPerDoc_model(model, LP)
+  uError = np.maximum( DocWordFreq_emp - DocWordFreq_model, 0)
+
+  uErrorPerDoc = np.sum(uError, axis=1)
+
+  # Find two similar docs that have very large underprediction error
+  mostUnexplainedDocs = np.argsort(-1*uErrorPerDoc)[:25]
+    # Find the two most similar docs among this top list
+  from scipy.spatial.distance import cdist
+  uErrBiggest = uError[mostUnexplainedDocs]
+  D = cdist( uErrBiggest, uErrBiggest, 'cityblock')
+  D += D.max() * np.eye(D.shape[0])
+  i, j = np.unravel_index(np.argmin(D), D.shape)
+  
+  # Identify words that are highly underpredicted in both documents
+  score = uErrBiggest[i] * uErrBiggest[j] 
+  score = np.maximum(score, 0)
+  score = score * score # make more peaked!
+  score /= score.sum()
+  return score
+
 def calc_underprediction_scores_per_word(model, Data, LP=None, **kwargs):
   ''' Calculate for each vocab word a scalar score. Larger => worse prediction.
   '''
@@ -234,8 +269,7 @@ def calc_underprediction_scores_per_word(model, Data, LP=None, **kwargs):
     candidateDocs = np.flatnonzero(countPerDoc > typicalWordCount)
     if len(candidateDocs) < 10:
       continue
-    score[vID] = np.sum(uError[candidateDocs])
-
+    score[vID] = np.mean(uError[candidateDocs, vID])
   # Only give positive probability to words with above average score
   score = score - np.mean(score) 
   score = np.maximum(score, 0)

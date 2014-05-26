@@ -31,6 +31,7 @@ TargetSamplerArgsIN = dict(
                targetMinSize=10,
                targetMaxSize=200,
                targetMinWordsPerDoc=100,
+               targetNumWords=20,
                targetWordMinCount=1,
                targetMinKLPerDoc=0,
                targetHoldout=0,
@@ -191,11 +192,11 @@ def MakeTargetData(selectName, Data, model, SS, LP, initName=None,
     Q = Data.to_wordword_cooccur_matrix()
     goodWords = Data.getWordsThatAppearInAtLeastNDocs(50)
     Q = Q[goodWords]
-    anchors = TargetPlanner.select_target_words(nWords=3, model=model, Q=Q, 
+    anchors = TargetPlanner.select_target_words(model=model, Q=Q, 
                            targetSelectName=selectName,
-                           excludeList=list())
+                           excludeList=list(), **TargetSamplerArgs)
   elif selectName.lower().count('word'):
-    anchors, ps = TargetPlanner.select_target_words(nWords=5, model=model, 
+    anchors, ps = TargetPlanner.select_target_words(model=model, 
                            Data=Data, LP=LP, 
                            targetSelectName=selectName, return_ps=1,
                            **TargetSamplerArgs)
