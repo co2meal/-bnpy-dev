@@ -1,3 +1,13 @@
+#! /contrib/projects/EnthoughtPython/epd64/bin/python -W ignore::DeprecationWarning
+#$ -S /contrib/projects/EnthoughtPython/epd64/bin/python
+# ------ set working directory
+#$ -cwd 
+# ------ attach environment variables
+#$ -v PYTHONPATH -v BNPYOUTDIR -v BNPYDATADIR -v OMP_NUM_THREADS
+# ------ send to particular queue
+#$ -o /data/liv/liv-x/topic_models/birth-results/logs/$JOB_ID.$TASK_ID.out
+#$ -e /data/liv/liv-x/topic_models/birth-results/logs/$JOB_ID.$TASK_ID.err
+
 import argparse
 from matplotlib import pylab
 import numpy as np
@@ -12,7 +22,7 @@ from bnpy.allocmodel.admix import OptimizerForHDPStickBreak as OptimHDPSB
 
 CACHEDIR = '/Users/mhughes/git/bnpy2/local/dump/'
 if not os.path.exists(CACHEDIR):
-  CACHEDIR = '/data/liv/liv-x/bnpy/local/dump/'
+  CACHEDIR = '/data/liv/liv-x/topic_models/birth-results/'
 assert os.path.exists(CACHEDIR)
 
 TargetSamplerArgsIN = dict(
@@ -132,13 +142,20 @@ def LoadData(dataname):
   if dataname.count('Bars'):
     import BarsK10V900
     Data = BarsK10V900.get_data(nDocTotal=2000, nWordsPerDoc=250)
-  else:
+  elif dataname.count('NIPS'):
     os.environ['BNPYDATADIR'] = '/data/NIPS/'
     if not os.path.exists(os.environ['BNPYDATADIR']):
       os.environ['BNPYDATADIR'] = '/data/liv/liv-x/topic_models/data/nips/'
     sys.path.append(os.environ['BNPYDATADIR'])
     import NIPSCorpus
     Data = NIPSCorpus.get_data()
+  elif dataname.count('huffpost'):
+    os.environ['BNPYDATADIR'] = '/data/liv/liv-x/topic_models/data/huffpost/'
+    sys.path.append(os.environ['BNPYDATADIR'])
+    import huffpost
+    Data = huffpost.get_data()
+  else:
+    raise NotImplementedError(dataname)
   return Data
 
 
@@ -304,7 +321,7 @@ def LoadModelAndData(dataName, initName):
 
 def createOutPath(args, basename='BirthResults.dump'):
   outPath = os.path.join(CACHEDIR, args.data, 
-                         args.initName + '+' + args.jobName, str(args.task))
+                         args.jobName, str(args.task))
   mkpath(outPath)
   outPath = os.path.join(outPath, basename)
   return outPath
@@ -323,7 +340,11 @@ if __name__ == '__main__':
   kwargs = bnpy.ioutil.BNPYArgParser.arglist_to_kwargs(unkList)
   if len(args.jobName) == 0:
     args.jobName = args.selectName
-    
+  taskKey = 'SGE_TASK_ID'
+  if taskKey in os.environ:
+    args.task = int(os.environ[taskKey])
+  print "TASK ", args.task
+
   Data, model, SS, LP, cachefile = LoadModelAndData(args.data, args.initName)
 
   targetData, targetInfo = MakeTargetData(args.selectName, Data, model, SS, LP,
