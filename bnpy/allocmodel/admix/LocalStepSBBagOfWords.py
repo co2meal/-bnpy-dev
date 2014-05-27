@@ -83,9 +83,8 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
       LP['initMAPscore'] = np.zeros(Data.nDoc)
       LP['initMAPPi'] = np.zeros((Data.nDoc,K))
 
-
-      hasPi = LP['expElogpi'] is not None and LP['expElogpi'].shape[1] == K
-
+      hasPi = 'expElogpi' in LP and LP['expElogpi'] is not None \
+                and LP['expElogpi'].shape[1] == K
       for d in xrange(Data.nDoc):
         start = Data.doc_range[d,0]
         stop = Data.doc_range[d,1]

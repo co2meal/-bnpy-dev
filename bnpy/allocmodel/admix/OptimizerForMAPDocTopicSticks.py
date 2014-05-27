@@ -17,7 +17,7 @@ EPS = 10*np.finfo(float).eps
 def find_optimum_multiple_tries(Xd=0, Ld=0, avec=0, bvec=0,
                                 initeta=None,
                                 approx_grad=1,
-                                factrList=[1e5, 1e7, 1e9, 1e10, 1e11, 1e12],
+                                factrList=[1e9, 1e10, 1e12], # make it faster
                                 return_pi=0,
                                 **kwargs):
   ''' 
