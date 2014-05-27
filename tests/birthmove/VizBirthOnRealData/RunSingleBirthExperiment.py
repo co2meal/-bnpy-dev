@@ -17,6 +17,7 @@ import joblib
 from distutils.dir_util import mkpath
 
 import bnpy
+from bnpy.birthmove.BirthProposalError import BirthProposalError
 from bnpy.birthmove import BirthMove, BirthRefine, TargetPlanner, TargetDataSampler
 from bnpy.allocmodel.admix import OptimizerForHDPStickBreak as OptimHDPSB
 
@@ -347,8 +348,21 @@ if __name__ == '__main__':
 
   Data, model, SS, LP, cachefile = LoadModelAndData(args.data, args.initName)
 
-  targetData, targetInfo = MakeTargetData(args.selectName, Data, model, SS, LP,
-                              seed=args.task, **kwargs)
+  targetData = None
+  for trial in xrange(10):
+    try:
+      targetData, targetInfo = MakeTargetData(args.selectName, Data, model, 
+                              SS, LP,
+                              seed=1000*args.task + trial, **kwargs)
+    except BirthProposalError:
+      print 'EMPTY! Retrying...'
+      continue
+    if targetData.nDoc >= 10:
+      break
+    else:
+      print 'TOO SMALL! Retrying...'
+
+  
   outPath = createOutPath(args)
   RunBirthOnTargetData(outPath, model, SS, Data, targetData, targetInfo,
                              cachefile=cachefile, seed=args.task, **kwargs)
@@ -357,3 +371,4 @@ if __name__ == '__main__':
   RunCurrentModelOnTargetData(outPath, model, SS, Data, targetData,
                              cachefile=cachefile, seed=args.task, **kwargs)
 
+  

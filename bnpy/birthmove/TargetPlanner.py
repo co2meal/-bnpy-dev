@@ -141,8 +141,9 @@ def select_target_words(model=None,
                                                          **kwargs)
   else:
     nWords = np.minimum(nWords, (pWords>EPS).sum())
-    words = kwargs['randstate'].choice(Data.vocab_size, nWords, replace=0,
-                                                        p=pWords)
+    words = np.argsort(-1 * pWords)[:nWords]
+    #words = kwargs['randstate'].choice(Data.vocab_size, nWords, replace=0,
+    #                                                    p=pWords)
   if words is None or len(words) < 1:
     msg = 'BIRTH not possible. Word selection failed.'
     raise BirthProposalError(msg)
@@ -150,8 +151,19 @@ def select_target_words(model=None,
   if hasattr(Data, 'vocab_dict'):
     Vocab = [str(x[0][0]) for x in Data.vocab_dict]
     print 'TARGETED WORDS'
-    sIDs = np.argsort(-1*pWords)[:nWords]
     print ' '.join([Vocab[w] for w in words])
+
+    '''
+    print 'TFIDF REWEIGHTING'
+    nDocsPerW = Data.getNumDocsPerWord()
+    tfidfScore = pWords * np.log( Data.nDoc / (.000001+nDocsPerW) )
+    sIDs = np.argsort(-1*tfidfScore)[:nWords]
+    print ' '.join([Vocab[w] for w in sIDs])
+    '''
+    #print 'HIGHEST PROB WORDS'
+    #sIDs = np.argsort(-1*pWords)[:nWords]
+    #print ' '.join([Vocab[w] for w in sIDs])
+
   if return_ps:
     return words, pWords
   return words
@@ -164,9 +176,12 @@ def calc_word_scores_for_anchor(model, Q, Data, **kwargs):
     topics[k,:] = model.obsModel.comp[k].lamvec
     topics[k,:] = topics[k,:] / topics[k,:].sum()
   # Normalization happens internally in this function
-  choice = GramSchmidtUtil.FindAnchorsForExpandedBasis(Q[goodWords], topics, 
-                                                           1)
-  chosenWord = goodWords[choice[0]]
+  choices = GramSchmidtUtil.FindAnchorsForExpandedBasis(Q[goodWords], topics, 
+                                                           10)
+
+  choice = kwargs['randstate'].choice(choices, 1)
+
+  chosenWord = goodWords[choice]
   if hasattr(Data, 'vocab_dict'):
     Vocab = [str(x[0][0]) for x in Data.vocab_dict]
     print 'CHOSEN ANCHOR WORD: %s' % (Vocab[chosenWord])
