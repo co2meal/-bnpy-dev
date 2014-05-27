@@ -94,6 +94,10 @@ def _sample_target_WordsData(Data, model=None, LP=None, **kwargs):
     candidates = candidates[mask]
     probCandidates = None
 
+    if candidates is not None and len(candidates) == 0:
+      from BirthProposalError import BirthProposalError
+      raise BirthProposalError('No Candidates for Specified Target')
+
     if hasattr(Data, 'vocab_dict'):
       Vocab = [str(x[0][0]) for x in Data.vocab_dict]
       X = Data.select_subset_by_mask(candidates)
@@ -139,6 +143,10 @@ def _sample_target_WordsData(Data, model=None, LP=None, **kwargs):
       probCandidates = probCandidates[np.newaxis]
     probCandidates = probCandidates * probCandidates # make more peaked
     probCandidates /= probCandidates.sum()
+
+  if candidates is not None and len(candidates) == 0:
+    from BirthProposalError import BirthProposalError
+    raise BirthProposalError('No Candidates for Specified Target')
 
   targetData = Data.get_random_sample(kwargs['targetMaxSize'],
                            randstate=kwargs['randstate'],

@@ -36,7 +36,9 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None, **kwargs):
     assert Q is not None
     freshModel = create_new_model_expandedspectral(freshModel, Q, freshData,
                                                    bigModel, **kwargs)
-
+  elif kwargs['creationRoutine'] == 'spectralOnTarget':
+    freshModel = create_new_model_spectralOnTarget(freshModel, freshData,
+                                                   bigModel, **kwargs)
   else:
     freshModel.init_global_params(freshData, 
                                   K=kwargs['Kfresh'],
@@ -152,6 +154,25 @@ def create_new_model_expandedspectral(freshModel, Q, freshData, bigModel,
     topics[k,:] = topics[k,:] / topics[k,:].sum()
 
   Kfresh = kwargs['Kfresh']
+  bestRows = GSU.FindAnchorsForExpandedBasis(Q, topics, Kfresh)
+  newTopics = Q[bestRows] / Q[bestRows].sum(axis=1)[:,np.newaxis]
+  freshModel.set_global_params(beta=np.ones(Kfresh)/Kfresh, K=Kfresh,
+                               topics=newTopics,
+                               wordcountTotal=freshData.word_count.sum()
+                              )
+  return freshModel
+
+
+def create_new_model_spectralOnTarget(freshModel, freshData, bigModel,
+                                                  **kwargs):
+  K = bigModel.obsModel.K
+  topics = np.zeros((K, freshData.vocab_size))
+  for k in xrange(K):
+    topics[k,:] = bigModel.obsModel.comp[k].lamvec
+    topics[k,:] = topics[k,:] / topics[k,:].sum()
+
+  Kfresh = kwargs['Kfresh']
+  Q = freshData.to_sparse_docword_matrix().toarray()
   bestRows = GSU.FindAnchorsForExpandedBasis(Q, topics, Kfresh)
   newTopics = Q[bestRows] / Q[bestRows].sum(axis=1)[:,np.newaxis]
   freshModel.set_global_params(beta=np.ones(Kfresh)/Kfresh, K=Kfresh,
