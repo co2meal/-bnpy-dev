@@ -56,9 +56,7 @@ def expand_then_refine(freshModel, freshSS, freshData,
     Info['traceBeta'] = xInfo['traceBeta']
     Info['traceELBO'] = xInfo['traceELBO']
 
-
   AInfo = _delete_from_AInfo(AInfo, xInfo['origIDs'], Kx)
-
   if hasattr(xfreshSS, 'nDoc'):
     assert xbigSS.nDoc == bigSS.nDoc
     assert xfreshSS.nDoc == freshData.nDoc
@@ -130,13 +128,12 @@ def refine_expanded_model_with_VB_iters(xbigModel, freshData,
       for k in reversed(range(Korig, xfreshSS.K)):
         if xfreshSS.N[k] < kwargs['cleanupMinSize']:
           xfreshSS.removeComp(k)
-          xbigSS.removeComp(k)
+          xbigSS.removeComp(xbigSS.K - 1) # last in order!
           del origIDs[k]
 
     if xfreshSS.K == Korig:
       msg = "BIRTH failed. After refining, no new comps above cleanupMinSize."
       raise BirthProposalError(msg)
-
 
     xbigSS += xfreshSS
     xbigModel.allocModel.update_global_params(xbigSS)
@@ -156,5 +153,6 @@ def refine_expanded_model_with_VB_iters(xbigModel, freshData,
 def _delete_from_AInfo(AInfo, origIDs, Kx):
   if AInfo is not None and len(origIDs) < Kx:
     for key in AInfo:
-      AInfo[key] = AInfo[key][origIDs]
+      AInfo[key] = AInfo[key][:len(origIDs)] # keep first in stick order!
+      #AInfo[key] = AInfo[key][origIDs]
   return AInfo

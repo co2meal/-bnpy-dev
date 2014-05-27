@@ -82,9 +82,12 @@ class HDPStickBreak(AllocModel):
       bestMethod = np.zeros(Data.nDoc)
       for mID, mname in enumerate(reversed(sorted(methods))):
         initLP = dict(**LP)
-        if mname == 'memo' and 'DocTopicCount' not in LP:
-          continue        
-        
+        hasDTCount = 'DocTopicCount' in LP \
+                       and LP['DocTopicCount'].shape[1] == self.K
+
+        if mname == 'memo' and not hasDTCount:
+          continue
+
         curLP = self.calc_local_params(Data, dict(**initLP), methodLP=mname, 
                                                      doInPlaceLP=0, **kwargs) 
         curELBO = self.calcPerDocELBO(Data, curLP)

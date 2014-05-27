@@ -46,9 +46,11 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, **kwargsIN):
     if kwargs['birthVerifyELBOIncrease']:
       curbigModel = bigModel.copy()
       nStep = 3
+      curfreshLP = None
       for step in range(nStep):
         doELBO = (step == nStep-1) # only on last step
-        curfreshLP = curbigModel.calc_local_params(freshData)
+        curfreshLP = curbigModel.calc_local_params(freshData, curfreshLP, 
+                                                              **kwargs)
         curfreshSS = curbigModel.get_global_suff_stats(freshData, curfreshLP,
                                                        doPrecompEntropy=doELBO)
         if not doELBO: # all but the last step

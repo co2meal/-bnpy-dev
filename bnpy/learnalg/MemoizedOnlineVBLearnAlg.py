@@ -315,12 +315,13 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         LPchunk : bnpy local parameters dictionary for batchID
     '''
     LPchunk = self.LPmemory[batchID]
+    ''' we now check inside the calc_local_params for this!
     if self.hasMove('birth') and LPchunk is not None:
       if BirthResults is not None and len(BirthResults) > 0:
         # new components have been "born", so discard old results
         #   since they no longer matter
         LPchunk = None
-
+    '''
     if self.hasMove('merge') and LPchunk is not None:
       for MInfo in self.MergeLog:
         kA = MInfo['kA']
