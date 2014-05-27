@@ -81,7 +81,7 @@ def find_optimum(Xd=0, Ld=0, avec=0, bvec=0,
   assert bvec.ndim == 1 and bvec.size == K
 
   if initeta is None:
-    initeta = create_initeta(K)
+    initeta = create_initeta__FromPrior(avec, bvec)
   assert initeta.size == K and not np.any(np.isinf(initeta))
   
   ## Define objective function (unconstrained!)
@@ -110,7 +110,13 @@ def find_optimum(Xd=0, Ld=0, avec=0, bvec=0,
   Info['objFunc'] = objFunc
   return bestEta, fbest, Info
 
-def create_initeta(K, remMass=0.01):
+
+def create_initeta__FromPrior(avec, bvec):
+  v = avec / (avec + bvec)
+  return invsigmoid(v)
+
+
+def create_initeta__Uniform(K, remMass=0.01):
   if K == 1:
     return (1-remMass) * np.ones(1)
   rem = np.minimum( remMass, 1.0/(K*K))

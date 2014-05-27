@@ -69,6 +69,7 @@ class HDPStickBreak(AllocModel):
   ######################################################### Local Params
   #########################################################
   def calc_local_params(self, Data, LP, methodLP='memo', **kwargs):
+    kwargs = dict(**kwargs)
     methods = methodLP.split(',')
     if len(methods) == 1:
       if 'doInPlaceLP' not in kwargs:
@@ -76,7 +77,7 @@ class HDPStickBreak(AllocModel):
       LP = LocalStepSBBagOfWords.calcLocalDocParams(Data, LP, 
                                   self.topicPrior1, self.topicPrior0,
                                   methodLP=methodLP, **kwargs)
-      bestLP = self._local_update_Resp(Data, LP)
+      bestLP = self._local_update_Resp(Data, LP, **kwargs)
     else:
       bestLP = None
       bestMethod = np.zeros(Data.nDoc)
@@ -84,11 +85,12 @@ class HDPStickBreak(AllocModel):
         initLP = dict(**LP)
         if mname == 'memo' and 'DocTopicCount' not in LP:
           continue        
-        
+
+        kwargs['doInPlaceLP'] = 0
         curLP = self.calc_local_params(Data, dict(**initLP), methodLP=mname, 
-                                                     doInPlaceLP=0, **kwargs) 
+                                                             **kwargs) 
         curELBO = self.calcPerDocELBO(Data, curLP)
-        
+
         if bestLP == None:
           bestELBO = curELBO
           bestLP = curLP
@@ -112,8 +114,11 @@ class HDPStickBreak(AllocModel):
     assert np.allclose( bestLP['word_variational'].sum(axis=1), 1.0)
     return bestLP
 
-  def _local_update_Resp(self, Data, LP):
-    LP['word_variational'] = LP['expEloglik']
+  def _local_update_Resp(self, Data, LP, doInPlaceLP=1, **kwargs):
+    if doInPlaceLP:
+      LP['word_variational'] = LP['expEloglik']
+    else:
+      LP['word_variational'] = LP['expEloglik'].copy()
     for d in xrange(Data.nDoc):
       start = Data.doc_range[d,0]
       stop  = Data.doc_range[d,1]
