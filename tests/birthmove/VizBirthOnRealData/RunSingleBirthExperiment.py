@@ -360,6 +360,7 @@ if __name__ == '__main__':
     else:
       print 'TOO SMALL! Retrying...'
 
+  '''
   outPath = createOutPath(args)
   RunBirthOnTargetData(outPath, model, SS, Data, targetData, targetInfo,
                              cachefile=cachefile, seed=args.task, **kwargs)
@@ -368,3 +369,4 @@ if __name__ == '__main__':
   RunCurrentModelOnTargetData(outPath, model, SS, Data, targetData,
                              cachefile=cachefile, seed=args.task, **kwargs)
 
+  '''
