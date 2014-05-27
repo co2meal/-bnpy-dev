@@ -214,6 +214,7 @@ def MakeTargetData(selectName, Data, model, SS, LP, initName=None,
                                                targetCompID=ktarget,
                                                **TargetSamplerArgs)
   Info = dict(ktarget=ktarget, targetWordIDs=anchors, ps=ps, ktrue=ktrue)
+
   return targetData, Info
 
 def findMostMissingTrueTopic(TrueTopics, EstTopics, Ktrue, Kest):

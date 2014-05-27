@@ -15,6 +15,52 @@ from BirthProposalError import BirthProposalError
 
 EPS = 1e-14
 
+def select_target_words_MultipleSets(model=None, 
+                        LP=None, Data=None, SS=None, Q=None,
+                        nSets=1, targetNumWords=10, **kwargs):
+  goodWords = get_good_words(Data)
+  DocWordFreq_emp = calcWordFreqPerDoc_empirical(Data)
+  DocWordFreq_model = calcWordFreqPerDoc_model(model, LP)
+  DocWordFreq_emp = DocWordFreq_emp[:, goodWords]
+  DocWordFreq_model = DocWordFreq_model[:, goodWords]
+
+  uError = np.maximum( DocWordFreq_emp - DocWordFreq_model, 0)
+  uErrorPerDoc = np.sum(uError, axis=1)
+
+  # Find two similar docs that have very large underprediction error
+  mostUnexplainedDocs = np.argsort(-1*uErrorPerDoc)[:200]
+  uErrBiggest = uError[mostUnexplainedDocs]
+  binErrBig = uErrBiggest > 0
+
+  # Find the two most similar docs among this top list
+  from scipy.spatial.distance import cdist
+  D = cdist( uErrBiggest, uErrBiggest, 'cityblock')
+  D[D==0] = Data.vocab_size  # make bad pairs impossible to pick
+
+  nSets = np.minimum(nSets, D.shape[0])
+  Plans = list()
+  for x in range(nSets):
+    bestPair = np.argmin(D.flatten())
+    a, b = np.unravel_index(bestPair, D.shape)
+
+    # eliminate these docs from further consideration
+    D[a,:] = Data.vocab_size 
+    D[:,a] = Data.vocab_size 
+    D[:,b] = Data.vocab_size 
+    D[b,:] = Data.vocab_size
+    score =  uErrBiggest[a] + uErrBiggest[b]
+    onTopicWords = goodWords[ np.argsort(-1 * score)[:targetNumWords] ]
+    if hasattr(Data, 'vocab_dict'):
+      Vocab = [str(x[0][0]) for x in Data.vocab_dict]
+      print 'Anchor Doc %d' % (a)
+      print ' '.join([Vocab[goodWords[w]] for w in np.argsort(-1*uErrBiggest[a])[:20]])
+      print 'Anchor Doc %d' % (b)
+      print ' '.join([Vocab[goodWords[w]] for w in np.argsort(-1*uErrBiggest[b])[:20]])
+      print 'BOTH'
+      print ' '.join([Vocab[w] for w in onTopicWords])
+    Plans.append(dict(targetWordIDs=onTopicWords, ktarget=None, Data=None))
+  return Plans
+
 def select_target_comp(K, SS=None, model=None, LP=None, Data=None,
                            lapsSinceLastBirth=defaultdict(int),
                            excludeList=list(), doVerbose=False, return_ps=False,
@@ -269,7 +315,8 @@ def _hdp_calc_underprediction_scores(K, model, Data, LP, xList, **kwargs):
 def get_good_words(Data):
   nDPerWord = Data.getNumDocsPerWord()
   UpLimit = 0.15*Data.nDoc
-  if nDPerWord.min() > UpLimit:
+  isToyData = int(np.sqrt(Data.vocab_size)) == np.sqrt(Data.vocab_size)
+  if isToyData:
     UpLimit = Data.nDoc # only toy data hits this line
   goodWords = np.flatnonzero( (nDPerWord < UpLimit) \
                             * (nDPerWord > 25))

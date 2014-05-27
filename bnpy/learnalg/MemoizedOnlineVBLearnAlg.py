@@ -380,6 +380,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         BirthResults : list of dicts, one entry per birth move
     '''
     kwargs = dict(**self.algParams['birth'])
+    kwargs.update(**self.algParamsLP)
 
     if 'birthRetainExtraMass' not in kwargs:
       kwargs['birthRetainExtraMass'] = 1
@@ -389,7 +390,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
                                         Data, model=hmodel, LP=None,
                                         randstate=self.PRNG,
                                         **kwargs)
-      Plan = dict(Data=targetData, ktarget=-1)
+      Plan = dict(Data=targetData, ktarget=-1, targetWordIDs=[-1])
       BirthPlans = [Plan]
       kwargs['birthRetainExtraMass'] = 0
 
@@ -401,7 +402,12 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       targetData = Plan['Data']
       targetSize = TargetDataSampler.getSize(targetData)
 
-      if ktarget is None or targetData is None:
+      if 'targetWordIDs' not in Plan or Plan['targetWordIDs'] is None:
+        isBad = ktarget is None
+      else:
+        isBad = len(Plan['targetWordIDs']) == 0
+
+      if isBad or targetData is None:
         msg = Plan['msg']
       elif targetSize < kwargs['targetMinSize']:
         msg = "BIRTH skipped. Target data too small. Size %d."
@@ -459,6 +465,13 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     if SS is not None:
       assert hmodel.allocModel.K == SS.K
     K =  hmodel.allocModel.K
+    nBirths = self.algParams['birth']['birthPerLap']
+    if self.algParams['birth']['targetSelectName'].lower().count('word'):
+      Plans = TargetPlanner.select_target_words_MultipleSets(
+                            model=hmodel, Data=Data, LP=LP, 
+                            nSets=nBirths, randstate=self.PRNG,
+                            **self.algParams['birth'])
+      return Plans
 
     # Update counter for duration since last targeted-birth for each comp
     for kk in range(K):
@@ -468,7 +481,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
     # For each birth move, create a "plan"
     BirthPlans = list()
-    for posID in range(self.algParams['birth']['birthPerLap']):
+    for posID in range(nBirths):
       try:
         ktarget = TargetPlanner.select_target_comp(
                              K, SS=SS, Data=Data, model=hmodel,
@@ -478,10 +491,10 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
                               **self.algParams['birth'])
         self.LapsSinceLastBirth[ktarget] = 0
         excludeList.append(ktarget)
-        Plan = dict(ktarget=ktarget, Data=None)
+        Plan = dict(ktarget=ktarget, Data=None, targetWordIDs=None)
       except BirthMove.BirthProposalError, e:
         # Happens when no component is eligible for selection (all excluded)
-        Plan = dict(ktarget=None, Data=None, msg=str(e))
+        Plan = dict(ktarget=None, Data=None, msg=str(e), targetWordIDs=None)
       BirthPlans.append(Plan)
     return BirthPlans
 
@@ -498,7 +511,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     '''
     for Plan in BirthPlans:
       # Skip this move if component selection failed
-      if Plan['ktarget'] is None:
+      if Plan['ktarget'] is None and Plan['targetWordIDs'] is None:
         continue
 
       birthParams = dict(**self.algParams['birth'])
@@ -517,6 +530,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       targetData = TargetDataSampler.sample_target_data(
                           Dchunk, model=model, LP=LPchunk,
                           targetCompID=Plan['ktarget'],
+                          targetWordIDs=Plan['targetWordIDs'],
                           randstate=self.PRNG,
                           **birthParams)
 
