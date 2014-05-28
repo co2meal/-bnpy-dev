@@ -3,6 +3,7 @@ import numpy as np
 from bnpy.deletemove.DeleteMoveBagOfWords import construct_LP_with_comps_removed 
 import bnpy.deletemove.DeleteMoveStickBreak as DMSB
 
+from BirthLogger import log, logPosVector, logPhase
 from BirthProposalError import BirthProposalError
 
 ########################################################### delete comps
@@ -53,6 +54,16 @@ def delete_comps_to_improve_ELBO(Data, model,
   #  raise BirthProposalError(msg)
   return model, SS, ELBO
 
+def _make_del_candidate__viaLP(Data, model, LP, k):
+  ''' Construct candidate model with deleted comp k from local params.
+  '''
+  rLP = _delete_comps_from_LP(Data, model, LP, k)
+  rSS = model.get_global_suff_stats(Data, rLP, doPrecompEntropy=True)
+
+  rmodel = model.copy()
+  rmodel.update_global_params(rSS)
+  return rmodel, rSS, rLP
+
 def _delete_comps_from_LP(Data, model, LP, k):
   ''' Construct local params dict with components removed.
   '''
@@ -66,15 +77,7 @@ def _delete_comps_from_LP(Data, model, LP, k):
     rLP = makeLPfunc(Data, model, compIDs=[k], LP=LP)
   return rLP
 
-def _make_del_candidate__viaLP(Data, model, LP, k):
-  ''' Construct candidate model with deleted comp k from local params.
-  '''
-  rLP = _delete_comps_from_LP(Data, model, LP, k)
-  rSS = model.get_global_suff_stats(Data, rLP, doPrecompEntropy=True)
 
-  rmodel = model.copy()
-  rmodel.update_global_params(rSS)
-  return rmodel, rSS, rLP
 
 ########################################################### delete expanded
 ###########################################################
@@ -90,7 +93,9 @@ def delete_comps_from_expanded_model_to_improve_ELBO(Data,
       model : HModel with Knew comps
       SS : SuffStatBag with Knew comps
       ELBO : evidence lower bound for the returned model
-  '''  
+  '''
+  logPhase('Cleanup')
+
   K = xbigSS.K
   assert xbigSS.K == xfreshSS.K
   assert xbigModel.obsModel.K == K
@@ -100,7 +105,6 @@ def delete_comps_from_expanded_model_to_improve_ELBO(Data,
     return xbigModel, xbigSS, xfreshSS, origIDs
 
   xfreshELBO = xbigModel.calc_evidence(SS=xfreshSS)
-
   for k in reversed(range(Korig, K)):
     if kwargs['cleanupDeleteViaLP']:
       rbigModel, rbigSS, rfreshSS, rfreshELBO, rfreshLP = _make_xcandidate_LP(
@@ -116,6 +120,9 @@ def delete_comps_from_expanded_model_to_improve_ELBO(Data,
     # If ELBO has improved, set current model to delete component k
     didAccept = False
     if rfreshELBO >= xfreshELBO:
+      log('Deletion accepted. prop %.5e > cur %.5e' % (rfreshELBO,xfreshELBO))
+      logPosVector(xfreshSS.N[Korig:])
+
       xbigSS = rbigSS
       xfreshSS = rfreshSS
       xbigModel = rbigModel
@@ -133,10 +140,12 @@ def delete_comps_from_expanded_model_to_improve_ELBO(Data,
     msg = "BIRTH failed. After expansion, deleting all new comps improves ELBO."
     raise BirthProposalError(msg)
 
+  
   if didAccept:
     # Make sure that final model has correct scale
     xbigModel.update_global_params(xbigSS + xfreshSS)
-
+  else:
+    log(' No deletions improved model quality.')
   return xbigModel, xbigSS, xfreshSS, origIDs
 
 
@@ -147,7 +156,7 @@ def _make_xcandidate(xbigModel, Data, xbigSS, xfreshSS, k):
 
   rbigSS.removeComp(k)
   rfreshSS.removeComp(k)
-    
+  
   rSS = rbigSS + rfreshSS
   rbigModel.update_global_params(rSS)
 
@@ -165,11 +174,15 @@ def _make_xcandidate_LP(xbigModel, Data, xbigSS, xfreshSS, xfreshLP, k):
 
   rbigModel = xbigModel.copy()
   rbigSS = xbigSS.copy()
-  rbigSS.removeComp(k)
+  rbigSS.removeComp(rbigSS.K-1) # just chop off the last one in stickbrk order
     
-  rbigModel.update_global_params(rbigSS + rfreshSS)
-  rfreshELBO = rbigModel.calc_evidence(SS=rfreshSS)
+  qbigSS = rbigSS + rfreshSS
+  rbigModel.update_global_params(qbigSS)
 
+  # We might consider another pass to make sure the alloc params converge
+  rbigModel.allocModel.update_global_params(qbigSS)
+
+  rfreshELBO = rbigModel.calc_evidence(SS=rfreshSS)
   return rbigModel, rbigSS, rfreshSS, rfreshELBO, rfreshLP
 
 

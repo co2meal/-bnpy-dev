@@ -1,6 +1,7 @@
 import numpy as np
 
 from BirthProposalError import BirthProposalError
+from BirthLogger import log, logProbVector, logPosVector, logPhase
 import BirthCleanup
 
 def expand_then_refine(freshModel, freshSS, freshData,
@@ -23,6 +24,8 @@ def expand_then_refine(freshModel, freshSS, freshData,
       AdjustInfo : dict with adjustment factors
       ReplaceInfo : dict with replacement factors
   '''
+  logPhase('Expansion')
+  Korig = bigSS.K
   Info = dict()
   xbigModel = bigModel.copy()
   xbigSS = bigSS.copy(includeELBOTerms=False, includeMergeTerms=False)
@@ -30,6 +33,10 @@ def expand_then_refine(freshModel, freshSS, freshData,
         and hasattr(freshModel.allocModel, 'insertCompsIntoSuffStatBag'):
     xbigSS, AInfo, RInfo = xbigModel.allocModel.insertCompsIntoSuffStatBag(
                                                             xbigSS, freshSS)
+    log('Specialized, model-specific expansion')
+    log('rho[K+1] ... rho[K+Knew]')
+    logProbVector(xbigModel.allocModel.rho[Korig:])
+
   else:
     xbigSS.insertComps(freshSS)
     AInfo = None
@@ -104,6 +111,8 @@ def refine_expanded_model_with_VB_iters(xbigModel, freshData,
       xbigSS : SuffStatBag, with K + Kfresh comps
                        scale with equal to bigData only
   '''
+  logPhase('Refinement')
+
   xInfo = dict()
   origIDs = range(0, xbigSS.K)
 
@@ -113,15 +122,18 @@ def refine_expanded_model_with_VB_iters(xbigModel, freshData,
   traceELBO = np.zeros(nIters)
 
   xfreshLP = None
+
   for riter in xrange(nIters):
     xfreshLP = xbigModel.calc_local_params(freshData, xfreshLP, **kwargs)
     xfreshSS = xbigModel.get_global_suff_stats(freshData, xfreshLP)
 
+    traceN[riter, origIDs] = xfreshSS.N
     if kwargs['birthDebug']:
       traceBeta[riter, origIDs] = xbigModel.allocModel.get_active_comp_probs()
-      traceN[riter, origIDs] = xfreshSS.N
       traceELBO[riter] = xbigModel.calc_evidence(freshData, xfreshSS, xfreshLP)
-      print ' '.join(['%8.2f' % (x) for x in xfreshSS.N[Korig:]])
+
+    if riter == 0 or (riter+1) % 5 == 0:
+      logPosVector(traceN[riter, Korig:])
 
     # For all but last iteration, attempt removing empty topics
     if kwargs['cleanupDeleteEmpty'] and riter < kwargs['refineNumIters'] - 1:
@@ -142,12 +154,16 @@ def refine_expanded_model_with_VB_iters(xbigModel, freshData,
 
   xfreshLP = xbigModel.calc_local_params(freshData, xfreshLP, **kwargs)
   xfreshSS = xbigModel.get_global_suff_stats(freshData, xfreshLP,
-                                               doPrecompEntropy=True)
+                                             doPrecompEntropy=True)
+  log('Final Assignment Counts')
+  logPosVector(xfreshSS.N[Korig:])
+
   if kwargs['birthDebug']:
     xInfo['traceBeta'] = traceBeta
     xInfo['traceN'] = traceN
     xInfo['traceELBO'] = traceELBO
   xInfo['origIDs'] = origIDs
+
   return xbigModel, xfreshSS, xfreshLP, xInfo
 
 def _delete_from_AInfo(AInfo, origIDs, Kx):

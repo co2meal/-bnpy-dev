@@ -16,6 +16,7 @@ from ..util import isEvenlyDivisibleFloat
 from ..birthmove import TargetPlanner, TargetDataSampler, BirthMove
 
 Log = logging.getLogger('bnpy')
+from bnpy.birthmove import BirthLogger
 
 class MemoizedOnlineVBLearnAlg(LearnAlg):
 
@@ -108,11 +109,13 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       if self.hasMove('birth') and self.do_birth_at_lap(lapFrac):
         if self.doBirthWithPlannedData(lapFrac):
           hmodel, SS, BirthResults = self.birth_create_new_comps(
-                                            hmodel, SS, BirthPlans)
+                                            hmodel, SS, BirthPlans,
+                                                        lapFrac=lapFrac)
 
         if self.doBirthWithDataFromCurrentBatch(lapFrac):
           hmodel, SS, BirthRes = self.birth_create_new_comps(
-                                            hmodel, SS, Data=Dchunk)
+                                            hmodel, SS, Data=Dchunk,
+                                                        lapFrac=lapFrac)
           BirthResults.extend(BirthRes)
 
         self.BirthCompIDs = self.birth_get_all_new_comps(BirthResults)
@@ -371,7 +374,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     isWithinLimit = lapFrac <= self.algParams['birth']['birthBatchLapLimit'] 
     return isWithinFrac and isWithinLimit
 
-  def birth_create_new_comps(self, hmodel, SS, BirthPlans=list(), Data=None):
+  def birth_create_new_comps(self, hmodel, SS, BirthPlans=list(), Data=None,
+                                               lapFrac=0):
     ''' Create new components 
 
         Returns
@@ -408,27 +412,29 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       else:
         isBad = len(Plan['targetWordIDs']) == 0
 
+      BirthLogger.logStartMove(lapFrac, moveID, len(BirthPlans))
       if isBad or targetData is None:
         msg = Plan['msg']
+        BirthLogger.log(msg)
       elif targetSize < kwargs['targetMinSize']:
-        msg = "BIRTH skipped. Target data too small. Size %d."
-        msg = msg % (targetSize)
+        msg = "SKIPPED. Target data too small. Size %d."
+        BirthLogger.log(msg % (targetSize))
       else:
         hmodel, SS, MoveInfo = BirthMove.run_birth_move(
                                            hmodel, SS, targetData, 
                                            randstate=self.PRNG, 
                                            **kwargs)
-
-        msg = MoveInfo['msg']
         if MoveInfo['didAddNew']:
           BirthResults.append(MoveInfo)
           for kk in MoveInfo['birthCompIDs']:
             self.LapsSinceLastBirth[kk] = -1
 
+      '''
       if Data is None:
           self.print_msg( "%d/%d %s" % (moveID+1, nMoves, msg) )
       else:
           self.print_msg( "%d/%d BATCH %s" % (moveID+1, nMoves, msg) )
+      '''
     return hmodel, SS, BirthResults
 
   def birth_remove_extra_mass(self, hmodel, SS, BirthResults):

@@ -160,6 +160,11 @@ def _run_task_internal(jobname, taskid, nTask,
   learnAlg = createLearnAlg(Data, hmodel, ReqArgs, KwArgs,
                               algseed=algseed, savepath=taskoutpath)
 
+  if learnAlg.hasMove('birth'):
+    import bnpy.birthmove.BirthLogger as BirthLogger
+    BirthLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
+    BirthLogger.log('This is the birth log.')
+
   # Check if running on grid
   try:
     jobID = int(os.getenv('JOB_ID'))

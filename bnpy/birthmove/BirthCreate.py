@@ -12,6 +12,7 @@ import numpy as np
 from bnpy.util import GramSchmidtUtil as GSU
 from BirthProposalError import BirthProposalError
 import BirthCleanup
+from BirthLogger import log, logPhase
 
 fastParams = dict(nCoordAscentItersLP=10, convThrLP=0.001)
 
@@ -59,7 +60,9 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None, **kwargs):
   freshModel.obsModel.comp = newList
   freshSS.reorderComps(bigtosmallIDs)
   '''
-
+  logPhase('Creation')
+  log(kwargs['creationRoutine'])
+  log('Kfresh=%d' % (freshSS.K))
   if not kwargs['creationDoUpdateFresh']:
     # Create freshSS that would produce (nearly) same freshModel.obsModel
     #   after a call to update_global_params
@@ -70,8 +73,10 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None, **kwargs):
       for k in xrange(freshSS.K):
         topics[k,:] = freshModel.obsModel.comp[k].lamvec - priorvec
       freshSS.setField('WordCounts', topics, dims=('K','D'))
+
     return freshModel, freshSS, Info
 
+  log('Fresh Updates ....................')
   # Record initial model for posterity
   if kwargs['birthDebug']:
     Info['freshModelInit'] = freshModel.copy()

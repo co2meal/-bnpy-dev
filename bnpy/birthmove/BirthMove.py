@@ -7,6 +7,7 @@ import BirthRefine
 import BirthCleanup
 from BirthProposalError import BirthProposalError
 import VizBirth
+from BirthLogger import log, logPhase
 
 def run_birth_move(bigModel, bigSS, freshData, Q=None, **kwargsIN):
   ''' Run birth move on provided target data, creating up to Kfresh new comps
@@ -23,7 +24,8 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, **kwargsIN):
   # Create train/test split of the freshData  
   if kwargs['birthHoldoutData']:
     nHoldout = freshData.nDoc / 5
-    holdIDs = kwargs['randstate'].choice(freshData.nDoc, nHoldout, replace=False)
+    holdIDs = kwargs['randstate'].choice(freshData.nDoc, nHoldout, 
+                                          replace=False)
     trainIDs = [x for x in xrange(freshData.nDoc) if x not in holdIDs]
     holdData = freshData.select_subset_by_mask(docMask=holdIDs, 
                                              doTrackFullSize=False)
@@ -32,13 +34,13 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, **kwargsIN):
 
   try:
     if bigSS is None:
-      msg = "BIRTH failed. SS must be valid SuffStatBag, not None."
+      msg = "SKIPPED. SS must be valid SuffStatBag, not None."
       raise BirthProposalError(msg)
 
     if bigSS.K + kwargs['Kfresh'] > kwargs['Kmax']:
       kwargs['Kfresh'] = kwargs['Kmax'] - bigSS.K
     if kwargs['Kfresh'] < 1:
-      msg = "BIRTH failed. Reached upper limit of Kmax=%d comps."
+      msg = "SKIPPED. Reached upper limit of Kmax=%d comps."
       msg = msg % (kwargs['Kmax'])
       raise BirthProposalError(msg)
 
@@ -90,14 +92,14 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, **kwargsIN):
     else:
       raise NotImplementedError('TODO')
 
-
-    assert xbigModel.obsModel.K == xbigSS.K
-
+    logPhase('Evaluation')
     if kwargs['birthVerifyELBOIncrease']:
       if earlyAdmission == -1 or earlyAdmission == 0:
         assert xfreshSS.hasELBOTerms()
         propELBO = xbigModel.calc_evidence(SS=xfreshSS)
         didPass, ELBOmsg = make_acceptance_decision(curELBO, propELBO)
+      log(ELBOmsg)
+
     else:
       didPass = True
       ELBOmsg = ''
@@ -114,14 +116,14 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, **kwargsIN):
 
     # Reject. Abandon the move.
     if not didPass:
-      msg = "BIRTH failed. No improvement over current model." + ELBOmsg
+      msg = "REJECTED. Did not explain target better than current model."
       raise BirthProposalError(msg)
 
     assert xbigModel.obsModel.K == xbigSS.K
     ### Create dict of info about this birth move
     if earlyAdmission == 1:
       ELBOmsg = '*early*' + ELBOmsg
-    msg = 'BIRTH: %d fresh comps. %s.' % (len(birthCompIDs), ELBOmsg)
+    msg = 'ACCEPTED. %d fresh comps.' % (len(birthCompIDs))
     MoveInfo = dict(didAddNew=True,
                     msg=msg,
                     AdjustInfo=xInfo['AInfo'], ReplaceInfo=xInfo['RInfo'],
@@ -171,6 +173,9 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, **kwargsIN):
     assert origids['bigModel'] == id(bigModel)
     assert origids['bigSS'] == id(bigSS)
 
+    # Write reason for failure to log
+    log(str(e))
+
     # Return failure info
     MoveInfo = dict(didAddNew=False,
                     msg=str(e),
@@ -183,9 +188,9 @@ def make_acceptance_decision(curELBO, propELBO):
   # TODO: type check to avoid this on Gauss models
   if propELBO > 0 and curELBO < 0:
     didPass = False
-    ELBOmsg = " propEv %.4e is INSANE!" % (propELBO)
+    ELBOmsg = " %.5e propEv is INSANE!" % (propELBO)
   else:
     percDiff = (propELBO - curELBO)/np.abs(curELBO)
     didPass = propELBO > curELBO and percDiff > 0.0001      
-    ELBOmsg = " propEv %.4e | curEv %.4e" % (propELBO, curELBO)
+    ELBOmsg = " %.5e propEv \n %.5e curEv" % (propELBO, curELBO)
   return didPass, ELBOmsg
