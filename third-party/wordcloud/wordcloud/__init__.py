@@ -15,12 +15,13 @@ from PIL import ImageDraw
 from PIL import ImageFont
 from query_integral_image import query_integral_image
 
-FONT_PATH = "/Library/Fonts/Microsoft/Times New Roman.ttf"
+FONT_PATH = '/usr/share/fonts/truetype/msttcorefonts/Trebuchet_MS.ttf'
+#FONT_PATH = "/Library/Fonts/Microsoft/Times New Roman.ttf"
 STOPWORDS = set([x.strip() for x in open(os.path.join(os.path.dirname(__file__),
         'stopwords')).read().split('\n')])
 
 def fit_words(words, font_path=None, width=400, height=200,
-                   margin=5, ranks_only=False, prefer_horiz=0.90):
+                   margin=5, ranks_only=False, prefer_horiz=1.0):
     """Generate the positions for words.
 
     Parameters
@@ -134,7 +135,7 @@ def fit_words(words, font_path=None, width=400, height=200,
     return zip(words, font_sizes, positions, orientations)
 
 def random_color_func(word, font_size, position, orientation):
-    return "hsl(%d" % random.randint(0, 255) + ", 80%, 50%)"
+    return "hsl(%d" % random.randint(0, 100) + ", 80%, 50%)"
 
 def draw(elements, file_name, font_path=None, width=400, height=200, scale=1,
         color_func=random_color_func):

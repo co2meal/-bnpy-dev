@@ -430,9 +430,9 @@ class WordsData(DataObj):
           wordStr = ' '.join([str(w) for w in matchWords])
         else:
           wordStr = ' '.join([Vocab[w] for w in matchWords])
-        s += " >%d%% %4d %s\n" % (p, nMatch, wordStr)  
+        s += " >%d%% %3d   %s\n" % (p, nMatch, wordStr)  
       else:
-        s += " >%d%% %d \n" % (p, 0)
+        s += " >%d%% %3d   \n" % (p, 0)
       remCandidates = np.logical_and(nDocPerWord < nThr, remCandidates)
     return s
 
