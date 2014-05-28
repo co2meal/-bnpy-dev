@@ -15,6 +15,36 @@ from BirthProposalError import BirthProposalError
 
 EPS = 1e-14
 
+def makePlansToTargetWordFreq(model=None, LP=None, Data=None, Q=None,
+                               targetSelectName='anchorFreq', nPlans=1, 
+                               **kwargs):
+  K = model.obsModel.K
+  topics = np.zeros((K, Q.shape[1]))
+  for k in xrange(K):
+    topics[k,:] = model.obsModel.comp[k].lamvec
+    topics[k,:] = topics[k,:] / topics[k,:].sum()
+  Q = Q / Q.sum(axis=1)[:,np.newaxis]
+  # Normalization happens internally in this function
+  choices = GramSchmidtUtil.FindAnchorsForExpandedBasis(Q, topics, 
+                                                           nPlans)
+  Plans = list()
+  for pID, choice in enumerate(choices):
+    Plan = dict(ktarget=None, Data=None, targetWordIDs=None,
+                targetWordFreq=Q[choice])
+    topWords = np.argsort(-1*Plan['targetWordFreq'])[:10]
+    if hasattr(Data, 'vocab_dict'):
+      Vocab = getVocab(Data)
+      topWordStr = ' '.join([Vocab[w] for w in topWords])
+    else:
+      topWordStr = ' '.join([str(w) for w in topWords])
+    Plan['log'] = list()
+    Plan['log'].append(topWordStr)
+    Plans.append(Plan)
+  return Plans
+
+def getVocab(Data):
+  return [str(x[0][0]) for x in Data.vocab_dict]
+
 def select_target_words_MultipleSets(model=None, 
                         LP=None, Data=None, SS=None, Q=None,
                         nSets=1, targetNumWords=10, **kwargs):

@@ -1,9 +1,12 @@
 import logging
 import os
 import sys
+from collections import defaultdict
 
 # Configure Logger
 Log = None
+Cache = defaultdict(lambda: list())
+CacheOrder = list()
 
 def log(msg):
   if Log is None:
@@ -31,6 +34,38 @@ def logProbVector(vec, fmt='%8.4f', Nmax=10):
   vstr = ' '.join([fmt % (x) for x in vec[:Nmax]])
   Log.info(vstr)
 
+########################################################### Advanced caching
+###########################################################
+def addToCache(cID, msg):
+  if cID not in Cache:
+    CacheOrder.append(cID)
+  Cache[cID].append(msg)
+
+def writeNextCacheToLog():
+  cID = CacheOrder.pop(0)
+  for line in Cache[cID]:
+    log(line)
+
+def writePlanToLog(Plan):
+  for line in Plan['log']:
+    log(line)
+
+'''
+, Ntop=10):
+  for Plan in Plans:
+    if 'ktarget' in Plan and Plan['ktarget'] is not None:
+      pass
+    elif 'targetWordID' in Plan and Plan['targetWordID'] is not None:
+      pass    
+    elif 'targetWordFreq' in Plan and Plan['targetWordFreq'] is not None:
+      wordFreq = Plan['targetWordFreq']
+      topWords = np.argsort(-1*wordFreq)[:Ntop]
+      topWordStr = ' '.join(topWords)
+      Cache.append(topWordStr)
+'''
+
+########################################################### Configuration
+###########################################################
 def configure(taskoutpath, doSaveToDisk=0, doWriteStdOut=0):
   global Log
   Log = logging.getLogger('birthmove')

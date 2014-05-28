@@ -107,7 +107,17 @@ def _sample_target_WordsData(Data, model=None, LP=None, **kwargs):
         print ' '.join([Vocab[w] for w in np.argsort(-1*X[dd,:])[:10]])
         print '     ', ' '.join([Vocab[wordIDs[w]] for w in np.argsort(-1*X[dd,wordIDs])[:4]])
 
-  elif kwargs['targetMinKLPerDoc'] > 0:
+  hasWordFreq = 'targetWordFreq' in kwargs and \
+                kwargs['targetWordFreq'] is not None
+  if hasWordFreq:
+    wordFreq = kwargs['targetWordFreq']
+    EmpWordFreq = DocWordMat[candidates,:].toarray()
+    EmpWordFreq /= EmpWordFreq.sum(axis=1)[:,np.newaxis]
+    distPerDoc = calcDistBetweenHist(EmpWordFreq, wordFreq)
+    candidates = candidates[distPerDoc.argsort()[:50]]
+  
+
+  if kwargs['targetMinKLPerDoc'] > 0:
     ### Build model's expected word distribution for each document
     Prior = np.exp( LP['E_logPi'][candidates])
     Lik = np.exp(model.obsModel.getElogphiMatrix())
@@ -164,6 +174,11 @@ def _sample_target_WordsData(Data, model=None, LP=None, **kwargs):
     return targetData, holdData
 
   return targetData
+
+def calcDistBetweenHist(Xfreq, yfreq, targetDistMethod='intersection'):
+  if targetDistMethod == 'intersection':
+    return np.sum( np.minimum(Xfreq, yfreq), axis=1)
+  raise NotImplementedError('UNKNOWN: ' + targetDistMethod)
 
 def calcKLdivergence_discrete(P1, P2):
   KL = np.log(P1 + 1e-100) - np.log(P2 + 1e-100)
