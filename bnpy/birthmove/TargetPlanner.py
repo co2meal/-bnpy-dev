@@ -24,7 +24,6 @@ def makePlansToTargetWordFreq(model=None, LP=None, Data=None, Q=None,
     topics[k,:] = model.obsModel.comp[k].lamvec
     topics[k,:] = topics[k,:] / topics[k,:].sum()
   Q = Q / Q.sum(axis=1)[:,np.newaxis]
-  # Normalization happens internally in this function
   choices = GramSchmidtUtil.FindAnchorsForExpandedBasis(Q, topics, 
                                                            nPlans)
   Plans = list()
@@ -34,10 +33,15 @@ def makePlansToTargetWordFreq(model=None, LP=None, Data=None, Q=None,
     topWords = np.argsort(-1*Plan['targetWordFreq'])[:10]
     if hasattr(Data, 'vocab_dict'):
       Vocab = getVocab(Data)
+      anchorWordStr = 'Anchor: ' + Vocab[choice]
       topWordStr = ' '.join([Vocab[w] for w in topWords])
     else:
+      anchorWordStr = 'Anchor: ' + str(choice)
       topWordStr = ' '.join([str(w) for w in topWords])
+    Plan['anchorWordID'] = choice
+    Plan['topWordIDs'] = topWords
     Plan['log'] = list()
+    Plan['log'].append(anchorWordStr)
     Plan['log'].append(topWordStr)
     Plans.append(Plan)
   return Plans

@@ -115,10 +115,12 @@ def SampleTargetDataForPlans(Plans, Data, model, LP, **kwargs):
   TargetSamplerArgs = dict(**TargetSamplerArgsIN)
   TargetSamplerArgs.update(kwargs)
   TargetSamplerArgs['randstate'] = np.random.RandomState(seed)
-
+  if hasattr(Data, 'vocab_dict'):
+    Vocab = [str(x[0][0]) for x in Data.vocab_dict]
+  else:
+    Vocab = None
   for pp in xrange(len(Plans)):
     Plan = Plans[pp]
-    print 'here!', pp
 
     targetData = TargetDataSampler.sample_target_data(Data, 
                                                model=model, LP=LP,
@@ -129,11 +131,21 @@ def SampleTargetDataForPlans(Plans, Data, model, LP, **kwargs):
     if 'log' not in Plan:
       Plan['log'] = list()
     Plan['log'].append('Target Data: %d docs' % (targetData.nDoc))
-    #Plan['log'].append(targetData.get_doc_stats_summary())
-    #Plan['Data'] = targetData
+    Plan['log'].append(targetData.get_doc_stats_summary())
 
-    print '\n'.join(Plan['log'])
-    #BirthLogger.writePlanToLog(Plan)
+    Plan['log'].append('Freq. of all words in Target')
+    Plan['log'].append(targetData.get_most_common_words_summary(Vocab))
+
+    if 'topWordIDs' in Plan:
+      Plan['log'].append('Freq. of Top-Ranked Words in Target')
+      Plan['log'].append(targetData.get_most_common_words_summary(Vocab,
+                                        targetWordIDs=Plan['topWordIDs']))
+
+    Plan['log'].append(targetData.get_example_documents_summary(5, Vocab))
+    Plan['Data'] = targetData
+
+    BirthLogger.logPhase('Plan ' + str(pp))
+    BirthLogger.writePlanToLog(Plan)
   return Plans         
 
 def findMostMissingTrueTopic(TrueTopics, EstTopics, Ktrue, Kest):
@@ -299,4 +311,7 @@ if __name__ == '__main__':
                               Data, model, SS, LP,
                               seed=seed, **kwargs)
    
-  SampleTargetDataForPlans(Plans, Data, model, LP, seed=seed, **kwargs)
+  Plans = SampleTargetDataForPlans(Plans, Data, model, LP, seed=seed, **kwargs)
+
+  
+
