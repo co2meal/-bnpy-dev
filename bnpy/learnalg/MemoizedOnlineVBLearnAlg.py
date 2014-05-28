@@ -351,6 +351,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
           into "memory" for later retrieval.
         Fields to save determined by the memoLPkeys attribute of this alg.
     '''
+    LPchunk = dict(**LPchunk) # make a copy
     allkeys = LPchunk.keys()
     for key in allkeys:
       if key not in self.memoLPkeys:

@@ -279,6 +279,8 @@ def MakeBigModel(Data, initName, nIters=20):
   elif initName.count('missing='):
     kmissing = int(initName.split('=')[1])
     model = InitModelWithOneMissing(Data, kmissing=kmissing)
+  elif initName == 'Truth':
+    model = InitModelWithTrueTopics(Data)
   else:
     raise NotImplementedError("UNKNOWN init scenario: " + initName)
   LP = None

@@ -41,16 +41,19 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
   NumericUtil.inplaceExp(expEloglik)  
   if methodLP == 'c' and not np.isfortran(expEloglik):
       expEloglik = np.asfortranarray(expEloglik)
+  #print expEloglik[0, :4]
 
   ######## Allocate document-specific variables
   docptr = np.asarray(np.hstack([0, Data.doc_range[:,1]]), dtype=np.int32)
   hasCountOfCorrectSize = 'DocTopicCount' in LP \
                            and LP['DocTopicCount'].shape[1] == K 
+
   if hasCountOfCorrectSize and methodLP == 'memo':
+    LP['DocTopicCount'] = LP['DocTopicCount'].copy() # local copy
     # Update U1, U0
-    LP = update_U1U0_SB(LP, topicPrior1, topicPrior0)
+    LP = update_U1U0_SB(LP, topicPrior1, topicPrior0, **kwargs)
     # Update expected value of log Pi[d,k]
-    LP = update_ElogPi_SB(LP)
+    LP = update_ElogPi_SB(LP, **kwargs)
     if not methodLP == 'c':
       expElogpi = np.exp(LP['E_logPi'])
     else:
@@ -59,12 +62,14 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
  
   else:
     nCoordAscentItersLP = nCoordAscentFromScratchLP
-    if not hasCountOfCorrectSize:
-      if not methodLP == 'c':
-        LP['DocTopicCount'] = np.zeros((D, K))
-      else:
-        LP['DocTopicCount'] = np.zeros((D, K), order='F')
 
+    if methodLP == 'c':
+      LP['DocTopicCount'] = np.zeros((D, K), order='F')
+    else:
+      LP['DocTopicCount'] = np.zeros((D, K))
+
+    # expElogpi is uniform over topics by default
+    #  certain methods may modify this below
     expElogpi = np.ones_like(LP['DocTopicCount'])
     if methodLP == 'nnls':
       L = LP['topics']
@@ -75,14 +80,19 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
                                                  Data.get_wordfreq_for_doc(d))
     elif methodLP.count('piMAP'):
       nFailure = 0
+      LP['initMAPscore'] = np.zeros(Data.nDoc)
+      LP['initMAPPi'] = np.zeros((Data.nDoc,K))
+
+      hasPi = 'expElogpi' in LP and LP['expElogpi'] is not None \
+                and LP['expElogpi'].shape[1] == K
       for d in xrange(Data.nDoc):
         start = Data.doc_range[d,0]
         stop = Data.doc_range[d,1]
         Xd = Data.word_count[start:stop]
         Ld = expEloglik[start:stop,:]
 
-        if methodLP.count('sneaky'):
-          initeta = LP['DocTopicCount'][d]
+        if methodLP.count('sneaky') and hasPi:
+          initeta = LP['expElogpi'][d]
         else:
           initeta = None
         try:
@@ -92,11 +102,15 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
                                                            bvec=topicPrior0,
                                                            initeta=initeta,
                                                            return_pi=1)
+          LP['initMAPscore'][d] = f
+          LP['initMAPPi'][d,:] = expElogpi[d]
         except ValueError:
           expElogpi[d,:] = 1./K * np.ones(K)
           nFailure += 1
       if nFailure > 0:
         print "WARNING: %d failures" % (nFailure)
+    elif methodLP.count('sneaky'):
+      expElogpi[:] = LP['expElogpi']
 
   ######## Allocate token-specific variables
   # sumRTilde : nDistinctWords vector. row n = \sum_{k} \tilde{r}_{nk} 
@@ -120,10 +134,10 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
                                      )
 
     # Update U1, U0
-    LP = update_U1U0_SB(LP, topicPrior1, topicPrior0)
+    LP = update_U1U0_SB(LP, topicPrior1, topicPrior0, **kwargs)
 
     # Update expected value of log Pi[d,k]
-    LP = update_ElogPi_SB(LP, activeDocs)
+    LP = update_ElogPi_SB(LP, activeDocs, **kwargs)
     
     # Assess convergence
     docDiffs = np.max(np.abs(old_DocTopicCount - LP['DocTopicCount']), axis=1)
@@ -186,7 +200,7 @@ def write_method_wins_to_log(Data, methodLP, nWins, nTotal, logdirLP):
 
 ########################################################### doc-level beta
 ########################################################### helpers
-def update_U1U0_SB(LP, topicPrior1, topicPrior0):
+def update_U1U0_SB(LP, topicPrior1, topicPrior0,**kwargs):
   ''' Update document-level stick-breaking beta parameters, U1 and U0.
   '''
   assert 'DocTopicCount' in LP
@@ -201,7 +215,7 @@ def update_U1U0_SB(LP, topicPrior1, topicPrior0):
     LP['U0'] = calcDocTopicRemCount(LP['DocTopicCount']) + topicPrior0
   return LP
 
-def update_ElogPi_SB(LP, activeDocs=None):
+def update_ElogPi_SB(LP, activeDocs=None, **kwargs):
   ''' Update expected log topic appearance probabilities in each doc
   '''
   shp = LP['U1'].shape
