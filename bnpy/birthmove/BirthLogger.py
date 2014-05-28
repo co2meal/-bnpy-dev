@@ -3,6 +3,7 @@ import os
 import sys
 from collections import defaultdict
 
+print 'IMPORTING!'
 # Configure Logger
 Log = None
 Cache = defaultdict(lambda: list())
@@ -69,6 +70,7 @@ def writePlanToLog(Plan):
 def configure(taskoutpath, doSaveToDisk=0, doWriteStdOut=0):
   global Log
   Log = logging.getLogger('birthmove')
+
   Log.setLevel(logging.DEBUG)
   Log.handlers = [] # remove pre-existing handlers!
   formatter = logging.Formatter('%(message)s')

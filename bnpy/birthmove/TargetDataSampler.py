@@ -177,7 +177,7 @@ def _sample_target_WordsData(Data, model=None, LP=None, **kwargs):
 
 def calcDistBetweenHist(Xfreq, yfreq, targetDistMethod='intersection'):
   if targetDistMethod == 'intersection':
-    return np.sum( np.minimum(Xfreq, yfreq), axis=1)
+    return 1 - np.sum( np.minimum(Xfreq, yfreq), axis=1)
   raise NotImplementedError('UNKNOWN: ' + targetDistMethod)
 
 def calcKLdivergence_discrete(P1, P2):
