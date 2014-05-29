@@ -51,7 +51,7 @@ def runMike(Data, K=10, loss='L2', lowerDim=1000, doRecover=1,
   return topics, anchorRows
 
 def run(DocWordMat, K=10, loss='L2', seed=0, doRecover=1,
-                    lowerDim=None, settings_file=settings_file):
+                    lowerDim=1000, settings_file=settings_file):
   '''
     Args
     -------
