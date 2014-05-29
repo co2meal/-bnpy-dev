@@ -480,7 +480,7 @@ class WordsData(DataObj):
 
   @classmethod
   def CreateToyDataFromLDAModel(cls, seed=101, 
-                nDocTotal=None, nWordsPerDoc=None, 
+                nDocTotal=None, nWordsPerDoc=None, nWordsPerDocFunc=None,
                 topic_prior=None, topics=None,
                 **kwargs):
     ''' Generates WordsData dataset via LDA generative model,
@@ -513,6 +513,9 @@ class WordsData(DataObj):
     for d in xrange(nDocTotal):
       # Draw topic appearance probabilities for this document
       alphaLP[d,:] = PRNG.dirichlet(topic_prior)
+
+      if nWordsPerDocFunc is not None:
+        nWordsPerDoc = nWordsPerDocFunc(PRNG)
 
       # Draw the topic assignments for this doc
       ## Npercomp : K-vector, Npercomp[k] counts appearance of topic k
