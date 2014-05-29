@@ -3,7 +3,6 @@ import os
 import sys
 from collections import defaultdict
 
-print 'IMPORTING!'
 # Configure Logger
 Log = None
 Cache = defaultdict(lambda: list())
