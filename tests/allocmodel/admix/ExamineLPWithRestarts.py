@@ -25,7 +25,22 @@ def RunManyRestarts(Dchunk, hmodel, prevLP=None,
   ## From Scratch
   initDTC = np.zeros((1,hmodel.obsModel.K))
   ScratchInfo = traceLPInference(Dchunk, hmodel, initDTC, methodLP='scratch',
-                                     Niters=Niters,
+                                     Niters=Niters, return_LP=1,
+                                     convThrLP=convThrLP)
+  LP = ScratchInfo['LP']
+  del ScratchInfo['LP']
+
+  ## From Bounce
+  Resp = LP['word_variational']
+  for n in xrange(Resp.shape[0]):
+    uncommonTopics = np.flatnonzero(LP['DocTopicCount'][0] < 20 )
+    uncommonMass = np.sum(Resp[n,uncommonTopics])
+    Resp[n,uncommonTopics] = 0
+    Resp[n,:] += uncommonMass / Resp.shape[1]
+  assert np.allclose(Resp.sum(axis=1), 1.0)
+  initDTC = np.sum( Dchunk.word_count[:,np.newaxis] * Resp, axis=0)
+  BounceInfo = traceLPInference(Dchunk, hmodel, initDTC, methodLP='memo',
+                                     Niters=Niters, 
                                      convThrLP=convThrLP)
 
   ## From piMAP
@@ -34,6 +49,8 @@ def RunManyRestarts(Dchunk, hmodel, prevLP=None,
                                      Niters=Niters,
                                      convThrLP=convThrLP)
 
+  MAPRestarts = None
+  '''
   print '-------------------------- logitMAP restarts'
   MAPRestarts = list()
   stime = time.time()
@@ -50,14 +67,14 @@ def RunManyRestarts(Dchunk, hmodel, prevLP=None,
   etime = time.time() - stime
   if (task+1) % 10 != 0:
     print '%.3f sec | %d/%d' % (etime, task+1, nRestarts)
-
+  '''
 
 
   ## From Memo
   if prevLP is not None:
     prevDTC = prevLP['DocTopicCount'][docID,:][np.newaxis,:].copy()
     MemoInfo = traceLPInference(Dchunk, hmodel, prevDTC, methodLP='memo',
-                                     Niters=Niters,
+                                     Niters=Niters, 
                                      convThrLP=convThrLP)
 
   print '-------------------------- Random restarts'
@@ -126,6 +143,7 @@ def RunManyRestarts(Dchunk, hmodel, prevLP=None,
 
   FinalResults = dict()
   FinalResults['Scratch'] = ScratchInfo
+  FinalResults['Bounce'] = BounceInfo
   FinalResults['Random'] = RandomInfo
   FinalResults['MAP'] = MAPInfo
   FinalResults['MAPRestarts'] = MAPRestarts
@@ -194,7 +212,8 @@ def initEta_random(Dchunk, hmodel, topicPriorVec, seed=0):
 ########################################################### Run inference
 ###########################################################
 def traceLPInference(Dchunk, hmodel, initDTC, Niters=100, convThrLP=1e-5,
-                                              initEta=None, methodLP='memo'):
+                                              initEta=None, methodLP='memo',
+                                              return_LP=0):
   initMAPscore = None
   initMAPPi = None
   elbo = np.zeros(Niters)
@@ -210,7 +229,10 @@ def traceLPInference(Dchunk, hmodel, initDTC, Niters=100, convThrLP=1e-5,
       DTC = LP['DocTopicCount']
       methodLP = 'memo'
 
-    LP = hmodel.calc_local_params(Dchunk, dict(DocTopicCount=DTC, expElogpi=initEta),
+    initLP = dict(DocTopicCount=DTC, expElogpi=initEta)
+
+    LP = hmodel.calc_local_params(Dchunk, 
+                                  initLP,         
                                   methodLP=methodLP,
                                   doInPlaceLP=0,
                                   nCoordAscentItersLP=1,
@@ -244,7 +266,12 @@ def traceLPInference(Dchunk, hmodel, initDTC, Niters=100, convThrLP=1e-5,
   # Pack up and go home
   iters = np.flatnonzero(elbo)
   elbo = elbo[iters]
-  return dict(MAPscore=MAPscore,
+
+  if return_LP:
+    finalLP=LP
+  else:
+    finalLP=None
+  return dict(MAPscore=MAPscore, LP=finalLP,
               finalPi=MAPOptim.eta2pi(eta),
               initMAPscore=initMAPscore, 
               initMAPPi=initMAPPi,
