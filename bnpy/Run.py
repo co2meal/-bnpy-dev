@@ -159,7 +159,6 @@ def _run_task_internal(jobname, taskid, nTask,
   # Create learning algorithm
   learnAlg = createLearnAlg(Data, hmodel, ReqArgs, KwArgs,
                               algseed=algseed, savepath=taskoutpath)
-
   if learnAlg.hasMove('birth'):
     import bnpy.birthmove.BirthLogger as BirthLogger
     BirthLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
@@ -281,6 +280,8 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
     algP['birth'] = KwArgs['birth']
   if 'merge' in KwArgs:
     algP['merge'] = KwArgs['merge']
+  if 'shuffle' in KwArgs:
+    algP['shuffle'] = KwArgs['shuffle']
   outputP = KwArgs['OutputPrefs']
   if algName == 'EM' or algName == 'VB':
     learnAlg = bnpy.learnalg.VBLearnAlg(savedir=savepath, seed=algseed, \

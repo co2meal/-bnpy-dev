@@ -68,8 +68,12 @@ class HDPStickBreak(AllocModel):
 
   ######################################################### Local Params
   #########################################################
-  def calc_local_params(self, Data, LP, methodLP='memo', **kwargs):
-    kwargs = dict(**kwargs)
+  def calc_local_params(self, Data, LP, methodLP='memo', order=None, **kwargs):
+    kwargs = dict(**kwargs) # local copy
+
+    if order is not None and len(order) == self.K:
+      LP = self.reorderCompsInLP(LP, order)
+
     methods = methodLP.split(',')
     if len(methods) == 1:
       if 'doInPlaceLP' not in kwargs:
@@ -389,6 +393,11 @@ class HDPStickBreak(AllocModel):
 
 
 
+  def _convert_rho2beta(self, rho):
+    ''' Find vectors rho, omega that are probable given beta
+    '''
+    return OptimHDPSB._v2beta(rho)   
+
   def _convert_beta2rhoomega(self, beta, nDoc=10):
     ''' Find vectors rho, omega that are probable given beta
 
@@ -412,6 +421,20 @@ class HDPStickBreak(AllocModel):
     assert rho.size == K
     return rho
 
+  def reorderComps(self, order):
+    beta = self._convert_rho2beta(self.rho)
+    order = [x for x in order]
+    order.append(self.K)  # make sure rem mass stays last
+    beta = beta[order]
+    self.rho, _leave_omega_asis = self._convert_beta2rhoomega(beta)
+    assert self.rho.size == self.K
+    assert self.omega.size == self.K
+    self.set_helper_params()
+
+  def reorderCompsInLP(self, LP, order):
+    if 'DocTopicCount' in LP:
+      LP['DocTopicCount'] = LP['DocTopicCount'][:, order]
+    return LP
 
   ######################################################### Evidence
   #########################################################  
