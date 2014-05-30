@@ -85,12 +85,20 @@ class HDPStickBreak(AllocModel):
     else:
       bestLP = None
       bestMethod = np.zeros(Data.nDoc)
+      didSkipMemo = 0
       for mID, mname in enumerate(reversed(sorted(methods))):
         initLP = dict(**LP)
         hasDTCount = 'DocTopicCount' in LP \
                        and LP['DocTopicCount'].shape[1] == self.K
         if mname == 'memo' and not hasDTCount:
+          didSkipMemo = 1
           continue
+
+        if mname.count('bounce'):
+          if not 'word_variational' in bestLP or didSkipMemo:
+            continue
+          initLP = self.createRebalancedLP(Data, bestLP)
+
         kwargs['doInPlaceLP'] = 0
         curLP = self.calc_local_params(Data, dict(**initLP), methodLP=mname, 
                                                              **kwargs) 
@@ -118,6 +126,22 @@ class HDPStickBreak(AllocModel):
           write_wins_to_log(Data, mname, nWins, nTotal, kwargs['logdirLP'])
     assert np.allclose( bestLP['word_variational'].sum(axis=1), 1.0)
     return bestLP
+
+  def createRebalancedLP(self, Data, LP):
+    DTC = LP['DocTopicCount'].copy()
+    Resp = LP['word_variational'].copy()
+    for d in xrange(Data.nDoc):
+      start = Data.doc_range[d,0]
+      stop = Data.doc_range[d,1]
+      uTopics = np.flatnonzero( DTC[d,:] < 20 )
+      uMass = np.sum(Resp[start:stop, uTopics], axis=1)
+      Resp[start:stop, uTopics] = 0
+      Resp[start:stop, :] += uMass[:,np.newaxis] / self.K
+      DTC[d,:] = np.dot(Data.word_count[start:stop], Resp[start:stop])
+      assert np.allclose(DTC[d,:].sum(), Data.word_count[start:stop].sum())
+    newLP = dict(**LP)
+    newLP['DocTopicCount'] = DTC
+    return newLP
 
   def _local_update_Resp(self, Data, LP, doInPlaceLP=1, **kwargs):
     if doInPlaceLP:
