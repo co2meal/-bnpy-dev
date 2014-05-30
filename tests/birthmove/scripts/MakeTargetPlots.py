@@ -33,9 +33,14 @@ def MakePlotsForTargetDataPlan(Plan, savepath, doSave=1):
   V = targetData.vocab_size
   sqrtV = np.sqrt(V)
   if sqrtV == int(np.sqrt(V)):
-    exampleDocs = dataToWordFreqMatrix(targetData, nExamples=15)
+    exampleDocs, docIDs = dataToWordFreqMatrix(targetData, nExamples=15)
     _plotBarsTopicsSquare(exampleDocs, nRows=3)
     saveCurrentFig(doSave, savepath, 'TargetData.png')
+
+    if 'ScoreMat' in Plan:
+      ScoreMat = Plan['ScoreMat'][Plan['candidates']][docIDs]
+      _plotBarsTopicsSquare(ScoreMat, nRows=3, cmap='jet', vmin=-0.01, vmax=0.01)
+      saveCurrentFig(doSave, savepath, 'TargetDataScore.png')
 
     if 'targetWordFreq' in Plan and Plan['targetWordFreq'] is not None:
       _plotBarsTopicsSquare(Plan['targetWordFreq'])
@@ -45,12 +50,25 @@ def MakePlotsForTargetDataPlan(Plan, savepath, doSave=1):
       v[Plan['targetWordIDs']] = 1
       _plotBarsTopicsSquare(v)
       saveCurrentFig(doSave, savepath, 'TargetIcon.png')
-    
 
     if 'BigModel' in Plan:
       model = Plan['BigModel']      
-      _plotBarsTopicsSquare(modelToTopicWordMatrix(model))
+      _plotBarsTopicsSquare(modelToTopicWordMatrix(model), Kmax=20, nRows=2)
       saveCurrentFig(doSave, savepath, 'OriginalTopics.png')
+  elif not hasattr(Data, 'vocab_dict'):
+    if 'BigModel' in Plan:
+      model = Plan['BigModel']      
+      plotSynth(modelToTopicWordMatrix(model))
+      saveCurrentFig(doSave, savepath, 'OriginalTopics.png')
+
+    exampleDocs, docIDs = dataToWordFreqMatrix(targetData, nExamples=15)
+    plotSynth(exampleDocs)
+    saveCurrentFig(doSave, savepath, 'TargetData.png')
+
+    if 'targetWordFreq' in Plan and Plan['targetWordFreq'] is not None:
+      plotSynth(Plan['targetWordFreq'])
+      saveCurrentFig(doSave, savepath, 'TargetIcon.png')
+
 
   else:
     plotWordCloudsForRandomDocs(targetData, Vocab, savepath, doSave)
@@ -112,7 +130,7 @@ def dataToWordFreqMatrix(Data, nExamples=10, seed=0):
   Examples = Data.select_subset_by_mask(docIDs)
   EmpFreq =  Examples.to_sparse_docword_matrix().toarray()
   EmpFreq /= EmpFreq.sum(axis=1)[:, np.newaxis]
-  return EmpFreq
+  return EmpFreq, docIDs
 
 def saveCurrentFig(doSave, savepath, basename):
   if doSave:
@@ -130,7 +148,19 @@ def LoadOriginalDataModelAndSuffStats(birthmovefile, cachepath):
   DUMP = joblib.load(fpath)
   return DUMP['Data'], DUMP['model'], DUMP['SS']
 
+########################################################### Synth Data Viz ###########################################################
+def plotSynth(topicsIN, cmap='gray'):
+  if topicsIN.ndim == 1:
+    topicsIN = topicsIN[np.newaxis,:]
+  topics = topicsIN[:, :300]
+  K,V = topics.shape
 
+  pylab.figure()
+  pylab.imshow(topics, vmin=vmin, vmax=vmax, interpolation='nearest',
+                       cmap=cmap, aspect=topics.shape[1]/float(K))
+  pylab.xticks([])
+  pylab.yticks([])
+  pylab.show(block=False)
 ########################################################### Bars Data Viz ###########################################################
 
 def plotBarsData(Data, savepath=None):
@@ -138,7 +168,9 @@ def plotBarsData(Data, savepath=None):
   topics = dataToTopicWordMatrix(Data)
   _plotBarsTopicsSquare(topics)
 
-def _plotBarsTopicsSquare(topicsIN, nRows=1, Kmax=15, targetInfo=None):
+def _plotBarsTopicsSquare(topicsIN, nRows=1, Kmax=15, 
+                          cmap='gray', vmax=vmax, vmin=vmin,
+                          targetInfo=None):
   if topicsIN.ndim == 1:
     topicsIN = topicsIN[np.newaxis,:]
   K, V = topicsIN.shape
@@ -155,7 +187,7 @@ def _plotBarsTopicsSquare(topicsIN, nRows=1, Kmax=15, targetInfo=None):
     pylab.subplot(nRows, nCols, k+1)
     imSq = np.reshape(topics[k,:], (J,J))
     pylab.imshow(imSq, vmin=vmin, vmax=vmax, interpolation='nearest',
-                       cmap='gray', aspect=1.0)
+                       cmap=cmap, aspect=1.0)
     pylab.xticks([])
     pylab.yticks([])
     if targetInfo is not None and targetInfo['ktarget'] is not None:
@@ -298,7 +330,7 @@ def _plotOrigStuff( Trace, Korig=0):
 def _plotNewStuff(Trace, Korig=0):
   for k in xrange(Korig, Trace.shape[1]):
     pylab.plot( Trace[:,k], 'o-') 
- 
+
 
 """
 ########################################################### main

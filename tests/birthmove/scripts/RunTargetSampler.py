@@ -19,6 +19,7 @@ from distutils.dir_util import mkpath
 import bnpy.ioutil.BNPYArgParser
 from bnpy.birthmove.BirthProposalError import BirthProposalError
 from bnpy.birthmove import TargetPlanner, TargetDataSampler, BirthLogger
+from bnpy.birthmove import TargetPlannerWordFreq
 from bnpy.allocmodel.admix import OptimizerForHDPStickBreak as OptimHDPSB
 
 import MakeTargetPlots as MTP
@@ -33,7 +34,7 @@ TargetSamplerArgsIN = dict(
                randstate=np.random.RandomState(4),
                targetExample=0,
                targetMinSize=10,
-               targetMaxSize=200,
+               targetMaxSize=50,
                targetMinWordsPerDoc=100,
                targetNumWords=10,
                targetWordMinCount=4,
@@ -67,7 +68,7 @@ def MakeTargetPlans(selectName, Data, model, SS, LP, initName=None,
   if selectName == 'none':
     Plans = [dict(**BlankPlan) for p in xrange(nPlans)]
   elif selectName.lower().count('freq'):
-    Plans = TargetPlanner.makePlansToTargetWordFreq(model, Data=Data, LP=LP,
+    Plans = TargetPlannerWordFreq.MakePlans(Data, model, LP,
                                                     Q=Q, 
                                                     targetSelectName=selectName,
                                                     nPlans=nPlans,
@@ -121,9 +122,10 @@ def MakeTargetPlans(selectName, Data, model, SS, LP, initName=None,
                                                 return_ps=1,
                                                 **TargetSamplerArgs)
   '''
+  Plans[0]['Q'] = Q
   return Plans
 
-def SampleTargetDataForPlans(Plans, Data, model, LP, **kwargs):
+def SampleTargetDataForPlans(Plans, Data, model, LP, seed=0, **kwargs):
   TargetSamplerArgs = dict(**TargetSamplerArgsIN)
   TargetSamplerArgs.update(kwargs)
   TargetSamplerArgs['randstate'] = np.random.RandomState(seed)
@@ -134,12 +136,15 @@ def SampleTargetDataForPlans(Plans, Data, model, LP, **kwargs):
   for pp in xrange(len(Plans)):
     Plan = Plans[pp]
 
-    targetData = TargetDataSampler.sample_target_data(Data, 
-                                               model=model, LP=LP,
-                                               ktarget=Plan['ktarget'],
-                                     targetWordIDs=Plan['targetWordIDs'],
-                                     targetWordFreq=Plan['targetWordFreq'],          
-                                               **TargetSamplerArgs)
+    targetData, Info = TargetDataSampler.sample_target_data(Data, model, LP,
+                                  ktarget=Plan['ktarget'],
+                                  targetWordIDs=Plan['targetWordIDs'],
+                                  targetWordFreq=Plan['targetWordFreq'],          
+                                  return_Info=1,
+                                  **TargetSamplerArgs)
+    # Add debugging info
+    Plan.update(Info)
+
     if 'log' not in Plan:
       Plan['log'] = list()
     Plan['log'].append('Target Data: %d docs' % (targetData.nDoc))
@@ -182,9 +187,12 @@ def findMostMissingTrueTopic(TrueTopics, EstTopics, Ktrue, Kest):
 ###########################################################
 
 def LoadData(dataname):
-  if dataname.count('Bars'):
+  if dataname.count('BarsK10'):
     import BarsK10V900
     Data = BarsK10V900.get_data(nDocTotal=2000, nWordsPerDoc=250)
+  elif dataname.count('BarsK50'):
+    import BarsK50V2500
+    Data = BarsK50V2500.get_data()
   elif dataname.count('NIPS'):
     os.environ['BNPYDATADIR'] = '/data/NIPS/'
     if not os.path.exists(os.environ['BNPYDATADIR']):
@@ -197,6 +205,12 @@ def LoadData(dataname):
     sys.path.append(os.environ['BNPYDATADIR'])
     import huffpost
     Data = huffpost.get_data()
+  elif dataname.count('synthpost'):
+    os.environ['BNPYDATADIR'] = '/data/liv/liv-x/topic_models/data/synthpost/'
+    sys.path.append(os.environ['BNPYDATADIR'])
+    import synthpost
+    Data = synthpost.get_data()
+
   else:
     raise NotImplementedError(dataname)
   return Data
@@ -305,7 +319,7 @@ def createOutPath(args, basename='BirthResults.dump'):
 
 ########################################################### main
 ###########################################################
-if __name__ == '__main__':
+def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('data', default='BarsK10V900')
   parser.add_argument('initName', default='K1')
@@ -318,7 +332,6 @@ if __name__ == '__main__':
     args.savepath = '/ltmp/'
   args.savepath = os.path.join(args.savepath, args.data, args.selectName)
   mkpath(args.savepath)
-  print args.savepath
 
   BirthLogger.configure(args.savepath, doSaveToDisk=0, doWriteStdOut=1)
 
@@ -330,18 +343,23 @@ if __name__ == '__main__':
                               Data, model, SS, LP,
                               seed=seed, **kwargs)
    
-  Plans = SampleTargetDataForPlans(Plans, Data, model, LP, seed=seed, **kwargs)
-  
+  Plans = SampleTargetDataForPlans(Plans, Data, model, LP,
+                                      seed=seed,
+                                      targetSelectName=args.selectName,
+                                      **kwargs)
+
   for pID, Plan in enumerate(Plans):
     Plan['BigData'] = Data
     Plan['BigModel'] = model
     HTMLMaker.MakeHTMLForPlan(args.savepath, Plan, pID+1)
 
-    '''
+if __name__ == '__main__':
+  main()
+
+  '''
     try:
       keypress = raw_input('Press key to see next set>>')
     except KeyboardInterrupt:
       sys.exit(1)
-    '''
     pylab.close('all')
-
+  '''

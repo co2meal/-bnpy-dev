@@ -43,7 +43,7 @@ def init_global_params(obsModel, Data, K=0, seed=0,
                             targetMinSize=0,
                             targetMaxSize=Data.nDoc,
                             randstate=PRNG)
-    Data = _sample_target_WordsData(Data, **targetDataArgs)
+    Data = _sample_target_WordsData(Data, None, None, **targetDataArgs)
   print 'INIT DATA: %d docs' % (Data.nDoc)
   print Data.get_doc_stats_summary()
 
