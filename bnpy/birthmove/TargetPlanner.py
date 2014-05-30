@@ -233,17 +233,6 @@ def select_target_words(model=None,
     print 'TARGETED WORDS'
     print ' '.join([Vocab[w] for w in words])
 
-    '''
-    print 'TFIDF REWEIGHTING'
-    nDocsPerW = Data.getNumDocsPerWord()
-    tfidfScore = pWords * np.log( Data.nDoc / (.000001+nDocsPerW) )
-    sIDs = np.argsort(-1*tfidfScore)[:nWords]
-    print ' '.join([Vocab[w] for w in sIDs])
-    '''
-    #print 'HIGHEST PROB WORDS'
-    #sIDs = np.argsort(-1*pWords)[:nWords]
-    #print ' '.join([Vocab[w] for w in sIDs])
-
   if return_ps:
     return words, pWords
   return words
@@ -260,7 +249,6 @@ def calc_word_scores_for_anchor(model, Q, Data, **kwargs):
                                                            10)
 
   choice = kwargs['randstate'].choice(choices, 1)
-
   chosenWord = goodWords[choice]
   if hasattr(Data, 'vocab_dict'):
     Vocab = [str(x[0][0]) for x in Data.vocab_dict]

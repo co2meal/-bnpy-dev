@@ -10,6 +10,7 @@ Sample selection criteria
 '''
 import numpy as np
 from scipy.spatial.distance import cdist
+from TargetPlannerWordFreq import calcDocWordUnderpredictionScores
 
 ########################################################### sample_target_data
 ###########################################################
@@ -27,7 +28,7 @@ def sample_target_data(Data, model=None, LP=None, **kwargs):
 
 ########################################################### WordsData sampling
 ###########################################################
-def _sample_target_WordsData(Data, model=None, LP=None, **kwargs):
+def _sample_target_WordsData(Data, model, LP, return_Info=0, **kwargs):
   ''' Obtain a subsample of provided set of documents,
         which satisfy criteria set by provided keyword arguments, including
         minimum size of each document, relationship to targeted component, etc.
@@ -40,140 +41,107 @@ def _sample_target_WordsData(Data, model=None, LP=None, **kwargs):
     targetMinWordsPerDoc : int,
                            each document in returned targetData
                            must have at least this many words
-
-    targetMinKLPerDoc : int,
-                           each document in returned targetData
-                           must have at least this KL divergence
-                           between model and empirical distribution
-
     Returns
     --------
     targetData : WordsData dataset,
                   with at most targetMaxSize documents
+    DebugInfo : (optional), dictionary with debugging info
   '''
   DocWordMat = Data.to_sparse_docword_matrix()
+  DebugInfo = dict()
+
+  candidates = np.arange(Data.nDoc)
   if kwargs['targetMinWordsPerDoc'] > 0:
     nWordPerDoc = np.asarray(DocWordMat.sum(axis=1))
     candidates = nWordPerDoc >= kwargs['targetMinWordsPerDoc']
     candidates = np.flatnonzero(candidates)
-    if len(candidates) < 1:
-      return None
-  else:
-    candidates = None
+  if len(candidates) < 1:
+    return None
 
-  hasCompID = 'targetCompID' in kwargs and kwargs['targetCompID'] is not None
-  hasDocTopicCountInLP = LP is not None and 'DocTopicCount' in LP
-  hasRespInLP = LP is not None and 'resp' in LP
-  if hasCompID:
-    if hasDocTopicCountInLP:
-      if candidates is None:
-        Ndk = LP['DocTopicCount'].copy()
-      else:
-        Ndk = LP['DocTopicCount'][candidates].copy()
+  # ..................................................... target a specific Comp
+  if hasValidKey('targetCompID', kwargs):
+    if hasValidKey('DocTopicCount', LP):
+      Ndk = LP['DocTopicCount'][candidates].copy()
       Ndk /= np.sum(Ndk,axis=1)[:,np.newaxis] + 1e-9
       mask = Ndk[:, kwargs['targetCompID']] > kwargs['targetCompFrac']
-    elif hasRespInLP:
+    elif hasValidKey('resp', LP):
       mask = LP['resp'][:, kwargs['targetCompID']] > kwargs['targetCompFrac']
       if candidates is not None:
         mask = mask[candidates]
     else:
       raise ValueError('LP must have either DocTopicCount or resp')
-    if np.sum(mask) < 1:
-      return None
-    if candidates is None:
-      candidates = np.flatnonzero(mask)
-    else:
-      candidates = candidates[mask]
+    candidates = candidates[mask]
 
-  hasWordIDs = 'targetWordIDs' in kwargs and kwargs['targetWordIDs'] is not None
-  if hasWordIDs:
+  # ..................................................... target a specific Word
+  elif hasValidKey('targetWordIDs', kwargs):
     wordIDs = kwargs['targetWordIDs']
     TinyMatrix = DocWordMat[candidates, :].toarray()[:, wordIDs]
     targetCountPerDoc = np.sum(TinyMatrix > 0, axis=1)
     mask = targetCountPerDoc >= kwargs['targetWordMinCount']
     candidates = candidates[mask]
-    probCandidates = None
 
-    if candidates is not None and len(candidates) == 0:
-      from BirthProposalError import BirthProposalError
-      raise BirthProposalError('No Candidates for Specified Target')
-
-    if hasattr(Data, 'vocab_dict'):
-      Vocab = [str(x[0][0]) for x in Data.vocab_dict]
-      X = Data.select_subset_by_mask(candidates)
-      X = X.to_sparse_docword_matrix().toarray()
-      print 'EXAMPLE TARGET DOCS'
-      for dd in range(np.minimum(X.shape[0],10)):
-        print ' '.join([Vocab[w] for w in np.argsort(-1*X[dd,:])[:10]])
-        print '     ', ' '.join([Vocab[wordIDs[w]] for w in np.argsort(-1*X[dd,wordIDs])[:4]])
-
-  hasWordFreq = 'targetWordFreq' in kwargs and \
-                kwargs['targetWordFreq'] is not None
-  if hasWordFreq:
+  # ..................................................... target based on WordFreq
+  elif hasValidKey('targetWordFreq', kwargs):
     wordFreq = kwargs['targetWordFreq']
-    EmpWordFreq = DocWordMat[candidates,:].toarray()
-    EmpWordFreq /= EmpWordFreq.sum(axis=1)[:,np.newaxis]
-    distPerDoc = calcDistBetweenHist(EmpWordFreq, wordFreq)
-    candidates = candidates[distPerDoc.argsort()[:50]]
-  
 
-  if kwargs['targetMinKLPerDoc'] > 0:
-    ### Build model's expected word distribution for each document
-    Prior = np.exp( LP['E_logPi'][candidates])
-    Lik = np.exp(model.obsModel.getElogphiMatrix())
-    DocWordFreq_model = np.dot(Prior, Lik)
-    DocWordFreq_model /= DocWordFreq_model.sum(axis=1)[:,np.newaxis]
-  
-    ### Build empirical word distribution for each document
-    DocWordFreq_emp = DocWordMat[candidates].toarray()
-    DocWordFreq_emp /= 1e-9 + DocWordFreq_emp.sum(axis=1)[:,np.newaxis]
-    KLperDoc = calcKLdivergence_discrete(DocWordFreq_emp, DocWordFreq_model)
+    ScoreMat = calcDocWordUnderpredictionScores(Data, model, LP)
+    DebugInfo['ScoreMat'] = ScoreMat
+    if kwargs['targetSelectName'].count('score'):
+      ScoreMat = np.maximum(0, ScoreMat)
+      ScoreMat /= ScoreMat.sum(axis=1)[:,np.newaxis]
+      distPerDoc = calcDistBetweenHist(ScoreMat, wordFreq)
 
-    mask = KLperDoc >= kwargs['targetMinKLPerDoc']
-    candidates = candidates[mask]
-    probCandidates = KLperDoc[mask]
-  elif type(kwargs['targetExample']) != int:
-    topic = model.obsModel.comp[kwargs['targetCompID']].lamvec
-    thr = kwargs['targetMinSize'] + model.obsModel.obsPrior.lamvec
-    onTopicWs = np.flatnonzero( topic > thr )
-    if len(onTopicWs) == 0:
-      probCandidates = None
+      DebugInfo['distPerDoc'] = distPerDoc
     else:
-      DocWordFreq_emp = DocWordMat[candidates].toarray()
-      DocWordFreq_emp[ DocWordFreq_emp > 0] = 1.0
-      intersect = np.dot(DocWordFreq_emp[:,onTopicWs],
-                         kwargs['targetExample'][onTopicWs] > 0)
-      intersect[intersect < 4] = 0
-      probCandidates = intersect 
-  else:
-    probCandidates = None
+      EmpWordFreq = DocWordMat[candidates,:].toarray()
+      EmpWordFreq /= EmpWordFreq.sum(axis=1)[:,np.newaxis]
+      distPerDoc = calcDistBetweenHist(EmpWordFreq, wordFreq)
+      DebugInfo['distPerDoc'] = distPerDoc
 
-  if probCandidates is not None:
-    if probCandidates.ndim == 0:
-      probCandidates = probCandidates[np.newaxis]
-    probCandidates = probCandidates * probCandidates # make more peaked
-    probCandidates /= probCandidates.sum()
+    keepIDs = distPerDoc.argsort()[:kwargs['targetMaxSize']]
+    candidates = candidates[keepIDs]
+    DebugInfo['candidates'] = candidates
+    DebugInfo['distPerCandidate'] = distPerDoc[keepIDs]
 
-  if candidates is not None and len(candidates) == 0:
-    from BirthProposalError import BirthProposalError
-    raise BirthProposalError('No Candidates for Specified Target')
-
+  if len(candidates) < 1:
+    return None
   targetData = Data.get_random_sample(kwargs['targetMaxSize'],
-                           randstate=kwargs['randstate'],
-                           candidates=candidates, p=probCandidates) 
+                                      randstate=kwargs['randstate'],
+                                      candidates=candidates) 
 
-  if 'targetHoldout' in kwargs and kwargs['targetHoldout']:
-    nDoc = targetData.nDoc
-    nHoldout = nDoc / 5
-    holdIDs = kwargs['randstate'].choice(nDoc, nHoldout, replace=False)
-    trainIDs = [x for x in xrange(nDoc) if x not in holdIDs]
-    holdData = targetData.select_subset_by_mask(docMask=holdIDs, 
-                                             doTrackFullSize=False)
-    targetData = targetData.select_subset_by_mask(docMask=trainIDs,
-                                              doTrackFullSize=False)
-    return targetData, holdData
+
+  if hasValidKey('targetHoldout', kwargs) and kwargs['targetHoldout']:
+    return makeHeldoutData(targetData, **kwargs)
+
+  if return_Info:
+    return targetData, DebugInfo
 
   return targetData
+
+'''
+  if hasattr(Data, 'vocab_dict'):
+    Vocab = [str(x[0][0]) for x in Data.vocab_dict]
+    X = Data.select_subset_by_mask(candidates)
+    X = X.to_sparse_docword_matrix().toarray()
+    print 'EXAMPLE TARGET DOCS'
+    for dd in range(np.minimum(X.shape[0],10)):
+      print ' '.join([Vocab[w] for w in np.argsort(-1*X[dd,:])[:10]])
+      print '     ', ' '.join([Vocab[wordIDs[w]] for w in np.argsort(-1*X[dd,wordIDs])[:4]])
+'''
+
+def hasValidKey(key, kwargs):
+  return key in kwargs and kwargs[key] is not None
+
+def makeHeldoutData(targetData, **kwargs):
+  nDoc = targetData.nDoc
+  nHoldout = nDoc / 5
+  holdIDs = kwargs['randstate'].choice(nDoc, nHoldout, replace=False)
+  trainIDs = [x for x in xrange(nDoc) if x not in holdIDs]
+  holdData = targetData.select_subset_by_mask(docMask=holdIDs, 
+                                             doTrackFullSize=False)
+  targetData = targetData.select_subset_by_mask(docMask=trainIDs,
+                                              doTrackFullSize=False)
+  return targetData, holdData
 
 def calcDistBetweenHist(Xfreq, yfreq, targetDistMethod='intersection'):
   if targetDistMethod == 'intersection':
