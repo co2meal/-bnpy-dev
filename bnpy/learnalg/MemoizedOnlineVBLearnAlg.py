@@ -74,7 +74,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     BirthResults = None
     prevBirthResults = None
     preselectroutine = None
-
+    order = None
     SS = None
     isConverged = False
     prevBound = -np.inf
@@ -89,6 +89,17 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       iterid += 1
       lapFrac = (iterid + 1) * self.lapFracInc
       self.set_random_seed_at_lap(lapFrac)
+
+      # Rearrange the order
+      if self.isFirstBatch(lapFrac) and self.hasMove('shuffle'):
+        self.algParamsLP['order'] = None
+        if SS is not None:
+          order = np.argsort(-1*SS.N)
+          print order
+          SS.reorderComps(order)
+          hmodel.reorderComps(order)
+          self.algParamsLP['order'] = order
+        
 
       # M step
       if self.algParams['doFullPassBeforeMstep']:
@@ -162,7 +173,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       if batchID in self.SSmemory:
         SSchunk = self.load_batch_suff_stat_from_memory(batchID, SS.K, 
                                                         prevBirthResults,
-                                                        BirthResults)
+                                                        BirthResults,
+                                                        order)
         SS -= SSchunk
       else:
         # Record this batch as updated to reflect all current birth moves
@@ -241,7 +253,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
   #########################################################
   def load_batch_suff_stat_from_memory(self, batchID, K, 
                                        prevBirthResults=None, 
-                                       BirthResults=None):
+                                       BirthResults=None,
+                                       order=None):
     ''' Load the suff stats stored in memory for provided batchID
         Returns
         -------
@@ -257,6 +270,9 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
           SSchunk.mergeComps(kA, kB)
       if SSchunk.hasMergeTerms():
         SSchunk.setMergeFieldsToZero()
+    # "replay" any shuffling/reordering that happened
+    if self.hasMove('shuffle') and order is not None:
+      SSchunk.reorderComps(order)
     # "replay" generic and batch-specific births from this lap
     if self.hasMove('birth'):   
       Kextra = K - SSchunk.K
@@ -318,13 +334,6 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         LPchunk : bnpy local parameters dictionary for batchID
     '''
     LPchunk = self.LPmemory[batchID]
-    ''' we now check inside the calc_local_params for this!
-    if self.hasMove('birth') and LPchunk is not None:
-      if BirthResults is not None and len(BirthResults) > 0:
-        # new components have been "born", so discard old results
-        #   since they no longer matter
-        LPchunk = None
-    '''
     if self.hasMove('merge') and LPchunk is not None:
       for MInfo in self.MergeLog:
         kA = MInfo['kA']
@@ -335,6 +344,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
             return None
           LPchunk[key][:,kA] = LPchunk[key][:,kA] + LPchunk[key][:,kB]
           LPchunk[key] = np.delete(LPchunk[key], kB, axis=1)
+    # any shuffling/reordering is handled within allocmodel
     return LPchunk
 
   ######################################################### Save to memory

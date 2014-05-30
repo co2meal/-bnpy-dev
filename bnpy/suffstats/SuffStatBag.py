@@ -41,6 +41,16 @@ class SuffStatBag(object):
     if self.hasMergeTerms():
       self._MergeTerms.setAllFieldsToZero()
 
+  def reorderComps(self, order):
+    ''' Rearrange internal order of components
+    '''
+    self._Fields.reorderComps(order)
+    if self.hasELBOTerms():
+      self._ELBOTerms.reorderComps(order)
+    if self.hasMergeTerms():
+      raise NotImplementedError('TODO')
+      self._MergeTerms.reorderComps(order)
+
   # ======================================================= strip/restore fields
   def removeELBOandMergeTerms(self):
     E = self.removeELBOTerms()
@@ -87,22 +97,6 @@ class SuffStatBag(object):
       else:
         arr *= ampF
       
-  def reorderComps(self, sortIDs):
-    ''' Rearrange internal order of components
-    '''
-    for key in self._Fields._FieldDims:
-      arr = getattr(self._Fields, key)
-      dims = self._Fields._FieldDims[key]
-      if arr.ndim == 0:
-        continue
-      if arr.ndim == 1 and dims[0] == 'K':
-        arr = arr[sortIDs]
-      elif arr.ndim == 2 and dims[0] == 'K':
-        arr = arr[sortIDs]
-      else:
-        raise NotImplementedError('TODO')
-      setattr(self._Fields, key, arr)
-
   # ======================================================= ELBO terms
   def hasELBOTerms(self):
     return hasattr(self, '_ELBOTerms')

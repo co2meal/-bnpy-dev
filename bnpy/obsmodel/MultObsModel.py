@@ -182,35 +182,7 @@ class MultObsModel(ObsModel):
         for k in range(self.K):
           lamvec = topics[k,:] * wc + self.obsPrior.lamvec
           self.comp.append(DirichletDistr(lamvec))          
-        '''
-        for k in range(self.K):
-            # Scale up Etopics to lamvec, a V-len vector of positive entries,
-            #   such that (1) E[phi] is still Etopics, and
-            #             (2) lamvec = obsPrior.lamvec + [some suff stats]
-            #   where (2) means that lamvec is a feasible posterior value
-            ii = np.argmin(topics[k,:])
-            lamvec = self.obsPrior.lamvec[ii]/topics[k,ii] * topics[k,:]
-            # Cut-off values that are way way too big
-            if np.any( lamvec > 1e9):
-              lamvec = np.minimum(lamvec, 1e9)
-              print "WARNING: mucking with lamvec"
-            self.comp.append(DirichletDistr(lamvec))
-        '''
 
-    '''
-    def convert_topic2lamvec(self, topic):
-      # Scale up Etopics to lamvec, a V-len vector of positive entries,
-      #   such that (1) E[phi] is still Etopics, and
-      #             (2) lamvec = obsPrior.lamvec + [some suff stats]
-      #   where (2) means that lamvec is a feasible posterior value      
-      ii = np.argmin(topic)
-      lamvec = self.obsPrior.lamvec[ii]/topic[ii] * topic
-      # Cut-off values that are way way too big
-      if np.any( lamvec > 1e9):
-        lamvec = np.minimum(lamvec, 1e9)
-        print "WARNING: mucking with lamvec"
-      return lamvec
-    '''
 
   ######################################################### Evidence
   #########################################################

@@ -116,6 +116,10 @@ class HModel(object):
     self.allocModel.insert_global_params(**kwargs)
     self.obsModel.insert_global_params(**kwargs)
 
+  def reorderComps(self, order):
+    self.allocModel.reorderComps(order)
+    self.obsModel.reorderComps(order)
+
   ######################################################### Evidence
   #########################################################     
   def calc_evidence(self, Data=None, SS=None, LP=None, todict=False):
@@ -131,7 +135,7 @@ class HModel(object):
     else:
       evA.update(evObs)
       return evA
-  
+
   ######################################################### Init params
   #########################################################
   def init_global_params(self, Data, **initArgs):
