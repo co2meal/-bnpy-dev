@@ -41,15 +41,18 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
   NumericUtil.inplaceExp(expEloglik)  
   if methodLP == 'c' and not np.isfortran(expEloglik):
       expEloglik = np.asfortranarray(expEloglik)
-  #print expEloglik[0, :4]
 
   ######## Allocate document-specific variables
   docptr = np.asarray(np.hstack([0, Data.doc_range[:,1]]), dtype=np.int32)
   hasCountOfCorrectSize = 'DocTopicCount' in LP \
                            and LP['DocTopicCount'].shape[1] == K 
 
-  if hasCountOfCorrectSize and methodLP == 'memo':
+  if methodLP.count('bounce'):
+      nCoordAscentItersLP = nCoordAscentFromScratchLP
+
+  if hasCountOfCorrectSize and methodLP.count('memo'):
     LP['DocTopicCount'] = LP['DocTopicCount'].copy() # local copy
+
     # Update U1, U0
     LP = update_U1U0_SB(LP, topicPrior1, topicPrior0, **kwargs)
     # Update expected value of log Pi[d,k]
@@ -153,7 +156,6 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
 
     if logdirLP and ii % 10 == 0:
       write_to_log(docDiffs, ii, 0, nCoordAscentItersLP, Data, methodLP, logdirLP)
-
 
   LP['didConverge'] = np.max(docDiffs) < convThrLP
   LP['maxDocDiff'] = np.max(docDiffs)

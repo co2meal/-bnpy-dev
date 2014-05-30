@@ -10,7 +10,7 @@ Sample selection criteria
 '''
 import numpy as np
 from scipy.spatial.distance import cdist
-from TargetPlannerWordFreq import calcDocWordUnderpredictionScores
+#from TargetPlannerWordFreq import calcDocWordUnderpredictionScores
 
 ########################################################### sample_target_data
 ###########################################################
