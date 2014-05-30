@@ -410,6 +410,50 @@ class WordsData(DataObj):
     s += ' nTotalWordsPerDoc'
     return s
 
+  def get_most_common_words_summary(self, Vocab=None, targetWordIDs=None,
+                                          pRange=[50, 40, 30, 20, 15, 10]):
+    nDocPerWord = self.getNumDocsPerWord()
+    prevThr = self.nDoc
+    if targetWordIDs is None:
+      remCandidates = np.ones(self.vocab_size)    
+    else:
+      remCandidates = np.zeros(self.vocab_size)
+      remCandidates[targetWordIDs] = 1
+    s = ''
+    for p in pRange:
+      nThr = float(p)/100 * self.nDoc
+      mask = np.logical_and(nDocPerWord >= nThr, remCandidates)
+      nMatch = np.sum(mask)
+      if nMatch > 0:
+        matchWords = np.flatnonzero(mask)[:10]
+        if Vocab is None:
+          wordStr = ' '.join([str(w) for w in matchWords])
+        else:
+          wordStr = ' '.join([Vocab[w] for w in matchWords])
+        s += " >%d%% %3d   %s\n" % (p, nMatch, wordStr)  
+      else:
+        s += " >%d%% %3d   \n" % (p, 0)
+      remCandidates = np.logical_and(nDocPerWord < nThr, remCandidates)
+    return s
+
+  def get_example_documents_summary(self, nExamples=10, Vocab=None, Ntop=10):
+    PRNG = np.random.RandomState( nExamples * self.nDoc)
+    nExamples = np.minimum(nExamples, self.nDoc)
+    docIDs = PRNG.choice(self.nDoc, nExamples, replace=0)
+    s = ''
+    for d in docIDs:
+      start = self.doc_range[d, 0]
+      stop = self.doc_range[d, 1]
+      docWordCount = self.word_count[start:stop]
+      docWordID = self.word_id[start:stop]
+      topWords = docWordID[np.argsort(-1*docWordCount)[:Ntop]]
+      if Vocab is not None:
+        wordStr = ' '.join([Vocab[w] for w in topWords])
+      else:
+        wordStr = ' '.join([str(w) for w in topWords])
+      s += wordStr + '\n'
+    return s
+
   ######################################################### Create from MAT
   #########################################################  (class method)
   @classmethod

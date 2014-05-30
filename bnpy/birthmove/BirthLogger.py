@@ -69,6 +69,7 @@ def writePlanToLog(Plan):
 def configure(taskoutpath, doSaveToDisk=0, doWriteStdOut=0):
   global Log
   Log = logging.getLogger('birthmove')
+
   Log.setLevel(logging.DEBUG)
   Log.handlers = [] # remove pre-existing handlers!
   formatter = logging.Formatter('%(message)s')
