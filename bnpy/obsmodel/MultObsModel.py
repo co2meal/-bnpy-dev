@@ -156,7 +156,7 @@ class MultObsModel(ObsModel):
             self.comp[k].post_update_soVB(rho, Dstar)
 
     def set_global_params(self, hmodel=None, topics=None, 
-                                wordcountTotal=1000.0,
+                                wordcountTotal=0,
                                 Etopics=None, **kwargs):
         ''' Set global params to provided values
 
@@ -178,9 +178,11 @@ class MultObsModel(ObsModel):
         assert topics is not None
         self.K = topics.shape[0]
         self.comp = list()
-        wc = wordcountTotal / float(self.K)
         for k in range(self.K):
-          lamvec = topics[k,:] * wc + self.obsPrior.lamvec
+          if wordcountTotal > 0:
+            lamvec = topics[k,:] * wordcountTotal/self.K + self.obsPrior.lamvec
+          else:
+            raise NotImplementedError('NEED TO SPECIFY wordcountTotal')
           self.comp.append(DirichletDistr(lamvec))          
 
 
