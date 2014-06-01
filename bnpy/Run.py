@@ -276,12 +276,10 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
   '''
   algName = ReqArgs['algName']
   algP = KwArgs[algName]
-  if 'birth' in KwArgs:
-    algP['birth'] = KwArgs['birth']
-  if 'merge' in KwArgs:
-    algP['merge'] = KwArgs['merge']
-  if 'shuffle' in KwArgs:
-    algP['shuffle'] = KwArgs['shuffle']
+  for moveKey in ['birth', 'merge', 'shuffle', 'delete']:
+    if moveKey in KwArgs:
+      algP[moveKey] = KwArgs[moveKey]
+
   outputP = KwArgs['OutputPrefs']
   if algName == 'EM' or algName == 'VB':
     learnAlg = bnpy.learnalg.VBLearnAlg(savedir=savepath, seed=algseed, \

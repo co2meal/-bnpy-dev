@@ -6,6 +6,7 @@ Uses stick-breaking construction for both global and document-level parameters.
 import numpy as np
 import logging
 Log = logging.getLogger('bnpy')
+import copy
 
 import LocalStepSBBagOfWords
 import OptimizerForHDPStickBreak as OptimHDPSB
@@ -70,6 +71,7 @@ class HDPStickBreak(AllocModel):
   #########################################################
   def calc_local_params(self, Data, LP, methodLP='memo', order=None, **kwargs):
     kwargs = dict(**kwargs) # local copy
+    LP = copy.deepcopy(LP)
 
     if order is not None and len(order) == self.K:
       LP = self.reorderCompsInLP(LP, order)
@@ -100,7 +102,7 @@ class HDPStickBreak(AllocModel):
           initLP = self.createRebalancedLP(Data, bestLP)
 
         kwargs['doInPlaceLP'] = 0
-        curLP = self.calc_local_params(Data, dict(**initLP), methodLP=mname, 
+        curLP = self.calc_local_params(Data, initLP, methodLP=mname, 
                                                              **kwargs) 
         curELBO = self.calcPerDocELBO(Data, curLP)
 
@@ -204,7 +206,7 @@ class HDPStickBreak(AllocModel):
       self.add_selection_terms_to_SS(SS, LP, preselectroutine)
     return SS
 
-  def add_selection_terms_to_SS(self, SS, preselectroutine):
+  def add_selection_terms_to_SS(self, SS, LP, preselectroutine):
     ''' Add terms to SuffStatBag for selecting good merge candidates.
     '''
     if preselectroutine.count('doctopiccorr') > 0:

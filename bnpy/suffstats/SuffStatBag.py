@@ -33,6 +33,12 @@ class SuffStatBag(object):
   def setField(self, key, value, dims=None):
     self._Fields.setField(key, value, dims=dims)
 
+  def setAllFieldsToZeroAndRemoveNonELBOTerms(self):
+    self._Fields.setAllFieldsToZero()
+    self.setELBOFieldsToZero()
+    self.removeMergeTerms()
+    self.removeSelectionTerms()
+
   def setELBOFieldsToZero(self):
     if self.hasELBOTerms():
       self._ELBOTerms.setAllFieldsToZero()
@@ -82,6 +88,17 @@ class SuffStatBag(object):
   def restoreMergeTerms(self, MergeTerms):
     if MergeTerms is not None:
       self._MergeTerms = MergeTerms
+
+  def removeSelectionTerms(self):
+    if not self.hasSelectionTerms():
+      return None
+    STerms = self._SelectTerms
+    del self._SelectTerms
+    return STerms
+
+  def restoreSelectionTerms(self, STerms):
+    if STerms is not None:
+      self._SelectTerms = STerms
 
   # ======================================================= Amp factor
   def hasAmpFactor(self):

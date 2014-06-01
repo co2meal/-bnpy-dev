@@ -8,6 +8,7 @@ import joblib
 import os
 import logging
 from collections import defaultdict
+import copy
 
 import MergeMove
 from LearnAlg import LearnAlg
@@ -17,6 +18,8 @@ from ..birthmove import TargetPlanner, TargetDataSampler, BirthMove
 
 Log = logging.getLogger('bnpy')
 from bnpy.birthmove import BirthLogger
+import bnpy.deletemove.CandidateSelection
+from bnpy.deletemove import DeleteLPUtil
 
 class MemoizedOnlineVBLearnAlg(LearnAlg):
 
@@ -36,6 +39,9 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       # Track the number of laps since birth last attempted
       #  at each component, to encourage trying diversity
       self.LapsSinceLastBirth = defaultdict(int)
+    if self.hasMove('delete'):
+      self.DelMoveSSmemory = dict()
+      self.DelMoveLPmemory = dict()
 
   def fit(self, hmodel, DataIterator):
     ''' Run moVB learning algorithm, fit parameters of hmodel to Data,
@@ -70,6 +76,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     self.memoLPkeys = hmodel.allocModel.get_keys_for_memoized_local_params()
     mPairIDs = None
 
+    DeleteInfo = dict()
     BirthPlans = list()
     BirthResults = None
     prevBirthResults = None
@@ -79,6 +86,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     isConverged = False
     prevBound = -np.inf
     self.set_start_time_now()
+    doDelete = self.hasMove('delete')
     while DataIterator.has_next_batch():
 
       # Grab new data
@@ -95,7 +103,6 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         self.algParamsLP['order'] = None
         if SS is not None:
           order = np.argsort(-1*SS.N)
-          print order
           SS.reorderComps(order)
           hmodel.reorderComps(order)
           self.algParamsLP['order'] = order
@@ -136,6 +143,27 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         self.BirthCompIDs = list() # no births = no new components
         self.ModifiedCompIDs = list()
 
+      # Select which components to delete
+      if self.hasMove('delete') and doDelete:
+        preselectroutine = self.algParams['delete']['preselectroutine']
+        if self.isFirstBatch(lapFrac) and lapFrac > 3:
+          self.DelMoveSSmemory.clear()
+          self.DelMoveLPmemory.clear()
+          selectFunc = bnpy.deletemove.CandidateSelection.selectCandidateTopic
+          DeleteInfo = selectFunc(SS, Dchunk, randstate=self.PRNG, 
+                                              **self.algParams['delete'])
+
+          if 'ktarget' in DeleteInfo:
+            dmodel = hmodel.copy()
+            DeleteSS = SS.copy()
+            DeleteSS.setAllFieldsToZeroAndRemoveNonELBOTerms()
+            DeleteSS.removeComp(DeleteInfo['ktarget'])
+
+      if self.isFirstBatch(lapFrac):
+        if SS is not None and SS.hasSelectionTerms():
+          SS._SelectTerms.setAllFieldsToZero()
+
+
       # Select which components to merge
       if self.hasMove('merge') and not self.algParams['merge']['doAllPairs']:
         preselectroutine = self.algParams['merge']['preselectroutine']
@@ -171,11 +199,11 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
       # Suff Stat step
       if batchID in self.SSmemory:
-        SSchunk = self.load_batch_suff_stat_from_memory(batchID, SS.K, 
+        oldSSchunk = self.load_batch_suff_stat_from_memory(batchID, SS.K, 
                                                         prevBirthResults,
                                                         BirthResults,
                                                         order)
-        SS -= SSchunk
+        SS -= oldSSchunk
       else:
         # Record this batch as updated to reflect all current birth moves
         for MInfo in BirthResults:
@@ -196,11 +224,6 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         assert SSchunk.K == SS.K
         SS += SSchunk
 
-      # Store batch-specific stats to memory
-      if self.algParams['doMemoizeLocalParams']:
-        self.save_batch_local_params_to_memory(batchID, LPchunk)          
-      self.save_batch_suff_stat_to_memory(batchID, SSchunk)  
-
       # Handle removing "extra mass" of fresh components
       #  to make SS have size exactly consistent with entire dataset
       if self.hasMove('birth') and self.isLastBatch(lapFrac):
@@ -213,6 +236,43 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       if self.hasMove('merge') and self.isLastBatch(lapFrac):
         hmodel, SS, evBound = self.run_merge_move(hmodel, SS, evBound, mPairIDs)
 
+      if self.hasMove('delete') and doDelete and 'ktarget' in DeleteInfo:
+        delLPchunk = DeleteLPUtil.MakeLP(Dchunk, hmodel, LPchunk, 
+                                       DeleteInfo, **self.algParams['delete'])
+        if not self.isFirstBatch(lapFrac):
+          if self.algParams['delete']['deleteUpdateEachBatch']:
+            delparamsLP = dict(**self.algParamsLP)
+            delparamsLP['methodLP'] = 'memo'
+            delparamsLP['nCoordAscentItersLP'] = 5
+            delLPchunk = dmodel.calc_local_params(Dchunk, delLPchunk,
+                                                  **delparamsLP)
+        delSSchunk = dmodel.get_global_suff_stats(Dchunk, delLPchunk,
+                                                  doPrecompEntropy=1)
+        DeleteSS += delSSchunk
+        if self.algParams['delete']['deleteUpdateEachBatch']:
+          dmodel.update_global_params(DeleteSS)
+        self.DelMoveSSmemory[batchID] = delSSchunk
+        self.DelMoveLPmemory[batchID] = delLPchunk
+
+
+        if lapFrac > 3 and self.isLastBatch(lapFrac):
+          dmodel.update_global_params(DeleteSS)
+          dmodel.allocModel.update_global_params(DeleteSS)
+          del_evBound = dmodel.calc_evidence(SS=DeleteSS)
+          print 'before %.6e' % (evBound)
+          print 'after  %.6e' % (del_evBound)
+          if del_evBound > evBound:
+            print 'ACCEPTED!!!!'
+            hmodel = dmodel.copy()
+            Sterms = SS.removeSelectionTerms()
+            Sterms.removeComp(DeleteInfo['ktarget'])
+            SS = DeleteSS.copy()
+            SS.restoreSelectionTerms(Sterms)
+            LPchunk = delLPchunk
+            SSchunk = delSSchunk
+            self.SSmemory = copy.deepcopy(self.DelMoveSSmemory)
+            self.LPmemory = copy.deepcopy(self.DelMoveLPmemory)
+            #doDelete = 0 # disable future deletes
       # Save and display progress
       self.add_nObs(Dchunk.nObs)
       self.save_state(hmodel, iterid, lapFrac, evBound)
@@ -232,6 +292,13 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         if isConverged and lapFrac > 5 and not self.hasMove('birth'):
           break
       prevBound = evBound
+
+      # Store batch-specific stats to memory
+      if self.algParams['doMemoizeLocalParams']:
+        self.save_batch_local_params_to_memory(batchID, LPchunk)          
+      self.save_batch_suff_stat_to_memory(batchID, SSchunk)  
+
+      #.................................................... end loop over data
 
     # Finally, save, print and exit
     if isConverged:

@@ -123,6 +123,8 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
   activeDocs = np.arange(D, dtype=np.int32)
   old_DocTopicCount = LP['DocTopicCount'].copy()
 
+  print methodLP, nCoordAscentItersLP
+
   for ii in xrange(nCoordAscentItersLP):
 
     # Update expElogpi for active documents
