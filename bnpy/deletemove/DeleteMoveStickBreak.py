@@ -55,7 +55,11 @@ def _makeInfo(curELBO, propELBO, compIDs):
   return dict(didRemoveComps=didRemoveComps, msg=msg, compIDs=compIDs,
                                              elbo=elbo)
 
-def construct_LP_with_comps_removed(Data, model, compIDs=0, LP=None):
+def construct_LP_with_comps_removed(Data, model, compIDs=0, LP=None,
+                                    fallbackThr=0.1,
+                                    neighbors=None,
+                                    newNeighbors=None,
+                                    **kwargs):
   ''' Create local params consistent with deleting component at compID.
       Every field in returned dict LP will have scale consistent with Data.
 
@@ -67,8 +71,8 @@ def construct_LP_with_comps_removed(Data, model, compIDs=0, LP=None):
     compIDs = [compIDs]
   assert type(compIDs) == list or type(compIDs) == np.ndarray
 
-  if LP is None:
-    LP = model.calc_local_params(Data)
+  if neighbors is not None:
+    neighbors, newNeighbors = MakeBeforeAfterNeighbors(neighbors, compIDs)
 
   nObs, K = LP['word_variational'].shape
 
@@ -89,12 +93,26 @@ def construct_LP_with_comps_removed(Data, model, compIDs=0, LP=None):
 
   assert rvec.size == nObs
   assert rvec.ndim == 1
-  Rnew /= np.sum(Rnew, axis=1)[:,np.newaxis]
+  remMass = np.sum(Rnew, axis=1)
   
-  mask = np.abs(1.0 - np.sum(Rnew, axis=1)) > 1e-7
-  if np.sum(mask) > 0:
-    Rnew[mask] = 1./Knew # fallback to 
-    print 'NUM MANUALLY RESCUED:  %d/%d' % (np.sum(mask), mask.size)
+  # identify tokens that have lots of mass on the deleted topic,
+  #  and need to 'fallback' to their doc-topic distrib
+  fallbackIDs = np.flatnonzero(remMass < fallbackThr)
+  if len(fallbackIDs) > 0:
+    docIDs = Data.getDocIDs()[fallbackIDs]
+    Rnew[fallbackIDs, :] = 0
+    if neighbors is None:
+      Rnew[fallbackIDs, :] = LP['DocTopicCount'][:,remComps][docIDs]
+    else:
+      for n in xrange(len(neighbors)):
+        newID = newNeighbors[n]
+        oldID = neighbors[n]
+        Rnew[fallbackIDs, newID] = LP['DocTopicCount'][:,oldID][docIDs]
+    remMass[fallbackIDs] = Rnew[fallbackIDs,:].sum(axis=1)
+
+
+  Rnew /= remMass[:,np.newaxis]
+  np.maximum(Rnew, 1e-100, out=Rnew)
   assert np.allclose(1.0, np.sum(Rnew, axis=1))
 
   newLP = dict()
@@ -142,3 +160,20 @@ def propose_model_and_SS_with_comps_removed__viaLP(Data, model, compIDs=0,
   newModel.update_global_params(newSS)
   newModel.update_global_params(newSS)
   return newModel, newSS
+
+def MakeBeforeAfterNeighbors(neighbors, compIDs):
+  assert len(compIDs) == 1
+  compID = compIDs[0]
+  newNeighbors = None
+  if neighbors is not None:
+    newNeighbors = list()
+    neighbors2 = list()
+    for n in neighbors:
+      if n == compID:
+        continue
+      neighbors2.append(n)
+      if n > compID:
+        n -= 1
+      newNeighbors.append(n)
+    neighbors = neighbors2
+  return neighbors, newNeighbors

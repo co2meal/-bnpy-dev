@@ -169,6 +169,7 @@ def plotBarsData(Data, savepath=None):
   _plotBarsTopicsSquare(topics)
 
 def _plotBarsTopicsSquare(topicsIN, nRows=1, Kmax=15, 
+                          xlabels=list(),
                           cmap='gray', vmax=vmax, vmin=vmin,
                           targetInfo=None):
   if topicsIN.ndim == 1:
@@ -190,12 +191,15 @@ def _plotBarsTopicsSquare(topicsIN, nRows=1, Kmax=15,
                        cmap=cmap, aspect=1.0)
     pylab.xticks([])
     pylab.yticks([])
+    if len(xlabels) > k:
+      pylab.xlabel( xlabels[k])
     if targetInfo is not None and targetInfo['ktarget'] is not None:
       if k == targetInfo['ktarget']:
         pylab.title('TARGET', fontsize=10)
   pylab.tight_layout()
   pylab.draw()
-  pylab.show(block=False)
+  if not pylab.isinteractive():
+    pylab.show(block=False)
 
 ########################################################### Target Data Viz ###########################################################
 def plotWordCloudsForRandomDocs(Data, Vocab, birthmovefile, doSave):
