@@ -28,7 +28,7 @@ def selectCandidateTopic(SS, Data, preselectroutine=None,
 
   # Remove NaN entries and topics with zero mass from consideration
   nanIDs = np.isnan(Smat)
-  offlimitcompIDs = np.logical_or(np.isnan(svec), svec < 1)
+  offlimitcompIDs = np.flatnonzero(np.logical_or(np.isnan(svec), svec < 1))
   Smat[nanIDs] = 0
   svec[np.isnan(svec)] = 0
 

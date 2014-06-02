@@ -2,7 +2,7 @@ import os
 import sys
 import MakeBirthPlots as MBP
 
-def MakeHTMLForBirth(savepath, BirthResults, CurResults, planID):
+def MakeHTMLForBirth(savepath, BirthResults, CurResults, Data, planID):
   if savepath.lower().count('bars'):
     with open('Template-Birth-Bars.html','r') as f:
       TemplateLines = f.readlines()
@@ -10,7 +10,7 @@ def MakeHTMLForBirth(savepath, BirthResults, CurResults, planID):
     with open('Template-Birth-Real.html','r') as f:
       TemplateLines = f.readlines()
 
-  MBP.MakePlots(BirthResults, CurResults,
+  MBP.MakePlots(BirthResults, CurResults, Data,
                  os.path.join(savepath, str(planID)))
 
   MyLines = fillHTMLTemplate(TemplateLines, BirthResults, savepath, planID)
