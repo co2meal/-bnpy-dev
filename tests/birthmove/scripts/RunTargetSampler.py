@@ -346,9 +346,11 @@ def main():
                                       seed=seed,
                                       targetSelectName=args.selectName,
                                       **kwargs)
-
   for pID, Plan in enumerate(Plans):
-    joblib.dump(Plan, os.path.join(args.savepath, str(pID+1), 'Plan.dump'))
+    planpath = os.path.join(args.savepath, str(pID+1))
+    mkpath(planpath)
+
+    joblib.dump(Plan, os.path.join(planpath, 'Plan.dump'))
 
     Plan['BigData'] = Data
     Plan['BigModel'] = model
