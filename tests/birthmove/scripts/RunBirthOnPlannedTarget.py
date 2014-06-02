@@ -49,6 +49,7 @@ BirthArgsIN = dict(
                cleanupDeleteToImproveFresh=0,
                cleanupDeleteViaLP=1,
                cleanupMinSize=50,
+               cleanupRaiseErrorWhenAllDeleted=0,
                 )
 
 
@@ -89,6 +90,7 @@ def RunBirthOnTargetData(outPath, model, bigSS, bigData, Plan,
 
   xmodel, xSS, Info = BirthMove.run_birth_move(model, bigSS, Plan['Data'],
                                                            Q=Q,
+                                                           Plan=Plan,
                                                            **BirthArgs)
   Results = MakeLeanSaveInfo(Info, doTraceBeta=1)
 
@@ -153,7 +155,6 @@ def main():
 
   Data, model, SS, LP, cachefile = LoadModelAndData(args.data, args.initName)
   Plan = joblib.load(targetpath)
-
   for trial in xrange(args.nTrial):
     logfile = os.path.join(args.savepath, str(trial+1), 'log.txt')
     BirthLogger.configure(logfile, doSaveToDisk=0, doWriteStdOut=1)
@@ -166,7 +167,7 @@ def main():
     BirthResults = RunBirthOnTargetData(outpath, model, SS, Data, Plan,
                                           seed=trial, **kwargs)
 
-    MakeHTMLForBirth(args.savepath, BirthResults, CurResults, trial+1)
+    MakeHTMLForBirth(args.savepath, BirthResults, CurResults, Data, trial+1)
 
 if __name__ == '__main__':
   main()
