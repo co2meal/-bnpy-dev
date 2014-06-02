@@ -347,13 +347,13 @@ class WordsData(DataObj):
     return Q, sameWordVec, self.nDoc
 
   def _calc_wordword_cooccur(self, Q, sameWordVec, nDoc):
-    Q /= self.nDoc
-    sameWordVec /= self.nDoc
+    Q /= nDoc
+    sameWordVec /= nDoc
     diagIDs = np.diag_indices(self.vocab_size)
     Q[diagIDs] -= sameWordVec
     
     # Fix small numerical issues (like diag entries of -1e-15 instead of 0)
-    #np.maximum( Q, 0, out=Q)
+    np.maximum(Q, 0, out=Q)
     return Q
 
   def getNumDocsPerWord(self):

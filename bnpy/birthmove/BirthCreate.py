@@ -16,7 +16,8 @@ from BirthLogger import log, logPhase
 
 fastParams = dict(nCoordAscentItersLP=1, convThrLP=0.001)
 
-def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None, **kwargs):
+def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None,
+                                          Plan=None, **kwargs):
   '''
 
     Returns
@@ -29,7 +30,12 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None, **kwargs):
   Info = dict()
   freshModel = bigModel.copy()
 
-  if kwargs['creationRoutine'] == 'findmissingtopics':
+  if kwargs['creationRoutine'] == 'targetWordFreq':
+    freshModel.set_global_params(beta=np.ones(1), K=1,
+                               topics=Plan['targetWordFreq'][np.newaxis,:],
+                               wordcountTotal=freshData.word_count.sum()
+                              )
+  elif kwargs['creationRoutine'] == 'findmissingtopics':
     freshModel = create_new_model_findmissingtopics(
                                   freshModel, freshData, 
                                   bigModel, **kwargs)

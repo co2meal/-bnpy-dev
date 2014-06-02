@@ -47,6 +47,12 @@ def makeCandidateTopics(Data, Q, model, LP, **kwargs):
   '''
   '''
   selectName = kwargs['targetSelectName']
+  if Q is None:
+    if hasattr(Data, 'Q'):
+      Q = Data.Q
+    else:
+      # fall back on this routine
+      selectName = 'missingTopic'
   if selectName.count('anchor'):
     return makeCandidateTopics_AnchorAnalysis(Q, model, **kwargs)
   elif selectName.count('missingTopic'):

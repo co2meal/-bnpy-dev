@@ -76,6 +76,10 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     self.memoLPkeys = hmodel.allocModel.get_keys_for_memoized_local_params()
     mPairIDs = None
 
+    if self.hasMove('birth'):
+      doQ = self.algParams['birth']['targetSelectName'].lower().count('anchor')
+    else:
+      doQ = False
     DeleteInfo = dict()
     BirthPlans = list()
     BirthResults = None
@@ -122,6 +126,22 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
           prevBirthResults = BirthResults
         else:
           prevBirthResults = list()
+
+      if self.hasMove('birth') and doQ:
+        if lapFrac <= 1.0:
+          A, b, c = Dchunk.to_wordword_cooccur_building_blocks()
+          if self.isFirstBatch(lapFrac):
+            Q = A
+            bb = b
+            cc = c
+          else:
+            Q += A
+            bb += b
+            cc += c
+          if self.isLastBatch(lapFrac):
+            Q = Dchunk._calc_wordword_cooccur(Q, bb, cc)        
+        else:
+          Dchunk.Q = Q
 
       # Birth move : create new components
       if self.hasMove('birth') and self.do_birth_at_lap(lapFrac):
@@ -508,6 +528,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         hmodel, SS, MoveInfo = BirthMove.run_birth_move(
                                            hmodel, SS, targetData, 
                                            randstate=self.PRNG, 
+                                           Plan=Plan,
                                            **kwargs)
         if MoveInfo['didAddNew']:
           BirthResults.append(MoveInfo)
