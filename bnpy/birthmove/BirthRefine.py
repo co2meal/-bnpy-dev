@@ -70,7 +70,7 @@ def expand_then_refine(freshModel, freshSS, freshData,
 
   if kwargs['cleanupDeleteToImprove']:
     Kx = xbigSS.K
-    xbigModel, xbigSS, xfreshSS, origIDs = \
+    xbigModel, xbigSS, xfreshSS, xfreshELBO, origIDs = \
               BirthCleanup.delete_comps_from_expanded_model_to_improve_ELBO(
                                   freshData, xbigModel, 
                                   xbigSS, xfreshSS,
@@ -78,7 +78,8 @@ def expand_then_refine(freshModel, freshSS, freshData,
     AInfo = _delete_from_AInfo(AInfo, origIDs, Kx)
     if kwargs['birthDebug']:
       Info['xbigModelPostDelete'] = xbigModel.copy()
-  
+      Info['ELBOPostDelete'] = xfreshELBO
+
   if hasattr(xfreshSS, 'nDoc'):
     assert xbigSS.nDoc == bigSS.nDoc
     assert xfreshSS.nDoc == freshData.nDoc

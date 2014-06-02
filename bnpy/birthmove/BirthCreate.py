@@ -14,7 +14,7 @@ from BirthProposalError import BirthProposalError
 import BirthCleanup
 from BirthLogger import log, logPhase
 
-fastParams = dict(nCoordAscentItersLP=10, convThrLP=0.001)
+fastParams = dict(nCoordAscentItersLP=1, convThrLP=0.001)
 
 def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None, **kwargs):
   '''
