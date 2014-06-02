@@ -15,7 +15,7 @@ from bnpy.allocmodel.admix import OptimizerForHDPStickBreak as OptimHDPSB
 
 import MakeTargetPlots as MTP
 
-def MakePlots(BirthResults, CurResults, outpath, doSave=1):
+def MakePlots(BirthResults, CurResults, Data, outpath, doSave=1):
 
   Korig = BirthResults['Korig']
   plotTraceStats(BirthResults, Korig=Korig)
@@ -24,15 +24,38 @@ def MakePlots(BirthResults, CurResults, outpath, doSave=1):
   plotELBOTrace(BirthResults, CurResults)
   saveCurrentFig(doSave, outpath, 'ELBO.png')
 
-  MTP._plotBarsTopicsSquare(BirthResults['initTopics'][Korig:])
-  saveCurrentFig(doSave, outpath, 'InitTopics.png')
+  if hasattr(Data, 'vocab_dict'):
+    Vocab = [str(x[0][0]) for x in Data.vocab_dict]
+  else:
+    Vocab = None
 
-  MTP._plotBarsTopicsSquare(BirthResults['finalTopics'][Korig:])
-  saveCurrentFig(doSave, outpath, 'FinalTopics.png')
+  V = Data.vocab_size
+  sqrtV = np.sqrt(V)
+  if sqrtV == int(np.sqrt(V)):
+    MTP._plotBarsTopicsSquare(BirthResults['initTopics'][Korig:])
+    saveCurrentFig(doSave, outpath, 'InitTopics.png')
 
-  if 'cleanupTopics' in BirthResults:
-    MTP._plotBarsTopicsSquare(BirthResults['cleanupTopics'][Korig:])
-    saveCurrentFig(doSave, outpath, 'MinimalFinalTopics.png')
+    MTP._plotBarsTopicsSquare(BirthResults['finalTopics'][Korig:])
+    saveCurrentFig(doSave, outpath, 'FinalTopics.png')
+
+    if 'cleanupTopics' in BirthResults:
+      MTP._plotBarsTopicsSquare(BirthResults['cleanupTopics'][Korig:])
+      saveCurrentFig(doSave, outpath, 'MinimalFinalTopics.png')
+  else:
+    MTP._plotTopicWordClouds(Vocab, BirthResults['initTopics'][Korig:],
+                              outpath,
+                              basename='InitTopics.png')
+
+    MTP._plotTopicWordClouds(Vocab, BirthResults['finalTopics'][Korig:],
+                              outpath,
+                              basename='FinalTopics.png')
+
+    if 'cleanupTopics' in BirthResults:
+      cleanupTopics =  BirthResults['cleanupTopics'][Korig:]
+      if cleanupTopics.shape[0] > Korig:
+        MTP._plotTopicWordClouds(Vocab, cleanupTopics,
+                              outpath,
+                              basename='MinimumFinalTopics.png')
 
 def saveCurrentFig(doSave, outpath, basename):
   if doSave:

@@ -259,25 +259,27 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       if self.hasMove('delete') and doDelete and 'ktarget' in DeleteInfo:
         delLPchunk = DeleteLPUtil.MakeLP(Dchunk, hmodel, LPchunk, 
                                        DeleteInfo, **self.algParams['delete'])
-        if not self.isFirstBatch(lapFrac):
-          if self.algParams['delete']['deleteUpdateEachBatch']:
-            delparamsLP = dict(**self.algParamsLP)
-            delparamsLP['methodLP'] = 'memo'
-            delparamsLP['nCoordAscentItersLP'] = 5
-            delLPchunk = dmodel.calc_local_params(Dchunk, delLPchunk,
-                                                  **delparamsLP)
         delSSchunk = dmodel.get_global_suff_stats(Dchunk, delLPchunk,
                                                   doPrecompEntropy=1)
         DeleteSS += delSSchunk
-        if self.algParams['delete']['deleteUpdateEachBatch']:
+        dmodel.update_global_params(DeleteSS)
+        if self.isFirstBatch(lapFrac):
+          dmodel.allocModel.update_global_params(DeleteSS) # make it stick
+
+        nIters = self.algParams['delete']['deleteUpdateEachBatch']
+        for deliter in xrange(nIters):
+          DeleteSS -= delSSchunk
+          delLPchunk = dmodel.calc_local_params(Dchunk, delLPchunk,
+                                                  **self.algParamsLP)
+          delSSchunk = dmodel.get_global_suff_stats(Dchunk, delLPchunk,
+                                                  doPrecompEntropy=1)
+          DeleteSS += delSSchunk
           dmodel.update_global_params(DeleteSS)
+
         self.DelMoveSSmemory[batchID] = delSSchunk
         self.DelMoveLPmemory[batchID] = delLPchunk
 
-
         if lapFrac > 3 and self.isLastBatch(lapFrac):
-          dmodel.update_global_params(DeleteSS)
-          dmodel.allocModel.update_global_params(DeleteSS)
           del_evBound = dmodel.calc_evidence(SS=DeleteSS)
           print 'before %.6e' % (evBound)
           print 'after  %.6e' % (del_evBound)
@@ -292,7 +294,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
             SSchunk = delSSchunk
             self.SSmemory = copy.deepcopy(self.DelMoveSSmemory)
             self.LPmemory = copy.deepcopy(self.DelMoveLPmemory)
-            #doDelete = 0 # disable future deletes
+            #doDelete = 0 # debugging switch to disable future deletes
+
       # Save and display progress
       self.add_nObs(Dchunk.nObs)
       self.save_state(hmodel, iterid, lapFrac, evBound)

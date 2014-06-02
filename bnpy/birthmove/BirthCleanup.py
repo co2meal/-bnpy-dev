@@ -135,8 +135,8 @@ def delete_comps_from_expanded_model_to_improve_ELBO(Data,
       break
     ### end loop over comps to delete
 
-  if xbigSS.K == Korig:
-    log(' No deletions improved model quality.')
+  if xbigSS.K == Korig and kwargs['cleanupRaiseErrorWhenAllDeleted']:
+    log('FAILED. Deleting all new comps improves ELBO.')
     msg = "FAILED. After expansion, deleting all new comps improves ELBO."
     raise BirthProposalError(msg)
   return xbigModel, xbigSS, xfreshSS, xfreshELBO, origIDs
