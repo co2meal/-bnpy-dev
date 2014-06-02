@@ -19,7 +19,7 @@ from ..birthmove import TargetPlanner, TargetDataSampler, BirthMove
 Log = logging.getLogger('bnpy')
 from bnpy.birthmove import BirthLogger, TargetPlannerWordFreq
 import bnpy.deletemove.CandidateSelection
-from bnpy.deletemove import DeleteLPUtil
+from bnpy.deletemove import DeleteLPUtil, DeleteLogger
 
 class MemoizedOnlineVBLearnAlg(LearnAlg):
 
@@ -166,9 +166,10 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       # Select which components to delete
       if self.hasMove('delete') and doDelete:
         preselectroutine = self.algParams['delete']['preselectroutine']
-        if self.isFirstBatch(lapFrac) and lapFrac > 3:
+        if self.isFirstBatch(lapFrac) and lapFrac > 2:
           self.DelMoveSSmemory.clear()
           self.DelMoveLPmemory.clear()
+          DeleteLogger.logPhase('Candidate Selection')
           selectFunc = bnpy.deletemove.CandidateSelection.selectCandidateTopic
           DeleteInfo = selectFunc(SS, Dchunk, randstate=self.PRNG, 
                                               **self.algParams['delete'])
@@ -264,8 +265,10 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         DeleteSS += delSSchunk
         dmodel.update_global_params(DeleteSS)
         if self.isFirstBatch(lapFrac):
+          DeleteLogger.logPhase('Construction')
           dmodel.allocModel.update_global_params(DeleteSS) # make it stick
 
+        DeleteLogger.logPhase(' batch %3d, lapFrac %.1f' % (batchID, lapFrac))
         nIters = self.algParams['delete']['deleteUpdateEachBatch']
         for deliter in xrange(nIters):
           DeleteSS -= delSSchunk
@@ -279,12 +282,13 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         self.DelMoveSSmemory[batchID] = delSSchunk
         self.DelMoveLPmemory[batchID] = delLPchunk
 
-        if lapFrac > 3 and self.isLastBatch(lapFrac):
+        if lapFrac > 2 and self.isLastBatch(lapFrac):
+          DeleteLogger.logPhase('Evaluation')
           del_evBound = dmodel.calc_evidence(SS=DeleteSS)
-          print 'before %.6e' % (evBound)
-          print 'after  %.6e' % (del_evBound)
+          DeleteLogger.log('  original %.6e' % (evBound))
+          DeleteLogger.log('  deleted  %.6e' % (del_evBound))
           if del_evBound > evBound:
-            print 'ACCEPTED!!!!'
+            DeleteLogger.log('ACCEPTED!!!!!!')
             hmodel = dmodel.copy()
             Sterms = SS.removeSelectionTerms()
             Sterms.removeComp(DeleteInfo['ktarget'])
@@ -295,6 +299,9 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
             self.SSmemory = copy.deepcopy(self.DelMoveSSmemory)
             self.LPmemory = copy.deepcopy(self.DelMoveLPmemory)
             #doDelete = 0 # debugging switch to disable future deletes
+          else:
+            DeleteLogger.log('REJECTED.')
+
 
       # Save and display progress
       self.add_nObs(Dchunk.nObs)

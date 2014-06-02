@@ -3,6 +3,7 @@
 Selects single topic to consider with a delete move
 '''
 import numpy as np
+import DeleteLogger
 
 def selectCandidateTopic(SS, Data, preselectroutine=None,
                                    randstate=np.random.RandomState(0),
@@ -18,7 +19,7 @@ def selectCandidateTopic(SS, Data, preselectroutine=None,
   # Verify input args satisfactory
   if SS is None or not SS.hasSelectionTerms():
     Info['msg'] = 'SKIPPED. SuffStatBag needs Selection terms.'
-    print Info['msg']
+    DeleteLogger.log(Info['msg'])
     return Info
   
   K = SS.K
@@ -26,9 +27,11 @@ def selectCandidateTopic(SS, Data, preselectroutine=None,
   Smat = SS.getSelectionTerm('DocTopicPairMat')
   svec = SS.getSelectionTerm('DocTopicSum')
 
-  # Remove NaN entries and topics with zero mass from consideration
+  # Remove NaN entries and topics with very little mass from consideration
+  topicMinSize = kwargs['topicMinSize']
+  offlimitcompIDs = np.flatnonzero(np.logical_or(np.isnan(svec), 
+                                                 svec < topicMinSize))
   nanIDs = np.isnan(Smat)
-  offlimitcompIDs = np.flatnonzero(np.logical_or(np.isnan(svec), svec < 1))
   Smat[nanIDs] = 0
   svec[np.isnan(svec)] = 0
 
@@ -55,7 +58,7 @@ def selectCandidateTopic(SS, Data, preselectroutine=None,
   # Check if any candidates exist.
   if np.sum(ps) < 1e-9:
     Info['msg'] = 'SKIPPED. No topic pair has positive correlation.'
-    print Info['msg']
+    DeleteLogger.log(Info['msg'])
     return Info
 
   ps = ps / np.sum(ps)
@@ -80,16 +83,16 @@ def selectCandidateTopic(SS, Data, preselectroutine=None,
   targetID = np.argmin(topicSizes)
   ktarget = candidateTopics[targetID]
 
-  print '.................................................. Candidate Topics:'
   for posID, kk in enumerate(candidateTopics):
     if posID == 0:
-      print '  %3d  N=%6.0f  Corr=%.2f' % (kk, SS.N[kk], 
+      msg = '  %3d  N=%6.0f  Corr=%.2f' % (kk, SS.N[kk], 
                                   CorrMat[kk, candidateTopics[posID+1]])
     else:
-      print '  %3d  N=%6.0f  Corr=%.2f' % (kk, SS.N[kk],
+      msg = '  %3d  N=%6.0f  Corr=%.2f' % (kk, SS.N[kk],
                                   CorrMat[candidateTopics[posID-1],kk])
-    
-  print 'Selected: %d' % (ktarget)
+    DeleteLogger.log(msg)    
+
+  DeleteLogger.log('Selected: %d' % (ktarget))
   
   if 'doVizDelete' in kwargs and kwargs['doVizDelete']:
     from matplotlib import pylab
