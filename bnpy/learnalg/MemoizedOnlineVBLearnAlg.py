@@ -294,7 +294,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
             SSchunk = delSSchunk
             self.SSmemory = copy.deepcopy(self.DelMoveSSmemory)
             self.LPmemory = copy.deepcopy(self.DelMoveLPmemory)
-            #doDelete = 0 # disable future deletes
+            #doDelete = 0 # debugging switch to disable future deletes
+
       # Save and display progress
       self.add_nObs(Dchunk.nObs)
       self.save_state(hmodel, iterid, lapFrac, evBound)
