@@ -85,6 +85,7 @@ def _sample_target_WordsData(Data, model, LP, return_Info=0, **kwargs):
     wordFreq = kwargs['targetWordFreq']
 
     ScoreMat = calcDocWordUnderpredictionScores(Data, model, LP)
+    ScoreMat = ScoreMat[candidates]
     DebugInfo['ScoreMat'] = ScoreMat
     if kwargs['targetSelectName'].count('score'):
       ScoreMat = np.maximum(0, ScoreMat)
