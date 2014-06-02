@@ -163,6 +163,10 @@ def _run_task_internal(jobname, taskid, nTask,
     import bnpy.birthmove.BirthLogger as BirthLogger
     BirthLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
     BirthLogger.log('This is the birth log.')
+  if learnAlg.hasMove('delete'):
+    import bnpy.deletemove.DeleteLogger as DeleteLogger
+    DeleteLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
+    DeleteLogger.log('This is the delete log.')
 
   # Check if running on grid
   try:
