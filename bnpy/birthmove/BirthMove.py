@@ -113,6 +113,9 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, **kwargsIN):
     if 'doVizBirth' in kwargs and kwargs['doVizBirth']:
       VizBirth.viz_birth_proposal(bigModel, xbigModel, birthCompIDs,
                                   curELBO=curELBO, propELBO=propELBO, **kwargs)
+      raw_input('>>>')
+      from matplotlib import pylab
+      pylab.close('all')
 
     # Reject. Abandon the move.
     if not didPass:

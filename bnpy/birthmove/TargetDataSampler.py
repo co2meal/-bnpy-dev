@@ -10,7 +10,7 @@ Sample selection criteria
 '''
 import numpy as np
 from scipy.spatial.distance import cdist
-#from TargetPlannerWordFreq import calcDocWordUnderpredictionScores
+from TargetPlannerWordFreq import calcDocWordUnderpredictionScores
 
 ########################################################### sample_target_data
 ###########################################################
@@ -58,7 +58,7 @@ def _sample_target_WordsData(Data, model, LP, return_Info=0, **kwargs):
   if len(candidates) < 1:
     return None
 
-  # ..................................................... target a specific Comp
+  # ............................................... target a specific Comp
   if hasValidKey('targetCompID', kwargs):
     if hasValidKey('DocTopicCount', LP):
       Ndk = LP['DocTopicCount'][candidates].copy()
@@ -72,7 +72,7 @@ def _sample_target_WordsData(Data, model, LP, return_Info=0, **kwargs):
       raise ValueError('LP must have either DocTopicCount or resp')
     candidates = candidates[mask]
 
-  # ..................................................... target a specific Word
+  # ............................................... target a specific Word
   elif hasValidKey('targetWordIDs', kwargs):
     wordIDs = kwargs['targetWordIDs']
     TinyMatrix = DocWordMat[candidates, :].toarray()[:, wordIDs]
@@ -80,7 +80,7 @@ def _sample_target_WordsData(Data, model, LP, return_Info=0, **kwargs):
     mask = targetCountPerDoc >= kwargs['targetWordMinCount']
     candidates = candidates[mask]
 
-  # ..................................................... target based on WordFreq
+  # ............................................... target based on WordFreq
   elif hasValidKey('targetWordFreq', kwargs):
     wordFreq = kwargs['targetWordFreq']
 
@@ -101,11 +101,14 @@ def _sample_target_WordsData(Data, model, LP, return_Info=0, **kwargs):
     keepIDs = distPerDoc.argsort()[:kwargs['targetMaxSize']]
     candidates = candidates[keepIDs]
     DebugInfo['candidates'] = candidates
-    DebugInfo['distPerCandidate'] = distPerDoc[keepIDs]
+    DebugInfo['dist'] = distPerDoc[keepIDs]
 
   if len(candidates) < 1:
     return None
-  targetData = Data.get_random_sample(kwargs['targetMaxSize'],
+  elif len(candidates) <= kwargs['targetMaxSize']:
+    targetData = Data.select_subset_by_mask(candidates)
+  else:
+    targetData = Data.get_random_sample(kwargs['targetMaxSize'],
                                       randstate=kwargs['randstate'],
                                       candidates=candidates) 
 

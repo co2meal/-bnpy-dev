@@ -42,6 +42,12 @@ def MakePlotsForTargetDataPlan(Plan, savepath, doSave=1):
       _plotBarsTopicsSquare(ScoreMat, nRows=3, cmap='jet', vmin=-0.01, vmax=0.01)
       saveCurrentFig(doSave, savepath, 'TargetDataScore.png')
 
+      ScoreMat = np.maximum(0, ScoreMat)
+      ScoreMat /= ScoreMat.sum(axis=1)[:,np.newaxis]
+      _plotBarsTopicsSquare(ScoreMat, nRows=3, cmap='jet', vmin=0, vmax=0.01)
+      saveCurrentFig(doSave, savepath, 'TargetDataScorePos.png')
+
+
     if 'targetWordFreq' in Plan and Plan['targetWordFreq'] is not None:
       _plotBarsTopicsSquare(Plan['targetWordFreq'])
       saveCurrentFig(doSave, savepath, 'TargetIcon.png')

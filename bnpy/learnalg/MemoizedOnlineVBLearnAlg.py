@@ -17,7 +17,7 @@ from ..util import isEvenlyDivisibleFloat
 from ..birthmove import TargetPlanner, TargetDataSampler, BirthMove
 
 Log = logging.getLogger('bnpy')
-from bnpy.birthmove import BirthLogger
+from bnpy.birthmove import BirthLogger, TargetPlannerWordFreq
 import bnpy.deletemove.CandidateSelection
 from bnpy.deletemove import DeleteLPUtil
 
@@ -193,7 +193,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
           BirthPlans = self.birth_plan_targets_for_next_lap(
                                 Dchunk, hmodel, SS, LPchunk, BirthResults)
         BirthPlans = self.birth_collect_target_subsample(
-                                Dchunk, hmodel, LPchunk, BirthPlans)
+                                Dchunk, hmodel, LPchunk, BirthPlans, lapFrac)
       else:
         BirthPlans = list()
 
@@ -479,21 +479,28 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
     nMoves = len(BirthPlans)
     BirthResults = list()
+
+    def isInPlan(Plan, key):
+      return key in Plan and Plan[key] is not None
+
     for moveID, Plan in enumerate(BirthPlans):
       # Unpack data for current move
       ktarget = Plan['ktarget']
       targetData = Plan['Data']
       targetSize = TargetDataSampler.getSize(targetData)
 
-      if 'targetWordIDs' not in Plan or Plan['targetWordIDs'] is None:
-        isBad = ktarget is None
-      else:
+      if isInPlan(Plan, 'targetWordIDs'):
         isBad = len(Plan['targetWordIDs']) == 0
+      elif isInPlan(Plan, 'targetWordFreq'):
+        isBad = False
+      else:
+        isBad = ktarget is None
 
       BirthLogger.logStartMove(lapFrac, moveID, len(BirthPlans))
       if isBad or targetData is None:
         msg = Plan['msg']
         BirthLogger.log(msg)
+        BirthLogger.log('SKIPPED. TargetData bad.')
       elif targetSize < kwargs['targetMinSize']:
         msg = "SKIPPED. Target data too small. Size %d."
         BirthLogger.log(msg % (targetSize))
@@ -507,12 +514,6 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
           for kk in MoveInfo['birthCompIDs']:
             self.LapsSinceLastBirth[kk] = -1
 
-      '''
-      if Data is None:
-          self.print_msg( "%d/%d %s" % (moveID+1, nMoves, msg) )
-      else:
-          self.print_msg( "%d/%d BATCH %s" % (moveID+1, nMoves, msg) )
-      '''
     return hmodel, SS, BirthResults
 
   def birth_remove_extra_mass(self, hmodel, SS, BirthResults):
@@ -557,7 +558,12 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
                             nSets=nBirths, randstate=self.PRNG,
                             **self.algParams['birth'])
       return Plans
-
+    elif self.algParams['birth']['targetSelectName'].lower().count('freq'):
+      Plans = TargetPlannerWordFreq.MakePlans(
+                            Data, hmodel, LP, 
+                            nPlans=nBirths, randstate=self.PRNG,
+                            **self.algParams['birth'])
+      return Plans
     # Update counter for duration since last targeted-birth for each comp
     for kk in range(K):
       self.LapsSinceLastBirth[kk] += 1
@@ -583,7 +589,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       BirthPlans.append(Plan)
     return BirthPlans
 
-  def birth_collect_target_subsample(self, Dchunk, model, LPchunk, BirthPlans):
+  def birth_collect_target_subsample(self, Dchunk, model, LPchunk, 
+                                           BirthPlans, lapFrac):
     ''' Collect subsample of the data in Dchunk, and add that subsample
           to overall targeted subsample stored in input list BirthPlans
         This overall sample is aggregated across many batches of data.
@@ -596,29 +603,41 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     '''
     for Plan in BirthPlans:
       # Skip this move if component selection failed
-      if Plan['ktarget'] is None and Plan['targetWordIDs'] is None:
+      if Plan['ktarget'] is None and Plan['targetWordIDs'] is None \
+                                 and Plan['targetWordFreq'] is None:
         continue
 
       birthParams = dict(**self.algParams['birth'])
+
+      if 'targetWordFreq' in Plan:
+        birthParams['targetMaxSize'] = 2 * birthParams['targetMaxSize']
       # Skip collection if have enough data already
       if Plan['Data'] is not None:
-        targetSize = TargetDataSampler.getSize( Plan['Data'])
+        targetSize = TargetDataSampler.getSize(Plan['Data'])
         if targetSize >= birthParams['targetMaxSize']:
             continue
-        birthParams['targetMaxSize'] -= targetSize
+        if 'targetWordFreq' not in Plan:
+          birthParams['targetMaxSize'] -= targetSize
 
       if Plan['Data'] is not None and birthParams['targetExample']:
         x = TargetDataSampler.getDataExemplar(Plan['Data'])
         birthParams['targetExample'] = x
 
+
+      if 'targetWordFreq' in Plan:
+        birthParams['targetMaxSize'] /= 10
       # Sample data from current batch, if more is needed
-      targetData = TargetDataSampler.sample_target_data(
+      targetData, targetInfo = TargetDataSampler.sample_target_data(
                           Dchunk, model=model, LP=LPchunk,
                           targetCompID=Plan['ktarget'],
                           targetWordIDs=Plan['targetWordIDs'],
+                          targetWordFreq=Plan['targetWordFreq'],
                           randstate=self.PRNG,
+                          return_Info=True,
                           **birthParams)
 
+      if 'targetWordFreq' in Plan:
+        birthParams['targetMaxSize'] *= 10
       # Update Data for current entry in self.targetDataList
       if targetData is None:
         if Plan['Data'] is None:
@@ -626,10 +645,22 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       else:
         if Plan['Data'] is None:
           Plan['Data'] = targetData
+          Plan['Info'] = targetInfo
         else:
           Plan['Data'].add_data(targetData)
+          if 'dist' in Plan['Info']:
+            Plan['Info']['dist'] = np.append(Plan['Info']['dist'],
+                                             targetInfo['dist'])
         size = TargetDataSampler.getSize(Plan['Data'])
         Plan['msg'] = "TargetData: size %d" % (size)
+
+      if self.isLastBatch(lapFrac) and 'Info' in Plan:
+        if 'dist' in Plan['Info']:
+          dist = Plan['Info']['dist']
+          sortIDs = np.argsort(dist)[:self.algParams['birth']['targetMaxSize']]
+          Plan['Data'] = Plan['Data'].select_subset_by_mask(sortIDs)
+          size = TargetDataSampler.getSize(Plan['Data'])
+          Plan['msg'] = "TargetData: size %d" % (size)
     return BirthPlans
 
   def birth_get_all_new_comps(self, BirthResults):

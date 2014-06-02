@@ -110,13 +110,12 @@ def delete_comps_from_expanded_model_to_improve_ELBO(Data,
       rbigModel, rbigSS, rfreshSS, rfreshELBO, rfreshLP = _make_xcandidate_LP(
                                                     xbigModel, Data,
                                                     xbigSS, xfreshSS, xfreshLP, 
-                                                    k)
+                                                    k, **kwargs)
     else:
       rbigModel, rbigSS, rfreshSS, rfreshELBO = _make_xcandidate(
                                                     xbigModel, Data,
                                                     xbigSS, xfreshSS, 
                                                     k)
-
     # If ELBO has improved, set current model to delete component k
     didAccept = False
     if rfreshELBO >= xfreshELBO:
@@ -137,16 +136,18 @@ def delete_comps_from_expanded_model_to_improve_ELBO(Data,
     ### end loop over comps to delete
 
   if xbigSS.K == Korig:
-    msg = "BIRTH failed. After expansion, deleting all new comps improves ELBO."
+    log(' No deletions improved model quality.')
+    msg = "FAILED. After expansion, deleting all new comps improves ELBO."
     raise BirthProposalError(msg)
+  return xbigModel, xbigSS, xfreshSS, xfreshELBO, origIDs
 
-  
+  '''
   if didAccept:
     # Make sure that final model has correct scale
     xbigModel.update_global_params(xbigSS + xfreshSS)
   else:
     log(' No deletions improved model quality.')
-  return xbigModel, xbigSS, xfreshSS, origIDs
+  '''
 
 
 def _make_xcandidate(xbigModel, Data, xbigSS, xfreshSS, k):
@@ -167,7 +168,8 @@ def _make_xcandidate(xbigModel, Data, xbigSS, xfreshSS, k):
   return rbigModel, rbigSS, rfreshSS, rfreshELBO
 
 
-def _make_xcandidate_LP(xbigModel, Data, xbigSS, xfreshSS, xfreshLP, k):
+def _make_xcandidate_LP(xbigModel, Data, xbigSS, xfreshSS, xfreshLP, k,
+                                   **kwargs):
   rfreshLP = _delete_comps_from_LP(Data, xbigModel, xfreshLP, k)
   rfreshSS = xbigModel.get_global_suff_stats(Data, rfreshLP, 
                                              doPrecompEntropy=True)
@@ -182,7 +184,19 @@ def _make_xcandidate_LP(xbigModel, Data, xbigSS, xfreshSS, xfreshLP, k):
   # We might consider another pass to make sure the alloc params converge
   rbigModel.allocModel.update_global_params(qbigSS)
 
-  rfreshELBO = rbigModel.calc_evidence(SS=rfreshSS)
+  if 'cleanupDeleteNumIters' in kwargs and kwargs['cleanupDeleteNumIters']:
+    nIters = kwargs['cleanupDeleteNumIters']
+    for trial in xrange(nIters):
+      rfreshLP = rbigModel.calc_local_params(Data, rfreshLP, methodLP='memo',
+                                           nCoordAscentItersLP=10)
+      rfreshSS = rbigModel.get_global_suff_stats(Data, rfreshLP, 
+                                           doPrecompEntropy=1)
+      qbigSS = rbigSS + rfreshSS
+      rbigModel.update_global_params(qbigSS)
+      rfreshELBO = rbigModel.calc_evidence(SS=rfreshSS)
+      log('%d  %.6e' % (trial, rfreshELBO))
+  else:
+    rfreshELBO = rbigModel.calc_evidence(SS=rfreshSS)
   return rbigModel, rbigSS, rfreshSS, rfreshELBO, rfreshLP
 
 

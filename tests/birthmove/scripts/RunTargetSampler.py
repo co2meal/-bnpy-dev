@@ -185,7 +185,7 @@ def findMostMissingTrueTopic(TrueTopics, EstTopics, Ktrue, Kest):
 
 ########################################################### Load Data
 ###########################################################
-
+BROWNCSDATADIR = '/data/liv/liv-x/topic_models/data/'
 def LoadData(dataname):
   if dataname.count('BarsK10'):
     import BarsK10V900
@@ -210,7 +210,13 @@ def LoadData(dataname):
     sys.path.append(os.environ['BNPYDATADIR'])
     import synthpost
     Data = synthpost.get_data()
-
+  elif dataname.count('bars_bursty'):
+    os.environ['BNPYDATADIR'] = '/data/bars_bursty/'
+    if not os.path.exists(os.environ['BNPYDATADIR']):
+      os.environ['BNPYDATADIR'] = BROWNCSDATADIR + os.environ['BNPYDATADIR']
+    sys.path.append(os.environ['BNPYDATADIR'])
+    import bars_bursty
+    Data = bars_bursty.get_data()
   else:
     raise NotImplementedError(dataname)
   return Data
@@ -310,13 +316,6 @@ def LoadModelAndData(dataName, initName):
     joblib.dump(dict(Data=Data, model=model, SS=SS, LP=LP), cachepath)
   return Data, model, SS, LP, cachepath
 
-def createOutPath(args, basename='BirthResults.dump'):
-  outPath = os.path.join(CACHEDIR, args.data, 
-                         args.jobName, str(args.task))
-  mkpath(outPath)
-  outPath = os.path.join(outPath, basename)
-  return outPath
-
 ########################################################### main
 ###########################################################
 def main():
@@ -330,14 +329,14 @@ def main():
   kwargs = bnpy.ioutil.BNPYArgParser.arglist_to_kwargs(unkList)
   if args.savepath is None:
     args.savepath = '/ltmp/'
-  args.savepath = os.path.join(args.savepath, args.data, args.selectName)
+  args.savepath = os.path.join(args.savepath, args.data, args.initName,
+                                              args.selectName)
   mkpath(args.savepath)
 
   BirthLogger.configure(args.savepath, doSaveToDisk=0, doWriteStdOut=1)
 
   Data, model, SS, LP, cachefile = LoadModelAndData(args.data, args.initName)
 
-  targetData = None
   seed = 1000 * args.task
   Plans = MakeTargetPlans(args.selectName, 
                               Data, model, SS, LP,
@@ -349,6 +348,8 @@ def main():
                                       **kwargs)
 
   for pID, Plan in enumerate(Plans):
+    joblib.dump(Plan, os.path.join(args.savepath, str(pID+1), 'Plan.dump'))
+
     Plan['BigData'] = Data
     Plan['BigModel'] = model
     HTMLMaker.MakeHTMLForPlan(args.savepath, Plan, pID+1)

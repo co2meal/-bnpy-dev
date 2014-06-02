@@ -15,6 +15,11 @@ def MakePlans(Data, model, LP, Q=None, **kwargs):
   ''' Create list of Plans
   '''
   newTopics, Info = makeCandidateTopics(Data, Q, model, LP, **kwargs)
+  if 'doVizBirth' in kwargs and kwargs['doVizBirth']:
+    from matplotlib import pylab
+    pylab.imshow(newTopics, vmin=0, vmax=0.01,
+                         aspect=Data.vocab_size/newTopics.shape[0],
+                         interpolation='nearest')
   Plans = list()
   for kk in xrange(newTopics.shape[0]):
     Plan = dict(ktarget=None, Data=None, targetWordIDs=None,
