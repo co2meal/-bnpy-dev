@@ -376,7 +376,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     for MInfo in MoveInfoList:
       if 'AdjustInfo' in MInfo and MInfo['AdjustInfo'] is not None:
         if 'bchecklist' not in MInfo:
-          MInfo['bchecklist'] = np.zeros(self.nBatch)
+          MInfo['bchecklist'] = np.zeros(int(self.nBatch))
         bchecklist = MInfo['bchecklist']
         if bchecklist[batchID] > 0:
           continue
