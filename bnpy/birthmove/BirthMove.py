@@ -9,7 +9,7 @@ from BirthProposalError import BirthProposalError
 import VizBirth
 from BirthLogger import log, logPhase
 
-def run_birth_move(bigModel, bigSS, freshData, Q=None, **kwargsIN):
+def run_birth_move(bigModel, bigSS, freshData, Q=None, Plan=None, **kwargsIN):
   ''' Run birth move on provided target data, creating up to Kfresh new comps
 
       Returns
@@ -64,7 +64,7 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, **kwargsIN):
     #  freshModel has arbitrary scale
     freshModel, freshSS, freshInfo = BirthCreate.create_model_with_new_comps(
                                             bigModel, bigSS, freshData, Q=Q,
-                                            **kwargs)
+                                            Plan=Plan, **kwargs)
 
     earlyAdmission = -1
     if kwargs['birthVerifyELBOIncreaseFresh']:
