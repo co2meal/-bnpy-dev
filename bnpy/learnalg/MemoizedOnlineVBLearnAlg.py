@@ -167,6 +167,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         self.ModifiedCompIDs = list()
 
       # Select which components to prune
+      if self.hasMove('prune'):
+        preselectroutine = self.algParams['prune']['pruneselectroutine']
       if self.hasMove('prune') and self.isFirstBatch(lapFrac) and lapFrac > 1:
         PruneResults = list()
         if len(PrunePlans) > 0:
@@ -176,31 +178,64 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
           PData = Dchunk.from_list_of_tuples(Plan['Heap'], Dchunk.vocab_size)
           curLP = hmodel.calc_local_params(PData, **self.algParamsLP)
           curSS = hmodel.get_global_suff_stats(PData, curLP)
-          
-          PruneLogger.log( ' ktarget %3d' % (Plan['ktarget']))
 
           pmodel = hmodel.copy()
           PSS = SS.copy()
           PSS.removeComp(Plan['ktarget'])
           pmodel.update_global_params(PSS)
-          # NOTE: this pmodel update is *inconsistent* for allocModel
+          pmodel.allocModel.update_global_params(PSS)
 
-          newLP = pmodel.calc_local_params(PData, **self.algParamsLP)
+          if Plan['initLPMethod'] == 'scratch':
+            newLP = pmodel.calc_local_params(PData, **self.algParamsLP)
+          elif Plan['initLPMethod'] == 'fromcurrent':
+            newLP = DeleteLPUtil.MakeLP(PData, hmodel, curLP, Plan, **Plan)
           newSS = pmodel.get_global_suff_stats(PData, newLP)
+
+          if self.algParams['prune']['doVizPrune']:
+            from matplotlib import pylab
+            import sys
+            sys.path.append('/data/liv/liv-x/bnpy/tests/birthmove/scripts/')
+            import MakeTargetPlots as MTP
+
+            DocFreq = np.zeros((5, PData.vocab_size))
+            for doc in range(PData.nDoc)[:5]:
+              start = PData.doc_range[doc,0]
+              end = PData.doc_range[doc,1]
+              DocFreq[doc, PData.word_id[start:end]] =  PData.word_count[start:end]
+
+            ktarget = Plan['ktarget']
+            bestOldIDs = np.argsort(-1*curSS.N)[:5]
+            bestNewIDs = bestOldIDs.copy()
+            bestNewIDs[bestNewIDs > ktarget] -= 1
+            MTP._plotBarsTopicsSquare(DocFreq,
+                                        vmax=5)
+            MTP._plotBarsTopicsSquare(curSS.WordCounts[bestOldIDs],
+                              vmax=5)
+            MTP._plotBarsTopicsSquare(newSS.WordCounts[bestNewIDs],
+                              vmax=5)
+            MTP._plotBarsTopicsSquare(SS.WordCounts[bestOldIDs],
+                              vmax=5)
+            pylab.show(block=0)
+            raw_input('Press any key >>>')
 
           curELBO = hmodel.calc_evidence(PData, curSS, curLP)
           newELBO = pmodel.calc_evidence(PData, newSS, newLP)
-
+          sanityCheck = np.sign(newELBO) == np.sign(curELBO) \
+                        and not np.isinf(newELBO) and not np.isnan(newELBO)
+          PruneLogger.log( ' ktarget %3d' % (Plan['ktarget']))
           PruneLogger.log( ' original %.6e' % (curELBO))
           PruneLogger.log( ' pruned   %.6e' % (newELBO))
-
-          if newELBO > curELBO:
-            print 'ACCEPTED'
+          if newELBO > curELBO and sanityCheck:
+            PruneLogger.log('ACCEPTED')
             hmodel = pmodel
             SS = PSS
             PruneResults.append(Plan)
           else:
-            print 'REJECTED'
+            if not sanityCheck:
+              PruneLogger.log('Rejected AS INSANE')
+            else:
+              PruneLogger.log('REJECTED')
+
 
         PruneLogger.logPhase('Selection')
         PrunePlans = list()
@@ -210,10 +245,33 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         #  so that multiple accepts don't mess with indexing!
         for kk in reversed(sorted(smallestTopicIDs[:nPruneMoves])):
           if SS.N[kk] < self.algParams['prune']['pruneSize']:
-            PrunePlans.append(dict(ktarget=kk, Heap=list()))
-            print 'Prune Target:  %3d  N=%7.0f' % (kk, SS.N[kk])
+            Plan = dict(ktarget=kk, Heap=list())
+            Plan['initLPMethod'] = self.algParams['prune']['initLPMethod']
+            PrunePlans.append(Plan)
+            PruneLogger.log('Prune Target:  %3d  N=%7.0f' % (kk, SS.N[kk]))
         if len(PrunePlans) == 0:
-          print 'No comps small-enough to prune. Smallest: %.0f' % (SS.N.min())
+          PruneLogger.log('No comps small-enough to prune.')
+          PruneLogger.log('  Smallest: %.0f' % (SS.N.min()))
+        
+        if preselectroutine.count('corr') and lapFrac > 2:
+          PruneLogger.logPhase('Selection For Corr')
+          selectFunc = bnpy.deletemove.CandidateSelection.selectCandidateTopic
+          APlan = selectFunc(SS, Dchunk, randstate=self.PRNG, 
+                                              **self.algParams['prune'])
+          if 'ktarget' in APlan and APlan['ktarget'] <= SS.K:
+            APlan['Heap'] = list()
+            APlan['fallbackThr'] = 0.5
+            APlan['initLPMethod'] = 'fromcurrent'
+            didInsert = 0
+            for ii in xrange(len(PrunePlans)):
+              if APlan['ktarget'] > PrunePlans[ii]['ktarget']:
+                didInsert = 1
+                PrunePlans.insert(ii, APlan)
+              elif APlan['ktarget'] == PrunePlans[ii]['ktarget']:
+                didInsert = 1
+                PrunePlans[ii] = APlan
+            if not didInsert:
+              PrunePlans.append(APlan)
 
       # Select which components to delete
       if self.hasMove('delete') and doDelete:
@@ -232,8 +290,6 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
             DeleteSS.removeComp(DeleteInfo['ktarget'])
             dmodel.update_global_params(DeleteSS)
             dmodel.allocModel.update_global_params(DeleteSS)
-            DeleteSS.setAllFieldsToZeroAndRemoveNonELBOTerms()
-
 
       if self.isFirstBatch(lapFrac):
         if SS is not None and SS.hasSelectionTerms():
@@ -323,6 +379,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
 
         delSSchunk = dmodel.get_global_suff_stats(Dchunk, delLPchunk,
                                                   doPrecompEntropy=1)
+        if self.isFirstBatch(lapFrac):
+          DeleteSS.setAllFieldsToZeroAndRemoveNonELBOTerms()
         DeleteSS += delSSchunk
         self.DelMoveSSmemory[batchID] = delSSchunk
         self.DelMoveLPmemory[batchID] = delLPchunk
@@ -379,8 +437,6 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
               PruneLogger.log(Nstr)
 
 
-
-
       # Save and display progress
       self.add_nObs(Dchunk.nObs)
       self.save_state(hmodel, iterid, lapFrac, evBound)
@@ -422,7 +478,6 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       origmodel.allocModel = hmodel.allocModel
       origmodel.obsModel = hmodel.obsModel
     return None, self.buildRunInfo(evBound, msg)
-
 
   ######################################################### Load from memory
   #########################################################
