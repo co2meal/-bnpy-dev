@@ -19,7 +19,7 @@ from ..birthmove import TargetPlanner, TargetDataSampler, BirthMove
 Log = logging.getLogger('bnpy')
 from bnpy.birthmove import BirthLogger, TargetPlannerWordFreq
 import bnpy.deletemove.CandidateSelection
-from bnpy.deletemove import DeleteLPUtil, DeleteLogger
+from bnpy.deletemove import DeleteLPUtil, DeleteLogger, PruneLogger
 
 class MemoizedOnlineVBLearnAlg(LearnAlg):
 
@@ -81,6 +81,9 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     else:
       doQ = False
     DeleteInfo = dict()
+    PrunePlans = list()
+    PruneResults = list()
+
     BirthPlans = list()
     BirthResults = None
     prevBirthResults = None
@@ -163,6 +166,55 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         self.BirthCompIDs = list() # no births = no new components
         self.ModifiedCompIDs = list()
 
+      # Select which components to prune
+      if self.hasMove('prune') and self.isFirstBatch(lapFrac) and lapFrac > 1:
+        PruneResults = list()
+        if len(PrunePlans) > 0:
+          PruneLogger.logPhase('Evaluation')
+        for Plan in PrunePlans:
+          # Fit current model to the prune target set
+          PData = Dchunk.from_list_of_tuples(Plan['Heap'], Dchunk.vocab_size)
+          curLP = hmodel.calc_local_params(PData, **self.algParamsLP)
+          curSS = hmodel.get_global_suff_stats(PData, curLP)
+          
+          PruneLogger.log( ' ktarget %3d' % (Plan['ktarget']))
+
+          pmodel = hmodel.copy()
+          PSS = SS.copy()
+          PSS.removeComp(Plan['ktarget'])
+          pmodel.update_global_params(PSS)
+          # NOTE: this pmodel update is *inconsistent* for allocModel
+
+          newLP = pmodel.calc_local_params(PData, **self.algParamsLP)
+          newSS = pmodel.get_global_suff_stats(PData, newLP)
+
+          curELBO = hmodel.calc_evidence(PData, curSS, curLP)
+          newELBO = pmodel.calc_evidence(PData, newSS, newLP)
+
+          PruneLogger.log( ' original %.6e' % (curELBO))
+          PruneLogger.log( ' pruned   %.6e' % (newELBO))
+
+          if newELBO > curELBO:
+            print 'ACCEPTED'
+            hmodel = pmodel
+            SS = PSS
+            PruneResults.append(Plan)
+          else:
+            print 'REJECTED'
+
+        PruneLogger.logPhase('Selection')
+        PrunePlans = list()
+        smallestTopicIDs = np.argsort(SS.N)
+        nPruneMoves = self.algParams['prune']['prunePerLap']
+        # Order prunes from biggest to smallest index,
+        #  so that multiple accepts don't mess with indexing!
+        for kk in reversed(sorted(smallestTopicIDs[:nPruneMoves])):
+          if SS.N[kk] < self.algParams['prune']['pruneSize']:
+            PrunePlans.append(dict(ktarget=kk, Heap=list()))
+            print 'Prune Target:  %3d  N=%7.0f' % (kk, SS.N[kk])
+        if len(PrunePlans) == 0:
+          print 'No comps small-enough to prune. Smallest: %.0f' % (SS.N.min())
+
       # Select which components to delete
       if self.hasMove('delete') and doDelete:
         preselectroutine = self.algParams['delete']['preselectroutine']
@@ -205,7 +257,8 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       # E step
       if batchID in self.LPmemory:
         oldLPchunk = self.load_batch_local_params_from_memory(
-                                           batchID, prevBirthResults)
+                                           batchID, prevBirthResults,    
+                                           PruneResults)
         LPchunk = hmodel.calc_local_params(Dchunk, oldLPchunk,
                                            **self.algParamsLP)
       else:
@@ -226,6 +279,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         oldSSchunk = self.load_batch_suff_stat_from_memory(batchID, SS.K, 
                                                         prevBirthResults,
                                                         BirthResults,
+                                                        PruneResults,
                                                         order)
         SS -= oldSSchunk
       else:
@@ -291,9 +345,40 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
             SSchunk = delSSchunk
             self.SSmemory = copy.deepcopy(self.DelMoveSSmemory)
             self.LPmemory = copy.deepcopy(self.DelMoveLPmemory)
+            PrunePlans = list() # forget the plans, they are irrelevant now 
+            PruneResults = list()
             #doDelete = 0 # debugging switch to disable future deletes
           else:
             DeleteLogger.log('REJECTED.')
+
+      if self.hasMove('prune') and lapFrac > 1:
+        maxSize = self.algParams['prune']['pruneTargetSize']
+        if self.isFirstBatch(lapFrac):
+          PruneLogger.logPhase('Target Collection')
+        for Plan in PrunePlans:
+          ktarget = Plan['ktarget']
+          TargetDataSampler.add_to_ranked_target_data(Plan['Heap'], maxSize,
+                                       Dchunk, 
+                                       LPchunk['DocTopicCount'][:,ktarget],
+                                       keep='largest')
+          assert len(Plan['Heap']) < maxSize + 1 # just in case
+
+          if self.isLastBatch(lapFrac):
+            for Plan in PrunePlans:
+              PruneLogger.log(' ktarget %4d' % (Plan['ktarget']))
+              Ndoc = len(Plan['Heap'])
+              PruneLogger.log(' Target Data Size: %.1f' % (Ndoc))
+              ws = np.asarray( [x[0] for x in Plan['Heap']])
+              pstr = ''
+              Nstr = ''
+              for p in [0, 25, 50, 75, 100]:
+                N = np.percentile(ws, p)
+                pstr += '%4d%% ' % (p)
+                Nstr += '%5.1f ' % (N)
+              PruneLogger.log(pstr)
+              PruneLogger.log(Nstr)
+
+
 
 
       # Save and display progress
@@ -344,6 +429,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
   def load_batch_suff_stat_from_memory(self, batchID, K, 
                                        prevBirthResults=None, 
                                        BirthResults=None,
+                                       PruneResults=list(),
                                        order=None):
     ''' Load the suff stats stored in memory for provided batchID
         Returns
@@ -351,6 +437,10 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         SSchunk : bnpy SuffStatDict object for batchID
     '''
     SSchunk = self.SSmemory[batchID]
+    if self.hasMove('prune'): 
+      for Plan in PruneResults:
+        SSchunk.removeComp(Plan['ktarget'])
+
     # "replay" accepted merges from end of previous lap 
     if self.hasMove('merge'): 
       for MInfo in self.MergeLog:
@@ -415,7 +505,9 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         break # Stop after the first ReplaceInfo
     return SSchunk  
 
-  def load_batch_local_params_from_memory(self, batchID, BirthResults):
+  def load_batch_local_params_from_memory(self, batchID, 
+                                                BirthResults,
+                                                PruneResults=list()):
     ''' Load local parameter dict stored in memory for provided batchID
         Ensures "fast-forward" so that all recent merges/births
           are accounted for in the returned LP
@@ -424,6 +516,11 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
         LPchunk : bnpy local parameters dictionary for batchID
     '''
     LPchunk = self.LPmemory[batchID]
+    if self.hasMove('prune') and LPchunk is not None:
+      for Plan in PruneResults:
+        kk = Plan['ktarget']
+        for key in self.memoLPkeys:
+          LPchunk[key] = np.delete(LPchunk[key], kk, axis=1)
     if self.hasMove('merge') and LPchunk is not None:
       for MInfo in self.MergeLog:
         kA = MInfo['kA']

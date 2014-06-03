@@ -9,8 +9,45 @@ Sample selection criteria
 
 '''
 import numpy as np
+import heapq
 from scipy.spatial.distance import cdist
 from TargetPlannerWordFreq import calcDocWordUnderpredictionScores
+
+def add_to_ranked_target_data(RankedDataHeap, maxSize, Data, weights, 
+                                              keep='largest'): 
+  ''' 
+  '''
+  docIDs = np.arange(Data.nDoc)
+
+  # First, decide which docs are promising,
+  #  since we don't want to blow-up memory costs by using *all* docs
+  if len(RankedDataHeap) > 0:
+    cutoffThr = RankedDataHeap[0][0]
+    if keep == 'largest':
+      docIDs = np.argsort(-1*weights)[:maxSize]
+      docIDs = docIDs[weights[docIDs] > cutoffThr]
+    else:
+      docIDs = np.argsort(weights)[:maxSize]
+      docIDs = docIDs[weights[docIDs] < cutoffThr]
+  
+  if len(docIDs) < 1:
+    return
+
+  # For promising docs, convert to list-of-tuples format,
+  #   and add to the heap
+  if keep == 'largest':
+    tList = Data.to_list_of_tuples(docIDs, w=weights)
+  else:
+    tList = Data.to_list_of_tuples(docIDs, w=-1*weights)
+  for docID, unitTuple in enumerate(tList):
+    try:
+      if len(RankedDataHeap) >= maxSize:
+        heapq.heappushpop(RankedDataHeap, unitTuple)
+      else:
+        heapq.heappush(RankedDataHeap, unitTuple)
+    except ValueError as error:
+      # skip stupid errors related to duplicate weights
+      pass
 
 ########################################################### sample_target_data
 ###########################################################
