@@ -94,6 +94,57 @@ class WordsData(DataObj):
     assert self.doc_range.shape[1] == 2
     assert np.all( self.doc_range[:-1,1] == self.doc_range[1:,0])
 
+  ######################################################### List of tuple
+  #########################################################  representations
+
+  @classmethod
+  def from_list_of_tuples(cls, myList, vocab_size=None):
+    nDoc = len(myList)
+    doc_range = np.zeros((nDoc,2))
+    N = 0
+    for doc in xrange(nDoc):
+      myDocTuple = myList[doc]
+      if len(myDocTuple) == 2:
+        Ncur = myDocTuple[0].size
+      else:
+        Ncur = myDocTuple[1].size
+
+      doc_range[doc, 0] = N
+      doc_range[doc, 1] = N + Ncur
+      N += Ncur
+
+    word_id = np.zeros(N)
+    word_count = np.zeros(N)
+    for docID in xrange(nDoc):
+      start = doc_range[docID,0]
+      stop = doc_range[docID,1]
+      myDocTuple = myList[docID]
+      if len(myDocTuple) == 2:
+        p = 0
+      else:
+        p = 1
+      word_id[start:stop] = myDocTuple[p]
+      word_count[start:stop] = myDocTuple[p+1]
+    return cls(word_id, word_count, doc_range, vocab_size)
+
+  def to_list_of_tuples(self, docIDs=None, w=None):
+    ''' Make a list of tuples, each containing (word_id,word_ct) for one doc
+    '''
+    # need to ensure uniqueness of each entry
+    if docIDs is None:
+      docIDs = np.arange(self.nDoc)
+    myList = list()
+    for docID in docIDs:
+      start = self.doc_range[docID,0]
+      stop = self.doc_range[docID,1]
+      wid = self.word_id[start:stop].copy()
+      wct = self.word_count[start:stop].copy()
+      if w is None:
+        myList.append((wid, wct))
+      else:
+        wf = float(w[docID]) + 1e-16 * docID
+        myList.append((wf, wid, wct))
+    return myList
 
   ######################################################### Sparse matrix
   #########################################################  representations

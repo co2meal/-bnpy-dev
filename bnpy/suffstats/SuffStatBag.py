@@ -240,6 +240,8 @@ class SuffStatBag(object):
       self._ELBOTerms.removeComp(k)
     if hasattr(self, '_MergeTerms'):
       self._MergeTerms.removeComp(k)
+    if hasattr(self, '_SelectTerms'):
+      self._SelectTerms.removeComp(k)
 
   # ======================================================= Get comp
   def getComp(self, k, doCollapseK1=True):

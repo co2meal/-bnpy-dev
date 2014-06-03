@@ -167,6 +167,9 @@ def _run_task_internal(jobname, taskid, nTask,
     import bnpy.deletemove.DeleteLogger as DeleteLogger
     DeleteLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
     DeleteLogger.log('This is the delete log.')
+  if learnAlg.hasMove('prune'):
+    import bnpy.deletemove.PruneLogger as PruneLogger
+    PruneLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
 
   # Check if running on grid
   try:
@@ -280,7 +283,7 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
   '''
   algName = ReqArgs['algName']
   algP = KwArgs[algName]
-  for moveKey in ['birth', 'merge', 'shuffle', 'delete']:
+  for moveKey in ['birth', 'merge', 'shuffle', 'delete', 'prune']:
     if moveKey in KwArgs:
       algP[moveKey] = KwArgs[moveKey]
 
