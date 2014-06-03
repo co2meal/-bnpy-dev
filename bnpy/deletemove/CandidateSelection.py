@@ -21,6 +21,11 @@ def selectCandidateTopic(SS, Data, preselectroutine=None,
     Info['msg'] = 'SKIPPED. SuffStatBag needs Selection terms.'
     DeleteLogger.log(Info['msg'])
     return Info
+
+  if 'deleteCompID' in kwargs and kwargs['deleteCompID'] >= 0:
+    Info['ktarget'] = kwargs['deleteCompID']
+    DeleteLogger.log('User-input choice: %d' % (Info['ktarget']))
+    return Info
   
   K = SS.K
   D = SS.nDoc
