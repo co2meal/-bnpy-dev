@@ -101,11 +101,12 @@ def selectCandidateTopic(SS, Data, preselectroutine=None,
   
   if 'doVizDelete' in kwargs and kwargs['doVizDelete']:
     from matplotlib import pylab
-    pylab.imshow( SS.WordCounts[candidateTopics,:], 
-                aspect=900./len(candidateTopics), 
-                vmax=100, interpolation='nearest')
-    pylab.draw()
-    pylab.show(block=0)
+    import sys
+    sys.path.append('/Users/mhughes/git/bnpy2/tests/birthmove/scripts/')
+    import MakeTargetPlots as MTP
+    MTP._plotBarsTopicsSquare(SS.WordCounts[candidateTopics,:],
+                              vmax=100)
+    pylab.show(block=1)
   
   Info['ktarget'] = ktarget
   Info['neighbors'] = [x for x in candidateTopics if x is not ktarget]
