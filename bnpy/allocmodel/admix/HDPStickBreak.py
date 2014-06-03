@@ -315,8 +315,17 @@ class HDPStickBreak(AllocModel):
     self.omega = omega
     self.set_helper_params()
         
-  def update_global_params_soVB(self, SS, rho, **kwargs):
-    raise NotImplementedError('TODO')
+  def update_global_params_soVB(self, SS, sovbRate, **kwargs):
+    def ro2ab(rho, omega):
+      return rho*omega, (1-rho)*omega
+    rho, omega = self._find_optimum_rhoomega(SS, **kwargs)
+    a, b = ro2ab(rho, omega)
+    sa, sb = ro2ab(self.rho, self.omega)
+    anew = sovbRate * a + (1-sovbRate) * sa
+    bnew = sovbRate * b + (1-sovbRate) * sb
+    self.rho = anew / (anew + bnew)
+    self.omega = anew + bnew
+    self.set_helper_params()
 
   #________________________________________________________ init_global_params
  
