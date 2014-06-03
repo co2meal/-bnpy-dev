@@ -177,8 +177,11 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
           if 'ktarget' in DeleteInfo:
             dmodel = hmodel.copy()
             DeleteSS = SS.copy()
-            DeleteSS.setAllFieldsToZeroAndRemoveNonELBOTerms()
             DeleteSS.removeComp(DeleteInfo['ktarget'])
+            dmodel.update_global_params(DeleteSS)
+            dmodel.allocModel.update_global_params(DeleteSS)
+            DeleteSS.setAllFieldsToZeroAndRemoveNonELBOTerms()
+
 
       if self.isFirstBatch(lapFrac):
         if SS is not None and SS.hasSelectionTerms():
@@ -260,31 +263,21 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       if self.hasMove('delete') and doDelete and 'ktarget' in DeleteInfo:
         delLPchunk = DeleteLPUtil.MakeLP(Dchunk, hmodel, LPchunk, 
                                        DeleteInfo, **self.algParams['delete'])
+
+        delLPchunk = dmodel.calc_local_params(Dchunk, delLPchunk,
+                                                 **self.algParamsLP)
+
         delSSchunk = dmodel.get_global_suff_stats(Dchunk, delLPchunk,
                                                   doPrecompEntropy=1)
         DeleteSS += delSSchunk
-        dmodel.update_global_params(DeleteSS)
-        if self.isFirstBatch(lapFrac):
-          DeleteLogger.logPhase('Construction')
-          dmodel.allocModel.update_global_params(DeleteSS) # make it stick
-
-        DeleteLogger.logPhase(' batch %3d, lapFrac %.1f' % (batchID, lapFrac))
-        nIters = self.algParams['delete']['deleteUpdateEachBatch']
-        for deliter in xrange(nIters):
-          DeleteSS -= delSSchunk
-          delLPchunk = dmodel.calc_local_params(Dchunk, delLPchunk,
-                                                  **self.algParamsLP)
-          delSSchunk = dmodel.get_global_suff_stats(Dchunk, delLPchunk,
-                                                  doPrecompEntropy=1)
-          DeleteSS += delSSchunk
-          dmodel.update_global_params(DeleteSS)
-
         self.DelMoveSSmemory[batchID] = delSSchunk
         self.DelMoveLPmemory[batchID] = delLPchunk
 
         if lapFrac > 2 and self.isLastBatch(lapFrac):
-          DeleteLogger.logPhase('Evaluation')
+          assert np.allclose(DeleteSS.nDoc, SS.nDoc)
+          dmodel.update_global_params(DeleteSS)
           del_evBound = dmodel.calc_evidence(SS=DeleteSS)
+          DeleteLogger.logPhase('Evaluation')
           DeleteLogger.log('  original %.6e' % (evBound))
           DeleteLogger.log('  deleted  %.6e' % (del_evBound))
           if del_evBound > evBound:
