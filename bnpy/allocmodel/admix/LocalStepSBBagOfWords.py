@@ -19,7 +19,7 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
                              doInPlaceLP=1,
                              logdirLP=None,
                              **kwargs):
-  ''' Calculate local paramters for all documents, given topic prior
+  ''' Calculate local parameters for all documents, given topic prior
 
       Args
       -------
@@ -31,16 +31,20 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
   D = Data.nDoc
   K = topicPrior1.size
 
-  if doInPlaceLP:
-    # Precompute ONCE exp( E_logsoftev ), in-place
-    expEloglik = LP['E_logsoftev_WordsData']
+  if 'expEloglik' in LP and 'E_logsoftev_WordsData' not in LP:
+    expEloglik = LP['expEloglik']
   else:
-    expEloglik = LP['E_logsoftev_WordsData'].copy()
+    if doInPlaceLP:
+      expEloglik = LP['E_logsoftev_WordsData']
+    else:
+      # Need to preserve E_logsoftev for the perDocELBO calc
+      expEloglik = LP['E_logsoftev_WordsData'].copy()
 
-  expEloglik -= expEloglik.max(axis=1)[:,np.newaxis] 
-  NumericUtil.inplaceExp(expEloglik)  
-  if methodLP == 'c' and not np.isfortran(expEloglik):
-      expEloglik = np.asfortranarray(expEloglik)
+    expEloglik -= expEloglik.max(axis=1)[:,np.newaxis] 
+    NumericUtil.inplaceExp(expEloglik)
+    LP['expEloglik'] = expEloglik
+    if doInPlaceLP:
+      del LP['E_logsoftev_WordsData'] # just remove the key
 
   ######## Allocate document-specific variables
   docptr = np.asarray(np.hstack([0, Data.doc_range[:,1]]), dtype=np.int32)
@@ -48,7 +52,12 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
                            and LP['DocTopicCount'].shape[1] == K 
 
   if methodLP.count('bounce'):
-      nCoordAscentItersLP = nCoordAscentFromScratchLP
+    nCoordAscentItersLP = nCoordAscentFromScratchLP
+
+  shp = (Data.nDoc, K)
+  LP['digammaBoth'] = np.zeros(shp)
+  LP['E_logVd'] = np.zeros(shp)
+  LP['E_log1-Vd'] = np.zeros(shp)
 
   if hasCountOfCorrectSize and methodLP.count('memo'):
     LP['DocTopicCount'] = LP['DocTopicCount'].copy() # local copy
@@ -74,46 +83,7 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
     # expElogpi is uniform over topics by default
     #  certain methods may modify this below
     expElogpi = np.ones_like(LP['DocTopicCount'])
-    if methodLP == 'nnls':
-      L = LP['topics']
-      L -= L.max(axis=1)[:,np.newaxis]
-      NumericUtil.inplaceExp(L)
-      for d in xrange(Data.nDoc):
-        expElogpi[d], blah = scipy.optimize.nnls(L,
-                                                 Data.get_wordfreq_for_doc(d))
-    elif methodLP.count('piMAP'):
-      nFailure = 0
-      LP['initMAPscore'] = np.zeros(Data.nDoc)
-      LP['initMAPPi'] = np.zeros((Data.nDoc,K))
 
-      hasPi = 'expElogpi' in LP and LP['expElogpi'] is not None \
-                and LP['expElogpi'].shape[1] == K
-      for d in xrange(Data.nDoc):
-        start = Data.doc_range[d,0]
-        stop = Data.doc_range[d,1]
-        Xd = Data.word_count[start:stop]
-        Ld = expEloglik[start:stop,:]
-
-        if methodLP.count('sneaky') and hasPi:
-          initeta = LP['expElogpi'][d]
-        else:
-          initeta = None
-        try:
-          expElogpi[d], f, Info = MAPOptimizer.find_optimum_multiple_tries(
-                                                           Xd=Xd, Ld=Ld, 
-                                                           avec=topicPrior1,
-                                                           bvec=topicPrior0,
-                                                           initeta=initeta,
-                                                           return_pi=1)
-          LP['initMAPscore'][d] = f
-          LP['initMAPPi'][d,:] = expElogpi[d]
-        except ValueError:
-          expElogpi[d,:] = 1./K * np.ones(K)
-          nFailure += 1
-      if nFailure > 0:
-        print "WARNING: %d failures" % (nFailure)
-    elif methodLP.count('sneaky'):
-      expElogpi[:] = LP['expElogpi']
 
   ######## Allocate token-specific variables
   # sumRTilde : nDistinctWords vector. row n = \sum_{k} \tilde{r}_{nk} 
@@ -162,9 +132,6 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
   LP['nCoordAscentIters'] = ii
   LP['sumRTilde'] = sumRTilde
   LP['expElogpi'] = expElogpi
-  LP['expEloglik'] = expEloglik
-  if doInPlaceLP:
-    del LP['E_logsoftev_WordsData']
 
   if logdirLP:
     write_to_log(docDiffs, ii, 1, nCoordAscentItersLP, Data, methodLP, logdirLP)
@@ -202,19 +169,13 @@ def write_method_wins_to_log(Data, methodLP, nWins, nTotal, logdirLP):
 
 ########################################################### doc-level beta
 ########################################################### helpers
-def update_U1U0_SB(LP, topicPrior1, topicPrior0,**kwargs):
+def update_U1U0_SB(LP, topicPrior1, topicPrior0, **kwargs):
   ''' Update document-level stick-breaking beta parameters, U1 and U0.
   '''
   assert 'DocTopicCount' in LP
   K =  LP['DocTopicCount'].shape[1]
-  if 'U1' in LP and LP['U1'].shape == LP['DocTopicCount'].shape:
-    # no new memory allocated here
-    LP['U1'][:] = LP['DocTopicCount'] + topicPrior1
-    calcDocTopicRemCount(LP['DocTopicCount'], out=LP['U0'][:,::-1])
-    LP['U0'] += topicPrior0
-  else:
-    LP['U1'] = LP['DocTopicCount'] + topicPrior1
-    LP['U0'] = calcDocTopicRemCount(LP['DocTopicCount']) + topicPrior0
+  LP['U1'] = LP['DocTopicCount'] + topicPrior1
+  LP['U0'] = calcDocTopicRemCount(LP['DocTopicCount']) + topicPrior0
   return LP
 
 def update_ElogPi_SB(LP, activeDocs=None, **kwargs):
