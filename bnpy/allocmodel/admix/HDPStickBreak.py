@@ -86,6 +86,7 @@ class HDPStickBreak(AllocModel):
       bestLP = None
       bestMethod = np.zeros(Data.nDoc)
       didSkipMemo = 0
+      nComplete = 0
       for mID, mname in enumerate(reversed(sorted(methods))):
         # create new dict, but reference same key/val objs
         curLP = dict(**LP)
@@ -99,12 +100,21 @@ class HDPStickBreak(AllocModel):
         if mname.count('bounce'):
           if not 'word_variational' in bestLP or didSkipMemo:
             continue
-          initLP = self.createBounceLP(Data, bestLP)
+          curLP = self.createBounceLP(Data, bestLP)
+
+        if nComplete > 0:
+          # reuse the old expEloglik value, don't waste time recomputing it
+          curLP['expEloglik'] = bestLP['expEloglik']
+          del curLP['E_logsoftev_WordsData']
 
         kwargs['doInPlaceLP'] = 0
         curLP = self.calc_local_params(Data, curLP, methodLP=mname, 
-                                                             **kwargs) 
+                                                           **kwargs)
+
+        if 'E_logsoftev_WordsData' not in curLP:
+          curLP['E_logsoftev_WordsData'] = LP['E_logsoftev_WordsData']
         curELBO = self.calcPerDocELBO(Data, curLP)
+        nComplete += 1
 
         if bestLP == None:
           bestELBO = curELBO
