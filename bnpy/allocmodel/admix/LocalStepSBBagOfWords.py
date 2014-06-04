@@ -31,7 +31,7 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
   D = Data.nDoc
   K = topicPrior1.size
 
-  if 'expEloglik' in LP:
+  if 'expEloglik' in LP and 'E_logsoftev_WordsData' not in LP:
     expEloglik = LP['expEloglik']
   else:
     if doInPlaceLP:
