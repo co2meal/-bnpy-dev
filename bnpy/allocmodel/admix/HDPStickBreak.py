@@ -87,7 +87,8 @@ class HDPStickBreak(AllocModel):
       bestMethod = np.zeros(Data.nDoc)
       didSkipMemo = 0
       for mID, mname in enumerate(reversed(sorted(methods))):
-        curLP = dict(**LP) # create new dict, but reference same key/val objs
+        # create new dict, but reference same key/val objs
+        curLP = dict(**LP)
 
         hasDTCount = 'DocTopicCount' in LP \
                        and LP['DocTopicCount'].shape[1] == self.K
