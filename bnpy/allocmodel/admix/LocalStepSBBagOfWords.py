@@ -54,6 +54,11 @@ def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0,
   if methodLP.count('bounce'):
     nCoordAscentItersLP = nCoordAscentFromScratchLP
 
+  shp = (Data.nDoc, K)
+  LP['digammaBoth'] = np.zeros(shp)
+  LP['E_logVd'] = np.zeros(shp)
+  LP['E_log1-Vd'] = np.zeros(shp)
+
   if hasCountOfCorrectSize and methodLP.count('memo'):
     LP['DocTopicCount'] = LP['DocTopicCount'].copy() # local copy
 
@@ -164,19 +169,13 @@ def write_method_wins_to_log(Data, methodLP, nWins, nTotal, logdirLP):
 
 ########################################################### doc-level beta
 ########################################################### helpers
-def update_U1U0_SB(LP, topicPrior1, topicPrior0,**kwargs):
+def update_U1U0_SB(LP, topicPrior1, topicPrior0, **kwargs):
   ''' Update document-level stick-breaking beta parameters, U1 and U0.
   '''
   assert 'DocTopicCount' in LP
   K =  LP['DocTopicCount'].shape[1]
-  if 'U1' in LP and LP['U1'].shape == LP['DocTopicCount'].shape:
-    # no new memory allocated here
-    LP['U1'][:] = LP['DocTopicCount'] + topicPrior1
-    calcDocTopicRemCount(LP['DocTopicCount'], out=LP['U0'][:,::-1])
-    LP['U0'] += topicPrior0
-  else:
-    LP['U1'] = LP['DocTopicCount'] + topicPrior1
-    LP['U0'] = calcDocTopicRemCount(LP['DocTopicCount']) + topicPrior0
+  LP['U1'] = LP['DocTopicCount'] + topicPrior1
+  LP['U0'] = calcDocTopicRemCount(LP['DocTopicCount']) + topicPrior0
   return LP
 
 def update_ElogPi_SB(LP, activeDocs=None, **kwargs):
