@@ -69,12 +69,10 @@ class HDPStickBreak(AllocModel):
 
   ######################################################### Local Params
   #########################################################
-  def calc_local_params(self, Data, LP, methodLP='memo', order=None, **kwargs):
+  def calc_local_params(self, Data, LP, methodLP='memo', **kwargs):
+    ''' doInPlaceLP : makes a copy of the giant nObs x K matrix Resp
+    '''
     kwargs = dict(**kwargs) # local copy
-    LP = copy.deepcopy(LP)
-
-    if order is not None and len(order) == self.K:
-      LP = self.reorderCompsInLP(LP, order)
 
     methods = methodLP.split(',')
     if len(methods) == 1:
@@ -89,7 +87,8 @@ class HDPStickBreak(AllocModel):
       bestMethod = np.zeros(Data.nDoc)
       didSkipMemo = 0
       for mID, mname in enumerate(reversed(sorted(methods))):
-        initLP = dict(**LP)
+        curLP = dict(**LP) # create new dict, but reference same key/val objs
+
         hasDTCount = 'DocTopicCount' in LP \
                        and LP['DocTopicCount'].shape[1] == self.K
         if mname == 'memo' and not hasDTCount:
@@ -99,10 +98,10 @@ class HDPStickBreak(AllocModel):
         if mname.count('bounce'):
           if not 'word_variational' in bestLP or didSkipMemo:
             continue
-          initLP = self.createRebalancedLP(Data, bestLP)
+          initLP = self.createBounceLP(Data, bestLP)
 
         kwargs['doInPlaceLP'] = 0
-        curLP = self.calc_local_params(Data, initLP, methodLP=mname, 
+        curLP = self.calc_local_params(Data, curLP, methodLP=mname, 
                                                              **kwargs) 
         curELBO = self.calcPerDocELBO(Data, curLP)
 
@@ -129,7 +128,7 @@ class HDPStickBreak(AllocModel):
     assert np.allclose( bestLP['word_variational'].sum(axis=1), 1.0)
     return bestLP
 
-  def createRebalancedLP(self, Data, LP):
+  def createBounceLP(self, Data, LP):
     DTC = LP['DocTopicCount'].copy()
     Resp = LP['word_variational'].copy()
     for d in xrange(Data.nDoc):
@@ -516,9 +515,6 @@ class HDPStickBreak(AllocModel):
                                  * LP['E_logsoftev_WordsData'][start:stop])
       perDocELBOh[d] = np.sum(NumericUtil.calcRlogRdotv(perDocResp,
                                                         perDocWC))
-    #print '%.8e' % (perDocELBO.sum())
-    #print '%.8e' % (perDocELBOdata.sum())
-    #print '%.8e' % (perDocELBOh.sum())      
     return perDocELBO + perDocELBOdata - perDocELBOh
 
   ####################################################### ELBO terms for Z
