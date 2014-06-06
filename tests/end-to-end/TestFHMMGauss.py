@@ -6,13 +6,12 @@ Tests for FiniteHMM.py using GaussObsModel.py for the observation model
 
 import numpy as np
 import unittest
+import sys
 
 import bnpy
 from AbstractEndToEndTest import AbstractEndToEndTest
 import Util
 
-#class TestSimple(AbstractEndToEndTest):
-#    print 'lol'
 
 class TestHMMK4_EM(AbstractEndToEndTest):
     ''' Simple example with K=4 components 
@@ -26,15 +25,15 @@ class TestHMMK4_EM(AbstractEndToEndTest):
         #Create true parameters
         self.K = 4
         mus = np.asarray([[0, 0], \
-                  [0, 10], \
-                  [10, 0], \
-                  [10, 10]])
+                  [0, 100], \
+                  [100, 0], \
+                  [100, 100]])
 
         sigmas = np.empty((4,2,2))
-        sigmas[0,:,:] = np.asarray([[1, 0], [0, 1]])
-        sigmas[1,:,:] = np.asarray([[1, 0], [0, 1]])
-        sigmas[2,:,:] = np.asarray([[1, 0], [0, 1]])
-        sigmas[3,:,:] = np.asarray([[1, 0], [0, 1]])
+        sigmas[0,:,:] = np.asarray([[10, 0], [0, 10]])
+        sigmas[1,:,:] = np.asarray([[10, 0], [0, 10]])
+        sigmas[2,:,:] = np.asarray([[10, 0], [0, 10]])
+        sigmas[3,:,:] = np.asarray([[10, 0], [0, 10]])
 
         #transPi = np.asarray([[0.0, 0.5, 0.0, 0.5], \
         #                          [0.25, 0.0, 0.5, 0.25], \
@@ -52,17 +51,12 @@ class TestHMMK4_EM(AbstractEndToEndTest):
         initPi = np.zeros(self.K)
         initPi[initState] = 1
 
-        self.TrueParams = dict(K = self.K, m = mus, L = sigmas,
-                                   transPi = transPi)
-        self.ProxFunc = dict(L = Util.CovMatProxFunc,
-                             m = Util.VectorProxFunc,
-                             transPi = Util.ProbMatrixProxFunc,
-                             initPi = Util.ProbVectorProxFunc)
-
         #Generate gaussian data, transitioning between states using transPi and
           #starting in initState
         nObsTotal = 25000
-        prng = np.random.RandomState()
+        seed = np.random.randint(0, sys.maxint) 
+        print seed
+        prng = np.random.RandomState(seed)
         Z = list()
         X = list()
         Z.append(initState)
@@ -77,18 +71,33 @@ class TestHMMK4_EM(AbstractEndToEndTest):
             
         Z = np.asarray(Z)
         X = np.vstack(X)
+        print X[0:4,:]
         self.Data = bnpy.data.XData(X)
+
+       #FiniteHMM finds precision matricies, so convert
+        for k in xrange(self.K):
+            sigmas[k,:,:] = np.linalg.inv(sigmas[k,:,:])
+
+        self.TrueParams = dict(K = self.K, m = mus, L = sigmas)
+                                   #transPi = transPi)
+        self.ProxFunc = dict(L = Util.CovMatProxFunc,
+                             m = Util.VectorProxFunc,
+                             #transPi = Util.ProbMatrixProxFunc,
+                             initPi = Util.ProbVectorProxFunc)
 
         #Basic configuration
         self.allocModelName = 'FiniteHMM'
         self.obsModelName = 'Gauss'
-        self.kwargs = dict(nLap = 30, K = self.K, initAlpa = .01)
+        self.kwargs = dict(nLap = 20, K = self.K, initAlpa = .01)
         self.fromScratchTrials = 5
-        self.fromScratchSuccessRate = .8
-        #self.atol = 8
+        self.fromScratchSuccessRate = .6
         self.learnAlgs = ['EM']
 
         # Substitute config used for "from-scratch" tests only
         #  anything in here overrides defaults in self.kwargs
-        self.fromScratchArgs = dict(nLap=40, K=self.K, initname='randexamples')
+        #Note nLap=15 is all that is necessary, as a successful run almost always
+        # converges in under 10 iterations
+        self.fromScratchArgs = dict(nLap=15, K=self.K, initname='randexamples', 
+                                    min_covar=1e-8, init_min_covar = .01, 
+                                    initAlpha = .01)
     

@@ -24,10 +24,10 @@ transPi = np.asarray([[0.0, 1.0, 0.0, 0.0], \
 
 initState = 1
 
-#mus = np.asarray([[0, 0], \
-#                  [0, 10], \
-#                  [10, 0], \
-#                  [10, 10]])
+mus = np.asarray([[0, 0], \
+                  [0, 0], \
+                  [0, 0], \
+                  [0, 0]])
 
 #sigmas = np.empty((4,2,2))
 #sigmas[0,:,:] = np.asarray([[400, 0], [0, 400]])
@@ -35,36 +35,34 @@ initState = 1
 #sigmas[2,:,:] = np.asarray([[400, 0], [0, 400]])
 #sigmas[3,:,:] = np.asarray([[400, 0], [0, 400]])
 
-mus = np.asarray([[0, 0], \
-                  [0, 1], \
-                  [1, 0], \
-                  [1, 1]])
+#mus = np.asarray([[0, 0], \
+#                  [0, .5], \
+#                  [.5, 0], \
+#                  [.5, .5]])
 
 sigmas = np.empty((4,2,2))
-sigmas[0,:,:] = np.asarray([[4, 0], [0, 4]])
-sigmas[1,:,:] = np.asarray([[4, 0], [0, 4]])
-sigmas[2,:,:] = np.asarray([[4, 0], [0, 4]])
-sigmas[3,:,:] = np.asarray([[4, 0], [0, 4]])
+sigmas[0,:,:] = np.asarray([[10, 0], [0, 10]])
+sigmas[1,:,:] = np.asarray([[10, 0], [0, 10]])
+sigmas[2,:,:] = np.asarray([[10, 0], [0, 10]])
+sigmas[3,:,:] = np.asarray([[10, 0], [0, 10]])
 
 
-def get_X(seed, nObsTotal):
-    prng = np.random.RandomState(seed)
-    Z = list()
-    X = list()
-    Z.append(initState)
-    X.append(sample_from_state(Z[0], prng))
+def get_X(seed, nObsTotal): 
+   prng = np.random.RandomState(seed)
+   Z = list()
+   X = list()
+   Z.append(initState)
+   X.append(sample_from_state(Z[0], prng))
 
-    for i in xrange(nObsTotal-1):
-        trans = prng.multinomial(1, transPi[Z[i]])
-        nextState = np.nonzero(trans)[0][0]
-        Z.append(nextState)
-        X.append(sample_from_state(Z[i+1], prng))
+   for i in xrange(nObsTotal-1):
+      trans = prng.multinomial(1, transPi[Z[i]])
+      nextState = np.nonzero(trans)[0][0]
+      Z.append(nextState)
+      X.append(sample_from_state(Z[i+1], prng))
 
-    Z = np.asarray(Z)
-    X = np.vstack(X)
-    print 'X = ', X[0:10]
-    print 'Z = ', Z[0:10]
-    return X, Z
+   Z = np.asarray(Z)
+   X = np.vstack(X)
+   return X, Z
 
 
 def sample_from_state(k, prng):

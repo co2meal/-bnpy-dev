@@ -52,7 +52,8 @@ def init_global_params(hmodel, Data, initname='randexamples', seed=0, K=0, **kwa
   
   LP = dict(resp=resp)
   tmp = hmodel.obsModel.min_covar
-  hmodel.obsModel.min_covar = .01
+  hmodel.obsModel.min_covar = hmodel.obsModel.init_min_covar
   SS = hmodel.get_global_suff_stats(Data, LP)
   hmodel.update_global_params(SS)
   hmodel.obsModel.min_covar = tmp
+ 

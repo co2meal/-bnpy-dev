@@ -1,5 +1,4 @@
 
-
 import numpy as np
 
 from bnpy.allocmodel import AllocModel
@@ -42,14 +41,13 @@ class FiniteHMM(AllocModel):
 
         Returns
         -------
-        LP : A dictionary with updated keys 'gamma' and 'psi' (see the 
-             documentation for mathematical definitions of gamma and psi).
-             Note that psi[0,:,:] is undefined.
+        LP : A dictionary with updated keys 'resp' and 'respPair' (see the 
+             documentation for mathematical definitions of resp and respPair).
+             Note that respPair[0,:,:] is undefined.
 
 
-
-        Runs the forward backward algorithm (from HMMUtil) to calculate gamma
-        and psi and adds them to the LP dict
+        Runs the forward backward algorithm (from HMMUtil) to calculate resp
+        and respPair and adds them to the LP dict
         '''
 
         lpr = LP['E_log_soft_ev']
@@ -60,23 +58,25 @@ class FiniteHMM(AllocModel):
             
             #Initialize the global params if they already haven't been
             if self.initPi is None:
+                print 'In calc_local_params initPi is None'
                 self.initPi = np.ones(self.K)
                 self.initPi /= self.K
             if self.transPi is None:
+                print 'In calc_local_params transPi is None'
                 self.transPi = np.ones((self.K, self.K))
                 for k in xrange(self.K):
                     self.transPi[k,:] /= self.K
 
             #TODO : is logMargPrSeq actually the "evidence"?
-            gamma, psi, logMargPrSeq = \
+            resp, respPair, logMargPrSeq = \
                 HMMUtil.FwdBwdAlg(self.initPi, self.transPi, lpr)
 
-            LP.update({'gamma':gamma})
-            LP.update({'psi':psi})
+            LP.update({'resp':resp})
+            LP.update({'respPair':respPair})
             LP.update({'evidence':logMargPrSeq})
 
             #TODO : is this what belongs in resp?
-            LP.update({'resp':gamma})
+            LP.update({'resp':resp})
 
             return LP
  
@@ -93,23 +93,24 @@ class FiniteHMM(AllocModel):
         -------
         Data : bnpy data object
         LP : Dictionary containing the local parameters. Expected to contain:
-            gamma : Data.nObs x K array
-            psi   : Data.nObs x K x K array (from the def. of psi, note 
-                    psi[0,:,:] is undefined)
+            resp : Data.nObs x K array
+            respPair : Data.nObs x K x K array (from the def. of respPair, note 
+                       respPair[0,:,:] is undefined)
 
         Returns
         -------
         SS : A SuffStatBag with fields
-            gamma1 : A vector of length K with entry i being gamma(z_{1k})
-            psiSums : A K x K matrix where psiSums[i,j] = 
-                      sum_{n=2}^K psi(z_{n-1,j}, z_{nk}) 
+            firstStateResp : A vector of length K with entry i being 
+                             resp(z_{1k}) = resp[0,:]
+            respPairSums : A K x K matrix where respPairSums[i,j] = 
+                           sum_{n=2}^K respPair(z_{n-1,j}, z_{nk})
             N : A vector of length K with entry k being
-                sum_{n=1}^Data.nobs gamma(z_{nk})
+                sum_{n=1}^Data.nobs resp(z_{nk})
             
             The first two of these are used by FiniteHMM.update_global_params,
             and the third is used by ObsModel.update_global_params.
 
-        (see the documentation for information about psi and gamma)
+        (see the documentation for information about resp and respPair)
         '''
         
         if doPrecompEntropy is not None:
@@ -117,24 +118,24 @@ class FiniteHMM(AllocModel):
                 'doesn\'t support doPrecompEntropy \n ********'
 
         #This method is called before calc_local_params() during initialization,
-            #in which case gamma and psi won't exist
-        if ('gamma' not in LP) or ('psi' not in LP):
+            #in which case resp and respPair won't exist
+        if ('resp' not in LP) or ('respPair' not in LP):
+            #import pdb; pdb.set_trace()
+            print 'Either resp or respPair is not in LP'
             self.K = LP['resp'].shape[1]
-            gamma = np.ones((Data.nObs, self.K)) / self.K
-            psi = np.ones((Data.nObs, self.K, self.K)) / (self.K * self.K)
-            LP.update({'gamma':gamma})
-            LP.update({'psi':psi})
-            
-        gamma = LP['gamma']
-        psi = LP['psi']
+            resp = np.ones((Data.nObs, self.K)) / self.K
+            respPair = np.ones((Data.nObs, self.K, self.K)) / (self.K * self.K)
+        else:
+            resp = LP['resp']
+            respPair = LP['respPair']
         
-        gamma1 = gamma[0,:]
-        psiSums = np.sum(psi[1:Data.nObs,:,:], axis = 0)
-        N = np.sum(gamma, axis = 0)
+        firstStateResp = resp[0,:]
+        respPairSums = np.sum(respPair[1:Data.nObs,:,:], axis = 0)
+        N = np.sum(resp, axis = 0)
 
         SS = SuffStatBag(K = self.K , D = Data.dim)
-        SS.setField('gamma1', gamma1, dims=('K'))
-        SS.setField('psiSums', psiSums, dims=('K','K'))
+        SS.setField('firstStateResp', firstStateResp, dims=('K'))
+        SS.setField('respPairSums', respPairSums, dims=('K','K'))
         SS.setField('N', N, dims=('K'))
 
         return SS
@@ -147,12 +148,12 @@ class FiniteHMM(AllocModel):
         '''
         Args
         -------
-        SS : A SuffStatBag that is expected to have the fields gamma1 and
-             psiSums, as described in FiniteHMM.get_global_suff_stats()
+        SS : A SuffStatBag that is expected to have the fields firstStateResp 
+             and respPairSums, as described in FiniteHMM.get_global_suff_stats()
 
         Returns
         -------
-       Nothing, this method just updates self.initPi and self.transPi
+        Nothing, this method just updates self.initPi and self.transPi
         '''
 
         self.K = SS.K
@@ -160,15 +161,16 @@ class FiniteHMM(AllocModel):
         #TODO : get these to be properly initialized
         # (or is this how it should be?)
         if (self.initPi is None) or (self.transPi is None):
+            print 'in update_global_params either initPi or transPi is None'
             self.initPi = np.ones(self.K)
             self.transPi = np.ones((self.K, self.K))
 
-        self.initPi = (SS.gamma1 + self.initAlpha) \
-            / (SS.gamma1.sum() + self.K * self.initAlpha)
+        self.initPi = (SS.firstStateResp + self.initAlpha) \
+            / (SS.firstStateResp.sum() + self.K * self.initAlpha)
 
-        normFactor = np.sum(SS.psiSums, axis = 1)
+        normFactor = np.sum(SS.respPairSums, axis = 1)
         for i in xrange(SS.K):
-            self.transPi[i,:] = SS.psiSums[i,:] / normFactor[i]
+            self.transPi[i,:] = SS.respPairSums[i,:] / normFactor[i]
 
 
     def set_global_params(self, hmodel=None, K=None, initPi=None, transPi=None,
