@@ -22,6 +22,7 @@ class MixModel(AllocModel):
     self.inferType = inferType
     self.set_prior(**priorDict)
     self.K = 0
+    self.paramDims = dict(w='K')
 
   def set_prior(self, alpha0=1.0, **kwargs):
     self.alpha0 = alpha0
