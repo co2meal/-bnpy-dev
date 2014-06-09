@@ -24,7 +24,7 @@ class GaussObsModel( ObsModel ):
 
   ######################################################### Constructors
   #########################################################
-  def __init__(self, inferType, D=None, obsPrior=None, min_covar=None):
+  def __init__(self, inferType, D=None, obsPrior=None, min_covar=None, init_min_covar=None):
     self.inferType = inferType
     self.D = D
     self.obsPrior = obsPrior
@@ -32,6 +32,9 @@ class GaussObsModel( ObsModel ):
     self.K = 0
     if min_covar is not None:
       self.min_covar = min_covar
+    if init_min_covar is not None:
+      self.init_min_covar = init_min_covar
+
       
   @classmethod
   def CreateWithPrior(cls, inferType, priorArgDict, Data):
@@ -43,7 +46,8 @@ class GaussObsModel( ObsModel ):
     D = Data.dim
     if inferType == 'EM':
       obsPrior = None
-      return cls(inferType, D, obsPrior, min_covar=priorArgDict['min_covar'])
+      return cls(inferType, D, obsPrior, min_covar=priorArgDict['min_covar'], \
+                   init_min_covar = priorArgDict['init_min_covar'])
     else:
       obsPrior = GaussWishDistr.CreateAsPrior(priorArgDict,Data)
       return cls(inferType, D, obsPrior)
