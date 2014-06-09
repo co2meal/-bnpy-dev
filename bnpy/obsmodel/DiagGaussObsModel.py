@@ -22,7 +22,8 @@ from ObsModel import ObsModel
 
 class DiagGaussObsModel( ObsModel ):
 
-  def __init__(self, inferType, D=None, obsPrior=None, min_covar=None):
+  def __init__(self, inferType, D=None, obsPrior=None, min_covar=None,
+               init_min_covar = None):
     self.inferType = inferType
     self.D = D
     self.obsPrior = obsPrior
@@ -30,6 +31,8 @@ class DiagGaussObsModel( ObsModel ):
     self.K = 0
     if min_covar is not None:
       self.min_covar = min_covar
+    if init_min_covar is not None:
+      self.init_min_covar = init_min_covar
    
   @classmethod
   def CreateWithPrior(cls, inferType, priorArgDict, Data):
@@ -41,7 +44,8 @@ class DiagGaussObsModel( ObsModel ):
     D = Data.dim
     if inferType == 'EM':
       obsPrior = None
-      return cls(inferType, D, obsPrior, min_covar=priorArgDict['min_covar'])
+      return cls(inferType, D, obsPrior, min_covar=priorArgDict['min_covar'],
+                 init_min_covar = priorArgDict['init_min_covar'])
     else:
       obsPrior = GaussGammaDistr.CreateAsPrior(priorArgDict,Data)
       return cls(inferType, D, obsPrior)   
@@ -193,7 +197,8 @@ class DiagGaussObsModel( ObsModel ):
   #########################################################   for machines
   def get_prior_dict( self ):
     if self.obsPrior is None:
-      PDict = dict(min_covar=self.min_covar, name="NoneType")
+      PDict = dict(min_covar=self.min_covar, name="NoneType",
+                   init_min_covar = self.init_min_covar)
     else:
       PDict = self.obsPrior.to_dict()
     return PDict

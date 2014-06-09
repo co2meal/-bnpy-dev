@@ -25,9 +25,9 @@ transPi = np.asarray([[0.0, 1.0, 0.0, 0.0], \
 initState = 1
 
 mus = np.asarray([[0, 0], \
-                  [0, 0], \
-                  [0, 0], \
-                  [0, 0]])
+                  [15, 0], \
+                  [0, 15], \
+                  [15, 15]])
 
 #sigmas = np.empty((4,2,2))
 #sigmas[0,:,:] = np.asarray([[400, 0], [0, 400]])

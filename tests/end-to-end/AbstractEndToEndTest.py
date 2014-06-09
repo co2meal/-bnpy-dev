@@ -131,9 +131,9 @@ class AbstractEndToEndTest(unittest.TestCase):
           isG, permIDs = self.verify_close_under_some_perm(arrTrue, arrEst, key)
           if not isG:
             print ' FAILED TO FIND IDEAL PARAMS'
-            print key
-            print 'true:', arrTrue
-            print 'est:', arrEst    
+            print 'key =', key
+            print 'est =', arrEst
+            print 'true =', arrTrue
             argstring = ' '.join(sys.argv[1:])
             return False
         arrEst = arrEst[permIDs]
@@ -142,12 +142,18 @@ class AbstractEndToEndTest(unittest.TestCase):
         allocKeyList.append(key)
 
     assert permIDs is not None
+
+    paramDims = model.allocModel.paramDims
     for key in allocKeyList:
       print '--------------- %s' % (key)
-      arrTrue = self.TrueParams[key]
-      arrEst = getattr(model.allocModel, key)[permIDs]
+
+      arrTrue = self.TrueParams[key] 
+      arrEst = getattr(model.allocModel, key)
+
       Util.pprint(arrTrue, 'true')
       Util.pprint(arrEst, 'est')
+      arrEst = Util.permuteAlongKDims(arrEst, paramDims[key], 
+                                       permIDs)
       assert self.verify_close(arrTrue, arrEst, key)
     return True
 
@@ -158,7 +164,7 @@ class AbstractEndToEndTest(unittest.TestCase):
     '''
     if 'VB' not in self.learnAlgs:
       raise SkipTest
-    kwargs = self.get_()
+    kwargs = self.get_kwargs_do_save_disk()
     hmodel1, LP1, Info1 = run(self.Data, self.allocModelName,
                           self.obsModelName, 'VB', **kwargs)
     hmodel2, LP2, Info2 = run(self.Data, self.allocModelName,

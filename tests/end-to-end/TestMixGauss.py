@@ -58,8 +58,9 @@ class TestEasyK2_EM(AbstractEndToEndTest):
     # Basic configuration
     self.allocModelName = 'MixModel'
     self.obsModelName = 'Gauss'  
-    self.kwargs = dict(nLap=30, K=self.K, alpha0=1.0)
+    self.kwargs = dict(nLap=30, K=self.K, alpha0=1.0, min_covar = 1e-8)
     
     # Substitute config used for "from-scratch" tests only
     #  anything in here overrides defaults in self.kwargs
     self.fromScratchArgs = dict(nLap=50, K=self.K, initname='randexamples')
+                                #init_min_covar = .01)

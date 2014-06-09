@@ -329,7 +329,6 @@ def createUniqueRandomSeed( jobname, taskID=0):
   seed = int( hashlib.md5( jobname+str(taskID) ).hexdigest(), 16) % 1e7
   return int(seed)
   
-  
 def getOutputPath(ReqArgs, KwArgs, taskID=0 ):
   ''' Get a valid file system path for writing output from learning alg execution.
       Returns

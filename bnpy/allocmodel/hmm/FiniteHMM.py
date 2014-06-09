@@ -19,6 +19,7 @@ class FiniteHMM(AllocModel):
         self.transPi = None #Transition matrix
         self.initAlpha = 0.0
         self.transAlpha = .1 #TODO : This needs to do something!
+        self.paramDims = dict(initPi = ('K'), transPi = ('K', 'K'))
 
 
 
@@ -58,11 +59,9 @@ class FiniteHMM(AllocModel):
             
             #Initialize the global params if they already haven't been
             if self.initPi is None:
-                print 'In calc_local_params initPi is None'
                 self.initPi = np.ones(self.K)
                 self.initPi /= self.K
             if self.transPi is None:
-                print 'In calc_local_params transPi is None'
                 self.transPi = np.ones((self.K, self.K))
                 for k in xrange(self.K):
                     self.transPi[k,:] /= self.K
@@ -120,8 +119,6 @@ class FiniteHMM(AllocModel):
         #This method is called before calc_local_params() during initialization,
             #in which case resp and respPair won't exist
         if ('resp' not in LP) or ('respPair' not in LP):
-            #import pdb; pdb.set_trace()
-            print 'Either resp or respPair is not in LP'
             self.K = LP['resp'].shape[1]
             resp = np.ones((Data.nObs, self.K)) / self.K
             respPair = np.ones((Data.nObs, self.K, self.K)) / (self.K * self.K)
@@ -161,7 +158,6 @@ class FiniteHMM(AllocModel):
         #TODO : get these to be properly initialized
         # (or is this how it should be?)
         if (self.initPi is None) or (self.transPi is None):
-            print 'in update_global_params either initPi or transPi is None'
             self.initPi = np.ones(self.K)
             self.transPi = np.ones((self.K, self.K))
 

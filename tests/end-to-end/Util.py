@@ -116,3 +116,29 @@ def MakeGaussData(Mu, Sigma, Nk, seed=1234):
   X = np.vstack(Xlist)
   Cache[seed] = X
   return X
+
+
+def permuteAlongKDims(array, dims, permIDs):
+  ''' 
+  Permutes array according to permIDs along all dimensions marked with 'K' in the
+  dims tuple
+  '''
+  for i in xrange(np.size(dims)):
+    if dims[i] != 'K':
+      continue
+    else:
+      indexOffset = ''
+
+      #Add on extra ,: so you permute along the correct dimension
+      for j in xrange(i):
+        indexOffset = indexOffset + ':,'
+      array = eval('array['+indexOffset+'permIDs]')
+
+  return array
+      
+
+  
+
+  
+     
+  

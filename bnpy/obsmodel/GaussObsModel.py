@@ -251,7 +251,8 @@ class GaussObsModel( ObsModel ):
   #########################################################   for machines
   def get_prior_dict( self ):
     if self.obsPrior is None:
-      PDict = dict(min_covar=self.min_covar, name="NoneType")
+      PDict = dict(min_covar=self.min_covar, name="NoneType", 
+                   init_min_covar = self.init_min_covar)
     else:
       PDict = self.obsPrior.to_dict()
     return PDict

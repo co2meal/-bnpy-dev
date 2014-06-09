@@ -14,7 +14,7 @@ import Util
 
 
 class TestHMMK4_EM(AbstractEndToEndTest):
-    ''' Simple example with K=4 components 
+    ''' Simple example with K=4 components, all with very separated means
     '''
     __test__ = True
 
@@ -25,20 +25,16 @@ class TestHMMK4_EM(AbstractEndToEndTest):
         #Create true parameters
         self.K = 4
         mus = np.asarray([[0, 0], \
-                  [0, 100], \
-                  [100, 0], \
-                  [100, 100]])
+                  [0, 10], \
+                  [10, 0], \
+                  [10, 10]])
 
         sigmas = np.empty((4,2,2))
-        sigmas[0,:,:] = np.asarray([[10, 0], [0, 10]])
-        sigmas[1,:,:] = np.asarray([[10, 0], [0, 10]])
-        sigmas[2,:,:] = np.asarray([[10, 0], [0, 10]])
-        sigmas[3,:,:] = np.asarray([[10, 0], [0, 10]])
+        sigmas[0,:,:] = np.asarray([[2, 0], [0, 2]])
+        sigmas[1,:,:] = np.asarray([[2, 0], [0, 2]])
+        sigmas[2,:,:] = np.asarray([[2, 0], [0, 2]])
+        sigmas[3,:,:] = np.asarray([[2, 0], [0, 2]])
 
-        #transPi = np.asarray([[0.0, 0.5, 0.0, 0.5], \
-        #                          [0.25, 0.0, 0.5, 0.25], \
-        #                          [0.0, 0.0, 0.0, 1.0], \
-        #                          [1.0, 0.0, 0.0, 0.0]])
 
         transPi = np.asarray([[0.0, 1.0, 0.0, 0.0], \
                                   [0.0, 0.0, 1.0, 0.0], \
@@ -55,7 +51,6 @@ class TestHMMK4_EM(AbstractEndToEndTest):
           #starting in initState
         nObsTotal = 25000
         seed = np.random.randint(0, sys.maxint) 
-        print seed
         prng = np.random.RandomState(seed)
         Z = list()
         X = list()
@@ -71,18 +66,17 @@ class TestHMMK4_EM(AbstractEndToEndTest):
             
         Z = np.asarray(Z)
         X = np.vstack(X)
-        print X[0:4,:]
         self.Data = bnpy.data.XData(X)
 
-       #FiniteHMM finds precision matricies, so convert
+       #FiniteHMM finds precision matricies, so convert ours to precision
         for k in xrange(self.K):
             sigmas[k,:,:] = np.linalg.inv(sigmas[k,:,:])
 
-        self.TrueParams = dict(K = self.K, m = mus, L = sigmas)
-                                   #transPi = transPi)
+        self.TrueParams = dict(K = self.K, m = mus, L = sigmas,
+                                   transPi = transPi)
         self.ProxFunc = dict(L = Util.CovMatProxFunc,
                              m = Util.VectorProxFunc,
-                             #transPi = Util.ProbMatrixProxFunc,
+                             transPi = Util.ProbMatrixProxFunc,
                              initPi = Util.ProbVectorProxFunc)
 
         #Basic configuration
@@ -90,7 +84,7 @@ class TestHMMK4_EM(AbstractEndToEndTest):
         self.obsModelName = 'Gauss'
         self.kwargs = dict(nLap = 20, K = self.K, initAlpa = .01)
         self.fromScratchTrials = 5
-        self.fromScratchSuccessRate = .6
+        self.fromScratchSuccessRate = .4
         self.learnAlgs = ['EM']
 
         # Substitute config used for "from-scratch" tests only
@@ -98,6 +92,5 @@ class TestHMMK4_EM(AbstractEndToEndTest):
         #Note nLap=15 is all that is necessary, as a successful run almost always
         # converges in under 10 iterations
         self.fromScratchArgs = dict(nLap=15, K=self.K, initname='randexamples', 
-                                    min_covar=1e-8, init_min_covar = .01, 
-                                    initAlpha = .01)
+                                    min_covar=1e-8, initAlpha = .01)
     
