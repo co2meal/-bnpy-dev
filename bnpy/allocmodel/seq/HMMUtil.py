@@ -58,7 +58,7 @@ def FwdBwdAlg(PiInit, PiMat, logSoftEv):
   respPair = np.zeros( (T,K,K) )
   for t in xrange( 1, T ):
     respPair[t] = PiMat * np.outer(fmsg[t-1], bmsg[t] * SoftEv[t]) / margPrObs[t]
-    assert np.allclose(respPair[t].sum(), 1.0)
+    #assert np.allclose(respPair[t].sum(), 1.0)
   logMargPrSeq = np.log(margPrObs).sum() + lognormC.sum()
 
   resp = fmsg * bmsg
