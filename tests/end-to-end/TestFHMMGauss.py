@@ -55,23 +55,25 @@ class TestHMMK4_EM(AbstractEndToEndTest):
           #starting in initState
         nObsTotal = 25000
         seed = np.random.randint(0, sys.maxint) 
-        print seed
         prng = np.random.RandomState(seed)
+
+        initState = prng.multinomial(1, initPi)
+        initState = np.nonzero(initState)[0][0]
+
         Z = list()
         X = list()
         Z.append(initState)
         X.append(np.random.multivariate_normal(mus[Z[0],:], sigmas[Z[0],:,:]))
-
+        
         for i in xrange(nObsTotal-1):
             trans = prng.multinomial(1, transPi[Z[i]])
             nextState = np.nonzero(trans)[0][0]
             Z.append(nextState)
             X.append(np.random.multivariate_normal(mus[nextState,:], 
-                                                   sigmas[nextState,:,:]))
-            
+                                                   sigmas[nextState,:,:]))    
         Z = np.asarray(Z)
         X = np.vstack(X)
-        print X[0:4,:]
+
         self.Data = bnpy.data.XData(X)
 
        #FiniteHMM finds precision matricies, so convert
@@ -83,7 +85,8 @@ class TestHMMK4_EM(AbstractEndToEndTest):
         self.ProxFunc = dict(L = Util.CovMatProxFunc,
                              m = Util.VectorProxFunc,
                              #transPi = Util.ProbMatrixProxFunc,
-                             initPi = Util.ProbVectorProxFunc)
+                             initPi = Util.ProbVectorProxFunc,
+                             canttestthis = Util.ProbVectorProxFunc)
 
         #Basic configuration
         self.allocModelName = 'FiniteHMM'
@@ -95,9 +98,61 @@ class TestHMMK4_EM(AbstractEndToEndTest):
 
         # Substitute config used for "from-scratch" tests only
         #  anything in here overrides defaults in self.kwargs
-        #Note nLap=15 is all that is necessary, as a successful run almost always
+        #Note nLap=15 is all that is necessary -- a successful run almost always
         # converges in under 10 iterations
         self.fromScratchArgs = dict(nLap=15, K=self.K, initname='randexamples', 
                                     min_covar=1e-8, init_min_covar = .01, 
                                     initAlpha = .01)
+
+        @classmethod
+        def generateData(cls, prng, initPi, transPi, mus, sigmas):
+
+            '''Generates data for a finite HMM with gaussian emissions'''
+
+            
+            return X, Z
+
+            
+            
     
+class TestHMMK4_VB(TestHMMK4_EM):
+    
+
+    __test__ = False
+
+    def setup(self):
+#        self.K = 4
+#        mus = np.asarray([[0, 0], \
+#                  [0, 10], \
+#                  [10, 0], \
+#                  [10, 10]])
+
+#        sigmas = np.empty((4,2,2))
+#        sigmas[0,:,:] = np.asarray([[2, 0], [0, 2]])
+#        sigmas[1,:,:] = np.asarray([[2, 0], [0, 2]])
+#        sigmas[2,:,:] = np.asarray([[2, 0], [0, 2]])
+#        sigmas[3,:,:] = np.asarray([[2, 0], [0, 2]])
+
+
+#       transPi = np.asarray([[0.0, 1.0, 0.0, 0.0], \
+#                                  [0.0, 0.0, 1.0, 0.0], \
+#                                  [0.0, 0.0, 0.0, 1.0], \
+#                                  [1.0, 0.0, 0.0, 0.0]])
+
+
+#        seed = np.random.randint(0, sys.maxint) 
+#        prng = np.random.RandomState(seed)
+# 
+#        X, Z = TestHMMK4_EM.generateData(prng, initPi, transPi, mus, sigmas)
+#
+#        self.allocModelName = 'FiniteHMM'
+#        self.obsModelName = 'Gauss'
+#        self.kwargs = dict(nLap = 20, K = self.K, initAlpa = .01)
+#        self.fromScratchTrials = 5
+#        self.fromScratchSuccessRate = .6
+#        self.learnAlgs = ['VB']
+        super(TestHMMK4_VB, self).setup()
+        self.learnAlgs = ['VB']
+
+        
+        
