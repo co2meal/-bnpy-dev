@@ -110,6 +110,12 @@ class ObsModel( object ):
     pass
 
 
+  def reorderComps(self, order):
+    newList = [None for k in xrange(self.K)]
+    for posID, newID in enumerate(order):
+      newList[posID] =  self.comp[newID]
+    self.comp = newList
+  
   ######################################################### Evidence
   ######################################################### 
   def calc_evidence(self):

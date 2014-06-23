@@ -166,12 +166,13 @@ class MergeTracker(object):
   def _synchronize_and_verify(self):
     ''' Make sure excludePairs and excludeList are up-to-date with each other
     '''
-    for kx in list(self.excludeList):
+    for kx in self.excludeList:
       assert kx >= 0
       assert kx < self.K
-      self.excludePairs[kx].update(range(self.K))
-      for kk in xrange(self.K):
-        self.excludePairs[kk].add(kx)
+      self.excludePairs[kx].update(xrange(self.K))
+
+    for kk in xrange(self.K):
+      self.excludePairs[kk].update(self.excludeList)
 
     for kk in range(self.K):
       kset = self.excludePairs[kk]
@@ -180,9 +181,11 @@ class MergeTracker(object):
       if len(kset) > self.K - 1: 
         self.excludeList.add(kk)
 
+    ''' slows things down too much maybe
     for kk in self.excludePairs:
       assert kk >= 0
       assert kk < self.K
       karr = np.asarray(list(self.excludePairs[kk]))
       assert np.all(karr >= 0)
       assert np.all(karr < self.K)
+    '''

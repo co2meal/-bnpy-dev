@@ -14,7 +14,7 @@ def create_expanded_suff_stats(Data, curModel, allSS, **kwargs):
                    will have scale of the provided target dataset Data
   '''
   Kfresh = np.minimum(kwargs['Kfresh'], kwargs['Kmax'] - curModel.obsModel.K)
-  if Kfresh < 2:
+  if Kfresh < 1:
     msg = 'BIRTH: Skipped to avoid exceeding specified limit Kmax=%d'
     raise BirthProposalError(msg % (kwargs['Kmax']))
   kwargs['Kfresh'] = Kfresh
@@ -448,21 +448,20 @@ def create_critical_need_topics(Data, curModel, curLP,
     Nk, bins = np.histogram(Z, range=(0,Kfresh), bins=Kfresh)
     bigClusterID = np.argmax(Nk)
     bigDocs = np.flatnonzero(Z==bigClusterID)      
-    outliers = np.flatnonzero( Nk < 3)
-    for k in outliers:
-      nDocToPick = np.maximum(5, len(bigDocs)/10)
-      if len(bigDocs) < nDocToPick:
-        Log.error("bigDocs is TOO SMALL!")
-        continue 
-      chosenDocs = kwargs['randstate'].choice(bigDocs, nDocToPick,
-                                                     replace=False)
-      DocWordFreq_clusterctrs[k,:] = X[chosenDocs].mean(axis=0)
+    nDocToPick = np.maximum(5, len(bigDocs)/10)
+    if len(bigDocs) < nDocToPick:
+      Log.error("bigDocs is TOO SMALL!")
+    else:      
+      outliers = np.flatnonzero(Nk <= 3)
+      for k in outliers:
+        chosenDocs = kwargs['randstate'].choice(bigDocs, nDocToPick)
+        DocWordFreq_clusterctrs[k,:] = X[chosenDocs].mean(axis=0)
 
   if kwargs['creationSmoothTopics']:
     DocWordFreq_clusterctrs /= DocWordFreq_clusterctrs.sum(axis=1)[:,np.newaxis] \
                                  + 1e-7
     nRow, nCol = DocWordFreq_clusterctrs.shape
-    NearlyUniformWordFreq = np.random.rand(nRow, nCol)
+    NearlyUniformWordFreq = kwargs['randstate'].rand(nRow, nCol)
     NearlyUniformWordFreq /= NearlyUniformWordFreq.sum(axis=1)[:,np.newaxis]
     DocWordFreq_clusterctrs = 0.95 * DocWordFreq_clusterctrs \
                             + 0.05 * NearlyUniformWordFreq

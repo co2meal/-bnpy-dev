@@ -105,7 +105,11 @@ class DiagGaussObsModel( ObsModel ):
     X = Data.X
     resp = LP['resp']
     K = resp.shape[1]
-    
+
+    # Expected count for each k
+    #  Usually computed by allocmodel. But just in case...
+    if not hasattr(SS, 'N'):      
+      SS.setField('N', np.sum(resp, axis=0), dims='K')
     # Expected mean for each k
     SS.setField('x', dotATB(resp, X), dims=('K', 'D'))
     # Expected covar for each k 

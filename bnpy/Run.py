@@ -153,12 +153,23 @@ def _run_task_internal(jobname, taskid, nTask,
 
   # Create and initialize model parameters
   hmodel = createModel(InitData, ReqArgs, KwArgs)
-  hmodel.init_global_params(InitData, seed=algseed,
+  hmodel.init_global_params(InitData, seed=algseed, taskid=taskid,
+                            savepath=taskoutpath,
                             **KwArgs['Initialization'])
-
   # Create learning algorithm
   learnAlg = createLearnAlg(Data, hmodel, ReqArgs, KwArgs,
                               algseed=algseed, savepath=taskoutpath)
+  if learnAlg.hasMove('birth'):
+    import bnpy.birthmove.BirthLogger as BirthLogger
+    BirthLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
+    BirthLogger.log('This is the birth log.')
+  if learnAlg.hasMove('delete'):
+    import bnpy.deletemove.DeleteLogger as DeleteLogger
+    DeleteLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
+    DeleteLogger.log('This is the delete log.')
+  if learnAlg.hasMove('prune'):
+    import bnpy.deletemove.PruneLogger as PruneLogger
+    PruneLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
 
   # Check if running on grid
   try:
@@ -272,10 +283,10 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
   '''
   algName = ReqArgs['algName']
   algP = KwArgs[algName]
-  if 'birth' in KwArgs:
-    algP['birth'] = KwArgs['birth']
-  if 'merge' in KwArgs:
-    algP['merge'] = KwArgs['merge']
+  for moveKey in ['birth', 'merge', 'shuffle', 'delete', 'prune']:
+    if moveKey in KwArgs:
+      algP[moveKey] = KwArgs[moveKey]
+
   outputP = KwArgs['OutputPrefs']
   if algName == 'EM' or algName == 'VB':
     learnAlg = bnpy.learnalg.VBLearnAlg(savedir=savepath, seed=algseed, \

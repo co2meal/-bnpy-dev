@@ -11,9 +11,10 @@ class MultObsModel(ObsModel):
     
   ######################################################### Constructors
   #########################################################
-    def __init__(self, inferType, obsPrior=None):
+    def __init__(self, inferType, dataAtomType='word', obsPrior=None):
         self.inferType = inferType
         self.obsPrior = obsPrior
+        self.dataAtomType = dataAtomType
         self.comp = list()
 
     @classmethod
@@ -22,7 +23,7 @@ class MultObsModel(ObsModel):
             raise NotImplementedError('TODO')
         else:
             obsPrior = DirichletDistr.InitFromData(priorArgDict, Data)
-        return cls(inferType, obsPrior)
+        return cls(inferType, obsPrior=obsPrior)
 
     @classmethod
     def CreateWithAllComps(cls, oDict, obsPrior, compDictList):
@@ -46,6 +47,18 @@ class MultObsModel(ObsModel):
         Elogphi[k,:] = self.comp[k].Elogphi
       return Elogphi
 
+    def setupWithAllocModel(self, allocModel):
+      '''
+      '''
+      if type(allocModel) != str:
+        allocModel = str(type(allocModel))
+      if allocModel.lower().count('hdp') or allocModel.lower().count('admix'):
+        self.setDataAtomType('word')
+      else:
+        self.setDataAtomType('doc')
+
+    def setDataAtomType(self, dataAtomType):
+      self.dataAtomType = dataAtomType
 
   ######################################################### Local Params
   #########################################################   E-step
@@ -60,10 +73,21 @@ class MultObsModel(ObsModel):
         '''
         if self.inferType == 'EM':
             raise NotImplementedError('TODO')
+        elif self.dataAtomType == 'doc':
+            DocWordMat = Data.to_sparse_docword_matrix()
+            LP['E_log_soft_ev'] = self.E_logsoftev_DocData(DocWordMat)
         else:
-            LP['E_logsoftev_WordsData'] = self.E_logsoftev_WordsData(Data)
+            LP['E_logsoftev_WordsData'], L = self.E_logsoftev_WordsData(Data)
+            LP['topics'] = L
         return LP
-    
+
+    def E_logsoftev_DocData(self, DocWordMat):
+      ''' Return log soft evidence probabilities for each document
+      '''
+      Elogphi = self.getElogphiMatrix().T # V x K matrix
+      return DocWordMat * Elogphi # D x K matrix
+          
+
     def E_logsoftev_WordsData(self, Data):
         ''' Return log soft evidence probabilities for each word token.
 
@@ -76,7 +100,7 @@ class MultObsModel(ObsModel):
         # Obtain matrix where col k = E[ log phi[k] ], for easier indexing
         Elogphi = self.getElogphiMatrix().T.copy()
         E_logsoftev_words = Elogphi[Data.word_id, :]
-        return E_logsoftev_words
+        return E_logsoftev_words, Elogphi
   
 
   ######################################################### Suff Stats
@@ -94,13 +118,18 @@ class MultObsModel(ObsModel):
           Nmat = LP['hard_asgn'] # N x K
           BMat = Data.to_sparse_matrix(doBinary=True) # V x N 
           TopicWordCounts = (BMat * Nmat).T # matrix-matrix product
+        elif self.dataAtomType == 'doc':
+          DocWordMat = Data.to_sparse_docword_matrix() # D x V
+          TopicWordCounts = LP['resp'].T * DocWordMat # mat-mat product
         else:
           wv = LP['word_variational']  # N x K
           WMat = Data.to_sparse_matrix() # V x N
           TopicWordCounts = (WMat * wv).T # matrix-matrix product
 
         SS.setField('WordCounts', TopicWordCounts, dims=('K','D'))
-        SS.setField('N', np.sum(TopicWordCounts,axis=1), dims=('K'))
+
+        if self.dataAtomType == 'word':
+          SS.setField('N', np.sum(TopicWordCounts,axis=1), dims=('K'))
         return SS
 
   ######################################################### Global Params
@@ -127,6 +156,7 @@ class MultObsModel(ObsModel):
             self.comp[k].post_update_soVB(rho, Dstar)
 
     def set_global_params(self, hmodel=None, topics=None, 
+                                wordcountTotal=0,
                                 Etopics=None, **kwargs):
         ''' Set global params to provided values
 
@@ -148,70 +178,35 @@ class MultObsModel(ObsModel):
         assert topics is not None
         self.K = topics.shape[0]
         self.comp = list()
-
         for k in range(self.K):
-            # Scale up Etopics to lamvec, a V-len vector of positive entries,
-            #   such that (1) E[phi] is still Etopics, and
-            #             (2) lamvec = obsPrior.lamvec + [some suff stats]
-            #   where (2) means that lamvec is a feasible posterior value
-            ii = np.argmin(topics[k,:])
-            lamvec = self.obsPrior.lamvec[ii]/topics[k,ii] * topics[k,:]
-            # Cut-off values that are way way too big
-            if np.any( lamvec > 1e9):
-              lamvec = np.minimum(lamvec, 1e9)
-              print "WARNING: mucking with lamvec"
-            self.comp.append(DirichletDistr(lamvec))
+          if wordcountTotal > 0:
+            lamvec = topics[k,:] * wordcountTotal/self.K + self.obsPrior.lamvec
+          else:
+            raise NotImplementedError('NEED TO SPECIFY wordcountTotal')
+          self.comp.append(DirichletDistr(lamvec))          
 
-    def insert_global_params(self, topics=None, **kwargs):
-        ''' Insert provided params into this object's global params,
-              appending them after the existing params
-
-            Args
-            --------
-            topics : K x V matrix, each row has positive reals that sum to one
-                     topics[k,v] = probability of word v under topic k
-        '''
-        assert topics is not None
-        self.K = self.K + topics.shape[0]
-        for k in xrange(topics.shape[0]):
-            lamvec = self.convert_topic2lamvec(topics[k,:])
-            self.comp.append(DirichletDistr(lamvec))
-
-    def convert_topic2lamvec(self, topic):
-      # Scale up Etopics to lamvec, a V-len vector of positive entries,
-      #   such that (1) E[phi] is still Etopics, and
-      #             (2) lamvec = obsPrior.lamvec + [some suff stats]
-      #   where (2) means that lamvec is a feasible posterior value      
-      ii = np.argmin(topic)
-      lamvec = self.obsPrior.lamvec[ii]/topic[ii] * topic
-      # Cut-off values that are way way too big
-      if np.any( lamvec > 1e9):
-        lamvec = np.minimum(lamvec, 1e9)
-        print "WARNING: mucking with lamvec"
-      return lamvec
 
   ######################################################### Evidence
   #########################################################
-    def calc_evidence(self, Data, SS, LP):
+    def calc_evidence(self, Data, SS, LP, todict=False):
         if self.inferType == 'EM':
             return 0 # handled by alloc model
         # Calculate p(w | z, lambda) + p(lambda) - q(lambda)
         elbo_pWords = self.E_log_pW(SS)
         elbo_pLambda = self.E_log_pLambda()
         elbo_qLambda = self.E_log_qLambda()
+        if todict:
+          return dict(data_Elogp=elbo_pWords,
+                      phi_Elogp=elbo_pLambda,
+                      phi_Elogq=elbo_qLambda,
+                     )
         return elbo_pWords + elbo_pLambda - elbo_qLambda
         
     def E_log_pW(self, SS):
         ''' Calculate "data" term of the ELBO,
                 E_{q(Z), q(Phi)} [ log p(X) ]
-
-            which can be computed quickly as
-              for v in range(VocabSize):
-                for k in range(K):
-                    lpw += effectiveCount(word v in topic k) * Elogphi[k,v]
-            NOTE: ampFactor has already been applied to SS.WordCounts!
         '''
-        Elogphi = self.getElogphiMatrix()
+        Elogphi = self.getElogphiMatrix()  # K x V
         lpw = np.sum(SS.WordCounts * Elogphi)
         return lpw
  
