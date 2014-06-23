@@ -25,7 +25,7 @@ class TestHDPSuffStats(unittest.TestCase):
     algP = dict(**U.algArgs)
     algP['nLap'] = nLap
 
-    self.learnAlg = bnpy.learnalg.MemoizedOnlineVBLearnAlg(savedir=None, seed=0, 
+    self.learnAlg = bnpy.learnalg.MOVBAlg(savedir=None, seed=0, 
                               algParams=algP, outputParams=outP)
 
   def test__global_summary_equals_sum_of_batch_summaries(self):
@@ -54,7 +54,7 @@ class TestHDPSuffStats_BirthMove(TestHDPSuffStats):
     algP['birth']['birthPerLap'] = 2
     algP['birth']['birthRetainExtraMass'] = 1
     algP['birth']['expandAdjustSuffStats'] = 0
-    self.learnAlg = bnpy.learnalg.MemoizedOnlineVBLearnAlg(savedir=None, seed=0, 
+    self.learnAlg = bnpy.learnalg.MOVBAlg(savedir=None, seed=0, 
                               algParams=algP, outputParams=outP)
   
 
@@ -81,7 +81,7 @@ class TestHDPSuffStats_BirthMoveAtFirstTwoBatches(TestHDPSuffStats):
 
     algP['birth']['birthRetainExtraMass'] = 1
     algP['birth']['expandAdjustSuffStats'] = 0
-    self.learnAlg = bnpy.learnalg.MemoizedOnlineVBLearnAlg(savedir=None, seed=0, 
+    self.learnAlg = bnpy.learnalg.MOVBAlg(savedir=None, seed=0, 
                               algParams=algP, outputParams=outP)
   
 class TestHDPSuffStats_BirthMove_NoRetainExtraMass(TestHDPSuffStats):
@@ -103,7 +103,7 @@ class TestHDPSuffStats_BirthMove_NoRetainExtraMass(TestHDPSuffStats):
     algP['birth']['birthPerLap'] = 2
     algP['birth']['birthRetainExtraMass'] = 0
     algP['birth']['expandAdjustSuffStats'] = 0
-    self.learnAlg = bnpy.learnalg.MemoizedOnlineVBLearnAlg(savedir=None, seed=0, 
+    self.learnAlg = bnpy.learnalg.MOVBAlg(savedir=None, seed=0, 
                               algParams=algP, outputParams=outP)
   
 
@@ -127,7 +127,7 @@ class TestHDPSuffStats_BirthMove_Adjusted(TestHDPSuffStats):
     algP['birth']['birthPerLap'] = 1
     algP['birth']['birthRetainExtraMass'] = 0
     algP['birth']['expandAdjustSuffStats'] = 1
-    self.learnAlg = bnpy.learnalg.MemoizedOnlineVBLearnAlg(savedir=None, seed=0, 
+    self.learnAlg = bnpy.learnalg.MOVBAlg(savedir=None, seed=0, 
                               algParams=algP, outputParams=outP)
 
 
@@ -151,7 +151,7 @@ class TestHDPSuffStats_BirthMovex2_Adjusted(TestHDPSuffStats):
     algP['birth']['birthPerLap'] = 2
     algP['birth']['birthRetainExtraMass'] = 0
     algP['birth']['expandAdjustSuffStats'] = 1
-    self.learnAlg = bnpy.learnalg.MemoizedOnlineVBLearnAlg(savedir=None, seed=0, 
+    self.learnAlg = bnpy.learnalg.MOVBAlg(savedir=None, seed=0, 
                               algParams=algP, outputParams=outP)
 
 
@@ -178,7 +178,7 @@ class TestHDPSuffStats_BirthMoveWithDelete_Adjusted(TestHDPSuffStats):
     algP['birth']['expandAdjustSuffStats'] = 1
     algP['birth']['cleanupDeleteEmpty'] = 1
     algP['birth']['cleanupDeleteToImprove'] = 1
-    self.learnAlg = bnpy.learnalg.MemoizedOnlineVBLearnAlg(savedir=None, seed=0, 
+    self.learnAlg = bnpy.learnalg.MOVBAlg(savedir=None, seed=0, 
                               algParams=algP, outputParams=outP)
 
   
@@ -208,7 +208,7 @@ class TestHDPSuffStats_BirthMoveAtFirstTwoBatches_Adjusted(TestHDPSuffStats):
     algP['birth']['expandAdjustSuffStats'] = 1
     algP['birth']['cleanupDeleteEmpty'] = 1
     algP['birth']['cleanupDeleteToImprove'] = 1
-    self.learnAlg = bnpy.learnalg.MemoizedOnlineVBLearnAlg(savedir=None, seed=0, 
+    self.learnAlg = bnpy.learnalg.MOVBAlg(savedir=None, seed=0, 
                               algParams=algP, outputParams=outP)
 
 
@@ -237,5 +237,5 @@ class TestHDPSuffStats_BirthMovex3_AtFirstTwoBatches_Adjusted(TestHDPSuffStats):
     algP['birth']['expandAdjustSuffStats'] = 1
     algP['birth']['cleanupDeleteEmpty'] = 0
     algP['birth']['cleanupDeleteToImprove'] = 0
-    self.learnAlg = bnpy.learnalg.MemoizedOnlineVBLearnAlg(savedir=None, seed=0, 
+    self.learnAlg = bnpy.learnalg.MOVBAlg(savedir=None, seed=0, 
                               algParams=algP, outputParams=outP)
