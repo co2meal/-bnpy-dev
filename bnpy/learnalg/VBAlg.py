@@ -17,7 +17,7 @@ import numpy as np
 from collections import defaultdict
 from LearnAlg import LearnAlg
 
-class VBLearnAlg( LearnAlg ):
+class VBAlg( LearnAlg ):
 
   def __init__( self, **kwargs ):
     ''' Create VBLearnAlg, subtype of generic LearnAlg

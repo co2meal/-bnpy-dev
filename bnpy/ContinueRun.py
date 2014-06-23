@@ -224,12 +224,12 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs,
     algP['merge'] = KwArgs['merge']
   outputP = KwArgs['OutputPrefs']
   if algName == 'EM' or algName == 'VB':
-    learnAlg = bnpy.learnalg.VBLearnAlg(savedir=savepath, seed=algseed, \
+    learnAlg = bnpy.learnalg.VBAlg(savedir=savepath, seed=algseed, \
                                       algParams=algP, outputParams=outputP)
   elif algName == 'soVB':
-    learnAlg = bnpy.learnalg.StochasticOnlineVBLearnAlg(savedir=savepath, seed=algseed, algParams=algP, outputParams=outputP)
+    learnAlg = bnpy.learnalg.SOVBAlg(savedir=savepath, seed=algseed, algParams=algP, outputParams=outputP)
   elif algName == 'moVB':
-    learnAlg = bnpy.learnalg.MemoizedOnlineVBLearnAlg(savedir=savepath, seed=algseed, algParams=algP, outputParams=outputP)
+    learnAlg = bnpy.learnalg.MOVBAlg(savedir=savepath, seed=algseed, algParams=algP, outputParams=outputP)
   else:
     raise NotImplementedError("Unknown learning algorithm " + algName)
   return learnAlg
