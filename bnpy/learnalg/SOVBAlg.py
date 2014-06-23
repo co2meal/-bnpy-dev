@@ -6,7 +6,7 @@ Implementation of stochastic online VB (soVB) for bnpy models
 import numpy as np
 from LearnAlg import LearnAlg
 
-class StochasticOnlineVBLearnAlg(LearnAlg):
+class SOVBAlg(LearnAlg):
 
   def __init__(self, **kwargs):
     ''' Creates stochastic online learning algorithm, 

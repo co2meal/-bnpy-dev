@@ -1,5 +1,5 @@
 '''
-MemoizedOnlineVBLearnAlg.py
+MOVBAlg.py
 
 Implementation of Memoized Online VB (moVB) learn alg for bnpy models
 '''
@@ -10,18 +10,17 @@ import logging
 from collections import defaultdict
 import copy
 
-import MergeMove
-from LearnAlg import LearnAlg
-from ..suffstats import SuffStatBag
-from ..util import isEvenlyDivisibleFloat
-from ..birthmove import TargetPlanner, TargetDataSampler, BirthMove
-
 Log = logging.getLogger('bnpy')
+from LearnAlg import LearnAlg
+from bnpy.suffstats import SuffStatBag
+from bnpy.util import isEvenlyDivisibleFloat
+from bnpy.birthmove import TargetPlanner, TargetDataSampler, BirthMove
 from bnpy.birthmove import BirthLogger, TargetPlannerWordFreq
+
 import bnpy.deletemove.CandidateSelection
 from bnpy.deletemove import DeleteLPUtil, DeleteLogger, PruneLogger
 
-class MemoizedOnlineVBLearnAlg(LearnAlg):
+class MOVBAlg(LearnAlg):
 
   def __init__( self, **kwargs):
     ''' Creates memoized VB learning algorithm object,
