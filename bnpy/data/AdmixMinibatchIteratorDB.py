@@ -88,7 +88,9 @@ class AdmixMinibatchIteratorDB(object):
     obsIDsCurBatch = self.obsIDByBatch[self.batchID]
     
     query = 'select * from data where rowid in (' + ','.join(map(str, obsIDsCurBatch)) + ')'
-    bData = WordsData.read_from_db( self.dbpath, query, nDoc=len(obsIDsCurBatch), nDocTotal = self.nDocTotal, vocab_size = self.vocab_size ) 
+    bData = WordsData.read_from_db(self.dbpath, query, 
+                                   nDocTotal=self.nDocTotal,
+                                   vocab_size=self.vocab_size) 
     return bData 
     
   def getObsIDsForCurrentBatch(self):
