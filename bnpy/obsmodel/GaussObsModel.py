@@ -165,9 +165,14 @@ class GaussObsModel( ObsModel ):
 
   ######################################################### Evidence  
   ######################################################### 
-  def calc_evidence( self, Data, SS, LP):
+  def calc_evidence( self, Data, SS, LP, todict=0):
     if self.inferType == 'EM':
      return 0 # handled by alloc model
+    elif todict:
+      return dict(data_Elogp=self.E_logpX(LP,SS),
+                  phi_Elogp=self.E_logpPhi(),
+                  phi_Elogq=self.E_logqPhi()
+                  )
     else:
       return self.E_logpX(LP, SS) + self.E_logpPhi() - self.E_logqPhi()
   

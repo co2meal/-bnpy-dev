@@ -56,6 +56,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
                         {'converged', 'max passes exceeded'}
     
     '''
+    origmodel = hmodel
     # Define how much of data we see at each mini-batch
     nBatch = float(DataIterator.nBatch)
     self.lapFracInc = 1.0/nBatch

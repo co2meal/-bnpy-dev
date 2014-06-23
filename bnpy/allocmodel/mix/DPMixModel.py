@@ -269,7 +269,6 @@ class DPMixModel(AllocModel):
     return np.inner( SS.N, self.Elogw ) 
     
   def E_logqZ(self, LP):
-    #return np.sum(LP['resp'] * np.log(LP['resp']+EPS), axis=0)
     return NumericUtil.calcRlogR(LP['resp']+EPS)
 
   def E_logpV( self ):

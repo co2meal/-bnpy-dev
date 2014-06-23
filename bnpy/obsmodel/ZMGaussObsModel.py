@@ -128,10 +128,15 @@ class ZMGaussObsModel(ObsModel):
 
   ######################################################### Evidence
   ######################################################### 
-  def calc_evidence( self, Data, SS, LP=None):
+  def calc_evidence(self, Data, SS, LP=None, todict=0):
     if self.inferType == 'EM': 
       # handled in alloc model and aggregated in HModel
       return 0
+    elif todict:
+      return dict(data_Elogp=self.E_logpX(LP,SS),
+                  phi_Elogp=self.E_logpPhi(),
+                  phi_Elogq=self.E_logqPhi()
+                  )
     else:
       return self.E_logpX(SS) + self.E_logpPhi() - self.E_logqPhi()    
 
