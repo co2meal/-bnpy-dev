@@ -17,6 +17,7 @@ import init
 import learnalg
 import birthmove
 import deletemove
+import mergemove
 
 import Run
 from Run import run

@@ -16,9 +16,7 @@ from bnpy.suffstats import SuffStatBag
 from bnpy.util import isEvenlyDivisibleFloat
 from bnpy.birthmove import TargetPlanner, TargetDataSampler, BirthMove
 from bnpy.birthmove import BirthLogger, TargetPlannerWordFreq
-
-import bnpy.deletemove.CandidateSelection
-from bnpy.deletemove import DeleteLPUtil, DeleteLogger, PruneLogger
+from bnpy.mergemove import MergeMove, MergePlanner
 
 class MOVBAlg(LearnAlg):
 
@@ -92,6 +90,7 @@ class MOVBAlg(LearnAlg):
     prevBound = -np.inf
     self.set_start_time_now()
     doDelete = self.hasMove('delete')
+    doPrecompMergeEntropy = 0
     while DataIterator.has_next_batch():
 
       # Grab new data
@@ -111,7 +110,6 @@ class MOVBAlg(LearnAlg):
           SS.reorderComps(order)
           hmodel.reorderComps(order)
           self.algParamsLP['order'] = order
-        
 
       # M step
       if self.algParams['doFullPassBeforeMstep']:
@@ -164,94 +162,23 @@ class MOVBAlg(LearnAlg):
         self.BirthCompIDs = list() # no births = no new components
         self.ModifiedCompIDs = list()
 
-      # Select which components to prune
-      if self.hasMove('prune') and self.isFirstBatch(lapFrac) and lapFrac > 1:
-        PruneResults = list()
-        if len(PrunePlans) > 0:
-          PruneLogger.logPhase('Evaluation')
-        for Plan in PrunePlans:
-          # Fit current model to the prune target set
-          PData = Dchunk.from_list_of_tuples(Plan['Heap'], Dchunk.vocab_size)
-          curLP = hmodel.calc_local_params(PData, **self.algParamsLP)
-          curSS = hmodel.get_global_suff_stats(PData, curLP)
-          
-          PruneLogger.log( ' ktarget %3d' % (Plan['ktarget']))
-
-          pmodel = hmodel.copy()
-          PSS = SS.copy()
-          PSS.removeComp(Plan['ktarget'])
-          pmodel.update_global_params(PSS)
-          # NOTE: this pmodel update is *inconsistent* for allocModel
-
-          newLP = pmodel.calc_local_params(PData, **self.algParamsLP)
-          newSS = pmodel.get_global_suff_stats(PData, newLP)
-
-          curELBO = hmodel.calc_evidence(PData, curSS, curLP)
-          newELBO = pmodel.calc_evidence(PData, newSS, newLP)
-
-          PruneLogger.log( ' original %.6e' % (curELBO))
-          PruneLogger.log( ' pruned   %.6e' % (newELBO))
-
-          if newELBO > curELBO:
-            print 'ACCEPTED'
-            hmodel = pmodel
-            SS = PSS
-            PruneResults.append(Plan)
-          else:
-            print 'REJECTED'
-
-        PruneLogger.logPhase('Selection')
-        PrunePlans = list()
-        smallestTopicIDs = np.argsort(SS.N)
-        nPruneMoves = self.algParams['prune']['prunePerLap']
-        # Order prunes from biggest to smallest index,
-        #  so that multiple accepts don't mess with indexing!
-        for kk in reversed(sorted(smallestTopicIDs[:nPruneMoves])):
-          if SS.N[kk] < self.algParams['prune']['pruneSize']:
-            PrunePlans.append(dict(ktarget=kk, Heap=list()))
-            print 'Prune Target:  %3d  N=%7.0f' % (kk, SS.N[kk])
-        if len(PrunePlans) == 0:
-          print 'No comps small-enough to prune. Smallest: %.0f' % (SS.N.min())
-
-      # Select which components to delete
-      if self.hasMove('delete') and doDelete:
-        preselectroutine = self.algParams['delete']['preselectroutine']
-        if self.isFirstBatch(lapFrac) and lapFrac > 2:
-          self.DelMoveSSmemory.clear()
-          self.DelMoveLPmemory.clear()
-          DeleteLogger.logPhase('Candidate Selection')
-          selectFunc = bnpy.deletemove.CandidateSelection.selectCandidateTopic
-          DeleteInfo = selectFunc(SS, Dchunk, randstate=self.PRNG, 
-                                              **self.algParams['delete'])
-
-          if 'ktarget' in DeleteInfo:
-            dmodel = hmodel.copy()
-            DeleteSS = SS.copy()
-            DeleteSS.removeComp(DeleteInfo['ktarget'])
-            dmodel.update_global_params(DeleteSS)
-            dmodel.allocModel.update_global_params(DeleteSS)
-            DeleteSS.setAllFieldsToZeroAndRemoveNonELBOTerms()
-
-
       if self.isFirstBatch(lapFrac):
         if SS is not None and SS.hasSelectionTerms():
           SS._SelectTerms.setAllFieldsToZero()
 
-
-      # Select which components to merge
-      if self.hasMove('merge') and not self.algParams['merge']['doAllPairs']:
+      # Prep for Merge
+      if self.hasMove('merge'):
         preselectroutine = self.algParams['merge']['preselectroutine']
-        if self.isFirstBatch(lapFrac):
-          if self.hasMove('birth'):
-            compIDs = self.BirthCompIDs
+        mergeELBOTrackMethod = self.algParams['merge']['mergeELBOTrackMethod']
+        mergeStartLap = self.algParams['merge']['mergeStartLap']
+        if self.isFirstBatch(lapFrac) and lapFrac >= mergeStartLap:
+          if mergeELBOTrackMethod == 'exact':
+            mPairIDs = MergePlanner.preselect_candidate_pairs(hmodel, SS, 
+                           randstate=self.PRNG, **self.algParams['merge'])
+            doPrecompMergeEntropy = 1
           else:
-            compIDs = []
-          mPairIDs = MergeMove.preselect_all_merge_candidates(hmodel, SS, 
-                           randstate=self.PRNG, compIDs=compIDs,
-                           **self.algParams['merge'])
-          if SS is not None and SS.hasSelectionTerms():
-            SS._SelectTerms.setAllFieldsToZero()
-
+            doPrecompMergeEntropy = 2
+      
       # E step
       if batchID in self.LPmemory:
         oldLPchunk = self.load_batch_local_params_from_memory(
@@ -289,7 +216,7 @@ class MOVBAlg(LearnAlg):
 
       SSchunk = hmodel.get_global_suff_stats(Dchunk, LPchunk,
                        doPrecompEntropy=True, 
-                       doPrecompMergeEntropy=self.hasMove('merge'),
+                       doPrecompMergeEntropy=doPrecompMergeEntropy,
                        mPairIDs=mPairIDs,
                        preselectroutine=preselectroutine
                        )
@@ -305,79 +232,21 @@ class MOVBAlg(LearnAlg):
       if self.hasMove('birth') and self.isLastBatch(lapFrac):
         hmodel, SS = self.birth_remove_extra_mass(hmodel, SS, BirthResults)
 
-      # ELBO calc
-      evBound = hmodel.calc_evidence(SS=SS)
 
       # Merge move!      
-      if self.hasMove('merge') and self.isLastBatch(lapFrac):
-        hmodel, SS, evBound = self.run_merge_move(hmodel, SS, evBound, mPairIDs)
-
-      if self.hasMove('delete') and doDelete and 'ktarget' in DeleteInfo:
-        delLPchunk = DeleteLPUtil.MakeLP(Dchunk, hmodel, LPchunk, 
-                                       DeleteInfo, **self.algParams['delete'])
-
-        delLPchunk = dmodel.calc_local_params(Dchunk, delLPchunk,
-                                                 **self.algParamsLP)
-
-        delSSchunk = dmodel.get_global_suff_stats(Dchunk, delLPchunk,
-                                                  doPrecompEntropy=1)
-        DeleteSS += delSSchunk
-        self.DelMoveSSmemory[batchID] = delSSchunk
-        self.DelMoveLPmemory[batchID] = delLPchunk
-
-        if lapFrac > 2 and self.isLastBatch(lapFrac):
-          assert np.allclose(DeleteSS.nDoc, SS.nDoc)
-          dmodel.update_global_params(DeleteSS)
-          del_evBound = dmodel.calc_evidence(SS=DeleteSS)
-          DeleteLogger.logPhase('Evaluation')
-          DeleteLogger.log('  original %.6e' % (evBound))
-          DeleteLogger.log('  deleted  %.6e' % (del_evBound))
-          if del_evBound > evBound:
-            DeleteLogger.log('ACCEPTED!!!!!!')
-            hmodel = dmodel.copy()
-            Sterms = SS.removeSelectionTerms()
-            Sterms.removeComp(DeleteInfo['ktarget'])
-            SS = DeleteSS.copy()
-            SS.restoreSelectionTerms(Sterms)
-            LPchunk = delLPchunk
-            SSchunk = delSSchunk
-            self.SSmemory = copy.deepcopy(self.DelMoveSSmemory)
-            self.LPmemory = copy.deepcopy(self.DelMoveLPmemory)
-            PrunePlans = list() # forget the plans, they are irrelevant now 
-            PruneResults = list()
-            #doDelete = 0 # debugging switch to disable future deletes
-          else:
-            DeleteLogger.log('REJECTED.')
-
-      if self.hasMove('prune') and lapFrac > 1:
-        maxSize = self.algParams['prune']['pruneTargetSize']
-        if self.isFirstBatch(lapFrac):
-          PruneLogger.logPhase('Target Collection')
-        for Plan in PrunePlans:
-          ktarget = Plan['ktarget']
-          TargetDataSampler.add_to_ranked_target_data(Plan['Heap'], maxSize,
-                                       Dchunk, 
-                                       LPchunk['DocTopicCount'][:,ktarget],
-                                       keep='largest')
-          assert len(Plan['Heap']) < maxSize + 1 # just in case
-
-          if self.isLastBatch(lapFrac):
-            for Plan in PrunePlans:
-              PruneLogger.log(' ktarget %4d' % (Plan['ktarget']))
-              Ndoc = len(Plan['Heap'])
-              PruneLogger.log(' Target Data Size: %.1f' % (Ndoc))
-              ws = np.asarray( [x[0] for x in Plan['Heap']])
-              pstr = ''
-              Nstr = ''
-              for p in [0, 25, 50, 75, 100]:
-                N = np.percentile(ws, p)
-                pstr += '%4d%% ' % (p)
-                Nstr += '%5.1f ' % (N)
-              PruneLogger.log(pstr)
-              PruneLogger.log(Nstr)
-
-
-
+      if self.hasMove('merge') and self.isLastBatch(lapFrac) \
+                               and lapFrac > mergeStartLap:        
+        hmodel.update_global_params(SS)
+        evBound = hmodel.calc_evidence(SS=SS)
+        if mergeELBOTrackMethod == 'fastBound':
+          mPairIDs = MergePlanner.preselect_candidate_pairs(hmodel, SS, 
+                           randstate=self.PRNG, **self.algParams['merge'])
+        assert mPairIDs is not None
+        hmodel, SS, evBound = self.run_many_merge_moves(hmodel, SS,
+                                                 evBound, mPairIDs)
+      # ELBO Update!
+      else:
+        evBound = hmodel.calc_evidence(SS=SS)
 
       # Save and display progress
       self.add_nObs(Dchunk.nObs)
@@ -825,13 +694,8 @@ class MOVBAlg(LearnAlg):
 
   ######################################################### Merge moves!
   #########################################################
-  def run_merge_move(self, hmodel, SS, evBound, mPairIDs=None):
-    if self.algParams['merge']['version'] > 0:
-      return self.run_merge_move_NEW(hmodel, SS, evBound, mPairIDs)
-    else:
-      return self.run_merge_move_OLD(hmodel, None, SS, evBound)
 
-  def run_merge_move_NEW(self, hmodel, SS, evBound, mPairIDs=None):
+  def run_many_merge_moves(self, hmodel, SS, evBound, mPairIDs):
     ''' Run (potentially many) merge moves on hmodel,
           performing necessary bookkeeping to
             (1) avoid trying the same merge twice
@@ -839,49 +703,28 @@ class MOVBAlg(LearnAlg):
                 since the precomputed entropy will no longer be correct.
         Returns
         -------
-        hmodel : bnpy HModel, with (possibly) some merged components
+        hmodel : bnpy HModel, with (possibly) merged components
         SS : bnpy SuffStatBag, with (possibly) merged components
         evBound : correct ELBO for returned hmodel
                   guaranteed to be at least as large as input evBound    
     '''
-    from MergeMove import run_many_merge_moves
-
-    if self.hasMove('birth') and len(self.BirthCompIDs) > 0:
-      compList = [x for x in self.BirthCompIDs] # need a copy
-    else:
-      compList = list()
-
-    nMergeTrials = self.algParams['merge']['mergePerLap']
-
-    hmodel, SS, newEvBound, MTracker = run_many_merge_moves(
-                        hmodel, None, SS, evBound=evBound,
-                        mPairIDs=mPairIDs, 
-                        randstate=self.PRNG, nMergeTrials=nMergeTrials,
-                        compList=compList, savedir=self.savedir,
-                        **self.algParams['merge'])
-
-    msg = 'MERGE: %3d/%3d accepted.' % (MTracker.nSuccess, MTracker.nTrial)
-    if MTracker.nSuccess > 0:
-      msg += ' ev improved + %.3e' % (newEvBound - evBound)
-    if self.algParams['merge']['doVerbose'] >= 0:
-      self.print_msg(msg)
-    
-    if self.algParams['merge']['doVerbose'] > 0:
-      for msg in MTracker.InfoLog:
-        self.print_msg(msg)
+    hmodel, SS, newEvBound, Info = MergeMove.run_many_merge_moves(
+                                       hmodel, SS, evBound, mPairIDs, 
+                                       **self.algParams['merge'])
 
     # ------ Adjust indexing for counter that determines which comp to target
     if self.hasMove('birth'):
-      for kA, kB in MTracker.acceptedIDs:
+      for kA, kB in Info['AcceptedPairs']:
         self._adjustLapsSinceLastBirthForMerge(MTracker, kA, kB)
+
     # ------ Record accepted moves, so can adjust memoized stats later
     self.MergeLog = list()
-    for kA, kB in MTracker.acceptedIDs:
+    for kA, kB in Info['AcceptedPairs']:
       self.MergeLog.append(dict(kA=kA, kB=kB))
+
     # ------ Reset all precalculated merge terms
     if SS.hasMergeTerms():
       SS.setMergeFieldsToZero()
-
     return hmodel, SS, newEvBound
 
   def _adjustLapsSinceLastBirthForMerge(self, MTracker, kA, kB):
@@ -898,104 +741,3 @@ class MOVBAlg(LearnAlg):
         newDict[kk-1] = self.LapsSinceLastBirth[kk]
     self.LapsSinceLastBirth = newDict
 
-
-  def run_merge_move_OLD(self, hmodel, Data, SS, evBound):
-    ''' Run (potentially many) merge moves on hmodel,
-          performing necessary bookkeeping to
-            (1) avoid trying the same merge twice
-            (2) avoid merging a component that has already been merged,
-                since the precomputed entropy will no longer be correct.
-        Returns
-        -------
-        hmodel : bnpy HModel, with (possibly) some merged components
-        SS : bnpy SuffStatBag, with (possibly) merged components
-        evBound : correct ELBO for returned hmodel
-                  guaranteed to be at least as large as input evBound    
-    '''
-    import OldMergeMove
-    self.MergeLog = list() # clear memory of recent merges!
-    excludeList = list()
-    excludePairs = defaultdict(lambda:set())
-    nMergeAttempts = self.algParams['merge']['mergePerLap']
-    trialID = 0
-    while trialID < nMergeAttempts:
-
-      # Synchronize contents of the excludeList and excludePairs
-      # So that comp excluded in excludeList (due to accepted merge)
-      #  is automatically contained in the set of excluded pairs 
-      for kx in excludeList:
-        for kk in excludePairs:
-          excludePairs[kk].add(kx)
-          excludePairs[kx].add(kk)
-
-      for kk in excludePairs:
-        if len(excludePairs[kk]) > hmodel.obsModel.K - 2:
-          if kk not in excludeList:
-            excludeList.append(kk)
-
-      if len(excludeList) > hmodel.obsModel.K - 2:
-        Log.info('Merge Done. No more options to try!')
-        break # when we don't have any more comps to merge
-        
-      if self.hasMove('birth') and len(self.BirthCompIDs) > 0:
-        kA = self.BirthCompIDs.pop()
-        if kA in excludeList:
-          continue
-      else:
-        kA = None
-
-      hmodel, SS, evBound, MoveInfo = OldMergeMove.run_merge_move(
-                 hmodel, None, SS, evBound, randstate=self.PRNG,
-                 excludeList=excludeList, excludePairs=excludePairs,
-                 kA=kA, **self.algParams['merge'])
-      trialID += 1
-      self.print_msg(MoveInfo['msg'])
-
-      # Begin Bookkeeping!
-      if 'kA' in MoveInfo and 'kB' in MoveInfo:
-        kA = MoveInfo['kA']
-        kB = MoveInfo['kB']
-        excludePairs[kA].add(kB)
-        excludePairs[kB].add(kA)
-
-      if MoveInfo['didAccept']:
-        self.MergeLog.append(dict(kA=kA, kB=kB))
-
-        # Adjust excluded lists since components kB+1, kB+2, ... K
-        #  have been shifted down by one due to removal of kB
-        for kk in range(len(excludeList)):
-          if excludeList[kk] > kB:
-            excludeList[kk] -= 1
-
-        # Exclude new merged component kA from future attempts        
-        #  since precomputed entropy terms involving kA aren't good
-        excludeList.append(kA)
-    
-        # Adjust excluded pairs to remove kB and shift down kB+1, ... K
-        newExcludePairs = defaultdict(lambda:set())
-        for kk in excludePairs.keys():
-          ksarr = np.asarray(list(excludePairs[kk]))
-          ksarr[ksarr > kB] -= 1
-          if kk > kB:
-            newExcludePairs[kk-1] = set(ksarr)
-          elif kk < kB:
-            newExcludePairs[kk] = set(ksarr)
-        excludePairs = newExcludePairs
-
-        # Adjust internal tracking of laps since birth
-        if self.hasMove('birth'):
-          compList = self.LapsSinceLastBirth.keys()
-          newDict = defaultdict(int)
-          for kk in compList:
-            if kk == kA:
-              newDict[kA] = np.maximum(self.LapsSinceLastBirth[kA], self.LapsSinceLastBirth[kB])
-            elif kk < kB:
-              newDict[kk] = self.LapsSinceLastBirth[kk]
-            elif kk > kB:
-              newDict[kk-1] = self.LapsSinceLastBirth[kk]
-          self.LapsSinceLastBirth = newDict
-
-    if SS.hasMergeTerms():
-      SS.setMergeFieldsToZero()
-    return hmodel, SS, evBound
-  

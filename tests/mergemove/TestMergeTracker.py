@@ -9,7 +9,7 @@ Verification tracking of which comps have been merged already
 import numpy as np
 import unittest
 
-from bnpy.learnalg import MergeTracker
+from bnpy.mergemove.MergeTracker import MergeTracker
 
 class TestMergeTracker(unittest.TestCase):
   def shortDescription(self):

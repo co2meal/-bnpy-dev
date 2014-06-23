@@ -170,7 +170,9 @@ def _run_task_internal(jobname, taskid, nTask,
   if learnAlg.hasMove('prune'):
     import bnpy.deletemove.PruneLogger as PruneLogger
     PruneLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
-
+  if learnAlg.hasMove('merge'):
+    import bnpy.mergemove.MergeLogger as MergeLogger
+    MergeLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
   # Check if running on grid
   try:
     jobID = int(os.getenv('JOB_ID'))

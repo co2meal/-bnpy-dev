@@ -1,13 +1,17 @@
 '''
 Unit tests for MergePairSelector.py
 
-Verifies that we can successfully select components to merge
+Verifies basic operation of selection of candidate pairs. 
+
+Details
+-------
+Verifies that the PairSelector object implements basic functionality related to random selection and reindexing. Doesn't use real data or models at all.
 '''
 import numpy as np
 import unittest
 
-from bnpy.learnalg import MergeTracker
-from bnpy.learnalg import MergePairSelector
+from bnpy.mergemove.MergeTracker import MergeTracker
+from bnpy.mergemove.MergePairSelector import MergePairSelector
 
 class TestMergePairSelector(unittest.TestCase):
   def shortDescription(self):
