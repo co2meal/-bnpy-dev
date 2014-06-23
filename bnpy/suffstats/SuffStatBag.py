@@ -183,7 +183,10 @@ class SuffStatBag(object):
         if self.hasMergeTerm(key) and dims == ('K'):
           arr = getattr(self._ELBOTerms, key)
           mArr = getattr(self._MergeTerms, key)
-          arr[kA] = mArr[kA,kB]
+          if mArr.ndim == 2:
+            arr[kA] = mArr[kA,kB]
+          else:
+            arr[kA] += mArr[kB]
 
     if self.hasMergeTerms():
       for key, dims in self._MergeTerms._FieldDims.items():

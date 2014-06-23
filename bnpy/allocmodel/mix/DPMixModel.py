@@ -146,15 +146,23 @@ class DPMixModel(AllocModel):
 
     SS.setField('N', Nvec, dims=('K'))
     if doPrecompEntropy:
+      resp = LP['resp']
+      np.minimum(resp, 1-EPS, out=resp)
+      np.maximum(resp, EPS, out=resp)
+
       ElogqZ_vec = self.E_logqZ(LP)
       SS.setELBOTerm('ElogqZ', ElogqZ_vec, dims=('K'))
+
     if doPrecompMergeEntropy:
-      resp = LP['resp'] + EPS
-      if mPairIDs is None:
-        ElogqZMat = NumericUtil.calcRlogR_allpairs(resp)
+      if doPrecompMergeEntropy == 2:
+        ElogqZVec = NumericUtil.calcRlogR(1.0 - resp)
+        SS.setMergeTerm('ElogqZ', -1*ElogqZVec, dims=('K'))
       else:
-        ElogqZMat = NumericUtil.calcRlogR_specificpairs(resp, mPairIDs)
-      SS.setMergeTerm('ElogqZ', ElogqZMat, dims=('K','K'))
+        if mPairIDs is None:
+          ElogqZMat = NumericUtil.calcRlogR_allpairs(resp)
+        else:
+          ElogqZMat = NumericUtil.calcRlogR_specificpairs(resp, mPairIDs)
+        SS.setMergeTerm('ElogqZ', ElogqZMat, dims=('K','K'))
 
     return SS
 
@@ -269,7 +277,7 @@ class DPMixModel(AllocModel):
     return np.inner( SS.N, self.Elogw ) 
     
   def E_logqZ(self, LP):
-    return NumericUtil.calcRlogR(LP['resp']+EPS)
+    return NumericUtil.calcRlogR(LP['resp'])
 
   def E_logpV( self ):
     logNormC = gammaln(self.alpha0 + self.alpha1) \
