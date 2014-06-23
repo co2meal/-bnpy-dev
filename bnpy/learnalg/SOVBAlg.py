@@ -1,5 +1,5 @@
 '''
-StochasticOnlineVBLearnAlg.py
+SOVBAlg.py
 
 Implementation of stochastic online VB (soVB) for bnpy models
 '''
