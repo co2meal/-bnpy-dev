@@ -4,13 +4,15 @@ Contains methods necessary for advanced selection of which components to merge.
 '''
 import numpy as np
 from bnpy.mergemove.MergePairSelector import MergePairSelector
+import bnpy.mergemove.MergeLogger as MergeLogger
 
 def preselect_candidate_pairs(curModel, SS, 
                                randstate=np.random.RandomState(0),
                                preselectroutine='random',
                                mergePerLap=10,
+                               doLimitNumPairs=1,
                                **kwargs):
-  '''Create and return a list of tuples representing candidates pairs to merge.
+  '''Create and return a list of tuples representing candidate pairs to merge.
 
      Args
      --------
@@ -28,14 +30,18 @@ def preselect_candidate_pairs(curModel, SS,
   '''
   kwargs['preselectroutine'] = preselectroutine
   kwargs['randstate'] = randstate
-  kwargs['mergePerLap'] = mergePerLap
   if 'excludePairs' not in kwargs:
     excludePairs = list()
   else:
     excludePairs = kwargs['excludePairs']
 
-  K = curModel.allocModel.K  
-  nMergeTrials = kwargs['mergePerLap']
+  K = curModel.allocModel.K
+  if doLimitNumPairs:
+    nMergeTrials = mergePerLap
+  else:
+    nMergeTrials = K * (K-1) // 2
+
+
   if SS is None: # Handle first lap
     kwargs['preselectroutine'] = 'random'
 
@@ -68,14 +74,14 @@ def preselect_candidate_pairs(curModel, SS,
 
   # ------------------------------------------------------- Select candidates
   if kwargs['preselectroutine'].count('balanced') > 0:
-    aList, bList = _scorematrix2rankedlist_balanced(M, kwargs['mergePerLap'])
+    aList, bList = _scorematrix2rankedlist_balanced(M, nMergeTrials)
   else:
-    aList, bList = _scorematrix2rankedlist_greedy(M, kwargs['mergePerLap'])
+    aList, bList = _scorematrix2rankedlist_greedy(M, nMergeTrials)
 
   # Return completed lists
   assert len(aList) == len(bList)
-  assert len(aList) <= kwargs['mergePerLap']
-  assert len(aList) <= K * (K-1)/2
+  assert len(aList) <= nMergeTrials
+  assert len(aList) <= K * (K-1) // 2
   assert np.all( np.asarray(aList) < np.asarray(bList))
   
   if 'returnScoreMatrix' in kwargs and kwargs['returnScoreMatrix']:
@@ -173,7 +179,7 @@ def calcScoreMatrix_obsmodel(curModel, SS, excludePairs):
 
   curModel = curModel.copy()
   curModel.obsModel.update_global_params(SS)
-  origELBO = curModel.obsModel.calc_evidence(None, SS, None)
+  curELBOobs = curModel.obsModel.calc_evidence(None, SS, None)
 
   propModel = curModel
   for kA in xrange(K):
@@ -184,10 +190,10 @@ def calcScoreMatrix_obsmodel(curModel, SS, excludePairs):
       mergeSS = SS.copy()
       mergeSS.mergeComps(kA, kB)
       propModel.obsModel.update_global_params(mergeSS)
-      propELBO = propModel.obsModel.calc_evidence(None, mergeSS, None)
+      propELBOobs = propModel.obsModel.calc_evidence(None, mergeSS, None)
 
-      if propELBO > origELBO:
-        M[kA, kB] = propELBO - origELBO
+      if propELBOobs > curELBOobs:
+        M[kA, kB] = propELBOobs - curELBOobs
       else:
         M[kA, kB] = 0
   return M

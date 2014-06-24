@@ -11,9 +11,9 @@ def log(msg):
     return
   Log.info(msg)
 
-def logStartMove(lapFrac, moveID, nMoves):
+def logStartMove(lapFrac):
   msg = '=' * (50) 
-  msg = msg + ' lap %.2f %d/%d' % (lapFrac, moveID, nMoves)
+  msg = msg + ' lap %.2f' % (lapFrac)
   log(msg)
 
 def logPhase(title):

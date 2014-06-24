@@ -91,6 +91,7 @@ class MOVBAlg(LearnAlg):
     self.set_start_time_now()
     doDelete = self.hasMove('delete')
     doPrecompMergeEntropy = 0
+    MM = None # Score matrix for merge candidate pairs
     while DataIterator.has_next_batch():
 
       # Grab new data
@@ -174,11 +175,13 @@ class MOVBAlg(LearnAlg):
         mergeStartLap = self.algParams['merge']['mergeStartLap']
         if self.isFirstBatch(lapFrac) and lapFrac >= mergeStartLap:
           if mergeELBOTrackMethod == 'exact':
-            mPairIDs = MergePlanner.preselect_candidate_pairs(hmodel, SS, 
-                           randstate=self.PRNG, **self.algParams['merge'])
-            doPrecompMergeEntropy = 1
+            mPairIDs, MM = MergePlanner.preselect_candidate_pairs(hmodel, SS,
+                                                              randstate=self.PRNG,
+                                                          returnScoreMatrix=1,
+                                                          **self.algParams['merge'])
+            doPrecompMergeEntropy = 1 # explicitly precomp all O(K^2) pairs
           else:
-            doPrecompMergeEntropy = 2
+            doPrecompMergeEntropy = 2 # need only precomp O(K) stats
       
       # E step
       if batchID in self.LPmemory:
@@ -240,11 +243,13 @@ class MOVBAlg(LearnAlg):
         hmodel.update_global_params(SS)
         evBound = hmodel.calc_evidence(SS=SS)
         if mergeELBOTrackMethod == 'fastBound':
-          mPairIDs = MergePlanner.preselect_candidate_pairs(hmodel, SS, 
-                           randstate=self.PRNG, **self.algParams['merge'])
+          mPairIDs, MM = MergePlanner.preselect_candidate_pairs(hmodel, SS,
+                           randstate=self.PRNG, doLimitNumPairs=0,
+                           returnScoreMatrix=1,
+                           **self.algParams['merge'])
         assert mPairIDs is not None
-        hmodel, SS, evBound = self.run_many_merge_moves(hmodel, SS,
-                                                 evBound, mPairIDs)
+        hmodel, SS, evBound = self.run_many_merge_moves(hmodel, SS, evBound,
+                                                        mPairIDs, MM, lapFrac)
 
       # ELBO Update!
       else:
@@ -274,22 +279,6 @@ class MOVBAlg(LearnAlg):
         if isConverged and lapFrac > 5 and not self.hasMove('birth'):
           break
       prevBound = evBound
-
-      '''
-      if lapFrac >= 1:
-        print '...........VVVV.............  %.1f' % (lapFrac)
-        for b in xrange(10):
-          bSS = self.load_batch_suff_stat_from_memory(b, SS.K, doCopy=1)
-          bSS = bSS.copy()
-          if b == 0:
-            mySS = bSS
-          else:
-            mySS += bSS
-        print '...........^^^^..............'
-        assert np.allclose(mySS.N, SS.N)
-        assert np.allclose(mySS.getELBOTerm('ElogqZ'),
-                             SS.getELBOTerm('ElogqZ'))
-      '''
       #.................................................... end loop over data
 
     # Finally, save, print and exit
@@ -717,7 +706,7 @@ class MOVBAlg(LearnAlg):
   ######################################################### Merge moves!
   #########################################################
 
-  def run_many_merge_moves(self, hmodel, SS, evBound, mPairIDs):
+  def run_many_merge_moves(self, hmodel, SS, evBound, mPairIDs, M, lapFrac):
     ''' Run (potentially many) merge moves on hmodel,
           performing necessary bookkeeping to
             (1) avoid trying the same merge twice
@@ -730,9 +719,12 @@ class MOVBAlg(LearnAlg):
         evBound : correct ELBO for returned hmodel
                   guaranteed to be at least as large as input evBound    
     '''
+    import bnpy.mergemove.MergeLogger as MergeLogger
+    MergeLogger.logStartMove(lapFrac)
+
     Korig = SS.K
     hmodel, SS, newEvBound, Info = MergeMove.run_many_merge_moves(
-                                       hmodel, SS, evBound, mPairIDs, 
+                                       hmodel, SS, evBound, mPairIDs, M=M,
                                        **self.algParams['merge'])
 
     # ------ Adjust indexing for counter that determines which comp to target
