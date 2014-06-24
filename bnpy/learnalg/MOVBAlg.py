@@ -274,6 +274,20 @@ class MOVBAlg(LearnAlg):
         self.save_batch_local_params_to_memory(batchID, LPchunk)          
       self.save_batch_suff_stat_to_memory(batchID, SSchunk)  
 
+      if lapFrac >= 1:
+        print '...........VVVV.............  %.1f' % (lapFrac)
+        for b in xrange(10):
+          bSS = self.load_batch_suff_stat_from_memory(b, SS.K, doCopy=1)
+          bSS = bSS.copy()
+          if b == 0:
+            mySS = bSS
+          else:
+            mySS += bSS
+        print '...........^^^^..............'
+        assert np.allclose(mySS.N, SS.N)
+        if not np.allclose(mySS.getELBOTerm('ElogqZ'),
+                             SS.getELBOTerm('ElogqZ')):
+          from IPython import embed; embed()
       #.................................................... end loop over data
 
     # Finally, save, print and exit
@@ -299,29 +313,32 @@ class MOVBAlg(LearnAlg):
                                        prevBirthResults=None, 
                                        BirthResults=None,
                                        PruneResults=list(),
-                                       order=None):
+                                       order=None,
+                                       doCopy=0):
     ''' Load the suff stats stored in memory for provided batchID
         Returns
         -------
         SSchunk : bnpy SuffStatDict object for batchID
     '''
     SSchunk = self.SSmemory[batchID]
-    if self.hasMove('prune'): 
-      for Plan in PruneResults:
-        SSchunk.removeComp(Plan['ktarget'])
+    if doCopy:
+      SSchunk = SSchunk.copy()
+    print 'batchID %d | Kmem %d | K %d' % (batchID, SSchunk.K, K)
 
     # "replay" accepted merges from end of previous lap 
     if self.hasMove('merge'): 
       for MInfo in self.MergeLog:
         kA = MInfo['kA']
         kB = MInfo['kB']
-        if kA < SSchunk.K and kB < SSchunk.K:
+        if kA < SSchunk.K and kB < SSchunk.K and SSchunk.K == MInfo['Korig']:
           SSchunk.mergeComps(kA, kB)
       if SSchunk.hasMergeTerms():
         SSchunk.setMergeFieldsToZero()
+
     # "replay" any shuffling/reordering that happened
     if self.hasMove('shuffle') and order is not None:
       SSchunk.reorderComps(order)
+
     # "replay" generic and batch-specific births from this lap
     if self.hasMove('birth'):   
       Kextra = K - SSchunk.K
@@ -709,6 +726,7 @@ class MOVBAlg(LearnAlg):
         evBound : correct ELBO for returned hmodel
                   guaranteed to be at least as large as input evBound    
     '''
+    Korig = SS.K
     hmodel, SS, newEvBound, Info = MergeMove.run_many_merge_moves(
                                        hmodel, SS, evBound, mPairIDs, 
                                        **self.algParams['merge'])
@@ -721,7 +739,8 @@ class MOVBAlg(LearnAlg):
     # ------ Record accepted moves, so can adjust memoized stats later
     self.MergeLog = list()
     for kA, kB in Info['AcceptedPairs']:
-      self.MergeLog.append(dict(kA=kA, kB=kB))
+      self.MergeLog.append(dict(kA=kA, kB=kB, Korig=Korig))
+      Korig -= 1
 
     # ------ Reset all precalculated merge terms
     if SS.hasMergeTerms():
