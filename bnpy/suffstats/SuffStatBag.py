@@ -187,6 +187,7 @@ class SuffStatBag(object):
             arr[kA] = mArr[kA,kB]
           else:
             arr[kA] += mArr[kB]
+          ###self._ELBOTerms.setField(key, arr, dims=dims)
 
     if self.hasMergeTerms():
       for key, dims in self._MergeTerms._FieldDims.items():
@@ -262,12 +263,12 @@ class SuffStatBag(object):
     if hasattr(self, '_ELBOTerms') and hasattr(PB, '_ELBOTerms'):
       SSsum._ELBOTerms = self._ELBOTerms + PB._ELBOTerms
     elif hasattr(PB, '_ELBOTerms'):
-      SSsum._ELBOTerms = PB._ELBOTerms
+      SSsum._ELBOTerms = PB._ELBOTerms.copy()
 
     if hasattr(self, '_MergeTerms') and hasattr(PB, '_MergeTerms'):
       SSsum._MergeTerms = self._MergeTerms + PB._MergeTerms
     elif hasattr(PB, '_MergeTerms'):
-      SSsum._MergeTerms = PB._MergeTerms
+      SSsum._MergeTerms = PB._MergeTerms.copy()
 
     if hasattr(self, '_SelectTerms') and hasattr(PB, '_SelectTerms'):
       SSsum._SelectTerms = self._SelectTerms + PB._SelectTerms
@@ -281,12 +282,12 @@ class SuffStatBag(object):
     if hasattr(self, '_ELBOTerms') and hasattr(PB, '_ELBOTerms'):
       self._ELBOTerms += PB._ELBOTerms
     elif hasattr(PB, '_ELBOTerms'):
-      self._ELBOTerms = PB._ELBOTerms
+      self._ELBOTerms = PB._ELBOTerms.copy()
 
     if hasattr(self, '_MergeTerms') and hasattr(PB, '_MergeTerms'):
       self._MergeTerms += PB._MergeTerms
     elif hasattr(PB, '_MergeTerms'):
-      self._MergeTerms = PB._MergeTerms
+      self._MergeTerms = PB._MergeTerms.copy()
 
     if hasattr(self, '_SelectTerms') and hasattr(PB, '_SelectTerms'):
       self._SelectTerms += PB._SelectTerms
