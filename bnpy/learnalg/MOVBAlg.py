@@ -274,6 +274,7 @@ class MOVBAlg(LearnAlg):
         self.save_batch_local_params_to_memory(batchID, LPchunk)          
       self.save_batch_suff_stat_to_memory(batchID, SSchunk)  
 
+      '''
       if lapFrac >= 1:
         print '...........VVVV.............  %.1f' % (lapFrac)
         for b in xrange(10):
@@ -285,9 +286,9 @@ class MOVBAlg(LearnAlg):
             mySS += bSS
         print '...........^^^^..............'
         assert np.allclose(mySS.N, SS.N)
-        if not np.allclose(mySS.getELBOTerm('ElogqZ'),
-                             SS.getELBOTerm('ElogqZ')):
-          from IPython import embed; embed()
+        assert np.allclose(mySS.getELBOTerm('ElogqZ'),
+                             SS.getELBOTerm('ElogqZ'))
+      '''
       #.................................................... end loop over data
 
     # Finally, save, print and exit
@@ -323,9 +324,8 @@ class MOVBAlg(LearnAlg):
     SSchunk = self.SSmemory[batchID]
     if doCopy:
       SSchunk = SSchunk.copy()
-    print 'batchID %d | Kmem %d | K %d' % (batchID, SSchunk.K, K)
 
-    # "replay" accepted merges from end of previous lap 
+    # "Replay" accepted merges from end of previous lap 
     if self.hasMove('merge'): 
       for MInfo in self.MergeLog:
         kA = MInfo['kA']
