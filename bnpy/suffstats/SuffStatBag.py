@@ -258,10 +258,17 @@ class SuffStatBag(object):
       raise ValueError('Dimension mismatch')
     SSsum = SuffStatBag(K=self.K, D=self.D)
     SSsum._Fields = self._Fields + PB._Fields
+
     if hasattr(self, '_ELBOTerms') and hasattr(PB, '_ELBOTerms'):
       SSsum._ELBOTerms = self._ELBOTerms + PB._ELBOTerms
+    elif hasattr(PB, '_ELBOTerms'):
+      SSsum._ELBOTerms = PB._ELBOTerms
+
     if hasattr(self, '_MergeTerms') and hasattr(PB, '_MergeTerms'):
       SSsum._MergeTerms = self._MergeTerms + PB._MergeTerms
+    elif hasattr(PB, '_MergeTerms'):
+      SSsum._MergeTerms = PB._MergeTerms
+
     if hasattr(self, '_SelectTerms') and hasattr(PB, '_SelectTerms'):
       SSsum._SelectTerms = self._SelectTerms + PB._SelectTerms
     return SSsum
@@ -270,10 +277,17 @@ class SuffStatBag(object):
     if self.K != PB.K or self.D != PB.D:
       raise ValueError('Dimension mismatch')
     self._Fields += PB._Fields
+
     if hasattr(self, '_ELBOTerms') and hasattr(PB, '_ELBOTerms'):
       self._ELBOTerms += PB._ELBOTerms
+    elif hasattr(PB, '_ELBOTerms'):
+      self._ELBOTerms = PB._ELBOTerms
+
     if hasattr(self, '_MergeTerms') and hasattr(PB, '_MergeTerms'):
       self._MergeTerms += PB._MergeTerms
+    elif hasattr(PB, '_MergeTerms'):
+      self._MergeTerms = PB._MergeTerms
+
     if hasattr(self, '_SelectTerms') and hasattr(PB, '_SelectTerms'):
       self._SelectTerms += PB._SelectTerms
     return self
