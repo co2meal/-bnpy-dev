@@ -57,7 +57,7 @@ class SOVBAlg(LearnAlg):
         hmodel.update_global_params(SS, rho)
       
       # E step
-      LP = hmodel.calc_local_params(Dchunk)
+      LP = hmodel.calc_local_params(Dchunk, **self.algParamsLP)
       SS = hmodel.get_global_suff_stats(Dchunk, LP, doAmplify=True)
 
       # ELBO calculation
@@ -66,8 +66,8 @@ class SOVBAlg(LearnAlg):
       # Save and display progress
       self.add_nObs(Dchunk.nObs)
       self.save_state(hmodel, iterid, lapFrac, evBound)
-      self.print_state(hmodel, iterid, lapFrac, evBound)
-    
+      self.print_state(hmodel, iterid, lapFrac, evBound, rho=rho)
+
     #Finally, save, print and exit
     status = "all data processed."
     self.save_state(hmodel,iterid, lapFrac, evBound, doFinal=True)    

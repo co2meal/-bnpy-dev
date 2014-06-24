@@ -156,8 +156,8 @@ def run_online_hdp():
   print "starting online variational inference."
   while True:
     iter += 1
-    if iter % 1000 == 1:
-      print "iteration: %09d" % iter
+    #if iter % 1000 == 1:
+    #  print "iteration: %09d" % iter
     t0 = time.clock()
 
     # Sample the documents.
@@ -176,6 +176,10 @@ def run_online_hdp():
       unseen_ids = set([i for (i, id) in enumerate(ids) if (cur_chosen_split, id) not in doc_seen])
       if len(unseen_ids) != 0:
         doc_seen.update([(cur_chosen_split, id) for id in ids]) 
+
+    if iter % 10 == 0:
+       print 'iteration %d | %.1f sec | %d docs' % (iter, time.clock(), len(docs))
+
 
     total_doc_count += batchsize
     split_doc_count += batchsize

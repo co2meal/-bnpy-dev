@@ -3,7 +3,7 @@
 Selects single topic to consider with a delete move
 '''
 import numpy as np
-import DeleteLogger
+import DeleteLogger, PruneLogger
 
 def selectCandidateTopic(SS, Data, preselectroutine=None,
                                    randstate=np.random.RandomState(0),
@@ -15,16 +15,21 @@ def selectCandidateTopic(SS, Data, preselectroutine=None,
       neighbors : list of ints
                   each entry is ID of topic that ktarget is pos correlated with
   '''
+  if DeleteLogger.Log is not None:
+    log = DeleteLogger.log
+  else:
+    log = PruneLogger.log
+
   Info = dict()
   # Verify input args satisfactory
   if SS is None or not SS.hasSelectionTerms():
     Info['msg'] = 'SKIPPED. SuffStatBag needs Selection terms.'
-    DeleteLogger.log(Info['msg'])
+    log(Info['msg'])
     return Info
 
   if 'deleteCompID' in kwargs and kwargs['deleteCompID'] >= 0:
     Info['ktarget'] = kwargs['deleteCompID']
-    DeleteLogger.log('User-input choice: %d' % (Info['ktarget']))
+    log('User-input choice: %d' % (Info['ktarget']))
     return Info
   
   K = SS.K
@@ -63,7 +68,7 @@ def selectCandidateTopic(SS, Data, preselectroutine=None,
   # Check if any candidates exist.
   if np.sum(ps) < 1e-9:
     Info['msg'] = 'SKIPPED. No topic pair has positive correlation.'
-    DeleteLogger.log(Info['msg'])
+    log(Info['msg'])
     return Info
 
   ps = ps / np.sum(ps)
@@ -95,9 +100,9 @@ def selectCandidateTopic(SS, Data, preselectroutine=None,
     else:
       msg = '  %3d  N=%6.0f  Corr=%.2f' % (kk, SS.N[kk],
                                   CorrMat[candidateTopics[posID-1],kk])
-    DeleteLogger.log(msg)    
+    log(msg)    
 
-  DeleteLogger.log('Selected: %d' % (ktarget))
+  log('Selected: %d' % (ktarget))
   
   if 'doVizDelete' in kwargs and kwargs['doVizDelete']:
     from matplotlib import pylab
@@ -109,5 +114,4 @@ def selectCandidateTopic(SS, Data, preselectroutine=None,
     pylab.show(block=1)
   
   Info['ktarget'] = ktarget
-  Info['neighbors'] = [x for x in candidateTopics if x is not ktarget]
   return Info
