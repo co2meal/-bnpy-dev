@@ -157,6 +157,7 @@ class MultObsModel(ObsModel):
 
     def set_global_params(self, hmodel=None, topics=None, 
                                 wordcountTotal=0,
+                                lamvec=None,
                                 Etopics=None, **kwargs):
         ''' Set global params to provided values
 
@@ -169,6 +170,12 @@ class MultObsModel(ObsModel):
             self.K = hmodel.obsModel.K
             self.comp = copy.deepcopy(hmodel.obsModel.comp)
             return
+        if lamvec is not None:
+          K, V = lamvec.shape
+          self.K = K
+          for k in range(self.K):
+            self.comp.append(DirichletDistr(lamvec[k,:]))
+          return
         if Etopics is not None:
             if np.min(Etopics[-1]) == np.max(Etopics[-1]):
               # Skip the last topic, since it wasn't actively assigned

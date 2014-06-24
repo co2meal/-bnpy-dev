@@ -166,9 +166,8 @@ class LearnAlg(object):
         f.write('%d\n' % (self.nObsProcessed))
       with open( self.mkfile('times.txt'), 'a') as f:
         f.write('%.3f\n' % (self.get_elapsed_time()))
-      if self.hasMove('birth') or self.hasMove('merge'):
-        with open( self.mkfile('K.txt'), 'a') as f:
-          f.write('%d\n' % (hmodel.obsModel.K))
+      with open( self.mkfile('K.txt'), 'a') as f:
+        f.write('%d\n' % (hmodel.obsModel.K))
 
     saveEvery = self.outputParams['saveEvery']
     if saveEvery <= 0 or self.savedir is None:

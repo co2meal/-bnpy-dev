@@ -162,6 +162,7 @@ class MOVBAlg(LearnAlg):
         self.BirthCompIDs = list() # no births = no new components
         self.ModifiedCompIDs = list()
 
+
       if self.isFirstBatch(lapFrac):
         if SS is not None and SS.hasSelectionTerms():
           SS._SelectTerms.setAllFieldsToZero()
@@ -306,7 +307,6 @@ class MOVBAlg(LearnAlg):
       origmodel.allocModel = hmodel.allocModel
       origmodel.obsModel = hmodel.obsModel
     return None, self.buildRunInfo(evBound, msg)
-
 
   ######################################################### Load from memory
   #########################################################
