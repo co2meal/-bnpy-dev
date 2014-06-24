@@ -65,6 +65,11 @@ def init_global_params(obsModel, Data, K=0, seed=0,
     PhiTopicWord /= PhiTopicWord.sum(axis=1)[:,np.newaxis]
     obsModel.set_global_params(K=K, topics=PhiTopicWord, wordcountTotal=wc)
 
+  elif initname == 'randomlikewang':
+    # Similar to Chong Wang's default init
+    lamvec = PRNG.gamma(1.0, 1.0, (K, Data.vocab_size)) * Data.nDoc*100.0/(K*Data.vocab_size)
+    obsModel.set_global_params(K=K, lamvec=lamvec)
+
   elif initname == 'randomfromprior':
     # Draw K topic-word probability vectors from their prior
     lamvec = obsModel.obsPrior.lamvec
