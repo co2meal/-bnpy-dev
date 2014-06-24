@@ -250,6 +250,11 @@ class MOVBAlg(LearnAlg):
       else:
         evBound = hmodel.calc_evidence(SS=SS)
 
+      # Store batch-specific stats to memory
+      if self.algParams['doMemoizeLocalParams']:
+        self.save_batch_local_params_to_memory(batchID, LPchunk)          
+      self.save_batch_suff_stat_to_memory(batchID, SSchunk)
+
       # Save and display progress
       self.add_nObs(Dchunk.nObs)
       self.save_state(hmodel, iterid, lapFrac, evBound)
@@ -269,11 +274,6 @@ class MOVBAlg(LearnAlg):
         if isConverged and lapFrac > 5 and not self.hasMove('birth'):
           break
       prevBound = evBound
-
-      # Store batch-specific stats to memory
-      if self.algParams['doMemoizeLocalParams']:
-        self.save_batch_local_params_to_memory(batchID, LPchunk)          
-      self.save_batch_suff_stat_to_memory(batchID, SSchunk)  
 
       '''
       if lapFrac >= 1:
@@ -319,10 +319,14 @@ class MOVBAlg(LearnAlg):
     ''' Load the suff stats stored in memory for provided batchID
         Returns
         -------
-        SSchunk : bnpy SuffStatDict object for batchID
+        SSchunk : bnpy SuffStatDict object for batchID,
+                  Contains stored values from the last visit to batchID,
+                   updated to reflect any moves that happened since that visit.
     '''
     SSchunk = self.SSmemory[batchID]
     if doCopy:
+      # Duplicating to avoid changing the raw data stored in SSmemory
+      #  this is done usually when debugging.
       SSchunk = SSchunk.copy()
 
     # "Replay" accepted merges from end of previous lap 
