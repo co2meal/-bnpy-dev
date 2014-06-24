@@ -5,6 +5,8 @@
     ** Variational Bayesian Inference (VB)
     ** Stochastic Online Variational Bayesian Inference (soVB)
     ** Memoized Online Variational Bayesian Inference (moVB)
+    ** Gibbs Sampling (GS) [TODO - Only supports collapsed GS, add 
+    support for uncollapsed versions.]
     
   Quickstart (Command Line)
   -------

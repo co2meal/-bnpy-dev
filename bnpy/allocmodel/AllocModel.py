@@ -26,7 +26,11 @@ class AllocModel(object):
     ''' 
     '''
     pass
-
+    
+  def get_alloc_conditional( self, Data, LP ):
+    ''' 
+    '''
+    pass 
   ######################################################### Suff Stats
   #########################################################
   def get_global_suff_stats( self, Data, SS, LP ):

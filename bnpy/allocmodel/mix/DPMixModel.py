@@ -100,7 +100,13 @@ class DPMixModel(AllocModel):
     LP['resp'] = lpr
     assert np.allclose(lpr.sum(axis=1), 1)
     return LP
-
+  
+  def get_alloc_conditional( self, SS ):
+     '''
+       Returns a K+1 vector of probabilities p(z_i|z_-i)
+     '''
+     alloc_prob = np.asarray((np.hstack((SS.N+1, self.alpha0))), dtype=float)
+     return alloc_prob/sum(alloc_prob)
   ######################################################### Suff Stats
   #########################################################
   def get_global_suff_stats(self, Data, LP,

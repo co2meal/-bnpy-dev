@@ -26,9 +26,10 @@ import os
 import copy
 
 import init
+import scipy.sparse as sp
 from obsmodel import *
 from allocmodel import *
-
+import pdb
 # Dictionary map
 #    turns string input at command line into desired bnpy objects
 # string --> bnpy object constructor
@@ -62,7 +63,9 @@ class HModel( object ):
             obsModel.append(ObsConstr[obsModelPartName].CreateWithPrior(
                                             inferType, obsPriorDictPart, DataPart))
     else:
+        #pdb.set_trace()
         # only one type of data and observation model
+        obsModelNames = [obsModelNames]
         assert len(obsModelNames)==1,'Data List and Model List must match'
         obsModel.append(ObsConstr[obsModelNames[0]].CreateWithPrior(
                                             inferType, obsPriorDict, Data))                                        
@@ -98,7 +101,40 @@ class HModel( object ):
     # Fills in LP['resp'], a Data.nObs x K matrix whose rows sum to one
     LP = self.allocModel.calc_local_params(Data, LP, **kwargs)
     return LP
+  
+  ###################### Sample local parameters   
+  def sample_local_params( self, Data, SS, Z, **kwargs):
+    ''' Sample instantiations of local parameters specific to each data item,
+          given (or collapsed) global parameters.
+        This constitutes a single iteration of the sampler.        
+    '''
 
+    # Iteratively sample data allocations 
+    for dataindex in xrange(Data.nObs):
+        curAlloc = Z[dataindex]
+        # decrement SS counts
+        SS[0].N[curAlloc]-= 1
+        # get allocation and posterior predictive prob
+        alloc_prob = self.allocModel.get_alloc_conditional(SS[0])
+        
+        #[TODO -- plug in Mike's function]  and handle DPMixModel vs MixModel
+        ppred_prob = np.ones([1,SS[0].K+1])
+        ppred_prob = ppred_prob/sum(ppred_prob) 
+        
+        # sample new allocation
+        newAlloc = np.random.choice(SS[0].K+1,p=np.ravel(alloc_prob*ppred_prob))
+        
+        # update SS counts
+        if(newAlloc>SS[0].K-1):
+           # if new cluster is created
+           SS[0].N = np.hstack((SS[0].N,1))
+           SS[0].K += 1
+        else:
+            SS[0].N[newAlloc] +=1   
+        Z[dataindex] = newAlloc 
+               
+    return (Z,SS)
+  
   ######################################################### Suff Stats
   #########################################################   
   def get_global_suff_stats( self, Data, LP, doAmplify=False, **kwargs):
@@ -151,6 +187,11 @@ class HModel( object ):
     for i,obsModel in enumerate(self.obsModel):
        evObs += self.obsModel[i].calc_evidence(Data, SS[i], LP, obsModelId=i)
     return evA + evObs
+  
+  def calc_jointll(self,Data, SS, LP):
+      ''' TO DO
+      '''
+      return -1.
   
   ######################################################### Init Global Params
   #########################################################    
