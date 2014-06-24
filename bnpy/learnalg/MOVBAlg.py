@@ -92,6 +92,8 @@ class MOVBAlg(LearnAlg):
     doDelete = self.hasMove('delete')
     doPrecompMergeEntropy = 0
     MM = None # Score matrix for merge candidate pairs
+    numStuck = 0 # Num consecutive merge attempts without any accepts
+    numConvergedInARow = 0
     while DataIterator.has_next_batch():
 
       # Grab new data
@@ -275,9 +277,31 @@ class MOVBAlg(LearnAlg):
       #  evBound will increase monotonically AFTER first lap of the data 
       #  verify_evidence will warn if bound isn't increasing monotonically
       if lapFrac > self.algParams['startLap'] + 1.0:
-        isConverged = self.verify_evidence(evBound, prevBound, lapFrac)
-        if isConverged and lapFrac > 5 and not self.hasMove('birth'):
-          break
+        isConvergedCurrent = self.verify_evidence(evBound, prevBound, lapFrac)
+        if isConvergedCurrent:
+          numConvergedInARow += 1.0 / nBatch
+        else:
+          numConvergedInARow = 0
+ 
+        if lapFrac > 5 and numConvergedInARow > self.algParams['convergeDuration']:
+          isConverged = 1
+
+      if self.hasMove('birth'):
+        doQuit = False # never quit early for births
+      elif self.hasMove('merge'):
+        doQuit = False
+        numStuckBeforeQuit = self.algParams['merge']['mergeNumStuckBeforeQuit']
+        StartLap = self.algParams['merge']['mergeStartLap']
+        if self.isLastBatch(lapFrac) and lapFrac > StartLap:
+          if len(self.MergeLog) == 0:
+            numStuck += 1
+          else:
+            numStuck = 0
+          doQuit = isConverged and numStuck >= numStuckBeforeQuit
+      else:
+        doQuit = isConverged
+      if doQuit:
+        break
       prevBound = evBound
       #.................................................... end loop over data
 
