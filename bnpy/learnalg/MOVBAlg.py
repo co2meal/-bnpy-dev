@@ -244,6 +244,7 @@ class MOVBAlg(LearnAlg):
         assert mPairIDs is not None
         hmodel, SS, evBound = self.run_many_merge_moves(hmodel, SS,
                                                  evBound, mPairIDs)
+
       # ELBO Update!
       else:
         evBound = hmodel.calc_evidence(SS=SS)
