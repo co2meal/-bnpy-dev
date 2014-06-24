@@ -37,7 +37,7 @@ def preselect_candidate_pairs(curModel, SS,
 
   K = curModel.allocModel.K
   if doLimitNumPairs:
-    nMergeTrials = mergePerLap
+    nMergeTrials = mergePerLap + kwargs['mergeNumExtraCandidates']
   else:
     nMergeTrials = K * (K-1) // 2
 
