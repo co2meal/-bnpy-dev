@@ -63,7 +63,7 @@ class HModel( object ):
             obsModel.append(ObsConstr[obsModelPartName].CreateWithPrior(
                                             inferType, obsPriorDictPart, DataPart))
     else:
-        #pdb.set_trace()
+        pdb.set_trace()
         # only one type of data and observation model
         obsModelNames = [obsModelNames]
         assert len(obsModelNames)==1,'Data List and Model List must match'
@@ -216,7 +216,27 @@ class HModel( object ):
             raise NotImplementedError("TODO")
     else:
         init.FromScratchDiverse.init_global_params(self, Data, **initArgs)
-              
+        
+  def init_local_params(self,Data, **initArgs): 
+    ''' Initialize local parameters useful for gibbs sampler
+        Supports initialization from scratch
+        [TODO]: Sequential initialization
+              : Initialization from ground truth partition
+              : Hot start from previously saved sampler state
+    
+    '''
+    initname = initArgs['initname']
+    if initname.count('true') > 0:
+      #init.FromTruth.init_global_params(self, Data, **initArgs)
+      raise NotImplementedError("TODO")
+    elif initname.count(os.path.sep) > 0:
+      #init.FromSaved.init_global_params(self, Data, **initArgs)
+      raise NotImplementedError("TODO")
+    if str(type(Data)).count('DiverseData')==0: 
+       return init.FromScratchLocal.init_local_params(self,Data,**initArgs)
+    else:
+        #init.FromScratchDiverse.init_global_params(self, Data, **initArgs) 
+        raise NotImplementedError("TODO")         
 
   ######################################################### I/O Utils
   ######################################################### 

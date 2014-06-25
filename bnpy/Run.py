@@ -33,7 +33,7 @@ from bnpy.ioutil import BNPYArgParser
 Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
 
-FullDataAlgSet = ['EM','VB']
+FullDataAlgSet = ['EM','VB','GS']
 OnlineDataAlgSet = ['soVB', 'moVB']
 
 def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
@@ -133,6 +133,7 @@ def _run_task_internal(jobname, taskid, nTask,
   '''
   algseed = createUniqueRandomSeed(jobname, taskID=taskid)
   dataorderseed = createUniqueRandomSeed('', taskID=taskid)
+  pdb.set_trace()
   if doSaveToDisk:
     taskoutpath = getOutputPath(ReqArgs, KwArgs, taskID=taskid)
     createEmptyOutputPathOnDisk(taskoutpath)
@@ -156,7 +157,14 @@ def _run_task_internal(jobname, taskid, nTask,
 
   # Create and initialize model parameters
   hmodel = createModel(InitData, ReqArgs, KwArgs)
-  hmodel.init_global_params(InitData, seed=algseed,
+  ###### Create a init_local_params for GS
+  
+  if(algName=='GS'):
+        initParams = hmodel.init_local_params(InitData, seed=algseed,
+                            **KwArgs['Initialization'])
+        print initParams                     
+  else:
+        hmodel.init_global_params(InitData, seed=algseed,
                             **KwArgs['Initialization'])
 
   # Create learning algorithm
@@ -174,6 +182,8 @@ def _run_task_internal(jobname, taskid, nTask,
   Log.info('savepath: %s' % (taskoutpath))
 
   # Fit the model to the data!
+  
+  ###### change to learnAlg.fit(hmodel, LP, Data)
   LP, RunInfo = learnAlg.fit(hmodel, Data)
   return hmodel, LP, RunInfo
   
