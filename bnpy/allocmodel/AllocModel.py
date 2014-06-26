@@ -32,7 +32,12 @@ class AllocModel(object):
     ''' 
     '''
     pass
-
+  
+  def sample_local_params(self,obsModel,Data,SS,LP):
+      '''
+      '''
+      pass
+  
   ######################################################### Suff Stats
   #########################################################
   def get_global_suff_stats( self, Data, SS, LP ):

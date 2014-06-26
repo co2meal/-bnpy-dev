@@ -73,7 +73,42 @@ class MixModel(AllocModel):
     LP['resp'] = lpr
     assert np.allclose(lpr.sum(axis=1), 1)
     return LP
-
+    
+  def sample_local_params(self,obsModel,Data,SS,LP):
+    '''
+        for i = 1 to Data.nObs 
+           sample z_i ~ p(z_i | z_-i,X)
+    '''
+    Z = LP['Z']
+    # Iteratively sample data allocations 
+    for dataindex in xrange(Data.nObs):
+        curAlloc = Z[dataindex]
+        # decrement SS counts
+        SS.N[curAlloc]-= 1
+        
+        # get allocation and posterior predictive prob
+        alloc_prob = self.get_alloc_conditional(SS)
+        
+        #[TODO -- plug in Mike's function]  and handle DPMixModel vs MixModel
+        ppred_prob = np.ones([1,SS.K])
+        ppred_prob = ppred_prob/sum(ppred_prob) 
+        
+        # sample new allocation
+        newAlloc = np.random.choice(SS.K,p=np.ravel(alloc_prob*ppred_prob))
+        
+        # update SS counts
+        SS.N[newAlloc] +=1   
+        Z[dataindex] = newAlloc 
+    
+    LP['Z'] = Z                      
+    return (LP,SS) 
+  
+  def get_alloc_conditional( self, SS ):
+     '''
+       Returns a K vector of probabilities p(z_i|z_-i)
+     '''
+     alloc_prob = np.asarray((SS.N+self.alpha0/SS.K), dtype=float)
+     return alloc_prob/sum(alloc_prob)
   ######################################################### Suff Stats
   #########################################################
   def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None, **kwargs):

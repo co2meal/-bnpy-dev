@@ -26,12 +26,13 @@ import logging
 import numpy as np
 import bnpy
 from bnpy.ioutil import BNPYArgParser
+import pdb
 
 # Configure Logger
 Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
 
-FullDataAlgSet = ['EM','VB']
+FullDataAlgSet = ['EM','VB','GS']
 OnlineDataAlgSet = ['soVB', 'moVB']
 
 def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
@@ -153,7 +154,11 @@ def _run_task_internal(jobname, taskid, nTask,
 
   # Create and initialize model parameters
   hmodel = createModel(InitData, ReqArgs, KwArgs)
-  hmodel.init_global_params(InitData, seed=algseed,
+  if(algName=='GS'):
+      hmodel.init_local_params(InitData, seed=algseed,
+                            **KwArgs['Initialization'])
+  else:
+      hmodel.init_global_params(InitData, seed=algseed,
                             **KwArgs['Initialization'])
 
   # Create learning algorithm
@@ -268,7 +273,7 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
     -------
     learnAlg : LearnAlg [or subclass] object
                type is defined by string in ReqArgs['algName']
-                one of {'EM', 'VB', 'soVB', 'moVB'}
+                one of {'EM', 'VB', 'soVB', 'moVB','GS'}
   '''
   algName = ReqArgs['algName']
   algP = KwArgs[algName]
@@ -284,6 +289,8 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
     learnAlg = bnpy.learnalg.StochasticOnlineVBLearnAlg(savedir=savepath, seed=algseed, algParams=algP, outputParams=outputP)
   elif algName == 'moVB':
     learnAlg = bnpy.learnalg.MemoizedOnlineVBLearnAlg(savedir=savepath, seed=algseed, algParams=algP, outputParams=outputP)
+  elif algName == 'GS':
+    learnAlg = bnpy.learnalg.GSLearnAlg(savedir=savepath, seed=algseed, algParams=algP, outputParams=outputP)  
   else:
     raise NotImplementedError("Unknown learning algorithm " + algName)
   return learnAlg

@@ -39,6 +39,7 @@ class HModel(object):
     self.allocModel = allocModel
     self.obsModel = obsModel
     self.inferType = allocModel.inferType
+    self.initParams = None
 
   @classmethod
   def CreateEntireModel(cls, inferType, allocModelName, obsModelName, allocPriorDict, obsPriorDict, Data):
@@ -74,7 +75,19 @@ class HModel(object):
     # Fills in LP['resp'], a Data.nObs x K matrix whose rows sum to one
     LP = self.allocModel.calc_local_params(Data, LP, **kwargs)
     return LP
-
+  
+   
+  ###################### Sample local parameters   
+  def sample_local_params( self, Data, SS, LP, **kwargs):
+    ''' Sample instantiations of local parameters specific to each data item,
+          given (or collapsed) global parameters.
+        This constitutes a single iteration of the sampler.        
+    '''
+    
+    return self.allocModel.sample_local_params(self.obsModel,Data,SS,LP)
+  
+     
+       
   ######################################################### Suff Stats
   #########################################################   
   def get_global_suff_stats(self, Data, LP, doAmplify=False, **kwargs):
@@ -124,7 +137,12 @@ class HModel(object):
     evObs = self.obsModel.calc_evidence(Data, SS, LP)
     return evA + evObs
   
-  ######################################################### Init Global Params
+  def calc_jointll(self, Data=None, SS=None, LP=None):
+      '''
+      TODO
+      '''
+      return -1
+  ######################################################### Init Global/Local Params
   #########################################################    
   def init_global_params(self, Data, **initArgs):
     ''' Initialize (in-place) global parameters
@@ -142,7 +160,29 @@ class HModel(object):
       init.FromScratchBernRel.init_global_params(self, Data, **initArgs)
     else:
       raise NotImplementedError("TODO")
-
+   
+  
+  def init_local_params(self,Data, **initArgs): 
+    ''' Initialize local parameters useful for gibbs sampler
+        Supports initialization from scratch
+        [TODO]: Sequential initialization
+              : Initialization from ground truth partition
+              : Hot start from previously saved sampler state
+    
+    '''
+    initname = initArgs['initname']
+    if initname.count('true') > 0:
+      #init.FromTruth.init_global_params(self, Data, **initArgs)
+      raise NotImplementedError("TODO")
+    elif initname.count(os.path.sep) > 0:
+      #init.FromSaved.init_global_params(self, Data, **initArgs)
+      raise NotImplementedError("TODO")
+    if str(type(Data)).count('DiverseData')==0: 
+       self.initParams = init.FromScratchLocal.init_local_params(self,Data,**initArgs)
+    else:
+        #init.FromScratchDiverse.init_global_params(self, Data, **initArgs) 
+        raise NotImplementedError("TODO")         
+      
   ######################################################### I/O Utils
   ######################################################### 
   def getAllocModelName(self):
