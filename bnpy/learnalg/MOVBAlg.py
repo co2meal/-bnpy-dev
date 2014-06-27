@@ -743,8 +743,9 @@ class MOVBAlg(LearnAlg):
         evBound : correct ELBO for returned hmodel
                   guaranteed to be at least as large as input evBound    
     '''
-    import bnpy.mergemove.MergeLogger as MergeLogger
-    MergeLogger.logStartMove(lapFrac)
+    if self.algParams['merge']['mergeLogVerbose']:
+      import bnpy.mergemove.MergeLogger as MergeLogger
+      MergeLogger.logStartMove(lapFrac)
 
     Korig = SS.K
     hmodel, SS, newEvBound, Info = MergeMove.run_many_merge_moves(
