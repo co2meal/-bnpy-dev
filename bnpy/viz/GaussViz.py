@@ -32,12 +32,17 @@ def plotGauss2DFromHModel(hmodel, compListToPlot=None, compsToHighlight=None, wT
   except Exception:
     w = hmodel.allocModel.w
 
+  if hmodel.obsModel.D == 1:
+    xgrid = np.linspace(-4, 4, 1000)
+    pdfgrid = np.zeros_like(xgrid)
+
   colorID = 0
+  nSkip = 0
   for kk in compListToPlot:
-    
     mu = hmodel.obsModel.get_mean_for_comp(kk)
     Sigma = hmodel.obsModel.get_covar_mat_for_comp(kk)
     if w[kk] < wTHR and kk not in compsToHighlight:
+      nSkip += 1
       continue
     if kk in compsToHighlight or len(compsToHighlight) == 0:
       if mu.size == 1:
@@ -50,7 +55,16 @@ def plotGauss2DFromHModel(hmodel, compListToPlot=None, compsToHighlight=None, wT
         plotGauss1D(mu, Sigma, color='k')
       else:
         plotGauss2DContour(mu, Sigma, color='k')
+
+    if hmodel.obsModel.D == 1:
+      sigma = np.sqrt(np.squeeze(Sigma))
+      pdfgrid += w[kk] * 1./np.sqrt(2*np.pi) * 1./sigma \
+                       * np.exp( -0.5 * (xgrid-mu)**2 / sigma**2 )
       
+  pylab.plot( xgrid, pdfgrid, 'k--')
+
+  if nSkip > 0:
+    print 'SKIPPED %d comps that were too small' % (nSkip)
   if mu.size > 1:
     pylab.axis('image')   
   

@@ -11,7 +11,8 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None, **kwargs):
       SS : bnpy SuffStatBag,
       MergeInfo : dict with info about all accepted merges
   '''
-  MergeLogger.logPhase('MERGE Decisions')
+  if kwargs['mergeLogVerbose']:
+    MergeLogger.logPhase('MERGE Decisions')
 
   # eligibleIDs : list from 0, 1, ... len(mPairIDs)
   #  provides index of which original candidate we are now attempting
@@ -46,9 +47,10 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None, **kwargs):
     else:
       scoreMsg = ''
 
-    MergeLogger.log( '%3d | %3d %3d | % .4e | %s' 
-                      % (trialID, jA, jB, MoveInfo['ELBOGain'], scoreMsg)
-                   )
+    if kwargs['mergeLogVerbose']:
+      MergeLogger.log( '%3d | %3d %3d | % .4e | %s' 
+                        % (trialID, jA, jB, MoveInfo['ELBOGain'], scoreMsg)
+                     )
     if MoveInfo['didAccept']:
       CompIDShift[kA] = -1
       CompIDShift[kB] = -1
@@ -60,8 +62,10 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None, **kwargs):
       ELBOGain += MoveInfo['ELBOGain']
     trialID += 1
 
-  MergeLogger.logPhase('MERGE summary')
-  MergeLogger.log( ' %3d / %3d % .4e' % (len(AcceptedPairs), trialID, ELBOGain))
+  if kwargs['mergeLogVerbose']:
+    MergeLogger.logPhase('MERGE summary')
+  MergeLogger.log( ' %d/%d accepted. ev increased % .4e' 
+                    % (len(AcceptedPairs), trialID, ELBOGain))
 
   Info = dict(AcceptedPairs=AcceptedPairs, ELBOGain=ELBOGain)
   return curModel, curSS, curELBO, Info
