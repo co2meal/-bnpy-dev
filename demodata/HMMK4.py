@@ -25,9 +25,9 @@ transPi = np.asarray([[0.0, 1.0, 0.0, 0.0], \
 initState = 1
 
 mus = np.asarray([[0, 0], \
-                  [0, 0], \
-                  [0, 0], \
-                  [0, 0]])
+                  [10, 0], \
+                  [0, 10], \
+                  [10, 10]])
 
 #sigmas = np.empty((4,2,2))
 #sigmas[0,:,:] = np.asarray([[400, 0], [0, 400]])
@@ -41,10 +41,10 @@ mus = np.asarray([[0, 0], \
 #                  [.5, .5]])
 
 sigmas = np.empty((4,2,2))
-sigmas[0,:,:] = np.asarray([[10, 0], [0, 10]])
-sigmas[1,:,:] = np.asarray([[10, 0], [0, 10]])
-sigmas[2,:,:] = np.asarray([[10, 0], [0, 10]])
-sigmas[3,:,:] = np.asarray([[10, 0], [0, 10]])
+sigmas[0,:,:] = np.asarray([[2, 0], [0, 2]])
+sigmas[1,:,:] = np.asarray([[2, 0], [0, 2]])
+sigmas[2,:,:] = np.asarray([[2, 0], [0, 2]])
+sigmas[3,:,:] = np.asarray([[2, 0], [0, 2]])
 
 
 def get_X(seed, nObsTotal): 
@@ -76,6 +76,7 @@ def get_short_name():
 
 def get_data(seed=8675309, nObsTotal=25000, **kwargs):
     X, Z = get_X(seed, nObsTotal)
+    print X
     Data = XData(X=X, TrueZ=Z)
     Data.summary = get_data_info()
     return Data

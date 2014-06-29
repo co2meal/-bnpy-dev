@@ -74,13 +74,8 @@ class FiniteHMM(AllocModel):
                 expELogTrans[k, :] = expELogTrans[k, :] \
                     / np.sum(expELogTrans[k,:])
 
-            LP.update({'gamma0':expELogInit, 'gamma':expELogTrans})
-
             initParam = expELogInit
             transParam = expELogTrans
-
-#            resp, respPair, logMargPrSeq = \
-#                HMMUtil.FwdBwdAlg(expELogInit, expELogTrans, lpr)
 
         elif self.inferType == 'EM' > 0:
             #Initialize the global params if they already haven't been
@@ -94,7 +89,7 @@ class FiniteHMM(AllocModel):
 
             initParam = self.initPi
             transParam = self.transPi
-
+            
         #Now run the forward backward algorithm on each sequence
         resp = None
         respPair = None
@@ -151,10 +146,6 @@ class FiniteHMM(AllocModel):
         (see the documentation for information about resp and respPair)
         '''
         
-        if doPrecompEntropy is not None:
-            print '*********\n FiniteHMM.get_global_suff_stats() currently ',\
-                'doesn\'t support doPrecompEntropy \n ********'
-
         #This method is called before calc_local_params() during initialization,
             #in which case resp and respPair won't exist
         if ('resp' not in LP) or ('respPair' not in LP):
@@ -170,11 +161,15 @@ class FiniteHMM(AllocModel):
         respPairSums = np.sum(respPair, axis = 0)
         firstStateResp = np.sum(resp[inds], axis = 0)
         N = np.sum(resp, axis = 0)
-
         SS = SuffStatBag(K = self.K , D = Data.dim)
         SS.setField('firstStateResp', firstStateResp, dims=('K'))
         SS.setField('respPairSums', respPairSums, dims=('K','K'))
         SS.setField('N', N, dims=('K'))
+
+        if doPrecompEntropy is not None:
+            entropy = self.elbo_z(LP, SS)
+            SS.setELBOTerm('Elogqz', entropy, dims = (()))
+
 
         return SS
 
@@ -196,8 +191,6 @@ class FiniteHMM(AllocModel):
 
         self.K = SS.K
         
-        #TODO : get these to be properly initialized
-        # (or is this how it should be?)
         if (self.initPi is None) or (self.transPi is None):
             self.initPi = np.ones(self.K)
             self.transPi = np.ones((self.K, self.K))
@@ -213,7 +206,14 @@ class FiniteHMM(AllocModel):
         self.initTheta = self.initAlpha + SS.firstStateResp
         self.transTheta = self.transAlpha + SS.respPairSums
         self.K = SS.K
-            
+
+    def update_global_params_soVB(self, SS, rho, **kwargs):
+        initNew = self.initAlpha + SS.firstStateResp
+        transNew = self.transAlpha + SS.respPairSums
+        self.initTheta = rho*initNew + (1 - rho)*self.initTheta
+        self.transTheta = rho*transNew + (1 - rho)*self.transTheta
+        self.K = SS.K
+                    
 
     def set_global_params(self, hmodel=None, K=None, initPi=None, transPi=None,
                           **kwargs):
@@ -240,29 +240,11 @@ class FiniteHMM(AllocModel):
         if self.inferType == 'EM':
             return LP['evidence']
         elif self.inferType.count('VB') > 0:
-            initHat = np.sum(self.initTheta)
-            transHat = np.sum(self.transTheta, axis = 1)
-
-            initDigamma = digamma(self.initTheta) - \
-                                 digamma(initHat)
-            transDigamma = digamma(self.transTheta) - \
-                                  digamma(transHat)
-            #return np.random.randn() * 50000
-#            return (np.sum((self.initAlpha - self.initTheta + LP['resp'][0,:])
-#                           * initDigamma) +
-#                    np.sum((self.transAlpha - self.transTheta + 
-#                            SS.respPairSums * transDigamma)) -
-#                    np.sum(SS.firstStateResp* np.log(SS.firstStateResp + EPS)) -
-#                    np.sum(LP['respPair'] * np.log(LP['respPair'] + EPS)) +
-#                    gammaln(self.K * self.initAlpha)  -
-#                    self.K * gammaln(self.initAlpha) +
-#                    self.K * gammaln(self.K * self.transAlpha) -
-#                    self.K**2 * gammaln(self.transAlpha) -
-#                    np.sum(gammaln(self.initTheta)) +
-#                    gammaln(initHat) -
-#                    np.sum(gammaln(self.transTheta)) +
-#                    np.sum(gammaln(transHat)))
-            return self.elbo_pi0(LP) + self.elbo_pi(SS) + self.elbo_z(LP, SS)
+            if SS.hasELBOTerm('Elogqz'):
+                entropy = np.sum(SS.getELBOTerm('Elogqz'))
+            else:
+                entropy = np.sum(self.elbo_z(LP, SS))
+            return self.elbo_pi0(LP) + self.elbo_pi(SS) + entropy
         else:
             raise NotImplementedError('Unrecognized inferType '+self.inferType)
 
@@ -305,15 +287,25 @@ class FiniteHMM(AllocModel):
 
         return z_1 + restZ
         
-
-                    
-
+  ######################################################### IO Utils
+  #########################################################   for machines
     def to_dict(self):
         if self.inferType == 'EM':
             return dict(initPi = self.initPi, transPi = self.transPi)
-        elif self.inferType == 'VB':
+        elif self.inferType.count('VB') > 0:
             return dict(initTheta = self.initTheta, 
                         transTheta = self.transTheta)
+
+    def from_dict(self, myDict):
+        self.inferType = myDict['inferType']
+        self.K = myDict['K']
+        if self.inferType.count('VB') > 0:
+            self.initTheta = myDict['initTheta']
+            self.transTheta = myDict['transTheta']
+        elif self.inferType == 'EM':
+            self.initPi = myDict['initPi']
+            self.transPi = myDict['transPi']
+
     def get_prior_dict(self):
         return dict(initAlpha = self.initAlpha, transAlpha = self.transAlpha, \
                         K = self.K)
