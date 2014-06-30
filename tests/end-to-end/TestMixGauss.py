@@ -40,11 +40,9 @@ class TestEasyK2_EM(AbstractEndToEndTest):
     Sigma = np.zeros((2,2,2))
     Sigma[0] = np.asarray([[B,0], [0,1./B]])
     Sigma[1] = np.asarray([[1./B,0], [0,B]])    
-    L = np.zeros_like(Sigma)
-    for k in xrange(self.K):
-      L[k] = np.linalg.inv(Sigma[k])    
-    self.TrueParams = dict(w=0.5*np.ones(self.K), K=self.K, m=Mu, L=L)
-    self.ProxFunc = dict(L=Util.CovMatProxFunc,
+    self.TrueParams = dict(w=0.5*np.ones(self.K), K=self.K, m=Mu, Sigma=Sigma)
+
+    self.ProxFunc = dict(Sigma=Util.CovMatProxFunc,
                          m=Util.VectorProxFunc,
                          w=Util.ProbVectorProxFunc)
 

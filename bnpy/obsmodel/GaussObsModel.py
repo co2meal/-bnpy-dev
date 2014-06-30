@@ -148,7 +148,8 @@ class GaussObsModel( ObsModel ):
       self.comp[k].post_update_soVB(rho, Dstar)
 
 
-  def set_global_params(self, hmodel=None, m=None, L=None, **kwargs):
+  def set_global_params(self, hmodel=None, m=None, L=None, Sigma=None,          
+                              **kwargs):
     ''' Set global parameters to provided values
     '''
     if hmodel is not None:
@@ -159,6 +160,13 @@ class GaussObsModel( ObsModel ):
       self.comp = [None for k in range(self.K)]
       for k in range(self.K):
         self.comp[k] = GaussDistr(m=m[k], L=L[k])
+    elif Sigma is not None:
+      self.K = Sigma.shape[0]
+      self.comp = [None for k in range(self.K)]
+      for k in range(self.K):
+        self.comp[k] = GaussDistr(m=m[k], Sigma=Sigma[k])
+    else:
+      raise NotImplementedError("Bad kwargs for set_global_params")
 
   ######################################################### Evidence  
   ######################################################### 
