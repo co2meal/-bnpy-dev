@@ -329,17 +329,33 @@ class GaussObsModel(AbstractObsModel):
 
   ########################################################### Gibbs
   ########################################################### 
-  def calcMargLik(self, SS):
+  def calcMargLik(self):
     pass
   
   def calcPredLik(self, xSS):
     pass
 
-  def incrementSummaryAndPost(self, SS, curSS):
-    pass
+  def incrementPost(self, k, x):
+    ''' Add data to the Post ParamBag, component k
+    '''
+    Post = self.Post
+    Post.nu[k] += 1
+    kappa = Post.kappa[k] + 1
+    Post.B[k] += Post.kappa[k]/kappa * np.outer(x-Post.m[k], x-Post.m[k]) 
+    Post.m[k] = 1/(kappa) * (Post.kappa[k] * Post.m[k] + x)
+    Post.kappa[k] = kappa
+    # TODO: update cached cholesky and log det with rank-one updates
 
-  def decrementSummaryAndPost(self, SS, curSS):
-    pass
+  def decrementPost(self, k, x):
+    ''' Remove data from the Post ParamBag, component k
+    '''
+    Post = self.Post
+    Post.nu[k] -= 1
+    kappa = Post.kappa[k] - 1
+    Post.B[k] -= Post.kappa[k]/kappa * np.outer(x-Post.m[k], x-Post.m[k]) 
+    Post.m[k] = 1/(kappa) * (Post.kappa[k] * Post.m[k] - x)
+    Post.kappa[k] = kappa
+    # TODO: update cached cholesky and log det with rank-one updates
 
   ########################################################### Expectations
   ########################################################### 
