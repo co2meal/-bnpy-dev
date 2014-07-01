@@ -360,10 +360,10 @@ class GaussObsModel(AbstractObsModel):
   ########################################################### Expectations
   ########################################################### 
   def _cholB(self, k=None):
-    if k is not None:
-      B = self.Post.B[k]
-    else:
+    if k is None:
       B = self.Prior.B
+    else:
+      B = self.Post.B[k]
     return scipy.linalg.cholesky(B, lower=True)
 
   def _logdetB(self, k=None):
