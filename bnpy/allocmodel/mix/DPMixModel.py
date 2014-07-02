@@ -298,6 +298,28 @@ class DPMixModel(AllocModel):
       # skip last entry because entropy of Beta(1,0) = 0
       return logNormC[:-1].sum() + logBetaPDF[:-1].sum()
     
+  def calcMergeELBO(self, SS, kdel, alph):
+    ''' Calculate improvement in ELBO after a multi-way merge.
+    '''
+    elboDelta = c_Func(self.alpha1, self.alpha0) \
+                - np.sum(c_Func(self.qalpha1, self.qalpha0))
+    for k in xrange(K):
+      a1 = self.qalpha1[k] + alph[k] * SS.N[kdel]
+      a0 = self.qalpha0[k] + np.sum(alph[k+1:]) * SS.N[kdel]
+      elboDelta += c_Func(a1, a0)
+    return elboDelta
+
+  def calcMergeELBO_alph(self, SS, kdel, alph):
+    ''' Calculate improvement in ELBO after a multi-way merge,
+          keeping only terms that depend on the blend parameters alph
+    '''
+    elboDelta = 0
+    for k in xrange(SS.K):
+      a1 = self.qalpha1 + alph[k] * SS.N[kdel]
+      a0 = self.qalpha0 + np.sum(alph[k+1:]) * SS.N[kdel]
+      elboDelta += np.sum(c_Func(a1, a0))
+    return elboDelta
+
   ######################################################### IO Utils
   #########################################################   for humans
   def get_info_string( self):
@@ -325,3 +347,7 @@ class DPMixModel(AllocModel):
   def get_prior_dict(self):
     return dict(alpha1=self.alpha1, alpha0=self.alpha0, K=self.K, 
                   truncType=self.truncType)  
+
+
+def c_Func(alpha1, alpha0):
+  return gammaln(alpha1+alpha0) - gammaln(alpha1) - gammaln(alpha0)

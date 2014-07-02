@@ -305,12 +305,12 @@ class GaussObsModel(AbstractObsModel):
     Post = self.Post
     Prior = self.Prior
     for k in xrange(SS.K):
-      elbo[k] = c_Diff(Prior.nu, Prior.m,
+      elbo[k] = c_Diff(Prior.nu,
                         self.GetCached('logdetB'),
-                        Prior.kappa,
-                        Post.nu[k], Post.m[k],
+                        Prior.m, Prior.kappa,
+                        Post.nu[k],
                         self.GetCached('logdetB', k),
-                        Post.kappa[k],
+                        Post.m[k], Post.kappa[k],
                         )
       if not doFast and SS.N[k] > 1e-9:
         aDiff = SS.N[k] + Prior.nu - Post.nu[k]
@@ -325,7 +325,48 @@ class GaussObsModel(AbstractObsModel):
                  - 0.5 * self._trace__E_L(bDiff, k) \
                  + 0.5 * np.inner(cDiff, self.GetCached('E_Lmu', k)) \
                  - 0.5 * dDiff * self.GetCached('E_muLmu', k)
-    return elbo.sum() - 0.5 * SS.N * SS.D * LOGTWOPI
+    return elbo.sum() - 0.5 * np.sum(SS.N) * SS.D * LOGTWOPI
+
+  def calcMergeELBO_alph(self, SS, kdel, alph):
+    elbo = 0
+    Post = self.Post
+    assert np.allclose(alph.sum(), 1.0)
+    for k in xrange(SS.K):
+      if k == kdel:
+        continue
+      nu = Post.nu[k] + alph[k] * SS.N[kdel]
+      kappa = Post.kappa[k] + alph[k] * SS.N[kdel]
+      km_x = Post.kappa[k] * Post.m[k] + alph[k] * SS.x[kdel]
+      m = 1/kappa * (km_x)
+      B = Post.B[k] + Post.kappa[k] + np.outer(Post.m[k], Post.m[k]) \
+            + alph[k] * SS.xxT[kdel] \
+            - 1/kappa * np.outer(km_x, km_x)
+      elbo += c_Func(nu, B, m, kappa)
+    return elbo
+
+  def calcMergeELBO(self, SS, kdel, alph):
+    elbo = c_Func(self.Prior.nu, 
+                  self.Prior.B,
+                  self.Prior.m,
+                  self.Prior.kappa)
+    Post = self.Post
+    assert np.allclose(alph.sum(), 1.0)
+    for k in xrange(SS.K):
+      if k == kdel:
+        continue
+      nu = Post.nu[k] + alph[k] * SS.N[kdel]
+      kappa = Post.kappa[k] + alph[k] * SS.N[kdel]
+      km_x = Post.kappa[k] * Post.m[k] + alph[k] * SS.x[kdel]
+      m = 1/kappa * (km_x)
+      B = Post.B[k] + Post.kappa[k] + np.outer(Post.m[k], Post.m[k]) \
+            + alph[k] * SS.xxT[kdel] \
+            - 1/kappa * np.outer(km_x, km_x)
+      elbo += c_Func(nu, B, m, kappa) \
+              - c_Func(self.Post.nu[k],
+                       self.Post.B[k],
+                       self.Post.m[k],
+                       self.Post.kappa[k])
+    return elbo
 
   ########################################################### Gibbs
   ########################################################### 
@@ -423,7 +464,9 @@ def MAPEstParams_inplace(nu, B, m, kappa=0):
     Sigma[k] /= (nu[k] + D + 1)
   return mu, Sigma
 
-def c_Func(nu, m, logdetB, kappa):
+def c_Func(nu, logdetB, m, kappa):
+  if logdetB.ndim >= 2:
+    logdetB = np.log(np.linalg.det(logdetB))
   D = m.size
   dvec = np.arange(1, D+1, dtype=np.float)
   return - 0.5 * D * LOGTWOPI \
@@ -433,8 +476,8 @@ def c_Func(nu, m, logdetB, kappa):
          + 0.5 * D * kappa \
          + 0.5 * nu * logdetB
 
-def c_Diff(nu1, m1, logdetB1, kappa1,
-           nu2, m2, logdetB2, kappa2):
+def c_Diff(nu1, logdetB1, m1, kappa1,
+           nu2, logdetB2, m2, kappa2):
   D = m1.size
   dvec = np.arange(1, D+1, dtype=np.float)
   return -0.5 * D * LOGTWO * (nu1 - nu2) \

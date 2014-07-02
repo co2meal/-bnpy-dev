@@ -160,6 +160,29 @@ class SuffStatBag(object):
       self._SelectTerms = ParamBag(K=self.K)
     self._SelectTerms.setField(key, value, dims=dims)
 
+  # ======================================================= MultiMerge comps
+  def multiMergeComps(self, kdel, alph):
+    ''' Blend comp kdel into all remaining comps k, with proportions alph[k]
+    '''
+    if self.K <= 1:
+      raise ValueError('Must have at least 2 components to merge.')
+    for key, dims in self._Fields._FieldDims.items():
+      if dims is not None and dims != ():
+        arr = getattr(self._Fields, key)
+        for k in xrange(self.K):
+          if k == kdel:
+            continue
+          arr[k] += alph[k] * arr[kdel]
+
+
+    self._Fields.removeComp(kdel)
+    if self.hasELBOTerms():
+      self._ELBOTerms.removeComp(kdel)
+    if self.hasMergeTerms():
+      self._MergeTerms.removeComp(kdel)
+    if self.hasSelectionTerms():
+      self._SelectTerms.removeComp(kdel)
+
   # ======================================================= Merge comps
   def mergeComps(self, kA, kB):
     ''' Merge components kA, kB into a single component
