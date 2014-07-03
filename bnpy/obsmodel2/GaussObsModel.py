@@ -338,19 +338,28 @@ class GaussObsModel(AbstractObsModel):
       kappa = Post.kappa[k] + alph[k] * SS.N[kdel]
       km_x = Post.kappa[k] * Post.m[k] + alph[k] * SS.x[kdel]
       m = 1/kappa * (km_x)
-      B = Post.B[k] + Post.kappa[k] + np.outer(Post.m[k], Post.m[k]) \
-            + alph[k] * SS.xxT[kdel] \
-            - 1/kappa * np.outer(km_x, km_x)
-      elbo += c_Func(nu, B, m, kappa)
+      B = Post.B[k] + Post.kappa[k] * np.outer(Post.m[k], Post.m[k]) \
+             + alph[k] * SS.xxT[kdel] \
+             - 1.0/kappa * np.outer(km_x, km_x)
+      elbo -= c_Func(nu, B, m, kappa)
     return elbo
 
   def calcMergeELBO(self, SS, kdel, alph):
-    elbo = c_Func(self.Prior.nu, 
-                  self.Prior.B,
-                  self.Prior.m,
-                  self.Prior.kappa)
+    ''' Calculate change in ELBO after a multi-way merge applied to current model/SS
+    '''
+    assert alph.size == SS.K
+    assert np.allclose(alph[kdel], 0)
     Post = self.Post
-    assert np.allclose(alph.sum(), 1.0)
+    Prior = self.Prior
+    elbo = c_Func(Post.nu[kdel],
+                  Post.B[kdel],
+                  Post.m[kdel],
+                  Post.kappa[kdel]) \
+           - c_Func(Prior.nu, 
+                    Prior.B,
+                    Prior.m,
+                    Prior.kappa)
+    
     for k in xrange(SS.K):
       if k == kdel:
         continue
@@ -358,14 +367,14 @@ class GaussObsModel(AbstractObsModel):
       kappa = Post.kappa[k] + alph[k] * SS.N[kdel]
       km_x = Post.kappa[k] * Post.m[k] + alph[k] * SS.x[kdel]
       m = 1/kappa * (km_x)
-      B = Post.B[k] + Post.kappa[k] + np.outer(Post.m[k], Post.m[k]) \
-            + alph[k] * SS.xxT[kdel] \
-            - 1/kappa * np.outer(km_x, km_x)
-      elbo += c_Func(nu, B, m, kappa) \
-              - c_Func(self.Post.nu[k],
-                       self.Post.B[k],
-                       self.Post.m[k],
-                       self.Post.kappa[k])
+      B = Post.B[k] + Post.kappa[k] * np.outer(Post.m[k], Post.m[k]) \
+             + alph[k] * SS.xxT[kdel] \
+             - 1.0/kappa * np.outer(km_x, km_x)
+      elbo += c_Func(Post.nu[k],
+                     Post.B[k],
+                     Post.m[k],
+                     Post.kappa[k]) \
+              - c_Func(nu, B, m, kappa)
     return elbo
 
   ########################################################### Gibbs

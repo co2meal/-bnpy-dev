@@ -45,8 +45,11 @@ def objFunc_alph(alph, SS, kdel, aFunc, oFunc):
   alphx = np.zeros(SS.K)
   alphx[:kdel] = alph[:kdel]
   alphx[kdel+1:] = alph[kdel:]
+
+  Halph = -1 * np.sum((alph+1e-15) * np.log(alph+1e-15))
   elboDelta = aFunc(SS, kdel, alphx) \
-              + oFunc(SS, kdel, alphx)
+              + oFunc(SS, kdel, alphx) \
+              + SS.N[kdel] * Halph
   return -1 * elboDelta
 
 def objFunc_eta(eta, *args):
