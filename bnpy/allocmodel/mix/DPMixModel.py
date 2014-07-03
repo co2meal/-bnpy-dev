@@ -301,12 +301,14 @@ class DPMixModel(AllocModel):
   def calcMergeELBO(self, SS, kdel, alph):
     ''' Calculate improvement in ELBO after a multi-way merge.
     '''
-    elboDelta = c_Func(self.alpha1, self.alpha0) \
-                - np.sum(c_Func(self.qalpha1, self.qalpha0))
-    for k in xrange(K):
+    elboDelta = np.sum(c_Func(self.qalpha1, self.qalpha0)) \
+                - c_Func(self.alpha1, self.alpha0)
+    for k in xrange(SS.K):
+      if k == kdel:
+        continue
       a1 = self.qalpha1[k] + alph[k] * SS.N[kdel]
       a0 = self.qalpha0[k] + np.sum(alph[k+1:]) * SS.N[kdel]
-      elboDelta += c_Func(a1, a0)
+      elboDelta -= c_Func(a1, a0)
     return elboDelta
 
   def calcMergeELBO_alph(self, SS, kdel, alph):
@@ -315,9 +317,11 @@ class DPMixModel(AllocModel):
     '''
     elboDelta = 0
     for k in xrange(SS.K):
-      a1 = self.qalpha1 + alph[k] * SS.N[kdel]
-      a0 = self.qalpha0 + np.sum(alph[k+1:]) * SS.N[kdel]
-      elboDelta += np.sum(c_Func(a1, a0))
+      if k == kdel:
+        continue
+      a1 = self.qalpha1[k] + alph[k] * SS.N[kdel]
+      a0 = self.qalpha0[k] + np.sum(alph[k+1:]) * SS.N[kdel]
+      elboDelta -= c_Func(a1, a0)
     return elboDelta
 
   ######################################################### IO Utils
