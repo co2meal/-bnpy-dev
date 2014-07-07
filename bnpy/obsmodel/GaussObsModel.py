@@ -283,7 +283,7 @@ class GaussObsModel(AbstractObsModel):
         distvec : 1D array, size nObs
                distvec[n] gives E[ (x-\mu) \Lam (x-\mu) ] for comp k
     '''
-    Q = np.linalg.solve(self.GetCached('cholB', k), \
+    Q = np.linalg.solve(self.GetCached('cholB', k),
                         (X-self.Post.m[k]).T)
     Q *= Q
     return self.Post.nu[k] * np.sum(Q, axis=0) \
@@ -336,7 +336,7 @@ class GaussObsModel(AbstractObsModel):
                         self.GetCached('logdetB', k),
                         Post.m[k], Post.kappa[k],
                         )
-      if not doFast and SS.N[k] > 1e-9:
+      if not doFast:
         aDiff = SS.N[k] + Prior.nu - Post.nu[k]
         bDiff = SS.xxT[k] + Prior.B \
                           + Prior.kappa * np.outer(Prior.m, Prior.m) \
@@ -347,7 +347,7 @@ class GaussObsModel(AbstractObsModel):
         dDiff = SS.N[k] + Prior.kappa - Post.kappa[k]
         elbo[k] += 0.5 * aDiff * self.GetCached('E_logdetL', k) \
                  - 0.5 * self._trace__E_L(bDiff, k) \
-                 + 0.5 * np.inner(cDiff, self.GetCached('E_Lmu', k)) \
+                 + np.inner(cDiff, self.GetCached('E_Lmu', k)) \
                  - 0.5 * dDiff * self.GetCached('E_muLmu', k)
     return elbo.sum() - 0.5 * np.sum(SS.N) * SS.D * LOGTWOPI
 
@@ -522,7 +522,7 @@ def c_Diff(nu1, logdetB1, m1, kappa1,
            nu2, logdetB2, m2, kappa2):
   D = m1.size
   dvec = np.arange(1, D+1, dtype=np.float)
-  return -0.5 * D * LOGTWO * (nu1 - nu2) \
+  return - 0.5 * D * LOGTWO * (nu1 - nu2) \
          - np.sum( gammaln( 0.5 * (nu1 + 1 - dvec) )) \
          + np.sum( gammaln( 0.5 * (nu2 + 1 - dvec) )) \
          + 0.5 * D * (kappa1 - kappa2) \
