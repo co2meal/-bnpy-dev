@@ -297,7 +297,9 @@ class DPMixModel(AllocModel):
     elif self.truncType == 'v':
       # skip last entry because entropy of Beta(1,0) = 0
       return logNormC[:-1].sum() + logBetaPDF[:-1].sum()
-    
+
+  # _______________________________________________________ MERGE calculations
+
   def calcMergeELBO(self, SS, kdel, alph):
     ''' Calculate improvement in ELBO after a multi-way merge.
     '''

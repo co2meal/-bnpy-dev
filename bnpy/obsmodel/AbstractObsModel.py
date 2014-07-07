@@ -39,7 +39,7 @@ class AbstractObsModel(object):
     return LP
 
   def get_global_suff_stats(self, Data, SS, LP, **kwargs):
-    SS = self.calcSummaryStats(Data, SS, LP, **kwargs)
+    SS = self.calcSummaryStats(Data, SS, LP)
     return SS
 
   def update_global_params(self, SS, rho=None, **kwargs):
