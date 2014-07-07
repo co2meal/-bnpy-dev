@@ -71,15 +71,7 @@ class SimpleMOVBAlg(LearnAlg):
       iterid += 1
       lapFrac = (iterid + 1) * self.lapFracInc
       self.set_random_seed_at_lap(lapFrac)
-
-      # M step
-      if self.algParams['doFullPassBeforeMstep']:
-        if SS is not None and lapFrac > 1.0:
-          hmodel.update_global_params(SS)
-      else:
-        if SS is not None:
-          hmodel.update_global_params(SS)
-      
+     
       # E step
       if batchID in self.LPmemory:
         oldLPchunk = self.load_batch_local_params_from_memory(batchID)
@@ -102,7 +94,15 @@ class SimpleMOVBAlg(LearnAlg):
         assert SSchunk.K == SS.K
         SS += SSchunk
 
-      # ELBO Update!
+      # M step
+      if self.algParams['doFullPassBeforeMstep']:
+        if SS is not None and lapFrac > 1.0:
+          hmodel.update_global_params(SS)
+      else:
+        if SS is not None:
+          hmodel.update_global_params(SS)
+
+      # ELBO step
       evBound = hmodel.calc_evidence(SS=SS)
 
       # Store batch-specific stats to memory

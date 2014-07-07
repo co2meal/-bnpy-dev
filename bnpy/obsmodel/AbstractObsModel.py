@@ -6,8 +6,6 @@ class AbstractObsModel(object):
   def to_dict(self):
     PDict = dict(name=self.__class__.__name__, 
                  inferType=self.inferType)
-    if hasattr(self, 'min_covar'):
-      PDict['min_covar'] = self.min_covar
     if hasattr(self, 'EstParams'):
       PDict['K'] = self.EstParams.K
       PDict['D'] = self.EstParams.D
@@ -22,13 +20,17 @@ class AbstractObsModel(object):
 
   def get_prior_dict(self):
     PDict = dict()
+    PDict['name'] = self.__class__.__name__
+    if hasattr(self, 'min_covar'):
+      PDict['min_covar'] = self.min_covar
+    if hasattr(self, 'inferType'):
+      PDict['inferType'] = self.inferType
     if hasattr(self, 'Prior'):
       PDict['D'] = self.Prior.D
       for key in self.Prior._FieldDims.keys():
         PDict[key] = getattr(self.Prior, key)
     return PDict
   
-
   def calc_local_params(self, Data, LP=None, **kwargs):
     if LP is None:
       LP = dict()
