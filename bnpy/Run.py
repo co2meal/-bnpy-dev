@@ -32,7 +32,7 @@ Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
 
 FullDataAlgSet = ['EM','VB']
-OnlineDataAlgSet = ['soVB', 'moVB']
+OnlineDataAlgSet = ['soVB', 'moVB', 'moVBsimple']
 
 def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
                       doSaveToDisk=True, doWriteStdOut=True, 
@@ -302,6 +302,9 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
                                       algParams=algP, outputParams=outputP)
   elif algName == 'moVB':
     learnAlg = bnpy.learnalg.MOVBAlg(savedir=savepath, seed=algseed, 
+                                      algParams=algP, outputParams=outputP)
+  elif algName == 'moVBsimple':
+    learnAlg = bnpy.learnalg.SimpleMOVBAlg(savedir=savepath, seed=algseed, 
                                       algParams=algP, outputParams=outputP)
   else:
     raise NotImplementedError("Unknown learning algorithm " + algName)
