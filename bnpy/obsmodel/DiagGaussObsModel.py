@@ -188,7 +188,7 @@ class DiagGaussObsModel(AbstractObsModel):
     # Expected mean for each k
     SS.setField('x', dotATB(resp, X), dims=('K','D'))
 
-    # Expected outer-product for each k
+    # Expected sum-of-squares for each k
     SS.setField('xx', dotATB(resp, np.square(X)), dims=('K', 'D'))
     return SS 
 
@@ -269,7 +269,7 @@ class DiagGaussObsModel(AbstractObsModel):
     L = np.zeros((Data.nObs, K))
     for k in xrange(K):
       L[:,k] = - 0.5 * self.D * LOGTWOPI \
-               + 0.5 * np.sum(self.GetCached('E_logL', k))  \
+               + 0.5 * np.sum(self.GetCached('E_logL', k)) \
                - 0.5 * self._mahalDist_Post(Data.X, k)
     return L
 
@@ -279,11 +279,11 @@ class DiagGaussObsModel(AbstractObsModel):
         Returns
         --------
         distvec : 1D array, size nObs
-               distvec[n] gives E[ (x-\mu) \Lam (x-\mu) ] for comp k
+               distvec[n] gives E[ \Lam (x-\mu)^2 ] for comp k
     '''
     Xdiff = X - self.Post.m[k]
     np.square(Xdiff, out=Xdiff)
-    dist = np.dot(Xdiff, self.Post.nu[k] * self.Post.beta[k])
+    dist = np.dot(Xdiff, self.Post.nu[k] / self.Post.beta[k])
     dist += self.D / self.Post.kappa[k]
     return dist
 
@@ -327,14 +327,10 @@ class DiagGaussObsModel(AbstractObsModel):
     Post = self.Post
     Prior = self.Prior
     for k in xrange(SS.K):
-      elbo[k] = c_Diff(Prior.nu,
-                        Prior.beta,
-                        Prior.m, Prior.kappa,
-                        Post.nu[k],
-                        Post.beta[k],
-                        Post.m[k], Post.kappa[k],
-                        )
-      if not doFast and SS.N[k] > 1e-9:
+      elbo[k] = c_Diff(Prior.nu,   Prior.beta,   Prior.m,   Prior.kappa,
+                       Post.nu[k], Post.beta[k], Post.m[k], Post.kappa[k],
+                       )
+      if not doFast:
         aDiff = SS.N[k] + Prior.nu - Post.nu[k]
         bDiff = SS.xx[k] + Prior.beta \
                           + Prior.kappa * np.square(Prior.m) \
@@ -345,7 +341,7 @@ class DiagGaussObsModel(AbstractObsModel):
         dDiff = SS.N[k] + Prior.kappa - Post.kappa[k]
         elbo[k] += 0.5 * aDiff * np.sum(self._E_logL(k)) \
                  - 0.5 * np.inner(bDiff, self._E_L(k)) \
-                 + 0.5 * np.inner(cDiff, self.GetCached('E_Lmu', k)) \
+                 + np.inner(cDiff, self.GetCached('E_Lmu', k)) \
                  - 0.5 * dDiff * np.sum(self.GetCached('E_muLmu', k))
     return elbo.sum() - 0.5 * np.sum(SS.N) * SS.D * LOGTWOPI
 
@@ -405,7 +401,7 @@ class DiagGaussObsModel(AbstractObsModel):
     else:
       nu = self.Post.nu[k]
       beta = self.Post.beta[k]
-    return - np.log(beta) + LOGTWO + digamma(0.5*nu)
+    return LOGTWO - np.log(beta) + digamma(0.5*nu)
 
   def _E_L(self, k=None):
     ''' 
@@ -422,6 +418,11 @@ class DiagGaussObsModel(AbstractObsModel):
     return nu / beta
     
   def _E_Lmu(self, k=None):
+    '''
+        Returns
+        --------
+        ELmu : 1D array, size D
+    '''
     if k is None:
       nu = self.Prior.nu
       beta = self.Prior.beta
@@ -433,6 +434,12 @@ class DiagGaussObsModel(AbstractObsModel):
     return (nu / beta) * m
 
   def _E_muLmu(self, k=None):
+    ''' Calc expectation E[lam * mu^2], yielding vector with one entry per dim
+
+        Returns
+        --------
+        EmuLmu : 1D array, size D
+    '''
     if k is None:
       nu = self.Prior.nu
       kappa = self.Prior.kappa
@@ -444,6 +451,8 @@ class DiagGaussObsModel(AbstractObsModel):
       m = self.Post.m[k]
       beta = self.Post.beta[k]
     return 1.0 / kappa + (nu / beta) * (m*m)
+
+
 
 
 def MAPEstParams_inplace(nu, beta, m, kappa=0):
