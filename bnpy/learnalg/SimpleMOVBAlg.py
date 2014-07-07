@@ -103,7 +103,7 @@ class SimpleMOVBAlg(LearnAlg):
           hmodel.update_global_params(SS)
 
       # ELBO step
-      evBound = hmodel.calc_evidence(SS=SS)
+      evBound = hmodel.calc_evidence(SS=SS, doFast=0)
 
       # Store batch-specific stats to memory
       if self.algParams['doMemoizeLocalParams']:
