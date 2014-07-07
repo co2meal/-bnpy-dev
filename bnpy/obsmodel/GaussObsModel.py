@@ -25,13 +25,15 @@ from scipy.special import gammaln, digamma
 from bnpy.suffstats import ParamBag, SuffStatBag
 from bnpy.util import LOGTWO, LOGPI, LOGTWOPI, EPS
 from bnpy.util import dotATA, dotATB, dotABT
+from bnpy.util import as1D, as2D, as3D
 
 from AbstractObsModel import AbstractObsModel 
 
 class GaussObsModel(AbstractObsModel):
 
   def __init__(self, inferType='EM', D=0, min_covar=None, 
-                     Data=None, **PriorArgs):
+                     Data=None, 
+                     **PriorArgs):
     ''' Initialize bare Gaussian obsmodel with Normal-Wishart prior. 
         Resulting object lacks either EstParams or Post, 
           which must be created separately.
@@ -39,31 +41,53 @@ class GaussObsModel(AbstractObsModel):
     if Data is not None:
       self.D = Data.dim
     else:
-      self.D = D
+      self.D = int(D)
     self.K = 0
     self.inferType = inferType
     self.min_covar = min_covar
     self.createPrior(Data, **PriorArgs)
     self.Cache = dict()
 
-  def createPrior(self, Data, nu=0, ECovMat=None, sF=1.0,
-                              m=None, kappa=None):
+  def createPrior(self, Data, nu=0, B=None,
+                              m=None, kappa=None,
+                              ECovMat=None, sF=1.0, **kwargs):
     ''' Initialize Prior ParamBag object, with fields nu, B, m, kappa
           set according to match desired mean and expected covariance matrix.
     '''
     D = self.D
     nu = np.maximum(nu, D+2)
-    if ECovMat is None or type(ECovMat) == str:
-      ECovMat = createECovMatFromUserInput(D, Data, ECovMat, sF)    
-    B = ECovMat * (nu - D - 1)
-    if m is None: 
+    if B is None:
+      if ECovMat is None or type(ECovMat) == str:
+        ECovMat = createECovMatFromUserInput(D, Data, ECovMat, sF)    
+      B = ECovMat * (nu - D - 1)
+    else:
+      if B.ndim == 1:
+        B = np.asarray([B], dtype=np.float)
+      elif B.ndim == 0:
+        B = np.asarray([[B]], dtype=np.float)
+    if m is None:
       m = np.zeros(D)
+    elif m.ndim < 1:
+      m = np.asarray([m], dtype=np.float)      
     kappa = np.maximum(kappa, 1e-8)
     self.Prior = ParamBag(K=0, D=D)
     self.Prior.setField('nu', nu, dims=None)
     self.Prior.setField('kappa', kappa, dims=None)
     self.Prior.setField('m', m, dims=('D'))
     self.Prior.setField('B', B, dims=('D','D'))
+
+  def get_mean_for_comp(self, k):
+    if hasattr(self, 'EstParams'):
+      return self.EstParams.mu[k]
+    else:
+      return self.Post.m[k]
+
+  def get_covar_mat_for_comp(self, k):
+    if hasattr(self, 'EstParams'):
+      return self.EstParams.Sigma[k]
+    else:
+      return self._E_CovMat(k)
+    
 
   ######################################################### I/O Utils
   #########################################################   for humans
@@ -140,11 +164,15 @@ class GaussObsModel(AbstractObsModel):
     if SS is not None:
       self.updatePost(SS)
     else:
-      self.Post = ParamBag(K=K, D=mu.shape[1])
-      self.Post.setField('nu', nu, dims=('K'))
+      m = as2D(m)
+      if m.shape[1] != self.D:
+        m = m.T.copy()
+      K, _ = m.shape
+      self.Post = ParamBag(K=K, D=self.D)
+      self.Post.setField('nu', as1D(nu), dims=('K'))
       self.Post.setField('B', B, dims=('K', 'D', 'D'))
       self.Post.setField('m', m, dims=('K', 'D'))
-      self.Post.setField('kappa', kappa, dims=('K'))
+      self.Post.setField('kappa', as1D(kappa), dims=('K'))
 
   def setPostFromEstParams(self, EstParams, Data=None, N=None):
     ''' Convert from EstParams (mu, Sigma) to Post (nu, B, m, kappa),

@@ -60,8 +60,9 @@ def plotGauss2DFromHModel(hmodel, compListToPlot=None, compsToHighlight=None, wT
       sigma = np.sqrt(np.squeeze(Sigma))
       pdfgrid += w[kk] * 1./np.sqrt(2*np.pi) * 1./sigma \
                        * np.exp( -0.5 * (xgrid-mu)**2 / sigma**2 )
-      
-  pylab.plot( xgrid, pdfgrid, 'k--')
+
+  if hmodel.obsModel.D == 1:      
+    pylab.plot( xgrid, pdfgrid, 'k--')
 
   if nSkip > 0:
     print 'SKIPPED %d comps that were too small' % (nSkip)

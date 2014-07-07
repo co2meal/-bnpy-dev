@@ -276,7 +276,7 @@ class MOVBAlg(LearnAlg):
       # Check for Convergence!
       #  evBound will increase monotonically AFTER first lap of the data 
       #  verify_evidence will warn if bound isn't increasing monotonically
-      if lapFrac > self.algParams['startLap'] + 1.0:
+      if lapFrac > self.algParams['startLap'] + 1.0 + 1.0 / nBatch:
         isConvergedCurrent = self.verify_evidence(evBound, prevBound, lapFrac)
         if isConvergedCurrent:
           numConvergedInARow += 1.0 / nBatch
