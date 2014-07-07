@@ -277,7 +277,7 @@ class DPMixModel(AllocModel):
     return np.inner( SS.N, self.Elogw ) 
     
   def E_logqZ(self, LP):
-    return NumericUtil.calcRlogR(LP['resp'])
+    return NumericUtil.calcRlogR(LP['resp']+1e-100)
 
   def E_logpV( self ):
     logNormC = gammaln(self.alpha0 + self.alpha1) \
