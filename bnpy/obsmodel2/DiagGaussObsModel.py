@@ -28,7 +28,7 @@ from bnpy.util import dotATA, dotATB, dotABT
 
 from AbstractObsModel import AbstractObsModel 
 
-class GaussObsModel(AbstractObsModel):
+class DiagGaussObsModel(AbstractObsModel):
 
   def __init__(self, inferType='EM', D=0, min_covar=None, 
                      Data=None, **PriorArgs):
@@ -181,9 +181,19 @@ class GaussObsModel(AbstractObsModel):
                - 0.5 * self._mahalDist_EstParam(Data.X, k)
 
   def _mahalDist_EstParam(self, X, k):
+    ''' Calculate distance to every row of matrix X
+
+        Args
+        -------
+        X : 2D array, size N x D
+
+        Returns
+        ------
+        dist : 1D array, size N
+    '''
     Xdiff = (X - self.EstParams.mu[k])
     np.square(Xdiff, out=Xdiff)
-    dist = np.sum(1.0/self.EstParams.sigma[k] * Xdiff, axis=0)
+    dist = np.sum(Xdiff/self.EstParams.sigma[k], axis=1)
     return dist
 
   # _________________________________________________________  M step
@@ -193,13 +203,12 @@ class GaussObsModel(AbstractObsModel):
       self.EstParams = ParamBag(K=SS.K, D=SS.D)
 
     mu = SS.x / SS.N[:,np.newaxis]
-    minCovMat = self.min_covar * np.eye(SS.D)
-    covMat = np.tile(minCovMat, (SS.K,1,1))
-    for k in xrange(SS.K):
-      covMat[k] += SS.xxT[k] / SS.N[k] - np.outer(mu[k], mu[k])      
+    sigma = self.min_covar \
+            + SS.xx / SS.N[:,np.newaxis] \
+            - np.square(mu)
 
     self.EstParams.setField('mu', mu, dims=('K', 'D'))
-    self.EstParams.setField('Sigma', covMat, dims=('K', 'D', 'D'))
+    self.EstParams.setField('sigma', sigma, dims=('K', 'D'))
 
   def updateEstParams_MAP(self, SS):
     self.ClearCache()
@@ -209,18 +218,18 @@ class GaussObsModel(AbstractObsModel):
     Prior = self.Prior
     nu = Prior.nu + SS.N
     kappa = Prior.kappa + SS.N
-    PB =  Prior.B + Prior.kappa * np.outer(Prior.m, Prior.m) 
+    PB =  Prior.beta + Prior.kappa * np.square(Prior.m)
 
     m = np.empty((SS.K, SS.D))
-    B = np.empty((SS.K, SS.D, SS.D))
+    beta = np.empty((SS.K, SS.D))
     for k in xrange(SS.K):
       km_x = Prior.kappa * Prior.m + SS.x[k]
       m[k] = 1.0/kappa[k] * km_x
-      B[k] = PB + SS.xxT[k] - 1.0/kappa[k] * np.outer(km_x, km_x)
+      beta[k] = PB + SS.xx[k] - 1.0/kappa[k] * np.square(km_x)
     
-    mu, Sigma = MAPEstParams_inplace(nu, B, m, kappa)   
+    mu, sigma = MAPEstParams_inplace(nu, beta, m, kappa)   
     self.EstParams.setField('mu', mu, dims=('K', 'D'))
-    self.EstParams.setField('Sigma', Sigma, dims=('K', 'D', 'D'))
+    self.EstParams.setField('sigma', sigma, dims=('K', 'D'))
 
   ########################################################### VB
   ########################################################### 
@@ -236,7 +245,7 @@ class GaussObsModel(AbstractObsModel):
     L = np.zeros((Data.nObs, K))
     for k in xrange(K):
       L[:,k] = - 0.5 * self.D * LOGTWOPI \
-               + 0.5 * self.GetCached('E_logdetL', k)  \
+               + 0.5 * self.GetCached('E_logL', k)  \
                - 0.5 * self._mahalDist_Post(Data.X, k)
     return L
 
@@ -248,11 +257,11 @@ class GaussObsModel(AbstractObsModel):
         distvec : 1D array, size nObs
                distvec[n] gives E[ (x-\mu) \Lam (x-\mu) ] for comp k
     '''
-    Q = np.linalg.solve(self.GetCached('cholB', k), \
-                        (X-self.Post.m[k]).T)
-    Q *= Q
-    return self.Post.nu[k] * np.sum(Q, axis=0) \
-           + self.D / self.Post.kappa[k]
+    Xdiff = X - self.Post.m[k]
+    np.square(Xdiff, out=Xdiff)
+    dist = np.dot(Xdiff, self.Post.nu[k] * self.Post.beta[k])
+    dist += self.D / self.Post.kappa[k]
+    return dist
 
   def updatePost(self, SS):
     ''' Update the Post ParamBag, so each component 1, 2, ... K
@@ -267,15 +276,15 @@ class GaussObsModel(AbstractObsModel):
 
     Post.setField('nu', Prior.nu + SS.N, dims=('K'))
     Post.setField('kappa', Prior.kappa + SS.N, dims=('K'))
-    PB = Prior.B + Prior.kappa * np.outer(Prior.m, Prior.m)
+    PB = Prior.beta + Prior.kappa * np.square(Prior.m)
     m = np.empty((SS.K, SS.D))
-    B = np.empty((SS.K, SS.D, SS.D))
+    beta = np.empty((SS.K, SS.D))
     for k in xrange(SS.K):
       km_x = Prior.kappa * Prior.m + SS.x[k]
       m[k] = 1.0/Post.kappa[k] * km_x
-      B[k] = PB + SS.xxT[k] - 1.0/Post.kappa[k] * np.outer(km_x, km_x)
+      beta[k] = PB + SS.xx[k] - 1.0/Post.kappa[k] * np.square(km_x)
     Post.setField('m', m, dims=('K', 'D'))
-    Post.setField('B', B, dims=('K', 'D', 'D'))
+    Post.setField('beta', beta, dims=('K', 'D'))
 
   def calcELBO_Memoized(self, SS, doFast=False):
     ''' Calculate obsModel's ELBO using sufficient statistics SS and Post.
@@ -295,76 +304,28 @@ class GaussObsModel(AbstractObsModel):
     Prior = self.Prior
     for k in xrange(SS.K):
       elbo[k] = c_Diff(Prior.nu,
-                        self.GetCached('logdetB'),
+                        Prior.beta,
                         Prior.m, Prior.kappa,
                         Post.nu[k],
-                        self.GetCached('logdetB', k),
+                        Post.beta[k],
                         Post.m[k], Post.kappa[k],
                         )
       if not doFast and SS.N[k] > 1e-9:
         aDiff = SS.N[k] + Prior.nu - Post.nu[k]
-        bDiff = SS.xxT[k] + Prior.B \
-                          + Prior.kappa * np.outer(Prior.m, Prior.m) \
-                          - Post.B[k] \
-                          - Post.kappa[k] * np.outer(Post.m[k], Post.m[k])
+        bDiff = SS.xx[k] + Prior.beta \
+                          + Prior.kappa * np.square(Prior.m) \
+                          - Post.beta[k] \
+                          - Post.kappa[k] * np.square(Post.m[k])
         cDiff = SS.x[k] + Prior.kappa * Prior.m \
                         - Post.kappa[k] * Post.m[k]
         dDiff = SS.N[k] + Prior.kappa - Post.kappa[k]
-        elbo[k] += 0.5 * aDiff * self.GetCached('E_logdetL', k) \
-                 - 0.5 * self._trace__E_L(bDiff, k) \
+        elbo[k] += 0.5 * aDiff * np.sum(self._E_logL(k)) \
+                 - 0.5 * np.inner(bDiff, self._E_L(k)) \
                  + 0.5 * np.inner(cDiff, self.GetCached('E_Lmu', k)) \
-                 - 0.5 * dDiff * self.GetCached('E_muLmu', k)
+                 - 0.5 * dDiff * np.sum(self.GetCached('E_muLmu', k))
     return elbo.sum() - 0.5 * np.sum(SS.N) * SS.D * LOGTWOPI
 
-  def calcMergeELBO_alph(self, SS, kdel, alph):
-    elbo = 0
-    Post = self.Post
-    assert np.allclose(alph.sum(), 1.0)
-    for k in xrange(SS.K):
-      if k == kdel:
-        continue
-      nu = Post.nu[k] + alph[k] * SS.N[kdel]
-      kappa = Post.kappa[k] + alph[k] * SS.N[kdel]
-      km_x = Post.kappa[k] * Post.m[k] + alph[k] * SS.x[kdel]
-      m = 1/kappa * (km_x)
-      B = Post.B[k] + Post.kappa[k] * np.outer(Post.m[k], Post.m[k]) \
-             + alph[k] * SS.xxT[kdel] \
-             - 1.0/kappa * np.outer(km_x, km_x)
-      elbo -= c_Func(nu, B, m, kappa)
-    return elbo
-
-  def calcMergeELBO(self, SS, kdel, alph):
-    ''' Calculate change in ELBO after a multi-way merge applied to current model/SS
-    '''
-    assert alph.size == SS.K
-    assert np.allclose(alph[kdel], 0)
-    Post = self.Post
-    Prior = self.Prior
-    elbo = c_Func(Post.nu[kdel],
-                  Post.B[kdel],
-                  Post.m[kdel],
-                  Post.kappa[kdel]) \
-           - c_Func(Prior.nu, 
-                    Prior.B,
-                    Prior.m,
-                    Prior.kappa)
-    
-    for k in xrange(SS.K):
-      if k == kdel:
-        continue
-      nu = Post.nu[k] + alph[k] * SS.N[kdel]
-      kappa = Post.kappa[k] + alph[k] * SS.N[kdel]
-      km_x = Post.kappa[k] * Post.m[k] + alph[k] * SS.x[kdel]
-      m = 1/kappa * (km_x)
-      B = Post.B[k] + Post.kappa[k] * np.outer(Post.m[k], Post.m[k]) \
-             + alph[k] * SS.xxT[kdel] \
-             - 1.0/kappa * np.outer(km_x, km_x)
-      elbo += c_Func(Post.nu[k],
-                     Post.B[k],
-                     Post.m[k],
-                     Post.kappa[k]) \
-              - c_Func(nu, B, m, kappa)
-    return elbo
+  # TODO: Merge ELBO
 
   ########################################################### Gibbs
   ########################################################### 
@@ -380,7 +341,7 @@ class GaussObsModel(AbstractObsModel):
     Post = self.Post
     Post.nu[k] += 1
     kappa = Post.kappa[k] + 1
-    Post.B[k] += Post.kappa[k]/kappa * np.outer(x-Post.m[k], x-Post.m[k]) 
+    Post.beta[k] += Post.kappa[k]/kappa * np.square(x-Post.m[k])
     Post.m[k] = 1/(kappa) * (Post.kappa[k] * Post.m[k] + x)
     Post.kappa[k] = kappa
     # TODO: update cached cholesky and log det with rank-one updates
@@ -391,98 +352,96 @@ class GaussObsModel(AbstractObsModel):
     Post = self.Post
     Post.nu[k] -= 1
     kappa = Post.kappa[k] - 1
-    Post.B[k] -= Post.kappa[k]/kappa * np.outer(x-Post.m[k], x-Post.m[k]) 
+    Post.beta[k] -= Post.kappa[k]/kappa * np.square(x-Post.m[k])
     Post.m[k] = 1/(kappa) * (Post.kappa[k] * Post.m[k] - x)
     Post.kappa[k] = kappa
     # TODO: update cached cholesky and log det with rank-one updates
 
   ########################################################### Expectations
   ########################################################### 
-  def _cholB(self, k=None):
-    if k is None:
-      B = self.Prior.B
-    else:
-      B = self.Post.B[k]
-    return scipy.linalg.cholesky(B, lower=True)
-
-  def _logdetB(self, k=None):
-    cholB = self.GetCached('cholB', k)
-    return  2 * np.sum(np.log(np.diag(cholB)))
     
-  def _E_logdetL(self, k=None):
-    dvec = np.arange(1, self.D+1, dtype=np.float)
+  def _E_logL(self, k=None):
+    ''' 
+        Returns
+        -------
+        E_logLam : 1D array, size D
+    '''
     if k is None:
       nu = self.Prior.nu
+      beta = self.Prior.beta
     else:
       nu = self.Post.nu[k]
-    return self.D * LOGTWO \
-           - self.GetCached('logdetB', k) \
-           + np.sum(np.log(0.5 * (nu + 1 - dvec)))
+      beta = self.Post.beta[k]
+    return - np.log(beta) + LOGTWO + digamma(0.5*nu)
 
-  def _trace__E_L(self, Smat, k=None):
+  def _E_L(self, k=None):
+    ''' 
+        Returns
+        --------
+        EL : 1D array, size D
+    '''
     if k is None:
       nu = self.Prior.nu
-      B = self.Prior.B
+      beta = self.Prior.beta
     else:
       nu = self.Post.nu[k]
-      B = self.Post.B[k]
-    return nu * np.trace(np.linalg.solve(B, Smat))
+      beta = self.Post.beta[k]
+    return nu / beta
     
   def _E_Lmu(self, k=None):
     if k is None:
       nu = self.Prior.nu
-      B = self.Prior.B
+      beta = self.Prior.beta
       m = self.Prior.m
     else:
       nu = self.Post.nu[k]
-      B = self.Post.B[k]
+      beta = self.Post.beta[k]
       m = self.Post.m[k]
-    return nu * np.linalg.solve(B, m)
+    return (nu / beta) * m
 
   def _E_muLmu(self, k=None):
     if k is None:
       nu = self.Prior.nu
       kappa = self.Prior.kappa
       m = self.Prior.m
+      beta = self.Prior.beta
     else:
       nu = self.Post.nu[k]
       kappa = self.Post.kappa[k]
       m = self.Post.m[k]
-    Q = np.linalg.solve(self.GetCached('cholB', k), m.T)
-    return self.D / kappa + nu * np.inner(Q, Q)
+      beta = self.Post.beta[k]
+    return 1.0 / kappa + (nu / beta) * (m*m)
 
 
-def MAPEstParams_inplace(nu, B, m, kappa=0):
+def MAPEstParams_inplace(nu, beta, m, kappa=0):
   ''' MAP estimate parameters mu, Sigma given Normal-Wishart hyperparameters
   '''
   D = m.size
   mu = m
-  Sigma = B
-  for k in xrange(B.shape[0]):
-    Sigma[k] /= (nu[k] + D + 1)
-  return mu, Sigma
+  sigma = beta / (nu[:,np.newaxis]+2)
+  return mu, sigma
 
-def c_Func(nu, logdetB, m, kappa):
-  if logdetB.ndim >= 2:
-    logdetB = np.log(np.linalg.det(logdetB))
+def c_Func(nu, beta, m, kappa):
   D = m.size
-  dvec = np.arange(1, D+1, dtype=np.float)
-  return - 0.5 * D * LOGTWOPI \
-         - 0.25 * D * (D-1) * LOGPI \
-         - 0.5 * D * LOGTWO * nu \
-         - np.sum( gammaln( 0.5 * (nu + 1 - dvec) )) \
-         + 0.5 * D * kappa \
-         + 0.5 * nu * logdetB
+  c1D = - 0.5 * LOGTWOPI \
+         - 0.5 * LOGTWO * nu \
+         - gammaln( 0.5 * nu ) \
+         + 0.5 * kappa \
+         + 0.5 * nu * np.log(beta)
+  return np.sum(c1D)
 
-def c_Diff(nu1, logdetB1, m1, kappa1,
-           nu2, logdetB2, m2, kappa2):
-  D = m1.size
-  dvec = np.arange(1, D+1, dtype=np.float)
-  return -0.5 * D * LOGTWO * (nu1 - nu2) \
-         - np.sum( gammaln( 0.5 * (nu1 + 1 - dvec) )) \
-         + np.sum( gammaln( 0.5 * (nu2 + 1 - dvec) )) \
-         + 0.5 * D * (kappa1 - kappa2) \
-         + 0.5 * (nu1 * logdetB1 - nu2 * logdetB2)
+def c_Diff(nu1, beta1, m1, kappa1,
+           nu2, beta2, m2, kappa2):
+  ''' Evaluate difference of cumulant functions c(params1) - c(params2)
+      Returns
+      -------
+      diff : scalar real
+  '''
+  cDiff = - 0.5 * LOGTWO * (nu1 - nu2) \
+          - gammaln(0.5 * nu1) + gammaln(0.5 * nu2) \
+          + 0.5 * (kappa1 - kappa2) \
+          + 0.5 * (nu1 * np.log(beta1) - nu2 * np.log(beta2))
+  return np.sum(cDiff)
 
 def createECovMatFromUserInput(D=0, Data=None, ECovMat='eye', sF=1.0):
   if Data is not None:

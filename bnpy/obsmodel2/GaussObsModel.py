@@ -428,7 +428,7 @@ class GaussObsModel(AbstractObsModel):
       nu = self.Post.nu[k]
     return self.D * LOGTWO \
            - self.GetCached('logdetB', k) \
-           + np.sum(np.log(0.5 * (nu + 1 - dvec)))
+           + np.sum(np.digamma(0.5 * (nu + 1 - dvec)))
 
   def _trace__E_L(self, Smat, k=None):
     if k is None:
