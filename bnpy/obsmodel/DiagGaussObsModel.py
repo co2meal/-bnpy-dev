@@ -55,7 +55,7 @@ class DiagGaussObsModel(AbstractObsModel):
     nu = np.maximum(nu, D+2)
     if ECovMat is None or type(ECovMat) == str:
       ECovMat = createECovMatFromUserInput(D, Data, ECovMat, sF)    
-    beta = np.diag(ECovMat) * (nu - D - 1)
+    beta = np.diag(ECovMat) * (nu - 2)
     if m is None: 
       m = np.zeros(D)
     kappa = np.maximum(kappa, 1e-8)
