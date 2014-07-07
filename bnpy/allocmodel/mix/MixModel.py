@@ -180,7 +180,7 @@ class MixModel(AllocModel):
 
   ######################################################### Evidence
   #########################################################
-  def calc_evidence(self, Data, SS, LP, todict=False):
+  def calc_evidence(self, Data, SS, LP, todict=False, **kwargs):
     if self.inferType == 'EM':
       return LP['evidence'] + self.log_pdf_dirichlet(self.w)
     elif self.inferType.count('VB') > 0:
