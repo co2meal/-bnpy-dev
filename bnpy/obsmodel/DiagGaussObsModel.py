@@ -65,6 +65,27 @@ class DiagGaussObsModel(AbstractObsModel):
     self.Prior.setField('m', m, dims=('D'))
     self.Prior.setField('beta', beta, dims=('D'))
 
+  ######################################################### I/O Utils
+  #########################################################   for humans
+  def get_name(self):
+    return 'DiagGauss'
+
+  def get_info_string(self):
+    return 'Gaussian with diagonal covariance.'
+  
+  def get_info_string_prior(self):
+    msg = 'Gauss-Wishart on each pair mu, lam (each dim independent)\n'
+    if self.D > 2:
+      sfx = ' ...'
+    else:
+      sfx = ''
+    S = np.diag(self._E_CovMat()[:2])
+    msg += 'E[ mu[k] ]     = %s%s\n' % (str(self.Prior.m[:2]), sfx)
+    msg += 'E[ CovMat[k] ] = \n'
+    msg += str(S) + sfx
+    msg = msg.replace('\n', '\n  ')
+    return msg
+
   ######################################################### Set EstParams
   #########################################################
   def setEstParams(self, obsModel=None, SS=None, LP=None, Data=None,
@@ -174,11 +195,14 @@ class DiagGaussObsModel(AbstractObsModel):
   ########################################################### EM
   ########################################################### 
   # _________________________________________________________ E step
-  def calcSoftEvMatrix_FromEstParams(self, Data):
+  def calcLogSoftEvMatrix_FromEstParams(self, Data):
+    K = self.EstParams.K
+    L = np.zeros((Data.nObs, K))
     for k in xrange(K):
       L[:,k] = - 0.5 * self.D * LOGTWOPI \
                - 0.5 * np.sum(np.log(self.EstParams.sigma)) \
                - 0.5 * self._mahalDist_EstParam(Data.X, k)
+    return L
 
   def _mahalDist_EstParam(self, X, k):
     ''' Calculate distance to every row of matrix X
@@ -234,7 +258,7 @@ class DiagGaussObsModel(AbstractObsModel):
   ########################################################### VB
   ########################################################### 
 
-  def calcSoftEvMatrix_FromPost(self, Data):
+  def calcLogSoftEvMatrix_FromPost(self, Data):
     ''' Calculate soft ev matrix 
 
         Returns
@@ -245,7 +269,7 @@ class DiagGaussObsModel(AbstractObsModel):
     L = np.zeros((Data.nObs, K))
     for k in xrange(K):
       L[:,k] = - 0.5 * self.D * LOGTWOPI \
-               + 0.5 * self.GetCached('E_logL', k)  \
+               + 0.5 * np.sum(self.GetCached('E_logL', k))  \
                - 0.5 * self._mahalDist_Post(Data.X, k)
     return L
 
@@ -360,6 +384,15 @@ class DiagGaussObsModel(AbstractObsModel):
   ########################################################### Expectations
   ########################################################### 
     
+  def _E_CovMat(self, k=None):
+    if k is None:
+      nu = self.Prior.nu
+      beta = self.Prior.beta
+    else:
+      nu = self.Post.nu[k]
+      beta = self.Post.beta[k]
+    return beta / (nu - 2)
+
   def _E_logL(self, k=None):
     ''' 
         Returns

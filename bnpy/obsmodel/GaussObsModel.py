@@ -65,6 +65,27 @@ class GaussObsModel(AbstractObsModel):
     self.Prior.setField('m', m, dims=('D'))
     self.Prior.setField('B', B, dims=('D','D'))
 
+  ######################################################### I/O Utils
+  #########################################################   for humans
+  def get_name(self):
+    return 'Gauss'
+
+  def get_info_string(self):
+    return 'Gaussian with full covariance.'
+  
+  def get_info_string_prior(self):
+    msg = 'Gauss-Wishart on each mean/prec matrix pair: mu, Lam\n'
+    if self.D > 2:
+      sfx = ' ...'
+    else:
+      sfx = ''
+    S = self._E_CovMat()[:2,:2]
+    msg += 'E[ mu[k] ]     = %s%s\n' % (str(self.Prior.m[:2]), sfx)
+    msg += 'E[ CovMat[k] ] = \n'
+    msg += str(S) + sfx
+    msg = msg.replace('\n', '\n  ')
+    return msg
+
   ######################################################### Set EstParams
   #########################################################
   def setEstParams(self, obsModel=None, SS=None, LP=None, Data=None,
@@ -179,11 +200,14 @@ class GaussObsModel(AbstractObsModel):
   ########################################################### EM
   ########################################################### 
   # _________________________________________________________ E step
-  def calcSoftEvMatrix_FromEstParams(self, Data):
+  def calcLogSoftEvMatrix_FromEstParams(self, Data):
+    K = self.EstParams.K
+    L = np.empty((Data.nObs, K))
     for k in xrange(K):
-      L[:,k] = 0.5 * self.D * LOGTWOPI \
-               - 0.5 * self.GetCached('logdetSigma', k)  \
+      L[:,k] = - 0.5 * self.D * LOGTWOPI \
+               - 0.5 * self._logdetSigma(k)  \
                - 0.5 * self._mahalDist_EstParam(Data.X, k)
+    return L
 
   def _mahalDist_EstParam(self, X, k):
     Q = np.linalg.solve(self.GetCached('cholSigma', k), \
@@ -236,7 +260,7 @@ class GaussObsModel(AbstractObsModel):
   ########################################################### VB
   ########################################################### 
 
-  def calcSoftEvMatrix_FromPost(self, Data):
+  def calcLogSoftEvMatrix_FromPost(self, Data):
     ''' Calculate soft ev matrix 
 
         Returns
@@ -409,6 +433,15 @@ class GaussObsModel(AbstractObsModel):
 
   ########################################################### Expectations
   ########################################################### 
+  def _E_CovMat(self, k=None):
+    if k is None:
+      B = self.Prior.B
+      nu = self.Prior.nu
+    else:
+      B = self.Post.B[k]
+      nu = self.Post.nu[k]
+    return B / (nu - self.D - 1)
+
   def _cholB(self, k=None):
     if k is None:
       B = self.Prior.B
@@ -428,7 +461,7 @@ class GaussObsModel(AbstractObsModel):
       nu = self.Post.nu[k]
     return self.D * LOGTWO \
            - self.GetCached('logdetB', k) \
-           + np.sum(np.digamma(0.5 * (nu + 1 - dvec)))
+           + np.sum(digamma(0.5 * (nu + 1 - dvec)))
 
   def _trace__E_L(self, Smat, k=None):
     if k is None:

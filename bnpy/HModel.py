@@ -51,7 +51,7 @@ class HModel(object):
     allocModel = AllocConstr(inferType, allocPriorDict)
 
     ObsConstr = ObsModelConstructorsByName[obsModelName]
-    obsModel = ObsConstr.CreateWithPrior(inferType, obsPriorDict, Data)
+    obsModel = ObsConstr(inferType, Data=Data, **obsPriorDict)
     return cls(allocModel, obsModel)
   
     
@@ -59,7 +59,7 @@ class HModel(object):
     ''' Create a clone of this object with distinct memory allocation
         Any manipulation of clone's parameters will NOT affect self
     '''
-    return copy.deepcopy( self )
+    return copy.deepcopy(self)
 
   ######################################################### Local Params
   #########################################################    
@@ -90,13 +90,12 @@ class HModel(object):
     SS = self.obsModel.get_global_suff_stats(Data, SS, LP, **kwargs)
     if doAmplify:
       # Change effective scale of the suff stats, for soVB learning
-      if hasattr(Data,"nDoc"):
+      if hasattr(Data, 'nDoc'):
         ampF = Data.nDocTotal / Data.nDoc
         SS.applyAmpFactor(ampF)
       else:
         ampF = Data.nObsTotal / Data.nObs
         SS.applyAmpFactor(ampF)
-
     return SS
   
   ######################################################### Global Params
