@@ -291,13 +291,18 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
       algP[moveKey] = KwArgs[moveKey]
 
   outputP = KwArgs['OutputPrefs']
-  if algName == 'EM' or algName == 'VB':
-    learnAlg = bnpy.learnalg.VBAlg(savedir=savepath, seed=algseed, \
+  if algName == 'EM':
+    learnAlg = bnpy.learnalg.EMAlg(savedir=savepath, seed=algseed,
+                                      algParams=algP, outputParams=outputP)
+  elif algName == 'VB':
+    learnAlg = bnpy.learnalg.VBAlg(savedir=savepath, seed=algseed,
                                       algParams=algP, outputParams=outputP)
   elif algName == 'soVB':
-    learnAlg = bnpy.learnalg.SOVBAlg(savedir=savepath, seed=algseed, algParams=algP, outputParams=outputP)
+    learnAlg = bnpy.learnalg.SOVBAlg(savedir=savepath, seed=algseed,
+                                      algParams=algP, outputParams=outputP)
   elif algName == 'moVB':
-    learnAlg = bnpy.learnalg.MOVBAlg(savedir=savepath, seed=algseed, algParams=algP, outputParams=outputP)
+    learnAlg = bnpy.learnalg.MOVBAlg(savedir=savepath, seed=algseed, 
+                                      algParams=algP, outputParams=outputP)
   else:
     raise NotImplementedError("Unknown learning algorithm " + algName)
   return learnAlg
@@ -312,11 +317,6 @@ def writeArgsToFile( ReqArgs, KwArgs, taskoutpath ):
   import json
   ArgDict = ReqArgs
   ArgDict.update(KwArgs)
-  #RelevantOpts = dict(Initialization=1, OutputPrefs=1, OnlineDataPrefs=1, birth=1, merge=1)
-  #for key in ArgDict:
-  #  if key.count('Name') > 0:
-  #    RelevantOpts[ ArgDict[key] ] = 1
-  #print [k for k in ArgDict.keys()]
   for key in ArgDict:
     if key.count('Name') > 0:
       continue

@@ -5,5 +5,6 @@ from LearnAlg import LearnAlg
 from VBAlg import VBAlg
 from MOVBAlg import MOVBAlg
 from SOVBAlg import SOVBAlg
+from EMAlg import EMAlg
 
-__all__ = ['LearnAlg', 'VBAlg', 'MOVBAlg', 'SOVBAlg']
+__all__ = ['LearnAlg', 'VBAlg', 'MOVBAlg', 'SOVBAlg', 'EMAlg']
