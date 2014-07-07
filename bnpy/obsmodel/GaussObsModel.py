@@ -308,7 +308,7 @@ class GaussObsModel(AbstractObsModel):
     for k in xrange(SS.K):
       km_x = Prior.kappa * Prior.m + SS.x[k]
       m[k] = 1.0/Post.kappa[k] * km_x
-      B[k] = PB + SS.xxT[k] - 1.0/Post.kappa[k] * np.outer(km_x, km_x)
+      B[k] = PB + SS.xxT[k] - Post.kappa[k] * np.outer(m[k], m[k])
     Post.setField('m', m, dims=('K', 'D'))
     Post.setField('B', B, dims=('K', 'D', 'D'))
 
