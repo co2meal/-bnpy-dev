@@ -429,6 +429,46 @@ class GaussObsModel(AbstractObsModel):
               - c_Func(nu, B, m, kappa)
     return elbo
 
+  ########################################################### Post
+  ###########################################################
+  def calcLogMargLikForComp(self, SS, kA, kB=None, **kwargs):
+    ''' Calc log marginal likelihood of data assigned to given component
+          (up to an additive constant that depends on the prior)
+        Requires Data pre-summarized into sufficient stats for each comp.
+        If multiple comp IDs are provided, we combine into a "merged" component.
+        
+        Args
+        -------
+        SS : bnpy suff stats object
+        kA : integer ID of target component to compute likelihood for
+        kB : (optional) integer ID of second component.
+             If provided, we merge kA, kB into one component for calculation.
+        Returns
+        -------
+        logM : scalar real
+               logM = log p( data assigned to comp kA ) [up to constant]
+    '''
+    nu, B, m, kappa = self.calcPostParamsForComp(SS, kA, kB)
+    return -1 * c_Func(nu, B, m, kappa)
+
+  def calcPostParamsForComp(self, SS, kA, kB=None):
+    if kB is None:
+      SN = SS.N[kA]
+      Sx = SS.x[kA]
+      SxxT = SS.xxT[kA]
+    else:
+      SN = SS.N[kA] + SS.N[kB]
+      Sx = SS.x[kA] + SS.x[kB]
+      SxxT = SS.xxT[kA] + SS.xxT[kB]
+    Prior = self.Prior
+    nu = Prior.nu + SN
+    kappa = Prior.kappa + SN
+    m = 1/kappa * (Prior.kappa * Prior.m + Sx) 
+    B = Prior.B + Prior.kappa * np.outer(Prior.m, Prior.m) \
+                - kappa * np.outer(m, m) \
+                + SxxT
+    return nu, B, m, kappa
+
   ########################################################### Gibbs
   ########################################################### 
   def calcMargLik(self):
@@ -545,7 +585,7 @@ def c_Func(nu, logdetB, m, kappa):
          - 0.25 * D * (D-1) * LOGPI \
          - 0.5 * D * LOGTWO * nu \
          - np.sum( gammaln( 0.5 * (nu + 1 - dvec) )) \
-         + 0.5 * D * kappa \
+         + 0.5 * D * np.log(kappa) \
          + 0.5 * nu * logdetB
 
 def c_Diff(nu1, logdetB1, m1, kappa1,
@@ -555,7 +595,7 @@ def c_Diff(nu1, logdetB1, m1, kappa1,
   return - 0.5 * D * LOGTWO * (nu1 - nu2) \
          - np.sum( gammaln( 0.5 * (nu1 + 1 - dvec) )) \
          + np.sum( gammaln( 0.5 * (nu2 + 1 - dvec) )) \
-         + 0.5 * D * (kappa1 - kappa2) \
+         + 0.5 * D * (np.log(kappa1) - np.log(kappa2)) \
          + 0.5 * (nu1 * logdetB1 - nu2 * logdetB2)
 
 def createECovMatFromUserInput(D=0, Data=None, ECovMat='eye', sF=1.0):
