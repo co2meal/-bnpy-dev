@@ -45,7 +45,10 @@ def init_global_params(hmodel, Data, initname=None, seed=0, nRepeatTrue=2, **kwa
       curLoc += L
     resp = bigResp
   elif initname == 'trueparams':
-    hmodel.set_global_params(**Data.TrueParams)
+    InitParams = dict(**Data.TrueParams)
+    if hasattr(Data, 'word_count'):
+      InitParams['wordcountTotal'] = Data.word_count.sum()
+    hmodel.set_global_params(**InitParams)
     return
   else:
     raise NotImplementedError('Unknown initname: %s' % (initname))

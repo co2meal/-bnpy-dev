@@ -8,13 +8,15 @@ Defines some generic routines for
   * printing progress updates to stdout
   * recording run-time
 '''
-from bnpy.ioutil import ModelWriter
-from bnpy.util import closeAtMSigFigs, isEvenlyDivisibleFloat
 import numpy as np
 import time
-import os
 import logging
+import os
+import sys
 import scipy.io
+
+from bnpy.ioutil import ModelWriter
+from bnpy.util import closeAtMSigFigs, isEvenlyDivisibleFloat
 
 Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
@@ -23,7 +25,6 @@ class LearnAlg(object):
 
   def __init__(self, savedir=None, seed=0, 
                      algParams=dict(), outputParams=dict(),
-                     onLapCompleteFunc=lambda:None, onFinishFunc=lambda:None,
                ):
     ''' Constructs and returns a LearnAlg object
     ''' 
@@ -43,6 +44,9 @@ class LearnAlg(object):
     self.algParamsLP = dict()
     for k,v in algParams.items():
       if k.count('LP') > 0:
+        if k == 'logdirLP' and v:
+          v = self.savedir
+          print v
         self.algParamsLP[k] = v
     
   def fit(self, hmodel, Data):
@@ -162,9 +166,8 @@ class LearnAlg(object):
         f.write('%d\n' % (self.nObsProcessed))
       with open( self.mkfile('times.txt'), 'a') as f:
         f.write('%.3f\n' % (self.get_elapsed_time()))
-      if self.hasMove('birth') or self.hasMove('merge'):
-        with open( self.mkfile('K.txt'), 'a') as f:
-          f.write('%d\n' % (hmodel.obsModel.K))
+      with open( self.mkfile('K.txt'), 'a') as f:
+        f.write('%d\n' % (hmodel.obsModel.K))
 
     saveEvery = self.outputParams['saveEvery']
     if saveEvery <= 0 or self.savedir is None:
@@ -267,22 +270,30 @@ class LearnAlg(object):
       return False
     return (nLapTotal <= 5) or (lapFrac <= np.ceil(frac * nLapTotal))
 
-  def eval_custom_func(self, hmodel, iterid, lapFrac):
-      ''' Evaluates a custom hook function called customFunc.py in the path specified in algParams['customFuncPath']
+  def eval_custom_func(self, lapFrac, **kwargs):
+      ''' Evaluates a custom hook function 
       '''
-      import ast
-      customFuncPath = self.algParams['customFuncPath']
-      customFuncArgs_string = self.algParams['customFuncArgs']
+      cFuncPath = self.outputParams['customFuncPath']
+      if cFuncPath is None or cFuncPath == 'None':
+        return None
+
+      cFuncArgs_string = self.outputParams['customFuncArgs']
       nLapTotal = self.algParams['nLap']
-      percentDone = lapFrac/nLapTotal
-      if customFuncPath is not None and customFuncPath != 'None':
-        import sys
-        sys.path.append(customFuncPath)
-        customFuncArgs = {}
-        import customFunc
-        if lapFrac % 1 != 0:
-            customFunc.onBatchComplete(hmodel, percentDone , customFuncArgs)
-        elif lapFrac % 1 == 0 and lapFrac < nLapTotal:
-            customFunc.onLapComplete(hmodel, percentDone , customFuncArgs)
-        else:
-            customFunc.onAlgorithmComplete(hmodel, percentDone , customFuncArgs)
+      if type(cFuncPath) == str:
+        pathParts = cFuncPath.split(os.path.sep)
+        cFuncDir = os.path.sep.join( pathParts[:-1])
+        cFuncModName = pathParts[-1].split('.py')[0]
+        sys.path.append(cFuncDir)
+        cFuncModule = __import__(cFuncModName, fromlist=[]) 
+      else:
+        cFuncModule = cFuncPath # directly passed in as object
+      
+      kwargs['lapFrac'] = lapFrac
+      if hasattr(cFuncModule, 'onBatchComplete'):
+        cFuncModule.onBatchComplete(args=cFuncArgs_string, **kwargs)
+      if hasattr(cFuncModule, 'onLapComplete') \
+         and isEvenlyDivisibleFloat(lapFrac, 1.0):
+        cFuncModule.onLapComplete(args=cFuncArgs_string, **kwargs)
+      if hasattr(cFuncModule, 'onAlgorithmComplete') \
+         and lapFrac == nLapTotal:
+        cFuncModule.onAlgorithmComplete(args=cFuncArgs_string, **kwargs)

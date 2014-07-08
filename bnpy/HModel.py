@@ -40,6 +40,9 @@ class HModel(object):
     self.obsModel = obsModel
     self.inferType = allocModel.inferType
     self.initParams = None
+    if hasattr(obsModel, 'setupWithAllocModel'):
+      # Tell the obsModel whether to model docs or words
+      obsModel.setupWithAllocModel(allocModel)
 
   @classmethod
   def CreateEntireModel(cls, inferType, allocModelName, obsModelName, allocPriorDict, obsPriorDict, Data):
@@ -49,7 +52,7 @@ class HModel(object):
     allocModel = AllocConstr(inferType, allocPriorDict)
 
     ObsConstr = ObsModelConstructorsByName[obsModelName]
-    obsModel = ObsConstr.CreateWithPrior(inferType, obsPriorDict, Data)
+    obsModel = ObsConstr(inferType, Data=Data, **obsPriorDict)
     return cls(allocModel, obsModel)
   
     
@@ -57,7 +60,7 @@ class HModel(object):
     ''' Create a clone of this object with distinct memory allocation
         Any manipulation of clone's parameters will NOT affect self
     '''
-    return copy.deepcopy( self )
+    return copy.deepcopy(self)
 
   ######################################################### Local Params
   #########################################################    
@@ -71,6 +74,7 @@ class HModel(object):
     # Calculate the "soft evidence" each obsModel component has on each item
     # Fills in LP['E_log_soft_ev']
     LP = self.obsModel.calc_local_params(Data, LP, **kwargs)
+
     # Combine with allocModel probs of each cluster
     # Fills in LP['resp'], a Data.nObs x K matrix whose rows sum to one
     LP = self.allocModel.calc_local_params(Data, LP, **kwargs)
@@ -99,13 +103,12 @@ class HModel(object):
     SS = self.obsModel.get_global_suff_stats(Data, SS, LP, **kwargs)
     if doAmplify:
       # Change effective scale of the suff stats, for soVB learning
-      if hasattr(Data,"nDoc"):
+      if hasattr(Data, 'nDoc'):
         ampF = Data.nDocTotal / Data.nDoc
         SS.applyAmpFactor(ampF)
       else:
         ampF = Data.nObsTotal / Data.nObs
         SS.applyAmpFactor(ampF)
-
     return SS
   
   ######################################################### Global Params
@@ -125,41 +128,63 @@ class HModel(object):
     self.allocModel.insert_global_params(**kwargs)
     self.obsModel.insert_global_params(**kwargs)
 
+  def reorderComps(self, order):
+    self.allocModel.reorderComps(order)
+    self.obsModel.reorderComps(order)
+
   ######################################################### Evidence
   #########################################################     
-  def calc_evidence(self, Data=None, SS=None, LP=None):
+  def calc_evidence(self, Data=None, SS=None, LP=None, todict=False, **kwargs):
     ''' Compute the evidence lower bound (ELBO) of the objective function.
     '''
     if Data is not None and LP is None and SS is None:
       LP = self.calc_local_params(Data)
       SS = self.get_global_suff_stats(Data, LP)
-    evA = self.allocModel.calc_evidence(Data, SS, LP)
-    evObs = self.obsModel.calc_evidence(Data, SS, LP)
-    return evA + evObs
-  
+    evA = self.allocModel.calc_evidence(Data, SS, LP, todict=todict, **kwargs)
+    evObs = self.obsModel.calc_evidence(Data, SS, LP, todict=todict, **kwargs)
+    if todict:
+      evA.update(evObs)
+      return evA
+    else:
+      return evA + evObs
+    
   def calc_jointll(self, Data=None, SS=None, LP=None):
       '''
       TODO
       '''
       return -1
-  ######################################################### Init Global/Local Params
-  #########################################################    
+
+  ######################################################### Init params
+  #########################################################
   def init_global_params(self, Data, **initArgs):
     ''' Initialize (in-place) global parameters
+
+        Keyword Args
+        -------
+        K : number of components
+        initname : string name of routine for initialization
     '''
     initname = initArgs['initname']
     if initname.count('true') > 0:
       init.FromTruth.init_global_params(self, Data, **initArgs)
     elif initname.count(os.path.sep) > 0:
       init.FromSaved.init_global_params(self, Data, **initArgs)
-    elif str(type(self.obsModel)).count('Gauss') > 0:
-      init.FromScratchGauss.init_global_params(self, Data, **initArgs)
-    elif str(type(self.obsModel)).count('Mult') > 0:
-      init.FromScratchMult.init_global_params(self, Data, **initArgs)
-    elif str(type(self.obsModel)).count('BernRel') > 0:
-      init.FromScratchBernRel.init_global_params(self, Data, **initArgs)
     else:
-      raise NotImplementedError("TODO")
+      # Set hmodel global parameters "from scratch", in two stages
+      # * init allocmodel to "uniform" prob over comps
+      # * init obsmodel in likelihood-specific, data-driven fashion
+      self.allocModel.init_global_params(Data, **initArgs)
+      if str(type(self.obsModel)).count('Gauss') > 0:
+        init.FromScratchGauss.init_global_params(self.obsModel, 
+                                                 Data, **initArgs)
+      elif str(type(self.obsModel)).count('Mult') > 0:
+        init.FromScratchMult.init_global_params(self.obsModel,
+                                                Data, **initArgs)
+      elif str(type(self.obsModel)).count('BernRel') > 0:
+        init.FromScratchBernRel.init_global_params(self.obsModel,
+                                                Data, **initArgs)
+      else:
+        raise NotImplementedError('Unrecognized initname procedure.')
    
   
   def init_local_params(self,Data, **initArgs): 
@@ -172,17 +197,17 @@ class HModel(object):
     '''
     initname = initArgs['initname']
     if initname.count('true') > 0:
-      #init.FromTruth.init_global_params(self, Data, **initArgs)
       raise NotImplementedError("TODO")
     elif initname.count(os.path.sep) > 0:
-      #init.FromSaved.init_global_params(self, Data, **initArgs)
       raise NotImplementedError("TODO")
-    if str(type(Data)).count('DiverseData')==0: 
-       self.initParams = init.FromScratchLocal.init_local_params(self,Data,**initArgs)
+    elif str(type(Data)).count('Diverse') == 0: 
+      LP = init.FromScratchLocal.init_local_params(self, Data, **initArgs)
+      self.initParams = LP
     else:
-        #init.FromScratchDiverse.init_global_params(self, Data, **initArgs) 
-        raise NotImplementedError("TODO")         
+      #init.FromScratchDiverse.init_global_params(self, Data, **initArgs) 
+      raise NotImplementedError("TODO")         
       
+
   ######################################################### I/O Utils
   ######################################################### 
   def getAllocModelName(self):

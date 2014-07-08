@@ -2,32 +2,13 @@
 HDPPE.py
 Bayesian nonparametric admixture model with unbounded number of components K
 
-Attributes
--------
-K        : # of components
-alpha0   : scalar concentration param for global-level stick-breaking params v
-gamma    : scalar conc. param for document-level mixture weights pi[d]
-
-Local Parameters (document-specific)
---------
-alphaPi : nDoc x K matrix, 
-             row d has params for doc d's distribution pi[d] over the K topics
-             q( pi[d] ) ~ Dir( alphaPi[d] )
-E_logPi : nDoc x K matrix
-             row d has E[ log pi[d] ]
-DocTopicCount : nDoc x K matrix
-                  entry d,k gives the expected number of times
-                              that topic k is used in document d
-word_variational : nDistinctWords x K matrix
-                  row i has params for word i's Discrete distr over K topics
-
 Global Parameters (shared across all documents)
 --------
 v   : K-length vector, point estimate for stickbreaking fractions v1, v2, ... vK
 '''
 import numpy as np
 
-import OptimizerForHDPPE as OptimPE
+import OptimizerForHDPPE as OptPE
 from .HDPModel import HDPModel
 from ...util import gammaln
 
@@ -35,19 +16,11 @@ class HDPPE(HDPModel):
 
   ######################################################### Constructors
   #########################################################
-  ''' Handled by HDPModel
+  ''' Constructor handled by HDPModel
   '''
         
   def set_helper_params(self):
-    self.Ebeta = OptimPE.v2beta(self.v)
-
-  ######################################################### Accessors
-  #########################################################
-  def get_keys_for_memoized_local_params(self):
-    ''' Return list of string names of the LP fields
-         that moVB needs to memoize across visits to a particular batch
-    '''
-    return ['alphaPi']
+    self.Ebeta = OptPE._v2beta(self.v)
 
   ######################################################### Local Params
   #########################################################
@@ -65,60 +38,86 @@ class HDPPE(HDPModel):
     ''' Update global parameters v that control topic probabilities beta
     '''
     self.K = SS.K
-    sumLogPi = np.hstack([SS.sumLogPiActive, SS.sumLogPiUnused])
-    assert sumLogPi.size == self.K + 1
-    
-    try:
-      v, fofv, Info = OptimPE.estimate_v(alpha0=self.alpha0, gamma=self.gamma,
-                            sumLogPi=sumLogPi, nDoc=SS.nDoc)
-      self.v = v
-    except ValueError as v:
-      if str(v).count('failed') > 0:
-        if self.v.size != self.K:
-          beta = np.hstack([SS.N, 0.01])
-          beta /= beta.sum()
-          self.v = OptimPE.beta2v(beta)
-        else:
-          pass # keep current estimate of v!
+    v = self._find_optimal_v(SS)
+    self.v = v
     assert self.v.size == self.K
-    self.set_helper_params()
-          
+    self.set_helper_params()          
   
   def update_global_params_soVB(self, SS, rho, **kwargs):
-    '''
+    ''' Stochastic online update for global parameters v
     '''
     raise NotImplementedError("TODO")
-
-  def set_global_params(self, K=0, beta=None, U1=None, U0=None, 
-                                Ebeta=None, EbetaLeftover=None, **kwargs):
-    ''' Directly set global parameter vector v
-          using provided arguments
+        
+  def _find_optimal_v(self, SS):
+    ''' Find optimal vector v via gradient descent
     '''
-    self.K = K
-    if U1 is not None and U0 is not None:
-      self.v = U1 / (U1 + U0)
-    
+    sumLogPi = np.hstack([SS.sumLogPiActive, SS.sumLogPiUnused])
+    assert sumLogPi.size == SS.K + 1
+
+    if hasattr(self, 'v') and self.v.size == SS.K:
+      initv = self.v.copy()
+    else:
+      initv = None
+    try:
+      v, f, Info = OptPE.find_optimum_multiple_tries(sumLogPi, SS.nDoc,
+                                                     gamma=self.gamma,
+                                                     alpha=self.alpha0,
+                                                     initv=initv,
+                                                     approx_grad=False)
+    except ValueError as error:
+      if str(error).count('FAILURE') == 0:
+        raise error
+      if hasattr(self, 'v') and self.v.size == self.K:
+        Log.error('***** Optim failed. Remain at cur val.' + str(error))
+        v = self.v
+      else:
+        Log.error('***** Optim failed. Set to uniform. ' + str(error))
+        v = OptPE.create_initv(self.K)
+    return v
+
+  def set_global_params(self, hmodel=None, rho=None, v=None,
+                              **kwargs):
+    ''' Set global parameter v to provided value
+    '''
+    if rho is not None:
+      v = rho
+    if hmodel is not None:
+      self.K = hmodel.allocModel.K
+      self.v = hmodel.allocModel.v
+      self.set_helper_params()
+    elif v is not None:
+      self.v = v
+      self.K = v.size
+      self.set_helper_params()
+    else:
+      self._set_global_params_from_scratch(**kwargs)
+
+  def _set_global_params_from_scratch(self, beta=None,
+                              Ebeta=None, EbetaLeftover=None, **kwargs):
+    ''' Set global parameter v to match provided topic distribution
+    '''
     if Ebeta is not None and EbetaLeftover is not None:
-      Ebeta = np.squeeze(Ebeta)
-      EbetaLeftover = np.squeeze(EbetaLeftover)
-      beta = np.hstack( [Ebeta, EbetaLeftover])
+      beta = np.hstack([np.squeeze(Ebeta), np.squeeze(EbetaLeftover)])          
     elif beta is not None:
-      assert beta.size == K
-      beta = np.hstack([beta, np.min(beta)/100.])
+      K = beta.size
+      rem = np.minimum(0.1, 1.0/(3*K))
+      beta = np.hstack([np.squeeze(beta), rem])
       beta = beta/np.sum(beta)
-    if beta is not None:
-      assert abs(np.sum(beta) - 1.0) < 0.005
-      self.v = OptimPE.beta2v(beta)
+    else:
+      raise ValueError('Vector beta not specified.')
+    # Convert specified beta to v
+    self.v = OptPE._beta2v(beta)
+    self.K = beta.size - 1    
     assert self.v.size == self.K
     self.set_helper_params()
-        
+
   ######################################################### Evidence
   #########################################################  
-  ''' calc_evidence inherited from HDPModel
+  ''' Inherited from HDPModel
   '''
 
   ####################################################### ELBO terms for Z
-  ''' inherited from HDPModel
+  ''' Inherited from HDPModel
   '''
   
   ####################################################### ELBO terms for Pi
@@ -126,14 +125,12 @@ class HDPPE(HDPModel):
     ''' Returns scalar value of E[ log p(PI | alpha0)]
     '''
     K = SS.K
-    kvec = K + 1 - np.arange(1, K+1)
     # logDirNormC : scalar norm const that applies to each iid draw pi_d
     logDirNormC = gammaln(self.gamma) - np.sum(gammaln(self.gamma*self.Ebeta))
     # logDirPDF : scalar sum over all doc's pi_d
     sumLogPi = np.hstack([SS.sumLogPiActive, SS.sumLogPiUnused])
     logDirPDF = np.inner(self.gamma * self.Ebeta - 1., sumLogPi)
     return (SS.nDoc * logDirNormC) + logDirPDF
-
 
   ####################################################### ELBO terms for V
   def E_logpV(self):

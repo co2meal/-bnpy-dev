@@ -32,8 +32,8 @@ import pdb
 Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
 
-FullDataAlgSet = ['EM','VB','GS']
-OnlineDataAlgSet = ['soVB', 'moVB']
+FullDataAlgSet = ['EM', 'VB', 'GS']
+OnlineDataAlgSet = ['soVB', 'moVB', 'moVBsimple']
 
 def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
                       doSaveToDisk=True, doWriteStdOut=True, 
@@ -155,16 +155,29 @@ def _run_task_internal(jobname, taskid, nTask,
   # Create and initialize model parameters
   hmodel = createModel(InitData, ReqArgs, KwArgs)
   if(algName=='GS'):
-      hmodel.init_local_params(InitData, seed=algseed,
-                            **KwArgs['Initialization'])
+    hmodel.init_local_params(InitData, seed=algseed,
+                             **KwArgs['Initialization'])
   else:
-      hmodel.init_global_params(InitData, seed=algseed,
-                            **KwArgs['Initialization'])
-
+    hmodel.init_global_params(InitData, seed=algseed, taskid=taskid,
+                              savepath=taskoutpath,
+                              **KwArgs['Initialization'])
   # Create learning algorithm
   learnAlg = createLearnAlg(Data, hmodel, ReqArgs, KwArgs,
                               algseed=algseed, savepath=taskoutpath)
-
+  if learnAlg.hasMove('birth'):
+    import bnpy.birthmove.BirthLogger as BirthLogger
+    BirthLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
+    BirthLogger.log('This is the birth log.')
+  if learnAlg.hasMove('delete'):
+    import bnpy.deletemove.DeleteLogger as DeleteLogger
+    DeleteLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
+    DeleteLogger.log('This is the delete log.')
+  if learnAlg.hasMove('prune'):
+    import bnpy.deletemove.PruneLogger as PruneLogger
+    PruneLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
+  if learnAlg.hasMove('merge'):
+    import bnpy.mergemove.MergeLogger as MergeLogger
+    MergeLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
   # Check if running on grid
   try:
     jobID = int(os.getenv('JOB_ID'))
@@ -257,7 +270,8 @@ def createModel(Data, ReqArgs, KwArgs):
   oName = ReqArgs['obsModelName']
   aPriorDict = KwArgs[aName]
   oPriorDict = KwArgs[oName]
-  hmodel = bnpy.HModel.CreateEntireModel(algName, aName, oName, aPriorDict, oPriorDict, Data)
+  hmodel = bnpy.HModel.CreateEntireModel(algName, aName, oName, 
+                                         aPriorDict, oPriorDict, Data)
   return hmodel  
 
 
@@ -277,23 +291,34 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
   '''
   algName = ReqArgs['algName']
   algP = KwArgs[algName]
-  if 'birth' in KwArgs:
-    algP['birth'] = KwArgs['birth']
-  if 'merge' in KwArgs:
-    algP['merge'] = KwArgs['merge']
+  for moveKey in ['birth', 'merge', 'shuffle', 'delete', 'prune']:
+    if moveKey in KwArgs:
+      algP[moveKey] = KwArgs[moveKey]
+
   outputP = KwArgs['OutputPrefs']
-  if algName == 'EM' or algName == 'VB':
-    learnAlg = bnpy.learnalg.VBLearnAlg(savedir=savepath, seed=algseed, \
+  if algName == 'EM':
+    learnAlg = bnpy.learnalg.EMAlg(savedir=savepath, seed=algseed,
+                                      algParams=algP, outputParams=outputP)
+  elif algName == 'VB':
+    learnAlg = bnpy.learnalg.VBAlg(savedir=savepath, seed=algseed,
                                       algParams=algP, outputParams=outputP)
   elif algName == 'soVB':
-    learnAlg = bnpy.learnalg.StochasticOnlineVBLearnAlg(savedir=savepath, seed=algseed, algParams=algP, outputParams=outputP)
+    learnAlg = bnpy.learnalg.SOVBAlg(savedir=savepath, seed=algseed,
+                                      algParams=algP, outputParams=outputP)
   elif algName == 'moVB':
-    learnAlg = bnpy.learnalg.MemoizedOnlineVBLearnAlg(savedir=savepath, seed=algseed, algParams=algP, outputParams=outputP)
+    learnAlg = bnpy.learnalg.MOVBAlg(savedir=savepath, seed=algseed, 
+                                      algParams=algP, outputParams=outputP)
+  elif algName == 'moVBsimple':
+    learnAlg = bnpy.learnalg.SimpleMOVBAlg(savedir=savepath, seed=algseed, 
+                                      algParams=algP, outputParams=outputP)
   elif algName == 'GS':
-    learnAlg = bnpy.learnalg.GSLearnAlg(savedir=savepath, seed=algseed, algParams=algP, outputParams=outputP)  
+    learnAlg = bnpy.learnalg.GSAlg(savedir=savepath, seed=algseed, 
+                                      algParams=algP, outputParams=outputP)  
   else:
     raise NotImplementedError("Unknown learning algorithm " + algName)
   return learnAlg
+
+
 
 
 ########################################################### Write Args to File
@@ -305,11 +330,6 @@ def writeArgsToFile( ReqArgs, KwArgs, taskoutpath ):
   import json
   ArgDict = ReqArgs
   ArgDict.update(KwArgs)
-  #RelevantOpts = dict(Initialization=1, OutputPrefs=1, OnlineDataPrefs=1, birth=1, merge=1)
-  #for key in ArgDict:
-  #  if key.count('Name') > 0:
-  #    RelevantOpts[ ArgDict[key] ] = 1
-  #print [k for k in ArgDict.keys()]
   for key in ArgDict:
     if key.count('Name') > 0:
       continue
