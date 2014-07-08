@@ -18,7 +18,7 @@ Attributes
 import numpy as np
 
 from bnpy.allocmodel import AllocModel
-from bnpy.deletemove import DeleteUtil
+from bnpy.deletemove import DeleteLPUtil
 from bnpy.suffstats import SuffStatBag
 from bnpy.util import NumericUtil
 from bnpy.util import gammaln, digamma, EPS
