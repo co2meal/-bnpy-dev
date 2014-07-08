@@ -468,7 +468,7 @@ def c_Func(nu, beta, m, kappa):
   c1D = - 0.5 * LOGTWOPI \
          - 0.5 * LOGTWO * nu \
          - gammaln( 0.5 * nu ) \
-         + 0.5 * kappa \
+         + 0.5 * np.log(kappa) \
          + 0.5 * nu * np.log(beta)
   return np.sum(c1D)
 
@@ -481,7 +481,7 @@ def c_Diff(nu1, beta1, m1, kappa1,
   '''
   cDiff = - 0.5 * LOGTWO * (nu1 - nu2) \
           - gammaln(0.5 * nu1) + gammaln(0.5 * nu2) \
-          + 0.5 * (kappa1 - kappa2) \
+          + 0.5 * (np.log(kappa1) - np.log(kappa2)) \
           + 0.5 * (nu1 * np.log(beta1) - nu2 * np.log(beta2))
   return np.sum(cDiff)
 
