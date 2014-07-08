@@ -223,11 +223,10 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
     if not hasattr(self, 'EstParams') or self.EstParams.K != SS.K:
       self.EstParams = ParamBag(K=SS.K, D=SS.D)
 
-    mu = SS.x / SS.N[:,np.newaxis]
     minCovMat = self.min_covar * np.eye(SS.D)
     covMat = np.tile(minCovMat, (SS.K,1,1))
     for k in xrange(SS.K):
-      covMat[k] += SS.xxT[k] / SS.N[k] - np.outer(mu[k], mu[k])      
+      covMat[k] += SS.xxT[k] / SS.N[k]
     self.EstParams.setField('Sigma', covMat, dims=('K', 'D', 'D'))
 
   def updateEstParams_MAP(self, SS):
