@@ -96,6 +96,7 @@ class DiagGaussObsModel(AbstractObsModel):
     self.ClearCache()
     if obsModel is not None:
       self.EstParams = obsModel.EstParams.copy()
+      self.K = self.EstParams.K
       return
     
     if LP is not None and Data is not None:
@@ -107,6 +108,7 @@ class DiagGaussObsModel(AbstractObsModel):
       self.EstParams = ParamBag(K=mu.shape[0], D=mu.shape[1])
       self.EstParams.setField('mu', mu, dims=('K', 'D'))
       self.EstParams.setField('sigma', Sigma, dims=('K', 'D'))
+    self.K = self.EstParams.K
 
   def setEstParamsFromPost(self, Post):
     ''' Convert from Post (nu, beta, m, kappa) to EstParams (mu, Sigma),
@@ -117,7 +119,7 @@ class DiagGaussObsModel(AbstractObsModel):
     sigma = Post.beta / (nu[k] - 2)
     self.EstParams.setField('mu', mu, dims=('K','D'))
     self.EstParams.setField('sigma', sigma, dims=('K','D'))
-
+    self.K = self.EstParams.K
   
   ######################################################### Set Post
   #########################################################
@@ -130,6 +132,7 @@ class DiagGaussObsModel(AbstractObsModel):
     if obsModel is not None:
       if hasattr(obsModel, 'Post'):
         self.Post = obsModel.Post.copy()
+        self.K = self.Post.K
       else:
         self.setPostFromEstParams(obsModel.EstParams)
       return
@@ -145,6 +148,7 @@ class DiagGaussObsModel(AbstractObsModel):
       self.Post.setField('beta', beta, dims=('K', 'D'))
       self.Post.setField('m', m, dims=('K', 'D'))
       self.Post.setField('kappa', kappa, dims=('K'))
+    self.K = self.Post.K
 
   def setPostFromEstParams(self, EstParams, Data=None, N=None):
     ''' Convert from EstParams (mu, Sigma) to Post (nu, B, m, kappa),
@@ -168,6 +172,7 @@ class DiagGaussObsModel(AbstractObsModel):
     self.Post.setField('beta', beta, dims=('K', 'D'))
     self.Post.setField('m', m, dims=('K', 'D'))
     self.Post.setField('kappa', kappa, dims=('K'))
+    self.K = self.Post.K
 
   ########################################################### Summary
   ########################################################### 
@@ -233,6 +238,7 @@ class DiagGaussObsModel(AbstractObsModel):
 
     self.EstParams.setField('mu', mu, dims=('K', 'D'))
     self.EstParams.setField('sigma', sigma, dims=('K', 'D'))
+    self.K = SS.K
 
   def updateEstParams_MAP(self, SS):
     self.ClearCache()
@@ -254,6 +260,7 @@ class DiagGaussObsModel(AbstractObsModel):
     mu, sigma = MAPEstParams_inplace(nu, beta, m, kappa)   
     self.EstParams.setField('mu', mu, dims=('K', 'D'))
     self.EstParams.setField('sigma', sigma, dims=('K', 'D'))
+    self.K = SS.K
 
   ########################################################### VB
   ########################################################### 
@@ -309,6 +316,7 @@ class DiagGaussObsModel(AbstractObsModel):
       beta[k] = PB + SS.xx[k] - 1.0/Post.kappa[k] * np.square(km_x)
     Post.setField('m', m, dims=('K', 'D'))
     Post.setField('beta', beta, dims=('K', 'D'))
+    self.K = SS.K
 
   def calcELBO_Memoized(self, SS, doFast=False):
     ''' Calculate obsModel's ELBO using sufficient statistics SS and Post.
@@ -346,6 +354,46 @@ class DiagGaussObsModel(AbstractObsModel):
     return elbo.sum() - 0.5 * np.sum(SS.N) * SS.D * LOGTWOPI
 
   # TODO: Merge ELBO
+
+  ########################################################### Post
+  ###########################################################
+  def calcLogMargLikForComp(self, SS, kA, kB=None, **kwargs):
+    ''' Calc log marginal likelihood of data assigned to given component
+          (up to an additive constant that depends on the prior)
+        Requires Data pre-summarized into sufficient stats for each comp.
+        If multiple comp IDs are provided, we combine into a "merged" component.
+        
+        Args
+        -------
+        SS : bnpy suff stats object
+        kA : integer ID of target component to compute likelihood for
+        kB : (optional) integer ID of second component.
+             If provided, we merge kA, kB into one component for calculation.
+        Returns
+        -------
+        logM : scalar real
+               logM = log p( data assigned to comp kA ) [up to constant]
+    '''
+    nu, beta, m, kappa = self.calcPostParamsForComp(SS, kA, kB)
+    return -1 * c_Func(nu, beta, m, kappa)
+
+  def calcPostParamsForComp(self, SS, kA, kB=None):
+    if kB is None:
+      SN = SS.N[kA]
+      Sx = SS.x[kA]
+      Sxx = SS.xx[kA]
+    else:
+      SN = SS.N[kA] + SS.N[kB]
+      Sx = SS.x[kA] + SS.x[kB]
+      Sxx = SS.xx[kA] + SS.xx[kB]
+    Prior = self.Prior
+    nu = Prior.nu + SN
+    kappa = Prior.kappa + SN
+    m = 1/kappa * (Prior.kappa * Prior.m + Sx)
+    beta = Prior.beta + Sxx \
+             + Prior.kappa * np.square(Prior.m) \
+             - kappa * np.square(m)
+    return nu, beta, m, kappa
 
   ########################################################### Gibbs
   ########################################################### 

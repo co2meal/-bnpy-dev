@@ -36,17 +36,20 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None, **kwargs):
     if CompIDShift[kA] == -1 or CompIDShift[kB] == -1:
       continue
 
-    # jA, jB are the "shifted" indices under our new model, with K- Kaccepted comps
+    if M is not None:
+      Mcand = M[kA, kB]
+      scoreMsg = '%.3e' % (M[kA, kB])
+    else:
+      Mcand = None
+      scoreMsg = ''
+
+    # jA, jB are "shifted" indices under our new model, with K- Kaccepted comps
     jA = kA - CompIDShift[kA]
     jB = kB - CompIDShift[kB]
     curModel, curSS, curELBO, MoveInfo = buildMergeCandidateAndKeepIfImproved(
-                                          curModel, curSS, curELBO, jA, jB, M[kA,kB])
+                                          curModel, curSS, curELBO,
+                                          jA, jB, Mcand)
     
-    if M is not None:
-      scoreMsg = '%.3e' % (M[kA, kB])
-    else:
-      scoreMsg = ''
-
     if kwargs['mergeLogVerbose']:
       MergeLogger.log( '%3d | %3d %3d | % .4e | %s' 
                         % (trialID, jA, jB, MoveInfo['ELBOGain'], scoreMsg)
@@ -75,6 +78,7 @@ def buildMergeCandidateAndKeepIfImproved(curModel, curSS, curELBO, kA, kB, Mcur=
   ''' Create candidate model/SS with kA,kB merged, and keep if ELBO improves.
   '''
   assert not np.isnan(curELBO)
+  assert not np.isinf(curELBO)
 
   # Rewrite candidate's kA component to be the merger of kA+kB
   propSS = curSS.copy()
@@ -92,6 +96,7 @@ def buildMergeCandidateAndKeepIfImproved(curModel, curSS, curELBO, kA, kB, Mcur=
   # Verify Merge improves the ELBO 
   propELBO = propModel.calc_evidence(SS=propSS)
   assert not np.isnan(propELBO)
+  assert not np.isinf(propELBO)
 
   Info = dict(didAccept=propELBO > curELBO, 
               ELBOGain=propELBO - curELBO)

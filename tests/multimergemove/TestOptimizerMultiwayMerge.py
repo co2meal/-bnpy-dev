@@ -21,40 +21,65 @@ class TestOptimizerMultiwayMerge(unittest.TestCase):
     SS = model.get_global_suff_stats(Data, LP)
     model.update_global_params(SS)
 
-    # Now make the "new version" obsmodel
-    sys.path.append('/data/liv/liv-x/bnpy/bnpy/obsmodel2/')
-    import GaussObsModel
-    obsM = GaussObsModel.GaussObsModel('VB', D=Data.dim, 
-                                        ECovMat='eye')
-    obsM.Prior.nu = model.obsModel.obsPrior.dF
-    obsM.Prior.B = model.obsModel.obsPrior.invW
-    obsM.Prior.m = model.obsModel.obsPrior.m
-    obsM.Prior.kappa = model.obsModel.obsPrior.kappa
-
-    obsM.updatePost(SS)
-    aFunc = model.allocModel.calcMergeELBO_alph
-    oFunc = obsM.calcMergeELBO_alph
+    aFunc = model.allocModel.calcMergeGap_alph
+    oFunc = model.obsModel.calcMergeGap_alph
 
     self.model = model
-    self.obsM = obsM
     self.SS = SS
     self.aFunc = aFunc
     self.oFunc = oFunc
 
-  def test__find_optimum(self):
-    ''' Find optimal blend vector alph
+  def test__find_optimum(self, nTrial=10, PRNG=np.random.RandomState(0)):
+    ''' Verify that the alph returned by find_optimum is a local minimum
     '''
     SS = self.SS
     kdel = 0
     alph, f, Info = OMM.find_optimum(SS, kdel, self.aFunc, self.oFunc)
 
-    print alph
-    from IPython import embed; embed()
+    fopt = OMM.objFunc_alph(alph, SS, kdel, self.aFunc, self.oFunc)
+    print '%.5e [optimal]' % (fopt)
+    
+    for kk in xrange(SS.K - 1):
+      alph = np.zeros(SS.K-1)
+      alph[kk] = 1
+      f = OMM.objFunc_alph(alph, SS, kdel, self.aFunc, self.oFunc)
+      print '%.5e [all-to-one %d]' % (f, kk)
+      assert f >= fopt
 
-  def test_calcMergeELBO__allocmodel(self):
+    for nn in xrange(nTrial):
+      alph = PRNG.rand(SS.K - 1)
+      alph /= np.sum(alph)
+
+      f = OMM.objFunc_alph(alph, SS, kdel, self.aFunc, self.oFunc)
+      print '%.5e [rand trial %d]' % (f, nn)
+      assert f >= fopt
+
+
+  def test__find_optimum__sensitivity_to_init(self, PRNG=np.random.RandomState(0)):
+    ''' Determine if many local optima exist for single instance of find_optimum
+    '''
+    SS = self.SS
+    for kdel in xrange(SS.K):
+      alphPrev = None
+      for trial in xrange(10):
+        initalph = PRNG.rand(SS.K-1)
+        initalph /= initalph.sum()
+        alph, f, Info = OMM.find_optimum(SS, kdel, self.aFunc, self.oFunc,
+                                             initalph=initalph)
+        msg = ''
+        if alphPrev is None:
+          alphPrev = alph.copy()
+        else:
+          if not np.allclose(alph, alphPrev, atol=0.001):
+            msg = '**'
+        alphStr = ' '.join(['%.4f' % (x) for x in alph])
+        print '%s %s' % (alphStr, msg)
+      print ' '
+
+  def test__calcMergeGap__allocmodel(self):
     ''' For the allocmodel, calc merge ELBO two ways, make sure they both agree
         method A : make orig and merge models, call calcELBO() on both, and calc diff
-        method B : call the calcMergeELBO() method directly on orig model
+        method B : call the calcMergeGap() method directly on orig model
     '''
     SS = self.SS
     aM = self.model.allocModel
@@ -76,21 +101,21 @@ class TestOptimizerMultiwayMerge(unittest.TestCase):
     elboAFTER = propM.calc_evidence(None, propSS, None)
     aELBODelta = elboAFTER - elboBEFORE
 
-    aELBODelta2 = aM.calcMergeELBO(SS, kdel, alphx)
+    aELBODelta2 = aM.calcMergeGap_NonEntropy(SS, kdel, alphx)
     print aELBODelta
     print aELBODelta2
-    #assert np.allclose(oELBODelta, oELBODelta2)
+    assert np.allclose(aELBODelta, aELBODelta2)
 
-  def test_calcMergeELBO__obsmodel(self):
+  def test__calcMergeGap__obsmodel(self):
     ''' For the obsmodel, calculate merge ELBO two ways, make sure they both agree
         method A : make orig and merge models, call calcELBO() on both, and calc diff
         method B : call the calcMergeELBO() method directly on orig model
     '''
     SS = self.SS
-    obsM = self.obsM
+    obsM = self.model.obsModel
 
     kdel = 0
-    alph = np.asarray([.5, .5, 0, 0])
+    alph = np.asarray([.5, .2, .1, .2])
 
     alphx = np.zeros(SS.K)
     alphx[:kdel] = alph[:kdel]
@@ -105,20 +130,8 @@ class TestOptimizerMultiwayMerge(unittest.TestCase):
     elboBEFORE = obsM.calcELBO_Memoized(SS, doFast=0)
     elboAFTER = propM.calcELBO_Memoized(propSS, doFast=0)
     oELBODelta = elboAFTER - elboBEFORE
-    oELBODelta2 = obsM.calcMergeELBO(SS, kdel, alphx)
+    oELBODelta2 = obsM.calcMergeGap(SS, kdel, alphx)
     print oELBODelta
     print oELBODelta2
     assert np.allclose(oELBODelta, oELBODelta2)
 
-    # Try with version1 obsmodel
-    propModel = copy.deepcopy(self.model.obsModel)
-    propModel.update_global_params(propSS)
-    elboBEFORE1 = self.model.obsModel.calc_evidence(None, SS, None)
-    elboAFTER1 = propModel.calc_evidence(None, propSS, None)
-    print elboAFTER1 - elboBEFORE1
-
-    print elboBEFORE1
-    print elboBEFORE
-
-    print elboAFTER1
-    print elboAFTER
