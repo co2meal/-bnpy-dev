@@ -61,18 +61,17 @@ def load_alloc_model(matfilepath, prefix):
   
 def load_obs_model(matfilepath, prefix):
   obspriormatfile = os.path.join(matfilepath,'ObsPrior.mat')
-  PDict = loadDictFromMatfile(obspriormatfile)
-  if PDict['name'] == 'NoneType':
-    obsPrior = None
-  else:
-    PriorConstr = GDict[PDict['name']]
-    obsPrior = PriorConstr( **PDict)
-  obsmodelpath = os.path.join(matfilepath,prefix+'ObsModel.mat')
-  ODict = loadDictFromMatfile(obsmodelpath)
+  PriorDict = loadDictFromMatfile(obspriormatfile)
+  ObsConstr = GDict[PriorDict['name']]
+  obsModel = ObsConstr(**PriorDict)
 
-  ObsConstr = GDict[ODict['name']]
-  CompDicts = get_list_of_comp_dicts( ODict['K'], ODict)
-  return ObsConstr.CreateWithAllComps( ODict, obsPrior, CompDicts)
+  obsmodelpath = os.path.join(matfilepath,prefix+'ObsModel.mat')
+  ParamDict = loadDictFromMatfile(obsmodelpath)
+  if obsModel.inferType == 'EM':
+    obsModel.setEstParams(**ParamDict)
+  else:
+    obsModel.setPostFactors(**ParamDict)
+  return obsModel
   
 def get_list_of_comp_dicts( K, Dict ):
   ''' We store all component params stacked together in an array.

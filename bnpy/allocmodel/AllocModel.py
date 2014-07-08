@@ -55,7 +55,7 @@ class AllocModel(object):
     self.K = SS.K
     if self.inferType == 'EM':
       self.update_global_params_EM(SS)
-    elif self.inferType == 'VB' or self.inferType == "moVB":
+    elif self.inferType == 'VB' or self.inferType.count('moVB'):
       self.update_global_params_VB(SS, **kwargs)
     elif self.inferType == 'soVB':
       if rho is None or rho==1:

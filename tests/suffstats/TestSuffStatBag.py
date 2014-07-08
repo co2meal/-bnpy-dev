@@ -20,7 +20,23 @@ class TestSuffStatBag(unittest.TestCase):
     assert id(SS2.s) != id(SS.s)
     assert id(SS2.N) != id(SS.N)
 
+  def test_removeELBO_and_restoreELBO(self, K=2, D=2):
+    SS = self.makeSuffStatBagAndFillWithOnes(K,D)
+    self.addELBOtoSuffStatBag(SS,K)
+    tmpSS = SS.copy()
 
+    E = tmpSS.removeELBOTerms()    
+    assert SS.hasELBOTerms()
+    assert not tmpSS.hasELBOTerms()
+    with self.assertRaises(AttributeError):
+      tmpSS.getELBOTerm('Elogz')
+
+    assert hasattr(E, 'Elogz')
+    tmpSS.restoreELBOTerms(E)
+    
+    for key in E._FieldDims:
+      assert np.allclose( SS.getELBOTerm(key), tmpSS.getELBOTerm(key))
+    
   def test_ampFactor(self, K=2, D=2):
     SS = self.makeSuffStatBagAndFillWithOnes(K,D)
     SS.applyAmpFactor(3.0)
@@ -138,3 +154,22 @@ class TestSuffStatBag(unittest.TestCase):
     assert SS._ELBOTerms.K == K - 2
     assert SS._MergeTerms.K == K - 2
     
+
+  def test_removeMerge_and_restoreMerge(self, K=2, D=2):
+    SS = self.makeSuffStatBagAndFillWithOnes(K,D)
+    self.addELBOtoSuffStatBag(SS,K)
+    tmpSS = SS.copy()
+
+    M = tmpSS.removeMergeTerms()    
+    assert SS.hasMergeTerms()
+    assert not tmpSS.hasMergeTerms()
+    with self.assertRaises(AttributeError):
+      tmpSS.getMergeTerm('Elogz')
+
+    assert hasattr(M, 'Elogz')
+    tmpSS.restoreMergeTerms(M)
+    
+    for key in M._FieldDims:
+      assert np.allclose( SS.getMergeTerm(key), tmpSS.getMergeTerm(key))
+    
+
