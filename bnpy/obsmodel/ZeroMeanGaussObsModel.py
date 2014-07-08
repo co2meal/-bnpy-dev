@@ -103,6 +103,7 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
     self.ClearCache()
     if obsModel is not None:
       self.EstParams = obsModel.EstParams.copy()
+      self.K = self.EstParams.K
       return
     
     if LP is not None and Data is not None:
@@ -114,6 +115,7 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
       K = Sigma.shape[0]
       self.EstParams = ParamBag(K=K, D=self.D)
       self.EstParams.setField('Sigma', Sigma, dims=('K', 'D', 'D'))
+    self.K = self.EstParams.K
 
   def setEstParamsFromPost(self, Post):
     ''' Convert from Post (nu, B) to EstParams (Sigma),
@@ -122,6 +124,7 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
     self.EstParams = ParamBag(K=K, D=D)    
     Sigma = Post.B / (nu[k] - D - 1)
     self.EstParams.setField('Sigma', Sigma, dims=('K','D','D'))
+    self.K = self.EstParams.K
 
   
   ######################################################### Set Post
@@ -135,6 +138,7 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
     if obsModel is not None:
       if hasattr(obsModel, 'Post'):
         self.Post = obsModel.Post.copy()
+        self.K = self.Post.K
       else:
         self.setPostFromEstParams(obsModel.EstParams)
       return
@@ -149,6 +153,7 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
       self.Post = ParamBag(K=K, D=self.D)
       self.Post.setField('nu', as1D(nu), dims=('K'))
       self.Post.setField('B', B, dims=('K', 'D', 'D'))
+    self.K = self.Post.K
 
   def setPostFromEstParams(self, EstParams, Data=None, N=None):
     ''' Convert from EstParams (Sigma) to Post distribution (nu, B),
@@ -168,6 +173,7 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
     self.Post = ParamBag(K=K, D=D)
     self.Post.setField('nu', nu, dims=('K'))
     self.Post.setField('B', B, dims=('K', 'D', 'D'))
+    self.K = K
 
   ########################################################### Summary
   ########################################################### 
@@ -228,6 +234,7 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
     for k in xrange(SS.K):
       covMat[k] += SS.xxT[k] / SS.N[k]
     self.EstParams.setField('Sigma', covMat, dims=('K', 'D', 'D'))
+    self.K = SS.K
 
   def updateEstParams_MAP(self, SS):
     self.ClearCache()
@@ -241,6 +248,7 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
   
     Sigma = MAPEstParams_inplace(nu, B)   
     self.EstParams.setField('Sigma', Sigma, dims=('K', 'D', 'D'))
+    self.K = SS.K
 
   ########################################################### VB
   ########################################################### 
@@ -289,6 +297,7 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
     for k in xrange(SS.K):
       B[k] = Prior.B + SS.xxT[k]
     Post.setField('B', B, dims=('K', 'D', 'D'))
+    self.K = SS.K
 
   def calcELBO_Memoized(self, SS, doFast=False):
     ''' Calculate obsModel's ELBO using sufficient statistics SS and Post.
@@ -320,6 +329,39 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
                  - 0.5 * self._trace__E_L(bDiff, k)
     return elbo.sum() - 0.5 * np.sum(SS.N) * SS.D * LOGTWOPI
 
+  ########################################################### Post
+  ###########################################################
+  def calcLogMargLikForComp(self, SS, kA, kB=None, **kwargs):
+    ''' Calc log marginal likelihood of data assigned to given component
+          (up to an additive constant that depends on the prior)
+        Requires Data pre-summarized into sufficient stats for each comp.
+        If multiple comp IDs are provided, we combine into a "merged" component.
+        
+        Args
+        -------
+        SS : bnpy suff stats object
+        kA : integer ID of target component to compute likelihood for
+        kB : (optional) integer ID of second component.
+             If provided, we merge kA, kB into one component for calculation.
+        Returns
+        -------
+        logM : scalar real
+               logM = log p( data assigned to comp kA ) [up to constant]
+    '''
+    nu, B = self.calcPostParamsForComp(SS, kA, kB)
+    return -1 * c_Func(nu, B)
+
+  def calcPostParamsForComp(self, SS, kA, kB=None):
+    if kB is None:
+      SN = SS.N[kA]
+      SxxT = SS.xxT[kA]
+    else:
+      SN = SS.N[kA] + SS.N[kB]
+      SxxT = SS.xxT[kA] + SS.xxT[kB]
+    Prior = self.Prior
+    nu = Prior.nu + SN
+    B = Prior.B + SxxT
+    return nu, B
 
   ########################################################### Gibbs
   ########################################################### 
@@ -391,8 +433,9 @@ def MAPEstParams_inplace(nu, B):
     Sigma[k] /= (nu[k] + D + 1)
   return Sigma
 
-def c_Func(nu, logdetB, D):
+def c_Func(nu, logdetB, D=None):
   if logdetB.ndim >= 2:
+    D = logdetB.shape[-1]
     logdetB = np.log(np.linalg.det(logdetB))
   dvec = np.arange(1, D+1, dtype=np.float)
   return - 0.5 * D * LOGTWO * nu \

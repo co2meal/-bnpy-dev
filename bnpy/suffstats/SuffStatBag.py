@@ -174,6 +174,15 @@ class SuffStatBag(object):
             continue
           arr[k] += alph[k] * arr[kdel]
 
+    if self.hasELBOTerms() and self.hasMergeTerms():
+      Ndel = getattr(self._Fields, 'N')[kdel]
+      Halph = -1 * np.inner(alph, np.log(alph+1e-100))
+      gap = Ndel * Halph + getattr(self._MergeTerms, 'ElogqZ')[kdel]
+      for k in xrange(self.K):
+        if k == kdel:
+          continue
+        arr = getattr(self._ELBOTerms, 'ElogqZ')      
+        arr[k] += gap * alph[k]
 
     self._Fields.removeComp(kdel)
     if self.hasELBOTerms():

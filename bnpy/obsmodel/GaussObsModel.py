@@ -173,6 +173,7 @@ class GaussObsModel(AbstractObsModel):
       self.Post.setField('B', B, dims=('K', 'D', 'D'))
       self.Post.setField('m', m, dims=('K', 'D'))
       self.Post.setField('kappa', as1D(kappa), dims=('K'))
+    self.K = self.Post.K
 
   def setPostFromEstParams(self, EstParams, Data=None, N=None):
     ''' Convert from EstParams (mu, Sigma) to Post (nu, B, m, kappa),
@@ -197,6 +198,7 @@ class GaussObsModel(AbstractObsModel):
     self.Post.setField('B', B, dims=('K', 'D', 'D'))
     self.Post.setField('m', m, dims=('K', 'D'))
     self.Post.setField('kappa', kappa, dims=('K'))
+    self.K = self.Post.K
 
   ########################################################### Summary
   ########################################################### 
@@ -263,6 +265,7 @@ class GaussObsModel(AbstractObsModel):
 
     self.EstParams.setField('mu', mu, dims=('K', 'D'))
     self.EstParams.setField('Sigma', covMat, dims=('K', 'D', 'D'))
+    self.K = SS.K
 
   def updateEstParams_MAP(self, SS):
     self.ClearCache()
@@ -284,6 +287,7 @@ class GaussObsModel(AbstractObsModel):
     mu, Sigma = MAPEstParams_inplace(nu, B, m, kappa)   
     self.EstParams.setField('mu', mu, dims=('K', 'D'))
     self.EstParams.setField('Sigma', Sigma, dims=('K', 'D', 'D'))
+    self.K = SS.K
 
   ########################################################### VB
   ########################################################### 
@@ -339,6 +343,7 @@ class GaussObsModel(AbstractObsModel):
       B[k] = PB + SS.xxT[k] - Post.kappa[k] * np.outer(m[k], m[k])
     Post.setField('m', m, dims=('K', 'D'))
     Post.setField('B', B, dims=('K', 'D', 'D'))
+    self.K = SS.K
 
   def calcELBO_Memoized(self, SS, doFast=False):
     ''' Calculate obsModel's ELBO using sufficient statistics SS and Post.
@@ -379,8 +384,16 @@ class GaussObsModel(AbstractObsModel):
                  - 0.5 * dDiff * self.GetCached('E_muLmu', k)
     return elbo.sum() - 0.5 * np.sum(SS.N) * SS.D * LOGTWOPI
 
-  def calcMergeELBO_alph(self, SS, kdel, alph):
-    elbo = 0
+  def calcMergeGap_alph(self, SS, kdel, alph):
+    ''' Calculate net improvement in ELBO after multi-way merge,
+          keeping only terms that depend on redistribution parameters alph
+    '''
+    if alph.size < SS.K:
+      alph = np.hstack([alph[:kdel], 0, alph[kdel:]])
+    assert alph.size == SS.K
+    assert np.allclose(alph[kdel], 0)
+
+    gap = 0
     Post = self.Post
     assert np.allclose(alph.sum(), 1.0)
     for k in xrange(SS.K):
@@ -393,25 +406,21 @@ class GaussObsModel(AbstractObsModel):
       B = Post.B[k] + Post.kappa[k] * np.outer(Post.m[k], Post.m[k]) \
              + alph[k] * SS.xxT[kdel] \
              - 1.0/kappa * np.outer(km_x, km_x)
-      elbo -= c_Func(nu, B, m, kappa)
-    return elbo
+      gap -= c_Func(nu, B, m, kappa)
+    return gap
 
-  def calcMergeELBO(self, SS, kdel, alph):
+  def calcMergeGap(self, SS, kdel, alph):
     ''' Calculate change in ELBO after a multi-way merge applied to current model/SS
     '''
+    if alph.size < SS.K:
+      alph = np.hstack([alph[:kdel], 0, alph[kdel:]])
     assert alph.size == SS.K
     assert np.allclose(alph[kdel], 0)
+
     Post = self.Post
     Prior = self.Prior
-    elbo = c_Func(Post.nu[kdel],
-                  Post.B[kdel],
-                  Post.m[kdel],
-                  Post.kappa[kdel]) \
-           - c_Func(Prior.nu, 
-                    Prior.B,
-                    Prior.m,
-                    Prior.kappa)
-    
+    gap = c_Func(Post.nu[kdel], Post.B[kdel], Post.m[kdel], Post.kappa[kdel]) \
+           - c_Func(Prior.nu,   Prior.B,      Prior.m,      Prior.kappa)
     for k in xrange(SS.K):
       if k == kdel:
         continue
@@ -422,12 +431,12 @@ class GaussObsModel(AbstractObsModel):
       B = Post.B[k] + Post.kappa[k] * np.outer(Post.m[k], Post.m[k]) \
              + alph[k] * SS.xxT[kdel] \
              - 1.0/kappa * np.outer(km_x, km_x)
-      elbo += c_Func(Post.nu[k],
+      gap += c_Func(Post.nu[k],
                      Post.B[k],
                      Post.m[k],
                      Post.kappa[k]) \
               - c_Func(nu, B, m, kappa)
-    return elbo
+    return gap
 
   ########################################################### Post
   ###########################################################
@@ -464,9 +473,9 @@ class GaussObsModel(AbstractObsModel):
     nu = Prior.nu + SN
     kappa = Prior.kappa + SN
     m = 1/kappa * (Prior.kappa * Prior.m + Sx) 
-    B = Prior.B + Prior.kappa * np.outer(Prior.m, Prior.m) \
-                - kappa * np.outer(m, m) \
-                + SxxT
+    B = Prior.B + SxxT \
+                + Prior.kappa * np.outer(Prior.m, Prior.m) \
+                - kappa * np.outer(m, m)
     return nu, B, m, kappa
 
   ########################################################### Gibbs
