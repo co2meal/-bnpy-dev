@@ -12,6 +12,7 @@ from admix.HDPHardMult import HDPHardMult
 from admix.HDPRelModel import HDPRelAssortModel
 
 from hmm.FiniteHMM import FiniteHMM
+from hmm.HDPHMM import HDPHMM
 
 AllocModelConstructorsByName = { \
            'MixModel':MixModel,
@@ -24,6 +25,7 @@ AllocModelConstructorsByName = { \
            'FiniteHMM':FiniteHMM,
            'HDPHardMult':HDPHardMult,
            'HDPRelAssortModel':HDPRelAssortModel,
+           'HDPHMM':HDPHMM
           }
 
 AllocModelNameSet = set(AllocModelConstructorsByName.keys())

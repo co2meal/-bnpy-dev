@@ -11,7 +11,7 @@ from bnpy.data import SeqXData, MinibatchIterator
 
 ##################################################### Set Parameters
 K = 4
-D = 20
+D = 2
 
 #transPi = np.asarray([[0.2, 0.2, 0.2, 0.4], \
 #                      [0.2, 0.6, 0.1, 0.1], \
@@ -31,18 +31,18 @@ mus = np.asarray([[0, 0], \
                   [10, 0], \
                   [0, 10], \
                   [10, 10]])
-mus = np.zeros((K,D))
-for i in xrange(K):
-  mus[i,i] = 10
+#mus = np.zeros((K,D))
+#for i in xrange(K):
+#  mus[i,i] = 10
 
 
 sigmas = np.empty((K,D,D))
-#sigmas[0,:,:] = np.asarray([[2, 0], [0, 2]])
-#sigmas[1,:,:] = np.asarray([[2, 0], [0, 2]])
-#sigmas[2,:,:] = np.asarray([[2, 0], [0, 2]])
-#sigmas[3,:,:] = np.asarray([[2, 0], [0, 2]])
-for i in xrange(K):
-  sigmas[i,:,:] = 2 * np.identity(D)
+sigmas[0,:,:] = np.asarray([[2, 0], [0, 2]])
+sigmas[1,:,:] = np.asarray([[2, 0], [0, 2]])
+sigmas[2,:,:] = np.asarray([[2, 0], [0, 2]])
+sigmas[3,:,:] = np.asarray([[2, 0], [0, 2]])
+#for i in xrange(K):
+#  sigmas[i,:,:] = 2 * np.identity(D)
 
 def get_minibatch_iterator(seed=8675309, dataorderseed=0, nBatch=10, nObsBatch=None, nObsTotal=25000, nLap=1, startLap=0, **kwargs):
   '''

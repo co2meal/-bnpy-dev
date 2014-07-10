@@ -74,9 +74,8 @@ def get_data_info():
 def get_short_name():
     return 'HMMK4'
 
-def get_data(seed=8675309, nObsTotal=25000, **kwargs):
+def get_data(seed=8675309, nObsTotal=20000, **kwargs):
     X, Z = get_X(seed, nObsTotal)
-    print X
     Data = XData(X=X, TrueZ=Z)
     Data.summary = get_data_info()
     return Data

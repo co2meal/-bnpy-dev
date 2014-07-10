@@ -69,10 +69,10 @@ class FiniteHMM(AllocModel):
                                  digamma(np.sum(self.initTheta)))
 
             #Normalize so that FwdBwdAlg() will give accurate logMargPrSeq
-            expELogInit = expELogInit / np.sum(expELogInit)
-            for k in xrange(self.K):
-                expELogTrans[k, :] = expELogTrans[k, :] \
-                    / np.sum(expELogTrans[k,:])
+            #expELogInit = expELogInit / np.sum(expELogInit)
+            #for k in xrange(self.K):
+            #    expELogTrans[k, :] = expELogTrans[k, :] \
+            #        / np.sum(expELogTrans[k,:])
 
             initParam = expELogInit
             transParam = expELogTrans
@@ -161,6 +161,7 @@ class FiniteHMM(AllocModel):
         respPairSums = np.sum(respPair, axis = 0)
         firstStateResp = np.sum(resp[inds], axis = 0)
         N = np.sum(resp, axis = 0)
+
         SS = SuffStatBag(K = self.K , D = Data.dim)
         SS.setField('firstStateResp', firstStateResp, dims=('K'))
         SS.setField('respPairSums', respPairSums, dims=('K','K'))
@@ -258,7 +259,7 @@ class FiniteHMM(AllocModel):
         normQ = gammaln(np.sum(self.initTheta)) - \
             np.sum(gammaln(self.initTheta))
 
-        theMeat = np.sum((- self.initTheta) * 
+        theMeat = np.sum((self.initAlpha - self.initTheta) * 
                          (digamma(self.initTheta) - 
                           digamma(np.sum(self.initTheta))))
 
@@ -271,19 +272,27 @@ class FiniteHMM(AllocModel):
         normQ = np.sum(gammaln(np.sum(self.transTheta, axis = 1)) - \
                            np.sum(gammaln(self.transTheta), axis = 1))
 
-        theMeat = np.sum((- self.transTheta) *
+        theMeat = np.sum((self.initAlpha - self.transTheta) *
                          (digamma(self.transTheta) - 
-                              digamma(np.sum(self.transTheta, axis = 1))))
+                          digamma(np.sum(self.transTheta, axis = 1))[:,np.newaxis]))
         return normP - normQ + theMeat
  
     def elbo_z(self, LP, SS):
+        s = (LP['respPair'] / 
+             (np.sum(LP['respPair'], axis = 2)[:, :, np.newaxis] + EPS))
+
         z_1 = np.sum(LP['resp'][0,:] * (digamma(self.initTheta) - 
                                         digamma(np.sum(self.initTheta)) -
                                         np.log(LP['resp'][0,:] + EPS)))
+#        restZ = -np.sum(LP['respPair'][1:,:,:] * \
+#              np.log(LP['respPair'][1:,:,:] + EPS)) + \
+#              np.sum(digamma(self.transTheta)*SS.respPairSums) - \
+#              np.sum(digamma(np.sum(self.transTheta, axis = 1))*SS.respPairSums)
         restZ = -np.sum(LP['respPair'][1:,:,:] * \
-              np.log(LP['respPair'][1:,:,:] + EPS)) + \
+              np.log(s[1:,:,:] + EPS)) + \
               np.sum(digamma(self.transTheta)*SS.respPairSums) - \
               np.sum(digamma(np.sum(self.transTheta, axis = 1))*SS.respPairSums)
+
 
         return z_1 + restZ
         

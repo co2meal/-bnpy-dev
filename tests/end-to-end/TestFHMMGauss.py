@@ -26,15 +26,15 @@ class TestHMMK4_EM(AbstractEndToEndTest):
         #Create true parameters
         self.K = 4
         mus = np.asarray([[0, 0], \
-                  [0, 100], \
-                  [100, 0], \
-                  [100, 100]])
+                  [0, 10], \
+                  [10, 0], \
+                  [10, 10]])
 
         sigmas = np.empty((4,2,2))
-        sigmas[0,:,:] = np.asarray([[10, 0], [0, 10]])
-        sigmas[1,:,:] = np.asarray([[10, 0], [0, 10]])
-        sigmas[2,:,:] = np.asarray([[10, 0], [0, 10]])
-        sigmas[3,:,:] = np.asarray([[10, 0], [0, 10]])
+        sigmas[0,:,:] = np.asarray([[2, 0], [0, 2]])
+        sigmas[1,:,:] = np.asarray([[2, 0], [0, 2]])
+        sigmas[2,:,:] = np.asarray([[2, 0], [0, 2]])
+        sigmas[3,:,:] = np.asarray([[2, 0], [0, 2]])
 
         #transPi = np.asarray([[0.0, 0.5, 0.0, 0.5], \
         #                          [0.25, 0.0, 0.5, 0.25], \
@@ -88,13 +88,9 @@ class TestHMMK4_EM(AbstractEndToEndTest):
             
         self.Data = bnpy.data.SeqXData(X, seqInds, Z)
         
-       #FiniteHMM finds precision matricies, so convert
-        for k in xrange(self.K):
-            sigmas[k,:,:] = np.linalg.inv(sigmas[k,:,:])
-
-        self.TrueParams = dict(K = self.K, m = mus, L = sigmas)
+        self.TrueParams = dict(K = self.K, m = mus, Sigma = sigmas)
                                    #transPi = transPi)
-        self.ProxFunc = dict(L = Util.CovMatProxFunc,
+        self.ProxFunc = dict(Sigma = Util.CovMatProxFunc,
                              m = Util.VectorProxFunc,
                              #transPi = Util.ProbMatrixProxFunc,
                              initPi = Util.ProbVectorProxFunc,
@@ -127,7 +123,7 @@ class TestHMMK4_VB(TestHMMK4_EM):
 
     def setup(self):
         super(TestHMMK4_VB, self).setup()
-        self.learnAlgs = ['VB', 'EM', 'soVB', 'moVB']
+        self.learnAlgs = ['VB', 'soVB', 'moVB']
 
         
         
