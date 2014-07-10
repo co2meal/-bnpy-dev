@@ -377,6 +377,18 @@ class DiagGaussObsModel(AbstractObsModel):
     nu, beta, m, kappa = self.calcPostParamsForComp(SS, kA, kB)
     return -1 * c_Func(nu, beta, m, kappa)
 
+  def calcPostParams(self, SS):
+    ''' Calc posterior (nu, beta, m, kappa) for all comps given suff stats
+    '''
+    Prior = self.Prior
+    nu = Prior.nu + SS.N
+    kappa = Prior.kappa + SS.N
+    m = (Prior.kappa * Prior.m + SS.x) / kappa[:,np.newaxis]
+    beta = Prior.beta + SS.xx \
+           + Prior.kappa * np.square(Prior.m) \
+           - kappa[:,np.newaxis] * np.square(m)
+    return nu, beta, m, kappa
+
   def calcPostParamsForComp(self, SS, kA, kB=None):
     if kB is None:
       SN = SS.N[kA]
@@ -389,7 +401,7 @@ class DiagGaussObsModel(AbstractObsModel):
     Prior = self.Prior
     nu = Prior.nu + SN
     kappa = Prior.kappa + SN
-    m = 1/kappa * (Prior.kappa * Prior.m + Sx)
+    m = (Prior.kappa * Prior.m + Sx)/kappa
     beta = Prior.beta + Sxx \
              + Prior.kappa * np.square(Prior.m) \
              - kappa * np.square(m)
@@ -397,34 +409,91 @@ class DiagGaussObsModel(AbstractObsModel):
 
   ########################################################### Gibbs
   ########################################################### 
-  def calcMargLik(self):
-    pass
+  def calcMargLik(self, SS):
+    ''' Calculate scalar marginal likelihood probability, summed over all comps
+    '''
+    Prior = self.Prior
+    nu, beta, m, kappa = self.calcPostParams(SS)
+    logp = 0.5 * np.sum(np.log(Prior.kappa) - np.log(kappa)) \
+           + 0.5 * LOGTWO * np.sum(nu - Prior.nu) \
+           + np.sum(gammaln(0.5*nu) - gammaln(0.5*Prior.nu)) \
+           + 0.5 * (Prior.nu * np.log(Prior.beta) - nu * np.log(beta))
+    return logp - 0.5 * np.sum(SS.N) * LOGTWOPI
   
-  def calcPredLik(self, xSS):
-    pass
+  def calcPredProbVec_Unnorm(self, SS, x):
+    ''' Calculate K-vector of positive entries \propto p( x | SS[k] )
+    '''
+    return self._calcPredProbVec_Fast(SS, x)
+
+  def _calcPredProbVec_Fast(self, SS, x):
+    p = np.zeros(SS.K)
+    nu, beta, m, kappa = self.calcPostParams(SS)
+    kbeta = beta
+    kbeta *= ( (kappa+1)/kappa )[:,np.newaxis]
+    base = np.square(x - m)
+    base /= kbeta
+    base += 1
+    logp = (0.5 * (nu+1))[:,np.newaxis] * np.log(base)
+    logp += (gammaln(0.5 * (nu+1)) - gammaln(0.5 * nu))[:,np.newaxis]
+    p = logp
+    np.exp(logp, out=p)
+    p /= np.sqrt(kbeta)
+    return np.prod(p, axis=1)
+
+  def _calcPredProbVec_ForLoop(self, SS, x):
+    ''' For-loop version
+    '''
+    p = np.zeros(SS.K)
+    for k in xrange(SS.K):
+      nu, beta, m, kappa = self.calcPostParamsForComp(SS, k)
+      kbeta = (kappa+1)/kappa * beta
+      base = np.square(x - m)
+      base /= kbeta
+      base += 1
+      p_k = np.exp(gammaln(0.5 * (nu+1)) - gammaln(0.5 * nu)) \
+             * 1.0 / np.sqrt(kbeta) \
+             * base ** (0.5 * (nu+1))
+      p[k] = np.prod(p_k)
+    return p
+
+  def incrementSS(self, SS, k, x):
+    SS.x[k] += x
+    SS.xx[k] += np.square(x)
+
+  def decrementSS(self, SS, k, x):
+    SS.x[k] -= x
+    SS.xx[k] -= np.square(x)
 
   def incrementPost(self, k, x):
     ''' Add data to the Post ParamBag, component k
     '''
-    Post = self.Post
-    Post.nu[k] += 1
-    kappa = Post.kappa[k] + 1
-    Post.beta[k] += Post.kappa[k]/kappa * np.square(x-Post.m[k])
-    Post.m[k] = 1/(kappa) * (Post.kappa[k] * Post.m[k] + x)
-    Post.kappa[k] = kappa
-    # TODO: update cached cholesky and log det with rank-one updates
+    
 
   def decrementPost(self, k, x):
     ''' Remove data from the Post ParamBag, component k
     '''
     Post = self.Post
-    Post.nu[k] -= 1
+    Post.nu -= 1
     kappa = Post.kappa[k] - 1
-    Post.beta[k] -= Post.kappa[k]/kappa * np.square(x-Post.m[k])
-    Post.m[k] = 1/(kappa) * (Post.kappa[k] * Post.m[k] - x)
-    Post.kappa[k] = kappa
-    # TODO: update cached cholesky and log det with rank-one updates
+    Post.beta -= Post.kappa/kappa * np.square(x-Post.m)
+    Post.m = 1/(kappa) * (Post.kappa * Post.m - x)
+    Post.kappa = kappa
 
+  def updateCandidatePost_inplace(self, x):
+    if not hasattr(self, 'CandidatePost'):
+      self.CandidatePost = Post.copy()
+    else:
+      self.CandidatePost.nu[:] = Post.nu
+      self.CandidatePost.beta[:] = Post.beta
+      self.CandidatePost.m[:] = Post.m
+      self.CandidatePost.kappa[:] = Post.kappa
+
+    CPost = self.CandidatePost
+    CPost.nu += 1
+    CPost.kappa += 1
+    CPost.beta += Post.kappa/(CPost.kappa+1) * np.square(x-CPost.m)
+    Post.m[k] += 1/(kappa) * (Post.kappa[k] * Post.m[k] - x)
+  
   ########################################################### Expectations
   ########################################################### 
     
