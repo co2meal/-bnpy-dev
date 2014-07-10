@@ -48,6 +48,7 @@ class StochasticOnlineVBLearnAlg(LearnAlg):
 
       # Grab new data
       Dchunk = DataIterator.get_next_batch()
+      batchID = DataIterator.batchID
 
       # Update progress-tracking variables
       iterid += 1
