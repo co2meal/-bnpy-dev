@@ -2,7 +2,12 @@
 '''
 import numpy as np
 
-from random_projection import Random_Projection
+hasRandProjModule = False
+try:
+  from random_projection import Random_Projection
+  hasRandProjModule = True
+except ImportError:
+  pass
 
 def FindAnchorsForSizeKBasis(Q, K, lowerDim=None, seed=0, candidateRows=None):
   ''' Find K rows of Q that best span the entire rowspace of Q
@@ -27,10 +32,11 @@ def FindAnchorsForSizeKBasis(Q, K, lowerDim=None, seed=0, candidateRows=None):
 
   Q /= Q.sum(axis=1)[:,np.newaxis]
 
-  if lowerDim is not None and lowerDim > 0 and lowerDim < Q.shape[1]:
-    PRNG = np.random.RandomState(seed)
-    Q = Random_Projection(Q.T, lowerDim, PRNG)
-    Q = Q.T
+  if hasRandProjModule and lowerDim is not None:
+    if lowerDim > 0 and lowerDim < Q.shape[1]:
+      PRNG = np.random.RandomState(seed)
+      Q = Random_Projection(Q.T, lowerDim, PRNG)
+      Q = Q.T
 
   N, V = Q.shape
   dist = np.zeros(K)
