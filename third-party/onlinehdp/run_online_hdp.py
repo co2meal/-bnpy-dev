@@ -1,3 +1,23 @@
+''' run_online_hdp.py
+
+Script to execute from commandline that trains an hdp topic model.
+
+Output
+-------
+At regular intervals (every save_lag documents processed),
+ we save TWO files to options.result_directory
+  1) <prefix>.model : a pickle dump of the entire ohdp model object
+  2) <prefix>-TopicModel.mat
+    the LDA-equivalent model, saved as a MAT file with fields
+     topic_prior : a K-vector of Dirichlet parameters, all entries > 0
+     topics : a K x W matrix, where each row sums to one
+
+ChangeLog
+-------
+Wang wrote most logic.
+mhughes modified to improve output, especially saving of model params.
+'''
+
 import sys, os
 from corpus import *
 import onlinehdp
@@ -7,6 +27,7 @@ from numpy import cumsum, sum
 from itertools import izip
 from optparse import OptionParser
 from glob import glob
+import scipy.io
 np = onlinehdp.np
 
 def parse_args():
@@ -15,7 +36,8 @@ def parse_args():
                       kappa=0.5, tau=1.0, batchsize=100, max_time=-1,
                       max_iter=-1, var_converge=0.0001, random_seed=999931111, 
                       corpus_name=None, data_path=None, test_data_path=None, 
-                      test_data_path_in_folds=None, directory=None, save_lag=500, pass_ratio=0.5,
+                      test_data_path_in_folds=None, directory=None, save_lag=500, 
+                      pass_ratio=0.5,
                       new_init=False, scale=1.0, adding_noise=False,
                       seq_mode=False, fixed_lag=False)
 
@@ -76,10 +98,21 @@ def parse_args():
   (options, args) = parser.parse_args()
   return options 
 
+def save_model(ohdp, result_directory, prefix):
+    ''' Save model to disk
+    '''
+    #topicfilepath = '%s/%s.topics' %  (result_directory, prefix)
+    #ohdp.save_topics(topicfilepath)
+    modelfilepath = '%s/%s.model' % (result_directory, prefix)
+    matfilepath = '%s/%s-TopicModel.mat' % (result_directory, prefix)
+    cPickle.dump(ohdp, file(modelfilepath, 'w'), -1)
+    topic_prior, topics = ohdp.hdp_to_lda()
+    scipy.io.savemat(matfilepath, dict(topics=topics, topic_prior=topic_prior), oned_as='row')
+
+
 def run_online_hdp():
   # Command line options.
   options = parse_args()
-
   # Set the random seed.
   random.seed(options.random_seed)
   if options.seq_mode:
@@ -116,11 +149,15 @@ def run_online_hdp():
     c_test_train_folds = [read_data(filename) for filename in test_data_train_filenames]
     c_test_test_folds = [read_data(filename) for filename in test_data_test_filenames]
 
+  '''
   result_directory = "%s/corpus-%s-kappa-%.1f-tau-%.f-batchsize-%d" % (options.directory,
                                                                        options.corpus_name,
                                                                        options.kappa, 
                                                                        options.tau, 
                                                                        options.batchsize)
+  '''
+  result_directory = options.directory
+
   print "creating directory %s" % result_directory
   if not os.path.isdir(result_directory):
     os.makedirs(result_directory)
@@ -153,6 +190,9 @@ def run_online_hdp():
     test_log_file = file("%s/test-log.dat" % result_directory, "w") 
     test_log_file.write("iteration time doc.count score word.count score.split word.count.split\n")
 
+  save_model(ohdp, result_directory, 'initial')
+
+  lapCount = 0
   print "starting online variational inference."
   while True:
     iter += 1
@@ -177,12 +217,12 @@ def run_online_hdp():
       if len(unseen_ids) != 0:
         doc_seen.update([(cur_chosen_split, id) for id in ids]) 
 
-    if iter % 10 == 0:
-       print 'iteration %d | %.1f sec | %d docs' % (iter, time.clock(), len(docs))
-
-
     total_doc_count += batchsize
     split_doc_count += batchsize
+
+    if total_doc_count >= options.D * (lapCount + 1):
+      lapCount += 1
+      print 'lap %d complete | %.1f sec | %d docs' % (lapCount, time.clock(), total_doc_count)
 
     # Do online inference and evaluate on the fly dataset
     (score, count, unseen_score, unseen_count) = ohdp.process_documents(docs, options.var_converge, unseen_ids)
@@ -191,15 +231,15 @@ def run_online_hdp():
                     total_doc_count, score, count, unseen_score, unseen_count))
     log_file.flush()
 
+
     # Evaluate on the test data: fixed and folds
     if total_doc_count % options.save_lag == 0:
       if not options.fixed_lag and save_lag_counter < 10:
         save_lag_counter += 1
         options.save_lag = options.save_lag * 2
 
-      # Save the model.
-      ohdp.save_topics('%s/doc_count-%d.topics' %  (result_directory, total_doc_count))
-      cPickle.dump(ohdp, file('%s/doc_count-%d.model' % (result_directory, total_doc_count), 'w'), -1)
+      save_model(ohdp, result_directory, '%06d' % (total_doc_count))
+      print 'Save checkpoint: %d docs processed.' % (total_doc_count)
 
       if options.test_data_path is not None:
         print "\tworking on predictions."
@@ -236,8 +276,9 @@ def run_online_hdp():
   log_file.close()
 
   print "Saving the final model and topics."
-  ohdp.save_topics('%s/final.topics' %  result_directory)
-  cPickle.dump(ohdp, file('%s/final.model' % result_directory, 'w'), -1)
+  save_model(ohdp, result_directory, 'final')
+  #ohdp.save_topics('%s/final.topics' %  result_directory)
+  #cPickle.dump(ohdp, file('%s/final.model' % result_directory, 'w'), -1)
 
   if options.seq_mode:
     train_file.close()
