@@ -74,7 +74,7 @@ class MixModel(AllocModel):
     assert np.allclose(lpr.sum(axis=1), 1)
     return LP
     
-  def sample_local_params(self,obsModel,Data,SS,LP):
+  def sample_local_params(self, obsModel, Data, SS, LP, PRNG):
     '''
         for i = 1 to Data.nObs 
            sample z_i ~ p(z_i | z_-i,X)
@@ -82,33 +82,46 @@ class MixModel(AllocModel):
     Z = LP['Z']
     # Iteratively sample data allocations 
     for dataindex in xrange(Data.nObs):
-        curAlloc = Z[dataindex]
-        # decrement SS counts
-        SS.N[curAlloc]-= 1
+      x = Data.X[dataindex]
+
+      # de-update current assignment and suff stats
+      kcur = Z[dataindex]
+      SS.N[kcur] -= 1
+      obsModel.decrementSS(SS, kcur, x)
+
+      # Calculate probs
+      alloc_prob = self.getConditionalProbVec_Unnorm(SS)
         
-        # get allocation and posterior predictive prob
-        alloc_prob = self.get_alloc_conditional(SS)
-        
-        #[TODO -- plug in Mike's function]  and handle DPMixModel vs MixModel
-        ppred_prob = np.ones([1,SS.K])
-        ppred_prob = ppred_prob/sum(ppred_prob) 
-        
-        # sample new allocation
-        newAlloc = np.random.choice(SS.K,p=np.ravel(alloc_prob*ppred_prob))
-        
-        # update SS counts
-        SS.N[newAlloc] +=1   
-        Z[dataindex] = newAlloc 
-    
+      pvec = obsModel.calcPredProbVec_Unnorm(SS, x)
+      pvec *= alloc_prob
+      pvec /= np.sum(pvec)
+
+      # sample new allocation
+      knew = PRNG.choice(SS.K, p=pvec)
+
+      # update with new assignment
+      SS.N[knew] += 1  
+      obsModel.incrementSS(SS, knew, x) 
+      Z[dataindex] = knew
+
+      if dataindex % 100 == 0:
+        print '%d/%d' % (dataindex, Data.nObs)
+
+      '''
+      for k in xrange(SS.K):
+        Xk = np.sum(Data.X[Z==k], axis=0)
+        Sk = np.sum(np.square(Data.X[Z==k]), axis=0)
+        assert np.allclose(Xk, SS.x[k])
+        assert np.allclose(Sk, SS.xx[k])
+      '''
     LP['Z'] = Z                      
     return (LP,SS) 
   
-  def get_alloc_conditional( self, SS ):
-     '''
-       Returns a K vector of probabilities p(z_i|z_-i)
-     '''
-     alloc_prob = np.asarray((SS.N+self.alpha0/SS.K), dtype=float)
-     return alloc_prob/sum(alloc_prob)
+  def getConditionalProbVec_Unnorm( self, SS ):
+    ''' Returns a K vector of positive values \propto p(z_i|z_-i)
+    '''
+    return SS.N + self.alpha0
+
   ######################################################### Suff Stats
   #########################################################
   def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None, **kwargs):

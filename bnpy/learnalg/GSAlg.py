@@ -13,7 +13,7 @@ from LearnAlg import LearnAlg
 class GSAlg( LearnAlg ):
 
   def __init__( self, **kwargs ):
-    ''' Create VBLearnAlg, subtype of generic LearnAlg
+    ''' Create GSAlg, subtype of generic LearnAlg
     '''
     super(type(self), self).__init__( **kwargs )
     
@@ -37,10 +37,9 @@ class GSAlg( LearnAlg ):
     for iterid in xrange(self.algParams['nLap'] + 1):
       lap = self.algParams['startLap'] + iterid
       self.set_random_seed_at_lap(lap)
-       
-       
+
       # sample posterior allocations
-      LP,SS = hmodel.sample_local_params(Data, SS, LP)
+      LP, SS = hmodel.sample_local_params(Data, SS, LP, self.PRNG)
  
       # jointLL calculation [TODO]
       ll = hmodel.calc_jointll(Data, SS, LP)

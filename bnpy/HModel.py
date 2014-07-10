@@ -82,13 +82,14 @@ class HModel(object):
   
    
   ###################### Sample local parameters   
-  def sample_local_params( self, Data, SS, LP, **kwargs):
+  def sample_local_params(self, Data, SS, LP, PRNG, **kwargs):
     ''' Sample instantiations of local parameters specific to each data item,
           given (or collapsed) global parameters.
         This constitutes a single iteration of the sampler.        
     '''
     
-    return self.allocModel.sample_local_params(self.obsModel,Data,SS,LP)
+    return self.allocModel.sample_local_params(self.obsModel, 
+                                               Data, SS, LP, PRNG)
   
      
        

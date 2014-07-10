@@ -142,7 +142,7 @@ class LearnAlg(object):
   #########################################################  
   def save_state(self, hmodel, iterid, lap, evBound, doFinal=False):
     ''' Save state of the hmodel's global parameters and evBound
-    '''  
+    '''
     traceEvery = self.outputParams['traceEvery']
     if traceEvery <= 0:
       traceEvery = -1
