@@ -40,6 +40,9 @@ class StochasticOnlineVBLearnAlg(LearnAlg):
       DataIterator.curLapPos = nBatch - 2
       iterid = int(nBatch * lapFrac) - 1
 
+    EvRunningSum = 0
+    EvMemory = np.zeros(nBatch)
+    
     self.set_start_time_now()
     while DataIterator.has_next_batch():
 
@@ -61,7 +64,13 @@ class StochasticOnlineVBLearnAlg(LearnAlg):
       SS = hmodel.get_global_suff_stats(Dchunk, LP, doAmplify=True)
 
       # ELBO calculation
-      evBound = hmodel.calc_evidence(Dchunk, SS, LP)      
+      EvChunk = hmodel.calc_evidence(Dchunk, SS, LP)      
+
+      if EvMemory[batchID] != 0:
+        EvRunningSum -= EvMemory[batchID]
+      EvRunningSum += EvChunk
+      EvMemory[batchID] = EvChunk
+      evBound = EvRunningSum / nBatch
 
       # Save and display progress
       self.add_nObs(Dchunk.nObs)
