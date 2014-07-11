@@ -410,6 +410,9 @@ class DiagGaussObsModel(AbstractObsModel):
   ########################################################### Gibbs
   ########################################################### 
   def calcMargLik(self, SS):
+    return self.calcMargLik_CFuncForLoop(SS)
+
+  def calcMargLik_Vec(self, SS):
     ''' Calculate scalar marginal likelihood probability, summed over all comps
     '''
     Prior = self.Prior
@@ -417,8 +420,30 @@ class DiagGaussObsModel(AbstractObsModel):
     logp = 0.5 * np.sum(np.log(Prior.kappa) - np.log(kappa)) \
            + 0.5 * LOGTWO * np.sum(nu - Prior.nu) \
            + np.sum(gammaln(0.5*nu) - gammaln(0.5*Prior.nu)) \
-           + 0.5 * (Prior.nu * np.log(Prior.beta) - nu * np.log(beta))
+           + 0.5 * np.sum(Prior.nu * np.log(Prior.beta) \
+                          - nu[:,np.newaxis] * np.log(beta))
     return logp - 0.5 * np.sum(SS.N) * LOGTWOPI
+  
+  def calcMargLik_CFuncForLoop(self, SS):
+    Prior = self.Prior
+    logp = np.zeros(SS.K)
+    for k in xrange(SS.K):
+      nu, beta, m, kappa = self.calcPostParamsForComp(SS, k)
+      logp[k] = c_Diff(Prior.nu, Prior.beta, Prior.m, Prior.kappa,
+                       nu, beta, m, kappa)
+    return np.sum(logp) - 0.5 * np.sum(SS.N) * LOGTWOPI
+  
+  def calcMargLik_ForLoop(self, SS):
+    Prior = self.Prior
+    logp = np.zeros(SS.K)
+    for k in xrange(SS.K):
+      nu, beta, m, kappa = self.calcPostParamsForComp(SS, k)
+      logp[k] = 0.5 * SS.D * (np.log(Prior.kappa) - np.log(kappa)) \
+                + 0.5 * SS.D * LOGTWO * (nu - Prior.nu) \
+                + SS.D * (gammaln(0.5 * nu) - gammaln(0.5 * Prior.nu)) \
+                + 0.5 * np.sum(Prior.nu * np.log(Prior.beta) \
+                               - nu * np.log(beta))
+    return np.sum(logp) - 0.5 * np.sum(SS.N) * LOGTWOPI
   
   def calcPredProbVec_Unnorm(self, SS, x):
     ''' Calculate K-vector of positive entries \propto p( x | SS[k] )

@@ -122,6 +122,14 @@ class MixModel(AllocModel):
     '''
     return SS.N + self.alpha0
 
+  def calcMargLik(self, SS):
+    ''' Calculate marginal likelihood of assignments, summed over all comps
+    '''
+    alphPost = self.alpha0 + SS.N
+    cPrior = gammaln(SS.K * self.alpha0) - SS.K * gammaln(self.alpha0)
+    cPost = gammaln(np.sum(alphPost)) - np.sum(gammaln(alphPost))
+    return cPrior - cPost
+
   ######################################################### Suff Stats
   #########################################################
   def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None, **kwargs):
