@@ -41,9 +41,18 @@ class GSAlg( LearnAlg ):
       # sample posterior allocations
       LP, SS = hmodel.sample_local_params(Data, SS, LP, self.PRNG)
  
-      # jointLL calculation [TODO]
-      ll = hmodel.calc_jointll(Data, SS, LP)
-      
+      # Make posterior params
+      hmodel.update_global_params(SS)
+
+      # Log prob of total sampler state
+      ll = hmodel.calcLogLikCollapsedSamplerState(SS)
+
+      #logpA = hmodel.obsModel.calcMargLik_ForLoop(SS)
+      #logpB = hmodel.obsModel.calcMargLik_CFuncForLoop(SS)
+      #print logpA
+      #print logpB
+      #assert np.allclose(logpA, logpB)
+
       # Save and display progress
       self.add_nObs(Data.nObsTotal)
       self.save_state(hmodel, iterid, lap, ll)

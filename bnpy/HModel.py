@@ -149,11 +149,11 @@ class HModel(object):
     else:
       return evA + evObs
     
-  def calc_jointll(self, Data=None, SS=None, LP=None):
+  def calcLogLikCollapsedSamplerState(self, SS):
+      ''' 
       '''
-      TODO
-      '''
-      return -1
+      return self.obsModel.calcMargLik(SS) \
+             + self.allocModel.calcMargLik(SS)
 
   ######################################################### Init params
   #########################################################
