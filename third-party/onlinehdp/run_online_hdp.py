@@ -216,7 +216,6 @@ def run_online_hdp():
       unseen_ids = set([i for (i, id) in enumerate(ids) if (cur_chosen_split, id) not in doc_seen])
       if len(unseen_ids) != 0:
         doc_seen.update([(cur_chosen_split, id) for id in ids]) 
-
     total_doc_count += batchsize
     split_doc_count += batchsize
 
@@ -264,13 +263,12 @@ def run_online_hdp():
     # read another split.
     if not options.seq_mode:
       if split_doc_count > num_of_doc_each_split * options.pass_ratio and num_train_splits > 1:
-        print "Loading a new split from the training data"
         split_doc_count = 0
         # cur_chosen_split = int(random.random() * num_train_splits)
         cur_chosen_split = (cur_chosen_split + 1) % num_train_splits
         cur_train_filename = train_filenames[cur_chosen_split]
         c_train = read_data(cur_train_filename)
-
+  
     if (options.max_iter != -1 and iter > options.max_iter) or (options.max_time !=-1 and total_time > options.max_time):
       break
   log_file.close()
