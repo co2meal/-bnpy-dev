@@ -69,11 +69,12 @@ class HDPHMM(AllocModel):
         expELogPi = np.ones(self.K)
 
         #Calculate arguments to the forward backward algorithm
-        #expELogBeta = [digamma(self.u[1,i,j]) - \
-        #               digamma(self.u[1,i,j] + self.u[0,i,j]) + \
-        #                   np.sum(digamma(self.u[0,i,0:j-1]) - \
-        #                       digamma(self.u[1,i,0:j-1] + self.u[0,i,0:j-1])) \
-        #                   for i in xrange(self.K) for j in xrange(self.K)]
+#        expELogBeta = [digamma(self.u[1,i,j]) - \
+#                       digamma(self.u[1,i,j] + self.u[0,i,j]) + \
+#                           np.sum(digamma(self.u[0,i,0:j]) - \
+#                               digamma(self.u[1,i,0:j] + self.u[0,i,0:j])) \
+#                           for i in xrange(self.K) for j in xrange(self.K)]
+#       expELogBeta = np.reshape(expELogBeta, (self.K, self.K))
         for i in xrange(self.K):
             for j in xrange(self.K):
                 theSum = np.sum(digamma(self.u[0,i,0:j]) - \
@@ -81,34 +82,19 @@ class HDPHMM(AllocModel):
                 expELogBeta[i,j] = digamma(self.u[1,i,j]) - \
                     digamma(self.u[1,i,j] + self.u[0,i,j]) + theSum
 
-        for i in xrange(self.K):
-            theSum = np.sum(digamma(self.b[0,0:i]) - \
-                                digamma(self.b[1,0:i] + self.b[0,0:i]))
-            expELogPi[i] = digamma(self.b[1,i]) - \
-                digamma(self.b[1,i] + self.b[0,i]) + theSum
-        #expELogPi = [digamma(self.b[1,i])-digamma(self.b[1,i] + self.b[0,i]) + \
-        #                 np.sum(digamma(self.b[0,0:i-1]) - \
-        #                            digamma(self.b[1,0:i-1]+self.b[0,0:i-1])) \
-        #                 for i in xrange(self.K)]
-        #expELogBeta = np.reshape(expELogBeta, (self.K, self.K))
+        expELogPi = [digamma(self.b[1,i])-digamma(self.b[1,i] + self.b[0,i]) + \
+                         np.sum(digamma(self.b[0,0:i]) - \
+                                    digamma(self.b[1,0:i]+self.b[0,0:i])) \
+                         for i in xrange(self.K)]
 
- 
-        LP.update({'ELogBeta':expELogBeta})
-        LP.update({'ELogPi':expELogPi})
         expELogBeta = np.exp(expELogBeta)
         expELogPi = np.exp(expELogPi)
 
-        #Normalize so that FwdBwdAlg() will give accurate logMargPrSeq
-        #expELogPi = expELogPi / np.sum(expELogPi)
-        #for k in xrange(self.K):
-        #    expELogBeta[k, :] = expELogBeta[k, :] / np.sum(expELogBeta[k,:])
-
-        resp, respPair, logMargPr = \
+        resp, respPair, _ = \
             HMMUtil.FwdBwdAlg(expELogPi, expELogBeta, lpr)
 
         LP.update({'resp':resp})
         LP.update({'respPair':respPair})
-        LP.update({'evidence':logMargPr})
 
         return LP      
 
@@ -153,17 +139,15 @@ class HDPHMM(AllocModel):
             self.rho = (1 / (self.gamma + 1)) * np.ones(self.K)
 
         #Calculate needed parameters for rho, omega optimization
-        elogv = np.zeros((self.K, self.K))
-        elog1mv = np.zeros((self.K, self.K))
-        for i in xrange(self.K):
-            for j in xrange(self.K):
-                elogv[i,j] = digamma(self.u[1,i,j]) - \
-                    digamma(self.u[1,i,j] + self.u[0,i,j])
-                elog1mv[i,j] = digamma(self.u[0,i,j]) - \
-                    digamma(self.u[1,i,j] + self.u[0,i,j])
+        elogv = digamma(self.u[1,:,:]) - \
+            digamma(self.u[1,:,:] + self.u[0,:,:])
+        elog1mv = digamma(self.u[0,:,:]) - \
+            digamma(self.u[1,:,:] + self.u[0,:,:])
+
         elogv = np.sum(elogv, axis = 0)
         elog1mv = np.sum(elog1mv, axis = 0)
 
+        #Add on contribution from initial-state stick breaking weights
         elogv += digamma(self.b[1,:]) - digamma(self.b[1,:]+self.b[0,:])
         elog1mv += digamma(self.b[0,:]) - digamma(self.b[1,:]+self.b[0,:])
 
@@ -211,7 +195,6 @@ class HDPHMM(AllocModel):
     def calc_evidence(self, Data, SS, LP):
         if SS.hasELBOTerm('Elogqz'):
             print 'i dont want this why would you give it to me'
-        
 
         return self.elbo_entropy(LP) + self.elbo_norms() + self.elbo_v0()
 
@@ -222,12 +205,11 @@ class HDPHMM(AllocModel):
         '''
 
         #Normalize across rows of respPair_{tij} to get s_{tij}, the parameters
-          #for q(z_t | z_{t-1})
-        
-        s = (LP['respPair'] / 
-             (np.sum(LP['respPair'], axis = 2)[:, :, np.newaxis] + EPS))
+          #for q(z_t | z_{t-1})        
+        sigma  = (LP['respPair'] / 
+                  (np.sum(LP['respPair'], axis = 2)[:, :, np.newaxis] + EPS))
         z_1 = -np.sum(LP['resp'][0,:] * np.log(LP['resp'][0,:] + EPS))
-        restZ = -np.sum(LP['respPair'][1:,:,:] * np.log(s[1:,:,:] + EPS))
+        restZ = -np.sum(LP['respPair'][1:,:,:] * np.log(sigma[1:,:,:] + EPS))
         return z_1 + restZ
 
 
@@ -246,8 +228,6 @@ class HDPHMM(AllocModel):
                             digamma(self.omega)))
         normQy = np.sum(gammaln(self.b[1,:] + self.b[0,:]) - \
                            gammaln(self.b[1,:]) - gammaln(self.b[0,:]))
-
-        
 
         normPv = self.K**2 * np.log(self.alpha) + \
             self.K * np.sum(digamma(self.rho * self.omega) - \

@@ -68,12 +68,6 @@ class FiniteHMM(AllocModel):
             expELogInit = np.exp(digamma(self.initTheta) - 
                                  digamma(np.sum(self.initTheta)))
 
-            #Normalize so that FwdBwdAlg() will give accurate logMargPrSeq
-            #expELogInit = expELogInit / np.sum(expELogInit)
-            #for k in xrange(self.K):
-            #    expELogTrans[k, :] = expELogTrans[k, :] \
-            #        / np.sum(expELogTrans[k,:])
-
             initParam = expELogInit
             transParam = expELogTrans
 
