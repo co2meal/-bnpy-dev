@@ -45,7 +45,8 @@ class HModel(object):
       obsModel.setupWithAllocModel(allocModel)
 
   @classmethod
-  def CreateEntireModel(cls, inferType, allocModelName, obsModelName, allocPriorDict, obsPriorDict, Data):
+  def CreateEntireModel(cls, inferType, allocModelName, obsModelName, 
+                             allocPriorDict, obsPriorDict, Data):
     ''' Constructor assembles HModel and all its submodels in one call
     '''
     AllocConstr = AllocModelConstructorsByName[allocModelName]
@@ -187,28 +188,6 @@ class HModel(object):
       else:
         raise NotImplementedError('Unrecognized initname procedure.')
    
-  
-  def init_local_params(self,Data, **initArgs): 
-    ''' Initialize local parameters useful for gibbs sampler
-        Supports initialization from scratch
-        [TODO]: Sequential initialization
-              : Initialization from ground truth partition
-              : Hot start from previously saved sampler state
-    
-    '''
-    initname = initArgs['initname']
-    if initname.count('true') > 0:
-      raise NotImplementedError("TODO")
-    elif initname.count(os.path.sep) > 0:
-      raise NotImplementedError("TODO")
-    elif str(type(Data)).count('Diverse') == 0: 
-      LP = init.FromScratchLocal.init_local_params(self, Data, **initArgs)
-      self.initParams = LP
-    else:
-      #init.FromScratchDiverse.init_global_params(self, Data, **initArgs) 
-      raise NotImplementedError("TODO")         
-      
-
   ######################################################### I/O Utils
   ######################################################### 
   def getAllocModelName(self):

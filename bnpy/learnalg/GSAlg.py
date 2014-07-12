@@ -28,10 +28,10 @@ class GSAlg( LearnAlg ):
                         {'max passes exceeded'}
     '''
     # get initial allocations and corresponding suff stats
-    LP = hmodel.initParams  
-    LP['resp'] = self.unflatten(Data,LP)
-    SS = hmodel.get_global_suff_stats(Data, LP, doAmplify=False)
-    
+
+    LP = hmodel.calc_local_params(Data)
+    LP = hmodel.allocModel.make_hard_asgn_local_params(LP)
+    SS = hmodel.get_global_suff_stats(Data, LP)
     
     self.set_start_time_now()
     for iterid in xrange(self.algParams['nLap'] + 1):
@@ -47,45 +47,14 @@ class GSAlg( LearnAlg ):
       # Log prob of total sampler state
       ll = hmodel.calcLogLikCollapsedSamplerState(SS)
 
-      #logpA = hmodel.obsModel.calcMargLik_ForLoop(SS)
-      #logpB = hmodel.obsModel.calcMargLik_CFuncForLoop(SS)
-      #print logpA
-      #print logpB
-      #assert np.allclose(logpA, logpB)
-
       # Save and display progress
       self.add_nObs(Data.nObsTotal)
       self.save_state(hmodel, iterid, lap, ll)
       self.print_state(hmodel, iterid, lap, ll)
 
     
-    #unflatten Z
-    #LP['resp'] = self.unflatten(Data,LP)
-     
-    #Finally, save, print and exit
-
+    ## Finally, save, print and exit
     status = "max passes thru data exceeded."
     self.save_state(hmodel,iterid, lap, ll, doFinal=True)    
     self.print_state(hmodel,iterid, lap, ll, doFinal=True, status=status)
     return LP, self.buildRunInfo(ll, status)
-
-  '''
-  def initialize(self,Data):
-    # random initialization
-    initZ = np.empty([Data.nObs,1],dtype=int)
-    for dataindex in xrange(Data.nObs):
-        initZ[dataindex] = np.random.choice(10)
-    return self.unflatten(Data,initZ)    
-  '''
-
-  def unflatten(self,Data,LP):
-    ''' Unflatten Z'''  
-    row = np.reshape(np.asarray(xrange(Data.nObs)),[1,Data.nObs])
-    col = LP['Z']
-    val = np.ones([Data.nObs])
-    #### scipy.sparse and numpy sum don't seem to play well
-    #### Needs to be fixed -- for now just create a dense matrix
-    return np.asarray(sp.coo_matrix((val.ravel(),(row.ravel(),col.ravel()))).todense())  
-
-
-

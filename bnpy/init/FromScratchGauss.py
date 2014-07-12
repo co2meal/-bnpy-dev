@@ -62,3 +62,4 @@ def init_global_params(obsModel, Data, K=0, seed=0,
   SS = SuffStatBag(K=K, D=Data.dim)
   SS = obsModel.get_global_suff_stats(Data, SS, tempLP)
   obsModel.update_global_params(SS)
+

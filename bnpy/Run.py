@@ -154,13 +154,11 @@ def _run_task_internal(jobname, taskid, nTask,
 
   # Create and initialize model parameters
   hmodel = createModel(InitData, ReqArgs, KwArgs)
-  if(algName=='GS'):
-    hmodel.init_local_params(InitData, seed=algseed,
-                             **KwArgs['Initialization'])
-  else:
-    hmodel.init_global_params(InitData, seed=algseed, taskid=taskid,
-                              savepath=taskoutpath,
-                              **KwArgs['Initialization'])
+
+  hmodel.init_global_params(InitData, seed=algseed, taskid=taskid,
+                            savepath=taskoutpath,
+                            **KwArgs['Initialization'])
+
   # Create learning algorithm
   learnAlg = createLearnAlg(Data, hmodel, ReqArgs, KwArgs,
                               algseed=algseed, savepath=taskoutpath)
@@ -185,10 +183,11 @@ def _run_task_internal(jobname, taskid, nTask,
     jobID = 0
   if jobID > 0:
     Log.info('SGE Grid Job ID: %d' % (jobID))
-    # Create symlinks of the captured stdout, stdout and log in bnpy output directory
-    #  so everything is in the same place
-    os.symlink(os.getenv('SGE_STDOUT_PATH'), os.path.join(taskoutpath, 'stdout.log'))
-    os.symlink(os.getenv('SGE_STDERR_PATH'), os.path.join(taskoutpath, 'stderr.log'))
+    # Create symlinks to captured stdout, stdout in bnpy output directory
+    os.symlink(os.getenv('SGE_STDOUT_PATH'), 
+                          os.path.join(taskoutpath, 'stdout.log'))
+    os.symlink(os.getenv('SGE_STDERR_PATH'), 
+                          os.path.join(taskoutpath, 'stderr.log'))
 
   # Write descriptions to the log
   if taskid == 1 or jobID > 0:

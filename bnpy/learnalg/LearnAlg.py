@@ -24,8 +24,7 @@ Log.setLevel(logging.DEBUG)
 class LearnAlg(object):
 
   def __init__(self, savedir=None, seed=0, 
-                     algParams=dict(), outputParams=dict(),
-               ):
+                     algParams=dict(), outputParams=dict()):
     ''' Constructs and returns a LearnAlg object
     ''' 
     if type(savedir) == str:

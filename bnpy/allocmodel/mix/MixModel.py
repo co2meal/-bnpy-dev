@@ -28,6 +28,13 @@ class MixModel(AllocModel):
     if self.alpha0 < 1.0 and self.inferType == 'EM':
       raise ValueError("Cannot perform MAP inference if param alpha0 < 1")
 
+  def get_active_comp_probs(self):
+    ''' Return K vector of appearance probabilities for each of the K comps
+    '''
+    if self.inferType == 'EM':
+      return self.w
+    else:
+      return self.alpha / np.sum(self.alpha)
     
   ######################################################### Accessors
   #########################################################
@@ -53,11 +60,21 @@ class MixModel(AllocModel):
         Returns
         -------
         LP : local param dict with fields
-              resp : Data.nObs x K array whose rows sum to one
-              resp[n,k] = posterior responsibility that comp. k has for data n
+             resp : 2D array, size Data.nObs x K array
+                    resp[n,k] = posterior responsibility comp. k has for item n
+            
     '''
     lpr = LP['E_log_soft_ev']
-    if self.inferType.count('VB') > 0:
+    if self.inferType.count('EM') > 0:
+      ''' Using point estimates, for EM algorithm
+      '''
+      lpr += np.log(self.w)
+      lprPerItem = logsumexp(lpr, axis=1)
+      np.exp(lpr-lprPerItem[:,np.newaxis], out=lpr)
+      LP['evidence'] = lprPerItem.sum()
+    else:
+      ''' Full Bayesian approach, for VB or GS algorithms
+      '''
       lpr += self.Elogw
       # Calculate exp in numerically stable manner (first subtract the max)
       #  perform this in-place so no new allocations occur
@@ -65,15 +82,30 @@ class MixModel(AllocModel):
       np.exp(lpr, out=lpr)
       # Normalize, so rows sum to one
       lpr /= lpr.sum(axis=1)[:,np.newaxis]
-    elif self.inferType == 'EM' > 0:
-      lpr += np.log(self.w)
-      lprPerItem = logsumexp(lpr, axis=1)
-      np.exp(lpr-lprPerItem[:,np.newaxis], out=lpr)
-      LP['evidence'] = lprPerItem.sum()
     LP['resp'] = lpr
     assert np.allclose(lpr.sum(axis=1), 1)
     return LP
     
+  ######################################################### Local Updates Gibbs
+  #########################################################
+  def make_hard_asgn_local_params(self, LP):
+    ''' Convert soft assignments to hard assignments for provided local params
+
+        Returns
+        --------
+        LP : local params dict, with new fields
+             Z : 1D array, size N
+                    Z[n] is an integer in range {0, 1, 2, ... K-1}
+             resp : 2D array, size N x K+1 (with final column empty)
+                    resp[n,k] = 1 iff Z[n] == k
+    '''
+    LP['Z'] = np.argmax(LP['resp'], axis=1)
+    K = LP['resp'].shape[1]
+    LP['resp'].fill(0)
+    for k in xrange(K):
+      LP['resp'][LP['Z']==k, k] = 1 
+    return LP
+
   def sample_local_params(self, obsModel, Data, SS, LP, PRNG):
     '''
         for i = 1 to Data.nObs 
@@ -91,7 +123,6 @@ class MixModel(AllocModel):
 
       # Calculate probs
       alloc_prob = self.getConditionalProbVec_Unnorm(SS)
-        
       pvec = obsModel.calcPredProbVec_Unnorm(SS, x)
       pvec *= alloc_prob
       pvec /= np.sum(pvec)
@@ -104,18 +135,18 @@ class MixModel(AllocModel):
       obsModel.incrementSS(SS, knew, x) 
       Z[dataindex] = knew
 
-      if dataindex % 100 == 0:
-        print '%d/%d' % (dataindex, Data.nObs)
+      #if dataindex % 100 == 0:
+      #  print '%d/%d' % (dataindex, Data.nObs)
 
-      '''
-      for k in xrange(SS.K):
-        Xk = np.sum(Data.X[Z==k], axis=0)
-        Sk = np.sum(np.square(Data.X[Z==k]), axis=0)
-        assert np.allclose(Xk, SS.x[k])
-        assert np.allclose(Sk, SS.xx[k])
-      '''
+      #for k in xrange(SS.K):
+      #  Xk = np.sum(Data.X[Z==k], axis=0)
+      #  Sk = np.sum(np.square(Data.X[Z==k]), axis=0)
+      #  assert np.allclose(Xk, SS.x[k])
+      #  assert np.allclose(Sk, SS.xx[k])
+      
     LP['Z'] = Z                      
-    return (LP,SS) 
+    print ' '.join(['%.1f' % (x) for x in SS.N])
+    return LP, SS 
   
   def getConditionalProbVec_Unnorm( self, SS ):
     ''' Returns a K vector of positive values \propto p(z_i|z_-i)
@@ -296,20 +327,23 @@ class MixModel(AllocModel):
   ######################################################### IO Utils
   #########################################################   for machines
   def to_dict(self): 
-    if self.inferType.count('VB') >0:
-      return dict(alpha=self.alpha)
-    elif self.inferType == 'EM':
+    if self.inferType == 'EM':
       return dict(w=self.w)
+    elif self.inferType.count('VB') >0:
+      return dict(alpha=self.alpha)
+    elif self.inferType.count('GS') >0:
+      return dict(alpha=self.alpha)
     return dict()
   
   def from_dict(self, myDict):
     self.inferType = myDict['inferType']
     self.K = myDict['K']
-    if self.inferType.count('VB') >0:
-      self.alpha = myDict['alpha']
-      self.Elogw = digamma( self.alpha ) - digamma( self.alpha.sum() )
-    elif self.inferType == 'EM':
+    if self.inferType == 'EM':
       self.w = myDict['w']
+    else:
+      self.alpha = myDict['alpha']
+      self.Elogw = digamma(self.alpha) - digamma(self.alpha.sum())
+
  
   def get_prior_dict(self):
     return dict(alpha0=self.alpha0, K=self.K)  
