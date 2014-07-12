@@ -99,7 +99,7 @@ class DiagGaussObsModel(AbstractObsModel):
       sfx = ' ...'
     else:
       sfx = ''
-    S = self._E_CovMat()[:2]
+    S = self._E_CovMat()[:2,:2]
     msg += 'E[ mu[k] ]     = %s%s\n' % (str(self.Prior.m[:2]), sfx)
     msg += 'E[ CovMat[k] ] = \n'
     msg += str(S) + sfx
