@@ -25,6 +25,7 @@ from scipy.special import gammaln, digamma
 from bnpy.suffstats import ParamBag, SuffStatBag
 from bnpy.util import LOGTWO, LOGPI, LOGTWOPI, EPS
 from bnpy.util import dotATA, dotATB, dotABT
+from bnpy.util import as1D, as2D
 
 from AbstractObsModel import AbstractObsModel 
 
@@ -39,32 +40,51 @@ class DiagGaussObsModel(AbstractObsModel):
     if Data is not None:
       self.D = Data.dim
     else:
-      self.D = D
+      self.D = int(D)
     self.K = 0
     self.inferType = inferType
     self.min_covar = min_covar
     self.createPrior(Data, **PriorArgs)
     self.Cache = dict()
 
-  def createPrior(self, Data, nu=0, ECovMat=None, sF=1.0,
-                              m=None, kappa=None):
-    ''' Initialize Prior ParamBag object, with fields nu, B, m, kappa
+  def createPrior(self, Data, nu=0, beta=None,
+                              m=None, kappa=None,
+                              ECovMat=None, sF=1.0, **kwargs):
+    ''' Initialize Prior ParamBag object, with fields nu, beta, m, kappa
           set according to match desired mean and expected covariance matrix.
     '''
     D = self.D
     nu = np.maximum(nu, D+2)
-    if ECovMat is None or type(ECovMat) == str:
-      ECovMat = createECovMatFromUserInput(D, Data, ECovMat, sF)    
-    beta = np.diag(ECovMat) * (nu - 2)
-    if m is None: 
-      m = np.zeros(D)
     kappa = np.maximum(kappa, 1e-8)
+    if beta is None:
+      if ECovMat is None or type(ECovMat) == str:
+        ECovMat = createECovMatFromUserInput(D, Data, ECovMat, sF)    
+      beta = np.diag(ECovMat) * (nu - 2)
+    else:
+      if beta.ndim == 0:
+        beta = np.asarray([beta], dtype=np.float)
+    if m is None:
+      m = np.zeros(D)
+    elif m.ndim < 1:
+      m = np.asarray([m], dtype=np.float)       
     self.Prior = ParamBag(K=0, D=D)
     self.Prior.setField('nu', nu, dims=None)
     self.Prior.setField('kappa', kappa, dims=None)
     self.Prior.setField('m', m, dims=('D'))
     self.Prior.setField('beta', beta, dims=('D'))
 
+  def get_mean_for_comp(self, k):
+    if hasattr(self, 'EstParams'):
+      return self.EstParams.mu[k]
+    else:
+      return self.Post.m[k]
+
+  def get_covar_mat_for_comp(self, k):
+    if hasattr(self, 'EstParams'):
+      return np.diag(self.EstParams.sigma[k])
+    else:
+      return self._E_CovMat(k)
+    
   ######################################################### I/O Utils
   #########################################################   for humans
   def get_name(self):
@@ -79,7 +99,7 @@ class DiagGaussObsModel(AbstractObsModel):
       sfx = ' ...'
     else:
       sfx = ''
-    S = np.diag(self._E_CovMat()[:2])
+    S = self._E_CovMat()[:2]
     msg += 'E[ mu[k] ]     = %s%s\n' % (str(self.Prior.m[:2]), sfx)
     msg += 'E[ CovMat[k] ] = \n'
     msg += str(S) + sfx
@@ -143,11 +163,18 @@ class DiagGaussObsModel(AbstractObsModel):
     if SS is not None:
       self.updatePost(SS)
     else:
-      self.Post = ParamBag(K=K, D=mu.shape[1])
-      self.Post.setField('nu', nu, dims=('K'))
+      m = as2D(m)
+      if m.shape[1] != self.D:
+        m = m.T.copy()
+      beta = as2D(beta)
+      if beta.shape[1] != self.D:
+        beta = beta.T.copy()
+      K, _ = m.shape
+      self.Post = ParamBag(K=K, D=self.D)
+      self.Post.setField('nu', as1D(nu), dims=('K'))
       self.Post.setField('beta', beta, dims=('K', 'D'))
       self.Post.setField('m', m, dims=('K', 'D'))
-      self.Post.setField('kappa', kappa, dims=('K'))
+      self.Post.setField('kappa', as1D(kappa), dims=('K'))
     self.K = self.Post.K
 
   def setPostFromEstParams(self, EstParams, Data=None, N=None):
@@ -401,7 +428,7 @@ class DiagGaussObsModel(AbstractObsModel):
     Prior = self.Prior
     nu = Prior.nu + SN
     kappa = Prior.kappa + SN
-    m = (Prior.kappa * Prior.m + Sx)/kappa
+    m = (Prior.kappa * Prior.m + Sx) / kappa
     beta = Prior.beta + Sxx \
              + Prior.kappa * np.square(Prior.m) \
              - kappa * np.square(m)
@@ -444,11 +471,37 @@ class DiagGaussObsModel(AbstractObsModel):
                 + 0.5 * np.sum(Prior.nu * np.log(Prior.beta) \
                                - nu * np.log(beta))
     return np.sum(logp) - 0.5 * np.sum(SS.N) * LOGTWOPI
-  
+
   def calcPredProbVec_Unnorm(self, SS, x):
     ''' Calculate K-vector of positive entries \propto p( x | SS[k] )
     '''
     return self._calcPredProbVec_Fast(SS, x)
+  
+  def _Verify_calcPredProbVec(self, SS, x):
+    ''' Verify that the predictive prob vector is correct,
+          by comparing 3 very different implementations
+    '''
+    pA = self._calcPredProbVec_Fast(SS, x)
+    pB = self._calcPredProbVec_Naive(SS, x)
+    pC = self._calcPredProbVec_ForLoop(SS, x)
+    pA /= np.sum(pA)
+    pB /= np.sum(pB)
+    pC /= np.sum(pC)
+    assert np.allclose(pA, pB)
+    assert np.allclose(pA, pC)
+
+  def _calcPredProbVec_Naive(self, SS, x):
+    nu, beta, m, kappa = self.calcPostParams(SS)
+    pSS = SS.copy()
+    pSS.N += 1
+    pSS.x += x
+    pSS.xx += np.square(x)
+    pnu, pbeta, pm, pkappa = self.calcPostParams(pSS)
+    logp = np.zeros(SS.K)
+    for k in xrange(SS.K):
+      logp[k] = c_Diff(nu[k], beta[k], m[k], kappa[k],
+                       pnu[k], pbeta[k], pm[k], pkappa[k])
+    return np.exp(logp - np.max(logp))
 
   def _calcPredProbVec_Fast(self, SS, x):
     p = np.zeros(SS.K)
@@ -458,7 +511,7 @@ class DiagGaussObsModel(AbstractObsModel):
     base = np.square(x - m)
     base /= kbeta
     base += 1
-    logp = (0.5 * (nu+1))[:,np.newaxis] * np.log(base)
+    logp = (-0.5 * (nu+1))[:,np.newaxis] * np.log(base)
     logp += (gammaln(0.5 * (nu+1)) - gammaln(0.5 * nu))[:,np.newaxis]
     p = logp
     np.exp(logp, out=p)
@@ -477,7 +530,7 @@ class DiagGaussObsModel(AbstractObsModel):
       base += 1
       p_k = np.exp(gammaln(0.5 * (nu+1)) - gammaln(0.5 * nu)) \
              * 1.0 / np.sqrt(kbeta) \
-             * base ** (0.5 * (nu+1))
+             * base ** (-0.5 * (nu+1))
       p[k] = np.prod(p_k)
     return p
 
@@ -492,7 +545,7 @@ class DiagGaussObsModel(AbstractObsModel):
   def incrementPost(self, k, x):
     ''' Add data to the Post ParamBag, component k
     '''
-    
+    pass
 
   def decrementPost(self, k, x):
     ''' Remove data from the Post ParamBag, component k
@@ -523,6 +576,19 @@ class DiagGaussObsModel(AbstractObsModel):
   ########################################################### 
     
   def _E_CovMat(self, k=None):
+    '''
+        Returns
+        --------
+        E[ Sigma ] : 2D array, size DxD
+    '''
+    return np.diag(self._E_Cov(k))
+
+  def _E_Cov(self, k=None):
+    '''
+        Returns
+        --------
+        E[ sigma^2 ] : 1D array, size D
+    '''
     if k is None:
       nu = self.Prior.nu
       beta = self.Prior.beta

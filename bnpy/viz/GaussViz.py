@@ -27,11 +27,7 @@ def plotGauss2DFromHModel(hmodel, compListToPlot=None, compsToHighlight=None, wT
     compsToHighlight = list()  
   if compListToPlot is None:
     compListToPlot = np.arange(0, hmodel.allocModel.K)
-  try:
-    w = np.exp(hmodel.allocModel.Elogw)
-  except Exception:
-    w = hmodel.allocModel.w
-
+  w = hmodel.allocModel.get_active_comp_probs()
   if hmodel.obsModel.D == 1:
     xgrid = np.linspace(-4, 4, 1000)
     pdfgrid = np.zeros_like(xgrid)
