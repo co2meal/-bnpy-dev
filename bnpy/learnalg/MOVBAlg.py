@@ -519,7 +519,7 @@ class MOVBAlg(LearnAlg):
       else:
         isBad = ktarget is None
 
-      BirthLogger.logStartMove(lapFrac, moveID, len(BirthPlans))
+      BirthLogger.logStartMove(lapFrac, moveID + 1, len(BirthPlans))
       if isBad or targetData is None:
         msg = Plan['msg']
         BirthLogger.log(msg)
@@ -612,7 +612,12 @@ class MOVBAlg(LearnAlg):
                     targetWordFreq=None)
       except BirthMove.BirthProposalError, e:
         # Happens when no component is eligible for selection (all excluded)
-        Plan = dict(ktarget=None, Data=None, msg=str(e), targetWordIDs=None)
+        Plan = dict(ktarget=None, 
+                    Data=None,
+                    targetWordIDs=None, 
+                    targetWordFreq=None, 
+                    msg=str(e),
+                    )
       BirthPlans.append(Plan)
     return BirthPlans
 
@@ -636,23 +641,14 @@ class MOVBAlg(LearnAlg):
 
       birthParams = dict(**self.algParams['birth'])
 
-      if 'targetWordFreq' in Plan:
-        birthParams['targetMaxSize'] = 2 * birthParams['targetMaxSize']
       # Skip collection if have enough data already
       if Plan['Data'] is not None:
         targetSize = TargetDataSampler.getSize(Plan['Data'])
         if targetSize >= birthParams['targetMaxSize']:
             continue
-        if 'targetWordFreq' not in Plan:
-          birthParams['targetMaxSize'] -= targetSize
+        birthParams['targetMaxSize'] -= targetSize
+        # TODO: worry about targetMaxSize when we always keep topK datapoints
 
-      if Plan['Data'] is not None and birthParams['targetExample']:
-        x = TargetDataSampler.getDataExemplar(Plan['Data'])
-        birthParams['targetExample'] = x
-
-
-      if 'targetWordFreq' in Plan:
-        birthParams['targetMaxSize'] /= 10
       # Sample data from current batch, if more is needed
       targetData, targetInfo = TargetDataSampler.sample_target_data(
                           Dchunk, model=model, LP=LPchunk,
@@ -663,8 +659,6 @@ class MOVBAlg(LearnAlg):
                           return_Info=True,
                           **birthParams)
 
-      if 'targetWordFreq' in Plan:
-        birthParams['targetMaxSize'] *= 10
       # Update Data for current entry in self.targetDataList
       if targetData is None:
         if Plan['Data'] is None:

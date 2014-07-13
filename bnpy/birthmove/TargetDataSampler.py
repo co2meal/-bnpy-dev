@@ -72,6 +72,8 @@ def _sample_target_XData(Data, model, LP, **kwargs):
     targetProbThr = kwargs['targetCompFrac']
     mask = LP['resp'][: , ktarget] > targetProbThr
     objIDs = np.flatnonzero(mask)
+    if len(objIDs) < 2:
+      return None, dict()
     randstate.shuffle(objIDs)
     targetObjIDs = objIDs[:kwargs['targetMaxSize']]
     TargetData = Data.select_subset_by_mask(targetObjIDs, 
