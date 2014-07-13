@@ -700,8 +700,23 @@ def createECovMatFromUserInput(D=0, Data=None, ECovMat='eye', sF=1.0):
     Sigma = sF * np.eye(D)
   elif ECovMat == 'covdata':
     Sigma = sF * np.cov(Data.X.T, bias=1)
-  elif ECovMat == 'fromtruelabels':    
-    raise NotImplementedError('TODO')
+  elif ECovMat == 'fromtruelabels': 
+    ''' Set Cov Matrix Sigma using the true labels in empirical Bayes style
+        Sigma = \sum_{c : class labels} w_c * SampleCov[ data from class c]
+    '''   
+    assert hasattr(Data, 'TrueLabels')
+    Zvals = np.unique(Data.TrueLabels)
+    Kmax = len(Zvals)
+    wHat = np.zeros(Kmax)
+    SampleCov = np.zeros((Kmax,D,D))
+    for kLoc, kVal in enumerate(Zvals):
+      mask = Data.TrueLabels == kVal
+      wHat[kLoc] = np.sum(mask)
+      SampleCov[kLoc] = np.cov(Data.X[mask].T, bias=1)
+    wHat = wHat/np.sum(wHat)
+    Sigma = 1e-8 * np.eye(D)
+    for k in range(Kmax):
+      Sigma += wHat[k] * SampleCov[k]
   else:
     raise ValueError('Unrecognized ECovMat procedure %s' % (ECovMat))
   return Sigma
