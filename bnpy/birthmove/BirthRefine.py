@@ -49,7 +49,6 @@ def expand_then_refine(freshModel, freshSS, freshData,
   if xbigModel.obsModel.K < Kx:
     xbigModel.obsModel.update_global_params(xbigSS)
   xbigSS.subtractSpecificComps(freshSS, range(bigSS.K, bigSS.K + freshSS.K))
-
   if kwargs['birthDebug']:
     Info['xbigModelInit'] = xbigModel.copy()
 
@@ -57,6 +56,7 @@ def expand_then_refine(freshModel, freshSS, freshData,
   xbigModel, xfreshSS, xfreshLP, xInfo = refine_expanded_model_with_VB_iters(
                                 xbigModel, freshData, 
                                 xbigSS=xbigSS, Korig=bigSS.K, **kwargs)
+
   if kwargs['birthDebug']:
     Info['xbigModelRefined'] = xbigModel.copy()
     Info['traceN'] = xInfo['traceN']
@@ -79,6 +79,7 @@ def expand_then_refine(freshModel, freshSS, freshData,
     if kwargs['birthDebug']:
       Info['xbigModelPostDelete'] = xbigModel.copy()
       Info['ELBOPostDelete'] = xfreshELBO
+
 
   if hasattr(xfreshSS, 'nDoc'):
     assert xbigSS.nDoc == bigSS.nDoc
@@ -154,8 +155,7 @@ def refine_expanded_model_with_VB_iters(xbigModel, freshData,
     xbigSS -= xfreshSS
 
   xfreshLP = xbigModel.calc_local_params(freshData, xfreshLP, **kwargs)
-  xfreshSS = xbigModel.get_global_suff_stats(freshData, xfreshLP,
-                                             doPrecompEntropy=True)
+  xfreshSS = xbigModel.get_global_suff_stats(freshData, xfreshLP)
   log('Final Assignment Counts')
   logPosVector(xfreshSS.N[Korig:])
 

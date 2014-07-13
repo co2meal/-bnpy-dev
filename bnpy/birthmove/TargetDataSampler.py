@@ -61,7 +61,25 @@ def sample_target_data(Data, model=None, LP=None, **kwargs):
   if hasattr(Data, 'nDoc'):
     return _sample_target_WordsData(Data, model, LP, **kwargs)
   else:
-    raise NotImplementedError('TODO: sample_target_data for mix models')
+    return _sample_target_XData(Data, model, LP, **kwargs)
+
+def _sample_target_XData(Data, model, LP, **kwargs):
+  ''' Draw sample subset of provided data object
+  '''
+  randstate = kwargs['randstate']
+  if hasValidKey('targetCompID', kwargs):
+    ktarget = kwargs['targetCompID']
+    targetProbThr = kwargs['targetCompFrac']
+    mask = LP['resp'][: , ktarget] > targetProbThr
+    objIDs = np.flatnonzero(mask)
+    randstate.shuffle(objIDs)
+    targetObjIDs = objIDs[:kwargs['targetMaxSize']]
+    TargetData = Data.select_subset_by_mask(targetObjIDs, 
+                                               doTrackFullSize=False)
+    TargetInfo = dict(ktarget=ktarget)
+  else:
+    raise NotImplementedError('TODO')
+  return TargetData, TargetInfo
 
 ########################################################### WordsData sampling
 ###########################################################

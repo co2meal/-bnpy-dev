@@ -65,7 +65,6 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, Plan=None, **kwargsIN):
     freshModel, freshSS, freshInfo = BirthCreate.create_model_with_new_comps(
                                             bigModel, bigSS, freshData, Q=Q,
                                             Plan=Plan, **kwargs)
-
     earlyAdmission = -1
     if kwargs['birthVerifyELBOIncreaseFresh']:
       for step in range(nStep):
@@ -99,7 +98,6 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, Plan=None, **kwargsIN):
         propELBO = xbigModel.calc_evidence(SS=xfreshSS)
         didPass, ELBOmsg = make_acceptance_decision(curELBO, propELBO)
       log(ELBOmsg)
-
     else:
       didPass = True
       ELBOmsg = ''

@@ -79,7 +79,6 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None,
       for k in xrange(freshSS.K):
         topics[k,:] = freshModel.obsModel.comp[k].lamvec - priorvec
       freshSS.setField('WordCounts', topics, dims=('K','D'))
-
     return freshModel, freshSS, Info
 
   log('Fresh Updates ....................')

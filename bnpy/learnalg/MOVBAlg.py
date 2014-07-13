@@ -606,7 +606,10 @@ class MOVBAlg(LearnAlg):
                               **self.algParams['birth'])
         self.LapsSinceLastBirth[ktarget] = 0
         excludeList.append(ktarget)
-        Plan = dict(ktarget=ktarget, Data=None, targetWordIDs=None)
+        Plan = dict(ktarget=ktarget,
+                    Data=None,
+                    targetWordIDs=None, 
+                    targetWordFreq=None)
       except BirthMove.BirthProposalError, e:
         # Happens when no component is eligible for selection (all excluded)
         Plan = dict(ktarget=None, Data=None, msg=str(e), targetWordIDs=None)
