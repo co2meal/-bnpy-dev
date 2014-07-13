@@ -26,12 +26,13 @@ import logging
 import numpy as np
 import bnpy
 from bnpy.ioutil import BNPYArgParser
+import pdb
 
 # Configure Logger
 Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
 
-FullDataAlgSet = ['EM','VB']
+FullDataAlgSet = ['EM', 'VB', 'GS']
 OnlineDataAlgSet = ['soVB', 'moVB', 'moVBsimple']
 
 def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
@@ -153,9 +154,11 @@ def _run_task_internal(jobname, taskid, nTask,
 
   # Create and initialize model parameters
   hmodel = createModel(InitData, ReqArgs, KwArgs)
+
   hmodel.init_global_params(InitData, seed=algseed, taskid=taskid,
                             savepath=taskoutpath,
                             **KwArgs['Initialization'])
+
   # Create learning algorithm
   learnAlg = createLearnAlg(Data, hmodel, ReqArgs, KwArgs,
                               algseed=algseed, savepath=taskoutpath)
@@ -180,10 +183,11 @@ def _run_task_internal(jobname, taskid, nTask,
     jobID = 0
   if jobID > 0:
     Log.info('SGE Grid Job ID: %d' % (jobID))
-    # Create symlinks of the captured stdout, stdout and log in bnpy output directory
-    #  so everything is in the same place
-    os.symlink(os.getenv('SGE_STDOUT_PATH'), os.path.join(taskoutpath, 'stdout.log'))
-    os.symlink(os.getenv('SGE_STDERR_PATH'), os.path.join(taskoutpath, 'stderr.log'))
+    # Create symlinks to captured stdout, stdout in bnpy output directory
+    os.symlink(os.getenv('SGE_STDOUT_PATH'), 
+                          os.path.join(taskoutpath, 'stdout.log'))
+    os.symlink(os.getenv('SGE_STDERR_PATH'), 
+                          os.path.join(taskoutpath, 'stderr.log'))
 
   # Write descriptions to the log
   if taskid == 1 or jobID > 0:
@@ -282,7 +286,7 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
     -------
     learnAlg : LearnAlg [or subclass] object
                type is defined by string in ReqArgs['algName']
-                one of {'EM', 'VB', 'soVB', 'moVB'}
+                one of {'EM', 'VB', 'soVB', 'moVB','GS'}
   '''
   algName = ReqArgs['algName']
   algP = KwArgs[algName]
@@ -306,9 +310,14 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
   elif algName == 'moVBsimple':
     learnAlg = bnpy.learnalg.SimpleMOVBAlg(savedir=savepath, seed=algseed, 
                                       algParams=algP, outputParams=outputP)
+  elif algName == 'GS':
+    learnAlg = bnpy.learnalg.GSAlg(savedir=savepath, seed=algseed, 
+                                      algParams=algP, outputParams=outputP)  
   else:
     raise NotImplementedError("Unknown learning algorithm " + algName)
   return learnAlg
+
+
 
 
 ########################################################### Write Args to File
