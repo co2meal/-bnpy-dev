@@ -758,7 +758,7 @@ class MOVBAlg(LearnAlg):
     # ------ Adjust indexing for counter that determines which comp to target
     if self.hasMove('birth'):
       for kA, kB in Info['AcceptedPairs']:
-        self._adjustLapsSinceLastBirthForMerge(MTracker, kA, kB)
+        self._resetLapsSinceLastBirthAfterMerge(kA, kB)
 
     # ------ Record accepted moves, so can adjust memoized stats later
     self.MergeLog = list()
@@ -771,8 +771,12 @@ class MOVBAlg(LearnAlg):
       SS.setMergeFieldsToZero()
     return hmodel, SS, newEvBound
 
-  def _adjustLapsSinceLastBirthForMerge(self, MTracker, kA, kB):
-    ''' Adjust internal tracking of laps since birth
+  def _resetLapsSinceLastBirthAfterMerge(self, kA, kB):
+    ''' Update internal list of LapsSinceLastBirth to reflect accepted merge
+
+        Returns
+        ---------
+        None. Updates to self.LapsSinceLastBirth happen in-place.
     '''
     compList = self.LapsSinceLastBirth.keys()
     newDict = defaultdict(int)
