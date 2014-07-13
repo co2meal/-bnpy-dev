@@ -90,7 +90,7 @@ class HModel(object):
     '''
     
     return self.allocModel.sample_local_params(self.obsModel, 
-                                               Data, SS, LP, PRNG)
+                                               Data, SS, LP, PRNG, **kwargs)
   
      
        

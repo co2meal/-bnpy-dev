@@ -141,7 +141,7 @@ class DPMixModel(AllocModel):
     return SS, LP
 
 
-  def sample_local_params(self, obsModel, Data, SS, LP, PRNG):
+  def sample_local_params(self, obsModel, Data, SS, LP, PRNG, **algParams):
     ''' Sample local assignments of all data items to components
     '''
     Z = LP['Z']
@@ -155,11 +155,13 @@ class DPMixModel(AllocModel):
       obsModel.decrementSS(SS, kcur, x)
 
       SS, LP = self.removeEmptyComps_SSandLP(SS, LP)
-      if SS.N[-1] > 0:
+
+      doKeepFinalCompEmpty = SS.K < algParams['Kmax']
+      if SS.N[-1] > 0 and doKeepFinalCompEmpty:
         SS, LP = self.insertEmptyCompAtLastIndex_SSandLP(SS, LP)    
 
       # Calculate probs
-      alloc_prob = self.getConditionalProbVec_Unnorm(SS)
+      alloc_prob = self.getConditionalProbVec_Unnorm(SS, doKeepFinalCompEmpty)
       pvec = obsModel.calcPredProbVec_Unnorm(SS, x)
       pvec *= alloc_prob
       pvec /= np.sum(pvec)
@@ -176,11 +178,15 @@ class DPMixModel(AllocModel):
     print ' '.join(['%.1f' % (x) for x in SS.N])
     return LP, SS 
   
-  def getConditionalProbVec_Unnorm( self, SS ):
+  def getConditionalProbVec_Unnorm(self, SS, doKeepFinalCompEmpty):
     ''' Returns a K vector of positive values \propto p(z_i|z_-i)
     '''
-    return np.hstack([SS.N[:-1], self.alpha0])
-
+    if doKeepFinalCompEmpty:
+      assert SS.N[-1] == 0
+      return np.hstack([SS.N[:-1], self.alpha0])
+    else:
+      return np.hstack([SS.N[:-1], np.maximum(SS.N[-1], self.alpha0)])
+  
   def delete_comps_from_local_params(self, Data, LP, compIDs, **kwargs):
     ''' Create new local params with certain components deleted
     '''
