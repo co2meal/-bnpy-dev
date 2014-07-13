@@ -23,6 +23,7 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None, **kwargs):
   nMergeTrials = kwargs['mergePerLap']
   trialID = 0
   AcceptedPairs = list()
+  AcceptedPairOrigIDs = list()
   ELBOGain = 0
   while trialID < nMergeTrials and len(eligibleIDs) > 0:
     if len(eligibleIDs) == 0:
@@ -62,6 +63,7 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None, **kwargs):
       CompIDShift[offIDs] = -1
 
       AcceptedPairs.append((jA, jB))
+      AcceptedPairOrigIDs.append((kA, kB))
       ELBOGain += MoveInfo['ELBOGain']
     trialID += 1
 
@@ -70,7 +72,9 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None, **kwargs):
   MergeLogger.log( ' %d/%d accepted. ev increased % .4e' 
                     % (len(AcceptedPairs), trialID, ELBOGain))
 
-  Info = dict(AcceptedPairs=AcceptedPairs, ELBOGain=ELBOGain)
+  Info = dict(AcceptedPairs=AcceptedPairs,
+              AcceptedPairOrigIDs=AcceptedPairOrigIDs,
+              ELBOGain=ELBOGain)
   return curModel, curSS, curELBO, Info
 
 
