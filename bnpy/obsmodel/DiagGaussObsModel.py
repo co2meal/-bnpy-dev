@@ -25,6 +25,7 @@ from scipy.special import gammaln, digamma
 from bnpy.suffstats import ParamBag, SuffStatBag
 from bnpy.util import LOGTWO, LOGPI, LOGTWOPI, EPS
 from bnpy.util import dotATA, dotATB, dotABT
+from bnpy.util import as1D, as2D
 
 from AbstractObsModel import AbstractObsModel 
 
@@ -39,32 +40,51 @@ class DiagGaussObsModel(AbstractObsModel):
     if Data is not None:
       self.D = Data.dim
     else:
-      self.D = D
+      self.D = int(D)
     self.K = 0
     self.inferType = inferType
     self.min_covar = min_covar
     self.createPrior(Data, **PriorArgs)
     self.Cache = dict()
 
-  def createPrior(self, Data, nu=0, ECovMat=None, sF=1.0,
-                              m=None, kappa=None):
-    ''' Initialize Prior ParamBag object, with fields nu, B, m, kappa
+  def createPrior(self, Data, nu=0, beta=None,
+                              m=None, kappa=None,
+                              ECovMat=None, sF=1.0, **kwargs):
+    ''' Initialize Prior ParamBag object, with fields nu, beta, m, kappa
           set according to match desired mean and expected covariance matrix.
     '''
     D = self.D
     nu = np.maximum(nu, D+2)
-    if ECovMat is None or type(ECovMat) == str:
-      ECovMat = createECovMatFromUserInput(D, Data, ECovMat, sF)    
-    beta = np.diag(ECovMat) * (nu - 2)
-    if m is None: 
-      m = np.zeros(D)
     kappa = np.maximum(kappa, 1e-8)
+    if beta is None:
+      if ECovMat is None or type(ECovMat) == str:
+        ECovMat = createECovMatFromUserInput(D, Data, ECovMat, sF)    
+      beta = np.diag(ECovMat) * (nu - 2)
+    else:
+      if beta.ndim == 0:
+        beta = np.asarray([beta], dtype=np.float)
+    if m is None:
+      m = np.zeros(D)
+    elif m.ndim < 1:
+      m = np.asarray([m], dtype=np.float)       
     self.Prior = ParamBag(K=0, D=D)
     self.Prior.setField('nu', nu, dims=None)
     self.Prior.setField('kappa', kappa, dims=None)
     self.Prior.setField('m', m, dims=('D'))
     self.Prior.setField('beta', beta, dims=('D'))
 
+  def get_mean_for_comp(self, k):
+    if hasattr(self, 'EstParams'):
+      return self.EstParams.mu[k]
+    else:
+      return self.Post.m[k]
+
+  def get_covar_mat_for_comp(self, k):
+    if hasattr(self, 'EstParams'):
+      return np.diag(self.EstParams.sigma[k])
+    else:
+      return self._E_CovMat(k)
+    
   ######################################################### I/O Utils
   #########################################################   for humans
   def get_name(self):
@@ -79,7 +99,7 @@ class DiagGaussObsModel(AbstractObsModel):
       sfx = ' ...'
     else:
       sfx = ''
-    S = np.diag(self._E_CovMat()[:2])
+    S = self._E_CovMat()[:2,:2]
     msg += 'E[ mu[k] ]     = %s%s\n' % (str(self.Prior.m[:2]), sfx)
     msg += 'E[ CovMat[k] ] = \n'
     msg += str(S) + sfx
@@ -143,11 +163,18 @@ class DiagGaussObsModel(AbstractObsModel):
     if SS is not None:
       self.updatePost(SS)
     else:
-      self.Post = ParamBag(K=K, D=mu.shape[1])
-      self.Post.setField('nu', nu, dims=('K'))
+      m = as2D(m)
+      if m.shape[1] != self.D:
+        m = m.T.copy()
+      beta = as2D(beta)
+      if beta.shape[1] != self.D:
+        beta = beta.T.copy()
+      K, _ = m.shape
+      self.Post = ParamBag(K=K, D=self.D)
+      self.Post.setField('nu', as1D(nu), dims=('K'))
       self.Post.setField('beta', beta, dims=('K', 'D'))
       self.Post.setField('m', m, dims=('K', 'D'))
-      self.Post.setField('kappa', kappa, dims=('K'))
+      self.Post.setField('kappa', as1D(kappa), dims=('K'))
     self.K = self.Post.K
 
   def setPostFromEstParams(self, EstParams, Data=None, N=None):
@@ -377,6 +404,18 @@ class DiagGaussObsModel(AbstractObsModel):
     nu, beta, m, kappa = self.calcPostParamsForComp(SS, kA, kB)
     return -1 * c_Func(nu, beta, m, kappa)
 
+  def calcPostParams(self, SS):
+    ''' Calc posterior (nu, beta, m, kappa) for all comps given suff stats
+    '''
+    Prior = self.Prior
+    nu = Prior.nu + SS.N
+    kappa = Prior.kappa + SS.N
+    m = (Prior.kappa * Prior.m + SS.x) / kappa[:,np.newaxis]
+    beta = Prior.beta + SS.xx \
+           + Prior.kappa * np.square(Prior.m) \
+           - kappa[:,np.newaxis] * np.square(m)
+    return nu, beta, m, kappa
+
   def calcPostParamsForComp(self, SS, kA, kB=None):
     if kB is None:
       SN = SS.N[kA]
@@ -389,7 +428,7 @@ class DiagGaussObsModel(AbstractObsModel):
     Prior = self.Prior
     nu = Prior.nu + SN
     kappa = Prior.kappa + SN
-    m = 1/kappa * (Prior.kappa * Prior.m + Sx)
+    m = (Prior.kappa * Prior.m + Sx) / kappa
     beta = Prior.beta + Sxx \
              + Prior.kappa * np.square(Prior.m) \
              - kappa * np.square(m)
@@ -397,38 +436,159 @@ class DiagGaussObsModel(AbstractObsModel):
 
   ########################################################### Gibbs
   ########################################################### 
-  def calcMargLik(self):
-    pass
+  def calcMargLik(self, SS):
+    return self.calcMargLik_CFuncForLoop(SS)
+
+  def calcMargLik_Vec(self, SS):
+    ''' Calculate scalar marginal likelihood probability, summed over all comps
+    '''
+    Prior = self.Prior
+    nu, beta, m, kappa = self.calcPostParams(SS)
+    logp = 0.5 * np.sum(np.log(Prior.kappa) - np.log(kappa)) \
+           + 0.5 * LOGTWO * np.sum(nu - Prior.nu) \
+           + np.sum(gammaln(0.5*nu) - gammaln(0.5*Prior.nu)) \
+           + 0.5 * np.sum(Prior.nu * np.log(Prior.beta) \
+                          - nu[:,np.newaxis] * np.log(beta))
+    return logp - 0.5 * np.sum(SS.N) * LOGTWOPI
   
-  def calcPredLik(self, xSS):
-    pass
+  def calcMargLik_CFuncForLoop(self, SS):
+    Prior = self.Prior
+    logp = np.zeros(SS.K)
+    for k in xrange(SS.K):
+      nu, beta, m, kappa = self.calcPostParamsForComp(SS, k)
+      logp[k] = c_Diff(Prior.nu, Prior.beta, Prior.m, Prior.kappa,
+                       nu, beta, m, kappa)
+    return np.sum(logp) - 0.5 * np.sum(SS.N) * LOGTWOPI
+  
+  def calcMargLik_ForLoop(self, SS):
+    Prior = self.Prior
+    logp = np.zeros(SS.K)
+    for k in xrange(SS.K):
+      nu, beta, m, kappa = self.calcPostParamsForComp(SS, k)
+      logp[k] = 0.5 * SS.D * (np.log(Prior.kappa) - np.log(kappa)) \
+                + 0.5 * SS.D * LOGTWO * (nu - Prior.nu) \
+                + SS.D * (gammaln(0.5 * nu) - gammaln(0.5 * Prior.nu)) \
+                + 0.5 * np.sum(Prior.nu * np.log(Prior.beta) \
+                               - nu * np.log(beta))
+    return np.sum(logp) - 0.5 * np.sum(SS.N) * LOGTWOPI
+
+  def calcPredProbVec_Unnorm(self, SS, x):
+    ''' Calculate K-vector of positive entries \propto p( x | SS[k] )
+    '''
+    return self._calcPredProbVec_Fast(SS, x)
+  
+  def _Verify_calcPredProbVec(self, SS, x):
+    ''' Verify that the predictive prob vector is correct,
+          by comparing 3 very different implementations
+    '''
+    pA = self._calcPredProbVec_Fast(SS, x)
+    pB = self._calcPredProbVec_Naive(SS, x)
+    pC = self._calcPredProbVec_ForLoop(SS, x)
+    pA /= np.sum(pA)
+    pB /= np.sum(pB)
+    pC /= np.sum(pC)
+    assert np.allclose(pA, pB)
+    assert np.allclose(pA, pC)
+
+  def _calcPredProbVec_Naive(self, SS, x):
+    nu, beta, m, kappa = self.calcPostParams(SS)
+    pSS = SS.copy()
+    pSS.N += 1
+    pSS.x += x
+    pSS.xx += np.square(x)
+    pnu, pbeta, pm, pkappa = self.calcPostParams(pSS)
+    logp = np.zeros(SS.K)
+    for k in xrange(SS.K):
+      logp[k] = c_Diff(nu[k], beta[k], m[k], kappa[k],
+                       pnu[k], pbeta[k], pm[k], pkappa[k])
+    return np.exp(logp - np.max(logp))
+
+  def _calcPredProbVec_Fast(self, SS, x):
+    p = np.zeros(SS.K)
+    nu, beta, m, kappa = self.calcPostParams(SS)
+    kbeta = beta
+    kbeta *= ( (kappa+1)/kappa )[:,np.newaxis]
+    base = np.square(x - m)
+    base /= kbeta
+    base += 1
+    logp = (-0.5 * (nu+1))[:,np.newaxis] * np.log(base)
+    logp += (gammaln(0.5 * (nu+1)) - gammaln(0.5 * nu))[:,np.newaxis]
+    p = logp
+    np.exp(logp, out=p)
+    p /= np.sqrt(kbeta)
+    return np.prod(p, axis=1)
+
+  def _calcPredProbVec_ForLoop(self, SS, x):
+    ''' For-loop version
+    '''
+    p = np.zeros(SS.K)
+    for k in xrange(SS.K):
+      nu, beta, m, kappa = self.calcPostParamsForComp(SS, k)
+      kbeta = (kappa+1)/kappa * beta
+      base = np.square(x - m)
+      base /= kbeta
+      base += 1
+      p_k = np.exp(gammaln(0.5 * (nu+1)) - gammaln(0.5 * nu)) \
+             * 1.0 / np.sqrt(kbeta) \
+             * base ** (-0.5 * (nu+1))
+      p[k] = np.prod(p_k)
+    return p
+
+  def incrementSS(self, SS, k, x):
+    SS.x[k] += x
+    SS.xx[k] += np.square(x)
+
+  def decrementSS(self, SS, k, x):
+    SS.x[k] -= x
+    SS.xx[k] -= np.square(x)
 
   def incrementPost(self, k, x):
     ''' Add data to the Post ParamBag, component k
     '''
-    Post = self.Post
-    Post.nu[k] += 1
-    kappa = Post.kappa[k] + 1
-    Post.beta[k] += Post.kappa[k]/kappa * np.square(x-Post.m[k])
-    Post.m[k] = 1/(kappa) * (Post.kappa[k] * Post.m[k] + x)
-    Post.kappa[k] = kappa
-    # TODO: update cached cholesky and log det with rank-one updates
+    pass
 
   def decrementPost(self, k, x):
     ''' Remove data from the Post ParamBag, component k
     '''
     Post = self.Post
-    Post.nu[k] -= 1
+    Post.nu -= 1
     kappa = Post.kappa[k] - 1
-    Post.beta[k] -= Post.kappa[k]/kappa * np.square(x-Post.m[k])
-    Post.m[k] = 1/(kappa) * (Post.kappa[k] * Post.m[k] - x)
-    Post.kappa[k] = kappa
-    # TODO: update cached cholesky and log det with rank-one updates
+    Post.beta -= Post.kappa/kappa * np.square(x-Post.m)
+    Post.m = 1/(kappa) * (Post.kappa * Post.m - x)
+    Post.kappa = kappa
 
+  def updateCandidatePost_inplace(self, x):
+    if not hasattr(self, 'CandidatePost'):
+      self.CandidatePost = Post.copy()
+    else:
+      self.CandidatePost.nu[:] = Post.nu
+      self.CandidatePost.beta[:] = Post.beta
+      self.CandidatePost.m[:] = Post.m
+      self.CandidatePost.kappa[:] = Post.kappa
+
+    CPost = self.CandidatePost
+    CPost.nu += 1
+    CPost.kappa += 1
+    CPost.beta += Post.kappa/(CPost.kappa+1) * np.square(x-CPost.m)
+    Post.m[k] += 1/(kappa) * (Post.kappa[k] * Post.m[k] - x)
+  
   ########################################################### Expectations
   ########################################################### 
     
   def _E_CovMat(self, k=None):
+    '''
+        Returns
+        --------
+        E[ Sigma ] : 2D array, size DxD
+    '''
+    return np.diag(self._E_Cov(k))
+
+  def _E_Cov(self, k=None):
+    '''
+        Returns
+        --------
+        E[ sigma^2 ] : 1D array, size D
+    '''
     if k is None:
       nu = self.Prior.nu
       beta = self.Prior.beta

@@ -62,9 +62,14 @@ class DPMixModel(AllocModel):
     self.Elogw = self.ElogV.copy() # copy allows += without modifying ElogV
     self.Elogw[1:] += self.Elog1mV[:-1].cumsum()
     
-
   ######################################################### Accessors
   #########################################################
+  def get_active_comp_probs(self):
+    Ev = self.qalpha1 / (self.qalpha1 + self.qalpha0)
+    Ebeta = Ev.copy()
+    Ebeta[1:] *= np.cumprod(1.0-Ev[:-1]) 
+    return Ebeta
+
   def get_keys_for_memoized_local_params(self):
     ''' Return list of string names of the LP fields
         that this object needs to memoize across visits to a particular batch
@@ -99,6 +104,82 @@ class DPMixModel(AllocModel):
     LP['resp'] = lpr
     assert np.allclose(lpr.sum(axis=1), 1)
     return LP
+  
+  ######################################################### Local Updates Gibbs
+  #########################################################
+  def make_hard_asgn_local_params(self, LP):
+    ''' Convert soft assignments to hard assignments for provided local params
+
+        Returns
+        --------
+        LP : local params dict, with new fields
+             Z : 1D array, size N
+                    Z[n] is an integer in range {0, 1, 2, ... K-1}
+             resp : 2D array, size N x K+1 (with final column empty)
+                    resp[n,k] = 1 iff Z[n] == k
+    '''
+    LP['Z'] = np.argmax(LP['resp'], axis=1)
+    K = LP['resp'].shape[1]
+    LP['resp'].fill(0)
+    for k in xrange(K):
+      LP['resp'][LP['Z']==k, k] = 1 
+    return LP
+
+  def removeEmptyComps_SSandLP(self, SS, LP):
+    badks = np.flatnonzero(SS.N[:-1] < 1)
+    # Remove comps in order, from largest index to smallest
+    for k in badks[::-1]:
+      SS.removeComp(k)
+      mask = LP['Z'] > k
+      LP['Z'][mask] -= 1
+    if 'resp' in LP:
+      del LP['resp']
+    return SS, LP
+
+  def insertEmptyCompAtLastIndex_SSandLP(self, SS, LP):
+    SS.insertEmptyComps(1)
+    return SS, LP
+
+
+  def sample_local_params(self, obsModel, Data, SS, LP, PRNG):
+    ''' Sample local assignments of all data items to components
+    '''
+    Z = LP['Z']
+    # Iteratively sample data allocations 
+    for dataindex in xrange(Data.nObs):
+      x = Data.X[dataindex]
+
+      # de-update current assignment and suff stats
+      kcur = Z[dataindex]
+      SS.N[kcur] -= 1
+      obsModel.decrementSS(SS, kcur, x)
+
+      SS, LP = self.removeEmptyComps_SSandLP(SS, LP)
+      if SS.N[-1] > 0:
+        SS, LP = self.insertEmptyCompAtLastIndex_SSandLP(SS, LP)    
+
+      # Calculate probs
+      alloc_prob = self.getConditionalProbVec_Unnorm(SS)
+      pvec = obsModel.calcPredProbVec_Unnorm(SS, x)
+      pvec *= alloc_prob
+      pvec /= np.sum(pvec)
+
+      # sample new allocation
+      knew = PRNG.choice(SS.K, p=pvec)
+
+      # update with new assignment
+      SS.N[knew] += 1  
+      obsModel.incrementSS(SS, knew, x) 
+      Z[dataindex] = knew
+      
+    LP['Z'] = Z                      
+    print ' '.join(['%.1f' % (x) for x in SS.N])
+    return LP, SS 
+  
+  def getConditionalProbVec_Unnorm( self, SS ):
+    ''' Returns a K vector of positive values \propto p(z_i|z_-i)
+    '''
+    return np.hstack([SS.N[:-1], self.alpha0])
 
   def delete_comps_from_local_params(self, Data, LP, compIDs, **kwargs):
     ''' Create new local params with certain components deleted
@@ -107,6 +188,17 @@ class DPMixModel(AllocModel):
     newLP['resp'] = DeleteLPUtil.delete_comps_from_resp_matrix(LP['resp'],
                                                              compIDs)
     return newLP
+
+  def calcMargLik(self, SS):
+    ''' Calculate marginal likelihood of assignments, summed over all comps
+    '''
+    mask = SS.N > 0
+    Nvec = SS.N[mask]
+    K = Nvec.size
+    return gammaln(self.alpha0) \
+           + K * np.log(self.alpha0) \
+           + np.sum(gammaln(Nvec)) \
+           - gammaln(np.sum(Nvec) + self.alpha0)
 
   ######################################################### Suff Stats
   #########################################################
@@ -374,8 +466,10 @@ class DPMixModel(AllocModel):
     self.set_helper_params()
     
   def get_prior_dict(self):
-    return dict(alpha1=self.alpha1, alpha0=self.alpha0, K=self.K, 
-                  truncType=self.truncType)  
+    return dict(alpha1=self.alpha1,
+                alpha0=self.alpha0,
+                K=self.K, 
+                truncType=self.truncType)  
 
 
 def c_Func(alpha1, alpha0):

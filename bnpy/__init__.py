@@ -1,5 +1,9 @@
 ''' bnpy module __init__ file
 '''
+import os
+import sys
+
+
 import data
 import distr
 import util
@@ -21,9 +25,6 @@ import mergemove
 
 import Run
 from Run import run
-
-import os
-import sys
 
 ########################################################### Configure save
 ###########################################################  location
