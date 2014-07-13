@@ -18,6 +18,9 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, Plan=None, **kwargsIN):
       bigSS
       MoveInfo
   '''
+  logPhase('Target Data')
+  log(freshData.get_text_summary())
+
   kwargs = dict(**kwargsIN) # make local copy!
   origids = dict( bigModel=id(bigModel), bigSS=id(bigSS) )
 
@@ -125,6 +128,8 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, Plan=None, **kwargsIN):
     if earlyAdmission == 1:
       ELBOmsg = '*early*' + ELBOmsg
     msg = 'ACCEPTED. %d fresh comps.' % (len(birthCompIDs))
+    log(msg)
+
     MoveInfo = dict(didAddNew=True,
                     msg=msg,
                     AdjustInfo=xInfo['AInfo'], ReplaceInfo=xInfo['RInfo'],
@@ -134,7 +139,6 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, Plan=None, **kwargsIN):
                     )
     MoveInfo.update(xInfo)
     MoveInfo.update(freshInfo)
-    
     assert not xbigSS.hasELBOTerms()
     assert not xbigSS.hasMergeTerms()
     xfreshSS.removeELBOTerms()
