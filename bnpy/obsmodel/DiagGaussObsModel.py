@@ -511,15 +511,16 @@ class DiagGaussObsModel(AbstractObsModel):
     base = np.square(x - m)
     base /= kbeta
     base += 1
+    ## logp : 2D array, size K x D
     logp = (-0.5 * (nu+1))[:,np.newaxis] * np.log(base)
     logp += (gammaln(0.5 * (nu+1)) - gammaln(0.5 * nu))[:,np.newaxis]
     logp -= 0.5 * np.log(kbeta)
-    logp -= np.max(logp)
-    p = np.exp(logp)
-    #p = logp
-    #np.exp(logp, out=p)
-    #p /= np.sqrt(kbeta)
-    return np.prod(p, axis=1)
+
+    ## p : 1D array, size K
+    p = np.sum(logp, axis=1)
+    p -= np.max(p)
+    np.exp(p, out=p)
+    return p
 
   def _calcPredProbVec_ForLoop(self, SS, x):
     ''' For-loop version
