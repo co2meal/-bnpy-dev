@@ -19,7 +19,6 @@ import numpy as np
 import unittest
 from unittest.case import SkipTest
 
-import bnpy.viz 
 from bnpy.util import closeAtMSigFigs
 from bnpy.Run import run
 from bnpy.ContinueRun import continueRun
