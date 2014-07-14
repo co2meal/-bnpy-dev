@@ -22,11 +22,14 @@ def logPhase(title):
   title = '.'*(50-len(title)) + ' %s' % (title)
   log(title)
 
-def logPosVector(vec, fmt='%8.1f', Nmax=10):
+def logPosVector(vec, fmt='%8.1f', Nmax=10, label=''):
   if Log is None:
     return
   vstr = ' '.join([fmt % (x) for x in vec[:Nmax]])
-  Log.info(vstr)
+  if len(label) > 0:
+    Log.info(vstr + " | " + label)
+  else:
+    Log.info(vstr)
 
 def logProbVector(vec, fmt='%8.4f', Nmax=10):
   if Log is None:

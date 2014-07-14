@@ -81,6 +81,15 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, Plan=None, **kwargsIN):
       earlyAdmission, ELBOmsg = make_acceptance_decision(curELBO, propELBO)
       didPass = earlyAdmission
 
+    # Visualize, if desired
+    if 'doVizBirth' in kwargs and kwargs['doVizBirth']:
+      VizBirth.viz_birth_proposal(bigModel, freshModel, xrange(freshSS.K),
+                                  curELBO=None, propELBO=None, **kwargs)
+      raw_input('>>>')
+      from matplotlib import pylab
+      pylab.close('all')
+
+
     # Create xbigModel and xbigSS, with K + Kfresh comps
     #      freshData can be assigned to any of the K+Kfresh comps
     #      so, any of the K+Kfresh comps may be changed 
@@ -107,16 +116,9 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, Plan=None, **kwargsIN):
       propELBO = None # needed for kwarg for viz_birth_proposal
       curELBO = None
 
-    # Visualize, if desired
     Kcur = bigSS.K
     Ktotal = xbigSS.K
     birthCompIDs = range(Kcur, Ktotal)
-    if 'doVizBirth' in kwargs and kwargs['doVizBirth']:
-      VizBirth.viz_birth_proposal(bigModel, xbigModel, birthCompIDs,
-                                  curELBO=curELBO, propELBO=propELBO, **kwargs)
-      raw_input('>>>')
-      from matplotlib import pylab
-      pylab.close('all')
 
     # Reject. Abandon the move.
     if not didPass:
