@@ -513,9 +513,12 @@ class DiagGaussObsModel(AbstractObsModel):
     base += 1
     logp = (-0.5 * (nu+1))[:,np.newaxis] * np.log(base)
     logp += (gammaln(0.5 * (nu+1)) - gammaln(0.5 * nu))[:,np.newaxis]
-    p = logp
-    np.exp(logp, out=p)
-    p /= np.sqrt(kbeta)
+    logp -= 0.5 * np.log(kbeta)
+    logp -= np.max(logp)
+    p = np.exp(logp)
+    #p = logp
+    #np.exp(logp, out=p)
+    #p /= np.sqrt(kbeta)
     return np.prod(p, axis=1)
 
   def _calcPredProbVec_ForLoop(self, SS, x):

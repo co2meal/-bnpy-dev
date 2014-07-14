@@ -164,8 +164,14 @@ class DPMixModel(AllocModel):
       alloc_prob = self.getConditionalProbVec_Unnorm(SS, doKeepFinalCompEmpty)
       pvec = obsModel.calcPredProbVec_Unnorm(SS, x)
       pvec *= alloc_prob
-      pvec /= np.sum(pvec)
+      psum = np.sum(pvec)
 
+      if np.isnan(psum) or psum <= 0:
+        print pvec
+        print psum
+        raise ValueError('BAD VALUES FOR PROBS!')
+
+      pvec /= psum
       # sample new allocation
       knew = PRNG.choice(SS.K, p=pvec)
 
