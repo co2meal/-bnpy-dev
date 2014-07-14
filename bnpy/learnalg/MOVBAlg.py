@@ -178,9 +178,9 @@ class MOVBAlg(LearnAlg):
         if self.isFirstBatch(lapFrac) and lapFrac >= mergeStartLap:
           if mergeELBOTrackMethod == 'exact':
             mPairIDs, MM = MergePlanner.preselect_candidate_pairs(hmodel, SS,
-                                                              randstate=self.PRNG,
-                                                          returnScoreMatrix=1,
-                                                          **self.algParams['merge'])
+                                            randstate=self.PRNG,
+                                            returnScoreMatrix=1,
+                                            **self.algParams['merge'])
             doPrecompMergeEntropy = 1 # explicitly precomp all O(K^2) pairs
           else:
             doPrecompMergeEntropy = 2 # need only precomp O(K) stats

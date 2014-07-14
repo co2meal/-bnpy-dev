@@ -12,7 +12,7 @@ import numpy as np
 from bnpy.util import GramSchmidtUtil as GSU
 from BirthProposalError import BirthProposalError
 import BirthCleanup
-from BirthLogger import log, logPhase
+from BirthLogger import log, logPhase, logPosVector
 
 fastParams = dict(nCoordAscentItersLP=1, convThrLP=0.001)
 
@@ -81,7 +81,6 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None,
       freshSS.setField('WordCounts', topics, dims=('K','D'))
     return freshModel, freshSS, Info
 
-  log('Fresh Updates ....................')
   # Record initial model for posterity
   if kwargs['birthDebug']:
     Info['freshModelInit'] = freshModel.copy()
@@ -92,6 +91,8 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None,
     freshModel.update_global_params(freshSS)
     if kwargs['birthDebug']:
       Info['freshModelRefined'] = freshModel.copy()
+    if step < 3 or (step+1) % 10 == 0:
+      logPosVector(freshSS.N, label='iter %3d' % (step+1))
 
   if kwargs['cleanupDeleteEmpty']:
     freshModel, freshSS = BirthCleanup.delete_empty_comps(
@@ -106,6 +107,7 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None,
     if kwargs['birthDebug']:
       Info['freshModelPostDelete'] = freshModel.copy()
     
+  logPosVector(freshSS.N, label='final')
   return freshModel, freshSS, Info
 
 ########################################################### Topic-model 
