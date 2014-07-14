@@ -128,6 +128,8 @@ class AbstractEndToEndTest(unittest.TestCase):
         arrEst = Util.buildArrForObsModelParams(model.obsModel.comp, key)
         if permIDs is None:
           isG, permIDs = self.verify_close_under_some_perm(arrTrue, arrEst, key)
+          print arrEst
+          print arrTrue
           if not isG:
             print ' FAILED TO FIND IDEAL PARAMS'
             print key
@@ -136,6 +138,11 @@ class AbstractEndToEndTest(unittest.TestCase):
             argstring = ' '.join(sys.argv[1:])
             return False
         arrEst = arrEst[permIDs]
+        if not self.verify_close(arrTrue, arrEst, key):
+          print permIDs
+          print key
+          print 'est =', arrEst
+          print 'true =', arrTrue
         assert self.verify_close(arrTrue, arrEst, key)  
       else:
         allocKeyList.append(key)

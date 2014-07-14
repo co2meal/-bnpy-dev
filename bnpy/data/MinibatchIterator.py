@@ -99,15 +99,17 @@ class MinibatchIterator(object):
         obsIDByBatch : list of length self.nBatch,
                        where obsIDByBatch[bID] : list of all obsIDs in batch bID 
     '''
-    PRNG = np.random.RandomState(self.dataorderseed)
-    obsIDs = PRNG.permutation(self.Data.nObsTotal).tolist()
-    obsIDByBatch = dict()
-    for batchID in range(self.nBatch-1):
-      obsIDByBatch[batchID] = obsIDs[:self.nObsBatch]
-      del obsIDs[:self.nObsBatch]
-    # Last batch gets leftovers, may be bigger
-    obsIDByBatch[self.nBatch-1] = obsIDs 
-    return obsIDByBatch
+#    PRNG = np.random.RandomState(self.dataorderseed)
+#    obsIDs = PRNG.permutation(self.Data.nObsTotal).tolist()
+#    obsIDByBatch = dict()
+#    for batchID in range(self.nBatch-1):
+#      obsIDByBatch[batchID] = obsIDs[:self.nObsBatch]
+#      del obsIDs[:self.nObsBatch]
+#    # Last batch gets leftovers, may be bigger
+#    obsIDByBatch[self.nBatch-1] = obsIDs 
+#    return obsIDByBatch
+    return self.Data.generate_batch_ids(self.nBatch, self.dataorderseed,
+                                        self.nObsBatch)
 
   def get_rand_order_for_batchIDs_current_lap(self):
     ''' Returns array of batchIDs, permuted in random order
