@@ -6,6 +6,7 @@ from bnpy.allocmodel.seq import HMMUtil
 from bnpy.util import digamma, gammaln, EPS
 from bnpy.allocmodel.admix import OptimizerForHDPStickBreak as OptimHDPSB
 
+import scipy.io
 
 class HDPHMM(AllocModel):
 
@@ -90,14 +91,29 @@ class HDPHMM(AllocModel):
         expELogBeta = np.exp(expELogBeta)
         expELogPi = np.exp(expELogPi)
 
-        resp, respPair, _ = \
-            HMMUtil.FwdBwdAlg(expELogPi, expELogBeta, lpr)
+        resp = None
+        respPair = None
+        for n in xrange(Data.nSeqs):
+            #The third return value, logMargPr, is useless in the HDPHMM
+            seqResp, seqRespPair, _ = \
+                HMMUtil.FwdBwdAlg(expELogPi, expELogBeta, \
+                                      lpr[Data.seqInds[n]:Data.seqInds[n+1]])
+            if resp is None:
+                resp = np.vstack(seqResp)
+                respPair = seqRespPair
+            else:
+                resp = np.vstack((resp, seqResp))
+                respPair = np.append(respPair, seqRespPair, axis = 0)
+
+            print HMMUtil.viterbi(lpr[Data.seqInds[n]:Data.seqInds[n+1]],
+                                  expELogPi, expELogBeta)
 
         LP.update({'resp':resp})
         LP.update({'respPair':respPair})
-
         return LP      
 
+  ######################################################### Sufficient Stats
+  #########################################################
 
     def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None, **kwargs):
         #This method is called before calc_local_params() during initialization,
@@ -110,8 +126,10 @@ class HDPHMM(AllocModel):
             resp = LP['resp']
             respPair = LP['respPair']
 
-        respPairSums = np.sum(respPair[1:,:,:], axis = 0)
-        firstStateResp = resp[0,:]
+        inds = Data.seqInds[:-1]
+
+        respPairSums = np.sum(respPair, axis = 0)
+        firstStateResp = np.sum(resp[inds], axis = 0)
         N = np.sum(resp, axis = 0)
         
         SS = SuffStatBag(K = self.K , D = Data.dim)
@@ -119,24 +137,20 @@ class HDPHMM(AllocModel):
         SS.setField('respPairSums', respPairSums, dims=('K','K'))
         SS.setField('N', N, dims=('K'))
 
+        if doPrecompEntropy is not None:
+            entropy = self.elbo_entropy(LP)
+            SS.setELBOTerm('Elogqz', entropy, dims = (()))
+
         return SS
 
 
-    def update_global_params_EM(self, SS, **kwargs):
-        raise ValueError('HDPHMM.py does not support EM')
-
-
-    def update_global_params_VB(self, SS, **kwargs):
-
-        if self.u is None:
-            self.u = np.array([np.ones((self.K, self.K)), 
-                               np.ones((self.K, self.K))])
-            self.b = np.array([np.ones(self.K), np.ones(self.K)])
-
-        #Set to prior Beta(1, gamma) if this is first iteration
-        if (self.omega is None) or (self.rho is None):
-            self.omega = (self.gamma + 1) * np.ones(self.K)
-            self.rho = (1 / (self.gamma + 1)) * np.ones(self.K)
+  ######################################################### Global Params
+  #########################################################
+    
+    def find_optimum_rhoOmega(self, SS, **kwargs):
+        ''' Performs numerical optimization of rho and omega needed in 
+            M-step update of global parameters
+        '''
 
         #Calculate needed parameters for rho, omega optimization
         elogv = digamma(self.u[1,:,:]) - \
@@ -159,7 +173,7 @@ class HDPHMM(AllocModel):
             initRho = None
             initOmega = None
         
-        self.rho, self.omega, fofu, Info = \
+        rho, omega, fofu, Info = \
             OptimHDPSB.find_optimum_multiple_tries(sumLogVd = elogv, \
                                                    sumLog1mVd = elog1mv, \
                                                    nDoc = self.K+1, \
@@ -167,13 +181,34 @@ class HDPHMM(AllocModel):
                                                    alpha = self.alpha, \
                                                    initrho = initRho, \
                                                    initomega = initOmega)
+        return rho, omega
+        
 
+
+    def update_global_params_EM(self, SS, **kwargs):
+        raise ValueError('HDPHMM.py does not support EM')
+
+
+    def update_global_params_VB(self, SS, **kwargs):
+
+        if (self.u is None) or (self.b is None):
+            self.u = np.array([np.ones((self.K, self.K)), 
+                               np.ones((self.K, self.K))])
+            self.b = np.array([np.ones(self.K), np.ones(self.K)])
+
+        #Set to prior Beta(1, gamma) if this is first iteration
+        if (self.omega is None) or (self.rho is None):
+            self.omega = (self.gamma + 1) * np.ones(self.K)
+            self.rho = (1 / (self.gamma + 1)) * np.ones(self.K)
+
+        #Update rho and omega through numerical optimization
+        self.rho, self.omega = self.find_optimum_rhoOmega(SS, **kwargs)
 
         rhoProds = np.array([np.prod(1-self.rho[0:i]) for i in xrange(self.K)])
 
-        self.u = np.array([np.ones((self.K, self.K)), 
-                           np.ones((self.K, self.K))])
-        self.b = np.array([np.ones(self.K), np.ones(self.K)])
+        #self.u = np.array([np.ones((self.K, self.K)), 
+        #                   np.ones((self.K, self.K))])
+        #self.b = np.array([np.ones(self.K), np.ones(self.K)])
 
         #Update u
         for i in xrange(self.K):
@@ -190,13 +225,46 @@ class HDPHMM(AllocModel):
             self.b[0,i] = self.tau * (1 - self.rho[i]) * rhoProds[i] + \
                 np.sum(SS.firstStateResp[i+1:self.K])
 
+    def update_global_params_soVB(self, SS, rho, **kwargs):
+        ''' Updates global parameters when learning with stochastic online VB.
+            Note that the rho here is the learning rate parameter, not
+            the global stick weight parameter rho
+        '''
+        rhoNew, omegaNew = self.find_optimum_rhoOmega(SS, **kwargs)
+        uNew = np.array([np.ones((self.K, self.K)), 
+                           np.ones((self.K, self.K))])
+        bNew = np.array([np.ones(self.K), np.ones(self.K)])
+
+        rhoProds = np.array([np.prod(1-self.rho[0:i]) for i in xrange(self.K)])
+
+        for i in xrange(self.K):
+            for j in xrange(self.K):
+                uNew[1,i,j] = self.alpha * self.rho[i] * rhoProds[i] + \
+                    SS.respPairSums[i,j]
+                uNew[0,i,j] = self.alpha * (1 - self.rho[i]) * rhoProds[i] + \
+                    np.sum(SS.respPairSums[i,j+1:self.K])
+
+        for i in xrange(self.K):
+            bNew[1,i] = self.tau * self.rho[i] * rhoProds[i] + \
+                SS.firstStateResp[i]
+            bNew[0,i] = self.tau * (1 - self.rho[i]) * rhoProds[i] + \
+                np.sum(SS.firstStateResp[i+1:self.K])
+
+            self.u = rho*uNew + (1 - rho)*self.u
+            self.b = rho*bNew + (1 - rho)*self.b
+            self.rho = rho*rhoNew + (1 - rho)*self.rho
+            self.omega = rho*omegaNew + (1 - rho)*self.omega
+
         
 
     def calc_evidence(self, Data, SS, LP):
         if SS.hasELBOTerm('Elogqz'):
-            print 'i dont want this why would you give it to me'
+            entropy = SS.getELBOTerm('Elogqz')
+        else:
+            entropy = self.elbo_entropy(LP)
 
-        return self.elbo_entropy(LP) + self.elbo_norms() + self.elbo_v0()
+        return entropy + self.elbo_alloc() + self.elbo_v0() + \
+            self.elbo_allocSlack()
 
 
 
@@ -212,12 +280,10 @@ class HDPHMM(AllocModel):
         restZ = -np.sum(LP['respPair'][1:,:,:] * np.log(sigma[1:,:,:] + EPS))
         return z_1 + restZ
 
-
-    def elbo_norms(self):
+    def elbo_alloc(self):
         '''Calculates the sum of all the normalization constants that show up
            in the ELBO.  Specifically the constants in p(v), q(v), p(y), and q(y)
         '''
-        
         #For lack of a better name...
         thatOneTerm = [self.K - i for i in xrange(self.K)]
 
@@ -239,6 +305,13 @@ class HDPHMM(AllocModel):
                            gammaln(self.u[0,:,:]))
 
         return normPy + normPv - normQy - normQv
+
+
+    def elbo_allocSlack(self):
+        '''Term that will be zero if ELBO is computed after the M-step
+        '''
+        return 0
+    
 
                                                              
     

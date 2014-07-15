@@ -7,20 +7,34 @@ There are 10 exercises, and (x,y) coordinates of 6 different joints are observed
 '''
 
 import numpy as np
-from bnpy.data import SeqXData
+from bnpy.data import SeqXData, MinibatchIterator
 import readline
 
 
+def get_minibatch_iterator(seed=8675309, dataorderseed=0, nBatch=3, nObsBatch=2, nObsTotal=25000, nLap=1, startLap=0, **kwargs):
+  '''
+    Args
+    --------
+    seed : integer seed for random number generator,
+            used for actually *generating* the data
+    dataorderseed : integer seed that determines
+                     (a) how data is divided into minibatches
+                     (b) order these minibatches are traversed
+
+   Returns
+    -------
+      bnpy MinibatchIterator object, with nObsTotal observations
+        divided into nBatch batches
+  '''
+  X, fullZ, seqInds = get_XZ()
+  Data = SeqXData(X = X, TrueZ = fullZ, seqInds = seqInds)
+  Data.summary = get_data_info()
+  DataIterator = MinibatchIterator(Data, nBatch=nBatch, nObsBatch=nObsBatch, \
+                                       nLap=nLap, startLap=startLap, \
+                                       dataorderseed=dataorderseed)
+  return DataIterator
+    
 def get_XZ():
-    print 'kk'
-
-def get_data_info():
-    return 'Multiple sequences of data from motion capture of humans performing exercises'
-
-def get_short_name():
-    return 'MoCap'
-
-def get_data(**kwargs):
     X = list()
     Z = list()
     zTrue = open('/home/will/bnpy/bnpy-dev/demodata/mocap6/zTrue.dat', 'r')
@@ -51,10 +65,18 @@ def get_data(**kwargs):
         seqInds = np.append(seqInds, len(Z[i]) + seqInds[i])
         fullZ = np.append(fullZ, Z[i])
     X = np.vstack(X)
-    print seqInds
-    print np.shape(X)
-    print np.shape(fullZ)
 
+    return X, fullZ, seqInds
+
+
+def get_data_info():
+    return 'Multiple sequences of data from motion capture of humans performing exercises'
+
+def get_short_name():
+    return 'MoCap'
+
+def get_data(**kwargs):
+    X, fullZ, seqInds = get_XZ()
     Data = SeqXData(X = X, seqInds = seqInds, TrueZ = fullZ)
     Data.summary = get_data_info()
     return Data

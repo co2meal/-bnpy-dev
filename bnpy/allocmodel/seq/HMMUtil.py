@@ -178,3 +178,33 @@ def _parseInput_SoftEv(logSoftEv, K):
   Tl, Kl = logSoftEv.shape
   assert Kl == K
   return logSoftEv
+
+
+def viterbi(logSoftEv, pi0, pi):
+  T, K = np.shape(logSoftEv)
+  V = np.zeros((T, K))
+  softEv, lognormC = expLogLik(logSoftEv)
+
+  for t in xrange(T):
+    for l in xrange(K):
+      
+      if t == 0:
+        V[0, l] = softEv[t,l] * pi0[l]
+        continue
+
+      biggest = 0
+      for k in xrange(K):
+        pr = pi[k,l] * V[t-1, k]
+        if pr > biggest:
+          biggest = pr
+
+      V[t, l] = softEv[t,l] * biggest
+
+  
+  #Find most likely sequence of z's
+  z = np.zeros(T)
+  for t in reversed(xrange(T)):
+    z[t] = np.argmax(V[t,:])
+  return z
+
+    

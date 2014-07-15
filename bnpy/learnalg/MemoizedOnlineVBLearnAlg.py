@@ -89,13 +89,6 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       lapFrac = (iterid + 1) * self.lapFracInc
       self.set_random_seed_at_lap(lapFrac)
 
-      # M step
-      if self.algParams['doFullPassBeforeMstep']:
-        if SS is not None and lapFrac > 1.0:
-          hmodel.update_global_params(SS)
-      else:
-        if SS is not None:
-          hmodel.update_global_params(SS)
       
       # Birth move : track birth info from previous lap
       if self.isFirstBatch(lapFrac):
@@ -178,6 +171,15 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       #  to make SS have size exactly consistent with entire dataset
       if self.hasMove('birth') and self.isLastBatch(lapFrac):
         hmodel, SS = self.birth_remove_extra_mass(hmodel, SS, BirthResults)
+
+      # M step
+      if self.algParams['doFullPassBeforeMstep']:
+        if SS is not None and lapFrac > 1.0:
+          hmodel.update_global_params(SS)
+      else:
+        if SS is not None:
+          hmodel.update_global_params(SS)
+
 
       # ELBO calc
       #self.verify_suff_stats(Dchunk, SS, lapFrac)
