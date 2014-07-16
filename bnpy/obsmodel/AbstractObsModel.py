@@ -47,6 +47,8 @@ class AbstractObsModel(object):
   def update_global_params(self, SS, rho=None, **kwargs):
     if self.inferType == 'EM':
       return self.updateEstParams_MaxLik(SS)
+    elif rho is not None and rho < 1.0:
+      return self.updatePost_stochastic(SS, rho)
     else:
       return self.updatePost(SS)
 
