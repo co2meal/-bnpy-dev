@@ -201,7 +201,7 @@ class DiagGaussObsModel(AbstractObsModel):
     self.Post.setField('kappa', kappa, dims=('K'))
     self.K = self.Post.K
 
-  ########################################################### Summary
+  ########################################################### Suff Stats
   ########################################################### 
 
   def calcSummaryStats(self, Data, SS, LP):
@@ -223,6 +223,145 @@ class DiagGaussObsModel(AbstractObsModel):
     # Expected sum-of-squares for each k
     SS.setField('xx', dotATB(resp, np.square(X)), dims=('K', 'D'))
     return SS 
+
+  ########################################################### Posterior
+
+  def updatePost(self, SS):
+    ''' Update (in place) posterior params for each comp given suff stats
+    '''
+    self.ClearCache()
+    if not hasattr(self, 'Post') or self.Post.K != SS.K:
+      self.Post = ParamBag(K=SS.K, D=SS.D)
+
+    Prior = self.Prior # use 'Prior' not 'self.Prior', improves readability
+    Post = self.Post
+
+    Post.setField('nu', Prior.nu + SS.N, dims=('K'))
+    Post.setField('kappa', Prior.kappa + SS.N, dims=('K'))
+    
+    km = Prior.kappa * Prior.m + SS.x
+    beta = Prior.beta + Prior.kappa * np.square(Prior.m) \
+           + SS.xx - np.square(km) / Post.kappa[:,np.newaxis]
+    Post.setField('m', km / Post.kappa[:,np.newaxis], dims=('K', 'D'))
+    Post.setField('beta', beta, dims=('K', 'D'))
+    self.K = SS.K
+
+  def updatePost_stochastic(self, SS, rho):
+    ''' Stochastic update (in place) posterior for each comp given suff stats
+    '''
+    assert hasattr(self, 'Post')
+    assert self.Post.K == SS.K
+    self.ClearCache()
+    
+    self.convertPostToNatural()
+    nu, b, km, kappa = self.calcNaturalPostParams(SS)
+    Post = self.Post
+    Post.nu[:] = (1-rho) * Post.nu + rho * nu
+    Post.b[:] = (1-rho) * Post.b + rho * b
+    Post.km[:] = (1-rho) * Post.km + rho * km
+    Post.kappa[:] = (1-rho) * Post.kappa + rho * kappa
+    self.convertPostToCommon()
+
+  def calcPostParams(self, SS):
+    ''' Calc updated params (nu, beta, m, kappa) for all comps given suff stats
+
+        These params define the common-form of the exponential family 
+        Normal-Wishart posterior distribution over mu, diag(Lambda)
+
+        Returns
+        --------
+        nu : 1D array, size K
+        beta : 2D array, size K x D
+        m : 2D array, size K x D
+        kappa : 1D array, size K
+    '''
+    Prior = self.Prior
+    nu = Prior.nu + SS.N
+    kappa = Prior.kappa + SS.N
+    m = (Prior.kappa * Prior.m + SS.x) / kappa[:,np.newaxis]
+    beta = Prior.beta + SS.xx \
+           + Prior.kappa * np.square(Prior.m) \
+           - kappa[:,np.newaxis] * np.square(m)
+    return nu, beta, m, kappa
+
+  def calcPostParamsForComp(self, SS, kA, kB=None):
+    ''' Calc params (nu, beta, m, kappa) for specific comp, given suff stats
+
+        These params define the common-form of the exponential family 
+        Normal-Wishart posterior distribution over mu[k], diag(Lambda)[k]
+
+        Returns
+        --------
+        nu : positive scalar
+        beta : 1D array, size D
+        m : 1D array, size D
+        kappa : positive scalar
+    '''
+    if kB is None:
+      SN = SS.N[kA]
+      Sx = SS.x[kA]
+      Sxx = SS.xx[kA]
+    else:
+      SN = SS.N[kA] + SS.N[kB]
+      Sx = SS.x[kA] + SS.x[kB]
+      Sxx = SS.xx[kA] + SS.xx[kB]
+    Prior = self.Prior
+    nu = Prior.nu + SN
+    kappa = Prior.kappa + SN
+    m = (Prior.kappa * Prior.m + Sx) / kappa
+    beta = Prior.beta + Sxx \
+             + Prior.kappa * np.square(Prior.m) \
+             - kappa * np.square(m)
+    return nu, beta, m, kappa
+
+  def calcNaturalPostParams(self, SS):
+    ''' Calc updated params (nu, b, km, kappa) for all comps given suff stats
+
+        These params define the natural-form of the exponential family 
+        Normal-Wishart posterior distribution over mu, diag(Lambda)
+
+        Returns
+        --------
+        nu : 1D array, size K
+        b : 2D array, size K x D
+        km : 2D array, size K x D
+        kappa : 1D array, size K
+    '''
+    Prior = self.Prior
+    nu = Prior.nu + SS.N
+    kappa = Prior.kappa + SS.N
+    km = Prior.kappa * Prior.m + SS.x
+    b = Prior.beta + Prior.kappa * np.square(Prior.m) + SS.xx
+    return nu, b, km, kappa
+    
+  def convertPostToNatural(self):
+    ''' Convert (in-place) current posterior params from common to natural form
+    '''
+    Post = self.Post
+    assert hasattr(Post, 'nu')
+    assert hasattr(Post, 'kappa')
+    km = Post.m * Post.kappa[:,np.newaxis]
+    b = Post.beta + (np.square(km) / Post.kappa[:,np.newaxis])
+    Post.setField('km', km, dims=('K','D'))
+    Post.setField('b', b, dims=('K','D'))
+
+  def convertPostToCommon(self):
+    ''' Convert (in-place) current posterior params from natural to common form
+    '''
+    Post = self.Post
+    assert hasattr(Post, 'nu')
+    assert hasattr(Post, 'kappa')
+    if hasattr(Post, 'm'):
+      Post.m[:] = Post.km / Post.kappa[:,np.newaxis]
+    else:
+      m = Post.km / Post.kappa[:,np.newaxis]
+      Post.setField('m', m, dims=('K','D'))
+
+    if hasattr(Post, 'beta'):
+      Post.beta[:] = Post.b - (np.square(Post.km) / Post.kappa[:,np.newaxis])
+    else:
+      beta = Post.b - (np.square(Post.km) / Post.kappa[:,np.newaxis])
+      Post.setField('beta', beta, dims=('K','D'))
 
   ########################################################### EM
   ########################################################### 
@@ -321,73 +460,6 @@ class DiagGaussObsModel(AbstractObsModel):
     dist += self.D / self.Post.kappa[k]
     return dist
 
-  def updatePost(self, SS):
-    ''' Update (in place) posterior params for each comp given suff stats
-    '''
-    self.ClearCache()
-    if not hasattr(self, 'Post') or self.Post.K != SS.K:
-      self.Post = ParamBag(K=SS.K, D=SS.D)
-
-    Prior = self.Prior # use 'Prior' not 'self.Prior', improves readability
-    Post = self.Post
-
-    Post.setField('nu', Prior.nu + SS.N, dims=('K'))
-    Post.setField('kappa', Prior.kappa + SS.N, dims=('K'))
-    
-    km = Prior.kappa * Prior.m + SS.x
-    beta = Prior.beta + Prior.kappa * np.square(Prior.m) \
-           + SS.xx - np.square(km) / Post.kappa[:,np.newaxis]
-    Post.setField('m', km / Post.kappa[:,np.newaxis], dims=('K', 'D'))
-    Post.setField('beta', beta, dims=('K', 'D'))
-    self.K = SS.K
-
-
-  def convertPostToNatural(self):
-    ''' Convert (in-place) current posterior params from common to natural form
-    '''
-    Post = self.Post
-    assert hasattr(Post, 'nu')
-    assert hasattr(Post, 'kappa')
-    km = Post.m * Post.kappa[:,np.newaxis]
-    b = Post.beta + (np.square(km) / Post.kappa[:,np.newaxis])
-    Post.setField('km', km, dims=('K','D'))
-    Post.setField('b', b, dims=('K','D'))
-
-  def convertPostToCommon(self):
-    ''' Convert (in-place) current posterior params from natural to common form
-    '''
-    Post = self.Post
-    assert hasattr(Post, 'nu')
-    assert hasattr(Post, 'kappa')
-    if hasattr(Post, 'm'):
-      Post.m[:] = Post.km / Post.kappa[:,np.newaxis]
-    else:
-      m = Post.km / Post.kappa[:,np.newaxis]
-      Post.setField('m', m, dims=('K','D'))
-
-    if hasattr(Post, 'beta'):
-      Post.beta[:] = Post.b - (np.square(Post.km) / Post.kappa[:,np.newaxis])
-    else:
-      beta = Post.b - (np.square(Post.km) / Post.kappa[:,np.newaxis])
-      Post.setField('beta', beta, dims=('K','D'))
-
-
-  def updatePost_stochastic(self, SS, rho):
-    ''' Stochastic update (in place) posterior for each comp given suff stats
-    '''
-    assert hasattr(self, 'Post')
-    assert self.Post.K == SS.K
-    self.ClearCache()
-    
-    self.convertPostToNatural()
-    nu, b, km, kappa = self.calcNaturalPostParams(SS)
-    Post = self.Post
-    Post.nu[:] = (1-rho) * Post.nu + rho * nu
-    Post.b[:] = (1-rho) * Post.b + rho * b
-    Post.km[:] = (1-rho) * Post.km + rho * km
-    Post.kappa[:] = (1-rho) * Post.kappa + rho * kappa
-    self.convertPostToCommon()
-
   def calcELBO_Memoized(self, SS, doFast=False):
     ''' Calculate obsModel's ELBO using sufficient statistics SS and Post.
 
@@ -425,7 +497,7 @@ class DiagGaussObsModel(AbstractObsModel):
 
   # TODO: Merge ELBO
 
-  ########################################################### Post
+  ########################################################### Marg Lik
   ###########################################################
   def calcLogMargLikForComp(self, SS, kA, kB=None, **kwargs):
     ''' Calc log marginal likelihood of data assigned to given component
@@ -447,65 +519,6 @@ class DiagGaussObsModel(AbstractObsModel):
     nu, beta, m, kappa = self.calcPostParamsForComp(SS, kA, kB)
     return -1 * c_Func(nu, beta, m, kappa)
 
-  def calcNaturalPostParams(self, SS):
-    ''' Calc updated params (nu, b, km, kappa) for all comps given suff stats
-
-        These params define the natural-form of the exponential family 
-        Normal-Wishart posterior distribution over mu, diag(Lambda)
-
-        Returns
-        --------
-        nu : 1D array, size K
-        b : 2D array, size K x D
-        km : 2D array, size K x D
-        kappa : 1D array, size K
-    '''
-    Prior = self.Prior
-    nu = Prior.nu + SS.N
-    kappa = Prior.kappa + SS.N
-    km = Prior.kappa * Prior.m + SS.x
-    b = Prior.beta + Prior.kappa * np.square(Prior.m) + SS.xx
-    return nu, b, km, kappa
-    
-  def calcPostParams(self, SS):
-    ''' Calc updated params (nu, beta, m, kappa) for all comps given suff stats
-
-        These params define the common-form of the exponential family 
-        Normal-Wishart posterior distribution over mu, diag(Lambda)
-
-        Returns
-        --------
-        nu : 1D array, size K
-        beta : 2D array, size K x D
-        m : 2D array, size K x D
-        kappa : 1D array, size K
-    '''
-    Prior = self.Prior
-    nu = Prior.nu + SS.N
-    kappa = Prior.kappa + SS.N
-    m = (Prior.kappa * Prior.m + SS.x) / kappa[:,np.newaxis]
-    beta = Prior.beta + SS.xx \
-           + Prior.kappa * np.square(Prior.m) \
-           - kappa[:,np.newaxis] * np.square(m)
-    return nu, beta, m, kappa
-
-  def calcPostParamsForComp(self, SS, kA, kB=None):
-    if kB is None:
-      SN = SS.N[kA]
-      Sx = SS.x[kA]
-      Sxx = SS.xx[kA]
-    else:
-      SN = SS.N[kA] + SS.N[kB]
-      Sx = SS.x[kA] + SS.x[kB]
-      Sxx = SS.xx[kA] + SS.xx[kB]
-    Prior = self.Prior
-    nu = Prior.nu + SN
-    kappa = Prior.kappa + SN
-    m = (Prior.kappa * Prior.m + Sx) / kappa
-    beta = Prior.beta + Sxx \
-             + Prior.kappa * np.square(Prior.m) \
-             - kappa * np.square(m)
-    return nu, beta, m, kappa
 
   ########################################################### Gibbs
   ########################################################### 
