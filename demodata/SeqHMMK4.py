@@ -28,9 +28,9 @@ transPi = np.asarray([[0.0, 1.0, 0.0, 0.0], \
 initState = 1
 
 mus = np.asarray([[0, 0], \
-                  [10, 0], \
-                  [0, 10], \
-                  [10, 10]])
+                  [100, 0], \
+                  [0, 100], \
+                  [10, 100]])
 #mus = np.zeros((K,D))
 #for i in xrange(K):
 #  mus[i,i] = 10
