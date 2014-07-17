@@ -68,12 +68,6 @@ class FiniteHMM(AllocModel):
             expELogInit = np.exp(digamma(self.initTheta) - 
                                  digamma(np.sum(self.initTheta)))
 
-            #Normalize so that FwdBwdAlg() will give accurate logMargPrSeq
-            #expELogInit = expELogInit / np.sum(expELogInit)
-            #for k in xrange(self.K):
-            #    expELogTrans[k, :] = expELogTrans[k, :] \
-            #        / np.sum(expELogTrans[k,:])
-
             initParam = expELogInit
             transParam = expELogTrans
 
@@ -161,7 +155,7 @@ class FiniteHMM(AllocModel):
         respPairSums = np.sum(respPair, axis = 0)
         firstStateResp = np.sum(resp[inds], axis = 0)
         N = np.sum(resp, axis = 0)
-
+        print N
         SS = SuffStatBag(K = self.K , D = Data.dim)
         SS.setField('firstStateResp', firstStateResp, dims=('K'))
         SS.setField('respPairSums', respPairSums, dims=('K','K'))

@@ -1,5 +1,5 @@
 '''
-HMMK5.py
+HMMK4.py
 
 Dataset generated from a HMM with gaussian emission probabilities.
 '''
