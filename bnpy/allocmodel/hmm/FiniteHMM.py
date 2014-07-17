@@ -30,7 +30,7 @@ class FiniteHMM(AllocModel):
 
     #TODO: actually set up priors in config/allocmodel.conf
     def set_prior(self, initAlpha = .1, transAlpha = .1, **kwargs):
-        self.initAlpha = initAlpha #Dirichlet parameter for initPi
+        self.initAlpha = initAlphaf #Dirichlet parameter for initPi
         self.transAlpha = transAlpha #Array of dirichlet parameters for 
                                           #transPi
         

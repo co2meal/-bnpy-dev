@@ -93,20 +93,25 @@ class HDPHMM(AllocModel):
 
         resp = None
         respPair = None
+        estZ = None
         for n in xrange(Data.nSeqs):
             #The third return value, logMargPr, is useless in the HDPHMM
             seqResp, seqRespPair, _ = \
                 HMMUtil.FwdBwdAlg(expELogPi, expELogBeta, \
                                       lpr[Data.seqInds[n]:Data.seqInds[n+1]])
+
+            #est = HMMUtil.viterbi(lpr[Data.seqInds[n]:Data.seqInds[n+1]],
+            #                       expELogPi, expELogBeta)
             if resp is None:
                 resp = np.vstack(seqResp)
                 respPair = seqRespPair
+                #estZ = est
             else:
                 resp = np.vstack((resp, seqResp))
                 respPair = np.append(respPair, seqRespPair, axis = 0)
+                #estZ = np.append(estZ, est)
 
-            print HMMUtil.viterbi(lpr[Data.seqInds[n]:Data.seqInds[n+1]],
-                                  expELogPi, expELogBeta)
+        #scipy.io.savemat('estZ.mat', {'estZ':estZ})
 
         LP.update({'resp':resp})
         LP.update({'respPair':respPair})
