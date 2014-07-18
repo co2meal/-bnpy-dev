@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/bin/bash
+
 source experiments/SetupEnvBNPY-NIPS.sh
 DataName="NIPSCorpus"
 BASEDIR="reports/$DataName-timetrials/"
@@ -17,7 +18,7 @@ do
 for K in 5
 do
 
-for nThread in 2 4 8
+for nThread in 4
 do
 export OMP_NUM_THREADS=$nThread
 
@@ -50,7 +51,7 @@ $CMD 2>&1 | grep -v KeyError | grep -v [DONE] | grep -v bnpy > $OUTDIR/transcrip
 lastLineStatus=`tail -n1 "$OUTDIR/transcript.txt"`
 
 if [[ $lastLineStatus == *done* ]]; then
-  echo "[DONE] confirmed. Status: $lastLineStatus. bnpy time: $elapsedTimeFromBnpy. profiler time: $elapsedTimeFromProf."
+  echo "[DONE] run complete. Status: $lastLineStatus."
 else
   echo "[ERROR] Status: "$lastLineStatus
   exit
@@ -69,6 +70,7 @@ elapsedTimeFromBnpy=`echo $lapTimingLine \
 elapsedTimeFromProf=`grep -b3 "Run.py-run.html" $OUTDIR/index.html \
                       | tail -n1 |  cut -d'>' -f2 | cut -d' ' -f1`
 
+echo "bnpy time: $elapsedTimeFromBnpy. profiler time: $elapsedTimeFromProf."
 echo $elapsedTimeFromBnpy > $OUTDIR/elapsedtime-bnpy.txt
 echo $elapsedTimeFromProf > $OUTDIR/elapsedtime-prof.txt
 echo "$K $mergePerLap $nThread $elapsedTimeFromBnpy $elapsedTimeFromProf" \

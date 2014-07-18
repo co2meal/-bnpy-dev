@@ -77,7 +77,7 @@ class GaussObsModel( ObsModel ):
     
   def get_covar_mat_for_comp(self, kk):
     if self.inferType =='EM':
-      return np.linalg.inv(self.comp[kk].L)
+      return self.comp[kk].get_covar()
     else:
       return self.comp[kk].invW / (self.comp[kk].dF - self.D - 1)
       
@@ -130,8 +130,10 @@ class GaussObsModel( ObsModel ):
       mean    = SS.x[k] / SS.N[k]
       covMat  = SS.xxT[k] / SS.N[k] - np.outer(mean,mean)
       covMat  += self.min_covar * I      
-      precMat = np.linalg.solve( covMat, I )
-      self.comp[k] = GaussDistr(m=mean, L=precMat)
+      self.comp[k] = GaussDistr(m=mean, Sigma=covMat)
+      # BAD OLD WAY: explicitly invert Sigma to get precision matrix L
+      #precMat = np.linalg.solve( covMat, I )
+      #self.comp[k] = GaussDistr(m=mean, L=precMat)
            				 
   def update_obs_params_VB( self, SS, mergeCompA=None, **kwargs):
     if mergeCompA is None:
@@ -146,12 +148,25 @@ class GaussObsModel( ObsModel ):
       self.comp[k].post_update_soVB(rho, Dstar)
 
 
-  def set_global_params(self, hmodel=None, **kwargs):
+  def set_global_params(self, hmodel=None, m=None, L=None, Sigma=None,          
+                              **kwargs):
     ''' Set global parameters to provided values
     '''
     if hmodel is not None:
       self.comp = [copy.deepcopy(c) for c in hmodel.obsModel.comp]
       self.K = hmodel.obsModel.K
+    elif L is not None:
+      self.K = L.shape[0]
+      self.comp = [None for k in range(self.K)]
+      for k in range(self.K):
+        self.comp[k] = GaussDistr(m=m[k], L=L[k])
+    elif Sigma is not None:
+      self.K = Sigma.shape[0]
+      self.comp = [None for k in range(self.K)]
+      for k in range(self.K):
+        self.comp[k] = GaussDistr(m=m[k], Sigma=Sigma[k])
+    else:
+      raise NotImplementedError("Bad kwargs for set_global_params")
 
   ######################################################### Evidence  
   ######################################################### 

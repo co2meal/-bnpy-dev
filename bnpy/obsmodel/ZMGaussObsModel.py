@@ -108,12 +108,17 @@ class ZMGaussObsModel(ObsModel):
       Dstar = self.obsPrior.get_post_distr(SS, k)
       self.comp[k].post_update_soVB( rho, Dstar)
 
-  def set_global_params(self, hmodel=None, **kwargs):
+  def set_global_params(self, hmodel=None, Sigma=None, **kwargs):
     ''' Set global parameters to provided values
     '''
     if hmodel is not None:
       self.comp = [copy.deepcopy(c) for c in hmodel.obsModel.comp]
       self.K = hmodel.obsModel.K
+    if Sigma is not None:
+      self.K = Sigma.shape[0]
+      self.comp = [None for k in range(self.K)]
+      for k in range(self.K):
+        self.comp[k] = ZMGaussDistr(Sigma=Sigma[k])
 
   ######################################################### Evidence
   ######################################################### 
