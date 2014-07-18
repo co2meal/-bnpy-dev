@@ -9,7 +9,7 @@ Coverage
 import bnpy
 import unittest
 
-class TestMOVBWithBirth(unittest.TestCase):
+class TestWhenBirthsHappen(unittest.TestCase):
 
   def setUp(self):
     birthP = dict(fracLapsBirth=0.8)
@@ -30,7 +30,7 @@ class TestMOVBWithBirth(unittest.TestCase):
     assert not self.learnAlg.do_birth_at_lap(11111)
 
 
-class TestMOVBWithBirthFracThatNeedsRounding(TestMOVBWithBirth):
+class TestWhenBirthsHappen_rounding(TestWhenBirthsHappen):
   ''' Now check it with a fraction that will need to be rounded.
   '''
 

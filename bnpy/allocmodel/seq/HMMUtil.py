@@ -54,12 +54,11 @@ def FwdBwdAlg(PiInit, PiMat, logSoftEv):
   
   fmsg, margPrObs = FwdAlg(PiInit, PiMat, SoftEv )
   bmsg = BwdAlg( PiInit, PiMat, SoftEv, margPrObs)
-  
+
   respPair = np.zeros( (T,K,K) )
   for t in xrange( 1, T ):
     respPair[t] = PiMat * np.outer(fmsg[t-1], bmsg[t] * SoftEv[t]) / margPrObs[t]
-
-    assert np.allclose(respPair[t].sum(), 1.0)
+    #assert np.allclose(respPair[t].sum(), 1.0)
   logMargPrSeq = np.log(margPrObs).sum() + lognormC.sum()
 
   resp = fmsg * bmsg
@@ -179,3 +178,33 @@ def _parseInput_SoftEv(logSoftEv, K):
   Tl, Kl = logSoftEv.shape
   assert Kl == K
   return logSoftEv
+
+
+def viterbi(logSoftEv, pi0, pi):
+  T, K = np.shape(logSoftEv)
+  V = np.zeros((T, K))
+  softEv, lognormC = expLogLik(logSoftEv)
+
+  for t in xrange(T):
+    for l in xrange(K):
+      
+      if t == 0:
+        V[0, l] = softEv[t,l] * pi0[l]
+        continue
+
+      biggest = 0
+      for k in xrange(K):
+        pr = pi[k,l] * V[t-1, k]
+        if pr > biggest:
+          biggest = pr
+
+      V[t, l] = softEv[t,l] * biggest
+
+  
+  #Find most likely sequence of z's
+  z = np.zeros(T)
+  for t in reversed(xrange(T)):
+    z[t] = np.argmax(V[t,:])
+  return z
+
+    

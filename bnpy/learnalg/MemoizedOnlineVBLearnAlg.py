@@ -55,6 +55,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
     # Define how much of data we see at each mini-batch
     nBatch = float(DataIterator.nBatch)
     self.lapFracInc = 1.0/nBatch
+    self.nBatch = nBatch
     # Set-up progress-tracking variables
     iterid = -1
     lapFrac = np.maximum(0, self.algParams['startLap'] - 1.0/nBatch)
@@ -88,13 +89,6 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       lapFrac = (iterid + 1) * self.lapFracInc
       self.set_random_seed_at_lap(lapFrac)
 
-      # M step
-      if self.algParams['doFullPassBeforeMstep']:
-        if SS is not None and lapFrac > 1.0:
-          hmodel.update_global_params(SS)
-      else:
-        if SS is not None:
-          hmodel.update_global_params(SS)
       
       # Birth move : track birth info from previous lap
       if self.isFirstBatch(lapFrac):
@@ -178,6 +172,15 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       if self.hasMove('birth') and self.isLastBatch(lapFrac):
         hmodel, SS = self.birth_remove_extra_mass(hmodel, SS, BirthResults)
 
+      # M step
+      if self.algParams['doFullPassBeforeMstep']:
+        if SS is not None and lapFrac > 1.0:
+          hmodel.update_global_params(SS)
+      else:
+        if SS is not None:
+          hmodel.update_global_params(SS)
+
+
       # ELBO calc
       #self.verify_suff_stats(Dchunk, SS, lapFrac)
       evBound = hmodel.calc_evidence(SS=SS)
@@ -260,7 +263,7 @@ class MemoizedOnlineVBLearnAlg(LearnAlg):
       if Kextra > 0:
         SSchunk.insertEmptyComps(Kextra)
     assert SSchunk.K == K
-    return SSchunk  
+    return SSchunk
 
   def load_batch_local_params_from_memory(self, batchID, BirthResults):
     ''' Load local parameter dict stored in memory for provided batchID

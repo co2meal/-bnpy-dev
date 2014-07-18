@@ -108,6 +108,9 @@ class AbstractEndToEndTest(unittest.TestCase):
     print '============================================== task %d' % (taskid)
     kwargs = self.get_kwargs()
     kwargs.update(self.fromScratchArgs)
+    model = None
+    LP = None
+    Info = None
     model, LP, Info = run(self.Data, self.allocModelName, self.obsModelName,
                           'EM', taskid=taskid, **kwargs)
     assert self.verify_monotonic(Info['evTrace'])
@@ -115,6 +118,8 @@ class AbstractEndToEndTest(unittest.TestCase):
     # First, find perm of estimated comps to true comps
     #  if one exists, by using obsmodel params
     permIDs = None
+    arrEst = None
+    arrTrue = None
     allocKeyList = []
     for key in self.TrueParams:
       if key == 'K': 
@@ -124,15 +129,21 @@ class AbstractEndToEndTest(unittest.TestCase):
         arrEst = Util.buildArrForObsModelParams(model.obsModel.comp, key)
         if permIDs is None:
           isG, permIDs = self.verify_close_under_some_perm(arrTrue, arrEst, key)
+          print arrEst
+          print arrTrue
           if not isG:
             print ' FAILED TO FIND IDEAL PARAMS'
+            print key
+            print 'true:', arrTrue
+            print 'est:', arrEst    
             argstring = ' '.join(sys.argv[1:])
-            if 'nocapture' in argstring:
-              from matplotlib import pylab
-              bnpy.viz.GaussViz.plotGauss2DFromHModel(model)
-              pylab.show()
             return False
         arrEst = arrEst[permIDs]
+        if not self.verify_close(arrTrue, arrEst, key):
+          print permIDs
+          print key
+          print 'est =', arrEst
+          print 'true =', arrTrue
         assert self.verify_close(arrTrue, arrEst, key)  
       else:
         allocKeyList.append(key)
@@ -154,7 +165,7 @@ class AbstractEndToEndTest(unittest.TestCase):
     '''
     if 'VB' not in self.learnAlgs:
       raise SkipTest
-    kwargs = self.get_kwargs()
+    kwargs = self.get_()
     hmodel1, LP1, Info1 = run(self.Data, self.allocModelName,
                           self.obsModelName, 'VB', **kwargs)
     hmodel2, LP2, Info2 = run(self.Data, self.allocModelName,
@@ -307,7 +318,10 @@ class AbstractEndToEndTest(unittest.TestCase):
     arrTrue = arrTrue.copy()
     arrEst = arrEst.copy()
     if hasattr(self, 'ProxFunc') and key in self.ProxFunc:
-      mask = self.ProxFunc[key](arrTrue, arrEst)
+      if hasattr(self, 'atol'):
+        mask = self.ProxFunc[key](arrTrue, arrEst, self.atol)
+      else:
+        mask = self.ProxFunc[key](arrTrue, arrEst)
     else:
       mask = np.allclose(arrTrue, arrEst)
     if np.all(mask):

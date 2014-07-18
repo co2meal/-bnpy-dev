@@ -102,6 +102,18 @@ class XData(DataObj):
     Data = self.select_subset_by_mask(mask, doTrackFullSize=False)
     return Data
 
+  def generate_batch_ids(self, nBatch, dataorderseed, sizeBatch):
+    PRNG = np.random.RandomState(dataorderseed)
+    obsIDs = PRNG.permutation(self.nObsTotal).tolist()
+    obsIDByBatch = dict()
+    for batchID in range(nBatch-1):
+      obsIDByBatch[batchID] = obsIDs[:sizeBatch]
+      del obsIDs[:sizeBatch]
+    # Last batch gets leftovers, may be bigger
+    obsIDByBatch[nBatch-1] = obsIDs 
+    return obsIDByBatch
+
+
   #########################################################  I/O methods
   ######################################################### 
   def __str__(self):

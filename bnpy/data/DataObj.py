@@ -53,3 +53,10 @@ class DataObj(object):
     ''' Updates (in-place) the dataset to include provided data
     '''
     pass
+
+  def generate_batch_ids(self, nBatch):
+    ''' Returns a list of length nBatch where the ith element is a list of
+        all ID's in batch i.  These ID's will be passed into 
+        DataObj.select_subset_by_mask in order to get each batch.
+    '''
+    pass

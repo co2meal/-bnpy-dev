@@ -29,6 +29,19 @@ def CovMatProxFunc(Sa, Sb, rtol=0.1):
 def ProbVectorProxFunc(p, q, atol=0.01):
   return np.abs(p - q) <= atol
 
+def ProbMatrixProxFunc(A, B, atol = 0.01):
+  if not (np.shape(A) == np.shape(B)):
+    return False
+  
+  ret = True
+  for k in xrange(np.shape(A)[0]):
+    row = ProbVectorProxFunc(A[k, :], B[k, :], atol)
+    rowAnd = True
+    for a in xrange(np.shape(row)[0]):
+      rowAnd = rowAnd and row[a]
+    ret = ret and rowAnd
+  return ret
+
 
 def pprint( arr, msg='', fmt='% 9.3f', replaceVal=None, replaceText='-', rstart=0, cstart=0, Kmax=7):
   ''' Pretty print array
