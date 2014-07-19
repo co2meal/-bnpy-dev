@@ -27,10 +27,15 @@ def plotGauss2DFromHModel(hmodel, compListToPlot=None, compsToHighlight=None, wT
     compsToHighlight = list()  
   if compListToPlot is None:
     compListToPlot = np.arange(0, hmodel.allocModel.K)
+
+  from IPython import embed; embed()
   try:
     w = np.exp(hmodel.allocModel.Elogw)
   except Exception:
-    w = hmodel.allocModel.w
+    if hasattr(hmodel.allocModel, 'w'):
+      w = hmodel.allocModel.w
+    else:
+      w = np.ones(hmodel.allocModel.K) / hmodel.allocModel.K
 
   colorID = 0
   for kk in compListToPlot:
