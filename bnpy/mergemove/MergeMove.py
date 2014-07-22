@@ -53,7 +53,7 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None, **kwargs):
     
     if kwargs['mergeLogVerbose']:
       MergeLogger.log( '%3d | %3d %3d | % .4e | %s' 
-                        % (trialID, jA, jB, MoveInfo['ELBOGain'], scoreMsg)
+                        % (trialID, kA, kB, MoveInfo['ELBOGain'], scoreMsg)
                      )
     if MoveInfo['didAccept']:
       CompIDShift[kA] = -1

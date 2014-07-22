@@ -453,6 +453,56 @@ class DPMixModel(AllocModel):
       gap -= c_Func(a1, a0)
     return gap
 
+  def calcHardMergeEntropyGap(self, SS, kA, kB):
+    ''' Calc scalar improvement in entropy for hard merge of comps kA, kB
+    '''
+    Hmerge = SS.getMergeTerm('ElogqZ')
+    Hcur   = SS.getELBOTerm('ElogqZ')
+    if Hmerge.ndim == 1:
+      gap = Hcur[kB] - Hmerge[kB]
+    else:
+      gap = - Hmerge[kA, kB] + Hcur[kA] + Hcur[kB]
+    return gap
+
+  def calcHardMergeGap(self, SS, kA, kB):
+    ''' Calculate scalar improvement in ELBO for hard merge of comps kA, kB
+        
+        Does *not* include any entropy
+    '''
+    cPrior = c_Func(self.alpha1, self.alpha0)
+    cB = c_Func(self.qalpha1[kB], self.qalpha0[kB])
+    
+    gap = cB - cPrior
+    ## Add terms for changing kA to kA+kB
+    gap += c_Func(self.qalpha1[kA], self.qalpha0[kA]) \
+         - c_Func(self.qalpha1[kA] + SS.N[kB], self.qalpha0[kA] - SS.N[kB])
+
+    ## Add terms for each index kA+1, kA+2, ... kB-1
+    ##  where only \alpha_0 has changed
+    for k in xrange(kA+1, kB):
+      a1 = self.qalpha1[k]
+      a0old = self.qalpha0[k]
+      a0new = self.qalpha0[k] - SS.N[kB]
+      gap += c_Func(a1, a0old) - c_Func(a1, a0new)
+    return gap
+
+  def calcHardMergeGap_AllPairs(self, SS):
+    ''' Calc matrix of improvement in ELBO for all possible pairs of comps
+    '''
+    Gap = np.zeros((SS.K, SS.K))
+    for kB in xrange(0, SS.K):
+      for kA in xrange(0, kB):  
+        Gap[kA, kB] = self.calcHardMergeGap(SS, kA, kB)
+    return Gap
+
+  def calcHardMergeGap_SpecificPairs(self, SS, PairList):
+    ''' Calc matrix of improvement in ELBO for all possible pairs of comps
+    '''
+    Gaps = np.zeros(len(PairList))
+    for ii, (kA, kB) in enumerate(PairList):
+        Gaps[ii] = self.calcHardMergeGap(SS, kA, kB)
+    return Gaps
+
   ######################################################### IO Utils
   #########################################################   for humans
   def get_info_string( self):

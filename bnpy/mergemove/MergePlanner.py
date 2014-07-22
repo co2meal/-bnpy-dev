@@ -11,6 +11,7 @@ def preselect_candidate_pairs(curModel, SS,
                                preselectroutine='random',
                                mergePerLap=10,
                                doLimitNumPairs=1,
+                               M=None,
                                **kwargs):
   '''Create and return a list of tuples representing candidate pairs to merge.
 
@@ -45,6 +46,7 @@ def preselect_candidate_pairs(curModel, SS,
   if SS is None: # Handle first lap
     kwargs['preselectroutine'] = 'random'
 
+  Mraw = None
   # ------------------------------------------------------- Score matrix
   # M : 2D array, shape K x K
   #     M[j,k] = score for viability of j,k.  Larger = better.
@@ -61,6 +63,8 @@ def preselect_candidate_pairs(curModel, SS,
         if (kA,kB) not in excludeSet:
           M[kA, kB] = MSelector._calcMScoreForCandidatePair(curModel,
                                                             SS, kA, kB)
+  elif kwargs['preselectroutine'].count('wholeELBO') > 0:
+    M, Mraw = calcScoreMatrix_wholeELBO(curModel, SS, excludePairs, M=M)
   elif kwargs['preselectroutine'].count('corr') > 0:
     # Use correlation matrix as score for selecting candidates!
     M = calcCorrInCompUsageFromSuffStats(SS)
@@ -85,12 +89,15 @@ def preselect_candidate_pairs(curModel, SS,
   assert np.all( np.asarray(aList) < np.asarray(bList))
   
   if 'returnScoreMatrix' in kwargs and kwargs['returnScoreMatrix']:
-    return zip(aList, bList), M
+    if Mraw is None:
+      return zip(aList, bList), M
+    else:
+      return zip(aList, bList), Mraw
 
   return zip(aList, bList)
 
 
-def _scorematrix2rankedlist_greedy(M, nPairs):
+def _scorematrix2rankedlist_greedy(M, nPairs, doKeepZeros=False):
   ''' Return the nPairs highest-ranked pairs in score matrix M
 
       Args
@@ -108,9 +115,15 @@ def _scorematrix2rankedlist_greedy(M, nPairs):
       _scorematrix2rankedlist( [0 2 3], [0 0 1], [0 0 0], 3)
       >> [ (0,2), (0,1), (1,2)]
   '''
+  M = M.copy()
+  M[ np.tril_indices(M.shape[0]) ] = - np.inf
   Mflat = M.flatten()
   sortIDs = np.argsort(-1*Mflat)
-  sortIDs = sortIDs[Mflat[sortIDs] != 0]
+  # Remove any entries that are -Inf
+  sortIDs = sortIDs[Mflat[sortIDs] != -np.inf]
+  if not doKeepZeros:
+    # Remove any entries that are zero
+    sortIDs = sortIDs[Mflat[sortIDs] != 0]
   bestrs, bestcs = np.unravel_index(sortIDs, M.shape)
   return bestrs[:nPairs].tolist(), bestcs[:nPairs].tolist()
 
@@ -170,6 +183,39 @@ def _scorematrix2rankedlist_balanced(M, mergePerLap):
   else:
     a,b = zip(*mPairs)
   return list(a), list(b)
+
+def calcScoreMatrix_wholeELBO(curModel, SS, excludePairs=list(), M=None):
+  ''' Calculate upper-tri matrix of exact ELBO gap for each candidate pair
+
+      Returns
+      ---------
+      M : 2D array, size K x K. Upper triangular entries carry the content.
+          M[j,k] is positive iff merging j,k improves the ELBO
+                    0 otherwise
+      Mraw : 2D array, size K x K. Uppert tri entries carry content.
+          Mraw[j,k] gives the scalar ELBO gap for the potential merge of j,k
+  '''
+  if M is None:
+    AGap = curModel.allocModel.calcHardMergeGap_AllPairs(SS)
+    OGap = curModel.obsModel.calcHardMergeGap_AllPairs(SS)
+    Mraw = AGap + OGap
+  else:
+    K = SS.K
+    assert M.shape[0] == K
+    assert M.shape[1] == K
+    nZeroEntry = np.sum(M == 0) - K - K*(K-1)/2
+    assert nZeroEntry >= 0
+    aList, bList = _scorematrix2rankedlist_greedy(M, SS.K + nZeroEntry, 
+                                                     doKeepZeros=True)
+    pairList = zip(aList, bList)
+    AGap = curModel.allocModel.calcHardMergeGap_SpecificPairs(SS, pairList)
+    OGap = curModel.obsModel.calcHardMergeGap_SpecificPairs(SS, pairList)
+    M[aList, bList] = AGap + OGap
+    Mraw = M
+
+  M = Mraw.copy()
+  M[M<0] = 0
+  return M, Mraw
 
 
 def calcScoreMatrix_obsmodel(curModel, SS, excludePairs):

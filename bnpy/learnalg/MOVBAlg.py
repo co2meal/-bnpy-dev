@@ -177,9 +177,20 @@ class MOVBAlg(LearnAlg):
         mergeStartLap = self.algParams['merge']['mergeStartLap']
         if self.isFirstBatch(lapFrac) and lapFrac >= mergeStartLap:
           if mergeELBOTrackMethod == 'exact':
+            # Update tracked
+            if preselectroutine == 'wholeELBO':
+              for Info in self.MergeLog:
+                MM = np.delete(MM, Info['kB'], axis=0)
+                MM = np.delete(MM, Info['kB'], axis=1)
+                MM[Info['kA'], :] = 0
+                MM[:, Info['kA']] = 0
+              rLap = self.algParams['merge']['mergeScoreRefreshLap']
+              if np.floor(lapFrac) % rLap == 0:
+                MM.fill(0) # Refresh!
             mPairIDs, MM = MergePlanner.preselect_candidate_pairs(hmodel, SS,
                                             randstate=self.PRNG,
                                             returnScoreMatrix=1,
+                                            M=MM,
                                             **self.algParams['merge'])
             doPrecompMergeEntropy = 1 # explicitly precomp all O(K^2) pairs
           else:
@@ -238,10 +249,12 @@ class MOVBAlg(LearnAlg):
       if self.hasMove('birth') and self.isLastBatch(lapFrac):
         hmodel, SS = self.birth_remove_extra_mass(hmodel, SS, BirthResults)
 
+      if self.isLastBatch(lapFrac):
+        print ' '.join(['%8.1f' % (x) for x in SS.N])
 
       # Merge move!      
       if self.hasMove('merge') and self.isLastBatch(lapFrac) \
-                               and lapFrac > mergeStartLap:        
+                               and lapFrac > mergeStartLap:       
         hmodel.update_global_params(SS)
         evBound = hmodel.calc_evidence(SS=SS)
         if mergeELBOTrackMethod == 'fastBound':
