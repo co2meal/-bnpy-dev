@@ -345,6 +345,47 @@ class GaussObsModel(AbstractObsModel):
     Post.setField('B', B, dims=('K', 'D', 'D'))
     self.K = SS.K
 
+  def calcPostParams(self, SS):
+    ''' Calc updated params (nu, B, m, kappa) for all comps given suff stats
+
+        These params define the common-form of the exponential family 
+        Normal-Wishart posterior distribution over mu, diag(Lambda)
+
+        Returns
+        --------
+        nu : 1D array, size K
+        beta : 2D array, size K x D
+        m : 2D array, size K x D
+        kappa : 1D array, size K
+    '''
+    Prior = self.Prior
+    nu = Prior.nu + SS.N
+    kappa = Prior.kappa + SS.N
+    m = (Prior.kappa * Prior.m + SS.x) / kappa[:,np.newaxis]
+    Bmm = Prior.B + Prior.kappa * np.outer(Prior.m, Prior.m)
+    B = SS.xxT + Bmm[np.newaxis,:]
+    for k in xrange(B.shape[0]):
+      B[k] -= kappa[k] * np.outer(m[k], m[k])
+    return nu, B, m, kappa
+
+  def calcPostParamsForComp(SS, kA=None, kB=None):
+    if kB is None:
+      SN = SS.N[kA]
+      Sx = SS.x[kA]
+      SxxT = SS.xxT[kA]
+    else:
+      SN = SS.N[kA] + SS.N[kB]
+      Sx = SS.x[kA] + SS.x[kB]
+      SxxT = SS.xxT[kA] + SS.xxT[kB]
+    nu = Prior.nu + SN
+    kappa = Prior.kapa + SN
+    m = (Prior.kappa * Prior.m + Sx) / kappa
+    B = Prior.B + SxxT \
+        + Prior.kappa * np.outer(Prior.m, Prior.m) \
+        - kappa * np.outer(m, m)   
+    return nu, B, m, kappa
+
+
   def calcELBO_Memoized(self, SS, doFast=False):
     ''' Calculate obsModel's ELBO using sufficient statistics SS and Post.
 
@@ -437,6 +478,47 @@ class GaussObsModel(AbstractObsModel):
                      Post.kappa[k]) \
               - c_Func(nu, B, m, kappa)
     return gap
+
+
+  def calcHardMergeGap(self, SS, kA, kB):
+    ''' Calculate change in ELBO after a hard merge applied to this model
+    '''
+    Post = self.Post
+    Prior = self.Prior
+    cA = c_Func(Post.nu[kA], Post.B[kA], Post.m[kA], Post.kappa[kA])
+    cB = c_Func(Post.nu[kB], Post.B[kB], Post.m[kB], Post.kappa[kB])
+    cPrior = c_Func(Prior.nu,   Prior.B,      Prior.m,      Prior.kappa)
+
+    nu, B, m, kappa = self.calcPostParamsForComp(SS, kA, kB)
+    cAB = c_Func(nu, B, m, kappa)
+    return cA + cB - cPrior - cAB
+
+
+  def calcHardMergeGap_AllPairs(self, SS):
+    ''' Calculate change in ELBO after a hard merge applied to this model
+    '''
+    Post = self.Post
+    Prior = self.Prior
+    cPrior = c_Func(Prior.nu, Prior.B, Prior.m, Prior.kappa)
+    c = np.zeros(SS.K)
+    for k in xrange(SS.K):
+      c[k] = c_Func(Post.nu[k], Post.B[k], Post.m[k], Post.kappa[k])
+
+    Gap = np.zeros((SS.K, SS.K))
+    for j in xrange(SS.K):
+      for k in xrange(j+1, SS.K):
+        nu, B, m, kappa = self.calcPostParamsForComp(SS, j, k)
+        cjk = c_Func(nu, B, m, kappa)
+        Gap[j,k] = c[j] + c[k] - cPrior - cjk
+    return Gap
+
+  def calcHardMergeGap_SpecificPairs(self, SS, PairList):
+    ''' Calc matrix of improvement in ELBO for specific pairs of comps
+    '''
+    Gaps = np.zeros(len(PairList))
+    for ii, (kA, kB) in enumerate(PairList):
+        Gaps[ii] = self.calcHardMergeGap(SS, kA, kB)
+    return Gaps
 
   ########################################################### Post
   ###########################################################
