@@ -843,7 +843,8 @@ class MOVBAlg(LearnAlg):
       try:
         alph, f, Info = find_optimum(SS, kdel, aFunc, oFunc)
       except ValueError as e:
-        if str(e).lower().count('overflow') > 0:
+        if str(e).lower().count('failure') > 0:
+          MergeLogger.log(str(e))
           continue
         raise e
 
