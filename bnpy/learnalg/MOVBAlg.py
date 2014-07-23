@@ -313,15 +313,19 @@ class MOVBAlg(LearnAlg):
 
       if self.hasMove('birth'):
         doQuit = False # never quit early for births
-      elif self.hasMove('merge'):
+      elif self.hasMove('merge') or self.hasMove('softmerge'):
         doQuit = False
-        numStuckBeforeQuit = self.algParams['merge']['mergeNumStuckBeforeQuit']
+        if self.hasMove('merge'):
+          nStuckBeforeQuit = self.algParams['merge']['mergeNumStuckBeforeQuit']
+        else:
+          nStuckBeforeQuit = self.algParams['softmerge']['mergeNumStuckBeforeQuit']
+
         if self.isLastBatch(lapFrac) and lapFrac > mergeStartLap:
           if len(self.MergeLog) == 0:
             numStuck += 1
           else:
             numStuck = 0
-          doQuit = isConverged and numStuck >= numStuckBeforeQuit
+          doQuit = isConverged and numStuck >= nStuckBeforeQuit
       else:
         doQuit = isConverged
       if doQuit:
@@ -830,9 +834,6 @@ class MOVBAlg(LearnAlg):
 
     MergeLogger.logStartMove(lapFrac)
     self.MergeLog = list()
-
-    if not np.allclose(lapFrac, 5.):
-      return hmodel, SS, evBound
 
     for kdel in reversed(xrange(SS.K)):
       aFunc = hmodel.allocModel.calcSoftMergeGap_alph

@@ -6,6 +6,10 @@ import numpy as np
 from bnpy.mergemove.MergePairSelector import MergePairSelector
 import bnpy.mergemove.MergeLogger as MergeLogger
 
+# Constant defining how far calculated ELBO gap can be from zero and still be
+# considered potentially positive
+EPSELBO = 0
+
 def preselect_candidate_pairs(curModel, SS, 
                                randstate=np.random.RandomState(0),
                                preselectroutine='random',
@@ -195,12 +199,12 @@ def calcScoreMatrix_wholeELBO(curModel, SS, excludePairs=list(), M=None):
       Mraw : 2D array, size K x K. Uppert tri entries carry content.
           Mraw[j,k] gives the scalar ELBO gap for the potential merge of j,k
   '''
+  K = SS.K
   if M is None:
     AGap = curModel.allocModel.calcHardMergeGap_AllPairs(SS)
     OGap = curModel.obsModel.calcHardMergeGap_AllPairs(SS)
     Mraw = AGap + OGap
   else:
-    K = SS.K
     assert M.shape[0] == K
     assert M.shape[1] == K
     nZeroEntry = np.sum(M == 0) - K - K*(K-1)/2
@@ -213,6 +217,7 @@ def calcScoreMatrix_wholeELBO(curModel, SS, excludePairs=list(), M=None):
     M[aList, bList] = AGap + OGap
     Mraw = M
 
+  Mraw[np.triu_indices(K,1)] += EPSELBO
   M = Mraw.copy()
   M[M<0] = 0
   return M, Mraw
