@@ -878,7 +878,6 @@ class MOVBAlg(LearnAlg):
         MergeLogger.log(' ELBOgapExact % 7.1f %s' % (ELBOgapExact, msg))
       MergeLogger.log(' ELBOgapLB    % 7.1f' % (ELBOgap))
 
-
       MergeLogger.log('Alph')
       MergeLogger.logPosVector(alph)
 

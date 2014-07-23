@@ -114,7 +114,7 @@ class TestSoftMergeGap_Gauss(unittest.TestCase):
       xalph[kdel] = 0
     print xalph
 
-    PriorSpec = dict(ECovMat='eye', nu=D+1.234, sF=1.0, kappa=1e-4)
+    PriorSpec = dict(ECovMat='eye', nu=D+1.234, sF=1.0, kappa=3.2e-4)
     oModel = bnpy.obsmodel.GaussObsModel('VB', D=D, **PriorSpec)
 
     X = PRNG.randn(10, D)
@@ -145,6 +145,56 @@ class TestSoftMergeGap_Gauss(unittest.TestCase):
     print ELBOgap2
     assert np.allclose(ELBOgap, ELBOgap2)
 
+########################################################### Diag Gauss
+########################################################### 
+class TestSoftMergeGap_DiagGauss(unittest.TestCase):
+  def test_calcSoftMergeGap_ManyTrials(self, K=4, nTrial=5):
+    PRNG = np.random.RandomState(0)
+    for kdel in xrange(K):
+      for trial in xrange(nTrial):
+        xalph = PRNG.rand(K)
+        xalph[kdel] = 0
+        xalph = xalph / np.sum(xalph)
+        self.test_calcSoftMergeGap(K, kdel, xalph, PRNG=PRNG)
+
+  def test_calcSoftMergeGap(self, K=6, kdel=0, xalph=None, D=1,
+                                  PRNG=np.random.RandomState(0)):
+    print ''
+    if xalph is None:
+      xalph = 1.0/(K-1) * np.ones(K)
+      xalph[kdel] = 0
+    print xalph
+
+    PriorSpec = dict(ECovMat='eye', nu=D+2.5, sF=4.2, kappa=1e-4)
+    oModel = bnpy.obsmodel.DiagGaussObsModel('VB', D=D, **PriorSpec)
+
+    X = PRNG.randn(10, D)
+    R = PRNG.rand(10, K)
+    R /= R.sum(axis=1)[:,np.newaxis]
+
+    Data = bnpy.data.XData(X)
+    LP = dict(resp=R)
+    SS = oModel.get_global_suff_stats(Data, None, LP)
+    oModel.update_global_params(SS)
+
+
+    ## Option 1: calc the ELBO gap via DPMixModel's built-in method
+    ELBOgap = oModel.calcSoftMergeGap(SS, kdel, xalph)
+
+    ## Option 2: calc the entropy gap pedantically,
+    ##  by calculating the entropy *before* and *after*, and taking the diff
+    propSS = SS.copy()
+    propSS.multiMergeComps(kdel, xalph)
+    propModel = bnpy.obsmodel.DiagGaussObsModel('VB', D=D, **PriorSpec)
+    propModel.update_global_params(propSS)
+
+    ELBObefore = oModel.calcELBO_Memoized(SS) 
+    ELBOafter = propModel.calcELBO_Memoized(propSS)
+    ELBOgap2 = ELBOafter - ELBObefore
+
+    print ELBOgap
+    print ELBOgap2
+    assert np.allclose(ELBOgap, ELBOgap2)
 
 
 
