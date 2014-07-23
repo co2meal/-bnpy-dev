@@ -425,33 +425,14 @@ class GaussObsModel(AbstractObsModel):
                  - 0.5 * dDiff * self.GetCached('E_muLmu', k)
     return elbo.sum() - 0.5 * np.sum(SS.N) * SS.D * LOGTWOPI
 
-  def calcMergeGap_alph(self, SS, kdel, alph):
-    ''' Calculate net improvement in ELBO after multi-way merge,
-          keeping only terms that depend on redistribution parameters alph
-    '''
-    if alph.size < SS.K:
-      alph = np.hstack([alph[:kdel], 0, alph[kdel:]])
-    assert alph.size == SS.K
-    assert np.allclose(alph[kdel], 0)
 
-    gap = 0
-    Post = self.Post
-    assert np.allclose(alph.sum(), 1.0)
-    for k in xrange(SS.K):
-      if k == kdel:
-        continue
-      nu = Post.nu[k] + alph[k] * SS.N[kdel]
-      kappa = Post.kappa[k] + alph[k] * SS.N[kdel]
-      km_x = Post.kappa[k] * Post.m[k] + alph[k] * SS.x[kdel]
-      m = 1/kappa * (km_x)
-      B = Post.B[k] + Post.kappa[k] * np.outer(Post.m[k], Post.m[k]) \
-             + alph[k] * SS.xxT[kdel] \
-             - 1.0/kappa * np.outer(km_x, km_x)
-      gap -= c_Func(nu, B, m, kappa)
-    return gap
+  ######################################################### Soft Merge
+  #########################################################
+  def calcSoftMergeGap(self, SS, kdel, alph):
+    ''' Calculate net improvement in ELBO after multi-way merge.
 
-  def calcMergeGap(self, SS, kdel, alph):
-    ''' Calculate change in ELBO after a multi-way merge applied to current model/SS
+        Comp kdel is deleted, and its suff stats are redistributed among 
+        other remaining components, according to parameter vector alph.
     '''
     if alph.size < SS.K:
       alph = np.hstack([alph[:kdel], 0, alph[kdel:]])
@@ -479,7 +460,34 @@ class GaussObsModel(AbstractObsModel):
               - c_Func(nu, B, m, kappa)
     return gap
 
+  def calcSoftMergeGap_alph(self, SS, kdel, alph):
+    ''' Calculate net improvement in ELBO after multi-way merge as fcn of alph.
+        
+        This keeps only terms that depend on redistribution vector alph
+    '''
+    if alph.size < SS.K:
+      alph = np.hstack([alph[:kdel], 0, alph[kdel:]])
+    assert alph.size == SS.K
+    assert np.allclose(alph[kdel], 0)
 
+    gap = 0
+    Post = self.Post
+    assert np.allclose(alph.sum(), 1.0)
+    for k in xrange(SS.K):
+      if k == kdel:
+        continue
+      nu = Post.nu[k] + alph[k] * SS.N[kdel]
+      kappa = Post.kappa[k] + alph[k] * SS.N[kdel]
+      km_x = Post.kappa[k] * Post.m[k] + alph[k] * SS.x[kdel]
+      m = 1/kappa * (km_x)
+      B = Post.B[k] + Post.kappa[k] * np.outer(Post.m[k], Post.m[k]) \
+             + alph[k] * SS.xxT[kdel] \
+             - 1.0/kappa * np.outer(km_x, km_x)
+      gap -= c_Func(nu, B, m, kappa)
+    return gap
+
+  ######################################################### Hard Merge
+  #########################################################
   def calcHardMergeGap(self, SS, kA, kB):
     ''' Calculate change in ELBO after a hard merge applied to this model
     '''
