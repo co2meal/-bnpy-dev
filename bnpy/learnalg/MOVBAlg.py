@@ -181,14 +181,14 @@ class MOVBAlg(LearnAlg):
         if self.isFirstBatch(lapFrac) and lapFrac >= mergeStartLap:
           if mergeELBOTrackMethod == 'exact':
             # Update tracked
-            if preselectroutine == 'wholeELBO':
+            if preselectroutine == 'wholeELBO' and MM is not None:
               for Info in self.MergeLog:
                 MM = np.delete(MM, Info['kB'], axis=0)
                 MM = np.delete(MM, Info['kB'], axis=1)
                 MM[Info['kA'], :] = 0
                 MM[:, Info['kA']] = 0
               rLap = self.algParams['merge']['mergeScoreRefreshLap']
-              if np.floor(lapFrac) % rLap == 0:
+              if MM is not None and np.floor(lapFrac) % rLap == 0:
                 MM.fill(0) # Refresh!
             mPairIDs, MM = MergePlanner.preselect_candidate_pairs(hmodel, SS,
                                             randstate=self.PRNG,

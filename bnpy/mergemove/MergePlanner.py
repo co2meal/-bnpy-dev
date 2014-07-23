@@ -7,8 +7,8 @@ from bnpy.mergemove.MergePairSelector import MergePairSelector
 import bnpy.mergemove.MergeLogger as MergeLogger
 
 # Constant defining how far calculated ELBO gap can be from zero and still be
-# considered potentially positive
-EPSELBO = 0
+# considered accepted or favorable
+from bnpy.mergemove.MergeMove import ELBO_GAP_ACCEPT_TOL
 
 def preselect_candidate_pairs(curModel, SS, 
                                randstate=np.random.RandomState(0),
@@ -217,7 +217,7 @@ def calcScoreMatrix_wholeELBO(curModel, SS, excludePairs=list(), M=None):
     M[aList, bList] = AGap + OGap
     Mraw = M
 
-  Mraw[np.triu_indices(K,1)] += EPSELBO
+  Mraw[np.triu_indices(K,1)] += ELBO_GAP_ACCEPT_TOL
   M = Mraw.copy()
   M[M<0] = 0
   return M, Mraw
