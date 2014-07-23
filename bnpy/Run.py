@@ -173,7 +173,7 @@ def _run_task_internal(jobname, taskid, nTask,
   if learnAlg.hasMove('prune'):
     import bnpy.deletemove.PruneLogger as PruneLogger
     PruneLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
-  if learnAlg.hasMove('merge'):
+  if learnAlg.hasMove('merge') or learnAlg.hasMove('softmerge'):
     import bnpy.mergemove.MergeLogger as MergeLogger
     MergeLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
   # Check if running on grid
@@ -290,7 +290,7 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
   '''
   algName = ReqArgs['algName']
   algP = KwArgs[algName]
-  for moveKey in ['birth', 'merge', 'shuffle', 'delete', 'prune']:
+  for moveKey in ['birth', 'softmerge', 'merge', 'shuffle', 'delete', 'prune']:
     if moveKey in KwArgs:
       algP[moveKey] = KwArgs[moveKey]
 

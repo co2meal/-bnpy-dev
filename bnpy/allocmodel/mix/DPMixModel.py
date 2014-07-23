@@ -402,41 +402,41 @@ class DPMixModel(AllocModel):
       # skip last entry because entropy of Beta(1,0) = 0
       return logNormC[:-1].sum() + logBetaPDF[:-1].sum()
 
-  # _______________________________________________________ MERGE calculations
 
-  def calcMergeGap(self, SS, kdel, alph):
-    ''' Calculate improvement in total allocation ELBO after a multi-way merge.
-    '''
-    return self.calcMergeGap_Entropy(SS, kdel, alph) \
-           + self.calcMergeGap_NonEntropy(SS, kdel, alph)
-
-  def calcMergeGap_Entropy(self, SS, kdel, alph):
+  def calcSoftMergeEntropyGap(self, SS, kdel, alph):
     ''' Calculate improvement in entropy after a multi-way merge.
     '''
-    Halph =  -1 * np.inner(alph, np.log(alph+1e-15))
+    Halph =  -1 * np.inner(alph, np.log(alph+1e-100))
     Hplus = -1 * SS.getELBOTerm('ElogqZ')[kdel] \
                + SS.getMergeTerm('ElogqZ')[kdel]
     gap = SS.N[kdel] * Halph - Hplus
     return gap
 
-  def calcMergeGap_NonEntropy(self, SS, kdel, alph):
+  def calcSoftMergeGap(self, SS, kdel, alph):
     ''' Calculate improvement in allocation ELBO after a multi-way merge.
     '''
     if alph.size < SS.K:
       alph = np.hstack([alph[:kdel], 0, alph[kdel:]])
     assert alph.size == SS.K
     assert np.allclose(alph[kdel], 0)
-    gap = np.sum(c_Func(self.qalpha1, self.qalpha0)) \
-                - c_Func(self.alpha1, self.alpha0)
+    gap = 0
     for k in xrange(SS.K):
       if k == kdel:
-        continue
-      a1 = self.qalpha1[k] + alph[k] * SS.N[kdel]
-      a0 = self.qalpha0[k] + np.sum(alph[k+1:]) * SS.N[kdel]
-      gap -= c_Func(a1, a0)
+        gap += c_Func(self.qalpha1[k], self.qalpha0[k]) \
+               - c_Func(self.alpha1, self.alpha0)
+      elif k > kdel:
+        a1 = self.qalpha1[k] + alph[k] * SS.N[kdel]
+        a0 = self.qalpha0[k] + np.sum(alph[k+1:]) * SS.N[kdel]
+        gap += c_Func(self.qalpha1[k], self.qalpha0[k]) \
+                - c_Func(a1, a0)
+      elif k < kdel:
+        a1 = self.qalpha1[k] + alph[k] * SS.N[kdel]
+        a0 = self.qalpha0[k]  - SS.N[kdel] + np.sum(alph[k+1:]) * SS.N[kdel]
+        gap += c_Func(self.qalpha1[k], self.qalpha0[k]) \
+                - c_Func(a1, a0)
     return gap
 
-  def calcMergeGap_alph(self, SS, kdel, alph):
+  def calcSoftMergeGap_alph(self, SS, kdel, alph):
     ''' Calculate improvement in allocation ELBO after a multi-way merge,
           keeping only terms that depend on redistribution parameters alph
     '''
@@ -448,9 +448,14 @@ class DPMixModel(AllocModel):
     for k in xrange(SS.K):
       if k == kdel:
         continue
-      a1 = self.qalpha1[k] + alph[k] * SS.N[kdel]
-      a0 = self.qalpha0[k] + np.sum(alph[k+1:]) * SS.N[kdel]
-      gap -= c_Func(a1, a0)
+      elif k > kdel:
+        a1 = self.qalpha1[k] + alph[k] * SS.N[kdel]
+        a0 = self.qalpha0[k] + np.sum(alph[k+1:]) * SS.N[kdel]
+        gap -= c_Func(a1, a0)
+      elif k < kdel:
+        a1 = self.qalpha1[k] + alph[k] * SS.N[kdel]
+        a0 = self.qalpha0[k]  - SS.N[kdel] + np.sum(alph[k+1:]) * SS.N[kdel]
+        gap -= c_Func(a1, a0)
     return gap
 
   def calcHardMergeEntropyGap(self, SS, kA, kB):

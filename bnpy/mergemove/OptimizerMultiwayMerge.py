@@ -31,7 +31,9 @@ def find_optimum(SS, kdel, aFunc, oFunc, initalph=None, **kwargs):
   if Info['warnflag'] > 1:
     raise ValueError("FAILURE: " + Info['task'])
 
-  return eta2alph(besteta), -1*fbest, Info
+  alph = eta2alph(besteta)
+  xalph = np.insert(alph, kdel, 0)
+  return xalph, -1*fbest, Info
 
 
 
@@ -42,9 +44,10 @@ def objFunc_alph(alph, SS, kdel, aFunc, oFunc):
       -------
       Negative gain in ELBO, so local minimum alph gives maximum gain.
   '''
-  alphx = np.zeros(SS.K)
-  alphx[:kdel] = alph[:kdel]
-  alphx[kdel+1:] = alph[kdel:]
+  if alph.size == SS.K - 1:
+    alphx = np.insert(alph, kdel, 0)
+  elif alph.size == SS.K:
+    alphx = alph
 
   Halph = -1 * np.sum((alph+1e-15) * np.log(alph+1e-15))
   elboDelta = aFunc(SS, kdel, alphx) \

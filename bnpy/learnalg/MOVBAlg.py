@@ -27,7 +27,7 @@ class MOVBAlg(LearnAlg):
     super(type(self),self).__init__(**kwargs)
     self.SSmemory = dict()
     self.LPmemory = dict()
-    if self.hasMove('merge'):
+    if self.hasMove('merge') or self.hasMove('softmerge'):
       self.MergeLog = list()
     if self.hasMove('birth'):
       # Track the components freshly added in current lap
@@ -175,6 +175,9 @@ class MOVBAlg(LearnAlg):
         preselectroutine = self.algParams['merge']['preselectroutine']
         mergeELBOTrackMethod = self.algParams['merge']['mergeELBOTrackMethod']
         mergeStartLap = self.algParams['merge']['mergeStartLap']
+        if self.isFirstBatch(lapFrac) and lapFrac > 1:
+          SS.setMergeFieldsToZero()
+
         if self.isFirstBatch(lapFrac) and lapFrac >= mergeStartLap:
           if mergeELBOTrackMethod == 'exact':
             # Update tracked
@@ -195,7 +198,12 @@ class MOVBAlg(LearnAlg):
             doPrecompMergeEntropy = 1 # explicitly precomp all O(K^2) pairs
           else:
             doPrecompMergeEntropy = 2 # need only precomp O(K) stats
-      
+      elif self.hasMove('softmerge'):
+        if self.isFirstBatch(lapFrac) and lapFrac > 1:
+          SS.setMergeFieldsToZero()
+        mergeStartLap = self.algParams['softmerge']['mergeStartLap']
+        doPrecompMergeEntropy = 2      
+
       # E step
       if batchID in self.LPmemory:
         oldLPchunk = self.load_batch_local_params_from_memory(
@@ -249,8 +257,12 @@ class MOVBAlg(LearnAlg):
       if self.hasMove('birth') and self.isLastBatch(lapFrac):
         hmodel, SS = self.birth_remove_extra_mass(hmodel, SS, BirthResults)
 
-      if self.isLastBatch(lapFrac):
-        print ' '.join(['%8.1f' % (x) for x in SS.N])
+      
+      # Store batch-specific stats to memory
+      if self.algParams['doMemoizeLocalParams']:
+        self.save_batch_local_params_to_memory(batchID, LPchunk)          
+      self.save_batch_suff_stat_to_memory(batchID, SSchunk)
+
 
       # Merge move!      
       if self.hasMove('merge') and self.isLastBatch(lapFrac) \
@@ -265,15 +277,15 @@ class MOVBAlg(LearnAlg):
         assert mPairIDs is not None
         hmodel, SS, evBound = self.run_many_merge_moves(hmodel, SS, evBound,
                                                         mPairIDs, MM, lapFrac)
-
-      # ELBO Update!
+      elif self.hasMove('softmerge') and self.isLastBatch(lapFrac) \
+                                     and lapFrac > mergeStartLap:
+        hmodel.update_global_params(SS)
+        evBound = hmodel.calc_evidence(SS=SS)
+        hmodel, SS, evBound = self.run_softmerge_moves(hmodel, SS, evBound,
+                                                       lapFrac, LPchunk)
+          
       else:
         evBound = hmodel.calc_evidence(SS=SS)
-
-      # Store batch-specific stats to memory
-      if self.algParams['doMemoizeLocalParams']:
-        self.save_batch_local_params_to_memory(batchID, LPchunk)          
-      self.save_batch_suff_stat_to_memory(batchID, SSchunk)
 
       # Save and display progress
       self.add_nObs(Dchunk.nObs)
@@ -304,8 +316,7 @@ class MOVBAlg(LearnAlg):
       elif self.hasMove('merge'):
         doQuit = False
         numStuckBeforeQuit = self.algParams['merge']['mergeNumStuckBeforeQuit']
-        StartLap = self.algParams['merge']['mergeStartLap']
-        if self.isLastBatch(lapFrac) and lapFrac > StartLap:
+        if self.isLastBatch(lapFrac) and lapFrac > mergeStartLap:
           if len(self.MergeLog) == 0:
             numStuck += 1
           else:
@@ -355,6 +366,11 @@ class MOVBAlg(LearnAlg):
       #  this is done usually when debugging.
       SSchunk = SSchunk.copy()
 
+    # "Replay" accepted softmerges from end of previous lap 
+    if self.hasMove('softmerge'): 
+      for MInfo in self.MergeLog:
+        SSchunk.multiMergeComps(MInfo['kdel'], MInfo['alph'])
+    
     # "Replay" accepted merges from end of previous lap 
     if self.hasMove('merge'): 
       for MInfo in self.MergeLog:
@@ -362,8 +378,8 @@ class MOVBAlg(LearnAlg):
         kB = MInfo['kB']
         if kA < SSchunk.K and kB < SSchunk.K and SSchunk.K == MInfo['Korig']:
           SSchunk.mergeComps(kA, kB)
-      if SSchunk.hasMergeTerms():
-        SSchunk.setMergeFieldsToZero()
+    if SSchunk.hasMergeTerms():
+      SSchunk.setMergeFieldsToZero()
 
     # "replay" any shuffling/reordering that happened
     if self.hasMove('shuffle') and order is not None:
@@ -796,3 +812,96 @@ class MOVBAlg(LearnAlg):
         newDict[kk-1] = self.LapsSinceLastBirth[kk]
     self.LapsSinceLastBirth = newDict
 
+
+
+  ######################################################### Soft Merge moves
+  #########################################################
+  def run_softmerge_moves(self, hmodel, SS, evBound, lapFrac, LPchunk):
+    ''' Run (potentially many) softmerge moves on hmodel,
+
+        Returns
+        -------
+        hmodel : bnpy HModel, with (possibly) merged components
+        SS : bnpy SuffStatBag, with (possibly) merged components
+        evBound : correct ELBO for returned hmodel
+                  guaranteed to be at least as large as input evBound    
+    '''
+    import bnpy.mergemove.MergeLogger as MergeLogger
+
+    MergeLogger.logStartMove(lapFrac)
+    self.MergeLog = list()
+
+    if not np.allclose(lapFrac, 5.):
+      return hmodel, SS, evBound
+
+    for kdel in reversed(xrange(SS.K)):
+      aFunc = hmodel.allocModel.calcSoftMergeGap_alph
+      oFunc = hmodel.obsModel.calcSoftMergeGap_alph
+      ## Find optimal alph redistribution vector for candidate kdel
+      from bnpy.mergemove.OptimizerMultiwayMerge import find_optimum
+      try:
+        alph, f, Info = find_optimum(SS, kdel, aFunc, oFunc)
+      except ValueError as e:
+        if str(e).lower().count('overflow') > 0:
+          continue
+        raise e
+
+      ## Evaluate total evidence improvement using optimal alpha
+      HgapLB = hmodel.allocModel.calcSoftMergeEntropyGap(SS, kdel, alph)
+      ELBOgap = hmodel.allocModel.calcSoftMergeGap(SS, kdel, alph) \
+                + hmodel.obsModel.calcSoftMergeGap(SS, kdel, alph) \
+                + HgapLB
+
+      MergeLogger.log('--------- kdel %d.  N %.1f' 
+                            % (kdel, SS.N[kdel]))
+
+      if np.allclose(SS.N.sum(), LPchunk['resp'].shape[0]) \
+         and SS.K == LPchunk['resp'].shape[1]:
+        from bnpy.util.NumericUtil import calcRlogR
+        R = LPchunk['resp']
+        R2 = np.delete(R, kdel, axis=1)
+        R2[:, kdel:] += R[:, kdel][:,np.newaxis] * alph[kdel+1:][np.newaxis,:]
+        R2[:, :kdel] += R[:, kdel][:,np.newaxis] * alph[:kdel][np.newaxis,:]
+        assert np.allclose(R2.sum(axis=1), 1.0)
+        HgapExact = -1 * np.sum(calcRlogR(R2+1e-100)) \
+                     +   np.sum(calcRlogR(R+1e-100))
+        ELBOgapExact = ELBOgap - HgapLB + HgapExact
+
+        MergeLogger.log(' HgapLB    % 7.1f' % (HgapLB))
+        MergeLogger.log(' HgapExact % 7.1f' % (HgapExact))
+        if ELBOgapExact > 0 and ELBOgap < 0:
+          msg = '******'
+        else:
+          msg = ''
+        MergeLogger.log(' ELBOgapExact % 7.1f %s' % (ELBOgapExact, msg))
+      MergeLogger.log(' ELBOgapLB    % 7.1f' % (ELBOgap))
+
+
+      MergeLogger.log('Alph')
+      MergeLogger.logPosVector(alph)
+
+      if ELBOgap > 0:
+        MergeLogger.log('ACCEPTED!')
+        ## Accepted!
+        SS.multiMergeComps(kdel, alph)
+        hmodel.update_global_params(SS)
+        evBound += ELBOgap
+        curInfo = dict(ELBOgap=ELBOgap, kdel=kdel, alph=alph)
+        self.MergeLog.append(curInfo)
+        self.verifyELBOTracking(hmodel, SS, evBound)
+
+    return hmodel, SS, evBound
+
+
+  def verifyELBOTracking(self, hmodel, SS, evBound):
+    for batchID in range(len(self.SSmemory.keys())):
+      SSchunk = self.load_batch_suff_stat_from_memory(batchID, SS.K, doCopy=1)
+      if batchID == 0:
+        SS2 = SSchunk.copy()
+      else:
+        SS2 += SSchunk
+    evCheck = hmodel.calc_evidence(SS=SS2)
+    #print '% 9.3f' % (evBound)
+    #print '% 9.3f' % (evCheck)
+    assert np.allclose(SS.N, SS2.N)
+    assert np.allclose(evBound, evCheck)
