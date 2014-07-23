@@ -225,7 +225,7 @@ class DiagGaussObsModel(AbstractObsModel):
     return SS 
 
   ########################################################### Posterior
-
+  ###########################################################
   def updatePost(self, SS):
     ''' Update (in place) posterior params for each comp given suff stats
     '''
@@ -495,7 +495,108 @@ class DiagGaussObsModel(AbstractObsModel):
                  - 0.5 * dDiff * np.sum(self.GetCached('E_muLmu', k))
     return elbo.sum() - 0.5 * np.sum(SS.N) * SS.D * LOGTWOPI
 
-  # TODO: Merge ELBO
+  ######################################################### Hard Merge
+  #########################################################
+  def calcHardMergeGap(self, SS, kA, kB):
+    ''' Calculate change in ELBO after a hard merge applied to this model
+    '''
+    Post = self.Post
+    Prior = self.Prior
+    cA = c_Func(Post.nu[kA], Post.beta[kA], Post.m[kA], Post.kappa[kA])
+    cB = c_Func(Post.nu[kB], Post.beta[kB], Post.m[kB], Post.kappa[kB])
+    cPrior = c_Func(Prior.nu,   Prior.beta,      Prior.m,      Prior.kappa)
+
+    nu, beta, m, kappa = self.calcPostParamsForComp(SS, kA, kB)
+    cAB = c_Func(nu, beta, m, kappa)
+    return cA + cB - cPrior - cAB
+
+
+  def calcHardMergeGap_AllPairs(self, SS):
+    ''' Calculate change in ELBO after a hard merge applied to this model
+    '''
+    Post = self.Post
+    Prior = self.Prior
+    cPrior = c_Func(Prior.nu, Prior.beta, Prior.m, Prior.kappa)
+    c = np.zeros(SS.K)
+    for k in xrange(SS.K):
+      c[k] = c_Func(Post.nu[k], Post.beta[k], Post.m[k], Post.kappa[k])
+
+    Gap = np.zeros((SS.K, SS.K))
+    for j in xrange(SS.K):
+      for k in xrange(j+1, SS.K):
+        nu, beta, m, kappa = self.calcPostParamsForComp(SS, j, k)
+        cjk = c_Func(nu, beta, m, kappa)
+        Gap[j,k] = c[j] + c[k] - cPrior - cjk
+    return Gap
+
+  def calcHardMergeGap_SpecificPairs(self, SS, PairList):
+    ''' Calc matrix of improvement in ELBO for specific pairs of comps
+    '''
+    Gaps = np.zeros(len(PairList))
+    for ii, (kA, kB) in enumerate(PairList):
+        Gaps[ii] = self.calcHardMergeGap(SS, kA, kB)
+    return Gaps
+
+  ########################################################### Soft Merge
+  ###########################################################
+
+  def calcSoftMergeGap(self, SS, kdel, alph):
+    ''' Calculate net improvement in ELBO after multi-way merge.
+
+        Comp kdel is deleted, and its suff stats are redistributed among 
+        other remaining components, according to parameter vector alph.
+    '''
+    if alph.size < SS.K:
+      alph = np.hstack([alph[:kdel], 0, alph[kdel:]])
+    assert alph.size == SS.K
+    assert np.allclose(alph[kdel], 0)
+
+    Post = self.Post
+    Prior = self.Prior
+    gap = c_Func(Post.nu[kdel], Post.beta[kdel], 
+                 Post.m[kdel], Post.kappa[kdel]) \
+          - c_Func(Prior.nu, Prior.beta, Prior.m, Prior.kappa)
+    for k in xrange(SS.K):
+      if k == kdel:
+        continue
+      nu = Post.nu[k] + alph[k] * SS.N[kdel]
+      kappa = Post.kappa[k] + alph[k] * SS.N[kdel]
+      m = (Post.kappa[k] * Post.m[k] + alph[k] * SS.x[kdel]) / kappa
+      beta = Post.beta[k] + Post.kappa[k] * np.square(Post.m[k]) \
+             + alph[k] * SS.xx[kdel] \
+             - kappa * np.square(m)
+
+      gap += c_Diff(Post.nu[k],
+                    Post.beta[k],
+                    Post.m[k],
+                    Post.kappa[k],
+                    nu, beta, m, kappa)
+    return gap
+
+  def calcSoftMergeGap_alph(self, SS, kdel, alph):
+    ''' Calculate net improvement in ELBO after multi-way merge as fcn of alph.
+        
+        This keeps only terms that depend on redistribution vector alph
+    '''
+    if alph.size < SS.K:
+      alph = np.hstack([alph[:kdel], 0, alph[kdel:]])
+    assert alph.size == SS.K
+    assert np.allclose(alph[kdel], 0)
+
+    gap = 0
+    Post = self.Post
+    assert np.allclose(alph.sum(), 1.0)
+    for k in xrange(SS.K):
+      if k == kdel:
+        continue
+      nu = Post.nu[k] + alph[k] * SS.N[kdel]
+      kappa = Post.kappa[k] + alph[k] * SS.N[kdel]
+      m = (Post.kappa[k] * Post.m[k] + alph[k] * SS.x[kdel]) / kappa
+      beta = Post.beta[k] + Post.kappa[k] * np.square(Post.m[k]) \
+             + alph[k] * SS.xx[kdel] \
+             - kappa * np.square(m)
+      gap -= c_Func(nu, beta, m, kappa)
+    return gap
 
   ########################################################### Marg Lik
   ###########################################################
