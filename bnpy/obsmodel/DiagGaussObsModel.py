@@ -203,7 +203,6 @@ class DiagGaussObsModel(AbstractObsModel):
 
   ########################################################### Suff Stats
   ########################################################### 
-
   def calcSummaryStats(self, Data, SS, LP):
     X = Data.X
     resp = LP['resp']
@@ -235,6 +234,13 @@ class DiagGaussObsModel(AbstractObsModel):
   ########################################################### EM E step
   ########################################################### 
   def calcLogSoftEvMatrix_FromEstParams(self, Data):
+    ''' Calculate log soft evidence matrix for given Dataset under EstParams
+
+        Returns
+        ---------
+        L : 2D array, size N x K
+            L[n,k] = log p( data n | EstParams for comp k )
+    '''
     K = self.EstParams.K
     L = np.zeros((Data.nObs, K))
     for k in xrange(K):
@@ -313,22 +319,6 @@ class DiagGaussObsModel(AbstractObsModel):
     self.Post.setField('beta', beta, dims=('K', 'D'))
     self.K = SS.K
 
-  def updatePost_stochastic(self, SS, rho):
-    ''' Stochastic update (in place) posterior for all comps given suff stats
-    '''
-    assert hasattr(self, 'Post')
-    assert self.Post.K == SS.K
-    self.ClearCache()
-    
-    self.convertPostToNatural()
-    nu, b, km, kappa = self.calcNaturalPostParams(SS)
-    Post = self.Post
-    Post.nu[:] = (1-rho) * Post.nu + rho * nu
-    Post.b[:] = (1-rho) * Post.b + rho * b
-    Post.km[:] = (1-rho) * Post.km + rho * km
-    Post.kappa[:] = (1-rho) * Post.kappa + rho * kappa
-    self.convertPostToCommon()
-
   def calcPostParams(self, SS):
     ''' Calc updated params (nu, beta, m, kappa) for all comps given suff stats
 
@@ -380,6 +370,25 @@ class DiagGaussObsModel(AbstractObsModel):
              + Prior.kappa * np.square(Prior.m) \
              - kappa * np.square(m)
     return nu, beta, m, kappa
+
+  ########################################################### Stochastic Post
+  ########################################################### update
+
+  def updatePost_stochastic(self, SS, rho):
+    ''' Stochastic update (in place) posterior for all comps given suff stats
+    '''
+    assert hasattr(self, 'Post')
+    assert self.Post.K == SS.K
+    self.ClearCache()
+    
+    self.convertPostToNatural()
+    nu, b, km, kappa = self.calcNaturalPostParams(SS)
+    Post = self.Post
+    Post.nu[:] = (1-rho) * Post.nu + rho * nu
+    Post.b[:] = (1-rho) * Post.b + rho * b
+    Post.km[:] = (1-rho) * Post.km + rho * km
+    Post.kappa[:] = (1-rho) * Post.kappa + rho * kappa
+    self.convertPostToCommon()
 
   def calcNaturalPostParams(self, SS):
     ''' Calc updated params (nu, b, km, kappa) for all comps given suff stats
@@ -433,11 +442,11 @@ class DiagGaussObsModel(AbstractObsModel):
   ########################################################### VB E/Local step
   ########################################################### 
   def calcLogSoftEvMatrix_FromPost(self, Data):
-    ''' Calculate soft ev matrix 
+    ''' Calculate expected log soft ev matrix for given dataset under posterior
 
         Returns
         ------
-        L : 2D array, size nObs x K
+        L : 2D array, size N x K
     '''
     K = self.Post.K
     L = np.zeros((Data.nObs, K))
@@ -461,14 +470,14 @@ class DiagGaussObsModel(AbstractObsModel):
     dist += self.D / self.Post.kappa[k]
     return dist
 
-  ########################################################### VB bound step
+  ########################################################### VB ELBO step
   ########################################################### 
   def calcELBO_Memoized(self, SS, afterMStep=False):
     ''' Calculate obsModel's ELBO using sufficient statistics SS and Post.
 
         Args
         -------
-        SS : bnpy SuffStatBag, contains fields for N, x, xxT
+        SS : bnpy SuffStatBag, contains fields for N, x, xx
         afterMStep : boolean flag
                  if 1, elbo calculated assuming M-step just completed
 
@@ -555,7 +564,6 @@ class DiagGaussObsModel(AbstractObsModel):
 
   ########################################################### Soft Merge
   ###########################################################
-
   def calcSoftMergeGap(self, SS, kdel, alph):
     ''' Calculate net improvement in ELBO after soft aka multi-way merge.
 
