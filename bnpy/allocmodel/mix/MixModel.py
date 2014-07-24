@@ -134,15 +134,6 @@ class MixModel(AllocModel):
       SS.N[knew] += 1  
       obsModel.incrementSS(SS, knew, x) 
       Z[dataindex] = knew
-
-      #if dataindex % 100 == 0:
-      #  print '%d/%d' % (dataindex, Data.nObs)
-
-      #for k in xrange(SS.K):
-      #  Xk = np.sum(Data.X[Z==k], axis=0)
-      #  Sk = np.sum(np.square(Data.X[Z==k]), axis=0)
-      #  assert np.allclose(Xk, SS.x[k])
-      #  assert np.allclose(Sk, SS.xx[k])
       
     LP['Z'] = Z                      
     print ' '.join(['%.1f' % (x) for x in SS.N])
