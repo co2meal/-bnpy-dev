@@ -54,8 +54,7 @@ class SuffStatBag(object):
     if self.hasELBOTerms():
       self._ELBOTerms.reorderComps(order)
     if self.hasMergeTerms():
-      raise NotImplementedError('TODO')
-      self._MergeTerms.reorderComps(order)
+      self._MergeTerms.setAllFieldsToZero()
 
   # ======================================================= strip/restore fields
   def removeELBOandMergeTerms(self):

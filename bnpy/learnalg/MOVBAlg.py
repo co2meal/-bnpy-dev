@@ -107,12 +107,9 @@ class MOVBAlg(LearnAlg):
 
       # Rearrange the order
       if self.isFirstBatch(lapFrac) and self.hasMove('shuffle'):
-        self.algParamsLP['order'] = None
         if SS is not None:
           order = np.argsort(-1*SS.N)
           SS.reorderComps(order)
-          hmodel.reorderComps(order)
-          self.algParamsLP['order'] = order
 
       # M step
       if self.algParams['doFullPassBeforeMstep']:
