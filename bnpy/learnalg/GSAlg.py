@@ -39,7 +39,8 @@ class GSAlg( LearnAlg ):
       self.set_random_seed_at_lap(lap)
 
       # sample posterior allocations
-      LP, SS = hmodel.sample_local_params(Data, SS, LP, self.PRNG, 
+      LP, SS = hmodel.allocModel.sample_local_params(hmodel.obsModel,
+                                                     Data, SS, LP, self.PRNG, 
                                                         **self.algParams)
  
       # Make posterior params

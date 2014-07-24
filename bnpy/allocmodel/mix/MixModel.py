@@ -106,7 +106,7 @@ class MixModel(AllocModel):
       LP['resp'][LP['Z']==k, k] = 1 
     return LP
 
-  def sample_local_params(self, obsModel, Data, SS, LP, PRNG):
+  def sample_local_params(self, obsModel, Data, SS, LP, PRNG, **kwargs):
     '''
         for i = 1 to Data.nObs 
            sample z_i ~ p(z_i | z_-i,X)

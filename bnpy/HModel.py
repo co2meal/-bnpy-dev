@@ -79,20 +79,7 @@ class HModel(object):
     # Combine with allocModel probs of each cluster
     # Fills in LP['resp'], a Data.nObs x K matrix whose rows sum to one
     LP = self.allocModel.calc_local_params(Data, LP, **kwargs)
-    return LP
-  
-   
-  ###################### Sample local parameters   
-  def sample_local_params(self, Data, SS, LP, PRNG, **kwargs):
-    ''' Sample instantiations of local parameters specific to each data item,
-          given (or collapsed) global parameters.
-        This constitutes a single iteration of the sampler.        
-    '''
-    
-    return self.allocModel.sample_local_params(self.obsModel, 
-                                               Data, SS, LP, PRNG, **kwargs)
-  
-     
+    return LP     
        
   ######################################################### Suff Stats
   #########################################################   

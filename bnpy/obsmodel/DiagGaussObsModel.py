@@ -224,30 +224,97 @@ class DiagGaussObsModel(AbstractObsModel):
     SS.setField('xx', dotATB(resp, np.square(X)), dims=('K', 'D'))
     return SS 
 
-  ########################################################### Posterior
+  def incrementSS(self, SS, k, x):
+    SS.x[k] += x
+    SS.xx[k] += np.square(x)
+
+  def decrementSS(self, SS, k, x):
+    SS.x[k] -= x
+    SS.xx[k] -= np.square(x)
+
+  ########################################################### EM E step
+  ########################################################### 
+  def calcLogSoftEvMatrix_FromEstParams(self, Data):
+    K = self.EstParams.K
+    L = np.zeros((Data.nObs, K))
+    for k in xrange(K):
+      L[:,k] = - 0.5 * self.D * LOGTWOPI \
+               - 0.5 * np.sum(np.log(self.EstParams.sigma[k])) \
+               - 0.5 * self._mahalDist_EstParam(Data.X, k)
+    return L
+
+  def _mahalDist_EstParam(self, X, k):
+    ''' Calculate distance to every row of matrix X
+
+        Args
+        -------
+        X : 2D array, size N x D
+
+        Returns
+        ------
+        dist : 1D array, size N
+    '''
+    Xdiff = X - self.EstParams.mu[k]
+    np.square(Xdiff, out=Xdiff)
+    dist = np.sum(Xdiff/self.EstParams.sigma[k], axis=1)
+    return dist
+
+  ########################################################### EM M step
+  ########################################################### 
+  def updateEstParams_MaxLik(self, SS):
+    self.ClearCache()
+    if not hasattr(self, 'EstParams') or self.EstParams.K != SS.K:
+      self.EstParams = ParamBag(K=SS.K, D=SS.D)
+
+    mu = SS.x / SS.N[:,np.newaxis]
+    sigma = self.min_covar \
+            + SS.xx / SS.N[:,np.newaxis] \
+            - np.square(mu)
+
+    self.EstParams.setField('mu', mu, dims=('K', 'D'))
+    self.EstParams.setField('sigma', sigma, dims=('K', 'D'))
+    self.K = SS.K
+
+  def updateEstParams_MAP(self, SS):
+    self.ClearCache()
+    if not hasattr(self, 'EstParams') or self.EstParams.K != SS.K:
+      self.EstParams = ParamBag(K=SS.K, D=SS.D)
+
+    Prior = self.Prior
+    nu = Prior.nu + SS.N
+    kappa = Prior.kappa + SS.N
+    PB =  Prior.beta + Prior.kappa * np.square(Prior.m)
+
+    m = np.empty((SS.K, SS.D))
+    beta = np.empty((SS.K, SS.D))
+    for k in xrange(SS.K):
+      km_x = Prior.kappa * Prior.m + SS.x[k]
+      m[k] = 1.0/kappa[k] * km_x
+      beta[k] = PB + SS.xx[k] - 1.0/kappa[k] * np.square(km_x)
+    
+    mu, sigma = MAPEstParams_inplace(nu, beta, m, kappa)   
+    self.EstParams.setField('mu', mu, dims=('K', 'D'))
+    self.EstParams.setField('sigma', sigma, dims=('K', 'D'))
+    self.K = SS.K
+
+  ########################################################### Post updates
   ###########################################################
   def updatePost(self, SS):
-    ''' Update (in place) posterior params for each comp given suff stats
+    ''' Update (in place) posterior params for all comps given suff stats
     '''
     self.ClearCache()
     if not hasattr(self, 'Post') or self.Post.K != SS.K:
       self.Post = ParamBag(K=SS.K, D=SS.D)
 
-    Prior = self.Prior # use 'Prior' not 'self.Prior', improves readability
-    Post = self.Post
-
-    Post.setField('nu', Prior.nu + SS.N, dims=('K'))
-    Post.setField('kappa', Prior.kappa + SS.N, dims=('K'))
-    
-    km = Prior.kappa * Prior.m + SS.x
-    beta = Prior.beta + Prior.kappa * np.square(Prior.m) \
-           + SS.xx - np.square(km) / Post.kappa[:,np.newaxis]
-    Post.setField('m', km / Post.kappa[:,np.newaxis], dims=('K', 'D'))
-    Post.setField('beta', beta, dims=('K', 'D'))
+    nu, beta, m, kappa = self.calcPostParams(SS)
+    self.Post.setField('nu', nu, dims=('K'))
+    self.Post.setField('kappa', kappa, dims=('K'))
+    self.Post.setField('m', m, dims=('K', 'D'))
+    self.Post.setField('beta', beta, dims=('K', 'D'))
     self.K = SS.K
 
   def updatePost_stochastic(self, SS, rho):
-    ''' Stochastic update (in place) posterior for each comp given suff stats
+    ''' Stochastic update (in place) posterior for all comps given suff stats
     '''
     assert hasattr(self, 'Post')
     assert self.Post.K == SS.K
@@ -363,74 +430,8 @@ class DiagGaussObsModel(AbstractObsModel):
       beta = Post.b - (np.square(Post.km) / Post.kappa[:,np.newaxis])
       Post.setField('beta', beta, dims=('K','D'))
 
-  ########################################################### EM
+  ########################################################### VB E/Local step
   ########################################################### 
-  # _________________________________________________________ E step
-  def calcLogSoftEvMatrix_FromEstParams(self, Data):
-    K = self.EstParams.K
-    L = np.zeros((Data.nObs, K))
-    for k in xrange(K):
-      L[:,k] = - 0.5 * self.D * LOGTWOPI \
-               - 0.5 * np.sum(np.log(self.EstParams.sigma)) \
-               - 0.5 * self._mahalDist_EstParam(Data.X, k)
-    return L
-
-  def _mahalDist_EstParam(self, X, k):
-    ''' Calculate distance to every row of matrix X
-
-        Args
-        -------
-        X : 2D array, size N x D
-
-        Returns
-        ------
-        dist : 1D array, size N
-    '''
-    Xdiff = (X - self.EstParams.mu[k])
-    np.square(Xdiff, out=Xdiff)
-    dist = np.sum(Xdiff/self.EstParams.sigma[k], axis=1)
-    return dist
-
-  # _________________________________________________________  M step
-  def updateEstParams_MaxLik(self, SS):
-    self.ClearCache()
-    if not hasattr(self, 'EstParams') or self.EstParams.K != SS.K:
-      self.EstParams = ParamBag(K=SS.K, D=SS.D)
-
-    mu = SS.x / SS.N[:,np.newaxis]
-    sigma = self.min_covar \
-            + SS.xx / SS.N[:,np.newaxis] \
-            - np.square(mu)
-
-    self.EstParams.setField('mu', mu, dims=('K', 'D'))
-    self.EstParams.setField('sigma', sigma, dims=('K', 'D'))
-    self.K = SS.K
-
-  def updateEstParams_MAP(self, SS):
-    self.ClearCache()
-    if not hasattr(self, 'EstParams') or self.EstParams.K != SS.K:
-      self.EstParams = ParamBag(K=SS.K, D=SS.D)
-
-    Prior = self.Prior
-    nu = Prior.nu + SS.N
-    kappa = Prior.kappa + SS.N
-    PB =  Prior.beta + Prior.kappa * np.square(Prior.m)
-
-    m = np.empty((SS.K, SS.D))
-    beta = np.empty((SS.K, SS.D))
-    for k in xrange(SS.K):
-      km_x = Prior.kappa * Prior.m + SS.x[k]
-      m[k] = 1.0/kappa[k] * km_x
-      beta[k] = PB + SS.xx[k] - 1.0/kappa[k] * np.square(km_x)
-    
-    mu, sigma = MAPEstParams_inplace(nu, beta, m, kappa)   
-    self.EstParams.setField('mu', mu, dims=('K', 'D'))
-    self.EstParams.setField('sigma', sigma, dims=('K', 'D'))
-    self.K = SS.K
-
-  ########################################################### VB
-  ########################################################### 
-
   def calcLogSoftEvMatrix_FromPost(self, Data):
     ''' Calculate soft ev matrix 
 
@@ -460,14 +461,16 @@ class DiagGaussObsModel(AbstractObsModel):
     dist += self.D / self.Post.kappa[k]
     return dist
 
-  def calcELBO_Memoized(self, SS, doFast=False):
+  ########################################################### VB bound step
+  ########################################################### 
+  def calcELBO_Memoized(self, SS, afterMStep=False):
     ''' Calculate obsModel's ELBO using sufficient statistics SS and Post.
 
         Args
         -------
         SS : bnpy SuffStatBag, contains fields for N, x, xxT
-        doFast : boolean flag
-                 if 1, elbo calculated assuming special terms cancel out
+        afterMStep : boolean flag
+                 if 1, elbo calculated assuming M-step just completed
 
         Returns
         -------
@@ -480,7 +483,7 @@ class DiagGaussObsModel(AbstractObsModel):
       elbo[k] = c_Diff(Prior.nu,   Prior.beta,   Prior.m,   Prior.kappa,
                        Post.nu[k], Post.beta[k], Post.m[k], Post.kappa[k],
                        )
-      if not doFast:
+      if not afterMStep:
         aDiff = SS.N[k] + Prior.nu - Post.nu[k]
         bDiff = SS.xx[k] + Prior.beta \
                           + Prior.kappa * np.square(Prior.m) \
@@ -499,6 +502,10 @@ class DiagGaussObsModel(AbstractObsModel):
   #########################################################
   def calcHardMergeGap(self, SS, kA, kB):
     ''' Calculate change in ELBO after a hard merge applied to this model
+
+        Returns
+        ---------
+        gap : scalar real, indicates change in ELBO after merge of kA, kB
     '''
     Post = self.Post
     Prior = self.Prior
@@ -510,9 +517,13 @@ class DiagGaussObsModel(AbstractObsModel):
     cAB = c_Func(nu, beta, m, kappa)
     return cA + cB - cPrior - cAB
 
-
   def calcHardMergeGap_AllPairs(self, SS):
-    ''' Calculate change in ELBO after a hard merge applied to this model
+    ''' Calculate change in ELBO for all possible candidate hard merge pairs 
+
+        Returns
+        ---------
+        Gap : 2D array, size K x K, upper-triangular entries non-zero
+              Gap[j,k] : scalar change in ELBO after merge of k into j
     '''
     Post = self.Post
     Prior = self.Prior
@@ -530,7 +541,12 @@ class DiagGaussObsModel(AbstractObsModel):
     return Gap
 
   def calcHardMergeGap_SpecificPairs(self, SS, PairList):
-    ''' Calc matrix of improvement in ELBO for specific pairs of comps
+    ''' Calc change in ELBO for specific list of candidate hard merge pairs
+
+        Returns
+        ---------
+        Gaps : 1D array, size L
+              Gap[j] : scalar change in ELBO after merge of pair in PairList[j]
     '''
     Gaps = np.zeros(len(PairList))
     for ii, (kA, kB) in enumerate(PairList):
@@ -541,7 +557,7 @@ class DiagGaussObsModel(AbstractObsModel):
   ###########################################################
 
   def calcSoftMergeGap(self, SS, kdel, alph):
-    ''' Calculate net improvement in ELBO after multi-way merge.
+    ''' Calculate net improvement in ELBO after soft aka multi-way merge.
 
         Comp kdel is deleted, and its suff stats are redistributed among 
         other remaining components, according to parameter vector alph.
@@ -574,7 +590,7 @@ class DiagGaussObsModel(AbstractObsModel):
     return gap
 
   def calcSoftMergeGap_alph(self, SS, kdel, alph):
-    ''' Calculate net improvement in ELBO after multi-way merge as fcn of alph.
+    ''' Calculate improvement in ELBO after multi-way merge as fcn of alph.
         
         This keeps only terms that depend on redistribution vector alph
     '''
@@ -615,14 +631,12 @@ class DiagGaussObsModel(AbstractObsModel):
         Returns
         -------
         logM : scalar real
-               logM = log p( data assigned to comp kA ) [up to constant]
+               logM = log p( data assigned to comp kA ) 
+                      computed up to an additive constant
     '''
     nu, beta, m, kappa = self.calcPostParamsForComp(SS, kA, kB)
     return -1 * c_Func(nu, beta, m, kappa)
 
-
-  ########################################################### Gibbs
-  ########################################################### 
   def calcMargLik(self, SS):
     return self.calcMargLik_CFuncForLoop(SS)
 
@@ -659,23 +673,12 @@ class DiagGaussObsModel(AbstractObsModel):
                                - nu * np.log(beta))
     return np.sum(logp) - 0.5 * np.sum(SS.N) * LOGTWOPI
 
+  ########################################################### Gibbs Pred Prob
+  ########################################################### 
   def calcPredProbVec_Unnorm(self, SS, x):
     ''' Calculate K-vector of positive entries \propto p( x | SS[k] )
     '''
     return self._calcPredProbVec_Fast(SS, x)
-  
-  def _Verify_calcPredProbVec(self, SS, x):
-    ''' Verify that the predictive prob vector is correct,
-          by comparing 3 very different implementations
-    '''
-    pA = self._calcPredProbVec_Fast(SS, x)
-    pB = self._calcPredProbVec_Naive(SS, x)
-    pC = self._calcPredProbVec_ForLoop(SS, x)
-    pA /= np.sum(pA)
-    pB /= np.sum(pB)
-    pC /= np.sum(pC)
-    assert np.allclose(pA, pB)
-    assert np.allclose(pA, pC)
 
   def _calcPredProbVec_Naive(self, SS, x):
     nu, beta, m, kappa = self.calcPostParams(SS)
@@ -724,46 +727,21 @@ class DiagGaussObsModel(AbstractObsModel):
              * base ** (-0.5 * (nu+1))
       p[k] = np.prod(p_k)
     return p
-
-  def incrementSS(self, SS, k, x):
-    SS.x[k] += x
-    SS.xx[k] += np.square(x)
-
-  def decrementSS(self, SS, k, x):
-    SS.x[k] -= x
-    SS.xx[k] -= np.square(x)
-
-  def incrementPost(self, k, x):
-    ''' Add data to the Post ParamBag, component k
-    '''
-    pass
-
-  def decrementPost(self, k, x):
-    ''' Remove data from the Post ParamBag, component k
-    '''
-    Post = self.Post
-    Post.nu -= 1
-    kappa = Post.kappa[k] - 1
-    Post.beta -= Post.kappa/kappa * np.square(x-Post.m)
-    Post.m = 1/(kappa) * (Post.kappa * Post.m - x)
-    Post.kappa = kappa
-
-  def updateCandidatePost_inplace(self, x):
-    if not hasattr(self, 'CandidatePost'):
-      self.CandidatePost = Post.copy()
-    else:
-      self.CandidatePost.nu[:] = Post.nu
-      self.CandidatePost.beta[:] = Post.beta
-      self.CandidatePost.m[:] = Post.m
-      self.CandidatePost.kappa[:] = Post.kappa
-
-    CPost = self.CandidatePost
-    CPost.nu += 1
-    CPost.kappa += 1
-    CPost.beta += Post.kappa/(CPost.kappa+1) * np.square(x-CPost.m)
-    Post.m[k] += 1/(kappa) * (Post.kappa[k] * Post.m[k] - x)
   
-  ########################################################### Expectations
+  def _Verify_calcPredProbVec(self, SS, x):
+    ''' Verify that the predictive prob vector is correct,
+          by comparing 3 very different implementations
+    '''
+    pA = self._calcPredProbVec_Fast(SS, x)
+    pB = self._calcPredProbVec_Naive(SS, x)
+    pC = self._calcPredProbVec_ForLoop(SS, x)
+    pA /= np.sum(pA)
+    pB /= np.sum(pB)
+    pC /= np.sum(pC)
+    assert np.allclose(pA, pB)
+    assert np.allclose(pA, pC)
+  
+  ########################################################### VB Expectations
   ########################################################### 
     
   def _E_CovMat(self, k=None):
@@ -863,6 +841,12 @@ def MAPEstParams_inplace(nu, beta, m, kappa=0):
   return mu, sigma
 
 def c_Func(nu, beta, m, kappa):
+  ''' Evaluate cumulant function c, aka log partition function, at given params
+
+      Returns
+      --------
+      c : scalar real value of cumulant function at provided args
+  '''
   D = m.size
   c1D = - 0.5 * LOGTWOPI \
          - 0.5 * LOGTWO * nu \
@@ -874,9 +858,13 @@ def c_Func(nu, beta, m, kappa):
 def c_Diff(nu1, beta1, m1, kappa1,
            nu2, beta2, m2, kappa2):
   ''' Evaluate difference of cumulant functions c(params1) - c(params2)
+
+      May be more numerically stable than directly using c_Func
+      to find the difference.
+
       Returns
       -------
-      diff : scalar real
+      diff : scalar real value of the difference in cumulant functions
   '''
   cDiff = - 0.5 * LOGTWO * (nu1 - nu2) \
           - gammaln(0.5 * nu1) + gammaln(0.5 * nu2) \
