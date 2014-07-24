@@ -74,7 +74,7 @@ def get_data(seed=8675309, nObsTotal=25000, **kwargs):
       Data : bnpy XData object, with nObsTotal observations
   '''
   X, TrueZ = get_X(seed, nObsTotal)
-  Data = XData(X=X)
+  Data = XData(X=X, TrueZ=TrueZ)
   Data.summary = get_data_info()
   return Data
   

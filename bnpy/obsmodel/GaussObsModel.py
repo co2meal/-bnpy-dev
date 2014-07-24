@@ -200,7 +200,7 @@ class GaussObsModel(AbstractObsModel):
     self.Post.setField('kappa', kappa, dims=('K'))
     self.K = self.Post.K
 
-  ########################################################### Summary
+  ########################################################### Suff Stats
   ########################################################### 
   def calcSummaryStats(self, Data, SS, LP):
     X = Data.X
@@ -838,6 +838,9 @@ class GaussObsModel(AbstractObsModel):
     Q = np.linalg.solve(self.GetCached('cholB', k), m.T)
     return self.D / kappa + nu * np.inner(Q, Q)
 
+  # ......................................................########
+  # ......................................................########
+  ################################################################ end class
 
 def MAPEstParams_inplace(nu, B, m, kappa=0):
   ''' MAP estimate parameters mu, Sigma given Normal-Wishart hyperparameters
@@ -850,6 +853,14 @@ def MAPEstParams_inplace(nu, B, m, kappa=0):
   return mu, Sigma
 
 def c_Func(nu, logdetB, m, kappa):
+  ''' Evaluate cumulant function c, aka log partition function, at given params
+
+      c is the cumulant of the multivariate Normal-Wishart, using common params.
+
+      Returns
+      --------
+      c : scalar real value of cumulant function at provided args
+  '''
   if logdetB.ndim >= 2:
     logdetB = np.log(np.linalg.det(logdetB))
   D = m.size
@@ -863,6 +874,15 @@ def c_Func(nu, logdetB, m, kappa):
 
 def c_Diff(nu1, logdetB1, m1, kappa1,
            nu2, logdetB2, m2, kappa2):
+  ''' Evaluate difference of cumulant functions c(params1) - c(params2)
+
+      May be more numerically stable than directly using c_Func
+      to find the difference.
+
+      Returns
+      -------
+      diff : scalar real value of the difference in cumulant functions
+  '''
   if logdetB1.ndim >= 2:
     logdetB1 = np.log(np.linalg.det(logdetB1))
   if logdetB2.ndim >= 2:
@@ -875,7 +895,27 @@ def c_Diff(nu1, logdetB1, m1, kappa1,
          + 0.5 * D * (np.log(kappa1) - np.log(kappa2)) \
          + 0.5 * (nu1 * logdetB1 - nu2 * logdetB2)
 
+
+
 def createECovMatFromUserInput(D=0, Data=None, ECovMat='eye', sF=1.0):
+  ''' Create expected covariance matrix defining Wishart prior.
+
+      The creation process follows user-specified criteria.
+
+      Args
+      --------
+      D : positive integer, size of each observation
+      Data : [optional] dataset to use to make Sigma in data-driven way
+      ECovMat : string name of the procedure to use to create Sigma
+             * 'eye' : make Sigma a multiple of the identity matrix
+             * 'covdata' : set Sigma to a multiple of the data covariance matrix
+             * 'fromtruelabels' : set Sigma to the empirical mean of the 
+                                  covariances for each true cluster in the dataset
+
+      Returns
+      --------
+      Sigma : 2D array, size D x D, symmetric and pos definite
+  '''
   if Data is not None:
     assert D == Data.dim
   if ECovMat == 'eye':
