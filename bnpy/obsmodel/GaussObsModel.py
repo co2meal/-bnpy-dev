@@ -757,7 +757,7 @@ class GaussObsModel(AbstractObsModel):
       mVec = np.linalg.solve(cholKB, x - m[k])
       mDist_k = np.inner(mVec, mVec)
       logp[k] = -0.5 * logdetKB - 0.5 * (nu[k]+1) * np.log(1.0 + mDist_k)
-    logp += gammaln(0.5 * (nu+2-self.D)) - gammaln(0.5 * nu)
+    logp += gammaln(0.5 * (nu+1)) - gammaln(0.5 * (nu+1-self.D))
     logp -= np.max(logp)
     np.exp(logp, out=p)
     return p
