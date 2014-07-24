@@ -23,6 +23,7 @@ from bnpy.util import dotATA, dotATB, dotABT
 from bnpy.util import as1D, as2D, as3D
 
 from AbstractObsModel import AbstractObsModel 
+from GaussObsModel import createECovMatFromUserInput
 
 class ZeroMeanGaussObsModel(AbstractObsModel):
 
@@ -175,7 +176,7 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
     self.Post.setField('B', B, dims=('K', 'D', 'D'))
     self.K = K
 
-  ########################################################### Summary
+  ########################################################### Suff Stats
   ########################################################### 
 
   def calcSummaryStats(self, Data, SS, LP):
@@ -197,12 +198,26 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
     for k in xrange(K):
       xxT[k] = dotATA(sqrtResp[:,k][:,np.newaxis]*Data.X )
     SS.setField('xxT', xxT, dims=('K','D','D'))
-    return SS 
+    return SS
 
-  ########################################################### EM
+
+  def incrementSS(self, SS, k, x):
+    SS.xxT[k] += np.outer(x,x)
+
+  def decrementSS(self, SS, k, x):
+    SS.xxT[k] -= np.outer(x,x)
+
+
+  ########################################################### EM E step
   ########################################################### 
-  # _________________________________________________________ E step
   def calcLogSoftEvMatrix_FromEstParams(self, Data):
+    ''' Calculate log soft evidence matrix for given Dataset under EstParams
+
+        Returns
+        ---------
+        L : 2D array, size N x K
+            L[n,k] = log p( data n | EstParams for comp k )
+    '''
     K = self.EstParams.K
     L = np.empty((Data.nObs, K))
     for k in xrange(K):
@@ -212,19 +227,51 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
     return L
 
   def _mahalDist_EstParam(self, X, k):
+    ''' Calc Mahalanobis distance from EstParams of comp k to every row of X
+
+        Args
+        ---------
+        X : 2D array, size N x D
+        k : integer ID of comp
+
+        Returns
+        ----------
+        dist : 1D array, size N
+    '''
     Q = np.linalg.solve(self.GetCached('cholSigma', k), \
-                        X.T)
+                        X.T) # zero mean assumed here!
     Q *= Q
     return np.sum(Q, axis=0)
 
   def _cholSigma(self, k):
+    ''' Calculate lower cholesky decomposition of EstParams.Sigma for comp k
+
+        Returns
+        --------
+        L : 2D array, size D x D, lower triangular
+            Sigma = np.dot(L, L.T)
+    '''
     return scipy.linalg.cholesky(self.EstParams.Sigma[k], lower=1)    
 
   def _logdetSigma(self, k):
+    ''' Calculate log determinant of EstParam.Sigma for comp k
+
+        Returns
+        ---------
+        logdet : scalar real
+    '''
     return 2 * np.sum(np.log(np.diag(self.GetCached('cholSigma', k))))
 
-  # _________________________________________________________  M step
+
+  ######################################################### EM M step
+  #########################################################
   def updateEstParams_MaxLik(self, SS):
+    ''' Update EstParams for all comps via maximum likelihood given suff stats
+
+        Returns
+        ---------
+        None. Fields K and EstParams updated in-place.
+    '''
     self.ClearCache()
     if not hasattr(self, 'EstParams') or self.EstParams.K != SS.K:
       self.EstParams = ParamBag(K=SS.K, D=SS.D)
@@ -237,6 +284,12 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
     self.K = SS.K
 
   def updateEstParams_MAP(self, SS):
+    ''' Update EstParams for all comps via MAP estimation given suff stats
+
+        Returns
+        ---------
+        None. Fields K and EstParams updated in-place.
+    '''
     self.ClearCache()
     if not hasattr(self, 'EstParams') or self.EstParams.K != SS.K:
       self.EstParams = ParamBag(K=SS.K, D=SS.D)
@@ -250,15 +303,109 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
     self.EstParams.setField('Sigma', Sigma, dims=('K', 'D', 'D'))
     self.K = SS.K
 
-  ########################################################### VB
-  ########################################################### 
 
+  ########################################################### Post updates
+  ########################################################### 
+  def updatePost(self, SS):
+    ''' Update (in place) posterior params for all comps given suff stats
+
+        Afterwards, self.Post contains Wishart posterior params
+        given self.Prior and provided suff stats SS
+
+        Returns
+        ---------
+        None. Fields K and Post updated in-place.
+    '''
+    self.ClearCache()
+    if not hasattr(self, 'Post') or self.Post.K != SS.K:
+      self.Post = ParamBag(K=SS.K, D=SS.D)
+
+    Prior = self.Prior # use 'Prior' not 'self.Prior', improves readability
+    Post = self.Post
+
+    Post.setField('nu', Prior.nu + SS.N, dims=('K'))
+    B = np.empty((SS.K, SS.D, SS.D))
+    for k in xrange(SS.K):
+      B[k] = Prior.B + SS.xxT[k]
+    Post.setField('B', B, dims=('K', 'D', 'D'))
+    self.K = SS.K
+
+  def calcPostParams(self, SS):
+    ''' Calc updated params (nu, B) for all comps given suff stats
+
+        These params define the common-form of the exponential family 
+        Wishart posterior distribution over precision matrix Lambda
+
+        Returns
+        --------
+        nu : 1D array, size K
+        B : 3D array, size K x D x D, each B[k] is symmetric and pos. def.
+    '''
+    Prior = self.Prior
+    nu = Prior.nu + SS.N
+    B = Prior.B + SS.xxT
+    return nu, B
+
+  def calcPostParamsForComp(self, SS, kA=None, kB=None):
+    ''' Calc params (nu, B, m, kappa) for specific comp, given suff stats
+
+        These params define the common-form of the exponential family 
+        Wishart posterior distribution over precision matrix Lambda
+
+        Returns
+        --------
+        nu : positive scalar
+        B : 2D array, size D x D, symmetric and positive definite
+    '''
+    if kB is None:
+      SN = SS.N[kA]
+      SxxT = SS.xxT[kA]
+    else:
+      SN = SS.N[kA] + SS.N[kB]
+      SxxT = SS.xxT[kA] + SS.xxT[kB]
+    Prior = self.Prior
+    nu = Prior.nu + SN
+    B = Prior.B + SxxT
+    return nu, B
+
+  ########################################################### Stochastic Post
+  ########################################################### update
+  def updatePost_stochastic(self, SS, rho):
+    ''' Stochastic update (in place) posterior for all comps given suff stats.
+
+        Wishart common params can be directly used here, no need for natural form.
+    '''
+    assert hasattr(self, 'Post')
+    assert self.Post.K == SS.K
+    self.ClearCache()
+    
+    nu, B = self.calcPostParams(SS)
+    Post = self.Post
+    Post.nu[:] = (1-rho) * Post.nu + rho * nu
+    Post.B[:] = (1-rho) * Post.B + rho * B
+
+  def convertPostToNatural(self):
+    ''' Convert (in-place) current posterior params from common to natural form
+
+        Here, the Wishart common form is already equivalent to the natural form
+    '''
+    pass
+    
+  def convertPostToCommon(self):
+    ''' Convert (in-place) current posterior params from natural to common form
+
+        Here, the Wishart common form is already equivalent to the natural form
+    '''
+    pass
+
+  ########################################################### VB E/Local step
+  ########################################################### 
   def calcLogSoftEvMatrix_FromPost(self, Data):
-    ''' Calculate soft ev matrix 
+    ''' Calculate expected log soft ev matrix for given dataset under posterior
 
         Returns
         ------
-        L : 2D array, size nObs x K
+        L : 2D array, size N x K
     '''
     K = self.Post.K
     L = np.zeros((Data.nObs, K))
@@ -281,32 +428,17 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
     Q *= Q
     return self.Post.nu[k] * np.sum(Q, axis=0)
 
-  def updatePost(self, SS):
-    ''' Update the Post ParamBag, so each component 1, 2, ... K
-          contains Wishart posterior params given Prior and SS
-    '''
-    self.ClearCache()
-    if not hasattr(self, 'Post') or self.Post.K != SS.K:
-      self.Post = ParamBag(K=SS.K, D=SS.D)
 
-    Prior = self.Prior # use 'Prior' not 'self.Prior', improves readability
-    Post = self.Post
-
-    Post.setField('nu', Prior.nu + SS.N, dims=('K'))
-    B = np.empty((SS.K, SS.D, SS.D))
-    for k in xrange(SS.K):
-      B[k] = Prior.B + SS.xxT[k]
-    Post.setField('B', B, dims=('K', 'D', 'D'))
-    self.K = SS.K
-
-  def calcELBO_Memoized(self, SS, doFast=False):
+  ########################################################### VB ELBO step
+  ########################################################### 
+  def calcELBO_Memoized(self, SS, afterMStep=False):
     ''' Calculate obsModel's ELBO using sufficient statistics SS and Post.
 
         Args
         -------
         SS : bnpy SuffStatBag, contains fields for N, x, xxT
-        doFast : boolean flag
-                 if 1, elbo calculated assuming special terms cancel out
+        afterMStep : boolean flag
+                 if 1, elbo calculated assuming M-step just completed
 
         Returns
         -------
@@ -321,7 +453,7 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
                         Post.nu[k],
                         self.GetCached('logdetB', k),
                         )
-      if not doFast:
+      if not afterMStep:
         aDiff = SS.N[k] + Prior.nu - Post.nu[k]
         bDiff = SS.xxT[k] + Prior.B \
                           - Post.B[k]
@@ -329,7 +461,114 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
                  - 0.5 * self._trace__E_L(bDiff, k)
     return elbo.sum() - 0.5 * np.sum(SS.N) * SS.D * LOGTWOPI
 
-  ########################################################### Post
+
+  ######################################################### Hard Merge
+  #########################################################
+  def calcHardMergeGap(self, SS, kA, kB):
+    ''' Calculate change in ELBO after a hard merge applied to this model
+
+        Returns
+        ---------
+        gap : scalar real, indicates change in ELBO after merge of kA, kB
+    '''
+    Post = self.Post
+    Prior = self.Prior
+    cPrior = c_Func(Prior.nu, self.GetCached('logdetB'), self.D)
+
+    cA = c_Func(Post.nu[kA], self.GetCached('logdetB', kA), self.D)
+    cB = c_Func(Post.nu[kB], self.GetCached('logdetB', kB), self.D)
+
+    nu, B = self.calcPostParamsForComp(SS, kA, kB)
+    cAB = c_Func(nu, B)
+    return cA + cB - cPrior - cAB
+
+
+  def calcHardMergeGap_AllPairs(self, SS):
+    ''' Calculate change in ELBO for all possible candidate hard merge pairs 
+
+        Returns
+        ---------
+        Gap : 2D array, size K x K, upper-triangular entries non-zero
+              Gap[j,k] : scalar change in ELBO after merge of k into j
+    '''
+    Post = self.Post
+    Prior = self.Prior
+    cPrior = c_Func(Prior.nu, self.GetCached('logdetB'), self.D)
+
+    c = np.zeros(SS.K)
+    for k in xrange(SS.K):
+      c[k] = c_Func(Post.nu[k], self.GetCached('logdetB', k), self.D)
+
+    Gap = np.zeros((SS.K, SS.K))
+    for j in xrange(SS.K):
+      for k in xrange(j+1, SS.K):
+        nu, B = self.calcPostParamsForComp(SS, j, k)
+        cjk = c_Func(nu, B)
+        Gap[j,k] = c[j] + c[k] - cPrior - cjk
+    return Gap
+
+  def calcHardMergeGap_SpecificPairs(self, SS, PairList):
+    ''' Calc change in ELBO for specific list of candidate hard merge pairs
+
+        Returns
+        ---------
+        Gaps : 1D array, size L
+              Gap[j] : scalar change in ELBO after merge of pair in PairList[j]
+    '''
+    Gaps = np.zeros(len(PairList))
+    for ii, (kA, kB) in enumerate(PairList):
+        Gaps[ii] = self.calcHardMergeGap(SS, kA, kB)
+    return Gaps
+
+  ######################################################### Soft Merge
+  #########################################################
+  def calcSoftMergeGap(self, SS, kdel, alph):
+    ''' Calculate net improvement in ELBO after multi-way merge.
+
+        Comp kdel is deleted, and its suff stats are redistributed among 
+        other remaining components, according to parameter vector alph.
+    '''
+    if alph.size < SS.K:
+      alph = np.hstack([alph[:kdel], 0, alph[kdel:]])
+    assert alph.size == SS.K
+    assert np.allclose(alph[kdel], 0)
+
+    Post = self.Post
+    Prior = self.Prior
+    gap = c_Func(Post.nu[kdel], Post.B[kdel]) \
+           - c_Func(Prior.nu,   Prior.B)
+    for k in xrange(SS.K):
+      if k == kdel:
+        continue
+      nu = Post.nu[k] + alph[k] * SS.N[kdel]
+      B = Post.B[k] + alph[k] * SS.xxT[kdel]
+      gap += c_Func(Post.nu[k], Post.B[k]) \
+             - c_Func(nu, B)
+    return gap
+
+  def calcSoftMergeGap_alph(self, SS, kdel, alph):
+    ''' Calculate net improvement in ELBO after multi-way merge as fcn of alph.
+        
+        This keeps only terms that depend on redistribution vector alph
+    '''
+    if alph.size < SS.K:
+      alph = np.hstack([alph[:kdel], 0, alph[kdel:]])
+    assert alph.size == SS.K
+    assert np.allclose(alph[kdel], 0)
+
+    gap = 0
+    Post = self.Post
+    assert np.allclose(alph.sum(), 1.0)
+    for k in xrange(SS.K):
+      if k == kdel:
+        continue
+      nu = Post.nu[k] + alph[k] * SS.N[kdel]
+      B = Post.B[k] + alph[k] * SS.xxT[kdel]
+      gap -= c_Func(nu, B)
+    return gap
+
+
+  ########################################################### Marg Lik
   ###########################################################
   def calcLogMargLikForComp(self, SS, kA, kB=None, **kwargs):
     ''' Calc log marginal likelihood of data assigned to given component
@@ -346,42 +585,81 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
         Returns
         -------
         logM : scalar real
-               logM = log p( data assigned to comp kA ) [up to constant]
+               logM = log p( data assigned to comp kA ) 
+                      computed up to an additive constant
     '''
     nu, B = self.calcPostParamsForComp(SS, kA, kB)
     return -1 * c_Func(nu, B)
 
-  def calcPostParamsForComp(self, SS, kA, kB=None):
-    if kB is None:
-      SN = SS.N[kA]
-      SxxT = SS.xxT[kA]
-    else:
-      SN = SS.N[kA] + SS.N[kB]
-      SxxT = SS.xxT[kA] + SS.xxT[kB]
+  def calcMargLik(self, SS):
+    ''' Calc log marginal likelihood additively across all comps, given suff stats
+
+        Returns
+        --------
+        logM : scalar real
+               logM = \sum_{k=1}^K log p( data assigned to comp k | Prior)
+    '''
+    return self.calcMargLik_CFuncForLoop(SS)
+
+  def calcMargLik_CFuncForLoop(self, SS):
     Prior = self.Prior
-    nu = Prior.nu + SN
-    B = Prior.B + SxxT
-    return nu, B
+    logp = np.zeros(SS.K)
+    for k in xrange(SS.K):
+      nu, B = self.calcPostParamsForComp(SS, k)
+      logp[k] = c_Diff(Prior.nu, Prior.B, self.D,
+                       nu, B)
+    return np.sum(logp) - 0.5 * np.sum(SS.N) * LOGTWOPI
 
-  ########################################################### Gibbs
+
+  ########################################################### Gibbs Pred Prob
   ########################################################### 
-  def calcMargLik(self):
-    pass
+  def calcPredProbVec_Unnorm(self, SS, x):
+    ''' Calculate predictive probability that each comp assigns to vector x
+
+        Returns
+        --------
+        p : 1D array, size K, all entries positive
+            p[k] \propto p( x | SS for comp k)
+    '''
+    return self._calcPredProbVec_Fast(SS, x)
+
+  def _calcPredProbVec_cFunc(self, SS, x):
+    nu, B, m, kappa = self.calcPostParams(SS)
+    pSS = SS.copy()
+    pSS.N += 1
+    pSS.xxT += np.outer(x,x)[np.newaxis,:,:]
+    pnu, pB, pm, pkappa = self.calcPostParams(pSS)
+    logp = np.zeros(SS.K)
+    for k in xrange(SS.K):
+      logp[k] = c_Diff(nu[k], B[k], self.D, 
+                       pnu[k], pB[k])
+    return np.exp(logp - np.max(logp))
+
+  def _calcPredProbVec_Fast(self, SS, x):
+    nu, B = self.calcPostParams(SS)
+    logp = np.zeros(SS.K)
+    p = logp # Rename so its not confusing what we're returning
+    for k in xrange(SS.K):
+      cholB_k = scipy.linalg.cholesky(B[k], lower=1)
+      logdetB_k = 2 * np.sum(np.log(np.diag(cholB_k)))
+      mVec = np.linalg.solve(cholB_k, x)
+      mDist_k = np.inner(mVec, mVec)
+      logp[k] = -0.5 * logdetB_k - 0.5 * (nu[k]+1) * np.log(1.0 + mDist_k)
+    logp += gammaln(0.5 * (nu+1)) - gammaln(0.5 * (nu+1-self.D))
+    logp -= np.max(logp)
+    np.exp(logp, out=p)
+    return p
   
-  def calcPredLik(self, xSS):
-    pass
-
-  def incrementPost(self, k, x):
-    ''' Add data to the Post ParamBag, component k
+  def _Verify_calcPredProbVec(self, SS, x):
+    ''' Verify that the predictive prob vector is correct,
+          by comparing very different implementations
     '''
-    # TODO: update cached cholesky and log det with rank-one updates
-    pass
-
-  def decrementPost(self, k, x):
-    ''' Remove data from the Post ParamBag, component k
-    '''
-    # TODO: update cached cholesky and log det with rank-one updates
-    pass
+    pA = self._calcPredProbVec_Fast(SS, x)
+    pC = self._calcPredProbVec_cFunc(SS, x)
+    pA /= np.sum(pA)
+    pC /= np.sum(pC)
+    assert np.allclose(pA, pC)
+  
 
   ########################################################### Expectations
   ########################################################### 
@@ -424,8 +702,12 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
       B = self.Post.B[k]
     return nu * np.trace(np.linalg.solve(B, Smat))
 
+  # ......................................................########
+  # ......................................................########
+  ################################################################ end class
+
 def MAPEstParams_inplace(nu, B):
-  ''' MAP estimate parameters mu, Sigma given Normal-Wishart hyperparameters
+  ''' MAP estimate parameters mu, Sigma given Wishart hyperparameters
   '''
   D = B.shape[-1]
   Sigma = B
@@ -434,6 +716,14 @@ def MAPEstParams_inplace(nu, B):
   return Sigma
 
 def c_Func(nu, logdetB, D=None):
+  ''' Evaluate cumulant function c, aka log partition function, at given params
+
+      c is the cumulant of the multivariate Wishart, using common params.
+
+      Returns
+      --------
+      c : scalar real value of cumulant function at provided args
+  '''
   if logdetB.ndim >= 2:
     D = logdetB.shape[-1]
     logdetB = np.log(np.linalg.det(logdetB))
@@ -443,21 +733,22 @@ def c_Func(nu, logdetB, D=None):
          + 0.5 * nu * logdetB
 
 def c_Diff(nu1, logdetB1, D, nu2, logdetB2):
+  ''' Evaluate difference of cumulant functions c(params1) - c(params2)
+
+      May be more numerically stable than directly using c_Func
+      to find the difference.
+
+      Returns
+      -------
+      diff : scalar real value of the difference in cumulant functions
+  '''
+  if logdetB1.ndim >= 2:
+    assert D == logdetB1.shape[-1]
+    logdetB1 = np.log(np.linalg.det(logdetB1))
+    logdetB2 = np.log(np.linalg.det(logdetB2))
   dvec = np.arange(1, D+1, dtype=np.float)
   return - 0.5 * D * LOGTWO * (nu1 - nu2) \
          - np.sum( gammaln( 0.5 * (nu1 + 1 - dvec) )) \
          + np.sum( gammaln( 0.5 * (nu2 + 1 - dvec) )) \
          + 0.5 * (nu1 * logdetB1 - nu2 * logdetB2)
 
-def createECovMatFromUserInput(D=0, Data=None, ECovMat='eye', sF=1.0):
-  if Data is not None:
-    assert D == Data.dim
-  if ECovMat == 'eye':
-    Sigma = sF * np.eye(D)
-  elif ECovMat == 'covdata':
-    Sigma = sF * np.cov(Data.X.T, bias=1)
-  elif ECovMat == 'fromtruelabels':    
-    raise NotImplementedError('TODO')
-  else:
-    raise ValueError('Unrecognized ECovMat procedure %s' % (ECovMat))
-  return Sigma

@@ -28,6 +28,7 @@ from bnpy.util import dotATA, dotATB, dotABT
 from bnpy.util import as1D, as2D
 
 from AbstractObsModel import AbstractObsModel 
+from GaussObsModel import createECovMatFromUserInput
 
 class DiagGaussObsModel(AbstractObsModel):
 
@@ -820,6 +821,9 @@ class DiagGaussObsModel(AbstractObsModel):
       beta = self.Post.beta[k]
     return 1.0 / kappa + (nu / beta) * (m*m)
 
+  # ......................................................########
+  # ......................................................########
+  ################################################################ end class
 
 
 
@@ -833,6 +837,8 @@ def MAPEstParams_inplace(nu, beta, m, kappa=0):
 
 def c_Func(nu, beta, m, kappa):
   ''' Evaluate cumulant function c, aka log partition function, at given params
+
+      c is the cumulant of the diagonalized Normal-Wishart, using common params.
 
       Returns
       --------
@@ -863,30 +869,3 @@ def c_Diff(nu1, beta1, m1, kappa1,
           + 0.5 * (nu1 * np.log(beta1) - nu2 * np.log(beta2))
   return np.sum(cDiff)
 
-def createECovMatFromUserInput(D=0, Data=None, ECovMat='eye', sF=1.0):
-  if Data is not None:
-    assert D == Data.dim
-  if ECovMat == 'eye':
-    Sigma = sF * np.eye(D)
-  elif ECovMat == 'covdata':
-    Sigma = sF * np.cov(Data.X.T, bias=1)
-  elif ECovMat == 'fromtruelabels': 
-    ''' Set Cov Matrix Sigma using the true labels in empirical Bayes style
-        Sigma = \sum_{c : class labels} w_c * SampleCov[ data from class c]
-    '''   
-    assert hasattr(Data, 'TrueLabels')
-    Zvals = np.unique(Data.TrueLabels)
-    Kmax = len(Zvals)
-    wHat = np.zeros(Kmax)
-    SampleCov = np.zeros((Kmax,D,D))
-    for kLoc, kVal in enumerate(Zvals):
-      mask = Data.TrueLabels == kVal
-      wHat[kLoc] = np.sum(mask)
-      SampleCov[kLoc] = np.cov(Data.X[mask].T, bias=1)
-    wHat = wHat/np.sum(wHat)
-    Sigma = 1e-8 * np.eye(D)
-    for k in range(Kmax):
-      Sigma += wHat[k] * SampleCov[k]
-  else:
-    raise ValueError('Unrecognized ECovMat procedure %s' % (ECovMat))
-  return Sigma
