@@ -76,15 +76,19 @@ class GaussObsModel(AbstractObsModel):
     self.Prior.setField('m', m, dims=('D'))
     self.Prior.setField('B', B, dims=('D','D'))
 
-  def get_mean_for_comp(self, k):
+  def get_mean_for_comp(self, k=None):
     if hasattr(self, 'EstParams'):
       return self.EstParams.mu[k]
+    elif k is None or k == 'prior':
+      return self.Prior.m
     else:
       return self.Post.m[k]
 
-  def get_covar_mat_for_comp(self, k):
+  def get_covar_mat_for_comp(self, k=None):
     if hasattr(self, 'EstParams'):
       return self.EstParams.Sigma[k]
+    elif k is None or k == 'prior':
+      return self._E_CovMat()
     else:
       return self._E_CovMat(k)
     
@@ -183,8 +187,9 @@ class GaussObsModel(AbstractObsModel):
     D = EstParams.D
     if Data is not None:
       N = Data.nObsTotal
-    if type(N) == float or N.ndim == 0:
-      N = float(N)/K * np.ones(K)
+    N = np.asarray(N, dtype=np.float)
+    if N.ndim == 0:
+      N = N/K * np.ones(K)
 
     nu = self.Prior.nu + N
     B = np.zeros( (K, D, D))

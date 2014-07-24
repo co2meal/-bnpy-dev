@@ -74,15 +74,19 @@ class DiagGaussObsModel(AbstractObsModel):
     self.Prior.setField('m', m, dims=('D'))
     self.Prior.setField('beta', beta, dims=('D'))
 
-  def get_mean_for_comp(self, k):
+  def get_mean_for_comp(self, k=None):
     if hasattr(self, 'EstParams'):
       return self.EstParams.mu[k]
+    elif k is None or k == 'prior':
+      return self.Prior.m
     else:
       return self.Post.m[k]
 
-  def get_covar_mat_for_comp(self, k):
+  def get_covar_mat_for_comp(self, k=None):
     if hasattr(self, 'EstParams'):
-      return np.diag(self.EstParams.sigma[k])
+      return self.EstParams.Sigma[k]
+    elif k is None or k == 'prior':
+      return self._E_CovMat()
     else:
       return self._E_CovMat(k)
     
@@ -110,7 +114,7 @@ class DiagGaussObsModel(AbstractObsModel):
   ######################################################### Set EstParams
   #########################################################
   def setEstParams(self, obsModel=None, SS=None, LP=None, Data=None,
-                          mu=None, sigma=None,
+                          mu=None, sigma=None, Sigma=None,
                           **kwargs):
     ''' Create EstParams ParamBag with fields mu, Sigma
     '''
@@ -126,9 +130,16 @@ class DiagGaussObsModel(AbstractObsModel):
     if SS is not None:
       self.updateEstParams(SS)
     else:
-      self.EstParams = ParamBag(K=mu.shape[0], D=mu.shape[1])
+      K = mu.shape[0]
+      if Sigma is not None:
+        assert Sigma.ndim == 3
+        sigma = np.empty((Sigma.shape[0], Sigma.shape[1]))
+        for k in xrange(K):
+          sigma[k] = np.diag(Sigma[k])  
+      assert sigma.ndim == 2      
+      self.EstParams = ParamBag(K=K, D=mu.shape[1])
       self.EstParams.setField('mu', mu, dims=('K', 'D'))
-      self.EstParams.setField('sigma', Sigma, dims=('K', 'D'))
+      self.EstParams.setField('sigma', sigma, dims=('K', 'D'))
     self.K = self.EstParams.K
 
   def setEstParamsFromPost(self, Post):
@@ -186,12 +197,14 @@ class DiagGaussObsModel(AbstractObsModel):
     D = EstParams.D
     if Data is not None:
       N = Data.nObsTotal
-    if type(N) == float or N.ndim == 0:
+
+    N = np.asarray(N, dtype=np.float)
+    if N.ndim == 0:
       N = float(N)/K * np.ones(K)
 
     nu = self.Prior.nu + N
     beta = np.zeros( (K, D))
-    beta = (nu - 2) * EstParams.sigma
+    beta = (nu - 2)[:,np.newaxis] * EstParams.sigma
     m = EstParams.mu.copy()
     kappa = self.Prior.kappa + N
 
