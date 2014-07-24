@@ -228,11 +228,11 @@ class GaussObsModel(AbstractObsModel):
 
   def incrementSS(self, SS, k, x):
     SS.x[k] += x
-    SS.xxT[k] += np.outer(x)
+    SS.xxT[k] += np.outer(x,x)
 
   def decrementSS(self, SS, k, x):
     SS.x[k] -= x
-    SS.xxT[k] -= np.outer(x)
+    SS.xxT[k] -= np.outer(x,x)
 
   ########################################################### EM E step
   ########################################################### 
@@ -385,7 +385,7 @@ class GaussObsModel(AbstractObsModel):
       B[k] -= kappa[k] * np.outer(m[k], m[k])
     return nu, B, m, kappa
 
-  def calcPostParamsForComp(SS, kA=None, kB=None):
+  def calcPostParamsForComp(self, SS, kA=None, kB=None):
     ''' Calc params (nu, B, m, kappa) for specific comp, given suff stats
 
         These params define the common-form of the exponential family 
@@ -406,8 +406,9 @@ class GaussObsModel(AbstractObsModel):
       SN = SS.N[kA] + SS.N[kB]
       Sx = SS.x[kA] + SS.x[kB]
       SxxT = SS.xxT[kA] + SS.xxT[kB]
+    Prior = self.Prior
     nu = Prior.nu + SN
-    kappa = Prior.kapa + SN
+    kappa = Prior.kappa + SN
     m = (Prior.kappa * Prior.m + Sx) / kappa
     B = Prior.B + SxxT \
         + Prior.kappa * np.outer(Prior.m, Prior.m) \
@@ -701,107 +702,74 @@ class GaussObsModel(AbstractObsModel):
     return -1 * c_Func(nu, beta, m, kappa)
 
   def calcMargLik(self, SS):
+    ''' Calc log marginal likelihood additively across all comps, given suff stats
+
+        Returns
+        --------
+        logM : scalar real
+               logM = \sum_{k=1}^K log p( data assigned to comp k | Prior)
+    '''
     return self.calcMargLik_CFuncForLoop(SS)
 
-  def calcMargLik_Vec(self, SS):
-    ''' Calculate scalar marginal likelihood probability, summed over all comps
-    '''
-    Prior = self.Prior
-    nu, beta, m, kappa = self.calcPostParams(SS)
-    logp = 0.5 * np.sum(np.log(Prior.kappa) - np.log(kappa)) \
-           + 0.5 * LOGTWO * np.sum(nu - Prior.nu) \
-           + np.sum(gammaln(0.5*nu) - gammaln(0.5*Prior.nu)) \
-           + 0.5 * np.sum(Prior.nu * np.log(Prior.beta) \
-                          - nu[:,np.newaxis] * np.log(beta))
-    return logp - 0.5 * np.sum(SS.N) * LOGTWOPI
-  
   def calcMargLik_CFuncForLoop(self, SS):
     Prior = self.Prior
     logp = np.zeros(SS.K)
     for k in xrange(SS.K):
-      nu, beta, m, kappa = self.calcPostParamsForComp(SS, k)
-      logp[k] = c_Diff(Prior.nu, Prior.beta, Prior.m, Prior.kappa,
-                       nu, beta, m, kappa)
-    return np.sum(logp) - 0.5 * np.sum(SS.N) * LOGTWOPI
-  
-  def calcMargLik_ForLoop(self, SS):
-    Prior = self.Prior
-    logp = np.zeros(SS.K)
-    for k in xrange(SS.K):
-      nu, beta, m, kappa = self.calcPostParamsForComp(SS, k)
-      logp[k] = 0.5 * SS.D * (np.log(Prior.kappa) - np.log(kappa)) \
-                + 0.5 * SS.D * LOGTWO * (nu - Prior.nu) \
-                + SS.D * (gammaln(0.5 * nu) - gammaln(0.5 * Prior.nu)) \
-                + 0.5 * np.sum(Prior.nu * np.log(Prior.beta) \
-                               - nu * np.log(beta))
+      nu, B, m, kappa = self.calcPostParamsForComp(SS, k)
+      logp[k] = c_Diff(Prior.nu, Prior.B, Prior.m, Prior.kappa,
+                       nu, B, m, kappa)
     return np.sum(logp) - 0.5 * np.sum(SS.N) * LOGTWOPI
 
   ########################################################### Gibbs Pred Prob
   ########################################################### 
   def calcPredProbVec_Unnorm(self, SS, x):
-    ''' Calculate K-vector of positive entries \propto p( x | SS[k] )
+    ''' Calculate predictive probability that each comp assigns to vector x
+
+        Returns
+        --------
+        p : 1D array, size K, all entries positive
+            p[k] \propto p( x | SS for comp k)
     '''
     return self._calcPredProbVec_Fast(SS, x)
 
-  def _calcPredProbVec_Naive(self, SS, x):
-    nu, beta, m, kappa = self.calcPostParams(SS)
+  def _calcPredProbVec_cFunc(self, SS, x):
+    nu, B, m, kappa = self.calcPostParams(SS)
     pSS = SS.copy()
     pSS.N += 1
-    pSS.x += x
-    pSS.xxT += np.outer(x)
-    pnu, pbeta, pm, pkappa = self.calcPostParams(pSS)
+    pSS.x += x[np.newaxis,:]
+    pSS.xxT += np.outer(x,x)[np.newaxis,:,:]
+    pnu, pB, pm, pkappa = self.calcPostParams(pSS)
     logp = np.zeros(SS.K)
     for k in xrange(SS.K):
-      logp[k] = c_Diff(nu[k], beta[k], m[k], kappa[k],
-                       pnu[k], pbeta[k], pm[k], pkappa[k])
+      logp[k] = c_Diff(nu[k], B[k], m[k], kappa[k],
+                       pnu[k], pB[k], pm[k], pkappa[k])
     return np.exp(logp - np.max(logp))
 
   def _calcPredProbVec_Fast(self, SS, x):
-    p = np.zeros(SS.K)
-    nu, beta, m, kappa = self.calcPostParams(SS)
-    kbeta = beta
-    kbeta *= ( (kappa+1)/kappa )[:,np.newaxis]
-    base = np.square(x - m)
-    base /= kbeta
-    base += 1
-    ## logp : 2D array, size K x D
-    logp = (-0.5 * (nu+1))[:,np.newaxis] * np.log(base)
-    logp += (gammaln(0.5 * (nu+1)) - gammaln(0.5 * nu))[:,np.newaxis]
-    logp -= 0.5 * np.log(kbeta)
-
-    ## p : 1D array, size K
-    p = np.sum(logp, axis=1)
-    p -= np.max(p)
-    np.exp(p, out=p)
-    return p
-
-  def _calcPredProbVec_ForLoop(self, SS, x):
-    ''' For-loop version
-    '''
-    p = np.zeros(SS.K)
+    nu, B, m, kappa = self.calcPostParams(SS)
+    kB = B
+    kB *= ((kappa+1)/kappa)[:,np.newaxis, np.newaxis]
+    logp = np.zeros(SS.K)
+    p = logp # Rename so its not confusing what we're returning
     for k in xrange(SS.K):
-      nu, beta, m, kappa = self.calcPostParamsForComp(SS, k)
-      kbeta = (kappa+1)/kappa * beta
-      base = np.square(x - m)
-      base /= kbeta
-      base += 1
-      p_k = np.exp(gammaln(0.5 * (nu+1)) - gammaln(0.5 * nu)) \
-             * 1.0 / np.sqrt(kbeta) \
-             * base ** (-0.5 * (nu+1))
-      p[k] = np.prod(p_k)
+      cholKB = scipy.linalg.cholesky(kB[k], lower=1)
+      logdetKB = 2 * np.sum(np.log(np.diag(cholKB)))
+      mVec = np.linalg.solve(cholKB, x - m[k])
+      mDist_k = np.inner(mVec, mVec)
+      logp[k] = -0.5 * logdetKB - 0.5 * (nu[k]+1) * np.log(1.0 + mDist_k)
+    logp += gammaln(0.5 * (nu+2-self.D)) - gammaln(0.5 * nu)
+    logp -= np.max(logp)
+    np.exp(logp, out=p)
     return p
   
   def _Verify_calcPredProbVec(self, SS, x):
     ''' Verify that the predictive prob vector is correct,
-          by comparing 3 very different implementations
+          by comparing very different implementations
     '''
     pA = self._calcPredProbVec_Fast(SS, x)
-    pB = self._calcPredProbVec_Naive(SS, x)
-    pC = self._calcPredProbVec_ForLoop(SS, x)
+    pC = self._calcPredProbVec_cFunc(SS, x)
     pA /= np.sum(pA)
-    pB /= np.sum(pB)
     pC /= np.sum(pC)
-    assert np.allclose(pA, pB)
     assert np.allclose(pA, pC)
   
   ########################################################### VB Expectations
@@ -895,6 +863,10 @@ def c_Func(nu, logdetB, m, kappa):
 
 def c_Diff(nu1, logdetB1, m1, kappa1,
            nu2, logdetB2, m2, kappa2):
+  if logdetB1.ndim >= 2:
+    logdetB1 = np.log(np.linalg.det(logdetB1))
+  if logdetB2.ndim >= 2:
+    logdetB2 = np.log(np.linalg.det(logdetB2))
   D = m1.size
   dvec = np.arange(1, D+1, dtype=np.float)
   return - 0.5 * D * LOGTWO * (nu1 - nu2) \

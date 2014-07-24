@@ -639,27 +639,22 @@ class DiagGaussObsModel(AbstractObsModel):
         Returns
         -------
         logM : scalar real
-               logM = log p( data assigned to comp kA ) 
+               logM = log p( data assigned to comp kA | Prior ) 
                       computed up to an additive constant
     '''
-    nu, beta, m, kappa = self.calcPostParamsForComp(SS, kA, kB)
-    return -1 * c_Func(nu, beta, m, kappa)
+    nu, B, m, kappa = self.calcPostParamsForComp(SS, kA, kB)
+    return -1 * c_Func(nu, B, m, kappa)
 
   def calcMargLik(self, SS):
+    ''' Calc log marginal likelihood additively across all comps, given suff stats
+
+        Returns
+        --------
+        logM : scalar real
+               logM = \sum_{k=1}^K log p( data assigned to comp k | Prior)
+    '''
     return self.calcMargLik_CFuncForLoop(SS)
 
-  def calcMargLik_Vec(self, SS):
-    ''' Calculate scalar marginal likelihood probability, summed over all comps
-    '''
-    Prior = self.Prior
-    nu, beta, m, kappa = self.calcPostParams(SS)
-    logp = 0.5 * np.sum(np.log(Prior.kappa) - np.log(kappa)) \
-           + 0.5 * LOGTWO * np.sum(nu - Prior.nu) \
-           + np.sum(gammaln(0.5*nu) - gammaln(0.5*Prior.nu)) \
-           + 0.5 * np.sum(Prior.nu * np.log(Prior.beta) \
-                          - nu[:,np.newaxis] * np.log(beta))
-    return logp - 0.5 * np.sum(SS.N) * LOGTWOPI
-  
   def calcMargLik_CFuncForLoop(self, SS):
     Prior = self.Prior
     logp = np.zeros(SS.K)
@@ -667,18 +662,6 @@ class DiagGaussObsModel(AbstractObsModel):
       nu, beta, m, kappa = self.calcPostParamsForComp(SS, k)
       logp[k] = c_Diff(Prior.nu, Prior.beta, Prior.m, Prior.kappa,
                        nu, beta, m, kappa)
-    return np.sum(logp) - 0.5 * np.sum(SS.N) * LOGTWOPI
-  
-  def calcMargLik_ForLoop(self, SS):
-    Prior = self.Prior
-    logp = np.zeros(SS.K)
-    for k in xrange(SS.K):
-      nu, beta, m, kappa = self.calcPostParamsForComp(SS, k)
-      logp[k] = 0.5 * SS.D * (np.log(Prior.kappa) - np.log(kappa)) \
-                + 0.5 * SS.D * LOGTWO * (nu - Prior.nu) \
-                + SS.D * (gammaln(0.5 * nu) - gammaln(0.5 * Prior.nu)) \
-                + 0.5 * np.sum(Prior.nu * np.log(Prior.beta) \
-                               - nu * np.log(beta))
     return np.sum(logp) - 0.5 * np.sum(SS.N) * LOGTWOPI
 
   ########################################################### Gibbs Pred Prob

@@ -46,7 +46,7 @@ class VBAlg( LearnAlg ):
       # M step
       if iterid > 0:
         hmodel.update_global_params(SS) 
-        from IPython import embed; embed()
+
       if self.hasMove('birth') and iterid > 1:
         hmodel, LP = self.run_birth_move(hmodel, Data, SS, LP, iterid)
         
