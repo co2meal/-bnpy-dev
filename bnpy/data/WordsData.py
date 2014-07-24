@@ -1,18 +1,401 @@
 '''
 WordsData.py
 
-Data object that represents word counts across a collection of documents.
+Data object for a collection of documents,
+where each document is represented as a bag-of-words.
 
-* nDoc : number of documents in the current, in-memory dataset
-* nDocTotal : total number of docs, in entire dataset (for online applications)
+Attributes
+----------
+* nDoc : integer count of documents in this dataset
+* nDocTotal : integer count of documents in ENTIRE dataset (for online applications)
+
+* vocab_size : integer count
+* nTotalToken : integer count of tokens in this dataset
+* nUniqueToken : integer count of distinct (doc, word type) pairs in this dataset
 '''
 
 import numpy as np
 import scipy.sparse
 
 from bnpy.data.DataObj import DataObj
-from bnpy.util import RandUtil
 
+class WordsData(DataObj):
+
+  ######################################################### Constructor
+  #########################################################
+  def __init__(self, word_id=None, word_count=None, doc_range=None,
+                     vocab_size=0, vocabList=None,
+                     nDocTotal=None, TrueParams=None, **kwargs):
+    ''' Constructor for WordsData object
+
+        Args
+        -------
+        word_id : 1D array, size nUniqueTokens
+                  entry i gives the integer type for distinct word i in corpus
+        word_count : 1D array, size nUniqueTokens
+                  entry i gives the integer count for distinct word i in corpus
+        doc_range : 1D array, size nDoc+1
+                    document d's tokens are those with ids in range 
+                      doc_range[d]:doc_range[d+1]
+        vocab_size : integer size of set of possible vocabulary words
+        vocabList : list of strings
+        nDocTotal : int total size of the corpus 
+                    (in case this obj represents a minibatch of larger corpus)
+        TrueParams : None [default], or dict of attributes
+    '''
+    self.word_id = np.asarray(np.squeeze(word_id), dtype=np.int32)
+    self.word_count = np.asarray(np.squeeze(word_count), dtype=np.float64)
+    self.doc_range = np.asarray(doc_range, dtype=np.int32)
+    self.vocab_size = int(vocab_size)
+    self._verify_attributes()
+ 
+    self._set_corpus_size_attributes(nDocTotal)
+
+  
+    # Save "true" parameters that generated toy-data, if provided
+    if TrueParams is not None:
+      self.TrueParams = TrueParams
+
+    # Add dictionary of vocab words, if provided
+    if vocabList is not None:
+      self.vocabList = vocabList
+
+  def _set_corpus_size_attributes(self, nDocTotal=None):
+    ''' Sets nDoc, nObs, and nDocTotal attributes of this WordsData object
+
+        Args
+        -------
+        nDocTotal : int size of total corpus 
+                    if None, nDocTotal is set equal to nDoc
+    '''
+    self.nDoc = self.doc_range.size - 1
+    self.nTotalToken = np.sum(self.word_count)
+    self.nUniqueToken = self.word_id.size
+    if nDocTotal is None:
+      self.nDocTotal = self.nDoc
+    else:
+      self.nDocTotal = int(nDocTotal)
+
+  def _verify_attributes(self):
+    ''' Basic runtime checks to make sure dimensions are set correctly
+         for attributes word_id, word_count, doc_range, etc.
+    '''
+    assert self.vocab_size > 0
+    assert self.word_id.ndim == 1
+    assert self.word_id.min() >= 0
+    assert self.word_id.max() < self.vocab_size
+    assert self.word_count.ndim == 1
+    assert self.word_count.min() > 0
+    assert self.word_count.size == self.word_id.size
+    assert self.doc_range.ndim == 1
+    docEndBiggerThanStart = self.doc_range[1:] - self.doc_range[:-1]
+    assert np.all(docEndBiggerThanStart)
+
+  ######################################################### Minibatch Iterator
+  #########################################################
+  def to_minibatch_iterator(self, **kwargs):
+    ''' Return BagOfWordsMiniBatchIterator for this document collection.
+
+        Allows iteration over subsets of documents in this collection
+        where each subset is WordsData object.
+
+        Args
+        --------
+        see constructor for BagOfWordsMinibatchIterator
+
+        Returns
+        --------
+        I : BagOfWordsMinibatchIterator object
+    '''
+    from BagOfWordsMinibatchIterator import BagOfWordsMinibatchIterator
+    return BagOfWordsMinibatchIterator(self, **kwargs)
+
+  ######################################################### Text summary
+  ######################################################### 
+  def get_text_summary(self, doCommon=True):
+    ''' Returns human-readable summary of this object
+    '''
+    if hasattr(self, 'summary') and doCommon:
+      s = self.summary
+    elif doCommon:
+      s = " nDoc %d, vocab_size %d\n" % (self.nDoc, self.vocab_size)
+    else:
+      s = ''
+    return s + self.get_doc_stats_summary()
+
+  def get_doc_stats_summary(self, pRange=[0,5, 50, 95, 100]):
+    ''' Returns human-readable string summarizing word-count statistics
+          e.g. word counts for the smallest, largest, and median-length doc
+    '''
+    nDistinctWordsPerDoc = np.zeros(self.nDoc)
+    nTotalWordsPerDoc = np.zeros(self.nDoc)
+    for d in range(self.nDoc):
+      start = self.doc_range[d]
+      stop = self.doc_range[d+1]
+      nDistinctWordsPerDoc[d] = self.doc_range[stop] - self.doc_range[start]
+      nTotalWordsPerDoc[d] = self.word_count[start:stop].sum()
+
+    assert np.sum(nDistinctWordsPerDoc) == self.word_id.size
+    assert np.sum(nTotalWordsPerDoc) == np.sum(self.word_count)
+    s = ''
+    for p in pRange:
+      if p == 0:
+        sp = 'min'
+      elif p == 100:
+        sp = 'max'
+      else:
+        sp = "%d%%" % (p)
+      s += "%5s " % (sp)
+    s += '\n'
+    for p in pRange:
+      s += "%5s " % ("%.0f" % (np.percentile(nDistinctWordsPerDoc, p)))    
+    s += ' nDistinctWordsPerDoc\n'
+    for p in pRange:
+      s += "%5s " % ("%.0f" % (np.percentile(nTotalWordsPerDoc, p)))    
+    s += ' nTotalWordsPerDoc'
+    return s
+
+  ######################################################### Sparse matrix getters
+  #########################################################
+  def getTokenTypeCountMatrix(self):
+    ''' Get dense matrix counting vocab usage across all words in dataset
+
+        Returns
+        --------
+        C : 2D array, size nUniqueToken x vocab_size
+             C[n,v] = word_count[n] iff word_id[n] = v
+                                  0 otherwise
+             That is, each word token n is represented by one entire row
+                      with only one non-zero entry: at column word_id[n]
+
+    '''
+    key = '__TokenTypeCountMat'
+    if hasattr(self, key):
+      return getattr(self, key)
+
+    C = self.getSparseTokenTypeCountMatrix()
+    X = C.toarray()
+    setattr(self, key, X)
+    return X
+
+  def getSparseTokenTypeCountMatrix(self):
+    ''' Get sparse matrix counting vocab usage across all words in dataset
+
+        Returns
+        --------
+        C : sparse CSC matrix, size nUniqueToken x vocab_size
+             C[n,v] = word_count[n] iff word_id[n] = v
+                                  0 otherwise
+             That is, each word token n is represented by one entire row
+                      with only one non-zero entry: at column word_id[n]
+
+    '''
+    key = '__sparseTokenTypeCountMat'
+    if hasattr(self, key):
+      return getattr(self, key)
+
+    ## Create sparse matrix C from scratch    
+    indptr = np.arange(self.nUniqueToken+1)
+    C = scipy.sparse.csc_matrix((self.word_count, self.word_id, indptr),
+                                 shape=(self.vocab_size, self.nUniqueToken))
+    setattr(self, key, C)
+    return C
+
+
+  def getDocTypeCountMatrix(self):
+    ''' Get dense matrix counting vocab usage for each document in dataset.
+
+        Returns
+        --------
+        C : 2D array, shape nDoc x vocab_size
+            C[d,v] = total count of vocab type v in document d
+
+    '''
+    key = '__DocTypeCountMat'
+    if hasattr(self, key):
+      return getattr(self, key)
+
+    C = self.getSparseDocTypeCountMatrix()
+    X = C.toarray()
+    setattr(self, key, X)
+    return X
+
+  def getSparseDocTypeCountMatrix(self, **kwargs):
+    ''' Make sparse matrix counting vocab usage for each document in dataset.
+
+        Returns
+        -------
+        C : sparse CSR matrix, shape nDoc x vocab_size
+            C[d,v] = total count of vocab type v in document d
+    '''
+    ## Check cache, return the matrix if we've computed it already
+    key = '__sparseDocTypeCountMat'
+    if hasattr(self, key):
+      return getattr(self, key)
+
+    ## Create CSR matrix representation
+    C = scipy.sparse.csr_matrix((self.word_count, self.word_id, self.doc_range),
+                                 shape=(self.nDoc, self.vocab_size), 
+                                 dtype=np.float64)
+    setattr(self, key, C)
+    return C
+
+  ######################################################### Subset Creation
+  #########################################################
+  def select_subset_by_mask(self, docMask, doTrackFullSize=True):
+    ''' Returns WordsData object representing a subset of document collection.
+  
+        Args
+        -------
+        docMask : 1D array, size nDoc
+                  each entry indicates a document id to include in subset
+
+        doTrackFullSize : boolean indicator for whether output dataset
+                           should retain nDocTotal size of this object,
+                        or should be self-contained (nDoc=nDocTotal) 
+
+        Returns
+        --------
+        Dchunk : WordsData object
+    '''
+    docMask = np.asarray(docMask, dtype=np.int32)
+    nDoc = len(docMask)
+    assert np.max(docMask) < self.nDoc
+    nUniqueTokenPerDoc = self.doc_range[docMask+1] - self.doc_range[docMask]
+
+    nUniqueToken = np.sum(nUniqueTokenPerDoc)
+    word_id = np.zeros(nUniqueToken, dtype=self.word_id.dtype)
+    word_count = np.zeros(nUniqueToken, dtype=self.word_count.dtype)
+    doc_range = np.zeros(nDoc+1, dtype=self.doc_range.dtype)
+  
+    # Fill in new word_id, word_count, and doc_range
+    startLoc = 0
+    for d in xrange(nDoc):
+      start = self.doc_range[docMask[d]]
+      stop = self.doc_range[docMask[d]+1]
+      endLoc = startLoc + (stop - start)
+
+      word_count[startLoc:endLoc] = self.word_count[start:stop]
+      word_id[startLoc:endLoc] = self.word_id[start:stop]
+      doc_range[d] = startLoc
+      startLoc += (stop - start)
+    doc_range[-1] = nUniqueToken
+
+    nDocTotal=None
+    if doTrackFullSize:
+      nDocTotal = self.nDocTotal
+    return WordsData(word_id, word_count, doc_range, self.vocab_size,
+                     nDocTotal=nDocTotal)
+
+  ######################################################### Simple Toy Data
+  #########################################################  (class method)
+  @classmethod
+  def CreateToyDataSimple(cls, nDoc=10, nUniqueTokensPerDoc=10, 
+                               vocab_size=25, **kwargs):
+    ''' Creates a simple toy instance of WordsData (good for debugging)
+        Args
+        --------
+        nDoc : int num of documents to create
+        nWordsPerDoc : int num of distinct words in each document
+        vocab_size : int size of vocabulary
+    '''
+    PRNG = np.random.RandomState(0)
+    word_id = list()
+    word_count = list()
+    doc_range = np.zeros(nDoc+1)
+    for dd in range(nDoc):
+        wID = PRNG.choice(vocab_size, size=nUniqueTokensPerDoc, replace=False)
+        wCount = PRNG.choice(np.arange(1,5), size=nUniqueTokensPerDoc, replace=True)
+        word_id.extend(wID)
+        word_count.extend(wCount)
+        start = nUniqueTokensPerDoc * dd
+        doc_range[dd] = start
+    doc_range[-1] = start + nUniqueTokensPerDoc
+
+    return cls(word_id=word_id, word_count=word_count, 
+               doc_range=doc_range, vocab_size=vocab_size)
+
+  ######################################################### LDA Toy Data
+  #########################################################  (class method)
+  @classmethod
+  def CreateToyDataFromLDAModel(cls, seed=101, 
+                nDocTotal=None, nWordsPerDoc=None, nWordsPerDocFunc=None,
+                topic_prior=None, topics=None,
+                **kwargs):
+    ''' Generates WordsData dataset via LDA generative model,
+          given specific global parameters
+
+        Args
+        --------
+        topic_prior : 1D array, size K, positive real entries
+                      pi[d] \sim \Dir( topic_prior )
+        topics : 2D array, size KxV, positive real entries, rows sum to one
+                  topics[k,v] := probability of vocab word v in topic k
+    '''
+    from bnpy.util import RandUtil
+    PRNG = np.random.RandomState(seed)
+
+    K = topics.shape[0]
+    V = topics.shape[1]
+    # Make sure topics sum to one
+    topics = topics / topics.sum(axis=1)[:,np.newaxis]
+    assert K == topic_prior.size
+  
+    doc_range = np.zeros(nDocTotal+1)
+    wordIDsPerDoc = list()
+    wordCountsPerDoc = list()
+
+    alphaLP = np.zeros((nDocTotal,K))
+    respPerDoc = list()
+
+    # startPos : tracks start index for current doc within corpus-wide lists
+    startPos = 0
+    for d in xrange(nDocTotal):
+      # Draw topic appearance probabilities for this document
+      alphaLP[d,:] = PRNG.dirichlet(topic_prior)
+
+      if nWordsPerDocFunc is not None:
+        nWordsPerDoc = nWordsPerDocFunc(PRNG)
+
+      # Draw the topic assignments for this doc
+      ## Npercomp : K-vector, Npercomp[k] counts appearance of topic k
+      Npercomp = RandUtil.multinomial(nWordsPerDoc, alphaLP[d,:], PRNG)
+
+      # Draw the observed words for this doc
+      ## wordCountBins: V x 1 vector, entry v counts appearance of word v
+      wordCountBins = np.zeros(V)
+      for k in xrange(K):
+        wordCountBins += RandUtil.multinomial(Npercomp[k], 
+                                      topics[k,:], PRNG)
+
+      # Record word_id, word_count, doc_range
+      wIDs = np.flatnonzero(wordCountBins > 0)
+      wCounts = wordCountBins[wIDs]
+      assert np.allclose( wCounts.sum(), nWordsPerDoc)
+      wordIDsPerDoc.append(wIDs)
+      wordCountsPerDoc.append(wCounts)
+      doc_range[d] = startPos
+      startPos += wIDs.size
+  
+      # Record expected local parameters (LP)
+      curResp = (topics[:, wIDs] * alphaLP[d,:][:,np.newaxis]).T      
+      respPerDoc.append(curResp)
+    
+    word_id = np.hstack(wordIDsPerDoc)
+    word_count = np.hstack(wordCountsPerDoc)
+    doc_range[-1] = word_count.size
+
+    respLP = np.vstack(respPerDoc)
+    respLP /= respLP.sum(axis=1)[:,np.newaxis]
+
+    TrueParams = dict(K=K, topics=topics, beta=topic_prior,
+                      word_variational=respLP, alphaPi=alphaLP)
+    return WordsData(word_id, word_count, doc_range, V,
+                    nDocTotal=nDocTotal, TrueParams=TrueParams)
+
+
+
+"""
 class WordsData(DataObj):
 
   ######################################################### Constructor
@@ -675,3 +1058,4 @@ class WordsData(DataObj):
                               for n in xrange(dstart, dstop)]
         docstr = "%d %s" % (nUniqueInDoc, ' '.join(idct_list)) 
         f.write(docstr + '\n')
+"""

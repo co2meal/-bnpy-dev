@@ -1,10 +1,11 @@
-from .DataObj import DataObj
-from .XData import XData
-from .WordsData import WordsData
-from .GraphData import GraphData
-from .MinibatchIterator import MinibatchIterator
-from .AdmixMinibatchIterator import AdmixMinibatchIterator
-from .AdmixMinibatchIteratorDB import AdmixMinibatchIteratorDB
+from DataObj import DataObj
+from XData import XData
+from MinibatchIterator import MinibatchIterator
 
-__all__ = ['DataObj', 'WordsData', 'XData', 'GraphData',
-           'MinibatchIterator', 'AdmixMinibatchIterator', 'AdmixMinibatchIteratorDB']
+from WordsData import WordsData
+from BagOfWordsMinibatchIterator import BagOfWordsMinibatchIterator
+
+__all__ = ['DataObj', 
+           'XData', 'MinibatchIterator', 
+           'WordsData', 'BagOfWordsMinibatchIterator',
+          ]
