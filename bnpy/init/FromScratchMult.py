@@ -19,7 +19,7 @@ except ImportError:
   hasRexAvailable = False
 try:
   import LearnAnchorTopics
-except ImportError:
+except ImfportError:
   hasSpectralAvailable = False
 
 def init_global_params(obsModel, Data, K=0, seed=0,
@@ -35,6 +35,7 @@ def init_global_params(obsModel, Data, K=0, seed=0,
   '''
   PRNG = np.random.RandomState(seed)
 
+  '''
   if initMinWordsPerDoc > 0:
     print initMinWordsPerDoc
     targetDataArgs = dict(targetMinKLPerDoc=0, 
@@ -46,17 +47,19 @@ def init_global_params(obsModel, Data, K=0, seed=0,
     Data = _sample_target_WordsData(Data, None, None, **targetDataArgs)
   print 'INIT DATA: %d docs' % (Data.nDoc)
   print Data.get_doc_stats_summary()
+  '''
 
   wc = Data.word_count.sum()
   if initname == 'randexamples':
     # Choose K documents at random, then do
     #  M-step to make K clusters, each based on one document
-    DocWord = Data.to_sparse_docword_matrix()
+    DocWord = Data.getSparseDocTypeCountMatrix()
     chosenDocIDs = PRNG.choice(Data.nDoc, K, replace=False)
     PhiTopicWord = np.asarray(DocWord[chosenDocIDs].todense())
     PhiTopicWord += 0.01 * PRNG.rand(K, Data.vocab_size)
     PhiTopicWord /= PhiTopicWord.sum(axis=1)[:,np.newaxis]
-    obsModel.set_global_params(K=K, topics=PhiTopicWord, wordcountTotal=wc)
+    obsModel.setEstParams(K=K, topics=PhiTopicWord)
+
   elif initname == 'randomfromarg':
     # Draw K topic-word probability vectors 
     #  from a Dirichlet with symmetric parameter initarg
@@ -156,8 +159,10 @@ def init_global_params(obsModel, Data, K=0, seed=0,
   else:
     raise NotImplementedError('Unrecognized initname ' + initname)
 
-  if len(obsModel.comp) == K and hasattr(obsModel.comp[0], 'lamvec'):
-    assert obsModel.comp[0].lamvec.size == Data.vocab_size
+  if hasattr(obsModel, 'EstParams'):
+    if obsModel.inferType != 'EM':
+      obsModel.setPostFromEstParams(obsModel.EstParams, wc=wc)
+      del obsModel.EstParams
     return
 
   if obsModel.dataAtomType == 'doc':

@@ -120,14 +120,18 @@ class MinibatchIterator(object):
   #########################################################  I/O methods
   ######################################################### 
   def get_text_summary(self):
-    ''' Returns string with human-readable description of this dataset 
-        e.g. source, author/creator, etc.
+    ''' Returns human-readable one-line description of this dataset
     '''
-    if hasattr(self, 'summary'):
-      return self.summary
-    return 'Minibatch Iterator: %d batches' % (self.nBatch)
-     
-  def summarize_num_observations(self):
-    s = '  num batch %d, num obs per batch %d\n' % (self.nBatch, self.nObsBatch)
-    s += '  num obs (total across all batches): %d' % (self.Data.nObsTotal)
+    if hasattr(self.Data, 'summary'):
+      return self.Data.summary
+    else:
+      return 'XData'
+
+  def get_stats_summary(self):
+    ''' Returns human-readable string description of this dataset's properties
+    '''
+    s = '  %d total observations, divided into %d batches' \
+               % (self.Data.nObsTotal, self.nBatch)
+    s += '\n'
+    s += '  %d observations per batch' % (self.nObsBatch)
     return s

@@ -117,9 +117,9 @@ class BagOfWordsMinibatchIterator(object):
 
         Updates (in-place)
         --------
-        batchID reflects index of batch returned.
-  `     lapID reflects how many laps have been *completed*. in [0, 1, ... nLap-1]
-        curLapPos is units of progress through current lap. in [0, ... nBatch-1]
+        batchID gives index of batch returned.
+  `     lapID gives how many laps have been *completed*.
+        curLapPos indicates progress through current lap.
 
         Returns
         --------
@@ -150,15 +150,19 @@ class BagOfWordsMinibatchIterator(object):
 
   #########################################################  I/O methods
   ######################################################### 
-  def get_text_summary(self):
-    ''' Returns string with human-readable description of this dataset 
-        e.g. source, author/creator, etc.
+  def get_stats_summary(self):
+    ''' Returns human-readable summary of this dataset's basic properties
     '''
-    if hasattr(self, 'summary'):
-      return self.summary
-    return 'Minibatch Iterator: %d batches' % (self.nBatch)
-     
-  def summarize_num_observations(self):
-    s = '  num batch %d, num obs per batch %d\n' % (self.nBatch, self.nObsBatch)
-    s += '  num obs (total across all batches): %d' % (self.Data.nObsTotal)
+    nPerBatch = self.DataPerBatch[0].nDoc
+    s = '  %d docs total, divided among %d batches.\n' % (self.Data.nDocTotal,
+                                                          self.nBatch)
+    s += '  %d docs per batch.' % (nPerBatch)
     return s
+
+  def get_text_summary(self):
+    ''' Returns human-readable one-line description of this dataset
+    '''
+    if hasattr(self.Data, 'summary'):
+      return self.Data.summary
+    else:
+      return 'WordsData'

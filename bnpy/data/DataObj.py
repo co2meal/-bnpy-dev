@@ -26,24 +26,22 @@ class DataObj(object):
           with no spaces and only alpha-numeric characters.
         Useful for creating filepaths specific for this data object.
     '''
-    if hasattr(self, 'shortname'):
-      return self.shortname
-    return "MyData%d" % (self.nObs)
+    return "UnknownCustomData"
 
   def get_text_summary(self, **kwargs):
     ''' Returns string with human-readable description of this dataset 
         e.g. source, author/creator, etc.
     '''
-    if hasattr(self, 'summary'):
-      return self.summary
-    s = '%s. nObs %d' % (self.__class__.__name__, self.nObs)
+    s = 'DataType: %s. Size: %d' % (self.__class__.__name__, self.get_size())
     return s
 
-  def summarize_num_observations(self):
-    ''' Returns string summary of number of observations in this data object
+  def get_size(self, **kwargs):
+    ''' Returns int specifying the 'size' of this object.
+
+        Usually, this means the number of data units.
     '''
     pass
-    
+
   def select_subset_by_mask(self, *args, **kwargs):
     ''' Returns DataObj of the same type, containing a subset of self's data
     '''

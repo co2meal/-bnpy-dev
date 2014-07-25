@@ -26,7 +26,6 @@ import logging
 import numpy as np
 import bnpy
 from bnpy.ioutil import BNPYArgParser
-import pdb
 
 # Configure Logger
 Log = logging.getLogger('bnpy')
@@ -191,10 +190,16 @@ def _run_task_internal(jobname, taskid, nTask,
 
   # Write descriptions to the log
   if taskid == 1 or jobID > 0:
+
     Log.info(Data.get_text_summary())
-    Log.info(Data.summarize_num_observations())
-    if type(Data) != type(InitData):
-      Log.info(InitData.get_text_summary(doCommon=False))
+    if algName in OnlineDataAlgSet:
+      Log.info('Entire Dataset Summary:')
+      Log.info(Data.get_stats_summary())
+      Log.info('Data for Initialization:')
+      Log.info(InitData.get_stats_summary())
+    else:
+      Log.info(Data.get_stats_summary())
+
     Log.info(hmodel.get_model_info())
     Log.info('Learn Alg: %s' % (algName))
 

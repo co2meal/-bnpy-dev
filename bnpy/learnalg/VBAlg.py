@@ -68,7 +68,7 @@ class VBAlg( LearnAlg ):
                                           hmodel, Data, SS, LP, evBound)
 
       # Save and display progress
-      self.add_nObs(Data.nObs)
+      #self.add_nObs(Data.nObs)
       self.save_state(hmodel, iterid, lap, evBound)
       self.print_state(hmodel, iterid, lap, evBound)
 
