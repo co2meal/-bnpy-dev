@@ -104,7 +104,7 @@ def _sample_target_WordsData(Data, model, LP, return_Info=0, **kwargs):
                   with at most targetMaxSize documents
     DebugInfo : (optional), dictionary with debugging info
   '''
-  DocWordMat = Data.to_sparse_docword_matrix()
+  DocWordMat = Data.getSparseDocTypeCountMatrix()
   DebugInfo = dict()
 
   candidates = np.arange(Data.nDoc)
