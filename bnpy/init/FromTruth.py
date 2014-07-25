@@ -80,7 +80,7 @@ def _initFromTrueLP(hmodel, Data, initname, PRNG, nRepeatTrue=2, **kwargs):
 
   ## Adjust "true" labels as specified by initname
   if initname == 'repeattruelabels':
-    LP = expand_LP_by_repeating_comps(LP, PRNG, nRepeatTrue)
+    LP = expandLPWithDuplicates(LP, PRNG, nRepeatTrue)
   
   ## Perform global update step given these local params
   SS = hmodel.get_global_suff_stats(Data, LP)
@@ -105,7 +105,7 @@ def convertLPFromHardToSoft(LP, Data):
   return dict(resp=resp)
 
 
-def expand_LP_by_repeating_comps(LP, PRNG, nRepeatTrue=2):
+def expandLPWithDuplicates(LP, PRNG, nRepeatTrue=2):
   ''' Create new LP by taking each existing component and duplicating it.
 
       Effectively there are nRepeatTrue "near-duplicates" of each comp,
@@ -134,6 +134,8 @@ def convertLPFromTokensToDocs(LP, Data):
   '''
   resp = LP['resp']
   N, K = resp.shape
+  if N == Data.nDoc:
+    return LP
   docResp = np.zeros((Data.nDoc, K))
   for d in xrange(Data.nDoc):
     respMatForDoc = resp[Data.doc_range[d]:Data.doc_range[d+1]]

@@ -74,7 +74,7 @@ class SOVBAlg(LearnAlg):
       evBound = EvRunningSum / nBatch
 
       # Save and display progress
-      self.add_nObs(Dchunk.nObs)
+      self.add_nObs(Dchunk.get_size())
       self.save_state(hmodel, iterid, lapFrac, evBound)
       self.print_state(hmodel, iterid, lapFrac, evBound, rho=rho)
 

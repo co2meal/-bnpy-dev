@@ -15,7 +15,7 @@ def get_data_info():
   return 'Dead Leaves Data. K=%d. D=%d.' % (K,D)
 
 def get_data(seed=8675309, nObsTotal=25000, **kwargs):
-  X, TrueZ = generateData( seed, nObsTotal)
+  X, TrueZ = generateData(seed, nObsTotal)
   Data = XData(X=X, TrueZ=TrueZ)
   Data.summary = get_data_info()
   return Data
@@ -23,8 +23,8 @@ def get_data(seed=8675309, nObsTotal=25000, **kwargs):
 def get_minibatch_iterator(seed=8675309, nObsTotal=25000, **kwargs):
   X, TrueZ = generateData(seed, nObsTotal)
   Data = XData(X=X, TrueZ=TrueZ)
+  Data.summary = get_data_info()
   DataIterator = MinibatchIterator(Data, **kwargs)
-  DataIterator.summary = get_data_info()
   return DataIterator
 
 
