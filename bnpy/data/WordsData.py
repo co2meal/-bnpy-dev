@@ -93,6 +93,9 @@ class WordsData(DataObj):
     docEndBiggerThanStart = self.doc_range[1:] - self.doc_range[:-1]
     assert np.all(docEndBiggerThanStart)
 
+  def get_size(self):
+    return self.nDoc
+
   ######################################################### Minibatch Iterator
   #########################################################
   def to_minibatch_iterator(self, **kwargs):
@@ -401,6 +404,70 @@ class WordsData(DataObj):
     Data = WordsData(word_id, word_count, doc_range, V, TrueParams=TrueParams)
     return Data
 
+  ######################################################### LDA Toy Data
+  #########################################################  (class method)
+  @classmethod
+  def CreateToyDataFromMixModel(cls, seed=101, 
+                nDocTotal=None, nWordsPerDoc=None, nWordsPerDocFunc=None,
+                beta=None, topics=None,
+                **kwargs):
+    ''' Generates WordsData dataset via LDA generative model,
+          given specific global parameters
+
+        Args
+        --------
+        topic_prior : 1D array, size K, positive real entries
+                      pi[d] \sim \Dir( topic_prior )
+        topics : 2D array, size KxV, positive real entries, rows sum to one
+                  topics[k,v] := probability of vocab word v in topic k
+    '''
+    from bnpy.util import RandUtil
+    PRNG = np.random.RandomState(seed)
+
+    K = topics.shape[0]
+    V = topics.shape[1]
+    # Make sure topics sum to one
+    topics = topics / topics.sum(axis=1)[:,np.newaxis]
+    assert K == beta.size
+  
+    doc_range = np.zeros(nDocTotal+1)
+    wordIDsPerDoc = list()
+    wordCountsPerDoc = list()
+
+    resp = np.zeros((nDocTotal, K))
+    Ks = range(K)
+
+    # startPos : tracks start index for current doc within corpus-wide lists
+    startPos = 0
+    for d in xrange(nDocTotal):
+      # Draw single topic assignment for this doc
+      k = RandUtil.choice(Ks, beta, PRNG)
+      resp[d,k] = 1
+
+      # Draw the observed words for this doc
+      ## wordCountBins: V x 1 vector, entry v counts appearance of word v
+      wordCountBins = RandUtil.multinomial(nWordsPerDoc, 
+                                           topics[k,:], PRNG)
+
+      # Record word_id, word_count, doc_range
+      wIDs = np.flatnonzero(wordCountBins > 0)
+      wCounts = wordCountBins[wIDs]
+      assert np.allclose( wCounts.sum(), nWordsPerDoc)
+      wordIDsPerDoc.append(wIDs)
+      wordCountsPerDoc.append(wCounts)
+      doc_range[d] = startPos
+      startPos += wIDs.size
+  
+    ## Package up all data    
+    word_id = np.hstack(wordIDsPerDoc)
+    word_count = np.hstack(wordCountsPerDoc)
+    doc_range[-1] = word_count.size
+
+    ## Make TrueParams dict
+    TrueParams = dict(K=K, topics=topics, beta=beta, resp=resp)
+
+    Data = WordsData(word_id, word_count, doc_range, V, TrueParams=TrueParams)
+    return Data
 
 """
 class WordsData(DataObj):

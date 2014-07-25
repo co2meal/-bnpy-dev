@@ -29,12 +29,12 @@ def plotExampleBarsDocs(Data, docIDsToPlot=None, figID=None,
     nRows = np.floor(np.sqrt(nDocToPlot))
     nCols = np.ceil(nDocToPlot / nRows)
     if vmax is None:
-      DocWordArr = Data.to_sparse_docword_matrix().toarray()
+      DocWordArr = Data.getDocTypeCountMatrix()
       vmax = int(np.max(np.percentile(DocWordArr, 98, axis=0)))
 
     for plotPos, docID in enumerate(docIDsToPlot):
-        # Parse current document
-        start,stop = Data.doc_range[docID,:]
+        start = Data.doc_range[docID]
+        stop = Data.doc_range[docID+1]
         wIDs = Data.word_id[start:stop]
         wCts = Data.word_count[start:stop]
         docWordHist = np.zeros(V)

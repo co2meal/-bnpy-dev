@@ -82,6 +82,8 @@ class XData(DataObj):
     assert self.X.flags.aligned
     assert self.X.flags.writeable
     
+  def get_size(self):
+    return self.nObs
 
   def get_text_summary(self):
     ''' Returns human-readable description of this dataset

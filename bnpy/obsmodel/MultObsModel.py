@@ -193,6 +193,13 @@ class MultObsModel(AbstractObsModel):
       SS.setField('SumWordCounts', np.sum(WordCounts, axis=1), dims=('K'))
     return SS
 
+  def incrementSS(self, SS, k, Data, docID):
+    SS.WordCounts[k] += Data.getSparseDocTypeCountMatrix()[docID,:]
+
+  def decrementSS(self, SS, k, Data, docID):
+    SS.WordCounts[k] -= Data.getSparseDocTypeCountMatrix()[docID,:]
+
+
   ########################################################### EM E step
   ###########################################################
   def calcLogSoftEvMatrix_FromEstParams(self, Data):
@@ -292,6 +299,37 @@ class MultObsModel(AbstractObsModel):
       SM = SS.WordCounts[kA] + SS.WordCounts[kB]
     return SM + self.Prior.lam
 
+
+  ########################################################### Stochastic Post
+  ########################################################### update
+  def updatePost_stochastic(self, SS, rho):
+    ''' Stochastic update (in place) posterior for all comps given suff stats.
+
+        Dirichlet common params used here, no need for natural form.
+    '''
+    assert hasattr(self, 'Post')
+    assert self.Post.K == SS.K
+    self.ClearCache()
+    
+    lam = self.calcPostParams(SS)
+    Post = self.Post
+    Post.lam[:] = (1-rho) * Post.lam + rho * lam
+
+  def convertPostToNatural(self):
+    ''' Convert (in-place) current posterior params from common to natural form
+
+        Here, the Wishart common form is equivalent to the natural form
+    '''
+    pass
+    
+  def convertPostToCommon(self):
+    ''' Convert (in-place) current posterior params from natural to common form
+
+        Here, the Wishart common form is equivalent to the natural form
+    '''
+    pass
+
+
   ########################################################### VB
   ########################################################### 
   def calcLogSoftEvMatrix_FromPost(self, Data):
@@ -352,6 +390,66 @@ class MultObsModel(AbstractObsModel):
     WMat = Data.to_sparse_docword_matrix().toarray()
     sumWMat = np.sum(WMat, axis=1)
     return np.sum(gammaln(sumWMat+1)) - np.sum(gammaln(WMat+1)) 
+
+
+  ######################################################### Hard Merge
+  #########################################################
+  def calcHardMergeGap(self, SS, kA, kB):
+    ''' Calculate change in ELBO after a hard merge applied to this model
+
+        Returns
+        ---------
+        gap : scalar real, indicates change in ELBO after merge of kA, kB
+    '''
+    Prior = self.Prior
+    cPrior = c_Func(Prior.lam)
+
+    Post = self.Post
+    cA = c_Func(Post.lam[kA])
+    cB = c_Func(Post.lam[kB])
+
+    lam = self.calcPostParamsForComp(SS, kA, kB)
+    cAB = c_Func(lam)
+    return cA + cB - cPrior - cAB
+
+
+  def calcHardMergeGap_AllPairs(self, SS):
+    ''' Calculate change in ELBO for all possible candidate hard merge pairs 
+
+        Returns
+        ---------
+        Gap : 2D array, size K x K, upper-triangular entries non-zero
+              Gap[j,k] : scalar change in ELBO after merge of k into j
+    '''
+    Prior = self.Prior
+    cPrior = c_Func(Prior.lam)
+
+    Post = self.Post
+    c = np.zeros(SS.K)
+    for k in xrange(SS.K):
+      c[k] = c_Func(Post.lam[k])
+
+    Gap = np.zeros((SS.K, SS.K))
+    for j in xrange(SS.K):
+      for k in xrange(j+1, SS.K):
+        lam = self.calcPostParamsForComp(SS, j, k)
+        cjk = c_Func(lam)
+        Gap[j,k] = c[j] + c[k] - cPrior - cjk
+    return Gap
+
+  def calcHardMergeGap_SpecificPairs(self, SS, PairList):
+    ''' Calc change in ELBO for specific list of candidate hard merge pairs
+
+        Returns
+        ---------
+        Gaps : 1D array, size L
+              Gap[j] : scalar change in ELBO after merge of pair in PairList[j]
+    '''
+    Gaps = np.zeros(len(PairList))
+    for ii, (kA, kB) in enumerate(PairList):
+        Gaps[ii] = self.calcHardMergeGap(SS, kA, kB)
+    return Gaps
+
 
 
   ########################################################### Expectations

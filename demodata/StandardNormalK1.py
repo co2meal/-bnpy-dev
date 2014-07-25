@@ -9,7 +9,7 @@ import numpy as np
 from bnpy.data import XData, MinibatchIterator
 
 
-########################################################### User-facing functions
+########################################################### User-facing fcns
 ###########################################################
 def get_data(seed=8675309, nObsTotal=25000, **kwargs):
   '''
@@ -28,8 +28,7 @@ def get_data(seed=8675309, nObsTotal=25000, **kwargs):
   Data.summary = get_data_info()
   return Data
   
-def get_minibatch_iterator(seed=8675309, dataorderseed=0, nBatch=10, 
-                           nObsTotal=25000, nLap=1, startLap=0, **kwargs):
+def get_minibatch_iterator(seed=8675309, nObsTotal=25000, **kwargs):
   '''
     Args
     --------
@@ -45,16 +44,13 @@ def get_minibatch_iterator(seed=8675309, dataorderseed=0, nBatch=10,
         divided into nBatch batches
   '''
   X, TrueZ = generate_data(seed, nObsTotal)
-  Data = XData(X=X)
+  Data = XData(X=X, TrueZ=TrueZ)
   Data.summary = get_data_info()
-  DataIterator = MinibatchIterator(Data, nBatch=nBatch, nObsBatch=None,
-                                   nLap=nLap, startLap=startLap,
-                                   dataorderseed=dataorderseed)
+  DataIterator = MinibatchIterator(Data, **kwargs)
   return DataIterator
 
 def get_data_info():
-  return 'Standard Normal Data. Ktrue=1. D=1.'
-
+  return 'Standard Normal Data. All from one true cluster.'
 
 ########################################################### Generate Raw Data
 ###########################################################
