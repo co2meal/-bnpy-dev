@@ -63,6 +63,20 @@ class MultObsModel(AbstractObsModel):
     else:
       self.DataAtomType = 'doc'
 
+  def getTopics(self):
+    ''' Retrieve matrix of estimated topic-word probability vectors
+
+        Returns
+        --------
+        topics : K x vocab_size
+                 topics[k,:] is a non-negative vector that sums to one
+    '''
+    if hasattr(self, 'EstParams'):
+      return self.EstParams.phi
+    else:
+      phi = self.Post.lam / np.sum(self.Post.lam, axis=1)[:, np.newaxis]
+      return phi
+
   ######################################################### I/O Utils
   #########################################################   for humans
   def get_name(self):
@@ -78,7 +92,7 @@ class MultObsModel(AbstractObsModel):
     else:
       sfx = ''
     S = self.Prior.lam[:2]
-    msg += 'lam = %s%s\n' % (str(S), sfx)
+    msg += 'lam = %s%s' % (str(S), sfx)
     msg = msg.replace('\n', '\n  ')
     return msg
 
@@ -142,16 +156,21 @@ class MultObsModel(AbstractObsModel):
       self.Post = ParamBag(K=K, D=D)
       self.Post.setField('lam', lam, dims=('K','D'))
 
-  def setPostFromEstParams(self, EstParams, Data=None, wc=None, **kwargs):
+  def setPostFromEstParams(self, EstParams, Data=None, nTotalTokens=0,
+                                                       **kwargs):
     ''' Convert from EstParams (mu, Sigma) to Post (nu, B, m, kappa),
           each posterior hyperparam is set so EstParam is the posterior mean
     '''
     K = EstParams.K
     D = EstParams.D
-    if Data is not None:
-      wc = Data.word_count.sum()
 
-    lam = wc * EstParams.phi
+    if Data is not None:
+      nTotalTokens = Data.word_count.sum()
+    if nTotalTokens.ndim == 0:
+      nTotalTokens = nTotalTokens/K * np.ones(K)
+    assert nTotalTokens.sum() > 0
+
+    lam = EstParams.phi * nTotalTokens[:,np.newaxis]
     self.Post = ParamBag(K=K, D=D)
     self.Post.setField('lam', lam, dims=('K', 'D'))
 

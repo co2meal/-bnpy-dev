@@ -1,7 +1,7 @@
 '''
 FromScratchGauss.py
 
-Initialize params of a mixture model with gaussian observations from scratch.
+Initialize params of an HModel with gaussian observations from scratch.
 '''
 import numpy as np
 from bnpy.util import discrete_single_draw

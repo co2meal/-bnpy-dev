@@ -59,7 +59,7 @@ class AbstractObsModel(object):
       self.setEstParams(**kwargs)
     except:
       try:
-        self.setPost(**kwargs)
+        self.setPostFactors(**kwargs)
       except:
         raise ValueError('Unrecognised args for set_global_params')
 

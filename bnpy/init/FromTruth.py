@@ -13,9 +13,8 @@ import numpy as np
 import FromScratchMult
 
 def init_global_params(hmodel, Data, initname=None, seed=0, **kwargs):
-  ''' Initialize (in-place) the global params of the given hmodel
-      using the true labels associated with the Data
-
+  ''' Initialize global params of given hmodel using Data's ground truth.
+      
       Args
       -------
       hmodel : bnpy model object to initialize
