@@ -24,7 +24,7 @@ class WordsData(DataObj):
   ######################################################### Constructor
   #########################################################
   def __init__(self, word_id=None, word_count=None, doc_range=None,
-                     vocab_size=0, vocabList=None,
+                     vocab_size=0, vocabList=None, summary=None,
                      nDocTotal=None, TrueParams=None, **kwargs):
     ''' Constructor for WordsData object
 
@@ -51,7 +51,9 @@ class WordsData(DataObj):
  
     self._set_corpus_size_attributes(nDocTotal)
 
-  
+    if summary is not None:
+      self.summary = summary
+
     # Save "true" parameters that generated toy-data, if provided
     if TrueParams is not None:
       self.TrueParams = TrueParams
@@ -112,16 +114,22 @@ class WordsData(DataObj):
 
   ######################################################### Text summary
   ######################################################### 
-  def get_text_summary(self, doCommon=True):
-    ''' Returns human-readable summary of this object
+  def get_text_summary(self):
+    ''' Returns human-readable description of this dataset
     '''
-    if hasattr(self, 'summary') and doCommon:
+    if hasattr(self, 'summary'):
       s = self.summary
-    elif doCommon:
-      s = " nDoc %d, vocab_size %d\n" % (self.nDoc, self.vocab_size)
     else:
-      s = ''
-    return s + self.get_doc_stats_summary()
+      s = 'WordsData'
+    return s
+
+  def get_stats_summary(self):
+    ''' Returns human-readable summary of this dataset's basic properties
+    '''
+    s = '  vocab size %d. %d documents.' % (self.vocab_size, self.nDoc)
+    s += '\n'
+    s += self.get_doc_stats_summary()
+    return s
 
   def get_doc_stats_summary(self, pRange=[0,5, 50, 95, 100]):
     ''' Returns human-readable string summarizing word-count statistics
@@ -132,7 +140,7 @@ class WordsData(DataObj):
     for d in range(self.nDoc):
       start = self.doc_range[d]
       stop = self.doc_range[d+1]
-      nDistinctWordsPerDoc[d] = self.doc_range[stop] - self.doc_range[start]
+      nDistinctWordsPerDoc[d] = stop - start
       nTotalWordsPerDoc[d] = self.word_count[start:stop].sum()
 
     assert np.sum(nDistinctWordsPerDoc) == self.word_id.size
@@ -149,13 +157,13 @@ class WordsData(DataObj):
     s += '\n'
     for p in pRange:
       s += "%5s " % ("%.0f" % (np.percentile(nDistinctWordsPerDoc, p)))    
-    s += ' nDistinctWordsPerDoc\n'
+    s += ' nUniqueTokensPerDoc\n'
     for p in pRange:
       s += "%5s " % ("%.0f" % (np.percentile(nTotalWordsPerDoc, p)))    
-    s += ' nTotalWordsPerDoc'
+    s += ' nTotalTokensPerDoc'
     return s
 
-  ######################################################### Sparse matrix getters
+  ######################################################### Sparse matrix
   #########################################################
   def getTokenTypeCountMatrix(self):
     ''' Get dense matrix counting vocab usage across all words in dataset
@@ -345,28 +353,28 @@ class WordsData(DataObj):
     wordIDsPerDoc = list()
     wordCountsPerDoc = list()
 
-    alphaLP = np.zeros((nDocTotal,K))
+    Pi = np.zeros((nDocTotal,K))
     respPerDoc = list()
 
     # startPos : tracks start index for current doc within corpus-wide lists
     startPos = 0
     for d in xrange(nDocTotal):
       # Draw topic appearance probabilities for this document
-      alphaLP[d,:] = PRNG.dirichlet(topic_prior)
+      Pi[d,:] = PRNG.dirichlet(topic_prior)
 
       if nWordsPerDocFunc is not None:
         nWordsPerDoc = nWordsPerDocFunc(PRNG)
 
       # Draw the topic assignments for this doc
       ## Npercomp : K-vector, Npercomp[k] counts appearance of topic k
-      Npercomp = RandUtil.multinomial(nWordsPerDoc, alphaLP[d,:], PRNG)
+      Npercomp = RandUtil.multinomial(nWordsPerDoc, Pi[d,:], PRNG)
 
       # Draw the observed words for this doc
       ## wordCountBins: V x 1 vector, entry v counts appearance of word v
       wordCountBins = np.zeros(V)
       for k in xrange(K):
         wordCountBins += RandUtil.multinomial(Npercomp[k], 
-                                      topics[k,:], PRNG)
+                                              topics[k,:], PRNG)
 
       # Record word_id, word_count, doc_range
       wIDs = np.flatnonzero(wordCountBins > 0)
@@ -378,21 +386,20 @@ class WordsData(DataObj):
       startPos += wIDs.size
   
       # Record expected local parameters (LP)
-      curResp = (topics[:, wIDs] * alphaLP[d,:][:,np.newaxis]).T      
+      curResp = (topics[:, wIDs] * Pi[d,:][:,np.newaxis]).T      
       respPerDoc.append(curResp)
     
     word_id = np.hstack(wordIDsPerDoc)
     word_count = np.hstack(wordCountsPerDoc)
     doc_range[-1] = word_count.size
 
-    respLP = np.vstack(respPerDoc)
-    respLP /= respLP.sum(axis=1)[:,np.newaxis]
+    ## Make TrueParams dict
+    resp = np.vstack(respPerDoc)
+    resp /= resp.sum(axis=1)[:,np.newaxis]
+    TrueParams = dict(K=K, topics=topics, topic_prior=topic_prior, resp=resp)
 
-    TrueParams = dict(K=K, topics=topics, beta=topic_prior,
-                      word_variational=respLP, alphaPi=alphaLP)
-    return WordsData(word_id, word_count, doc_range, V,
-                    nDocTotal=nDocTotal, TrueParams=TrueParams)
-
+    Data = WordsData(word_id, word_count, doc_range, V, TrueParams=TrueParams)
+    return Data
 
 
 """

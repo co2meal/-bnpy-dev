@@ -285,7 +285,7 @@ class MOVBAlg(LearnAlg):
         evBound = hmodel.calc_evidence(SS=SS)
 
       # Save and display progress
-      self.add_nObs(Dchunk.nObs)
+      #self.add_nObs(Dchunk.nObs)
       self.save_state(hmodel, iterid, lapFrac, evBound)
       self.print_state(hmodel, iterid, lapFrac, evBound)
       self.eval_custom_func(lapFrac, hmodel=hmodel, SS=SS, Dchunk=Dchunk, 

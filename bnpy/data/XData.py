@@ -4,6 +4,12 @@ XData.py
 Data object for holding a dense matrix X of real 64-bit floating point numbers,
 Each row of X represents a single observation.
 
+Attributes
+--------
+X : 2D array, size N x D
+TrueParams : (optional) dict
+summary : (optional) string providing human-readable description of this data
+
 Example
 --------
 >> import numpy as np
@@ -32,36 +38,36 @@ class XData(DataObj):
     InDict = scipy.io.loadmat( matfilepath, **kwargs)
     if 'X' not in InDict:
       raise KeyError('Stored matfile needs to have data in field named X')
-    return cls( InDict['X'], nObsTotal )
+    return cls(InDict['X'], nObsTotal)
   
-  def __init__(self, X, nObsTotal=None, TrueZ=None):
-    ''' Create an instance of XData given an array
-        Reallocation of memory may occur, to ensure that 
-          X is a 2D numpy array with proper byteorder, contiguity, and ownership.
+  def __init__(self, X, nObsTotal=None, TrueZ=None,
+                        TrueParams=None, summary=None):
+    ''' Create an instance of XData for provided array data X
+
+        Reallocation of memory may occur, to ensure that X is a 2D numpy array
+        with standardized data-type, byteorder, contiguity, and ownership.
     '''
     X = np.asarray(X)
     if X.ndim < 2:
       X = X[np.newaxis,:]
     self.X = np.float64(X.newbyteorder('=').copy())
     
-    self.set_dependent_params(nObsTotal=nObsTotal)
-    self.check_dims()
+    self._set_dependent_params(nObsTotal=nObsTotal)
+    self._check_dims()
+
+    if TrueParams is not None:
+      self.TrueParams = TrueParams
     if TrueZ is not None:
-      self.addTrueLabels(TrueZ)
-    
-  def addTrueLabels(self, TrueZ):
-    ''' Adds a "true" discrete segmentation of this data,
-        so that each of the nObs items have a single label
-    '''
-    assert self.nObs == TrueZ.size
-    self.TrueLabels = TrueZ
-  
+      if not hasattr(self, 'TrueParams'):
+        self.TrueParams = dict()
+      self.TrueParams['Z'] = TrueZ
+    if summary is not None:
+      self.summary = summary
+      
   def to_minibatch_iterator(self, **kwargs):
     return MinibatchIterator(self, **kwargs)
 
-  #########################################################  internal methods
-  #########################################################   
-  def set_dependent_params( self, nObsTotal=None): 
+  def _set_dependent_params( self, nObsTotal=None): 
     self.nObs = self.X.shape[0]
     self.dim = self.X.shape[1]
     if nObsTotal is None:
@@ -69,14 +75,30 @@ class XData(DataObj):
     else:
       self.nObsTotal = nObsTotal
     
-  def check_dims( self ):
+  def _check_dims( self ):
     assert self.X.ndim == 2
     assert self.X.flags.c_contiguous
     assert self.X.flags.owndata
     assert self.X.flags.aligned
     assert self.X.flags.writeable
     
-  #########################################################  DataObj operations
+
+  def get_text_summary(self):
+    ''' Returns human-readable description of this dataset
+    '''
+    if hasattr(self, 'summary'):
+      s = self.summary
+    else:
+      s = 'X Data'
+    return s
+
+  def get_stats_summary(self):
+    ''' Returns human-readable summary of this dataset's basic properties
+    '''
+    s = '  %d observations, each of dimension %d' % (self.nObs, self.dim)
+    return s
+
+  ######################################################### Create Subset
   ######################################################### 
   def select_subset_by_mask(self, mask, doTrackFullSize=True):
     ''' Creates new XData object by selecting certain rows (observations)
@@ -87,6 +109,8 @@ class XData(DataObj):
         return XData(self.X[mask], nObsTotal=self.nObsTotal)
     return XData(self.X[mask])
 
+  ######################################################### Add Data
+  ######################################################### 
   def add_data(self, XDataObj):
     ''' Updates (in-place) this object by adding new data
     '''
@@ -105,8 +129,4 @@ class XData(DataObj):
   #########################################################  I/O methods
   ######################################################### 
   def __str__(self):
-    np.set_printoptions(precision=5)
     return self.X.__str__()
-    
-  def summarize_num_observations(self):
-    return '  num obs: %d' % (self.nObsTotal)

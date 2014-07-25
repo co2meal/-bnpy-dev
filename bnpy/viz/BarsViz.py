@@ -6,9 +6,10 @@ Visualization tools for toy bars data for topic models.
 from matplotlib import pylab
 import numpy as np
 
-imshowArgs = dict(interpolation='nearest', cmap='bone', 
-                  vmin=0.0, vmax=0.3)
-
+imshowArgs = dict(interpolation='nearest', 
+                  cmap='bone', 
+                  vmin=0.0, 
+                  vmax=0.1)
 
 def plotExampleBarsDocs(Data, docIDsToPlot=None, figID=None,
                               vmax=None, nDocToPlot=16, doShowNow=True,
@@ -51,50 +52,36 @@ def plotExampleBarsDocs(Data, docIDsToPlot=None, figID=None,
 
 def plotBarsFromHModel(hmodel, Data=None, doShowNow=True, figH=None,
                        compsToHighlight=None, sortBySize=False,
-                       width=12, height=3, Ktop=None, Kmax=None):
-    if Data is None:
-        width = width/2
+                       width=6, height=3, vmax=None, Ktop=None, Kmax=None):
     if figH is None:
       figH = pylab.figure(figsize=(width,height))
     else:
       pylab.axes(figH)
-    K = hmodel.allocModel.K
-    VocabSize = hmodel.obsModel.comp[0].lamvec.size
-    learned_tw = np.zeros( (K, VocabSize) )
-    for k in xrange(K):
-        lamvec = hmodel.obsModel.comp[k].lamvec 
-        learned_tw[k,:] = lamvec / lamvec.sum()
-    if sortBySize:
-        try:
-          sortIDs = np.argsort(hmodel.allocModel.Ebeta[:-1])[::-1]
-        except AttributeError:
-          sortIDs = np.arange(np.minimum(Ktop, hmodel.allocModel.K))
-        sortIDs = sortIDs[:Ktop]
-        learned_tw = learned_tw[sortIDs] 
-    if Data is not None and hasattr(Data, "true_tw"):
-        # Plot the true parameters and learned parameters
-        pylab.subplot(121)
-        pylab.imshow(Data.true_tw, **imshowArgs)
-        pylab.colorbar()
-        pylab.title('True Topic x Word')
-        pylab.subplot(122)
-        pylab.imshow(learned_tw,  **imshowArgs)
-        pylab.title('Learned Topic x Word')
+    
+    if hasattr(hmodel.obsModel, 'Post'):
+      lam = hmodel.obsModel.Post.lam
+      topics = lam / lam.sum(axis=1)[:,np.newaxis]
     else:
-        ltw = learned_tw
-        if Kmax is not None:
-          learned_tw = np.zeros((Kmax, ltw.shape[1]))
-          Kmax = np.minimum(Kmax, ltw.shape[0])
-          learned_tw[:Kmax] = ltw[:Kmax]
-        # Plot just the learned parameters
-        aspectR = learned_tw.shape[1]/float(learned_tw.shape[0])
-        while imshowArgs['vmax'] > 2 * np.percentile(learned_tw, 97):
-          imshowArgs['vmax'] /= 5
-        pylab.imshow(learned_tw, aspect=aspectR, **imshowArgs)
+      topics = hmodel.obsModel.EstParams.phi.copy()
+
+    K, V = topics.shape
+    if Kmax is not None:
+      K = np.minimum(Kmax, K)
+      topics = topics[:K]
+    aspectR = V / float(K)
+
+    ## Determine intensity scale for topic-word image
+    global imshowArgs
+    if vmax is not None:
+      imshowArgs['vmax'] = vmax
+    else:
+      imshowArgs['vmax'] = 1.5 * np.percentile(topics, 95)
+
+    pylab.imshow(topics, aspect=aspectR, **imshowArgs)
     if compsToHighlight is not None:
-        ks = np.asarray(compsToHighlight)
-        if ks.ndim == 0:
-          ks = np.asarray([ks])
-        pylab.yticks( ks, ['**** %d' % (k) for k in ks])
+      ks = np.asarray(compsToHighlight)
+      if ks.ndim == 0:
+        ks = np.asarray([ks])
+      pylab.yticks(ks, ['**** %d' % (k) for k in ks])
     if doShowNow and figH is None:
       pylab.show()

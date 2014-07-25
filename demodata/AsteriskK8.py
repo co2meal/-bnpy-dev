@@ -48,7 +48,7 @@ def get_short_name( ):
   return 'AsteriskK8'
 
 def get_data_info():
-  return 'Asterisk Toy Data. Ktrue=%d. D=%d.' % (K,D)
+  return 'Asterisk Toy Data. %d true clusters.' % (K)
 
 ###########################################################  Generate the data
 def get_X(seed, nObsTotal):
@@ -84,7 +84,7 @@ def get_data(seed=8675309, nObsTotal=25000, **kwargs):
   Data.summary = get_data_info()
   return Data
   
-def get_minibatch_iterator(seed=8675309, dataorderseed=0, nBatch=10, nObsBatch=None, nObsTotal=25000, nLap=1, startLap=0, **kwargs):
+def get_minibatch_iterator(seed=8675309, nObsTotal=25000, **kwargs):
   '''
     Args
     --------
@@ -102,7 +102,7 @@ def get_minibatch_iterator(seed=8675309, dataorderseed=0, nBatch=10, nObsBatch=N
   X, TrueZ = get_X(seed, nObsTotal)
   Data = XData(X=X)
   Data.summary = get_data_info()
-  DataIterator = MinibatchIterator(Data, nBatch=nBatch, nObsBatch=nObsBatch, nLap=nLap, startLap=startLap, dataorderseed=dataorderseed)
+  DataIterator = MinibatchIterator(Data, **kwargs)
   return DataIterator
 
 def plot_true_clusters():

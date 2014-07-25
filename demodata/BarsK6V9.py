@@ -31,12 +31,9 @@ Defaults['topic_prior'] = gamma * trueBeta
 # TOPIC by WORD distribution
 Defaults['topics'] = Bars2D.Create2DBarsTopicWordParams(V, K, PRNG=PRNG)
 
-def get_data_info(**kwargs):
-    if 'nDocTotal' in kwargs:
-      nDocTotal = kwargs['nDocTotal']
-    else:
-      nDocTotal = Defaults['nDocTotal']
-    return 'Toy Bars Data. Ktrue=%d. nDocTotal=%d. Typically 1-3 bars per doc.' % (K, nDocTotal)
+def get_data_info():
+  s = 'Toy Bars Data with %d true topics. Each doc uses 1-3 bars.' % (K)
+  return s
 
 def get_data(**kwargs):
     ''' 
@@ -47,11 +44,10 @@ def get_data(**kwargs):
         nWordsPerDoc
     '''
     Data = CreateToyDataFromLDAModel(seed=SEED, **kwargs)
-    Data.summary = get_data_info(**kwargs)
+    Data.summary = get_data_info()
     return Data
 
-def get_minibatch_iterator(seed=SEED, nBatch=10, nLap=1,
-                           dataorderseed=0, **kwargs):
+def get_minibatch_iterator(**kwargs):
     '''
         Args
         -------
@@ -59,10 +55,9 @@ def get_minibatch_iterator(seed=SEED, nBatch=10, nLap=1,
         nDocTotal
         nWordsPerDoc
     '''
-    Data = CreateToyDataFromLDAModel(seed=seed, **kwargs)
-    DataIterator = BagOfWordsMinibatchIterator(Data, 
-                        nBatch=nBatch, nLap=nLap, dataorderseed=dataorderseed)
-    DataIterator.summary = get_data_info(**kwargs)
+    Data = CreateToyDataFromLDAModel(seed=SEED, **kwargs)
+    Data.summary = get_data_info()
+    DataIterator = BagOfWordsMinibatchIterator(Data, **kwargs)
     return DataIterator
 
 def CreateToyDataFromLDAModel(**kwargs):
