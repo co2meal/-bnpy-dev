@@ -8,7 +8,10 @@ from matplotlib import pylab
 
 Colors = [ (1,0,0), (1,0,1), (0,1,0), (0,1,1), (0,0,1), (1,0.6,0)]
 
-def plotGauss2DFromHModel(hmodel, compListToPlot=None, compsToHighlight=None, wTHR=0.0001, Colors=Colors):
+def plotGauss2DFromHModel(hmodel, compListToPlot=None,
+                                  compsToHighlight=None, 
+                                  wTHR=0.0001, 
+                                  Colors=Colors):
   ''' Plot 2D contours for components in hmodel in current pylab figure
       Args
       -------

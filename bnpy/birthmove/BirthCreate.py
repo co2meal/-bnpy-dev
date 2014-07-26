@@ -52,23 +52,9 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None,
                                   initname=kwargs['creationRoutine'],                                  
                                   **kwargs) 
 
-  freshLP = freshModel.calc_local_params(freshData, **fastParams)
-  freshSS = freshModel.get_global_suff_stats(freshData, freshLP)
-
-  '''
-  ## Sort new comps in largest-to-smallest order
-  # TODO: improve update for allocModel reorderComps
-  # currently, relies on init allocModel being "uniform", so order dont matter
-  bigtosmallIDs = np.argsort(-1 * freshSS.N)
-  newList = [None for x in xrange(len(freshModel.obsModel.comp))]
-  for loc, newLoc in enumerate(bigtosmallIDs):
-    newList[loc] = freshModel.obsModel.comp[newLoc]
-  freshModel.obsModel.comp = newList
-  freshSS.reorderComps(bigtosmallIDs)
-  '''
   logPhase('Creation')
-  log(kwargs['creationRoutine'])
-  log('Kfresh=%d' % (freshSS.K))
+  log('CreationRoutine: ' + kwargs['creationRoutine'])
+  log('Kfresh=%d' % (freshModel.obsModel.K))
   if not kwargs['creationDoUpdateFresh']:
     # Create freshSS that would produce (nearly) same freshModel.obsModel
     #   after a call to update_global_params
@@ -81,18 +67,27 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None,
       freshSS.setField('WordCounts', topics, dims=('K','D'))
     return freshModel, freshSS, Info
 
-  # Record initial model for posterity
+
+  ## Record initial model for posterity
   if kwargs['birthDebug']:
     Info['freshModelInit'] = freshModel.copy()
 
+  ## Complete several iterations to improve this fresh proposal
   for step in xrange(kwargs['creationNumIters']):
     freshLP = freshModel.calc_local_params(freshData, **fastParams)
     freshSS = freshModel.get_global_suff_stats(freshData, freshLP)
     freshModel.update_global_params(freshSS)
-    if kwargs['birthDebug']:
-      Info['freshModelRefined'] = freshModel.copy()
     if step < 3 or (step+1) % 10 == 0:
       logPosVector(freshSS.N, label='iter %3d' % (step+1))
+    if step > 1:
+      maxDiff = np.max(np.abs(freshSS.N - prevN))
+      if maxDiff < 1.0:
+        break
+    prevN = freshSS.N.copy()
+
+  logPosVector(freshSS.N, label='final')
+  if kwargs['birthDebug']:
+    Info['freshModelRefined'] = freshModel.copy()
 
   if kwargs['cleanupDeleteEmpty']:
     freshModel, freshSS = BirthCleanup.delete_empty_comps(
@@ -107,7 +102,12 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None,
     if kwargs['birthDebug']:
       Info['freshModelPostDelete'] = freshModel.copy()
     
-  logPosVector(freshSS.N, label='final')
+  logPosVector(freshSS.N, label='cleaned')
+
+  if freshSS.K < 2:
+    msg = "BIRTH failed. Fresh proposal does not prefer multiple comps."
+    raise BirthProposalError(msg)
+
   return freshModel, freshSS, Info
 
 ########################################################### Topic-model 

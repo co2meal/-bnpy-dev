@@ -242,7 +242,7 @@ class MOVBAlg(LearnAlg):
                        mPairIDs=mPairIDs,
                        preselectroutine=preselectroutine
                        )
-
+      
       if SS is None:
         SS = SSchunk.copy()
       else:
@@ -254,6 +254,7 @@ class MOVBAlg(LearnAlg):
       if self.hasMove('birth') and self.isLastBatch(lapFrac):
         hmodel, SS = self.birth_remove_extra_mass(hmodel, SS, BirthResults)
 
+        #print ' '.join(['%7.1f' % (x) for x in SS.N]), 'final'
       
       # Store batch-specific stats to memory
       if self.algParams['doMemoizeLocalParams']:
