@@ -131,11 +131,12 @@ class HModel(object):
       SS = self.get_global_suff_stats(Data, LP)
     evA = self.allocModel.calc_evidence(Data, SS, LP, todict=todict, **kwargs)
     evObs = self.obsModel.calc_evidence(Data, SS, LP, todict=todict, **kwargs)
+    s = self.obsModel.getDatasetScale(SS)
     if todict:
       evA.update(evObs)
       return evA
     else:
-      return evA + evObs
+      return (evA + evObs) / s
     
   def calcLogLikCollapsedSamplerState(self, SS):
       ''' 
