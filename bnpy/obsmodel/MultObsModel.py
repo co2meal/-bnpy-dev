@@ -410,6 +410,17 @@ class MultObsModel(AbstractObsModel):
     sumWMat = np.sum(WMat, axis=1)
     return np.sum(gammaln(sumWMat+1)) - np.sum(gammaln(WMat+1)) 
 
+  def getDatasetScale(self, SS):
+    ''' Get scale factor for dataset, indicating number of observed scalars. 
+
+        Used for normalizing the ELBO so it has reasonable range.
+
+        Returns
+        ---------
+        s : scalar positive integer
+            total number of word tokens observed in the sufficient stats
+    '''
+    return SS.N.sum()
 
   ######################################################### Hard Merge
   #########################################################
@@ -469,6 +480,45 @@ class MultObsModel(AbstractObsModel):
         Gaps[ii] = self.calcHardMergeGap(SS, kA, kB)
     return Gaps
 
+  ########################################################### Marg Lik
+  ###########################################################
+  def calcLogMargLikForComp(self, SS, kA, kB=None, **kwargs):
+    ''' Calc log marginal likelihood of data assigned to given component
+          (up to an additive constant that depends on the prior)
+        Requires Data pre-summarized into sufficient stats for each comp.
+        If multiple comp IDs are provided, we combine into a "merged" component.
+        
+        Args
+        -------
+        SS : bnpy suff stats object
+        kA : integer ID of target component to compute likelihood for
+        kB : (optional) integer ID of second component.
+             If provided, we merge kA, kB into one component for calculation.
+        Returns
+        -------
+        logM : scalar real
+               logM = log p( data assigned to comp kA ) 
+                      computed up to an additive constant
+    '''
+    return -1 * c_Func(self.calcPostParamsForComp(SS, kA, kB))
+
+  def calcMargLik(self, SS):
+    ''' Calc log marginal likelihood combining all comps, given suff stats
+
+        Returns
+        --------
+        logM : scalar real
+               logM = \sum_{k=1}^K log p( data assigned to comp k | Prior)
+    '''
+    return self.calcMargLik_CFuncForLoop(SS)
+
+  def calcMargLik_CFuncForLoop(self, SS):
+    Prior = self.Prior
+    logp = np.zeros(SS.K)
+    for k in xrange(SS.K):
+      lam = self.calcPostParamsForComp(SS, k)
+      logp[k] = c_Diff(Prior.lam, lam)
+    return np.sum(logp) - 0.5 * np.sum(SS.N) * LOGTWOPI
 
 
   ########################################################### Expectations

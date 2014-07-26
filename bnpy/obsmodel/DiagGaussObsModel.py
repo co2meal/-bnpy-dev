@@ -521,6 +521,17 @@ class DiagGaussObsModel(AbstractObsModel):
                  - 0.5 * dDiff * np.sum(self.GetCached('E_muLmu', k))
     return elbo.sum() - 0.5 * np.sum(SS.N) * SS.D * LOGTWOPI
 
+  def getDatasetScale(self, SS):
+    ''' Get scale factor for dataset, indicating number of observed scalars. 
+
+        Used for normalizing the ELBO so it has reasonable range.
+
+        Returns
+        ---------
+        s : scalar positive integer
+    '''
+    return SS.N.sum() * SS.D
+
   ######################################################### Hard Merge
   #########################################################
   def calcHardMergeGap(self, SS, kA, kB):

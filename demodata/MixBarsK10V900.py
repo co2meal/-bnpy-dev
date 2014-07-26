@@ -12,14 +12,14 @@ from bnpy.data import WordsData, BagOfWordsMinibatchIterator
 import Bars2D
 
 # FIXED DATA GENERATION PARAMS
-K = 6 # Number of topics
-V = 9 # Vocabulary Size
+K = 10 # Number of topics
+V = 900 # Vocabulary Size
 SEED = 8675309
 
 Defaults = dict()
 Defaults['seed'] = SEED
-Defaults['nDocTotal'] = 200
-Defaults['nWordsPerDoc'] = 25
+Defaults['nDocTotal'] = 2000
+Defaults['nWordsPerDoc'] = 2 * V / (K/2)
 
 # GLOBAL PROB DISTRIBUTION OVER TOPICS
 trueBeta = np.ones(K)
@@ -29,7 +29,6 @@ Defaults['beta'] = trueBeta
 # TOPIC by WORD distribution
 PRNG = np.random.RandomState(SEED)
 Defaults['topics'] = Bars2D.Create2DBarsTopicWordParams(V, K, PRNG=PRNG)
-
 
 def get_data_info():
   s = 'Toy Bars Data with %d true topics. Each doc uses ONE topic.' % (K)
