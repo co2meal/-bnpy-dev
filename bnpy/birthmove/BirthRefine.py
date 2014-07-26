@@ -135,7 +135,6 @@ def refine_expanded_model_with_VB_iters(xbigModel, freshData,
   traceELBO = np.zeros(nIters)
 
   xfreshLP = None
-
   for riter in xrange(nIters):
     xfreshLP = xbigModel.calc_local_params(freshData, xfreshLP, **kwargs)
     xfreshSS = xbigModel.get_global_suff_stats(freshData, xfreshLP)

@@ -83,7 +83,7 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, Plan=None, **kwargsIN):
 
     # Visualize, if desired
     if 'doVizBirth' in kwargs and kwargs['doVizBirth']:
-      VizBirth.viz_birth_proposal(bigModel, freshModel, xrange(freshSS.K),
+      VizBirth.viz_birth_proposal(bigModel, freshModel, Plan,
                                   curELBO=None, propELBO=None, **kwargs)
       raw_input('>>>')
       from matplotlib import pylab
