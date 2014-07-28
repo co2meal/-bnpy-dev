@@ -19,7 +19,7 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, Plan=None, **kwargsIN):
       MoveInfo
   '''
   logPhase('Target Data')
-  log(freshData.get_text_summary())
+  log(freshData.get_stats_summary())
 
   kwargs = dict(**kwargsIN) # make local copy!
   origids = dict( bigModel=id(bigModel), bigSS=id(bigSS) )
