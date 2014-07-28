@@ -184,6 +184,11 @@ class MOVBAlg(LearnAlg):
                 MM = np.delete(MM, Info['kB'], axis=1)
                 MM[Info['kA'], :] = 0
                 MM[:, Info['kA']] = 0
+              if len(BirthResults) > 0:
+                Korig = MM.shape[0]
+                Mnew = np.zeros((SS.K, SS.K))
+                Mnew[:Korig, :Korig] = MM
+                MM = Mnew
               rLap = self.algParams['merge']['mergeScoreRefreshLap']
               if MM is not None and np.floor(lapFrac) % rLap == 0:
                 MM.fill(0) # Refresh!
@@ -541,7 +546,8 @@ class MOVBAlg(LearnAlg):
       # Unpack data for current move
       ktarget = Plan['ktarget']
       targetData = Plan['Data']
-      targetSize = TargetDataSampler.getSize(targetData)
+      targetSize = TargetDataSampler.getSize(targetData) 
+      # Remember, targetData may be None
 
       if isInPlan(Plan, 'targetWordIDs'):
         isBad = len(Plan['targetWordIDs']) == 0

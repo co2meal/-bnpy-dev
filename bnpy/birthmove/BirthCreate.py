@@ -13,6 +13,7 @@ from bnpy.util import GramSchmidtUtil as GSU
 from BirthProposalError import BirthProposalError
 import BirthCleanup
 from BirthLogger import log, logPhase, logPosVector
+from bnpy.mergemove import MergeMove, MergePlanner
 
 fastParams = dict(nCoordAscentItersLP=1, convThrLP=0.001)
 
@@ -102,6 +103,23 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None,
     if kwargs['birthDebug']:
       Info['freshModelPostDelete'] = freshModel.copy()
     
+  elif kwargs['cleanupMergeToImproveFresh']:
+    mPairIDs, MM = MergePlanner.preselect_candidate_pairs(freshModel, freshSS,
+                                                preselect_routine='wholeELBO',
+                                                doLimitNumPairs=0,
+                                                returnScoreMatrix=1,
+                                                **kwargs)
+    freshLP = freshModel.calc_local_params(freshData)
+    freshSS = freshModel.get_global_suff_stats(freshData, freshLP, 
+                                                doPrecompEntropy=1,
+                                                doPrecompMergeEntropy=1,
+                                                mPairIDs=mPairIDs)
+    log('Merging fresh')
+    freshELBO = freshModel.calc_evidence(SS=freshSS)
+    freshModel, freshSS, freshELBO, Info = MergeMove.run_many_merge_moves(
+                                                freshModel, freshSS, freshELBO,
+                                                mPairIDs)
+
   logPosVector(freshSS.N, label='cleaned')
 
   if freshSS.K < 2:

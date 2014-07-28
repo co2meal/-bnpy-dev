@@ -251,6 +251,45 @@ class WordsData(DataObj):
     setattr(self, key, C)
     return C
 
+  ######################################################### Add new documents
+  #########################################################
+  def add_data(self, WData):
+    ''' Append provided WordsData to the end of this dataset
+    '''
+    assert self.vocab_size == WData.vocab_size
+    self.word_id = np.hstack([self.word_id, WData.word_id])
+    self.word_count = np.hstack([self.word_count, WData.word_count])
+    self.doc_range = np.hstack([self.doc_range, 
+                                WData.doc_range[1:] + self.doc_range[-1]])
+    self.nDoc += WData.nDoc
+    self.nDocTotal += WData.nDocTotal
+    self.nUniqueToken += WData.nUniqueToken
+    self.nTotalToken += WData.nTotalToken
+    self._verify_attributes()
+
+  def get_random_sample(self, nDoc, randstate=np.random,
+                                    candidates=None,
+                                    p=None):
+    ''' Create WordsData object for random subsample of this document collection
+
+        Args
+        -----
+        nDoc : number of documents to choose
+        randstate : numpy random number generator
+
+        Returns
+        -------
+        WordsData : bnpy WordsData instance, with at most nDoc documents
+    '''
+    if candidates is None:
+      nSamples = np.minimum(self.nDoc, nDoc)
+      docMask = randstate.choice(self.nDoc, nSamples, replace=False)
+    else:
+      nSamples = np.minimum(len(candidates), nDoc)
+      docMask = randstate.choice(candidates, nSamples, replace=False, p=p)
+    return self.select_subset_by_mask(docMask=docMask,
+                                      doTrackFullSize=False)
+
   ######################################################### Subset Creation
   #########################################################
   def select_subset_by_mask(self, docMask, doTrackFullSize=True):

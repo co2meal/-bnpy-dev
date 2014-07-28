@@ -27,7 +27,7 @@ except ImfportError:
 def init_global_params(obsModel, Data, K=0, seed=0,
                                        initname='randexamples',
                                        initarg=None,
-                                       initMinWordsPerDoc=100,
+                                       initMinWordsPerDoc=0,
                                        **kwargs):
   ''' Initialize parameters for Mult obsModel, in place.
 
@@ -45,7 +45,8 @@ def init_global_params(obsModel, Data, K=0, seed=0,
                           targetMaxSize=Data.nDoc,
                           targetMinSize=0,
                           randstate=PRNG)
-    tmpData = _sample_target_WordsData(Data, None, None, **targetDataArgs)
+    tmpData, tmpInfo = _sample_target_WordsData(Data, None, None, 
+                                                **targetDataArgs)
     if tmpData is None:
       raise ValueError('InitData preprocessing left no viable docs left.')
     Data = tmpData
