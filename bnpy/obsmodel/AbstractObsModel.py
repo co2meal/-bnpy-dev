@@ -55,21 +55,23 @@ class AbstractObsModel(object):
         None.  Exactly one of Post or EstParams will be updated in-place.
     '''
     ## First, try setEstParams, and fall back on setPost on any trouble
+    didSetPost = 0
     try:
       self.setEstParams(**kwargs)
     except:
       try:
         self.setPostFactors(**kwargs)
+        didSetPost = 1
       except:
         raise ValueError('Unrecognised args for set_global_params')
 
-    ## Make sure EM methods have an EstParams field,
-    if self.inferType == 'EM' and not hasattr(self, 'EstParams'):
+    ## Make sure EM methods have an EstParams field
+    if self.inferType == 'EM' and didSetPost:
       self.setEstParamsFromPost(self.Post, **kwargs)
       del self.Post
 
     ## Make sure VB methods have a Post field
-    if self.inferType != 'EM' and not hasattr(self, 'Post'):
+    if self.inferType != 'EM' and not didSetPost:
       self.setPostFromEstParams(self.EstParams, **kwargs)
       del self.EstParams
 

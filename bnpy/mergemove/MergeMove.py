@@ -12,6 +12,9 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None, **kwargs):
       SS : bnpy SuffStatBag,
       MergeInfo : dict with info about all accepted merges
   '''
+  if 'mergeLogVerbose' not in kwargs:
+    kwargs['mergeLogVerbose'] = 0
+
   if kwargs['mergeLogVerbose']:
     MergeLogger.logPhase('MERGE Decisions')
 
@@ -21,7 +24,10 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None, **kwargs):
 
   CompIDShift = np.zeros(curSS.K, dtype=np.int32)
 
-  nMergeTrials = kwargs['mergePerLap']
+  if 'mergePerLap' in kwargs:
+    nMergeTrials = kwargs['mergePerLap']
+  else:
+    nMergeTrials = len(mPairIDs)
   trialID = 0
   AcceptedPairs = list()
   AcceptedPairOrigIDs = list()

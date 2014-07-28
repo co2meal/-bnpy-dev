@@ -19,6 +19,7 @@ from scipy.special import gammaln, digamma
 
 from bnpy.suffstats import ParamBag, SuffStatBag
 from bnpy.util import dotATA, dotATB, dotABT
+from bnpy.util import as1D, as2D, as3D
 
 from AbstractObsModel import AbstractObsModel 
 
@@ -129,7 +130,8 @@ class MultObsModel(AbstractObsModel):
     self.EstParams = ParamBag(K=Post.K, D=Post.D)
     phi = Post.lam / np.sum(Post.lam, axis=1)[:, np.newaxis]
     self.EstParams.setField('phi', phi, dims=('K','D'))
-    
+    self.K = K
+
   
   ######################################################### Set Post
   #########################################################
@@ -152,6 +154,7 @@ class MultObsModel(AbstractObsModel):
     if SS is not None:
       self.updatePost(SS)
     else:
+      lam = as2D(lam)
       K, D = lam.shape
       self.Post = ParamBag(K=K, D=D)
       self.Post.setField('lam', lam, dims=('K','D'))
@@ -173,6 +176,7 @@ class MultObsModel(AbstractObsModel):
     lam = EstParams.phi * nTotalTokens[:,np.newaxis]
     self.Post = ParamBag(K=K, D=D)
     self.Post.setField('lam', lam, dims=('K', 'D'))
+    self.K = K
 
   ########################################################### Summary
   ########################################################### 
