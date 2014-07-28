@@ -104,21 +104,26 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None,
       Info['freshModelPostDelete'] = freshModel.copy()
     
   elif kwargs['cleanupMergeToImproveFresh']:
-    mPairIDs, MM = MergePlanner.preselect_candidate_pairs(freshModel, freshSS,
+    log('Merging fresh')
+    while freshSS.K > 1:
+      mPairIDs, MM = MergePlanner.preselect_candidate_pairs(freshModel, freshSS,
                                                 preselect_routine='wholeELBO',
                                                 doLimitNumPairs=0,
                                                 returnScoreMatrix=1,
                                                 **kwargs)
-    freshLP = freshModel.calc_local_params(freshData)
-    freshSS = freshModel.get_global_suff_stats(freshData, freshLP, 
+      freshLP = freshModel.calc_local_params(freshData)
+      freshSS = freshModel.get_global_suff_stats(freshData, freshLP, 
                                                 doPrecompEntropy=1,
                                                 doPrecompMergeEntropy=1,
                                                 mPairIDs=mPairIDs)
-    log('Merging fresh')
-    freshELBO = freshModel.calc_evidence(SS=freshSS)
-    freshModel, freshSS, freshELBO, Info = MergeMove.run_many_merge_moves(
+      freshELBO = freshModel.calc_evidence(SS=freshSS)
+      freshModel, freshSS, freshELBO, Info = MergeMove.run_many_merge_moves(
                                                 freshModel, freshSS, freshELBO,
-                                                mPairIDs)
+                                                mPairIDs,
+                                                logFunc=log)
+      if len(Info['AcceptedPairs']) == 0:
+        break
+
 
   logPosVector(freshSS.N, label='cleaned')
 

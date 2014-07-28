@@ -3,7 +3,9 @@ import numpy as np
 import MergeLogger
 ELBO_GAP_ACCEPT_TOL = 1e-6
 
-def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None, **kwargs):
+def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None, 
+                                   logFunc=MergeLogger.log,
+                                   **kwargs):
   ''' Run many pre-selected merge candidates, keeping all that improve ELBO.
 
       Returns
@@ -76,7 +78,7 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None, **kwargs):
 
   if kwargs['mergeLogVerbose']:
     MergeLogger.logPhase('MERGE summary')
-  MergeLogger.log( ' %d/%d accepted. ev increased % .4e' 
+  logFunc( ' %d/%d accepted. ev increased % .4e' 
                     % (len(AcceptedPairs), trialID, ELBOGain))
 
   Info = dict(AcceptedPairs=AcceptedPairs,
