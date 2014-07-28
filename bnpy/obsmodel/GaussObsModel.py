@@ -60,11 +60,10 @@ class GaussObsModel(AbstractObsModel):
       if ECovMat is None or type(ECovMat) == str:
         ECovMat = createECovMatFromUserInput(D, Data, ECovMat, sF)    
       B = ECovMat * (nu - D - 1)
-    else:
-      if B.ndim == 1:
-        B = np.asarray([B], dtype=np.float)
-      elif B.ndim == 0:
-        B = np.asarray([[B]], dtype=np.float)
+    if B.ndim == 1:
+      B = np.asarray([B], dtype=np.float)
+    elif B.ndim == 0:
+      B = np.asarray([[B]], dtype=np.float)
     if m is None:
       m = np.zeros(D)
     elif m.ndim < 1:
