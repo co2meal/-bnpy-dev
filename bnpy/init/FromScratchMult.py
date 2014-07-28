@@ -21,7 +21,7 @@ except ImportError:
 hasSpectralAvailable = True
 try:
   import LearnAnchorTopics
-except ImfportError:
+except ImportError:
   hasSpectralAvailable = False
 
 def init_global_params(obsModel, Data, K=0, seed=0,
