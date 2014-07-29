@@ -56,8 +56,7 @@ class VBLearnAlg( LearnAlg ):
         SS = hmodel.get_global_suff_stats(Data, LP)
 
       # M step
-      if iterid > 0:
-        hmodel.update_global_params(SS) 
+      hmodel.update_global_params(SS) 
 
 
       # ELBO calculation

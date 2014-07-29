@@ -325,7 +325,10 @@ def createUniqueRandomSeed( jobname, taskID=0):
     jobname = jobname.split('-')[0]
   if len(jobname) > 5:
     jobname = jobname[:5]
-  
+    
+  #import random
+  #return random.randint(0,927349827)
+
   seed = int( hashlib.md5( jobname+str(taskID) ).hexdigest(), 16) % 1e7
   return int(seed)
   
