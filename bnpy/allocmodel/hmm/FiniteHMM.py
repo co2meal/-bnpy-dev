@@ -197,8 +197,7 @@ class FiniteHMM(AllocModel):
             self.initPi = np.ones(self.K)
             self.transPi = np.ones((self.K, self.K))
 
-        self.initPi = (SS.firstStateResp + self.initAlpha) \
-            / (SS.firstStateResp.sum() + self.K * self.initAlpha)
+        self.initPi = SS.firstStateResp / SS.firstStateResp.sum()
 
         normFactor = np.sum(SS.respPairSums, axis = 1)
         for i in xrange(SS.K):
