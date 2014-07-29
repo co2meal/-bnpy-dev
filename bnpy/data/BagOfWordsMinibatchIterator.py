@@ -61,8 +61,9 @@ class BagOfWordsMinibatchIterator(object):
         Data : WordsData object
         nBatch : integer number of batches to divide dataset into
         nLap : integer number of laps to complete
-        dataorderseed : int seed for division of data into fixed set of batches
-                                     and random traversal of elements in this set
+        dataorderseed : int seed for random number generator that determines
+                        division of data into fixed set of batches
+                        and random order for traversing batches during each lap
     '''
     assert Data.nDocTotal == Data.nDoc
     self.Data = Data
