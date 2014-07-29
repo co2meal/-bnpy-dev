@@ -8,6 +8,7 @@ Intentionally separated from rest of HMM code, so that we can swap in
   any fast routine for this calculation with ease.
 '''
 import numpy as np
+from lib import LibFwdBwd
 
 def FwdBwdAlg(PiInit, PiMat, logSoftEv):
   '''Execute forward-backward message passing algorithm
@@ -103,6 +104,12 @@ def FwdAlg(PiInit, PiMat, SoftEv):
     fmsg[t] /= margPrObs[t]
   return fmsg, margPrObs
   
+
+def FASTFwdAlg(PiInit, PiMat, SoftEv):
+  ''' Execute forward message-passing on an observed sequence
+  '''
+  return LibFwdBwd.FwdAlg(PiInit, PiMat, SoftEv)
+
 def BwdAlg(PiInit, PiMat, SoftEv, margPrObs):
   '''Execute backward message-passing on an observed sequence
        given HMM state transition params and likelihoods of each observation
