@@ -204,16 +204,14 @@ class MultObsModel(AbstractObsModel):
       # TODO: log ref measure for multinomial??
       #logh = self.logh(Data)
       #SS.setField('logh', logh, dims=None)
-      SS.setField('WordCounts', WordCounts, dims=('K','D'))
-      SS.setField('SumWordCounts', np.sum(WordCounts, axis=1), dims=('K'))
     
     else:
       Resp = LP['resp']  # 2D array, size N x K 
       X = Data.getSparseTokenTypeCountMatrix() # 2D sparse matrix, size V x N
       WordCounts = (X * Resp).T # matrix-matrix product
 
-      SS.setField('WordCounts', WordCounts, dims=('K','D'))
-      SS.setField('SumWordCounts', np.sum(WordCounts, axis=1), dims=('K'))
+    SS.setField('WordCounts', WordCounts, dims=('K','D'))
+    SS.setField('SumWordCounts', np.sum(WordCounts, axis=1), dims=('K'))
     return SS
 
   def incrementSS(self, SS, k, Data, docID):
@@ -410,9 +408,10 @@ class MultObsModel(AbstractObsModel):
         -------
         logh : scalar float, log h(Data) = \sum_{n=1}^N log [ C!/prod_d C_d!] 
     '''
-    WMat = Data.to_sparse_docword_matrix().toarray()
-    sumWMat = np.sum(WMat, axis=1)
-    return np.sum(gammaln(sumWMat+1)) - np.sum(gammaln(WMat+1)) 
+    raise NotImplementedError('TODO')
+    #WMat = Data.to_sparse_docword_matrix().toarray()
+    #sumWMat = np.sum(WMat, axis=1)
+    #return np.sum(gammaln(sumWMat+1)) - np.sum(gammaln(WMat+1)) 
 
   def getDatasetScale(self, SS):
     ''' Get scale factor for dataset, indicating number of observed scalars. 
@@ -424,7 +423,7 @@ class MultObsModel(AbstractObsModel):
         s : scalar positive integer
             total number of word tokens observed in the sufficient stats
     '''
-    return SS.N.sum()
+    return SS.SumWordCounts.sum()
 
   ######################################################### Hard Merge
   #########################################################
@@ -522,8 +521,7 @@ class MultObsModel(AbstractObsModel):
     for k in xrange(SS.K):
       lam = self.calcPostParamsForComp(SS, k)
       logp[k] = c_Diff(Prior.lam, lam)
-    return np.sum(logp) - 0.5 * np.sum(SS.N) * LOGTWOPI
-
+    return np.sum(logp)
 
   ########################################################### Expectations
   ########################################################### 
