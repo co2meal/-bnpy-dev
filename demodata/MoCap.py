@@ -41,27 +41,27 @@ def get_XZ():
     seqs = open('/home/will/bnpy/bnpy-dev/demodata/mocap6/SeqNames.txt', 'r')
 
     for line in seqs:
-        line = line[:-1] #eat the \n at the end of each line
-        file = open('/home/will/bnpy/bnpy-dev/demodata/mocap6/'+line+'.dat', 'r')
-        seqX = list()
-        
-        seqZ = zTrue.readline()
-        seqZ = seqZ.split(' ') 
-        seqZ = seqZ[:-1] 
-        seqZ = [int(i) for i in seqZ]
-        Z.append(seqZ)
+      line = line[:-1] #eat the \n at the end of each line
+      file = open('/home/will/bnpy/bnpy-dev/demodata/mocap6/'+line+'.dat', 'r')
+      seqX = list()
+      
+      seqZ = zTrue.readline()
+      seqZ = seqZ.split(' ') 
+      seqZ = seqZ[:-1] 
+      seqZ = [int(i) for i in seqZ]
+      Z.append(seqZ)
 
         #Read off all the observed joint positions
-        for dataPoint in file:
-            dataPoint = dataPoint.split(' ')
-            dataPoint = dataPoint[:-1]
-            dataPoint = [float(i) for i in dataPoint]
-            seqX.append(dataPoint)
-        X.append(seqX)
+      for dataPoint in file:
+        dataPoint = dataPoint.split(' ')
+        dataPoint = dataPoint[:-1]
+        dataPoint = [float(i) for i in dataPoint]
+        seqX.append(dataPoint)
+      X.append(seqX)
         
-    seqInds = np.array([0])
-    fullZ = []
-    for i in xrange(len(Z)):
+      seqInds = np.array([0])
+      fullZ = []
+      for i in xrange(len(Z)):
         seqInds = np.append(seqInds, len(Z[i]) + seqInds[i])
         fullZ = np.append(fullZ, Z[i])
     X = np.vstack(X)
