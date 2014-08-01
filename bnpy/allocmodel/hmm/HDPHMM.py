@@ -6,7 +6,6 @@ from bnpy.allocmodel.seq import HMMUtil
 from bnpy.util import digamma, gammaln, EPS
 from bnpy.allocmodel.admix import OptimizerForHDPStickBreak as OptimHDPSB
 
-import scipy.io
 
 class HDPHMM(AllocModel):
 
@@ -100,18 +99,18 @@ class HDPHMM(AllocModel):
                 HMMUtil.FwdBwdAlg(expELogPi, expELogBeta, \
                                       lpr[Data.seqInds[n]:Data.seqInds[n+1]])
 
-            #est = HMMUtil.viterbi(lpr[Data.seqInds[n]:Data.seqInds[n+1]],
-            #                       expELogPi, expELogBeta)
+            est = HMMUtil.viterbi(lpr[Data.seqInds[n]:Data.seqInds[n+1]],
+                                   expELogPi, expELogBeta)
             if resp is None:
                 resp = np.vstack(seqResp)
                 respPair = seqRespPair
-                #estZ = est
+                estZ = est
             else:
                 resp = np.vstack((resp, seqResp))
                 respPair = np.append(respPair, seqRespPair, axis = 0)
-                #estZ = np.append(estZ, est)
+                estZ = np.append(estZ, est)
 
-        #scipy.io.savemat('estZ.mat', {'estZ':estZ})
+        self.estZ = estZ
 
         LP.update({'resp':resp})
         LP.update({'respPair':respPair})
@@ -143,7 +142,7 @@ class HDPHMM(AllocModel):
         SS.setField('N', N, dims=('K'))
 
         if doPrecompEntropy is not None:
-            entropy = self.elbo_entropy(LP)
+            entropy = self.elbo_entropy(Data, LP)
             SS.setELBOTerm('Elogqz', entropy, dims = (()))
 
         return SS
@@ -208,7 +207,7 @@ class HDPHMM(AllocModel):
 
         #Update rho and omega through numerical optimization
         self.rho, self.omega = self.find_optimum_rhoOmega(SS, **kwargs)
-
+        
         rhoProds = np.array([np.prod(1-self.rho[0:i]) for i in xrange(self.K)])
 
         #self.u = np.array([np.ones((self.K, self.K)), 
@@ -266,22 +265,23 @@ class HDPHMM(AllocModel):
         if SS.hasELBOTerm('Elogqz'):
             entropy = SS.getELBOTerm('Elogqz')
         else:
-            entropy = self.elbo_entropy(LP)
+            entropy = self.elbo_entropy(Data, LP)
 
         return entropy + self.elbo_alloc() + self.elbo_v0() + \
             self.elbo_allocSlack()
 
 
 
-    def elbo_entropy(self, LP):
+    def elbo_entropy(self, Data, LP):
         '''Calculates the entropy H(q(z)) that shows up in E_q[q(z)]
         '''
 
         #Normalize across rows of respPair_{tij} to get s_{tij}, the parameters
-          #for q(z_t | z_{t-1})        
+          #for q(z_t | z_{t-1})
         sigma  = (LP['respPair'] / 
                   (np.sum(LP['respPair'], axis = 2)[:, :, np.newaxis] + EPS))
-        z_1 = -np.sum(LP['resp'][0,:] * np.log(LP['resp'][0,:] + EPS))
+        z_1 = -np.sum(LP['resp'][Data.seqInds[:-1],:] * \
+                      np.log(LP['resp'][Data.seqInds[:-1],:] + EPS))
         restZ = -np.sum(LP['respPair'][1:,:,:] * np.log(sigma[1:,:,:] + EPS))
         return z_1 + restZ
 
@@ -345,7 +345,7 @@ class HDPHMM(AllocModel):
 
     def to_dict(self):
         return dict(u = self.u, y = self.b, omega = self.omega,
-                    rho = self.rho)
+                    rho = self.rho, estZ = self.estZ)
 
     def from_dict(self, myDict):
         self.inferType = myDict['inferType']
@@ -354,6 +354,7 @@ class HDPHMM(AllocModel):
         self.b = myDict['b']
         self.omega = myDict['omega']
         self.rho = myDict['rho']
+        self.estZ = myDict['estZ']
 
     def get_prior_dict(self):
         return dict(gamma = self.gamma, alpha = self.alpha, tau = self.tau,

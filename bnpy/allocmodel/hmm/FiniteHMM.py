@@ -87,19 +87,26 @@ class FiniteHMM(AllocModel):
         #Now run the forward backward algorithm on each sequence
         resp = None
         respPair = None
+        estZ = None
         logMargPr = np.empty(Data.nSeqs)
         for n in xrange(Data.nSeqs):
             seqResp, seqRespPair, seqLogMargPr = \
                 HMMUtil.FwdBwdAlg(initParam, transParam, \
                                       lpr[Data.seqInds[n]:Data.seqInds[n+1]])
-            
+            est = HMMUtil.viterbi(lpr[Data.seqInds[n]:Data.seqInds[n+1]],
+                                  initParam, transParam)
+
             if resp is None:
                 resp = np.vstack(seqResp)
                 respPair = seqRespPair
+                estZ = est
             else:
                 resp = np.vstack((resp, seqResp))
                 respPair = np.append(respPair, seqRespPair, axis = 0)
+                estZ = np.append(estZ, est)
             logMargPr[n] = seqLogMargPr
+
+        self.estZ = estZ
     
         LP.update({'evidence':np.sum(logMargPr)})        
         LP.update({'resp':resp})
@@ -155,14 +162,14 @@ class FiniteHMM(AllocModel):
         respPairSums = np.sum(respPair, axis = 0)
         firstStateResp = np.sum(resp[inds], axis = 0)
         N = np.sum(resp, axis = 0)
-        print N
+        #print N
         SS = SuffStatBag(K = self.K , D = Data.dim)
         SS.setField('firstStateResp', firstStateResp, dims=('K'))
         SS.setField('respPairSums', respPairSums, dims=('K','K'))
         SS.setField('N', N, dims=('K'))
 
         if doPrecompEntropy is not None:
-            entropy = self.elbo_z(LP, SS)
+            entropy = self.elbo_z(LP, SS, Data)
             SS.setELBOTerm('Elogqz', entropy, dims = (()))
 
 
@@ -190,8 +197,7 @@ class FiniteHMM(AllocModel):
             self.initPi = np.ones(self.K)
             self.transPi = np.ones((self.K, self.K))
 
-        self.initPi = (SS.firstStateResp + self.initAlpha) \
-            / (SS.firstStateResp.sum() + self.K * self.initAlpha)
+        self.initPi = SS.firstStateResp / SS.firstStateResp.sum()
 
         normFactor = np.sum(SS.respPairSums, axis = 1)
         for i in xrange(SS.K):
@@ -238,7 +244,7 @@ class FiniteHMM(AllocModel):
             if SS.hasELBOTerm('Elogqz'):
                 entropy = np.sum(SS.getELBOTerm('Elogqz'))
             else:
-                entropy = np.sum(self.elbo_z(LP, SS))
+                entropy = np.sum(self.elbo_z(LP, SS, Data))
             return self.elbo_pi0(LP) + self.elbo_pi(SS) + entropy
         else:
             raise NotImplementedError('Unrecognized inferType '+self.inferType)
@@ -271,13 +277,13 @@ class FiniteHMM(AllocModel):
                           digamma(np.sum(self.transTheta, axis = 1))[:,np.newaxis]))
         return normP - normQ + theMeat
  
-    def elbo_z(self, LP, SS):
+    def elbo_z(self, LP, SS, Data):
         s = (LP['respPair'] / 
              (np.sum(LP['respPair'], axis = 2)[:, :, np.newaxis] + EPS))
 
-        z_1 = np.sum(LP['resp'][0,:] * (digamma(self.initTheta) - 
-                                        digamma(np.sum(self.initTheta)) -
-                                        np.log(LP['resp'][0,:] + EPS)))
+        z_1 = np.sum(LP['resp'][Data.seqInds[:-1],:]*(digamma(self.initTheta) - 
+                                digamma(np.sum(self.initTheta)) -
+                                np.log(LP['resp'][Data.seqInds[:-1],:] + EPS)))
 #        restZ = -np.sum(LP['respPair'][1:,:,:] * \
 #              np.log(LP['respPair'][1:,:,:] + EPS)) + \
 #              np.sum(digamma(self.transTheta)*SS.respPairSums) - \
@@ -294,14 +300,16 @@ class FiniteHMM(AllocModel):
   #########################################################   for machines
     def to_dict(self):
         if self.inferType == 'EM':
-            return dict(initPi = self.initPi, transPi = self.transPi)
+            return dict(initPi = self.initPi, transPi = self.transPi, 
+                        estZ = self.estZ)
         elif self.inferType.count('VB') > 0:
             return dict(initTheta = self.initTheta, 
-                        transTheta = self.transTheta)
+                        transTheta = self.transTheta, estZ = self.estZ)
 
     def from_dict(self, myDict):
         self.inferType = myDict['inferType']
         self.K = myDict['K']
+        self.estZ = myDict['estZ']
         if self.inferType.count('VB') > 0:
             self.initTheta = myDict['initTheta']
             self.transTheta = myDict['transTheta']

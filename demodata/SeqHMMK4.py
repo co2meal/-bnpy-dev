@@ -8,6 +8,8 @@ import numpy as np
 #from bnpy.data.SeqXData import SeqXData
 from bnpy.data import SeqXData, MinibatchIterator
 
+import scipy.io
+
 
 ##################################################### Set Parameters
 K = 4
@@ -116,4 +118,5 @@ def get_data(seed=8675309, seqLens=((6000,6000,6000,6000,1000)), **kwargs):
     
     Data = SeqXData(X=X, seqInds = inds, nObsTotal = np.sum(inds), TrueZ = Z)
     Data.summary = get_data_info()
+    scipy.io.savemat('trueZ.mat', {'trueZ':Z})
     return Data

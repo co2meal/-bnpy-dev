@@ -8,6 +8,7 @@ Intentionally separated from rest of HMM code, so that we can swap in
   any fast routine for this calculation with ease.
 '''
 import numpy as np
+from lib.LibFwdBwd import FwdAlg_cpp, BwdAlg_cpp
 
 def FwdBwdAlg(PiInit, PiMat, logSoftEv):
   '''Execute forward-backward message passing algorithm
@@ -52,21 +53,23 @@ def FwdBwdAlg(PiInit, PiMat, logSoftEv):
 
   SoftEv, lognormC = expLogLik(logSoftEv)
   
-  fmsg, margPrObs = FwdAlg(PiInit, PiMat, SoftEv )
-  bmsg = BwdAlg( PiInit, PiMat, SoftEv, margPrObs)
+  fmsg, margPrObs = FwdAlg_py(PiInit, PiMat, SoftEv)
+  bmsg = BwdAlg_py(PiInit, PiMat, SoftEv, margPrObs)
 
-  respPair = np.zeros( (T,K,K) )
-  for t in xrange( 1, T ):
-    respPair[t] = PiMat * np.outer(fmsg[t-1], bmsg[t] * SoftEv[t]) / margPrObs[t]
+  respPair = np.zeros((T,K,K))
+  for t in xrange(1, T):
+    respPair[t] = np.outer(fmsg[t-1], bmsg[t] * SoftEv[t])
+    respPair[t] *= PiMat / margPrObs[t]
     #assert np.allclose(respPair[t].sum(), 1.0)
   logMargPrSeq = np.log(margPrObs).sum() + lognormC.sum()
-
   resp = fmsg * bmsg
   return resp, respPair, logMargPrSeq
 
 
-def FwdAlg(PiInit, PiMat, SoftEv):
-  ''' Execute forward message-passing on an observed sequence
+def FwdAlg_py(PiInit, PiMat, SoftEv):
+  ''' Forward algorithm for a single HMM sequence. In pure python.
+
+      Execute forward message-passing on an observed sequence
        given HMM state transition params and likelihoods of each observation
 
      Args
@@ -103,9 +106,12 @@ def FwdAlg(PiInit, PiMat, SoftEv):
     fmsg[t] /= margPrObs[t]
   return fmsg, margPrObs
   
-def BwdAlg(PiInit, PiMat, SoftEv, margPrObs):
-  '''Execute backward message-passing on an observed sequence
-       given HMM state transition params and likelihoods of each observation
+
+def BwdAlg_py(PiInit, PiMat, SoftEv, margPrObs):
+  '''Backward algorithm for a single HMM sequence. In pure python.
+
+     Takes as input the HMM state transition params, initial probabilities,
+           and likelihoods of each observation
      Requires running forward filtering first, to obtain correct scaling.
 
      Args
@@ -138,6 +144,7 @@ def BwdAlg(PiInit, PiMat, SoftEv, margPrObs):
     bmsg[t] = np.dot(PiMat, bmsg[t+1] * SoftEv[t+1] )
     bmsg[t] /= margPrObs[t+1]
   return bmsg
+
 
 ########################################################### expLogLik
 ###########################################################

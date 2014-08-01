@@ -84,7 +84,6 @@ class GaussDistr( Distr ):
       return self.Cache['invL']
       
   def cholSigma(self):
-    print self.L
     try:
       return self.Cache['cholSigma']
     except KeyError:
