@@ -27,6 +27,8 @@ class FiniteHMM(AllocModel):
         self.initTheta = None
         self.transTheta = None
 
+        self.estZ = dict()
+
 
     #TODO: actually set up priors in config/allocmodel.conf
     def set_prior(self, initAlpha = .1, transAlpha = .1, **kwargs):
@@ -96,17 +98,17 @@ class FiniteHMM(AllocModel):
             est = HMMUtil.viterbi(lpr[Data.seqInds[n]:Data.seqInds[n+1]],
                                   initParam, transParam)
 
+
             if resp is None:
                 resp = np.vstack(seqResp)
                 respPair = seqRespPair
-                estZ = est
             else:
                 resp = np.vstack((resp, seqResp))
                 respPair = np.append(respPair, seqRespPair, axis = 0)
-                estZ = np.append(estZ, est)
             logMargPr[n] = seqLogMargPr
+            
+            self.estZ.update({'%d'%(Data.seqsUsed[n]) : est})
 
-        self.estZ = estZ
     
         LP.update({'evidence':np.sum(logMargPr)})        
         LP.update({'resp':resp})
@@ -146,7 +148,7 @@ class FiniteHMM(AllocModel):
 
         (see the documentation for information about resp and respPair)
         '''
-        
+
         #This method is called before calc_local_params() during initialization,
             #in which case resp and respPair won't exist
         if ('resp' not in LP) or ('respPair' not in LP):
@@ -171,7 +173,6 @@ class FiniteHMM(AllocModel):
         if doPrecompEntropy is not None:
             entropy = self.elbo_z(LP, SS, Data)
             SS.setELBOTerm('Elogqz', entropy, dims = (()))
-
 
         return SS
 
@@ -272,7 +273,7 @@ class FiniteHMM(AllocModel):
         normQ = np.sum(gammaln(np.sum(self.transTheta, axis = 1)) - \
                            np.sum(gammaln(self.transTheta), axis = 1))
 
-        theMeat = np.sum((self.initAlpha - self.transTheta) *
+        theMeat = np.sum((self.transAlpha - self.transTheta) *
                          (digamma(self.transTheta) - 
                           digamma(np.sum(self.transTheta, axis = 1))[:,np.newaxis]))
         return normP - normQ + theMeat
@@ -280,7 +281,7 @@ class FiniteHMM(AllocModel):
     def elbo_z(self, LP, SS, Data):
         s = (LP['respPair'] / 
              (np.sum(LP['respPair'], axis = 2)[:, :, np.newaxis] + EPS))
-
+        
         z_1 = np.sum(LP['resp'][Data.seqInds[:-1],:]*(digamma(self.initTheta) - 
                                 digamma(np.sum(self.initTheta)) -
                                 np.log(LP['resp'][Data.seqInds[:-1],:] + EPS)))
@@ -299,12 +300,18 @@ class FiniteHMM(AllocModel):
   ######################################################### IO Utils
   #########################################################   for machines
     def to_dict(self):
+       #convert the self.estZ dictionary to a list
+        estz = list()
+        for seq in xrange(np.size(self.estZ.keys())):
+            if '%d'%(seq) in self.estZ:
+                estz.append(self.estZ['%d'%(seq)])
+
         if self.inferType == 'EM':
             return dict(initPi = self.initPi, transPi = self.transPi, 
-                        estZ = self.estZ)
+                        estZ = estz)
         elif self.inferType.count('VB') > 0:
             return dict(initTheta = self.initTheta, 
-                        transTheta = self.transTheta, estZ = self.estZ)
+                        transTheta = self.transTheta, estZ = estz)
 
     def from_dict(self, myDict):
         self.inferType = myDict['inferType']
@@ -319,4 +326,5 @@ class FiniteHMM(AllocModel):
 
     def get_prior_dict(self):
         return dict(initAlpha = self.initAlpha, transAlpha = self.transAlpha, \
+
                         K = self.K)
