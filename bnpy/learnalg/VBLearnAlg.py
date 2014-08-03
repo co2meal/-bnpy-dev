@@ -77,6 +77,7 @@ class VBLearnAlg( LearnAlg ):
       isConverged = self.verify_evidence( evBound, prevBound )
       if isConverged:
         break
+        
       prevBound = evBound
 
     #Finally, save, print and exit

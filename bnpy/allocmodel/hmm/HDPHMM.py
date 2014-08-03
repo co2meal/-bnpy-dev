@@ -9,7 +9,7 @@ from bnpy.allocmodel.admix import OptimizerForHDPStickBreak as OptimHDPSB
 
 class HDPHMM(AllocModel):
 
-    def __init__(self, inferType, priorDict):
+    def __init__(self, inferType, priorDict = dict()):
         if inferType == 'EM':
             raise ValueError('EM is not supported for HDPHMM')
         
@@ -26,21 +26,16 @@ class HDPHMM(AllocModel):
         #Beta params for initial distribution stick
         self.b = None
 
-        self.tau = .1
-        self.gamma = .1
-        self.alpha = .1
-        self.Lambda = .1
-        self.prevv = None
-        self.prevv0 = None
-        self.prevz = None
-        self.prevy = None
+        self.set_prior(**priorDict)
 
+        self.estZ = dict()
 
     def set_prior(self, gamma=1.1, alpha=1.1, Lambda=1, tau=1.1, **kwargs):
         self.gamma = gamma
         self.alpha = alpha
         self.Lambda = Lambda
         self.tau = tau
+        print self.tau
 
 
   ######################################################### Local Params
@@ -64,7 +59,6 @@ class HDPHMM(AllocModel):
              Note that respPair[0,:,:] is undefined.
         '''
         lpr = LP['E_log_soft_ev']
-
         expELogBeta = np.ones((self.K, self.K))
         expELogPi = np.ones(self.K)
 
@@ -92,9 +86,8 @@ class HDPHMM(AllocModel):
 
         resp = None
         respPair = None
-        estZ = None
         for n in xrange(Data.nSeqs):
-            #The third return value, logMargPr, is useless in the HDPHMM
+
             seqResp, seqRespPair, _ = \
                 HMMUtil.FwdBwdAlg(expELogPi, expELogBeta, \
                                       lpr[Data.seqInds[n]:Data.seqInds[n+1]])
@@ -104,13 +97,11 @@ class HDPHMM(AllocModel):
             if resp is None:
                 resp = np.vstack(seqResp)
                 respPair = seqRespPair
-                estZ = est
             else:
                 resp = np.vstack((resp, seqResp))
                 respPair = np.append(respPair, seqRespPair, axis = 0)
-                estZ = np.append(estZ, est)
 
-        self.estZ = estZ
+            self.estZ.update({'%d'%(Data.seqsUsed[n]) : est})
 
         LP.update({'resp':resp})
         LP.update({'respPair':respPair})
@@ -190,7 +181,7 @@ class HDPHMM(AllocModel):
 
 
     def update_global_params_EM(self, SS, **kwargs):
-        raise ValueError('HDPHMM.py does not support EM')
+        raise ValueError('HDPHMM does not support EM')
 
 
     def update_global_params_VB(self, SS, **kwargs):
@@ -207,6 +198,8 @@ class HDPHMM(AllocModel):
 
         #Update rho and omega through numerical optimization
         self.rho, self.omega = self.find_optimum_rhoOmega(SS, **kwargs)
+        #self.rho = np.ones(self.K) * .5
+        #self.omega = np.ones(self.K) * .5
         
         rhoProds = np.array([np.prod(1-self.rho[0:i]) for i in xrange(self.K)])
 
@@ -280,8 +273,12 @@ class HDPHMM(AllocModel):
           #for q(z_t | z_{t-1})
         sigma  = (LP['respPair'] / 
                   (np.sum(LP['respPair'], axis = 2)[:, :, np.newaxis] + EPS))
+
+
+        #print LP['resp'][Data.seqInds[:-1]]
         z_1 = -np.sum(LP['resp'][Data.seqInds[:-1],:] * \
                       np.log(LP['resp'][Data.seqInds[:-1],:] + EPS))
+#        z_1 = -np.sum(LP['resp'][0,:] * np.log(LP['resp'][0,:] + EPS))
         restZ = -np.sum(LP['respPair'][1:,:,:] * np.log(sigma[1:,:,:] + EPS))
         return z_1 + restZ
 
@@ -344,8 +341,14 @@ class HDPHMM(AllocModel):
 
 
     def to_dict(self):
+        #convert the self.estZ dictionary to a list
+        estz = list()
+        for seq in xrange(np.size(self.estZ.keys())):
+            if '%d'%(seq) in self.estZ:
+                estz.append(self.estZ['%d'%(seq)])
+
         return dict(u = self.u, y = self.b, omega = self.omega,
-                    rho = self.rho, estZ = self.estZ)
+                    rho = self.rho, estZ = estz)
 
     def from_dict(self, myDict):
         self.inferType = myDict['inferType']
