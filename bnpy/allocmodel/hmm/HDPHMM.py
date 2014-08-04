@@ -29,14 +29,13 @@ class HDPHMM(AllocModel):
         self.set_prior(**priorDict)
 
         self.estZ = dict()
+        self.entropy = 0
 
     def set_prior(self, gamma=1.1, alpha=1.1, Lambda=1, tau=1.1, **kwargs):
         self.gamma = gamma
         self.alpha = alpha
         self.Lambda = Lambda
         self.tau = tau
-        print self.tau
-
 
   ######################################################### Local Params
   #########################################################
@@ -260,6 +259,13 @@ class HDPHMM(AllocModel):
         else:
             entropy = self.elbo_entropy(Data, LP)
 
+        self.entropy = entropy
+ #       v0 = self.elbo_v0()
+ #       alloc = self.elbo_alloc()
+ #       print 'v0 =',v0,' alloc =',alloc,' entropy =',entropy
+ #       print 'total = ', v0+alloc+entropy
+ #       return v0 + alloc + entropy
+
         return entropy + self.elbo_alloc() + self.elbo_v0() + \
             self.elbo_allocSlack()
 
@@ -275,7 +281,6 @@ class HDPHMM(AllocModel):
                   (np.sum(LP['respPair'], axis = 2)[:, :, np.newaxis] + EPS))
 
 
-        #print LP['resp'][Data.seqInds[:-1]]
         z_1 = -np.sum(LP['resp'][Data.seqInds[:-1],:] * \
                       np.log(LP['resp'][Data.seqInds[:-1],:] + EPS))
 #        z_1 = -np.sum(LP['resp'][0,:] * np.log(LP['resp'][0,:] + EPS))
@@ -296,7 +301,7 @@ class HDPHMM(AllocModel):
                             digamma(self.omega)))
         normQy = np.sum(gammaln(self.b[1,:] + self.b[0,:]) - \
                            gammaln(self.b[1,:]) - gammaln(self.b[0,:]))
-
+        
         normPv = self.K**2 * np.log(self.alpha) + \
             self.K * np.sum(digamma(self.rho * self.omega) - \
                                 digamma(self.omega) + thatOneTerm * \
@@ -305,7 +310,8 @@ class HDPHMM(AllocModel):
         normQv = np.sum(gammaln(self.u[1,:,:] + self.u[0,:,:]) - \
                            gammaln(self.u[1,:,:]) - \
                            gammaln(self.u[0,:,:]))
-
+        
+        print 'normP =',normPy + normPv, 'normQ =', normQy + normQv
         return normPy + normPv - normQy - normQv
 
 
@@ -325,7 +331,6 @@ class HDPHMM(AllocModel):
             self.K * gammaln(self.gamma)
         normQ = np.sum(gammaln(self.omega) - gammaln(self.rho * self.omega) - \
                            gammaln((1 - self.rho) * self.omega))
-
         theMeat = np.sum((self.gamma - (1-self.rho) * self.omega) * \
                              (digamma((1-self.rho)*self.omega) - \
                                   digamma(self.omega)) + \
@@ -348,7 +353,7 @@ class HDPHMM(AllocModel):
                 estz.append(self.estZ['%d'%(seq)])
 
         return dict(u = self.u, y = self.b, omega = self.omega,
-                    rho = self.rho, estZ = estz)
+                    rho = self.rho, estZ = estz, entropy = self.entropy)
 
     def from_dict(self, myDict):
         self.inferType = myDict['inferType']

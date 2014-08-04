@@ -30,6 +30,7 @@ class FiniteHMM(AllocModel):
         self.estZ = dict()
 
 
+
     #TODO: actually set up priors in config/allocmodel.conf
     def set_prior(self, initAlpha = .1, transAlpha = .1, **kwargs):
         self.initAlpha = initAlphaf #Dirichlet parameter for initPi
@@ -164,14 +165,14 @@ class FiniteHMM(AllocModel):
         respPairSums = np.sum(respPair, axis = 0)
         firstStateResp = np.sum(resp[inds], axis = 0)
         N = np.sum(resp, axis = 0)
-        #print N
+
         SS = SuffStatBag(K = self.K , D = Data.dim)
         SS.setField('firstStateResp', firstStateResp, dims=('K'))
         SS.setField('respPairSums', respPairSums, dims=('K','K'))
         SS.setField('N', N, dims=('K'))
 
         if doPrecompEntropy is not None:
-            entropy = self.elbo_z(LP, SS, Data)
+            self.entropy = self.elbo_z(LP, SS, Data)
             SS.setELBOTerm('Elogqz', entropy, dims = (()))
 
         return SS
@@ -308,10 +309,11 @@ class FiniteHMM(AllocModel):
 
         if self.inferType == 'EM':
             return dict(initPi = self.initPi, transPi = self.transPi, 
-                        estZ = estz)
+                        estZ = estz, entropy = self.entropy)
         elif self.inferType.count('VB') > 0:
             return dict(initTheta = self.initTheta, 
-                        transTheta = self.transTheta, estZ = estz)
+                        transTheta = self.transTheta, estZ = estz,
+                        entropy = self.entropy)
 
     def from_dict(self, myDict):
         self.inferType = myDict['inferType']
