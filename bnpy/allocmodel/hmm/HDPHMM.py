@@ -221,6 +221,7 @@ class HDPHMM(AllocModel):
             self.b[0,i] = self.tau * (1 - self.rho[i]) * rhoProds[i] + \
                 np.sum(SS.firstStateResp[i+1:self.K])
 
+
     def update_global_params_soVB(self, SS, rho, **kwargs):
         ''' Updates global parameters when learning with stochastic online VB.
             Note that the rho here is the learning rate parameter, not
@@ -311,7 +312,7 @@ class HDPHMM(AllocModel):
                            gammaln(self.u[1,:,:]) - \
                            gammaln(self.u[0,:,:]))
         
-        print 'normP =',normPy + normPv, 'normQ =', normQy + normQv
+        #print 'normP =',normPy + normPv, 'normQ =', normQy + normQv
         return normPy + normPv - normQy - normQv
 
 
