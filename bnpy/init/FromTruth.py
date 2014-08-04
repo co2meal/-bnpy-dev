@@ -86,7 +86,6 @@ def _initFromTrueLP(hmodel, Data, initname, PRNG, nRepeatTrue=2, **kwargs):
   hmodel.update_global_params(SS)
 
 
-
 def convertLPFromHardToSoft(LP, Data):
   ''' Transform array of hard assignment labels in Data into local param dict
 
