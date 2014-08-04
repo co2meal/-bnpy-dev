@@ -3,28 +3,15 @@ WordsData.py
 
 Data object that represents word counts across a collection of documents.
 
-Terminology
--------
-* Vocab : The finite collection of possible words.  
-    {apple, berry, cardamom, fruit, pear, walnut}
-  We assume this set has a fixed ordering, so each word is associated 
-  with a particular integer in the set 0, 1, ... vocab_size-1
-     0: apple        3: fruit
-     1: berry        4: pear
-     2: cardamom     5: walnut
-* Document : a collection of words, observed together from the same source
-  For example: 
-      "apple, berry, berry, pear, pear, pear, walnut"
-
 * nDoc : number of documents in the current, in-memory dataset
 * nDocTotal : total number of docs, in entire dataset (for online applications)
 '''
 
-from .AdmixMinibatchIterator import AdmixMinibatchIterator
-from .DataObj import DataObj
 import numpy as np
 import scipy.sparse
-from ..util import RandUtil
+
+from bnpy.data.DataObj import DataObj
+from bnpy.util import RandUtil
 
 class WordsData(DataObj):
 
@@ -50,9 +37,9 @@ class WordsData(DataObj):
                     (in case this obj represents a minibatch)
         TrueParams : None [default], or dict of attributes
     '''
-    self.word_id = np.asarray(np.squeeze(word_id), dtype=np.uint32)
+    self.word_id = np.asarray(np.squeeze(word_id), dtype=np.int32)
     self.word_count = np.asarray(np.squeeze(word_count), dtype=np.float64)
-    self.doc_range = np.asarray(doc_range, dtype=np.uint32)
+    self.doc_range = np.asarray(doc_range, dtype=np.int32)
     self.vocab_size = int(vocab_size)
   
     self._set_corpus_size_attributes(nDocTotal)
@@ -65,6 +52,17 @@ class WordsData(DataObj):
     # Add dictionary of vocab words, if provided
     if vocab_dict is not None:
       self.vocab_dict = vocab_dict
+
+  def deleteNonEssentialAttributes(self):
+    ''' Remove extra attributes that save recomputation, but waste memory
+    '''
+    if hasattr(self, '__sparseMat__'):
+      del self.__sparseMat__
+    if hasattr(self, '_sparseDocWordMat'):
+      del self._sparseDocWordMat
+    if hasattr(self, 'TrueParams'):
+      if 'word_variational' in self.TrueParams:
+        del self.TrueParams['word_variational']
 
   def _set_corpus_size_attributes(self, nDocTotal=None):
     ''' Sets nDoc, nObs, and nDocTotal attributes of this WordsData object
@@ -96,6 +94,57 @@ class WordsData(DataObj):
     assert self.doc_range.shape[1] == 2
     assert np.all( self.doc_range[:-1,1] == self.doc_range[1:,0])
 
+  ######################################################### List of tuple
+  #########################################################  representations
+
+  @classmethod
+  def from_list_of_tuples(cls, myList, vocab_size=None):
+    nDoc = len(myList)
+    doc_range = np.zeros((nDoc,2))
+    N = 0
+    for doc in xrange(nDoc):
+      myDocTuple = myList[doc]
+      if len(myDocTuple) == 2:
+        Ncur = myDocTuple[0].size
+      else:
+        Ncur = myDocTuple[1].size
+
+      doc_range[doc, 0] = N
+      doc_range[doc, 1] = N + Ncur
+      N += Ncur
+
+    word_id = np.zeros(N)
+    word_count = np.zeros(N)
+    for docID in xrange(nDoc):
+      start = doc_range[docID,0]
+      stop = doc_range[docID,1]
+      myDocTuple = myList[docID]
+      if len(myDocTuple) == 2:
+        p = 0
+      else:
+        p = 1
+      word_id[start:stop] = myDocTuple[p]
+      word_count[start:stop] = myDocTuple[p+1]
+    return cls(word_id, word_count, doc_range, vocab_size)
+
+  def to_list_of_tuples(self, docIDs=None, w=None):
+    ''' Make a list of tuples, each containing (word_id,word_ct) for one doc
+    '''
+    # need to ensure uniqueness of each entry
+    if docIDs is None:
+      docIDs = np.arange(self.nDoc)
+    myList = list()
+    for docID in docIDs:
+      start = self.doc_range[docID,0]
+      stop = self.doc_range[docID,1]
+      wid = self.word_id[start:stop].copy()
+      wct = self.word_count[start:stop].copy()
+      if w is None:
+        myList.append((wid, wct))
+      else:
+        wf = float(w[docID]) + 1e-16 * docID
+        myList.append((wf, wid, wct))
+    return myList
 
   ######################################################### Sparse matrix
   #########################################################  representations
@@ -130,41 +179,25 @@ class WordsData(DataObj):
       return self.__sparseMat__
   
   def to_sparse_docword_matrix(self, weights=None, thr=None, **kwargs):
-    ''' Make sparse matrix counting vocab usage for each document in dataset
-        Used for efficient initialization of global parameters.
+    ''' Make sparse matrix counting vocab usage for each document in dataset.
 
         Returns
         -------
         C : sparse (CSR-format) matrix, of shape nDoc-x-vocab_size, where
             C[d,v] = total count of vocab word v in document d
     '''
-    if hasattr(self, "__sparseDocWordMat__") and weights is None:
-      return self.__sparseDocWordMat__
-    row_ind = list()
-    col_ind = list()
-    doc_range = self.doc_range
-    word_count = self.word_count
-    for d in xrange(self.nDoc):
-      numDistinct = doc_range[d,1] - doc_range[d,0]
-      doc_ind_temp = [d]*numDistinct
-      row_ind.extend(doc_ind_temp)
-      col_ind.extend(self.word_id[doc_range[d,0]:doc_range[d,1]])
-    if weights is None:
-      weights = self.word_count
-    else:
-      if thr is not None:
-        mask = np.flatnonzero(weights > thr)
-        weights = weights[mask] * self.word_count[mask]
-        row_ind = np.asarray(row_ind)[mask]
-        col_ind = np.asarray(col_ind)[mask]
-      else:
-        weights = weights * self.word_count
+    if hasattr(self, '_sparseDocWordMat') and weights is None:
+      return self._sparseDocWordMat
+    if weights is not None:
+      raise NotImplementedError('TODO')
+
+    indptr = np.hstack( [self.doc_range[0,0], self.doc_range[:,1]])
     sparseDocWordmat = scipy.sparse.csr_matrix(
-                               (weights, (row_ind,col_ind)),
-                               shape=(self.nDoc, self.vocab_size), 
-                               dtype=np.float64)
+                             (self.word_count, self.word_id, indptr),
+                             shape=(self.nDoc, self.vocab_size), 
+                             dtype=np.float64)
     if weights is None:
-      self.__sparseDocWordMat__ = sparseDocWordmat
+      self._sparseDocWordMat = sparseDocWordmat
     return sparseDocWordmat
 
   def get_nObs2nDoc_mat(self):
@@ -174,10 +207,19 @@ class WordsData(DataObj):
     # row_ind will look like 0000, 111, 22, 33333, 444, 55
     col_ind = np.arange(self.nObs)
 
-    indptr = np.hstack([Data.doc_range[0,0], Data.doc_range[:,1]])
-    return scipy.sparse.csr_matrix( (data, (row_ind, col_ind)),
+    indptr = np.hstack([self.doc_range[0,0], self.doc_range[:,1]])
+    return scipy.sparse.csr_matrix( (data, col_ind, indptr),
                                     shape=(self.nDoc, self.nObs),
                                     dtype=np.float64)
+
+  def get_wordfreq_for_doc(self, docID):
+    ''' Returns vector of counts for each vocabulary word in document docID
+    '''
+    x = np.zeros(self.vocab_size)
+    start = self.doc_range[docID, 0]
+    stop = self.doc_range[docID, 1]
+    x[self.word_id[start:stop]] = self.word_count[start:stop]
+    return x
 
   ######################################################### DataObj interface
   #########################################################  methods
@@ -188,6 +230,7 @@ class WordsData(DataObj):
         -------
           see AdmixMinibatchIterator
     '''
+    from AdmixMinibatchIterator import AdmixMinibatchIterator
     return AdmixMinibatchIterator(self, **kwargs)
    
   def add_data(self, WData):
@@ -203,7 +246,9 @@ class WordsData(DataObj):
     self.nDocTotal += WData.nDocTotal
     self._verify_attributes()
 
-  def get_random_sample(self, nDoc, randstate=np.random, candidates=None):
+  def get_random_sample(self, nDoc, randstate=np.random,
+                                    candidates=None,
+                                    p=None):
     ''' Create WordsData object for random subsample of this dataset
 
         Args
@@ -216,9 +261,11 @@ class WordsData(DataObj):
         WordsData : bnpy WordsData instance, with at most nDoc documents
     '''
     if candidates is None:
-      docMask = randstate.permutation(self.nDoc)[:nDoc]
+      nSamples = np.minimum(self.nDoc, nDoc)
+      docMask = randstate.choice(self.nDoc, nSamples, replace=False)
     else:
-      docMask = randstate.permutation(candidates)[:nDoc]
+      nSamples = np.minimum(len(candidates), nDoc)
+      docMask = randstate.choice(candidates, nSamples, replace=False, p=p)
     return self.select_subset_by_mask(docMask=docMask,
                                                 doTrackFullSize=False)
 
@@ -302,7 +349,7 @@ class WordsData(DataObj):
     if wordLocs is None:
       if hasattr(self, "__docid__"):
         return self.__docid__
-      self.__docid__ = np.zeros(self.word_id.size, dtype=np.uint32)
+      self.__docid__ = np.zeros(self.word_id.size, dtype=np.int32)
       for dd in range(self.nDoc):
         self.__docid__[self.doc_range[dd,0]:self.doc_range[dd,1]] = dd
       return self.__docid__
@@ -317,6 +364,59 @@ class WordsData(DataObj):
                                  wordLocs >= self.doc_range[dd-1,1])
       docIDs[matchMask] = dd
     return docIDs     
+
+  ######################################################### word-word cooccur
+  #########################################################
+  def to_wordword_cooccur_matrix(self, dtype=np.float64):
+    Q, sameWordVec, _ = self.to_wordword_cooccur_building_blocks(dtype=dtype)
+    return self._calc_wordword_cooccur(Q, sameWordVec, self.nDoc)
+
+  def to_wordword_cooccur_building_blocks(self, dtype=np.float32):
+    sameWordVec = np.zeros(self.vocab_size)
+    data = np.zeros(self.word_count.shape, dtype=dtype)
+
+    wordcount = self.word_count
+    wordid = self.word_id
+
+    for docID in xrange(self.nDoc):
+      start = self.doc_range[docID,0]
+      stop = self.doc_range[docID,1]
+      N = wordcount[start:stop].sum()
+      NNm1 = N * (N-1)
+      sameWordVec[wordid[start:stop]] += wordcount[start:stop] / NNm1
+      data[start:stop] = wordcount[start:stop]/np.sqrt(NNm1)
+
+    ## Now, create a sparse matrix that's D x V
+    indptr = np.hstack( [self.doc_range[0,0], self.doc_range[:,1]])
+    sparseDocWordMat = scipy.sparse.csr_matrix(
+                             (data, wordid, indptr),
+                             shape=(self.nDoc, self.vocab_size), 
+                             dtype=dtype)
+    ## Q : V x V
+    from sklearn.utils.extmath import safe_sparse_dot
+    Q = safe_sparse_dot(sparseDocWordMat.T, sparseDocWordMat, dense_output=1)
+    return Q, sameWordVec, self.nDoc
+
+  def _calc_wordword_cooccur(self, Q, sameWordVec, nDoc):
+    Q /= nDoc
+    sameWordVec /= nDoc
+    diagIDs = np.diag_indices(self.vocab_size)
+    Q[diagIDs] -= sameWordVec
+    
+    # Fix small numerical issues (like diag entries of -1e-15 instead of 0)
+    np.maximum(Q, 0, out=Q)
+    return Q
+
+  def getNumDocsPerWord(self):
+    nDocsPerWord = np.zeros(self.vocab_size)
+    for docID in xrange(self.nDoc):
+      start = self.doc_range[docID,0]
+      stop = self.doc_range[docID,1]
+      nDocsPerWord[self.word_id[start:stop]] += 1
+    return nDocsPerWord
+    
+  def getWordsThatAppearInAtLeastNDocs(self, N):
+    return np.flatnonzero(self.getNumDocsPerWord() >= N)
 
   ######################################################### Text summary
   ######################################################### 
@@ -361,6 +461,50 @@ class WordsData(DataObj):
     s += ' nTotalWordsPerDoc'
     return s
 
+  def get_most_common_words_summary(self, Vocab=None, targetWordIDs=None,
+                                          pRange=[50, 40, 30, 20, 15, 10]):
+    nDocPerWord = self.getNumDocsPerWord()
+    prevThr = self.nDoc
+    if targetWordIDs is None:
+      remCandidates = np.ones(self.vocab_size)    
+    else:
+      remCandidates = np.zeros(self.vocab_size)
+      remCandidates[targetWordIDs] = 1
+    s = ''
+    for p in pRange:
+      nThr = float(p)/100 * self.nDoc
+      mask = np.logical_and(nDocPerWord >= nThr, remCandidates)
+      nMatch = np.sum(mask)
+      if nMatch > 0:
+        matchWords = np.flatnonzero(mask)[:10]
+        if Vocab is None:
+          wordStr = ' '.join([str(w) for w in matchWords])
+        else:
+          wordStr = ' '.join([Vocab[w] for w in matchWords])
+        s += " >%d%% %3d   %s\n" % (p, nMatch, wordStr)  
+      else:
+        s += " >%d%% %3d   \n" % (p, 0)
+      remCandidates = np.logical_and(nDocPerWord < nThr, remCandidates)
+    return s
+
+  def get_example_documents_summary(self, nExamples=10, Vocab=None, Ntop=10):
+    PRNG = np.random.RandomState( nExamples * self.nDoc)
+    nExamples = np.minimum(nExamples, self.nDoc)
+    docIDs = PRNG.choice(self.nDoc, nExamples, replace=0)
+    s = ''
+    for d in docIDs:
+      start = self.doc_range[d, 0]
+      stop = self.doc_range[d, 1]
+      docWordCount = self.word_count[start:stop]
+      docWordID = self.word_id[start:stop]
+      topWords = docWordID[np.argsort(-1*docWordCount)[:Ntop]]
+      if Vocab is not None:
+        wordStr = ' '.join([Vocab[w] for w in topWords])
+      else:
+        wordStr = ' '.join([str(w) for w in topWords])
+      s += wordStr + '\n'
+    return s
+
   ######################################################### Create from MAT
   #########################################################  (class method)
   @classmethod
@@ -389,7 +533,7 @@ class WordsData(DataObj):
     word_id = list()
     word_count = list()
     nDoc = len(doc_data)
-    doc_range = np.zeros((nDoc,2), dtype=np.uint32)
+    doc_range = np.zeros((nDoc,2), dtype=np.int32)
     ii = 0
     for d in xrange( nDoc ):
       # make sure we subtract 1 for word_ids since python indexes by 0
@@ -431,7 +575,7 @@ class WordsData(DataObj):
 
   @classmethod
   def CreateToyDataFromLDAModel(cls, seed=101, 
-                nDocTotal=None, nWordsPerDoc=None, 
+                nDocTotal=None, nWordsPerDoc=None, nWordsPerDocFunc=None,
                 topic_prior=None, topics=None,
                 **kwargs):
     ''' Generates WordsData dataset via LDA generative model,
@@ -464,6 +608,9 @@ class WordsData(DataObj):
     for d in xrange(nDocTotal):
       # Draw topic appearance probabilities for this document
       alphaLP[d,:] = PRNG.dirichlet(topic_prior)
+
+      if nWordsPerDocFunc is not None:
+        nWordsPerDoc = nWordsPerDocFunc(PRNG)
 
       # Draw the topic assignments for this doc
       ## Npercomp : K-vector, Npercomp[k] counts appearance of topic k

@@ -6,7 +6,10 @@ Optimized numerical routines for computing local parameters for bag-of-words top
 import numpy as np
 from scipy.special import digamma
 
-from ...util import NumericUtil 
+ bnpy.util import NumericUtil 
+
+########################################################### dirichlet helpers
+###########################################################
 
 def update_DocTopicCount(Data, LP):
   assert 'word_variational' in LP
@@ -51,6 +54,8 @@ def update_ElogPi(LP, unusedTopicPrior=None):
     LP['E_logPi_u'] = digamma(unusedTopicPrior) - digammasumTheta
   return LP
 
+########################################################### MAIN
+###########################################################
 
 def calcLocalDocParams(Data, LP, topicPrior, **kwargs):
   ''' User-facing function for local step in topic models
