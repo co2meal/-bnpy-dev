@@ -33,7 +33,6 @@ Example
 
 import numpy as np
 from XData import XData
-from MinibatchIterator import MinibatchIterator
 from bnpy.util import as1D
 
 def _toStd2DArray(X):
@@ -81,10 +80,6 @@ class GroupXData(XData):
       if not hasattr(self, 'TrueParams'):
         self.TrueParams = dict()
       self.TrueParams['Z'] = TrueZ
-      
-  def to_minibatch_iterator(self, **kwargs):
-    return MinibatchIterator(self, **kwargs)
-
 
   def _set_dependent_params(self, doc_range, nDocTotal=None): 
     self.nObs = self.X.shape[0]
