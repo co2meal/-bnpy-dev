@@ -2,7 +2,7 @@
 '''
 
 import numpy as np
-from bnpy.data import WordsData, BagOfWordsMinibatchIterator
+from bnpy.data import WordsData
 import Bars2D
 
 # FIXED DATA GENERATION PARAMS
@@ -40,19 +40,6 @@ def get_data(**kwargs):
     Data = WordsData.CreateToyDataFromMixModel(**kwargs)
     Data.summary = get_data_info()
     return Data
-
-def get_minibatch_iterator(**kwargs):
-    ''' Create dataset and iterator to traverse that dataset in minibatches.
-
-        Keyword Args
-        -------
-        nDocTotal
-        nWordsPerDoc
-    '''
-    Data = get_data(**kwargs)
-    DataIterator = BagOfWordsMinibatchIterator(Data, **kwargs)
-    return DataIterator
-
 
 def updateKwArgsWithDefaults(kwargs):
   for key in Defaults:

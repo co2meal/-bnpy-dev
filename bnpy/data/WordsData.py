@@ -96,6 +96,9 @@ class WordsData(DataObj):
   def get_size(self):
     return self.nDoc
 
+  def get_total_size(self):
+    return self.nDocTotal
+
   ######################################################### Minibatch Iterator
   #########################################################
   def to_minibatch_iterator(self, **kwargs):

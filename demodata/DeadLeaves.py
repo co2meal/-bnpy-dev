@@ -5,7 +5,7 @@ DeadLeaves.py
 import scipy.linalg
 import numpy as np
 
-from bnpy.data import XData, MinibatchIterator
+from bnpy.data import XData
 
 ########################################################### User-facing ###########################################################   Accessors
 def get_short_name():
@@ -19,15 +19,6 @@ def get_data(seed=8675309, nObsTotal=25000, **kwargs):
   Data = XData(X=X, TrueZ=TrueZ)
   Data.summary = get_data_info()
   return Data
-
-def get_minibatch_iterator(seed=8675309, nObsTotal=25000, **kwargs):
-  X, TrueZ = generateData(seed, nObsTotal)
-  Data = XData(X=X, TrueZ=TrueZ)
-  Data.summary = get_data_info()
-  DataIterator = MinibatchIterator(Data, **kwargs)
-  return DataIterator
-
-
 
 ########################################################### Create True Params
 ########################################################### for generating data

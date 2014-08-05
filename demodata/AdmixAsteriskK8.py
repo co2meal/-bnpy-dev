@@ -8,10 +8,10 @@ Generated data form an well-separated blobs arranged in "asterisk" shape when pl
 import scipy.linalg
 import numpy as np
 from bnpy.util.RandUtil import rotateCovMat
-from bnpy.data import XData, MinibatchIterator
+from bnpy.data import GroupXData
 
 ########################################################### User-facing 
-def get_data(seed=8675309, nObsTotal=25000, **kwargs):
+def get_data(seed=8675309, nDocTotal=2000, nObsPerDoc=100, **kwargs):
   '''
     Args
     -------
@@ -23,31 +23,9 @@ def get_data(seed=8675309, nObsTotal=25000, **kwargs):
     -------
       Data : bnpy XData object, with nObsTotal observations
   '''
-  X, TrueZ = get_X(seed, nObsTotal)
-  Data = XData(X=X, TrueZ=TrueZ)
+  Data = MakeGroupData(seed, nDocTotal, nObsPerDoc)
   Data.summary = get_data_info()
   return Data
-  
-def get_minibatch_iterator(seed=8675309, nObsTotal=25000, **kwargs):
-  '''
-    Args
-    --------
-    seed : integer seed for random number generator,
-            used for actually *generating* the data
-    dataorderseed : integer seed that determines
-                     (a) how data is divided into minibatches
-                     (b) order these minibatches are traversed
-
-   Returns
-    -------
-      bnpy MinibatchIterator object, with nObsTotal observations
-        divided into nBatch batches
-  '''
-  X, TrueZ = get_X(seed, nObsTotal)
-  Data = XData(X=X)
-  Data.summary = get_data_info()
-  DataIterator = MinibatchIterator(Data, **kwargs)
-  return DataIterator
 
 def get_short_name( ):
   ''' Return short string used in filepaths to store solutions
@@ -63,7 +41,7 @@ def get_data_info():
 K = 8
 D = 2
 
-gamma = 1.0
+gamma = 0.2
 
 ## Create "true" mean parameters
 ## Placed evenly spaced around a circle
@@ -86,23 +64,30 @@ cholSigma = np.zeros(Sigma.shape)
 for k in xrange( K ):
   cholSigma[k] = scipy.linalg.cholesky( Sigma[k] )
 
-def sample_data_from_comp(k, Nk, PRNG):
-  return Mu[k,:] + np.dot(cholSigma[k].T, PRNG.randn(D, Nk) ).T
 
-def get_X(seed, nDocTotal, nObsPerDoc):
+def MakeGroupData(seed, nDoc, nObsPerDoc):
+  ''' Make a GroupXData object 
+  '''
   PRNG = np.random.RandomState(seed)
-  Npercomp = PRNG.multinomial(nObsTotal, w)
-  X = list()
-  for k in range(K):
-    X.append( sample_data_from_comp( k, Npercomp[k], PRNG) )
-    trueList.append( k*np.ones( Npercomp[k] ) )
-  X = np.vstack( X )
-  TrueZ = np.hstack( trueList )
-  permIDs = PRNG.permutation( X.shape[0] )
-  X = X[permIDs]
-  TrueZ = TrueZ[permIDs]
-  return X, TrueZ
+  Pi = PRNG.dirichlet(gamma * np.ones(K), size=nDoc)
+  XList = list()
+  ZList = list()
+  for d in xrange(nDoc):
+    Npercomp = PRNG.multinomial(nObsPerDoc, Pi[d])
+    for k in range(K):
+      if Npercomp[k] < 1:
+        continue
+      Xcur_k = _sample_data_from_comp(k, Npercomp[k], PRNG)
+      XList.append(Xcur_k)
+      ZList.append(k*np.ones(Npercomp[k]))
 
+  doc_range = np.arange(0, nDoc*nObsPerDoc+1, nObsPerDoc)    
+  X = np.vstack(XList)
+  TrueZ = np.hstack(ZList)
+  return GroupXData(X, doc_range, TrueZ=TrueZ)
+
+def _sample_data_from_comp(k, Nk, PRNG):
+  return Mu[k,:] + np.dot(cholSigma[k].T, PRNG.randn(D, Nk) ).T
 
 ########################################################### Main
 ###########################################################
@@ -116,6 +101,5 @@ def plot_true_clusters():
 if __name__ == "__main__":
   from matplotlib import pylab
   pylab.figure()
-  Data = get_data(nObsTotal=5000)
   plot_true_clusters()
   pylab.show(block=True)

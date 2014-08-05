@@ -6,7 +6,7 @@ Simple toy dataset from standard normal distribution.
 
 import numpy as np
 
-from bnpy.data import XData, MinibatchIterator
+from bnpy.data import XData
 
 
 ########################################################### User-facing fcns
@@ -27,27 +27,6 @@ def get_data(seed=8675309, nObsTotal=25000, **kwargs):
   Data = XData(X=X, TrueZ=TrueZ)
   Data.summary = get_data_info()
   return Data
-  
-def get_minibatch_iterator(seed=8675309, nObsTotal=25000, **kwargs):
-  '''
-    Args
-    --------
-    seed : integer seed for random number generator,
-            used for actually *generating* the data
-    dataorderseed : integer seed that determines
-                     (a) how data is divided into minibatches
-                     (b) order these minibatches are traversed
-
-   Returns
-    -------
-      bnpy MinibatchIterator object, with nObsTotal observations
-        divided into nBatch batches
-  '''
-  X, TrueZ = generate_data(seed, nObsTotal)
-  Data = XData(X=X, TrueZ=TrueZ)
-  Data.summary = get_data_info()
-  DataIterator = MinibatchIterator(Data, **kwargs)
-  return DataIterator
 
 def get_data_info():
   return 'Standard Normal Data. All from one true cluster.'

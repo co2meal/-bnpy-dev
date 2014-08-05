@@ -25,7 +25,7 @@ Make histogram with counts for each of the vocab word types
 
 '''
 import numpy as np
-from bnpy.data import WordsData, BagOfWordsMinibatchIterator
+from bnpy.data import WordsData
 import Bars2D
 
 SEED = 8675309
@@ -64,21 +64,6 @@ def get_data(seed=SEED, **kwargs):
     Data = CreateToyDataFromLDAModel(seed=seed, **kwargs)
     Data.summary = get_data_info()
     return Data
-
-def get_minibatch_iterator(seed=SEED, **kwargs):
-    '''
-        Args
-        -------
-        seed
-        nDocTotal
-        nWordsPerDoc
-    '''
-    Data = CreateToyDataFromLDAModel(seed=seed, **kwargs)
-    Data.summary = get_data_info()
-
-    DataIterator = BagOfWordsMinibatchIterator(Data, **kwargs)
-    return DataIterator
-
 
 
 def CreateToyDataFromLDAModel(**kwargs):
