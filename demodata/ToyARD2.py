@@ -6,9 +6,9 @@ Toy data from a first-order auto-regressive process.
 import numpy as np
 import scipy.linalg
 
-from bnpy.data import XData
+from bnpy.data import XData, MinibatchIterator
 
-def get_short_name( ):
+def get_short_name():
   ''' Return short string used in filepaths to store solutions
   '''
   return 'ToyARD2'
@@ -29,10 +29,27 @@ def get_data(seed=8675309, nObsTotal=25000, **kwargs):
       Data : bnpy XData object, with nObsTotal observations
   '''
   X, Xprev, TrueZ = genToyData(seed, nObsTotal)
-  Data = XData(X=X, TrueZ=TrueZ)
+  Data = XData(X=X, TrueZ=TrueZ, Xprev=Xprev)
   Data.summary = get_data_info()
-  Data.Xprev = Xprev
   return Data
+
+def get_minibatch_iterator(seed=8675309, nObsTotal=25000, **kwargs):
+  '''
+    Args
+    -------
+    seed : integer seed for random number generator,
+            used for actually *generating* the data
+    nObsTotal : total number of observations for the dataset.
+
+    Returns
+    -------
+      Data : bnpy XData object, with nObsTotal observations
+  '''
+  X, Xprev, TrueZ = genToyData(seed, nObsTotal)
+  Data = XData(X=X, TrueZ=TrueZ, Xprev=Xprev)
+  Data.summary = get_data_info()
+  MB = MinibatchIterator(Data, **kwargs)
+  return MB
 
 K = 2
 D = 2

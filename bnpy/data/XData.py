@@ -40,7 +40,7 @@ class XData(DataObj):
       raise KeyError('Stored matfile needs to have data in field named X')
     return cls(InDict['X'], nObsTotal)
   
-  def __init__(self, X, nObsTotal=None, TrueZ=None,
+  def __init__(self, X, nObsTotal=None, TrueZ=None, Xprev=None,
                         TrueParams=None, summary=None):
     ''' Create an instance of XData for provided array data X
 
@@ -63,6 +63,9 @@ class XData(DataObj):
       self.TrueParams['Z'] = TrueZ
     if summary is not None:
       self.summary = summary
+
+    if Xprev is not None:
+      self.Xprev = np.float64(Xprev.newbyteorder('=').copy())
       
   def to_minibatch_iterator(self, **kwargs):
     return MinibatchIterator(self, **kwargs)
@@ -74,7 +77,7 @@ class XData(DataObj):
       self.nObsTotal = self.nObs
     else:
       self.nObsTotal = nObsTotal
-    
+
   def _check_dims( self ):
     assert self.X.ndim == 2
     assert self.X.flags.c_contiguous
@@ -107,9 +110,13 @@ class XData(DataObj):
         If doTrackFullSize is True, 
           ensure nObsTotal attribute is the same as the full dataset.
     '''
+    if hasattr(self, 'Xprev'):
+      newXprev = self.Xprev[mask]
+    else:
+      newXprev = None
     if doTrackFullSize:
-        return XData(self.X[mask], nObsTotal=self.nObsTotal)
-    return XData(self.X[mask])
+        return XData(self.X[mask], nObsTotal=self.nObsTotal, Xprev=newXprev)
+    return XData(self.X[mask], Xprev=newXprev)
 
   ######################################################### Add Data
   ######################################################### 
@@ -121,6 +128,8 @@ class XData(DataObj):
     self.nObs += XDataObj.nObs
     self.nObsTotal += XDataObj.nObsTotal
     self.X = np.vstack([self.X, XDataObj.X])
+    if hasattr(self, 'Xprev'):
+      self.Xprev = np.vstack([self.Xprev, XDataObj.Xprev])
 
   def get_random_sample(self, nObs, randstate=np.random):
     nObs = np.minimum(nObs, self.nObs)
