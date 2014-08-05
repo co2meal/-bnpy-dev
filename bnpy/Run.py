@@ -149,7 +149,7 @@ def _run_task_internal(jobname, taskid, nTask,
       OnlineDataArgs = KwArgs['OnlineDataPrefs']
       OnlineDataArgs['dataorderseed'] = dataorderseed
       OnlineDataArgs.update(UnkArgs) # add custom args
-      Data = Data.to_minibatch_iterator(**OnlineDataArgs)
+      Data = Data.to_iterator(**OnlineDataArgs)
 
   # Create and initialize model parameters
   hmodel = createModel(InitData, ReqArgs, KwArgs)
@@ -247,7 +247,13 @@ def loadData(ReqArgs, KwArgs, DataArgs, dataorderseed):
       OnlineDataArgs = KwArgs['OnlineDataPrefs']
       OnlineDataArgs['dataorderseed'] = dataorderseed
       OnlineDataArgs.update(DataArgs)
-      DataIterator = datamod.get_minibatch_iterator(**OnlineDataArgs)
+      if hasattr(datamod, 'get_iterator'):
+        ## Load custom iterator defined in data module
+        DataIterator = datamod.get_iterator(**OnlineDataArgs)
+      else:
+        ## Make an iterator over full dataset provided by get_data        
+        DataIterator = InitData.to_iterator(**OnlineDataArgs)
+
     else:
       DataIterator = None
     return DataIterator, InitData
