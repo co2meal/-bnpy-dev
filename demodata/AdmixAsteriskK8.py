@@ -1,7 +1,8 @@
 '''
-AsteriskK8.py
+AdmixAsteriskK8.py
 
-Simple toy dataset of 8 Gaussian components with full covariance.  
+Toy dataset of 8 Gaussian components with full covariance.
+  
 Generated data form an well-separated blobs arranged in "asterisk" shape when plotted in 2D.
 '''
 import scipy.linalg
@@ -51,10 +52,10 @@ def get_minibatch_iterator(seed=8675309, nObsTotal=25000, **kwargs):
 def get_short_name( ):
   ''' Return short string used in filepaths to store solutions
   '''
-  return 'AsteriskK8'
+  return 'AdmixAsteriskK8'
 
 def get_data_info():
-  return 'Asterisk Toy Data. %d true clusters.' % (K)
+  return 'Admixture Asterisk Toy Data. %d true clusters.' % (K)
 
 ###########################################################  Set Toy Parameters
 ###########################################################
@@ -62,10 +63,10 @@ def get_data_info():
 K = 8
 D = 2
 
-w = np.asarray( [1., 2., 1., 2., 1., 2., 1., 2.] )
-w = w/w.sum()
+gamma = 1.0
 
-# Place means evenly spaced around a circle
+## Create "true" mean parameters
+## Placed evenly spaced around a circle
 Rad = 1.0
 ts = np.linspace(0, 2*np.pi, K+1)
 ts = ts[:-1]
@@ -73,27 +74,24 @@ Mu = np.zeros( (K,D))
 Mu[:,0] = np.cos(ts)
 Mu[:,1] = np.sin(ts)
 
-# Create basic 2D cov matrix with major axis much longer than minor one
+## Create "true" covariance parameters
+## Each is a rotation of a template with major axis much larger than minor one
 V = 1.0/16.0
 SigmaBase = np.asarray([[ V, 0], [0, V/100.0]])
-
-# Create several Sigmas by rotating this basic covariance matrix
 Sigma = np.zeros( (K,D,D) )
 for k in xrange(K):
   Sigma[k] = rotateCovMat(SigmaBase, k*np.pi/4.0)
-
 # Precompute cholesky decompositions
-cholSigma = np.zeros( Sigma.shape )
+cholSigma = np.zeros(Sigma.shape)
 for k in xrange( K ):
   cholSigma[k] = scipy.linalg.cholesky( Sigma[k] )
 
-def sample_data_from_comp( k, Nk, PRNG ):
+def sample_data_from_comp(k, Nk, PRNG):
   return Mu[k,:] + np.dot(cholSigma[k].T, PRNG.randn(D, Nk) ).T
 
-def get_X(seed, nObsTotal):
-  PRNG = np.random.RandomState( seed )
-  trueList = list()
-  Npercomp = PRNG.multinomial( nObsTotal, w )
+def get_X(seed, nDocTotal, nObsPerDoc):
+  PRNG = np.random.RandomState(seed)
+  Npercomp = PRNG.multinomial(nObsTotal, w)
   X = list()
   for k in range(K):
     X.append( sample_data_from_comp( k, Npercomp[k], PRNG) )
@@ -113,7 +111,7 @@ def plot_true_clusters():
   from bnpy.viz import GaussViz
   for k in range(K):
     c = k % len(GaussViz.Colors)
-    GaussViz.plotGauss2DContour( Mu[k], Sigma[k], color=GaussViz.Colors[c] )
+    GaussViz.plotGauss2DContour(Mu[k], Sigma[k], color=GaussViz.Colors[c])
 
 if __name__ == "__main__":
   from matplotlib import pylab

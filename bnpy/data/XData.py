@@ -51,24 +51,26 @@ class XData(DataObj):
     if X.ndim < 2:
       X = X[np.newaxis,:]
     self.X = np.float64(X.newbyteorder('=').copy())
-    
+    ## Verify attributes are consistent
     self._set_dependent_params(nObsTotal=nObsTotal)
     self._check_dims()
-
+    ## Add optional true parameters / true hard labels
     if TrueParams is not None:
       self.TrueParams = TrueParams
     if TrueZ is not None:
       if not hasattr(self, 'TrueParams'):
         self.TrueParams = dict()
       self.TrueParams['Z'] = TrueZ
+
     if summary is not None:
       self.summary = summary
-
     if Xprev is not None:
       self.Xprev = np.float64(Xprev.newbyteorder('=').copy())
+
       
   def to_minibatch_iterator(self, **kwargs):
     return MinibatchIterator(self, **kwargs)
+
 
   def _set_dependent_params( self, nObsTotal=None): 
     self.nObs = self.X.shape[0]
