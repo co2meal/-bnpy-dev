@@ -8,7 +8,7 @@ Generated data form a "hashtag"-like shapes when plotted in 2D.
 from __future__ import division
 import scipy.linalg
 import numpy as np
-from bnpy.data import XData, MinibatchIterator
+from bnpy.data import XData
 
 
 ########################################################### User-facing fcns

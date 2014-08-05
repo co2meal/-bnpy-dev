@@ -26,7 +26,7 @@ Example
 
 import numpy as np
 from .DataObj import DataObj
-from .MinibatchIterator import MinibatchIterator
+
 
 class XData(DataObj):
   
@@ -66,11 +66,6 @@ class XData(DataObj):
       self.summary = summary
     if Xprev is not None:
       self.Xprev = np.float64(Xprev.newbyteorder('=').copy())
-
-      
-  def to_minibatch_iterator(self, **kwargs):
-    return MinibatchIterator(self, **kwargs)
-
 
   def _set_dependent_params( self, nObsTotal=None): 
     self.nObs = self.X.shape[0]
