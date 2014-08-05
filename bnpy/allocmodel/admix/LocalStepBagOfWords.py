@@ -6,7 +6,7 @@ Optimized numerical routines for computing local parameters for bag-of-words top
 import numpy as np
 from scipy.special import digamma
 
- bnpy.util import NumericUtil 
+from bnpy.util import NumericUtil 
 
 ########################################################### dirichlet helpers
 ###########################################################

@@ -1,10 +1,7 @@
 import numpy as np
 
 from BirthProposalError import BirthProposalError
-<<<<<<< HEAD
-=======
 from BirthLogger import log, logProbVector, logPosVector, logPhase
->>>>>>> newmaster
 import BirthCleanup
 
 def expand_then_refine(freshModel, freshSS, freshData,

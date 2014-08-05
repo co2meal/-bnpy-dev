@@ -28,6 +28,7 @@ class FiniteHMM(AllocModel):
         self.transTheta = None
 
         self.estZ = dict()
+        self.entropy = 0
 
 
     #TODO: actually set up priors in config/allocmodel.conf
@@ -171,7 +172,7 @@ class FiniteHMM(AllocModel):
         SS.setField('N', N, dims=('K'))
 
         if doPrecompEntropy is not None:
-            entropy = self.elbo_z(LP, SS, Data)
+            entropy = self.elbo_entropy(Data, LP)
             SS.setELBOTerm('Elogqz', entropy, dims = (()))
 
         return SS
@@ -215,6 +216,15 @@ class FiniteHMM(AllocModel):
         self.initTheta = rho*initNew + (1 - rho)*self.initTheta
         self.transTheta = rho*transNew + (1 - rho)*self.transTheta
         self.K = SS.K
+
+    def init_global_params(self, Data, K=0, **kwargs):
+        self.K = K
+        if self.inferType == 'EM':
+            self.initPi = 1.0 / K * np.ones(K)
+            self.transPi = 1.0 / K * np.ones((K,K))
+        else:
+            self.initTheta = self.initAlpha + np.ones(K)
+            self.transTheta = self.transAlpha + np.ones((K,K))
                     
 
     def set_global_params(self, hmodel=None, K=None, initPi=None, transPi=None,
@@ -238,17 +248,49 @@ class FiniteHMM(AllocModel):
 
 
 
-    def calc_evidence(self, Data, SS, LP):
+    def calc_evidence(self, Data, SS, LP, todict = False, **kwargs):
         if self.inferType == 'EM':
             return LP['evidence']
         elif self.inferType.count('VB') > 0:
             if SS.hasELBOTerm('Elogqz'):
-                entropy = np.sum(SS.getELBOTerm('Elogqz'))
+                entropy = SS.getELBOTerm('Elogqz')
             else:
-                entropy = np.sum(self.elbo_z(LP, SS, Data))
-            return self.elbo_pi0(LP) + self.elbo_pi(SS) + entropy
+                entropy = self.elbo_entropy(Data, LP)
+            return entropy + self.elbo_alloc()
         else:
             raise NotImplementedError('Unrecognized inferType '+self.inferType)
+
+
+    def elbo_entropy(self, Data, LP):
+        sigma = (LP['respPair'] /
+                 (np.sum(LP['respPair'], axis = 2)[:,:,np.newaxis] + EPS))
+
+        z_1 = -np.sum(LP['resp'][Data.seqInds[:-1],:] * \
+                          np.log(LP['resp'][Data.seqInds[:-1],:] + EPS))
+        restZ = -np.sum(LP['respPair'][1:,:,:] * np.log(sigma[1:,:,:] + EPS))
+
+        return z_1 + restZ
+
+    def elbo_alloc(self):
+        normPinit = gammaln(self.K * self.initAlpha) - \
+            self.K * gammaln(self.initAlpha)
+        normPtrans = self.K * gammaln(self.K * self.transAlpha) - \
+            (self.K**2) * gammaln(self.transAlpha)
+        normQinit = np.sum(gammaln(self.initTheta)) - \
+            gammaln(np.sum(self.initTheta))
+        normQtrans = np.sum(gammaln(self.transTheta)) - \
+            np.sum(gammaln(np.sum(self.transTheta, axis = 1)))
+
+        return normPinit + normPtrans - normQinit - normQtrans
+        
+        return gammaln(self.K * self.initAlpha) - \
+            self.K * gammaln(self.initAlpha) + \
+            self.K * gammaln(self.K * self.transAlpha) - \
+            (self.K**2) * gammaln(self.transAlpha) - \
+            gammaln(np.sum(self.initTheta)) + \
+            np.sum(gammaln(self.initTheta)) - \
+            np.sum(gammaln(np.sum(self.transTheta, axis = 1))) + \
+            np.sum(gammaln(self.transTheta))
 
     def elbo_pi0(self, LP):
         #The normaliziation constant in front of p(pi_0 | alpha_0) does not 
