@@ -344,6 +344,8 @@ def createUniqueRandomSeed( jobname, taskID=0):
     jobname = jobname[:5]
   #return 839012225
   #return 811859218 #finite mo
+
+  return 346207363
   import random
   return random.randint(0,927349827)
 
