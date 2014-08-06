@@ -256,6 +256,11 @@ class FiniteHMM(AllocModel):
                 entropy = SS.getELBOTerm('Elogqz')
             else:
                 entropy = self.elbo_entropy(Data, LP)
+
+#            new = entropy + self.elbo_alloc()
+            #old = self.elbo_pi0(LP) + self.elbo_pi(SS) + self.elbo_z(LP,SS,Data)
+#            print 'new = ', new
+#            print 'old = ', old
             return entropy + self.elbo_alloc()
         else:
             raise NotImplementedError('Unrecognized inferType '+self.inferType)
@@ -269,6 +274,7 @@ class FiniteHMM(AllocModel):
                           np.log(LP['resp'][Data.seqInds[:-1],:] + EPS))
         restZ = -np.sum(LP['respPair'][1:,:,:] * np.log(sigma[1:,:,:] + EPS))
 
+
         return z_1 + restZ
 
     def elbo_alloc(self):
@@ -281,7 +287,7 @@ class FiniteHMM(AllocModel):
         normQtrans = np.sum(gammaln(self.transTheta)) - \
             np.sum(gammaln(np.sum(self.transTheta, axis = 1)))
 
-        return normPinit + normPtrans - normQinit - normQtrans
+        return normPinit + normPtrans + normQinit + normQtrans
         
         return gammaln(self.K * self.initAlpha) - \
             self.K * gammaln(self.initAlpha) + \
