@@ -24,8 +24,7 @@ Log.setLevel(logging.DEBUG)
 class LearnAlg(object):
 
   def __init__(self, savedir=None, seed=0, 
-                     algParams=dict(), outputParams=dict(),
-               ):
+                     algParams=dict(), outputParams=dict()):
     ''' Constructs and returns a LearnAlg object
     ''' 
     if type(savedir) == str:
@@ -142,7 +141,7 @@ class LearnAlg(object):
   #########################################################  
   def save_state(self, hmodel, iterid, lap, evBound, doFinal=False):
     ''' Save state of the hmodel's global parameters and evBound
-    '''  
+    '''
     traceEvery = self.outputParams['traceEvery']
     if traceEvery <= 0:
       traceEvery = -1

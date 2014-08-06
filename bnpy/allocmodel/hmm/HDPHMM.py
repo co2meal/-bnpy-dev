@@ -260,7 +260,6 @@ class HDPHMM(AllocModel):
             entropy = SS.getELBOTerm('Elogqz')
         else:
             entropy = self.elbo_entropy(Data, LP)
-        print entropy
         return entropy + self.elbo_alloc() + self.elbo_v0() + \
             self.elbo_allocSlack()
 

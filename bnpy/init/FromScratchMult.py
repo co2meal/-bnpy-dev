@@ -1,22 +1,24 @@
 '''
 FromScratchMult.py
 
-Initialize params of HModel with multinomial observations from scratch.
+Initialize params of an HModel with multinomial observations from scratch.
 '''
 import numpy as np
-from scipy.special import digamma
-from scipy.cluster import vq
 import time
 import os
 
+from scipy.special import digamma
 from bnpy.birthmove.TargetDataSampler import _sample_target_WordsData
 
+## Import Kmeans routine
 hasRexAvailable = True
-hasSpectralAvailable = True
 try:
   import KMeansRex
 except ImportError:
   hasRexAvailable = False
+
+## Import spectral anchor-words routine
+hasSpectralAvailable = True
 try:
   import LearnAnchorTopics
 except ImportError:
@@ -25,7 +27,7 @@ except ImportError:
 def init_global_params(obsModel, Data, K=0, seed=0,
                                        initname='randexamples',
                                        initarg=None,
-                                       initMinWordsPerDoc=100,
+                                       initMinWordsPerDoc=0,
                                        **kwargs):
   ''' Initialize parameters for Mult obsModel, in place.
 
@@ -35,99 +37,128 @@ def init_global_params(obsModel, Data, K=0, seed=0,
   '''
   PRNG = np.random.RandomState(seed)
 
+  ## Apply pre-processing to initialization Dataset
+  ## this removes documents with too few tokens, etc.
+
   if initMinWordsPerDoc > 0:
-    print initMinWordsPerDoc
-    targetDataArgs = dict(targetMinKLPerDoc=0, 
-                            targetMinWordsPerDoc=initMinWordsPerDoc,
-                            targetExample=0,
-                            targetMinSize=0,
-                            targetMaxSize=Data.nDoc,
-                            randstate=PRNG)
-    Data = _sample_target_WordsData(Data, None, None, **targetDataArgs)
-  print 'INIT DATA: %d docs' % (Data.nDoc)
-  print Data.get_doc_stats_summary()
+    targetDataArgs = dict(targetMinWordsPerDoc=initMinWordsPerDoc,
+                          targetMaxSize=Data.nDoc,
+                          targetMinSize=0,
+                          randstate=PRNG)
+    tmpData, tmpInfo = _sample_target_WordsData(Data, None, None, 
+                                                **targetDataArgs)
+    if tmpData is None:
+      raise ValueError('InitData preprocessing left no viable docs left.')
+    Data = tmpData
+  
+  lam = None
+  topics = None
+  if initname == 'randomlikewang':
+    ## Sample K topics i.i.d. from Dirichlet with specified parameter
+    ## this method is exactly done in Chong Wang's onlinehdp code
+    lam = PRNG.gamma(1.0, 1.0, (K, Data.vocab_size))
+    lam *= Data.nDoc * 100.0 / (K*Data.vocab_size)
+  else:
+    topics = _initTopicWordEstParams(obsModel, Data, PRNG,
+                                   K=K,
+                                   initname=initname, 
+                                   initarg=initarg,
+                                   seed=seed,
+                                   **kwargs)
 
-  wc = Data.word_count.sum()
+  InitArgs = dict(lam=lam, topics=topics, Data=Data)
+  obsModel.set_global_params(**InitArgs)
+
+  if 'savepath' in kwargs:
+    import scipy.io
+    topics = obsModel.getTopics()
+    scipy.io.savemat(os.path.join(kwargs['savepath'], 'InitTopics.mat'),
+                     dict(topics=topics), oned_as='row')
+
+
+
+def _initTopicWordEstParams(obsModel, Data, PRNG, K=0,
+                                            initname='',
+                                            initarg='',
+                                            seed=0,
+                                            **kwargs):
+  ''' Create initial guess for the topic-word parameter matrix
+
+      Returns
+      --------
+      topics : 2D array, size K x Data.vocab_size
+               non-negative entries, rows sum to one
+  '''
   if initname == 'randexamples':
-    # Choose K documents at random, then do
-    #  M-step to make K clusters, each based on one document
-    DocWord = Data.to_sparse_docword_matrix()
+    ## Choose K documents at random, then
+    ## use each doc's empirical distribution (+random noise) to seed a topic
+    DocWord = Data.getDocTypeCountMatrix()
     chosenDocIDs = PRNG.choice(Data.nDoc, K, replace=False)
-    PhiTopicWord = np.asarray(DocWord[chosenDocIDs].todense())
-    PhiTopicWord += 0.01 * PRNG.rand(K, Data.vocab_size)
-    PhiTopicWord /= PhiTopicWord.sum(axis=1)[:,np.newaxis]
-    obsModel.set_global_params(K=K, topics=PhiTopicWord, wordcountTotal=wc)
-  elif initname == 'randomfromarg':
-    # Draw K topic-word probability vectors 
-    #  from a Dirichlet with symmetric parameter initarg
-    PhiTopicWord = PRNG.gamma(initarg, 1., (K,Data.vocab_size))
-    PhiTopicWord += 1e-200
-    PhiTopicWord /= PhiTopicWord.sum(axis=1)[:,np.newaxis]
-    obsModel.set_global_params(K=K, topics=PhiTopicWord, wordcountTotal=wc)
-
-  elif initname == 'randomlikewang':
-    # Similar to Chong Wang's default init
-    lamvec = PRNG.gamma(1.0, 1.0, (K, Data.vocab_size)) * Data.nDoc*100.0/(K*Data.vocab_size)
-    obsModel.set_global_params(K=K, lamvec=lamvec)
-
-  elif initname == 'randomfromprior':
-    # Draw K topic-word probability vectors from their prior
-    lamvec = obsModel.obsPrior.lamvec
-    PhiTopicWord = PRNG.gamma(lamvec, 1., (K,Data.vocab_size))
-    PhiTopicWord += 1e-200
-    PhiTopicWord /= PhiTopicWord.sum(axis=1)[:,np.newaxis]
-    obsModel.set_global_params(K=K, topics=PhiTopicWord, wordcountTotal=wc)
-
-  elif initname == 'randsoftpartition':
-    # Assign responsibility for K topics at random to all words
-    resp = PRNG.rand(Data.nObs, K)
-    resp /= resp.sum(axis=1)[:,np.newaxis]
+    topics = DocWord[chosenDocIDs].copy()
+    topics += 0.01 * PRNG.rand(K, Data.vocab_size)
 
   elif initname == 'plusplus':
-    # Set topic-word prob vectors by drawing K doc-word distributions
-    #  using the 'plusplus' distance sampling heuristic
+    ## Sample K documents at random using the 'plusplus' distance criteria
+    ## then set each of K topics to the empirical distribution of chosen docs
     if not hasRexAvailable:
       raise NotImplementedError("KMeansRex must be on python path")
-    DocWord = Data.to_sparse_docword_matrix().toarray()
-    PhiTopicWord = KMeansRex.SampleRowsPlusPlus(DocWord, K, seed=seed)
-    PhiTopicWord += 0.01 * PRNG.rand(K, Data.vocab_size)
-    PhiTopicWord /= PhiTopicWord.sum(axis=1)[:,np.newaxis]
-    obsModel.set_global_params(K=K, topics=PhiTopicWord, wordcountTotal=wc)
+    X = Data.getDocTypeCountMatrix()
+    topics = KMeansRex.SampleRowsPlusPlus(X, K, seed=seed)
+    topics += 0.01 * PRNG.rand(K, Data.vocab_size)
 
   elif initname == 'kmeansplusplus':
-    # Set topic-word prob vectors to output cluster centers of Kmeans
-    #  given the doc-word distributions as input data
+    ## Cluster all documents into K hard clusters via K-means
+    ## then set each of K topics to the means of the resulting clusters
     if not hasRexAvailable:
       raise NotImplementedError("KMeansRex must be on python path")
-    DocWord = Data.to_sparse_docword_matrix().toarray()
-    PhiTopicWord, Z = KMeansRex.RunKMeans(DocWord, K, initname='plusplus',
-                                          Niter=10, seed=seed)
-    PhiTopicWord += 0.01 * PRNG.rand(K, Data.vocab_size)
-    PhiTopicWord /= PhiTopicWord.sum(axis=1)[:,np.newaxis]
-    obsModel.set_global_params(K=K, topics=PhiTopicWord, wordcountTotal=wc)
+    X = Data.getDocTypeCountMatrix()
+    topics, Z = KMeansRex.RunKMeans(X, K, seed=seed,
+                                       Niter=25,
+                                       initname='plusplus')
+    topics += 0.01 * PRNG.rand(K, Data.vocab_size)
+
+  elif initname == 'randomfromarg':
+    ## Draw K topic-word probability vectors i.i.d. from a Dirichlet
+    ## using user-provided symmetric parameter initarg
+    topics = PRNG.gamma(initarg, 1., (K, Data.vocab_size))
+
+  elif initname == 'randomfromprior':
+    ## Draw K topic-word probability vectors i.i.d. from their prior
+    lam = obsModel.Prior.lam
+    topics = PRNG.gamma(lam, 1., (K, Data.vocab_size))
 
   elif initname == 'spectral':
     # Set topic-word prob vectors to output of anchor-words spectral method
     if not hasSpectralAvailable:
       raise NotImplementedError("AnchorWords must be on python path")
 
-    DocWord = Data.to_sparse_docword_matrix()
-
+    Xsparse = Data.getSparseDocTypeCountMatrix()
     stime = time.time()
-    topics = LearnAnchorTopics.run(DocWord, K, seed=seed, 
+    topics = LearnAnchorTopics.run(Xsparse, K, seed=seed, 
                                                lowerDim=kwargs['spectralDim'],
                                                loss='L2')
     elapsedtime = time.time() - stime
-    print 'SPECTRAL\n %5.1f sec | D=%d, K=%d' \
-            % (elapsedtime, DocWord.shape[0], K)
-    
-    if 'savepath' in kwargs:
-      import scipy.io
-      scipy.io.savemat(os.path.join(kwargs['savepath'], 'InitTopics.mat'),
-                       dict(topics=topics), oned_as='row')
-    
-    obsModel.set_global_params(K=K, topics=topics, wordcountTotal=wc)
+    print 'SPECTRAL INIT: %5.1f sec.  D=%d, K=%d.' % (elapsedtime, Data.nDoc, K)
+  else:
+    raise NotImplementedError('Unrecognized initname ' + initname)
 
+  ## ...................................................... end initname switch
+    
+  ## Double-check for suspicious NaN values
+  ## and raise errors if detected
+  rowSum = topics.sum(axis=1)
+  mask = np.isnan(rowSum)
+  if np.any(mask):
+    raise ValueError('topics should never be NaN')
+  
+  np.maximum(topics, 1e-100, out=topics)
+  topics /= topics.sum(axis=1)[:,np.newaxis]
+
+  return topics
+
+
+
+"""
   elif initname.count('mikespectral'):
     if not hasSpectralAvailable:
       raise NotImplementedError("AnchorWords must be on python path")
@@ -152,19 +183,4 @@ def init_global_params(obsModel, Data, K=0, seed=0,
                        dict(topics=topics), oned_as='row')
     
     obsModel.set_global_params(K=K, topics=topics, wordcountTotal=wc)
-
-  else:
-    raise NotImplementedError('Unrecognized initname ' + initname)
-
-  if len(obsModel.comp) == K and hasattr(obsModel.comp[0], 'lamvec'):
-    assert obsModel.comp[0].lamvec.size == Data.vocab_size
-    return
-
-  if obsModel.dataAtomType == 'doc':
-    tempLP = dict(resp=resp)
-  else:
-    tempLP = dict(word_variational=resp)
-  SS = SuffStatBag(K=K, D=Data.vocab_size)
-  SS = obsModel.get_global_suff_stats(Data, SS, LP)
-  obsModel.update_global_params(SS)
-
+"""

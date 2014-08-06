@@ -40,11 +40,19 @@ class SOVBAlg(LearnAlg):
       DataIterator.curLapPos = nBatch - 2
       iterid = int(nBatch * lapFrac) - 1
 
+    if self.algParams['doMemoELBO']:
+      SStotal = None
+      SSPerBatch = dict()
+    else:
+      EvRunningSum = 0
+      EvMemory = np.zeros(nBatch)
+
     self.set_start_time_now()
     while DataIterator.has_next_batch():
 
       # Grab new data
       Dchunk = DataIterator.get_next_batch()
+      batchID = DataIterator.batchID
 
       # Update progress-tracking variables
       iterid += 1
@@ -58,13 +66,37 @@ class SOVBAlg(LearnAlg):
       
       # E step
       LP = hmodel.calc_local_params(Dchunk, **self.algParamsLP)
-      SS = hmodel.get_global_suff_stats(Dchunk, LP, doAmplify=True)
 
       # ELBO calculation
-      evBound = hmodel.calc_evidence(Dchunk, SS, LP)      
+      if self.algParams['doMemoELBO']:
+        SS = hmodel.get_global_suff_stats(Dchunk, LP, doAmplify=False,
+                                                      doPrecompEntropy=True)
+        if batchID in SSPerBatch:
+          SStotal -= SSPerBatch[batchID]
+        if SStotal is None:
+          SStotal = SS.copy()
+        else:
+          SStotal += SS
+        SSPerBatch[batchID] = SS.copy()
+        evBound = hmodel.calc_evidence(SS=SStotal)
+        if hasattr(Dchunk, 'nDoc'):
+          ampF = Dchunk.nDocTotal / Dchunk.nDoc
+          SS.applyAmpFactor(ampF)
+        else:
+          ampF = Dchunk.nObsTotal / Dchunk.nObs
+          SS.applyAmpFactor(ampF)
+      else:
+        SS = hmodel.get_global_suff_stats(Dchunk, LP, doAmplify=True)
+        EvChunk = hmodel.calc_evidence(Dchunk, SS, LP)      
+
+        if EvMemory[batchID] != 0:
+          EvRunningSum -= EvMemory[batchID]
+        EvRunningSum += EvChunk
+        EvMemory[batchID] = EvChunk
+        evBound = EvRunningSum / nBatch
 
       # Save and display progress
-      self.add_nObs(Dchunk.nObs)
+      self.add_nObs(Dchunk.get_size())
       self.save_state(hmodel, iterid, lapFrac, evBound)
       self.print_state(hmodel, iterid, lapFrac, evBound, rho=rho)
 

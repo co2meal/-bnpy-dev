@@ -12,7 +12,7 @@ class TestHardMerge(unittest.TestCase):
     PRNG = np.random.RandomState(0)
 
     PriorSpec = dict(alpha0=5, ECovMat='eye', sF=1.337, nu=0)
-    oModel = bnpy.obsmodel.GaussObsModel('VB', D=2, **PriorSpec)
+    oModel = bnpy.obsmodel.DiagGaussObsModel('VB', D=2, **PriorSpec)
 
     Data = bnpy.data.XData(PRNG.randn(N, D))
     resp = PRNG.rand(N, K)

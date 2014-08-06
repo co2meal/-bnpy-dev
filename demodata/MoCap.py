@@ -68,7 +68,12 @@ def get_XZ():
         fullZ = np.append(fullZ, Z[i])
     X = np.vstack(X)
     scipy.io.savemat('trueZ.mat', {'trueZ':fullZ})        
-    return X, fullZ, seqInds
+
+    shapeX = np.shape(X)
+    Xprev = np.zeros((shapeX[0], shapeX[1]))
+    for i in xrange(1,shapeX[0]):
+      Xprev[i,:] = X[i-1,:]
+    return X, Xprev, fullZ, seqInds
 
 
 def get_data_info():
@@ -78,8 +83,8 @@ def get_short_name():
     return 'MoCap'
 
 def get_data(**kwargs):
-    X, fullZ, seqInds = get_XZ()
-    Data = SeqXData(X = X, seqInds = seqInds, TrueZ = fullZ)
+    X, Xprev, fullZ, seqInds = get_XZ()
+    Data = SeqXData(X = X, seqInds = seqInds, TrueZ = fullZ, Xprev = Xprev)
     Data.summary = get_data_info()
     return Data
             
