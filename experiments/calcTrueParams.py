@@ -5,9 +5,9 @@ calcTrueParams.py
 '''
 
 import sys
-#sys.path.append('~/bnpy/demodata')
-#import imp
-#MoCap = imp.load_source('MoCap', '/home/will/bnpy/bnpy-dev/demodata/MoCap.py')
+sys.path.append('~/bnpy/demodata')
+import imp
+MoCap = imp.load_source('MoCap', '../demodata/MoCap.py')
 import numpy as np
 from munkres import Munkres
 import scipy.io
@@ -32,7 +32,7 @@ T = len(Z)
 out = scipy.io.loadmat(filePath)
 tmp = out['estZ'][0] #for some reason it's a 2-D array..
 estZ = []
-
+print filePath
 for seq in xrange(np.shape(tmp)[0]):
   estZ = np.append(estZ, tmp[seq][0])
 
@@ -62,7 +62,7 @@ print 'da cost was: ', daCost
 for i in xrange(T):
   estZ[i] = inds[int(estZ[i])][1]
 
-scipy.io.savemat('munkresInfo', {'inds':inds, 'cost':daCost})
+scipy.io.savemat('munkresOut', {'inds':inds, 'cost':daCost})
   
 
 

@@ -312,7 +312,7 @@ class HDPHMM(AllocModel):
                            gammaln(self.u[1,:,:]) - \
                            gammaln(self.u[0,:,:]))
         
-        #print 'normP =',normPy + normPv, 'normQ =', normQy + normQv
+
         return normPy + normPv - normQy - normQv
 
 

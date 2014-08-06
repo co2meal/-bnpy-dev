@@ -28,6 +28,7 @@ class FiniteHMM(AllocModel):
         self.transTheta = None
 
         self.estZ = dict()
+        self.entropy = 0
 
 
 

@@ -31,8 +31,30 @@ files = ['AMI_20041210-1052_Nmeans25features_SpNsp.mat',
 'VT_20050623-1400_Nmeans25features_SpNsp.mat',
 'VT_20051027-1400_Nmeans25features_SpNsp.mat']
 
+
 def get_minibatch_iterator(seed=8675309, dataorderseed=0, nBatch=3, nObsBatch=2, nObsTotal=25000, nLap=1, startLap=0, **kwargs):
-    print 'umm'
+  '''
+    Args
+    --------
+    seed : integer seed for random number generator,
+            used for actually *generating* the data
+    dataorderseed : integer seed that determines
+                     (a) how data is divided into minibatches
+                     (b) order these minibatches are traversed
+
+   Returns
+    -------
+      bnpy MinibatchIterator object, with nObsTotal observations
+        divided into nBatch batches
+  '''
+  X, fullZ, seqInds = get_XZ()
+  Data = SeqXData(X = X, TrueZ = fullZ, seqInds = seqInds)
+  Data.summary = get_data_info()
+  DataIterator = MinibatchIterator(Data, nBatch=nBatch, nObsBatch=nObsBatch, \
+                                       nLap=nLap, startLap=startLap, \
+                                       dataorderseed=dataorderseed)
+  return DataIterator
+
 
 
 def get_XZ():
@@ -41,7 +63,8 @@ def get_XZ():
     seqInds = [0]
 
     for file in xrange(np.size(files)):
-        data = scipy.io.loadmat('/home/will/bnpy/bnpy-dev/demodata/speaker_diarization/gt_files/'+files[file])
+        #data = scipy.io.loadmat('/home/will/bnpy/bnpy-dev/demodata/speaker_diarization/gt_files/'+files[file])
+        data = scipy.io.loadmat('/data/people/sudderth/kalmanHDPHMM/speaker_diarization/gt_files/'+files[file])
         if X is None:
             X = np.transpose(data['u'])
             Z = data['zsub']
@@ -53,7 +76,7 @@ def get_XZ():
     return X, Z, seqInds
 
 def get_data_info():
-    return 'Multiple sequences of audio data from NIST proceedings'
+    return 'Twenty-one sequences of audio data from NIST proceedings'
 
 def get_short_name():
     return 'SpeakDiar'

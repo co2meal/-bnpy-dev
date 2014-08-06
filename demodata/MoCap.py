@@ -39,12 +39,12 @@ def get_minibatch_iterator(seed=8675309, dataorderseed=0, nBatch=3, nObsBatch=2,
 def get_XZ():
     X = list()
     Z = list()
-    zTrue = open('demodata/mocap6/zTrue.dat', 'r')
-    seqs = open('demodata/mocap6/SeqNames.txt', 'r')
+    zTrue = open('../demodata/mocap6/zTrue.dat', 'r')
+    seqs = open('../demodata/mocap6/SeqNames.txt', 'r')
 
     for line in seqs:
       line = line[:-1] #eat the \n at the end of each line
-      file = open('demodata/mocap6/'+line+'.dat', 'r')
+      file = open('../demodata/mocap6/'+line+'.dat', 'r')
       seqX = list()
       
       seqZ = zTrue.readline()
@@ -72,7 +72,7 @@ def get_XZ():
 
 
 def get_data_info():
-    return 'Multiple sequences of data from motion capture of humans performing exercises'
+    return 'Six sequences of data from motion capture of humans performing exercises'
 
 def get_short_name():
     return 'MoCap'
