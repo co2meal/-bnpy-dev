@@ -342,7 +342,7 @@ def createUniqueRandomSeed( jobname, taskID=0):
     jobname = jobname.split('-')[0]
   if len(jobname) > 5:
     jobname = jobname[:5]
-  return 346207363
+  #return 346207363
   #return 839012225
   #return 811859218 #finite mo
   import random
