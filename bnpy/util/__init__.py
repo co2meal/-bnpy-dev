@@ -14,6 +14,7 @@ from .SpecialFuncUtil import MVgammaln, MVdigamma, digamma, gammaln
 from .SpecialFuncUtil import LOGTWO, LOGPI, LOGTWOPI, EPS
 from .SpecialFuncUtil import logsumexp
 from .VerificationUtil import closeAtMSigFigs, isEvenlyDivisibleFloat
+from .ShapeUtil import as1D, as2D, as3D
 
 __all__ = ['RandUtil', 
            'np2flatstr', 'flatstr2np', 
@@ -21,4 +22,5 @@ __all__ = ['RandUtil',
            'discrete_single_draw', 
            'MVgammaln', 'MVdigamma', 'logsumexp', 'digamma', 'gammaln',
            'closeAtMSigFigs', 'isEvenlyDivisibleFloat',
-           'LOGTWO', 'LOGTWOPI', 'LOGPI', 'EPS']
+           'LOGTWO', 'LOGTWOPI', 'LOGPI', 'EPS',
+           'as1D', 'as2D', 'as3D']

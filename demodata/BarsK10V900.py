@@ -38,7 +38,7 @@ def get_data_info(**kwargs):
       nDocTotal = Defaults['nDocTotal']
     return 'Toy Bars Data. Ktrue=%d. nDocTotal=%d. Typically 1-3 bars per doc.' % (K, nDocTotal)
 
-def get_data(**kwargs):
+def get_data(seed=SEED, **kwargs):
     ''' 
         Args
         -------
@@ -46,7 +46,7 @@ def get_data(**kwargs):
         nDocTotal
         nWordsPerDoc
     '''
-    Data = CreateToyDataFromLDAModel(seed=SEED, **kwargs)
+    Data = CreateToyDataFromLDAModel(seed=seed, **kwargs)
     Data.summary = get_data_info(**kwargs)
     return Data
 

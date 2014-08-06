@@ -221,6 +221,46 @@ class TestOptimizationK5(unittest.TestCase):
                                             alpha=alpha,
                                             approx_grad=False, factr=1e6)
 
+  def plot__find_optimum__nDocSensitivity(self):
+    nDocVals = [100, 200, 400, 800, 1600, 3200, 6400]
+    omegaVals = np.zeros( (len(nDocVals), self.K))
+    rhoVals = np.zeros( (len(nDocVals), self.K))
+    betaVals = np.zeros( (len(nDocVals), self.K+1))
+    for ii, nDoc in enumerate(nDocVals): 
+      Pi5 = makePiMatrix(self.beta, nDoc=nDoc, gamma=self.gamma)
+      sumLogPi = summarizePi(Pi5)
+
+      rho, omega, f, Info = HO.find_optimum_multiple_tries(
+                          sumLogPi=sumLogPi,
+                          nDoc=nDoc,
+                          gamma=self.gamma,
+                          alpha=self.alpha0,
+                          approx_grad=True)
+      rho2, omega2, f2, Info2 = HO.find_optimum_multiple_tries(
+                          sumLogPi=sumLogPi,
+                          nDoc=nDoc,
+                          gamma=self.gamma,
+                          alpha=self.alpha0,
+                          approx_grad=False)
+      assert np.allclose(rho, rho2, atol=0.001)
+      omegaVals[ii] = omega2
+      rhoVals[ii] = rho2
+      betaVals[ii] = HO._v2beta(rho2)
+      
+    from matplotlib import pylab
+    pylab.subplot(3, 1, 1)
+    pylab.plot( nDocVals, omegaVals[:, -1], 'm--')
+    pylab.ylabel('omega(K)')
+
+    pylab.subplot(3, 1, 2)
+    pylab.plot( nDocVals, rhoVals[:, -1], 'm--')
+    pylab.ylabel('rho(K)')
+
+    pylab.subplot(3, 1, 3)
+    pylab.plot( nDocVals, betaVals[:, -1], 'm--')
+    pylab.ylabel('beta (leftover)')
+    pylab.xlabel('nDoc')
+
 
   def test__find_optimum__nDoc2000__compareApproxAndExact(self):
     rhoomega, f, Info = self.verify__estimated_beta_near_truth(self.beta, 
@@ -278,6 +318,31 @@ class TestOptimizationK5(unittest.TestCase):
                                             sumLogPi=self.sumLogPi,
                                             alpha=self.alpha0,
                                             approx_grad=False)
+
+  def test__optimum_does_not_move_with_successive_runs(self):
+    ''' Verify for K=5 data that we recover variational parameters
+          whose E[beta] is very close to the true beta
+    '''
+    rho, omega, f, Info = self.verify__beta_near_truth__multiple_tries(
+                                            self.beta, self.nDoc, 
+                                            sumLogPi=self.sumLogPi,
+                                            alpha=self.alpha0,
+                                            approx_grad=False)
+    print '% .8e' % (f) 
+    print '             ', np2flatstr(rho)
+    Orig = dict(rho=rho, omega=omega, f=f)
+    for trial in range(10):
+      rho, omega, f, Info = self.verify__beta_near_truth__multiple_tries(
+                                            self.beta, self.nDoc, 
+                                            sumLogPi=self.sumLogPi,
+                                            alpha=self.alpha0,
+                                            initrho=rho, initomega=omega,
+                                            approx_grad=False)
+      print '% .8e' % (f) 
+      print '             ', np2flatstr( rho - Orig['rho'])
+      assert np.allclose(f, Orig['f'])
+      assert np.allclose(rho, Orig['rho'], atol=1e-6)
+      
 
   def test__same_answer_as_old_optimizer__nDoc2000(self):
     ''' Verify for K=5 data that we recover variational parameters
