@@ -10,7 +10,7 @@ from .DataObj import DataObj
 from bnpy.data import XData
 
 class SeqXData(XData):
-    def __init__(self, X, seqInds, seqsUsed = None, nObsTotal = None, TrueZ = None):
+    def __init__(self, X, seqInds, seqsUsed = None, nObsTotal = None, TrueZ = None, Xprev = None, TrueParams = None):
         ''' X must be a matrix containing all data from all sequences.
             seqIndicies gives the starting indicies of each sequence in X (e.g.
               seqIndicies = [0, 9, 12] means that X[0:8,:] is the first sequence and
@@ -29,15 +29,24 @@ class SeqXData(XData):
             X = X[np.newaxis,:]
         self.X = np.float64(X.newbyteorder('=').copy())
      
-        self.set_dependent_params(nObsTotal=nObsTotal)
-        self.check_dims()
+        self._set_dependent_params(nObsTotal=nObsTotal)
+        self._check_dims()
+
+        if TrueParams is not None:
+            self.TrueParams = TrueParams
         if TrueZ is not None:
-            self.addTrueLabels(TrueZ)
+            if not hasattr(self, 'TrueParams'):
+                self.TrueParams = dict()
+            self.TrueParams['Z'] = TrueZ
 
         if seqsUsed is None:
             self.seqsUsed = np.linspace(0, np.size(seqInds)-1, np.size(seqInds))
         else:
             self.seqsUsed = seqsUsed
+
+        if Xprev is not None:
+            self.Xprev = np.float64(Xprev.newbyteorder('=').copy())
+
 
     def to_minibatch_iterator(self, **kwargs):
         return MinibatchIterator(self, **kwargs)
@@ -54,21 +63,26 @@ class SeqXData(XData):
               nObsTotal attribute set to the same as the full dataset
          '''
         xNew = None
+        xPrevNew = None
         seqNew = np.array([0])
 
         for i in xrange(len(mask)):
             start = self.seqInds[mask[i]]
             end = self.seqInds[mask[i] + 1]
             if xNew is None:
-                xNew = self.X[start:end]
+                xPrevNew = self.Xprev[start:end]
+                if hasattr(self, 'Xprev'):
+                    xNew = self.X[start:end]
             else:
-                xNew = np.vstack((xNew, self.X[start:end]))
+                xPrevNew = np.vstack((xPrevNew, self.Xprev[start:end]))
+                if hasattr(self, 'Xprev'):
+                    xNew = np.vstack((xNew, self.X[start:end]))
             seqNew = np.append(seqNew, end - start + seqNew[i])
                 
         if doTrackFullSize:
             return SeqXData(xNew, seqNew, nObsTotal = self.nObsTotal, 
-                            seqsUsed = mask)
-        return SeqXData(xNew, seqNew)
+                            seqsUsed = mask, Xprev = xPrevNew)
+        return SeqXData(xNew, seqNew, XPrev = xPrevNew)
 
     def add_data(self, seqXDataObj):
         if not self.dim == SeqXDataObj.dim:
@@ -102,6 +116,13 @@ class SeqXData(XData):
         seqIDByBatch[nBatch-1] = seqIDs
         
         return seqIDByBatch
+
+    def get_size(self, **kwargs):
+        print 'you rang?'
+        return self.nSeqs
+    def get_total_size(self, **kwargs):
+        print 'you totally rang?'
+        return self.nSeqs
         
 
 

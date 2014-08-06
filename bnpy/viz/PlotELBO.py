@@ -61,7 +61,11 @@ def plot_all_tasks_for_job(jobpath, args, jobname=None, color=None):
     xs = np.loadtxt(os.path.join(jobpath, taskid, args.xvar+'.txt'))
     ys = np.loadtxt(os.path.join(jobpath, taskid, 'evidence.txt'))
     # remove first-lap of moVB, since ELBO is not accurate
-    if jobpath.count('moVB') > 0 and args.xvar == 'laps':
+    if jobpath.count('moVB/') > 0 and args.xvar == 'laps':
+      mask = xs >= 0.0
+      xs = xs[mask]
+      ys = ys[mask]
+    elif jobpath.count('GS/') > 0 and args.xvar == 'laps':
       mask = xs >= 1.0
       xs = xs[mask]
       ys = ys[mask]

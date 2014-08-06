@@ -4,7 +4,7 @@ StarCovarK5
 import scipy.linalg
 import numpy as np
 from bnpy.util.RandUtil import rotateCovMat
-from bnpy.data import XData, MinibatchIterator
+from bnpy.data import XData
 
 ###########################################################  Set Toy Parameters
 K = 5
@@ -42,7 +42,7 @@ def get_short_name( ):
   return 'StarCovarK5'
 
 def get_data_info():
-  return 'Overlapping Star Toy Data. Ktrue=%d. D=%d.' % (K,D)
+  return 'Overlapping Star Toy Data. %d true clusters.' % (K)
 
 ###########################################################  Generate the Data
 def get_X( seed, nObsTotal):
@@ -74,27 +74,6 @@ def get_data(seed=8675309, nObsTotal=25000, **kwargs):
       Data : bnpy XData object, with nObsTotal observations
   '''
   X, TrueZ = get_X(seed, nObsTotal)
-  Data = XData(X=X)
+  Data = XData(X=X, TrueZ=TrueZ)
   Data.summary = get_data_info()
   return Data
-  
-def get_minibatch_iterator(seed=8675309, dataorderseed=0, nBatch=10, nObsBatch=None, nObsTotal=25000, nLap=1, **kwargs):
-  '''
-    Args
-    --------
-    seed : integer seed for random number generator,
-            used for actually *generating* the data
-    dataorderseed : integer seed that determines
-                     (a) how data is divided into minibatches
-                     (b) order these minibatches are traversed
-
-   Returns
-    -------
-      bnpy MinibatchIterator object, with nObsTotal observations
-        divided into nBatch batches
-  '''
-  X, TrueZ = get_X(seed, nObsTotal)
-  Data = XData(X=X)
-  DataIterator = MinibatchIterator(Data, nBatch=nBatch, nObsBatch=nObsBatch, nLap=nLap, dataseed=seed)
-  DataIterator.summary = get_data_info()
-  return DataIterator

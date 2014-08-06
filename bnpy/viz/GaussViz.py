@@ -8,7 +8,10 @@ from matplotlib import pylab
 
 Colors = [ (1,0,0), (1,0,1), (0,1,0), (0,1,1), (0,0,1), (1,0.6,0)]
 
-def plotGauss2DFromHModel(hmodel, compListToPlot=None, compsToHighlight=None, wTHR=0.0001, Colors=Colors):
+def plotGauss2DFromHModel(hmodel, compListToPlot=None,
+                                  compsToHighlight=None, 
+                                  wTHR=0.0001, 
+                                  Colors=Colors):
   ''' Plot 2D contours for components in hmodel in current pylab figure
       Args
       -------
@@ -27,16 +30,7 @@ def plotGauss2DFromHModel(hmodel, compListToPlot=None, compsToHighlight=None, wT
     compsToHighlight = list()  
   if compListToPlot is None:
     compListToPlot = np.arange(0, hmodel.allocModel.K)
-
-  from IPython import embed; embed()
-  try:
-    w = np.exp(hmodel.allocModel.Elogw)
-  except Exception:
-    if hasattr(hmodel.allocModel, 'w'):
-      w = hmodel.allocModel.w
-    else:
-      w = np.ones(hmodel.allocModel.K) / hmodel.allocModel.K
-
+  w = hmodel.allocModel.get_active_comp_probs()
   if hmodel.obsModel.D == 1:
     xgrid = np.linspace(-4, 4, 1000)
     pdfgrid = np.zeros_like(xgrid)

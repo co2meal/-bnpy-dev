@@ -12,7 +12,8 @@ import numpy as np
 from bnpy.util import GramSchmidtUtil as GSU
 from BirthProposalError import BirthProposalError
 import BirthCleanup
-from BirthLogger import log, logPhase
+from BirthLogger import log, logPhase, logPosVector
+from bnpy.mergemove import MergeMove, MergePlanner
 
 fastParams = dict(nCoordAscentItersLP=1, convThrLP=0.001)
 
@@ -53,23 +54,9 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None,
                                   initname=kwargs['creationRoutine'],                                  
                                   **kwargs) 
 
-  freshLP = freshModel.calc_local_params(freshData, **fastParams)
-  freshSS = freshModel.get_global_suff_stats(freshData, freshLP)
-
-  '''
-  ## Sort new comps in largest-to-smallest order
-  # TODO: improve update for allocModel reorderComps
-  # currently, relies on init allocModel being "uniform", so order dont matter
-  bigtosmallIDs = np.argsort(-1 * freshSS.N)
-  newList = [None for x in xrange(len(freshModel.obsModel.comp))]
-  for loc, newLoc in enumerate(bigtosmallIDs):
-    newList[loc] = freshModel.obsModel.comp[newLoc]
-  freshModel.obsModel.comp = newList
-  freshSS.reorderComps(bigtosmallIDs)
-  '''
   logPhase('Creation')
-  log(kwargs['creationRoutine'])
-  log('Kfresh=%d' % (freshSS.K))
+  log('CreationRoutine: ' + kwargs['creationRoutine'])
+  log('Kfresh=%d' % (freshModel.obsModel.K))
   if not kwargs['creationDoUpdateFresh']:
     # Create freshSS that would produce (nearly) same freshModel.obsModel
     #   after a call to update_global_params
@@ -80,20 +67,29 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None,
       for k in xrange(freshSS.K):
         topics[k,:] = freshModel.obsModel.comp[k].lamvec - priorvec
       freshSS.setField('WordCounts', topics, dims=('K','D'))
-
     return freshModel, freshSS, Info
 
-  log('Fresh Updates ....................')
-  # Record initial model for posterity
+
+  ## Record initial model for posterity
   if kwargs['birthDebug']:
     Info['freshModelInit'] = freshModel.copy()
 
+  ## Complete several iterations to improve this fresh proposal
   for step in xrange(kwargs['creationNumIters']):
     freshLP = freshModel.calc_local_params(freshData, **fastParams)
     freshSS = freshModel.get_global_suff_stats(freshData, freshLP)
     freshModel.update_global_params(freshSS)
-    if kwargs['birthDebug']:
-      Info['freshModelRefined'] = freshModel.copy()
+    if step < 3 or (step+1) % 10 == 0:
+      logPosVector(freshSS.N, label='iter %3d' % (step+1))
+    if step > 1:
+      maxDiff = np.max(np.abs(freshSS.N - prevN))
+      if maxDiff < 1.0:
+        break
+    prevN = freshSS.N.copy()
+
+  logPosVector(freshSS.N, label='final')
+  if kwargs['birthDebug']:
+    Info['freshModelRefined'] = freshModel.copy()
 
 
   if kwargs['cleanupDeleteEmpty']:
@@ -109,6 +105,34 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None,
     if kwargs['birthDebug']:
       Info['freshModelPostDelete'] = freshModel.copy()
     
+  elif kwargs['cleanupMergeToImproveFresh']:
+    log('Merging fresh')
+    while freshSS.K > 1:
+      mPairIDs, MM = MergePlanner.preselect_candidate_pairs(freshModel, freshSS,
+                                                preselect_routine='wholeELBO',
+                                                doLimitNumPairs=0,
+                                                returnScoreMatrix=1,
+                                                **kwargs)
+      freshLP = freshModel.calc_local_params(freshData)
+      freshSS = freshModel.get_global_suff_stats(freshData, freshLP, 
+                                                doPrecompEntropy=1,
+                                                doPrecompMergeEntropy=1,
+                                                mPairIDs=mPairIDs)
+      freshELBO = freshModel.calc_evidence(SS=freshSS)
+      freshModel, freshSS, freshELBO, Info = MergeMove.run_many_merge_moves(
+                                                freshModel, freshSS, freshELBO,
+                                                mPairIDs,
+                                                logFunc=log)
+      if len(Info['AcceptedPairs']) == 0:
+        break
+
+
+  logPosVector(freshSS.N, label='cleaned')
+
+  if freshSS.K < 2:
+    msg = "BIRTH failed. Fresh proposal does not prefer multiple comps."
+    raise BirthProposalError(msg)
+
   return freshModel, freshSS, Info
 
 ########################################################### Topic-model 

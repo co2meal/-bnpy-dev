@@ -2,6 +2,7 @@ from AllocModel import AllocModel
 
 from mix.MixModel import MixModel
 from mix.DPMixModel import DPMixModel
+from mix.DPMixPE import DPMixPE
 from mix.HardDPMixModel import HardDPMixModel
 
 from admix.AdmixModel import AdmixModel
@@ -20,6 +21,7 @@ from hmm.HDPHMM import HDPHMM
 AllocModelConstructorsByName = { \
            'MixModel':MixModel,
            'DPMixModel':DPMixModel,
+           'DPMixPE':DPMixPE,
            'HardDPMixModel':HardDPMixModel,
            'AdmixModel':AdmixModel,
            'HDPModel':HDPModel,
