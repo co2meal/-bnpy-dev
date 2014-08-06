@@ -38,6 +38,261 @@ import logging
 Log = logging.getLogger('bnpy')
 EPS = 10*np.finfo(float).eps
 
+
+def find_optimum_multiple_tries(sumLogPi=None, nDoc=0, gamma=1.0, alpha=1.0,
+                                initv=None, approx_grad=False,
+                                factrList=[1e5, 1e7, 1e9, 1e10, 1e11],
+                                **kwargs):
+  ''' Find v via gradient descent, with multiple tries until first succeeds.
+
+      Returns
+      --------
+      v : 1D array, length K
+      f : scalar value of minimization objective
+      Info : dict
+
+      Raises
+      --------
+      ValueError with FAILURE in message if all restarts fail
+  '''
+  v = None
+  Info = dict()
+  msg = ''
+  nOverflow = 0
+  for trial, factr in enumerate(factrList):
+    try:
+      v, f, Info = find_optimum(sumLogPi, nDoc, gamma, alpha,
+                                initv=initv,
+                                factr=factr, approx_grad=approx_grad)
+      Info['nRestarts'] = trial
+      Info['factr'] = factr
+      Info['msg'] = Info['task']
+      del Info['grad']
+      del Info['task']
+      break
+    except ValueError as err:
+      if str(err).count('FAILURE') == 0:
+        raise err
+      msg = str(err)
+      if str(err).count('overflow') > 0:
+        nOverflow += 1
+
+  if v is None: # optimization failed
+    if initv is not None:
+      # last ditch attempt with different initial values
+      return find_optimum_multiple_tries(sumLogPi, nDoc, gamma=gamma, 
+                                         alpha=alpha, approx_grad=approx_grad,
+                                         **kwargs)
+    else:
+      raise ValueError(msg)
+  Info['nOverflow'] = nOverflow
+  return v, f, Info      
+
+def find_optimum(sumLogPi=None, nDoc=0, gamma=1.0, alpha=1.0,
+                 initv=None, 
+                 approx_grad=False, factr=1.0e7, **kwargs):
+  ''' Run gradient optimization to estimate best vector v
+
+      Returns
+      --------
+      v : 1D array, length K
+      f : scalar value of minimization objective
+      Info : dict
+
+      Raises
+      --------
+      ValueError on an overflow, any NaN, or failure to converge
+  '''
+  sumLogPi = np.squeeze(np.asarray(sumLogPi, dtype=np.float64))
+  assert sumLogPi.ndim == 1
+  K = sumLogPi.size - 1
+
+  ## Determine initial value
+  if initv is None:
+    initv = create_initv(K)
+  assert initv.size == K
+  assert initv.min() > 0.0
+  assert initv.max() < 1.0
+  initc = v2c(initv)
+
+  ## Define objective function (unconstrained!)
+  objFunc = lambda c: objFunc_unconstrained(c, 
+                              sumLogPi=sumLogPi, nDoc=nDoc, 
+                              gamma=gamma, alpha=alpha, 
+                              approx_grad=approx_grad)
+  
+  ## Run optimization and catch any overflow or NaN issues
+  with warnings.catch_warnings():
+    warnings.filterwarnings('error', category=RuntimeWarning,
+                               message='overflow')
+    try:
+      chat, fhat, Info = scipy.optimize.fmin_l_bfgs_b(objFunc, initc,
+                                                  disp=None,
+                                                  approx_grad=approx_grad,
+                                                  factr=factr,
+                                                  **kwargs)
+    except RuntimeWarning:
+      raise ValueError("FAILURE: overflow!" )
+    except AssertionError:
+      raise ValueError("FAILURE: NaN found!")
+      
+  if Info['warnflag'] > 1:
+    raise ValueError("FAILURE: " + Info['task'])
+
+  Info['init'] = initv
+  Info['objFunc'] = lambda v: objFunc_constrained(v,
+                              sumLogPi=sumLogPi, nDoc=nDoc, 
+                              gamma=gamma, alpha=alpha,
+                              approx_grad=False)
+  v = c2v(chat, doGrad=False)
+  return v, fhat, Info
+
+def create_initv(K):
+  ''' Create initial guess for vector v, s.t. beta(v) is uniform over topics
+  '''
+  rem = np.minimum( 0.1, 1.0/(K*K))
+  beta = (1.0-rem)/K * np.ones(K+1)
+  beta[-1] = rem  
+  assert np.allclose( beta.sum(), 1.0)
+  return _beta2v(beta)
+
+########################################################### Objective
+###########################################################  unconstrained
+def objFunc_unconstrained(c, approx_grad=False, **kwargs):
+  v, dvdc = c2v(c, doGrad=True)
+  if approx_grad:
+    f = objFunc_constrained(v, approx_grad=approx_grad, **kwargs)
+    return f
+  f, grad = objFunc_constrained(v, **kwargs)
+  return f, grad * dvdc
+
+def c2v(c, doGrad=False):
+  v = sigmoid(c)
+  if not doGrad:
+    return v
+  dvdc = v * (1-v)
+  return v, dvdc
+
+def v2c(v):
+  return invsigmoid(v)
+
+def sigmoid(c):
+  ''' sigmoid(c) = 1./(1+exp(-c))
+  '''
+  return 1.0/(1.0 + np.exp(-c))
+
+def invsigmoid(v):
+  ''' Returns the inverse of the sigmoid function
+      v = sigmoid(invsigmoid(v))
+
+      Args
+      --------
+      v : positive vector with entries 0 < v < 1
+  '''
+  assert np.all(v <= 1-EPS)
+  assert np.all(v >= EPS)
+  return -np.log((1.0/v - 1))
+
+########################################################### Objective
+###########################################################  constrained
+def objFunc_constrained(v,
+                     sumLogPi=0, nDoc=0, gamma=1.0, alpha=1.0,
+                     approx_grad=False):
+  ''' Returns constrained objective function value and its gradient
+
+      Args
+      -------
+      v := 1D array, size K
+
+      Returns
+      -------
+      f := -1 * L(v), 
+           where L is ELBO objective function (log posterior prob)
+      g := gradient of f
+  '''
+  logpV = (alpha - 1) * np.sum(np.log(1.-v))
+
+  if nDoc > 0:
+    beta = _v2beta(v)
+    logpPi_const = gammaln(gamma) - np.sum(gammaln(gamma*beta))
+    logpPi = np.inner(gamma*beta, sumLogPi/nDoc)
+    elbo = logpV / nDoc + logpPi_const + logpPi
+  else:
+    elbo = logpV
+
+  if approx_grad:
+    return -1.0 * elbo
+  
+  if nDoc > 0:
+    K = v.size
+    dBdv = np.tile(-1*beta, (K,1))
+    dBdv /= (1-v)[:,np.newaxis]
+    diagIDs = np.diag_indices(K)
+    dBdv[diagIDs] /= -1 * v/(1-v)
+    dBdv[_get_lowTriIDs(K)] = 0
+
+    grad_logPi = gamma * (np.dot(dBdv, sumLogPi/nDoc) \
+                        - np.dot(dBdv, digamma(gamma * beta)))
+    grad = (1 - alpha) / (1-v) / nDoc + grad_logPi
+  else:
+    grad = (1 - alpha) / (1-v)
+
+  return -1.0 * elbo, -1.0 * grad
+
+def _v2beta(v):
+  ''' Convert to stick-breaking fractions v to probability vector beta
+      Args
+      --------
+      v : K-len vector, rho[k] in interval [0, 1]
+      
+      Returns
+      --------
+      beta : K+1-len vector, with positive entries that sum to 1
+  '''
+  beta = np.hstack([1.0, np.cumprod(1-v)])
+  beta[:-1] *= v
+  return beta
+
+
+def _beta2v( beta ):
+  ''' Convert probability vector beta to stick-breaking fractions v
+      Args
+      --------
+      beta : K+1-len vector, with positive entries that sum to 1
+      
+      Returns
+      --------
+      v : K-len vector, v[k] in interval [0, 1]
+  '''
+  beta = np.asarray(beta)
+  K = beta.size
+  v = np.zeros(K-1)
+  cb = beta.copy()
+  for k in range(K-1):
+    cb[k] = 1 - cb[k]/np.prod( cb[:k] )
+    v[k] = beta[k]/np.prod( cb[:k] )
+  # Force away from edges 0 or 1 for numerical stability  
+  v = np.maximum(v,EPS)
+  v = np.minimum(v,1-EPS)
+  return v
+
+
+lowTriIDsDict = dict()
+def _get_lowTriIDs(K):
+  if K in lowTriIDsDict:
+    return lowTriIDsDict[K]
+  else:
+    ltIDs = np.tril_indices(K, -1)
+    lowTriIDsDict[K] = ltIDs
+    return ltIDs
+
+
+
+
+
+
+
+"""
 def estimate_v(sumLogPi=None, nDoc=0, gamma=1.0, alpha0=1.0, initv=None, approx_grad=False, **kwargs):
   ''' Run gradient optimization to estimate best v for specified problem
 
@@ -268,3 +523,4 @@ def beta2v( beta ):
   v = np.maximum(v,EPS)
   v = np.minimum(v,1-EPS)
   return v
+"""

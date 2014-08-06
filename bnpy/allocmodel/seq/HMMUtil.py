@@ -53,8 +53,8 @@ def FwdBwdAlg(PiInit, PiMat, logSoftEv):
 
   SoftEv, lognormC = expLogLik(logSoftEv)
   
-  fmsg, margPrObs = FwdAlg_py(PiInit, PiMat, SoftEv)
-  bmsg = BwdAlg_py(PiInit, PiMat, SoftEv, margPrObs)
+  fmsg, margPrObs = FwdAlg_cpp(PiInit, PiMat, SoftEv)
+  bmsg = BwdAlg_cpp(PiInit, PiMat, SoftEv, margPrObs)
 
   respPair = np.zeros((T,K,K))
   for t in xrange(1, T):
@@ -191,12 +191,14 @@ def viterbi(logSoftEv, pi0, pi):
   T, K = np.shape(logSoftEv)
   V = np.zeros((T, K))
   softEv, lognormC = expLogLik(logSoftEv)
+  prev = np.zeros((T, K))
 
   for t in xrange(T):
     for l in xrange(K):
       
       if t == 0:
         V[0, l] = softEv[t,l] * pi0[l]
+        prev[0,l] = -1
         continue
 
       biggest = 0
@@ -204,6 +206,7 @@ def viterbi(logSoftEv, pi0, pi):
         pr = pi[k,l] * V[t-1, k]
         if pr > biggest:
           biggest = pr
+          prev[t,l] = k
 
       V[t, l] = softEv[t,l] * biggest
 
@@ -211,7 +214,10 @@ def viterbi(logSoftEv, pi0, pi):
   #Find most likely sequence of z's
   z = np.zeros(T)
   for t in reversed(xrange(T)):
-    z[t] = np.argmax(V[t,:])
+    if t == T-1:
+      z[t] = np.argmax(V[t,:])
+    else:
+      z[t] = prev[t+1, z[t+1]]
   return z
 
     

@@ -91,8 +91,8 @@ class TestFwd(unittest.TestCase):
     cElapsed = cTimer.timeit(number=nTrials) / nTrials
     pyElapsed = pyTimer.timeit(number=nTrials) / nTrials
 
-    print ' py % 9.5f | c % 9.5f | speedup %7.2f' \
-          % (pyElapsed, cElapsed, pyElapsed / cElapsed)
+    print ' py % 9.5f | c % 9.5f | K % d | speedup %7.2f' \
+          % (pyElapsed, cElapsed, K, pyElapsed / cElapsed)
 
   def test_speed_vs_K(self):
     '''

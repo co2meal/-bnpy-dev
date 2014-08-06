@@ -76,6 +76,24 @@ class ParamBag(object):
       curShape = getattr(self,key).shape
       self.setField(key, np.zeros(curShape), dims=dims)
 
+  ######################################################### Reorder components
+  #########################################################
+  def reorderComps(self, sortIDs):
+    ''' Rearrange internal order of all fields along dimension 'K'
+    '''
+    for key in self._FieldDims:
+      arr = getattr(self, key)
+      dims = self._FieldDims[key]
+      if arr.ndim == 0:
+        continue
+      if arr.ndim == 1 and dims[0] == 'K':
+        arr = arr[sortIDs]
+      elif arr.ndim == 2 and dims[0] == 'K':
+        arr = arr[sortIDs]
+      else:
+        raise NotImplementedError('TODO')
+      self.setField(key, arr, dims=dims)
+
   ######################################################### Insert components
   #########################################################
   def insertEmptyComps(self, Kextra):

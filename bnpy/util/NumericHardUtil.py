@@ -542,4 +542,4 @@ def create_lookup_table_logfactorial(Nmax):
 MTYPE = np.int32
 
 # Create lookup table
-logfactorialLookupArr = create_lookup_table_logfactorial(500)
+logfactorialLookupArr = create_lookup_table_logfactorial(1000)

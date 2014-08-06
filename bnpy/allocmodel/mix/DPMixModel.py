@@ -18,6 +18,7 @@ Attributes
 import numpy as np
 
 from bnpy.allocmodel import AllocModel
+from bnpy.deletemove import DeleteLPUtil
 from bnpy.suffstats import SuffStatBag
 from bnpy.util import NumericUtil
 from bnpy.util import gammaln, digamma, EPS
@@ -58,7 +59,7 @@ class DPMixModel(AllocModel):
       self.Elog1mV[-1] = np.log(1e-40) # log(0) => -INF, never used
 		
 		# Calculate expected mixture weights E[ log w_k ]	 
-    self.Elogw = self.ElogV.copy() #copy so we can do += without modifying ElogV
+    self.Elogw = self.ElogV.copy() # copy allows += without modifying ElogV
     self.Elogw[1:] += self.Elog1mV[:-1].cumsum()
     
 
@@ -87,7 +88,8 @@ class DPMixModel(AllocModel):
         -------
         LP : local param dict with fields
               resp : Data.nObs x K array whose rows sum to one
-              resp[n,k] = posterior responsibility that comp. k has for data n                
+              resp[n,k] = posterior responsibility that 
+                          comp. k has for data n                
     '''
     lpr = LP['E_log_soft_ev']
     lpr += self.Elogw
@@ -98,9 +100,18 @@ class DPMixModel(AllocModel):
     assert np.allclose(lpr.sum(axis=1), 1)
     return LP
 
+  def delete_comps_from_local_params(self, Data, LP, compIDs, **kwargs):
+    ''' Create new local params with certain components deleted
+    '''
+    newLP = dict()
+    newLP['resp'] = DeleteLPUtil.delete_comps_from_resp_matrix(LP['resp'],
+                                                             compIDs)
+    return newLP
+
   ######################################################### Suff Stats
   #########################################################
   def get_global_suff_stats(self, Data, LP,
+                             preselectroutine=None,
                              doPrecompEntropy=False, 
                              doPrecompMergeEntropy=False, mPairIDs=None):
     ''' Calculate the sufficient statistics for global parameter updates
@@ -128,29 +139,37 @@ class DPMixModel(AllocModel):
                    effective number of observations assigned to each comp
     '''
     Nvec = np.sum(LP['resp'], axis=0)
-    SS = SuffStatBag(K=Nvec.size, D=Data.dim)
+    if hasattr(Data, 'dim'):
+      SS = SuffStatBag(K=Nvec.size, D=Data.dim)
+    else:
+      SS = SuffStatBag(K=Nvec.size, D=Data.vocab_size)
+
     SS.setField('N', Nvec, dims=('K'))
     if doPrecompEntropy:
+      resp = LP['resp']
+      np.minimum(resp, 1-EPS, out=resp)
+      np.maximum(resp, EPS, out=resp)
+
       ElogqZ_vec = self.E_logqZ(LP)
       SS.setELBOTerm('ElogqZ', ElogqZ_vec, dims=('K'))
+
     if doPrecompMergeEntropy:
-      # Hmerge : KxK matrix of entropies for all possible pair-wise merges
-      # for example, if we had only 3 components {0,1,2}
-      # Hmerge = [ 0 H(0,1) H(0,2)
-      #            0   0    H(1,2)
-      #            0   0      0 ]      
-      #  where H(i,j) is entropy if components i and j merged.
-      Hmerge = np.zeros((self.K, self.K))
-      for jj in range(self.K):
-        compIDs = np.arange(jj+1, self.K)
-        Rcombo = LP['resp'][:,jj][:,np.newaxis] + LP['resp'][:,compIDs]
-        Hmerge[jj,compIDs] = np.sum(Rcombo*np.log(Rcombo+EPS), axis=0)
-      SS.setMergeTerm('ElogqZ', Hmerge, dims=('K','K'))
+      if doPrecompMergeEntropy == 2:
+        ElogqZVec = NumericUtil.calcRlogR(1.0 - resp)
+        SS.setMergeTerm('ElogqZ', -1*ElogqZVec, dims=('K'))
+      else:
+        if mPairIDs is None:
+          ElogqZMat = NumericUtil.calcRlogR_allpairs(resp)
+        else:
+          ElogqZMat = NumericUtil.calcRlogR_specificpairs(resp, mPairIDs)
+        SS.setMergeTerm('ElogqZ', ElogqZMat, dims=('K','K'))
+
     return SS
+
 
   ######################################################### Global Params
   #########################################################
-  def update_global_params_VB( self, SS, **kwargs ):
+  def update_global_params_VB( self, SS, **kwargs):
     ''' Updates global params (stick-breaking Beta params qalpha1, qalpha0)
           for conventional VB learning algorithm.
         New parameters have exactly the number of components specified by SS. 
@@ -176,8 +195,32 @@ class DPMixModel(AllocModel):
     self.qalpha0 = rho * qalpha0 + (1-rho) * self.qalpha0
     self.set_helper_params()
 
+  def init_global_params(self, Data, K=0, **kwargs):
+    ''' Initialize global parameters "from scratch" to prep for learning.
+
+        Will yield uniform distribution (or close to) for all K components,
+        by performing a "pseudo" update in which only one observation was
+        assigned to each of the K comps.
+
+        Internal Updates
+        --------
+        Sets attributes qalpha1, qalpha0 (for VB) to viable values
+
+        Returns
+        --------
+        None. 
+    '''
+    self.K = K
+    Nvec = np.ones(K)
+    qalpha1 = self.alpha1 + Nvec
+    qalpha0 = self.alpha0 * np.ones(self.K)
+    qalpha0[:-1] += Nvec[::-1].cumsum()[::-1][1:]
+    self.qalpha1 = qalpha1
+    self.qalpha0 = qalpha0
+    self.set_helper_params()
+
   def set_global_params(self, hmodel=None, K=None, qalpha1=None, 
-                              qalpha0=None, **kwargs):
+                              qalpha0=None, beta=None, nObs=10, **kwargs):
     ''' Directly set global parameters qalpha0, qalpha1 to provided values
     '''
     if hmodel is not None:
@@ -186,6 +229,20 @@ class DPMixModel(AllocModel):
       self.qalpha0 = hmodel.allocModel.qalpha0
       self.set_helper_params()
       return
+    if beta is not None:
+      if K is None:
+        K = beta.size
+      # convert to expected stick-lengths v
+      import bnpy.allocmodel.admix.OptimizerForHDPStickBreak as OptimSB
+      if beta.size == K:
+        rem = np.minimum(0.01, 1.0/K)
+        rem = np.minimum(1.0/K, beta.min()/K)
+        beta = np.hstack( [beta, rem])
+      beta = beta / beta.sum()
+      Ev = OptimSB._beta2v(beta)
+      qalpha1 = Ev * nObs
+      qalpha0 = (1-Ev) * nObs
+
     if type(qalpha1) != np.ndarray or qalpha1.size != K or qalpha0.size != K:
       raise ValueError("Bad DP Parameters")
     self.K = K
@@ -195,7 +252,7 @@ class DPMixModel(AllocModel):
  
   ######################################################### Evidence
   #########################################################
-  def calc_evidence(self, Data, SS, LP=None ):
+  def calc_evidence(self, Data, SS, LP=None, todict=False, **kwargs):
     '''
     '''
     evV = self.E_logpV() - self.E_logqV()
@@ -207,14 +264,21 @@ class DPMixModel(AllocModel):
       evZ = self.E_logpZ(SS) -  SS.ampF * evZq
     else:
       evZ = self.E_logpZ(SS) - evZq
+
+    if todict:
+      return dict(z_Elogp=self.E_logpZ(SS),
+                  z_Elogq=evZq,
+                  v_Elogp=self.E_logpV(),
+                  v_Elogq=self.E_logqV())
+
     return evZ + evV
          
   def E_logpZ(self, SS):
     return np.inner( SS.N, self.Elogw ) 
     
   def E_logqZ(self, LP):
-    return np.sum(LP['resp'] * np.log(LP['resp']+EPS), axis=0)
-    
+    return NumericUtil.calcRlogR(LP['resp']+1e-100)
+
   def E_logpV( self ):
     logNormC = gammaln(self.alpha0 + self.alpha1) \
                     - gammaln(self.alpha0) - gammaln(self.alpha1)
@@ -233,7 +297,58 @@ class DPMixModel(AllocModel):
     elif self.truncType == 'v':
       # skip last entry because entropy of Beta(1,0) = 0
       return logNormC[:-1].sum() + logBetaPDF[:-1].sum()
-    
+
+  # _______________________________________________________ MERGE calculations
+
+  def calcMergeGap(self, SS, kdel, alph):
+    ''' Calculate improvement in total allocation ELBO after a multi-way merge.
+    '''
+    return self.calcMergeGap_Entropy(SS, kdel, alph) \
+           + self.calcMergeGap_NonEntropy(SS, kdel, alph)
+
+  def calcMergeGap_Entropy(self, SS, kdel, alph):
+    ''' Calculate improvement in entropy after a multi-way merge.
+    '''
+    Halph =  -1 * np.inner(alph, np.log(alph+1e-15))
+    Hplus = -1 * SS.getELBOTerm('ElogqZ')[kdel] \
+               + SS.getMergeTerm('ElogqZ')[kdel]
+    gap = SS.N[kdel] * Halph - Hplus
+    return gap
+
+  def calcMergeGap_NonEntropy(self, SS, kdel, alph):
+    ''' Calculate improvement in allocation ELBO after a multi-way merge.
+    '''
+    if alph.size < SS.K:
+      alph = np.hstack([alph[:kdel], 0, alph[kdel:]])
+    assert alph.size == SS.K
+    assert np.allclose(alph[kdel], 0)
+    gap = np.sum(c_Func(self.qalpha1, self.qalpha0)) \
+                - c_Func(self.alpha1, self.alpha0)
+    for k in xrange(SS.K):
+      if k == kdel:
+        continue
+      a1 = self.qalpha1[k] + alph[k] * SS.N[kdel]
+      a0 = self.qalpha0[k] + np.sum(alph[k+1:]) * SS.N[kdel]
+      gap -= c_Func(a1, a0)
+    return gap
+
+  def calcMergeGap_alph(self, SS, kdel, alph):
+    ''' Calculate improvement in allocation ELBO after a multi-way merge,
+          keeping only terms that depend on redistribution parameters alph
+    '''
+    if alph.size < SS.K:
+      alph = np.hstack([alph[:kdel], 0, alph[kdel:]])
+    assert alph.size == SS.K
+    assert np.allclose(alph[kdel], 0)
+    gap = 0
+    for k in xrange(SS.K):
+      if k == kdel:
+        continue
+      a1 = self.qalpha1[k] + alph[k] * SS.N[kdel]
+      a0 = self.qalpha0[k] + np.sum(alph[k+1:]) * SS.N[kdel]
+      gap -= c_Func(a1, a0)
+    return gap
+
   ######################################################### IO Utils
   #########################################################   for humans
   def get_info_string( self):
@@ -261,3 +376,7 @@ class DPMixModel(AllocModel):
   def get_prior_dict(self):
     return dict(alpha1=self.alpha1, alpha0=self.alpha0, K=self.K, 
                   truncType=self.truncType)  
+
+
+def c_Func(alpha1, alpha0):
+  return gammaln(alpha1+alpha0) - gammaln(alpha1) - gammaln(alpha0)

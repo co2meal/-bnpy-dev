@@ -10,6 +10,8 @@ import numpy as np
 from bnpy.data import SeqXData, MinibatchIterator
 import readline
 
+import scipy.io
+
 
 def get_minibatch_iterator(seed=8675309, dataorderseed=0, nBatch=3, nObsBatch=2, nObsTotal=25000, nLap=1, startLap=0, **kwargs):
   '''
@@ -65,7 +67,7 @@ def get_XZ():
         seqInds = np.append(seqInds, len(Z[i]) + seqInds[i])
         fullZ = np.append(fullZ, Z[i])
     X = np.vstack(X)
-
+    scipy.io.savemat('trueZ.mat', {'trueZ':fullZ})        
     return X, fullZ, seqInds
 
 

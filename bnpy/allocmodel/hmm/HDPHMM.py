@@ -9,7 +9,7 @@ from bnpy.allocmodel.admix import OptimizerForHDPStickBreak as OptimHDPSB
 
 class HDPHMM(AllocModel):
 
-    def __init__(self, inferType, priorDict):
+    def __init__(self, inferType, priorDict = dict()):
         if inferType == 'EM':
             raise ValueError('EM is not supported for HDPHMM')
         
@@ -26,21 +26,16 @@ class HDPHMM(AllocModel):
         #Beta params for initial distribution stick
         self.b = None
 
-        self.tau = .1
-        self.gamma = .1
-        self.alpha = .1
-        self.Lambda = .1
-        self.prevv = None
-        self.prevv0 = None
-        self.prevz = None
-        self.prevy = None
+        self.set_prior(**priorDict)
 
+        self.estZ = dict()
 
     def set_prior(self, gamma=1.1, alpha=1.1, Lambda=1, tau=1.1, **kwargs):
         self.gamma = gamma
         self.alpha = alpha
         self.Lambda = Lambda
         self.tau = tau
+        print self.tau
 
 
   ######################################################### Local Params
@@ -64,7 +59,6 @@ class HDPHMM(AllocModel):
              Note that respPair[0,:,:] is undefined.
         '''
         lpr = LP['E_log_soft_ev']
-
         expELogBeta = np.ones((self.K, self.K))
         expELogPi = np.ones(self.K)
 
@@ -92,9 +86,8 @@ class HDPHMM(AllocModel):
 
         resp = None
         respPair = None
-        estZ = None
         for n in xrange(Data.nSeqs):
-            #The third return value, logMargPr, is useless in the HDPHMM
+
             seqResp, seqRespPair, _ = \
                 HMMUtil.FwdBwdAlg(expELogPi, expELogBeta, \
                                       lpr[Data.seqInds[n]:Data.seqInds[n+1]])
@@ -104,13 +97,11 @@ class HDPHMM(AllocModel):
             if resp is None:
                 resp = np.vstack(seqResp)
                 respPair = seqRespPair
-                estZ = est
             else:
                 resp = np.vstack((resp, seqResp))
                 respPair = np.append(respPair, seqRespPair, axis = 0)
-                estZ = np.append(estZ, est)
 
-        self.estZ = estZ
+            self.estZ.update({'%d'%(Data.seqsUsed[n]) : est})
 
         LP.update({'resp':resp})
         LP.update({'respPair':respPair})
@@ -190,7 +181,7 @@ class HDPHMM(AllocModel):
 
 
     def update_global_params_EM(self, SS, **kwargs):
-        raise ValueError('HDPHMM.py does not support EM')
+        raise ValueError('HDPHMM does not support EM')
 
 
     def update_global_params_VB(self, SS, **kwargs):
@@ -207,27 +198,9 @@ class HDPHMM(AllocModel):
 
         #Update rho and omega through numerical optimization
         self.rho, self.omega = self.find_optimum_rhoOmega(SS, **kwargs)
+
+        self.u, self.b = self._calc_u_b(SS)
         
-        rhoProds = np.array([np.prod(1-self.rho[0:i]) for i in xrange(self.K)])
-
-        #self.u = np.array([np.ones((self.K, self.K)), 
-        #                   np.ones((self.K, self.K))])
-        #self.b = np.array([np.ones(self.K), np.ones(self.K)])
-
-        #Update u
-        for i in xrange(self.K):
-            for j in xrange(self.K):
-                self.u[1,i,j] = self.alpha * self.rho[i] * rhoProds[i] + \
-                    SS.respPairSums[i,j]
-                self.u[0,i,j] = self.alpha * (1 - self.rho[i]) * rhoProds[i] + \
-                    np.sum(SS.respPairSums[i,j+1:self.K])
-
-        #Update b
-        for i in xrange(self.K):
-            self.b[1,i] = self.tau * self.rho[i] * rhoProds[i] + \
-                SS.firstStateResp[i]
-            self.b[0,i] = self.tau * (1 - self.rho[i]) * rhoProds[i] + \
-                np.sum(SS.firstStateResp[i+1:self.K])
 
     def update_global_params_soVB(self, SS, rho, **kwargs):
         ''' Updates global parameters when learning with stochastic online VB.
@@ -235,38 +208,59 @@ class HDPHMM(AllocModel):
             the global stick weight parameter rho
         '''
         rhoNew, omegaNew = self.find_optimum_rhoOmega(SS, **kwargs)
-        uNew = np.array([np.ones((self.K, self.K)), 
-                           np.ones((self.K, self.K))])
-        bNew = np.array([np.ones(self.K), np.ones(self.K)])
+        uNew, bNew = self._calc_u_b(SS)
 
+        self.u = rho*uNew + (1 - rho)*self.u
+        self.b = rho*bNew + (1 - rho)*self.b
+        self.rho = rho*rhoNew + (1 - rho)*self.rho
+        self.omega = rho*omegaNew + (1 - rho)*self.omega
+
+    def _calc_u_b(self, SS):
         rhoProds = np.array([np.prod(1-self.rho[0:i]) for i in xrange(self.K)])
 
+        u = np.array([np.ones((self.K, self.K)), 
+                           np.ones((self.K, self.K))])
+        b = np.array([np.ones(self.K), np.ones(self.K)])
+
+        #Update u
         for i in xrange(self.K):
             for j in xrange(self.K):
-                uNew[1,i,j] = self.alpha * self.rho[i] * rhoProds[i] + \
+                u[1,i,j] = self.alpha * self.rho[i] * rhoProds[i] + \
                     SS.respPairSums[i,j]
-                uNew[0,i,j] = self.alpha * (1 - self.rho[i]) * rhoProds[i] + \
+                u[0,i,j] = self.alpha * (1 - self.rho[i]) * rhoProds[i] + \
                     np.sum(SS.respPairSums[i,j+1:self.K])
 
+        #Update b
         for i in xrange(self.K):
-            bNew[1,i] = self.tau * self.rho[i] * rhoProds[i] + \
+            b[1,i] = self.tau * self.rho[i] * rhoProds[i] + \
                 SS.firstStateResp[i]
-            bNew[0,i] = self.tau * (1 - self.rho[i]) * rhoProds[i] + \
+            b[0,i] = self.tau * (1 - self.rho[i]) * rhoProds[i] + \
                 np.sum(SS.firstStateResp[i+1:self.K])
 
-            self.u = rho*uNew + (1 - rho)*self.u
-            self.b = rho*bNew + (1 - rho)*self.b
-            self.rho = rho*rhoNew + (1 - rho)*self.rho
-            self.omega = rho*omegaNew + (1 - rho)*self.omega
-
+        return u, b
         
 
-    def calc_evidence(self, Data, SS, LP):
+    def init_global_params(self, Data, K=0, **initArgs):
+        self.K = K
+        self.omega = (self.gamma + 1) * np.ones(self.K)
+        self.rho = (1 / (self.gamma + 1)) * np.ones(self.K)
+        
+        #Fake suff stat bag that assigns 1/K "observations" to each starting
+        #  state and transition
+        SS = SuffStatBag(K = self.K , D = Data.dim)
+        SS.setField('firstStateResp', np.ones(K) / K, dims=('K'))
+        SS.setField('respPairSums', np.ones((K,K)) / K, dims=('K','K'))
+
+        self.u, self.b = self._calc_u_b(SS)
+        
+       
+
+    def calc_evidence(self, Data, SS, LP, todict = False, **kwargs):
         if SS.hasELBOTerm('Elogqz'):
             entropy = SS.getELBOTerm('Elogqz')
         else:
             entropy = self.elbo_entropy(Data, LP)
-
+        print entropy
         return entropy + self.elbo_alloc() + self.elbo_v0() + \
             self.elbo_allocSlack()
 
@@ -280,8 +274,12 @@ class HDPHMM(AllocModel):
           #for q(z_t | z_{t-1})
         sigma  = (LP['respPair'] / 
                   (np.sum(LP['respPair'], axis = 2)[:, :, np.newaxis] + EPS))
+
+
+        #print LP['resp'][Data.seqInds[:-1]]
         z_1 = -np.sum(LP['resp'][Data.seqInds[:-1],:] * \
                       np.log(LP['resp'][Data.seqInds[:-1],:] + EPS))
+#        z_1 = -np.sum(LP['resp'][0,:] * np.log(LP['resp'][0,:] + EPS))
         restZ = -np.sum(LP['respPair'][1:,:,:] * np.log(sigma[1:,:,:] + EPS))
         return z_1 + restZ
 
@@ -344,8 +342,14 @@ class HDPHMM(AllocModel):
 
 
     def to_dict(self):
+        #convert the self.estZ dictionary to a list
+        estz = list()
+        for seq in xrange(np.size(self.estZ.keys())):
+            if '%d'%(seq) in self.estZ:
+                estz.append(self.estZ['%d'%(seq)])
+
         return dict(u = self.u, y = self.b, omega = self.omega,
-                    rho = self.rho, estZ = self.estZ)
+                    rho = self.rho, estZ = estz)
 
     def from_dict(self, myDict):
         self.inferType = myDict['inferType']

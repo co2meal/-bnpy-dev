@@ -10,16 +10,17 @@ from .DataObj import DataObj
 from bnpy.data import XData
 
 class SeqXData(XData):
-    def __init__(self, X, seqInds, nObsTotal = None, TrueZ = None):
+    def __init__(self, X, seqInds, seqsUsed = None, nObsTotal = None, TrueZ = None):
         ''' X must be a matrix containing all data from all sequences.
             seqIndicies gives the starting indicies of each sequence in X (e.g.
               seqIndicies = [0, 9, 12] means that X[0:8,:] is the first sequence and
               X[9:12,:] is the second sequence).
             TrueZ is also indexed by seqIndicies
+            globalInds are the indicies of the data in the full dataset
             nObsTotal represents the size of the overall dataset that this data
               came from.  If set to None, it will be set to the size of X
         '''
-        #super(SeqXData, self).__init__(X=X, nObsTotal=nObsTotal, TrueZ=TrueZ)
+
         self.seqInds = seqInds
         self.nSeqs = np.size(seqInds) - 1
 
@@ -27,11 +28,16 @@ class SeqXData(XData):
         if X.ndim < 2:
             X = X[np.newaxis,:]
         self.X = np.float64(X.newbyteorder('=').copy())
-        
+     
         self.set_dependent_params(nObsTotal=nObsTotal)
         self.check_dims()
         if TrueZ is not None:
             self.addTrueLabels(TrueZ)
+
+        if seqsUsed is None:
+            self.seqsUsed = np.linspace(0, np.size(seqInds)-1, np.size(seqInds))
+        else:
+            self.seqsUsed = seqsUsed
 
     def to_minibatch_iterator(self, **kwargs):
         return MinibatchIterator(self, **kwargs)
@@ -49,7 +55,7 @@ class SeqXData(XData):
          '''
         xNew = None
         seqNew = np.array([0])
-    
+
         for i in xrange(len(mask)):
             start = self.seqInds[mask[i]]
             end = self.seqInds[mask[i] + 1]
@@ -60,7 +66,8 @@ class SeqXData(XData):
             seqNew = np.append(seqNew, end - start + seqNew[i])
                 
         if doTrackFullSize:
-            return SeqXData(xNew, seqNew, nObsTotal=self.nObsTotal)
+            return SeqXData(xNew, seqNew, nObsTotal = self.nObsTotal, 
+                            seqsUsed = mask)
         return SeqXData(xNew, seqNew)
 
     def add_data(self, seqXDataObj):
