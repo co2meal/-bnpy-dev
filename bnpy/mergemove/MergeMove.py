@@ -1,8 +1,11 @@
 import numpy as np
 
 import MergeLogger
+ELBO_GAP_ACCEPT_TOL = 1e-6
 
-def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None, **kwargs):
+def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None, 
+                                   logFunc=MergeLogger.log,
+                                   **kwargs):
   ''' Run many pre-selected merge candidates, keeping all that improve ELBO.
 
       Returns
@@ -11,6 +14,9 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None, **kwargs):
       SS : bnpy SuffStatBag,
       MergeInfo : dict with info about all accepted merges
   '''
+  if 'mergeLogVerbose' not in kwargs:
+    kwargs['mergeLogVerbose'] = 0
+
   if kwargs['mergeLogVerbose']:
     MergeLogger.logPhase('MERGE Decisions')
 
@@ -20,9 +26,13 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None, **kwargs):
 
   CompIDShift = np.zeros(curSS.K, dtype=np.int32)
 
-  nMergeTrials = kwargs['mergePerLap']
+  if 'mergePerLap' in kwargs:
+    nMergeTrials = kwargs['mergePerLap']
+  else:
+    nMergeTrials = len(mPairIDs)
   trialID = 0
   AcceptedPairs = list()
+  AcceptedPairOrigIDs = list()
   ELBOGain = 0
   while trialID < nMergeTrials and len(eligibleIDs) > 0:
     if len(eligibleIDs) == 0:
@@ -51,8 +61,8 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None, **kwargs):
                                           jA, jB, Mcand)
     
     if kwargs['mergeLogVerbose']:
-      MergeLogger.log( '%3d | %3d %3d | % .4e | %s' 
-                        % (trialID, jA, jB, MoveInfo['ELBOGain'], scoreMsg)
+      MergeLogger.log( '%3d | %3d %3d | % .7e | %s' 
+                        % (trialID, kA, kB, MoveInfo['ELBOGain'], scoreMsg)
                      )
     if MoveInfo['didAccept']:
       CompIDShift[kA] = -1
@@ -62,15 +72,18 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None, **kwargs):
       CompIDShift[offIDs] = -1
 
       AcceptedPairs.append((jA, jB))
+      AcceptedPairOrigIDs.append((kA, kB))
       ELBOGain += MoveInfo['ELBOGain']
     trialID += 1
 
   if kwargs['mergeLogVerbose']:
     MergeLogger.logPhase('MERGE summary')
-  MergeLogger.log( ' %d/%d accepted. ev increased % .4e' 
+  logFunc( ' %d/%d accepted. ev increased % .4e' 
                     % (len(AcceptedPairs), trialID, ELBOGain))
 
-  Info = dict(AcceptedPairs=AcceptedPairs, ELBOGain=ELBOGain)
+  Info = dict(AcceptedPairs=AcceptedPairs,
+              AcceptedPairOrigIDs=AcceptedPairOrigIDs,
+              ELBOGain=ELBOGain)
   return curModel, curSS, curELBO, Info
 
 
@@ -98,79 +111,12 @@ def buildMergeCandidateAndKeepIfImproved(curModel, curSS, curELBO, kA, kB, Mcur=
   assert not np.isnan(propELBO)
   assert not np.isinf(propELBO)
 
-  Info = dict(didAccept=propELBO > curELBO, 
-              ELBOGain=propELBO - curELBO)
+  didAccept = propELBO > curELBO - ELBO_GAP_ACCEPT_TOL
+  Info = dict(didAccept=didAccept, 
+              ELBOGain=propELBO - curELBO,
+             )
 
-  if propELBO > curELBO:
+  if didAccept:
     return propModel, propSS, propELBO, Info
   else:
     return curModel, curSS, curELBO, Info
-
-"""
-
-def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, **kwargs):
-  ''' Run many pre-selected merge candidates, keeping all that improve ELBO.
-
-      Returns
-      --------
-      model : new bnpy HModel
-      SS : bnpy SuffStatBag,
-      MergeInfo : dict with info about all accepted merges
-  '''
-  nMergeTrials = kwargs['mergePerLap']
-  mPairIDs = [x for x in mPairIDs] # Local copy
-
-  MergeLogger.logPhase('MERGE Decisions')
-
-  trialID = 0
-  AcceptedPairs = list()
-  ELBOGain = 0
-  while trialID < nMergeTrials and len(mPairIDs) > 0:
-    if len(mPairIDs) == 0:
-      break
-    kA, kB = mPairIDs.pop(0)
-    assert kA < kB
-
-    curModel, curSS, curELBO, MoveInfo = buildMergeCandidateAndKeepIfImproved(
-                                          curModel, curSS, curELBO, kA, kB)
-
-    MergeLogger.log( '%3d | %3d %3d | % .4e' 
-                      % (trialID, kA, kB, MoveInfo['ELBOGain'])
-                   )
-    if MoveInfo['didAccept']:
-      mPairIDs = updateCandidatesAfterAcceptedMerge(mPairIDs, kA, kB)
-      AcceptedPairs.append((kA, kB))
-      ELBOGain += MoveInfo['ELBOGain']
-    trialID += 1
-
-  MergeLogger.logPhase('MERGE summary')
-  MergeLogger.log( ' %3d / %3d % .4e' % (len(AcceptedPairs), trialID, ELBOGain))
-
-  Info = dict(AcceptedPairs=AcceptedPairs, ELBOGain=ELBOGain)
-  return curModel, curSS, curELBO, Info
-
-
-
-def updateCandidatesAfterAcceptedMerge(mPairIDs, kA, kB):
-  ''' Update list of candidate component pairs after a successful merge.
-
-      Args
-      --------
-      mPairIDs : list of tuples representing candidate pairs
-      
-      Returns
-      --------
-      mPairIDs, with updated, potentially fewer entries
-      for example, if (0,4) is accepted,
-                   then (0,3) and (1, 4) would be discarded.
-                    and (2,5), (5,6) would be rewritten as (2,4), (4,5)
-  '''
-  newPairIDs = list()
-  for x0,x1 in mPairIDs:
-    if x0 == kA or x1 == kA or x1 == kB or x0 == kB:
-      continue
-    if x0 > kB: x0 -= 1
-    if x1 > kB: x1 -= 1
-    newPairIDs.append((x0,x1))
-  return newPairIDs
-"""

@@ -15,7 +15,7 @@ from bnpy.obsmodel import ObsModelNameSet
 choiceStr = ' {' + ','.join([x for x in (ObsModelNameSet)]) + '}'
 oModelHelpStr = 'Name of observation model.' + choiceStr
 
-algChoices = set(['EM','VB','moVB','soVB', 'moVBsimple'])
+algChoices = set(['EM','VB','moVB','moVBsimple', 'soVB','GS'])
 choiceStr = ' {' + ','.join([x for x in (algChoices)]) + '}'
 algHelpStr = 'Name of learning algorithm.' + choiceStr
 

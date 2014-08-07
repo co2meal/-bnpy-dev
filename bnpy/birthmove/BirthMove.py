@@ -18,6 +18,9 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, Plan=None, **kwargsIN):
       bigSS
       MoveInfo
   '''
+  logPhase('Target Data')
+  log(freshData.get_stats_summary())
+
   kwargs = dict(**kwargsIN) # make local copy!
   origids = dict( bigModel=id(bigModel), bigSS=id(bigSS) )
 
@@ -65,7 +68,6 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, Plan=None, **kwargsIN):
     freshModel, freshSS, freshInfo = BirthCreate.create_model_with_new_comps(
                                             bigModel, bigSS, freshData, Q=Q,
                                             Plan=Plan, **kwargs)
-
     earlyAdmission = -1
     if kwargs['birthVerifyELBOIncreaseFresh']:
       for step in range(nStep):
@@ -78,6 +80,15 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, Plan=None, **kwargsIN):
       propELBO  = freshModel.calc_evidence(SS=freshSS)
       earlyAdmission, ELBOmsg = make_acceptance_decision(curELBO, propELBO)
       didPass = earlyAdmission
+
+    # Visualize, if desired
+    if 'doVizBirth' in kwargs and kwargs['doVizBirth']:
+      VizBirth.viz_birth_proposal(bigModel, freshModel, Plan,
+                                  curELBO=None, propELBO=None, **kwargs)
+      raw_input('>>>')
+      from matplotlib import pylab
+      pylab.close('all')
+
 
     # Create xbigModel and xbigSS, with K + Kfresh comps
     #      freshData can be assigned to any of the K+Kfresh comps
@@ -99,23 +110,15 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, Plan=None, **kwargsIN):
         propELBO = xbigModel.calc_evidence(SS=xfreshSS)
         didPass, ELBOmsg = make_acceptance_decision(curELBO, propELBO)
       log(ELBOmsg)
-
     else:
       didPass = True
       ELBOmsg = ''
       propELBO = None # needed for kwarg for viz_birth_proposal
       curELBO = None
 
-    # Visualize, if desired
     Kcur = bigSS.K
     Ktotal = xbigSS.K
     birthCompIDs = range(Kcur, Ktotal)
-    if 'doVizBirth' in kwargs and kwargs['doVizBirth']:
-      VizBirth.viz_birth_proposal(bigModel, xbigModel, birthCompIDs,
-                                  curELBO=curELBO, propELBO=propELBO, **kwargs)
-      raw_input('>>>')
-      from matplotlib import pylab
-      pylab.close('all')
 
     # Reject. Abandon the move.
     if not didPass:
@@ -127,6 +130,8 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, Plan=None, **kwargsIN):
     if earlyAdmission == 1:
       ELBOmsg = '*early*' + ELBOmsg
     msg = 'ACCEPTED. %d fresh comps.' % (len(birthCompIDs))
+    log(msg)
+
     MoveInfo = dict(didAddNew=True,
                     msg=msg,
                     AdjustInfo=xInfo['AInfo'], ReplaceInfo=xInfo['RInfo'],
@@ -136,7 +141,6 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, Plan=None, **kwargsIN):
                     )
     MoveInfo.update(xInfo)
     MoveInfo.update(freshInfo)
-    
     assert not xbigSS.hasELBOTerms()
     assert not xbigSS.hasMergeTerms()
     xfreshSS.removeELBOTerms()

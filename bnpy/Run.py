@@ -31,7 +31,7 @@ from bnpy.ioutil import BNPYArgParser
 Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
 
-FullDataAlgSet = ['EM','VB']
+FullDataAlgSet = ['EM', 'VB', 'GS']
 OnlineDataAlgSet = ['soVB', 'moVB', 'moVBsimple']
 
 def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
@@ -149,13 +149,15 @@ def _run_task_internal(jobname, taskid, nTask,
       OnlineDataArgs = KwArgs['OnlineDataPrefs']
       OnlineDataArgs['dataorderseed'] = dataorderseed
       OnlineDataArgs.update(UnkArgs) # add custom args
-      Data = Data.to_minibatch_iterator(**OnlineDataArgs)
+      Data = Data.to_iterator(**OnlineDataArgs)
 
   # Create and initialize model parameters
   hmodel = createModel(InitData, ReqArgs, KwArgs)
+
   hmodel.init_global_params(InitData, seed=algseed, taskid=taskid,
                             savepath=taskoutpath,
                             **KwArgs['Initialization'])
+
   # Create learning algorithm
   learnAlg = createLearnAlg(Data, hmodel, ReqArgs, KwArgs,
                               algseed=algseed, savepath=taskoutpath)
@@ -170,7 +172,7 @@ def _run_task_internal(jobname, taskid, nTask,
   if learnAlg.hasMove('prune'):
     import bnpy.deletemove.PruneLogger as PruneLogger
     PruneLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
-  if learnAlg.hasMove('merge'):
+  if learnAlg.hasMove('merge') or learnAlg.hasMove('softmerge'):
     import bnpy.mergemove.MergeLogger as MergeLogger
     MergeLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
   # Check if running on grid
@@ -180,17 +182,24 @@ def _run_task_internal(jobname, taskid, nTask,
     jobID = 0
   if jobID > 0:
     Log.info('SGE Grid Job ID: %d' % (jobID))
-    # Create symlinks of the captured stdout, stdout and log in bnpy output directory
-    #  so everything is in the same place
-    os.symlink(os.getenv('SGE_STDOUT_PATH'), os.path.join(taskoutpath, 'stdout.log'))
-    os.symlink(os.getenv('SGE_STDERR_PATH'), os.path.join(taskoutpath, 'stderr.log'))
+    # Create symlinks to captured stdout, stdout in bnpy output directory
+    os.symlink(os.getenv('SGE_STDOUT_PATH'), 
+                          os.path.join(taskoutpath, 'stdout.log'))
+    os.symlink(os.getenv('SGE_STDERR_PATH'), 
+                          os.path.join(taskoutpath, 'stderr.log'))
 
   # Write descriptions to the log
   if taskid == 1 or jobID > 0:
+
     Log.info(Data.get_text_summary())
-    Log.info(Data.summarize_num_observations())
-    if type(Data) != type(InitData):
-      Log.info(InitData.get_text_summary(doCommon=False))
+    if algName in OnlineDataAlgSet:
+      Log.info('Entire Dataset Summary:')
+      Log.info(Data.get_stats_summary())
+      Log.info('Data for Initialization:')
+      Log.info(InitData.get_stats_summary())
+    else:
+      Log.info(Data.get_stats_summary())
+
     Log.info(hmodel.get_model_info())
     Log.info('Learn Alg: %s' % (algName))
 
@@ -238,7 +247,13 @@ def loadData(ReqArgs, KwArgs, DataArgs, dataorderseed):
       OnlineDataArgs = KwArgs['OnlineDataPrefs']
       OnlineDataArgs['dataorderseed'] = dataorderseed
       OnlineDataArgs.update(DataArgs)
-      DataIterator = datamod.get_minibatch_iterator(**OnlineDataArgs)
+      if hasattr(datamod, 'get_iterator'):
+        ## Load custom iterator defined in data module
+        DataIterator = datamod.get_iterator(**OnlineDataArgs)
+      else:
+        ## Make an iterator over full dataset provided by get_data        
+        DataIterator = InitData.to_iterator(**OnlineDataArgs)
+
     else:
       DataIterator = None
     return DataIterator, InitData
@@ -282,11 +297,11 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
     -------
     learnAlg : LearnAlg [or subclass] object
                type is defined by string in ReqArgs['algName']
-                one of {'EM', 'VB', 'soVB', 'moVB'}
+                one of {'EM', 'VB', 'soVB', 'moVB','GS'}
   '''
   algName = ReqArgs['algName']
   algP = KwArgs[algName]
-  for moveKey in ['birth', 'merge', 'shuffle', 'delete', 'prune']:
+  for moveKey in ['birth', 'softmerge', 'merge', 'shuffle', 'delete', 'prune']:
     if moveKey in KwArgs:
       algP[moveKey] = KwArgs[moveKey]
 
@@ -306,9 +321,14 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
   elif algName == 'moVBsimple':
     learnAlg = bnpy.learnalg.SimpleMOVBAlg(savedir=savepath, seed=algseed, 
                                       algParams=algP, outputParams=outputP)
+  elif algName == 'GS':
+    learnAlg = bnpy.learnalg.GSAlg(savedir=savepath, seed=algseed, 
+                                      algParams=algP, outputParams=outputP)  
   else:
     raise NotImplementedError("Unknown learning algorithm " + algName)
   return learnAlg
+
+
 
 
 ########################################################### Write Args to File
@@ -342,8 +362,6 @@ def createUniqueRandomSeed( jobname, taskID=0):
     jobname = jobname.split('-')[0]
   if len(jobname) > 5:
     jobname = jobname[:5]
-  #return 839012225
-  #return 811859218 #finite mo
   import random
   return random.randint(0,927349827)
 

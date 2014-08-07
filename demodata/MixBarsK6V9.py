@@ -11,50 +11,49 @@ import numpy as np
 from bnpy.data import WordsData
 import Bars2D
 
-def get_data_info():
-  s = 'Toy Bars Data with %d true topics. Each doc uses 1-3 bars.' % (K)
-  return s
-
-def get_data(**kwargs):
-    ''' 
-        Args
-        -------
-        seed
-        nDocTotal
-        nWordsPerDoc
-    '''
-    Data = CreateToyDataFromLDAModel(seed=SEED, **kwargs)
-    Data.summary = get_data_info()
-    return Data
-
-SEED = 8675309
-PRNG = np.random.RandomState(SEED)
-
 # FIXED DATA GENERATION PARAMS
 K = 6 # Number of topics
 V = 9 # Vocabulary Size
-gamma = 0.5 # hyperparameter over doc-topic distribution
+SEED = 8675309
 
 Defaults = dict()
+Defaults['seed'] = SEED
 Defaults['nDocTotal'] = 200
 Defaults['nWordsPerDoc'] = 25
 
 # GLOBAL PROB DISTRIBUTION OVER TOPICS
 trueBeta = np.ones(K)
 trueBeta /= trueBeta.sum()
-Defaults['topic_prior'] = gamma * trueBeta
+Defaults['beta'] = trueBeta
 
 # TOPIC by WORD distribution
+PRNG = np.random.RandomState(SEED)
 Defaults['topics'] = Bars2D.Create2DBarsTopicWordParams(V, K, PRNG=PRNG)
 
 
-def CreateToyDataFromLDAModel(**kwargs):
+def get_data_info():
+  s = 'Toy Bars Data with %d true topics. Each doc uses ONE topic.' % (K)
+  return s
+
+def get_data(**kwargs):
+    ''' Create and return dataset.
+
+        Keyword Args
+        -------
+        nDocTotal
+        nWordsPerDoc
+    '''
+    updateKwArgsWithDefaults(kwargs)
+    Data = WordsData.CreateToyDataFromMixModel(**kwargs)
+    Data.summary = get_data_info()
+    return Data
+
+def updateKwArgsWithDefaults(kwargs):
   for key in Defaults:
     if key not in kwargs:
       kwargs[key] = Defaults[key]
-  return WordsData.CreateToyDataFromLDAModel(**kwargs)
 
 if __name__ == '__main__':
   import bnpy.viz.BarsViz
-  WData = CreateToyDataFromLDAModel(seed=SEED)
+  WData = WordsData.CreateToyDataFromMixModel(**Defaults)
   bnpy.viz.BarsViz.plotExampleBarsDocs(WData)

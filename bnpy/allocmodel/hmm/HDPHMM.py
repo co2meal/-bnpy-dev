@@ -80,8 +80,10 @@ class HDPHMM(AllocModel):
                                     digamma(self.b[1,0:i]+self.b[0,0:i])) \
                          for i in xrange(self.K)]
 
+        
         expELogBeta = np.exp(expELogBeta)
         expELogPi = np.exp(expELogPi)
+        
 
         resp = None
         respPair = None
@@ -260,7 +262,6 @@ class HDPHMM(AllocModel):
             entropy = SS.getELBOTerm('Elogqz')
         else:
             entropy = self.elbo_entropy(Data, LP)
-
         return entropy + self.elbo_alloc() + self.elbo_v0() + \
             self.elbo_allocSlack()
 

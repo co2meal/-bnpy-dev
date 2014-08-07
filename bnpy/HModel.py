@@ -39,12 +39,14 @@ class HModel(object):
     self.allocModel = allocModel
     self.obsModel = obsModel
     self.inferType = allocModel.inferType
+    self.initParams = None
     if hasattr(obsModel, 'setupWithAllocModel'):
       # Tell the obsModel whether to model docs or words
       obsModel.setupWithAllocModel(allocModel)
 
   @classmethod
-  def CreateEntireModel(cls, inferType, allocModelName, obsModelName, allocPriorDict, obsPriorDict, Data):
+  def CreateEntireModel(cls, inferType, allocModelName, obsModelName, 
+                             allocPriorDict, obsPriorDict, Data):
     ''' Constructor assembles HModel and all its submodels in one call
     '''
     AllocConstr = AllocModelConstructorsByName[allocModelName]
@@ -77,8 +79,8 @@ class HModel(object):
     # Combine with allocModel probs of each cluster
     # Fills in LP['resp'], a Data.nObs x K matrix whose rows sum to one
     LP = self.allocModel.calc_local_params(Data, LP, **kwargs)
-    return LP
-
+    return LP     
+       
   ######################################################### Suff Stats
   #########################################################   
   def get_global_suff_stats(self, Data, LP, doAmplify=False, **kwargs):
@@ -129,11 +131,18 @@ class HModel(object):
       SS = self.get_global_suff_stats(Data, LP)
     evA = self.allocModel.calc_evidence(Data, SS, LP, todict=todict, **kwargs)
     evObs = self.obsModel.calc_evidence(Data, SS, LP, todict=todict, **kwargs)
-    if not todict:
-      return evA + evObs
-    else:
+    s = self.obsModel.getDatasetScale(SS)
+    if todict:
       evA.update(evObs)
       return evA
+    else:
+      return (evA + evObs) / s
+    
+  def calcLogLikCollapsedSamplerState(self, SS):
+      ''' 
+      '''
+      return self.obsModel.calcMargLik(SS) \
+             + self.allocModel.calcMargLik(SS)
 
   ######################################################### Init params
   #########################################################
@@ -150,9 +159,6 @@ class HModel(object):
       init.FromTruth.init_global_params(self, Data, **initArgs)
     elif initname.count(os.path.sep) > 0:
       init.FromSaved.init_global_params(self, Data, **initArgs)
-    elif str(type(self.obsModel)).count('BernRel') > 0:
-      init.FromScratchBernRel.init_global_params(self, Data, **initArgs)
-
     else:
       # Set hmodel global parameters "from scratch", in two stages
       # * init allocmodel to "uniform" prob over comps
@@ -169,7 +175,7 @@ class HModel(object):
                                                 Data, **initArgs)
       else:
         raise NotImplementedError('Unrecognized initname procedure.')
-
+   
   ######################################################### I/O Utils
   ######################################################### 
   def getAllocModelName(self):

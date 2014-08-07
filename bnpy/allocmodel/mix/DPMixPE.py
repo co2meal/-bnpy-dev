@@ -2,73 +2,47 @@
 DPMixModel.py
 Bayesian parametric mixture model with a unbounded number of components K
 
-Attributes
+Prior Attributes
 -------
-  K        : # of components
-  alpha0   : scalar concentration hyperparameter of Dirichlet process prior
-  
-  qalpha0 : K-length vector, params for variational factor q(v)
-  qalpha1 : K-length vector, params for variational factor q(v)
-            q(v[k]) ~ Beta(qalpha1[k], qalpha0[k])
+gamma1 : positive real
+gamma0 : positive real 
 
-  truncType : str type of truncation for the Dirichlet Process
-              'z' : truncate on the assignments [default]
-           or 'v' : truncate stick-breaking distribution
+Post Attributes
+-------
+u : 1D array, size K
 '''
 import numpy as np
 
 from bnpy.allocmodel import AllocModel
-from bnpy.deletemove import DeleteLPUtil
+from bnpy.allocmodel.admix import OptimizerForHDPStickBreak as OptimSB
 from bnpy.suffstats import SuffStatBag
-from bnpy.util import NumericUtil
+from bnpy.util import NumericUtil, as1D
 from bnpy.util import gammaln, digamma, EPS
 
-class DPMixModel(AllocModel):
+class DPMixPE(AllocModel):
 
   ######################################################### Constructors
   #########################################################
   def __init__(self, inferType, priorDict=None):
     if inferType == 'EM':
-      raise ValueError('EM not supported for DPMixModel')
+      raise ValueError('EM not supported for DPMixPE')
+    if inferType == 'GS':
+      raise ValueError('GS not supported for DPMixPE')
     self.inferType = inferType
-    if priorDict is None:
-      self.alpha0 = 1.0 # Uniform!
-      self.alpha1 = 1.0
-      self.truncType = 'z'
-    else:
-      self.set_prior(priorDict)
+    self.set_prior(priorDict)
     self.K = 0
 
   def set_prior(self, PriorParamDict):
-    self.alpha1 = 1.0
-    self.alpha0 = PriorParamDict['alpha0']
-    self.truncType = PriorParamDict['truncType']
-    
-  def set_helper_params( self ):
-    ''' Set dependent attributes given primary global params.
-        For DP mixture, this means precomputing digammas.
-    '''
-    DENOM = digamma(self.qalpha0 + self.qalpha1)
-    self.ElogV      = digamma(self.qalpha1) - DENOM
-    self.Elog1mV    = digamma(self.qalpha0) - DENOM
+    self.gamma1 = 1.0
+    self.gamma0 = np.maximum(PriorParamDict['gamma0'],
+                             1 + 1e-9)
 
-    if self.truncType == 'v':
-      self.qalpha1[-1] = 1
-      self.qalpha0[-1] = EPS # avoid digamma(0), which is way too HUGE
-      self.ElogV[-1] = 0  # log(1) => 0
-      self.Elog1mV[-1] = np.log(1e-40) # log(0) => -INF, never used
-		
-		# Calculate expected mixture weights E[ log w_k ]	 
-    self.Elogw = self.ElogV.copy() # copy allows += without modifying ElogV
-    self.Elogw[1:] += self.Elog1mV[:-1].cumsum()
-    
   ######################################################### Accessors
   #########################################################
   def get_active_comp_probs(self):
-    Ev = self.qalpha1 / (self.qalpha1 + self.qalpha0)
-    Ebeta = Ev.copy()
-    Ebeta[1:] *= np.cumprod(1.0-Ev[:-1]) 
-    return Ebeta
+    ''' Get vector of probabilities for K active components (sum <= 1)
+    '''
+    return self.E_beta_active()
 
   def get_keys_for_memoized_local_params(self):
     ''' Return list of string names of the LP fields
@@ -97,7 +71,7 @@ class DPMixModel(AllocModel):
                           comp. k has for data n                
     '''
     lpr = LP['E_log_soft_ev']
-    lpr += self.Elogw
+    lpr += self.E_logbeta_active()[np.newaxis, :]
     # Calculate exp in numerically stable manner (first subtract the max)
     #  perform this in-place so no new allocations occur
     NumericUtil.inplaceExpAndNormalizeRows(lpr)
@@ -105,113 +79,6 @@ class DPMixModel(AllocModel):
     assert np.allclose(lpr.sum(axis=1), 1)
     return LP
   
-  ######################################################### Local Updates Gibbs
-  #########################################################
-  def make_hard_asgn_local_params(self, LP):
-    ''' Convert soft assignments to hard assignments for provided local params
-
-        Returns
-        --------
-        LP : local params dict, with new fields
-             Z : 1D array, size N
-                    Z[n] is an integer in range {0, 1, 2, ... K-1}
-             resp : 2D array, size N x K+1 (with final column empty)
-                    resp[n,k] = 1 iff Z[n] == k
-    '''
-    LP['Z'] = np.argmax(LP['resp'], axis=1)
-    K = LP['resp'].shape[1]
-    LP['resp'].fill(0)
-    for k in xrange(K):
-      LP['resp'][LP['Z']==k, k] = 1 
-    return LP
-
-  def removeEmptyComps_SSandLP(self, SS, LP):
-    badks = np.flatnonzero(SS.N[:-1] < 1)
-    # Remove comps in order, from largest index to smallest
-    for k in badks[::-1]:
-      SS.removeComp(k)
-      mask = LP['Z'] > k
-      LP['Z'][mask] -= 1
-    if 'resp' in LP:
-      del LP['resp']
-    return SS, LP
-
-  def insertEmptyCompAtLastIndex_SSandLP(self, SS, LP):
-    SS.insertEmptyComps(1)
-    return SS, LP
-
-
-  def sample_local_params(self, obsModel, Data, SS, LP, PRNG, **algParams):
-    ''' Sample local assignments of all data items to components
-    '''
-    Z = LP['Z']
-    # Iteratively sample data allocations 
-    for dataindex in xrange(Data.nObs):
-      x = Data.X[dataindex]
-
-      # de-update current assignment and suff stats
-      kcur = Z[dataindex]
-      SS.N[kcur] -= 1
-      obsModel.decrementSS(SS, kcur, x)
-
-      SS, LP = self.removeEmptyComps_SSandLP(SS, LP)
-
-      doKeepFinalCompEmpty = SS.K < algParams['Kmax']
-      if SS.N[-1] > 0 and doKeepFinalCompEmpty:
-        SS, LP = self.insertEmptyCompAtLastIndex_SSandLP(SS, LP)    
-
-      # Calculate probs
-      alloc_prob = self.getConditionalProbVec_Unnorm(SS, doKeepFinalCompEmpty)
-      pvec = obsModel.calcPredProbVec_Unnorm(SS, x)
-      pvec *= alloc_prob
-      psum = np.sum(pvec)
-
-      if np.isnan(psum) or psum <= 0:
-        print pvec
-        print psum
-        raise ValueError('BAD VALUES FOR PROBS!')
-
-      pvec /= psum
-      # sample new allocation
-      knew = PRNG.choice(SS.K, p=pvec)
-
-      # update with new assignment
-      SS.N[knew] += 1  
-      obsModel.incrementSS(SS, knew, x) 
-      Z[dataindex] = knew
-      
-    LP['Z'] = Z                      
-    print ' '.join(['%.1f' % (x) for x in SS.N])
-    return LP, SS 
-  
-  def getConditionalProbVec_Unnorm(self, SS, doKeepFinalCompEmpty):
-    ''' Returns a K vector of positive values \propto p(z_i|z_-i)
-    '''
-    if doKeepFinalCompEmpty:
-      assert SS.N[-1] == 0
-      return np.hstack([SS.N[:-1], self.alpha0])
-    else:
-      return np.hstack([SS.N[:-1], np.maximum(SS.N[-1], self.alpha0)])
-  
-  def delete_comps_from_local_params(self, Data, LP, compIDs, **kwargs):
-    ''' Create new local params with certain components deleted
-    '''
-    newLP = dict()
-    newLP['resp'] = DeleteLPUtil.delete_comps_from_resp_matrix(LP['resp'],
-                                                             compIDs)
-    return newLP
-
-  def calcMargLik(self, SS):
-    ''' Calculate marginal likelihood of assignments, summed over all comps
-    '''
-    mask = SS.N > 0
-    Nvec = SS.N[mask]
-    K = Nvec.size
-    return gammaln(self.alpha0) \
-           + K * np.log(self.alpha0) \
-           + np.sum(gammaln(Nvec)) \
-           - gammaln(np.sum(Nvec) + self.alpha0)
-
   ######################################################### Suff Stats
   #########################################################
   def get_global_suff_stats(self, Data, LP,
@@ -251,8 +118,7 @@ class DPMixModel(AllocModel):
     SS.setField('N', Nvec, dims=('K'))
     if doPrecompEntropy:
       resp = LP['resp']
-      np.minimum(resp, 1-EPS, out=resp)
-      np.maximum(resp, EPS, out=resp)
+      np.maximum(resp, 1e-100, out=resp)
 
       ElogqZ_vec = self.E_logqZ(LP)
       SS.setELBOTerm('ElogqZ', ElogqZ_vec, dims=('K'))
@@ -274,30 +140,24 @@ class DPMixModel(AllocModel):
   ######################################################### Global Params
   #########################################################
   def update_global_params_VB( self, SS, **kwargs):
-    ''' Updates global params (stick-breaking Beta params qalpha1, qalpha0)
+    ''' Updates global parameter for point estimate uHat
           for conventional VB learning algorithm.
         New parameters have exactly the number of components specified by SS. 
     '''
     self.K = SS.K
-    qalpha1 = self.alpha1 + SS.N
-    qalpha0 = self.alpha0 * np.ones(self.K)
-    qalpha0[:-1] += SS.N[::-1].cumsum()[::-1][1:]
-    self.qalpha1 = qalpha1
-    self.qalpha0 = qalpha0
-    self.set_helper_params()
+    g1 = self.gamma1 + SS.N
+    g0 = self.gamma0 * np.ones(self.K)
+    g0[:-1] += SS.N[::-1].cumsum()[::-1][1:]
+    if np.any(SS.N < 0):
+      np.maximum(g1, self.gamma1, out=g1)
+      np.maximum(g0, self.gamma0, out=g0)
+    self.uHat = (g1 - 1) / (g1 + g0 - 2)
     
   def update_global_params_soVB( self, SS, rho, **kwargs ):
     ''' Update global params (stick-breaking Beta params qalpha1, qalpha0).
         for stochastic online VB.
     '''
-    assert self.K == SS.K
-    qalpha1 = self.alpha1 + SS.N
-    qalpha0 = self.alpha0 * np.ones( self.K )
-    qalpha0[:-1] += SS.N[::-1].cumsum()[::-1][1:]
-    
-    self.qalpha1 = rho * qalpha1 + (1-rho) * self.qalpha1
-    self.qalpha0 = rho * qalpha0 + (1-rho) * self.qalpha0
-    self.set_helper_params()
+    raise NotImplementedError('ToDo')
 
   def init_global_params(self, Data, K=0, **kwargs):
     ''' Initialize global parameters "from scratch" to prep for learning.
@@ -308,58 +168,44 @@ class DPMixModel(AllocModel):
 
         Internal Updates
         --------
-        Sets attributes qalpha1, qalpha0 (for VB) to viable values
+        Sets attribute uHat to viable values
 
         Returns
         --------
         None. 
     '''
+    g1 = self.gamma1 + np.ones(K)
+    g0 = self.gamma0 + np.arange(K-1, -1, -1)
+    self.uHat = (g1 - 1) / (g1 + g0 - 2)
     self.K = K
-    Nvec = np.ones(K)
-    qalpha1 = self.alpha1 + Nvec
-    qalpha0 = self.alpha0 * np.ones(self.K)
-    qalpha0[:-1] += Nvec[::-1].cumsum()[::-1][1:]
-    self.qalpha1 = qalpha1
-    self.qalpha0 = qalpha0
-    self.set_helper_params()
 
   def set_global_params(self, hmodel=None, K=None, qalpha1=None, 
                               qalpha0=None, beta=None, nObs=10, **kwargs):
-    ''' Directly set global parameters qalpha0, qalpha1 to provided values
+    ''' Directly set global point estimate to provided values
     '''
     if hmodel is not None:
       self.K = hmodel.allocModel.K
-      self.qalpha1 = hmodel.allocModel.qalpha1
-      self.qalpha0 = hmodel.allocModel.qalpha0
-      self.set_helper_params()
+      self.uHat = hmodel.allocModel.uHat
       return
-    if beta is not None:
-      if K is None:
-        K = beta.size
-      # convert to expected stick-lengths v
-      import bnpy.allocmodel.admix.OptimizerForHDPStickBreak as OptimSB
-      if beta.size == K:
-        rem = np.minimum(0.01, 1.0/K)
-        rem = np.minimum(1.0/K, beta.min()/K)
-        beta = np.hstack( [beta, rem])
-      beta = beta / beta.sum()
-      Ev = OptimSB._beta2v(beta)
-      qalpha1 = Ev * nObs
-      qalpha0 = (1-Ev) * nObs
 
-    if type(qalpha1) != np.ndarray or qalpha1.size != K or qalpha0.size != K:
-      raise ValueError("Bad DP Parameters")
+    if K is None:
+      K = beta.size
+    if beta.size == K:
+      # expand beta to vector of size K+1, that sums to one
+      rem = np.minimum(1.0/K, beta.min()/K)
+      beta = np.hstack([beta, rem])
+    beta = beta / beta.sum()
+    assert beta.size == K+1
+    self.uHat = OptimSB._beta2v(beta)
     self.K = K
-    self.qalpha1 = qalpha1
-    self.qalpha0 = qalpha0
-    self.set_helper_params()
+    assert K == self.uHat.size
  
   ######################################################### Evidence
   #########################################################
   def calc_evidence(self, Data, SS, LP=None, todict=False, **kwargs):
     '''
     '''
-    evV = self.E_logpV() - self.E_logqV()
+    evU = self.E_logpU()
     if SS.hasELBOTerm('ElogqZ'):
       evZq = np.sum(SS.getELBOTerm('ElogqZ'))     
     else:
@@ -368,41 +214,24 @@ class DPMixModel(AllocModel):
       evZ = self.E_logpZ(SS) -  SS.ampF * evZq
     else:
       evZ = self.E_logpZ(SS) - evZq
-
     if todict:
-      return dict(z_Elogp=self.E_logpZ(SS),
-                  z_Elogq=evZq,
-                  v_Elogp=self.E_logpV(),
-                  v_Elogq=self.E_logqV())
-
-    return evZ + evV
+      raise NotImplementedError('ToDo')
+    return evZ + evU
          
   def E_logpZ(self, SS):
-    return np.inner( SS.N, self.Elogw ) 
+    return np.inner(SS.N, self.E_logbeta_active()) 
     
   def E_logqZ(self, LP):
-    return NumericUtil.calcRlogR(LP['resp']+1e-100)
+    return NumericUtil.calcRlogR(LP['resp'])
 
-  def E_logpV( self ):
-    logNormC = gammaln(self.alpha0 + self.alpha1) \
-                    - gammaln(self.alpha0) - gammaln(self.alpha1)
-    logBetaPDF = (self.alpha1-1)*self.ElogV + (self.alpha0-1)*self.Elog1mV
-    if self.truncType == 'z':
-	    return self.K*logNormC + logBetaPDF.sum()    
-    elif self.truncType == 'v':
-      return self.K*logNormC + logBetaPDF[:-1].sum()
+  def E_logpU( self ):
+    return 0
+    logBetaPDF =  (self.gamma1 - 1) * np.log(self.uHat) \
+                + (self.gamma0 - 1) * np.log(1-self.uHat)
+    return self.K * c_Func(self.gamma1, self.gamma0) \
+           + np.sum(logBetaPDF)
 
-  def E_logqV( self ):
-    logNormC = gammaln(self.qalpha0 + self.qalpha1) \
-                      - gammaln(self.qalpha0) - gammaln(self.qalpha1)
-    logBetaPDF = (self.qalpha1-1)*self.ElogV + (self.qalpha0-1)*self.Elog1mV
-    if self.truncType == 'z':
-      return logNormC.sum() + logBetaPDF.sum()
-    elif self.truncType == 'v':
-      # skip last entry because entropy of Beta(1,0) = 0
-      return logNormC[:-1].sum() + logBetaPDF[:-1].sum()
-
-
+  """
   def calcSoftMergeEntropyGap(self, SS, kdel, alph):
     ''' Calculate improvement in entropy after a multi-way merge.
     '''
@@ -507,37 +336,69 @@ class DPMixModel(AllocModel):
     for ii, (kA, kB) in enumerate(PairList):
         Gaps[ii] = self.calcHardMergeGap(SS, kA, kB)
     return Gaps
-
+  """
   ######################################################### IO Utils
   #########################################################   for humans
   def get_info_string( self):
     ''' Returns one-line human-readable terse description of this object
     '''
-    msgPattern = 'DP mixture with K=%d. Concentration alpha0= %.2f' 
-    return msgPattern % (self.K, self.alpha0)
+    msgPattern = 'DP point estimate with K=%d, Concentration gamma0= %.2f' 
+    return msgPattern % (self.K, self.gamma0)
 
   ######################################################### IO Utils
   #########################################################   for machines
   def to_dict(self): 
-    return dict(qalpha1=self.qalpha1, qalpha0=self.qalpha0)
+    return dict(uHat=self.uHat)
     
   def from_dict(self, myDict):
     self.inferType = myDict['inferType']
     self.K = myDict['K']
-    self.qalpha1 = myDict['qalpha1']
-    self.qalpha0 = myDict['qalpha0']
-    if self.qalpha0.ndim == 0:
-      self.qalpha0 = self.qalpha1[np.newaxis]
-    if self.qalpha0.ndim == 0:
-      self.qalpha0 = self.qalpha0[np.newaxis]
-    self.set_helper_params()
+    self.uHat = as1D(myDict['uHat'])
     
   def get_prior_dict(self):
-    return dict(alpha1=self.alpha1,
-                alpha0=self.alpha0,
+    return dict(gamma1=self.gamma1,
+                gamma0=self.gamma0,
                 K=self.K, 
-                truncType=self.truncType)  
+                )
 
 
-def c_Func(alpha1, alpha0):
-  return gammaln(alpha1+alpha0) - gammaln(alpha1) - gammaln(alpha0)
+  ######################################################### Expectations
+  ######################################################### 
+  def E_beta_active(self):
+    ''' Calculate vector of component probabilities for active components
+
+        Returns
+        --------
+        Ebeta : 1D array, size K
+                Ebeta[k] gives expected probability for active comp k
+    '''
+    activeBeta = OptimSB._v2beta(self.uHat)[:-1]
+    return activeBeta
+
+  def E_logbeta_active(self):
+    ''' Calculate vector of log component probabilities for active components
+
+        Returns
+        --------
+        Elogbeta : 1D array, size K
+                   Elogbeta[k] gives expected log probability for active comp k
+    '''
+    activeBeta = OptimSB._v2beta(self.uHat)[:-1]
+    np.maximum(activeBeta, 1e-100, out=activeBeta)
+    return np.log(activeBeta)
+
+  def E_logbeta(self):
+    ''' Calculate vector of log component probabilities (includes leftover mass)
+
+        Returns
+        --------
+        Elogbeta : 1D array, size K+1
+                   Elogbeta[k] gives expected log probability for active comp k
+                   Elogbeta[-1] gives aggregate log prob for all inactive comps
+    '''
+    beta = OptimSB._v2beta(self.uHat)
+    np.maximum(beta, 1e-100, out=beta)
+    return np.log(beta)
+
+def c_Func(gamma1, gamma0):
+  return gammaln(gamma1+gamma0) - gammaln(gamma1) - gammaln(gamma0)

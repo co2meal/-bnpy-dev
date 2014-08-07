@@ -61,7 +61,27 @@ def sample_target_data(Data, model=None, LP=None, **kwargs):
   if hasattr(Data, 'nDoc'):
     return _sample_target_WordsData(Data, model, LP, **kwargs)
   else:
-    raise NotImplementedError('TODO: sample_target_data for mix models')
+    return _sample_target_XData(Data, model, LP, **kwargs)
+
+def _sample_target_XData(Data, model, LP, **kwargs):
+  ''' Draw sample subset of provided data object
+  '''
+  randstate = kwargs['randstate']
+  if hasValidKey('targetCompID', kwargs):
+    ktarget = kwargs['targetCompID']
+    targetProbThr = kwargs['targetCompFrac']
+    mask = LP['resp'][: , ktarget] > targetProbThr
+    objIDs = np.flatnonzero(mask)
+    if len(objIDs) < 2:
+      return None, dict()
+    randstate.shuffle(objIDs)
+    targetObjIDs = objIDs[:kwargs['targetMaxSize']]
+    TargetData = Data.select_subset_by_mask(targetObjIDs, 
+                                               doTrackFullSize=False)
+    TargetInfo = dict(ktarget=ktarget)
+  else:
+    raise NotImplementedError('TODO')
+  return TargetData, TargetInfo
 
 ########################################################### WordsData sampling
 ###########################################################
@@ -84,7 +104,7 @@ def _sample_target_WordsData(Data, model, LP, return_Info=0, **kwargs):
                   with at most targetMaxSize documents
     DebugInfo : (optional), dictionary with debugging info
   '''
-  DocWordMat = Data.to_sparse_docword_matrix()
+  DocWordMat = Data.getSparseDocTypeCountMatrix()
   DebugInfo = dict()
 
   candidates = np.arange(Data.nDoc)
@@ -93,7 +113,7 @@ def _sample_target_WordsData(Data, model, LP, return_Info=0, **kwargs):
     candidates = nWordPerDoc >= kwargs['targetMinWordsPerDoc']
     candidates = np.flatnonzero(candidates)
   if len(candidates) < 1:
-    return None
+    return None, dict()
 
   # ............................................... target a specific Comp
   if hasValidKey('targetCompID', kwargs):
@@ -142,7 +162,7 @@ def _sample_target_WordsData(Data, model, LP, return_Info=0, **kwargs):
     DebugInfo['dist'] = distPerDoc[keepIDs]
 
   if len(candidates) < 1:
-    return None
+    return None, dict()
   elif len(candidates) <= kwargs['targetMaxSize']:
     targetData = Data.select_subset_by_mask(candidates)
   else:
@@ -150,25 +170,7 @@ def _sample_target_WordsData(Data, model, LP, return_Info=0, **kwargs):
                                       randstate=kwargs['randstate'],
                                       candidates=candidates) 
 
-
-  if hasValidKey('targetHoldout', kwargs) and kwargs['targetHoldout']:
-    return makeHeldoutData(targetData, **kwargs)
-
-  if return_Info:
-    return targetData, DebugInfo
-
-  return targetData
-
-'''
-  if hasattr(Data, 'vocab_dict'):
-    Vocab = [str(x[0][0]) for x in Data.vocab_dict]
-    X = Data.select_subset_by_mask(candidates)
-    X = X.to_sparse_docword_matrix().toarray()
-    print 'EXAMPLE TARGET DOCS'
-    for dd in range(np.minimum(X.shape[0],10)):
-      print ' '.join([Vocab[w] for w in np.argsort(-1*X[dd,:])[:10]])
-      print '     ', ' '.join([Vocab[wordIDs[w]] for w in np.argsort(-1*X[dd,wordIDs])[:4]])
-'''
+  return targetData, DebugInfo
 
 def hasValidKey(key, kwargs):
   return key in kwargs and kwargs[key] is not None

@@ -54,8 +54,7 @@ class SuffStatBag(object):
     if self.hasELBOTerms():
       self._ELBOTerms.reorderComps(order)
     if self.hasMergeTerms():
-      raise NotImplementedError('TODO')
-      self._MergeTerms.reorderComps(order)
+      self._MergeTerms.setAllFieldsToZero()
 
   # ======================================================= strip/restore fields
   def removeELBOandMergeTerms(self):
@@ -177,12 +176,13 @@ class SuffStatBag(object):
     if self.hasELBOTerms() and self.hasMergeTerms():
       Ndel = getattr(self._Fields, 'N')[kdel]
       Halph = -1 * np.inner(alph, np.log(alph+1e-100))
-      gap = Ndel * Halph + getattr(self._MergeTerms, 'ElogqZ')[kdel]
+      Hplus = self.getMergeTerm('ElogqZ')[kdel] 
+      gap = Ndel * Halph - Hplus
       for k in xrange(self.K):
         if k == kdel:
           continue
         arr = getattr(self._ELBOTerms, 'ElogqZ')      
-        arr[k] += gap * alph[k]
+        arr[k] -= gap * alph[k]
 
     self._Fields.removeComp(kdel)
     if self.hasELBOTerms():

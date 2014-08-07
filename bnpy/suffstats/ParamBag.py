@@ -86,9 +86,7 @@ class ParamBag(object):
       dims = self._FieldDims[key]
       if arr.ndim == 0:
         continue
-      if arr.ndim == 1 and dims[0] == 'K':
-        arr = arr[sortIDs]
-      elif arr.ndim == 2 and dims[0] == 'K':
+      if dims[0] == 'K' and 'K' not in dims[1:]:
         arr = arr[sortIDs]
       else:
         raise NotImplementedError('TODO')

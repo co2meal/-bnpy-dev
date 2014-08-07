@@ -8,7 +8,7 @@ Generated via the standard LDA generative model
   see WordsData.CreateToyDataFromLDAModel for details.
 '''
 import numpy as np
-from bnpy.data import WordsData, AdmixMinibatchIterator
+from bnpy.data import WordsData
 import Bars2D
 
 SEED = 8675309
@@ -50,21 +50,6 @@ def get_data(**kwargs):
     Data = CreateToyDataFromLDAModel(seed=SEED, **kwargs)
     Data.summary = get_data_info(**kwargs)
     return Data
-
-def get_minibatch_iterator(seed=SEED, nBatch=10, nLap=1,
-                           dataorderseed=0, **kwargs):
-    '''
-        Args
-        -------
-        seed
-        nDocTotal
-        nWordsPerDoc
-    '''
-    Data = CreateToyDataFromLDAModel(seed=seed, **kwargs)
-    DataIterator = AdmixMinibatchIterator(Data, 
-                        nBatch=nBatch, nLap=nLap, dataorderseed=dataorderseed)
-    DataIterator.summary = get_data_info(**kwargs)
-    return DataIterator
 
 def CreateToyDataFromLDAModel(**kwargs):
   for key in Defaults:

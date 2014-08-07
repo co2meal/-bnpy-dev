@@ -32,7 +32,12 @@ class AllocModel(object):
     ''' 
     '''
     pass
-
+  
+  def sample_local_params(self,obsModel,Data,SS,LP):
+      '''
+      '''
+      pass
+  
   ######################################################### Suff Stats
   #########################################################
   def get_global_suff_stats( self, Data, SS, LP ):
@@ -51,6 +56,8 @@ class AllocModel(object):
     if self.inferType == 'EM':
       self.update_global_params_EM(SS)
     elif self.inferType == 'VB' or self.inferType.count('moVB'):
+      self.update_global_params_VB(SS, **kwargs)
+    elif self.inferType == 'GS':
       self.update_global_params_VB(SS, **kwargs)
     elif self.inferType == 'soVB':
       if rho is None or rho==1:
