@@ -15,6 +15,8 @@ from admix.HDPHardMult import HDPHardMult
 from admix.HDPRelModel import HDPRelAssortModel
 from admix.HDPStickBreak import HDPStickBreak
 
+from admix2.LDA import LDA
+
 AllocModelConstructorsByName = { \
            'MixModel':MixModel,
            'DPMixModel':DPMixModel,
@@ -29,6 +31,7 @@ AllocModelConstructorsByName = { \
            'HDPHardMult':HDPHardMult,
            'HDPRelAssortModel':HDPRelAssortModel,
            'HDPStickBreak':HDPStickBreak,
+           'LDA':LDA,
           }
 
 AllocModelNameSet = set(AllocModelConstructorsByName.keys())
