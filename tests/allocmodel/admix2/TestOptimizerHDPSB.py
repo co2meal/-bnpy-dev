@@ -44,7 +44,7 @@ def summarizeVd(Vd):
   log1mVd = replaceInfVals(log1mVd)
   return np.sum(logVd, axis=0), np.sum(log1mVd, axis=0)
 
-def replaceInfVals( logX, replaceVal=-40):
+def replaceInfVals( logX, replaceVal=-100):
   infmask = np.isinf(logX)
   logX[infmask] = replaceVal
   return logX
@@ -129,7 +129,8 @@ class Test0Docs(unittest.TestCase):
                       nDoc=0,
                       sumLogVd=np.zeros(K),
                       sumLog1mVd=np.zeros(K))
-          f, g = OptimSB.objFunc_constrained(rhoomega, approx_grad=0,
+          f, g = OptimSB.objFunc_constrained(rhoomega,
+                                            approx_grad=0,
                                             **kwargs)
           print '       rho  ', np2flatstr(rho[:K])
           print '  grad rho  ', np2flatstr(g[:K])
@@ -138,6 +139,7 @@ class Test0Docs(unittest.TestCase):
   def testGradientZeroAtOptimum__objFunc_unconstrained(self):
     ''' Verify computed gradient at optimum is indistinguishable from zero
     '''
+    print ''
     for K in [1, 10, 107]:
       for alpha in [0.1, 0.95]:
         for gamma in [1., 3.14, 9.45]:
@@ -146,10 +148,11 @@ class Test0Docs(unittest.TestCase):
           rhoomega = np.hstack([rho, omega])
           kwargs = dict(alpha=alpha, 
                       gamma=gamma, 
+                      scaleVector=np.hstack([np.ones(K), gamma*np.ones(K)]),
                       nDoc=0,
                       sumLogVd=np.zeros(K),
                       sumLog1mVd=np.zeros(K))
-          c = OptimSB.rhoomega2c(rhoomega)
+          c = OptimSB.rhoomega2c(rhoomega, scaleVector=kwargs['scaleVector'])
           f, g = OptimSB.objFunc_unconstrained(c, approx_grad=0,
                                             **kwargs)
           print '       rho  ', np2flatstr(rho[:K])
@@ -159,6 +162,7 @@ class Test0Docs(unittest.TestCase):
   def testGradientExactAndApproxAgree__objFunc_constrained(self):
     ''' Verify computed gradient similar for exact and approx methods
     '''
+    print ''
     for K in [1, 10, 107]:
       for alpha in [0.1, 0.95]:
         for gamma in [1., 3.14, 9.45]:
@@ -168,14 +172,20 @@ class Test0Docs(unittest.TestCase):
             omega = 100 * PRNG.rand(K)
             rhoomega = np.hstack([rho, omega])
             kwargs = dict(alpha=alpha, 
-                      gamma=gamma, 
+                      gamma=gamma,
                       nDoc=0,
                       sumLogVd=np.zeros(K),
                       sumLog1mVd=np.zeros(K))
-            objFunc = lambda x: OptimSB.objFunc_constrained(x, approx_grad=1,
-                                                               **kwargs)
-            f, g = OptimSB.objFunc_constrained(rhoomega, approx_grad=0,
-                                                 **kwargs)
+
+            ## Exact gradient
+            _, g = OptimSB.objFunc_constrained(rhoomega,
+                                               approx_grad=0,
+                                               **kwargs)
+
+            ## Numerical gradient
+            objFunc = lambda x: OptimSB.objFunc_constrained(x,
+                                                            approx_grad=1,
+                                                            **kwargs)
             epsvec = np.hstack([1e-8*np.ones(K), 1e-8*np.ones(K)])
             gapprox = approx_fprime(rhoomega, objFunc, epsvec)    
 
@@ -187,23 +197,27 @@ class Test0Docs(unittest.TestCase):
               print '   grad K-10:K ', np2flatstr(g[K-10:K], fmt='% .6e')
               print 'gapprox K-10:K ', np2flatstr(gapprox[K-10:K], fmt='% .6e')
             assert np.allclose(g[:K], gapprox[:K], atol=1e-6, rtol=0.01)
+
+            print np2flatstr(g[K:])
+            print np2flatstr(gapprox[K:])
             assert np.allclose(g[K:], gapprox[K:], atol=1e-4, rtol=0.05)
 
   def testRecoverAnalyticOptimum__find_optimum(self):
     ''' Verify that find_optimum's result is indistiguishable from analytic opt
     '''
-    for K in [1, 10, 107]:
+    for K in [1, 10, 23, 61, 68, 100]:
       for alpha in [0.1, 0.95]:
-        for gamma in [1., 3.14, 9.45]:
-
+        for gamma in [1.1, 3.141, 9.45, 21.1337]:
           print '================== K %d | gamma %.2f' % (K, gamma)
 
           for seed in [111, 222, 333]:
             PRNG = np.random.RandomState(seed)
             initrho = PRNG.rand(K)
             initomega = 100 * PRNG.rand(K)
+            scaleVec = np.hstack([np.ones(K), gamma*np.ones(K)])
             kwargs = dict(alpha=alpha, 
                       gamma=gamma, 
+                      scaleVector=scaleVec,
                       nDoc=0,
                       sumLogVd=np.zeros(K),
                       sumLog1mVd=np.zeros(K))
@@ -221,10 +235,12 @@ class Test0Docs(unittest.TestCase):
 
             print '  rho_est', np2flatstr(rho_est, fmt='%9.6f')
             print '  rho_opt', np2flatstr(rho_opt, fmt='%9.6f')
-            assert np.allclose(rho_est, rho_opt, atol=1e-5, rtol=1e-5)
 
             print '  omega_est', np2flatstr(omega_est, fmt='%9.6f')
             print '  omega_opt', np2flatstr(omega_opt, fmt='%9.6f')
+
+            assert np.allclose(rho_est, rho_opt, atol=1e-5, rtol=1e-5)
+
             assert np.allclose(omega_est, omega_opt, atol=1e-5, rtol=0.01)
 
 
@@ -370,8 +386,8 @@ class TestManyDocs(unittest.TestCase):
     '''
     print ''
     gamma = 1.0
-    for K in [1, 10, 93]: #, 10, 107]:
-      for alpha in [0.95, 0.5]:
+    for K in [93, 107, 85]: #, 10, 107]:
+      for alpha in [0.9999]:
         for nDoc in [10000]:
           print '================== K %d | alpha %.2f | nDoc %d' \
                 % (K, alpha, nDoc)
@@ -385,40 +401,46 @@ class TestManyDocs(unittest.TestCase):
 
               initrho = PRNG.rand(K)
               initomega = 100 * PRNG.rand(K)
+              scale = 1.0 #float(1+nDoc)/K
               kwargs = dict(alpha=alpha, 
                       gamma=gamma, 
-                      nDoc=nDoc,
+                      nDoc=nDoc,                      
+                      scaleVector=np.hstack([np.ones(K),
+                                             float(scale) * np.ones(K)]),
                       sumLogVd=sumLogVd,
-                      sumLog1mVd=sumLog1mVd)
-              ro, f, Info = OptimSB.find_optimum(initrho=initrho,
+                      sumLog1mVd=sumLog1mVd,
+                      )
+              rho_est, omega_est, f_est, Info = \
+                       OptimSB.find_optimum_multiple_tries(
+                                                 initrho=initrho,
                                                  initomega=initomega,
                                                  **kwargs)
-              rho_est, omega_est, KK = OptimSB._unpack(ro)
               assert np.all(np.isfinite(rho_est))
               assert np.all(np.isfinite(omega_est))
-              assert np.isfinite(f)
-              print Info['task']
+              assert np.isfinite(f_est)
+              print Info['msg']
 
               rho_orig = u_true
               omega_orig = (1 + gamma) * np.ones(K)
               ro_orig = np.hstack([rho_orig, omega_orig])
-              ro_hot, f_hot, Info_hot = OptimSB.find_optimum(
+              rho_hot, omega_hot, f_hot, Ihot = \
+                       OptimSB.find_optimum_multiple_tries(
                                                  initrho=rho_orig,
                                                  initomega=omega_orig,
                                                  **kwargs)
-              rho_hot, omega_hot, KK = OptimSB._unpack(ro_hot)
 
-              f_est, _ = OptimSB.objFunc_constrained(ro, **kwargs)
               f_orig, _ = OptimSB.objFunc_constrained(ro_orig, **kwargs)
               print '  f_orig %.7f' % (f_orig)
               print '  f_hot  %.7f' % (f_hot)
               print '  f_est  %.7f' % (f_est)
-              assert f_hot <= f_orig
-              assert np.allclose(f_est, f_hot, rtol=0.001)
+
 
               print '  rho_orig', np2flatstr(rho_orig, fmt='%9.6f')
               print '  rho_hot ', np2flatstr(rho_hot, fmt='%9.6f')
               print '  rho_est ', np2flatstr(rho_est, fmt='%9.6f')
+
+              assert f_hot <= f_orig
+              assert np.allclose(f_est, f_hot, rtol=0.01)
               assert np.allclose(rho_est, rho_hot, atol=0.02, rtol=1e-5)
 
             

@@ -66,11 +66,14 @@ def find_optimum_multiple_tries(sumLogVd=0, sumLog1mVd=0, nDoc=0,
       del Info['task']
       break
     except ValueError as err:
-      if str(err).count('FAILURE') == 0:
-        raise err
       msg = str(err)
-      if str(err).count('overflow') > 0:
+      if str(err).count('FAILURE') > 0:
+        # Catch line search problems
+        pass
+      elif str(err).count('overflow') > 0:
         nOverflow += 1
+      else:
+        raise err
 
   if rhoomega is None:
     if initrho is not None:      
@@ -83,10 +86,11 @@ def find_optimum_multiple_tries(sumLogVd=0, sumLog1mVd=0, nDoc=0,
       raise ValueError(msg)
   Info['nOverflow'] = nOverflow
   rho, omega, K = _unpack(rhoomega)
-  return rho, omega, f, Info      
+  return rho, omega, f, Info
+
 
 def find_optimum(sumLogVd=0, sumLog1mVd=0, nDoc=0, gamma=1.0, alpha=1.0,
-                 initrho=None, initomega=None,
+                 initrho=None, initomega=None, scaleVector=None,
                  approx_grad=False, factr=1.0e5, **kwargs):
   ''' Run gradient optimization to estimate best parameters rho, omega
 
@@ -112,22 +116,22 @@ def find_optimum(sumLogVd=0, sumLog1mVd=0, nDoc=0, gamma=1.0, alpha=1.0,
     initrho = create_initrho(K)
   if initomega is None or initomega.min() <= EPS:
     initomega = create_initomega(K, nDoc, gamma)
-  #scaleVector = np.hstack([np.ones(K), (gamma + nDoc) * np.ones(K)])
+  if scaleVector is None:
+    scaleVector = np.hstack([np.ones(K), np.ones(K)])
   assert initrho.size == K
   assert initomega.size == K
   assert initrho.min() > EPS
   assert initrho.max() < 1.0 - EPS
   assert initomega.min() > EPS
   initrhoomega = np.hstack([initrho, initomega])
-  initc = rhoomega2c(initrhoomega)
+  initc = rhoomega2c(initrhoomega, scaleVector=scaleVector)
 
   ## Define objective function (unconstrained!)
   objArgs = dict(sumLogVd=sumLogVd, sumLog1mVd=sumLog1mVd,
                   nDoc=nDoc, gamma=gamma, alpha=alpha,
-                  approx_grad=approx_grad)
+                  approx_grad=approx_grad, scaleVector=scaleVector)
 
   c_objFunc = lambda c: objFunc_unconstrained(c, **objArgs)
-  ro_objFunc = lambda ro: objFunc_constrained(ro, **objArgs)                            
   
   ## Run optimization and catch any overflow or NaN issues
   with warnings.catch_warnings():
@@ -148,8 +152,7 @@ def find_optimum(sumLogVd=0, sumLog1mVd=0, nDoc=0, gamma=1.0, alpha=1.0,
     raise ValueError("FAILURE: " + Info['task'])
 
   Info['init'] = initrhoomega
-  Info['objFunc'] = ro_objFunc
-  rhoomega = c2rhoomega(chat, returnSingleVector=1)
+  rhoomega = c2rhoomega(chat, scaleVector=scaleVector, returnSingleVector=1)
   return rhoomega, fhat, Info
 
 def create_initrho(K):
@@ -169,8 +172,8 @@ def create_initomega(K, nDoc, gamma):
 
 ########################################################### Objective
 ###########################################################  unconstrained
-def objFunc_unconstrained(c, approx_grad=False, **kwargs):
-  rho, omega = c2rhoomega(c)
+def objFunc_unconstrained(c, scaleVector=None, approx_grad=False, **kwargs):
+  rho, omega = c2rhoomega(c, scaleVector)
   rhoomega = np.hstack([rho, omega])
   if approx_grad:
     f = objFunc_constrained(rhoomega, approx_grad=1, **kwargs)
@@ -180,7 +183,7 @@ def objFunc_unconstrained(c, approx_grad=False, **kwargs):
     drodc = np.hstack([rho*(1-rho), omega])
     return f, grad * drodc
 
-def c2rhoomega(c, returnSingleVector=False):
+def c2rhoomega(c, scaleVector=None, returnSingleVector=False):
   ''' Transform unconstrained variable c into constrained rho, omega
 
       Returns
@@ -193,12 +196,17 @@ def c2rhoomega(c, returnSingleVector=False):
   K = c.size/2
   rho = sigmoid(c[:K])
   omega = np.exp(c[K:])
+  if scaleVector is not None:
+    rho *= scaleVector[:K]
+    omega *= scaleVector[K:]
   if returnSingleVector:
     return np.hstack([rho, omega])
   return rho, omega
 
-def rhoomega2c(rhoomega):
+def rhoomega2c(rhoomega, scaleVector=None):
   K = rhoomega.size/2
+  if scaleVector is not None:
+    rhoomega = rhoomega / scaleVector
   return np.hstack([invsigmoid(rhoomega[:K]), np.log(rhoomega[K:])])
 
 def sigmoid(c):
@@ -230,7 +238,7 @@ def invsigmoid(v):
 ###########################################################  constrained
 def objFunc_constrained(rhoomega,
                      sumLogVd=0, sumLog1mVd=0, nDoc=0, gamma=1.0, alpha=1.0,
-                     approx_grad=False):
+                     approx_grad=False, **kwargs):
   ''' Returns constrained objective function and its gradient
 
       Args
@@ -243,9 +251,10 @@ def objFunc_constrained(rhoomega,
            where L is ELBO objective function (log posterior prob)
       g := gradient of f
   '''
-  rho, omega, K = _unpack(rhoomega)
   assert not np.any(np.isnan(rhoomega))
   assert not np.any(np.isinf(rhoomega))
+  rho, omega, K = _unpack(rhoomega)
+  
   g1 = rho * omega
   g0 = (1 - rho) * omega
   digammaomega =  digamma(omega)
