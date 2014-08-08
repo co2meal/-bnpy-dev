@@ -99,6 +99,9 @@ class WordsData(DataObj):
   def get_total_size(self):
     return self.nDocTotal
 
+  def get_dim(self):
+    return self.vocab_size
+
   ######################################################### Text summary
   ######################################################### 
   def get_text_summary(self):
@@ -113,10 +116,11 @@ class WordsData(DataObj):
   def get_stats_summary(self):
     ''' Returns human-readable summary of this dataset's basic properties
     '''
-    s = '  vocab size %d. %d documents.' % (self.vocab_size, self.nDoc)
-    s += '\n'
+    s = '  size: %d units (documents)\n' % (self.get_size())
+    s += '  vocab size: %d\n' % (self.get_dim())
     s += self.get_doc_stats_summary()
     return s
+
 
   def get_doc_stats_summary(self, pRange=[0,5, 50, 95, 100]):
     ''' Returns human-readable string summarizing word-count statistics
