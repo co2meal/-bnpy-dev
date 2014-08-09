@@ -76,9 +76,12 @@ class TestFwd(unittest.TestCase):
       for K in [1, 2, 4, 33]:
         self.test_correctness(K=K, T=T, verbose=0)
 
-  def test_speed(self, K=10, T=100, nTrials=100):
-    print ''
-    global SetupCode
+  def test_speed(self, K=10, T=100, nTrials=100, doFirstLineBlank=True):
+    ''' Run time trial for particular input (average over many runs).
+    '''
+    if doFirstLineBlank:
+      print ''
+    global FwdSetupCode
 
     SetupCode = FwdSetupCode.replace('K', str(K))
     SetupCode = SetupCode.replace('T', str(T))
@@ -91,15 +94,26 @@ class TestFwd(unittest.TestCase):
     cElapsed = cTimer.timeit(number=nTrials) / nTrials
     pyElapsed = pyTimer.timeit(number=nTrials) / nTrials
 
-    print ' py % 9.5f | c % 9.5f | speedup %7.2f' \
-          % (pyElapsed, cElapsed, pyElapsed / cElapsed)
+    print ' K %5d | T %5d | py % 7.5f sec | c % 7.5f sec | speedup %7.2f' \
+          % (K, T, pyElapsed, cElapsed, pyElapsed / cElapsed)
+
 
   def test_speed_vs_K(self):
+    ''' Execute many time trials at various values of K, to determine trends
     '''
-    '''
+    print ''
     T = 1000
-    for K in [2, 4, 8, 16, 32, 64, 128]:
-      self.test_speed(K=K, T=T)
+    for K in [2, 4, 8, 16, 32, 64, 128, 256, 512]:
+      self.test_speed(K=K, T=T, doFirstLineBlank=0)
+
+  def test_speed_vs_T(self):
+    ''' Execute many time trials at various values of T, to determine trends
+    '''
+    print ''
+    K = 64
+    for T in [16, 32, 64, 128, 256, 1024, 2048, 4096, 8192, 16384]:
+      self.test_speed(K=K, T=T, doFirstLineBlank=0)
+
 
 class TestBwd(unittest.TestCase):
 
@@ -132,13 +146,15 @@ class TestBwd(unittest.TestCase):
       for K in [1, 2, 4, 33]:
         self.test_correctness(K=K, T=T, verbose=0)
 
-  def test_speed(self, K=10, T=100, nTrials=100):
-    print ''
-    global SetupCode
+  def test_speed(self, K=10, T=100, nTrials=100, doFirstLineBlank=True):
+    ''' Run timed test to determine how much faster c++ version is than python
+    '''
+    if doFirstLineBlank == 1:
+      print ''
+    global BwdSetupCode
 
     SetupCode = BwdSetupCode.replace('K', str(K))
     SetupCode = SetupCode.replace('T', str(T))
-
     cTimer = timeit.Timer("HMMUtil.BwdAlg_cpp(initPi, transPi, SoftEv, m)",
                           SetupCode)
     pyTimer = timeit.Timer("HMMUtil.BwdAlg_py(initPi, transPi, SoftEv, m)",
@@ -147,12 +163,22 @@ class TestBwd(unittest.TestCase):
     cElapsed = cTimer.timeit(number=nTrials) / nTrials
     pyElapsed = pyTimer.timeit(number=nTrials) / nTrials
 
-    print ' py % 9.5f | c % 9.5f | speedup %7.2f' \
-          % (pyElapsed, cElapsed, pyElapsed / cElapsed)
+    print ' K %5d | T %5d | py % 7.5f sec | c % 7.5f sec | speedup %7.2f' \
+          % (K, T, pyElapsed, cElapsed, pyElapsed / cElapsed)
+
 
   def test_speed_vs_K(self):
+    ''' Execute many time trials at various values of K, to determine trends
     '''
-    '''
+    print ''
     T = 1000
     for K in [2, 4, 8, 16, 32, 64, 128]:
-      self.test_speed(K=K, T=T)
+      self.test_speed(K=K, T=T, doFirstLineBlank=0)
+
+  def test_speed_vs_T(self):
+    ''' Execute many time trials at various values of T, to determine trends
+    '''
+    print ''
+    K = 64
+    for T in [16, 32, 64, 128, 256, 1024, 2048, 4096]:
+      self.test_speed(K=K, T=T, doFirstLineBlank=0)
