@@ -84,8 +84,7 @@ class HDPSB(AllocModel):
         beta : 1D array, size K
         beta_gt : 1D array, size K
     '''
-    beta = self.rho.copy()
-    beta[1:] *= np.cumprod(1 - self.rho[:-1])
+    beta = self.E_beta_active()
     return beta, gtsum(beta) + (1-np.sum(beta))
 
   def set_prior(self, gamma=1.0, alpha=1.0, **kwargs):
@@ -169,6 +168,11 @@ class HDPSB(AllocModel):
     eta1 = DocTopicCount + self.alpha * betaActive[np.newaxis,:]
     eta0 = gtsum(eta1)
     eta0 += self.alpha * betaLeftover
+
+    ## Double-check!
+    #Ebeta, Ebetagt = self.E_beta_and_betagt()
+    #assert np.allclose(eta0,
+    #                   gtsum(DocTopicCount) + self.alpha * Ebetagt)
 
     digammaBoth = digamma(eta1+eta0)
     ElogV = digamma(eta1) - digammaBoth
@@ -289,13 +293,17 @@ class HDPSB(AllocModel):
   ####################################################### Set Global Params
   #######################################################
   def init_global_params(self, Data, K=0, **kwargs):
+    ''' Initialize rho, omega to reasonable values
+    '''
     self.K = K
     self.rho = OptimHDPSB.create_initrho(K)
     self.omega = (1.0 + self.gamma) * np.ones(K)
 
-  def set_global_params(self, hmodel=None, 
-                              rho=None, omega=None, 
+
+  def set_global_params(self, hmodel=None, rho=None, omega=None, 
                               **kwargs):
+    ''' Set rho, omega to provided values.
+    '''
     if hmodel is not None:
       self.K = hmodel.allocModel.K
       if hasattr(hmodel.allocModel, 'rho'):
@@ -309,6 +317,7 @@ class HDPSB(AllocModel):
       self.K = omega.size
     else:
       self._set_global_params_from_scratch(**kwargs)
+
 
   def _set_global_params_from_scratch(self, 
                       beta=None, topic_prior=None, Data=None,
@@ -348,7 +357,7 @@ class HDPSB(AllocModel):
   def calc_evidence(self, Data, SS, LP, **kwargs):
     ''' Calculate ELBO objective 
     '''
-    U_global = self.E_logpU_logqU_c(SS)
+    UandcV_global = self.E_logpU_logqU_c(SS)
     V_global = self.E_logpV__global(SS)
     if SS.hasELBOTerms():
       ElogqZ = SS.getELBOTerm('ElogqZ')
@@ -356,7 +365,7 @@ class HDPSB(AllocModel):
     else:
       ElogqZ = self.E_logqZ(Data, LP)
       VZlocal = self.E_logpVZ_logqV(Data, LP)
-    return U_global + V_global + VZlocal - np.sum(ElogqZ)
+    return UandcV_global + V_global + VZlocal - np.sum(ElogqZ)
 
   def E_logqZ(self, Data, LP):
     ''' Calculate E[ log q(z)] for each active topic
