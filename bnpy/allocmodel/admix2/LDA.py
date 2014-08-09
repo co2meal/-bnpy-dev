@@ -113,7 +113,8 @@ class LDA(AllocModel):
                logp[k] gives probability of topic k in provided doc
     '''
     theta_d = DocTopicCount_d + self.alpha
-    return digamma(theta_d) - digamma(theta_d.sum())
+    ElogPi = digamma(theta_d) - digamma(theta_d.sum())
+    return ElogPi
 
   def updateLPGivenDocTopicCount(self, LP, DocTopicCount):
     ''' Update all local parameters, given topic counts for all docs in set.

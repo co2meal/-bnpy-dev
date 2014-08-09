@@ -16,6 +16,7 @@ from admix.HDPRelModel import HDPRelAssortModel
 from admix.HDPStickBreak import HDPStickBreak
 
 from admix2.LDA import LDA
+from admix2.HDPSB import HDPSB
 
 AllocModelConstructorsByName = { \
            'MixModel':MixModel,
@@ -32,6 +33,7 @@ AllocModelConstructorsByName = { \
            'HDPRelAssortModel':HDPRelAssortModel,
            'HDPStickBreak':HDPStickBreak,
            'LDA':LDA,
+           'HDPSB':HDPSB,
           }
 
 AllocModelNameSet = set(AllocModelConstructorsByName.keys())
