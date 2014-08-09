@@ -344,8 +344,6 @@ class TestOptimizationK5(unittest.TestCase):
       assert np.allclose(rho, Orig['rho'], atol=1e-6)
       
 
-
-
   def test__same_answer_as_old_optimizer__nDoc2000(self):
     ''' Verify for K=5 data that we recover variational parameters
           whose E[beta] is very close to the true beta

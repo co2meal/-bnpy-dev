@@ -8,6 +8,8 @@ Intentionally separated from rest of HMM code, so that we can swap in
   any fast routine for this calculation with ease.
 '''
 import numpy as np
+
+from bnpy.util.NumericUtil import Config as PlatformConfig
 from lib.LibFwdBwd import FwdAlg_cpp, BwdAlg_cpp
 
 def FwdBwdAlg(PiInit, PiMat, logSoftEv):
@@ -53,8 +55,8 @@ def FwdBwdAlg(PiInit, PiMat, logSoftEv):
 
   SoftEv, lognormC = expLogLik(logSoftEv)
   
-  fmsg, margPrObs = FwdAlg_cpp(PiInit, PiMat, SoftEv)
-  bmsg = BwdAlg_cpp(PiInit, PiMat, SoftEv, margPrObs)
+  fmsg, margPrObs = FwdAlg(PiInit, PiMat, SoftEv)
+  bmsg = BwdAlg(PiInit, PiMat, SoftEv, margPrObs)
 
   respPair = np.zeros((T,K,K))
   for t in xrange(1, T):
@@ -65,6 +67,48 @@ def FwdBwdAlg(PiInit, PiMat, logSoftEv):
   resp = fmsg * bmsg
   return resp, respPair, logMargPrSeq
 
+########################################################### FwdAlg, BwdAlg Wrappers
+###########################################################
+def FwdAlg(PiInit, PiMat, SoftEv):
+  ''' Forward algorithm for a single HMM sequence. Wrapper for FwdAlg_py/FwdAlg_cpp.
+
+     Related
+     -------
+     FwdAlg_py
+
+     Returns
+     -------
+        fmsg : 2D array, size T x K
+                  fmsg[t,k] = p( z[t,k] = 1 | x[1] ... x[t] )
+        margPrObs : 1D array, size T
+                  margPrObs[t] = p( x[t] | x[1], x[2], ... x[t-1] )
+  '''
+  if PlatformConfig['FwdBwdImpl'] == "cpp":
+    return FwdAlg_cpp(PiInit, PiMat, SoftEv)
+  else:
+    return FwdAlg_py(PiInit, PiMat, SoftEv)
+
+def BwdAlg(PiInit, PiMat, SoftEv, margPrObs):
+  ''' Backward algorithm for a single HMM sequence. Wrapper for BwdAlg_py/BwdAlg_cpp.
+
+     Related
+     -------
+     BwdAlg_py
+
+     Returns
+     -------
+     bmsg : 2D array, size TxK
+              bmsg[t,k] = p( x[t+1], x[t+2], ... x[T] |  z[t,k] = 1 )
+                          -------------------------------------
+                          p( x[t+1], x[t+2], ... x[T] |  x[1] ... x[t])
+  '''
+  if PlatformConfig['FwdBwdImpl'] == "cpp":
+    return BwdAlg_cpp(PiInit, PiMat, SoftEv, margPrObs)
+  else:
+    return BwdAlg_py(PiInit, PiMat, SoftEv, margPrObs)
+
+########################################################### Python implementations
+###########################################################
 
 def FwdAlg_py(PiInit, PiMat, SoftEv):
   ''' Forward algorithm for a single HMM sequence. In pure python.

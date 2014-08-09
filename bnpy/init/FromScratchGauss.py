@@ -1,7 +1,7 @@
 '''
 FromScratchGauss.py
 
-Initialize params of a mixture model with gaussian observations from scratch.
+Initialize params of an HModel with gaussian observations from scratch.
 '''
 import numpy as np
 from bnpy.util import discrete_single_draw
@@ -44,8 +44,26 @@ def init_global_params(obsModel, Data, K=0, seed=0,
   elif initname == 'randsoftpartition':
     # Randomly assign all data items some mass in each of K components
     #  then create component params by M-step given that soft partition
-    resp = PRNG.rand(Data.nObs, K)
-    resp = resp/np.sum(resp,axis=1)[:,np.newaxis]
+    resp = PRNG.gamma(1.0/(K*K), 1, size=(Data.nObs, K))
+    resp[resp < 1e-3] = 0
+    rsum = np.sum(resp,axis=1)
+    badIDs = rsum < 1e-8
+    if np.any(badIDs): # if any rows have no content, just set them to unif resp.
+      resp[badIDs] = 1.0 / K
+      rsum[badIDs] = 1
+    resp = resp/rsum[:,np.newaxis]
+    assert np.allclose(np.sum(resp, axis=1), 1.0)
+
+  elif initname == 'randparams':
+    CovMat = np.diag(np.cov(Data.X.T))
+    mu = np.sqrt(CovMat) * PRNG.randn(K, Data.dim)
+    Sigma = obsModel.get_covar_mat_for_comp('prior')
+    Sigma = np.tile(Sigma, (K, 1, 1))
+    obsModel.setEstParams(mu=mu, Sigma=Sigma)
+    if obsModel.inferType != 'EM':
+      obsModel.setPostFromEstParams(obsModel.EstParams, N=Data.nObs)
+      del obsModel.EstParams
+    return
 
   elif initname == 'randomnaive':
     # Generate K "fake" examples from the diagonalized data covariance,
@@ -64,6 +82,7 @@ def init_global_params(obsModel, Data, K=0, seed=0,
   obsModel.update_global_params(SS)
 
 
+
 #<<<<<<< HEAD
 #  
 #  LP = dict(resp=resp)
@@ -79,5 +98,7 @@ def init_global_params(obsModel, Data, K=0, seed=0,
 #    hmodel.update_global_params(SS)
     
  
+
+
 
 

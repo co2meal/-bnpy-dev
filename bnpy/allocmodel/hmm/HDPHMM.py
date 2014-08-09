@@ -198,29 +198,9 @@ class HDPHMM(AllocModel):
 
         #Update rho and omega through numerical optimization
         self.rho, self.omega = self.find_optimum_rhoOmega(SS, **kwargs)
-        #self.rho = np.ones(self.K) * .5
-        #self.omega = np.ones(self.K) * .5
+
+        self.u, self.b = self._calc_u_b(SS)
         
-        rhoProds = np.array([np.prod(1-self.rho[0:i]) for i in xrange(self.K)])
-
-        #self.u = np.array([np.ones((self.K, self.K)), 
-        #                   np.ones((self.K, self.K))])
-        #self.b = np.array([np.ones(self.K), np.ones(self.K)])
-
-        #Update u
-        for i in xrange(self.K):
-            for j in xrange(self.K):
-                self.u[1,i,j] = self.alpha * self.rho[i] * rhoProds[i] + \
-                    SS.respPairSums[i,j]
-                self.u[0,i,j] = self.alpha * (1 - self.rho[i]) * rhoProds[i] + \
-                    np.sum(SS.respPairSums[i,j+1:self.K])
-
-        #Update b
-        for i in xrange(self.K):
-            self.b[1,i] = self.tau * self.rho[i] * rhoProds[i] + \
-                SS.firstStateResp[i]
-            self.b[0,i] = self.tau * (1 - self.rho[i]) * rhoProds[i] + \
-                np.sum(SS.firstStateResp[i+1:self.K])
 
     def update_global_params_soVB(self, SS, rho, **kwargs):
         ''' Updates global parameters when learning with stochastic online VB.
@@ -228,38 +208,58 @@ class HDPHMM(AllocModel):
             the global stick weight parameter rho
         '''
         rhoNew, omegaNew = self.find_optimum_rhoOmega(SS, **kwargs)
-        uNew = np.array([np.ones((self.K, self.K)), 
-                           np.ones((self.K, self.K))])
-        bNew = np.array([np.ones(self.K), np.ones(self.K)])
+        uNew, bNew = self._calc_u_b(SS)
 
+        self.u = rho*uNew + (1 - rho)*self.u
+        self.b = rho*bNew + (1 - rho)*self.b
+        self.rho = rho*rhoNew + (1 - rho)*self.rho
+        self.omega = rho*omegaNew + (1 - rho)*self.omega
+
+    def _calc_u_b(self, SS):
         rhoProds = np.array([np.prod(1-self.rho[0:i]) for i in xrange(self.K)])
 
+        u = np.array([np.ones((self.K, self.K)), 
+                           np.ones((self.K, self.K))])
+        b = np.array([np.ones(self.K), np.ones(self.K)])
+
+        #Update u
         for i in xrange(self.K):
             for j in xrange(self.K):
-                uNew[1,i,j] = self.alpha * self.rho[i] * rhoProds[i] + \
+                u[1,i,j] = self.alpha * self.rho[i] * rhoProds[i] + \
                     SS.respPairSums[i,j]
-                uNew[0,i,j] = self.alpha * (1 - self.rho[i]) * rhoProds[i] + \
+                u[0,i,j] = self.alpha * (1 - self.rho[i]) * rhoProds[i] + \
                     np.sum(SS.respPairSums[i,j+1:self.K])
 
+        #Update b
         for i in xrange(self.K):
-            bNew[1,i] = self.tau * self.rho[i] * rhoProds[i] + \
+            b[1,i] = self.tau * self.rho[i] * rhoProds[i] + \
                 SS.firstStateResp[i]
-            bNew[0,i] = self.tau * (1 - self.rho[i]) * rhoProds[i] + \
+            b[0,i] = self.tau * (1 - self.rho[i]) * rhoProds[i] + \
                 np.sum(SS.firstStateResp[i+1:self.K])
 
-            self.u = rho*uNew + (1 - rho)*self.u
-            self.b = rho*bNew + (1 - rho)*self.b
-            self.rho = rho*rhoNew + (1 - rho)*self.rho
-            self.omega = rho*omegaNew + (1 - rho)*self.omega
-
+        return u, b
         
 
-    def calc_evidence(self, Data, SS, LP):
+    def init_global_params(self, Data, K=0, **initArgs):
+        self.K = K
+        self.omega = (self.gamma + 1) * np.ones(self.K)
+        self.rho = (1 / (self.gamma + 1)) * np.ones(self.K)
+        
+        #Fake suff stat bag that assigns 1/K "observations" to each starting
+        #  state and transition
+        SS = SuffStatBag(K = self.K , D = Data.dim)
+        SS.setField('firstStateResp', np.ones(K) / K, dims=('K'))
+        SS.setField('respPairSums', np.ones((K,K)) / K, dims=('K','K'))
+
+        self.u, self.b = self._calc_u_b(SS)
+        
+       
+
+    def calc_evidence(self, Data, SS, LP, todict = False, **kwargs):
         if SS.hasELBOTerm('Elogqz'):
             entropy = SS.getELBOTerm('Elogqz')
         else:
             entropy = self.elbo_entropy(Data, LP)
-
         return entropy + self.elbo_alloc() + self.elbo_v0() + \
             self.elbo_allocSlack()
 

@@ -225,13 +225,10 @@ def delete_empty_comps(Data, model, SS=None,
     if SS.N[k] < kwargs['cleanupMinSize']:
       if SS.K > 1:
         SS.removeComp(k)
-        del model.obsModel.comp[k]
       else:
-        msg = 'BIRTH failed. After creation, all new comps below cleanupMinSize.'
+        msg = 'FAILED. After creation, all new comps below cleanupMinSize.'
         raise BirthProposalError(msg)
 
   if SS.K < model.allocModel.K:
-    model.allocModel.update_global_params(SS)
-    model.obsModel.K = SS.K
-
+    model.update_global_params(SS)
   return model, SS
