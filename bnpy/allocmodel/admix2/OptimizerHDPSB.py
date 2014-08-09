@@ -319,19 +319,6 @@ def _unpack(rhoomega):
   omega = rhoomega[-K:]
   return rho, omega, K
 
-def rho2beta_active(rho):
-  ''' Calculate probability of each active component
-
-      Returns
-      --------
-      beta : 1D array, size K
-             beta[k] := active probability of topic k
-             will have positive entries whose sum is <= 1
-  '''
-  beta = rho.copy()
-  beta[1:] *= np.cumprod(1 - rho[:-1])
-  return beta
-
 def kvec(K):
   ''' Obtain descending vector of [K, K-1, ... 1]
 
@@ -385,3 +372,33 @@ def calc_drho_dcumprod1mrho(cumprod1mrho, rho, K):
   RMat /= (1-rho)[:,np.newaxis]
   RMat[_get_lowTriIDs(K)] = 0
   return RMat
+
+
+########################################################### Convert rho <-> beta
+###########################################################
+def rho2beta_active(rho):
+  ''' Calculate probability of each active component
+
+      Returns
+      --------
+      beta : 1D array, size K
+             beta[k] := active probability of topic k
+             will have positive entries whose sum is <= 1
+  '''
+  rho = np.asarray(rho, dtype=np.float64)
+  beta = rho.copy()
+  beta[1:] *= np.cumprod(1 - rho[:-1])
+  return beta
+
+def beta2rho(beta, K):
+  ''' Returns K-length vector rho of stick-lengths that recreate appearance probs beta
+  '''
+  beta = np.asarray(beta, dtype=np.float64)
+  rho = beta.copy()
+  rho /= np.hstack([1.0, 1 - np.cumsum(beta[:-1])])
+  if beta.size == K + 1:
+    return rho[:-1]
+  elif beta.size == K:
+    return rho
+  else:
+    raise ValueError('Provided beta needs to be of length K or K+1')

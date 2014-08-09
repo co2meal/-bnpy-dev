@@ -73,8 +73,20 @@ class HDPSB(AllocModel):
     ''' Return vector beta of appearance probabilities for active components
     '''
     beta = self.rho.copy()
-    beta[1:] *= np.cumprod( 1 - self.rho[:-1])
+    beta[1:] *= np.cumprod(1 - self.rho[:-1])
     return beta
+
+  def E_beta_and_betagt(self):
+    ''' Return vectors beta, beta_gt that define conditional appearance probabilities
+
+        Returns
+        --------
+        beta : 1D array, size K
+        beta_gt : 1D array, size K
+    '''
+    beta = self.rho.copy()
+    beta[1:] *= np.cumprod(1 - self.rho[:-1])
+    return beta, gtsum(beta) + (1-np.sum(beta))
 
   def set_prior(self, gamma=1.0, alpha=1.0, **kwargs):
     self.alpha = float(alpha)
@@ -90,7 +102,7 @@ class HDPSB(AllocModel):
     self.omega = as1D(Dict['omega'])
 
   def get_prior_dict(self):
-    return dict(alpha=self.alpha, 
+    return dict(alpha=self.alpha, gamma=self.gamma,
                 K=self.K,
                 inferType=self.inferType)
     
@@ -209,7 +221,6 @@ class HDPSB(AllocModel):
   ####################################################### 
   def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None, **kwargs):
     ''' Calculate sufficient statistics.
-        Admixture models have no suff stats for allocation   
     '''
     resp = LP['resp']
     _, K = resp.shape
@@ -220,9 +231,9 @@ class HDPSB(AllocModel):
 
     if doPrecompEntropy:
       ElogqZ = self.E_logqZ(Data, LP)
-      Erest = self.E_logpPiZ_logqPi(Data, LP)
+      VZlocal = self.E_logpVZ_logqV(Data, LP)
       SS.setELBOTerm('ElogqZ', ElogqZ, dims='K')
-      SS.setELBOTerm('Erest', Erest, dims=None)
+      SS.setELBOTerm('VZlocal', VZlocal, dims=None)
     return SS
 
   ####################################################### VB Global Step
@@ -292,7 +303,6 @@ class HDPSB(AllocModel):
         self.omega = hmodel.allocModel.omega
       else:
         raise AttributeError('Unrecognized hmodel')
-      self.set_helper_params()
     elif rho is not None and omega is not None:
       self.rho = rho
       self.omega = omega
@@ -301,10 +311,12 @@ class HDPSB(AllocModel):
       self._set_global_params_from_scratch(**kwargs)
 
   def _set_global_params_from_scratch(self, 
-                      beta=None, nDoc=10,
+                      beta=None, topic_prior=None, Data=None,
                       **kwargs):
+    ''' Set rho, omega to values that reproduce provided appearance probabilities.
     '''
-    '''
+    if topic_prior is not None:
+      beta = topic_prior / topic_prior.sum()
     if beta is not None:
       Ktmp = beta.size
       rem = np.minimum(0.05, 1./(Ktmp))
@@ -313,7 +325,7 @@ class HDPSB(AllocModel):
     else:
       raise ValueError('Bad parameters. Vector beta not specified.')
     self.K = beta.size - 1
-    self.rho, self.omega = self._convert_beta2rhoomega(beta, nDoc)
+    self.rho, self.omega = self._convert_beta2rhoomega(beta, Data.nDoc)
     assert self.rho.size == self.K
     assert self.omega.size == self.K
 
@@ -326,9 +338,9 @@ class HDPSB(AllocModel):
         omega : 1D array, size K
     '''
     assert abs(np.sum(beta) - 1.0) < 0.001
-    rho = OptimHDPSB.beta2rho(beta)
-    omega = nDoc * np.ones(rho.size)
-    return rho, omega    
+    rho = OptimHDPSB.beta2rho(beta, self.K)
+    omega = (nDoc + self.gamma) * np.ones(rho.size)
+    return rho, omega
 
 
   ####################################################### Calc ELBO
@@ -336,38 +348,60 @@ class HDPSB(AllocModel):
   def calc_evidence(self, Data, SS, LP, **kwargs):
     ''' Calculate ELBO objective 
     '''
+    U_global = self.E_logpU_logqU_c(SS)
+    V_global = self.E_logpV__global(SS)
     if SS.hasELBOTerms():
       ElogqZ = SS.getELBOTerm('ElogqZ')
-      Erest = SS.getELBOTerm('Erest')
+      VZlocal = SS.getELBOTerm('VZlocal')
     else:
       ElogqZ = self.E_logqZ(Data, LP)
-      Erest = self.E_logpVZ_logqV(Data, LP)
-      Eglobal = self.E_logpU_logqU_c(SS)
-    return Erest - np.sum(ElogqZ)
+      VZlocal = self.E_logpVZ_logqV(Data, LP)
+    return U_global + V_global + VZlocal - np.sum(ElogqZ)
 
   def E_logqZ(self, Data, LP):
-    ''' Calculate E[ log q(z)]
+    ''' Calculate E[ log q(z)] for each active topic
+
+        Returns
+        -------
+        ElogqZ : 1D array, size K
     '''
     if hasattr(Data, 'word_count'):
       return NumericUtil.calcRlogRdotv(LP['resp'], Data.word_count)
     else:
       return NumericUtil.calcRlogR(LP['resp'])
 
+  def E_logpV__global(self, SS):
+    ''' Calculate the part of E[ log p(v) ] that depends on global topic probs
+
+        Returns
+        --------
+        Elogstuff : real scalar
+    ''' 
+    Ebeta, Ebeta_gt = self.E_beta_and_betagt()
+    return np.inner(self.alpha * Ebeta, SS.sumLogVd) \
+           + np.inner(self.alpha * Ebeta_gt, SS.sumLog1mVd)
+
   def E_logpVZ_logqV(self, Data, LP):
-    ''' Calculate E[ log p(v) + log p(z) - log q(v)  ]
+    ''' Calculate E[ log p(v) + log p(z) - log q(v) ]
+
+        Returns
+        -------
+        Elogstuff : real scalar
     '''
     cDiff = -1 * c_Beta(LP['eta1'], LP['eta0'])
-    Ebeta = self.E_beta_active()
-    EbetaLeftover = 1 - np.sum(Ebeta)
-    ONcoef = LP['DocTopicCount'] + self.alpha * Ebeta
-    OFFcoef = gtsum(ONcoef) + self.alpha * EbetaLeftover
 
+    ONcoef = LP['DocTopicCount']
+    OFFcoef = gtsum(ONcoef)
     logBetaPDF = np.sum((ONcoef - LP['eta1']) * LP['ElogV']) \
                  + np.sum((OFFcoef - LP['eta0']) * LP['Elog1mV'])
     return cDiff + np.sum(logBetaPDF)
 
   def E_logpU_logqU_c(self, SS):
     ''' Calculate E[ log p(u) - log q(u) ]
+
+        Returns
+        ---------
+        Elogstuff : real scalar
     '''
     g1 = self.rho * self.omega
     g0 = (1-self.rho) * self.omega
@@ -378,9 +412,9 @@ class HDPSB(AllocModel):
     ONcoef = SS.nDoc + 1.0 - g1
     OFFcoef = SS.nDoc * OptimHDPSB.kvec(self.K) + self.gamma - g0
 
-    cDiff = c_Beta(1, self.gamma) - c_Beta(g1, g0)
+    cDiff = SS.K * c_Beta(1, self.gamma) - c_Beta(g1, g0)
     logBetaPDF = np.inner(ONcoef, ElogU) \
-                 - np.inner(OFFcoef, Elog1mU)
+                 + np.inner(OFFcoef, Elog1mU)
     return cDiff + logBetaPDF
 
 def gtsum(Nvec):

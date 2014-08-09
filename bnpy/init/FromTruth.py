@@ -49,7 +49,6 @@ def _initFromTrueParams(hmodel, Data, initname, PRNG, **kwargs):
   '''
   if initname != 'trueparams':
     raise NotImplementedError('Unknown initname: %s' % (initname))
-
   InitParams = dict(**Data.TrueParams)
   InitParams['Data'] = Data
   hmodel.set_global_params(**InitParams)

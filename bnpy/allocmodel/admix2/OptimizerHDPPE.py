@@ -22,6 +22,8 @@ from scipy.special import gammaln, digamma, polygamma
 import datetime
 import logging
 
+from OptimizerHDPSB import rho2beta_active, beta2rho
+
 Log = logging.getLogger('bnpy')
 EPS = 10*np.finfo(float).eps
 
