@@ -44,7 +44,7 @@ from bnpy.suffstats import SuffStatBag
 from ...util import digamma, gammaln
 from ...util import NumericUtil, as1D
 
-import OptimizerHDPSB as OptimHDPPE
+import OptimizerHDPPE as OptimHDPPE
 import LocalUtil
 
 class HDPPE(HDPSB):
@@ -55,24 +55,6 @@ class HDPPE(HDPSB):
     beta = self.uhat.copy()
     beta[1:] *= np.cumprod( 1 - self.uhat[:-1])
     return beta
-
-  def E_betagt_active(self):
-    ''' Return vector beta of remaining mass beyond each topic k for all active topics
-    ''' 
-    Ebeta = self.E_beta_active()
-    EbetaLeftover = 1 - np.sum(Ebeta)
-    return gt_sum(Ebeta) + EbetaLeftover
-
-  def E_beta_and_betagt(self):
-    ''' Calculate the part of E[ log p(v) ] that depends on global topic probs
-
-        Returns
-        --------
-        Elogstuff : real scalar
-    ''' 
-    Ebeta, Ebeta_gt = self.E_beta_and_betagt()
-    return np.inner(self.alpha * Ebeta, SS.sumLogVd) \
-           + np.inner(self.alpha * Ebeta_gt, SS.sumLog1mVd)
 
   def to_dict(self):
     return dict(uhat=self.uhat)
@@ -119,9 +101,9 @@ class HDPPE(HDPSB):
 
     if doPrecompEntropy:
       ElogqZ = self.E_logqZ(Data, LP)
-      Erest = self.E_logpPiZ_logqPi(Data, LP)
+      VZlocal = self.E_logpVZ_logqV(Data, LP)
       SS.setELBOTerm('ElogqZ', ElogqZ, dims='K')
-      SS.setELBOTerm('Erest', Erest, dims=None)
+      SS.setELBOTerm('VZlocal', VZlocal, dims=None)
     return SS
 
   ####################################################### VB Global Step
@@ -223,26 +205,33 @@ class HDPPE(HDPSB):
   def calc_evidence(self, Data, SS, LP, **kwargs):
     ''' Calculate ELBO objective 
     '''
+    cV_global = SS.nDoc * self.E_c_alphabeta()
+    U_global = self.E_logpU()
+    V_global = self.E_logpV__global(SS)
     if SS.hasELBOTerms():
-      raise NotImplementedError('ToDo')
+      ElogqZ = SS.getELBOTerm('ElogqZ')
+      VZlocal = SS.getELBOTerm('VZlocal')
     else:
       ElogqZ = self.E_logqZ(Data, LP)
-      Erest = self.E_logpVZ_logqV(Data, LP)
-      Eglobal = self.E_logpU()
-      Ec = Data.nDoc * self.E_c_alphabeta()
-    return Eglobal + Ec + Erest - np.sum(ElogqZ)
+      VZlocal = self.E_logpVZ_logqV(Data, LP)
+    return U_global + cV_global + V_global + VZlocal - np.sum(ElogqZ)
 
   ## Inherited from HDPSB
   # def E_logqZ(self, Data, LP):
   # def E_logpVZ_logqV(self, Data, LP):
+  # def E_logpV__global(self, SS)
 
   def E_logpU(self):
     ''' Calculate E[ log p(u) ]
     '''
     Elog1mU = np.log(1-self.uhat)
-    return self.K * c_Beta(1, self.gamma) + np.sum((self.gamma - 1)*Elog1mU)
+    return self.K * c_Beta(1, self.gamma) \
+           + np.sum((self.gamma - 1) * Elog1mU)
 
   def E_c_alphabeta(self):
     ''' Calculate E[ \sum_k c_B( alpha beta_k, alpha beta_gtk) ]
     '''
-    return c_Beta( alpha * self.E_beta_active(), alpha * self.E_betagt_active())
+    Ebeta, Ebeta_gt = self.E_beta_and_betagt()
+    return c_Beta( self.alpha * Ebeta,
+                   self.alpha * Ebeta_gt)
+
