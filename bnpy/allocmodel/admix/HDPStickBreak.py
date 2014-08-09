@@ -336,7 +336,6 @@ class HDPStickBreak(AllocModel):
     self.rho = anew / (anew + bnew)
     self.omega = anew + bnew
     self.set_helper_params()
-
   #________________________________________________________ init_global_params
  
   def init_global_params(self, Data, K=0, **initArgs):

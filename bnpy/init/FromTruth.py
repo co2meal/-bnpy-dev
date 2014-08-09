@@ -80,7 +80,10 @@ def _initFromTrueLP(hmodel, Data, initname, PRNG, nRepeatTrue=2, **kwargs):
   ## Adjust "true" labels as specified by initname
   if initname == 'repeattruelabels':
     LP = expandLPWithDuplicates(LP, PRNG, nRepeatTrue)
-  
+
+  if hasattr(hmodel.allocModel, 'initLPFromResp'):
+    LP = hmodel.allocModel.initLPFromResp(Data, LP)
+
   ## Perform global update step given these local params
   SS = hmodel.get_global_suff_stats(Data, LP)
   hmodel.update_global_params(SS)
