@@ -114,6 +114,7 @@ class HDPPE(HDPSB):
     uhat = self._find_optimum_uhat(SS, **kwargs)
     self.uhat
     self.K = SS.K
+    self.ClearCache()
 
   def _find_optimum_uhat(self, SS, **kwargs):
     ''' Run numerical optimization to find optimal uhat point estimate
@@ -155,6 +156,7 @@ class HDPPE(HDPSB):
   def init_global_params(self, Data, K=0, **kwargs):
     self.K = K
     self.uhat = OptimHDPPE.create_inituhat(K)
+    self.ClearCache()
 
   def set_global_params(self, hmodel=None, 
                               uhat=None, beta=None, 
@@ -172,12 +174,14 @@ class HDPPE(HDPSB):
       self.K = uhat.size
     else:
       self._set_global_params_from_scratch(**kwargs)
+    self.ClearCache()
 
-  def _set_global_params_from_scratch(self, 
-                      beta=None, 
-                      **kwargs):
-    ''' Set global stick-lengths to provided values
+  def _set_global_params_from_scratch(self, beta=None, topic_prior=None,
+                                            **kwargs):
+    ''' Set uhat to values that reproduce provided appearance probs
     '''
+    if topic_prior is not None:
+      beta = topic_prior / np.sum(topic_prior)
     if beta is not None:
       Ktmp = beta.size
       rem = np.minimum(0.05, 1./(Ktmp))

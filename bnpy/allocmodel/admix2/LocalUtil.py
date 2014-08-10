@@ -27,7 +27,11 @@ def calcLocalParams(Data, LP, aModel, methodLP='scratch', **kwargs):
   else:
     initDocTopicCount = None
 
-  DocTopicCount, Prior, sumR = calcDocTopicCountForData(Data, aModel, Lik,
+  #DocTopicCount, Prior, sumR = calcDocTopicCountForData(Data, aModel, Lik,
+  #                                    initDocTopicCount=initDocTopicCount,
+  #                                    **kwargs)
+  DocTopicCount, Prior, sumR = calcDocTopicCountForData_Fast(Data, aModel,
+                                      Lik,
                                       initDocTopicCount=initDocTopicCount,
                                       **kwargs)
 
@@ -73,26 +77,29 @@ def calcDocTopicCountForData(Data, aModel, Lik,
                      sumRespTilde[n] = normalization for the responsibility          
                      parameters for token n
   '''
-  ## Initialize 
-  if initDocTopicCount is None:
-    DocTopicCount = np.zeros((Data.nDoc, aModel.K))
-  else:
-    DocTopicCount = initDocTopicCount.copy()
-  if initPrior is None:
-    Prior = np.ones((Data.nDoc, aModel.K))
-  else:
-    Prior = initPrior.copy()
   sumRespTilde = np.zeros(Lik.shape[0])
+
+  ## Initialize DocTopicCount and Prior
+  if initDocTopicCount is not None:
+    DocTopicCount = initDocTopicCount.copy()
+    Prior = aModel.calcLogPrActiveComps_Fast(DocTopicCount)
+    np.exp(Prior, out=Prior)
+  else:
+    DocTopicCount = np.zeros((Data.nDoc, aModel.K))
+    if initPrior is None:
+      Prior = np.ones((Data.nDoc, aModel.K))
+    else:
+      Prior = initPrior.copy()
 
   for d in xrange(Data.nDoc):
     start = Data.doc_range[d]
     stop  = Data.doc_range[d+1]
     Lik_d = Lik[start:stop]
-    sumR_d = np.zeros(stop-start)
     if hasattr(Data, 'word_count'):
       wc_d = Data.word_count[start:stop]
     else:
       wc_d = np.ones(stop-start)
+    sumR_d = np.zeros(stop-start)
 
     DocTopicCount[d], Prior[d], sumR_d = calcDocTopicCountForDoc(
                                       d, aModel, 
@@ -152,3 +159,88 @@ def calcDocTopicCountForDoc(d, aModel,
       break
     prevDocTopicCount_d[:] = DocTopicCount_d
   return DocTopicCount_d, Prior_d, sumR_d
+
+
+
+
+def calcDocTopicCountForData_Fast(Data, aModel, Lik,
+                   initDocTopicCount=None,
+                   initPrior=None, 
+                   nCoordAscentItersLP=nCoordAscentIters,
+                   convThrLP=convThr,
+                   **kwargs
+                  ):
+  ''' Calculate updated doc-topic counts for every document in provided set
+
+      Will loop over all docs, and at each one will run coordinate ascent
+      to alternatively update its doc-topic counts and the doc-topic prior.
+      Ascent stops after convergence or a maximum number of iterations.
+    
+      Returns
+      ---------
+      DocTopicCount : 2D array, size nDoc x K
+      DocTopicCount[d,k] is effective number of tokens in doc d assigned to k
+
+      Prior : 2D array, size nDoc x K
+      Prior[d,k] = exp( E[log pi_{dk}] )
+
+      sumRespTilde : 1D array, size N = # observed tokens
+                     sumRespTilde[n] = normalization for the responsibility          
+                     parameters for token n
+  '''
+  ## Initialize 
+  tmpLP = dict()
+  sumRespTilde = np.zeros(Lik.shape[0])
+
+  if initDocTopicCount is not None:
+    DocTopicCount = initDocTopicCount.copy()
+    Prior = aModel.calcLogPrActiveComps_Fast(DocTopicCount, None, tmpLP)
+    np.exp(Prior, out=Prior)
+  else:
+    DocTopicCount = np.zeros((Data.nDoc, aModel.K))
+    if initPrior is None:
+      Prior = np.ones((Data.nDoc, aModel.K))
+    else:
+      Prior = initPrior.copy()
+
+  activeDocs = np.arange(Data.nDoc, dtype=np.int32)
+  prev_DocTopicCount = DocTopicCount.copy()
+
+  for ii in xrange(nCoordAscentItersLP):
+    ## Update Prior for active documents
+    if ii > 0:
+      aModel.calcLogPrActiveComps_Fast(DocTopicCount, activeDocs, tmpLP,
+                                       out=Prior)
+      # Unfortunately, cannot update only activeDocs inplace (fancy idxing)
+      Prior[activeDocs] = np.exp(Prior[activeDocs])
+
+    for d in activeDocs:
+      start = Data.doc_range[d]
+      stop = Data.doc_range[d+1]
+      Lik_d = Lik[start:stop]
+
+      ## Update sumRtilde for all tokens in document
+      np.dot(Lik_d, Prior[d], out=sumRespTilde[start:stop])
+
+      ## Update DocTopicCounts
+      if hasattr(Data, 'word_count'):
+        wc_d = Data.word_count[start:stop]
+        np.dot(wc_d / sumRespTilde[start:stop], Lik_d, out=DocTopicCount[d])
+      else:
+        np.dot(1.0 / sumRespTilde[start:stop], Lik_d, out=DocTopicCount[d])
+
+    DocTopicCount[activeDocs] *= Prior[activeDocs]
+
+    # Assess convergence
+    docDiffs = np.max(np.abs(prev_DocTopicCount - DocTopicCount), axis=1)
+    if np.max(docDiffs) < convThrLP:
+      break
+    activeDocs = np.asarray(np.flatnonzero(docDiffs > convThrLP),
+                            dtype=np.int32)
+
+    # Store DocTopicCount for next round's convergence test
+    # Here, the "[:]" syntax ensures we do NOT copy by reference
+    prev_DocTopicCount[activeDocs] = DocTopicCount[activeDocs]
+    ### end loop over alternating-ascent updates
+
+  return DocTopicCount, Prior, sumRespTilde
