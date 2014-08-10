@@ -27,18 +27,20 @@ def calcLocalParams(Data, LP, aModel, methodLP='scratch', **kwargs):
   else:
     initDocTopicCount = None
 
-  #DocTopicCount, Prior, sumR = calcDocTopicCountForData(Data, aModel, Lik,
-  #                                    initDocTopicCount=initDocTopicCount,
-  #                                    **kwargs)
-  DocTopicCount, Prior, sumR = calcDocTopicCountForData_Fast(Data, aModel,
+  DocTopicCount, Prior, sumR = calcDocTopicCountForData(Data, aModel, Lik,
+                                     initDocTopicCount=initDocTopicCount,
+                                      **kwargs)
+  DocTopicCount2, Prior2, sumR2 = calcDocTopicCountForData_Fast(Data, aModel,
                                       Lik,
                                       initDocTopicCount=initDocTopicCount,
                                       **kwargs)
+  assert np.allclose(DocTopicCount, DocTopicCount2)
+  assert np.allclose(Prior, Prior2)
+  assert np.allclose(sumR, sumR2)
 
   LP = aModel.updateLPGivenDocTopicCount(LP, DocTopicCount)
   LP = updateLPWithResp(LP, Data, Lik, Prior, sumR)
   LP['DocTopicCount'] = DocTopicCount
-
   return LP
   
 
