@@ -124,12 +124,19 @@ class LDA(AllocModel):
       theta = DocTopicCount + self.alpha
       ElogPi = digamma(theta)
       digammaThetaSum = digamma(theta.sum(axis=1))
-    else:
+      ElogPi -= digammaThetaSum[:,np.newaxis]
+    elif activeDocs is None:
       np.add(DocTopicCount, self.alpha, out=out)
       digammaThetaSum = digamma(out.sum(axis=1))
       digamma(out, out=out)
       ElogPi = out
-    ElogPi -= digammaThetaSum[:,np.newaxis]
+      ElogPi -= digammaThetaSum[:,np.newaxis]
+    else:
+      out[activeDocs] = DocTopicCount[activeDocs] + self.alpha
+      digammaThetaSum = digamma(out[activeDocs].sum(axis=1))
+      out[activeDocs] = digamma(out[activeDocs])
+      ElogPi = out
+      ElogPi[activeDocs] -= digammaThetaSum[:,np.newaxis]
     return ElogPi
 
   def updateLPGivenDocTopicCount(self, LP, DocTopicCount):

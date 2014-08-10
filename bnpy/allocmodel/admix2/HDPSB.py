@@ -77,7 +77,7 @@ class HDPSB(AllocModel):
     return beta
 
   def E_beta_and_betagt(self):
-    ''' Return vectors beta, beta_gt that define conditional appearance probabilities
+    ''' Return vectors beta, beta_gt that define conditional appearance probs
 
         Returns
         --------
@@ -165,15 +165,19 @@ class HDPSB(AllocModel):
     '''
     Ebeta, Ebeta_gt = self.E_beta_and_betagt()
 
+    if activeDocs is None:
+      activeDocTopicCount = DocTopicCount
+    else:
+      activeDocTopicCount = np.take(DocTopicCount, activeDocs, axis=0)
+
     if 'eta1' in LP:
-      np.add(DocTopicCount[activeDocs], self.alpha * Ebeta, 
-             out=LP['eta1'][activeDocs])
+      LP['eta1'][activeDocs] = activeDocTopicCount + self.alpha * Ebeta
     else:
       LP['eta1'] = DocTopicCount + self.alpha * Ebeta
 
     if 'eta0' in LP:
-      np.add(gtsum(DocTopicCount[activeDocs]), self.alpha * Ebeta_gt, 
-             out=LP['eta0'][activeDocs])
+      LP['eta0'][activeDocs] = gtsum(activeDocTopicCount) \
+                               + self.alpha * Ebeta_gt
     else:
       LP['eta0'] = gtsum(DocTopicCount) + self.alpha * Ebeta_gt
 
@@ -186,8 +190,11 @@ class HDPSB(AllocModel):
       ElogPi = ElogVd.copy()
     else:
       ElogPi = out
-      ElogPi[:] = ElogVd
-    ElogPi[:,1:] += np.cumsum(Elog1mVd[:,:-1], axis=1)
+      ElogPi[activeDocs] = ElogVd[activeDocs]
+    if activeDocs is None:
+      ElogPi[:,1:] += np.cumsum(Elog1mVd[:,:-1], axis=1)
+    else:
+      ElogPi[activeDocs,1:] += np.cumsum(Elog1mVd[activeDocs,:-1], axis=1)
     return ElogPi
 
 
