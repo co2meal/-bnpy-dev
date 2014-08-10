@@ -34,7 +34,8 @@ def calcLocalParams(Data, LP, aModel, methodLP='scratch', **kwargs):
                                       Lik,
                                       initDocTopicCount=initDocTopicCount,
                                       **kwargs)
-  assert np.allclose(DocTopicCount, DocTopicCount2)
+  if not np.allclose(DocTopicCount, DocTopicCount2):
+    from IPython import embed; embed()
   assert np.allclose(Prior, Prior2)
   assert np.allclose(sumR, sumR2)
 
@@ -100,7 +101,7 @@ def calcDocTopicCountForData(Data, aModel, Lik,
     if hasattr(Data, 'word_count'):
       wc_d = Data.word_count[start:stop]
     else:
-      wc_d = np.ones(stop-start)
+      wc_d = 1.0
     sumR_d = np.zeros(stop-start)
 
     DocTopicCount[d], Prior[d], sumR_d = calcDocTopicCountForDoc(
@@ -138,15 +139,10 @@ def calcDocTopicCountForDoc(d, aModel,
   '''
   prevDocTopicCount_d = DocTopicCount_d.copy()
   for iter in xrange(nCoordAscentItersLP):
-    #if d == 0 and (iter == 0 or iter % 5 == 0):
-    #  if iter == 0:
-    #    print '-----'
-    #  print ' '.join(['%7.1f' % (x) for x in DocTopicCount_d])
-      
     ## Update Prob of Active Topics
     if iter > 0:
       np.exp(aModel.calcLogPrActiveCompsForDoc(DocTopicCount_d), 
-               out=Prior_d)
+             out=Prior_d)
 
     ## Update sumRtilde for all tokens in document
     np.dot(Lik_d, Prior_d, out=sumR_d)
@@ -160,6 +156,7 @@ def calcDocTopicCountForDoc(d, aModel,
     if docDiff < convThrLP:
       break
     prevDocTopicCount_d[:] = DocTopicCount_d
+
   return DocTopicCount_d, Prior_d, sumR_d
 
 
@@ -224,20 +221,20 @@ def calcDocTopicCountForData_Fast(Data, aModel, Lik,
       ## Update sumRtilde for all tokens in document
       np.dot(Lik_d, Prior[d], out=sumRespTilde[start:stop])
 
-      ## Update DocTopicCounts
+      ## Update DocTopicCounts with Lik
       if hasattr(Data, 'word_count'):
         wc_d = Data.word_count[start:stop]
         np.dot(wc_d / sumRespTilde[start:stop], Lik_d, out=DocTopicCount[d])
       else:
         np.dot(1.0 / sumRespTilde[start:stop], Lik_d, out=DocTopicCount[d])
-
+    ## Update DocTopicCount with Prior
     DocTopicCount[activeDocs] *= Prior[activeDocs]
 
     # Assess convergence
     docDiffs = np.max(np.abs(prev_DocTopicCount - DocTopicCount), axis=1)
     if np.max(docDiffs) < convThrLP:
       break
-    activeDocs = np.asarray(np.flatnonzero(docDiffs > convThrLP),
+    activeDocs = np.asarray(np.flatnonzero(docDiffs >= convThrLP),
                             dtype=np.int32)
 
     # Store DocTopicCount for next round's convergence test
@@ -246,3 +243,17 @@ def calcDocTopicCountForData_Fast(Data, aModel, Lik,
     ### end loop over alternating-ascent updates
 
   return DocTopicCount, Prior, sumRespTilde
+
+
+def printVectors(aname, a, fmt='%9.6f', Kmax=10):
+  if len(a) > Kmax:
+    print 'FIRST %d' % (Kmax)
+    printVectors(aname, a[:Kmax], fmt, Kmax)
+    print 'LAST %d' % (Kmax)
+    printVectors(aname, a[-Kmax:], fmt, Kmax)
+
+  else:
+    print ' %10s %s' % (aname, np2flatstr(a, fmt, Kmax))
+
+def np2flatstr(xvec, fmt='%9.3f', Kmax=10):
+  return ' '.join( [fmt % (x) for x in xvec[:Kmax]])
