@@ -116,6 +116,22 @@ class LDA(AllocModel):
     ElogPi = digamma(theta_d) - digamma(theta_d.sum())
     return ElogPi
 
+  def calcLogPrActiveComps_Fast(self, DocTopicCount, activeDocs=None, LP=None,
+                                      out=None):
+    ''' Calculate log prob of each active topic for each active document
+    '''
+    if out is None:
+      theta = DocTopicCount + self.alpha
+      ElogPi = digamma(theta)
+      digammaThetaSum = digamma(theta.sum(axis=1))
+    else:
+      np.add(DocTopicCount, self.alpha, out=out)
+      digammaThetaSum = digamma(out.sum(axis=1))
+      digamma(out, out=out)
+      ElogPi = out
+    ElogPi -= digammaThetaSum[:,np.newaxis]
+    return ElogPi
+
   def updateLPGivenDocTopicCount(self, LP, DocTopicCount):
     ''' Update all local parameters, given topic counts for all docs in set.
 

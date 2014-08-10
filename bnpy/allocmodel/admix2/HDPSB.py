@@ -84,8 +84,17 @@ class HDPSB(AllocModel):
         beta : 1D array, size K
         beta_gt : 1D array, size K
     '''
-    beta = self.E_beta_active()
-    return beta, gtsum(beta) + (1-np.sum(beta))
+    if not 'Ebeta_gt' in self.__dict__:
+      if not hasattr(self, 'Ebeta'):
+        self.Ebeta = self.E_beta_active()
+      self.Ebeta_gt = gtsum(self.Ebeta) + (1-np.sum(self.Ebeta))
+    return self.Ebeta, self.Ebeta_gt 
+
+  def ClearCache(self):
+    if hasattr(self, 'Ebeta'):
+      del self.Ebeta
+    if hasattr(self, 'Ebeta_gt'):
+      del self.Ebeta_gt
 
   def set_prior(self, gamma=1.0, alpha=1.0, **kwargs):
     self.alpha = float(alpha)
@@ -138,12 +147,10 @@ class HDPSB(AllocModel):
         logp : 1D array, size K
                logp[k] gives probability of topic k in provided doc
     '''
-    betaActive = self.E_beta_active()
-    betaLeftover = 1 - np.sum(betaActive)
+    Ebeta, Ebeta_gt = self.E_beta_and_betagt()
 
-    eta1 = DocTopicCount_d + self.alpha * betaActive
-    eta0 = gtsum(eta1)
-    eta0 += self.alpha * betaLeftover
+    eta1 = DocTopicCount_d + self.alpha * Ebeta
+    eta0 = gtsum(DocTopicCount_d) + self.alpha * Ebeta_gt
 
     digammaBoth = digamma(eta1+eta0)
     ElogVd = digamma(eta1) - digammaBoth
@@ -151,6 +158,38 @@ class HDPSB(AllocModel):
     ElogPi = ElogVd.copy()
     ElogPi[1:] += np.cumsum(Elog1mVd[:-1])
     return ElogPi
+
+  def calcLogPrActiveComps_Fast(self, DocTopicCount, activeDocs=None, LP=dict(),
+                                      out=None):
+    ''' Calculate log prob of each active topic for each active document
+    '''
+    Ebeta, Ebeta_gt = self.E_beta_and_betagt()
+
+    if 'eta1' in LP:
+      np.add(DocTopicCount[activeDocs], self.alpha * Ebeta, 
+             out=LP['eta1'][activeDocs])
+    else:
+      LP['eta1'] = DocTopicCount + self.alpha * Ebeta
+
+    if 'eta0' in LP:
+      np.add(gtsum(DocTopicCount[activeDocs]), self.alpha * Ebeta_gt, 
+             out=LP['eta0'][activeDocs])
+    else:
+      LP['eta0'] = gtsum(DocTopicCount) + self.alpha * Ebeta_gt
+
+    eta1 = LP['eta1']
+    eta0 = LP['eta0']
+    digammaBoth = digamma(eta1+eta0)
+    ElogVd = digamma(eta1) - digammaBoth
+    Elog1mVd = digamma(eta0) - digammaBoth
+    if out is None:
+      ElogPi = ElogVd.copy()
+    else:
+      ElogPi = out
+      ElogPi[:] = ElogVd
+    ElogPi[:,1:] += np.cumsum(Elog1mVd[:,:-1], axis=1)
+    return ElogPi
+
 
   def updateLPGivenDocTopicCount(self, LP, DocTopicCount):
     ''' Update all local parameters, given topic counts for all docs in set.
@@ -162,17 +201,17 @@ class HDPSB(AllocModel):
         * ElogVd, Elog1mVd
         * ElogPi
     '''
-    betaActive = self.E_beta_active()
-    betaLeftover = 1 - np.sum(betaActive)
+    DocTopicCount_gt = gtsum(DocTopicCount)
 
-    eta1 = DocTopicCount + self.alpha * betaActive[np.newaxis,:]
-    eta0 = gtsum(eta1)
-    eta0 += self.alpha * betaLeftover
+    Ebeta, Ebeta_gt = self.E_beta_and_betagt()
+
+    eta1 = DocTopicCount + self.alpha * Ebeta
+    eta0 = DocTopicCount_gt + self.alpha * Ebeta_gt
 
     ## Double-check!
-    #Ebeta, Ebetagt = self.E_beta_and_betagt()
-    #assert np.allclose(eta0,
-    #                   gtsum(DocTopicCount) + self.alpha * Ebetagt)
+    Ebeta2, Ebeta_gt2 = self.E_beta_and_betagt()
+    assert np.allclose(Ebeta2, Ebeta)
+    assert np.allclose(Ebeta_gt2, Ebeta_gt)
 
     digammaBoth = digamma(eta1+eta0)
     ElogV = digamma(eta1) - digammaBoth
@@ -180,6 +219,7 @@ class HDPSB(AllocModel):
     ElogPi = ElogV.copy()
     ElogPi[:, 1:] += np.cumsum(Elog1mV[:, :-1], axis=1)
 
+    LP['DocTopicCount_gt'] = DocTopicCount_gt
     LP['eta1'] = eta1
     LP['eta0'] = eta0
     LP['ElogV'] = ElogV
@@ -201,11 +241,14 @@ class HDPSB(AllocModel):
                                     resp[start:stop,:])
       else:
         DocTopicCount[d,:] = np.sum(resp[start:stop,:], axis=0)
+    DocTopicCount_gt = gtsum(DocTopicCount)
 
     remMass = np.minimum(0.1, 1.0/(K*K))
-    eta1 = DocTopicCount + self.alpha * (1 - remMass) / K
-    eta0 = gtsum(eta1)
-    eta0[:, -1] += self.alpha * remMass
+    Ebeta = (1 - remMass) / K
+    Ebeta_gt = gtsum(Ebeta) + remMass
+
+    eta1 = DocTopicCount + self.alpha * Ebeta
+    eta0 = DocTopicCount_gt + self.alpha * Ebeta_gt
 
     digammaBoth = digamma(eta1+eta0)
     ElogV = digamma(eta1) - digammaBoth
@@ -214,6 +257,7 @@ class HDPSB(AllocModel):
     ElogPi[:, 1:] += np.cumsum(Elog1mV[:, :-1], axis=1)
 
     LP['DocTopicCount'] = DocTopicCount
+    LP['DocTopicCount_gt'] = DocTopicCount_gt
     LP['eta1'] = eta1
     LP['eta0'] = eta0
     LP['ElogV'] = ElogV
@@ -249,6 +293,7 @@ class HDPSB(AllocModel):
     self.rho = rho
     self.omega = omega
     self.K = SS.K
+    self.ClearCache()
 
   def _find_optimum_rhoomega(self, SS, **kwargs):
     ''' Run numerical optimization to find optimal rho, omega parameters
@@ -298,7 +343,7 @@ class HDPSB(AllocModel):
     self.K = K
     self.rho = OptimHDPSB.create_initrho(K)
     self.omega = (1.0 + self.gamma) * np.ones(K)
-
+    self.ClearCache()
 
   def set_global_params(self, hmodel=None, rho=None, omega=None, 
                               **kwargs):
@@ -317,12 +362,12 @@ class HDPSB(AllocModel):
       self.K = omega.size
     else:
       self._set_global_params_from_scratch(**kwargs)
+    self.ClearCache()
 
 
-  def _set_global_params_from_scratch(self, 
-                      beta=None, topic_prior=None, Data=None,
-                      **kwargs):
-    ''' Set rho, omega to values that reproduce provided appearance probabilities.
+  def _set_global_params_from_scratch(self, beta=None, topic_prior=None,
+                                            Data=None, **kwargs):
+    ''' Set rho, omega to values that reproduce provided appearance probs
     '''
     if topic_prior is not None:
       beta = topic_prior / topic_prior.sum()
@@ -398,9 +443,8 @@ class HDPSB(AllocModel):
         Elogstuff : real scalar
     '''
     cDiff = -1 * c_Beta(LP['eta1'], LP['eta0'])
-
     ONcoef = LP['DocTopicCount']
-    OFFcoef = gtsum(ONcoef)
+    OFFcoef = LP['DocTopicCount_gt']
     logBetaPDF = np.sum((ONcoef - LP['eta1']) * LP['ElogV']) \
                  + np.sum((OFFcoef - LP['eta0']) * LP['Elog1mV'])
     return cDiff + np.sum(logBetaPDF)
@@ -436,7 +480,10 @@ def gtsum(Nvec):
   '''
   if Nvec.ndim == 1:
     Ngt = np.cumsum(Nvec[::-1])[::-1]
-    return np.hstack([Ngt[1:], 0])
+    Ngt[:-1] = Ngt[1:]
+    Ngt[-1] = 0
+    return Ngt
+    #return np.hstack([Ngt[1:], 0])
   elif Nvec.ndim == 2:
     Ngt = np.fliplr(np.cumsum(np.fliplr(Nvec), axis=1))
     zeroCol = np.zeros((Ngt.shape[0],1))
