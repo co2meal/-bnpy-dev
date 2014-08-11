@@ -72,9 +72,10 @@ class HDPSB(AllocModel):
   def E_beta_active(self):
     ''' Return vector beta of appearance probabilities for active components
     '''
-    beta = self.rho.copy()
-    beta[1:] *= np.cumprod(1 - self.rho[:-1])
-    return beta
+    if not hasattr(self, 'Ebeta'):
+      self.Ebeta = self.rho.copy()
+      self.Ebeta[1:] *= np.cumprod(1 - self.rho[:-1])
+    return self.Ebeta
 
   def E_beta_and_betagt(self):
     ''' Return vectors beta, beta_gt that define conditional appearance probs
@@ -85,8 +86,7 @@ class HDPSB(AllocModel):
         beta_gt : 1D array, size K
     '''
     if not 'Ebeta_gt' in self.__dict__:
-      if not hasattr(self, 'Ebeta'):
-        self.Ebeta = self.E_beta_active()
+      self.Ebeta = self.E_beta_active()
       self.Ebeta_gt = gtsum(self.Ebeta) + (1-np.sum(self.Ebeta))
     return self.Ebeta, self.Ebeta_gt 
 
