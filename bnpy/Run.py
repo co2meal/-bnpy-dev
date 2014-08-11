@@ -86,8 +86,9 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
     obsModelName = ReqArgs['obsModelName']
     algName = ReqArgs['algName']
   KwArgs, UnkArgs = BNPYArgParser.parseKeywordArgs(ReqArgs, **kwargs)
-  
+
   jobname = KwArgs['OutputPrefs']['jobname']
+  bnpy.util.NumericUtil.UpdateConfig(**UnkArgs) # hack to change numerical options
 
   if taskID is None:
     starttaskid = KwArgs['OutputPrefs']['taskid']
@@ -365,6 +366,8 @@ def createUniqueRandomSeed( jobname, taskID=0):
   #return 346207363
   #return 839012225
   #return 811859218 #finite mo
+
+  return 346207363
   import random
   return random.randint(0,927349827)
 

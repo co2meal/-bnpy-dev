@@ -4,4 +4,4 @@
 calcRlogR = numpy
 inplaceExpAndNormalizeRows = numpy
 calcRlogRdotv = numpy
-
+FwdBwdImpl = cpp # or numpy

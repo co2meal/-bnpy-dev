@@ -20,12 +20,24 @@ import timeit
 
 import LibRlogR
 
+def LoadConfig():
+  global Config, cfgfilepath
+  root = os.path.sep.join(os.path.abspath(__file__).split(os.path.sep)[:-2])
+  cfgfilepath = os.path.join(root, 'config', 'numeric.platform-config')
+  Config = readConfigFileIntoDict(cfgfilepath, 'LibraryPrefs')
+
+def UpdateConfig(**kwargs):
+  global Config
+  for key in kwargs.keys():
+    if key in Config:
+      Config[key] = kwargs[key]
+
 def readConfigFileIntoDict(confFile, targetSecName=None):
   ''' Read contents of a config file into a dictionary
 
       Returns
       --------
-      dict
+      dict : dictionary of key-values for each configuration options
   '''
   config = ConfigParser.SafeConfigParser()
   config.optionxform = str
@@ -38,13 +50,6 @@ def readConfigFileIntoDict(confFile, targetSecName=None):
         continue
     BigSecDict = dict(config.items(secName))
   return BigSecDict
-
-def LoadConfig():
-  global Config, cfgfilepath
-  root = os.path.sep.join(os.path.abspath(__file__).split(os.path.sep)[:-2])
-  cfgfilepath = os.path.join(root, 'config', 'numeric.platform-config')
-  Config = readConfigFileIntoDict(cfgfilepath, 'LibraryPrefs')
-
 
 ########################################################### inplace exp
 ###########################################################
@@ -436,6 +441,6 @@ if hasNumexpr and 'OMP_NUM_THREADS' in os.environ:
   except TypeError, ValueError:
     print 'Unrecognized OMP_NUM_THREADS', os.environ['OMP_NUM_THREADS']
     pass
- 
+
 LoadConfig()
 

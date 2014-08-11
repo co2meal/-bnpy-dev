@@ -7,11 +7,21 @@ There are 10 exercises, and (x,y) coordinates of 6 different joints are observed
 '''
 
 import numpy as np
-from bnpy.data import SeqXData, MinibatchIterator
 import readline
-
+import os
 import scipy.io
 
+from bnpy.data import SeqXData, MinibatchIterator
+
+DPATH_OPTIONS = ['/home/mhughes/git/NPBayesHMM/data/mocap6/',
+                 '/home/will/bnpy/bnpy-dev/demodata/mocap6/']
+DATAPATH = None
+for dpath in DPATH_OPTIONS:
+  if os.path.exists(dpath):
+    DATAPATH = dpath
+
+if DATAPATH is None:
+  raise ValueError("Cannot find mocap6/ dataset")
 
 def get_minibatch_iterator(seed=8675309, dataorderseed=0, nBatch=3, nObsBatch=2, nObsTotal=25000, nLap=1, startLap=0, **kwargs):
   '''
@@ -39,12 +49,12 @@ def get_minibatch_iterator(seed=8675309, dataorderseed=0, nBatch=3, nObsBatch=2,
 def get_XZ():
     X = list()
     Z = list()
-    zTrue = open('/home/will/bnpy/bnpy-dev/demodata/mocap6/zTrue.dat', 'r')
-    seqs = open('/home/will/bnpy/bnpy-dev/demodata/mocap6/SeqNames.txt', 'r')
+    zTrue = open(os.path.join(DATAPATH, 'zTrue.dat'), 'r')
+    seqs = open(os.path.join(DATAPATH, 'SeqNames.txt'), 'r')
 
     for line in seqs:
       line = line[:-1] #eat the \n at the end of each line
-      file = open('/home/will/bnpy/bnpy-dev/demodata/mocap6/'+line+'.dat', 'r')
+      file = open(DATAPATH + line + '.dat', 'r')
       seqX = list()
       
       seqZ = zTrue.readline()
