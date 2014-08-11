@@ -7,6 +7,7 @@ from mix.DPMixPE import DPMixPE
 from admix2.LDA import LDA
 from admix2.HDPSB import HDPSB
 from admix2.HDPPE import HDPPE
+from admix2.HDPSBDir import HDPSBDir
 
 AllocModelConstructorsByName = { \
            'MixModel':MixModel,
@@ -15,6 +16,7 @@ AllocModelConstructorsByName = { \
            'LDA':LDA,
            'HDPSB':HDPSB,
            'HDPPE':HDPPE,
+           'HDPSBDir':HDPSBDir,
           }
 
 AllocModelNameSet = set(AllocModelConstructorsByName.keys())
