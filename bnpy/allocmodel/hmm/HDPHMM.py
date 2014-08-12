@@ -6,6 +6,8 @@ from bnpy.allocmodel.seq import HMMUtil
 from bnpy.util import digamma, gammaln, EPS
 from bnpy.allocmodel.admix import OptimizerForHDPStickBreak as OptimHDPSB
 
+import logging
+Log = logging.getLogger('bnpy')
 
 class HDPHMM(AllocModel):
 
@@ -30,13 +32,9 @@ class HDPHMM(AllocModel):
 
         self.estZ = dict()
 
-    def set_prior(self, gamma=1.1, alpha=1.1, Lambda=1, tau=1.1, **kwargs):
+    def set_prior(self, gamma = 0.1, alpha = 0.1, **kwargs):
         self.gamma = gamma
         self.alpha = alpha
-        self.Lambda = Lambda
-        self.tau = tau
-        print self.tau
-
 
   ######################################################### Local Params
   #########################################################
@@ -59,31 +57,23 @@ class HDPHMM(AllocModel):
              Note that respPair[0,:,:] is undefined.
         '''
         lpr = LP['E_log_soft_ev']
-        expELogBeta = np.ones((self.K, self.K))
-        expELogPi = np.ones(self.K)
+
+        expELogBeta = np.zeros((self.K, self.K))
+        expELogPi = np.zeros(self.K)
 
         #Calculate arguments to the forward backward algorithm
-#        expELogBeta = [digamma(self.u[1,i,j]) - \
-#                       digamma(self.u[1,i,j] + self.u[0,i,j]) + \
-#                           np.sum(digamma(self.u[0,i,0:j]) - \
-#                               digamma(self.u[1,i,0:j] + self.u[0,i,0:j])) \
-#                           for i in xrange(self.K) for j in xrange(self.K)]
-#       expELogBeta = np.reshape(expELogBeta, (self.K, self.K))
-        for i in xrange(self.K):
-            for j in xrange(self.K):
-                theSum = np.sum(digamma(self.u[0,i,0:j]) - \
-                                    digamma(self.u[0,i,0:j]+self.u[1,i,0:j]))
-                expELogBeta[i,j] = digamma(self.u[1,i,j]) - \
-                    digamma(self.u[1,i,j] + self.u[0,i,j]) + theSum
+        digBothU = digamma(self.u[1,:,:] + self.u[0,:,:])
+        expELogBeta = digamma(self.u[1,:,:]) - digBothU
+        expELogBeta[:, 1:] += \
+                 np.cumsum(digamma(self.u[0,:,:-1]) - digBothU[:,:-1], axis = 1)
+        np.exp(expELogBeta, out = expELogBeta)
+        
+        digBothB = digamma(self.b[1,:] + self.b[0,:])
+        expELogPi = digamma(self.b[1,:]) - digBothB
+        expELogPi[1:] += np.cumsum(digamma(self.b[0,:-1]) - digBothB[:-1])
+        np.exp(expELogPi, out = expELogPi)
 
-        expELogPi = [digamma(self.b[1,i])-digamma(self.b[1,i] + self.b[0,i]) + \
-                         np.sum(digamma(self.b[0,0:i]) - \
-                                    digamma(self.b[1,0:i]+self.b[0,0:i])) \
-                         for i in xrange(self.K)]
-
-        expELogBeta = np.exp(expELogBeta)
-        expELogPi = np.exp(expELogPi)
-
+        #Run the forward backward algorithm on each sequence
         resp = None
         respPair = None
         for n in xrange(Data.nSeqs):
@@ -167,15 +157,25 @@ class HDPHMM(AllocModel):
         else:
             initRho = None
             initOmega = None
-        
-        rho, omega, fofu, Info = \
-            OptimHDPSB.find_optimum_multiple_tries(sumLogVd = elogv, \
-                                                   sumLog1mVd = elog1mv, \
-                                                   nDoc = self.K+1, \
-                                                   gamma = self.gamma, \
-                                                   alpha = self.alpha, \
-                                                   initrho = initRho, \
-                                                   initomega = initOmega)
+        try:
+            rho, omega, fofu, Info = \
+                  OptimHDPSB.find_optimum_multiple_tries(sumLogVd = elogv, \
+                                                         sumLog1mVd = elog1mv, \
+                                                         nDoc = self.K+1, \
+                                                         gamma = self.gamma, \
+                                                         alpha = self.alpha, \
+                                                         initrho = initRho, \
+                                                         initomega = initOmega)
+        except ValueError as error:
+            if hasattr(self, 'rho') and self.rho.size == self.K:
+                Log.error('***** Optim failed. Remain at cur val. '+str(error))
+                rho = self.rho
+                omega = self.omega
+            else:
+                Log.error('***** Optim failed. Set to prior. ' + str(error))
+                omega = (self.gamma + 1 ) * np.ones(SS.K)
+                rho = 1/float(1+self.gamma) * np.ones(SS.K)
+
         return rho, omega
         
 
@@ -215,27 +215,44 @@ class HDPHMM(AllocModel):
         self.rho = rho*rhoNew + (1 - rho)*self.rho
         self.omega = rho*omegaNew + (1 - rho)*self.omega
 
-    def _calc_u_b(self, SS):
-        rhoProds = np.array([np.prod(1-self.rho[0:i]) for i in xrange(self.K)])
 
-        u = np.array([np.ones((self.K, self.K)), 
-                           np.ones((self.K, self.K))])
+    def _calc_u_b(self, SS):
+        rhoProds = np.ones(self.K)
+        rhoProds[1:] = np.cumprod(1 - self.rho[:-1])
+
+        u = np.array([np.zeros((self.K, self.K)), 
+                           np.zeros((self.K, self.K))])
         b = np.array([np.ones(self.K), np.ones(self.K)])
 
         #Update u
         for i in xrange(self.K):
             for j in xrange(self.K):
-                u[1,i,j] = self.alpha * self.rho[i] * rhoProds[i] + \
+                u[1,i,j] = self.alpha * self.rho[j] * rhoProds[j] + \
                     SS.respPairSums[i,j]
-                u[0,i,j] = self.alpha * (1 - self.rho[i]) * rhoProds[i] + \
+                u[0,i,j] = self.alpha * (1 - self.rho[j]) * rhoProds[j] + \
                     np.sum(SS.respPairSums[i,j+1:self.K])
+
+
+        #u[1,:,:] = (self.alpha * self.rho * rhoProds) + \
+        #           SS.respPairSums
+        #u[0,:,:] = (self.alpha * (1-self.rho) * rhoProds)[np.newaxis,:]
+        #next line does u[0,i,j] += np.sum(SS.firstStateResp[i+1:self.K])
+        #u[0,:,:-1] = np.fliplr(np.cumsum(np.fliplr(SS.respPairSums[:,1:]), 
+        #                                  axis = 1))
+	#u[0,:,:] += (self.alpha * (1-self.rho) * rhoProds)[np.newaxis,:]
+
 
         #Update b
         for i in xrange(self.K):
-            b[1,i] = self.tau * self.rho[i] * rhoProds[i] + \
+            b[1,i] = self.alpha * self.rho[i] * rhoProds[i] + \
                 SS.firstStateResp[i]
-            b[0,i] = self.tau * (1 - self.rho[i]) * rhoProds[i] + \
+            b[0,i] = self.alpha * (1 - self.rho[i]) * rhoProds[i] + \
                 np.sum(SS.firstStateResp[i+1:self.K])
+
+        #b = np.array([np.zeros(self.K), np.zeros(self.K)])
+        #b[1,:] = self.alpha * self.rho * rhoProds + SS.firstStateResp
+        #b[0,:] = self.alpha * (1 - self.rho) * rhoProds
+        #b[0,:-1] += np.cumsum(SS.firstStateResp[1:][::-1])[::-1]
 
         return u, b
         
@@ -289,7 +306,7 @@ class HDPHMM(AllocModel):
         #For lack of a better name...
         thatOneTerm = [self.K - i for i in xrange(self.K)]
 
-        normPy = self.K * np.log(self.tau) + \
+        normPy = self.K * np.log(self.alpha) + \
             np.sum(digamma(self.rho * self.omega) - \
                        digamma(self.omega) + thatOneTerm * \
                        (digamma((1-self.rho) * self.omega) - \
@@ -360,8 +377,8 @@ class HDPHMM(AllocModel):
         self.estZ = myDict['estZ']
 
     def get_prior_dict(self):
-        return dict(gamma = self.gamma, alpha = self.alpha, tau = self.tau,
-                    Lambda = self.Lambda)
+        return dict(gamma = self.gamma, alpha = self.alpha)
+
         
     
         

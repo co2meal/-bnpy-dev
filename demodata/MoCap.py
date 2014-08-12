@@ -14,7 +14,8 @@ import scipy.io
 from bnpy.data import SeqXData, MinibatchIterator
 
 DPATH_OPTIONS = ['/home/mhughes/git/NPBayesHMM/data/mocap6/',
-                 '/home/will/bnpy/bnpy-dev/demodata/mocap6/']
+                 '/home/will/bnpy/bnpy-dev/demodata/mocap6/', 
+                 '/home/wtstephe/summer2014/bnpy-dev/demodata/mocap6/']
 DATAPATH = None
 for dpath in DPATH_OPTIONS:
   if os.path.exists(dpath):
