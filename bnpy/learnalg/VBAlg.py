@@ -43,10 +43,6 @@ class VBAlg( LearnAlg ):
       lap = self.algParams['startLap'] + iterid
       self.set_random_seed_at_lap(lap)
 
-      # M step
-      if iterid > 0:
-        hmodel.update_global_params(SS) 
-
       if self.hasMove('birth') and iterid > 1:
         hmodel, LP = self.run_birth_move(hmodel, Data, SS, LP, iterid)
         
@@ -58,6 +54,10 @@ class VBAlg( LearnAlg ):
         SS = hmodel.get_global_suff_stats(Data, LP, **mergeFlags)
       else:
         SS = hmodel.get_global_suff_stats(Data, LP)
+
+      # M step
+      if iterid > 0:
+        hmodel.update_global_params(SS) 
 
       # ELBO calculation
       evBound = hmodel.calc_evidence(Data, SS, LP)

@@ -58,14 +58,14 @@ class SOVBAlg(LearnAlg):
       iterid += 1
       lapFrac += 1.0/nBatch
       self.set_random_seed_at_lap(lapFrac)
+      
+      # E step
+      LP = hmodel.calc_local_params(Dchunk, **self.algParamsLP)
 
       # M step with learning rate
       if SS is not None:
         rho = (iterid + self.rhodelay) ** (-1.0 * self.rhoexp)
         hmodel.update_global_params(SS, rho)
-      
-      # E step
-      LP = hmodel.calc_local_params(Dchunk, **self.algParamsLP)
 
       # ELBO calculation
       if self.algParams['doMemoELBO']:
