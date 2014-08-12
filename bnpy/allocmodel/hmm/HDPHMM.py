@@ -176,6 +176,14 @@ class HDPHMM(AllocModel):
                 omega = (self.gamma + 1 ) * np.ones(SS.K)
                 rho = 1/float(1+self.gamma) * np.ones(SS.K)
 
+        #Constrain eps <= rho <= 1 - eps to improve numerical stability of 
+        #  forward backward algorithm and future optimization
+        eps = 1e-8
+        lower = np.ones(self.K) * eps
+        upper = np.ones(self.K) * (1 - eps)
+        rho = np.min(np.vstack((rho, upper)), axis = 0)
+        rho = np.max(np.vstack((rho, lower)), axis = 0)
+
         return rho, omega
         
 
@@ -254,6 +262,7 @@ class HDPHMM(AllocModel):
         #b[0,:] = self.alpha * (1 - self.rho) * rhoProds
         #b[0,:-1] += np.cumsum(SS.firstStateResp[1:][::-1])[::-1]
 
+        #return np.array([np.ones((12,12)) * .5, np.ones((12,12))*.5]), np.array([np.ones(self.K) * .5, np.ones(self.K) * .5])
         return u, b
         
 
@@ -278,7 +287,7 @@ class HDPHMM(AllocModel):
         else:
             entropy = self.elbo_entropy(Data, LP)
         return entropy + self.elbo_alloc() + self.elbo_v0() + \
-            self.elbo_allocSlack()
+            self.elbo_allocSlack(SS)
 
 
 
@@ -322,14 +331,41 @@ class HDPHMM(AllocModel):
         normQv = np.sum(gammaln(self.u[1,:,:] + self.u[0,:,:]) - \
                            gammaln(self.u[1,:,:]) - \
                            gammaln(self.u[0,:,:]))
-
+  
         return normPy + normPv - normQy - normQv
 
 
-    def elbo_allocSlack(self):
+    def elbo_allocSlack(self, SS):
         '''Term that will be zero if ELBO is computed after the M-step
         '''
-        return 0
+
+        rhoProds = np.ones(self.K)
+        rhoProds[1:] = np.cumprod(1 - self.rho[:-1])
+
+        digBothU = digamma(self.u[1,:,:] + self.u[0,:,:])
+        E_v = digamma(self.u[1,:,:]) - digBothU
+        E_1mv = digamma(self.u[0,:,:]) - digBothU
+
+        digBothB = digamma(self.b[1,:] + self.b[0,:])
+        E_b = digamma(self.b[1,:]) - digBothB
+        E_1mb = digamma(self.b[0,:]) - digBothB
+
+        bTerm = 0
+        uTerm = 0
+
+        for i in xrange(self.K):
+            bTerm += (self.alpha * self.rho[i]*rhoProds[i] - self.b[1,i] +
+                      SS.firstStateResp[i]) * E_b[i]
+            bTerm += (self.alpha * (1-self.rho[i])*rhoProds[i] - self.b[0,i] + 
+                      np.sum(SS.firstStateResp[i+1:self.K])) * E_1mb[i]
+            
+            for j in xrange(self.K):
+                uTerm += (self.alpha * self.rho[j]*rhoProds[j] - self.u[1,i,j] +
+                          SS.respPairSums[i,j]) * E_v[i,j]
+                uTerm +=(self.alpha*(1-self.rho[j])*rhoProds[j] - self.u[0,i,j]+
+                         np.sum(SS.respPairSums[i,j+1:self.K])) * E_1mv[i,j]
+
+        return bTerm + uTerm
     
 
                                                              
@@ -348,6 +384,7 @@ class HDPHMM(AllocModel):
                                   digamma(self.omega)) + \
                              (1 - self.rho * self.omega) * \
                              (digamma(self.omega*self.rho) - digamma(self.omega)))
+  
         return normP - normQ + theMeat
                               
     
