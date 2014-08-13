@@ -8,6 +8,7 @@ from admix2.LDA import LDA
 from admix2.HDPSB import HDPSB
 from admix2.HDPPE import HDPPE
 from admix2.HDPSBDir import HDPSBDir
+from admix2.HDPDir import HDPDir
 
 AllocModelConstructorsByName = { \
            'MixModel':MixModel,
@@ -16,6 +17,7 @@ AllocModelConstructorsByName = { \
            'LDA':LDA,
            'HDPSB':HDPSB,
            'HDPPE':HDPPE,
+           'HDPDir':HDPDir,
            'HDPSBDir':HDPSBDir,
           }
 

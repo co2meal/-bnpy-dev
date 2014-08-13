@@ -4,7 +4,10 @@ from bnpy.util import NumericUtil
 nCoordAscentIters = 20
 convThr = 0.001
 
-def calcLocalParams(Data, LP, aModel, methodLP='scratch', **kwargs):
+def calcLocalParams(Data, LP, aModel, 
+                          methodLP='scratch',
+                          routineLP='simple',
+                          **kwargs):
   ''' Calculate all local parameters for provided dataset under a topic model
 
       Returns
@@ -27,17 +30,18 @@ def calcLocalParams(Data, LP, aModel, methodLP='scratch', **kwargs):
   else:
     initDocTopicCount = None
 
-  DocTopicCount, Prior, sumR = calcDocTopicCountForData(Data, aModel, Lik,
-                                     initDocTopicCount=initDocTopicCount,
-                                      **kwargs)
-  DocTopicCount2, Prior2, sumR2 = calcDocTopicCountForData_Fast(Data, aModel,
+  if routineLP == 'simple':
+    DocTopicCount, Prior, sumR = calcDocTopicCountForData_Simple(Data, aModel,
                                       Lik,
                                       initDocTopicCount=initDocTopicCount,
                                       **kwargs)
-  if not np.allclose(DocTopicCount, DocTopicCount2):
-    from IPython import embed; embed()
-  assert np.allclose(Prior, Prior2)
-  assert np.allclose(sumR, sumR2)
+  elif routineLP == 'fast':
+    DocTopicCount, Prior, sumR = calcDocTopicCountForData_Fast(Data, aModel,
+                                      Lik,
+                                      initDocTopicCount=initDocTopicCount,
+                                      **kwargs)
+  else:
+    raise ValueError('Unrecognized routine ' + routineLP)
 
   LP = aModel.updateLPGivenDocTopicCount(LP, DocTopicCount)
   LP = updateLPWithResp(LP, Data, Lik, Prior, sumR)
@@ -55,7 +59,7 @@ def updateLPWithResp(LP, Data, Lik, Prior, sumRespTilde):
   np.maximum(LP['resp'], 1e-300, out=LP['resp'])
   return LP
 
-def calcDocTopicCountForData(Data, aModel, Lik,
+def calcDocTopicCountForData_Simple(Data, aModel, Lik,
                    initDocTopicCount=None,
                    initPrior=None, 
                    nCoordAscentItersLP=nCoordAscentIters,
@@ -138,11 +142,17 @@ def calcDocTopicCountForDoc(d, aModel,
                      parameters for token n
   '''
   prevDocTopicCount_d = DocTopicCount_d.copy()
+
+  if hasattr(aModel, 'calcLogPrActiveCompsForDoc'):
+    aFunc = aModel.calcLogPrActiveCompsForDoc
+  else:
+    aFunc = aModel
+
   for iter in xrange(nCoordAscentItersLP):
     ## Update Prob of Active Topics
     if iter > 0:
-      np.exp(aModel.calcLogPrActiveCompsForDoc(DocTopicCount_d), 
-             out=Prior_d)
+      Prior_d = aFunc(DocTopicCount_d)
+      np.exp(Prior_d, out=Prior_d)
 
     ## Update sumRtilde for all tokens in document
     np.dot(Lik_d, Prior_d, out=sumR_d)

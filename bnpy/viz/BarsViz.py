@@ -80,8 +80,9 @@ def plotBarsFromHModel(hmodel, Data=None, doShowNow=False, figH=None,
       else:
         pylab.axes(figH)
       showAllTopicsInSingleImage(topics, compsToHighlight, **imshowArgs)
-    if doShowNow and figH is None:
+    if doShowNow:
       pylab.show()
+    return figH
 
 def showTopicsAsSquareImages(topics, compsToHighlight, **imshowArgs):
   K, V = topics.shape

@@ -1,28 +1,27 @@
 '''
-LocalOptimizer.py
+LocalOptimizerDir.py
 
 Perform local-step at a single document via gradient descent.
 
 CONSTRAINED Optimization Problem
 ----------
 Variables:
-Two K-length vectors
-* etaON
-* etaOFF
+K-length vectors
+* theta
 
 Objective:
-* argmin ELBO(etaON, etaOFF)
+* argmin ELBO(theta)
 
 Constraints: 
-* 0 < etaOFF < 1
-* 0 < etaON < 1
+* 0 < theta
 '''
 
 import warnings
 import numpy as np
 import scipy.optimize
 import scipy.io
-from scipy.special import gammaln, digamma, polygamma
+from scipy.special import gammaln, digamma
+from scipy.special import polygamma as psi
 import datetime
 import logging
 
@@ -91,8 +90,8 @@ def find_optimum_multiple_tries(sumLogVd=0, sumLog1mVd=0, nDoc=0,
   return rho, omega, f, Info
 
 
-def find_optimum(alphaEbeta=0, alphaEbeta_gt=0, Lik_d=0, wc_d=1, 
-                 initeta=None,
+def find_optimum(alphaEbeta=0, Lik_d=0, wc_d=1, 
+                 inittheta=None, Data=None,
                  approx_grad=False, factr=1.0e5, **kwargs):
   ''' Run gradient optimization to estimate best parameters rho, omega
 
@@ -106,22 +105,21 @@ def find_optimum(alphaEbeta=0, alphaEbeta_gt=0, Lik_d=0, wc_d=1,
       --------
       ValueError on an overflow, any NaN, or failure to converge
   '''
-  K = alphaEbeta.size
-  assert alphaEbeta_gt.size == K
+  K = alphaEbeta.size - 1
   assert Lik_d.ndim == 2
   assert Lik_d.shape[1] == K
 
   ## Determine initial value
-  if initeta is None or initeta.min() <= EPS:
-    initeta = create_initeta(alphaEbeta, alphaEbeta_gt)
+  if inittheta is None or inittheta.min() <= EPS:
+    inittheta = create_inittheta(alphaEbeta)
 
-  assert initeta.size == 2*K
-  assert initeta.min() > EPS
-  initc = eta2c(initeta)
+  assert inittheta.size == K+1
+  assert inittheta.min() > EPS
+  initc = theta2c(inittheta)
 
   ## Define objective function (unconstrained!)
-  objArgs = dict(Lik_d=Lik_d, wc_d=1,
-                 alphaEbeta=alphaEbeta, alphaEbeta_gt=alphaEbeta_gt,
+  objArgs = dict(Lik_d=Lik_d, wc_d=wc_d,
+                 alphaEbeta=alphaEbeta,
                  approx_grad=approx_grad)
   c_objFunc = lambda c: objFunc_unconstrained(c, **objArgs)
   
@@ -143,55 +141,48 @@ def find_optimum(alphaEbeta=0, alphaEbeta_gt=0, Lik_d=0, wc_d=1,
   if Info['warnflag'] > 1:
     raise ValueError("FAILURE: " + Info['task'])
 
-  Info['init'] = initrhoomega
-  etaON, etaOFF = c2eta(chat, returnSingleVector=0)
-  return etaON, etaOFF, fhat, Info
+  Info['init'] = inittheta
+  theta = c2theta(chat)
+  return theta, fhat, Info
 
-def create_initeta(alphaEbeta, alphaEbeta_gt):
+def create_inittheta(alphaEbeta):
   ''' Initial guess
 
       Returns
       -------
-      etaON
-      etaOFF
+      theta
   '''
-  return np.hstack([alphaEbeta, alphaEbeta_gt])
+  return alphaEbeta
 
 ########################################################### Objective
 ###########################################################  unconstrained
 def objFunc_unconstrained(c, approx_grad=False, **kwargs):
-  eta = c2eta(c, returnSingleVector=1)
+  theta = c2theta(c)
   if approx_grad:
-    f = objFunc_constrained(eta, approx_grad=1, **kwargs)
+    f = objFunc_constrained(theta, approx_grad=1, **kwargs)
     return f
   else:
-    f, grad = objFunc_constrained(eta, approx_grad=0, **kwargs)
-    detadc = eta
-    return f, grad * detadc
+    f, grad = objFunc_constrained(theta, approx_grad=0, **kwargs)
+    dthetadc = theta
+    return f, grad * dthetadc
 
-def c2eta(c, returnSingleVector=False):
+def c2theta(c):
   ''' Transform unconstrained variable c into constrained eta
 
       Returns
       --------
-      etaON
-      etaOFF
-
-      OPTIONAL: may return as one concatenated vector (length 2K)
+      theta
   '''
-  eta = np.exp(c)
-  if returnSingleVector:
-    return eta
-  K = c.size/2
-  return eta[:K], eta[K:]
+  theta = np.exp(c)
+  return theta
 
-def eta2c(eta, scaleVector=None):
-  return np.log(eta)
+def theta2c(theta):
+  return np.log(theta)
 
 ########################################################### Objective
 ###########################################################  constrained
-def objFunc_constrained(eta,
-                     alphaEbeta=0, alphaEbeta_gt=0, Lik_d=0, wc_d=1, 
+def objFunc_constrained(theta,
+                     alphaEbeta=0, Lik_d=0, wc_d=1, 
                      approx_grad=False, **kwargs):
   ''' Returns constrained objective function and its gradient
 
@@ -205,45 +196,38 @@ def objFunc_constrained(eta,
            where L is ELBO objective function (log posterior prob)
       g := gradient of f
   '''
-  assert np.all(np.isfinite(eta))
-  etaON, etaOFF, K = _unpack(eta)
+  assert np.all(np.isfinite(theta))
   
-  digammaBoth = digamma(etaON+etaOFF)
-  ElogV = digamma(etaON) - digammaBoth
-  Elog1mV = digamma(etaOFF) - digammaBoth
+  digammaAll = digamma(theta.sum())
+  ElogPi = digamma(theta) - digammaAll
+  expElogPi = np.exp(ElogPi[:-1])
 
   ## Calculate R[n] = \sum_k exp[ E log[ Lik_k + log pi_k ] ]
-  expElogPi = ElogV.copy()
-  expElogPi[1:] -= np.cumsum(Elog1mV[:-1])
-  np.exp(expElogPi, out=expElogPi)
-  logRtilde = np.dot(Lik_d, expElogPi)
-  np.log(logRtilde, out=logRtilde)
+  Rtilde = np.dot(Lik_d, expElogPi)
+  logRtilde = np.log(Rtilde)
   logRtilde *= wc_d
 
-  ONcoef = alphaEbeta - etaON
-  OFFcoef = alphaEbeta_gt - etaOFF
-  elbo = -1 * c_Beta(etaON, etaOFF) \
-          + np.inner(ONcoef, ElogV) \
-          + np.inner(OFFcoef, Elog1mV) \
+  ONcoef = alphaEbeta - theta
+  elbo = -1 * c_Dir(theta) \
+          + np.inner(ONcoef, ElogPi) \
           + np.sum(logRtilde)
 
   if approx_grad:
     return -1.0 * elbo
 
   ## Gradient computation!
-  # First, do part from the "prior" terms
-  trig_ON = psi(1, etaON)
-  trig_OFF = psi(1, etaOFF)
-  trig_BOTH = psi(1, etaON+etaOFF)
-  gradetaON = ONcoef * (trig_ON - trig_BOTH) \
-              - OFFcoef * trig_BOTH
-  gradetaOFF = OFFcoef * (trig_OFF - trig_BOTH) \
-               - ONcoef * trig_BOTH
+  # First, do "prior" terms
+  trig_theta = psi(1, theta)
+  trig_ALL = psi(1, theta.sum())
+  gradtheta = ONcoef * trig_theta \
+              - np.sum(ONcoef) * trig_ALL
+
   # Now, the likelihood part
-  raise NotImplementedError('ToDo')
-  
-  grad = np.hstack([gradetaON, gradetaOFF])
-  return -1.0 * elbo, -1.0 * grad
+  Delta = dElogPi_dtheta(trig_theta, trig_ALL)
+  LPi_d = Lik_d * expElogPi[np.newaxis,:]
+  gradtheta += np.sum(np.dot(Delta, LPi_d.T) * (wc_d / Rtilde)[np.newaxis,:],
+                      axis=1)
+  return -1.0 * elbo, -1.0 * gradtheta
   
 ########################################################### Util fcns
 ###########################################################
@@ -251,11 +235,26 @@ def _unpack(eta):
   K = eta.size / 2
   return eta[:K], eta[K:], K
 
-def c_Beta(g1, g0):
-  ''' Calculate cumulant function of the Beta distribution
+def c_Dir(avec):
+  ''' Calculate cumulant function of the Dirichlet distribution
 
       Returns
       -------
       c : scalar sum of the cumulants defined by provided parameters
   '''
-  return np.sum(gammaln(g1 + g0) - gammaln(g1) - gammaln(g0))
+  return gammaln(np.sum(avec)) - np.sum(gammaln(avec))
+
+def dElogPi_dtheta(trig_theta, trig_ALL):
+  K = trig_theta.size - 1
+  Delta = -trig_ALL * np.ones((K+1, K))
+  Delta[_get_diagIDs(K)] += trig_theta[:-1]
+  return Delta
+
+diagIDsDict = dict()
+def _get_diagIDs(K):
+  if K in diagIDsDict:
+    return diagIDsDict[K]
+  else:
+    diagIDs = np.diag_indices(K)
+    diagIDsDict[K] = diagIDs
+    return diagIDs
