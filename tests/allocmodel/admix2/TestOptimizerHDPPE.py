@@ -1,6 +1,5 @@
 import sys
 import numpy as np
-from nose.plugins.skip import Skip, SkipTest
 from scipy.optimize import approx_fprime
 import warnings
 import unittest

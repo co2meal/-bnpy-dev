@@ -4,7 +4,7 @@ from scipy.optimize import approx_fprime
 import warnings
 import unittest
 
-import bnpy.allocmodel.admix2.OptimizerHDPSB as OptimSB
+import bnpy.allocmodel.admix2.OptimizerHDPDir as OptimDir
 
 np.set_printoptions(precision=3, suppress=False, linewidth=140)
 def np2flatstr(xvec, fmt='%9.3f', Kmax=10):
@@ -26,7 +26,8 @@ def sampleVd(u, nDoc=100, alpha=0.5, PRNG=np.random.RandomState(0)):
     badIDs = np.flatnonzero(np.isnan(Vd[:,k]))
     if len(badIDs) > 0:
       p = np.asarray( [1. - u[k], u[k]] )
-      Vd[badIDs, k] = PRNG.choice([0, 1], len(badIDs), p=p, replace=True)
+      Vd[badIDs, k] = PRNG.choice([1e-10, 1-1e-10], len(badIDs), 
+                                                    p=p, replace=True)
   assert not np.any(np.isnan(Vd))
   assert np.all(np.isfinite(Vd))
   return Vd
@@ -37,11 +38,17 @@ def summarizeVd(Vd):
                                message='divide by zero')
     logVd = np.log(Vd)
     log1mVd = np.log(1-Vd)
+    mask = Vd < 1e-15
+    log1mVd[mask] = np.log1p( -1*Vd[mask] )
 
   assert not np.any(np.isnan(logVd))
   logVd = replaceInfVals(logVd)
   log1mVd = replaceInfVals(log1mVd)
-  return np.sum(logVd, axis=0), np.sum(log1mVd, axis=0)
+  ElogVd = np.sum(logVd, axis=0)
+  Elog1mVd = np.sum(log1mVd, axis=0)
+  ElogPi = np.hstack([ElogVd, 0])
+  ElogPi[1:] += np.cumsum(Elog1mVd)
+  return ElogPi
 
 def replaceInfVals( logX, replaceVal=-100):
   infmask = np.isinf(logX)
@@ -69,14 +76,13 @@ class Test0Docs(unittest.TestCase):
             kwargs = dict(alpha=1, 
                       gamma=1, 
                       nDoc=0,
-                      sumLogVd=np.zeros(K),
-                      sumLog1mVd=np.zeros(K))
+                      sumLogPi=np.zeros(K+1))
             if approx_grad:
-              f = OptimSB.objFunc_constrained(rhoomega, approx_grad=1,
+              f = OptimDir.objFunc_constrained(rhoomega, approx_grad=1,
                                                  **kwargs)
               g = np.ones(2*K)
             else:
-              f, g = OptimSB.objFunc_constrained(rhoomega, approx_grad=0,
+              f, g = OptimDir.objFunc_constrained(rhoomega, approx_grad=0,
                                                  **kwargs)
             assert type(f) == np.float64
             assert g.ndim == 1
@@ -98,15 +104,14 @@ class Test0Docs(unittest.TestCase):
             kwargs = dict(alpha=1, 
                       gamma=1,
                       nDoc=0,
-                      sumLogVd=np.zeros(K),
-                      sumLog1mVd=np.zeros(K))
-            c = OptimSB.rhoomega2c(rhoomega)
+                      sumLogPi=np.zeros(K+1))
+            c = OptimDir.rhoomega2c(rhoomega)
             if approx_grad:
-              f = OptimSB.objFunc_unconstrained(c, approx_grad=1,
+              f = OptimDir.objFunc_unconstrained(c, approx_grad=1,
                                                  **kwargs)
               g = np.ones(2*K)
             else:
-              f, g = OptimSB.objFunc_unconstrained(c, approx_grad=0,
+              f, g = OptimDir.objFunc_unconstrained(c, approx_grad=0,
                                                  **kwargs)
             assert type(f) == np.float64
             assert g.ndim == 1
@@ -126,9 +131,8 @@ class Test0Docs(unittest.TestCase):
           kwargs = dict(alpha=alpha, 
                       gamma=gamma, 
                       nDoc=0,
-                      sumLogVd=np.zeros(K),
-                      sumLog1mVd=np.zeros(K))
-          f, g = OptimSB.objFunc_constrained(rhoomega,
+                      sumLogPi=np.zeros(K+1))
+          f, g = OptimDir.objFunc_constrained(rhoomega,
                                             approx_grad=0,
                                             **kwargs)
           print '       rho  ', np2flatstr(rho[:K])
@@ -149,10 +153,9 @@ class Test0Docs(unittest.TestCase):
                       gamma=gamma, 
                       scaleVector=np.hstack([np.ones(K), gamma*np.ones(K)]),
                       nDoc=0,
-                      sumLogVd=np.zeros(K),
-                      sumLog1mVd=np.zeros(K))
-          c = OptimSB.rhoomega2c(rhoomega, scaleVector=kwargs['scaleVector'])
-          f, g = OptimSB.objFunc_unconstrained(c, approx_grad=0,
+                      sumLogPi=np.zeros(K+1))
+          c = OptimDir.rhoomega2c(rhoomega, scaleVector=kwargs['scaleVector'])
+          f, g = OptimDir.objFunc_unconstrained(c, approx_grad=0,
                                             **kwargs)
           print '       rho  ', np2flatstr(rho[:K])
           print '  grad rho  ', np2flatstr(g[:K])
@@ -173,16 +176,15 @@ class Test0Docs(unittest.TestCase):
             kwargs = dict(alpha=alpha, 
                       gamma=gamma,
                       nDoc=0,
-                      sumLogVd=np.zeros(K),
-                      sumLog1mVd=np.zeros(K))
+                      sumLogPi=np.zeros(K+1))
 
             ## Exact gradient
-            _, g = OptimSB.objFunc_constrained(rhoomega,
+            _, g = OptimDir.objFunc_constrained(rhoomega,
                                                approx_grad=0,
                                                **kwargs)
 
             ## Numerical gradient
-            objFunc = lambda x: OptimSB.objFunc_constrained(x,
+            objFunc = lambda x: OptimDir.objFunc_constrained(x,
                                                             approx_grad=1,
                                                             **kwargs)
             epsvec = np.hstack([1e-8*np.ones(K), 1e-8*np.ones(K)])
@@ -218,12 +220,11 @@ class Test0Docs(unittest.TestCase):
                       gamma=gamma, 
                       scaleVector=scaleVec,
                       nDoc=0,
-                      sumLogVd=np.zeros(K),
-                      sumLog1mVd=np.zeros(K))
-            ro, f, Info = OptimSB.find_optimum(initrho=initrho,
+                      sumLogPi=np.zeros(K+1))
+            ro, f, Info = OptimDir.find_optimum(initrho=initrho,
                                                initomega=initomega,
                                                **kwargs)
-            rho_est, omega_est, KK = OptimSB._unpack(ro)
+            rho_est, omega_est, KK = OptimDir._unpack(ro)
             assert np.all(np.isfinite(rho_est))
             assert np.all(np.isfinite(omega_est))
             assert np.isfinite(f)
@@ -259,37 +260,42 @@ class TestManyDocs(unittest.TestCase):
             PRNG = np.random.RandomState(seed)
             u = np.linspace(0.1, 0.9, K)
             Vd = sampleVd(u, nDoc, alpha, PRNG=PRNG)
-            sumLogVd, sumLog1mVd = summarizeVd(Vd)
-
+            sumLogPi = summarizeVd(Vd)
+            rho = PRNG.rand(K)
+            omega = nDoc * PRNG.rand(K)
             for approx_grad in [0, 1]:
-              rho = PRNG.rand(K)
-              omega = nDoc * PRNG.rand(K)
               rhoomega = np.hstack([rho, omega])
               kwargs = dict(alpha=0.5, 
                       gamma=1, 
                       nDoc=nDoc,
-                      sumLogVd=sumLogVd,
-                      sumLog1mVd=sumLog1mVd)
+                      sumLogPi=sumLogPi)
               if approx_grad:
-                f = OptimSB.objFunc_constrained(rhoomega, approx_grad=1,
+                f = OptimDir.objFunc_constrained(rhoomega, approx_grad=1,
                                                  **kwargs)
                 g = np.ones(2*K)
+                fapprox = f
+
               else:
-                f, g = OptimSB.objFunc_constrained(rhoomega, approx_grad=0,
+                f, g = OptimDir.objFunc_constrained(rhoomega, approx_grad=0,
                                                  **kwargs)
+                fexact = f
               assert type(f) == np.float64
               assert g.ndim == 1
               assert g.size == 2 * K            
               assert np.isfinite(f)
               assert np.all(np.isfinite(g))
+            print fexact
+            print fapprox
+            print ''
 
 
   def testGradientExactAndApproxAgree__objFunc_constrained(self):
     ''' Verify computed gradient similar for exact and approx methods
     '''
+    print ''
     for K in [1, 10, 107]:
       for alpha in [0.1, 0.95]:
-        for gamma in [1., 3.14, 9.45]:
+        for gamma in [1., 9.45]:
           for nDoc in [1, 100, 1000]:
 
             print '================== K %d | nDoc %d | alpha %.2f' \
@@ -299,7 +305,7 @@ class TestManyDocs(unittest.TestCase):
               PRNG = np.random.RandomState(seed)
               u = np.linspace(0.01, 0.99, K)
               Vd = sampleVd(u, nDoc, alpha, PRNG=PRNG)
-              sumLogVd, sumLog1mVd = summarizeVd(Vd)
+              sumLogPi = summarizeVd(Vd)
 
               rho = PRNG.rand(K)
               omega = 100 * PRNG.rand(K)
@@ -307,15 +313,14 @@ class TestManyDocs(unittest.TestCase):
               kwargs = dict(alpha=alpha, 
                       gamma=gamma, 
                       nDoc=nDoc,
-                      sumLogVd=sumLogVd,
-                      sumLog1mVd=sumLog1mVd)
+                      sumLogPi=sumLogPi)
               
               ## Exact gradient
-              f, g = OptimSB.objFunc_constrained(rhoomega, approx_grad=0,
+              f, g = OptimDir.objFunc_constrained(rhoomega, approx_grad=0,
                                                  **kwargs)
 
               ## Approx gradient
-              objFunc = lambda x: OptimSB.objFunc_constrained(x, approx_grad=1,
+              objFunc = lambda x: OptimDir.objFunc_constrained(x, approx_grad=1,
                                                                **kwargs)
               epsvec = np.hstack([1e-8*np.ones(K), 1e-8*np.ones(K)])
               gapprox = approx_fprime(rhoomega, objFunc, epsvec)    
@@ -396,7 +401,7 @@ class TestManyDocs(unittest.TestCase):
               PRNG = np.random.RandomState(seed)
               u_true = np.linspace(0.01, 0.99, K)
               Vd = sampleVd(u_true, nDoc, alpha, PRNG=PRNG)
-              sumLogVd, sumLog1mVd = summarizeVd(Vd)
+              sumLogPi = summarizeVd(Vd)
 
               initrho = PRNG.rand(K)
               initomega = 100 * PRNG.rand(K)
@@ -406,11 +411,10 @@ class TestManyDocs(unittest.TestCase):
                       nDoc=nDoc,                      
                       scaleVector=np.hstack([np.ones(K),
                                              float(scale) * np.ones(K)]),
-                      sumLogVd=sumLogVd,
-                      sumLog1mVd=sumLog1mVd,
+                      sumLogPi=sumLogPi
                       )
               rho_est, omega_est, f_est, Info = \
-                       OptimSB.find_optimum_multiple_tries(
+                       OptimDir.find_optimum_multiple_tries(
                                                  initrho=initrho,
                                                  initomega=initomega,
                                                  **kwargs)
@@ -423,12 +427,12 @@ class TestManyDocs(unittest.TestCase):
               omega_orig = (1 + gamma) * np.ones(K)
               ro_orig = np.hstack([rho_orig, omega_orig])
               rho_hot, omega_hot, f_hot, Ihot = \
-                       OptimSB.find_optimum_multiple_tries(
+                       OptimDir.find_optimum_multiple_tries(
                                                  initrho=rho_orig,
                                                  initomega=omega_orig,
                                                  **kwargs)
 
-              f_orig, _ = OptimSB.objFunc_constrained(ro_orig, **kwargs)
+              f_orig, _ = OptimDir.objFunc_constrained(ro_orig, **kwargs)
               print '  f_orig %.7f' % (f_orig)
               print '  f_hot  %.7f' % (f_hot)
               print '  f_est  %.7f' % (f_est)
