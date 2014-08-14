@@ -24,6 +24,7 @@ import logging
 
 from RhoBetaUtil import rho2beta_active, beta2rho, sigmoid, invsigmoid
 from RhoBetaUtil import forceRhoInBounds
+from RhoBetaUtil import create_initrho
 
 Log = logging.getLogger('bnpy')
 
