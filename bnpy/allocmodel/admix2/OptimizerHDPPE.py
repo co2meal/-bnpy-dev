@@ -22,10 +22,10 @@ from scipy.special import gammaln, digamma, polygamma
 import datetime
 import logging
 
-from OptimizerHDPSB import rho2beta_active, beta2rho
+from RhoBetaUtil import rho2beta_active, beta2rho, sigmoid, invsigmoid
+from RhoBetaUtil import forceRhoInBounds
 
 Log = logging.getLogger('bnpy')
-EPS = 10*np.finfo(float).eps
 
 def find_optimum_multiple_tries(sumLogVd=0, sumLog1mVd=0, nDoc=0, 
                                 gamma=1.0, alpha=1.0,
@@ -106,9 +106,9 @@ def find_optimum(sumLogVd=0, sumLog1mVd=0, nDoc=0, gamma=1.0, alpha=1.0,
   ## Determine initial value
   if inituhat is None:
     inituhat = create_inituhat(K)
+  inituhat = forceRhoInBounds(inituhat)
   assert inituhat.size == K
-  assert inituhat.min() > EPS
-  assert inituhat.max() < 1.0 - EPS
+
   initc = uhat2c(inituhat)
 
   ## Define objective function (unconstrained!)
@@ -138,6 +138,7 @@ def find_optimum(sumLogVd=0, sumLog1mVd=0, nDoc=0, gamma=1.0, alpha=1.0,
 
   Info['init'] = inituhat
   uhat = c2uhat(chat)
+  uhat = forceRhoInBounds(uhat)
   return uhat, fhat, Info
 
 def create_inituhat(K):
@@ -175,31 +176,6 @@ def c2uhat(c, returnSingleVector=False):
 
 def uhat2c(uhat):
   return invsigmoid(uhat)
-
-def sigmoid(c):
-  ''' Calculates the sigmoid function at provided value (vectorized)
-      sigmoid(c) = 1./(1+exp(-c))
-
-      Notes
-      -------
-      Automatically enforces result away from "boundaries" [0, 1]
-      This step is crucial to avoid overflow/NaN problems in optimization
-  '''
-  v = 1.0/(1.0 + np.exp(-c))
-  v = np.minimum(np.maximum(v, EPS), 1-EPS)
-  return v
-
-def invsigmoid(v):
-  ''' Returns the inverse of the sigmoid function
-      v = sigmoid(invsigmoid(v))
-
-      Args
-      --------
-      v : positive vector with entries 0 < v < 1
-  '''
-  assert np.max(v) <= 1-EPS
-  assert np.min(v) >= EPS
-  return -np.log((1.0/v - 1))
 
 ########################################################### Objective
 ###########################################################  constrained

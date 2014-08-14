@@ -6,129 +6,92 @@ import unittest
 
 import bnpy.allocmodel.admix2.OptimizerHDPSB as OptimSB
 
+from SampleVUtil import sampleVd, summarizeVd
+
 np.set_printoptions(precision=3, suppress=False, linewidth=140)
 def np2flatstr(xvec, fmt='%9.3f', Kmax=10):
   return ' '.join( [fmt % (x) for x in xvec[:Kmax]])
 
-def sampleVd(u, nDoc=100, alpha=0.5, PRNG=np.random.RandomState(0)):
-  K = u.size
-  cumprod1mu = np.ones(K)
-  cumprod1mu[1:] *= np.cumprod(1 - u[:-1])
-
-  Vd = np.zeros((nDoc, K))
-  for k in xrange(K):
-    Vd[:,k] = PRNG.beta( alpha * cumprod1mu[k] * u[k],
-                         alpha * cumprod1mu[k] * (1. - u[k]),
-                         size=nDoc)
-    ## Warning: beta rand generator can fail when both params
-    ## are very small (~1e-8). This will yield NaN values.
-    ## To fix, we use fact that Beta(eps, eps) will always yield a 0 or 1.
-    badIDs = np.flatnonzero(np.isnan(Vd[:,k]))
-    if len(badIDs) > 0:
-      p = np.asarray( [1. - u[k], u[k]] )
-      Vd[badIDs, k] = PRNG.choice([0, 1], len(badIDs), p=p, replace=True)
-  assert not np.any(np.isnan(Vd))
-  assert np.all(np.isfinite(Vd))
-  return Vd
-
-def summarizeVd(Vd):
-  with warnings.catch_warnings():
-    warnings.filterwarnings('ignore', category=RuntimeWarning,
-                               message='divide by zero')
-    logVd = np.log(Vd)
-    log1mVd = np.log(1-Vd)
-
-  assert not np.any(np.isnan(logVd))
-  logVd = replaceInfVals(logVd)
-  log1mVd = replaceInfVals(log1mVd)
-  return np.sum(logVd, axis=0), np.sum(log1mVd, axis=0)
-
-def replaceInfVals( logX, replaceVal=-100):
-  infmask = np.isinf(logX)
-  logX[infmask] = replaceVal
-  return logX
-
+''' Verify simple transformations rho <-> beta numerically stable,
+    obey required bounds when specified, do not become NaN or exactly zero.
+'''
 class TestBounds(unittest.TestCase):
+
   def shortDescription(self):
     return None
 
-  def test_rho2beta_simple(self):
-    ''' Verify that conversion back and forth succeeds
+  def test_simple(self, EPS=1e-5):
+    ''' Verify conversion and bounds enforcement on simple Kactive=4 example
     ''' 
     print ''
-    EPS = 0.00001
-    ## Make a "bad" initrho (where beta for last active topic will be zero!)
+
+    ## Make a simple "bad" initrho (where beta for last active topic will be zero!)
     initrho = np.asarray([0.5, 0.5, 1.0, EPS/100])
     initbeta = OptimSB.rho2beta_active(initrho)
+    assert not np.isnan(initbeta[-1])
+    assert np.allclose(initbeta[-1], 0, atol=1e-100)
 
-    ## Verify this does bad things
-    initrho2 = OptimSB.beta2rho(initbeta, initrho.size)
-    assert not np.allclose( initrho, initrho2, atol=EPS)
-
-    ## Now force in bounds, and verify it does good things
+    ## Now force in bounds, convert to beta, and back again
     rho = OptimSB.forceRhoInBounds(initrho, EPS)
     rho2 = OptimSB.beta2rho(OptimSB.rho2beta_active(rho), rho.size)
+
+    ## Verify conversion to/from beta results in numerically indistinguishable rhos
+    print '   rho', np2flatstr(rho, fmt='%.6f')
+    print '  rho2', np2flatstr(rho2, fmt='%.6f')
     assert np.allclose(rho, rho2, atol=EPS)
 
+    ## Verify that the final beta (after forcing in bounds)
+    ## is still very close to the original beta
     beta = OptimSB.rho2beta_active(rho)
-    betaRem = 1 - np.sum(beta)
     print ' final beta', np2flatstr(beta, fmt='%.6f')
     print '  init beta', np2flatstr(initbeta, fmt='%.6f')
-    assert np.allclose(initbeta, beta, atol=EPS)
+    assert np.allclose(initbeta, beta, atol=1.1*initrho.size*EPS)
 
 
-  def test_rho2beta_Kmany(self, EPS=1e-8):
-    ''' Verify that conversion back and forth succeeds
+  def test_Kmany(self, EPS=1e-8):
+    ''' Verify conversion and bounds enforcement on large K examples
     ''' 
     print ''
     for K in [50, 100, 500]:
       print '=================== K %d' % (K)
       for seed in [11, 22, 33, 44, 55]:
         PRNG = np.random.RandomState(seed)
+
+        ## Create a random rho.
+        ## This is will create very small values in beta's tail
+        ## because we are multiplying together many instances of (1-rho)
         initrho = PRNG.rand(K)
-        assert initrho.min() >= EPS
-
         initbeta = OptimSB.rho2beta_active(initrho)
+        assert initrho.min() >= EPS
         assert np.sum(initbeta) <= 1.0
+        assert initbeta.min() < EPS
 
+        ## Force rho in bounds
         rho = OptimSB.forceRhoInBounds(initrho, EPS)
         assert rho.min() >= EPS
         assert rho.max() <= 1-EPS
 
+        ## Now convert to beta. Make sure we've fixed the beta.min() < EPS problem.
         beta = OptimSB.rho2beta_active(rho)        
         print beta.min()
         print beta.max()
         assert beta.min() >= EPS
         assert beta.max() <= 1-EPS
 
+        ## Convert back to rho, then back to beta. Verify conditions still hold
         rho2 = OptimSB.beta2rho(beta, rho.size)
+        beta2 = OptimSB.rho2beta_active(rho2)
         assert rho2.min() >= EPS
         assert rho2.max() <= 1-EPS
-
-        beta2 = OptimSB.rho2beta_active(rho2)
         assert np.sum(beta2) <= 1.0
         assert np.min(beta2) >= EPS
 
         print ' final beta', np2flatstr(beta2, fmt='%.6f')
         print '  init beta', np2flatstr(initbeta, fmt='%.6f')
 
-
         print ' final beta', np2flatstr(beta2[-10:], fmt='%.6f')
         print '  init beta', np2flatstr(initbeta[-10:], fmt='%.6f')
-
         assert np.allclose(initbeta, beta2, atol=1.05*K*EPS)
-
-
-  def testForceRhoInBounds(self):
-    ''' Verify forceRhoInBounds works as expected
-    '''
-    print ''
-    EPS = 0.00001
-    initrho = np.asarray([0.5, 0.5, 1.0, EPS/100])
-    rho = OptimSB.forceRhoInBounds(initrho, EPS)
-    assert np.all(rho < 1-EPS)
-    assert np.all(rho > EPS)
-    print rho
 
 ########################################################### Test0Docs
 ###########################################################
