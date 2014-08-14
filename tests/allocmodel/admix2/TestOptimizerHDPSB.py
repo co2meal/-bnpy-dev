@@ -48,6 +48,88 @@ def replaceInfVals( logX, replaceVal=-100):
   logX[infmask] = replaceVal
   return logX
 
+class TestBounds(unittest.TestCase):
+  def shortDescription(self):
+    return None
+
+  def test_rho2beta_simple(self):
+    ''' Verify that conversion back and forth succeeds
+    ''' 
+    print ''
+    EPS = 0.00001
+    ## Make a "bad" initrho (where beta for last active topic will be zero!)
+    initrho = np.asarray([0.5, 0.5, 1.0, EPS/100])
+    initbeta = OptimSB.rho2beta_active(initrho)
+
+    ## Verify this does bad things
+    initrho2 = OptimSB.beta2rho(initbeta, initrho.size)
+    assert not np.allclose( initrho, initrho2, atol=EPS)
+
+    ## Now force in bounds, and verify it does good things
+    rho = OptimSB.forceRhoInBounds(initrho, EPS)
+    rho2 = OptimSB.beta2rho(OptimSB.rho2beta_active(rho), rho.size)
+    assert np.allclose(rho, rho2, atol=EPS)
+
+    beta = OptimSB.rho2beta_active(rho)
+    betaRem = 1 - np.sum(beta)
+    print ' final beta', np2flatstr(beta, fmt='%.6f')
+    print '  init beta', np2flatstr(initbeta, fmt='%.6f')
+    assert np.allclose(initbeta, beta, atol=EPS)
+
+
+  def test_rho2beta_Kmany(self, EPS=1e-8):
+    ''' Verify that conversion back and forth succeeds
+    ''' 
+    print ''
+    for K in [50, 100, 500]:
+      print '=================== K %d' % (K)
+      for seed in [11, 22, 33, 44, 55]:
+        PRNG = np.random.RandomState(seed)
+        initrho = PRNG.rand(K)
+        assert initrho.min() >= EPS
+
+        initbeta = OptimSB.rho2beta_active(initrho)
+        assert np.sum(initbeta) <= 1.0
+
+        rho = OptimSB.forceRhoInBounds(initrho, EPS)
+        assert rho.min() >= EPS
+        assert rho.max() <= 1-EPS
+
+        beta = OptimSB.rho2beta_active(rho)        
+        print beta.min()
+        print beta.max()
+        assert beta.min() >= EPS
+        assert beta.max() <= 1-EPS
+
+        rho2 = OptimSB.beta2rho(beta, rho.size)
+        assert rho2.min() >= EPS
+        assert rho2.max() <= 1-EPS
+
+        beta2 = OptimSB.rho2beta_active(rho2)
+        assert np.sum(beta2) <= 1.0
+        assert np.min(beta2) >= EPS
+
+        print ' final beta', np2flatstr(beta2, fmt='%.6f')
+        print '  init beta', np2flatstr(initbeta, fmt='%.6f')
+
+
+        print ' final beta', np2flatstr(beta2[-10:], fmt='%.6f')
+        print '  init beta', np2flatstr(initbeta[-10:], fmt='%.6f')
+
+        assert np.allclose(initbeta, beta2, atol=1.05*K*EPS)
+
+
+  def testForceRhoInBounds(self):
+    ''' Verify forceRhoInBounds works as expected
+    '''
+    print ''
+    EPS = 0.00001
+    initrho = np.asarray([0.5, 0.5, 1.0, EPS/100])
+    rho = OptimSB.forceRhoInBounds(initrho, EPS)
+    assert np.all(rho < 1-EPS)
+    assert np.all(rho > EPS)
+    print rho
+
 ########################################################### Test0Docs
 ###########################################################
 
@@ -238,9 +320,16 @@ class Test0Docs(unittest.TestCase):
             print '  omega_est', np2flatstr(omega_est, fmt='%9.6f')
             print '  omega_opt', np2flatstr(omega_opt, fmt='%9.6f')
 
-            assert np.allclose(rho_est, rho_opt, atol=1e-5, rtol=1e-5)
-
+            beta_est = OptimSB.rho2beta_active(rho_est)
+            beta_opt = OptimSB.rho2beta_active(rho_opt)
+            print '  beta_est', np2flatstr(beta_est, fmt='%9.6f')
+            print '  beta_opt', np2flatstr(beta_opt, fmt='%9.6f')
+            assert np.allclose(beta_est, beta_opt, atol=1e-4)
             assert np.allclose(omega_est, omega_opt, atol=1e-5, rtol=0.01)
+
+## Note: we don't care *so* so much about whether the rho values are spot on
+## Rather, we care about how well the beta vectors match up,
+##  since that is what really matters
 
 
 ########################################################### Test with Many Docs

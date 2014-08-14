@@ -24,8 +24,9 @@ from scipy.special import gammaln, digamma, polygamma
 import datetime
 import logging
 
+EPS = 1e-8
+
 Log = logging.getLogger('bnpy')
-EPS = 10*np.finfo(float).eps
 
 def find_optimum_multiple_tries(sumLogVd=0, sumLog1mVd=0, nDoc=0, 
                                 gamma=1.0, alpha=1.0,
@@ -112,16 +113,15 @@ def find_optimum(sumLogVd=0, sumLog1mVd=0, nDoc=0, gamma=1.0, alpha=1.0,
   K = sumLogVd.size
 
   ## Determine initial value
-  if initrho is None or initrho.min() <= EPS or initrho.max() >= 1 - EPS:
+  if initrho is None:
     initrho = create_initrho(K)
+  initrho = forceRhoInBounds(initrho, EPS) # enforce safe bounds
+
   if initomega is None or initomega.min() <= EPS:
     initomega = create_initomega(K, nDoc, gamma)
   if scaleVector is None:
     scaleVector = np.hstack([np.ones(K), np.ones(K)])
-  assert initrho.size == K
   assert initomega.size == K
-  assert initrho.min() > EPS
-  assert initrho.max() < 1.0 - EPS
   assert initomega.min() > EPS
   initrhoomega = np.hstack([initrho, initomega])
   initc = rhoomega2c(initrhoomega, scaleVector=scaleVector)
@@ -153,6 +153,7 @@ def find_optimum(sumLogVd=0, sumLog1mVd=0, nDoc=0, gamma=1.0, alpha=1.0,
 
   Info['init'] = initrhoomega
   rhoomega = c2rhoomega(chat, scaleVector=scaleVector, returnSingleVector=1)
+  rhoomega[:K] = forceRhoInBounds(rhoomega[:K], EPS) # enforce safe bounds
   return rhoomega, fhat, Info
 
 def create_initrho(K):
@@ -169,6 +170,26 @@ def create_initomega(K, nDoc, gamma):
   ''' Make initial guess for omega. 
   '''
   return (nDoc / K + gamma) * np.ones(K)
+
+def forceRhoInBounds(rho, EPS):
+  ''' Verify every entry of rho (and beta) are within [EPS, 1-EPS]
+  '''
+  rho = np.maximum(np.minimum(rho, 1.0-EPS), EPS)
+  beta = rho2beta_active(rho)
+  didFix = 0
+  badMask = beta < EPS
+  if np.any(beta < EPS):
+    beta[badMask] = 1.01 * EPS
+    addedMass = np.sum(badMask) * 1.01 * EPS
+    beta[np.logical_not(badMask)] *= (1-addedMass)
+    didFix = 1
+  if (1.0 - np.sum(beta)) < EPS:
+    kmax = beta.argmax()
+    beta[kmax] -= 1.01 * EPS
+    didFix = 1
+  if didFix:
+    rho = beta2rho(beta, rho.size)
+  return rho  
 
 ########################################################### Objective
 ###########################################################  unconstrained
@@ -308,7 +329,6 @@ def objFunc_constrained(rhoomega,
     gradrho += alpha * gB
   grad = np.hstack([gradrho, gradomega])
 
-
   return -1.0 * elbo, -1.0 * grad
   
 ########################################################### Util fcns
@@ -395,7 +415,7 @@ def beta2rho(beta, K):
   '''
   beta = np.asarray(beta, dtype=np.float64)
   rho = beta.copy()
-  rho /= np.hstack([1.0, 1 - np.cumsum(beta[:-1])])
+  rho[1:] /= 1 - np.cumsum(beta[:-1])
   if beta.size == K + 1:
     return rho[:-1]
   elif beta.size == K:

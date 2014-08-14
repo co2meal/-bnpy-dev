@@ -155,7 +155,7 @@ class TestK1(unittest.TestCase):
 
 ########################################################### Test with Many Docs
 ###########################################################
-class TestKMore(unittest.TestCase):
+class TestManyK(unittest.TestCase):
   def shortDescription(self):
     return None
 
@@ -271,8 +271,8 @@ class TestKMore(unittest.TestCase):
       for alpha in [0.95]:
         print '================== K %d | alpha %.2f' \
                   % (K, alpha)
-        ## good seed = 11
-        ProbDict = MakeSingleDocProblem(K=K, seed=4545, alpha=alpha)
+        ## good seed = 11, 4545
+        ProbDict = MakeSingleDocProblem(K=K, seed=888, alpha=alpha)
 
         InitPiList = list()
         initscoreList = list()
