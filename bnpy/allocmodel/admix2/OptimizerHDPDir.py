@@ -24,8 +24,10 @@ from scipy.special import gammaln, digamma, polygamma
 import datetime
 import logging
 
+from RhoBetaUtil import rho2beta_active, beta2rho, sigmoid, invsigmoid
+from RhoBetaUtil import forceRhoInBounds, forceOmegaInBounds
+
 Log = logging.getLogger('bnpy')
-EPS = 10*np.finfo(float).eps
 
 def find_optimum_multiple_tries(sumLogPi=0, nDoc=0, 
                                 gamma=1.0, alpha=1.0,
@@ -111,17 +113,20 @@ def find_optimum(sumLogPi=0, nDoc=0, gamma=1.0, alpha=1.0,
   K = sumLogPi.size - 1
 
   ## Determine initial value
-  if initrho is None or initrho.min() <= EPS or initrho.max() >= 1 - EPS:
+  if initrho is None:
     initrho = create_initrho(K)
-  if initomega is None or initomega.min() <= EPS:
+  initrho = forceRhoInBounds(initrho)  
+  if initomega is None:
     initomega = create_initomega(K, nDoc, gamma)
-  if scaleVector is None:
-    scaleVector = np.hstack([np.ones(K), np.ones(K)])
+  initomega = forceOmegaInBounds(initomega)
   assert initrho.size == K
   assert initomega.size == K
-  assert initrho.min() > EPS
-  assert initrho.max() < 1.0 - EPS
-  assert initomega.min() > EPS
+
+  ## Initialize rescaling vector
+  if scaleVector is None:
+    scaleVector = np.hstack([np.ones(K), np.ones(K)])
+
+  ## Create init vector in unconstrained space
   initrhoomega = np.hstack([initrho, initomega])
   initc = rhoomega2c(initrhoomega, scaleVector=scaleVector)
 
@@ -132,7 +137,7 @@ def find_optimum(sumLogPi=0, nDoc=0, gamma=1.0, alpha=1.0,
 
   c_objFunc = lambda c: objFunc_unconstrained(c, **objArgs)
   
-  ## Run optimization and catch any overflow or NaN issues
+  ## Run optimization, raising special error on any overflow or NaN issues
   with warnings.catch_warnings():
     warnings.filterwarnings('error', category=RuntimeWarning,
                                message='overflow')
@@ -146,28 +151,15 @@ def find_optimum(sumLogPi=0, nDoc=0, gamma=1.0, alpha=1.0,
       raise ValueError("FAILURE: overflow!" )
     except AssertionError:
       raise ValueError("FAILURE: NaN/Inf detected!")
-      
+  ## Raise error on abnormal warnings (like bad line search)
   if Info['warnflag'] > 1:
     raise ValueError("FAILURE: " + Info['task'])
 
+  ## Convert final answer back to rhoomega (safely)
   Info['init'] = initrhoomega
   rhoomega = c2rhoomega(chat, scaleVector=scaleVector, returnSingleVector=1)
+  rhoomega[:K] = forceRhoInBounds(rhoomega[:K])
   return rhoomega, fhat, Info
-
-def create_initrho(K):
-  ''' Make initial guess for rho s.t. E[beta_k] \approx (1-r)/K
-      where r is a small amount of remaining/leftover mass 
-  '''
-  remMass = np.minimum(0.1, 1.0/(K*K))
-  # delta = 0, -1 + r, -2 + 2r, ...
-  delta = (-1 + remMass) * np.arange(0, K, 1, dtype=np.float)
-  rho = (1-remMass)/(K+delta)
-  return rho
-
-def create_initomega(K, nDoc, gamma):
-  ''' Make initial guess for omega. 
-  '''
-  return (nDoc / K + gamma) * np.ones(K)
 
 ########################################################### Objective
 ###########################################################  unconstrained
@@ -207,31 +199,6 @@ def rhoomega2c(rhoomega, scaleVector=None):
   if scaleVector is not None:
     rhoomega = rhoomega / scaleVector
   return np.hstack([invsigmoid(rhoomega[:K]), np.log(rhoomega[K:])])
-
-def sigmoid(c):
-  ''' Calculates the sigmoid function at provided value (vectorized)
-      sigmoid(c) = 1./(1+exp(-c))
-
-      Notes
-      -------
-      Automatically enforces result away from "boundaries" [0, 1]
-      This step is crucial to avoid overflow/NaN problems in optimization
-  '''
-  v = 1.0/(1.0 + np.exp(-c))
-  v = np.minimum(np.maximum(v, EPS), 1-EPS)
-  return v
-
-def invsigmoid(v):
-  ''' Returns the inverse of the sigmoid function
-      v = sigmoid(invsigmoid(v))
-
-      Args
-      --------
-      v : positive vector with entries 0 < v < 1
-  '''
-  assert np.max(v) <= 1-EPS
-  assert np.min(v) >= EPS
-  return -np.log((1.0/v - 1))
 
 ########################################################### Objective
 ###########################################################  constrained
@@ -331,20 +298,6 @@ def c_Beta(g1, g0):
   '''
   return np.sum(gammaln(g1 + g0) - gammaln(g1) - gammaln(g0))
 
-def _v2beta(v):
-  ''' Convert to stick-breaking fractions v to probability vector beta
-      Args
-      --------
-      v : K-len vector, rho[k] in interval [0, 1]
-      
-      Returns
-      --------
-      beta : K+1-len vector, with positive entries that sum to 1
-  '''
-  beta = np.hstack([1.0, np.cumprod(1-v)])
-  beta[:-1] *= v
-  return beta
-
 def calc_dEbeta_drho(Ebeta, rho, K):
   ''' Calculate partial derivative of Ebeta w.r.t. rho
 
@@ -375,32 +328,3 @@ def _get_diagIDs(K):
     diagIDs = np.diag_indices(K)
     diagIDsDict[K] = diagIDs
     return diagIDs
-
-########################################################### Convert rho <-> beta
-###########################################################
-def rho2beta_active(rho):
-  ''' Calculate probability of each active component
-
-      Returns
-      --------
-      beta : 1D array, size K
-             beta[k] := active probability of topic k
-             will have positive entries whose sum is <= 1
-  '''
-  rho = np.asarray(rho, dtype=np.float64)
-  beta = rho.copy()
-  beta[1:] *= np.cumprod(1 - rho[:-1])
-  return beta
-
-def beta2rho(beta, K):
-  ''' Returns K-length vector rho of stick-lengths that recreate appearance probs beta
-  '''
-  beta = np.asarray(beta, dtype=np.float64)
-  rho = beta.copy()
-  rho /= np.hstack([1.0, 1 - np.cumsum(beta[:-1])])
-  if beta.size == K + 1:
-    return rho[:-1]
-  elif beta.size == K:
-    return rho
-  else:
-    raise ValueError('Provided beta needs to be of length K or K+1')

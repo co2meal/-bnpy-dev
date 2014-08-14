@@ -6,54 +6,11 @@ import unittest
 
 import bnpy.allocmodel.admix2.OptimizerHDPDir as OptimDir
 
+from SampleVUtil import sampleVd, summarizeVdToPi
+
 np.set_printoptions(precision=3, suppress=False, linewidth=140)
 def np2flatstr(xvec, fmt='%9.3f', Kmax=10):
   return ' '.join( [fmt % (x) for x in xvec[:Kmax]])
-
-def sampleVd(u, nDoc=100, alpha=0.5, PRNG=np.random.RandomState(0)):
-  K = u.size
-  cumprod1mu = np.ones(K)
-  cumprod1mu[1:] *= np.cumprod(1 - u[:-1])
-
-  Vd = np.zeros((nDoc, K))
-  for k in xrange(K):
-    Vd[:,k] = PRNG.beta( alpha * cumprod1mu[k] * u[k],
-                         alpha * cumprod1mu[k] * (1. - u[k]),
-                         size=nDoc)
-    ## Warning: beta rand generator can fail when both params
-    ## are very small (~1e-8). This will yield NaN values.
-    ## To fix, we use fact that Beta(eps, eps) will always yield a 0 or 1.
-    badIDs = np.flatnonzero(np.isnan(Vd[:,k]))
-    if len(badIDs) > 0:
-      p = np.asarray( [1. - u[k], u[k]] )
-      Vd[badIDs, k] = PRNG.choice([1e-10, 1-1e-10], len(badIDs), 
-                                                    p=p, replace=True)
-  assert not np.any(np.isnan(Vd))
-  assert np.all(np.isfinite(Vd))
-  return Vd
-
-def summarizeVd(Vd):
-  with warnings.catch_warnings():
-    warnings.filterwarnings('ignore', category=RuntimeWarning,
-                               message='divide by zero')
-    logVd = np.log(Vd)
-    log1mVd = np.log(1-Vd)
-    mask = Vd < 1e-15
-    log1mVd[mask] = np.log1p( -1*Vd[mask] )
-
-  assert not np.any(np.isnan(logVd))
-  logVd = replaceInfVals(logVd)
-  log1mVd = replaceInfVals(log1mVd)
-  ElogVd = np.sum(logVd, axis=0)
-  Elog1mVd = np.sum(log1mVd, axis=0)
-  ElogPi = np.hstack([ElogVd, 0])
-  ElogPi[1:] += np.cumsum(Elog1mVd)
-  return ElogPi
-
-def replaceInfVals( logX, replaceVal=-100):
-  infmask = np.isinf(logX)
-  logX[infmask] = replaceVal
-  return logX
 
 ########################################################### Test0Docs
 ###########################################################
@@ -239,7 +196,12 @@ class Test0Docs(unittest.TestCase):
             print '  omega_est', np2flatstr(omega_est, fmt='%9.6f')
             print '  omega_opt', np2flatstr(omega_opt, fmt='%9.6f')
 
-            assert np.allclose(rho_est, rho_opt, atol=1e-5, rtol=1e-5)
+            beta_est = OptimDir.rho2beta_active(rho_est)
+            beta_opt = OptimDir.rho2beta_active(rho_opt)
+            print '  beta_est', np2flatstr(beta_est, fmt='%9.6f')
+            print '  beta_opt', np2flatstr(beta_opt, fmt='%9.6f')
+
+            assert np.allclose(beta_est, beta_opt, atol=1e-4)
 
             assert np.allclose(omega_est, omega_opt, atol=1e-5, rtol=0.01)
 
@@ -260,7 +222,7 @@ class TestManyDocs(unittest.TestCase):
             PRNG = np.random.RandomState(seed)
             u = np.linspace(0.1, 0.9, K)
             Vd = sampleVd(u, nDoc, alpha, PRNG=PRNG)
-            sumLogPi = summarizeVd(Vd)
+            sumLogPi = summarizeVdToPi(Vd)
             rho = PRNG.rand(K)
             omega = nDoc * PRNG.rand(K)
             for approx_grad in [0, 1]:
@@ -305,7 +267,7 @@ class TestManyDocs(unittest.TestCase):
               PRNG = np.random.RandomState(seed)
               u = np.linspace(0.01, 0.99, K)
               Vd = sampleVd(u, nDoc, alpha, PRNG=PRNG)
-              sumLogPi = summarizeVd(Vd)
+              sumLogPi = summarizeVdToPi(Vd)
 
               rho = PRNG.rand(K)
               omega = 100 * PRNG.rand(K)
@@ -401,7 +363,7 @@ class TestManyDocs(unittest.TestCase):
               PRNG = np.random.RandomState(seed)
               u_true = np.linspace(0.01, 0.99, K)
               Vd = sampleVd(u_true, nDoc, alpha, PRNG=PRNG)
-              sumLogPi = summarizeVd(Vd)
+              sumLogPi = summarizeVdToPi(Vd)
 
               initrho = PRNG.rand(K)
               initomega = 100 * PRNG.rand(K)
