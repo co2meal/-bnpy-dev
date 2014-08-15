@@ -156,15 +156,19 @@ class HDPDir(AllocModel):
   def calcLogPrActiveCompsForDoc(self, DocTopicCount_d, out):
     ''' Calculate log prob of each of the K active topics given doc-topic counts
 
+        Note: for speed, we avoid terms in this expression that are 
+        **constant** across all active topics 0, 1, 2, ... K-2, K-1.
+         These are commented out below.
+
         Returns
         -------
         logp : 1D array, size K
-               logp[k] gives probability of topic k in provided doc
-    '''    
+               logp[k] gives log prob of topic k in provided doc, up to additive const
+    '''
     np.add(DocTopicCount_d, self.alphaEbeta[:-1], out=out)
-    digammaSum = digamma(out.sum() + self.alphaEbeta[-1])
+    ##digammaSum = digamma(out.sum() + self.alphaEbeta[-1])
     digamma(out, out=out)
-    out -= digammaSum
+    ##out -= digammaSum
     return out
 
   def calcLogPrActiveComps_Fast(self, DocTopicCount, activeDocs=None, LP=dict(),
