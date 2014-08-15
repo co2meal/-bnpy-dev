@@ -17,8 +17,9 @@ def calcLocalParams(Data, LP, aModel,
       * resp
       * model-specific fields for doc-topic probabilities
   ''' 
-  ## Prepare the log soft ev matrix 
-  Lik = LP['E_log_soft_ev']
+  ## Prepare the log soft ev matrix
+  ## Make sure it is C-contiguous, so that matrix ops are very fast
+  Lik = np.asarray(LP['E_log_soft_ev'], order='C') 
   Lik -= Lik.max(axis=1)[:,np.newaxis] 
   NumericUtil.inplaceExp(Lik)
 
@@ -171,8 +172,13 @@ def calcDocTopicCountForDoc(d, aModel,
 
 
 
+def calcDocTopicCountForData_Fast(Data, *args, **kwargs):
+  if hasattr(Data, 'word_count'):
+    return calcDocTopicCountForData_Fast_wordcount(Data, *args, **kwargs)
+  else:
+    return calcDocTopicCountForData_Fast_nowordcount(Data, *args, **kwargs)
 
-def calcDocTopicCountForData_Fast(Data, aModel, Lik,
+def calcDocTopicCountForData_Fast_wordcount(Data, aModel, Lik,
                    initDocTopicCount=None,
                    initPrior=None, 
                    nCoordAscentItersLP=nCoordAscentIters,
@@ -231,12 +237,90 @@ def calcDocTopicCountForData_Fast(Data, aModel, Lik,
       ## Update sumRtilde for all tokens in document
       np.dot(Lik_d, Prior[d], out=sumRespTilde[start:stop])
 
-      ## Update DocTopicCounts with Lik
-      if hasattr(Data, 'word_count'):
-        wc_d = Data.word_count[start:stop]
-        np.dot(wc_d / sumRespTilde[start:stop], Lik_d, out=DocTopicCount[d])
-      else:
-        np.dot(1.0 / sumRespTilde[start:stop], Lik_d, out=DocTopicCount[d])
+      ## Update DocTopicCount with Likelihood
+      wc_d = Data.word_count[start:stop]
+      np.dot(wc_d / sumRespTilde[start:stop], Lik_d, out=DocTopicCount[d])
+ 
+    ## Update DocTopicCount with Prior
+    DocTopicCount[activeDocs] *= Prior[activeDocs]
+
+    # Assess convergence
+    docDiffs = np.max(np.abs(prev_DocTopicCount - DocTopicCount), axis=1)
+    if np.max(docDiffs) < convThrLP:
+      break
+    activeDocs = np.asarray(np.flatnonzero(docDiffs >= convThrLP),
+                            dtype=np.int32)
+
+    # Store DocTopicCount for next round's convergence test
+    # Here, the "[:]" syntax ensures we do NOT copy by reference
+    prev_DocTopicCount[activeDocs] = DocTopicCount[activeDocs]
+    ### end loop over alternating-ascent updates
+
+  return DocTopicCount, Prior, sumRespTilde
+
+
+
+def calcDocTopicCountForData_Fast_nowordcount(Data, aModel, Lik,
+                   initDocTopicCount=None,
+                   initPrior=None, 
+                   nCoordAscentItersLP=nCoordAscentIters,
+                   convThrLP=convThr,
+                   **kwargs
+                  ):
+  ''' Calculate updated doc-topic counts for every document in provided set
+
+      Will loop over all docs, and at each one will run coordinate ascent
+      to alternatively update its doc-topic counts and the doc-topic prior.
+      Ascent stops after convergence or a maximum number of iterations.
+    
+      Returns
+      ---------
+      DocTopicCount : 2D array, size nDoc x K
+      DocTopicCount[d,k] is effective number of tokens in doc d assigned to k
+
+      Prior : 2D array, size nDoc x K
+      Prior[d,k] = exp( E[log pi_{dk}] )
+
+      sumRespTilde : 1D array, size N = # observed tokens
+                     sumRespTilde[n] = normalization for the responsibility          
+                     parameters for token n
+  '''
+  ## Initialize 
+  tmpLP = dict()
+  sumRespTilde = np.zeros(Lik.shape[0])
+
+  if initDocTopicCount is not None:
+    DocTopicCount = initDocTopicCount.copy()
+    Prior = aModel.calcLogPrActiveComps_Fast(DocTopicCount, None, tmpLP)
+    np.exp(Prior, out=Prior)
+  else:
+    DocTopicCount = np.zeros((Data.nDoc, aModel.K))
+    if initPrior is None:
+      Prior = np.ones((Data.nDoc, aModel.K))
+    else:
+      Prior = initPrior.copy()
+
+  activeDocs = np.arange(Data.nDoc, dtype=np.int32)
+  prev_DocTopicCount = DocTopicCount.copy()
+
+  for ii in xrange(nCoordAscentItersLP):
+    ## Update Prior for active documents
+    if ii > 0:
+      aModel.calcLogPrActiveComps_Fast(DocTopicCount, activeDocs, tmpLP,
+                                       out=Prior)
+      # Unfortunately, cannot update only activeDocs inplace (fancy idxing)
+      Prior[activeDocs] = np.exp(Prior[activeDocs])
+
+    for d in activeDocs:
+      start = Data.doc_range[d]
+      stop = Data.doc_range[d+1]
+      Lik_d = Lik[start:stop]
+
+      ## Update sumRtilde for all tokens in document
+      np.dot(Lik_d, Prior[d], out=sumRespTilde[start:stop])
+
+      ## Update DocTopicCount with Likelihood
+      np.dot(1.0 / sumRespTilde[start:stop], Lik_d, out=DocTopicCount[d])
     ## Update DocTopicCount with Prior
     DocTopicCount[activeDocs] *= Prior[activeDocs]
 
