@@ -32,9 +32,15 @@ class HDPHMM(AllocModel):
 
         self.estZ = dict()
 
-    def set_prior(self, gamma = 0.1, alpha = 0.1, **kwargs):
+    def set_prior(self, gamma = 5, alpha = 0.1, **kwargs):
         self.gamma = gamma
         self.alpha = alpha
+
+    def get_active_comp_probs(self):
+        ''' Return K vector of appearance probabilities for each of the K comps
+        '''
+        return OptimHDPSB._v2beta(self.rho)[:-1]
+
 
   ######################################################### Local Params
   #########################################################
@@ -116,7 +122,7 @@ class HDPHMM(AllocModel):
         respPairSums = np.sum(respPair, axis = 0)
         firstStateResp = np.sum(resp[inds], axis = 0)
         N = np.sum(resp, axis = 0)
-        
+        print N
         SS = SuffStatBag(K = self.K , D = Data.dim)
         SS.setField('firstStateResp', firstStateResp, dims=('K'))
         SS.setField('respPairSums', respPairSums, dims=('K','K'))
@@ -150,6 +156,7 @@ class HDPHMM(AllocModel):
         elogv += digamma(self.b[1,:]) - digamma(self.b[1,:]+self.b[0,:])
         elog1mv += digamma(self.b[0,:]) - digamma(self.b[1,:]+self.b[0,:])
 
+
     
         if (self.rho is not None) and (self.omega is not None):
             initRho = self.rho
@@ -158,14 +165,16 @@ class HDPHMM(AllocModel):
             initRho = None
             initOmega = None
         try:
+            
             rho, omega, fofu, Info = \
                   OptimHDPSB.find_optimum_multiple_tries(sumLogVd = elogv, \
                                                          sumLog1mVd = elog1mv, \
                                                          nDoc = self.K+1, \
-                                                         gamma = self.gamma, \
-                                                         alpha = self.alpha, \
+                                                         gamma = self.alpha, \
+                                                         alpha = self.gamma, \
                                                          initrho = initRho, \
                                                          initomega = initOmega)
+
         except ValueError as error:
             if hasattr(self, 'rho') and self.rho.size == self.K:
                 Log.error('***** Optim failed. Remain at cur val. '+str(error))
@@ -262,7 +271,6 @@ class HDPHMM(AllocModel):
         #b[0,:] = self.alpha * (1 - self.rho) * rhoProds
         #b[0,:-1] += np.cumsum(SS.firstStateResp[1:][::-1])[::-1]
 
-        #return np.array([np.ones((12,12)) * .5, np.ones((12,12))*.5]), np.array([np.ones(self.K) * .5, np.ones(self.K) * .5])
         return u, b
         
 
@@ -270,7 +278,7 @@ class HDPHMM(AllocModel):
         self.K = K
         self.omega = (self.gamma + 1) * np.ones(self.K)
         self.rho = (1 / (self.gamma + 1)) * np.ones(self.K)
-        
+      
         #Fake suff stat bag that assigns 1/K "observations" to each starting
         #  state and transition
         SS = SuffStatBag(K = self.K , D = Data.dim)
@@ -300,11 +308,8 @@ class HDPHMM(AllocModel):
         sigma  = (LP['respPair'] / 
                   (np.sum(LP['respPair'], axis = 2)[:, :, np.newaxis] + EPS))
 
-
-        #print LP['resp'][Data.seqInds[:-1]]
         z_1 = -np.sum(LP['resp'][Data.seqInds[:-1],:] * \
                       np.log(LP['resp'][Data.seqInds[:-1],:] + EPS))
-#        z_1 = -np.sum(LP['resp'][0,:] * np.log(LP['resp'][0,:] + EPS))
         restZ = -np.sum(LP['respPair'][1:,:,:] * np.log(sigma[1:,:,:] + EPS))
         return z_1 + restZ
 
@@ -338,6 +343,7 @@ class HDPHMM(AllocModel):
     def elbo_allocSlack(self, SS):
         '''Term that will be zero if ELBO is computed after the M-step
         '''
+        return 0
 
         rhoProds = np.ones(self.K)
         rhoProds[1:] = np.cumprod(1 - self.rho[:-1])
@@ -364,7 +370,6 @@ class HDPHMM(AllocModel):
                           SS.respPairSums[i,j]) * E_v[i,j]
                 uTerm +=(self.alpha*(1-self.rho[j])*rhoProds[j] - self.u[0,i,j]+
                          np.sum(SS.respPairSums[i,j+1:self.K])) * E_1mv[i,j]
-
         return bTerm + uTerm
     
 
@@ -384,7 +389,7 @@ class HDPHMM(AllocModel):
                                   digamma(self.omega)) + \
                              (1 - self.rho * self.omega) * \
                              (digamma(self.omega*self.rho) - digamma(self.omega)))
-  
+
         return normP - normQ + theMeat
                               
     
@@ -408,7 +413,7 @@ class HDPHMM(AllocModel):
         self.inferType = myDict['inferType']
         self.K = myDict['K']
         self.u = myDict['u']
-        self.b = myDict['b']
+        self.b = myDict['y']
         self.omega = myDict['omega']
         self.rho = myDict['rho']
         self.estZ = myDict['estZ']

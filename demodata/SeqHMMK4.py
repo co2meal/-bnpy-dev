@@ -15,24 +15,24 @@ import scipy.io
 K = 4
 D = 2
 
-#transPi = np.asarray([[0.2, 0.2, 0.2, 0.4], \
-#                      [0.2, 0.6, 0.1, 0.1], \
-#                      [0.2, 0.2, 0.3, 0.3], \
-#                      [0.2, 0.2, 0.2, 0.4], \
-#                      [1.0, 0.0, 0.0, 0.0]])
+transPi = np.asarray([[0.4, 0.4, 0.2, 0.2], \
+                      [0.4, 0.4, 0.2, 0.2], \
+                      [0.2, 0.2, 0.4, 0.4], \
+                      [0.2, 0.2, 0.4, 0.4]])
 
-transPi = np.asarray([[0.0, 1.0, 0.0, 0.0], \
-                      [0.0, 0.0, 1.0, 0.0], \
-                      [0.0, 0.0, 0.0, 1.0], \
-                      [1.0, 0.0, 0.0, 0.0]])
+
+#transPi = np.asarray([[0.0, 1.0, 0.0, 0.0], \
+#                      [0.0, 0.0, 1.0, 0.0], \
+#                      [0.0, 0.0, 0.0, 1.0], \
+#                      [1.0, 0.0, 0.0, 0.0]])
 #transPi = np.identity(D)
 
 initState = 1
 
 mus = np.asarray([[0, 0], \
-                  [100, 0], \
-                  [0, 100], \
-                  [10, 100]])
+                  [10, 0], \
+                  [0, 10], \
+                  [10, 10]])
 #mus = np.zeros((K,D))
 #for i in xrange(K):
 #  mus[i,i] = 10
@@ -110,7 +110,7 @@ def get_data_info():
 def get_short_name():
     return 'SeqHMMK4'
 
-def get_data(seed=8675309, seqLens=((6000,6000,6000,6000,1000)), **kwargs):
+def get_data(seed=8675309, seqLens=((3000,3000,3000,3000,500)), **kwargs):
     fullX, fullZ, seqIndicies = get_X(seed, seqLens)
     X = np.vstack(fullX)
     Z = np.asarray(fullZ)

@@ -41,7 +41,7 @@ def get_XZ():
     seqInds = [0]
 
     for file in xrange(np.size(files)):
-        data = scipy.io.loadmat('/home/will/bnpy/bnpy-dev/demodata/speaker_diarization/gt_files/'+files[file])
+        data = scipy.io.loadmat('/data/people/sudderth/kalmanHDPHMM/speaker_diarization/gt_files/'+files[file])
         if X is None:
             X = np.transpose(data['u'])
             Z = data['zsub']

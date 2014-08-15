@@ -101,6 +101,8 @@ def loadDictFromMatfile(matfilepath):
   Dtmp = scipy.io.loadmat( matfilepath )
   D = dict( [x for x in Dtmp.items() if not x[0].startswith('__')] )
   for key in D:
+    if key == 'estZ':
+      continue
     if type( D[key] ) is not np.ndarray:
       continue
     x = D[key]

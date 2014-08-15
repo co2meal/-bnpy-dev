@@ -130,6 +130,7 @@ def _run_task_internal(jobname, taskid, nTask,
   '''
   algseed = createUniqueRandomSeed(jobname, taskID=taskid)
   dataorderseed = createUniqueRandomSeed('', taskID=taskid)
+  #algseed = 6955904
 
   if doSaveToDisk:
     taskoutpath = getOutputPath(ReqArgs, KwArgs, taskID=taskid)
@@ -365,9 +366,10 @@ def createUniqueRandomSeed( jobname, taskID=0):
     jobname = jobname[:5]
   #return 6889472
   #return 346207363
+  #return 4226944
+
   #import random
   #return random.randint(0,927349827)
-
   seed = int( hashlib.md5( jobname+str(taskID) ).hexdigest(), 16) % 1e7
   return int(seed)
   

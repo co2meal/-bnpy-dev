@@ -49,7 +49,7 @@ if 'BNPYDATADIR' in os.environ:
   if os.path.exists(os.environ['BNPYDATADIR']):
     sys.path.append(os.environ['BNPYDATADIR'])
   else:
-    print "Warning: Environment variable BNPYDATADIR not a valid directory"
+    print 'Warning: Environment variable BNPYDATADIR not a valid directory'
 
 ########################################################### Optional: viz
 ###########################################################  package for plots

@@ -130,6 +130,11 @@ def find_optimum(sumLogVd=0, sumLog1mVd=0, nDoc=0, gamma=1.0, alpha=1.0,
   ro_objFunc = lambda ro: objFunc_constrained(ro, **objArgs)                            
   
   ## Run optimization and catch any overflow or NaN issues
+  #print 'before opt =', c_objFunc(initc)[0]
+  #print 'initc = ', initc
+  #print 'factr = ', factr
+  #print 'approx_grad = ', approx_grad
+  #print 'kwargs = ', kwargs
   with warnings.catch_warnings():
     warnings.filterwarnings('error', category=RuntimeWarning,
                                message='overflow')
@@ -146,7 +151,8 @@ def find_optimum(sumLogVd=0, sumLog1mVd=0, nDoc=0, gamma=1.0, alpha=1.0,
       
   if Info['warnflag'] > 1:
     raise ValueError("FAILURE: " + Info['task'])
-
+  #print 'fhat = ', fhat
+  #print 'chat = ', chat
   Info['init'] = initrhoomega
   Info['objFunc'] = ro_objFunc
   rhoomega = c2rhoomega(chat, doGrad=False)

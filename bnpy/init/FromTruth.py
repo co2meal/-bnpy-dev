@@ -85,7 +85,6 @@ def _initFromTrueLP(hmodel, Data, initname, PRNG, nRepeatTrue=2, **kwargs):
   SS = hmodel.get_global_suff_stats(Data, LP)
   hmodel.update_global_params(SS)
 
-
 def convertLPFromHardToSoft(LP, Data):
   ''' Transform array of hard assignment labels in Data into local param dict
 
@@ -100,6 +99,8 @@ def convertLPFromHardToSoft(LP, Data):
   for k in range(Ktrue):
     mask = Z == uniqueLabels[k]
     resp[mask,k] = 1.0
+  print resp[200:210,:]
+  print np.sum(resp, axis = 0)
   return dict(resp=resp)
 
 

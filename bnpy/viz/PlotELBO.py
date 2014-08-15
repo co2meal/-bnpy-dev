@@ -75,7 +75,7 @@ def plot_all_tasks_for_job(jobpath, args, jobname=None, color=None):
       ys = ys[mask]
 
 
-    plotargs = dict(markersize=10, linewidth=2, label=None,
+    plotargs = dict(markersize=2, linewidth=2, label=None,
                     color=color, markeredgecolor=color)
     if tt == 0:
       plotargs['label'] = jobname
