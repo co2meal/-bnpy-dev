@@ -9,6 +9,8 @@ from admix2.HDPSB import HDPSB
 from admix2.HDPPE import HDPPE
 from admix2.HDPSBDir import HDPSBDir
 from admix2.HDPDir import HDPDir
+from admix2.HDPFastRhoFixed import HDPFastRhoFixed
+from admix2.HDPFast import HDPFast
 
 AllocModelConstructorsByName = { \
            'MixModel':MixModel,
@@ -19,6 +21,8 @@ AllocModelConstructorsByName = { \
            'HDPPE':HDPPE,
            'HDPDir':HDPDir,
            'HDPSBDir':HDPSBDir,
+           'HDPFastRhoFixed':HDPFastRhoFixed,
+           'HDPFast':HDPFast,
           }
 
 AllocModelNameSet = set(AllocModelConstructorsByName.keys())

@@ -57,3 +57,22 @@ def replaceInfVals( logX, replaceVal=-100):
   logX[infmask] = replaceVal
   return logX
 
+
+def summarizeVdToDocTopicCount(Vd):
+  ''' Create DocTopicCount matrix from given stick-breaking parameters Vd
+
+      Returns
+      --------  
+      DocTopicCount : 2D array, size D x K
+  '''
+  assert not np.any(np.isnan(Vd))
+  PRNG = np.random.RandomState(0)
+  DocTopicCount = np.zeros(Vd.shape)
+  for d in xrange(Vd.shape[0]):
+    N_d = 100 + 50 * PRNG.rand()
+    Pi_d = Vd[d,:].copy()
+    Pi_d[1:] *= np.cumprod(1.0-Vd[d, :-1])
+    np.maximum(Pi_d, 1e-10, out=Pi_d)
+    Pi_d /= np.sum(Pi_d)
+    DocTopicCount[d,:] = N_d * Pi_d
+  return DocTopicCount

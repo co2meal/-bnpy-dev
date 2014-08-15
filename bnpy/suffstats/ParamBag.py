@@ -35,7 +35,7 @@ import numpy as np
 import copy
 
 class ParamBag(object):
-  def __init__(self, K=0, D=0, doCollapseK1=False):
+  def __init__(self, K=0, doCollapseK1=False, **kwargs):
     ''' Create a ParamBag object with specified number of components.
         
         Args
@@ -44,7 +44,9 @@ class ParamBag(object):
         D : integer dimension of parameters this bag will contain
     '''
     self.K = K
-    self.D = D
+    for key, val in kwargs.iteritems():
+      if len(key) == 1:
+        setattr(self, key, val)
     self._FieldDims = dict()
     self.doCollapseK1 = doCollapseK1
 
