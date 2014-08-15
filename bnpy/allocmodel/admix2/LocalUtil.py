@@ -101,9 +101,9 @@ def calcDocTopicCountForData_Simple(Data, aModel, Lik,
   for d in xrange(Data.nDoc):
     start = Data.doc_range[d]
     stop  = Data.doc_range[d+1]
-    Lik_d = Lik[start:stop]
+    Lik_d = Lik[start:stop].copy() # Local copy
     if hasattr(Data, 'word_count'):
-      wc_d = Data.word_count[start:stop]
+      wc_d = Data.word_count[start:stop].copy()
     else:
       wc_d = 1.0
     sumR_d = np.zeros(stop-start)
@@ -151,10 +151,10 @@ def calcDocTopicCountForDoc(d, aModel,
   for iter in xrange(nCoordAscentItersLP):
     ## Update Prob of Active Topics
     if iter > 0:
-      Prior_d = aFunc(DocTopicCount_d)
-      np.exp(Prior_d, out=Prior_d)
+      aFunc(DocTopicCount_d, Prior_d) # Prior_d = E[ log pi_dk ]
+      np.exp(Prior_d, out=Prior_d)    # Prior_d = exp E[ log pi_dk ]
 
-    ## Update sumRtilde for all tokens in document
+    ## Update sumR_d for all tokens in document
     np.dot(Lik_d, Prior_d, out=sumR_d)
 
     ## Update DocTopicCounts
@@ -162,8 +162,8 @@ def calcDocTopicCountForDoc(d, aModel,
     DocTopicCount_d *= Prior_d
 
     ## Check for convergence
-    docDiff = np.max(np.abs(DocTopicCount_d - prevDocTopicCount_d))
-    if docDiff < convThrLP:
+    maxDiff = np.max(np.abs(DocTopicCount_d - prevDocTopicCount_d))
+    if maxDiff < convThrLP:
       break
     prevDocTopicCount_d[:] = DocTopicCount_d
 
@@ -267,3 +267,4 @@ def printVectors(aname, a, fmt='%9.6f', Kmax=10):
 
 def np2flatstr(xvec, fmt='%9.3f', Kmax=10):
   return ' '.join( [fmt % (x) for x in xvec[:Kmax]])
+

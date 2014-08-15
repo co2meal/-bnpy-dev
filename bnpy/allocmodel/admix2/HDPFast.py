@@ -87,9 +87,20 @@ class HDPFast(AllocModel):
       self.Ebeta[1:] *= np.cumprod(1.0 - self.rho)
     return self.Ebeta
 
+  def alpha_E_beta(self):
+    ''' Return vector of alpha * E[beta] of scaled appearance probabilities
+
+        Includes K active topics, and one entry aggregating leftover mass
+    '''
+    if not hasattr(self, 'alphaEbeta'):
+      self.alphaEbeta = self.alpha * self.E_beta()
+    return self.alphaEbeta
+
   def ClearCache(self):
     if hasattr(self, 'Ebeta'):
       del self.Ebeta
+    if hasattr(self, 'alphaEbeta'):
+      del self.alphaEbeta
 
   def set_prior(self, gamma=1.0, alpha=1.0, **kwargs):
     self.alpha = float(alpha)
@@ -129,12 +140,13 @@ class HDPFast(AllocModel):
           * ElogPi
           * DocTopicCount
     '''
+    self.alpha_E_beta() # create cached copy
     LP = LocalUtil.calcLocalParams(Data, LP, self, **kwargs)
     assert 'resp' in LP
     assert 'DocTopicCount' in LP
     return LP
 
-  def calcLogPrActiveCompsForDoc(self, DocTopicCount_d):
+  def calcLogPrActiveCompsForDoc(self, DocTopicCount_d, out):
     ''' Calculate log prob of each of the K active topics given doc-topic counts
 
         Returns
@@ -142,10 +154,11 @@ class HDPFast(AllocModel):
         logp : 1D array, size K
                logp[k] gives probability of topic k in provided doc
     '''
-    theta = self.alpha * self.E_beta()
-    theta[:-1] += DocTopicCount_d
-    ElogPi = digamma(theta[:-1]) - digamma(theta.sum()) 
-    return ElogPi
+    np.add(DocTopicCount_d, self.alphaEbeta[:-1], out=out)
+    digammaSum = digamma(out.sum() + self.alphaEbeta[-1])
+    digamma(out, out=out)
+    out -= digammaSum
+    return out
 
   def calcLogPrActiveComps_Fast(self, DocTopicCount, activeDocs=None, LP=dict(),
                                       out=None):
