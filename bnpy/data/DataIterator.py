@@ -157,9 +157,9 @@ class DataIterator(object):
     ''' Returns human-readable summary of this dataset's basic properties
     '''
     nPerBatch = self.DataPerBatch[0].get_size()
-    s = '  total size %d, divided among %d batches.\n' \
-        % (self.Data.get_total_size(), self.nBatch)
-    s += '  %d units per batch.' % (nPerBatch)
+    s = '  total size: %d units\n' % (self.Data.get_total_size())
+    s += '  num. batches: %d\n' % (self.nBatch)
+    s += '  batch size: %d units' % (nPerBatch)
     return s
 
   def get_text_summary(self):

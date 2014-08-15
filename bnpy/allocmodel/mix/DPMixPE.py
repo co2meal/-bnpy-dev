@@ -33,9 +33,9 @@ class DPMixPE(AllocModel):
     self.K = 0
 
   def set_prior(self, PriorParamDict):
-    self.gamma1 = 1.0
+    self.gamma1 = 1.0 + 1e-9
     self.gamma0 = np.maximum(PriorParamDict['gamma0'],
-                             1 + 1e-9)
+                             self.gamma1)
 
   ######################################################### Accessors
   #########################################################
@@ -139,20 +139,30 @@ class DPMixPE(AllocModel):
 
   ######################################################### Global Params
   #########################################################
+  def calcPostParams(self, SS=None, N=None):
+    ''' Calculate posterior parameters for stick-break factor p(u | SS)
+    '''
+    if N is None:
+      N = SS.N
+    K = N.size
+    g1 = self.gamma1 + N
+    g0 = self.gamma0 * np.ones(K)
+    g0[:-1] += N[::-1].cumsum()[::-1][1:]
+    if np.any(N < 0):
+      np.maximum(g1, self.gamma1, out=g1)
+      np.maximum(g0, self.gamma0, out=g0)
+    return g1, g0
+
   def update_global_params_VB( self, SS, **kwargs):
     ''' Updates global parameter for point estimate uHat
           for conventional VB learning algorithm.
         New parameters have exactly the number of components specified by SS. 
     '''
-    self.K = SS.K
-    g1 = self.gamma1 + SS.N
-    g0 = self.gamma0 * np.ones(self.K)
-    g0[:-1] += SS.N[::-1].cumsum()[::-1][1:]
-    if np.any(SS.N < 0):
-      np.maximum(g1, self.gamma1, out=g1)
-      np.maximum(g0, self.gamma0, out=g0)
+    g1, g0 = self.calcPostParams(SS=SS)    
     self.uHat = (g1 - 1) / (g1 + g0 - 2)
-    
+    self.K = SS.K
+
+
   def update_global_params_soVB( self, SS, rho, **kwargs ):
     ''' Update global params (stick-breaking Beta params qalpha1, qalpha0).
         for stochastic online VB.
@@ -224,67 +234,40 @@ class DPMixPE(AllocModel):
   def E_logqZ(self, LP):
     return NumericUtil.calcRlogR(LP['resp'])
 
-  def E_logpU( self ):
-    return 0
+  def E_logpU(self):
     logBetaPDF =  (self.gamma1 - 1) * np.log(self.uHat) \
                 + (self.gamma0 - 1) * np.log(1-self.uHat)
     return self.K * c_Func(self.gamma1, self.gamma0) \
            + np.sum(logBetaPDF)
 
-  """
-  def calcSoftMergeEntropyGap(self, SS, kdel, alph):
-    ''' Calculate improvement in entropy after a multi-way merge.
+  ######################################################### Hard Merge
+  #########################################################
+  def calcHardMergeGap(self, SS, kA, kB):
+    ''' Calculate scalar improvement in ELBO for hard merge of comps kA, kB
+        
+        Does *not* include any entropy
     '''
-    Halph =  -1 * np.inner(alph, np.log(alph+1e-100))
-    Hplus = -1 * SS.getELBOTerm('ElogqZ')[kdel] \
-               + SS.getMergeTerm('ElogqZ')[kdel]
-    gap = SS.N[kdel] * Halph - Hplus
-    return gap
+    curN = SS.N
 
-  def calcSoftMergeGap(self, SS, kdel, alph):
-    ''' Calculate improvement in allocation ELBO after a multi-way merge.
-    '''
-    if alph.size < SS.K:
-      alph = np.hstack([alph[:kdel], 0, alph[kdel:]])
-    assert alph.size == SS.K
-    assert np.allclose(alph[kdel], 0)
-    gap = 0
-    for k in xrange(SS.K):
-      if k == kdel:
-        gap += c_Func(self.qalpha1[k], self.qalpha0[k]) \
-               - c_Func(self.alpha1, self.alpha0)
-      elif k > kdel:
-        a1 = self.qalpha1[k] + alph[k] * SS.N[kdel]
-        a0 = self.qalpha0[k] + np.sum(alph[k+1:]) * SS.N[kdel]
-        gap += c_Func(self.qalpha1[k], self.qalpha0[k]) \
-                - c_Func(a1, a0)
-      elif k < kdel:
-        a1 = self.qalpha1[k] + alph[k] * SS.N[kdel]
-        a0 = self.qalpha0[k]  - SS.N[kdel] + np.sum(alph[k+1:]) * SS.N[kdel]
-        gap += c_Func(self.qalpha1[k], self.qalpha0[k]) \
-                - c_Func(a1, a0)
-    return gap
+    ## propN has SAME SIZE as curN, with comp kB set to ZERO
+    ## This allows access each comp before/after at same index
+    propN = curN.copy()
+    propN[kA] += SS.N[kB]
+    propN[kB] = 0
 
-  def calcSoftMergeGap_alph(self, SS, kdel, alph):
-    ''' Calculate improvement in allocation ELBO after a multi-way merge,
-          keeping only terms that depend on redistribution parameters alph
-    '''
-    if alph.size < SS.K:
-      alph = np.hstack([alph[:kdel], 0, alph[kdel:]])
-    assert alph.size == SS.K
-    assert np.allclose(alph[kdel], 0)
-    gap = 0
-    for k in xrange(SS.K):
-      if k == kdel:
-        continue
-      elif k > kdel:
-        a1 = self.qalpha1[k] + alph[k] * SS.N[kdel]
-        a0 = self.qalpha0[k] + np.sum(alph[k+1:]) * SS.N[kdel]
-        gap -= c_Func(a1, a0)
-      elif k < kdel:
-        a1 = self.qalpha1[k] + alph[k] * SS.N[kdel]
-        a0 = self.qalpha0[k]  - SS.N[kdel] + np.sum(alph[k+1:]) * SS.N[kdel]
-        gap -= c_Func(a1, a0)
+    cg1, cg0 = self.calcPostParams(N=curN)
+    curU = (cg1 - 1) / (cg1 + cg0 - 2)
+    curLogPDF = logpdfBeta(curU, cg1, cg0)
+
+    pg1, pg0 = self.calcPostParams(N=propN)
+    propU = (pg1 - 1) / (pg1 + pg0 - 2)
+    propLogPDF = logpdfBeta(propU, pg1, pg0)
+
+    cPrior = c_Func(self.gamma1, self.gamma0)
+    gap = -1 * cPrior
+    for j in xrange(kA, kB):
+      gap += propLogPDF[j] - curLogPDF[j]
+    gap -= curLogPDF[kB]
     return gap
 
   def calcHardMergeEntropyGap(self, SS, kA, kB):
@@ -296,28 +279,6 @@ class DPMixPE(AllocModel):
       gap = Hcur[kB] - Hmerge[kB]
     else:
       gap = - Hmerge[kA, kB] + Hcur[kA] + Hcur[kB]
-    return gap
-
-  def calcHardMergeGap(self, SS, kA, kB):
-    ''' Calculate scalar improvement in ELBO for hard merge of comps kA, kB
-        
-        Does *not* include any entropy
-    '''
-    cPrior = c_Func(self.alpha1, self.alpha0)
-    cB = c_Func(self.qalpha1[kB], self.qalpha0[kB])
-    
-    gap = cB - cPrior
-    ## Add terms for changing kA to kA+kB
-    gap += c_Func(self.qalpha1[kA], self.qalpha0[kA]) \
-         - c_Func(self.qalpha1[kA] + SS.N[kB], self.qalpha0[kA] - SS.N[kB])
-
-    ## Add terms for each index kA+1, kA+2, ... kB-1
-    ##  where only \alpha_0 has changed
-    for k in xrange(kA+1, kB):
-      a1 = self.qalpha1[k]
-      a0old = self.qalpha0[k]
-      a0new = self.qalpha0[k] - SS.N[kB]
-      gap += c_Func(a1, a0old) - c_Func(a1, a0new)
     return gap
 
   def calcHardMergeGap_AllPairs(self, SS):
@@ -336,7 +297,7 @@ class DPMixPE(AllocModel):
     for ii, (kA, kB) in enumerate(PairList):
         Gaps[ii] = self.calcHardMergeGap(SS, kA, kB)
     return Gaps
-  """
+
   ######################################################### IO Utils
   #########################################################   for humans
   def get_info_string( self):
@@ -402,3 +363,8 @@ class DPMixPE(AllocModel):
 
 def c_Func(gamma1, gamma0):
   return gammaln(gamma1+gamma0) - gammaln(gamma1) - gammaln(gamma0)
+
+def logpdfBeta(u, g1, g0):
+  ''' Evaluate the "meat" of the log pdf density of a Beta random variable
+  '''
+  return (g1 - 1) * np.log(u) + (g0 - 1) * np.log(1-u)

@@ -25,6 +25,8 @@ import sys
 import logging
 import numpy as np
 import bnpy
+import inspect
+
 from bnpy.ioutil import BNPYArgParser
 
 # Configure Logger
@@ -140,17 +142,22 @@ def _run_task_internal(jobname, taskid, nTask,
     taskoutpath = None
   configLoggingToConsoleAndFile(taskoutpath, doSaveToDisk, doWriteStdOut)
   
-  if type(dataName) is str:   
-    Data, InitData = loadData(ReqArgs, KwArgs, UnkArgs, dataorderseed)
+  if type(dataName) is str:
+    DataArgs = getKwArgsForLoadData(ReqArgs, UnkArgs)  
+    Data, InitData = loadData(ReqArgs, KwArgs, DataArgs, dataorderseed)
   else:
     Data = dataName
     InitData = dataName
-    assert str(type(InitData)).count('bnpy.data') > 0
-    if algName in OnlineDataAlgSet:
+    DataArgs = dict()
+    assert isinstance(Data, bnpy.data.DataObj)
+
+    if algName in OnlineDataAlgSet:    
       KwArgs[algName]['nLap'] = KwArgs['OnlineDataPrefs']['nLap']
       OnlineDataArgs = KwArgs['OnlineDataPrefs']
       OnlineDataArgs['dataorderseed'] = dataorderseed
-      OnlineDataArgs.update(UnkArgs) # add custom args
+
+      DataArgs = getKwArgsForLoadData(Data, UnkArgs)
+      OnlineDataArgs.update(DataArgs) # add custom args
       Data = Data.to_iterator(**OnlineDataArgs)
 
   # Create and initialize model parameters
@@ -192,6 +199,8 @@ def _run_task_internal(jobname, taskid, nTask,
 
   # Write descriptions to the log
   if taskid == 1 or jobID > 0:
+    ## Warn user about any unknown keyword arguments
+    showWarningForUnknownArgs(UnkArgs, DataArgs)
 
     Log.info(Data.get_text_summary())
     if algName in OnlineDataAlgSet:
@@ -218,6 +227,7 @@ def _run_task_internal(jobname, taskid, nTask,
 ###########################################################
 def loadData(ReqArgs, KwArgs, DataArgs, dataorderseed):
   ''' Load DataObj specified by the user, using particular random seed.
+
       Returns
       --------
       either 
@@ -237,6 +247,7 @@ def loadData(ReqArgs, KwArgs, DataArgs, dataorderseed):
       For full dataset learning scenarios, InitData can be the same as Data.
   '''
   datamod = __import__(ReqArgs['dataName'],fromlist=[])
+
   algName = ReqArgs['algName']
   if algName in FullDataAlgSet:
     Data = datamod.get_data(**DataArgs)
@@ -260,6 +271,50 @@ def loadData(ReqArgs, KwArgs, DataArgs, dataorderseed):
       DataIterator = None
     return DataIterator, InitData
   
+def getKwArgsForLoadData(ReqArgs, UnkArgs):
+  ''' Determine which keyword arguments can be passed to Data module
+
+      Returns
+      --------
+      DataArgs : dict passed as kwargs into DataModule's get_data method 
+  '''
+  if isinstance(ReqArgs, bnpy.data.DataObj):
+    datamod = ReqArgs
+  else:
+    datamod = __import__(ReqArgs['dataName'],fromlist=[])
+
+  ## Find subset of args that can provided to the Data module
+  dataArgNames = set()
+  if hasattr(datamod, 'get_data'):
+    names, varargs, varkw, defaults = inspect.getargspec(datamod.get_data)
+    for name in names:
+      dataArgNames.add(name)
+  if hasattr(datamod, 'get_iterator'):
+    names, varargs, varkw, defaults = inspect.getargspec(datamod.get_iterator)
+    for name in names:
+      dataArgNames.add(name)
+  if hasattr(datamod, 'to_iterator'):
+    names, varargs, varkw, defaults = inspect.getargspec(datamod.to_iterator)
+    for name in names:
+      dataArgNames.add(name)
+  if hasattr(datamod, 'Defaults'):
+    for name in datamod.Defaults.keys():
+      dataArgNames.add(name)
+  DataArgs = dict([(k,v) for k,v in UnkArgs.items() if k in dataArgNames])
+  return DataArgs
+
+def showWarningForUnknownArgs(UnkArgs, DataArgs=dict()):
+  isFirst = True
+  msg = 'WARNING: Found unrecognized keyword args. These are ignored.'
+  for name in UnkArgs.keys():
+    if name in DataArgs:
+      pass
+    else:
+      if isFirst:
+        Log.warning(msg)
+      isFirst = False
+      Log.warning('  --%s' % (name))
+
 ########################################################### Create Model
 ###########################################################
 def createModel(Data, ReqArgs, KwArgs):

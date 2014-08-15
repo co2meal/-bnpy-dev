@@ -109,6 +109,8 @@ class GroupXData(XData):
   def get_total_size(self):
     return self.nDocTotal
 
+  def get_dim(self):
+    return self.dim
 
   def get_text_summary(self):
     ''' Returns human-readable description of this dataset
@@ -122,8 +124,8 @@ class GroupXData(XData):
   def get_stats_summary(self):
     ''' Returns human-readable summary of this dataset's basic properties
     '''
-    s = '  %d observations, each of dimension %d' % (self.nObs, self.dim)
-    s += '\n  %d groups' % (self.nDoc) 
+    s = '  size: %d units (documents)\n' % (self.get_size())
+    s += '  dimension: %d' % (self.get_dim())
     return s
 
   ######################################################### Create Subset
