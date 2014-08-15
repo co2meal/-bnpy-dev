@@ -104,7 +104,7 @@ class LDA(AllocModel):
     assert 'DocTopicCount' in LP
     return LP
 
-  def calcLogPrActiveCompsForDoc(self, DocTopicCount_d):
+  def calcLogPrActiveCompsForDoc(self, DocTopicCount_d, out):
     ''' Calculate log prob of each of the K active topics given doc-topic counts
 
         Returns
@@ -112,9 +112,11 @@ class LDA(AllocModel):
         logp : 1D array, size K
                logp[k] gives probability of topic k in provided doc
     '''
-    theta_d = DocTopicCount_d + self.alpha
-    ElogPi = digamma(theta_d) - digamma(theta_d.sum())
-    return ElogPi
+    np.add(DocTopicCount_d, self.alpha, out=out)
+    digammaSum = digamma(out.sum())
+    digamma(out, out=out)
+    out -= digammaSum
+    return out
 
   def calcLogPrActiveComps_Fast(self, DocTopicCount, activeDocs=None, LP=None,
                                       out=None):

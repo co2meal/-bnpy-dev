@@ -139,7 +139,7 @@ class HDPSB(AllocModel):
     assert 'DocTopicCount' in LP
     return LP
 
-  def calcLogPrActiveCompsForDoc(self, DocTopicCount_d):
+  def calcLogPrActiveCompsForDoc(self, DocTopicCount_d, out):
     ''' Calculate log prob of each of the K active topics given doc-topic counts
 
         Returns
@@ -155,9 +155,10 @@ class HDPSB(AllocModel):
     digammaBoth = digamma(eta1+eta0)
     ElogVd = digamma(eta1) - digammaBoth
     Elog1mVd = digamma(eta0) - digammaBoth
-    ElogPi = ElogVd.copy()
-    ElogPi[1:] += np.cumsum(Elog1mVd[:-1])
-    return ElogPi
+
+    out[:] = ElogVd
+    out[1:] += np.cumsum(Elog1mVd[:-1])
+    return out
 
   def calcLogPrActiveComps_Fast(self, DocTopicCount, activeDocs=None, LP=dict(),
                                       out=None):
