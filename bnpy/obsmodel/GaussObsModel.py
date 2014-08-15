@@ -937,6 +937,11 @@ def createECovMatFromUserInput(D=0, Data=None, ECovMat='eye', sF=1.0):
     Sigma = sF * np.eye(D)
   elif ECovMat == 'covdata':
     Sigma = sF * np.cov(Data.X.T, bias=1)
+  elif ECovMat == 'covfirstdiff':
+    if not hasattr(Data, 'Xprev'):
+      raise ValueError('covfirstdiff only applies to auto-regressive datasets')
+    Xdiff = Data.X - Data.Xprev
+    Sigma = sF * np.cov(Xdiff.T, bias=1)
   elif ECovMat == 'fromtruelabels':    
     ''' Set Cov Matrix Sigma using the true labels in empirical Bayes style
         Sigma = \sum_{c : class labels} w_c * SampleCov[ data from class c]
