@@ -15,8 +15,8 @@ import numpy as np
 from ParamBag import ParamBag
 
 class SuffStatBag(object):
-  def __init__(self, K=0, D=0):
-    self._Fields = ParamBag(K=K, D=D)
+  def __init__(self, K=0, D=0, **kwargs):
+    self._Fields = ParamBag(K=K, D=D, **kwargs)
 
   def copy(self, includeELBOTerms=True, includeMergeTerms=True):
     if not includeELBOTerms:
