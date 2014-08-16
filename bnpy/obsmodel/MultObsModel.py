@@ -173,7 +173,9 @@ class MultObsModel(AbstractObsModel):
       nTotalTokens = nTotalTokens/K * np.ones(K)
     assert nTotalTokens.sum() > 0
 
-    lam = EstParams.phi * nTotalTokens[:,np.newaxis]
+    WordCounts = EstParams.phi * nTotalTokens[:,np.newaxis]
+    lam = WordCounts + self.Prior.lam
+
     self.Post = ParamBag(K=K, D=D)
     self.Post.setField('lam', lam, dims=('K', 'D'))
     self.K = K
