@@ -1,5 +1,9 @@
 ''' bnpy module __init__ file
 '''
+import os
+import sys
+
+
 import data
 import distr
 import util
@@ -14,13 +18,13 @@ load_model = ioutil.ModelReader.load_model
 save_model = ioutil.ModelWriter.save_model
 
 import init
-
 import learnalg
+import birthmove
+import deletemove
+import mergemove
+
 import Run
 from Run import run
-
-import os
-import sys
 
 ########################################################### Configure save
 ###########################################################  location

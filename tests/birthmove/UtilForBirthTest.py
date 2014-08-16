@@ -5,20 +5,48 @@ import numpy as np
 
 import bnpy
 
-kwargs = dict(randstate=np.random.RandomState(0),
+outArgs = dict(traceEvery=1, saveEvery=0, printEvery=1,
+               customFuncPath=None, customFuncArgs=None)
+
+algArgs = dict(doFullPassBeforeMstep=0,
+            convergeSigFig=6,
+            startLap=0,
+            doMemoizeLocalParams=1,
+            nCoordAscentItersLP=10,
+            convThrLP=0.01,
+            nHardItersLP=1,
+            doDocTopicFracLP=0,
+            doOnlySomeDocsLP=1,
+            doShowSeriousWarningsOnly=1)
+
+birthArgs = dict(
                Kfresh=10, Kmax=25, 
-               targetMaxSize=100,
-               targetMinWordsPerDoc=0,
-               targetMinKLPerDoc=0,
+
                creationRoutine='randexamples', 
                cleanupMinSize=25,
                expandAdjustSuffStats=0,
                expandOrder='expandThenRefine',
                refineNumIters=10,
-               cleanupDeleteEmpty=1,
+
+               cleanupDeleteEmpty=0,
                cleanupDeleteToImprove=0,
+               cleanupDeleteViaLP=0,
                birthRetainExtraMass=0,
                birthVerifyELBOIncrease=0,
+               fracLapsBirth=0.9,
+               birthPerLap=1,
+               birthBatchFrac=0.0,
+               birthBatchLapLimit=10,
+               doVizBirth=0,
+               ### TargetPlanner
+               targetSelectName='uniform',
+               ### TargetDataSampler
+               targetMinSize=0,
+               targetMaxSize=30,
+               targetCompFrac=0.1,
+               targetMinWordsPerDoc=0,
+               targetMinKLPerDoc=0,
+
              )
 
 BarsName = None
@@ -54,12 +82,13 @@ def loadData(name, **kwargs):
   datamod = __import__(name, fromlist=[])
   return datamod.get_data(**kwargs)
 
-def MakeModelWithTrueTopics(Data, alpha0=5.0, gamma=0.5, aModel='HDPModel'):
+def MakeModelWithTrueTopics(Data, alpha0=5.0, gamma=0.5):
+
   ''' Create new model.
   '''
   aDict = dict(alpha0=alpha0, gamma=gamma)
   oDict = {'lambda':0.1}
-  hmodel = bnpy.HModel.CreateEntireModel('VB', aModel, 'Mult', 
+  hmodel = bnpy.HModel.CreateEntireModel('VB', 'HDPModel', 'Mult', 
                                           aDict, oDict, Data)
   hmodel.init_global_params(Data, initname='trueparams')
   LP = hmodel.calc_local_params(Data)
@@ -68,7 +97,6 @@ def MakeModelWithTrueTopics(Data, alpha0=5.0, gamma=0.5, aModel='HDPModel'):
   LP = hmodel.calc_local_params(Data)
   SS = hmodel.get_global_suff_stats(Data, LP)
   return hmodel, SS, LP
-
 
 def MakeModelWithTrueTopicsButMissingOne(Data, kmissing=0):
   ''' Create new model.
@@ -118,27 +146,3 @@ def MakeModelWithOneTopic(Data):
   hmodel.update_global_params(SS)
   return hmodel, SS, LP
 
-
-def verify_suffstats_at_desired_scale( SS, nDoc=0, word_count=0):
-  if hasattr(SS, 'nDoc'):
-    assert SS.nDoc == nDoc
-    assert np.allclose(SS.WordCounts.sum(), word_count)
-    assert np.allclose(SS.N.sum(), word_count)
-
-def verify_obsmodel_at_desired_scale( obsModel, word_count=0):
-  priorsum = obsModel.obsPrior.lamvec.sum()
-  lamsum = 0
-  for k in range(obsModel.K):
-    lamsum += obsModel.comp[k].lamvec.sum() - priorsum
-  print lamsum, word_count
-  assert np.allclose(lamsum, word_count)
-
-
-def verify_expanded_obsmodel_bigger_than_original( xobsModel, obsModel):
-  priorvec = obsModel.obsPrior.lamvec
-  xpriorvec = xobsModel.obsPrior.lamvec
-  assert np.allclose(priorvec, xpriorvec)
-  for k in range(obsModel.K):
-    lamsum = obsModel.comp[k].lamvec - priorvec
-    xlamsum = xobsModel.comp[k].lamvec - xpriorvec
-    assert np.all( xlamsum >= lamsum )

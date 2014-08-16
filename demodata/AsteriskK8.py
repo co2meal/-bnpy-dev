@@ -2,14 +2,42 @@
 AsteriskK8.py
 
 Simple toy dataset of 8 Gaussian components with full covariance.  
-Generated data form an "asterisk" shape when plotted in 2D.
+Generated data form an well-separated blobs arranged in "asterisk" shape when plotted in 2D.
 '''
 import scipy.linalg
 import numpy as np
 from bnpy.util.RandUtil import rotateCovMat
-from bnpy.data import XData, MinibatchIterator
+from bnpy.data import XData
+
+########################################################### User-facing 
+def get_data(seed=8675309, nObsTotal=25000, **kwargs):
+  '''
+    Args
+    -------
+    seed : integer seed for random number generator,
+            used for actually *generating* the data
+    nObsTotal : total number of observations for the dataset.
+
+    Returns
+    -------
+      Data : bnpy XData object, with nObsTotal observations
+  '''
+  X, TrueZ = get_X(seed, nObsTotal)
+  Data = XData(X=X, TrueZ=TrueZ)
+  Data.summary = get_data_info()
+  return Data
+
+def get_short_name( ):
+  ''' Return short string used in filepaths to store solutions
+  '''
+  return 'AsteriskK8'
+
+def get_data_info():
+  return 'Asterisk Toy Data. %d true clusters.' % (K)
 
 ###########################################################  Set Toy Parameters
+###########################################################
+
 K = 8
 D = 2
 
@@ -38,19 +66,9 @@ cholSigma = np.zeros( Sigma.shape )
 for k in xrange( K ):
   cholSigma[k] = scipy.linalg.cholesky( Sigma[k] )
 
-###########################################################  Module util functions
 def sample_data_from_comp( k, Nk, PRNG ):
   return Mu[k,:] + np.dot(cholSigma[k].T, PRNG.randn(D, Nk) ).T
 
-def get_short_name( ):
-  ''' Return short string used in filepaths to store solutions
-  '''
-  return 'AsteriskK8'
-
-def get_data_info():
-  return 'Asterisk Toy Data. Ktrue=%d. D=%d.' % (K,D)
-
-###########################################################  Generate the data
 def get_X(seed, nObsTotal):
   PRNG = np.random.RandomState( seed )
   trueList = list()
@@ -66,44 +84,9 @@ def get_X(seed, nObsTotal):
   TrueZ = TrueZ[permIDs]
   return X, TrueZ
 
-########################################################### User-facing 
-def get_data(seed=8675309, nObsTotal=25000, **kwargs):
-  '''
-    Args
-    -------
-    seed : integer seed for random number generator,
-            used for actually *generating* the data
-    nObsTotal : total number of observations for the dataset.
 
-    Returns
-    -------
-      Data : bnpy XData object, with nObsTotal observations
-  '''
-  X, TrueZ = get_X(seed, nObsTotal)
-  Data = XData(X=X, TrueZ=TrueZ)
-  Data.summary = get_data_info()
-  return Data
-  
-def get_minibatch_iterator(seed=8675309, dataorderseed=0, nBatch=10, nObsBatch=None, nObsTotal=25000, nLap=1, startLap=0, **kwargs):
-  '''
-    Args
-    --------
-    seed : integer seed for random number generator,
-            used for actually *generating* the data
-    dataorderseed : integer seed that determines
-                     (a) how data is divided into minibatches
-                     (b) order these minibatches are traversed
-
-   Returns
-    -------
-      bnpy MinibatchIterator object, with nObsTotal observations
-        divided into nBatch batches
-  '''
-  X, TrueZ = get_X(seed, nObsTotal)
-  Data = XData(X=X)
-  Data.summary = get_data_info()
-  DataIterator = MinibatchIterator(Data, nBatch=nBatch, nObsBatch=nObsBatch, nLap=nLap, startLap=startLap, dataorderseed=dataorderseed)
-  return DataIterator
+########################################################### Main
+###########################################################
 
 def plot_true_clusters():
   from bnpy.viz import GaussViz
@@ -111,7 +94,6 @@ def plot_true_clusters():
     c = k % len(GaussViz.Colors)
     GaussViz.plotGauss2DContour( Mu[k], Sigma[k], color=GaussViz.Colors[c] )
 
-########################################################### Main
 if __name__ == "__main__":
   from matplotlib import pylab
   pylab.figure()

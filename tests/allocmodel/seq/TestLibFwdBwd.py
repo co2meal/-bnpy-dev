@@ -94,9 +94,14 @@ class TestFwd(unittest.TestCase):
     cElapsed = cTimer.timeit(number=nTrials) / nTrials
     pyElapsed = pyTimer.timeit(number=nTrials) / nTrials
 
+<<<<<<< HEAD
     print ' K %5d | T %5d | py % 7.5f sec | c % 7.5f sec | speedup %7.2f' \
           % (K, T, pyElapsed, cElapsed, pyElapsed / cElapsed)
 
+=======
+    print ' py % 9.5f | c % 9.5f | K % d | speedup %7.2f' \
+          % (pyElapsed, cElapsed, K, pyElapsed / cElapsed)
+>>>>>>> 0364cbb93b8758f5cb7dab570d04a168c2d94f84
 
   def test_speed_vs_K(self):
     ''' Execute many time trials at various values of K, to determine trends

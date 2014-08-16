@@ -82,8 +82,9 @@ def buildArrForObsModelParams(compList, key):
   
 Cache = dict()
 def MakeZMGaussData(Sigma, Nk, seed=1234):
-  if seed in Cache:
-    return Cache[seed]
+  uid = (seed, Sigma.shape[0], Sigma.shape[1])
+  if uid in Cache:
+    return Cache[uid]
   PRNG = np.random.RandomState(seed)
   if Sigma.ndim == 3:
     K = Sigma.shape[0]
@@ -95,7 +96,7 @@ def MakeZMGaussData(Sigma, Nk, seed=1234):
     Xk = PRNG.multivariate_normal(np.zeros(Sigma.shape[-1]), Sigma[k], Nk)
     Xlist.append(Xk)
   X = np.vstack(Xlist)
-  Cache[seed] = X
+  Cache[uid] = X
   return X
 
 

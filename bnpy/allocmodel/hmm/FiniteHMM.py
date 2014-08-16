@@ -27,6 +27,9 @@ class FiniteHMM(AllocModel):
         self.initTheta = None
         self.transTheta = None
 
+        self.estZ = dict()
+        self.entropy = 0
+
 
     #TODO: actually set up priors in config/allocmodel.conf
     def set_prior(self, initAlpha = .1, transAlpha = .1, **kwargs):
@@ -96,17 +99,17 @@ class FiniteHMM(AllocModel):
             est = HMMUtil.viterbi(lpr[Data.seqInds[n]:Data.seqInds[n+1]],
                                   initParam, transParam)
 
+
             if resp is None:
                 resp = np.vstack(seqResp)
                 respPair = seqRespPair
-                estZ = est
             else:
                 resp = np.vstack((resp, seqResp))
                 respPair = np.append(respPair, seqRespPair, axis = 0)
-                estZ = np.append(estZ, est)
             logMargPr[n] = seqLogMargPr
+            
+            self.estZ.update({'%d'%(Data.seqsUsed[n]) : est})
 
-        self.estZ = estZ
     
         LP.update({'evidence':np.sum(logMargPr)})        
         LP.update({'resp':resp})
@@ -146,7 +149,7 @@ class FiniteHMM(AllocModel):
 
         (see the documentation for information about resp and respPair)
         '''
-        
+
         #This method is called before calc_local_params() during initialization,
             #in which case resp and respPair won't exist
         if ('resp' not in LP) or ('respPair' not in LP):
@@ -169,9 +172,8 @@ class FiniteHMM(AllocModel):
         SS.setField('N', N, dims=('K'))
 
         if doPrecompEntropy is not None:
-            entropy = self.elbo_z(LP, SS, Data)
+            entropy = self.elbo_entropy(Data, LP)
             SS.setELBOTerm('Elogqz', entropy, dims = (()))
-
 
         return SS
 
@@ -214,6 +216,15 @@ class FiniteHMM(AllocModel):
         self.initTheta = rho*initNew + (1 - rho)*self.initTheta
         self.transTheta = rho*transNew + (1 - rho)*self.transTheta
         self.K = SS.K
+
+    def init_global_params(self, Data, K=0, **kwargs):
+        self.K = K
+        if self.inferType == 'EM':
+            self.initPi = 1.0 / K * np.ones(K)
+            self.transPi = 1.0 / K * np.ones((K,K))
+        else:
+            self.initTheta = self.initAlpha + np.ones(K)
+            self.transTheta = self.transAlpha + np.ones((K,K))
                     
 
     def set_global_params(self, hmodel=None, K=None, initPi=None, transPi=None,
@@ -237,17 +248,55 @@ class FiniteHMM(AllocModel):
 
 
 
-    def calc_evidence(self, Data, SS, LP):
+    def calc_evidence(self, Data, SS, LP, todict = False, **kwargs):
         if self.inferType == 'EM':
             return LP['evidence']
         elif self.inferType.count('VB') > 0:
             if SS.hasELBOTerm('Elogqz'):
-                entropy = np.sum(SS.getELBOTerm('Elogqz'))
+                entropy = SS.getELBOTerm('Elogqz')
             else:
-                entropy = np.sum(self.elbo_z(LP, SS, Data))
-            return self.elbo_pi0(LP) + self.elbo_pi(SS) + entropy
+                entropy = self.elbo_entropy(Data, LP)
+
+#            new = entropy + self.elbo_alloc()
+            #old = self.elbo_pi0(LP) + self.elbo_pi(SS) + self.elbo_z(LP,SS,Data)
+#            print 'new = ', new
+#            print 'old = ', old
+            return entropy + self.elbo_alloc()
         else:
             raise NotImplementedError('Unrecognized inferType '+self.inferType)
+
+
+    def elbo_entropy(self, Data, LP):
+        sigma = (LP['respPair'] /
+                 (np.sum(LP['respPair'], axis = 2)[:,:,np.newaxis] + EPS))
+
+        z_1 = -np.sum(LP['resp'][Data.seqInds[:-1],:] * \
+                          np.log(LP['resp'][Data.seqInds[:-1],:] + EPS))
+        restZ = -np.sum(LP['respPair'][1:,:,:] * np.log(sigma[1:,:,:] + EPS))
+
+
+        return z_1 + restZ
+
+    def elbo_alloc(self):
+        normPinit = gammaln(self.K * self.initAlpha) - \
+            self.K * gammaln(self.initAlpha)
+        normPtrans = self.K * gammaln(self.K * self.transAlpha) - \
+            (self.K**2) * gammaln(self.transAlpha)
+        normQinit = np.sum(gammaln(self.initTheta)) - \
+            gammaln(np.sum(self.initTheta))
+        normQtrans = np.sum(gammaln(self.transTheta)) - \
+            np.sum(gammaln(np.sum(self.transTheta, axis = 1)))
+
+        return normPinit + normPtrans + normQinit + normQtrans
+        
+        return gammaln(self.K * self.initAlpha) - \
+            self.K * gammaln(self.initAlpha) + \
+            self.K * gammaln(self.K * self.transAlpha) - \
+            (self.K**2) * gammaln(self.transAlpha) - \
+            gammaln(np.sum(self.initTheta)) + \
+            np.sum(gammaln(self.initTheta)) - \
+            np.sum(gammaln(np.sum(self.transTheta, axis = 1))) + \
+            np.sum(gammaln(self.transTheta))
 
     def elbo_pi0(self, LP):
         #The normaliziation constant in front of p(pi_0 | alpha_0) does not 
@@ -272,7 +321,7 @@ class FiniteHMM(AllocModel):
         normQ = np.sum(gammaln(np.sum(self.transTheta, axis = 1)) - \
                            np.sum(gammaln(self.transTheta), axis = 1))
 
-        theMeat = np.sum((self.initAlpha - self.transTheta) *
+        theMeat = np.sum((self.transAlpha - self.transTheta) *
                          (digamma(self.transTheta) - 
                           digamma(np.sum(self.transTheta, axis = 1))[:,np.newaxis]))
         return normP - normQ + theMeat
@@ -280,7 +329,7 @@ class FiniteHMM(AllocModel):
     def elbo_z(self, LP, SS, Data):
         s = (LP['respPair'] / 
              (np.sum(LP['respPair'], axis = 2)[:, :, np.newaxis] + EPS))
-
+        
         z_1 = np.sum(LP['resp'][Data.seqInds[:-1],:]*(digamma(self.initTheta) - 
                                 digamma(np.sum(self.initTheta)) -
                                 np.log(LP['resp'][Data.seqInds[:-1],:] + EPS)))
@@ -299,12 +348,18 @@ class FiniteHMM(AllocModel):
   ######################################################### IO Utils
   #########################################################   for machines
     def to_dict(self):
+       #convert the self.estZ dictionary to a list
+        estz = list()
+        for seq in xrange(np.size(self.estZ.keys())):
+            if '%d'%(seq) in self.estZ:
+                estz.append(self.estZ['%d'%(seq)])
+
         if self.inferType == 'EM':
             return dict(initPi = self.initPi, transPi = self.transPi, 
-                        estZ = self.estZ)
+                        estZ = estz)
         elif self.inferType.count('VB') > 0:
             return dict(initTheta = self.initTheta, 
-                        transTheta = self.transTheta, estZ = self.estZ)
+                        transTheta = self.transTheta, estZ = estz)
 
     def from_dict(self, myDict):
         self.inferType = myDict['inferType']
@@ -319,4 +374,5 @@ class FiniteHMM(AllocModel):
 
     def get_prior_dict(self):
         return dict(initAlpha = self.initAlpha, transAlpha = self.transAlpha, \
+
                         K = self.K)

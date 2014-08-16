@@ -7,9 +7,22 @@ There are 10 exercises, and (x,y) coordinates of 6 different joints are observed
 '''
 
 import numpy as np
-from bnpy.data import SeqXData, MinibatchIterator
 import readline
+import os
+import scipy.io
 
+from bnpy.data import SeqXData, MinibatchIterator
+
+DPATH_OPTIONS = ['/home/mhughes/git/NPBayesHMM/data/mocap6/',
+                 '/home/will/bnpy/bnpy-dev/demodata/mocap6/', 
+                 '/home/wtstephe/summer2014/bnpy-dev/demodata/mocap6/']
+DATAPATH = None
+for dpath in DPATH_OPTIONS:
+  if os.path.exists(dpath):
+    DATAPATH = dpath
+
+if DATAPATH is None:
+  raise ValueError("Cannot find mocap6/ dataset")
 
 def get_minibatch_iterator(seed=8675309, dataorderseed=0, nBatch=3, nObsBatch=2, nObsTotal=25000, nLap=1, startLap=0, **kwargs):
   '''
@@ -37,12 +50,12 @@ def get_minibatch_iterator(seed=8675309, dataorderseed=0, nBatch=3, nObsBatch=2,
 def get_XZ():
     X = list()
     Z = list()
-    zTrue = open('/home/will/bnpy/bnpy-dev/demodata/mocap6/zTrue.dat', 'r')
-    seqs = open('/home/will/bnpy/bnpy-dev/demodata/mocap6/SeqNames.txt', 'r')
+    zTrue = open(os.path.join(DATAPATH, 'zTrue.dat'), 'r')
+    seqs = open(os.path.join(DATAPATH, 'SeqNames.txt'), 'r')
 
     for line in seqs:
       line = line[:-1] #eat the \n at the end of each line
-      file = open('/home/will/bnpy/bnpy-dev/demodata/mocap6/'+line+'.dat', 'r')
+      file = open(DATAPATH + line + '.dat', 'r')
       seqX = list()
       
       seqZ = zTrue.readline()
@@ -65,8 +78,13 @@ def get_XZ():
         seqInds = np.append(seqInds, len(Z[i]) + seqInds[i])
         fullZ = np.append(fullZ, Z[i])
     X = np.vstack(X)
+    scipy.io.savemat('trueZ.mat', {'trueZ':fullZ})        
 
-    return X, fullZ, seqInds
+    shapeX = np.shape(X)
+    Xprev = np.zeros((shapeX[0], shapeX[1]))
+    for i in xrange(1,shapeX[0]):
+      Xprev[i,:] = X[i-1,:]
+    return X, Xprev, fullZ, seqInds
 
 
 def get_data_info():
@@ -76,8 +94,8 @@ def get_short_name():
     return 'MoCap'
 
 def get_data(**kwargs):
-    X, fullZ, seqInds = get_XZ()
-    Data = SeqXData(X = X, seqInds = seqInds, TrueZ = fullZ)
+    X, Xprev, fullZ, seqInds = get_XZ()
+    Data = SeqXData(X = X, seqInds = seqInds, TrueZ = fullZ, Xprev = Xprev)
     Data.summary = get_data_info()
     return Data
             

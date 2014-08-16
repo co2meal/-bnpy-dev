@@ -6,79 +6,126 @@ Visualization tools for toy bars data for topic models.
 from matplotlib import pylab
 import numpy as np
 
-imshowArgs = dict(interpolation='nearest', cmap='bone', 
-                  vmin=0.0, vmax=0.3)
+imshowArgs = dict(interpolation='nearest', 
+                  cmap='bone', 
+                  vmin=0.0, 
+                  vmax=0.1)
 
-
-def plotExampleBarsDocs(Data, docIDsToPlot=None,
-                              vmax=None, nDocToPlot=9, doShowNow=True):
-    pylab.figure()
+def plotExampleBarsDocs(Data, docIDsToPlot=None, figID=None,
+                              vmax=None, nDocToPlot=16, doShowNow=False,
+                              seed=0, randstate=np.random.RandomState(0)):
+    if seed is not None:
+      randstate = np.random.RandomState(seed)
+    if figID is None:
+      pylab.figure()
     V = Data.vocab_size
     sqrtV = int(np.sqrt(V))
     assert np.allclose(sqrtV * sqrtV, V)
     if docIDsToPlot is not None:
       nDocToPlot = len(docIDsToPlot)
     else:
-      docIDsToPlot = np.random.choice(Data.nDoc, size=nDocToPlot, replace=False)
+      size = np.minimum(Data.nDoc, nDocToPlot)
+      docIDsToPlot = randstate.choice(Data.nDoc, size=size, replace=False)
     nRows = np.floor(np.sqrt(nDocToPlot))
     nCols = np.ceil(nDocToPlot / nRows)
     if vmax is None:
-      DocWordArr = Data.to_sparse_docword_matrix().toarray()
+      DocWordArr = Data.getDocTypeCountMatrix()
       vmax = int(np.max(np.percentile(DocWordArr, 98, axis=0)))
-      
+
     for plotPos, docID in enumerate(docIDsToPlot):
-        # Parse current document
-        start,stop = Data.doc_range[docID,:]
+        start = Data.doc_range[docID]
+        stop = Data.doc_range[docID+1]
         wIDs = Data.word_id[start:stop]
         wCts = Data.word_count[start:stop]
         docWordHist = np.zeros(V)
         docWordHist[wIDs] = wCts
         squareIm = np.reshape(docWordHist, (np.sqrt(V), np.sqrt(V)))
 
-        pylab.subplot(nRows, nCols, plotPos)
+        pylab.subplot(nRows, nCols, plotPos+1)
         pylab.imshow(squareIm, interpolation='nearest', vmin=0, vmax=vmax)
+        pylab.axis('image')
+        pylab.xticks([])
+        pylab.yticks([])
+    pylab.tight_layout()
     if doShowNow:
       pylab.show()
 
-def plotBarsFromHModel(hmodel, Data=None, doShowNow=True, figH=None,
+def plotBarsFromHModel(hmodel, Data=None, doShowNow=False, figH=None,
+                       doSquare=1,
                        compsToHighlight=None, sortBySize=False,
-                       width=12, height=3, Ktop=None):
-    if Data is None:
-        width = width/2
-    if figH is None:
-      figH = pylab.figure(figsize=(width,height))
+                       width=6, height=3, vmax=None, Ktop=None, Kmax=None):    
+    if hasattr(hmodel.obsModel, 'Post'):
+      lam = hmodel.obsModel.Post.lam
+      topics = lam / lam.sum(axis=1)[:,np.newaxis]
     else:
-      pylab.axes(figH)
-    K = hmodel.allocModel.K
-    VocabSize = hmodel.obsModel.comp[0].lamvec.size
-    learned_tw = np.zeros( (K, VocabSize) )
-    for k in xrange(K):
-        lamvec = hmodel.obsModel.comp[k].lamvec 
-        learned_tw[k,:] = lamvec / lamvec.sum()
-    if sortBySize:
-        sortIDs = np.argsort(hmodel.allocModel.Ebeta[:-1])[::-1]
-        sortIDs = sortIDs[:Ktop]
-        learned_tw = learned_tw[sortIDs] 
-    if Data is not None and hasattr(Data, "true_tw"):
-        # Plot the true parameters and learned parameters
-        pylab.subplot(121)
-        pylab.imshow(Data.true_tw, **imshowArgs)
-        pylab.colorbar()
-        pylab.title('True Topic x Word')
-        pylab.subplot(122)
-        pylab.imshow(learned_tw,  **imshowArgs)
-        pylab.title('Learned Topic x Word')
-    else:
-        # Plot just the learned parameters
-        aspectR = learned_tw.shape[1]/learned_tw.shape[0]
-        while imshowArgs['vmax'] > 2 * np.percentile(learned_tw, 97):
-          imshowArgs['vmax'] /= 5
-        pylab.imshow(learned_tw, aspect=aspectR, **imshowArgs)
+      topics = hmodel.obsModel.EstParams.phi.copy()
 
-    if compsToHighlight is not None:
-        ks = np.asarray(compsToHighlight)
-        if ks.ndim == 0:
-          ks = np.asarray([ks])
-        pylab.yticks( ks, ['**** %d' % (k) for k in ks])
+    K, V = topics.shape
+    if Kmax is not None:
+      K = np.minimum(Kmax, K)
+      topics = topics[:K]
+
+    ## Determine intensity scale for topic-word image
+    global imshowArgs
+    if vmax is not None:
+      imshowArgs['vmax'] = vmax
+    else:
+      imshowArgs['vmax'] = 1.5 * np.percentile(topics, 95)
+
+    if doSquare:
+      showTopicsAsSquareImages(topics, compsToHighlight, **imshowArgs)
+    else:
+      if figH is None:
+        figH = pylab.figure(figsize=(width,height))
+      else:
+        pylab.axes(figH)
+      showAllTopicsInSingleImage(topics, compsToHighlight, **imshowArgs)
     if doShowNow and figH is None:
       pylab.show()
+
+def showTopicsAsSquareImages(topics, compsToHighlight, **imshowArgs):
+  K, V = topics.shape
+  sqrtV = int(np.sqrt(V))
+  assert np.allclose(sqrtV, np.sqrt(V))
+  nrows = int(np.maximum(int(np.sqrt(K)), 1))
+  ncols = int(np.ceil(K / float(nrows)))
+  compsToHighlight = np.asarray(compsToHighlight)
+  if compsToHighlight.ndim == 0:
+    compsToHighlight = np.asarray([compsToHighlight])
+
+  W = 1
+  H = 1
+  hf, ha = pylab.subplots(nrows=nrows, ncols=ncols, figsize=(ncols*W,nrows*H))
+  for k in xrange(K):
+    ax = pylab.subplot(nrows, ncols, k+1)
+    topicIm = np.reshape(topics[k,:], (sqrtV, sqrtV))
+    if k in compsToHighlight:
+      #topicIm[0, :] = imshowArgs['vmax']
+      #topicIm[-1, :] = imshowArgs['vmax']
+      #topicIm[:, 0] = imshowArgs['vmax']
+      #topicIm[:, -1] = imshowArgs['vmax']
+      ax.spines['bottom'].set_color('green')
+      ax.spines['top'].set_color('green')
+      ax.spines['left'].set_color('green')
+      ax.spines['right'].set_color('green')
+      [i.set_linewidth(3) for i in ax.spines.itervalues()]
+
+    pylab.imshow(topicIm, aspect=1.0, **imshowArgs)
+    pylab.xticks([])
+    pylab.yticks([])
+  for kdel in xrange(K+1, nrows*ncols+1):
+    aH = pylab.subplot(nrows, ncols, kdel)
+    aH.axis('off')
+  #pylab.tight_layout()
+  pylab.subplots_adjust(wspace=0.04, hspace=0.04, left=0.01, right=0.99,
+                        top=0.99, bottom=0.01)
+  
+def showAllTopicsInSingleImage(topics, compsToHighlight, **imshowArgs):
+    K, V = topics.shape
+    aspectR = V / float(K)
+    pylab.imshow(topics, aspect=aspectR, **imshowArgs)
+    if compsToHighlight is not None:
+      ks = np.asarray(compsToHighlight)
+      if ks.ndim == 0:
+        ks = np.asarray([ks])
+      pylab.yticks(ks, ['**** %d' % (k) for k in ks])

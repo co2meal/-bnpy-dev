@@ -6,7 +6,7 @@ from numpy.ctypeslib import ndpointer
 def FwdAlg_cpp(initPi, transPi, SoftEv, order='C'):
   ''' Forward algorithm for a single HMM sequence. Implemented in C++/Eigen.
   '''
-  if not doUseLib:
+  if not hasEigenLibReady:
     raise ValueError("Cannot find library %s. Please recompile." \
                       % (libfilename))
   if order != 'C':
@@ -28,7 +28,7 @@ def FwdAlg_cpp(initPi, transPi, SoftEv, order='C'):
 def BwdAlg_cpp(initPi, transPi, SoftEv, margPrObs, order='C'):
   ''' Backward algorithm for a single HMM sequence. Implemented in C++/Eigen.
   '''
-  if not doUseLib:
+  if not hasEigenLibReady:
     raise ValueError("Cannot find library %s. Please recompile." \
                       % (libfilename))
   if order != 'C':
@@ -56,7 +56,7 @@ def BwdAlg_cpp(initPi, transPi, SoftEv, margPrObs, order='C'):
 '''
 libpath = os.path.sep.join(os.path.abspath(__file__).split(os.path.sep)[:-1])
 libfilename = 'libfwdbwd.so'
-doUseLib = True
+hasEigenLibReady = True
 
 try:
   lib = ctypes.cdll.LoadLibrary(os.path.join(libpath, libfilename))
@@ -80,4 +80,4 @@ try:
 
 except OSError:
   # No compiled C++ library exists
-  doUseLib = False  
+  hasEigenLibReady = False  

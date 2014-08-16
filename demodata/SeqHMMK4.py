@@ -97,7 +97,7 @@ def get_X(seed, seqLens):
         fullX.append(X)
 
         seqIndicies.append(seqLens[i] + seqIndicies[i])
-        
+
     return np.vstack(fullX), np.asarray(fullZ), np.asarray(seqIndicies)
 
 
@@ -118,5 +118,4 @@ def get_data(seed=8675309, seqLens=((6000,6000,6000,6000,1000)), **kwargs):
     
     Data = SeqXData(X=X, seqInds = inds, nObsTotal = np.sum(inds), TrueZ = Z)
     Data.summary = get_data_info()
-    scipy.io.savemat('trueZ.mat', {'trueZ':Z})
     return Data
