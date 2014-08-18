@@ -15,7 +15,7 @@ import os
 import sys
 import scipy.io
 
-from bnpy.ioutil import ModelWriter
+from bnpy.ioutil import ModelWriter, SSWriter
 from bnpy.util import closeAtMSigFigs, isEvenlyDivisibleFloat
 
 Log = logging.getLogger('bnpy')
@@ -139,7 +139,7 @@ class LearnAlg(object):
 
   #########################################################  Save to file
   #########################################################  
-  def save_state(self, hmodel, iterid, lap, evBound, doFinal=False):
+  def save_state(self, hmodel, SS, iterid, lap, evBound, doFinal=False):
     ''' Save state of the hmodel's global parameters and evBound
     '''
     traceEvery = self.outputParams['traceEvery']
@@ -180,6 +180,8 @@ class LearnAlg(object):
       prefix = ModelWriter.makePrefixForLap(lap)
       ModelWriter.save_model(hmodel, self.savedir, prefix,
                               doSavePriorInfo=(iterid<1), doLinkBest=True)
+      SSWriter.save_counts(SS, self.savedir, prefix)
+
 
   # Define temporary function that creates files in this alg's output dir
   def mkfile(self, fname):
@@ -199,7 +201,8 @@ class LearnAlg(object):
 
   #########################################################  Print State
   #########################################################  
-  def print_state(self, hmodel, iterid, lap, evBound, doFinal=False, status='', rho=None):
+  def print_state(self, hmodel, SS, iterid, lap, evBound, 
+                        doFinal=False, status='', rho=None):
     printEvery = self.outputParams['printEvery']
     if printEvery <= 0:
       return None
