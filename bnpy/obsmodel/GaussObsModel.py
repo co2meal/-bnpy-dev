@@ -139,11 +139,12 @@ class GaussObsModel(AbstractObsModel):
     ''' Convert from Post (nu, B, m, kappa) to EstParams (mu, Sigma),
          each EstParam is set to its posterior mean.
     '''
-    self.EstParams = ParamBag(K=K, D=D)    
+    self.EstParams = ParamBag(K=Post.K, D=Post.D)    
     mu = Post.m.copy()
-    Sigma = Post.B / (nu[k] - D - 1)
+    Sigma = Post.B / (Post.nu[:,np.newaxis,np.newaxis] - Post.D - 1)
     self.EstParams.setField('mu', mu, dims=('K','D'))
     self.EstParams.setField('Sigma', Sigma, dims=('K','D','D'))
+    self.K = self.EstParams.K
 
   
   ######################################################### Set Post

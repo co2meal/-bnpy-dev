@@ -15,7 +15,7 @@ import os
 import sys
 import scipy.io
 
-from bnpy.ioutil import ModelWriter, SSWriter
+from bnpy.ioutil import ModelWriter
 from bnpy.util import closeAtMSigFigs, isEvenlyDivisibleFloat
 
 Log = logging.getLogger('bnpy')
@@ -178,9 +178,14 @@ class LearnAlg(object):
       with open(self.mkfile('laps-saved-params.txt'), 'a') as f:        
         f.write('%.4f\n' % (lap))
       prefix = ModelWriter.makePrefixForLap(lap)
-      ModelWriter.save_model(hmodel, self.savedir, prefix,
+
+      if self.outputParams['doSaveFullModel']:
+        ModelWriter.save_model(hmodel, self.savedir, prefix,
                               doSavePriorInfo=(iterid<1), doLinkBest=True)
-      SSWriter.save_counts(SS, self.savedir, prefix)
+
+      if self.outputParams['doSaveEstParams']:
+        ModelWriter.saveEstParams(hmodel, SS, self.savedir, prefix,
+                                doLinkBest=True)
 
 
   # Define temporary function that creates files in this alg's output dir

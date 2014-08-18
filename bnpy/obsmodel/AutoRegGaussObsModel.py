@@ -153,6 +153,7 @@ class AutoRegGaussObsModel(AbstractObsModel):
     Sigma = Post.B / (Post.nu - D - 1)[:, np.newaxis, np.newaxis]
     self.EstParams.setField('A', A, dims=('K','D','D'))
     self.EstParams.setField('Sigma', Sigma, dims=('K','D','D'))
+    self.K = self.EstParams.K
 
   
   ######################################################### Set Post
