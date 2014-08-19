@@ -101,8 +101,6 @@ def convertLPFromHardToSoft(LP, Data):
   for k in range(Ktrue):
     mask = Z == uniqueLabels[k]
     resp[mask,k] = 1.0
-  print resp[200:210,:]
-  print np.sum(resp, axis = 0)
   return dict(resp=resp)
 
 

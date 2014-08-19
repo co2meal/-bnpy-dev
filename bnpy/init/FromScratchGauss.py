@@ -8,6 +8,8 @@ from bnpy.util import discrete_single_draw
 from bnpy.data import XData
 from bnpy.suffstats import SuffStatBag
 
+from scipy.cluster.vq import kmeans2
+
 def init_global_params(obsModel, Data, K=0, seed=0,
                                        initname='randexamples',
                                        **kwargs):
@@ -72,7 +74,12 @@ def init_global_params(obsModel, Data, K=0, seed=0,
     Xfake = Sig * PRNG.randn(K, Data.dim)
     Data = XData(Xfake)
     resp = np.eye(K)
-
+  elif initname == 'kmeans':
+    np.random.seed(seed)
+    centroids, labels = kmeans2(data = Data.X, k = K, minit = 'points')
+    resp = np.zeros((Data.nObsTotal, K))
+    for t in xrange(Data.nObsTotal):
+      resp[t,labels[t]] = 1
   else:
     raise NotImplementedError('Unrecognized initname ' + initname)
 

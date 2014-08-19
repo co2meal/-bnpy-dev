@@ -98,10 +98,20 @@ class HDPHMM(AllocModel):
                 respPair = np.append(respPair, seqRespPair, axis = 0)
 
             self.estZ.update({'%d'%(Data.seqsUsed[n]) : est})
+            
 
-        LP.update({'resp':resp})
-        LP.update({'respPair':respPair})
-        return LP      
+        LP.update({'resp' : resp})
+        LP.update({'respPair' : respPair})
+        return LP
+        
+    def initLPFromResp(self, Data, LP):
+        shape = np.shape(LP['resp'])
+        self.K = shape[1]
+        respPair = np.zeros((shape[0], self.K, self.K))
+        for t in xrange(1,shape[0]):
+            respPair[t,:,:] = np.outer(LP['resp'][t-1,:], LP['resp'][t,:])
+        LP.update({'respPair' : respPair})
+        return LP
 
   ######################################################### Sufficient Stats
   #########################################################
@@ -165,7 +175,7 @@ class HDPHMM(AllocModel):
             initRho = None
             initOmega = None
         try:
-            
+
             rho, omega, fofu, Info = \
                   OptimHDPSB.find_optimum_multiple_tries(sumLogVd = elogv, \
                                                          sumLog1mVd = elog1mv, \

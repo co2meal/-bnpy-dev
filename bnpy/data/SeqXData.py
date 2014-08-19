@@ -118,10 +118,8 @@ class SeqXData(XData):
         return seqIDByBatch
 
     def get_size(self, **kwargs):
-        print 'you rang?'
         return self.nSeqs
     def get_total_size(self, **kwargs):
-        print 'you totally rang?'
         return self.nSeqs
         
 
