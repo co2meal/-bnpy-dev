@@ -252,7 +252,7 @@ class HDPSB(AllocModel):
     DocTopicCount_gt = gtsum(DocTopicCount)
 
     remMass = np.minimum(0.1, 1.0/(K*K))
-    Ebeta = (1 - remMass) / K
+    Ebeta = (1 - remMass) / float(K) * np.ones(K)
     Ebeta_gt = gtsum(Ebeta) + remMass
 
     eta1 = DocTopicCount + self.alpha * Ebeta
