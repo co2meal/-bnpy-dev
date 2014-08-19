@@ -16,10 +16,16 @@ Attributes
 
 import numpy as np
 import scipy.sparse
+import scipy.io
 
 from bnpy.data.DataObj import DataObj
 
 class WordsData(DataObj):
+
+  @classmethod
+  def read_from_mat(cls, matfilepath, **kwargs):
+    MatDict = scipy.io.loadmat(matfilepath, **kwargs)
+    return cls(**MatDict)
 
   ######################################################### Constructor
   #########################################################
@@ -43,9 +49,9 @@ class WordsData(DataObj):
                     (in case this obj represents a minibatch of larger corpus)
         TrueParams : None [default], or dict of attributes
     '''
-    self.word_id = np.asarray(np.squeeze(word_id), dtype=np.int32)
-    self.word_count = np.asarray(np.squeeze(word_count), dtype=np.float64)
-    self.doc_range = np.asarray(doc_range, dtype=np.int32)
+    self.word_id = np.squeeze(np.asarray(np.squeeze(word_id), dtype=np.int32))
+    self.word_count = np.squeeze(np.asarray(np.squeeze(word_count), dtype=np.float64))
+    self.doc_range = np.squeeze(np.asarray(doc_range, dtype=np.int32))
     self.vocab_size = int(vocab_size)
     self._verify_attributes()
  
@@ -89,7 +95,10 @@ class WordsData(DataObj):
     assert self.word_count.ndim == 1
     assert self.word_count.min() > 0
     assert self.word_count.size == self.word_id.size
+    if self.doc_range.ndim == 2:
+      self.doc_range = np.hstack([0, self.doc_range[:,1]])
     assert self.doc_range.ndim == 1
+
     docEndBiggerThanStart = self.doc_range[1:] - self.doc_range[:-1]
     assert np.all(docEndBiggerThanStart)
 
