@@ -173,7 +173,9 @@ class MultObsModel(AbstractObsModel):
       nTotalTokens = nTotalTokens/K * np.ones(K)
     assert nTotalTokens.sum() > 0
 
-    lam = EstParams.phi * nTotalTokens[:,np.newaxis]
+    WordCounts = EstParams.phi * nTotalTokens[:,np.newaxis]
+    lam = WordCounts + self.Prior.lam
+
     self.Post = ParamBag(K=K, D=D)
     self.Post.setField('lam', lam, dims=('K', 'D'))
     self.K = K
@@ -231,12 +233,12 @@ class MultObsModel(AbstractObsModel):
         L : 2D array, size nAtom x K
             L[n,k] = log p( data atom n | EstParams for comp k )
     '''
-    logphi = np.log(self.EstParams.phi)
+    logphiT = np.log(self.EstParams.phi.T)
     if self.DataAtomType == 'doc':
       X = Data.getSparseDocTypeCountMatrix()
-      return X * logphi.T
+      return X * logphiT
     else:
-      return logphi.T[Data.word_id,:]
+      return logphiT[Data.word_id,:]
 
   ########################################################### EM M step
   ###########################################################
@@ -360,12 +362,12 @@ class MultObsModel(AbstractObsModel):
         ------
         L : 2D array, size nAtom x K
     '''
-    Elogphi = self.GetCached('E_logphi', 'all') # K x V
+    ElogphiT = self.GetCached('E_logphiT', 'all') # V x K
     if self.DataAtomType == 'doc':
       X = Data.getSparseDocTypeCountMatrix() # nDoc x V
-      return X * Elogphi.T
+      return X * ElogphiT
     else:
-      return Elogphi.T[Data.word_id, :]
+      return ElogphiT[Data.word_id, :]
 
 
   ########################################################### VB ELBO step
@@ -536,6 +538,18 @@ class MultObsModel(AbstractObsModel):
       Elogphi = digamma(self.Post.lam[k]) - digamma(self.Post.lam[k].sum())
     return Elogphi
 
+  def _E_logphiT(self, k=None):
+    ''' Calculate transpose of topic-word matrix
+
+        Important to make a copy of the matrix so it is C-contiguous,
+        which leads to much much faster matrix operations.
+
+        Returns
+        -------
+        ElogphiT : 2D array, vocab_size x K
+    '''
+    ElogphiT = self._E_logphi(k).T.copy()
+    return ElogphiT
 
 def c_Func(lam):
   assert lam.ndim == 1
