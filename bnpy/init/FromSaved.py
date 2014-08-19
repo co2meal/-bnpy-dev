@@ -47,7 +47,8 @@ def init_global_params_from_bnpy_format(hmodel, Data, initname,
   else:
     storedModel = ModelReader.load_model(initname, prefix)
   try:
-    hmodel.set_global_params(hmodel=storedModel)
+    hmodel.set_global_params(hmodel=storedModel,
+                             obsModel=storedModel.obsModel)
   except AttributeError:
     LP = storedModel.calc_local_params(Data)
     SS = hmodel.get_global_suff_stats(Data, LP)
