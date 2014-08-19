@@ -947,13 +947,16 @@ def createECovMatFromUserInput(D=0, Data=None, ECovMat='eye', sF=1.0):
     ''' Set Cov Matrix Sigma using the true labels in empirical Bayes style
         Sigma = \sum_{c : class labels} w_c * SampleCov[ data from class c]
     '''   
-    assert hasattr(Data, 'TrueLabels')
-    Zvals = np.unique(Data.TrueLabels)
+    if hasattr(Data, 'TrueLabels'):
+      Z = Data.TrueLabels
+    else:
+      Z = Data.TrueParams['Z']
+    Zvals = np.unique(Z)
     Kmax = len(Zvals)
     wHat = np.zeros(Kmax)
     SampleCov = np.zeros((Kmax,D,D))
     for kLoc, kVal in enumerate(Zvals):
-      mask = Data.TrueLabels == kVal
+      mask = Z == kVal
       wHat[kLoc] = np.sum(mask)
       SampleCov[kLoc] = np.cov(Data.X[mask].T, bias=1)
     wHat = wHat/np.sum(wHat)

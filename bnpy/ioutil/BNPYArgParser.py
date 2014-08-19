@@ -77,15 +77,15 @@ def parseKeywordArgs(ReqArgs, **kwargs):
   parser.add_argument('--kwhelp', action='store_true', help=KwhelpHelpStr)
 
   ## Apply the parser to input keywords
-  kwargs, unkDict = applyParserToStdInOrKwargs(parser, **kwargs)
-  if kwargs['kwhelp']:
+  parsedArgs, unkDict = applyParserToStdInOrKwargs(parser, **kwargs)
+  if parsedArgs['kwhelp']:
     parser.print_help()
     sys.exit(-1)
 
   ## Transform kwargs from "flat" dict, with no sense of sections
   #  into a multi-level dict, with sections for 'EM', 'Gauss', 'MixModel', etc.
-  kwargs = organizeParsedArgDictIntoSections(ReqArgs, Moves, kwargs)
-  return kwargs, unkDict
+  parsedArgs = organizeParsedArgDictIntoSections(ReqArgs, Moves, parsedArgs)
+  return parsedArgs, unkDict
 
 ########################################################### Parser Utils
 ########################################################### 
@@ -137,9 +137,15 @@ def arglist_to_kwargs(alist):
 
 def kwargs_to_arglist(**kwargs):
   ''' Return arglist where consecutive entries are the input key/value pairs
+
+      Sort output by name length, from small to large.
+      This prevents overriding options by mistake with abbreviations.
   '''
   arglist = list()
-  for key,val in kwargs.items():
+  keys = kwargs.keys()
+  keys.sort(key=len) # sort by length, smallest to largest
+  for key in keys:
+    val = kwargs[key]
     arglist.append('--' + key)
     arglist.append(str(val))
   return arglist
