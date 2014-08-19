@@ -112,7 +112,7 @@ class HDPPE(HDPSB):
     ''' Update global parameters.
     '''
     uhat = self._find_optimum_uhat(SS, **kwargs)
-    self.uhat
+    self.uhat = uhat
     self.K = SS.K
     self.ClearCache()
 
