@@ -157,6 +157,8 @@ class HModel(object):
     initname = initArgs['initname']
     if initname.count('true') > 0:
       init.FromTruth.init_global_params(self, Data, **initArgs)
+    elif initname.count('LP') > 0:
+      init.FromLP.init_global_params(self, Data, **initArgs)
     elif initname.count(os.path.sep) > 0:
       init.FromSaved.init_global_params(self, Data, **initArgs)
     else:
