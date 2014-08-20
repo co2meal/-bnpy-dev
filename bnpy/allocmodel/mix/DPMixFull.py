@@ -134,15 +134,13 @@ class DPMixFull(AllocModel):
 
     SS.setField('N', Nvec, dims=('K'))
     if doPrecompEntropy:
-      resp = LP['resp']
-      np.minimum(resp, 1-EPS, out=resp)
-      np.maximum(resp, EPS, out=resp)
-
       ElogqZ_vec = self.E_logqZ(LP)
       SS.setELBOTerm('ElogqZ', ElogqZ_vec, dims=('K'))
 
     if doPrecompMergeEntropy:
+      resp = LP['resp']
       if doPrecompMergeEntropy == 2:
+        np.minimum(resp, 1-EPS, out=resp)
         ElogqZVec = NumericUtil.calcRlogR(1.0 - resp)
         SS.setMergeTerm('ElogqZ', -1*ElogqZVec, dims=('K'))
       else:
@@ -151,7 +149,6 @@ class DPMixFull(AllocModel):
         else:
           ElogqZMat = NumericUtil.calcRlogR_specificpairs(resp, mPairIDs)
         SS.setMergeTerm('ElogqZ', ElogqZMat, dims=('K','K'))
-
     return SS
 
 
