@@ -374,7 +374,6 @@ class DPMixModel(AllocModel):
                   z_Elogq=evZq,
                   v_Elogp=self.E_logpV(),
                   v_Elogq=self.E_logqV())
-
     return evZ + evV
          
   def E_logpZ(self, SS):

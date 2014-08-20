@@ -3,6 +3,7 @@ from AllocModel import AllocModel
 from mix.MixModel import MixModel
 from mix.DPMixModel import DPMixModel
 from mix.DPMixPE import DPMixPE
+from mix.DPMixFull import DPMixFull
 
 from admix2.LDA import LDA
 from admix2.HDPSB import HDPSB
@@ -23,6 +24,7 @@ AllocModelConstructorsByName = { \
            'HDPSBDir':HDPSBDir,
            'HDPFastRhoFixed':HDPFastRhoFixed,
            'HDPFast':HDPFast,
+           'DPMixFull':DPMixFull,
           }
 
 AllocModelNameSet = set(AllocModelConstructorsByName.keys())
