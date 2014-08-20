@@ -30,7 +30,7 @@ class DPMixFull(AllocModel):
     if inferType == 'EM':
       raise ValueError('EM not supported for DPMixModel')
     self.inferType = inferType
-    if priorDict is None:
+    if priorDict is not None:
       self.set_prior(**priorDict)
     else:
       self.set_prior(**priorKwargs)
