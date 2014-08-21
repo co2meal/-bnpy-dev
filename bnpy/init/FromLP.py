@@ -27,9 +27,10 @@ def init_global_params(hmodel, Data, initname='', LP=None, **kwargs):
     LP = makeLP_ContigBlocks(Data, **kwargs)
   else:
     raise ValueError('Unrecognized initname: %s' % (initname))
-  return initHModelFromLP(hmodel, Data, LP)    
+  initHModelFromLP(hmodel, Data, LP)    
 
 
+def initHModelFromLP(hmodel, Data, LP):
   ''' Initialize provided bnpy HModel given data and local params.
 
       Executes summary step and global step.
@@ -38,8 +39,8 @@ def init_global_params(hmodel, Data, initname='', LP=None, **kwargs):
       --------
       None. hmodel global parameters updated in-place.
   '''
-  if hasattr(hmodel.allocmodel, 'initLPFromResp'):
-    LP = hmodel.allocmodel.initLPFromResp(Data, LP)
+  if hasattr(hmodel.allocModel, 'initLPFromResp'):
+    LP = hmodel.allocModel.initLPFromResp(Data, LP)
   SS = hmodel.get_global_suff_stats(Data, LP)
   hmodel.update_global_params(SS)
 

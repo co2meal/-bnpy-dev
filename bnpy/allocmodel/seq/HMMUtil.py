@@ -8,6 +8,7 @@ Intentionally separated from rest of HMM code, so that we can swap in
   any fast routine for this calculation with ease.
 '''
 import numpy as np
+from bnpy.util import EPS
 
 from bnpy.util.NumericUtil import Config as PlatformConfig
 from lib.LibFwdBwd import FwdAlg_cpp, BwdAlg_cpp
@@ -232,29 +233,36 @@ def _parseInput_SoftEv(logSoftEv, K):
 
 
 def viterbi(logSoftEv, pi0, pi):
+'''
+Input : The log evidence matrix (logSoftEv[n,k] = log(p(x_n | z_n = k))), as 
+well as the starting distribution and transition matrix.
+
+Output : The most likely sequence of hidden states, Z[0, ..., N-1]
+'''
+  logPi0 = np.log(pi0 + EPS)
+  logPi = np.log(pi + EPS)
   T, K = np.shape(logSoftEv)
+ 
   V = np.zeros((T, K))
-  softEv, lognormC = expLogLik(logSoftEv)
   prev = np.zeros((T, K))
 
   for t in xrange(T):
     for l in xrange(K):
       
       if t == 0:
-        V[0, l] = softEv[t,l] * pi0[l]
+        V[0, l] = logSoftEv[t,l] + logPi0[l]
         prev[0,l] = -1
         continue
 
-      biggest = 0
+      biggest = -np.inf
       for k in xrange(K):
-        pr = pi[k,l] * V[t-1, k]
-        if pr > biggest:
-          biggest = pr
+        logpr = logPi[k,l] + V[t-1, k]
+        if logpr > biggest:
+          biggest = logpr
           prev[t,l] = k
 
-      V[t, l] = softEv[t,l] * biggest
+      V[t, l] = logSoftEv[t,l] + biggest
 
-  
   #Find most likely sequence of z's
   z = np.zeros(T)
   for t in reversed(xrange(T)):
