@@ -44,9 +44,9 @@ class ParamBag(object):
         D : integer dimension of parameters this bag will contain
     '''
     self.K = K
+    self.D = 0
     for key, val in kwargs.iteritems():
-      if len(key) == 1:
-        setattr(self, key, val)
+      setattr(self, key, val)
     self._FieldDims = dict()
     self.doCollapseK1 = doCollapseK1
 

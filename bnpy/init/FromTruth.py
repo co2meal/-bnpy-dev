@@ -79,6 +79,8 @@ def _initFromTrueLP(hmodel, Data, initname, PRNG, nRepeatTrue=2, **kwargs):
   ## Adjust "true" labels as specified by initname
   if initname == 'repeattruelabels':
     LP = expandLPWithDuplicates(LP, PRNG, nRepeatTrue)
+  elif initname == 'truelabelsandempties':
+    LP = expandLPWithEmpty(LP, 1)
 
   if hasattr(hmodel.allocModel, 'initLPFromResp'):
     LP = hmodel.allocModel.initLPFromResp(Data, LP)
@@ -104,6 +106,12 @@ def convertLPFromHardToSoft(LP, Data):
     resp[mask,k] = 1.0
   return dict(resp=resp)
 
+def expandLPWithEmpty(LP, nCol):
+  ''' Create new LP by adding empty columns at the end
+  '''
+  resp = LP['resp']
+  LP['resp'] = np.hstack([resp, np.zeros((resp.shape[0], nCol))])
+  return LP
 
 def expandLPWithDuplicates(LP, PRNG, nRepeatTrue=2):
   ''' Create new LP by taking each existing component and duplicating it.

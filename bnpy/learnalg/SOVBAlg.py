@@ -97,11 +97,12 @@ class SOVBAlg(LearnAlg):
 
       # Save and display progress
       self.add_nObs(Dchunk.get_size())
-      self.save_state(hmodel, iterid, lapFrac, evBound)
-      self.print_state(hmodel, iterid, lapFrac, evBound, rho=rho)
+      self.save_state(hmodel, SS, iterid, lapFrac, evBound)
+      self.print_state(hmodel, SS, iterid, lapFrac, evBound, rho=rho)
 
     #Finally, save, print and exit
     status = "all data processed."
-    self.save_state(hmodel,iterid, lapFrac, evBound, doFinal=True)    
-    self.print_state(hmodel, iterid, lapFrac, evBound, doFinal=True, status=status)
+    self.save_state(hmodel, SS, iterid, lapFrac, evBound, doFinal=True)    
+    self.print_state(hmodel, SS, iterid, lapFrac, evBound, 
+                     doFinal=True, status=status)
     return None, self.buildRunInfo(evBound, status)
