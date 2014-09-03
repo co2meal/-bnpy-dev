@@ -39,6 +39,8 @@ Latent Dirichlet Allocation, by Blei, Ng, and Jordan
 introduces a classic admixture model with Dirichlet-Mult observations.
 '''
 import numpy as np
+import logging
+Log = logging.getLogger('bnpy')
 
 from ..AllocModel import AllocModel
 from bnpy.suffstats import SuffStatBag
@@ -52,8 +54,8 @@ class HDPFast(AllocModel):
   def __init__(self, inferType, priorDict=None):
     if inferType == 'EM':
       raise ValueError('HDPFast cannot do EM.')
-    if inferType == 'moVB':
-      raise ValueError('HDPFast cannot do memoized (yet).')
+    #if inferType == 'moVB':
+    #  raise ValueError('HDPFast cannot do memoized (yet).')
     self.inferType = inferType
     self.K = 0
     if priorDict is None:
@@ -166,13 +168,15 @@ class HDPFast(AllocModel):
     ##out -= digammaSum
     return out
 
-  def calcLogPrActiveComps_Fast(self, DocTopicCount, activeDocs=None, LP=dict(),
+  def calcLogPrActiveComps_Fast(self, DocTopicCount, activeDocs=None, LP=None,
                                       out=None):
     ''' Calculate log prob of each active topic for each active document
     '''
+    if LP is None:
+      LP = dict()
+
     ## alphaEbeta is 1D array, size K+1
     alphaEbeta = self.alpha * self.E_beta()
-
     if activeDocs is None:
       activeDocTopicCount = DocTopicCount
     else:
@@ -231,18 +235,39 @@ class HDPFast(AllocModel):
 
   ####################################################### Suff Stat Calc
   ####################################################### 
-  def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None, **kwargs):
+  def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None,
+                                            doPrecompMergeEntropy=None,
+                                            mPairIDs=None,
+                                            preselectroutine='',
+                                            **kwargs):
     ''' Calculate sufficient statistics.
     '''
     resp = LP['resp']
     _, K = resp.shape
     SS = SuffStatBag(K=K, D=Data.get_dim(), A=Data.nDoc)
     SS.setField('nDoc', Data.nDoc, dims=None)
-    SS.setField('DocTopicCount', LP['DocTopicCount'], dims=('A', 'K'))
+    SS.setField('DocTopicCount', LP['DocTopicCount'].copy(), dims=('A', 'K'))
+
+    ## Entropy caching
     if doPrecompEntropy:
       ElogqZ = self.E_logqZ(Data, LP)
       SS.setELBOTerm('ElogqZ', ElogqZ, dims='K')
 
+    ## Merge Term caching
+    if doPrecompMergeEntropy:
+      resp = LP['resp']
+      if mPairIDs is None:
+        ElogqZMat = NumericUtil.calcRlogR_allpairs(resp)
+      else:
+        ElogqZMat = NumericUtil.calcRlogR_specificpairs(resp, mPairIDs)
+      SS.setMergeTerm('ElogqZ', ElogqZMat, dims=('K','K'))
+
+    ## Selection terms (using doc-topic correlation)
+    if preselectroutine.count('doctopiccorr') > 0:
+      Tmat = LP['DocTopicCount']
+      SS.setSelectionTerm('DocTopicPairMat',
+                           np.dot(Tmat.T, Tmat), dims=('K','K'))
+      SS.setSelectionTerm('DocTopicSum', np.sum(Tmat, axis=0), dims='K')
     return SS
 
   ####################################################### VB Global Step
@@ -289,10 +314,11 @@ class HDPFast(AllocModel):
         Log.error('***** Optim failed. Remain at cur val. ' + str(error))
         rho = self.rho
         omega = self.omega
-      else:
+      else:      
         Log.error('***** Optim failed. Set to default init. ' + str(error))
+        from IPython import embed; embed()
         omega = (1 + self.gamma) * np.ones(SS.K)
-        rho = OptimFast.create_initrho(K)
+        rho = OptimFast.create_initrho(SS.K)
     return rho, omega
 
 
@@ -363,14 +389,15 @@ class HDPFast(AllocModel):
     ''' Calculate ELBO objective 
     '''
     UandcPi_global = self.E_logpU_logqU_c(SS)
-    qcPi = self.q_cPi(SS)
+    qcPi = self.cDir_q(SS)
+    calpha = SS.nDoc * (gammaln(self.alpha) + (SS.K+1) * np.log(self.alpha))
     if SS.hasELBOTerms():
       ElogqZ = SS.getELBOTerm('ElogqZ')
     else:
       ElogqZ = self.E_logqZ(Data, LP)
-    return UandcPi_global - np.sum(ElogqZ) - qcPi
+    return calpha + UandcPi_global - np.sum(ElogqZ) - qcPi
 
-  def q_cPi(self, SS):
+  def cDir_q(self, SS):
     ''' Calculate c_Dir( DocTopicCount[d,:] + alpha E[beta] ) for each doc d
 
         Returns
@@ -410,13 +437,15 @@ class HDPFast(AllocModel):
     ONcoef = SS.nDoc + 1.0 - g1
     OFFcoef = SS.nDoc * OptimFast.kvec(SS.K) + self.gamma - g0
 
-    ## comment out the line with SS.K risks ELBO
-    ## that INCREASES when adding empties
     cDiff = SS.K * c_Beta(1, self.gamma) - c_Beta(g1, g0)
-    #cDiff = -c_Beta(g1, g0)
     logBetaPDF = np.inner(ONcoef, ElogU) \
                  + np.inner(OFFcoef, Elog1mU)
     return cDiff + logBetaPDF
+
+
+  ######################################################### Hard Merge Gap
+  #########################################################
+  
 
 
 def c_Beta(a1, a0):

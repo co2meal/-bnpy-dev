@@ -72,6 +72,18 @@ def preselect_candidate_pairs(curModel, SS,
   elif kwargs['preselectroutine'].count('corr') > 0:
     # Use correlation matrix as score for selecting candidates!
     M = calcCorrInCompUsageFromSuffStats(SS)
+
+    # Take extra step to consider merging away topics with negligible mass
+    EMPTYTHR = 25
+    if hasattr(SS, 'N'):
+      sortIDs = np.argsort(SS.N)
+      for ii in xrange(SS.K/2):
+        worstID = sortIDs[ii]
+        bestID = sortIDs[-(ii+1)]
+        if SS.N[worstID] < EMPTYTHR and SS.N[bestID] > EMPTYTHR:
+          M[worstID, bestID] = 0.5
+          M[bestID, worstID] = 0.5
+
   else:
     raise NotImplementedError(kwargs['preselectroutine'])
 
@@ -249,7 +261,7 @@ def calcScoreMatrix_obsmodel(curModel, SS, excludePairs):
         M[kA, kB] = 0
   return M
 
-def calcCorrInCompUsageFromSuffStats(SS):
+def calcCorrInCompUsageFromSuffStats(SS, MINVAL=1e-8):
   '''
      Returns
      -------
@@ -261,16 +273,17 @@ def calcCorrInCompUsageFromSuffStats(SS):
   svec = SS.getSelectionTerm('DocTopicSum')
 
   nanIDs = np.isnan(Smat)
-  offlimitcompIDs = np.logical_or(np.isnan(svec), svec == 0)
   Smat[nanIDs] = 0
   svec[np.isnan(svec)] = 0
+  offlimitcompIDs = np.logical_or(np.isnan(svec), svec < MINVAL)
 
   CovMat = Smat / SS.nDoc - np.outer(svec / SS.nDoc, svec / SS.nDoc)
   varc = np.diag(CovMat)
-  assert varc.min() >= 0
 
   sqrtc = np.sqrt(varc)
-  sqrtc[offlimitcompIDs] = 1e-20
+  sqrtc[offlimitcompIDs] = MINVAL
+
+  assert sqrtc.min() >= MINVAL
   CorrMat = CovMat / np.outer(sqrtc, sqrtc)
 
   # Now, filter to leave only *positive* entries in upper diagonal
@@ -278,6 +291,7 @@ def calcCorrInCompUsageFromSuffStats(SS):
   CorrMat[np.tril_indices(K)] = 0
   CorrMat[CorrMat < 0] = 0
   CorrMat[nanIDs] = 0
+
   return CorrMat
 
 

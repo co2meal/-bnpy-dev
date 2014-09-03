@@ -111,7 +111,7 @@ class Test(unittest.TestCase):
     SS20.setELBOTerm('ElogqZ', np.zeros(20), dims='K')
     ELBO20 = m20.calc_evidence(None, SS20, None)
 
-    print '------------- Compare  ELBO gap computation'
+    print '------------- Verify that Ktrue is preferred over K20 in ELBO'
     print '%.6f  | ELBO Ktrue' % (ELBOtrue)
     print '%.6f  | ELBO K20' % (ELBO20)
 
@@ -119,20 +119,19 @@ class Test(unittest.TestCase):
       print 'WINNER: K20'
     else:
       print 'WINNER: Ktrue'
+    assert ELBOtrue > ELBO20
 
+    directgap = ELBOtrue - ELBO20
     print ''
-    print '------------- Verify ELBO gap computation'
+    print '------------- Verify ELBO gap computation (two methods must agree)'
     print '%.6f  |  GAP Ktrue - K20 using calc_evidence()' \
-                     % (ELBOtrue - ELBO20) 
+                     % (directgap) 
 
     fgap = -1 * (self.f_true - self.f20) * SS.nDoc
-    fgap += (8 - 20) * Optim.c_Beta(1, self.gamma) 
+    fgap += (SS.K - SS20.K) * Optim.c_Beta(1, self.gamma) 
+    fgap += SS.nDoc * (SS.K - SS20.K) * np.log(self.alpha)
     print '%.6f  |  GAP Ktrue - K20 using find_optimum() obj func' % (fgap) 
-
-    print '------------- TOTAL GAP (including D K log alpha)'
-    agap = SS.nDoc * (SS.K - SS20.K) * np.log(self.alpha)
-    print '%.6f | GAP including missing alpha term' % (fgap + agap)
-
+    assert np.allclose(fgap, directgap)
 
   def test_inputs_equal_in_nonzero_columns(self):
     ''' Verify that Ntrue and 8 columns of N20 are exactly the same.
