@@ -48,8 +48,9 @@ class DPMixFull(AllocModel):
     self.ElogU      = digamma(self.qgamma1) - digammaBoth
     self.Elog1mU    = digamma(self.qgamma0) - digammaBoth
 		
-		# Calculate expected mixture weights E[ log \beta_k ]	 
-    self.Elogbeta = self.ElogU.copy() # copy allows += without modifying ElogU
+		## Calculate expected mixture weights E[ log \beta_k ]	 
+    ## NOTE: using copy() allows += without modifying ElogU
+    self.Elogbeta = self.ElogU.copy() 
     self.Elogbeta[1:] += self.Elog1mU[:-1].cumsum()
     
   ######################################################### Accessors
