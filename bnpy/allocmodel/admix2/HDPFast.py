@@ -51,7 +51,9 @@ import LocalUtil
 class HDPFast(AllocModel):
   def __init__(self, inferType, priorDict=None):
     if inferType == 'EM':
-      raise ValueError('HDPFastFixed cannot do EM.')
+      raise ValueError('HDPFast cannot do EM.')
+    if inferType == 'moVB':
+      raise ValueError('HDPFast cannot do memoized (yet).')
     self.inferType = inferType
     self.K = 0
     if priorDict is None:
@@ -156,7 +158,7 @@ class HDPFast(AllocModel):
         Returns
         -------
         logp : 1D array, size K
-               logp[k] gives log prob of topic k in provided doc, up to additive const
+               logp[k] = log prob of topic k in the doc, up to additive const
     '''
     np.add(DocTopicCount_d, self.alphaEbeta[:-1], out=out)
     ##digammaSum = digamma(out.sum() + self.alphaEbeta[-1])
@@ -278,7 +280,8 @@ class HDPFast(AllocModel):
                                         DocTopicCount=SS.DocTopicCount,
                                         nDoc=SS.nDoc,
                                         gamma=self.gamma, alpha=self.alpha,
-                                        initrho=initrho, initomega=initomega)
+                                        initrho=initrho, initomega=initomega,
+                                        pgtol=1e-8)
     except ValueError as error:
       if str(error).count('FAILURE') == 0:
         raise error
@@ -360,14 +363,14 @@ class HDPFast(AllocModel):
     ''' Calculate ELBO objective 
     '''
     UandcPi_global = self.E_logpU_logqU_c(SS)
-    qcPi = self.q_cPi(LP)
+    qcPi = self.q_cPi(SS)
     if SS.hasELBOTerms():
       ElogqZ = SS.getELBOTerm('ElogqZ')
     else:
       ElogqZ = self.E_logqZ(Data, LP)
     return UandcPi_global - np.sum(ElogqZ) - qcPi
 
-  def q_cPi(self, LP):
+  def q_cPi(self, SS):
     ''' Calculate c_Dir( DocTopicCount[d,:] + alpha E[beta] ) for each doc d
 
         Returns
@@ -375,7 +378,7 @@ class HDPFast(AllocModel):
         Elogstuff : real scalar
     ''' 
     alphaEbeta = self.alpha * self.E_beta()
-    theta = LP['DocTopicCount'] + alphaEbeta[:-1]
+    theta = SS.DocTopicCount + alphaEbeta[:-1]
     thetaRem = alphaEbeta[-1]
     return c_Dir(theta, thetaRem)
 
@@ -405,9 +408,12 @@ class HDPFast(AllocModel):
     Elog1mU = digamma(g0) - digammaBoth
 
     ONcoef = SS.nDoc + 1.0 - g1
-    OFFcoef = SS.nDoc * OptimFast.kvec(self.K) + self.gamma - g0
+    OFFcoef = SS.nDoc * OptimFast.kvec(SS.K) + self.gamma - g0
 
+    ## comment out the line with SS.K risks ELBO
+    ## that INCREASES when adding empties
     cDiff = SS.K * c_Beta(1, self.gamma) - c_Beta(g1, g0)
+    #cDiff = -c_Beta(g1, g0)
     logBetaPDF = np.inner(ONcoef, ElogU) \
                  + np.inner(OFFcoef, Elog1mU)
     return cDiff + logBetaPDF
@@ -422,9 +428,9 @@ def c_Beta(a1, a0):
       -------
       c : scalar real
   '''
-  return np.sum(gammaln(a1 + a0)) - np.sum(gammaln(a1)) - np.sum(gammaln(a0))  
+  return np.sum(gammaln(a1 + a0) - gammaln(a1) - gammaln(a0))  
 
-def c_Dir(AMat, arem):
+def c_Dir(AMat, arem=None):
   ''' Evaluate cumulant function of the Dir distribution
 
       When input is vectorized, we compute sum over all entries.
@@ -433,10 +439,14 @@ def c_Dir(AMat, arem):
       -------
       c : scalar real
   '''
-  D = AMat.shape[0]
-  return  np.sum(gammaln(np.sum(AMat,axis=1)+arem)) \
-          - np.sum(gammaln(AMat)) \
-          - D * np.sum(gammaln(arem))
+  if arem is None:
+    assert AMat.ndim == 1
+    return gammaln(AMat.sum()) - np.sum(gammaln(AMat))
+  else:
+    D = AMat.shape[0]
+    return np.sum(gammaln(np.sum(AMat,axis=1)+arem)) \
+            - np.sum(gammaln(AMat)) \
+            - D * np.sum(gammaln(arem))
 
 def c_Dir__big(AMat, arem):
   AMatBig = np.hstack([AMat, arem*np.ones(AMat.shape[0])[:,np.newaxis]])

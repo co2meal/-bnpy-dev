@@ -59,7 +59,6 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None,
     curModel, curSS, curELBO, MoveInfo = buildMergeCandidateAndKeepIfImproved(
                                           curModel, curSS, curELBO,
                                           jA, jB, Mcand)
-    
     if kwargs['mergeLogVerbose']:
       MergeLogger.log( '%3d | %3d %3d | % .7e | %s' 
                         % (trialID, kA, kB, MoveInfo['ELBOGain'], scoreMsg)

@@ -213,7 +213,7 @@ class DPMixPE(AllocModel):
   ######################################################### Evidence
   #########################################################
   def calc_evidence(self, Data, SS, LP=None, todict=False, **kwargs):
-    '''
+    ''' Calculate ELBO objective function terms related to allocation model.
     '''
     evU = self.E_logpU()
     if SS.hasELBOTerm('ElogqZ'):
