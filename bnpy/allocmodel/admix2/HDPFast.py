@@ -51,7 +51,9 @@ import LocalUtil
 class HDPFast(AllocModel):
   def __init__(self, inferType, priorDict=None):
     if inferType == 'EM':
-      raise ValueError('HDPFastFixed cannot do EM.')
+      raise ValueError('HDPFast cannot do EM.')
+    if inferType == 'moVB':
+      raise ValueError('HDPFast cannot do memoized (yet).')
     self.inferType = inferType
     self.K = 0
     if priorDict is None:
@@ -156,7 +158,7 @@ class HDPFast(AllocModel):
         Returns
         -------
         logp : 1D array, size K
-               logp[k] gives log prob of topic k in provided doc, up to additive const
+               logp[k] = log prob of topic k in the doc, up to additive const
     '''
     np.add(DocTopicCount_d, self.alphaEbeta[:-1], out=out)
     ##digammaSum = digamma(out.sum() + self.alphaEbeta[-1])
@@ -410,8 +412,8 @@ class HDPFast(AllocModel):
 
     ## comment out the line with SS.K risks ELBO
     ## that INCREASES when adding empties
-    #cDiff = SS.K * c_Beta(1, self.gamma) - c_Beta(g1, g0)
-    cDiff = -c_Beta(g1, g0)
+    cDiff = SS.K * c_Beta(1, self.gamma) - c_Beta(g1, g0)
+    #cDiff = -c_Beta(g1, g0)
     logBetaPDF = np.inner(ONcoef, ElogU) \
                  + np.inner(OFFcoef, Elog1mU)
     return cDiff + logBetaPDF
@@ -428,7 +430,7 @@ def c_Beta(a1, a0):
   '''
   return np.sum(gammaln(a1 + a0) - gammaln(a1) - gammaln(a0))  
 
-def c_Dir(AMat, arem):
+def c_Dir(AMat, arem=None):
   ''' Evaluate cumulant function of the Dir distribution
 
       When input is vectorized, we compute sum over all entries.
@@ -437,10 +439,14 @@ def c_Dir(AMat, arem):
       -------
       c : scalar real
   '''
-  D = AMat.shape[0]
-  return  np.sum(gammaln(np.sum(AMat,axis=1)+arem)) \
-          - np.sum(gammaln(AMat)) \
-          - D * np.sum(gammaln(arem))
+  if arem is None:
+    assert AMat.ndim == 1
+    return gammaln(AMat.sum()) - np.sum(gammaln(AMat))
+  else:
+    D = AMat.shape[0]
+    return np.sum(gammaln(np.sum(AMat,axis=1)+arem)) \
+            - np.sum(gammaln(AMat)) \
+            - D * np.sum(gammaln(arem))
 
 def c_Dir__big(AMat, arem):
   AMatBig = np.hstack([AMat, arem*np.ones(AMat.shape[0])[:,np.newaxis]])
