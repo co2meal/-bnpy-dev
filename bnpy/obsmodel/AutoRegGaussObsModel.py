@@ -153,6 +153,7 @@ class AutoRegGaussObsModel(AbstractObsModel):
     Sigma = Post.B / (Post.nu - D - 1)[:, np.newaxis, np.newaxis]
     self.EstParams.setField('A', A, dims=('K','D','D'))
     self.EstParams.setField('Sigma', Sigma, dims=('K','D','D'))
+    self.K = self.EstParams.K
 
   
   ######################################################### Set Post
@@ -296,10 +297,7 @@ class AutoRegGaussObsModel(AbstractObsModel):
         L : 2D array, size D x D, lower triangular
             Sigma = np.dot(L, L.T)
     '''
-    try:
-      return scipy.linalg.cholesky(self.EstParams.Sigma[k], lower=1)    
-    except:
-      from IPython import embed; embed()
+    return scipy.linalg.cholesky(self.EstParams.Sigma[k], lower=1)    
 
   def _logdetSigma(self, k):
     ''' Calculate log determinant of EstParam.Sigma for comp k

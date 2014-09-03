@@ -53,7 +53,12 @@ def CreateToyDataFromLDAModel(**kwargs):
       kwargs[key] = Defaults[key]
   return WordsData.CreateToyDataFromLDAModel(**kwargs)
 
-if __name__ == '__main__':
-  import bnpy.viz.BarsViz
+def showExampleDocs(pylab=None):
+  import bnpy.viz.BarsViz as BarsViz
   WData = CreateToyDataFromLDAModel(seed=SEED)
-  bnpy.viz.BarsViz.plotExampleBarsDocs(WData)
+  if pylab is not None:
+    BarsViz.pylab = pylab
+  BarsViz.plotExampleBarsDocs(WData)
+
+if __name__ == '__main__':
+  showExampleDocs()
