@@ -112,6 +112,10 @@ class MOVBAlg(LearnAlg):
           SS.reorderComps(order)
 
       # M step
+      if self.isFirstBatch(lapFrac):
+        if SS is not None and hasattr(hmodel.obsModel, 'forceSSInBounds'):
+          hmodel.obsModel.forceSSInBounds(SS)
+
       if self.algParams['doFullPassBeforeMstep']:
         if SS is not None and lapFrac > 1.0:
           hmodel.update_global_params(SS)

@@ -237,6 +237,19 @@ class DiagGaussObsModel(AbstractObsModel):
     SS.setField('xx', dotATB(resp, np.square(X)), dims=('K', 'D'))
     return SS 
 
+  def forceSSInBounds(self, SS):
+    ''' Force count vector N to remain positive
+
+        This avoids numerical problems due to incremental additions and subtractions,
+        which can cause computations like 1 + 1e-15 - 1 - 1e-15 to be less than zero
+        instead of exactly zero.
+
+        Returns
+        -------
+        None. SS.N updated in-place.
+    '''
+    np.maximum(SS.N, 0, out=SS.N)
+
   def incrementSS(self, SS, k, x):
     SS.x[k] += x
     SS.xx[k] += np.square(x)

@@ -216,6 +216,20 @@ class MultObsModel(AbstractObsModel):
     SS.setField('SumWordCounts', np.sum(WordCounts, axis=1), dims=('K'))
     return SS
 
+  def forceSSInBounds(self, SS):
+    ''' Force count vectors to remain positive
+
+        This avoids numerical problems due to incremental additions and subtractions,
+        which can cause computations like 1 + 1e-15 - 1 - 1e-15 to be less than zero
+        instead of exactly zero.
+
+        Returns
+        -------
+        None. SS updated in-place.
+    '''
+    np.maximum(SS.WordCounts, 0, out=SS.WordCounts)
+    np.maximum(SS.SumWordCounts, 0, out=SS.SumWordCounts)
+
   def incrementSS(self, SS, k, Data, docID):
     SS.WordCounts[k] += Data.getSparseDocTypeCountMatrix()[docID,:]
 
