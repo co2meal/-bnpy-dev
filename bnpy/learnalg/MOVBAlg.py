@@ -292,8 +292,8 @@ class MOVBAlg(LearnAlg):
 
       # Save and display progress
       self.add_nObs(Dchunk.get_size())
-      self.save_state(hmodel, iterid, lapFrac, evBound)
-      self.print_state(hmodel, iterid, lapFrac, evBound)
+      self.save_state(hmodel, SS, iterid, lapFrac, evBound)
+      self.print_state(hmodel, SS, iterid, lapFrac, evBound)
       self.eval_custom_func(lapFrac, hmodel=hmodel, SS=SS, Dchunk=Dchunk, 
                                      LPchunk=LPchunk, batchID=batchID,
                                      SSchunk=SSchunk, learnAlg=self,
@@ -341,8 +341,9 @@ class MOVBAlg(LearnAlg):
       msg = "converged."
     else:
       msg = "max passes thru data exceeded."
-    self.save_state(hmodel, iterid, lapFrac, evBound, doFinal=True) 
-    self.print_state(hmodel, iterid, lapFrac,evBound,doFinal=True,status=msg)
+    self.save_state(hmodel, SS, iterid, lapFrac, evBound, doFinal=True) 
+    self.print_state(hmodel, SS, iterid, lapFrac, evBound, 
+                     doFinal=True, status=msg)
 
     self.SS = SS # hack so we can examine global suff stats
     # Births and merges require copies of original model object

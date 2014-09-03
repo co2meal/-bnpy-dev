@@ -139,7 +139,7 @@ class LearnAlg(object):
 
   #########################################################  Save to file
   #########################################################  
-  def save_state(self, hmodel, iterid, lap, evBound, doFinal=False):
+  def save_state(self, hmodel, SS, iterid, lap, evBound, doFinal=False):
     ''' Save state of the hmodel's global parameters and evBound
     '''
     traceEvery = self.outputParams['traceEvery']
@@ -178,8 +178,15 @@ class LearnAlg(object):
       with open(self.mkfile('laps-saved-params.txt'), 'a') as f:        
         f.write('%.4f\n' % (lap))
       prefix = ModelWriter.makePrefixForLap(lap)
-      ModelWriter.save_model(hmodel, self.savedir, prefix,
+
+      if self.outputParams['doSaveFullModel']:
+        ModelWriter.save_model(hmodel, self.savedir, prefix,
                               doSavePriorInfo=(iterid<1), doLinkBest=True)
+
+      if self.outputParams['doSaveEstParams']:
+        ModelWriter.saveEstParams(hmodel, SS, self.savedir, prefix,
+                                doLinkBest=True)
+
 
   # Define temporary function that creates files in this alg's output dir
   def mkfile(self, fname):
@@ -199,7 +206,8 @@ class LearnAlg(object):
 
   #########################################################  Print State
   #########################################################  
-  def print_state(self, hmodel, iterid, lap, evBound, doFinal=False, status='', rho=None):
+  def print_state(self, hmodel, SS, iterid, lap, evBound, 
+                        doFinal=False, status='', rho=None):
     printEvery = self.outputParams['printEvery']
     if printEvery <= 0:
       return None

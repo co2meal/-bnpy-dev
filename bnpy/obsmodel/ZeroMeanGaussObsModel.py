@@ -123,8 +123,9 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
     ''' Convert from Post (nu, B) to EstParams (Sigma),
          each EstParam is set to its posterior mean.
     '''
-    self.EstParams = ParamBag(K=K, D=D)    
-    Sigma = Post.B / (nu[k] - D - 1)
+    D = Post.D
+    self.EstParams = ParamBag(K=Post.K, D=D)    
+    Sigma = Post.B / (Post.nu - D - 1)[:,np.newaxis, np.newaxis]
     self.EstParams.setField('Sigma', Sigma, dims=('K','D','D'))
     self.K = self.EstParams.K
 
