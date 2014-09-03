@@ -475,8 +475,10 @@ class MOVBAlg(LearnAlg):
           #if kB >= LPchunk[key].shape[1]:
           #  # Birth occured in previous lap, after this batch was visited.
           #  return None
-          LPchunk[key][:,kA] = LPchunk[key][:,kA] + LPchunk[key][:,kB]
+          kB_column = LPchunk[key][:,kB]
           LPchunk[key] = np.delete(LPchunk[key], kB, axis=1)
+          LPchunk[key][:,kA] = LPchunk[key][:,kA] + kB_column
+
     # any shuffling/reordering is handled within allocmodel
     return LPchunk
 
