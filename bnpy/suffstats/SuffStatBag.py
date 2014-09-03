@@ -206,9 +206,11 @@ class SuffStatBag(object):
         if self.hasMergeTerm(key) and dims == ('K'):
           # some special terms need to be precomputed, like sumLogPiActive
           arr[kA] = getattr(self._MergeTerms, key)[kA,kB]
-        else:
+        elif dims[0] == 'K':
           # applies to vast majority of all fields
           arr[kA] += arr[kB]
+        elif len(dims) > 1 and dims[1] == 'K':
+          arr[:, kA] += arr[:, kB]
 
     if self.hasELBOTerms():
       for key, dims in self._ELBOTerms._FieldDims.items():

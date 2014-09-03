@@ -19,6 +19,8 @@ Latent Dirichlet Allocation, by Blei, Ng, and Jordan
 introduces a classic admixture model with Dirichlet-Mult observations.
 '''
 import numpy as np
+import logging
+Log = logging.getLogger('bnpy')
 
 from HDPFast import HDPFast, c_Beta, c_Dir
 

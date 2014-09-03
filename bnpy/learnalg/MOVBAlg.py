@@ -167,10 +167,6 @@ class MOVBAlg(LearnAlg):
         self.ModifiedCompIDs = list()
 
 
-      if self.isFirstBatch(lapFrac):
-        if SS is not None and SS.hasSelectionTerms():
-          SS._SelectTerms.setAllFieldsToZero()
-
       # Prep for Merge
       if self.hasMove('merge'):
         preselectroutine = self.algParams['merge']['preselectroutine']
@@ -208,7 +204,12 @@ class MOVBAlg(LearnAlg):
         if self.isFirstBatch(lapFrac) and lapFrac > 1:
           SS.setMergeFieldsToZero()
         mergeStartLap = self.algParams['softmerge']['mergeStartLap']
-        doPrecompMergeEntropy = 2      
+        doPrecompMergeEntropy = 2
+
+      ## Reset selection terms to zero
+      if self.isFirstBatch(lapFrac):
+        if SS is not None and SS.hasSelectionTerms():
+          SS._SelectTerms.setAllFieldsToZero()
 
       # E step
       if batchID in self.LPmemory:
@@ -470,9 +471,10 @@ class MOVBAlg(LearnAlg):
         kA = MInfo['kA']
         kB = MInfo['kB']
         for key in self.memoLPkeys:
-          if kB >= LPchunk[key].shape[1]:
-            # Birth occured in previous lap, after this batch was visited.
-            return None
+          ## Not sure about this old code. Disabled for now...
+          #if kB >= LPchunk[key].shape[1]:
+          #  # Birth occured in previous lap, after this batch was visited.
+          #  return None
           LPchunk[key][:,kA] = LPchunk[key][:,kA] + LPchunk[key][:,kB]
           LPchunk[key] = np.delete(LPchunk[key], kB, axis=1)
     # any shuffling/reordering is handled within allocmodel
