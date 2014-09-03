@@ -22,8 +22,11 @@ class Test(unittest.TestCase):
 
     ## Choice of alpha can make the difference between 
     ## whether the objective prefers Ktrue or Kmany
-    self.alpha = 0.5 # 0.99 --> bad
+    self.alpha = 0.5 # prefers Kmany when gamma=10
+    #self.alpha = 0.99 # prefers Ktrue when gamma=10
+    
     self.gamma = 10
+    #self.gamma = 100
 
     DTCtrue = Qtrue['DocTopicCount'].copy()
     DTC20 = Q20['DocTopicCount'].copy()
@@ -45,17 +48,20 @@ class Test(unittest.TestCase):
     self.DTC20 = DTC20
 
     TrueArgs = dict(
-      alpha = Qtrue['alpha'],
-      gamma = Qtrue['gamma'],
+      alpha = self.alpha,
+      gamma = self.gamma,
       nDoc = Qtrue['nDoc'],
       DocTopicCount = Qtrue['DocTopicCount'],
       )
-    self.rho_true, self.omega_true, self.f_true, self.Info_true \
-        = Optim.find_optimum_multiple_tries(**TrueArgs)
+    rhot, omegat, ft, Info = Optim.find_optimum_multiple_tries(**TrueArgs)
+    self.rho_true = rhot
+    self.omega_true = omegat
+    self.f_true = ft
+    self.Info_true = Info
 
     K20Args = dict(
-      alpha = Q20['alpha'],
-      gamma = Q20['gamma'],
+      alpha = self.alpha,
+      gamma = self.gamma,
       nDoc = Q20['nDoc'],
       DocTopicCount = Q20['DocTopicCount'],
       )
@@ -66,45 +72,71 @@ class Test(unittest.TestCase):
     self.f20 = f20
     self.Info20 = Info
 
+    K8Args = dict(
+      alpha = self.alpha,
+      gamma = self.gamma,
+      nDoc = Q20['nDoc'],
+      DocTopicCount = Q20['DocTopicCount'][:, self.grabIDs],
+      )
+    rho8, omega8, f8, Info8 = Optim.find_optimum_multiple_tries(**K8Args)
+    self.rho8 = rho8
+    self.omega8 = omega8
+    self.f8 = f8
+    self.Info8 = Info8
+
   def test_calc_evidence(self):
-    ''' Make HDPFast object and evaluate evidence
+    ''' Compare Ktrue and K20 models
     '''
     print ''
+
+    ## Make Ktrue model
     mtrue = HDPFast('VB', dict(alpha=self.alpha, gamma=self.gamma))
     mtrue.rho = self.rho_true
     mtrue.omega = self.omega_true
     mtrue.K = mtrue.rho.size
-
     SS = SuffStatBag(K=mtrue.K, D=2, A=5)
     SS.setField('nDoc', 5.0, dims=None)
     SS.setField('DocTopicCount', Qtrue['DocTopicCount'], dims=('A', 'K'))
     SS.setELBOTerm('ElogqZ', np.zeros(8), dims='K')
-
     ELBOtrue = mtrue.calc_evidence(None, SS, None)
-    print '%.6f' % (ELBOtrue)
 
-
-    m20 = HDPFast('VB', dict(alpha=Qtrue['alpha'], gamma=Qtrue['gamma']))
+    ## Make K20 model
+    m20 = HDPFast('VB', dict(alpha=self.alpha, gamma=self.gamma))
     m20.rho = self.rho20
     m20.omega = self.omega20
     m20.K = m20.rho.size
-
     SS20 = SuffStatBag(K=m20.K, D=2, A=5)
     SS20.setField('nDoc', 5.0, dims=None)
     SS20.setField('DocTopicCount', Q20['DocTopicCount'], dims=('A', 'K'))
     SS20.setELBOTerm('ElogqZ', np.zeros(20), dims='K')
-
     ELBO20 = m20.calc_evidence(None, SS20, None)
-    print '%.6f' % (ELBO20)
 
-    print (ELBOtrue - ELBO20) 
-    print -1 * (self.f_true - self.f20) * SS.nDoc
+    print '------------- Compare  ELBO gap computation'
+    print '%.6f  | ELBO Ktrue' % (ELBOtrue)
+    print '%.6f  | ELBO K20' % (ELBO20)
 
-    print 'MISSING GAP TERM (D K log alpha)'
-    print '%.6f' % (SS.nDoc * (SS.K - SS20.K) * np.log(self.alpha))
+    if ELBO20 > ELBOtrue:
+      print 'WINNER: K20'
+    else:
+      print 'WINNER: Ktrue'
+
+    print ''
+    print '------------- Verify ELBO gap computation'
+    print '%.6f  |  GAP Ktrue - K20 using calc_evidence()' \
+                     % (ELBOtrue - ELBO20) 
+
+    fgap = -1 * (self.f_true - self.f20) * SS.nDoc
+    fgap += (8 - 20) * Optim.c_Beta(1, self.gamma) 
+    print '%.6f  |  GAP Ktrue - K20 using find_optimum() obj func' % (fgap) 
+
+    print '------------- TOTAL GAP (including D K log alpha)'
+    agap = SS.nDoc * (SS.K - SS20.K) * np.log(self.alpha)
+    print '%.6f | GAP including missing alpha term' % (fgap + agap)
 
 
   def test_inputs_equal_in_nonzero_columns(self):
+    ''' Verify that Ntrue and 8 columns of N20 are exactly the same.
+    '''
     print ''
 
     N8 = self.N20[self.grabIDs]
@@ -112,35 +144,33 @@ class Test(unittest.TestCase):
     print np2flatstr(N8)
     assert np.allclose(self.Ntrue, N8)
 
+
   def test_find_optimum(self):
+    ''' Verify that top8 solution optimum is exactly equal to Ktrue optimum
+    '''
     print ''
 
-    ## Run Optimization for K true
+    ## Ktrue solution
+    print '-------------------- Ktrue'
     beta_true = Optim.rho2beta_active(self.rho_true)
-    print self.Info_true['msg']
     print '%.5f' % (self.f_true)
     print np2flatstr(beta_true)
-    print np2flatstr(self.Ntrue)
 
-    ## Run Optim for K=20
+    ## K20 solution
+    print '-------------------- K20'
     beta20 = Optim.rho2beta_active(self.rho20)
-    print self.Info20['msg']
     print '%.5f' % (self.f20)
     print np2flatstr(beta20[self.grabIDs])
-    print np2flatstr(self.N20[self.grabIDs])
 
-    ## Run Optim for K=8
-    K8Args = dict(
-      alpha = Q20['alpha'],
-      gamma = Q20['gamma'],
-      nDoc = Q20['nDoc'],
-      DocTopicCount = Q20['DocTopicCount'][:, self.grabIDs],
-      )
-    rho8, omega8, f8, Info = Optim.find_optimum_multiple_tries(
-                                      **K8Args)
-    beta8 = Optim.rho2beta_active(rho8)
-    print Info['msg']
-    print '%.5f' % (f8)
+    ## Top 8 Columns of K8 solution
+    print '-------------------- Ktop8'
+    beta8 = Optim.rho2beta_active(self.rho8)
+    print '%.5f' % (self.f8)
     print np2flatstr(beta8)
 
-    assert f8 < self.f20 ## minimization objective!
+    ## Verify top8 soln equal to true 
+    assert np.allclose(self.f_true, self.f8)
+
+    ## Verify that top 8 columns solution better than all 20
+    ## Here, better means less than due to minimization objective!
+    assert self.f8 < self.f20 
