@@ -75,14 +75,22 @@ def preselect_candidate_pairs(curModel, SS,
 
     # Take extra step to consider merging away topics with negligible mass
     EMPTYTHR = 25
+    Nvec = None
     if hasattr(SS, 'N'):
-      sortIDs = np.argsort(SS.N)
+      Nvec = SS.N
+    elif hasattr(SS, 'SumWordCounts'):
+      Nvec = SS.SumWordCounts
+
+    if Nvec is not None:
+      sortIDs = np.argsort(Nvec)
       for ii in xrange(SS.K/2):
         worstID = sortIDs[ii]
         bestID = sortIDs[-(ii+1)]
-        if SS.N[worstID] < EMPTYTHR and SS.N[bestID] > EMPTYTHR:
+        if Nvec[worstID] < EMPTYTHR and Nvec[bestID] > EMPTYTHR:
           M[worstID, bestID] = 0.5
           M[bestID, worstID] = 0.5
+        if Nvec[worstID] > EMPTYTHR:
+          break
 
   else:
     raise NotImplementedError(kwargs['preselectroutine'])
