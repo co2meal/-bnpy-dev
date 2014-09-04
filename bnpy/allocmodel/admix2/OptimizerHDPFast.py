@@ -239,7 +239,7 @@ def objFunc_constrained(rhoomega,
     ## Calc term that depends on how topics used in each document
     Ebeta = np.hstack([rho, 1.0])
     Ebeta[1:] *= np.cumprod(1-rho)
-    alphaEbeta = alpha*Ebeta
+    alphaEbeta = alpha * Ebeta
     theta = DocTopicCount + alphaEbeta[:-1]
     cDir_qPi = np.sum(gammaln(theta))
     cDirRem_qPi = gammaln(alphaEbeta[-1])

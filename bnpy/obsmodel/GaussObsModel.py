@@ -234,9 +234,13 @@ class GaussObsModel(AbstractObsModel):
   def forceSSInBounds(self, SS):
     ''' Force count vector N to remain positive
 
-        This avoids numerical problems due to incremental additions and subtractions,
-        which can cause computations like 1 + 1e-15 - 1 - 1e-15 to be less than zero
-        instead of exactly zero.
+        This avoids numerical problems due to incremental add/subtract ops
+        which can cause computations like 
+            x = 10.
+            x += 1e-15
+            x -= 10
+            x -= 1e-15
+        to be slightly different than zero instead of exactly zero.
 
         Returns
         -------
