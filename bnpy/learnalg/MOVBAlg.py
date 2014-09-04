@@ -263,8 +263,6 @@ class MOVBAlg(LearnAlg):
       #  to make SS have size exactly consistent with entire dataset
       if self.hasMove('birth') and self.isLastBatch(lapFrac):
         hmodel, SS = self.birth_remove_extra_mass(hmodel, SS, BirthResults)
-
-        #print ' '.join(['%7.1f' % (x) for x in SS.N]), 'final'
       
       # Store batch-specific stats to memory
       if self.algParams['doMemoizeLocalParams']:

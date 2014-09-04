@@ -59,7 +59,7 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None,
 
     curModel, curSS, curELBO, MoveInfo = buildMergeCandidateAndKeepIfImproved(
                                           curModel, curSS, curELBO,
-                                          jA, jB, Mcand)
+                                          jA, jB, Mcand, **kwargs)
 
     if kwargs['mergeLogVerbose']:
       MergeLogger.log( '%3d | %3d %3d | % .7e | %s' 
@@ -88,11 +88,12 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None,
   return curModel, curSS, curELBO, Info
 
 
-def buildMergeCandidateAndKeepIfImproved(curModel, curSS, curELBO, kA, kB, Mcur=0):
-  ''' Create candidate model/SS with kA,kB merged, and keep if ELBO improves.
+def buildMergeCandidateAndKeepIfImproved(curModel, curSS, curELBO,
+                                         kA, kB, Mcur=0,
+                                         **kwargs):
+  ''' Create candidate model/SS with kA, kB merged, and keep if ELBO improves.
   '''
-  assert not np.isnan(curELBO)
-  assert not np.isinf(curELBO)
+  assert np.isfinite(curELBO)
 
   # Rewrite candidate's kA component to be the merger of kA+kB
   propSS = curSS.copy()
@@ -100,7 +101,10 @@ def buildMergeCandidateAndKeepIfImproved(curModel, curSS, curELBO, kA, kB, Mcur=
   assert propSS.K == curSS.K - 1
 
   propModel = curModel.copy()
-  propModel.update_global_params(propSS, mergeCompA=kA, mergeCompB=kB)
+  if kwargs['mergeUpdateFast']:
+    propModel.update_global_params(propSS, mergeCompA=kA, mergeCompB=kB)
+  else:
+    propModel.update_global_params(propSS)
 
   # After update_global_params, propModel's comps exactly match propSS's.
   # So at this point, kB has been deleted, and propModel has K-1 components.
@@ -109,8 +113,7 @@ def buildMergeCandidateAndKeepIfImproved(curModel, curSS, curELBO, kA, kB, Mcur=
 
   # Verify Merge improves the ELBO 
   propELBO = propModel.calc_evidence(SS=propSS)
-  assert not np.isnan(propELBO)
-  assert not np.isinf(propELBO)
+  assert np.isfinite(propELBO)
 
   didAccept = propELBO > curELBO - ELBO_GAP_ACCEPT_TOL
   Info = dict(didAccept=didAccept, 

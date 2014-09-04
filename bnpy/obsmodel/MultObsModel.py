@@ -355,14 +355,14 @@ class MultObsModel(AbstractObsModel):
   def convertPostToNatural(self):
     ''' Convert (in-place) current posterior params from common to natural form
 
-        Here, the Wishart common form is equivalent to the natural form
+        Here, the Dirichlet common form is equivalent to the natural form
     '''
     pass
     
   def convertPostToCommon(self):
     ''' Convert (in-place) current posterior params from natural to common form
 
-        Here, the Wishart common form is equivalent to the natural form
+        Here, the Dirichlet common form is equivalent to the natural form
     '''
     pass
 

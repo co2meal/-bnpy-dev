@@ -238,7 +238,7 @@ class HDPFast(AllocModel):
   def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None,
                                             doPrecompMergeEntropy=None,
                                             mPairIDs=None,
-                                            preselectroutine='',
+                                            preselectroutine=None,
                                             **kwargs):
     ''' Calculate sufficient statistics.
     '''
@@ -263,19 +263,31 @@ class HDPFast(AllocModel):
       SS.setMergeTerm('ElogqZ', ElogqZMat, dims=('K','K'))
 
     ## Selection terms (using doc-topic correlation)
-    if preselectroutine.count('doctopiccorr') > 0:
-      Tmat = LP['DocTopicCount']
-      SS.setSelectionTerm('DocTopicPairMat',
+    if preselectroutine is not None:
+      if preselectroutine.count('doctopiccorr') > 0:
+        Tmat = LP['DocTopicCount']
+        SS.setSelectionTerm('DocTopicPairMat',
                            np.dot(Tmat.T, Tmat), dims=('K','K'))
-      SS.setSelectionTerm('DocTopicSum', np.sum(Tmat, axis=0), dims='K')
+        SS.setSelectionTerm('DocTopicSum', np.sum(Tmat, axis=0), dims='K')
     return SS
 
   ####################################################### VB Global Step
   #######################################################
-  def update_global_params_VB(self, SS, rho=None, **kwargs):
+  def update_global_params_VB(self, SS, rho=None, 
+                                    mergeCompA=None, mergeCompB=None, 
+                                    **kwargs):
     ''' Update global parameters.
     '''
-    rho, omega = self._find_optimum_rhoomega(SS, **kwargs)
+    if mergeCompA is None:
+      rho, omega = self._find_optimum_rhoomega(SS, **kwargs)
+    else:
+      beta = OptimFast.rho2beta_active(self.rho)
+      beta[mergeCompA] += beta[mergeCompB]
+      beta = np.delete(beta, mergeCompB, axis=0)
+      rho = OptimFast.beta2rho(beta, SS.K)
+      omega = self.omega
+      omega[mergeCompA] += omega[mergeCompB]
+      omega = np.delete(omega, mergeCompB, axis=0)
     self.rho = rho
     self.omega = omega
     self.K = SS.K
