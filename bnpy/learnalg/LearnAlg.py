@@ -168,6 +168,25 @@ class LearnAlg(object):
       with open( self.mkfile('K.txt'), 'a') as f:
         f.write('%d\n' % (hmodel.obsModel.K))
 
+      # Record active counts in plain-text files
+      counts = None
+      try:
+        counts = SS.N
+      except AttributeError:
+        counts = SS.SumWordCounts
+      if counts is not None:
+        assert counts.ndim == 1
+        counts = np.asarray(counts, dtype=np.float32)
+        np.maximum(counts, 0, out=counts)
+        with open(self.mkfile('ActiveCounts.txt'), 'a') as f:
+          flatstr = ' '.join(['%.3f' % x for x in counts])
+          f.write(flatstr+'\n')
+
+      if hasattr(hmodel, 'ActiveIDVec'):
+        with open(self.mkfile('ActiveIDs.txt'), 'a') as f:
+          flatstr = ' '.join(['%d' % x for x in hmodel.ActiveIDVec])
+          f.write(flatstr+'\n')
+
     saveEvery = self.outputParams['saveEvery']
     if saveEvery <= 0 or self.savedir is None:
       return

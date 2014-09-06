@@ -54,6 +54,8 @@ class MOVBAlg(LearnAlg):
     
     '''
     origmodel = hmodel
+    self.ActiveIDVec = np.arange(hmodel.obsModel.K)
+
     # Define how much of data we see at each mini-batch
     nBatch = float(DataIterator.nBatch)
     self.lapFracInc = 1.0/nBatch
@@ -110,6 +112,7 @@ class MOVBAlg(LearnAlg):
         if SS is not None:
           order = np.argsort(-1*SS.N)
           SS.reorderComps(order)
+          self.ActiveIDVec = self.ActiveIDVec[order]
 
       # M step
       if self.isFirstBatch(lapFrac):
@@ -294,6 +297,7 @@ class MOVBAlg(LearnAlg):
         evBound = hmodel.calc_evidence(SS=SS)
 
       # Save and display progress
+      hmodel.ActiveIDVec = self.ActiveIDVec
       self.add_nObs(Dchunk.get_size())
       self.save_state(hmodel, SS, iterid, lapFrac, evBound)
       self.print_state(hmodel, SS, iterid, lapFrac, evBound)
@@ -801,6 +805,7 @@ class MOVBAlg(LearnAlg):
     # ------ Record accepted moves, so can adjust memoized stats later
     self.MergeLog = list()
     for kA, kB in Info['AcceptedPairs']:
+      self.ActiveIDVec = np.delete(self.ActiveIDVec, kB, axis=0)
       self.MergeLog.append(dict(kA=kA, kB=kB, Korig=Korig))
       Korig -= 1
 
