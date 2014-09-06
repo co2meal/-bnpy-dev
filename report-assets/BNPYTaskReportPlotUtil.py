@@ -67,11 +67,13 @@ Colors = ['b','r','g','m','c','k','y']
 Styles = ['.-', 'o--', 'x:']
 
 def PlotSingleRunELBOAndK(taskpath):
-  pylab.subplots(nrows=1, ncols=2, figsize=(10, 2))
+  pylab.subplots(nrows=1, ncols=2) #, figsize=(6, 2))
   pylab.subplot(1, 2, 1)
   PlotSingleRunELBO(taskpath)
   pylab.subplot(1, 2, 2)
   PlotSingleRunTruncationLevel(taskpath)
+
+  pylab.tight_layout()
 
 def PlotSingleRunELBO(taskpath):
   ''' Plot ELBO for single run

@@ -143,7 +143,9 @@ def writeReportForTask(taskpath):
     print "Wrote output to file: %s" % ipynbfilepath
 
     convert_notebook_to_public_html(taskpath)
-    print "Converted to HTML: %s" % (ipynbfilepath.replace('.ipynb', '.html'))
+    htmlfpath = ipynbfilepath.replace('.ipynb', '.html')
+    #htmlhyperlink = '<a href="%s">%s</a>' % (htmlfpath, htmlfpath)
+    print "Converted to HTML: %s" % (htmlfpath)
 
 def create_task_report_notebook(taskpath):
     ''' Copy TaskReport.ipynb into taskpath, replacing relevant template lines
