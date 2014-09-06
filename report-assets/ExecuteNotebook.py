@@ -16,7 +16,7 @@ from Queue import Empty
 import commands
 from distutils.dir_util import mkpath
 
-WEBDIRS=['/pro/web/web/people/mhughes/research/topic-model-notes/',
+WEBDIRS=['/pro/web/web/people/mhughes/',
         '/Users/mhughes/Desktop/',
        ]
 
@@ -180,10 +180,12 @@ def convert_notebook_to_public_html(taskpath):
     for WEBDIR in WEBDIRS:
       if os.path.exists(WEBDIR):
         jobpath = taskpath.replace(os.environ['BNPYOUTDIR'], '')
-        mkpath(os.path.join(WEBDIR, jobpath))
+        mkpath(os.path.join(WEBDIR, jobpath), mode=755)
+        htmlpath = os.path.join(WEBDIR, jobpath, 'TaskReport.html')
         shutil.copy(os.path.join(taskpath,'TaskReport.html'),
-                    os.path.join(WEBDIR, jobpath, 'TaskReport.html')
+                    htmlpath
                    )
+        os.chmod(htmlpath, 0755)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run iPython notebook ' +
