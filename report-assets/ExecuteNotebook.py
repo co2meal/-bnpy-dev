@@ -180,12 +180,15 @@ def convert_notebook_to_public_html(taskpath):
     for WEBDIR in WEBDIRS:
       if os.path.exists(WEBDIR):
         jobpath = taskpath.replace(os.environ['BNPYOUTDIR'], '')
-        mkpath(os.path.join(WEBDIR, jobpath), mode=755)
+        newPathList = mkpath(os.path.join(WEBDIR, jobpath))
         htmlpath = os.path.join(WEBDIR, jobpath, 'TaskReport.html')
         shutil.copy(os.path.join(taskpath,'TaskReport.html'),
                     htmlpath
                    )
-        os.chmod(htmlpath, 0755)
+        # Set permissions on all this file (and all ancestor directories)
+        for ancestorPath in newPathList:
+          os.chmod(ancestorPath, 755)
+        os.chmod(htmlpath, 755)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run iPython notebook ' +
