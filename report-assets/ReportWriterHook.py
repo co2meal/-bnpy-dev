@@ -11,7 +11,7 @@ import time
 from ExecuteNotebook import writeReportForTask
 
 RecordTimes = [0]
-RECORD_INTERVAL_SEC = 5
+RECORD_INTERVAL_SEC = 10 * 60 # Every ten minutes
 
 def onLapComplete(lapFrac=0, learnAlg=None, **kwargs):
   if lapFrac == learnAlg.algParams['nLap']:
