@@ -71,10 +71,15 @@ def _initFromTrueLP(hmodel, Data, initname, PRNG, nRepeatTrue=2, **kwargs):
     LP = convertLPFromHardToSoft(LP, Data)
   elif hasattr(Data, 'TrueParams') and 'resp' in Data.TrueParams:
     LP['resp'] = Data.TrueParams['resp']
-    if hasattr(Data, 'nDoc') and hmodel.obsModel.DataAtomType == 'doc':
-      LP = convertLPFromTokensToDocs(LP, Data)
   else:
     raise ValueError('init_global_params requires TrueLabels or TrueParams.')
+
+  ## Convert between token/doc responsibilities
+  if str(type(hmodel.obsModel)).count('Mult'):
+    if hmodel.obsModel.DataAtomType == 'doc':
+      LP = convertLPFromTokensToDocs(LP, Data)
+    else:
+      LP = convertLPFromDocsToTokens(LP, Data)
 
   ## Adjust "true" labels as specified by initname
   if initname == 'repeattruelabels':
@@ -136,7 +141,6 @@ def expandLPWithDuplicates(LP, PRNG, nRepeatTrue=2):
   LP['resp'] = bigResp
   return LP
 
-
 def convertLPFromTokensToDocs(LP, Data):
   ''' Convert token-specific responsibilities into document-specific ones
   '''
@@ -149,4 +153,20 @@ def convertLPFromTokensToDocs(LP, Data):
     respMatForDoc = resp[Data.doc_range[d]:Data.doc_range[d+1]]
     docResp[d,:] = np.mean( respMatForDoc, axis=0)
   LP['resp'] = docResp
+  return LP
+
+def convertLPFromDocsToTokens(LP, Data):
+  ''' Convert doc-specific responsibilities into token-specific ones
+  '''
+  docResp = LP['resp']
+  N, K = docResp.shape
+  if N == Data.nUniqueToken:
+    return LP
+  tokResp = np.zeros((Data.nUniqueToken, K))
+  for d in xrange(Data.nDoc):
+    curDocResp = docResp[d]    
+    start = Data.doc_range[d]
+    stop = Data.doc_range[d+1]
+    tokResp[start:stop,:] = curDocResp
+  LP['resp'] = tokResp
   return LP

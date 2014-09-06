@@ -6,7 +6,14 @@ Visualizing 2D covariance matrix of learned Gaussian mixture models
 import numpy as np
 from matplotlib import pylab
 
-Colors = [ (1,0,0), (1,0,1), (0,1,0), (0,1,1), (0,0,1), (1,0.6,0)]
+Colors = [(1,0,0), 
+          (1,0,1), 
+          (0,1,0), 
+          (0,1,1),
+          (0,0,1),
+          (1,0.6,0),
+          (1,0, 0.5),
+          (0.5, 0.8, 0.8)]
 
 def plotGauss2DFromHModel(hmodel, compListToPlot=None,
                                   compsToHighlight=None, 
@@ -82,7 +89,7 @@ def plotGauss2DContour(mu, Sigma, color='b', radiusLengths=[0.5, 1.25, 2]):
 
   # Prep for plotting elliptical contours 
   # by creating grid of (x,y) points along perfect circle
-  ts = np.arange( -np.pi, np.pi, 0.01 )
+  ts = np.arange( -np.pi, np.pi, 0.03 )
   x  = np.sin(ts)
   y  = np.cos(ts)
   Zcirc = np.vstack([x, y])

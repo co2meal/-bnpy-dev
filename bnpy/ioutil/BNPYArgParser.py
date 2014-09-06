@@ -84,6 +84,9 @@ def parseKeywordArgs(ReqArgs, **kwargs):
     parser.print_help()
     sys.exit(-1)
 
+  if 'moves' in unkDict:
+    del unkDict['moves']
+
   ## Transform kwargs from "flat" dict, with no sense of sections
   #  into a multi-level dict, with sections for 'EM', 'Gauss', 'MixModel', etc.
   kwargs = organizeParsedArgDictIntoSections(ReqArgs, Moves, kwargs)

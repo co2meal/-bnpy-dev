@@ -328,7 +328,6 @@ class HDPFast(AllocModel):
         omega = self.omega
       else:      
         Log.error('***** Optim failed. Set to default init. ' + str(error))
-        from IPython import embed; embed()
         omega = (1 + self.gamma) * np.ones(SS.K)
         rho = OptimFast.create_initrho(SS.K)
     return rho, omega
