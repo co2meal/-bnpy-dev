@@ -434,9 +434,6 @@ def getOutputPath(ReqArgs, KwArgs, taskID=0 ):
     dataName = dataName.get_short_name()
   return os.path.join(os.environ['BNPYOUTDIR'], 
                        dataName, 
-                       ReqArgs['allocModelName'],
-                       ReqArgs['obsModelName'],
-                       ReqArgs['algName'],
                        KwArgs['OutputPrefs']['jobname'], 
                        str(taskID) )
 
