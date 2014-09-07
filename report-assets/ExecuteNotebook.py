@@ -171,12 +171,12 @@ def convert_notebook_to_public_html(taskpath):
     ''' Convert TaskReport notebook to HTML
     '''
     ipynbpath = os.path.join(taskpath, 'TaskReport.ipynb')
-    htmlpath = os.path.join(taskpath, 'TaskReport') # .html already added in
+    myhtmlpath = os.path.join(taskpath, 'TaskReport') # .html already added in
     logfilepath = os.path.join(taskpath, 'stdout.log')
 
     print '---------------- >>> nbconvert STARTED'
     CMD = "ipython nbconvert %s --to html --output %s >> %s" \
-           % (ipynbpath, htmlpath, logfilepath)
+           % (ipynbpath, myhtmlpath, logfilepath)
     stdout = commands.getoutput(CMD)
     print stdout
     print '<<<----------------- nbconvert FINISHED'
@@ -185,15 +185,19 @@ def convert_notebook_to_public_html(taskpath):
       if os.path.exists(WEBDIR):
         jobpath = taskpath.replace(os.environ['BNPYOUTDIR'], '')
         newPathList = mkpath(os.path.join(WEBDIR, jobpath))
-        htmlpath = os.path.join(WEBDIR, jobpath, 'TaskReport.html')
+        webhtmlpath = os.path.join(WEBDIR, jobpath, 'TaskReport.html')
+
+        print webhtmlpath
+        print myhtmlpath
+
         ## Overwrite TaskReport.html with fresh copy
-        shutil.copy(os.path.join(taskpath,'TaskReport.html'),
-                    htmlpath
+        shutil.copy(myhtmlpath + '.html',
+                    webhtmlpath
                    )
         # Set permissions on all this file (and all ancestor directories)
         for ancestorPath in newPathList:
           os.chmod(ancestorPath, 0755)
-        os.chmod(htmlpath, 0755)
+        os.chmod(webhtmlpath, 0755)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
