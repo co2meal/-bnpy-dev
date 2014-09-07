@@ -24,9 +24,17 @@ def onLapComplete(lapFrac=0, learnAlg=None, **kwargs):
 
   if etime > np.max(RecordTimes) + RECORD_INTERVAL_SEC:
     rtime = RecordTimes[-1] + RECORD_INTERVAL_SEC
-    RecordTimes.append(rtime)    
-    writeReportForTask(learnAlg.savedir)
+    RecordTimes.append(rtime)
+    try:  
+      writeReportForTask(learnAlg.savedir)
+    except e:
+      print 'CAUGHT ERROR IN writeReportForTask!'
+      print str(e)
     
 def onAlgorithmComplete(lapFrac=0, learnAlg=None, **kwargs):
   print "WRITING REPORT | FINAL"
-  writeReportForTask(learnAlg.savedir)
+  try:
+    writeReportForTask(learnAlg.savedir)
+  except e:
+    print 'CAUGHT ERROR IN writeReportForTask!'
+    print str(e)
