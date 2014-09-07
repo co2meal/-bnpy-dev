@@ -14,6 +14,7 @@ RecordTimes = [0]
 RECORD_INTERVAL_SEC = 10 * 60 # Every ten minutes
 
 def onLapComplete(lapFrac=0, learnAlg=None, **kwargs):
+  print "WRITING REPORT | AT LAP %.2f" % (lapFrac)
   if lapFrac == learnAlg.algParams['nLap']:
     ## skip writing report on final lap, since onAlgComplete takes care of this
     return
@@ -27,4 +28,5 @@ def onLapComplete(lapFrac=0, learnAlg=None, **kwargs):
     writeReportForTask(learnAlg.savedir)
     
 def onAlgorithmComplete(lapFrac=0, learnAlg=None, **kwargs):
+  print "WRITING REPORT | FINAL"
   writeReportForTask(learnAlg.savedir)

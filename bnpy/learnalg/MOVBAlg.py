@@ -352,6 +352,13 @@ class MOVBAlg(LearnAlg):
     self.print_state(hmodel, SS, iterid, lapFrac, evBound, 
                      doFinal=True, status=msg)
 
+    self.eval_custom_func(lapFrac, hmodel=hmodel, SS=SS, Dchunk=Dchunk,
+                                   LPchunk=LPchunk, batchID=batchID,
+                                   SSchunk=SSchunk, learnAlg=self,
+                                   evBound=evBound,
+                                   isFinal=True,
+                                   )
+
     self.SS = SS # hack so we can examine global suff stats
     # Births and merges require copies of original model object
     #  we need to make sure original reference has updated parameters, etc.
