@@ -31,15 +31,14 @@ except ImportError:
 from IPython.nbformat.current import reads, NotebookNode, write
 
 def run_cell(shell, iopub, cell):
-    # print cell.input
     shell.execute(cell.input)
-    # wait for finish, maximum 20s
-    shell.get_msg(timeout=20)
+    # wait for finish or timeout (in seconds)
+    shell.get_msg(timeout=90)
     outs = []
     
     while True:
         try:
-            msg = iopub.get_msg(timeout=0.2)
+            msg = iopub.get_msg(timeout=1.0)
         except Empty:
             break
         msg_type = msg['msg_type']
@@ -145,15 +144,17 @@ def writeReportForTask(taskpath):
 
     convert_notebook_to_public_html(taskpath)
     htmlfpath = ipynbfilepath.replace('.ipynb', '.html')
-    #htmlhyperlink = '<a href="%s">%s</a>' % (htmlfpath, htmlfpath)
     print "Converted to HTML: %s" % (htmlfpath)
 
 def create_task_report_notebook(taskpath):
     ''' Copy TaskReport.ipynb into taskpath, replacing relevant template lines
     '''
     outpath = os.path.join(taskpath, 'TaskReport.ipynb')
+
+    ## Remove any existing report
     if os.path.exists(outpath):
-        return outpath
+        os.remove(outpath)
+
     try:
         shutil.copy(os.path.join(assetdir,'TaskReport.ipynb'),
                     outpath)
@@ -172,16 +173,20 @@ def convert_notebook_to_public_html(taskpath):
     ipynbpath = os.path.join(taskpath, 'TaskReport.ipynb')
     htmlpath = os.path.join(taskpath, 'TaskReport') # .html already added in
     logfilepath = os.path.join(taskpath, 'stdout.log')
+
+    print '---------------- >>> nbconvert STARTED'
     CMD = "ipython nbconvert %s --to html --output %s >> %s" \
            % (ipynbpath, htmlpath, logfilepath)
     stdout = commands.getoutput(CMD)
     print stdout
+    print '<<<----------------- nbconvert FINISHED'
 
     for WEBDIR in WEBDIRS:
       if os.path.exists(WEBDIR):
         jobpath = taskpath.replace(os.environ['BNPYOUTDIR'], '')
         newPathList = mkpath(os.path.join(WEBDIR, jobpath))
         htmlpath = os.path.join(WEBDIR, jobpath, 'TaskReport.html')
+        ## Overwrite TaskReport.html with fresh copy
         shutil.copy(os.path.join(taskpath,'TaskReport.html'),
                     htmlpath
                    )
@@ -191,10 +196,8 @@ def convert_notebook_to_public_html(taskpath):
         os.chmod(htmlpath, 0755)
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Run iPython notebook ' +
-                     'non-interactively and save results to new notebook')
-    parser.add_argument('input_ipynb', action='store',
-                        help='iPython notebook file to run')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('taskpath')
     args = parser.parse_args()
-    exe_notebook(args.input_ipynb)
 
+    writeReportForTask(args.taskpath)
