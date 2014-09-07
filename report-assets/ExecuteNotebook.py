@@ -187,8 +187,8 @@ def convert_notebook_to_public_html(taskpath):
                    )
         # Set permissions on all this file (and all ancestor directories)
         for ancestorPath in newPathList:
-          os.chmod(ancestorPath, 755)
-        os.chmod(htmlpath, 755)
+          os.chmod(ancestorPath, 0755)
+        os.chmod(htmlpath, 0755)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run iPython notebook ' +

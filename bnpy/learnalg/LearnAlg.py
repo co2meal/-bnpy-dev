@@ -296,7 +296,7 @@ class LearnAlg(object):
       return False
     return (nLapTotal <= 5) or (lapFrac <= np.ceil(frac * nLapTotal))
 
-  def eval_custom_func(self, lapFrac, **kwargs):
+  def eval_custom_func(self, lapFrac, isFinal=False, **kwargs):
       ''' Evaluates a custom hook function 
       '''
       cFuncPath = self.outputParams['customFuncPath']
@@ -315,11 +315,12 @@ class LearnAlg(object):
         cFuncModule = cFuncPath # directly passed in as object
       
       kwargs['lapFrac'] = lapFrac
-      if hasattr(cFuncModule, 'onBatchComplete'):
+      kwargs['isFinal'] = isFinal
+      if hasattr(cFuncModule, 'onBatchComplete') and not isFinal:
         cFuncModule.onBatchComplete(args=cFuncArgs_string, **kwargs)
       if hasattr(cFuncModule, 'onLapComplete') \
-         and isEvenlyDivisibleFloat(lapFrac, 1.0):
+         and isEvenlyDivisibleFloat(lapFrac, 1.0) and not isFinal:
         cFuncModule.onLapComplete(args=cFuncArgs_string, **kwargs)
       if hasattr(cFuncModule, 'onAlgorithmComplete') \
-         and lapFrac == nLapTotal:
-        cFuncModule.onAlgorithmComplete(args=cFuncArgs_string, **kwargs)
+         and isFinal:
+         cFuncModule.onAlgorithmComplete(args=cFuncArgs_string, **kwargs)
