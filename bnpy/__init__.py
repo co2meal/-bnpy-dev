@@ -54,7 +54,7 @@ if 'BNPYDATADIR' in os.environ:
 ########################################################### Optional: viz
 ###########################################################  package for plots
 canPlot = False
-'''
+
 try:
   from matplotlib import pylab
   canPlot = True
@@ -69,3 +69,4 @@ __all__ = ['run', 'Run', 'learn', 'allocmodel','obsmodel', 'suffstats',
 '''
 __all__ = ['run', 'Run', 'learn', 'allocmodel','obsmodel', 'suffstats',
            'HModel', 'init', 'util','ioutil','distr', 'mergeutil']
+'''

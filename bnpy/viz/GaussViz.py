@@ -15,8 +15,42 @@ Colors = [(1,0,0),
           (1,0, 0.5),
           (0.5, 0.8, 0.8)]
 
+########################################################### Plot 1D pdfs
+###########################################################
+
+def plotGauss1DFromHModel(hmodel, **kwargs):
+  ''' Plot 1D pdf traces for each component in hmodel
+  '''
+  if hmodel.obsModel.D == 1:
+    xgrid = np.linspace(-4, 4, 1000)
+    pdfgrid = np.zeros_like(xgrid)
+
+  plotGauss1D(mu, Sigma, color=Colors[colorID])
+  plotGauss1D(mu, Sigma, color='k')
+
+  sigma = np.sqrt(np.squeeze(Sigma))
+  pdfgrid += w[kk] * 1./np.sqrt(2*np.pi) * 1./sigma \
+                     * np.exp( -0.5 * (xgrid-mu)**2 / sigma**2 )
+  pylab.plot( xgrid, pdfgrid, 'k--')
+
+def plotGauss1D(mu, sigma2, color='b'):
+  mu = np.squeeze(mu)
+  sigma = np.sqrt(np.squeeze(sigma2))
+  
+  assert mu.size == 1 and mu.ndim == 0
+  assert sigma.size == 1 and sigma.ndim == 0
+
+  xs = mu + sigma * np.arange( -4, 4, 0.01)
+  ps = 1./np.sqrt(2*np.pi) * 1./sigma * np.exp( -0.5 * (xs-mu)**2 / sigma**2 )
+  pylab.plot( xs, ps, '.', markerfacecolor=color, markeredgecolor=color)
+
+########################################################### Plot 2D contours
+###########################################################
+
 def plotGauss2DFromHModel(hmodel, compListToPlot=None,
                                   compsToHighlight=None, 
+                                  activeCompIDs=None,
+                                  MaxKToDisplay=50,
                                   wTHR=0.0001, 
                                   Colors=Colors):
   ''' Plot 2D contours for components in hmodel in current pylab figure
@@ -37,44 +71,47 @@ def plotGauss2DFromHModel(hmodel, compListToPlot=None,
     compsToHighlight = list()  
   if compListToPlot is None:
     compListToPlot = np.arange(0, hmodel.allocModel.K)
-  w = hmodel.allocModel.get_active_comp_probs()
-  if hmodel.obsModel.D == 1:
-    xgrid = np.linspace(-4, 4, 1000)
-    pdfgrid = np.zeros_like(xgrid)
+  if activeCompIDs is None:
+    activeCompIDs = np.arange(0, hmodel.allocModel.K)
 
-  colorID = 0
+  ## Load appearance probabilities as single vector
+  w = hmodel.allocModel.get_active_comp_probs()
+
   nSkip = 0
-  for kk in compListToPlot:
-    mu = hmodel.obsModel.get_mean_for_comp(kk)
-    Sigma = hmodel.obsModel.get_covar_mat_for_comp(kk)
-    if w[kk] < wTHR and kk not in compsToHighlight:
+  nGood = 0
+  for ii, compID in enumerate(compListToPlot):
+    if compID not in activeCompIDs:
+      continue
+
+    kk = np.flatnonzero(activeCompIDs == compID)
+    assert kk.size == 1
+    kk = kk[0]
+
+    if w[kk] < wTHR and compID not in compsToHighlight:
       nSkip += 1
       continue
-    if kk in compsToHighlight or len(compsToHighlight) == 0:
-      if mu.size == 1:
-        plotGauss1D(mu, Sigma, color=Colors[colorID])
-      else:
-        plotGauss2DContour(mu, Sigma, color=Colors[colorID])
-      colorID = (colorID + 1) % len(Colors)
+
+    mu = hmodel.obsModel.get_mean_for_comp(kk)
+    Sigma = hmodel.obsModel.get_covar_mat_for_comp(kk)
+    
+    if len(compsToHighlight) == 0 or compID in compsToHighlight:
+      color = Colors[ii % len(Colors)]
+      plotGauss2DContour(mu, Sigma, color=color)
     elif kk not in compsToHighlight:
-      if mu.size == 1:
-        plotGauss1D(mu, Sigma, color='k')
-      else:
-        plotGauss2DContour(mu, Sigma, color='k')
+      plotGauss2DContour(mu, Sigma, color='k')
 
-    if hmodel.obsModel.D == 1:
-      sigma = np.sqrt(np.squeeze(Sigma))
-      pdfgrid += w[kk] * 1./np.sqrt(2*np.pi) * 1./sigma \
-                       * np.exp( -0.5 * (xgrid-mu)**2 / sigma**2 )
+    nGood += 1
+    if nGood >= MaxKToDisplay:
+      print 'DISPLAY LIMIT EXCEEDED. Showing %d/%d components' \
+             % (nGood, len(activeCompIDs))
+      break
 
-  if hmodel.obsModel.D == 1:      
-    pylab.plot( xgrid, pdfgrid, 'k--')
 
   if nSkip > 0:
-    print 'SKIPPED %d comps that were too small' % (nSkip)
-  if mu.size > 1:
-    pylab.axis('image')   
+    print 'SKIPPED %d comps with size below %.2f' % (nSkip, wTHR)
+  pylab.axis('image')   
   
+
 def plotGauss2DContour(mu, Sigma, color='b', radiusLengths=[0.5, 1.25, 2]):
   ''' Plot elliptical contours for first 2 dims of covariance matrix Sigma,
       location specified by corresponding dims from vector mu
@@ -103,16 +140,6 @@ def plotGauss2DContour(mu, Sigma, color='b', radiusLengths=[0.5, 1.25, 2]):
     Z = r * Zellipse + mu[:,np.newaxis]
     pylab.plot(Z[0], Z[1], '.', markerfacecolor=color, markeredgecolor=color)
 
-def plotGauss1D(mu, sigma2, color='b'):
-  mu = np.squeeze(mu)
-  sigma = np.sqrt(np.squeeze(sigma2))
-  
-  assert mu.size == 1 and mu.ndim == 0
-  assert sigma.size == 1 and sigma.ndim == 0
-
-  xs = mu + sigma * np.arange( -4, 4, 0.01)
-  ps = 1./np.sqrt(2*np.pi) * 1./sigma * np.exp( -0.5 * (xs-mu)**2 / sigma**2 )
-  pylab.plot( xs, ps, '.', markerfacecolor=color, markeredgecolor=color)
 
 ########################################################### Plot Covar Matrix
 ###########################################################
