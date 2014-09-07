@@ -4,6 +4,7 @@ import glob
 import scipy.io
 import joblib
 import sys
+
 import bnpy
 
 pylab = None
@@ -17,6 +18,27 @@ def ConfigAndSignIntoPlotly(pylabIN, plotlyIN):
   plotly = plotlyIN
   plotly.sign_in("mike918", "fr8nzbudjm")
 
+
+def LoadSingleRunActiveIDsForLap(taskpath, queryLap='final'):
+  ''' Load vector of active comp ids for specific single lap
+
+      Essentially reads a single line of the ActiveIDs.txt file from taskpath
+  '''
+  lappath = os.path.join(taskpath, 'laps.txt')
+  laps = np.loadtxt(lappath)
+
+  if queryLap != 'final':
+    if queryLap not in laps:
+      raise ValueError('Target lap not found.')
+
+  idpath = os.path.join(taskpath, 'ActiveIDs.txt')
+  with open(idpath, 'r') as f:
+    for ii, curLap in enumerate(laps):
+      idstr = f.readline().strip()
+      if curLap == queryLap or (curLap == laps[-1] and queryLap == 'final'):
+        idvec = np.asarray(idstr.split(' '), dtype=np.int32)
+        return idvec
+  
 
 def LoadSingleRunCounts(taskpath, doSort=True):
   idpath = os.path.join(taskpath, 'ActiveIDs.txt')
@@ -128,45 +150,44 @@ def PlotSingleRunTruncationLevel(taskpath, activeThr=0.00001):
   pylab.xlabel('laps thru training data', fontsize=14)
 
 
-def PlotSingleRunComps(taskpath, lap=None, doSort=True, **kwargs):
+def PlotSingleRunComps(taskpath, lap=None, MaxKToDisplay=50, **kwargs):
   ''' Show the learned components for a single algorithm run
   '''
   global order
 
-  from bnpy.viz import GaussViz
-  GaussViz.pylab = pylab
-
-  Counts = LoadSingleRunCounts(taskpath, doSort=False)
-
   if lap is None:
     model = bnpy.load_model(taskpath)    
-    activeIDs = np.flatnonzero(Counts[-1, :])
+    activeIDs = LoadSingleRunActiveIDsForLap(taskpath, queryLap='final')
   else:
     model, lap = bnpy.ioutil.ModelReader.loadModelForLap(taskpath, lap)
-    lappath = os.path.join(taskpath, 'laps.txt')
-    laps = np.loadtxt(lappath)
-    rowID = np.flatnonzero(laps == lap)
-    activeIDs = np.flatnonzero(Counts[rowID, :])
+    activeIDs = LoadSingleRunActiveIDsForLap(taskpath, queryLap=lap)
 
-  if order is not None:
-    myorder = list()
-    for compID in order:
-      for ii, activeID in enumerate(activeIDs):
-        if activeID == compID:
-          myorder.append(ii)
-
-  model.obsModel.Post.reorderComps(myorder)
-  GaussViz.plotGauss2DFromHModel(model, **kwargs)
+  if str(type(model.obsModel)).count('Gauss'):
+    from bnpy.viz import GaussViz
+    GaussViz.pylab = pylab
+    GaussViz.plotGauss2DFromHModel(model, 
+                                   activeCompIDs=activeIDs,
+                                   compListToPlot=order,
+                                   MaxKToDisplay=MaxKToDisplay, 
+                                   **kwargs)
+  else:
+    from bnpy.viz import BarsViz
+    BarsViz.pylab = pylab
+    BarsViz.plotBarsFromHModel(model, 
+                                activeCompIDs=activeIDs,
+                                compListToPlot=order,
+                                Kmax=MaxKToDisplay, 
+                                **kwargs)
 
 if __name__ == "__main__":
-  utilpath = os.path.sep.join(os.path.abspath(__file__).split(os.path.sep)[:-1])
-  sys.path.append(utilpath)
-
-  #from matplotlib import pylab
-  #pylab.ion()
-  #Counts = PlotSingleRunCounts("/data/liv/liv-x/patch-models/results/bnpy/AdmixAsteriskK8/HDPFast/Gauss/moVB/defaultjob/1/")
+  from matplotlib import pylab
+  pylab.ion()
+  #taskpath = '/results/AdmixAsteriskK8/mytest-K80-random/1/'
+  taskpath = "/results/MixBarsK10V900/mytest-K100-random/1"
+  PlotSingleRunCounts(taskpath)
 
   #pylab.figure()
-  #Counts = PlotSingleRunComps("/data/liv/liv-x/patch-models/results/bnpy/AdmixAsteriskK8/HDPFast/Gauss/moVB/defaultjob/1/", lap=10)
-  #pylab.show()
+  PlotSingleRunComps(taskpath, lap=2)
+
+  pylab.show()
 

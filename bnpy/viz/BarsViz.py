@@ -52,75 +52,99 @@ def plotExampleBarsDocs(Data, docIDsToPlot=None, figID=None,
 
 def plotBarsFromHModel(hmodel, Data=None, doShowNow=False, figH=None,
                        doSquare=1,
-                       compsToHighlight=None, sortBySize=False,
-                       width=6, height=3, vmax=None, Ktop=None, Kmax=None):    
-    if hasattr(hmodel.obsModel, 'Post'):
-      lam = hmodel.obsModel.Post.lam
-      topics = lam / lam.sum(axis=1)[:,np.newaxis]
+                       compsToHighlight=None, compListToPlot=None,
+                       activeCompIDs=None,  Kmax=None,
+                       width=6, height=3, vmax=None):    
+  if hasattr(hmodel.obsModel, 'Post'):
+    lam = hmodel.obsModel.Post.lam
+    topics = lam / lam.sum(axis=1)[:,np.newaxis]
+  else:
+    topics = hmodel.obsModel.EstParams.phi.copy()
+
+  ## Determine intensity scale for topic-word image
+  global imshowArgs
+  if vmax is not None:
+    imshowArgs['vmax'] = vmax
+  else:
+    imshowArgs['vmax'] = 1.5 * np.percentile(topics, 95)
+
+  if doSquare:
+    figH = showTopicsAsSquareImages(topics, 
+                                    activeCompIDs=activeCompIDs,
+                                    compsToHighlight=compsToHighlight,
+                                    compListToPlot=compListToPlot,
+                                    Kmax=Kmax,
+                                    **imshowArgs)
+  else:
+    if figH is None:
+      figH = pylab.figure(figsize=(width,height))
     else:
-      topics = hmodel.obsModel.EstParams.phi.copy()
+      pylab.axes(figH)
+    showAllTopicsInSingleImage(topics, compsToHighlight, **imshowArgs)
+  if doShowNow:
+    pylab.show()
+  return figH
 
-    K, V = topics.shape
-    if Kmax is not None:
-      K = np.minimum(Kmax, K)
-      topics = topics[:K]
-
-    ## Determine intensity scale for topic-word image
-    global imshowArgs
-    if vmax is not None:
-      imshowArgs['vmax'] = vmax
-    else:
-      imshowArgs['vmax'] = 1.5 * np.percentile(topics, 95)
-
-    if doSquare:
-      showTopicsAsSquareImages(topics, compsToHighlight, **imshowArgs)
-    else:
-      if figH is None:
-        figH = pylab.figure(figsize=(width,height))
-      else:
-        pylab.axes(figH)
-      showAllTopicsInSingleImage(topics, compsToHighlight, **imshowArgs)
-    if doShowNow:
-      pylab.show()
-    return figH
-
-def showTopicsAsSquareImages(topics, compsToHighlight, **imshowArgs):
+def showTopicsAsSquareImages(topics, 
+                             activeCompIDs=None,
+                             compsToHighlight=None,
+                             compListToPlot=None,
+                             Kmax=50,
+                             W=1, H=1, **imshowArgs):
   K, V = topics.shape
   sqrtV = int(np.sqrt(V))
   assert np.allclose(sqrtV, np.sqrt(V))
-  nrows = int(np.maximum(int(np.sqrt(K)), 1))
-  ncols = int(np.ceil(K / float(nrows)))
+
+  if compListToPlot is None:
+    compListToPlot = np.arange(0, K)
+  if activeCompIDs is None:
+    activeCompIDs = np.arange(0, K)
   compsToHighlight = np.asarray(compsToHighlight)
   if compsToHighlight.ndim == 0:
     compsToHighlight = np.asarray([compsToHighlight])
 
-  W = 1
-  H = 1
-  hf, ha = pylab.subplots(nrows=nrows, ncols=ncols, figsize=(ncols*W,nrows*H))
-  for k in xrange(K):
-    ax = pylab.subplot(nrows, ncols, k+1)
-    topicIm = np.reshape(topics[k,:], (sqrtV, sqrtV))
-    if k in compsToHighlight:
-      #topicIm[0, :] = imshowArgs['vmax']
-      #topicIm[-1, :] = imshowArgs['vmax']
-      #topicIm[:, 0] = imshowArgs['vmax']
-      #topicIm[:, -1] = imshowArgs['vmax']
-      ax.spines['bottom'].set_color('green')
-      ax.spines['top'].set_color('green')
-      ax.spines['left'].set_color('green')
-      ax.spines['right'].set_color('green')
-      [i.set_linewidth(3) for i in ax.spines.itervalues()]
+  ## Create Figure
+  Kplot = np.minimum(len(compListToPlot), Kmax)
+  ncols = 5 #int(np.ceil(Kplot / float(nrows)))
+  nrows = int(np.ceil(Kplot / float(ncols)))
+  figH, ha = pylab.subplots(nrows=nrows, ncols=ncols, figsize=(ncols*W,nrows*H))
+  
+  for plotID, compID in enumerate(compListToPlot):
+    if plotID >= Kmax:
+      print 'DISPLAY LIMIT EXCEEDED. Showing %d/%d components' \
+             % (plotID, len(activeCompIDs))      
+      break
 
+    if compID not in activeCompIDs:
+      aH = pylab.subplot(nrows, ncols, plotID+1)
+      aH.axis('off')
+      continue
+
+    kk = np.flatnonzero(compID == activeCompIDs)[0]
+    topicIm = np.reshape(topics[kk,:], (sqrtV, sqrtV))
+
+    ax = pylab.subplot(nrows, ncols, plotID+1)
     pylab.imshow(topicIm, aspect=1.0, **imshowArgs)
     pylab.xticks([])
     pylab.yticks([])
-  for kdel in xrange(K+1, nrows*ncols+1):
+
+    ## Draw colored border around highlighted topics
+    if compID in compsToHighlight:
+      [i.set_color('green') for i in ax.spines.itervalues()]
+      [i.set_linewidth(3) for i in ax.spines.itervalues()]
+
+  ## Disable empty plots!
+  for kdel in xrange(plotID+2, nrows*ncols+1):
     aH = pylab.subplot(nrows, ncols, kdel)
     aH.axis('off')
-  #pylab.tight_layout()
+
+  ## Fix margins between subplots
   pylab.subplots_adjust(wspace=0.04, hspace=0.04, left=0.01, right=0.99,
                         top=0.99, bottom=0.01)
-  
+  return figH
+
+
+
 def showAllTopicsInSingleImage(topics, compsToHighlight, **imshowArgs):
     K, V = topics.shape
     aspectR = V / float(K)
