@@ -191,9 +191,9 @@ def _run_task_internal(jobname, taskid, nTask,
     Log.info('SGE Grid Job ID: %d' % (jobID))
     # Create symlinks to captured stdout, stdout in bnpy output directory
     os.symlink(os.getenv('SGE_STDOUT_PATH'), 
-                          os.path.join(taskoutpath, 'stdout.log'))
+                          os.path.join(taskoutpath, 'stdout'))
     os.symlink(os.getenv('SGE_STDERR_PATH'), 
-                          os.path.join(taskoutpath, 'stderr.log'))
+                          os.path.join(taskoutpath, 'stderr'))
 
   # Write descriptions to the log
   if taskid == 1 or jobID > 0:

@@ -27,7 +27,7 @@ def onLapComplete(lapFrac=0, learnAlg=None, **kwargs):
     RecordTimes.append(rtime)
     try:  
       writeReportForTask(learnAlg.savedir)
-    except e:
+    except:
       print 'CAUGHT ERROR IN writeReportForTask!'
       print str(e)
     
@@ -35,6 +35,6 @@ def onAlgorithmComplete(lapFrac=0, learnAlg=None, **kwargs):
   print "WRITING REPORT | FINAL"
   try:
     writeReportForTask(learnAlg.savedir)
-  except e:
+  except:
     print 'CAUGHT ERROR IN writeReportForTask!'
     print str(e)
