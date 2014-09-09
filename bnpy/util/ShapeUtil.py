@@ -5,6 +5,8 @@ def as1D(x):
     x = np.asarray(x)
   if x.ndim < 1:
     x = np.asarray([x])
+  elif x.ndim > 1:
+    x = np.squeeze(x)
   return x
 
 def as2D(x):
