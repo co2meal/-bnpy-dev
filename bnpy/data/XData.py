@@ -25,16 +25,29 @@ Example
 '''
 
 import numpy as np
+import scipy.io
+
 from .DataObj import DataObj
 
 
 class XData(DataObj):
-  
+
+  @classmethod
+  def LoadFromFile(cls, filepath, nObsTotal=None, **kwargs):
+    ''' Static constructor for loading data from disk into XData instance
+    '''
+    if filepath.endswith('.mat'):
+      return cls.read_from_mat(filepath, nObsTotal, **kwargs)
+    try:
+      X = np.load(filepath)
+    except Exception as e:
+      X = np.loadtxt(filepath)
+    return cls(X, nObsTotal=nObsTotal, **kwargs)    
+
   @classmethod
   def read_from_mat(cls, matfilepath, nObsTotal=None, **kwargs):
-    ''' Static Constructor for building an instance of XData from disk
+    ''' Static constructor for loading data from .mat file into XData instance
     '''
-    import scipy.io
     InDict = scipy.io.loadmat( matfilepath, **kwargs)
     if 'X' not in InDict:
       raise KeyError('Stored matfile needs to have data in field named X')

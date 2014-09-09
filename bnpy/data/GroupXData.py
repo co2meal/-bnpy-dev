@@ -45,6 +45,14 @@ def _toStd2DArray(X):
 class GroupXData(XData):
   
   @classmethod
+  def LoadFromFile(cls, filepath, nObsTotal=None, **kwargs):
+    ''' Static constructor for loading data from disk into XData instance
+    '''
+    if filepath.endswith('.mat'):
+      return cls.read_from_mat(filepath, nObsTotal, **kwargs)
+    raise NotImplemented('Only .mat file supported.')
+
+  @classmethod
   def read_from_mat(cls, matfilepath, nDocTotal=None, **kwargs):
     ''' Static Constructor for building an instance of GroupXData from disk
     '''
