@@ -271,9 +271,18 @@ class HDPDir(AllocModel):
 
     if doPrecompEntropy:
       ElogqZ = self.E_logqZ(Data, LP)
-      VPilocal = self.E_logpPiZ_logqPi(Data, LP)
       SS.setELBOTerm('ElogqZ', ElogqZ, dims='K')
-      SS.setELBOTerm('VPilocal', VPilocal, dims=None)
+
+      slack_NmT, slack_NmT_Rem = self.slack_NminusTheta(LP)
+      SS.setELBOTerm('slackNminusTheta', slack_NmT, dims='K')
+      SS.setELBOTerm('slackNminusTheta_Rem', slack_NmT_Rem, dims=None)
+
+      glnSumTheta, glnTheta, glnThetaRem = self.c_Dir_theta__parts(LP)
+      SS.setELBOTerm('gammalnSumTheta', glnSumTheta, dims=None)
+      SS.setELBOTerm('gammalnTheta', glnTheta, dims='K')
+      SS.setELBOTerm('gammalnTheta_Rem', glnThetaRem, dims=None)
+
+
     return SS
 
   ####################################################### VB Global Step
@@ -402,7 +411,7 @@ class HDPDir(AllocModel):
       ElogqZ = SS.getELBOTerm('ElogqZ')
       cDir_theta = self.c_Dir_theta(SS.getELBOTerm('gammalnSumTheta'),
                                     SS.getELBOTerm('gammalnTheta'),
-                                    SS.getELBOTerm('gammalnTheta_rem'),
+                                    SS.getELBOTerm('gammalnTheta_Rem'),
                                     )
       slack_NmT = SS.getELBOTerm('slackNminusTheta')
       slack_NmT_Rem = SS.getELBOTerm('slackNminusTheta_Rem')
@@ -412,12 +421,11 @@ class HDPDir(AllocModel):
       slack_NmT, slack_NmT_Rem = self.slack_NminusTheta(LP)
       cDir_2 = c_Dir(LP['theta'], LP['thetaRem'])
       assert np.allclose(cDir_theta, cDir_2)
-
     return U_plus_cDir_alphaBeta + calpha \
            - np.sum(ElogqZ) \
-           #- cDir_theta \
-           #+ np.sum(slack_NmT + slack_alphaBeta) \
-           #+ slack_NmT_Rem + slack_alphaBeta_Rem \
+           - cDir_theta \
+           + np.sum(slack_NmT + slack_alphaBeta) \
+           + slack_NmT_Rem + slack_alphaBeta_Rem 
 
   def slack_alphaBeta(self, SS):
     ''' Calculate part of doc-topic slack term dependent on alpha * Ebeta
@@ -441,7 +449,7 @@ class HDPDir(AllocModel):
     slack = LP['DocTopicCount'] - LP['theta']
     slack *=  LP['ElogPi']
     slack_active = np.sum(slack, axis=0)
-    slack_rem = np.sum(LP['thetaRem'] * LP['ElogPiRem'])
+    slack_rem = -1 * np.sum(LP['thetaRem'] * LP['ElogPiRem'])
     return slack_active, slack_rem
 
   def c_Dir_theta__parts(self, LP):
@@ -497,6 +505,79 @@ class HDPDir(AllocModel):
       return NumericUtil.calcRlogRdotv(LP['resp'], Data.word_count)
     else:
       return NumericUtil.calcRlogR(LP['resp'])
+
+  ######################################################### OLD calc_evidence
+  #########################################################
+  # To be used only to verify the current objective
+
+  def zzz_calc_evidence(self, Data, SS, LP, **kwargs):
+    ''' Calculate ELBO objective 
+    '''
+    calpha = SS.nDoc * (gammaln(self.alpha) + (SS.K+1) * np.log(self.alpha))
+    UandcPi_global = self.E_logpU_logqU_c(SS)
+    Pi_global = self.E_logpPi__global(SS)
+    if SS.hasELBOTerms():
+      ElogqZ = SS.getELBOTerm('ElogqZ')
+      VPi_local = SS.getELBOTerm('VPilocal')
+    else:
+      ElogqZ = self.E_logqZ(Data, LP)
+      VPi_local = self.E_logpPiZ_logqPi(Data, LP)
+    elbo = calpha + UandcPi_global + Pi_global + VPi_local - np.sum(ElogqZ)
+    return dict(calpha=calpha,
+                UandcPi_global=UandcPi_global,
+                Pi_global=Pi_global,
+                ZPi_local=VPi_local,
+                ElogqZ=ElogqZ,
+                elbo=elbo)
+
+  def E_logpPi__global(self, SS):
+    ''' Calculate the part of E[ log p(v) ] that depends on global topic probs
+        DEPRECATED
+        Returns
+        --------
+        Elogstuff : real scalar
+    ''' 
+    alphaEbeta = self.alpha * self.E_beta()
+    return np.inner(alphaEbeta[:-1], SS.sumLogPi) \
+           + alphaEbeta[-1] * SS.sumLogPiRem
+
+  def E_logpPiZ_logqPi(self, Data, LP):
+    ''' Calculate E[ log p(v) + log p(z) - log q(v) ]
+        DEPRECATED
+
+        Returns
+        -------
+        Elogstuff : real scalar
+    '''
+    cDiff = -1 * c_Dir(LP['theta'], LP['thetaRem'])
+    logDirPDF = np.sum((LP['DocTopicCount'] - LP['theta']) * LP['ElogPi']) \
+                 - np.sum(LP['thetaRem'] * LP['ElogPiRem'])
+    return cDiff + np.sum(logDirPDF)
+
+  def E_logpU_logqU_c(self, SS):
+    ''' Calculate E[ log p(u) - log q(u) ]
+        DEPRECATED
+
+        Returns
+        ---------
+        Elogstuff : real scalar
+    '''
+    g1 = self.rho * self.omega
+    g0 = (1-self.rho) * self.omega
+    digammaBoth = digamma(g1+g0)
+    ElogU = digamma(g1) - digammaBoth
+    Elog1mU = digamma(g0) - digammaBoth
+
+    ONcoef = SS.nDoc + 1.0 - g1
+    OFFcoef = SS.nDoc * OptimHDPDir.kvec(self.K) + self.gamma - g0
+
+    cDiff = SS.K * c_Beta(1, self.gamma) - c_Beta(g1, g0)
+    logBetaPDF = np.inner(ONcoef, ElogU) \
+                 + np.inner(OFFcoef, Elog1mU)
+    return cDiff + logBetaPDF
+
+
+
 
 def c_Beta(a1, a0):
   ''' Evaluate cumulant function of the Beta distribution
