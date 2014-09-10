@@ -211,11 +211,12 @@ class HDPFast(AllocModel):
   def updateLPGivenDocTopicCount(self, LP, DocTopicCount):
     ''' Update all local parameters, given topic counts for all docs in set.
 
+        For this tight document-topic factor, this method does nothing,
+        because there are no free parameters at the document-level to update.
+
         Returns
         --------
         LP : dict of local params, with updated fields
-        * theta, thetaRem
-        * ElogPi, ElogPiRem
     '''
     return LP
 
