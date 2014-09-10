@@ -397,6 +397,7 @@ class HDPDir(AllocModel):
   def calc_evidence(self, Data, SS, LP, **kwargs):
     ''' Calculate ELBO objective 
     '''
+    calpha = SS.nDoc * (gammaln(self.alpha) + (SS.K+1) * np.log(self.alpha))
     UandcPi_global = self.E_logpU_logqU_c(SS)
     Pi_global = self.E_logpPi__global(SS)
     if SS.hasELBOTerms():
@@ -405,7 +406,7 @@ class HDPDir(AllocModel):
     else:
       ElogqZ = self.E_logqZ(Data, LP)
       VPi_local = self.E_logpPiZ_logqPi(Data, LP)
-    return UandcPi_global + Pi_global + VPi_local - np.sum(ElogqZ)
+    return calpha + UandcPi_global + Pi_global + VPi_local - np.sum(ElogqZ)
 
   def E_logqZ(self, Data, LP):
     ''' Calculate E[ log q(z)] for each active topic
