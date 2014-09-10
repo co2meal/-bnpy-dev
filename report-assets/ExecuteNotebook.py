@@ -31,11 +31,15 @@ except ImportError:
 from IPython.nbformat.current import reads, NotebookNode, write
 
 def run_cell(shell, iopub, cell):
+    stime = time.time()
     shell.execute(cell.input)
     # wait for finish or timeout (in seconds)
-    shell.get_msg(timeout=90)
+    shell.get_msg(timeout=120)
     outs = []
     
+    elapsedtime = time.time() - stime
+    print ' %.2f sec | cell done.\n%s' % (elapsedtime, str(cell.input)[:50])
+
     while True:
         try:
             msg = iopub.get_msg(timeout=1.0)
@@ -116,15 +120,17 @@ def writeReportForTask(taskpath):
             try:
                 outs = run_cell(shell, iopub, cell)
             except Exception as e:
-                print "failed to run cell:", repr(e)
+                print '>>>>>>>>>>>>>> FAILED TO RUN CELL'
+                print "Error Msg:", str(e)
                 print cell.input
+                raise ValueError('Cell Execution Failed')
+
                 nError += 1
                 cell.outputs = [e]
                 continue
             
             nSuccess += 1
-            print '.',
- 
+             
             cell.outputs = outs
             cell.prompt_number = prompt_number
             if cell.outputs:
@@ -163,7 +169,7 @@ def create_task_report_notebook(taskpath):
             print line.replace('$TASKPATH', taskpath), # <-- keep this comma
 
         return outpath
-    except e:
+    except Exception as e:
         print str(e)
         return False
 
@@ -171,12 +177,12 @@ def convert_notebook_to_public_html(taskpath):
     ''' Convert TaskReport notebook to HTML
     '''
     ipynbpath = os.path.join(taskpath, 'TaskReport.ipynb')
-    myhtmlpath = os.path.join(taskpath, 'TaskReport') # .html already added in
+    myhtmlpath = os.path.join(taskpath, 'TaskReport.html')
     logfilepath = os.path.join(taskpath, 'stdout.log')
 
     print '---------------- >>> nbconvert STARTED'
     CMD = "ipython nbconvert %s --to html --output %s >> %s" \
-           % (ipynbpath, myhtmlpath, logfilepath)
+           % (ipynbpath, myhtmlpath.replace('.html',''), logfilepath)
     stdout = commands.getoutput(CMD)
     print stdout
     print '<<<----------------- nbconvert FINISHED'
@@ -187,11 +193,9 @@ def convert_notebook_to_public_html(taskpath):
         newPathList = mkpath(os.path.join(WEBDIR, jobpath))
         webhtmlpath = os.path.join(WEBDIR, jobpath, 'TaskReport.html')
 
-        print webhtmlpath
-        print myhtmlpath
-
-        ## Overwrite TaskReport.html with fresh copy
-        shutil.copy(myhtmlpath + '.html',
+        ## Copy html in taskdir to web-ready directory
+        ## this will overwrite any version of TaskReport.html in webdir
+        shutil.copy(myhtmlpath,
                     webhtmlpath
                    )
         # Set permissions on all this file (and all ancestor directories)

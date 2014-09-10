@@ -17,6 +17,8 @@ def calcLocalParams(Data, LP, aModel,
       * resp
       * model-specific fields for doc-topic probabilities
   ''' 
+  kwargs['methodLP'] = methodLP
+
   ## Prepare the log soft ev matrix
   ## Make sure it is C-contiguous, so that matrix ops are very fast
   Lik = np.asarray(LP['E_log_soft_ev'], order='C') 
@@ -91,11 +93,16 @@ def calcDocTopicCountForData_Simple(Data, aModel, Lik,
   if initDocTopicCount is not None:
     DocTopicCount = initDocTopicCount.copy()
     Prior = aModel.calcLogPrActiveComps_Fast(DocTopicCount)
+    Prior -= Prior.max(axis=1)[:, np.newaxis]
     np.exp(Prior, out=Prior)
   else:
     DocTopicCount = np.zeros((Data.nDoc, aModel.K))
     if initPrior is None:
-      Prior = np.ones((Data.nDoc, aModel.K))
+      if kwargs['methodLP'] == 'scratch':
+        Prior = np.ones((Data.nDoc, aModel.K))
+      elif kwargs['methodLP'] == 'prior':
+        Prior = 10 * np.tile(aModel.get_active_comp_probs(), (Data.nDoc, 1))
+      
     else:
       Prior = initPrior.copy()
 

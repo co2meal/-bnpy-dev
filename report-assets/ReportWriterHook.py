@@ -11,7 +11,7 @@ import time
 from ExecuteNotebook import writeReportForTask
 
 RecordTimes = [0]
-RECORD_INTERVAL_SEC = 10 * 60 # Every ten minutes
+RECORD_INTERVAL_SEC = 15 * 60 # Every few minutes
 
 def onLapComplete(lapFrac=0, learnAlg=None, **kwargs):
   print "WRITING REPORT | AT LAP %.2f" % (lapFrac)
@@ -25,16 +25,20 @@ def onLapComplete(lapFrac=0, learnAlg=None, **kwargs):
   if etime > np.max(RecordTimes) + RECORD_INTERVAL_SEC:
     rtime = RecordTimes[-1] + RECORD_INTERVAL_SEC
     RecordTimes.append(rtime)
-    try:  
-      writeReportForTask(learnAlg.savedir)
-    except:
-      print 'CAUGHT ERROR IN writeReportForTask!'
-      print str(e)
-    
-def onAlgorithmComplete(lapFrac=0, learnAlg=None, **kwargs):
-  print "WRITING REPORT | FINAL"
-  try:
-    writeReportForTask(learnAlg.savedir)
-  except:
+    writeReport(learnAlg.savedir)
+
+def writeReport(savedir):    
+  try:  
+    writeReportForTask(savedir)
+  except Exception as e:
     print 'CAUGHT ERROR IN writeReportForTask!'
     print str(e)
+    if str(e).count('Cell') > 0:
+      try:
+        writeReportForTask(savedir)
+      except Exception as e:
+        print 'FAILED AGAIN'
+
+def onAlgorithmComplete(lapFrac=0, learnAlg=None, **kwargs):
+  print "WRITING REPORT | FINAL"
+  writeReport(learnAlg.savedir)
