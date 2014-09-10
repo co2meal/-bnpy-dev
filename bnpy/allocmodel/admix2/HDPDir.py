@@ -410,11 +410,14 @@ class HDPDir(AllocModel):
       ElogqZ = self.E_logqZ(Data, LP)
       cDir_theta = self.c_Dir_theta(*self.c_Dir_theta__parts(LP))
       slack_NmT, slack_NmT_Rem = self.slack_NminusTheta(LP)
+      cDir_2 = c_Dir(LP['theta'], LP['thetaRem'])
+      assert np.allclose(cDir_theta, cDir_2)
 
-    return U_plus_cDir_alphaBeta - cDir_theta + calpha \
-           + np.sum(slack_NmT + slack_alphaBeta) \
-           + slack_NmT_Rem + slack_alphaBeta_Rem \
-           - np.sum(ElogqZ)
+    return U_plus_cDir_alphaBeta + calpha \
+           - np.sum(ElogqZ) \
+           #- cDir_theta \
+           #+ np.sum(slack_NmT + slack_alphaBeta) \
+           #+ slack_NmT_Rem + slack_alphaBeta_Rem \
 
   def slack_alphaBeta(self, SS):
     ''' Calculate part of doc-topic slack term dependent on alpha * Ebeta
