@@ -4,8 +4,6 @@ Bayesian nonparametric admixture model via the Hierarchical Dirichlet Process.
 Uses a direct construction that maintains K active components,
 via a Dirichlet document-level variational factor.
 
-
-
 Attributes
 -------
 K : # of components
@@ -397,52 +395,74 @@ class HDPDir(AllocModel):
   def calc_evidence(self, Data, SS, LP, **kwargs):
     ''' Calculate ELBO objective 
     '''
-    UandcPi_global = self.E_logpU_logqU_c(SS)
-    Pi_global = self.E_logpPi__global(SS)
+    calpha = SS.nDoc * (gammaln(self.alpha) + (SS.K+1) * np.log(self.alpha))
+    U_plus_cDir_alphaBeta = self.E_logpU_logqU_plus_cDirAlphaBeta(SS)
+    slack_alphaBeta, slack_alphaBeta_Rem = self.slack_alphaBeta(SS)
     if SS.hasELBOTerms():
       ElogqZ = SS.getELBOTerm('ElogqZ')
-      VPi_local = SS.getELBOTerm('VPilocal')
+      cDir_theta = self.c_Dir_theta(SS.getELBOTerm('gammalnSumTheta'),
+                                    SS.getELBOTerm('gammalnTheta'),
+                                    SS.getELBOTerm('gammalnTheta_rem'),
+                                    )
+      slack_NmT = SS.getELBOTerm('slackNminusTheta')
+      slack_NmT_Rem = SS.getELBOTerm('slackNminusTheta_Rem')
     else:
       ElogqZ = self.E_logqZ(Data, LP)
-      VPi_local = self.E_logpPiZ_logqPi(Data, LP)
-    return UandcPi_global + Pi_global + VPi_local - np.sum(ElogqZ)
+      cDir_theta = self.c_Dir_theta(*self.c_Dir_theta__parts(LP))
+      slack_NmT, slack_NmT_Rem = self.slack_NminusTheta(LP)
 
-  def E_logqZ(self, Data, LP):
-    ''' Calculate E[ log q(z)] for each active topic
+    return U_plus_cDir_alphaBeta - cDir_theta + calpha \
+           + np.sum(slack_NmT + slack_alphaBeta) \
+           + slack_NmT_Rem + slack_alphaBeta_Rem \
+           - np.sum(ElogqZ)
 
-        Returns
-        -------
-        ElogqZ : 1D array, size K
-    '''
-    if hasattr(Data, 'word_count'):
-      return NumericUtil.calcRlogRdotv(LP['resp'], Data.word_count)
-    else:
-      return NumericUtil.calcRlogR(LP['resp'])
-
-  def E_logpPi__global(self, SS):
-    ''' Calculate the part of E[ log p(v) ] that depends on global topic probs
+  def slack_alphaBeta(self, SS):
+    ''' Calculate part of doc-topic slack term dependent on alpha * Ebeta
 
         Returns
         --------
-        Elogstuff : real scalar
+        slack_aBeta_active : 1D array, size K
+        slack_aBeta_rem : scalar
     ''' 
     alphaEbeta = self.alpha * self.E_beta()
-    return np.inner(alphaEbeta[:-1], SS.sumLogPi) \
-           + alphaEbeta[-1] * SS.sumLogPiRem
+    return alphaEbeta[:-1] * SS.sumLogPi, alphaEbeta[-1] * SS.sumLogPiRem
 
-  def E_logpPiZ_logqPi(self, Data, LP):
-    ''' Calculate E[ log p(v) + log p(z) - log q(v) ]
+  def slack_NminusTheta(self, LP):
+    ''' Calculate part of doc-topic slack term dependent on N[d,k] - theta[d,k]
 
         Returns
         -------
-        Elogstuff : real scalar
+        slack_active : 1D array, size K
+        slack_rem : scalar
     '''
-    cDiff = -1 * c_Dir(LP['theta'], LP['thetaRem'])
-    logDirPDF = np.sum((LP['DocTopicCount'] - LP['theta']) * LP['ElogPi']) \
-                 - np.sum(LP['thetaRem'] * LP['ElogPiRem'])
-    return cDiff + np.sum(logDirPDF)
+    slack = LP['DocTopicCount'] - LP['theta']
+    slack *=  LP['ElogPi']
+    slack_active = np.sum(slack, axis=0)
+    slack_rem = np.sum(LP['thetaRem'] * LP['ElogPiRem'])
+    return slack_active, slack_rem
 
-  def E_logpU_logqU_c(self, SS):
+  def c_Dir_theta__parts(self, LP):
+    ''' Calculate quantities needed to compute cumulant of q(pi | theta)
+
+        Returns
+        --------
+        gammalnSumTheta : scalar
+        gammalnTheta_active : 1D array, size K
+        gammalnTheta_rem : scalar
+    '''
+    nDoc = LP['theta'].shape[0]
+    sumTheta = np.sum(LP['theta'], axis=1) + LP['thetaRem']
+    gammalnSumTheta = np.sum(gammaln(sumTheta))
+    gammalnTheta_active = np.sum(gammaln(LP['theta']), axis=0)
+    gammalnTheta_rem = nDoc * gammaln(LP['thetaRem'])
+    return gammalnSumTheta, gammalnTheta_active, gammalnTheta_rem
+
+  def c_Dir_theta(self, gammalnSumTheta, gammalnTheta, gammalnTheta_rem):
+    ''' Calculate cumulant function for q(pi | theta)
+    '''
+    return gammalnSumTheta - np.sum(gammalnTheta) - gammalnTheta_rem
+    
+  def E_logpU_logqU_plus_cDirAlphaBeta(self, SS):
     ''' Calculate E[ log p(u) - log q(u) ]
 
         Returns
@@ -463,6 +483,17 @@ class HDPDir(AllocModel):
                  + np.inner(OFFcoef, Elog1mU)
     return cDiff + logBetaPDF
 
+  def E_logqZ(self, Data, LP):
+    ''' Calculate E[ log q(z)] for each active topic
+
+        Returns
+        -------
+        ElogqZ : 1D array, size K
+    '''
+    if hasattr(Data, 'word_count'):
+      return NumericUtil.calcRlogRdotv(LP['resp'], Data.word_count)
+    else:
+      return NumericUtil.calcRlogR(LP['resp'])
 
 def c_Beta(a1, a0):
   ''' Evaluate cumulant function of the Beta distribution
