@@ -93,11 +93,14 @@ def PlotSingleRunELBOAndK(taskpath):
   pylab.subplot(1, 2, 1)
   PlotSingleRunELBO(taskpath)
   pylab.subplot(1, 2, 2)
-  PlotSingleRunTruncationLevel(taskpath)
-
+  PlotSingleRunTruncationLevel(taskpath, color='k', activeThr=0.0)
+  PlotSingleRunTruncationLevel(taskpath, color='b', activeThr=1.0)
+  PlotSingleRunTruncationLevel(taskpath, color='r', activeThr=100.0)
+  # Plotly legends are messed up, so just avoid for now
+  #pylab.legend(['all', 'count > 1', 'count > 100'])
   pylab.tight_layout()
-
-def PlotSingleRunELBO(taskpath):
+  
+def PlotSingleRunELBO(taskpath, color='k'):
   ''' Plot ELBO for single run
   '''
   lappath = os.path.join(taskpath, 'laps.txt')
@@ -106,7 +109,9 @@ def PlotSingleRunELBO(taskpath):
   elbopath = os.path.join(taskpath, 'evidence.txt')
   objFunc = np.loadtxt(elbopath)
 
-  pylab.plot(laps, objFunc, '.-')
+  pylab.plot(laps, objFunc, '.-', 
+             color=color, markeredgecolor=color,
+             label='evidence')
   pylab.ylabel('log evidence', fontsize=14)
   pylab.xlabel('laps thru training data', fontsize=14)
 
@@ -138,15 +143,16 @@ def PlotSingleRunCounts(taskpath, compsToShow=None):
   pylab.ylabel('usage count', fontsize=14)
   pylab.xlabel('laps thru training data', fontsize=14)
 
-def PlotSingleRunTruncationLevel(taskpath, activeThr=0.00001):
+def PlotSingleRunTruncationLevel(taskpath, activeThr=0, color='b'):
   lappath = os.path.join(taskpath, 'laps.txt')
   laps = np.loadtxt(lappath)
   Counts = LoadSingleRunCounts(taskpath)
-  
   Kactive = np.sum(Counts > activeThr, axis=1)
 
-  pylab.plot(laps, Kactive, '.-')
-  pylab.ylabel('num active components', fontsize=14)
+  pylab.plot(laps, Kactive, '.-', 
+             color=color, markeredgecolor=color,
+             label='count > %s' % (str(activeThr)))
+  pylab.ylabel('num components', fontsize=14)
   pylab.xlabel('laps thru training data', fontsize=14)
 
 
@@ -160,7 +166,10 @@ def PlotSingleRunComps(taskpath, lap=None, MaxKToDisplay=50, **kwargs):
     activeIDs = LoadSingleRunActiveIDsForLap(taskpath, queryLap='final')
   else:
     model, lap = bnpy.ioutil.ModelReader.loadModelForLap(taskpath, lap)
-    activeIDs = LoadSingleRunActiveIDsForLap(taskpath, queryLap=lap)
+    if np.allclose(lap, 0):
+      activeIDs = np.arange(model.obsModel.K)
+    else:
+      activeIDs = LoadSingleRunActiveIDsForLap(taskpath, queryLap=lap)
 
   if str(type(model.obsModel)).count('Gauss'):
     from bnpy.viz import GaussViz

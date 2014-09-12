@@ -110,6 +110,7 @@ class MultObsModel(AbstractObsModel):
     self.ClearCache()
     if obsModel is not None:
       self.EstParams = obsModel.EstParams.copy()
+      self.K = self.EstParams.K
       return
     
     if LP is not None and Data is not None:
@@ -120,6 +121,7 @@ class MultObsModel(AbstractObsModel):
     else:
       self.EstParams = ParamBag(K=phi.shape[0], D=phi.shape[1])
       self.EstParams.setField('phi', phi, dims=('K', 'D'))
+    self.K = self.EstParams.K
 
   def setEstParamsFromPost(self, Post=None):
     ''' Convert from Post (lam) to EstParams (phi),
@@ -130,7 +132,7 @@ class MultObsModel(AbstractObsModel):
     self.EstParams = ParamBag(K=Post.K, D=Post.D)
     phi = Post.lam / np.sum(Post.lam, axis=1)[:, np.newaxis]
     self.EstParams.setField('phi', phi, dims=('K','D'))
-    self.K = Post.K
+    self.K = EstParams.K
 
   
   ######################################################### Set Post
@@ -144,6 +146,7 @@ class MultObsModel(AbstractObsModel):
     if obsModel is not None:
       if hasattr(obsModel, 'Post'):
         self.Post = obsModel.Post.copy()
+        self.K = self.Post.K
       else:
         self.setPostFromEstParams(obsModel.EstParams)
       return
@@ -158,6 +161,8 @@ class MultObsModel(AbstractObsModel):
       K, D = lam.shape
       self.Post = ParamBag(K=K, D=D)
       self.Post.setField('lam', lam, dims=('K','D'))
+    self.K = self.Post.K
+
 
   def setPostFromEstParams(self, EstParams, Data=None, nTotalTokens=0,
                                                        **kwargs):

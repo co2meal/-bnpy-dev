@@ -138,74 +138,96 @@ class LearnAlg(object):
 
 
   #########################################################  Save to file
-  #########################################################  
-  def save_state(self, hmodel, SS, iterid, lap, evBound, doFinal=False):
-    ''' Save state of the hmodel's global parameters and evBound
+  #########################################################
+  def isSaveDiagnosticsCheckpoint(self, lap, nMstepUpdates):
+    ''' Answer True/False whether to save trace stats now
     '''
     traceEvery = self.outputParams['traceEvery']
     if traceEvery <= 0:
-      traceEvery = -1
-    doTrace = isEvenlyDivisibleFloat(lap, traceEvery) or iterid < 3
+      return False
+    return isEvenlyDivisibleFloat(lap, traceEvery) \
+           or nMstepUpdates < 3 \
+           or lap in self.TraceLaps
+
+  def saveDiagnostics(self, lap, SS, evBound, ActiveIDVec):
+    ''' Save trace stats to disk
+    '''
+    if lap in self.TraceLaps:
+      return
+    self.TraceLaps.add(lap)
+
+    # Record current evidence
+    self.evTrace.append(evBound)
+
+    # Exit here if we're not saving to disk
+    if self.savedir is None:
+      return
     
-    if traceEvery > 0 and (doFinal or doTrace) and lap not in self.TraceLaps:
-      # Record current evidence
-      self.evTrace.append(evBound)
-      self.TraceLaps.add(lap)
+    # Record current state to plain-text files
+    with open( self.mkfile('laps.txt'), 'a') as f:        
+      f.write('%.4f\n' % (lap))
+    with open( self.mkfile('evidence.txt'), 'a') as f:        
+      f.write('%.9e\n' % (evBound))
+    with open( self.mkfile('nObs.txt'), 'a') as f:
+      f.write('%d\n' % (self.nObsProcessed))
+    with open( self.mkfile('times.txt'), 'a') as f:
+      f.write('%.3f\n' % (self.get_elapsed_time()))
+    with open( self.mkfile('K.txt'), 'a') as f:
+      f.write('%d\n' % (SS.K))
 
-      # Exit here if we're not saving to disk
-      if self.savedir is None:
-        return
+    # Record active counts in plain-text files
+    counts = None
+    try:
+      counts = SS.N
+    except AttributeError:
+      counts = SS.SumWordCounts
     
-      # Record current state to plain-text files
-      with open( self.mkfile('laps.txt'), 'a') as f:        
-        f.write('%.4f\n' % (lap))
-      with open( self.mkfile('evidence.txt'), 'a') as f:        
-        f.write('%.9e\n' % (evBound))
-      with open( self.mkfile('nObs.txt'), 'a') as f:
-        f.write('%d\n' % (self.nObsProcessed))
-      with open( self.mkfile('times.txt'), 'a') as f:
-        f.write('%.3f\n' % (self.get_elapsed_time()))
-      with open( self.mkfile('K.txt'), 'a') as f:
-        f.write('%d\n' % (hmodel.obsModel.K))
+    assert counts.ndim == 1
+    counts = np.asarray(counts, dtype=np.float32)
+    np.maximum(counts, 0, out=counts)
+    with open(self.mkfile('ActiveCounts.txt'), 'a') as f:
+      flatstr = ' '.join(['%.3f' % x for x in counts])
+      f.write(flatstr+'\n')
 
-      # Record active counts in plain-text files
-      counts = None
-      try:
-        counts = SS.N
-      except AttributeError:
-        counts = SS.SumWordCounts
-      if counts is not None:
-        assert counts.ndim == 1
-        counts = np.asarray(counts, dtype=np.float32)
-        np.maximum(counts, 0, out=counts)
-        with open(self.mkfile('ActiveCounts.txt'), 'a') as f:
-          flatstr = ' '.join(['%.3f' % x for x in counts])
-          f.write(flatstr+'\n')
+    with open(self.mkfile('ActiveIDs.txt'), 'a') as f:
+      flatstr = ' '.join(['%d' % x for x in ActiveIDVec])
+      f.write(flatstr+'\n')
 
-      if hasattr(hmodel, 'ActiveIDVec'):
-        with open(self.mkfile('ActiveIDs.txt'), 'a') as f:
-          flatstr = ' '.join(['%d' % x for x in hmodel.ActiveIDVec])
-          f.write(flatstr+'\n')
 
+  ######################################################### Save Full Model
+  #########################################################
+  def isSaveParamsCheckpoint(self, lap, nMstepUpdates):
+    ''' Answer True/False whether to save full model now
+    '''
     saveEvery = self.outputParams['saveEvery']
     if saveEvery <= 0 or self.savedir is None:
+      return False
+    return isEvenlyDivisibleFloat(lap, saveEvery) or nMstepUpdates < 3
+
+
+  def saveParams(self, lap, hmodel, SS=None):
+    ''' Save current model to disk
+    '''
+    if lap in self.SavedIters:
       return
+    self.SavedIters.add(lap)
 
-    doSave = isEvenlyDivisibleFloat(lap, saveEvery) or iterid < 3
-    if (doFinal or doSave) and iterid not in self.SavedIters:
-      self.SavedIters.add(iterid)
-      with open(self.mkfile('laps-saved-params.txt'), 'a') as f:        
-        f.write('%.4f\n' % (lap))
-      prefix = ModelWriter.makePrefixForLap(lap)
+    prefix = ModelWriter.makePrefixForLap(lap)
 
-      if self.outputParams['doSaveFullModel']:
-        ModelWriter.save_model(hmodel, self.savedir, prefix,
-                              doSavePriorInfo=(iterid<1), doLinkBest=True)
+    with open(self.mkfile('laps-saved-params.txt'), 'a') as f:        
+      f.write('%.4f\n' % (lap))
 
-      if self.outputParams['doSaveEstParams']:
-        ModelWriter.saveEstParams(hmodel, SS, self.savedir, prefix,
+    if self.outputParams['doSaveFullModel']:
+      ModelWriter.save_model(hmodel, self.savedir, prefix,
+                             doSavePriorInfo=np.allclose(lap, 0.0),
+                             doLinkBest=True)
+
+    if self.outputParams['doSaveEstParams']:
+      ModelWriter.saveEstParams(hmodel, SS, self.savedir, prefix,
                                 doLinkBest=True)
 
+
+  
 
   # Define temporary function that creates files in this alg's output dir
   def mkfile(self, fname):
@@ -324,3 +346,76 @@ class LearnAlg(object):
       if hasattr(cFuncModule, 'onAlgorithmComplete') \
          and isFinal:
          cFuncModule.onAlgorithmComplete(args=cFuncArgs_string, **kwargs)
+
+########################################################### DEPRECATED
+########################################################### DEPRECATED
+########################################################### DEPRECATED
+########################################################### DEPRECATED
+"""
+  def save_state(self, hmodel, SS, iterid, lap, evBound, doFinal=False):
+    ''' Save state of the hmodel's global parameters and evBound
+    '''
+    traceEvery = self.outputParams['traceEvery']
+    if traceEvery <= 0:
+      traceEvery = -1
+    doTrace = isEvenlyDivisibleFloat(lap, traceEvery) or iterid < 3
+    
+    if traceEvery > 0 and (doFinal or doTrace) and lap not in self.TraceLaps:
+      # Record current evidence
+      self.evTrace.append(evBound)
+      self.TraceLaps.add(lap)
+
+      # Exit here if we're not saving to disk
+      if self.savedir is None:
+        return
+    
+      # Record current state to plain-text files
+      with open( self.mkfile('laps.txt'), 'a') as f:        
+        f.write('%.4f\n' % (lap))
+      with open( self.mkfile('evidence.txt'), 'a') as f:        
+        f.write('%.9e\n' % (evBound))
+      with open( self.mkfile('nObs.txt'), 'a') as f:
+        f.write('%d\n' % (self.nObsProcessed))
+      with open( self.mkfile('times.txt'), 'a') as f:
+        f.write('%.3f\n' % (self.get_elapsed_time()))
+      with open( self.mkfile('K.txt'), 'a') as f:
+        f.write('%d\n' % (hmodel.obsModel.K))
+
+      # Record active counts in plain-text files
+      counts = None
+      try:
+        counts = SS.N
+      except AttributeError:
+        counts = SS.SumWordCounts
+      if counts is not None:
+        assert counts.ndim == 1
+        counts = np.asarray(counts, dtype=np.float32)
+        np.maximum(counts, 0, out=counts)
+        with open(self.mkfile('ActiveCounts.txt'), 'a') as f:
+          flatstr = ' '.join(['%.3f' % x for x in counts])
+          f.write(flatstr+'\n')
+
+      if hasattr(hmodel, 'ActiveIDVec'):
+        with open(self.mkfile('ActiveIDs.txt'), 'a') as f:
+          flatstr = ' '.join(['%d' % x for x in hmodel.ActiveIDVec])
+          f.write(flatstr+'\n')
+
+    saveEvery = self.outputParams['saveEvery']
+    if saveEvery <= 0 or self.savedir is None:
+      return
+
+    doSave = isEvenlyDivisibleFloat(lap, saveEvery) or iterid < 3
+    if (doFinal or doSave) and iterid not in self.SavedIters:
+      self.SavedIters.add(iterid)
+      with open(self.mkfile('laps-saved-params.txt'), 'a') as f:        
+        f.write('%.4f\n' % (lap))
+      prefix = ModelWriter.makePrefixForLap(lap)
+
+      if self.outputParams['doSaveFullModel']:
+        ModelWriter.save_model(hmodel, self.savedir, prefix,
+                              doSavePriorInfo=(iterid<1), doLinkBest=True)
+
+      if self.outputParams['doSaveEstParams']:
+        ModelWriter.saveEstParams(hmodel, SS, self.savedir, prefix,
+                                doLinkBest=True)
+"""
