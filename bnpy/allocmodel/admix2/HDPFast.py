@@ -289,8 +289,12 @@ class HDPFast(AllocModel):
     ''' Update global parameters.
     '''
     if mergeCompA is None:
+      # Standard case:
+      # Update via gradient descent.
       rho, omega = self._find_optimum_rhoomega(SS, **kwargs)
     else:
+      # Special update case for merges:
+      # Fast, heuristic update for rho and omega directly from existing values
       beta = OptimFast.rho2beta_active(self.rho)
       beta[mergeCompA] += beta[mergeCompB]
       beta = np.delete(beta, mergeCompB, axis=0)

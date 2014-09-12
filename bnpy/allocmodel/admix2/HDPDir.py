@@ -395,10 +395,25 @@ class HDPDir(AllocModel):
 
   ####################################################### VB Global Step
   #######################################################
-  def update_global_params_VB(self, SS, rho=None, **kwargs):
+  def update_global_params_VB(self, SS, rho=None, 
+                                    mergeCompA=None, mergeCompB=None, 
+                                    **kwargs):
     ''' Update global parameters.
     '''
-    rho, omega = self._find_optimum_rhoomega(SS, **kwargs)
+    if mergeCompA is None:
+      # Standard case:
+      # Update via gradient descent.
+      rho, omega = self._find_optimum_rhoomega(SS, **kwargs)
+    else:
+      # Special update case for merges:
+      # Fast, heuristic update for rho and omega directly from existing values
+      beta = OptimHDPDir.rho2beta_active(self.rho)
+      beta[mergeCompA] += beta[mergeCompB]
+      beta = np.delete(beta, mergeCompB, axis=0)
+      rho = OptimHDPDir.beta2rho(beta, SS.K)
+      omega = self.omega
+      omega[mergeCompA] += omega[mergeCompB]
+      omega = np.delete(omega, mergeCompB, axis=0)
     self.rho = rho
     self.omega = omega
     self.K = SS.K
