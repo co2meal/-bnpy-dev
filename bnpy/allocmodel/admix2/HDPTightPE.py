@@ -1,34 +1,16 @@
 '''
-HDPPE.py
+HDPTightPE.py
 Bayesian nonparametric admixture model via the Hierarchical Dirichlet Process.
 Uses a direct construction that maintains K active components.
-with **point-estimation** for the top-level stick-lengths.
+
+Tight local (document-specific) factor.
+Point estimate for global factor (not proper variational distribution).
 
 Attributes
 -------
 K : # of components
 gamma : scalar positive real, global concentration 
 alpha : scalar positive real, document-level concentration param
-
-Local Model Parameters (document-specific)
---------
-z :  one-of-K topic assignment indicator for tokens
-     z_{dn} : binary indicator vector for assignment of token n in document d
-              z_{dnk} = 1 iff assigned to topic k, 0 otherwise.
-
-v : document-specific stick-breaking lengths for each active topic 
-     v1 : 2D array, size D x K
-     v0 : 2D array, size D x K
-
-Local Variational Parameters
---------
-resp :  q(z_dn) = Categorical( z_dn | resp_{dn1}, ... resp_{dnK} )
-eta1, eta0 : q(v_d) = Beta( eta1[d,k], eta0[d,k])
-
-Global Model Parameters (shared across all documents)
---------
-uhat : 1D array, size K
-q(u_k) = Point Mass at uhat[k]
 
 References
 -------
@@ -37,32 +19,32 @@ Latent Dirichlet Allocation, by Blei, Ng, and Jordan
 introduces a classic admixture model with Dirichlet-Mult observations.
 '''
 import numpy as np
+import logging
+Log = logging.getLogger('bnpy')
 
-from HDPSB import HDPSB, c_Beta, gtsum
+from HDPFast import HDPFast, c_Beta, c_Dir
 
 from bnpy.suffstats import SuffStatBag
 from ...util import digamma, gammaln
 from ...util import NumericUtil, as1D
 
-import OptimizerHDPPE as OptimHDPPE
+import OptimizerHDPTightPE as Optim
 import LocalUtil
 
-class HDPPE(HDPSB):
+class HDPTightPE(HDPFast):
 
   def E_beta_active(self):
     ''' Return vector beta of appearance probabilities for all active topics
     '''
-    beta = self.uhat.copy()
-    beta[1:] *= np.cumprod( 1 - self.uhat[:-1])
-    return beta
+    return Optim.rho2beta_active(self.rho)
 
   def to_dict(self):
-    return dict(uhat=self.uhat)
+    return dict(rho=self.rho)
 
   def from_dict(self, Dict):
     self.inferType = Dict['inferType']
     self.K = Dict['K']
-    self.uhat = as1D(Dict['uhat'])
+    self.rho = as1D(Dict['rho'])
 
   ####################################################### VB Local Step
   ####################################################### (E-step)
@@ -77,47 +59,32 @@ class HDPPE(HDPSB):
           * ElogPi
           * DocTopicCount
     '''
+    self.alpha_E_beta() # create cached copy
     LP = LocalUtil.calcLocalParams(Data, LP, self, **kwargs)
     assert 'resp' in LP
     assert 'DocTopicCount' in LP
     return LP
 
-  ### Inherited from HDPSB
+  ### Inherited from HDPFast
   # def calcLogPrActiveCompsForDoc(self, DocTopicCount_d)
   # def updateLPGivenDocTopicCount(self, LP, DocTopicCount)
   # def initLPFromResp(self, Data, LP)
 
   ####################################################### Suff Stat Calc
   ####################################################### 
-  def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None, **kwargs):
-    ''' Calculate sufficient statistics.
-    '''
-    resp = LP['resp']
-    _, K = resp.shape
-    SS = SuffStatBag(K=K, D=Data.get_dim())
-    SS.setField('nDoc', Data.nDoc, dims=None)
-    SS.setField('sumLogVd', np.sum(LP['ElogV'], axis=0), dims='K')
-    SS.setField('sumLog1mVd', np.sum(LP['Elog1mV'], axis=0), dims='K')
+  ### Inherited from HDPFast
 
-    if doPrecompEntropy:
-      ElogqZ = self.E_logqZ(Data, LP)
-      VZlocal = self.E_logpVZ_logqV(Data, LP)
-      SS.setELBOTerm('ElogqZ', ElogqZ, dims='K')
-      SS.setELBOTerm('VZlocal', VZlocal, dims=None)
-    return SS
-
-  ####################################################### VB Global Step
-  #######################################################
+  ####################################################### Global Update
+  ####################################################### 
   def update_global_params_VB(self, SS, rho=None, **kwargs):
     ''' Update global parameters.
     '''
-    uhat = self._find_optimum_uhat(SS, **kwargs)
-    self.uhat = uhat
+    self.rho = self._find_optimum_rho(SS, **kwargs)
     self.K = SS.K
     self.ClearCache()
 
-  def _find_optimum_uhat(self, SS, **kwargs):
-    ''' Run numerical optimization to find optimal uhat point estimate
+  def _find_optimum_rho(self, SS, **kwargs):
+    ''' Run numerical optimization to find optimal rho point estimate
 
         Args
         --------
@@ -125,60 +92,59 @@ class HDPPE(HDPSB):
 
         Returns
         --------
-        uhat : 1D array, length K
+        rho : 1D array, length K
     '''
-    if hasattr(self, 'uhat') and self.uhat.size == SS.K:
-      inituhat = self.uhat
+    if hasattr(self, 'rho') and self.rho.size == SS.K:
+      initrho = self.rho
     else:
-      inituhat = None
+      initrho = None
 
     try:
-      uhat, f, Info = OptimHDPPE.find_optimum_multiple_tries(
-                                        sumLogVd=SS.sumLogVd,
-                                        sumLog1mVd=SS.sumLog1mVd,
+      rho, f, Info = Optim.find_optimum_multiple_tries(
+                                        DocTopicCount=SS.DocTopicCount,
                                         nDoc=SS.nDoc,
                                         gamma=self.gamma, alpha=self.alpha,
-                                        inituhat=inituhat)
+                                        initrho=initrho)
 
     except ValueError as error:
       if str(error).count('FAILURE') == 0:
         raise error
-      if inituhat is not None:
+      if initrho is not None:
         Log.error('***** Optim failed. Remain at cur val. ' + str(error))
-        self.uhat = inituhat
+        self.rho = initrho
       else:
         Log.error('***** Optim failed. Set to default init. ' + str(error))
-        uhat = OptimHDPPE.create_inituhat(K)
-    return uhat
+        rho = Optim.create_initrho(K)
+    return rho
 
   ####################################################### Set Global Params
   #######################################################
   def init_global_params(self, Data, K=0, **kwargs):
     self.K = K
-    self.uhat = OptimHDPPE.create_inituhat(K)
+    self.rho = Optim.create_initrho(K)
     self.ClearCache()
 
   def set_global_params(self, hmodel=None, 
-                              uhat=None, beta=None, 
+                              rho=None, beta=None, 
                               **kwargs):
     if hmodel is not None:
       self.K = hmodel.allocModel.K
       if hasattr(hmodel.allocModel, 'rho'):
         self.rho = hmodel.allocModel.rho
-      elif hasattr(hmodel.allocModel, 'uhat'):
-        self.uhat = hmodel.allocModel.uhat
+      elif hasattr(hmodel.allocModel, 'rho'):
+        self.rho = hmodel.allocModel.rho
       else:
         raise AttributeError('Unrecognized hmodel')
-    elif uhat is not None:
-      self.uhat = uhat
-      self.K = uhat.size
+    elif rho is not None:
+      self.rho = rho
+      self.K = rho.size
     else:
       self._set_global_params_from_scratch(**kwargs)
     self.ClearCache()
 
   def _set_global_params_from_scratch(self, beta=None, topic_prior=None,
                                             **kwargs):
-    ''' Set uhat to values that reproduce provided appearance probs
+    ''' Set rho to values that reproduce provided appearance probs
     '''
     if topic_prior is not None:
       beta = topic_prior / np.sum(topic_prior)
@@ -190,18 +156,18 @@ class HDPPE(HDPSB):
     else:
       raise ValueError('Bad parameters. Vector beta not specified.')
     self.K = beta.size - 1
-    self.uhat = self._convert_beta2uhat(beta)
-    assert self.uhat.size == self.K
+    self.rho = self._convert_beta2rho(beta)
+    assert self.rho.size == self.K
 
-  def _convert_beta2uhat(self, beta):
-    ''' Find stick-lengths uhat that best recreate provided appearance probs beta
+  def _convert_beta2rho(self, beta):
+    ''' Find stick-lengths rho that best recreate provided appearance probs beta
 
         Returns
         --------
-        uhat : 1D array, size K
+        rho : 1D array, size K
     '''
     assert abs(np.sum(beta) - 1.0) < 0.001
-    return OptimHDPPE.beta2rho(beta, self.K)
+    return Optim.beta2rho(beta, self.K)
 
 
   ####################################################### Calc ELBO
@@ -209,33 +175,30 @@ class HDPPE(HDPSB):
   def calc_evidence(self, Data, SS, LP, **kwargs):
     ''' Calculate ELBO objective 
     '''
-    cV_global = SS.nDoc * self.E_c_alphabeta()
     U_global = self.E_logpU()
-    V_global = self.E_logpV__global(SS)
+    c_Dir_Pi_p = SS.nDoc * c_Dir(self.alpha_E_beta())
+    c_Dir_Pi_q = self.c_Dir_DocTopicCount(SS)
     if SS.hasELBOTerms():
       ElogqZ = SS.getELBOTerm('ElogqZ')
-      VZlocal = SS.getELBOTerm('VZlocal')
     else:
       ElogqZ = self.E_logqZ(Data, LP)
-      VZlocal = self.E_logpVZ_logqV(Data, LP)
-    return U_global + cV_global + V_global + VZlocal - np.sum(ElogqZ)
-
-  ## Inherited from HDPSB
-  # def E_logqZ(self, Data, LP):
-  # def E_logpVZ_logqV(self, Data, LP):
-  # def E_logpV__global(self, SS)
+    return U_global + c_Dir_Pi_p - c_Dir_Pi_q - np.sum(ElogqZ)
 
   def E_logpU(self):
     ''' Calculate E[ log p(u) ]
     '''
-    Elog1mU = np.log(1-self.uhat)
+    Elog1mU = np.log(1-self.rho)
     return self.K * c_Beta(1, self.gamma) \
            + np.sum((self.gamma - 1) * Elog1mU)
 
-  def E_c_alphabeta(self):
-    ''' Calculate E[ \sum_k c_B( alpha beta_k, alpha beta_gtk) ]
-    '''
-    Ebeta, Ebeta_gt = self.E_beta_and_betagt()
-    return c_Beta( self.alpha * Ebeta,
-                   self.alpha * Ebeta_gt)
+  def c_Dir_DocTopicCount(self, SS):
+    ''' Calculate c_Dir( DocTopicCount[d,:] + alpha E[beta] ) for each doc d
 
+        Returns
+        --------
+        Elogstuff : real scalar
+    ''' 
+    alphaEbeta = self.alpha * self.E_beta()
+    theta = SS.DocTopicCount + alphaEbeta[:-1]
+    thetaRem = alphaEbeta[-1]
+    return c_Dir(theta, thetaRem)

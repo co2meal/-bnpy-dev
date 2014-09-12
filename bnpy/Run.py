@@ -142,9 +142,16 @@ def _run_task_internal(jobname, taskid, nTask,
     taskoutpath = None
   configLoggingToConsoleAndFile(taskoutpath, doSaveToDisk, doWriteStdOut)
   
+  if algName in OnlineDataAlgSet:    
+     KwArgs[algName]['nLap'] = KwArgs['OnlineDataPrefs']['nLap']
+
   if type(dataName) is str:
-    DataArgs = getKwArgsForLoadData(ReqArgs, UnkArgs)  
-    Data, InitData = loadData(ReqArgs, KwArgs, DataArgs, dataorderseed)
+    if os.path.exists(dataName):
+      Data, InitData = loadDataIteratorFromDisk(dataName, KwArgs, dataorderseed)
+      DataArgs = UnkArgs
+    else:
+      DataArgs = getKwArgsForLoadData(ReqArgs, UnkArgs)  
+      Data, InitData = loadData(ReqArgs, KwArgs, DataArgs, dataorderseed)
   else:
     Data = dataName
     InitData = dataName
@@ -152,7 +159,6 @@ def _run_task_internal(jobname, taskid, nTask,
     assert isinstance(Data, bnpy.data.DataObj)
 
     if algName in OnlineDataAlgSet:    
-      KwArgs[algName]['nLap'] = KwArgs['OnlineDataPrefs']['nLap']
       OnlineDataArgs = KwArgs['OnlineDataPrefs']
       OnlineDataArgs['dataorderseed'] = dataorderseed
 
@@ -193,9 +199,9 @@ def _run_task_internal(jobname, taskid, nTask,
     Log.info('SGE Grid Job ID: %d' % (jobID))
     # Create symlinks to captured stdout, stdout in bnpy output directory
     os.symlink(os.getenv('SGE_STDOUT_PATH'), 
-                          os.path.join(taskoutpath, 'stdout.log'))
+                          os.path.join(taskoutpath, 'stdout'))
     os.symlink(os.getenv('SGE_STDERR_PATH'), 
-                          os.path.join(taskoutpath, 'stderr.log'))
+                          os.path.join(taskoutpath, 'stderr'))
 
   # Write descriptions to the log
   if taskid == 1 or jobID > 0:
@@ -225,6 +231,17 @@ def _run_task_internal(jobname, taskid, nTask,
 
 ########################################################### Load Data
 ###########################################################
+def loadDataIteratorFromDisk(datapath, KwArgs, dataorderseed):
+  ''' Create a DataIterator from files stored on disk
+  '''
+  if 'OnlineDataPrefs' in KwArgs:
+    OnlineDataArgs = KwArgs['OnlineDataPrefs']
+    OnlineDataArgs['dataorderseed'] = dataorderseed
+
+  DataIterator = bnpy.data.DataIteratorFromDisk(datapath, **OnlineDataArgs)
+  InitData = DataIterator.loadInitData()
+  return DataIterator, InitData
+
 def loadData(ReqArgs, KwArgs, DataArgs, dataorderseed):
   ''' Load DataObj specified by the user, using particular random seed.
 
@@ -439,11 +456,13 @@ def getOutputPath(ReqArgs, KwArgs, taskID=0 ):
   dataName = ReqArgs['dataName']
   if type(dataName) is not str:
     dataName = dataName.get_short_name()
+  if os.path.exists(dataName):
+    if dataName.endswith(os.path.sep):
+      dataName = dataName.split(os.path.sep)[-2]
+    else:
+      dataName = dataName.split(os.path.sep)[-1]
   return os.path.join(os.environ['BNPYOUTDIR'], 
                        dataName, 
-                       ReqArgs['allocModelName'],
-                       ReqArgs['obsModelName'],
-                       ReqArgs['algName'],
                        KwArgs['OutputPrefs']['jobname'], 
                        str(taskID) )
 

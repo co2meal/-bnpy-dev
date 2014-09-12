@@ -231,7 +231,7 @@ class TestManyDocs(unittest.TestCase):
     ''' Verify computed gradient similar for exact and approx methods
     '''
     print ''
-    for K in [1, 10, 55]:
+    for K in [164, 1, 10, 55]:
       for alpha in [0.1, 0.95]:
         for gamma in [1., 9.45]:
           for nDoc in [1, 100, 1000]:
@@ -241,11 +241,11 @@ class TestManyDocs(unittest.TestCase):
 
             for seed in [111, 222, 333]:
               PRNG = np.random.RandomState(seed)
-              u = np.linspace(0.01, 0.99, K)
+              u = np.linspace(0.01, 0.95, K)
               Vd = sampleVd(u, nDoc, alpha, PRNG=PRNG)
               DocTopicCount = summarizeVdToDocTopicCount(Vd)
 
-              rho = PRNG.rand(K)
+              rho = 0.5 * u
               omega = 100 * PRNG.rand(K)
               rhoomega = np.hstack([rho, omega])
               kwargs = dict(alpha=alpha, 
@@ -258,15 +258,17 @@ class TestManyDocs(unittest.TestCase):
                                                  **kwargs)
 
               ## Calculate Approx gradient
-              objFunc = lambda x: OptimFast.objFunc_constrained(x, approx_grad=1,
+              objFunc = lambda x: OptimFast.objFunc_constrained(x, 
+                                                                approx_grad=1,
                                                                **kwargs)
               epsvec = np.hstack([1e-8*np.ones(K), 1e-8*np.ones(K)])
               gapprox = approx_fprime(rhoomega, objFunc, epsvec)    
 
               ## Verify rho gradient
-              rtol_rho = 0.00001
+              rtol_rho = 0.002
               atol_rho = 0.001
-              assert_allclose(g[:K], gapprox[:K], 'rho exact', 'rho approx', 
+              assert_allclose(g[:K], gapprox[:K], 
+                              'rho grad exact', 'rho grad approx', 
                               atol=atol_rho,
                               rtol=rtol_rho)
 

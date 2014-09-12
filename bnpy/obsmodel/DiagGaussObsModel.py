@@ -146,9 +146,9 @@ class DiagGaussObsModel(AbstractObsModel):
     ''' Convert from Post (nu, beta, m, kappa) to EstParams (mu, Sigma),
          each EstParam is set to its posterior mean.
     '''
-    self.EstParams = ParamBag(K=K, D=D)    
+    self.EstParams = ParamBag(K=Post.K, D=self.D)    
     mu = Post.m.copy()
-    sigma = Post.beta / (nu[k] - 2)
+    sigma = Post.beta / (Post.nu - 2)[:,np.newaxis]
     self.EstParams.setField('mu', mu, dims=('K','D'))
     self.EstParams.setField('sigma', sigma, dims=('K','D'))
     self.K = self.EstParams.K
@@ -236,6 +236,19 @@ class DiagGaussObsModel(AbstractObsModel):
     # Expected sum-of-squares for each k
     SS.setField('xx', dotATB(resp, np.square(X)), dims=('K', 'D'))
     return SS 
+
+  def forceSSInBounds(self, SS):
+    ''' Force count vector N to remain positive
+
+        This avoids numerical problems due to incremental additions and subtractions,
+        which can cause computations like 1 + 1e-15 - 1 - 1e-15 to be less than zero
+        instead of exactly zero.
+
+        Returns
+        -------
+        None. SS.N updated in-place.
+    '''
+    np.maximum(SS.N, 0, out=SS.N)
 
   def incrementSS(self, SS, k, x):
     SS.x[k] += x

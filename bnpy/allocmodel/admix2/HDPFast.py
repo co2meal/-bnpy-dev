@@ -39,6 +39,8 @@ Latent Dirichlet Allocation, by Blei, Ng, and Jordan
 introduces a classic admixture model with Dirichlet-Mult observations.
 '''
 import numpy as np
+import logging
+Log = logging.getLogger('bnpy')
 
 from ..AllocModel import AllocModel
 from bnpy.suffstats import SuffStatBag
@@ -51,7 +53,9 @@ import LocalUtil
 class HDPFast(AllocModel):
   def __init__(self, inferType, priorDict=None):
     if inferType == 'EM':
-      raise ValueError('HDPFastFixed cannot do EM.')
+      raise ValueError('HDPFast cannot do EM.')
+    #if inferType == 'moVB':
+    #  raise ValueError('HDPFast cannot do memoized (yet).')
     self.inferType = inferType
     self.K = 0
     if priorDict is None:
@@ -156,7 +160,7 @@ class HDPFast(AllocModel):
         Returns
         -------
         logp : 1D array, size K
-               logp[k] gives log prob of topic k in provided doc, up to additive const
+               logp[k] = log prob of topic k in the doc, up to additive const
     '''
     np.add(DocTopicCount_d, self.alphaEbeta[:-1], out=out)
     ##digammaSum = digamma(out.sum() + self.alphaEbeta[-1])
@@ -164,13 +168,15 @@ class HDPFast(AllocModel):
     ##out -= digammaSum
     return out
 
-  def calcLogPrActiveComps_Fast(self, DocTopicCount, activeDocs=None, LP=dict(),
+  def calcLogPrActiveComps_Fast(self, DocTopicCount, activeDocs=None, LP=None,
                                       out=None):
     ''' Calculate log prob of each active topic for each active document
     '''
+    if LP is None:
+      LP = dict()
+
     ## alphaEbeta is 1D array, size K+1
     alphaEbeta = self.alpha * self.E_beta()
-
     if activeDocs is None:
       activeDocTopicCount = DocTopicCount
     else:
@@ -229,26 +235,59 @@ class HDPFast(AllocModel):
 
   ####################################################### Suff Stat Calc
   ####################################################### 
-  def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None, **kwargs):
+  def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None,
+                                            doPrecompMergeEntropy=None,
+                                            mPairIDs=None,
+                                            preselectroutine=None,
+                                            **kwargs):
     ''' Calculate sufficient statistics.
     '''
     resp = LP['resp']
     _, K = resp.shape
     SS = SuffStatBag(K=K, D=Data.get_dim(), A=Data.nDoc)
     SS.setField('nDoc', Data.nDoc, dims=None)
-    SS.setField('DocTopicCount', LP['DocTopicCount'], dims=('A', 'K'))
+    SS.setField('DocTopicCount', LP['DocTopicCount'].copy(), dims=('A', 'K'))
+
+    ## Entropy caching
     if doPrecompEntropy:
       ElogqZ = self.E_logqZ(Data, LP)
       SS.setELBOTerm('ElogqZ', ElogqZ, dims='K')
 
+    ## Merge Term caching
+    if doPrecompMergeEntropy:
+      resp = LP['resp']
+      if mPairIDs is None:
+        ElogqZMat = NumericUtil.calcRlogR_allpairs(resp)
+      else:
+        ElogqZMat = NumericUtil.calcRlogR_specificpairs(resp, mPairIDs)
+      SS.setMergeTerm('ElogqZ', ElogqZMat, dims=('K','K'))
+
+    ## Selection terms (using doc-topic correlation)
+    if preselectroutine is not None:
+      if preselectroutine.count('doctopiccorr') > 0:
+        Tmat = LP['DocTopicCount']
+        SS.setSelectionTerm('DocTopicPairMat',
+                           np.dot(Tmat.T, Tmat), dims=('K','K'))
+        SS.setSelectionTerm('DocTopicSum', np.sum(Tmat, axis=0), dims='K')
     return SS
 
   ####################################################### VB Global Step
   #######################################################
-  def update_global_params_VB(self, SS, rho=None, **kwargs):
+  def update_global_params_VB(self, SS, rho=None, 
+                                    mergeCompA=None, mergeCompB=None, 
+                                    **kwargs):
     ''' Update global parameters.
     '''
-    rho, omega = self._find_optimum_rhoomega(SS, **kwargs)
+    if mergeCompA is None:
+      rho, omega = self._find_optimum_rhoomega(SS, **kwargs)
+    else:
+      beta = OptimFast.rho2beta_active(self.rho)
+      beta[mergeCompA] += beta[mergeCompB]
+      beta = np.delete(beta, mergeCompB, axis=0)
+      rho = OptimFast.beta2rho(beta, SS.K)
+      omega = self.omega
+      omega[mergeCompA] += omega[mergeCompB]
+      omega = np.delete(omega, mergeCompB, axis=0)
     self.rho = rho
     self.omega = omega
     self.K = SS.K
@@ -278,7 +317,8 @@ class HDPFast(AllocModel):
                                         DocTopicCount=SS.DocTopicCount,
                                         nDoc=SS.nDoc,
                                         gamma=self.gamma, alpha=self.alpha,
-                                        initrho=initrho, initomega=initomega)
+                                        initrho=initrho, initomega=initomega,
+                                        pgtol=1e-8)
     except ValueError as error:
       if str(error).count('FAILURE') == 0:
         raise error
@@ -286,10 +326,10 @@ class HDPFast(AllocModel):
         Log.error('***** Optim failed. Remain at cur val. ' + str(error))
         rho = self.rho
         omega = self.omega
-      else:
+      else:      
         Log.error('***** Optim failed. Set to default init. ' + str(error))
         omega = (1 + self.gamma) * np.ones(SS.K)
-        rho = OptimFast.create_initrho(K)
+        rho = OptimFast.create_initrho(SS.K)
     return rho, omega
 
 
@@ -360,14 +400,15 @@ class HDPFast(AllocModel):
     ''' Calculate ELBO objective 
     '''
     UandcPi_global = self.E_logpU_logqU_c(SS)
-    qcPi = self.q_cPi(LP)
+    qcPi = self.cDir_q(SS)
+    calpha = SS.nDoc * (gammaln(self.alpha) + (SS.K+1) * np.log(self.alpha))
     if SS.hasELBOTerms():
       ElogqZ = SS.getELBOTerm('ElogqZ')
     else:
       ElogqZ = self.E_logqZ(Data, LP)
-    return UandcPi_global - np.sum(ElogqZ) - qcPi
+    return calpha + UandcPi_global - np.sum(ElogqZ) - qcPi
 
-  def q_cPi(self, LP):
+  def cDir_q(self, SS):
     ''' Calculate c_Dir( DocTopicCount[d,:] + alpha E[beta] ) for each doc d
 
         Returns
@@ -375,7 +416,7 @@ class HDPFast(AllocModel):
         Elogstuff : real scalar
     ''' 
     alphaEbeta = self.alpha * self.E_beta()
-    theta = LP['DocTopicCount'] + alphaEbeta[:-1]
+    theta = SS.DocTopicCount + alphaEbeta[:-1]
     thetaRem = alphaEbeta[-1]
     return c_Dir(theta, thetaRem)
 
@@ -405,12 +446,17 @@ class HDPFast(AllocModel):
     Elog1mU = digamma(g0) - digammaBoth
 
     ONcoef = SS.nDoc + 1.0 - g1
-    OFFcoef = SS.nDoc * OptimFast.kvec(self.K) + self.gamma - g0
+    OFFcoef = SS.nDoc * OptimFast.kvec(SS.K) + self.gamma - g0
 
     cDiff = SS.K * c_Beta(1, self.gamma) - c_Beta(g1, g0)
     logBetaPDF = np.inner(ONcoef, ElogU) \
                  + np.inner(OFFcoef, Elog1mU)
     return cDiff + logBetaPDF
+
+
+  ######################################################### Hard Merge Gap
+  #########################################################
+  
 
 
 def c_Beta(a1, a0):
@@ -422,9 +468,9 @@ def c_Beta(a1, a0):
       -------
       c : scalar real
   '''
-  return np.sum(gammaln(a1 + a0)) - np.sum(gammaln(a1)) - np.sum(gammaln(a0))  
+  return np.sum(gammaln(a1 + a0) - gammaln(a1) - gammaln(a0))  
 
-def c_Dir(AMat, arem):
+def c_Dir(AMat, arem=None):
   ''' Evaluate cumulant function of the Dir distribution
 
       When input is vectorized, we compute sum over all entries.
@@ -433,10 +479,14 @@ def c_Dir(AMat, arem):
       -------
       c : scalar real
   '''
-  D = AMat.shape[0]
-  return  np.sum(gammaln(np.sum(AMat,axis=1)+arem)) \
-          - np.sum(gammaln(AMat)) \
-          - D * np.sum(gammaln(arem))
+  if arem is None:
+    assert AMat.ndim == 1
+    return gammaln(AMat.sum()) - np.sum(gammaln(AMat))
+  else:
+    D = AMat.shape[0]
+    return np.sum(gammaln(np.sum(AMat,axis=1)+arem)) \
+            - np.sum(gammaln(AMat)) \
+            - D * np.sum(gammaln(arem))
 
 def c_Dir__big(AMat, arem):
   AMatBig = np.hstack([AMat, arem*np.ones(AMat.shape[0])[:,np.newaxis]])

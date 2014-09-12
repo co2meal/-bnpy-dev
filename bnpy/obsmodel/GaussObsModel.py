@@ -140,11 +140,12 @@ class GaussObsModel(AbstractObsModel):
     ''' Convert from Post (nu, B, m, kappa) to EstParams (mu, Sigma),
          each EstParam is set to its posterior mean.
     '''
-    self.EstParams = ParamBag(K=K, D=D)    
+    self.EstParams = ParamBag(K=Post.K, D=Post.D)    
     mu = Post.m.copy()
-    Sigma = Post.B / (nu[k] - D - 1)
+    Sigma = Post.B / (Post.nu[:,np.newaxis,np.newaxis] - Post.D - 1)
     self.EstParams.setField('mu', mu, dims=('K','D'))
     self.EstParams.setField('Sigma', Sigma, dims=('K','D','D'))
+    self.K = self.EstParams.K
 
   
   ######################################################### Set Post
@@ -230,6 +231,23 @@ class GaussObsModel(AbstractObsModel):
       xxT[k] = dotATA(sqrtResp[:,k][:,np.newaxis]*Data.X )
     SS.setField('xxT', xxT, dims=('K','D','D'))
     return SS 
+
+  def forceSSInBounds(self, SS):
+    ''' Force count vector N to remain positive
+
+        This avoids numerical problems due to incremental add/subtract ops
+        which can cause computations like 
+            x = 10.
+            x += 1e-15
+            x -= 10
+            x -= 1e-15
+        to be slightly different than zero instead of exactly zero.
+
+        Returns
+        -------
+        None. SS.N updated in-place.
+    '''
+    np.maximum(SS.N, 0, out=SS.N)
 
   def incrementSS(self, SS, k, x):
     SS.x[k] += x
@@ -947,13 +965,16 @@ def createECovMatFromUserInput(D=0, Data=None, ECovMat='eye', sF=1.0):
     ''' Set Cov Matrix Sigma using the true labels in empirical Bayes style
         Sigma = \sum_{c : class labels} w_c * SampleCov[ data from class c]
     '''   
-    assert hasattr(Data, 'TrueLabels')
-    Zvals = np.unique(Data.TrueLabels)
+    if hasattr(Data, 'TrueLabels'):
+      Z = Data.TrueLabels
+    else:
+      Z = Data.TrueParams['Z']
+    Zvals = np.unique(Z)
     Kmax = len(Zvals)
     wHat = np.zeros(Kmax)
     SampleCov = np.zeros((Kmax,D,D))
     for kLoc, kVal in enumerate(Zvals):
-      mask = Data.TrueLabels == kVal
+      mask = Z == kVal
       wHat[kLoc] = np.sum(mask)
       SampleCov[kLoc] = np.cov(Data.X[mask].T, bias=1)
     wHat = wHat/np.sum(wHat)

@@ -73,14 +73,16 @@ def inplaceExp_numexpr(R):
 
 ########################################################### exp and normalize
 ###########################################################
-def inplaceExpAndNormalizeRows(R):
+def inplaceExpAndNormalizeRows(R, minVal=1e-40):
   ''' Calculate exp in numerically stable way (first subtract max),
        and normalize the rows, all done in-place on the input matrix.
   '''
   if Config['inplaceExpAndNormalizeRows'] == "numexpr" and hasNumexpr:
-    return inplaceExpAndNormalizeRows_numexpr(R)
+    inplaceExpAndNormalizeRows_numexpr(R)
   else:  
-    return inplaceExpAndNormalizeRows_numpy(R)
+    inplaceExpAndNormalizeRows_numpy(R)
+  if minVal is not None:
+    np.maximum(R, minVal, out=R)
 
 def inplaceExpAndNormalizeRows_numpy(R):
   ''' Calculate exp in numerically stable way (first subtract max),

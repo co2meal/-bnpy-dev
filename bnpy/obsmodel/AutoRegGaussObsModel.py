@@ -153,6 +153,7 @@ class AutoRegGaussObsModel(AbstractObsModel):
     Sigma = Post.B / (Post.nu - D - 1)[:, np.newaxis, np.newaxis]
     self.EstParams.setField('A', A, dims=('K','D','D'))
     self.EstParams.setField('Sigma', Sigma, dims=('K','D','D'))
+    self.K = self.EstParams.K
 
   
   ######################################################### Set Post
@@ -246,6 +247,19 @@ class AutoRegGaussObsModel(AbstractObsModel):
     SS.setField('pxT', pxT, dims=('K','D','D'))
     return SS 
 
+  def forceSSInBounds(self, SS):
+    ''' Force count vector N to remain positive
+
+        This avoids numerical problems due to incremental additions and subtractions,
+        which can cause computations like 1 + 1e-15 - 1 - 1e-15 to be less than zero
+        instead of exactly zero.
+
+        Returns
+        -------
+        None. SS.N updated in-place.
+    '''
+    np.maximum(SS.N, 0, out=SS.N)
+
   def incrementSS(self, SS, k, x):
     pass
 
@@ -296,10 +310,7 @@ class AutoRegGaussObsModel(AbstractObsModel):
         L : 2D array, size D x D, lower triangular
             Sigma = np.dot(L, L.T)
     '''
-    try:
-      return scipy.linalg.cholesky(self.EstParams.Sigma[k], lower=1)    
-    except:
-      from IPython import embed; embed()
+    return scipy.linalg.cholesky(self.EstParams.Sigma[k], lower=1)    
 
   def _logdetSigma(self, k):
     ''' Calculate log determinant of EstParam.Sigma for comp k

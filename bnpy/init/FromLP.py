@@ -6,7 +6,7 @@ Initialize global params of a bnpy model using a set of local parameters
 import numpy as np
 import FromScratchMult
 
-def init_global_params(hmodel, Data, initname='', LP=None, **kwargs):
+def init_global_params(hmodel, Data, initname='', initLP=None, **kwargs):
   ''' Initialize (in-place) the global params of the given hmodel
       using the true labels associated with the Data
 
@@ -21,13 +21,15 @@ def init_global_params(hmodel, Data, initname='', LP=None, **kwargs):
       --------
       None. hmodel global parameters updated in-place.
   '''
-  if LP is not None:
-    pass
+  if type(initLP) == dict:
+    LP = initLP
+
   elif initname == 'contigblocksLP':
     LP = makeLP_ContigBlocks(Data, **kwargs)
   else:
     raise ValueError('Unrecognized initname: %s' % (initname))
-  initHModelFromLP(hmodel, Data, LP)    
+  return initHModelFromLP(hmodel, Data, LP)    
+
 
 
 def initHModelFromLP(hmodel, Data, LP):

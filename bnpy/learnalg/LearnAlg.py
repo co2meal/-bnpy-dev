@@ -139,7 +139,7 @@ class LearnAlg(object):
 
   #########################################################  Save to file
   #########################################################  
-  def save_state(self, hmodel, iterid, lap, evBound, doFinal=False):
+  def save_state(self, hmodel, SS, iterid, lap, evBound, doFinal=False):
     ''' Save state of the hmodel's global parameters and evBound
     '''
     traceEvery = self.outputParams['traceEvery']
@@ -168,6 +168,25 @@ class LearnAlg(object):
       with open( self.mkfile('K.txt'), 'a') as f:
         f.write('%d\n' % (hmodel.obsModel.K))
 
+      # Record active counts in plain-text files
+      counts = None
+      try:
+        counts = SS.N
+      except AttributeError:
+        counts = SS.SumWordCounts
+      if counts is not None:
+        assert counts.ndim == 1
+        counts = np.asarray(counts, dtype=np.float32)
+        np.maximum(counts, 0, out=counts)
+        with open(self.mkfile('ActiveCounts.txt'), 'a') as f:
+          flatstr = ' '.join(['%.3f' % x for x in counts])
+          f.write(flatstr+'\n')
+
+      if hasattr(hmodel, 'ActiveIDVec'):
+        with open(self.mkfile('ActiveIDs.txt'), 'a') as f:
+          flatstr = ' '.join(['%d' % x for x in hmodel.ActiveIDVec])
+          f.write(flatstr+'\n')
+
     saveEvery = self.outputParams['saveEvery']
     if saveEvery <= 0 or self.savedir is None:
       return
@@ -178,8 +197,15 @@ class LearnAlg(object):
       with open(self.mkfile('laps-saved-params.txt'), 'a') as f:        
         f.write('%.4f\n' % (lap))
       prefix = ModelWriter.makePrefixForLap(lap)
-      ModelWriter.save_model(hmodel, self.savedir, prefix,
+
+      if self.outputParams['doSaveFullModel']:
+        ModelWriter.save_model(hmodel, self.savedir, prefix,
                               doSavePriorInfo=(iterid<1), doLinkBest=True)
+
+      if self.outputParams['doSaveEstParams']:
+        ModelWriter.saveEstParams(hmodel, SS, self.savedir, prefix,
+                                doLinkBest=True)
+
 
   # Define temporary function that creates files in this alg's output dir
   def mkfile(self, fname):
@@ -199,7 +225,8 @@ class LearnAlg(object):
 
   #########################################################  Print State
   #########################################################  
-  def print_state(self, hmodel, iterid, lap, evBound, doFinal=False, status='', rho=None):
+  def print_state(self, hmodel, SS, iterid, lap, evBound, 
+                        doFinal=False, status='', rho=None):
     printEvery = self.outputParams['printEvery']
     if printEvery <= 0:
       return None
@@ -269,7 +296,7 @@ class LearnAlg(object):
       return False
     return (nLapTotal <= 5) or (lapFrac <= np.ceil(frac * nLapTotal))
 
-  def eval_custom_func(self, lapFrac, **kwargs):
+  def eval_custom_func(self, lapFrac, isFinal=False, **kwargs):
       ''' Evaluates a custom hook function 
       '''
       cFuncPath = self.outputParams['customFuncPath']
@@ -288,11 +315,12 @@ class LearnAlg(object):
         cFuncModule = cFuncPath # directly passed in as object
       
       kwargs['lapFrac'] = lapFrac
-      if hasattr(cFuncModule, 'onBatchComplete'):
+      kwargs['isFinal'] = isFinal
+      if hasattr(cFuncModule, 'onBatchComplete') and not isFinal:
         cFuncModule.onBatchComplete(args=cFuncArgs_string, **kwargs)
       if hasattr(cFuncModule, 'onLapComplete') \
-         and isEvenlyDivisibleFloat(lapFrac, 1.0):
+         and isEvenlyDivisibleFloat(lapFrac, 1.0) and not isFinal:
         cFuncModule.onLapComplete(args=cFuncArgs_string, **kwargs)
       if hasattr(cFuncModule, 'onAlgorithmComplete') \
-         and lapFrac == nLapTotal:
-        cFuncModule.onAlgorithmComplete(args=cFuncArgs_string, **kwargs)
+         and isFinal:
+         cFuncModule.onAlgorithmComplete(args=cFuncArgs_string, **kwargs)

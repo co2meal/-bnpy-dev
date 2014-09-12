@@ -2,6 +2,7 @@ import argparse
 import ConfigParser
 import os
 import sys
+import numpy as np
 
 OnlineDataAlgSet = ['soVB', 'moVB']
 
@@ -66,7 +67,8 @@ def parseKeywordArgs(ReqArgs, **kwargs):
   '''
   movesParser = argparse.ArgumentParser()
   movesParser.add_argument('--moves', type=str, default=None, help=MovesHelpStr)
-  MovesArgDict, kwargs = applyParserToStdInOrKwargs(movesParser, **kwargs)
+  MovesArgDict, unkDict = applyParserToStdInOrKwargs(movesParser, **kwargs)
+
   Moves = set()  
   if MovesArgDict['moves'] is not None:
     for move in MovesArgDict['moves'].split(','):
@@ -81,6 +83,9 @@ def parseKeywordArgs(ReqArgs, **kwargs):
   if kwargs['kwhelp']:
     parser.print_help()
     sys.exit(-1)
+
+  if 'moves' in unkDict:
+    del unkDict['moves']
 
   ## Transform kwargs from "flat" dict, with no sense of sections
   #  into a multi-level dict, with sections for 'EM', 'Gauss', 'MixModel', etc.
@@ -100,11 +105,15 @@ def applyParserToStdInOrKwargs(parser, **kwargs):
      UnkDict : dict of unknown arg/value pairs
   '''
   if len(kwargs.keys()) > 0:
-    kwlist = kwargs_to_arglist(**kwargs)
+    kwlist, ComplexTypeDict = kwargs_to_arglist(**kwargs)
     args, unkList = parser.parse_known_args(kwlist)
+    ArgDict = args.__dict__
+    ArgDict.update(ComplexTypeDict)
   else:
+    ## Parse all args/kwargs from stdin
     args, unkList = parser.parse_known_args()
-  return args.__dict__, arglist_to_kwargs(unkList)
+    ArgDict = args.__dict__
+  return ArgDict, arglist_to_kwargs(unkList)
 
 
 ########################################################### Conversion
@@ -137,12 +146,24 @@ def arglist_to_kwargs(alist):
 
 def kwargs_to_arglist(**kwargs):
   ''' Return arglist where consecutive entries are the input key/value pairs
+
+      Returns
+      -------
+      arglist : list
+      SafeDictForComplexTypes : dict
   '''
+  keys = kwargs.keys()
+  keys.sort(key=len) # sorty by length, smallest to largest
   arglist = list()
-  for key,val in kwargs.items():
-    arglist.append('--' + key)
-    arglist.append(str(val))
-  return arglist
+  SafeDict = dict()
+  for key in keys:
+    val = kwargs[key]
+    if isinstance(val, dict) or isinstance(val, np.ndarray):
+      SafeDict[key] = val
+    else:
+      arglist.append('--' + key)
+      arglist.append(str(val))
+  return arglist, SafeDict
 
 ########################################################### Setup Parser
 ########################################################### from config file
@@ -228,9 +249,13 @@ def fillParserWithDefaultsFromConfigFile(parser, confFile,
       else:
         helpMsg = '[%s]' % (defVal)
       argName = '--' + argName
+
       if defType == True or defType == False:
         group.add_argument(argName, default=defType,
                              help=helpMsg, action='store_true')
+      elif defType == str:
+        ## Don't enforce types, so we can pass dicts
+        group.add_argument(argName, default=defVal, help=helpMsg)
       else:
         group.add_argument(argName, default=defVal, help=helpMsg, type=defType)
 

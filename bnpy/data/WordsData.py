@@ -16,10 +16,35 @@ Attributes
 
 import numpy as np
 import scipy.sparse
+import scipy.io
 
 from bnpy.data.DataObj import DataObj
 
 class WordsData(DataObj):
+
+  @classmethod
+  def LoadFromFile_ldac(cls, filepath, vocab_size=0, **kwargs):
+    ''' Constructor for loading data from .ldac file into WordsData instance
+    '''
+    doc_sizes = []
+    word_id = []
+    word_ct = []
+    with open(filepath, 'r') as f:
+      for line in f.readlines():
+        Fields = line.strip().split(' ')
+        nUnique = int(Fields[0])
+        doc_sizes.append(nUnique)
+        doc_word_id, doc_word_ct = zip(*[x.split(':') for x in Fields[1:]])
+        word_id.extend(doc_word_id)
+        word_ct.extend(doc_word_ct)
+    doc_range = np.hstack([0, np.cumsum(doc_sizes)])
+    return cls(word_id=word_id, word_count=word_ct,
+               doc_range=doc_range, vocab_size=vocab_size)    
+
+  @classmethod
+  def read_from_mat(cls, matfilepath, **kwargs):
+    MatDict = scipy.io.loadmat(matfilepath, **kwargs)
+    return cls(**MatDict)
 
   ######################################################### Constructor
   #########################################################
@@ -43,9 +68,9 @@ class WordsData(DataObj):
                     (in case this obj represents a minibatch of larger corpus)
         TrueParams : None [default], or dict of attributes
     '''
-    self.word_id = np.asarray(np.squeeze(word_id), dtype=np.int32)
-    self.word_count = np.asarray(np.squeeze(word_count), dtype=np.float64)
-    self.doc_range = np.asarray(doc_range, dtype=np.int32)
+    self.word_id = np.squeeze(np.asarray(np.squeeze(word_id), dtype=np.int32))
+    self.word_count = np.squeeze(np.asarray(np.squeeze(word_count), dtype=np.float64))
+    self.doc_range = np.squeeze(np.asarray(doc_range, dtype=np.int32))
     self.vocab_size = int(vocab_size)
     self._verify_attributes()
  
@@ -89,7 +114,10 @@ class WordsData(DataObj):
     assert self.word_count.ndim == 1
     assert self.word_count.min() > 0
     assert self.word_count.size == self.word_id.size
+    if self.doc_range.ndim == 2:
+      self.doc_range = np.hstack([0, self.doc_range[:,1]])
     assert self.doc_range.ndim == 1
+
     docEndBiggerThanStart = self.doc_range[1:] - self.doc_range[:-1]
     assert np.all(docEndBiggerThanStart)
 
@@ -496,6 +524,35 @@ class WordsData(DataObj):
     Data = WordsData(word_id, word_count, doc_range, V, TrueParams=TrueParams)
     return Data
 
+  ######################################################### Write to file
+  #########################################################  (instance method)
+  def WriteToFile_ldac(self, filepath, min_word_index=0):
+    ''' Write contents of this dataset to plain-text file in "ldac" format.
+        
+        Each line of file represents one document, and has format
+        [U] [term1:count1] [term2:count2] ... [termU:countU]
+
+        Args
+        -------
+        filepath : path where data should be saved
+
+        Returns
+        -------
+        None. Writes to file instead.
+    '''
+    word_id = self.word_id
+    if min_word_index > 0:
+      word_id = word_id + min_word_index
+    with open(filepath, 'w') as f:
+      for d in xrange(self.nDoc):
+        dstart = self.doc_range[d]
+        dstop = self.doc_range[d+1]
+        nUniqueInDoc = dstop - dstart
+        idct_list = ["%d:%d" % (word_id[n], self.word_count[n]) \
+                              for n in xrange(dstart, dstop)]
+        docstr = "%d %s" % (nUniqueInDoc, ' '.join(idct_list)) 
+        f.write(docstr + '\n')
+
 """ DEPRECATED METHODS (some may be cleaned up and moved back in someday)
 
   ######################################################### word-word cooccur
@@ -627,30 +684,4 @@ class WordsData(DataObj):
     return cls(word_id=word_id, word_count=word_count,
                doc_range=doc_range, vocab_size=vocab_size, nDocTotal=nDocTotal)
 
-  ######################################################### Write to file
-  #########################################################  (instance method)
-  def WriteToFile_ldac(self, filepath, min_word_index=0):
-    ''' Write contents of this dataset to plain-text file in "ldac" format.
-        
-        Args
-
-        Returns
-        -------
-        None. Writes to file instead.
-
-        Each line of file represents one document, and has format
-        [U] [term1:count1] [term2:count2] ... [termU:countU]
-    '''
-    word_id = self.word_id
-    if min_word_index > 0:
-      word_id = word_id + min_word_index
-    with open(filepath, 'w') as f:
-      for d in xrange(self.nDoc):
-        dstart = self.doc_range[d,0]
-        dstop = self.doc_range[d,1]
-        nUniqueInDoc = dstop - dstart
-        idct_list = ["%d:%d" % (word_id[n], self.word_count[n]) \
-                              for n in xrange(dstart, dstop)]
-        docstr = "%d %s" % (nUniqueInDoc, ' '.join(idct_list)) 
-        f.write(docstr + '\n')
 """

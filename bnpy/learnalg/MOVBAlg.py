@@ -54,6 +54,8 @@ class MOVBAlg(LearnAlg):
     
     '''
     origmodel = hmodel
+    self.ActiveIDVec = np.arange(hmodel.obsModel.K)
+
     # Define how much of data we see at each mini-batch
     nBatch = float(DataIterator.nBatch)
     self.lapFracInc = 1.0/nBatch
@@ -110,8 +112,9 @@ class MOVBAlg(LearnAlg):
         if SS is not None:
           order = np.argsort(-1*SS.N)
           SS.reorderComps(order)
+          self.ActiveIDVec = self.ActiveIDVec[order]
 
-      
+     
       # Birth move : track birth info from previous lap
       if self.isFirstBatch(lapFrac):
         if self.hasMove('birth') and self.do_birth_at_lap(lapFrac - 1.0):
@@ -156,10 +159,6 @@ class MOVBAlg(LearnAlg):
         self.ModifiedCompIDs = list()
 
 
-      if self.isFirstBatch(lapFrac):
-        if SS is not None and SS.hasSelectionTerms():
-          SS._SelectTerms.setAllFieldsToZero()
-
       # Prep for Merge
       if self.hasMove('merge'):
         preselectroutine = self.algParams['merge']['preselectroutine']
@@ -197,7 +196,12 @@ class MOVBAlg(LearnAlg):
         if self.isFirstBatch(lapFrac) and lapFrac > 1:
           SS.setMergeFieldsToZero()
         mergeStartLap = self.algParams['softmerge']['mergeStartLap']
-        doPrecompMergeEntropy = 2      
+        doPrecompMergeEntropy = 2
+
+      ## Reset selection terms to zero
+      if self.isFirstBatch(lapFrac):
+        if SS is not None and SS.hasSelectionTerms():
+          SS._SelectTerms.setAllFieldsToZero()
 
       # E step
       if batchID in self.LPmemory:
@@ -251,8 +255,6 @@ class MOVBAlg(LearnAlg):
       #  to make SS have size exactly consistent with entire dataset
       if self.hasMove('birth') and self.isLastBatch(lapFrac):
         hmodel, SS = self.birth_remove_extra_mass(hmodel, SS, BirthResults)
-
-        #print ' '.join(['%7.1f' % (x) for x in SS.N]), 'final'
       
       # Store batch-specific stats to memory
       if self.algParams['doMemoizeLocalParams']:
@@ -261,6 +263,10 @@ class MOVBAlg(LearnAlg):
 
 
       # M step
+			if self.isFirstBatch(lapFrac):
+        if SS is not None and hasattr(hmodel.obsModel, 'forceSSInBounds'):
+          hmodel.obsModel.forceSSInBounds(SS)
+
       if self.algParams['doFullPassBeforeMstep']:
         if SS is not None and lapFrac > 1.0:
           hmodel.update_global_params(SS)
@@ -293,9 +299,10 @@ class MOVBAlg(LearnAlg):
         evBound = hmodel.calc_evidence(SS=SS)
 
       # Save and display progress
+      hmodel.ActiveIDVec = self.ActiveIDVec
       self.add_nObs(Dchunk.get_size())
-      self.save_state(hmodel, iterid, lapFrac, evBound)
-      self.print_state(hmodel, iterid, lapFrac, evBound)
+      self.save_state(hmodel, SS, iterid, lapFrac, evBound)
+      self.print_state(hmodel, SS, iterid, lapFrac, evBound)
       self.eval_custom_func(lapFrac, hmodel=hmodel, SS=SS, Dchunk=Dchunk, 
                                      LPchunk=LPchunk, batchID=batchID,
                                      SSchunk=SSchunk, learnAlg=self,
@@ -343,8 +350,16 @@ class MOVBAlg(LearnAlg):
       msg = "converged."
     else:
       msg = "max passes thru data exceeded."
-    self.save_state(hmodel, iterid, lapFrac, evBound, doFinal=True) 
-    self.print_state(hmodel, iterid, lapFrac,evBound,doFinal=True,status=msg)
+    self.save_state(hmodel, SS, iterid, lapFrac, evBound, doFinal=True) 
+    self.print_state(hmodel, SS, iterid, lapFrac, evBound, 
+                     doFinal=True, status=msg)
+
+    self.eval_custom_func(lapFrac, hmodel=hmodel, SS=SS, Dchunk=Dchunk,
+                                   LPchunk=LPchunk, batchID=batchID,
+                                   SSchunk=SSchunk, learnAlg=self,
+                                   evBound=evBound,
+                                   isFinal=True,
+                                   )
 
     self.SS = SS # hack so we can examine global suff stats
     # Births and merges require copies of original model object
@@ -467,11 +482,14 @@ class MOVBAlg(LearnAlg):
         kA = MInfo['kA']
         kB = MInfo['kB']
         for key in self.memoLPkeys:
-          if kB >= LPchunk[key].shape[1]:
-            # Birth occured in previous lap, after this batch was visited.
-            return None
-          LPchunk[key][:,kA] = LPchunk[key][:,kA] + LPchunk[key][:,kB]
+          ## Not sure about this old code. Disabled for now...
+          #if kB >= LPchunk[key].shape[1]:
+          #  # Birth occured in previous lap, after this batch was visited.
+          #  return None
+          kB_column = LPchunk[key][:,kB]
           LPchunk[key] = np.delete(LPchunk[key], kB, axis=1)
+          LPchunk[key][:,kA] = LPchunk[key][:,kA] + kB_column
+
     # any shuffling/reordering is handled within allocmodel
     return LPchunk
 
@@ -796,6 +814,7 @@ class MOVBAlg(LearnAlg):
     # ------ Record accepted moves, so can adjust memoized stats later
     self.MergeLog = list()
     for kA, kB in Info['AcceptedPairs']:
+      self.ActiveIDVec = np.delete(self.ActiveIDVec, kB, axis=0)
       self.MergeLog.append(dict(kA=kA, kB=kB, Korig=Korig))
       Korig -= 1
 

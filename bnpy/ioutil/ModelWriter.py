@@ -8,6 +8,54 @@ from distutils.dir_util import mkpath
 def makePrefixForLap(lap):
   return 'Lap%08.3f' % (lap)
 
+def saveEstParams(hmodel, SS, fpath, prefix, doLinkBest=False,
+                  sparseEPS=0.002):
+  ''' Write EstParams to mat file persistently
+
+      Returns
+      -------
+      None. MAT file created on disk.
+  '''
+  model = hmodel.copy()
+  EstPDict = dict()
+
+  ## Counts 
+  try:
+    counts = SS.N
+  except AttributeError:
+    counts = SS.SumWordCounts
+  assert counts.ndim == 1
+  counts = np.asarray(counts, dtype=np.float32)
+  np.maximum(counts, 0, out=counts)
+  EstPDict['counts'] = counts
+
+  ## Active comp probabilities
+  if hasattr(model.allocModel, 'get_active_comp_probs'):
+    EstPDict['probs'] = np.asarray(model.allocModel.get_active_comp_probs(),
+                                  dtype=np.float32)
+
+  # TODO: HMM transition probs
+
+  ## Obsmodel parameters
+  if str(type(model.obsModel)).count('Mult'):
+    lamPrior = model.obsModel.Prior.lam
+    if np.allclose(lamPrior, lamPrior[0]):
+      lamPrior = lamPrior[0]
+    EstPDict['lamPrior'] = np.asarray(lamPrior, dtype=np.float32)
+    SparseWordCounts = np.asarray(SS.WordCounts, dtype=np.float32)
+    SparseWordCounts[SparseWordCounts < sparseEPS] = 0
+    SparseWordCounts = scipy.sparse.csr_matrix(SparseWordCounts)
+    EstPDict['SparseWordCount_data'] = SparseWordCounts.data
+    EstPDict['SparseWordCount_indices'] = SparseWordCounts.indices
+    EstPDict['SparseWordCount_indptr'] = SparseWordCounts.indptr
+
+  else:
+    model.obsModel.setEstParamsFromPost(model.obsModel.Post)
+    for key in model.obsModel.EstParams._FieldDims:
+      EstPDict[key] = getattr(model.obsModel.EstParams, key)
+  outmatfile = os.path.join(fpath, prefix + 'EstParams')
+  scipy.io.savemat(outmatfile, EstPDict, oned_as='row')
+
 def save_model(hmodel, fname, prefix, doSavePriorInfo=True, doLinkBest=False):
   ''' saves HModel object to mat file persistently
       

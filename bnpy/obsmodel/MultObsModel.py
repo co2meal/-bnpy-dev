@@ -130,7 +130,7 @@ class MultObsModel(AbstractObsModel):
     self.EstParams = ParamBag(K=Post.K, D=Post.D)
     phi = Post.lam / np.sum(Post.lam, axis=1)[:, np.newaxis]
     self.EstParams.setField('phi', phi, dims=('K','D'))
-    self.K = K
+    self.K = Post.K
 
   
   ######################################################### Set Post
@@ -215,6 +215,20 @@ class MultObsModel(AbstractObsModel):
     SS.setField('WordCounts', WordCounts, dims=('K','D'))
     SS.setField('SumWordCounts', np.sum(WordCounts, axis=1), dims=('K'))
     return SS
+
+  def forceSSInBounds(self, SS):
+    ''' Force count vectors to remain positive
+
+        This avoids numerical problems due to incremental additions and subtractions,
+        which can cause computations like 1 + 1e-15 - 1 - 1e-15 to be less than zero
+        instead of exactly zero.
+
+        Returns
+        -------
+        None. SS updated in-place.
+    '''
+    np.maximum(SS.WordCounts, 0, out=SS.WordCounts)
+    np.maximum(SS.SumWordCounts, 0, out=SS.SumWordCounts)
 
   def incrementSS(self, SS, k, Data, docID):
     SS.WordCounts[k] += Data.getSparseDocTypeCountMatrix()[docID,:]
@@ -341,14 +355,14 @@ class MultObsModel(AbstractObsModel):
   def convertPostToNatural(self):
     ''' Convert (in-place) current posterior params from common to natural form
 
-        Here, the Wishart common form is equivalent to the natural form
+        Here, the Dirichlet common form is equivalent to the natural form
     '''
     pass
     
   def convertPostToCommon(self):
     ''' Convert (in-place) current posterior params from natural to common form
 
-        Here, the Wishart common form is equivalent to the natural form
+        Here, the Dirichlet common form is equivalent to the natural form
     '''
     pass
 

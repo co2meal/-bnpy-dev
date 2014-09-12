@@ -123,8 +123,9 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
     ''' Convert from Post (nu, B) to EstParams (Sigma),
          each EstParam is set to its posterior mean.
     '''
-    self.EstParams = ParamBag(K=K, D=D)    
-    Sigma = Post.B / (nu[k] - D - 1)
+    D = Post.D
+    self.EstParams = ParamBag(K=Post.K, D=D)    
+    Sigma = Post.B / (Post.nu - D - 1)[:,np.newaxis, np.newaxis]
     self.EstParams.setField('Sigma', Sigma, dims=('K','D','D'))
     self.K = self.EstParams.K
 
@@ -202,6 +203,18 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
     SS.setField('xxT', xxT, dims=('K','D','D'))
     return SS
 
+  def forceSSInBounds(self, SS):
+    ''' Force count vector N to remain positive
+
+        This avoids numerical problems due to incremental additions and subtractions,
+        which can cause computations like 1 + 1e-15 - 1 - 1e-15 to be less than zero
+        instead of exactly zero.
+
+        Returns
+        -------
+        None. SS.N updated in-place.
+    '''
+    np.maximum(SS.N, 0, out=SS.N)
 
   def incrementSS(self, SS, k, x):
     SS.xxT[k] += np.outer(x,x)

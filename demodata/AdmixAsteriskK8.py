@@ -35,6 +35,23 @@ def get_short_name( ):
 def get_data_info():
   return 'Admixture Asterisk Toy Data. %d true clusters.' % (K)
 
+def showExampleDocs(pylab=None, nrows=3, ncols=3):
+  if pylab is None:
+    from matplotlib import pylab
+  Data = get_data(seed=0, nObsPerDoc=200)
+  PRNG = np.random.RandomState(0)
+  chosenDocs = PRNG.choice(Data.nDoc, nrows*ncols, replace=False)
+  for ii, d in enumerate(chosenDocs):
+    start = Data.doc_range[d]
+    stop = Data.doc_range[d+1]
+    Xd = Data.X[start:stop]
+    pylab.subplot( nrows, ncols, ii+1)
+    pylab.plot( Xd[:,0], Xd[:,1], 'k.')
+    pylab.axis('image')
+    pylab.xlim([-1.5, 1.5])
+    pylab.ylim([-1.5, 1.5])
+    pylab.xticks([]); pylab.yticks([]);
+  pylab.tight_layout()
 ###########################################################  Set Toy Parameters
 ###########################################################
 

@@ -68,9 +68,9 @@ class VBAlg( LearnAlg ):
                                           hmodel, Data, SS, LP, evBound)
 
       # Save and display progress
-      #self.add_nObs(Data.nObs)
-      self.save_state(hmodel, iterid, lap, evBound)
-      self.print_state(hmodel, iterid, lap, evBound)
+      self.add_nObs(Data.get_size())
+      self.save_state(hmodel, SS, iterid, lap, evBound)
+      self.print_state(hmodel, SS, iterid, lap, evBound)
 
       # Check for Convergence!
       #  report warning if bound isn't increasing monotonically
@@ -84,8 +84,9 @@ class VBAlg( LearnAlg ):
       status = "converged."
     else:
       status = "max passes thru data exceeded."
-    self.save_state(hmodel,iterid, lap, evBound, doFinal=True)    
-    self.print_state(hmodel,iterid, lap, evBound, doFinal=True, status=status)
+    self.save_state(hmodel, SS, iterid, lap, evBound, doFinal=True)    
+    self.print_state(hmodel, SS, iterid, lap, evBound, 
+                     doFinal=True, status=status)
     return LP, self.buildRunInfo(evBound, status, nLap=lap)
 
 
