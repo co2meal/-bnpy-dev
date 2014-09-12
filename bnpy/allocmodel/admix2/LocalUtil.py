@@ -101,8 +101,9 @@ def calcDocTopicCountForData_Simple(Data, aModel, Lik,
       if kwargs['methodLP'] == 'scratch':
         Prior = np.ones((Data.nDoc, aModel.K))
       elif kwargs['methodLP'] == 'prior':
-        Prior = 10 * np.tile(aModel.get_active_comp_probs(), (Data.nDoc, 1))
-      
+        Prior = np.tile(aModel.get_active_comp_probs(), (Data.nDoc, 1))
+      else:
+        Prior = np.ones((Data.nDoc, aModel.K))
     else:
       Prior = initPrior.copy()
 

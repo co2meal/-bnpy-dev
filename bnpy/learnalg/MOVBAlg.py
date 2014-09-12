@@ -96,6 +96,10 @@ class MOVBAlg(LearnAlg):
     MM = None # Score matrix for merge candidate pairs
     numStuck = 0 # Num consecutive merge attempts without any accepts
     numConvergedInARow = 0
+
+    ## Save initial state
+    self.saveParams(lapFrac, hmodel)
+
     while DataIterator.has_next_batch():
 
       # Grab new data
@@ -106,25 +110,6 @@ class MOVBAlg(LearnAlg):
       iterid += 1
       lapFrac = (iterid + 1) * self.lapFracInc
       self.set_random_seed_at_lap(lapFrac)
-
-      # Rearrange the order
-      if self.isFirstBatch(lapFrac) and self.hasMove('shuffle'):
-        if SS is not None:
-          order = np.argsort(-1*SS.N)
-          SS.reorderComps(order)
-          self.ActiveIDVec = self.ActiveIDVec[order]
-
-      # M step
-      if self.isFirstBatch(lapFrac):
-        if SS is not None and hasattr(hmodel.obsModel, 'forceSSInBounds'):
-          hmodel.obsModel.forceSSInBounds(SS)
-
-      if self.algParams['doFullPassBeforeMstep']:
-        if SS is not None and lapFrac > 1.0:
-          hmodel.update_global_params(SS)
-      else:
-        if SS is not None:
-          hmodel.update_global_params(SS)
       
       # Birth move : track birth info from previous lap
       if self.isFirstBatch(lapFrac):
@@ -273,11 +258,21 @@ class MOVBAlg(LearnAlg):
       self.save_batch_suff_stat_to_memory(batchID, SSchunk)
 
 
+      # M step
+      if self.isFirstBatch(lapFrac):
+        if hasattr(hmodel.obsModel, 'forceSSInBounds'):
+          hmodel.obsModel.forceSSInBounds(SS)
+
+      if self.algParams['doFullPassBeforeMstep']:
+        if lapFrac > 1.0:
+          hmodel.update_global_params(SS)
+      else:
+        hmodel.update_global_params(SS)
+      evBound = hmodel.calc_evidence(SS=SS)
+
       # Merge move!      
       if self.hasMove('merge') and self.isLastBatch(lapFrac) \
                                and lapFrac > mergeStartLap:       
-        hmodel.update_global_params(SS)
-        evBound = hmodel.calc_evidence(SS=SS)
         if mergeELBOTrackMethod == 'fastBound':
           mPairIDs, MM = MergePlanner.preselect_candidate_pairs(hmodel, SS,
                            randstate=self.PRNG, doLimitNumPairs=0,
@@ -288,19 +283,26 @@ class MOVBAlg(LearnAlg):
                                                         mPairIDs, MM, lapFrac)
       elif self.hasMove('softmerge') and self.isLastBatch(lapFrac) \
                                      and lapFrac > mergeStartLap:
-        hmodel.update_global_params(SS)
-        evBound = hmodel.calc_evidence(SS=SS)
         hmodel, SS, evBound = self.run_softmerge_moves(hmodel, SS, evBound,
                                                        lapFrac, LPchunk)
-          
-      else:
+
+      # Rearrange the order
+      if self.hasMove('shuffle') and self.isLastBatch(lapFrac):
+        order = np.argsort(-1*SS.N)
+        self.ActiveIDVec = self.ActiveIDVec[order]
+        SS.reorderComps(order)
+        hmodel.update_global_params(SS)
         evBound = hmodel.calc_evidence(SS=SS)
 
       # Save and display progress
-      hmodel.ActiveIDVec = self.ActiveIDVec
       self.add_nObs(Dchunk.get_size())
-      self.save_state(hmodel, SS, iterid, lapFrac, evBound)
       self.print_state(hmodel, SS, iterid, lapFrac, evBound)
+
+      if self.isSaveDiagnosticsCheckpoint(lapFrac, iterid):
+        self.saveDiagnostics(lapFrac, SS, evBound, self.ActiveIDVec)
+      if self.isSaveParamsCheckpoint(lapFrac, iterid):
+        self.saveParams(lapFrac, hmodel, SS)
+
       self.eval_custom_func(lapFrac, hmodel=hmodel, SS=SS, Dchunk=Dchunk, 
                                      LPchunk=LPchunk, batchID=batchID,
                                      SSchunk=SSchunk, learnAlg=self,
@@ -348,10 +350,9 @@ class MOVBAlg(LearnAlg):
       msg = "converged."
     else:
       msg = "max passes thru data exceeded."
-    self.save_state(hmodel, SS, iterid, lapFrac, evBound, doFinal=True) 
     self.print_state(hmodel, SS, iterid, lapFrac, evBound, 
                      doFinal=True, status=msg)
-
+    self.saveParams(lapFrac, hmodel, SS)
     self.eval_custom_func(lapFrac, hmodel=hmodel, SS=SS, Dchunk=Dchunk,
                                    LPchunk=LPchunk, batchID=batchID,
                                    SSchunk=SSchunk, learnAlg=self,

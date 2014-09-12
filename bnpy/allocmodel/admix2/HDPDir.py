@@ -55,6 +55,9 @@ from ...util import NumericUtil, as1D
 import OptimizerHDPDir as OptimHDPDir
 import LocalUtil
 
+from bnpy.util.NumericUtil import calcRlogRdotv_allpairs, calcRlogRdotv_specificpairs
+from bnpy.util.NumericUtil import calcRlogR_allpairs, calcRlogR_specificpairs
+
 class HDPDir(AllocModel):
   def __init__(self, inferType, priorDict=None):
     if inferType == 'EM':
@@ -163,7 +166,7 @@ class HDPDir(AllocModel):
         Returns
         -------
         logp : 1D array, size K
-               logp[k] gives log prob of topic k in provided doc, up to additive const
+        logp[k] gives log prob of topic k in provided doc, up to additive const
     '''
     np.add(DocTopicCount_d, self.alphaEbeta[:-1], out=out)
     ##digammaSum = digamma(out.sum() + self.alphaEbeta[-1])
@@ -171,10 +174,13 @@ class HDPDir(AllocModel):
     ##out -= digammaSum
     return out
 
-  def calcLogPrActiveComps_Fast(self, DocTopicCount, activeDocs=None, LP=dict(),
+  def calcLogPrActiveComps_Fast(self, DocTopicCount, activeDocs=None, LP=None,
                                       out=None):
     ''' Calculate log prob of each active topic for each active document
     '''
+    if LP is None:
+      LP = dict()
+
     ## alphaEbeta is 1D array, size K+1
     alphaEbeta = self.alpha * self.E_beta()
 
@@ -225,6 +231,7 @@ class HDPDir(AllocModel):
     LP['thetaRem'] = alphaEbeta[-1]
     LP['ElogPi'] = ElogPi
     LP['ElogPiRem'] = ElogPiRem
+    LP['digammaSumTheta'] = digammaSumTheta
     return LP
 
   def initLPFromResp(self, Data, LP):
@@ -257,9 +264,37 @@ class HDPDir(AllocModel):
     LP['ElogPiRem'] = ElogPiRem
     return LP
 
+  def applyHardMergePairToLP(self, LP, kA, kB):
+    ''' Apply hard merge pair to provided local parameters
+
+        Returns
+        --------
+        mergeLP : dict of updated local parameters
+    '''
+    resp = np.delete(LP['resp'], kB, axis=1)
+    theta = np.delete(LP['theta'], kB, axis=1)
+    DocTopicCount = np.delete(LP['DocTopicCount'], kB, axis=1)
+
+    resp[:,kA] += LP['resp'][:, kB]
+    theta[:,kA] += LP['theta'][:, kB]
+    DocTopicCount[:,kA] += LP['DocTopicCount'][:, kB]
+
+    ElogPi = np.delete(LP['ElogPi'], kB, axis=1)
+    ElogPi[:, kA] = digamma(theta[:, kA]) - LP['digammaSumTheta']
+
+    return dict(resp=resp, theta=theta, thetaRem=LP['thetaRem'],
+                ElogPi=ElogPi, ElogPiRem=LP['ElogPiRem'],
+                DocTopicCount=DocTopicCount,
+                digammaSumTheta=LP['digammaSumTheta'])
+
+
   ####################################################### Suff Stat Calc
   ####################################################### 
-  def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None, **kwargs):
+  def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None,
+                                            doPrecompMergeEntropy=None,
+                                            mPairIDs=None,
+                                            preselectroutine=None,
+                                            **kwargs):
     ''' Calculate sufficient statistics.
     '''
     resp = LP['resp']
@@ -282,15 +317,103 @@ class HDPDir(AllocModel):
       SS.setELBOTerm('gammalnTheta', glnTheta, dims='K')
       SS.setELBOTerm('gammalnTheta_Rem', glnThetaRem, dims=None)
 
+    ## Merge Term caching
+    if doPrecompMergeEntropy:
+      if mPairIDs is None:
+        raise NotImplementedError("TODO: all pairs for merges")
+      
+      ElogqZMat = self.calcElogqZForMergePairs(LP['resp'], Data, mPairIDs)
+      SS.setMergeTerm('ElogqZ', ElogqZMat, dims=('K','K'))
 
+      alphaEbeta = self.alpha_E_beta()
+
+      sumLogPi = np.zeros((SS.K, SS.K))
+      gammalnTheta = np.zeros((SS.K, SS.K))
+      slack_NmT = np.zeros((SS.K, SS.K))
+      for (kA, kB) in mPairIDs:
+        theta_vec = LP['theta'][:, kA] + LP['theta'][:, kB]
+        ElogPi_vec = digamma(theta_vec) - LP['digammaSumTheta']
+        gammalnTheta[kA, kB] = np.sum(gammaln(theta_vec))
+        sumLogPi[kA, kB] = np.sum(ElogPi_vec)
+        ElogPi_vec *= alphaEbeta[kA] + alphaEbeta[kB]
+        slack_NmT[kA, kB] = -1 * np.sum(ElogPi_vec)
+      SS.setMergeTerm('gammalnTheta', gammalnTheta, dims=('K','K'))
+      SS.setMergeTerm('sumLogPi', sumLogPi, dims=('K','K'))
+      SS.setMergeTerm('slackNminusTheta', slack_NmT, dims=('K','K'))
+
+      #for (kA, kB) in mPairIDs:
+      #  self.verifySSForMergePair(Data, SS, LP, kA, kB)
+
+    ## Selection terms (computes doc-topic correlation)
+    if preselectroutine is not None:
+      if preselectroutine.count('doctopiccorr') > 0:
+        Tmat = LP['DocTopicCount']
+        SS.setSelectionTerm('DocTopicPairMat',
+                           np.dot(Tmat.T, Tmat), dims=('K','K'))
+        SS.setSelectionTerm('DocTopicSum', np.sum(Tmat, axis=0), dims='K')
     return SS
+
+  def verifySSForMergePair(self, Data, SS, LP, kA, kB):
+    mergeLP = self.applyHardMergePairToLP(LP, kA, kB)
+    mergeSS = self.get_global_suff_stats(Data, mergeLP, doPrecompEntropy=1)
+
+    sumLogPi_direct = mergeSS.sumLogPi[kA]
+    sumLogPi_cached = SS.getMergeTerm('sumLogPi')[kA, kB]
+    assert np.allclose(sumLogPi_direct, sumLogPi_cached)
+
+    glnTheta_direct = mergeSS.getELBOTerm('gammalnTheta')[kA]
+    glnTheta_cached = SS.getMergeTerm('gammalnTheta')[kA, kB]
+    assert np.allclose(glnTheta_direct, glnTheta_cached)
+
+    slack_direct = mergeSS.getELBOTerm('slackNminusTheta')[kA]
+    slack_cached = SS.getMergeTerm('slackNminusTheta')[kA, kB]
+    assert np.allclose(slack_direct, slack_cached)
+
+    ElogqZ_direct = mergeSS.getELBOTerm('ElogqZ')[kA]
+    ElogqZ_cached = SS.getMergeTerm('ElogqZ')[kA, kB]
+    assert np.allclose(ElogqZ_direct, ElogqZ_cached)
+
+
+  def calcElogqZForMergePairs(self, resp, Data, mPairIDs):
+    ''' Calculate resp entropy terms for all candidate merge pairs
+
+        Returns
+        ---------
+        ElogqZ : 2D array, size K x K
+    '''
+    if hasattr(Data, 'word_count'):
+      if mPairIDs is None:
+        ElogqZMat = calcRlogRdotv_allpairs(resp, Data.word_count)
+      else:
+        ElogqZMat = calcRlogRdotv_specificpairs(resp, Data.word_count, mPairIDs)
+    else:
+      if mPairIDs is None:
+        ElogqZMat = calcRlogR_allpairs(resp)
+      else:
+        ElogqZMat = calcRlogR_specificpairs(resp, mPairIDs)
+    return ElogqZMat
 
   ####################################################### VB Global Step
   #######################################################
-  def update_global_params_VB(self, SS, rho=None, **kwargs):
+  def update_global_params_VB(self, SS, rho=None, 
+                                    mergeCompA=None, mergeCompB=None, 
+                                    **kwargs):
     ''' Update global parameters.
     '''
-    rho, omega = self._find_optimum_rhoomega(SS, **kwargs)
+    if mergeCompA is None:
+      # Standard case:
+      # Update via gradient descent.
+      rho, omega = self._find_optimum_rhoomega(SS, **kwargs)
+    else:
+      # Special update case for merges:
+      # Fast, heuristic update for rho and omega directly from existing values
+      beta = OptimHDPDir.rho2beta_active(self.rho)
+      beta[mergeCompA] += beta[mergeCompB]
+      beta = np.delete(beta, mergeCompB, axis=0)
+      rho = OptimHDPDir.beta2rho(beta, SS.K)
+      omega = self.omega
+      omega[mergeCompA] += omega[mergeCompB]
+      omega = np.delete(omega, mergeCompB, axis=0)
     self.rho = rho
     self.omega = omega
     self.K = SS.K
@@ -419,8 +542,6 @@ class HDPDir(AllocModel):
       ElogqZ = self.E_logqZ(Data, LP)
       cDir_theta = self.c_Dir_theta(*self.c_Dir_theta__parts(LP))
       slack_NmT, slack_NmT_Rem = self.slack_NminusTheta(LP)
-      cDir_2 = c_Dir(LP['theta'], LP['thetaRem'])
-      assert np.allclose(cDir_theta, cDir_2)
     return U_plus_cDir_alphaBeta + calpha \
            - np.sum(ElogqZ) \
            - cDir_theta \
