@@ -132,14 +132,6 @@ def _run_task_internal(jobname, taskid, nTask,
   algseed = createUniqueRandomSeed(jobname, taskID=taskid)
   dataorderseed = createUniqueRandomSeed('', taskID=taskid)
 
-  if doSaveToDisk:
-    taskoutpath = getOutputPath(ReqArgs, KwArgs, taskID=taskid)
-    createEmptyOutputPathOnDisk(taskoutpath)
-    writeArgsToFile(ReqArgs, KwArgs, taskoutpath)
-  else:
-    taskoutpath = None
-  configLoggingToConsoleAndFile(taskoutpath, doSaveToDisk, doWriteStdOut)
-  
   if algName in OnlineDataAlgSet:    
      KwArgs[algName]['nLap'] = KwArgs['OnlineDataPrefs']['nLap']
 
@@ -155,7 +147,6 @@ def _run_task_internal(jobname, taskid, nTask,
     InitData = dataName
     DataArgs = dict()
     assert isinstance(Data, bnpy.data.DataObj)
-
     if algName in OnlineDataAlgSet:    
       OnlineDataArgs = KwArgs['OnlineDataPrefs']
       OnlineDataArgs['dataorderseed'] = dataorderseed
@@ -164,31 +155,36 @@ def _run_task_internal(jobname, taskid, nTask,
       OnlineDataArgs.update(DataArgs) # add custom args
       Data = Data.to_iterator(**OnlineDataArgs)
 
+  if doSaveToDisk:
+    taskoutpath = getOutputPath(ReqArgs, KwArgs, taskID=taskid)
+    createEmptyOutputPathOnDisk(taskoutpath)
+    writeArgsToFile(ReqArgs, KwArgs, taskoutpath)
+  else:
+    taskoutpath = None
+  configLoggingToConsoleAndFile(taskoutpath, doSaveToDisk, doWriteStdOut)
+  
   # Create and initialize model parameters
   hmodel = createModel(InitData, ReqArgs, KwArgs)
-
   hmodel.init_global_params(InitData, seed=algseed, taskid=taskid,
-                            savepath=taskoutpath,
                             **KwArgs['Initialization'])
 
   # Create learning algorithm
   learnAlg = createLearnAlg(Data, hmodel, ReqArgs, KwArgs,
-                              algseed=algseed, savepath=taskoutpath)
+                            algseed=algseed, savepath=taskoutpath)
   if learnAlg.hasMove('birth'):
     import bnpy.birthmove.BirthLogger as BirthLogger
     BirthLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
-    BirthLogger.log('This is the birth log.')
   if learnAlg.hasMove('delete'):
     import bnpy.deletemove.DeleteLogger as DeleteLogger
     DeleteLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
-    DeleteLogger.log('This is the delete log.')
   if learnAlg.hasMove('prune'):
     import bnpy.deletemove.PruneLogger as PruneLogger
     PruneLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
   if learnAlg.hasMove('merge') or learnAlg.hasMove('softmerge'):
     import bnpy.mergemove.MergeLogger as MergeLogger
     MergeLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
-  # Check if running on grid
+
+  # Prepare special logs if we are running on the Brown CS grid
   try:
     jobID = int(os.getenv('JOB_ID'))
   except TypeError:
@@ -465,9 +461,9 @@ def createEmptyOutputPathOnDisk( taskoutpath ):
   '''
   from distutils.dir_util import mkpath
   # Ensure the path (including all parent paths) exists
-  mkpath( taskoutpath )
+  mkpath(taskoutpath)
   # Ensure the path has no data from previous runs
-  deleteAllFilesFromDir( taskoutpath )
+  deleteAllFilesFromDir(taskoutpath)
   
 def deleteAllFilesFromDir( savefolder, prefix=None ):
   '''  Erase (recursively) all contents of a folder
