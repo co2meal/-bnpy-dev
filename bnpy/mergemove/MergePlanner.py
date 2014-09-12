@@ -74,7 +74,7 @@ def preselect_candidate_pairs(curModel, SS,
     M = calcCorrInCompUsageFromSuffStats(SS)
 
     # Take extra step to consider merging away topics with negligible mass
-    EMPTYTHR = 25
+    EMPTYTHR = 100
     Nvec = None
     if hasattr(SS, 'N'):
       Nvec = SS.N
@@ -83,15 +83,28 @@ def preselect_candidate_pairs(curModel, SS,
 
     if Nvec is not None:
       sortIDs = np.argsort(Nvec)
+      emptyScores = np.zeros(SS.K)
       for ii in xrange(SS.K/2):
         worstID = sortIDs[ii]
         bestID = sortIDs[-(ii+1)]
         if Nvec[worstID] < EMPTYTHR and Nvec[bestID] > EMPTYTHR:
-          M[worstID, bestID] = 0.5
-          M[bestID, worstID] = 0.5
+          # Want to prefer trying *larger* comps before smaller ones (bigger change)
+          # So boost the score of larger comps slightly
+          M[worstID, bestID] = 0.5 + 0.1 * Nvec[worstID] / Nvec.sum()
+          M[bestID, worstID] = 0.5 + 0.1 * Nvec[worstID] / Nvec.sum()
         if Nvec[worstID] > EMPTYTHR:
           break
+        emptyScores[worstID] = Nvec[worstID] / Nvec.sum()
 
+      ## Also add in all pairs of empties, just in case
+      emptyIDs = np.flatnonzero(emptyScores)
+      nEmpty = emptyIDs.size
+      for jID in xrange(nEmpty-1):
+        for kID in xrange(jID+1, nEmpty):
+          j = emptyIDs[jID]
+          k = emptyIDs[kID]
+          print j,k
+          M[j, k] = 0.4 + 0.1 * (emptyScores[j] + emptyScores[k])
   else:
     raise NotImplementedError(kwargs['preselectroutine'])
 

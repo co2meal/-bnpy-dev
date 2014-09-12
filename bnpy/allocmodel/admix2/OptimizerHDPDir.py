@@ -309,8 +309,20 @@ def calc_dEbeta_drho(Ebeta, rho, K):
   Delta = np.tile(-1 * Ebeta, (K,1))
   Delta /= (1-rho)[:,np.newaxis]
   Delta[_get_diagIDs(K)] *= -1 * (1-rho)/rho
-  Delta[_get_lowTriIDs(K)] = 0
+
+  ## Using flat indexing seems to be faster (about x2)
+  Delta.ravel()[_get_flatLowTriIDs(K)] = 0
+  #Delta[_get_lowTriIDs(K)] = 0
   return Delta
+
+flatlowTriIDsDict = dict()
+def _get_flatLowTriIDs(K):
+  if K in flatlowTriIDsDict:
+    return flatlowTriIDsDict[K]
+  else:
+    flatIDs = np.ravel_multi_index(np.tril_indices(K,-1), (K,K+1))
+    flatlowTriIDsDict[K] = flatIDs
+    return flatIDs
 
 lowTriIDsDict = dict()
 def _get_lowTriIDs(K):
