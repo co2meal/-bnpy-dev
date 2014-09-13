@@ -58,18 +58,18 @@ class VBAlg( LearnAlg ):
       evBound = hmodel.calc_evidence(Data, SS, LP)
 
       ## Display progress
-      self.add_nObs(Dchunk.get_size())
-      self.print_state(hmodel, SS, iterid, lapFrac, evBound)
+      self.updateNumDataProcessed(Data.get_size())
+      self.print_state(hmodel, SS, iterid, lap, evBound)
 
       ## Save diagnostics and params
-      if self.isSaveDiagnosticsCheckpoint(lapFrac, iterid):
-        self.saveDiagnostics(lapFrac, SS, evBound, self.ActiveIDVec)
-      if self.isSaveParamsCheckpoint(lapFrac, iterid):
-        self.saveParams(lapFrac, hmodel, SS)
+      if self.isSaveDiagnosticsCheckpoint(lap, iterid):
+        self.saveDiagnostics(lap, SS, evBound)
+      if self.isSaveParamsCheckpoint(lap, iterid):
+        self.saveParams(lap, hmodel, SS)
 
       ## Check for Convergence!
       # Report warning if bound isn't increasing monotonically
-      isConverged = self.verify_evidence( evBound, prevBound )
+      isConverged = self.verify_evidence(evBound, prevBound)
       if isConverged:
         break
       prevBound = evBound
@@ -79,7 +79,7 @@ class VBAlg( LearnAlg ):
       status = "converged."
     else:
       status = "max laps exceeded."
-    self.saveParams(lapFrac, hmodel, SS)
+    self.saveParams(lap, hmodel, SS)
     self.print_state(hmodel, SS, iterid, lap, evBound, 
                      doFinal=True, status=status)
     return self.buildRunInfo(evBound, status, nLap=lap, LP=LP)

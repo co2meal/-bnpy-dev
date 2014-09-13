@@ -14,7 +14,7 @@ u : 1D array, size K
 import numpy as np
 
 from bnpy.allocmodel import AllocModel
-from bnpy.allocmodel.admix import OptimizerForHDPStickBreak as OptimSB
+from bnpy.allocmodel.admix2.RhoBetaUtil import beta2rho
 from bnpy.suffstats import SuffStatBag
 from bnpy.util import NumericUtil, as1D
 from bnpy.util import gammaln, digamma, EPS
@@ -206,7 +206,7 @@ class DPMixPE(AllocModel):
       beta = np.hstack([beta, rem])
     beta = beta / beta.sum()
     assert beta.size == K+1
-    self.uHat = OptimSB._beta2v(beta)
+    self.uHat = beta2rho(beta)
     self.K = K
     assert K == self.uHat.size
  

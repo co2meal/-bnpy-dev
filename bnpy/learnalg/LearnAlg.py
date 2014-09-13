@@ -39,7 +39,8 @@ class LearnAlg(object):
     self.evTrace = list()
     self.SavedIters = set()
     self.PrintIters = set()
-    self.nObsProcessed = 0
+    self.totalDataUnitsProcessed = 0
+
     self.algParamsLP = dict()
     for k,v in algParams.items():
       if k.count('LP') > 0:
@@ -73,11 +74,11 @@ class LearnAlg(object):
     '''
     self.start_time = time.time()    
 
-  def add_nObs(self, nObs):
+  def updateNumDataProcessed(self, N):
     ''' Update internal count of total number of data observations processed.
         Each lap thru dataset of size N, this should be updated by N
     '''
-    self.nObsProcessed += nObs
+    self.totalDataUnitsProcessed += N
 
   def get_elapsed_time(self):
     ''' Returns float of elapsed time (in seconds) since this object's
@@ -150,7 +151,7 @@ class LearnAlg(object):
            or nMstepUpdates < 3 \
            or lap in self.TraceLaps
 
-  def saveDiagnostics(self, lap, SS, evBound, ActiveIDVec):
+  def saveDiagnostics(self, lap, SS, evBound, ActiveIDVec=None):
     ''' Save trace stats to disk
     '''
     if lap in self.TraceLaps:
@@ -163,18 +164,21 @@ class LearnAlg(object):
     # Exit here if we're not saving to disk
     if self.savedir is None:
       return
-    
+
+    if ActiveIDVec is None:
+      ActiveIDVec = np.arange(SS.K)    
+
     # Record current state to plain-text files
     with open( self.mkfile('laps.txt'), 'a') as f:        
       f.write('%.4f\n' % (lap))
     with open( self.mkfile('evidence.txt'), 'a') as f:        
       f.write('%.9e\n' % (evBound))
-    with open( self.mkfile('nObs.txt'), 'a') as f:
-      f.write('%d\n' % (self.nObsProcessed))
     with open( self.mkfile('times.txt'), 'a') as f:
       f.write('%.3f\n' % (self.get_elapsed_time()))
     with open( self.mkfile('K.txt'), 'a') as f:
       f.write('%d\n' % (SS.K))
+    with open( self.mkfile('total-data-processed.txt'), 'a') as f:
+      f.write('%d\n' % (self.totalDataUnitsProcessed))
 
     # Record active counts in plain-text files
     counts = None

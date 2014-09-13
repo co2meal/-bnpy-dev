@@ -14,7 +14,6 @@ import os
 from ModelWriter import makePrefixForLap
 from bnpy.allocmodel import *
 from bnpy.obsmodel import *
-from bnpy.distr import *
 
 GDict = globals()
 

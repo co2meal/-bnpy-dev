@@ -18,8 +18,8 @@ save_model = ioutil.ModelWriter.save_model
 import init
 import learnalg
 import birthmove
-import deletemove
 import mergemove
+#import deletemove
 
 import Run
 from Run import run
