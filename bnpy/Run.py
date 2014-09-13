@@ -69,9 +69,7 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
       Returns
       -------
       hmodel : best model fit to the dataset (across nTask runs)
-      LP : local parameters of that best model on the dataset
-      evBound : log evidence (ELBO) for the best model on the dataset
-                  scalar, real value where larger value implies better model
+      Info   : dict of information about this best model
   '''
   hasReqArgs = dataName is not None
   hasReqArgs &= allocModelName is not None
@@ -101,16 +99,15 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
   bestInfo = None
   bestEvBound = -np.inf
   for taskid in range(starttaskid, starttaskid + nTask):
-    hmodel, LP, Info = _run_task_internal(jobname, taskid, nTask,
+    hmodel, Info = _run_task_internal(jobname, taskid, nTask,
                       ReqArgs, KwArgs, UnkArgs,
                       dataName, allocModelName, obsModelName, algName,
                       doSaveToDisk, doWriteStdOut)
     if (Info['evBound'] > bestEvBound):
       bestModel = hmodel
-      bestLP = LP
       bestEvBound = Info['evBound']
       bestInfo = Info
-  return bestModel, bestLP, bestInfo
+  return bestModel, bestInfo
 
 ########################################################### RUN SINGLE TASK 
 ###########################################################
@@ -219,9 +216,9 @@ def _run_task_internal(jobname, taskid, nTask,
   Log.info('savepath: %s' % (taskoutpath))
 
   # Fit the model to the data!
-  LP, RunInfo = learnAlg.fit(hmodel, Data)
-  return hmodel, LP, RunInfo
-  
+  RunInfo = learnAlg.fit(hmodel, Data)
+  return hmodel, RunInfo
+
 
 ########################################################### Load Data
 ###########################################################
@@ -275,11 +272,11 @@ def loadData(ReqArgs, KwArgs, DataArgs, dataorderseed):
         ## Load custom iterator defined in data module
         DataIterator = datamod.get_iterator(**OnlineDataArgs)
       else:
-        ## Make an iterator over full dataset provided by get_data        
+        ## Make an iterator over dataset provided by get_data        
         DataIterator = InitData.to_iterator(**OnlineDataArgs)
-
     else:
-      DataIterator = None
+      raise ValueError('Online algorithm requires valid DataIterator args.')
+
     return DataIterator, InitData
   
 def getKwArgsForLoadData(ReqArgs, UnkArgs):

@@ -54,7 +54,7 @@ class LearnAlg(object):
 
         Returns
         -------
-        LP : local params dictionary of resulting model
+        Info : dict of diagnostics about this run
     '''
     pass
 
@@ -67,7 +67,7 @@ class LearnAlg(object):
     '''
     if isEvenlyDivisibleFloat(lap, 1.0):
       self.PRNG = np.random.RandomState(self.seed + int(lap))
-    
+
   def set_start_time_now(self):
     ''' Record start time (in seconds since 1970)
     '''
@@ -85,11 +85,12 @@ class LearnAlg(object):
     '''
     return time.time() - self.start_time
 
-  def buildRunInfo(self, evBound, status, nLap=None):
+  def buildRunInfo(self, evBound, status, **kwargs):
     ''' Create dict of information about the current run
     '''
-    return dict(evBound=evBound, status=status, nLap=nLap,
-                evTrace=self.evTrace, lapTrace=self.TraceLaps)
+    return dict(evBound=evBound, status=status,
+                evTrace=self.evTrace, lapTrace=self.TraceLaps,
+                **kwargs)
 
   ##################################################### Fcns for birth/merges
   ##################################################### 
@@ -226,24 +227,9 @@ class LearnAlg(object):
       ModelWriter.saveEstParams(hmodel, SS, self.savedir, prefix,
                                 doLinkBest=True)
 
-
-  
-
-  # Define temporary function that creates files in this alg's output dir
   def mkfile(self, fname):
     return os.path.join(self.savedir, fname)
 
-  def getFileWriteMode(self):
-    if self.savedir is None:
-      return None
-    return 'a'
-    
-  ######################################################### Plot Results
-  ######################################################### 
-  def plot_results(self, hmodel, Data, LP):
-    ''' Plot learned model parameters
-    '''
-    pass
 
   #########################################################  Print State
   #########################################################  
@@ -292,6 +278,7 @@ class LearnAlg(object):
       '''
       Log.info(msg)
 
+  ######################################################### Checkpoints
   #########################################################
   def isFirstBatch(self, lapFrac):
     ''' Returns True/False for whether given batch is last (for current lap)
@@ -318,6 +305,9 @@ class LearnAlg(object):
       return False
     return (nLapTotal <= 5) or (lapFrac <= np.ceil(frac * nLapTotal))
 
+
+  ######################################################### Custom Func
+  #########################################################
   def eval_custom_func(self, lapFrac, isFinal=False, **kwargs):
       ''' Evaluates a custom hook function 
       '''
@@ -347,75 +337,3 @@ class LearnAlg(object):
          and isFinal:
          cFuncModule.onAlgorithmComplete(args=cFuncArgs_string, **kwargs)
 
-########################################################### DEPRECATED
-########################################################### DEPRECATED
-########################################################### DEPRECATED
-########################################################### DEPRECATED
-"""
-  def save_state(self, hmodel, SS, iterid, lap, evBound, doFinal=False):
-    ''' Save state of the hmodel's global parameters and evBound
-    '''
-    traceEvery = self.outputParams['traceEvery']
-    if traceEvery <= 0:
-      traceEvery = -1
-    doTrace = isEvenlyDivisibleFloat(lap, traceEvery) or iterid < 3
-    
-    if traceEvery > 0 and (doFinal or doTrace) and lap not in self.TraceLaps:
-      # Record current evidence
-      self.evTrace.append(evBound)
-      self.TraceLaps.add(lap)
-
-      # Exit here if we're not saving to disk
-      if self.savedir is None:
-        return
-    
-      # Record current state to plain-text files
-      with open( self.mkfile('laps.txt'), 'a') as f:        
-        f.write('%.4f\n' % (lap))
-      with open( self.mkfile('evidence.txt'), 'a') as f:        
-        f.write('%.9e\n' % (evBound))
-      with open( self.mkfile('nObs.txt'), 'a') as f:
-        f.write('%d\n' % (self.nObsProcessed))
-      with open( self.mkfile('times.txt'), 'a') as f:
-        f.write('%.3f\n' % (self.get_elapsed_time()))
-      with open( self.mkfile('K.txt'), 'a') as f:
-        f.write('%d\n' % (hmodel.obsModel.K))
-
-      # Record active counts in plain-text files
-      counts = None
-      try:
-        counts = SS.N
-      except AttributeError:
-        counts = SS.SumWordCounts
-      if counts is not None:
-        assert counts.ndim == 1
-        counts = np.asarray(counts, dtype=np.float32)
-        np.maximum(counts, 0, out=counts)
-        with open(self.mkfile('ActiveCounts.txt'), 'a') as f:
-          flatstr = ' '.join(['%.3f' % x for x in counts])
-          f.write(flatstr+'\n')
-
-      if hasattr(hmodel, 'ActiveIDVec'):
-        with open(self.mkfile('ActiveIDs.txt'), 'a') as f:
-          flatstr = ' '.join(['%d' % x for x in hmodel.ActiveIDVec])
-          f.write(flatstr+'\n')
-
-    saveEvery = self.outputParams['saveEvery']
-    if saveEvery <= 0 or self.savedir is None:
-      return
-
-    doSave = isEvenlyDivisibleFloat(lap, saveEvery) or iterid < 3
-    if (doFinal or doSave) and iterid not in self.SavedIters:
-      self.SavedIters.add(iterid)
-      with open(self.mkfile('laps-saved-params.txt'), 'a') as f:        
-        f.write('%.4f\n' % (lap))
-      prefix = ModelWriter.makePrefixForLap(lap)
-
-      if self.outputParams['doSaveFullModel']:
-        ModelWriter.save_model(hmodel, self.savedir, prefix,
-                              doSavePriorInfo=(iterid<1), doLinkBest=True)
-
-      if self.outputParams['doSaveEstParams']:
-        ModelWriter.saveEstParams(hmodel, SS, self.savedir, prefix,
-                                doLinkBest=True)
-"""

@@ -3,11 +3,9 @@
 import os
 import sys
 
-
 import data
-import distr
-import util
 import suffstats
+import util
 
 import allocmodel
 import obsmodel
@@ -62,11 +60,10 @@ except ImportError:
   print "Error importing matplotlib. Plotting disabled."
   print "Fix by making sure this produces a figure window on your system"
   print " >>> from matplotlib import pylab; pylab.figure(); pylab.show();"
+
+__all__ = ['run', 'Run', 'learn', 'allocmodel','obsmodel', 'suffstats',
+           'HModel', 'init', 'util', 'ioutil', 'mergeutil']
+
 if canPlot:
   import viz
-__all__ = ['run', 'Run', 'learn', 'allocmodel','obsmodel', 'suffstats',
-           'HModel', 'init', 'util','ioutil','viz','distr', 'mergeutil']
-'''
-__all__ = ['run', 'Run', 'learn', 'allocmodel','obsmodel', 'suffstats',
-           'HModel', 'init', 'util','ioutil','distr', 'mergeutil']
-'''
+  __all__.append('viz')
