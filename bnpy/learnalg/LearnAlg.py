@@ -40,6 +40,7 @@ class LearnAlg(object):
     self.SavedIters = set()
     self.PrintIters = set()
     self.totalDataUnitsProcessed = 0
+    self.status = 'active. not converged.'
 
     self.algParamsLP = dict()
     for k,v in algParams.items():
@@ -86,10 +87,10 @@ class LearnAlg(object):
     '''
     return time.time() - self.start_time
 
-  def buildRunInfo(self, evBound, status, **kwargs):
+  def buildRunInfo(self, **kwargs):
     ''' Create dict of information about the current run
     '''
-    return dict(evBound=evBound, status=status,
+    return dict(status=self.status,
                 evTrace=self.evTrace, lapTrace=self.TraceLaps,
                 **kwargs)
 
@@ -111,6 +112,7 @@ class LearnAlg(object):
     if np.isinf(prevBound):
       return False
     isIncreasing = prevBound <= evBound
+
     M = self.algParams['convergeSigFig']
     isWithinTHR = closeAtMSigFigs(prevBound, evBound, M=M)
     mLPkey = 'doMemoizeLocalParams'
@@ -136,7 +138,6 @@ class LearnAlg(object):
 
       if serious or not self.algParams['doShowSeriousWarningsOnly']:
         Log.error(prefix + warnMsg)
-    return isWithinTHR 
 
 
   #########################################################  Save to file
@@ -198,6 +199,16 @@ class LearnAlg(object):
       flatstr = ' '.join(['%d' % x for x in ActiveIDVec])
       f.write(flatstr+'\n')
 
+  ######################################################### Convergence
+  #########################################################
+  def isCountVecConverged(self, Nvec, prevNvec):
+    maxDiff = np.max(np.abs(Nvec - prevNvec))
+    isConverged = maxDiff < self.algParams['convergeThr']
+    CInfo = dict(isConverged=isConverged,
+                 maxDiff=maxDiff
+                 )
+    self.ConvergeInfo = CInfo
+    return isConverged
 
   ######################################################### Save Full Model
   #########################################################
@@ -234,48 +245,63 @@ class LearnAlg(object):
   def mkfile(self, fname):
     return os.path.join(self.savedir, fname)
 
+  def setStatus(self, lapFrac, isConverged):
+    nLapsCompleted = lapFrac - self.algParams['startLap']
+
+    minLapReq = np.minimum(self.algParams['nLap'], self.algParams['minLaps'])
+    minLapsCompleted = nLapsCompleted >= minLapReq    
+    if isConverged and minLapsCompleted:
+      self.status = "done. converged."
+    elif isConverged:
+      self.status = "active. converged but minLaps requirement unfinished."
+    elif nLapsCompleted < self.algParams['nLap']:
+      self.status = "active. not converged."
+    else:
+      self.status = "done. not converged. max laps thru data exceeded." 
 
   #########################################################  Print State
-  #########################################################  
-  def print_state(self, hmodel, SS, iterid, lap, evBound, 
-                        doFinal=False, status='', rho=None):
+  #########################################################
+  def isLogCheckpoint(self, lap, nMstepUpdates):
+    ''' Answer True/False whether to save full model now
+    '''
     printEvery = self.outputParams['printEvery']
     if printEvery <= 0:
-      return None
-    doPrint = iterid < 3 or isEvenlyDivisibleFloat(lap, printEvery)
-  
+      return False
+    return isEvenlyDivisibleFloat(lap, printEvery) or nMstepUpdates < 3
+
+  def printStateToLog(self, hmodel, evBound, lap, iterid, rho=None):
+    doFinal = self.status.count('done') > 0
+
+    if hasattr(self, 'ConvergeInfo') and 'maxDiff' in self.ConvergeInfo:
+      countStr = 'Ndiff %10.3f' % (self.ConvergeInfo['maxDiff'])
+    else:
+      countStr = ''
     if rho is None:
       rhoStr = ''
     else:
-      rhoStr = '%.4f |' % (rho)
+      rhoStr = '| lrate %.4f' % (rho)
 
     if iterid == lap:
       lapStr = '%7d' % (lap)
     else:
       lapStr = '%7.3f' % (lap)
-
     maxLapStr = '%d' % (self.algParams['nLap'] + self.algParams['startLap'])
     
-    logmsg = '  %s/%s after %6.0f sec. | K %4d | ev % .9e %s'
-    # Print asterisk for early iterations of memoized,
-    #  before the method has made one full pass thru data
-    if self.__class__.__name__.count('Memo') > 0:
-      if lap < self.algParams['startLap'] + 1.0:
-        logmsg = '  %s/%s after %6.0f sec. | K %4d |*ev % .9e %s'
-
+    logmsg = '  %s/%s after %6.0f sec. | K %4d | ev % .9e | %s %s'
     logmsg = logmsg % (lapStr, 
-                        maxLapStr,
-                        self.get_elapsed_time(),
-                        hmodel.allocModel.K,
-                        evBound, 
-                        rhoStr)
+                       maxLapStr,
+                       self.get_elapsed_time(),
+                       hmodel.allocModel.K,
+                       evBound, 
+                       countStr, 
+                       rhoStr)
 
-    if (doFinal or doPrint) and iterid not in self.PrintIters:
+    if iterid not in self.PrintIters:
       self.PrintIters.add(iterid)
       Log.info(logmsg)
-    if doFinal:
-      Log.info('... done. %s' % (status))
-      
+      if doFinal:
+        Log.info('... %s' % (self.status))
+
   def print_msg(self, msg):
       ''' Prints a string msg to stdout,
             without needing to import logging method into subclass. 
@@ -312,9 +338,11 @@ class LearnAlg(object):
 
   ######################################################### Custom Func
   #########################################################
-  def eval_custom_func(self, lapFrac, isFinal=False, **kwargs):
+  def eval_custom_func(self, lapFrac=0, **kwargs):
       ''' Evaluates a custom hook function 
       '''
+      isFinal = self.status.count('done') > 0
+
       cFuncPath = self.outputParams['customFuncPath']
       if cFuncPath is None or cFuncPath == 'None':
         return None
@@ -332,6 +360,8 @@ class LearnAlg(object):
       
       kwargs['lapFrac'] = lapFrac
       kwargs['isFinal'] = isFinal
+      kwargs['learnAlg'] = kwargs['self']
+      del kwargs['self']
       if hasattr(cFuncModule, 'onBatchComplete') and not isFinal:
         cFuncModule.onBatchComplete(args=cFuncArgs_string, **kwargs)
       if hasattr(cFuncModule, 'onLapComplete') \
@@ -341,3 +371,15 @@ class LearnAlg(object):
          and isFinal:
          cFuncModule.onAlgorithmComplete(args=cFuncArgs_string, **kwargs)
 
+def makeDictOfAllWorkspaceVars(**kwargs):
+  ''' Create dict of all active variables in workspace
+
+      Necessary to avoid call to self.
+  '''
+  if 'self' in kwargs:
+    kwargs['learnAlg'] = kwargs.pop('self')
+
+  for key in kwargs:
+    if key.startswith('_'):
+      kwargs.pop(key)
+  return kwargs

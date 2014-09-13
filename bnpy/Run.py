@@ -34,7 +34,7 @@ Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
 
 FullDataAlgSet = ['EM', 'VB', 'GS']
-OnlineDataAlgSet = ['soVB', 'moVB', 'moVBsimple']
+OnlineDataAlgSet = ['soVB', 'moVB']
 
 def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
                       doSaveToDisk=True, doWriteStdOut=True, 
@@ -371,6 +371,8 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
       algP[moveKey] = KwArgs[moveKey]
 
   outputP = KwArgs['OutputPrefs']
+  hasMoves = 'birth' in KwArgs or 'merge' in KwArgs or 'shuffle' in KwArgs
+
   if algName == 'EM':
     learnAlg = bnpy.learnalg.EMAlg(savedir=savepath, seed=algseed,
                                       algParams=algP, outputParams=outputP)
@@ -380,11 +382,11 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
   elif algName == 'soVB':
     learnAlg = bnpy.learnalg.SOVBAlg(savedir=savepath, seed=algseed,
                                       algParams=algP, outputParams=outputP)
-  elif algName == 'moVB':
-    learnAlg = bnpy.learnalg.MOVBAlg(savedir=savepath, seed=algseed, 
+  elif algName == 'moVB' and hasMoves:
+    learnAlg = bnpy.learnalg.MOVBBirthMergeAlg(savedir=savepath, seed=algseed, 
                                       algParams=algP, outputParams=outputP)
-  elif algName == 'moVBsimple':
-    learnAlg = bnpy.learnalg.SimpleMOVBAlg(savedir=savepath, seed=algseed, 
+  elif algName == 'moVB' and not hasMoves:
+    learnAlg = bnpy.learnalg.MOVBAlg(savedir=savepath, seed=algseed, 
                                       algParams=algP, outputParams=outputP)
   elif algName == 'GS':
     learnAlg = bnpy.learnalg.GSAlg(savedir=savepath, seed=algseed, 
