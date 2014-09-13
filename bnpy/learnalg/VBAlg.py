@@ -14,8 +14,8 @@ while VB learns the parameters of an approximate *distribution* over quantities 
 For more info, see the documentation [TODO]
 '''
 import numpy as np
-from collections import defaultdict
-from LearnAlg import LearnAlg
+
+from LearnAlg import LearnAlg, makeDictOfAllWorkspaceVars
 
 class VBAlg( LearnAlg ):
 
@@ -23,9 +23,8 @@ class VBAlg( LearnAlg ):
     ''' Create VBLearnAlg, subtype of generic LearnAlg
     '''
     LearnAlg.__init__(self, **kwargs)
-    #super(type(self), self).__init__( **kwargs )
     
-  def fit(self, hmodel, Data):
+  def fit(self, hmodel, Data, LP=None):
     ''' Run VB learning algorithm, fit global parameters of hmodel to Data
         Returns
         --------
@@ -36,30 +35,42 @@ class VBAlg( LearnAlg ):
         * LP : dict of local parameters for final model
     '''
     prevBound = -np.inf
-    LP = None
+    isConverged = False
+
+    ## Save initial state
+    self.saveParams(0, hmodel)
+
     self.set_start_time_now()
-    for iterid in xrange(self.algParams['nLap'] + 1):
+    for iterid in xrange(1, self.algParams['nLap']+1):
       lap = self.algParams['startLap'] + iterid
+      nLapsCompleted = lap - self.algParams['startLap']
       self.set_random_seed_at_lap(lap)
 
       ## Local/E step
       LP = hmodel.calc_local_params(Data, LP, **self.algParamsLP)
 
       ## Summary step
-      if self.hasMove('merge'):
-        SS = hmodel.get_global_suff_stats(Data, LP, **mergeFlags)
-      else:
-        SS = hmodel.get_global_suff_stats(Data, LP)
+      SS = hmodel.get_global_suff_stats(Data, LP)
 
       ## Global/M step
       hmodel.update_global_params(SS) 
 
       ## ELBO calculation
       evBound = hmodel.calc_evidence(Data, SS, LP)
+      if lap > 1.0:
+        ## Report warning if bound isn't increasing monotonically
+        self.verify_evidence(evBound, prevBound)
+
+      ## Check convergence of expected counts
+      countVec = SS.getCountVec()
+      if lap > 1.0:
+        isConverged = self.isCountVecConverged(countVec, prevCountVec)
+        self.setStatus(lap, isConverged)
 
       ## Display progress
       self.updateNumDataProcessed(Data.get_size())
-      self.print_state(hmodel, SS, iterid, lap, evBound)
+      if self.isLogCheckpoint(lap, iterid):
+        self.printStateToLog(hmodel, evBound, lap, iterid)
 
       ## Save diagnostics and params
       if self.isSaveDiagnosticsCheckpoint(lap, iterid):
@@ -67,22 +78,20 @@ class VBAlg( LearnAlg ):
       if self.isSaveParamsCheckpoint(lap, iterid):
         self.saveParams(lap, hmodel, SS)
 
-      ## Check for Convergence!
-      # Report warning if bound isn't increasing monotonically
-      isConverged = self.verify_evidence(evBound, prevBound)
-      if isConverged:
+      ## Custom func hook
+      self.eval_custom_func(**makeDictOfAllWorkspaceVars(**vars()))
+
+      if nLapsCompleted >= self.algParams['minLaps'] and isConverged:
         break
       prevBound = evBound
+      prevCountVec = countVec.copy()
 
-    #Finally, save, print and exit
-    if isConverged:
-      status = "converged."
-    else:
-      status = "max laps exceeded."
+    ## Finished! Save, print and exit
     self.saveParams(lap, hmodel, SS)
-    self.print_state(hmodel, SS, iterid, lap, evBound, 
-                     doFinal=True, status=status)
-    return self.buildRunInfo(evBound, status, nLap=lap, LP=LP)
+    self.printStateToLog(hmodel, evBound, lap, iterid)
+    self.eval_custom_func(**makeDictOfAllWorkspaceVars(**vars()))
+
+    return self.buildRunInfo(evBound=evBound, SS=SS, LP=LP)
 
 
 

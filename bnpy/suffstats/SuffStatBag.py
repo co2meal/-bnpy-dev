@@ -18,6 +18,15 @@ class SuffStatBag(object):
   def __init__(self, K=0, **kwargs):
     self._Fields = ParamBag(K=K, **kwargs)
 
+  def getCountVec(self):
+    ''' Return vector of counts for each active topic/component
+    '''
+    if 'N' in self._Fields._FieldDims:
+      return self.N
+    elif 'SumWordCounts' in self._Fields._FieldDims:
+      return self.SumWordCounts
+    raise ValueError('Counts not available')
+
   def copy(self, includeELBOTerms=True, includeMergeTerms=True):
     if not includeELBOTerms:
       E = self.removeELBOTerms()
