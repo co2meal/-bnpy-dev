@@ -93,6 +93,8 @@ def buildMergeCandidateAndKeepIfImproved(curModel, curSS, curELBO,
                                          **kwargs):
   ''' Create candidate model/SS with kA, kB merged, and keep if ELBO improves.
   '''
+  if 'mergeUpdateFast' not in kwargs:
+    kwargs['mergeUpdateFast'] = 1
   assert np.isfinite(curELBO)
 
   # Rewrite candidate's kA component to be the merger of kA+kB

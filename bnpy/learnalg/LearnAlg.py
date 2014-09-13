@@ -103,7 +103,8 @@ class LearnAlg(object):
 
   ##################################################### Verify evidence
   #####################################################  grows monotonically
-  def verify_evidence(self, evBound=0.00001, prevBound=0, lapFrac=None):
+  def verify_evidence(self, evBound=0.00001, prevBound=0, 
+                            lapFrac=None):
     ''' Compare current and previous evidence (ELBO) values,
         verify that (within numerical tolerance) increases monotonically
     '''
@@ -118,12 +119,7 @@ class LearnAlg(object):
     mLPkey = 'doMemoizeLocalParams'
     if not isIncreasing and not isWithinTHR:
       serious = True
-      if self.hasMove('birth') \
-         and (len(self.BirthCompIDs) > 0 or len(self.ModifiedCompIDs) > 0):
-        warnMsg = 'ev decreased during a birth'
-        warnMsg += ' (so monotonic increase not guaranteed)\n'
-        serious = False
-      elif mLPkey in self.algParams and not self.algParams[mLPkey]:
+      if mLPkey in self.algParams and not self.algParams[mLPkey]:
         warnMsg = 'ev decreased when doMemoizeLocalParams=0'
         warnMsg += ' (so monotonic increase not guaranteed)\n'
         serious = False
@@ -202,6 +198,10 @@ class LearnAlg(object):
   ######################################################### Convergence
   #########################################################
   def isCountVecConverged(self, Nvec, prevNvec):
+    if Nvec.size != prevNvec.size:
+      ## Warning: the old value of maxDiff is still used for printing
+      return False 
+
     maxDiff = np.max(np.abs(Nvec - prevNvec))
     isConverged = maxDiff < self.algParams['convergeThr']
     CInfo = dict(isConverged=isConverged,
@@ -276,6 +276,7 @@ class LearnAlg(object):
       countStr = 'Ndiff %10.3f' % (self.ConvergeInfo['maxDiff'])
     else:
       countStr = ''
+
     if rho is None:
       rhoStr = ''
     else:
@@ -335,6 +336,11 @@ class LearnAlg(object):
       return False
     return (nLapTotal <= 5) or (lapFrac <= np.ceil(frac * nLapTotal))
 
+  def doMergePrepAtLap(self, lapFrac):
+    if 'merge' not in self.algParams:
+      return False
+    return lapFrac > self.algParams['merge']['mergeStartLap'] \
+           and self.isFirstBatch(lapFrac)
 
   ######################################################### Custom Func
   #########################################################

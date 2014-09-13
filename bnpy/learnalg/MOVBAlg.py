@@ -40,12 +40,12 @@ class MOVBAlg(LearnAlg):
     ## Keep list of params that should be retained across laps
     self.memoLPkeys = hmodel.allocModel.get_keys_for_memoized_local_params()
 
-    SS = None
-    isConverged = False
-
     ## Save initial state
     self.saveParams(lapFrac, hmodel)
 
+    ## Begin loop over batches of data...
+    SS = None
+    isConverged = False
     self.set_start_time_now()
     while DataIterator.has_next_batch():
 
@@ -59,25 +59,23 @@ class MOVBAlg(LearnAlg):
       nLapsCompleted = lapFrac - self.algParams['startLap']
       self.set_random_seed_at_lap(lapFrac)
       
-      LPchunk = self.LocalStep(hmodel, Dchunk, batchID)
-      SS, SSchunk = self.SummaryStep(hmodel, SS, Dchunk, LPchunk, batchID)
+      ## Local/E step
+      LPchunk = self.memoizedLocalStep(hmodel, Dchunk, batchID)
 
-      # Store batch-specific stats to memory
-      if self.algParams['doMemoizeLocalParams']:
-        self.save_batch_local_params_to_memory(batchID, LPchunk)          
-      self.save_batch_suff_stat_to_memory(batchID, SSchunk)
-
-      # M step
+      ## Summary step
+      SS, SSchunk = self.memoizedSummaryStep(hmodel, SS,
+                                             Dchunk, LPchunk, batchID)
+      ## Global step
       self.GlobalStep(hmodel, SS, lapFrac)
 
+      ## ELBO calculation
       evBound = hmodel.calc_evidence(SS=SS)
-
-      # Verify guarantees!
-      # evBound will increase monotonically AFTER first lap of the data 
-      # verify_evidence will warn if bound isn't increasing monotonically
       if nLapsCompleted > 1.0:
+        # evBound will increase monotonically AFTER first lap of the data 
+        # verify_evidence will warn if bound isn't increasing monotonically
         self.verify_evidence(evBound, prevBound, lapFrac)
 
+      ## Assess convergence
       countVec = SS.getCountVec()
       if lapFrac > 1.0:
         isConverged = self.isCountVecConverged(countVec, prevCountVec)
@@ -90,7 +88,7 @@ class MOVBAlg(LearnAlg):
 
       ## Save diagnostics and params
       if self.isSaveDiagnosticsCheckpoint(lapFrac, iterid):
-        self.saveDiagnostics(lapFrac, SS, evBound)
+        self.saveDiagnostics(lapFrac, SS, evBound, self.ActiveIDVec)
       if self.isSaveParamsCheckpoint(lapFrac, iterid):
         self.saveParams(lapFrac, hmodel, SS)
 
@@ -113,16 +111,18 @@ class MOVBAlg(LearnAlg):
                              SSmemory=self.SSmemory)
 
 
-  def LocalStep(self, hmodel, Dchunk, batchID):
+  def memoizedLocalStep(self, hmodel, Dchunk, batchID):
     if batchID in self.LPmemory:
       oldLPchunk = self.load_batch_local_params_from_memory(batchID)
     else:
       oldLPchunk = None
     LPchunk = hmodel.calc_local_params(Dchunk, oldLPchunk,
                                        **self.algParamsLP)
+    if self.algParams['doMemoizeLocalParams']:
+      self.save_batch_local_params_to_memory(batchID, LPchunk) 
     return LPchunk
 
-  def SummaryStep(self, hmodel, SS, Dchunk, LPchunk, batchID):
+  def memoizedSummaryStep(self, hmodel, SS, Dchunk, LPchunk, batchID):
     ''' Execute summary step on current batch and update aggregated SS
 
         Returns
@@ -132,6 +132,7 @@ class MOVBAlg(LearnAlg):
     '''
     if batchID in self.SSmemory:
       oldSSchunk = self.load_batch_suff_stat_from_memory(batchID) 
+      assert oldSSchunk.K == SS.K
       SS -= oldSSchunk
     SSchunk = hmodel.get_global_suff_stats(Dchunk, LPchunk, doPrecompEntropy=1)
     if SS is None:
@@ -139,6 +140,7 @@ class MOVBAlg(LearnAlg):
     else:
       assert SSchunk.K == SS.K
       SS += SSchunk
+    self.save_batch_suff_stat_to_memory(batchID, SSchunk)
     return SS, SSchunk
 
   def GlobalStep(self, hmodel, SS, lapFrac):
