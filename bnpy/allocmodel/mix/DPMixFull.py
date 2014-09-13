@@ -102,7 +102,8 @@ class DPMixFull(AllocModel):
   def get_global_suff_stats(self, Data, LP,
                              preselectroutine=None,
                              doPrecompEntropy=False, 
-                             doPrecompMergeEntropy=False, mPairIDs=None):
+                             doPrecompMergeEntropy=False, mPairIDs=None,
+                             **kwargs):
     ''' Calculate the sufficient statistics for global parameter updates
         Only adds stats relevant for this allocModel. 
         Other stats are added by the obsModel.
