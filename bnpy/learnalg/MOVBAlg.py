@@ -294,10 +294,11 @@ class MOVBAlg(LearnAlg):
         hmodel.update_global_params(SS)
         evBound = hmodel.calc_evidence(SS=SS)
 
-      # Save and display progress
+      ## Display progress
       self.add_nObs(Dchunk.get_size())
       self.print_state(hmodel, SS, iterid, lapFrac, evBound)
 
+      ## Save diagnostics and params
       if self.isSaveDiagnosticsCheckpoint(lapFrac, iterid):
         self.saveDiagnostics(lapFrac, SS, evBound, self.ActiveIDVec)
       if self.isSaveParamsCheckpoint(lapFrac, iterid):
@@ -366,7 +367,7 @@ class MOVBAlg(LearnAlg):
     if id(origmodel) != id(hmodel):
       origmodel.allocModel = hmodel.allocModel
       origmodel.obsModel = hmodel.obsModel
-    return None, self.buildRunInfo(evBound, msg)
+    return self.buildRunInfo(evBound, msg)
 
   ######################################################### Load from memory
   #########################################################

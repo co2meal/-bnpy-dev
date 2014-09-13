@@ -22,58 +22,53 @@ class VBAlg( LearnAlg ):
   def __init__( self, **kwargs ):
     ''' Create VBLearnAlg, subtype of generic LearnAlg
     '''
-    super(type(self), self).__init__( **kwargs )
-    self.BirthLog = list()
+    LearnAlg.__init__(self, **kwargs)
+    #super(type(self), self).__init__( **kwargs )
     
   def fit(self, hmodel, Data):
-    ''' Run EM/VB learning algorithm, fit global parameters of hmodel to Data
+    ''' Run VB learning algorithm, fit global parameters of hmodel to Data
         Returns
         --------
-        LP : local params from final pass of Data
         Info : dict of run information, with fields
-              evBound : final ELBO evidence bound
-              status : str message indicating reason for termination
-                        {'converged', 'max passes exceeded'}
+        * evBound : final ELBO evidence bound
+        * status : str message indicating reason for termination
+                   {'converged', 'max laps exceeded'}
+        * LP : dict of local parameters for final model
     '''
     prevBound = -np.inf
     LP = None
-    mergeFlags = dict(doPrecompEntropy=True, doPrecompMergeEntropy=True)
     self.set_start_time_now()
     for iterid in xrange(self.algParams['nLap'] + 1):
       lap = self.algParams['startLap'] + iterid
       self.set_random_seed_at_lap(lap)
 
-      # M step
-      if iterid > 0:
-        hmodel.update_global_params(SS) 
-
-      if self.hasMove('birth') and iterid > 1:
-        hmodel, LP = self.run_birth_move(hmodel, Data, SS, LP, iterid)
-        
-      # E step 
+      ## Local/E step
       LP = hmodel.calc_local_params(Data, LP, **self.algParamsLP)
 
-      # Suff Stat step
+      ## Summary step
       if self.hasMove('merge'):
         SS = hmodel.get_global_suff_stats(Data, LP, **mergeFlags)
       else:
         SS = hmodel.get_global_suff_stats(Data, LP)
 
-      # ELBO calculation
+      ## Global/M step
+      hmodel.update_global_params(SS) 
+
+      ## ELBO calculation
       evBound = hmodel.calc_evidence(Data, SS, LP)
 
-      # Attempt merge move      
-      if self.hasMove('merge'):
-        hmodel, SS, LP, evBound = self.run_merge_move(
-                                          hmodel, Data, SS, LP, evBound)
+      ## Display progress
+      self.add_nObs(Dchunk.get_size())
+      self.print_state(hmodel, SS, iterid, lapFrac, evBound)
 
-      # Save and display progress
-      self.add_nObs(Data.get_size())
-      self.save_state(hmodel, SS, iterid, lap, evBound)
-      self.print_state(hmodel, SS, iterid, lap, evBound)
+      ## Save diagnostics and params
+      if self.isSaveDiagnosticsCheckpoint(lapFrac, iterid):
+        self.saveDiagnostics(lapFrac, SS, evBound, self.ActiveIDVec)
+      if self.isSaveParamsCheckpoint(lapFrac, iterid):
+        self.saveParams(lapFrac, hmodel, SS)
 
-      # Check for Convergence!
-      #  report warning if bound isn't increasing monotonically
+      ## Check for Convergence!
+      # Report warning if bound isn't increasing monotonically
       isConverged = self.verify_evidence( evBound, prevBound )
       if isConverged:
         break
@@ -83,11 +78,11 @@ class VBAlg( LearnAlg ):
     if isConverged:
       status = "converged."
     else:
-      status = "max passes thru data exceeded."
-    self.save_state(hmodel, SS, iterid, lap, evBound, doFinal=True)    
+      status = "max laps exceeded."
+    self.saveParams(lapFrac, hmodel, SS)
     self.print_state(hmodel, SS, iterid, lap, evBound, 
                      doFinal=True, status=status)
-    return LP, self.buildRunInfo(evBound, status, nLap=lap)
+    return self.buildRunInfo(evBound, status, nLap=lap, LP=LP)
 
 
 
