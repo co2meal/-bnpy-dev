@@ -88,7 +88,7 @@ class MOVBAlg(LearnAlg):
 
       ## Save diagnostics and params
       if self.isSaveDiagnosticsCheckpoint(lapFrac, iterid):
-        self.saveDiagnostics(lapFrac, SS, evBound, self.ActiveIDVec)
+        self.saveDiagnostics(lapFrac, SS, evBound)
       if self.isSaveParamsCheckpoint(lapFrac, iterid):
         self.saveParams(lapFrac, hmodel, SS)
 
