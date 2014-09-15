@@ -233,12 +233,11 @@ def _parseInput_SoftEv(logSoftEv, K):
 
 
 def viterbi(logSoftEv, pi0, pi):
-'''
-Input : The log evidence matrix (logSoftEv[n,k] = log(p(x_n | z_n = k))), as 
-well as the starting distribution and transition matrix.
+  '''
+  Input : The log evidence matrix (logSoftEv[n,k] = log(p(x_n | z_n = k))), as 
+  well as the starting distribution and transition matrix.
 
-Output : The most likely sequence of hidden states, Z[0, ..., N-1]
-'''
+  '''
   logPi0 = np.log(pi0 + EPS)
   logPi = np.log(pi + EPS)
   T, K = np.shape(logSoftEv)
@@ -246,7 +245,9 @@ Output : The most likely sequence of hidden states, Z[0, ..., N-1]
   V = np.zeros((T, K))
   prev = np.zeros((T, K))
 
+
   for t in xrange(T):
+    biggest = -np.inf
     for l in xrange(K):
       
       if t == 0:
@@ -254,7 +255,7 @@ Output : The most likely sequence of hidden states, Z[0, ..., N-1]
         prev[0,l] = -1
         continue
 
-      biggest = -np.inf
+      #biggest = -np.inf
       for k in xrange(K):
         logpr = logPi[k,l] + V[t-1, k]
         if logpr > biggest:
@@ -270,6 +271,8 @@ Output : The most likely sequence of hidden states, Z[0, ..., N-1]
       z[t] = np.argmax(V[t,:])
     else:
       z[t] = prev[t+1, z[t+1]]
+
   return z
 
     
+
