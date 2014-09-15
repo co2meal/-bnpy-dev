@@ -136,13 +136,27 @@ class GroupXData(XData):
     s += '  dimension: %d' % (self.get_dim())
     return s
 
+  def toXData(self):
+    ''' Return simplified representation as XData instance, losing group structure
+    '''
+    if hasattr(self, 'Xprev'):
+      return XData(self.X, Xprev=self.Xprev)
+    else:
+      return XData(self.X)
+
   ######################################################### Create Subset
   ######################################################### 
-  def select_subset_by_mask(self, docMask, doTrackFullSize=True):
+  def select_subset_by_mask(self, docMask=None, 
+                                  atomMask=None,
+                                  doTrackFullSize=True):
     ''' Creates new GroupXData object by selecting certain rows (observations)
+
         If doTrackFullSize is True, 
           ensure nDocTotal attribute is the same as the full dataset.
     '''
+    if atomMask is not None:
+      return self.toXData().select_subset_by_mask(atomMask)
+
     newXList = list()
     newXPrevList = list()
     newDocRange = np.zeros(len(docMask)+1)

@@ -11,6 +11,8 @@ Sample selection criteria
 import numpy as np
 import heapq
 from scipy.spatial.distance import cdist
+
+import bnpy.data
 from TargetPlannerWordFreq import calcDocWordUnderpredictionScores
 
 def add_to_ranked_target_data(RankedDataHeap, maxSize, Data, weights, 
@@ -58,13 +60,36 @@ def sample_target_data(Data, model=None, LP=None, **kwargs):
       -------
       targetData : bnpy DataObj, with size at most kwargs['targetMaxSize']
   '''
-  if hasattr(Data, 'nDoc'):
+  if isinstance(Data, bnpy.data.WordsData):
     return _sample_target_WordsData(Data, model, LP, **kwargs)
-  else:
+  elif isinstance(Data, bnpy.data.GroupXData):
+    return _sample_target_GroupXData(Data, model, LP, **kwargs)
+  elif isinstance(Data, bnpy.data.XData):
     return _sample_target_XData(Data, model, LP, **kwargs)
 
+
+def _sample_target_GroupXData(Data, model, LP, **kwargs):
+  ''' Draw sample subset of provided GroupXData dataset
+  '''
+  randstate = kwargs['randstate']
+  if not hasValidKey('targetCompID', kwargs):
+    raise NotImplementedError('TODO')
+
+  ktarget = kwargs['targetCompID']
+  targetProbThr = kwargs['targetCompFrac']
+  mask = LP['resp'][: , ktarget] > targetProbThr
+  objIDs = np.flatnonzero(mask)
+  if len(objIDs) < 2:
+    return None, dict()
+  randstate.shuffle(objIDs)
+  targetObjIDs = objIDs[:kwargs['targetMaxSize']]
+  TargetData = Data.select_subset_by_mask(atomMask=targetObjIDs, 
+                                          doTrackFullSize=False)
+  TargetInfo = dict(ktarget=ktarget)
+  return TargetData, TargetInfo
+
 def _sample_target_XData(Data, model, LP, **kwargs):
-  ''' Draw sample subset of provided data object
+  ''' Draw sample subset of provided XData dataset
   '''
   randstate = kwargs['randstate']
   if hasValidKey('targetCompID', kwargs):
@@ -77,7 +102,7 @@ def _sample_target_XData(Data, model, LP, **kwargs):
     randstate.shuffle(objIDs)
     targetObjIDs = objIDs[:kwargs['targetMaxSize']]
     TargetData = Data.select_subset_by_mask(targetObjIDs, 
-                                               doTrackFullSize=False)
+                                            doTrackFullSize=False)
     TargetInfo = dict(ktarget=ktarget)
   else:
     raise NotImplementedError('TODO')
