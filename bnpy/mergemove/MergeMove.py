@@ -46,16 +46,16 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None,
     if CompIDShift[kA] == -1 or CompIDShift[kB] == -1:
       continue
 
-    if M is not None:
-      Mcand = M[kA, kB]
-      scoreMsg = '%.3e' % (M[kA, kB])
-    else:
-      Mcand = None
-      scoreMsg = ''
-
     # jA, jB are "shifted" indices under our new model, with K- Kaccepted comps
     jA = kA - CompIDShift[kA]
     jB = kB - CompIDShift[kB]
+
+    if M is not None:
+      Mcand = M[jA, jB]
+      scoreMsg = '%.3e' % (M[jA, jB])
+    else:
+      Mcand = None
+      scoreMsg = ''
 
     curModel, curSS, curELBO, MoveInfo = buildMergeCandidateAndKeepIfImproved(
                                           curModel, curSS, curELBO,
@@ -75,6 +75,15 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None,
       AcceptedPairs.append((jA, jB))
       AcceptedPairOrigIDs.append((kA, kB))
       ELBOGain += MoveInfo['ELBOGain']
+
+      # Update PairScoreMatrix
+      if M is not None:
+        M = np.delete(np.delete(M, jB, axis=0), jB, axis=1)
+        M[jA, jA+1:] = 0
+        M[:jA, jA] = 0
+    else:
+      if M is not None:
+        M[jA, jB] = MoveInfo['ELBOGain']
     trialID += 1
 
   if kwargs['mergeLogVerbose']:
@@ -84,7 +93,8 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None,
 
   Info = dict(AcceptedPairs=AcceptedPairs,
               AcceptedPairOrigIDs=AcceptedPairOrigIDs,
-              ELBOGain=ELBOGain)
+              ELBOGain=ELBOGain,
+              ScoreMat=M)
   return curModel, curSS, curELBO, Info
 
 

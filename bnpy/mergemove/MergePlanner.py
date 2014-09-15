@@ -44,7 +44,6 @@ def preselectPairs(curModel, SS, lapFrac,
         bRejects.append(bList[posID])
         aList = np.delete(aList, posID)
         bList = np.delete(bList, posID)
-
   mPairIDs = zip(aList, bList)
   return mPairIDs, ScoreMat
 
@@ -64,6 +63,7 @@ def updateScoreMat_wholeELBO(ScoreMat, curModel, SS, doAllPairs=0):
     ScoreMat[np.tril_indices(SS.K)] = -np.inf
     for k, uID in enumerate(SS.uIDs):
       CountTracker[uID] = SS.getCountVec()[k]
+    nUpdated = SS.K * (SS.K-1)/2
   else:
     ScoreMat[np.tril_indices(SS.K)] = -np.inf
     ## Rescore only specific pairs that are positive
@@ -88,6 +88,8 @@ def updateScoreMat_wholeELBO(ScoreMat, curModel, SS, doAllPairs=0):
       AGap = curModel.allocModel.calcHardMergeGap_SpecificPairs(SS, mPairIDs)
       OGap = curModel.obsModel.calcHardMergeGap_SpecificPairs(SS, mPairIDs)
       ScoreMat[aList, bList] = AGap + OGap
+    nUpdated = len(aList)
+  print 'Updated %d entries in ScoreMat.' % (nUpdated)
   return ScoreMat  
     
 
@@ -219,6 +221,7 @@ def calcScoreMatrix_wholeELBO(curModel, SS, excludePairs=list(), M=None):
     AGap = curModel.allocModel.calcHardMergeGap_AllPairs(SS)
     OGap = curModel.obsModel.calcHardMergeGap_AllPairs(SS)
     Mraw = AGap + OGap
+    nUpdated = (SS.K * (SS.K-1))/2
   else:
     assert M.shape[0] == K
     assert M.shape[1] == K
@@ -231,6 +234,10 @@ def calcScoreMatrix_wholeELBO(curModel, SS, excludePairs=list(), M=None):
     OGap = curModel.obsModel.calcHardMergeGap_SpecificPairs(SS, pairList)
     M[aList, bList] = AGap + OGap
     Mraw = M
+    nUpdated = len(pairList)
+
+  print 'Updated %d entries in ScoreMat.' % (nUpdated)
+
 
   Mraw[np.triu_indices(K,1)] += ELBO_GAP_ACCEPT_TOL
   M = Mraw.copy()
