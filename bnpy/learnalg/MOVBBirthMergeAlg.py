@@ -35,9 +35,9 @@ class MOVBBirthMergeAlg(MOVBAlg):
       #  at each component, to encourage trying diversity
       self.LapsSinceLastBirth = defaultdict(int)
 
-  def doDebug(self):
-    return self.algParams['debug'] in ['interactive', 'quiet', 'on']
 
+  ######################################################### fit
+  ######################################################### 
   def fit(self, hmodel, DataIterator):
     ''' Run learning algorithm that fits parameters of hmodel to Data.
 
@@ -244,6 +244,12 @@ class MOVBBirthMergeAlg(MOVBAlg):
   ######################################################### Local step
   #########################################################
   def memoizedLocalStep(self, hmodel, Dchunk, batchID):
+    ''' Execute local step on data chunk.
+
+        Returns
+        --------
+        LPchunk : dict of local params for current batch
+    '''
     if batchID in self.LPmemory:
       oldLPchunk = self.load_batch_local_params_from_memory(batchID)
     else:
@@ -318,6 +324,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
       MergePrepInfo = dict()
 
     if batchID in self.SSmemory:
+      ## Decrement old value of SSchunk from aggregated SS
       oldSSchunk = self.load_batch_suff_stat_from_memory(batchID, doCopy=0,
                                                          Kfinal=SS.K,
                                                          order=order)
@@ -325,11 +332,13 @@ class MOVBBirthMergeAlg(MOVBAlg):
       assert np.allclose(SS.uIDs, oldSSchunk.uIDs)
       SS -= oldSSchunk
 
+    ## Calculate fresh suff stats for current batch
     SSchunk = hmodel.get_global_suff_stats(Dchunk, LPchunk, 
                                            doPrecompEntropy=1,
                                            **MergePrepInfo)
     SSchunk.setUIDs(self.ActiveIDVec.copy())
 
+    ## Increment aggregated SS by adding in SSchunk
     if SS is None:
       SS = SSchunk.copy()
     else:
@@ -337,19 +346,27 @@ class MOVBBirthMergeAlg(MOVBAlg):
       assert np.allclose(SS.uIDs, self.ActiveIDVec)
       assert np.allclose(SSchunk.uIDs, self.ActiveIDVec)
       SS += SSchunk
-
     self.save_batch_suff_stat_to_memory(batchID, SSchunk)
+
+    ## Force aggregated suff stats to obey required constraints.
+    # This avoids numerical issues caused by incremental updates
+    if hasattr(hmodel.allocModel, 'forceSSInBounds'):
+      hmodel.allocModel.forceSSInBounds(SS)
+    if hasattr(hmodel.obsModel, 'forceSSInBounds'):
+      hmodel.obsModel.forceSSInBounds(SS)
     return SS, SSchunk
 
 
   def load_batch_suff_stat_from_memory(self, batchID, doCopy=0, 
                                              Kfinal=0, order=None):
-    ''' Load the suff stats stored in memory for provided batchID
+    ''' Load (fast-forwarded) suff stats stored from previous visit to batchID.
+
+        Any merges, shuffles, or births which happened since last visit
+        are automatically applied.
+
         Returns
         -------
         SSchunk : bnpy SuffStatDict object for batchID,
-                  Contains stored values from the last visit to batchID,
-                   updated to reflect any moves that happened since that visit.
     '''
     SSchunk = self.SSmemory[batchID]
     if doCopy:
@@ -375,7 +392,6 @@ class MOVBBirthMergeAlg(MOVBAlg):
         kB = MInfo['kB']
         if kA < SSchunk.K and kB < SSchunk.K and SSchunk.K == MInfo['Korig']:
           SSchunk.mergeComps(kA, kB)
-
     if SSchunk.hasMergeTerms():
       SSchunk.setMergeFieldsToZero()
 
@@ -895,6 +911,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
     return hmodel, SS, evBound
 
+  ######################################################### Verify ELBO
+  #########################################################
   def verifyELBOTracking(self, hmodel, SS, evBound=None, order=None,
                                BirthResults=list(),
                                **kwargs):
@@ -903,6 +921,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
     if evBound is None:
       evBound = hmodel.calc_evidence(SS=SS)
 
+    ## Reconstruct aggregate SS explicitly by sum over all stored batches
     for batchID in range(len(self.SSmemory.keys())):
       SSchunk = self.load_batch_suff_stat_from_memory(batchID, doCopy=1,
                                                       order=order,
@@ -912,6 +931,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
       else:
         SS2 += SSchunk
 
+    ## Add in extra mass from birth moves
     for MoveInfo in BirthResults:
       if MoveInfo['didAddNew'] and 'extraSS' in MoveInfo:
         if not 'extraSSDone' in MoveInfo:

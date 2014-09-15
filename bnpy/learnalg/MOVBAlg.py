@@ -22,7 +22,12 @@ class MOVBAlg(LearnAlg):
     self.SSmemory = dict()
     self.LPmemory = dict()
 
+  def doDebug(self):
+    return self.algParams['debug'] in ['interactive', 'quiet', 'on']
 
+
+  ######################################################### fit
+  ######################################################### 
   def fit(self, hmodel, DataIterator):
     ''' Run learning algorithm that fits parameters of hmodel to Data.
 
@@ -74,10 +79,10 @@ class MOVBAlg(LearnAlg):
         # evBound will increase monotonically AFTER first lap of the data 
         # verify_evidence will warn if bound isn't increasing monotonically
         self.verify_evidence(evBound, prevBound, lapFrac)
-        if self.algParams['debugInteractive'] > 0:
-          self.verifyELBOTracking(hmodel, SS, evBound, 
-                                  verbose=1,
-                                  doDebugInteractive=1)
+
+
+      if self.doDebug() and lapFrac >= 1.0:
+        self.verifyELBOTracking(hmodel, SS, evBound)
 
       ## Assess convergence
       countVec = SS.getCountVec()
@@ -115,8 +120,15 @@ class MOVBAlg(LearnAlg):
                              LPmemory=self.LPmemory,
                              SSmemory=self.SSmemory)
 
-
+  ######################################################### Local step
+  #########################################################
   def memoizedLocalStep(self, hmodel, Dchunk, batchID):
+    ''' Execute local step on data chunk.
+
+        Returns
+        --------
+        LPchunk : dict of local params for current batch
+    '''
     if batchID in self.LPmemory:
       oldLPchunk = self.load_batch_local_params_from_memory(batchID)
     else:
@@ -127,8 +139,40 @@ class MOVBAlg(LearnAlg):
       self.save_batch_local_params_to_memory(batchID, LPchunk) 
     return LPchunk
 
+  def load_batch_local_params_from_memory(self, batchID, doCopy=0):
+    ''' Load local parameter dict stored in memory for provided batchID
+        Ensures "fast-forward" so that all recent merges/births
+          are accounted for in the returned LP
+        Returns
+        -------
+        LPchunk : bnpy local parameters dictionary for batchID
+    '''
+    LPchunk = self.LPmemory[batchID]
+    if doCopy:
+      # Duplicating to avoid changing the raw data stored in LPmemory
+      # Usually for debugging only
+      LPchunk = copy.deepcopy(LPchunk)
+    return LPchunk
+
+  def save_batch_local_params_to_memory(self, batchID, LPchunk):
+    ''' Store certain fields of the provided local parameters dict
+          into "memory" for later retrieval.
+        Fields to save determined by the memoLPkeys attribute of this alg.
+    '''
+    LPchunk = dict(**LPchunk) # make a copy
+    allkeys = LPchunk.keys()
+    for key in allkeys:
+      if key not in self.memoLPkeys:
+        del LPchunk[key]
+    if len(LPchunk.keys()) > 0:
+      self.LPmemory[batchID] = LPchunk
+    else:
+      self.LPmemory[batchID] = None
+
+  ######################################################### Summary step
+  #########################################################
   def memoizedSummaryStep(self, hmodel, SS, Dchunk, LPchunk, batchID):
-    ''' Execute summary step on current batch and update aggregated SS
+    ''' Execute summary step on current batch and update aggregated SS.
 
         Returns
         --------
@@ -139,15 +183,50 @@ class MOVBAlg(LearnAlg):
       oldSSchunk = self.load_batch_suff_stat_from_memory(batchID) 
       assert oldSSchunk.K == SS.K
       SS -= oldSSchunk
-    SSchunk = hmodel.get_global_suff_stats(Dchunk, LPchunk, doPrecompEntropy=1)
+    SSchunk = hmodel.get_global_suff_stats(Dchunk, LPchunk,
+                                           doPrecompEntropy=1)
     if SS is None:
       SS = SSchunk.copy()
     else:
       assert SSchunk.K == SS.K
       SS += SSchunk
     self.save_batch_suff_stat_to_memory(batchID, SSchunk)
+
+    ## Force aggregated suff stats to obey required constraints.
+    # This avoids numerical issues caused by incremental updates
+    if hasattr(hmodel.allocModel, 'forceSSInBounds'):
+      hmodel.allocModel.forceSSInBounds(SS)
+    if hasattr(hmodel.obsModel, 'forceSSInBounds'):
+      hmodel.obsModel.forceSSInBounds(SS)
     return SS, SSchunk
 
+  def load_batch_suff_stat_from_memory(self, batchID, doCopy=0,
+                                             **kwargs):
+    ''' Load the suff stats stored in memory for provided batchID
+        Returns
+        -------
+        SSchunk : bnpy SuffStatDict object for batchID,
+                  Contains stored values from the last visit to batchID,
+                   updated to reflect any moves that happened since that visit.
+    '''
+    SSchunk = self.SSmemory[batchID]
+    if doCopy:
+      # Duplicating to avoid changing the raw data stored in SSmemory
+      # Usually for debugging only
+      SSchunk = SSchunk.copy()
+    return SSchunk  
+
+
+  def save_batch_suff_stat_to_memory(self, batchID, SSchunk):
+    ''' Store the provided suff stats into the "memory" for later retrieval
+    '''
+    if SSchunk.hasSelectionTerms():
+      del SSchunk._SelectTerms
+    self.SSmemory[batchID] = SSchunk
+
+
+  ######################################################### Global step
+  #########################################################
   def GlobalStep(self, hmodel, SS, lapFrac):
     ''' Execute global update of hmodel params, if appropriate at current lap.
 
@@ -155,12 +234,6 @@ class MOVBAlg(LearnAlg):
         --------
         None. hmodel updated in-place.
     '''
-    ## Force aggregated suff stats to obey required constraints.
-    # This avoids numerical issues caused by incremental updates
-    if self.isFirstBatch(lapFrac):
-      if hasattr(hmodel.obsModel, 'forceSSInBounds'):
-        hmodel.obsModel.forceSSInBounds(SS)
-
     if self.algParams['doFullPassBeforeMstep']:
       if lapFrac >= 1.0:
         hmodel.update_global_params(SS)
@@ -168,7 +241,8 @@ class MOVBAlg(LearnAlg):
       hmodel.update_global_params(SS)
 
 
-
+  ######################################################### Init nBatch, etc.
+  #########################################################
   def initProgressTrackVars(self, DataIterator):
     ''' Initialize internal attributes like nBatch, lapFracInc, etc.
     '''
@@ -188,69 +262,9 @@ class MOVBAlg(LearnAlg):
       iterid = int(nBatch * lapFrac) - 1
     return iterid, lapFrac
   
-
-  ######################################################### Load from memory
+  ######################################################### Verify memoized ELBO
   #########################################################
-  def load_batch_suff_stat_from_memory(self, batchID, doCopy=0,
-                                             **kwargs):
-    ''' Load the suff stats stored in memory for provided batchID
-        Returns
-        -------
-        SSchunk : bnpy SuffStatDict object for batchID,
-                  Contains stored values from the last visit to batchID,
-                   updated to reflect any moves that happened since that visit.
-    '''
-    SSchunk = self.SSmemory[batchID]
-    if doCopy:
-      # Duplicating to avoid changing the raw data stored in SSmemory
-      # Usually for debugging only
-      SSchunk = SSchunk.copy()
-    return SSchunk  
-
-  def load_batch_local_params_from_memory(self, batchID, doCopy=0):
-    ''' Load local parameter dict stored in memory for provided batchID
-        Ensures "fast-forward" so that all recent merges/births
-          are accounted for in the returned LP
-        Returns
-        -------
-        LPchunk : bnpy local parameters dictionary for batchID
-    '''
-    LPchunk = self.LPmemory[batchID]
-    if doCopy:
-      # Duplicating to avoid changing the raw data stored in LPmemory
-      # Usually for debugging only
-      LPchunk = copy.deepcopy(LPchunk)
-    return LPchunk
-
-  ######################################################### Save to memory
-  #########################################################
-  def save_batch_suff_stat_to_memory(self, batchID, SSchunk):
-    ''' Store the provided suff stats into the "memory" for later retrieval
-    '''
-    if SSchunk.hasSelectionTerms():
-      del SSchunk._SelectTerms
-    self.SSmemory[batchID] = SSchunk
-
-  def save_batch_local_params_to_memory(self, batchID, LPchunk):
-    ''' Store certain fields of the provided local parameters dict
-          into "memory" for later retrieval.
-        Fields to save determined by the memoLPkeys attribute of this alg.
-    '''
-    LPchunk = dict(**LPchunk) # make a copy
-    allkeys = LPchunk.keys()
-    for key in allkeys:
-      if key not in self.memoLPkeys:
-        del LPchunk[key]
-    if len(LPchunk.keys()) > 0:
-      self.LPmemory[batchID] = LPchunk
-    else:
-      self.LPmemory[batchID] = None
-
-
-  def verifyELBOTracking(self, hmodel, SS, evBound=None, 
-                               verbose=0,
-                               doDebugInteractive=0,
-                               **kwargs):
+  def verifyELBOTracking(self, hmodel, SS, evBound=None, **kwargs):
     ''' Verify that current aggregated SS consistent with sum over all batches
     '''
     if evBound is None:
@@ -263,15 +277,15 @@ class MOVBAlg(LearnAlg):
       else:
         SS2 += SSchunk
     evCheck = hmodel.calc_evidence(SS=SS2)
-    if verbose:
+
+    if self.algParams['debug'].count('quiet') == 0:
       print '% 14.8f evBound from agg SS' % (evBound)
       print '% 14.8f evBound from sum over SSmemory' % (evCheck)
-    if doDebugInteractive:
-      isCorrect = np.allclose(SS.getCountVec(), SS2.getCountVec())
-      isCorrect = isCorrect and np.allclose(evBound, evCheck)
+    if self.algParams['debug'].count('interactive'):
+      isCorrect = np.allclose(SS.getCountVec(), SS2.getCountVec()) \
+                  and np.allclose(evBound, evCheck)
       if not isCorrect:
         from IPython import embed; embed()
     else:
       assert np.allclose(SS.getCountVec(), SS2.getCountVec())
       assert np.allclose(evBound, evCheck)
-
