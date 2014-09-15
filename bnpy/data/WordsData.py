@@ -42,14 +42,15 @@ class WordsData(DataObj):
                doc_range=doc_range, vocab_size=vocab_size)    
 
   @classmethod
-  def read_from_mat(cls, matfilepath, **kwargs):
+  def read_from_mat(cls, matfilepath, vocabfile=None, **kwargs):
     MatDict = scipy.io.loadmat(matfilepath, **kwargs)
-    return cls(**MatDict)
+    return cls(vocabfile=vocabfile, **MatDict)
 
   ######################################################### Constructor
   #########################################################
   def __init__(self, word_id=None, word_count=None, doc_range=None,
-                     vocab_size=0, vocabList=None, summary=None,
+                     vocab_size=0, vocabList=None, vocabfile=None,
+                     summary=None,
                      nDocTotal=None, TrueParams=None, **kwargs):
     ''' Constructor for WordsData object
 
@@ -72,9 +73,6 @@ class WordsData(DataObj):
     self.word_count = np.squeeze(np.asarray(np.squeeze(word_count), dtype=np.float64))
     self.doc_range = np.squeeze(np.asarray(doc_range, dtype=np.int32))
     self.vocab_size = int(vocab_size)
-    self._verify_attributes()
- 
-    self._set_corpus_size_attributes(nDocTotal)
 
     if summary is not None:
       self.summary = summary
@@ -86,6 +84,13 @@ class WordsData(DataObj):
     # Add dictionary of vocab words, if provided
     if vocabList is not None:
       self.vocabList = vocabList
+    elif vocabfile is not None:
+      with open(vocabfile, 'r') as f:
+        self.vocabList = [x.strip() for x in f.readlines()]
+
+    self._verify_attributes()
+    self._set_corpus_size_attributes(nDocTotal)
+  
 
   def _set_corpus_size_attributes(self, nDocTotal=None):
     ''' Sets nDoc, nObs, and nDocTotal attributes of this WordsData object
@@ -120,6 +125,10 @@ class WordsData(DataObj):
 
     docEndBiggerThanStart = self.doc_range[1:] - self.doc_range[:-1]
     assert np.all(docEndBiggerThanStart)
+
+    if hasattr(self, 'vocabList'):
+      if len(self.vocabList) != self.vocab_size:
+        del self.vocabList
 
   def get_size(self):
     return self.nDoc

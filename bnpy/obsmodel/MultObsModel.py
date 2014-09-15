@@ -132,7 +132,7 @@ class MultObsModel(AbstractObsModel):
     self.EstParams = ParamBag(K=Post.K, D=Post.D)
     phi = Post.lam / np.sum(Post.lam, axis=1)[:, np.newaxis]
     self.EstParams.setField('phi', phi, dims=('K','D'))
-    self.K = EstParams.K
+    self.K = self.EstParams.K
 
   
   ######################################################### Set Post
@@ -224,9 +224,13 @@ class MultObsModel(AbstractObsModel):
   def forceSSInBounds(self, SS):
     ''' Force count vectors to remain positive
 
-        This avoids numerical problems due to incremental additions and subtractions,
-        which can cause computations like 1 + 1e-15 - 1 - 1e-15 to be less than zero
-        instead of exactly zero.
+        This avoids numerical problems due to incremental add/subtract ops
+        which can cause computations like 
+            x = 10.
+            x += 1e-15
+            x -= 10
+            x -= 1e-15
+        to be slightly different than zero instead of exactly zero.
 
         Returns
         -------
@@ -234,6 +238,8 @@ class MultObsModel(AbstractObsModel):
     '''
     np.maximum(SS.WordCounts, 0, out=SS.WordCounts)
     np.maximum(SS.SumWordCounts, 0, out=SS.SumWordCounts)
+    if not np.allclose(SS.WordCounts.sum(axis=1), SS.SumWordCounts):
+      raise ValueError('Bad Word Counts!')
 
   def incrementSS(self, SS, k, Data, docID):
     SS.WordCounts[k] += Data.getSparseDocTypeCountMatrix()[docID,:]
@@ -434,7 +440,7 @@ class MultObsModel(AbstractObsModel):
     #sumWMat = np.sum(WMat, axis=1)
     #return np.sum(gammaln(sumWMat+1)) - np.sum(gammaln(WMat+1)) 
 
-  def getDatasetScale(self, SS):
+  def getDatasetScale(self, SS, extraSS=None):
     ''' Get scale factor for dataset, indicating number of observed scalars. 
 
         Used for normalizing the ELBO so it has reasonable range.
@@ -444,7 +450,10 @@ class MultObsModel(AbstractObsModel):
         s : scalar positive integer
             total number of word tokens observed in the sufficient stats
     '''
-    return SS.SumWordCounts.sum()
+    if extraSS is None:
+      return SS.SumWordCounts.sum()
+    else:
+      return SS.SumWordCounts.sum() - extraSS.SumWordCounts.sum()
 
   ######################################################### Hard Merge
   #########################################################

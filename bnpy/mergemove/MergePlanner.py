@@ -4,11 +4,93 @@ MergePlanner.py
 Contains methods necessary for advanced selection of which components to merge.
 '''
 import numpy as np
+from collections import defaultdict
+
+from bnpy.util import isEvenlyDivisibleFloat
 import bnpy.mergemove.MergeLogger as MergeLogger
 
 # Constant defining how far calculated ELBO gap can be from zero and still be
 # considered accepted or favorable
 from bnpy.mergemove.MergeMove import ELBO_GAP_ACCEPT_TOL
+
+
+CountTracker = defaultdict(int)
+def preselectPairs(curModel, SS, lapFrac,
+                       preselectroutine='wholeELBO',
+                       prevScoreMat=None,
+                       refreshInterval=10,
+                       maxPairsPerComp=10):
+  ''' Create list of candidate pairs for merge
+  '''
+  if prevScoreMat is None or isEvenlyDivisibleFloat(lapFrac, refreshInterval):
+    ScoreMat = np.zeros((SS.K, SS.K))
+    doAllPairs = 1
+  else:
+    assert prevScoreMat.shape[0] == SS.K
+    ScoreMat = prevScoreMat
+    doAllPairs = 0
+  ScoreMat = updateScoreMat_wholeELBO(ScoreMat, curModel, SS, doAllPairs)
+  aList, bList = np.unravel_index(
+                      np.flatnonzero(ScoreMat > - ELBO_GAP_ACCEPT_TOL),
+                      (SS.K,SS.K))
+  aRejects = list()
+  bRejects = list()
+  for k in xrange(SS.K):
+    maskPairs_k = np.logical_or(aList == k, bList == k)
+    nPairs_k = np.sum(maskPairs_k)
+    if nPairs_k > maxPairsPerComp:
+      for posID in reversed(np.flatnonzero(maskPairs_k)[maxPairsPerComp:]):
+        aRejects.append(aList[posID])
+        bRejects.append(bList[posID])
+        aList = np.delete(aList, posID)
+        bList = np.delete(bList, posID)
+
+  mPairIDs = zip(aList, bList)
+  return mPairIDs, ScoreMat
+
+def updateScoreMat_wholeELBO(ScoreMat, curModel, SS, doAllPairs=0):
+  ''' Calculate upper-tri matrix of exact ELBO gap for each candidate pair
+
+      Returns
+      ---------
+      Mraw : 2D array, size K x K. Uppert tri entries carry content.
+          Mraw[j,k] gives the scalar ELBO gap for the potential merge of j,k
+  '''
+  K = SS.K
+  if doAllPairs:
+    AGap = curModel.allocModel.calcHardMergeGap_AllPairs(SS)
+    OGap = curModel.obsModel.calcHardMergeGap_AllPairs(SS)
+    ScoreMat = AGap + OGap
+    ScoreMat[np.tril_indices(SS.K)] = -np.inf
+    for k, uID in enumerate(SS.uIDs):
+      CountTracker[uID] = SS.getCountVec()[k]
+  else:
+    ScoreMat[np.tril_indices(SS.K)] = -np.inf
+    ## Rescore only specific pairs that are positive
+    redoMask = ScoreMat > -1 * ELBO_GAP_ACCEPT_TOL
+    for k, uID in enumerate(SS.uIDs):
+      if CountTracker[uID] == 0: 
+        # Always precompute for brand-new comps
+        redoMask[k,:] = 1
+        redoMask[:,k] = 1
+      else:
+        absDiff = np.abs(SS.getCountVec()[k] - CountTracker[uID])
+        percDiff = absDiff / (CountTracker[uID] + 1e-10)
+        if percDiff > 0.25:
+          redoMask[k,:] = 1
+          redoMask[:,k] = 1
+          CountTracker[uID] = SS.getCountVec()[k]
+    redoMask[np.tril_indices(SS.K)] = 0
+    aList, bList = np.unravel_index(np.flatnonzero(redoMask), (SS.K,SS.K))
+
+    if len(aList) > 0:
+      mPairIDs = zip(aList, bList)
+      AGap = curModel.allocModel.calcHardMergeGap_SpecificPairs(SS, mPairIDs)
+      OGap = curModel.obsModel.calcHardMergeGap_SpecificPairs(SS, mPairIDs)
+      ScoreMat[aList, bList] = AGap + OGap
+  return ScoreMat  
+    
+
 
 def preselect_candidate_pairs(curModel, SS, 
                                randstate=np.random.RandomState(0),

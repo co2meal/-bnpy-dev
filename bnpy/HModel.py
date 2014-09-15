@@ -123,7 +123,8 @@ class HModel(object):
 
   ######################################################### Evidence
   #########################################################     
-  def calc_evidence(self, Data=None, SS=None, LP=None, todict=False, **kwargs):
+  def calc_evidence(self, Data=None, SS=None, LP=None, 
+                          scaleFactor=None, todict=False, **kwargs):
     ''' Compute the evidence lower bound (ELBO) of the objective function.
     '''
     if Data is not None and LP is None and SS is None:
@@ -131,12 +132,14 @@ class HModel(object):
       SS = self.get_global_suff_stats(Data, LP)
     evA = self.allocModel.calc_evidence(Data, SS, LP, todict=todict, **kwargs)
     evObs = self.obsModel.calc_evidence(Data, SS, LP, todict=todict, **kwargs)
-    s = self.obsModel.getDatasetScale(SS)
+
+    if scaleFactor is None:
+      scaleFactor = self.obsModel.getDatasetScale(SS)
     if todict:
       evA.update(evObs)
       return evA
     else:
-      return (evA + evObs) / s
+      return (evA + evObs) / scaleFactor
     
   def calcLogLikCollapsedSamplerState(self, SS):
       ''' 

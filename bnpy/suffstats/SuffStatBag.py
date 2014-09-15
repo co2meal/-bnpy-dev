@@ -18,6 +18,11 @@ class SuffStatBag(object):
   def __init__(self, K=0, **kwargs):
     self._Fields = ParamBag(K=K, **kwargs)
 
+  def setUIDs(self, uIDs):
+    if len(uIDs) != self.K:
+      raise ValueError('Bad UIDs')
+    self.uIDs = np.asarray(uIDs, dtype=np.int32)
+
   def getCountVec(self):
     ''' Return vector of counts for each active topic/component
     '''
@@ -64,6 +69,8 @@ class SuffStatBag(object):
       self._ELBOTerms.reorderComps(order)
     if self.hasMergeTerms():
       self._MergeTerms.setAllFieldsToZero()
+    if hasattr(self, 'uIDs'):
+      self.uIDs = self.uIDs[order]
 
   # ======================================================= strip/restore fields
   def removeELBOandMergeTerms(self):
@@ -253,6 +260,8 @@ class SuffStatBag(object):
         elif dims == ('K'):
           mArr[kA] = mArr[kA] + mArr[kB]
 
+    if hasattr(self, 'uIDs'):
+      self.uIDs = np.delete(self.uIDs, kB)
     self._Fields.removeComp(kB)
     if self.hasELBOTerms():
       self._ELBOTerms.removeComp(kB)
@@ -282,6 +291,8 @@ class SuffStatBag(object):
 
   # ======================================================= Remove comp
   def removeComp(self, k):
+    if hasattr(self, 'uIDs'):
+      self.uIDs = np.delete(self.uIDs, k)
     self._Fields.removeComp(k)
     if hasattr(self, '_ELBOTerms'):
       self._ELBOTerms.removeComp(k)
