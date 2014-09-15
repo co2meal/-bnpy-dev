@@ -230,7 +230,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
       ## Time's up, so doesn't matter what other moves are possible.
       return False
 
-    if self.hasMove('birth'):
+    if self.hasMove('birth') and self.do_birth_at_lap(lapFrac):
       return True # Never quit early for birth
 
     elif self.hasMove('merge'):

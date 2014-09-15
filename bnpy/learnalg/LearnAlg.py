@@ -218,7 +218,9 @@ class LearnAlg(object):
     saveEvery = self.outputParams['saveEvery']
     if saveEvery <= 0 or self.savedir is None:
       return False
-    return isEvenlyDivisibleFloat(lap, saveEvery) or nMstepUpdates < 3
+    return isEvenlyDivisibleFloat(lap, saveEvery) \
+           or nMstepUpdates < 3 \
+           or np.allclose(lap, 1.0)
 
 
   def saveParams(self, lap, hmodel, SS=None):
