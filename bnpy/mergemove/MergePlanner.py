@@ -1,14 +1,96 @@
-''' MergePlanner.py
+'''
+MergePlanner.py
 
 Contains methods necessary for advanced selection of which components to merge.
 '''
 import numpy as np
-from bnpy.mergemove.MergePairSelector import MergePairSelector
+from collections import defaultdict
+
+from bnpy.util import isEvenlyDivisibleFloat
 import bnpy.mergemove.MergeLogger as MergeLogger
 
 # Constant defining how far calculated ELBO gap can be from zero and still be
 # considered accepted or favorable
 from bnpy.mergemove.MergeMove import ELBO_GAP_ACCEPT_TOL
+
+
+CountTracker = defaultdict(int)
+def preselectPairs(curModel, SS, lapFrac,
+                       preselectroutine='wholeELBO',
+                       prevScoreMat=None,
+                       refreshInterval=10,
+                       maxPairsPerComp=10):
+  ''' Create list of candidate pairs for merge
+  '''
+  if prevScoreMat is None or isEvenlyDivisibleFloat(lapFrac, refreshInterval):
+    ScoreMat = np.zeros((SS.K, SS.K))
+    doAllPairs = 1
+  else:
+    assert prevScoreMat.shape[0] == SS.K
+    ScoreMat = prevScoreMat
+    doAllPairs = 0
+  ScoreMat = updateScoreMat_wholeELBO(ScoreMat, curModel, SS, doAllPairs)
+  aList, bList = np.unravel_index(
+                      np.flatnonzero(ScoreMat > - ELBO_GAP_ACCEPT_TOL),
+                      (SS.K,SS.K))
+  aRejects = list()
+  bRejects = list()
+  for k in xrange(SS.K):
+    maskPairs_k = np.logical_or(aList == k, bList == k)
+    nPairs_k = np.sum(maskPairs_k)
+    if nPairs_k > maxPairsPerComp:
+      for posID in reversed(np.flatnonzero(maskPairs_k)[maxPairsPerComp:]):
+        aRejects.append(aList[posID])
+        bRejects.append(bList[posID])
+        aList = np.delete(aList, posID)
+        bList = np.delete(bList, posID)
+
+  mPairIDs = zip(aList, bList)
+  return mPairIDs, ScoreMat
+
+def updateScoreMat_wholeELBO(ScoreMat, curModel, SS, doAllPairs=0):
+  ''' Calculate upper-tri matrix of exact ELBO gap for each candidate pair
+
+      Returns
+      ---------
+      Mraw : 2D array, size K x K. Uppert tri entries carry content.
+          Mraw[j,k] gives the scalar ELBO gap for the potential merge of j,k
+  '''
+  K = SS.K
+  if doAllPairs:
+    AGap = curModel.allocModel.calcHardMergeGap_AllPairs(SS)
+    OGap = curModel.obsModel.calcHardMergeGap_AllPairs(SS)
+    ScoreMat = AGap + OGap
+    ScoreMat[np.tril_indices(SS.K)] = -np.inf
+    for k, uID in enumerate(SS.uIDs):
+      CountTracker[uID] = SS.getCountVec()[k]
+  else:
+    ScoreMat[np.tril_indices(SS.K)] = -np.inf
+    ## Rescore only specific pairs that are positive
+    redoMask = ScoreMat > -1 * ELBO_GAP_ACCEPT_TOL
+    for k, uID in enumerate(SS.uIDs):
+      if CountTracker[uID] == 0: 
+        # Always precompute for brand-new comps
+        redoMask[k,:] = 1
+        redoMask[:,k] = 1
+      else:
+        absDiff = np.abs(SS.getCountVec()[k] - CountTracker[uID])
+        percDiff = absDiff / (CountTracker[uID] + 1e-10)
+        if percDiff > 0.25:
+          redoMask[k,:] = 1
+          redoMask[:,k] = 1
+          CountTracker[uID] = SS.getCountVec()[k]
+    redoMask[np.tril_indices(SS.K)] = 0
+    aList, bList = np.unravel_index(np.flatnonzero(redoMask), (SS.K,SS.K))
+
+    if len(aList) > 0:
+      mPairIDs = zip(aList, bList)
+      AGap = curModel.allocModel.calcHardMergeGap_SpecificPairs(SS, mPairIDs)
+      OGap = curModel.obsModel.calcHardMergeGap_SpecificPairs(SS, mPairIDs)
+      ScoreMat[aList, bList] = AGap + OGap
+  return ScoreMat  
+    
+
 
 def preselect_candidate_pairs(curModel, SS, 
                                randstate=np.random.RandomState(0),
@@ -46,7 +128,6 @@ def preselect_candidate_pairs(curModel, SS,
   else:
     nMergeTrials = K * (K-1) // 2
 
-
   if SS is None: # Handle first lap
     kwargs['preselectroutine'] = 'random'
 
@@ -56,42 +137,14 @@ def preselect_candidate_pairs(curModel, SS,
   #     M[j,k] = score for viability of j,k.  Larger = better.
   if kwargs['preselectroutine'].count('random') > 0:
     M = kwargs['randstate'].rand(K, K)
-  elif kwargs['preselectroutine'].count('obsmodelELBO') > 0:
-    M = calcScoreMatrix_obsmodel(curModel, SS, excludePairs)
   elif kwargs['preselectroutine'].count('marglik') > 0:
-    MSelector = MergePairSelector()
-    M = np.zeros((K, K))
-    excludeSet = set(excludePairs)
-    for kA in xrange(K):
-      for kB in xrange(kA+1, K):
-        if (kA,kB) not in excludeSet:
-          M[kA, kB] = MSelector._calcMScoreForCandidatePair(curModel,
-                                                            SS, kA, kB)
+    M = calcScoreMatrix_marglik(curModel, SS, excludePairs)
   elif kwargs['preselectroutine'].count('wholeELBO') > 0:
     M, Mraw = calcScoreMatrix_wholeELBO(curModel, SS, excludePairs, M=M)
   elif kwargs['preselectroutine'].count('corr') > 0:
     # Use correlation matrix as score for selecting candidates!
-    M = calcCorrInCompUsageFromSuffStats(SS)
-
-    # Take extra step to consider merging away topics with negligible mass
-    EMPTYTHR = 25
-    Nvec = None
-    if hasattr(SS, 'N'):
-      Nvec = SS.N
-    elif hasattr(SS, 'SumWordCounts'):
-      Nvec = SS.SumWordCounts
-
-    if Nvec is not None:
-      sortIDs = np.argsort(Nvec)
-      for ii in xrange(SS.K/2):
-        worstID = sortIDs[ii]
-        bestID = sortIDs[-(ii+1)]
-        if Nvec[worstID] < EMPTYTHR and Nvec[bestID] > EMPTYTHR:
-          M[worstID, bestID] = 0.5
-          M[bestID, worstID] = 0.5
-        if Nvec[worstID] > EMPTYTHR:
-          break
-
+    #M = calcScoreMatrix_corr(SS)
+    M = calcScoreMatrix_corrOrEmpty(SS)
   else:
     raise NotImplementedError(kwargs['preselectroutine'])
 
@@ -101,10 +154,7 @@ def preselect_candidate_pairs(curModel, SS,
   M[zip(*excludePairs)] = 0
 
   # ------------------------------------------------------- Select candidates
-  if kwargs['preselectroutine'].count('balanced') > 0:
-    aList, bList = _scorematrix2rankedlist_balanced(M, nMergeTrials)
-  else:
-    aList, bList = _scorematrix2rankedlist_greedy(M, nMergeTrials)
+  aList, bList = _scorematrix2rankedlist_greedy(M, nMergeTrials)
 
   # Return completed lists
   assert len(aList) == len(bList)
@@ -117,7 +167,6 @@ def preselect_candidate_pairs(curModel, SS,
       return zip(aList, bList), M
     else:
       return zip(aList, bList), Mraw
-
   return zip(aList, bList)
 
 
@@ -152,62 +201,8 @@ def _scorematrix2rankedlist_greedy(M, nPairs, doKeepZeros=False):
   return bestrs[:nPairs].tolist(), bestcs[:nPairs].tolist()
 
 
-def _scorematrix2rankedlist_balanced(M, mergePerLap):
-  ''' Return ranked list of entries in upper-triangular score matrix M,
-        *balanced* so that each set of K entries has one each of {1,2,...K}
-
-      Args
-      -------
-        M : score matrix, K x K
-            should have only entries kA,kB where kA <= kB
-
-      Returns
-      --------
-        aList : list of integer ids for rows of M
-        bList : list of integer ids for cols of M
-  '''
-  K = M.shape[0]
-  nKeep = mergePerLap / K + 5
-  outPartners = -1 * np.ones( (K, nKeep), dtype=np.int32 )
-  outScores = np.zeros( (K, nKeep) )
-  for k in xrange(K):
-    partnerScores = np.hstack( [M[:k, k], [0], M[k, k+1:]] )
-    sortIDs = np.argsort( -1 * partnerScores )
-    sortIDs = sortIDs[ partnerScores[sortIDs] != 0 ]
-    nK = np.minimum( len(sortIDs), nKeep)
-    outPartners[k, :nK] = sortIDs[:nKeep]
-    outScores[k, :nK] = partnerScores[sortIDs[:nKeep]]
-
-  mPairSet = set()
-  mPairs = list()
-  colID = 0
-  while len(mPairs) < mergePerLap and colID < nKeep:
-    # Pop the next set of scores
-    mask = outScores[:, colID] != 0
-    curScores = outScores[mask, colID]
-    curPartners = outPartners[mask, colID]
-    comps = np.arange(K, dtype=np.int32)[mask]
-    
-    assert not np.any(comps == curPartners)
-    aList = np.minimum(comps, curPartners)
-    bList = np.maximum(comps, curPartners)
-
-    for k in np.argsort(-1*curScores):
-      a = aList[k]
-      b = bList[k]
-      if (a, b) not in mPairSet:
-        mPairs.append( (a,b))
-        mPairSet.add((a,b))
-    colID += 1
-  mPairs = mPairs[:mergePerLap]
-  if len(mPairs) < 1:
-    return [], []
-  elif len(mPairs) == 1:
-    return [mPairs[0][0]], [mPairs[0][1]]
-  else:
-    a,b = zip(*mPairs)
-  return list(a), list(b)
-
+########################################################### ELBO cues
+###########################################################
 def calcScoreMatrix_wholeELBO(curModel, SS, excludePairs=list(), M=None):
   ''' Calculate upper-tri matrix of exact ELBO gap for each candidate pair
 
@@ -242,34 +237,9 @@ def calcScoreMatrix_wholeELBO(curModel, SS, excludePairs=list(), M=None):
   M[M<0] = 0
   return M, Mraw
 
-
-def calcScoreMatrix_obsmodel(curModel, SS, excludePairs):
-  K = SS.K
-  M = np.zeros((K,K))
-  excludeSet = set(excludePairs)
-
-  curModel = curModel.copy()
-  curModel.obsModel.update_global_params(SS)
-  curELBOobs = curModel.obsModel.calc_evidence(None, SS, None)
-
-  propModel = curModel
-  for kA in xrange(K):
-    for kB in xrange(kA+1, K):
-      if (kA, kB) in excludeSet:
-        continue
-
-      mergeSS = SS.copy()
-      mergeSS.mergeComps(kA, kB)
-      propModel.obsModel.update_global_params(mergeSS)
-      propELBOobs = propModel.obsModel.calc_evidence(None, mergeSS, None)
-
-      if propELBOobs > curELBOobs:
-        M[kA, kB] = propELBOobs - curELBOobs
-      else:
-        M[kA, kB] = 0
-  return M
-
-def calcCorrInCompUsageFromSuffStats(SS, MINVAL=1e-8):
+########################################################### Correlation cues
+###########################################################
+def calcScoreMatrix_corr(SS, MINVAL=1e-8):
   '''
      Returns
      -------
@@ -302,39 +272,91 @@ def calcCorrInCompUsageFromSuffStats(SS, MINVAL=1e-8):
 
   return CorrMat
 
+def calcScoreMatrix_corrOrEmpty(SS, EMPTYTHR=100):
+  ''' Score candidate merge pairs favoring correlations or empty components
 
-'''
-def _getAllPairs(K):
-  mPairIDs = list()
+      Returns
+      -------
+      M : 2D array, size K x K
+      M[j,k] provides score in [0, 1] for each pair of components (j,k)
+      larger score indicates better candidate for merge
+  '''
+  ## 1) Use correlation scores
+  M = calcScoreMatrix_corr(SS)
+
+  ## 2) Add in pairs of (large mass, small mass)
+  Nvec = None
+  if hasattr(SS, 'N'):
+    Nvec = SS.N
+  elif hasattr(SS, 'SumWordCounts'):
+    Nvec = SS.SumWordCounts
+
+  assert Nvec is not None
+  sortIDs = np.argsort(Nvec)
+  emptyScores = np.zeros(SS.K)
+  for ii in xrange(SS.K/2):
+    worstID = sortIDs[ii]
+    bestID = sortIDs[-(ii+1)]
+    if Nvec[worstID] < EMPTYTHR and Nvec[bestID] > EMPTYTHR:
+      # Want to prefer trying *larger* comps before smaller ones 
+      # So boost the score of larger comps slightly
+      M[worstID, bestID] = 0.5 + 0.1 * Nvec[worstID] / Nvec.sum()
+      M[bestID, worstID] = 0.5 + 0.1 * Nvec[worstID] / Nvec.sum()
+      if Nvec[worstID] > EMPTYTHR:
+        break
+      emptyScores[worstID] = Nvec[worstID] / Nvec.sum()
+
+  ## 3) Add in pairs of (small mass, small mass)
+  emptyIDs = np.flatnonzero(emptyScores)
+  nEmpty = emptyIDs.size
+  for jID in xrange(nEmpty-1):
+    for kID in xrange(jID+1, nEmpty):
+      j = emptyIDs[jID]
+      k = emptyIDs[kID]
+      M[j, k] = 0.4 + 0.1 * (emptyScores[j] + emptyScores[k])
+  return M
+
+########################################################### Marglik cues
+###########################################################
+def calcScoreMatrix_marglik(curModel, SS, excludePairs):
+  K = SS.K
+  M = np.zeros((K, K))
+  excludeSet = set(excludePairs)
+  myCalculator = MargLikScoreCalculator()
   for kA in xrange(K):
     for kB in xrange(kA+1, K):
-      mPairIDs.append( (kA,kB) )
-  return mPairIDs
+      if (kA,kB) not in excludeSet:
+        M[kA, kB] = myCalculator._calcMScoreForCandidatePair(curModel,
+                                                             SS, kA, kB)
+  return M
 
-def _preselect_mergepairs_fromlist(curModel, SS, compIDs, **kwargs):
-  K = curModel.obsModel.K
-  partnerIDs = set(range(K))
-  partnerIDs.difference_update(compIDs)
-  partnerIDs = list(partnerIDs)
+class MargLikScoreCalculator(object):
+  ''' Calculate marglik scores quickly by caching 
+  '''
 
-  allPairs = set(_getAllPairs(K))
-  includePairs = list()
-  if kwargs['preselectroutine'].count('inclusive') > 0:
-    for aa, kA in enumerate(compIDs):
-      for kB in compIDs[aa+1:]:
-        if kA < kB:
-          includePairs.append( (kA, kB) )
-        elif kB < kA:
-          includePairs.append( (kB, kA) )
-  elif kwargs['preselectroutine'].count('bipartite') > 0:
-    for kA in compIDs:
-      for kB in partnerIDs:
-        if kA < kB:
-          includePairs.append( (kA, kB) )
-        elif kB < kA:
-          includePairs.append( (kB, kA) )
-  allPairs.difference_update(includePairs)
-  excludePairs = list(allPairs)
-  return _preselect_mergepairs_simple(curModel, SS, excludePairs=excludePairs,
-                                          **kwargs)
-'''  
+  def __init__(self):
+    self.MScores = dict()
+    self.PairMScores = dict()
+
+  def _calcMScoreForCandidatePair(self, hmodel, SS, kA, kB):
+    logmA = self._calcLogMargLikForComp(hmodel, SS, kA)
+    logmB = self._calcLogMargLikForComp(hmodel, SS, kB)
+    logmAB = self._calcLogMargLikForPair(hmodel, SS, kA, kB)
+    return logmAB - logmA - logmB
+
+  def _calcLogMargLikForComp(self, hmodel, SS, kA):
+    if kA in self.MScores:
+      return self.MScores[kA]
+    mA = hmodel.obsModel.calcLogMargLikForComp(SS, kA, doNormConstOnly=True)  
+    self.MScores[kA] = mA
+    return mA
+
+  def _calcLogMargLikForPair(self, hmodel, SS, kA, kB):
+    if (kA,kB) in self.PairMScores:
+      return self.PairMScores[ (kA,kB)]
+    elif (kB,kA) in self.PairMScores:
+      return self.PairMScores[ (kB,kA)]
+    else:
+      mAB = hmodel.obsModel.calcLogMargLikForComp(SS, kA, kB, doNormConstOnly=True)  
+      self.PairMScores[(kA,kB)] = mAB
+      return mAB

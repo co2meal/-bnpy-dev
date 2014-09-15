@@ -124,6 +124,7 @@ class GaussObsModel(AbstractObsModel):
     self.ClearCache()
     if obsModel is not None:
       self.EstParams = obsModel.EstParams.copy()
+      self.K = self.EstParams.K
       return
     
     if LP is not None and Data is not None:
@@ -135,6 +136,7 @@ class GaussObsModel(AbstractObsModel):
       self.EstParams = ParamBag(K=mu.shape[0], D=mu.shape[1])
       self.EstParams.setField('mu', mu, dims=('K', 'D'))
       self.EstParams.setField('Sigma', Sigma, dims=('K', 'D', 'D'))
+      self.K = self.EstParams.K
 
   def setEstParamsFromPost(self, Post):
     ''' Convert from Post (nu, B, m, kappa) to EstParams (mu, Sigma),
@@ -159,6 +161,7 @@ class GaussObsModel(AbstractObsModel):
     if obsModel is not None:
       if hasattr(obsModel, 'Post'):
         self.Post = obsModel.Post.copy()
+        self.K = self.Post.K
       else:
         self.setPostFromEstParams(obsModel.EstParams)
       return

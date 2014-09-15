@@ -1,8 +1,5 @@
 import numpy as np
 
-from bnpy.deletemove.DeleteMoveBagOfWords import construct_LP_with_comps_removed 
-import bnpy.deletemove.DeleteMoveStickBreak as DMSB
-
 from BirthLogger import log, logPosVector, logPhase
 from BirthProposalError import BirthProposalError
 
@@ -70,10 +67,7 @@ def _delete_comps_from_LP(Data, model, LP, k):
   if hasattr(model.allocModel, 'delete_comps_from_local_params'):
     rLP = model.allocModel.delete_comps_from_local_params(Data, LP, k)
   else:
-    if str(type(model.allocModel)).count('StickBreak') > 0:
-      makeLPfunc = DMSB.construct_LP_with_comps_removed
-    else:
-      makeLPfunc = construct_LP_with_comps_removed
+    makeLPfunc = construct_LP_with_comps_removed
     rLP = makeLPfunc(Data, model, compIDs=[k], LP=LP)
   return rLP
 

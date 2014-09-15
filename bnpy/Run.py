@@ -34,7 +34,7 @@ Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
 
 FullDataAlgSet = ['EM', 'VB', 'GS']
-OnlineDataAlgSet = ['soVB', 'moVB', 'moVBsimple']
+OnlineDataAlgSet = ['soVB', 'moVB']
 
 def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
                       doSaveToDisk=True, doWriteStdOut=True, 
@@ -69,9 +69,7 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
       Returns
       -------
       hmodel : best model fit to the dataset (across nTask runs)
-      LP : local parameters of that best model on the dataset
-      evBound : log evidence (ELBO) for the best model on the dataset
-                  scalar, real value where larger value implies better model
+      Info   : dict of information about this best model
   '''
   hasReqArgs = dataName is not None
   hasReqArgs &= allocModelName is not None
@@ -102,16 +100,15 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
   bestInfo = None
   bestEvBound = -np.inf
   for taskid in range(starttaskid, starttaskid + nTask):
-    hmodel, LP, Info = _run_task_internal(jobname, taskid, nTask,
+    hmodel, Info = _run_task_internal(jobname, taskid, nTask,
                       ReqArgs, KwArgs, UnkArgs,
                       dataName, allocModelName, obsModelName, algName,
                       doSaveToDisk, doWriteStdOut)
     if (Info['evBound'] > bestEvBound):
       bestModel = hmodel
-      bestLP = LP
       bestEvBound = Info['evBound']
       bestInfo = Info
-  return bestModel, bestLP, bestInfo
+  return bestModel, bestInfo
 
 ########################################################### RUN SINGLE TASK 
 ###########################################################
@@ -134,14 +131,6 @@ def _run_task_internal(jobname, taskid, nTask,
   dataorderseed = createUniqueRandomSeed('', taskID=taskid)
   #algseed = 6955904
 
-  if doSaveToDisk:
-    taskoutpath = getOutputPath(ReqArgs, KwArgs, taskID=taskid)
-    createEmptyOutputPathOnDisk(taskoutpath)
-    writeArgsToFile(ReqArgs, KwArgs, taskoutpath)
-  else:
-    taskoutpath = None
-  configLoggingToConsoleAndFile(taskoutpath, doSaveToDisk, doWriteStdOut)
-  
   if algName in OnlineDataAlgSet:    
      KwArgs[algName]['nLap'] = KwArgs['OnlineDataPrefs']['nLap']
 
@@ -157,7 +146,6 @@ def _run_task_internal(jobname, taskid, nTask,
     InitData = dataName
     DataArgs = dict()
     assert isinstance(Data, bnpy.data.DataObj)
-
     if algName in OnlineDataAlgSet:    
       OnlineDataArgs = KwArgs['OnlineDataPrefs']
       OnlineDataArgs['dataorderseed'] = dataorderseed
@@ -166,31 +154,36 @@ def _run_task_internal(jobname, taskid, nTask,
       OnlineDataArgs.update(DataArgs) # add custom args
       Data = Data.to_iterator(**OnlineDataArgs)
 
+  if doSaveToDisk:
+    taskoutpath = getOutputPath(ReqArgs, KwArgs, taskID=taskid)
+    createEmptyOutputPathOnDisk(taskoutpath)
+    writeArgsToFile(ReqArgs, KwArgs, taskoutpath)
+  else:
+    taskoutpath = None
+  configLoggingToConsoleAndFile(taskoutpath, doSaveToDisk, doWriteStdOut)
+  
   # Create and initialize model parameters
   hmodel = createModel(InitData, ReqArgs, KwArgs)
-
   hmodel.init_global_params(InitData, seed=algseed, taskid=taskid,
-                            savepath=taskoutpath,
                             **KwArgs['Initialization'])
 
   # Create learning algorithm
   learnAlg = createLearnAlg(Data, hmodel, ReqArgs, KwArgs,
-                              algseed=algseed, savepath=taskoutpath)
+                            algseed=algseed, savepath=taskoutpath)
   if learnAlg.hasMove('birth'):
     import bnpy.birthmove.BirthLogger as BirthLogger
     BirthLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
-    BirthLogger.log('This is the birth log.')
   if learnAlg.hasMove('delete'):
     import bnpy.deletemove.DeleteLogger as DeleteLogger
     DeleteLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
-    DeleteLogger.log('This is the delete log.')
   if learnAlg.hasMove('prune'):
     import bnpy.deletemove.PruneLogger as PruneLogger
     PruneLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
   if learnAlg.hasMove('merge') or learnAlg.hasMove('softmerge'):
     import bnpy.mergemove.MergeLogger as MergeLogger
     MergeLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
-  # Check if running on grid
+
+  # Prepare special logs if we are running on the Brown CS grid
   try:
     jobID = int(os.getenv('JOB_ID'))
   except TypeError:
@@ -225,9 +218,9 @@ def _run_task_internal(jobname, taskid, nTask,
   Log.info('savepath: %s' % (taskoutpath))
 
   # Fit the model to the data!
-  LP, RunInfo = learnAlg.fit(hmodel, Data)
-  return hmodel, LP, RunInfo
-  
+  RunInfo = learnAlg.fit(hmodel, Data)
+  return hmodel, RunInfo
+
 
 ########################################################### Load Data
 ###########################################################
@@ -281,11 +274,11 @@ def loadData(ReqArgs, KwArgs, DataArgs, dataorderseed):
         ## Load custom iterator defined in data module
         DataIterator = datamod.get_iterator(**OnlineDataArgs)
       else:
-        ## Make an iterator over full dataset provided by get_data        
+        ## Make an iterator over dataset provided by get_data        
         DataIterator = InitData.to_iterator(**OnlineDataArgs)
-
     else:
-      DataIterator = None
+      raise ValueError('Online algorithm requires valid DataIterator args.')
+
     return DataIterator, InitData
   
 def getKwArgsForLoadData(ReqArgs, UnkArgs):
@@ -380,6 +373,8 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
       algP[moveKey] = KwArgs[moveKey]
 
   outputP = KwArgs['OutputPrefs']
+  hasMoves = 'birth' in KwArgs or 'merge' in KwArgs or 'shuffle' in KwArgs
+
   if algName == 'EM':
     learnAlg = bnpy.learnalg.EMAlg(savedir=savepath, seed=algseed,
                                       algParams=algP, outputParams=outputP)
@@ -389,11 +384,11 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
   elif algName == 'soVB':
     learnAlg = bnpy.learnalg.SOVBAlg(savedir=savepath, seed=algseed,
                                       algParams=algP, outputParams=outputP)
-  elif algName == 'moVB':
-    learnAlg = bnpy.learnalg.MOVBAlg(savedir=savepath, seed=algseed, 
+  elif algName == 'moVB' and hasMoves:
+    learnAlg = bnpy.learnalg.MOVBBirthMergeAlg(savedir=savepath, seed=algseed, 
                                       algParams=algP, outputParams=outputP)
-  elif algName == 'moVBsimple':
-    learnAlg = bnpy.learnalg.SimpleMOVBAlg(savedir=savepath, seed=algseed, 
+  elif algName == 'moVB' and not hasMoves:
+    learnAlg = bnpy.learnalg.MOVBAlg(savedir=savepath, seed=algseed, 
                                       algParams=algP, outputParams=outputP)
   elif algName == 'GS':
     learnAlg = bnpy.learnalg.GSAlg(savedir=savepath, seed=algseed, 
@@ -472,9 +467,9 @@ def createEmptyOutputPathOnDisk( taskoutpath ):
   '''
   from distutils.dir_util import mkpath
   # Ensure the path (including all parent paths) exists
-  mkpath( taskoutpath )
+  mkpath(taskoutpath)
   # Ensure the path has no data from previous runs
-  deleteAllFilesFromDir( taskoutpath )
+  deleteAllFilesFromDir(taskoutpath)
   
 def deleteAllFilesFromDir( savefolder, prefix=None ):
   '''  Erase (recursively) all contents of a folder

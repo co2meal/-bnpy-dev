@@ -118,7 +118,6 @@ class AbstractObsModel(object):
     ''' Retrieved cached function evaluation if possible,
           otherwise compute fresh result and store in cache for later.
     '''
-    return getattr(self, '_' + key)(k)
     ckey = key + '-' + str(k)
     try:
       return self.Cache[ ckey ]

@@ -102,7 +102,8 @@ class DPMixFull(AllocModel):
   def get_global_suff_stats(self, Data, LP,
                              preselectroutine=None,
                              doPrecompEntropy=False, 
-                             doPrecompMergeEntropy=False, mPairIDs=None):
+                             doPrecompMergeEntropy=False, mPairIDs=None,
+                             **kwargs):
     ''' Calculate the sufficient statistics for global parameter updates
         Only adds stats relevant for this allocModel. 
         Other stats are added by the obsModel.
@@ -219,13 +220,13 @@ class DPMixFull(AllocModel):
       if K is None:
         K = beta.size
       # convert to expected stick-lengths v
-      import bnpy.allocmodel.admix.OptimizerForHDPStickBreak as OptimSB
+      from bnpy.allocmodel.admix2.RhoBetaUtil import beta2rho
       if beta.size == K:
         rem = np.minimum(0.01, 1.0/K)
         rem = np.minimum(1.0/K, beta.min()/K)
         beta = np.hstack( [beta, rem])
       beta = beta / beta.sum()
-      Ev = OptimSB._beta2v(beta)
+      Ev = beta2rho(beta)
       qgamma1 = Ev * nObs
       qgamma0 = (1-Ev) * nObs
 

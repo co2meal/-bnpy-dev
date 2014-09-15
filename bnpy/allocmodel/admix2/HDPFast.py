@@ -47,6 +47,9 @@ from bnpy.suffstats import SuffStatBag
 from ...util import digamma, gammaln
 from ...util import NumericUtil, as1D
 
+from bnpy.util.NumericUtil import calcRlogRdotv_allpairs, calcRlogRdotv_specificpairs
+from bnpy.util.NumericUtil import calcRlogR_allpairs, calcRlogR_specificpairs
+
 import OptimizerHDPFast as OptimFast
 import LocalUtil
 
@@ -208,11 +211,12 @@ class HDPFast(AllocModel):
   def updateLPGivenDocTopicCount(self, LP, DocTopicCount):
     ''' Update all local parameters, given topic counts for all docs in set.
 
+        For this tight document-topic factor, this method does nothing,
+        because there are no free parameters at the document-level to update.
+
         Returns
         --------
         LP : dict of local params, with updated fields
-        * theta, thetaRem
-        * ElogPi, ElogPiRem
     '''
     return LP
 
@@ -256,10 +260,16 @@ class HDPFast(AllocModel):
     ## Merge Term caching
     if doPrecompMergeEntropy:
       resp = LP['resp']
-      if mPairIDs is None:
-        ElogqZMat = NumericUtil.calcRlogR_allpairs(resp)
+      if hasattr(Data, 'word_count'):
+        if mPairIDs is None:
+          ElogqZMat = calcRlogRdotv_allpairs(resp, Data.word_count)
+        else:
+          ElogqZMat = calcRlogRdotv_specificpairs(resp, Data.word_count, mPairIDs)
       else:
-        ElogqZMat = NumericUtil.calcRlogR_specificpairs(resp, mPairIDs)
+        if mPairIDs is None:
+          ElogqZMat = calcRlogR_allpairs(resp)
+        else:
+          ElogqZMat = calcRlogR_specificpairs(resp, mPairIDs)
       SS.setMergeTerm('ElogqZ', ElogqZMat, dims=('K','K'))
 
     ## Selection terms (using doc-topic correlation)
@@ -279,8 +289,12 @@ class HDPFast(AllocModel):
     ''' Update global parameters.
     '''
     if mergeCompA is None:
+      # Standard case:
+      # Update via gradient descent.
       rho, omega = self._find_optimum_rhoomega(SS, **kwargs)
     else:
+      # Special update case for merges:
+      # Fast, heuristic update for rho and omega directly from existing values
       beta = OptimFast.rho2beta_active(self.rho)
       beta[mergeCompA] += beta[mergeCompB]
       beta = np.delete(beta, mergeCompB, axis=0)

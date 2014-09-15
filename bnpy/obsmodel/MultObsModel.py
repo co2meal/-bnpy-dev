@@ -110,6 +110,7 @@ class MultObsModel(AbstractObsModel):
     self.ClearCache()
     if obsModel is not None:
       self.EstParams = obsModel.EstParams.copy()
+      self.K = self.EstParams.K
       return
     
     if LP is not None and Data is not None:
@@ -120,6 +121,7 @@ class MultObsModel(AbstractObsModel):
     else:
       self.EstParams = ParamBag(K=phi.shape[0], D=phi.shape[1])
       self.EstParams.setField('phi', phi, dims=('K', 'D'))
+    self.K = self.EstParams.K
 
   def setEstParamsFromPost(self, Post=None):
     ''' Convert from Post (lam) to EstParams (phi),
@@ -130,7 +132,7 @@ class MultObsModel(AbstractObsModel):
     self.EstParams = ParamBag(K=Post.K, D=Post.D)
     phi = Post.lam / np.sum(Post.lam, axis=1)[:, np.newaxis]
     self.EstParams.setField('phi', phi, dims=('K','D'))
-    self.K = Post.K
+    self.K = self.EstParams.K
 
   
   ######################################################### Set Post
@@ -144,6 +146,7 @@ class MultObsModel(AbstractObsModel):
     if obsModel is not None:
       if hasattr(obsModel, 'Post'):
         self.Post = obsModel.Post.copy()
+        self.K = self.Post.K
       else:
         self.setPostFromEstParams(obsModel.EstParams)
       return
@@ -158,6 +161,8 @@ class MultObsModel(AbstractObsModel):
       K, D = lam.shape
       self.Post = ParamBag(K=K, D=D)
       self.Post.setField('lam', lam, dims=('K','D'))
+    self.K = self.Post.K
+
 
   def setPostFromEstParams(self, EstParams, Data=None, nTotalTokens=0,
                                                        **kwargs):
@@ -219,9 +224,13 @@ class MultObsModel(AbstractObsModel):
   def forceSSInBounds(self, SS):
     ''' Force count vectors to remain positive
 
-        This avoids numerical problems due to incremental additions and subtractions,
-        which can cause computations like 1 + 1e-15 - 1 - 1e-15 to be less than zero
-        instead of exactly zero.
+        This avoids numerical problems due to incremental add/subtract ops
+        which can cause computations like 
+            x = 10.
+            x += 1e-15
+            x -= 10
+            x -= 1e-15
+        to be slightly different than zero instead of exactly zero.
 
         Returns
         -------
@@ -229,6 +238,8 @@ class MultObsModel(AbstractObsModel):
     '''
     np.maximum(SS.WordCounts, 0, out=SS.WordCounts)
     np.maximum(SS.SumWordCounts, 0, out=SS.SumWordCounts)
+    if not np.allclose(SS.WordCounts.sum(axis=1), SS.SumWordCounts):
+      raise ValueError('Bad Word Counts!')
 
   def incrementSS(self, SS, k, Data, docID):
     SS.WordCounts[k] += Data.getSparseDocTypeCountMatrix()[docID,:]
@@ -429,7 +440,7 @@ class MultObsModel(AbstractObsModel):
     #sumWMat = np.sum(WMat, axis=1)
     #return np.sum(gammaln(sumWMat+1)) - np.sum(gammaln(WMat+1)) 
 
-  def getDatasetScale(self, SS):
+  def getDatasetScale(self, SS, extraSS=None):
     ''' Get scale factor for dataset, indicating number of observed scalars. 
 
         Used for normalizing the ELBO so it has reasonable range.
@@ -439,7 +450,10 @@ class MultObsModel(AbstractObsModel):
         s : scalar positive integer
             total number of word tokens observed in the sufficient stats
     '''
-    return SS.SumWordCounts.sum()
+    if extraSS is None:
+      return SS.SumWordCounts.sum()
+    else:
+      return SS.SumWordCounts.sum() - extraSS.SumWordCounts.sum()
 
   ######################################################### Hard Merge
   #########################################################

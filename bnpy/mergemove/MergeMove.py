@@ -79,8 +79,8 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None,
 
   if kwargs['mergeLogVerbose']:
     MergeLogger.logPhase('MERGE summary')
-  logFunc( ' %d/%d accepted. ev increased % .4e' 
-                    % (len(AcceptedPairs), trialID, ELBOGain))
+  logFunc('MERGE %d/%d accepted. ev increased % .4e' 
+           % (len(AcceptedPairs), trialID, ELBOGain))
 
   Info = dict(AcceptedPairs=AcceptedPairs,
               AcceptedPairOrigIDs=AcceptedPairOrigIDs,
@@ -93,6 +93,8 @@ def buildMergeCandidateAndKeepIfImproved(curModel, curSS, curELBO,
                                          **kwargs):
   ''' Create candidate model/SS with kA, kB merged, and keep if ELBO improves.
   '''
+  if 'mergeUpdateFast' not in kwargs:
+    kwargs['mergeUpdateFast'] = 1
   assert np.isfinite(curELBO)
 
   # Rewrite candidate's kA component to be the merger of kA+kB

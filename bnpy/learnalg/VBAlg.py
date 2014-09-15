@@ -14,80 +14,86 @@ while VB learns the parameters of an approximate *distribution* over quantities 
 For more info, see the documentation [TODO]
 '''
 import numpy as np
-from collections import defaultdict
-from LearnAlg import LearnAlg
+
+from LearnAlg import LearnAlg, makeDictOfAllWorkspaceVars
 
 class VBAlg( LearnAlg ):
 
   def __init__( self, **kwargs ):
     ''' Create VBLearnAlg, subtype of generic LearnAlg
     '''
-    super(type(self), self).__init__( **kwargs )
-    self.BirthLog = list()
+    LearnAlg.__init__(self, **kwargs)
     
-  def fit(self, hmodel, Data):
-    ''' Run EM/VB learning algorithm, fit global parameters of hmodel to Data
+  def fit(self, hmodel, Data, LP=None):
+    ''' Run VB learning algorithm, fit global parameters of hmodel to Data
         Returns
         --------
-        LP : local params from final pass of Data
         Info : dict of run information, with fields
-              evBound : final ELBO evidence bound
-              status : str message indicating reason for termination
-                        {'converged', 'max passes exceeded'}
+        * evBound : final ELBO evidence bound
+        * status : str message indicating reason for termination
+                   {'converged', 'max laps exceeded'}
+        * LP : dict of local parameters for final model
     '''
     prevBound = -np.inf
-    LP = None
-    mergeFlags = dict(doPrecompEntropy=True, doPrecompMergeEntropy=True)
+    isConverged = False
+
+    ## Save initial state
+    self.saveParams(0, hmodel)
+
     self.set_start_time_now()
-    for iterid in xrange(self.algParams['nLap'] + 1):
+    for iterid in xrange(1, self.algParams['nLap']+1):
       lap = self.algParams['startLap'] + iterid
+      nLapsCompleted = lap - self.algParams['startLap']
       self.set_random_seed_at_lap(lap)
 
-      if self.hasMove('birth') and iterid > 1:
-        hmodel, LP = self.run_birth_move(hmodel, Data, SS, LP, iterid)
-        
-      # E step 
+
+      ## Local/E step
       LP = hmodel.calc_local_params(Data, LP, **self.algParamsLP)
 
-      # Suff Stat step
-      if self.hasMove('merge'):
-        SS = hmodel.get_global_suff_stats(Data, LP, **mergeFlags)
-      else:
-        SS = hmodel.get_global_suff_stats(Data, LP)
+      ## Summary step
+      SS = hmodel.get_global_suff_stats(Data, LP)
 
-      # M step
 
+      ## Global/M step
       hmodel.update_global_params(SS) 
 
-      # ELBO calculation
+      ## ELBO calculation
       evBound = hmodel.calc_evidence(Data, SS, LP)
+      if lap > 1.0:
+        ## Report warning if bound isn't increasing monotonically
+        self.verify_evidence(evBound, prevBound)
 
-      # Attempt merge move      
-      if self.hasMove('merge'):
-        hmodel, SS, LP, evBound = self.run_merge_move(
-                                          hmodel, Data, SS, LP, evBound)
+      ## Check convergence of expected counts
+      countVec = SS.getCountVec()
+      if lap > 1.0:
+        isConverged = self.isCountVecConverged(countVec, prevCountVec)
+        self.setStatus(lap, isConverged)
 
-      # Save and display progress
-      self.add_nObs(Data.get_size())
-      self.save_state(hmodel, SS, iterid, lap, evBound)
-      self.print_state(hmodel, SS, iterid, lap, evBound)
+      ## Display progress
+      self.updateNumDataProcessed(Data.get_size())
+      if self.isLogCheckpoint(lap, iterid):
+        self.printStateToLog(hmodel, evBound, lap, iterid)
 
-      # Check for Convergence!
-      #  report warning if bound isn't increasing monotonically
-      isConverged = self.verify_evidence( evBound, prevBound )
-      if isConverged:
+      ## Save diagnostics and params
+      if self.isSaveDiagnosticsCheckpoint(lap, iterid):
+        self.saveDiagnostics(lap, SS, evBound)
+      if self.isSaveParamsCheckpoint(lap, iterid):
+        self.saveParams(lap, hmodel, SS)
+
+      ## Custom func hook
+      self.eval_custom_func(**makeDictOfAllWorkspaceVars(**vars()))
+
+      if nLapsCompleted >= self.algParams['minLaps'] and isConverged:
         break
       prevBound = evBound
+      prevCountVec = countVec.copy()
 
-    #Finally, save, print and exit
-    if isConverged:
-      status = "converged."
-    else:
-      status = "max passes thru data exceeded."
-    self.save_state(hmodel, SS, iterid, lap, evBound, doFinal=True)    
-    self.print_state(hmodel, SS, iterid, lap, evBound, 
-                     doFinal=True, status=status)
-    return LP, self.buildRunInfo(evBound, status, nLap=lap)
+    ## Finished! Save, print and exit
+    self.saveParams(lap, hmodel, SS)
+    self.printStateToLog(hmodel, evBound, lap, iterid)
+    self.eval_custom_func(isFinal=1, **makeDictOfAllWorkspaceVars(**vars()))
+
+    return self.buildRunInfo(evBound=evBound, SS=SS, LP=LP)
 
 
 
