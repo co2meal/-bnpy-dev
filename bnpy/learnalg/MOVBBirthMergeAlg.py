@@ -35,6 +35,9 @@ class MOVBBirthMergeAlg(MOVBAlg):
       #  at each component, to encourage trying diversity
       self.LapsSinceLastBirth = defaultdict(int)
 
+  def doDebug(self):
+    return self.algParams['debug'] in ['interactive', 'quiet', 'on']
+
   def fit(self, hmodel, DataIterator):
     ''' Run learning algorithm that fits parameters of hmodel to Data.
 
@@ -87,7 +90,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
       lapFrac = (iterid + 1) * self.lapFracInc
       nLapsCompleted = lapFrac - self.algParams['startLap']
       self.set_random_seed_at_lap(lapFrac)
-      
+
       ## Birth move : track birth info from previous lap
       if self.isFirstBatch(lapFrac):
         if self.hasMove('birth') and self.do_birth_at_lap(lapFrac - 1.0):
@@ -148,7 +151,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
       ## ELBO calculation
       evBound = hmodel.calc_evidence(SS=SS)
 
-      ## Merge move!      
+      ## Merge move!
       if self.hasMove('merge') and self.isLastBatch(lapFrac) \
                                and lapFrac > mergeStartLap:
         hmodel, SS, evBound = self.run_many_merge_moves(hmodel, SS, evBound,
@@ -156,14 +159,15 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
       ## Shuffle : Rearrange topic order (big to small)
       if self.hasMove('shuffle') and self.isLastBatch(lapFrac):
-        if order is None:
-          prevorder = np.arange(SS.K)
-        else:
-          prevorder = order
         order = np.argsort(-1*SS.getCountVec())
-        if order.size != prevorder.size or not np.allclose(order, prevorder):
+        sortedalready = np.arange(SS.K)
+        if np.allclose(order, sortedalready):
+          order = None # Already sorted, do nothing!
+        else:
           self.ActiveIDVec = self.ActiveIDVec[order]
           SS.reorderComps(order)
+          assert np.allclose(SS.uIDs, self.ActiveIDVec)
+
           hmodel.update_global_params(SS)
           evBound = hmodel.calc_evidence(SS=SS)
 
@@ -171,7 +175,11 @@ class MOVBBirthMergeAlg(MOVBAlg):
         # evBound will increase monotonically AFTER first lap of the data 
         # verify_evidence will warn if bound isn't increasing monotonically
         self.verify_evidence(evBound, prevBound, lapFrac)
-  
+
+      if self.doDebug() and lapFrac >= 1.0:
+        self.verifyELBOTracking(hmodel, SS, evBound, order=order,
+                                BirthResults=BirthResults)
+            
       ## Assess convergence
       countVec = SS.getCountVec()
       if lapFrac > 1.0:
@@ -193,16 +201,17 @@ class MOVBBirthMergeAlg(MOVBAlg):
       ## Custom func hook
       self.eval_custom_func(**makeDictOfAllWorkspaceVars(**vars()))
 
-      if nLapsCompleted >= self.algParams['minLaps'] and isConverged:
+      if isConverged and self.isLastBatch(lapFrac) \
+         and nLapsCompleted >= self.algParams['minLaps']:
         break
       prevCountVec = countVec.copy()
       prevBound = evBound
       #.................................................... end loop over data
 
     # Finished! Save, print and exit
-    self.printStateToLog(hmodel, evBound, lapFrac, iterid)
+    self.printStateToLog(hmodel, evBound, lapFrac, iterid, isFinal=1)
     self.saveParams(lapFrac, hmodel, SS)
-    self.eval_custom_func(**makeDictOfAllWorkspaceVars(**vars()))
+    self.eval_custom_func(isFinal=1, **makeDictOfAllWorkspaceVars(**vars()))
 
     # Births and merges require copies of original model object
     #  we need to make sure original reference has updated parameters, etc.
@@ -224,12 +233,13 @@ class MOVBBirthMergeAlg(MOVBAlg):
     if self.hasMove('birth'):
       return True # Never quit early for birth
 
-    if self.hasMove('merge'):
+    elif self.hasMove('merge'):
       nStuckBeforeQuit = self.algParams['merge']['mergeNumStuckBeforeQuit']
       if (lapFrac - self.lapLastAcceptedMerge) > nStuckBeforeQuit:
         return False
+      return True
 
-    return True
+    return False
 
   ######################################################### Local step
   #########################################################
@@ -308,26 +318,32 @@ class MOVBBirthMergeAlg(MOVBAlg):
       MergePrepInfo = dict()
 
     if batchID in self.SSmemory:
-      oldSSchunk = self.load_batch_suff_stat_from_memory(batchID, 
-                                                         Knew=SS.K,
+      oldSSchunk = self.load_batch_suff_stat_from_memory(batchID, doCopy=0,
+                                                         Kfinal=SS.K,
                                                          order=order)
       assert oldSSchunk.K == SS.K
+      assert np.allclose(SS.uIDs, oldSSchunk.uIDs)
       SS -= oldSSchunk
 
     SSchunk = hmodel.get_global_suff_stats(Dchunk, LPchunk, 
                                            doPrecompEntropy=1,
                                            **MergePrepInfo)
+    SSchunk.setUIDs(self.ActiveIDVec.copy())
+
     if SS is None:
       SS = SSchunk.copy()
     else:
       assert SSchunk.K == SS.K
+      assert np.allclose(SS.uIDs, self.ActiveIDVec)
+      assert np.allclose(SSchunk.uIDs, self.ActiveIDVec)
       SS += SSchunk
+
     self.save_batch_suff_stat_to_memory(batchID, SSchunk)
     return SS, SSchunk
 
 
   def load_batch_suff_stat_from_memory(self, batchID, doCopy=0, 
-                                             Knew=0, order=None):
+                                             Kfinal=0, order=None):
     ''' Load the suff stats stored in memory for provided batchID
         Returns
         -------
@@ -341,12 +357,18 @@ class MOVBBirthMergeAlg(MOVBAlg):
       #  this is done usually when debugging.
       SSchunk = SSchunk.copy()
 
-    # "Replay" accepted softmerges from end of previous lap 
+    # Check to see if we've fast-forwarded this chunk already
+    # If so, we can just use it as is.
+    if SSchunk.K == self.ActiveIDVec.size:
+      if np.allclose(SSchunk.uIDs, self.ActiveIDVec):
+        return SSchunk
+
+    # Fast-forward accepted softmerges from end of previous lap 
     if self.hasMove('softmerge'): 
       for MInfo in self.MergeLog:
         SSchunk.multiMergeComps(MInfo['kdel'], MInfo['alph'])
     
-    # "Replay" accepted merges from end of previous lap 
+    # Fast-forward accepted merges from end of previous lap 
     if self.hasMove('merge'): 
       for MInfo in self.MergeLog:
         kA = MInfo['kA']
@@ -357,18 +379,29 @@ class MOVBBirthMergeAlg(MOVBAlg):
     if SSchunk.hasMergeTerms():
       SSchunk.setMergeFieldsToZero()
 
-    # "Replay" any shuffling/reordering that happened
+    # Fast-forward any shuffling/reordering that happened
     if self.hasMove('shuffle') and order is not None:
-      SSchunk.reorderComps(order)
+      if SSchunk.K == self.ActiveIDVec.size:
+        if not np.allclose(SSchunk.uIDs, self.ActiveIDVec):
+          SSchunk.reorderComps(order)
+      else:
+        SSchunk.reorderComps(order)
 
-    # "Replay" births from this lap
-    if self.hasMove('birth'):
-      assert Knew > 0   
-      Kextra = Knew - SSchunk.K
+    isGood = np.allclose(SSchunk.uIDs, self.ActiveIDVec[:SSchunk.K])
+    if not isGood:
+      if self.algParams['debug'] == 'interactive':
+        from IPython import embed; embed()
+    assert isGood    
+
+    # Fast-forward births from this lap
+    if self.hasMove('birth') and Kfinal > 0 and SSchunk.K < Kfinal:
+      Kextra = Kfinal - SSchunk.K
       if Kextra > 0:
         SSchunk.insertEmptyComps(Kextra)
-    assert SSchunk.K == Knew
+      assert SSchunk.K == Kfinal
+      SSchunk.setUIDs(self.ActiveIDVec.copy())
 
+    assert np.allclose(SSchunk.uIDs, self.ActiveIDVec)
     return SSchunk  
 
   def save_batch_suff_stat_to_memory(self, batchID, SSchunk):
@@ -448,17 +481,21 @@ class MOVBBirthMergeAlg(MOVBAlg):
         msg = "SKIPPED. Target data too small. Size %d."
         BirthLogger.log(msg % (targetSize))
       else:
-        hmodel, SS, MoveInfo = BirthMove.run_birth_move(
+        newmodel, newSS, MoveInfo = BirthMove.run_birth_move(
                                            hmodel, SS, targetData, 
                                            randstate=self.PRNG, 
                                            Plan=Plan,
                                            **kwargs)
+        hmodel = newmodel
+        SS = newSS
+
         if MoveInfo['didAddNew']:
           BirthResults.append(MoveInfo)
           for kk in MoveInfo['birthCompIDs']:
             self.LapsSinceLastBirth[kk] = -1
             self.maxUID += 1
             self.ActiveIDVec = np.append(self.ActiveIDVec, self.maxUID)
+          SS.setUIDs(self.ActiveIDVec.copy())
     return hmodel, SS, BirthResults
 
   def birth_remove_extra_mass(self, hmodel, SS, BirthResults):
@@ -480,6 +517,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
         assert extraSS.K == len(compIDs)
         SS.subtractSpecificComps(extraSS, compIDs)
         didChangeSS = True
+        MoveInfo['extraSSDone'] = 1
     if didChangeSS:
       hmodel.update_global_params(SS)
     return hmodel, SS
@@ -677,7 +715,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
       return PrepInfo
 
     ## Update stored ScoreMatrix to account for recent births/merges
-    if preselectroutine == 'wholeELBO':
+    if preselectroutine.count('wholeELBO'):
       MM = prevPrepInfo['PairScoreMat']
       if MM is not None:
         for Info in self.MergeLog:
@@ -695,12 +733,19 @@ class MOVBBirthMergeAlg(MOVBAlg):
       prevPrepInfo['PairScoreMat'] = MM
 
     ## Determine which merge pairs we will track in the upcoming lap 
-    PrepInfo['mPairIDs'], PrepInfo['PairScoreMat'] \
-       = MergePlanner.preselect_candidate_pairs(hmodel, SS,
+    if preselectroutine == 'wholeELBObetter':
+      mPairIDs, PairScoreMat = MergePlanner.preselectPairs(hmodel, SS, lapFrac,
+                                 prevScoreMat=prevPrepInfo['PairScoreMat'])
+    else:
+      mPairIDs, PairScoreMat = MergePlanner.preselect_candidate_pairs(hmodel,
+                                            SS,
                                             randstate=self.PRNG,
                                             returnScoreMatrix=1,
                                             M=prevPrepInfo['PairScoreMat'],
                                             **self.algParams['merge'])
+    PrepInfo['mPairIDs'] = mPairIDs
+    PrepInfo['PairScoreMat'] = PairScoreMat
+
     ## Reset selection terms to zero
     if SS is not None and SS.hasSelectionTerms():
       SS._SelectTerms.setAllFieldsToZero()
@@ -765,7 +810,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
     newDict = defaultdict(int)
     for kk in compList:
       if kk == kA:
-        newDict[kA] = np.maximum(self.LapsSinceLastBirth[kA], self.LapsSinceLastBirth[kB])
+        newDict[kA] = np.maximum(self.LapsSinceLastBirth[kA], 
+                                 self.LapsSinceLastBirth[kB])
       elif kk < kB:
         newDict[kk] = self.LapsSinceLastBirth[kk]
       elif kk > kB:
@@ -849,20 +895,45 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
     return hmodel, SS, evBound
 
+  def verifyELBOTracking(self, hmodel, SS, evBound=None, order=None,
+                               BirthResults=list(),
+                               **kwargs):
+    ''' Verify that current aggregated SS consistent with sum over all batches
+    '''
+    if evBound is None:
+      evBound = hmodel.calc_evidence(SS=SS)
 
-  def verifyELBOTracking(self, hmodel, SS, evBound):
     for batchID in range(len(self.SSmemory.keys())):
-      SSchunk = self.load_batch_suff_stat_from_memory(batchID, SS.K, doCopy=1)
+      SSchunk = self.load_batch_suff_stat_from_memory(batchID, doCopy=1,
+                                                      order=order,
+                                                      Kfinal=SS.K)
       if batchID == 0:
         SS2 = SSchunk.copy()
       else:
         SS2 += SSchunk
-    evCheck = hmodel.calc_evidence(SS=SS2)
-    #print '% 9.3f' % (evBound)
-    #print '% 9.3f' % (evCheck)
-    assert np.allclose(SS.N, SS2.N)
-    assert np.allclose(evBound, evCheck)
 
+    for MoveInfo in BirthResults:
+      if MoveInfo['didAddNew'] and 'extraSS' in MoveInfo:
+        if not 'extraSSDone' in MoveInfo:
+          extraSS = MoveInfo['extraSS'].copy()
+          if extraSS.K < SS2.K:
+            extraSS.insertEmptyComps(SS2.K - extraSS.K)
+          SS2 += extraSS
+
+    evCheck = hmodel.calc_evidence(SS=SS2)
+    if self.algParams['debug'].count('quiet') == 0:
+      print '% 14.8f evBound from agg SS' % (evBound)
+      print '% 14.8f evBound from sum over SSmemory' % (evCheck)
+    if self.algParams['debug'].count('interactive'):
+      isCorrect = np.allclose(SS.uIDs, SS2.uIDs) \
+                  and np.allclose(SS.getCountVec(), SS2.getCountVec()) \
+                  and np.allclose(evBound, evCheck)
+      if not isCorrect:
+        from IPython import embed; embed()
+    else:
+      assert np.allclose(SS.getCountVec(), SS2.getCountVec())
+      assert np.allclose(evBound, evCheck)
+      assert np.allclose(SS.uIDs, SS2.uIDs)
 
 """
 DEPRECATED CODE from load_suff_stats_for_batch

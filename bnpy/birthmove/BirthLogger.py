@@ -8,10 +8,13 @@ Log = None
 Cache = defaultdict(lambda: list())
 CacheOrder = list()
 
-def log(msg):
+def log(msg, level='debug'):
   if Log is None:
     return
-  Log.info(msg)
+  if level == 'info':
+    Log.info(msg)
+  else:
+    Log.debug(msg)
 
 def logStartMove(lapFrac, moveID, nMoves):
   msg = '=' * (50) 
@@ -27,9 +30,9 @@ def logPosVector(vec, fmt='%8.1f', Nmax=10, label=''):
     return
   vstr = ' '.join([fmt % (x) for x in vec[:Nmax]])
   if len(label) > 0:
-    Log.info(vstr + " | " + label)
+    log(vstr + " | " + label)
   else:
-    Log.info(vstr)
+    log(vstr)
 
 def logProbVector(vec, fmt='%8.4f', Nmax=10):
   if Log is None:
@@ -53,20 +56,6 @@ def writePlanToLog(Plan):
   for line in Plan['log']:
     log(line)
 
-'''
-, Ntop=10):
-  for Plan in Plans:
-    if 'ktarget' in Plan and Plan['ktarget'] is not None:
-      pass
-    elif 'targetWordID' in Plan and Plan['targetWordID'] is not None:
-      pass    
-    elif 'targetWordFreq' in Plan and Plan['targetWordFreq'] is not None:
-      wordFreq = Plan['targetWordFreq']
-      topWords = np.argsort(-1*wordFreq)[:Ntop]
-      topWordStr = ' '.join(topWords)
-      Cache.append(topWordStr)
-'''
-
 ########################################################### Configuration
 ###########################################################
 def configure(taskoutpath, doSaveToDisk=0, doWriteStdOut=0):
@@ -85,7 +74,7 @@ def configure(taskoutpath, doSaveToDisk=0, doWriteStdOut=0):
   ###### Config logger that can write to stdout
   if doWriteStdOut:
     ch = logging.StreamHandler(sys.stdout)
-    ch.setLevel(logging.DEBUG)
+    ch.setLevel(logging.INFO)
     ch.setFormatter(formatter)
     Log.addHandler(ch)
   ##### Config null logger, avoids error messages about no handler existing

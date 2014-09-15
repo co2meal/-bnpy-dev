@@ -238,7 +238,7 @@ class LearnAlg(object):
                              doSavePriorInfo=np.allclose(lap, 0.0),
                              doLinkBest=True)
 
-    if self.outputParams['doSaveEstParams']:
+    if self.outputParams['doSaveEstParams'] and SS is not None:
       ModelWriter.saveEstParams(hmodel, SS, self.savedir, prefix,
                                 doLinkBest=True)
 
@@ -269,9 +269,7 @@ class LearnAlg(object):
       return False
     return isEvenlyDivisibleFloat(lap, printEvery) or nMstepUpdates < 3
 
-  def printStateToLog(self, hmodel, evBound, lap, iterid, rho=None):
-    doFinal = self.status.count('done') > 0
-
+  def printStateToLog(self, hmodel, evBound, lap, iterid, isFinal=0, rho=None):
     if hasattr(self, 'ConvergeInfo') and 'maxDiff' in self.ConvergeInfo:
       countStr = 'Ndiff %10.3f' % (self.ConvergeInfo['maxDiff'])
     else:
@@ -300,8 +298,8 @@ class LearnAlg(object):
     if iterid not in self.PrintIters:
       self.PrintIters.add(iterid)
       Log.info(logmsg)
-      if doFinal:
-        Log.info('... %s' % (self.status))
+    if isFinal:
+      Log.info('... %s' % (self.status))
 
   def print_msg(self, msg):
       ''' Prints a string msg to stdout,
@@ -344,11 +342,9 @@ class LearnAlg(object):
 
   ######################################################### Custom Func
   #########################################################
-  def eval_custom_func(self, lapFrac=0, **kwargs):
+  def eval_custom_func(self, isFinal=0, lapFrac=0, **kwargs):
       ''' Evaluates a custom hook function 
       '''
-      isFinal = self.status.count('done') > 0
-
       cFuncPath = self.outputParams['customFuncPath']
       if cFuncPath is None or cFuncPath == 'None':
         return None
@@ -366,8 +362,6 @@ class LearnAlg(object):
       
       kwargs['lapFrac'] = lapFrac
       kwargs['isFinal'] = isFinal
-      kwargs['learnAlg'] = kwargs['self']
-      del kwargs['self']
       if hasattr(cFuncModule, 'onBatchComplete') and not isFinal:
         cFuncModule.onBatchComplete(args=cFuncArgs_string, **kwargs)
       if hasattr(cFuncModule, 'onLapComplete') \

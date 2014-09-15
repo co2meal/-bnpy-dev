@@ -4,8 +4,13 @@ import glob
 import scipy.io
 import joblib
 import sys
+from IPython.display import HTML
+from IPython.core.display import display_html
 
 import bnpy
+from bnpy.viz import BarsViz
+from bnpy.viz import GaussViz
+from bnpy.viz import PrintTopics
 
 pylab = None
 plotly = None
@@ -161,42 +166,52 @@ def PlotSingleRunComps(taskpath, lap=None, MaxKToDisplay=50, **kwargs):
   '''
   global order
 
-  if lap is None:
-    model = bnpy.load_model(taskpath)    
-    activeIDs = LoadSingleRunActiveIDsForLap(taskpath, queryLap='final')
+  model, lap = bnpy.ioutil.ModelReader.loadModelForLap(taskpath, lap)
+  print 'Showing comps for lap %.3f' % (lap)
+
+  if np.allclose(lap, 0):
+    activeIDs = np.arange(model.obsModel.K)
   else:
-    model, lap = bnpy.ioutil.ModelReader.loadModelForLap(taskpath, lap)
-    if np.allclose(lap, 0):
-      activeIDs = np.arange(model.obsModel.K)
-    else:
-      activeIDs = LoadSingleRunActiveIDsForLap(taskpath, queryLap=lap)
+    activeIDs = LoadSingleRunActiveIDsForLap(taskpath, queryLap=lap)
 
   if str(type(model.obsModel)).count('Gauss'):
-    from bnpy.viz import GaussViz
     GaussViz.pylab = pylab
     GaussViz.plotGauss2DFromHModel(model, 
                                    activeCompIDs=activeIDs,
                                    compListToPlot=order,
                                    MaxKToDisplay=MaxKToDisplay, 
                                    **kwargs)
-  else:
-    from bnpy.viz import BarsViz
+  elif taskpath.count('Bars') > 0:
     BarsViz.pylab = pylab
     BarsViz.plotBarsFromHModel(model, 
                                 activeCompIDs=activeIDs,
                                 compListToPlot=order,
                                 Kmax=MaxKToDisplay, 
                                 **kwargs)
+  else:
+    dataName = taskpath.replace(os.environ['BNPYOUTDIR'], '')
+    dataName = dataName.split(os.path.sep)[0]
+
+    vocabpath = os.path.join(os.environ['BNPYDATADIR'], 'vocab.txt')
+    if not os.path.exists(vocabpath):
+      raise NotImplementedError('Dont know how to plot for dataset ' + dataName)
+
+    displayArgs = dict(order=order, activeCompIDs=activeIDs, lap=lap)
+    html = PrintTopics.showTopWordsForTask(taskpath, vocabpath, doHTML=1,
+                                           **displayArgs)
+    
+    display_html(HTML(html))
 
 if __name__ == "__main__":
   from matplotlib import pylab
   pylab.ion()
   #taskpath = '/results/AdmixAsteriskK8/mytest-K80-random/1/'
-  taskpath = "/results/MixBarsK10V900/mytest-K100-random/1"
+  #taskpath = "/results/MixBarsK10V900/mytest-K100-random/1"
+  taskpath = "/results/nips/defaultjob/1"
   PlotSingleRunCounts(taskpath)
 
   #pylab.figure()
-  PlotSingleRunComps(taskpath, lap=2)
+  PlotSingleRunComps(taskpath)
 
   pylab.show()
 

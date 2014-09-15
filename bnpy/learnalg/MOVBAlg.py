@@ -74,6 +74,10 @@ class MOVBAlg(LearnAlg):
         # evBound will increase monotonically AFTER first lap of the data 
         # verify_evidence will warn if bound isn't increasing monotonically
         self.verify_evidence(evBound, prevBound, lapFrac)
+        if self.algParams['debugInteractive'] > 0:
+          self.verifyELBOTracking(hmodel, SS, evBound, 
+                                  verbose=1,
+                                  doDebugInteractive=1)
 
       ## Assess convergence
       countVec = SS.getCountVec()
@@ -95,7 +99,8 @@ class MOVBAlg(LearnAlg):
       ## Custom func hook
       self.eval_custom_func(**makeDictOfAllWorkspaceVars(**vars()))
 
-      if nLapsCompleted >= self.algParams['minLaps'] and isConverged:
+      if isConverged and self.isLastBatch(lapFrac) \
+         and nLapsCompleted >= self.algParams['minLaps']:
         break
       prevCountVec = countVec.copy()
       prevBound = evBound
@@ -104,7 +109,7 @@ class MOVBAlg(LearnAlg):
     # Finished! Save, print and exit
     self.printStateToLog(hmodel, evBound, lapFrac, iterid)
     self.saveParams(lapFrac, hmodel, SS)
-    self.eval_custom_func(**makeDictOfAllWorkspaceVars(**vars()))
+    self.eval_custom_func(isFinal=1, **makeDictOfAllWorkspaceVars(**vars()))
 
     return self.buildRunInfo(evBound=evBound, SS=SS,
                              LPmemory=self.LPmemory,
@@ -242,17 +247,31 @@ class MOVBAlg(LearnAlg):
       self.LPmemory[batchID] = None
 
 
+  def verifyELBOTracking(self, hmodel, SS, evBound=None, 
+                               verbose=0,
+                               doDebugInteractive=0,
+                               **kwargs):
+    ''' Verify that current aggregated SS consistent with sum over all batches
+    '''
+    if evBound is None:
+      evBound = hmodel.calc_evidence(SS=SS)
 
-
-  def verifyELBOTracking(self, hmodel, SS, evBound):
     for batchID in range(len(self.SSmemory.keys())):
-      SSchunk = self.load_batch_suff_stat_from_memory(batchID, SS.K, doCopy=1)
+      SSchunk = self.load_batch_suff_stat_from_memory(batchID, doCopy=1)
       if batchID == 0:
         SS2 = SSchunk.copy()
       else:
         SS2 += SSchunk
     evCheck = hmodel.calc_evidence(SS=SS2)
-    #print '% 9.3f' % (evBound)
-    #print '% 9.3f' % (evCheck)
-    assert np.allclose(SS.N, SS2.N)
-    assert np.allclose(evBound, evCheck)
+    if verbose:
+      print '% 14.8f evBound from agg SS' % (evBound)
+      print '% 14.8f evBound from sum over SSmemory' % (evCheck)
+    if doDebugInteractive:
+      isCorrect = np.allclose(SS.getCountVec(), SS2.getCountVec())
+      isCorrect = isCorrect and np.allclose(evBound, evCheck)
+      if not isCorrect:
+        from IPython import embed; embed()
+    else:
+      assert np.allclose(SS.getCountVec(), SS2.getCountVec())
+      assert np.allclose(evBound, evCheck)
+
