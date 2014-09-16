@@ -144,6 +144,24 @@ class HDPHMM(AllocModel):
 
         return SS
 
+    def forceSSInBounds(self, SS):
+      ''' Force SS.respPairSums and firstStateResp to be >= 0.  This avoids
+          numerical issues in moVB (where SS "chunks" are added and subtracted)
+          such as:
+            x = 10
+            x += 1e-15
+            x -= 10
+            x -= 1e-15
+          resulting in x < 0.
+
+          Returns
+          -------
+          Nothing.  SS is updated in-place.
+      '''
+      np.maximum(SS.respPairSums, 0, out = SS.respPairSums)
+      np.maximum(SS.firstStateResp, 0, out = SS.firstStateResp)
+      
+
 
   ######################################################### Global Params
   #########################################################
