@@ -39,7 +39,9 @@ def preselectPairs(curModel, SS, lapFrac,
   posAndTiny = np.logical_and(posMask, tinyMask)
   posAndBothBig = np.logical_and(posMask, 1-tinyMask)
 
-  ## Smart version
+  ## Select list of pairs to track for merge
+  # prioritizes merges that make big changes
+  # avoids tracking too many pairs that involves same node
   pairsBig = selectPairsUsingAtMostNOfEachComp(posAndBothBig,
                                                N=mergeMaxDegree)
   scoresBig = np.asarray([ScoreMat[a,b] for (a,b) in pairsBig])
@@ -48,6 +50,8 @@ def preselectPairs(curModel, SS, lapFrac,
   pairsTiny = selectPairsUsingAtMostNOfEachComp(posAndTiny, pairsBig,
                                                 N=mergeMaxDegree,
                                                 Nextra=2)
+  scoresTiny = np.asarray([ScoreMat[a,b] for (a,b) in pairsTiny])
+  pairsTiny = [pairsTiny[x] for x in np.argsort(-1*scoresTiny)]
   return pairsBig + pairsTiny, ScoreMat                                 
 
 
