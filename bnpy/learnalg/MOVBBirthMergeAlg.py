@@ -15,7 +15,8 @@ from bnpy.suffstats import SuffStatBag
 from bnpy.util import isEvenlyDivisibleFloat
 from bnpy.birthmove import TargetPlanner, TargetDataSampler, BirthMove
 from bnpy.birthmove import BirthLogger, TargetPlannerWordFreq
-from bnpy.mergemove import MergeMove, MergePlanner
+from bnpy.mergemove import MergeMove, MergePlanner, MergeLogger
+from bnpy.birthmove.TargetDataSampler import hasValidKey
 
 class MOVBBirthMergeAlg(MOVBAlg):
 
@@ -116,6 +117,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
       ## Prepare for merges
       if self.hasMove('merge') and self.doMergePrepAtLap(lapFrac):
         MergePrepInfo = self.preparePlansForMerge(hmodel, SS, MergePrepInfo,
+                                                  order=order,
                                                   BirthResults=BirthResults,
                                                   lapFrac=lapFrac)
       elif self.isFirstBatch(lapFrac):
@@ -702,6 +704,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
   ######################################################### Merge moves!
   #########################################################
   def preparePlansForMerge(self, hmodel, SS, prevPrepInfo=None,
+                                             order=None,
                                              BirthResults=list(),
                                              lapFrac=0):
     if prevPrepInfo is None:
@@ -731,21 +734,31 @@ class MOVBBirthMergeAlg(MOVBAlg):
       return PrepInfo
 
     ## Update stored ScoreMatrix to account for recent births/merges
-    if preselectroutine.count('wholeELBO'):
+    if hasValidKey('PairScoreMat', prevPrepInfo):
       MM = prevPrepInfo['PairScoreMat']
-      if MM is not None:
-        for Info in self.MergeLog:
-          MM = np.delete(MM, Info['kB'], axis=0)
-          MM = np.delete(MM, Info['kB'], axis=1)
-          MM[Info['kA'], :] = 0
-          MM[:, Info['kA']] = 0
-        if len(BirthResults) > 0:
-          Korig = MM.shape[0]
-          Mnew = np.zeros((SS.K, SS.K))
-          Mnew[:Korig, :Korig] = MM
-          MM = Mnew
-        if np.floor(lapFrac) % refreshInterval == 0:
-          MM.fill(0) # Refresh!
+
+      ## Replay any shuffles
+      if order is not None:
+        Ktmp = len(order)
+        assert Ktmp == MM.shape[0]
+        Mnew = np.zeros_like(MM)
+        for kA in xrange(Ktmp):
+          nA = np.flatnonzero(order == kA)
+          for kB in xrange(kA+1, Ktmp):
+            nB = np.flatnonzero(order == kB)
+            mA = np.minimum(nA, nB)
+            mB = np.maximum(nA, nB)
+            Mnew[mA, mB] = MM[kA, kB]
+        MM = Mnew
+
+      ## Replay any recent birth moves!
+      if len(BirthResults) > 0:
+        Korig = MM.shape[0]
+        Mnew = np.zeros((SS.K, SS.K))
+        Mnew[:Korig, :Korig] = MM
+        MM = Mnew
+      if np.floor(lapFrac) % refreshInterval == 0:
+        MM.fill(0) # Refresh!
       prevPrepInfo['PairScoreMat'] = MM
 
     ## Determine which merge pairs we will track in the upcoming lap 
@@ -759,8 +772,18 @@ class MOVBBirthMergeAlg(MOVBAlg):
                                             returnScoreMatrix=1,
                                             M=prevPrepInfo['PairScoreMat'],
                                             **self.algParams['merge'])
+
     PrepInfo['mPairIDs'] = mPairIDs
     PrepInfo['PairScoreMat'] = PairScoreMat
+    MergeLogger.log('MERGE Num pairs selected: %d' % (len(mPairIDs)),
+                    level='debug')
+
+    degree = MergePlanner.calcDegreeFromEdgeList(mPairIDs, SS.K)
+    if np.sum( degree > 0 ) > 0:
+      degree = degree[degree > 0]
+      MergeLogger.log('Degree distribution among selected pairs', 'debug')
+      for p in [10, 50, 90, 100]:
+        MergeLogger.log('   %d: %d' % (p, np.percentile(degree, p)), 'debug')
 
     ## Reset selection terms to zero
     if SS is not None and SS.hasSelectionTerms():
@@ -796,6 +819,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
                                        mPairIDs=MergePrepInfo['mPairIDs'],
                                        M=MergePrepInfo['PairScoreMat'],
                                        **self.algParams['merge'])
+    afterMat = Info['ScoreMat'].copy()
+    assert afterMat.shape[0] == SS.K
 
     # ------ Adjust indexing for counter that determines which comp to target
     if self.hasMove('birth'):
@@ -805,7 +830,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
     # ------ Record accepted moves, so can adjust memoized stats later
     self.MergeLog = list()
     for kA, kB in Info['AcceptedPairs']:
-      self.ActiveIDVec = np.delete(self.ActiveIDVec, kB, axis=0)
+      self.ActiveIDVec = np.delete(self.ActiveIDVec, kB, axis=0)      
       self.MergeLog.append(dict(kA=kA, kB=kB, Korig=Korig))
       self.lapLastAcceptedMerge = lapFrac
       Korig -= 1
@@ -813,6 +838,9 @@ class MOVBBirthMergeAlg(MOVBAlg):
     # ------ Reset all precalculated merge terms
     if SS.hasMergeTerms():
       SS.setMergeFieldsToZero()
+
+    MergePrepInfo['PairScoreMat'] = Info['ScoreMat']
+    MergePrepInfo['mPairIDs'] = list()
     return hmodel, SS, newEvBound
 
   def _resetLapsSinceLastBirthAfterMerge(self, kA, kB):
