@@ -719,7 +719,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
     mergeStartLap = self.algParams['merge']['mergeStartLap']
     preselectroutine = self.algParams['merge']['preselectroutine']
     mergeELBOTrackMethod = self.algParams['merge']['mergeELBOTrackMethod']
-    refreshInterval = self.algParams['merge']['mergeScoreRefreshLap']
+    refreshInterval = self.algParams['merge']['mergeScoreRefreshInterval']
 
     PrepInfo = dict()
     PrepInfo['doPrecompMergeEntropy'] = 1
@@ -764,7 +764,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
     ## Determine which merge pairs we will track in the upcoming lap 
     if preselectroutine == 'wholeELBObetter':
       mPairIDs, PairScoreMat = MergePlanner.preselectPairs(hmodel, SS, lapFrac,
-                                 prevScoreMat=prevPrepInfo['PairScoreMat'])
+                                    prevScoreMat=prevPrepInfo['PairScoreMat'],
+                                    **self.algParams['merge'])
     else:
       mPairIDs, PairScoreMat = MergePlanner.preselect_candidate_pairs(hmodel,
                                             SS,
@@ -775,12 +776,15 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
     PrepInfo['mPairIDs'] = mPairIDs
     PrepInfo['PairScoreMat'] = PairScoreMat
-    MergeLogger.log('MERGE Num pairs selected: %d' % (len(mPairIDs)),
+    TOL = MergePlanner.ELBO_GAP_ACCEPT_TOL
+    MergeLogger.log('MERGE Num pairs selected: %d/%d' 
+                     % (len(mPairIDs), np.sum(PairScoreMat > -1 * TOL)),
                     level='debug')
 
     degree = MergePlanner.calcDegreeFromEdgeList(mPairIDs, SS.K)
     if np.sum( degree > 0 ) > 0:
       degree = degree[degree > 0]
+      MergeLogger.log('Num comps in >=1 pair: %d' % (degree.size), 'debug')
       MergeLogger.log('Degree distribution among selected pairs', 'debug')
       for p in [10, 50, 90, 100]:
         MergeLogger.log('   %d: %d' % (p, np.percentile(degree, p)), 'debug')
