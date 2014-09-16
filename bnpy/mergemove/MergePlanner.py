@@ -18,10 +18,12 @@ CountTracker = defaultdict(int)
 def preselectPairs(curModel, SS, lapFrac,
                        preselectroutine='wholeELBO',
                        prevScoreMat=None,
-                       refreshInterval=10):
+                       mergeScoreRefreshInterval=10,
+                       mergeMaxDegree=5, **kwargs):
   ''' Create list of candidate pairs for merge
   '''
-  if prevScoreMat is None or isEvenlyDivisibleFloat(lapFrac, refreshInterval):
+  needRefresh = isEvenlyDivisibleFloat(lapFrac, mergeScoreRefreshInterval)
+  if prevScoreMat is None or needRefresh:
     ScoreMat = np.zeros((SS.K, SS.K))
     doAllPairs = 1
   else:
@@ -32,37 +34,40 @@ def preselectPairs(curModel, SS, lapFrac,
 
   posMask = ScoreMat > - ELBO_GAP_ACCEPT_TOL
   Nvec = SS.getCountVec()
-  tinyVec = Nvec < 10
+  tinyVec = Nvec < 25
   tinyMask = np.add(tinyVec, tinyVec[:, np.newaxis])
   posAndTiny = np.logical_and(posMask, tinyMask)
   posAndBothBig = np.logical_and(posMask, 1-tinyMask)
 
-  ## Naive version
-  '''
-  abig, bbig = np.unravel_index(np.flatnonzero(posAndBothBig),
-                                (SS.K,SS.K))
-  mPairIDs = zip(abig, bbig)
-  atiny, btiny = np.unravel_index(np.flatnonzero(posAndTiny), (SS.K,SS.K))
-  mPairsTiny = zip(atiny, btiny)
-  mPairIDs.extend(mPairsTiny)
-  '''
-
   ## Smart version
-  pairsBig = selectPairsUsingAtMostNOfEachComp(posAndBothBig, N=5)
+  pairsBig = selectPairsUsingAtMostNOfEachComp(posAndBothBig,
+                                               N=mergeMaxDegree)
   scoresBig = np.asarray([ScoreMat[a,b] for (a,b) in pairsBig])
   pairsBig = [pairsBig[x] for x in np.argsort(-1*scoresBig)]
-  pairsTiny = selectPairsUsingAtMostNOfEachComp(posMask, posAndTiny, 
-                                                N=5, Nextra=1)
+
+  pairsTiny = selectPairsUsingAtMostNOfEachComp(posAndTiny, pairsBig,
+                                                N=mergeMaxDegree,
+                                                Nextra=2)
   return pairsBig + pairsTiny, ScoreMat                                 
 
+
 def calcDegreeFromEdgeList(pairIDs, nNode):
+  ''' Calculate degree of each node given edge list
+
+      Returns
+      -------
+      degree : 1D array, size nNode
+      degree[k] counts number of edges that node k appears in
+  '''
   degree = np.zeros(nNode, dtype=np.int32)
   for n in range(nNode):
     degree[n] = np.sum([n in pair for pair in pairIDs])
   return degree
 
-def selectPairsUsingAtMostNOfEachComp(AdjMat, SubsetAdjMat=None, 
-                                              N=3, Nextra=1):
+
+
+def selectPairsUsingAtMostNOfEachComp(AdjMat, extraFixedEdges=None, 
+                                              N=3, Nextra=0):
   '''
       Args
       --------
@@ -80,20 +85,29 @@ def selectPairsUsingAtMostNOfEachComp(AdjMat, SubsetAdjMat=None,
   if np.sum(degree) == 0:
     return list()
 
-  if SubsetAdjMat is not None:
-    RestMat = AdjMat - SubsetAdjMat
-    AdjMat = SubsetAdjMat
-    newdegree = np.sum(RestMat, axis=0) + np.sum(RestMat, axis=1)
-    newdegree[newdegree >= 1] -= Nextra
-  else:
-    newdegree = np.zeros_like(degree)
+  ## degree : holds counts for all UNLABELED edges (including extraFixed)
+  ## newdegree : holds counts for edges we will KEEP
+  AMat = AdjMat.copy()
+  newdegree = np.zeros_like(degree)
+  xdegree = np.zeros_like(degree)
+  if extraFixedEdges is not None:
+    for kA, kB in extraFixedEdges:
+      xdegree[kA] += 1
+      xdegree[kB] += 1
+    degree += xdegree
+    newdegree += xdegree
 
-  pairIDs = list()
+
   ## Traverse comps from largest to smallest degree
-  for nodeID in np.argsort(-1 * degree):
+  pairIDs = list()
+  nodeOrder = np.argsort(-1 * degree)
+  for nodeID in nodeOrder:
+
+    # Get list of remaining possible partners for node
+    partners = np.flatnonzero(AMat[nodeID,:] + AMat[:,nodeID])
+
     # Sort node's partners from smallest to largest degree,
     # since we want to prioritize keeping small degree partners
-    partners = np.flatnonzero(AdjMat[nodeID,:] + AdjMat[:,nodeID])
     partners = partners[np.argsort([degree[p] for p in partners])]
 
     Ncur = N - newdegree[nodeID]
@@ -104,16 +118,28 @@ def selectPairsUsingAtMostNOfEachComp(AdjMat, SubsetAdjMat=None,
       kA = np.minimum(p, nodeID)
       kB = np.maximum(p, nodeID)
       pairIDs.append((kA, kB))
-      AdjMat[kA, kB] = 0 # make pair ineligible for future partnerships
+      AMat[kA, kB] = 0 # make pair ineligible for future partnerships
       newdegree[p] += 1
       newdegree[nodeID] += 1
 
     for p in rejectPartners:
       kA = np.minimum(p, nodeID)
       kB = np.maximum(p, nodeID)
-      AdjMat[kA, kB] = 0
+      AMat[kA, kB] = 0 # make pair ineligible for future partnerships
       degree[p] -= 1
       degree[nodeID] -= 1
+
+    exhaustedMask = newdegree >= N
+    AMat[exhaustedMask, :] = 0
+    AMat[:, exhaustedMask] = 0
+    degree = np.sum(AMat, axis=0) + np.sum(AMat, axis=1) + xdegree
+  
+  cond1 = np.allclose(degree, xdegree)
+  cond2 = np.max(newdegree) <= N + Nextra
+  if not cond1:
+    from IPython import embed; embed()
+  if not cond2:
+    from IPython import embed; embed()
   return pairIDs
 
 def updateScoreMat_wholeELBO(ScoreMat, curModel, SS, doAllPairs=0):
