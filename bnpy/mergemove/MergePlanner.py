@@ -18,8 +18,7 @@ CountTracker = defaultdict(int)
 def preselectPairs(curModel, SS, lapFrac,
                        preselectroutine='wholeELBO',
                        prevScoreMat=None,
-                       refreshInterval=10,
-                       maxPairsPerComp=10):
+                       refreshInterval=10):
   ''' Create list of candidate pairs for merge
   '''
   if prevScoreMat is None or isEvenlyDivisibleFloat(lapFrac, refreshInterval):
@@ -30,22 +29,92 @@ def preselectPairs(curModel, SS, lapFrac,
     ScoreMat = prevScoreMat
     doAllPairs = 0
   ScoreMat = updateScoreMat_wholeELBO(ScoreMat, curModel, SS, doAllPairs)
-  aList, bList = np.unravel_index(
-                      np.flatnonzero(ScoreMat > - ELBO_GAP_ACCEPT_TOL),
-                      (SS.K,SS.K))
-  aRejects = list()
-  bRejects = list()
-  for k in xrange(SS.K):
-    maskPairs_k = np.logical_or(aList == k, bList == k)
-    nPairs_k = np.sum(maskPairs_k)
-    if nPairs_k > maxPairsPerComp:
-      for posID in reversed(np.flatnonzero(maskPairs_k)[maxPairsPerComp:]):
-        aRejects.append(aList[posID])
-        bRejects.append(bList[posID])
-        aList = np.delete(aList, posID)
-        bList = np.delete(bList, posID)
-  mPairIDs = zip(aList, bList)
-  return mPairIDs, ScoreMat
+
+  posMask = ScoreMat > - ELBO_GAP_ACCEPT_TOL
+  Nvec = SS.getCountVec()
+  tinyVec = Nvec < 10
+  tinyMask = np.add(tinyVec, tinyVec[:, np.newaxis])
+  posAndTiny = np.logical_and(posMask, tinyMask)
+  posAndBothBig = np.logical_and(posMask, 1-tinyMask)
+
+  ## Naive version
+  '''
+  abig, bbig = np.unravel_index(np.flatnonzero(posAndBothBig),
+                                (SS.K,SS.K))
+  mPairIDs = zip(abig, bbig)
+  atiny, btiny = np.unravel_index(np.flatnonzero(posAndTiny), (SS.K,SS.K))
+  mPairsTiny = zip(atiny, btiny)
+  mPairIDs.extend(mPairsTiny)
+  '''
+
+  ## Smart version
+  pairsBig = selectPairsUsingAtMostNOfEachComp(posAndBothBig, N=5)
+  scoresBig = np.asarray([ScoreMat[a,b] for (a,b) in pairsBig])
+  pairsBig = [pairsBig[x] for x in np.argsort(-1*scoresBig)]
+  pairsTiny = selectPairsUsingAtMostNOfEachComp(posMask, posAndTiny, 
+                                                N=5, Nextra=1)
+  return pairsBig + pairsTiny, ScoreMat                                 
+
+def calcDegreeFromEdgeList(pairIDs, nNode):
+  degree = np.zeros(nNode, dtype=np.int32)
+  for n in range(nNode):
+    degree[n] = np.sum([n in pair for pair in pairIDs])
+  return degree
+
+def selectPairsUsingAtMostNOfEachComp(AdjMat, SubsetAdjMat=None, 
+                                              N=3, Nextra=1):
+  '''
+      Args
+      --------
+      AdjMat : 2D array, size K x K
+
+      SubsetAdjMat : None or 2D array, size K x K
+
+      N : max degree of each node
+      
+      Returns
+      --------
+      pairIDs : list of tuples, one entry per selected pair
+  '''
+  degree = np.sum(AdjMat, axis=0) + np.sum(AdjMat, axis=1)
+  if np.sum(degree) == 0:
+    return list()
+
+  if SubsetAdjMat is not None:
+    RestMat = AdjMat - SubsetAdjMat
+    AdjMat = SubsetAdjMat
+    newdegree = np.sum(RestMat, axis=0) + np.sum(RestMat, axis=1)
+    newdegree[newdegree >= 1] -= Nextra
+  else:
+    newdegree = np.zeros_like(degree)
+
+  pairIDs = list()
+  ## Traverse comps from largest to smallest degree
+  for nodeID in np.argsort(-1 * degree):
+    # Sort node's partners from smallest to largest degree,
+    # since we want to prioritize keeping small degree partners
+    partners = np.flatnonzero(AdjMat[nodeID,:] + AdjMat[:,nodeID])
+    partners = partners[np.argsort([degree[p] for p in partners])]
+
+    Ncur = N - newdegree[nodeID]
+    keepPartners = partners[:Ncur]
+    rejectPartners = partners[Ncur:]
+
+    for p in keepPartners:
+      kA = np.minimum(p, nodeID)
+      kB = np.maximum(p, nodeID)
+      pairIDs.append((kA, kB))
+      AdjMat[kA, kB] = 0 # make pair ineligible for future partnerships
+      newdegree[p] += 1
+      newdegree[nodeID] += 1
+
+    for p in rejectPartners:
+      kA = np.minimum(p, nodeID)
+      kB = np.maximum(p, nodeID)
+      AdjMat[kA, kB] = 0
+      degree[p] -= 1
+      degree[nodeID] -= 1
+  return pairIDs
 
 def updateScoreMat_wholeELBO(ScoreMat, curModel, SS, doAllPairs=0):
   ''' Calculate upper-tri matrix of exact ELBO gap for each candidate pair
@@ -89,10 +158,48 @@ def updateScoreMat_wholeELBO(ScoreMat, curModel, SS, doAllPairs=0):
       OGap = curModel.obsModel.calcHardMergeGap_SpecificPairs(SS, mPairIDs)
       ScoreMat[aList, bList] = AGap + OGap
     nUpdated = len(aList)
-  print 'Updated %d entries in ScoreMat.' % (nUpdated)
+  MergeLogger.log('MERGE ScoreMat Updates: %d entries.' % (nUpdated),
+                  level='debug')
   return ScoreMat  
     
+"""
+def selectDiverseSubsetOfTinyPairs(posMask, posAndTiny, tinyVec,
+                                   maxPairsPerComp=3):
+  ''' Make list of candidate pairs where each candidate appears <= 3 times.
+  '''
+  degree = np.sum(posMask, axis=0) + np.sum(posMask, axis=1)
+  sortIDs = np.argsort(-1 * degree)
+  mPairsTiny = list()
+  newdegree = np.zeros_like(degree)
+  for nodeID in sortIDs:
+    if not tinyVec[nodeID]:
+      continue
 
+    # Find final set of <= 3 partners that would not be disconnected
+    partners = np.flatnonzero(posAndTiny[nodeID,:] + posAndTiny[:, nodeID])
+    partners = partners[np.argsort([degree[p] for p in partners])]
+
+    M = maxPairsPerComp - newdegree[nodeID]
+    keepPartners = partners[:M]
+    rejectPartners = partners[M:]
+
+    for p in keepPartners:
+      kA = np.minimum(p, nodeID)
+      kB = np.maximum(p, nodeID)
+      mPairsTiny.append((kA, kB))
+      posAndTiny[kA, kB] = 0 # make pair ineligible for future partnerships
+      newdegree[p] += 1
+      newdegree[nodeID] += 1
+
+    for p in rejectPartners:
+      degree[p] -= 1
+      degree[nodeID] -= 1
+      kA = np.minimum(p, nodeID)
+      kB = np.maximum(p, nodeID)
+      posAndTiny[kA, kB] = 0 # make pair ineligible for future partnerships
+
+  return mPairsTiny, degree
+"""
 
 def preselect_candidate_pairs(curModel, SS, 
                                randstate=np.random.RandomState(0),
@@ -236,8 +343,8 @@ def calcScoreMatrix_wholeELBO(curModel, SS, excludePairs=list(), M=None):
     Mraw = M
     nUpdated = len(pairList)
 
-  print 'Updated %d entries in ScoreMat.' % (nUpdated)
-
+  MergeLogger.log('MERGE ScoreMat Updates: %d entries.' % (nUpdated),
+                  level='debug')
 
   Mraw[np.triu_indices(K,1)] += ELBO_GAP_ACCEPT_TOL
   M = Mraw.copy()

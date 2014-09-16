@@ -772,9 +772,18 @@ class MOVBBirthMergeAlg(MOVBAlg):
                                             returnScoreMatrix=1,
                                             M=prevPrepInfo['PairScoreMat'],
                                             **self.algParams['merge'])
+
     PrepInfo['mPairIDs'] = mPairIDs
     PrepInfo['PairScoreMat'] = PairScoreMat
-    MergeLogger.log('%d %s' % (len(mPairIDs), str(mPairIDs[:5])))
+    MergeLogger.log('MERGE Num pairs selected: %d' % (len(mPairIDs)),
+                    level='debug')
+
+    degree = MergePlanner.calcDegreeFromEdgeList(mPairIDs, SS.K)
+    if np.sum( degree > 0 ) > 0:
+      degree = degree[degree > 0]
+      MergeLogger.log('Degree distribution among selected pairs', 'debug')
+      for p in [10, 50, 90, 100]:
+        MergeLogger.log('   %d: %d' % (p, np.percentile(degree, p)), 'debug')
 
     ## Reset selection terms to zero
     if SS is not None and SS.hasSelectionTerms():
@@ -810,6 +819,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
                                        mPairIDs=MergePrepInfo['mPairIDs'],
                                        M=MergePrepInfo['PairScoreMat'],
                                        **self.algParams['merge'])
+    afterMat = Info['ScoreMat'].copy()
+    assert afterMat.shape[0] == SS.K
 
     # ------ Adjust indexing for counter that determines which comp to target
     if self.hasMove('birth'):
@@ -819,7 +830,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
     # ------ Record accepted moves, so can adjust memoized stats later
     self.MergeLog = list()
     for kA, kB in Info['AcceptedPairs']:
-      self.ActiveIDVec = np.delete(self.ActiveIDVec, kB, axis=0)
+      self.ActiveIDVec = np.delete(self.ActiveIDVec, kB, axis=0)      
       self.MergeLog.append(dict(kA=kA, kB=kB, Korig=Korig))
       self.lapLastAcceptedMerge = lapFrac
       Korig -= 1
