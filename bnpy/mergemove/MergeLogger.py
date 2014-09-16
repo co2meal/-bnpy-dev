@@ -6,10 +6,13 @@ from collections import defaultdict
 # Configure Logger
 Log = None
 
-def log(msg):
+def log(msg, level='info'):
   if Log is None:
     return
-  Log.info(msg)
+  if level == 'debug':
+    Log.debug(msg)
+  else:
+    Log.info(msg)
 
 def logStartMove(lapFrac):
   msg = '=' * (50) 
@@ -51,7 +54,7 @@ def configure(taskoutpath, doSaveToDisk=0, doWriteStdOut=0):
   ###### Config logger that can write to stdout
   if doWriteStdOut:
     ch = logging.StreamHandler(sys.stdout)
-    ch.setLevel(logging.DEBUG)
+    ch.setLevel(logging.INFO)
     ch.setFormatter(formatter)
     Log.addHandler(ch)
   ##### Config null logger, avoids error messages about no handler existing
