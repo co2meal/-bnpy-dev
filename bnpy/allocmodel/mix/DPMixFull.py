@@ -21,6 +21,11 @@ def c_Beta(gamma1, gamma0):
   '''
   return np.sum(gammaln(gamma1+gamma0) - gammaln(gamma1) - gammaln(gamma0))
 
+def c_Beta_Vec(gamma1, gamma0):
+  ''' Evaluate cumulant function of the Beta distribution in vectorized way
+  '''
+  return gammaln(gamma1+gamma0) - gammaln(gamma1) - gammaln(gamma0)
+
 
 class DPMixFull(AllocModel):
 
@@ -289,10 +294,12 @@ class DPMixFull(AllocModel):
       gap = - Hmerge[kA, kB] + Hcur[kA] + Hcur[kB]
     return gap
 
+
   def calcHardMergeGap(self, SS, kA, kB):
     ''' Calculate scalar improvement in ELBO for hard merge of comps kA, kB
         
-        Does *not* include any entropy
+        For speed, use calcHardMergeGapFast or calcHardMergeGapFastSinglePair.
+        Does *not* include any entropy. 
     '''
     cPrior = c_Beta(self.gamma1, self.gamma0)
     cB = c_Beta(self.qgamma1[kB], self.qgamma0[kB])
@@ -311,13 +318,64 @@ class DPMixFull(AllocModel):
       gap += c_Beta(a1, a0old) - c_Beta(a1, a0new)
     return gap
 
+  def calcHardMergeGapFast(self, SS, kA, kB):
+    ''' Calculate scalar improvement in ELBO for hard merge of kA, kB
+
+        Returns
+        -------
+        gap : float
+    '''
+    if not hasattr(self, 'cPrior'):
+      self.cPrior = c_Beta(self.gamma1, self.gamma0)
+    if not hasattr(self, 'cBetaCur'):
+      self.cBetaCur = c_Beta_Vec(self.qgamma1, self.qgamma0)
+    if not hasattr(self, 'cBetaNewB') \
+       or not (hasattr(self, 'kB') and self.kB == kB):
+      self.kB = kB
+      self.cBetaNewB = c_Beta_Vec(self.qgamma1[:kB], 
+                                  self.qgamma0[:kB] - SS.N[kB])
+    cDiff_A = self.cBetaCur[kA] \
+             - c_Beta(self.qgamma1[kA] + SS.N[kB], self.qgamma0[kA] - SS.N[kB])
+    cDiff_AtoB = np.sum(self.cBetaCur[kA+1:kB] - self.cBetaNewB[kA+1:])
+    gap = self.cBetaCur[kB] - self.cPrior + cDiff_A + cDiff_AtoB
+    return gap
+
+  def calcHardMergeGapFastSinglePair(self, SS, kA, kB):
+    ''' Calculate scalar improvement in ELBO for hard merge of kA, kB
+
+        Returns
+        -------
+        gap : float
+    '''
+    if not hasattr(self, 'cPrior'):
+      self.cPrior = c_Beta(self.gamma1, self.gamma0)
+    if not hasattr(self, 'cBetaCur'):
+      self.cBetaCur = c_Beta_Vec(self.qgamma1, self.qgamma0)
+
+    cBetaNew_AtoB = c_Beta_Vec(self.qgamma1[kA+1:kB], 
+                               self.qgamma0[kA+1:kB] - SS.N[kB])
+    cDiff_A = self.cBetaCur[kA] \
+             - c_Beta(self.qgamma1[kA] + SS.N[kB], self.qgamma0[kA] - SS.N[kB])
+    cDiff_AtoB = np.sum(self.cBetaCur[kA+1:kB] - cBetaNew_AtoB)
+    gap = self.cBetaCur[kB] - self.cPrior + cDiff_A + cDiff_AtoB
+    return gap
+    
+
   def calcHardMergeGap_AllPairs(self, SS):
     ''' Calc matrix of improvement in ELBO for all possible pairs of comps
     '''
     Gap = np.zeros((SS.K, SS.K))
-    for kB in xrange(0, SS.K):
+    for kB in xrange(1, SS.K):
       for kA in xrange(0, kB):  
-        Gap[kA, kB] = self.calcHardMergeGap(SS, kA, kB)
+        Gap[kA, kB] = self.calcHardMergeGapFast(SS, kA, kB)
+        #Gap[kA, kB] = self.calcHardMergeGap(SS, kA, kB)
+    if hasattr(self, 'cBetaNewB'):
+      del self.cBetaNewB
+      del self.kB
+    if hasattr(self, 'cPrior'):
+      del self.cPrior
+    if hasattr(self, 'cBetaCur'):
+      del self.cBetaCur
     return Gap
 
   def calcHardMergeGap_SpecificPairs(self, SS, PairList):
@@ -325,7 +383,12 @@ class DPMixFull(AllocModel):
     '''
     Gaps = np.zeros(len(PairList))
     for ii, (kA, kB) in enumerate(PairList):
-        Gaps[ii] = self.calcHardMergeGap(SS, kA, kB)
+        Gaps[ii] = self.calcHardMergeGapFastSinglePair(SS, kA, kB)
+        #Gaps[ii] = self.calcHardMergeGap(SS, kA, kB)
+    if hasattr(self, 'cPrior'):
+      del self.cPrior
+    if hasattr(self, 'cBetaCur'):
+      del self.cBetaCur
     return Gaps
 
 
