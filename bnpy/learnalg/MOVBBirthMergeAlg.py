@@ -707,6 +707,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
                                              order=None,
                                              BirthResults=list(),
                                              lapFrac=0):
+
+    MergeLogger.logPhase('MERGE Plans at lap ' + str(lapFrac))
     if prevPrepInfo is None:
       prevPrepInfo = dict()
     if 'PairScoreMat' not in prevPrepInfo:
@@ -807,9 +809,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
         evBound : correct ELBO for returned hmodel
                   guaranteed to be at least as large as input evBound    
     '''
-    if self.algParams['merge']['mergeLogVerbose']:
-      import bnpy.mergemove.MergeLogger as MergeLogger
-      MergeLogger.logStartMove(lapFrac)
+    MergeLogger.logPhase('MERGE Moves at lap ' + str(lapFrac))
 
     if 'mPairIDs' not in MergePrepInfo or MergePrepInfo['mPairIDs'] is None:
       MergePrepInfo['mPairIDs'] = list()

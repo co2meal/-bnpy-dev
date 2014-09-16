@@ -119,7 +119,7 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None,
       freshELBO = freshModel.calc_evidence(SS=freshSS)
       freshModel, freshSS, freshELBO, Info = MergeMove.run_many_merge_moves(
                                                 freshModel, freshSS, freshELBO,
-                                                mPairIDs,
+                                                mPairIDs, isBirthCleanup=1,
                                                 logFunc=log)
       if len(Info['AcceptedPairs']) == 0:
         break
