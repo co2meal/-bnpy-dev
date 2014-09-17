@@ -98,7 +98,7 @@ def run_many_merge_moves(hmodel, Data, SS, evBound=None,
                  MSelector=MSelector, MTracker=MTracker,
                  **mergeKwArgs)
     if MoveInfo['didAccept']:
-      assert newEv > oldEv
+      assert newEv >= oldEv
       if mPairIDs is not None:
         mPairIDs = _reindexCandidatePairsAfterAcceptedMerge(mPairIDs, kA, kB)
     trialID += 1
@@ -128,7 +128,7 @@ def _reindexCandidatePairsAfterAcceptedMerge(mPairIDs, kA, kB):
 def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
                    kA=None, kB=None, MTracker=None, MSelector=None,
                    mergename='marglik', randstate=np.random.RandomState(),
-                   doUpdateAllComps=1, savedir=None, doVerbose=False, 
+                   doUpdateAllComps=0, savedir=None, doVerbose=False, 
                    doWriteLog=False, **kwargs):
   ''' Creates candidate model with two components merged,
       and returns either candidate or current model,
@@ -176,9 +176,9 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
     MoveInfo = dict(didAccept=0, msg="need >= 2 comps to merge")    
     return curModel, SS, curEv, MoveInfo  
   
-  if not SS.hasMergeTerms():
+  if not SS.hasMergeTerms() and curModel.allocModel.requireMergeTerms():
     MoveInfo = dict(didAccept=0, msg="suff stats did not have merge terms")    
-    return curModel, SS, curEv, MoveInfo  
+    return curModel, SS, curEv, MoveInfo
 
   if kA is not None and kA not in MTracker.getAvailableComps():
     MoveInfo = dict(didAccept=0, msg="target comp kA must be excluded.")    
@@ -191,6 +191,7 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
                                      MSelector=MSelector,
                                      mergename=mergename, 
                                      randstate=randstate)
+
   # Create candidate merged model
   propModel, propSS = propose_merge_candidate(curModel, SS, kA, kB, doUpdateAllComps=doUpdateAllComps)
 
@@ -205,10 +206,21 @@ def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,
 
   evDiff = propEv - curEv
 
-  if (propEv > 0 and curEv < 0) or abs(propEv-curEv) > 0.1*abs(curEv):
+  if hasattr(SS, 'nDoc') and np.abs(propEv - curEv) > 0.05 * np.abs(curEv):
+    print 'CRAP! ---------------------------------------!!!!$$$$$$$$'
+    print '    propEv % .5e' % (propEv)
+    print '    curEv  % .5e' % (curEv)
     MoveInfo = dict(didAccept=0, kA=kA, kB=kB, msg="CRAP. bad proposed evidence.")
     return curModel, SS, curEv, MoveInfo
-  if propEv > curEv:
+
+  if hasattr(SS, 'nDoc') and (propEv > 0 and curEv < 0):
+    print 'CRAP! ---------------------------------------!!!!@@@@@@@@'
+    print '    propEv % .5e' % (propEv)
+    print '    curEv  % .5e' % (curEv)
+    MoveInfo = dict(didAccept=0, kA=kA, kB=kB, msg="CRAP. bad proposed evidence.")
+    return curModel, SS, curEv, MoveInfo
+
+  if propEv >= curEv:
     MSelector.reindexAfterMerge(kA, kB)
     msg = "merge %3d & %3d | ev +%.3e ****" % (kA, kB, propEv - curEv)
     MoveInfo = dict(didAccept=1, kA=kA, kB=kB, msg=msg, evDiff=evDiff)
@@ -483,6 +495,7 @@ def propose_merge_candidate(curModel, SS, kA=None, kB=None,
   # For now, **all* components get updated.
   # TODO: smartly avoid updating obsModel comps except related to kA/kB
   propSS = SS.copy()
+
   propSS.mergeComps(kA, kB)
   assert propSS.K == SS.K - 1
   if doUpdateAllComps:

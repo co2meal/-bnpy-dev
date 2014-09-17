@@ -7,10 +7,13 @@ import numpy as np
 
 from bnpy.allocmodel import DPMixModel
 from bnpy.suffstats import SuffStatBag
-from bnpy.util import NumericUtil
+from bnpy.util import NumericHardUtil
 from bnpy.util import gammaln, digamma, EPS
 
 class HardDPMixModel(DPMixModel):
+
+  def requireMergeTerms(self):
+    return False
 
   ######################################################### Local Params
   #########################################################
@@ -33,7 +36,7 @@ class HardDPMixModel(DPMixModel):
     '''
     lpr = LP['E_log_soft_ev']
     lpr += self.Elogw
-    LP['resp'] = NumericUtil.toHardAssignmentMatrix(lpr)
+    LP['resp'] = NumericHardUtil.toHardAssignmentMatrix(lpr)
     assert np.allclose(LP['resp'].sum(axis=1), 1)
     return LP
 

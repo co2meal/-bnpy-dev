@@ -20,6 +20,12 @@ class AllocModel(object):
     '''
     return list()
 
+  def requireMergeTerms(self):
+    ''' Return boolean indicator for whether this model
+         requires precomputed merge terms
+    '''
+    return True
+
   ######################################################### Local Params
   #########################################################
   def calc_local_params( self, Data, LP ):
@@ -45,12 +51,12 @@ class AllocModel(object):
     if self.inferType == 'EM':
       self.update_global_params_EM(SS)
     elif self.inferType == 'VB' or self.inferType == "moVB":
-      self.update_global_params_VB(SS)
+      self.update_global_params_VB(SS, **kwargs)
     elif self.inferType == 'soVB':
       if rho is None or rho==1:
-        self.update_global_params_VB(SS)
+        self.update_global_params_VB(SS, **kwargs)
       else: 
-        self.update_global_params_soVB(SS, rho)
+        self.update_global_params_soVB(SS, rho, **kwargs)
     else:
       raise ValueError( 'Unrecognized Inference Type! %s' % (self.inferType) )
  

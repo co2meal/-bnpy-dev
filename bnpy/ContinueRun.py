@@ -245,7 +245,10 @@ def readArgsFromFile(taskoutpath):
   import glob
   KwArgs = dict()
   for argfilepath in glob.glob(os.path.join(taskoutpath,'args-*.txt')):
-    curKey = argfilepath.split('-')[1].split('.txt')[0]
+    # Input: fullpath like /path/to/my/save/dir/args-VB.txt
+    # Output: extract the "VB" part
+    pathparts = argfilepath.split(os.path.sep)
+    curKey = pathparts[-1].split('-')[1].split('.txt')[0]
     with open(argfilepath, 'r') as f:
       curDict = json.load(f)
     KwArgs[curKey] = curDict

@@ -90,9 +90,14 @@ class MultObsModel(ObsModel):
                 WordCounts : K x VocabSize matrix
                   WordCounts[k,v] = # times vocab word v seen with topic k
         '''
-        wv = LP['word_variational']
-        WMat = Data.to_sparse_matrix()
-        TopicWordCounts = (WMat * wv).T
+        if 'hard_asgn' in LP:
+          Nmat = LP['hard_asgn'] # N x K
+          BMat = Data.to_sparse_matrix(doBinary=True) # V x N 
+          TopicWordCounts = (BMat * Nmat).T # matrix-matrix product
+        else:
+          wv = LP['word_variational']  # N x K
+          WMat = Data.to_sparse_matrix() # V x N
+          TopicWordCounts = (WMat * wv).T # matrix-matrix product
 
         SS.setField('WordCounts', TopicWordCounts, dims=('K','D'))
         SS.setField('N', np.sum(TopicWordCounts,axis=1), dims=('K'))
@@ -104,10 +109,12 @@ class MultObsModel(ObsModel):
     def update_obs_params_EM(self, SS, **kwargs):
         raise NotImplementedError("TODO")
 
-    def update_obs_params_VB(self, SS, mergeCompA=None, **kwargs):
+    def update_obs_params_VB(self, SS, mergeCompA=None, comps=None, **kwargs):
         if mergeCompA is None:
-            for k in xrange(self.K):
-                self.comp[k] = self.obsPrior.get_post_distr(SS, k)
+            if comps is None:
+              comps = xrange(self.K)
+            for k in comps:
+              self.comp[k] = self.obsPrior.get_post_distr(SS, k)
         else:
             self.comp[mergeCompA] = self.obsPrior.get_post_distr(SS, mergeCompA)
 
@@ -154,6 +161,34 @@ class MultObsModel(ObsModel):
               lamvec = np.minimum(lamvec, 1e9)
               print "WARNING: mucking with lamvec"
             self.comp.append(DirichletDistr(lamvec))
+
+    def insert_global_params(self, topics=None, **kwargs):
+        ''' Insert provided params into this object's global params,
+              appending them after the existing params
+
+            Args
+            --------
+            topics : K x V matrix, each row has positive reals that sum to one
+                     topics[k,v] = probability of word v under topic k
+        '''
+        assert topics is not None
+        self.K = self.K + topics.shape[0]
+        for k in xrange(topics.shape[0]):
+            lamvec = self.convert_topic2lamvec(topics[k,:])
+            self.comp.append(DirichletDistr(lamvec))
+
+    def convert_topic2lamvec(self, topic):
+      # Scale up Etopics to lamvec, a V-len vector of positive entries,
+      #   such that (1) E[phi] is still Etopics, and
+      #             (2) lamvec = obsPrior.lamvec + [some suff stats]
+      #   where (2) means that lamvec is a feasible posterior value      
+      ii = np.argmin(topic)
+      lamvec = self.obsPrior.lamvec[ii]/topic[ii] * topic
+      # Cut-off values that are way way too big
+      if np.any( lamvec > 1e9):
+        lamvec = np.minimum(lamvec, 1e9)
+        print "WARNING: mucking with lamvec"
+      return lamvec
 
   ######################################################### Evidence
   #########################################################
