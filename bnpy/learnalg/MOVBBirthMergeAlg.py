@@ -89,8 +89,12 @@ class MOVBBirthMergeAlg(MOVBAlg):
       ## Update progress-tracking variables
       iterid += 1
       lapFrac = (iterid + 1) * self.lapFracInc
+      self.lapFrac = lapFrac
       nLapsCompleted = lapFrac - self.algParams['startLap']
       self.set_random_seed_at_lap(lapFrac)
+      if self.doDebugVerbose():
+        self.print_msg('========================== lap %.2f batch %d' \
+                       % (lapFrac, batchID))
 
       ## Birth move : track birth info from previous lap
       if self.isFirstBatch(lapFrac):
@@ -327,9 +331,12 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
     if batchID in self.SSmemory:
       ## Decrement old value of SSchunk from aggregated SS
+      # oldSSchunk will have usual Fields and ELBOTerms,
+      # but all MergeTerms and SelectionTerms should be removed.
       oldSSchunk = self.load_batch_suff_stat_from_memory(batchID, doCopy=0,
                                                          Kfinal=SS.K,
                                                          order=order)
+      assert not oldSSchunk.hasMergeTerms()
       assert oldSSchunk.K == SS.K
       assert np.allclose(SS.uIDs, oldSSchunk.uIDs)
       SS -= oldSSchunk
@@ -377,9 +384,11 @@ class MOVBBirthMergeAlg(MOVBAlg):
       SSchunk = SSchunk.copy()
 
     # Check to see if we've fast-forwarded this chunk already
-    # If so, we can just use it as is.
+    # If so, we return as-is
     if SSchunk.K == self.ActiveIDVec.size:
       if np.allclose(SSchunk.uIDs, self.ActiveIDVec):
+        if SSchunk.hasMergeTerms():
+          SSchunk.removeMergeTerms()
         return SSchunk
 
     # Fast-forward accepted softmerges from end of previous lap 
@@ -392,18 +401,20 @@ class MOVBBirthMergeAlg(MOVBAlg):
       for MInfo in self.MergeLog:
         kA = MInfo['kA']
         kB = MInfo['kB']
-        if kA < SSchunk.K and kB < SSchunk.K and SSchunk.K == MInfo['Korig']:
+        if kA < SSchunk.K and kB < SSchunk.K:
           SSchunk.mergeComps(kA, kB)
     if SSchunk.hasMergeTerms():
-      SSchunk.setMergeFieldsToZero()
+      SSchunk.removeMergeTerms()
 
     # Fast-forward any shuffling/reordering that happened
     if self.hasMove('shuffle') and order is not None:
-      if SSchunk.K == self.ActiveIDVec.size:
-        if not np.allclose(SSchunk.uIDs, self.ActiveIDVec):
-          SSchunk.reorderComps(order)
-      else:
+      if len(order) == SSchunk.K:
         SSchunk.reorderComps(order)
+      else:
+        msg = 'Order has wrong size.'
+        msg += '\n size order  : %d' % len(order)
+        msg += '\n size SSchunk: %d' % SSchunk.K
+        raise ValueError(msg)
 
     isGood = np.allclose(SSchunk.uIDs, self.ActiveIDVec[:SSchunk.K])
     if not isGood:
@@ -420,7 +431,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
       SSchunk.setUIDs(self.ActiveIDVec.copy())
 
     assert np.allclose(SSchunk.uIDs, self.ActiveIDVec)
-    return SSchunk  
+    return SSchunk
 
   def save_batch_suff_stat_to_memory(self, batchID, SSchunk):
     ''' Store the provided suff stats into the "memory" for later retrieval
@@ -584,10 +595,12 @@ class MOVBBirthMergeAlg(MOVBAlg):
                              return_ps=1,
                              lapsSinceLastBirth=self.LapsSinceLastBirth,
                               **self.algParams['birth'])
+        targetUID = self.ActiveIDVec[ktarget]
 
         self.LapsSinceLastBirth[ktarget] = 0
         excludeList.append(ktarget)
         Plan = dict(ktarget=ktarget,
+                    targetUID=targetUID,
                     Data=None,
                     targetWordIDs=None, 
                     targetWordFreq=None)
@@ -954,6 +967,9 @@ class MOVBBirthMergeAlg(MOVBAlg):
                                **kwargs):
     ''' Verify that current aggregated SS consistent with sum over all batches
     '''
+    if self.doDebugVerbose():
+      self.print_msg('>>>>>>>> BEGIN double-check @ lap %.2f' % (self.lapFrac))
+
     if evBound is None:
       evBound = hmodel.calc_evidence(SS=SS)
 
@@ -977,9 +993,10 @@ class MOVBBirthMergeAlg(MOVBAlg):
           SS2 += extraSS
 
     evCheck = hmodel.calc_evidence(SS=SS2)
-    if self.algParams['debug'].count('quiet') == 0:
-      print '% 14.8f evBound from agg SS' % (evBound)
-      print '% 14.8f evBound from sum over SSmemory' % (evCheck)
+    if self.doDebugVerbose():
+      self.print_msg('% 14.8f evBound from agg SS' % (evBound))
+      self.print_msg('% 14.8f evBound from sum over SSmemory' % (evCheck))
+
     if self.algParams['debug'].count('interactive'):
       isCorrect = np.allclose(SS.uIDs, SS2.uIDs) \
                   and np.allclose(SS.getCountVec(), SS2.getCountVec()) \
@@ -990,6 +1007,10 @@ class MOVBBirthMergeAlg(MOVBAlg):
       assert np.allclose(SS.getCountVec(), SS2.getCountVec())
       assert np.allclose(evBound, evCheck)
       assert np.allclose(SS.uIDs, SS2.uIDs)
+
+    if self.doDebugVerbose():
+      self.print_msg('<<<<<<<< END   double-check @ lap %.2f' % (self.lapFrac))
+
 
 """
 DEPRECATED CODE from load_suff_stats_for_batch

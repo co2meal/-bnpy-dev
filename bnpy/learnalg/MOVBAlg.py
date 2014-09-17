@@ -23,7 +23,11 @@ class MOVBAlg(LearnAlg):
     self.LPmemory = dict()
 
   def doDebug(self):
-    return self.algParams['debug'] in ['interactive', 'quiet', 'on']
+    debug = self.algParams['debug']
+    return debug.count('q') or debug.count('on') or debug.count('interact')
+          
+  def doDebugVerbose(self):
+    return self.doDebug() and self.algParams['debug'].count('q') == 0
 
 
   ######################################################### fit
@@ -61,9 +65,13 @@ class MOVBAlg(LearnAlg):
       # Update progress-tracking variables
       iterid += 1
       lapFrac = (iterid + 1) * self.lapFracInc
+      self.lapFrac = lapFrac
       nLapsCompleted = lapFrac - self.algParams['startLap']
       self.set_random_seed_at_lap(lapFrac)
-      
+      if self.doDebugVerbose():
+        self.print_msg('========================== lap %.2f batch %d' \
+                       % (lapFrac, batchID))
+
       ## Local/E step
       LPchunk = self.memoizedLocalStep(hmodel, Dchunk, batchID)
 
@@ -79,7 +87,6 @@ class MOVBAlg(LearnAlg):
         # evBound will increase monotonically AFTER first lap of the data 
         # verify_evidence will warn if bound isn't increasing monotonically
         self.verify_evidence(evBound, prevBound, lapFrac)
-
 
       if self.doDebug() and lapFrac >= 1.0:
         self.verifyELBOTracking(hmodel, SS, evBound)
@@ -267,6 +274,9 @@ class MOVBAlg(LearnAlg):
   def verifyELBOTracking(self, hmodel, SS, evBound=None, **kwargs):
     ''' Verify that current aggregated SS consistent with sum over all batches
     '''
+    if self.doDebugVerbose():
+      self.print_msg('>>>>>>>> BEGIN double-check @ lap %.2f' % (self.lapFrac))
+
     if evBound is None:
       evBound = hmodel.calc_evidence(SS=SS)
 
@@ -289,3 +299,8 @@ class MOVBAlg(LearnAlg):
     else:
       assert np.allclose(SS.getCountVec(), SS2.getCountVec())
       assert np.allclose(evBound, evCheck)
+
+
+    if self.doDebugVerbose():
+      self.print_msg('<<<<<<<< END   double-check @ lap %.2f' % (self.lapFrac))
+
