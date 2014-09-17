@@ -14,6 +14,7 @@ import os
 from ModelWriter import makePrefixForLap
 from bnpy.allocmodel import *
 from bnpy.obsmodel import *
+from bnpy.util import as1D
 
 GDict = globals()
 
@@ -38,7 +39,7 @@ def loadWordCountMatrixForLap(matfilepath, lapQuery, toDense=True):
   prefix, bestLap = getPrefixForLapQuery(matfilepath, lapQuery)
   mpath = os.path.join(matfilepath, prefix + 'EstParams.mat')
   Mdict = loadDictFromMatfile(mpath)
-  countVec = Mdict['counts']
+  countVec = as1D(Mdict['counts'])
   data = Mdict['SparseWordCount_data']
   indices = Mdict['SparseWordCount_indices']
   indptr = Mdict['SparseWordCount_indptr']

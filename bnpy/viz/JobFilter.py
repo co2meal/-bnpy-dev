@@ -2,6 +2,8 @@ import numpy as np
 import glob
 import os
 
+from bnpy.ioutil import BNPYArgParser
+
 def findKeysWithDiffVals(dA, dB):
   ''' Find subset of keys in dicts dA, dB that are in both dicts, with diff vals
   '''
@@ -46,8 +48,24 @@ def jpath2jdict(jpath):
   return D
 
 
-def filterJobs(jpathPattern, varsToPlot=[], **reqKwArgs):
-  print jpathPattern
+def filterJobs(jpathPattern, verbose=0, **reqKwArgs):
+
+  if not jpathPattern.endswith('*'):
+    jpathPattern += '*'
+
+  jpathdir = os.path.sep.join(jpathPattern.split(os.path.sep)[:-1] )
+  if not os.path.isdir(jpathdir):
+    raise ValueError('Not valid directory:\n %s' % (jpathdir))
+
+  jpathList = glob.glob(jpathPattern)
+
+  if verbose:
+    print 'Looking for jobs with pattern:'
+    print jpathPattern
+    print '%d candidates found (before filtering by keywords)' % (len(jpathList))
+
+  if len(jpathList) == 0:
+    raise ValueError('No matching jobs found.')
 
   for key in reqKwArgs:
     try:
@@ -55,9 +73,11 @@ def filterJobs(jpathPattern, varsToPlot=[], **reqKwArgs):
     except:
       pass # keep as string
 
-  jpathList = glob.glob(jpathPattern)
-  print jpathList
-  print reqKwArgs.keys()
+  if verbose:
+    print '\nRequirements:'
+    for key in reqKwArgs:
+      print '%s = %s' % (key, reqKwArgs[key])
+
 
   keepListP = list() # list of paths to keep
   keepListD = list() # list of dicts to keep (one for each path)
@@ -74,7 +94,11 @@ def filterJobs(jpathPattern, varsToPlot=[], **reqKwArgs):
     if doKeep:
       keepListP.append(jpath)
       keepListD.append(jdict)
-  print keepListP
+ 
+  if verbose:
+    print '\nCandidates matching requirements'
+    for p in keepListP:
+      print p.split(os.path.sep)[-1]
 
   ## Figure out intelligent labels for the final jobs
   K = len(keepListD)
@@ -91,7 +115,6 @@ def filterJobs(jpathPattern, varsToPlot=[], **reqKwArgs):
       RangeMap[key].add(jdict[key])
     RangeMap[key] = [x for x in sorted(RangeMap[key])] # to list
 
-  print varKeys
   if len(varKeys) > 1:
     print 'ERROR! Need to constrain more variables'
     for key in RangeMap:
@@ -115,12 +138,24 @@ def filterJobs(jpathPattern, varsToPlot=[], **reqKwArgs):
     keepListFinal = keepListP[:1]
     legNames = [None]
 
+  if verbose:
+    print '\nLegend entries for selected jobs (auto-selected)'
+    for name in legNames:
+      print name
+
   return keepListFinal, legNames
 
 if __name__ == '__main__':
-  #keepJobs, legNames = filterJobs('/results/AdmixAsteriskK8/rmergetest*', 
-  #                                K=80)
-  keepJobs, legNames = filterJobs('/results/AsteriskK8/demo*')
-  for j in keepJobs:
-    print j
-  print legNames
+  import argparse
+  parser = argparse.ArgumentParser()
+  parser.add_argument('dataName', default='AsteriskK8')
+  parser.add_argument('jobName', default='bm')
+  args, unkList = parser.parse_known_args()
+  reqDict = BNPYArgParser.arglist_to_kwargs(unkList)
+
+  jpath = os.path.join(os.environ['BNPYOUTDIR'],
+                              args.dataName,
+                              args.jobName)
+
+  keepJobs, legNames = filterJobs(jpath, verbose=1, **reqDict)
+

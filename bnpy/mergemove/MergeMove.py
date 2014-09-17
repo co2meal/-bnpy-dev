@@ -5,6 +5,7 @@ ELBO_GAP_ACCEPT_TOL = 1e-6
 
 def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None, 
                                    logFunc=MergeLogger.log,
+                                   isBirthCleanup=0,
                                    **kwargs):
   ''' Run many pre-selected merge candidates, keeping all that improve ELBO.
 
@@ -14,12 +15,6 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None,
       SS : bnpy SuffStatBag,
       MergeInfo : dict with info about all accepted merges
   '''
-  if 'mergeLogVerbose' not in kwargs:
-    kwargs['mergeLogVerbose'] = 0
-
-  if kwargs['mergeLogVerbose']:
-    MergeLogger.logPhase('MERGE Decisions')
-
   # eligibleIDs : list from 0, 1, ... len(mPairIDs)
   #  provides index of which original candidate we are now attempting
   eligibleIDs = range(len(mPairIDs))
@@ -30,10 +25,13 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None,
     nMergeTrials = kwargs['mergePerLap']
   else:
     nMergeTrials = len(mPairIDs)
+
   trialID = 0
   AcceptedPairs = list()
   AcceptedPairOrigIDs = list()
   ELBOGain = 0
+  nSkip = 0
+
   while trialID < nMergeTrials and len(eligibleIDs) > 0:
     if len(eligibleIDs) == 0:
       break
@@ -44,6 +42,7 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None,
     assert kA < kB
 
     if CompIDShift[kA] == -1 or CompIDShift[kB] == -1:
+      nSkip += 1
       continue
 
     # jA, jB are "shifted" indices under our new model, with K- Kaccepted comps
@@ -52,7 +51,7 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None,
 
     if M is not None:
       Mcand = M[jA, jB]
-      scoreMsg = '%.3e' % (M[jA, jB])
+      scoreMsg = '| %4.2f' % (M[jA, jB])
     else:
       Mcand = None
       scoreMsg = ''
@@ -61,10 +60,11 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None,
                                           curModel, curSS, curELBO,
                                           jA, jB, Mcand, **kwargs)
 
-    if kwargs['mergeLogVerbose']:
-      MergeLogger.log( '%3d | %3d %3d | % .7e | %s' 
-                        % (trialID, kA, kB, MoveInfo['ELBOGain'], scoreMsg)
-                     )
+    logFunc('%3d | %3d %3d | %d % .7e %s' 
+                    % (trialID, kA, kB,  
+                       MoveInfo['didAccept'], MoveInfo['ELBOGain'], scoreMsg),
+                    'debug'
+                   )
     if MoveInfo['didAccept']:
       CompIDShift[kA] = -1
       CompIDShift[kB] = -1
@@ -86,11 +86,19 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None,
         M[jA, jB] = MoveInfo['ELBOGain']
     trialID += 1
 
-  if kwargs['mergeLogVerbose']:
-    MergeLogger.logPhase('MERGE summary')
-  logFunc('MERGE %d/%d accepted. ev increased % .4e' 
-           % (len(AcceptedPairs), trialID, ELBOGain))
+  if len(AcceptedPairs) > 0:
+    msg = 'ev increased % .4e' % (ELBOGain)
+  else:
+    msg = ''
 
+  msg = 'MERGE %d/%d accepted. %s' % (len(AcceptedPairs), trialID, msg)
+  if isBirthCleanup:
+    logFunc(msg, 'debug')
+  else:
+    logFunc(msg)
+
+  logFunc('MERGE %d pairs skipped to due previous accepted merge.'
+           % (nSkip), 'debug')
   Info = dict(AcceptedPairs=AcceptedPairs,
               AcceptedPairOrigIDs=AcceptedPairOrigIDs,
               ELBOGain=ELBOGain,
