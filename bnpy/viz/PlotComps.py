@@ -13,10 +13,74 @@ import numpy as np
 import argparse
 import os
 import sys
-import bnpy
+
 import bnpy.ioutil.BNPYArgParser as BNPYArgParser
+import bnpy.viz
 from bnpy.ioutil import ModelReader
 
+def plotCompsForTask(taskpath, lap=None, figH=None,
+                     dataName=None, **kwargs):
+  queryLap = lap
+
+  ## Read dataName from the taskpath
+  if dataName is None:
+    dataName = taskpath.replace(os.environ['BNPYOUTDIR'], 
+                                '').split(os.path.sep)[0]
+
+  ## Load hmodel for task
+  hmodel, lap = ModelReader.loadModelForLap(taskpath, queryLap)
+  if queryLap is not None and not np.allclose(lap, queryLap):
+    print 'Query lap %.2f unavailable. Using %.2f instead.' \
+           % (queryLap, lap)
+
+  obsName = hmodel.getObsModelName()
+  if obsName.count('Gauss'):
+    if hmodel.obsModel.D > 2:
+      bnpy.viz.GaussViz.plotCovMatFromHModel(hmodel, figH=figH)
+    elif hmodel.obsModel.D == 2:
+      bnpy.viz.GaussViz.plotGauss2DFromHModel(hmodel, figH=figH)
+    elif hmodel.obsModel.D == 1:
+      bnpy.viz.GaussViz.plotGauss1DFromHModel(hmodel, figH=figH)
+  elif obsName.count('Mult'):
+    if dataName.lower().count('bars') > 0:
+      bnpy.viz.BarsViz.plotBarsFromHModel(hmodel, figH=figH) 
+
+def plotCompsForJob(jobpath='', taskids=[1], lap=None, 
+                    **kwargs):
+  '''
+  '''
+  if not os.path.isdir(jobpath):
+    raise ValueError('Not valid path: ' + jobpath)
+  taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
+  for taskid in taskids:
+    taskpath = os.path.join(jobpath, str(taskid))
+    plotCompsForTask(taskpath, lap=lap, **kwargs)
+  if 'block' in kwargs:
+    pylab.show(block=kwargs['block'])
+
+def parseArgs(**kwargs):
+  ''' Read args from stdin into defined dict fields
+  '''
+  parser = argparse.ArgumentParser()
+  parser.add_argument('dataName')
+  parser.add_argument('jobname')
+  parser.add_argument('--lap', default=None, type=float)
+  parser.add_argument('--taskids', type=str, default=None,
+         help="int ids of trials/runs to plot from given job." \
+              + " Example: '4' or '1,2,3' or '2-6'.")
+  args = parser.parse_args()
+  jobpath = os.path.join(os.environ['BNPYOUTDIR'],
+                         args.dataName,
+                         args.jobname)
+  argDict = args.__dict__
+  argDict['jobpath'] = jobpath
+  return argDict
+
+if __name__ == "__main__":
+  argDict = parseArgs()
+  plotCompsForJob(block=1, **argDict)
+
+"""
 def main():
   args = parse_args()
   jobpath, taskids = parse_jobpath_and_taskids(args)
@@ -89,7 +153,7 @@ def loadData(jobpath):
   datamod = __import__(dataname, fromlist=[])
   return datamod.get_data()
   
-  
+
 def parse_args():
   ''' Parse cmd line arguments
   '''
@@ -127,7 +191,6 @@ def parse_jobpath_and_taskids(args):
                         (args.savefilename)
                       )  
   return jobpath, taskids
+"""
 
 
-if __name__ == "__main__":
-  main()
