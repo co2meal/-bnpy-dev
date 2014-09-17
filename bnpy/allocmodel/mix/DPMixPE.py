@@ -333,8 +333,9 @@ class DPMixPE(AllocModel):
         Ebeta : 1D array, size K
                 Ebeta[k] gives expected probability for active comp k
     '''
-    activeBeta = OptimSB._v2beta(self.uHat)[:-1]
-    return activeBeta
+    Ebeta = self.uHat.copy()
+    Ebeta[1:] *= np.cumprod(1.0 - self.uHat[:-1]) 
+    return Ebeta
 
   def E_logbeta_active(self):
     ''' Calculate vector of log component probabilities for active components
@@ -344,9 +345,10 @@ class DPMixPE(AllocModel):
         Elogbeta : 1D array, size K
                    Elogbeta[k] gives expected log probability for active comp k
     '''
-    activeBeta = OptimSB._v2beta(self.uHat)[:-1]
-    np.maximum(activeBeta, 1e-100, out=activeBeta)
-    return np.log(activeBeta)
+    Ebeta = self.uHat.copy()
+    Ebeta[1:] *= np.cumprod(1.0 - self.uHat[:-1]) 
+    np.maximum(Ebeta, 1e-100, out=Ebeta)
+    return np.log(Ebeta)
 
   def E_logbeta(self):
     ''' Calculate vector of log component probabilities (includes leftover mass)
@@ -357,9 +359,11 @@ class DPMixPE(AllocModel):
                    Elogbeta[k] gives expected log probability for active comp k
                    Elogbeta[-1] gives aggregate log prob for all inactive comps
     '''
-    beta = OptimSB._v2beta(self.uHat)
-    np.maximum(beta, 1e-100, out=beta)
-    return np.log(beta)
+    beta = self.uHat.copy()
+    beta[1:] *= np.cumprod(1.0 - self.uHat[:-1]) 
+    betaWithRem = np.append(beta, np.prod(1 - self.uHat))
+    np.maximum(betaWithRem, 1e-100, out=betaWithRem)
+    return np.log(betaWithRem)
 
 def c_Func(gamma1, gamma0):
   return gammaln(gamma1+gamma0) - gammaln(gamma1) - gammaln(gamma0)
