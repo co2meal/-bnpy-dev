@@ -496,11 +496,11 @@ class MOVBBirthMergeAlg(MOVBAlg):
         BirthLogger.log(msg)
         BirthLogger.log('SKIPPED. TargetData bad.')
       elif targetSize < kwargs['targetMinSize']:
-        msg = "SKIPPED. Target data too small. Size %d."
-        BirthLogger.log(msg % (targetSize))
+        msg = "SKIPPED. Target data too small. Size %d, but expected >= %d"
+        BirthLogger.log(msg % (targetSize, kwargs['targetMinSize']))
       else:
         newmodel, newSS, MoveInfo = BirthMove.run_birth_move(
-                                           hmodel, SS, targetData, 
+                                           hmodel, SS, targetData,
                                            randstate=self.PRNG, 
                                            Plan=Plan,
                                            **kwargs)
@@ -551,6 +551,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
     '''
     if SS is not None:
       assert hmodel.allocModel.K == SS.K
+
     K =  hmodel.allocModel.K
     nBirths = self.algParams['birth']['birthPerLap']
     if self.algParams['birth']['targetSelectName'].lower().count('word'):
@@ -565,6 +566,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
                             nPlans=nBirths, randstate=self.PRNG,
                             **self.algParams['birth'])
       return Plans
+
     # Update counter for duration since last targeted-birth for each comp
     for kk in range(K):
       self.LapsSinceLastBirth[kk] += 1
@@ -575,12 +577,14 @@ class MOVBBirthMergeAlg(MOVBAlg):
     BirthPlans = list()
     for posID in range(nBirths):
       try:
-        ktarget = TargetPlanner.select_target_comp(
+        ktarget, ps = TargetPlanner.select_target_comp(
                              K, SS=SS, Data=Data, model=hmodel,
                              randstate=self.PRNG,
                              excludeList=excludeList,
+                             return_ps=1,
                              lapsSinceLastBirth=self.LapsSinceLastBirth,
                               **self.algParams['birth'])
+
         self.LapsSinceLastBirth[ktarget] = 0
         excludeList.append(ktarget)
         Plan = dict(ktarget=ktarget,
