@@ -119,7 +119,7 @@ class MOVBAlg(LearnAlg):
       #.................................................... end loop over data
 
     # Finished! Save, print and exit
-    self.printStateToLog(hmodel, evBound, lapFrac, iterid)
+    self.printStateToLog(hmodel, evBound, lapFrac, iterid, isFinal=1)
     self.saveParams(lapFrac, hmodel, SS)
     self.eval_custom_func(isFinal=1, **makeDictOfAllWorkspaceVars(**vars()))
 

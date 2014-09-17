@@ -80,7 +80,7 @@ class EMAlg( LearnAlg ):
 
     ## Finished! Save, print and exit
     self.saveParams(lap, hmodel, SS)
-    self.printStateToLog(hmodel, evBound, lap, iterid)
+    self.printStateToLog(hmodel, evBound, lap, iterid, isFinal=1)
     self.eval_custom_func(isFinal=1, **makeDictOfAllWorkspaceVars(**vars()))
 
     return self.buildRunInfo(evBound=evBound, SS=SS, LP=LP)
