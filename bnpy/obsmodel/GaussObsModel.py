@@ -132,7 +132,14 @@ class GaussObsModel(AbstractObsModel):
     if SS is not None:
       self.updateEstParams(SS)
     else:
-      self.EstParams = ParamBag(K=mu.shape[0], D=mu.shape[1])
+      Sigma = as3D(Sigma)
+      K, D, D2 = Sigma.shape
+      mu = as2D(mu)
+      if mu.shape[0] != K:
+        mu = mu.T
+      assert mu.shape[0] == K
+      assert mu.shape[1] == D
+      self.EstParams = ParamBag(K=K, D=D)
       self.EstParams.setField('mu', mu, dims=('K', 'D'))
       self.EstParams.setField('Sigma', Sigma, dims=('K', 'D', 'D'))
       self.K = self.EstParams.K
