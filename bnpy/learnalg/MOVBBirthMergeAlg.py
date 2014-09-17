@@ -473,7 +473,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
       kwargs['birthRetainExtraMass'] = 1
 
     if Data is not None:
-      targetData = TargetDataSampler.sample_target_data(
+      targetData, targetInfo = TargetDataSampler.sample_target_data(
                                         Data, model=hmodel, LP=None,
                                         randstate=self.PRNG,
                                         **kwargs)
@@ -840,8 +840,6 @@ class MOVBBirthMergeAlg(MOVBAlg):
                                        mPairIDs=MergePrepInfo['mPairIDs'],
                                        M=MergePrepInfo['PairScoreMat'],
                                        **self.algParams['merge'])
-    afterMat = Info['ScoreMat'].copy()
-    assert afterMat.shape[0] == SS.K
 
     # ------ Adjust indexing for counter that determines which comp to target
     if self.hasMove('birth'):
@@ -860,6 +858,9 @@ class MOVBBirthMergeAlg(MOVBAlg):
     if SS.hasMergeTerms():
       SS.setMergeFieldsToZero()
 
+    ## ScoreMat here will have shape Ka x Ka, where Ka <= K
+    # Ka < K in the case of batch-specific births (whose new comps aren't tracked)
+    # ScoreMat will be updated to size SS.K,SS.K in preparePlansForMerge()
     MergePrepInfo['PairScoreMat'] = Info['ScoreMat']
     MergePrepInfo['mPairIDs'] = list()
     return hmodel, SS, newEvBound
