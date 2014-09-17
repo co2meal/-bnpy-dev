@@ -17,23 +17,23 @@ def log(msg, level='info'):
 def logStartMove(lapFrac):
   msg = '=' * (50) 
   msg = msg + ' lap %.2f' % (lapFrac)
-  log(msg)
+  log(msg, 'debug')
 
 def logPhase(title):
   title = '.'*(50-len(title)) + ' %s' % (title)
-  log(title)
+  log(title, 'debug')
 
 def logPosVector(vec, fmt='%8.1f', Nmax=10):
   if Log is None:
     return
   vstr = ' '.join([fmt % (x) for x in vec[:Nmax]])
-  Log.info(vstr)
+  log(vstr, 'debug')
 
 def logProbVector(vec, fmt='%8.4f', Nmax=10):
   if Log is None:
     return
   vstr = ' '.join([fmt % (x) for x in vec[:Nmax]])
-  Log.info(vstr)
+  log(vstr, 'debug')
 
 
 ########################################################### Configuration
