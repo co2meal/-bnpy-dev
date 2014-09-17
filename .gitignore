@@ -13,9 +13,9 @@ logs/
 local/
 results/
 profile/
-.idea/*
+.idea/
+build/
 .ipynb_checkpoints/
-__init__.py
 
 # ======================================================  EXCLUDE FILE PATTERNS
 # Exclude script files
