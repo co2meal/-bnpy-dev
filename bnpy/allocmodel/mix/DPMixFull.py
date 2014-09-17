@@ -153,6 +153,26 @@ class DPMixFull(AllocModel):
         SS.setMergeTerm('ElogqZ', ElogqZMat, dims=('K','K'))
     return SS
 
+  def forceSSInBounds(self, SS):
+    '''
+        Returns
+        -------
+        None. SS.N updated in-place.
+    '''
+    np.maximum(SS.N, 0, out=SS.N)    
+    if SS.hasELBOTerm('ElogqZ'):
+      Hvec = SS.getELBOTerm('ElogqZ')
+      Hmax = Hvec.max()
+      assert Hmax < 1e-10 # should be all negative
+      if Hmax > 0: # fix numerical errors to force entropy negative
+        np.minimum(Hvec, 0, out=Hvec)
+    if SS.hasMergeTerm('ElogqZ'):
+      Hmat = SS.getMergeTerm('ElogqZ')
+      Hmax = Hmat.max() 
+      assert Hmax < 1e-10 # should be all negative
+      if Hmax > 0:
+        np.minimum(Hmat, 0, out=Hmat)
+    
 
   ######################################################### Global Params
   #########################################################
