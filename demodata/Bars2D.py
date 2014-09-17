@@ -53,3 +53,55 @@ def Create2DBarsTopicWordParams(V, K, fracMassOnTopic=0.95, PRNG=np.random):
   assert np.sum(topics[1, B:2*B]) > fracMassOnTopic - 0.05
   assert np.sum(topics[-1, wordIDs]) > fracMassOnTopic - 0.05
   return topics
+
+
+def Create2DBarsTopicWordParams2(V, K, r=0.5, fracMassOnTopic=0.95, 
+                                              PRNG=np.random):
+  ''' Create parameters of each topics distribution over words
+      
+      Args
+      ---------
+      V : int vocab size
+      K : int number of topics
+      fracMassOnTopic : fraction of total probability mass for "on-topic" words
+      PRNG : random number generator (for reproducibility)
+
+      Returns
+      ---------
+      topics : K x V matrix, real positive numbers whose rows sum to one
+  '''
+  topics = np.zeros((K,V))
+
+  B = V // (K//2 + 1)
+  for k in range(K//2):
+    wordIDs = range(B*k, B*(k+1))
+    topics[2*k, wordIDs] = np.linspace(1.0, r, B)
+    wordIDs = range(B//2 + B*k, B//2 + B*(k+1))
+    topics[2*k+1, wordIDs] = np.linspace(1.0, r, B)
+
+  topics = smoothAndNormalizeTopics(topics, fracMassOnTopic, PRNG)
+  return topics
+
+def smoothAndNormalizeTopics(topics, fracMassOnTopic=0.95, PRNG=np.random):
+  ''' Produce topic-word parameters that are proper probabilities with no zeros
+
+      Args
+      --------
+      topics : 2D array, size K x V
+               each row has two types of entries, "on-topic" and "off-topic"
+               on-topic entries have value > 0, off-topic have value = 0
+
+      Returns
+      --------
+      topics : 2D array, size K x V
+               each row sums to one, has no non-zero entries 
+  '''
+  for k in xrange(topics.shape[0]):
+    onTopicMass = np.sum(topics[k])
+    smoothMass = (1-fracMassOnTopic) / fracMassOnTopic * onTopicMass
+    offTopicWords = topics[k] == 0
+    offProbs = PRNG.rand(np.sum(offTopicWords))
+    offProbs /= offProbs.sum()
+    topics[k, offTopicWords] = smoothMass * offProbs
+  return topics / topics.sum(axis=1)[:,np.newaxis]
+  

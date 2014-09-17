@@ -14,7 +14,7 @@ import os
 from ModelWriter import makePrefixForLap
 from bnpy.allocmodel import *
 from bnpy.obsmodel import *
-from bnpy.distr import *
+from bnpy.util import as1D
 
 GDict = globals()
 
@@ -23,12 +23,30 @@ def getPrefixForLapQuery(taskpath, lapQuery):
 
       Returns
       --------
-      prefix : string like 'Lap0001.000' that indicates lap for saved parameters.
+      prefix : string like 'Lap0001.000' that indicates lap for saved params.
   '''
   saveLaps = np.loadtxt(os.path.join(taskpath,'laps-saved-params.txt'))
-  distances = np.abs(lapQuery - saveLaps)
-  bestLap = saveLaps[np.argmin(distances)]
+  if lapQuery is None:
+    bestLap = saveLaps[-1] # take final saved value
+  else:
+    distances = np.abs(lapQuery - saveLaps)
+    bestLap = saveLaps[np.argmin(distances)]
   return makePrefixForLap(bestLap), bestLap
+
+def loadWordCountMatrixForLap(matfilepath, lapQuery, toDense=True):
+  ''' Load word counts 
+  '''
+  prefix, bestLap = getPrefixForLapQuery(matfilepath, lapQuery)
+  mpath = os.path.join(matfilepath, prefix + 'EstParams.mat')
+  Mdict = loadDictFromMatfile(mpath)
+  countVec = as1D(Mdict['counts'])
+  data = Mdict['SparseWordCount_data']
+  indices = Mdict['SparseWordCount_indices']
+  indptr = Mdict['SparseWordCount_indptr']
+  WordCounts = scipy.sparse.csr_matrix((data, indices, indptr))
+  if toDense:
+    return WordCounts.toarray(), countVec
+  return WordCounts, countVec
 
 def loadModelForLap(matfilepath, lapQuery):
   ''' Loads saved model with lap closest to provided lapQuery
@@ -61,18 +79,17 @@ def load_alloc_model(matfilepath, prefix):
   
 def load_obs_model(matfilepath, prefix):
   obspriormatfile = os.path.join(matfilepath,'ObsPrior.mat')
-  PDict = loadDictFromMatfile(obspriormatfile)
-  if PDict['name'] == 'NoneType':
-    obsPrior = None
-  else:
-    PriorConstr = GDict[PDict['name']]
-    obsPrior = PriorConstr( **PDict)
-  obsmodelpath = os.path.join(matfilepath,prefix+'ObsModel.mat')
-  ODict = loadDictFromMatfile(obsmodelpath)
+  PriorDict = loadDictFromMatfile(obspriormatfile)
+  ObsConstr = GDict[PriorDict['name']]
+  obsModel = ObsConstr(**PriorDict)
 
-  ObsConstr = GDict[ODict['name']]
-  CompDicts = get_list_of_comp_dicts( ODict['K'], ODict)
-  return ObsConstr.CreateWithAllComps( ODict, obsPrior, CompDicts)
+  obsmodelpath = os.path.join(matfilepath,prefix+'ObsModel.mat')
+  ParamDict = loadDictFromMatfile(obsmodelpath)
+  if obsModel.inferType == 'EM':
+    obsModel.setEstParams(**ParamDict)
+  else:
+    obsModel.setPostFactors(**ParamDict)
+  return obsModel
   
 def get_list_of_comp_dicts( K, Dict ):
   ''' We store all component params stacked together in an array.

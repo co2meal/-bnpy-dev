@@ -28,21 +28,26 @@ class AllocModel(object):
 
   ######################################################### Local Params
   #########################################################
-  def calc_local_params( self, Data, LP ):
+  def calc_local_params(self, Data, LP):
     ''' 
     '''
     pass
-
+  
+  def sample_local_params(self, obsModel, Data, SS, LP):
+      '''
+      '''
+      pass
+  
   ######################################################### Suff Stats
   #########################################################
-  def get_global_suff_stats( self, Data, SS, LP ):
+  def get_global_suff_stats(self, Data, SS, LP):
     ''' 
     '''
     pass
 
   ######################################################### Global Params
   #########################################################
-  def update_global_params( self, SS, rho=None, **kwargs ):
+  def update_global_params(self, SS, rho=None, **kwargs):
     ''' Update (in-place) global parameters for this allocation model object,
         given the provided suff stats object SS
         This is the M-step of EM/VB algorithm
@@ -50,7 +55,9 @@ class AllocModel(object):
     self.K = SS.K
     if self.inferType == 'EM':
       self.update_global_params_EM(SS)
-    elif self.inferType == 'VB' or self.inferType == "moVB":
+    elif self.inferType == 'VB' or self.inferType.count('moVB'):
+      self.update_global_params_VB(SS, **kwargs)
+    elif self.inferType == 'GS':
       self.update_global_params_VB(SS, **kwargs)
     elif self.inferType == 'soVB':
       if rho is None or rho==1:
@@ -63,12 +70,12 @@ class AllocModel(object):
  
   ######################################################### Evidence
   #########################################################
-  def calc_evidence(self):
+  def calc_evidence(self, Data, SS, LP):
     pass
 
   ######################################################### IO Utils
   #########################################################   for humans
-  def get_info_string( self):
+  def get_info_string(self):
     ''' Returns one-line human-readable terse description of this object
     '''
     pass

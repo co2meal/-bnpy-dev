@@ -8,8 +8,24 @@ Generated via the standard LDA generative model
   see WordsData.CreateToyDataFromLDAModel for details.
 '''
 import numpy as np
-from bnpy.data import WordsData, AdmixMinibatchIterator
+from bnpy.data import WordsData
 import Bars2D
+
+def get_data_info():
+  s = 'Toy Bars Data with %d true topics. Each doc uses 1-3 bars.' % (K)
+  return s
+
+def get_data(**kwargs):
+    ''' 
+        Args
+        -------
+        seed
+        nDocTotal
+        nWordsPerDoc
+    '''
+    Data = CreateToyDataFromLDAModel(seed=SEED, **kwargs)
+    Data.summary = get_data_info()
+    return Data
 
 SEED = 8675309
 PRNG = np.random.RandomState(SEED)
@@ -31,39 +47,6 @@ Defaults['topic_prior'] = gamma * trueBeta
 # TOPIC by WORD distribution
 Defaults['topics'] = Bars2D.Create2DBarsTopicWordParams(V, K, PRNG=PRNG)
 
-def get_data_info(**kwargs):
-    if 'nDocTotal' in kwargs:
-      nDocTotal = kwargs['nDocTotal']
-    else:
-      nDocTotal = Defaults['nDocTotal']
-    return 'Toy Bars Data. Ktrue=%d. nDocTotal=%d. Typically 1-3 bars per doc.' % (K, nDocTotal)
-
-def get_data(**kwargs):
-    ''' 
-        Args
-        -------
-        seed
-        nDocTotal
-        nWordsPerDoc
-    '''
-    Data = CreateToyDataFromLDAModel(seed=SEED, **kwargs)
-    Data.summary = get_data_info(**kwargs)
-    return Data
-
-def get_minibatch_iterator(seed=SEED, nBatch=10, nLap=1,
-                           dataorderseed=0, **kwargs):
-    '''
-        Args
-        -------
-        seed
-        nDocTotal
-        nWordsPerDoc
-    '''
-    Data = CreateToyDataFromLDAModel(seed=seed, **kwargs)
-    DataIterator = AdmixMinibatchIterator(Data, 
-                        nBatch=nBatch, nLap=nLap, dataorderseed=dataorderseed)
-    DataIterator.summary = get_data_info(**kwargs)
-    return DataIterator
 
 def CreateToyDataFromLDAModel(**kwargs):
   for key in Defaults:

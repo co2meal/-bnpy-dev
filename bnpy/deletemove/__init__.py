@@ -1,0 +1,3 @@
+''' deletemove module
+'''
+

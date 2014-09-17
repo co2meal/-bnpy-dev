@@ -28,6 +28,13 @@ class MixModel(AllocModel):
     if self.alpha0 < 1.0 and self.inferType == 'EM':
       raise ValueError("Cannot perform MAP inference if param alpha0 < 1")
 
+  def get_active_comp_probs(self):
+    ''' Return K vector of appearance probabilities for each of the K comps
+    '''
+    if self.inferType == 'EM':
+      return self.w
+    else:
+      return self.alpha / np.sum(self.alpha)
     
   ######################################################### Accessors
   #########################################################
@@ -53,11 +60,21 @@ class MixModel(AllocModel):
         Returns
         -------
         LP : local param dict with fields
-              resp : Data.nObs x K array whose rows sum to one
-              resp[n,k] = posterior responsibility that comp. k has for data n                
+             resp : 2D array, size Data.nObs x K array
+                    resp[n,k] = posterior responsibility comp. k has for item n
+            
     '''
     lpr = LP['E_log_soft_ev']
-    if self.inferType.count('VB') > 0:
+    if self.inferType.count('EM') > 0:
+      ''' Using point estimates, for EM algorithm
+      '''
+      lpr += np.log(self.w)
+      lprPerItem = logsumexp(lpr, axis=1)
+      np.exp(lpr-lprPerItem[:,np.newaxis], out=lpr)
+      LP['evidence'] = lprPerItem.sum()
+    else:
+      ''' Full Bayesian approach, for VB or GS algorithms
+      '''
       lpr += self.Elogw
       # Calculate exp in numerically stable manner (first subtract the max)
       #  perform this in-place so no new allocations occur
@@ -65,14 +82,75 @@ class MixModel(AllocModel):
       np.exp(lpr, out=lpr)
       # Normalize, so rows sum to one
       lpr /= lpr.sum(axis=1)[:,np.newaxis]
-    elif self.inferType == 'EM' > 0:
-      lpr += np.log(self.w)
-      lprPerItem = logsumexp(lpr, axis=1)
-      np.exp(lpr-lprPerItem[:,np.newaxis], out=lpr)
-      LP['evidence'] = lprPerItem.sum()
     LP['resp'] = lpr
     assert np.allclose(lpr.sum(axis=1), 1)
     return LP
+    
+  ######################################################### Local Updates Gibbs
+  #########################################################
+  def make_hard_asgn_local_params(self, LP):
+    ''' Convert soft assignments to hard assignments for provided local params
+
+        Returns
+        --------
+        LP : local params dict, with new fields
+             Z : 1D array, size N
+                    Z[n] is an integer in range {0, 1, 2, ... K-1}
+             resp : 2D array, size N x K+1 (with final column empty)
+                    resp[n,k] = 1 iff Z[n] == k
+    '''
+    LP['Z'] = np.argmax(LP['resp'], axis=1)
+    K = LP['resp'].shape[1]
+    LP['resp'].fill(0)
+    for k in xrange(K):
+      LP['resp'][LP['Z']==k, k] = 1 
+    return LP
+
+  def sample_local_params(self, obsModel, Data, SS, LP, PRNG, **kwargs):
+    '''
+        for i = 1 to Data.nObs 
+           sample z_i ~ p(z_i | z_-i,X)
+    '''
+    Z = LP['Z']
+    # Iteratively sample data allocations 
+    for dataindex in xrange(Data.nObs):
+      x = Data.X[dataindex]
+
+      # de-update current assignment and suff stats
+      kcur = Z[dataindex]
+      SS.N[kcur] -= 1
+      obsModel.decrementSS(SS, kcur, x)
+
+      # Calculate probs
+      alloc_prob = self.getConditionalProbVec_Unnorm(SS)
+      pvec = obsModel.calcPredProbVec_Unnorm(SS, x)
+      pvec *= alloc_prob
+      pvec /= np.sum(pvec)
+
+      # sample new allocation
+      knew = PRNG.choice(SS.K, p=pvec)
+
+      # update with new assignment
+      SS.N[knew] += 1  
+      obsModel.incrementSS(SS, knew, x) 
+      Z[dataindex] = knew
+      
+    LP['Z'] = Z                      
+    print ' '.join(['%.1f' % (x) for x in SS.N])
+    return LP, SS 
+  
+  def getConditionalProbVec_Unnorm( self, SS ):
+    ''' Returns a K vector of positive values \propto p(z_i|z_-i)
+    '''
+    return SS.N + self.alpha0
+
+  def calcMargLik(self, SS):
+    ''' Calculate marginal likelihood of assignments, summed over all comps
+    '''
+    alphPost = self.alpha0 + SS.N
+    cPrior = gammaln(SS.K * self.alpha0) - SS.K * gammaln(self.alpha0)
+    cPost = gammaln(np.sum(alphPost)) - np.sum(gammaln(alphPost))
+    return cPrior - cPost
 
   ######################################################### Suff Stats
   #########################################################
@@ -98,7 +176,11 @@ class MixModel(AllocModel):
                    effective number of observations assigned to each comp
     '''
     Nvec = np.sum( LP['resp'], axis=0 )
-    SS = SuffStatBag(K=Nvec.size, D=Data.dim)
+    if hasattr(Data, 'dim'):
+      SS = SuffStatBag(K=Nvec.size, D=Data.dim)
+    elif hasattr(Data, 'vocab_size'):
+      SS = SuffStatBag(K=Nvec.size, D=Data.vocab_size)
+
     SS.setField('N', Nvec, dims=('K'))
     if doPrecompEntropy is not None:
       ElogqZ_vec = self.E_logqZ(LP)
@@ -127,10 +209,34 @@ class MixModel(AllocModel):
     self.Elogw = digamma( self.alpha ) - digamma( self.alpha.sum() )
     self.K = SS.K
  
-  def set_global_params(self, hmodel=None, K=None, w=None, 
-                              alpha=None, **kwargs):
+  def init_global_params(self, Data, K=0, **kwargs):
+    ''' Initialize global parameters "from scratch" to prep for learning.
+
+        Will yield uniform distribution (or close to) for all K components,
+        by performing a "pseudo" update in which only one observation was
+        assigned to each of the K comps.
+
+        Internal Updates
+        --------
+        Sets attributes w (for EM) or alpha (for VB)
+
+        Returns
+        --------
+        None. 
+    '''
+    self.K = K
+    if self.inferType == 'EM':
+      self.w = 1.0/K * np.ones(K)
+    else:
+      self.alpha = self.alpha0 + np.ones(K)
+      self.Elogw = digamma( self.alpha ) - digamma( self.alpha.sum() )
+
+  def set_global_params(self, hmodel=None, K=None, w=None, beta=None,
+                              alpha=None, nObs=10, **kwargs):
     ''' Directly set global parameters alpha to provided values
     '''
+    if beta is not None:
+      w = beta
     if hmodel is not None:
       self.K = hmodel.allocModel.K
       if self.inferType == 'EM':
@@ -144,12 +250,15 @@ class MixModel(AllocModel):
       if self.inferType == 'EM':
         self.w = w
       else:
-        self.alpha = alpha
+        if w is not None:
+          self.alpha = w * nObs
+        elif alpha is not None:
+          self.alpha = alpha
         self.Elogw = digamma( self.alpha ) - digamma( self.alpha.sum() )
 
   ######################################################### Evidence
   #########################################################
-  def calc_evidence( self, Data, SS, LP):
+  def calc_evidence(self, Data, SS, LP, todict=False, **kwargs):
     if self.inferType == 'EM':
       return LP['evidence'] + self.log_pdf_dirichlet(self.w)
     elif self.inferType.count('VB') > 0:
@@ -209,20 +318,23 @@ class MixModel(AllocModel):
   ######################################################### IO Utils
   #########################################################   for machines
   def to_dict(self): 
-    if self.inferType.count('VB') >0:
-      return dict(alpha=self.alpha)
-    elif self.inferType == 'EM':
+    if self.inferType == 'EM':
       return dict(w=self.w)
+    elif self.inferType.count('VB') >0:
+      return dict(alpha=self.alpha)
+    elif self.inferType.count('GS') >0:
+      return dict(alpha=self.alpha)
     return dict()
   
   def from_dict(self, myDict):
     self.inferType = myDict['inferType']
     self.K = myDict['K']
-    if self.inferType.count('VB') >0:
-      self.alpha = myDict['alpha']
-      self.Elogw = digamma( self.alpha ) - digamma( self.alpha.sum() )
-    elif self.inferType == 'EM':
+    if self.inferType == 'EM':
       self.w = myDict['w']
+    else:
+      self.alpha = myDict['alpha']
+      self.Elogw = digamma(self.alpha) - digamma(self.alpha.sum())
+
  
   def get_prior_dict(self):
     return dict(alpha0=self.alpha0, K=self.K)  

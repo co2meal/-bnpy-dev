@@ -8,6 +8,7 @@ Attributes
 -------
 nObs : 
 '''
+from DataIterator import DataIterator
 
 class DataObj(object):
   @classmethod
@@ -21,35 +22,62 @@ class DataObj(object):
     '''
     pass
     
+
+  ######################################################### To DataIterator
+  ######################################################### 
+  def to_iterator(self, **kwargs):
+    ''' Create an iterator for streamed processing of subsets of this data object.
+
+        Args
+        ------
+        nBatch
+        nLap
+    
+        Returns
+        ------
+        I : DataIterator object.
+    '''
+    return DataIterator(self, **kwargs)
+
+  ######################################################### Human I/O
+  ######################################################### 
   def get_short_name(self):
-    ''' Returns string with short name (at most 10 char) of this data object,
-          with no spaces and only alpha-numeric characters.
+    ''' Returns string with human-readable name viable for system file paths.
+
         Useful for creating filepaths specific for this data object.
     '''
-    if hasattr(self, 'shortname'):
-      return self.shortname
-    return "MyData%d" % (self.nObs)
+    return "UnknownData"
 
   def get_text_summary(self, **kwargs):
     ''' Returns string with human-readable description of this dataset 
         e.g. source, author/creator, etc.
     '''
-    if hasattr(self, 'summary'):
-      return self.summary
-    s = '%s. nObs %d' % (self.__class__.__name__, self.nObs)
+    s = 'DataType: %s. Size: %d' % (self.__class__.__name__, self.get_size())
     return s
 
-  def summarize_num_observations(self):
-    ''' Returns string summary of number of observations in this data object
+  ######################################################### Accessors
+  ######################################################### 
+  def get_size(self, **kwargs):
+    ''' Returns int count of active, in-memory data units for this Data object.
     '''
     pass
-    
+
+  def get_total_size(self, **kwargs):
+    ''' Returns int count of all data units associated with current dataset.
+    '''
+    pass
+
+  ######################################################### Create Data from Subset
+  ######################################################### 
   def select_subset_by_mask(self, *args, **kwargs):
     ''' Returns DataObj of the same type, containing a subset of self's data
     '''
     pass
     
+
+  ######################################################### Append Data
+  ######################################################### 
   def add_data(self, DataObj):
-    ''' Updates (in-place) the dataset to include provided data
+    ''' Updates (in-place) this dataset to append all data in provided Data object
     '''
     pass
