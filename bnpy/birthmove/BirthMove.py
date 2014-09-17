@@ -19,7 +19,15 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, Plan=None, **kwargsIN):
       MoveInfo
   '''
   logPhase('Target Data')
+  if 'ktarget' in Plan:
+    ktarget = Plan['ktarget']
+    if hasattr(bigSS, 'uIDs'):
+      uid = bigSS.uIDs[ktarget]
+      log('ktarget= %d. uID= %d.' % (ktarget, uid))
+    else:
+      log('ktarget= %d.' % (ktarget))
   log(freshData.get_stats_summary())
+
 
   kwargs = dict(**kwargsIN) # make local copy!
   origids = dict( bigModel=id(bigModel), bigSS=id(bigSS) )
