@@ -36,10 +36,18 @@ YLabelMap = dict(evidence='log evidence',
                  K='num components',
                  )
      
-def main(jpathPattern='/tmp/', 
+def plotJobsThatMatchKeywords(jpathPattern='/tmp/', 
          xvar='laps', yvar='evidence', 
          taskids=None, savefilename=None, 
          **kwargs):
+  ''' Create line plots for all jobs matching pattern and provided keyword args
+
+      Example
+      ---------
+      plotJobsThatMatchKeywords('MyData', '
+  '''
+  if not jpathPattern.startswith(os.path.sep):
+    jpathPattern = os.path.join(os.environ['BNPYOUTDIR'], jpathPattern)
   jpaths, legNames = filterJobs(jpathPattern, **kwargs)
   nLines = len(jpaths)
   for lineID in xrange(nLines):
@@ -52,7 +60,10 @@ def main(jpathPattern='/tmp/',
     pylab.show(block=False)
     pylab.savefig(args.savefilename)
   else:
-    pylab.show(block=True)
+    try:
+      pylab.show(block=True)
+    except TypeError:
+      pass # when using IPython notebook
         
 
 def plot_all_tasks_for_job(jobpath, label, taskids=None,
@@ -109,5 +120,5 @@ def parse_args():
 
 if __name__ == "__main__":
   argDict = parse_args()
-  main(**argDict)
+  plotJobsThatMatchKeywords(**argDict)
 

@@ -24,6 +24,7 @@ def get_data(seed=8675309, nDocTotal=2000, nObsPerDoc=100, **kwargs):
       Data : bnpy XData object, with nObsTotal observations
   '''
   Data = MakeGroupData(seed, nDocTotal, nObsPerDoc)
+  Data.name = 'AdmixAsteriskK8'
   Data.summary = get_data_info()
   return Data
 

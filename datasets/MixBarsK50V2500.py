@@ -1,19 +1,13 @@
 '''
-BarsK6V9.py
-
-Toy Bars data, with K=6 topics and vocabulary size 9.
-3 horizontal bars, and 3 vertical bars.
-
-Generated via the standard LDA generative model
-  see WordsData.CreateToyDataFromLDAModel for details.
 '''
+
 import numpy as np
 from bnpy.data import WordsData
 import Bars2D
 
 # FIXED DATA GENERATION PARAMS
-K = 10 # Number of topics
-V = 900 # Vocabulary Size
+K = 50 # Number of topics
+V = 2500 # Vocabulary Size
 SEED = 8675309
 
 Defaults = dict()
@@ -44,6 +38,7 @@ def get_data(**kwargs):
     '''
     updateKwArgsWithDefaults(kwargs)
     Data = WordsData.CreateToyDataFromMixModel(**kwargs)
+    Data.name = get_short_name()
     Data.summary = get_data_info()
     return Data
 

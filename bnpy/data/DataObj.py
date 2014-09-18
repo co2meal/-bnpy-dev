@@ -46,6 +46,8 @@ class DataObj(object):
 
         Useful for creating filepaths specific for this data object.
     '''
+    if hasattr(self, 'name'):
+      return self.name
     return "UnknownData"
 
   def get_text_summary(self, **kwargs):

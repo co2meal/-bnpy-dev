@@ -477,6 +477,9 @@ def deleteAllFilesFromDir( savefolder, prefix=None ):
       os.unlink(file_path)
 
 def configLoggingToConsoleAndFile(taskoutpath, doSaveToDisk=True, doWriteStdOut=True):
+  RootLog = logging.getLogger()
+  RootLog.handlers = []
+
   Log.handlers = [] # remove pre-existing handlers!
   formatter = logging.Formatter('%(message)s')
   ###### Config logger to save transcript of log messages to plain-text file  
@@ -491,10 +494,10 @@ def configLoggingToConsoleAndFile(taskoutpath, doSaveToDisk=True, doWriteStdOut=
     ch.setLevel(logging.DEBUG)
     ch.setFormatter(formatter)
     Log.addHandler(ch)
+
   ##### Config null logger, avoids error messages about no handler existing
   if not doSaveToDisk and not doWriteStdOut:
     Log.addHandler(logging.NullHandler())
-
 
 if __name__ == '__main__':
   run()
