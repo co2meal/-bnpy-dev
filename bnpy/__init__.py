@@ -42,7 +42,7 @@ if not hasWriteableOutdir:
 ########################################################### Configure data
 ###########################################################  location
 root = os.path.sep.join(os.path.abspath(__file__).split(os.path.sep)[:-2])
-sys.path.append(os.path.join(root, 'demodata/'))
+sys.path.append(os.path.join(root, 'datasets/'))
 if 'BNPYDATADIR' in os.environ:
   if os.path.exists(os.environ['BNPYDATADIR']):
     sys.path.append(os.environ['BNPYDATADIR'])

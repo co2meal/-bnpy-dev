@@ -17,6 +17,7 @@ def get_data_info():
 def get_data(seed=8675309, nObsTotal=25000, **kwargs):
   X, TrueZ = generateData(seed, nObsTotal)
   Data = XData(X=X, TrueZ=TrueZ)
+  Data.name = get_short_name()
   Data.summary = get_data_info()
   return Data
 
