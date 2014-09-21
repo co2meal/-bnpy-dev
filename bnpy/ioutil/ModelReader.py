@@ -10,6 +10,7 @@ ModelWriter.py
 import numpy as np
 import scipy.io
 import os
+import glob
 
 from ModelWriter import makePrefixForLap
 from bnpy.allocmodel import *
@@ -25,7 +26,16 @@ def getPrefixForLapQuery(taskpath, lapQuery):
       --------
       prefix : string like 'Lap0001.000' that indicates lap for saved params.
   '''
-  saveLaps = np.loadtxt(os.path.join(taskpath,'laps-saved-params.txt'))
+  try:
+    saveLaps = np.loadtxt(os.path.join(taskpath,'laps-saved-params.txt'))
+  except IOError:
+    fileList = glob.glob(os.path.join(taskpath, 'Lap*TopicModel.mat'))
+    saveLaps = list()
+    for fpath in sorted(fileList):
+      basename = fpath.split(os.path.sep)[-1]
+      lapstr = basename[3:11]
+      saveLaps.append(float(lapstr))
+    saveLaps = np.sort(np.asarray(saveLaps))
   if lapQuery is None:
     bestLap = saveLaps[-1] # take final saved value
   else:
@@ -48,6 +58,26 @@ def loadWordCountMatrixForLap(matfilepath, lapQuery, toDense=True):
     return WordCounts.toarray(), countVec
   return WordCounts, countVec
 
+def loadTopicModel(matfilepath, prefix):
+  ''' Load saved topic model
+  '''
+  # avoids circular import
+  from bnpy.HModel import HModel
+
+  matfilepath = os.path.join(matfilepath, prefix + 'TopicModel.mat')
+  Mdict = loadDictFromMatfile(matfilepath)
+  if 'SparseWordCount_data' in Mdict:
+    raise NotImplementedError('TODO')
+  else:
+    probs = Mdict['probs']
+    topics = Mdict['topics']
+  infAlg = 'VB'
+  amodel = HDPDir(infAlg, dict(alpha=Mdict['alpha'], gamma=Mdict['gamma']))
+  omodel = MultObsModel(infAlg, **Mdict)
+  hmodel = HModel(amodel, omodel)
+  hmodel.set_global_params(**Mdict)
+  return hmodel
+
 def loadModelForLap(matfilepath, lapQuery):
   ''' Loads saved model with lap closest to provided lapQuery
       Returns
@@ -55,7 +85,10 @@ def loadModelForLap(matfilepath, lapQuery):
       model, true-lap-id
   '''
   prefix, bestLap = getPrefixForLapQuery(matfilepath, lapQuery)
-  model = load_model(matfilepath, prefix=prefix)
+  if os.path.isfile(os.path.join(matfilepath, 'ObsPrior.mat')):
+    model = load_model(matfilepath, prefix=prefix)
+  else:
+    model = loadTopicModel(matfilepath, prefix=prefix)
   return model, bestLap
 
 def load_model( matfilepath, prefix='Best'):

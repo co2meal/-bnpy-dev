@@ -562,6 +562,30 @@ class WordsData(DataObj):
         docstr = "%d %s" % (nUniqueInDoc, ' '.join(idct_list)) 
         f.write(docstr + '\n')
 
+  def WriteToFile_tokenlist(self, filepath, min_word_index=1):
+    ''' Write contents of this dataset to MAT file in tokenlist format
+    '''
+    word_id = self.word_id
+    if min_word_index > 0:
+      word_id = word_id + min_word_index
+    
+    MatVars = dict()
+    MatVars['tokensByDoc'] = np.empty((1, self.nDoc), dtype=object)
+    for d in xrange(self.nDoc):
+      start = self.doc_range[d]
+      stop = self.doc_range[d+1]
+      nTokens = np.sum(self.word_count[start:stop])
+      tokenvec = np.zeros(nTokens, dtype=word_id.dtype)
+
+      a = 0
+      for n in xrange(start, stop):
+        tokenvec[a:a + self.word_count[n]] = word_id[n]
+        a += self.word_count[n]
+
+      assert tokenvec.min() >= min_word_index
+      MatVars['tokensByDoc'][0,d] = tokenvec
+    scipy.io.savemat(filepath, MatVars, oned_as='row')
+    
 """ DEPRECATED METHODS (some may be cleaned up and moved back in someday)
 
   ######################################################### word-word cooccur
