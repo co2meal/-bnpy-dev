@@ -489,12 +489,16 @@ class HDPDir(AllocModel):
     self.ClearCache()
 
 
-  def _set_global_params_from_scratch(self, beta=None, topic_prior=None,
-                                            Data=None, **kwargs):
+  def _set_global_params_from_scratch(self, beta=None, probs=None,
+                                            Data=None, nDoc=None, **kwargs):
     ''' Set rho, omega to values that reproduce provided appearance probs
     '''
-    if topic_prior is not None:
-      beta = topic_prior / topic_prior.sum()
+    if nDoc is None:
+      nDoc = Data.nDoc
+    if nDoc is None:
+      raise ValueError('Bad parameters. nDoc not specified.')
+    if probs is not None:
+      beta = probs / probs.sum()
     if beta is not None:
       Ktmp = beta.size
       rem = np.minimum(0.05, 1./(Ktmp))
@@ -503,7 +507,7 @@ class HDPDir(AllocModel):
     else:
       raise ValueError('Bad parameters. Vector beta not specified.')
     self.K = beta.size - 1
-    self.rho, self.omega = self._convert_beta2rhoomega(beta, Data.nDoc)
+    self.rho, self.omega = self._convert_beta2rhoomega(beta, )
     assert self.rho.size == self.K
     assert self.omega.size == self.K
 

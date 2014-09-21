@@ -25,7 +25,7 @@ from AbstractObsModel import AbstractObsModel
 
 class MultObsModel(AbstractObsModel):
 
-  def __init__(self, inferType='EM', D=0, 
+  def __init__(self, inferType='EM', D=0, vocab_size=0,
                      Data=None, **PriorArgs):
     ''' Initialize bare Mult obsmodel with Dirichlet prior. 
         Resulting object lacks either EstParams or Post, 
@@ -33,8 +33,10 @@ class MultObsModel(AbstractObsModel):
     '''
     if Data is not None:
       self.D = Data.vocab_size
+    elif vocab_size > 0:
+      self.D = int(vocab_size)
     else:
-      self.D = D
+      self.D = int(D)
     self.K = 0
     self.inferType = inferType
     self.createPrior(Data, **PriorArgs)
@@ -138,8 +140,7 @@ class MultObsModel(AbstractObsModel):
   ######################################################### Set Post
   #########################################################
   def setPostFactors(self, obsModel=None, SS=None, LP=None, Data=None,
-                           lam=None,
-                            **kwargs):
+                           lam=None, **kwargs):
     ''' Create Post ParamBag with fields (lam)
     '''
     self.ClearCache()
