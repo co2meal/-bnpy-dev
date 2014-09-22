@@ -140,7 +140,7 @@ class MultObsModel(AbstractObsModel):
   ######################################################### Set Post
   #########################################################
   def setPostFactors(self, obsModel=None, SS=None, LP=None, Data=None,
-                           lam=None, **kwargs):
+                           lam=None, WordCounts=None, **kwargs):
     ''' Create Post ParamBag with fields (lam)
     '''
     self.ClearCache()
@@ -158,7 +158,10 @@ class MultObsModel(AbstractObsModel):
     if SS is not None:
       self.updatePost(SS)
     else:
-      lam = as2D(lam)
+      if WordCounts is not None:
+        lam = as2D(WordCounts) + lam
+      else:
+        lam = as2D(lam)
       K, D = lam.shape
       self.Post = ParamBag(K=K, D=D)
       self.Post.setField('lam', lam, dims=('K','D'))
