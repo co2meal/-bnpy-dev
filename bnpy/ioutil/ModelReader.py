@@ -67,10 +67,21 @@ def loadTopicModel(matfilepath, prefix):
   matfilepath = os.path.join(matfilepath, prefix + 'TopicModel.mat')
   Mdict = loadDictFromMatfile(matfilepath)
   if 'SparseWordCount_data' in Mdict:
-    raise NotImplementedError('TODO')
-  else:
-    probs = Mdict['probs']
-    topics = Mdict['topics']
+    data = Mdict['SparseWordCount_data']
+    K = int(Mdict['K'])
+    vocab_size = int(Mdict['vocab_size'])
+    try:
+      indices = Mdict['SparseWordCount_indices']
+      indptr = Mdict['SparseWordCount_indptr']
+      WordCounts = scipy.sparse.csr_matrix((data, indices, indptr),
+                                            shape=(K, vocab_size))
+    except KeyError:
+      rowIDs = Mdict['SparseWordCount_i'] - 1
+      colIDs = Mdict['SparseWordCount_j'] - 1
+  
+      WordCounts = scipy.sparse.csr_matrix((data, (rowIDs, colIDs)),
+                                            shape=(K, vocab_size))
+    Mdict['WordCounts'] = WordCounts.toarray()
   infAlg = 'VB'
   amodel = HDPDir(infAlg, dict(alpha=Mdict['alpha'], gamma=Mdict['gamma']))
   omodel = MultObsModel(infAlg, **Mdict)
