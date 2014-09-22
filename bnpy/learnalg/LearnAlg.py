@@ -240,9 +240,8 @@ class LearnAlg(object):
                              doSavePriorInfo=np.allclose(lap, 0.0),
                              doLinkBest=True)
 
-    if self.outputParams['doSaveEstParams'] and SS is not None:
-      ModelWriter.saveEstParams(hmodel, SS, self.savedir, prefix,
-                                doLinkBest=True)
+    if self.outputParams['doSaveTopicModel']:
+      ModelWriter.saveTopicModel(hmodel, SS, self.savedir, prefix)
 
   def mkfile(self, fname):
     return os.path.join(self.savedir, fname)
@@ -260,6 +259,9 @@ class LearnAlg(object):
       self.status = "active. not converged."
     else:
       self.status = "done. not converged. max laps thru data exceeded." 
+
+    with open(self.mkfile('status.txt'), 'w') as f:
+      f.write(self.status+'\n')
 
   #########################################################  Print State
   #########################################################
