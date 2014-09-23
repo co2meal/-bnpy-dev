@@ -53,7 +53,7 @@ def plotJobsThatMatchKeywords(jpathPattern='/tmp/',
   for lineID in xrange(nLines):
     plot_all_tasks_for_job(jpaths[lineID], legNames[lineID], 
                            xvar=xvar, yvar=yvar,
-                           taskids=None, colorID=lineID)
+                           taskids=taskids, colorID=lineID)
 
   pylab.legend(loc='best')  
   if savefilename is not None:
