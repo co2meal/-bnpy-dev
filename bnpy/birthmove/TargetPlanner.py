@@ -15,6 +15,85 @@ from BirthProposalError import BirthProposalError
 
 EPS = 1e-14
 
+def makePlans_TargetCompsSmart(SS, BirthRecordsByComp, lapFrac, 
+                                      **birthKwArgs):
+  ''' Determine which components to target, smartly tracking previous attempts.
+
+      Returns
+      --------
+      Plans : list of Plan dicts, with fields
+      * ktarget : position of chosen comp in current order 0, 1, ... K-1
+      * targetUID : unique ID (like in ActiveIDVec or SS.uIDs)
+      * count : size of chosen comp at moment of choosing (in SS.getCountVec())
+
+      Updates (in place)
+      --------
+      BirthRecordsByComp : some entries may be removed
+      Removes comps reactivated to eligible list (all failures forgotten),
+      which happens if it has changed size exceeds prescribed limit
+  '''
+  nBirths = birthKwArgs['birthPerLap']
+
+  eligibleIDs = list()
+  eligibleSizes = list()
+  waitListIDs = list()
+  waitListSizes = list()
+
+  Nvec = SS.getCountVec()
+  for k, compID in enumerate(SS.uIDs):
+    if Nvec[k] < birthKwArgs['targetMinSize']:
+      continue
+    if compID in BirthRecordsByComp:
+      if 'nFail' in BirthRecordsByComp[compID]:
+        nFails = BirthRecordsByComp[compID]['nFail']
+        prevN_k = BirthRecordsByComp[compID]['count']
+
+        percDiff = np.abs(Nvec[k] - prevN_k) / (1e-8 + Nvec[k])
+        if percDiff < 0.1:
+          if nFails < 2:
+            waitListIDs.append(compID)
+            waitListSizes.append(Nvec[k])
+          continue
+        else:
+          print '**** reconsidering comp %d, %.1f, %.1f, %.3f' \
+                 % (compID, Nvec[k], prevN_k, percDiff)
+          ## Comp has changed size enough to warrant fresh treatment
+          del BirthRecordsByComp[compID]
+    eligibleIDs.append(compID)
+    eligibleSizes.append(Nvec[k])
+
+  if len(eligibleIDs) < nBirths and len(waitListIDs) > 0:
+    nExtra = nBirths - len(eligibleIDs)
+    ## Try to add in comps that have failed before
+    # prioritizing largest options
+    order = np.argsort(waitListSizes)[-nExtra:]
+    eligibleIDs.extend([waitListIDs[x] for x in order])
+    eligibleSizes.extend([waitListSizes[x] for x in order])
+
+  ## Greedy order of eligibles
+  if len(eligibleIDs) > nBirths:
+    eligibleIDs = np.asarray(eligibleIDs)
+    eligibleSizes = np.asarray(eligibleSizes)
+    order = np.argsort(-1 * eligibleSizes)[:nBirths]
+    eligibleIDs = [eligibleIDs[x] for x in order]
+    eligibleSizes = [eligibleSizes[x] for x in order]
+
+  Plans = list()
+  for birthID, compID in enumerate(eligibleIDs):
+    Plan = dict(Data=None, 
+                targetWordIDs=None,
+                targetWordFreq=None)
+    ktarget = np.flatnonzero(compID == SS.uIDs)
+    assert ktarget.size == 1
+    ktarget = int(ktarget[0])
+    Plan['ktarget'] = ktarget
+    Plan['targetUID'] = compID
+    Plan['count'] = Nvec[ktarget]
+    Plans.append(Plan)
+
+  return Plans
+
+
 def makePlansToTargetWordFreq(model=None, LP=None, Data=None, Q=None,
                                targetSelectName='anchorFreq', nPlans=1, 
                                **kwargs):

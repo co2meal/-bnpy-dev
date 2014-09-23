@@ -35,7 +35,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
       # Track the number of laps since birth last attempted
       #  at each component, to encourage trying diversity
       self.LapsSinceLastBirth = defaultdict(int)
-
+      self.BirthRecordsByComp = defaultdict(lambda: dict())
 
   ######################################################### fit
   ######################################################### 
@@ -130,6 +130,12 @@ class MOVBBirthMergeAlg(MOVBAlg):
       ## Local/E step
       LPchunk = self.memoizedLocalStep(hmodel, Dchunk, batchID)
       
+      ## Summary step
+      SS, SSchunk = self.memoizedSummaryStep(hmodel, SS,
+                                             Dchunk, LPchunk, batchID,
+                                             MergePrepInfo=MergePrepInfo,
+                                             order=order)
+
       ## Birth move : collect target data
       if self.hasMove('birth') and self.do_birth_at_lap(lapFrac+1.0):
         if self.isFirstBatch(lapFrac):
@@ -139,12 +145,6 @@ class MOVBBirthMergeAlg(MOVBAlg):
                                 Dchunk, hmodel, LPchunk, BirthPlans, lapFrac)
       else:
         BirthPlans = list()
-
-      ## Summary step
-      SS, SSchunk = self.memoizedSummaryStep(hmodel, SS,
-                                             Dchunk, LPchunk, batchID,
-                                             MergePrepInfo=MergePrepInfo,
-                                             order=order)
 
       ## Birth : Handle removing "extra mass" of fresh components
       if self.hasMove('birth') and self.isLastBatch(lapFrac):
@@ -522,9 +522,24 @@ class MOVBBirthMergeAlg(MOVBAlg):
           BirthResults.append(MoveInfo)
           for kk in MoveInfo['birthCompIDs']:
             self.LapsSinceLastBirth[kk] = -1
+            
             self.maxUID += 1
             self.ActiveIDVec = np.append(self.ActiveIDVec, self.maxUID)
           SS.setUIDs(self.ActiveIDVec.copy())
+
+        ## Update BirthRecords to track comps that fail at births
+        targetUID = Plan['targetUID']
+        if MoveInfo['didAddNew']:
+          # Remove from records if successful... this comp will change a lot
+          if targetUID in self.BirthRecordsByComp:
+            del self.BirthRecordsByComp[targetUID]
+        else:
+          if 'nFail' not in self.BirthRecordsByComp[targetUID]:
+            self.BirthRecordsByComp[targetUID]['nFail'] = 1
+          else:
+            self.BirthRecordsByComp[targetUID]['nFail'] += 1
+          self.BirthRecordsByComp[targetUID]['count'] = Plan['count']
+
     return hmodel, SS, BirthResults
 
   def birth_remove_extra_mass(self, hmodel, SS, BirthResults):
@@ -551,8 +566,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
       hmodel.update_global_params(SS)
     return hmodel, SS
 
-  def birth_plan_targets_for_next_lap(self, Data, hmodel, SS, LP,
-                                            BirthResults):
+  def birth_plan_targets_for_next_lap(self, Data, hmodel, SS, LP, BirthResults):
     ''' Create plans for next lap's birth moves
     
         Returns
@@ -560,22 +574,16 @@ class MOVBBirthMergeAlg(MOVBAlg):
         BirthPlans : list of dicts, 
                      each entry represents the plan for one future birth move
     '''
-    if SS is not None:
-      assert hmodel.allocModel.K == SS.K
-
+    assert SS is not None
+    assert hmodel.allocModel.K == SS.K
     K =  hmodel.allocModel.K
     nBirths = self.algParams['birth']['birthPerLap']
-    if self.algParams['birth']['targetSelectName'].lower().count('word'):
-      Plans = TargetPlanner.select_target_words_MultipleSets(
-                            model=hmodel, Data=Data, LP=LP, 
-                            nSets=nBirths, randstate=self.PRNG,
-                            **self.algParams['birth'])
-      return Plans
-    elif self.algParams['birth']['targetSelectName'].lower().count('freq'):
-      Plans = TargetPlannerWordFreq.MakePlans(
-                            Data, hmodel, LP, 
-                            nPlans=nBirths, randstate=self.PRNG,
-                            **self.algParams['birth'])
+
+    if self.algParams['birth']['targetSelectName'] == 'smart':
+      Plans = TargetPlanner.makePlans_TargetCompsSmart(SS, 
+                                                self.BirthRecordsByComp,
+                                                self.lapFrac,
+                                                **self.algParams['birth'])
       return Plans
 
     # Update counter for duration since last targeted-birth for each comp
@@ -613,7 +621,10 @@ class MOVBBirthMergeAlg(MOVBAlg):
                     msg=str(e),
                     )
       BirthPlans.append(Plan)
+
+
     return BirthPlans
+    
 
   def birth_collect_target_subsample(self, Dchunk, model, LPchunk, 
                                            BirthPlans, lapFrac):
