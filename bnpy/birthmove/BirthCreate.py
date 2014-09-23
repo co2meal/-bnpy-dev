@@ -96,6 +96,7 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None,
                             freshData, freshModel, freshSS, Korig=0, **kwargs)
     freshLP = freshModel.calc_local_params(freshData)
     freshSS = freshModel.get_global_suff_stats(freshData, freshLP)
+    freshModel.update_global_params(freshSS)
     if freshSS.K < Kbefore:
       msg = 'after remove empty (size < %d)' % (kwargs['cleanupMinSize'])
       logPosVector(freshSS.N, label=msg, level='moreinfo')
@@ -120,10 +121,12 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None,
                                                 doPrecompEntropy=1,
                                                 doPrecompMergeEntropy=1,
                                                 mPairIDs=mPairIDs)
+      freshModel.update_global_params(freshSS)
       freshELBO = freshModel.calc_evidence(SS=freshSS)
       freshModel, freshSS, freshELBO, Info = MergeMove.run_many_merge_moves(
                                                 freshModel, freshSS, freshELBO,
-                                                mPairIDs, isBirthCleanup=1,
+                                                mPairIDs, M=MM,
+                                                isBirthCleanup=1,
                                                 logFunc=log)
       if len(Info['AcceptedPairs']) == 0:
         break
