@@ -30,6 +30,9 @@ Defaults['beta'] = trueBeta
 PRNG = np.random.RandomState(SEED)
 Defaults['topics'] = Bars2D.Create2DBarsTopicWordParams(V, K, PRNG=PRNG)
 
+def get_short_name():
+  return 'MixBarsK10V900'
+
 def get_data_info():
   s = 'Toy Bars Data with %d true topics. Each doc uses ONE topic.' % (K)
   return s
