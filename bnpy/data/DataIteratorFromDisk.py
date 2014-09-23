@@ -154,7 +154,11 @@ class DataIteratorFromDisk(object):
     self.DataInfo = dict()
     if self.datafileList[0].endswith('.ldac'):
       vfilepath = os.path.join(self.datapath, 'vocab_size.conf')
-      self.DataInfo['vocab_size'] = int(np.loadtxt(vfilepath))
+      if os.path.exists(vfilepath):
+        vocab_size = int(np.loadtxt(vfilepath))
+      else:
+        vocab_size = int(os.environ['W'])
+      self.DataInfo['vocab_size'] = vocab_size
       self.DataInfo['nDocTotal'] = self.totalSize
 
     dtype = 'XData'
