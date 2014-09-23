@@ -237,13 +237,12 @@ class MOVBBirthMergeAlg(MOVBAlg):
       return False
 
     if self.hasMove('birth') and self.do_birth_at_lap(lapFrac):
-      ## Only stop births if all comps have struck out
-      for compID in self.ActiveIDVec:
-        if compID not in self.BirthRecordsByComp:
-          return True # compID hasn't struck out, so keep going
-        nFail = self.BirthRecordsByComp[compID]['nFail']
-        if nFail < self.algParams['birth']['birthFailLimit']:
-          return True
+      ## If any eligible comps exist, we have more moves possible
+      ## so return True
+      if not hasattr(self, 'BirthEligibleHist'):
+        return True
+      if self.BirthEligibleHist['Nable'] > 0:
+        return True
 
     if self.hasMove('merge'):
       nStuckBeforeQuit = self.algParams['merge']['mergeNumStuckBeforeQuit']
@@ -590,17 +589,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
                                                 self.BirthRecordsByComp,
                                                 self.lapFrac,
                                                 **self.algParams['birth'])
+      self.BirthEligibleHist, msg = self.birth_makeEligibilityHist(SS)
       BirthLogger.logStartPrep(self.lapFrac+1)
-      Hist = defaultdict(int)
-      for compID in self.ActiveIDVec:
-        if compID in self.BirthRecordsByComp:
-          val = self.BirthRecordsByComp[compID]['nFail']
-          Hist[val] += 1
-        else:
-          Hist[0] += 1
-      msg = 'Failed Attempts Histogram:'
-      for key in sorted(Hist.keys()):
-        msg += " %d: %d" % (key, Hist[key])
       BirthLogger.log(msg, 'moreinfo')
       return Plans
 
@@ -746,6 +736,27 @@ class MOVBBirthMergeAlg(MOVBAlg):
       Kextra += len(MoveInfo['birthCompIDs'])
     return Kextra
 
+  def birth_makeEligibilityHist(self, SS):
+    targetMinSize = self.algParams['birth']['targetMinSize']
+    MAX_FAIL = self.algParams['birth']['birthFailLimit']
+    Hist = dict(Ntoosmall=0, Nable=0, Ndisabled=0)
+ 
+    for kk, compID in enumerate(self.ActiveIDVec):
+      if SS.getCountVec()[kk] < targetMinSize:
+        Hist['Ntoosmall'] += 1
+      elif compID in self.BirthRecordsByComp:
+        nFail = self.BirthRecordsByComp[compID]['nFail']
+        if nFail < MAX_FAIL:
+          Hist['Nable'] += 1
+        else:
+          Hist['Ndisabled'] += 1
+      else:
+        Hist['Nable'] += 1
+
+    msg = 'Eligibility Histogram:'
+    for key in sorted(Hist.keys()):
+      msg += " %s=%d" % (key, Hist[key])
+    return Hist, msg
 
   ######################################################### Merge moves!
   #########################################################

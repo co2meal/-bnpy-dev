@@ -36,10 +36,10 @@ def init_global_params(obsModel, Data, K=0, seed=0,
       Nothing. obsModel is updated in place.
   '''
   PRNG = np.random.RandomState(seed)
+  K = np.minimum(Data.nDoc, K)
 
   ## Apply pre-processing to initialization Dataset
   ## this removes documents with too few tokens, etc.
-
   if initMinWordsPerDoc > 0:
     targetDataArgs = dict(targetMinWordsPerDoc=initMinWordsPerDoc,
                           targetMaxSize=Data.nDoc,
@@ -92,8 +92,8 @@ def _initTopicWordEstParams(obsModel, Data, PRNG, K=0,
   if initname == 'randexamples':
     ## Choose K documents at random, then
     ## use each doc's empirical distribution (+random noise) to seed a topic
-    DocWord = Data.getDocTypeCountMatrix()
     chosenDocIDs = PRNG.choice(Data.nDoc, K, replace=False)
+    DocWord = Data.getDocTypeCountMatrix()
     topics = DocWord[chosenDocIDs].copy()
     topics += 0.01 * PRNG.rand(K, Data.vocab_size)
 
