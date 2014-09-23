@@ -33,7 +33,8 @@ def saveTopicModel(hmodel, SS, fpath, prefix, doLinkBest=False,
   EstPDict['K'] = hmodel.obsModel.K
   EstPDict['vocab_size'] = hmodel.obsModel.D
   if SS is not None:
-    EstPDict['nDoc'] = SS.nDoc
+    if hasattr(SS, 'nDoc'):
+      EstPDict['nDoc'] = SS.nDoc
     EstPDict['nTotalToken'] = np.sum(SS.WordCounts, axis=1)
 
   ## Obsmodel parameters

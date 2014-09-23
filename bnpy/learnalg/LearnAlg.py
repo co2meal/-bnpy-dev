@@ -226,7 +226,7 @@ class LearnAlg(object):
   def saveParams(self, lap, hmodel, SS=None):
     ''' Save current model to disk
     '''
-    if lap in self.SavedIters:
+    if lap in self.SavedIters or self.savedir is None:
       return
     self.SavedIters.add(lap)
 
@@ -260,8 +260,9 @@ class LearnAlg(object):
     else:
       self.status = "done. not converged. max laps thru data exceeded." 
 
-    with open(self.mkfile('status.txt'), 'w') as f:
-      f.write(self.status+'\n')
+    if self.savedir is not None:
+      with open(self.mkfile('status.txt'), 'w') as f:
+        f.write(self.status+'\n')
 
   #########################################################  Print State
   #########################################################
