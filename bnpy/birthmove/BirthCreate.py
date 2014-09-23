@@ -50,15 +50,16 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None,
   else:
     freshModel.init_global_params(freshData, 
                                   K=kwargs['Kfresh'],
-                                  initname=kwargs['creationRoutine'],                                  
+                                  initname=kwargs['creationRoutine'],
                                   **kwargs) 
 
   logPhase('Creation')
-  log('CreationRoutine: ' + kwargs['creationRoutine'])
-  log('Kfresh=%d' % (freshModel.obsModel.K))
+  log('CreationRoutine: ' + kwargs['creationRoutine'], 'debug')
+  log('Kfresh=%d' % (freshModel.obsModel.K), 'debug')
+
   if not kwargs['creationDoUpdateFresh']:
     # Create freshSS that would produce (nearly) same freshModel.obsModel
-    #   after a call to update_global_params
+    # after a call to update_global_params
     freshSS._Fields.setAllFieldsToZero()
     if hasattr(freshSS, 'WordCounts'):
       topics = freshSS.WordCounts
@@ -67,7 +68,6 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None,
         topics[k,:] = freshModel.obsModel.comp[k].lamvec - priorvec
       freshSS.setField('WordCounts', topics, dims=('K','D'))
     return freshModel, freshSS, Info
-
 
   ## Record initial model for posterity
   if kwargs['birthDebug']:
@@ -79,23 +79,27 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None,
     freshSS = freshModel.get_global_suff_stats(freshData, freshLP)
     freshModel.update_global_params(freshSS)
     if step < 3 or (step+1) % 10 == 0:
-      logPosVector(freshSS.N, label='iter %3d' % (step+1))
+      logPosVector(freshSS.N, label='iter %3d' % (step+1), level='debug')
     if step > 1:
       maxDiff = np.max(np.abs(freshSS.N - prevN))
       if maxDiff < 1.0:
         break
     prevN = freshSS.N.copy()
 
-  logPosVector(freshSS.N, label='final')
+  logPosVector(freshSS.N, label='after creation', level='moreinfo')
   if kwargs['birthDebug']:
     Info['freshModelRefined'] = freshModel.copy()
 
   if kwargs['cleanupDeleteEmpty']:
+    Kbefore = freshSS.K
     freshModel, freshSS = BirthCleanup.delete_empty_comps(
                             freshData, freshModel, freshSS, Korig=0, **kwargs)
     freshLP = freshModel.calc_local_params(freshData)
     freshSS = freshModel.get_global_suff_stats(freshData, freshLP)
-
+    if freshSS.K < Kbefore:
+      msg = 'after remove empty (size < %d)' % (kwargs['cleanupMinSize'])
+      logPosVector(freshSS.N, label=msg, level='moreinfo')
+  
   if kwargs['cleanupDeleteToImproveFresh']:
     freshModel, freshSS, ELBO = BirthCleanup.delete_comps_to_improve_ELBO(
                                              freshData, freshModel, LP=freshLP)
@@ -104,7 +108,7 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None,
       Info['freshModelPostDelete'] = freshModel.copy()
     
   elif kwargs['cleanupMergeToImproveFresh']:
-    log('Merging fresh')
+    Korig = freshSS.K
     while freshSS.K > 1:
       mPairIDs, MM = MergePlanner.preselect_candidate_pairs(freshModel, freshSS,
                                                 preselect_routine='wholeELBO',
@@ -123,9 +127,9 @@ def create_model_with_new_comps(bigModel, bigSS, freshData, Q=None,
                                                 logFunc=log)
       if len(Info['AcceptedPairs']) == 0:
         break
-
-
-  logPosVector(freshSS.N, label='cleaned')
+    if freshSS.K < Korig:
+      msg = 'after merges'
+      logPosVector(freshSS.N, label=msg, level='moreinfo')
 
   if freshSS.K < 2:
     msg = "BIRTH failed. Fresh proposal does not prefer multiple comps."
