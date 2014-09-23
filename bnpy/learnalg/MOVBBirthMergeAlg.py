@@ -237,9 +237,15 @@ class MOVBBirthMergeAlg(MOVBAlg):
       return False
 
     if self.hasMove('birth') and self.do_birth_at_lap(lapFrac):
-      return True # Never quit early for birth
+      ## Only stop births if all comps have struck out
+      for compID in self.ActiveIDVec:
+        if compID not in self.BirthRecordsByComp:
+          return True # compID hasn't struck out, so keep going
+        nFail = self.BirthRecordsByComp[compID]['nFail']
+        if nFail < self.algParams['birth']['birthFailLimit']:
+          return True
 
-    elif self.hasMove('merge'):
+    if self.hasMove('merge'):
       nStuckBeforeQuit = self.algParams['merge']['mergeNumStuckBeforeQuit']
       if (lapFrac - self.lapLastAcceptedMerge) > nStuckBeforeQuit:
         return False
@@ -584,6 +590,18 @@ class MOVBBirthMergeAlg(MOVBAlg):
                                                 self.BirthRecordsByComp,
                                                 self.lapFrac,
                                                 **self.algParams['birth'])
+      BirthLogger.logStartPrep(self.lapFrac+1)
+      Hist = defaultdict(int)
+      for compID in self.ActiveIDVec:
+        if compID in self.BirthRecordsByComp:
+          val = self.BirthRecordsByComp[compID]['nFail']
+          Hist[val] += 1
+        else:
+          Hist[0] += 1
+      msg = 'Failed Attempts Histogram:'
+      for key in sorted(Hist.keys()):
+        msg += " %d: %d" % (key, Hist[key])
+      BirthLogger.log(msg, 'moreinfo')
       return Plans
 
     # Update counter for duration since last targeted-birth for each comp

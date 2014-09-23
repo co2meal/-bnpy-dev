@@ -61,10 +61,9 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None,
                                           jA, jB, Mcand, **kwargs)
 
     logFunc('%3d | %3d %3d | %d % .7e %s' 
-                    % (trialID, kA, kB,  
-                       MoveInfo['didAccept'], MoveInfo['ELBOGain'], scoreMsg),
-                    'debug'
-                   )
+             % (trialID, kA, kB,  
+                MoveInfo['didAccept'], MoveInfo['ELBOGain'], scoreMsg),
+            'debug')
     if MoveInfo['didAccept']:
       CompIDShift[kA] = -1
       CompIDShift[kB] = -1
@@ -97,8 +96,9 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None,
   else:
     logFunc(msg)
 
-  logFunc('MERGE %d pairs skipped to due previous accepted merge.'
-           % (nSkip), 'debug')
+  if not isBirthCleanup:
+    logFunc('MERGE %d pairs skipped to due previous accepted merge.'
+             % (nSkip), 'debug')
   Info = dict(AcceptedPairs=AcceptedPairs,
               AcceptedPairOrigIDs=AcceptedPairOrigIDs,
               ELBOGain=ELBOGain,

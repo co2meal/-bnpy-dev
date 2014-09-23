@@ -12,6 +12,7 @@ from collections import defaultdict
 
 import bnpy.util.GramSchmidtUtil as GramSchmidtUtil
 from BirthProposalError import BirthProposalError
+import BirthLogger
 
 EPS = 1e-14
 
@@ -33,6 +34,8 @@ def makePlans_TargetCompsSmart(SS, BirthRecordsByComp, lapFrac,
       which happens if it has changed size exceeds prescribed limit
   '''
   nBirths = birthKwArgs['birthPerLap']
+  MIN_PERC_DIFF = birthKwArgs['birthChangeInSizeToReactivate']
+  MAX_FAIL = birthKwArgs['birthFailLimit']
 
   eligibleIDs = list()
   eligibleSizes = list()
@@ -49,16 +52,19 @@ def makePlans_TargetCompsSmart(SS, BirthRecordsByComp, lapFrac,
         prevN_k = BirthRecordsByComp[compID]['count']
 
         percDiff = np.abs(Nvec[k] - prevN_k) / (1e-8 + Nvec[k])
-        if percDiff < 0.1:
-          if nFails < 2:
+        if percDiff < MIN_PERC_DIFF:
+          if nFails < MAX_FAIL:
             waitListIDs.append(compID)
             waitListSizes.append(Nvec[k])
           continue
         else:
-          print '**** reconsidering comp %d, %.1f, %.1f, %.3f' \
-                 % (compID, Nvec[k], prevN_k, percDiff)
-          ## Comp has changed size enough to warrant fresh treatment
+          ## Comp has changed size enough to warrant reactivation
+          # So, we take it off the "disabled/failure" list
           del BirthRecordsByComp[compID]
+          msg = 'reactivating comp %d. newN %.1f, oldN %.1f, percDiff %.3f' \
+                 % (compID, Nvec[k], prevN_k, percDiff)
+          BirthLogger.log(msg, level='debug')
+
     eligibleIDs.append(compID)
     eligibleSizes.append(Nvec[k])
 
