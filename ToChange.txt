@@ -1,0 +1,2 @@
+TO CHANGE IN MODEL:
+-needed to alter MixBars10V900 file to include the get_short_name() method
