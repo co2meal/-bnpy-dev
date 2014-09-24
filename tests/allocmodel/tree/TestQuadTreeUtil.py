@@ -24,9 +24,9 @@ class TestQuadTreeUtil_5Nodes(unittest.TestCase):
 										  self.PiInit, self.PiMat, self.logSoftEv)
     print '============================= resp'
     print '------------- SumProduct'
-    print respPair
+    print resp
     print '------------- BruteForce'
-    print respPair2
+    print resp2
     print '============================= logPrObs'
     print '------------- SumProduct'
     print logPrObs
