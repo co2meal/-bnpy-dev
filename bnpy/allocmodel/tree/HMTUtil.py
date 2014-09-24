@@ -8,8 +8,8 @@ import math
 
 
 def SumProductAlg_QuadTree(PiInit, PiMat, logSoftEv):
-	'''Execute sum-product algorithm given HMT state
-	   transition params and log likelihoods of each observation
+  '''Execute sum-product algorithm given HMT state
+     transition params and log likelihoods of each observation
 
      Args
      -------
@@ -32,49 +32,52 @@ def SumProductAlg_QuadTree(PiInit, PiMat, logSoftEv):
                               * node n assigned to state k
                               * parent of node n assigned to state j
                         p( z[pa(n),j] = 1, z[n,k] = 1 | x[1], x[2], ... x[N])
-            respPair[0,:,:] is undefined, but kept to match indexing consistent. 
+            respPair[0,:,:] is undefined, but kept to match indexing consistent.
+      logMargPrSeq : scalar real
+            logMargPrSeq = joint log probability of the observed sequence
+                        log p( x[1], x[2], ... x[T] ) 
 
-  	'''
-	PiInit, PiMat, K = _parseInput_TransParams(PiInit, PiMat)
-	logSoftEv = _parseInput_SoftEv(logSoftEv, K)
-	N = logSoftEv.shape[0]
+    '''
+  PiInit, PiMat, K = _parseInput_TransParams(PiInit, PiMat)
+  logSoftEv = _parseInput_SoftEv(logSoftEv, K)
+  N = logSoftEv.shape[0]
 
-	SoftEv, lognormC = expLogLik(logSoftEv)
-	'''umsg = UpwardPass(PiInit, PiMat, SoftEv)
-	dmsg, margPrObs = DownwardPass(PiInit, PiMat, SoftEv, umsg)
-
-	respPair = np.zeros((N,K,K))
-
-	for n in xrange( 1, N ):
-		parent = get_parent_index(n)
-		siblings = get_children_indices(parent,N)
-		siblings.remove(n)
-		message = 1
-		message *= dmsg[parent]
-		for s in siblings:
-			branch = get_branch(s)
-			message *= np.dot(PiMat[branch,:,:], umsg[s] * SoftEv[s])
-		respPair[n] = PiMat[get_branch(n),:,:] * np.outer(message, umsg[n] * SoftEv[n])
-		respPair[n] /= np.sum(respPair[n])
-
-	#logMargPrSeq = np.log(margPrObs[N-1]) + lognormC.sum()
-	resp = dmsg * umsg
-	logMargPrSeq = np.log(resp[N-1].sum()) + lognormC.sum()
-	resp = resp / resp.sum(axis=1)[:,np.newaxis]'''
-	umsg, umsg_helper, margStateDist, margPrObs = UpwardPass_Smoothed(PiInit, PiMat, SoftEv)
-	dmsg = DownwardPass_Smoothed(PiInit, PiMat, SoftEv, umsg, umsg_helper, margStateDist)
-	resp = umsg*dmsg
-	respPair = np.zeros((N,K,K))
-	for n in xrange( 1, N ):
-		parent = get_parent_index(n)
-		branch = get_branch(n)
-		respPair[n] = PiMat[branch,:,:] * np.outer(resp[parent]/umsg_helper[n], umsg[n]/margStateDist[n])
-	logMargPrSeq = np.log(margPrObs).sum() + lognormC.sum()
-	return resp, respPair, logMargPrSeq
+  SoftEv, lognormC = expLogLik(logSoftEv)
+  umsg, margPrObs, fmsg = UpwardPass(PiInit, PiMat, SoftEv)
+  dmsg = DownwardPass(PiInit, PiMat, SoftEv, umsg, fmsg)
+  resp = np.empty( (N,K) )
+  start = find_last_nonleaf_node(N)
+  for n in xrange(N):
+    message = np.ones( K )
+    if n > start-1:
+      message *= SoftEv[n]
+    else:
+      message *= fmsg[n,:]
+    message *= dmsg[n,:]
+    resp[n,:] = message / np.sum(message)
+  respPair = np.zeros( (N,K,K) )
+  for n in xrange(1,N,1):
+    parent = get_parent_index(n)
+    branch = get_branch(n)
+    up = np.ones( K )
+    up *= dmsg[parent,:]
+    eps = np.finfo(float).eps
+    divisor = np.ones( K ) * umsg[n, :]
+    divisor[divisor < eps] = eps
+    up *= fmsg[parent,:] / divisor
+    down = np.ones( K )
+    if n > start-1:
+      down *= SoftEv[n,:]
+    else:
+      down *= fmsg[n,:]
+    respPair[n] = PiMat[branch,:,:] * np.outer(up, down)
+    respPair[n] /= np.sum(respPair[n])
+  logMargPrSeq = np.log(margPrObs).sum() + lognormC.sum()
+  return resp, respPair, logMargPrSeq
 
 
 def UpwardPass(PiInit, PiMat, SoftEv):
-	'''Propagate messages upwards along the tree, starting from the leaves
+  '''Propagate messages upwards along the tree, starting from the leaves
     Args
      -------
      piInit : 1D array, size K
@@ -93,164 +96,138 @@ def UpwardPass(PiInit, PiMat, SoftEv):
                   probability of state k on latent variable n, given all 
                   observations from its predecessors and its observation
                   umsg[n,k] = p( z[n,k] = 1 | x[c(c(n))]...x[c(n)] ... x[n] )
-	'''
-	N = SoftEv.shape[0]
-	K = PiInit.size
-	umsg = np.ones( (N, K) )
-	start = find_last_nonleaf_node(N)
-	for n in xrange(start-1, -1, -1):
-		children = get_children_indices(n, N)
-		for child in children:
-			branch = get_branch(child)
-			umsg[n] = umsg[n] * np.dot(PiMat[branch,:,:], umsg[child]*SoftEv[child])
-		normalization_const = np.sum(umsg[n])
-		#umsg[n] /= normalization_const
-	return umsg
+        margPrObs : 1D array, size N
+                  margPrObs[n] = p( x[n] | x[c(c(n))]...x[c(n)] )
+        fmsg : 2D array, size T x K, where T is the number of nonleaf nodes
+                  fmsg[n] = p(x[n]|z[n]) * umsg[c(n)[1]] * umsg[c(n)[2]] * umsg[c(n)[3]] * umsg[c(n)[4]], 
+                  where c(n)[k] is the kth child of node n
+
+  '''
+  N = SoftEv.shape[0]
+  K = PiInit.size
+  umsg = np.ones( (N, K) )
+  margPrObs = np.empty( N )
+  start = find_last_nonleaf_node(N)
+  fmsg = np.ones ( (start, K) )
+  for n in xrange(N-1, 0, -1):
+    branch = get_branch(n)
+    if n > start-1:
+      message = np.ones( K )
+      message *= SoftEv[n]
+      message = np.dot(PiMat[branch,:,:], message)
+      margPrObs[n] = np.sum(message)
+      umsg[n, :] = message / margPrObs[n]
+    else:
+      children = get_children_indices(n, N)
+      message = np.ones( K )
+      for child in children:
+        message *= umsg[child,:]
+      message *= SoftEv[n]
+      fmsg[n] = np.ones( K ) * message
+      message = np.dot(PiMat[branch,:,:], message)
+      margPrObs[n] = np.sum(message)
+      umsg[n,:] = message / margPrObs[n]
+  message = np.ones( K )
+  for child in xrange(1, 5):
+    message *= umsg[child, :]
+  message *= SoftEv[0]
+  fmsg[0] = np.ones( K ) * message
+  message *= PiInit
+  margPrObs[0] = np.sum(message)
+  return umsg, margPrObs, fmsg
 
 
-def DownwardPass(PiInit, PiMat, SoftEv, umsg):
-	'''Propagate messages downwards along the tree, starting from the root
+def DownwardPass(PiInit, PiMat, SoftEv, umsg, fmsg):
+  '''Propagate messages downwards along the tree, starting from the root
 
     Args
      -------
-     piInit : 1D array, size K
+    piInit : 1D array, size K
             initial transition distribution to each of the K states
             must be valid probability vector (positive entries, sums to one)
-     piMat  : 4 2D array, size 4xKxK
+    piMat  : 4 2D array, size 4xKxK
             piMat[i,j] is transition distribution on branch ifrom state j to all K states.
             each row must be probability vector (positive entries, sums to one)
-     SoftEv : 2D array, size NxK
+    SoftEv : 2D array, size NxK
             SoftEv[n] := p( x[n] | z[nk] = 1)
                          likelihood of observation n under state k
                          given up to an additive constant for each n
+    umsg : 2D array, size N x K
+          probability of state k on latent variable n, given all 
+          observations from its predecessors and its observation
+          umsg[n,k] = p( z[n,k] = 1 | x[c(c(n))]...x[c(n)] ... x[n] )
+    fmsg : 2D array, size T x K, where T is the number of nonleaf nodes
+          fmsg[n] = p(x[n]|z[n]) * umsg[c(n)[1]] * umsg[c(n)[2]] * umsg[c(n)[3]] * umsg[c(n)[4]], 
+          where c(n)[k] is the kth child of node n
      Returns
      -------
         dmsg : 2D array, size N x K
                   dmsg[n,k] = p( x[p(n)], x[p(p(n))], ... x[1] |  z[n,k] = 1 )
-	'''
-	N = SoftEv.shape[0]
-	K = PiInit.size
-	PiTMat = np.empty( (4,K,K) )
-	for d in xrange(0, 4):
-		PiTMat[d,:,:] = PiMat[d,:,:].T
+  '''
+  N = SoftEv.shape[0]
+  K = PiInit.size
+  PiTMat = np.empty( (4,K,K) )
+  for d in xrange(0, 4):
+    PiTMat[d,:,:] = PiMat[d,:,:].T
+  dmsg = np.empty( (N,K) )
+  for n in xrange( 0, N ):
+    if n == 0:
+      dmsg[n] = PiInit
+    else:
+      parent = get_parent_index(n)
+      branch = get_branch(n)
+      message = np.ones( K )
+      eps = np.finfo(float).eps
+      divisor = np.ones( K ) * umsg[n, :]
+      divisor[divisor < eps] = eps
+      message = fmsg[parent,:] / divisor
+      message *= dmsg[parent,:]
+      message = np.dot(PiTMat[branch,:,:], message)
+      dmsg[n,:] = message / np.sum(message)
+  return dmsg
 
-	margPrObs = np.empty( N )
-	dmsg = np.empty( (N,K) )
-	for n in xrange( 0, N ):
-		if n == 0:
-			dmsg[n] = PiInit * SoftEv[0]
-			margPrObs[n] = np.sum(dmsg[n])
-			#dmsg[n] /= margPrObs[n]
-		else:
-			parent_index = get_parent_index(n)
-			siblings = get_children_indices(parent_index, N)
-			siblings.remove(n)
-			message = 1
-			message *= dmsg[parent_index]
-			for s in siblings:
-				branch = get_branch(s)
-				message *= np.dot(PiMat[branch,:,:], umsg[s]* SoftEv[s])
-			branch = get_branch(n)
-			dmsg[n] = np.dot(PiTMat[branch,:,:], message) * SoftEv[n]
-		margPrObs[n] = np.sum(dmsg[n])
-		#dmsg[n] /= margPrObs[n]
-	return dmsg, margPrObs
-
-def UpwardPass_Smoothed(PiInit, PiMat, SoftEv):
-	'''Upward pass with normalized messages
-	'''
-	N = SoftEv.shape[0]
-	K = PiInit.size
-	PiTMat = np.empty( (4,K,K) )
-	for d in xrange(0, 4):
-		PiTMat[d,:,:] = PiMat[d,:,:].T
-	start = find_last_nonleaf_node(N)
-	umsg = np.ones( (N,K) )
-	margStateDist = np.empty( (N,K) )
-	umsg_helper = np.empty( (N,K) )
-	margStateDist[0] = PiInit
-	zero = np.where(margStateDist[0] == 0)[0]
-	margStateDist[0,zero] = np.finfo(np.double).eps
-	margPrObs = np.empty( N )
-	for n in xrange(1, N):
-		branch = get_branch(n)
-		margStateDist[n] = np.dot(PiTMat[branch], margStateDist[get_parent_index(n)])
-		zero = np.where(margStateDist[n] == 0)[0]
-		margStateDist[n,zero] = np.finfo(np.double).eps
-	for n in xrange(N-1, -1, -1):
-		if(n > start-1):
-			umsg[n] = SoftEv[n] * margStateDist[n]
-			margPrObs[n] = np.sum(umsg[n])
-			umsg[n] /= margPrObs[n]
-			branch = get_branch(n)
-			umsg_helper[n] = np.dot(PiMat[branch,:,:], umsg[n]/margStateDist[n])
-		else:
-			children = get_children_indices(n, N)
-			for c in children:
-				umsg[n] = umsg[n] * umsg_helper[c]
-			umsg[n] = umsg[n] * (SoftEv[n] * margStateDist[n])
-			margPrObs[n] = np.sum(umsg[n])
-			umsg[n] /= margPrObs[n]
-			if n > 0:
-				branch = get_branch(n)
-				umsg_helper[n] = np.dot(PiMat[branch,:,:], umsg[n]/margStateDist[n])
-	return umsg, umsg_helper, margStateDist, margPrObs
-
-def DownwardPass_Smoothed(PiInit, PiMat, SoftEv, umsg, umsg_helper, margStateDist):
-	'''Downward pass with normalized messages
-	'''
-	N = SoftEv.shape[0]
-	K = PiInit.size
-	PiTMat = np.empty( (4,K,K) )
-	for d in xrange(0, 4):
-		PiTMat[d,:,:] = PiMat[d,:,:].T
-	dmsg = np.ones( (N,K) )
-	for n in xrange(1, N):
-		parent = get_parent_index(n)
-		branch = get_branch(n)
-		dmsg[n] = np.dot(PiTMat[branch,:,:], (dmsg[parent]*umsg[parent])/umsg_helper[n]) / margStateDist[n]
-	return dmsg
-
+########################################################### Tree Utils
+###########################################################
 def get_parent_index(child_index):
-	if child_index == 0:
-		return None #it is a root
-	elif child_index%4 == 0:
-		return (child_index-1)/4
-	else:
-		return child_index/4
+  if child_index == 0:
+    return None #it is a root
+  elif child_index%4 == 0:
+    return (child_index-1)/4
+  else:
+    return child_index/4
 
 def get_children_indices(parent, N):
-	if 4*parent+1 > N:
-		return []
-	else:
-		myList = [4*parent+j+1 for j in range(4)]
-		return myList
+  if 4*parent+1 > N:
+    return []
+  else:
+    myList = [4*parent+j+1 for j in range(4)]
+    return myList
 
 def get_branch(child_index):
-	'''Find on which branch of its parent this child lies
-	'''
-	if (child_index%4 == 0):
-		return 3
-	else:
-		return (child_index%4 - 1)
+  '''Find on which branch of its parent this child lies
+  '''
+  if (child_index%4 == 0):
+    return 3
+  else:
+    return (child_index%4 - 1)
 
 def find_last_nonleaf_node(N):
-	'''Get the index of last nonleaf node in the data
-	'''
-	if N == 1:
-		return None
-	else:
-		height = 1
-		total = 1
-		while (total + 4**height) < N:
-			total += 4**height
-			height += 1
-		return total
+  '''Get the index of last nonleaf node in the data
+  '''
+  if N == 1:
+    return None
+  else:
+    height = 1
+    total = 1
+    while (total + 4**height) < N:
+      total += 4**height
+      height += 1
+    return total
 
 ########################################################### expLogLik
 ###########################################################
 def expLogLik(logSoftEv, axis=1):
-	''' Return element-wise exp of input log likelihood
+  ''' Return element-wise exp of input log likelihood
         guaranteed not to underflow
     
       Returns
@@ -259,31 +236,31 @@ def expLogLik(logSoftEv, axis=1):
                 equal to exp(logSoftEv), up to prop constant for each row
       lognormC : 1D array, size N
                 gives log of the prop constant for each row
-	'''
-	lognormC = np.max(logSoftEv, axis)
-	if axis==0:
-		logSoftEv = logSoftEv - lognormC[np.newaxis,:]
-	elif axis==1:
-		logSoftEv = logSoftEv - lognormC[:,np.newaxis]
-	SoftEv = np.exp(logSoftEv)
-	return SoftEv, lognormC
+  '''
+  lognormC = np.max(logSoftEv, axis)
+  if axis==0:
+    logSoftEv = logSoftEv - lognormC[np.newaxis,:]
+  elif axis==1:
+    logSoftEv = logSoftEv - lognormC[:,np.newaxis]
+  SoftEv = np.exp(logSoftEv)
+  return SoftEv, lognormC
 
 ########################################################### Parse input
 ###########################################################
 def _parseInput_TransParams(PiInit, PiMat):
-	PiInit = np.asarray(PiInit, dtype=np.float64)
-	PiMat = np.asarray(PiMat, dtype=np.float64)
-	assert PiInit.ndim == 1
-	K0 = PiInit.shape[0]
-	assert PiMat.ndim == 3
-	I, J, K = PiMat.shape
-	assert J == K
-	assert K0 == K
-	assert I == 4
-	return PiInit, PiMat, K
+  PiInit = np.asarray(PiInit, dtype=np.float64)
+  PiMat = np.asarray(PiMat, dtype=np.float64)
+  assert PiInit.ndim == 1
+  K0 = PiInit.shape[0]
+  assert PiMat.ndim == 3
+  I, J, K = PiMat.shape
+  assert J == K
+  assert K0 == K
+  assert I == 4
+  return PiInit, PiMat, K
 
 def _parseInput_SoftEv(logSoftEv, K):
-	logSoftEv = np.asarray(logSoftEv, dtype=np.float64)
-	Nl, Kl = logSoftEv.shape
-	assert Kl == K
-	return logSoftEv
+  logSoftEv = np.asarray(logSoftEv, dtype=np.float64)
+  Nl, Kl = logSoftEv.shape
+  assert Kl == K
+  return logSoftEv
