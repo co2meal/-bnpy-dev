@@ -153,12 +153,11 @@ class DataIteratorFromDisk(object):
     self.totalSize, self.batchSize = get_total_size(self.datafileList)
     self.DataInfo = dict()
     if self.datafileList[0].endswith('.ldac'):
-      try:
-        if 'W' in os.environ:
-          vocab_size = int(os.environ['W'])
-      except Exception as e:
-        vfilepath = os.path.join(self.datapath, 'vocab_size.conf')
+      vfilepath = os.path.join(self.datapath, 'vocab_size.conf')
+      if os.path.exists(vfilepath):
         vocab_size = int(np.loadtxt(vfilepath))
+      else:
+        vocab_size = int(os.environ['W'])
       self.DataInfo['vocab_size'] = vocab_size
       self.DataInfo['nDocTotal'] = self.totalSize
       return
