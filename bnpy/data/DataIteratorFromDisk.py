@@ -160,6 +160,7 @@ class DataIteratorFromDisk(object):
         vocab_size = int(os.environ['W'])
       self.DataInfo['vocab_size'] = vocab_size
       self.DataInfo['nDocTotal'] = self.totalSize
+      return
 
     dtype = 'XData'
     dtypepath = os.path.join(self.datapath, 'data_type.conf')

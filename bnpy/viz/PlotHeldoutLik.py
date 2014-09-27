@@ -12,6 +12,8 @@ from matplotlib import pylab
 import numpy as np
 import argparse
 import os
+import glob
+import scipy.io
 
 from bnpy.ioutil import BNPYArgParser
 from JobFilter import filterJobs
@@ -28,12 +30,9 @@ Colors = [(0,0,0), # black
           (1,0.6,0), #orange
          ]
 
-XLabelMap = dict(laps='num pass thru data',
-                 iters='num steps in alg',
-                 times='elapsed time (sec)'
+XLabelMap = dict(laps='num pass thru train data',
                 )  
-YLabelMap = dict(evidence='log evidence',
-                 K='num components',
+YLabelMap = dict(evidence='per-token heldout log-lik',
                  )
      
 def plotJobsThatMatchKeywords(jpathPattern='/tmp/', 
@@ -52,7 +51,6 @@ def plotJobsThatMatchKeywords(jpathPattern='/tmp/',
   nLines = len(jpaths)
   for lineID in xrange(nLines):
     plot_all_tasks_for_job(jpaths[lineID], legNames[lineID], 
-                           xvar=xvar, yvar=yvar,
                            taskids=taskids, colorID=lineID)
 
   pylab.legend(loc='best')  
@@ -79,14 +77,22 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
   taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
 
   for tt, taskid in enumerate(taskids):
-    xs = np.loadtxt(os.path.join(jobpath, taskid, xvar+'.txt'))
-    ys = np.loadtxt(os.path.join(jobpath, taskid, yvar+'.txt'))
+    taskoutpath = os.path.join(jobpath, taskid)
+    hpaths = glob.glob(os.path.join(taskoutpath, '*HeldoutLik.mat'))
+    hpaths.sort()
+    basenames = [x.split(os.path.sep)[-1] for x in hpaths];
+    laps = np.asarray([float(x[3:11]) for x in basenames]);
+
+    ys = np.zeros_like(laps)
+    for ii, hpath in enumerate(hpaths):
+      MatVars = scipy.io.loadmat(hpath)
+      ys[ii] = float(MatVars['avgPredLL'])
 
     plotargs = dict(markersize=10, linewidth=2, label=None,
                     color=color, markeredgecolor=color)
     if tt == 0:
       plotargs['label'] = label
-    pylab.plot(xs, ys, '.-', **plotargs)
+    pylab.plot(laps, ys, '.-', **plotargs)
 
   pylab.xlabel(XLabelMap[xvar])
   pylab.ylabel(YLabelMap[yvar])
@@ -99,8 +105,6 @@ def parse_args():
   parser.add_argument('dataName', type=str, default='AsteriskK8')
   parser.add_argument('jpath', type=str, default='demo*')
 
-  parser.add_argument('--xvar', type=str, default='laps',
-        help="name of x axis variable to plot. one of {iters,laps,times}")
   parser.add_argument('--taskids', type=str, default=None,
         help="int ids of tasks (trials/runs) to plot from given job." \
               + " Example: '4' or '1,2,3' or '2-6'.")
