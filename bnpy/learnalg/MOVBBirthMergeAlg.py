@@ -596,9 +596,25 @@ class MOVBBirthMergeAlg(MOVBAlg):
                                                 self.lapFrac,
                                                 ampF=ampF,
                                                 **self.algParams['birth'])
-      self.BirthEligibleHist, msg = self.birth_makeEligibilityHist(SS)
+      self.BirthEligibleHist, CStatus, msg = self.birth_makeEligibilityHist(SS)
       BirthLogger.logStartPrep(self.lapFrac+1)
       BirthLogger.log(msg, 'moreinfo')
+
+      SaveVars = dict()
+      SaveVars['lapFrac'] = self.lapFrac
+      SaveVars['msg'] = msg
+      SaveVars['BirthEligibleHist'] = self.BirthEligibleHist
+      
+      savedict = dict()
+      for compID in SS.uIDs:
+        if compID in self.BirthRecordsByComp:
+          savedict[compID] = self.BirthRecordsByComp[compID]
+      SaveVars['BirthRecordsByComp'] = savedict
+      SaveVars['CompStatus'] = CStatus
+      import joblib
+      if self.savedir is not None:
+        dumpfile = os.path.join(self.savedir, 'birth-plans.dump')
+        joblib.dump(SaveVars, dumpfile)
       return Plans
 
     # Update counter for duration since last targeted-birth for each comp
@@ -752,24 +768,29 @@ class MOVBBirthMergeAlg(MOVBAlg):
     for nStrike in range(MAX_FAIL):
       Hist['Nable' + str(nStrike)] = 0
 
+    CompStatus = dict()
     for kk, compID in enumerate(self.ActiveIDVec):
       if SS.getCountVec()[kk] < targetMinSize:
         Hist['Ntoosmall'] += 1
+        CompStatus[compID] = 'toosmall'
       elif compID in self.BirthRecordsByComp:
         nFail = self.BirthRecordsByComp[compID]['nFail']
         if nFail < MAX_FAIL:
           Hist['Nable' + str(nFail)] += 1
           Hist['Nable'] += 1
+          CompStatus[compID] = 'able-' + str(nFail)
         else:
           Hist['Ndisabled'] += 1
+          CompStatus[compID] = 'disabled'
       else:
         Hist['Nable0'] += 1
         Hist['Nable'] += 1
+        CompStatus[compID] = 'able-0'
 
     msg = 'Eligibility Hist:'
     for key in sorted(Hist.keys()):
       msg += " %s=%d" % (key, Hist[key])
-    return Hist, msg
+    return Hist, CompStatus, msg
 
   ######################################################### Merge moves!
   #########################################################
