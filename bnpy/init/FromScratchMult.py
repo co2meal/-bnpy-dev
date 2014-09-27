@@ -57,7 +57,7 @@ def init_global_params(obsModel, Data, K=0, seed=0,
     ## Sample K topics i.i.d. from Dirichlet with specified parameter
     ## this method is exactly done in Chong Wang's onlinehdp code
     lam = PRNG.gamma(1.0, 1.0, (K, Data.vocab_size))
-    lam *= Data.nDoc * 100.0 / (K*Data.vocab_size)
+    lam *= Data.nDocTotal * 100.0 / (K*Data.vocab_size)
   else:
     topics = _initTopicWordEstParams(obsModel, Data, PRNG,
                                    K=K,
