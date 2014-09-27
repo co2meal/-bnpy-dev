@@ -509,11 +509,12 @@ class MOVBBirthMergeAlg(MOVBAlg):
       BirthLogger.logStartMove(lapFrac, moveID + 1, len(BirthPlans))
       if isBad or targetData is None:
         msg = Plan['msg']
-        BirthLogger.log(msg)
-        BirthLogger.log('SKIPPED. TargetData bad.')
-      elif targetSize < kwargs['targetMinSize']:
+        BirthLogger.log(msg, 'moreinfo')
+        BirthLogger.log('SKIPPED. TargetData bad.', 'moreinfo')
+      elif targetSize < kwargs['Kfresh']:
         msg = "SKIPPED. Target data too small. Size %d, but expected >= %d"
-        BirthLogger.log(msg % (targetSize, kwargs['targetMinSize']))
+        BirthLogger.log(msg % (targetSize, kwargs['Kfresh']),
+                        'moreinfo')
       else:
         newmodel, newSS, MoveInfo = BirthMove.run_birth_move(
                                            hmodel, SS, targetData,
@@ -585,9 +586,15 @@ class MOVBBirthMergeAlg(MOVBAlg):
     nBirths = self.algParams['birth']['birthPerLap']
 
     if self.algParams['birth']['targetSelectName'] == 'smart':
+      if self.lapFrac < 1:
+        ampF = Data.get_total_size() / float(Data.get_size())
+      else:
+        ampF = 1.0
+      ampF = np.maximum(ampF, 1.0)
       Plans = TargetPlanner.makePlans_TargetCompsSmart(SS, 
                                                 self.BirthRecordsByComp,
                                                 self.lapFrac,
+                                                ampF=ampF,
                                                 **self.algParams['birth'])
       self.BirthEligibleHist, msg = self.birth_makeEligibilityHist(SS)
       BirthLogger.logStartPrep(self.lapFrac+1)
@@ -739,21 +746,27 @@ class MOVBBirthMergeAlg(MOVBAlg):
   def birth_makeEligibilityHist(self, SS):
     targetMinSize = self.algParams['birth']['targetMinSize']
     MAX_FAIL = self.algParams['birth']['birthFailLimit']
-    Hist = dict(Ntoosmall=0, Nable=0, Ndisabled=0)
- 
+
+    ## Initialize histogram bins to 0
+    Hist = dict(Ntoosmall=0, Ndisabled=0, Nable=0)
+    for nStrike in range(MAX_FAIL):
+      Hist['Nable' + str(nStrike)] = 0
+
     for kk, compID in enumerate(self.ActiveIDVec):
       if SS.getCountVec()[kk] < targetMinSize:
         Hist['Ntoosmall'] += 1
       elif compID in self.BirthRecordsByComp:
         nFail = self.BirthRecordsByComp[compID]['nFail']
         if nFail < MAX_FAIL:
+          Hist['Nable' + str(nFail)] += 1
           Hist['Nable'] += 1
         else:
           Hist['Ndisabled'] += 1
       else:
+        Hist['Nable0'] += 1
         Hist['Nable'] += 1
 
-    msg = 'Eligibility Histogram:'
+    msg = 'Eligibility Hist:'
     for key in sorted(Hist.keys()):
       msg += " %s=%d" % (key, Hist[key])
     return Hist, msg

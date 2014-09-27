@@ -16,8 +16,9 @@ import BirthLogger
 
 EPS = 1e-14
 
-def makePlans_TargetCompsSmart(SS, BirthRecordsByComp, lapFrac, 
-                                      **birthKwArgs):
+def makePlans_TargetCompsSmart(SS, BirthRecordsByComp, lapFrac,
+                                   ampF=1.0, 
+                                   **birthKwArgs):
   ''' Determine which components to target, smartly tracking previous attempts.
 
       Returns
@@ -42,7 +43,7 @@ def makePlans_TargetCompsSmart(SS, BirthRecordsByComp, lapFrac,
   waitListIDs = list()
   waitListSizes = list()
 
-  Nvec = SS.getCountVec()
+  Nvec = SS.getCountVec() * ampF
   for k, compID in enumerate(SS.uIDs):
     if Nvec[k] < birthKwArgs['targetMinSize']:
       continue
@@ -70,19 +71,24 @@ def makePlans_TargetCompsSmart(SS, BirthRecordsByComp, lapFrac,
 
   if len(eligibleIDs) < nBirths and len(waitListIDs) > 0:
     nExtra = nBirths - len(eligibleIDs)
-    ## Try to add in comps that have failed before
+    ## Add in comps that have failed before
     # prioritizing largest options
     order = np.argsort(waitListSizes)[-nExtra:]
     eligibleIDs.extend([waitListIDs[x] for x in order])
     eligibleSizes.extend([waitListSizes[x] for x in order])
 
-  ## Greedy order of eligibles
+  ## Greedy selection of the top nBirths eligibles
   if len(eligibleIDs) > nBirths:
     eligibleIDs = np.asarray(eligibleIDs)
     eligibleSizes = np.asarray(eligibleSizes)
     order = np.argsort(-1 * eligibleSizes)[:nBirths]
     eligibleIDs = [eligibleIDs[x] for x in order]
     eligibleSizes = [eligibleSizes[x] for x in order]
+
+  msgList = ['%d:%.0f' % (eligibleIDs[i], eligibleSizes[i]) \
+             for i in range(len(eligibleIDs))]
+  msg = 'Top Eligibles: ' + ' '.join(msgList)
+  BirthLogger.log(msg, level='moreinfo')
 
   Plans = list()
   for birthID, compID in enumerate(eligibleIDs):
