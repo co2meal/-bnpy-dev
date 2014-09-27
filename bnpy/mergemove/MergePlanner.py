@@ -140,10 +140,8 @@ def selectPairsUsingAtMostNOfEachComp(AdjMat, extraFixedEdges=None,
   
   cond1 = np.allclose(degree, xdegree)
   cond2 = np.max(newdegree) <= N + Nextra
-  if not cond1:
-    from IPython import embed; embed()
-  if not cond2:
-    from IPython import embed; embed()
+  assert cond1
+  assert cond2
   return pairIDs
 
 def updateScoreMat_wholeELBO(ScoreMat, curModel, SS, doAllPairs=0):
