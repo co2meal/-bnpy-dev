@@ -2,32 +2,44 @@ import argparse
 import ConfigParser
 import os
 import sys
+import numpy as np
 
 OnlineDataAlgSet = ['soVB', 'moVB']
 
 dataHelpStr = 'Name of dataset, defined by a python script in $BNPYDATADIR.'
 
-aModelChoices = ['MixModel', 'DPMixModel', 'AdmixModel', 'HDPModel',
-                   'HDPPE', 'HDPFullHard']
-aModelChoices = set(aModelChoices)
-choiceStr = ' {' + ','.join([x for x in (aModelChoices)]) + '}'
+from bnpy.allocmodel import AllocModelNameSet
+choiceStr = ' {' + ','.join([x for x in (AllocModelNameSet)]) + '}'
 aModelHelpStr = 'Name of allocation model.' + choiceStr
 
-oModelChoices = set(['Gauss', 'ZMGauss', 'Mult'])
-choiceStr = ' {' + ','.join([x for x in (oModelChoices)]) + '}'
+from bnpy.obsmodel import ObsModelNameSet
+choiceStr = ' {' + ','.join([x for x in (ObsModelNameSet)]) + '}'
 oModelHelpStr = 'Name of observation model.' + choiceStr
 
-algChoices = set(['EM','VB','moVB','soVB'])
+algChoices = set(['EM','VB','moVB','moVBsimple', 'soVB','GS'])
 choiceStr = ' {' + ','.join([x for x in (algChoices)]) + '}'
 algHelpStr = 'Name of learning algorithm.' + choiceStr
 
-MovesHelpStr = "String names of moves to perform to escape local optima. Options: {birth,merge}. To perform multiple moves, separate with commas like 'birth,merge' (no spaces)."
+MovesHelpStr = "String names of moves to perform to escape local optima. Options: {birth,merge}. To perform several move types, separate with commas like 'birth,merge' (no spaces)."
+
 KwhelpHelpStr = "Include --kwhelp to print our keyword argument help and exit"
 
 ########################################################### User-facing 
 ###########################################################  functions
 def parseRequiredArgs():
-  ''' Returns parsed required arguments for bnpy, as a dict.
+  ''' Process standard input for bnpy's required arguments, as a dict.
+
+      Required Args: dataName, allocModelName, obsModelName, algName
+
+      All other args in stdin are left alone (for later processing).
+
+      Returns
+      --------
+      ArgDict : dict, with fields
+      * dataName
+      * allocModelName
+      * obsModelName
+      * algName
   '''
   parser = argparse.ArgumentParser()
   parser.add_argument('dataName', type=str, help=dataHelpStr)
@@ -38,67 +50,81 @@ def parseRequiredArgs():
   parser.add_argument('algName', 
                        type=str, help=algHelpStr)
   args, unk = parser.parse_known_args()
-  if args.allocModelName not in aModelChoices:
+  if args.allocModelName not in AllocModelNameSet:
     raise ValueError('Unrecognized allocModelName %s' % (args.allocModelName))
-  if args.obsModelName not in oModelChoices:
+  if args.obsModelName not in ObsModelNameSet:
     raise ValueError('Unrecognized obsModelName %s' % (args.obsModelName))
   if args.algName not in algChoices:
     raise ValueError('Unrecognized learning algName %s' % (args.algName))
   return args.__dict__
 
 def parseKeywordArgs(ReqArgs, **kwargs):
-  ''' Returns parsed keyword arguments for bnpy, as a dict.
+  ''' Process standard input (or provided input) for keyword args.
+
+      Returns
+      --------
+      KwDict : dict, with key/val pair for every keyword argument
   '''
   movesParser = argparse.ArgumentParser()
   movesParser.add_argument('--moves', type=str, default=None, help=MovesHelpStr)
-  MovesArgDict, kwargs = applyParserToKwArgDict(movesParser, **kwargs)
+  MovesArgDict, unkDict = applyParserToStdInOrKwargs(movesParser, **kwargs)
+
   Moves = set()  
   if MovesArgDict['moves'] is not None:
     for move in MovesArgDict['moves'].split(','):
       Moves.add(move)
   
-  # Create parser, fill with default options from files
-  parser = _createParserFromConfigFiles(ReqArgs, Moves)
+  ## Create parser, fill with default options from files
+  parser = makeParserWithDefaultsFromConfigFiles(ReqArgs, Moves)
   parser.add_argument('--kwhelp', action='store_true', help=KwhelpHelpStr)
 
-  # Apply the parser to input arguments
-  kwargs, unkDict = applyParserToKwArgDict(parser, **kwargs)
+  ## Apply the parser to input keywords
+  kwargs, unkDict = applyParserToStdInOrKwargs(parser, **kwargs)
   if kwargs['kwhelp']:
     parser.print_help()
     sys.exit(-1)
 
-  # Transform kwargs from "flat" dict, with no sense of sections
+  if 'moves' in unkDict:
+    del unkDict['moves']
+
+  ## Transform kwargs from "flat" dict, with no sense of sections
   #  into a multi-level dict, with sections for 'EM', 'Gauss', 'MixModel', etc.
-  kwargs = _organizeParsedKeywordArgsIntoSections(ReqArgs, Moves, kwargs)
+  kwargs = organizeParsedArgDictIntoSections(ReqArgs, Moves, kwargs)
   return kwargs, unkDict
 
 ########################################################### Parser Utils
 ########################################################### 
-def applyParserToKwArgDict(parser, **kwargs):
-  '''
+def applyParserToStdInOrKwargs(parser, **kwargs):
+  ''' Extract all fields defined in parser from stdin (or provided kwargs)
+
      If no kwargs provided, they are read from stdin.
 
      Returns
      --------
-      ArgDict : dict of parsed arg/value pairs
-      UnkDict : dict of unknown arg/value pairs
+     ArgDict : dict of parsed arg/value pairs for all fields defined in parser
+     UnkDict : dict of unknown arg/value pairs
   '''
   if len(kwargs.keys()) > 0:
-    kwlist = kwargs_to_arglist(**kwargs)
+    kwlist, ComplexTypeDict = kwargs_to_arglist(**kwargs)
     args, unkList = parser.parse_known_args(kwlist)
+    ArgDict = args.__dict__
+    ArgDict.update(ComplexTypeDict)
   else:
+    ## Parse all args/kwargs from stdin
     args, unkList = parser.parse_known_args()
-  return args.__dict__, arglist_to_kwargs(unkList)
+    ArgDict = args.__dict__
+  return ArgDict, arglist_to_kwargs(unkList)
 
 
-########################################################### Conversion Utils
-########################################################### argdict <--> arglist
+########################################################### Conversion
+########################################################### argdict <-> arglist
 def arglist_to_kwargs(alist):
   ''' Return dict where key/val pairs are neighboring entries in given list
+
       Examples
       ---------
-      >> arglist_to_kwargs(['--a', 1])
-      dict(a=1)
+      >> arglist_to_kwargs(['--a', 1, '--b', 'stegosaurus'])
+      dict(a=1, b='stegosaurus')
       >> arglist_to_kwargs(['requiredarg', 1])
       dict()
   '''
@@ -120,20 +146,33 @@ def arglist_to_kwargs(alist):
 
 def kwargs_to_arglist(**kwargs):
   ''' Return arglist where consecutive entries are the input key/value pairs
+
+      Returns
+      -------
+      arglist : list
+      SafeDictForComplexTypes : dict
   '''
+  keys = kwargs.keys()
+  keys.sort(key=len) # sorty by length, smallest to largest
   arglist = list()
-  for key,val in kwargs.items():
-    arglist.append('--' + key)
-    arglist.append(str(val))
-  return arglist
+  SafeDict = dict()
+  for key in keys:
+    val = kwargs[key]
+    if isinstance(val, dict) or isinstance(val, np.ndarray):
+      SafeDict[key] = val
+    else:
+      arglist.append('--' + key)
+      arglist.append(str(val))
+  return arglist, SafeDict
 
-
-########################################################### Setup Parser from file
-###########################################################
-def _createParserFromConfigFiles(ReqArgs, Moves):
+########################################################### Setup Parser
+########################################################### from config file
+def makeParserWithDefaultsFromConfigFiles(ReqArgs, Moves):
   ''' Returns parser object, filled with default settings from config files
+      
       Only certain sections of the config files are included,
-        based on the provided ReqArgs and Moves
+      selected by the provided RequiredArgs and Moves
+      
       Returns
       -------
        parser : argparse.ArgumentParser, with updated expected args
@@ -143,40 +182,50 @@ def _createParserFromConfigFiles(ReqArgs, Moves):
   for fpath, secName in configFiles.items():
     if secName is not None:
       secName = ReqArgs[secName]
-    _addArgsFromConfigFileToParser(parser, fpath, secName) 
+    fillParserWithDefaultsFromConfigFile(parser, fpath, secName) 
     if fpath.count('learn') > 0:
       for moveName in Moves: 
-        _addArgsFromConfigFileToParser(parser, fpath, moveName)
+        fillParserWithDefaultsFromConfigFile(parser, fpath, moveName)
   return parser
 
 def _getConfigFileDict(ReqArgs):
   ''' Returns dict of config files to inspect for parsing keyword options,
-        These files contain default settings for bnpy.
+      
+      These files contain default settings for bnpy.
 
       Returns
       --------
-        cfgPath : dict where 
-                    key : absolute filepath to config file 
-                    value : which required arg it provides options for
+      ConfigPathMap : dict with key/value pairs s.t. 
+      * key : absolute filepath to config file 
+      * value : string name of required arg 
+
+      Examples
+      --------
+      >> CMap = _getConfigFilePathMap()
+      >> CMap[ '/path/to/bnpy/bnpy/config/allocmodel.conf' ]
+      'allocModelName'
   '''
   bnpyroot = os.path.sep.join(os.path.abspath(__file__).split(os.path.sep)[:-2])
   cfgroot = os.path.join(bnpyroot, 'config/')
-  ConfigPaths={cfgroot + 'allocmodel.conf':'allocModelName',
-             cfgroot + 'obsmodel.conf':'obsModelName', 
-             cfgroot + 'learnalg.conf':'algName',
-             cfgroot + 'init.conf':None,
-             cfgroot + 'output.conf':None}
+  ConfigPathMap = {
+    cfgroot + 'allocmodel.conf':'allocModelName',
+    cfgroot + 'obsmodel.conf':'obsModelName', 
+    cfgroot + 'learnalg.conf':'algName',
+    cfgroot + 'init.conf':None,
+    cfgroot + 'output.conf':None,
+    }
   OnlineDataConfigPath =  cfgroot + 'onlinedata.conf'
   if ReqArgs['algName'] in OnlineDataAlgSet:
-    ConfigPaths[OnlineDataConfigPath] = None
-  return ConfigPaths
+    ConfigPathMap[OnlineDataConfigPath] = None
+  return ConfigPathMap
 
-def _addArgsFromConfigFileToParser(parser, confFile, targetSectionName=None):
-  ''' Add default arg/value pairs from confFile to the parser.
+def fillParserWithDefaultsFromConfigFile(parser, confFile,
+                                         targetSectionName=None):
+  ''' Add default arg key/value pairs from confFile to the parser.
       
       Returns
       -------
-      None. Parser object will be updated afterwards.
+      None. Parser object updated in-place.
   '''
   config = _readConfigFile(confFile)
   for curSecName in config.sections():
@@ -200,9 +249,13 @@ def _addArgsFromConfigFileToParser(parser, confFile, targetSectionName=None):
       else:
         helpMsg = '[%s]' % (defVal)
       argName = '--' + argName
+
       if defType == True or defType == False:
         group.add_argument(argName, default=defType,
                              help=helpMsg, action='store_true')
+      elif defType == str:
+        ## Don't enforce types, so we can pass dicts
+        group.add_argument(argName, default=defVal, help=helpMsg)
       else:
         group.add_argument(argName, default=defVal, help=helpMsg, type=defType)
 
@@ -221,9 +274,9 @@ def _getTypeFromString(defVal):
       a Python type object
       {True, False, int, float, str}
   '''
-  if defVal == 'true' or defVal == 'True':
+  if defVal.lower() == 'true':
     return True
-  if defVal == 'false' or defVal == 'False':
+  if defVal.lower() == 'false':
     return False
   try:
     int(defVal)
@@ -238,25 +291,25 @@ def _getTypeFromString(defVal):
 
 ########################################################### Organize Parsed Args
 ###########################################################  into sections
-def _organizeParsedKeywordArgsIntoSections(ReqArgs, Moves, kwargs):
+def organizeParsedArgDictIntoSections(ReqArgs, Moves, kwargs):
   ''' Organize 'flat' dictionary of key/val pairs into sections
       
       Returns
       --------
       finalArgDict : dict with sections for algName, obsModelName, etc.
   '''
-  finalArgDict = dict()
+  outDict = dict()
   configFileDict = _getConfigFileDict(ReqArgs)
   for fpath, secName in configFileDict.items():
     if secName is not None:
       secName = ReqArgs[secName]
-    _addArgsToDictByConfigFile(finalArgDict, kwargs, fpath, secName)
+    addArgsFromSectionToDict(kwargs, fpath, secName, outDict)
     if fpath.count('learn') > 0:
       for moveName in Moves:
-        _addArgsToDictByConfigFile(finalArgDict, kwargs, fpath, moveName)
-  return finalArgDict
+        addArgsFromSectionToDict(kwargs, fpath, moveName, outDict)
+  return outDict
 
-def _addArgsToDictByConfigFile(argDict, kwargs, confFile, targetSecName=None):
+def addArgsFromSectionToDict(inDict, confFile, targetSecName, outDict):
   ''' Transfer 'flat' dictionary kwargs into argDict by section
   '''
   config = _readConfigFile(confFile)
@@ -267,8 +320,12 @@ def _addArgsToDictByConfigFile(argDict, kwargs, confFile, targetSecName=None):
       if secName != targetSecName:
         continue
     BigSecDict = dict(config.items(secName))
-    secDict = dict([ (k,v) for (k,v) in kwargs.items() if k in BigSecDict])
-    argDict[secName] = secDict
+    secDict = dict([ (k,v) for (k,v) in inDict.items() if k in BigSecDict])
+    outDict[secName] = secDict
+  return outDict
+
+
+
 
 ########################################################### Parse args for viz
 ###########################################################
