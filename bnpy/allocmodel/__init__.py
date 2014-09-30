@@ -2,9 +2,33 @@ from AllocModel import AllocModel
 
 from mix.MixModel import MixModel
 from mix.DPMixModel import DPMixModel
-from admix.AdmixModel import AdmixModel
-from admix.HDPModel import HDPModel
-from admix.HDPPE import HDPPE
-from admix.HDPFullHard import HDPFullHard
+from mix.DPMixPE import DPMixPE
+from mix.DPMixFull import DPMixFull
 
-__all__ = ['MixModel', 'DPMixModel', 'AdmixModel', 'HDPModel', 'HDPPE', 'HDPFullHard']
+from admix2.LDA import LDA
+from admix2.HDPSB import HDPSB
+from admix2.HDPPE import HDPPE
+from admix2.HDPDir import HDPDir
+from admix2.HDPFastRhoFixed import HDPFastRhoFixed
+from admix2.HDPFast import HDPFast
+from admix2.HDPTightPE import HDPTightPE
+
+AllocModelConstructorsByName = { \
+           'MixModel':MixModel,
+           'DPMixModel':DPMixModel,
+           'DPMixPE':DPMixPE,
+           'LDA':LDA,
+           'HDPSB':HDPSB,
+           'HDPPE':HDPPE,
+           'HDPDir':HDPDir,
+           'HDPFastRhoFixed':HDPFastRhoFixed,
+           'HDPFast':HDPFast,
+           'HDPTightPE':HDPTightPE,
+           'DPMixFull':DPMixFull,
+          }
+
+AllocModelNameSet = set(AllocModelConstructorsByName.keys())
+
+__all__ = list()
+for name in AllocModelConstructorsByName:
+  __all__.append(name)

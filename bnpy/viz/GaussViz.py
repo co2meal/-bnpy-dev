@@ -6,9 +6,101 @@ Visualizing 2D covariance matrix of learned Gaussian mixture models
 import numpy as np
 from matplotlib import pylab
 
-Colors = [ (1,0,0), (1,0,1), (0,1,0), (0,1,1), (0,0,1), (1,0.6,0)]
+from bnpy.util import as1D, as2D
 
-def plotGauss2DFromHModel(hmodel, compListToPlot=None, compsToHighlight=None, wTHR=0.01, Colors=Colors):
+Colors = [(1,0,0), 
+          (1,0,1), 
+          (0,1,0), 
+          (0,1,1),
+          (0,0,1),
+          (1,0.6,0),
+          (1,0, 0.5),
+          (0.5, 0.8, 0.8)]
+
+########################################################### Plot 1D pdfs
+###########################################################
+
+def plotGauss1DFromHModel(hmodel, 
+                          compListToPlot=None,
+                          compsToHighlight=None,
+                          activeCompIDs=None,
+                          MaxKToDisplay=50,
+                          wTHR=0.0001,
+                          figH=None, 
+                          Colors=Colors,
+                          **kwargs):
+  ''' Plot 1D pdf traces for each component in hmodel
+  '''
+  if figH is None:
+    figH = pylab.figure(figsize=(6,4))
+  else:
+    pylab.set_axis(figH)
+
+  if compsToHighlight is not None:
+    compsToHighlight = as1D(np.asarray(compsToHighlight))
+  else:
+    compsToHighlight = list()  
+  if compListToPlot is None:
+    compListToPlot = np.arange(0, hmodel.allocModel.K)
+  if activeCompIDs is None:
+    activeCompIDs = np.arange(0, hmodel.allocModel.K)
+
+  ## Load appearance probabilities as single vector
+  w = hmodel.allocModel.get_active_comp_probs()
+
+  nSkip = 0
+  nGood = 0
+  for ii, compID in enumerate(compListToPlot):
+    if compID not in activeCompIDs:
+      continue
+
+    kk = np.flatnonzero(activeCompIDs == compID)
+    assert kk.size == 1
+    kk = kk[0]
+
+    if w[kk] < wTHR and compID not in compsToHighlight:
+      nSkip += 1
+      continue
+
+    mu = hmodel.obsModel.get_mean_for_comp(kk)
+    sigma2 = hmodel.obsModel.get_covar_mat_for_comp(kk)
+    
+    if len(compsToHighlight) == 0 or compID in compsToHighlight:
+      color = Colors[ii % len(Colors)]
+      plotGauss1D(mu, sigma2, color=color)
+    elif kk not in compsToHighlight:
+      plotGauss1D(mu, sigma2, color='k')
+
+    nGood += 1
+    if nGood >= MaxKToDisplay:
+      print 'DISPLAY LIMIT EXCEEDED. Showing %d/%d components' \
+             % (nGood, len(activeCompIDs))
+      break
+  if nSkip > 0:
+    print 'SKIPPED %d comps with size below %.2f' % (nSkip, wTHR)
+
+
+def plotGauss1D(mu, sigma2, color='b'):
+  mu = np.squeeze(mu)
+  sigma = np.sqrt(np.squeeze(sigma2))
+  
+  assert mu.size == 1 and mu.ndim == 0
+  assert sigma.size == 1 and sigma.ndim == 0
+
+  xs = mu + sigma * np.arange( -4, 4, 0.01)
+  ps = 1./np.sqrt(2*np.pi) * 1./sigma * np.exp( -0.5 * (xs-mu)**2 / sigma**2 )
+  pylab.plot( xs, ps, '.', markerfacecolor=color, markeredgecolor=color)
+
+########################################################### Plot 2D contours
+###########################################################
+
+def plotGauss2DFromHModel(hmodel, compListToPlot=None,
+                                  compsToHighlight=None, 
+                                  activeCompIDs=None,
+                                  MaxKToDisplay=50,
+                                  wTHR=0.0001,
+                                  figH=None, 
+                                  Colors=Colors):
   ''' Plot 2D contours for components in hmodel in current pylab figure
       Args
       -------
@@ -19,6 +111,11 @@ def plotGauss2DFromHModel(hmodel, compListToPlot=None, compsToHighlight=None, wT
                           if not None, only highlighted components get colors.
       wTHR : float threshold on minimum weight assigned to component before it is "plottable"      
   '''
+  if figH is None:
+    figH = pylab.figure(figsize=(4,4))
+  else:
+    pylab.set_axis(figH)
+
   if compsToHighlight is not None:
     compsToHighlight = np.asarray(compsToHighlight)
     if compsToHighlight.ndim == 0:
@@ -27,33 +124,46 @@ def plotGauss2DFromHModel(hmodel, compListToPlot=None, compsToHighlight=None, wT
     compsToHighlight = list()  
   if compListToPlot is None:
     compListToPlot = np.arange(0, hmodel.allocModel.K)
-  try:
-    w = np.exp(hmodel.allocModel.Elogw)
-  except Exception:
-    w = hmodel.allocModel.w
+  if activeCompIDs is None:
+    activeCompIDs = np.arange(0, hmodel.allocModel.K)
 
-  colorID = 0
-  for kk in compListToPlot:
-    
+  ## Load appearance probabilities as single vector
+  w = hmodel.allocModel.get_active_comp_probs()
+
+  nSkip = 0
+  nGood = 0
+  for ii, compID in enumerate(compListToPlot):
+    if compID not in activeCompIDs:
+      continue
+
+    kk = np.flatnonzero(activeCompIDs == compID)
+    assert kk.size == 1
+    kk = kk[0]
+
+    if w[kk] < wTHR and compID not in compsToHighlight:
+      nSkip += 1
+      continue
+
     mu = hmodel.obsModel.get_mean_for_comp(kk)
     Sigma = hmodel.obsModel.get_covar_mat_for_comp(kk)
-    if w[kk] < wTHR and kk not in compsToHighlight:
-      continue
-    if kk in compsToHighlight or len(compsToHighlight) == 0:
-      if mu.size == 1:
-        plotGauss1D(mu, Sigma, color=Colors[colorID])
-      else:
-        plotGauss2DContour(mu, Sigma, color=Colors[colorID])
-      colorID = (colorID + 1) % len(Colors)
+    
+    if len(compsToHighlight) == 0 or compID in compsToHighlight:
+      color = Colors[ii % len(Colors)]
+      plotGauss2DContour(mu, Sigma, color=color)
     elif kk not in compsToHighlight:
-      if mu.size == 1:
-        plotGauss1D(mu, Sigma, color='k')
-      else:
-        plotGauss2DContour(mu, Sigma, color='k')
-      
-  if mu.size > 1:
-    pylab.axis('image')   
+      plotGauss2DContour(mu, Sigma, color='k')
+
+    nGood += 1
+    if nGood >= MaxKToDisplay:
+      print 'DISPLAY LIMIT EXCEEDED. Showing %d/%d components' \
+             % (nGood, len(activeCompIDs))
+      break
+
+  if nSkip > 0:
+    print 'SKIPPED %d comps with size below %.2f' % (nSkip, wTHR)
+  pylab.axis('image')   
   
+
 def plotGauss2DContour(mu, Sigma, color='b', radiusLengths=[0.5, 1.25, 2]):
   ''' Plot elliptical contours for first 2 dims of covariance matrix Sigma,
       location specified by corresponding dims from vector mu
@@ -68,7 +178,7 @@ def plotGauss2DContour(mu, Sigma, color='b', radiusLengths=[0.5, 1.25, 2]):
 
   # Prep for plotting elliptical contours 
   # by creating grid of (x,y) points along perfect circle
-  ts = np.arange( -np.pi, np.pi, 0.01 )
+  ts = np.arange( -np.pi, np.pi, 0.03 )
   x  = np.sin(ts)
   y  = np.cos(ts)
   Zcirc = np.vstack([x, y])
@@ -82,21 +192,15 @@ def plotGauss2DContour(mu, Sigma, color='b', radiusLengths=[0.5, 1.25, 2]):
     Z = r * Zellipse + mu[:,np.newaxis]
     pylab.plot(Z[0], Z[1], '.', markerfacecolor=color, markeredgecolor=color)
 
-def plotGauss1D(mu, sigma2, color='b'):
-  mu = np.squeeze(mu)
-  sigma = np.sqrt(np.squeeze(sigma2))
-  
-  assert mu.size == 1 and mu.ndim == 0
-  assert sigma.size == 1 and sigma.ndim == 0
-
-  xs = mu + sigma * np.arange( -4, 4, 0.01)
-  ps = 1./np.sqrt(2*np.pi) * 1./sigma * np.exp( -0.5 * (xs-mu)**2 / sigma**2 )
-  pylab.plot( xs, ps, '.', markerfacecolor=color, markeredgecolor=color)
 
 ########################################################### Plot Covar Matrix
 ###########################################################
 
-def plotCovMatFromHModel(hmodel, compListToPlot=None, compsToHighlight=None, wTHR=0.001):
+def plotCovMatFromHModel(hmodel,
+                         compListToPlot=None,
+                         compsToHighlight=None, 
+                         wTHR=0.001,
+                         figH=None):
   ''' Plot cov matrix visualization for each "significant" component in hmodel
       Args
       -------
@@ -107,6 +211,15 @@ def plotCovMatFromHModel(hmodel, compListToPlot=None, compsToHighlight=None, wTH
                           if not None, only highlighted components get colors.
       wTHR : float threshold on minimum weight assigned to comp tobe "plottable"      
   '''
+
+
+  nRow = 2
+  nCol = int(np.ceil(hmodel.obsModel.K/2.0))
+  if figH is None:
+    figH = pylab.subplots(nrows=nRow, ncols=nCol, figsize=(nCol*2,nRow*2))
+  else:
+    pylab.subplots(nrows=nRow, ncols=nCol, num=figH.number)
+
   if compsToHighlight is not None:
     compsToHighlight = np.asarray(compsToHighlight)
     if compsToHighlight.ndim == 0:
@@ -120,9 +233,6 @@ def plotCovMatFromHModel(hmodel, compListToPlot=None, compsToHighlight=None, wTH
   except Exception:
     w = hmodel.allocModel.w
 
-  nRow = 2
-  nCol = np.ceil(hmodel.obsModel.K/2.0)
-
   colorID = 0
   for plotID, kk in enumerate(compListToPlot):
     if w[kk] < wTHR and kk not in compsToHighlight:
@@ -131,7 +241,7 @@ def plotCovMatFromHModel(hmodel, compListToPlot=None, compsToHighlight=None, wTH
     else:
       Sigma = hmodel.obsModel.get_covar_mat_for_comp(kk)
       clim = [-.25, 1]
-    pylab.subplot(nRow, nCol, plotID)
+    pylab.subplot(nRow, nCol, plotID+1)
     pylab.imshow(Sigma, interpolation='nearest', cmap='hot', clim=clim)
     pylab.xticks([])
     pylab.yticks([])

@@ -1,7 +1,9 @@
-"""
-The :mod:`init` module gathers initialization procedures for model parameters
-"""
-import FromScratchGauss, FromScratchMult
-import FromSaved, FromTruth
+'''
+The init module gathers routines for initialization
+'''
 
-__all__ = ['FromScratchGauss', 'FromSaved', 'FromTruth', 'FromScratchMult']
+import FromSaved
+import FromTruth
+import FromLP
+import FromScratchGauss
+import FromScratchMult

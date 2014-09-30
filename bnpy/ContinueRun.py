@@ -18,7 +18,7 @@ import logging
 import numpy as np
 import bnpy
 import argparse
-from bnpy.ioutil import BNPYArgParser
+BNPYArgParser = bnpy.ioutil.BNPYArgParser
 
 Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
@@ -224,12 +224,12 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs,
     algP['merge'] = KwArgs['merge']
   outputP = KwArgs['OutputPrefs']
   if algName == 'EM' or algName == 'VB':
-    learnAlg = bnpy.learnalg.VBLearnAlg(savedir=savepath, seed=algseed, \
+    learnAlg = bnpy.learnalg.VBAlg(savedir=savepath, seed=algseed, \
                                       algParams=algP, outputParams=outputP)
   elif algName == 'soVB':
-    learnAlg = bnpy.learnalg.StochasticOnlineVBLearnAlg(savedir=savepath, seed=algseed, algParams=algP, outputParams=outputP)
+    learnAlg = bnpy.learnalg.SOVBAlg(savedir=savepath, seed=algseed, algParams=algP, outputParams=outputP)
   elif algName == 'moVB':
-    learnAlg = bnpy.learnalg.MemoizedOnlineVBLearnAlg(savedir=savepath, seed=algseed, algParams=algP, outputParams=outputP)
+    learnAlg = bnpy.learnalg.MOVBAlg(savedir=savepath, seed=algseed, algParams=algP, outputParams=outputP)
   else:
     raise NotImplementedError("Unknown learning algorithm " + algName)
   return learnAlg
@@ -245,7 +245,10 @@ def readArgsFromFile(taskoutpath):
   import glob
   KwArgs = dict()
   for argfilepath in glob.glob(os.path.join(taskoutpath,'args-*.txt')):
-    curKey = argfilepath.split('-')[1].split('.txt')[0]
+    # Input: fullpath like /path/to/my/save/dir/args-VB.txt
+    # Output: extract the "VB" part
+    pathparts = argfilepath.split(os.path.sep)
+    curKey = pathparts[-1].split('-')[1].split('.txt')[0]
     with open(argfilepath, 'r') as f:
       curDict = json.load(f)
     KwArgs[curKey] = curDict
