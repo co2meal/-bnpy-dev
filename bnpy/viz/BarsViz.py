@@ -52,6 +52,7 @@ def plotExampleBarsDocs(Data, docIDsToPlot=None, figID=None,
 
 def plotBarsFromHModel(hmodel, Data=None, doShowNow=False, figH=None,
                        doSquare=1,
+                       xlabels=[],
                        compsToHighlight=None, compListToPlot=None,
                        activeCompIDs=None,  Kmax=50,
                        width=6, height=3, vmax=None):    
@@ -74,6 +75,7 @@ def plotBarsFromHModel(hmodel, Data=None, doShowNow=False, figH=None,
                                     compsToHighlight=compsToHighlight,
                                     compListToPlot=compListToPlot,
                                     Kmax=Kmax, figH=figH,
+                                    xlabels=xlabels,
                                     **imshowArgs)
   else:
     if figH is None:
@@ -89,8 +91,12 @@ def showTopicsAsSquareImages(topics,
                              activeCompIDs=None,
                              compsToHighlight=None,
                              compListToPlot=None,
+                             xlabels=[],
                              Kmax=50,
                              W=1, H=1, figH=None, **imshowArgs):
+  if len(xlabels) > 0:
+    H = 1.5 * H
+
   K, V = topics.shape
   sqrtV = int(np.sqrt(V))
   assert np.allclose(sqrtV, np.sqrt(V))
@@ -140,6 +146,10 @@ def showTopicsAsSquareImages(topics,
     if compID in compsToHighlight:
       [i.set_color('green') for i in ax.spines.itervalues()]
       [i.set_linewidth(3) for i in ax.spines.itervalues()]
+
+    if xlabels is not None:
+      if len(xlabels) > 0:
+        pylab.xlabel(xlabels[plotID], fontsize=15)
 
   ## Disable empty plots!
   for kdel in xrange(plotID+2, nrows*ncols+1):

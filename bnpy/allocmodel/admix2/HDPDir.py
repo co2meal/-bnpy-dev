@@ -251,7 +251,7 @@ class HDPDir(AllocModel):
 
     if deleteCompID is None:
       remMass = np.minimum(0.1, 1.0/(K*K))
-      Ebeta = (1 - remMass) / K
+      newEbeta = (1 - remMass) / K
     else:
       assert K < self.K
       assert deleteCompID < self.K
@@ -260,7 +260,7 @@ class HDPDir(AllocModel):
       newEbeta += Ebeta[deleteCompID] / K
       remMass = 1.0 - np.sum(newEbeta)
 
-    theta = DocTopicCount + self.alpha * Ebeta
+    theta = DocTopicCount + self.alpha * newEbeta
     thetaRem = self.alpha * remMass
 
     digammaSumTheta = digamma(theta.sum(axis=1) + thetaRem)
