@@ -251,7 +251,7 @@ class DPMixFull(AllocModel):
         rem = np.minimum(1.0/K, beta.min()/K)
         beta = np.hstack( [beta, rem])
       beta = beta / beta.sum()
-      Ev = beta2rho(beta)
+      Ev = beta2rho(beta, K)
       qgamma1 = Ev * nObs
       qgamma0 = (1-Ev) * nObs
 
