@@ -1,21 +1,8 @@
 import numpy as np
 import warnings
 
-import DeleteMoveStickBreak as DMSB
 
-def MakeLP(Data, model, LP, DeleteInfo, **kwargs):
-  ''' Create new local parameters from given generic LP dict
-  '''
-  ktarget = DeleteInfo['ktarget']
-
-  if 'word_variational' in LP and 'U1' in LP:
-    LP = DMSB.construct_LP_with_comps_removed(Data, model, ktarget, LP,
-                                           neighbors=None,
-                                           #neighbors=DeleteInfo['neighbors'],
-                                           **kwargs)
-  return LP
-
-def delete_comps_from_resp_matrix(Resp, compIDs):
+def deleteCompFromResp(Resp, compIDs):
   ''' Delete comps from responsibility matrix
   '''
   if type(compIDs) == int:
