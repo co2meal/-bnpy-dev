@@ -44,7 +44,8 @@ def showTopWordsForTask(taskpath, vocabfile, lap=None, doHTML=1,
     vocabList = [x.strip() for x in f.readlines()]
 
   if doCounts and (lap is None or lap > 0):
-    WordCounts, countVec = loadWordCountMatrixForLap(taskpath, lap)
+    WordCounts = loadWordCountMatrixForLap(taskpath, lap)
+    countVec = WordCounts.sum(axis=1)
     if doHTML:
      return htmlTopWordsFromWordCounts(WordCounts, vocabList, countVec=countVec,
                                        **kwargs)
