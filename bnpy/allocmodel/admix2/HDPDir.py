@@ -258,6 +258,8 @@ class HDPDir(AllocModel):
     digammaSumTheta = digamma(theta.sum(axis=1) + thetaRem)
     ElogPi = digamma(theta) - digammaSumTheta[:,np.newaxis]
     ElogPiRem = digamma(thetaRem) - digammaSumTheta
+
+    LP['DocTopicCount'] = DocTopicCount
     LP['theta'] = theta
     LP['thetaRem'] = thetaRem
     LP['ElogPi'] = ElogPi
