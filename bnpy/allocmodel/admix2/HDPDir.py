@@ -234,7 +234,7 @@ class HDPDir(AllocModel):
     LP['digammaSumTheta'] = digammaSumTheta
     return LP
 
-  def initLPFromResp(self, Data, LP):
+  def initLPFromResp(self, Data, LP, deleteCompID=None):
     ''' Obtain initial local params for initializing this model.
     '''
     resp = LP['resp']
@@ -249,8 +249,16 @@ class HDPDir(AllocModel):
       else:
         DocTopicCount[d,:] = np.sum(resp[start:stop,:], axis=0)
 
-    remMass = np.minimum(0.1, 1.0/(K*K))
-    Ebeta = (1 - remMass) / K
+    if deleteCompID is None:
+      remMass = np.minimum(0.1, 1.0/(K*K))
+      Ebeta = (1 - remMass) / K
+    else:
+      assert K < self.K
+      assert deleteCompID < self.K
+      Ebeta = self.get_active_comp_probs()
+      newEbeta = np.delete(Ebeta, deleteCompID, axis=0)
+      newEbeta += Ebeta[deleteCompID] / K
+      remMass = 1.0 - np.sum(newEbeta)
 
     theta = DocTopicCount + self.alpha * Ebeta
     thetaRem = self.alpha * remMass
