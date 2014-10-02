@@ -82,22 +82,28 @@ def selectPairsUsingAtMostNOfEachComp(AdjMat, extraFixedEdges=None,
       --------
       pairIDs : list of tuples, one entry per selected pair
   '''
-  degree = np.sum(AdjMat, axis=0) + np.sum(AdjMat, axis=1)
-  if np.sum(degree) == 0:
+  if np.sum(AdjMat) == 0:
     return list()
 
-  ## degree : holds counts for all UNLABELED edges (including extraFixed)
-  ## newdegree : holds counts for edges we will KEEP
+  # AMat :
+  # tracks all remaining CANDIDATE edges where both node under the degree limit.
   AMat = AdjMat.copy()
-  newdegree = np.zeros_like(degree)
-  xdegree = np.zeros_like(degree)
+
+  xdegree = np.zeros(AdjMat.shape[0], dtype=np.int32)
   if extraFixedEdges is not None:
     for kA, kB in extraFixedEdges:
       xdegree[kA] += 1
       xdegree[kB] += 1
-    degree += xdegree
-    newdegree += xdegree
 
+  # degree : tracks CANDIDATE edges (including extra) that not excluded
+  # newdegree : tracks edges we will KEEP
+  newdegree = np.zeros_like(xdegree)
+  newdegree += xdegree
+
+  exhaustedMask = newdegree >= N
+  AMat[exhaustedMask, :] = 0
+  AMat[:, exhaustedMask] = 0
+  degree = np.sum(AMat, axis=0) + np.sum(AMat, axis=1) + xdegree
 
   ## Traverse comps from largest to smallest degree
   pairIDs = list()
@@ -137,8 +143,11 @@ def selectPairsUsingAtMostNOfEachComp(AdjMat, extraFixedEdges=None,
   
   cond1 = np.allclose(degree, xdegree)
   cond2 = np.max(newdegree) <= N + Nextra
-  assert cond1
-  assert cond2
+  if not cond1:
+    print 'WARNING: BAD DEGREE CALCULATION'
+
+  if not cond2:
+    print 'WARNING: BAD NEWDEGREE CALCULATION',  np.max(newdegree), N+Nextra
   return pairIDs
 
 def updateScoreMat_wholeELBO(ScoreMat, curModel, SS, doAllPairs=0):
@@ -187,45 +196,6 @@ def updateScoreMat_wholeELBO(ScoreMat, curModel, SS, doAllPairs=0):
                   level='debug')
   return ScoreMat  
     
-"""
-def selectDiverseSubsetOfTinyPairs(posMask, posAndTiny, tinyVec,
-                                   maxPairsPerComp=3):
-  ''' Make list of candidate pairs where each candidate appears <= 3 times.
-  '''
-  degree = np.sum(posMask, axis=0) + np.sum(posMask, axis=1)
-  sortIDs = np.argsort(-1 * degree)
-  mPairsTiny = list()
-  newdegree = np.zeros_like(degree)
-  for nodeID in sortIDs:
-    if not tinyVec[nodeID]:
-      continue
-
-    # Find final set of <= 3 partners that would not be disconnected
-    partners = np.flatnonzero(posAndTiny[nodeID,:] + posAndTiny[:, nodeID])
-    partners = partners[np.argsort([degree[p] for p in partners])]
-
-    M = maxPairsPerComp - newdegree[nodeID]
-    keepPartners = partners[:M]
-    rejectPartners = partners[M:]
-
-    for p in keepPartners:
-      kA = np.minimum(p, nodeID)
-      kB = np.maximum(p, nodeID)
-      mPairsTiny.append((kA, kB))
-      posAndTiny[kA, kB] = 0 # make pair ineligible for future partnerships
-      newdegree[p] += 1
-      newdegree[nodeID] += 1
-
-    for p in rejectPartners:
-      degree[p] -= 1
-      degree[nodeID] -= 1
-      kA = np.minimum(p, nodeID)
-      kB = np.maximum(p, nodeID)
-      posAndTiny[kA, kB] = 0 # make pair ineligible for future partnerships
-
-  return mPairsTiny, degree
-"""
-
 def preselect_candidate_pairs(curModel, SS, 
                                randstate=np.random.RandomState(0),
                                preselectroutine='random',
