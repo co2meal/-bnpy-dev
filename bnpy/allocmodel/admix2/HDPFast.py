@@ -274,7 +274,7 @@ class HDPFast(AllocModel):
 
     ## Selection terms (using doc-topic correlation)
     if preselectroutine is not None:
-      if preselectroutine.count('doctopiccorr') > 0:
+      if preselectroutine.count('corr') > 0:
         Tmat = LP['DocTopicCount']
         SS.setSelectionTerm('DocTopicPairMat',
                            np.dot(Tmat.T, Tmat), dims=('K','K'))
