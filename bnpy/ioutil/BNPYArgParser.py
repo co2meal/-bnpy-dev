@@ -378,4 +378,5 @@ def parse_task_ids(jobpath, taskids=None):
     taskids = [str(t) for t in taskids]
   if type(taskids) is not list:
     taskids = list(taskids)
+  taskids.sort()
   return taskids
