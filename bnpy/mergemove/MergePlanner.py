@@ -417,7 +417,7 @@ def calcScoreMatrix_corr(SS, MINVAL=1e-8):
   return CorrMat
 
 
-def calcScoreMatrix_corrLimitDegree(SS, MINCORR=0.05, N=4):
+def calcScoreMatrix_corrLimitDegree(SS, MINCORR=0.05, N=3):
   ''' Score candidate merge pairs favoring correlations.
 
       Returns
@@ -426,12 +426,17 @@ def calcScoreMatrix_corrLimitDegree(SS, MINCORR=0.05, N=4):
       M[j,k] provides score in [0, 1] for each pair of components (j,k)
       larger score indicates better candidate for merge
   '''
-  ## 1) Use correlation scores
   M = calcScoreMatrix_corr(SS)
-  A = M > MINCORR
-  pairIDs = selectPairsUsingAtMostNOfEachComp(A, N=3)
+  thrvec = np.linspace(MINCORR, 1.0, 10)
+  fixedPairIDs = list()
+  for tt in range(thrvec.size-1, 0, -1):
+    thrSm = thrvec[tt-1]
+    thrBig = thrvec[tt]
+    A = np.logical_and(M > thrSm, M < thrBig) 
+    pairIDs = selectPairsUsingAtMostNOfEachComp(A, fixedPairIDs, N=N)
+    fixedPairIDs = fixedPairIDs + pairIDs
   Mlimit = np.zeros_like(M)
-  x,y = zip(*pairIDs)
+  x,y = zip(*fixedPairIDs)
   Mlimit[x,y] = M[x,y]
   return Mlimit
 
