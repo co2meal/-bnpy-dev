@@ -137,8 +137,6 @@ def deleteCompFromResp_SoftEvOverlap(Resp, SoftEv, Data, SS, compIDs):
     if docID != prevdocID:
       overlapScore = remWordCounts[:,docWordTypes].sum(axis=1) / remWordSums
       overlapScore /= overlapScore.sum()
-    print docID
-    print overlapScore
     SoftEv[rr] *= overlapScore
     prevdocID = docID
   # Normalize it, since multiplying ruined the sum-to-one constraint

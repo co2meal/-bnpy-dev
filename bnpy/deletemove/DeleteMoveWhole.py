@@ -11,6 +11,8 @@ def runDeleteMove_Whole(Data, hmodel, SS, LP, curELBO,
                         deleteRespStrategy='softev',
                         Plan=None,
                         nRefineIters=0,
+                        doQuitEarly=1,
+                        LPkwargs=None,
                         **kwargs):
   ''' Propose candidate model with one less comp and accept if ELBO improves.
 
@@ -21,6 +23,9 @@ def runDeleteMove_Whole(Data, hmodel, SS, LP, curELBO,
       LP
       Info
   '''
+  if LPkwargs is None:
+    LPkwargs = dict()
+
   intromsg = 'Proposal: del comp %d of size %d via %s' \
                 % (deleteCompID, 
                    SS.getCountVec()[deleteCompID],
@@ -102,12 +107,12 @@ def runDeleteMove_Whole(Data, hmodel, SS, LP, curELBO,
   log('  prop %.6f  change %.6f' % (propELBOdata, propELBOdata-curELBOdata))
 
   didAccept = 0
-  if propELBO >= curELBO:
+  if propELBO >= curELBO and doQuitEarly:
     didAccept = 1
 
   elif nRefineIters > 0:
     for rr in range(nRefineIters):
-      propLP = propModel.calc_local_params(Data, propLP)
+      propLP = propModel.calc_local_params(Data, propLP, **LPkwargs)
       propSS = propModel.get_global_suff_stats(Data, propLP, doPrecompEntropy=1)
 
       propModel.update_global_params(propSS)
@@ -116,7 +121,7 @@ def runDeleteMove_Whole(Data, hmodel, SS, LP, curELBO,
       logPosVector(propSS.getCountVec()[propBestIDs], Nmax=Nmax)
       log('prop ELBO %.6e' % (propELBO))
       tracepropELBO.append(propELBO)
-      if propELBO >= curELBO:
+      if propELBO >= curELBO and doQuitEarly:
         didAccept = 1
         break
 
