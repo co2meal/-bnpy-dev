@@ -32,6 +32,13 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None,
   ELBOGain = 0
   nSkip = 0
 
+  sF = curModel.obsModel.getDatasetScale(curSS)
+  if len(mPairIDs) > 0 and str(type(curModel.allocModel)).count('HDP'):
+    aList, bList = zip(*mPairIDs)
+    OGapMat = np.zeros( (curSS.K, curSS.K))
+    OGapList = curModel.obsModel.calcHardMergeGap_SpecificPairs(curSS, mPairIDs)
+    OGapMat[aList, bList] = OGapList / sF
+
   while trialID < nMergeTrials and len(eligibleIDs) > 0:
     if len(eligibleIDs) == 0:
       break
@@ -51,15 +58,26 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None,
 
     if M is not None:
       Mcand = M[jA, jB]
-      scoreMsg = '| %4.2f' % (M[jA, jB])
+      scoreMsg = '%9.5f' % (M[jA, jB])
     else:
       Mcand = None
       scoreMsg = ''
+    Nvec = curSS.getCountVec()
+    scoreMsg += " %5d %5d" % (Nvec[jA], Nvec[jB]) 
+    if str(type(curModel.allocModel)).count('HDP'):
+      scoreMsg += " % .7e" % (OGapMat[kA, kB])
+
+      EntropyGap = curSS.getELBOTerm('ElogqZ')[[jA, jB]].sum() \
+                   - curSS.getMergeTerm('ElogqZ')[jA, jB]
+      scoreMsg += " % .7e" % (EntropyGap / sF)
+
+      cDirThetaGap = curSS.getMergeTerm('gammalnTheta')[jA, jB] \
+                      - curSS.getELBOTerm('gammalnTheta')[[jA,jB]].sum()
+      scoreMsg += " % .7e" % (cDirThetaGap / sF)
 
     curModel, curSS, curELBO, MoveInfo = buildMergeCandidateAndKeepIfImproved(
                                           curModel, curSS, curELBO,
                                           jA, jB, Mcand, **kwargs)
-
     logFunc('%3d | %3d %3d | %d % .7e %s' 
              % (trialID, kA, kB,  
                 MoveInfo['didAccept'], MoveInfo['ELBOGain'], scoreMsg),
@@ -138,8 +156,21 @@ def buildMergeCandidateAndKeepIfImproved(curModel, curSS, curELBO,
   didAccept = propELBO > curELBO - ELBO_GAP_ACCEPT_TOL
   Info = dict(didAccept=didAccept, 
               ELBOGain=propELBO - curELBO,
-             )
+              )
+  if False:  
+    print '<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'
+    scaleF = curModel.obsModel.getDatasetScale(curSS)
+    ocur = curModel.obsModel.calc_evidence(None, curSS, None)
+    oprop = propModel.obsModel.calc_evidence(None, propSS, None)
+    print '% .7f obslik' % ((oprop - ocur)/scaleF)
 
+    cur = curModel.allocModel.calc_evidence(None, curSS, None, todict=1)
+    prop = propModel.allocModel.calc_evidence(None, propSS, None, todict=1)
+    for key in cur:
+      print '% .7f %s' % ((prop[key] - cur[key])/scaleF, key)
+    print '------'
+    print '% .7f total' % (propELBO - curELBO)
+  
   if didAccept:
     return propModel, propSS, propELBO, Info
   else:
