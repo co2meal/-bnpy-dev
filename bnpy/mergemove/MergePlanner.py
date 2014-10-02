@@ -76,9 +76,6 @@ def selectPairsUsingAtMostNOfEachComp(AdjMat, extraFixedEdges=None,
       Args
       --------
       AdjMat : 2D array, size K x K
-
-      SubsetAdjMat : None or 2D array, size K x K
-
       N : max degree of each node
       
       Returns
@@ -272,6 +269,7 @@ def preselect_candidate_pairs(curModel, SS,
   # ------------------------------------------------------- Score matrix
   # M : 2D array, shape K x K
   #     M[j,k] = score for viability of j,k.  Larger = better.
+  selectroutine = kwargs['preselectroutine']
   if kwargs['preselectroutine'].count('random') > 0:
     M = kwargs['randstate'].rand(K, K)
   elif kwargs['preselectroutine'].count('marglik') > 0:
@@ -280,8 +278,12 @@ def preselect_candidate_pairs(curModel, SS,
     M, Mraw = calcScoreMatrix_wholeELBO(curModel, SS, excludePairs, M=M)
   elif kwargs['preselectroutine'].count('corr') > 0:
     # Use correlation matrix as score for selecting candidates!
-    #M = calcScoreMatrix_corr(SS)
-    M = calcScoreMatrix_corrOrEmpty(SS)
+    if selectroutine.count('empty') > 0:
+      M = calcScoreMatrix_corrOrEmpty(SS)
+    elif selectroutine.count('degree') > 0:
+      M = calcScoreMatrix_corrLimitDegree(SS)
+    else:
+      M = calcScoreMatrix_corr(SS)
   else:
     raise NotImplementedError(kwargs['preselectroutine'])
 
@@ -413,6 +415,31 @@ def calcScoreMatrix_corr(SS, MINVAL=1e-8):
   CorrMat[nanIDs] = 0
 
   return CorrMat
+
+
+def calcScoreMatrix_corrLimitDegree(SS, MINCORR=0.05, N=3):
+  ''' Score candidate merge pairs favoring correlations.
+
+      Returns
+      -------
+      M : 2D array, size K x K
+      M[j,k] provides score in [0, 1] for each pair of components (j,k)
+      larger score indicates better candidate for merge
+  '''
+  M = calcScoreMatrix_corr(SS)
+  thrvec = np.linspace(MINCORR, 1.0, 10)
+  fixedPairIDs = list()
+  for tt in range(thrvec.size-1, 0, -1):
+    thrSm = thrvec[tt-1]
+    thrBig = thrvec[tt]
+    A = np.logical_and(M > thrSm, M < thrBig) 
+    pairIDs = selectPairsUsingAtMostNOfEachComp(A, fixedPairIDs, N=N)
+    fixedPairIDs = fixedPairIDs + pairIDs
+  Mlimit = np.zeros_like(M)
+  x,y = zip(*fixedPairIDs)
+  Mlimit[x,y] = M[x,y]
+  return Mlimit
+
 
 def calcScoreMatrix_corrOrEmpty(SS, EMPTYTHR=100):
   ''' Score candidate merge pairs favoring correlations or empty components
