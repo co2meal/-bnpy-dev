@@ -26,6 +26,7 @@ class SOVBAlg(LearnAlg):
               status : str message indicating reason for termination
                         {'all data processed'}
     '''
+    raise NotImplementedError('soVB disabled until it conforms to new LearnAlg conventions.')
     LP = None
     rho = 1.0 # Learning rate
     nBatch = float(DataIterator.nBatch)

@@ -24,6 +24,7 @@ def get_data(**kwargs):
         nWordsPerDoc
     '''
     Data = CreateToyDataFromLDAModel(seed=SEED, **kwargs)
+    Data.name = 'BarsK6V9'
     Data.summary = get_data_info()
     return Data
 

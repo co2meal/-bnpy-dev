@@ -15,7 +15,8 @@ from bnpy.suffstats import SuffStatBag
 from bnpy.util import isEvenlyDivisibleFloat
 from bnpy.birthmove import TargetPlanner, TargetDataSampler, BirthMove
 from bnpy.birthmove import BirthLogger, TargetPlannerWordFreq
-from bnpy.mergemove import MergeMove, MergePlanner
+from bnpy.mergemove import MergeMove, MergePlanner, MergeLogger
+from bnpy.birthmove.TargetDataSampler import hasValidKey
 
 class MOVBBirthMergeAlg(MOVBAlg):
 
@@ -34,7 +35,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
       # Track the number of laps since birth last attempted
       #  at each component, to encourage trying diversity
       self.LapsSinceLastBirth = defaultdict(int)
-
+      self.BirthRecordsByComp = defaultdict(lambda: dict())
 
   ######################################################### fit
   ######################################################### 
@@ -88,8 +89,12 @@ class MOVBBirthMergeAlg(MOVBAlg):
       ## Update progress-tracking variables
       iterid += 1
       lapFrac = (iterid + 1) * self.lapFracInc
+      self.lapFrac = lapFrac
       nLapsCompleted = lapFrac - self.algParams['startLap']
       self.set_random_seed_at_lap(lapFrac)
+      if self.doDebugVerbose():
+        self.print_msg('========================== lap %.2f batch %d' \
+                       % (lapFrac, batchID))
 
       ## Birth move : track birth info from previous lap
       if self.isFirstBatch(lapFrac):
@@ -116,14 +121,25 @@ class MOVBBirthMergeAlg(MOVBAlg):
       ## Prepare for merges
       if self.hasMove('merge') and self.doMergePrepAtLap(lapFrac):
         MergePrepInfo = self.preparePlansForMerge(hmodel, SS, MergePrepInfo,
+                                                  order=order,
                                                   BirthResults=BirthResults,
                                                   lapFrac=lapFrac)
       elif self.isFirstBatch(lapFrac):
-        MergePrepInfo = dict()
+        if self.doMergePrepAtLap(lapFrac+1):
+          MergePrepInfo = dict(preselectroutine=
+                               self.algParams['merge']['preselectroutine'])
+        else:
+          MergePrepInfo = dict()
 
       ## Local/E step
       LPchunk = self.memoizedLocalStep(hmodel, Dchunk, batchID)
       
+      ## Summary step
+      SS, SSchunk = self.memoizedSummaryStep(hmodel, SS,
+                                             Dchunk, LPchunk, batchID,
+                                             MergePrepInfo=MergePrepInfo,
+                                             order=order)
+
       ## Birth move : collect target data
       if self.hasMove('birth') and self.do_birth_at_lap(lapFrac+1.0):
         if self.isFirstBatch(lapFrac):
@@ -133,12 +149,6 @@ class MOVBBirthMergeAlg(MOVBAlg):
                                 Dchunk, hmodel, LPchunk, BirthPlans, lapFrac)
       else:
         BirthPlans = list()
-
-      ## Summary step
-      SS, SSchunk = self.memoizedSummaryStep(hmodel, SS,
-                                             Dchunk, LPchunk, batchID,
-                                             MergePrepInfo=MergePrepInfo,
-                                             order=order)
 
       ## Birth : Handle removing "extra mass" of fresh components
       if self.hasMove('birth') and self.isLastBatch(lapFrac):
@@ -231,9 +241,14 @@ class MOVBBirthMergeAlg(MOVBAlg):
       return False
 
     if self.hasMove('birth') and self.do_birth_at_lap(lapFrac):
-      return True # Never quit early for birth
+      ## If any eligible comps exist, we have more moves possible
+      ## so return True
+      if not hasattr(self, 'BirthEligibleHist'):
+        return True
+      if self.BirthEligibleHist['Nable'] > 0:
+        return True
 
-    elif self.hasMove('merge'):
+    if self.hasMove('merge'):
       nStuckBeforeQuit = self.algParams['merge']['mergeNumStuckBeforeQuit']
       if (lapFrac - self.lapLastAcceptedMerge) > nStuckBeforeQuit:
         return False
@@ -325,9 +340,12 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
     if batchID in self.SSmemory:
       ## Decrement old value of SSchunk from aggregated SS
+      # oldSSchunk will have usual Fields and ELBOTerms,
+      # but all MergeTerms and SelectionTerms should be removed.
       oldSSchunk = self.load_batch_suff_stat_from_memory(batchID, doCopy=0,
                                                          Kfinal=SS.K,
                                                          order=order)
+      assert not oldSSchunk.hasMergeTerms()
       assert oldSSchunk.K == SS.K
       assert np.allclose(SS.uIDs, oldSSchunk.uIDs)
       SS -= oldSSchunk
@@ -375,9 +393,11 @@ class MOVBBirthMergeAlg(MOVBAlg):
       SSchunk = SSchunk.copy()
 
     # Check to see if we've fast-forwarded this chunk already
-    # If so, we can just use it as is.
+    # If so, we return as-is
     if SSchunk.K == self.ActiveIDVec.size:
       if np.allclose(SSchunk.uIDs, self.ActiveIDVec):
+        if SSchunk.hasMergeTerms():
+          SSchunk.removeMergeTerms()
         return SSchunk
 
     # Fast-forward accepted softmerges from end of previous lap 
@@ -390,18 +410,20 @@ class MOVBBirthMergeAlg(MOVBAlg):
       for MInfo in self.MergeLog:
         kA = MInfo['kA']
         kB = MInfo['kB']
-        if kA < SSchunk.K and kB < SSchunk.K and SSchunk.K == MInfo['Korig']:
+        if kA < SSchunk.K and kB < SSchunk.K:
           SSchunk.mergeComps(kA, kB)
     if SSchunk.hasMergeTerms():
-      SSchunk.setMergeFieldsToZero()
+      SSchunk.removeMergeTerms()
 
     # Fast-forward any shuffling/reordering that happened
     if self.hasMove('shuffle') and order is not None:
-      if SSchunk.K == self.ActiveIDVec.size:
-        if not np.allclose(SSchunk.uIDs, self.ActiveIDVec):
-          SSchunk.reorderComps(order)
-      else:
+      if len(order) == SSchunk.K:
         SSchunk.reorderComps(order)
+      else:
+        msg = 'Order has wrong size.'
+        msg += '\n size order  : %d' % len(order)
+        msg += '\n size SSchunk: %d' % SSchunk.K
+        raise ValueError(msg)
 
     isGood = np.allclose(SSchunk.uIDs, self.ActiveIDVec[:SSchunk.K])
     if not isGood:
@@ -418,7 +440,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
       SSchunk.setUIDs(self.ActiveIDVec.copy())
 
     assert np.allclose(SSchunk.uIDs, self.ActiveIDVec)
-    return SSchunk  
+    return SSchunk
 
   def save_batch_suff_stat_to_memory(self, batchID, SSchunk):
     ''' Store the provided suff stats into the "memory" for later retrieval
@@ -460,7 +482,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
       kwargs['birthRetainExtraMass'] = 1
 
     if Data is not None:
-      targetData = TargetDataSampler.sample_target_data(
+      targetData, targetInfo = TargetDataSampler.sample_target_data(
                                         Data, model=hmodel, LP=None,
                                         randstate=self.PRNG,
                                         **kwargs)
@@ -491,14 +513,15 @@ class MOVBBirthMergeAlg(MOVBAlg):
       BirthLogger.logStartMove(lapFrac, moveID + 1, len(BirthPlans))
       if isBad or targetData is None:
         msg = Plan['msg']
-        BirthLogger.log(msg)
-        BirthLogger.log('SKIPPED. TargetData bad.')
-      elif targetSize < kwargs['targetMinSize']:
-        msg = "SKIPPED. Target data too small. Size %d."
-        BirthLogger.log(msg % (targetSize))
+        BirthLogger.log(msg, 'moreinfo')
+        BirthLogger.log('SKIPPED. TargetData bad.', 'moreinfo')
+      elif targetSize < kwargs['Kfresh']:
+        msg = "SKIPPED. Target data too small. Size %d, but expected >= %d"
+        BirthLogger.log(msg % (targetSize, kwargs['Kfresh']),
+                        'moreinfo')
       else:
         newmodel, newSS, MoveInfo = BirthMove.run_birth_move(
-                                           hmodel, SS, targetData, 
+                                           hmodel, SS, targetData,
                                            randstate=self.PRNG, 
                                            Plan=Plan,
                                            **kwargs)
@@ -509,9 +532,24 @@ class MOVBBirthMergeAlg(MOVBAlg):
           BirthResults.append(MoveInfo)
           for kk in MoveInfo['birthCompIDs']:
             self.LapsSinceLastBirth[kk] = -1
+            
             self.maxUID += 1
             self.ActiveIDVec = np.append(self.ActiveIDVec, self.maxUID)
           SS.setUIDs(self.ActiveIDVec.copy())
+
+        ## Update BirthRecords to track comps that fail at births
+        targetUID = Plan['targetUID']
+        if MoveInfo['didAddNew']:
+          # Remove from records if successful... this comp will change a lot
+          if targetUID in self.BirthRecordsByComp:
+            del self.BirthRecordsByComp[targetUID]
+        else:
+          if 'nFail' not in self.BirthRecordsByComp[targetUID]:
+            self.BirthRecordsByComp[targetUID]['nFail'] = 1
+          else:
+            self.BirthRecordsByComp[targetUID]['nFail'] += 1
+          self.BirthRecordsByComp[targetUID]['count'] = Plan['count']
+
     return hmodel, SS, BirthResults
 
   def birth_remove_extra_mass(self, hmodel, SS, BirthResults):
@@ -538,8 +576,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
       hmodel.update_global_params(SS)
     return hmodel, SS
 
-  def birth_plan_targets_for_next_lap(self, Data, hmodel, SS, LP,
-                                            BirthResults):
+  def birth_plan_targets_for_next_lap(self, Data, hmodel, SS, LP, BirthResults):
     ''' Create plans for next lap's birth moves
     
         Returns
@@ -547,22 +584,43 @@ class MOVBBirthMergeAlg(MOVBAlg):
         BirthPlans : list of dicts, 
                      each entry represents the plan for one future birth move
     '''
-    if SS is not None:
-      assert hmodel.allocModel.K == SS.K
+    assert SS is not None
+    assert hmodel.allocModel.K == SS.K
     K =  hmodel.allocModel.K
     nBirths = self.algParams['birth']['birthPerLap']
-    if self.algParams['birth']['targetSelectName'].lower().count('word'):
-      Plans = TargetPlanner.select_target_words_MultipleSets(
-                            model=hmodel, Data=Data, LP=LP, 
-                            nSets=nBirths, randstate=self.PRNG,
-                            **self.algParams['birth'])
+
+    if self.algParams['birth']['targetSelectName'] == 'smart':
+      if self.lapFrac < 1:
+        ampF = Data.get_total_size() / float(Data.get_size())
+      else:
+        ampF = 1.0
+      ampF = np.maximum(ampF, 1.0)
+      Plans = TargetPlanner.makePlans_TargetCompsSmart(SS, 
+                                                self.BirthRecordsByComp,
+                                                self.lapFrac,
+                                                ampF=ampF,
+                                                **self.algParams['birth'])
+      self.BirthEligibleHist, CStatus, msg = self.birth_makeEligibilityHist(SS)
+      BirthLogger.logStartPrep(self.lapFrac+1)
+      BirthLogger.log(msg, 'moreinfo')
+
+      SaveVars = dict()
+      SaveVars['lapFrac'] = self.lapFrac
+      SaveVars['msg'] = msg
+      SaveVars['BirthEligibleHist'] = self.BirthEligibleHist
+      
+      savedict = dict()
+      for compID in SS.uIDs:
+        if compID in self.BirthRecordsByComp:
+          savedict[compID] = self.BirthRecordsByComp[compID]
+      SaveVars['BirthRecordsByComp'] = savedict
+      SaveVars['CompStatus'] = CStatus
+      import joblib
+      if self.savedir is not None:
+        dumpfile = os.path.join(self.savedir, 'birth-plans.dump')
+        joblib.dump(SaveVars, dumpfile)
       return Plans
-    elif self.algParams['birth']['targetSelectName'].lower().count('freq'):
-      Plans = TargetPlannerWordFreq.MakePlans(
-                            Data, hmodel, LP, 
-                            nPlans=nBirths, randstate=self.PRNG,
-                            **self.algParams['birth'])
-      return Plans
+
     # Update counter for duration since last targeted-birth for each comp
     for kk in range(K):
       self.LapsSinceLastBirth[kk] += 1
@@ -573,15 +631,19 @@ class MOVBBirthMergeAlg(MOVBAlg):
     BirthPlans = list()
     for posID in range(nBirths):
       try:
-        ktarget = TargetPlanner.select_target_comp(
+        ktarget, ps = TargetPlanner.select_target_comp(
                              K, SS=SS, Data=Data, model=hmodel,
                              randstate=self.PRNG,
                              excludeList=excludeList,
+                             return_ps=1,
                              lapsSinceLastBirth=self.LapsSinceLastBirth,
                               **self.algParams['birth'])
+        targetUID = self.ActiveIDVec[ktarget]
+
         self.LapsSinceLastBirth[ktarget] = 0
         excludeList.append(ktarget)
         Plan = dict(ktarget=ktarget,
+                    targetUID=targetUID,
                     Data=None,
                     targetWordIDs=None, 
                     targetWordFreq=None)
@@ -594,7 +656,10 @@ class MOVBBirthMergeAlg(MOVBAlg):
                     msg=str(e),
                     )
       BirthPlans.append(Plan)
+
+
     return BirthPlans
+    
 
   def birth_collect_target_subsample(self, Dchunk, model, LPchunk, 
                                            BirthPlans, lapFrac):
@@ -698,12 +763,47 @@ class MOVBBirthMergeAlg(MOVBAlg):
       Kextra += len(MoveInfo['birthCompIDs'])
     return Kextra
 
+  def birth_makeEligibilityHist(self, SS):
+    targetMinSize = self.algParams['birth']['targetMinSize']
+    MAX_FAIL = self.algParams['birth']['birthFailLimit']
+
+    ## Initialize histogram bins to 0
+    Hist = dict(Ntoosmall=0, Ndisabled=0, Nable=0)
+    for nStrike in range(MAX_FAIL):
+      Hist['Nable' + str(nStrike)] = 0
+
+    CompStatus = dict()
+    for kk, compID in enumerate(self.ActiveIDVec):
+      if SS.getCountVec()[kk] < targetMinSize:
+        Hist['Ntoosmall'] += 1
+        CompStatus[compID] = 'toosmall'
+      elif compID in self.BirthRecordsByComp:
+        nFail = self.BirthRecordsByComp[compID]['nFail']
+        if nFail < MAX_FAIL:
+          Hist['Nable' + str(nFail)] += 1
+          Hist['Nable'] += 1
+          CompStatus[compID] = 'able-' + str(nFail)
+        else:
+          Hist['Ndisabled'] += 1
+          CompStatus[compID] = 'disabled'
+      else:
+        Hist['Nable0'] += 1
+        Hist['Nable'] += 1
+        CompStatus[compID] = 'able-0'
+
+    msg = 'Eligibility Hist:'
+    for key in sorted(Hist.keys()):
+      msg += " %s=%d" % (key, Hist[key])
+    return Hist, CompStatus, msg
 
   ######################################################### Merge moves!
   #########################################################
   def preparePlansForMerge(self, hmodel, SS, prevPrepInfo=None,
+                                             order=None,
                                              BirthResults=list(),
                                              lapFrac=0):
+
+    MergeLogger.logPhase('MERGE Plans at lap ' + str(lapFrac))
     if prevPrepInfo is None:
       prevPrepInfo = dict()
     if 'PairScoreMat' not in prevPrepInfo:
@@ -716,7 +816,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
     mergeStartLap = self.algParams['merge']['mergeStartLap']
     preselectroutine = self.algParams['merge']['preselectroutine']
     mergeELBOTrackMethod = self.algParams['merge']['mergeELBOTrackMethod']
-    refreshInterval = self.algParams['merge']['mergeScoreRefreshLap']
+    refreshInterval = self.algParams['merge']['mergeScoreRefreshInterval']
 
     PrepInfo = dict()
     PrepInfo['doPrecompMergeEntropy'] = 1
@@ -731,27 +831,38 @@ class MOVBBirthMergeAlg(MOVBAlg):
       return PrepInfo
 
     ## Update stored ScoreMatrix to account for recent births/merges
-    if preselectroutine.count('wholeELBO'):
+    if hasValidKey('PairScoreMat', prevPrepInfo):
       MM = prevPrepInfo['PairScoreMat']
-      if MM is not None:
-        for Info in self.MergeLog:
-          MM = np.delete(MM, Info['kB'], axis=0)
-          MM = np.delete(MM, Info['kB'], axis=1)
-          MM[Info['kA'], :] = 0
-          MM[:, Info['kA']] = 0
-        if len(BirthResults) > 0:
-          Korig = MM.shape[0]
-          Mnew = np.zeros((SS.K, SS.K))
-          Mnew[:Korig, :Korig] = MM
-          MM = Mnew
-        if np.floor(lapFrac) % refreshInterval == 0:
-          MM.fill(0) # Refresh!
+
+      ## Replay any shuffles
+      if order is not None:
+        Ktmp = len(order)
+        assert Ktmp == MM.shape[0]
+        Mnew = np.zeros_like(MM)
+        for kA in xrange(Ktmp):
+          nA = np.flatnonzero(order == kA)
+          for kB in xrange(kA+1, Ktmp):
+            nB = np.flatnonzero(order == kB)
+            mA = np.minimum(nA, nB)
+            mB = np.maximum(nA, nB)
+            Mnew[mA, mB] = MM[kA, kB]
+        MM = Mnew
+
+      ## Replay any recent birth moves!
+      if len(BirthResults) > 0:
+        Korig = MM.shape[0]
+        Mnew = np.zeros((SS.K, SS.K))
+        Mnew[:Korig, :Korig] = MM
+        MM = Mnew
+      if np.floor(lapFrac) % refreshInterval == 0:
+        MM.fill(0) # Refresh!
       prevPrepInfo['PairScoreMat'] = MM
 
     ## Determine which merge pairs we will track in the upcoming lap 
     if preselectroutine == 'wholeELBObetter':
       mPairIDs, PairScoreMat = MergePlanner.preselectPairs(hmodel, SS, lapFrac,
-                                 prevScoreMat=prevPrepInfo['PairScoreMat'])
+                                    prevScoreMat=prevPrepInfo['PairScoreMat'],
+                                    **self.algParams['merge'])
     else:
       mPairIDs, PairScoreMat = MergePlanner.preselect_candidate_pairs(hmodel,
                                             SS,
@@ -759,8 +870,21 @@ class MOVBBirthMergeAlg(MOVBAlg):
                                             returnScoreMatrix=1,
                                             M=prevPrepInfo['PairScoreMat'],
                                             **self.algParams['merge'])
+
     PrepInfo['mPairIDs'] = mPairIDs
     PrepInfo['PairScoreMat'] = PairScoreMat
+    TOL = MergePlanner.ELBO_GAP_ACCEPT_TOL
+    MergeLogger.log('MERGE Num pairs selected: %d/%d' 
+                     % (len(mPairIDs), np.sum(PairScoreMat > -1 * TOL)),
+                    level='debug')
+
+    degree = MergePlanner.calcDegreeFromEdgeList(mPairIDs, SS.K)
+    if np.sum( degree > 0 ) > 0:
+      degree = degree[degree > 0]
+      MergeLogger.log('Num comps in >=1 pair: %d' % (degree.size), 'debug')
+      MergeLogger.log('Degree distribution among selected pairs', 'debug')
+      for p in [10, 50, 90, 100]:
+        MergeLogger.log('   %d: %d' % (p, np.percentile(degree, p)), 'debug')
 
     ## Reset selection terms to zero
     if SS is not None and SS.hasSelectionTerms():
@@ -780,9 +904,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
         evBound : correct ELBO for returned hmodel
                   guaranteed to be at least as large as input evBound    
     '''
-    if self.algParams['merge']['mergeLogVerbose']:
-      import bnpy.mergemove.MergeLogger as MergeLogger
-      MergeLogger.logStartMove(lapFrac)
+    MergeLogger.logPhase('MERGE Moves at lap ' + str(lapFrac))
 
     if 'mPairIDs' not in MergePrepInfo or MergePrepInfo['mPairIDs'] is None:
       MergePrepInfo['mPairIDs'] = list()
@@ -805,7 +927,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
     # ------ Record accepted moves, so can adjust memoized stats later
     self.MergeLog = list()
     for kA, kB in Info['AcceptedPairs']:
-      self.ActiveIDVec = np.delete(self.ActiveIDVec, kB, axis=0)
+      self.ActiveIDVec = np.delete(self.ActiveIDVec, kB, axis=0)      
       self.MergeLog.append(dict(kA=kA, kB=kB, Korig=Korig))
       self.lapLastAcceptedMerge = lapFrac
       Korig -= 1
@@ -813,6 +935,12 @@ class MOVBBirthMergeAlg(MOVBAlg):
     # ------ Reset all precalculated merge terms
     if SS.hasMergeTerms():
       SS.setMergeFieldsToZero()
+
+    ## ScoreMat here will have shape Ka x Ka, where Ka <= K
+    # Ka < K in the case of batch-specific births (whose new comps aren't tracked)
+    # ScoreMat will be updated to size SS.K,SS.K in preparePlansForMerge()
+    MergePrepInfo['PairScoreMat'] = Info['ScoreMat']
+    MergePrepInfo['mPairIDs'] = list()
     return hmodel, SS, newEvBound
 
   def _resetLapsSinceLastBirthAfterMerge(self, kA, kB):
@@ -918,6 +1046,9 @@ class MOVBBirthMergeAlg(MOVBAlg):
                                **kwargs):
     ''' Verify that current aggregated SS consistent with sum over all batches
     '''
+    if self.doDebugVerbose():
+      self.print_msg('>>>>>>>> BEGIN double-check @ lap %.2f' % (self.lapFrac))
+
     if evBound is None:
       evBound = hmodel.calc_evidence(SS=SS)
 
@@ -941,9 +1072,10 @@ class MOVBBirthMergeAlg(MOVBAlg):
           SS2 += extraSS
 
     evCheck = hmodel.calc_evidence(SS=SS2)
-    if self.algParams['debug'].count('quiet') == 0:
-      print '% 14.8f evBound from agg SS' % (evBound)
-      print '% 14.8f evBound from sum over SSmemory' % (evCheck)
+    if self.doDebugVerbose():
+      self.print_msg('% 14.8f evBound from agg SS' % (evBound))
+      self.print_msg('% 14.8f evBound from sum over SSmemory' % (evCheck))
+
     if self.algParams['debug'].count('interactive'):
       isCorrect = np.allclose(SS.uIDs, SS2.uIDs) \
                   and np.allclose(SS.getCountVec(), SS2.getCountVec()) \
@@ -954,6 +1086,10 @@ class MOVBBirthMergeAlg(MOVBAlg):
       assert np.allclose(SS.getCountVec(), SS2.getCountVec())
       assert np.allclose(evBound, evCheck)
       assert np.allclose(SS.uIDs, SS2.uIDs)
+
+    if self.doDebugVerbose():
+      self.print_msg('<<<<<<<< END   double-check @ lap %.2f' % (self.lapFrac))
+
 
 """
 DEPRECATED CODE from load_suff_stats_for_batch

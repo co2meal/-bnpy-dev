@@ -1,17 +1,7 @@
 '''
 VBLearnAlg.py
 
-Implementation of both EM and VB for bnpy models
-
-Notes
--------
-Essentially, EM and VB are the same iterative *algorithm*,
-repeating the steps of a monotonic increasing objective function until convergence.
-
-EM recovers the parameters for a *point-estimate* of quantities of interest
-while VB learns the parameters of an approximate *distribution* over quantities of interest
-
-For more info, see the documentation [TODO]
+Implementation of variational bayes learning algorithm for bnpy models.
 '''
 import numpy as np
 
@@ -87,10 +77,11 @@ class VBAlg( LearnAlg ):
         break
       prevBound = evBound
       prevCountVec = countVec.copy()
+      # ................................................... end loop over laps
 
     ## Finished! Save, print and exit
     self.saveParams(lap, hmodel, SS)
-    self.printStateToLog(hmodel, evBound, lap, iterid)
+    self.printStateToLog(hmodel, evBound, lap, iterid, isFinal=1)
     self.eval_custom_func(isFinal=1, **makeDictOfAllWorkspaceVars(**vars()))
 
     return self.buildRunInfo(evBound=evBound, SS=SS, LP=LP)

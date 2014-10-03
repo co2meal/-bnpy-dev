@@ -53,7 +53,7 @@ def plotExampleBarsDocs(Data, docIDsToPlot=None, figID=None,
 def plotBarsFromHModel(hmodel, Data=None, doShowNow=False, figH=None,
                        doSquare=1,
                        compsToHighlight=None, compListToPlot=None,
-                       activeCompIDs=None,  Kmax=None,
+                       activeCompIDs=None,  Kmax=50,
                        width=6, height=3, vmax=None):    
   if hasattr(hmodel.obsModel, 'Post'):
     lam = hmodel.obsModel.Post.lam
@@ -73,7 +73,7 @@ def plotBarsFromHModel(hmodel, Data=None, doShowNow=False, figH=None,
                                     activeCompIDs=activeCompIDs,
                                     compsToHighlight=compsToHighlight,
                                     compListToPlot=compListToPlot,
-                                    Kmax=Kmax,
+                                    Kmax=Kmax, figH=figH,
                                     **imshowArgs)
   else:
     if figH is None:
@@ -90,7 +90,7 @@ def showTopicsAsSquareImages(topics,
                              compsToHighlight=None,
                              compListToPlot=None,
                              Kmax=50,
-                             W=1, H=1, **imshowArgs):
+                             W=1, H=1, figH=None, **imshowArgs):
   K, V = topics.shape
   sqrtV = int(np.sqrt(V))
   assert np.allclose(sqrtV, np.sqrt(V))
@@ -107,8 +107,16 @@ def showTopicsAsSquareImages(topics,
   Kplot = np.minimum(len(compListToPlot), Kmax)
   ncols = 5 #int(np.ceil(Kplot / float(nrows)))
   nrows = int(np.ceil(Kplot / float(ncols)))
-  figH, ha = pylab.subplots(nrows=nrows, ncols=ncols, figsize=(ncols*W,nrows*H))
-  
+  if figH is None:
+    ## Make a new figure
+    figH, ha = pylab.subplots(nrows=nrows, ncols=ncols,
+                              figsize=(ncols*W,nrows*H))
+  else:
+    ## Use existing figure
+    ## TODO: Find a way to make this call actually change the figsize
+    figH, ha = pylab.subplots(nrows=nrows, ncols=ncols,
+                              figsize=(ncols*W,nrows*H), num=figH.number)
+
   for plotID, compID in enumerate(compListToPlot):
     if plotID >= Kmax:
       print 'DISPLAY LIMIT EXCEEDED. Showing %d/%d components' \

@@ -105,7 +105,16 @@ def _sample_target_XData(Data, model, LP, **kwargs):
                                             doTrackFullSize=False)
     TargetInfo = dict(ktarget=ktarget)
   else:
-    raise NotImplementedError('TODO')
+    ## For births based on current Data from batch
+    size = np.minimum(Data.get_size(), kwargs['targetMaxSize'])
+    if size == Data.get_size():
+      TargetData = Data
+    else:
+      targetIDs = range(Data.get_size())
+      randstate.shuffle(targetIDs)
+      TargetData = Data.select_subset_by_mask(targetIDs[:size], 
+                                              doTrackFullSize=False)
+    TargetInfo = dict(msg='batch birth')
   return TargetData, TargetInfo
 
 ########################################################### WordsData sampling

@@ -168,7 +168,6 @@ class HModel(object):
       # Set hmodel global parameters "from scratch", in two stages
       # * init allocmodel to "uniform" prob over comps
       # * init obsmodel in likelihood-specific, data-driven fashion
-      self.allocModel.init_global_params(Data, **initArgs)
       if str(type(self.obsModel)).count('Gauss') > 0:
         init.FromScratchGauss.init_global_params(self.obsModel, 
                                                  Data, **initArgs)
@@ -180,6 +179,11 @@ class HModel(object):
                                                 Data, **initArgs)
       else:
         raise NotImplementedError('Unrecognized initname procedure.')
+      if 'K' in initArgs:
+        # Make sure K is exactly same for both alloc and obs models
+        # Needed because obsModel init can sometimes yield K < Kinput
+        initArgs['K'] = self.obsModel.K
+      self.allocModel.init_global_params(Data, **initArgs)
    
   ######################################################### I/O Utils
   ######################################################### 

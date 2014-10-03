@@ -258,6 +258,8 @@ class HDPDir(AllocModel):
     digammaSumTheta = digamma(theta.sum(axis=1) + thetaRem)
     ElogPi = digamma(theta) - digammaSumTheta[:,np.newaxis]
     ElogPiRem = digamma(thetaRem) - digammaSumTheta
+
+    LP['DocTopicCount'] = DocTopicCount
     LP['theta'] = theta
     LP['thetaRem'] = thetaRem
     LP['ElogPi'] = ElogPi
@@ -346,7 +348,7 @@ class HDPDir(AllocModel):
 
     ## Selection terms (computes doc-topic correlation)
     if preselectroutine is not None:
-      if preselectroutine.count('doctopiccorr') > 0:
+      if preselectroutine.count('corr') > 0:
         Tmat = LP['DocTopicCount']
         SS.setSelectionTerm('DocTopicPairMat',
                            np.dot(Tmat.T, Tmat), dims=('K','K'))
@@ -489,12 +491,16 @@ class HDPDir(AllocModel):
     self.ClearCache()
 
 
-  def _set_global_params_from_scratch(self, beta=None, topic_prior=None,
-                                            Data=None, **kwargs):
+  def _set_global_params_from_scratch(self, beta=None, probs=None,
+                                            Data=None, nDoc=None, **kwargs):
     ''' Set rho, omega to values that reproduce provided appearance probs
     '''
-    if topic_prior is not None:
-      beta = topic_prior / topic_prior.sum()
+    if nDoc is None:
+      nDoc = Data.nDoc
+    if nDoc is None:
+      raise ValueError('Bad parameters. nDoc not specified.')
+    if probs is not None:
+      beta = probs / probs.sum()
     if beta is not None:
       Ktmp = beta.size
       rem = np.minimum(0.05, 1./(Ktmp))
@@ -503,7 +509,7 @@ class HDPDir(AllocModel):
     else:
       raise ValueError('Bad parameters. Vector beta not specified.')
     self.K = beta.size - 1
-    self.rho, self.omega = self._convert_beta2rhoomega(beta, Data.nDoc)
+    self.rho, self.omega = self._convert_beta2rhoomega(beta, )
     assert self.rho.size == self.K
     assert self.omega.size == self.K
 
@@ -524,7 +530,7 @@ class HDPDir(AllocModel):
 
   ####################################################### Calc ELBO
   #######################################################
-  def calc_evidence(self, Data, SS, LP, **kwargs):
+  def calc_evidence(self, Data, SS, LP, todict=0, **kwargs):
     ''' Calculate ELBO objective 
     '''
     calpha = SS.nDoc * (gammaln(self.alpha) + (SS.K+1) * np.log(self.alpha))
@@ -542,6 +548,16 @@ class HDPDir(AllocModel):
       ElogqZ = self.E_logqZ(Data, LP)
       cDir_theta = self.c_Dir_theta(*self.c_Dir_theta__parts(LP))
       slack_NmT, slack_NmT_Rem = self.slack_NminusTheta(LP)
+
+    if todict:
+      return dict(calpha=calpha,
+                  cDir_theta=-1*cDir_theta,
+                  entropy=-1*np.sum(ElogqZ),
+                  cDir_alphaBeta=U_plus_cDir_alphaBeta,
+                  slack=np.sum(slack_NmT + slack_alphaBeta) \
+                        + slack_NmT_Rem + slack_alphaBeta_Rem
+                 )
+
     return U_plus_cDir_alphaBeta + calpha \
            - np.sum(ElogqZ) \
            - cDir_theta \

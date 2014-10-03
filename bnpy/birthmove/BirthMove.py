@@ -19,21 +19,23 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, Plan=None, **kwargsIN):
       MoveInfo
   '''
   logPhase('Target Data')
-  log(freshData.get_stats_summary())
+  if 'ktarget' in Plan:
+    ktarget = Plan['ktarget']
+    if 'targetUID' in Plan:
+      know = np.flatnonzero(bigSS.uIDs == Plan['targetUID'])
+      if know.size == 1:
+        sizeNow = bigSS.getCountVec()[know[0]]
+      else:
+        sizeNow = 0
+      log('target comp = %d. Size now %d. Size at selection %d.' 
+           % (Plan['targetUID'], sizeNow, Plan['count']),
+          'moreinfo')
+    else:
+      log('ktarget= %d.' % (ktarget), 'moreinfo')
+  log(freshData.get_stats_summary(), 'debug')
 
   kwargs = dict(**kwargsIN) # make local copy!
   origids = dict( bigModel=id(bigModel), bigSS=id(bigSS) )
-
-  # Create train/test split of the freshData  
-  if kwargs['birthHoldoutData']:
-    nHoldout = freshData.nDoc / 5
-    holdIDs = kwargs['randstate'].choice(freshData.nDoc, nHoldout, 
-                                          replace=False)
-    trainIDs = [x for x in xrange(freshData.nDoc) if x not in holdIDs]
-    holdData = freshData.select_subset_by_mask(docMask=holdIDs, 
-                                             doTrackFullSize=False)
-    freshData = freshData.select_subset_by_mask(docMask=trainIDs,
-                                              doTrackFullSize=False)
 
   try:
     if bigSS is None:
@@ -42,6 +44,7 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, Plan=None, **kwargsIN):
 
     if bigSS.K + kwargs['Kfresh'] > kwargs['Kmax']:
       kwargs['Kfresh'] = kwargs['Kmax'] - bigSS.K
+
     if kwargs['Kfresh'] < 1:
       msg = "SKIPPED. Reached upper limit of Kmax=%d comps."
       msg = msg % (kwargs['Kmax'])
@@ -68,18 +71,6 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, Plan=None, **kwargsIN):
     freshModel, freshSS, freshInfo = BirthCreate.create_model_with_new_comps(
                                             bigModel, bigSS, freshData, Q=Q,
                                             Plan=Plan, **kwargs)
-    earlyAdmission = -1
-    if kwargs['birthVerifyELBOIncreaseFresh']:
-      for step in range(nStep):
-        doELBO = (step == nStep-1) # only on last step
-        freshLP = freshModel.calc_local_params(freshData)
-        freshSS = freshModel.get_global_suff_stats(freshData, freshLP,
-                                                       doPrecompEntropy=doELBO)
-        if not doELBO: # all but the last step
-          freshModel.update_global_params(freshSS)   
-      propELBO  = freshModel.calc_evidence(SS=freshSS)
-      earlyAdmission, ELBOmsg = make_acceptance_decision(curELBO, propELBO)
-      didPass = earlyAdmission
 
     # Visualize, if desired
     if 'doVizBirth' in kwargs and kwargs['doVizBirth']:
@@ -91,11 +82,11 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, Plan=None, **kwargsIN):
 
 
     # Create xbigModel and xbigSS, with K + Kfresh comps
-    #      freshData can be assigned to any of the K+Kfresh comps
-    #      so, any of the K+Kfresh comps may be changed 
-    #          but original comps won't lose influence of bigSS
-    #  xbigSS has scale bigData + freshData
-    #  xbigModel has scale bigData + freshData
+    # freshData can be assigned to any of the K+Kfresh comps
+    # so, any of the K+Kfresh comps may be changed 
+    # but original comps won't lose influence of bigSS
+    # * xbigSS has scale bigData + freshData
+    # * xbigModel has scale bigData + freshData
     if kwargs['expandOrder'] == 'expandThenRefine':
       xbigModel, xbigSS, xfreshSS, xInfo = BirthRefine.expand_then_refine(
                                                freshModel, freshSS, freshData,    
@@ -103,12 +94,11 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, Plan=None, **kwargsIN):
     else:
       raise NotImplementedError('TODO')
 
-    logPhase('Evaluation')
     if kwargs['birthVerifyELBOIncrease']:
-      if earlyAdmission == -1 or earlyAdmission == 0:
-        assert xfreshSS.hasELBOTerms()
-        propELBO = xbigModel.calc_evidence(SS=xfreshSS)
-        didPass, ELBOmsg = make_acceptance_decision(curELBO, propELBO)
+      logPhase('Evaluation')
+      assert xfreshSS.hasELBOTerms()
+      propELBO = xbigModel.calc_evidence(SS=xfreshSS)
+      didPass, ELBOmsg = make_acceptance_decision(curELBO, propELBO)
       log(ELBOmsg)
     else:
       didPass = True
@@ -122,15 +112,13 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, Plan=None, **kwargsIN):
 
     # Reject. Abandon the move.
     if not didPass:
-      msg = "REJECTED. Did not explain target better than current model."
+      msg = "BIRTH REJECTED. Did not explain target better than current model."
       raise BirthProposalError(msg)
 
     assert xbigModel.obsModel.K == xbigSS.K
     ### Create dict of info about this birth move
-    if earlyAdmission == 1:
-      ELBOmsg = '*early*' + ELBOmsg
-    msg = 'ACCEPTED. %d fresh comps.' % (len(birthCompIDs))
-    log(msg)
+    msg = 'BIRTH ACCEPTED. %d fresh comps.' % (len(birthCompIDs))
+    log(msg, 'info')
 
     MoveInfo = dict(didAddNew=True,
                     msg=msg,
@@ -172,16 +160,16 @@ def run_birth_move(bigModel, bigSS, freshData, Q=None, Plan=None, **kwargsIN):
 
     return xbigModel, xbigSS, MoveInfo
   except BirthProposalError, e:
-    ### Clean-up code when birth proposal fails for any reason, including:
+    ### We execute this code when birth fails for any reason, including:
     #  * user-specified Kmax limit reached
-    #  * delete phase removed all new components
+    #  * cleanup phase removed all new components
 
     # Verify guarantees that input model and input suff stats haven't changed
     assert origids['bigModel'] == id(bigModel)
     assert origids['bigSS'] == id(bigSS)
 
     # Write reason for failure to log
-    log(str(e))
+    log(str(e), 'moreinfo')
 
     # Return failure info
     MoveInfo = dict(didAddNew=False,

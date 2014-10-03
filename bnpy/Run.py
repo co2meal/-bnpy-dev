@@ -136,8 +136,12 @@ def _run_task_internal(jobname, taskid, nTask,
 
   if type(dataName) is str:
     if os.path.exists(dataName):
+      ## dataName is a path to many data files on disk
       Data, InitData = loadDataIteratorFromDisk(dataName, KwArgs, dataorderseed)
       DataArgs = UnkArgs
+      # Set the short name for this dataset,
+      # so that the filepath for results is informative.
+      Data.name = KwArgs['OnlineDataPrefs']['datasetName']      
     else:
       DataArgs = getKwArgsForLoadData(ReqArgs, UnkArgs)  
       Data, InitData = loadData(ReqArgs, KwArgs, DataArgs, dataorderseed)
@@ -452,10 +456,7 @@ def getOutputPath(ReqArgs, KwArgs, taskID=0 ):
   if type(dataName) is not str:
     dataName = dataName.get_short_name()
   if os.path.exists(dataName):
-    if dataName.endswith(os.path.sep):
-      dataName = dataName.split(os.path.sep)[-2]
-    else:
-      dataName = dataName.split(os.path.sep)[-1]
+    dataName = KwArgs['OnlineDataPrefs']['datasetName']
   return os.path.join(os.environ['BNPYOUTDIR'], 
                        dataName, 
                        KwArgs['OutputPrefs']['jobname'], 
@@ -484,6 +485,9 @@ def deleteAllFilesFromDir( savefolder, prefix=None ):
       os.unlink(file_path)
 
 def configLoggingToConsoleAndFile(taskoutpath, doSaveToDisk=True, doWriteStdOut=True):
+  RootLog = logging.getLogger()
+  RootLog.handlers = []
+
   Log.handlers = [] # remove pre-existing handlers!
   formatter = logging.Formatter('%(message)s')
   ###### Config logger to save transcript of log messages to plain-text file  
@@ -498,10 +502,10 @@ def configLoggingToConsoleAndFile(taskoutpath, doSaveToDisk=True, doWriteStdOut=
     ch.setLevel(logging.DEBUG)
     ch.setFormatter(formatter)
     Log.addHandler(ch)
+
   ##### Config null logger, avoids error messages about no handler existing
   if not doSaveToDisk and not doWriteStdOut:
     Log.addHandler(logging.NullHandler())
-
 
 if __name__ == '__main__':
   run()

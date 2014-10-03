@@ -1,11 +1,11 @@
 '''
 EMAlg.py
 
-Implementation of EM for bnpy models.
+Implementation of expectation maximization learning algorithm for bnpy models.
 '''
 import numpy as np
-from collections import defaultdict
-from LearnAlg import LearnAlg
+
+from LearnAlg import LearnAlg, makeDictOfAllWorkspaceVars
 
 class EMAlg( LearnAlg ):
 
@@ -14,7 +14,7 @@ class EMAlg( LearnAlg ):
     '''
     super(type(self), self).__init__( **kwargs )
     
-  def fit(self, hmodel, Data):
+  def fit(self, hmodel, Data, LP=None):
     ''' Fit point estimates of global parameters of hmodel to Data
         Returns
         --------
@@ -25,43 +25,62 @@ class EMAlg( LearnAlg ):
                         {'converged', 'max passes exceeded'}
     '''
     prevBound = -np.inf
-    LP = None
+    isConverged = False
+
+    ## Save initial state
+    self.saveParams(0, hmodel)
+
     self.set_start_time_now()
-
-    for iterid in xrange(self.algParams['nLap'] + 1):
+    for iterid in xrange(1, self.algParams['nLap']+1):
       lap = self.algParams['startLap'] + iterid
+      nLapsCompleted = lap - self.algParams['startLap']
+      self.set_random_seed_at_lap(lap)
 
-      # M step
-      if iterid > 0:
-        hmodel.update_global_params(SS) 
-              
-      # E step 
+      ## Local/E step
       LP = hmodel.calc_local_params(Data, LP, **self.algParamsLP)
 
-      # Suff Stat step
+      ## Summary step
       SS = hmodel.get_global_suff_stats(Data, LP)
 
-      # ELBO calculation
+      ## ELBO calculation (needs to be BEFORE Mstep for EM)
       evBound = hmodel.calc_evidence(Data, SS, LP)
+      if lap > 1.0:
+        ## Report warning if bound isn't increasing monotonically
+        self.verify_evidence(evBound, prevBound)
 
-      # Save and display progress
-      #self.add_nObs(Data.nObs)
-      self.save_state(hmodel, SS, iterid, lap, evBound)
-      self.print_state(hmodel, SS, iterid, lap, evBound)
+      ## Global/M step
+      hmodel.update_global_params(SS) 
 
-      # Check for Convergence!
-      #  report warning if bound isn't increasing monotonically
-      isConverged = self.verify_evidence( evBound, prevBound )
-      if isConverged:
+      ## Check convergence of expected counts
+      countVec = SS.getCountVec()
+      if lap > 1.0:
+        isConverged = self.isCountVecConverged(countVec, prevCountVec)
+        self.setStatus(lap, isConverged)
+
+      ## Display progress
+      self.updateNumDataProcessed(Data.get_size())
+      if self.isLogCheckpoint(lap, iterid):
+        self.printStateToLog(hmodel, evBound, lap, iterid)
+
+      ## Save diagnostics and params
+      if self.isSaveDiagnosticsCheckpoint(lap, iterid):
+        self.saveDiagnostics(lap, SS, evBound)
+      if self.isSaveParamsCheckpoint(lap, iterid):
+        self.saveParams(lap, hmodel, SS)
+
+      ## Custom func hook
+      self.eval_custom_func(**makeDictOfAllWorkspaceVars(**vars()))
+
+      if nLapsCompleted >= self.algParams['minLaps'] and isConverged:
         break
       prevBound = evBound
+      prevCountVec = countVec.copy()
+      # ................................................... end loop over laps
 
-    #Finally, save, print and exit
-    if isConverged:
-      status = "converged."
-    else:
-      status = "max passes thru data exceeded."
-    self.save_state(hmodel, SS, iterid, lap, evBound, doFinal=True)    
-    self.print_state(hmodel, SS, iterid, lap, evBound, doFinal=True,
-                     status=status)
-    return LP, self.buildRunInfo(evBound, status, nLap=lap)
+
+    ## Finished! Save, print and exit
+    self.saveParams(lap, hmodel, SS)
+    self.printStateToLog(hmodel, evBound, lap, iterid, isFinal=1)
+    self.eval_custom_func(isFinal=1, **makeDictOfAllWorkspaceVars(**vars()))
+
+    return self.buildRunInfo(evBound=evBound, SS=SS, LP=LP)

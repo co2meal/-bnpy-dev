@@ -155,7 +155,9 @@ class WordsData(DataObj):
     '''
     s = '  size: %d units (documents)\n' % (self.get_size())
     s += '  vocab size: %d\n' % (self.get_dim())
-    s += self.get_doc_stats_summary()
+    s += self.get_doc_stats_summary() + "\n"
+    s += self.get_wordcount_summary() + "\n"
+    s += self.get_docusagebytype_summary()
     return s
 
 
@@ -190,6 +192,74 @@ class WordsData(DataObj):
       s += "%5s " % ("%.0f" % (np.percentile(nTotalWordsPerDoc, p)))    
     s += ' nTotalTokensPerDoc'
     return s
+
+  def get_wordcount_summary(self, bins=[1, 2, 3, 10, 100]):
+    binedges = np.asarray(bins)
+    binedges = np.hstack([binedges[0] - .5, binedges+.5, np.inf])
+    binHeaderStr = ''
+    binCountStr = ''
+    for e in range(binedges.size-1):
+      bincount = np.sum(np.logical_and(self.word_count >= binedges[e],
+                                       self.word_count < binedges[e+1]))
+      fracMassStr = "%.2f" % (bincount / float(self.word_count.size))
+      if bincount == 0:
+        fracMassStr = "0"
+      elif fracMassStr == "0.00":
+        fracMassStr = "%d" % (bincount) #"<0.01" 
+      
+      binCountStr += " %6s" % (fracMassStr) 
+      if e == binedges.size-2:
+        binHeaderStr += " %6s" % (">=" + str(bins[-1]))
+      elif binedges[e+1] - binedges[e] > 1:
+        binHeaderStr += " %6s" % ("<" + str(bins[e]))
+      else:
+        binHeaderStr += " %6s" % (str(bins[e]))
+    return "Hist of word_count across tokens \n" \
+            + "%s\n%s" % (binHeaderStr, binCountStr)
+
+  def get_docusagebytype_summary(self, bins=[1, 10, 100, .1, .2, .5]):
+    nUniqueDocCount = np.sum(self.getDocTypeCountMatrix() > 0, axis=0)
+    bbins = list()
+    bNames = list()
+    gap = 0
+    for b in range(len(bins)):
+      if bins[b] < 1:
+        binval = bins[b] * self.nDoc
+        bName = "%.2f" % (bins[b])
+      else:
+        binval = bins[b]
+        bName = str(binval)
+      if b > 1:
+        gap = bbins[-1] - bbins[-2]
+        if binval - bbins[-1] < gap:
+          continue
+
+      bbins.append(binval)
+      bNames.append(bName)
+
+    binHeaderStr = ''
+    binCountStr = ''
+    binedges = np.hstack([0, np.asarray(bbins), np.inf])
+    for e in range(binedges.size-1):
+      bincount = np.sum(np.logical_and(nUniqueDocCount >= binedges[e],
+                                       nUniqueDocCount < binedges[e+1]))
+      
+      fracMassStr = "%.2f" % (bincount / float(self.vocab_size))
+      if bincount == 0:
+        fracMassStr = "0"
+      elif fracMassStr == "1.00":
+        fracMassStr = ">.99"
+      elif fracMassStr == "0.00":
+        fracMassStr = "%6d" % (bincount) 
+
+      binCountStr += " %6s" % (fracMassStr) 
+      if e == binedges.size-2:
+        binHeaderStr += " %6s" % (">=" + bNames[-1])
+      else:
+        binHeaderStr += " %6s" % ("<" + bNames[e])
+    return "Hist of unique docs per word type\n" \
+            + "%s\n%s" % (binHeaderStr, binCountStr)
+    
 
   ######################################################### Sparse matrix
   #########################################################
@@ -562,6 +632,30 @@ class WordsData(DataObj):
         docstr = "%d %s" % (nUniqueInDoc, ' '.join(idct_list)) 
         f.write(docstr + '\n')
 
+  def WriteToFile_tokenlist(self, filepath, min_word_index=1):
+    ''' Write contents of this dataset to MAT file in tokenlist format
+    '''
+    word_id = self.word_id
+    if min_word_index > 0:
+      word_id = word_id + min_word_index
+    
+    MatVars = dict()
+    MatVars['tokensByDoc'] = np.empty((1, self.nDoc), dtype=object)
+    for d in xrange(self.nDoc):
+      start = self.doc_range[d]
+      stop = self.doc_range[d+1]
+      nTokens = np.sum(self.word_count[start:stop])
+      tokenvec = np.zeros(nTokens, dtype=word_id.dtype)
+
+      a = 0
+      for n in xrange(start, stop):
+        tokenvec[a:a + self.word_count[n]] = word_id[n]
+        a += self.word_count[n]
+
+      assert tokenvec.min() >= min_word_index
+      MatVars['tokensByDoc'][0,d] = tokenvec
+    scipy.io.savemat(filepath, MatVars, oned_as='row')
+    
 """ DEPRECATED METHODS (some may be cleaned up and moved back in someday)
 
   ######################################################### word-word cooccur
