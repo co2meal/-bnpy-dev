@@ -8,7 +8,7 @@
     <!-- Bootstrap -->
     <link href="{{rootdir}}/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
     <link href="{{rootdir}}/profile/assets/css/docs.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{rootdir}}/profile/assets/css/font-awesome/font-awesome.min.css">
+    <link rel="stylesheet" href="{{rootdir}}/profile/assets/font-awesome/css/font-awesome.min.css">
   </head>
 
   <body id="top">
@@ -58,7 +58,7 @@
           <p>Function in file <a href="{{ link }}">{{ link }}</a></p>
 
           <h3 id="listing">Function listing</h3>
-          <table class="table table-borderless table-condensed">
+          <table class="table table-borderless table-condensed table-code-listing">
             <tr>
               <th>time</th>
               <th>calls</th>
@@ -70,7 +70,7 @@
               <td>{{ lines[i]['time'] }}</td>
               <td>{{ lines[i]['calls'] }}</td>
               <td id="line{{ lines[i]['lineno'] }}">{{ lines[i]['lineno'] }}</td>
-              <td><pre>{{ lines[i]['code_full'] }}</pre></td>
+              <td class="code"><div class="code-listing"><pre class="prettyprint">{{ lines[i]['code_full'] }}</pre></div></td>
             </tr>
             {% endfor %}
           </table>
@@ -79,7 +79,7 @@
     </div>
 
     <a href="#top" class="scrollToTop hidden-phone" >
-      <i class="icon-chevron-up"></i>
+      <i class="fa fa-chevron-up"></i>
     </a>
 
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
@@ -87,6 +87,7 @@
     <!-- Include all compiled plugins (below), or include individual files as needed -->
     <script src="{{rootdir}}/profile/assets/js/bootstrap.min.js"></script>
     <script src="{{rootdir}}/profile/assets/js/main.js"></script>
+    <script src="https://google-code-prettify.googlecode.com/svn/loader/run_prettify.js"></script>
 
   </body>
 </html>
