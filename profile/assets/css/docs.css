@@ -1235,6 +1235,7 @@ div.code-listing {
 }
 
 pre {
+    padding: 0px;
     border: none !important;
     background-color: transparent;
 }
