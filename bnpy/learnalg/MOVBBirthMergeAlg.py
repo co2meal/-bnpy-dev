@@ -55,6 +55,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
     origmodel = hmodel
     self.ActiveIDVec = np.arange(hmodel.obsModel.K)
     self.maxUID = self.ActiveIDVec.max()
+    self.DataIterator = DataIterator
 
     ## Initialize progress tracking vars like nBatch, lapFrac, etc.
     iterid, lapFrac = self.initProgressTrackVars(DataIterator)
@@ -180,13 +181,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
       ## ELBO calculation
       if self.isLastBatch(lapFrac):
-        self.ELBOReady = True
-
-        adict = hmodel.allocModel.calc_evidence(None, SS, None, todict=1)
-        sF = 400*200
-        for key in adict:
-          print '%10s %.6f' % (key, adict[key]/sF)
-
+        self.ELBOReady = True # after seeing all data, ELBO will be ready
       if self.ELBOReady:
         evBound = hmodel.calc_evidence(SS=SS)
 
@@ -1101,32 +1096,26 @@ class MOVBBirthMergeAlg(MOVBAlg):
     for DPlan in DeletePlans:
       if 'DTargetData' in DPlan:
         newModel, newSS, DPlan = runDeleteMove_Target(hmodel, SS, DPlan,
-                                    LPkwargs=self.algParamsLP)
-        # DPlan has been updated!
+                                    LPkwargs=self.algParamsLP,
+                                    **self.algParams['delete'])
       else:
-        newModel = None
-        newSS = None
         # No data used these topics in sufficient quantity
         # so, we just do an automatically accepted delete
         DPlan['didAccept'] = 1
+        newSS = SS.copy()
+        newModel = hmodel.copy()
+        for uID in DPlan['uIDs']:
+          kk = np.flatnonzero(newSS.uIDs == uID)[0]
+          newSS.removeComp(kk)
+        newModel.update_global_params(newSS)
 
-      ## If improved, adjust the sufficient stats!
       if DPlan['didAccept']:
         self.ELBOReady = False
-        SS.setELBOFieldsToZero()
-        SS.setMergeFieldsToZero()
+        self.ActiveIDVec = newSS.uIDs.copy()
 
-        if newSS is not None:
-          hmodel = newModel
-          SS = newSS
-          self.ActiveIDVec = SS.uIDs.copy()
-        else:
-          ## Auto accepted construction
-          for uID in DPlan['uIDs']:
-            kk = np.flatnonzero(SS.uIDs == uID)[0]
-            SS.removeComp(kk)
-            self.ActiveIDVec = np.delete(self.ActiveIDVec, kk)
-          hmodel.update_global_params(SS)
+        ## If improved, adjust the sufficient stats!
+        newSS.setELBOFieldsToZero()
+        newSS.setMergeFieldsToZero()
 
         for batchID in self.SSmemory:
           self.SSmemory[batchID].setELBOFieldsToZero()
@@ -1144,7 +1133,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
           assert np.allclose(self.SSmemory[batchID].uIDs, self.ActiveIDVec)
         ## TODO adjust LPmemory??
-    return hmodel, SS
+    return newModel, newSS
 
   ######################################################### Verify ELBO
   #########################################################
