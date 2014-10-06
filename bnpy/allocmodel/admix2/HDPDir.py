@@ -297,6 +297,22 @@ class HDPDir(AllocModel):
                 DocTopicCount=DocTopicCount,
                 digammaSumTheta=LP['digammaSumTheta'])
 
+  def selectSubsetLP(self, Data, LP, docIDs):
+    subsetLP = dict()
+    subsetLP['DocTopicCount'] = LP['DocTopicCount'][docIDs].copy()
+    subsetLP['theta'] = LP['theta'][docIDs].copy()
+    subsetLP['ElogPi'] = LP['ElogPi'][docIDs].copy()
+
+    subsetLP['thetaRem'] = LP['thetaRem']
+    subsetLP['ElogPiRem'] = LP['ElogPiRem']
+
+    subsetTokenIDs = list()
+    for docID in docIDs:
+      start = Data.doc_range[docID]
+      stop  = Data.doc_range[docID+1]
+      subsetTokenIDs.extend(range(start,stop))
+    subsetLP['resp'] = LP['resp'][subsetTokenIDs].copy()
+    return subsetLP
 
   ####################################################### Suff Stat Calc
   ####################################################### 
