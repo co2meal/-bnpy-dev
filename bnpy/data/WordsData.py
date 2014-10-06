@@ -346,6 +346,13 @@ class WordsData(DataObj):
     setattr(self, key, C)
     return C
 
+  def clearCache(self):
+    for key in ['__TokenTypeCountMat', '__sparseTokenTypeCountMat',
+                '__DocTypeCountMat', '__sparseDocTypeCountMat']:
+      if hasattr(self, key):
+        del self.__dict__[key]
+
+
   ######################################################### Add new documents
   #########################################################
   def add_data(self, WData):
@@ -360,6 +367,8 @@ class WordsData(DataObj):
     self.nDocTotal += WData.nDocTotal
     self.nUniqueToken += WData.nUniqueToken
     self.nTotalToken += WData.nTotalToken
+
+    self.clearCache()   
     self._verify_attributes()
 
   def get_random_sample(self, nDoc, randstate=np.random,
