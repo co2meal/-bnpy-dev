@@ -137,7 +137,11 @@ class MOVBBirthMergeAlg(MOVBAlg):
                                                   BirthResults=BirthResults,
                                                   lapFrac=lapFrac)
       elif self.isFirstBatch(lapFrac):
-        MergePrepInfo = dict()
+        if self.doMergePrepAtLap(lapFrac+1):
+          MergePrepInfo = dict(preselectroutine=
+                               self.algParams['merge']['preselectroutine'])
+        else:
+          MergePrepInfo = dict()
 
       ## Local/E step
       LPchunk = self.memoizedLocalStep(hmodel, Dchunk, batchID)

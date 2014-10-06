@@ -36,7 +36,7 @@ YLabelMap = dict(evidence='per-token heldout log-lik',
                  )
      
 def plotJobsThatMatchKeywords(jpathPattern='/tmp/', 
-         xvar='laps', yvar='evidence', 
+         xvar='laps', yvar='evidence', loc='lower right',
          taskids=None, savefilename=None, 
          **kwargs):
   ''' Create line plots for all jobs matching pattern and provided keyword args
@@ -52,8 +52,9 @@ def plotJobsThatMatchKeywords(jpathPattern='/tmp/',
   for lineID in xrange(nLines):
     plot_all_tasks_for_job(jpaths[lineID], legNames[lineID], 
                            taskids=taskids, colorID=lineID)
+  if loc is not None:
+    pylab.legend(loc=loc)
 
-  pylab.legend(loc='best')  
   if savefilename is not None:
     pylab.show(block=False)
     pylab.savefig(args.savefilename)
