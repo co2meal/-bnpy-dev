@@ -375,7 +375,8 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
       algP[moveKey] = KwArgs[moveKey]
 
   outputP = KwArgs['OutputPrefs']
-  hasMoves = 'birth' in KwArgs or 'merge' in KwArgs or 'shuffle' in KwArgs
+  hasMoves = 'birth' in KwArgs or 'merge' in KwArgs \
+             or 'shuffle' in KwArgs or 'delete' in KwArgs
 
   if algName == 'EM':
     learnAlg = bnpy.learnalg.EMAlg(savedir=savepath, seed=algseed,
