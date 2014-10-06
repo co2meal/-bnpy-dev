@@ -128,7 +128,7 @@ class HModel(object):
     ''' Compute the evidence lower bound (ELBO) of the objective function.
     '''
     if Data is not None and LP is None and SS is None:
-      LP = self.calc_local_params(Data)
+      LP = self.calc_local_params(Data, **kwargs)
       SS = self.get_global_suff_stats(Data, LP)
     evA = self.allocModel.calc_evidence(Data, SS, LP, todict=todict, **kwargs)
     evObs = self.obsModel.calc_evidence(Data, SS, LP, todict=todict, **kwargs)
