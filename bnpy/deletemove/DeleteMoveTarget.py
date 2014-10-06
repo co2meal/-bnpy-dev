@@ -1,15 +1,18 @@
 import numpy as np
+from matplotlib import pylab
 
 from DeleteLPUtil import deleteCompFromResp_Renorm
 from DeleteLPUtil import deleteCompFromResp_SoftEv
 from DeleteLPUtil import deleteCompFromResp_SoftEvOverlap
 
 from DeleteLogger import log, logPosVector, logProbVector
+from bnpy.viz import BarsViz
 
 def runDeleteMove_Target(curModel, curSS, Plan,
                          nRefineIters=5,
                          doQuitEarly=1,
                          LPkwargs=None,
+                         doVizDelete=False,
                          **kwargs):
   ''' Propose candidate model with fewer comps and accept if ELBO improves.
 
@@ -73,9 +76,18 @@ def runDeleteMove_Target(curModel, curSS, Plan,
     if propELBO >= curELBO:
       break
 
+  log('   cur %.6f' % (curELBO))
+  log('  prop %.6f' % (propELBO))
+
   didAccept = 0
   if propELBO >= curELBO:
     didAccept = 1
+
+  if doVizDelete:
+    BarsViz.plotBarsFromHModel(curModel, figH=pylab.figure(1))
+    BarsViz.plotBarsFromHModel(propModel, figH=pylab.figure(2))
+    pylab.show(block=False)
+    raw_input(">>")
 
   Plan['didAccept'] = didAccept
   Plan['tracepropELBO'] = tracepropELBO
