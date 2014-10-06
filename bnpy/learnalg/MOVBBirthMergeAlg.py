@@ -14,9 +14,10 @@ from MOVBAlg import MOVBAlg, makeDictOfAllWorkspaceVars
 from bnpy.suffstats import SuffStatBag
 from bnpy.util import isEvenlyDivisibleFloat
 from bnpy.birthmove import TargetPlanner, TargetDataSampler, BirthMove
-from bnpy.birthmove import BirthLogger, TargetPlannerWordFreq
+from bnpy.birthmove import BirthLogger
 from bnpy.mergemove import MergeMove, MergePlanner, MergeLogger
 from bnpy.birthmove.TargetDataSampler import hasValidKey
+from bnpy.deletemove import DeletePlanner, DTargetDataCollector, runDeleteMove_Target
 
 class MOVBBirthMergeAlg(MOVBAlg):
 
@@ -36,6 +37,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
       #  at each component, to encourage trying diversity
       self.LapsSinceLastBirth = defaultdict(int)
       self.BirthRecordsByComp = defaultdict(lambda: dict())
+    self.ELBOReady = True
 
   ######################################################### fit
   ######################################################### 
@@ -76,6 +78,9 @@ class MOVBBirthMergeAlg(MOVBAlg):
       mergeStartLap = 0
     order = None
 
+    ## Prep for delete
+    DeletePlans = list()
+
     ## Begin loop over batches of data...
     SS = None
     isConverged = False
@@ -95,6 +100,13 @@ class MOVBBirthMergeAlg(MOVBAlg):
       if self.doDebugVerbose():
         self.print_msg('========================== lap %.2f batch %d' \
                        % (lapFrac, batchID))
+
+      ## Delete move : 
+      if self.isFirstBatch(lapFrac) and self.hasMove('delete'):
+        if self.doDeleteAtLap(lapFrac) and len(DeletePlans) > 0:
+          hmodel, SS = self.deleteRunMoveAndUpdateMemory(hmodel, SS, 
+                                                         DeletePlans)
+        DeletePlans = list()
 
       ## Birth move : track birth info from previous lap
       if self.isFirstBatch(lapFrac):
@@ -136,6 +148,14 @@ class MOVBBirthMergeAlg(MOVBAlg):
                                              MergePrepInfo=MergePrepInfo,
                                              order=order)
 
+      ## Delete move : collect target data
+      if self.hasMove('delete') and self.doDeleteAtLap(lapFrac+1):
+        if self.isFirstBatch(lapFrac):
+          DeletePlans = self.deleteMakePlans(Dchunk, SS)
+        if len(DeletePlans) > 0:
+          self.deleteCollectTarget(Dchunk, hmodel, LPchunk, batchID, 
+                                   DeletePlans)
+
       ## Birth move : collect target data
       if self.hasMove('birth') and self.do_birth_at_lap(lapFrac+1.0):
         if self.isFirstBatch(lapFrac):
@@ -155,7 +175,16 @@ class MOVBBirthMergeAlg(MOVBAlg):
       self.GlobalStep(hmodel, SS, lapFrac)
 
       ## ELBO calculation
-      evBound = hmodel.calc_evidence(SS=SS)
+      if self.isLastBatch(lapFrac):
+        self.ELBOReady = True
+
+        adict = hmodel.allocModel.calc_evidence(None, SS, None, todict=1)
+        sF = 400*200
+        for key in adict:
+          print '%10s %.6f' % (key, adict[key]/sF)
+
+      if self.ELBOReady:
+        evBound = hmodel.calc_evidence(SS=SS)
 
       ## Merge move!
       if self.hasMove('merge') and self.isLastBatch(lapFrac) \
@@ -1034,6 +1063,84 @@ class MOVBBirthMergeAlg(MOVBAlg):
         self.verifyELBOTracking(hmodel, SS, evBound)
 
     return hmodel, SS, evBound
+
+
+
+  ######################################################### Delete Moves
+  #########################################################
+  def doDeleteAtLap(self, lapFrac):
+    return True
+
+  def deleteMakePlans(self, Dchunk, SS):
+    if self.lapFrac < 1:
+      ampF = Dchunk.get_total_size() / float(Dchunk.get_size())
+    else:
+      ampF = 1.0
+    ampF = np.maximum(ampF, 1.0)
+    Plans = DeletePlanner.makePlans(SS, ampF=ampF, **self.algParams['delete'])  
+    return Plans
+
+  def deleteCollectTarget(self, Dchunk, hmodel, LPchunk, batchID,
+                                DeletePlans):
+    for DPlan in DeletePlans:
+      DTargetDataCollector.addDataFromBatchToPlan(DPlan, Dchunk, 
+                                  hmodel, LPchunk,
+                                  batchID,
+                                  lapFrac=self.lapFrac,
+                                  isFirstBatch=self.isFirstBatch(self.lapFrac),
+                                  **self.algParams['delete'])
+
+
+  def deleteRunMoveAndUpdateMemory(self, hmodel, SS, DeletePlans):
+    self.ELBOReady = True
+    ## Run Move and see if improved
+    for DPlan in DeletePlans:
+      if 'DTargetData' in DPlan:
+        newModel, newSS, DPlan = runDeleteMove_Target(hmodel, SS, DPlan,
+                                    LPkwargs=self.algParamsLP)
+        # DPlan has been updated!
+      else:
+        newModel = None
+        newSS = None
+        # No data used these topics in sufficient quantity
+        # so, we just do an automatically accepted delete
+        DPlan['didAccept'] = 1
+
+      ## If improved, adjust the sufficient stats!
+      if DPlan['didAccept']:
+        self.ELBOReady = False
+        SS.setELBOFieldsToZero()
+        SS.setMergeFieldsToZero()
+
+        if newSS is not None:
+          hmodel = newModel
+          SS = newSS
+          self.ActiveIDVec = SS.uIDs.copy()
+        else:
+          ## Auto accepted construction
+          for uID in DPlan['uIDs']:
+            kk = np.flatnonzero(SS.uIDs == uID)[0]
+            SS.removeComp(kk)
+            self.ActiveIDVec = np.delete(self.ActiveIDVec, kk)
+          hmodel.update_global_params(SS)
+
+        for batchID in self.SSmemory:
+          self.SSmemory[batchID].setELBOFieldsToZero()
+          self.SSmemory[batchID].setMergeFieldsToZero()
+          if 'targetSSByBatch' in DPlan \
+            and batchID in DPlan['targetSSByBatch']:
+            self.SSmemory[batchID] -= DPlan['targetSSByBatch'][batchID]
+
+          for uID in DPlan['uIDs']:
+            kk = np.flatnonzero(self.SSmemory[batchID].uIDs == uID)[0]
+            self.SSmemory[batchID].removeComp(kk)
+          if 'ptargetSSByBatch' in DPlan \
+            and batchID in DPlan['ptargetSSByBatch']:
+            self.SSmemory[batchID] += DPlan['ptargetSSByBatch'][batchID]
+
+          assert np.allclose(self.SSmemory[batchID].uIDs, self.ActiveIDVec)
+        ## TODO adjust LPmemory??
+    return hmodel, SS
 
   ######################################################### Verify ELBO
   #########################################################
