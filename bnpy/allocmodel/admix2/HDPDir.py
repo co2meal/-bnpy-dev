@@ -304,7 +304,7 @@ class HDPDir(AllocModel):
     subsetLP['ElogPi'] = LP['ElogPi'][docIDs].copy()
 
     subsetLP['thetaRem'] = LP['thetaRem']
-    subsetLP['ElogPiRem'] = LP['ElogPiRem']
+    subsetLP['ElogPiRem'] = LP['ElogPiRem'][docIDs]
 
     subsetTokenIDs = list()
     for docID in docIDs:
@@ -463,7 +463,6 @@ class HDPDir(AllocModel):
     else:
       initrho = None   # default initialization
       initomega = None
-
     try:
       sumLogPi = np.append(SS.sumLogPi, SS.sumLogPiRem)
       rho, omega, f, Info = OptimHDPDir.find_optimum_multiple_tries(
@@ -481,7 +480,7 @@ class HDPDir(AllocModel):
       else:
         Log.error('***** Optim failed. Set to default init. ' + str(error))
         omega = (1 + self.gamma) * np.ones(SS.K)
-        rho = OptimHDPDir.create_initrho(K)
+        rho = OptimHDPDir.create_initrho(SS.K)
     return rho, omega
 
 
