@@ -37,7 +37,7 @@ YLabelMap = dict(evidence='per-token heldout log-lik',
      
 def plotJobsThatMatchKeywords(jpathPattern='/tmp/', 
          xvar='laps', yvar='evidence', loc='lower right',
-         taskids=None, savefilename=None, 
+         taskids=None, savefilename=None, fileSuffix='HeldoutLik.mat',
          **kwargs):
   ''' Create line plots for all jobs matching pattern and provided keyword args
 
@@ -51,7 +51,8 @@ def plotJobsThatMatchKeywords(jpathPattern='/tmp/',
   nLines = len(jpaths)
   for lineID in xrange(nLines):
     plot_all_tasks_for_job(jpaths[lineID], legNames[lineID], 
-                           taskids=taskids, colorID=lineID)
+                           taskids=taskids, colorID=lineID,
+                           xvar=xvar, yvar=yvar, fileSuffix=fileSuffix)
   if loc is not None:
     pylab.legend(loc=loc)
 
@@ -66,9 +67,10 @@ def plotJobsThatMatchKeywords(jpathPattern='/tmp/',
         
 
 def plot_all_tasks_for_job(jobpath, label, taskids=None,
-                                             colorID=0,
-                                             yvar='evidence',
-                                             xvar='laps'):
+                                           colorID=0,
+                                           fileSuffix='HeldoutLik.mat',
+                                           yvar='evidence',
+                                           xvar='laps'):
   ''' Create line plot in current figure for each task/run of jobpath
   '''
   if not os.path.exists(jobpath):
@@ -79,8 +81,9 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
 
   for tt, taskid in enumerate(taskids):
     taskoutpath = os.path.join(jobpath, taskid)
-    hpaths = glob.glob(os.path.join(taskoutpath, '*HeldoutLik.mat'))
+    hpaths = glob.glob(os.path.join(taskoutpath, '*' + fileSuffix))
     hpaths.sort()
+
     basenames = [x.split(os.path.sep)[-1] for x in hpaths];
     laps = np.asarray([float(x[3:11]) for x in basenames]);
 
