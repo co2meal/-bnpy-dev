@@ -295,6 +295,7 @@ def getKwArgsForLoadData(ReqArgs, UnkArgs):
   if isinstance(ReqArgs, bnpy.data.DataObj):
     datamod = ReqArgs
   else:
+    print ReqArgs['dataName']
     datamod = __import__(ReqArgs['dataName'],fromlist=[])
 
   ## Find subset of args that can provided to the Data module
