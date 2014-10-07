@@ -38,8 +38,6 @@ def addDataFromBatchToPlan(Plan, Dchunk, hmodel, LPchunk, batchID,
   if nRelDocs < 1:
     return
 
-
-
   ## Add all these docs to the Plan
   batchIDs = [batchID for n in xrange(nRelDocs)]
   relData = Dchunk.select_subset_by_mask(relDocIDs, doTrackFullSize=False)
@@ -60,6 +58,7 @@ def addDataFromBatchToPlan(Plan, Dchunk, hmodel, LPchunk, batchID,
   ## Track a summary of the selected docs
   targetLPchunk = hmodel.allocModel.selectSubsetLP(Dchunk, LPchunk, relDocIDs)
   targetSSchunk = hmodel.get_global_suff_stats(relData, targetLPchunk)
+
   Plan['targetSSByBatch'][batchID] = targetSSchunk
 
   if not hasValidKey(Plan, 'targetSS'):
