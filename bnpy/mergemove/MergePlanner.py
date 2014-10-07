@@ -353,7 +353,7 @@ def calcScoreMatrix_wholeELBO(curModel, SS, excludePairs=list(), M=None):
 
 ########################################################### Correlation cues
 ###########################################################
-def calcScoreMatrix_corr(SS, MINVAL=1e-8):
+def calcScoreMatrix_corr(SS, minCorr=0.01, MINVAL=1e-8):
   '''
      Returns
      -------
@@ -379,9 +379,10 @@ def calcScoreMatrix_corr(SS, MINVAL=1e-8):
   CorrMat = CovMat / np.outer(sqrtc, sqrtc)
 
   # Now, filter to leave only *positive* entries in upper diagonal
-  #  we shouldn't even bother trying to merge topics with neg correlations
+  #  we shouldn't even bother trying to merge topics
+  #  with negative or nearly zero correlations
   CorrMat[np.tril_indices(K)] = 0
-  CorrMat[CorrMat < 0] = 0
+  CorrMat[CorrMat < minCorr] = 0
   CorrMat[nanIDs] = 0
 
   return CorrMat
