@@ -70,7 +70,7 @@
               <td>{{ lines[i]['time'] }}</td>
               <td>{{ lines[i]['calls'] }}</td>
               <td id="line{{ lines[i]['lineno'] }}">{{ lines[i]['lineno'] }}</td>
-              <td class="code"><div class="code-listing"><pre>{{ lines[i]['code_full'] }}</pre></div></td>
+              <td class="code {{ lines[i]['warn'] }}"><div class="code-listing"><pre>{{ lines[i]['code_full'] }}</pre></div></td>
             </tr>
             {% endfor %}
           </table>

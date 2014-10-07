@@ -1230,6 +1230,10 @@ h1[id] {
     border: none !important;
 }
 
+.table.table-code-listing td.code:not(.danger) {
+    background-color: #f5f5f5;
+}
+
 div.code-listing {
     height: 20px;
 }
