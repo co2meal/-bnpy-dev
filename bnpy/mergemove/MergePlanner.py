@@ -383,6 +383,7 @@ def calcScoreMatrix_corr(SS, MINCORR=0.05, MINVAL=1e-8):
   #  with negative or nearly zero correlations
   CorrMat[np.tril_indices(K)] = 0
   CorrMat[CorrMat < MINCORR] = 0
+
   CorrMat[nanIDs] = 0
 
   return CorrMat
