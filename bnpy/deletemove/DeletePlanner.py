@@ -72,9 +72,9 @@ def makePlans(curSS, curmodel=None, curLP=None,
     return []
 
   DeleteLogger.log('eligibleUIDs')
-  eligibleString = ' '.join(['%3d' % (x) for x in firstUIDs])
+  eligibleString = ' '.join(['%3d' % (x) for x in firstUIDs[:10]])
   DeleteLogger.log(eligibleString)
-  eligibleString = ' '.join(['%3d' % (x) for x in secondUIDs])
+  eligibleString = ' '.join(['%3d' % (x) for x in secondUIDs[:10]])
   DeleteLogger.log(eligibleString)
 
   ## Select a subset of eligible topics to use with target set
