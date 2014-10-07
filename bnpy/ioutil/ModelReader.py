@@ -50,7 +50,7 @@ def loadWordCountMatrixForLap(matfilepath, lapQuery, toDense=True):
   _, WordCounts = loadTopicModel(matfilepath, prefix, returnWordCounts=1)
   return WordCounts
 
-def loadTopicModel(matfilepath, prefix, returnWordCounts=0):
+def loadTopicModel(matfilepath, prefix, returnWordCounts=0, returnTPA=0):
   ''' Load saved topic model
   '''
   # avoids circular import
@@ -73,6 +73,15 @@ def loadTopicModel(matfilepath, prefix, returnWordCounts=0):
       WordCounts = scipy.sparse.csr_matrix((data, (rowIDs, colIDs)),
                                             shape=(K, vocab_size))
     Mdict['WordCounts'] = WordCounts.toarray()
+  if returnTPA:
+    if 'WordCounts' in Mdict:
+      topics = Mdict['WordCounts'] + Mdict['lam']
+    else:
+      topics = Mdict['topics'] + 0
+    probs = Mdict['probs']
+    alpha = float(Mdict['alpha'])
+    return topics, probs, alpha
+
   infAlg = 'VB'
   amodel = HDPDir(infAlg, dict(alpha=Mdict['alpha'], gamma=Mdict['gamma']))
   omodel = MultObsModel(infAlg, **Mdict)
