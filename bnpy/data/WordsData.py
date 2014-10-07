@@ -31,9 +31,12 @@ class WordsData(DataObj):
     word_id = []
     word_ct = []
     Vars = scipy.io.loadmat(filepath)
-    nDoc = Vars['tokensByDoc'].shape[1]
+    key = 'tokensByDoc'
+    if key not in Vars:
+      key = 'test'
+    nDoc = Vars[key].shape[1]
     for d in xrange(nDoc):
-      tokens_d = np.squeeze(Vars['tokensByDoc'][0,d])
+      tokens_d = np.squeeze(Vars[key][0,d])
       word_id_d = np.unique(tokens_d)
       word_ct_d = np.zeros_like(word_id_d, dtype=np.float64)
       for uu,uid in enumerate(word_id_d):

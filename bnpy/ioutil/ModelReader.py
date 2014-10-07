@@ -79,7 +79,13 @@ def loadTopicModel(matfilepath, prefix, returnWordCounts=0, returnTPA=0):
     else:
       topics = Mdict['topics'] + 0
     probs = Mdict['probs']
-    alpha = float(Mdict['alpha'])
+    try:
+      alpha = float(Mdict['alpha'])
+    except KeyError:
+      if 'alpha' in os.environ:
+        alpha = float(os.environ['alpha'])
+      else:
+        raise ValueError('Unknown parameter alpha')
     return topics, probs, alpha
 
   infAlg = 'VB'
