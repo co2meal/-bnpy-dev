@@ -14,6 +14,12 @@ def makePlanForEmptyTopics(curSS, dtargetMinCount=0.01, **kwargs):
              )
   return Plan
 
+def getEligibleCount(curSS):
+  ''' Get list of all eligibleIDs
+  '''
+  ## TODO
+  return 0
+
 def makePlans(curSS, Dchunk=None, 
               lapFrac=0,
               dtargetMaxSize=1000,
@@ -80,7 +86,8 @@ def makePlans(curSS, Dchunk=None,
 
   if len(firstUIDs) < 1 and len(secondUIDs) < 1:
     DeleteLogger.log('No eligible topics for deletion. Fail limit exceeded.')
-    DeleteLogger.logPosVector(elimUIDs)
+    DeleteLogger.log('Eliminated IDs:')
+    DeleteLogger.logPosVector(elimUIDs, fmt='%5d')
     return []
 
   DeleteLogger.log('eligibleUIDs')
@@ -112,8 +119,8 @@ def makePlans(curSS, Dchunk=None,
 
   selectMass = [SizeMap[x] for x in selectUIDs]
   DeleteLogger.log('selectUIDs: total=%.2f' % (np.sum(selectMass)))
-  DeleteLogger.logPosVector(selectUIDs)
-  DeleteLogger.logPosVector(selectMass)
+  DeleteLogger.logPosVector(selectUIDs, fmt='%5d')
+  DeleteLogger.logPosVector(selectMass, fmt='%5.2f')
   
   selectIDs = list()
   for uid in selectUIDs:
