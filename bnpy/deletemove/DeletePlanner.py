@@ -2,13 +2,22 @@
 '''
 import numpy as np
 from bnpy.deletemove import DeleteLogger
+import bnpy.data
 
-def makePlans(curSS, curmodel=None, curLP=None, 
-              ampF=1.0,
+def makePlanForEmptyTopics(curSS, dtargetMinCount=0.01, **kwargs):
+  Nvec = curSS.getCountVec()
+  emptyIDs = np.flatnonzero(Nvec < dtargetMinCount)
+  if len(emptyIDs) == 0:
+    return dict()
+  Plan = dict(selectIDs=emptyIDs.tolist(),
+              uIDs=curSS.uIDs[emptyIDs].tolist(),
+             )
+  return Plan
+
+def makePlans(curSS, Dchunk=None, 
               lapFrac=0,
               dtargetMaxSize=1000,
               deleteFailLimit=2,
-              NperDoc=1,
               DRecordsByComp=None,
               **kwargs):
   ''' Create plans for collected targeted subsets for delete proposals
@@ -25,23 +34,26 @@ def makePlans(curSS, curmodel=None, curLP=None,
 
   DeleteLogger.log('<<<<<<<<<<<<<<<<<<<<<<<<< DeletePlanner @ %.2f' % (lapFrac))
 
-  ## Determine which topics are eligible for deletion
+  ## Measure size of each current topic
+  # SizeVec : refers to docs/units/sequences
+  # Nvec/count : refers to tokens/atoms
   Nvec = curSS.getCountVec()
-  Nvec = Nvec * ampF
-  nDocVec = Nvec / NperDoc
-  eligibleIDs = np.flatnonzero(nDocVec < dtargetMaxSize)
+  Nvec, SizeVec = Count2Size(Nvec, Dchunk, curSS, lapFrac)
+
+  ## Determine eligibleIDs for deletion
+  eligibleIDs = np.flatnonzero(SizeVec < dtargetMaxSize)
   eligibleUIDs = curSS.uIDs[eligibleIDs]
   
   if len(eligibleIDs) < 1:
     DeleteLogger.log('No eligible topics for deletion. Size too big.')
-    nDocVec = np.sort(nDocVec)[:10]
-    DeleteLogger.logPosVector(nDocVec)
+    SizeVec = np.sort(SizeVec)[:10]
+    DeleteLogger.logPosVector(SizeVec)
     return []
 
   CountMap = dict()
   SizeMap = dict()
   for ii, uID in enumerate(eligibleUIDs):
-    SizeMap[uID] = nDocVec[eligibleIDs[ii]]
+    SizeMap[uID] = SizeVec[eligibleIDs[ii]]
     CountMap[uID] = Nvec[eligibleIDs[ii]]
 
   for uID in DRecordsByComp.keys():
@@ -53,7 +65,7 @@ def makePlans(curSS, curmodel=None, curLP=None,
       del DRecordsByComp[uID]
 
   ## Sort by size,  smallest to biggest
-  sortIDs = np.argsort(nDocVec[eligibleIDs])
+  sortIDs = np.argsort(SizeVec[eligibleIDs])
   firstUIDs = list()
   secondUIDs = list()
   elimUIDs = list()
@@ -107,8 +119,23 @@ def makePlans(curSS, curmodel=None, curLP=None,
   for uid in selectUIDs:
     jj = np.flatnonzero(uid == eligibleUIDs)[0]
     selectIDs.append(eligibleIDs[jj])
-  Plan = dict(selectIDs=selectIDs,
-              uIDs=selectUIDs,
-              ampF=ampF,
+  Plan = dict(selectIDs=[x for x in selectIDs],
+              uIDs=[x for x in selectUIDs],
              )
   return [Plan]
+
+def Count2Size(Nvec, Dchunk, curSS, lapFrac):
+  if lapFrac < 1:
+    ampF = Dchunk.get_total_size() / float(Dchunk.get_size())
+  else:
+    ampF = 1.0
+  ampF = np.maximum(ampF, 1.0)
+  Nvec = Nvec * ampF
+  if isinstance(Dchunk, bnpy.data.WordsData) and hasattr(curSS, 'sumLogPi'):
+    # HDP+Mult needs to track SizeVec = nDocsPerTopic
+    tokenPerDoc = Dchunk.word_count.sum() / Dchunk.nDoc
+    tokenPerTopic = tokenPerDoc / np.ceil(np.sqrt(curSS.K))
+    SizeVec = Nvec / tokenPerTopic
+  else:
+    SizeVec = Nvec
+  return Nvec, SizeVec
