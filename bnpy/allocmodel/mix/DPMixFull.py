@@ -101,6 +101,11 @@ class DPMixFull(AllocModel):
     assert np.allclose(lpr.sum(axis=1), 1)
     return LP
   
+  def selectSubsetLP(self, Data, LP, relIDs):
+    ''' Create subset of provided local params, specified by relevant ID vec
+    '''
+    resp = LP['resp'][relIDs].copy()
+    return dict(resp=resp)
 
   ######################################################### Suff Stats
   #########################################################
