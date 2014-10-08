@@ -1124,12 +1124,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
     self.DeleteAcceptRecord = dict()
     if self.lapFrac < 1:
       return hmodel, SS
-    if self.lapFrac > 10: from IPython import embed; embed()
-    DeleteLogger.log('<<<<<<<<<<<<<<<<<<<<<<<<< RunMoveAndUpdateMemory')
 
-    if len(self.MergeLog) > 0:
-      DeleteLogger.log('Skipped due to accepted merge.')
-      return hmodel, SS
+    DeleteLogger.log('<<<<<<<<<<<<<<<<<<<<<<<<< RunMoveAndUpdateMemory')
 
     ## Make last minute plan for any empty comps
     EPlan = DeletePlanner.makePlanForEmptyTopics(SS, 
@@ -1137,21 +1133,32 @@ class MOVBBirthMergeAlg(MOVBAlg):
     if 'uIDs' in EPlan:
       nEmpty = len(EPlan['uIDs'])
       DeleteLogger.log('Last-minute Plan: %d empty' % (nEmpty))
-      remPlanIDs = []
-      for dd, DPlan in enumerate(DeletePlans):
-        remIDs = list()
-        for ii, uid in enumerate(DPlan['uIDs']):
-          if uid in EPlan['uIDs']:
-            remIDs.append(ii)
-        for ii in reversed(sorted(remIDs)):
-          DPlan['uIDs'].pop(ii)
-          DPlan['selectIDs'].pop(ii)
-        if len(DPlan['selectIDs']) == 0:
-          remPlanIDs.append(dd)
-      for rr in reversed(remPlanIDs):
-        DeletePlans.pop(rr)
-      # Insert at front of the line
-      DeletePlans.insert(0, EPlan)
+      if len(self.MergeLog) > 0:
+        DeleteLogger.log('Skipped other plans due to accepted merge.')
+        ## Accepted Merge means all deletes except trivial one get skipped
+        DeletePlans = [EPlan]
+      else:      
+        ## Adjust the existing plans so EmptyPlan goes first
+        ## and the comps deleted by EmptyPlan are not repeated later
+        remPlanIDs = []
+        for dd, DPlan in enumerate(DeletePlans):
+          remIDs = list()
+          for ii, uid in enumerate(DPlan['uIDs']):
+            if uid in EPlan['uIDs']:
+              remIDs.append(ii)
+          for ii in reversed(sorted(remIDs)):
+            DPlan['uIDs'].pop(ii)
+            DPlan['selectIDs'].pop(ii)
+          if len(DPlan['selectIDs']) == 0:
+            remPlanIDs.append(dd)
+        for rr in reversed(remPlanIDs):
+          DeletePlans.pop(rr)
+        # Insert EmptyPlan at front of the line
+        DeletePlans.insert(0, EPlan)
+    else:
+      if len(self.MergeLog) > 0:
+        DeleteLogger.log('Skipped due to accepted merge.')
+        return hmodel, SS
 
     newSS = SS.copy()
     newModel = hmodel.copy()
