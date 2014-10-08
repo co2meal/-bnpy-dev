@@ -13,7 +13,6 @@ import heapq
 from scipy.spatial.distance import cdist
 
 import bnpy.data
-from TargetPlannerWordFreq import calcDocWordUnderpredictionScores
 
 def add_to_ranked_target_data(RankedDataHeap, maxSize, Data, weights, 
                                               keep='largest'): 
@@ -174,6 +173,7 @@ def _sample_target_WordsData(Data, model, LP, return_Info=0, **kwargs):
   # ............................................... target based on WordFreq
   elif hasValidKey('targetWordFreq', kwargs):
     wordFreq = kwargs['targetWordFreq']
+    from TargetPlannerWordFreq import calcDocWordUnderpredictionScores
 
     ScoreMat = calcDocWordUnderpredictionScores(Data, model, LP)
     ScoreMat = ScoreMat[candidates]

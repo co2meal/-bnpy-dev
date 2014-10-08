@@ -8,36 +8,38 @@ Log = None
 Cache = defaultdict(lambda: list())
 CacheOrder = list()
 
-def log(msg):
+def log(msg, level='info'):
   if Log is None:
     return
-  Log.info(msg)
+  if level == 'debug':
+    Log.debug(msg)
+  else:
+    Log.info(msg)
 
-def logStartMove(lapFrac, moveID, nMoves):
+def logStartMove(lapFrac):
   msg = '=' * (50) 
-  msg = msg + ' lap %.2f %d/%d' % (lapFrac, moveID, nMoves)
-  log(msg)
+  msg = msg + ' lap %.2f' % (lapFrac)
+  log(msg, 'debug')
 
 def logPhase(title):
   title = '.'*(50-len(title)) + ' %s' % (title)
-  log(title)
+  log(title, 'debug')
 
 def logPosVector(vec, fmt='%8.1f', Nmax=10):
   if Log is None:
     return
   vstr = ' '.join([fmt % (x) for x in vec[:Nmax]])
-  Log.info(vstr)
+  log(vstr, 'debug')
 
 def logProbVector(vec, fmt='%8.4f', Nmax=10):
   if Log is None:
     return
   vstr = ' '.join([fmt % (x) for x in vec[:Nmax]])
-  Log.info(vstr)
-
+  log(vstr, 'debug')
 
 ########################################################### Configuration
 ###########################################################
-def configure(taskoutpath, doSaveToDisk=0, doWriteStdOut=0):
+def configure(taskoutpath=None, doSaveToDisk=0, doWriteStdOut=0):
   global Log
   Log = logging.getLogger('deletemove')
 
