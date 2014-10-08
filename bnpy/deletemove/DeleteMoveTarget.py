@@ -39,6 +39,8 @@ def runDeleteMove_Target(curModel, curSS, Plan,
   newSS = curSS
   newELBO = curELBO
   targetSS = Plan['targetSS']
+
+  assert np.allclose(targetSS.uIDs, newSS.uIDs)
   didAccept = 0
   acceptedUIDs = list()
   acceptedIDs = list()
@@ -119,14 +121,20 @@ def runDeleteMove_Target(curModel, curSS, Plan,
         SSmemory[batchID].removeComp(kk)
 
       docIDs = np.flatnonzero(Plan['batchIDs'] == batchID)
-      Data_b = targetData.select_subset_by_mask(docIDs, doTrackFullSize=False)
 
-      assert SSmemory[batchID].K == targetLP['resp'].shape[1]
-      selectSubsetLP = newModel.allocModel.selectSubsetLP
-      targetLP_b = selectSubsetLP(targetData, targetLP, docIDs)
+      ## Update batch-specific stored memory, if it changed
+      if len(docIDs) > 0:
+        Data_b = targetData.select_subset_by_mask(docIDs, doTrackFullSize=False)
 
-      targetSS_b = newModel.get_global_suff_stats(Data_b, targetLP_b)
-      SSmemory[batchID] += targetSS_b
-      aggSumLogPiRem += SSmemory[batchID].sumLogPiRem
-    assert np.allclose(aggSumLogPiRem, newSS.sumLogPiRem, atol=1e-5)
+        assert SSmemory[batchID].K == targetLP['resp'].shape[1]
+        selectSubsetLP = newModel.allocModel.selectSubsetLP
+        targetLP_b = selectSubsetLP(targetData, targetLP, docIDs)
+
+        targetSS_b = newModel.get_global_suff_stats(Data_b, targetLP_b)
+        SSmemory[batchID] += targetSS_b
+
+      if hasattr(SSmemory[batchID], 'sumLogPiRem'):
+        aggSumLogPiRem += SSmemory[batchID].sumLogPiRem
+    if hasattr(newSS, 'sumLogPiRem'):
+      assert np.allclose(aggSumLogPiRem, newSS.sumLogPiRem, atol=1e-5)
   return newModel, newSS, Plan
