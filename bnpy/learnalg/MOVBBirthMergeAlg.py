@@ -41,6 +41,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
     if self.hasMove('delete'):
       self.DeleteRecordsByComp = defaultdict(lambda: dict())
+      self.lapLastAcceptedDelete = self.algParams['startLap']
 
     self.ELBOReady = True
 
@@ -109,10 +110,10 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
       ## Delete move : 
       if self.isFirstBatch(lapFrac) and self.hasMove('delete'):
-        if self.doDeleteAtLap(lapFrac) and len(DeletePlans) > 0:
+        self.DeleteAcceptRecord = dict()
+        if self.doDeleteAtLap(lapFrac):
           hmodel, SS = self.deleteRunMoveAndUpdateMemory(hmodel, SS, 
                                                          DeletePlans, order)
-
         DeletePlans = list()
 
       ## Birth move : track birth info from previous lap
@@ -223,7 +224,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
       countVec = SS.getCountVec()
       if lapFrac > 1.0:
         isConverged = self.isCountVecConverged(countVec, prevCountVec)
-        isConverged = isConverged and not self.hasMoreReasonableMoves(lapFrac)
+        hasMoreMoves = self.hasMoreReasonableMoves(lapFrac, SS)
+        isConverged = isConverged and not hasMoreMoves
         self.setStatus(lapFrac, isConverged)
 
       ## Display progress
@@ -262,12 +264,21 @@ class MOVBBirthMergeAlg(MOVBAlg):
                              SSmemory=self.SSmemory)
 
 
-  def hasMoreReasonableMoves(self, lapFrac):
+  def hasMoreReasonableMoves(self, lapFrac, SS):
     ''' Decide if more moves will feasibly change current configuration. 
     '''
     if lapFrac - self.algParams['startLap'] >= self.algParams['nLap']:
       ## Time's up, so doesn't matter what other moves are possible.
       return False
+
+    if self.hasMove('delete') and self.doDeleteAtLap(lapFrac):
+      ## If any eligible comps exist, we have more moves possible
+      ## so return True
+      nBeforeQuit = self.algParams['delete']['deleteNumStuckBeforeQuit']
+      waitedLongEnough = (lapFrac - self.lapLastAcceptedDelete) > nBeforeQuit
+      nEligible = DeletePlanner.getEligibleCount(SS)
+      if nEligible > 0 or not waitedLongEnough:
+        return True
 
     if self.hasMove('birth') and self.do_birth_at_lap(lapFrac):
       ## If any eligible comps exist, we have more moves possible
@@ -881,6 +892,16 @@ class MOVBBirthMergeAlg(MOVBAlg):
             Mnew[mA, mB] = MM[kA, kB]
         MM = Mnew
 
+      ## Replay any recent deletes
+      if 'acceptedUIDs' in self.DeleteAcceptRecord:
+        acceptedUIDs =  self.DeleteAcceptRecord['acceptedUIDs']
+        origUIDs = [x for x in self.DeleteAcceptRecord['origUIDs']]
+        for uID in acceptedUIDs:
+          kk = np.flatnonzero(origUIDs == uID)[0]
+          MM = np.delete(MM, kk, axis=0)
+          MM = np.delete(MM, kk, axis=1)
+          origUIDs = np.delete(origUIDs, kk)
+
       ## Replay any recent birth moves!
       if len(BirthResults) > 0:
         Korig = MM.shape[0]
@@ -1100,31 +1121,37 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
   def deleteRunMoveAndUpdateMemory(self, hmodel, SS, DeletePlans, order=None):
     self.ELBOReady = True
+    self.DeleteAcceptRecord = dict()
+    if self.lapFrac < 1:
+      return hmodel, SS
+    if self.lapFrac > 10: from IPython import embed; embed()
+    DeleteLogger.log('<<<<<<<<<<<<<<<<<<<<<<<<< RunMoveAndUpdateMemory')
+
+    if len(self.MergeLog) > 0:
+      DeleteLogger.log('Skipped due to accepted merge.')
+      return hmodel, SS
 
     ## Make last minute plan for any empty comps
-    DeleteLogger.log('<<<<<<<<<<<<<<<<<<<<<<<<< RunMoveAndUpdateMemory')
-    if self.lapFrac > 1:
-      EPlan = DeletePlanner.makePlanForEmptyTopics(SS, 
-                                    **self.algParams['delete'])
-      if 'uIDs' in EPlan:
-        nEmpty = len(EPlan['uIDs'])
-        DeleteLogger.log('Last-minute Plan: %d empty' % (nEmpty))
-        remPlanIDs = []
-        for dd, DPlan in enumerate(DeletePlans):
-          remIDs = list()
-          for ii, uid in enumerate(DPlan['uIDs']):
-            if uid in EPlan['uIDs']:
-              remIDs.append(ii)
-          for ii in reversed(sorted(remIDs)):
-            DPlan['uIDs'].pop(ii)
-            DPlan['selectIDs'].pop(ii)
-          if len(DPlan['selectIDs']) == 0:
-            remPlanIDs.append(dd)
-        for rr in reversed(remPlanIDs):
-          DeletePlans.pop(rr)
-
-        # Insert at front of the line
-        DeletePlans.insert(0, EPlan)
+    EPlan = DeletePlanner.makePlanForEmptyTopics(SS, 
+                                  **self.algParams['delete'])
+    if 'uIDs' in EPlan:
+      nEmpty = len(EPlan['uIDs'])
+      DeleteLogger.log('Last-minute Plan: %d empty' % (nEmpty))
+      remPlanIDs = []
+      for dd, DPlan in enumerate(DeletePlans):
+        remIDs = list()
+        for ii, uid in enumerate(DPlan['uIDs']):
+          if uid in EPlan['uIDs']:
+            remIDs.append(ii)
+        for ii in reversed(sorted(remIDs)):
+          DPlan['uIDs'].pop(ii)
+          DPlan['selectIDs'].pop(ii)
+        if len(DPlan['selectIDs']) == 0:
+          remPlanIDs.append(dd)
+      for rr in reversed(remPlanIDs):
+        DeletePlans.pop(rr)
+      # Insert at front of the line
+      DeletePlans.insert(0, EPlan)
 
     newSS = SS.copy()
     newModel = hmodel.copy()
@@ -1189,6 +1216,13 @@ class MOVBBirthMergeAlg(MOVBAlg):
       if DPlan['didAccept']:
         self.ELBOReady = False
         self.ActiveIDVec = newSS.uIDs.copy()
+        self.lapLastAcceptedDelete = self.lapFrac
+
+        if 'origUIDs' not in self.DeleteAcceptRecord:
+          self.DeleteAcceptRecord['origUIDs'] = SS.uIDs
+          self.DeleteAcceptRecord['acceptedUIDs'] = DPlan['acceptedUIDs']
+        else:
+          self.DeleteAcceptRecord['acceptedUIDs'].extend(DPlan['acceptedUIDs'])
 
         for batchID in self.SSmemory:
           assert np.allclose(self.SSmemory[batchID].uIDs, self.ActiveIDVec)
