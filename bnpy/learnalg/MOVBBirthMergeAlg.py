@@ -893,14 +893,16 @@ class MOVBBirthMergeAlg(MOVBAlg):
         MM = Mnew
 
       ## Replay any recent deletes
-      if 'acceptedUIDs' in self.DeleteAcceptRecord:
-        acceptedUIDs =  self.DeleteAcceptRecord['acceptedUIDs']
-        origUIDs = [x for x in self.DeleteAcceptRecord['origUIDs']]
-        for uID in acceptedUIDs:
-          kk = np.flatnonzero(origUIDs == uID)[0]
-          MM = np.delete(MM, kk, axis=0)
-          MM = np.delete(MM, kk, axis=1)
-          origUIDs = np.delete(origUIDs, kk)
+      if hasattr(self, 'DeleteAcceptRecord'):
+        if 'acceptedUIDs' in self.DeleteAcceptRecord:
+          acceptedUIDs =  self.DeleteAcceptRecord['acceptedUIDs']
+          origUIDs = [x for x in self.DeleteAcceptRecord['origUIDs']]
+          origUIDs = np.asarray(origUIDs)
+          for uID in acceptedUIDs:
+            kk = np.flatnonzero(origUIDs == uID)[0]
+            MM = np.delete(MM, kk, axis=0)
+            MM = np.delete(MM, kk, axis=1)
+            origUIDs = np.delete(origUIDs, kk)
 
       ## Replay any recent birth moves!
       if len(BirthResults) > 0:
