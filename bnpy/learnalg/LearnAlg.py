@@ -238,7 +238,8 @@ class LearnAlg(object):
     if self.outputParams['doSaveFullModel']:
       ModelWriter.save_model(hmodel, self.savedir, prefix,
                              doSavePriorInfo=np.allclose(lap, 0.0),
-                             doLinkBest=True)
+                             doLinkBest=True,
+                             doSaveObsModel=self.outputParams['doSaveObsModel'])
 
     if self.outputParams['doSaveTopicModel']:
       ModelWriter.saveTopicModel(hmodel, SS, self.savedir, prefix)
