@@ -501,6 +501,7 @@ class WordsData(DataObj):
   def CreateToyDataFromLDAModel(cls, seed=101, 
                 nDocTotal=None, nWordsPerDoc=None, nWordsPerDocFunc=None,
                 topic_prior=None, topics=None,
+                gamma=None, probs=None,
                 **kwargs):
     ''' Generates WordsData dataset via LDA generative model,
           given specific global parameters
@@ -512,6 +513,8 @@ class WordsData(DataObj):
         topics : 2D array, size KxV, positive real entries, rows sum to one
                   topics[k,v] := probability of vocab word v in topic k
     '''
+    if topic_prior is None:
+      topic_prior = gamma * probs
     from bnpy.util import RandUtil
     PRNG = np.random.RandomState(seed)
 
