@@ -8,7 +8,7 @@ Log = None
 Cache = defaultdict(lambda: list())
 CacheOrder = list()
 
-def log(msg, level='info'):
+def log(msg, level='debug'):
   if Log is None:
     return
   if level == 'debug':
@@ -55,7 +55,7 @@ def configure(taskoutpath=None, doSaveToDisk=0, doWriteStdOut=0):
   ###### Config logger that can write to stdout
   if doWriteStdOut:
     ch = logging.StreamHandler(sys.stdout)
-    ch.setLevel(logging.DEBUG)
+    ch.setLevel(logging.DEBUG+1)
     ch.setFormatter(formatter)
     Log.addHandler(ch)
   ##### Config null logger, avoids error messages about no handler existing
