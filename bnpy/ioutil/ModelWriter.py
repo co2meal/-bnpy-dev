@@ -46,9 +46,12 @@ def saveTopicModel(hmodel, SS, fpath, prefix, doLinkBest=False,
     EstPDict['SparseWordCount_indices'] = SparseWordCounts.indices
     EstPDict['SparseWordCount_indptr'] = SparseWordCounts.indptr
   else:
+    # Temporary point estimate of topic-by-word matrix
+    # TODO: handle EM case where these estimates already exist
     hmodel.obsModel.setEstParamsFromPost(hmodel.obsModel.Post)
     EstPDict['topics'] = hmodel.obsModel.EstParams.phi
-
+    delattr(hmodel.obsModel, 'EstParams')
+  
   outmatfile = os.path.join(fpath, prefix + 'TopicModel')
   scipy.io.savemat(outmatfile, EstPDict, oned_as='row')
 
