@@ -27,11 +27,12 @@ class FiniteHMM(AllocModel):
         self.initTheta = None
         self.transTheta = None
 
+        #estZ is a dictionary that stores the estimated Z values for each
+        #  sequence.  Keys are the sequence numbers.
         self.estZ = dict()
         self.entropy = 0
 
 
-    #TODO: actually set up priors in config/allocmodel.conf
     def set_prior(self, initAlpha = .1, transAlpha = .1, **kwargs):
         self.initAlpha = initAlphaf #Dirichlet parameter for initPi
         self.transAlpha = transAlpha #Array of dirichlet parameters for 
@@ -62,8 +63,8 @@ class FiniteHMM(AllocModel):
 
         lpr = LP['E_log_soft_ev']
 
-        #First calculate the parameters that will be fed into the fwd-bkwd 
-        #  algorithm, which will differ for EM and VB
+        #First calculate the parameters that will be fed into the fwd-backward 
+        #  algorithm.  These params. are different for EM and VB
         if self.inferType.count('VB') > 0:
             #Calculating exp(E_q[log transPi]) and exp(E_q[log initPi])
             expELogTrans = np.exp(digamma(self.transTheta) - 
@@ -75,7 +76,7 @@ class FiniteHMM(AllocModel):
             transParam = expELogTrans
 
         elif self.inferType == 'EM' > 0:
-            #Initialize the global params if they already haven't been
+            #Initialize the global params if they aren't already
             if self.initPi is None:
                 self.initPi = np.ones(self.K)
                 self.initPi /= self.K
@@ -165,7 +166,7 @@ class FiniteHMM(AllocModel):
         respPairSums = np.sum(respPair, axis = 0)
         firstStateResp = np.sum(resp[inds], axis = 0)
         N = np.sum(resp, axis = 0)
-        #print N
+
         SS = SuffStatBag(K = self.K , D = Data.dim)
         SS.setField('firstStateResp', firstStateResp, dims=('K'))
         SS.setField('respPairSums', respPairSums, dims=('K','K'))
