@@ -72,13 +72,13 @@ class SeqXData(XData):
             start = self.seqInds[mask[i]]
             end = self.seqInds[mask[i] + 1]
             if xNew is None:
-                xPrevNew = self.Xprev[start:end]
+                xNew = self.X[start:end]
                 if hasattr(self, 'Xprev'):
-                    xNew = self.X[start:end]
+                    xPrevNew = self.Xprev[start:end]
             else:
-                xPrevNew = np.vstack((xPrevNew, self.Xprev[start:end]))
+                xNew = np.vstack((xNew, self.X[start:end]))
                 if hasattr(self, 'Xprev'):
-                    xNew = np.vstack((xNew, self.X[start:end]))
+                    xPrevNew = np.vstack((xPrevNew, self.Xprev[start:end]))
             seqNew = np.append(seqNew, end - start + seqNew[i])
                 
         if doTrackFullSize:
