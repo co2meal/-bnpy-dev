@@ -13,12 +13,11 @@ import scipy.io
 
 from bnpy.data import SeqXData, MinibatchIterator
 
-DPATH_OPTIONS = ['/home/mhughes/git/NPBayesHMM/data/mocap6_data/',
-                 '/home/will/bnpy/bnpy-dev/datasets/mocap6_data/', 
-                 '/home/wtstephe/summer2014/bnpy-dev/datasets/mocap6_data/',
-                 '$BNPYDATADIR/mocap6_data/']
+DPATH_OPTIONS = ['$BNPYDATADIR/mocap6_data/']
 DATAPATH = None
 for dpath in DPATH_OPTIONS:
+  #print os.path.expandvars
+  dpath = os.path.expandvars(dpath)
   if os.path.exists(dpath):
     DATAPATH = dpath
 
@@ -94,8 +93,7 @@ def get_XZ():
   Xprev = np.zeros((shapeX[0], shapeX[1]))
   for i in xrange(1,shapeX[0]):
     Xprev[i,:] = X[i-1,:]
-  print Xprev[0:5,:]
-  print X[0:5,:]
+
   return X, Xprev, fullZ, seqInds
 
 
@@ -109,6 +107,7 @@ def get_data(**kwargs):
   X, Xprev, fullZ, seqInds = get_XZ()
   Data = SeqXData(X = X, seqInds = seqInds, TrueZ = fullZ, Xprev = Xprev)
   Data.summary = get_data_info()
+  print seqInds
   return Data
             
             

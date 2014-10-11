@@ -40,6 +40,7 @@ def calcOptPermutation(estZ, trueZ):
     trueK = int(np.max(trueZ)) + 1
     c = np.zeros((estK, trueK))
 
+
     for k in xrange(estK):
         for l in xrange(trueK):
             for t in xrange(len(estZ)):

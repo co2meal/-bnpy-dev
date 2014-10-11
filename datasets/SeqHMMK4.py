@@ -15,17 +15,16 @@ import scipy.io
 K = 4
 D = 2
 
-transPi = np.asarray([[0.4, 0.4, 0.2, 0.2], \
-                      [0.4, 0.4, 0.2, 0.2], \
-                      [0.2, 0.2, 0.4, 0.4], \
-                      [0.2, 0.2, 0.4, 0.4]])
+transPi = np.asarray([[0.9, 0.02, 0.03, 0.03], \
+                      [0.03, 0.9, 0.02, 0.03], \
+                      [0.03, 0.03, 0.9, 0.02], \
+                      [0.02, 0.03, 0.03, 0.9]])
 
 
 #transPi = np.asarray([[0.0, 1.0, 0.0, 0.0], \
 #                      [0.0, 0.0, 1.0, 0.0], \
 #                      [0.0, 0.0, 0.0, 1.0], \
 #                      [1.0, 0.0, 0.0, 0.0]])
-#transPi = np.identity(D)
 
 initState = 1
 
@@ -33,18 +32,12 @@ mus = np.asarray([[0, 0], \
                   [10, 0], \
                   [0, 10], \
                   [10, 10]])
-#mus = np.zeros((K,D))
-#for i in xrange(K):
-#  mus[i,i] = 10
-
 
 sigmas = np.empty((K,D,D))
 sigmas[0,:,:] = np.asarray([[2, 0], [0, 2]])
 sigmas[1,:,:] = np.asarray([[2, 0], [0, 2]])
 sigmas[2,:,:] = np.asarray([[2, 0], [0, 2]])
 sigmas[3,:,:] = np.asarray([[2, 0], [0, 2]])
-#for i in xrange(K):
-#  sigmas[i,:,:] = 2 * np.identity(D)
 
 def get_minibatch_iterator(seed=8675309, dataorderseed=0, nBatch=10, nObsBatch=None, nObsTotal=25000, nLap=1, startLap=0, **kwargs):
   '''
@@ -61,7 +54,7 @@ def get_minibatch_iterator(seed=8675309, dataorderseed=0, nBatch=10, nObsBatch=N
       bnpy MinibatchIterator object, with nObsTotal observations
         divided into nBatch batches
   '''
-  X, TrueZ, seqInds = get_X(seed, ((6000, 6000, 6000, 6000, 1000)))
+  X, TrueZ, seqInds = get_X(seed, ((600, 600, 600, 600, 100)))
   Data = SeqXData(X = X, TrueZ = TrueZ, seqInds = seqInds)
   Data.summary = get_data_info()
   DataIterator = MinibatchIterator(Data, nBatch=nBatch, nObsBatch=nObsBatch, nLap=nLap, startLap=startLap, dataorderseed=dataorderseed)
@@ -69,7 +62,11 @@ def get_minibatch_iterator(seed=8675309, dataorderseed=0, nBatch=10, nObsBatch=N
 
 
 
-def get_X(seed, seqLens): 
+def get_X(seed, seqLens):
+  '''
+  Generates X, Z, seqInds according to the gaussian parameters specified above
+    and the sequence lengths passed in.
+  '''
     prng = np.random.RandomState(seed)
 
     fullX = list()
@@ -82,6 +79,7 @@ def get_X(seed, seqLens):
     else:
         rang = xrange(len(seqLens))
 
+    #Each iteration generates one sequence
     for i in rang:
         Z = list()
         X = list()
@@ -111,11 +109,12 @@ def get_short_name():
     return 'SeqHMMK4'
 
 def get_data(seed=8675309, seqLens=((3000,3000,3000,3000,500)), **kwargs):
-    fullX, fullZ, seqIndicies = get_X(seed, seqLens)
-    X = np.vstack(fullX)
-    Z = np.asarray(fullZ)
-    inds = np.asarray(seqIndicies)
+  fullX, fullZ, seqIndicies = get_X(seed, seqLens)
+  X = np.vstack(fullX)
+  Z = np.asarray(fullZ)
+  inds = np.asarray(seqIndicies)
     
-    Data = SeqXData(X=X, seqInds = inds, nObsTotal = np.sum(inds), TrueZ = Z)
-    Data.summary = get_data_info()
-    return Data
+  Data = SeqXData(X=X, seqInds = inds, nObsTotal = np.sum(seqLens), TrueZ = Z)
+  Data.summary = get_data_info()
+
+  return Data

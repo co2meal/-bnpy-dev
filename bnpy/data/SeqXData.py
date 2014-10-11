@@ -6,21 +6,22 @@ Subclass of XData used for holding multiple sequences of real data.
 
 
 import numpy as np
-from .DataObj import DataObj
+from bnpy.data import DataObj
 from bnpy.data import XData
 
 class SeqXData(XData):
     def __init__(self, X, seqInds, seqsUsed = None, nObsTotal = None, TrueZ = None, Xprev = None, TrueParams = None):
         ''' X must be a matrix containing all data from all sequences.
             seqIndicies gives the starting indicies of each sequence in X (e.g.
-              seqIndicies = [0, 9, 12] means that X[0:8,:] is the first sequence and
-              X[9:12,:] is the second sequence).
-            TrueZ is also indexed by seqIndicies
-            globalInds are the indicies of the data in the full dataset
+              seqIndicies = [0, 9, 12] means that X[0:8,:] is the first 
+              sequence and X[9:12,:] is the second sequence).
+            TrueZ are the true labels also indexed by seqIndicies
+            globalInds are the indicies of the data in the full dataset (unless
+              you're doing online learning, this will be the same as seqInds)
             nObsTotal represents the size of the overall dataset that this data
               came from.  If set to None, it will be set to the size of X
         '''
-
+        
         self.seqInds = seqInds
         self.nSeqs = np.size(seqInds) - 1
 
@@ -28,6 +29,7 @@ class SeqXData(XData):
         if X.ndim < 2:
             X = X[np.newaxis,:]
         self.X = np.float64(X.newbyteorder('=').copy())
+        self.TrueZ = TrueZ
      
         self._set_dependent_params(nObsTotal=nObsTotal)
         self._check_dims()
