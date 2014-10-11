@@ -13,6 +13,8 @@ from admix2.HDPFastRhoFixed import HDPFastRhoFixed
 from admix2.HDPFast import HDPFast
 from admix2.HDPTightPE import HDPTightPE
 
+from hmm.FiniteHMM import FiniteHMM
+
 AllocModelConstructorsByName = { \
            'MixModel':MixModel,
            'DPMixModel':DPMixModel,
@@ -20,6 +22,7 @@ AllocModelConstructorsByName = { \
            'LDA':LDA,
            'HDPSB':HDPSB,
            'HDPPE':HDPPE,
+           'FiniteHMM':FiniteHMM, 
            'HDPDir':HDPDir,
            'HDPFastRhoFixed':HDPFastRhoFixed,
            'HDPFast':HDPFast,

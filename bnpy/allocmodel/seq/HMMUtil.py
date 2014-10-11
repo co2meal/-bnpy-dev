@@ -8,6 +8,10 @@ Intentionally separated from rest of HMM code, so that we can swap in
   any fast routine for this calculation with ease.
 '''
 import numpy as np
+from bnpy.util import EPS
+
+from bnpy.util.NumericUtil import Config as PlatformConfig
+from lib.LibFwdBwd import FwdAlg_cpp, BwdAlg_cpp
 
 def FwdBwdAlg(PiInit, PiMat, logSoftEv):
   '''Execute forward-backward message passing algorithm
@@ -52,22 +56,65 @@ def FwdBwdAlg(PiInit, PiMat, logSoftEv):
 
   SoftEv, lognormC = expLogLik(logSoftEv)
   
-  fmsg, margPrObs = FwdAlg(PiInit, PiMat, SoftEv )
-  bmsg = BwdAlg( PiInit, PiMat, SoftEv, margPrObs)
-  
-  respPair = np.zeros( (T,K,K) )
-  for t in xrange( 1, T ):
-    respPair[t] = PiMat * np.outer(fmsg[t-1], bmsg[t] * SoftEv[t]) / margPrObs[t]
+  fmsg, margPrObs = FwdAlg(PiInit, PiMat, SoftEv)
+  bmsg = BwdAlg(PiInit, PiMat, SoftEv, margPrObs)
 
-    assert np.allclose(respPair[t].sum(), 1.0)
+  respPair = np.zeros((T,K,K))
+  for t in xrange(1, T):
+    respPair[t] = np.outer(fmsg[t-1], bmsg[t] * SoftEv[t])
+    respPair[t] *= PiMat / margPrObs[t]
+    #assert np.allclose(respPair[t].sum(), 1.0)
   logMargPrSeq = np.log(margPrObs).sum() + lognormC.sum()
-
   resp = fmsg * bmsg
   return resp, respPair, logMargPrSeq
 
-
+########################################################### FwdAlg, BwdAlg Wrappers
+###########################################################
 def FwdAlg(PiInit, PiMat, SoftEv):
-  ''' Execute forward message-passing on an observed sequence
+  ''' Forward algorithm for a single HMM sequence. Wrapper for FwdAlg_py/FwdAlg_cpp.
+
+     Related
+     -------
+     FwdAlg_py
+
+     Returns
+     -------
+        fmsg : 2D array, size T x K
+                  fmsg[t,k] = p( z[t,k] = 1 | x[1] ... x[t] )
+        margPrObs : 1D array, size T
+                  margPrObs[t] = p( x[t] | x[1], x[2], ... x[t-1] )
+  '''
+  if PlatformConfig['FwdBwdImpl'] == "cpp":
+    return FwdAlg_cpp(PiInit, PiMat, SoftEv)
+  else:
+    return FwdAlg_py(PiInit, PiMat, SoftEv)
+
+def BwdAlg(PiInit, PiMat, SoftEv, margPrObs):
+  ''' Backward algorithm for a single HMM sequence. Wrapper for BwdAlg_py/BwdAlg_cpp.
+
+     Related
+     -------
+     BwdAlg_py
+
+     Returns
+     -------
+     bmsg : 2D array, size TxK
+              bmsg[t,k] = p( x[t+1], x[t+2], ... x[T] |  z[t,k] = 1 )
+                          -------------------------------------
+                          p( x[t+1], x[t+2], ... x[T] |  x[1] ... x[t])
+  '''
+  if PlatformConfig['FwdBwdImpl'] == "cpp":
+    return BwdAlg_cpp(PiInit, PiMat, SoftEv, margPrObs)
+  else:
+    return BwdAlg_py(PiInit, PiMat, SoftEv, margPrObs)
+
+########################################################### Python implementations
+###########################################################
+
+def FwdAlg_py(PiInit, PiMat, SoftEv):
+  ''' Forward algorithm for a single HMM sequence. In pure python.
+
+      Execute forward message-passing on an observed sequence
        given HMM state transition params and likelihoods of each observation
 
      Args
@@ -104,9 +151,12 @@ def FwdAlg(PiInit, PiMat, SoftEv):
     fmsg[t] /= margPrObs[t]
   return fmsg, margPrObs
   
-def BwdAlg(PiInit, PiMat, SoftEv, margPrObs):
-  '''Execute backward message-passing on an observed sequence
-       given HMM state transition params and likelihoods of each observation
+
+def BwdAlg_py(PiInit, PiMat, SoftEv, margPrObs):
+  '''Backward algorithm for a single HMM sequence. In pure python.
+
+     Takes as input the HMM state transition params, initial probabilities,
+           and likelihoods of each observation
      Requires running forward filtering first, to obtain correct scaling.
 
      Args
@@ -139,6 +189,7 @@ def BwdAlg(PiInit, PiMat, SoftEv, margPrObs):
     bmsg[t] = np.dot(PiMat, bmsg[t+1] * SoftEv[t+1] )
     bmsg[t] /= margPrObs[t+1]
   return bmsg
+
 
 ########################################################### expLogLik
 ###########################################################
@@ -179,3 +230,49 @@ def _parseInput_SoftEv(logSoftEv, K):
   Tl, Kl = logSoftEv.shape
   assert Kl == K
   return logSoftEv
+
+
+def viterbi(logSoftEv, pi0, pi):
+  '''
+  Input : The log evidence matrix (logSoftEv[n,k] = log(p(x_n | z_n = k))), as 
+  well as the starting distribution and transition matrix.
+
+  '''
+  logPi0 = np.log(pi0 + EPS)
+  logPi = np.log(pi + EPS)
+  T, K = np.shape(logSoftEv)
+ 
+  V = np.zeros((T, K))
+  prev = np.zeros((T, K))
+
+
+  for t in xrange(T):
+    biggest = -np.inf
+    for l in xrange(K):
+      
+      if t == 0:
+        V[0, l] = logSoftEv[t,l] + logPi0[l]
+        prev[0,l] = -1
+        continue
+
+      #biggest = -np.inf
+      for k in xrange(K):
+        logpr = logPi[k,l] + V[t-1, k]
+        if logpr > biggest:
+          biggest = logpr
+          prev[t,l] = k
+
+      V[t, l] = logSoftEv[t,l] + biggest
+
+  #Find most likely sequence of z's
+  z = np.zeros(T)
+  for t in reversed(xrange(T)):
+    if t == T-1:
+      z[t] = np.argmax(V[t,:])
+    else:
+      z[t] = prev[t+1, z[t+1]]
+
+  return z
+
+    
+
