@@ -64,8 +64,6 @@ def updateLPWithResp(LP, Data, Lik, Prior, sumRespTilde):
 def calcDocTopicCountForData_Simple(Data, aModel, Lik,
                    initDocTopicCount=None,
                    initPrior=None, 
-                   nCoordAscentItersLP=nCoordAscentIters,
-                   convThrLP=convThr,
                    **kwargs
                   ):
   ''' Calculate updated doc-topic counts for every document in provided set
@@ -122,8 +120,7 @@ def calcDocTopicCountForData_Simple(Data, aModel, Lik,
                                       DocTopicCount[d], Lik_d,
                                       Prior[d], sumR_d, 
                                       wc_d,
-                                      nCoordAscentItersLP,
-                                      convThrLP)
+                                      **kwargs)
 
     sumRespTilde[start:stop] = sumR_d
 
@@ -135,7 +132,9 @@ def calcDocTopicCountForDoc(d, aModel,
                             Prior_d, sumR_d, 
                             wc_d=None,
                             nCoordAscentItersLP=nCoordAscentIters,
-                            convThrLP=convThr):
+                            convThrLP=convThr,
+                            **kwargs
+                            ):
   '''
      Returns
       ---------
@@ -151,7 +150,6 @@ def calcDocTopicCountForDoc(d, aModel,
                      parameters for token n
   '''
   prevDocTopicCount_d = DocTopicCount_d.copy()
-
   if hasattr(aModel, 'calcLogPrActiveCompsForDoc'):
     aFunc = aModel.calcLogPrActiveCompsForDoc
   else:
