@@ -3,6 +3,7 @@ MOVBAlg.py
 
 Implementation of Memoized Online VB (moVB) learn alg for bnpy models
 '''
+import os
 import copy
 import numpy as np
 import logging
@@ -74,6 +75,9 @@ class MOVBAlg(LearnAlg):
 
       ## Local/E step
       LPchunk = self.memoizedLocalStep(hmodel, Dchunk, batchID)
+      
+      self.saveDebugStateAtBatch('Estep', batchID, Dchunk=Dchunk,
+                                 SS=SS, hmodel=hmodel, LPchunk=LPchunk)
 
       ## Summary step
       SS, SSchunk = self.memoizedSummaryStep(hmodel, SS,
@@ -90,6 +94,10 @@ class MOVBAlg(LearnAlg):
 
       if self.doDebug() and lapFrac >= 1.0:
         self.verifyELBOTracking(hmodel, SS, evBound)
+
+      self.saveDebugStateAtBatch('Mstep', batchID, Dchunk=Dchunk, SSchunk=SSchunk,
+                                 SS=SS, hmodel=hmodel, LPchunk=LPchunk)
+
 
       ## Assess convergence
       countVec = SS.getCountVec()

@@ -104,9 +104,9 @@ def loadModelForLap(matfilepath, lapQuery):
       model, true-lap-id
   '''
   prefix, bestLap = getPrefixForLapQuery(matfilepath, lapQuery)
-  if os.path.isfile(os.path.join(matfilepath, 'ObsPrior.mat')):
+  try:
     model = load_model(matfilepath, prefix=prefix)
-  else:
+  except IOError:
     model = loadTopicModel(matfilepath, prefix=prefix)
   return model, bestLap
 

@@ -377,6 +377,21 @@ class LearnAlg(object):
          and isFinal:
          cFuncModule.onAlgorithmComplete(args=cFuncArgs_string, **kwargs)
 
+  def saveDebugStateAtBatch(self, name, batchID, LPchunk=None, SS=None, 
+                                           SSchunk=None, hmodel=None,
+                                           Dchunk=None):
+    if self.outputParams['debugBatch'] == batchID:
+      import joblib
+      filename = 'DebugLap%04.0f-%s.dump' % (np.ceil(self.lapFrac), name)
+      SaveVars = dict(LP=LPchunk, SS=SS, hmodel=hmodel, SSchunk=SSchunk,
+                      lapFrac=self.lapFrac)
+      joblib.dump(SaveVars, os.path.join(self.savedir, filename))
+      if self.lapFrac < 1:
+        joblib.dump(dict(Dchunk=Dchunk), os.path.join(self.savedir,'Debug-Data.dump'))
+
+
+
+
 def makeDictOfAllWorkspaceVars(**kwargs):
   ''' Create dict of all active variables in workspace
 
@@ -389,3 +404,5 @@ def makeDictOfAllWorkspaceVars(**kwargs):
     if key.startswith('_'):
       kwargs.pop(key)
   return kwargs
+
+
