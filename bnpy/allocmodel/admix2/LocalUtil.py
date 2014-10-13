@@ -32,7 +32,6 @@ def calcLocalParams(Data, LP, aModel,
     initDocTopicCount = LP['DocTopicCount']
   else:
     initDocTopicCount = None
-
   if routineLP == 'simple':
     DocTopicCount, Prior, sumR = calcDocTopicCountForData_Simple(Data, aModel,
                                       Lik,
@@ -101,12 +100,13 @@ def calcDocTopicCountForData_Simple(Data, aModel, Lik,
       if kwargs['methodLP'] == 'scratch':
         Prior = np.ones((Data.nDoc, aModel.K))
       elif kwargs['methodLP'] == 'prior':
-        Prior = np.tile(aModel.get_active_comp_probs(), (Data.nDoc, 1))
+        probs = aModel.get_active_comp_probs().copy()
+        Prior = np.tile(probs, (Data.nDoc, 1))
       else:
         Prior = np.ones((Data.nDoc, aModel.K))
     else:
       Prior = initPrior.copy()
-
+  
   for d in xrange(Data.nDoc):
     start = Data.doc_range[d]
     stop  = Data.doc_range[d+1]
