@@ -776,3 +776,30 @@ def c_Dir__slow(AMat, arem):
     avec = np.hstack([AMat[d], arem])
     c += gammaln(np.sum(avec)) - np.sum(gammaln(avec))
   return c
+
+######################################################### Calc ELBO for single document
+#########################################################
+def calcELBOSingleDoc(Data, docID, singleLP=None, 
+                      resp_d=None, Lik_d=None, theta_d=None, thetaRem=None, **kwargs):
+  if hasattr(Data, 'word_count'):
+    wct = Data.word_count[Data.doc_range[docID]:Data.doc_range[docID+1]][:,np.newaxis]
+  else:
+    wct = 1.0
+  if Lik_d is None:
+    Lik_d = singleLP['E_log_soft_ev']
+  if resp_d is None:
+    resp_d = singleLP['resp']
+  if theta_d is None:
+    theta_d = singleLP['theta']
+    if theta_d.ndim < 2:
+      theta_d = theta_d[np.newaxis,:]
+    thetaRem = singleLP['thetaRem']
+  if Lik_d.max() > 0:
+    logSoftEv = np.log(Lik_d)
+  else:
+    logSoftEv = Lik_d
+  Lik = np.sum(wct * (resp_d * logSoftEv))
+  H = -1 * np.sum(wct * (resp_d * np.log(resp_d)))
+  cDir = -1 * c_Dir( theta_d, thetaRem) 
+  return H + cDir + Lik
+
