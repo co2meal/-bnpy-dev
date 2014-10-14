@@ -1,4 +1,6 @@
 import numpy as np
+import copy
+
 from bnpy.util import NumericUtil
 
 nCoordAscentIters = 20
@@ -49,13 +51,15 @@ def calcLocalParams(Data, LP, aModel,
   LP = aModel.updateLPGivenDocTopicCount(LP, DocTopicCount)
   LP = updateLPWithResp(LP, Data, Lik, Prior, sumR)
 
-  removeJunkTopics(aModel, Data, LP, **kwargs)
+  if kwargs['restartremovejunkLP']:
+    LP = removeJunkTopics(aModel, Data, LP, **kwargs)
   return LP
 
 
-def removeJunkTopics(aModel, Data, LP, minThr=0.1, maxThr=0.9, **kwargs):
+def removeJunkTopics(aModel, Data, LP, minThr=0.05, maxThr=0.8, **kwargs):
   ''' Remove junk topics from each doc, if they exist.
   '''
+  origLP = copy.deepcopy(LP)
   from bnpy.allocmodel.admix2.HDPDir import calcELBOSingleDoc
   Lik = LP['E_log_soft_ev'] # already applied exp to this matrix
   for d in range(Data.nDoc):
@@ -63,28 +67,40 @@ def removeJunkTopics(aModel, Data, LP, minThr=0.1, maxThr=0.9, **kwargs):
     stop = Data.doc_range[d+1]
     resp_d = LP['resp'][start:stop]
     maxResp = resp_d.max(axis=0)
-    eligibleIDs = np.flatnonzero(np.logical_and(maxResp > minThr, maxResp < maxThr))
+    eligibleIDs = np.flatnonzero(np.logical_and(maxResp > minThr,
+                                                maxResp < maxThr))
 
-    print 'doc %d | nEligible %d' % (d, eligibleIDs.size)
-    if eligibleIDs.size < 1:
+    if eligibleIDs.size < 1 or np.sum(maxResp > minThr/2.) < 2:
+      ## Skip if we don't have eligible topics to "delete"
+      ## or if we cannot delete any more without removing the final topic
       continue
-    from IPython import embed; embed()
-    Lik_d=Lik[start:stop]
+    ## Sort smallest to largest
+    sortIDs = np.argsort(maxResp[eligibleIDs])
+    eligibleIDs = eligibleIDs[sortIDs]
+
+    Lik_d = Lik[start:stop]
+    logLik_d = np.log(np.maximum(Lik_d, 1e-100))
     ## Calculate "baseline" ELBO
-    ELBOcur = calcELBOSingleDoc(Data, d, 
-                                resp_d=resp_d, Lik_d=Lik_d,
-                                theta_d=LP['theta'][d],
+    curELBO = calcELBOSingleDoc(Data, d, 
+                                resp_d=resp_d, logLik_d=logLik_d,
+                                theta_d=LP['theta'][d][np.newaxis,:],
                                 thetaRem=LP['thetaRem'])
+    assert np.isfinite(curELBO)
+
     if hasattr(Data, 'word_count'):
       wc_d = Data.word_count[start:stop]
     else:
       wc_d = 1.0
 
-
+    #print 'doc %d | nEligible %d' % (d, eligibleIDs.size)
     ## Attempt each move
     for kID in eligibleIDs:
       DocTopicCount_d = LP['DocTopicCount'][d].copy()
       DocTopicCount_d[kID] = 0
+
+      if np.sum(DocTopicCount_d > 0) < 1:
+        break
+
       Prior_d = aModel.calcLogPrActiveComps_Fast(DocTopicCount_d[np.newaxis,:])
       Prior_d -= Prior_d.max(axis=1)[:, np.newaxis]
       np.exp(Prior_d, out=Prior_d)
@@ -94,15 +110,35 @@ def removeJunkTopics(aModel, Data, LP, minThr=0.1, maxThr=0.9, **kwargs):
                               Prior_d[0], np.zeros(stop-start), 
                               wc_d=wc_d,
                               **kwargs)
+      DocTopicCount_d = DocTopicCount_d[np.newaxis,:]
       propLP_d = dict()
       propLP_d['DocTopicCount'] = DocTopicCount_d
       propLP_d = aModel.updateLPGivenDocTopicCount(propLP_d, DocTopicCount_d)
       propLP_d = updateSingleDocLPWithResp(propLP_d, Lik_d, Prior_d, sumR_d)
-      # TODO: Evaluate ELBO and accept if improved!
-      print '------------------- ' + kID
-      print DTC
+      # Evaluate ELBO and accept if improved!
+      propELBO = calcELBOSingleDoc(Data, d, 
+                                   resp_d=propLP_d['resp'], logLik_d=logLik_d,
+                                   theta_d=propLP_d['theta'],
+                                   thetaRem=LP['thetaRem'])
+      assert np.isfinite(propELBO)
 
+      if propELBO > curELBO:
+        msg = '**** accepted'
+        didAccept = 1
+      else:
+        msg = '     rejected'
+        didAccept = 0
+      #print '   %3d | %12.5f | %12.5f | %s' % (kID, curELBO, propELBO, msg)
 
+      ## If accepted, make necessary changes
+      if didAccept:
+        curELBO = propELBO
+        LP['DocTopicCount'][d] = DocTopicCount_d[0]
+        LP['theta'][d] = propLP_d['theta'][0]
+        LP['ElogPi'][d] = propLP_d['ElogPi'][0]
+        LP['resp'][start:stop] = propLP_d['resp']
+
+  return LP
 
 def updateLPWithResp(LP, Data, Lik, Prior, sumRespTilde):
   LP['resp'] = Lik.copy()
