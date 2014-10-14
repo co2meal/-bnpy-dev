@@ -382,6 +382,10 @@ class LearnAlg(object):
                                            Dchunk=None):
     if self.outputParams['debugBatch'] == batchID:
       import joblib
+      if self.lapFrac < 1:
+        joblib.dump(dict(Dchunk=Dchunk), os.path.join(self.savedir,'Debug-Data.dump'))
+      if self.lapFrac < 24 or self.lapFrac > 36:
+        return
       filename = 'DebugLap%04.0f-%s.dump' % (np.ceil(self.lapFrac), name)
       SaveVars = dict(LP=LPchunk, SS=SS, hmodel=hmodel, SSchunk=SSchunk,
                       lapFrac=self.lapFrac)
