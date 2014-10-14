@@ -73,7 +73,7 @@ class MOVBAlg(LearnAlg):
         self.print_msg('========================== lap %.2f batch %d' \
                        % (lapFrac, batchID))
       if self.isFirstBatch(lapFrac) and 'convThrLP' in self.algParamsLP:
-        if lapFrac < 1:
+        if lapFrac <= 1:
           finalConvThr = self.algParamsLP['convThrLP']
           initConvThr = self.algParamsLP['initconvThrLP']          
         if initConvThr > 0:
