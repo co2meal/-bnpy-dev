@@ -777,16 +777,28 @@ def c_Dir__slow(AMat, arem):
     c += gammaln(np.sum(avec)) - np.sum(gammaln(avec))
   return c
 
-######################################################### Calc ELBO for single document
+######################################################### Calc ELBO for 1 doc
 #########################################################
 def calcELBOSingleDoc(Data, docID, singleLP=None, 
-                      resp_d=None, Lik_d=None, theta_d=None, thetaRem=None, **kwargs):
+                      resp_d=None, Lik_d=None, logLik_d=None,
+                      theta_d=None, thetaRem=None, **kwargs):
   if hasattr(Data, 'word_count'):
-    wct = Data.word_count[Data.doc_range[docID]:Data.doc_range[docID+1]][:,np.newaxis]
+    start = Data.doc_range[docID]
+    stop = Data.doc_range[docID+1]
+    wct = Data.word_count[start:stop][:,np.newaxis]
   else:
     wct = 1.0
-  if Lik_d is None:
-    Lik_d = singleLP['E_log_soft_ev']
+  
+  if logLik_d is None:
+    if Lik_d is None:
+      Lik_d = singleLP['E_log_soft_ev']
+    if Lik_d.max() >= 0:
+      logSoftEv = np.log(Lik_d + 1e-100)
+    else:
+      logSoftEv = Lik_d
+  else:
+    logSoftEv = logLik_d
+
   if resp_d is None:
     resp_d = singleLP['resp']
   if theta_d is None:
@@ -794,12 +806,31 @@ def calcELBOSingleDoc(Data, docID, singleLP=None,
     if theta_d.ndim < 2:
       theta_d = theta_d[np.newaxis,:]
     thetaRem = singleLP['thetaRem']
-  if Lik_d.max() > 0:
-    logSoftEv = np.log(Lik_d)
-  else:
-    logSoftEv = Lik_d
+
   Lik = np.sum(wct * (resp_d * logSoftEv))
   H = -1 * np.sum(wct * (resp_d * np.log(resp_d)))
   cDir = -1 * c_Dir( theta_d, thetaRem) 
+  return H + cDir + Lik
+
+def calcELBO_AllDocs_AfterEStep(Data, LP=None, logLik_d=None, **kwargs):
+  if hasattr(Data, 'word_count'):
+    wct = Data.word_count[:,np.newaxis]
+  else:
+    wct = 1.0
+  
+  if logLik_d is None:
+    Lik_d = LP['E_log_soft_ev']
+    if Lik_d.max() >= 0:
+      logSoftEv = np.log(Lik_d + 1e-100)
+    else:
+      logSoftEv = Lik_d
+  else:
+    logSoftEv = logLik_d
+
+  resp = LP['resp']
+
+  Lik = np.sum(wct * (resp * logSoftEv))
+  H = -1 * np.sum(wct * (resp * np.log(resp)))
+  cDir = -1 * c_Dir(LP['theta'], LP['thetaRem'])
   return H + cDir + Lik
 
