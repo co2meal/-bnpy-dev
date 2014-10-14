@@ -24,7 +24,6 @@ def calcLocalParams(Data, LP, aModel,
   Lik = np.asarray(LP['E_log_soft_ev'], order='C') 
   Lik -= Lik.max(axis=1)[:,np.newaxis] 
   NumericUtil.inplaceExp(Lik)
-
   K = Lik.shape[1]
   hasDocTopicCount = 'DocTopicCount' in LP \
                      and LP['DocTopicCount'].shape == (Data.nDoc, K)
@@ -32,6 +31,7 @@ def calcLocalParams(Data, LP, aModel,
     initDocTopicCount = LP['DocTopicCount']
   else:
     initDocTopicCount = None
+
   if routineLP == 'simple':
     DocTopicCount, Prior, sumR = calcDocTopicCountForData_Simple(Data, aModel,
                                       Lik,
@@ -45,11 +45,64 @@ def calcLocalParams(Data, LP, aModel,
   else:
     raise ValueError('Unrecognized routine ' + routineLP)
 
+  LP['DocTopicCount'] = DocTopicCount
   LP = aModel.updateLPGivenDocTopicCount(LP, DocTopicCount)
   LP = updateLPWithResp(LP, Data, Lik, Prior, sumR)
-  LP['DocTopicCount'] = DocTopicCount
+
+  removeJunkTopics(aModel, Data, LP, **kwargs)
   return LP
-  
+
+
+def removeJunkTopics(aModel, Data, LP, minThr=0.1, maxThr=0.9, **kwargs):
+  ''' Remove junk topics from each doc, if they exist.
+  '''
+  from bnpy.allocmodel.admix2.HDPDir import calcELBOSingleDoc
+  Lik = LP['E_log_soft_ev'] # already applied exp to this matrix
+  for d in range(Data.nDoc):
+    start = Data.doc_range[d]
+    stop = Data.doc_range[d+1]
+    resp_d = LP['resp'][start:stop]
+    maxResp = resp_d.max(axis=0)
+    eligibleIDs = np.flatnonzero(np.logical_and(maxResp > minThr, maxResp < maxThr))
+
+    print 'doc %d | nEligible %d' % (d, eligibleIDs.size)
+    if eligibleIDs.size < 1:
+      continue
+    from IPython import embed; embed()
+    Lik_d=Lik[start:stop]
+    ## Calculate "baseline" ELBO
+    ELBOcur = calcELBOSingleDoc(Data, d, 
+                                resp_d=resp_d, Lik_d=Lik_d,
+                                theta_d=LP['theta'][d],
+                                thetaRem=LP['thetaRem'])
+    if hasattr(Data, 'word_count'):
+      wc_d = Data.word_count[start:stop]
+    else:
+      wc_d = 1.0
+
+
+    ## Attempt each move
+    for kID in eligibleIDs:
+      DocTopicCount_d = LP['DocTopicCount'][d].copy()
+      DocTopicCount_d[kID] = 0
+      Prior_d = aModel.calcLogPrActiveComps_Fast(DocTopicCount_d[np.newaxis,:])
+      Prior_d -= Prior_d.max(axis=1)[:, np.newaxis]
+      np.exp(Prior_d, out=Prior_d)
+
+      DocTopicCount_d, Prior_d, sumR_d = calcDocTopicCountForDoc(d, aModel,
+                              DocTopicCount_d, Lik_d,
+                              Prior_d[0], np.zeros(stop-start), 
+                              wc_d=wc_d,
+                              **kwargs)
+      propLP_d = dict()
+      propLP_d['DocTopicCount'] = DocTopicCount_d
+      propLP_d = aModel.updateLPGivenDocTopicCount(propLP_d, DocTopicCount_d)
+      propLP_d = updateSingleDocLPWithResp(propLP_d, Lik_d, Prior_d, sumR_d)
+      # TODO: Evaluate ELBO and accept if improved!
+      print '------------------- ' + kID
+      print DTC
+
+
 
 def updateLPWithResp(LP, Data, Lik, Prior, sumRespTilde):
   LP['resp'] = Lik.copy()
@@ -60,6 +113,14 @@ def updateLPWithResp(LP, Data, Lik, Prior, sumRespTilde):
   LP['resp'] /= sumRespTilde[:, np.newaxis]
   np.maximum(LP['resp'], 1e-300, out=LP['resp'])
   return LP
+
+def updateSingleDocLPWithResp(LP_d, Lik_d, Prior_d, sumR_d):
+  resp_d = Lik_d.copy()
+  resp_d *= Prior_d
+  resp_d /= sumR_d[:, np.newaxis]
+  np.maximum(resp_d, 1e-300, out=resp_d)
+  LP_d['resp'] = resp_d
+  return LP_d
 
 def calcDocTopicCountForData_Simple(Data, aModel, Lik,
                    initDocTopicCount=None,
