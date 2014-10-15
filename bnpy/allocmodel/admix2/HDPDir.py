@@ -814,8 +814,8 @@ def calcELBOSingleDoc(Data, docID, singleLP=None,
   H = -1 * np.sum(Hvec)
   #H = -1 * np.sum(wct[:,np.newaxis] * (resp_d * np.log(resp_d)))
 
-  #Lik = np.dot(wct, resp_d * logSoftEv).sum()
-  Lik = np.sum(wct[:,np.newaxis] * (resp_d * logSoftEv))
+  Lik = np.dot(wct, resp_d * logSoftEv).sum()
+  #Lik = np.sum(wct[:,np.newaxis] * (resp_d * logSoftEv))
   cDir = -1 * c_Dir( theta_d, thetaRem) 
   return H + cDir + Lik
 
