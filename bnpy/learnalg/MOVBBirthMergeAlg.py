@@ -97,7 +97,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
       ## Grab new data
       Dchunk = DataIterator.get_next_batch()
       batchID = DataIterator.batchID
-      
+      Dchunk.batchID = batchID
+
       ## Update progress-tracking variables
       iterid += 1
       lapFrac = (iterid + 1) * self.lapFracInc
@@ -152,6 +153,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
           MergePrepInfo = dict()
 
       ## Local/E step
+      self.algParamsLP['lapFrac'] = lapFrac ## logging
+      self.algParamsLP['batchID'] = batchID
       LPchunk = self.memoizedLocalStep(hmodel, Dchunk, batchID)
       
       ## Summary step

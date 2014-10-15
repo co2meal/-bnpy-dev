@@ -184,6 +184,9 @@ def _run_task_internal(jobname, taskid, nTask,
   if learnAlg.hasMove('merge') or learnAlg.hasMove('softmerge'):
     import bnpy.mergemove.MergeLogger as MergeLogger
     MergeLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
+  if str(type(hmodel.allocModel)).count('admix'):
+    import bnpy.allocmodel.admix2.LocalStepLogger as LocalStepLogger
+    LocalStepLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
 
   # Prepare special logs if we are running on the Brown CS grid
   try:

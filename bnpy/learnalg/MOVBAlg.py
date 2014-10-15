@@ -62,6 +62,7 @@ class MOVBAlg(LearnAlg):
       # Grab new data
       Dchunk = DataIterator.get_next_batch()
       batchID = DataIterator.batchID
+      Dchunk.batchID = batchID
       
       # Update progress-tracking variables
       iterid += 1
@@ -84,6 +85,8 @@ class MOVBAlg(LearnAlg):
           self.algParamsLP['convThrLP'] = convThr
 
       ## Local/E step
+      self.algParamsLP['lapFrac'] = lapFrac ## logging
+      self.algParamsLP['batchID'] = batchID
       LPchunk = self.memoizedLocalStep(hmodel, Dchunk, batchID)
       
       self.saveDebugStateAtBatch('Estep', batchID, Dchunk=Dchunk,

@@ -2,6 +2,7 @@ import numpy as np
 import copy
 
 from bnpy.util import NumericUtil
+import LocalStepLogger
 
 nCoordAscentIters = 20
 convThr = 0.001
@@ -35,8 +36,8 @@ def calcLocalParams(Data, LP, aModel,
     initDocTopicCount = None
 
   if routineLP == 'simple':
-    DocTopicCount, Prior, sumR = calcDocTopicCountForData_Simple(Data, aModel,
-                                      Lik,
+    DocTopicCount, Prior, sumR, AI = calcDocTopicCountForData_Simple(Data, 
+                                      aModel, Lik,
                                       initDocTopicCount=initDocTopicCount,
                                       **kwargs)
   elif routineLP == 'fast':
@@ -52,31 +53,67 @@ def calcLocalParams(Data, LP, aModel,
   LP = updateLPWithResp(LP, Data, Lik, Prior, sumR)
 
   if kwargs['restartremovejunkLP']:
-    LP = removeJunkTopics(aModel, Data, LP, **kwargs)
+    LP, RInfo = removeJunkTopics(aModel, Data, LP, **kwargs)
+
+  if 'lapFrac' in kwargs and 'batchID' in kwargs:
+    if hasattr(Data, 'batchID') and Data.batchID == kwargs['batchID']:     
+      perc = [0, 5, 10, 50, 90, 95, 100]
+      siter = ' '.join(['%4d' % np.percentile(AI['iter'], p) for p in perc])
+      sdiff = ['%6.4f' % np.percentile(AI['maxDiff'], p) for p in perc]
+      sdiff = ' '.join(sdiff)
+      nFail = np.sum(AI['maxDiff'] > kwargs['convThrLP'])
+      msg = '%4.2f %3d %4d %s %s' % (kwargs['lapFrac'], Data.batchID,
+                                     nFail, siter, sdiff)
+
+      if kwargs['restartremovejunkLP']:
+        msg += " %4d/%4d %4d/%4d" % (RInfo['nDocRestartsAccepted'],
+                                     RInfo['nDocRestartsTried'],
+                                     RInfo['nRestartsAccepted'],
+                                     RInfo['nRestartsTried'])
+      LocalStepLogger.log(msg)
   return LP
 
 
-def removeJunkTopics(aModel, Data, LP, minThr=0.05, maxThr=0.8, **kwargs):
+def removeJunkTopics(aModel, Data, LP, 
+                     maxTryPerDoc=5, minThrResp=0.05, maxThrResp=0.8,
+                     maxThrDocTopicCount=25, **kwargs):
   ''' Remove junk topics from each doc, if they exist.
   '''
   origLP = copy.deepcopy(LP)
+  kwargs = dict(**kwargs)
+  kwargs['nCoordAscentItersLP'] = kwargs['restartNumItersLP']
   from bnpy.allocmodel.admix2.HDPDir import calcELBOSingleDoc
   Lik = LP['E_log_soft_ev'] # already applied exp to this matrix
+  nDocRestartsTried = 0
+  nDocRestartsAccepted = 0
+  nRestartsTried = 0
+  nRestartsAccepted = 0
   for d in range(Data.nDoc):
     start = Data.doc_range[d]
     stop = Data.doc_range[d+1]
     resp_d = LP['resp'][start:stop]
-    maxResp = resp_d.max(axis=0)
-    eligibleIDs = np.flatnonzero(np.logical_and(maxResp > minThr,
-                                                maxResp < maxThr))
 
-    if eligibleIDs.size < 1 or np.sum(maxResp > minThr/2.) < 2:
+    maxResp = resp_d.max(axis=0)
+    
+    if kwargs['restartCriteriaLP'] == 'maxResp':
+      eligibleIDs = np.flatnonzero(np.logical_and(maxResp > minThrResp,
+                                                  maxResp < maxThrResp))
+      ## Sort smallest to largest, keep the best few
+      sortIDs = np.argsort(maxResp[eligibleIDs])
+      eligibleIDs = eligibleIDs[sortIDs[:maxTryPerDoc]]
+    else:
+      Nd = LP['DocTopicCount'][d]
+      eligibleIDs = np.flatnonzero(np.logical_and(Nd > minThrResp,
+                                                  Nd < maxThrDocTopicCount))
+      sortIDs = np.argsort(Nd[eligibleIDs])
+      eligibleIDs = eligibleIDs[sortIDs[:maxTryPerDoc]]      
+
+    Nactivetopics = np.sum(LP['DocTopicCount'][d] > minThrResp)
+    if eligibleIDs.size < 1 or Nactivetopics < 2:
       ## Skip if we don't have eligible topics to "delete"
       ## or if we cannot delete any more without removing the final topic
       continue
-    ## Sort smallest to largest
-    sortIDs = np.argsort(maxResp[eligibleIDs])
-    eligibleIDs = eligibleIDs[sortIDs]
+
 
     Lik_d = Lik[start:stop]
     logLik_d = np.log(np.maximum(Lik_d, 1e-100))
@@ -91,21 +128,23 @@ def removeJunkTopics(aModel, Data, LP, minThr=0.05, maxThr=0.8, **kwargs):
       wc_d = Data.word_count[start:stop]
     else:
       wc_d = 1.0
-
-    #print 'doc %d | nEligible %d' % (d, eligibleIDs.size)
+    
+    nDocRestartsTried += 1
+    didAcceptAny = 0
     ## Attempt each move
     for kID in eligibleIDs:
       DocTopicCount_d = LP['DocTopicCount'][d].copy()
+      origSize = DocTopicCount_d[kID]
       DocTopicCount_d[kID] = 0
-
-      if np.sum(DocTopicCount_d > 0) < 1:
+      if np.sum(DocTopicCount_d > minThrResp) < 1:
+        ## Never delete the final topic
         break
-
+      nRestartsTried += 1
       Prior_d = aModel.calcLogPrActiveComps_Fast(DocTopicCount_d[np.newaxis,:])
       Prior_d -= Prior_d.max(axis=1)[:, np.newaxis]
       np.exp(Prior_d, out=Prior_d)
 
-      DocTopicCount_d, Prior_d, sumR_d = calcDocTopicCountForDoc(d, aModel,
+      DocTopicCount_d, Prior_d, sumR_d, I = calcDocTopicCountForDoc(d, aModel,
                               DocTopicCount_d, Lik_d,
                               Prior_d[0], np.zeros(stop-start), 
                               wc_d=wc_d,
@@ -125,11 +164,18 @@ def removeJunkTopics(aModel, Data, LP, minThr=0.05, maxThr=0.8, **kwargs):
       if propELBO > curELBO:
         msg = '**** accepted'
         didAccept = 1
+        nRestartsAccepted += 1
       else:
         msg = '     rejected'
         didAccept = 0
-      #print '   %3d | %12.5f | %12.5f | %s' % (kID, curELBO, propELBO, msg)
 
+      '''
+      if d < 10:
+        print '   %3d %.2f %6.2f %12.5f %12.5f %s %.5f' \
+               % (kID, maxResp[kID], origSize, curELBO, propELBO, msg,
+                  I['maxDiff'])
+      '''
+      didAcceptAny += didAccept
       ## If accepted, make necessary changes
       if didAccept:
         curELBO = propELBO
@@ -137,8 +183,13 @@ def removeJunkTopics(aModel, Data, LP, minThr=0.05, maxThr=0.8, **kwargs):
         LP['theta'][d] = propLP_d['theta'][0]
         LP['ElogPi'][d] = propLP_d['ElogPi'][0]
         LP['resp'][start:stop] = propLP_d['resp']
-
-  return LP
+    if didAcceptAny > 0:
+      nDocRestartsAccepted += 1
+  AI = dict(nDocRestartsAccepted=nDocRestartsAccepted,
+            nDocRestartsTried=nDocRestartsTried,
+            nRestartsTried=nRestartsTried,
+            nRestartsAccepted=nRestartsAccepted)
+  return LP, AI
 
 def updateLPWithResp(LP, Data, Lik, Prior, sumRespTilde):
   LP['resp'] = Lik.copy()
@@ -201,7 +252,9 @@ def calcDocTopicCountForData_Simple(Data, aModel, Lik,
         Prior = np.ones((Data.nDoc, aModel.K))
     else:
       Prior = initPrior.copy()
-  
+  AggInfo = dict()
+  AggInfo['maxDiff'] = np.zeros(Data.nDoc)
+  AggInfo['iter'] = np.zeros(Data.nDoc, dtype=np.int32)
   for d in xrange(Data.nDoc):
     start = Data.doc_range[d]
     stop  = Data.doc_range[d+1]
@@ -212,16 +265,18 @@ def calcDocTopicCountForData_Simple(Data, aModel, Lik,
       wc_d = 1.0
     sumR_d = np.zeros(stop-start)
 
-    DocTopicCount[d], Prior[d], sumR_d = calcDocTopicCountForDoc(
+    DocTopicCount[d], Prior[d], sumR_d, Info = calcDocTopicCountForDoc(
                                       d, aModel, 
                                       DocTopicCount[d], Lik_d,
                                       Prior[d], sumR_d, 
                                       wc_d,
                                       **kwargs)
-
+    AggInfo['maxDiff'][d] = Info['maxDiff']
+    AggInfo['iter'][d] = Info['iter']
+      
     sumRespTilde[start:stop] = sumR_d
 
-  return DocTopicCount, Prior, sumRespTilde
+  return DocTopicCount, Prior, sumRespTilde, AggInfo
 
 
 def calcDocTopicCountForDoc(d, aModel,
@@ -271,7 +326,8 @@ def calcDocTopicCountForDoc(d, aModel,
       break
     prevDocTopicCount_d[:] = DocTopicCount_d
 
-  return DocTopicCount_d, Prior_d, sumR_d
+  Info = dict(maxDiff=maxDiff, iter=iter)
+  return DocTopicCount_d, Prior_d, sumR_d, Info
 
 
 

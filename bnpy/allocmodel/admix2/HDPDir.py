@@ -785,7 +785,7 @@ def calcELBOSingleDoc(Data, docID, singleLP=None,
   if hasattr(Data, 'word_count'):
     start = Data.doc_range[docID]
     stop = Data.doc_range[docID+1]
-    wct = Data.word_count[start:stop][:,np.newaxis]
+    wct = Data.word_count[start:stop]
   else:
     wct = 1.0
   
@@ -807,8 +807,15 @@ def calcELBOSingleDoc(Data, docID, singleLP=None,
       theta_d = theta_d[np.newaxis,:]
     thetaRem = singleLP['thetaRem']
 
-  Lik = np.sum(wct * (resp_d * logSoftEv))
-  H = -1 * np.sum(wct * (resp_d * np.log(resp_d)))
+  if hasattr(Data, 'word_count'):
+    Hvec = NumericUtil.calcRlogRdotv(resp_d, wct)
+  else:
+    Hvec = NumericUtil.calcRlogR(resp_d)
+  H = -1 * np.sum(Hvec)
+  #H = -1 * np.sum(wct[:,np.newaxis] * (resp_d * np.log(resp_d)))
+
+  #Lik = np.dot(wct, resp_d * logSoftEv).sum()
+  Lik = np.sum(wct[:,np.newaxis] * (resp_d * logSoftEv))
   cDir = -1 * c_Dir( theta_d, thetaRem) 
   return H + cDir + Lik
 
@@ -830,7 +837,15 @@ def calcELBO_AllDocs_AfterEStep(Data, LP=None, logLik_d=None, **kwargs):
   resp = LP['resp']
 
   Lik = np.sum(wct * (resp * logSoftEv))
+
+  if hasattr(Data, 'word_count'):
+    Hvec = NumericUtil.calcRlogRdotv(LP['resp'], wct)
+  else:
+    Hvec = NumericUtil.calcRlogR(LP['resp'])
+  HH = np.sum(Hvec)
   H = -1 * np.sum(wct * (resp * np.log(resp)))
+  from IPython import embed; embed()
+  assert np.allclose(H, HH)
   cDir = -1 * c_Dir(LP['theta'], LP['thetaRem'])
   return H + cDir + Lik
 
