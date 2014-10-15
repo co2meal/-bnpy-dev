@@ -849,3 +849,24 @@ def calcELBO_AllDocs_AfterEStep(Data, LP=None, logLik_d=None, **kwargs):
   cDir = -1 * c_Dir(LP['theta'], LP['thetaRem'])
   return H + cDir + Lik
 
+def calcELBOSingleDoc_Fast(wc_d, DocTopicCount_d, Prior_d, sumR_d, alphaEbeta):
+  ''' Evaluate ELBO contributions for single doc, dropping terms constant wrt local step.
+
+      Note: key to some progress was remembering that Prior_d is not just exp(ElogPi)
+            but that it is usually altered by a multiplicative constant for safety
+            we can find this constant offset (in logspace), and adjust sumR_d accordingly
+  '''
+  theta_d = DocTopicCount_d + alphaEbeta[:-1]
+  thetaRem = alphaEbeta[-1]
+
+  digammaSum = digamma(theta_d.sum() + thetaRem)
+  ElogPi_d = digamma(theta_d) - digammaSum
+  ElogPiRem = digamma(thetaRem) - digammaSum                  
+
+  cDir = -1 * c_Dir(theta_d[np.newaxis,:], thetaRem)
+  slackOn = np.inner(DocTopicCount_d + alphaEbeta[:-1] - theta_d,
+                     ElogPi_d.flatten())
+  slackOff = (alphaEbeta[-1] - thetaRem) * ElogPiRem
+  rest = np.inner(wc_d, np.log(sumR_d)) - np.inner(DocTopicCount_d, np.log(Prior_d))
+  return cDir + slackOn + slackOff + rest  
+
