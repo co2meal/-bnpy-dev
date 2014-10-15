@@ -1,8 +1,10 @@
 import numpy as np
 import copy
+from scipy.special import digamma, gammaln
 
 from bnpy.util import NumericUtil
 import LocalStepLogger
+from bnpy.allocmodel.admix2.HDPDir import calcELBOSingleDoc_Fast
 
 nCoordAscentIters = 20
 convThr = 0.001
@@ -71,11 +73,12 @@ def calcLocalParams(Data, LP, aModel,
                                      RInfo['nRestartsAccepted'],
                                      RInfo['nRestartsTried'])
       LocalStepLogger.log(msg)
+  LP['Info'] = AI
   return LP
 
 
 def removeJunkTopics(aModel, Data, LP, 
-                     maxTryPerDoc=5, minThrResp=0.05, maxThrResp=0.8,
+                     maxTryPerDoc=5, minThrResp=0.05, maxThrResp=0.9,
                      maxThrDocTopicCount=25, **kwargs):
   ''' Remove junk topics from each doc, if they exist.
   '''
@@ -273,7 +276,8 @@ def calcDocTopicCountForData_Simple(Data, aModel, Lik,
                                       **kwargs)
     AggInfo['maxDiff'][d] = Info['maxDiff']
     AggInfo['iter'][d] = Info['iter']
-      
+    if 'ELBOtrace' in Info:
+      AggInfo['ELBOtrace'] = Info['ELBOtrace']
     sumRespTilde[start:stop] = sumR_d
 
   return DocTopicCount, Prior, sumRespTilde, AggInfo
@@ -306,19 +310,32 @@ def calcDocTopicCountForDoc(d, aModel,
     aFunc = aModel.calcLogPrActiveCompsForDoc
   else:
     aFunc = aModel
-
+  
+  doLogELBO = False
+  if 'logELBOLP' in kwargs and kwargs['logELBOLP']:
+    if hasattr(aModel, 'alphaEbeta'):
+      alphaEbeta = aModel.alphaEbeta
+      doLogELBO = True
+      ELBOtrace = list()
+      
   for iter in xrange(nCoordAscentItersLP):
     ## Update Prob of Active Topics
     if iter > 0:
       aFunc(DocTopicCount_d, Prior_d) # Prior_d = E[ log pi_dk ]
+      Prior_d -= Prior_d.max()
       np.exp(Prior_d, out=Prior_d)    # Prior_d = exp E[ log pi_dk ]
-
+      
     ## Update sumR_d for all tokens in document
     np.dot(Lik_d, Prior_d, out=sumR_d)
 
     ## Update DocTopicCounts
     np.dot(wc_d / sumR_d, Lik_d, out=DocTopicCount_d)
     DocTopicCount_d *= Prior_d
+
+    if doLogELBO:
+      ELBO = calcELBOSingleDoc_Fast(wc_d, DocTopicCount_d,
+                                    Prior_d, sumR_d, alphaEbeta)
+      ELBOtrace.append(ELBO)
 
     ## Check for convergence
     maxDiff = np.max(np.abs(DocTopicCount_d - prevDocTopicCount_d))
@@ -327,6 +344,8 @@ def calcDocTopicCountForDoc(d, aModel,
     prevDocTopicCount_d[:] = DocTopicCount_d
 
   Info = dict(maxDiff=maxDiff, iter=iter)
+  if doLogELBO:
+    Info['ELBOtrace'] = np.asarray(ELBOtrace)
   return DocTopicCount_d, Prior_d, sumR_d, Info
 
 
@@ -510,4 +529,3 @@ def printVectors(aname, a, fmt='%9.6f', Kmax=10):
 
 def np2flatstr(xvec, fmt='%9.3f', Kmax=10):
   return ' '.join( [fmt % (x) for x in xvec[:Kmax]])
-
