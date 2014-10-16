@@ -82,15 +82,21 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
   for tt, taskid in enumerate(taskids):
     taskoutpath = os.path.join(jobpath, taskid)
     hpaths = glob.glob(os.path.join(taskoutpath, '*' + fileSuffix))
-    hpaths.sort()
+    txtpaths = glob.glob(os.path.join(taskoutpath, 'predlik-*.txt'))
 
-    basenames = [x.split(os.path.sep)[-1] for x in hpaths];
-    laps = np.asarray([float(x[3:11]) for x in basenames]);
-
-    ys = np.zeros_like(laps)
-    for ii, hpath in enumerate(hpaths):
-      MatVars = scipy.io.loadmat(hpath)
-      ys[ii] = float(MatVars['avgPredLL'])
+    if len(hpaths) > 0:  
+      hpaths.sort()
+      basenames = [x.split(os.path.sep)[-1] for x in hpaths];
+      laps = np.asarray([float(x[3:11]) for x in basenames]);
+      ys = np.zeros_like(laps)
+      for ii, hpath in enumerate(hpaths):
+        MatVars = scipy.io.loadmat(hpath)
+        ys[ii] = float(MatVars['avgPredLL'])
+    elif len(txtpaths) > 0:
+      laps = np.loadtxt(os.path.join(taskoutpath, 'predlik-lapTrain.txt'))
+      ys = np.loadtxt(os.path.join(taskoutpath, 'predlik-avgScore.txt'))
+    else:
+      raise ValueError('Pred Lik data unavailable.')
 
     plotargs = dict(markersize=10, linewidth=2, label=None,
                     color=color, markeredgecolor=color)
@@ -114,7 +120,7 @@ def parse_args():
               + " Example: '4' or '1,2,3' or '2-6'.")
   parser.add_argument('--savefilename', type=str, default=None,
         help="location where to save figure (absolute path directory)")
-
+  parser.add_argument('--fileSuffix', type=str, default='PredLik.mat')
   args, unkList = parser.parse_known_args()
 
   argDict = BNPYArgParser.arglist_to_kwargs(unkList)
