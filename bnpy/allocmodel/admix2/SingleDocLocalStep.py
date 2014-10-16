@@ -43,7 +43,7 @@ def inferLocal_SingleDoc_Dir(wc_d, Lik_d, alphaEbeta, alphaEbetaRem,
     ## Update Prob of Active Topics
     np.add(DocTopicCount_d, alphaEbeta, out=Prior_d)
     digamma(Prior_d, out=Prior_d)   # Prior_d = E[ log pi_dk ] + constant
-    Prior_d -= Prior_d.max()
+    #Prior_d -= Prior_d.max()
     np.exp(Prior_d, out=Prior_d)    # Prior_d = exp E[ log pi_dk ] / constant
       
     ## Update sumR_d for all tokens in document
@@ -54,9 +54,10 @@ def inferLocal_SingleDoc_Dir(wc_d, Lik_d, alphaEbeta, alphaEbetaRem,
     DocTopicCount_d *= Prior_d
 
     ## Check for convergence
-    maxDiff = np.max(np.abs(DocTopicCount_d - prevDocTopicCount_d))
-    if maxDiff < convThrLP:
-      break
+    if iter % 5 == 0:
+      maxDiff = np.max(np.abs(DocTopicCount_d - prevDocTopicCount_d))
+      if maxDiff < convThrLP:
+        break
     prevDocTopicCount_d[:] = DocTopicCount_d
 
   Info = dict(maxDiff=maxDiff, iter=iter)
@@ -107,7 +108,7 @@ def removeJunkTopics_SingleDoc(wc_d, Lik_d, alphaEbeta, alphaEbetaRem,
       # Update Prob of Active Topics
       np.add(pDocTopicCount_d, alphaEbeta, out=pPrior_d)
       digamma(pPrior_d, out=pPrior_d)   # Prior_d = E[ log pi_dk ] + const
-      pPrior_d -= pPrior_d.max()
+      #pPrior_d -= pPrior_d.max()
       np.exp(pPrior_d, out=pPrior_d)    # Prior_d = exp E[ log pi_dk ] / const
      
       # Update sumR_d for all tokens in document
