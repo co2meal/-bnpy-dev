@@ -73,6 +73,8 @@ def removeJunkTopics_SingleDoc(wc_d, Lik_d, alphaEbeta, alphaEbetaRem,
                                DocTopicCount_d, Prior_d, sumR_d,
                                restartNumTrialsLP=5,
                                restartNumItersLP=2, 
+                               restartMaxThrLP=25,
+                               restartCriteriaLP='smallest',
                                MIN_USAGE_THR=0.01, 
                                **kwargs):
   ''' Create candidate models that remove junk topics, accept if improved.
@@ -82,14 +84,18 @@ def removeJunkTopics_SingleDoc(wc_d, Lik_d, alphaEbeta, alphaEbetaRem,
   nUsed = np.sum(usedTopicMask)
   if nUsed < 2:
     return DocTopicCount_d, Prior_d, sumR_d, Info
-
+    
   ## Measure current model quality via ELBO
   curELBO = calcELBO_SingleDoc_Dir(DocTopicCount_d, Prior_d, sumR_d,
                                    wc_d, alphaEbeta, alphaEbetaRem)
   Info['startELBO'] = curELBO
 
   ## Determine eligible topics to delete
-  usedTopics = np.flatnonzero(usedTopicMask)
+  if restartCriteriaLP == 'DocTopicCount':
+    usedTopics = np.flatnonzero(np.logical_and(usedTopicMask,
+                                          DocTopicCount_d < restartMaxThrLP))
+  else:
+    usedTopics = np.flatnonzero(usedTopicMask)
   smallIDs = np.argsort(DocTopicCount_d[usedTopics])[:restartNumTrialsLP]
   smallTopics = usedTopics[smallIDs]
   smallTopics = smallTopics[:nUsed-1]
