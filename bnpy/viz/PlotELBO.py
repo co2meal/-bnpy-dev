@@ -104,6 +104,18 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
       plotargs['label'] = label
     pylab.plot(xs, ys, '.-', **plotargs)
 
+  if xvar == 'laps' and yvar == 'evidence':
+    if np.sum(xs > 2.0) > 5:
+      ymin = ys.max()
+      ymax = ys.min()
+      for line in pylab.gca().get_lines():
+        xd = line.get_xdata()
+        yd = line.get_ydata()
+        loc = np.searchsorted(xd, 2)
+        ymin = np.minimum(ymin, np.percentile(yd[loc:], 2.5))
+        ymax = np.maximum(ymax, yd[loc:].max())
+      pylab.ylim([ymin, ymax + 0.1*(ymax-ymin)])
+
   pylab.xlabel(XLabelMap[xvar])
   pylab.ylabel(YLabelMap[yvar])
    
