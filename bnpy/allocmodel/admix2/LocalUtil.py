@@ -54,8 +54,8 @@ def calcLocalParams(Data, LP, aModel,
   LP = aModel.updateLPGivenDocTopicCount(LP, DocTopicCount)
   LP = updateLPWithResp(LP, Data, Lik, Prior, sumR)
 
-  if kwargs['restartremovejunkLP']:
-    LP, RInfo = removeJunkTopics(aModel, Data, LP, **kwargs)
+  if kwargs['restartremovejunkLP'] == 1:
+    LP, RInfo = removeJunkTopicsFromAllDocs(aModel, Data, LP, **kwargs)
 
   if 'lapFrac' in kwargs and 'batchID' in kwargs:
     if hasattr(Data, 'batchID') and Data.batchID == kwargs['batchID']:     
@@ -67,17 +67,20 @@ def calcLocalParams(Data, LP, aModel,
       msg = '%4.2f %3d %4d %s %s' % (kwargs['lapFrac'], Data.batchID,
                                      nFail, siter, sdiff)
 
-      if kwargs['restartremovejunkLP']:
+      if kwargs['restartremovejunkLP'] == 1:
         msg += " %4d/%4d %4d/%4d" % (RInfo['nDocRestartsAccepted'],
                                      RInfo['nDocRestartsTried'],
                                      RInfo['nRestartsAccepted'],
                                      RInfo['nRestartsTried'])
+      elif kwargs['restartremovejunkLP'] == 2:
+        msg += " %4d/%4d" % (AI['nRestartsAccepted'],
+                             AI['nRestartsTried'])
       LocalStepLogger.log(msg)
   LP['Info'] = AI
   return LP
 
 
-def removeJunkTopics(aModel, Data, LP, 
+def removeJunkTopicsFromAllDocs(aModel, Data, LP, 
                      maxTryPerDoc=5, minThrResp=0.05, maxThrResp=0.9,
                      maxThrDocTopicCount=25, **kwargs):
   ''' Remove junk topics from each doc, if they exist.
@@ -274,11 +277,18 @@ def calcDocTopicCountForData_Simple(Data, aModel, Lik,
                                       Prior[d], sumR_d, 
                                       wc_d,
                                       **kwargs)
+    sumRespTilde[start:stop] = sumR_d
+
     AggInfo['maxDiff'][d] = Info['maxDiff']
     AggInfo['iter'][d] = Info['iter']
     if 'ELBOtrace' in Info:
       AggInfo['ELBOtrace'] = Info['ELBOtrace']
-    sumRespTilde[start:stop] = sumR_d
+    if 'nAccept' in Info:
+      if 'nRestartsAccepted' not in AggInfo:
+        AggInfo['nRestartsAccepted'] = 0
+        AggInfo['nRestartsTried'] = 0
+      AggInfo['nRestartsAccepted'] += Info['nAccept']
+      AggInfo['nRestartsTried'] += Info['nTrial']
 
   return DocTopicCount, Prior, sumRespTilde, AggInfo
 
@@ -346,7 +356,72 @@ def calcDocTopicCountForDoc(d, aModel,
   Info = dict(maxDiff=maxDiff, iter=iter)
   if doLogELBO:
     Info['ELBOtrace'] = np.asarray(ELBOtrace)
+  if kwargs['restartremovejunkLP'] == 2:
+    DocTopicCount_d, Prior_d, sumR_d, RInfo = removeJunkTopicsFromDoc(
+                     wc_d, 
+                     DocTopicCount_d, Prior_d, sumR_d, 
+                     Lik_d, aModel.alphaEbeta, aFunc, **kwargs)
+    Info.update(RInfo)
+    if 'ELBOtrace' in Info:
+      Info['ELBOtrace'].append(RInfo['finalELBO'])
   return DocTopicCount_d, Prior_d, sumR_d, Info
+
+def removeJunkTopicsFromDoc(wc_d, DocTopicCount_d, Prior_d, sumR_d, 
+                     Lik_d, alphaEbeta, aFunc,
+                     restartNumTrialsLP=5,
+                     restartNumItersLP=2, 
+                     MIN_USAGE_THR=0.01, **kwargs):
+  ''' Create candidate models that remove junk topics, accept if improved.
+  '''
+  Info = dict(nTrial=0, nAccept=0)
+  usedTopicMask = DocTopicCount_d > MIN_USAGE_THR
+  nUsed = np.sum(usedTopicMask)
+  if nUsed < 2:
+    return DocTopicCount_d, Prior_d, sumR_d, Info
+  usedTopics = np.flatnonzero(usedTopicMask)
+  smallIDs = np.argsort(DocTopicCount_d[usedTopics])[:restartNumTrialsLP]
+  smallTopics = usedTopics[smallIDs]
+  smallTopics = smallTopics[:nUsed-1]
+  curELBO = calcELBOSingleDoc_Fast(wc_d, DocTopicCount_d, 
+                                   Prior_d, sumR_d, alphaEbeta)
+  Info['startELBO'] = curELBO
+  pDocTopicCount_d =  DocTopicCount_d.copy()
+  pPrior_d = Prior_d.copy() 
+  psumR_d = np.zeros_like(sumR_d)  
+  for kID in smallTopics:
+    pDocTopicCount_d[:] = DocTopicCount_d
+    pDocTopicCount_d[kID] = 0
+    pPrior_d[:] = Prior_d
+    
+    for iter in xrange(restartNumItersLP):
+      ## Update Prob of Active Topics
+      aFunc(pDocTopicCount_d, pPrior_d) # Prior_d = E[ log pi_dk ]
+      pPrior_d -= pPrior_d.max()
+      np.exp(pPrior_d, out=pPrior_d)    # Prior_d = exp E[ log pi_dk ]
+      
+      ## Update sumR_d for all tokens in document
+      np.dot(Lik_d, pPrior_d, out=psumR_d)
+
+      ## Update DocTopicCounts
+      np.dot(wc_d / psumR_d, Lik_d, out=pDocTopicCount_d)
+      pDocTopicCount_d *= pPrior_d
+    Info['nTrial'] += 1
+    ## Evaluate proposal and accept/reject
+    propELBO = calcELBOSingleDoc_Fast(wc_d, pDocTopicCount_d, 
+                                      pPrior_d, psumR_d, alphaEbeta)
+    if not np.isfinite(propELBO):
+      continue
+    if propELBO > curELBO:
+      nUsed -= 1
+      Info['nAccept'] += 1
+      curELBO = propELBO
+      DocTopicCount_d[:] = pDocTopicCount_d
+      Prior_d[:] = pPrior_d
+      sumR_d[:] = psumR_d
+  Info['finalELBO'] = curELBO
+  return DocTopicCount_d, Prior_d, sumR_d, Info
+
+
 
 
 
