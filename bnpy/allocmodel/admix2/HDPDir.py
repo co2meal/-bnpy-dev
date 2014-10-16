@@ -54,6 +54,7 @@ from ...util import NumericUtil, as1D
 
 import OptimizerHDPDir as OptimHDPDir
 import LocalUtil
+import QPiDirLocalStep as QPD
 
 from bnpy.util.NumericUtil import calcRlogRdotv_allpairs, calcRlogRdotv_specificpairs
 from bnpy.util.NumericUtil import calcRlogR_allpairs, calcRlogR_specificpairs
@@ -151,7 +152,8 @@ class HDPDir(AllocModel):
           * DocTopicCount
     '''
     self.alpha_E_beta() # create cached copy
-    LP = LocalUtil.calcLocalParams(Data, LP, self, **kwargs)
+    LP = QPD.calcLocalParams(Data, LP, self, **kwargs)
+    #LP = LocalUtil.calcLocalParams(Data, LP, self, **kwargs)
     assert 'resp' in LP
     assert 'DocTopicCount' in LP
     return LP
