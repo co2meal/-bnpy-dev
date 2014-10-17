@@ -27,8 +27,8 @@ def inferLocal_SingleDoc_Dir(wc_d, Lik_d, alphaEbeta, alphaEbetaRem,
   if sumR_d is None:
     sumR_d = np.zeros(Lik_d.shape[0])
 
-  ## Initialize using global topic probabilities
   if DocTopicCount_d is None:
+    ## Initialize prior from global topic probs
     Prior_d = alphaEbeta.copy()
     ## Update sumR_d for all tokens in document
     np.dot(Lik_d, Prior_d, out=sumR_d)
@@ -37,6 +37,9 @@ def inferLocal_SingleDoc_Dir(wc_d, Lik_d, alphaEbeta, alphaEbetaRem,
     DocTopicCount_d = np.zeros_like(Prior_d)
     np.dot(wc_d / sumR_d, Lik_d, out=DocTopicCount_d)
     DocTopicCount_d *= Prior_d
+  else:
+    ## Initialize from provided DocTopicCount_d vector
+    Prior_d = np.zeros(DocTopicCount_d.size)
       
   prevDocTopicCount_d = DocTopicCount_d.copy()
   for iter in xrange(nCoordAscentItersLP):
@@ -127,8 +130,10 @@ def removeJunkTopics_SingleDoc(wc_d, Lik_d, alphaEbeta, alphaEbetaRem,
     ## Evaluate proposal quality via ELBO
     propELBO = calcELBO_SingleDoc_Dir(pDocTopicCount_d, pPrior_d, psumR_d,
                                       wc_d, alphaEbeta, alphaEbetaRem)
+
     Info['nTrial'] += 1
     if not np.isfinite(propELBO):
+      print 'WARNING! not finite in calcELBO_SingleDoc_Dir.'
       continue
 
     ## Update current model if accepted!
@@ -175,5 +180,5 @@ def calcELBO_SingleDoc_Dir(DocTopicCount_d, Prior_d, sumR_d,
     #L_slackRem =  (alphaEbetaRem - thetaRem) * ElogPiRem
             
   L_rest = np.inner(wc_d, np.log(sumR_d)) \
-           - np.inner(DocTopicCount_d, np.log(Prior_d))
+           - np.inner(DocTopicCount_d, np.log(Prior_d+1e-100))
   return L_cDir + L_rest  

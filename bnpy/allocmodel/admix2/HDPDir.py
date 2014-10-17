@@ -846,7 +846,6 @@ def calcELBO_AllDocs_AfterEStep(Data, LP=None, logLik_d=None, **kwargs):
     Hvec = NumericUtil.calcRlogR(LP['resp'])
   HH = np.sum(Hvec)
   H = -1 * np.sum(wct * (resp * np.log(resp)))
-  from IPython import embed; embed()
   assert np.allclose(H, HH)
   cDir = -1 * c_Dir(LP['theta'], LP['thetaRem'])
   return H + cDir + Lik
@@ -869,6 +868,7 @@ def calcELBOSingleDoc_Fast(wc_d, DocTopicCount_d, Prior_d, sumR_d, alphaEbeta):
   slackOn = np.inner(DocTopicCount_d + alphaEbeta[:-1] - theta_d,
                      ElogPi_d.flatten())
   slackOff = (alphaEbeta[-1] - thetaRem) * ElogPiRem
-  rest = np.inner(wc_d, np.log(sumR_d)) - np.inner(DocTopicCount_d, np.log(Prior_d))
+  rest = np.inner(wc_d, np.log(sumR_d)) - np.inner(DocTopicCount_d, np.log(Prior_d+1e-100))
+  
   return cDir + slackOn + slackOff + rest  
 
