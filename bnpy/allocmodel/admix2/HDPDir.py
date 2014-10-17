@@ -234,7 +234,7 @@ class HDPDir(AllocModel):
     LP['digammaSumTheta'] = digammaSumTheta
     return LP
 
-  def initLPFromResp(self, Data, LP):
+  def initLPFromResp(self, Data, LP, deleteCompID=None):
     ''' Obtain initial local params for initializing this model.
     '''
     resp = LP['resp']
@@ -249,15 +249,25 @@ class HDPDir(AllocModel):
       else:
         DocTopicCount[d,:] = np.sum(resp[start:stop,:], axis=0)
 
-    remMass = np.minimum(0.1, 1.0/(K*K))
-    Ebeta = (1 - remMass) / K
+    if deleteCompID is None:
+      remMass = np.minimum(0.1, 1.0/(K*K))
+      newEbeta = (1 - remMass) / K
+    else:
+      assert K < self.K
+      assert deleteCompID < self.K
+      Ebeta = self.get_active_comp_probs()
+      newEbeta = np.delete(Ebeta, deleteCompID, axis=0)
+      newEbeta += Ebeta[deleteCompID] / K
+      remMass = 1.0 - np.sum(newEbeta)
 
-    theta = DocTopicCount + self.alpha * Ebeta
+    theta = DocTopicCount + self.alpha * newEbeta
     thetaRem = self.alpha * remMass
 
     digammaSumTheta = digamma(theta.sum(axis=1) + thetaRem)
     ElogPi = digamma(theta) - digammaSumTheta[:,np.newaxis]
     ElogPiRem = digamma(thetaRem) - digammaSumTheta
+
+    LP['DocTopicCount'] = DocTopicCount
     LP['theta'] = theta
     LP['thetaRem'] = thetaRem
     LP['ElogPi'] = ElogPi
@@ -287,6 +297,22 @@ class HDPDir(AllocModel):
                 DocTopicCount=DocTopicCount,
                 digammaSumTheta=LP['digammaSumTheta'])
 
+  def selectSubsetLP(self, Data, LP, docIDs):
+    subsetLP = dict()
+    subsetLP['DocTopicCount'] = LP['DocTopicCount'][docIDs].copy()
+    subsetLP['theta'] = LP['theta'][docIDs].copy()
+    subsetLP['ElogPi'] = LP['ElogPi'][docIDs].copy()
+
+    subsetLP['thetaRem'] = LP['thetaRem']
+    subsetLP['ElogPiRem'] = LP['ElogPiRem'][docIDs]
+
+    subsetTokenIDs = list()
+    for docID in docIDs:
+      start = Data.doc_range[docID]
+      stop  = Data.doc_range[docID+1]
+      subsetTokenIDs.extend(range(start,stop))
+    subsetLP['resp'] = LP['resp'][subsetTokenIDs].copy()
+    return subsetLP
 
   ####################################################### Suff Stat Calc
   ####################################################### 
@@ -346,7 +372,7 @@ class HDPDir(AllocModel):
 
     ## Selection terms (computes doc-topic correlation)
     if preselectroutine is not None:
-      if preselectroutine.count('doctopiccorr') > 0:
+      if preselectroutine.count('corr') > 0:
         Tmat = LP['DocTopicCount']
         SS.setSelectionTerm('DocTopicPairMat',
                            np.dot(Tmat.T, Tmat), dims=('K','K'))
@@ -437,7 +463,6 @@ class HDPDir(AllocModel):
     else:
       initrho = None   # default initialization
       initomega = None
-
     try:
       sumLogPi = np.append(SS.sumLogPi, SS.sumLogPiRem)
       rho, omega, f, Info = OptimHDPDir.find_optimum_multiple_tries(
@@ -455,7 +480,7 @@ class HDPDir(AllocModel):
       else:
         Log.error('***** Optim failed. Set to default init. ' + str(error))
         omega = (1 + self.gamma) * np.ones(SS.K)
-        rho = OptimHDPDir.create_initrho(K)
+        rho = OptimHDPDir.create_initrho(SS.K)
     return rho, omega
 
 
@@ -528,7 +553,7 @@ class HDPDir(AllocModel):
 
   ####################################################### Calc ELBO
   #######################################################
-  def calc_evidence(self, Data, SS, LP, **kwargs):
+  def calc_evidence(self, Data, SS, LP, todict=0, **kwargs):
     ''' Calculate ELBO objective 
     '''
     calpha = SS.nDoc * (gammaln(self.alpha) + (SS.K+1) * np.log(self.alpha))
@@ -546,6 +571,16 @@ class HDPDir(AllocModel):
       ElogqZ = self.E_logqZ(Data, LP)
       cDir_theta = self.c_Dir_theta(*self.c_Dir_theta__parts(LP))
       slack_NmT, slack_NmT_Rem = self.slack_NminusTheta(LP)
+
+    if todict:
+      return dict(calpha=calpha,
+                  cDir_theta=-1*cDir_theta,
+                  entropy=-1*np.sum(ElogqZ),
+                  cDir_alphaBeta=U_plus_cDir_alphaBeta,
+                  slack=np.sum(slack_NmT + slack_alphaBeta) \
+                        + slack_NmT_Rem + slack_alphaBeta_Rem
+                 )
+
     return U_plus_cDir_alphaBeta + calpha \
            - np.sum(ElogqZ) \
            - cDir_theta \

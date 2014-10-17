@@ -128,7 +128,7 @@ class HModel(object):
     ''' Compute the evidence lower bound (ELBO) of the objective function.
     '''
     if Data is not None and LP is None and SS is None:
-      LP = self.calc_local_params(Data)
+      LP = self.calc_local_params(Data, **kwargs)
       SS = self.get_global_suff_stats(Data, LP)
     evA = self.allocModel.calc_evidence(Data, SS, LP, todict=todict, **kwargs)
     evObs = self.obsModel.calc_evidence(Data, SS, LP, todict=todict, **kwargs)
@@ -168,7 +168,6 @@ class HModel(object):
       # Set hmodel global parameters "from scratch", in two stages
       # * init allocmodel to "uniform" prob over comps
       # * init obsmodel in likelihood-specific, data-driven fashion
-      self.allocModel.init_global_params(Data, **initArgs)
       if str(type(self.obsModel)).count('Gauss') > 0:
         init.FromScratchGauss.init_global_params(self.obsModel, 
                                                  Data, **initArgs)
@@ -180,6 +179,11 @@ class HModel(object):
                                                 Data, **initArgs)
       else:
         raise NotImplementedError('Unrecognized initname procedure.')
+      if 'K' in initArgs:
+        # Make sure K is exactly same for both alloc and obs models
+        # Needed because obsModel init can sometimes yield K < Kinput
+        initArgs['K'] = self.obsModel.K
+      self.allocModel.init_global_params(Data, **initArgs)
    
   ######################################################### I/O Utils
   ######################################################### 

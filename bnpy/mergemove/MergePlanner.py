@@ -76,31 +76,34 @@ def selectPairsUsingAtMostNOfEachComp(AdjMat, extraFixedEdges=None,
       Args
       --------
       AdjMat : 2D array, size K x K
-
-      SubsetAdjMat : None or 2D array, size K x K
-
       N : max degree of each node
       
       Returns
       --------
       pairIDs : list of tuples, one entry per selected pair
   '''
-  degree = np.sum(AdjMat, axis=0) + np.sum(AdjMat, axis=1)
-  if np.sum(degree) == 0:
+  if np.sum(AdjMat) == 0:
     return list()
 
-  ## degree : holds counts for all UNLABELED edges (including extraFixed)
-  ## newdegree : holds counts for edges we will KEEP
+  # AMat :
+  # tracks all remaining CANDIDATE edges where both node under the degree limit.
   AMat = AdjMat.copy()
-  newdegree = np.zeros_like(degree)
-  xdegree = np.zeros_like(degree)
+
+  xdegree = np.zeros(AdjMat.shape[0], dtype=np.int32)
   if extraFixedEdges is not None:
     for kA, kB in extraFixedEdges:
       xdegree[kA] += 1
       xdegree[kB] += 1
-    degree += xdegree
-    newdegree += xdegree
 
+  # degree : tracks CANDIDATE edges (including extra) that not excluded
+  # newdegree : tracks edges we will KEEP
+  newdegree = np.zeros_like(xdegree)
+  newdegree += xdegree
+
+  exhaustedMask = newdegree >= N
+  AMat[exhaustedMask, :] = 0
+  AMat[:, exhaustedMask] = 0
+  degree = np.sum(AMat, axis=0) + np.sum(AMat, axis=1) + xdegree
 
   ## Traverse comps from largest to smallest degree
   pairIDs = list()
@@ -141,9 +144,10 @@ def selectPairsUsingAtMostNOfEachComp(AdjMat, extraFixedEdges=None,
   cond1 = np.allclose(degree, xdegree)
   cond2 = np.max(newdegree) <= N + Nextra
   if not cond1:
-    from IPython import embed; embed()
+    print 'WARNING: BAD DEGREE CALCULATION'
+
   if not cond2:
-    from IPython import embed; embed()
+    print 'WARNING: BAD NEWDEGREE CALCULATION',  np.max(newdegree), N+Nextra
   return pairIDs
 
 def updateScoreMat_wholeELBO(ScoreMat, curModel, SS, doAllPairs=0):
@@ -192,45 +196,6 @@ def updateScoreMat_wholeELBO(ScoreMat, curModel, SS, doAllPairs=0):
                   level='debug')
   return ScoreMat  
     
-"""
-def selectDiverseSubsetOfTinyPairs(posMask, posAndTiny, tinyVec,
-                                   maxPairsPerComp=3):
-  ''' Make list of candidate pairs where each candidate appears <= 3 times.
-  '''
-  degree = np.sum(posMask, axis=0) + np.sum(posMask, axis=1)
-  sortIDs = np.argsort(-1 * degree)
-  mPairsTiny = list()
-  newdegree = np.zeros_like(degree)
-  for nodeID in sortIDs:
-    if not tinyVec[nodeID]:
-      continue
-
-    # Find final set of <= 3 partners that would not be disconnected
-    partners = np.flatnonzero(posAndTiny[nodeID,:] + posAndTiny[:, nodeID])
-    partners = partners[np.argsort([degree[p] for p in partners])]
-
-    M = maxPairsPerComp - newdegree[nodeID]
-    keepPartners = partners[:M]
-    rejectPartners = partners[M:]
-
-    for p in keepPartners:
-      kA = np.minimum(p, nodeID)
-      kB = np.maximum(p, nodeID)
-      mPairsTiny.append((kA, kB))
-      posAndTiny[kA, kB] = 0 # make pair ineligible for future partnerships
-      newdegree[p] += 1
-      newdegree[nodeID] += 1
-
-    for p in rejectPartners:
-      degree[p] -= 1
-      degree[nodeID] -= 1
-      kA = np.minimum(p, nodeID)
-      kB = np.maximum(p, nodeID)
-      posAndTiny[kA, kB] = 0 # make pair ineligible for future partnerships
-
-  return mPairsTiny, degree
-"""
-
 def preselect_candidate_pairs(curModel, SS, 
                                randstate=np.random.RandomState(0),
                                preselectroutine='random',
@@ -274,6 +239,7 @@ def preselect_candidate_pairs(curModel, SS,
   # ------------------------------------------------------- Score matrix
   # M : 2D array, shape K x K
   #     M[j,k] = score for viability of j,k.  Larger = better.
+  selectroutine = kwargs['preselectroutine']
   if kwargs['preselectroutine'].count('random') > 0:
     M = kwargs['randstate'].rand(K, K)
   elif kwargs['preselectroutine'].count('marglik') > 0:
@@ -282,8 +248,12 @@ def preselect_candidate_pairs(curModel, SS,
     M, Mraw = calcScoreMatrix_wholeELBO(curModel, SS, excludePairs, M=M)
   elif kwargs['preselectroutine'].count('corr') > 0:
     # Use correlation matrix as score for selecting candidates!
-    #M = calcScoreMatrix_corr(SS)
-    M = calcScoreMatrix_corrOrEmpty(SS)
+    if selectroutine.count('empty') > 0:
+      M = calcScoreMatrix_corrOrEmpty(SS)
+    elif selectroutine.count('degree') > 0:
+      M = calcScoreMatrix_corrLimitDegree(SS)
+    else:
+      M = calcScoreMatrix_corr(SS)
   else:
     raise NotImplementedError(kwargs['preselectroutine'])
 
@@ -383,7 +353,7 @@ def calcScoreMatrix_wholeELBO(curModel, SS, excludePairs=list(), M=None):
 
 ########################################################### Correlation cues
 ###########################################################
-def calcScoreMatrix_corr(SS, MINVAL=1e-8):
+def calcScoreMatrix_corr(SS, MINCORR=0.05, MINVAL=1e-8):
   '''
      Returns
      -------
@@ -409,12 +379,41 @@ def calcScoreMatrix_corr(SS, MINVAL=1e-8):
   CorrMat = CovMat / np.outer(sqrtc, sqrtc)
 
   # Now, filter to leave only *positive* entries in upper diagonal
-  #  we shouldn't even bother trying to merge topics with neg correlations
+  #  we shouldn't even bother trying to merge topics
+  #  with negative or nearly zero correlations
   CorrMat[np.tril_indices(K)] = 0
-  CorrMat[CorrMat < 0] = 0
+  CorrMat[CorrMat < MINCORR] = 0
+
   CorrMat[nanIDs] = 0
 
   return CorrMat
+
+
+def calcScoreMatrix_corrLimitDegree(SS, MINCORR=0.05, N=3):
+  ''' Score candidate merge pairs favoring correlations.
+
+      Returns
+      -------
+      M : 2D array, size K x K
+      M[j,k] provides score in [0, 1] for each pair of components (j,k)
+      larger score indicates better candidate for merge
+  '''
+  M = calcScoreMatrix_corr(SS)
+  thrvec = np.linspace(MINCORR, 1.0, 10)
+  fixedPairIDs = list()
+  for tt in range(thrvec.size-1, 0, -1):
+    thrSm = thrvec[tt-1]
+    thrBig = thrvec[tt]
+    A = np.logical_and(M > thrSm, M < thrBig) 
+    pairIDs = selectPairsUsingAtMostNOfEachComp(A, fixedPairIDs, N=N)
+    fixedPairIDs = fixedPairIDs + pairIDs
+  Mlimit = np.zeros_like(M)
+  if len(fixedPairIDs) == 0:
+    return Mlimit
+  x,y = zip(*fixedPairIDs)
+  Mlimit[x,y] = M[x,y]
+  return Mlimit
+
 
 def calcScoreMatrix_corrOrEmpty(SS, EMPTYTHR=100):
   ''' Score candidate merge pairs favoring correlations or empty components

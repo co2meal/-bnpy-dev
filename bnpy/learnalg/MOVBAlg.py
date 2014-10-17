@@ -71,6 +71,16 @@ class MOVBAlg(LearnAlg):
       if self.doDebugVerbose():
         self.print_msg('========================== lap %.2f batch %d' \
                        % (lapFrac, batchID))
+      if self.isFirstBatch(lapFrac) and 'convThrLP' in self.algParamsLP:
+        if lapFrac < 1:
+          finalConvThr = self.algParamsLP['convThrLP']
+          initConvThr = self.algParamsLP['initconvThrLP']          
+        if initConvThr > 0:
+          assert initConvThr >= finalConvThr
+          tau = (initConvThr - finalConvThr) * 10
+          fracComplete = self.lapFrac / self.algParamsLP['plateauLapLP']
+          convThr = finalConvThr + initConvThr * np.exp(-tau * fracComplete)
+          self.algParamsLP['convThrLP'] = convThr
 
       ## Local/E step
       LPchunk = self.memoizedLocalStep(hmodel, Dchunk, batchID)

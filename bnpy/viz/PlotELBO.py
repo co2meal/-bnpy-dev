@@ -11,7 +11,9 @@ python -m bnpy.viz.PlotELBO dataName aModelName obsModelName algName [kwargs]
 from matplotlib import pylab
 import numpy as np
 import argparse
+import glob
 import os
+import scipy.io
 
 from bnpy.ioutil import BNPYArgParser
 from JobFilter import filterJobs
@@ -37,7 +39,7 @@ YLabelMap = dict(evidence='log evidence',
                  )
      
 def plotJobsThatMatchKeywords(jpathPattern='/tmp/', 
-         xvar='laps', yvar='evidence', 
+         xvar='laps', yvar='evidence', loc='upper right',
          taskids=None, savefilename=None, 
          **kwargs):
   ''' Create line plots for all jobs matching pattern and provided keyword args
@@ -53,9 +55,9 @@ def plotJobsThatMatchKeywords(jpathPattern='/tmp/',
   for lineID in xrange(nLines):
     plot_all_tasks_for_job(jpaths[lineID], legNames[lineID], 
                            xvar=xvar, yvar=yvar,
-                           taskids=None, colorID=lineID)
-
-  pylab.legend(loc='best')  
+                           taskids=taskids, colorID=lineID)
+  if loc is not None:
+    pylab.legend(loc=loc)  
   if savefilename is not None:
     pylab.show(block=False)
     pylab.savefig(args.savefilename)
@@ -79,9 +81,23 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
   taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
 
   for tt, taskid in enumerate(taskids):
-    xs = np.loadtxt(os.path.join(jobpath, taskid, xvar+'.txt'))
-    ys = np.loadtxt(os.path.join(jobpath, taskid, yvar+'.txt'))
+    try:
+      xs = np.loadtxt(os.path.join(jobpath, taskid, xvar+'.txt'))
+      ys = np.loadtxt(os.path.join(jobpath, taskid, yvar+'.txt'))
+    except IOError as e:
+      try:
+        xs, ys = loadXYFromTopicModelFiles(jobpath, taskid)
+      except ValueError:
+        raise e
 
+    ## Make sure that xs are sorted
+    if xvar == 'laps':
+      diff = xs[1:] - xs[:-1]
+      goodIDs = np.flatnonzero(diff > 0)
+      if len(goodIDs) < xs.size-1:
+        print 'WARNING: looks like we had multiple runs writing to this file!'
+        xs = np.hstack([xs[goodIDs], xs[-1]])
+        ys = np.hstack([ys[goodIDs], ys[-1]])
     plotargs = dict(markersize=10, linewidth=2, label=None,
                     color=color, markeredgecolor=color)
     if tt == 0:
@@ -91,6 +107,28 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
   pylab.xlabel(XLabelMap[xvar])
   pylab.ylabel(YLabelMap[yvar])
    
+
+def loadXYFromTopicModelFiles(jobpath, taskid, xvar='laps', yvar='K'):
+  ''' Load x and y variables for line plots from TopicModel files
+  '''
+  tmpathList = glob.glob(os.path.join(jobpath, taskid, 'Lap*TopicModel.mat'))
+  if len(tmpathList) < 1:
+    raise ValueError('No TopicModel.mat files found')
+  tmpathList.sort() # ascending, from lap 0 to lap 1 to lap 100 to ...
+  basenames = [x.split(os.path.sep)[-1] for x in tmpathList];
+  laps = np.asarray([float(x[3:11]) for x in basenames]);
+  Ks = np.zeros_like(laps)
+
+  for tt, tmpath in enumerate(tmpathList):
+    if yvar == 'K':
+      Q = scipy.io.loadmat(tmpath, variable_names=['K', 'probs'])
+      try:
+        Ks[tt] = Q['K']
+      except KeyError:
+        Ks[tt] = Q['probs'].size
+    else:
+      raise ValueError('Unknown yvar type for topic model: ' + yvar)
+  return laps, Ks
   
 def parse_args():
   ''' Returns Namespace of parsed arguments retrieved from command line

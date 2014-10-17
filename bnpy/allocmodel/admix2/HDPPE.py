@@ -159,7 +159,7 @@ class HDPPE(HDPSB):
     self.ClearCache()
 
   def set_global_params(self, hmodel=None, 
-                              uhat=None, beta=None, 
+                              uhat=None,
                               **kwargs):
     if hmodel is not None:
       self.K = hmodel.allocModel.K
@@ -176,12 +176,16 @@ class HDPPE(HDPSB):
       self._set_global_params_from_scratch(**kwargs)
     self.ClearCache()
 
-  def _set_global_params_from_scratch(self, beta=None, topic_prior=None,
-                                            **kwargs):
+  def _set_global_params_from_scratch(self, beta=None, probs=None,
+                                            Data=None, nDoc=None, **kwargs):
     ''' Set uhat to values that reproduce provided appearance probs
     '''
-    if topic_prior is not None:
-      beta = topic_prior / np.sum(topic_prior)
+    if nDoc is None:
+      nDoc = Data.nDoc
+    if nDoc is None:
+      raise ValueError('Bad parameters. nDoc not specified.')
+    if probs is not None:
+      beta = probs / probs.sum()
     if beta is not None:
       Ktmp = beta.size
       rem = np.minimum(0.05, 1./(Ktmp))

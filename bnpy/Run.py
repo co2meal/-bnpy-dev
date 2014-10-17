@@ -134,8 +134,12 @@ def _run_task_internal(jobname, taskid, nTask,
 
   if type(dataName) is str:
     if os.path.exists(dataName):
+      ## dataName is a path to many data files on disk
       Data, InitData = loadDataIteratorFromDisk(dataName, KwArgs, dataorderseed)
       DataArgs = UnkArgs
+      # Set the short name for this dataset,
+      # so that the filepath for results is informative.
+      Data.name = KwArgs['OnlineDataPrefs']['datasetName']      
     else:
       DataArgs = getKwArgsForLoadData(ReqArgs, UnkArgs)  
       Data, InitData = loadData(ReqArgs, KwArgs, DataArgs, dataorderseed)
@@ -371,7 +375,8 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
       algP[moveKey] = KwArgs[moveKey]
 
   outputP = KwArgs['OutputPrefs']
-  hasMoves = 'birth' in KwArgs or 'merge' in KwArgs or 'shuffle' in KwArgs
+  hasMoves = 'birth' in KwArgs or 'merge' in KwArgs \
+             or 'shuffle' in KwArgs or 'delete' in KwArgs
 
   if algName == 'EM':
     learnAlg = bnpy.learnalg.EMAlg(savedir=savepath, seed=algseed,
@@ -445,10 +450,7 @@ def getOutputPath(ReqArgs, KwArgs, taskID=0 ):
   if type(dataName) is not str:
     dataName = dataName.get_short_name()
   if os.path.exists(dataName):
-    if dataName.endswith(os.path.sep):
-      dataName = dataName.split(os.path.sep)[-2]
-    else:
-      dataName = dataName.split(os.path.sep)[-1]
+    dataName = KwArgs['OnlineDataPrefs']['datasetName']
   return os.path.join(os.environ['BNPYOUTDIR'], 
                        dataName, 
                        KwArgs['OutputPrefs']['jobname'], 
