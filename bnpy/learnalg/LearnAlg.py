@@ -381,10 +381,12 @@ class LearnAlg(object):
                                            SSchunk=None, hmodel=None,
                                            Dchunk=None):
     if self.outputParams['debugBatch'] == batchID:
+      debugLap = self.outputParams['debugLap']
+      debugLapBuffer = self.outputParams['debugLapBuffer']
       import joblib
       if self.lapFrac < 1:
         joblib.dump(dict(Dchunk=Dchunk), os.path.join(self.savedir,'Debug-Data.dump'))
-      if self.lapFrac < 24 or self.lapFrac > 36:
+      if self.lapFrac < debugLap - debugLapBuffer or self.lapFrac > debugLap + debugLapBuffer:
         return
       filename = 'DebugLap%04.0f-%s.dump' % (np.ceil(self.lapFrac), name)
       SaveVars = dict(LP=LPchunk, SS=SS, hmodel=hmodel, SSchunk=SSchunk,
