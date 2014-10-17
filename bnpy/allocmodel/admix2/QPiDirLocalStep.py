@@ -54,7 +54,8 @@ def calcLocalParams(Data, LP, aModel,
       nFail = np.sum(AI['maxDiff'] > kwargs['convThrLP'])
       msg = '%4.2f %3d %4d %s %s' % (kwargs['lapFrac'], Data.batchID,
                                      nFail, siter, sdiff)
-
+      worstDocID = np.argmax(AI['maxDiff'])
+      msg += " %4d" % (worstDocID)
       if kwargs['restartremovejunkLP'] == 1:
         msg += " %4d/%4d %4d/%4d" % (RInfo['nDocRestartsAccepted'],
                                      RInfo['nDocRestartsTried'],
