@@ -50,13 +50,13 @@ def loadWordCountMatrixForLap(matfilepath, lapQuery, toDense=True):
   _, WordCounts = loadTopicModel(matfilepath, prefix, returnWordCounts=1)
   return WordCounts
 
-def loadTopicModel(matfilepath, prefix, returnWordCounts=0, returnTPA=0):
+def loadTopicModel(matfilepath, prefix=None, returnWordCounts=0, returnTPA=0):
   ''' Load saved topic model
   '''
   # avoids circular import
   from bnpy.HModel import HModel
-
-  matfilepath = os.path.join(matfilepath, prefix + 'TopicModel.mat')
+  if prefix is not None:
+    matfilepath = os.path.join(matfilepath, prefix + 'TopicModel.mat')
   Mdict = loadDictFromMatfile(matfilepath)
   if 'SparseWordCount_data' in Mdict:
     data = Mdict['SparseWordCount_data']

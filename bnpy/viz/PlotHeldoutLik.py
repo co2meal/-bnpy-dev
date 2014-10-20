@@ -31,14 +31,12 @@ Colors = [(0,0,0), # black
          ]
 
 XLabelMap = dict(laps='num pass thru train data',
+                 K='num topics K'
                 )  
-YLabelMap = dict(evidence='per-token heldout log-lik',
+YLabelMap = dict(evidence='heldout log lik',
                  )
      
-def plotJobsThatMatchKeywords(jpathPattern='/tmp/', 
-         xvar='laps', yvar='evidence', loc='lower right',
-         taskids=None, savefilename=None, fileSuffix='HeldoutLik.mat',
-         **kwargs):
+def plotJobsThatMatchKeywords(jpathPattern='/tmp/', **kwargs):
   ''' Create line plots for all jobs matching pattern and provided keyword args
 
       Example
@@ -48,35 +46,67 @@ def plotJobsThatMatchKeywords(jpathPattern='/tmp/',
   if not jpathPattern.startswith(os.path.sep):
     jpathPattern = os.path.join(os.environ['BNPYOUTDIR'], jpathPattern)
   jpaths, legNames = filterJobs(jpathPattern, **kwargs)
+  plotJobs(jpaths, legNames, **kwargs)
+        
+def plotJobs(jpaths, legNames, styles=None, fileSuffix='PredLik.mat',
+             xvar='laps', yvar='evidence', loc='upper right',
+             taskids=None, savefilename=None, tickfontsize=None,
+             xjitter=None, **legkwargs):
+  ''' Create line plots for provided jobs 
+  '''
   nLines = len(jpaths)
+  nLeg = len(legNames)
+  assert nLines == nLeg
+
+  jitterByJob = np.linspace(-.5, .5, len(jpaths)) 
+
   for lineID in xrange(nLines):
+    if styles is None:
+      curStyle = dict(colorID=lineID)
+    else:
+      curStyle = styles[lineID]
+
+    if xjitter is not None:
+      xjitter = jitterByJob[lineID]
     plot_all_tasks_for_job(jpaths[lineID], legNames[lineID], 
-                           taskids=taskids, colorID=lineID,
-                           xvar=xvar, yvar=yvar, fileSuffix=fileSuffix)
+                           xvar=xvar, yvar=yvar, fileSuffix=fileSuffix,
+                           taskids=taskids, xjitter=xjitter, **curStyle)
   if loc is not None:
-    pylab.legend(loc=loc)
+    pylab.legend(loc=loc, **legkwargs)  
+
+  if tickfontsize is not None:
+    pylab.tick_params(axis='both', which='major', labelsize=tickfontsize)
+
 
   if savefilename is not None:
-    pylab.show(block=False)
-    pylab.savefig(args.savefilename)
+    try:
+      pylab.show(block=False)
+    except TypeError:
+      pass # when using IPython notebook
+    pylab.savefig(savefilename, bbox_inches='tight', pad_inches=0)
   else:
     try:
       pylab.show(block=True)
     except TypeError:
       pass # when using IPython notebook
-        
 
 def plot_all_tasks_for_job(jobpath, label, taskids=None,
+                                           lineType='.-',
+                                           color=None,
                                            colorID=0,
                                            fileSuffix='HeldoutLik.mat',
                                            yvar='evidence',
-                                           xvar='laps'):
+                                           xvar='laps',
+                                           markersize=10,
+                                           linewidth=2,
+                                           xjitter=None,
+                                           **kwargs):
   ''' Create line plot in current figure for each task/run of jobpath
   '''
   if not os.path.exists(jobpath):
     raise ValueError("PATH NOT FOUND: %s" % (jobpath))
-  
-  color = Colors[ colorID % len(Colors)]
+  if color is None:
+    color = Colors[ colorID % len(Colors)]
   taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
 
   for tt, taskid in enumerate(taskids):
@@ -87,22 +117,29 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
     if len(hpaths) > 0:  
       hpaths.sort()
       basenames = [x.split(os.path.sep)[-1] for x in hpaths];
-      laps = np.asarray([float(x[3:11]) for x in basenames]);
-      ys = np.zeros_like(laps)
+      xs = np.asarray([float(x[3:11]) for x in basenames]);
+      ys = np.zeros_like(xs)
       for ii, hpath in enumerate(hpaths):
         MatVars = scipy.io.loadmat(hpath)
         ys[ii] = float(MatVars['avgPredLL'])
     elif len(txtpaths) > 0:
-      laps = np.loadtxt(os.path.join(taskoutpath, 'predlik-lapTrain.txt'))
+      if xvar == 'laps':
+        xs = np.loadtxt(os.path.join(taskoutpath, 'predlik-lapTrain.txt'))
+      else:
+        xs = np.loadtxt(os.path.join(taskoutpath, 'predlik-K.txt'))
       ys = np.loadtxt(os.path.join(taskoutpath, 'predlik-avgScore.txt'))
     else:
       raise ValueError('Pred Lik data unavailable.')
 
-    plotargs = dict(markersize=10, linewidth=2, label=None,
-                    color=color, markeredgecolor=color)
+    plotargs = dict(markersize=markersize, linewidth=linewidth, label=None,
+                    color=color, markeredgecolor=color,
+                    )
+    plotargs.update(kwargs)
     if tt == 0:
       plotargs['label'] = label
-    pylab.plot(laps, ys, '.-', **plotargs)
+    if xjitter is not None:
+      xs = xs + xjitter
+    pylab.plot(xs, ys, lineType, **plotargs)
 
   pylab.xlabel(XLabelMap[xvar])
   pylab.ylabel(YLabelMap[yvar])

@@ -87,6 +87,31 @@ def plotBarsFromHModel(hmodel, Data=None, doShowNow=False, figH=None,
     pylab.show()
   return figH
 
+def plotBarsForTopicMATFile(matfilename, sortBy=None, levels=None,
+                            Kmax=20, **kwargs):
+  import bnpy.ioutil
+  if isinstance(matfilename, np.ndarray):
+    topics = matfilename
+    probs = np.ones(topics.shape[0])
+  else:
+    topics, probs, alph = bnpy.ioutil.ModelReader.loadTopicModel(matfilename,
+                          returnTPA=1)
+  print 'total K=', topics.shape[0]
+  print 'beta>0.0001 K=', np.sum(probs > .0001)
+  if levels is not None:
+    assert topics.max() > 1.0
+    topics = np.floor(topics)
+    for b in range(len(levels)-1):
+      mask = np.logical_and(topics > levels[b],
+                            topics <= levels[b+1])
+      topics[mask] = b
+  else:
+    topics /= topics.sum(axis=1)[:,np.newaxis]
+  if sortBy == 'probs':
+    sortIDs = np.argsort(-1*probs)
+    topics = topics[sortIDs[:Kmax]]
+  showTopicsAsSquareImages(topics, Kmax=Kmax, **kwargs)
+
 def showTopicsAsSquareImages(topics, 
                              activeCompIDs=None,
                              compsToHighlight=None,
