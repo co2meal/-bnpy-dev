@@ -218,7 +218,11 @@ class LearnAlg(object):
       return False
     return isEvenlyDivisibleFloat(lap, saveEvery) \
            or nMstepUpdates < 3 \
-           or np.allclose(lap, 1.0)
+           or np.allclose(lap, 1.0) \
+           or np.allclose(lap, 2.0) \
+           or np.allclose(lap, 4.0) \
+           or np.allclose(lap, 8.0) 
+
 
 
   def saveParams(self, lap, hmodel, SS=None):
