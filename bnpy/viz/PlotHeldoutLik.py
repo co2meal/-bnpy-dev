@@ -50,13 +50,14 @@ def plotJobsThatMatchKeywords(jpathPattern='/tmp/', **kwargs):
         
 def plotJobs(jpaths, legNames, styles=None, fileSuffix='PredLik.mat',
              xvar='laps', yvar='evidence', loc='upper right',
+             minLap=0,
              taskids=None, savefilename=None, tickfontsize=None,
-             xjitter=None, **legkwargs):
+             xjitter=None, bbox_to_anchor=None, **kwargs):
   ''' Create line plots for provided jobs 
   '''
   nLines = len(jpaths)
   nLeg = len(legNames)
-  assert nLines == nLeg
+  assert nLines <= nLeg
 
   jitterByJob = np.linspace(-.5, .5, len(jpaths)) 
 
@@ -68,11 +69,11 @@ def plotJobs(jpaths, legNames, styles=None, fileSuffix='PredLik.mat',
 
     if xjitter is not None:
       xjitter = jitterByJob[lineID]
-    plot_all_tasks_for_job(jpaths[lineID], legNames[lineID], 
+    plot_all_tasks_for_job(jpaths[lineID], legNames[lineID], minLap=minLap,
                            xvar=xvar, yvar=yvar, fileSuffix=fileSuffix,
                            taskids=taskids, xjitter=xjitter, **curStyle)
   if loc is not None:
-    pylab.legend(loc=loc, **legkwargs)  
+    pylab.legend(loc=loc, bbox_to_anchor=bbox_to_anchor)  
 
   if tickfontsize is not None:
     pylab.tick_params(axis='both', which='major', labelsize=tickfontsize)
@@ -91,6 +92,7 @@ def plotJobs(jpaths, legNames, styles=None, fileSuffix='PredLik.mat',
       pass # when using IPython notebook
 
 def plot_all_tasks_for_job(jobpath, label, taskids=None,
+                                           minLap=0,
                                            lineType='.-',
                                            color=None,
                                            colorID=0,
@@ -123,11 +125,18 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
         MatVars = scipy.io.loadmat(hpath)
         ys[ii] = float(MatVars['avgPredLL'])
     elif len(txtpaths) > 0:
+      laps = np.loadtxt(os.path.join(taskoutpath, 'predlik-lapTrain.txt'))
+      Ks = np.loadtxt(os.path.join(taskoutpath, 'predlik-K.txt'))
       if xvar == 'laps':
-        xs = np.loadtxt(os.path.join(taskoutpath, 'predlik-lapTrain.txt'))
+        xs = laps
       else:
-        xs = np.loadtxt(os.path.join(taskoutpath, 'predlik-K.txt'))
+        xs = Ks
       ys = np.loadtxt(os.path.join(taskoutpath, 'predlik-avgScore.txt'))
+
+      if minLap > 0:
+        mask = laps > minLap
+        xs = xs[mask]
+        ys = ys[mask]
     else:
       raise ValueError('Pred Lik data unavailable.')
 
