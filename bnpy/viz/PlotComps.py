@@ -49,8 +49,11 @@ def plotCompsForJob(jobpath='', taskids=[1], lap=None,
                     **kwargs):
   '''
   '''
+  jobpath_arg = jobpath
   if not os.path.isdir(jobpath):
-    raise ValueError('Not valid path: ' + jobpath)
+    jobpath = os.path.join(os.environ['BNPYOUTDIR'], jobpath)
+  if not os.path.isdir(jobpath):
+    raise ValueError('Not valid path: ' + jobpath_arg)
   taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
   for taskid in taskids:
     taskpath = os.path.join(jobpath, str(taskid))
