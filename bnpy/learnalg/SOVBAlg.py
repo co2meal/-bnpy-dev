@@ -108,7 +108,7 @@ class SOVBAlg(LearnAlg):
       ## Display progress
       self.updateNumDataProcessed(Dchunk.get_size())
       if self.isLogCheckpoint(lapFrac, iterid):
-        self.printStateToLog(hmodel, evBound, lapFrac, iterid)
+        self.printStateToLog(hmodel, evBound, lapFrac, iterid, rho=rho)
 
       ## Save diagnostics and params
       if self.isSaveDiagnosticsCheckpoint(lapFrac, iterid):
