@@ -22,6 +22,10 @@ def plotCompsForTask(taskpath, lap=None, figH=None,
                      dataName=None, **kwargs):
   queryLap = lap
 
+  ## prepend BNPYOUTDIR if taskpath is not a directory
+  if not os.path.isdir(taskpath):
+    taskpath = os.path.join(os.environ['BNPYOUTDIR'], taskpath)
+
   ## Read dataName from the taskpath
   if dataName is None:
     dataName = taskpath.replace(os.environ['BNPYOUTDIR'], 
