@@ -485,6 +485,18 @@ class HDPDir(AllocModel):
         rho = OptimHDPDir.create_initrho(SS.K)
     return rho, omega
 
+  ####################################################### soVB Global Step
+  #######################################################
+  def update_global_params_soVB(self, SS, rho=None, 
+                                    mergeCompA=None, mergeCompB=None, 
+                                    **kwargs):
+    ''' Update global parameters via stochastic update rule.
+    '''
+    rhoStar, omegaStar = self._find_optimum_rhoomega(SS, **kwargs)
+    self.rho = (1-rho) * self.rho + rho * rhoStar
+    self.omega = (1-rho) * self.omega + rho * omegaStar
+    self.K = SS.K
+    self.ClearCache()
 
   ####################################################### Set Global Params
   #######################################################
@@ -667,6 +679,55 @@ class HDPDir(AllocModel):
       return NumericUtil.calcRlogRdotv(LP['resp'], Data.word_count)
     else:
       return NumericUtil.calcRlogR(LP['resp'])
+
+
+  ######################################################### ideal objective
+  #########################################################
+  def E_cDir_alphabeta__Numeric(self):
+    ''' Numeric integration of the expectation
+    '''
+    g1 = self.rho * self.omega
+    g0 = (1-self.rho) * self.omega
+    assert self.K <= 2
+    if self.K == 1:
+      us = np.linspace(1e-14, 1-1e-14, 1000)
+      logpdf = gammaln(g1+g0) - gammaln(g1) - gammaln(g0) \
+            + (g1-1) * np.log(us) + (g0-1) * np.log(1-us)
+      pdf = np.exp(logpdf)
+      b1 = us
+      bRem = 1-us
+      Egb1 = np.trapz( gammaln(self.alpha * b1) * pdf, us)
+      EgbRem = np.trapz( gammaln(self.alpha * bRem) * pdf, us)
+      EcD = gammaln(self.alpha) - Egb1 - EgbRem
+    return EcD
+
+  def E_cDir_alphabeta__MonteCarlo(self, S=1000, seed=123):
+    ''' Monte Carlo approximation to the expectation
+    '''
+    PRNG = np.random.RandomState(seed)
+    g1 = self.rho * self.omega
+    g0 = (1-self.rho) * self.omega
+    cD_abeta = np.zeros(S)
+    for s in range(S):
+      u = PRNG.beta( g1, g0 )
+      u = np.minimum(np.maximum(u, 1e-14), 1-1e-14)
+      beta = np.hstack([u, 1.0])
+      beta[1:] *= np.cumprod(1.0-u)
+      cD_abeta[s] = gammaln(self.alpha) - gammaln(self.alpha*beta).sum()
+    return np.mean(cD_abeta)
+
+  def E_cDir_alphabeta__Surrogate(self):
+    calpha = gammaln(self.alpha) + (self.K+1) * np.log(self.alpha)
+
+    g1 = self.rho * self.omega
+    g0 = (1-self.rho) * self.omega
+    digammaBoth = digamma(g1+g0)
+    ElogU = digamma(g1) - digammaBoth
+    Elog1mU = digamma(g0) - digammaBoth
+    OFFcoef = OptimHDPDir.kvec(self.K)
+    cRest = np.sum(ElogU) + np.inner(OFFcoef, Elog1mU)
+
+    return calpha + cRest
 
   ######################################################### OLD calc_evidence
   #########################################################

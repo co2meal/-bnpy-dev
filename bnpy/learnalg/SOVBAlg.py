@@ -5,6 +5,7 @@ Implementation of stochastic online VB (soVB) for bnpy models
 '''
 import numpy as np
 from LearnAlg import LearnAlg
+from LearnAlg import makeDictOfAllWorkspaceVars
 
 class SOVBAlg(LearnAlg):
 
@@ -26,7 +27,7 @@ class SOVBAlg(LearnAlg):
               status : str message indicating reason for termination
                         {'all data processed'}
     '''
-    raise NotImplementedError('soVB disabled until it conforms to new LearnAlg conventions.')
+
     LP = None
     rho = 1.0 # Learning rate
     nBatch = float(DataIterator.nBatch)
@@ -41,6 +42,9 @@ class SOVBAlg(LearnAlg):
       DataIterator.curLapPos = nBatch - 2
       iterid = int(nBatch * lapFrac) - 1
 
+    ## Save initial state
+    self.saveParams(lapFrac, hmodel)
+
     if self.algParams['doMemoELBO']:
       SStotal = None
       SSPerBatch = dict()
@@ -54,16 +58,14 @@ class SOVBAlg(LearnAlg):
       # Grab new data
       Dchunk = DataIterator.get_next_batch()
       batchID = DataIterator.batchID
+      Dchunk.batchID = batchID
 
       # Update progress-tracking variables
       iterid += 1
       lapFrac += 1.0/nBatch
+      self.lapFrac = lapFrac
+      nLapsCompleted = lapFrac - self.algParams['startLap']
       self.set_random_seed_at_lap(lapFrac)
-
-      # M step with learning rate
-      if SS is not None:
-        rho = (iterid + self.rhodelay) ** (-1.0 * self.rhoexp)
-        hmodel.update_global_params(SS, rho)
       
       # E step
       LP = hmodel.calc_local_params(Dchunk, **self.algParamsLP)
@@ -96,14 +98,26 @@ class SOVBAlg(LearnAlg):
         EvMemory[batchID] = EvChunk
         evBound = EvRunningSum / nBatch
 
-      # Save and display progress
-      self.add_nObs(Dchunk.get_size())
-      self.save_state(hmodel, SS, iterid, lapFrac, evBound)
-      self.print_state(hmodel, SS, iterid, lapFrac, evBound, rho=rho)
+      ## M step with learning rate
+      if SS is not None:
+        rho = (iterid + self.rhodelay) ** (-1.0 * self.rhoexp)
+        hmodel.update_global_params(SS, rho)
 
-    #Finally, save, print and exit
-    status = "all data processed."
-    self.save_state(hmodel, SS, iterid, lapFrac, evBound, doFinal=True)    
-    self.print_state(hmodel, SS, iterid, lapFrac, evBound, 
-                     doFinal=True, status=status)
-    return None, self.buildRunInfo(evBound, status)
+      ## Display progress
+      self.updateNumDataProcessed(Dchunk.get_size())
+      if self.isLogCheckpoint(lapFrac, iterid):
+        self.printStateToLog(hmodel, evBound, lapFrac, iterid)
+
+      ## Save diagnostics and params
+      if self.isSaveDiagnosticsCheckpoint(lapFrac, iterid):
+        self.saveDiagnostics(lapFrac, SS, evBound)
+      if self.isSaveParamsCheckpoint(lapFrac, iterid):
+        self.saveParams(lapFrac, hmodel, SS)
+      #.................................................... end loop over data
+
+    # Finished! Save, print and exit
+    self.printStateToLog(hmodel, evBound, lapFrac, iterid, isFinal=1)
+    self.saveParams(lapFrac, hmodel, SS)
+    self.eval_custom_func(isFinal=1, **makeDictOfAllWorkspaceVars(**vars()))
+
+    return self.buildRunInfo(evBound=evBound, SS=SS)
