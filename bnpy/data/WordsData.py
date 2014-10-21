@@ -23,7 +23,7 @@ from bnpy.data.DataObj import DataObj
 class WordsData(DataObj):
 
   @classmethod
-  def LoadFromFile_tokenlist(cls, filepath, vocab_size=0, 
+  def LoadFromFile_tokenlist(cls, filepath, vocab_size=0, nDocTotal=None,
                                   min_word_index=1, **kwargs):
     ''' Constructor for loading from tokenlist matfile into WordsData instance
     '''
@@ -45,11 +45,11 @@ class WordsData(DataObj):
       word_id.extend(word_id_d-min_word_index)
       word_ct.extend(word_ct_d)
     doc_range = np.hstack([0, np.cumsum(doc_sizes)])
-    return cls(word_id=word_id, word_count=word_ct,
+    return cls(word_id=word_id, word_count=word_ct, nDocTotal=nDocTotal,
                doc_range=doc_range, vocab_size=vocab_size)    
 
   @classmethod
-  def LoadFromFile_ldac(cls, filepath, vocab_size=0, **kwargs):
+  def LoadFromFile_ldac(cls, filepath, vocab_size=0, nDocTotal=None, **kwargs):
     ''' Constructor for loading data from .ldac file into WordsData instance
     '''
     doc_sizes = []
@@ -64,7 +64,7 @@ class WordsData(DataObj):
         word_id.extend(doc_word_id)
         word_ct.extend(doc_word_ct)
     doc_range = np.hstack([0, np.cumsum(doc_sizes)])
-    return cls(word_id=word_id, word_count=word_ct,
+    return cls(word_id=word_id, word_count=word_ct, nDocTotal=nDocTotal,
                doc_range=doc_range, vocab_size=vocab_size)    
 
   @classmethod

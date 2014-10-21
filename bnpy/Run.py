@@ -135,7 +135,7 @@ def _run_task_internal(jobname, taskid, nTask,
   if type(dataName) is str:
     if os.path.exists(dataName):
       ## dataName is a path to many data files on disk
-      Data, InitData = loadDataIteratorFromDisk(dataName, KwArgs, dataorderseed)
+      Data, InitData = loadDataIteratorFromDisk(dataName, ReqArgs, KwArgs, dataorderseed)
       DataArgs = UnkArgs
       # Set the short name for this dataset,
       # so that the filepath for results is informative.
@@ -229,14 +229,17 @@ def _run_task_internal(jobname, taskid, nTask,
 
 ########################################################### Load Data
 ###########################################################
-def loadDataIteratorFromDisk(datapath, KwArgs, dataorderseed):
+def loadDataIteratorFromDisk(datapath, ReqArgs, KwArgs, dataorderseed):
   ''' Create a DataIterator from files stored on disk
   '''
   if 'OnlineDataPrefs' in KwArgs:
     OnlineDataArgs = KwArgs['OnlineDataPrefs']
     OnlineDataArgs['dataorderseed'] = dataorderseed
 
-  DataIterator = bnpy.data.DataIteratorFromDisk(datapath, **OnlineDataArgs)
+  DataIterator = bnpy.data.DataIteratorFromDisk(datapath, 
+                                                ReqArgs['allocModelName'],
+                                                ReqArgs['obsModelName'],
+                                                **OnlineDataArgs)
   InitData = DataIterator.loadInitData()
   return DataIterator, InitData
 
