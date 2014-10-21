@@ -45,7 +45,7 @@ def makePlans(curSS, Dchunk=None,
   # Nvec/count : refers to tokens/atoms
   Nvec = curSS.getCountVec()
   Nvec, SizeVec = Count2Size(Nvec, Dchunk, curSS, lapFrac)
-
+  
   ## Determine eligibleIDs for deletion
   eligibleIDs = np.flatnonzero(SizeVec < dtargetMaxSize)
   eligibleUIDs = curSS.uIDs[eligibleIDs]
@@ -143,6 +143,11 @@ def Count2Size(Nvec, Dchunk, curSS, lapFrac):
     tokenPerDoc = Dchunk.word_count.sum() / Dchunk.nDoc
     tokenPerTopic = tokenPerDoc / np.ceil(np.sqrt(curSS.K))
     SizeVec = Nvec / tokenPerTopic
+  elif isinstance(Dchunk, bnpy.data.GroupXData):
+    atomPerTopic = Nvec
+    atomPerDoc = np.median(np.diff(Dchunk.doc_range))
+    docPerTopic = atomPerTopic / atomPerDoc
+    SizeVec = docPerTopic * 3 # counting multiples
   else:
     SizeVec = Nvec
   return Nvec, SizeVec

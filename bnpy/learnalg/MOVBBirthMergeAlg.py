@@ -1149,7 +1149,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
     if 'uIDs' in EPlan:
       nEmpty = len(EPlan['uIDs'])
       DeleteLogger.log('Last-minute Plan: %d empty' % (nEmpty))
-      if len(self.MergeLog) > 0:
+      if hasattr(self, 'MergeLog') and len(self.MergeLog) > 0:
         DeleteLogger.log('Skipped other plans due to accepted merge.')
         ## Accepted Merge means all deletes except trivial one get skipped
         DeletePlans = [EPlan]
@@ -1172,7 +1172,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
         # Insert EmptyPlan at front of the line
         DeletePlans.insert(0, EPlan)
     else:
-      if len(self.MergeLog) > 0:
+      if hasattr(self, 'MergeLog') and len(self.MergeLog) > 0:
         DeleteLogger.log('Skipped due to accepted merge.')
         return hmodel, SS
 
