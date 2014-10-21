@@ -282,7 +282,7 @@ class LearnAlg(object):
     if rho is None:
       rhoStr = ''
     else:
-      rhoStr = '| lrate %.4f' % (rho)
+      rhoStr = 'lrate %.4f' % (rho)
 
     if iterid == lap:
       lapStr = '%7d' % (lap)
