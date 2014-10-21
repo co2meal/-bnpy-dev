@@ -47,7 +47,6 @@ class LearnAlg(object):
       if k.count('LP') > 0:
         if k == 'logdirLP' and v:
           v = self.savedir
-          print v
         self.algParamsLP[k] = v
     
   def fit(self, hmodel, Data):
@@ -59,7 +58,6 @@ class LearnAlg(object):
         Info : dict of diagnostics about this run
     '''
     pass
-
 
   def set_random_seed_at_lap(self, lap):
     ''' Set internal random generator deterministically
