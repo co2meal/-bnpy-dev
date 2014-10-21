@@ -263,8 +263,14 @@ class MOVBAlg(LearnAlg):
         --------
         None. hmodel updated in-place.
     '''
-    if self.algParams['doFullPassBeforeMstep']:
+    doFullPass = self.algParams['doFullPassBeforeMstep']
+
+    if self.algParams['doFullPassBeforeMstep'] == 1:
       if lapFrac >= 1.0:
+        hmodel.update_global_params(SS)
+    elif doFullPass > 1.0:
+      if lapFrac >= 1.0 or (doFullPass < SS.nDoc):
+        # update if we've seen specified num of docs, not before
         hmodel.update_global_params(SS)
     else:
       hmodel.update_global_params(SS)
