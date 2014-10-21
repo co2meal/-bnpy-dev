@@ -18,9 +18,9 @@ def getEligibleCount(curSS):
   ''' Get list of all eligibleIDs
   '''
   ## TODO
-  return 0
+  return 1
 
-def makePlans(curSS, Dchunk=None, 
+def makePlans(curSS, Dchunk=None, DocUsageCount=None,
               lapFrac=0,
               dtargetMaxSize=1000,
               deleteFailLimit=2,
@@ -44,8 +44,8 @@ def makePlans(curSS, Dchunk=None,
   # SizeVec : refers to docs/units/sequences
   # Nvec/count : refers to tokens/atoms
   Nvec = curSS.getCountVec()
-  Nvec, SizeVec = Count2Size(Nvec, Dchunk, curSS, lapFrac)
-  
+  Nvec, SizeVec = Count2Size(Nvec, Dchunk, curSS, lapFrac, DocUsageCount)
+
   ## Determine eligibleIDs for deletion
   eligibleIDs = np.flatnonzero(SizeVec < dtargetMaxSize)
   eligibleUIDs = curSS.uIDs[eligibleIDs]
@@ -131,13 +131,21 @@ def makePlans(curSS, Dchunk=None,
              )
   return [Plan]
 
-def Count2Size(Nvec, Dchunk, curSS, lapFrac):
+def Count2Size(Nvec, Dchunk, curSS, lapFrac, DocUsageCount):
   if lapFrac < 1:
     ampF = Dchunk.get_total_size() / float(Dchunk.get_size())
   else:
     ampF = 1.0
   ampF = np.maximum(ampF, 1.0)
   Nvec = Nvec * ampF
+
+
+  if DocUsageCount is not None and DocUsageCount.size == curSS.K:
+    return Nvec, DocUsageCount
+  elif curSS.hasSelectionTerm('DocUsageCount'):
+    DocUsageCount = curSS.getSelectionTerm('DocUsageCount') * ampF
+    return Nvec, DocUsageCount
+
   if isinstance(Dchunk, bnpy.data.WordsData) and hasattr(curSS, 'sumLogPi'):
     # HDP+Mult needs to track SizeVec = nDocsPerTopic
     tokenPerDoc = Dchunk.word_count.sum() / Dchunk.nDoc

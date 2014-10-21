@@ -321,6 +321,7 @@ class HDPDir(AllocModel):
   def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None,
                                             doPrecompMergeEntropy=None,
                                             mPairIDs=None,
+                                            trackDocUsage=0,
                                             preselectroutine=None,
                                             **kwargs):
     ''' Calculate sufficient statistics.
@@ -379,6 +380,11 @@ class HDPDir(AllocModel):
         SS.setSelectionTerm('DocTopicPairMat',
                            np.dot(Tmat.T, Tmat), dims=('K','K'))
         SS.setSelectionTerm('DocTopicSum', np.sum(Tmat, axis=0), dims='K')
+
+    if trackDocUsage:
+      ## Track the number of times a topic appears with "significant mass" in a document
+      DocUsage = np.sum(LP['DocTopicCount'] > 0.01, axis=0)
+      SS.setSelectionTerm('DocUsageCount', DocUsage, dims='K')
     return SS
 
   def verifySSForMergePair(self, Data, SS, LP, kA, kB):

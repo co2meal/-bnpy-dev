@@ -164,6 +164,11 @@ class SuffStatBag(object):
     self._MergeTerms.setField(key, value, dims=dims)
 
 
+  def hasSelectionTerm(self, key):
+    if not hasattr(self, '_SelectTerms'):
+      return False
+    return hasattr(self._SelectTerms, key)
+
   def hasSelectionTerms(self):
     return hasattr(self, '_SelectTerms')
 
