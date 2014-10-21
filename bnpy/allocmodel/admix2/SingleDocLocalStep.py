@@ -179,6 +179,10 @@ def calcELBO_SingleDoc_Dir(DocTopicCount_d, Prior_d, sumR_d,
     #L_slack = np.inner(DocTopicCount_d + alphaEbeta - theta_d, ElogPi_d) 
     #L_slackRem =  (alphaEbetaRem - thetaRem) * ElogPiRem
             
-  L_rest = np.inner(wc_d, np.log(sumR_d)) \
-           - np.inner(DocTopicCount_d, np.log(Prior_d+1e-100))
+  if isinstance(wc_d, float):
+    L_rest = np.sum(np.log(sumR_d))
+  else:
+    L_rest = np.inner(wc_d, np.log(sumR_d))
+
+  L_rest -= np.inner(DocTopicCount_d, np.log(Prior_d+1e-100))
   return L_cDir + L_rest  

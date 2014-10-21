@@ -51,9 +51,34 @@ MAXSEED = 1000000
   
 from bnpy.data import WordsData, XData, GroupXData
 
+Words_AllocToDataTypeMap = dict(
+  DPMixFull='WordsData',
+  HDPDir='WordsData'
+  )
+
+X_AllocToDataTypeMap = dict(
+  DPMixFull='XData',
+  HDPDir='GroupXData'
+  )
+
+def decideDataTypeFromModel(aModelType, oModelType):
+  if oModelType.count('Gauss'):
+    try:
+      return X_AllocToDataTypeMap[aModelType]
+    except KeyError:
+      return 'XData'
+  elif oModelType.count('Mult'):
+    try:
+      return Words_AllocToDataTypeMap[aModelType]
+    except KeyError:
+      return 'WordsData'
+  else:
+    raise ValueError('Unrecognized model combo: ' + aModelType + ' ' + oModelType)
+
+
 class DataIteratorFromDisk(object):
 
-  def __init__(self, datapath, nBatch=0, nLap=1, 
+  def __init__(self, datapath, aModelType='', oModelType='', nBatch=0, nLap=1, 
                      dataorderseed=42, startLap=0, **kwargs):
     ''' Create an iterator over batches saved to disk.
 
@@ -68,6 +93,7 @@ class DataIteratorFromDisk(object):
                         division of data into fixed set of batches
                         and random order for traversing batches during each lap
     '''
+    self.dtype = decideDataTypeFromModel(aModelType, oModelType)
     self.datapath = datapath
     self.nLap = nLap + int(startLap)
     
@@ -87,6 +113,8 @@ class DataIteratorFromDisk(object):
     ## Sort file list, in place, so we always have same order
     datafileList.sort()
 
+    ## Look for a file in the directory named "InitData.ldac" or "InitData.mat"
+    # If found, we only use that file for initialization!
     initfpath = None
     if datafileList[0].count('InitData') > 0:
       initfpath = datafileList.pop(0)
@@ -150,7 +178,7 @@ class DataIteratorFromDisk(object):
   def loadWholeDatasetInfo(self):
     ''' Load information about entire dataset from disk
     '''
-    self.totalSize, self.batchSize = get_total_size(self.datafileList)
+    self.totalSize, self.batchSize = self.get_total_size(self.datafileList)
     self.DataInfo = dict()
     if self.datafileList[0].endswith('.ldac'):
       vfilepath = os.path.join(self.datapath, 'vocab_size.conf')
@@ -162,13 +190,7 @@ class DataIteratorFromDisk(object):
       self.DataInfo['nDocTotal'] = self.totalSize
       return
 
-    dtype = 'XData'
-    dtypepath = os.path.join(self.datapath, 'data_type.conf')
-    if os.path.exists(dtypepath):
-      with open(dtypepath, 'r') as f:
-        dtype = f.readline().strip()
-    self.dtype = dtype
-    if dtype == 'GroupXData':
+    if self.dtype == 'GroupXData':
       self.DataInfo['nDocTotal'] = self.totalSize
     else:
       self.DataInfo['nObsTotal'] = self.totalSize
@@ -181,9 +203,9 @@ class DataIteratorFromDisk(object):
       return WordsData.LoadFromFile_ldac(dpath, **self.DataInfo)
     else:
       if self.dtype == 'GroupXData':
-        return GroupXData.LoadFromFile(dpath)
+        return GroupXData.LoadFromFile(dpath, **self.DataInfo)
       else:
-        return XData.LoadFromFile(dpath)
+        return XData.LoadFromFile(dpath, **self.DataInfo)
 
   def get_rand_order_for_batchIDs_current_lap(self):
     ''' Returns array of batchIDs, permuted in random order
@@ -199,7 +221,7 @@ class DataIteratorFromDisk(object):
     ''' Returns human-readable summary of this dataset's basic properties
     '''
     if not hasattr(self, 'totalSize'):
-      self.totalSize, self.batchSize = get_total_size(self.dataFileList)
+      self.totalSize, self.batchSize = self.get_total_size(self.dataFileList)
 
     s = '  total size: %d units\n' % (self.totalSize)
     s += '  median batch size: %d units\n' % (self.batchSize)
@@ -220,47 +242,51 @@ class DataIteratorFromDisk(object):
   def loadInitData(self):
     return self.loadDataForBatch(0)
 
+  ########################################################## Data sizes
+  ##########################################################
+  def get_total_size(self, datafileList):
+    totalSize = 0
+    curSizes = list()
+    for dfile in datafileList:
+      curSize = self.get_size_of_batch_from_file(dfile)
+      totalSize += curSize
+      curSizes.append(curSize)
+    return totalSize, np.median(curSizes) 
 
-def get_total_size(datafileList):
-  totalSize = 0
-  curSizes = list()
-  for dfile in datafileList:
-    curSize = get_size_of_batch_from_file(dfile)
-    totalSize += curSize
-    curSizes.append(curSize)
-  return totalSize, np.median(curSizes) 
-
-def get_size_of_batch_from_file(filepath):
-  if filepath.endswith('.ldac'):
-    with open(filepath, 'r') as f:
-      return len(f.readlines())
-  elif filepath.endswith('.mat'):
-    try:
-      MDict = scipy.io.loadmat(filepath, variable_names=['nObs'])
-      return MDict['nObs']
-    except:
-      MDict = scipy.io.loadmat(filepath, variable_names=['nDoc'])
-      return MDict['nDoc']
-  else:
-    with open(filepath, 'r') as f:
-      return len(f.readlines())
+  def get_size_of_batch_from_file(self, filepath):
+    if filepath.endswith('.ldac'):
+      with open(filepath, 'r') as f:
+        return len(f.readlines())
+    elif filepath.endswith('.mat'):
+      if self.dtype == 'XData':
+        MDict = scipy.io.loadmat(filepath, variable_names=['doc_range'])
+        return int(MDict['doc_range'][0,-1])
+      else:
+        MDict = scipy.io.loadmat(filepath, variable_names=['doc_range'])
+        return MDict['doc_range'].size - 1
+    else:
+      raise ValueError('Unrecognized file type: ' + filepath)
 
 if __name__ == '__main__':
   import argparse
   parser = argparse.ArgumentParser()
   parser.add_argument('path', default='')
+  parser.add_argument('--aModelType', default='HDP')
+  parser.add_argument('--oModelType', default='Mult')
   parser.add_argument('--nBatch', default=0, type=int)
   parser.add_argument('--nLap', default=1, type=int)
   args = parser.parse_args()
   path = args.path
 
   if os.path.exists(path):
-    DI = DataIteratorFromDisk(path, nLap=args.nLap, nBatch=args.nBatch)
+    DI = DataIteratorFromDisk(path, aModelType=args.aModelType,
+                                    oModelType=args.oModelType,
+                                    nLap=args.nLap, nBatch=args.nBatch)
     print DI.get_stats_summary()
 
     while DI.has_next_batch():
       Dchunk = DI.get_next_batch()
       try:
-        print DI.batchID, Dchunk.nDoc, Dchunk.X[0] 
+        print DI.batchID, Dchunk.nDoc, Dchunk.X[0].shape
       except:
-        print DI.batchID, Dchunk.nObs, Dchunk.X[0]
+        print DI.batchID, Dchunk.nObs, Dchunk.X[0].shape
