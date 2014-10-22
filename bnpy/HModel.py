@@ -164,12 +164,6 @@ class HModel(object):
       init.FromLP.init_global_params(self, Data, **initArgs)
     elif initname.count(os.path.sep) > 0:
       init.FromSaved.init_global_params(self, Data, **initArgs)
-<<<<<<< HEAD
-    elif initname.count('LP') > 0:
-      # Set global parameters using provided local params
-      raise NotImplementedError('TODO')
-=======
->>>>>>> master
     else:
       # Set hmodel global parameters "from scratch", in two stages
       # * init allocmodel to "uniform" prob over comps
@@ -181,13 +175,8 @@ class HModel(object):
         init.FromScratchMult.init_global_params(self.obsModel,
                                                 Data, **initArgs)
       elif str(type(self.obsModel)).count('BernRel') > 0:
-<<<<<<< HEAD
-        init.FromScratchBernRel.init_global_params(self.obsModel, 
-                                                   Data, **initArgs)
-=======
         init.FromScratchBernRel.init_global_params(self.obsModel,
                                                 Data, **initArgs)
->>>>>>> master
       else:
         raise NotImplementedError('Unrecognized initname procedure.')
       if 'K' in initArgs:

@@ -23,19 +23,12 @@ AllocModelConstructorsByName = { \
            'LDA':LDA,
            'HDPSB':HDPSB,
            'HDPPE':HDPPE,
-<<<<<<< HEAD
-           'HDPFullHard':HDPFullHard,
-           'HDPSoft2Hard':HDPSoft2Hard,
-           'HDPHardMult':HDPHardMult,
-           'HDPRelAssortModel':HDPRelAssortModel,
-           'FiniteHMT':FiniteHMT
-=======
            'HDPDir':HDPDir,
            'HDPFastRhoFixed':HDPFastRhoFixed,
            'HDPFast':HDPFast,
            'HDPTightPE':HDPTightPE,
            'DPMixFull':DPMixFull,
->>>>>>> master
+           'FiniteHMT':FiniteHMT
           }
 
 AllocModelNameSet = set(AllocModelConstructorsByName.keys())
