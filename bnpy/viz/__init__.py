@@ -1,11 +1,14 @@
 """
 The :mod:`viz` module provides visualization capability
 """
-# TODO: do a check for wxpython issues
 
 import GaussViz
 import BarsViz
 import PlotELBO
+import PlotK
 import PlotComps
+import PlotHeldoutLik
 
-__all__ = ['GaussViz', 'BarsViz', 'PlotELBO', 'PlotComps']
+__all__ = ['GaussViz', 'BarsViz',
+           'PlotELBO', 'PlotComps', 'PlotK',
+           'PlotHeldoutLik']

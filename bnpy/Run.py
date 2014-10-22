@@ -25,13 +25,15 @@ import sys
 import logging
 import numpy as np
 import bnpy
+import inspect
+
 from bnpy.ioutil import BNPYArgParser
 
 # Configure Logger
 Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
 
-FullDataAlgSet = ['EM','VB']
+FullDataAlgSet = ['EM', 'VB', 'GS']
 OnlineDataAlgSet = ['soVB', 'moVB']
 
 def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
@@ -67,9 +69,7 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
       Returns
       -------
       hmodel : best model fit to the dataset (across nTask runs)
-      LP : local parameters of that best model on the dataset
-      evBound : log evidence (ELBO) for the best model on the dataset
-                  scalar, real value where larger value implies better model
+      Info   : dict of information about this best model
   '''
   hasReqArgs = dataName is not None
   hasReqArgs &= allocModelName is not None
@@ -99,16 +99,15 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
   bestInfo = None
   bestEvBound = -np.inf
   for taskid in range(starttaskid, starttaskid + nTask):
-    hmodel, LP, Info = _run_task_internal(jobname, taskid, nTask,
+    hmodel, Info = _run_task_internal(jobname, taskid, nTask,
                       ReqArgs, KwArgs, UnkArgs,
                       dataName, allocModelName, obsModelName, algName,
                       doSaveToDisk, doWriteStdOut)
     if (Info['evBound'] > bestEvBound):
       bestModel = hmodel
-      bestLP = LP
       bestEvBound = Info['evBound']
       bestInfo = Info
-  return bestModel, bestLP, bestInfo
+  return bestModel, bestInfo
 
 ########################################################### RUN SINGLE TASK 
 ###########################################################
@@ -130,6 +129,33 @@ def _run_task_internal(jobname, taskid, nTask,
   algseed = createUniqueRandomSeed(jobname, taskID=taskid)
   dataorderseed = createUniqueRandomSeed('', taskID=taskid)
 
+  if algName in OnlineDataAlgSet:    
+     KwArgs[algName]['nLap'] = KwArgs['OnlineDataPrefs']['nLap']
+
+  if type(dataName) is str:
+    if os.path.exists(dataName):
+      ## dataName is a path to many data files on disk
+      Data, InitData = loadDataIteratorFromDisk(dataName, KwArgs, dataorderseed)
+      DataArgs = UnkArgs
+      # Set the short name for this dataset,
+      # so that the filepath for results is informative.
+      Data.name = KwArgs['OnlineDataPrefs']['datasetName']      
+    else:
+      DataArgs = getKwArgsForLoadData(ReqArgs, UnkArgs)  
+      Data, InitData = loadData(ReqArgs, KwArgs, DataArgs, dataorderseed)
+  else:
+    Data = dataName
+    InitData = dataName
+    DataArgs = dict()
+    assert isinstance(Data, bnpy.data.DataObj)
+    if algName in OnlineDataAlgSet:    
+      OnlineDataArgs = KwArgs['OnlineDataPrefs']
+      OnlineDataArgs['dataorderseed'] = dataorderseed
+
+      DataArgs = getKwArgsForLoadData(Data, UnkArgs)
+      OnlineDataArgs.update(DataArgs) # add custom args
+      Data = Data.to_iterator(**OnlineDataArgs)
+
   if doSaveToDisk:
     taskoutpath = getOutputPath(ReqArgs, KwArgs, taskID=taskid)
     createEmptyOutputPathOnDisk(taskoutpath)
@@ -138,46 +164,54 @@ def _run_task_internal(jobname, taskid, nTask,
     taskoutpath = None
   configLoggingToConsoleAndFile(taskoutpath, doSaveToDisk, doWriteStdOut)
   
-  if type(dataName) is str:   
-    Data, InitData = loadData(ReqArgs, KwArgs, UnkArgs, dataorderseed)
-  else:
-    Data = dataName
-    InitData = dataName
-    assert str(type(InitData)).count('bnpy.data') > 0
-    if algName in OnlineDataAlgSet:
-      KwArgs[algName]['nLap'] = KwArgs['OnlineDataPrefs']['nLap']
-      OnlineDataArgs = KwArgs['OnlineDataPrefs']
-      OnlineDataArgs['dataorderseed'] = dataorderseed
-      OnlineDataArgs.update(UnkArgs) # add custom args
-      Data = Data.to_minibatch_iterator(**OnlineDataArgs)
-
   # Create and initialize model parameters
   hmodel = createModel(InitData, ReqArgs, KwArgs)
-  hmodel.init_global_params(InitData, seed=algseed,
+  hmodel.init_global_params(InitData, seed=algseed, taskid=taskid,
                             **KwArgs['Initialization'])
 
   # Create learning algorithm
   learnAlg = createLearnAlg(Data, hmodel, ReqArgs, KwArgs,
-                              algseed=algseed, savepath=taskoutpath)
+                            algseed=algseed, savepath=taskoutpath)
+  if learnAlg.hasMove('birth'):
+    import bnpy.birthmove.BirthLogger as BirthLogger
+    BirthLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
+  if learnAlg.hasMove('delete'):
+    import bnpy.deletemove.DeleteLogger as DeleteLogger
+    DeleteLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
+  if learnAlg.hasMove('prune'):
+    import bnpy.deletemove.PruneLogger as PruneLogger
+    PruneLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
+  if learnAlg.hasMove('merge') or learnAlg.hasMove('softmerge'):
+    import bnpy.mergemove.MergeLogger as MergeLogger
+    MergeLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
 
-  # Check if running on grid
+  # Prepare special logs if we are running on the Brown CS grid
   try:
     jobID = int(os.getenv('JOB_ID'))
   except TypeError:
     jobID = 0
   if jobID > 0:
     Log.info('SGE Grid Job ID: %d' % (jobID))
-    # Create symlinks of the captured stdout, stdout and log in bnpy output directory
-    #  so everything is in the same place
-    os.symlink(os.getenv('SGE_STDOUT_PATH'), os.path.join(taskoutpath, 'stdout.log'))
-    os.symlink(os.getenv('SGE_STDERR_PATH'), os.path.join(taskoutpath, 'stderr.log'))
+    # Create symlinks to captured stdout, stdout in bnpy output directory
+    os.symlink(os.getenv('SGE_STDOUT_PATH'), 
+                          os.path.join(taskoutpath, 'stdout'))
+    os.symlink(os.getenv('SGE_STDERR_PATH'), 
+                          os.path.join(taskoutpath, 'stderr'))
 
   # Write descriptions to the log
   if taskid == 1 or jobID > 0:
+    ## Warn user about any unknown keyword arguments
+    showWarningForUnknownArgs(UnkArgs, DataArgs)
+
     Log.info(Data.get_text_summary())
-    Log.info(Data.summarize_num_observations())
-    if type(Data) != type(InitData):
-      Log.info(InitData.get_text_summary(doCommon=False))
+    if algName in OnlineDataAlgSet:
+      Log.info('Entire Dataset Summary:')
+      Log.info(Data.get_stats_summary())
+      Log.info('Data for Initialization:')
+      Log.info(InitData.get_stats_summary())
+    else:
+      Log.info(Data.get_stats_summary())
+
     Log.info(hmodel.get_model_info())
     Log.info('Learn Alg: %s' % (algName))
 
@@ -186,14 +220,26 @@ def _run_task_internal(jobname, taskid, nTask,
   Log.info('savepath: %s' % (taskoutpath))
 
   # Fit the model to the data!
-  LP, RunInfo = learnAlg.fit(hmodel, Data)
-  return hmodel, LP, RunInfo
-  
+  RunInfo = learnAlg.fit(hmodel, Data)
+  return hmodel, RunInfo
+
 
 ########################################################### Load Data
 ###########################################################
+def loadDataIteratorFromDisk(datapath, KwArgs, dataorderseed):
+  ''' Create a DataIterator from files stored on disk
+  '''
+  if 'OnlineDataPrefs' in KwArgs:
+    OnlineDataArgs = KwArgs['OnlineDataPrefs']
+    OnlineDataArgs['dataorderseed'] = dataorderseed
+
+  DataIterator = bnpy.data.DataIteratorFromDisk(datapath, **OnlineDataArgs)
+  InitData = DataIterator.loadInitData()
+  return DataIterator, InitData
+
 def loadData(ReqArgs, KwArgs, DataArgs, dataorderseed):
   ''' Load DataObj specified by the user, using particular random seed.
+
       Returns
       --------
       either 
@@ -213,6 +259,7 @@ def loadData(ReqArgs, KwArgs, DataArgs, dataorderseed):
       For full dataset learning scenarios, InitData can be the same as Data.
   '''
   datamod = __import__(ReqArgs['dataName'],fromlist=[])
+
   algName = ReqArgs['algName']
   if algName in FullDataAlgSet:
     Data = datamod.get_data(**DataArgs)
@@ -225,11 +272,61 @@ def loadData(ReqArgs, KwArgs, DataArgs, dataorderseed):
       OnlineDataArgs = KwArgs['OnlineDataPrefs']
       OnlineDataArgs['dataorderseed'] = dataorderseed
       OnlineDataArgs.update(DataArgs)
-      DataIterator = datamod.get_minibatch_iterator(**OnlineDataArgs)
+      if hasattr(datamod, 'get_iterator'):
+        ## Load custom iterator defined in data module
+        DataIterator = datamod.get_iterator(**OnlineDataArgs)
+      else:
+        ## Make an iterator over dataset provided by get_data        
+        DataIterator = InitData.to_iterator(**OnlineDataArgs)
     else:
-      DataIterator = None
+      raise ValueError('Online algorithm requires valid DataIterator args.')
+
     return DataIterator, InitData
   
+def getKwArgsForLoadData(ReqArgs, UnkArgs):
+  ''' Determine which keyword arguments can be passed to Data module
+
+      Returns
+      --------
+      DataArgs : dict passed as kwargs into DataModule's get_data method 
+  '''
+  if isinstance(ReqArgs, bnpy.data.DataObj):
+    datamod = ReqArgs
+  else:
+    datamod = __import__(ReqArgs['dataName'],fromlist=[])
+
+  ## Find subset of args that can provided to the Data module
+  dataArgNames = set()
+  if hasattr(datamod, 'get_data'):
+    names, varargs, varkw, defaults = inspect.getargspec(datamod.get_data)
+    for name in names:
+      dataArgNames.add(name)
+  if hasattr(datamod, 'get_iterator'):
+    names, varargs, varkw, defaults = inspect.getargspec(datamod.get_iterator)
+    for name in names:
+      dataArgNames.add(name)
+  if hasattr(datamod, 'to_iterator'):
+    names, varargs, varkw, defaults = inspect.getargspec(datamod.to_iterator)
+    for name in names:
+      dataArgNames.add(name)
+  if hasattr(datamod, 'Defaults'):
+    for name in datamod.Defaults.keys():
+      dataArgNames.add(name)
+  DataArgs = dict([(k,v) for k,v in UnkArgs.items() if k in dataArgNames])
+  return DataArgs
+
+def showWarningForUnknownArgs(UnkArgs, DataArgs=dict()):
+  isFirst = True
+  msg = 'WARNING: Found unrecognized keyword args. These are ignored.'
+  for name in UnkArgs.keys():
+    if name in DataArgs:
+      pass
+    else:
+      if isFirst:
+        Log.warning(msg)
+      isFirst = False
+      Log.warning('  --%s' % (name))
+
 ########################################################### Create Model
 ###########################################################
 def createModel(Data, ReqArgs, KwArgs):
@@ -252,7 +349,8 @@ def createModel(Data, ReqArgs, KwArgs):
   oName = ReqArgs['obsModelName']
   aPriorDict = KwArgs[aName]
   oPriorDict = KwArgs[oName]
-  hmodel = bnpy.HModel.CreateEntireModel(algName, aName, oName, aPriorDict, oPriorDict, Data)
+  hmodel = bnpy.HModel.CreateEntireModel(algName, aName, oName, 
+                                         aPriorDict, oPriorDict, Data)
   return hmodel  
 
 
@@ -268,25 +366,41 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
     -------
     learnAlg : LearnAlg [or subclass] object
                type is defined by string in ReqArgs['algName']
-                one of {'EM', 'VB', 'soVB', 'moVB'}
+                one of {'EM', 'VB', 'soVB', 'moVB','GS'}
   '''
   algName = ReqArgs['algName']
   algP = KwArgs[algName]
-  if 'birth' in KwArgs:
-    algP['birth'] = KwArgs['birth']
-  if 'merge' in KwArgs:
-    algP['merge'] = KwArgs['merge']
+  for moveKey in ['birth', 'softmerge', 'merge', 'shuffle', 'delete', 'prune']:
+    if moveKey in KwArgs:
+      algP[moveKey] = KwArgs[moveKey]
+
   outputP = KwArgs['OutputPrefs']
-  if algName == 'EM' or algName == 'VB':
-    learnAlg = bnpy.learnalg.VBLearnAlg(savedir=savepath, seed=algseed, \
+  hasMoves = 'birth' in KwArgs or 'merge' in KwArgs \
+             or 'shuffle' in KwArgs or 'delete' in KwArgs
+
+  if algName == 'EM':
+    learnAlg = bnpy.learnalg.EMAlg(savedir=savepath, seed=algseed,
+                                      algParams=algP, outputParams=outputP)
+  elif algName == 'VB':
+    learnAlg = bnpy.learnalg.VBAlg(savedir=savepath, seed=algseed,
                                       algParams=algP, outputParams=outputP)
   elif algName == 'soVB':
-    learnAlg = bnpy.learnalg.StochasticOnlineVBLearnAlg(savedir=savepath, seed=algseed, algParams=algP, outputParams=outputP)
-  elif algName == 'moVB':
-    learnAlg = bnpy.learnalg.MemoizedOnlineVBLearnAlg(savedir=savepath, seed=algseed, algParams=algP, outputParams=outputP)
+    learnAlg = bnpy.learnalg.SOVBAlg(savedir=savepath, seed=algseed,
+                                      algParams=algP, outputParams=outputP)
+  elif algName == 'moVB' and hasMoves:
+    learnAlg = bnpy.learnalg.MOVBBirthMergeAlg(savedir=savepath, seed=algseed, 
+                                      algParams=algP, outputParams=outputP)
+  elif algName == 'moVB' and not hasMoves:
+    learnAlg = bnpy.learnalg.MOVBAlg(savedir=savepath, seed=algseed, 
+                                      algParams=algP, outputParams=outputP)
+  elif algName == 'GS':
+    learnAlg = bnpy.learnalg.GSAlg(savedir=savepath, seed=algseed, 
+                                      algParams=algP, outputParams=outputP)  
   else:
     raise NotImplementedError("Unknown learning algorithm " + algName)
   return learnAlg
+
+
 
 
 ########################################################### Write Args to File
@@ -298,11 +412,6 @@ def writeArgsToFile( ReqArgs, KwArgs, taskoutpath ):
   import json
   ArgDict = ReqArgs
   ArgDict.update(KwArgs)
-  #RelevantOpts = dict(Initialization=1, OutputPrefs=1, OnlineDataPrefs=1, birth=1, merge=1)
-  #for key in ArgDict:
-  #  if key.count('Name') > 0:
-  #    RelevantOpts[ ArgDict[key] ] = 1
-  #print [k for k in ArgDict.keys()]
   for key in ArgDict:
     if key.count('Name') > 0:
       continue
@@ -340,11 +449,10 @@ def getOutputPath(ReqArgs, KwArgs, taskID=0 ):
   dataName = ReqArgs['dataName']
   if type(dataName) is not str:
     dataName = dataName.get_short_name()
+  if os.path.exists(dataName):
+    dataName = KwArgs['OnlineDataPrefs']['datasetName']
   return os.path.join(os.environ['BNPYOUTDIR'], 
                        dataName, 
-                       ReqArgs['allocModelName'],
-                       ReqArgs['obsModelName'],
-                       ReqArgs['algName'],
                        KwArgs['OutputPrefs']['jobname'], 
                        str(taskID) )
 
@@ -354,9 +462,9 @@ def createEmptyOutputPathOnDisk( taskoutpath ):
   '''
   from distutils.dir_util import mkpath
   # Ensure the path (including all parent paths) exists
-  mkpath( taskoutpath )
+  mkpath(taskoutpath)
   # Ensure the path has no data from previous runs
-  deleteAllFilesFromDir( taskoutpath )
+  deleteAllFilesFromDir(taskoutpath)
   
 def deleteAllFilesFromDir( savefolder, prefix=None ):
   '''  Erase (recursively) all contents of a folder
@@ -371,6 +479,9 @@ def deleteAllFilesFromDir( savefolder, prefix=None ):
       os.unlink(file_path)
 
 def configLoggingToConsoleAndFile(taskoutpath, doSaveToDisk=True, doWriteStdOut=True):
+  RootLog = logging.getLogger()
+  RootLog.handlers = []
+
   Log.handlers = [] # remove pre-existing handlers!
   formatter = logging.Formatter('%(message)s')
   ###### Config logger to save transcript of log messages to plain-text file  
@@ -385,10 +496,10 @@ def configLoggingToConsoleAndFile(taskoutpath, doSaveToDisk=True, doWriteStdOut=
     ch.setLevel(logging.DEBUG)
     ch.setFormatter(formatter)
     Log.addHandler(ch)
+
   ##### Config null logger, avoids error messages about no handler existing
   if not doSaveToDisk and not doWriteStdOut:
     Log.addHandler(logging.NullHandler())
-
 
 if __name__ == '__main__':
   run()

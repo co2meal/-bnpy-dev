@@ -35,7 +35,7 @@ import numpy as np
 import copy
 
 class ParamBag(object):
-  def __init__(self, K=0, D=0, doCollapseK1=False):
+  def __init__(self, K=0, doCollapseK1=False, **kwargs):
     ''' Create a ParamBag object with specified number of components.
         
         Args
@@ -44,7 +44,9 @@ class ParamBag(object):
         D : integer dimension of parameters this bag will contain
     '''
     self.K = K
-    self.D = D
+    self.D = 0
+    for key, val in kwargs.iteritems():
+      setattr(self, key, val)
     self._FieldDims = dict()
     self.doCollapseK1 = doCollapseK1
 
@@ -75,6 +77,22 @@ class ParamBag(object):
     for key, dims in self._FieldDims.items():
       curShape = getattr(self,key).shape
       self.setField(key, np.zeros(curShape), dims=dims)
+
+  ######################################################### Reorder components
+  #########################################################
+  def reorderComps(self, sortIDs):
+    ''' Rearrange internal order of all fields along dimension 'K'
+    '''
+    for key in self._FieldDims:
+      arr = getattr(self, key)
+      dims = self._FieldDims[key]
+      if arr.ndim == 0:
+        continue
+      if dims[0] == 'K' and 'K' not in dims[1:]:
+        arr = arr[sortIDs]
+      else:
+        raise NotImplementedError('TODO')
+      self.setField(key, arr, dims=dims)
 
   ######################################################### Insert components
   #########################################################

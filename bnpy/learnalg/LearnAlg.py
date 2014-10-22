@@ -8,13 +8,15 @@ Defines some generic routines for
   * printing progress updates to stdout
   * recording run-time
 '''
-from bnpy.ioutil import ModelWriter
-from bnpy.util import closeAtMSigFigs, isEvenlyDivisibleFloat
 import numpy as np
 import time
-import os
 import logging
+import os
+import sys
 import scipy.io
+
+from bnpy.ioutil import ModelWriter
+from bnpy.util import closeAtMSigFigs, isEvenlyDivisibleFloat
 
 Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
@@ -22,9 +24,7 @@ Log.setLevel(logging.DEBUG)
 class LearnAlg(object):
 
   def __init__(self, savedir=None, seed=0, 
-                     algParams=dict(), outputParams=dict(),
-                     onLapCompleteFunc=lambda:None, onFinishFunc=lambda:None,
-               ):
+                     algParams=dict(), outputParams=dict()):
     ''' Constructs and returns a LearnAlg object
     ''' 
     if type(savedir) == str:
@@ -39,10 +39,15 @@ class LearnAlg(object):
     self.evTrace = list()
     self.SavedIters = set()
     self.PrintIters = set()
-    self.nObsProcessed = 0
+    self.totalDataUnitsProcessed = 0
+    self.status = 'active. not converged.'
+
     self.algParamsLP = dict()
     for k,v in algParams.items():
       if k.count('LP') > 0:
+        if k == 'logdirLP' and v:
+          v = self.savedir
+          print v
         self.algParamsLP[k] = v
     
   def fit(self, hmodel, Data):
@@ -51,7 +56,7 @@ class LearnAlg(object):
 
         Returns
         -------
-        LP : local params dictionary of resulting model
+        Info : dict of diagnostics about this run
     '''
     pass
 
@@ -64,17 +69,17 @@ class LearnAlg(object):
     '''
     if isEvenlyDivisibleFloat(lap, 1.0):
       self.PRNG = np.random.RandomState(self.seed + int(lap))
-    
+
   def set_start_time_now(self):
     ''' Record start time (in seconds since 1970)
     '''
     self.start_time = time.time()    
 
-  def add_nObs(self, nObs):
+  def updateNumDataProcessed(self, N):
     ''' Update internal count of total number of data observations processed.
         Each lap thru dataset of size N, this should be updated by N
     '''
-    self.nObsProcessed += nObs
+    self.totalDataUnitsProcessed += N
 
   def get_elapsed_time(self):
     ''' Returns float of elapsed time (in seconds) since this object's
@@ -82,11 +87,12 @@ class LearnAlg(object):
     '''
     return time.time() - self.start_time
 
-  def buildRunInfo(self, evBound, status, nLap=None):
+  def buildRunInfo(self, **kwargs):
     ''' Create dict of information about the current run
     '''
-    return dict(evBound=evBound, status=status, nLap=nLap,
-                evTrace=self.evTrace, lapTrace=self.TraceLaps)
+    return dict(status=self.status,
+                evTrace=self.evTrace, lapTrace=self.TraceLaps,
+                **kwargs)
 
   ##################################################### Fcns for birth/merges
   ##################################################### 
@@ -97,7 +103,8 @@ class LearnAlg(object):
 
   ##################################################### Verify evidence
   #####################################################  grows monotonically
-  def verify_evidence(self, evBound=0.00001, prevBound=0, lapFrac=None):
+  def verify_evidence(self, evBound=0.00001, prevBound=0, 
+                            lapFrac=None):
     ''' Compare current and previous evidence (ELBO) values,
         verify that (within numerical tolerance) increases monotonically
     '''
@@ -106,17 +113,13 @@ class LearnAlg(object):
     if np.isinf(prevBound):
       return False
     isIncreasing = prevBound <= evBound
+
     M = self.algParams['convergeSigFig']
     isWithinTHR = closeAtMSigFigs(prevBound, evBound, M=M)
     mLPkey = 'doMemoizeLocalParams'
     if not isIncreasing and not isWithinTHR:
       serious = True
-      if self.hasMove('birth') \
-         and (len(self.BirthCompIDs) > 0 or len(self.ModifiedCompIDs) > 0):
-        warnMsg = 'ev decreased during a birth'
-        warnMsg += ' (so monotonic increase not guaranteed)\n'
-        serious = False
-      elif mLPkey in self.algParams and not self.algParams[mLPkey]:
+      if mLPkey in self.algParams and not self.algParams[mLPkey]:
         warnMsg = 'ev decreased when doMemoizeLocalParams=0'
         warnMsg += ' (so monotonic increase not guaranteed)\n'
         serious = False
@@ -131,116 +134,186 @@ class LearnAlg(object):
 
       if serious or not self.algParams['doShowSeriousWarningsOnly']:
         Log.error(prefix + warnMsg)
-    return isWithinTHR 
 
 
   #########################################################  Save to file
-  #########################################################  
-  def save_state(self, hmodel, iterid, lap, evBound, doFinal=False):
-    ''' Save state of the hmodel's global parameters and evBound
-    '''  
+  #########################################################
+  def isSaveDiagnosticsCheckpoint(self, lap, nMstepUpdates):
+    ''' Answer True/False whether to save trace stats now
+    '''
     traceEvery = self.outputParams['traceEvery']
     if traceEvery <= 0:
-      traceEvery = -1
-    doTrace = isEvenlyDivisibleFloat(lap, traceEvery) or iterid < 3
-    
-    if traceEvery > 0 and (doFinal or doTrace) and lap not in self.TraceLaps:
-      # Record current evidence
-      self.evTrace.append(evBound)
-      self.TraceLaps.add(lap)
+      return False
+    return isEvenlyDivisibleFloat(lap, traceEvery) \
+           or nMstepUpdates < 3 \
+           or lap in self.TraceLaps
 
-      # Exit here if we're not saving to disk
-      if self.savedir is None:
-        return
-    
-      # Record current state to plain-text files
-      with open( self.mkfile('laps.txt'), 'a') as f:        
-        f.write('%.4f\n' % (lap))
-      with open( self.mkfile('evidence.txt'), 'a') as f:        
-        f.write('%.9e\n' % (evBound))
-      with open( self.mkfile('nObs.txt'), 'a') as f:
-        f.write('%d\n' % (self.nObsProcessed))
-      with open( self.mkfile('times.txt'), 'a') as f:
-        f.write('%.3f\n' % (self.get_elapsed_time()))
-      if self.hasMove('birth') or self.hasMove('merge'):
-        with open( self.mkfile('K.txt'), 'a') as f:
-          f.write('%d\n' % (hmodel.obsModel.K))
+  def saveDiagnostics(self, lap, SS, evBound, ActiveIDVec=None):
+    ''' Save trace stats to disk
+    '''
+    if lap in self.TraceLaps:
+      return
+    self.TraceLaps.add(lap)
 
-    saveEvery = self.outputParams['saveEvery']
-    if saveEvery <= 0 or self.savedir is None:
+    # Record current evidence
+    self.evTrace.append(evBound)
+
+    # Exit here if we're not saving to disk
+    if self.savedir is None:
       return
 
-    doSave = isEvenlyDivisibleFloat(lap, saveEvery) or iterid < 3
-    if (doFinal or doSave) and iterid not in self.SavedIters:
-      self.SavedIters.add(iterid)
-      with open(self.mkfile('laps-saved-params.txt'), 'a') as f:        
-        f.write('%.4f\n' % (lap))
-      prefix = ModelWriter.makePrefixForLap(lap)
-      ModelWriter.save_model(hmodel, self.savedir, prefix,
-                              doSavePriorInfo=(iterid<1), doLinkBest=True)
+    if ActiveIDVec is None:
+      ActiveIDVec = np.arange(SS.K)    
 
-  # Define temporary function that creates files in this alg's output dir
+    # Record current state to plain-text files
+    with open( self.mkfile('laps.txt'), 'a') as f:        
+      f.write('%.4f\n' % (lap))
+    with open( self.mkfile('evidence.txt'), 'a') as f:        
+      f.write('%.9e\n' % (evBound))
+    with open( self.mkfile('times.txt'), 'a') as f:
+      f.write('%.3f\n' % (self.get_elapsed_time()))
+    with open( self.mkfile('K.txt'), 'a') as f:
+      f.write('%d\n' % (SS.K))
+    with open( self.mkfile('total-data-processed.txt'), 'a') as f:
+      f.write('%d\n' % (self.totalDataUnitsProcessed))
+
+    # Record active counts in plain-text files
+    counts = None
+    try:
+      counts = SS.N
+    except AttributeError:
+      counts = SS.SumWordCounts
+    
+    assert counts.ndim == 1
+    counts = np.asarray(counts, dtype=np.float32)
+    np.maximum(counts, 0, out=counts)
+    with open(self.mkfile('ActiveCounts.txt'), 'a') as f:
+      flatstr = ' '.join(['%.3f' % x for x in counts])
+      f.write(flatstr+'\n')
+
+    with open(self.mkfile('ActiveIDs.txt'), 'a') as f:
+      flatstr = ' '.join(['%d' % x for x in ActiveIDVec])
+      f.write(flatstr+'\n')
+
+  ######################################################### Convergence
+  #########################################################
+  def isCountVecConverged(self, Nvec, prevNvec):
+    if Nvec.size != prevNvec.size:
+      ## Warning: the old value of maxDiff is still used for printing
+      return False 
+
+    maxDiff = np.max(np.abs(Nvec - prevNvec))
+    isConverged = maxDiff < self.algParams['convergeThr']
+    CInfo = dict(isConverged=isConverged,
+                 maxDiff=maxDiff
+                 )
+    self.ConvergeInfo = CInfo
+    return isConverged
+
+  ######################################################### Save Full Model
+  #########################################################
+  def isSaveParamsCheckpoint(self, lap, nMstepUpdates):
+    ''' Answer True/False whether to save full model now
+    '''
+    saveEvery = self.outputParams['saveEvery']
+    if saveEvery <= 0 or self.savedir is None:
+      return False
+    return isEvenlyDivisibleFloat(lap, saveEvery) \
+           or nMstepUpdates < 3 \
+           or np.allclose(lap, 1.0)
+
+
+  def saveParams(self, lap, hmodel, SS=None):
+    ''' Save current model to disk
+    '''
+    if lap in self.SavedIters or self.savedir is None:
+      return
+    self.SavedIters.add(lap)
+
+    prefix = ModelWriter.makePrefixForLap(lap)
+
+    with open(self.mkfile('laps-saved-params.txt'), 'a') as f:        
+      f.write('%.4f\n' % (lap))
+
+    if self.outputParams['doSaveFullModel']:
+      ModelWriter.save_model(hmodel, self.savedir, prefix,
+                             doSavePriorInfo=np.allclose(lap, 0.0),
+                             doLinkBest=True,
+                             doSaveObsModel=self.outputParams['doSaveObsModel'])
+
+    if self.outputParams['doSaveTopicModel']:
+      ModelWriter.saveTopicModel(hmodel, SS, self.savedir, prefix)
+
   def mkfile(self, fname):
     return os.path.join(self.savedir, fname)
 
-  def getFileWriteMode(self):
-    if self.savedir is None:
-      return None
-    return 'a'
-    
-  ######################################################### Plot Results
-  ######################################################### 
-  def plot_results(self, hmodel, Data, LP):
-    ''' Plot learned model parameters
-    '''
-    pass
+  def setStatus(self, lapFrac, isConverged):
+    nLapsCompleted = lapFrac - self.algParams['startLap']
+
+    minLapReq = np.minimum(self.algParams['nLap'], self.algParams['minLaps'])
+    minLapsCompleted = nLapsCompleted >= minLapReq    
+    if isConverged and minLapsCompleted:
+      self.status = "done. converged."
+    elif isConverged:
+      self.status = "active. converged but minLaps requirement unfinished."
+    elif nLapsCompleted < self.algParams['nLap']:
+      self.status = "active. not converged."
+    else:
+      self.status = "done. not converged. max laps thru data exceeded." 
+
+    if self.savedir is not None:
+      with open(self.mkfile('status.txt'), 'w') as f:
+        f.write(self.status+'\n')
 
   #########################################################  Print State
-  #########################################################  
-  def print_state(self, hmodel, iterid, lap, evBound, doFinal=False, status='', rho=None):
+  #########################################################
+  def isLogCheckpoint(self, lap, nMstepUpdates):
+    ''' Answer True/False whether to save full model now
+    '''
     printEvery = self.outputParams['printEvery']
     if printEvery <= 0:
-      return None
-    doPrint = iterid < 3 or isEvenlyDivisibleFloat(lap, printEvery)
-  
+      return False
+    return isEvenlyDivisibleFloat(lap, printEvery) or nMstepUpdates < 3
+
+  def printStateToLog(self, hmodel, evBound, lap, iterid, isFinal=0, rho=None):
+    if hasattr(self, 'ConvergeInfo') and 'maxDiff' in self.ConvergeInfo:
+      countStr = 'Ndiff %10.3f' % (self.ConvergeInfo['maxDiff'])
+    else:
+      countStr = ''
+
     if rho is None:
       rhoStr = ''
     else:
-      rhoStr = '%.4f |' % (rho)
+      rhoStr = '| lrate %.4f' % (rho)
 
     if iterid == lap:
       lapStr = '%7d' % (lap)
     else:
       lapStr = '%7.3f' % (lap)
-
     maxLapStr = '%d' % (self.algParams['nLap'] + self.algParams['startLap'])
     
-    logmsg = '  %s/%s after %6.0f sec. | K %4d | ev % .9e %s'
-    # Print asterisk for early iterations of memoized,
-    #  before the method has made one full pass thru data
-    if self.__class__.__name__.count('Memo') > 0:
-      if lap < self.algParams['startLap'] + 1.0:
-        logmsg = '  %s/%s after %6.0f sec. | K %4d |*ev % .9e %s'
-
+    logmsg = '  %s/%s after %6.0f sec. | K %4d | ev % .9e | %s %s'
     logmsg = logmsg % (lapStr, 
-                        maxLapStr,
-                        self.get_elapsed_time(),
-                        hmodel.allocModel.K,
-                        evBound, 
-                        rhoStr)
+                       maxLapStr,
+                       self.get_elapsed_time(),
+                       hmodel.allocModel.K,
+                       evBound, 
+                       countStr, 
+                       rhoStr)
 
-    if (doFinal or doPrint) and iterid not in self.PrintIters:
+    if iterid not in self.PrintIters:
       self.PrintIters.add(iterid)
       Log.info(logmsg)
-    if doFinal:
-      Log.info('... done. %s' % (status))
-      
+    if isFinal:
+      Log.info('... %s' % (self.status))
+
   def print_msg(self, msg):
       ''' Prints a string msg to stdout,
             without needing to import logging method into subclass. 
       '''
       Log.info(msg)
 
+  ######################################################### Checkpoints
   #########################################################
   def isFirstBatch(self, lapFrac):
     ''' Returns True/False for whether given batch is last (for current lap)
@@ -267,22 +340,52 @@ class LearnAlg(object):
       return False
     return (nLapTotal <= 5) or (lapFrac <= np.ceil(frac * nLapTotal))
 
-  def eval_custom_func(self, hmodel, iterid, lapFrac):
-      ''' Evaluates a custom hook function called customFunc.py in the path specified in algParams['customFuncPath']
+  def doMergePrepAtLap(self, lapFrac):
+    if 'merge' not in self.algParams:
+      return False
+    return lapFrac > self.algParams['merge']['mergeStartLap'] \
+           and self.isFirstBatch(lapFrac)
+
+  ######################################################### Custom Func
+  #########################################################
+  def eval_custom_func(self, isFinal=0, lapFrac=0, **kwargs):
+      ''' Evaluates a custom hook function 
       '''
-      import ast
-      customFuncPath = self.algParams['customFuncPath']
-      customFuncArgs_string = self.algParams['customFuncArgs']
+      cFuncPath = self.outputParams['customFuncPath']
+      if cFuncPath is None or cFuncPath == 'None':
+        return None
+
+      cFuncArgs_string = self.outputParams['customFuncArgs']
       nLapTotal = self.algParams['nLap']
-      percentDone = lapFrac/nLapTotal
-      if customFuncPath is not None and customFuncPath != 'None':
-        import sys
-        sys.path.append(customFuncPath)
-        customFuncArgs = {}
-        import customFunc
-        if lapFrac % 1 != 0:
-            customFunc.onBatchComplete(hmodel, percentDone , customFuncArgs)
-        elif lapFrac % 1 == 0 and lapFrac < nLapTotal:
-            customFunc.onLapComplete(hmodel, percentDone , customFuncArgs)
-        else:
-            customFunc.onAlgorithmComplete(hmodel, percentDone , customFuncArgs)
+      if type(cFuncPath) == str:
+        pathParts = cFuncPath.split(os.path.sep)
+        cFuncDir = os.path.sep.join( pathParts[:-1])
+        cFuncModName = pathParts[-1].split('.py')[0]
+        sys.path.append(cFuncDir)
+        cFuncModule = __import__(cFuncModName, fromlist=[]) 
+      else:
+        cFuncModule = cFuncPath # directly passed in as object
+      
+      kwargs['lapFrac'] = lapFrac
+      kwargs['isFinal'] = isFinal
+      if hasattr(cFuncModule, 'onBatchComplete') and not isFinal:
+        cFuncModule.onBatchComplete(args=cFuncArgs_string, **kwargs)
+      if hasattr(cFuncModule, 'onLapComplete') \
+         and isEvenlyDivisibleFloat(lapFrac, 1.0) and not isFinal:
+        cFuncModule.onLapComplete(args=cFuncArgs_string, **kwargs)
+      if hasattr(cFuncModule, 'onAlgorithmComplete') \
+         and isFinal:
+         cFuncModule.onAlgorithmComplete(args=cFuncArgs_string, **kwargs)
+
+def makeDictOfAllWorkspaceVars(**kwargs):
+  ''' Create dict of all active variables in workspace
+
+      Necessary to avoid call to self.
+  '''
+  if 'self' in kwargs:
+    kwargs['learnAlg'] = kwargs.pop('self')
+
+  for key in kwargs:
+    if key.startswith('_'):
+      kwargs.pop(key)
+  return kwargs

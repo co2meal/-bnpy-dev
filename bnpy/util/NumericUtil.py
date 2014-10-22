@@ -11,7 +11,6 @@ Library of efficient vectorized implementations of
 * calcRlogR_specificpairs
 
 '''
-
 import os
 import ConfigParser
 import ctypes
@@ -69,14 +68,16 @@ def inplaceExp_numexpr(R):
 
 ########################################################### exp and normalize
 ###########################################################
-def inplaceExpAndNormalizeRows(R):
+def inplaceExpAndNormalizeRows(R, minVal=1e-40):
   ''' Calculate exp in numerically stable way (first subtract max),
        and normalize the rows, all done in-place on the input matrix.
   '''
   if Config['inplaceExpAndNormalizeRows'] == "numexpr" and hasNumexpr:
-    return inplaceExpAndNormalizeRows_numexpr(R)
+    inplaceExpAndNormalizeRows_numexpr(R)
   else:  
-    return inplaceExpAndNormalizeRows_numpy(R)
+    inplaceExpAndNormalizeRows_numpy(R)
+  if minVal is not None:
+    np.maximum(R, minVal, out=R)
 
 def inplaceExpAndNormalizeRows_numpy(R):
   ''' Calculate exp in numerically stable way (first subtract max),
@@ -182,6 +183,53 @@ def calcRlogR_allpairs_numexpr(R):
 
 def calcRlogR_allpairs_c(R):
   return LibRlogR.calcRlogR_allpairs_c(R)
+
+########################################################### specific-pairs
+###########################################################  RlogR
+def calcRlogR_specificpairs(R, mPairs):
+  ''' Calculate \sum_n R[n] log R[n]
+
+      Uses faster numexpr library if available, but safely falls back
+        to plain numpy otherwise.      
+
+      Args
+      --------
+      R : NxK matrix
+      mPairs : list of possible merge pairs, where each pair is a tuple
+                 [(a,b), (c,d), (e,f)]
+
+      Returns
+      --------
+      Z : KxK matrix, where Z[a,b] = v dot (Rab*log(Rab)), Rab = R[:,a] + R[:,b]
+          only upper-diagonal entries of Z specified by mPairs are non-zero,
+          since we restrict potential pairs a,b to satisfy a < b
+  '''
+  if Config['calcRlogR'] == "numexpr" and hasNumexpr:
+    return calcRlogR_specificpairs_numexpr(R, mPairs)
+  else:  
+    return calcRlogR_specificpairs_numpy(R, mPairs)
+
+def calcRlogR_specificpairs_numpy(R, mPairs):
+  K = R.shape[1]
+  ElogqZMat = np.zeros((K,K))
+  if K == 1:
+    return ElogqZMat
+  for kA, kB in mPairs:
+    curR = R[:,kA] + R[:, kB]
+    curR *= np.log(curR)
+    ElogqZMat[kA, kB] = np.sum(curR, axis=0)
+  return ElogqZMat
+
+def calcRlogR_specificpairs_numexpr(R, mPairs):
+  K = R.shape[1]
+  ElogqZMat = np.zeros((K, K))
+  if K == 1:
+    return ElogqZMat
+  for (kA, kB) in mPairs:
+    curR = R[:,kA] + R[:, kB]
+    ElogqZMat[kA,kB] = ne.evaluate("sum(curR * log(curR), axis=0)")
+  return ElogqZMat
+
 
 ########################################################### all-pairs
 ###########################################################  RlogRdotv
@@ -381,10 +429,15 @@ def runTimingExperiment_calcRlogRdotv(N=2e5, D=100, repeat=3):
 hasNumexpr = True
 try:
   import numexpr as ne
-  if 'OMP_NUM_THREADS' in os.environ:
-    ne.set_num_threads(os.environ['OMP_NUM_THREADS'])
-except:
+except ImportError:
   hasNumexpr = False
-
+if hasNumexpr and 'OMP_NUM_THREADS' in os.environ:
+  try:
+    nThreads = int(os.environ['OMP_NUM_THREADS'])
+    ne.set_num_threads(nThreads)
+  except TypeError, ValueError:
+    print 'Unrecognized OMP_NUM_THREADS', os.environ['OMP_NUM_THREADS']
+    pass
+ 
 LoadConfig()
 

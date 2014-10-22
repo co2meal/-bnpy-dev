@@ -3,16 +3,16 @@
 
 from DiagGaussObsModel import DiagGaussObsModel
 from GaussObsModel import GaussObsModel
-from ZMGaussObsModel import ZMGaussObsModel
+from ZeroMeanGaussObsModel import ZeroMeanGaussObsModel
+from AutoRegGaussObsModel import AutoRegGaussObsModel
 from MultObsModel import MultObsModel
-from BernRelObsModel import BernRelObsModel
 
 ObsModelConstructorsByName = { \
            'DiagGauss':DiagGaussObsModel,
            'Gauss':GaussObsModel,
-           'ZMGauss':ZMGaussObsModel,
-           'Mult':MultObsModel,
-           'BernRel':BernRelObsModel,
+           'ZeroMeanGauss':ZeroMeanGaussObsModel,
+           'AutoRegGauss':AutoRegGaussObsModel,
+           'Mult':MultObsModel,           
           }
 
 ObsModelNameSet = set(ObsModelConstructorsByName.keys())

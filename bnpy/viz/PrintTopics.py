@@ -20,95 +20,158 @@ import numpy as np
 import argparse
 import os
 import sys
+
 import bnpy
-import PlotELBO
+from bnpy.ioutil.ModelReader import loadWordCountMatrixForLap, loadModelForLap
 
-def loadData(jobpath):
-  ''' Load in bnpy Data obj associated with given learning task.
-      TODO: make dataseed work
+STYLE = """
+<style>
+pre {line-height:13px; font-size:13px; display:inline; color:black;}
+h2 {line-height:16px; font-size:16px; color:gray; text-align:center; padding:0px; margin:0px;}
+td {padding-top:5px; padding-bottom:5px;}
+</style>
+"""
+
+def showTopWordsForTask(taskpath, vocabfile, lap=None, doHTML=1, 
+                                   doCounts=1, **kwargs):
+  ''' Print top words for each topic from results saved on disk.
+
+      Returns
+      -------
+      html : string, ready-to-print to display of the top words
   '''
-  bnpyoutdir = os.environ['BNPYOUTDIR']
-  subdirpath = jobpath[len(bnpyoutdir):]
-  fields = subdirpath.split(os.path.sep)
-  dataname = fields[0]
-  sys.path.append(os.environ['BNPYDATADIR'])
-  datamodulepath = os.path.join(os.environ['BNPYDATADIR'], dataname+".py")
-  if not os.path.exists(datamodulepath):
-    raise ValueError("Could not find data %s" % (dataname))
-  datamod = __import__(dataname, fromlist=[])
-  return datamod.get_data()
-  
-def plotData(Data, nObsPlot=5000):
-  ''' Plot data items, at most nObsPlot distinct points (for quick rendering)
-  '''
-  if type(Data) == bnpy.data.XData:
-    PRNG = np.random.RandomState(nObsPlot)
-    pIDs = PRNG.permutation(Data.nObs)[:nObsPlot]
-    pylab.plot(Data.X[pIDs,0], Data.X[pIDs,1], 'k.')  
-  
-def main():
-  parser = argparse.ArgumentParser()  
-  parser.add_argument('dataName', type=str,
-        help='name of python script that produces data to analyze.')
-  parser.add_argument('allocModelName', type=str,
-        help='name of allocation model. {MixModel, DPMixModel}')
-  parser.add_argument('obsModelName', type=str,
-        help='name of observation model. {Gauss, ZMGauss}')
-  parser.add_argument('algName', type=str,
-        help='name of learning algorithms to consider, {EM, VB, moVB, soVB}.')
-  parser.add_argument('--jobname', type=str, default='defaultjob',
-        help='name of experiment whose results should be plotted')
-  parser.add_argument('--topW', type=int, default=10,
-        help='the number of top words printed for a given topic')        
-  parser.add_argument('--taskids', type=str, default=None,
-        help="int ids for tasks (individual runs) of the given job to plot." + \
-              'Ex: "1" or "3" or "1,2,3" or "1-6"')
-  parser.add_argument('--savefilename', type=str, default=None,
-        help="absolute path to directory to save figure")
-  parser.add_argument('--iterid', type=int, default=None)
-  args = parser.parse_args()
+  with open(vocabfile, 'r') as f:
+    vocabList = [x.strip() for x in f.readlines()]
 
-
-  rootpath = os.path.join(os.environ['BNPYOUTDIR'], args.dataName, \
-                              args.allocModelName, args.obsModelName)
-  jobpath = os.path.join(rootpath, args.algName, args.jobname)
-
-  if not os.path.exists(jobpath):
-    raise ValueError("No such path: %s" % (jobpath))
-  
-  taskids = PlotELBO.parse_task_ids(jobpath, args.taskids)
-
-  Data = loadData(jobpath)
-
-  if args.savefilename is not None and len(taskids) > 0:
-    try:
-      args.savefilename % ('1')
-    except TypeError:
-      raise ValueError("Missing or bad format string in savefilename %s" %  
-                        (args.savefilename)
-                      )
-     
-  for taskid in taskids:
-    taskpath = os.path.join(jobpath, taskid)
-    if args.iterid is None:
-      prefix = "Best"
+  if doCounts and (lap is None or lap > 0):
+    WordCounts = loadWordCountMatrixForLap(taskpath, lap)
+    countVec = WordCounts.sum(axis=1)
+    if doHTML:
+     return htmlTopWordsFromWordCounts(WordCounts, vocabList, countVec=countVec,
+                                       **kwargs)
     else:
-      prefix = "Iter%05d" % (args.iterid)
-    hmodel = bnpy.ioutil.ModelReader.load_model(taskpath, prefix)
-    # Print top words across all topics
-    learnedK = hmodel.allocModel.K
-    savefid = taskpath + "/top_words.txt"
-    fid = open(savefid,'w+')
-    for k in xrange(learnedK):
-        lamvec = hmodel.obsModel.comp[k].lamvec
-        elamvec = lamvec / lamvec.sum()
-        topW_ind = np.argsort(elamvec)[-args.topW:]
-        for w in xrange(args.topW):
-            word = str(Data.vocab_dict[topW_ind[w]])
-            fid.write( word + ", " )
-        fid.write("...\n")
-    fid.close()
-  
-if __name__ == "__main__":
-  main()
+     return printTopWordsFromWordCounts(WordCounts, vocabList)
 
+  else:
+    hmodel, lap = loadModelForLap(taskpath, lap)
+    if doHTML:
+      return htmlTopWordsFromHModel(hmodel, vocabList, **kwargs)
+    else:
+      return printTopWordsFromHModel(hmodel, vocabList)
+
+########################################################### HTML
+########################################################### 
+
+def htmlTopWordsFromWordCounts(WordCounts, vocabList, order=None, Ktop=10,
+                               ncols=5, maxKToDisplay=50, countVec=None,
+                               activeCompIDs=None, **kwargs):
+  K, W = WordCounts.shape
+  if order is None:
+    order = np.arange(K)
+  if activeCompIDs is None:
+    activeCompIDs = np.arange(K)
+  if countVec is None:
+    countVec = np.sum(WordCounts, axis=1)
+
+  htmllines = list()
+  htmllines.append(STYLE)
+  htmllines.append('<table>')
+  for posID, compID in enumerate(order[:maxKToDisplay]):
+    if posID % ncols == 0:
+      htmllines.append('  <tr>')
+
+    k = np.flatnonzero(activeCompIDs == compID)
+    if len(k) == 1:
+      k = k[0]
+      titleline = '<h2> %6d </h2>' % (countVec[k])
+      htmllines.append('    <td>' + titleline)
+      htmllines.append('    <pre>')
+      topIDs = np.argsort(-1*WordCounts[k])[:Ktop]
+      for topID in topIDs:
+        dataline = '%5d %s ' % (WordCounts[k, topID], vocabList[topID][:16])
+        htmllines.append(dataline)    
+      htmllines.append('    </pre></td>')
+    else:
+      htmllines.append('    <td></td>')
+
+    if posID % ncols == ncols-1:
+      htmllines.append(' </tr>')
+  htmllines.append('</table>')
+  return '\n'.join(htmllines)
+
+def htmlTopWordsFromHModel(hmodel, vocabList, order=None, Ktop=10,
+                           ncols=5, maxKToDisplay=50, activeCompIDs=None,
+                           **kwargs):
+  try:
+    topics = hmodel.obsModel.EstParams.phi
+  except AttributeError:
+    hmodel.obsModel.setEstParamsFromPost(hmodel.obsModel.Post)
+    topics = hmodel.obsModel.EstParams.phi
+  K, W = topics.shape
+  if order is None:
+    order = np.arange(K)
+  if activeCompIDs is None:
+    activeCompIDs = np.arange(K)
+
+  htmllines = list()
+  htmllines.append(STYLE)
+  htmllines.append('<table>')
+  
+  for posID, compID in enumerate(order[:maxKToDisplay]):
+    if posID % ncols == 0:
+      htmllines.append('  <tr>')
+
+    k = np.flatnonzero(activeCompIDs == compID)
+    if len(k) == 1:
+      k = k[0]
+      htmllines.append('    <td><pre>')
+      topIDs = np.argsort(-1*topics[k])[:Ktop]
+      for topID in topIDs:
+        dataline = ' %.3f %s ' % (topics[k, topID], vocabList[topID][:16])
+        htmllines.append(dataline)    
+      htmllines.append('    </pre></td>')
+
+    else:
+      htmllines.append('   <td></td>')
+    
+    if posID % ncols == ncols-1:
+      htmllines.append(' </tr>')
+  htmllines.append('</table>')
+  return '\n'.join(htmllines)
+
+
+########################################################### Printing
+########################################################### 
+
+def printTopWordsFromHModel(hmodel, vocabList, **kwargs):
+  try:
+    topics = hmodel.obsModel.EstParams.phi
+  except AttributeError:
+    hmodel.obsModel.setEstParamsFromPost(hmodel.obsModel.Post)
+    topics = hmodel.obsModel.EstParams.phi
+  printTopWordsFromTopics(topics, vocabList, **kwargs)
+
+def printTopWordsFromWordCounts(WordCounts, vocabList, order=None, Ktop=10):
+  K, W = WordCounts.shape
+  if order is None:
+    order = np.arange(K)
+  N = np.sum(WordCounts, axis=1)
+  for posID, k in enumerate(order):
+    print '----- topic %d. count %5d.' % (k, N[k])
+
+    topIDs = np.argsort(-1*WordCounts[k])
+    for wID in topIDs[:Ktop]:
+      print '%3d %s' % (WordCounts[k, wID], vocabList[wID])
+
+def printTopWordsFromTopics(topics, vocabList, Ktop=10):  
+  K, W = topics.shape
+  for k in xrange(K):
+    topIDs = np.argsort(-1*topics[k])
+    for wID in topIDs[:Ktop]:
+      print '%.3f %s' % (topics[k, wID], vocabList[wID])
+
+########################################################### Main
+########################################################### 
+if __name__ == "__main__":
+  print showTopWordsForTask('/results/nips/defaultjob/1/',
+                            '/data/nips/vocab.txt', doCounts=0)
