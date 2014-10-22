@@ -18,6 +18,7 @@ class FiniteHMT(AllocModel):
         self.transPi = None
         self.maxBranch = 4
         self.set_prior(**priorDict)
+        #self.image = 0
 
     def set_prior(self, alpha0=1.0, **kwargs):
         self.alpha0 = alpha0
@@ -30,9 +31,12 @@ class FiniteHMT(AllocModel):
         if self.inferType.count('VB') > 0:
             print 'inferType VB not yet supported for FiniteHMT'
         elif self.inferType == 'EM' > 0:
-            #encoding = HMTViterbi.ViterbiAlg(self.initPi, self.transPi, lpr)
+            encoding = HMTViterbi.ViterbiAlg(self.initPi, self.transPi, lpr)
             #plt.scatter(Data.X[:,0], Data.X[:,1], c=encoding, alpha=.7)
             #plt.show()
+            #if self.image % 5 == 0:
+            #    plt.savefig('/home/mterzihan/Desktop/denoising/trial/%d.png' % self.image)
+            #self.image = self.image+1
             resp, respPair, logMargPrSeq = HMTUtil.SumProductAlg_QuadTree(self.initPi, self.transPi, lpr)
             LP.update({'resp':resp})
             LP.update({'respPair':respPair})
