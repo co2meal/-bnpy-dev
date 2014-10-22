@@ -87,7 +87,8 @@ def plotBarsFromHModel(hmodel, Data=None, doShowNow=False, figH=None,
     pylab.show()
   return figH
 
-def plotBarsForTopicMATFile(matfilename, sortBy=None, levels=None,
+def plotBarsForTopicMATFile(matfilename, sortBy=None, keepWorst=0,
+                            levels=None, worstThr=0.01,
                             Kmax=20, **kwargs):
   import bnpy.ioutil
   if isinstance(matfilename, np.ndarray):
@@ -109,7 +110,22 @@ def plotBarsForTopicMATFile(matfilename, sortBy=None, levels=None,
     topics /= topics.sum(axis=1)[:,np.newaxis]
   if sortBy == 'probs':
     sortIDs = np.argsort(-1*probs)
-    topics = topics[sortIDs[:Kmax]]
+    if keepWorst > 0:
+      probs = probs[sortIDs]
+      worstLoc = 0
+      while (probs[worstLoc-1] < worstThr):
+        worstLoc -= 1
+      L = len(sortIDs)
+      sortIDs = sortIDs[:L+worstLoc]
+      probs = probs[:L+worstLoc]
+      print probs[-1], '<<<< first above cutoff'
+      keepIDs = np.hstack([sortIDs[:(Kmax-keepWorst)], sortIDs[-keepWorst:]])
+      print probs[:(Kmax-keepWorst)]
+      print probs[-keepWorst:]
+      print len(sortIDs), '<<< count above cutoff'
+      topics = topics[keepIDs]
+    else:
+      topics = topics[sortIDs[:Kmax]]
   showTopicsAsSquareImages(topics, Kmax=Kmax, **kwargs)
 
 def showTopicsAsSquareImages(topics, 
