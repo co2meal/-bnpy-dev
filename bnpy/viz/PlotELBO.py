@@ -57,8 +57,11 @@ def plotJobs(jpaths, legNames, styles=None, density=2,
   ''' Create line plots for provided jobs 
   '''
   nLines = len(jpaths)
+  if nLines == 0:
+    raise ValueError('Empty job list. Nothing to plot.')
+
   nLeg = len(legNames)
-  assert nLines == nLeg
+  
   for lineID in xrange(nLines):
     if styles is None:
       curStyle = dict(colorID=lineID)
