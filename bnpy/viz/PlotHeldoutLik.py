@@ -116,15 +116,7 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
     hpaths = glob.glob(os.path.join(taskoutpath, '*' + fileSuffix))
     txtpaths = glob.glob(os.path.join(taskoutpath, 'predlik-*.txt'))
 
-    if len(hpaths) > 0:  
-      hpaths.sort()
-      basenames = [x.split(os.path.sep)[-1] for x in hpaths];
-      xs = np.asarray([float(x[3:11]) for x in basenames]);
-      ys = np.zeros_like(xs)
-      for ii, hpath in enumerate(hpaths):
-        MatVars = scipy.io.loadmat(hpath)
-        ys[ii] = float(MatVars['avgPredLL'])
-    elif len(txtpaths) > 0:
+    if len(txtpaths) > 0:
       laps = np.loadtxt(os.path.join(taskoutpath, 'predlik-lapTrain.txt'))
       Ks = np.loadtxt(os.path.join(taskoutpath, 'predlik-K.txt'))
       if xvar == 'laps':
@@ -137,8 +129,16 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
         mask = laps > minLap
         xs = xs[mask]
         ys = ys[mask]
+    elif len(hpaths) > 0:  
+      hpaths.sort()
+      basenames = [x.split(os.path.sep)[-1] for x in hpaths];
+      xs = np.asarray([float(x[3:11]) for x in basenames]);
+      ys = np.zeros_like(xs)
+      for ii, hpath in enumerate(hpaths):
+        MatVars = scipy.io.loadmat(hpath)
+        ys[ii] = float(MatVars['avgPredLL'])
     else:
-      raise ValueError('Pred Lik data unavailable.')
+      raise ValueError('Pred Lik data unavailable for job\n' + taskoutpath)
 
     plotargs = dict(markersize=markersize, linewidth=linewidth, label=None,
                     color=color, markeredgecolor=color,

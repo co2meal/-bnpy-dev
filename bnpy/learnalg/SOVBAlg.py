@@ -68,6 +68,8 @@ class SOVBAlg(LearnAlg):
       self.set_random_seed_at_lap(lapFrac)
       
       # E step
+      self.algParamsLP['batchID'] = batchID
+      self.algParamsLP['lapFrac'] = lapFrac ## logging
       LP = hmodel.calc_local_params(Dchunk, **self.algParamsLP)
 
       # ELBO calculation
@@ -100,13 +102,13 @@ class SOVBAlg(LearnAlg):
 
       ## M step with learning rate
       if SS is not None:
-        rho = (iterid + self.rhodelay) ** (-1.0 * self.rhoexp)
+        rho = (1 + iterid + self.rhodelay) ** (-1.0 * self.rhoexp)
         hmodel.update_global_params(SS, rho)
 
       ## Display progress
       self.updateNumDataProcessed(Dchunk.get_size())
       if self.isLogCheckpoint(lapFrac, iterid):
-        self.printStateToLog(hmodel, evBound, lapFrac, iterid)
+        self.printStateToLog(hmodel, evBound, lapFrac, iterid, rho=rho)
 
       ## Save diagnostics and params
       if self.isSaveDiagnosticsCheckpoint(lapFrac, iterid):
