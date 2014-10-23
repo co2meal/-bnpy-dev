@@ -499,8 +499,12 @@ class HDPDir(AllocModel):
     ''' Update global parameters via stochastic update rule.
     '''
     rhoStar, omegaStar = self._find_optimum_rhoomega(SS, **kwargs)
-    self.rho = (1-rho) * self.rho + rho * rhoStar
-    self.omega = (1-rho) * self.omega + rho * omegaStar
+    #self.rho = (1-rho) * self.rho + rho * rhoStar
+    #self.omega = (1-rho) * self.omega + rho * omegaStar
+    g1 = (1-rho) * (self.rho * self.omega) + rho * (rhoStar*omegaStar)
+    g0 = (1-rho) * ((1-self.rho)*self.omega) + rho * ((1-rhoStar)*omegaStar)
+    self.rho = g1 / (g1+g0)
+    self.omega = g1 + g0
     self.K = SS.K
     self.ClearCache()
 
