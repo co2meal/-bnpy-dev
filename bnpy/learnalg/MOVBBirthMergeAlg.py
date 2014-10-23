@@ -87,6 +87,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
     ## Prep for delete
     DeletePlans = list()
+    DocUsageCount = None
 
     ## Begin loop over batches of data...
     SS = None
@@ -126,6 +127,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
         if self.doDeleteAtLap(lapFrac):
           hmodel, SS = self.deleteRunMoveAndUpdateMemory(hmodel, SS, 
                                                          DeletePlans, order)
+        if lapFrac > 1 and SS.hasSelectionTerm('DocUsageCount'):
+          DocUsageCount = SS.getSelectionTerm('DocUsageCount')
         DeletePlans = list()
 
       ## Birth move : track birth info from previous lap
@@ -176,7 +179,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
       ## Delete move : collect target data
       if self.hasMove('delete') and self.doDeleteAtLap(lapFrac+1):
         if self.isFirstBatch(lapFrac):
-          DeletePlans = self.deleteMakePlans(Dchunk, SS)
+          DeletePlans = self.deleteMakePlans(Dchunk, SS, DocUsageCount)
         if len(DeletePlans) > 0:
           self.deleteCollectTarget(Dchunk, hmodel, LPchunk, batchID, 
                                    DeletePlans)
@@ -405,8 +408,13 @@ class MOVBBirthMergeAlg(MOVBAlg):
       SS -= oldSSchunk
 
     ## Calculate fresh suff stats for current batch
+    if self.hasMove('delete'):
+      trackDocUsage = 1
+    else:
+      trackDocUsage = 0
     SSchunk = hmodel.get_global_suff_stats(Dchunk, LPchunk, 
                                            doPrecompEntropy=1,
+                                           trackDocUsage=trackDocUsage,
                                            **MergePrepInfo)
     SSchunk.setUIDs(self.ActiveIDVec.copy())
 
@@ -1116,8 +1124,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
   def doDeleteAtLap(self, lapFrac):
     return True
 
-  def deleteMakePlans(self, Dchunk, SS):
-    Plans = DeletePlanner.makePlans(SS, Dchunk, 
+  def deleteMakePlans(self, Dchunk, SS, DocUsageCount):
+    Plans = DeletePlanner.makePlans(SS, Dchunk, DocUsageCount,
                                     lapFrac=self.lapFrac,
                                     DRecordsByComp=self.DeleteRecordsByComp,
                                     **self.algParams['delete'])  

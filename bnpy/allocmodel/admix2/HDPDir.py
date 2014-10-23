@@ -321,6 +321,7 @@ class HDPDir(AllocModel):
   def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None,
                                             doPrecompMergeEntropy=None,
                                             mPairIDs=None,
+                                            trackDocUsage=0,
                                             preselectroutine=None,
                                             **kwargs):
     ''' Calculate sufficient statistics.
@@ -379,6 +380,11 @@ class HDPDir(AllocModel):
         SS.setSelectionTerm('DocTopicPairMat',
                            np.dot(Tmat.T, Tmat), dims=('K','K'))
         SS.setSelectionTerm('DocTopicSum', np.sum(Tmat, axis=0), dims='K')
+
+    if trackDocUsage:
+      ## Track the number of times a topic appears with "significant mass" in a document
+      DocUsage = np.sum(LP['DocTopicCount'] > 0.01, axis=0)
+      SS.setSelectionTerm('DocUsageCount', DocUsage, dims='K')
     return SS
 
   def verifySSForMergePair(self, Data, SS, LP, kA, kB):
@@ -493,8 +499,12 @@ class HDPDir(AllocModel):
     ''' Update global parameters via stochastic update rule.
     '''
     rhoStar, omegaStar = self._find_optimum_rhoomega(SS, **kwargs)
-    self.rho = (1-rho) * self.rho + rho * rhoStar
-    self.omega = (1-rho) * self.omega + rho * omegaStar
+    #self.rho = (1-rho) * self.rho + rho * rhoStar
+    #self.omega = (1-rho) * self.omega + rho * omegaStar
+    g1 = (1-rho) * (self.rho * self.omega) + rho * (rhoStar*omegaStar)
+    g0 = (1-rho) * ((1-self.rho)*self.omega) + rho * ((1-rhoStar)*omegaStar)
+    self.rho = g1 / (g1+g0)
+    self.omega = g1 + g0
     self.K = SS.K
     self.ClearCache()
 
