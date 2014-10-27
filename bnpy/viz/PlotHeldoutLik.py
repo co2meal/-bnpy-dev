@@ -30,7 +30,7 @@ Colors = [(0,0,0), # black
           (1,0.6,0), #orange
          ]
 
-XLabelMap = dict(laps='num pass thru train data',
+XLabelMap = dict(laps='num pass thru data',
                  K='num topics K'
                 )  
 YLabelMap = dict(evidence='heldout log lik',
@@ -50,7 +50,7 @@ def plotJobsThatMatchKeywords(jpathPattern='/tmp/', **kwargs):
         
 def plotJobs(jpaths, legNames, styles=None, fileSuffix='PredLik.mat',
              xvar='laps', yvar='evidence', loc='upper right',
-             minLap=0,
+             minLap=0, showFinalPt=0,
              taskids=None, savefilename=None, tickfontsize=None,
              xjitter=None, bbox_to_anchor=None, **kwargs):
   ''' Create line plots for provided jobs 
@@ -71,6 +71,7 @@ def plotJobs(jpaths, legNames, styles=None, fileSuffix='PredLik.mat',
       xjitter = jitterByJob[lineID]
     plot_all_tasks_for_job(jpaths[lineID], legNames[lineID], minLap=minLap,
                            xvar=xvar, yvar=yvar, fileSuffix=fileSuffix,
+                           showFinalPt=showFinalPt,
                            taskids=taskids, xjitter=xjitter, **curStyle)
   if loc is not None:
     pylab.legend(loc=loc, bbox_to_anchor=bbox_to_anchor)  
@@ -93,6 +94,7 @@ def plotJobs(jpaths, legNames, styles=None, fileSuffix='PredLik.mat',
 
 def plot_all_tasks_for_job(jobpath, label, taskids=None,
                                            minLap=0,
+                                           showFinalPt=0,
                                            lineType='.-',
                                            color=None,
                                            colorID=0,
@@ -117,15 +119,19 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
     txtpaths = glob.glob(os.path.join(taskoutpath, 'predlik-*.txt'))
 
     if len(txtpaths) > 0:
-      laps = np.loadtxt(os.path.join(taskoutpath, 'predlik-lapTrain.txt'))
-      Ks = np.loadtxt(os.path.join(taskoutpath, 'predlik-K.txt'))
+      if fileSuffix.endswith('.txt'):
+        suffix = '-' + fileSuffix
+      else:
+        suffix = '.txt'
+      laps = np.loadtxt(os.path.join(taskoutpath, 'predlik-lapTrain' + suffix))
+      Ks = np.loadtxt(os.path.join(taskoutpath, 'predlik-K' + suffix))
       if xvar == 'laps':
         xs = laps
       else:
         xs = Ks
-      ys = np.loadtxt(os.path.join(taskoutpath, 'predlik-avgScore.txt'))
+      ys = np.loadtxt(os.path.join(taskoutpath, 'predlik-avgScore' + suffix))
 
-      if minLap > 0:
+      if minLap > 0 and taskoutpath.count('fix'):
         mask = laps > minLap
         xs = xs[mask]
         ys = ys[mask]
@@ -149,7 +155,8 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
     if xjitter is not None:
       xs = xs + xjitter
     pylab.plot(xs, ys, lineType, **plotargs)
-
+    if showFinalPt:
+      pylab.plot(xs[-1], ys[-1], '.', **plotargs)
   pylab.xlabel(XLabelMap[xvar])
   pylab.ylabel(YLabelMap[yvar])
    
