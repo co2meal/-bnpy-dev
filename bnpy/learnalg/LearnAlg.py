@@ -47,7 +47,6 @@ class LearnAlg(object):
       if k.count('LP') > 0:
         if k == 'logdirLP' and v:
           v = self.savedir
-          print v
         self.algParamsLP[k] = v
     
   def fit(self, hmodel, Data):
@@ -59,7 +58,6 @@ class LearnAlg(object):
         Info : dict of diagnostics about this run
     '''
     pass
-
 
   def set_random_seed_at_lap(self, lap):
     ''' Set internal random generator deterministically
@@ -220,7 +218,11 @@ class LearnAlg(object):
       return False
     return isEvenlyDivisibleFloat(lap, saveEvery) \
            or nMstepUpdates < 3 \
-           or np.allclose(lap, 1.0)
+           or np.allclose(lap, 1.0) \
+           or np.allclose(lap, 2.0) \
+           or np.allclose(lap, 4.0) \
+           or np.allclose(lap, 8.0) 
+
 
 
   def saveParams(self, lap, hmodel, SS=None):
@@ -284,7 +286,7 @@ class LearnAlg(object):
     if rho is None:
       rhoStr = ''
     else:
-      rhoStr = '| lrate %.4f' % (rho)
+      rhoStr = 'lrate %.4f' % (rho)
 
     if iterid == lap:
       lapStr = '%7d' % (lap)
@@ -381,10 +383,12 @@ class LearnAlg(object):
                                            SSchunk=None, hmodel=None,
                                            Dchunk=None):
     if self.outputParams['debugBatch'] == batchID:
+      debugLap = self.outputParams['debugLap']
+      debugLapBuffer = self.outputParams['debugLapBuffer']
       import joblib
       if self.lapFrac < 1:
         joblib.dump(dict(Dchunk=Dchunk), os.path.join(self.savedir,'Debug-Data.dump'))
-      if self.lapFrac < 24 or self.lapFrac > 36:
+      if self.lapFrac < debugLap - debugLapBuffer or self.lapFrac > debugLap + debugLapBuffer:
         return
       filename = 'DebugLap%04.0f-%s.dump' % (np.ceil(self.lapFrac), name)
       SaveVars = dict(LP=LPchunk, SS=SS, hmodel=hmodel, SSchunk=SSchunk,

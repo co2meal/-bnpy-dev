@@ -54,6 +54,7 @@ from ...util import NumericUtil, as1D
 
 import OptimizerHDPDir as OptimHDPDir
 import LocalUtil
+import QPiDirLocalStep as QPD
 
 from bnpy.util.NumericUtil import calcRlogRdotv_allpairs, calcRlogRdotv_specificpairs
 from bnpy.util.NumericUtil import calcRlogR_allpairs, calcRlogR_specificpairs
@@ -151,7 +152,8 @@ class HDPDir(AllocModel):
           * DocTopicCount
     '''
     self.alpha_E_beta() # create cached copy
-    LP = LocalUtil.calcLocalParams(Data, LP, self, **kwargs)
+    LP = QPD.calcLocalParams(Data, LP, self, **kwargs)
+    #LP = LocalUtil.calcLocalParams(Data, LP, self, **kwargs)
     assert 'resp' in LP
     assert 'DocTopicCount' in LP
     return LP
@@ -319,6 +321,7 @@ class HDPDir(AllocModel):
   def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None,
                                             doPrecompMergeEntropy=None,
                                             mPairIDs=None,
+                                            trackDocUsage=0,
                                             preselectroutine=None,
                                             **kwargs):
     ''' Calculate sufficient statistics.
@@ -377,6 +380,11 @@ class HDPDir(AllocModel):
         SS.setSelectionTerm('DocTopicPairMat',
                            np.dot(Tmat.T, Tmat), dims=('K','K'))
         SS.setSelectionTerm('DocTopicSum', np.sum(Tmat, axis=0), dims='K')
+
+    if trackDocUsage:
+      ## Track the number of times a topic appears with "significant mass" in a document
+      DocUsage = np.sum(LP['DocTopicCount'] > 0.01, axis=0)
+      SS.setSelectionTerm('DocUsageCount', DocUsage, dims='K')
     return SS
 
   def verifySSForMergePair(self, Data, SS, LP, kA, kB):
@@ -483,6 +491,22 @@ class HDPDir(AllocModel):
         rho = OptimHDPDir.create_initrho(SS.K)
     return rho, omega
 
+  ####################################################### soVB Global Step
+  #######################################################
+  def update_global_params_soVB(self, SS, rho=None, 
+                                    mergeCompA=None, mergeCompB=None, 
+                                    **kwargs):
+    ''' Update global parameters via stochastic update rule.
+    '''
+    rhoStar, omegaStar = self._find_optimum_rhoomega(SS, **kwargs)
+    #self.rho = (1-rho) * self.rho + rho * rhoStar
+    #self.omega = (1-rho) * self.omega + rho * omegaStar
+    g1 = (1-rho) * (self.rho * self.omega) + rho * (rhoStar*omegaStar)
+    g0 = (1-rho) * ((1-self.rho)*self.omega) + rho * ((1-rhoStar)*omegaStar)
+    self.rho = g1 / (g1+g0)
+    self.omega = g1 + g0
+    self.K = SS.K
+    self.ClearCache()
 
   ####################################################### Set Global Params
   #######################################################
@@ -666,6 +690,55 @@ class HDPDir(AllocModel):
     else:
       return NumericUtil.calcRlogR(LP['resp'])
 
+
+  ######################################################### ideal objective
+  #########################################################
+  def E_cDir_alphabeta__Numeric(self):
+    ''' Numeric integration of the expectation
+    '''
+    g1 = self.rho * self.omega
+    g0 = (1-self.rho) * self.omega
+    assert self.K <= 2
+    if self.K == 1:
+      us = np.linspace(1e-14, 1-1e-14, 1000)
+      logpdf = gammaln(g1+g0) - gammaln(g1) - gammaln(g0) \
+            + (g1-1) * np.log(us) + (g0-1) * np.log(1-us)
+      pdf = np.exp(logpdf)
+      b1 = us
+      bRem = 1-us
+      Egb1 = np.trapz( gammaln(self.alpha * b1) * pdf, us)
+      EgbRem = np.trapz( gammaln(self.alpha * bRem) * pdf, us)
+      EcD = gammaln(self.alpha) - Egb1 - EgbRem
+    return EcD
+
+  def E_cDir_alphabeta__MonteCarlo(self, S=1000, seed=123):
+    ''' Monte Carlo approximation to the expectation
+    '''
+    PRNG = np.random.RandomState(seed)
+    g1 = self.rho * self.omega
+    g0 = (1-self.rho) * self.omega
+    cD_abeta = np.zeros(S)
+    for s in range(S):
+      u = PRNG.beta( g1, g0 )
+      u = np.minimum(np.maximum(u, 1e-14), 1-1e-14)
+      beta = np.hstack([u, 1.0])
+      beta[1:] *= np.cumprod(1.0-u)
+      cD_abeta[s] = gammaln(self.alpha) - gammaln(self.alpha*beta).sum()
+    return np.mean(cD_abeta)
+
+  def E_cDir_alphabeta__Surrogate(self):
+    calpha = gammaln(self.alpha) + (self.K+1) * np.log(self.alpha)
+
+    g1 = self.rho * self.omega
+    g0 = (1-self.rho) * self.omega
+    digammaBoth = digamma(g1+g0)
+    ElogU = digamma(g1) - digammaBoth
+    Elog1mU = digamma(g0) - digammaBoth
+    OFFcoef = OptimHDPDir.kvec(self.K)
+    cRest = np.sum(ElogU) + np.inner(OFFcoef, Elog1mU)
+
+    return calpha + cRest
+
   ######################################################### OLD calc_evidence
   #########################################################
   # To be used only to verify the current objective
@@ -776,3 +849,97 @@ def c_Dir__slow(AMat, arem):
     avec = np.hstack([AMat[d], arem])
     c += gammaln(np.sum(avec)) - np.sum(gammaln(avec))
   return c
+
+######################################################### Calc ELBO for 1 doc
+#########################################################
+def calcELBOSingleDoc(Data, docID, singleLP=None, 
+                      resp_d=None, Lik_d=None, logLik_d=None,
+                      theta_d=None, thetaRem=None, **kwargs):
+  if hasattr(Data, 'word_count'):
+    start = Data.doc_range[docID]
+    stop = Data.doc_range[docID+1]
+    wct = Data.word_count[start:stop]
+  else:
+    wct = 1.0
+  
+  if logLik_d is None:
+    if Lik_d is None:
+      Lik_d = singleLP['E_log_soft_ev']
+    if Lik_d.max() >= 0:
+      logSoftEv = np.log(Lik_d + 1e-100)
+    else:
+      logSoftEv = Lik_d
+  else:
+    logSoftEv = logLik_d
+
+  if resp_d is None:
+    resp_d = singleLP['resp']
+  if theta_d is None:
+    theta_d = singleLP['theta']
+    if theta_d.ndim < 2:
+      theta_d = theta_d[np.newaxis,:]
+    thetaRem = singleLP['thetaRem']
+
+  if hasattr(Data, 'word_count'):
+    Hvec = NumericUtil.calcRlogRdotv(resp_d, wct)
+  else:
+    Hvec = NumericUtil.calcRlogR(resp_d)
+  H = -1 * np.sum(Hvec)
+  #H = -1 * np.sum(wct[:,np.newaxis] * (resp_d * np.log(resp_d)))
+
+  Lik = np.dot(wct, resp_d * logSoftEv).sum()
+  #Lik = np.sum(wct[:,np.newaxis] * (resp_d * logSoftEv))
+  cDir = -1 * c_Dir( theta_d, thetaRem) 
+  return H + cDir + Lik
+
+def calcELBO_AllDocs_AfterEStep(Data, LP=None, logLik_d=None, **kwargs):
+  if hasattr(Data, 'word_count'):
+    wct = Data.word_count[:,np.newaxis]
+  else:
+    wct = 1.0
+  
+  if logLik_d is None:
+    Lik_d = LP['E_log_soft_ev']
+    if Lik_d.max() >= 0:
+      logSoftEv = np.log(Lik_d + 1e-100)
+    else:
+      logSoftEv = Lik_d
+  else:
+    logSoftEv = logLik_d
+
+  resp = LP['resp']
+
+  Lik = np.sum(wct * (resp * logSoftEv))
+
+  if hasattr(Data, 'word_count'):
+    Hvec = NumericUtil.calcRlogRdotv(LP['resp'], wct)
+  else:
+    Hvec = NumericUtil.calcRlogR(LP['resp'])
+  HH = np.sum(Hvec)
+  H = -1 * np.sum(wct * (resp * np.log(resp)))
+  assert np.allclose(H, HH)
+  cDir = -1 * c_Dir(LP['theta'], LP['thetaRem'])
+  return H + cDir + Lik
+
+def calcELBOSingleDoc_Fast(wc_d, DocTopicCount_d, Prior_d, sumR_d, alphaEbeta):
+  ''' Evaluate ELBO contributions for single doc, dropping terms constant wrt local step.
+
+      Note: key to some progress was remembering that Prior_d is not just exp(ElogPi)
+            but that it is usually altered by a multiplicative constant for safety
+            we can find this constant offset (in logspace), and adjust sumR_d accordingly
+  '''
+  theta_d = DocTopicCount_d + alphaEbeta[:-1]
+  thetaRem = alphaEbeta[-1]
+
+  digammaSum = digamma(theta_d.sum() + thetaRem)
+  ElogPi_d = digamma(theta_d) - digammaSum
+  ElogPiRem = digamma(thetaRem) - digammaSum                  
+
+  cDir = -1 * c_Dir(theta_d[np.newaxis,:], thetaRem)
+  slackOn = np.inner(DocTopicCount_d + alphaEbeta[:-1] - theta_d,
+                     ElogPi_d.flatten())
+  slackOff = (alphaEbeta[-1] - thetaRem) * ElogPiRem
+  rest = np.inner(wc_d, np.log(sumR_d)) - np.inner(DocTopicCount_d, np.log(Prior_d+1e-100))
+  
+  return cDir + slackOn + slackOff + rest  
+

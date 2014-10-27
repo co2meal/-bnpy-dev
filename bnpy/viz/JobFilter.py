@@ -48,8 +48,13 @@ def jpath2jdict(jpath):
         D['field' + str(fID+1)] = val
   return D
 
+## kwargs that arent needed for any job pattern matching
+SkipKeys = ['taskids', 'savefilename', 'fileSuffix', 'xvar']
 
 def filterJobs(jpathPattern, verbose=0, **reqKwArgs):
+  for key in SkipKeys:
+    if key in reqKwArgs:
+      del reqKwArgs[key]
 
   if not jpathPattern.endswith('*'):
     jpathPattern += '*'
@@ -59,12 +64,12 @@ def filterJobs(jpathPattern, verbose=0, **reqKwArgs):
     raise ValueError('Not valid directory:\n %s' % (jpathdir))
 
   jpathList = glob.glob(jpathPattern)
-
+  
   if verbose:
     print 'Looking for jobs with pattern:'
     print jpathPattern
     print '%d candidates found (before filtering by keywords)' % (len(jpathList))
-
+    
   if len(jpathList) == 0:
     raise ValueError('No matching jobs found.')
 
