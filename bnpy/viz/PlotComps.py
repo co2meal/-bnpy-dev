@@ -22,6 +22,10 @@ def plotCompsForTask(taskpath, lap=None, figH=None,
                      dataName=None, **kwargs):
   queryLap = lap
 
+  ## prepend BNPYOUTDIR if taskpath is not a directory
+  if not os.path.isdir(taskpath):
+    taskpath = os.path.join(os.environ['BNPYOUTDIR'], taskpath)
+
   ## Read dataName from the taskpath
   if dataName is None:
     dataName = taskpath.replace(os.environ['BNPYOUTDIR'], 
@@ -49,8 +53,11 @@ def plotCompsForJob(jobpath='', taskids=[1], lap=None,
                     **kwargs):
   '''
   '''
+  jobpath_arg = jobpath
   if not os.path.isdir(jobpath):
-    raise ValueError('Not valid path: ' + jobpath)
+    jobpath = os.path.join(os.environ['BNPYOUTDIR'], jobpath)
+  if not os.path.isdir(jobpath):
+    raise ValueError('Not valid path: ' + jobpath_arg)
   taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
   for taskid in taskids:
     taskpath = os.path.join(jobpath, str(taskid))
