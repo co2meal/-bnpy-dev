@@ -87,6 +87,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
     ## Prep for delete
     DeletePlans = list()
+    DocUsageCount = None
 
     ## Begin loop over batches of data...
     SS = None
@@ -97,7 +98,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
       ## Grab new data
       Dchunk = DataIterator.get_next_batch()
       batchID = DataIterator.batchID
-      
+      Dchunk.batchID = batchID
+
       ## Update progress-tracking variables
       iterid += 1
       lapFrac = (iterid + 1) * self.lapFracInc
@@ -108,12 +110,25 @@ class MOVBBirthMergeAlg(MOVBAlg):
         self.print_msg('========================== lap %.2f batch %d' \
                        % (lapFrac, batchID))
 
+      ## Local convergence thr
+      if self.isFirstBatch(lapFrac) and 'convThrLP' in self.algParamsLP:
+        if lapFrac <= 1:
+          finalConvThr = self.algParamsLP['convThrLP']
+          initConvThr = self.algParamsLP['initconvThrLP']          
+        if initConvThr > 0:
+          assert initConvThr >= finalConvThr
+          fracComplete = self.lapFrac / self.algParamsLP['plateauLapLP']
+          convThr = finalConvThr + initConvThr * np.exp(-7 * fracComplete)
+          self.algParamsLP['convThrLP'] = convThr
+
       ## Delete move : 
       if self.isFirstBatch(lapFrac) and self.hasMove('delete'):
         self.DeleteAcceptRecord = dict()
         if self.doDeleteAtLap(lapFrac):
           hmodel, SS = self.deleteRunMoveAndUpdateMemory(hmodel, SS, 
                                                          DeletePlans, order)
+        if lapFrac > 1 and SS.hasSelectionTerm('DocUsageCount'):
+          DocUsageCount = SS.getSelectionTerm('DocUsageCount')
         DeletePlans = list()
 
       ## Birth move : track birth info from previous lap
@@ -152,6 +167,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
           MergePrepInfo = dict()
 
       ## Local/E step
+      self.algParamsLP['lapFrac'] = lapFrac ## logging
+      self.algParamsLP['batchID'] = batchID
       LPchunk = self.memoizedLocalStep(hmodel, Dchunk, batchID)
       
       ## Summary step
@@ -162,7 +179,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
       ## Delete move : collect target data
       if self.hasMove('delete') and self.doDeleteAtLap(lapFrac+1):
         if self.isFirstBatch(lapFrac):
-          DeletePlans = self.deleteMakePlans(Dchunk, SS)
+          DeletePlans = self.deleteMakePlans(Dchunk, SS, DocUsageCount)
         if len(DeletePlans) > 0:
           self.deleteCollectTarget(Dchunk, hmodel, LPchunk, batchID, 
                                    DeletePlans)
@@ -391,8 +408,13 @@ class MOVBBirthMergeAlg(MOVBAlg):
       SS -= oldSSchunk
 
     ## Calculate fresh suff stats for current batch
+    if self.hasMove('delete'):
+      trackDocUsage = 1
+    else:
+      trackDocUsage = 0
     SSchunk = hmodel.get_global_suff_stats(Dchunk, LPchunk, 
                                            doPrecompEntropy=1,
+                                           trackDocUsage=trackDocUsage,
                                            **MergePrepInfo)
     SSchunk.setUIDs(self.ActiveIDVec.copy())
 
@@ -1102,8 +1124,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
   def doDeleteAtLap(self, lapFrac):
     return True
 
-  def deleteMakePlans(self, Dchunk, SS):
-    Plans = DeletePlanner.makePlans(SS, Dchunk, 
+  def deleteMakePlans(self, Dchunk, SS, DocUsageCount):
+    Plans = DeletePlanner.makePlans(SS, Dchunk, DocUsageCount,
                                     lapFrac=self.lapFrac,
                                     DRecordsByComp=self.DeleteRecordsByComp,
                                     **self.algParams['delete'])  
@@ -1135,7 +1157,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
     if 'uIDs' in EPlan:
       nEmpty = len(EPlan['uIDs'])
       DeleteLogger.log('Last-minute Plan: %d empty' % (nEmpty))
-      if len(self.MergeLog) > 0:
+      if hasattr(self, 'MergeLog') and len(self.MergeLog) > 0:
         DeleteLogger.log('Skipped other plans due to accepted merge.')
         ## Accepted Merge means all deletes except trivial one get skipped
         DeletePlans = [EPlan]
@@ -1158,7 +1180,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
         # Insert EmptyPlan at front of the line
         DeletePlans.insert(0, EPlan)
     else:
-      if len(self.MergeLog) > 0:
+      if hasattr(self, 'MergeLog') and len(self.MergeLog) > 0:
         DeleteLogger.log('Skipped due to accepted merge.')
         return hmodel, SS
 

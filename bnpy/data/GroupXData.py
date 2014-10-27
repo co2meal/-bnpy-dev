@@ -45,11 +45,11 @@ def _toStd2DArray(X):
 class GroupXData(XData):
   
   @classmethod
-  def LoadFromFile(cls, filepath, nObsTotal=None, **kwargs):
+  def LoadFromFile(cls, filepath, nDocTotal=None, **kwargs):
     ''' Static constructor for loading data from disk into XData instance
     '''
     if filepath.endswith('.mat'):
-      return cls.read_from_mat(filepath, nObsTotal, **kwargs)
+      return cls.read_from_mat(filepath, nDocTotal=nDocTotal, **kwargs)
     raise NotImplemented('Only .mat file supported.')
 
   @classmethod
@@ -192,15 +192,13 @@ class GroupXData(XData):
       raise ValueError("Dimensions must match!")
     self.nObs += XDataObj.nObs
     self.nDocTotal += XDataObj.nDocTotal
-    self.X = np.vstack([self.X, XDataObj.X])
-    doc_range = np.zeros(self.nDoc + XDataObj.nDoc + 1)
-    doc_range[:self.nDoc+1] = self.doc_range
-    doc_range[self.nDoc+1:] = XDataObj.doc_range + self.doc_range[-1]
-    self.doc_range = doc_range
     self.nDoc += XDataObj.nDoc
+    self.X = np.vstack([self.X, XDataObj.X])
+    self.doc_range = np.hstack([self.doc_range, 
+                                XDataObj.doc_range[1:] + self.doc_range[-1]])
     if hasattr(self, 'Xprev'):
       self.Xprev = np.vstack([self.Xprev, XDataObj.Xprev])
-
+    self._check_dims()
 
   def get_random_sample(self, nDoc, randstate=np.random):
     nDoc = np.minimum(nDoc, self.nDoc)
