@@ -108,7 +108,10 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
   ''' Create line plot in current figure for each task/run of jobpath
   '''
   if not os.path.exists(jobpath):
-    raise ValueError("PATH NOT FOUND: %s" % (jobpath))
+    print 'PATH NOT FOUND', jobpath
+    #raise ValueError("PATH NOT FOUND: %s" % (jobpath))
+    return None
+
   if color is None:
     color = Colors[ colorID % len(Colors)]
   taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
