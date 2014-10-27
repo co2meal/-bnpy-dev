@@ -99,7 +99,7 @@ class XData(DataObj):
     return self.nObs
 
   def get_total_size(self):
-    return self.nObs
+    return self.nObsTotal
 
   def get_dim(self):
     return self.dim

@@ -31,17 +31,14 @@ Colors = [(0,0,0), # black
          ]
 
 XLabelMap = dict(laps='num pass thru data',
-                 iters='num steps in alg',
+                 iters='num alg steps',
                  times='elapsed time (sec)'
                 )  
-YLabelMap = dict(evidence='log evidence',
-                 K='num components',
+YLabelMap = dict(evidence='train objective',
+                 K='num topics K',
                  )
      
-def plotJobsThatMatchKeywords(jpathPattern='/tmp/', 
-         xvar='laps', yvar='evidence', loc='upper right',
-         taskids=None, savefilename=None, 
-         **kwargs):
+def plotJobsThatMatchKeywords(jpathPattern='/tmp/', **kwargs):
   ''' Create line plots for all jobs matching pattern and provided keyword args
 
       Example
@@ -51,16 +48,40 @@ def plotJobsThatMatchKeywords(jpathPattern='/tmp/',
   if not jpathPattern.startswith(os.path.sep):
     jpathPattern = os.path.join(os.environ['BNPYOUTDIR'], jpathPattern)
   jpaths, legNames = filterJobs(jpathPattern, **kwargs)
+  plotJobs(jpaths, legNames, **kwargs)
+
+def plotJobs(jpaths, legNames, styles=None, density=2,
+             xvar='laps', yvar='evidence', loc='upper right',
+             taskids=None, savefilename=None, tickfontsize=None,
+             bbox_to_anchor=None, **kwargs):
+  ''' Create line plots for provided jobs 
+  '''
   nLines = len(jpaths)
+  if nLines == 0:
+    raise ValueError('Empty job list. Nothing to plot.')
+
+  nLeg = len(legNames)
+  
   for lineID in xrange(nLines):
+    if styles is None:
+      curStyle = dict(colorID=lineID)
+    else:
+      curStyle = styles[lineID]
+
     plot_all_tasks_for_job(jpaths[lineID], legNames[lineID], 
                            xvar=xvar, yvar=yvar,
-                           taskids=taskids, colorID=lineID)
+                           taskids=taskids, density=density, **curStyle)
   if loc is not None:
-    pylab.legend(loc=loc)  
+    pylab.legend(loc=loc, bbox_to_anchor=bbox_to_anchor)  
+  if tickfontsize is not None:
+    pylab.tick_params(axis='both', which='major', labelsize=tickfontsize)
+
   if savefilename is not None:
-    pylab.show(block=False)
-    pylab.savefig(args.savefilename)
+    try:
+      pylab.show(block=False)
+    except TypeError:
+      pass # when using IPython notebook
+    pylab.savefig(savefilename, bbox_inches='tight', pad_inches=0)
   else:
     try:
       pylab.show(block=True)
@@ -69,15 +90,20 @@ def plotJobsThatMatchKeywords(jpathPattern='/tmp/',
         
 
 def plot_all_tasks_for_job(jobpath, label, taskids=None,
-                                             colorID=0,
-                                             yvar='evidence',
-                                             xvar='laps'):
+                                           lineType='.-',
+                                           color=None,
+                                           colorID=0,
+                                           density=2,
+                                           yvar='evidence',
+                                           markersize=10,
+                                           linewidth=2,
+                                           xvar='laps', **kwargs):
   ''' Create line plot in current figure for each task/run of jobpath
   '''
   if not os.path.exists(jobpath):
     raise ValueError("PATH NOT FOUND: %s" % (jobpath))
-  
-  color = Colors[ colorID % len(Colors)]
+  if color is None:
+    color = Colors[ colorID % len(Colors)]
   taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
 
   for tt, taskid in enumerate(taskids):
@@ -88,7 +114,10 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
       try:
         xs, ys = loadXYFromTopicModelFiles(jobpath, taskid)
       except ValueError:
-        raise e
+        try:
+          xs, ys = loadXYFromTopicModelSummaryFiles(jobpath, taskid)
+        except ValueError:
+          raise e
 
     ## Make sure that xs are sorted
     if xvar == 'laps':
@@ -98,15 +127,50 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
         print 'WARNING: looks like we had multiple runs writing to this file!'
         xs = np.hstack([xs[goodIDs], xs[-1]])
         ys = np.hstack([ys[goodIDs], ys[-1]])
-    plotargs = dict(markersize=10, linewidth=2, label=None,
+
+    if xvar == 'laps' and xs.size > 15:
+      curDensity = xs.size / (xs[-1] - xs[0])
+      while curDensity > density:
+        xs = xs[::2]
+        ys = ys[::2]
+        curDensity = xs.size / (xs[-1] - xs[0])
+
+    plotargs = dict(markersize=markersize, linewidth=linewidth, label=None,
                     color=color, markeredgecolor=color)
+    plotargs.update(kwargs)
     if tt == 0:
       plotargs['label'] = label
-    pylab.plot(xs, ys, '.-', **plotargs)
+    pylab.plot(xs, ys, lineType, **plotargs)
+
+
+  if xvar == 'laps' and yvar == 'evidence':
+    if np.sum(xs > 5.0) > 5:
+      ymin = ys.max()
+      ymax = ys.min()
+      for line in pylab.gca().get_lines():
+        xd = line.get_xdata()
+        yd = line.get_ydata()
+        loc = np.searchsorted(xd, 2)
+        ymin = np.minimum(ymin, np.percentile(yd[loc:], 2.5))
+        ymax = np.maximum(ymax, yd[loc:].max())
+      pylab.ylim([ymin, ymax + 0.1*(ymax-ymin)])
 
   pylab.xlabel(XLabelMap[xvar])
   pylab.ylabel(YLabelMap[yvar])
    
+
+
+
+def loadXYFromTopicModelSummaryFiles(jobpath, taskid, xvar='laps', yvar='K'):
+  ''' Load x and y variables for line plots from TopicModel files
+  '''
+  ypath = os.path.join(jobpath, taskid, 'predlik-' + yvar + '.txt')
+  if not os.path.exists(ypath):
+    raise ValueError('No TopicModel summary text files found')
+  lappath =  os.path.join(jobpath, taskid, 'predlik-lapTrain.txt')
+  xs = np.loadtxt(lappath)
+  ys = np.loadtxt(ypath)
+  return xs, ys
 
 def loadXYFromTopicModelFiles(jobpath, taskid, xvar='laps', yvar='K'):
   ''' Load x and y variables for line plots from TopicModel files

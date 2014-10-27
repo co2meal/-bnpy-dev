@@ -135,7 +135,7 @@ def _run_task_internal(jobname, taskid, nTask,
   if type(dataName) is str:
     if os.path.exists(dataName):
       ## dataName is a path to many data files on disk
-      Data, InitData = loadDataIteratorFromDisk(dataName, KwArgs, dataorderseed)
+      Data, InitData = loadDataIteratorFromDisk(dataName, ReqArgs, KwArgs, dataorderseed)
       DataArgs = UnkArgs
       # Set the short name for this dataset,
       # so that the filepath for results is informative.
@@ -184,6 +184,9 @@ def _run_task_internal(jobname, taskid, nTask,
   if learnAlg.hasMove('merge') or learnAlg.hasMove('softmerge'):
     import bnpy.mergemove.MergeLogger as MergeLogger
     MergeLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
+  if str(type(hmodel.allocModel)).count('admix'):
+    import bnpy.allocmodel.admix2.LocalStepLogger as LocalStepLogger
+    LocalStepLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
 
   # Prepare special logs if we are running on the Brown CS grid
   try:
@@ -226,14 +229,17 @@ def _run_task_internal(jobname, taskid, nTask,
 
 ########################################################### Load Data
 ###########################################################
-def loadDataIteratorFromDisk(datapath, KwArgs, dataorderseed):
+def loadDataIteratorFromDisk(datapath, ReqArgs, KwArgs, dataorderseed):
   ''' Create a DataIterator from files stored on disk
   '''
   if 'OnlineDataPrefs' in KwArgs:
     OnlineDataArgs = KwArgs['OnlineDataPrefs']
     OnlineDataArgs['dataorderseed'] = dataorderseed
 
-  DataIterator = bnpy.data.DataIteratorFromDisk(datapath, **OnlineDataArgs)
+  DataIterator = bnpy.data.DataIteratorFromDisk(datapath, 
+                                                ReqArgs['allocModelName'],
+                                                ReqArgs['obsModelName'],
+                                                **OnlineDataArgs)
   InitData = DataIterator.loadInitData()
   return DataIterator, InitData
 
