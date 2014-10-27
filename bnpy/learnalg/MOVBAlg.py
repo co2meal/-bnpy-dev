@@ -3,6 +3,7 @@ MOVBAlg.py
 
 Implementation of Memoized Online VB (moVB) learn alg for bnpy models
 '''
+import os
 import copy
 import numpy as np
 import logging
@@ -61,6 +62,7 @@ class MOVBAlg(LearnAlg):
       # Grab new data
       Dchunk = DataIterator.get_next_batch()
       batchID = DataIterator.batchID
+      Dchunk.batchID = batchID
       
       # Update progress-tracking variables
       iterid += 1
@@ -71,19 +73,25 @@ class MOVBAlg(LearnAlg):
       if self.doDebugVerbose():
         self.print_msg('========================== lap %.2f batch %d' \
                        % (lapFrac, batchID))
+
+      ## Local convergence thr
       if self.isFirstBatch(lapFrac) and 'convThrLP' in self.algParamsLP:
-        if lapFrac < 1:
+        if lapFrac <= 1:
           finalConvThr = self.algParamsLP['convThrLP']
           initConvThr = self.algParamsLP['initconvThrLP']          
         if initConvThr > 0:
           assert initConvThr >= finalConvThr
-          tau = (initConvThr - finalConvThr) * 10
           fracComplete = self.lapFrac / self.algParamsLP['plateauLapLP']
-          convThr = finalConvThr + initConvThr * np.exp(-tau * fracComplete)
+          convThr = finalConvThr + initConvThr * np.exp(-7 * fracComplete)
           self.algParamsLP['convThrLP'] = convThr
 
       ## Local/E step
+      self.algParamsLP['lapFrac'] = lapFrac ## logging
+      self.algParamsLP['batchID'] = batchID
       LPchunk = self.memoizedLocalStep(hmodel, Dchunk, batchID)
+      
+      self.saveDebugStateAtBatch('Estep', batchID, Dchunk=Dchunk,
+                                 SS=SS, hmodel=hmodel, LPchunk=LPchunk)
 
       ## Summary step
       SS, SSchunk = self.memoizedSummaryStep(hmodel, SS,
@@ -100,6 +108,10 @@ class MOVBAlg(LearnAlg):
 
       if self.doDebug() and lapFrac >= 1.0:
         self.verifyELBOTracking(hmodel, SS, evBound)
+
+      self.saveDebugStateAtBatch('Mstep', batchID, Dchunk=Dchunk, SSchunk=SSchunk,
+                                 SS=SS, hmodel=hmodel, LPchunk=LPchunk)
+
 
       ## Assess convergence
       countVec = SS.getCountVec()
@@ -251,8 +263,14 @@ class MOVBAlg(LearnAlg):
         --------
         None. hmodel updated in-place.
     '''
-    if self.algParams['doFullPassBeforeMstep']:
+    doFullPass = self.algParams['doFullPassBeforeMstep']
+
+    if self.algParams['doFullPassBeforeMstep'] == 1:
       if lapFrac >= 1.0:
+        hmodel.update_global_params(SS)
+    elif doFullPass > 1.0:
+      if lapFrac >= 1.0 or (doFullPass < SS.nDoc):
+        # update if we've seen specified num of docs, not before
         hmodel.update_global_params(SS)
     else:
       hmodel.update_global_params(SS)

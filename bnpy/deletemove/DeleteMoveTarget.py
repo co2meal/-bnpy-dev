@@ -27,6 +27,11 @@ def runDeleteMove_Target(curModel, curSS, Plan,
     SSmemory = dict()
   if LPkwargs is None:
     LPkwargs = dict()
+  if curSS.K == 1:
+    Plan['didAccept'] = 0
+    Plan['acceptedUIDs'] = list()
+    Plan['acceptedIDs'] = list()
+    return curModel, curSS, Plan
 
   ## Baseline ELBO calculation
   targetData = Plan['DTargetData']
@@ -45,6 +50,9 @@ def runDeleteMove_Target(curModel, curSS, Plan,
   acceptedUIDs = list()
   acceptedIDs = list()
   for delCompID in Plan['uIDs']:
+    if newSS.K == 1:
+      continue # Don't try to remove the final comp!
+
     propSS = newSS.copy()
     propModel = newModel.copy()
     ptargetSS = targetSS.copy()
