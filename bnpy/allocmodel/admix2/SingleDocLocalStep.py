@@ -2,6 +2,82 @@ from scipy.special import digamma, gammaln
 import numpy as np
 
 
+def inferLocal_SingleDoc_TrackELBO(wc_d, Lik_d, alphaEbeta, alphaEbetaRem,
+                             DocTopicCount_d=None, sumR_d=None,
+                             nCoordAscentItersLP=10, convThrLP=0.001, 
+                             restartremovejunkLP=0,
+                             **kwargs):
+  ''' Infer compact local parameters for a single document
+
+      Assumes q(Pi_d) is a Dirichlet.
+
+      Args
+      --------
+
+      Kwargs
+      --------
+      restartremovejunkLP : set to 2 to do doc-level removal of small topics
+
+      Returns
+      --------
+      DocTopicCount_d : updated doc-topic counts
+      Prior_d : prob of topic in document, up to mult. constant
+      sumR_d : normalization constant for each token
+  ''' 
+  if sumR_d is None:
+    sumR_d = np.zeros(Lik_d.shape[0])
+
+  if DocTopicCount_d is None:
+    ## Initialize prior from global topic probs
+    Prior_d = alphaEbeta.copy()
+    ## Update sumR_d for all tokens in document
+    np.dot(Lik_d, Prior_d, out=sumR_d)
+
+    ## Update DocTopicCounts
+    DocTopicCount_d = np.zeros_like(Prior_d)
+    np.dot(wc_d / sumR_d, Lik_d, out=DocTopicCount_d)
+    DocTopicCount_d *= Prior_d
+  else:
+    ## Initialize from provided DocTopicCount_d vector
+    Prior_d = np.zeros(DocTopicCount_d.size)
+      
+  ELBOtrace = list()
+  prevDocTopicCount_d = DocTopicCount_d.copy()
+  for iter in xrange(nCoordAscentItersLP):
+    ## Update Prob of Active Topics
+    np.add(DocTopicCount_d, alphaEbeta, out=Prior_d)
+    digamma(Prior_d, out=Prior_d)   # Prior_d = E[ log pi_dk ] + constant
+    #Prior_d -= Prior_d.max()
+    np.exp(Prior_d, out=Prior_d)    # Prior_d = exp E[ log pi_dk ] / constant
+      
+    ## Update sumR_d for all tokens in document
+    np.dot(Lik_d, Prior_d, out=sumR_d)
+
+    ## Update DocTopicCounts
+    np.dot(wc_d / sumR_d, Lik_d, out=DocTopicCount_d)
+    DocTopicCount_d *= Prior_d
+
+    ## CALC ELBO
+    curELBO = calcELBO_SingleDoc_Dir(DocTopicCount_d, Prior_d, sumR_d,
+                                     wc_d, alphaEbeta, alphaEbetaRem)
+    ELBOtrace.append(curELBO)
+
+    ## Check for convergence
+    if iter % 5 == 0:
+      maxDiff = np.max(np.abs(DocTopicCount_d - prevDocTopicCount_d))
+      if maxDiff < convThrLP:
+        break
+    prevDocTopicCount_d[:] = DocTopicCount_d
+
+  Info = dict(maxDiff=maxDiff, iter=iter, ELBOtrace=ELBOtrace)
+  if restartremovejunkLP == 2:
+    DocTopicCount_d, Prior_d, sumR_d, RInfo = removeJunkTopics_SingleDoc(
+                     wc_d, Lik_d, alphaEbeta, alphaEbetaRem, 
+                     DocTopicCount_d, Prior_d, sumR_d, **kwargs)
+    Info.update(RInfo)
+  return DocTopicCount_d, Prior_d, sumR_d, Info
+
+
 def inferLocal_SingleDoc_Dir(wc_d, Lik_d, alphaEbeta, alphaEbetaRem,
                              DocTopicCount_d=None, sumR_d=None,
                              nCoordAscentItersLP=10, convThrLP=0.001, 
