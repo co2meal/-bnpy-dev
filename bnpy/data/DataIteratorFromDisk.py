@@ -53,12 +53,14 @@ from bnpy.data import WordsData, XData, GroupXData
 
 Words_AllocToDataTypeMap = dict(
   DPMixFull='WordsData',
-  HDPDir='WordsData'
+  HDPDir='WordsData',
+  LDA='WordsData',
   )
 
 X_AllocToDataTypeMap = dict(
   DPMixFull='XData',
-  HDPDir='GroupXData'
+  HDPDir='GroupXData',
+  LDA='GroupXData',
   )
 
 def decideDataTypeFromModel(aModelType, oModelType):
