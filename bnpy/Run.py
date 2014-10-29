@@ -88,6 +88,8 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
   KwArgs, UnkArgs = BNPYArgParser.parseKeywordArgs(ReqArgs, **kwargs)
   
   jobname = KwArgs['OutputPrefs']['jobname']
+  # Update stored numerical options via keyword args
+  bnpy.util.NumericUtil.UpdateConfig(**UnkArgs) 
 
   if taskID is None:
     starttaskid = KwArgs['OutputPrefs']['taskid']
