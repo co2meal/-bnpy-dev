@@ -139,7 +139,10 @@ def _run_task_internal(jobname, taskid, nTask,
       DataArgs = UnkArgs
       # Set the short name for this dataset,
       # so that the filepath for results is informative.
-      Data.name = KwArgs['OnlineDataPrefs']['datasetName']      
+      try:
+        Data.name = KwArgs['OnlineDataPrefs']['datasetName']      
+      except KeyError:
+        Data.name = 'UnknownData'
     else:
       DataArgs = getKwArgsForLoadData(ReqArgs, UnkArgs)  
       Data, InitData = loadData(ReqArgs, KwArgs, DataArgs, dataorderseed)
@@ -234,13 +237,21 @@ def loadDataIteratorFromDisk(datapath, ReqArgs, KwArgs, dataorderseed):
   '''
   if 'OnlineDataPrefs' in KwArgs:
     OnlineDataArgs = KwArgs['OnlineDataPrefs']
-    OnlineDataArgs['dataorderseed'] = dataorderseed
+  else:
+    # For whole-dataset algs like VB or EM
+    OnlineDataArgs = dict()
 
+  OnlineDataArgs['dataorderseed'] = dataorderseed
   DataIterator = bnpy.data.DataIteratorFromDisk(datapath, 
                                                 ReqArgs['allocModelName'],
                                                 ReqArgs['obsModelName'],
                                                 **OnlineDataArgs)
+  
   InitData = DataIterator.loadInitData()
+
+  ## Whole-dataset algs can only handle one batch
+  if ReqArgs['algName'] not in OnlineDataAlgSet:
+    return InitData, InitData
   return DataIterator, InitData
 
 def loadData(ReqArgs, KwArgs, DataArgs, dataorderseed):
@@ -456,7 +467,10 @@ def getOutputPath(ReqArgs, KwArgs, taskID=0 ):
   if type(dataName) is not str:
     dataName = dataName.get_short_name()
   if os.path.exists(dataName):
-    dataName = KwArgs['OnlineDataPrefs']['datasetName']
+    try:
+      dataName = KwArgs['OnlineDataPrefs']['datasetName']
+    except KeyError:
+      dataName = 'UnknownData'
   return os.path.join(os.environ['BNPYOUTDIR'], 
                        dataName, 
                        KwArgs['OutputPrefs']['jobname'], 
