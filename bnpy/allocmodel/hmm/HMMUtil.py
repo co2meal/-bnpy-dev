@@ -274,5 +274,38 @@ def viterbi(logSoftEv, pi0, pi):
 
   return z
 
-    
 
+def calcEntropyFromResp(resp, respPair, Data, eps=1e-100):
+  ''' Calculate entropy E_q(z) [ log q(z) ] for all sequences
+  '''
+  startLocIDs = Data.doc_range[:-1]
+
+  sigma = respPair / (respPair.sum(axis=2)[:,:,np.newaxis] + eps)
+  firstH = -1 * np.sum(resp[startLocIDs] * np.log(resp[startLocIDs]+eps))
+  restH = -1 * np.sum(respPair[1:,:,:] * np.log(sigma[1:,:,:] + EPS))
+  return firstH + restH
+
+
+def calcEntropyFromResp_bySeq(resp, respPair, Data, eps=1e-100):
+  ''' Calculate entropy E_q(z) [ log q(z) ] for all sequences, using loop over seqs
+
+      This is simply a way to verify correctness for fast, vectorized calculations.
+  '''
+  totalH = 0
+  for n in xrange(Data.nDoc):
+    start = Data.doc_range[n]
+    stop = Data.doc_range[n+1]
+    resp_n = resp[start:stop]
+    respPair_n = respPair[start:stop]
+
+    # sigma_n : conditional prob of each adjacent pair of states
+    # sums to one over the final dimension: sigma_n[t, j, :].sum()
+    sigma_n = respPair_n / (respPair_n.sum(axis=2)[:,:,np.newaxis] + eps)
+
+    # Entropy of the first step
+    firstH_n = -1 * np.inner(resp_n[0], np.log(resp_n[0] + eps))
+    
+    # Entropy of the remaining steps 2, 3, ... T
+    restH_n = -1 * np.sum(respPair_n * np.log(sigma_n + eps))
+    totalH += firstH_n + restH_n
+  return totalH

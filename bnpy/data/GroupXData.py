@@ -137,7 +137,7 @@ class GroupXData(XData):
     return s
 
   def toXData(self):
-    ''' Return simplified representation as XData instance, losing group structure
+    ''' Return simplified XData instance, losing group structure
     '''
     if hasattr(self, 'Xprev'):
       return XData(self.X, Xprev=self.Xprev)
@@ -156,6 +156,9 @@ class GroupXData(XData):
     '''
     if atomMask is not None:
       return self.toXData().select_subset_by_mask(atomMask)
+
+    if len(docMask) < 1:
+      raise ValueError('Cannot select empty subset')
 
     newXList = list()
     newXPrevList = list()
