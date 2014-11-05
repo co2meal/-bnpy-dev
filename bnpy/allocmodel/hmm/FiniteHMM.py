@@ -3,47 +3,44 @@ import numpy as np
 
 from bnpy.allocmodel import AllocModel
 from bnpy.suffstats import SuffStatBag
-from bnpy.allocmodel.seq import HMMUtil
 from bnpy.util import digamma, gammaln, EPS
+import HMMUtil
 
 class FiniteHMM(AllocModel):
 
-
  ######################################################### Constructors
  #########################################################
-    
     def __init__(self, inferType, priorDict):
         self.inferType = inferType
 
+        self.set_prior(**priorDict)
+
+        #Variational parameters
         self.K = 0 #Number of states
         self.initPi = None #Starting distribution
         self.transPi = None #Transition matrix
-
-        #Priors
-        self.initAlpha = .1
-        self.transAlpha = .1
-
-        #Variational parameters
         self.initTheta = None
         self.transTheta = None
 
         #estZ is a dictionary that stores the estimated Z values for each
         #  sequence.  Keys are the sequence numbers.
         self.estZ = dict()
-        self.entropy = 0
-
 
     def set_prior(self, initAlpha = .1, transAlpha = .1, **kwargs):
-        self.initAlpha = initAlphaf #Dirichlet parameter for initPi
-        self.transAlpha = transAlpha #Array of dirichlet parameters for 
-                                          #transPi
-        
+        ''' Set hyperparameters that control state transition probs
+        '''
+        self.initAlpha = initAlpha 
+        self.transAlpha = transAlpha
 
+    def get_active_comp_probs(self):
+      if self.inferType == 'EM':
+        return self.transPi.mean(axis=0)
+      else:
+        EPiMat = self.transTheta / self.transTheta.sum(axis=1)[:,np.newaxis]
+        return EPiMat.mean(axis=0)
 
   ######################################################### Local Params
   #########################################################
-
-
     def calc_local_params(self, Data, LP, **kwargs):
         '''
         Args
@@ -56,12 +53,11 @@ class FiniteHMM(AllocModel):
              documentation for mathematical definitions of resp and respPair).
              Note that respPair[0,:,:] is undefined.
 
-
         Runs the forward backward algorithm (from HMMUtil) to calculate resp
         and respPair and adds them to the LP dict
         '''
-
-        lpr = LP['E_log_soft_ev']
+        logSoftEv = LP['E_log_soft_ev']
+        K = logSoftEv.shape[1]
 
         #First calculate the parameters that will be fed into the fwd-backward 
         #  algorithm.  These params. are different for EM and VB
@@ -71,51 +67,35 @@ class FiniteHMM(AllocModel):
                                   digamma(np.sum(self.transTheta, axis = 1)))
             expELogInit = np.exp(digamma(self.initTheta) - 
                                  digamma(np.sum(self.initTheta)))
-
             initParam = expELogInit
             transParam = expELogTrans
 
         elif self.inferType == 'EM' > 0:
-            #Initialize the global params if they aren't already
-            if self.initPi is None:
-                self.initPi = np.ones(self.K)
-                self.initPi /= self.K
-            if self.transPi is None:
-                self.transPi = np.ones((self.K, self.K))
-                for k in xrange(self.K):
-                    self.transPi[k,:] /= self.K
-
             initParam = self.initPi
             transParam = self.transPi
             
         #Now run the forward backward algorithm on each sequence
-        resp = None
-        respPair = None
-        estZ = None
-        logMargPr = np.empty(Data.nSeqs)
-        for n in xrange(Data.nSeqs):
+        resp = np.empty((Data.nObs, K))
+        respPair = np.empty((Data.nObs, K, K))
+        logMargPr = np.empty(Data.nDoc)
+        for n in xrange(Data.nDoc):
+            start = Data.doc_range[n]
+            stop = Data.doc_range[n+1]
+            logSoftEv_n = logSoftEv[start:stop]
             seqResp, seqRespPair, seqLogMargPr = \
-                HMMUtil.FwdBwdAlg(initParam, transParam, \
-                                      lpr[Data.seqInds[n]:Data.seqInds[n+1]])
-            est = HMMUtil.viterbi(lpr[Data.seqInds[n]:Data.seqInds[n+1]],
-                                  initParam, transParam)
-
-
-            if resp is None:
-                resp = np.vstack(seqResp)
-                respPair = seqRespPair
-            else:
-                resp = np.vstack((resp, seqResp))
-                respPair = np.append(respPair, seqRespPair, axis = 0)
+                HMMUtil.FwdBwdAlg(initParam, transParam, logSoftEv_n)
+            
+            resp[start:stop] = seqResp
+            respPair[start:stop] = seqRespPair
             logMargPr[n] = seqLogMargPr
             
-            self.estZ.update({'%d'%(Data.seqsUsed[n]) : est})
+            #est = HMMUtil.viterbi(logSoftEv_n,
+            #                      initParam, transParam)
+            #self.estZ.update({'%d'%(Data.seqsUsed[n]) : est})
 
-    
-        LP.update({'evidence':np.sum(logMargPr)})        
-        LP.update({'resp':resp})
-        LP.update({'respPair':respPair})
-        
+        LP['evidence'] = np.sum(logMargPr)
+        LP['resp'] = resp
+        LP['respPair'] = respPair
         return LP
  
 
@@ -123,9 +103,7 @@ class FiniteHMM(AllocModel):
  #########################################################
     
     def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None, **kwargs):
-        '''
-        Creates a SuffStatBag that has parameters needed for global parameter
-        updates
+        ''' Create SuffStatBag needed for global param updates
 
         Args
         -------
@@ -150,9 +128,9 @@ class FiniteHMM(AllocModel):
 
         (see the documentation for information about resp and respPair)
         '''
-
+        """
         #This method is called before calc_local_params() during initialization,
-            #in which case resp and respPair won't exist
+        #in which case resp and respPair won't exist
         if ('resp' not in LP) or ('respPair' not in LP):
             self.K = np.shape(LP['resp'])[1]
             resp = np.ones((Data.nObs, self.K)) / self.K
@@ -160,14 +138,17 @@ class FiniteHMM(AllocModel):
         else:
             resp = LP['resp']
             respPair = LP['respPair']
+        """
+        resp = LP['resp']
+        respPair = LP['respPair']
 
-        inds = Data.seqInds[:-1]
+        startLocIDs = Data.doc_range[:-1]
 
-        respPairSums = np.sum(respPair, axis = 0)
-        firstStateResp = np.sum(resp[inds], axis = 0)
+        firstStateResp = np.sum(resp[startLocIDs], axis = 0)
         N = np.sum(resp, axis = 0)
+        respPairSums = np.sum(respPair, axis = 0)
 
-        SS = SuffStatBag(K = self.K , D = Data.dim)
+        SS = SuffStatBag(K=self.K, D=Data.dim)
         SS.setField('firstStateResp', firstStateResp, dims=('K'))
         SS.setField('respPairSums', respPairSums, dims=('K','K'))
         SS.setField('N', N, dims=('K'))
@@ -175,7 +156,6 @@ class FiniteHMM(AllocModel):
         if doPrecompEntropy is not None:
             entropy = self.elbo_entropy(Data, LP)
             SS.setELBOTerm('Elogqz', entropy, dims = (()))
-
         return SS
 
     def forceSSInBounds(self, SS):
@@ -192,8 +172,9 @@ class FiniteHMM(AllocModel):
           -------
           Nothing.  SS is updated in-place.
       '''
-      np.maximum(SS.respPairSums, 0, out = SS.respPairSums)
-      np.maximum(SS.firstStateResp, 0, out = SS.firstStateResp)
+      np.maximum(SS.N, 0, out=SS.N)
+      np.maximum(SS.respPairSums, 0, out=SS.respPairSums)
+      np.maximum(SS.firstStateResp, 0, out=SS.firstStateResp)
 
 
 
@@ -275,22 +256,13 @@ class FiniteHMM(AllocModel):
                 entropy = SS.getELBOTerm('Elogqz')
             else:
                 entropy = self.elbo_entropy(Data, LP)
-
             return entropy + self.elbo_alloc()
         else:
-            raise NotImplementedError('Unrecognized inferType '+self.inferType)
-
+            emsg = 'Unrecognized inferType: ' + self.inferType
+            raise NotImplementedError(emsg)
 
     def elbo_entropy(self, Data, LP):
-        sigma = (LP['respPair'] /
-                 (np.sum(LP['respPair'], axis = 2)[:,:,np.newaxis] + EPS))
-
-        z_1 = -np.sum(LP['resp'][Data.seqInds[:-1],:] * \
-                          np.log(LP['resp'][Data.seqInds[:-1],:] + EPS))
-        restZ = -np.sum(LP['respPair'][1:,:,:] * np.log(sigma[1:,:,:] + EPS))
-
-
-        return z_1 + restZ
+        return HMMUtil.calcEntropyFromResp(LP['resp'], LP['respPair'], Data)
 
     def elbo_alloc(self):
         normPinit = gammaln(self.K * self.initAlpha) - \
@@ -308,23 +280,23 @@ class FiniteHMM(AllocModel):
   ######################################################### IO Utils
   #########################################################   for machines
     def to_dict(self):
-       #convert the self.estZ dictionary to a list
+        """
         estz = list()
         for seq in xrange(np.size(self.estZ.keys())):
             if '%d'%(seq) in self.estZ:
                 estz.append(self.estZ['%d'%(seq)])
-
+        """
         if self.inferType == 'EM':
-            return dict(initPi = self.initPi, transPi = self.transPi, 
-                        estZ = estz)
+            return dict(initPi=self.initPi,
+                        transPi=self.transPi)
         elif self.inferType.count('VB') > 0:
-            return dict(initTheta = self.initTheta, 
-                        transTheta = self.transTheta, estZ = estz)
+            return dict(initTheta=self.initTheta, 
+                        transTheta=self.transTheta)
 
     def from_dict(self, myDict):
         self.inferType = myDict['inferType']
         self.K = myDict['K']
-        self.estZ = myDict['estZ']
+        #self.estZ = myDict['estZ']
         if self.inferType.count('VB') > 0:
             self.initTheta = myDict['initTheta']
             self.transTheta = myDict['transTheta']
@@ -333,6 +305,6 @@ class FiniteHMM(AllocModel):
             self.transPi = myDict['transPi']
 
     def get_prior_dict(self):
-        return dict(initAlpha = self.initAlpha, transAlpha = self.transAlpha, \
-
-                        K = self.K)
+        return dict(initAlpha=self.initAlpha,
+                    transAlpha=self.transAlpha,
+                    K=self.K)

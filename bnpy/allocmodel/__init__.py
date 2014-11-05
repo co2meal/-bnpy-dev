@@ -19,15 +19,15 @@ AllocModelConstructorsByName = { \
            'MixModel':MixModel,
            'DPMixModel':DPMixModel,
            'DPMixPE':DPMixPE,
+           'DPMixFull':DPMixFull,
            'LDA':LDA,
            'HDPSB':HDPSB,
            'HDPPE':HDPPE,
-           'FiniteHMM':FiniteHMM, 
            'HDPDir':HDPDir,
            'HDPFastRhoFixed':HDPFastRhoFixed,
            'HDPFast':HDPFast,
            'HDPTightPE':HDPTightPE,
-           'DPMixFull':DPMixFull,
+           'FiniteHMM':FiniteHMM, 
           }
 
 AllocModelNameSet = set(AllocModelConstructorsByName.keys())
