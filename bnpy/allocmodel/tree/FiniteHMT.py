@@ -105,7 +105,7 @@ class FiniteHMT(AllocModel):
             self.transPi = transPi
             self.maxBranch = maxBranch
 
-    def calc_evidence(self, Data, SS, LP):
+    def calc_evidence(self, Data, SS, LP, todict=False, **kwargs):
         if self.inferType == 'EM':
             return LP['evidence']
 

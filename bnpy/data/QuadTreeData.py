@@ -138,3 +138,16 @@ class QuadTreeData(TreeData, DataObj):
         self.mask = np.empty((nBranches, (self.nObs-1)/4), dtype=np.int32)
         for b in xrange(nBranches):
             self.mask[b,:] = [i for i in xrange(b+1, self.nObs, nBranches)]
+
+    def get_size(self):
+        return self.nObs
+
+    def get_stats_summary(self):
+        ''' Returns human-readable summary of this dataset's basic properties
+        '''
+        s = '  size: %d units (single observations)\n' % (self.get_size())
+        s += '  dimension: %d' % (self.get_dim())
+        return s
+
+    def get_dim(self):
+        return self.dim
