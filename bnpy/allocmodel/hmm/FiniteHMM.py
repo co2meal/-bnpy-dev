@@ -75,9 +75,10 @@ class FiniteHMM(AllocModel):
             transParam = self.transPi
             
         #Now run the forward backward algorithm on each sequence
+        logMargPr = np.empty(Data.nDoc)
         resp = np.empty((Data.nObs, K))
         respPair = np.empty((Data.nObs, K, K))
-        logMargPr = np.empty(Data.nDoc)
+        respPair[0].fill(0)
         for n in xrange(Data.nDoc):
             start = Data.doc_range[n]
             stop = Data.doc_range[n+1]
@@ -98,6 +99,19 @@ class FiniteHMM(AllocModel):
         LP['respPair'] = respPair
         return LP
  
+
+    def initLPFromResp(self, Data, LP, deleteCompID=None):
+        ''' Obtain initial local params for initializing this model.
+        '''
+        resp = LP['resp']
+        N, K = resp.shape
+        respPair = np.zeros((N, K, K))
+        for n in xrange(1, N):
+          respPair[n] = np.outer(resp[n-1], resp[n])
+
+        LP['respPair'] = respPair
+        return LP
+
 
  ######################################################### Suff Stats
  #########################################################
@@ -128,27 +142,16 @@ class FiniteHMM(AllocModel):
 
         (see the documentation for information about resp and respPair)
         '''
-        """
-        #This method is called before calc_local_params() during initialization,
-        #in which case resp and respPair won't exist
-        if ('resp' not in LP) or ('respPair' not in LP):
-            self.K = np.shape(LP['resp'])[1]
-            resp = np.ones((Data.nObs, self.K)) / self.K
-            respPair = np.ones((Data.nObs, self.K, self.K)) / (self.K * self.K)
-        else:
-            resp = LP['resp']
-            respPair = LP['respPair']
-        """
         resp = LP['resp']
         respPair = LP['respPair']
-
+        K = resp.shape[1]
         startLocIDs = Data.doc_range[:-1]
 
         firstStateResp = np.sum(resp[startLocIDs], axis = 0)
         N = np.sum(resp, axis = 0)
         respPairSums = np.sum(respPair, axis = 0)
 
-        SS = SuffStatBag(K=self.K, D=Data.dim)
+        SS = SuffStatBag(K=K, D=Data.dim)
         SS.setField('firstStateResp', firstStateResp, dims=('K'))
         SS.setField('respPairSums', respPairSums, dims=('K','K'))
         SS.setField('N', N, dims=('K'))

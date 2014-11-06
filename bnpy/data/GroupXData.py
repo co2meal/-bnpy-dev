@@ -35,12 +35,23 @@ import numpy as np
 from XData import XData
 from bnpy.util import as1D
 
-def _toStd2DArray(X):
+def _toStdArray(X):
+  if X.dtype.byteorder != '=':
+    X = X.newbyteorder('=').copy()
   X = np.asarray_chkfinite(X, dtype=np.float64, order='C')
+  return X
+
+def _toStd1DArray(X):
+  if X.ndim > 1:
+    X = np.squeeze(X)
+  assert X.ndim == 1
+  return _toStdArray(X)
+
+def _toStd2DArray(X):
   if X.ndim < 2:
     X = X[np.newaxis,:]
   assert X.ndim == 2
-  return X
+  return _toStdArray(X)
 
 class GroupXData(XData):
   
@@ -60,8 +71,19 @@ class GroupXData(XData):
     InDict = scipy.io.loadmat( matfilepath, **kwargs)
     if 'X' not in InDict:
       raise KeyError('Stored matfile needs to have data in field named X')
+    # Load in Xprev, if available
+    if 'Xprev' in InDict:
+      Xprev = InDict['Xprev']
+    else:
+      Xprev = None
+    # Load in Z labels, if available
+    if 'TrueZ' in InDict:
+      TrueZ = InDict['TrueZ']
+    else:
+      TrueZ = None
     return cls(InDict['X'], InDict['doc_range'],
-                            nDocTotal=nDocTotal)
+               Xprev=Xprev, TrueZ=TrueZ,
+               nDocTotal=nDocTotal)
   
   def __init__(self, X, doc_range, nDocTotal=None, 
                         Xprev=None, TrueZ=None, TrueParams=None, summary=None):
@@ -83,11 +105,14 @@ class GroupXData(XData):
 
     ## Add optional true parameters / true hard labels
     if TrueParams is not None:
-      self.TrueParams = TrueParams
+      self.TrueParams = dict()
+      for key, arr in TrueParams:
+        self.TrueParams[key] = _toStdArray(arr)
+
     if TrueZ is not None:
       if not hasattr(self, 'TrueParams'):
         self.TrueParams = dict()
-      self.TrueParams['Z'] = TrueZ
+      self.TrueParams['Z'] = _toStd1DArray(TrueZ)
 
   def _set_dependent_params(self, doc_range, nDocTotal=None): 
     self.nObs = self.X.shape[0]
