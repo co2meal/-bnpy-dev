@@ -37,6 +37,9 @@ def get_data_info():
   s = 'Toy Bars Data with %d true topics. Each doc uses ONE topic.' % (K)
   return s
 
+def get_short_name():
+  return 'MixBarsK10V900'
+
 def get_data(**kwargs):
     ''' Create and return dataset.
 
@@ -50,6 +53,7 @@ def get_data(**kwargs):
     Data.name = get_short_name()
     Data.summary = get_data_info()
     return Data
+
 
 def updateKwArgsWithDefaults(kwargs):
   for key in Defaults:
