@@ -6,7 +6,6 @@ A module to create HMT data with 4 states
 import numpy as np
 import matplotlib.pyplot as plt
 from bnpy.data.QuadTreeData import QuadTreeData
-from bnpy.distr.GaussDistr import GaussDistr
 from bnpy.allocmodel.tree import HMTUtil
 
 K = 4
@@ -65,19 +64,8 @@ def get_data(seed=8675309, nObsTotal=256, **kwargs):
     X, Z, totalNodes = generateObservations(seed, nObsTotal)
     l = list()
     l.append(totalNodes-1)
-    '''comp = list()
-    I = np.eye(2)
-    for b in range(K):
-        precMat = np.linalg.solve( sigmas[b], I )
-        comp.append(GaussDistr(m=means[b], L=precMat))
-    lpr = np.zeros( (341, K) )
-    for k in range(K):
-      lpr[:,k] = comp[k].log_pdf( QuadTreeData(X) )
-    resp, respPair, logMargPrSeq = HMTUtil.SumProductAlg_QuadTree(pi0, transition, lpr)'''
     trueParams = dict(initPi=pi0, transPi=transition, mu=means, Sigma=sigmas)
     Data = QuadTreeData(X=X, TrueZ=Z, nTrees=1, tree_delims=l, TrueParams=trueParams)
-    #plt.scatter(X[:,0], X[:,1], c=Z, alpha=.7)
-    #plt.show()
     Data.summary = get_data_info()
     return Data
 

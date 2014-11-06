@@ -1,5 +1,5 @@
 '''
-HMTUtil.py
+BinTreeUtil.py
 
 Provides sum-product algorithm for HMTs
 '''
