@@ -24,7 +24,7 @@ import scipy.io
 
 ########################################################### User-facing 
 ###########################################################
-def get_data(seed=8675309, seqLens=((3000,3000,3000,3000,500)), **kwargs):
+def get_data(seed=86758, seqLens=((3000,3000,3000,3000,500)), **kwargs):
   ''' Generate several data sequences, returned as a bnpy data-object
 
     Args
@@ -35,7 +35,7 @@ def get_data(seed=8675309, seqLens=((3000,3000,3000,3000,500)), **kwargs):
 
     Returns
     -------
-    Data : bnpy XData object, with nObsTotal observations
+    Data : bnpy GroupXData object, with nObsTotal observations
   '''
   fullX, fullZ, seqIndicies = get_X(seed, seqLens)
   X = np.vstack(fullX)
@@ -59,10 +59,10 @@ def get_data_info():
 K = 4
 D = 2
 
-transPi = np.asarray([[0.9, 0.02, 0.03, 0.03], \
-                      [0.03, 0.9, 0.02, 0.03], \
-                      [0.03, 0.03, 0.9, 0.02], \
-                      [0.02, 0.03, 0.03, 0.9]])
+transPi = np.asarray([[0.9, 0.02, 0.04, 0.04], \
+                      [0.04, 0.9, 0.02, 0.04], \
+                      [0.04, 0.04, 0.9, 0.04], \
+                      [0.02, 0.04, 0.04, 0.9]])
 initState = 1
 
 mus = np.asarray([[0, 0], \
@@ -142,7 +142,7 @@ def plot_sequence(seqID, Data, dimID=0, maxT=200):
     nextloc = changePts[ii+1]
     ts = np.arange(loc, nextloc)
     xseg = Xseq[loc:nextloc]
-    kseg = Zseq[loc]
+    kseg = int(Zseq[loc])
 
     color = GaussViz.Colors[kseg % len(GaussViz.Colors)]
     pylab.plot(ts, xseg, '.-', color=color, markersize=8)
