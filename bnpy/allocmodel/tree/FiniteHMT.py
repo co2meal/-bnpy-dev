@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 from bnpy.allocmodel import AllocModel
 from bnpy.suffstats import SuffStatBag
-from bnpy.allocmodel.tree import HMTUtil
+from bnpy.allocmodel.tree import QuadTreeUtil as HMTUtil
 from bnpy.allocmodel.tree import HMTViterbi
 
 class FiniteHMT(AllocModel):
@@ -31,7 +31,7 @@ class FiniteHMT(AllocModel):
         if self.inferType.count('VB') > 0:
             print 'inferType VB not yet supported for FiniteHMT'
         elif self.inferType == 'EM' > 0:
-            encoding = HMTViterbi.ViterbiAlg(self.initPi, self.transPi, lpr)
+            #encoding = HMTViterbi.ViterbiAlg(self.initPi, self.transPi, lpr)
             #plt.scatter(Data.X[:,0], Data.X[:,1], c=encoding, alpha=.7)
             #plt.show()
             #if self.image % 5 == 0:
@@ -124,3 +124,8 @@ class FiniteHMT(AllocModel):
 
     def get_prior_dict(self):
         return dict(alpha0=self.alpha0, K=self.K)
+
+    def get_active_comp_probs(self):
+        ''' Return K vector of appearance probabilities for each of the K comps
+        '''
+        return np.ones(self.K) / float(self.K)

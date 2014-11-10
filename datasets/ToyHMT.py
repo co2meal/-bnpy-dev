@@ -1,36 +1,34 @@
 '''
-HMTK4.py
-
-A module to create HMT data with 4 states
+ToyHMT
 '''
+import scipy.linalg
 import numpy as np
-import matplotlib.pyplot as plt
+from bnpy.util.RandUtil import rotateCovMat
 from bnpy.data.QuadTreeData import QuadTreeData
 from bnpy.distr.GaussDistr import GaussDistr
 from bnpy.allocmodel.tree import HMTUtil
+import matplotlib.pyplot as plt
 
+###########################################################  Set Toy Parameters
 K = 4
 D = 2
 
-# mean vectors for Gaussian emission probabilities
-means = np.asarray([[2,2], [-2,-2], [2,-2], [-2,2]])
+means = np.zeros( (K,D) )
 
-# covariance matrices for Gaussian emission probabilities
-sigmas = np.zeros((4,2,2))
-sigmas[0,:,:] = np.asarray([[1,.5], [.5,1]])
-sigmas[1,:,:] = np.asarray([[1,.5], [.5,1]])
-sigmas[2,:,:] = np.asarray([[1,-.5], [-.5,1]])
-sigmas[3,:,:] = np.asarray([[1,-.5], [-.5,1]])
+V = 1.0/16.0
+SigmaBase = np.asarray([[ V, 0], [0, V/100.0]])
 
-# transition matrices for each direction, default by 4
+# Create several Sigmas by rotating this basic covariance matrix
+sigmas = np.zeros( (5,D,D) )
+for k in xrange(4):
+  sigmas[k] = rotateCovMat(SigmaBase, k*np.pi/4.0)
+
+pi0 = np.asarray([.25,.25,.25,.25])
 transition = np.zeros((4,4,4))
 transition[0,:,:] = np.asarray([[.91,.03,.03,.03], [.91,.03,.03,.03], [.91,.03,.03,.03], [.91,.03,.03,.03]])
 transition[1,:,:] = np.asarray([[.03,.91,.03,.03], [.03,.91,.03,.03], [.03,.91,.03,.03], [.03,.91,.03,.03]])
 transition[2,:,:] = np.asarray([[.03,.03,.91,.03], [.03,.03,.91,.03], [.03,.03,.91,.03], [.03,.03,.91,.03]])
 transition[3,:,:] = np.asarray([[.03,.03,.03,.91], [.03,.03,.03,.91], [.03,.03,.03,.91], [.03,.03,.03,.91]])
-
-# initial state
-pi0 = np.asarray([.25,.25,.25,.25])
 
 def sampleFromGaussian(state):
     return np.random.multivariate_normal(means[state,:], sigmas[state,:,:])
@@ -65,23 +63,14 @@ def get_data(seed=8675309, nObsTotal=256, **kwargs):
     X, Z, totalNodes = generateObservations(seed, nObsTotal)
     l = list()
     l.append(totalNodes-1)
-    '''comp = list()
-    I = np.eye(2)
-    for b in range(K):
-        precMat = np.linalg.solve( sigmas[b], I )
-        comp.append(GaussDistr(m=means[b], L=precMat))
-    lpr = np.zeros( (341, K) )
-    for k in range(K):
-      lpr[:,k] = comp[k].log_pdf( QuadTreeData(X) )
-    resp, respPair, logMargPrSeq = HMTUtil.SumProductAlg_QuadTree(pi0, transition, lpr)'''
     trueParams = dict(initPi=pi0, transPi=transition, mu=means, Sigma=sigmas)
     Data = QuadTreeData(X=X, TrueZ=Z, nTrees=1, tree_delims=l, TrueParams=trueParams)
-    #plt.scatter(X[:,0], X[:,1], c=Z, alpha=.7)
-    #plt.show()
+    plt.scatter(X[:,0], X[:,1], c=Z, alpha=.7)
+    plt.show()
     Data.summary = get_data_info()
     return Data
 
 def get_short_name( ):
     ''' Return short string used in filepaths to store solutions
     '''
-    return 'HMTK4'
+    return 'ToyHMT'
