@@ -5,7 +5,6 @@ import scipy.linalg
 import numpy as np
 from bnpy.util.RandUtil import rotateCovMat
 from bnpy.data.QuadTreeData import QuadTreeData
-from bnpy.distr.GaussDistr import GaussDistr
 from bnpy.allocmodel.tree import HMTUtil
 import matplotlib.pyplot as plt
 
