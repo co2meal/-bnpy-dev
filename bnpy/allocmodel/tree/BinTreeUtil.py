@@ -85,7 +85,7 @@ def UpwardPass(PiInit, PiMat, SoftEv):
   return umsg, margPrObs, fmsg
 
 
-def DownwardPass(PiInit, PiMat, SoftEv, umsg):
+def DownwardPass(PiInit, PiMat, SoftEv, umsg, fmsg):
   '''Propagate messages downwards along the tree, starting from the root
   '''
   N = SoftEv.shape[0]
@@ -173,7 +173,7 @@ def calcProbOfTree(Ztree, PiInit, PiMat, SoftEv):
   prTree = PiInit[Ztree[0]] * SoftEv[0,Ztree[0]]
   for n in xrange(1, N):
     parent = get_parent_index(n)
-    get_branch(n)
+    branch = get_branch(n)
     prTree *= PiMat[branch, Ztree[parent], Ztree[n]] * SoftEv[n,Ztree[n]]
   return prTree
 
@@ -196,14 +196,14 @@ def get_children_indices(n, N):
 def get_branch(child_index):
   '''Find on which branch of its parent this child lies
   '''
-  if (child_index%4 == 0):
-    return 3
+  if (child_index%2 == 0):
+    return 1
   else:
-    return (child_index%4 - 1)
+    return 0
 
 def find_last_nonleaf_node(N):
-    '''Get the index of last nonleaf node in the data
-    '''
+  '''Get the index of last nonleaf node in the data
+  '''
   if N == 1:
     return None
   else:
