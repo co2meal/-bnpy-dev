@@ -22,7 +22,6 @@ Example
 import numpy as np
 from .TreeData import TreeData
 from .DataObj import DataObj
-from .MinibatchIterator import MinibatchIterator
 
 class QuadTreeData(TreeData, DataObj):
     
@@ -31,7 +30,7 @@ class QuadTreeData(TreeData, DataObj):
         import scipy.io
         InDict = scipy.io.loadmat( matfilepath, **kwargs)
         if 'X' not in InDict:
-            raise KeyError('Stored mat file needs to have data in field named X')
+            raise KeyError('Stored mat file needs field named X')
         return cls( InDict['X'], nTrees )
 
 
@@ -114,9 +113,6 @@ class QuadTreeData(TreeData, DataObj):
             return QuadTreeData(X=self.X[begin:end], nTrees=1, tree_delims=l)
         else: 
             return QuadTreeData(X=self.X[begin:end], nTrees=1, tree_delims=l, TrueZ=self.TrueLabels[begin:end])
-        
-    def to_minibatch_iterator(self, **kwargs):
-        return MinibatchIterator(self, **kwargs)
         
     def select_subset_by_mask(self, mask, doTrackFullSize=True):
         if doTrackFullSize:

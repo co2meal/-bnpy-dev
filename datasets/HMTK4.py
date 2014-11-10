@@ -6,7 +6,6 @@ A module to create HMT data with 4 states
 import numpy as np
 import matplotlib.pyplot as plt
 from bnpy.data.QuadTreeData import QuadTreeData
-from bnpy.distr.GaussDistr import GaussDistr
 from bnpy.allocmodel.tree import HMTUtil
 
 K = 4
