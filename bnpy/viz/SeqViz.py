@@ -34,8 +34,6 @@ def calcOptPermutation(estZ, trueZ):
     the estZ values to match the trueZ values, as well as the total cost
     required to do so.
     '''
-
-    
     estK = int(np.max(estZ)) + 1
     trueK = int(np.max(trueZ)) + 1
     c = np.zeros((estK, trueK))

@@ -63,10 +63,10 @@ def get_minibatch_iterator(seed=8675309, dataorderseed=0, nBatch=10, nObsBatch=N
 
 
 def get_X(seed, seqLens):
-  '''
-  Generates X, Z, seqInds according to the gaussian parameters specified above
-    and the sequence lengths passed in.
-  '''
+    '''
+    Generates X, Z, seqInds according to the gaussian parameters specified above
+      and the sequence lengths passed in.
+    '''
     prng = np.random.RandomState(seed)
 
     fullX = list()

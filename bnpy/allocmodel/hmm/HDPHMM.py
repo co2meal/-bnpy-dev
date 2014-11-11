@@ -1,10 +1,13 @@
 import numpy as np
+import scipy.optimize
 
 from bnpy.allocmodel import AllocModel
 from bnpy.suffstats import SuffStatBag
 from bnpy.allocmodel.seq import HMMUtil
-from bnpy.util import digamma, gammaln, EPS
+from bnpy.util import digamma, EPS
+from scipy.special import gammaln
 from bnpy.allocmodel.admix import OptimizerForHDPStickBreak as OptimHDPSB
+
 
 import logging
 Log = logging.getLogger('bnpy')
@@ -31,6 +34,8 @@ class HDPHMM(AllocModel):
         self.set_prior(**priorDict)
 
         self.estZ = dict()
+
+
 
     def set_prior(self, gamma = 5, alpha = 0.1, **kwargs):
         self.gamma = gamma
@@ -102,6 +107,8 @@ class HDPHMM(AllocModel):
 
         LP.update({'resp' : resp})
         LP.update({'respPair' : respPair})
+        self.Data = Data
+        self.LP = LP
         return LP
         
     def initLPFromResp(self, Data, LP):
@@ -142,6 +149,7 @@ class HDPHMM(AllocModel):
             entropy = self.elbo_entropy(Data, LP)
             SS.setELBOTerm('Elogqz', entropy, dims = (()))
 
+        self.SS = SS
         return SS
 
     def forceSSInBounds(self, SS):
@@ -222,8 +230,55 @@ class HDPHMM(AllocModel):
         rho = np.max(np.vstack((rho, lower)), axis = 0)
 
         return rho, omega
-        
 
+
+    def _find_optimal_alpha_gamma(self):
+      rhoProds = np.ones(self.K)
+      rhoProds[1:] = np.cumprod(1 - self.rho[:-1])
+
+      elogv = digamma(self.u[1,:,:]) - \
+              digamma(self.u[1,:,:] + self.u[0,:,:])
+      elog1mv = digamma(self.u[0,:,:]) - \
+                digamma(self.u[1,:,:] + self.u[0,:,:])
+
+      elogv = np.sum(elogv, axis = 0) + digamma(self.b[1,:]) - \
+              digamma(self.b[1,:] + self.b[0,:])
+      elog1mv = np.sum(elog1mv, axis = 0) + digamma(self.b[0,:]) - \
+                digamma(self.b[1,:] + self.b[0,:])
+
+      elogv *= (rhoProds * self.rho)
+      elog1mv *= (rhoProds * (1 - self.rho))
+
+      alpha = -(self.K**2 + self.K) / (np.sum(elogv) + np.sum(elog1mv))
+
+      
+
+      #Numerically optimize gamma
+      digsum = np.sum(digamma((1 - self.rho)*self.omega) - digamma(self.omega))
+      fprime = lambda gam: -(-self.K*digamma(gam) + self.K*digamma(1+gam) +
+                            digsum)
+      fprime = lambda gam: self.fooPrime(gam, digsum)
+      #f = lambda gam: (-(self.K*gammaln(1 + gam) - self.K*gammaln(gam) +
+      #                   (gam - 1)*digsum))
+      f =  lambda gam: (self.foo(gam, digsum))
+
+      gamma, _, _ = scipy.optimize.fmin_l_bfgs_b(func = f,
+                                                 x0 = self.gamma,
+                                                 fprime = fprime)
+
+
+      return alpha, gamma
+    
+    def foo(self, gam, digsum):
+      if (gam < 0):
+        return np.inf
+      return -(self.K*gammaln(1 + gam) - self.K*gammaln(gam) +
+              (gam - 1)*digsum)
+
+    def fooPrime(self, gam, digsum):
+      return -(-self.K*digamma(gam) + self.K*digamma(1+gam) +
+                            digsum)
+        
 
     def update_global_params_EM(self, SS, **kwargs):
         raise ValueError('HDPHMM does not support EM')
@@ -244,6 +299,9 @@ class HDPHMM(AllocModel):
         #Update rho and omega through numerical optimization
         self.rho, self.omega = self.find_optimum_rhoOmega(SS, **kwargs)
 
+        #Pick hyperparameters alpha, gamma that optimize the ELBO
+        self.alpha, self.gamma = self._find_optimal_alpha_gamma()
+        
         self.u, self.b = self._calc_u_b(SS)
         
 
@@ -313,11 +371,13 @@ class HDPHMM(AllocModel):
         SS.setField('firstStateResp', np.ones(K) / K, dims=('K'))
         SS.setField('respPairSums', np.ones((K,K)) / K, dims=('K','K'))
 
+ 
         self.u, self.b = self._calc_u_b(SS)
         
        
 
     def calc_evidence(self, Data, SS, LP, todict = False, **kwargs):
+
         if SS.hasELBOTerm('Elogqz'):
             entropy = SS.getELBOTerm('Elogqz')
         else:
@@ -434,8 +494,12 @@ class HDPHMM(AllocModel):
             if '%d'%(seq) in self.estZ:
                 estz.append(self.estZ['%d'%(seq)])
 
+
+
+
         return dict(u = self.u, y = self.b, omega = self.omega,
-                    rho = self.rho, estZ = estz)
+                    rho = self.rho, estZ = estz, gamma = self.gamma,
+                    alpha = self.alpha)
 
     def from_dict(self, myDict):
         self.inferType = myDict['inferType']
