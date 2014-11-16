@@ -426,6 +426,9 @@ class MOVBBirthMergeAlg(MOVBAlg):
       assert np.allclose(SS.uIDs, self.ActiveIDVec)
       assert np.allclose(SSchunk.uIDs, self.ActiveIDVec)
       SS += SSchunk
+      if not SS.hasSelectionTerms() and SSchunk.hasSelectionTerms():
+        SS._SelectTerms = SSchunk._SelectTerms
+
     self.save_batch_suff_stat_to_memory(batchID, SSchunk)
 
     ## Force aggregated suff stats to obey required constraints.
