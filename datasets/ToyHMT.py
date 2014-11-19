@@ -4,9 +4,7 @@ ToyHMT
 import scipy.linalg
 import numpy as np
 from bnpy.util.RandUtil import rotateCovMat
-from bnpy.data.QuadTreeData import QuadTreeData
-from bnpy.allocmodel.tree import HMTUtil
-import matplotlib.pyplot as plt
+from bnpy.data import GroupXData
 
 ###########################################################  Set Toy Parameters
 K = 4
@@ -32,40 +30,37 @@ transition[3,:,:] = np.asarray([[.03,.03,.03,.91], [.03,.03,.03,.91], [.03,.03,.
 def sampleFromGaussian(state):
     return np.random.multivariate_normal(means[state,:], sigmas[state,:,:])
 
-def generateObservations(seed,nObsTotal):
+def generateObservations( seed, nDoc, nObsPerDoc ):
     PRNG = np.random.RandomState(seed)
     stateList = list()
     observationList = list()
-    initialState = np.nonzero(PRNG.multinomial(1,pi0))[0][0]
-    stateList.append(initialState)
-    observationList.append(sampleFromGaussian(initialState))
     totalNonleafNodes = 0
-    obs = nObsTotal/4
+    obs = nObsPerDoc/4
     while obs > 0:
         totalNonleafNodes += obs
         obs /= 4
-    for i in xrange(totalNonleafNodes): #for each non-leaf node
-        for j in xrange(4): # generate 4 children
-            trans = PRNG.multinomial(1, transition[j][stateList[i]][:])
-            state = np.nonzero(trans)[0][0]
-            stateList.append(state)
-            observationList.append(sampleFromGaussian(state))
+    for d in xrange(nDoc):
+        initialState = np.nonzero(PRNG.multinomial(1,pi0))[0][0]
+        stateList.append(initialState)
+        observationList.append(sampleFromGaussian(initialState))
+        for i in xrange(totalNonleafNodes): #for each non-leaf node
+            for j in xrange(4): # generate 4 children
+                trans = PRNG.multinomial(1, transition[j][stateList[i]][:])
+                state = np.nonzero(trans)[0][0]
+                stateList.append(state)
+                observationList.append(sampleFromGaussian(state))
+    doc_range = np.arange(0, nDoc*nObsPerDoc+1, nObsPerDoc)
     observationList = np.vstack(observationList)
     stateList = np.hstack(stateList)
-    return observationList, stateList, totalNonleafNodes+nObsTotal
+    return GroupXData(observationList, doc_range, stateList)
 
 def get_data_info():
     return 'Simple HMT data with %d-D Gaussian observations with total states of K=%d' % (D,K)
 
 
-def get_data(seed=8675309, nObsTotal=256, **kwargs):
-    X, Z, totalNodes = generateObservations(seed, nObsTotal)
-    l = list()
-    l.append(totalNodes-1)
-    trueParams = dict(initPi=pi0, transPi=transition, mu=means, Sigma=sigmas)
-    Data = QuadTreeData(X=X, TrueZ=Z, nTrees=1, tree_delims=l, TrueParams=trueParams)
-    plt.scatter(X[:,0], X[:,1], c=Z, alpha=.7)
-    plt.show()
+def get_data(seed=8675309, nDocTotal=100, nObsPerDoc=256, **kwargs):
+    Data = generateObservations(seed, nDocTotal, nObsTotal)
+    Data.name = 'ToyHMT'
     Data.summary = get_data_info()
     return Data
 
@@ -73,3 +68,15 @@ def get_short_name( ):
     ''' Return short string used in filepaths to store solutions
     '''
     return 'ToyHMT'
+
+def plot_true_clusters():
+    from bnpy.viz import GaussViz
+    for k in range(K):
+        c = k % len(GaussViz.Colors)
+        GaussViz.plotGauss2DContour(means[k], sigmas[k], color=GaussViz.Colors[c])
+
+if __name__ == "__main__":
+    from matplotlib import pylab
+    pylab.figure()
+    plot_true_clusters()
+    pylab.show(block=True)
