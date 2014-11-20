@@ -73,7 +73,9 @@ class FiniteHMT(AllocModel):
         N = np.sum(resp, axis = 0)
         SS = SuffStatBag(K = self.K , D = Data.dim)
         for b in xrange(self.maxBranch):
-            mask = [i for i in xrange(b+1, Data.nObs, self.maxBranch)]
+            mask = [b+1, Data.doc_range[1]+1, self.maxBranch]
+            for docidx in xrange(1, len(Data.doc_range)-1, 1):
+                mask.extend([i for i in xrange(b+2+Data.doc_range[docidx], Data.doc_range[docidx+1], self.maxBranch)])
             PairCounts = np.sum(respPair[mask,:,:], axis = 0)
             SS.setField('PairCounts'+str(b), PairCounts, dims=('K','K'))
         SS.setField('FirstStateCount', firstStateResp, dims=('K'))
