@@ -34,11 +34,11 @@ def generateObservations( seed, nDoc, nObsPerDoc ):
     PRNG = np.random.RandomState(seed)
     stateList = list()
     observationList = list()
-    totalNonleafNodes = 0
-    obs = nObsPerDoc/4
-    while obs > 0:
-        totalNonleafNodes += obs
-        obs /= 4
+    totalNonleafNodes = 1
+    height = 1
+    while nObsPerDoc-totalNonleafNodes > 4**height:
+        totalNonleafNodes += 4**height
+        height += 1
     for d in xrange(nDoc):
         initialState = np.nonzero(PRNG.multinomial(1,pi0))[0][0]
         stateList.append(initialState)
@@ -52,14 +52,14 @@ def generateObservations( seed, nDoc, nObsPerDoc ):
     doc_range = np.arange(0, nDoc*nObsPerDoc+1, nObsPerDoc)
     observationList = np.vstack(observationList)
     stateList = np.hstack(stateList)
-    return GroupXData(observationList, doc_range, stateList)
+    return GroupXData(observationList, doc_range, TrueZ=stateList)
 
 def get_data_info():
     return 'Simple HMT data with %d-D Gaussian observations with total states of K=%d' % (D,K)
 
 
-def get_data(seed=8675309, nDocTotal=100, nObsPerDoc=256, **kwargs):
-    Data = generateObservations(seed, nDocTotal, nObsTotal)
+def get_data(seed=8675309, nDocTotal=10, nObsPerDoc=341, **kwargs):
+    Data = generateObservations(seed, nDocTotal, nObsPerDoc)
     Data.name = 'ToyHMT'
     Data.summary = get_data_info()
     return Data
