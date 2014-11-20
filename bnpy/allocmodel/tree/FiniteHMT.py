@@ -16,18 +16,21 @@ class FiniteHMT(AllocModel):
         self.K = 0
         self.initPi = None
         self.transPi = None
+        self.initTheta = None
+        self.transTheta = None
         self.maxBranch = 4
         self.set_prior(**priorDict)
-        #self.image = 0
 
-    def set_prior(self, alpha0=1.0, **kwargs):
-        self.alpha0 = alpha0
+    def set_prior(self, initAlpha=0.1, transAlpha=0.1, **kwargs):
+        self.initAlpha = initAlpha
+        self.transAlpha = transAlpha
 
     ######################################################### Local Params
     #########################################################
 
     def calc_local_params(self, Data, LP, **kwargs):
-        lpr = LP['E_log_soft_ev']
+        logSoftEv = LP['E_log_soft_ev']
+        K = logSoftEv.shape[1]
         if self.inferType.count('VB') > 0:
             print 'inferType VB not yet supported for FiniteHMT'
         elif self.inferType == 'EM' > 0:
@@ -37,10 +40,23 @@ class FiniteHMT(AllocModel):
             #if self.image % 5 == 0:
             #    plt.savefig('/home/mterzihan/Desktop/denoising/trial/%d.png' % self.image)
             #self.image = self.image+1
-            resp, respPair, logMargPrSeq = HMTUtil.SumProductAlg_QuadTree(self.initPi, self.transPi, lpr)
-            LP.update({'resp':resp})
-            LP.update({'respPair':respPair})
-            LP.update({'evidence':logMargPrSeq})
+            initParam = self.initPi
+            transParam = self.transPi
+        logMargPr = np.empty(Data.nDoc)
+        resp = np.empty((Data.nObs, K))
+        respPair = np.empty((Data.nObs, K, K))
+        respPair[0].fill(0)
+        for n in xrange(Data.nDoc):
+            start = Data.doc_range[n]
+            stop = Data.doc_range[n+1]
+            logSoftEv_n = logSoftEv[start:stop]
+            treeResp, treeRespPair, treeLogMargPr = HMTUtil.SumProductAlg_QuadTree(initParam, transParam, logSoftEv_n)
+            resp[start:stop] = treeResp
+            respPair[start:stop] = treeRespPair
+            logMargPr[n] = treeLogMargPr
+        LP['evidence'] = np.sum(logMargPr)
+        LP['resp'] = resp
+        LP['respPair'] = respPair
 
         return LP
 
@@ -50,14 +66,17 @@ class FiniteHMT(AllocModel):
     def get_global_suff_stats( self, Data, LP , **kwargs):   
         resp = LP['resp']
         respPair = LP['respPair']
+        K = resp.shape[1]
+        startLocIDs = Data.doc_range[:-1]
         
-        FirstStateCount = resp[0,:]
+        firstStateResp = np.sum(resp[startLocIDs], axis = 0)
         N = np.sum(resp, axis = 0)
         SS = SuffStatBag(K = self.K , D = Data.dim)
         for b in xrange(self.maxBranch):
-            PairCounts = np.sum(respPair[Data.mask[b],:,:], axis = 0)
+            mask = [i for i in xrange(b+1, Data.nObs, self.maxBranch)]
+            PairCounts = np.sum(respPair[mask,:,:], axis = 0)
             SS.setField('PairCounts'+str(b), PairCounts, dims=('K','K'))
-        SS.setField('FirstStateCount', FirstStateCount, dims=('K'))
+        SS.setField('FirstStateCount', firstStateResp, dims=('K'))
         SS.setField('N', N, dims=('K'))
 
         return SS
@@ -123,7 +142,7 @@ class FiniteHMT(AllocModel):
             return dict(initPi = self.initPi, transPi = self.transPi)
 
     def get_prior_dict(self):
-        return dict(alpha0=self.alpha0, K=self.K)
+        return dict(alpha0=self.initAlpha, K=self.K)
 
     def get_active_comp_probs(self):
         ''' Return K vector of appearance probabilities for each of the K comps
