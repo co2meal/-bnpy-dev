@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+from bnpy.util import digamma
 from bnpy.allocmodel import AllocModel
 from bnpy.suffstats import SuffStatBag
 from bnpy.allocmodel.tree import QuadTreeUtil as HMTUtil
@@ -32,9 +33,16 @@ class FiniteHMT(AllocModel):
         logSoftEv = LP['E_log_soft_ev']
         K = logSoftEv.shape[1]
         if self.inferType.count('VB') > 0:
-            print 'inferType VB not yet supported for FiniteHMT'
+            expELogInit = np.exp(digamma(self.initTheta) - 
+                                 digamma(np.sum(self.initTheta)))
+            expELogTrans = np.empty( (self.maxBranch, K, K) )
+            for b in xrange(self.maxBranch):
+                expELogTrans[b,:,:] = np.exp(digamma(self.transTheta[b,:,:]) - 
+                                             digamma(np.sum(self.transTheta[b,:,:], axis = 1)))
+            initParam = expELogInit
+            transParam = expELogTrans
         elif self.inferType == 'EM' > 0:
-            #encoding = HMTViterbi.ViterbiAlg(self.initPi, self.transPi, lpr)
+            #encoding = HMTViterbi.ViterbiAlg(self.initPi, self.transPi, logSoftEv)
             #plt.scatter(Data.X[:,0], Data.X[:,1], c=encoding, alpha=.7)
             #plt.show()
             #if self.image % 5 == 0:
@@ -73,7 +81,7 @@ class FiniteHMT(AllocModel):
         N = np.sum(resp, axis = 0)
         SS = SuffStatBag(K = self.K , D = Data.dim)
         for b in xrange(self.maxBranch):
-            mask = [b+1, Data.doc_range[1]+1, self.maxBranch]
+            mask = [i for i in xrange(b+1, Data.doc_range[1], self.maxBranch)]
             for docidx in xrange(1, len(Data.doc_range)-1, 1):
                 mask.extend([i for i in xrange(b+1+Data.doc_range[docidx], Data.doc_range[docidx+1], self.maxBranch)])
             PairCounts = np.sum(respPair[mask,:,:], axis = 0)
@@ -95,46 +103,70 @@ class FiniteHMT(AllocModel):
             normFactor = np.sum(PairCounts, axis = 1)
             self.transPi[b,:,:] = PairCounts / normFactor[:,np.newaxis]
 
+    def update_global_params_VB( self, SS, **kwargs ):
+        self.initTheta = self.initAlpha + SS.FirstStateCount
+        for b in xrange(self.maxBranch):
+            self.transTheta[b,:,:] = self.transAlpha + getattr(SS._Fields, 'PairCounts'+str(b))
+        self.K = SS.K
+
     def init_global_params(self, Data, K=0, **kwargs):
         self.K = K
-        branchNo = 4
         if self.inferType == 'EM':
             self.initPi = 1.0/K * np.ones(K)
-            self.transPi = np.empty((branchNo, K, K))
-            for b in xrange(branchNo):
+            self.transPi = np.empty((self.maxBranch, K, K))
+            for b in xrange(self.maxBranch):
                 self.transPi[b,:,:] = np.ones(K)[:,np.newaxis]/K * np.ones((K,K))
         else:
-            print 'inferType other than EM are not yet supported for FiniteHMT'
+            self.initTheta = self.initAlpha + np.ones(K)
+            self.transTheta = self.transAlpha + np.ones((self.maxBranch,K,K))
 
     def set_global_params(self, trueParams=None, hmodel=None, K=None, initPi=None, transPi=None, maxBranch=None,**kwargs):
         if hmodel is not None:
             self.K = hmodel.allocModel.K
-            self.initPi = hmodel.allocModel.initPi
-            self.transPi = hmodel.allocModel.transPi
             if maxBranch is None:
                 self.maxBranch = 4
             else:
                 self.maxBranch = maxBranch
+            if self.inferType == 'EM':
+                self.initPi = hmodel.allocModel.initPi
+                self.transPi = hmodel.allocModel.transPi
+            elif self.inferType == 'VB':
+                self.initTheta = hmodel.allocModel.initTheta
+                self.transTheta = hmodel.allocModel.transTheta
         elif trueParams is not None:
-            self.initPi = trueParams[initPi]
-            self.transPi = trueParams[transPi]
             self.mu = trueParams[mu]
             self.Sigma = trueParams[Sigma]
+            if self.inferType == 'EM':
+                self.initPi = trueParams[initPi]
+                self.transPi = trueParams[transPi]
+            elif self.inferType == 'VB':
+                self.initTheta = trueParams[initTheta]
+                self.transTheta = trueParams[transTheta]
         else:
             self.K = K
-            self.initPi = initPi
-            self.transPi = transPi
             self.maxBranch = maxBranch
+            if self.inferType == 'EM':
+                self.initPi = initPi
+                self.transPi = transPi
+            elif self.inferType == 'VB':
+                self.initTheta = initTheta
+                self.transTheta = transTheta
 
     def calc_evidence(self, Data, SS, LP, todict=False, **kwargs):
         if self.inferType == 'EM':
             return LP['evidence']
+        elif self.inferType.count('VB') > 0:
+            return 0
+        else :
+            emsg = 'Unrecognized inferType: ' + self.inferType
+            raise NotImplementedError(emsg)
 
     def from_dict(self, myDict):
         self.inferType = myDict['inferType']
         self.K = myDict['K']
         if self.inferType == 'VB':
-            print 'VB is not supported yet for FiniteHMT'
+            self.initTheta = myDict['initTheta']
+            self.transTheta = myDict['transTheta']
         elif self.inferType == 'EM':
             self.initPit = myDict['initPi']
             self.transPi = myDict['transPi']
@@ -142,9 +174,12 @@ class FiniteHMT(AllocModel):
     def to_dict(self):
         if self.inferType == 'EM':
             return dict(initPi = self.initPi, transPi = self.transPi)
+        elif self.inferType.count('VB') > 0:
+            return dict(initTheta=self.initTheta, 
+                        transTheta=self.transTheta)
 
     def get_prior_dict(self):
-        return dict(alpha0=self.initAlpha, K=self.K)
+        return dict(initAlpha=self.initAlpha, transAlpha=self.transAlpha, K=self.K)
 
     def get_active_comp_probs(self):
         ''' Return K vector of appearance probabilities for each of the K comps
