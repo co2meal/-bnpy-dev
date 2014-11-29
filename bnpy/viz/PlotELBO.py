@@ -32,7 +32,8 @@ Colors = [(0,0,0), # black
 
 XLabelMap = dict(laps='num pass thru data',
                  iters='num alg steps',
-                 times='elapsed time (sec)'
+                 times='elapsed time (sec)',
+                 K='num components',
                 )  
 YLabelMap = dict(evidence='train objective',
                  K='num topics K',

@@ -69,7 +69,11 @@ class DataIterator(object):
                         and random order for traversing batches during each lap
     '''
     self.Data = Data
-    self.nBatch = int(nBatch)
+
+    nBatch = int(np.minimum(nBatch, Data.get_total_size()))
+    self.nBatch = nBatch
+    ## TODO: Warn about using fewer than specified num batches
+
     self.nLap = nLap + int(startLap)
     
     # Config order in which batches are traversed

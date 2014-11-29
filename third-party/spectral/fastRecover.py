@@ -115,7 +115,7 @@ def fastQuadSolveExpGrad(y, x, eps, initialStepsize, recoveryLog, anchorsTimesAn
 def quadSolveExpGrad(y, x, eps, alpha=None, XX=None): 
     c1 = 10**(-4)
     c2 = 0.75
-    if XX == None:
+    if XX is None:
         print 'making XXT'
         XX = dot(x, x.transpose())
 

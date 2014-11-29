@@ -93,17 +93,17 @@ def plotJobs(jpaths, legNames, styles=None, fileSuffix='PredLik.mat',
       pass # when using IPython notebook
 
 def plot_all_tasks_for_job(jobpath, label, taskids=None,
-                                           minLap=0,
-                                           showFinalPt=0,
                                            lineType='.-',
                                            color=None,
-                                           colorID=0,
-                                           fileSuffix='HeldoutLik.mat',
                                            yvar='evidence',
                                            xvar='laps',
                                            markersize=10,
                                            linewidth=2,
+                                           minLap=0,
+                                           showFinalPt=0,
+                                           fileSuffix='HeldoutLik.mat',
                                            xjitter=None,
+                                           colorID=0,
                                            **kwargs):
   ''' Create line plot in current figure for each task/run of jobpath
   '''
@@ -113,7 +113,7 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
     return None
 
   if color is None:
-    color = Colors[ colorID % len(Colors)]
+    color = Colors[colorID % len(Colors)]
   taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
 
   for tt, taskid in enumerate(taskids):
