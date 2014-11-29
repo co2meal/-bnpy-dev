@@ -8,3 +8,4 @@ __all__ = ['DataObj', 'DataIterator', 'DataIteratorFromDisk',
            'XData', 'GroupXData', 
            'WordsData',
           ]
+
