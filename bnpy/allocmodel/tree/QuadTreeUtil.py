@@ -5,6 +5,7 @@ Provides sum-product and brute-force algorithms for HMTs
 '''
 import numpy as np
 import math
+from bnpy.util import EPS
 
 
 def SumProductAlg_QuadTree(PiInit, PiMat, logSoftEv):
@@ -252,6 +253,17 @@ def calcProbOfTree(Ztree, PiInit, PiMat, SoftEv):
     branch = get_branch(n)
     prTree *= PiMat[branch, Ztree[parent], Ztree[n]] * SoftEv[n,Ztree[n]]
   return prTree
+
+def calcEntropyFromResp(resp, respPair, Data, eps=1e-100):
+  ''' Calculate entropy E_q(z) [ log q(z) ] for all trees
+  '''
+  startLocIDs = Data.doc_range[:-1]
+
+  idx = filter(lambda x: x not in set(startLocIDs), xrange(np.size(respPair,0)))
+  sigma = respPair / (respPair.sum(axis=2)[:,:,np.newaxis] + eps)
+  firstH = -1 * np.sum(resp[startLocIDs] * np.log(resp[startLocIDs]+eps))
+  restH = -1 * np.sum(respPair[idx,:,:] * np.log(sigma[idx,:,:] + EPS))
+  return firstH + restH
 
 ########################################################### tree utilities
 ###########################################################
