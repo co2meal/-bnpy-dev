@@ -26,6 +26,15 @@ class FiniteHMT(AllocModel):
     self.initAlpha = initAlpha
     self.transAlpha = transAlpha
 
+  def get_active_comp_probs(self):
+    if self.inferType == 'EM':
+      pi = self.transPi.sum(axis=0) / self.maxBranch
+      return pi.mean(axis=0)
+    else:
+      theta = self.transTheta.sum(axis=0) / self.maxBranch
+      EPiMat = self.theta / self.theta.sum(axis=1)[:,np.newaxis]
+      return EPiMat.mean(axis=0)
+
   ######################################################### Local Params
   #########################################################
 
@@ -34,7 +43,7 @@ class FiniteHMT(AllocModel):
     K = logSoftEv.shape[1]
     if self.inferType.count('VB') > 0:
       expELogInit = np.exp(digamma(self.initTheta) - 
-                 digamma(np.sum(self.initTheta)))
+                           digamma(np.sum(self.initTheta)))
       expELogTrans = np.empty( (self.maxBranch, K, K) )
       for b in xrange(self.maxBranch):
         expELogTrans[b,:,:] = np.exp(digamma(self.transTheta[b,:,:]) - 
@@ -182,7 +191,7 @@ class FiniteHMT(AllocModel):
     normQtrans = 0
     for b in xrange(self.maxBranch):
       normQtrans += np.sum(gammaln(self.transTheta[b,:,:])) - \
-        np.sum(gammaln(np.sum(self.transTheta[b,:,:], axis = 1)))
+                           np.sum(gammaln(np.sum(self.transTheta[b,:,:], axis = 1)))
     return normPinit + normPtrans + normQinit + normQtrans
 
   def from_dict(self, myDict):
