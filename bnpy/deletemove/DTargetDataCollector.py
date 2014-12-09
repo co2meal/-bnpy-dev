@@ -1,5 +1,5 @@
 '''
-TargetDataSampler.py
+DTargetDataCollector.py
 
 Provides methods that sample target dataset
 

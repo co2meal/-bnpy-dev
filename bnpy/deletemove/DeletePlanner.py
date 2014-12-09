@@ -70,7 +70,13 @@ def makePlans(curSS, Dchunk=None, DocUsageCount=None,
     if percDiff > 0.15:
       del DRecordsByComp[uID]
 
-  ## Sort by size,  smallest to biggest
+  ## Prioritize the eligible comps by
+  ##  * size (smaller preferred)
+  ##  * previous failures (fewer preferred)
+  ## We will make 3 tiers,
+  ##  1) first choices
+  ##  2) second choices (aka waiting list)
+  ##  3) clear rejects
   sortIDs = np.argsort(SizeVec[eligibleIDs])
   firstUIDs = list()
   secondUIDs = list()
@@ -96,10 +102,11 @@ def makePlans(curSS, Dchunk=None, DocUsageCount=None,
   eligibleString = ' '.join(['%3d' % (x) for x in secondUIDs[:10]])
   DeleteLogger.log(eligibleString)
 
-  ## Select a subset of eligible topics to use with target set
-  # aggregate smallest to biggest until we reach capacity
+  ## Now, select as many candidates as possible from first tier candidates
+  ## aggregated smallest to biggest until we reach capacity
   if len(firstUIDs) > 0:
     eligibleMass = np.cumsum([SizeMap[x] for x in firstUIDs])
+
     # maxLoc gives output in {0, 1, ... nF-1, nF}
     #  maxLoc equals m if we want everything at positions 0:m
     maxLoc = np.searchsorted(eligibleMass, dtargetMaxSize)
@@ -128,8 +135,10 @@ def makePlans(curSS, Dchunk=None, DocUsageCount=None,
     selectIDs.append(eligibleIDs[jj])
   Plan = dict(selectIDs=[x for x in selectIDs],
               uIDs=[x for x in selectUIDs],
+              size=np.sum([SizeVec[x] for x in selectIDs]),
              )
   return [Plan]
+
 
 def Count2Size(Nvec, Dchunk, curSS, lapFrac, DocUsageCount):
   if lapFrac < 1:
