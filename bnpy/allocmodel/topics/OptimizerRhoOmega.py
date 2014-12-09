@@ -1,5 +1,5 @@
 '''
-OptimizerHDPSB.py
+OptimizerRhoOmega.py
 
 CONSTRAINED Optimization Problem
 ----------
@@ -24,13 +24,14 @@ from scipy.special import gammaln, digamma, polygamma
 import datetime
 import logging
 
-from RhoBetaUtil import rho2beta_active, beta2rho, sigmoid, invsigmoid
-from RhoBetaUtil import forceRhoInBounds, forceOmegaInBounds
-from RhoBetaUtil import create_initrho, create_initomega
+from bnpy.util.StickBreakUtil import rho2beta_active, beta2rho
+from bnpy.util.StickBreakUtil import sigmoid, invsigmoid
+from bnpy.util.StickBreakUtil import forceRhoInBounds, forceOmegaInBounds
+from bnpy.util.StickBreakUtil import create_initrho, create_initomega
 
 Log = logging.getLogger('bnpy')
 
-def find_optimum_multiple_tries(sumLogVd=0, sumLog1mVd=0, nDoc=0, 
+def find_optimum_multiple_tries(sumLogPi=0, nDoc=0, 
                                 gamma=1.0, alpha=1.0,
                                 initrho=None, initomega=None,
                                 approx_grad=False,
@@ -57,7 +58,7 @@ def find_optimum_multiple_tries(sumLogVd=0, sumLog1mVd=0, nDoc=0,
   nOverflow = 0
   for trial, factr in enumerate(factrList):
     try:
-      rhoomega, f, Info = find_optimum(sumLogVd, sumLog1mVd, nDoc,
+      rhoomega, f, Info = find_optimum(sumLogPi, nDoc,
                                        gamma=gamma, alpha=alpha,
                                        initrho=initrho, initomega=initomega,
                                        factr=factr, approx_grad=approx_grad,
@@ -81,7 +82,7 @@ def find_optimum_multiple_tries(sumLogVd=0, sumLog1mVd=0, nDoc=0,
   if rhoomega is None:
     if initrho is not None:      
       # Last ditch effort, try different initialization
-      return find_optimum_multiple_tries(sumLogVd, sumLog1mVd, nDoc, 
+      return find_optimum_multiple_tries(sumLogPi, nDoc, 
                                 gamma=gamma, alpha=alpha,
                                 initrho=None, initomega=None,
                                 approx_grad=approx_grad, **kwargs)
@@ -92,7 +93,7 @@ def find_optimum_multiple_tries(sumLogVd=0, sumLog1mVd=0, nDoc=0,
   return rho, omega, f, Info
 
 
-def find_optimum(sumLogVd=0, sumLog1mVd=0, nDoc=0, gamma=1.0, alpha=1.0,
+def find_optimum(sumLogPi=0, nDoc=0, gamma=1.0, alpha=1.0,
                  initrho=None, initomega=None, scaleVector=None,
                  approx_grad=False, factr=1.0e5, **kwargs):
   ''' Run gradient optimization to estimate best parameters rho, omega
@@ -107,12 +108,11 @@ def find_optimum(sumLogVd=0, sumLog1mVd=0, nDoc=0, gamma=1.0, alpha=1.0,
       --------
       ValueError on an overflow, any NaN, or failure to converge
   '''
-  if sumLogVd.ndim > 1:
-    sumLogVd = np.squeeze(np.asarray(sumLogVd, dtype=np.float64))
-    sumLog1mVd = np.squeeze(np.asarray(sumLog1mVd, dtype=np.float64))
+  if sumLogPi.ndim > 1:
+    sumLogPi = np.squeeze(np.asarray(sumLogPi, dtype=np.float64))
 
-  assert sumLogVd.ndim == 1
-  K = sumLogVd.size
+  assert sumLogPi.ndim == 1
+  K = sumLogPi.size - 1
 
   ## Determine initial value
   if initrho is None:
@@ -133,7 +133,7 @@ def find_optimum(sumLogVd=0, sumLog1mVd=0, nDoc=0, gamma=1.0, alpha=1.0,
   initc = rhoomega2c(initrhoomega, scaleVector=scaleVector)
 
   ## Define objective function (unconstrained!)
-  objArgs = dict(sumLogVd=sumLogVd, sumLog1mVd=sumLog1mVd,
+  objArgs = dict(sumLogPi=sumLogPi,
                   nDoc=nDoc, gamma=gamma, alpha=alpha,
                   approx_grad=approx_grad, scaleVector=scaleVector)
 
@@ -205,7 +205,7 @@ def rhoomega2c(rhoomega, scaleVector=None):
 ########################################################### Objective
 ###########################################################  constrained
 def objFunc_constrained(rhoomega,
-                     sumLogVd=0, sumLog1mVd=0, nDoc=0, gamma=1.0, alpha=1.0,
+                     sumLogPi=0, nDoc=0, gamma=1.0, alpha=1.0,
                      approx_grad=False, **kwargs):
   ''' Returns constrained objective function and its gradient
 
@@ -235,25 +235,23 @@ def objFunc_constrained(rhoomega,
     scale = nDoc
     ONcoef = 1 + (1.0 - g1)/nDoc
     OFFcoef = kvec(K) + (gamma - g0)/nDoc
-    P = sumLogVd/nDoc
-    Q = sumLog1mVd/nDoc
 
-    ## Calc term related to \sum_{k=1}^K P_k E[\beta_k] + Q_k E[\beta_{>k}]
-    cumprod1mrho = np.ones(K)
-    cumprod1mrho[1:] = np.cumprod( 1 - rho[:-1])
-    rPand1mrQ = rho * P + (1-rho) * Q
-    elbo_beta = np.inner(cumprod1mrho, rPand1mrQ) 
+    ## Calc local term
+    Tvec = sumLogPi/nDoc
+    Ebeta = np.hstack([rho, 1.0])
+    Ebeta[1:] *= np.cumprod(1-rho)
+    elbo_local = alpha * np.inner(Ebeta, Tvec) 
 
   else:
     scale = 1
     ONcoef = 1 - g1
     OFFcoef = gamma - g0
-    elbo_beta = 0
+    elbo_local = 0
 
   elbo = -1 * c_Beta(g1, g0)/scale \
            + np.inner(ONcoef, Elogu) \
            + np.inner(OFFcoef, Elog1mu) \
-           + alpha * elbo_beta
+           + elbo_local
 
   if approx_grad:
     return -1.0 * elbo
@@ -265,15 +263,13 @@ def objFunc_constrained(rhoomega,
   assert np.all(np.isfinite(trigamma_omega))
   assert np.all(np.isfinite(trigamma_g1))
 
-
   gradrho = ONcoef * omega * trigamma_g1 \
             - OFFcoef * omega * trigamma_g0
   gradomega = ONcoef * (rho * trigamma_g1 - trigamma_omega) \
             + OFFcoef * ((1-rho) * trigamma_g0 - trigamma_omega)
   if nDoc > 0:
-    RMat = calc_drho_dcumprod1mrho(cumprod1mrho, rho, K)
-    gB = np.dot(RMat, rPand1mrQ) + cumprod1mrho * (P-Q)
-    gradrho += alpha * gB
+    Delta = calc_dEbeta_drho(Ebeta, rho, K)
+    gradrho += alpha * np.dot(Delta, Tvec)
   grad = np.hstack([gradrho, gradomega])
 
   return -1.0 * elbo, -1.0 * grad
@@ -304,39 +300,45 @@ def c_Beta(g1, g0):
   '''
   return np.sum(gammaln(g1 + g0) - gammaln(g1) - gammaln(g0))
 
-def _v2beta(v):
-  ''' Convert to stick-breaking fractions v to probability vector beta
-      Args
-      --------
-      v : K-len vector, rho[k] in interval [0, 1]
-      
+def calc_dEbeta_drho(Ebeta, rho, K):
+  ''' Calculate partial derivative of Ebeta w.r.t. rho
+
       Returns
-      --------
-      beta : K+1-len vector, with positive entries that sum to 1
+      ---------
+      Delta : 2D array, size K x K+1
   '''
-  beta = np.hstack([1.0, np.cumprod(1-v)])
-  beta[:-1] *= v
-  return beta
+  Delta = np.tile(-1 * Ebeta, (K,1))
+  Delta /= (1-rho)[:,np.newaxis]
+  Delta[_get_diagIDs(K)] *= -1 * (1-rho)/rho
+
+  ## Using flat indexing seems to be faster (about x2)
+  Delta.ravel()[_get_flatLowTriIDs(K)] = 0
+  #Delta[_get_lowTriIDs(K)] = 0
+  return Delta
+
+flatlowTriIDsDict = dict()
+def _get_flatLowTriIDs(K):
+  if K in flatlowTriIDsDict:
+    return flatlowTriIDsDict[K]
+  else:
+    flatIDs = np.ravel_multi_index(np.tril_indices(K,-1), (K,K+1))
+    flatlowTriIDsDict[K] = flatIDs
+    return flatIDs
 
 lowTriIDsDict = dict()
 def _get_lowTriIDs(K):
   if K in lowTriIDsDict:
     return lowTriIDsDict[K]
   else:
-    ltIDs = np.tril_indices(K)
+    ltIDs = np.tril_indices(K,-1)
     lowTriIDsDict[K] = ltIDs
     return ltIDs
 
-
-def calc_drho_dcumprod1mrho(cumprod1mrho, rho, K):
-  ''' Calculate partial derivative of cumprod1mrho w.r.t. rho
-
-      Returns
-      ---------
-      RMat : 2D array, size K x K
-  '''
-  RMat = np.tile(-1*cumprod1mrho, (K,1))
-  RMat /= (1-rho)[:,np.newaxis]
-  RMat[_get_lowTriIDs(K)] = 0
-  return RMat
-
+diagIDsDict = dict()
+def _get_diagIDs(K):
+  if K in diagIDsDict:
+    return diagIDsDict[K]
+  else:
+    diagIDs = np.diag_indices(K)
+    diagIDsDict[K] = diagIDs
+    return diagIDs
