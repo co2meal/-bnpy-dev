@@ -121,7 +121,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
           convThr = finalConvThr + initConvThr * np.exp(-7 * fracComplete)
           self.algParamsLP['convThrLP'] = convThr
 
-      ## Delete move : 
+      ## Prepare for delete move
       if self.isFirstBatch(lapFrac) and self.hasMove('delete'):
         self.DeleteAcceptRecord = dict()
         if self.doDeleteAtLap(lapFrac):
@@ -165,6 +165,11 @@ class MOVBBirthMergeAlg(MOVBAlg):
                                self.algParams['merge']['preselectroutine'])
         else:
           MergePrepInfo = dict()
+
+      ## Reset selection terms to zero
+      if self.isFirstBatch(lapFrac):
+        if SS is not None and SS.hasSelectionTerms():
+          SS._SelectTerms.setAllFieldsToZero()
 
       ## Local/E step
       self.algParamsLP['lapFrac'] = lapFrac ## logging
@@ -967,9 +972,6 @@ class MOVBBirthMergeAlg(MOVBAlg):
       for p in [10, 50, 90, 100]:
         MergeLogger.log('   %d: %d' % (p, np.percentile(degree, p)), 'debug')
 
-    ## Reset selection terms to zero
-    if SS is not None and SS.hasSelectionTerms():
-      SS._SelectTerms.setAllFieldsToZero()
     return PrepInfo
 
   def run_many_merge_moves(self, hmodel, SS, evBound, lapFrac, MergePrepInfo):
@@ -1313,7 +1315,6 @@ class MOVBBirthMergeAlg(MOVBAlg):
       assert condELBO
       assert condCount
       assert condUIDs
-
 
     if self.doDebugVerbose():
       self.print_msg('<<<<<<<< END   double-check @ lap %.2f' % (self.lapFrac))
