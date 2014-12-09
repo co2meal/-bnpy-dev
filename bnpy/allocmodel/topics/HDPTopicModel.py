@@ -1,5 +1,4 @@
 '''
-HDPDir.py
 Bayesian nonparametric admixture model via the Hierarchical Dirichlet Process.
 Uses a direct construction that maintains K active components,
 via a Dirichlet document-level variational factor.
@@ -47,19 +46,20 @@ import numpy as np
 import logging
 Log = logging.getLogger('bnpy')
 
-from ..AllocModel import AllocModel
+from bnpy.allocmodel.AllocModel import AllocModel
 from bnpy.suffstats import SuffStatBag
-from ...util import digamma, gammaln
-from ...util import NumericUtil, as1D
+from bnpy.util import digamma, gammaln
+from bnpy.util import as1D
 
-import OptimizerHDPDir as OptimHDPDir
-import LocalUtil
-import QPiDirLocalStep as QPD
+import LocalStepManyDocs
+import OptimizerRhoOmega
 
-from bnpy.util.NumericUtil import calcRlogRdotv_allpairs, calcRlogRdotv_specificpairs
+from bnpy.util.NumericUtil import calcRlogRdotv, calcRlogR
+from bnpy.util.NumericUtil import calcRlogRdotv_allpairs
+from bnpy.util.NumericUtil import calcRlogRdotv_specificpairs
 from bnpy.util.NumericUtil import calcRlogR_allpairs, calcRlogR_specificpairs
 
-class HDPDir(AllocModel):
+class HDPTopicModel(AllocModel):
   def __init__(self, inferType, priorDict=None):
     if inferType == 'EM':
       raise ValueError('HDPDir cannot do EM.')
@@ -152,8 +152,7 @@ class HDPDir(AllocModel):
           * DocTopicCount
     '''
     self.alpha_E_beta() # create cached copy
-    LP = QPD.calcLocalParams(Data, LP, self, **kwargs)
-    #LP = LocalUtil.calcLocalParams(Data, LP, self, **kwargs)
+    LP = LocalStepManyDocs.calcLocalParams(Data, LP, self, **kwargs)
     assert 'resp' in LP
     assert 'DocTopicCount' in LP
     return LP
@@ -441,10 +440,10 @@ class HDPDir(AllocModel):
     else:
       # Special update case for merges:
       # Fast, heuristic update for rho and omega directly from existing values
-      beta = OptimHDPDir.rho2beta_active(self.rho)
+      beta = OptimizerRhoOmega.rho2beta_active(self.rho)
       beta[mergeCompA] += beta[mergeCompB]
       beta = np.delete(beta, mergeCompB, axis=0)
-      rho = OptimHDPDir.beta2rho(beta, SS.K)
+      rho = OptimizerRhoOmega.beta2rho(beta, SS.K)
       omega = self.omega
       omega[mergeCompA] += omega[mergeCompB]
       omega = np.delete(omega, mergeCompB, axis=0)
@@ -473,7 +472,7 @@ class HDPDir(AllocModel):
       initomega = None
     try:
       sumLogPi = np.append(SS.sumLogPi, SS.sumLogPiRem)
-      rho, omega, f, Info = OptimHDPDir.find_optimum_multiple_tries(
+      rho, omega, f, Info = OptimizerRhoOmega.find_optimum_multiple_tries(
                                         sumLogPi=sumLogPi,
                                         nDoc=SS.nDoc,
                                         gamma=self.gamma, alpha=self.alpha,
@@ -488,7 +487,7 @@ class HDPDir(AllocModel):
       else:
         Log.error('***** Optim failed. Set to default init. ' + str(error))
         omega = (1 + self.gamma) * np.ones(SS.K)
-        rho = OptimHDPDir.create_initrho(SS.K)
+        rho = OptimizerRhoOmega.create_initrho(SS.K)
     return rho, omega
 
   ####################################################### soVB Global Step
@@ -514,7 +513,7 @@ class HDPDir(AllocModel):
     ''' Initialize rho, omega to reasonable values
     '''
     self.K = K
-    self.rho = OptimHDPDir.create_initrho(K)
+    self.rho = OptimizerRhoOmega.create_initrho(K)
     self.omega = (1.0 + self.gamma) * np.ones(K)
     self.ClearCache()
 
@@ -570,7 +569,7 @@ class HDPDir(AllocModel):
         omega : 1D array, size K
     '''
     assert abs(np.sum(beta) - 1.0) < 0.001
-    rho = OptimHDPDir.beta2rho(beta, self.K)
+    rho = OptimizerRhoOmega.beta2rho(beta, self.K)
     omega = (nDoc + self.gamma) * np.ones(rho.size)
     return rho, omega
 
@@ -671,7 +670,7 @@ class HDPDir(AllocModel):
     Elog1mU = digamma(g0) - digammaBoth
 
     ONcoef = SS.nDoc + 1.0 - g1
-    OFFcoef = SS.nDoc * OptimHDPDir.kvec(self.K) + self.gamma - g0
+    OFFcoef = SS.nDoc * OptimizerRhoOmega.kvec(self.K) + self.gamma - g0
 
     cDiff = SS.K * c_Beta(1, self.gamma) - c_Beta(g1, g0)
     logBetaPDF = np.inner(ONcoef, ElogU) \
@@ -686,9 +685,9 @@ class HDPDir(AllocModel):
         ElogqZ : 1D array, size K
     '''
     if hasattr(Data, 'word_count'):
-      return NumericUtil.calcRlogRdotv(LP['resp'], Data.word_count)
+      return calcRlogRdotv(LP['resp'], Data.word_count)
     else:
-      return NumericUtil.calcRlogR(LP['resp'])
+      return calcRlogR(LP['resp'])
 
 
   ######################################################### ideal objective
@@ -734,7 +733,7 @@ class HDPDir(AllocModel):
     digammaBoth = digamma(g1+g0)
     ElogU = digamma(g1) - digammaBoth
     Elog1mU = digamma(g0) - digammaBoth
-    OFFcoef = OptimHDPDir.kvec(self.K)
+    OFFcoef = OptimizerRhoOmega.kvec(self.K)
     cRest = np.sum(ElogU) + np.inner(OFFcoef, Elog1mU)
 
     return calpha + cRest
@@ -802,7 +801,7 @@ class HDPDir(AllocModel):
     Elog1mU = digamma(g0) - digammaBoth
 
     ONcoef = SS.nDoc + 1.0 - g1
-    OFFcoef = SS.nDoc * OptimHDPDir.kvec(self.K) + self.gamma - g0
+    OFFcoef = SS.nDoc * OptimizerRhoOmega.kvec(self.K) + self.gamma - g0
 
     cDiff = SS.K * c_Beta(1, self.gamma) - c_Beta(g1, g0)
     logBetaPDF = np.inner(ONcoef, ElogU) \
@@ -881,9 +880,9 @@ def calcELBOSingleDoc(Data, docID, singleLP=None,
     thetaRem = singleLP['thetaRem']
 
   if hasattr(Data, 'word_count'):
-    Hvec = NumericUtil.calcRlogRdotv(resp_d, wct)
+    Hvec = calcRlogRdotv(resp_d, wct)
   else:
-    Hvec = NumericUtil.calcRlogR(resp_d)
+    Hvec = calcRlogR(resp_d)
   H = -1 * np.sum(Hvec)
   #H = -1 * np.sum(wct[:,np.newaxis] * (resp_d * np.log(resp_d)))
 
@@ -912,9 +911,9 @@ def calcELBO_AllDocs_AfterEStep(Data, LP=None, logLik_d=None, **kwargs):
   Lik = np.sum(wct * (resp * logSoftEv))
 
   if hasattr(Data, 'word_count'):
-    Hvec = NumericUtil.calcRlogRdotv(LP['resp'], wct)
+    Hvec = calcRlogRdotv(LP['resp'], wct)
   else:
-    Hvec = NumericUtil.calcRlogR(LP['resp'])
+    Hvec = calcRlogR(LP['resp'])
   HH = np.sum(Hvec)
   H = -1 * np.sum(wct * (resp * np.log(resp)))
   assert np.allclose(H, HH)

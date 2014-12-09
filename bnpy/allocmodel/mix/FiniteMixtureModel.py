@@ -1,11 +1,10 @@
 '''
-MixModel.py
 Bayesian parametric mixture model with fixed, finite number of components K
 
 Attributes
 -------
   K        : integer number of components
-  alpha0   : scalar parameter of symmetric Dirichlet prior on mixture weights
+  gamma   : scalar parameter of symmetric Dirichlet prior on mixture weights
 '''
 import numpy as np
 
@@ -14,7 +13,7 @@ from bnpy.suffstats import SuffStatBag
 from bnpy.util import logsumexp, np2flatstr, flatstr2np
 from bnpy.util import gammaln, digamma, EPS
 
-class MixModel(AllocModel):
+class FiniteMixtureModel(AllocModel):
 
   ######################################################### Constructors
   #########################################################
@@ -23,10 +22,10 @@ class MixModel(AllocModel):
     self.set_prior(**priorDict)
     self.K = 0
 
-  def set_prior(self, alpha0=1.0, **kwargs):
-    self.alpha0 = alpha0
-    if self.alpha0 < 1.0 and self.inferType == 'EM':
-      raise ValueError("Cannot perform MAP inference if param alpha0 < 1")
+  def set_prior(self, gamma=1.0, **kwargs):
+    self.gamma = float(gamma)
+    if self.gamma < 1.0 and self.inferType == 'EM':
+      raise ValueError("Cannot perform MAP inference if param gamma < 1")
 
   def get_active_comp_probs(self):
     ''' Return K vector of appearance probabilities for each of the K comps
@@ -34,7 +33,7 @@ class MixModel(AllocModel):
     if self.inferType == 'EM':
       return self.w
     else:
-      return self.alpha / np.sum(self.alpha)
+      return self.theta / np.sum(self.theta)
     
   ######################################################### Accessors
   #########################################################
@@ -142,14 +141,14 @@ class MixModel(AllocModel):
   def getConditionalProbVec_Unnorm( self, SS ):
     ''' Returns a K vector of positive values \propto p(z_i|z_-i)
     '''
-    return SS.N + self.alpha0
+    return SS.N + self.gamma
 
   def calcMargLik(self, SS):
     ''' Calculate marginal likelihood of assignments, summed over all comps
     '''
-    alphPost = self.alpha0 + SS.N
-    cPrior = gammaln(SS.K * self.alpha0) - SS.K * gammaln(self.alpha0)
-    cPost = gammaln(np.sum(alphPost)) - np.sum(gammaln(alphPost))
+    theta = self.gamma + SS.N
+    cPrior = gammaln(SS.K * self.gamma) - SS.K * gammaln(self.gamma)
+    cPost = gammaln(np.sum(theta)) - np.sum(gammaln(theta))
     return cPrior - cPost
 
   ######################################################### Suff Stats
@@ -191,22 +190,22 @@ class MixModel(AllocModel):
   ######################################################### Global Params
   #########################################################
   def update_global_params_EM(self, SS, **kwargs):
-    if np.allclose(self.alpha0, 1.0):
+    if np.allclose(self.gamma, 1.0):
       w = SS.N
     else:
-      w = SS.N + self.alpha0 - 1.0  # MAP estimate. Requires alpha0>1
+      w = SS.N + self.gamma - 1.0  # MAP estimate. Requires gamma>1
     self.w = w / w.sum()
     self.K = SS.K
     
   def update_global_params_VB( self, SS, **kwargs):
-    self.alpha = self.alpha0 + SS.N
-    self.Elogw = digamma( self.alpha ) - digamma( self.alpha.sum() )
+    self.theta = self.gamma + SS.N
+    self.Elogw = digamma( self.theta ) - digamma( self.theta.sum() )
     self.K = SS.K
 
   def update_global_params_soVB( self, SS, rho, **kwargs):
-    alphNew = self.alpha0 + SS.N
-    self.alpha = rho*alphNew + (1-rho)*self.alpha
-    self.Elogw = digamma( self.alpha ) - digamma( self.alpha.sum() )
+    thetaStar = self.gamma + SS.N
+    self.theta = rho*thetaStar + (1-rho)*self.theta
+    self.Elogw = digamma( self.theta ) - digamma( self.theta.sum() )
     self.K = SS.K
  
   def init_global_params(self, Data, K=0, **kwargs):
@@ -228,12 +227,12 @@ class MixModel(AllocModel):
     if self.inferType == 'EM':
       self.w = 1.0/K * np.ones(K)
     else:
-      self.alpha = self.alpha0 + np.ones(K)
-      self.Elogw = digamma( self.alpha ) - digamma( self.alpha.sum() )
+      self.theta = self.gamma + np.ones(K)
+      self.Elogw = digamma( self.theta ) - digamma( self.theta.sum() )
 
   def set_global_params(self, hmodel=None, K=None, w=None, beta=None,
-                              alpha=None, nObs=10, **kwargs):
-    ''' Directly set global parameters alpha to provided values
+                              gamma=None, nObs=10, **kwargs):
+    ''' Directly set global parameters theta to provided values
     '''
     if beta is not None:
       w = beta
@@ -242,8 +241,8 @@ class MixModel(AllocModel):
       if self.inferType == 'EM':
         self.w = hmodel.allocModel.w
       else:
-        self.alpha = hmodel.allocModel.alpha
-        self.Elogw = digamma( self.alpha ) - digamma( self.alpha.sum() )
+        self.theta = hmodel.allocModel.theta
+        self.Elogw = digamma( self.theta ) - digamma( self.theta.sum() )
       return
     else:
       self.K = K
@@ -251,10 +250,10 @@ class MixModel(AllocModel):
         self.w = w
       else:
         if w is not None:
-          self.alpha = w * nObs
-        elif alpha is not None:
-          self.alpha = alpha
-        self.Elogw = digamma( self.alpha ) - digamma( self.alpha.sum() )
+          self.theta = w * nObs
+        elif theta is not None:
+          self.theta = theta
+        self.Elogw = digamma( self.theta ) - digamma( self.theta.sum() )
 
   ######################################################### Evidence
   #########################################################
@@ -288,14 +287,14 @@ class MixModel(AllocModel):
   def E_logpW( self ):
     ''' Bishop PRML eq. 10.73
     '''
-    return gammaln(self.K*self.alpha0) \
-           - self.K*gammaln(self.alpha0) + (self.alpha0-1)*self.Elogw.sum()
+    return gammaln(self.K*self.gamma) \
+           - self.K*gammaln(self.gamma) + (self.gamma-1)*self.Elogw.sum()
  
   def E_logqW( self ):
     ''' Bishop PRML eq. 10.76
     '''
-    return gammaln(self.alpha.sum())-gammaln(self.alpha).sum() \
-             + np.inner((self.alpha-1), self.Elogw)
+    return gammaln(self.theta.sum())-gammaln(self.theta).sum() \
+             + np.inner((self.theta-1), self.Elogw)
 
   def log_pdf_dirichlet(self, wvec=None, avec=None):
     ''' Return scalar log probability for Dir(wvec | avec)
@@ -303,7 +302,7 @@ class MixModel(AllocModel):
     if wvec is None:
       wvec = self.w
     if avec is None:
-      avec = self.alpha0*np.ones(self.K)
+      avec = self.gamma*np.ones(self.K)
     logC = gammaln(np.sum(avec)) - np.sum(gammaln(avec))      
     return logC + np.sum((avec-1.0)*np.log(wvec))
 
@@ -313,7 +312,7 @@ class MixModel(AllocModel):
     ''' Returns one-line human-readable terse description of this object
     '''
     msgPattern = 'Finite mixture with K=%d. Dir prior param %.2f' 
-    return msgPattern % (self.K, self.alpha0)
+    return msgPattern % (self.K, self.gamma)
 
   ######################################################### IO Utils
   #########################################################   for machines
@@ -321,9 +320,9 @@ class MixModel(AllocModel):
     if self.inferType == 'EM':
       return dict(w=self.w)
     elif self.inferType.count('VB') >0:
-      return dict(alpha=self.alpha)
+      return dict(theta=self.theta)
     elif self.inferType.count('GS') >0:
-      return dict(alpha=self.alpha)
+      return dict(theta=self.theta)
     return dict()
   
   def from_dict(self, myDict):
@@ -332,9 +331,9 @@ class MixModel(AllocModel):
     if self.inferType == 'EM':
       self.w = myDict['w']
     else:
-      self.alpha = myDict['alpha']
-      self.Elogw = digamma(self.alpha) - digamma(self.alpha.sum())
+      self.theta = myDict['theta']
+      self.Elogw = digamma(self.theta) - digamma(self.theta.sum())
 
  
   def get_prior_dict(self):
-    return dict(alpha0=self.alpha0, K=self.K)  
+    return dict(gamma=self.gamma, K=self.K)  

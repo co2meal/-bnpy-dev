@@ -1,42 +1,68 @@
 **bnpy** is Bayesian nonparametric unsupervised machine learning for python.
 
-Contact:  Mike Hughes. mike AT michaelchughes.com 
+Contact:  Mike Hughes. Email: mike AT michaelchughes.com 
 
 # About
 This python module provides code for training popular Bayesian nonparametric models on massive datasets. **bnpy** supports the latest online learning algorithms as well as standard offline methods. 
 
-Supported probabilistic models include
+### Supported probabilistic models
 
-* Gaussian mixture models
-    * standard parametric
-    * nonparametric (Dirichlet Process)
+* Mixture models
+    * `FiniteMixtureModel` : fixed number of clusters
+    * `DPMixtureModel` : infinite number of clusters, via the Dirichlet process
 
-Supported learning algorithms include:
+* Topic models (aka admixtures models)
+    * `FiniteTopicModel` : fixed number of topics. This is Latent Dirichlet allocation.
+    * `HDPTopicModel` : infinite number of topics, via the hierarchical Dirichlet process
+    
+* Hidden Markov models (HMMs)
+    * `FiniteHMM` : fixture number of states
+    * COMING SOON `HDPHMM` : infinite number of states
 
-* EM: expectation-maximization (offline)
-* VB: variational Bayes (offline)
-* moVB: memoized online VB
-* soVB: stochastic online VB
+### Supported data-generating models (aka likelihoods)
 
-These are all variants of *variational inference*, a family of optimization algorithms that perform coordinate ascent to learn parameters. 
+* Multinomial for bag-of-words data
+    * `Mult`
+* Gaussian for real-valued vector data
+    * `Gauss` : Full-covariance 
+    * `DiagGauss` : Diagonal-covariance
+    * `ZeroMeanGauss` : Zero-mean, full-covariance
+* Auto-regressive Gaussian
+    * `AutoRegGauss`
+
+### Supported learning algorithms:
+
+* Expectation-maximization (offline)
+    * `EM`
+* Full-dataset variational Bayes (offline)
+    * `VB`
+* Memoized variational (online)
+    * `moVB`
+* Stochastic variational (online)
+    * `soVB`
+
+These are all variants of *variational inference*, a family of optimization algorithms. We plan to eventually support sampling methods (Markov chain Monte Carlo) too.
 
 # Quick Start
 
 **bnpy** provides an easy command-line interface for launching experiments.
 
-Train 8-component Gaussian mixture model via EM.
+Train 8-component Gaussian mixture model via the offline EM algorithm.
+
 ```
-python -m bnpy.Run AsteriskK8 MixModel ZMGauss EM --K 8
+python -m bnpy.Run AsteriskK8 FiniteMixtureModel ZMGauss EM --K 8
 ```
 
-Train Dirichlet-process Gaussian mixture model (DP-GMM) via variational bayes.
+Train Dirichlet-process Gaussian mixture model (DP-GMM) via full-dataset variational algorithm.
+
 ```
-python -m bnpy.Run AsteriskK8 DPMixModel Gauss VB --K 8
+python -m bnpy.Run AsteriskK8 DPMixtureModel Gauss VB --K 8
 ```
 
-Train DP-GMM via memoized online VB, with birth and merge moves
+Train DP-GMM via memoized variational, with birth and merge moves.
+
 ```
-python -m bnpy.Run AsteriskK8 DPMixModel Gauss moVB --moves birth,merge
+python -m bnpy.Run AsteriskK8 DPMixtureModel Gauss moVB --moves birth,merge
 ```
 
 ### Quick help
@@ -59,12 +85,13 @@ Especially check out the [quick start demos](https://bitbucket.org/michaelchughe
 
 # Target Audience
 
-Primarly, we intend bnpy to be a platform for researchers. By gathering many learning algorithms and popular models in one convenient, modular repository, we hope to make it easier to compare and contrast approaches.
+Primarly, we intend **bnpy** to be a platform for researchers. By gathering many learning algorithms and popular models in one convenient, modular repository, we hope to make it easier to compare and contrast approaches.
 
 # Repository Organization
-  bnpy/ module-specific code
 
-  demodata/ example dataset scripts
+* bnpy/ : module-specific code
 
-  tests/ unit-tests for assuring code correctness. using nose package.
+* datasets/ : example datasets and scripts for generating toy data
+
+* tests/ : unit-tests for assuring code correctness. using nose package.
 
