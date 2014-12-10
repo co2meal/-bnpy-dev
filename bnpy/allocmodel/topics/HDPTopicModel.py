@@ -321,7 +321,7 @@ class HDPTopicModel(AllocModel):
                                             doPrecompMergeEntropy=None,
                                             mPairIDs=None,
                                             trackDocUsage=0,
-                                            preselectroutine=None,
+                                            mergePairSelection=None,
                                             **kwargs):
     ''' Calculate sufficient statistics.
     '''
@@ -373,8 +373,8 @@ class HDPTopicModel(AllocModel):
       #  self.verifySSForMergePair(Data, SS, LP, kA, kB)
 
     ## Selection terms (computes doc-topic correlation)
-    if preselectroutine is not None:
-      if preselectroutine.count('corr') > 0:
+    if mergePairSelection is not None:
+      if mergePairSelection.count('corr') > 0:
         Tmat = LP['DocTopicCount']
         SS.setSelectionTerm('DocTopicPairMat',
                            np.dot(Tmat.T, Tmat), dims=('K','K'))
