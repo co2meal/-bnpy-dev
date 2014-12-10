@@ -111,7 +111,7 @@ class DPMixtureModel(AllocModel):
   ######################################################### Suff Stats
   #########################################################
   def get_global_suff_stats(self, Data, LP,
-                             preselectroutine=None,
+                             mergePairSelection=None,
                              doPrecompEntropy=False, 
                              doPrecompMergeEntropy=False, mPairIDs=None,
                              **kwargs):

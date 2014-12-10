@@ -161,8 +161,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
                                                   lapFrac=lapFrac)
       elif self.isFirstBatch(lapFrac):
         if self.doMergePrepAtLap(lapFrac+1):
-          MergePrepInfo = dict(preselectroutine=
-                               self.algParams['merge']['preselectroutine'])
+          MergePrepInfo = dict(mergePairSelection=
+                               self.algParams['merge']['mergePairSelection'])
         else:
           MergePrepInfo = dict()
 
@@ -298,7 +298,13 @@ class MOVBBirthMergeAlg(MOVBAlg):
       ## so return True
       nBeforeQuit = self.algParams['delete']['deleteNumStuckBeforeQuit']
       waitedLongEnough = (lapFrac - self.lapLastAcceptedDelete) > nBeforeQuit
-      nEligible = DeletePlanner.getEligibleCount(SS)
+
+      if isEvenlyDivisibleFloat(lapFrac, 1.0):
+        nEligible = DeletePlanner.getEligibleCount(SS, 
+                                    DRecordsByComp=self.DeleteRecordsByComp,
+                                    **self.algParams['delete'])
+      else:
+        nEligible = 1
       if nEligible > 0 or not waitedLongEnough:
         return True
 
@@ -888,20 +894,20 @@ class MOVBBirthMergeAlg(MOVBAlg):
       SS.setMergeFieldsToZero()
 
     mergeStartLap = self.algParams['merge']['mergeStartLap']
-    preselectroutine = self.algParams['merge']['preselectroutine']
+    mergePairSelection = self.algParams['merge']['mergePairSelection']
     mergeELBOTrackMethod = self.algParams['merge']['mergeELBOTrackMethod']
     refreshInterval = self.algParams['merge']['mergeScoreRefreshInterval']
 
     PrepInfo = dict()
     PrepInfo['doPrecompMergeEntropy'] = 1
-    PrepInfo['preselectroutine'] = preselectroutine
+    PrepInfo['mergePairSelection'] = mergePairSelection
     PrepInfo['mPairIDs'] = list()
     PrepInfo['PairScoreMat'] = None
 
     ## Short-cut if we use fastBound to compute elbo for merge candidate
     if mergeELBOTrackMethod == 'fastBound':
       PrepInfo['doPrecompMergeEntropy'] = 2
-      PrepInfo['preselectroutine'] = None
+      PrepInfo['mergePairSelection'] = None
       return PrepInfo
 
     ## Update stored ScoreMatrix to account for recent births/merges
@@ -945,7 +951,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
       prevPrepInfo['PairScoreMat'] = MM
 
     ## Determine which merge pairs we will track in the upcoming lap 
-    if preselectroutine == 'wholeELBObetter':
+    if mergePairSelection == 'wholeELBObetter':
       mPairIDs, PairScoreMat = MergePlanner.preselectPairs(hmodel, SS, lapFrac,
                                     prevScoreMat=prevPrepInfo['PairScoreMat'],
                                     **self.algParams['merge'])
