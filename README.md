@@ -106,15 +106,21 @@ Once installed, please visit the [Configuration](https://bitbucket.org/michaelch
 
 All documentation can be found on the  [project wiki](https://bitbucket.org/michaelchughes/bnpy/wiki/Home.md).
 
-# Contributors
+# Team
 
-Primary contact
-* Mike Hughes (mike@michaelchughes.com)
+### Primary contact
+Mike Hughes
+PhD candidate
+Brown University, Dept. of Computer Science
+web.michaelchughes.com
 
-Contributors at Brown CS
+### Contributors 
+
+* Soumya Ghosh
+* Dae Il Kim
 * William Stephenson
 * Sonia Phene
-* Mert Tertizhan
+* Mert Terzihan
 * Mengrui Ni
 * Geng Ji
 * Jincheng Li
