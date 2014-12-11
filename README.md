@@ -5,7 +5,6 @@ This python module provides code for training popular clustering models on large
 
 **bnpy** supports the latest online learning algorithms as well as standard offline methods. 
 
-
 ### Supported probabilistic models
 
 * Mixture models
@@ -49,6 +48,13 @@ This python module provides code for training popular clustering models on large
 
 These are all variants of *variational inference*, a family of optimization algorithms. We plan to eventually support sampling methods (Markov chain Monte Carlo) too.
 
+# Demos
+
+You can find lots of examples of **bnpy** in action in our curated set of  [IPython notebooks]
+(http://nbviewer.ipython.org/urls/bitbucket.org/michaelchughes/bnpy-dev/raw/master/demos/DemoIndex.ipynb).
+
+These same demos are also directly available on our [wiki] (https://bitbucket.org/michaelchughes/bnpy/wiki/demos/DemoIndex.rst).
+
 # Quick Start
 
 You can use **bnpy** from the terminal, or from within Python. Both options require specifying a dataset, an allocation model, an observation model (likelihood), and an algorithm. Optional keyword arguments with reasonable defaults allow control of specific model hyperparameters, algorithm parameters, etc.
@@ -56,13 +62,13 @@ You can use **bnpy** from the terminal, or from within Python. Both options requ
 Below, we show how to call bnpy to train a 8 component Gaussian mixture model on the default AsteriskK8 toy dataset (shown below).
 In both cases, log information is printed to stdout, and all learned model parameters are saved to disk.
 
-## Solution: Using the terminal
+## Calling from the terminal/command-line
 
 ```
 $ python -m bnpy.Run AsteriskK8 FiniteMixtureModel Gauss EM --K 8
 ```
 
-## Solution: Within Python
+## Calling directly from Python
 
 ```
 import bnpy
@@ -70,7 +76,7 @@ bnpy.run('AsteriskK8', 'FiniteMixtureModel', 'Gauss', 'EM', K=8)
 ```
 
 ## Other examples
-Train Dirichlet-process Gaussian mixture model (DP-GMM) via full-dataset variational algorithm.
+Train Dirichlet-process Gaussian mixture model (DP-GMM) via full-dataset variational algorithm (aka "VB" for variational Bayes).
 
 ```
 python -m bnpy.Run AsteriskK8 DPMixtureModel Gauss VB --K 8
@@ -101,19 +107,22 @@ Once installed, please visit the [Configuration](https://bitbucket.org/michaelch
 
 All documentation can be found on the  [project wiki](https://bitbucket.org/michaelchughes/bnpy/wiki/Home.md).
 
-Especially check out the [Demos](https://bitbucket.org/michaelchughes/bnpy/wiki/demos/DemoIndex.rst)
+# Contributors
+
+Primary contact
+* Mike Hughes (mike@michaelchughes.com)
+
+Contributors at Brown CS
+* William Stephenson
+* Sonia Phene
+* Mert Tertizhan
+* Mengrui Ni
+* Geng Ji
+* Jincheng Li
+
 
 # Target Audience
 
 Primarly, we intend **bnpy** to be a platform for researchers. 
 By gathering many learning algorithms and popular models in one convenient, modular repository, we hope to make it easier to compare and contrast approaches.
 We also how that the modular organization of **bnpy** enables researchers to try out new modeling ideas without reinventing the wheel.
-
-# Repository Organization
-
-* bnpy/ : module-specific code
-
-* datasets/ : example datasets and scripts for generating toy data
-
-* tests/ : unit-tests for assuring code correctness. using nose package.
-
