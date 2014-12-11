@@ -1,9 +1,10 @@
 **bnpy** is Bayesian nonparametric unsupervised machine learning for python.
 
-Contact:  Mike Hughes. Email: mike AT michaelchughes.com 
-
 # About
-This python module provides code for training popular Bayesian nonparametric models on massive datasets. **bnpy** supports the latest online learning algorithms as well as standard offline methods. 
+This python module provides code for training popular clustering models on large datasets. We focus on Bayesian nonparametric models based on the Dirichlet process, but also provide parametric counterparts as well.
+
+**bnpy** supports the latest online learning algorithms as well as standard offline methods. 
+
 
 ### Supported probabilistic models
 
@@ -16,8 +17,13 @@ This python module provides code for training popular Bayesian nonparametric mod
     * `HDPTopicModel` : infinite number of topics, via the hierarchical Dirichlet process
     
 * Hidden Markov models (HMMs)
-    * `FiniteHMM` : fixture number of states
-    * COMING SOON `HDPHMM` : infinite number of states
+    * `FiniteHMM` : Markov sequence model with a fixture number of states
+
+* **COMING SOON**
+    *  `HDPHMM` : Markov sequence models with an infinite number of states
+    * grammar models
+    * relational models
+
 
 ### Supported data-generating models (aka likelihoods)
 
@@ -45,47 +51,63 @@ These are all variants of *variational inference*, a family of optimization algo
 
 # Quick Start
 
-**bnpy** provides an easy command-line interface for launching experiments.
+You can use **bnpy** from the terminal, or from within Python. Both options require specifying a dataset, an allocation model, an observation model (likelihood), and an algorithm. Optional keyword arguments with reasonable defaults allow control of specific model hyperparameters, algorithm parameters, etc.
 
-Train 8-component Gaussian mixture model via the offline EM algorithm.
+Below, we show how to call bnpy to train a 8 component Gaussian mixture model on the default AsteriskK8 toy dataset (shown below).
+In both cases, log information is printed to stdout, and all learned model parameters are saved to disk.
+
+## Solution: Using the terminal
 
 ```
-python -m bnpy.Run AsteriskK8 FiniteMixtureModel ZMGauss EM --K 8
+$ python -m bnpy.Run AsteriskK8 FiniteMixtureModel Gauss EM --K 8
 ```
 
+## Solution: Within Python
+
+```
+import bnpy
+bnpy.run('AsteriskK8', 'FiniteMixtureModel', 'Gauss', 'EM', K=8)
+```
+
+## Other examples
 Train Dirichlet-process Gaussian mixture model (DP-GMM) via full-dataset variational algorithm.
 
 ```
 python -m bnpy.Run AsteriskK8 DPMixtureModel Gauss VB --K 8
 ```
 
-Train DP-GMM via memoized variational, with birth and merge moves.
+Train DP-GMM via memoized variational, with birth and merge moves, with data divided into 10 batches.
 
 ```
-python -m bnpy.Run AsteriskK8 DPMixtureModel Gauss moVB --moves birth,merge
+python -m bnpy.Run AsteriskK8 DPMixtureModel Gauss moVB --K 8 --nBatch 10 --moves birth,merge
 ```
 
-### Quick help
+## Quick help
 ```
 # print help message for required arguments
 python -m bnpy.Run --help 
+
 # print help message for specific keyword options for Gaussian mixture models
 python -m bnpy.Run AsteriskK8 MixModel Gauss EM --kwhelp
 ```
 
 # Installation
 
-Follow the [installation instructions](https://bitbucket.org/michaelchughes/bnpy/wiki/Installation.md) on our project wiki.
+To use **bnpy** for the first time, follow the [installation instructions](https://bitbucket.org/michaelchughes/bnpy/wiki/Installation.md) on our project wiki.
+
+Once installed, please visit the [Configuration](https://bitbucket.org/michaelchughes/bnpy/wiki/Configuration.md) wiki page to learn how to configure where data is saved and loaded from on disk.
 
 # Documentation
 
 All documentation can be found on the  [project wiki](https://bitbucket.org/michaelchughes/bnpy/wiki/Home.md).
 
-Especially check out the [quick start demos](https://bitbucket.org/michaelchughes/bnpy/wiki/QuickStart/QuickStart.md)
+Especially check out the [Demos](https://bitbucket.org/michaelchughes/bnpy/wiki/demos/DemoIndex.rst)
 
 # Target Audience
 
-Primarly, we intend **bnpy** to be a platform for researchers. By gathering many learning algorithms and popular models in one convenient, modular repository, we hope to make it easier to compare and contrast approaches.
+Primarly, we intend **bnpy** to be a platform for researchers. 
+By gathering many learning algorithms and popular models in one convenient, modular repository, we hope to make it easier to compare and contrast approaches.
+We also how that the modular organization of **bnpy** enables researchers to try out new modeling ideas without reinventing the wheel.
 
 # Repository Organization
 
