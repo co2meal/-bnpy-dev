@@ -13,7 +13,12 @@ imshowArgs = dict(interpolation='nearest',
 
 def plotExampleBarsDocs(Data, docIDsToPlot=None, figID=None,
                               vmax=None, nDocToPlot=16, doShowNow=False,
-                              seed=0, randstate=np.random.RandomState(0)):
+                              seed=0, randstate=np.random.RandomState(0),
+                              **kwargs):
+    kwargs['vmin'] = 0
+    kwargs['interpolation'] = 'nearest'
+    if vmax is not None:
+      kwargs['vmax'] = vmax
     if seed is not None:
       randstate = np.random.RandomState(seed)
     if figID is None:
@@ -42,7 +47,7 @@ def plotExampleBarsDocs(Data, docIDsToPlot=None, figID=None,
         squareIm = np.reshape(docWordHist, (np.sqrt(V), np.sqrt(V)))
 
         pylab.subplot(nRows, nCols, plotPos+1)
-        pylab.imshow(squareIm, interpolation='nearest', vmin=0, vmax=vmax)
+        pylab.imshow(squareIm, **kwargs)
         pylab.axis('image')
         pylab.xticks([])
         pylab.yticks([])
@@ -55,7 +60,9 @@ def plotBarsFromHModel(hmodel, Data=None, doShowNow=False, figH=None,
                        xlabels=[],
                        compsToHighlight=None, compListToPlot=None,
                        activeCompIDs=None,  Kmax=50,
-                       width=6, height=3, vmax=None):    
+                       width=6, height=3, vmax=None, **kwargs): 
+  if vmax is not None:
+    kwargs['vmax'] = vmax   
   if hasattr(hmodel.obsModel, 'Post'):
     lam = hmodel.obsModel.Post.lam
     topics = lam / lam.sum(axis=1)[:,np.newaxis]
@@ -76,13 +83,13 @@ def plotBarsFromHModel(hmodel, Data=None, doShowNow=False, figH=None,
                                     compListToPlot=compListToPlot,
                                     Kmax=Kmax, figH=figH,
                                     xlabels=xlabels,
-                                    **imshowArgs)
+                                    **kwargs)
   else:
     if figH is None:
       figH = pylab.figure(figsize=(width,height))
     else:
       pylab.axes(figH)
-    showAllTopicsInSingleImage(topics, compsToHighlight, **imshowArgs)
+    showAllTopicsInSingleImage(topics, compsToHighlight, **kwargs)
   if doShowNow:
     pylab.show()
   return figH
@@ -90,6 +97,10 @@ def plotBarsFromHModel(hmodel, Data=None, doShowNow=False, figH=None,
 def plotBarsForTopicMATFile(matfilename, sortBy=None, keepWorst=0,
                             levels=None, worstThr=0.01,
                             Kmax=20, **kwargs):
+  kwargs['vmin'] = 0
+  kwargs['interpolation'] = 'nearest'
+  if vmax is not None:
+    kwargs['vmax'] = vmax
   import bnpy.ioutil
   if isinstance(matfilename, np.ndarray):
     topics = matfilename
@@ -137,7 +148,6 @@ def showTopicsAsSquareImages(topics,
                              W=1, H=1, figH=None, **imshowArgs):
   if len(xlabels) > 0:
     H = 1.5 * H
-
   K, V = topics.shape
   sqrtV = int(np.sqrt(V))
   assert np.allclose(sqrtV, np.sqrt(V))

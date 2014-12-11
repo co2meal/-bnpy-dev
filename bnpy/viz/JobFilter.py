@@ -49,7 +49,7 @@ def jpath2jdict(jpath):
   return D
 
 ## kwargs that arent needed for any job pattern matching
-SkipKeys = ['taskids', 'savefilename', 'fileSuffix', 'xvar']
+SkipKeys = ['taskids', 'savefilename', 'fileSuffix', 'xvar', 'yvar']
 
 def filterJobs(jpathPattern, verbose=0, **reqKwArgs):
   for key in SkipKeys:

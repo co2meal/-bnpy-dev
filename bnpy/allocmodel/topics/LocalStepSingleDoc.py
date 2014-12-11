@@ -1,7 +1,6 @@
 from scipy.special import digamma, gammaln
 import numpy as np
 
-
 def inferLocal_SingleDoc_TrackELBO(wc_d, Lik_d, alphaEbeta, alphaEbetaRem,
                              DocTopicCount_d=None, sumR_d=None,
                              nCoordAscentItersLP=10, convThrLP=0.001, 

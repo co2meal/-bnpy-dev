@@ -16,7 +16,7 @@ from bnpy.mergemove.MergeMove import ELBO_GAP_ACCEPT_TOL
 
 CountTracker = defaultdict(int)
 def preselectPairs(curModel, SS, lapFrac,
-                       preselectroutine='wholeELBO',
+                       mergePairSelection='wholeELBO',
                        prevScoreMat=None,
                        mergeScoreRefreshInterval=10,
                        mergeMaxDegree=5, **kwargs):
@@ -198,7 +198,7 @@ def updateScoreMat_wholeELBO(ScoreMat, curModel, SS, doAllPairs=0):
     
 def preselect_candidate_pairs(curModel, SS, 
                                randstate=np.random.RandomState(0),
-                               preselectroutine='random',
+                               mergePairSelection='random',
                                mergePerLap=10,
                                doLimitNumPairs=1,
                                M=None,
@@ -210,7 +210,7 @@ def preselect_candidate_pairs(curModel, SS,
      curModel : bnpy HModel 
      SS : bnpy SuffStatBag. If None, defaults to random selection.
      randstate : numpy random number generator
-     preselectroutine : name of procedure to select candidate pairs
+     mergePairSelection : name of procedure to select candidate pairs
      mergePerLap : int number of candidates to identify 
                      (may be less if K small)            
 
@@ -219,7 +219,7 @@ def preselect_candidate_pairs(curModel, SS,
      mPairList : list of component ID candidates for positions kA, kB
                   each entry is a tuple of two integers
   '''
-  kwargs['preselectroutine'] = preselectroutine
+  kwargs['mergePairSelection'] = mergePairSelection
   kwargs['randstate'] = randstate
   if 'excludePairs' not in kwargs:
     excludePairs = list()
@@ -233,20 +233,20 @@ def preselect_candidate_pairs(curModel, SS,
     nMergeTrials = K * (K-1) // 2
 
   if SS is None: # Handle first lap
-    kwargs['preselectroutine'] = 'random'
+    kwargs['mergePairSelection'] = 'random'
 
   Mraw = None
   # ------------------------------------------------------- Score matrix
   # M : 2D array, shape K x K
   #     M[j,k] = score for viability of j,k.  Larger = better.
-  selectroutine = kwargs['preselectroutine']
-  if kwargs['preselectroutine'].count('random') > 0:
+  selectroutine = kwargs['mergePairSelection']
+  if kwargs['mergePairSelection'].count('random') > 0:
     M = kwargs['randstate'].rand(K, K)
-  elif kwargs['preselectroutine'].count('marglik') > 0:
+  elif kwargs['mergePairSelection'].count('marglik') > 0:
     M = calcScoreMatrix_marglik(curModel, SS, excludePairs)
-  elif kwargs['preselectroutine'].count('wholeELBO') > 0:
+  elif kwargs['mergePairSelection'].count('wholeELBO') > 0:
     M, Mraw = calcScoreMatrix_wholeELBO(curModel, SS, excludePairs, M=M)
-  elif kwargs['preselectroutine'].count('corr') > 0:
+  elif kwargs['mergePairSelection'].count('corr') > 0:
     # Use correlation matrix as score for selecting candidates!
     if selectroutine.count('empty') > 0:
       M = calcScoreMatrix_corrOrEmpty(SS)
@@ -255,7 +255,7 @@ def preselect_candidate_pairs(curModel, SS,
     else:
       M = calcScoreMatrix_corr(SS)
   else:
-    raise NotImplementedError(kwargs['preselectroutine'])
+    raise NotImplementedError(kwargs['mergePairSelection'])
 
   # Only upper-triangular indices are allowed.
   M[np.tril_indices(K)] = 0
