@@ -364,6 +364,7 @@ def parse_task_ids(jobpath, taskids=None):
   '''
   import glob
   import numpy as np
+
   if taskids is None:
     fulltaskpaths = glob.glob(os.path.join(jobpath,'*'))
     taskids = [os.path.split(tpath)[-1] for tpath in fulltaskpaths]
@@ -377,6 +378,6 @@ def parse_task_ids(jobpath, taskids=None):
     taskids = np.arange(fields[0],fields[1]+1)
     taskids = [str(t) for t in taskids]
   if type(taskids) is not list:
-    taskids = list(taskids)
+    taskids = [taskids]
   taskids.sort()
   return taskids

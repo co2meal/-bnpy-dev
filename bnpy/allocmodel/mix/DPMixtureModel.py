@@ -1,11 +1,11 @@
 '''
-DPMixFull.py
-Bayesian parametric mixture model with a unbounded number of components K
+Bayesian nonparametric mixture model with a unbounded number of components K
+via the Dirichlet process
 
 Attributes
 -------
-  K        : # of components
-  gamma0   : scalar concentration hyperparameter of Dirichlet process prior
+K : # of components
+gamma : scalar concentration parameter
 '''
 
 import numpy as np
@@ -14,6 +14,7 @@ from bnpy.allocmodel import AllocModel
 from bnpy.suffstats import SuffStatBag
 from bnpy.util import NumericUtil
 from bnpy.util import gammaln, digamma, EPS
+from bnpy.util.StickBreakUtil import beta2rho
 
 
 def c_Beta(gamma1, gamma0):
@@ -27,7 +28,7 @@ def c_Beta_Vec(gamma1, gamma0):
   return gammaln(gamma1+gamma0) - gammaln(gamma1) - gammaln(gamma0)
 
 
-class DPMixFull(AllocModel):
+class DPMixtureModel(AllocModel):
 
   ######################################################### Constructors
   #########################################################
@@ -49,9 +50,9 @@ class DPMixFull(AllocModel):
     ''' Set dependent attributes given primary global params.
         For DP mixture, this means precomputing digammas.
     '''
-    digammaBoth = digamma(self.qgamma0 + self.qgamma1)
-    self.ElogU      = digamma(self.qgamma1) - digammaBoth
-    self.Elog1mU    = digamma(self.qgamma0) - digammaBoth
+    digammaBoth = digamma(self.eta0 + self.eta1)
+    self.ElogU      = digamma(self.eta1) - digammaBoth
+    self.Elog1mU    = digamma(self.eta0) - digammaBoth
 		
 		## Calculate expected mixture weights E[ log \beta_k ]	 
     ## NOTE: using copy() allows += without modifying ElogU
@@ -61,7 +62,7 @@ class DPMixFull(AllocModel):
   ######################################################### Accessors
   #########################################################
   def get_active_comp_probs(self):
-    Eu = self.qgamma1 / (self.qgamma1 + self.qgamma0)
+    Eu = self.eta1 / (self.eta1 + self.eta0)
     Ebeta = Eu.copy()
     Ebeta[1:] *= np.cumprod(1.0-Eu[:-1]) 
     return Ebeta
@@ -110,7 +111,7 @@ class DPMixFull(AllocModel):
   ######################################################### Suff Stats
   #########################################################
   def get_global_suff_stats(self, Data, LP,
-                             preselectroutine=None,
+                             mergePairSelection=None,
                              doPrecompEntropy=False, 
                              doPrecompMergeEntropy=False, mPairIDs=None,
                              **kwargs):
@@ -187,29 +188,29 @@ class DPMixFull(AllocModel):
   ######################################################### Global Params
   #########################################################
   def update_global_params_VB( self, SS, **kwargs):
-    ''' Updates global params (stick-breaking Beta params qgamma1, qgamma0)
+    ''' Updates global params (stick-breaking Beta params eta1, eta0)
           for conventional VB learning algorithm.
         New parameters have exactly the number of components specified by SS. 
     '''
     self.K = SS.K
-    qgamma1 = self.gamma1 + SS.N
-    qgamma0 = self.gamma0 * np.ones(self.K)
-    qgamma0[:-1] += SS.N[::-1].cumsum()[::-1][1:]
-    self.qgamma1 = qgamma1
-    self.qgamma0 = qgamma0
+    eta1 = self.gamma1 + SS.N
+    eta0 = self.gamma0 * np.ones(self.K)
+    eta0[:-1] += SS.N[::-1].cumsum()[::-1][1:]
+    self.eta1 = eta1
+    self.eta0 = eta0
     self.set_helper_params()
     
   def update_global_params_soVB( self, SS, rho, **kwargs ):
-    ''' Update global params (stick-breaking Beta params qgamma1, qgamma0).
+    ''' Update global params (stick-breaking Beta params eta1, eta0).
         for stochastic online VB.
     '''
     assert self.K == SS.K
-    qgamma1 = self.gamma1 + SS.N
-    qgamma0 = self.gamma0 * np.ones( self.K )
-    qgamma0[:-1] += SS.N[::-1].cumsum()[::-1][1:]
+    eta1 = self.gamma1 + SS.N
+    eta0 = self.gamma0 * np.ones( self.K )
+    eta0[:-1] += SS.N[::-1].cumsum()[::-1][1:]
     
-    self.qgamma1 = rho * qgamma1 + (1-rho) * self.qgamma1
-    self.qgamma0 = rho * qgamma0 + (1-rho) * self.qgamma0
+    self.eta1 = rho * eta1 + (1-rho) * self.eta1
+    self.eta0 = rho * eta0 + (1-rho) * self.eta0
     self.set_helper_params()
 
   def init_global_params(self, Data, K=0, **kwargs):
@@ -221,7 +222,7 @@ class DPMixFull(AllocModel):
 
         Internal Updates
         --------
-        Sets attributes qgamma1, qgamma0 (for VB) to viable values
+        Sets attributes eta1, eta0 (for VB) to viable values
 
         Returns
         --------
@@ -229,42 +230,41 @@ class DPMixFull(AllocModel):
     '''
     self.K = K
     Nvec = np.ones(K)
-    qgamma1 = self.gamma1 + Nvec
-    qgamma0 = self.gamma0 * np.ones(self.K)
-    qgamma0[:-1] += Nvec[::-1].cumsum()[::-1][1:]
-    self.qgamma1 = qgamma1
-    self.qgamma0 = qgamma0
+    eta1 = self.gamma1 + Nvec
+    eta0 = self.gamma0 * np.ones(self.K)
+    eta0[:-1] += Nvec[::-1].cumsum()[::-1][1:]
+    self.eta1 = eta1
+    self.eta0 = eta0
     self.set_helper_params()
 
-  def set_global_params(self, hmodel=None, K=None, qgamma1=None, 
-                              qgamma0=None, beta=None, nObs=10, **kwargs):
-    ''' Directly set global parameters qgamma0, qgamma1 to provided values
+  def set_global_params(self, hmodel=None, K=None, eta1=None, 
+                              eta0=None, beta=None, nObs=10, **kwargs):
+    ''' Directly set global parameters eta0, eta1 to provided values
     '''
     if hmodel is not None:
       self.K = hmodel.allocModel.K
-      self.qgamma1 = hmodel.allocModel.qgamma1
-      self.qgamma0 = hmodel.allocModel.qgamma0
+      self.eta1 = hmodel.allocModel.eta1
+      self.eta0 = hmodel.allocModel.eta0
       self.set_helper_params()
       return
     if beta is not None:
       if K is None:
         K = beta.size
       # convert to expected stick-lengths v
-      from bnpy.allocmodel.admix2.RhoBetaUtil import beta2rho
       if beta.size == K:
         rem = np.minimum(0.01, 1.0/K)
         rem = np.minimum(1.0/K, beta.min()/K)
         beta = np.hstack( [beta, rem])
       beta = beta / beta.sum()
       Ev = beta2rho(beta, K)
-      qgamma1 = Ev * nObs
-      qgamma0 = (1-Ev) * nObs
+      eta1 = Ev * nObs
+      eta0 = (1-Ev) * nObs
 
-    if type(qgamma1) != np.ndarray or qgamma1.size != K or qgamma0.size != K:
+    if type(eta1) != np.ndarray or eta1.size != K or eta0.size != K:
       raise ValueError("Bad DP Parameters")
     self.K = K
-    self.qgamma1 = qgamma1
-    self.qgamma0 = qgamma0
+    self.eta1 = eta1
+    self.eta0 = eta0
     self.set_helper_params()
  
   ######################################################### Evidence
@@ -294,14 +294,14 @@ class DPMixFull(AllocModel):
         cDiff : scalar real
     '''
     cDiff = self.K * c_Beta(self.gamma1, self.gamma0) \
-                   - c_Beta(self.qgamma1, self.qgamma0) # already sums over k
+                   - c_Beta(self.eta1, self.eta0) # already sums over k
     return cDiff
 
   def ELBO_slack(self, SS):
     ''' Compute the slack-term for ELBO
     '''
-    slack = np.inner(self.gamma1 - self.qgamma1, self.ElogU) \
-            + np.inner(self.gamma0 - self.qgamma0, self.Elog1mU) \
+    slack = np.inner(self.gamma1 - self.eta1, self.ElogU) \
+            + np.inner(self.gamma0 - self.eta0, self.Elog1mU) \
             + np.inner(SS.N, self.Elogbeta)
     return slack
     
@@ -327,19 +327,19 @@ class DPMixFull(AllocModel):
         Does *not* include any entropy. 
     '''
     cPrior = c_Beta(self.gamma1, self.gamma0)
-    cB = c_Beta(self.qgamma1[kB], self.qgamma0[kB])
+    cB = c_Beta(self.eta1[kB], self.eta0[kB])
     
     gap = cB - cPrior
     ## Add terms for changing kA to kA+kB
-    gap += c_Beta(self.qgamma1[kA], self.qgamma0[kA]) \
-         - c_Beta(self.qgamma1[kA] + SS.N[kB], self.qgamma0[kA] - SS.N[kB])
+    gap += c_Beta(self.eta1[kA], self.eta0[kA]) \
+         - c_Beta(self.eta1[kA] + SS.N[kB], self.eta0[kA] - SS.N[kB])
 
     ## Add terms for each index kA+1, kA+2, ... kB-1
     ##  where only \gamma_0 has changed
     for k in xrange(kA+1, kB):
-      a1 = self.qgamma1[k]
-      a0old = self.qgamma0[k]
-      a0new = self.qgamma0[k] - SS.N[kB]
+      a1 = self.eta1[k]
+      a0old = self.eta0[k]
+      a0new = self.eta0[k] - SS.N[kB]
       gap += c_Beta(a1, a0old) - c_Beta(a1, a0new)
     return gap
 
@@ -353,14 +353,14 @@ class DPMixFull(AllocModel):
     if not hasattr(self, 'cPrior'):
       self.cPrior = c_Beta(self.gamma1, self.gamma0)
     if not hasattr(self, 'cBetaCur'):
-      self.cBetaCur = c_Beta_Vec(self.qgamma1, self.qgamma0)
+      self.cBetaCur = c_Beta_Vec(self.eta1, self.eta0)
     if not hasattr(self, 'cBetaNewB') \
        or not (hasattr(self, 'kB') and self.kB == kB):
       self.kB = kB
-      self.cBetaNewB = c_Beta_Vec(self.qgamma1[:kB], 
-                                  self.qgamma0[:kB] - SS.N[kB])
+      self.cBetaNewB = c_Beta_Vec(self.eta1[:kB], 
+                                  self.eta0[:kB] - SS.N[kB])
     cDiff_A = self.cBetaCur[kA] \
-             - c_Beta(self.qgamma1[kA] + SS.N[kB], self.qgamma0[kA] - SS.N[kB])
+             - c_Beta(self.eta1[kA] + SS.N[kB], self.eta0[kA] - SS.N[kB])
     cDiff_AtoB = np.sum(self.cBetaCur[kA+1:kB] - self.cBetaNewB[kA+1:])
     gap = self.cBetaCur[kB] - self.cPrior + cDiff_A + cDiff_AtoB
     return gap
@@ -375,12 +375,12 @@ class DPMixFull(AllocModel):
     if not hasattr(self, 'cPrior'):
       self.cPrior = c_Beta(self.gamma1, self.gamma0)
     if not hasattr(self, 'cBetaCur'):
-      self.cBetaCur = c_Beta_Vec(self.qgamma1, self.qgamma0)
+      self.cBetaCur = c_Beta_Vec(self.eta1, self.eta0)
 
-    cBetaNew_AtoB = c_Beta_Vec(self.qgamma1[kA+1:kB], 
-                               self.qgamma0[kA+1:kB] - SS.N[kB])
+    cBetaNew_AtoB = c_Beta_Vec(self.eta1[kA+1:kB], 
+                               self.eta0[kA+1:kB] - SS.N[kB])
     cDiff_A = self.cBetaCur[kA] \
-             - c_Beta(self.qgamma1[kA] + SS.N[kB], self.qgamma0[kA] - SS.N[kB])
+             - c_Beta(self.eta1[kA] + SS.N[kB], self.eta0[kA] - SS.N[kB])
     cDiff_AtoB = np.sum(self.cBetaCur[kA+1:kB] - cBetaNew_AtoB)
     gap = self.cBetaCur[kB] - self.cPrior + cDiff_A + cDiff_AtoB
     return gap
@@ -438,17 +438,17 @@ class DPMixFull(AllocModel):
     gap = 0
     for k in xrange(SS.K):
       if k == kdel:
-        gap += c_Beta(self.qgamma1[k], self.qgamma0[k]) \
+        gap += c_Beta(self.eta1[k], self.eta0[k]) \
                - c_Beta(self.gamma1, self.gamma0)
       elif k > kdel:
-        a1 = self.qgamma1[k] + alph[k] * SS.N[kdel]
-        a0 = self.qgamma0[k] + np.sum(alph[k+1:]) * SS.N[kdel]
-        gap += c_Beta(self.qgamma1[k], self.qgamma0[k]) \
+        a1 = self.eta1[k] + alph[k] * SS.N[kdel]
+        a0 = self.eta0[k] + np.sum(alph[k+1:]) * SS.N[kdel]
+        gap += c_Beta(self.eta1[k], self.eta0[k]) \
                 - c_Beta(a1, a0)
       elif k < kdel:
-        a1 = self.qgamma1[k] + alph[k] * SS.N[kdel]
-        a0 = self.qgamma0[k]  - SS.N[kdel] + np.sum(alph[k+1:]) * SS.N[kdel]
-        gap += c_Beta(self.qgamma1[k], self.qgamma0[k]) \
+        a1 = self.eta1[k] + alph[k] * SS.N[kdel]
+        a0 = self.eta0[k]  - SS.N[kdel] + np.sum(alph[k+1:]) * SS.N[kdel]
+        gap += c_Beta(self.eta1[k], self.eta0[k]) \
                 - c_Beta(a1, a0)
     return gap
 
@@ -465,12 +465,12 @@ class DPMixFull(AllocModel):
       if k == kdel:
         continue
       elif k > kdel:
-        a1 = self.qgamma1[k] + alph[k] * SS.N[kdel]
-        a0 = self.qgamma0[k] + np.sum(alph[k+1:]) * SS.N[kdel]
+        a1 = self.eta1[k] + alph[k] * SS.N[kdel]
+        a0 = self.eta0[k] + np.sum(alph[k+1:]) * SS.N[kdel]
         gap -= c_Beta(a1, a0)
       elif k < kdel:
-        a1 = self.qgamma1[k] + alph[k] * SS.N[kdel]
-        a0 = self.qgamma0[k]  - SS.N[kdel] + np.sum(alph[k+1:]) * SS.N[kdel]
+        a1 = self.eta1[k] + alph[k] * SS.N[kdel]
+        a0 = self.eta0[k]  - SS.N[kdel] + np.sum(alph[k+1:]) * SS.N[kdel]
         gap -= c_Beta(a1, a0)
     return gap
 
@@ -485,17 +485,17 @@ class DPMixFull(AllocModel):
   ######################################################### IO Utils
   #########################################################   for machines
   def to_dict(self): 
-    return dict(qgamma1=self.qgamma1, qgamma0=self.qgamma0)
+    return dict(eta1=self.eta1, eta0=self.eta0)
     
   def from_dict(self, myDict):
     self.inferType = myDict['inferType']
     self.K = myDict['K']
-    self.qgamma1 = myDict['qgamma1']
-    self.qgamma0 = myDict['qgamma0']
-    if self.qgamma0.ndim == 0:
-      self.qgamma0 = self.qgamma1[np.newaxis]
-    if self.qgamma0.ndim == 0:
-      self.qgamma0 = self.qgamma0[np.newaxis]
+    self.eta1 = myDict['eta1']
+    self.eta0 = myDict['eta0']
+    if self.eta0.ndim == 0:
+      self.eta0 = self.eta1[np.newaxis]
+    if self.eta0.ndim == 0:
+      self.eta0 = self.eta0[np.newaxis]
     self.set_helper_params()
     
   def get_prior_dict(self):

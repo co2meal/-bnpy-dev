@@ -1,6 +1,5 @@
 '''
-LDA.py
-Bayesian parametric admixture model with a finite number of components K
+Bayesian parametric topic model with a finite number of components K
 
 Attributes
 -------
@@ -39,9 +38,9 @@ from bnpy.suffstats import SuffStatBag
 from ...util import digamma, gammaln
 from ...util import NumericUtil
 
-import LocalUtil
+import LocalStepManyDocs
 
-class LDA(AllocModel):
+class FiniteTopicModel(AllocModel):
   def __init__(self, inferType, priorDict=None):
     if inferType == 'EM':
       raise ValueError('LDA cannot do EM.')
@@ -98,7 +97,7 @@ class LDA(AllocModel):
           * ElogPi
           * DocTopicCount
     '''
-    LP = LocalUtil.calcLocalParams(Data, LP, self, **kwargs)
+    LP = LocalStepManyDocs.calcLocalParams(Data, LP, self, **kwargs)
     assert 'resp' in LP
     assert 'theta' in LP
     assert 'DocTopicCount' in LP

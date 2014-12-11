@@ -5,7 +5,7 @@ from scipy.special import digamma, gammaln
 from bnpy.util import NumericUtil
 import LocalStepLogger
 
-import SingleDocLocalStep as SDL
+import LocalStepSingleDoc as SDL
 
 def calcLocalParams(Data, LP, aModel, 
                           methodLP='scratch',
@@ -99,8 +99,8 @@ def inferLocalParamsForBatch(Data, aModel, Lik,
   if str(type(aModel)).count('HDP'):
     alphaEbeta = aModel.alphaEbeta[:-1].copy()
     alphaEbetaRem = aModel.alphaEbeta[-1] * 1.0 # to float
-  else:
-    alphaEbeta = aModel.alpha * aModel.get_active_comp_probs()
+  elif str(type(aModel)).count('Finite'):
+    alphaEbeta = aModel.alpha * np.ones(K)
     alphaEbetaRem = None
 
   AggInfo = dict()
