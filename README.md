@@ -100,7 +100,7 @@ python -m bnpy.Run AsteriskK8 DPMixtureModel Gauss moVB --K 8 --nBatch 10 --move
 python -m bnpy.Run --help 
 
 # print help message for specific keyword options for Gaussian mixture models
-python -m bnpy.Run AsteriskK8 MixModel Gauss EM --kwhelp
+python -m bnpy.Run AsteriskK8 FiniteMixtureModel Gauss EM --kwhelp
 ```
 
 # Installation and Configuration
