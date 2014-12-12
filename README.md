@@ -119,11 +119,11 @@ PhD candidate
 Brown University, Dept. of Computer Science  
 Website: [www.michaelchughes.com](http://www.michaelchughes.com)
 
-### Faculty
+### Faculty adviser
 
-Erik Sudderth
-Assistant Professor
-Brown University, Dept. of Computer Science
+Erik Sudderth  
+Assistant Professor  
+Brown University, Dept. of Computer Science  
 Website: [http://cs.brown.edu/people/sudderth/](http://cs.brown.edu/people/sudderth/)
 
 ### Contributors 
