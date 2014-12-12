@@ -59,7 +59,7 @@ These are all variants of *variational inference*, a family of optimization algo
 
 You can find many examples of **bnpy** in action in our curated set of  [IPython notebooks](http://nbviewer.ipython.org/urls/bitbucket.org/michaelchughes/bnpy-dev/raw/master/demos/DemoIndex.ipynb).
 
-These same demos are also directly available on our [wiki](../wiki/demos/DemoIndex.rst).
+These same demos are also directly available on our [wiki](http://bitbucket.org/michaelchughes/bnpy-dev/wiki/demos/DemoIndex.rst).
 
 # Quick Start
 
@@ -105,11 +105,11 @@ python -m bnpy.Run AsteriskK8 FiniteMixtureModel Gauss EM --kwhelp
 
 # Installation and Configuration
 
-To use **bnpy** for the first time, follow the [installation instructions](../wiki/Installation.md) on our project wiki.
+To use **bnpy** for the first time, follow the [installation instructions](http://bitbucket.org/michaelchughes/bnpy-dev/wiki/Installation.md) on our project wiki.
 
-Once installed, please visit the [Configuration](../wiki/Configuration.md) wiki page to learn how to configure where data is saved and loaded from on disk.
+Once installed, please visit the [Configuration](http://bitbucket.org/michaelchughes/bnpy-dev/wiki/Configuration.md) wiki page to learn how to configure where data is saved and loaded from on disk.
 
-All documentation can be found on the  [project wiki](../wiki/Home.md).
+All documentation can be found on the  [project wiki](http://bitbucket.org/michaelchughes/bnpy-dev/wiki/Home.md).
 
 # Team
 
