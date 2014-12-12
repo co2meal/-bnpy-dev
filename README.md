@@ -100,13 +100,11 @@ python -m bnpy.Run AsteriskK8 MixModel Gauss EM --kwhelp
 
 # Installation
 
-To use **bnpy** for the first time, follow the [installation instructions](https://bitbucket.org/michaelchughes/bnpy/wiki/Installation.md) on our project wiki.
+To use **bnpy** for the first time, follow the [installation instructions](../wiki/Installation.md) on our project wiki.
 
-Once installed, please visit the [Configuration](https://bitbucket.org/michaelchughes/bnpy/wiki/Configuration.md) wiki page to learn how to configure where data is saved and loaded from on disk.
+Once installed, please visit the [Configuration](../wiki/Configuration.md) wiki page to learn how to configure where data is saved and loaded from on disk.
 
-# Documentation
-
-All documentation can be found on the  [project wiki](https://bitbucket.org/michaelchughes/bnpy/wiki/Home.md).
+All documentation can be found on the  [project wiki](../wiki/Home.md).
 
 # Team
 
@@ -127,6 +125,22 @@ web.michaelchughes.com
 * Geng Ji
 * Jincheng Li
 
+# Citations
+
+### bnpy: Reliable and scalable variational inference for Bayesian nonparametric models.
+Michael C. Hughes and Erik B. Sudderth. 
+Probabilistic Programming Workshop 2014.
+Spotlight poster at NIPS conference, Montreal.
+
+> This short workshop paper describes the vision for **bnpy** as a general purpose inference engine.
+
+### Memoized online variational inference for Dirichlet process mixture models.
+Michael C. Hughes and Erik B. Sudderth.
+In Advances in Neural Information Processing Systems (NIPS) 2013.
+
+> This conference paper introduces our new memoized variational algorithm, which is the cornerstone of allowing scalable inference that can also effectively explore model complexity.
+
+For background reading to understand the broader context of this field, see our [Resources wiki page](../wiki/Resources.md).
 
 # Target Audience
 
