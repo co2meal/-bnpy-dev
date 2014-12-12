@@ -2,7 +2,7 @@
 
 ![bnpy-headline.png](https://bitbucket.org/repo/87qLXb/images/3908374762-bnpy-headline.png)
 
-[TOC]
+[TOC 1]
 
 # About
 This python module provides code for training popular clustering models on large datasets. We focus on Bayesian nonparametric models based on the Dirichlet process, but also provide parametric counterparts as well.
