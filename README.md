@@ -129,9 +129,7 @@ Brown University, Dept. of Computer Science
 
 ### [bnpy: Reliable and scalable variational inference for Bayesian nonparametric models.](HughesSudderth-NIPS2014Workshop-bnpy.pdf)
 Michael C. Hughes and Erik B. Sudderth.  
-
 Probabilistic Programming Workshop 2014.  
-
 Spotlight poster.
 
 > This short workshop paper describes the vision for **bnpy** as a general purpose inference engine.
