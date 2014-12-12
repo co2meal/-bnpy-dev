@@ -2,10 +2,10 @@
 
 ![bnpy-headline.png](https://bitbucket.org/repo/87qLXb/images/3908374762-bnpy-headline.png)
 
-* #### [About](#markdown-header-about)
-* #### Demos
-* #### Quick Start
-* #### [Academic References](#markdown-header-academic-references)
+* [About](#markdown-header-about)
+* [Demos](#markdown-header-demos)
+* [Quick Start](#markdown-header-quick-start)
+* [Academic References](#markdown-header-academic-references)
 
 # About
 This python module provides code for training popular clustering models on large datasets. We focus on Bayesian nonparametric models based on the Dirichlet process, but also provide parametric counterparts as well.
@@ -118,6 +118,13 @@ Mike Hughes
 PhD candidate  
 Brown University, Dept. of Computer Science  
 Website: [www.michaelchughes.com](http://www.michaelchughes.com)
+
+### Faculty
+
+Erik Sudderth
+Assistant Professor
+Brown University, Dept. of Computer Science
+Website: [http://cs.brown.edu/people/sudderth/](http://cs.brown.edu/people/sudderth/)
 
 ### Contributors 
 
