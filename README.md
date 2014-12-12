@@ -125,18 +125,21 @@ Brown University, Dept. of Computer Science
 * Geng Ji
 * Jincheng Li
 
-# Citations
+# Academic Citations
 
-### bnpy: Reliable and scalable variational inference for Bayesian nonparametric models.
-Michael C. Hughes and Erik B. Sudderth. 
-Probabilistic Programming Workshop 2014.
-Spotlight poster at NIPS conference, Montreal.
+### [bnpy: Reliable and scalable variational inference for Bayesian nonparametric models.](HughesSudderth-NIPS2014Workshop-bnpy.pdf)
+Michael C. Hughes and Erik B. Sudderth.  
+
+Probabilistic Programming Workshop 2014.  
+
+Spotlight poster.
 
 > This short workshop paper describes the vision for **bnpy** as a general purpose inference engine.
 
-### Memoized online variational inference for Dirichlet process mixture models.
-Michael C. Hughes and Erik B. Sudderth.
-In Advances in Neural Information Processing Systems (NIPS) 2013.
+### [Memoized online variational inference for Dirichlet process mixture models.](HughesSudderth-NIPS2013-MemoizedDP.pdf)
+Michael C. Hughes and Erik B. Sudderth.  
+
+In Advances in Neural Information Processing Systems (NIPS) 2013.  
 
 > This conference paper introduces our new memoized variational algorithm, which is the cornerstone of allowing scalable inference that can also effectively explore model complexity.
 
