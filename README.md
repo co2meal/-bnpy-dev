@@ -52,7 +52,7 @@ These are all variants of *variational inference*, a family of optimization algo
 
 # Demos
 
-You can find lots of examples of **bnpy** in action in our curated set of  [IPython notebooks](http://nbviewer.ipython.org/urls/bitbucket.org/michaelchughes/bnpy-dev/raw/master/demos/DemoIndex.ipynb).
+You can find many examples of **bnpy** in action in our curated set of  [IPython notebooks](http://nbviewer.ipython.org/urls/bitbucket.org/michaelchughes/bnpy-dev/raw/master/demos/DemoIndex.ipynb).
 
 These same demos are also directly available on our [wiki](https://bitbucket.org/michaelchughes/bnpy/wiki/demos/DemoIndex.rst).
 
