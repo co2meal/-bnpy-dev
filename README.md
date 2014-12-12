@@ -2,6 +2,8 @@
 
 ![bnpy-headline.png](https://bitbucket.org/repo/87qLXb/images/3908374762-bnpy-headline.png)
 
+[TOC]
+
 # About
 This python module provides code for training popular clustering models on large datasets. We focus on Bayesian nonparametric models based on the Dirichlet process, but also provide parametric counterparts as well.
 
@@ -98,7 +100,7 @@ python -m bnpy.Run --help
 python -m bnpy.Run AsteriskK8 MixModel Gauss EM --kwhelp
 ```
 
-# Installation
+# Installation and Configuration
 
 To use **bnpy** for the first time, follow the [installation instructions](../wiki/Installation.md) on our project wiki.
 
@@ -109,10 +111,10 @@ All documentation can be found on the  [project wiki](../wiki/Home.md).
 # Team
 
 ### Primary contact
-Mike Hughes
-PhD candidate
-Brown University, Dept. of Computer Science
-[web.michaelchughes.com](http://web.michaelchughes.com)
+Mike Hughes  
+PhD candidate  
+Brown University, Dept. of Computer Science  
+Website: [www.michaelchughes.com](http://www.michaelchughes.com)
 
 ### Contributors 
 
@@ -136,7 +138,6 @@ Spotlight poster.
 
 ### [Memoized online variational inference for Dirichlet process mixture models.](HughesSudderth-NIPS2013-MemoizedDP.pdf)
 Michael C. Hughes and Erik B. Sudderth.  
-
 In Advances in Neural Information Processing Systems (NIPS) 2013.  
 
 > This conference paper introduces our new memoized variational algorithm, which is the cornerstone of allowing scalable inference that can also effectively explore model complexity.
