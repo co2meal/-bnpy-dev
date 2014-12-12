@@ -114,7 +114,7 @@ All documentation can be found on the  [project wiki](https://bitbucket.org/mich
 Mike Hughes
 PhD candidate
 Brown University, Dept. of Computer Science
-web.michaelchughes.com
+[web.michaelchughes.com](http://web.michaelchughes.com)
 
 ### Contributors 
 
