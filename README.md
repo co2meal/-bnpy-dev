@@ -2,7 +2,10 @@
 
 ![bnpy-headline.png](https://bitbucket.org/repo/87qLXb/images/3908374762-bnpy-headline.png)
 
-[TOC 1]
+* #### [About](#markdown-header-about)
+* #### Demos
+* #### Quick Start
+* #### [Academic References](#markdown-header-academic-references)
 
 # About
 This python module provides code for training popular clustering models on large datasets. We focus on Bayesian nonparametric models based on the Dirichlet process, but also provide parametric counterparts as well.
@@ -127,7 +130,7 @@ Website: [www.michaelchughes.com](http://www.michaelchughes.com)
 * Geng Ji
 * Jincheng Li
 
-# Academic Citations
+# Academic References
 
 ### [bnpy: Reliable and scalable variational inference for Bayesian nonparametric models.](HughesSudderth-NIPS2014Workshop-bnpy.pdf)
 Michael C. Hughes and Erik B. Sudderth.  
