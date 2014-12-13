@@ -8,9 +8,9 @@
 * [Academic References](#markdown-header-academic-references)
 
 # About
-This python module provides code for training popular clustering models on large datasets. We focus on Bayesian nonparametric models based on the Dirichlet process, but also provide parametric counterparts as well.
+This python module provides code for training popular clustering models on large datasets. We focus on Bayesian nonparametric models based on the Dirichlet process, but also provide parametric counterparts. 
 
-**bnpy** supports the latest online learning algorithms as well as standard offline methods. 
+**bnpy** supports the latest online learning algorithms as well as standard offline methods. Our aim is to provide an inference platform that makes it easy for researchers and practitioners to compare models and algorithms.
 
 ### Supported probabilistic models
 
