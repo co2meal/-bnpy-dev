@@ -1,6 +1,6 @@
 ## **bnpy** : Bayesian nonparametric machine learning for python.
 
-![bnpy-headline.png](https://bitbucket.org/repo/87qLXb/images/3908374762-bnpy-headline.png)
+![bnpy-headline.png](https://bitbucket.org/repo/87qLXb/images/1585298866-bnpy-headline.png)
 
 * [About](#markdown-header-about)
 * [Demos](#markdown-header-demos)
