@@ -6,7 +6,6 @@ A module to create HMT data with 4 states
 import numpy as np
 import matplotlib.pyplot as plt
 from bnpy.data.QuadTreeData import QuadTreeData
-from bnpy.distr.GaussDistr import GaussDistr
 from bnpy.allocmodel.tree import HMTUtil
 
 K = 4
@@ -24,10 +23,10 @@ sigmas[3,:,:] = np.asarray([[1,-.5], [-.5,1]])
 
 # transition matrices for each direction, default by 4
 transition = np.zeros((4,4,4))
-transition[0,:,:] = np.asarray([[.1,.4,.3,.2], [.2,.2,.5,.1], [.5,.2,.1,.2], [.2,.1,.2,.5]])
-transition[1,:,:] = np.asarray([[.2,.1,.4,.3], [.1,.2,.2,.5], [.2,.5,.2,.1], [.5,.2,.1,.2]])
-transition[2,:,:] = np.asarray([[.3,.2,.1,.4], [.5,.1,.2,.2], [.1,.2,.5,.2], [.2,.5,.2,.1]])
-transition[3,:,:] = np.asarray([[.4,.3,.2,.1], [.2,.5,.1,.2], [.2,.1,.2,.5], [.1,.2,.5,.2]])
+transition[0,:,:] = np.asarray([[.91,.03,.03,.03], [.91,.03,.03,.03], [.91,.03,.03,.03], [.91,.03,.03,.03]])
+transition[1,:,:] = np.asarray([[.03,.91,.03,.03], [.03,.91,.03,.03], [.03,.91,.03,.03], [.03,.91,.03,.03]])
+transition[2,:,:] = np.asarray([[.03,.03,.91,.03], [.03,.03,.91,.03], [.03,.03,.91,.03], [.03,.03,.91,.03]])
+transition[3,:,:] = np.asarray([[.03,.03,.03,.91], [.03,.03,.03,.91], [.03,.03,.03,.91], [.03,.03,.03,.91]])
 
 # initial state
 pi0 = np.asarray([.25,.25,.25,.25])

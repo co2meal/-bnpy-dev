@@ -7,8 +7,14 @@ import bnpy.allocmodel.tree.QuadTreeUtil as QTU
 class TestQuadTreeUtil_5Nodes(unittest.TestCase):
   def setUp(self):
     PiInit = np.asarray([0.3, 0.7])
-    PiMat = np.asarray([[0.6, 0.4],
-						[0.2, 0.8]])
+    PiMat = np.asarray([[[0.6, 0.4],
+						[0.2, 0.8]],
+                        [[0.7, 0.3],
+                        [0.3, 0.7]],
+                        [[0.5, 0.5],
+                        [0.2, 0.8]],
+                        [[0.4, 0.6],
+                        [0.25, 0.75]]])
     SoftEv = 0.5 * np.ones((5,2))
     logSoftEv = np.log(SoftEv)
     self.PiInit = PiInit
@@ -18,7 +24,7 @@ class TestQuadTreeUtil_5Nodes(unittest.TestCase):
 
   def test_sumproduct_equals_bruteforce(self):
     print ''
-    resp, respPair, logPrObs = QTU.calcRespBySumProduct(
+    resp, respPair, logPrObs = QTU.SumProductAlg_QuadTree(
 									   self.PiInit, self.PiMat, self.logSoftEv)
     resp2, respPair2, logPrObs2 = QTU.calcRespByBruteForce(
 										  self.PiInit, self.PiMat, self.logSoftEv)
@@ -36,7 +42,7 @@ class TestQuadTreeUtil_5Nodes(unittest.TestCase):
     assert np.allclose(logPrObs, logPrObs2)
     assert np.allclose(resp, resp2)
 
-
+'''
 class TestQuadTreeUtil_5NodesNonUniformLik(TestQuadTreeUtil_5Nodes):
   def setUp(self):
     PiInit = np.asarray([0.3, 0.7])
@@ -114,3 +120,4 @@ class TestQuadTreeUtil_21NodesNonUniformLik(TestQuadTreeUtil_5Nodes):
     self.PiMat = PiMat
     self.logSoftEv = logSoftEv
     self.SoftEv = SoftEv
+'''
