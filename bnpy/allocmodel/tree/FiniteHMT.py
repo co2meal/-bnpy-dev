@@ -46,8 +46,9 @@ class FiniteHMT(AllocModel):
                            digamma(np.sum(self.initTheta)))
       expELogTrans = np.empty( (self.maxBranch, K, K) )
       for b in xrange(self.maxBranch):
-        expELogTrans[b,:,:] = np.exp(digamma(self.transTheta[b,:,:]) - 
-                                     digamma(np.sum(self.transTheta[b,:,:], axis = 1)))
+        digammasumvec = digamma(np.sum(self.transTheta[b,:,:], axis = 1))
+        expELogTrans[b,:,:] = np.exp(digamma(self.transTheta[b,:,:]) 
+                                     - digammasumvec[:,np.newaxis])
       initParam = expELogInit
       transParam = expELogTrans
     elif self.inferType == 'EM' > 0:
@@ -84,19 +85,30 @@ class FiniteHMT(AllocModel):
     resp = LP['resp']
     respPair = LP['respPair']
     K = resp.shape[1]
-    startLocIDs = Data.doc_range[:-1]
-    
-    firstStateResp = np.sum(resp[startLocIDs], axis = 0)
+    SS = SuffStatBag(K=K, D=Data.dim)
+
+    ## Count usage of each state across all tokens
     N = np.sum(resp, axis = 0)
-    SS = SuffStatBag(K = self.K , D = Data.dim)
-    for b in xrange(self.maxBranch):
-      mask = [i for i in xrange(b+1, Data.doc_range[1], self.maxBranch)]
-      for docidx in xrange(1, len(Data.doc_range)-1, 1):
-        mask.extend([i for i in xrange(b+1+Data.doc_range[docidx], Data.doc_range[docidx+1], self.maxBranch)])
-      PairCounts = np.sum(respPair[mask,:,:], axis = 0)
-      SS.setField('PairCounts'+str(b), PairCounts, dims=('K','K'))
-    SS.setField('FirstStateCount', firstStateResp, dims=('K'))
     SS.setField('N', N, dims=('K'))
+
+    ## Count usage of each state at "root" of each tree
+    startLocIDs = Data.doc_range[:-1]
+    firstStateResp = np.sum(resp[startLocIDs], axis = 0)
+    SS.setField('FirstStateCount', firstStateResp, dims=('K'))
+
+    ## Count pair-wise co-occurances for all state pairs
+    # We loop over each tree (aka "document")
+    #  identify which nodes belong to each branch, & sum over these
+    # TODO: make this faster? avoid loop over docs.
+    for b in xrange(self.maxBranch):
+      bkey = 'PairCounts' + str(b)
+      bPairCounts = np.zeros((self.K, self.K))
+      for docID in xrange(Data.nDoc):
+        bmask = range(Data.doc_range[docID] + b + 1,
+                      Data.doc_range[docID+1],
+                      self.maxBranch)
+        bPairCounts += np.sum(respPair[bmask], axis=0)
+      SS.setField(bkey, bPairCounts, dims=('K', 'K'))
 
     if doPrecompEntropy is not None:
       entropy = self.elbo_entropy(Data, LP)
@@ -119,7 +131,8 @@ class FiniteHMT(AllocModel):
   def update_global_params_VB( self, SS, **kwargs ):
     self.initTheta = self.initAlpha + SS.FirstStateCount
     for b in xrange(self.maxBranch):
-      self.transTheta[b,:,:] = self.transAlpha + getattr(SS._Fields, 'PairCounts'+str(b))
+      bkey = 'PairCounts' + str(b)
+      self.transTheta[b,:,:] = self.transAlpha + getattr(SS._Fields, bkey)
     self.K = SS.K
 
   def init_global_params(self, Data, K=0, **kwargs):
@@ -173,7 +186,8 @@ class FiniteHMT(AllocModel):
         entropy = SS.getELBOTerm('Elogqz')
       else:
         entropy = self.elbo_entropy(Data, LP)
-      return entropy + self.elbo_alloc()
+
+      return entropy + self.elbo_alloc__forloop()
     else :
       emsg = 'Unrecognized inferType: ' + self.inferType
       raise NotImplementedError(emsg)
@@ -181,18 +195,32 @@ class FiniteHMT(AllocModel):
   def elbo_entropy(self, Data, LP):
     return HMTUtil.calcEntropyFromResp(LP['resp'], LP['respPair'], Data)
 
-  def elbo_alloc(self):
-    normPinit = gammaln(self.K * self.initAlpha) - \
-      self.K * gammaln(self.initAlpha)
-    normPtrans = self.K * gammaln(self.K * self.transAlpha) - \
-      (self.K**2) * gammaln(self.transAlpha)
-    normQinit = np.sum(gammaln(self.initTheta)) - \
-      gammaln(np.sum(self.initTheta))
-    normQtrans = 0
+  def elbo_alloc__forloop(self):
+    ''' Calculate term in objective related to transition parameters.
+
+        Math
+        --------
+        E[ log p(z) + log p(pi) - log q(pi) ]
+
+        Returns
+        --------
+        scalar
+    '''
+    cDirAlpha_init = gammaln(self.K * self.initAlpha) \
+                     - self.K * gammaln(self.initAlpha)
+    cDirTheta_init = gammaln(np.sum(self.initTheta)) \
+                     - np.sum(gammaln(self.initTheta))
+    cDirAlpha_trans = 0
+    cDirTheta_trans = 0
     for b in xrange(self.maxBranch):
-      normQtrans += np.sum(gammaln(self.transTheta[b,:,:])) - \
-                           np.sum(gammaln(np.sum(self.transTheta[b,:,:], axis = 1)))
-    return normPinit + normPtrans + normQinit + normQtrans
+      for j in xrange(self.K):
+        cDirAlpha_trans += gammaln(self.K * self.transAlpha) \
+                          - self.K * gammaln(self.transAlpha)
+        cDirTheta_trans += gammaln(np.sum(self.transTheta[b,j,:])) \
+                          - np.sum(gammaln(self.transTheta[b,j,:]))
+    return cDirAlpha_init - cDirTheta_init \
+           + cDirAlpha_trans - cDirTheta_trans
+
 
   def from_dict(self, myDict):
     self.inferType = myDict['inferType']
