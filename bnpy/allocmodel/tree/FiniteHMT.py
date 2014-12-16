@@ -111,7 +111,7 @@ class FiniteHMT(AllocModel):
       SS.setField(bkey, bPairCounts, dims=('K', 'K'))
 
     if doPrecompEntropy is not None:
-      entropy = self.elbo_entropy(Data, LP)
+      entropy = self.elbo_alloc__forloop(Data, LP)
       SS.setELBOTerm('Elogqz', entropy, dims = (()))
 
     return SS
