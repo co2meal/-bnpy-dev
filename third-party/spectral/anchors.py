@@ -11,9 +11,9 @@ import gram_schmidt_stable as gs
 def findAnchors(Q, K, params, candidates):
 
     # row normalize Q
-    row_sums = Q.sum(1)
+    row_sums = Q.sum(axis=1)
     for i in xrange(len(Q[:, 0])):
-        Q[i, :] = Q[i, :]/float(row_sums[i])    
+        Q[i, :] = Q[i, :]/float(row_sums[i] + 1e-100)    
 
     # Reduced dimension random projection method for recovering anchor words
     if params.lowerDim is None:

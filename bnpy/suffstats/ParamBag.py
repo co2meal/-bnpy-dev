@@ -209,6 +209,7 @@ class ParamBag(object):
   def __add__(self, PB):
     ''' Add. Returns new ParamBag, with fields equal to self + PB
     '''
+    # TODO: Decide on what happens if PB has more fields than self
     if self.K != PB.K or self.D != PB.D:
       raise ValueError('Dimension mismatch')
     PBsum = ParamBag(K=self.K, D=self.D, doCollapseK1=self.doCollapseK1)
@@ -223,10 +224,20 @@ class ParamBag(object):
     '''
     if self.K != PB.K or self.D != PB.D:
       raise ValueError('Dimension mismatch')
-    for key in self._FieldDims:
-      arrA = getattr(self, key)
-      arrB = getattr(PB, key)
-      self.setField(key, arrA + arrB)
+    if len(self._FieldDims.keys()) < len(PB._FieldDims.keys()):
+      for key in PB._FieldDims:
+        arrB = getattr(PB, key)
+        try:
+          arrA = getattr(self, key)
+          self.setField(key, arrA + arrB)
+        except AttributeError:
+          self.setField(key, arrB.copy(), dims=PB._FieldDims[key])
+    else:
+      for key in self._FieldDims:
+        arrA = getattr(self, key)
+        arrB = getattr(PB, key)
+        self.setField(key, arrA + arrB)
+
     return self
 
 

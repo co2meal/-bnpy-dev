@@ -14,13 +14,78 @@ def makePlanForEmptyTopics(curSS, dtargetMinCount=0.01, **kwargs):
              )
   return Plan
 
-def getEligibleCount(curSS):
-  ''' Get list of all eligibleIDs
+def getEligibleCount(SS, **kwargs):
+  ''' Get count of all current active comps eligible for deletion
   '''
-  ## TODO
-  return 0
+  EligibleInfo = getEligibleCompIDs(SS, **kwargs)
+  nTotalEligible = len(EligibleInfo['tier1uids']) \
+                   + len(EligibleInfo['tier2uids'])
+  return nTotalEligible
+          
 
-def makePlans(curSS, Dchunk=None, 
+def getEligibleCompIDs(SS,
+                       DRecordsByComp=None,
+                       dtargetMaxSize=1000,
+                       deleteFailLimit=2, 
+                       **kwargs):
+  ''' Get tiered lists of unique IDs for each topic eligible for deletion
+
+      Returns
+      ---------
+      Info : dict with fields
+      * tier1uids
+      * tier2uids
+  '''
+  EligibleInfo = dict(tier1uids=[], tier2uids=[])
+
+  ## Measure size of each current topic
+  # SizeVec : refers to docs/units/sequences
+  # Nvec/count : refers to tokens/atoms
+  Nvec = SS.getCountVec()
+  if SS.hasSelectionTerm('DocUsageCount'):
+    SizeVec = SS.getSelectionTerm('DocUsageCount')
+  else:
+    SizeVec = Nvec
+
+  ## Determine eligibleIDs for deletion
+  eligibleIDs = np.flatnonzero(SizeVec < dtargetMaxSize)
+  eligibleUIDs = SS.uIDs[eligibleIDs]
+
+  if len(eligibleIDs) < 1:
+    return EligibleInfo
+
+  CountMap = dict()
+  SizeMap = dict()
+  for ii, uID in enumerate(eligibleUIDs):
+    SizeMap[uID] = SizeVec[eligibleIDs[ii]]
+    CountMap[uID] = Nvec[eligibleIDs[ii]]
+
+  for uID in DRecordsByComp.keys():
+    if uID not in CountMap:
+      continue
+    count = DRecordsByComp[uID]['count']
+    percDiff = np.abs(CountMap[uID] - count) / count
+    if percDiff > 0.15:
+      del DRecordsByComp[uID]
+
+  ## Prioritize the eligible comps by
+  ##  * size (smaller preferred)
+  ##  * previous failures (fewer preferred)
+  ## We will make 3 tiers,
+  ##  1) first choices
+  ##  2) second choices (aka waiting list)
+  ##  3) clear rejects
+  sortIDs = np.argsort(SizeVec[eligibleIDs])
+  for ii in sortIDs:
+    uID = eligibleUIDs[ii]
+    if uID not in DRecordsByComp:
+      EligibleInfo['tier1uids'].append(uID)
+    elif DRecordsByComp[uID]['nFail'] < deleteFailLimit:
+      EligibleInfo['tier2uids'].append(uID)
+  return EligibleInfo
+
+
+def makePlans(curSS, Dchunk=None, DocUsageCount=None,
               lapFrac=0,
               dtargetMaxSize=1000,
               deleteFailLimit=2,
@@ -44,7 +109,7 @@ def makePlans(curSS, Dchunk=None,
   # SizeVec : refers to docs/units/sequences
   # Nvec/count : refers to tokens/atoms
   Nvec = curSS.getCountVec()
-  Nvec, SizeVec = Count2Size(Nvec, Dchunk, curSS, lapFrac)
+  Nvec, SizeVec = Count2Size(Nvec, Dchunk, curSS, lapFrac, DocUsageCount)
 
   ## Determine eligibleIDs for deletion
   eligibleIDs = np.flatnonzero(SizeVec < dtargetMaxSize)
@@ -70,7 +135,13 @@ def makePlans(curSS, Dchunk=None,
     if percDiff > 0.15:
       del DRecordsByComp[uID]
 
-  ## Sort by size,  smallest to biggest
+  ## Prioritize the eligible comps by
+  ##  * size (smaller preferred)
+  ##  * previous failures (fewer preferred)
+  ## We will make 3 tiers,
+  ##  1) first choices
+  ##  2) second choices (aka waiting list)
+  ##  3) clear rejects
   sortIDs = np.argsort(SizeVec[eligibleIDs])
   firstUIDs = list()
   secondUIDs = list()
@@ -96,10 +167,11 @@ def makePlans(curSS, Dchunk=None,
   eligibleString = ' '.join(['%3d' % (x) for x in secondUIDs[:10]])
   DeleteLogger.log(eligibleString)
 
-  ## Select a subset of eligible topics to use with target set
-  # aggregate smallest to biggest until we reach capacity
+  ## Now, select as many candidates as possible from first tier candidates
+  ## aggregated smallest to biggest until we reach capacity
   if len(firstUIDs) > 0:
     eligibleMass = np.cumsum([SizeMap[x] for x in firstUIDs])
+
     # maxLoc gives output in {0, 1, ... nF-1, nF}
     #  maxLoc equals m if we want everything at positions 0:m
     maxLoc = np.searchsorted(eligibleMass, dtargetMaxSize)
@@ -128,21 +200,35 @@ def makePlans(curSS, Dchunk=None,
     selectIDs.append(eligibleIDs[jj])
   Plan = dict(selectIDs=[x for x in selectIDs],
               uIDs=[x for x in selectUIDs],
+              size=np.sum([SizeVec[x] for x in selectIDs]),
              )
   return [Plan]
 
-def Count2Size(Nvec, Dchunk, curSS, lapFrac):
+
+def Count2Size(Nvec, Dchunk, curSS, lapFrac, DocUsageCount):
   if lapFrac < 1:
     ampF = Dchunk.get_total_size() / float(Dchunk.get_size())
   else:
     ampF = 1.0
   ampF = np.maximum(ampF, 1.0)
   Nvec = Nvec * ampF
+
+  if DocUsageCount is not None and DocUsageCount.size == curSS.K:
+    return Nvec, DocUsageCount
+  elif curSS.hasSelectionTerm('DocUsageCount'):
+    DocUsageCount = curSS.getSelectionTerm('DocUsageCount') * ampF
+    return Nvec, DocUsageCount
+
   if isinstance(Dchunk, bnpy.data.WordsData) and hasattr(curSS, 'sumLogPi'):
     # HDP+Mult needs to track SizeVec = nDocsPerTopic
     tokenPerDoc = Dchunk.word_count.sum() / Dchunk.nDoc
     tokenPerTopic = tokenPerDoc / np.ceil(np.sqrt(curSS.K))
     SizeVec = Nvec / tokenPerTopic
+  elif isinstance(Dchunk, bnpy.data.GroupXData):
+    atomPerTopic = Nvec
+    atomPerDoc = np.median(np.diff(Dchunk.doc_range))
+    docPerTopic = atomPerTopic / atomPerDoc
+    SizeVec = docPerTopic * 3 # counting multiples
   else:
     SizeVec = Nvec
   return Nvec, SizeVec

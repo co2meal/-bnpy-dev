@@ -50,16 +50,17 @@ def loadWordCountMatrixForLap(matfilepath, lapQuery, toDense=True):
   _, WordCounts = loadTopicModel(matfilepath, prefix, returnWordCounts=1)
   return WordCounts
 
-def loadTopicModel(matfilepath, prefix, returnWordCounts=0, returnTPA=0):
+def loadTopicModel(matfilepath, prefix=None, returnWordCounts=0, returnTPA=0):
   ''' Load saved topic model
   '''
   # avoids circular import
   from bnpy.HModel import HModel
-
-  matfilepath = os.path.join(matfilepath, prefix + 'TopicModel.mat')
+  if prefix is not None:
+    matfilepath = os.path.join(matfilepath, prefix + 'TopicModel.mat')
   Mdict = loadDictFromMatfile(matfilepath)
+  Mdict['probs'] = np.asarray(Mdict['probs'], dtype=np.float64)
   if 'SparseWordCount_data' in Mdict:
-    data = Mdict['SparseWordCount_data']
+    data = np.asarray(Mdict['SparseWordCount_data'], dtype=np.float64)
     K = int(Mdict['K'])
     vocab_size = int(Mdict['vocab_size'])
     try:
@@ -77,7 +78,7 @@ def loadTopicModel(matfilepath, prefix, returnWordCounts=0, returnTPA=0):
     if 'WordCounts' in Mdict:
       topics = Mdict['WordCounts'] + Mdict['lam']
     else:
-      topics = Mdict['topics'] + 0
+      topics = np.asarray(Mdict['topics'], dtype=np.float64).newbyteorder('=').copy()
     probs = Mdict['probs']
     try:
       alpha = float(Mdict['alpha'])
@@ -104,10 +105,7 @@ def loadModelForLap(matfilepath, lapQuery):
       model, true-lap-id
   '''
   prefix, bestLap = getPrefixForLapQuery(matfilepath, lapQuery)
-  if os.path.isfile(os.path.join(matfilepath, 'ObsPrior.mat')):
-    model = load_model(matfilepath, prefix=prefix)
-  else:
-    model = loadTopicModel(matfilepath, prefix=prefix)
+  model = load_model(matfilepath, prefix=prefix)
   return model, bestLap
 
 def load_model( matfilepath, prefix='Best'):
@@ -115,9 +113,19 @@ def load_model( matfilepath, prefix='Best'):
   '''
   # avoids circular import
   import bnpy.HModel as HModel
-  obsModel = load_obs_model(matfilepath, prefix)
-  allocModel = load_alloc_model(matfilepath, prefix)
-  return HModel(allocModel, obsModel)
+  try:
+    obsModel = load_obs_model(matfilepath, prefix)
+    allocModel = load_alloc_model(matfilepath, prefix)
+    model = HModel(allocModel, obsModel)
+  except IOError as e:
+    if prefix == 'Best':
+      matList = glob.glob(os.path.join(matfilepath, '*TopicModel.mat'))
+      if len(matList) < 1:
+        raise e
+      matList.sort() # ascending order, so most recent is last
+      prefix = matList[-1].split(os.path.sep)[-1][:11]
+    model = loadTopicModel(matfilepath, prefix=prefix)
+  return model
   
 def load_alloc_model(matfilepath, prefix):
   apriorpath = os.path.join(matfilepath,'AllocPrior.mat')

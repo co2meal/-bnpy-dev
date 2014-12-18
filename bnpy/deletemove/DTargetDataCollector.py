@@ -1,5 +1,5 @@
 '''
-TargetDataSampler.py
+DTargetDataCollector.py
 
 Provides methods that sample target dataset
 
@@ -46,7 +46,7 @@ def addDataFromBatchToPlan(Plan, Dchunk, hmodel, LPchunk, batchID,
     Plan['targetSSByBatch'] = dict()
 
   if getSize(Plan['DTargetData']) > dtargetMaxSize * 3:
-    print 'WARNING: max size exceeded'
+    print 'WARNING: max size exceeded. Target Size=%d' % (dtargetMaxSize)
     
   ## Track a summary of the selected docs
   targetLPchunk = hmodel.allocModel.selectSubsetLP(Dchunk, LPchunk, relIDs)

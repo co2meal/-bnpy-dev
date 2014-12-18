@@ -228,10 +228,8 @@ def plotCovMatFromHModel(hmodel,
     compsToHighlight = list()  
   if compListToPlot is None:
     compListToPlot = np.arange(0, hmodel.allocModel.K)
-  try:
-    w = np.exp(hmodel.allocModel.Elogw)
-  except Exception:
-    w = hmodel.allocModel.w
+
+  w = hmodel.allocModel.get_active_comp_probs()
 
   colorID = 0
   for plotID, kk in enumerate(compListToPlot):
@@ -248,6 +246,10 @@ def plotCovMatFromHModel(hmodel,
     pylab.xlabel('%.2f' % (w[kk]))
     if kk in compsToHighlight:
       pylab.xlabel('***')
+
+  for emptyID in xrange(plotID+1, nRow*nCol):
+    aH = pylab.subplot(nRow, nCol, emptyID+1)
+    aH.axis('off')
   
 def getEmptyCompSigmaImage(D):
   EmptySig = np.eye(D)
