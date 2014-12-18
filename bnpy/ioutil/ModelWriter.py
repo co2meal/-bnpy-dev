@@ -4,6 +4,8 @@ import numpy as np
 import scipy.io
 import os
 from distutils.dir_util import mkpath
+from shutil import copy2
+from sys import platform
 
 def makePrefixForLap(lap):
   return 'Lap%08.3f' % (lap)
@@ -118,4 +120,9 @@ def create_best_link( hardmatfile, linkmatfile):
   if os.path.exists(linkmatfile):
     os.remove(linkmatfile)
   if os.path.exists( hardmatfile ):
-    os.symlink( hardmatfile, linkmatfile )
+      # symlink support varies across Windows releases, so hard copy instead
+      # possible alternative is win32file.CreateSymbolicLink()
+      if platform.startswith('win32'):
+          copy2( hardmatfile, linkmatfile )
+      else:
+          os.symlink( hardmatfile, linkmatfile )
