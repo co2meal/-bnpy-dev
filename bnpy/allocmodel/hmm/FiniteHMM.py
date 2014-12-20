@@ -247,16 +247,18 @@ class FiniteHMM(AllocModel):
     def update_global_params_soVB(self, SS, rho, **kwargs):
         initNew = self.initAlpha + SS.firstStateResp
         transNew = self.transAlpha + SS.respPairSums
-        self.initTheta = rho*initNew + (1 - rho)*self.initTheta
-        self.transTheta = rho*transNew + (1 - rho)*self.transTheta
+        self.initTheta = rho * initNew + (1 - rho) * self.initTheta
+        self.transTheta = rho * transNew + (1 - rho) * self.transTheta
         self.K = SS.K
 
     def init_global_params(self, Data, K=0, **kwargs):
-        ''' Default initialization of global parameters
+        ''' Default initialization of global parameters when 
 
-            Used for some initnames.
+            Not used for local-first initializations, such as
+            * contigBlocksLP
+            * randexamples
+            * kmeansplusplus
         '''
-        print "HERE"
         self.K = K
         if self.inferType == 'EM':
             self.initPi = 1.0 / K * np.ones(K)
