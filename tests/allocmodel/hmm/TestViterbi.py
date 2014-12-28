@@ -29,14 +29,14 @@ class TestViterbi(unittest.TestCase):
     OUTdict = scipy.io.loadmat(OUTPUTmatfile)
     self.zTrue = OUTdict['zHat'] - 1 # Transform to 0-indexed array
 
-  def test_viterbi(self):
+  def test_runViterbiAlg(self):
     print ''
     Q = self.MATdict
     zHat = runViterbiAlg( Q['logEvidence'], Q['logPiInit'], Q['logPiTrans'])
     pprintZ(zHat)
     assert np.allclose( zHat, self.zTrue)
 
-  def test_viterbi_forloop(self):
+  def test_runViterbiAlg_forloop(self):
     print ''
     Q = self.MATdict
     zHat = runViterbiAlg_forloop( Q['logEvidence'], Q['logPiInit'], Q['logPiTrans'])
@@ -44,8 +44,9 @@ class TestViterbi(unittest.TestCase):
     assert np.allclose( zHat, self.zTrue)
 
 
-  def test_old_viterbi(self):
+  def test_viterbi__failure_expected(self):
     print ''
+    print "THIS IS EXPECTED TO FAIL. The 'viterbi' method is deprecated."
     Q = self.MATdict
     zHat = viterbi( Q['logEvidence'], Q['logPiInit'], Q['logPiTrans'])
     pprintZ(zHat)

@@ -68,8 +68,8 @@ def FwdBwdAlg(PiInit, PiMat, logSoftEv):
   resp = fmsg * bmsg
   return resp, respPair, logMargPrSeq
 
-########################################################### FwdAlg, BwdAlg Wrappers
-###########################################################
+########################################################### FwdAlg/BwdAlg 
+########################################################### Wrappers
 def FwdAlg(PiInit, PiMat, SoftEv):
   ''' Forward algorithm for a single HMM sequence. Wrapper for FwdAlg_py/FwdAlg_cpp.
 
@@ -108,8 +108,8 @@ def BwdAlg(PiInit, PiMat, SoftEv, margPrObs):
   else:
     return BwdAlg_py(PiInit, PiMat, SoftEv, margPrObs)
 
-########################################################### Python implementations
-###########################################################
+########################################################### Python FwdAlg/BwdAlg
+########################################################### 
 
 def FwdAlg_py(PiInit, PiMat, SoftEv):
   ''' Forward algorithm for a single HMM sequence. In pure python.
@@ -232,6 +232,8 @@ def _parseInput_SoftEv(logSoftEv, K):
   return logSoftEv
 
 
+########################################################### Viterbi
+###########################################################
 def runViterbiAlg(logSoftEv, logPi0, logPi):
   ''' Run viterbi algorithm to estimate MAP states for single sequence. 
 
@@ -239,9 +241,15 @@ def runViterbiAlg(logSoftEv, logPi0, logPi):
   ------
   logSoftEv : log soft evidence matrix, shape T x K
               each row t := log p( x[t] | z[t]=k )
-  pi0
-  pi
+  pi0 : 1D array, length K
+        initial state probability vector, sums to one
+  pi : 2D array, shape K x K
+       j-th row is is transition probability vector for state j
 
+  Returns
+  ------
+  zHat : 1D array, length T, representing the MAP state sequence  
+         zHat[t] gives the integer label {1, 2, ... K} of state at timestep t
   '''
   if np.any(logPi0 > 0):
     logPi0 = np.log(logPi0 + EPS)
@@ -283,17 +291,9 @@ def runViterbiAlg(logSoftEv, logPi0, logPi):
 def runViterbiAlg_forloop(logSoftEv, logPi0, logPi):
   ''' Run viterbi algorithm to estimate MAP states for single sequence. 
 
-  This method will produce the same output as the one above,
+  This method will produce the same output as runViterbiAlg,
   but will be much simpler to read, since it uses an inner for-loop
   instead of complete vectorization
-
-  Args
-  ------
-  logSoftEv : log soft evidence matrix, shape T x K
-              each row t := log p( x[t] | z[t]=k )
-  pi0
-  pi
-
   '''
   if np.any(logPi0 > 0):
     logPi0 = np.log(logPi0 + EPS)
@@ -333,9 +333,8 @@ def runViterbiAlg_forloop(logSoftEv, logPi0, logPi):
 def viterbi(logSoftEv, logPi0, logPi):
   ''' ALERT: THIS METHOD IS WRONG! 
 
-  Input : The log evidence matrix (logSoftEv[n,k] = log(p(x_n | z_n = k))), as 
-  well as the starting distribution and transition matrix.
-
+  This is provided for backward compatibility only.
+  Use runViterbiAlg instead.
   '''
   if np.any(logPi0 > 0):
     logPi0 = np.log(logPi0 + EPS)
@@ -377,8 +376,13 @@ def viterbi(logSoftEv, logPi0, logPi):
   return z
 
 
+########################################################### Entropy calculation
+###########################################################
+
 def calcEntropyFromResp(resp, respPair, Data, eps=1e-100):
-  ''' Calculate entropy E_q(z) [ log q(z) ] for all sequences
+  ''' Calculate state assignment entropy for all sequences. Fast, vectorized.
+
+      
   '''
   startLocIDs = Data.doc_range[:-1]
 
@@ -388,10 +392,11 @@ def calcEntropyFromResp(resp, respPair, Data, eps=1e-100):
   return firstH + restH
 
 
-def calcEntropyFromResp_bySeq(resp, respPair, Data, eps=1e-100):
-  ''' Calculate entropy E_q(z) [ log q(z) ] for all sequences, using loop over seqs
+def calcEntropyFromResp_forloop(resp, respPair, Data, eps=1e-100):
+  ''' Calculate state assignment entropy for all sequences. Using forloop.
 
-      This is simply a way to verify correctness for fast, vectorized calculations.
+      Exactly same input/output as calcEntropyFromResp, just with
+      easier to read implementation. Useful for verifying correctness.
   '''
   totalH = 0
   for n in xrange(Data.nDoc):
