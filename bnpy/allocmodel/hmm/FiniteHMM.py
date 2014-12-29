@@ -55,7 +55,16 @@ class FiniteHMM(AllocModel):
         EPiMat = self.transTheta / self.transTheta.sum(axis=1)[:,np.newaxis]
         return EPiMat.mean(axis=0)
 
-    def get_trans_matrix(self):
+    def get_init_prob_vector(self):
+      ''' Get vector of initial probabilities for all K active states
+      '''
+      if self.inferType == 'EM':
+        pi0 = self.initPi
+      else:
+        pi0 = self.initTheta / self.initTheta.sum()
+      return pi0
+
+    def get_trans_prob_matrix(self):
       ''' Get matrix of transition probabilities for all K active states
       '''
       if self.inferType == 'EM':
