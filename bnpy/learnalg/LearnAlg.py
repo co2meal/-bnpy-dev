@@ -407,7 +407,8 @@ def makeDictOfAllWorkspaceVars(**kwargs):
   '''
   if 'self' in kwargs:
     kwargs['learnAlg'] = kwargs.pop('self')
-
+  if 'lap' in kwargs:
+    kwargs['lapFrac'] = kwargs['lap']
   for key in kwargs.keys():
     if key.startswith('_'):
       kwargs.pop(key)
