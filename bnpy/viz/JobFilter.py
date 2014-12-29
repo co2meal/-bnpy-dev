@@ -17,7 +17,7 @@ def findKeysWithDiffVals(dA, dB):
 def mapToKey(val):
   if val.count('DP') or val.count('HDP'):
     return 'allocModelName'
-  elif val.count('rand') or val.count('true') \
+  elif val.count('rand') or val.count('true') or val.count('contig') \
        or val.count('spectral') or val.count('kmeans') or val.count('plusplus'):
     return 'initname'
   return None
