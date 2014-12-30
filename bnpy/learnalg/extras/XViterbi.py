@@ -27,6 +27,9 @@ import scipy.io
 
 from bnpy.allocmodel.hmm.HMMUtil import runViterbiAlg
 from bnpy.ioutil.ModelWriter import makePrefixForLap
+from bnpy.util import StateSeqUtil
+
+SavedLapSet = set()
 
 def onAlgorithmComplete(**kwargs):
   ''' Runs viterbi at completion of the learning algorithm.
@@ -44,9 +47,16 @@ def onBatchComplete(**kwargs):
   --------
   All workspace variables passed along from learning alg.
   '''
+  global SavedLapSet
+  if kwargs['isInitial']:
+    SavedLapSet = set()
+
   isSaveParamsCheckpoint = kwargs['learnAlg'].isSaveParamsCheckpoint
   if not isSaveParamsCheckpoint(kwargs['lapFrac'], kwargs['iterid']):
     return
+  if kwargs['lapFrac'] in SavedLapSet:
+    return
+  SavedLapSet.add(kwargs['lapFrac'])
   runViterbiAndSave(**kwargs)
 
 
@@ -75,11 +85,11 @@ def runViterbiAndSave(**kwargs):
       raise ValueError('DataIterator has no full-dataset attribute Data')
   else:
     return None
-
+  
   learnAlgObj = kwargs['learnAlg']
   hmodel = kwargs['hmodel']
   lapFrac = kwargs['lapFrac']
-
+  
   print '----------------- MAP via Viterbi @ lap', lapFrac
   initPi = hmodel.allocModel.get_init_prob_vector()
   transPi = hmodel.allocModel.get_trans_prob_matrix()
@@ -94,8 +104,48 @@ def runViterbiAndSave(**kwargs):
     stop = Data.doc_range[n+1]
     zHat = runViterbiAlg(Lik[start:stop], initPi, transPi)
     zHatBySeq.append(zHat)
-    
+
+  # Store MAP sequence to file    
   prefix = makePrefixForLap(lapFrac)
   matfilepath = os.path.join(learnAlgObj.savedir, prefix + 'MAPStateSeqs.mat')
   MATVarsDict = dict(zHatBySeq=zHatBySeq)
   scipy.io.savemat(matfilepath, MATVarsDict, oned_as='row')
+
+  # Align to truth
+  if hasattr(Data, 'TrueParams'):
+    if 'Z' in Data.TrueParams:
+      kwargs['Data'] = Data
+      calcHammingDistanceAndSave(zHatBySeq, **kwargs)
+
+
+
+def calcHammingDistanceAndSave(zHatBySeq, **kwargs):
+  ''' Calculate hamming distance for all sequences, saving to flat file.
+
+  Keyword Args (all workspace variables passed along from learning alg)
+  -------
+  hmodel : current HModel object
+  Data : current Data object, representing *entire* dataset (not just one chunk)
+
+  Returns
+  -------
+  None. Hamming distance saved to file.
+
+  Output
+  -------
+  hamming-distance.txt
+  '''
+  Data = kwargs['Data']
+  zTrue = Data.TrueParams['Z']
+  zHatFlat = StateSeqUtil.convertStateSeq_list2flat(zHatBySeq, Data)
+
+  zHatAligned = StateSeqUtil.alignEstimatedStateSeqToTruth(zHatFlat, zTrue)
+  hdistance = StateSeqUtil.calcHammingDistance(zHatAligned, zTrue)
+  normhdist = float(hdistance) / float(zHatAligned.size)
+
+  learnAlgObj = kwargs['learnAlg']
+  lapFrac = kwargs['lapFrac']
+  prefix = makePrefixForLap(lapFrac)
+  outpath = os.path.join(learnAlgObj.savedir, 'hamming-distance.txt')
+  with open(outpath, 'a') as f:
+    f.write('%.6f\n' % (normhdist))
