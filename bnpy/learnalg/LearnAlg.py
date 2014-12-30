@@ -350,7 +350,7 @@ class LearnAlg(object):
 
   ######################################################### Custom Func
   #########################################################
-  def eval_custom_func(self, isFinal=0, lapFrac=0, **kwargs):
+  def eval_custom_func(self, isFinal=0, isInitial=0, lapFrac=0, **kwargs):
       ''' Evaluates a custom hook function 
       '''
       cFuncPath = self.outputParams['customFuncPath']
@@ -370,6 +370,11 @@ class LearnAlg(object):
       
       kwargs['lapFrac'] = lapFrac
       kwargs['isFinal'] = isFinal
+      kwargs['isInitial'] = isInitial
+      if isInitial:
+        kwargs['lapFrac'] = 0
+        kwargs['iterid'] = 0
+
       if hasattr(cFuncModule, 'onBatchComplete') and not isFinal:
         cFuncModule.onBatchComplete(args=cFuncArgs_string, **kwargs)
       if hasattr(cFuncModule, 'onLapComplete') \
