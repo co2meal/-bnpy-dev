@@ -37,6 +37,25 @@ class HDPHMM(AllocModel):
         return OptimHDPDir._v2beta(self.rho)[:-1]
 
 
+
+    def get_init_prob_vector(self):
+      ''' Get vector of initial probabilities for all K active states
+      '''
+      expELogPi0 = digamma(self.theta0) - digamma(np.sum(self.theta0))
+      np.exp(expELogPi0, out = expELogPi0)
+      return expELogPi0
+
+
+    def get_trans_prob_matrix(self):
+      ''' Get matrix of transition probabilities for all K active states
+      '''
+      dirSums = digamma(np.sum(self.theta, axis = 1))
+      expELogPi = digamma(self.theta) - dirSums[:, np.newaxis]
+      np.exp(expELogPi, out = expELogPi)
+      return expELogPi
+      
+
+
   ######################################################### Local Params
   #########################################################
 
