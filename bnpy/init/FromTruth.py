@@ -86,6 +86,8 @@ def _initFromTrueLP(hmodel, Data, initname, PRNG, nRepeatTrue=2, **kwargs):
     LP = expandLPWithDuplicates(LP, PRNG, nRepeatTrue)
   elif initname == 'truelabelsandempties':
     LP = expandLPWithEmpty(LP, 1)
+  elif initname.count('junk'):
+    LP = expandLPWithJunk(LP, 1, PRNG=PRNG)
 
   if hasattr(hmodel.allocModel, 'initLPFromResp'):
     LP = hmodel.allocModel.initLPFromResp(Data, LP)
@@ -116,6 +118,21 @@ def expandLPWithEmpty(LP, nCol):
   resp = LP['resp']
   LP['resp'] = np.hstack([resp, np.zeros((resp.shape[0], nCol))])
   return LP
+
+def expandLPWithJunk(LP, Kextra, PRNG=np.random.RandomState, fracJunk=0.01):
+  ''' Create new LP by adding extra junk topics
+  '''
+  resp = LP['resp']
+  N, K = resp.shape
+  respNew = np.hstack([resp, np.zeros((N, Kextra))])
+  Nextra = int(fracJunk * N)
+  selectIDs = PRNG.choice(N, Nextra * Kextra).tolist()
+  for k in xrange(Kextra):
+    IDs_k = selectIDs[:Nextra]
+    respNew[IDs_k, :K] = 0.01 / K
+    respNew[IDs_k, K+k] = 1 - 0.01
+    del selectIDs[:Nextra]
+  return dict(resp=respNew)
 
 def expandLPWithDuplicates(LP, PRNG, nRepeatTrue=2):
   ''' Create new LP by taking each existing component and duplicating it.

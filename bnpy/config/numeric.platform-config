@@ -5,5 +5,3 @@ calcRlogR = numexpr
 inplaceExpAndNormalizeRows = numexpr
 calcRlogRdotv = numexpr
 FwdBwdImpl = cpp
-
-

@@ -88,7 +88,10 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
   KwArgs, UnkArgs = BNPYArgParser.parseKeywordArgs(ReqArgs, **kwargs)
 
   jobname = KwArgs['OutputPrefs']['jobname']
-  bnpy.util.NumericUtil.UpdateConfig(**UnkArgs) # hack to change numerical options
+  
+  # Update stored numerical options via keyword args
+  bnpy.util.NumericUtil.UpdateConfig(**UnkArgs) 
+
 
   if taskID is None:
     starttaskid = KwArgs['OutputPrefs']['taskid']
@@ -137,11 +140,14 @@ def _run_task_internal(jobname, taskid, nTask,
   if type(dataName) is str:
     if os.path.exists(dataName):
       ## dataName is a path to many data files on disk
-      Data, InitData = loadDataIteratorFromDisk(dataName, KwArgs, dataorderseed)
+      Data, InitData = loadDataIteratorFromDisk(dataName, ReqArgs, KwArgs, dataorderseed)
       DataArgs = UnkArgs
       # Set the short name for this dataset,
       # so that the filepath for results is informative.
-      Data.name = KwArgs['OnlineDataPrefs']['datasetName']      
+      try:
+        Data.name = KwArgs['OnlineDataPrefs']['datasetName']      
+      except KeyError:
+        Data.name = 'UnknownData'
     else:
       DataArgs = getKwArgsForLoadData(ReqArgs, UnkArgs)  
       Data, InitData = loadData(ReqArgs, KwArgs, DataArgs, dataorderseed)
@@ -186,6 +192,9 @@ def _run_task_internal(jobname, taskid, nTask,
   if learnAlg.hasMove('merge') or learnAlg.hasMove('softmerge'):
     import bnpy.mergemove.MergeLogger as MergeLogger
     MergeLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
+  if str(type(hmodel.allocModel)).count('admix'):
+    import bnpy.allocmodel.admix2.LocalStepLogger as LocalStepLogger
+    LocalStepLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
 
   # Prepare special logs if we are running on the Brown CS grid
   try:
@@ -228,15 +237,26 @@ def _run_task_internal(jobname, taskid, nTask,
 
 ########################################################### Load Data
 ###########################################################
-def loadDataIteratorFromDisk(datapath, KwArgs, dataorderseed):
+def loadDataIteratorFromDisk(datapath, ReqArgs, KwArgs, dataorderseed):
   ''' Create a DataIterator from files stored on disk
   '''
   if 'OnlineDataPrefs' in KwArgs:
     OnlineDataArgs = KwArgs['OnlineDataPrefs']
-    OnlineDataArgs['dataorderseed'] = dataorderseed
+  else:
+    # For whole-dataset algs like VB or EM
+    OnlineDataArgs = dict()
 
-  DataIterator = bnpy.data.DataIteratorFromDisk(datapath, **OnlineDataArgs)
+  OnlineDataArgs['dataorderseed'] = dataorderseed
+  DataIterator = bnpy.data.DataIteratorFromDisk(datapath, 
+                                                ReqArgs['allocModelName'],
+                                                ReqArgs['obsModelName'],
+                                                **OnlineDataArgs)
+  
   InitData = DataIterator.loadInitData()
+
+  ## Whole-dataset algs can only handle one batch
+  if ReqArgs['algName'] not in OnlineDataAlgSet:
+    return InitData, InitData
   return DataIterator, InitData
 
 def loadData(ReqArgs, KwArgs, DataArgs, dataorderseed):
@@ -378,7 +398,8 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
       algP[moveKey] = KwArgs[moveKey]
 
   outputP = KwArgs['OutputPrefs']
-  hasMoves = 'birth' in KwArgs or 'merge' in KwArgs or 'shuffle' in KwArgs
+  hasMoves = 'birth' in KwArgs or 'merge' in KwArgs \
+             or 'shuffle' in KwArgs or 'delete' in KwArgs
 
   if algName == 'EM':
     learnAlg = bnpy.learnalg.EMAlg(savedir=savepath, seed=algseed,
@@ -457,7 +478,10 @@ def getOutputPath(ReqArgs, KwArgs, taskID=0 ):
   if type(dataName) is not str:
     dataName = dataName.get_short_name()
   if os.path.exists(dataName):
-    dataName = KwArgs['OnlineDataPrefs']['datasetName']
+    try:
+      dataName = KwArgs['OnlineDataPrefs']['datasetName']
+    except KeyError:
+      dataName = 'UnknownData'
   return os.path.join(os.environ['BNPYOUTDIR'], 
                        dataName, 
                        KwArgs['OutputPrefs']['jobname'], 

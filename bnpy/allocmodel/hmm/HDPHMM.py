@@ -3,12 +3,10 @@ import scipy.optimize
 
 from bnpy.allocmodel import AllocModel
 from bnpy.suffstats import SuffStatBag
-from bnpy.allocmodel.seq import HMMUtil
+import HMMUtil
 from bnpy.util import digamma, EPS
 from scipy.special import gammaln
-#from bnpy.allocmodel.admix import OptimizerForHDPStickBreak as OptimHDPSB
 from bnpy.allocmodel.admix import OptimizerHDPDir as OptimHDPDir
-
 
 import logging
 Log = logging.getLogger('bnpy')
@@ -72,26 +70,30 @@ class HDPHMM(AllocModel):
         np.exp(expELogPi0, out = expELogPi0)
 
         #Run the forward backward algorithm on each sequence
-        resp = None
-        respPair = None
+        logMargPr = np.empty(Data.nDoc)
+        resp = np.empty((Data.nObs, self.K))
+        respPair = np.empty((Data.nObs, self.K, self.K))
+        respPair[0].fill(0)
+        #resp = None
+        #respPair = None
 
-        for n in xrange(Data.nSeqs):
+        for n in xrange(Data.nDoc):
+          start = Data.doc_range[n]
+          stop = Data.doc_range[n+1]
+          logSoftEv_n = lpr[start:stop]
+          seqResp, seqRespPair, seqLogMargPr = \
+                      HMMUtil.FwdBwdAlg(expELogPi0[0:self.K],
+                                        expELogPi[0:self.K, 0:self.K], 
+                                        logSoftEv_n)
+          resp[start:stop] = seqResp
+          respPair[start:stop] = seqRespPair
+          logMargPr[n] = seqLogMargPr
 
-            seqResp, seqRespPair, _ = \
-                HMMUtil.FwdBwdAlg(expELogPi0[0:self.K],
-                                  expELogPi[0:self.K, 0:self.K], 
-                                  lpr[Data.seqInds[n]:Data.seqInds[n+1]])
-            if resp is None:
-                resp = np.vstack(seqResp)
-                respPair = seqRespPair
-            else:
-                resp = np.vstack((resp, seqResp))
-                respPair = np.append(respPair, seqRespPair, axis = 0)
-            
-        LP.update({'resp' : resp})
-        LP.update({'respPair' : respPair})
+        LP['evidence'] = np.sum(logMargPr)
+        LP['resp'] = resp
+        LP['respPair'] = respPair
         return LP
-        
+
     def initLPFromResp(self, Data, LP):
         shape = np.shape(LP['resp'])
         self.K = shape[1]
@@ -106,31 +108,25 @@ class HDPHMM(AllocModel):
 
     def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None, **kwargs):
 
-        #This method is called before calc_local_params() during initialization,
-          #in which case resp and respPair won't exist
-        if ('resp' not in LP) or ('respPair' not in LP):
-            self.K = np.shape(LP['resp'])[1]
-            resp = np.ones((Data.nObs, self.K)) / self.K
-            respPair = np.ones((Data.nObs, self.K, self.K)) / (self.K * self.K)
-        else:
-            resp = LP['resp']
-            respPair = LP['respPair']
+      resp = LP['resp']
+      respPair = LP['respPair']
+      K = resp.shape[1]
+      startLocIDs = Data.doc_range[:-1]
+      
+      firstStateResp = np.sum(resp[startLocIDs], axis = 0)
+      N = np.sum(resp, axis = 0)
+      respPairSums = np.sum(respPair, axis = 0)
+      
+      SS = SuffStatBag(K=K, D=Data.dim)
+      SS.setField('firstStateResp', firstStateResp, dims=('K'))
+      SS.setField('respPairSums', respPairSums, dims=('K','K'))
+      SS.setField('N', N, dims=('K'))
+      
+      if doPrecompEntropy is not None:
+        entropy = self.elbo_entropy(Data, LP)
+        SS.setELBOTerm('Elogqz', entropy, dims = (()))
+      return SS
 
-        inds = Data.seqInds[:-1]
-        respPairSums = np.sum(respPair, axis = 0)
-        firstStateResp = np.sum(resp[inds], axis = 0)
-        N = np.sum(resp, axis = 0)
-
-        SS = SuffStatBag(K = self.K , D = Data.dim)
-        SS.setField('firstStateResp', firstStateResp, dims=('K'))
-        SS.setField('respPairSums', respPairSums, dims=('K','K'))
-        SS.setField('N', N, dims=('K'))
-
-        if doPrecompEntropy is not None:
-            entropy = self.elbo_entropy(Data, LP)
-            SS.setELBOTerm('Elogqz', entropy, dims = (()))
-
-        return SS
 
     def forceSSInBounds(self, SS):
       ''' Force SS.respPairSums and firstStateResp to be >= 0.  This avoids
@@ -229,7 +225,7 @@ class HDPHMM(AllocModel):
             the global stick weight parameter rho
         '''
         rhoNew, omegaNew = self.find_optimum_rhoOmega(SS, **kwargs)
-        theta, theta0 = self._calcTheta(SS)
+        thetaNew, theta0New = self._calcTheta(SS)
 
         self.theta = rho*thetaNew + (1 - rho)*self.theta
         self.theta0 = rho*theta0New + (1 - rho)*self.theta0
@@ -285,16 +281,7 @@ class HDPHMM(AllocModel):
     def elbo_entropy(self, Data, LP):
         '''Calculates the entropy H(q(z)) that shows up in E_q[q(z)]
         '''
-
-        #Normalize across rows of respPair_{tij} to get s_{tij}, the parameters
-          #for q(z_t | z_{t-1})
-        sigma  = (LP['respPair'] / 
-                  (np.sum(LP['respPair'], axis = 2)[:, :, np.newaxis] + EPS))
-
-        z_1 = -np.sum(LP['resp'][Data.seqInds[:-1],:] * \
-                      np.log(LP['resp'][Data.seqInds[:-1],:] + EPS))
-        restZ = -np.sum(LP['respPair'][1:,:,:] * np.log(sigma[1:,:,:] + EPS))
-        return z_1 + restZ
+        return HMMUtil.calcEntropyFromResp(LP['resp'], LP['respPair'], Data)
 
     def elbo_alloc(self):
         '''Calculates the L_alloc term without the L_{alloc-slack} component
@@ -306,9 +293,9 @@ class HDPHMM(AllocModel):
         ELogU = digamma(self.rho * self.omega) - digamma(self.omega)
         ELog1mU = digamma((1 - self.rho) * self.omega) - digamma(self.omega)
         
-        
         #Includes norm. constant for pi0.  Note this is the term that requires
-        #  the lower bound
+        #  the lower bound ... this is the version of the bound that allows for
+        #  any alpha
         normPPi = (self.K+1)*(self.K * np.log(self.alpha) + \
                               np.sum(ELogU + thatOneTerm*ELog1mU))
         
@@ -375,6 +362,8 @@ class HDPHMM(AllocModel):
 
     def get_prior_dict(self):
         return dict(gamma = self.gamma, alpha = self.alpha, K = self.K)
+
+
 
         
 """

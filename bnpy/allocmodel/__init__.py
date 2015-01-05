@@ -1,35 +1,22 @@
 from AllocModel import AllocModel
 
-from mix.MixModel import MixModel
-from mix.DPMixModel import DPMixModel
-from mix.DPMixPE import DPMixPE
-from mix.DPMixFull import DPMixFull
+from mix.FiniteMixtureModel import FiniteMixtureModel
+from mix.DPMixtureModel import DPMixtureModel
 
-from admix2.LDA import LDA
-from admix2.HDPSB import HDPSB
-from admix2.HDPPE import HDPPE
-from admix2.HDPDir import HDPDir
-from admix2.HDPFastRhoFixed import HDPFastRhoFixed
-from admix2.HDPFast import HDPFast
-from admix2.HDPTightPE import HDPTightPE
+from topics.FiniteTopicModel import FiniteTopicModel
+from topics.HDPTopicModel import HDPTopicModel
 
 from hmm.FiniteHMM import FiniteHMM
 from hmm.HDPHMM import HDPHMM
 
-AllocModelConstructorsByName = { \
-           'MixModel':MixModel,
-           'DPMixModel':DPMixModel,
-           'DPMixPE':DPMixPE,
-           'LDA':LDA,
-           'HDPSB':HDPSB,
-           'HDPPE':HDPPE,
-           'HDPHMM':HDPHMM, 
-           'FiniteHMM':FiniteHMM, 
-           'HDPDir':HDPDir,
-           'HDPFastRhoFixed':HDPFastRhoFixed,
-           'HDPFast':HDPFast,
-           'HDPTightPE':HDPTightPE,
-           'DPMixFull':DPMixFull,
+AllocModelConstructorsByName = {
+          'FiniteMixtureModel':FiniteMixtureModel,
+          'DPMixtureModel':DPMixtureModel,
+          'FiniteTopicModel':FiniteTopicModel,
+          'HDPTopicModel':HDPTopicModel,
+          'FiniteHMM':FiniteHMM,
+          'HDPHMM':HDPHMM
+
           }
 
 AllocModelNameSet = set(AllocModelConstructorsByName.keys())

@@ -35,21 +35,32 @@ import numpy as np
 from XData import XData
 from bnpy.util import as1D
 
-def _toStd2DArray(X):
+def _toStdArray(X):
+  if X.dtype.byteorder != '=':
+    X = X.newbyteorder('=').copy()
   X = np.asarray_chkfinite(X, dtype=np.float64, order='C')
+  return X
+
+def _toStd1DArray(X):
+  if X.ndim > 1:
+    X = np.squeeze(X)
+  assert X.ndim == 1
+  return _toStdArray(X)
+
+def _toStd2DArray(X):
   if X.ndim < 2:
     X = X[np.newaxis,:]
   assert X.ndim == 2
-  return X
+  return _toStdArray(X)
 
 class GroupXData(XData):
   
   @classmethod
-  def LoadFromFile(cls, filepath, nObsTotal=None, **kwargs):
+  def LoadFromFile(cls, filepath, nDocTotal=None, **kwargs):
     ''' Static constructor for loading data from disk into XData instance
     '''
     if filepath.endswith('.mat'):
-      return cls.read_from_mat(filepath, nObsTotal, **kwargs)
+      return cls.read_from_mat(filepath, nDocTotal=nDocTotal, **kwargs)
     raise NotImplemented('Only .mat file supported.')
 
   @classmethod
@@ -60,8 +71,19 @@ class GroupXData(XData):
     InDict = scipy.io.loadmat( matfilepath, **kwargs)
     if 'X' not in InDict:
       raise KeyError('Stored matfile needs to have data in field named X')
+    # Load in Xprev, if available
+    if 'Xprev' in InDict:
+      Xprev = InDict['Xprev']
+    else:
+      Xprev = None
+    # Load in Z labels, if available
+    if 'TrueZ' in InDict:
+      TrueZ = InDict['TrueZ']
+    else:
+      TrueZ = None
     return cls(InDict['X'], InDict['doc_range'],
-                            nDocTotal=nDocTotal)
+               Xprev=Xprev, TrueZ=TrueZ,
+               nDocTotal=nDocTotal)
   
   def __init__(self, X, doc_range, nDocTotal=None, 
                         Xprev=None, TrueZ=None, TrueParams=None, summary=None):
@@ -83,11 +105,14 @@ class GroupXData(XData):
 
     ## Add optional true parameters / true hard labels
     if TrueParams is not None:
-      self.TrueParams = TrueParams
+      self.TrueParams = dict()
+      for key, arr in TrueParams:
+        self.TrueParams[key] = _toStdArray(arr)
+
     if TrueZ is not None:
       if not hasattr(self, 'TrueParams'):
         self.TrueParams = dict()
-      self.TrueParams['Z'] = TrueZ
+      self.TrueParams['Z'] = _toStd1DArray(TrueZ)
 
   def _set_dependent_params(self, doc_range, nDocTotal=None): 
     self.nObs = self.X.shape[0]
@@ -137,7 +162,7 @@ class GroupXData(XData):
     return s
 
   def toXData(self):
-    ''' Return simplified representation as XData instance, losing group structure
+    ''' Return simplified XData instance, losing group structure
     '''
     if hasattr(self, 'Xprev'):
       return XData(self.X, Xprev=self.Xprev)
@@ -156,6 +181,9 @@ class GroupXData(XData):
     '''
     if atomMask is not None:
       return self.toXData().select_subset_by_mask(atomMask)
+
+    if len(docMask) < 1:
+      raise ValueError('Cannot select empty subset')
 
     newXList = list()
     newXPrevList = list()
@@ -192,15 +220,13 @@ class GroupXData(XData):
       raise ValueError("Dimensions must match!")
     self.nObs += XDataObj.nObs
     self.nDocTotal += XDataObj.nDocTotal
-    self.X = np.vstack([self.X, XDataObj.X])
-    doc_range = np.zeros(self.nDoc + XDataObj.nDoc + 1)
-    doc_range[:self.nDoc+1] = self.doc_range
-    doc_range[self.nDoc+1:] = XDataObj.doc_range + self.doc_range[-1]
-    self.doc_range = doc_range
     self.nDoc += XDataObj.nDoc
+    self.X = np.vstack([self.X, XDataObj.X])
+    self.doc_range = np.hstack([self.doc_range, 
+                                XDataObj.doc_range[1:] + self.doc_range[-1]])
     if hasattr(self, 'Xprev'):
       self.Xprev = np.vstack([self.Xprev, XDataObj.Xprev])
-
+    self._check_dims()
 
   def get_random_sample(self, nDoc, randstate=np.random):
     nDoc = np.minimum(nDoc, self.nDoc)

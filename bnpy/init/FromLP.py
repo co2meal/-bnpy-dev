@@ -62,8 +62,8 @@ def makeLP_ContigBlocks(Data, K=0, KperSeq=None, initNumSeq=None, **kwargs):
       data atom responsibility parametesr
   '''  
   if initNumSeq is None:
-    initNumSeq = Data.nSeqs
-  initNumSeq = np.minimum(initNumSeq, Data.nSeqs)
+    initNumSeq = Data.nDoc
+  initNumSeq = np.minimum(initNumSeq, Data.nDoc)
 
   if KperSeq is None:
     assert K > 0
@@ -74,17 +74,17 @@ def makeLP_ContigBlocks(Data, K=0, KperSeq=None, initNumSeq=None, **kwargs):
   assert KperSeq > 0
 
   ## Select subset of all sequences to use for initialization
-  if initNumSeq == Data.nSeqs:
+  if initNumSeq == Data.nDoc:
     chosenSeqIDs = np.arange(initNumSeq)
   else:
-    chosenSeqIDs = PRNG.choice(Data.nSeqs, initNumSeq, replace=False)
+    chosenSeqIDs = PRNG.choice(Data.nDoc, initNumSeq, replace=False)
 
   ## Make hard segmentation at each chosen sequence
   resp = np.zeros((Data.nObs, K))
   jstart = 0
   for n in chosenSeqIDs:
-    start = int(Data.seqInds[n])
-    curT = Data.seqInds[n+1] - start
+    start = int(Data.doc_range[n])
+    curT = Data.doc_range[n+1] - start
 
     ## Determine how long each block is for blocks 0, 1, ... KperSeq-1
     cumsumBlockSizes = calcBlockSizesForCurSeq(KperSeq, curT)

@@ -16,7 +16,7 @@ from bnpy.mergemove.MergeMove import ELBO_GAP_ACCEPT_TOL
 
 CountTracker = defaultdict(int)
 def preselectPairs(curModel, SS, lapFrac,
-                       preselectroutine='wholeELBO',
+                       mergePairSelection='wholeELBO',
                        prevScoreMat=None,
                        mergeScoreRefreshInterval=10,
                        mergeMaxDegree=5, **kwargs):
@@ -198,7 +198,7 @@ def updateScoreMat_wholeELBO(ScoreMat, curModel, SS, doAllPairs=0):
     
 def preselect_candidate_pairs(curModel, SS, 
                                randstate=np.random.RandomState(0),
-                               preselectroutine='random',
+                               mergePairSelection='random',
                                mergePerLap=10,
                                doLimitNumPairs=1,
                                M=None,
@@ -210,7 +210,7 @@ def preselect_candidate_pairs(curModel, SS,
      curModel : bnpy HModel 
      SS : bnpy SuffStatBag. If None, defaults to random selection.
      randstate : numpy random number generator
-     preselectroutine : name of procedure to select candidate pairs
+     mergePairSelection : name of procedure to select candidate pairs
      mergePerLap : int number of candidates to identify 
                      (may be less if K small)            
 
@@ -219,7 +219,7 @@ def preselect_candidate_pairs(curModel, SS,
      mPairList : list of component ID candidates for positions kA, kB
                   each entry is a tuple of two integers
   '''
-  kwargs['preselectroutine'] = preselectroutine
+  kwargs['mergePairSelection'] = mergePairSelection
   kwargs['randstate'] = randstate
   if 'excludePairs' not in kwargs:
     excludePairs = list()
@@ -233,20 +233,20 @@ def preselect_candidate_pairs(curModel, SS,
     nMergeTrials = K * (K-1) // 2
 
   if SS is None: # Handle first lap
-    kwargs['preselectroutine'] = 'random'
+    kwargs['mergePairSelection'] = 'random'
 
   Mraw = None
   # ------------------------------------------------------- Score matrix
   # M : 2D array, shape K x K
   #     M[j,k] = score for viability of j,k.  Larger = better.
-  selectroutine = kwargs['preselectroutine']
-  if kwargs['preselectroutine'].count('random') > 0:
+  selectroutine = kwargs['mergePairSelection']
+  if kwargs['mergePairSelection'].count('random') > 0:
     M = kwargs['randstate'].rand(K, K)
-  elif kwargs['preselectroutine'].count('marglik') > 0:
+  elif kwargs['mergePairSelection'].count('marglik') > 0:
     M = calcScoreMatrix_marglik(curModel, SS, excludePairs)
-  elif kwargs['preselectroutine'].count('wholeELBO') > 0:
+  elif kwargs['mergePairSelection'].count('wholeELBO') > 0:
     M, Mraw = calcScoreMatrix_wholeELBO(curModel, SS, excludePairs, M=M)
-  elif kwargs['preselectroutine'].count('corr') > 0:
+  elif kwargs['mergePairSelection'].count('corr') > 0:
     # Use correlation matrix as score for selecting candidates!
     if selectroutine.count('empty') > 0:
       M = calcScoreMatrix_corrOrEmpty(SS)
@@ -255,7 +255,7 @@ def preselect_candidate_pairs(curModel, SS,
     else:
       M = calcScoreMatrix_corr(SS)
   else:
-    raise NotImplementedError(kwargs['preselectroutine'])
+    raise NotImplementedError(kwargs['mergePairSelection'])
 
   # Only upper-triangular indices are allowed.
   M[np.tril_indices(K)] = 0
@@ -353,7 +353,7 @@ def calcScoreMatrix_wholeELBO(curModel, SS, excludePairs=list(), M=None):
 
 ########################################################### Correlation cues
 ###########################################################
-def calcScoreMatrix_corr(SS, MINVAL=1e-8):
+def calcScoreMatrix_corr(SS, MINCORR=0.05, MINVAL=1e-8):
   '''
      Returns
      -------
@@ -379,9 +379,11 @@ def calcScoreMatrix_corr(SS, MINVAL=1e-8):
   CorrMat = CovMat / np.outer(sqrtc, sqrtc)
 
   # Now, filter to leave only *positive* entries in upper diagonal
-  #  we shouldn't even bother trying to merge topics with neg correlations
+  #  we shouldn't even bother trying to merge topics
+  #  with negative or nearly zero correlations
   CorrMat[np.tril_indices(K)] = 0
-  CorrMat[CorrMat < 0] = 0
+  CorrMat[CorrMat < MINCORR] = 0
+
   CorrMat[nanIDs] = 0
 
   return CorrMat
@@ -406,6 +408,8 @@ def calcScoreMatrix_corrLimitDegree(SS, MINCORR=0.05, N=3):
     pairIDs = selectPairsUsingAtMostNOfEachComp(A, fixedPairIDs, N=N)
     fixedPairIDs = fixedPairIDs + pairIDs
   Mlimit = np.zeros_like(M)
+  if len(fixedPairIDs) == 0:
+    return Mlimit
   x,y = zip(*fixedPairIDs)
   Mlimit[x,y] = M[x,y]
   return Mlimit

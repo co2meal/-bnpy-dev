@@ -23,7 +23,33 @@ from bnpy.data.DataObj import DataObj
 class WordsData(DataObj):
 
   @classmethod
-  def LoadFromFile_ldac(cls, filepath, vocab_size=0, **kwargs):
+  def LoadFromFile_tokenlist(cls, filepath, vocab_size=0, nDocTotal=None,
+                                  min_word_index=1, **kwargs):
+    ''' Constructor for loading from tokenlist matfile into WordsData instance
+    '''
+    doc_sizes = []
+    word_id = []
+    word_ct = []
+    Vars = scipy.io.loadmat(filepath)
+    key = 'tokensByDoc'
+    if key not in Vars:
+      key = 'test'
+    nDoc = Vars[key].shape[1]
+    for d in xrange(nDoc):
+      tokens_d = np.squeeze(Vars[key][0,d])
+      word_id_d = np.unique(tokens_d)
+      word_ct_d = np.zeros_like(word_id_d, dtype=np.float64)
+      for uu,uid in enumerate(word_id_d):
+        word_ct_d[uu] = np.sum(tokens_d == uid)
+      doc_sizes.append(word_id_d.size)
+      word_id.extend(word_id_d-min_word_index)
+      word_ct.extend(word_ct_d)
+    doc_range = np.hstack([0, np.cumsum(doc_sizes)])
+    return cls(word_id=word_id, word_count=word_ct, nDocTotal=nDocTotal,
+               doc_range=doc_range, vocab_size=vocab_size)    
+
+  @classmethod
+  def LoadFromFile_ldac(cls, filepath, vocab_size=0, nDocTotal=None, **kwargs):
     ''' Constructor for loading data from .ldac file into WordsData instance
     '''
     doc_sizes = []
@@ -38,7 +64,7 @@ class WordsData(DataObj):
         word_id.extend(doc_word_id)
         word_ct.extend(doc_word_ct)
     doc_range = np.hstack([0, np.cumsum(doc_sizes)])
-    return cls(word_id=word_id, word_count=word_ct,
+    return cls(word_id=word_id, word_count=word_ct, nDocTotal=nDocTotal,
                doc_range=doc_range, vocab_size=vocab_size)    
 
   @classmethod
@@ -346,6 +372,13 @@ class WordsData(DataObj):
     setattr(self, key, C)
     return C
 
+  def clearCache(self):
+    for key in ['__TokenTypeCountMat', '__sparseTokenTypeCountMat',
+                '__DocTypeCountMat', '__sparseDocTypeCountMat']:
+      if hasattr(self, key):
+        del self.__dict__[key]
+
+
   ######################################################### Add new documents
   #########################################################
   def add_data(self, WData):
@@ -360,6 +393,8 @@ class WordsData(DataObj):
     self.nDocTotal += WData.nDocTotal
     self.nUniqueToken += WData.nUniqueToken
     self.nTotalToken += WData.nTotalToken
+
+    self.clearCache()   
     self._verify_attributes()
 
   def get_random_sample(self, nDoc, randstate=np.random,
@@ -466,6 +501,7 @@ class WordsData(DataObj):
   def CreateToyDataFromLDAModel(cls, seed=101, 
                 nDocTotal=None, nWordsPerDoc=None, nWordsPerDocFunc=None,
                 topic_prior=None, topics=None,
+                gamma=None, probs=None,
                 **kwargs):
     ''' Generates WordsData dataset via LDA generative model,
           given specific global parameters
@@ -477,6 +513,8 @@ class WordsData(DataObj):
         topics : 2D array, size KxV, positive real entries, rows sum to one
                   topics[k,v] := probability of vocab word v in topic k
     '''
+    if topic_prior is None:
+      topic_prior = gamma * probs
     from bnpy.util import RandUtil
     PRNG = np.random.RandomState(seed)
 

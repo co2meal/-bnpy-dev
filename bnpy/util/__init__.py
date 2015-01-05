@@ -6,7 +6,7 @@ The :mod:`util` module gathers utility functions
 
 import RandUtil
 
-from .IOUtil import np2flatstr, flatstr2np
+from .IOUtil import np2flatstr, flatstr2np, np2strList
 from .LinAlgUtil import dotATA, dotATB, dotABT
 from .RandUtil import discrete_single_draw, discrete_single_draw_vectorized
 from .RandUtil import choice
@@ -17,7 +17,7 @@ from .VerificationUtil import closeAtMSigFigs, isEvenlyDivisibleFloat
 from .ShapeUtil import as1D, as2D, as3D
 
 __all__ = ['RandUtil', 
-           'np2flatstr', 'flatstr2np', 
+           'np2flatstr', 'flatstr2np', 'np2strList',
            'dotATA', 'dotATB', 'dotABT', 
            'discrete_single_draw', 
            'MVgammaln', 'MVdigamma', 'logsumexp', 'digamma', 'gammaln',

@@ -163,8 +163,14 @@ def printTopWordsFromWordCounts(WordCounts, vocabList, order=None, Ktop=10):
     for wID in topIDs[:Ktop]:
       print '%3d %s' % (WordCounts[k, wID], vocabList[wID])
 
-def printTopWordsFromTopics(topics, vocabList, Ktop=10):  
+def printTopWordsFromTopics(topics, vocabList, ktarget=None, Ktop=10):  
   K, W = topics.shape
+  if ktarget is not None:
+    topIDs = np.argsort(-1*topics[ktarget])
+    for wID in topIDs[:Ktop]:
+      print '%.3f %s' % (topics[ktarget, wID], vocabList[wID])
+    return
+  ## Base case: print all topics
   for k in xrange(K):
     topIDs = np.argsort(-1*topics[k])
     for wID in topIDs[:Ktop]:

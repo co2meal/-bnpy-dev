@@ -14,9 +14,11 @@ from MOVBAlg import MOVBAlg, makeDictOfAllWorkspaceVars
 from bnpy.suffstats import SuffStatBag
 from bnpy.util import isEvenlyDivisibleFloat
 from bnpy.birthmove import TargetPlanner, TargetDataSampler, BirthMove
-from bnpy.birthmove import BirthLogger, TargetPlannerWordFreq
+from bnpy.birthmove import BirthLogger
 from bnpy.mergemove import MergeMove, MergePlanner, MergeLogger
 from bnpy.birthmove.TargetDataSampler import hasValidKey
+from bnpy.deletemove import DeletePlanner, DTargetDataCollector
+from bnpy.deletemove import runDeleteMove_Target, DeleteLogger
 
 class MOVBBirthMergeAlg(MOVBAlg):
 
@@ -37,6 +39,12 @@ class MOVBBirthMergeAlg(MOVBAlg):
       self.LapsSinceLastBirth = defaultdict(int)
       self.BirthRecordsByComp = defaultdict(lambda: dict())
 
+    if self.hasMove('delete'):
+      self.DeleteRecordsByComp = defaultdict(lambda: dict())
+      self.lapLastAcceptedDelete = self.algParams['startLap']
+
+    self.ELBOReady = True
+
   ######################################################### fit
   ######################################################### 
   def fit(self, hmodel, DataIterator):
@@ -53,6 +61,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
     origmodel = hmodel
     self.ActiveIDVec = np.arange(hmodel.obsModel.K)
     self.maxUID = self.ActiveIDVec.max()
+    self.DataIterator = DataIterator
 
     ## Initialize progress tracking vars like nBatch, lapFrac, etc.
     iterid, lapFrac = self.initProgressTrackVars(DataIterator)
@@ -76,6 +85,10 @@ class MOVBBirthMergeAlg(MOVBAlg):
       mergeStartLap = 0
     order = None
 
+    ## Prep for delete
+    DeletePlans = list()
+    DocUsageCount = None
+
     ## Begin loop over batches of data...
     SS = None
     isConverged = False
@@ -85,7 +98,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
       ## Grab new data
       Dchunk = DataIterator.get_next_batch()
       batchID = DataIterator.batchID
-      
+      Dchunk.batchID = batchID
+
       ## Update progress-tracking variables
       iterid += 1
       lapFrac = (iterid + 1) * self.lapFracInc
@@ -95,6 +109,27 @@ class MOVBBirthMergeAlg(MOVBAlg):
       if self.doDebugVerbose():
         self.print_msg('========================== lap %.2f batch %d' \
                        % (lapFrac, batchID))
+
+      ## Local convergence thr
+      if self.isFirstBatch(lapFrac) and 'convThrLP' in self.algParamsLP:
+        if lapFrac <= 1:
+          finalConvThr = self.algParamsLP['convThrLP']
+          initConvThr = self.algParamsLP['initconvThrLP']          
+        if initConvThr > 0:
+          assert initConvThr >= finalConvThr
+          fracComplete = self.lapFrac / self.algParamsLP['plateauLapLP']
+          convThr = finalConvThr + initConvThr * np.exp(-7 * fracComplete)
+          self.algParamsLP['convThrLP'] = convThr
+
+      ## Prepare for delete move
+      if self.isFirstBatch(lapFrac) and self.hasMove('delete'):
+        self.DeleteAcceptRecord = dict()
+        if self.doDeleteAtLap(lapFrac):
+          hmodel, SS = self.deleteRunMoveAndUpdateMemory(hmodel, SS, 
+                                                         DeletePlans, order)
+        if lapFrac > 1 and SS.hasSelectionTerm('DocUsageCount'):
+          DocUsageCount = SS.getSelectionTerm('DocUsageCount')
+        DeletePlans = list()
 
       ## Birth move : track birth info from previous lap
       if self.isFirstBatch(lapFrac):
@@ -126,12 +161,19 @@ class MOVBBirthMergeAlg(MOVBAlg):
                                                   lapFrac=lapFrac)
       elif self.isFirstBatch(lapFrac):
         if self.doMergePrepAtLap(lapFrac+1):
-          MergePrepInfo = dict(preselectroutine=
-                               self.algParams['merge']['preselectroutine'])
+          MergePrepInfo = dict(mergePairSelection=
+                               self.algParams['merge']['mergePairSelection'])
         else:
           MergePrepInfo = dict()
 
+      ## Reset selection terms to zero
+      if self.isFirstBatch(lapFrac):
+        if SS is not None and SS.hasSelectionTerms():
+          SS._SelectTerms.setAllFieldsToZero()
+
       ## Local/E step
+      self.algParamsLP['lapFrac'] = lapFrac ## logging
+      self.algParamsLP['batchID'] = batchID
       LPchunk = self.memoizedLocalStep(hmodel, Dchunk, batchID)
       
       ## Summary step
@@ -139,6 +181,13 @@ class MOVBBirthMergeAlg(MOVBAlg):
                                              Dchunk, LPchunk, batchID,
                                              MergePrepInfo=MergePrepInfo,
                                              order=order)
+      ## Delete move : collect target data
+      if self.hasMove('delete') and self.doDeleteAtLap(lapFrac+1):
+        if self.isFirstBatch(lapFrac):
+          DeletePlans = self.deleteMakePlans(Dchunk, SS, DocUsageCount)
+        if len(DeletePlans) > 0:
+          self.deleteCollectTarget(Dchunk, hmodel, LPchunk, batchID, 
+                                   DeletePlans)
 
       ## Birth move : collect target data
       if self.hasMove('birth') and self.do_birth_at_lap(lapFrac+1.0):
@@ -159,7 +208,10 @@ class MOVBBirthMergeAlg(MOVBAlg):
       self.GlobalStep(hmodel, SS, lapFrac)
 
       ## ELBO calculation
-      evBound = hmodel.calc_evidence(SS=SS)
+      if self.isLastBatch(lapFrac):
+        self.ELBOReady = True # after seeing all data, ELBO will be ready
+      if self.ELBOReady:
+        evBound = hmodel.calc_evidence(SS=SS)
 
       ## Merge move!
       if self.hasMove('merge') and self.isLastBatch(lapFrac) \
@@ -194,7 +246,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
       countVec = SS.getCountVec()
       if lapFrac > 1.0:
         isConverged = self.isCountVecConverged(countVec, prevCountVec)
-        isConverged = isConverged and not self.hasMoreReasonableMoves(lapFrac)
+        hasMoreMoves = self.hasMoreReasonableMoves(lapFrac, SS)
+        isConverged = isConverged and not hasMoreMoves
         self.setStatus(lapFrac, isConverged)
 
       ## Display progress
@@ -233,12 +286,27 @@ class MOVBBirthMergeAlg(MOVBAlg):
                              SSmemory=self.SSmemory)
 
 
-  def hasMoreReasonableMoves(self, lapFrac):
+  def hasMoreReasonableMoves(self, lapFrac, SS):
     ''' Decide if more moves will feasibly change current configuration. 
     '''
     if lapFrac - self.algParams['startLap'] >= self.algParams['nLap']:
       ## Time's up, so doesn't matter what other moves are possible.
       return False
+
+    if self.hasMove('delete') and self.doDeleteAtLap(lapFrac):
+      ## If any eligible comps exist, we have more moves possible
+      ## so return True
+      nBeforeQuit = self.algParams['delete']['deleteNumStuckBeforeQuit']
+      waitedLongEnough = (lapFrac - self.lapLastAcceptedDelete) > nBeforeQuit
+
+      if isEvenlyDivisibleFloat(lapFrac, 1.0):
+        nEligible = DeletePlanner.getEligibleCount(SS, 
+                                    DRecordsByComp=self.DeleteRecordsByComp,
+                                    **self.algParams['delete'])
+      else:
+        nEligible = 1
+      if nEligible > 0 or not waitedLongEnough:
+        return True
 
     if self.hasMove('birth') and self.do_birth_at_lap(lapFrac):
       ## If any eligible comps exist, we have more moves possible
@@ -351,8 +419,13 @@ class MOVBBirthMergeAlg(MOVBAlg):
       SS -= oldSSchunk
 
     ## Calculate fresh suff stats for current batch
+    if self.hasMove('delete'):
+      trackDocUsage = 1
+    else:
+      trackDocUsage = 0
     SSchunk = hmodel.get_global_suff_stats(Dchunk, LPchunk, 
                                            doPrecompEntropy=1,
+                                           trackDocUsage=trackDocUsage,
                                            **MergePrepInfo)
     SSchunk.setUIDs(self.ActiveIDVec.copy())
 
@@ -364,6 +437,9 @@ class MOVBBirthMergeAlg(MOVBAlg):
       assert np.allclose(SS.uIDs, self.ActiveIDVec)
       assert np.allclose(SSchunk.uIDs, self.ActiveIDVec)
       SS += SSchunk
+      if not SS.hasSelectionTerms() and SSchunk.hasSelectionTerms():
+        SS._SelectTerms = SSchunk._SelectTerms
+
     self.save_batch_suff_stat_to_memory(batchID, SSchunk)
 
     ## Force aggregated suff stats to obey required constraints.
@@ -406,7 +482,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
         SSchunk.multiMergeComps(MInfo['kdel'], MInfo['alph'])
     
     # Fast-forward accepted merges from end of previous lap 
-    if self.hasMove('merge'): 
+    if self.hasMove('merge') and SSchunk.hasMergeTerms():
       for MInfo in self.MergeLog:
         kA = MInfo['kA']
         kB = MInfo['kB']
@@ -449,7 +525,11 @@ class MOVBBirthMergeAlg(MOVBAlg):
       del SSchunk._SelectTerms
     self.SSmemory[batchID] = SSchunk
 
-
+  def fastForwardMemory(self, Kfinal=0, order=None):
+    ''' Update *every* batch in memory to be current 
+    '''
+    for batchID in self.SSmemory:
+      self.load_batch_suff_stat_from_memory(batchID, Kfinal=Kfinal, order=order)
 
 
   ######################################################### Birth moves!
@@ -814,20 +894,20 @@ class MOVBBirthMergeAlg(MOVBAlg):
       SS.setMergeFieldsToZero()
 
     mergeStartLap = self.algParams['merge']['mergeStartLap']
-    preselectroutine = self.algParams['merge']['preselectroutine']
+    mergePairSelection = self.algParams['merge']['mergePairSelection']
     mergeELBOTrackMethod = self.algParams['merge']['mergeELBOTrackMethod']
     refreshInterval = self.algParams['merge']['mergeScoreRefreshInterval']
 
     PrepInfo = dict()
     PrepInfo['doPrecompMergeEntropy'] = 1
-    PrepInfo['preselectroutine'] = preselectroutine
+    PrepInfo['mergePairSelection'] = mergePairSelection
     PrepInfo['mPairIDs'] = list()
     PrepInfo['PairScoreMat'] = None
 
     ## Short-cut if we use fastBound to compute elbo for merge candidate
     if mergeELBOTrackMethod == 'fastBound':
       PrepInfo['doPrecompMergeEntropy'] = 2
-      PrepInfo['preselectroutine'] = None
+      PrepInfo['mergePairSelection'] = None
       return PrepInfo
 
     ## Update stored ScoreMatrix to account for recent births/merges
@@ -848,6 +928,18 @@ class MOVBBirthMergeAlg(MOVBAlg):
             Mnew[mA, mB] = MM[kA, kB]
         MM = Mnew
 
+      ## Replay any recent deletes
+      if hasattr(self, 'DeleteAcceptRecord'):
+        if 'acceptedUIDs' in self.DeleteAcceptRecord:
+          acceptedUIDs =  self.DeleteAcceptRecord['acceptedUIDs']
+          origUIDs = [x for x in self.DeleteAcceptRecord['origUIDs']]
+          origUIDs = np.asarray(origUIDs)
+          for uID in acceptedUIDs:
+            kk = np.flatnonzero(origUIDs == uID)[0]
+            MM = np.delete(MM, kk, axis=0)
+            MM = np.delete(MM, kk, axis=1)
+            origUIDs = np.delete(origUIDs, kk)
+
       ## Replay any recent birth moves!
       if len(BirthResults) > 0:
         Korig = MM.shape[0]
@@ -859,7 +951,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
       prevPrepInfo['PairScoreMat'] = MM
 
     ## Determine which merge pairs we will track in the upcoming lap 
-    if preselectroutine == 'wholeELBObetter':
+    if mergePairSelection == 'wholeELBObetter':
       mPairIDs, PairScoreMat = MergePlanner.preselectPairs(hmodel, SS, lapFrac,
                                     prevScoreMat=prevPrepInfo['PairScoreMat'],
                                     **self.algParams['merge'])
@@ -886,9 +978,6 @@ class MOVBBirthMergeAlg(MOVBAlg):
       for p in [10, 50, 90, 100]:
         MergeLogger.log('   %d: %d' % (p, np.percentile(degree, p)), 'debug')
 
-    ## Reset selection terms to zero
-    if SS is not None and SS.hasSelectionTerms():
-      SS._SelectTerms.setAllFieldsToZero()
     return PrepInfo
 
   def run_many_merge_moves(self, hmodel, SS, evBound, lapFrac, MergePrepInfo):
@@ -1039,6 +1128,150 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
     return hmodel, SS, evBound
 
+
+
+  ######################################################### Delete Moves
+  #########################################################
+  def doDeleteAtLap(self, lapFrac):
+    return True
+
+  def deleteMakePlans(self, Dchunk, SS, DocUsageCount):
+    Plans = DeletePlanner.makePlans(SS, Dchunk, DocUsageCount,
+                                    lapFrac=self.lapFrac,
+                                    DRecordsByComp=self.DeleteRecordsByComp,
+                                    **self.algParams['delete'])  
+    return Plans
+
+  def deleteCollectTarget(self, Dchunk, hmodel, LPchunk, batchID,
+                                DeletePlans):
+    for DPlan in DeletePlans:
+      DTargetDataCollector.addDataFromBatchToPlan(DPlan, Dchunk, 
+                                  hmodel, LPchunk,
+                                  batchID,
+                                  uIDs=self.ActiveIDVec,
+                                  lapFrac=self.lapFrac,
+                                  isFirstBatch=self.isFirstBatch(self.lapFrac),
+                                  **self.algParams['delete'])
+
+
+  def deleteRunMoveAndUpdateMemory(self, hmodel, SS, DeletePlans, order=None):
+    self.ELBOReady = True
+    self.DeleteAcceptRecord = dict()
+    if self.lapFrac < 1:
+      return hmodel, SS
+
+    DeleteLogger.log('<<<<<<<<<<<<<<<<<<<<<<<<< RunMoveAndUpdateMemory')
+
+    ## Make last minute plan for any empty comps
+    EPlan = DeletePlanner.makePlanForEmptyTopics(SS, 
+                                  **self.algParams['delete'])
+    if 'uIDs' in EPlan:
+      nEmpty = len(EPlan['uIDs'])
+      DeleteLogger.log('Last-minute Plan: %d empty' % (nEmpty))
+      if hasattr(self, 'MergeLog') and len(self.MergeLog) > 0:
+        DeleteLogger.log('Skipped other plans due to accepted merge.')
+        ## Accepted Merge means all deletes except trivial one get skipped
+        DeletePlans = [EPlan]
+      else:      
+        ## Adjust the existing plans so EmptyPlan goes first
+        ## and the comps deleted by EmptyPlan are not repeated later
+        remPlanIDs = []
+        for dd, DPlan in enumerate(DeletePlans):
+          remIDs = list()
+          for ii, uid in enumerate(DPlan['uIDs']):
+            if uid in EPlan['uIDs']:
+              remIDs.append(ii)
+          for ii in reversed(sorted(remIDs)):
+            DPlan['uIDs'].pop(ii)
+            DPlan['selectIDs'].pop(ii)
+          if len(DPlan['selectIDs']) == 0:
+            remPlanIDs.append(dd)
+        for rr in reversed(remPlanIDs):
+          DeletePlans.pop(rr)
+        # Insert EmptyPlan at front of the line
+        DeletePlans.insert(0, EPlan)
+    else:
+      if hasattr(self, 'MergeLog') and len(self.MergeLog) > 0:
+        DeleteLogger.log('Skipped due to accepted merge.')
+        return hmodel, SS
+
+    newSS = SS.copy()
+    newModel = hmodel.copy()
+    ## Run Move and see if improved
+    for moveID, DPlan in enumerate(DeletePlans):
+      if moveID == 0:
+        self.fastForwardMemory(Kfinal=newSS.K, order=order)
+
+      if 'DTargetData' in DPlan:
+        ## Updates SSmemory in-place
+        newModel, newSS, DPlan = runDeleteMove_Target(newModel, newSS, DPlan,
+                                    LPkwargs=self.algParamsLP,
+                                    SSmemory=self.SSmemory,
+                                    **self.algParams['delete'])
+        nYes = len(DPlan['acceptedUIDs'])
+        nAttempt = len(DPlan['uIDs'])
+        DeleteLogger.log('DELETE %d/%d accepted' % (nYes, nAttempt),
+                         'info') 
+
+      else:
+        ## Auto-accepted delete (specific only for empty comps)
+        DPlan['didAccept'] = 2
+        DPlan['acceptedUIDs'] = DPlan['uIDs']
+        newSS.setELBOFieldsToZero()
+        newSS.setMergeFieldsToZero()
+        for uID in DPlan['uIDs']:
+          kk = np.flatnonzero(newSS.uIDs == uID)[0]
+          newSS.removeComp(kk)
+        newModel.update_global_params(newSS)
+        DeleteLogger.log('DELETED %d empty comps' % (len(DPlan['uIDs'])),
+                         'info') 
+
+        for mID in range(moveID+1, len(DeletePlans)):
+          FuturePlan = DeletePlans[mID]
+          for uID in DPlan['uIDs']:
+            targetSS = FuturePlan['targetSS']
+            kk = np.flatnonzero(targetSS.uIDs == uID)[0]
+            targetSS.removeComp(kk)
+            for batchID in FuturePlan['targetSSByBatch']:
+              FuturePlan['targetSSByBatch'][batchID].removeComp(kk)
+
+
+        for batchID in self.SSmemory:
+          self.SSmemory[batchID].setELBOFieldsToZero()
+          self.SSmemory[batchID].setMergeFieldsToZero()
+          for uID in DPlan['uIDs']:
+            kk = np.flatnonzero(self.SSmemory[batchID].uIDs == uID)[0]
+            self.SSmemory[batchID].removeComp(kk)
+
+      ## Add/remove comp from the delete records
+      for uID in DPlan['uIDs']:
+        if uID in DPlan['acceptedUIDs']:
+          if uID in self.DeleteRecordsByComp:
+            del self.DeleteRecordsByComp[uID]
+        else:
+          if uID not in self.DeleteRecordsByComp:
+            self.DeleteRecordsByComp[uID]['nFail'] = 0
+          self.DeleteRecordsByComp[uID]['nFail'] += 1
+          kk = np.flatnonzero(newSS.uIDs == uID)[0]
+          self.DeleteRecordsByComp[uID]['count'] = newSS.getCountVec()[kk]
+
+      if DPlan['didAccept']:
+        self.ELBOReady = False
+        self.ActiveIDVec = newSS.uIDs.copy()
+        self.lapLastAcceptedDelete = self.lapFrac
+
+        if 'origUIDs' not in self.DeleteAcceptRecord:
+          self.DeleteAcceptRecord['origUIDs'] = SS.uIDs
+          self.DeleteAcceptRecord['acceptedUIDs'] = DPlan['acceptedUIDs']
+        else:
+          self.DeleteAcceptRecord['acceptedUIDs'].extend(DPlan['acceptedUIDs'])
+
+        for batchID in self.SSmemory:
+          assert np.allclose(self.SSmemory[batchID].uIDs, self.ActiveIDVec)
+
+    ## TODO adjust LPmemory??
+    return newModel, newSS
+
   ######################################################### Verify ELBO
   #########################################################
   def verifyELBOTracking(self, hmodel, SS, evBound=None, order=None,
@@ -1076,16 +1309,18 @@ class MOVBBirthMergeAlg(MOVBAlg):
       self.print_msg('% 14.8f evBound from agg SS' % (evBound))
       self.print_msg('% 14.8f evBound from sum over SSmemory' % (evCheck))
 
+    condCount = np.allclose(SS.getCountVec(), SS2.getCountVec())
+    condELBO = np.allclose(evBound, evCheck) or not self.ELBOReady
+    condUIDs = np.allclose(SS.uIDs, SS2.uIDs)
+
     if self.algParams['debug'].count('interactive'):
-      isCorrect = np.allclose(SS.uIDs, SS2.uIDs) \
-                  and np.allclose(SS.getCountVec(), SS2.getCountVec()) \
-                  and np.allclose(evBound, evCheck)
+      isCorrect = condCount and condUIDs and condELBO
       if not isCorrect:
         from IPython import embed; embed()
     else:
-      assert np.allclose(SS.getCountVec(), SS2.getCountVec())
-      assert np.allclose(evBound, evCheck)
-      assert np.allclose(SS.uIDs, SS2.uIDs)
+      assert condELBO
+      assert condCount
+      assert condUIDs
 
     if self.doDebugVerbose():
       self.print_msg('<<<<<<<< END   double-check @ lap %.2f' % (self.lapFrac))

@@ -39,11 +39,13 @@ gamma = 0.75 # hyperparameter over doc-topic distribution
 Defaults = dict()
 Defaults['nDocTotal'] = 2000
 Defaults['nWordsPerDoc'] = 5 * V / (K/2)
+Defaults['gamma'] = gamma
+Defaults['seed'] = SEED
 
 # GLOBAL PROB DISTRIBUTION OVER TOPICS
 trueBeta = np.ones(K)
 trueBeta /= trueBeta.sum()
-Defaults['topic_prior'] = gamma * trueBeta
+Defaults['probs'] = trueBeta
 
 # TOPIC by WORD distribution
 Defaults['topics'] = Bars2D.Create2DBarsTopicWordParams(V, K, PRNG=PRNG)
@@ -75,5 +77,14 @@ def CreateToyDataFromLDAModel(**kwargs):
 
 if __name__ == '__main__':
   import bnpy.viz.BarsViz
-  WData = CreateToyDataFromLDAModel(seed=SEED)
-  bnpy.viz.BarsViz.plotExampleBarsDocs(WData)
+  import argparse
+  parser = argparse.ArgumentParser()
+  for key, val in Defaults.items():
+    if key.count('topic'):
+      continue
+    parser.add_argument('--' + key, type=type(val), default=val)
+  args = parser.parse_args()
+
+  WData = CreateToyDataFromLDAModel(**args.__dict__)
+  bnpy.viz.BarsViz.plotExampleBarsDocs(WData, doShowNow=1)
+  raw_input('Press any key to exit. >>')
