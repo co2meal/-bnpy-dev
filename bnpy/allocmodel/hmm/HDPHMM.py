@@ -18,30 +18,21 @@ class HDPHMM(AllocModel):
     def __init__(self, inferType, priorDict = dict()):
         if inferType == 'EM':
             raise ValueError('EM is not supported for HDPHMM')
-        
+
+        self.set_prior(**priorDict)
         self.inferType = inferType
         self.K = 0
 
-        #Beta params for global stick
-        self.rho = None
+        #Variational parameters
+        self.rho = None #rho/omega are stick-breaking params for global stick
         self.omega = None
-
-        #Dirichlet parameters for the transition matrix
-        self.theta = None
-
-        #Dirichlet parameters for the initial state distribution
-        self.theta0 = None
-
-        self.set_prior(**priorDict)
-
-        self.estZ = dict()
-
+        self.theta = None #Kx(K+1) Dirichlet parameters for transition matrix
+        self.theta0 = None #K+1 Dirichlet parameters for the initial state
 
 
     def set_prior(self, gamma = 5, alpha = 0.1, **kwargs):
         self.gamma = gamma
         self.alpha = alpha
-        self.kappa = 100
 
     def get_active_comp_probs(self):
         ''' Return K vector of appearance probabilities for each of the K comps
@@ -60,7 +51,7 @@ class HDPHMM(AllocModel):
         -------
         Data : bnpy data object with Data.nObs observations
         LP : local param dict with fields
-              E_log_soft_ev : Data.nObs x K array
+              E_log_soft_ev : Data.nObs x K array where
                   E_log_soft_ev[n,k] = log p(data obs n | comp k)
         
         Returns
@@ -69,8 +60,8 @@ class HDPHMM(AllocModel):
              documentation for mathematical definitions of resp and respPair).
              Note that respPair[0,:,:] is undefined.
         '''
-        lpr = LP['E_log_soft_ev']
 
+        lpr = LP['E_log_soft_ev']
 
         #Calculate arguments to the forward backward algorithm
         dirSums = digamma(np.sum(self.theta, axis = 1))
@@ -90,18 +81,12 @@ class HDPHMM(AllocModel):
                 HMMUtil.FwdBwdAlg(expELogPi0[0:self.K],
                                   expELogPi[0:self.K, 0:self.K], 
                                   lpr[Data.seqInds[n]:Data.seqInds[n+1]])
-
-            est = HMMUtil.viterbi(lpr[Data.seqInds[n]:Data.seqInds[n+1]],
-                                  expELogPi0[0:self.K],
-                                  expELogPi[0:self.K, 0:self.K])
             if resp is None:
                 resp = np.vstack(seqResp)
                 respPair = seqRespPair
             else:
                 resp = np.vstack((resp, seqResp))
                 respPair = np.append(respPair, seqRespPair, axis = 0)
-
-            self.estZ.update({'%d'%(Data.seqsUsed[n]) : est})
             
         LP.update({'resp' : resp})
         LP.update({'respPair' : respPair})
@@ -120,6 +105,7 @@ class HDPHMM(AllocModel):
   #########################################################
 
     def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None, **kwargs):
+
         #This method is called before calc_local_params() during initialization,
           #in which case resp and respPair won't exist
         if ('resp' not in LP) or ('respPair' not in LP):
@@ -131,7 +117,6 @@ class HDPHMM(AllocModel):
             respPair = LP['respPair']
 
         inds = Data.seqInds[:-1]
-
         respPairSums = np.sum(respPair, axis = 0)
         firstStateResp = np.sum(resp[inds], axis = 0)
         N = np.sum(resp, axis = 0)
@@ -171,24 +156,28 @@ class HDPHMM(AllocModel):
     
     def find_optimum_rhoOmega(self, SS, **kwargs):
         ''' Performs numerical optimization of rho and omega needed in 
-            M-step update of global parameters
+            M-step update of global parameters.
+
+            Note that OptimizerHDPDir forces rho to be in [EPS, 1-EPS] for
+            the sake of numerical stability
         '''
+
+        #Argument required by optimizer
         ELogPi = digamma(self.theta) - \
                  digamma(np.sum(self.theta, axis=1))[:, np.newaxis]
         sumELogPi = np.sum(ELogPi, axis = 0)
-        #print np.sum(self.theta, axis=1)
-
-        #Add in the contribution of the initial state
         sumELogPi += (digamma(self.theta0) - digamma(np.sum(self.theta0)))
 
+        #Select initial rho, omega values
         if (self.rho is not None) and (self.omega is not None):
             initRho = self.rho
             initOmega = self.omega
         else:
             initRho = None
             initOmega = None
-        try:
 
+        #Do the optimization
+        try:
             rho, omega, fofu, Info = \
                   OptimHDPDir.find_optimum_multiple_tries(sumLogPi = sumELogPi,
                                                          nDoc = self.K+1, 
@@ -208,65 +197,10 @@ class HDPHMM(AllocModel):
                 rho = 1/float(1+self.gamma) * np.ones(SS.K)
 
 
-        #Constrain eps <= rho <= 1 - eps to improve numerical stability of 
-        #  forward backward algorithm and future optimization
-        eps = 1e-8
-        lower = np.ones(self.K) * eps
-        upper = np.ones(self.K) * (1 - eps)
-        rho = np.min(np.vstack((rho, upper)), axis = 0)
-        rho = np.max(np.vstack((rho, lower)), axis = 0)
-
         return rho, omega
 
 
-    def _find_optimal_alpha_gamma(self):
-      eBeta = np.ones(self.K+1)
-      eBeta[0:self.K] = self.rho
-      eBeta[1:self.K] *= np.cumprod(1-self.rho[:-1])
-      eBeta[self.K] = 1 - np.sum(eBeta[0:self.K])
-
-      sumTheta = np.sum(self.theta, axis = 1)
-      elogPi = digamma(self.theta) - digamma(sumTheta[:,np.newaxis])
-      #print 'elogpi = ', elogPi
-      elogPi = np.append(elogPi, (digamma(self.theta0) -
-                                  digamma(np.sum(self.theta0)))[np.newaxis,:], axis = 0)
-
-      alpha = -(self.K**2+self.K) / (np.sum(elogPi * eBeta[np.newaxis,:]))
-    
-
-      #Numerically optimize gamma
-      digsum = np.sum(digamma((1 - self.rho)*self.omega) - digamma(self.omega))
-      fprime = lambda gam: -(-self.K*digamma(gam) + self.K*digamma(1+gam) +
-                            digsum)
-      fprime = lambda gam: self.fooPrime(gam, digsum)
-
-      f =  lambda gam: (self.foo(gam, digsum))
-
-      gamma, _, _ = scipy.optimize.fmin_l_bfgs_b(func = f,
-                                                 x0 = self.gamma,
-                                                 fprime = fprime)
-
-
-      print 'self.alpha = ', self.alpha, ' alpha = ', alpha
-      print 'self.gamma = ', self.gamma, ' gamma = ', gamma
-      #print 'self.theta = ', self.theta / \
-      #  np.sum(self.theta, axis=1)[:,np.newaxis]
-      #print 'eBeta = ', eBeta
-
-
-      #return self.alpha, self.gamma
-      return alpha, gamma
-    
-    def foo(self, gam, digsum):
-      if (gam < 0):
-        return np.inf
-      return -(self.K*gammaln(1 + gam) - self.K*gammaln(gam) +
-              (gam - 1)*digsum)
-
-    def fooPrime(self, gam, digsum):
-      return -(-self.K*digamma(gam) + self.K*digamma(1+gam) +
-                            digsum)
-        
+ 
 
     def update_global_params_EM(self, SS, **kwargs):
         raise ValueError('HDPHMM does not support EM')
@@ -304,9 +238,9 @@ class HDPHMM(AllocModel):
 
 
     def _calcTheta(self, SS):
+
       #Calculate E_q[alpha * Beta_l] for l = 1, ..., K+1
       EBeta = np.ones(self.K+1)
-    
       EBeta[1:self.K] = np.cumprod(1 - self.rho[:-1])
       EBeta[0:self.K] *= self.rho
       EBeta[self.K] = 1 - np.sum(EBeta[0:self.K])
@@ -427,17 +361,9 @@ class HDPHMM(AllocModel):
 
 
     def to_dict(self):
-        #convert the self.estZ dictionary to a list
-        estz = list()
-        for seq in xrange(np.size(self.estZ.keys())):
-            if '%d'%(seq) in self.estZ:
-                estz.append(self.estZ['%d'%(seq)])
-
-
-
         return dict(theta = self.theta, theta0 = self.theta0,
                     omega = self.omega, rho = self.rho,
-                    estZ = estz, gamma = self.gamma, alpha = self.alpha)
+                    gamma = self.gamma, alpha = self.alpha)
 
     def from_dict(self, myDict):
         self.inferType = myDict['inferType']
@@ -446,11 +372,48 @@ class HDPHMM(AllocModel):
         self.theta0 = myDict['theta0']
         self.omega = myDict['omega']
         self.rho = myDict['rho']
-        self.estZ = myDict['estZ']
 
     def get_prior_dict(self):
-        return dict(gamma = self.gamma, alpha = self.alpha)
+        return dict(gamma = self.gamma, alpha = self.alpha, K = self.K)
 
         
+"""
+HYPER PARAMETER OPTIMIZATION NOT USED RIGHT NOW (but will be soon)
+
+   def _find_optimal_alpha_gamma(self):
+      eBeta = np.ones(self.K+1)
+      eBeta[0:self.K] = self.rho
+      eBeta[1:self.K] *= np.cumprod(1-self.rho[:-1])
+      eBeta[self.K] = 1 - np.sum(eBeta[0:self.K])
+
+      sumTheta = np.sum(self.theta, axis = 1)
+      elogPi = digamma(self.theta) - digamma(sumTheta[:,np.newaxis])
+      elogPi = np.append(elogPi, (digamma(self.theta0) -
+                                  digamma(np.sum(self.theta0)))[np.newaxis,:], axis = 0)
+
+      alpha = -(self.K**2+self.K) / (np.sum(elogPi * eBeta[np.newaxis,:]))
     
-        
+
+      #Numerically optimize gamma
+      digsum = np.sum(digamma((1 - self.rho)*self.omega) - digamma(self.omega))
+      fprime = lambda gam: -(-self.K*digamma(gam) + self.K*digamma(1+gam) +
+                            digsum)
+      fprime = lambda gam: self.fooPrime(gam, digsum)
+
+      f =  lambda gam: (self.foo(gam, digsum))
+
+      gamma, _, _ = scipy.optimize.fmin_l_bfgs_b(func = f,
+                                                 x0 = self.gamma,
+                                                 fprime = fprime)
+      return alpha, gamma
+    
+    def foo(self, gam, digsum):
+      if (gam < 0):
+        return np.inf
+      return -(self.K*gammaln(1 + gam) - self.K*gammaln(gam) +
+              (gam - 1)*digsum)
+
+    def fooPrime(self, gam, digsum):
+      return -(-self.K*digamma(gam) + self.K*digamma(1+gam) +
+                            digsum)
+"""
