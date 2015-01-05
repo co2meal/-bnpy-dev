@@ -61,7 +61,8 @@ class FiniteHMM(AllocModel):
       if self.inferType == 'EM':
         pi0 = self.initPi
       else:
-        pi0 = self.initTheta / self.initTheta.sum()
+        pi0 = np.exp(digamma(self.initTheta)
+                           - digamma(np.sum(self.initTheta)))
       return pi0
 
     def get_trans_prob_matrix(self):
@@ -70,7 +71,9 @@ class FiniteHMM(AllocModel):
       if self.inferType == 'EM':
         EPiMat = self.transPi
       else:
-        EPiMat = self.transTheta / self.transTheta.sum(axis=1)[:,np.newaxis]
+        digammasumVec = digamma(np.sum(self.transTheta, axis = 1))              
+        EPiMat = np.exp(digamma(self.transTheta) 
+                        - digammasumVec[:,np.newaxis])
       return EPiMat
 
   ######################################################### Local Params
@@ -98,7 +101,7 @@ class FiniteHMM(AllocModel):
         # These calculations are different for EM and VB
         if self.inferType.count('VB') > 0:
             # Row-wise subtraction
-            digammasumVec = digamma(np.sum(self.transTheta, axis = 1))              
+            digammasumVec = digamma(np.sum(self.transTheta, axis = 1))        
             expELogTrans = np.exp(digamma(self.transTheta) 
                                   - digammasumVec[:,np.newaxis])
             expELogInit = np.exp(digamma(self.initTheta)
