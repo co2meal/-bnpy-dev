@@ -6,7 +6,8 @@ from bnpy.suffstats import SuffStatBag
 from bnpy.allocmodel.seq import HMMUtil
 from bnpy.util import digamma, EPS
 from scipy.special import gammaln
-from bnpy.allocmodel.admix import OptimizerForHDPStickBreak as OptimHDPSB
+#from bnpy.allocmodel.admix import OptimizerForHDPStickBreak as OptimHDPSB
+from bnpy.allocmodel.admix import OptimizerHDPDir as OptimHDPDir
 
 
 import logging
@@ -25,11 +26,11 @@ class HDPHMM(AllocModel):
         self.rho = None
         self.omega = None
 
-        #Beta params for transition distribution sticks
-        self.u = None
-        
-        #Beta params for initial distribution stick
-        self.b = None
+        #Dirichlet parameters for the transition matrix
+        self.theta = None
+
+        #Dirichlet parameters for the initial state distribution
+        self.theta0 = None
 
         self.set_prior(**priorDict)
 
@@ -40,11 +41,12 @@ class HDPHMM(AllocModel):
     def set_prior(self, gamma = 5, alpha = 0.1, **kwargs):
         self.gamma = gamma
         self.alpha = alpha
+        self.kappa = 100
 
     def get_active_comp_probs(self):
         ''' Return K vector of appearance probabilities for each of the K comps
         '''
-        return OptimHDPSB._v2beta(self.rho)[:-1]
+        return OptimHDPDir._v2beta(self.rho)[:-1]
 
 
   ######################################################### Local Params
@@ -69,32 +71,29 @@ class HDPHMM(AllocModel):
         '''
         lpr = LP['E_log_soft_ev']
 
-        expELogBeta = np.zeros((self.K, self.K))
-        expELogPi = np.zeros(self.K)
 
         #Calculate arguments to the forward backward algorithm
-        digBothU = digamma(self.u[1,:,:] + self.u[0,:,:])
-        expELogBeta = digamma(self.u[1,:,:]) - digBothU
-        expELogBeta[:, 1:] += \
-                 np.cumsum(digamma(self.u[0,:,:-1]) - digBothU[:,:-1], axis = 1)
-        np.exp(expELogBeta, out = expELogBeta)
-        
-        digBothB = digamma(self.b[1,:] + self.b[0,:])
-        expELogPi = digamma(self.b[1,:]) - digBothB
-        expELogPi[1:] += np.cumsum(digamma(self.b[0,:-1]) - digBothB[:-1])
+        dirSums = digamma(np.sum(self.theta, axis = 1))
+        expELogPi = digamma(self.theta) - dirSums[:, np.newaxis]
         np.exp(expELogPi, out = expELogPi)
+
+        expELogPi0 = digamma(self.theta0) - digamma(np.sum(self.theta0))
+        np.exp(expELogPi0, out = expELogPi0)
 
         #Run the forward backward algorithm on each sequence
         resp = None
         respPair = None
+
         for n in xrange(Data.nSeqs):
 
             seqResp, seqRespPair, _ = \
-                HMMUtil.FwdBwdAlg(expELogPi, expELogBeta, \
-                                      lpr[Data.seqInds[n]:Data.seqInds[n+1]])
+                HMMUtil.FwdBwdAlg(expELogPi0[0:self.K],
+                                  expELogPi[0:self.K, 0:self.K], 
+                                  lpr[Data.seqInds[n]:Data.seqInds[n+1]])
 
             est = HMMUtil.viterbi(lpr[Data.seqInds[n]:Data.seqInds[n+1]],
-                                   expELogPi, expELogBeta)
+                                  expELogPi0[0:self.K],
+                                  expELogPi[0:self.K, 0:self.K])
             if resp is None:
                 resp = np.vstack(seqResp)
                 respPair = seqRespPair
@@ -104,11 +103,8 @@ class HDPHMM(AllocModel):
 
             self.estZ.update({'%d'%(Data.seqsUsed[n]) : est})
             
-
         LP.update({'resp' : resp})
         LP.update({'respPair' : respPair})
-        self.Data = Data
-        self.LP = LP
         return LP
         
     def initLPFromResp(self, Data, LP):
@@ -149,7 +145,6 @@ class HDPHMM(AllocModel):
             entropy = self.elbo_entropy(Data, LP)
             SS.setELBOTerm('Elogqz', entropy, dims = (()))
 
-        self.SS = SS
         return SS
 
     def forceSSInBounds(self, SS):
@@ -178,22 +173,14 @@ class HDPHMM(AllocModel):
         ''' Performs numerical optimization of rho and omega needed in 
             M-step update of global parameters
         '''
+        ELogPi = digamma(self.theta) - \
+                 digamma(np.sum(self.theta, axis=1))[:, np.newaxis]
+        sumELogPi = np.sum(ELogPi, axis = 0)
+        #print np.sum(self.theta, axis=1)
 
-        #Calculate needed parameters for rho, omega optimization
-        elogv = digamma(self.u[1,:,:]) - \
-            digamma(self.u[1,:,:] + self.u[0,:,:])
-        elog1mv = digamma(self.u[0,:,:]) - \
-            digamma(self.u[1,:,:] + self.u[0,:,:])
+        #Add in the contribution of the initial state
+        sumELogPi += (digamma(self.theta0) - digamma(np.sum(self.theta0)))
 
-        elogv = np.sum(elogv, axis = 0)
-        elog1mv = np.sum(elog1mv, axis = 0)
-
-        #Add on contribution from initial-state stick breaking weights
-        elogv += digamma(self.b[1,:]) - digamma(self.b[1,:]+self.b[0,:])
-        elog1mv += digamma(self.b[0,:]) - digamma(self.b[1,:]+self.b[0,:])
-
-
-    
         if (self.rho is not None) and (self.omega is not None):
             initRho = self.rho
             initOmega = self.omega
@@ -203,12 +190,11 @@ class HDPHMM(AllocModel):
         try:
 
             rho, omega, fofu, Info = \
-                  OptimHDPSB.find_optimum_multiple_tries(sumLogVd = elogv, \
-                                                         sumLog1mVd = elog1mv, \
-                                                         nDoc = self.K+1, \
-                                                         gamma = self.alpha, \
-                                                         alpha = self.gamma, \
-                                                         initrho = initRho, \
+                  OptimHDPDir.find_optimum_multiple_tries(sumLogPi = sumELogPi,
+                                                         nDoc = self.K+1, 
+                                                         gamma = self.gamma, 
+                                                         alpha = self.alpha, 
+                                                         initrho = initRho, 
                                                          initomega = initOmega)
 
         except ValueError as error:
@@ -220,6 +206,7 @@ class HDPHMM(AllocModel):
                 Log.error('***** Optim failed. Set to prior. ' + str(error))
                 omega = (self.gamma + 1 ) * np.ones(SS.K)
                 rho = 1/float(1+self.gamma) * np.ones(SS.K)
+
 
         #Constrain eps <= rho <= 1 - eps to improve numerical stability of 
         #  forward backward algorithm and future optimization
@@ -233,33 +220,26 @@ class HDPHMM(AllocModel):
 
 
     def _find_optimal_alpha_gamma(self):
-      rhoProds = np.ones(self.K)
-      rhoProds[1:] = np.cumprod(1 - self.rho[:-1])
+      eBeta = np.ones(self.K+1)
+      eBeta[0:self.K] = self.rho
+      eBeta[1:self.K] *= np.cumprod(1-self.rho[:-1])
+      eBeta[self.K] = 1 - np.sum(eBeta[0:self.K])
 
-      elogv = digamma(self.u[1,:,:]) - \
-              digamma(self.u[1,:,:] + self.u[0,:,:])
-      elog1mv = digamma(self.u[0,:,:]) - \
-                digamma(self.u[1,:,:] + self.u[0,:,:])
+      sumTheta = np.sum(self.theta, axis = 1)
+      elogPi = digamma(self.theta) - digamma(sumTheta[:,np.newaxis])
+      #print 'elogpi = ', elogPi
+      elogPi = np.append(elogPi, (digamma(self.theta0) -
+                                  digamma(np.sum(self.theta0)))[np.newaxis,:], axis = 0)
 
-      elogv = np.sum(elogv, axis = 0) + digamma(self.b[1,:]) - \
-              digamma(self.b[1,:] + self.b[0,:])
-      elog1mv = np.sum(elog1mv, axis = 0) + digamma(self.b[0,:]) - \
-                digamma(self.b[1,:] + self.b[0,:])
-
-      elogv *= (rhoProds * self.rho)
-      elog1mv *= (rhoProds * (1 - self.rho))
-
-      alpha = -(self.K**2 + self.K) / (np.sum(elogv) + np.sum(elog1mv))
-
-      
+      alpha = -(self.K**2+self.K) / (np.sum(elogPi * eBeta[np.newaxis,:]))
+    
 
       #Numerically optimize gamma
       digsum = np.sum(digamma((1 - self.rho)*self.omega) - digamma(self.omega))
       fprime = lambda gam: -(-self.K*digamma(gam) + self.K*digamma(1+gam) +
                             digsum)
       fprime = lambda gam: self.fooPrime(gam, digsum)
-      #f = lambda gam: (-(self.K*gammaln(1 + gam) - self.K*gammaln(gam) +
-      #                   (gam - 1)*digsum))
+
       f =  lambda gam: (self.foo(gam, digsum))
 
       gamma, _, _ = scipy.optimize.fmin_l_bfgs_b(func = f,
@@ -267,6 +247,14 @@ class HDPHMM(AllocModel):
                                                  fprime = fprime)
 
 
+      print 'self.alpha = ', self.alpha, ' alpha = ', alpha
+      print 'self.gamma = ', self.gamma, ' gamma = ', gamma
+      #print 'self.theta = ', self.theta / \
+      #  np.sum(self.theta, axis=1)[:,np.newaxis]
+      #print 'eBeta = ', eBeta
+
+
+      #return self.alpha, self.gamma
       return alpha, gamma
     
     def foo(self, gam, digsum):
@@ -286,11 +274,6 @@ class HDPHMM(AllocModel):
 
     def update_global_params_VB(self, SS, **kwargs):
 
-        if (self.u is None) or (self.b is None):
-            self.u = np.array([np.ones((self.K, self.K)), 
-                               np.ones((self.K, self.K))])
-            self.b = np.array([np.ones(self.K), np.ones(self.K)])
-
         #Set to prior Beta(1, gamma) if this is first iteration
         if (self.omega is None) or (self.rho is None):
             self.omega = (self.gamma + 1) * np.ones(self.K)
@@ -300,9 +283,10 @@ class HDPHMM(AllocModel):
         self.rho, self.omega = self.find_optimum_rhoOmega(SS, **kwargs)
 
         #Pick hyperparameters alpha, gamma that optimize the ELBO
-        self.alpha, self.gamma = self._find_optimal_alpha_gamma()
-        
-        self.u, self.b = self._calc_u_b(SS)
+        #self.alpha, self.gamma = self._find_optimal_alpha_gamma()     
+
+        self.theta, self.theta0 = self._calcTheta(SS)
+
         
 
     def update_global_params_soVB(self, SS, rho, **kwargs):
@@ -311,78 +295,55 @@ class HDPHMM(AllocModel):
             the global stick weight parameter rho
         '''
         rhoNew, omegaNew = self.find_optimum_rhoOmega(SS, **kwargs)
-        uNew, bNew = self._calc_u_b(SS)
+        theta, theta0 = self._calcTheta(SS)
 
-        self.u = rho*uNew + (1 - rho)*self.u
-        self.b = rho*bNew + (1 - rho)*self.b
+        self.theta = rho*thetaNew + (1 - rho)*self.theta
+        self.theta0 = rho*theta0New + (1 - rho)*self.theta0
         self.rho = rho*rhoNew + (1 - rho)*self.rho
         self.omega = rho*omegaNew + (1 - rho)*self.omega
 
 
-    def _calc_u_b(self, SS):
-        rhoProds = np.ones(self.K)
-        rhoProds[1:] = np.cumprod(1 - self.rho[:-1])
+    def _calcTheta(self, SS):
+      #Calculate E_q[alpha * Beta_l] for l = 1, ..., K+1
+      EBeta = np.ones(self.K+1)
+    
+      EBeta[1:self.K] = np.cumprod(1 - self.rho[:-1])
+      EBeta[0:self.K] *= self.rho
+      EBeta[self.K] = 1 - np.sum(EBeta[0:self.K])
+      EBeta *= self.alpha
 
-        u = np.array([np.zeros((self.K, self.K)), 
-                           np.zeros((self.K, self.K))])
-        b = np.array([np.ones(self.K), np.ones(self.K)])
+      #theta_kl = M_kl + E_q[alpha * Beta_l] (M_k,>K = 0)
+      theta = np.zeros((self.K, self.K + 1))
+      theta += EBeta[np.newaxis,:]
+      theta[0:self.K, 0:self.K] += SS.respPairSums
+ 
+      #theta0_k = r_1k + E_q[alpha * Beta_l] (r_1,>K = 0)
+      theta0 = EBeta
+      theta0[0:self.K] += SS.firstStateResp
 
-        #Update u
-        for i in xrange(self.K):
-            for j in xrange(self.K):
-                u[1,i,j] = self.alpha * self.rho[j] * rhoProds[j] + \
-                    SS.respPairSums[i,j]
-                u[0,i,j] = self.alpha * (1 - self.rho[j]) * rhoProds[j] + \
-                    np.sum(SS.respPairSums[i,j+1:self.K])
-
-
-        #u[1,:,:] = (self.alpha * self.rho * rhoProds) + \
-        #           SS.respPairSums
-        #u[0,:,:] = (self.alpha * (1-self.rho) * rhoProds)[np.newaxis,:]
-        #next line does u[0,i,j] += np.sum(SS.firstStateResp[i+1:self.K])
-        #u[0,:,:-1] = np.fliplr(np.cumsum(np.fliplr(SS.respPairSums[:,1:]), 
-        #                                  axis = 1))
-	#u[0,:,:] += (self.alpha * (1-self.rho) * rhoProds)[np.newaxis,:]
-
-
-        #Update b
-        for i in xrange(self.K):
-            b[1,i] = self.alpha * self.rho[i] * rhoProds[i] + \
-                SS.firstStateResp[i]
-            b[0,i] = self.alpha * (1 - self.rho[i]) * rhoProds[i] + \
-                np.sum(SS.firstStateResp[i+1:self.K])
-
-        #b = np.array([np.zeros(self.K), np.zeros(self.K)])
-        #b[1,:] = self.alpha * self.rho * rhoProds + SS.firstStateResp
-        #b[0,:] = self.alpha * (1 - self.rho) * rhoProds
-        #b[0,:-1] += np.cumsum(SS.firstStateResp[1:][::-1])[::-1]
-
-        return u, b
+      return theta, theta0
         
 
     def init_global_params(self, Data, K=0, **initArgs):
-        self.K = K
-        self.omega = (self.gamma + 1) * np.ones(self.K)
-        self.rho = (1 / (self.gamma + 1)) * np.ones(self.K)
+      self.K = K
+      self.omega = (self.gamma + 1.0) * np.ones(self.K)
+      self.rho = (1.0 / (self.gamma + 1.0)) * np.ones(self.K)
       
-        #Fake suff stat bag that assigns 1/K "observations" to each starting
-        #  state and transition
-        SS = SuffStatBag(K = self.K , D = Data.dim)
-        SS.setField('firstStateResp', np.ones(K) / K, dims=('K'))
-        SS.setField('respPairSums', np.ones((K,K)) / K, dims=('K','K'))
+      #Empty suff stat bag that results in setting theta to the prior
+      SS = SuffStatBag(K = self.K, D = Data.dim)
+      SS.setField('firstStateResp', np.zeros(K), dims = ('K'))
+      SS.setField('respPairSums', np.zeros((K,K)), dims = ('K','K'))
+      
+      self.theta, self.theta0 = self._calcTheta(SS)
 
- 
-        self.u, self.b = self._calc_u_b(SS)
-        
-       
 
     def calc_evidence(self, Data, SS, LP, todict = False, **kwargs):
-
         if SS.hasELBOTerm('Elogqz'):
             entropy = SS.getELBOTerm('Elogqz')
         else:
             entropy = self.elbo_entropy(Data, LP)
-        return entropy + self.elbo_alloc() + self.elbo_v0() + \
+
+        return entropy + self.elbo_alloc() + \
             self.elbo_allocSlack(SS)
 
 
@@ -402,84 +363,62 @@ class HDPHMM(AllocModel):
         return z_1 + restZ
 
     def elbo_alloc(self):
-        '''Calculates the sum of all the normalization constants that show up
-           in the ELBO.  Specifically the constants in p(v), q(v), p(y), and q(y)
+        '''Calculates the L_alloc term without the L_{alloc-slack} component
         '''
-        #For lack of a better name...
+
+        #K + 1 - k for k = 1, ..., K
         thatOneTerm = [self.K - i for i in xrange(self.K)]
 
-        normPy = self.K * np.log(self.alpha) + \
-            np.sum(digamma(self.rho * self.omega) - \
-                       digamma(self.omega) + thatOneTerm * \
-                       (digamma((1-self.rho) * self.omega) - \
-                            digamma(self.omega)))
-        normQy = np.sum(gammaln(self.b[1,:] + self.b[0,:]) - \
-                           gammaln(self.b[1,:]) - gammaln(self.b[0,:]))
-
-        normPv = self.K**2 * np.log(self.alpha) + \
-            self.K * np.sum(digamma(self.rho * self.omega) - \
-                                digamma(self.omega) + thatOneTerm * \
-                                (digamma((1-self.rho) * self.omega) - \
-                                     digamma(self.omega)))
-        normQv = np.sum(gammaln(self.u[1,:,:] + self.u[0,:,:]) - \
-                           gammaln(self.u[1,:,:]) - \
-                           gammaln(self.u[0,:,:]))
+        ELogU = digamma(self.rho * self.omega) - digamma(self.omega)
+        ELog1mU = digamma((1 - self.rho) * self.omega) - digamma(self.omega)
+        
+        
+        #Includes norm. constant for pi0.  Note this is the term that requires
+        #  the lower bound
+        normPPi = (self.K+1)*(self.K * np.log(self.alpha) + \
+                              np.sum(ELogU + thatOneTerm*ELog1mU))
+        
+        gamTheta = gammaln(self.theta)
+        gamSumTheta = gammaln(np.sum(self.theta, axis = 1))
+        normQPi = np.sum(gamSumTheta - np.sum(gamTheta, axis = 1))
+        normQPi0 = gammaln(np.sum(self.theta0)) - np.sum(gammaln(self.theta0))
   
-        return normPy + normPv - normQy - normQv
+        return normPPi - normQPi - normQPi0
 
 
     def elbo_allocSlack(self, SS):
-        '''Term that will be zero if ELBO is computed after the M-step
-        '''
-        return 0
+      '''Term that will be zero if ELBO is computed after the M-step
+      '''
+      return 0
 
-        rhoProds = np.ones(self.K)
-        rhoProds[1:] = np.cumprod(1 - self.rho[:-1])
+      #Calculate E_q[alpha * Beta_l] for l = 1, ..., K+1
+      EBeta = np.ones(self.K+1)
+      EBeta[1:self.K] = np.cumprod(1 - self.rho[:-1])
+      EBeta[0:self.K] *= self.rho
+      EBeta[self.K] = 1 - np.sum(EBeta[0:self.K])
+      EBeta *= self.alpha
 
-        digBothU = digamma(self.u[1,:,:] + self.u[0,:,:])
-        E_v = digamma(self.u[1,:,:]) - digBothU
-        E_1mv = digamma(self.u[0,:,:]) - digBothU
+      #Calculate E_q[log pi]
+      ElogPi = digamma(self.theta) - \
+               digamma(np.sum(self.theta, axis = 1))[:, np.newaxis]
+      ElogPi0 = digamma(self.theta0) - digamma(np.sum(self.theta0))
 
-        digBothB = digamma(self.b[1,:] + self.b[0,:])
-        E_b = digamma(self.b[1,:]) - digBothB
-        E_1mb = digamma(self.b[0,:]) - digBothB
+      #sum = (E_q[alpha*beta_l] - theta_{kl} + M_{kl}) * E[log pi_{kl}]
+      sum = EBeta[np.newaxis,:] - self.theta
+      sum[0:self.K, 0:self.K] += SS.respPairSums
+      sum *= ElogPi
 
-        bTerm = 0
-        uTerm = 0
+      #sum0 = (E_q[alpha*beta_l] - theta_{0l} + N_{1l}) * E[log pi_{0l}]
+      sum0 = EBeta - self.theta0
+      sum0[0:self.K] += SS.firstStateResp
 
-        for i in xrange(self.K):
-            bTerm += (self.alpha * self.rho[i]*rhoProds[i] - self.b[1,i] +
-                      SS.firstStateResp[i]) * E_b[i]
-            bTerm += (self.alpha * (1-self.rho[i])*rhoProds[i] - self.b[0,i] + 
-                      np.sum(SS.firstStateResp[i+1:self.K])) * E_1mb[i]
-            
-            for j in xrange(self.K):
-                uTerm += (self.alpha * self.rho[j]*rhoProds[j] - self.u[1,i,j] +
-                          SS.respPairSums[i,j]) * E_v[i,j]
-                uTerm +=(self.alpha*(1-self.rho[j])*rhoProds[j] - self.u[0,i,j]+
-                         np.sum(SS.respPairSums[i,j+1:self.K])) * E_1mv[i,j]
-        return bTerm + uTerm
-    
+      return np.sum(sum) + np.sum(sum0)
+      
+      
+      
 
-                                                             
-    
-    def elbo_v0(self):
-        '''Calculates E_q[log p(v_0)] - E_q[log q(v_0)], which shows up in 
-           its full form in the ELBO
-        '''
-        normP = self.K * gammaln(1 + self.gamma) - \
-            self.K * gammaln(self.gamma)
-        normQ = np.sum(gammaln(self.omega) - gammaln(self.rho * self.omega) - \
-                           gammaln((1 - self.rho) * self.omega))
 
-        theMeat = np.sum((self.gamma - (1-self.rho) * self.omega) * \
-                             (digamma((1-self.rho)*self.omega) - \
-                                  digamma(self.omega)) + \
-                             (1 - self.rho * self.omega) * \
-                             (digamma(self.omega*self.rho) - digamma(self.omega)))
-
-        return normP - normQ + theMeat
-                              
+      
     
             
 
@@ -496,16 +435,15 @@ class HDPHMM(AllocModel):
 
 
 
-
-        return dict(u = self.u, y = self.b, omega = self.omega,
-                    rho = self.rho, estZ = estz, gamma = self.gamma,
-                    alpha = self.alpha)
+        return dict(theta = self.theta, theta0 = self.theta0,
+                    omega = self.omega, rho = self.rho,
+                    estZ = estz, gamma = self.gamma, alpha = self.alpha)
 
     def from_dict(self, myDict):
         self.inferType = myDict['inferType']
         self.K = myDict['K']
-        self.u = myDict['u']
-        self.b = myDict['y']
+        self.theta = myDict['theta']
+        self.theta0 = myDict['theta0']
         self.omega = myDict['omega']
         self.rho = myDict['rho']
         self.estZ = myDict['estZ']

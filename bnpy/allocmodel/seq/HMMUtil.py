@@ -243,11 +243,10 @@ def viterbi(logSoftEv, pi0, pi):
   T, K = np.shape(logSoftEv)
  
   V = np.zeros((T, K))
-  prev = np.zeros((T, K))
+  prev = np.ones((T, K)) * -20
 
 
   for t in xrange(T):
-    biggest = -np.inf
     for l in xrange(K):
       
       if t == 0:
@@ -255,7 +254,7 @@ def viterbi(logSoftEv, pi0, pi):
         prev[0,l] = -1
         continue
 
-      #biggest = -np.inf
+      biggest = -np.inf
       for k in xrange(K):
         logpr = logPi[k,l] + V[t-1, k]
         if logpr > biggest:
