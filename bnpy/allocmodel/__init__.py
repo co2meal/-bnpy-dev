@@ -7,13 +7,15 @@ from topics.FiniteTopicModel import FiniteTopicModel
 from topics.HDPTopicModel import HDPTopicModel
 
 from hmm.FiniteHMM import FiniteHMM
+from hmm.HDPHMM import HDPHMM
 
 AllocModelConstructorsByName = {
           'FiniteMixtureModel':FiniteMixtureModel,
           'DPMixtureModel':DPMixtureModel,
           'FiniteTopicModel':FiniteTopicModel,
           'HDPTopicModel':HDPTopicModel,
-          'FiniteHMM':FiniteHMM, 
+          'FiniteHMM':FiniteHMM,
+          'HDPHMM':HDPHMM,
           }
 
 AllocModelNameSet = set(AllocModelConstructorsByName.keys())
