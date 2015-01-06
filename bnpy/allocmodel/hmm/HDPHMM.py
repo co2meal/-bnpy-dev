@@ -310,6 +310,21 @@ class HDPHMM(AllocModel):
         '''
         return HMMUtil.calcEntropyFromResp(LP['resp'], LP['respPair'], Data)
 
+
+ 
+    def E_logpU_logqU_plus_cDirAlphaBeta(self, SS):
+        ''' Calculate E[ log p(u) - log q(u) ] 
+
+            Includes surrogate bound on E[c_D(alpha beta)] 
+
+            Returns
+            ---------
+            Elogstuff : real scalar
+        '''
+        ELogU = digamma(self.rho * self.omega) - digamma(self.omega)
+        ELog1mU = digamma((1 - self.rho) * self.omega) - digamma(self.omega)
+        
+
     def elbo_alloc(self):
         ''' Calculates allocation term of the variational objective
         '''
