@@ -72,6 +72,12 @@ class SOVBAlg(LearnAlg):
       self.algParamsLP['lapFrac'] = lapFrac ## logging
       LP = hmodel.calc_local_params(Dchunk, **self.algParamsLP)
 
+      ## M step with learning rate
+      if SS is not None:
+        rho = (1 + iterid + self.rhodelay) ** (-1.0 * self.rhoexp)
+        hmodel.update_global_params(SS, rho)
+
+
       # ELBO calculation
       if self.algParams['doMemoELBO']:
         SS = hmodel.get_global_suff_stats(Dchunk, LP, doAmplify=False,
@@ -100,10 +106,6 @@ class SOVBAlg(LearnAlg):
         EvMemory[batchID] = EvChunk
         evBound = EvRunningSum / nBatch
 
-      ## M step with learning rate
-      if SS is not None:
-        rho = (1 + iterid + self.rhodelay) ** (-1.0 * self.rhoexp)
-        hmodel.update_global_params(SS, rho)
 
       ## Display progress
       self.updateNumDataProcessed(Dchunk.get_size())
