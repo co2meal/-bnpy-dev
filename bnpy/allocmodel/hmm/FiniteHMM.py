@@ -319,6 +319,10 @@ class FiniteHMM(AllocModel):
                 entropy = SS.getELBOTerm('Elogqz')
             else:
                 entropy = self.elbo_entropy(Data, LP)
+            # For stochastic (soVB), we need to scale up the entropy
+            # Only used when --doMemoELBO is set to 0 (not recommended)
+            if SS.hasAmpFactor():
+                entropy *= SS.ampF
             return entropy + self.elbo_alloc()
         else:
             emsg = 'Unrecognized inferType: ' + self.inferType
