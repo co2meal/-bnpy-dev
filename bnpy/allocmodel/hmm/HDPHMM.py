@@ -227,6 +227,8 @@ class HDPHMM(AllocModel):
     def update_global_params_VB(self, SS, **kwargs):
         ''' Update variational free parameters to maximize objective.
         '''
+        self.K = SS.K
+
         # Update theta with recently updated info from suff stats
         self.transTheta, self.initTheta = self._calcTheta(SS)
 
@@ -246,13 +248,24 @@ class HDPHMM(AllocModel):
             Note that the rho here is the learning rate parameter, not
             the global stick weight parameter rho
         '''
-        rhoNew, omegaNew = self.find_optimum_rhoOmega(SS, **kwargs)
-        transThetaNew, initThetaNew = self._calcTheta(SS)
+        self.K = SS.K
 
-        self.transTheta = rho*transThetaNew + (1 - rho)*self.transTheta
-        self.initTheta = rho*initThetaNew + (1 - rho)*self.initTheta
-        self.rho = rho*rhoNew + (1 - rho)*self.rho
-        self.omega = rho*omegaNew + (1 - rho)*self.omega
+        # Update theta (1/2), incorporates recently updated suff stats
+        transThetaStar, initThetaStar = self._calcTheta(SS)
+        self.transTheta = rho*transThetaStar + (1 - rho)*self.transTheta
+        self.initTheta = rho*initThetaStar + (1 - rho)*self.initTheta
+
+        # Update rho/omega
+        rhoStar, omegaStar = self.find_optimum_rhoOmega(**kwargs)
+        g1 = (1-rho) * (self.rho * self.omega) + rho * (rhoStar*omegaStar)
+        g0 = (1-rho) * ((1-self.rho)*self.omega) + rho * ((1-rhoStar)*omegaStar)
+        self.rho = g1 / (g1+g0)
+        self.omega = g1 + g0
+
+        # TODO: update theta (2/2)?? incorporates recent rho/omega updates
+        #transThetaStar, initThetaStar = self._calcTheta(SS)
+        #self.transTheta = rho*transThetaStar + (1 - rho)*self.transTheta
+        #self.initTheta = rho*initThetaStar + (1 - rho)*self.initTheta
 
 
     def _calcTheta(self, SS):
@@ -263,17 +276,21 @@ class HDPHMM(AllocModel):
           transTheta : 2D array, size K x K+1
           initTheta : 1D array, size K
       '''
+      K = SS.K
+      if self.rho is None:
+        self.rho = OptimizerRhoOmega.create_initrho(K)
+
       #Calculate E_q[alpha * Beta_l] for l = 1, ..., K+1
       alphaEBeta = self.alpha * StickBreakUtil.rho2beta(self.rho)
 
       #transTheta_kl = M_kl + E_q[alpha * Beta_l] (M_k,>K = 0)
-      transTheta = np.zeros((self.K, self.K + 1))
+      transTheta = np.zeros((K, K + 1))
       transTheta += alphaEBeta[np.newaxis,:]
-      transTheta[0:self.K, 0:self.K] += SS.respPairSums
+      transTheta[:K, :K] += SS.respPairSums
  
       #initTheta_k = r_1k + E_q[alpha * Beta_l] (r_1,>K = 0)
       initTheta = alphaEBeta
-      initTheta[0:self.K] += SS.firstStateResp
+      initTheta[:K] += SS.firstStateResp
 
       return transTheta, initTheta
         
