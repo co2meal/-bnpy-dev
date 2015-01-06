@@ -149,6 +149,7 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
   # we zoom in on the region of data beyond lap 2
   if xvar == 'laps' and yvar == 'evidence':
     if np.sum(xs > 2.0) > 5:
+      pylab.xlim([1.0, xs.max() + .05 * (xs.max()-xs.min())])
       ymin = ys.max()
       ymax = ys.min()
       for line in pylab.gca().get_lines():

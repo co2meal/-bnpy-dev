@@ -93,10 +93,10 @@ class HModel(object):
     if doAmplify:
       # Change effective scale of the suff stats, for soVB learning
       if hasattr(Data, 'nDoc'):
-        ampF = Data.nDocTotal / Data.nDoc
+        ampF = Data.nDocTotal / float(Data.nDoc)
         SS.applyAmpFactor(ampF)
       else:
-        ampF = Data.nObsTotal / Data.nObs
+        ampF = Data.nObsTotal / float(Data.nObs)
         SS.applyAmpFactor(ampF)
     return SS
   
