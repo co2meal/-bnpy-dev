@@ -59,6 +59,20 @@ def rho2beta_active(rho):
   beta[1:] *= np.cumprod(1 - rho[:-1])
   return beta
 
+def rho2beta(rho):
+  ''' Calculate probability of each component, including "leftover" mass
+
+      Returns
+      --------
+      beta : 1D array, size K+1
+             beta[k] := probability of topic k
+             will have positive entries whose sum is 1
+  '''
+  rho = np.asarray(rho, dtype=np.float64)
+  beta = np.append(rho, 1.0)
+  beta[1:] *= np.cumprod(1.0 - rho)
+  return beta
+
 def beta2rho(beta, K):
   ''' Returns K-length vector rho of stick-lengths that recreate appearance probs beta
   '''
