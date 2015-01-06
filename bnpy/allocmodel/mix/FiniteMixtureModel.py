@@ -227,7 +227,7 @@ class FiniteMixtureModel(AllocModel):
     if self.inferType == 'EM':
       self.w = 1.0/K * np.ones(K)
     else:
-      self.theta = self.gamma + np.ones(K)
+      self.theta = self.gamma + np.ones(K) # one "pseudo count" per state
       self.Elogw = digamma( self.theta ) - digamma( self.theta.sum() )
 
   def set_global_params(self, hmodel=None, K=None, w=None, beta=None,

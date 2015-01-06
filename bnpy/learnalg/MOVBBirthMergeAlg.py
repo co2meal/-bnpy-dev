@@ -72,6 +72,9 @@ class MOVBBirthMergeAlg(MOVBAlg):
     ## Save initial state
     self.saveParams(lapFrac, hmodel)
 
+    ## Custom func hook
+    self.eval_custom_func(isInitial=1, **makeDictOfAllWorkspaceVars(**vars()))
+
     ## Prep for birth 
     BirthPlans = list()
     BirthResults = list()
