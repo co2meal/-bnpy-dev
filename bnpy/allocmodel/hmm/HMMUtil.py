@@ -68,8 +68,8 @@ def FwdBwdAlg(PiInit, PiMat, logSoftEv):
   resp = fmsg * bmsg
   return resp, respPair, logMargPrSeq
 
-########################################################### FwdAlg, BwdAlg Wrappers
-###########################################################
+########################################################### FwdAlg/BwdAlg 
+########################################################### Wrappers
 def FwdAlg(PiInit, PiMat, SoftEv):
   ''' Forward algorithm for a single HMM sequence. Wrapper for FwdAlg_py/FwdAlg_cpp.
 
@@ -108,8 +108,8 @@ def BwdAlg(PiInit, PiMat, SoftEv, margPrObs):
   else:
     return BwdAlg_py(PiInit, PiMat, SoftEv, margPrObs)
 
-########################################################### Python implementations
-###########################################################
+########################################################### Python FwdAlg/BwdAlg
+########################################################### 
 
 def FwdAlg_py(PiInit, PiMat, SoftEv):
   ''' Forward algorithm for a single HMM sequence. In pure python.
@@ -232,14 +232,115 @@ def _parseInput_SoftEv(logSoftEv, K):
   return logSoftEv
 
 
-def viterbi(logSoftEv, pi0, pi):
-  '''
-  Input : The log evidence matrix (logSoftEv[n,k] = log(p(x_n | z_n = k))), as 
-  well as the starting distribution and transition matrix.
+########################################################### Viterbi
+###########################################################
+def runViterbiAlg(logSoftEv, logPi0, logPi):
+  ''' Run viterbi algorithm to estimate MAP states for single sequence. 
 
+  Args
+  ------
+  logSoftEv : log soft evidence matrix, shape T x K
+              each row t := log p( x[t] | z[t]=k )
+  pi0 : 1D array, length K
+        initial state probability vector, sums to one
+  pi : 2D array, shape K x K
+       j-th row is is transition probability vector for state j
+
+  Returns
+  ------
+  zHat : 1D array, length T, representing the MAP state sequence  
+         zHat[t] gives the integer label {1, 2, ... K} of state at timestep t
   '''
-  logPi0 = np.log(pi0 + EPS)
-  logPi = np.log(pi + EPS)
+  if np.any(logPi0 > 0):
+    logPi0 = np.log(logPi0 + EPS)
+  if np.any(logPi > 0):
+    logPi = np.log(logPi + EPS)
+  T, K = np.shape(logSoftEv)
+ 
+  # ScoreTable : 2D array, shape T x K
+  #   entry t,k gives the log probability of reaching state k at time t
+  #   under the most likely path 
+  ScoreTable = np.zeros((T, K))
+
+  # PtrTable : 2D array, size T x K
+  #   entry t,k gives the integer id of the state j at timestep t-1
+  #   which would be part of the most likely path to reaching k at t
+  PtrTable = np.zeros((T, K))
+
+  ScoreTable[0, :] = logSoftEv[0] + logPi0
+  PtrTable[0, :] = -1
+
+  ids0toK = range(K)
+  for t in xrange(1, T):
+    ScoreMat_t = logPi + ScoreTable[t-1, :][:, np.newaxis]
+    bestIDvec = np.argmax(ScoreMat_t, axis=0)
+
+    PtrTable[t, :] = bestIDvec
+    ScoreTable[t, :] = logSoftEv[t,:] \
+                       + ScoreMat_t[ (bestIDvec, ids0toK)] 
+
+  # Follow backward pointers to construct most likely state sequence
+  z = np.zeros(T)
+  z[-1] = np.argmax(ScoreTable[-1])
+  for t in reversed(xrange(T-1)):
+    z[t] = PtrTable[t+1, z[t+1]]
+  return z
+
+
+
+def runViterbiAlg_forloop(logSoftEv, logPi0, logPi):
+  ''' Run viterbi algorithm to estimate MAP states for single sequence. 
+
+  This method will produce the same output as runViterbiAlg,
+  but will be much simpler to read, since it uses an inner for-loop
+  instead of complete vectorization
+  '''
+  if np.any(logPi0 > 0):
+    logPi0 = np.log(logPi0 + EPS)
+  if np.any(logPi > 0):
+    logPi = np.log(logPi + EPS)
+  T, K = np.shape(logSoftEv)
+ 
+  # ScoreTable : 2D array, shape T x K
+  #   entry t,k gives the log probability of reaching state k at time t
+  #   under the most likely path 
+  ScoreTable = np.zeros((T, K))
+
+  # PtrTable : 2D array, size T x K
+  #   entry t,k gives the integer id of the state j at timestep t-1
+  #   which would be part of the most likely path to reaching k at t
+  PtrTable = np.zeros((T, K))
+
+  ScoreTable[0, :] = logSoftEv[0] + logPi0
+  PtrTable[0, :] = -1
+
+  for t in xrange(1, T):
+    for k in xrange(K):
+      ScoreVec = logPi[:, k] + ScoreTable[t-1, :]
+      bestID = np.argmax(ScoreVec)
+
+      PtrTable[t, k] = bestID
+      ScoreTable[t, k] = logSoftEv[t,k] + ScoreVec[bestID]
+
+  # Follow backward pointers to construct most likely state sequence
+  z = np.zeros(T)
+  z[-1] = np.argmax(ScoreTable[-1])
+  for t in reversed(xrange(T-1)):
+    z[t] = PtrTable[t+1, z[t+1]]
+  return z
+
+
+def viterbi(logSoftEv, logPi0, logPi):
+  ''' ALERT: THIS METHOD IS WRONG! 
+
+  This is provided for backward compatibility only.
+  Use runViterbiAlg instead.
+  '''
+  if np.any(logPi0 > 0):
+    logPi0 = np.log(logPi0 + EPS)
+  if np.any(logPi > 0):
+    logPi = np.log(logPi + EPS)
+
   T, K = np.shape(logSoftEv)
  
   V = np.zeros((T, K))
@@ -248,7 +349,7 @@ def viterbi(logSoftEv, pi0, pi):
 
   for t in xrange(T):
     biggest = -np.inf
-    for l in xrange(K):
+    for l in xrange(K): # state at time t
       
       if t == 0:
         V[0, l] = logSoftEv[t,l] + logPi0[l]
@@ -256,12 +357,12 @@ def viterbi(logSoftEv, pi0, pi):
         continue
 
       #biggest = -np.inf
-      for k in xrange(K):
+      for k in xrange(K): # state at time t-1
         logpr = logPi[k,l] + V[t-1, k]
         if logpr > biggest:
           biggest = logpr
           prev[t,l] = k
-
+      
       V[t, l] = logSoftEv[t,l] + biggest
 
   #Find most likely sequence of z's
@@ -275,8 +376,13 @@ def viterbi(logSoftEv, pi0, pi):
   return z
 
 
+########################################################### Entropy calculation
+###########################################################
+
 def calcEntropyFromResp(resp, respPair, Data, eps=1e-100):
-  ''' Calculate entropy E_q(z) [ log q(z) ] for all sequences
+  ''' Calculate state assignment entropy for all sequences. Fast, vectorized.
+
+      
   '''
   startLocIDs = Data.doc_range[:-1]
 
@@ -286,10 +392,11 @@ def calcEntropyFromResp(resp, respPair, Data, eps=1e-100):
   return firstH + restH
 
 
-def calcEntropyFromResp_bySeq(resp, respPair, Data, eps=1e-100):
-  ''' Calculate entropy E_q(z) [ log q(z) ] for all sequences, using loop over seqs
+def calcEntropyFromResp_forloop(resp, respPair, Data, eps=1e-100):
+  ''' Calculate state assignment entropy for all sequences. Using forloop.
 
-      This is simply a way to verify correctness for fast, vectorized calculations.
+      Exactly same input/output as calcEntropyFromResp, just with
+      easier to read implementation. Useful for verifying correctness.
   '''
   totalH = 0
   for n in xrange(Data.nDoc):
