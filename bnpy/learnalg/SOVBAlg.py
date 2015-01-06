@@ -45,6 +45,9 @@ class SOVBAlg(LearnAlg):
     ## Save initial state
     self.saveParams(lapFrac, hmodel)
 
+    ## Custom func hook
+    self.eval_custom_func(isInitial=1, **makeDictOfAllWorkspaceVars(**vars()))
+
     if self.algParams['doMemoELBO']:
       SStotal = None
       SSPerBatch = dict()
@@ -115,6 +118,8 @@ class SOVBAlg(LearnAlg):
         self.saveDiagnostics(lapFrac, SS, evBound)
       if self.isSaveParamsCheckpoint(lapFrac, iterid):
         self.saveParams(lapFrac, hmodel, SS)
+
+      self.eval_custom_func(**makeDictOfAllWorkspaceVars(**vars()))
       #.................................................... end loop over data
 
     # Finished! Save, print and exit
