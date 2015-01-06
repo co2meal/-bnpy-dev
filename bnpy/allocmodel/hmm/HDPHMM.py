@@ -15,6 +15,8 @@ from bnpy.util import digamma, gammaln, EPS
 from bnpy.util import StickBreakUtil
 from bnpy.allocmodel.topics import OptimizerRhoOmega
 
+from bnpy.allocmodel.topics.HDPTopicModel import c_Beta, c_Dir
+
 class HDPHMM(AllocModel):
 
     def __init__(self, inferType, priorDict = dict()):
@@ -297,13 +299,11 @@ class HDPHMM(AllocModel):
     #######################################################
     def calc_evidence(self, Data, SS, LP, todict = False, **kwargs):
         if SS.hasELBOTerm('Elogqz'):
-            entropy = SS.getELBOTerm('Elogqz')
+            Hvec = SS.getELBOTerm('Elogqz')
         else:
-            entropy = self.elbo_entropy(Data, LP)
-
-        return entropy + self.elbo_alloc() + self.elbo_allocSlack(SS)
-
-
+            Hvec = self.elbo_entropy(Data, LP)
+        return Hvec + self.E_logpZ_logpPi_logqPi(SS) \
+                    + self.E_logpU_logqU_plus_cDirAlphaBeta()
 
     def elbo_entropy(self, Data, LP):
         ''' Calculates entropy of state seq. assignment var. distribution
@@ -311,8 +311,21 @@ class HDPHMM(AllocModel):
         return HMMUtil.calcEntropyFromResp(LP['resp'], LP['respPair'], Data)
 
 
- 
-    def E_logpU_logqU_plus_cDirAlphaBeta(self, SS):
+    def E_logpZ_logpPi_logqPi(self, SS):
+        ''' Calculate E[ log p(pi) - log q(pi)
+
+            Does not include the surrogate bounded term, which is instead used below
+
+            Returns
+            ---------
+            Elogstuff : real scalar
+        '''
+        K = self.K
+        diff_cDir = - c_Dir(self.transTheta) - c_Dir(self.initTheta)
+        slack = 0
+        return diff_cDir + slack
+
+    def E_logpU_logqU_plus_cDirAlphaBeta(self):
         ''' Calculate E[ log p(u) - log q(u) ] 
 
             Includes surrogate bound on E[c_D(alpha beta)] 
@@ -321,11 +334,31 @@ class HDPHMM(AllocModel):
             ---------
             Elogstuff : real scalar
         '''
-        ELogU = digamma(self.rho * self.omega) - digamma(self.omega)
-        ELog1mU = digamma((1 - self.rho) * self.omega) - digamma(self.omega)
-        
+        K = self.K
+        eta1 = self.rho * self.omega
+        eta0 = (1-self.rho) * self.omega
+        digamma_omega = digamma(self.omega)
+        ElogU = digamma(eta1) - digamma_omega
+        Elog1mU = digamma(eta0) - digamma_omega
+
+        # Calculate aggregated coefficients of ElogU and Elog1mU
+        coefU = (K+1) + 1.0 - eta1
+        coef1mU = (K+1) * OptimizerRhoOmega.kvec(K) + self.gamma - eta0
+
+        diff_cBeta = K * c_Beta(1.0, self.gamma) - c_Beta(eta1, eta0)
+        diff_logBetaPDF = np.inner(coefU, ElogU) \
+                          + np.inner(coef1mU, Elog1mU)
+        return K * np.log(self.alpha) + diff_cBeta + diff_logBetaPDF
+
+
+
+
+
+  ######################################################### Old evidence calculation
+  #########################################################
 
     def elbo_alloc(self):
+        # DISABLED! THIS IS NEVER CALLED!
         ''' Calculates allocation term of the variational objective
         '''
         #K + 1 - k for k = 1, ..., K
@@ -347,10 +380,9 @@ class HDPHMM(AllocModel):
 
         return normPPi - normQPi - normQPi0
 
-
     def elbo_allocSlack(self, SS):
-      '''
-      Term that will be zero if ELBO is computed after the M-step
+      # DISABLED! THIS IS NEVER CALLED!
+      ''' Term that will be zero if ELBO is computed after the M-step
       '''
       return 0
 
@@ -377,12 +409,6 @@ class HDPHMM(AllocModel):
 
       return np.sum(sum) + np.sum(sum0)
       
-      
-      
-
-
-      
-    
             
 
   ######################################################### IO Utils
