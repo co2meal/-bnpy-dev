@@ -1,14 +1,19 @@
-import numpy as np
-import scipy.optimize
+'''
+HDPHMM.py
 
-from bnpy.allocmodel import AllocModel
-from bnpy.suffstats import SuffStatBag
-import HMMUtil
-from bnpy.util import digamma, EPS
-from scipy.special import gammaln
-from bnpy.allocmodel.HDPUtil import OptimizerHDPDir as OptimHDPDir
+Hidden Markov model (HMM) with hierarchical Dirichlet process (HDP) prior.
+'''
+
+import numpy as np
 import logging
 Log = logging.getLogger('bnpy')
+
+import HMMUtil
+from bnpy.allocmodel import AllocModel
+from bnpy.suffstats import SuffStatBag
+from bnpy.util import digamma, gammaln, EPS
+from bnpy.util import StickBreakUtil
+from bnpy.allocmodel.topics import OptimizerRhoOmega
 
 class HDPHMM(AllocModel):
 
@@ -23,9 +28,8 @@ class HDPHMM(AllocModel):
         #Variational parameters
         self.rho = None #rho/omega are stick-breaking params for global stick
         self.omega = None
-        self.theta = None #Kx(K+1) Dirichlet parameters for transition matrix
-        self.theta0 = None #K+1 Dirichlet parameters for the initial state
-
+        self.transTheta = None #Kx(K+1) Dirichlet params for transition matrix
+        self.initTheta = None #K+1 Dirichlet parameters for the initial state
 
     def set_prior(self, gamma = 5, alpha = 0.1, **kwargs):
         self.gamma = gamma
@@ -34,14 +38,14 @@ class HDPHMM(AllocModel):
     def get_active_comp_probs(self):
         ''' Return K vector of appearance probabilities for each of the K comps
         '''
-        return OptimHDPDir._v2beta(self.rho)[:-1]
+        return OptimizerRhoOmega._v2beta(self.rho)[:-1]
 
 
 
     def get_init_prob_vector(self):
       ''' Get vector of initial probabilities for all K active states
       '''
-      expELogPi0 = digamma(self.theta0) - digamma(np.sum(self.theta0))
+      expELogPi0 = digamma(self.initTheta) - digamma(np.sum(self.initTheta))
       np.exp(expELogPi0, out = expELogPi0)
       return expELogPi0
 
@@ -49,8 +53,8 @@ class HDPHMM(AllocModel):
     def get_trans_prob_matrix(self):
       ''' Get matrix of transition probabilities for all K active states
       '''
-      dirSums = digamma(np.sum(self.theta, axis = 1))
-      expELogPi = digamma(self.theta) - dirSums[:, np.newaxis]
+      digammaSumVec = digamma(np.sum(self.transTheta, axis = 1))
+      expELogPi = digamma(self.transTheta) - digammaSumVec[:, np.newaxis]
       np.exp(expELogPi, out = expELogPi)
       return expELogPi
       
@@ -80,11 +84,11 @@ class HDPHMM(AllocModel):
         lpr = LP['E_log_soft_ev']
 
         #Calculate arguments to the forward backward algorithm
-        dirSums = digamma(np.sum(self.theta, axis = 1))
-        expELogPi = digamma(self.theta) - dirSums[:, np.newaxis]
+        digammasumVec = digamma(np.sum(self.transTheta, axis = 1))
+        expELogPi = digamma(self.transTheta) - digammasumVec[:, np.newaxis]
         np.exp(expELogPi, out = expELogPi)
 
-        expELogPi0 = digamma(self.theta0) - digamma(np.sum(self.theta0))
+        expELogPi0 = digamma(self.initTheta) - digamma(np.sum(self.initTheta))
         np.exp(expELogPi0, out = expELogPi0)
 
         #Run the forward backward algorithm on each sequence
@@ -166,7 +170,7 @@ class HDPHMM(AllocModel):
   ######################################################### Global Params
   #########################################################
     
-    def find_optimum_rhoOmega(self, SS, **kwargs):
+    def find_optimum_rhoOmega(self, **kwargs):
         ''' Performs numerical optimization of rho and omega needed in 
             M-step update of global parameters.
 
@@ -175,10 +179,11 @@ class HDPHMM(AllocModel):
         '''
 
         #Argument required by optimizer
-        ELogPi = digamma(self.theta) - \
-                 digamma(np.sum(self.theta, axis=1))[:, np.newaxis]
+        ELogPi = digamma(self.transTheta) \
+                 - digamma(np.sum(self.transTheta, axis=1))[:, np.newaxis]
         sumELogPi = np.sum(ELogPi, axis = 0)
-        sumELogPi += (digamma(self.theta0) - digamma(np.sum(self.theta0)))
+        sumELogPi += digamma(self.initTheta) \
+                      - digamma(np.sum(self.initTheta))
 
         #Select initial rho, omega values
         if (self.rho is not None) and (self.omega is not None):
@@ -191,7 +196,8 @@ class HDPHMM(AllocModel):
         #Do the optimization
         try:
             rho, omega, fofu, Info = \
-                  OptimHDPDir.find_optimum_multiple_tries(sumLogPi = sumELogPi,
+                  OptimizerRhoOmega.find_optimum_multiple_tries(
+                                                         sumLogPi = sumELogPi,
                                                          nDoc = self.K+1, 
                                                          gamma = self.gamma, 
                                                          alpha = self.alpha, 
@@ -219,19 +225,19 @@ class HDPHMM(AllocModel):
 
 
     def update_global_params_VB(self, SS, **kwargs):
+        ''' Update variational free parameters to maximize objective.
+        '''
+        # Update theta with recently updated info from suff stats
+        self.transTheta, self.initTheta = self._calcTheta(SS)
 
-        #Set to prior Beta(1, gamma) if this is first iteration
-        if (self.omega is None) or (self.rho is None):
-            self.omega = (self.gamma + 1) * np.ones(self.K)
-            self.rho = (1 / (self.gamma + 1)) * np.ones(self.K)
-
-        #Update rho and omega through numerical optimization
-        self.rho, self.omega = self.find_optimum_rhoOmega(SS, **kwargs)
+        # Update rho, omega through numerical optimization
+        self.rho, self.omega = self.find_optimum_rhoOmega(**kwargs)
 
         #Pick hyperparameters alpha, gamma that optimize the ELBO
         #self.alpha, self.gamma = self._find_optimal_alpha_gamma()     
 
-        self.theta, self.theta0 = self._calcTheta(SS)
+        # Update theta again to reflect the new rho, omega
+        self.transTheta, self.initTheta = self._calcTheta(SS)
 
         
 
@@ -241,70 +247,74 @@ class HDPHMM(AllocModel):
             the global stick weight parameter rho
         '''
         rhoNew, omegaNew = self.find_optimum_rhoOmega(SS, **kwargs)
-        thetaNew, theta0New = self._calcTheta(SS)
+        transThetaNew, initThetaNew = self._calcTheta(SS)
 
-        self.theta = rho*thetaNew + (1 - rho)*self.theta
-        self.theta0 = rho*theta0New + (1 - rho)*self.theta0
+        self.transTheta = rho*transThetaNew + (1 - rho)*self.transTheta
+        self.initTheta = rho*initThetaNew + (1 - rho)*self.initTheta
         self.rho = rho*rhoNew + (1 - rho)*self.rho
         self.omega = rho*omegaNew + (1 - rho)*self.omega
 
 
     def _calcTheta(self, SS):
+      ''' Update free parameters theta, representing transition distributions.
 
+          Returns
+          ---------
+          transTheta : 2D array, size K x K+1
+          initTheta : 1D array, size K
+      '''
       #Calculate E_q[alpha * Beta_l] for l = 1, ..., K+1
-      EBeta = np.ones(self.K+1)
-      EBeta[1:self.K] = np.cumprod(1 - self.rho[:-1])
-      EBeta[0:self.K] *= self.rho
-      EBeta[self.K] = 1 - np.sum(EBeta[0:self.K])
-      EBeta *= self.alpha
+      alphaEBeta = self.alpha * StickBreakUtil.rho2beta(self.rho)
 
-      #theta_kl = M_kl + E_q[alpha * Beta_l] (M_k,>K = 0)
-      theta = np.zeros((self.K, self.K + 1))
-      theta += EBeta[np.newaxis,:]
-      theta[0:self.K, 0:self.K] += SS.respPairSums
+      #transTheta_kl = M_kl + E_q[alpha * Beta_l] (M_k,>K = 0)
+      transTheta = np.zeros((self.K, self.K + 1))
+      transTheta += alphaEBeta[np.newaxis,:]
+      transTheta[0:self.K, 0:self.K] += SS.respPairSums
  
-      #theta0_k = r_1k + E_q[alpha * Beta_l] (r_1,>K = 0)
-      theta0 = EBeta
-      theta0[0:self.K] += SS.firstStateResp
+      #initTheta_k = r_1k + E_q[alpha * Beta_l] (r_1,>K = 0)
+      initTheta = alphaEBeta
+      initTheta[0:self.K] += SS.firstStateResp
 
-      return theta, theta0
+      return transTheta, initTheta
         
 
     def init_global_params(self, Data, K=0, **initArgs):
+      ''' Initialize rho, omega, and theta to reasonable values.
+
+          This is only called by "from scratch" init routines.
+      '''
       self.K = K
-      self.omega = (self.gamma + 1.0) * np.ones(self.K)
-      self.rho = (1.0 / (self.gamma + 1.0)) * np.ones(self.K)
+      self.rho = OptimizerRhoOmega.create_initrho(K)
+      self.omega = (1.0 + self.gamma) * np.ones(K)
       
-      #Empty suff stat bag that results in setting theta to the prior
+      # To initialize theta, perform standard update given rho, omega
+      # but with "empty" sufficient statistics.
       SS = SuffStatBag(K = self.K, D = Data.dim)
       SS.setField('firstStateResp', np.zeros(K), dims = ('K'))
       SS.setField('respPairSums', np.zeros((K,K)), dims = ('K','K'))
-      
-      self.theta, self.theta0 = self._calcTheta(SS)
+      self.transTheta, self.initTheta = self._calcTheta(SS)
 
 
+    ####################################################### Objective
+    #######################################################
     def calc_evidence(self, Data, SS, LP, todict = False, **kwargs):
         if SS.hasELBOTerm('Elogqz'):
             entropy = SS.getELBOTerm('Elogqz')
         else:
             entropy = self.elbo_entropy(Data, LP)
 
-        return entropy + self.elbo_alloc() + \
-            self.elbo_allocSlack(SS)
+        return entropy + self.elbo_alloc() + self.elbo_allocSlack(SS)
 
 
 
     def elbo_entropy(self, Data, LP):
-        '''
-        Calculates the entropy H(q(z)) that shows up in E_q[q(z)]
+        ''' Calculates entropy of state seq. assignment var. distribution
         '''
         return HMMUtil.calcEntropyFromResp(LP['resp'], LP['respPair'], Data)
 
     def elbo_alloc(self):
+        ''' Calculates allocation term of the variational objective
         '''
-        Calculates the L_alloc term without the L_{alloc-slack} component
-        '''
-
         #K + 1 - k for k = 1, ..., K
         thatOneTerm = [self.K - i for i in xrange(self.K)]
 
@@ -317,11 +327,11 @@ class HDPHMM(AllocModel):
         normPPi = (self.K+1)*(self.K * np.log(self.alpha) + \
                               np.sum(ELogU + thatOneTerm*ELog1mU))
         
-        gamTheta = gammaln(self.theta)
-        gamSumTheta = gammaln(np.sum(self.theta, axis = 1))
+        gamTheta = gammaln(self.transTheta)
+        gamSumTheta = gammaln(np.sum(self.transTheta, axis = 1))
         normQPi = np.sum(gamSumTheta - np.sum(gamTheta, axis = 1))
-        normQPi0 = gammaln(np.sum(self.theta0)) - np.sum(gammaln(self.theta0))
-  
+        normQPi0 = gammaln(np.sum(self.initTheta)) - np.sum(gammaln(self.initTheta))
+
         return normPPi - normQPi - normQPi0
 
 
@@ -339,17 +349,17 @@ class HDPHMM(AllocModel):
       EBeta *= self.alpha
 
       #Calculate E_q[log pi]
-      ElogPi = digamma(self.theta) - \
-               digamma(np.sum(self.theta, axis = 1))[:, np.newaxis]
-      ElogPi0 = digamma(self.theta0) - digamma(np.sum(self.theta0))
+      ElogPi = digamma(self.transTheta) - \
+               digamma(np.sum(self.transTheta, axis = 1))[:, np.newaxis]
+      ElogPi0 = digamma(self.initTheta) - digamma(np.sum(self.initTheta))
 
-      #sum = (E_q[alpha*beta_l] - theta_{kl} + M_{kl}) * E[log pi_{kl}]
-      sum = EBeta[np.newaxis,:] - self.theta
+      #sum = (E_q[alpha*beta_l] - transTheta_{kl} + M_{kl}) * E[log pi_{kl}]
+      sum = EBeta[np.newaxis,:] - self.transTheta
       sum[0:self.K, 0:self.K] += SS.respPairSums
       sum *= ElogPi
 
-      #sum0 = (E_q[alpha*beta_l] - theta_{0l} + N_{1l}) * E[log pi_{0l}]
-      sum0 = EBeta - self.theta0
+      #sum0 = (E_q[alpha*beta_l] - transTheta_{0l} + N_{1l}) * E[log pi_{0l}]
+      sum0 = EBeta - self.initTheta
       sum0[0:self.K] += SS.firstStateResp
 
       return np.sum(sum) + np.sum(sum0)
@@ -367,15 +377,15 @@ class HDPHMM(AllocModel):
 
 
     def to_dict(self):
-        return dict(theta = self.theta, theta0 = self.theta0,
+        return dict(transTheta = self.transTheta, initTheta = self.initTheta,
                     omega = self.omega, rho = self.rho,
                     gamma = self.gamma, alpha = self.alpha)
 
     def from_dict(self, myDict):
         self.inferType = myDict['inferType']
         self.K = myDict['K']
-        self.theta = myDict['theta']
-        self.theta0 = myDict['theta0']
+        self.transTheta = myDict['transTheta']
+        self.initTheta = myDict['initTheta']
         self.omega = myDict['omega']
         self.rho = myDict['rho']
 

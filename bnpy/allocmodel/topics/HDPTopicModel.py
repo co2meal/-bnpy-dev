@@ -54,6 +54,8 @@ from bnpy.util import as1D
 import LocalStepManyDocs
 import OptimizerRhoOmega
 
+from bnpy.util.StickBreakUtil import rho2beta
+
 from bnpy.util.NumericUtil import calcRlogRdotv, calcRlogR
 from bnpy.util.NumericUtil import calcRlogRdotv_allpairs
 from bnpy.util.NumericUtil import calcRlogRdotv_specificpairs
@@ -94,8 +96,7 @@ class HDPTopicModel(AllocModel):
         Includes K active topics, and one entry aggregating leftover mass
     '''
     if not hasattr(self, 'Ebeta'):
-      self.Ebeta = np.append(self.rho, 1.0)
-      self.Ebeta[1:] *= np.cumprod(1.0 - self.rho)
+      self.Ebeta = rho2beta(self.rho)
     return self.Ebeta
 
   def alpha_E_beta(self):
