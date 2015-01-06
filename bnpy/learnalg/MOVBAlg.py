@@ -53,6 +53,9 @@ class MOVBAlg(LearnAlg):
     ## Save initial state
     self.saveParams(lapFrac, hmodel)
 
+    ## Custom func hook
+    self.eval_custom_func(isInitial=1, **makeDictOfAllWorkspaceVars(**vars()))
+
     ## Begin loop over batches of data...
     SS = None
     isConverged = False
