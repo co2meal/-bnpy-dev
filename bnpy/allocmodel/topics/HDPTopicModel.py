@@ -825,7 +825,7 @@ def c_Beta(a1, a0):
 
 
 
-def c_Dir(AMat, arem):
+def c_Dir(AMat, arem=None):
   ''' Evaluate cumulant function of the Dir distribution
 
       When input is vectorized, we compute sum over all entries.
@@ -834,7 +834,14 @@ def c_Dir(AMat, arem):
       -------
       c : scalar real
   '''
+  AMat = np.asarray(AMat)
   D = AMat.shape[0]
+  if arem is None:
+    if AMat.ndim == 1:
+      return gammaln(np.sum(AMat)) - np.sum(gammaln(AMat))
+    else:
+      return np.sum(gammaln(np.sum(AMat,axis=1))) - np.sum(gammaln(AMat))
+
   return  np.sum(gammaln(np.sum(AMat,axis=1)+arem)) \
           - np.sum(gammaln(AMat)) \
           - D * np.sum(gammaln(arem))
