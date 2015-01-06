@@ -319,6 +319,10 @@ class HDPHMM(AllocModel):
             Hvec = SS.getELBOTerm('Elogqz')
         else:
             Hvec = self.elbo_entropy(Data, LP)
+        # For stochastic (soVB), we need to scale up the entropy
+        # Only used when --doMemoELBO is set to 0 (not recommended)
+        if SS.hasAmpFactor():
+            Hvec *= SS.ampF
         return Hvec + self.E_logpZ_logpPi_logqPi(SS) \
                     + self.E_logpU_logqU_plus_cDirAlphaBeta()
 
