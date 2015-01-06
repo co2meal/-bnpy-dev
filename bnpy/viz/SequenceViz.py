@@ -1,15 +1,26 @@
 '''
 SequenceViz.py
 Visualizes sequential data as a plot of colored bars of the estimated state
-as calculated by the Viterbi algorithm.  Note that this script requires you
+as calculated by the Viterbi algorithm.  Displays a separate grid for each
+jobname specified where each row corresponds to a sequence and each column
+to a taskid.  By default, the final lap from each taskid is used; however,
+a different lap can be specified with the --lap parameter.
+
+Note that this script requires you
 to have made a run of bnpy with the custom func learnalg/extras/XViterbi.py
 running.
 
-Example use:
 
-python SequenceViz.py --dataset MoCap6 --jobname defaultjob --taskid 1
+
+Example, showing the final lap:
+
+python SequenceViz.py --dataset MoCap6 --jobname defaultjob --taskid 1,3,6
+                        --sequences 1,2,4,6
+
+Example, showing the 5th lap for two different jobnames:
+
+python SequenceViz.py --dataset MoCap6 --jobname defaultjob,EM --taskid 1
                         --lap 5 --sequences 1,2,4,6
-
 '''
 
 
@@ -39,10 +50,21 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences, dispTrue = True):
                           sharex='col', sharey='row')
     
   for tt, taskid in enumerate(taskids):
-    #Load in the saved data
-    filename = 'Lap%08.3fMAPStateSeqsAligned.mat' % lap
     path = os.path.expandvars('$BNPYOUTDIR/'+ dataset + '/'+ \
                               jobname + '/' + str(taskid) + '/')
+ 
+    #Figure out which lap to use
+    if lap == 'final':
+      lapsFile = open(path+'laps.txt')
+      curLap = lapsFile.readlines()
+      curLap = float(curLap[-1])
+      lapsFile.close()
+    else:
+      curLap = int(lap)
+    
+    #Load in the saved data from $BNPYOUTDIR
+    filename = 'Lap%08.3fMAPStateSeqsAligned.mat' % curLap
+
 
     zHatBySeq = scipy.io.loadmat(path + filename)
     zHatBySeq = zHatBySeq['zHatBySeqAligned'][0]
@@ -61,7 +83,7 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences, dispTrue = True):
     for ii, seqNum in enumerate(sequences):
       image = np.tile(zHatBySeq[seqNum], (NUM_STACK, 1))
 
-      #Add the true labels to the plot (if they exist)
+      #Add the true labels to the image (if they exist)
       if ( (data.TrueParams is not None) and ('Z' in data.TrueParams)
            and (dispTrue) ):
         start = data.doc_range[seqNum]
@@ -87,7 +109,7 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences, dispTrue = True):
       else:
         axes[ii,tt].imshow(image)
 
-      f.suptitle(jobname, fontsize = 18)
+      f.suptitle(jobname+', lap = '+lap, fontsize = 18)
 
 
 if __name__ == "__main__":
@@ -95,7 +117,7 @@ if __name__ == "__main__":
   parser.add_argument('--dataset')
   parser.add_argument('--jobnames')
   parser.add_argument('--taskids')
-  parser.add_argument('--lap')
+  parser.add_argument('--lap', default = 'final')
   parser.add_argument('--sequences')
   args = parser.parse_args()
 
@@ -105,7 +127,7 @@ if __name__ == "__main__":
     plotSingleJob(dataset = args.dataset,
                   jobname = job,
                   taskids = [int(x) for x in args.taskids.split(',')],
-                  lap = int(args.lap),
+                  lap = args.lap,
                   sequences =  [int(x) for x in args.sequences.split(',')],
                   dispTrue = True)
     
