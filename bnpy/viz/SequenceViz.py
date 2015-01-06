@@ -8,18 +8,17 @@ a different lap can be specified with the --lap parameter.
 
 Note that this script requires you
 to have made a run of bnpy with the custom func learnalg/extras/XViterbi.py
-running.
-
+running (use --customFuncPath path/goes/here/XViterbi.py)
 
 
 Example, showing the final lap:
 
-python SequenceViz.py --dataset MoCap6 --jobname defaultjob --taskid 1,3,6
+python SequenceViz.py --dataset MoCap6 --jobnames defaultjob --taskid 1,3,6
                         --sequences 1,2,4,6
 
 Example, showing the 5th lap for two different jobnames:
 
-python SequenceViz.py --dataset MoCap6 --jobname defaultjob,EM --taskid 1
+python SequenceViz.py --dataset MoCap6 --jobnames defaultjob,EM --taskid 1
                         --lap 5 --sequences 1,2,4,6
 '''
 
