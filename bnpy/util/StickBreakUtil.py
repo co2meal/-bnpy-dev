@@ -34,8 +34,7 @@ def forceRhoInBounds(rho, EPS=EPS):
     didFix = 1
   if didFix:
     rho = beta2rho(beta, rho.size)
-  return rho  
-
+  return rho
 
 def forceOmegaInBounds(omega, EPS=EPS):
   ''' Verify every entry of omega is bigger than EPS
