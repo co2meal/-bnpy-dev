@@ -38,9 +38,7 @@ class HDPHMM(AllocModel):
     def get_active_comp_probs(self):
         ''' Return K vector of appearance probabilities for each of the K comps
         '''
-        return OptimizerRhoOmega._v2beta(self.rho)[:-1]
-
-
+        return StickBreakUtil.rho2beta_active(self.rho)
 
     def get_init_prob_vector(self):
       ''' Get vector of initial probabilities for all K active states
