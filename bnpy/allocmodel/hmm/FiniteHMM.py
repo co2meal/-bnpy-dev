@@ -1,10 +1,15 @@
+'''
+FiniteHMM.py
+
+Hidden Markov model (HMM) with fixed, finite number of hidden states.
+'''
 
 import numpy as np
 
+import HMMUtil
 from bnpy.allocmodel import AllocModel
 from bnpy.suffstats import SuffStatBag
 from bnpy.util import digamma, gammaln, EPS
-import HMMUtil
 
 class FiniteHMM(AllocModel):
 
