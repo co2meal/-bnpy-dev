@@ -10,9 +10,6 @@ Example use:
 python SequenceViz.py --dataset MoCap6 --jobname defaultjob --taskid 1
                         --lap 5 --sequences 1,2,4,6
 
-
-
-
 '''
 
 
@@ -27,15 +24,22 @@ import argparse
 
 NUM_STACK = 10
 
-def plotColoredBars(dataset, jobname, taskid, lap, sequences):
 
+
+def plotColoredBars(dataset, jobname, taskid, lap, sequences):
+  '''
+  Returns the array of data corresponding to a single sequence to display
+
+  If dispTrue = True, the true labels will be shown underneath the
+    estimated labels
+  '''
   #Load in the saved data
-  filename = 'Lap%08.3fMAPStateSeqs.mat' % lap
+  filename = 'Lap%08.3fMAPStateSeqsAligned.mat' % lap
   path = os.path.expandvars('$BNPYOUTDIR/'+ dataset + '/'+ \
                             jobname + '/' + str(taskid) + '/')
 
   zHatBySeq = scipy.io.loadmat(path + filename)
-  zHatBySeq = zHatBySeq['zHatBySeq'][0]
+  zHatBySeq = zHatBySeq['zHatBySeqAligned'][0]
   hammingFile = open(path+'hamming-distance.txt', 'r')
   hammingDists = hammingFile.readlines()
   hammingDists = [float(x) for x in hammingDists]
@@ -53,7 +57,7 @@ def plotColoredBars(dataset, jobname, taskid, lap, sequences):
     image = np.tile(zHatBySeq[seqNum], (NUM_STACK, 1))
 
     #Add the true labels to the plot (if they exist)
-    if (data.TrueParams is not None) and (data.TrueParams['Z'] is not None):
+    if (data.TrueParams is not None) and ('Z' in data.TrueParams):
       start = data.doc_range[seqNum]
       stop = data.doc_range[seqNum+1]
       image = np.vstack((image, np.tile(data.TrueParams['Z'][start:stop],
