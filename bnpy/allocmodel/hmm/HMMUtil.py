@@ -379,6 +379,17 @@ def viterbi(logSoftEv, logPi0, logPi):
 ########################################################### Entropy calculation
 ###########################################################
 
+def calcEntropyFromResp_KxK(resp, respPair, Data, eps=1e-100):
+  ''' Calculate state assignment entropy for all sequences. Fast, vectorized.
+
+      
+  '''
+  startLocIDs = Data.doc_range[:-1]
+  sigma = respPair / (respPair.sum(axis=2)[:,:,np.newaxis] + eps)
+  H_KxK = - np.sum(respPair[1:,:,:] * np.log(sigma[1:,:,:] + EPS), axis=2) \
+          - np.sum(resp[startLocIDs] * np.log(resp[startLocIDs]+eps), axis=2)
+  return H_KxK
+
 def calcEntropyFromResp(resp, respPair, Data, eps=1e-100):
   ''' Calculate state assignment entropy for all sequences. Fast, vectorized.
 
@@ -416,3 +427,21 @@ def calcEntropyFromResp_forloop(resp, respPair, Data, eps=1e-100):
     restH_n = -1 * np.sum(respPair_n * np.log(sigma_n + eps))
     totalH += firstH_n + restH_n
   return totalH
+
+
+########################################################### Entropy calculation
+###########################################################
+
+def calcEntropyFromResp_KxK_MergeSpecificPairs(resp, respPair, 
+                                               Data, mPairIDs, eps=1e-100):
+  ''' Calculate assignment entropy for specific candidate pairs
+      
+  '''
+  startLocIDs = Data.doc_range[:-1]
+  sigma = respPair / (respPair.sum(axis=2)[:,:,np.newaxis] + eps)
+  H_KxK = - np.sum(respPair[1:,:,:] * np.log(sigma[1:,:,:] + EPS), axis=2) \
+          - np.sum(resp[startLocIDs] * np.log(resp[startLocIDs]+eps), axis=2)
+
+  mH_KxK = np.zeros_like(H_KxK)
+  for (kA, kB) in mPairIDs:
+    vslice = [k for k in xrange(K) if k != kA and k!= kB]
