@@ -47,7 +47,7 @@ class HDPHMM(AllocModel):
       '''
       expELogPi0 = digamma(self.initTheta) - digamma(np.sum(self.initTheta))
       np.exp(expELogPi0, out = expELogPi0)
-      return expELogPi0
+      return expELogPi0[0:self.K]
 
 
     def get_trans_prob_matrix(self):
@@ -56,7 +56,7 @@ class HDPHMM(AllocModel):
       digammaSumVec = digamma(np.sum(self.transTheta, axis = 1))
       expELogPi = digamma(self.transTheta) - digammaSumVec[:, np.newaxis]
       np.exp(expELogPi, out = expELogPi)
-      return expELogPi
+      return expELogPi[0:self.K, 0:self.K]
       
 
 
