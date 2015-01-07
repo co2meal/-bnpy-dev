@@ -126,7 +126,12 @@ class HDPHMM(AllocModel):
   ######################################################### Sufficient Stats
   #########################################################
 
-    def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None, **kwargs):
+    def get_global_suff_stats(self, Data, LP,
+                                    doPrecompEntropy=False, 
+                                    doPrecompMergeEntropy=False, 
+                                    mergePairSelection=None,
+                                    mPairIDs=None,
+                                    **kwargs):
 
       resp = LP['resp']
       respPair = LP['respPair']
@@ -142,9 +147,17 @@ class HDPHMM(AllocModel):
       SS.setField('respPairSums', respPairSums, dims=('K','K'))
       SS.setField('N', N, dims=('K'))
       
-      if doPrecompEntropy is not None:
+      if doPrecompEntropy:
         entropy = self.elbo_entropy(Data, LP)
-        SS.setELBOTerm('Elogqz', entropy, dims = (()))
+        SS.setELBOTerm('ElogqZ', entropy, dims = (()))
+
+
+      if doPrecompMergeEntropy:
+        if mPairIDs is None:
+          ElogqZMat = NumericUtil.calcRlogR_allpairs(resp)
+        else:
+          ElogqZMat = NumericUtil.calcRlogR_specificpairs(resp, mPairIDs)
+        SS.setMergeTerm('ElogqZ', ElogqZMat, dims=('K','K'))
       return SS
 
 
@@ -315,8 +328,8 @@ class HDPHMM(AllocModel):
     ####################################################### Objective
     #######################################################
     def calc_evidence(self, Data, SS, LP, todict = False, **kwargs):
-        if SS.hasELBOTerm('Elogqz'):
-            Hvec = SS.getELBOTerm('Elogqz')
+        if SS.hasELBOTerm('ElogqZ'):
+            Hvec = SS.getELBOTerm('ElogqZ')
         else:
             Hvec = self.elbo_entropy(Data, LP)
         # For stochastic (soVB), we need to scale up the entropy
@@ -330,7 +343,6 @@ class HDPHMM(AllocModel):
         ''' Calculates entropy of state seq. assignment var. distribution
         '''
         return HMMUtil.calcEntropyFromResp(LP['resp'], LP['respPair'], Data)
-
 
     def E_logpZ_logpPi_logqPi(self, SS):
         ''' Calculate E[ log p(pi) - log q(pi)
