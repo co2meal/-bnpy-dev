@@ -225,8 +225,12 @@ class SuffStatBag(object):
       if dims is not None and dims != ():
         arr = getattr(self._Fields, key)
         if self.hasMergeTerm(key) and dims == ('K'):
-          # some special terms need to be precomputed, like sumLogPiActive
+          # some special terms need to be precomputed
           arr[kA] = getattr(self._MergeTerms, key)[kA,kB]
+        elif dims == ('K','K'):
+          # special case for HMM transition matrix
+          arr[kA] += arr[kB]
+          arr[:, kA] += arr[:, kB]
         elif dims[0] == 'K':
           # applies to vast majority of all fields
           arr[kA] += arr[kB]
