@@ -379,27 +379,22 @@ def viterbi(logSoftEv, logPi0, logPi):
 ########################################################### Entropy calculation
 ###########################################################
 
-def calcEntropyFromResp_KxK(resp, respPair, Data, eps=1e-100):
+def calcEntropyFromResp(resp, respPair, Data=None, startLocIDs=None, eps=1e-100):
   ''' Calculate state assignment entropy for all sequences. Fast, vectorized.
 
-      
+      Returns
+      --------
+      H : positive scalar
   '''
-  startLocIDs = Data.doc_range[:-1]
-  sigma = respPair / (respPair.sum(axis=2)[:,:,np.newaxis] + eps)
-  H_KxK = - np.sum(respPair[1:,:,:] * np.log(sigma[1:,:,:] + EPS), axis=2) \
-          - np.sum(resp[startLocIDs] * np.log(resp[startLocIDs]+eps), axis=2)
-  return H_KxK
+  if startLocIDs is not None:
+    startLocIDs = np.asarray(startLocIDs)
 
-def calcEntropyFromResp(resp, respPair, Data, eps=1e-100):
-  ''' Calculate state assignment entropy for all sequences. Fast, vectorized.
-
-      
-  '''
-  startLocIDs = Data.doc_range[:-1]
+  if Data is not None:
+    startLocIDs = Data.doc_range[:-1]
 
   sigma = respPair / (respPair.sum(axis=2)[:,:,np.newaxis] + eps)
   firstH = -1 * np.sum(resp[startLocIDs] * np.log(resp[startLocIDs]+eps))
-  restH = -1 * np.sum(respPair[1:,:,:] * np.log(sigma[1:,:,:] + EPS))
+  restH = -1 * np.sum(respPair[1:,:,:] * np.log(sigma[1:,:,:] + eps))
   return firstH + restH
 
 
@@ -420,7 +415,7 @@ def calcEntropyFromResp_forloop(resp, respPair, Data, eps=1e-100):
     # sums to one over the final dimension: sigma_n[t, j, :].sum()
     sigma_n = respPair_n / (respPair_n.sum(axis=2)[:,:,np.newaxis] + eps)
 
-    # Entropy of the first step
+    # Entropy of the first step t=1
     firstH_n = -1 * np.inner(resp_n[0], np.log(resp_n[0] + eps))
     
     # Entropy of the remaining steps 2, 3, ... T
@@ -432,16 +427,101 @@ def calcEntropyFromResp_forloop(resp, respPair, Data, eps=1e-100):
 ########################################################### Entropy calculation
 ###########################################################
 
-def calcEntropyFromResp_KxK_MergeSpecificPairs(resp, respPair, 
-                                               Data, mPairIDs, eps=1e-100):
+def calcMergeEntropyTableFromResp_SpecificPairs(resp, respPair, 
+                                           Data, mPairIDs, eps=1e-100):
   ''' Calculate assignment entropy for specific candidate pairs
       
   '''
   startLocIDs = Data.doc_range[:-1]
-  sigma = respPair / (respPair.sum(axis=2)[:,:,np.newaxis] + eps)
-  H_KxK = - np.sum(respPair[1:,:,:] * np.log(sigma[1:,:,:] + EPS), axis=2) \
-          - np.sum(resp[startLocIDs] * np.log(resp[startLocIDs]+eps), axis=2)
+  K = resp.shape[1]
+  rowSums = np.sum(respPair, axis=2)
 
-  mH_KxK = np.zeros_like(H_KxK)
-  for (kA, kB) in mPairIDs:
-    vslice = [k for k in xrange(K) if k != kA and k!= kB]
+  mergeH = np.zeros((len(mPairIDs), 2, K))
+  for mID, mPair in enumerate(mPairIDs):
+    kA, kB = mPair
+    pass
+
+def calcMergeEntropyTable_FromResp_SpecificPair(respPair, kA, kB, 
+                                                rowSums=None, eps=1e-100):
+  ''' Calculate assignment entropy for specific candidate pair
+      
+  '''
+  K = respPair.shape[1]
+  mergeH = np.zeros((2, K))
+
+  if rowSums is None:
+    rowSums = np.sum(respPair, axis=2) + eps
+
+  # Calculate new "outgoing" (row) entropy terms for the new state
+  mr_resp = respPair[:, kA, :] + respPair[:, kB, :]
+  mr_sigm = mr_resp / (rowSums[:,kA] + rowSums[:, kB])[:,np.newaxis]
+  mergeH[0, :] = -1 * np.sum(mr_resp * np.log(mr_sigm + 1e-100), axis=0)
+
+  # Calculate new "incoming" (col) entropy terms for the new state
+  mc_resp = respPair[:, :, kA] + respPair[:, :, kB]
+  mc_sigm = mc_resp / rowSums
+  mergeH[1, :] = -1 * np.sum(mc_resp * np.log(mc_sigm + 1e-100), axis=0)
+
+  # Calculate special term for intersection of kA/kB
+  mi_resp = respPair[:, kA, kA] + respPair[:, kB, kB] \
+            + respPair[:, kA, kB] + respPair[:, kB, kA]
+  mi_sigm = mi_resp / (rowSums[:,kA] + rowSums[:,kB])
+  mergeH[:, kA] = -1 * np.sum( mi_resp * np.log(mi_sigm+1e-100))
+  mergeH[:, kB] = 0
+  return mergeH
+
+
+def calcMergeEntropy_FromResp_SpecificPair(respPair, kA, kB, 
+                                                rowSums=None, eps=1e-100):
+  ''' Calculate total assignment entropy after merging specific candidate pair
+      
+  '''
+  m_respPair = np.delete(respPair, kB, axis=1)
+  m_respPair = np.delete(m_respPair, kB, axis=2)
+
+  # Fill in new state's column
+  m_respPair[:, :kB, kA] += respPair[:, :kB, kB]
+  m_respPair[:, kB:, kA] += respPair[:, kB+1:, kB]
+
+  # Fill in new state's rows
+  m_respPair[:, kA, :kB] += respPair[:, kB, :kB]
+  m_respPair[:, kA, kB:] += respPair[:, kB, kB+1:]
+  
+  # Fill in new state's self-trans values
+  m_respPair[:, kA, kA] =  respPair[:, kA, kA] \
+                         + respPair[:, kA, kB] \
+                         + respPair[:, kB, kB] \
+                         + respPair[:, kB, kA]
+  assert np.allclose(1.0, m_respPair[1:].sum(axis=2).sum(axis=1))
+
+  ## Now, do the exact entropy calculation
+  m_sigma = m_respPair / (m_respPair.sum(axis=2)[:, :, np.newaxis] + eps)
+  m_H = -1 * np.sum( m_respPair * np.log(m_sigma + eps), axis=0)
+  return m_H.sum()
+
+def calcMergeEntropy_FromTables_SpecificPair(Htable_orig, Mtable, kA, kB):
+  ''' Calculate total assignment entropy after merging specific candidate pair
+      
+  '''
+  assert kA < kB
+  assert Mtable.shape[0] == 2
+
+  Htable_new = Htable_orig.copy()
+  Htable_new[kA, :] = Mtable[0]
+  Htable_new[:, kA] = Mtable[1]
+  Htable_new = np.delete(Htable_new, kB, axis=1)
+  Htable_new = np.delete(Htable_new, kB, axis=0)
+  return Htable_new.sum()
+
+def calcEntropyTable_FromResp(respPair, eps=1e-100):
+  ''' Calculate table of state assignment entropy for all sequences. Fast, vectorized.
+
+      Returns
+      --------
+      Htable : 2D array, K x K
+               sum of the entries yields total entropy
+  '''
+  sigma = respPair / (respPair.sum(axis=2)[:,:,np.newaxis] + eps)
+  H_KxK = -1 * np.sum(respPair * np.log(sigma + eps), axis=0)
+  return H_KxK
+
