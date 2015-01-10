@@ -1,5 +1,5 @@
 '''
-TestHMMMergeConstruction
+TestHMMMergeSuffStats
 
 Verifies that the sufficient statistics involved in the allocation model 
 are treated properly when merging.
@@ -62,6 +62,8 @@ mM_K4_3412 = np.asarray([
 
 
 class TestHMMMergeSuffStats(unittest.TestCase):
+  def shortDescription(self):
+    pass
 
   def setUp(self):
     self.origSS_K2 = bnpy.suffstats.SuffStatBag(K=2)

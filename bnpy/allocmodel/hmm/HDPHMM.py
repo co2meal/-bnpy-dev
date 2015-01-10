@@ -133,37 +133,49 @@ class HDPHMM(AllocModel):
                                     mPairIDs=None,
                                     **kwargs):
 
+      if mPairIDs is None:
+        M = 0
+      else:
+        M = len(mPairIDs)
+
       resp = LP['resp']
       respPair = LP['respPair']
       K = resp.shape[1]
       startLocIDs = Data.doc_range[:-1]
       
-      firstStateResp = np.sum(resp[startLocIDs], axis = 0)
+      StartStateCount = np.sum(resp[startLocIDs], axis = 0)
       N = np.sum(resp, axis = 0)
-      respPairSums = np.sum(respPair, axis = 0)
+      TransStateCount = np.sum(respPair, axis = 0)
       
-      SS = SuffStatBag(K=K, D=Data.dim)
-      SS.setField('firstStateResp', firstStateResp, dims=('K'))
-      SS.setField('respPairSums', respPairSums, dims=('K','K'))
+      SS = SuffStatBag(K=K, D=Data.dim, M=M)
+      SS.setField('StartStateCount', StartStateCount, dims=('K'))
+      SS.setField('TransStateCount', TransStateCount, dims=('K','K'))
       SS.setField('N', N, dims=('K'))
       
       if doPrecompEntropy:
-        entropy = self.elbo_entropy(Data, LP)
-        SS.setELBOTerm('ElogqZ', entropy, dims = (()))
-
+        Hstart = HMMUtil.calc_Hstart(LP['resp'], Data=Data)
+        Htable = HMMUtil.calc_Htable(LP['respPair'])
+        SS.setELBOTerm('Hstart', Hstart, dims=('K'))
+        SS.setELBOTerm('Htable', Htable, dims=('K','K'))
 
       if doPrecompMergeEntropy:
-        if mPairIDs is None:
-          ElogqZMat = NumericUtil.calcRlogR_allpairs(resp)
-        else:
-          ElogqZMat = NumericUtil.calcRlogR_specificpairs(resp, mPairIDs)
-        SS.setMergeTerm('ElogqZ', ElogqZMat, dims=('K','K'))
+        subHstart, subHtable = HMMUtil.PrecompMergeEntropy_SpecificPairs(
+                                      LP['resp'], LP['respPair'], 
+                                      Data, mPairIDs)
+        SS.setMergeTerm('Hstart', subHstart, dims=('M'))
+        SS.setMergeTerm('Htable', subHtable, dims=('M', 2, 'K'))
+        #SS.setMergeTerm('mPairIDs', mPairIDs, dims=('M', 2))
+        SS.mPairIDs = np.asarray(mPairIDs)
+      if mPairIDs is not None:
+        print '@@@ mPairIDs', mPairIDs
       return SS
 
 
     def forceSSInBounds(self, SS):
-      ''' Force SS.respPairSums and firstStateResp to be >= 0.  This avoids
-          numerical issues in moVB (where SS "chunks" are added and subtracted)
+      ''' Force TransStateCount and StartStateCount to be >= 0.  
+
+          This avoids numerical issues in memoized updates 
+          where SS "chunks" are added and subtracted incrementally
           such as:
             x = 10
             x += 1e-15
@@ -175,8 +187,8 @@ class HDPHMM(AllocModel):
           -------
           Nothing.  SS is updated in-place.
       '''
-      np.maximum(SS.respPairSums, 0, out = SS.respPairSums)
-      np.maximum(SS.firstStateResp, 0, out = SS.firstStateResp)
+      np.maximum(SS.TransStateCount, 0, out = SS.TransStateCount)
+      np.maximum(SS.StartStateCount, 0, out = SS.StartStateCount)
       
 
 
@@ -184,29 +196,32 @@ class HDPHMM(AllocModel):
   #########################################################
     
     def find_optimum_rhoOmega(self, **kwargs):
-        ''' Performs numerical optimization of rho and omega needed in 
-            M-step update of global parameters.
+        ''' Performs numerical optimization of rho and omega for M-step update.
 
-            Note that OptimizerHDPDir forces rho to be in [EPS, 1-EPS] for
+            Note that the optimizer forces rho to be in [EPS, 1-EPS] for
             the sake of numerical stability
         '''
 
-        #Argument required by optimizer
+        # Calculate expected log transition probability
+        # using theta vectors for all K states plus initial state
         ELogPi = digamma(self.transTheta) \
                  - digamma(np.sum(self.transTheta, axis=1))[:, np.newaxis]
         sumELogPi = np.sum(ELogPi, axis = 0)
         sumELogPi += digamma(self.initTheta) \
                       - digamma(np.sum(self.initTheta))
 
-        #Select initial rho, omega values
-        if (self.rho is not None) and (self.omega is not None):
+        # Select initial rho, omega values for gradient descent
+        if self.rho is not None and self.rho.size == self.K:
             initRho = self.rho
-            initOmega = self.omega
         else:
             initRho = None
+
+        if self.omega is not None and self.omega.size == self.K:
+            initOmega = self.omega
+        else:
             initOmega = None
 
-        #Do the optimization
+        # Do the optimization
         try:
             rho, omega, fofu, Info = \
                   OptimizerRhoOmega.find_optimum_multiple_tries(
@@ -216,6 +231,8 @@ class HDPHMM(AllocModel):
                                                          alpha = self.alpha, 
                                                          initrho = initRho, 
                                                          initomega = initOmega)
+            self.OptimizerInfo = Info
+            self.OptimizerInfo['fval'] = fofu
 
         except ValueError as error:
             if hasattr(self, 'rho') and self.rho.size == self.K:
@@ -237,10 +254,23 @@ class HDPHMM(AllocModel):
         raise ValueError('HDPHMM does not support EM')
 
 
-    def update_global_params_VB(self, SS, **kwargs):
-        ''' Update variational free parameters to maximize objective.
+    def update_global_params_VB(self, SS, 
+                                      mergeCompA=None, mergeCompB=None, 
+                                      **kwargs):
+        ''' Update global parameters.
         '''
         self.K = SS.K
+
+        # Special update case for merges:
+        # Fast, heuristic update for new rho given original value
+        if mergeCompA is not None:
+          beta = OptimizerRhoOmega.rho2beta_active(self.rho)
+          beta[mergeCompA] += beta[mergeCompB]
+          beta = np.delete(beta, mergeCompB, axis=0)
+          self.rho = OptimizerRhoOmega.beta2rho(beta, SS.K)
+          omega = self.omega
+          omega[mergeCompA] += omega[mergeCompB]
+          self.omega = np.delete(omega, mergeCompB, axis=0)
 
         # Update theta with recently updated info from suff stats
         self.transTheta, self.initTheta = self._calcTheta(SS)
@@ -290,7 +320,7 @@ class HDPHMM(AllocModel):
           initTheta : 1D array, size K
       '''
       K = SS.K
-      if self.rho is None:
+      if self.rho is None or self.rho.size != K:
         self.rho = OptimizerRhoOmega.create_initrho(K)
 
       #Calculate E_q[alpha * Beta_l] for l = 1, ..., K+1
@@ -299,11 +329,11 @@ class HDPHMM(AllocModel):
       #transTheta_kl = M_kl + E_q[alpha * Beta_l] (M_k,>K = 0)
       transTheta = np.zeros((K, K + 1))
       transTheta += alphaEBeta[np.newaxis,:]
-      transTheta[:K, :K] += SS.respPairSums
+      transTheta[:K, :K] += SS.TransStateCount
  
       #initTheta_k = r_1k + E_q[alpha * Beta_l] (r_1,>K = 0)
       initTheta = alphaEBeta
-      initTheta[:K] += SS.firstStateResp
+      initTheta[:K] += SS.StartStateCount
 
       return transTheta, initTheta
         
@@ -320,24 +350,28 @@ class HDPHMM(AllocModel):
       # To initialize theta, perform standard update given rho, omega
       # but with "empty" sufficient statistics.
       SS = SuffStatBag(K = self.K, D = Data.dim)
-      SS.setField('firstStateResp', np.zeros(K), dims = ('K'))
-      SS.setField('respPairSums', np.zeros((K,K)), dims = ('K','K'))
+      SS.setField('StartStateCount', np.zeros(K), dims = ('K'))
+      SS.setField('TransStateCount', np.zeros((K,K)), dims = ('K','K'))
       self.transTheta, self.initTheta = self._calcTheta(SS)
 
 
     ####################################################### Objective
     #######################################################
     def calc_evidence(self, Data, SS, LP, todict = False, **kwargs):
-        if SS.hasELBOTerm('ElogqZ'):
-            Hvec = SS.getELBOTerm('ElogqZ')
+        if SS.hasELBOTerm('Htable'):
+            L_ent = SS.getELBOTerm('Htable').sum() \
+                    + SS.getELBOTerm('Hstart').sum()
         else:
-            Hvec = self.elbo_entropy(Data, LP)
+            L_ent = self.elbo_entropy(Data, LP)
+
         # For stochastic (soVB), we need to scale up the entropy
         # Only used when --doMemoELBO is set to 0 (not recommended)
-        if SS.hasAmpFactor():
-            Hvec *= SS.ampF
-        return Hvec + self.E_logpZ_logpPi_logqPi(SS) \
-                    + self.E_logpU_logqU_plus_cDirAlphaBeta()
+        if self.inferType == 'soVB' and SS.hasAmpFactor():
+            L_ent *= SS.ampF
+
+        L_alloc = self.E_logpZ_logpPi_logqPi(SS)
+        L_top = self.E_logpU_logqU_plus_cDirAlphaBeta()
+        return L_ent + L_alloc + L_top
 
     def elbo_entropy(self, Data, LP):
         ''' Calculates entropy of state seq. assignment var. distribution
@@ -347,13 +381,13 @@ class HDPHMM(AllocModel):
     def E_logpZ_logpPi_logqPi(self, SS):
         ''' Calculate E[ log p(pi) - log q(pi)
 
-            Does not include the surrogate bounded term, which is instead used below
+            Does not include the surrogate bounded term.
+            Instead, this appears in L_top below.
 
             Returns
             ---------
             Elogstuff : real scalar
         '''
-        K = self.K
         diff_cDir = - c_Dir(self.transTheta) - c_Dir(self.initTheta)
         slack = 0
         return diff_cDir + slack
@@ -383,66 +417,62 @@ class HDPHMM(AllocModel):
                           + np.inner(coef1mU, Elog1mU)
         return K * np.log(self.alpha) + diff_cBeta + diff_logBetaPDF
 
+    def calcHardMergeGap(self, SS, kA, kB):
+      ''' Calculate scalar improvement in ELBO for hard merge of comps kA, kB
+          
+          Does *not* include any entropy.
 
+          Returns
+          ---------
+          L : scalar
+      ''' 
+      m_SS = SS.copy(includeELBOTerms=False, includeMergeTerms=False)
+      m_SS.mergeComps(kA, kB)
+      m_K = m_SS.K
 
+      ## Create candidate beta vector
+      m_beta = StickBreakUtil.rho2beta(self.rho)
+      m_beta[kA] += m_beta[kB]
+      m_beta = np.delete(m_beta, kB, axis=0)
 
+      ## Create candidate rho vector
+      m_rho = StickBreakUtil.beta2rho(m_beta, m_K)
 
-  ######################################################### Old evidence calculation
-  #########################################################
+      ## Create candidate omega vector
+      m_omega = np.delete(self.omega, kB)
 
-    def elbo_alloc(self):
-        # DISABLED! THIS IS NEVER CALLED!
-        ''' Calculates allocation term of the variational objective
-        '''
-        #K + 1 - k for k = 1, ..., K
-        thatOneTerm = [self.K - i for i in xrange(self.K)]
+      ## Create candidate initTheta
+      m_initTheta = m_beta.copy()
+      m_initTheta[:m_K] += m_SS.StartStateCount
 
-        ELogU = digamma(self.rho * self.omega) - digamma(self.omega)
-        ELog1mU = digamma((1 - self.rho) * self.omega) - digamma(self.omega)
-        
-        #Includes norm. constant for pi0.  Note this is the term that requires
-        #  the lower bound ... this is the version of the bound that allows for
-        #  any alpha
-        normPPi = (self.K+1)*(self.K * np.log(self.alpha) + \
-                              np.sum(ELogU + thatOneTerm*ELog1mU))
-        
-        gamTheta = gammaln(self.transTheta)
-        gamSumTheta = gammaln(np.sum(self.transTheta, axis = 1))
-        normQPi = np.sum(gamSumTheta - np.sum(gamTheta, axis = 1))
-        normQPi0 = gammaln(np.sum(self.initTheta)) - np.sum(gammaln(self.initTheta))
+      ## Create candidate transTheta
+      m_transTheta = np.tile(m_beta, (m_K,1))
+      m_transTheta[:, :m_K] += m_SS.TransStateCount 
 
-        return normPPi - normQPi - normQPi0
+      Ltop = L_top(self.rho, self.omega, self.alpha, self.gamma)
+      m_Ltop = L_top(m_rho, m_omega, self.alpha, self.gamma)
 
-    def elbo_allocSlack(self, SS):
-      # DISABLED! THIS IS NEVER CALLED!
-      ''' Term that will be zero if ELBO is computed after the M-step
+      Lalloc = L_alloc_no_slack(self.initTheta, self.transTheta)
+      m_Lalloc = L_alloc_no_slack(m_initTheta, m_transTheta)
+
+      return (m_Ltop + m_Lalloc) - (Ltop + Lalloc)
+
+    def calcHardMergeGap_AllPairs(self, SS):
+      ''' Calc matrix of improvement in ELBO for all possible pairs of comps
       '''
-      return 0
+      Gap = np.zeros((SS.K, SS.K))
+      for kB in xrange(1, SS.K):
+        for kA in xrange(0, kB):  
+          Gap[kA, kB] = self.calcHardMergeGap(SS, kA, kB)
+      return Gap
 
-      #Calculate E_q[alpha * Beta_l] for l = 1, ..., K+1
-      EBeta = np.ones(self.K+1)
-      EBeta[1:self.K] = np.cumprod(1 - self.rho[:-1])
-      EBeta[0:self.K] *= self.rho
-      EBeta[self.K] = 1 - np.sum(EBeta[0:self.K])
-      EBeta *= self.alpha
-
-      #Calculate E_q[log pi]
-      ElogPi = digamma(self.transTheta) - \
-               digamma(np.sum(self.transTheta, axis = 1))[:, np.newaxis]
-      ElogPi0 = digamma(self.initTheta) - digamma(np.sum(self.initTheta))
-
-      #sum = (E_q[alpha*beta_l] - transTheta_{kl} + M_{kl}) * E[log pi_{kl}]
-      sum = EBeta[np.newaxis,:] - self.transTheta
-      sum[0:self.K, 0:self.K] += SS.respPairSums
-      sum *= ElogPi
-
-      #sum0 = (E_q[alpha*beta_l] - transTheta_{0l} + N_{1l}) * E[log pi_{0l}]
-      sum0 = EBeta - self.initTheta
-      sum0[0:self.K] += SS.firstStateResp
-
-      return np.sum(sum) + np.sum(sum0)
-      
-            
+    def calcHardMergeGap_SpecificPairs(self, SS, PairList):
+      ''' Calc matrix of improvement in ELBO for all possible pairs of comps
+      '''
+      Gaps = np.zeros(len(PairList))
+      for ii, (kA, kB) in enumerate(PairList):
+        Gaps[ii] = self.calcHardMergeGap(SS, kA, kB)
+      return Gaps
 
   ######################################################### IO Utils
   #########################################################   for machines
@@ -465,3 +495,47 @@ class HDPHMM(AllocModel):
         return dict(gamma = self.gamma, alpha = self.alpha, K = self.K)
 
 
+########################################################### ELBO functions
+########################################################### 
+
+def L_top(rho, omega, alpha, gamma):
+  ''' Evaluate the top-level terms of the objective function
+  '''
+  eta1 = rho * omega
+  eta0 = (1-rho) * omega
+  digamma_omega = digamma(omega)
+  ElogU = digamma(eta1) - digamma_omega
+  Elog1mU = digamma(eta0) - digamma_omega
+
+  # Calculate aggregated coefficients of ElogU and Elog1mU
+  K = rho.size
+  coefU = (K+1) + 1.0 - eta1
+  coef1mU = (K+1) * OptimizerRhoOmega.kvec(K) + gamma - eta0
+
+  diff_cBeta = K * c_Beta(1.0, gamma) - c_Beta(eta1, eta0)
+  diff_logBetaPDF = np.inner(coefU, ElogU) \
+                    + np.inner(coef1mU, Elog1mU)
+  return K * np.log(alpha) + diff_cBeta + diff_logBetaPDF
+
+
+def L_alloc_no_slack(initTheta, transTheta):
+    diff_cDir = - c_Dir(transTheta) - c_Dir(initTheta)
+    return diff_cDir
+
+def L_alloc_with_slack(initTheta, transTheta, initM, transM, alphaEbeta):
+    K = transM.shape[0]
+
+    if initM.size == alphaEbeta.size - 1:
+      initM = np.hstack([initM,0])
+    if transM.shape[-1] == alphaEbeta.size - 1:
+      transM = np.hstack([transM, np.zeros(K)])
+
+    init_slack = np.inner(initM + alphaEbeta - initTheta,
+                          digamma(initTheta) - digamma(initTheta.sum())
+                          )
+
+    digammaSum = np.sum(transTheta, axis=1)
+    trans_slack = np.sum( (transM + alphaEbeta[np.newaxis,:] - transTheta)
+                         * (digamma(transTheta) - digammaSum[:,np.newaxis])
+                        )                  
+    return L_alloc_no_slack(initTheta, transTheta) + init_slack + trans_slack
