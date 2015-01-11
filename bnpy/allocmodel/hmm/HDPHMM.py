@@ -47,7 +47,7 @@ class HDPHMM(AllocModel):
       '''
       expELogPi0 = digamma(self.initTheta) - digamma(np.sum(self.initTheta))
       np.exp(expELogPi0, out = expELogPi0)
-      return expELogPi0
+      return expELogPi0[0:self.K]
 
 
     def get_trans_prob_matrix(self):
@@ -56,7 +56,7 @@ class HDPHMM(AllocModel):
       digammaSumVec = digamma(np.sum(self.transTheta, axis = 1))
       expELogPi = digamma(self.transTheta) - digammaSumVec[:, np.newaxis]
       np.exp(expELogPi, out = expELogPi)
-      return expELogPi
+      return expELogPi[0:self.K, 0:self.K]
       
 
 
@@ -353,6 +353,64 @@ class HDPHMM(AllocModel):
       self.transTheta, self.initTheta = self._calcTheta(SS)
 
 
+    def set_global_params(self, hmodel=None, rho=None, omega=None, 
+                                **kwargs):
+      ''' Set rho, omega to provided values.
+      '''
+      if hmodel is not None:
+        self.K = hmodel.allocModel.K
+        if hasattr(hmodel.allocModel, 'rho'):
+          self.rho = hmodel.allocModel.rho
+          self.omega = hmodel.allocModel.omega
+        else:
+          raise AttributeError('Unrecognized hmodel')
+      elif rho is not None and omega is not None:
+        self.rho = rho
+        self.omega = omega
+        self.K = omega.size
+      else:
+        self._set_global_params_from_scratch(**kwargs)
+      
+    def _set_global_params_from_scratch(self, beta=None, 
+                                        Data=None, nDoc=None, **kwargs):
+      ''' Set rho, omega to values that reproduce provided appearance probs
+
+          Args
+          --------
+          beta : 1D array, size K
+                 beta[k] gives top-level probability for active comp k
+
+      '''
+      if nDoc is None:
+        nDoc = Data.nDoc
+      if nDoc is None:
+        raise ValueError('Bad parameters. nDoc not specified.')
+      if beta is not None:
+        beta = beta / beta.sum()
+      if beta is None:
+        raise ValueError('Bad parameters. Vector beta not specified.')
+      Ktmp = beta.size
+      rem = np.minimum(0.05, 1./(Ktmp))
+      beta = np.hstack([np.squeeze(beta), rem])
+      beta = beta/np.sum(beta)
+      self.K = beta.size - 1
+      self.rho, self.omega = self._convert_beta2rhoomega(beta)
+      assert self.rho.size == self.K
+      assert self.omega.size == self.K
+
+    def _convert_beta2rhoomega(self, beta, nDoc=10):
+      ''' Find vectors rho, omega that are probable given beta
+
+          Returns
+          --------
+          rho : 1D array, size K
+          omega : 1D array, size K
+      '''
+      assert abs(np.sum(beta) - 1.0) < 0.001
+      rho = OptimizerRhoOmega.beta2rho(beta, self.K)
+      omega = (nDoc + self.gamma) * np.ones(rho.size)
+      return rho, omega
+
     ####################################################### Objective
     #######################################################
     def calc_evidence(self, Data, SS, LP, todict = False, **kwargs):
@@ -413,7 +471,8 @@ class HDPHMM(AllocModel):
         diff_cBeta = K * c_Beta(1.0, self.gamma) - c_Beta(eta1, eta0)
         diff_logBetaPDF = np.inner(coefU, ElogU) \
                           + np.inner(coef1mU, Elog1mU)
-        return K * np.log(self.alpha) + diff_cBeta + diff_logBetaPDF
+        c_surr_alpha = (K+1) * K * np.log(self.alpha)
+        return c_surr_alpha + diff_cBeta + diff_logBetaPDF
 
     def calcHardMergeGap(self, SS, kA, kB):
       ''' Calculate scalar improvement in ELBO for hard merge of comps kA, kB
