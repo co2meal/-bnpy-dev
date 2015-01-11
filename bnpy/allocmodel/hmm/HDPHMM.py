@@ -427,7 +427,7 @@ class HDPHMM(AllocModel):
         diff_cBeta = K * c_Beta(1.0, self.gamma) - c_Beta(eta1, eta0)
         diff_logBetaPDF = np.inner(coefU, ElogU) \
                           + np.inner(coef1mU, Elog1mU)
-        c_surr_alpha = K * np.log(self.alpha)
+        c_surr_alpha = (K+1) * K * np.log(self.alpha)
         return c_surr_alpha + diff_cBeta + diff_logBetaPDF
 
 
