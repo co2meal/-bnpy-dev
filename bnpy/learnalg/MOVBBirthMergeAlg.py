@@ -895,6 +895,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
     if SS is not None:
       # Remove any merge terms left over from previous lap
       SS.setMergeFieldsToZero()
+      if SS.hasMergeTerms():
+        delattr(SS, '_MergeTerms')
 
     mergeStartLap = self.algParams['merge']['mergeStartLap']
     mergePairSelection = self.algParams['merge']['mergePairSelection']

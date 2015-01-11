@@ -61,6 +61,7 @@ class SuffStatBag(object):
   def setMergeFieldsToZero(self):
     if self.hasMergeTerms():
       self._MergeTerms.setAllFieldsToZero()
+
     if hasattr(self, 'mPairIDs'):
       delattr(self, 'mPairIDs')
 
