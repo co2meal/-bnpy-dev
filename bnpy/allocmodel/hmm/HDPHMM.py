@@ -166,8 +166,6 @@ class HDPHMM(AllocModel):
         SS.setMergeTerm('Htable', subHtable, dims=('M', 2, 'K'))
         #SS.setMergeTerm('mPairIDs', mPairIDs, dims=('M', 2))
         SS.mPairIDs = np.asarray(mPairIDs)
-      if mPairIDs is not None:
-        print '@@@ mPairIDs', mPairIDs
       return SS
 
 
@@ -442,11 +440,11 @@ class HDPHMM(AllocModel):
       m_omega = np.delete(self.omega, kB)
 
       ## Create candidate initTheta
-      m_initTheta = m_beta.copy()
+      m_initTheta = self.alpha * m_beta.copy()
       m_initTheta[:m_K] += m_SS.StartStateCount
 
       ## Create candidate transTheta
-      m_transTheta = np.tile(m_beta, (m_K,1))
+      m_transTheta = self.alpha * np.tile(m_beta, (m_K,1))
       m_transTheta[:, :m_K] += m_SS.TransStateCount 
 
       Ltop = L_top(self.rho, self.omega, self.alpha, self.gamma)
