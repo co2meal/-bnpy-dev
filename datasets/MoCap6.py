@@ -31,8 +31,8 @@ def get_data(**kwargs):
   Data.name = get_short_name()
   # Verify that true state space is indexed starting at 0, not 1 
   # Violating this can cause bugs in the alignment code
-  assert Data.TrueLabels['Z'].min() == 0
-  assert Data.TrueLabels['Z'].max() == 11
+  assert Data.TrueParams['Z'].min() == 0
+  assert Data.TrueParams['Z'].max() == 11
   return Data
 
 def get_data_info():

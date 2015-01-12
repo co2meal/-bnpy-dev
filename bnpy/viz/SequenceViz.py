@@ -1,5 +1,6 @@
 '''
 SequenceViz.py
+
 Visualizes sequential data as a plot of colored bars of the estimated state
 as calculated by the Viterbi algorithm.  Displays a separate grid for each
 jobname specified where each row corresponds to a sequence and each column
@@ -22,8 +23,6 @@ python SequenceViz.py --dataset MoCap6 --jobnames defaultjob,EM --taskids 1
                         --lap 5 --sequences 1,2,4,6
 '''
 
-
-
 import scipy.io
 import os
 import matplotlib.pyplot as plt
@@ -32,6 +31,7 @@ import imp
 import sys
 import argparse
 
+from bnpy.ioutil import BNPYArgParser
 
 def plotSingleJob(dataset, jobname, taskids, lap, sequences, dispTrue = True):
   '''
@@ -40,6 +40,8 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences, dispTrue = True):
   If dispTrue = True, the true labels will be shown underneath the
     estimated labels
   '''
+  jobpath = os.path.join( os.path.expandvars('$BNPYOUTDIR'), dataset, jobname)
+  taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
 
   NUM_STACK = 550 / len(sequences) #why 550?  It looks nice
   if dispTrue:
@@ -47,11 +49,15 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences, dispTrue = True):
 
   f, axes = plt.subplots(len(sequences), len(taskids),
                           sharex='col', sharey='row')
-    
-  for tt, taskid in enumerate(taskids):
-    path = os.path.expandvars('$BNPYOUTDIR/'+ dataset + '/'+ \
-                              jobname + '/' + str(taskid) + '/')
- 
+
+  # For singleton case, make sure that axes is index-able
+  if len(sequences) == 1 and len(taskids) == 1:
+    f = [f]
+    axes = [axes]
+
+  for tt, taskidstr in enumerate(taskids):
+    path = os.path.join(jobpath, taskidstr) + os.path.sep
+
     #Figure out which lap to use
     if lap == 'final':
       lapsFile = open(path+'laps.txt')
@@ -78,6 +84,8 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences, dispTrue = True):
                               os.path.expandvars('$BNPYDATADIR/'+dataset+'.py'))
     data = datamod.get_data()
 
+    Ts = data.doc_range[sequences+1] - data.doc_range[sequences]
+    maxT = np.max(Ts)
 
     for ii, seqNum in enumerate(sequences):
       image = np.tile(zHatBySeq[seqNum], (NUM_STACK, 1))
@@ -87,48 +95,59 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences, dispTrue = True):
            and (dispTrue) ):
         start = data.doc_range[seqNum]
         stop = data.doc_range[seqNum+1]
-        image = np.vstack((image, np.tile(data.TrueParams['Z'][start:stop]-1,
+        image = np.vstack((image, np.tile(data.TrueParams['Z'][start:stop],
                                           (NUM_STACK, 1))))
-      
+
       #Title the rows and columns
       if tt == 0:
         if len(sequences) == 1 or len(taskids) == 1:
-          axes[ii].set_ylabel('Sequence %d' % sequences[ii], fontsize=13)
+          axes[ii].set_ylabel('Seq. %d' % sequences[ii], fontsize=13)
         else:
-          axes[ii, 0].set_ylabel('Sequence %d' % sequences[ii], fontsize=13)
+          axes[ii, 0].set_ylabel('Seq. %d' % sequences[ii], fontsize=13)
       if ii == 0:
         if len(sequences) == 1 or len(taskids) == 1:
-          axes[tt].set_title('Taskid %d' % taskids[tt])
+          axes[tt].set_title('Task %s' % taskidstr)
         else:
-          axes[0, tt].set_title('Taskid %d' % taskids[tt])
-      
-
+          axes[0, tt].set_title('Task %s' % taskidstr)
       
       if len(sequences) == 1 or len(taskids) == 1:
-        axes[ii+tt].imshow(image,  cmap = 'Set1')
+        cur_ax = axes[ii+tt]
       else:
-        axes[ii,tt].imshow(image, cmap = 'Set1')
+        cur_ax = axes[ii,tt]
+    
+      cur_ax.imshow(image, interpolation='nearest', cmap='Set1')
+      cur_ax.set_xlim([0, maxT])
+      cur_ax.set_yticks([])
 
-      f.suptitle(jobname+', lap = '+lap, fontsize = 18)
+      # ... end loop over sequences      
+    f.suptitle(jobname+', lap = '+lap, fontsize = 18)
 
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser()
   parser.add_argument('--dataset')
   parser.add_argument('--jobnames')
-  parser.add_argument('--taskids')
+  parser.add_argument('--taskids', type=str, default='1',
+         help="int ids of tasks (trials/runs) to plot from given job." \
+              + " Example: '4' or '1,2,3' or '2-6'.")
+
   parser.add_argument('--lap', default = 'final')
-  parser.add_argument('--sequences')
+  parser.add_argument('--sequences', default='1')
   args = parser.parse_args()
 
+  if args.jobnames is None:
+    raise ValueError('BAD ARGUMENT: String jobname.\n' 
+                     + 'Usage: SequenceViz --dataset Name --jobnames a,b,c')
   jobs = args.jobnames.split(',')
+
+  sequences = np.asarray([x for x in args.sequences.split(',')], dtype=np.int32)
 
   for job in jobs:
     plotSingleJob(dataset = args.dataset,
                   jobname = job,
-                  taskids = [int(x) for x in args.taskids.split(',')],
+                  taskids = args.taskids,
                   lap = args.lap,
-                  sequences =  [int(x) for x in args.sequences.split(',')],
+                  sequences =  sequences,
                   dispTrue = True)
     
 
