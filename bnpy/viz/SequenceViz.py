@@ -87,8 +87,7 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences, dispTrue = True):
            and (dispTrue) ):
         start = data.doc_range[seqNum]
         stop = data.doc_range[seqNum+1]
-        print data.TrueParams['Z'][0:20]
-        image = np.vstack((image, np.tile(data.TrueParams['Z'][start:stop],
+        image = np.vstack((image, np.tile(data.TrueParams['Z'][start:stop]-1,
                                           (NUM_STACK, 1))))
       
       #Title the rows and columns
@@ -104,10 +103,11 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences, dispTrue = True):
           axes[0, tt].set_title('Taskid %d' % taskids[tt])
       
 
+      
       if len(sequences) == 1 or len(taskids) == 1:
-        axes[ii+tt].imshow(image)
+        axes[ii+tt].imshow(image,  cmap = 'Set1')
       else:
-        axes[ii,tt].imshow(image)
+        axes[ii,tt].imshow(image, cmap = 'Set1')
 
       f.suptitle(jobname+', lap = '+lap, fontsize = 18)
 
