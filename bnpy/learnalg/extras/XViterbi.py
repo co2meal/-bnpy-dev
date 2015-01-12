@@ -125,16 +125,8 @@ def runViterbiAndSave(**kwargs):
 
     kwargs['Data'] = Data
     calcHammingDistanceAndSave(zHatBySeq, zHatFlatAligned, **kwargs)
+
     
-
-  # Align to truth
-  #if hasattr(Data, 'TrueParams'):
-  #  if 'Z' in Data.TrueParams:
-  #    kwargs['Data'] = Data
-  #    calcHammingDistanceAndSave(zHatBySeq, **kwargs)
-
-
-
 def calcHammingDistanceAndSave(zHatBySeq, zHatFlatAligned, **kwargs):
   ''' Calculate hamming distance for all sequences, saving to flat file.
 
