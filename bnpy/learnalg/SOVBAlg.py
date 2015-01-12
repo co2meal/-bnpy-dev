@@ -75,10 +75,13 @@ class SOVBAlg(LearnAlg):
       self.algParamsLP['lapFrac'] = lapFrac ## logging
       LP = hmodel.calc_local_params(Dchunk, **self.algParamsLP)
 
-      # ELBO calculation
+      rho = (1 + iterid + self.rhodelay) ** (-1.0 * self.rhoexp)
       if self.algParams['doMemoELBO']:
+        ## SS step. Scale at size of current batch.
         SS = hmodel.get_global_suff_stats(Dchunk, LP, doAmplify=False,
                                                       doPrecompEntropy=True)
+
+        ## Incremental updates for whole-dataset stats
         if batchID in SSPerBatch:
           SStotal -= SSPerBatch[batchID]
         if SStotal is None:
@@ -86,15 +89,28 @@ class SOVBAlg(LearnAlg):
         else:
           SStotal += SS
         SSPerBatch[batchID] = SS.copy()
-        evBound = hmodel.calc_evidence(SS=SStotal)
+
+        # Scale up to size of whole dataset.
         if hasattr(Dchunk, 'nDoc'):
-          ampF = Dchunk.nDocTotal / Dchunk.nDoc
+          ampF = Dchunk.nDocTotal / float(Dchunk.nDoc)
           SS.applyAmpFactor(ampF)
         else:
-          ampF = Dchunk.nObsTotal / Dchunk.nObs
+          ampF = Dchunk.nObsTotal / float(Dchunk.nObs)
           SS.applyAmpFactor(ampF)
+
+        ## M step with learning rate
+        hmodel.update_global_params(SS, rho)
+
+        ## ELBO step
+        evBound = hmodel.calc_evidence(SS=SStotal)
       else:
+        ## SS step. Scale at size of entire dataset
         SS = hmodel.get_global_suff_stats(Dchunk, LP, doAmplify=True)
+
+        ## M step with learning rate
+        hmodel.update_global_params(SS, rho)
+
+        ## ELBO step
         EvChunk = hmodel.calc_evidence(Dchunk, SS, LP)      
 
         if EvMemory[batchID] != 0:
@@ -102,11 +118,6 @@ class SOVBAlg(LearnAlg):
         EvRunningSum += EvChunk
         EvMemory[batchID] = EvChunk
         evBound = EvRunningSum / nBatch
-
-      ## M step with learning rate
-      if SS is not None:
-        rho = (1 + iterid + self.rhodelay) ** (-1.0 * self.rhoexp)
-        hmodel.update_global_params(SS, rho)
 
       ## Display progress
       self.updateNumDataProcessed(Dchunk.get_size())

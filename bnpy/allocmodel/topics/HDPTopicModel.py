@@ -54,6 +54,8 @@ from bnpy.util import as1D
 import LocalStepManyDocs
 import OptimizerRhoOmega
 
+from bnpy.util.StickBreakUtil import rho2beta
+
 from bnpy.util.NumericUtil import calcRlogRdotv, calcRlogR
 from bnpy.util.NumericUtil import calcRlogRdotv_allpairs
 from bnpy.util.NumericUtil import calcRlogRdotv_specificpairs
@@ -94,8 +96,7 @@ class HDPTopicModel(AllocModel):
         Includes K active topics, and one entry aggregating leftover mass
     '''
     if not hasattr(self, 'Ebeta'):
-      self.Ebeta = np.append(self.rho, 1.0)
-      self.Ebeta[1:] *= np.cumprod(1.0 - self.rho)
+      self.Ebeta = rho2beta(self.rho)
     return self.Ebeta
 
   def alpha_E_beta(self):
@@ -824,7 +825,7 @@ def c_Beta(a1, a0):
 
 
 
-def c_Dir(AMat, arem):
+def c_Dir(AMat, arem=None):
   ''' Evaluate cumulant function of the Dir distribution
 
       When input is vectorized, we compute sum over all entries.
@@ -833,7 +834,14 @@ def c_Dir(AMat, arem):
       -------
       c : scalar real
   '''
+  AMat = np.asarray(AMat)
   D = AMat.shape[0]
+  if arem is None:
+    if AMat.ndim == 1:
+      return gammaln(np.sum(AMat)) - np.sum(gammaln(AMat))
+    else:
+      return np.sum(gammaln(np.sum(AMat,axis=1))) - np.sum(gammaln(AMat))
+
   return  np.sum(gammaln(np.sum(AMat,axis=1)+arem)) \
           - np.sum(gammaln(AMat)) \
           - D * np.sum(gammaln(arem))

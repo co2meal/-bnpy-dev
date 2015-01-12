@@ -1,15 +1,15 @@
 '''
 FiniteHMM.py
 
-Hidden Markov model (HMM) with finite number of states K.
+Hidden Markov model (HMM) with fixed, finite number of hidden states.
 '''
 
 import numpy as np
 
+import HMMUtil
 from bnpy.allocmodel import AllocModel
 from bnpy.suffstats import SuffStatBag
 from bnpy.util import digamma, gammaln, as2D
-import HMMUtil
 
 def log_pdf_dirichlet(PiMat, alphavec):
   ''' Return scalar log probability for Dir(PiMat | alphavec)
@@ -319,6 +319,10 @@ class FiniteHMM(AllocModel):
                 entropy = SS.getELBOTerm('Elogqz')
             else:
                 entropy = self.elbo_entropy(Data, LP)
+            # For stochastic (soVB), we need to scale up the entropy
+            # Only used when --doMemoELBO is set to 0 (not recommended)
+            if SS.hasAmpFactor():
+                entropy *= SS.ampF
             return entropy + self.elbo_alloc()
         else:
             emsg = 'Unrecognized inferType: ' + self.inferType
