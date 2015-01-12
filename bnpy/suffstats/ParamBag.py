@@ -327,7 +327,10 @@ class ParamBag(object):
     else:
       shapeList = list()
       for dim in dims:
-        shapeList.append(getattr(self,dim))
+        if type(dim) == int:
+          shapeList.append(dim)
+        else:
+          shapeList.append(getattr(self,dim))
       expectShape = tuple(shapeList)
     return expectShape    
 

@@ -379,16 +379,22 @@ def viterbi(logSoftEv, logPi0, logPi):
 ########################################################### Entropy calculation
 ###########################################################
 
-def calcEntropyFromResp(resp, respPair, Data, eps=1e-100):
+def calcEntropyFromResp(resp, respPair, Data=None, startLocIDs=None, eps=1e-100):
   ''' Calculate state assignment entropy for all sequences. Fast, vectorized.
 
-      
+      Returns
+      --------
+      H : positive scalar
   '''
-  startLocIDs = Data.doc_range[:-1]
+  if startLocIDs is not None:
+    startLocIDs = np.asarray(startLocIDs)
+
+  if Data is not None:
+    startLocIDs = Data.doc_range[:-1]
 
   sigma = respPair / (respPair.sum(axis=2)[:,:,np.newaxis] + eps)
   firstH = -1 * np.sum(resp[startLocIDs] * np.log(resp[startLocIDs]+eps))
-  restH = -1 * np.sum(respPair[1:,:,:] * np.log(sigma[1:,:,:] + EPS))
+  restH = -1 * np.sum(respPair[1:,:,:] * np.log(sigma[1:,:,:] + eps))
   return firstH + restH
 
 
@@ -409,10 +415,240 @@ def calcEntropyFromResp_forloop(resp, respPair, Data, eps=1e-100):
     # sums to one over the final dimension: sigma_n[t, j, :].sum()
     sigma_n = respPair_n / (respPair_n.sum(axis=2)[:,:,np.newaxis] + eps)
 
-    # Entropy of the first step
+    # Entropy of the first step t=1
     firstH_n = -1 * np.inner(resp_n[0], np.log(resp_n[0] + eps))
     
     # Entropy of the remaining steps 2, 3, ... T
     restH_n = -1 * np.sum(respPair_n * np.log(sigma_n + eps))
     totalH += firstH_n + restH_n
   return totalH
+
+
+########################################################### Merge entropy calc
+###########################################################
+
+def PrecompMergeEntropy_SpecificPairs(resp, respPair, 
+                                      Data, mPairIDs, eps=1e-100):
+  ''' Calculate replacement tables for specific candidate merge pairs
+      
+  '''
+  startLocIDs = Data.doc_range[:-1]
+  K = resp.shape[1]
+  rowSums = np.sum(respPair, axis=2)
+
+  sub_Hstart = np.zeros(len(mPairIDs))
+  sub_Htable = np.zeros((len(mPairIDs), 2, K))
+  for mID, mPair in enumerate(mPairIDs):
+    kA, kB = mPair
+    sub_Hstart[mID] = calc_sub_Hstart_forMergePair(
+                              resp, kA, kB, Data=Data, eps=eps)
+    sub_Htable[mID] = calc_sub_Htable_forMergePair(
+                              respPair, kA, kB, eps=eps)
+  return sub_Hstart, sub_Htable
+
+def calc_sub_Htable_forMergePair(respPair, kA, kB, 
+                             rowSums=None, eps=1e-100):
+  ''' Calculate replacement entries of Htable for specific candidate merge pair
+      
+      Returns
+      --------
+      mergeH : 2D array, shape 2 x K
+               mergeH[0, :] gives values to replace along row kA
+               mergeH[1, :] gives values to replace along col kA
+  '''
+  K = respPair.shape[1]
+  mergeH = np.zeros((2, K))
+
+  if rowSums is None:
+    rowSums = np.sum(respPair, axis=2) + eps
+
+  # Calculate new "outgoing" (row) entropy terms for the new state
+  mr_resp = respPair[:, kA, :] + respPair[:, kB, :]
+  mr_sigm = mr_resp / (rowSums[:,kA] + rowSums[:, kB])[:,np.newaxis]
+  mergeH[0, :] = -1 * np.sum(mr_resp * np.log(mr_sigm + 1e-100), axis=0)
+
+  # Calculate new "incoming" (col) entropy terms for the new state
+  mc_resp = respPair[:, :, kA] + respPair[:, :, kB]
+  mc_sigm = mc_resp / rowSums
+  mergeH[1, :] = -1 * np.sum(mc_resp * np.log(mc_sigm + 1e-100), axis=0)
+
+  # Calculate special term for intersection of kA/kB
+  mi_resp = respPair[:, kA, kA] + respPair[:, kB, kB] \
+            + respPair[:, kA, kB] + respPair[:, kB, kA]
+  mi_sigm = mi_resp / (rowSums[:,kA] + rowSums[:,kB])
+  mergeH[:, kA] = -1 * np.sum( mi_resp * np.log(mi_sigm+1e-100))
+  mergeH[:, kB] = 0
+  return mergeH
+
+
+def calc_sumHtable_forMergePair__fromResp(respPair, kA, kB, 
+                                          rowSums=None, eps=1e-100):
+  ''' Calculate sum of Htable matrix after merger of specific pair of states.
+
+      Directly compute this sum using the local parameters respPair.
+
+      Useful as a test to verify that the more efficient method is correct.
+
+      Returns
+      --------
+      L_entropy : scalar
+                  exact value of entropy term for candidate
+  '''
+  m_respPair = np.delete(respPair, kB, axis=1)
+  m_respPair = np.delete(m_respPair, kB, axis=2)
+
+  # Fill in new state's column
+  m_respPair[:, :kB, kA] += respPair[:, :kB, kB]
+  m_respPair[:, kB:, kA] += respPair[:, kB+1:, kB]
+
+  # Fill in new state's rows
+  m_respPair[:, kA, :kB] += respPair[:, kB, :kB]
+  m_respPair[:, kA, kB:] += respPair[:, kB, kB+1:]
+  
+  # Fill in new state's self-trans values
+  m_respPair[:, kA, kA] =  respPair[:, kA, kA] \
+                         + respPair[:, kA, kB] \
+                         + respPair[:, kB, kB] \
+                         + respPair[:, kB, kA]
+  assert np.allclose(1.0, m_respPair[1:].sum(axis=2).sum(axis=1))
+
+  ## Now, do the exact entropy calculation
+  m_sigma = m_respPair / (m_respPair.sum(axis=2)[:, :, np.newaxis] + eps)
+  m_H = -1 * np.sum( m_respPair * np.log(m_sigma + eps), axis=0)
+  return m_H.sum()
+
+def calc_sumHtable_forMergePair__fromTables(Htable_orig, Mtable, kA, kB):
+  ''' Calculate sum of Htable matrix after merger of specific pair of states.
+
+      Use precomputed tables, rather than local parameters.
+      Only consider the non-starting-state entries.
+
+      Returns
+      --------
+      L_entropy : scalar
+                  exact value of entropy term for candidate
+  '''
+  Htable_new = calc_Htable_forMergePair_fromTables(
+                      Htable_orig, Mtable, kA, kB)
+  return Htable_new.sum()
+
+def calc_Htable_forMergePair_fromTables(Htable_orig, Mtable, kA, kB):
+  ''' Calculate Htable matrix after merger of specific pair of states
+
+      Use precomputed tables, never touch any local parameters
+      Only consider the non-starting-state entries.
+
+      Returns
+      --------
+      Htable : 2D array, size K-1 x K-1
+                  exact value of entropy for each state pair for candidate
+  '''
+  assert kA < kB
+  assert Mtable.shape[0] == 2
+
+  Htable_new = Htable_orig.copy()
+  Htable_new[kA, :] = Mtable[0]
+  Htable_new[:, kA] = Mtable[1]
+  Htable_new = np.delete(Htable_new, kB, axis=1)
+  Htable_new = np.delete(Htable_new, kB, axis=0)
+  return Htable_new
+
+def calc_Htable(respPair, eps=1e-100):
+  ''' Calculate table of state assignment entropy for all sequences. 
+
+      Fast, vectorized.
+
+      Returns
+      --------
+      Htable : 2D array, K x K
+               sum of the entries yields total entropy
+  '''
+  sigma = respPair / (respPair.sum(axis=2)[:,:,np.newaxis] + eps)
+  H_KxK = -1 * np.sum(respPair * np.log(sigma + eps), axis=0)
+  return H_KxK
+
+
+
+def calc_Hstart(resp, Data=None, startLocIDs=None, 
+                                      eps=1e-100):
+  ''' Calculate vector of start-state entropy for all sequences.
+
+      Returns
+      --------
+      Hstart : 1D array, size K
+               Hstart[k] = -1 * \sum_{n=1}^N r_{n1k} log r_{n1k}
+  '''
+  if startLocIDs is not None:
+    startLocIDs = np.asarray(startLocIDs)
+  if Data is not None:
+    startLocIDs = Data.doc_range[:-1]
+
+  startresp = resp[startLocIDs]
+  firstHvec = -1 * np.sum(startresp * np.log(startresp+eps), axis=0)
+  return firstHvec
+
+
+
+def calc_sub_Hstart_forMergePair(resp, kA, kB, 
+                             Data=None, startLocIDs=None, 
+                             eps=1e-100):
+  ''' Calculate Hstart value for specific merge pair.
+
+      This value will be substituted into Hstart vector to calculate total
+      entropy of the starting state.
+
+      Returns
+      --------
+      Hstart : scalar
+  '''
+  if startLocIDs is not None:
+    startLocIDs = np.asarray(startLocIDs)
+  if Data is not None:
+    startLocIDs = Data.doc_range[:-1]
+
+  startresp = resp[startLocIDs, kA] + resp[startLocIDs, kB]
+  return -1 * np.sum(startresp * np.log(startresp+eps), axis=0)
+
+def construct_LP_forMergePair(Data, LP, kA, kB):
+  ''' Create new local param (LP) for a merge of states kA, kB
+  '''
+  Tall = LP['resp'].shape[0]
+  K = LP['resp'].shape[-1]
+
+  m_resp = np.zeros((Tall, K-1))
+  m_respPair = np.zeros((Tall, K-1, K-1))
+  for n in xrange(Data.nDoc):
+    start = Data.doc_range[n]
+    stop = Data.doc_range[n+1]
+  
+    # Make respPair for candidate
+    assert np.allclose(LP['respPair'][start].sum(), 0.0)
+    for t in xrange(start+1, stop):
+      m_respPair[t] = mergeKxK_forSinglePair(LP['respPair'][t], kA, kB)
+
+    # Make resp for candidate  
+    for k in xrange(K):
+      if k == kA:
+        m_resp[start:stop, k] =   LP['resp'][start:stop, kA] \
+                                + LP['resp'][start:stop, kB]
+      elif k == kB:
+        continue
+      elif k > kB:
+        m_resp[start:stop, k-1] = LP['resp'][start:stop, k]
+      elif k < kB:
+        m_resp[start:stop, k] =   LP['resp'][start:stop, k]
+
+    assert np.allclose(1.0, m_resp[start:stop].sum(axis=1))
+    assert np.allclose(1.0, m_respPair[start+1:stop].sum(axis=2).sum(axis=1))
+    
+  # Return
+  assert np.allclose(m_resp.sum(), m_respPair.sum() + Data.nDoc)
+  return dict(resp=m_resp, respPair=m_respPair)
+
+def mergeKxK_forSinglePair(X, kA, kB):
+  Y = X.copy()
+  Y[:, kA] += Y[:, kB]
+  Y[kA, :] += Y[kB, :]
+  Y = np.delete(Y, kB, axis=1)
+  Y = np.delete(Y, kB, axis=0)
+  return Y

@@ -33,7 +33,8 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None,
   nSkip = 0
 
   sF = curModel.obsModel.getDatasetScale(curSS)
-  if len(mPairIDs) > 0 and str(type(curModel.allocModel)).count('HDP'):
+  isHDPTopicModel = str(type(curModel.allocModel)).count('HDPTopic') > 0  
+  if len(mPairIDs) > 0 and isHDPTopicModel:
     aList, bList = zip(*mPairIDs)
     OGapMat = np.zeros( (curSS.K, curSS.K))
     OGapList = curModel.obsModel.calcHardMergeGap_SpecificPairs(curSS, mPairIDs)
@@ -64,7 +65,9 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None,
       scoreMsg = ''
     Nvec = curSS.getCountVec()
     scoreMsg += " %5d %5d" % (Nvec[jA], Nvec[jB]) 
-    if str(type(curModel.allocModel)).count('HDP'):
+
+    ## Extra diagnostics for HDPTopic models
+    if isHDPTopicModel:
       scoreMsg += " % .7e" % (OGapMat[kA, kB])
 
       EntropyGap = curSS.getELBOTerm('ElogqZ')[[jA, jB]].sum() \
@@ -157,19 +160,6 @@ def buildMergeCandidateAndKeepIfImproved(curModel, curSS, curELBO,
   Info = dict(didAccept=didAccept, 
               ELBOGain=propELBO - curELBO,
               )
-  if False:  
-    print '<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'
-    scaleF = curModel.obsModel.getDatasetScale(curSS)
-    ocur = curModel.obsModel.calc_evidence(None, curSS, None)
-    oprop = propModel.obsModel.calc_evidence(None, propSS, None)
-    print '% .7f obslik' % ((oprop - ocur)/scaleF)
-
-    cur = curModel.allocModel.calc_evidence(None, curSS, None, todict=1)
-    prop = propModel.allocModel.calc_evidence(None, propSS, None, todict=1)
-    for key in cur:
-      print '% .7f %s' % ((prop[key] - cur[key])/scaleF, key)
-    print '------'
-    print '% .7f total' % (propELBO - curELBO)
   
   if didAccept:
     return propModel, propSS, propELBO, Info
