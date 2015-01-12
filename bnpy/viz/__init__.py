@@ -4,11 +4,16 @@ The :mod:`viz` module provides visualization capability
 
 import GaussViz
 import BarsViz
+import SequenceViz
+
+import PlotTrace
 import PlotELBO
 import PlotK
-import PlotComps
 import PlotHeldoutLik
 
-__all__ = ['GaussViz', 'BarsViz',
-           'PlotELBO', 'PlotComps', 'PlotK',
+import PlotComps
+
+__all__ = ['GaussViz', 'BarsViz', 'SequenceViz',
+           'PlotTrace', 'PlotELBO', 'PlotK',
+           'PlotComps', 
            'PlotHeldoutLik']
