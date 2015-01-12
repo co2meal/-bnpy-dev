@@ -29,7 +29,10 @@ def get_data(**kwargs):
   Data = GroupXData.read_from_mat(matfilepath)
   Data.summary = get_data_info()
   Data.name = get_short_name()
-
+  # Verify that true state space is indexed starting at 0, not 1 
+  # Violating this can cause bugs in the alignment code
+  assert Data.TrueLabels['Z'].min() == 0
+  assert Data.TrueLabels['Z'].max() == 11
   return Data
 
 def get_data_info():
@@ -41,6 +44,15 @@ def get_short_name():
 
 ########################################################### How to make MAT file
 ###########################################################
+# Exact commands to execute in python interpreter (by hand)
+# to create a MAT file from the raw data distributed by NPBayesHMM toolbox
+# ---------
+# >> dpath = '/path/to/git/NPBayesHMM/data/mocap6/'
+# >> SaveVars = loadFromPlainTextFiles(dpath)
+# >> scipy.io.savemat('/path/to/git/bnpy-dev/datasets/MoCap6.mat', SaveVars)
+
+# Reproducibility Notes
+# ---------
 # Mimics the following files in NPBayesHMM repository
 # * readSeqDataFromPlainText.m
 # * ARSeqData.m (specifically 'addData' method)
@@ -90,6 +102,8 @@ def loadFromPlainTextFiles(dpath):
     stop = doc_range[seqID+1]
     assert np.allclose( X[start:stop-1], Xprev[start+1:stop])
 
-  return dict(X=X, Xprev=Xprev, TrueZ=Z-1, seqNames=seqNameList,
+  # Make this a zero-indexed state space
+  Z = np.asarray(Z-1, dtype=np.int32)
+  return dict(X=X, Xprev=Xprev, TrueZ=Z, seqNames=seqNameList,
               doc_range=np.asarray(doc_range, dtype=np.int32),
              ) 
