@@ -111,15 +111,23 @@ def runViterbiAndSave(**kwargs):
   MATVarsDict = dict(zHatBySeq=zHatBySeq)
   scipy.io.savemat(matfilepath, MATVarsDict, oned_as='row')
 
-  # Align to truth
-  if hasattr(Data, 'TrueParams'):
-    if 'Z' in Data.TrueParams:
-      kwargs['Data'] = Data
-      calcHammingDistanceAndSave(zHatBySeq, **kwargs)
+  # Save sequence aligned to truth and calculate Hamming distance 
+  if (hasattr(Data, 'TrueParams')) and ('Z' in Data.TrueParams):
+    zHatFlat = StateSeqUtil.convertStateSeq_list2flat(zHatBySeq, Data)
+    zHatFlatAligned = \
+      StateSeqUtil.alignEstimatedStateSeqToTruth(zHatFlat,Data.TrueParams['Z'])
+    zHatBySeqAligned = StateSeqUtil.convertStateSeq_flat2list(zHatFlatAligned,
+                                                              Data)
+    MATVarsDict = dict(zHatBySeqAligned = zHatBySeqAligned)
+    matfilepath = os.path.join(learnAlgObj.savedir,
+                               prefix + 'MAPStateSeqsAligned.mat')
+    scipy.io.savemat(matfilepath, MATVarsDict, oned_as='row')
 
+    kwargs['Data'] = Data
+    calcHammingDistanceAndSave(zHatBySeq, zHatFlatAligned, **kwargs)
 
-
-def calcHammingDistanceAndSave(zHatBySeq, **kwargs):
+    
+def calcHammingDistanceAndSave(zHatBySeq, zHatFlatAligned, **kwargs):
   ''' Calculate hamming distance for all sequences, saving to flat file.
 
   Keyword Args (all workspace variables passed along from learning alg)
@@ -139,9 +147,9 @@ def calcHammingDistanceAndSave(zHatBySeq, **kwargs):
   zTrue = Data.TrueParams['Z']
   zHatFlat = StateSeqUtil.convertStateSeq_list2flat(zHatBySeq, Data)
 
-  zHatAligned = StateSeqUtil.alignEstimatedStateSeqToTruth(zHatFlat, zTrue)
-  hdistance = StateSeqUtil.calcHammingDistance(zHatAligned, zTrue)
-  normhdist = float(hdistance) / float(zHatAligned.size)
+  #zHatAligned = StateSeqUtil.alignEstimatedStateSeqToTruth(zHatFlat, zTrue)
+  hdistance = StateSeqUtil.calcHammingDistance(zHatFlatAligned, zTrue)
+  normhdist = float(hdistance) / float(zHatFlatAligned.size)
 
   learnAlgObj = kwargs['learnAlg']
   lapFrac = kwargs['lapFrac']
