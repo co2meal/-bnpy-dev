@@ -16,6 +16,7 @@ from ParamBag import ParamBag
 
 class SuffStatBag(object):
   def __init__(self, K=0, **kwargs):
+    self.kwargs = kwargs
     self._Fields = ParamBag(K=K, **kwargs)
 
   def setUIDs(self, uIDs):
@@ -60,6 +61,9 @@ class SuffStatBag(object):
   def setMergeFieldsToZero(self):
     if self.hasMergeTerms():
       self._MergeTerms.setAllFieldsToZero()
+
+    if hasattr(self, 'mPairIDs'):
+      delattr(self, 'mPairIDs')
 
   def reorderComps(self, order):
     ''' Rearrange internal order of components
@@ -143,7 +147,7 @@ class SuffStatBag(object):
 
   def setELBOTerm(self, key, value, dims=None):
     if not hasattr(self, '_ELBOTerms'):
-      self._ELBOTerms = ParamBag(K=self.K)
+      self._ELBOTerms = ParamBag(K=self.K, **self.kwargs)
     self._ELBOTerms.setField(key, value, dims=dims)
 
   # ======================================================= ELBO merge terms
@@ -160,7 +164,7 @@ class SuffStatBag(object):
 
   def setMergeTerm(self, key, value, dims=None):
     if not hasattr(self, '_MergeTerms'):
-      self._MergeTerms = ParamBag(K=self.K)
+      self._MergeTerms = ParamBag(K=self.K, **self.kwargs)
     self._MergeTerms.setField(key, value, dims=dims)
 
 
@@ -225,34 +229,63 @@ class SuffStatBag(object):
       if dims is not None and dims != ():
         arr = getattr(self._Fields, key)
         if self.hasMergeTerm(key) and dims == ('K'):
-          # some special terms need to be precomputed, like sumLogPiActive
+          # some special terms need to be precomputed
           arr[kA] = getattr(self._MergeTerms, key)[kA,kB]
+        elif dims == ('K','K'):
+          # special case for HMM transition matrix
+          arr[kA] += arr[kB]
+          arr[:, kA] += arr[:, kB]
         elif dims[0] == 'K':
           # applies to vast majority of all fields
           arr[kA] += arr[kB]
         elif len(dims) > 1 and dims[1] == 'K':
           arr[:, kA] += arr[:, kB]
 
+    if hasattr(self, 'mPairIDs'):
+      # Find the right row that corresponds to input kA, kB
+      mPairIDs = self.mPairIDs
+      rowID = np.flatnonzero(np.logical_and(kA == mPairIDs[:,0],
+                                            kB == mPairIDs[:,1]))
+      if not rowID.size == 1:
+        raise ValueError('Bad search for correct mPairID.\n' + str(rowID))
+      rowID = rowID[0]
+
     if self.hasELBOTerms():
       for key, dims in self._ELBOTerms._FieldDims.items():
-        if self.hasMergeTerm(key) and dims == ('K'):
-          arr = getattr(self._ELBOTerms, key)
-          mArr = getattr(self._MergeTerms, key)
+        if not self.hasMergeTerm(key):
+          continue
+
+        arr = getattr(self._ELBOTerms, key)
+        mArr = getattr(self._MergeTerms, key)
+        mdims = self._MergeTerms._FieldDims[key]
+
+        if mdims[0] == 'M':
+          mArr = mArr[rowID]
+          if mArr.ndim == 2 and mArr.shape[0] == 2:
+            arr[kA, :] = mArr[0]
+            arr[:, kA] = mArr[1]
+          elif mArr.ndim <= 1 and mArr.size == 1:
+            arr[kA] = mArr
+          else:
+            raise NotImplementedError('TODO')
+
+        elif dims[0] == 'K':
           if mArr.ndim == 2:
             arr[kA] = mArr[kA,kB]
           else:
             arr[kA] += mArr[kB]
-          ###self._ELBOTerms.setField(key, arr, dims=dims)
 
     if self.hasMergeTerms():
       for key, dims in self._MergeTerms._FieldDims.items():
+        mArr = getattr(self._MergeTerms, key)
         if dims == ('K','K'):
-          mArr = getattr(self._MergeTerms, key)
           mArr[kA,kA+1:] = np.nan
           mArr[:kA,kA] = np.nan
         elif dims == ('K'):
-          mArr = getattr(self._MergeTerms, key)
           mArr[kA] = np.nan
+        elif dims[0] == 'M' and key == 'Htable':
+          if len(dims) == 3 and dims[-1] == 'K':
+            mArr[:, :, kA] = 0
 
     if self.hasSelectionTerms():
       for key, dims in self._SelectTerms._FieldDims.items():
@@ -265,6 +298,32 @@ class SuffStatBag(object):
         elif dims == ('K'):
           mArr[kA] = mArr[kA] + mArr[kB]
 
+    if hasattr(self, 'mPairIDs'):
+      # Remove any other pairs associated with kA or kB 
+      keepRowIDs = ((mPairIDs[:,0] != kA)
+                    * (mPairIDs[:,1] != kA)
+                    * (mPairIDs[:,0] != kB)
+                    * (mPairIDs[:,1] != kB))
+
+      keepRowIDs = np.flatnonzero(keepRowIDs)
+      M = len(keepRowIDs)
+      self.M = M
+      self._MergeTerms.M = M
+
+      # Remove any other pairs related to kA, kB
+      for key, dims in self._MergeTerms._FieldDims.items():
+        mArr = getattr(self._MergeTerms, key)
+        if dims[0] == 'M':
+          mArr = mArr[keepRowIDs]
+          self._MergeTerms.setField(key, mArr, dims=dims)
+
+      # Reindex mPairIDs
+      mPairIDs = mPairIDs[keepRowIDs]
+      mPairIDs[mPairIDs[:,0] > kB, 0] -= 1
+      mPairIDs[mPairIDs[:,1] > kB, 1] -= 1
+      self.mPairIDs = mPairIDs
+      
+    
     if hasattr(self, 'uIDs'):
       self.uIDs = np.delete(self.uIDs, kB)
     self._Fields.removeComp(kB)
@@ -331,6 +390,9 @@ class SuffStatBag(object):
 
     if hasattr(self, '_SelectTerms') and hasattr(PB, '_SelectTerms'):
       SSsum._SelectTerms = self._SelectTerms + PB._SelectTerms
+
+    if not hasattr(self, 'mPairIDs') and hasattr(PB, 'mPairIDs'):
+      SSsum.mPairIDs = PB.mPairIDs
     return SSsum
 
   def __iadd__(self, PB):
@@ -350,6 +412,9 @@ class SuffStatBag(object):
 
     if hasattr(self, '_SelectTerms') and hasattr(PB, '_SelectTerms'):
       self._SelectTerms += PB._SelectTerms
+
+    if not hasattr(self, 'mPairIDs') and hasattr(PB, 'mPairIDs'):
+      self.mPairIDs = PB.mPairIDs
     return self
 
   # ======================================================= Override subtract

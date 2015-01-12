@@ -10,7 +10,7 @@ from bnpy.viz import GaussViz
 
 ########################################################### User-facing 
 ###########################################################
-def get_data(seed=123456, seqLens=(2000,2000,2000,2000,2000,2000), **kwargs):
+def get_data(seed=123, seqLens=1000*np.ones(32), **kwargs):
   ''' Generate several data sequences, returned as a bnpy data-object
 
     Args
@@ -80,7 +80,7 @@ def get_X(seed, seqLens):
     Generates X, Z, seqInds according to the gaussian parameters specified above
       and the sequence lengths passed in.
     '''
-    seqLens = np.asarray(seqLens)
+    seqLens = np.asarray(seqLens, dtype=np.int32)
     prng = np.random.RandomState(seed)
 
     fullX = list()
@@ -91,11 +91,12 @@ def get_X(seed, seqLens):
     else:
         nSeq = len(seqLens)
 
-    #Each iteration generates one sequence
+    # Each iteration generates one time-series/sequence
+    # with starting state deterministically rotating among all states
     for i in xrange(nSeq):
         Z = list()
         X = list()
-        initState = prng.choice(xrange(K), p=initPi)
+        initState = i % K
         initX = prng.multivariate_normal(mus[initState,:], 
                                          sigmas[initState,:,:])
         Z.append(initState)

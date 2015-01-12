@@ -1,7 +1,3 @@
-import numpy as np
-from bnpy.data import SeqXData, MinibatchIterator
-import scipy.io
-
 '''
 AutoRegK4.py
 
@@ -11,6 +7,10 @@ K = 4 state HMM allocation model.
 The dataset can be vizualized by running python AutoRegK4.py from the command
 line.
 '''
+
+import numpy as np
+from bnpy.data import GroupXData
+import scipy.io
 
 #Transition matrix
 transPi = np.asarray([[0.97, 0.01, 0.01, 0.01], \
@@ -46,7 +46,7 @@ for k in xrange( K ):
   cholSigma[k] = scipy.linalg.cholesky( Sigma[k] )
 
 
-def get_data(seed=8675309, seqLens=((6000,)), **kwargs):
+def get_data(seed=8675309, seqLen=6000, **kwargs):
   '''
     Args
     -------
@@ -58,48 +58,14 @@ def get_data(seed=8675309, seqLens=((6000,)), **kwargs):
     -------
       Data : bnpy XData object, with nObsTotal observations
   '''
-  X, Xprev, TrueZ, seqInds = genToyData(seed, seqLens)
-  Data = SeqXData(X = X, TrueZ = TrueZ, Xprev = Xprev, seqInds = seqInds)
+  X, Xprev, TrueZ = genToyData(seed, seqLen)
+  T = TrueZ.size
+  doc_range = np.asarray([0, T])
+
+  Data = GroupXData(X=X, Xprev=Xprev, TrueZ=TrueZ, doc_range=doc_range)
   Data.name = get_short_name()
   Data.summary = get_data_info()
   return Data
-
-
-
-def genToyData(seed=0, seqLens=((6000,))):
-  #Setup the seqIndicies
-  seqInds = list([0])
-  for ind, sl in enumerate(seqLens):
-    seqInds.append(seqInds[ind] + sl)
-  nObsTotal = np.sum(seqLens)
-
-  Xprev = np.zeros((nObsTotal+1, D))
-  X = np.zeros((nObsTotal, D))
-  
-  
-  Xprev[0,:] = np.zeros(D)
-
-  #Pre-generate the noise that will be added at each step
-  PRNG = np.random.RandomState(seed)
-  XX = np.zeros((K, nObsTotal, D))
-  for k in xrange(K):
-    PRNG = np.random.RandomState(seed+k)
-    XX[k,:,:] = np.dot(cholSigma[k].T, PRNG.randn(D, nObsTotal) ).T
-
-  PRNG = np.random.RandomState(seed+K)
-  rs = PRNG.rand(nObsTotal)
-  Z = np.zeros(nObsTotal)
-  for n in xrange(nObsTotal):
-    if n == 0:
-      Z[n] = 0
-    else:
-      trans = PRNG.multinomial(1, transPi[Z[n-1]])
-      Z[n] = np.nonzero(trans)[0][0]
-    X[n] = np.dot(A[Z[n]], Xprev[n]) + XX[Z[n], n]
-    Xprev[n+1,:] = X[n,:]
-
-  return X, Xprev[:-1,:], Z, seqInds
-
 
 def get_short_name():
   return 'AutoRegK4'
@@ -108,9 +74,40 @@ def get_data_info():
   return 'Toy Autoregressive gaussian data with K = 4 clusters.'
     
 
+def genToyData(seed=0, T=6000):
+  '''
+
+      Returns
+      -------
+      X
+      Xprev
+      Z : 1D array, size T
+  '''
+  
+  # Pre-generate the noise that will be added at each step
+  PRNG = np.random.RandomState(seed)
+  Noise = np.zeros((K, T+1, D))
+  for k in xrange(K):
+    PRNG = np.random.RandomState(seed+k)
+    Noise[k,:,:] = np.dot(cholSigma[k].T, PRNG.randn(D, T+1) ).T
+
+  PRNG = np.random.RandomState(seed+K)
+  Z = np.zeros(T+1, dtype=np.int32)
+  X = np.zeros((T+1, D))
+
+  Z[0] = 0
+  X[0] = 0
+
+  stateSpace = np.arange(K)
+  for t in xrange(1, T+1):
+    Z[t] = PRNG.choice(stateSpace, p=transPi[Z[t-1]])
+    X[t] = np.dot(A[Z[t]], X[t-1]) + Noise[Z[t], t]
+
+  return X[1:].copy(), X[:-1].copy(), Z[1:]
+
+
 if __name__ == '__main__':
-  X, Xprev, Z, _ = \
-              genToyData(seed=0, seqLens = ((6000,)));
+  X, Xprev, Z = genToyData(seed=0, T=6000);
   from matplotlib import pylab
 
   IDs0 = np.flatnonzero(Z == 0)
@@ -134,10 +131,10 @@ if __name__ == '__main__':
   pylab.ylim([-B, B])
 
   pylab.subplot(3, 1, 3)
-  pylab.scatter(X[IDs0, 0], X[IDs0, 1], c = 'r')
-  pylab.scatter(X[IDs1, 0], X[IDs1, 1], c = 'b')
-  pylab.scatter(X[IDs3, 0], X[IDs3, 1], c = 'y')
-  pylab.scatter(X[IDs2, 0], X[IDs2, 1], c = 'g')
+  pylab.plot(X[IDs0, 0], X[IDs0, 1], 'r.', markeredgecolor='r')
+  pylab.plot(X[IDs1, 0], X[IDs1, 1], 'b.', markeredgecolor='b')
+  pylab.plot(X[IDs3, 0], X[IDs3, 1], 'y.', markeredgecolor='y')
+  pylab.plot(X[IDs2, 0], X[IDs2, 1], 'g.', markeredgecolor='g')
 
   pylab.tight_layout()
   pylab.show()
