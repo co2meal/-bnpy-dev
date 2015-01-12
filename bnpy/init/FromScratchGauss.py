@@ -75,6 +75,8 @@ def init_global_params(obsModel, Data, K=0, seed=0,
     resp = np.eye(K)
 
   elif initname == 'kmeans':
+    # Fill in resp matrix with hard-clustering from K-means
+    # using an initialization with K randomly selected points from X
     np.random.seed(seed)
     centroids, labels = kmeans2(data = Data.X, k = K, minit = 'points')
     resp = np.zeros((Data.nObs, K))
