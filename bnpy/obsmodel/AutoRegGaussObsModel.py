@@ -399,8 +399,8 @@ class AutoRegGaussObsModel(AbstractObsModel):
         --------
         nu : 1D array, size K
         B : 3D array, size K x D x D, each B[k] is symmetric and pos. def.
-        m : 2D array, size K x D
-        kappa : 1D array, size K
+        M : 3D array, size K x D x D
+        V : 3D array, size K x D x D
     '''
     Prior = self.Prior
     nu = Prior.nu + SS.N
@@ -424,10 +424,20 @@ class AutoRegGaussObsModel(AbstractObsModel):
         --------
         nu : positive scalar
         B : 2D array, size D x D, symmetric and positive definite
-        m : 1D array, size D
-        kappa : positive scalar
+        M : 2D array, size D x D
+        V : 2D array, size D x D
     '''
-    raise NotImplementedError('ToDo')
+    if kA is None or kB is None:
+      raise NotImplementedError('ToDo')
+    Post = self.Post
+    Prior = self.Prior
+    nu = Prior.nu + SS.N[kA] + SS.N[kB]
+    B_MVM = Prior.B + np.dot(Prior.M, np.dot(Prior.V, Prior.M.T))
+    B = SS.xxT[kA] + SS.xxT[kB] + B_MVM
+    V = SS.ppT[kA] + SS.ppT[kB] + Prior.V
+    M = np.linalg.solve(V, SS.pxT[kA] + SS.pxT[kB] + np.dot(Prior.V, Prior.M.T)).T
+    B -= np.dot(M, np.dot(V, M.T))
+    return nu, B, M, V
 
   ########################################################### Stochastic Post
   ########################################################### update
@@ -569,12 +579,12 @@ class AutoRegGaussObsModel(AbstractObsModel):
     '''
     Post = self.Post
     Prior = self.Prior
-    cA = c_Func(Post.nu[kA], Post.B[kA], Post.m[kA], Post.kappa[kA])
-    cB = c_Func(Post.nu[kB], Post.B[kB], Post.m[kB], Post.kappa[kB])
-    cPrior = c_Func(Prior.nu,   Prior.B,      Prior.m,      Prior.kappa)
+    cA = c_Func(Post.nu[kA], Post.B[kA], Post.M[kA], Post.V[kA])
+    cB = c_Func(Post.nu[kB], Post.B[kB], Post.M[kB], Post.V[kB])
 
-    nu, B, m, kappa = self.calcPostParamsForComp(SS, kA, kB)
-    cAB = c_Func(nu, B, m, kappa)
+    cPrior = c_Func(Prior.nu,   Prior.B,      Prior.M,      Prior.V)
+    nu, B, M, V = self.calcPostParamsForComp(SS, kA, kB)
+    cAB = c_Func(nu, B, M, V)
     return cA + cB - cPrior - cAB
 
 
@@ -588,16 +598,16 @@ class AutoRegGaussObsModel(AbstractObsModel):
     '''
     Post = self.Post
     Prior = self.Prior
-    cPrior = c_Func(Prior.nu, Prior.B, Prior.m, Prior.kappa)
+    cPrior = c_Func(Prior.nu, Prior.B, Prior.M, Prior.V)
     c = np.zeros(SS.K)
     for k in xrange(SS.K):
-      c[k] = c_Func(Post.nu[k], Post.B[k], Post.m[k], Post.kappa[k])
+      c[k] = c_Func(Post.nu[k], Post.B[k], Post.M[k], Post.V[k])
 
     Gap = np.zeros((SS.K, SS.K))
     for j in xrange(SS.K):
       for k in xrange(j+1, SS.K):
-        nu, B, m, kappa = self.calcPostParamsForComp(SS, j, k)
-        cjk = c_Func(nu, B, m, kappa)
+        nu, B, M, V = self.calcPostParamsForComp(SS, j, k)
+        cjk = c_Func(nu, B, M, V)
         Gap[j,k] = c[j] + c[k] - cPrior - cjk
     return Gap
 
@@ -607,7 +617,7 @@ class AutoRegGaussObsModel(AbstractObsModel):
         Returns
         ---------
         Gaps : 1D array, size L
-              Gap[j] : scalar change in ELBO after merge of pair in PairList[j]
+               Gaps[j] : scalar change in ELBO after merge of pair in PairList[j]
     '''
     Gaps = np.zeros(len(PairList))
     for ii, (kA, kB) in enumerate(PairList):
