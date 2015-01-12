@@ -68,7 +68,7 @@ def plotJobs(jpaths, legNames, styles=None, density=2,
     plot_all_tasks_for_job(jpaths[lineID], legNames[lineID], 
                            xvar=xvar, yvar=yvar,
                            taskids=taskids, density=density, **curStyle)
-  if loc is not None:
+  if loc is not None and len(jpaths) > 1:
     pylab.legend(loc=loc, bbox_to_anchor=bbox_to_anchor)  
   if tickfontsize is not None:
     pylab.tick_params(axis='both', which='major', labelsize=tickfontsize)
