@@ -22,7 +22,7 @@ def addDataFromBatchToPlan(Plan, Dchunk, hmodel, LPchunk, batchID,
   '''
   if isFirstBatch:
     DeleteLogger.log('<<<<<<<<<<<<<<<<<<<<<<<<< DTargetCollector')
-
+  
   relData, relIDs = selectRelevantSubset(Dchunk, hmodel, LPchunk, Plan,
                                          dtargetMinCount=dtargetMinCount)
   if relData is None or relData.get_size() < 1:
@@ -69,6 +69,13 @@ def selectRelevantSubset(Dchunk, hmodel, LPchunk, Plan,
   for dd, delCompID in enumerate(Plan['selectIDs']):
     if 'DocTopicCount' in LPchunk:
       curkeepmask = LPchunk['DocTopicCount'][:, delCompID] >= dtargetMinCount
+    elif 'respPair' in LPchunk:
+      curkeepmask = np.zeros(Dchunk.nDoc, dtype=np.int32)
+      for n in xrange(Dchunk.nDoc):
+        start = Dchunk.doc_range[n]
+        stop = Dchunk.doc_range[n+1]
+        Usage_n = np.sum(LPchunk['resp'][start:stop, delCompID])
+        curkeepmask[n] = Usage_n >= dtargetMinCount
     else:
       curkeepmask = LPchunk['resp'][:, delCompID] >= dtargetMinCount
 

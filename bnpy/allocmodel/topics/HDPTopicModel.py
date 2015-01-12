@@ -321,8 +321,8 @@ class HDPTopicModel(AllocModel):
   def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None,
                                             doPrecompMergeEntropy=None,
                                             mPairIDs=None,
-                                            trackDocUsage=0,
                                             mergePairSelection=None,
+                                            trackDocUsage=0,
                                             **kwargs):
     ''' Calculate sufficient statistics.
     '''
@@ -382,7 +382,7 @@ class HDPTopicModel(AllocModel):
         SS.setSelectionTerm('DocTopicSum', np.sum(Tmat, axis=0), dims='K')
 
     if trackDocUsage:
-      ## Track the number of times a topic appears with "significant mass" in a document
+      ## Track number of times a topic appears with "signif. mass" in a doc
       DocUsage = np.sum(LP['DocTopicCount'] > 0.01, axis=0)
       SS.setSelectionTerm('DocUsageCount', DocUsage, dims='K')
     return SS
