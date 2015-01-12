@@ -83,7 +83,7 @@ class HDPHMM(AllocModel):
 
         lpr = LP['E_log_soft_ev']
 
-        #Calculate arguments to the forward backward algorithm
+        # Calculate arguments to the forward backward algorithm
         digammasumVec = digamma(np.sum(self.transTheta, axis = 1))
         expELogPi = digamma(self.transTheta) - digammasumVec[:, np.newaxis]
         np.exp(expELogPi, out = expELogPi)
@@ -91,7 +91,7 @@ class HDPHMM(AllocModel):
         expELogPi0 = digamma(self.initTheta) - digamma(np.sum(self.initTheta))
         np.exp(expELogPi0, out = expELogPi0)
 
-        #Run the forward backward algorithm on each sequence
+        # Run the forward backward algorithm on each sequence
         logMargPr = np.empty(Data.nDoc)
         resp = np.empty((Data.nObs, self.K))
         respPair = np.empty((Data.nObs, self.K, self.K))
@@ -123,6 +123,30 @@ class HDPHMM(AllocModel):
         LP.update({'respPair' : respPair})
         return LP
 
+    def selectSubsetLP(self, Data, LP, relIDs):
+        ''' Create local parameter dict for subset of sequences in Data
+
+            Returns
+            -------
+            subsetLP : local params dict
+        '''
+        if len(relIDs) == Data.nDoc:
+          return dict(**LP)
+        T_all = np.sum(Data.doc_range[relIDs+1] - Data.doc_range[relIDs]) 
+        K = LP['resp'].shape[1]
+        resp = np.zeros((T_all, K))
+        respPair = np.zeros((T_all, K, K))
+        nstart = 0
+        for n in relIDs:       
+          start = Data.doc_range[n]
+          stop = Data.doc_range[n+1]
+          nstop = nstart + stop - start
+          resp[nstart:nstop] = LP['resp'][start:stop]
+          respPair[nstart:nstop] = LP['respPair'][start:stop]
+          nstart = nstop
+        subsetLP = dict(resp=resp, respPair=respPair)
+        return subsetLP
+
   ######################################################### Sufficient Stats
   #########################################################
 
@@ -131,6 +155,7 @@ class HDPHMM(AllocModel):
                                     doPrecompMergeEntropy=False, 
                                     mergePairSelection=None,
                                     mPairIDs=None,
+                                    trackDocUsage=0,
                                     **kwargs):
 
       if mPairIDs is None:
@@ -166,6 +191,15 @@ class HDPHMM(AllocModel):
         SS.setMergeTerm('Htable', subHtable, dims=('M', 2, 'K'))
         #SS.setMergeTerm('mPairIDs', mPairIDs, dims=('M', 2))
         SS.mPairIDs = np.asarray(mPairIDs)
+
+      if trackDocUsage:
+        ## Track number of times a topic appears with "signif. mass" in a seq.
+        DocUsage = np.zeros(K)
+        for n in xrange(Data.nDoc):
+          start = Data.doc_range[n]
+          stop = Data.doc_range[n+1]
+          DocUsage += np.sum(LP['resp'][start:stop] > 0.01, axis=0)
+        SS.setSelectionTerm('DocUsageCount', DocUsage, dims='K')
       return SS
 
 
