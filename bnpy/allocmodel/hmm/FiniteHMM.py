@@ -75,6 +75,7 @@ class FiniteHMM(AllocModel):
         digammasumVec = digamma(np.sum(self.transTheta, axis = 1))              
         EPiMat = np.exp(digamma(self.transTheta) 
                         - digammasumVec[:,np.newaxis])
+
       return EPiMat
 
   ######################################################### Local Params
