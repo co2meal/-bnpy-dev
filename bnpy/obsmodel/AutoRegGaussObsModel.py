@@ -333,23 +333,20 @@ class AutoRegGaussObsModel(AbstractObsModel):
     self.ClearCache()
     if not hasattr(self, 'EstParams') or self.EstParams.K != SS.K:
       self.EstParams = ParamBag(K=SS.K, D=SS.D)
-
     minCovMat = self.min_covar * np.eye(SS.D)
     A = np.zeros((SS.K, self.D, self.D))
     Sigma = np.zeros((SS.K, self.D, self.D))
     for k in xrange(SS.K):
-      if SS.N[k] < 2:
-        A[k] = np.linalg.solve(SS.ppT[k] + self.min_covar*np.eye(self.D),
-                               SS.pxT[k]).T
-      else:
-        A[k] = np.linalg.solve(SS.ppT[k], SS.pxT[k]).T
+      # Add small pos multiple of identity to make invertible
+      # TODO: This is source of potential stability issues.
+      A[k] = np.linalg.solve(SS.ppT[k] + minCovMat,
+                             SS.pxT[k]).T
       Sigma[k] = SS.xxT[k] \
                   - 2*np.dot(SS.pxT[k].T, A[k].T) \
                   + np.dot(A[k], np.dot(SS.ppT[k], A[k].T))
       Sigma[k] /= SS.N[k]  
       #Sigma[k] = 0.5 * (Sigma[k] + Sigma[k].T) # symmetry!
       Sigma[k] += minCovMat
-
     self.EstParams.setField('A', A, dims=('K','D','D'))
     self.EstParams.setField('Sigma', Sigma, dims=('K','D','D'))
     self.K = SS.K
