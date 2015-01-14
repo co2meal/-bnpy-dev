@@ -40,12 +40,12 @@ class FiniteHMM(AllocModel):
         self.initTheta = None
         self.transTheta = None
 
-    def set_prior(self, initAlpha = .1, transAlpha = .1, kappa = 0.0, **kwargs):
+    def set_prior(self, initAlpha = .1, transAlpha = .1, hmmKappa = 0.0, **kwargs):
         ''' Set hyperparameters that control state transition probs
         '''
         self.initAlpha = initAlpha 
         self.transAlpha = transAlpha
-        self.kappa = kappa
+        self.kappa = hmmKappa
 
     def get_active_comp_probs(self):
       ''' Get vector of appearance probabilities for each active state
