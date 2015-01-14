@@ -33,10 +33,7 @@ import argparse
 
 from bnpy.ioutil import BNPYArgParser
 
-def plotSingleJob(dataset, jobname, taskids, lap, sequences, 
-                           dispTrue = True,
-                           aspectFactor=4.0,
-                 ):
+def plotSingleJob(dataset, jobname, taskids, lap, sequences, dispTrue = True):
   '''
   Returns the array of data corresponding to a single sequence to display
 
@@ -46,25 +43,16 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences,
   jobpath = os.path.join( os.path.expandvars('$BNPYOUTDIR'), dataset, jobname)
   taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
 
-  #Load in the data module
-  datamod = imp.load_source(dataset,
-                            os.path.expandvars('$BNPYDATADIR/'+dataset+'.py'))
-  data = datamod.get_data()
-
-  # Determine the maximum length among any of the sequences to be plotted
-  Ts = data.doc_range[sequences+1] - data.doc_range[sequences]
-  maxT = np.max(Ts)
-
-  # Define the number of pixels used by vertical space of figure
-  NUM_STACK = (maxT / aspectFactor) #/ len(sequences)
+  NUM_STACK = 550 / len(sequences) #why 550?  It looks nice
   if dispTrue:
     NUM_STACK /= 2
 
   f, axes = plt.subplots(len(sequences), len(taskids),
-                         sharex='col', sharey='row')
+                          sharex='col', sharey='row')
 
   # For singleton case, make sure that axes is index-able
   if len(sequences) == 1 and len(taskids) == 1:
+    f = [f]
     axes = [axes]
 
   for tt, taskidstr in enumerate(taskids):
@@ -90,6 +78,15 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences,
     hammingDists = [float(x) for x in hammingDists]
     hammingFile.close()
 
+
+    #Load in the data module
+    datamod = imp.load_source(dataset,
+                              os.path.expandvars('$BNPYDATADIR/'+dataset+'.py'))
+    data = datamod.get_data()
+
+    Ts = data.doc_range[sequences+1] - data.doc_range[sequences]
+    maxT = np.max(Ts)
+
     for ii, seqNum in enumerate(sequences):
       image = np.tile(zHatBySeq[seqNum], (NUM_STACK, 1))
 
@@ -101,24 +98,28 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences,
         image = np.vstack((image, np.tile(data.TrueParams['Z'][start:stop],
                                           (NUM_STACK, 1))))
 
+      #Title the rows and columns
+      if tt == 0:
+        if len(sequences) == 1 or len(taskids) == 1:
+          axes[ii].set_ylabel('Seq. %d' % sequences[ii], fontsize=13)
+        else:
+          axes[ii, 0].set_ylabel('Seq. %d' % sequences[ii], fontsize=13)
+      if ii == 0:
+        if len(sequences) == 1 or len(taskids) == 1:
+          axes[tt].set_title('Task %s' % taskidstr)
+        else:
+          axes[0, tt].set_title('Task %s' % taskidstr)
+      
       if len(sequences) == 1 or len(taskids) == 1:
         cur_ax = axes[ii+tt]
       else:
         cur_ax = axes[ii,tt]
     
-      cur_ax.imshow(image, interpolation='nearest',
-                           cmap='Set1')
-      if tt == 0:
-        cur_ax.set_ylabel('Seq. %d' % sequences[ii], fontsize=13)
-
-      if ii == 0:
-        cur_ax.set_title('Task %s' % taskidstr)
+      cur_ax.imshow(image, interpolation='nearest', cmap='Set1')
       cur_ax.set_xlim([0, maxT])
-      cur_ax.set_ylim([0, image.shape[0]])
       cur_ax.set_yticks([])
-      
-      # ... end loop over sequences    
 
+      # ... end loop over sequences      
     f.suptitle(jobname+', lap = '+lap, fontsize = 18)
 
 
