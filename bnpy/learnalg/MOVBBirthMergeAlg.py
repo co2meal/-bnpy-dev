@@ -321,6 +321,13 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
     if self.hasMove('merge'):
       nStuckBeforeQuit = self.algParams['merge']['mergeNumStuckBeforeQuit']
+      mergeStartLap = self.algParams['merge']['mergeStartLap']
+
+      # If we haven't even tried merges for sufficent num laps, keep going
+      if lapFrac <= mergeStartLap + nStuckBeforeQuit:
+        return True
+
+      # If we've tried many merges without success, exit early
       if (lapFrac - self.lapLastAcceptedMerge) > nStuckBeforeQuit:
         return False
       return True
