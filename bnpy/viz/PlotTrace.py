@@ -39,7 +39,7 @@ LabelMap = dict(laps='num pass thru data',
                 evidence='train objective',                
                 )  
 LabelMap['laps-saved-params']='num pass thru data'
-LabelMap['hamming-distance']='Hamming dist. (normalized)'
+LabelMap['hamming-distance']='Hamming dist.'
      
 def plotJobsThatMatchKeywords(jpathPattern='/tmp/', **kwargs):
   ''' Create line plots for all jobs matching pattern and provided keyword args
