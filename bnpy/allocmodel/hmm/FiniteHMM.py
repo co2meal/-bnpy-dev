@@ -40,11 +40,13 @@ class FiniteHMM(AllocModel):
         self.initTheta = None
         self.transTheta = None
 
-    def set_prior(self, initAlpha = .1, transAlpha = .1, **kwargs):
+    def set_prior(self, initAlpha = .1, transAlpha = .1, hmmKappa = 0.0,
+                  **kwargs):
         ''' Set hyperparameters that control state transition probs
         '''
         self.initAlpha = initAlpha 
         self.transAlpha = transAlpha
+        self.kappa = hmmKappa
 
     def get_active_comp_probs(self):
       ''' Get vector of appearance probabilities for each active state
@@ -74,6 +76,7 @@ class FiniteHMM(AllocModel):
         digammasumVec = digamma(np.sum(self.transTheta, axis = 1))              
         EPiMat = np.exp(digamma(self.transTheta) 
                         - digammasumVec[:,np.newaxis])
+
       return EPiMat
 
   ######################################################### Local Params
@@ -253,12 +256,14 @@ class FiniteHMM(AllocModel):
 
     def update_global_params_VB(self, SS, **kwargs):
         self.initTheta = self.initAlpha + SS.firstStateResp
-        self.transTheta = self.transAlpha + SS.respPairSums
+        self.transTheta = self.transAlpha + SS.respPairSums + \
+                          self.kappa * np.eye(self.K)
         self.K = SS.K
 
     def update_global_params_soVB(self, SS, rho, **kwargs):
         initNew = self.initAlpha + SS.firstStateResp
-        transNew = self.transAlpha + SS.respPairSums
+        transNew = self.transAlpha + SS.respPairSums + \
+                   self.kappa * np.eye(self.K)      
         self.initTheta = rho * initNew + (1 - rho) * self.initTheta
         self.transTheta = rho * transNew + (1 - rho) * self.transTheta
         self.K = SS.K
@@ -277,7 +282,8 @@ class FiniteHMM(AllocModel):
             self.transPi = 1.0 / K * np.ones((K,K))
         else:
             self.initTheta = self.initAlpha + np.ones(K)
-            self.transTheta = self.transAlpha + np.ones((K,K))
+            self.transTheta = self.transAlpha + np.ones((K,K)) + \
+                              self.kappa * np.eye(self.K)
                     
 
     def set_global_params(self, hmodel=None, K=None, initPi=None, transPi=None,
@@ -334,14 +340,17 @@ class FiniteHMM(AllocModel):
     def elbo_alloc(self):
         normPinit = gammaln(self.K * self.initAlpha) \
                     - self.K * gammaln(self.initAlpha)
+        
         normQinit = gammaln(np.sum(self.initTheta)) \
                     - np.sum(gammaln(self.initTheta))
 
-        normPtrans = self.K * gammaln(self.K * self.transAlpha) \
-                      - (self.K**2) * gammaln(self.transAlpha)
-
+        normPtrans = self.K * gammaln(self.K*self.transAlpha + self.kappa) - \
+                     self.K*(self.K-1) * gammaln(self.transAlpha) - \
+                     self.K * gammaln(self.transAlpha + self.kappa)
+        
         normQtrans = np.sum(gammaln(np.sum(self.transTheta, axis=1))) \
                       - np.sum(gammaln(self.transTheta))
+
 
         return normPinit + normPtrans - normQinit - normQtrans
 
@@ -369,4 +378,5 @@ class FiniteHMM(AllocModel):
     def get_prior_dict(self):
         return dict(initAlpha=self.initAlpha,
                     transAlpha=self.transAlpha,
+                    kappa=self.kappa,
                     K=self.K)

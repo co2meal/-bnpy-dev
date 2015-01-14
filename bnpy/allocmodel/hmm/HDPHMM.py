@@ -33,9 +33,10 @@ class HDPHMM(AllocModel):
         self.transTheta = None #Kx(K+1) Dirichlet params for transition matrix
         self.initTheta = None #K+1 Dirichlet parameters for the initial state
 
-    def set_prior(self, gamma = 5, alpha = 0.1, **kwargs):
+    def set_prior(self, gamma = 10, alpha = 0.5, hmmKappa = 0.0, **kwargs):
         self.gamma = gamma
         self.alpha = alpha
+        self.kappa = hmmKappa
 
     def get_active_comp_probs(self):
         ''' Return K vector of appearance probabilities for each of the K comps
@@ -355,15 +356,16 @@ class HDPHMM(AllocModel):
       if self.rho is None or self.rho.size != K:
         self.rho = OptimizerRhoOmega.create_initrho(K)
 
-      #Calculate E_q[alpha * Beta_l] for l = 1, ..., K+1
+      # Calculate E_q[alpha * Beta_l] for l = 1, ..., K+1
       alphaEBeta = self.alpha * StickBreakUtil.rho2beta(self.rho)
 
-      #transTheta_kl = M_kl + E_q[alpha * Beta_l] (M_k,>K = 0)
+      # transTheta_kl = M_kl + E_q[alpha * Beta_l] (where M_k,>K = 0)
+      #                    + kappa * 1_{k==l}
       transTheta = np.zeros((K, K + 1))
       transTheta += alphaEBeta[np.newaxis,:]
-      transTheta[:K, :K] += SS.TransStateCount
+      transTheta[:K, :K] += SS.TransStateCount + self.kappa * np.eye(self.K)
  
-      #initTheta_k = r_1k + E_q[alpha * Beta_l] (r_1,>K = 0)
+      # initTheta_k = r_1k + E_q[alpha * Beta_l] (where r_1,>K = 0)
       initTheta = alphaEBeta
       initTheta[:K] += SS.StartStateCount
 
@@ -474,6 +476,9 @@ class HDPHMM(AllocModel):
             Does not include the surrogate bounded term.
             Instead, this appears in L_top below.
 
+            Note that the "slack" term refers to the alloc_slack term that is 0
+            if the ELBO is evaluated after the M-step and theta is updated last
+
             Returns
             ---------
             Elogstuff : real scalar
@@ -498,15 +503,25 @@ class HDPHMM(AllocModel):
         ElogU = digamma(eta1) - digamma_omega
         Elog1mU = digamma(eta0) - digamma_omega
 
+        sumEBeta = np.sum(StickBreakUtil.rho2beta(self.rho))
+
         # Calculate aggregated coefficients of ElogU and Elog1mU
-        coefU = (K+1) + 1.0 - eta1
-        coef1mU = (K+1) * OptimizerRhoOmega.kvec(K) + self.gamma - eta0
+        coefU = (K) + 1.0 - eta1
+        coef1mU = (K) * OptimizerRhoOmega.kvec(K) + self.gamma - eta0
 
         diff_cBeta = K * c_Beta(1.0, self.gamma) - c_Beta(eta1, eta0)
+        #diff_logBetaPDF = np.inner(coefU, ElogU) \
+        #                  + np.inner(coef1mU, Elog1mU)
+        #c_surr_alpha = (K+1) * K * np.log(self.alpha)
+
         diff_logBetaPDF = np.inner(coefU, ElogU) \
                           + np.inner(coef1mU, Elog1mU)
-        c_surr_alpha = (K+1) * K * np.log(self.alpha)
-        return c_surr_alpha + diff_cBeta + diff_logBetaPDF
+        c_surr_kappa = (np.log(self.alpha+self.kappa) - np.log(self.kappa)) * \
+                                                                  sumEBeta + \
+                       np.log(self.kappa) - np.log(self.alpha + self.kappa)
+        c_surr_alpha = (K) * K * np.log(self.alpha)
+
+        return c_surr_alpha + c_surr_kappa + diff_cBeta + diff_logBetaPDF
 
     def calcHardMergeGap(self, SS, kA, kB):
       ''' Calculate scalar improvement in ELBO for hard merge of comps kA, kB
@@ -583,7 +598,8 @@ class HDPHMM(AllocModel):
         self.rho = myDict['rho']
 
     def get_prior_dict(self):
-        return dict(gamma = self.gamma, alpha = self.alpha, K = self.K)
+        return dict(gamma = self.gamma, alpha = self.alpha, K = self.K,
+                    kappa = self.kappa)
 
 
 ########################################################### ELBO functions
