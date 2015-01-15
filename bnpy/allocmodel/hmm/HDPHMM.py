@@ -506,21 +506,29 @@ class HDPHMM(AllocModel):
         sumEBeta = np.sum(StickBreakUtil.rho2beta(self.rho))
 
         # Calculate aggregated coefficients of ElogU and Elog1mU
-        coefU = (K) + 1.0 - eta1
-        coef1mU = (K) * OptimizerRhoOmega.kvec(K) + self.gamma - eta0
 
-        diff_cBeta = K * c_Beta(1.0, self.gamma) - c_Beta(eta1, eta0)
-        #diff_logBetaPDF = np.inner(coefU, ElogU) \
-        #                  + np.inner(coef1mU, Elog1mU)
-        #c_surr_alpha = (K+1) * K * np.log(self.alpha)
+        if self.kappa > 0:
+          coefU = (K) + 1.0 - eta1
+          coef1mU = (K) * OptimizerRhoOmega.kvec(K) + self.gamma - eta0
 
-        diff_logBetaPDF = np.inner(coefU, ElogU) \
-                          + np.inner(coef1mU, Elog1mU)
-        c_surr_kappa = (np.log(self.alpha+self.kappa) - np.log(self.kappa)) * \
-                                                                  sumEBeta + \
-                       np.log(self.kappa) - np.log(self.alpha + self.kappa)
-        c_surr_alpha = (K) * K * np.log(self.alpha)
+          diff_cBeta = K * c_Beta(1.0, self.gamma) - c_Beta(eta1, eta0)
+          diff_logBetaPDF = np.inner(coefU, ElogU) \
+                            + np.inner(coef1mU, Elog1mU)
+          c_surr_kappa = (np.log(self.alpha+self.kappa) - np.log(self.kappa)) *\
+                        sumEBeta + \
+                        np.log(self.kappa) - np.log(self.alpha + self.kappa)
+          c_surr_alpha = (K) * K * np.log(self.alpha)
+          print self.kappa
+        else:
+          coefU = (K+1) + 1.0 - eta1
+          coef1mU = (K+1) * OptimizerRhoOmega.kvec(K) + self.gamma - eta0
 
+          diff_cBeta = K * c_Beta(1.0, self.gamma) - c_Beta(eta1, eta0)
+          diff_logBetaPDF = np.inner(coefU, ElogU) \
+                            + np.inner(coef1mU, Elog1mU)
+          c_surr_kappa = 0
+          c_surr_alpha = (K+1) * K * np.log(self.alpha)
+  
         return c_surr_alpha + c_surr_kappa + diff_cBeta + diff_logBetaPDF
 
     def calcHardMergeGap(self, SS, kA, kB):
