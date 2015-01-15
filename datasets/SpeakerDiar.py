@@ -55,7 +55,7 @@ def get_data(meetingNum = 1, **kwargs):
   Returns a GroupXData object corresponding to the passed in meetingNum, which
   indexes the files listed above from 1 to 21
   '''
-  print 'MY MEEITNG NUMBER IS', meetingNum
+
   matfilepath = os.path.join(datasetdir, 'rawData',
                              'speakerDiarizationData', files[meetingNum-1])
   if not os.path.isfile(matfilepath):
