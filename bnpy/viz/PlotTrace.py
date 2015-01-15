@@ -33,11 +33,13 @@ Colors = [(0,0,0), # black
          ]
 
 LabelMap = dict(laps='num pass thru data',
-                 iters='num alg steps',
-                 times='elapsed time (sec)',
-                 K='num topics K',
-                 evidence='train objective',
+                iters='num alg steps',
+                times='elapsed time (sec)',
+                K='num topics K',
+                evidence='train objective',                
                 )  
+LabelMap['laps-saved-params']='num pass thru data'
+LabelMap['hamming-distance']='Hamming dist.'
      
 def plotJobsThatMatchKeywords(jpathPattern='/tmp/', **kwargs):
   ''' Create line plots for all jobs matching pattern and provided keyword args
@@ -103,6 +105,10 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
     color = Colors[ colorID % len(Colors)]
   taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
 
+  if yvar == 'hamming-distance':
+    if xvar == 'laps':
+      xvar = 'laps-saved-params'
+
   for tt, taskid in enumerate(taskids):
     try:
       xs = np.loadtxt(os.path.join(jobpath, taskid, xvar+'.txt'))
@@ -115,6 +121,9 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
           xs, ys = loadXYFromTopicModelSummaryFiles(jobpath, taskid)
         except ValueError:
           raise e
+
+    if xs.size != ys.size:
+      continue
 
     ## Cleanup laps data. Verify that it is sorted, with no collisions. 
     if xvar == 'laps':
@@ -142,6 +151,7 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
     plotargs.update(kwargs)
     if tt == 0:
       plotargs['label'] = label
+
     pylab.plot(xs, ys, lineType, **plotargs)
 
   ## Y-axis limit determination

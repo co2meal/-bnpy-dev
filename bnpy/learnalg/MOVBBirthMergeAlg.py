@@ -321,6 +321,13 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
     if self.hasMove('merge'):
       nStuckBeforeQuit = self.algParams['merge']['mergeNumStuckBeforeQuit']
+      mergeStartLap = self.algParams['merge']['mergeStartLap']
+
+      # If we haven't even tried merges for sufficent num laps, keep going
+      if lapFrac <= mergeStartLap + nStuckBeforeQuit:
+        return True
+
+      # If we've tried many merges without success, exit early
       if (lapFrac - self.lapLastAcceptedMerge) > nStuckBeforeQuit:
         return False
       return True
@@ -1138,7 +1145,9 @@ class MOVBBirthMergeAlg(MOVBAlg):
   ######################################################### Delete Moves
   #########################################################
   def doDeleteAtLap(self, lapFrac):
-    return True
+    if 'delete' not in self.algParams:
+      return False
+    return lapFrac >= self.algParams['delete']['deleteStartLap']
 
   def deleteMakePlans(self, Dchunk, SS, DocUsageCount):
     Plans = DeletePlanner.makePlans(SS, Dchunk, DocUsageCount,
@@ -1162,7 +1171,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
   def deleteRunMoveAndUpdateMemory(self, hmodel, SS, DeletePlans, order=None):
     self.ELBOReady = True
     self.DeleteAcceptRecord = dict()
-    if self.lapFrac < 1:
+    if self.lapFrac < 1 or SS is None:
       return hmodel, SS
 
     DeleteLogger.log('<<<<<<<<<<<<<<<<<<<<<<<<< RunMoveAndUpdateMemory')
