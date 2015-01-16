@@ -88,19 +88,22 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences,
       Kvals = np.loadtxt(os.path.join(path, 'K.txt'))
       ELBOscores = np.loadtxt(os.path.join(path, 'evidence.txt'))
       laps = np.loadtxt(os.path.join(path, 'laps.txt'))
+
+      hdists = np.loadtxt(os.path.join(path, 'hamming-distance.txt'))
+      hlaps = np.loadtxt(os.path.join(path, 'laps-saved-params.txt'))
+
       loc = np.flatnonzero(laps == curLap)
       ELBO = ELBOscores[loc]
       Kfinal = Kvals[loc]
+
+      loc = np.argmin(np.abs(hlaps - curLap))
+      hdist = hdists[loc]
 
     #Load in the saved data from $BNPYOUTDIR
     filename = 'Lap%08.3fMAPStateSeqsAligned.mat' % curLap
 
     zHatBySeq = scipy.io.loadmat(path + filename)
     zHatBySeq = zHatBySeq['zHatBySeqAligned'][0]
-    hammingFile = open(path+'hamming-distance.txt', 'r')
-    hammingDists = hammingFile.readlines()
-    hammingDists = [float(x) for x in hammingDists]
-    hammingFile.close()
 
     # Find maximum number of states we need to display
     Kmax = np.max([zHatBySeq[i].max() for i in xrange(data.nDoc)])
@@ -130,7 +133,7 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences,
 
       if ii == 0:
         if showELBOInTitle:
-          cur_ax.set_title('ELBO: %.3f  K=%d' % (ELBO, Kfinal))
+          cur_ax.set_title('ELBO: %.3f  K=%d  dist=%.2f' % (ELBO, Kfinal,hdist))
         else:
           cur_ax.set_title('Task %s' % taskidstr)
       cur_ax.set_xlim([0, maxT])
