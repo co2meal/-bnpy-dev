@@ -502,7 +502,7 @@ class HDPHMM(AllocModel):
         digamma_omega = digamma(self.omega)
         ElogU = digamma(eta1) - digamma_omega
         Elog1mU = digamma(eta0) - digamma_omega
-        sumEBeta = np.sum(StickBreakUtil.rho2beta(self.rho))
+        sumEBeta = np.sum(StickBreakUtil.rho2beta_active(self.rho))
         
         # kappa > 0 requires a bound on the surrogate bound
         if self.kappa > 0:
@@ -518,7 +518,7 @@ class HDPHMM(AllocModel):
                        + np.sum(Elog1mU)
           c_surr_alpha = (K+1) * K * np.log(self.alpha)
 
-        # bound does not hold if kappa = 0, so special case this
+        # Bound does not hold if kappa = 0, so special case this
         else:
           coefU = (K+1) + 1.0 - eta1
           coef1mU = (K+1) * OptimizerRhoOmega.kvec(K) + self.gamma - eta0
