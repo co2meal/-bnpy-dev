@@ -31,7 +31,8 @@ if 'BNPYOUTDIR' in os.environ:
   outdir = os.environ['BNPYOUTDIR']
   if os.path.exists(outdir):
     try:
-      with open(os.path.join(outdir, 'bnpytest'), 'w') as f:
+      testfilepath = os.path.join(outdir, '.bnpy-test-write-permissions.txt')
+      with open(testfilepath, 'w') as f:
         pass
     except IOError:
       sys.exit('BNPYOUTDIR not writeable: %s' % (outdir))

@@ -33,7 +33,11 @@ import argparse
 
 from bnpy.ioutil import BNPYArgParser
 
-def plotSingleJob(dataset, jobname, taskids, lap, sequences, dispTrue = True):
+def plotSingleJob(dataset, jobname, taskids, lap, sequences, 
+                  showELBOInTitle=False,
+                  dispTrue = True,
+                  aspectFactor=4.0,
+                 ):
   '''
   Returns the array of data corresponding to a single sequence to display
 
@@ -41,18 +45,31 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences, dispTrue = True):
     estimated labels
   '''
   jobpath = os.path.join( os.path.expandvars('$BNPYOUTDIR'), dataset, jobname)
-  taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
+  if type(taskids) == str:
+    taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
+  elif type(taskids) == int:
+    taskids = [str(taskids)]
+  sequences = np.asarray(sequences, dtype=np.int32)
 
-  NUM_STACK = 550 / len(sequences) #why 550?  It looks nice
+  #Load in the data module
+  datamod = imp.load_source(dataset,
+                            os.path.expandvars('$BNPYDATADIR/'+dataset+'.py'))
+  data = datamod.get_data()
+
+  # Determine the maximum length among any of the sequences to be plotted
+  Ts = data.doc_range[sequences+1] - data.doc_range[sequences]
+  maxT = np.max(Ts)
+
+  # Define the number of pixels used by vertical space of figure
+  NUM_STACK = (maxT / aspectFactor) #/ len(sequences)
   if dispTrue:
     NUM_STACK /= 2
 
   f, axes = plt.subplots(len(sequences), len(taskids),
-                          sharex='col', sharey='row')
+                         sharex='col', sharey='row')
 
   # For singleton case, make sure that axes is index-able
   if len(sequences) == 1 and len(taskids) == 1:
-    f = [f]
     axes = [axes]
 
   for tt, taskidstr in enumerate(taskids):
@@ -66,10 +83,17 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences, dispTrue = True):
       lapsFile.close()
     else:
       curLap = int(lap)
-    
+
+    if showELBOInTitle:
+      Kvals = np.loadtxt(os.path.join(path, 'K.txt'))
+      ELBOscores = np.loadtxt(os.path.join(path, 'evidence.txt'))
+      laps = np.loadtxt(os.path.join(path, 'laps.txt'))
+      loc = np.flatnonzero(laps == curLap)
+      ELBO = ELBOscores[loc]
+      Kfinal = Kvals[loc]
+
     #Load in the saved data from $BNPYOUTDIR
     filename = 'Lap%08.3fMAPStateSeqsAligned.mat' % curLap
-
 
     zHatBySeq = scipy.io.loadmat(path + filename)
     zHatBySeq = zHatBySeq['zHatBySeqAligned'][0]
@@ -78,14 +102,9 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences, dispTrue = True):
     hammingDists = [float(x) for x in hammingDists]
     hammingFile.close()
 
-
-    #Load in the data module
-    datamod = imp.load_source(dataset,
-                              os.path.expandvars('$BNPYDATADIR/'+dataset+'.py'))
-    data = datamod.get_data()
-
-    Ts = data.doc_range[sequences+1] - data.doc_range[sequences]
-    maxT = np.max(Ts)
+    # Find maximum number of states we need to display
+    Kmax = np.max([zHatBySeq[i].max() for i in xrange(data.nDoc)])
+    Kmax = np.maximum(data.TrueParams['Z'].max(), Kmax)
 
     for ii, seqNum in enumerate(sequences):
       image = np.tile(zHatBySeq[seqNum], (NUM_STACK, 1))
@@ -98,29 +117,29 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences, dispTrue = True):
         image = np.vstack((image, np.tile(data.TrueParams['Z'][start:stop],
                                           (NUM_STACK, 1))))
 
-      #Title the rows and columns
-      if tt == 0:
-        if len(sequences) == 1 or len(taskids) == 1:
-          axes[ii].set_ylabel('Seq. %d' % sequences[ii], fontsize=13)
-        else:
-          axes[ii, 0].set_ylabel('Seq. %d' % sequences[ii], fontsize=13)
-      if ii == 0:
-        if len(sequences) == 1 or len(taskids) == 1:
-          axes[tt].set_title('Task %s' % taskidstr)
-        else:
-          axes[0, tt].set_title('Task %s' % taskidstr)
-      
       if len(sequences) == 1 or len(taskids) == 1:
         cur_ax = axes[ii+tt]
       else:
         cur_ax = axes[ii,tt]
     
-      cur_ax.imshow(image, interpolation='nearest', cmap='Set1')
-      cur_ax.set_xlim([0, maxT])
-      cur_ax.set_yticks([])
+      cur_ax.imshow(image, interpolation='nearest',
+                           vmin=0, vmax=Kmax,
+                           cmap='Set1')
+      if tt == 0:
+        cur_ax.set_ylabel('Seq. %d' % sequences[ii], fontsize=13)
 
-      # ... end loop over sequences      
-    f.suptitle(jobname+', lap = '+lap, fontsize = 18)
+      if ii == 0:
+        if showELBOInTitle:
+          cur_ax.set_title('ELBO: %.3f  K=%d' % (ELBO, Kfinal))
+        else:
+          cur_ax.set_title('Task %s' % taskidstr)
+      cur_ax.set_xlim([0, maxT])
+      cur_ax.set_ylim([0, image.shape[0]])
+      cur_ax.set_yticks([])
+      
+      # ... end loop over sequences    
+
+    #f.suptitle(jobname+', lap = '+lap, fontsize = 18)
 
 
 if __name__ == "__main__":
@@ -152,4 +171,3 @@ if __name__ == "__main__":
     
 
   plt.show()
-

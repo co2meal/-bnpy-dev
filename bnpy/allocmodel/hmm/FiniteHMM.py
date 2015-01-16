@@ -1,3 +1,4 @@
+
 '''
 FiniteHMM.py
 
@@ -39,6 +40,7 @@ class FiniteHMM(AllocModel):
         self.transPi = None # Transition matrix
         self.initTheta = None
         self.transTheta = None
+
 
     def set_prior(self, initAlpha = .1, transAlpha = .1, hmmKappa = 0.0,
                   **kwargs):
