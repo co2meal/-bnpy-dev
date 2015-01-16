@@ -70,6 +70,9 @@ class DataIterator(object):
     '''
     self.Data = Data
 
+    if hasattr(Data, 'name'):
+      self.name = Data.name
+
     nBatch = int(np.minimum(nBatch, Data.get_total_size()))
     self.nBatch = nBatch
     ## TODO: Warn about using fewer than specified num batches
