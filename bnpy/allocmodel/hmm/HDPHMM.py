@@ -502,11 +502,9 @@ class HDPHMM(AllocModel):
         digamma_omega = digamma(self.omega)
         ElogU = digamma(eta1) - digamma_omega
         Elog1mU = digamma(eta0) - digamma_omega
-
         sumEBeta = np.sum(StickBreakUtil.rho2beta(self.rho))
-
-        # Calculate aggregated coefficients of ElogU and Elog1mU
-
+        
+        # kappa > 0 requires a bound on the surrogate bound
         if self.kappa > 0:
           coefU = (K) + 1.0 - eta1
           coef1mU = (K) * OptimizerRhoOmega.kvec(K) + self.gamma - eta0
@@ -515,10 +513,12 @@ class HDPHMM(AllocModel):
           diff_logBetaPDF = np.inner(coefU, ElogU) \
                             + np.inner(coef1mU, Elog1mU)
           c_surr_kappa = (np.log(self.alpha+self.kappa) - np.log(self.kappa)) *\
-                        sumEBeta + \
-                        np.log(self.kappa) - np.log(self.alpha + self.kappa)
-          c_surr_alpha = (K) * K * np.log(self.alpha)
-          print self.kappa
+                       sumEBeta + \
+                       K*(np.log(self.kappa) - np.log(self.alpha + self.kappa))\
+                       + np.sum(Elog1mU)
+          c_surr_alpha = (K+1) * K * np.log(self.alpha)
+
+        # bound does not hold if kappa = 0, so special case this
         else:
           coefU = (K+1) + 1.0 - eta1
           coef1mU = (K+1) * OptimizerRhoOmega.kvec(K) + self.gamma - eta0
@@ -528,7 +528,7 @@ class HDPHMM(AllocModel):
                             + np.inner(coef1mU, Elog1mU)
           c_surr_kappa = 0
           c_surr_alpha = (K+1) * K * np.log(self.alpha)
-  
+
         return c_surr_alpha + c_surr_kappa + diff_cBeta + diff_logBetaPDF
 
     def calcHardMergeGap(self, SS, kA, kB):
