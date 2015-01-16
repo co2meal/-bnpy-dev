@@ -19,7 +19,7 @@ datasetdir = os.path.sep.join(os.path.abspath(__file__).split(os.path.sep)[:-1])
 if not os.path.isdir(datasetdir):
   raise ValueError('CANNOT FIND MOCAP6 DATASET DIRECTORY:\n' + datasetdir)
 
-matfilepath = os.path.join(datasetdir, 'MoCap6.mat')
+matfilepath = os.path.join(datasetdir, 'rawData', 'MoCap6.mat')
 if not os.path.isfile(matfilepath):
   raise ValueError('CANNOT FIND MOCAP6 DATASET MAT FILE:\n' + matfilepath)
 
@@ -39,7 +39,7 @@ def get_data_info():
   return 'Six sequences of data from motion capture of humans performing exercises'
 
 def get_short_name():
-  return 'MoCap'
+  return 'MoCap6'
 
 
 ########################################################### How to make MAT file
