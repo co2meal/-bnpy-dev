@@ -137,7 +137,8 @@ def _run_task_internal(jobname, taskid, nTask,
   if type(dataName) is str:
     if os.path.exists(dataName):
       ## dataName is a path to many data files on disk
-      Data, InitData = loadDataIteratorFromDisk(dataName, ReqArgs, KwArgs, dataorderseed)
+      Data, InitData = loadDataIteratorFromDisk(dataName, ReqArgs, KwArgs, 
+                                                dataorderseed)
       DataArgs = UnkArgs
       # Set the short name for this dataset,
       # so that the filepath for results is informative.
@@ -160,6 +161,8 @@ def _run_task_internal(jobname, taskid, nTask,
       DataArgs = getKwArgsForLoadData(Data, UnkArgs)
       OnlineDataArgs.update(DataArgs) # add custom args
       Data = Data.to_iterator(**OnlineDataArgs)
+  if hasattr(Data, 'name'):
+    ReqArgs['dataName'] = Data.name
 
   if doSaveToDisk:
     taskoutpath = getOutputPath(ReqArgs, KwArgs, taskID=taskid)
@@ -465,10 +468,14 @@ def getOutputPath(ReqArgs, KwArgs, taskID=0 ):
       outpath : absolute path to a directory on this file system.
                 Note: this directory may not exist yet.
   '''
-  datamod = __import__(ReqArgs['dataName'])
-  dataName = datamod.get_short_name()
+  dataName = ReqArgs['dataName']
+  if not isinstance(dataName, str):
+    raise ValueError('dataName argument must be a string\n' \
+                     + ' OR be a bnpy DataObj with a .name attribute.')
 
-  if os.path.exists(dataName):
+  # Handle case where dataName parameter is a file system path
+  # to a directory with many files, each one a batch of data
+  if type(dataName) is str and os.path.exists(dataName):
     try:
       dataName = KwArgs['OnlineDataPrefs']['datasetName']
     except KeyError:
