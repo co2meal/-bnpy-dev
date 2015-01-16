@@ -74,7 +74,6 @@ def get_data(meetingNum=1, **kwargs):
   Data.summary = get_data_info()
   Data.name = get_short_name()
 
-  print '###########', Data.name
   Data.fileNames = [fileNames[meetNum-1]]
   return Data
 
