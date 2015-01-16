@@ -39,12 +39,14 @@ class TestHDPHMM_ELBOPenalizesEmptyComps(unittest.TestCase):
 
   def test_ELBO_penalizes_empty__range_of_hypers(self):
     print ''
-    print '%5s %5s' % ('alpha', 'gamma')
-    for alpha in [0.1, 0.5, 0.9, 1.5]:
+    print '%5s %5s %5s' % ('alpha', 'gamma', 'kappa')
+    for alpha in [0.1, 0.9, 1.5]:
       for gamma in [1.0, 3.0, 10.0]:
-        print '%5.2f %5.2f' % (alpha, gamma)
+        for kappa in [0, 100, 300]:
+          print '%5.2f %5.2f %5.2f' % (alpha, gamma, kappa)
 
-        self.test_ELBO_penalizes_empty_comps(alpha=alpha, gamma=gamma)
+          self.test_ELBO_penalizes_empty_comps(alpha=alpha, gamma=gamma,
+                                               hmmKappa=kappa)
 
 
 def printProbVector(xvec, fmt='%.4f'):
@@ -53,13 +55,14 @@ def printProbVector(xvec, fmt='%.4f'):
     xvec = np.asarray([xvec])
   print ' '.join([fmt % (x) for x in xvec])
 
-def resp2ELBO_HDPHMM(Data, resp, gamma=10, alpha=0.5, initprobs='fromdata'):
+def resp2ELBO_HDPHMM(Data, resp, gamma=10, alpha=0.5, hmmKappa=0,
+                     initprobs='fromdata'):
   K = resp.shape[1]
   scaleF = 1
 
   ## Create a new HDPHMM
   ## with initial global params set so we have a uniform distr over topics
-  amodel = HDPHMM('VB', dict(alpha=alpha, gamma=gamma))
+  amodel = HDPHMM('VB', dict(alpha=alpha, gamma=gamma, hmmKappa=hmmKappa))
 
   if initprobs == 'fromdata':
     init_probs = np.sum(resp, axis=0) + gamma
@@ -127,7 +130,7 @@ def makeFigure():
   ## Iterate over the number of empty states (0, 1, 2, ...)
   for ii, kempty in enumerate(kemptyVals):
     resp = makeNewRespWithEmptyStates(trueResp, kempty)
-    ELBOVals[ii] =  resp2ELBO_HDPHMM(Data, resp)
+    ELBOVals[ii] =  resp2ELBO_HDPHMM(Data, resp, hmmKappa=100)
 
   # Make largest value the one with kempty=0, to make plot look good
   ELBOVals -= ELBOVals[0]
@@ -150,7 +153,7 @@ def makeFigure():
   legH = pylab.legend(loc='upper left', prop={'size':15})
 
   figH.subplots_adjust(bottom=0.16, left=0.2)
-  pylab.show(block=False)
+  pylab.show(block=True)
 
 if __name__ == "__main__":
   makeFigure()
