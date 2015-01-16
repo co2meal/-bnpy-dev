@@ -43,11 +43,12 @@ datasetdir = os.path.sep.join(os.path.abspath(__file__).split(os.path.sep)[:-1])
 if not os.path.isdir(datasetdir):
   raise ValueError('CANNOT FIND SPEAKER DIARIZATION DATASET DIRECTORY:\n' + datasetdir)
 
-def get_data_info():
-  return 'Twenty-one sequences of audio data from NIST proceedings'
-
+def get_data_info(meetingNum):
+  return 'Pre-processed audio data from NIST meeting %s (meeting %d / 21)' \
+         % (files[get_data_info.meetingNum][:-27], get_data_info.meetingNum)
+  
 def get_short_name():
-  return 'SpeakDiar'
+  return 'SpeakDiar'+str(get_short_name.meetingNum)
 
 
 def get_data(meetingNum = 1, **kwargs):
@@ -55,6 +56,8 @@ def get_data(meetingNum = 1, **kwargs):
   Returns a GroupXData object corresponding to the passed in meetingNum, which
   indexes the files listed above from 1 to 21
   '''
+  get_short_name.meetingNum = meetingNum
+  get_data_info.meetingNum = meetingNum
 
   matfilepath = os.path.join(datasetdir, 'rawData',
                              'speakerDiarizationData', files[meetingNum-1])
@@ -62,10 +65,15 @@ def get_data(meetingNum = 1, **kwargs):
     raise ValueError('CANNOT FIND SPEAKDIAR DATASET MAT FILE:\n' + matfilepath)
 
   Data = GroupXData.read_from_mat(matfilepath)
-  Data.summary = get_data_info()
+  Data.summary = get_data_info(meetingNum)
   Data.name = get_short_name()
 
+
   return Data
+
+# Static variables holding the meeting numbers
+get_data_info.meetingNum = 0
+get_short_name.meetingNum = 0
 
 
 

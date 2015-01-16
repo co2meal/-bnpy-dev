@@ -465,9 +465,9 @@ def getOutputPath(ReqArgs, KwArgs, taskID=0 ):
       outpath : absolute path to a directory on this file system.
                 Note: this directory may not exist yet.
   '''
-  dataName = ReqArgs['dataName']
-  if type(dataName) is not str:
-    dataName = dataName.get_short_name()
+  datamod = __import__(ReqArgs['dataName'])
+  dataName = datamod.get_short_name()
+
   if os.path.exists(dataName):
     try:
       dataName = KwArgs['OnlineDataPrefs']['datasetName']
