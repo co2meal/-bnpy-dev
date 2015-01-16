@@ -114,8 +114,9 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences,
       image = np.tile(zHatBySeq[seqNum], (NUM_STACK, 1))
 
       #Add the true labels to the image (if they exist)
-      if ( (data.TrueParams is not None) and ('Z' in data.TrueParams)
-           and (dispTrue):
+      if ((data.TrueParams is not None)
+           and ('Z' in data.TrueParams)
+           and dispTrue):
         start = data.doc_range[seqNum]
         stop = data.doc_range[seqNum+1]
         image = np.vstack((image, np.tile(data.TrueParams['Z'][start:stop],

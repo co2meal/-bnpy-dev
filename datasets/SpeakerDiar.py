@@ -12,11 +12,12 @@ The 21 recordings are meant to be trained on independently, so get_data() takes
 '''
 
 import numpy as np
-from bnpy.data import GroupXData, MinibatchIterator
+from bnpy.data import GroupXData
 import scipy.io
 import os
 
-files = ['AMI_20041210-1052_Nmeans25features_SpNsp.mat',
+fileNames = [
+'AMI_20041210-1052_Nmeans25features_SpNsp.mat',
 'AMI_20050204-1206_Nmeans25features_SpNsp.mat',
 'CMU_20050228-1615_Nmeans25features_SpNsp.mat',
 'CMU_20050301-1415_Nmeans25features_SpNsp.mat',
@@ -41,47 +42,47 @@ files = ['AMI_20041210-1052_Nmeans25features_SpNsp.mat',
 
 datasetdir = os.path.sep.join(os.path.abspath(__file__).split(os.path.sep)[:-1])
 if not os.path.isdir(datasetdir):
-  raise ValueError('CANNOT FIND SPEAKER DIARIZATION DATASET DIRECTORY:\n' + datasetdir)
+  raise ValueError('CANNOT FIND DATASET DIRECTORY:\n' + datasetdir)
 
-def get_data_info(meetingNum):
+def get_data_info():
+  global meetNum
   return 'Pre-processed audio data from NIST meeting %s (meeting %d / 21)' \
-         % (files[get_data_info.meetingNum][:-27], get_data_info.meetingNum)
+         % (fileNames[meetNum-1][:-27], meetNum)
   
 def get_short_name():
-  return 'SpeakDiar'+str(get_short_name.meetingNum)
+  global meetNum
+  return 'SpeakDiar'+str(meetNum)
 
 
-def get_data(meetingNum = 1, **kwargs):
+def get_data(meetingNum=1, **kwargs):
   '''
   Returns a GroupXData object corresponding to the passed in meetingNum, which
-  indexes the files listed above from 1 to 21
+  indexes the fileNames listed above from 1 to 21
   '''
-  get_short_name.meetingNum = meetingNum
-  get_data_info.meetingNum = meetingNum
+  global meetNum
+  meetNum = meetingNum
+
+  if meetNum <= 0 or meetNum > len(fileNames):
+    raise ValueError('Bad value for meetingNum: %s' % (meetNum))
 
   matfilepath = os.path.join(datasetdir, 'rawData',
-                             'speakerDiarizationData', files[meetingNum-1])
+                             'speakerDiarizationData', fileNames[meetNum-1])
   if not os.path.isfile(matfilepath):
     raise ValueError('CANNOT FIND SPEAKDIAR DATASET MAT FILE:\n' + matfilepath)
 
   Data = GroupXData.read_from_mat(matfilepath)
-  Data.summary = get_data_info(meetingNum)
+  Data.summary = get_data_info()
   Data.name = get_short_name()
 
-
+  print '###########', Data.name
+  Data.fileNames = [fileNames[meetNum-1]]
   return Data
-
-# Static variables holding the meeting numbers
-get_data_info.meetingNum = 0
-get_short_name.meetingNum = 0
-
-
 
 ############################################# Extract what we need from the
 ############################################# given NIST .mat files
 
 def saveMatFile(dataPath):
-  for file in files:
+  for file in fileNames:
     fpath = os.path.join(dataPath, file)
     data = scipy.io.loadmat(fpath)
     X = np.transpose(data['u'])

@@ -39,7 +39,7 @@ def get_data_info():
   return 'Six sequences of data from motion capture of humans performing exercises'
 
 def get_short_name():
-  return 'MoCap'
+  return 'MoCap6'
 
 
 ########################################################### How to make MAT file
