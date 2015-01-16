@@ -63,6 +63,15 @@ class GroupXData(XData):
       return cls.read_from_mat(filepath, nDocTotal=nDocTotal, **kwargs)
     raise NotImplemented('Only .mat file supported.')
 
+  def save_to_mat(self, matfilepath):
+    ''' Save contents of current object to disk
+    '''
+    import scipy.io
+    SaveVars = dict(X=self.X, nDoc=self.nDoc, doc_range=self.doc_range)
+    if hasattr(self, 'Xprev'):
+      SaveVars['Xprev'] = self.Xprev
+    scipy.io.savemat(matfilepath, SaveVars, oned_as='row')
+
   @classmethod
   def read_from_mat(cls, matfilepath, nDocTotal=None, **kwargs):
     ''' Static Constructor for building an instance of GroupXData from disk

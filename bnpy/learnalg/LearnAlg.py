@@ -279,7 +279,7 @@ class LearnAlg(object):
 
   def printStateToLog(self, hmodel, evBound, lap, iterid, isFinal=0, rho=None):
     if hasattr(self, 'ConvergeInfo') and 'maxDiff' in self.ConvergeInfo:
-      countStr = 'Ndiff%10.3f' % (self.ConvergeInfo['maxDiff'])
+      countStr = 'Ndiff%9.3f' % (self.ConvergeInfo['maxDiff'])
     else:
       countStr = ''
 
