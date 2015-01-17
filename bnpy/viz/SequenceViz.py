@@ -50,8 +50,6 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences,
   elif type(taskids) == int:
     taskids = [str(taskids)]
   sequences = np.asarray(sequences, dtype=np.int32)
-
-  #Load in the data module
   datamod = imp.load_source(dataset,
                             os.path.expandvars('$BNPYDATADIR/'+dataset+'.py'))
   data = datamod.get_data()
@@ -92,11 +90,17 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences,
       ELBO = ELBOscores[loc]
       Kfinal = Kvals[loc]
 
-    #Load in the saved data from $BNPYOUTDIR
+    # Load in the saved data from $BNPYOUTDIR
     filename = 'Lap%08.3fMAPStateSeqsAligned.mat' % curLap
-
     zHatBySeq = scipy.io.loadmat(path + filename)
-    zHatBySeq = zHatBySeq['zHatBySeqAligned'][0]
+
+    # For some reason, if it's a 1 dimensional array, it gets wrapped inside
+    #    an extra array
+    if np.shape(zHatBySeq['zHatBySeqAligned'])[0] == 1:
+      zHatBySeq = zHatBySeq['zHatBySeqAligned'][0]
+    else:
+      zHatBySeq = zHatBySeq['zHatBySeqAligned']
+      
     hammingFile = open(path+'hamming-distance.txt', 'r')
     hammingDists = hammingFile.readlines()
     hammingDists = [float(x) for x in hammingDists]
