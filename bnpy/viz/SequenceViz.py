@@ -32,6 +32,7 @@ import sys
 import argparse
 
 from bnpy.ioutil import BNPYArgParser
+from bnpy.viz.TaskRanker import rankTasksForSingleJobOnDisk
 
 def plotSingleJob(dataset, jobname, taskids, lap, sequences, 
                   showELBOInTitle=False,
@@ -73,6 +74,9 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences,
     axes = [axes]
 
   for tt, taskidstr in enumerate(taskids):
+    if tt == 0 and taskidstr.startswith('.'):
+      rankTasksForSingleJobOnDisk(jobpath)
+
     path = os.path.join(jobpath, taskidstr) + os.path.sep
 
     #Figure out which lap to use
@@ -92,7 +96,7 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences,
       hdists = np.loadtxt(os.path.join(path, 'hamming-distance.txt'))
       hlaps = np.loadtxt(os.path.join(path, 'laps-saved-params.txt'))
 
-      loc = np.flatnonzero(laps == curLap)
+      loc = np.argmin(np.abs(laps - curLap))
       ELBO = ELBOscores[loc]
       Kfinal = Kvals[loc]
 
@@ -110,7 +114,7 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences,
     Kmax = np.maximum(data.TrueParams['Z'].max(), Kmax)
 
     # In case there's only one sequence, make sure it's index-able
-    if len(np.shape(zHatBySeq)) == 1:
+    if len(zHatBySeq) == 1:
       zHatBySeq = [zHatBySeq]
 
     for ii, seqNum in enumerate(sequences):
