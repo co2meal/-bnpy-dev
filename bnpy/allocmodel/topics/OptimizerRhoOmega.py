@@ -32,7 +32,7 @@ from bnpy.util.StickBreakUtil import create_initrho, create_initomega
 Log = logging.getLogger('bnpy')
 
 def find_optimum_multiple_tries(sumLogPi=0, nDoc=0, 
-                                gamma=1.0, alpha=1.0,
+                                gamma=1.0, alpha=1.0, kappa=0.0,
                                 initrho=None, initomega=None,
                                 approx_grad=False,
                                 factrList=[1e5, 1e7, 1e9, 1e10, 1e11],
@@ -59,7 +59,7 @@ def find_optimum_multiple_tries(sumLogPi=0, nDoc=0,
   for trial, factr in enumerate(factrList):
     try:
       rhoomega, f, Info = find_optimum(sumLogPi, nDoc,
-                                       gamma=gamma, alpha=alpha,
+                                       gamma=gamma, alpha=alpha, kappa=kappa,
                                        initrho=initrho, initomega=initomega,
                                        factr=factr, approx_grad=approx_grad,
                                        **kwargs)
@@ -83,7 +83,7 @@ def find_optimum_multiple_tries(sumLogPi=0, nDoc=0,
     if initrho is not None:      
       # Last ditch effort, try different initialization
       return find_optimum_multiple_tries(sumLogPi, nDoc, 
-                                gamma=gamma, alpha=alpha,
+                                gamma=gamma, alpha=alpha, kappa=kappa,
                                 initrho=None, initomega=None,
                                 approx_grad=approx_grad, **kwargs)
     else:
@@ -93,7 +93,7 @@ def find_optimum_multiple_tries(sumLogPi=0, nDoc=0,
   return rho, omega, f, Info
 
 
-def find_optimum(sumLogPi=0, nDoc=0, gamma=1.0, alpha=1.0,
+def find_optimum(sumLogPi=0, nDoc=0, gamma=1.0, alpha=1.0, kappa=0.0,
                  initrho=None, initomega=None, scaleVector=None,
                  approx_grad=False, factr=1.0e5, **kwargs):
   ''' Run gradient optimization to estimate best parameters rho, omega
@@ -134,7 +134,7 @@ def find_optimum(sumLogPi=0, nDoc=0, gamma=1.0, alpha=1.0,
 
   ## Define objective function (unconstrained!)
   objArgs = dict(sumLogPi=sumLogPi,
-                  nDoc=nDoc, gamma=gamma, alpha=alpha,
+                  nDoc=nDoc, gamma=gamma, alpha=alpha, kappa=kappa,
                   approx_grad=approx_grad, scaleVector=scaleVector)
 
   c_objFunc = lambda c: objFunc_unconstrained(c, **objArgs)
@@ -205,9 +205,9 @@ def rhoomega2c(rhoomega, scaleVector=None):
 ########################################################### Objective
 ###########################################################  constrained
 def objFunc_constrained(rhoomega,
-                     sumLogPi=0, nDoc=0, gamma=1.0, alpha=1.0,
+                     sumLogPi=0, nDoc=0, gamma=1.0, alpha=1.0, kappa=0.0,
                      approx_grad=False, **kwargs):
-  ''' Returns constrained objective function and its gradient
+  ''' Returns constrained objective function and its gradient.
 
       Args
       -------
@@ -231,16 +231,25 @@ def objFunc_constrained(rhoomega,
   Elogu = digamma(g1) - digammaomega
   Elog1mu = digamma(g0) - digammaomega
 
+  # TODO : when is nDoc=0 or 1?  I actually use nDoc-1 when we have kappa, but
+  #  when kappa is in use, there's always at least two "documents" (sticks), so
+  #  this shouldn't crash in the short term.
   if nDoc > 0:
-    scale = nDoc
-    ONcoef = 1 + (1.0 - g1)/nDoc
-    OFFcoef = kvec(K) + (gamma - g0)/nDoc
+    if kappa > 0:
+      scale = nDoc - 1
+      OFFcoef = kvec(K) + (gamma - g0)/scale + 1/(K*scale))
+      Tvec = sumLogPi/scale + K * (np.log(alpha+kappa) - np.log(kappa))
+    else:
+      scale = nDoc
+      OFFcoef = kvec(K) + (gamma - g0)/scale
+      Tvec = sumLogPi/scale
+    ONcoef = 1 + (1.0 - g1)/scale
 
     ## Calc local term
-    Tvec = sumLogPi/nDoc
     Ebeta = np.hstack([rho, 1.0])
     Ebeta[1:] *= np.cumprod(1-rho)
     elbo_local = alpha * np.inner(Ebeta, Tvec) 
+
 
   else:
     scale = 1
