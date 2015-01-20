@@ -257,13 +257,14 @@ class HDPHMM(AllocModel):
         # Do the optimization
         try:
             rho, omega, fofu, Info = \
-                  OptimizerRhoOmega.find_optimum_multiple_tries(
-                                                         sumLogPi = sumELogPi,
-                                                         nDoc = self.K+1, 
-                                                         gamma = self.gamma, 
-                                                         alpha = self.alpha, 
-                                                         initrho = initRho, 
-                                                         initomega = initOmega)
+              OptimizerRhoOmega.find_optimum_multiple_tries(
+                     sumLogPi = sumELogPi,
+                     nDoc = self.K+1, 
+                     gamma = self.gamma, 
+                     alpha = self.alpha,
+                     kappa = self.kappa,
+                     initrho = initRho, 
+                     initomega = initOmega)
             self.OptimizerInfo = Info
             self.OptimizerInfo['fval'] = fofu
 
