@@ -1,7 +1,7 @@
 '''
 SequenceViz.py
 
-Visualizes sequential data as a plot of colored bars of the estimated state
+Visualizes sequential Data as a plot of colored bars of the estimated state
 as calculated by the Viterbi algorithm.  Displays a separate grid for each
 jobname specified where each row corresponds to a sequence and each column
 to a taskid.  By default, the final lap from each taskid is used; however,
@@ -14,12 +14,12 @@ running (use --customFuncPath path/goes/here/XViterbi.py)
 
 Example, showing the final lap:
 
-python SequenceViz.py --dataset MoCap6 --jobnames defaultjob --taskids 1,3,6
+python SequenceViz.py --Dataset MoCap6 --jobnames defaultjob --taskids 1,3,6
                         --sequences 1,2,4,6
 
 Example, showing the 5th lap for two different jobnames:
 
-python SequenceViz.py --dataset MoCap6 --jobnames defaultjob,EM --taskids 1
+python SequenceViz.py --Dataset MoCap6 --jobnames defaultjob,EM --taskids 1
                         --lap 5 --sequences 1,2,4,6
 '''
 
@@ -31,7 +31,9 @@ import imp
 import sys
 import argparse
 
+from bnpy.util.StateSeqUtil import convertStateSeq_MAT2list
 from bnpy.ioutil import BNPYArgParser
+from bnpy.viz.TaskRanker import rankTasksForSingleJobOnDisk
 
 def plotSingleJob(dataset, jobname, taskids, lap, sequences, 
                   showELBOInTitle=False,
@@ -39,29 +41,39 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences,
                   aspectFactor=4.0,
                  ):
   '''
-  Returns the array of data corresponding to a single sequence to display
+  Returns the array of Data corresponding to a single sequence to display
 
   If dispTrue = True, the true labels will be shown underneath the
     estimated labels
   '''
-  jobpath = os.path.join( os.path.expandvars('$BNPYOUTDIR'), dataset, jobname)
+  # Make sequences zero-indexed
+  sequences = np.asarray(sequences, dtype=np.int32)
+  sequences -= 1
+
+  # Load Data from its python module
+  Datamod = imp.load_source(dataset,
+                            os.path.expandvars('$BNPYDATADIR/'+dataset+'.py'))
+  if dataset == 'SpeakerDiar':
+    if len(sequences) > 1:
+      raise ValueError('Joint modeling of several sequences makes no sense')
+    Data = Datamod.get_data(meetingNum=sequences[0]+1)
+  else:
+    Data = Datamod.get_data()
+
+  # Determine the jobpath and taskids 
+  jobpath = os.path.join(os.path.expandvars('$BNPYOUTDIR'), 
+                         Datamod.get_short_name(), jobname)
   if type(taskids) == str:
     taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
   elif type(taskids) == int:
     taskids = [str(taskids)]
-  sequences = np.asarray(sequences, dtype=np.int32)
-
-  #Load in the data module
-  datamod = imp.load_source(dataset,
-                            os.path.expandvars('$BNPYDATADIR/'+dataset+'.py'))
-  data = datamod.get_data()
 
   # Determine the maximum length among any of the sequences to be plotted
-  Ts = data.doc_range[sequences+1] - data.doc_range[sequences]
+  Ts = Data.doc_range[sequences+1] - Data.doc_range[sequences]
   maxT = np.max(Ts)
 
   # Define the number of pixels used by vertical space of figure
-  NUM_STACK = (maxT / aspectFactor) #/ len(sequences)
+  NUM_STACK = (maxT / aspectFactor) 
   if dispTrue:
     NUM_STACK /= 2
 
@@ -73,6 +85,9 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences,
     axes = [axes]
 
   for tt, taskidstr in enumerate(taskids):
+    if tt == 0 and taskidstr.startswith('.'):
+      rankTasksForSingleJobOnDisk(jobpath)
+
     path = os.path.join(jobpath, taskidstr) + os.path.sep
 
     #Figure out which lap to use
@@ -92,37 +107,34 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences,
       hdists = np.loadtxt(os.path.join(path, 'hamming-distance.txt'))
       hlaps = np.loadtxt(os.path.join(path, 'laps-saved-params.txt'))
 
-      loc = np.flatnonzero(laps == curLap)
+      loc = np.argmin(np.abs(laps - curLap))
       ELBO = ELBOscores[loc]
       Kfinal = Kvals[loc]
 
       loc = np.argmin(np.abs(hlaps - curLap))
       hdist = hdists[loc]
 
-    #Load in the saved data from $BNPYOUTDIR
+    #Load in the saved Data from $BNPYOUTDIR
     filename = 'Lap%08.3fMAPStateSeqsAligned.mat' % curLap
 
     zHatBySeq = scipy.io.loadmat(path + filename)
-    zHatBySeq = zHatBySeq['zHatBySeqAligned'][0]
+    zHatBySeq = convertStateSeq_MAT2list(zHatBySeq['zHatBySeqAligned'])
 
     # Find maximum number of states we need to display
-    Kmax = np.max([zHatBySeq[i].max() for i in xrange(data.nDoc)])
-    Kmax = np.maximum(data.TrueParams['Z'].max(), Kmax)
+    Kmax = np.max([zHatBySeq[i].max() for i in xrange(Data.nDoc)])
+    Kmax = np.maximum(Data.TrueParams['Z'].max(), Kmax)
 
     # In case there's only one sequence, make sure it's index-able
-    if len(np.shape(zHatBySeq)) == 1:
-      zHatBySeq = [zHatBySeq]
-
     for ii, seqNum in enumerate(sequences):
       image = np.tile(zHatBySeq[seqNum], (NUM_STACK, 1))
 
       #Add the true labels to the image (if they exist)
-      if ((data.TrueParams is not None)
-           and ('Z' in data.TrueParams)
+      if ((Data.TrueParams is not None)
+           and ('Z' in Data.TrueParams)
            and dispTrue):
-        start = data.doc_range[seqNum]
-        stop = data.doc_range[seqNum+1]
-        image = np.vstack((image, np.tile(data.TrueParams['Z'][start:stop],
+        start = Data.doc_range[seqNum]
+        stop = Data.doc_range[seqNum+1]
+        image = np.vstack((image, np.tile(Data.TrueParams['Z'][start:stop],
                                           (NUM_STACK, 1))))
 
       if len(sequences) == 1 or len(taskids) == 1:
@@ -164,11 +176,13 @@ if __name__ == "__main__":
 
   if args.jobnames is None:
     raise ValueError('BAD ARGUMENT: String jobname.\n' 
-                     + 'Usage: SequenceViz --dataset Name --jobnames a,b,c')
+                     + 'Usage: SequenceViz --Dataset Name --jobnames a,b,c')
   jobs = args.jobnames.split(',')
 
   sequences = np.asarray([x for x in args.sequences.split(',')], dtype=np.int32)
-
+  if np.min(sequences) < 1:
+    raise ValueError('Sequences need to be one-index.\n'
+                     + 'Valid values are 1,2,...N.')
   for job in jobs:
     plotSingleJob(dataset = args.dataset,
                   jobname = job,

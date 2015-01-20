@@ -108,7 +108,7 @@ def runViterbiAndSave(**kwargs):
   # Store MAP sequence to file    
   prefix = makePrefixForLap(lapFrac)
   matfilepath = os.path.join(learnAlgObj.savedir, prefix + 'MAPStateSeqs.mat')
-  MATVarsDict = dict(zHatBySeq=zHatBySeq)
+  MATVarsDict = dict(zHatBySeq=StateSeqUtil.convertStateSeq_list2MAT(zHatBySeq))
   scipy.io.savemat(matfilepath, MATVarsDict, oned_as='row')
 
   # Save sequence aligned to truth and calculate Hamming distance 
@@ -116,18 +116,21 @@ def runViterbiAndSave(**kwargs):
     zHatFlat = StateSeqUtil.convertStateSeq_list2flat(zHatBySeq, Data)
     zHatFlatAligned = \
       StateSeqUtil.alignEstimatedStateSeqToTruth(zHatFlat,Data.TrueParams['Z'])
-    zHatBySeqAligned = StateSeqUtil.convertStateSeq_flat2list(zHatFlatAligned,
-                                                              Data)
-    MATVarsDict = dict(zHatBySeqAligned = zHatBySeqAligned)
+    zHatBySeqAligned = StateSeqUtil.convertStateSeq_flat2list(
+                                    zHatFlatAligned, Data)
+    zHatBySeqAligned_Arr = StateSeqUtil.convertStateSeq_list2MAT(
+                                    zHatBySeqAligned)
+
+    MATVarsDict = dict(zHatBySeqAligned=zHatBySeqAligned_Arr)
     matfilepath = os.path.join(learnAlgObj.savedir,
                                prefix + 'MAPStateSeqsAligned.mat')
     scipy.io.savemat(matfilepath, MATVarsDict, oned_as='row')
 
     kwargs['Data'] = Data
-    calcHammingDistanceAndSave(zHatBySeq, zHatFlatAligned, **kwargs)
+    calcHammingDistanceAndSave(zHatFlatAligned, **kwargs)
 
     
-def calcHammingDistanceAndSave(zHatBySeq, zHatFlatAligned, **kwargs):
+def calcHammingDistanceAndSave(zHatFlatAligned, **kwargs):
   ''' Calculate hamming distance for all sequences, saving to flat file.
 
   Keyword Args (all workspace variables passed along from learning alg)
@@ -145,9 +148,7 @@ def calcHammingDistanceAndSave(zHatBySeq, zHatFlatAligned, **kwargs):
   '''
   Data = kwargs['Data']
   zTrue = Data.TrueParams['Z']
-  zHatFlat = StateSeqUtil.convertStateSeq_list2flat(zHatBySeq, Data)
 
-  #zHatAligned = StateSeqUtil.alignEstimatedStateSeqToTruth(zHatFlat, zTrue)
   hdistance = StateSeqUtil.calcHammingDistance(zHatFlatAligned, zTrue)
   normhdist = float(hdistance) / float(zHatFlatAligned.size)
 

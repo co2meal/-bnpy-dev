@@ -211,10 +211,10 @@ class GroupXData(XData):
     else:
       newXprev = None
 
+    nDocTotal=None
     if doTrackFullSize:
       nDocTotal = self.nDocTotal
-    else:
-      nDocTotal = len(newDocRange)
+
     return GroupXData(newX, newDocRange, Xprev=newXprev, nDocTotal=nDocTotal)
 
   ######################################################### Add Data
