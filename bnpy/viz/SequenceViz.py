@@ -35,10 +35,12 @@ from bnpy.util.StateSeqUtil import convertStateSeq_MAT2list
 from bnpy.ioutil import BNPYArgParser
 from bnpy.viz.TaskRanker import rankTasksForSingleJobOnDisk
 
-def plotSingleJob(dataset, jobname, taskids, lap, sequences, 
+def plotSingleJob(dataset, jobname, taskids='1', lap='final',
+                  sequences=[1],
                   showELBOInTitle=False,
                   dispTrue = True,
                   aspectFactor=4.0,
+                  maxT=None,
                  ):
   '''
   Returns the array of Data corresponding to a single sequence to display
@@ -47,7 +49,13 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences,
     estimated labels
   '''
   # Make sequences zero-indexed
+  if isinstance(sequences, str):
+    sequences = np.asarray([int(x) for x in args.sequences.split(',')],
+                           dtype=np.int32)
   sequences = np.asarray(sequences, dtype=np.int32)
+  if np.min(sequences) < 1:
+    raise ValueError('Sequences need to be one-index.\n'
+                     + 'Valid values are 1,2,...N.')
   sequences -= 1
 
   # Load Data from its python module
@@ -69,9 +77,10 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences,
     taskids = [str(taskids)]
 
   # Determine the maximum length among any of the sequences to be plotted
-  Ts = Data.doc_range[sequences+1] - Data.doc_range[sequences]
-  maxT = np.max(Ts)
-
+  if maxT is None:
+    Ts = Data.doc_range[sequences+1] - Data.doc_range[sequences]
+    maxT = np.max(Ts)
+  
   # Define the number of pixels used by vertical space of figure
   NUM_STACK = (maxT / aspectFactor) 
   if dispTrue:
@@ -136,6 +145,8 @@ def plotSingleJob(dataset, jobname, taskids, lap, sequences,
         stop = Data.doc_range[seqNum+1]
         image = np.vstack((image, np.tile(Data.TrueParams['Z'][start:stop],
                                           (NUM_STACK, 1))))
+      
+      image = image[:, :maxT]
 
       if len(sequences) == 1 or len(taskids) == 1:
         cur_ax = axes[ii+tt]
@@ -179,16 +190,12 @@ if __name__ == "__main__":
                      + 'Usage: SequenceViz --Dataset Name --jobnames a,b,c')
   jobs = args.jobnames.split(',')
 
-  sequences = np.asarray([x for x in args.sequences.split(',')], dtype=np.int32)
-  if np.min(sequences) < 1:
-    raise ValueError('Sequences need to be one-index.\n'
-                     + 'Valid values are 1,2,...N.')
   for job in jobs:
     plotSingleJob(dataset = args.dataset,
                   jobname = job,
                   taskids = args.taskids,
                   lap = args.lap,
-                  sequences =  sequences,
+                  sequences = args.sequences,
                   dispTrue = True)
     
 

@@ -2,6 +2,7 @@ import numpy as np
 import glob
 import os
 
+from collections import defaultdict
 from bnpy.ioutil import BNPYArgParser
 
 def findKeysWithDiffVals(dA, dB):
@@ -87,6 +88,7 @@ def filterJobs(jpathPattern, verbose=0, **reqKwArgs):
 
   keepListP = list() # list of paths to keep
   keepListD = list() # list of dicts to keep (one for each path)
+  reqKwMatches = defaultdict(int)
   for jpath in jpathList:
     jdict = jpath2jdict(jpath)
     doKeep = True
@@ -97,10 +99,18 @@ def filterJobs(jpathPattern, verbose=0, **reqKwArgs):
       reqval = reqKwArgs[reqkey]
       if jdict[reqkey] != reqval:
         doKeep = False
+      else:
+        reqKwMatches[reqkey] += 1
     if doKeep:
       keepListP.append(jpath)
       keepListD.append(jdict)
  
+  if len(keepListP) == 0:
+    for reqkey in reqKwArgs:
+      if reqKwMatches[reqkey] == 0:
+        raise ValueError('BAD REQUIRED PARAMETER.\n'
+              + 'No matches found for %s=%s: ' % (reqkey, reqKwArgs[reqkey]))
+
   if verbose:
     print '\nCandidates matching requirements'
     for p in keepListP:
