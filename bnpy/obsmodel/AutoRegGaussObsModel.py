@@ -51,7 +51,8 @@ class AutoRegGaussObsModel(AbstractObsModel):
 
   def createPrior(self, Data, nu=0, B=None,
                               M=None, V=None,
-                              ECovMat=None, sF=1.0, sV=1.0, **kwargs):
+                              ECovMat=None, sF=1.0, 
+                              VMat='eye', sV=1.0, **kwargs):
     ''' Initialize Prior ParamBag object, with fields nu, B, m, kappa
           set according to match desired mean and expected covariance matrix.
     '''
@@ -69,7 +70,12 @@ class AutoRegGaussObsModel(AbstractObsModel):
       M = as2D(M)
 
     if V is None:
-      V = sV * np.eye(D)
+      if VMat == 'eye':
+        V = sV * np.eye(D)
+      elif VMat == 'same':
+        V = sV * ECovMat
+      else:
+        raise ValueError('Unrecognized VMat: %s' % (VMat))
     else:
       V = as2D(V)
     self.Prior = ParamBag(K=0, D=D)

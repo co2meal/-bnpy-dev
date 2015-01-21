@@ -80,3 +80,18 @@ def convertStateSeq_list2flat(zListBySeq, Data):
     zFlat[start:stop] = zListBySeq[n]
   return zFlat
 
+def convertStateSeq_list2MAT(zListBySeq):
+  ''' Convert nested list representation to MAT friendly format
+  '''
+  N = len(zListBySeq)
+  zObjArr = np.zeros((N,1), dtype=object)
+  for n in xrange(N):
+    zObjArr[n,0] = np.asarray(zListBySeq[n][:,np.newaxis], dtype=np.int32)
+  return zObjArr
+
+def convertStateSeq_MAT2list(zObjArr):
+  N = zObjArr.shape[0]
+  zListBySeq = list()
+  for n in xrange(N):
+    zListBySeq.append(np.squeeze(zObjArr[n,0]))
+  return zListBySeq

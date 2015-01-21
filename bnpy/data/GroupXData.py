@@ -77,25 +77,18 @@ class GroupXData(XData):
     ''' Static Constructor for building an instance of GroupXData from disk
     '''
     import scipy.io
-    InDict = scipy.io.loadmat( matfilepath, **kwargs)
+    InDict = scipy.io.loadmat(matfilepath, **kwargs)
     if 'X' not in InDict:
       raise KeyError('Stored matfile needs to have data in field named X')
-    # Load in Xprev, if available
-    if 'Xprev' in InDict:
-      Xprev = InDict['Xprev']
-    else:
-      Xprev = None
-    # Load in Z labels, if available
-    if 'TrueZ' in InDict:
-      TrueZ = InDict['TrueZ']
-    else:
-      TrueZ = None
-    return cls(InDict['X'], InDict['doc_range'],
-               Xprev=Xprev, TrueZ=TrueZ,
-               nDocTotal=nDocTotal)
+    if 'doc_range' not in InDict:
+      raise KeyError('Stored matfile needs to have field named doc_range')
+    if nDocTotal is not None:
+      InDict['nDocTotal'] = nDocTotal
+    return cls(**InDict)
   
-  def __init__(self, X, doc_range, nDocTotal=None, 
-                        Xprev=None, TrueZ=None, TrueParams=None, summary=None):
+  def __init__(self, X=None, doc_range=None, nDocTotal=None, 
+                     Xprev=None, TrueZ=None, 
+                     TrueParams=None, fileNames=None, summary=None, **kwargs):
     ''' Create an instance of GroupXData for provided array X
 
         Reallocation of memory may occur, to ensure that X is a 2D numpy array
@@ -122,6 +115,10 @@ class GroupXData(XData):
       if not hasattr(self, 'TrueParams'):
         self.TrueParams = dict()
       self.TrueParams['Z'] = _toStd1DArray(TrueZ)
+
+    ## Add optional source files for each group/sequence
+    if fileNames is not None:
+      self.fileNames = [str(x).strip() for x in np.squeeze(fileNames)]
 
   def _set_dependent_params(self, doc_range, nDocTotal=None): 
     self.nObs = self.X.shape[0]
@@ -214,10 +211,10 @@ class GroupXData(XData):
     else:
       newXprev = None
 
+    nDocTotal=None
     if doTrackFullSize:
       nDocTotal = self.nDocTotal
-    else:
-      nDocTotal = len(newDocRange)
+
     return GroupXData(newX, newDocRange, Xprev=newXprev, nDocTotal=nDocTotal)
 
   ######################################################### Add Data
