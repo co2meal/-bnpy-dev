@@ -58,15 +58,58 @@ def FwdBwdAlg(PiInit, PiMat, logSoftEv):
   
   fmsg, margPrObs = FwdAlg(PiInit, PiMat, SoftEv)
   bmsg = BwdAlg(PiInit, PiMat, SoftEv, margPrObs)
+  resp = fmsg * bmsg
+  respPair = calcRespPair_fast(PiMat, SoftEv, margPrObs, fmsg, bmsg, K, T)
+  logMargPrSeq = np.log(margPrObs).sum() + lognormC.sum()
+  return resp, respPair, logMargPrSeq
 
+def calcRespPair_forloop(PiMat, SoftEv, margPrObs, fmsg, bmsg, K, T):
+  ''' Calculate pair-wise responsibilities for all adjacent timesteps
+
+      Uses a simple, for-loop implementation. 
+      See calcRespPair_fast for a equivalent function that is much faster.
+
+      Returns
+      ---------
+      respPair : 3D array, size T x K x K
+         respPair[t,j,k] = marg. prob. that both
+                           * step t-1 assigned to state j
+                           * step t assigned to state k
+         Formally equals p( z[t-1,j] = 1, z[t,k] = 1 | x[1], x[2], ... x[T])
+         respPair[0,:,:] is undefined, but kept to match indexing consistent.
+  '''
   respPair = np.zeros((T,K,K))
   for t in xrange(1, T):
     respPair[t] = np.outer(fmsg[t-1], bmsg[t] * SoftEv[t])
     respPair[t] *= PiMat / margPrObs[t]
-    #assert np.allclose(respPair[t].sum(), 1.0)
-  logMargPrSeq = np.log(margPrObs).sum() + lognormC.sum()
-  resp = fmsg * bmsg
-  return resp, respPair, logMargPrSeq
+  return respPair
+
+def calcRespPair_fast(PiMat, SoftEv, margPrObs, fmsg, bmsg, K, T,
+                      doCopy=0):
+  ''' Calculate pair-wise responsibilities for all adjacent timesteps
+
+      Uses a fast, vectorized algorithm.
+
+      Returns
+      ---------
+      respPair : 3D array, size T x K x K
+         respPair[t,j,k] = marg. prob. that both
+                           * step t-1 assigned to state j
+                           * step t assigned to state k
+         Formally equals p( z[t-1,j] = 1, z[t,k] = 1 | x[1], x[2], ... x[T])
+         respPair[0,:,:] is undefined, but kept to match indexing consistent.
+  '''
+  if doCopy:
+    bmsgSoftEv = SoftEv * bmsg
+  else:
+    bmsgSoftEv = SoftEv # alias
+    bmsgSoftEv *= bmsg  # in-place multiplication
+
+  respPair = np.zeros((T,K,K))
+  respPair[1:] = fmsg[:-1][:,:,np.newaxis] * bmsgSoftEv[1:][:,np.newaxis,:]
+  respPair *= PiMat[np.newaxis,:,:]
+  respPair /= margPrObs[:,np.newaxis,np.newaxis]
+  return respPair
 
 ########################################################### FwdAlg/BwdAlg 
 ########################################################### Wrappers
