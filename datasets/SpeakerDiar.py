@@ -51,7 +51,7 @@ def get_data_info():
   
 def get_short_name():
   global meetNum
-  return 'SpeakDiar'+str(meetNum)
+  return 'SpeakerDiar'+str(meetNum)
 
 
 def get_data(meetingNum=1, **kwargs):
