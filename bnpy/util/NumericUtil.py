@@ -71,6 +71,25 @@ def inplaceExp_numexpr(R):
   '''
   ne.evaluate("exp(R)", out=R)
 
+
+def inplaceLog(R):
+  ''' Calculate log of each entry of input matrix, done in-place.
+  '''
+  if Config['inplaceExpAndNormalizeRows'] == "numexpr" and hasNumexpr:
+    return inplaceLog_numexpr(R)
+  else:  
+    return inplaceLog_numpy(R)
+
+def inplaceLog_numpy(R):
+  ''' Calculate log of each entry of input matrix, done in-place.
+  '''
+  np.log(R, out=R)
+
+def inplaceLog_numexpr(R):
+  ''' Calculate log of each entry of input matrix, done in-place.
+  '''
+  ne.evaluate("log(R)", out=R)
+
 ########################################################### exp and normalize
 ###########################################################
 def inplaceExpAndNormalizeRows(R, minVal=1e-40):
@@ -101,6 +120,37 @@ def inplaceExpAndNormalizeRows_numexpr(R):
   R /= R.sum(axis=1)[:,np.newaxis]
 
 
+########################################################### sum R times S
+###########################################################
+def sumRtimesS(R, S):
+  ''' Calculate sum along first axis of the product R times S
+
+      Uses faster numexpr library if available, but safely falls back
+        to plain numpy otherwise.      
+
+      Args
+      --------
+      R : 3D array, shape N x D1 x D2
+      S : 3D array, shape N x D1 x D2
+
+      Returns
+      --------
+      s : 2D array, size D1xD2
+  '''
+  if Config['calcRlogR'] == "numexpr" and hasNumexpr:
+    return sumRtimesS_numexpr(R, S)
+  else:  
+    return sumRtimesS_numpy(R, S)
+
+def sumRtimesS_numpy(R, S):
+  return np.sum(R*S, axis=0)
+
+def sumRtimesS_numexpr(R, S):
+  return ne.evaluate("sum(R*S, axis=0)")
+
+def sumRtimeslogS_numexpr(R, S):
+  return ne.evaluate("sum(R*log(S))")
+
 ########################################################### standard RlogR
 ###########################################################
 def calcRlogR(R):
@@ -123,6 +173,7 @@ def calcRlogR_numpy(R):
 
 def calcRlogR_numexpr(R):
   return ne.evaluate("sum(R*log(R), axis=0)")
+
 
 ########################################################### standard RlogRdotv
 ###########################################################

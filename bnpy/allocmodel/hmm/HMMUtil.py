@@ -11,6 +11,9 @@ import numpy as np
 from bnpy.util import EPS
 
 from bnpy.util.NumericUtil import Config as PlatformConfig
+from bnpy.util.NumericUtil import sumRtimesS
+from bnpy.util.NumericUtil import inplaceLog
+
 from lib.LibFwdBwd import FwdAlg_cpp, BwdAlg_cpp
 
 def FwdBwdAlg(PiInit, PiMat, logSoftEv):
@@ -421,9 +424,11 @@ def viterbi(logSoftEv, logPi0, logPi):
 
 ########################################################### Entropy calculation
 ###########################################################
+def calcEntropyFromResp_fast(resp, respPair, 
+                             Data=None, startLocIDs=None, eps=1e-100):
+  ''' Calculate state assignment entropy for all sequences. 
 
-def calcEntropyFromResp(resp, respPair, Data=None, startLocIDs=None, eps=1e-100):
-  ''' Calculate state assignment entropy for all sequences. Fast, vectorized.
+      Fast, vectorized. Purely numpy.
 
       Returns
       --------
@@ -438,6 +443,27 @@ def calcEntropyFromResp(resp, respPair, Data=None, startLocIDs=None, eps=1e-100)
   sigma = respPair / (respPair.sum(axis=2)[:,:,np.newaxis] + eps)
   firstH = -1 * np.sum(resp[startLocIDs] * np.log(resp[startLocIDs]+eps))
   restH = -1 * np.sum(respPair[1:,:,:] * np.log(sigma[1:,:,:] + eps))
+  return firstH + restH
+
+
+def calcEntropyFromResp_faster(resp, respPair, 
+                             Data=None, startLocIDs=None, eps=1e-100):
+  ''' Calculate state assignment entropy for all sequences. 
+
+      Fast, vectorized. Can use numexpr to speed up computation if available.
+
+      Returns
+      --------
+      H : positive scalar
+  '''
+  if startLocIDs is not None:
+    startLocIDs = np.asarray(startLocIDs)
+
+  if Data is not None:
+    startLocIDs = Data.doc_range[:-1]
+
+  firstH = -1 * np.sum(resp[startLocIDs] * np.log(resp[startLocIDs]+eps))
+  restH = calc_Htable(respPair).sum()
   return firstH + restH
 
 
@@ -466,6 +492,8 @@ def calcEntropyFromResp_forloop(resp, respPair, Data, eps=1e-100):
     totalH += firstH_n + restH_n
   return totalH
 
+# Defining this directly should avoid overhead of extra function call
+calcEntropyFromResp = calcEntropyFromResp_faster
 
 ########################################################### Merge entropy calc
 ###########################################################
@@ -607,7 +635,10 @@ def calc_Htable(respPair, eps=1e-100):
                sum of the entries yields total entropy
   '''
   sigma = respPair / (respPair.sum(axis=2)[:,:,np.newaxis] + eps)
-  H_KxK = -1 * np.sum(respPair * np.log(sigma + eps), axis=0)
+  sigma += eps # make it safe for taking logs!
+  logsigma = sigma # alias
+  inplaceLog(logsigma) # use fast numexpr library if possible
+  H_KxK = -1 * sumRtimesS(respPair, logsigma)
   return H_KxK
 
 
