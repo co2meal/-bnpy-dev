@@ -68,7 +68,6 @@ def convertStateSeq_flat2list(zFlat, Data):
     start = Data.doc_range[n]
     stop = Data.doc_range[n+1]
     zListBySeq.append(zFlat[start:stop])
-    from IPython import embed; embed()
   return zListBySeq
 
 def convertStateSeq_list2flat(zListBySeq, Data):
