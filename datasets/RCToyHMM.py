@@ -10,7 +10,7 @@ from bnpy.viz import GaussViz
 
 ########################################################### User-facing 
 ###########################################################
-def get_data(seed=123456, seqLens=32*np.ones(1000), **kwargs):
+def get_data(seed=123456, seqLens=1000*np.ones(32), **kwargs):
   ''' Generate several data sequences, returned as a bnpy data-object
 
     Args
@@ -75,7 +75,7 @@ mus = np.asarray([
 # set to 20 times the 2x2 identity matrix
 sigmas = np.tile(20*np.eye(2), (K,1,1))
 
-def get_X(seed, seqLens=32*np.ones(1000)):
+def get_X(seed, seqLens=1000*np.ones(32)):
     '''
     Generates X, Z, seqInds according to the gaussian parameters specified above
       and the sequence lengths passed in.
@@ -85,6 +85,7 @@ def get_X(seed, seqLens=32*np.ones(1000)):
 
     fullX = list()
     fullZ = list()
+
     if len(np.shape(seqLens)) == 0:
         nSeq = 1
         seqLens = np.asarray([seqLens])

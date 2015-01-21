@@ -190,7 +190,6 @@ class HDPHMM(AllocModel):
                                       Data, mPairIDs)
         SS.setMergeTerm('Hstart', subHstart, dims=('M'))
         SS.setMergeTerm('Htable', subHtable, dims=('M', 2, 'K'))
-        #SS.setMergeTerm('mPairIDs', mPairIDs, dims=('M', 2))
         SS.mPairIDs = np.asarray(mPairIDs)
 
       if trackDocUsage:
@@ -199,7 +198,7 @@ class HDPHMM(AllocModel):
         for n in xrange(Data.nDoc):
           start = Data.doc_range[n]
           stop = Data.doc_range[n+1]
-          DocUsage += np.sum(LP['resp'][start:stop] > 0.01, axis=0)
+          DocUsage += np.sum(LP['resp'][start:stop], axis=0) > 0.01
         SS.setSelectionTerm('DocUsageCount', DocUsage, dims='K')
       return SS
 

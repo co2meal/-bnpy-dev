@@ -122,8 +122,19 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
         except ValueError:
           raise e
 
+    if yvar == 'hamming-distance' and xs.size != ys.size:
+      ## Try to subsample both time series at laps where they intersect
+      laps_x = np.loadtxt(os.path.join(jobpath, taskid, 'laps.txt'))
+      laps_y = np.loadtxt(os.path.join(jobpath, taskid,
+                                            'laps-saved-params.txt'))
+      assert xs.size == laps_x.size
+      xs = xs[np.in1d(laps_x, laps_y)]
+      ys = ys[np.in1d(laps_y, laps_x)]
+       
+
     if xs.size != ys.size:
-      continue
+      raise ValueError('Dimension mismatch. len(xs)=%d, len(ys)=%d'
+                        % (xs.size, ys.size))
 
     ## Cleanup laps data. Verify that it is sorted, with no collisions. 
     if xvar == 'laps':
