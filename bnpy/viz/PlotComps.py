@@ -17,7 +17,7 @@ import sys
 import bnpy.ioutil.BNPYArgParser as BNPYArgParser
 import bnpy.viz
 from bnpy.ioutil import ModelReader
-
+from bnpy.viz.TaskRanker import rankTasksForSingleJobOnDisk
 
 def plotCompsForTask(taskpath, lap=None, figH=None,
                      dataName=None, **kwargs):
@@ -69,7 +69,10 @@ def plotCompsForJob(jobpath='', taskids=[1], lap=None,
     raise ValueError('Not valid path: ' + jobpath_originalarg)
 
   taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
-  for taskid in taskids:
+  for tt, taskid in enumerate(taskids):
+    if tt == 0 and isinstance(taskid, str):
+      if taskid.startswith('.'):
+        rankTasksForSingleJobOnDisk(jobpath)
     taskpath = os.path.join(jobpath, str(taskid))
     plotCompsForTask(taskpath, lap=lap, **kwargs)
   if 'block' in kwargs:
