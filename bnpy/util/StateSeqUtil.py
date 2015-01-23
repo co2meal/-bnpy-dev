@@ -1,7 +1,6 @@
 import numpy as np
 
 from bnpy.util import as1D
-import munkres
 
 def calcHammingDistance(zTrue, zHat):
   zHat = as1D(zHat)
@@ -44,6 +43,11 @@ def alignEstimatedStateSeqToTruth(zHat, zTrue, returnInfo=False):
   zHatAligned : 1D array, relabeled version of zHat that aligns to zTrue
   AInfo : dict of information about the alignment
   '''
+  try:
+    import munkres
+  except ImportError:
+    raise ImportError('Required third-party module munkres not found.\n'
+                      + 'To fix, add $BNPYROOT/third-party/ to your path.')
   zHat = as1D(zHat)
   zTrue = as1D(zTrue)
 
