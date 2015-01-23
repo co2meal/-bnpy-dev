@@ -231,14 +231,14 @@ def objFunc_constrained(rhoomega,
   Elogu = digamma(g1) - digammaomega
   Elog1mu = digamma(g0) - digammaomega
 
-  # TODO : when is nDoc=0 or 1?  I use nDoc-1 when we have kappa, but
+  # TODO : when is nDoc=0 or 1?  I divide by nDoc-1 when we use kappa, but
   #  when kappa is in use, there's always at least two "documents" (sticks), so
   #  this shouldn't crash in the short term.
   if nDoc > 0:
     if kappa > 0:
       scale = nDoc - 1
       OFFcoef = kvec(K) + (gamma - g0)/scale + 1/(K*scale)
-      Tvec = sumLogPi/scale + K * (np.log(alpha+kappa) - np.log(kappa))
+      Tvec = (sumLogPi + K * (np.log(alpha+kappa) - np.log(kappa))) / scale
     else:
       scale = nDoc
       OFFcoef = kvec(K) + (gamma - g0)/scale
