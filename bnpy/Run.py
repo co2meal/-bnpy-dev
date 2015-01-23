@@ -280,7 +280,11 @@ def loadData(ReqArgs, KwArgs, DataArgs, dataorderseed):
              than each individual batch.
       For full dataset learning scenarios, InitData can be the same as Data.
   '''
-  datamod = __import__(ReqArgs['dataName'],fromlist=[])
+  try:
+    datamod = __import__(ReqArgs['dataName'],fromlist=[])
+  except ImportError: # In case we're using SpeakerDiar
+    datamod = __import__(''.join(c for c in ReqArgs['dataName'] if not c.isdigit()))
+
 
   algName = ReqArgs['algName']
   if algName in FullDataAlgSet:
@@ -315,7 +319,11 @@ def getKwArgsForLoadData(ReqArgs, UnkArgs):
   if isinstance(ReqArgs, bnpy.data.DataObj):
     datamod = ReqArgs
   else:
-    datamod = __import__(ReqArgs['dataName'],fromlist=[])
+    try:
+      datamod = __import__(ReqArgs['dataName'],fromlist=[])
+    except ImportError: # In case we're using SpeakerDiar
+      datamod = __import__(''.join(c for c in ReqArgs['dataName'] if not c.isdigit()))
+
 
   ## Find subset of args that can provided to the Data module
   dataArgNames = set()
