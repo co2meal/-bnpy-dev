@@ -83,7 +83,7 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
     maxT = np.max(Ts)
   
   # Define the number of pixels used by vertical space of figure
-  NUM_STACK = (maxT / aspectFactor) 
+  NUM_STACK = int(np.ceil(maxT / float(aspectFactor)))
   if dispTrue:
     NUM_STACK /= 2
 
@@ -148,7 +148,6 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
                                           (NUM_STACK, 1))))
       
       image = image[:, :maxT]
-
       if len(sequences) == 1 or len(taskids) == 1:
         cur_ax = axes[ii+tt]
       else:
@@ -158,7 +157,7 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
                            vmin=0, vmax=Kmax,
                            cmap='Set1')
       if tt == 0:
-        cur_ax.set_ylabel('Seq. %d' % sequences[ii], fontsize=13)
+        cur_ax.set_ylabel('Seq. %d' % (seqNum+1), fontsize=13)
 
       if ii == 0:
         if showELBOInTitle:
@@ -168,10 +167,7 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
       cur_ax.set_xlim([0, maxT])
       cur_ax.set_ylim([0, image.shape[0]])
       cur_ax.set_yticks([])
-      
       # ... end loop over sequences    
-
-    #f.suptitle(jobname+', lap = '+lap, fontsize = 18)
 
 
 if __name__ == "__main__":
