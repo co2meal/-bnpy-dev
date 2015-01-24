@@ -128,6 +128,12 @@ def _run_task_internal(jobname, taskid, nTask,
                 'evBound' log evidence for hmodel on the specified dataset
                 'evTrace' vector of evBound at every traceEvery laps
   '''
+  # Make shallow copies of input dicts, so we any modifications here
+  # do not return to the caller.
+  ReqArgs = dict(**ReqArgs)
+  KwArgs = dict(**KwArgs) 
+  UnkArgs = dict(**UnkArgs)   
+
   algseed = createUniqueRandomSeed(jobname, taskID=taskid)
   dataorderseed = createUniqueRandomSeed('', taskID=taskid)
 
@@ -280,11 +286,7 @@ def loadData(ReqArgs, KwArgs, DataArgs, dataorderseed):
              than each individual batch.
       For full dataset learning scenarios, InitData can be the same as Data.
   '''
-  try:
-    datamod = __import__(ReqArgs['dataName'],fromlist=[])
-  except ImportError: # In case we're using SpeakerDiar
-    datamod = __import__(''.join(c for c in ReqArgs['dataName'] if not c.isdigit()))
-
+  datamod = __import__(ReqArgs['dataName'],fromlist=[])
 
   algName = ReqArgs['algName']
   if algName in FullDataAlgSet:
@@ -319,11 +321,7 @@ def getKwArgsForLoadData(ReqArgs, UnkArgs):
   if isinstance(ReqArgs, bnpy.data.DataObj):
     datamod = ReqArgs
   else:
-    try:
-      datamod = __import__(ReqArgs['dataName'],fromlist=[])
-    except ImportError: # In case we're using SpeakerDiar
-      datamod = __import__(''.join(c for c in ReqArgs['dataName'] if not c.isdigit()))
-
+    datamod = __import__(ReqArgs['dataName'],fromlist=[])
 
   ## Find subset of args that can provided to the Data module
   dataArgNames = set()
