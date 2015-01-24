@@ -70,6 +70,8 @@ class GroupXData(XData):
     SaveVars = dict(X=self.X, nDoc=self.nDoc, doc_range=self.doc_range)
     if hasattr(self, 'Xprev'):
       SaveVars['Xprev'] = self.Xprev
+    if hasattr(self, 'TrueParams') and 'Z' in self.TrueParams:
+      SaveVars['TrueZ'] = self.TrueParams['Z']
     scipy.io.savemat(matfilepath, SaveVars, oned_as='row')
 
   @classmethod
