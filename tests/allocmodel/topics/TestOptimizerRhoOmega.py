@@ -84,21 +84,23 @@ class Test0Docs(unittest.TestCase):
     for K in [1, 10, 107]:
       for alpha in [0.1, 0.95]:
         for gamma in [1., 3.14, 9.45]:
-          rho = 1. / (1. + gamma) * np.ones(K)
-          omega = (1 + gamma) * np.ones(K)
-          rhoomega = np.hstack([rho, omega])
-
-          kwargs = dict(alpha=alpha, 
-                      gamma=gamma, 
-                      nDoc=0,
-                      sumLogPi=np.zeros(K+1))
-          f, g = OptimizerRhoOmega.objFunc_constrained(rhoomega,
-                                            approx_grad=0,
-                                            **kwargs)
-          print '       rho  ', np2flatstr(rho[:K])
-          print '  grad rho  ', np2flatstr(g[:K])
-          assert np.allclose(g, np.zeros(2*K))
-
+          for kappa in [0, 100]:
+            rho = 1. / (1. + gamma) * np.ones(K)
+            omega = (1 + gamma) * np.ones(K)
+            rhoomega = np.hstack([rho, omega])
+            
+            kwargs = dict(alpha=alpha, 
+                          gamma=gamma,
+                          kappa=kappa,
+                          nDoc=0,
+                          sumLogPi=np.zeros(K+1))
+            f, g = OptimizerRhoOmega.objFunc_constrained(rhoomega,
+                                                         approx_grad=0,
+                                                         **kwargs)
+            print '       rho  ', np2flatstr(rho[:K])
+            print '  grad rho  ', np2flatstr(g[:K])
+            assert np.allclose(g, np.zeros(2*K))
+            
   def testGradientZeroAtOptimum__objFunc_unconstrained(self):
     ''' Verify computed gradient at optimum is indistinguishable from zero
     '''
@@ -166,45 +168,46 @@ class Test0Docs(unittest.TestCase):
     for K in [1, 10, 23, 61, 68, 100]:
       for alpha in [0.1, 0.95]:
         for gamma in [1.1, 3.141, 9.45, 21.1337]:
-          print '================== K %d | gamma %.2f' % (K, gamma)
+          for kappa in [0, 100]:
+            print '================== K %d | gamma %.2f' % (K, gamma)
 
-          for seed in [111, 222, 333]:
-            PRNG = np.random.RandomState(seed)
-            initrho = PRNG.rand(K)
-            initomega = 100 * PRNG.rand(K)
-            scaleVec = np.hstack([np.ones(K), gamma*np.ones(K)])
-            kwargs = dict(alpha=alpha, 
-                      gamma=gamma, 
-                      scaleVector=scaleVec,
-                      nDoc=0,
-                      sumLogPi=np.zeros(K+1))
-            ro, f, Info = OptimizerRhoOmega.find_optimum(
-                                               initrho=initrho,
-                                               initomega=initomega,
-                                               **kwargs)
-            rho_est, omega_est, KK = OptimizerRhoOmega._unpack(ro)
-            assert np.all(np.isfinite(rho_est))
-            assert np.all(np.isfinite(omega_est))
-            assert np.isfinite(f)
-            print Info['task']
+            for seed in [111, 222, 333]:
+              PRNG = np.random.RandomState(seed)
+              initrho = PRNG.rand(K)
+              initomega = 100 * PRNG.rand(K)
+              scaleVec = np.hstack([np.ones(K), gamma*np.ones(K)])
+              kwargs = dict(alpha=alpha, 
+                            gamma=gamma, 
+                            scaleVector=scaleVec,
+                            nDoc=0,
+                            sumLogPi=np.zeros(K+1))
+              ro, f, Info = OptimizerRhoOmega.find_optimum(
+                initrho=initrho,
+                initomega=initomega,
+                **kwargs)
+              rho_est, omega_est, KK = OptimizerRhoOmega._unpack(ro)
+              assert np.all(np.isfinite(rho_est))
+              assert np.all(np.isfinite(omega_est))
+              assert np.isfinite(f)
+              print Info['task']
 
-            rho_opt = 1.0 / (1. + gamma) * np.ones(K)
-            omega_opt = (1. + gamma) * np.ones(K)
+              rho_opt = 1.0 / (1. + gamma) * np.ones(K)
+              omega_opt = (1. + gamma) * np.ones(K)
 
-            print '  rho_est', np2flatstr(rho_est, fmt='%9.6f')
-            print '  rho_opt', np2flatstr(rho_opt, fmt='%9.6f')
+              print '  rho_est', np2flatstr(rho_est, fmt='%9.6f')
+              print '  rho_opt', np2flatstr(rho_opt, fmt='%9.6f')
 
-            print '  omega_est', np2flatstr(omega_est, fmt='%9.6f')
-            print '  omega_opt', np2flatstr(omega_opt, fmt='%9.6f')
+              print '  omega_est', np2flatstr(omega_est, fmt='%9.6f')
+              print '  omega_opt', np2flatstr(omega_opt, fmt='%9.6f')
 
-            beta_est = OptimizerRhoOmega.rho2beta_active(rho_est)
-            beta_opt = OptimizerRhoOmega.rho2beta_active(rho_opt)
-            print '  beta_est', np2flatstr(beta_est, fmt='%9.6f')
-            print '  beta_opt', np2flatstr(beta_opt, fmt='%9.6f')
-
-            assert np.allclose(beta_est, beta_opt, atol=1e-4)
-
-            assert np.allclose(omega_est, omega_opt, atol=1e-5, rtol=0.01)
+              beta_est = OptimizerRhoOmega.rho2beta_active(rho_est)
+              beta_opt = OptimizerRhoOmega.rho2beta_active(rho_opt)
+              print '  beta_est', np2flatstr(beta_est, fmt='%9.6f')
+              print '  beta_opt', np2flatstr(beta_opt, fmt='%9.6f')
+              
+              assert np.allclose(beta_est, beta_opt, atol=1e-4)
+              
+              assert np.allclose(omega_est, omega_opt, atol=1e-5, rtol=0.01)
 
 
 ########################################################### Test with Many Docs

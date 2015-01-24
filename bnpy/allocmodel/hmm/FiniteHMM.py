@@ -1,3 +1,4 @@
+
 '''
 FiniteHMM.py
 
@@ -40,7 +41,9 @@ class FiniteHMM(AllocModel):
         self.initTheta = None
         self.transTheta = None
 
-    def set_prior(self, initAlpha = .1, transAlpha = .1, hmmKappa = 0.0, **kwargs):
+
+    def set_prior(self, initAlpha = .1, transAlpha = .1, hmmKappa = 0.0,
+                  **kwargs):
         ''' Set hyperparameters that control state transition probs
         '''
         self.initAlpha = initAlpha 
@@ -349,6 +352,7 @@ class FiniteHMM(AllocModel):
         
         normQtrans = np.sum(gammaln(np.sum(self.transTheta, axis=1))) \
                       - np.sum(gammaln(self.transTheta))
+
 
         return normPinit + normPtrans - normQinit - normQtrans
 

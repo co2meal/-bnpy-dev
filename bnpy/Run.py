@@ -128,6 +128,12 @@ def _run_task_internal(jobname, taskid, nTask,
                 'evBound' log evidence for hmodel on the specified dataset
                 'evTrace' vector of evBound at every traceEvery laps
   '''
+  # Make shallow copies of input dicts, so we any modifications here
+  # do not return to the caller.
+  ReqArgs = dict(**ReqArgs)
+  KwArgs = dict(**KwArgs) 
+  UnkArgs = dict(**UnkArgs)   
+
   algseed = createUniqueRandomSeed(jobname, taskID=taskid)
   dataorderseed = createUniqueRandomSeed('', taskID=taskid)
 
