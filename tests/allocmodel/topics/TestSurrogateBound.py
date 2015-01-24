@@ -86,6 +86,7 @@ def plotBoundVsAlph(alphaVals=np.linspace(.001, 3, 1000),
 if __name__ == '__main__':
   from matplotlib import pylab
   pylab.rcParams['ytick.major.pad']='8'
+  pylab.rcParams['ps.useafm'] = True
 
   # Set buffer-space for defining plotable area
   B = 0.18 # big buffer for sides where we will put text labels
@@ -113,5 +114,4 @@ if __name__ == '__main__':
     pylab.figure(2)
     pylab.savefig('SurrogateBound_ErrorVsAlpha.eps', bbox_inches='tight')
 
-  pylab.show(block=True)
   

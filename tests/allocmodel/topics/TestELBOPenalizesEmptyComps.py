@@ -148,15 +148,15 @@ def makeFigure():
   PointEstELBOVals /= scale
 
   # Set buffer-space for defining plotable area
-  B = 0.18 # big buffer for sides where we will put text labels
-  b = 0.02 # small buffer for other sides
+  B = 0.19 # big buffer for sides where we will put text labels
+  b = 0.01 # small buffer for other sides
   TICKSIZE=30
   FONTSIZE=40
   LEGENDSIZE=30
   LINEWIDTH=4
 
   ## Plot the results
-  figH = pylab.figure(figsize=(9,6))
+  figH = pylab.figure(figsize=(9.1,6))
   axH = pylab.subplot(111)  
   axH.set_position([B, B, (1-B-b), (1-B-b)])
 
@@ -185,6 +185,7 @@ def makeFigure():
 
 if __name__ == "__main__":
   from matplotlib import pylab
+  pylab.rcParams['ps.useafm'] = True
   makeFigure()
 
   pylab.show(block=False)
