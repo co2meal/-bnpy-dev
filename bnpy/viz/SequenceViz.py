@@ -65,6 +65,7 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
     if len(sequences) > 1:
       raise ValueError('Joint modeling of several sequences makes no sense')
     Data = Datamod.get_data(meetingNum=sequences[0]+1)
+    sequences[0] = 0
   else:
     Data = Datamod.get_data()
 
