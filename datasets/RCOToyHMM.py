@@ -38,10 +38,10 @@ def get_data(seed=123456, seqLens=200*np.ones(32), **kwargs):
   return Data
 
 def get_short_name():
-    return 'RCToyHMM'
+    return 'RCOToyHMM'
 
 def get_data_info():
-    return 'Toy HMM data with reverse-cycle transition matrix.'
+    return 'Toy HMM data with overlapping reverse-cycle transition matrix.'
 
 ########################################################### Data generation
 ###########################################################
