@@ -231,9 +231,7 @@ def objFunc_constrained(rhoomega,
   Elogu = digamma(g1) - digammaomega
   Elog1mu = digamma(g0) - digammaomega
 
-  # TODO : when is nDoc=0 or 1?  I divide by nDoc-1 when we use kappa, but
-  #  when kappa is in use, there's always at least two "documents" (sticks), so
-  #  this shouldn't crash in the short term.
+  # Any practical call to this will have nDoc > 0
   if nDoc > 0:
     if kappa > 0:
       scale = nDoc - 1
@@ -250,7 +248,8 @@ def objFunc_constrained(rhoomega,
     Ebeta[1:] *= np.cumprod(1-rho)
     elbo_local = alpha * np.inner(Ebeta, Tvec) 
 
-
+  # This is special case for unit tests that make sure the optimizer
+  # finds the parameters that set q(u) equal to its prior when nDoc=0
   else:
     scale = 1
     ONcoef = 1 - g1
