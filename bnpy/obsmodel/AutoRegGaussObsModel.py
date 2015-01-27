@@ -52,7 +52,8 @@ class AutoRegGaussObsModel(AbstractObsModel):
   def createPrior(self, Data, nu=0, B=None,
                               M=None, V=None,
                               ECovMat=None, sF=1.0, 
-                              VMat='eye', sV=1.0, **kwargs):
+                              VMat='eye', sV=1.0, MMat='zero', sM=1.0, 
+                              **kwargs):
     ''' Initialize Prior ParamBag object, with fields nu, B, m, kappa
           set according to match desired mean and expected covariance matrix.
     '''
@@ -65,7 +66,12 @@ class AutoRegGaussObsModel(AbstractObsModel):
     B = as2D(B)
 
     if M is None:
-      M = np.zeros((D,D))
+      if MMat == 'zero':
+        M = np.zeros((D,D))
+      elif MMat == 'eye':
+        M = sM * np.eye(D)
+      else:
+        raise ValueError('Unrecognized MMat: %s' % (MMat))
     else:
       M = as2D(M)
 
@@ -78,6 +84,7 @@ class AutoRegGaussObsModel(AbstractObsModel):
         raise ValueError('Unrecognized VMat: %s' % (VMat))
     else:
       V = as2D(V)
+
     self.Prior = ParamBag(K=0, D=D)
     self.Prior.setField('nu', nu, dims=None)
     self.Prior.setField('B', B, dims=('D','D'))
@@ -135,6 +142,7 @@ class AutoRegGaussObsModel(AbstractObsModel):
     self.ClearCache()
     if obsModel is not None:
       self.EstParams = obsModel.EstParams.copy()
+      self.K = self.EstParams.K
       return
     
     if LP is not None and Data is not None:
@@ -175,6 +183,7 @@ class AutoRegGaussObsModel(AbstractObsModel):
         self.Post = obsModel.Post.copy()
       else:
         self.setPostFromEstParams(obsModel.EstParams)
+      self.K = self.Post.K
       return
     
     if LP is not None and Data is not None:
@@ -256,9 +265,13 @@ class AutoRegGaussObsModel(AbstractObsModel):
   def forceSSInBounds(self, SS):
     ''' Force count vector N to remain positive
 
-        This avoids numerical problems due to incremental additions and subtractions,
-        which can cause computations like 1 + 1e-15 - 1 - 1e-15 to be less than zero
-        instead of exactly zero.
+        This avoids numerical problems due to incremental add/subtract ops
+        which can cause computations like 
+            x = 10.
+            x += 1e-15
+            x -= 10
+            x -= 1e-15
+        to be slightly different than zero instead of exactly zero.
 
         Returns
         -------
@@ -271,6 +284,22 @@ class AutoRegGaussObsModel(AbstractObsModel):
 
   def decrementSS(self, SS, k, x):
     pass
+
+  def calcSummaryStatsForContigBlock(self, Data, SS=None, a=0, b=0):
+    ''' Calculate sufficient stats for a single contiguous block of data
+    '''
+    if SS is None:
+      SS = SuffStatBag(K=1, D=Data.dim)
+    
+    ppT = dotATA(Data.Xprev[a:b])[np.newaxis,:,:]
+    xxT = dotATA(Data.X[a:b])[np.newaxis,:,:]
+    pxT = dotATB(Data.Xprev[a:b], Data.X[a:b])[np.newaxis,:,:]
+
+    SS.setField('N', (b-a)*np.ones(1), dims='K')
+    SS.setField('xxT', xxT, dims=('K','D', 'D'))
+    SS.setField('ppT', ppT, dims=('K','D', 'D'))
+    SS.setField('pxT', pxT, dims=('K','D', 'D'))
+    return SS 
 
   ########################################################### EM E step
   ########################################################### 
@@ -430,15 +459,24 @@ class AutoRegGaussObsModel(AbstractObsModel):
         M : 2D array, size D x D
         V : 2D array, size D x D
     '''
-    if kA is None or kB is None:
-      raise NotImplementedError('ToDo')
-    Post = self.Post
+    if kA is not None and kB is not None:
+      N = SS.N[kA]  + SS.N[kB]
+      xxT = SS.xxT[kA] + SS.xxT[kB]
+      ppT = SS.ppT[kA] + SS.ppT[kB]
+      pxT = SS.pxT[kA] + SS.pxT[kB]
+    elif kA is not None:
+      N = SS.N[kA]
+      xxT = SS.xxT[kA]
+      ppT = SS.ppT[kA]
+      pxT = SS.pxT[kA]
+    else:
+      raise ValueError('Need to specify specific component.')
     Prior = self.Prior
-    nu = Prior.nu + SS.N[kA] + SS.N[kB]
+    nu = Prior.nu + N
     B_MVM = Prior.B + np.dot(Prior.M, np.dot(Prior.V, Prior.M.T))
-    B = SS.xxT[kA] + SS.xxT[kB] + B_MVM
-    V = SS.ppT[kA] + SS.ppT[kB] + Prior.V
-    M = np.linalg.solve(V, SS.pxT[kA] + SS.pxT[kB] + np.dot(Prior.V, Prior.M.T)).T
+    B = xxT + B_MVM
+    V = ppT + Prior.V
+    M = np.linalg.solve(V, pxT + np.dot(Prior.V, Prior.M.T)).T
     B -= np.dot(M, np.dot(V, M.T))
     return nu, B, M, V
 
@@ -620,12 +658,30 @@ class AutoRegGaussObsModel(AbstractObsModel):
         Returns
         ---------
         Gaps : 1D array, size L
-               Gaps[j] : scalar change in ELBO after merge of pair in PairList[j]
+               Gaps[j] = scalar change in ELBO after merge of PairList[j]
     '''
     Gaps = np.zeros(len(PairList))
     for ii, (kA, kB) in enumerate(PairList):
         Gaps[ii] = self.calcHardMergeGap(SS, kA, kB)
     return Gaps
+
+  def calcHardMergeGap_SpecificPairSS(self, SS1, SS2):
+    ''' Calc change in ELBO for merge of two K=1 suff stat bags into one comp
+    '''
+    assert SS1.K == 1
+    assert SS2.K == 1
+    
+    Prior = self.Prior
+    cPrior = c_Func(Prior.nu, Prior.B, Prior.M, Prior.V)
+
+    # Compute cumulants of individual states 1 and 2
+    c1 = c_Func(*self.calcPostParamsForComp(SS1,0))
+    c2 = c_Func(*self.calcPostParamsForComp(SS2,0))
+
+    # Compute cumulant of merged state 1&2
+    SS12 = SS1 + SS2
+    c12 = c_Func(*self.calcPostParamsForComp(SS12, 0))
+    return c1 + c2 - cPrior - c12
 
   ######################################################### Soft Merge
   #########################################################

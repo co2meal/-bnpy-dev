@@ -158,12 +158,12 @@ class HModel(object):
         initname : string name of routine for initialization
     '''
     initname = initArgs['initname']
-    if initname.count('true') > 0:
+    if initname.count(os.path.sep) > 0:
+      init.FromSaved.init_global_params(self, Data, **initArgs)
+    elif initname.count('true') > 0:
       init.FromTruth.init_global_params(self, Data, **initArgs)
     elif initname.count('LP') > 0:
       init.FromLP.init_global_params(self, Data, **initArgs)
-    elif initname.count(os.path.sep) > 0:
-      init.FromSaved.init_global_params(self, Data, **initArgs)
     else:
       # Set hmodel global parameters "from scratch", in two stages
       # * init allocmodel to "uniform" prob over comps
