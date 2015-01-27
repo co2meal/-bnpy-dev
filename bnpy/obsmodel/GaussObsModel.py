@@ -266,6 +266,17 @@ class GaussObsModel(AbstractObsModel):
     SS.x[k] -= x
     SS.xxT[k] -= np.outer(x,x)
 
+  def calcSummaryStatsForContigBlock(self, Data, SS=None, a=0, b=0):
+    ''' Calculate sufficient stats for a single contiguous block of data
+    '''
+    if SS is None:
+      SS = SuffStatBag(K=1, D=Data.dim)
+    
+    SS.setField('N', (b-a)*np.ones(1), dims='K')
+    SS.setField('x', np.sum(Data.X[a:b], axis=0)[np.newaxis,:], dims=('K','D'))
+    SS.setField('xxT', dotATA(Data.X[a:b])[np.newaxis,:,:], dims=('K','D', 'D'))
+    return SS 
+
   ########################################################### EM E step
   ########################################################### 
   def calcLogSoftEvMatrix_FromEstParams(self, Data):
@@ -657,6 +668,28 @@ class GaussObsModel(AbstractObsModel):
     for ii, (kA, kB) in enumerate(PairList):
         Gaps[ii] = self.calcHardMergeGap(SS, kA, kB)
     return Gaps
+
+  def calcHardMergeGap_SpecificPairSS(self, SS1, SS2):
+    ''' Calc change in ELBO for merge of two K=1 suff stat bags into one comp
+    '''
+    assert SS1.K == 1
+    assert SS2.K == 1
+    
+    Prior = self.Prior
+    cPrior = c_Func(Prior.nu,   Prior.B,      Prior.m,      Prior.kappa)
+
+    # Compute cumulants of individual states 1 and 2
+    nu1, B1, m1, kappa1 = self.calcPostParamsForComp(SS1, 0)
+    nu2, B2, m2, kappa2 = self.calcPostParamsForComp(SS2, 0)
+    c1 = c_Func(nu1, B1, m1, kappa1)
+    c2 = c_Func(nu2, B2, m2, kappa2)
+
+    # Compute cumulant of merged state 1&2
+    SS12 = SS1 + SS2
+    nu12, B12, m12, kappa12 = self.calcPostParamsForComp(SS12, 0)
+    c12 = c_Func(nu12, B12, m12, kappa12)
+
+    return c1 + c2 - cPrior - c12
 
   ######################################################### Soft Merge
   #########################################################
