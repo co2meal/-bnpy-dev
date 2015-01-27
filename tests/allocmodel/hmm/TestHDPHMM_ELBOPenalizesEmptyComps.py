@@ -39,14 +39,17 @@ class TestHDPHMM_ELBOPenalizesEmptyComps(unittest.TestCase):
 
   def test_ELBO_penalizes_empty__range_of_hypers(self):
     print ''
-    print '%5s %5s %5s' % ('alpha', 'gamma', 'kappa')
-    for alpha in [0.1, 0.9, 1.5]:
-      for gamma in [1.0, 3.0, 10.0]:
-        for kappa in [0]:
-          print '%5.2f %5.2f %5.2f' % (alpha, gamma, kappa)
+    for initprobs in ['uniform', 'bypopularity']:
+      print '------------------- initial beta set to %s' % (initprobs)
+      print '%5s %5s %5s' % ('alpha', 'gamma', 'kappa')
+      for alpha in [0.1, 0.9, 1.5]:
+        for gamma in [1.0, 3.0, 10.0]:
+          for kappa in [0]:
+            print '%5.2f %5.2f %5.2f' % (alpha, gamma, kappa)
 
-          self.test_ELBO_penalizes_empty_comps(alpha=alpha, gamma=gamma,
-                                               hmmKappa=kappa)
+            self.test_ELBO_penalizes_empty_comps(alpha=alpha, gamma=gamma,
+                                                 hmmKappa=kappa,
+                                                 initprobs=initprobs)
 
 
 def printProbVector(xvec, fmt='%.4f'):
@@ -56,7 +59,7 @@ def printProbVector(xvec, fmt='%.4f'):
   print ' '.join([fmt % (x) for x in xvec])
 
 def resp2ELBO_HDPHMM(Data, resp, gamma=10, alpha=0.5, hmmKappa=0,
-                     initprobs='fromdata'):
+                     initprobs='bypopularity'):
   K = resp.shape[1]
   scaleF = 1
 
@@ -64,7 +67,7 @@ def resp2ELBO_HDPHMM(Data, resp, gamma=10, alpha=0.5, hmmKappa=0,
   ## with initial global params set so we have a uniform distr over topics
   amodel = HDPHMM('VB', dict(alpha=alpha, gamma=gamma, hmmKappa=hmmKappa))
 
-  if initprobs == 'fromdata':
+  if initprobs == 'bypopularity':
     init_probs = np.sum(resp, axis=0) + gamma
   elif initprobs == 'uniform':
     init_probs = np.ones(K)
