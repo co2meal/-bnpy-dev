@@ -42,7 +42,7 @@ class TestHDPHMM_ELBOPenalizesEmptyComps(unittest.TestCase):
     print '%5s %5s %5s' % ('alpha', 'gamma', 'kappa')
     for alpha in [0.1, 0.9, 1.5]:
       for gamma in [1.0, 3.0, 10.0]:
-        for kappa in [0, 100, 300]:
+        for kappa in [0]:
           print '%5.2f %5.2f %5.2f' % (alpha, gamma, kappa)
 
           self.test_ELBO_penalizes_empty_comps(alpha=alpha, gamma=gamma,
@@ -83,7 +83,11 @@ def resp2ELBO_HDPHMM(Data, resp, gamma=10, alpha=0.5, hmmKappa=0,
   ## Loop over alternating updates to local and global parameters
   ## until we've converged 
   prevELBO = -1 * np.inf
-  ELBO = 0
+  ELBOtrace = list()
+
+  amodel.update_global_params(SS)
+  ELBO = amodel.calc_evidence(Data, SS, LP) / scaleF
+  ELBOtrace.append(ELBO)
   while np.abs(ELBO - prevELBO) > 1e-7:
     prevELBO = ELBO
 
@@ -92,12 +96,13 @@ def resp2ELBO_HDPHMM(Data, resp, gamma=10, alpha=0.5, hmmKappa=0,
     betaRem = 1 - np.sum(amodel.get_active_comp_probs())
     betaRemFromInitTheta = amodel.initTheta[-1]/alpha
     betaRemFromTransTheta = amodel.transTheta[0, -1]/alpha
-
     assert np.allclose(betaRem, betaRemFromInitTheta)
     assert np.allclose(betaRem, betaRemFromTransTheta)
 
     amodel.update_global_params(SS)
     ELBO = amodel.calc_evidence(Data, SS, LP) / scaleF
+    ELBOtrace.append(ELBO)
+    assert (ELBO - prevELBO) > -1e-9  # verify monotonic increase
 
   return ELBO
 
@@ -121,7 +126,7 @@ def makeNewRespWithEmptyStates(resp, nEmpty=1):
   np.maximum(newResp, 1e-40, out=newResp)
   return newResp
 
-def makeFigure():
+def makeFigure(hmmKappa=0):
   Data, trueResp = makeDataAndTrueResp()
 
   kemptyVals = np.asarray([0, 1, 2, 3.])
@@ -130,7 +135,7 @@ def makeFigure():
   ## Iterate over the number of empty states (0, 1, 2, ...)
   for ii, kempty in enumerate(kemptyVals):
     resp = makeNewRespWithEmptyStates(trueResp, kempty)
-    ELBOVals[ii] =  resp2ELBO_HDPHMM(Data, resp, hmmKappa=100)
+    ELBOVals[ii] =  resp2ELBO_HDPHMM(Data, resp, hmmKappa=hmmKappa)
 
   # Make largest value the one with kempty=0, to make plot look good
   ELBOVals -= ELBOVals[0]
@@ -156,5 +161,4 @@ def makeFigure():
   pylab.show(block=True)
 
 if __name__ == "__main__":
-  makeFigure()
-  raw_input('Press any key to close >>')
+  makeFigure(hmmKappa=0)
