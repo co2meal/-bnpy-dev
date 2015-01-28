@@ -44,8 +44,8 @@ class TestHDPHMM_ELBOPenalizesEmptyComps(unittest.TestCase):
       print '%5s %5s %5s' % ('alpha', 'gamma', 'kappa')
       for alpha in [0.1, 0.9, 1.5]:
         for gamma in [1.0, 3.0, 10.0]:
-          for kappa in [0]:
-            print '%5.2f %5.2f %5.2f' % (alpha, gamma, kappa)
+          for kappa in [1.1, 17.76, 100]:
+            print '%5.2f %5.2f %7.2f' % (alpha, gamma, kappa)
 
             self.test_ELBO_penalizes_empty_comps(alpha=alpha, gamma=gamma,
                                                  hmmKappa=kappa,
@@ -64,9 +64,10 @@ def resp2ELBO_HDPHMM(Data, resp, gamma=10, alpha=0.5, hmmKappa=0,
   scaleF = 1
 
   ## Create a new HDPHMM
-  ## with initial global params set so we have a uniform distr over topics
   amodel = HDPHMM('VB', dict(alpha=alpha, gamma=gamma, hmmKappa=hmmKappa))
 
+  ## Set global params so that
+  # E[\beta] gives the desired distribution over the topics
   if initprobs == 'bypopularity':
     init_probs = np.sum(resp, axis=0) + gamma
   elif initprobs == 'uniform':
@@ -74,35 +75,38 @@ def resp2ELBO_HDPHMM(Data, resp, gamma=10, alpha=0.5, hmmKappa=0,
   init_probs = init_probs / np.sum(init_probs)
   amodel.set_global_params(beta=init_probs, Data=Data)
 
-  ## Create a local params dict and suff stats
-  ## These will remain fixed, used to update amodle
+  ## Create suff stats that summarize the provided resp values.
+  # These will remain fixed, since the token assignments are not changing.
+  # The suff stat bag is used to update variable 'amodel'
   LP = dict(resp=resp)
   LP = amodel.initLPFromResp(Data, LP)
   SS = amodel.get_global_suff_stats(Data, LP, doPrecompEntropy=0)
 
-  ## Fill in all values (theta/rho/omega)
+  ## Fill in all values (theta/rho/omega), and calculate the ELBO
   amodel.update_global_params(SS)
+  ELBO = amodel.calc_evidence(Data, SS, LP) / scaleF
 
   ## Loop over alternating updates to local and global parameters
   ## until we've converged 
   prevELBO = -1 * np.inf
   ELBOtrace = list()
-
-  amodel.update_global_params(SS)
-  ELBO = amodel.calc_evidence(Data, SS, LP) / scaleF
   ELBOtrace.append(ELBO)
   while np.abs(ELBO - prevELBO) > 1e-7:
     prevELBO = ELBO
 
+    # Verify that the updates give expected values for "leftover" index
     Ebeta = amodel.get_active_comp_probs()
-
     betaRem = 1 - np.sum(amodel.get_active_comp_probs())
     betaRemFromInitTheta = amodel.initTheta[-1]/alpha
     betaRemFromTransTheta = amodel.transTheta[0, -1]/alpha
     assert np.allclose(betaRem, betaRemFromInitTheta)
     assert np.allclose(betaRem, betaRemFromTransTheta)
 
+    # Update the global parameters
+    # Remember, this call alternates updates to rho/omega and the thetas
     amodel.update_global_params(SS)
+
+    # Calculate the objective, verify it increases monotonically
     ELBO = amodel.calc_evidence(Data, SS, LP) / scaleF
     ELBOtrace.append(ELBO)
     assert (ELBO - prevELBO) > -1e-9  # verify monotonic increase
