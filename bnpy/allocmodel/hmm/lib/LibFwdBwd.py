@@ -48,6 +48,33 @@ def BwdAlg_cpp(initPi, transPi, SoftEv, margPrObs, order='C'):
   lib.BwdAlg(initPi, transPi, SoftEv, margPrObs, bMsg, K, T)
   return bMsg
 
+def SummaryAlg_cpp(initPi, transPi, SoftEv, margPrObs, fMsg, bMsg,
+                   order='C'):
+  ''' Backward algorithm for a single HMM sequence. Implemented in C++/Eigen.
+  '''
+  if not hasEigenLibReady:
+    raise ValueError("Cannot find library %s. Please recompile." \
+                      % (libfilename))
+  if order != 'C':
+    raise NotImplementedError("LibFwdBwd only supports row-major order.")
+
+  ## Prep inputs
+  T, K = SoftEv.shape
+  initPi = np.asarray(initPi, order=order)
+  transPi = np.asarray(transPi, order=order)
+  SoftEv = np.asarray(SoftEv, order=order)
+  margPrObs = np.asarray(margPrObs, order=order)
+  fMsg = np.asarray(fMsg, order=order)
+  bMsg = np.asarray(bMsg, order=order)
+
+  ## Allocate outputs
+  TransStateCount = np.zeros((K,K), order=order)
+  Htable = np.zeros((K,K), order=order)
+
+  ## Execute C++ code for backward pass (fills in bMsg in-place)
+  lib.SummaryAlg(initPi, transPi, SoftEv, margPrObs, fMsg, bMsg, 
+                 TransStateCount, Htable, K, T)
+  return TransStateCount, Htable
 
 ########################################################### C++ interface code
 ###########################################################
@@ -77,6 +104,19 @@ try:
                 ndpointer(ctypes.c_double),
                 ndpointer(ctypes.c_double),
                 ctypes.c_int, ctypes.c_int]
+
+  lib.SummaryAlg.restype = None
+  lib.SummaryAlg.argtypes = \
+               [ndpointer(ctypes.c_double),
+                ndpointer(ctypes.c_double),
+                ndpointer(ctypes.c_double),
+                ndpointer(ctypes.c_double),
+                ndpointer(ctypes.c_double),
+                ndpointer(ctypes.c_double),
+                ndpointer(ctypes.c_double),
+                ndpointer(ctypes.c_double),
+                ctypes.c_int, ctypes.c_int]
+
 
 except OSError:
   # No compiled C++ library exists

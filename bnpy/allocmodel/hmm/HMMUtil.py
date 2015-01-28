@@ -14,7 +14,7 @@ from bnpy.util.NumericUtil import Config as PlatformConfig
 from bnpy.util.NumericUtil import sumRtimesS
 from bnpy.util.NumericUtil import inplaceLog
 
-from lib.LibFwdBwd import FwdAlg_cpp, BwdAlg_cpp
+from lib.LibFwdBwd import FwdAlg_cpp, BwdAlg_cpp, SummaryAlg_cpp
 
 def FwdBwdAlg(PiInit, PiMat, logSoftEv):
   '''Execute forward-backward message passing algorithm
@@ -236,6 +236,27 @@ def BwdAlg_py(PiInit, PiMat, SoftEv, margPrObs):
     bmsg[t] /= margPrObs[t+1]
   return bmsg
 
+def SummaryAlg_py(PiInit, PiMat, SoftEv, margPrObs, fMsg, bMsg):
+  K = PiInit.size
+  T = SoftEv.shape[0]
+  np.set_printoptions(precision=3, suppress=1)
+  respPair_t = np.zeros((K,K))
+  Htable = np.zeros((K,K))
+  TransStateCount = np.zeros((K,K))
+  for t in xrange(1, T):
+    respPair_t = np.outer(fMsg[t-1], bMsg[t] * SoftEv[t])
+    respPair_t *= PiMat / margPrObs[t]
+    TransStateCount += respPair_t
+
+    respPair_t += 1e-100
+    rowwiseSum = np.sum(respPair_t, axis=1)
+    Htable += respPair_t * np.log(respPair_t) \
+              - respPair_t * np.log(rowwiseSum)[:, np.newaxis]
+    #sigma_t = respPair_t / respPair_t.sum(axis=1)[:,np.newaxis]
+    #Htable += respPair_t * np.log(sigma_t)
+
+  Htable *= -1
+  return TransStateCount, Htable
 
 ########################################################### expLogLik
 ###########################################################
