@@ -177,13 +177,15 @@ class MOVBBirthMergeAlg(MOVBAlg):
       ## Local/E step
       self.algParamsLP['lapFrac'] = lapFrac ## logging
       self.algParamsLP['batchID'] = batchID
-      LPchunk = self.memoizedLocalStep(hmodel, Dchunk, batchID)
+      LPchunk = self.memoizedLocalStep(hmodel, Dchunk, batchID,
+                                       MergePrepInfo=MergePrepInfo)
       
       ## Summary step
       SS, SSchunk = self.memoizedSummaryStep(hmodel, SS,
                                              Dchunk, LPchunk, batchID,
                                              MergePrepInfo=MergePrepInfo,
                                              order=order)
+
       ## Delete move : collect target data
       if self.hasMove('delete') and self.doDeleteAtLap(lapFrac+1):
         if self.isFirstBatch(lapFrac):
@@ -215,7 +217,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
         self.ELBOReady = True # after seeing all data, ELBO will be ready
       if self.ELBOReady:
         evBound = hmodel.calc_evidence(SS=SS)
-
+        
       ## Merge move!
       if self.hasMove('merge') and self.isLastBatch(lapFrac) \
                                and lapFrac > mergeStartLap:
@@ -336,7 +338,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
   ######################################################### Local step
   #########################################################
-  def memoizedLocalStep(self, hmodel, Dchunk, batchID):
+  def memoizedLocalStep(self, hmodel, Dchunk, batchID, MergePrepInfo=None):
     ''' Execute local step on data chunk.
 
         Returns
@@ -348,6 +350,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
     else:
       oldLPchunk = None
     LPchunk = hmodel.calc_local_params(Dchunk, oldLPchunk,
+                                       MergePrepInfo=MergePrepInfo,
                                        **self.algParamsLP)
     if self.algParams['doMemoizeLocalParams']:
       self.save_batch_local_params_to_memory(batchID, LPchunk) 
@@ -415,7 +418,6 @@ class MOVBBirthMergeAlg(MOVBAlg):
     '''
     if MergePrepInfo is None:
       MergePrepInfo = dict()
-
     if batchID in self.SSmemory:
       ## Decrement old value of SSchunk from aggregated SS
       # oldSSchunk will have usual Fields and ELBOTerms,
@@ -1225,8 +1227,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
         nYes = len(DPlan['acceptedUIDs'])
         nAttempt = len(DPlan['uIDs'])
         DeleteLogger.log('DELETE %d/%d accepted' % (nYes, nAttempt),
-                         'info') 
-
+                         'info')
       else:
         ## Auto-accepted delete (specific only for empty comps)
         DPlan['didAccept'] = 2
