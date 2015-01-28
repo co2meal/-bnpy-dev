@@ -66,6 +66,44 @@ def FwdBwdAlg(PiInit, PiMat, logSoftEv):
   logMargPrSeq = np.log(margPrObs).sum() + lognormC.sum()
   return resp, respPair, logMargPrSeq
 
+
+def FwdBwdAlg_LimitMemory(PiInit, PiMat, logSoftEv):
+  '''Execute forward-backward message passing algorithm using only O(K) memory.
+
+     Args
+     -------
+     piInit : 1D array, size K
+     piMat  : 2D array, size KxK
+     logSoftEv : 2D array, size TxK
+
+     Returns
+     -------
+     resp : 2D array, size T x K
+            resp[t,k] = marg. prob. that step t assigned to state K
+                        p( z[t,k] = 1 | x[1], x[2], ... x[T])
+     TransCount
+     Htable
+     logMargPrSeq : scalar real
+            logMargPrSeq = joint log probability of the observed sequence
+                        log p( x[1], x[2], ... x[T] )  
+  '''
+  PiInit, PiMat, K = _parseInput_TransParams(PiInit, PiMat)
+  logSoftEv = _parseInput_SoftEv(logSoftEv, K)
+  T = logSoftEv.shape[0]
+
+  SoftEv, lognormC = expLogLik(logSoftEv)
+  
+  fmsg, margPrObs = FwdAlg(PiInit, PiMat, SoftEv)
+  bmsg = BwdAlg(PiInit, PiMat, SoftEv, margPrObs)
+  resp = fmsg * bmsg
+  logMargPrSeq = np.log(margPrObs).sum() + lognormC.sum()
+  if not np.isfinite(logMargPrSeq):
+    raise ValueError('NaN values found. Numerical badness!')
+  TransStateCount, Htable = SummaryAlg(PiInit, PiMat, SoftEv,
+                                       margPrObs, fmsg, bmsg)
+  return resp, TransStateCount, Htable, logMargPrSeq
+
+
 def calcRespPair_forloop(PiMat, SoftEv, margPrObs, fmsg, bmsg, K, T):
   ''' Calculate pair-wise responsibilities for all adjacent timesteps
 
@@ -235,6 +273,27 @@ def BwdAlg_py(PiInit, PiMat, SoftEv, margPrObs):
     bmsg[t] = np.dot(PiMat, bmsg[t+1] * SoftEv[t+1] )
     bmsg[t] /= margPrObs[t+1]
   return bmsg
+
+########################################################### Summary Wrappers
+###########################################################
+
+
+def SummaryAlg(*args):
+  ''' Summarize pairwise potentials of single HMM sequence.
+
+     Related
+     -------
+     SummaryAlg_py
+
+     Returns
+     -------
+     TransStateCount
+     Htable
+  '''
+  if PlatformConfig['FwdBwdImpl'] == "cpp":
+    return SummaryAlg_cpp(*args)
+  else:
+    return SummaryAlg_py(*args)
 
 def SummaryAlg_py(PiInit, PiMat, SoftEv, margPrObs, fMsg, bMsg):
   K = PiInit.size
