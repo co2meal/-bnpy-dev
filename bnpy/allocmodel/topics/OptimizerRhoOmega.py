@@ -234,19 +234,21 @@ def objFunc_constrained(rhoomega,
   # Any practical call to this will have nDoc > 0
   if nDoc > 0:
     if kappa > 0:
-      scale = nDoc - 1
-      OFFcoef = kvec(K) + (gamma - g0)/scale + 1/(K*scale)
-      Tvec = (sumLogPi + K * (np.log(alpha+kappa) - np.log(kappa))) / scale
+      scale = 1.0
+      ONcoef = K + 1.0 - g1
+      OFFcoef = K * kvec(K) + 1.0 + gamma - g0
+      Tvec = alpha * sumLogPi
+      Tvec[:-1] += np.log(alpha+kappa) - np.log(kappa)
     else:
       scale = nDoc
+      ONcoef = 1 + (1.0 - g1)/scale
       OFFcoef = kvec(K) + (gamma - g0)/scale
-      Tvec = sumLogPi/scale
-    ONcoef = 1 + (1.0 - g1)/scale
+      Tvec = alpha * sumLogPi/scale
 
     ## Calc local term
     Ebeta = np.hstack([rho, 1.0])
     Ebeta[1:] *= np.cumprod(1-rho)
-    elbo_local = alpha * np.inner(Ebeta, Tvec) 
+    elbo_local = np.inner(Ebeta, Tvec) 
 
   # This is special case for unit tests that make sure the optimizer
   # finds the parameters that set q(u) equal to its prior when nDoc=0
@@ -277,7 +279,7 @@ def objFunc_constrained(rhoomega,
             + OFFcoef * ((1-rho) * trigamma_g0 - trigamma_omega)
   if nDoc > 0:
     Delta = calc_dEbeta_drho(Ebeta, rho, K)
-    gradrho += alpha * np.dot(Delta, Tvec)
+    gradrho += np.dot(Delta, Tvec)
   grad = np.hstack([gradrho, gradomega])
 
   return -1.0 * elbo, -1.0 * grad

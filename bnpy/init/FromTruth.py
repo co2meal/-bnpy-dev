@@ -84,6 +84,8 @@ def _initFromTrueLP(hmodel, Data, initname, PRNG, nRepeatTrue=2, **kwargs):
   ## Adjust "true" labels as specified by initname
   if initname == 'repeattruelabels':
     LP = expandLPWithDuplicates(LP, PRNG, nRepeatTrue)
+  elif initname == 'subdividetruelabels':
+    LP = expandLPWithContigBlocks(LP, Data, PRNG)
   elif initname == 'truelabelsandempties':
     LP = expandLPWithEmpty(LP, 1)
   elif initname.count('junk'):
@@ -111,7 +113,8 @@ def convertLPFromHardToSoft(LP, Data):
   for k in range(Ktrue):
     mask = Z == uniqueLabels[k]
     resp[mask,k] = 1.0
-  return dict(resp=resp)
+  LP['resp'] = resp
+  return LP
 
 def expandLPWithEmpty(LP, nCol):
   ''' Create new LP by adding empty columns at the end
@@ -157,6 +160,55 @@ def expandLPWithDuplicates(LP, PRNG, nRepeatTrue=2):
     curLoc += L
   LP['resp'] = bigResp
   return LP
+
+def expandLPWithContigBlocks(LP, Data, PRNG, nPerSeq=2, 
+                                 numNewOptions=[2,3,4,5],
+                                 pNumNew=[0.45, 0.45, 0.05, 0.05], 
+                                 Kmax=64):
+  ''' Expand hard labels at randomly-chosen contiguous blocks
+
+      Example
+      -------
+      [0, 0, 0, 0,    1, 1, 1, 1, 1,   2, 2, 2, 2, 2]
+      could become
+      [3, 3, 4, 4,    1, 1, 1, 1, 1,   5, 5, 6, 6, 6]
+  '''
+  Z = LP['Z']
+  knewID = Z.max() + 1
+  for n in xrange(Data.nDoc):
+    start = Data.doc_range[n]
+    stop = Data.doc_range[n+1]
+    Z_n = Z[start:stop]
+    breakLocs = np.flatnonzero( Z_n[:-1] - Z_n[1:] ) + 1
+    breakLocs = np.hstack([0, breakLocs, Z_n.size])
+    assert np.all(np.diff(breakLocs) > 0 )
+    # Select nPerSeq breakpoints at random
+    L = len(breakLocs) - 1
+    nSamps = np.minimum(L, nPerSeq)
+    chosenIDs = PRNG.choice(L, nSamps, replace=False)
+    for cc in chosenIDs:
+      start = breakLocs[cc]
+      stop = breakLocs[cc+1]
+      nNew = PRNG.choice(numNewOptions, p=pNumNew)
+      nNew = np.minimum(nNew, stop-start)
+      Bs = (stop - start)/nNew * np.ones(nNew, dtype=np.int32)
+      gap = (stop - start) - Bs.sum()
+      if gap > 0:
+        Bs[:gap] += 1
+      for nn in xrange(nNew):        
+        if nn == 0:
+          a = start     
+        Z_n[a:a+Bs[nn]] = knewID
+        a = a + Bs[nn]
+        knewID += 1
+        if knewID >= Kmax:
+          break # exceed max capacity of number of comps
+      if knewID >= Kmax:
+        break # exceed max capacity of number of comps
+    if knewID >= Kmax:
+      break # exceed max capacity of number of comps
+
+  return convertLPFromHardToSoft(LP, Data)
 
 def convertLPFromTokensToDocs(LP, Data):
   ''' Convert token-specific responsibilities into document-specific ones

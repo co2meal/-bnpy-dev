@@ -1,3 +1,13 @@
+'''
+Unit tests to verify learning of rho/omega via gradient descent.
+
+Contains:
+* Test0Docs : examine case where we have no observed docs, just prior
+* TestManyDocs : examine case where we have many observed docs
+* TestSticky : examine case where sticky parameter at doc level is turned on
+
+'''
+
 import sys
 import numpy as np
 from scipy.optimize import approx_fprime
@@ -412,3 +422,102 @@ class TestManyDocs(unittest.TestCase):
               assert f_hot <= f_orig
               assert np.allclose(f_est, f_hot, rtol=0.01)
               assert np.allclose(rho_est, rho_hot, atol=0.02, rtol=1e-5)
+
+
+
+
+########################################################### Test with Stickiness
+###########################################################
+class TestSticky(unittest.TestCase):
+  def shortDescription(self):
+    return None
+
+  def testHasSaneOutput__objFunc_constrained(self, hmmKappa=10.0):
+    ''' Verify objective value and gradient vector have correct type and size
+    '''
+    for K in [1, 2, 10]:
+      for alpha in [0.1, 0.9]:
+        for seed in [333, 777, 888]:
+
+            PRNG = np.random.RandomState(seed)
+            u = np.linspace(0.1, 0.9, K)
+            Vd = sampleVd(u, K+1, alpha, PRNG=PRNG)
+            sumLogPi = summarizeVdToPi(Vd)
+
+            # Randomly initialize rho and omega
+            rho = PRNG.rand(K)
+            omega = K * PRNG.rand(K)
+            rhoomega = np.hstack([rho, omega])
+
+            kwargs = dict(alpha=alpha, 
+                          gamma=1, 
+                          nDoc=K+1,
+                          kappa=hmmKappa,
+                          sumLogPi=sumLogPi)
+
+            # Compute objective function 
+            # and its gradient (if approximation not occuring)
+            for approx_grad in [0, 1]:
+              if approx_grad:
+                f = OptimizerRhoOmega.objFunc_constrained(
+                                    rhoomega, approx_grad=1, **kwargs)
+                fapprox = f
+
+              else:
+                f, g = OptimizerRhoOmega.objFunc_constrained(
+                                    rhoomega, approx_grad=0, **kwargs)
+                fexact = f
+              assert type(f) == np.float64
+              assert np.isfinite(f)
+
+              if not approx_grad:
+                assert g.ndim == 1
+                assert g.size == 2 * K            
+                assert np.all(np.isfinite(g))
+
+            print fexact
+            print fapprox
+            print ''
+            assert np.allclose(fexact, fapprox)
+
+  def testGradientExactAndApproxAgree__objFunc_constrained(self,
+                                                           hmmKappa=100):
+    ''' Verify computed gradient similar for exact and approx methods
+    '''
+    print ''
+    for K in [1, 2, 10]:
+      for gamma in [1.0, 2.0, 6.28]:
+        for alpha in [0.1, 0.9, 1.5]:
+          for seed in [333, 777, 888]:
+
+            PRNG = np.random.RandomState(seed)
+            u = np.linspace(0.1, 0.9, K)
+            Vd = sampleVd(u, K+1, alpha, PRNG=PRNG)
+            sumLogPi = summarizeVdToPi(Vd)
+
+            # Randomly initialize rho and omega
+            rho = PRNG.rand(K)
+            omega = K * PRNG.rand(K)
+            rhoomega = np.hstack([rho, omega])
+
+            kwargs = dict(alpha=alpha, 
+                          gamma=1, 
+                          nDoc=K+1,
+                          kappa=hmmKappa,
+                          sumLogPi=sumLogPi)
+
+            ## Exact gradient
+            f, g = OptimizerRhoOmega.objFunc_constrained(
+                                    rhoomega, approx_grad=0, **kwargs)
+
+            ## Approx gradient
+            objFunc = lambda x: OptimizerRhoOmega.objFunc_constrained(
+                                    x, approx_grad=1, **kwargs)
+            epsvec = np.hstack([1e-8*np.ones(K), 1e-8*np.ones(K)])
+            gapprox = approx_fprime(rhoomega, objFunc, epsvec)   
+
+            
+            print np2flatstr(g)
+            print np2flatstr(gapprox)
+            print ''
+            assert np.allclose(g, gapprox, atol=0, rtol=0.001)
