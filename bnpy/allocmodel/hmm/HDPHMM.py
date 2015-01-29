@@ -171,13 +171,18 @@ class HDPHMM(AllocModel):
         return LP
 
     def initLPFromResp(self, Data, LP):
-        shape = np.shape(LP['resp'])
-        self.K = shape[1]
-        LP['TransCount'] = np.zeros((Data.nDoc, self.K, self.K))
+        ''' Initialize all local params needed for global update from given resp
+
+            Returns
+            --------
+            LP : same dict as input, with some additional fields
+        '''
+        K = LP['resp'].shape[1]
+        LP['TransCount'] = np.zeros((Data.nDoc, K, K))
         for n in xrange(Data.nDoc):
           start = Data.doc_range[n]
           stop = Data.doc_range[n+1]
-          for t in xrange(start, stop):
+          for t in xrange(start+1, stop):
             respPair_t = np.outer(LP['resp'][t-1,:], LP['resp'][t,:])
             LP['TransCount'][n] += respPair_t
         return LP
