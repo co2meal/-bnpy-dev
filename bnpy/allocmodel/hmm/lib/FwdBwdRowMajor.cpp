@@ -36,8 +36,11 @@ extern "C" {
     double * bwdMsgIN,
     double * TransStateCountOUT,
     double * HtableOUT,
+    double * mPairIDsIN,
+    double * mergeHtableOUT,
     int K,
-    int T);
+    int T,
+    int M);
 }
 
 
@@ -138,8 +141,11 @@ void SummaryAlg(
     double * bwdMsgIN,
     double * TransStateCountOUT,
     double * HtableOUT,
+    double * mPairIDsIN,
+    double * mergeHtableOUT,
     int K,
-    int T)
+    int T,
+    int M)
 {
     // Prep input
     ExtArr1D initPi (initPiIN, K);
@@ -152,13 +158,18 @@ void SummaryAlg(
     // Prep output
     ExtArr2D TransStateCount (TransStateCountOUT, K, K);
     ExtArr2D Htable (HtableOUT, K, K);
-  
+
     // Temporary KxK array for storing respPair at timestep t
     Arr2D respPair_t = ArrayXXd::Zero(K, K);
+    Arr1D rowwiseSum = ArrayXd::Zero(K);
     Arr1D logrowwiseSum = ArrayXd::Zero(K);
-
     Arr2D epsArr = 1e-100 * ArrayXXd::Ones(K, K);
 
+    ExtArr2D mPairIDs (mPairIDsIN, M, 2);
+    ExtArr2D m_Htable (mergeHtableOUT, 2*M, K);
+    // Temporary array for storing temp merge calculations at timestep t
+    Arr2D m_respPair_t = ArrayXd::Zero(K);
+    
     for (int t = 1; t < T; t++) {
         // In Python, we want:
         // >>> respPair[t] = np.outer(fmsg[t-1], bmsg[t] * SoftEv[t])
@@ -175,21 +186,61 @@ void SummaryAlg(
 
         // Aggregate entropy in a KxK matrix
 
-        // Step 1/3: Make numerically safe for logarithms
+        // Make numerically safe for logarithms
         // Each entry in respPair_t will be at least eps (1e-100)
         // Remember, cwiseMax only works with arrays, not scalars :(
         // https://forum.kde.org/viewtopic.php?f=74&t=98384
         respPair_t = respPair_t.cwiseMax(epsArr);
 
-        // Step 2/3: Increment by rP log rP
+        rowwiseSum = respPair_t.rowwise().sum();
+        logrowwiseSum = log(rowwiseSum);
+
+        // ----------------------------------- Start merge logic
+        for (int m = 0; m < M; m++) {
+          int kA = (int) mPairIDs(m,0);
+          int kB = (int) mPairIDs(m,1);
+
+          // Construct new respPair_t[kA, :], respPair_t[kB, :]
+          double m_logrowwiseSum = log(rowwiseSum(kA) + rowwiseSum(kB));
+          for (int k = 0; k < K; k++) {
+              if (k == kA) {
+                double mrP = respPair_t(kA, kA) + respPair_t(kB, kB) \
+                            +respPair_t(kA, kB) + respPair_t(kB, kA);
+                m_Htable(2*m, kA) -= mrP * log(mrP);
+                m_Htable(2*m, kA) += mrP * m_logrowwiseSum;
+
+              } else if (k == kB) {
+                continue;
+              } else {
+                double mrP = respPair_t(kA, k) + respPair_t(kB, k);
+                m_Htable(2*m, k) -= mrP * log(mrP);
+                m_Htable(2*m, k) += mrP * m_logrowwiseSum;
+              }
+          } 
+
+          // Construct new respPair_t[:, kA], respPair_t[:, kB]
+          for (int k = 0; k < K; k++) {
+              if ((k == kA) || (k == kB)) {
+                continue;
+              } else {
+                double mrP = respPair_t(k, kA) + respPair_t(k, kB);
+                m_Htable(2*m+1, k) -= mrP * log(mrP);
+                m_Htable(2*m+1, k) += mrP * logrowwiseSum(k);
+              }
+          }
+          m_Htable(2*m+1, kA) = m_Htable(2*m, kA);
+          m_Htable(2*m, kB) = 0;
+          m_Htable(2*m+1, kB) = 0;
+        }
+        // ----------------------------------- End merge logic
+
+        // Increment by rP log rP
         Htable += respPair_t * respPair_t.log();
 
-        // Step 3/3: Decrement by rP log rP.rowwise().sum()
+        // Decrement by rP log rP.rowwise().sum()
         // Remember, broadcasting with *= doesnt work
         // https://forum.kde.org/viewtopic.php?f=74&t=95629 
         // so we use a forloop instead
-        logrowwiseSum = respPair_t.rowwise().sum();
-        logrowwiseSum = logrowwiseSum.log();
         for (int k=0; k < K; k++) {
           respPair_t.col(k) *= logrowwiseSum;
         }
@@ -205,5 +256,6 @@ void SummaryAlg(
         }
         */
     }
+
     Htable *= -1.0;
 }

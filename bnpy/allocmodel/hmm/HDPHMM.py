@@ -84,16 +84,24 @@ class HDPHMM(AllocModel):
              documentation for mathematical definitions of resp and respPair).
              Note that respPair[0,:,:] is undefined.
         '''
-        if MergePrepInfo is None:
-          MergePrepInfo = dict()
-        lpr = LP['E_log_soft_ev']
+        if MergePrepInfo is None or 'mPairIDs' not in MergePrepInfo:
+          mPairIDs = np.zeros((0,2))
+          M = 0
+        else:
+          mPairIDs = MergePrepInfo['mPairIDs']
+          M = len(mPairIDs)
 
-        # Calculate arguments to the forward backward algorithm
+        # Calculate trans matrix arg for fwd/bwd alg
         digammasumVec = digamma(np.sum(self.transTheta, axis = 1))
         expELogPi = digamma(self.transTheta) - digammasumVec[:, np.newaxis]
         np.exp(expELogPi, out = expELogPi)
+
+        # Calculate start state prob vector for fwd/bwd alg
         expELogPi0 = digamma(self.initTheta) - digamma(np.sum(self.initTheta))
         np.exp(expELogPi0, out = expELogPi0)
+
+        # Unpack soft evidence matrix for fwd/bwd alg
+        lpr = LP['E_log_soft_ev']
 
         if limitMemoryLP:
           # Run the forward backward algorithm on each sequence
@@ -101,24 +109,27 @@ class HDPHMM(AllocModel):
           resp = np.empty((Data.nObs, self.K))
           Htable = np.empty((Data.nDoc, self.K, self.K))
           TransCount = np.empty((Data.nDoc, self.K, self.K))
-
+          mHtable = np.zeros((2*M, self.K))
           for n in xrange(Data.nDoc):
             start = Data.doc_range[n]
             stop = Data.doc_range[n+1]
             logSoftEv_n = lpr[start:stop]
-            resp_n, TransCount_n, Htable_n, logMargPr_n = \
+            resp_n, lp_n, TransCount_n, Htable_n, mHtable_n = \
                       HMMUtil.FwdBwdAlg_LimitMemory(expELogPi0[0:self.K],
                                         expELogPi[0:self.K, 0:self.K], 
-                                        logSoftEv_n)
+                                        logSoftEv_n,
+                                        mPairIDs)
             resp[start:stop] = resp_n
-            logMargPr[n] = logMargPr_n
+            logMargPr[n] = lp_n
             TransCount[n] = TransCount_n
             Htable[n] = Htable_n
+            mHtable += mHtable_n
 
+          LP['resp'] = resp
+          LP['evidence'] = np.sum(logMargPr)
           LP['TransCount'] = TransCount
           LP['Htable'] = Htable
-          LP['evidence'] = np.sum(logMargPr)
-          LP['resp'] = resp
+          LP['mHtable'] = mHtable
         else:
           # Run the forward backward algorithm on each sequence
           logMargPr = np.empty(Data.nDoc)
@@ -232,8 +243,7 @@ class HDPHMM(AllocModel):
 
       if doPrecompMergeEntropy:
         subHstart, subHtable = HMMUtil.PrecompMergeEntropy_SpecificPairs(
-                                      LP['resp'], LP['respPair'], 
-                                      Data, mPairIDs)
+                                      LP, Data, mPairIDs)
         SS.setMergeTerm('Hstart', subHstart, dims=('M'))
         SS.setMergeTerm('Htable', subHtable, dims=('M', 2, 'K'))
         SS.mPairIDs = np.asarray(mPairIDs)

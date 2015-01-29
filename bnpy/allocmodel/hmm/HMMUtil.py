@@ -13,6 +13,7 @@ from bnpy.util import EPS
 from bnpy.util.NumericUtil import Config as PlatformConfig
 from bnpy.util.NumericUtil import sumRtimesS
 from bnpy.util.NumericUtil import inplaceLog
+from bnpy.util import as2D
 
 from lib.LibFwdBwd import FwdAlg_cpp, BwdAlg_cpp, SummaryAlg_cpp
 
@@ -67,7 +68,7 @@ def FwdBwdAlg(PiInit, PiMat, logSoftEv):
   return resp, respPair, logMargPrSeq
 
 
-def FwdBwdAlg_LimitMemory(PiInit, PiMat, logSoftEv):
+def FwdBwdAlg_LimitMemory(PiInit, PiMat, logSoftEv, mPairIDs):
   '''Execute forward-backward message passing algorithm using only O(K) memory.
 
      Args
@@ -99,9 +100,9 @@ def FwdBwdAlg_LimitMemory(PiInit, PiMat, logSoftEv):
   logMargPrSeq = np.log(margPrObs).sum() + lognormC.sum()
   if not np.isfinite(logMargPrSeq):
     raise ValueError('NaN values found. Numerical badness!')
-  TransStateCount, Htable = SummaryAlg(PiInit, PiMat, SoftEv,
-                                       margPrObs, fmsg, bmsg)
-  return resp, TransStateCount, Htable, logMargPrSeq
+  TransStateCount, Htable, mHtable = SummaryAlg(PiInit, PiMat, SoftEv,
+                                       margPrObs, fmsg, bmsg, mPairIDs)
+  return resp, logMargPrSeq, TransStateCount, Htable, mHtable
 
 
 def calcRespPair_forloop(PiMat, SoftEv, margPrObs, fmsg, bmsg, K, T):
@@ -295,10 +296,23 @@ def SummaryAlg(*args):
   else:
     return SummaryAlg_py(*args)
 
-def SummaryAlg_py(PiInit, PiMat, SoftEv, margPrObs, fMsg, bMsg):
+def SummaryAlg_py(PiInit, PiMat, SoftEv, margPrObs, fMsg, bMsg, 
+                  mPairIDs=None):
   K = PiInit.size
   T = SoftEv.shape[0]
-  np.set_printoptions(precision=3, suppress=1)
+  if mPairIDs is None:
+    M = 0
+  else:
+    if len(mPairIDs) == 0:
+      M = 0
+    else:
+      mPairIDs = as2D(np.asarray(mPairIDs, dtype=np.int32))
+      assert mPairIDs.ndim == 2
+      assert mPairIDs.shape[1] == 2
+      assert mPairIDs.shape[0] > 0
+      M = mPairIDs.shape[0]
+  mHtable = np.zeros((2*M, K))
+
   respPair_t = np.zeros((K,K))
   Htable = np.zeros((K,K))
   TransStateCount = np.zeros((K,K))
@@ -311,11 +325,18 @@ def SummaryAlg_py(PiInit, PiMat, SoftEv, margPrObs, fMsg, bMsg):
     rowwiseSum = np.sum(respPair_t, axis=1)
     Htable += respPair_t * np.log(respPair_t) \
               - respPair_t * np.log(rowwiseSum)[:, np.newaxis]
-    #sigma_t = respPair_t / respPair_t.sum(axis=1)[:,np.newaxis]
-    #Htable += respPair_t * np.log(sigma_t)
+
+  if M > 0:
+    respPair = calcRespPair_fast(PiMat, SoftEv,
+                                 margPrObs, fMsg, bMsg, 
+                                 K, T, doCopy=1)
+    for m in xrange(M):
+      kA = mPairIDs[m, 0]
+      kB = mPairIDs[m, 1]
+      mHtable[2*m:2*m+2] = calc_sub_Htable_forMergePair(respPair, kA, kB)
 
   Htable *= -1
-  return TransStateCount, Htable
+  return TransStateCount, Htable, mHtable
 
 ########################################################### expLogLik
 ###########################################################
@@ -578,23 +599,26 @@ calcEntropyFromResp = calcEntropyFromResp_faster
 ########################################################### Merge entropy calc
 ###########################################################
 
-def PrecompMergeEntropy_SpecificPairs(resp, respPair, 
-                                      Data, mPairIDs, eps=1e-100):
+def PrecompMergeEntropy_SpecificPairs(LP, Data, mPairIDs, eps=1e-100):
   ''' Calculate replacement tables for specific candidate merge pairs
       
   '''
+  resp = LP['resp']
   startLocIDs = Data.doc_range[:-1]
   K = resp.shape[1]
-  rowSums = np.sum(respPair, axis=2)
 
   sub_Hstart = np.zeros(len(mPairIDs))
   sub_Htable = np.zeros((len(mPairIDs), 2, K))
+
   for mID, mPair in enumerate(mPairIDs):
     kA, kB = mPair
     sub_Hstart[mID] = calc_sub_Hstart_forMergePair(
                               resp, kA, kB, Data=Data, eps=eps)
-    sub_Htable[mID] = calc_sub_Htable_forMergePair(
-                              respPair, kA, kB, eps=eps)
+    if 'mHtable' in LP:
+      sub_Htable[mID] = LP['mHtable'][(2*mID):(2*mID+2)]
+    else:
+      sub_Htable[mID] = calc_sub_Htable_forMergePair(
+                                 LP['respPair'], kA, kB, eps=eps)
   return sub_Hstart, sub_Htable
 
 def calc_sub_Htable_forMergePair(respPair, kA, kB, 
