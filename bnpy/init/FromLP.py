@@ -8,7 +8,6 @@ import FromScratchMult
 from FromTruth import convertLPFromHardToSoft
 
 def init_global_params(hmodel, Data, initname='', initLP=None, 
-                       seed=0,
                        **kwargs):
   ''' Initialize (in-place) the global params of the given hmodel
       using the true labels associated with the Data
@@ -126,15 +125,26 @@ def calcBlockSizesForCurSeq(KperSeq, curT):
 
 
 def initHardLP_SeqAllocContigBlocks(Data, obsModel, **kwargs):
+  if 'seed' in kwargs:
+    seed = int(kwargs['seed'])
+  else:
+    seed = 0
+  # Traverse sequences in a random order
+  PRNG = np.random.RandomState(seed)
+  randOrderIDs = range(Data.nDoc)
+  PRNG.shuffle(randOrderIDs)
+
+
   SS = None
   LP = dict()
   Zall = np.ones(Data.doc_range[-1], dtype=np.int32)
-  for n in xrange(Data.nDoc):
+  for n in randOrderIDs:
     Z_n, SS = initHardZForSingleSeq_SeqAllocContigBlocks(
                                                  n, Data, obsModel,
                                                  SS=SS,
-                                            mergeToSimplify=True,
-                                                 returnSS=True)
+                                                 mergeToSimplify=True,
+                                                 returnSS=True,
+                                                 **kwargs)
     start = Data.doc_range[n]
     stop = Data.doc_range[n+1]
     Zall[start:stop] = Z_n
@@ -146,7 +156,8 @@ def initHardZForSingleSeq_SeqAllocContigBlocks(n, Data, obsModel,
                                        seed=0, 
                                        initBlockLen=20,
                                        mergeToSimplify=False,
-                                       returnSS=False):
+                                       returnSS=False,
+                                       **kwargs):
   ''' Initialize hard assignment state sequence Z for one single sequence
   '''
   start = Data.doc_range[n]
@@ -171,12 +182,15 @@ def initHardZForSingleSeq_SeqAllocContigBlocks(n, Data, obsModel,
   # SSab denotes the current block 
   for blockID in xrange(nBlocks):
     if blockID == 0:
+      # First block
       a = 0
       b = a + initBlockLen
-    elif blockID == nBlocks:
+    elif blockID == nBlocks - 1:
+      # Final block
       a = b
       b = T
     else:
+      # All interior blocks
       a = b
       b = a + initBlockLen
 

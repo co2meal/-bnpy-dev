@@ -111,8 +111,15 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
 
   for tt, taskid in enumerate(taskids):
     try:
-      xs = np.loadtxt(os.path.join(jobpath, taskid, xvar+'.txt'))
-      ys = np.loadtxt(os.path.join(jobpath, taskid, yvar+'.txt'))
+      xtxtfile = os.path.join(jobpath, taskid, xvar+'.txt')
+      if not os.path.isfile(xtxtfile):
+        xtxtfile = os.path.join(jobpath, taskid, xvar+'-saved-params.txt')
+      xs = np.loadtxt(xtxtfile)
+
+      ytxtfile = os.path.join(jobpath, taskid, yvar+'.txt')
+      if not os.path.isfile(ytxtfile):
+        ytxtfile = os.path.join(jobpath, taskid, yvar+'-saved-params.txt')
+      ys = np.loadtxt(ytxtfile)
     except IOError as e:
       try:
         xs, ys = loadXYFromTopicModelFiles(jobpath, taskid)
@@ -123,8 +130,12 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
           raise e
 
     if yvar == 'hamming-distance':
-      if xvar == 'laps-saved-params' and xs.size == ys.size - 1:
-        ys = ys[:-1]
+      if xvar == 'laps-saved-params':
+        # fix off-by-one error, if we save an extra dist on final lap
+        if xs.size == ys.size - 1:
+          ys = ys[:-1] 
+        elif ys.size == xs.size - 1:
+          xs = xs[:-1] # fix off-by-one error, if we quit early
       elif xs.size != ys.size:
         ## Try to subsample both time series at laps where they intersect
         laps_x = np.loadtxt(os.path.join(jobpath, taskid, 'laps.txt'))
@@ -152,13 +163,13 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
     # This avoids making plots that have huge file sizes,
     # due to too much content in the given display space
     if xvar == 'laps' and xs.size > 10:
-      curDensity = (xs.size-10) / (xs[-1] - xs[10])
+      curDensity = (xs.size-10) / (xs[-1] - xs[9])
       while curDensity > density:
         # Thin xs and ys data by a factor of 2
         # while preserving the first 10 data points
         xs = np.hstack([xs[:10], xs[10::2]])
         ys = np.hstack([ys[:10], ys[10::2]])
-        curDensity = (xs.size-10) / (xs[-1] - xs[10])
+        curDensity = (xs.size-10) / (xs[-1] - xs[9])
 
     plotargs = dict(markersize=markersize, linewidth=linewidth, label=None,
                     color=color, markeredgecolor=color)
