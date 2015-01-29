@@ -93,30 +93,39 @@ class HDPHMM(AllocModel):
 
         # Calculate trans matrix arg for fwd/bwd alg
         digammasumVec = digamma(np.sum(self.transTheta, axis = 1))
-        expELogPi = digamma(self.transTheta) - digammasumVec[:, np.newaxis]
+        expELogPi = digamma(self.transTheta[:, :self.K]) \
+                            - digammasumVec[:, np.newaxis]
         np.exp(expELogPi, out = expELogPi)
 
-        # Calculate start state prob vector for fwd/bwd alg
-        expELogPi0 = digamma(self.initTheta) - digamma(np.sum(self.initTheta))
-        np.exp(expELogPi0, out = expELogPi0)
+        # Calculate start state log prob vector for fwd/bwd alg
+        ELogPi0 = digamma(self.initTheta[:self.K]) \
+                            - digamma(np.sum(self.initTheta))
 
         # Unpack soft evidence matrix for fwd/bwd alg
         lpr = LP['E_log_soft_ev']
 
         if limitMemoryLP:
-          # Run the forward backward algorithm on each sequence
+          # Set init probs are uniform,
+          # because we'll update the first step's logSoftEv to include log pi_0
+          expELogPi0 = np.ones(self.K)
+
           logMargPr = np.empty(Data.nDoc)
           resp = np.empty((Data.nObs, self.K))
           Htable = np.empty((Data.nDoc, self.K, self.K))
           TransCount = np.empty((Data.nDoc, self.K, self.K))
           mHtable = np.zeros((2*M, self.K))
+
+          # Run forward backward algorithm on each sequence
           for n in xrange(Data.nDoc):
             start = Data.doc_range[n]
             stop = Data.doc_range[n+1]
             logSoftEv_n = lpr[start:stop]
+            logSoftEv_n[0] += ELogPi0 # adding in start state log probs
+
             resp_n, lp_n, TransCount_n, Htable_n, mHtable_n = \
-                      HMMUtil.FwdBwdAlg_LimitMemory(expELogPi0[0:self.K],
-                                        expELogPi[0:self.K, 0:self.K], 
+                      HMMUtil.FwdBwdAlg_LimitMemory(
+                                        expELogPi0,
+                                        expELogPi, 
                                         logSoftEv_n,
                                         mPairIDs)
             resp[start:stop] = resp_n
@@ -131,6 +140,10 @@ class HDPHMM(AllocModel):
           LP['Htable'] = Htable
           LP['mHtable'] = mHtable
         else:
+          # Set init probs are uniform,
+          # because we'll update the first step's logSoftEv to include log pi_0
+          expELogPi0 = np.ones(self.K)
+
           # Run the forward backward algorithm on each sequence
           logMargPr = np.empty(Data.nDoc)
           resp = np.empty((Data.nObs, self.K))
@@ -141,9 +154,11 @@ class HDPHMM(AllocModel):
             start = Data.doc_range[n]
             stop = Data.doc_range[n+1]
             logSoftEv_n = lpr[start:stop]
+            logSoftEv_n[0] += ELogPi0 # adding in start state log probs
+
             seqResp, seqRespPair, seqLogMargPr = \
-                      HMMUtil.FwdBwdAlg(expELogPi0[0:self.K],
-                                        expELogPi[0:self.K, 0:self.K], 
+                      HMMUtil.FwdBwdAlg(expELogPi0,
+                                        expELogPi, 
                                         logSoftEv_n)
             resp[start:stop] = seqResp
             respPair[start:stop] = seqRespPair
@@ -158,10 +173,13 @@ class HDPHMM(AllocModel):
     def initLPFromResp(self, Data, LP):
         shape = np.shape(LP['resp'])
         self.K = shape[1]
-        respPair = np.zeros((shape[0], self.K, self.K))
-        for t in xrange(1,shape[0]):
-            respPair[t,:,:] = np.outer(LP['resp'][t-1,:], LP['resp'][t,:])
-        LP.update({'respPair' : respPair})
+        LP['TransCount'] = np.zeros((Data.nDoc, self.K, self.K))
+        for n in xrange(Data.nDoc):
+          start = Data.doc_range[n]
+          stop = Data.doc_range[n+1]
+          for t in xrange(start, stop):
+            respPair_t = np.outer(LP['resp'][t-1,:], LP['resp'][t,:])
+            LP['TransCount'][n] += respPair_t
         return LP
 
     def selectSubsetLP(self, Data, LP, relIDs):

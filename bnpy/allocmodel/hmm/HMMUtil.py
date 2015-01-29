@@ -61,6 +61,9 @@ def FwdBwdAlg(PiInit, PiMat, logSoftEv):
   SoftEv, lognormC = expLogLik(logSoftEv)
   
   fmsg, margPrObs = FwdAlg(PiInit, PiMat, SoftEv)
+  if not np.all(np.isfinite(margPrObs)):
+    raise ValueError('NaN values found. Numerical badness!')
+
   bmsg = BwdAlg(PiInit, PiMat, SoftEv, margPrObs)
   resp = fmsg * bmsg
   respPair = calcRespPair_fast(PiMat, SoftEv, margPrObs, fmsg, bmsg, K, T)
@@ -90,16 +93,16 @@ def FwdBwdAlg_LimitMemory(PiInit, PiMat, logSoftEv, mPairIDs):
   '''
   PiInit, PiMat, K = _parseInput_TransParams(PiInit, PiMat)
   logSoftEv = _parseInput_SoftEv(logSoftEv, K)
+  SoftEv, lognormC = expLogLik(logSoftEv)
   T = logSoftEv.shape[0]
 
-  SoftEv, lognormC = expLogLik(logSoftEv)
-  
   fmsg, margPrObs = FwdAlg(PiInit, PiMat, SoftEv)
+  if not np.all(np.isfinite(margPrObs)):
+    raise ValueError('NaN values found. Numerical badness!')
+
   bmsg = BwdAlg(PiInit, PiMat, SoftEv, margPrObs)
   resp = fmsg * bmsg
   logMargPrSeq = np.log(margPrObs).sum() + lognormC.sum()
-  if not np.isfinite(logMargPrSeq):
-    raise ValueError('NaN values found. Numerical badness!')
   TransStateCount, Htable, mHtable = SummaryAlg(PiInit, PiMat, SoftEv,
                                        margPrObs, fmsg, bmsg, mPairIDs)
   return resp, logMargPrSeq, TransStateCount, Htable, mHtable
