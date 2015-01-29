@@ -141,8 +141,13 @@ def runDeleteMove_Target(curModel, curSS, Plan,
         targetSS_b = newModel.get_global_suff_stats(Data_b, targetLP_b)
         SSmemory[batchID] += targetSS_b
 
+      # Be very sure we've set everything to zero
+      SSmemory[batchID].setELBOFieldsToZero()
+      SSmemory[batchID].setMergeFieldsToZero()
+
       if hasattr(SSmemory[batchID], 'sumLogPiRem'):
         aggSumLogPiRem += SSmemory[batchID].sumLogPiRem
     if hasattr(newSS, 'sumLogPiRem'):
       assert np.allclose(aggSumLogPiRem, newSS.sumLogPiRem, atol=1e-5)
+
   return newModel, newSS, Plan
