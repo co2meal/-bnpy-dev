@@ -153,9 +153,12 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
     ## Cleanup laps data. Verify that it is sorted, with no collisions. 
     if xvar == 'laps':
       diff = xs[1:] - xs[:-1]
-      goodIDs = np.flatnonzero(diff > 0)
+      goodIDs = np.flatnonzero(diff >= 0)
       if len(goodIDs) < xs.size-1:
         print 'WARNING: looks like we had multiple runs writing to this file!'
+        print jobpath
+        print 'Task: ', taskid
+        print len(goodIDs), xs.size-1
         xs = np.hstack([xs[goodIDs], xs[-1]])
         ys = np.hstack([ys[goodIDs], ys[-1]])
 
