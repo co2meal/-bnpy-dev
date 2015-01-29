@@ -5,8 +5,10 @@ Initialize global params of a bnpy model using a set of local parameters
 '''
 import numpy as np
 import FromScratchMult
+from FromTruth import convertLPFromHardToSoft
 
-def init_global_params(hmodel, Data, initname='', initLP=None, **kwargs):
+def init_global_params(hmodel, Data, initname='', initLP=None, 
+                       **kwargs):
   ''' Initialize (in-place) the global params of the given hmodel
       using the true labels associated with the Data
 
@@ -25,6 +27,8 @@ def init_global_params(hmodel, Data, initname='', initLP=None, **kwargs):
     LP = initLP
   elif initname == 'contigblocksLP':
     LP = makeLP_ContigBlocks(Data, **kwargs)
+  elif initname == 'sacbLP':
+    LP = initHardLP_SeqAllocContigBlocks(Data, hmodel.obsModel, **kwargs)
   else:
     raise ValueError('Unrecognized initname: %s' % (initname))
   return initHModelFromLP(hmodel, Data, LP)    
@@ -39,6 +43,12 @@ def initHModelFromLP(hmodel, Data, LP):
       --------
       None. hmodel global parameters updated in-place.
   '''
+  if 'resp' not in LP:
+    if 'Z' not in LP:
+      raise ValueError("Bad LP. Require either 'resp' or 'Z' fields.")
+    LP = convertLPFromHardToSoft(LP, Data)
+  assert 'resp' in LP
+
   if hasattr(hmodel.allocModel, 'initLPFromResp'):
     LP = hmodel.allocModel.initLPFromResp(Data, LP)
   SS = hmodel.get_global_suff_stats(Data, LP)
@@ -112,3 +122,142 @@ def calcBlockSizesForCurSeq(KperSeq, curT):
   blockSizes[:remMass] += 1
   cumsumBlockSizes = np.cumsum(np.hstack([0,blockSizes]))
   return np.asarray(cumsumBlockSizes, dtype=np.int32)
+
+
+def initHardLP_SeqAllocContigBlocks(Data, obsModel, **kwargs):
+  if 'seed' in kwargs:
+    seed = int(kwargs['seed'])
+  else:
+    seed = 0
+  # Traverse sequences in a random order
+  PRNG = np.random.RandomState(seed)
+  randOrderIDs = range(Data.nDoc)
+  PRNG.shuffle(randOrderIDs)
+
+
+  SS = None
+  LP = dict()
+  Zall = np.ones(Data.doc_range[-1], dtype=np.int32)
+  for n in randOrderIDs:
+    Z_n, SS = initHardZForSingleSeq_SeqAllocContigBlocks(
+                                                 n, Data, obsModel,
+                                                 SS=SS,
+                                                 mergeToSimplify=True,
+                                                 returnSS=True,
+                                                 **kwargs)
+    start = Data.doc_range[n]
+    stop = Data.doc_range[n+1]
+    Zall[start:stop] = Z_n
+  LP['Z'] = Zall
+  return LP
+
+def initHardZForSingleSeq_SeqAllocContigBlocks(n, Data, obsModel,
+                                       SS=None,
+                                       seed=0, 
+                                       initBlockLen=20,
+                                       mergeToSimplify=False,
+                                       returnSS=False,
+                                       **kwargs):
+  ''' Initialize hard assignment state sequence Z for one single sequence
+  '''
+  start = Data.doc_range[n]
+  stop = Data.doc_range[n+1]
+  T = stop - start
+  nBlocks = int(T // initBlockLen)
+  leftoverLen = T - initBlockLen * nBlocks
+
+  # Loop over each contig block of data, and assign it en masse to one cluster
+  Z = -1 * np.ones(T, dtype=np.int32)
+  SSagg = SS
+  if SSagg is None:
+    kUID = 0
+    Norig = 0
+  else:
+    kUID = SSagg.K
+    Norig = SSagg.N.sum()
+
+  ## We traverse the current sequence block by block,
+  # Indices a,b denote the start and end of the current block *in this sequence*
+  # SSactive denotes the most recent current stretch assigned to one comp
+  # SSab denotes the current block 
+  for blockID in xrange(nBlocks):
+    if blockID == 0:
+      # First block
+      a = 0
+      b = a + initBlockLen
+    elif blockID == nBlocks - 1:
+      # Final block
+      a = b
+      b = T
+    else:
+      # All interior blocks
+      a = b
+      b = a + initBlockLen
+
+    SSab = obsModel.calcSummaryStatsForContigBlock(Data, a=start+a, b=start+b)
+    if blockID == 0:
+      Z[a:b] = kUID
+      SSactive = SSab
+      continue
+
+    ELBOgap = obsModel.calcHardMergeGap_SpecificPairSS(SSactive, SSab)
+    if ELBOgap >= -0.000001:
+      # Positive value means we prefer to assign block [a,b] to current state
+      # So combine the current block into the active block 
+      # and move on to the next block
+      Z[a:b] = kUID
+      SSactive += SSab
+
+    else:
+      # Negative value means we assign block [a,b] to a new state!
+      Z[a:b] = kUID + 1
+      SSagg, Z = updateAggSSWithFinishedCurrentBlock(SSagg, SSactive, Z,
+                                       obsModel,
+                                       mergeToSimplify=mergeToSimplify)
+  
+      # Create a new active block, starting at [a,b] 
+      SSactive = SSab # make a soft copy / alias
+      kUID = 1*SSagg.K
+
+  # Final block needs to be recorded. 
+  SSagg, Z = updateAggSSWithFinishedCurrentBlock(SSagg, SSactive, Z,
+                                       obsModel,
+                                       mergeToSimplify=mergeToSimplify)
+  # Verify that our aggregate suff stats
+  #  represent every single timestep in this sequence
+  assert np.allclose(SSagg.N.sum() - Norig, Z.size)
+  if returnSS:
+    return Z, SSagg
+  return Z
+
+def updateAggSSWithFinishedCurrentBlock(SSagg, SScur, Z, obsModel,
+                                        mergeToSimplify=False):
+  ''' Store most recent tracked block into the aggregated bag of suff stats
+
+      Will perform merges if requested to try to combine this recent block
+      with any existing comps in the provided suff stat bag.
+
+      Returns
+      ----------
+      SSagg : aggregated bag of suff stats for all tracked comps
+      Z : state sequence for current time series
+          possibly relabeled if a merge occurred.
+  '''
+  if SSagg is None:
+    SSagg = SScur
+  else:
+    SSagg.insertComps(SScur)
+
+  if mergeToSimplify and SSagg.K > 1:
+    obsModel.update_global_params(SSagg)
+    # Try to merge this recent block with all others
+    mPairIDs = [(k, SSagg.K-1) for k in range(SSagg.K-1)]
+    ELBOgaps = obsModel.calcHardMergeGap_SpecificPairs(SSagg, mPairIDs)
+    bestID = np.argmax(ELBOgaps)
+    if ELBOgaps[bestID] > 0:
+      kA, kB = mPairIDs[bestID]
+      SSagg.mergeComps(kA, kB)
+      # Reindex the state sequence Z
+      Z[Z==kB] = kA
+      Z[Z > kB] -= 1
+  return SSagg, Z

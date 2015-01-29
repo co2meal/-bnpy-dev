@@ -27,11 +27,11 @@ class HDPHMM(AllocModel):
         self.inferType = inferType
         self.K = 0
 
-        #Variational parameters
-        self.rho = None #rho/omega are stick-breaking params for global stick
+        # Variational free parameters
+        self.rho = None # rho/omega define Beta distr. on global stick lengths
         self.omega = None
-        self.transTheta = None #Kx(K+1) Dirichlet params for transition matrix
-        self.initTheta = None #K+1 Dirichlet parameters for the initial state
+        self.transTheta = None # Kx(K+1) Dirichlet params for transition matrix
+        self.initTheta = None # K+1 Dirichlet parameters for the initial state
 
     def set_prior(self, gamma = 10, alpha = 0.5, hmmKappa = 0.0, **kwargs):
         self.gamma = gamma
@@ -359,8 +359,7 @@ class HDPHMM(AllocModel):
       # Calculate E_q[alpha * Beta_l] for l = 1, ..., K+1
       alphaEBeta = self.alpha * StickBreakUtil.rho2beta(self.rho)
 
-      # transTheta_kl = M_kl + E_q[alpha * Beta_l] (where M_k,>K = 0)
-      #                    + kappa * 1_{k==l}
+      # transTheta_kl = M_kl + E_q[alpha * Beta_l] + kappa * 1_{k==l}
       transTheta = np.zeros((K, K + 1))
       transTheta += alphaEBeta[np.newaxis,:]
       transTheta[:K, :K] += SS.TransStateCount + self.kappa * np.eye(self.K)
@@ -389,7 +388,9 @@ class HDPHMM(AllocModel):
       self.transTheta, self.initTheta = self._calcTheta(SS)
 
 
-    def set_global_params(self, hmodel=None, rho=None, omega=None, 
+    def set_global_params(self, hmodel=None, 
+                                rho=None, omega=None, 
+                                initTheta=None, transTheta=None,
                                 **kwargs):
       ''' Set rho, omega to provided values.
       '''
@@ -399,11 +400,21 @@ class HDPHMM(AllocModel):
           self.rho = hmodel.allocModel.rho
           self.omega = hmodel.allocModel.omega
         else:
-          raise AttributeError('Unrecognized hmodel')
-      elif rho is not None and omega is not None:
+          raise AttributeError('Unrecognized hmodel. No field rho.')
+        if hasattr(hmodel.allocModel, 'initTheta'):
+          self.initTheta = hmodel.allocModel.initTheta
+          self.transTheta = hmodel.allocModel.transTheta
+        else:
+          raise AttributeError('Unrecognized hmodel. No field initTheta.')
+      elif rho is not None \
+              and omega is not None \
+              and initTheta is not None:
         self.rho = rho
         self.omega = omega
+        self.initTheta = initTheta
+        self.transTheta = transTheta
         self.K = omega.size
+        assert self.K == self.initTheta.size - 1
       else:
         self._set_global_params_from_scratch(**kwargs)
       
@@ -461,75 +472,14 @@ class HDPHMM(AllocModel):
         if self.inferType == 'soVB' and SS.hasAmpFactor():
             L_ent *= SS.ampF
 
-        L_alloc = self.E_logpZ_logpPi_logqPi(SS)
-        L_top = self.E_logpU_logqU_plus_cDirAlphaBeta()
-        return L_ent + L_alloc + L_top
+        Lalloc = L_alloc_no_slack(self.initTheta, self.transTheta)
+        Ltop = L_top(self.rho, self.omega, self.alpha, self.gamma, self.kappa)
+        return L_ent + Lalloc + Ltop
 
     def elbo_entropy(self, Data, LP):
         ''' Calculates entropy of state seq. assignment var. distribution
         '''
         return HMMUtil.calcEntropyFromResp(LP['resp'], LP['respPair'], Data)
-
-    def E_logpZ_logpPi_logqPi(self, SS):
-        ''' Calculate E[ log p(pi) - log q(pi)
-
-            Does not include the surrogate bounded term.
-            Instead, this appears in L_top below.
-
-            Note that the "slack" term refers to the alloc_slack term that is 0
-            if the ELBO is evaluated after the M-step and theta is updated last
-
-            Returns
-            ---------
-            Elogstuff : real scalar
-        '''
-        diff_cDir = - c_Dir(self.transTheta) - c_Dir(self.initTheta)
-        slack = 0
-        return diff_cDir + slack
-
-    def E_logpU_logqU_plus_cDirAlphaBeta(self):
-        ''' Calculate E[ log p(u) - log q(u) ] 
-
-            Includes surrogate bound on E[c_D(alpha beta)] 
-
-            Returns
-            ---------
-            Elogstuff : real scalar
-        '''
-        K = self.K
-        eta1 = self.rho * self.omega
-        eta0 = (1-self.rho) * self.omega
-        digamma_omega = digamma(self.omega)
-        ElogU = digamma(eta1) - digamma_omega
-        Elog1mU = digamma(eta0) - digamma_omega
-        sumEBeta = np.sum(StickBreakUtil.rho2beta_active(self.rho))
-        
-        # kappa > 0 requires a bound on the surrogate bound
-        if self.kappa > 0:
-          coefU = (K) + 1.0 - eta1
-          coef1mU = (K) * OptimizerRhoOmega.kvec(K) + self.gamma - eta0
-
-          diff_cBeta = K * c_Beta(1.0, self.gamma) - c_Beta(eta1, eta0)
-          diff_logBetaPDF = np.inner(coefU, ElogU) \
-                            + np.inner(coef1mU, Elog1mU)
-          c_surr_kappa = (np.log(self.alpha+self.kappa) - np.log(self.kappa)) *\
-                       sumEBeta + \
-                       K*(np.log(self.kappa) - np.log(self.alpha + self.kappa))\
-                       + np.sum(Elog1mU)
-          c_surr_alpha = (K+1) * K * np.log(self.alpha)
-
-        # Bound does not hold if kappa = 0, so special case this
-        else:
-          coefU = (K+1) + 1.0 - eta1
-          coef1mU = (K+1) * OptimizerRhoOmega.kvec(K) + self.gamma - eta0
-
-          diff_cBeta = K * c_Beta(1.0, self.gamma) - c_Beta(eta1, eta0)
-          diff_logBetaPDF = np.inner(coefU, ElogU) \
-                            + np.inner(coef1mU, Elog1mU)
-          c_surr_kappa = 0
-          c_surr_alpha = (K+1) * K * np.log(self.alpha)
-
-        return c_surr_alpha + c_surr_kappa + diff_cBeta + diff_logBetaPDF
 
     def calcHardMergeGap(self, SS, kA, kB):
       ''' Calculate scalar improvement in ELBO for hard merge of comps kA, kB
@@ -540,19 +490,20 @@ class HDPHMM(AllocModel):
           ---------
           L : scalar
       ''' 
-      m_SS = SS.copy(includeELBOTerms=False, includeMergeTerms=False)
+      m_K = SS.K - 1
+      m_SS = SuffStatBag(K=SS.K, D=0)
+      m_SS.setField('StartStateCount', SS.StartStateCount.copy(), dims='K')
+      m_SS.setField('TransStateCount', SS.TransStateCount.copy(),
+                                       dims=('K','K'))
       m_SS.mergeComps(kA, kB)
-      m_K = m_SS.K
 
       ## Create candidate beta vector
       m_beta = StickBreakUtil.rho2beta(self.rho)
       m_beta[kA] += m_beta[kB]
       m_beta = np.delete(m_beta, kB, axis=0)
 
-      ## Create candidate rho vector
+      ## Create candidate rho and omega vectors
       m_rho = StickBreakUtil.beta2rho(m_beta, m_K)
-
-      ## Create candidate omega vector
       m_omega = np.delete(self.omega, kB)
 
       ## Create candidate initTheta
@@ -561,14 +512,14 @@ class HDPHMM(AllocModel):
 
       ## Create candidate transTheta
       m_transTheta = self.alpha * np.tile(m_beta, (m_K,1))
-      m_transTheta[:, :m_K] += m_SS.TransStateCount 
+      m_transTheta[:, :m_K] += m_SS.TransStateCount
 
-      Ltop = L_top(self.rho, self.omega, self.alpha, self.gamma)
-      m_Ltop = L_top(m_rho, m_omega, self.alpha, self.gamma)
+      ## Evaluate objective func. for both candidate and current model
+      Ltop = L_top(self.rho, self.omega, self.alpha, self.gamma, self.kappa)
+      m_Ltop = L_top(m_rho, m_omega, self.alpha, self.gamma, self.kappa)
 
       Lalloc = L_alloc_no_slack(self.initTheta, self.transTheta)
       m_Lalloc = L_alloc_no_slack(m_initTheta, m_transTheta)
-
       return (m_Ltop + m_Lalloc) - (Ltop + Lalloc)
 
     def calcHardMergeGap_AllPairs(self, SS):
@@ -613,24 +564,38 @@ class HDPHMM(AllocModel):
 ########################################################### ELBO functions
 ########################################################### 
 
-def L_top(rho, omega, alpha, gamma):
-  ''' Evaluate the top-level terms of the objective function
+def L_top(rho, omega, alpha, gamma, kappa):
+  ''' Evaluate the top-level term of the surrogate objective
   '''
+  K = rho.size
   eta1 = rho * omega
   eta0 = (1-rho) * omega
   digamma_omega = digamma(omega)
   ElogU = digamma(eta1) - digamma_omega
   Elog1mU = digamma(eta0) - digamma_omega
 
-  # Calculate aggregated coefficients of ElogU and Elog1mU
-  K = rho.size
-  coefU = (K+1) + 1.0 - eta1
-  coef1mU = (K+1) * OptimizerRhoOmega.kvec(K) + gamma - eta0
-
   diff_cBeta = K * c_Beta(1.0, gamma) - c_Beta(eta1, eta0)
-  diff_logBetaPDF = np.inner(coefU, ElogU) \
-                    + np.inner(coef1mU, Elog1mU)
-  return K * np.log(alpha) + diff_cBeta + diff_logBetaPDF
+
+  tAlpha = (K+1) * K * np.log(alpha)
+
+  if kappa > 0:
+    coefU = K + 1.0 - eta1
+    coef1mU = K * OptimizerRhoOmega.kvec(K) + 1.0 + gamma - eta0
+
+    sumEBeta = np.sum(StickBreakUtil.rho2beta_active(rho))
+    tBeta = sumEBeta * (np.log(alpha+kappa) - np.log(kappa))
+
+    tKappa = K * (np.log(kappa) - np.log(alpha + kappa))
+  else:
+    coefU = (K+1) + 1.0 - eta1
+    coef1mU = (K+1) * OptimizerRhoOmega.kvec(K) + gamma - eta0
+
+    tBeta = 0
+    tKappa = 0
+
+  diff_logU = np.inner(coefU, ElogU) \
+              + np.inner(coef1mU, Elog1mU)
+  return tAlpha + tKappa + tBeta + diff_cBeta + diff_logU
 
 
 def L_alloc_no_slack(initTheta, transTheta):
@@ -639,11 +604,10 @@ def L_alloc_no_slack(initTheta, transTheta):
 
 def L_alloc_with_slack(initTheta, transTheta, initM, transM, alphaEbeta):
     K = transM.shape[0]
-
     if initM.size == alphaEbeta.size - 1:
       initM = np.hstack([initM,0])
     if transM.shape[-1] == alphaEbeta.size - 1:
-      transM = np.hstack([transM, np.zeros(K)])
+      transM = np.hstack([transM, np.zeros((K,1))])
 
     init_slack = np.inner(initM + alphaEbeta - initTheta,
                           digamma(initTheta) - digamma(initTheta.sum())
