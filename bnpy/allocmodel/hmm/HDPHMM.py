@@ -383,8 +383,8 @@ class HDPHMM(AllocModel):
       # To initialize theta, perform standard update given rho, omega
       # but with "empty" sufficient statistics.
       SS = SuffStatBag(K = self.K, D = Data.dim)
-      SS.setField('StartStateCount', np.zeros(K), dims = ('K'))
-      SS.setField('TransStateCount', np.zeros((K,K)), dims = ('K','K'))
+      SS.setField('StartStateCount', np.ones(K), dims = ('K'))
+      SS.setField('TransStateCount', np.ones((K,K)), dims = ('K','K'))
       self.transTheta, self.initTheta = self._calcTheta(SS)
 
 
