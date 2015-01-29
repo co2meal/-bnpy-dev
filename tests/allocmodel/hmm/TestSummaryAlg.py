@@ -2,7 +2,8 @@ import unittest
 import numpy as np
 
 from bnpy.allocmodel.hmm.HMMUtil import FwdAlg_py, BwdAlg_py, SummaryAlg_py
-from bnpy.allocmodel.hmm.HMMUtil import SummaryAlg_cpp
+from bnpy.allocmodel.hmm.HMMUtil import SummaryAlg_cpp, calcRespPair_fast
+from bnpy.allocmodel.hmm.HMMUtil import calc_sub_Htable_forMergePair
 
 from bnpy.init.FromTruth import convertLPFromHardToSoft
 
@@ -35,7 +36,7 @@ class TestSummaryAlg_K4T2(unittest.TestCase):
     '''
     print ''
     print '-------- python'
-    T1, H1 = SummaryAlg_py(self.initPi, self.transPi, self.SoftEv,
+    T1, H1, _ = SummaryAlg_py(self.initPi, self.transPi, self.SoftEv,
                           self.margPrObs, self.fMsg, self.bMsg)
     if self.K < 5:
       print H1
@@ -43,7 +44,7 @@ class TestSummaryAlg_K4T2(unittest.TestCase):
       print H1[:5, :5]
 
     print '-------- cpp'
-    T2, H2 = SummaryAlg_cpp(self.initPi, self.transPi, self.SoftEv,
+    T2, H2, _ = SummaryAlg_cpp(self.initPi, self.transPi, self.SoftEv,
                           self.margPrObs, self.fMsg, self.bMsg)
     if self.K < 5:
       print H2
@@ -52,6 +53,68 @@ class TestSummaryAlg_K4T2(unittest.TestCase):
 
     assert np.allclose(T1, T2)
     assert np.allclose(H1, H2)
+
+  def test_all_possible_single_merges(self):
+    ''' Iterate over all possible pairs (kA, kB), verify merge Htable correct.
+    '''
+    print ''
+    for kA in xrange(self.K):
+      for kB in xrange(kA+1, self.K):
+        self.test_single_merge__python_equals_cpp(kA=kA, kB=kB)
+
+  def test_single_merge__python_equals_cpp(self, kA=0, kB=1):
+    ''' Test both versions of C++ and python, verify same value returned
+    '''
+    print ''
+    mPairIDs = [(kA,kB)]
+
+    print '-------- python'
+    _, _, mH1 = SummaryAlg_py(self.initPi, self.transPi, self.SoftEv,
+                          self.margPrObs, self.fMsg, self.bMsg, mPairIDs)
+    print mH1[:5, :5]
+
+
+    print '-------- cpp'
+    _, _, mH2 = SummaryAlg_cpp(self.initPi, self.transPi, self.SoftEv,
+                          self.margPrObs, self.fMsg, self.bMsg, mPairIDs)
+    print mH2[:5, :5]
+
+    assert np.allclose(mH1, mH2)
+
+  def test_many_possible_multiple_merges(self):
+    for M in xrange(5, 10):
+      for seed in xrange(3):
+        self.test_tracking_multiple_merges__python_equals_cpp(M=M, seed=seed)
+
+  def test_tracking_multiple_merges__python_equals_cpp(self, M=3, seed=0):
+    ''' Test both versions of C++ and python, verify same value returned
+
+        Here, we track M pairs simultaneously
+        Chosen by random shuffling from all possible valid pairs (kA < kB)
+    '''
+    print ''
+    mPairIDs = list()
+    for kA in xrange(self.K):
+      for kB in xrange(kA+1, self.K):
+        mPairIDs.append((kA,kB))
+    PRNG = np.random.RandomState(seed)
+    PRNG.shuffle(mPairIDs)
+    mPairIDs = mPairIDs[:M]  
+    print 'mPairIDs:', mPairIDs
+
+    print '-------- python'
+    _, _, mH1 = SummaryAlg_py(self.initPi, self.transPi, self.SoftEv,
+                          self.margPrObs, self.fMsg, self.bMsg, mPairIDs)
+    print mH1[:10, :5]
+
+
+    print '-------- cpp'
+    _, _, mH2 = SummaryAlg_cpp(self.initPi, self.transPi, self.SoftEv,
+                          self.margPrObs, self.fMsg, self.bMsg, mPairIDs)
+    print mH2[:10, :5]
+    
+    print 'MaxError: ', np.max(np.abs(mH1 - mH2))
+    assert np.allclose(mH1, mH2, atol=1e-6, rtol=0)
 
 
 class TestSummaryAlg_K4T100(TestSummaryAlg_K4T2):
