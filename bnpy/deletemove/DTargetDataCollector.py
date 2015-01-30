@@ -69,7 +69,7 @@ def selectRelevantSubset(Dchunk, hmodel, LPchunk, Plan,
   for dd, delCompID in enumerate(Plan['selectIDs']):
     if 'DocTopicCount' in LPchunk:
       curkeepmask = LPchunk['DocTopicCount'][:, delCompID] >= dtargetMinCount
-    elif 'respPair' in LPchunk:
+    elif str(type(hmodel.allocModel)).count('HMM'):
       curkeepmask = np.zeros(Dchunk.nDoc, dtype=np.int32)
       for n in xrange(Dchunk.nDoc):
         start = Dchunk.doc_range[n]

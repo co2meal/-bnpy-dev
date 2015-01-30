@@ -64,7 +64,10 @@ class HDPHMM(AllocModel):
   ######################################################### Local Params
   #########################################################
 
-    def calc_local_params(self, Data, LP, **kwargs):
+    def calc_local_params(self, Data, LP, 
+                                MergePrepInfo=None,
+                                limitMemoryLP=0,
+                                **kwargs):
         ''' Calculate local parameters for each data item and each component.   
         This is part of the E-step.
         
@@ -81,47 +84,107 @@ class HDPHMM(AllocModel):
              documentation for mathematical definitions of resp and respPair).
              Note that respPair[0,:,:] is undefined.
         '''
+        if MergePrepInfo is None or 'mPairIDs' not in MergePrepInfo:
+          mPairIDs = np.zeros((0,2))
+          M = 0
+        else:
+          mPairIDs = MergePrepInfo['mPairIDs']
+          M = len(mPairIDs)
 
-        lpr = LP['E_log_soft_ev']
-
-        # Calculate arguments to the forward backward algorithm
+        # Calculate trans matrix arg for fwd/bwd alg
         digammasumVec = digamma(np.sum(self.transTheta, axis = 1))
-        expELogPi = digamma(self.transTheta) - digammasumVec[:, np.newaxis]
+        expELogPi = digamma(self.transTheta[:, :self.K]) \
+                            - digammasumVec[:, np.newaxis]
         np.exp(expELogPi, out = expELogPi)
 
-        expELogPi0 = digamma(self.initTheta) - digamma(np.sum(self.initTheta))
-        np.exp(expELogPi0, out = expELogPi0)
+        # Calculate start state log prob vector for fwd/bwd alg
+        ELogPi0 = digamma(self.initTheta[:self.K]) \
+                            - digamma(np.sum(self.initTheta))
 
-        # Run the forward backward algorithm on each sequence
-        logMargPr = np.empty(Data.nDoc)
-        resp = np.empty((Data.nObs, self.K))
-        respPair = np.empty((Data.nObs, self.K, self.K))
-        respPair[0].fill(0)
+        # Unpack soft evidence matrix for fwd/bwd alg
+        lpr = LP['E_log_soft_ev']
 
-        for n in xrange(Data.nDoc):
-          start = Data.doc_range[n]
-          stop = Data.doc_range[n+1]
-          logSoftEv_n = lpr[start:stop]
-          seqResp, seqRespPair, seqLogMargPr = \
-                      HMMUtil.FwdBwdAlg(expELogPi0[0:self.K],
-                                        expELogPi[0:self.K, 0:self.K], 
+        if limitMemoryLP:
+          # Set init probs are uniform,
+          # because we'll update the first step's logSoftEv to include log pi_0
+          expELogPi0 = np.ones(self.K)
+
+          logMargPr = np.empty(Data.nDoc)
+          resp = np.empty((Data.nObs, self.K))
+          Htable = np.empty((Data.nDoc, self.K, self.K))
+          TransCount = np.empty((Data.nDoc, self.K, self.K))
+          mHtable = np.zeros((2*M, self.K))
+
+          # Run forward backward algorithm on each sequence
+          for n in xrange(Data.nDoc):
+            start = Data.doc_range[n]
+            stop = Data.doc_range[n+1]
+            logSoftEv_n = lpr[start:stop]
+            logSoftEv_n[0] += ELogPi0 # adding in start state log probs
+
+            resp_n, lp_n, TransCount_n, Htable_n, mHtable_n = \
+                      HMMUtil.FwdBwdAlg_LimitMemory(
+                                        expELogPi0,
+                                        expELogPi, 
+                                        logSoftEv_n,
+                                        mPairIDs)
+            resp[start:stop] = resp_n
+            logMargPr[n] = lp_n
+            TransCount[n] = TransCount_n
+            Htable[n] = Htable_n
+            mHtable += mHtable_n
+
+          LP['resp'] = resp
+          LP['evidence'] = np.sum(logMargPr)
+          LP['TransCount'] = TransCount
+          LP['Htable'] = Htable
+          LP['mHtable'] = mHtable
+        else:
+          # Set init probs are uniform,
+          # because we'll update the first step's logSoftEv to include log pi_0
+          expELogPi0 = np.ones(self.K)
+
+          # Run the forward backward algorithm on each sequence
+          logMargPr = np.empty(Data.nDoc)
+          resp = np.empty((Data.nObs, self.K))
+          respPair = np.empty((Data.nObs, self.K, self.K))
+          respPair[0].fill(0)
+
+          for n in xrange(Data.nDoc):
+            start = Data.doc_range[n]
+            stop = Data.doc_range[n+1]
+            logSoftEv_n = lpr[start:stop]
+            logSoftEv_n[0] += ELogPi0 # adding in start state log probs
+
+            seqResp, seqRespPair, seqLogMargPr = \
+                      HMMUtil.FwdBwdAlg(expELogPi0,
+                                        expELogPi, 
                                         logSoftEv_n)
-          resp[start:stop] = seqResp
-          respPair[start:stop] = seqRespPair
-          logMargPr[n] = seqLogMargPr
+            resp[start:stop] = seqResp
+            respPair[start:stop] = seqRespPair
+            logMargPr[n] = seqLogMargPr
 
-        LP['evidence'] = np.sum(logMargPr)
-        LP['resp'] = resp
-        LP['respPair'] = respPair
+          LP['evidence'] = np.sum(logMargPr)
+          LP['resp'] = resp
+          LP['respPair'] = respPair
+
         return LP
 
     def initLPFromResp(self, Data, LP):
-        shape = np.shape(LP['resp'])
-        self.K = shape[1]
-        respPair = np.zeros((shape[0], self.K, self.K))
-        for t in xrange(1,shape[0]):
-            respPair[t,:,:] = np.outer(LP['resp'][t-1,:], LP['resp'][t,:])
-        LP.update({'respPair' : respPair})
+        ''' Initialize all local params needed for global update from given resp
+
+            Returns
+            --------
+            LP : same dict as input, with some additional fields
+        '''
+        K = LP['resp'].shape[1]
+        LP['TransCount'] = np.zeros((Data.nDoc, K, K))
+        for n in xrange(Data.nDoc):
+          start = Data.doc_range[n]
+          stop = Data.doc_range[n+1]
+          for t in xrange(start+1, stop):
+            respPair_t = np.outer(LP['resp'][t-1,:], LP['resp'][t,:])
+            LP['TransCount'][n] += respPair_t
         return LP
 
     def selectSubsetLP(self, Data, LP, relIDs):
@@ -137,16 +200,27 @@ class HDPHMM(AllocModel):
         T_all = np.sum(Data.doc_range[relIDs+1] - Data.doc_range[relIDs]) 
         K = LP['resp'].shape[1]
         resp = np.zeros((T_all, K))
-        respPair = np.zeros((T_all, K, K))
+        if 'respPair' in LP:
+          respPair = np.zeros((T_all, K, K))
+        else:
+          TransCount = np.zeros((len(relIDs), K, K))
+          Htable = np.zeros((len(relIDs), K, K))
         nstart = 0
-        for n in relIDs:       
+        for ii, n in enumerate(relIDs):
           start = Data.doc_range[n]
           stop = Data.doc_range[n+1]
           nstop = nstart + stop - start
           resp[nstart:nstop] = LP['resp'][start:stop]
-          respPair[nstart:nstop] = LP['respPair'][start:stop]
+          if 'respPair' in LP:
+            respPair[nstart:nstop] = LP['respPair'][start:stop]
+          else:
+            TransCount[ii] = LP['TransCount'][n]
+            Htable[ii] = LP['Htable'][n]
           nstart = nstop
-        subsetLP = dict(resp=resp, respPair=respPair)
+        if 'respPair' in LP:
+          subsetLP = dict(resp=resp, respPair=respPair)
+        else:
+          subsetLP = dict(resp=resp, TransCount=TransCount, Htable=Htable)
         return subsetLP
 
   ######################################################### Sufficient Stats
@@ -171,29 +245,34 @@ class HDPHMM(AllocModel):
         M = len(mPairIDs)
 
       resp = LP['resp']
-      respPair = LP['respPair']
       K = resp.shape[1]
       startLocIDs = Data.doc_range[:-1]
-      
       StartStateCount = np.sum(resp[startLocIDs], axis = 0)
       N = np.sum(resp, axis = 0)
-      TransStateCount = np.sum(respPair, axis = 0)
+
+      if 'TransCount' in LP:
+        TransStateCount = np.sum(LP['TransCount'], axis=0)
+      else:
+        respPair = LP['respPair']
+        TransStateCount = np.sum(respPair, axis = 0)
       
       SS = SuffStatBag(K=K, D=Data.dim, M=M)
       SS.setField('StartStateCount', StartStateCount, dims=('K'))
       SS.setField('TransStateCount', TransStateCount, dims=('K','K'))
       SS.setField('N', N, dims=('K'))
       
-      if doPrecompEntropy:
+      if doPrecompEntropy or 'Htable' in LP:
         Hstart = HMMUtil.calc_Hstart(LP['resp'], Data=Data)
-        Htable = HMMUtil.calc_Htable(LP['respPair'])
+        if 'Htable' in LP:
+          Htable = np.sum(LP['Htable'], axis=0)
+        else:
+          Htable = HMMUtil.calc_Htable(LP['respPair'])
         SS.setELBOTerm('Hstart', Hstart, dims=('K'))
         SS.setELBOTerm('Htable', Htable, dims=('K','K'))
 
       if doPrecompMergeEntropy:
         subHstart, subHtable = HMMUtil.PrecompMergeEntropy_SpecificPairs(
-                                      LP['resp'], LP['respPair'], 
-                                      Data, mPairIDs)
+                                      LP, Data, mPairIDs)
         SS.setMergeTerm('Hstart', subHstart, dims=('M'))
         SS.setMergeTerm('Htable', subHtable, dims=('M', 2, 'K'))
         SS.mPairIDs = np.asarray(mPairIDs)
@@ -389,8 +468,8 @@ class HDPHMM(AllocModel):
       # To initialize theta, perform standard update given rho, omega
       # but with "empty" sufficient statistics.
       SS = SuffStatBag(K = self.K, D = Data.dim)
-      SS.setField('StartStateCount', np.zeros(K), dims = ('K'))
-      SS.setField('TransStateCount', np.zeros((K,K)), dims = ('K','K'))
+      SS.setField('StartStateCount', np.ones(K), dims = ('K'))
+      SS.setField('TransStateCount', np.ones((K,K)), dims = ('K','K'))
       self.transTheta, self.initTheta = self._calcTheta(SS)
 
 
