@@ -220,7 +220,10 @@ def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel,
   # SSactive denotes the most recent current stretch assigned to one comp
   # SSab denotes the current block 
   for blockID in xrange(nBlocks):
-    if blockID == 0:
+    if nBlocks == 1:
+      a = 0
+      b = T
+    elif blockID == 0:
       # First block
       a = 0
       b = a + initBlockLen
@@ -298,10 +301,7 @@ def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel,
         if Kextra > 0:
           arr = np.append(arr, np.zeros(Kextra))
 
-      try:
-        arr += getattr(SS_n, key)
-      except:
-        from IPython import embed; embed()
+      arr += getattr(SS_n, key)
 
     else:
       arr = getattr(SS_n, key).copy()
