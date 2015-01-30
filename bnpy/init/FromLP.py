@@ -8,6 +8,10 @@ import FromScratchMult
 from FromTruth import convertLPFromHardToSoft
 from bnpy.deletemove.DeleteMoveTarget import runDeleteMove_SingleSequence
 
+import logging
+Log = logging.getLogger('bnpy')
+Log.setLevel(logging.DEBUG)
+
 def init_global_params(hmodel, Data, initname='', initLP=None, 
                        **kwargs):
   ''' Initialize (in-place) the global params of the given hmodel
@@ -28,6 +32,7 @@ def init_global_params(hmodel, Data, initname='', initLP=None,
     return initHModelFromLP(hmodel, Data, initLP)
 
   elif initname == 'sacbLP':
+    Log.info('Initialization: Sequential Allocation of Contig Blocks')
     SS = initSS_SeqAllocContigBlocks(Data, hmodel, **kwargs)
     hmodel.update_global_params(SS)
     return None
@@ -131,6 +136,11 @@ def calcBlockSizesForCurSeq(KperSeq, curT):
 
 
 def initSS_SeqAllocContigBlocks(Data, hmodel, **kwargs):
+  if 'K' in kwargs and kwargs['K'] > 0:
+    Kmax = int(kwargs['K'])
+  else:
+    Kmax = np.inf
+
   if 'seed' in kwargs:
     seed = int(kwargs['seed'])
   else:
@@ -154,14 +164,19 @@ def initSS_SeqAllocContigBlocks(Data, hmodel, **kwargs):
                                                  **kwargs)
     Ntotalsofar += Z_n.size
     hmodel, SS, Result = runDeleteMove_SingleSequence(n, 
-                                          Data, SS, SS_n, hmodel, **kwargs)
+                                          Data, SS, SS_n, hmodel, 
+                                          Kmax=Kmax, **kwargs)
     assert np.allclose(SS.N.sum(), Ntotalsofar)
+    if orderID == len(randOrderIDs) - 1 \
+       or (orderID+1) % 5 == 0 or orderID < 2:
+        Log.info('  seq. %3d/%d | Ktotal=%d' 
+                    % (orderID+1, len(randOrderIDs), SS.K))
 
   return SS
 
 def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel,
                                        SS=None,
-                                       seed=0, 
+                                       seed=0,
                                        allocFieldNames=None,
                                        initBlockLen=20,
                                        mergeToSimplify=False,
