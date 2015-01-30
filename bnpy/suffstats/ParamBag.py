@@ -158,6 +158,14 @@ class ParamBag(object):
             arr = np.delete(arr, k, axis=dimID)
         self.setField(key, arr, dims)
 
+  def removeField(self, key):
+    ''' Remove a field
+    '''
+    arr = getattr(self, key)
+    dims = self._FieldDims[key]
+    delattr(self, key)
+    del self._FieldDims[key]
+    return arr, dims
 
   ######################################################### Set component 
   #########################################################

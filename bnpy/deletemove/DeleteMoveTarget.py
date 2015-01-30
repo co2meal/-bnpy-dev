@@ -8,6 +8,53 @@ from DeleteLPUtil import deleteCompFromResp_SoftEvOverlap
 from DeleteLogger import log, logPosVector, logProbVector
 from bnpy.viz import BarsViz
 
+def runDeleteMove_SingleSequence(n, Data, curSS, SS_n, curModel,
+                                 updateLP=True,
+                                 **kwargs):
+  ''' Evaluate candidate model that removes unique states in sequence n.
+
+      Thin wrapper around function runDeleteMove_Target defined below,
+      which builds a plan for a current sequence, evaluates it,
+      and returns the result.
+
+      Returns
+      --------
+      newModel
+      newSS
+      Plan
+  '''
+  curModel.update_global_params(curSS)  
+  
+  # Create targeted LP and SS bags for this sequence only
+  start = Data.doc_range[n]
+  stop = Data.doc_range[n]
+  Data_n = Data.select_subset_by_mask([n])
+  #LP_n = curModel.allocModel.selectSubsetLP(Data, curLP, [n])
+  #SS_n = curModel.get_global_suff_stats(Data_n, LP_n)
+
+  curSS.uIDs = np.arange(curSS.K)
+  SS_n.uIDs = curSS.uIDs.copy()
+
+  # Identify states unique to this sequence
+  N_total = curSS.N
+  N_n = SS_n.N
+  delCompIDs = np.flatnonzero( (N_total - N_n) < 0.001 )
+
+  Plan = dict(DTargetData=Data_n,
+              targetSS=SS_n,
+              uIDs=delCompIDs,
+             )
+  newModel, newSS, Plan = runDeleteMove_Target(curModel, curSS, Plan, **kwargs)
+  delattr(newSS, 'uIDs')
+  newSS.removeELBOandMergeTerms()
+
+  #resp = curLP['resp']
+  #for delID in reversed(sorted(Plan['acceptedUIDs'])):
+  #  resp = np.delete(resp, delID, axis=1)
+  #newLP = dict(resp=resp)
+  return newModel, newSS, Plan
+
+
 def runDeleteMove_Target(curModel, curSS, Plan,
                          nRefineIters=2,
                          LPkwargs=None,
@@ -109,6 +156,7 @@ def runDeleteMove_Target(curModel, curSS, Plan,
     raw_input(">>")
     pylab.close('all')
 
+  Plan['targetLP'] = targetLP
   Plan['didAccept'] = didAccept
   Plan['ELBO'] = newELBO
   Plan['acceptedUIDs'] = acceptedUIDs

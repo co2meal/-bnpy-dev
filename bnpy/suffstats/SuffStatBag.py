@@ -77,6 +77,9 @@ class SuffStatBag(object):
       self.uIDs = self.uIDs[order]
 
   # ======================================================= strip/restore fields
+  def removeField(self, key):
+    return self._Fields.removeField(key)
+
   def removeELBOandMergeTerms(self):
     E = self.removeELBOTerms()
     M = self.removeMergeTerms()

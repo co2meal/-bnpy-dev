@@ -131,7 +131,8 @@ class HDPHMM(AllocModel):
             -------
             subsetLP : local params dict
         '''
-        if len(relIDs) == Data.nDoc:
+        relIDs = np.asarray(relIDs, dtype=np.int32)
+        if relIDs.size == Data.nDoc:
           return dict(**LP)
         T_all = np.sum(Data.doc_range[relIDs+1] - Data.doc_range[relIDs]) 
         K = LP['resp'].shape[1]
@@ -150,6 +151,11 @@ class HDPHMM(AllocModel):
 
   ######################################################### Sufficient Stats
   #########################################################
+    def getSummaryFieldNames(self):
+      return ['StartStateCount', 'TransStateCount']
+
+    def getSummaryFieldDims(self):
+      return [('K'), ('K', 'K')]
 
     def get_global_suff_stats(self, Data, LP,
                                     doPrecompEntropy=False, 
