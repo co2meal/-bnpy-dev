@@ -159,6 +159,7 @@ def initSS_SeqAllocContigBlocks(Data, hmodel, **kwargs):
     Z_n, SS_n, SS = initSingleSeq_SeqAllocContigBlocks(
                                                  n, Data, hmodel,
                                                  SS=SS,
+                                                 Kmax=Kmax,
                                                  mergeToSimplify=True,
                                                  returnSS=True,
                                                  **kwargs)
@@ -177,6 +178,8 @@ def initSS_SeqAllocContigBlocks(Data, hmodel, **kwargs):
 def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel,
                                        SS=None,
                                        seed=0,
+                                       Kmax=np.inf,
+                                       Kextra=5,
                                        allocFieldNames=None,
                                        initBlockLen=20,
                                        mergeToSimplify=False,
@@ -237,19 +240,19 @@ def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel,
       continue
 
     ELBOgap = obsModel.calcHardMergeGap_SpecificPairSS(SSactive, SSab)
-    if ELBOgap >= -0.000001:
+    if (ELBOgap >= -0.000001):
       # Positive value means we prefer to assign block [a,b] to current state
       # So combine the current block into the active block 
       # and move on to the next block
       Z[a:b] = kUID
       SSactive += SSab
-
     else:
       # Negative value means we assign block [a,b] to a new state!
       Z[a:b] = kUID + 1
       SSagg, Z = updateAggSSWithFinishedCurrentBlock(SSagg, SSactive,   
                                        Z,
                                        obsModel,
+                                       Kmax=Kmax+Kextra,
                                        mergeToSimplify=mergeToSimplify)
   
       # Create a new active block, starting at [a,b] 
@@ -307,6 +310,7 @@ def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel,
   return Z, SS_n, SSagg
 
 def updateAggSSWithFinishedCurrentBlock(SSagg, SScur, Z, obsModel,
+                                        Kmax=np.inf,
                                         mergeToSimplify=False):
   ''' Store most recent tracked block into the aggregated bag of suff stats
 
@@ -330,7 +334,7 @@ def updateAggSSWithFinishedCurrentBlock(SSagg, SScur, Z, obsModel,
     mPairIDs = [(k, SSagg.K-1) for k in range(SSagg.K-1)]
     ELBOgaps = obsModel.calcHardMergeGap_SpecificPairs(SSagg, mPairIDs)
     bestID = np.argmax(ELBOgaps)
-    if ELBOgaps[bestID] > 0:
+    if ELBOgaps[bestID] > 0 or SSagg.K > Kmax:
       kA, kB = mPairIDs[bestID]
       SSagg.mergeComps(kA, kB)
       # Reindex the state sequence Z
