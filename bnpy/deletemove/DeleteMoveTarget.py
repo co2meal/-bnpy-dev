@@ -22,14 +22,12 @@ def runDeleteMove_SingleSequence(n, Data, curSS, SS_n, curModel,
       newSS
       Plan
   '''
+  # TODO : run several update cycles with full model, to be in good start pos??
+  # Make sure our model reflects the latest suff stats
   curModel.update_global_params(curSS)  
   
-  # Create targeted LP and SS bags for this sequence only
-  start = Data.doc_range[n]
-  stop = Data.doc_range[n]
+  # Create targeted Dataset for this sequence only
   Data_n = Data.select_subset_by_mask([n])
-  #LP_n = curModel.allocModel.selectSubsetLP(Data, curLP, [n])
-  #SS_n = curModel.get_global_suff_stats(Data_n, LP_n)
 
   curSS.uIDs = np.arange(curSS.K)
   SS_n.uIDs = curSS.uIDs.copy()
