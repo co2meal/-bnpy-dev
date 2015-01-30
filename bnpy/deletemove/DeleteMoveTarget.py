@@ -9,7 +9,6 @@ from DeleteLogger import log, logPosVector, logProbVector
 from bnpy.viz import BarsViz
 
 def runDeleteMove_SingleSequence(n, Data, curSS, SS_n, curModel,
-                                 updateLP=True,
                                  **kwargs):
   ''' Evaluate candidate model that removes unique states in sequence n.
 
@@ -35,11 +34,14 @@ def runDeleteMove_SingleSequence(n, Data, curSS, SS_n, curModel,
   curSS.uIDs = np.arange(curSS.K)
   SS_n.uIDs = curSS.uIDs.copy()
 
-  # Identify states unique to this sequence
+  # Identify states to delete, which are unique to this sequence
+  # Attempt them from smallest to largest (in terms of size in this sequence
   N_total = curSS.N
   N_n = SS_n.N
   delCompIDs = np.flatnonzero( (N_total - N_n) < 0.001 )
-
+  delCompSizes = [N_n[k] for k in delCompIDs]
+  sort_ids = np.argsort(delCompSizes) # smallest to largest
+  delCompIDs = delCompIDs[sort_ids]
   Plan = dict(DTargetData=Data_n,
               targetSS=SS_n,
               uIDs=delCompIDs,
@@ -48,15 +50,12 @@ def runDeleteMove_SingleSequence(n, Data, curSS, SS_n, curModel,
   delattr(newSS, 'uIDs')
   newSS.removeELBOandMergeTerms()
 
-  #resp = curLP['resp']
-  #for delID in reversed(sorted(Plan['acceptedUIDs'])):
-  #  resp = np.delete(resp, delID, axis=1)
-  #newLP = dict(resp=resp)
   return newModel, newSS, Plan
 
 
 def runDeleteMove_Target(curModel, curSS, Plan,
                          nRefineIters=2,
+                         Kmax=np.inf,
                          LPkwargs=None,
                          doVizDelete=False,
                          NmaxDisplay=10,
@@ -122,7 +121,7 @@ def runDeleteMove_Target(curModel, curSS, Plan,
       propModel.update_global_params(propSS)
       
       propELBO = propModel.calc_evidence(targetData, ptargetSS, ptargetLP)
-      if propELBO >= newELBO:
+      if propELBO >= newELBO or newSS.K > Kmax:
         didAcceptCur = 1
         didAccept = 1
         newModel = propModel
