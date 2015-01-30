@@ -6,6 +6,7 @@ Initialize global params of a bnpy model using a set of local parameters
 import numpy as np
 import FromScratchMult
 from FromTruth import convertLPFromHardToSoft
+from bnpy.deletemove.DeleteMoveTarget import runDeleteMove_SingleSequence
 
 def init_global_params(hmodel, Data, initname='', initLP=None, 
                        **kwargs):
@@ -24,14 +25,19 @@ def init_global_params(hmodel, Data, initname='', initLP=None,
       None. hmodel global parameters updated in-place.
   '''
   if type(initLP) == dict:
-    LP = initLP
+    return initHModelFromLP(hmodel, Data, initLP)
+
+  elif initname == 'sacbLP':
+    SS = initSS_SeqAllocContigBlocks(Data, hmodel, **kwargs)
+    hmodel.update_global_params(SS)
+    return None
+
   elif initname == 'contigblocksLP':
     LP = makeLP_ContigBlocks(Data, **kwargs)
-  elif initname == 'sacbLP':
-    LP = initHardLP_SeqAllocContigBlocks(Data, hmodel.obsModel, **kwargs)
+    return initHModelFromLP(hmodel, Data, LP)
+
   else:
     raise ValueError('Unrecognized initname: %s' % (initname))
-  return initHModelFromLP(hmodel, Data, LP)    
 
 
 def initHModelFromLP(hmodel, Data, LP):
@@ -124,7 +130,7 @@ def calcBlockSizesForCurSeq(KperSeq, curT):
   return np.asarray(cumsumBlockSizes, dtype=np.int32)
 
 
-def initHardLP_SeqAllocContigBlocks(Data, obsModel, **kwargs):
+def initSS_SeqAllocContigBlocks(Data, hmodel, **kwargs):
   if 'seed' in kwargs:
     seed = int(kwargs['seed'])
   else:
@@ -134,32 +140,37 @@ def initHardLP_SeqAllocContigBlocks(Data, obsModel, **kwargs):
   randOrderIDs = range(Data.nDoc)
   PRNG.shuffle(randOrderIDs)
 
-
   SS = None
-  LP = dict()
-  Zall = np.ones(Data.doc_range[-1], dtype=np.int32)
-  for n in randOrderIDs:
-    Z_n, SS = initHardZForSingleSeq_SeqAllocContigBlocks(
-                                                 n, Data, obsModel,
+  Ntotalsofar = 0
+  for orderID, n in enumerate(randOrderIDs):
+    Z_n, SS_n, SS = initSingleSeq_SeqAllocContigBlocks(
+                                                 n, Data, hmodel,
                                                  SS=SS,
                                                  mergeToSimplify=True,
                                                  returnSS=True,
                                                  **kwargs)
-    start = Data.doc_range[n]
-    stop = Data.doc_range[n+1]
-    Zall[start:stop] = Z_n
-  LP['Z'] = Zall
-  return LP
+    Ntotalsofar += Z_n.size
+    hmodel, SS, Result = runDeleteMove_SingleSequence(n, 
+                                          Data, SS, SS_n, hmodel, **kwargs)
+    print 'Seq. n=%d. %d deletes accepted.' % (n, len(Result['acceptedUIDs']))
+    assert np.allclose(SS.N.sum(), Ntotalsofar)
 
-def initHardZForSingleSeq_SeqAllocContigBlocks(n, Data, obsModel,
+  return SS
+
+def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel,
                                        SS=None,
                                        seed=0, 
+                                       allocFieldNames=None,
                                        initBlockLen=20,
                                        mergeToSimplify=False,
-                                       returnSS=False,
                                        **kwargs):
   ''' Initialize hard assignment state sequence Z for one single sequence
   '''
+  if allocFieldNames is None:
+    allocFieldNames = hmodel.allocModel.getSummaryFieldNames()
+    allocFieldDims = hmodel.allocModel.getSummaryFieldDims()
+
+  obsModel = hmodel.obsModel
   start = Data.doc_range[n]
   stop = Data.doc_range[n+1]
   T = stop - start
@@ -169,12 +180,15 @@ def initHardZForSingleSeq_SeqAllocContigBlocks(n, Data, obsModel,
   # Loop over each contig block of data, and assign it en masse to one cluster
   Z = -1 * np.ones(T, dtype=np.int32)
   SSagg = SS
+  tmpAllocFields = dict()
   if SSagg is None:
     kUID = 0
     Norig = 0
   else:
     kUID = SSagg.K
     Norig = SSagg.N.sum()
+    for key in allocFieldNames:
+      tmpAllocFields[key] = SSagg.removeField(key)
 
   ## We traverse the current sequence block by block,
   # Indices a,b denote the start and end of the current block *in this sequence*
@@ -211,7 +225,8 @@ def initHardZForSingleSeq_SeqAllocContigBlocks(n, Data, obsModel,
     else:
       # Negative value means we assign block [a,b] to a new state!
       Z[a:b] = kUID + 1
-      SSagg, Z = updateAggSSWithFinishedCurrentBlock(SSagg, SSactive, Z,
+      SSagg, Z = updateAggSSWithFinishedCurrentBlock(SSagg, SSactive,   
+                                       Z,
                                        obsModel,
                                        mergeToSimplify=mergeToSimplify)
   
@@ -223,12 +238,48 @@ def initHardZForSingleSeq_SeqAllocContigBlocks(n, Data, obsModel,
   SSagg, Z = updateAggSSWithFinishedCurrentBlock(SSagg, SSactive, Z,
                                        obsModel,
                                        mergeToSimplify=mergeToSimplify)
+
+  # Compute sequence-specific suff stats 
+  # This includes allocmodel stats
+  Data_n = Data.select_subset_by_mask([n])
+  LP_n = convertLPFromHardToSoft(dict(Z=Z), Data_n, startIDsAt0=True,
+                                                    Kmax=SSagg.K)
+  LP_n = hmodel.allocModel.initLPFromResp(Data_n, LP_n)
+  SS_n = hmodel.get_global_suff_stats(Data_n, LP_n)
+
   # Verify that our aggregate suff stats
   #  represent every single timestep in this sequence
   assert np.allclose(SSagg.N.sum() - Norig, Z.size)
-  if returnSS:
-    return Z, SSagg
-  return Z
+  assert np.allclose(SS_n.N.sum(), Z.size)
+  for ii, key in enumerate(allocFieldNames):
+    dims = allocFieldDims[ii]
+    if key in tmpAllocFields:
+      arr, dims2 = tmpAllocFields[key]
+      assert dims == dims2
+      # Inflate with empties
+      if len(dims) == 2 and dims[0] == 'K' and dims[1] == 'K':
+        Kcur = arr.shape[0]
+        Kextra = SSagg.K - Kcur 
+        if Kextra > 0:
+          arrBig = np.zeros((SSagg.K, SSagg.K))
+          arrBig[:Kcur, :Kcur] = arr
+          arr = arrBig
+      elif len(dims) == 1 and dims[0] == 'K':
+        Kcur = arr.size
+        Kextra = SSagg.K - Kcur 
+        if Kextra > 0:
+          arr = np.append(arr, np.zeros(Kextra))
+
+      try:
+        arr += getattr(SS_n, key)
+      except:
+        from IPython import embed; embed()
+
+    else:
+      arr = getattr(SS_n, key).copy()
+    SSagg.setField(key, arr, dims)
+  
+  return Z, SS_n, SSagg
 
 def updateAggSSWithFinishedCurrentBlock(SSagg, SScur, Z, obsModel,
                                         mergeToSimplify=False):
