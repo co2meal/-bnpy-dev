@@ -137,7 +137,10 @@ def initSS_SeqAllocContigBlocks(Data, hmodel, **kwargs):
     seed = 0
   # Traverse sequences in a random order
   PRNG = np.random.RandomState(seed)
-  randOrderIDs = range(Data.nDoc)
+  if hasattr(Data, 'nDoc'):
+    randOrderIDs = range(Data.nDoc)
+  else:
+    randOrderIDs = [0]
   PRNG.shuffle(randOrderIDs)
 
   SS = None
@@ -152,7 +155,6 @@ def initSS_SeqAllocContigBlocks(Data, hmodel, **kwargs):
     Ntotalsofar += Z_n.size
     hmodel, SS, Result = runDeleteMove_SingleSequence(n, 
                                           Data, SS, SS_n, hmodel, **kwargs)
-    print 'Seq. n=%d. %d deletes accepted.' % (n, len(Result['acceptedUIDs']))
     assert np.allclose(SS.N.sum(), Ntotalsofar)
 
   return SS
@@ -171,9 +173,14 @@ def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel,
     allocFieldDims = hmodel.allocModel.getSummaryFieldDims()
 
   obsModel = hmodel.obsModel
-  start = Data.doc_range[n]
-  stop = Data.doc_range[n+1]
-  T = stop - start
+
+  if hasattr(Data, 'doc_range'):
+    start = Data.doc_range[n]
+    stop = Data.doc_range[n+1]
+    T = stop - start
+  else:
+    start = 0
+    T = Data.nObs
   nBlocks = int(T // initBlockLen)
   leftoverLen = T - initBlockLen * nBlocks
 
@@ -241,7 +248,10 @@ def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel,
 
   # Compute sequence-specific suff stats 
   # This includes allocmodel stats
-  Data_n = Data.select_subset_by_mask([n])
+  if hasattr(Data, 'nDoc'):
+    Data_n = Data.select_subset_by_mask([n])
+  else:
+    Data_n = Data
   LP_n = convertLPFromHardToSoft(dict(Z=Z), Data_n, startIDsAt0=True,
                                                     Kmax=SSagg.K)
   LP_n = hmodel.allocModel.initLPFromResp(Data_n, LP_n)
