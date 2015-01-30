@@ -38,7 +38,8 @@ def onAlgorithmComplete(**kwargs):
   --------
   All workspace variables passed along from learning alg.
   '''
-  runViterbiAndSave(**kwargs)
+  if kwargs['lapFrac'] not in SavedLapSet:
+    runViterbiAndSave(**kwargs)
 
 def onBatchComplete(**kwargs):
   ''' Runs viterbi whenever a parameter-saving checkpoint is reached.
@@ -111,11 +112,17 @@ def runViterbiAndSave(**kwargs):
   MATVarsDict = dict(zHatBySeq=StateSeqUtil.convertStateSeq_list2MAT(zHatBySeq))
   scipy.io.savemat(matfilepath, MATVarsDict, oned_as='row')
 
+  zHatFlat = StateSeqUtil.convertStateSeq_list2flat(zHatBySeq, Data)
+  Keff = np.unique(zHatFlat).size
+  Kefftxtpath = os.path.join(learnAlgObj.savedir, 'Keff-saved-params.txt')
+  with open(Kefftxtpath, 'a') as f:
+    f.write('%d\n' % (Keff))
+
   # Save sequence aligned to truth and calculate Hamming distance 
   if (hasattr(Data, 'TrueParams')) and ('Z' in Data.TrueParams):
-    zHatFlat = StateSeqUtil.convertStateSeq_list2flat(zHatBySeq, Data)
     zHatFlatAligned = \
-      StateSeqUtil.alignEstimatedStateSeqToTruth(zHatFlat,Data.TrueParams['Z'])
+      StateSeqUtil.alignEstimatedStateSeqToTruth(zHatFlat, Data.TrueParams['Z'])
+
     zHatBySeqAligned = StateSeqUtil.convertStateSeq_flat2list(
                                     zHatFlatAligned, Data)
     zHatBySeqAligned_Arr = StateSeqUtil.convertStateSeq_list2MAT(

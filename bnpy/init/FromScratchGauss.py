@@ -11,6 +11,7 @@ from scipy.cluster.vq import kmeans2
 
 def init_global_params(obsModel, Data, K=0, seed=0,
                                        initname='randexamples',
+                                       initBlockLen=20,
                                        **kwargs):
   ''' Initialize parameters for Gaussian obsModel, in place.
 
@@ -42,6 +43,30 @@ def init_global_params(obsModel, Data, K=0, seed=0,
     resp = np.zeros((Data.nObs, K))
     for k in xrange(K):
       resp[chosenObjIDs[k], k] = 1.0
+  elif initname == 'randcontigblocks':
+    # Choose K contig blocks of provided size from the Data,
+    #  selecting each block at random from a particular sequence
+    if hasattr(Data, 'doc_range'):
+      doc_range = Data.doc_range.copy()
+    else:
+      doc_range = [0, Data.X.shape[0]]
+    nDoc = doc_range.size - 1
+    docIDs = np.arange(nDoc)
+    PRNG.shuffle(docIDs)
+    resp = np.zeros((Data.nObs, K))
+    for k in xrange(K):
+      n = docIDs[k % nDoc]
+      start = doc_range[n]
+      stop = doc_range[n+1]
+      T = stop - start
+      if initBlockLen >= T:
+        a = start
+        b = stop
+      else:
+        a = start + PRNG.choice(T - initBlockLen)
+        b = a + initBlockLen
+      resp[a:b, k] = 1.0
+
   elif initname == 'randsoftpartition':
     # Randomly assign all data items some mass in each of K components
     #  then create component params by M-step given that soft partition
