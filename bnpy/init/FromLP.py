@@ -199,8 +199,7 @@ def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel,
   else:
     start = 0
     T = Data.nObs
-  nBlocks = int(T // initBlockLen)
-  leftoverLen = T - initBlockLen * nBlocks
+  nBlocks = np.maximum(1, int(T // initBlockLen))
 
   # Loop over each contig block of data, and assign it en masse to one cluster
   Z = -1 * np.ones(T, dtype=np.int32)
