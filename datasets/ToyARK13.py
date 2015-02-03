@@ -214,27 +214,43 @@ def showEachSetOfStatesIn3D():
     plotSequenceForRotatingState3D(-1*degPerSteps[ii], sigma2s[ii], 2)
 
 
+
+BlueSet = ['#253494',
+           '#2c7fb8',
+           '#41b6c4',
+          ]
+GreenSet = ['#006d2c',
+            '#2ca25f',
+            '#66c2a4',
+          ]
+RedSet = ['#b30000',
+          '#e34a33',
+          '#fc8d59',
+          ]
+PurpleSet = ['#7a0177',
+             '#c51b8a',
+             '#f768a1',
+            ]
+
+Colors = BlueSet + GreenSet[::-1] + RedSet + PurpleSet[::-1]
+Colors.append('#969696')
+
 if __name__ == '__main__':
   from matplotlib import pylab
-
+  rcParams = pylab.rcParams
+  rcParams['ps.fonttype'] = 42
+  rcParams['ps.useafm'] = True
+  rcParams['xtick.labelsize'] = 15
+  rcParams['ytick.labelsize'] = 15
+  rcParams['font.size'] = 25
   X, Xprev, Z, doc_range = genToyData(nSeq=12)
   
   N = doc_range.size - 1
-  N = np.minimum(N, 12) 
-  pylab.subplots(nrows=N, ncols=1)
-  for n in xrange(N):
-    start = doc_range[n]
-    stop = doc_range[n+1]
-    image = np.tile(Z[start:stop], (2,1))
+  N = np.minimum(N, 4) 
 
-    pylab.subplot(N, 1, n+1)
-    pylab.imshow(image, vmin=0, vmax=K-1, cmap='Set1', aspect=10.0)
-    pylab.yticks([])
-    if n < N-1:
-      pylab.xticks([])
-
+  ylabels = ['x', 'y', 'z']
   for dim in [0, 1, 2]:
-    pylab.subplots(nrows=N, ncols=1)
+    pylab.subplots(nrows=N, ncols=1, figsize=(6, 4))
     for n in xrange(N):
       start = doc_range[n]
       stop = doc_range[n+1]
@@ -245,14 +261,21 @@ if __name__ == '__main__':
       pylab.hold('on')
       for k in xrange(K):
         Z_n_eq_k = np.flatnonzero(Z_n == k)
-        pylab.plot(Z_n_eq_k, X_n[Z_n_eq_k, dim], '.')
+        pylab.plot(Z_n_eq_k, X_n[Z_n_eq_k, dim], '.', color=Colors[k])
       pylab.ylim([-2, 2])
-      pylab.yticks([])
+      pylab.yticks([-1, 1])
+      if n == 0:
+        pylab.title(ylabels[dim])
       if n < N-1:
         pylab.xticks([])
-  
+      else:
+        pylab.xticks([200, 400, 600, 800])
+    pylab.subplots_adjust(bottom=0.14)
+    pylab.savefig('DataIllustration-ToyARK13-%s.eps' % (ylabels[dim]),
+                   bbox_inches='tight', pad_inches=0)
+
   N = np.zeros(K)
   for k in xrange(K):
     N[k] = np.sum( Z==k)
-  print ['%4d ' % (N[k]) for k in xrange(K)]
+  #print ['%4d ' % (N[k]) for k in xrange(K)]
   pylab.show(block=True)
