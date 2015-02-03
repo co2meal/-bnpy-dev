@@ -119,3 +119,65 @@ def get_X(seed, seqLens):
             seq_indptr,
             )
 
+def illustrate():
+  from matplotlib import pylab
+  rcParams = pylab.rcParams
+  rcParams['ps.fonttype'] = 42
+  rcParams['ps.useafm'] = True
+  rcParams['xtick.labelsize'] = 20
+  rcParams['ytick.labelsize'] = 20
+  rcParams['legend.fontsize'] = 25
+
+
+  import bnpy
+  Colors = ['#a6cee3','#1f78b4','#b2df8a', '#33a02c', 
+            '#fb9a99','#e31a1c','#fdbf6f','#ff7f00']
+
+  Data = get_data(seqLens=400*np.ones(16))
+  for k in xrange(K):
+    zmask = Data.TrueParams['Z'] == k
+    pylab.plot( Data.X[zmask,0], Data.X[zmask,1], '.', color=Colors[k],
+                markeredgecolor=Colors[k],
+                alpha=0.4)
+
+    sigEdges = np.flatnonzero(transPi[k] > 0.0001)
+    for j in sigEdges:
+      if j == k:
+        continue
+      dx = mus[j,0] - mus[k,0]
+      dy = mus[j,1] - mus[k,1]
+      pylab.arrow( mus[k,0], mus[k,1], 
+                   0.8 * dx,
+                   0.8 * dy,
+                   head_width=2, head_length=4, 
+                   facecolor=Colors[k], edgecolor=Colors[k])
+
+      tx = 0 - mus[k,0]
+      ty = 0 - mus[k,1]
+      xy = (mus[k,0] - 0.2*tx, mus[k,1] - 0.2 * ty)
+      '''
+      pylab.annotate( u'\u27F2', 
+                      xy=(mus[k,0], mus[k,1]),
+                     color=Colors[k],
+                     fontsize=35,
+                    )
+      '''
+      pylab.gca().yaxis.set_ticks_position('left')
+      pylab.gca().xaxis.set_ticks_position('bottom')
+
+      pylab.axis('image')
+      pylab.ylim([-38, 38])
+      pylab.xlim([-38, 38])
+
+
+  pylab.savefig('DatasetIllustration-DDToyHMM.eps', bbox_inches='tight',
+                pad_inches=0)
+  pylab.show(block=True)
+
+if __name__ == '__main__':
+  illustrate()
+
+# P.arrow( x, y, dx, dy, **kwargs )
+#P.arrow( 0.5, 0.8, 0.0, -0.2, fc="k", ec="k",
+#head_width=0.05, head_length=0.1 )
+
