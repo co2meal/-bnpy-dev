@@ -33,9 +33,11 @@ class HDPHMM(AllocModel):
         self.transTheta = None # Kx(K+1) Dirichlet params for transition matrix
         self.initTheta = None # K+1 Dirichlet parameters for the initial state
 
-    def set_prior(self, gamma = 10, alpha = 0.5, hmmKappa = 0.0, **kwargs):
+    def set_prior(self, gamma=10, alpha=0.5, 
+                        startAlpha=5.0, hmmKappa = 0.0, **kwargs):
         self.gamma = gamma
         self.alpha = alpha
+        self.startAlpha = startAlpha
         self.kappa = hmmKappa
 
     def get_active_comp_probs(self):
@@ -170,7 +172,7 @@ class HDPHMM(AllocModel):
 
         return LP
 
-    def initLPFromResp(self, Data, LP):
+    def initLPFromResp(self, Data, LP, limitMemoryLP=1):
         ''' Initialize all local params needed for global update from given resp
 
             Returns
@@ -178,13 +180,21 @@ class HDPHMM(AllocModel):
             LP : same dict as input, with some additional fields
         '''
         K = LP['resp'].shape[1]
-        LP['TransCount'] = np.zeros((Data.nDoc, K, K))
+        if limitMemoryLP:
+          LP['TransCount'] = np.zeros((Data.nDoc, K, K))
+        else:
+          LP['respPair'] = np.zeros((Data.doc_range[-1], K, K))
         for n in xrange(Data.nDoc):
           start = Data.doc_range[n]
           stop = Data.doc_range[n+1]
-          for t in xrange(start+1, stop):
-            respPair_t = np.outer(LP['resp'][t-1,:], LP['resp'][t,:])
-            LP['TransCount'][n] += respPair_t
+          if limitMemoryLP:
+            for t in xrange(start+1, stop):
+              respPair_t = np.outer(LP['resp'][t-1,:], LP['resp'][t,:])
+              LP['TransCount'][n] += respPair_t
+          else:
+            R = LP['resp']
+            LP['respPair'][start+1:stop] = R[start:stop-1][:,:,np.newaxis] \
+                                           * R[start+1:stop][:,np.newaxis,:]
         return LP
 
     def selectSubsetLP(self, Data, LP, relIDs):
@@ -324,7 +334,7 @@ class HDPHMM(AllocModel):
         ELogPi = digamma(self.transTheta) \
                  - digamma(np.sum(self.transTheta, axis=1))[:, np.newaxis]
         sumELogPi = np.sum(ELogPi, axis = 0)
-        sumELogPi += digamma(self.initTheta) \
+        startELogPi = digamma(self.initTheta) \
                       - digamma(np.sum(self.initTheta))
 
         # Select initial rho, omega values for gradient descent
@@ -342,13 +352,14 @@ class HDPHMM(AllocModel):
         try:
             rho, omega, fofu, Info = \
               OptimizerRhoOmega.find_optimum_multiple_tries(
-                     sumLogPi = sumELogPi,
-                     nDoc = self.K+1, 
-                     gamma = self.gamma, 
-                     alpha = self.alpha,
-                     kappa = self.kappa,
+                     sumLogPi=sumELogPi,
+                     startAlphaLogPi=self.startAlpha * startELogPi,
+                     nDoc=self.K+1, 
+                     gamma=self.gamma, 
+                     alpha=self.alpha,
+                     kappa=self.kappa,
                      initrho = initRho, 
-                     initomega = initOmega)
+                     initomega=initOmega)
             self.OptimizerInfo = Info
             self.OptimizerInfo['fval'] = fofu
 
@@ -442,7 +453,8 @@ class HDPHMM(AllocModel):
         self.rho = OptimizerRhoOmega.create_initrho(K)
 
       # Calculate E_q[alpha * Beta_l] for l = 1, ..., K+1
-      alphaEBeta = self.alpha * StickBreakUtil.rho2beta(self.rho)
+      Ebeta = StickBreakUtil.rho2beta(self.rho)
+      alphaEBeta = self.alpha * Ebeta
 
       # transTheta_kl = M_kl + E_q[alpha * Beta_l] + kappa * 1_{k==l}
       transTheta = np.zeros((K, K + 1))
@@ -450,9 +462,8 @@ class HDPHMM(AllocModel):
       transTheta[:K, :K] += SS.TransStateCount + self.kappa * np.eye(self.K)
  
       # initTheta_k = r_1k + E_q[alpha * Beta_l] (where r_1,>K = 0)
-      initTheta = alphaEBeta
+      initTheta = self.startAlpha * Ebeta
       initTheta[:K] += SS.StartStateCount
-
       return transTheta, initTheta
         
 
@@ -558,7 +569,8 @@ class HDPHMM(AllocModel):
             L_ent *= SS.ampF
 
         Lalloc = L_alloc_no_slack(self.initTheta, self.transTheta)
-        Ltop = L_top(self.rho, self.omega, self.alpha, self.gamma, self.kappa)
+        Ltop = L_top(self.rho, self.omega, self.alpha, self.gamma,
+                     self.kappa, self.startAlpha)
         return L_ent + Lalloc + Ltop
 
     def elbo_entropy(self, Data, LP):
@@ -631,7 +643,8 @@ class HDPHMM(AllocModel):
     def to_dict(self):
         return dict(transTheta = self.transTheta, initTheta = self.initTheta,
                     omega = self.omega, rho = self.rho,
-                    gamma = self.gamma, alpha = self.alpha)
+                    gamma = self.gamma, alpha = self.alpha,
+                    kappa=self.kappa)
 
     def from_dict(self, myDict):
         self.inferType = myDict['inferType']
@@ -643,15 +656,18 @@ class HDPHMM(AllocModel):
 
     def get_prior_dict(self):
         return dict(gamma = self.gamma, alpha = self.alpha, K = self.K,
-                    kappa = self.kappa)
+                    kappa = self.kappa, startAlpha=self.startAlpha)
 
 
 ########################################################### ELBO functions
 ########################################################### 
 
-def L_top(rho, omega, alpha, gamma, kappa):
+def L_top(rho, omega, alpha, gamma, kappa, startAlpha=0):
   ''' Evaluate the top-level term of the surrogate objective
   '''
+  if startAlpha == 0:
+    startAlpha = alpha
+
   K = rho.size
   eta1 = rho * omega
   eta0 = (1-rho) * omega
@@ -661,7 +677,7 @@ def L_top(rho, omega, alpha, gamma, kappa):
 
   diff_cBeta = K * c_Beta(1.0, gamma) - c_Beta(eta1, eta0)
 
-  tAlpha = (K+1) * K * np.log(alpha)
+  tAlpha = K * K * np.log(alpha) + K * np.log(startAlpha)
 
   if kappa > 0:
     coefU = K + 1.0 - eta1
@@ -688,6 +704,7 @@ def L_alloc_no_slack(initTheta, transTheta):
     return diff_cDir
 
 def L_alloc_with_slack(initTheta, transTheta, initM, transM, alphaEbeta):
+    raise NotImplementedError('TODO: make this work with startAlpha != alpha')
     K = transM.shape[0]
     if initM.size == alphaEbeta.size - 1:
       initM = np.hstack([initM,0])
