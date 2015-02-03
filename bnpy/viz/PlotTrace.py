@@ -40,6 +40,7 @@ LabelMap = dict(laps='num pass thru data',
                 )  
 LabelMap['laps-saved-params']='num pass thru data'
 LabelMap['hamming-distance']='Hamming dist.'
+LabelMap['Keff']='num topics K'
      
 def plotJobsThatMatchKeywords(jpathPattern='/tmp/', **kwargs):
   ''' Create line plots for all jobs matching pattern and provided keyword args
@@ -129,7 +130,7 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
         except ValueError:
           raise e
 
-    if yvar == 'hamming-distance':
+    if yvar == 'hamming-distance' or yvar == 'Keff':
       if xvar == 'laps-saved-params':
         # fix off-by-one error, if we save an extra dist on final lap
         if xs.size == ys.size - 1:
