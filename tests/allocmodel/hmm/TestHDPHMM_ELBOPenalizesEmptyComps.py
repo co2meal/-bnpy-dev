@@ -79,7 +79,7 @@ def resp2ELBO_HDPHMM(Data, resp, gamma=10, alpha=0.5, hmmKappa=0,
   # These will remain fixed, since the token assignments are not changing.
   # The suff stat bag is used to update variable 'amodel'
   LP = dict(resp=resp)
-  LP = amodel.initLPFromResp(Data, LP)
+  LP = amodel.initLPFromResp(Data, LP, limitMemoryLP=0)
   SS = amodel.get_global_suff_stats(Data, LP, doPrecompEntropy=0)
 
   ## Fill in all values (theta/rho/omega), and calculate the ELBO
@@ -97,7 +97,7 @@ def resp2ELBO_HDPHMM(Data, resp, gamma=10, alpha=0.5, hmmKappa=0,
     # Verify that the updates give expected values for "leftover" index
     Ebeta = amodel.get_active_comp_probs()
     betaRem = 1 - np.sum(amodel.get_active_comp_probs())
-    betaRemFromInitTheta = amodel.initTheta[-1]/alpha
+    betaRemFromInitTheta = amodel.initTheta[-1]/amodel.startAlpha
     betaRemFromTransTheta = amodel.transTheta[0, -1]/alpha
     assert np.allclose(betaRem, betaRemFromInitTheta)
     assert np.allclose(betaRem, betaRemFromTransTheta)

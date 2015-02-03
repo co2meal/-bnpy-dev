@@ -33,6 +33,7 @@ Log = logging.getLogger('bnpy')
 
 def find_optimum_multiple_tries(sumLogPi=0, nDoc=0, 
                                 gamma=1.0, alpha=1.0, kappa=0.0,
+                                startAlphaLogPi=0.0, 
                                 initrho=None, initomega=None,
                                 approx_grad=False,
                                 factrList=[1e5, 1e7, 1e9, 1e10, 1e11],
@@ -60,6 +61,7 @@ def find_optimum_multiple_tries(sumLogPi=0, nDoc=0,
     try:
       rhoomega, f, Info = find_optimum(sumLogPi, nDoc,
                                        gamma=gamma, alpha=alpha, kappa=kappa,
+                                       startAlphaLogPi=startAlphaLogPi,
                                        initrho=initrho, initomega=initomega,
                                        factr=factr, approx_grad=approx_grad,
                                        **kwargs)
@@ -94,6 +96,7 @@ def find_optimum_multiple_tries(sumLogPi=0, nDoc=0,
 
 
 def find_optimum(sumLogPi=0, nDoc=0, gamma=1.0, alpha=1.0, kappa=0.0,
+                 startAlphaLogPi=0.0,
                  initrho=None, initomega=None, scaleVector=None,
                  approx_grad=False, factr=1.0e5, **kwargs):
   ''' Run gradient optimization to estimate best parameters rho, omega
@@ -133,7 +136,7 @@ def find_optimum(sumLogPi=0, nDoc=0, gamma=1.0, alpha=1.0, kappa=0.0,
   initc = rhoomega2c(initrhoomega, scaleVector=scaleVector)
 
   ## Define objective function (unconstrained!)
-  objArgs = dict(sumLogPi=sumLogPi,
+  objArgs = dict(sumLogPi=sumLogPi, startAlphaLogPi=startAlphaLogPi,
                   nDoc=nDoc, gamma=gamma, alpha=alpha, kappa=kappa,
                   approx_grad=approx_grad, scaleVector=scaleVector)
 
@@ -206,6 +209,7 @@ def rhoomega2c(rhoomega, scaleVector=None):
 ###########################################################  constrained
 def objFunc_constrained(rhoomega,
                      sumLogPi=0, nDoc=0, gamma=1.0, alpha=1.0, kappa=0.0,
+                     startAlphaLogPi=0.0,
                      approx_grad=False, **kwargs):
   ''' Returns constrained objective function and its gradient.
 
@@ -237,13 +241,13 @@ def objFunc_constrained(rhoomega,
       scale = 1.0
       ONcoef = K + 1.0 - g1
       OFFcoef = K * kvec(K) + 1.0 + gamma - g0
-      Tvec = alpha * sumLogPi
+      Tvec = alpha * sumLogPi + startAlphaLogPi
       Tvec[:-1] += np.log(alpha+kappa) - np.log(kappa)
     else:
       scale = nDoc
       ONcoef = 1 + (1.0 - g1)/scale
       OFFcoef = kvec(K) + (gamma - g0)/scale
-      Tvec = alpha * sumLogPi/scale
+      Tvec = alpha * sumLogPi/scale  + startAlphaLogPi/scale
 
     ## Calc local term
     Ebeta = np.hstack([rho, 1.0])
