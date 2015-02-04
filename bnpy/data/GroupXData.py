@@ -120,8 +120,10 @@ class GroupXData(XData):
 
     ## Add optional source files for each group/sequence
     if fileNames is not None:
-      self.fileNames = [str(x).strip() for x in np.squeeze(fileNames)]
-
+      if len(fileNames) > 1:
+        self.fileNames = [str(x).strip() for x in np.squeeze(fileNames)]
+      else:
+        self.fileNames = [str(fileNames[0])]
   def _set_dependent_params(self, doc_range, nDocTotal=None): 
     self.nObs = self.X.shape[0]
     self.dim = self.X.shape[1]
