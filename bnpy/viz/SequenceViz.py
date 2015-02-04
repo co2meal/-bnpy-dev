@@ -157,7 +157,10 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
                            vmin=0, vmax=Kmax,
                            cmap='Set1')
       if tt == 0:
-        cur_ax.set_ylabel('Seq. %d' % (seqNum+1), fontsize=13)
+        if len(sequences) > 4:
+          cur_ax.set_ylabel('%d' % (seqNum+1), fontsize=13)
+        else:
+          cur_ax.set_ylabel('Seq. %d' % (seqNum+1), fontsize=13)
 
       if ii == 0:
         if showELBOInTitle:

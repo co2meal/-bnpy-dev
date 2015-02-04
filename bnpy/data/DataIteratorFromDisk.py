@@ -52,15 +52,16 @@ MAXSEED = 1000000
 from bnpy.data import WordsData, XData, GroupXData
 
 Words_AllocToDataTypeMap = dict(
-  DPMixFull='WordsData',
-  HDPDir='WordsData',
-  LDA='WordsData',
+  DPMixtureModel='WordsData',
+  HDPTopicModel='WordsData',
+  FiniteTopicModel='WordsData',
   )
 
 X_AllocToDataTypeMap = dict(
-  DPMixFull='XData',
-  HDPDir='GroupXData',
-  LDA='GroupXData',
+  DPMixtureModel='XData',
+  HDPTopicModel='GroupXData',
+  HDPHMM='GroupXData',
+  FiniteTopicModel='GroupXData',
   )
 
 def decideDataTypeFromModel(aModelType, oModelType):
