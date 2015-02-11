@@ -50,6 +50,7 @@ class DiagGaussObsModel(AbstractObsModel):
 
   def createPrior(self, Data, nu=0, beta=None,
                               m=None, kappa=None,
+                              MMat='zero', 
                               ECovMat=None, sF=1.0, **kwargs):
     ''' Initialize Prior ParamBag object, with fields nu, beta, m, kappa
           set according to match desired mean and expected covariance matrix.
@@ -65,7 +66,10 @@ class DiagGaussObsModel(AbstractObsModel):
       if beta.ndim == 0:
         beta = np.asarray([beta], dtype=np.float)
     if m is None:
-      m = np.zeros(D)
+      if MMat == 'data':
+        m = np.sum(Data.X, axis=0)
+      else:
+        m = np.zeros(D)
     elif m.ndim < 1:
       m = np.asarray([m], dtype=np.float)       
     self.Prior = ParamBag(K=0, D=D)
