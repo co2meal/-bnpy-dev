@@ -39,7 +39,7 @@ def rankTasksForSingleJobOnDisk(joboutpath):
     os.symlink(os.path.join(joboutpath, taskidstr), 
                os.path.join(joboutpath, '.rank'+str(rankID)))
 
-    if len(sortedTaskIDs) > 5:
+    if len(sortedTaskIDs) > 3:
       if rankID == 1:
         os.symlink(os.path.join(joboutpath, taskidstr), 
                    os.path.join(joboutpath, '.best'))
@@ -59,7 +59,6 @@ def rankTasksForSingleJob(joboutpath):
       sortedtaskIDs : list of task names, each entry is an int
   '''
   taskids = parse_task_ids(joboutpath)
-
   # Read in the ELBO score for each task
   ELBOScores = np.zeros(len(taskids))
   for tid, taskidstr in enumerate(taskids):
