@@ -485,8 +485,19 @@ class AutoRegGaussObsModel(AbstractObsModel):
   def updatePost_stochastic(self, SS, rho):
     ''' Stochastic update (in place) posterior for all comps given suff stats
     '''
-    raise NotImplementedError('ToDo')
+    assert hasattr(self, 'Post')
+    assert self.Post.K == SS.K
+    self.ClearCache()
+    
+    self.convertPostToNatural()
+    n_nu, n_V, n_VMT, n_B = self.calcNaturalPostParams(SS)
+    Post = self.Post
+    Post.nu[:] = (1-rho) * Post.nu + rho * n_nu
+    Post.V[:] = (1-rho) * Post.V + rho * n_V
 
+    Post.n_VMT[:] = (1-rho) * Post.n_VMT + rho * n_VMT
+    Post.n_B[:] = (1-rho) * Post.n_B + rho * n_B
+    self.convertPostToCommon()
 
   def calcNaturalPostParams(self, SS):
     ''' Calc updated params (nu, b, km, kappa) for all comps given suff stats
@@ -498,22 +509,54 @@ class AutoRegGaussObsModel(AbstractObsModel):
         --------
         nu : 1D array, size K
         Bnat : 3D array, size K x D x D
-        km : 2D array, size K x D
-        kappa : 1D array, size K
     '''
-    raise NotImplementedError('ToDo')
+    Prior = self.Prior
+    VMT = np.dot(Prior.V, Prior.M.T)
+    MVMT = np.dot(Prior.M, VMT)
 
+    n_nu = Prior.nu + SS.N
+    n_V = Prior.V + SS.ppT
+    n_VMT = VMT + SS.pxT
+    n_B = Prior.B + MVMT + SS.xxT
+    return n_nu, n_V, n_VMT, n_B
     
   def convertPostToNatural(self):
     ''' Convert (in-place) current posterior params from common to natural form
     '''
-    raise NotImplementedError('ToDo')
+    Post = self.Post
+    # These two are done implicitly
+    # Post.setField('nu', Post.nu, dims=None)
+    # Post.setField('V', Post.nu, dims=None)
+    VMT = np.zeros((self.K, self.D, self.D))
+    for k in xrange(self.K):
+      VMT[k] = np.dot(Post.V[k], Post.M[k].T)
+    Post.setField('n_VMT', VMT, dims=('K', 'D', 'D'))
+
+    Bnat = np.empty((self.K, self.D, self.D))
+    for k in xrange(self.K):
+      Bnat[k] = Post.B[k] + np.dot(Post.M[k], VMT[k])
+    Post.setField('n_B', Bnat, dims=('K','D', 'D'))
+
 
 
   def convertPostToCommon(self):
     ''' Convert (in-place) current posterior params from natural to common form
     '''
-    raise NotImplementedError('ToDo')
+    Post = self.Post
+    # These two are done implicitly
+    # Post.setField('nu', Post.nu, dims=None)
+    # Post.setField('V', Post.nu, dims=None)
+
+    M = np.zeros((self.K, self.D, self.D))
+    for k in xrange(self.K):
+      M[k] = np.linalg.solve(Post.V[k], Post.n_VMT[k]).T
+    Post.setField('M', M, dims=('K', 'D', 'D'))
+
+    B = np.empty((self.K, self.D, self.D))
+    for k in xrange(self.K):
+      B[k] = Post.n_B[k] - np.dot(Post.M[k], Post.n_VMT[k])
+    Post.setField('B', B, dims=('K','D', 'D'))
+
 
 
   ########################################################### VB E/Local step

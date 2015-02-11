@@ -40,6 +40,9 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
                   showELBOInTitle=False,
                   dispTrue = True,
                   aspectFactor=4.0,
+                  specialStateIDs=None,
+                  seqNames=None,
+                  cmap='Set1',
                   maxT=None,
                  ):
   '''
@@ -125,23 +128,31 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
       hdist = hdists[loc]
 
     #Load in the saved Data from $BNPYOUTDIR
-    filename = 'Lap%08.3fMAPStateSeqsAligned.mat' % curLap
+    try:
+      filename = 'Lap%08.3fMAPStateSeqsAligned.mat' % curLap
+      zHatBySeq = scipy.io.loadmat(path + filename)
+      zHatBySeq = convertStateSeq_MAT2list(zHatBySeq['zHatBySeqAligned'])
+    except IOError:
+      filename = 'Lap%08.3fMAPStateSeqs.mat' % curLap
+      zHatBySeq = scipy.io.loadmat(path + filename)
+      zHatBySeq = convertStateSeq_MAT2list(zHatBySeq['zHatBySeq'])
 
-    zHatBySeq = scipy.io.loadmat(path + filename)
-    zHatBySeq = convertStateSeq_MAT2list(zHatBySeq['zHatBySeqAligned'])
+    if specialStateIDs is not None:
+      zHatBySeq = relabelAllSequences(zHatBySeq, specialStateIDs)
 
     # Find maximum number of states we need to display
     Kmax = np.max([zHatBySeq[i].max() for i in xrange(Data.nDoc)])
-    Kmax = np.maximum(Data.TrueParams['Z'].max(), Kmax)
+    hasGroundTruth = False
+    if hasattr(Data, 'TrueParams') and 'Z' in Data.TrueParams:
+      hasGroundTruth = True
+      Kmax = np.maximum(Data.TrueParams['Z'].max(), Kmax)
 
     # In case there's only one sequence, make sure it's index-able
     for ii, seqNum in enumerate(sequences):
       image = np.tile(zHatBySeq[seqNum], (NUM_STACK, 1))
 
       #Add the true labels to the image (if they exist)
-      if ((Data.TrueParams is not None)
-           and ('Z' in Data.TrueParams)
-           and dispTrue):
+      if hasGroundTruth and dispTrue:
         start = Data.doc_range[seqNum]
         stop = Data.doc_range[seqNum+1]
         image = np.vstack((image, np.tile(Data.TrueParams['Z'][start:stop],
@@ -153,22 +164,57 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
       else:
         cur_ax = axes[ii,tt]
     
-      cur_ax.imshow(image, interpolation='nearest',
-                           vmin=0, vmax=Kmax,
-                           cmap='Set1')
+      if hasattr(cmap, 'N'):
+        vmax = cmap.N
+      else:
+        vmax = Kmax
+      cur_ax.imshow(image+.0001, interpolation='nearest',
+                           vmin=0, vmax=vmax,
+                           cmap=cmap)
       if tt == 0:
-        cur_ax.set_ylabel('Seq. %d' % (seqNum+1), fontsize=13)
+        if seqNames is not None:
+          h = cur_ax.set_ylabel('%s' % (seqNames[ii]), fontsize=13)
+          h.set_rotation(0)
+
+        elif len(sequences) > 4:
+          cur_ax.set_ylabel('%d' % (seqNum+1), fontsize=13)
+        else:
+          cur_ax.set_ylabel('Seq. %d' % (seqNum+1), fontsize=13)
 
       if ii == 0:
         if showELBOInTitle:
           cur_ax.set_title('ELBO: %.3f  K=%d  dist=%.2f' % (ELBO, Kfinal,hdist))
-        else:
-          cur_ax.set_title('Task %s' % taskidstr)
+
       cur_ax.set_xlim([0, maxT])
       cur_ax.set_ylim([0, image.shape[0]])
       cur_ax.set_yticks([])
       # ... end loop over sequences    
+  return zHatBySeq
 
+def relabelAllSequences(zBySeq, specialStateIDs):
+  '''
+      Returns
+      -------
+      zBySeq, relabelled so that each label in specialStateIDs 
+              now corresponds to ids 0, 1, 2, ... L-1
+              and all other labels not in that set get ids L, L+1, ...
+  '''
+  import copy
+  zBySeq = copy.deepcopy(zBySeq)
+  L = len(specialStateIDs)
+
+  uniqueVals = []
+  for z in zBySeq:
+    z += 1000
+    for kID, kVal in enumerate(specialStateIDs):
+      z[ z == 1000+kVal ] = -1000 + kID
+      uniqueVals = np.union1d(uniqueVals, np.unique(z))
+  
+  for z in zBySeq:
+    for kID, kVal in enumerate(sorted(uniqueVals)):
+      z[z == kVal] = kID
+
+  return zBySeq
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser()

@@ -143,6 +143,8 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
         laps_y = np.loadtxt(os.path.join(jobpath, taskid,
                                                   'laps-saved-params.txt'))
         assert xs.size == laps_x.size
+        if ys.size == laps_y.size-1:
+          laps_y = laps_y[:-1]
         xs = xs[np.in1d(laps_x, laps_y)]
         ys = ys[np.in1d(laps_y, laps_x)]
        
@@ -167,7 +169,10 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
     # This avoids making plots that have huge file sizes,
     # due to too much content in the given display space
     if xvar == 'laps' and xs.size > 10:
-      curDensity = (xs.size-10) / (xs[-1] - xs[9])
+      if (xs[-1] - xs[9]) != 0:
+        curDensity = (xs.size-10) / (xs[-1] - xs[9])
+      else:
+        curDensity = density
       while curDensity > density:
         # Thin xs and ys data by a factor of 2
         # while preserving the first 10 data points
