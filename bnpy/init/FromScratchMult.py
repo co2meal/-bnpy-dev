@@ -145,14 +145,19 @@ def _initTopicWordEstParams(obsModel, Data, PRNG, K=0,
   ## ...................................................... end initname switch
     
   ## Double-check for suspicious NaN values
-  ## and raise errors if detected
+  # These can arise if kmeans delivers any empty clusters
   rowSum = topics.sum(axis=1)
   mask = np.isnan(rowSum)
   if np.any(mask):
-    raise ValueError('topics should never be NaN')
+    # Fill in any bad rows with uniform noise
+    topics[mask] = PRNG.rand( np.sum(mask), Data.vocab_size)
   
   np.maximum(topics, 1e-100, out=topics)
   topics /= topics.sum(axis=1)[:,np.newaxis]
+
+  ## Raise error if any NaN detected
+  if np.any(np.isnan(topics)):
+    raise ValueError('topics should never be NaN')
 
   return topics
 
