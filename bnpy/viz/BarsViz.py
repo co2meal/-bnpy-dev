@@ -60,7 +60,10 @@ def plotBarsFromHModel(hmodel, Data=None, doShowNow=False, figH=None,
                        xlabels=[],
                        compsToHighlight=None, compListToPlot=None,
                        activeCompIDs=None,  Kmax=50,
-                       width=6, height=3, vmax=None, **kwargs): 
+                       width=6, height=3, vmax=None, 
+                       block=0, # unused
+                       jobname='', # unused
+                       **kwargs): 
   if vmax is not None:
     kwargs['vmax'] = vmax   
   if hasattr(hmodel.obsModel, 'Post'):
@@ -145,7 +148,8 @@ def showTopicsAsSquareImages(topics,
                              compListToPlot=None,
                              xlabels=[],
                              Kmax=50,
-                             W=1, H=1, figH=None, **imshowArgs):
+                             W=1, H=1, figH=None, 
+                             **imshowArgs):
   if len(xlabels) > 0:
     H = 1.5 * H
   K, V = topics.shape
