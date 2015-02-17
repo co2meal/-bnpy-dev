@@ -43,11 +43,11 @@ class BernObsModel(AbstractObsModel):
     self.createPrior(Data, **PriorArgs)
     self.Cache = dict()
 
-  def createPrior(self, Data, lam1=1.0, lam0=1.0, min_phi=1e-100, **kwargs):
+  def createPrior(self, Data, lam1=1.0, lam0=1.0, eps_phi=1e-14, **kwargs):
     ''' Initialize Prior ParamBag object, with field 'lam'
     '''
     D = self.D
-    self.min_phi = min_phi
+    self.eps_phi = eps_phi
     self.Prior = ParamBag(K=0, D=D)
     lam1 = np.asarray(lam1, dtype=np.float)
     lam0 = np.asarray(lam0, dtype=np.float)
@@ -241,11 +241,13 @@ class BernObsModel(AbstractObsModel):
         None. Fields K and EstParams updated in-place.
     '''
     self.ClearCache()
+    self.K = SS.K
     if not hasattr(self, 'EstParams') or self.EstParams.K != SS.K:
       self.EstParams = ParamBag(K=SS.K, D=SS.D)
     phi = SS.Count1 / (SS.Count1 + SS.Count0)
     ## prevent entries from reaching exactly 0
-    np.maximum(phi, self.min_phi, out=phi) 
+    np.maximum(phi, self.eps_phi, out=phi) 
+    np.minimum(phi, 1.0 - self.eps_phi, out=phi) 
     self.EstParams.setField('phi', phi, dims=('K', 'D'))
 
   def updateEstParams_MAP(self, SS):
@@ -293,8 +295,8 @@ class BernObsModel(AbstractObsModel):
         lam1 : 2D array, K x D
         lam0 : 2D array, K x D
     '''
-    lam1 = SS.Count1 + self.Prior.lam1[:,np.newaxis]
-    lam0 = SS.Count0 + self.Prior.lam0[:,np.newaxis]
+    lam1 = SS.Count1 + self.Prior.lam1[np.newaxis,:]
+    lam0 = SS.Count0 + self.Prior.lam0[np.newaxis,:]
     return lam1, lam0
 
   def calcPostParamsForComp(self, SS, kA=None, kB=None):
@@ -313,8 +315,8 @@ class BernObsModel(AbstractObsModel):
     else:
       lam1_k = SS.Count1[kA] + SS.Count1[kB]
       lam0_k = SS.Count0[kA] + SS.Count0[kB]
-    lam1_k += self.Prior.lam1[:,np.newaxis]
-    lam0_k += self.Prior.lam0[:,np.newaxis]
+    lam1_k += self.Prior.lam1
+    lam0_k += self.Prior.lam0
     return lam1_k, lam0_k
 
 
@@ -359,7 +361,10 @@ class BernObsModel(AbstractObsModel):
         L : 2D array, size nAtom x K
     '''
     ElogphiT = self.GetCached('E_logphiT', 'all') # D x K
-    L = np.dot(Data.X, ElogphiT) # matrix-matrix product, result is N x K
+    Elog1mphiT = self.GetCached('E_log1mphiT', 'all') # D x K
+
+    # Matrix-matrix product, result is N x K
+    L = np.dot(Data.X, ElogphiT) + np.dot(1.0-Data.X, Elog1mphiT)
     return L
 
 
@@ -382,17 +387,17 @@ class BernObsModel(AbstractObsModel):
     Post = self.Post
     Prior = self.Prior
     if not afterMStep:
-      Elogphi = self.GetCached('E_logphi', 'all') # K x D
-      Elog1mphi = self.GetCached('E_log1mphi', 'all') # K x D
+      ElogphiT = self.GetCached('E_logphiT', 'all') # D x K
+      Elog1mphiT = self.GetCached('E_log1mphiT', 'all') # D x K
 
     for k in xrange(SS.K):
       L_perComp[k] = c_Diff(Prior.lam1, Prior.lam0,
                             Post.lam1[k], Post.lam0[k])
       if not afterMStep:
         L_perComp[k] += np.inner(SS.Count1[k] + Prior.lam1 - Post.lam1[k],
-                                 Elogphi[k])
+                                 ElogphiT[:, k])
         L_perComp[k] += np.inner(SS.Count0[k] + Prior.lam0 - Post.lam0[k],
-                                 Elog1mphi[k])
+                                 Elog1mphiT[:, k])
     return np.sum(L_perComp)
 
 
@@ -570,7 +575,7 @@ class BernObsModel(AbstractObsModel):
 
 def c_Func(lam1, lam0):
   assert lam1.ndim == lam0.ndim
-  return gammaln(lam1 + lam0) - gammaln(lam1) - gammaln(lam0)
+  return np.sum(gammaln(lam1 + lam0) - gammaln(lam1) - gammaln(lam0))
 
 def c_Diff(lamA1, lamA0, lamB1, lamB0):
   return c_Func(lamA1, lamA0) - c_Func(lamB1, lamB0)

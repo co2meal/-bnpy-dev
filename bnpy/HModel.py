@@ -174,11 +174,12 @@ class HModel(object):
       elif str(type(self.obsModel)).count('Mult') > 0:
         init.FromScratchMult.init_global_params(self.obsModel,
                                                 Data, **initArgs)
-      elif str(type(self.obsModel)).count('BernRel') > 0:
-        init.FromScratchBernRel.init_global_params(self.obsModel,
+      elif str(type(self.obsModel)).count('Bern') > 0:
+        init.FromScratchBern.init_global_params(self.obsModel,
                                                 Data, **initArgs)
       else:
         raise NotImplementedError('Unrecognized initname procedure.')
+
       if 'K' in initArgs:
         # Make sure K is exactly same for both alloc and obs models
         # Needed because obsModel init can sometimes yield K < Kinput
