@@ -7,3 +7,4 @@ import FromTruth
 import FromLP
 import FromScratchGauss
 import FromScratchMult
+import FromScratchBern
