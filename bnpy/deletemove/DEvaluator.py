@@ -1,60 +1,12 @@
-import numpy as np
-from matplotlib import pylab
+"""
+"""
 
-from DeleteLogger import log, logPosVector, logProbVector
-from bnpy.viz import BarsViz
-
-def runDeleteMove_SingleSequence(n, Data, curSS, SS_n, curModel,
-                                 **kwargs):
-  ''' Evaluate candidate model that removes unique states in sequence n.
-
-      Thin wrapper around function runDeleteMove_Target defined below,
-      which builds a plan for a current sequence, evaluates it,
-      and returns the result.
-
-      Returns
-      --------
-      newModel
-      newSS
-      Plan
-  '''
-  # TODO : run several update cycles with full model, to be in good start pos??
-  # Make sure our model reflects the latest suff stats
-  curModel.update_global_params(curSS)  
-  
-  # Create targeted Dataset for this sequence only
-  Data_n = Data.select_subset_by_mask([n])
-
-  curSS.uIDs = np.arange(curSS.K)
-  SS_n.uIDs = curSS.uIDs.copy()
-
-  # Identify states to delete, which are unique to this sequence
-  # Attempt them from smallest to largest (in terms of size in this sequence
-  N_total = curSS.N
-  N_n = SS_n.N
-  delCompIDs = np.flatnonzero( (N_total - N_n) < 0.001 )
-  delCompSizes = [N_n[k] for k in delCompIDs]
-  sort_ids = np.argsort(delCompSizes) # smallest to largest
-  delCompIDs = delCompIDs[sort_ids]
-  Plan = dict(DTargetData=Data_n,
-              targetSS=SS_n,
-              uIDs=delCompIDs,
-             )
-  newModel, newSS, Plan = runDeleteMove_Target(curModel, curSS, Plan, **kwargs)
-  delattr(newSS, 'uIDs')
-  newSS.removeELBOandMergeTerms()
-
-  return newModel, newSS, Plan
-
-
-def runDeleteMove_Target(curModel, curSS, Plan,
-                         nRefineIters=2,
-                         Kmax=np.inf,
-                         LPkwargs=None,
-                         doVizDelete=False,
-                         NmaxDisplay=10,
-                         SSmemory=None,
-                         **kwargs):
+def runDeleteMove(curModel, curSS, Plan,
+                  nRefineIters=2,
+                  LPkwargs=None,
+                  SSmemory=None,
+                  Kmax=np.inf,
+                  **kwargs):
   ''' Propose candidate model with fewer comps and accept if ELBO improves.
 
       Returns
