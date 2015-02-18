@@ -7,6 +7,10 @@ Functions for collecting a target dataset for a delete move.
 
 '''
 
+import numpy as np
+import DeleteLogger
+
+
 def addDataFromBatchToPlan(Plan, hmodel, Dchunk, LPchunk, 
                            uIDs=None,
                            batchID=0,
@@ -15,7 +19,7 @@ def addDataFromBatchToPlan(Plan, hmodel, Dchunk, LPchunk,
                            dtargetMaxSize=1000,
                            dtargetMinCount=0.01,
                            **kwargs): 
-    """ Add relevant data from provided chunk to the planned target set.
+  """ Add relevant data from provided chunk to the planned target set.
 
         Returns
         -------
@@ -29,13 +33,13 @@ def addDataFromBatchToPlan(Plan, hmodel, Dchunk, LPchunk,
 
         If the target set goes over the budget space of dtargetMaxSize,
         then Plan will be wiped out to an empty dict.
-    """
+  """
   assert uIDs is not None
   assert len(uIDs) == hmodel.allocModel.K
   assert len(uIDs) == hmodel.obsModel.K
 
   if isFirstBatch:
-      msg = '<<<<<<<<<<<<<<<< addDataFromBatchToPlan @ lap %6.3f' \
+      msg = '<<<<<<<<<<<<<<<<<<<< addDataFromBatchToPlan @ lap %6.2f' \
             % (lapFrac)
       DeleteLogger.log(msg)
   
@@ -43,6 +47,9 @@ def addDataFromBatchToPlan(Plan, hmodel, Dchunk, LPchunk,
                                                 dtargetMinCount=dtargetMinCount)
   relSize = getSize(relData)
   if relSize < 1:
+      msg = ' %6.3f | batch %3d | batch targetSize 0 | agg targetSize 0' \
+            % (lapFrac, batchID)
+      DeleteLogger.log(msg)
       return Plan
 
   ## Add all these docs to the Plan

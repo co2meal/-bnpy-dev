@@ -61,13 +61,18 @@ def makePlanForEligibleComps(SS, DRecordsByComp=None,
     Plan = getEligibleCompInfo(SS, DRecordsByComp, dtargetMaxSize,
                                   deleteFailLimit,
                                   **kwargs)
-    nEligibleBySize = len(Plan['eligible-by-size-UIDs'])
-    nRemovedByFailLimit = len(Plan['eliminatedUIDs'])
-    nFinalCandidates = len(Plan['candidateUIDs'])
-    
-    DeleteLogger.log('Comp UIDs eligible by size: ')
+
+    if len(Plan.keys()) > 0:
+        nEligibleBySize = len(Plan['eligible-by-size-UIDs'])
+        nRemovedByFailLimit = len(Plan['eliminatedUIDs'])
+        nFinalCandidates = len(Plan['candidateUIDs'])
+    else:
+        nEligibleBySize = 0
+
+    DeleteLogger.log('Comp UIDs eligible by size (Limit=%d)' \
+                     % (dtargetMaxSize))
     if nEligibleBySize == 0:
-        DeleteLogger.log('  ZERO.')
+        DeleteLogger.log('  None.')
     else:
         DeleteLogger.logPosVector(Plan['eligible-by-size-UIDs'], fmt='%5d')
 
@@ -75,13 +80,14 @@ def makePlanForEligibleComps(SS, DRecordsByComp=None,
         if nRemovedByFailLimit > 0:
             DeleteLogger.logPosVector(Plan['eliminated-UIDs'], fmt='%5d')
         else:
-            DeleteLogger.log('  ZERO.')
+            DeleteLogger.log('  None.')
 
-        DeleteLogger.log('Comp UIDs selected as candidates:')
+        DeleteLogger.log('Selected canddidate comps: UIDs and sizes')
         if nFinalCandidates > 0:
             DeleteLogger.logPosVector(Plan['candidateUIDs'], fmt='%5d')
+            DeleteLogger.logPosVector(Plan['candidateSizes'], fmt='%5d')
         else:
-            DeleteLogger.log('  ZERO. All disqualified.')
+            DeleteLogger.log('  None. All disqualified.')
     return Plan
 
 
@@ -112,7 +118,7 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
     if SS.hasSelectionTerm('DocUsageCount'):
         SizeVec = SS.getSelectionTerm('DocUsageCount')
     else:
-        SizeVec = Nvec
+        SizeVec = 2 * CountVec # conservative overestimate
 
     ## -------------------------    Find states small enough for delete
     eligibleIDs = np.flatnonzero(SizeVec < dtargetMaxSize)
@@ -167,7 +173,7 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
 
         selectUIDs = tier1UIDs[:maxLoc]
         curTargetSize = tier1AggSize[maxPos]
-     else:
+    else:
         selectUIDs = list()
         curTargetSize = 0
 
@@ -175,7 +181,7 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
     if curTargetSize < dtargetMaxSize:
         tier2AggSize = np.cumsum([SizeMap[x] for x in tier2UIDs])
         maxLoc = np.searchsorted(tier2AggSize, dtargetMaxSize-curTargetSize)
-        selectUIDs = np.hstack([selectUIDs, secondUIDs[:maxLoc]])
+        selectUIDs = np.hstack([selectUIDs, tier2UIDs[:maxLoc]])
 
     selectMass = [SizeMap[x] for x in selectUIDs]
     selectIDs = list()
@@ -190,8 +196,9 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
     Output['tier1UIDs'] = tier1UIDs
     Output['tier2UIDs'] = tier2UIDs
 
-    Output['candidateUIDs'] = selectUIDs
     Output['candidateIDs'] = selectIDs
+    Output['candidateUIDs'] = selectUIDs
+    Output['candidateSizes'] = [SizeMap[u] for u in selectUIDs]
     return Output
 
 
@@ -203,6 +210,9 @@ def getEligibleCount(SS, **kwargs):
       count : int 
   '''
   Plan = getEligibleCompInfo(SS, **kwargs)
-  nTotalEligible = len(Plan['tier1UIDs']) + len(Plan['tier2UIDs'])
+  if 'tier1UIDs' in Plan:
+      nTotalEligible = len(Plan['tier1UIDs']) + len(Plan['tier2UIDs'])
+  else:
+      nTotalEligible = 0
   return nTotalEligible
           
