@@ -1,4 +1,7 @@
 """
+Functions that evaluate delete proposals and decide to accept/reject.
+
+- runDeleteMove
 """
 
 def runDeleteMove(curModel, curSS, Plan,
@@ -11,136 +14,125 @@ def runDeleteMove(curModel, curSS, Plan,
 
       Returns
       --------
-      newModel
-      newSS
-      Plan (with updated fields)
+      bestModel
+      bestSS
+      Plan : dict, with updated fields
+
+      * didAccept
+      * acceptedUIDs
+      * acceptedIDs
   '''
   if SSmemory is None:
-    SSmemory = dict()
+      SSmemory = dict()
   if LPkwargs is None:
-    LPkwargs = dict()
+      LPkwargs = dict()
   if curSS.K == 1:
-    Plan['didAccept'] = 0
-    Plan['acceptedUIDs'] = list()
-    Plan['acceptedIDs'] = list()
-    return curModel, curSS, Plan
+      Plan['didAccept'] = 0
+      Plan['acceptedUIDs'] = list()
+      Plan['acceptedIDs'] = list()
+      return curModel, curSS, Plan
 
-  ## Baseline ELBO calculation
+  # -------------------------     Evaluate current model on target set
   targetData = Plan['DTargetData']
   targetLP = curModel.calc_local_params(targetData, **LPkwargs)
   ctargetSS = curModel.get_global_suff_stats(targetData, targetLP)
   curELBO = curModel.calc_evidence(targetData, ctargetSS, targetLP)
 
-  ## Construct candidate model with components removed!
-  newModel = curModel
-  newSS = curSS
-  newELBO = curELBO
-  targetSS = Plan['targetSS']
+  # -------------------------     bestModel, bestSS represent best so far
+  bestModel = curModel
+  bestELBO = curELBO
+  bestSS = curSS
+  besttargetSS = Plan['targetSS']
+  assert np.allclose(besttargetSS.uIDs, bestSS.uIDs)
 
-  assert np.allclose(targetSS.uIDs, newSS.uIDs)
   didAccept = 0
   acceptedUIDs = list()
-  acceptedIDs = list()
-  for delCompID in Plan['uIDs']:
-    if newSS.K == 1:
+  for delCompID in Plan['candidateUIDs']:
+    if bestSS.K == 1:
       continue # Don't try to remove the final comp!
 
-    propSS = newSS.copy()
-    propModel = newModel.copy()
-    ptargetSS = targetSS.copy()
-
+    # -------------------------    Construct candidate with delCompID removed
+    propSS = bestSS.copy()
+    propModel = bestModel.copy()
+    proptargetSS = besttargetSS.copy()
     k = np.flatnonzero(propSS.uIDs == delCompID)[0]
     propSS.removeComp(k)
     ptargetSS.removeComp(k)  
-    
     propModel.update_global_params(propSS)
 
-    newNvec = newSS.getCountVec()
-
+    # -------------------------    Refine candidate with local/global steps
     didAcceptCur = 0
     for riter in xrange(nRefineIters):
-      ptargetLP = propModel.calc_local_params(targetData, **LPkwargs)
+        ptargetLP = propModel.calc_local_params(targetData, **LPkwargs)
+        propSS -= ptargetSS
+        ptargetSS = propModel.get_global_suff_stats(targetData, ptargetLP)
+        propSS += ptargetSS
+        propModel.update_global_params(propSS)
 
-      propSS -= ptargetSS
-      ptargetSS = propModel.get_global_suff_stats(targetData, ptargetLP)
-      propSS += ptargetSS
-      propModel.update_global_params(propSS)
-      
       propELBO = propModel.calc_evidence(targetData, ptargetSS, ptargetLP)
-      if propELBO >= newELBO or newSS.K > Kmax:
-        didAcceptCur = 1
-        didAccept = 1
-        newModel = propModel
-        newSS = propSS
-        targetSS = ptargetSS
-        targetLP = ptargetLP
-        newELBO = propELBO
-        break
+      if propELBO >= bestELBO or bestSS.K > Kmax:
+          didAcceptCur = 1
+          didAccept = 1
+          bestModel = propModel
+          bestSS = propSS
+          besttargetSS = ptargetSS
+          besttargetLP = ptargetLP
+          bestELBO = propELBO
+          break
 
     origk = np.flatnonzero(curSS.uIDs == delCompID)[0]
     if didAcceptCur:
       acceptedUIDs.append(delCompID)
-      acceptedIDs.append(origk)
-      name = ' *prop'
+      propname = ' *prop'
     else:
-      name = '  prop'
+      propname = '  prop'
     curname = '  cur '
-    msg = 'compID %3d  size %8.2f' % (delCompID, newNvec[k])
-    log('%s K=%3d | elbo %.6f | %s | target %12.4f | total=%12.4f' 
-         % (curname, targetSS.K, curELBO, msg,
-            targetSS.getCountVec().sum(), newNvec.sum()))
-    log('%s K=%3d | elbo %.6f | %s | target %12.4f | total=%12.4f' 
-         % (name, ptargetSS.K, propELBO, ' ' * len(msg),
+    msg = 'comp UID %3d' % (delCompID)
+    DeleteLogger.log('%s K=%3d | elbo %.6f | %s | target %12.4f | total=%12.4f' 
+         % (curname,  besttargetSS.K, bestELBO, msg,
+            besttargetSS.getCountVec().sum(), bestSS.getCountVec().sum()))
+    DeleteLogger.log('%s K=%3d | elbo %.6f | %s | target %12.4f | total=%12.4f' 
+         % (propname, ptargetSS.K, propELBO, ' ' * len(msg),
             ptargetSS.getCountVec().sum(), propSS.getCountVec().sum()))
-    curELBO = newELBO
 
-  if doVizDelete:
-    BarsViz.plotBarsFromHModel(curModel, compsToHighlight=acceptedIDs)
-    BarsViz.plotBarsFromHModel(newModel)
-    pylab.show(block=False)
-    raw_input(">>")
-    pylab.close('all')
-
-  Plan['targetLP'] = targetLP
   Plan['didAccept'] = didAccept
-  Plan['ELBO'] = newELBO
+  Plan['bestELBO'] = bestELBO
   Plan['acceptedUIDs'] = acceptedUIDs
   if didAccept:
-    ## If improved, adjust the sufficient stats!
-    newSS.setELBOFieldsToZero()
-    newSS.setMergeFieldsToZero()
+      bestSS.setELBOFieldsToZero()
+      bestSS.setMergeFieldsToZero()
 
-    aggSumLogPiRem = 0
-    for batchID in SSmemory:
-      SSmemory[batchID].setELBOFieldsToZero()
-      SSmemory[batchID].setMergeFieldsToZero()
-      if 'targetSSByBatch' in Plan and batchID in Plan['targetSSByBatch']:
-        SSmemory[batchID] -= Plan['targetSSByBatch'][batchID]
+      for batchID in SSmemory:
+          SSmemory[batchID].setELBOFieldsToZero()
+          SSmemory[batchID].setMergeFieldsToZero()
+          if hasValidKey(Plan, 'targetSSByBatch'):
+              if batchID in Plan['targetSSByBatch']:
+                  doEditBatch = True
 
-      for uID in acceptedUIDs:
-        kk = np.flatnonzero(SSmemory[batchID].uIDs == uID)[0]
-        SSmemory[batchID].removeComp(kk)
+          if doEditBatch:
+              SSmemory[batchID] -= Plan['targetSSByBatch'][batchID]
 
-      docIDs = np.flatnonzero(Plan['batchIDs'] == batchID)
+          for uID in acceptedUIDs:
+              kk = np.flatnonzero(SSmemory[batchID].uIDs == uID)[0]
+              SSmemory[batchID].removeComp(kk)
 
-      ## Update batch-specific stored memory, if it changed
-      if len(docIDs) > 0:
-        Data_b = targetData.select_subset_by_mask(docIDs, doTrackFullSize=False)
-
-        assert SSmemory[batchID].K == targetLP['resp'].shape[1]
-        selectSubsetLP = newModel.allocModel.selectSubsetLP
-        targetLP_b = selectSubsetLP(targetData, targetLP, docIDs)
-
-        targetSS_b = newModel.get_global_suff_stats(Data_b, targetLP_b)
-        SSmemory[batchID] += targetSS_b
+          assert SSmemory[batchID].K == besttargetLP['resp'].shape[1]
+          assert SSmemory[batchID].K == bestModel.allocModel.K
+        
+          # Update batch-specific stored memory, if it changed
+          if doEditBatch:
+              relUnitIDs = np.flatnonzero(Plan['batchIDs'] == batchID)
+              Data_b = targetData.select_subset_by_mask(relUnitIDs,
+                                                        doTrackFullSize=False)
+              targetLP_b = bestModel.allocModel.selectSubsetLP(
+                                                      targetData,
+                                                      targetLP,
+                                                      relUnitIDs)
+              targetSS_b = bestModel.get_global_suff_stats(Data_b, targetLP_b)
+              SSmemory[batchID] += targetSS_b
 
       # Be very sure we've set everything to zero
       SSmemory[batchID].setELBOFieldsToZero()
       SSmemory[batchID].setMergeFieldsToZero()
 
-      if hasattr(SSmemory[batchID], 'sumLogPiRem'):
-        aggSumLogPiRem += SSmemory[batchID].sumLogPiRem
-    if hasattr(newSS, 'sumLogPiRem'):
-      assert np.allclose(aggSumLogPiRem, newSS.sumLogPiRem, atol=1e-5)
-
-  return newModel, newSS, Plan
+  return bestModel, bestSS, Plan
