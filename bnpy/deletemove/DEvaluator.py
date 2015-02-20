@@ -12,6 +12,7 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
                                  LPkwargs=None,
                                  SSmemory=None,
                                  Kmax=np.inf,
+                                 lapFrac=None,
                                  **kwargs):
   ''' Propose candidate model with fewer comps and accept if ELBO improves.
 
@@ -43,31 +44,32 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
       Plan['acceptedUIDs'] = list()
       return curModel, curSS, SSmemory, Plan
 
-  # -------------------------     Evaluate current model on target set
-  targetData = Plan['DTargetData']
-  ctargetLP = curModel.calc_local_params(targetData, **LPkwargs)
-  ctargetSS = curModel.get_global_suff_stats(targetData, ctargetLP)
-  curELBO = curModel.calc_evidence(targetData, ctargetSS, ctargetLP)
 
   # -------------------------     bestModel, bestSS represent best so far
   bestModel = curModel
-  bestELBO = curELBO
   bestSS = curSS
   besttargetSS = Plan['targetSS']
   assert np.allclose(besttargetSS.uIDs, bestSS.uIDs)
 
+  # -------------------------     Calculate the current ELBO score
+  targetData = Plan['DTargetData']
+  totalScale = curModel.obsModel.getDatasetScale(curSS)
+  bestELBO = curModel.obsModel.calcELBO_Memoized(curSS) \
+             + curModel.allocModel.calcELBOFromSS_NoCacheableTerms(curSS)
+  bestELBO /= totalScale
+
   didAccept = 0
   acceptedUIDs = list()
-  for delCompID in Plan['candidateUIDs']:
+  for delCompUID in Plan['candidateUIDs']:
     if bestSS.K == 1:
       continue # Don't try to remove the final comp!
 
-    # -------------------------    Construct candidate with delCompID removed
+    # -------------------------    Construct candidate with delCompUID removed
     propModel = bestModel.copy()
     propSS = bestSS.copy()
     ptargetSS = besttargetSS.copy()
 
-    k = np.flatnonzero(propSS.uIDs == delCompID)[0]
+    k = np.flatnonzero(propSS.uIDs == delCompUID)[0]
     propSS.removeComp(k)
     ptargetSS.removeComp(k)  
     propModel.update_global_params(propSS)
@@ -77,39 +79,44 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
     for riter in xrange(nRefineIters):
         ptargetLP = propModel.calc_local_params(targetData, **LPkwargs)
         propSS -= ptargetSS
-        ptargetSS = propModel.get_global_suff_stats(targetData, ptargetLP)
+        ptargetSS = propModel.get_global_suff_stats(targetData, ptargetLP,
+                                                    doPrecompEntropy=1)
         propSS += ptargetSS
         propModel.update_global_params(propSS)
 
-        propELBO = propModel.calc_evidence(targetData, ptargetSS, ptargetLP)
+        propELBO = propModel.obsModel.calcELBO_Memoized(propSS) \
+                 + propModel.allocModel.calcELBOFromSS_NoCacheableTerms(propSS)
+        propELBO /= totalScale
+
+        propELBOGap = propModel.allocModel.calcCachedELBOGapForDeleteProposal(
+                          curSS,
+                          Plan['targetSS'],
+                          ptargetSS,
+                          acceptedUIDs + [delCompUID],
+                          )
+        propELBOGap /= totalScale
+        #propELBO = propModel.calc_evidence(targetData, ptargetSS, ptargetLP)
+
 
         if not np.isfinite(propELBO):
             break
 
-        if propELBO >= bestELBO or bestSS.K > Kmax:
+        if propELBO - bestELBO > propELBOGap or bestSS.K > Kmax:
             didAcceptCur = 1
             didAccept = 1
-
             break
 
     # -------------------------    Log result of this proposal
-    origk = np.flatnonzero(curSS.uIDs == delCompID)[0]
-    if didAcceptCur:
-      propname = ' *prop'
-    else:
-      propname = '  prop'
-    curname = '  cur '
-    msg = 'comp UID %3d' % (delCompID)
-    DeleteLogger.log('%s K=%3d | elbo %.6f | %s | target %12.4f | total %12.4f' 
-         % (curname,  besttargetSS.K, bestELBO, msg,
-            besttargetSS.getCountVec().sum(), bestSS.getCountVec().sum()))
-    DeleteLogger.log('%s K=%3d | elbo %.6f | %s | target %12.4f | total %12.4f' 
-         % (propname, ptargetSS.K, propELBO, ' ' * len(msg),
-            ptargetSS.getCountVec().sum(), propSS.getCountVec().sum()))
+    curMsg = makeLogMessage(bestSS, besttargetSS, bestELBO, label='cur', 
+                             compUID=delCompUID)
+    propMsg = makeLogMessage(propSS, ptargetSS, propELBO, label='prop', 
+                             compUID=delCompUID, didAccept=didAcceptCur)
+    DeleteLogger.log(curMsg)
+    DeleteLogger.log(propMsg)
 
     # -------------------------    Update best model/stats to accepted values
     if didAcceptCur:
-       acceptedUIDs.append(delCompID)
+       acceptedUIDs.append(delCompUID)
        bestELBO = propELBO
        bestModel = propModel
 
@@ -166,3 +173,32 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
           SSmemory[batchID].setMergeFieldsToZero()
 
   return bestModel, bestSS, SSmemory, Plan
+
+
+def makeLogMessage(aggSS, targetSS, ELBO, 
+                   label='cur', didAccept=-1,
+                   compUID=0):
+    
+
+    if label.count('cur'):
+        label = " compUID %3d  " % (compUID) + label
+    else:
+        if didAccept:
+            label = '    ACCEPTED ' + label
+        else:
+            label = '             ' + label
+
+    msg = '%s K=%3d | ELBO % .6f | aggSize %12.4f' \
+          % (label,  
+             targetSS.K, 
+             ELBO, 
+             aggSS.getCountVec().sum())
+
+    if label.count('cur'):
+        k = np.flatnonzero(aggSS.uIDs == compUID)[0]
+        msg += " | aggN[k] %12.4f | targetN[k] %12.4f" \
+               % (aggSS.getCountVec()[k], targetSS.getCountVec()[k])
+    else:
+        msg = msg.replace('ELBO', '    ')
+        msg = msg.replace('aggSize', '       ')
+    return msg

@@ -148,6 +148,8 @@ class DPMixtureModel(AllocModel):
     SS.setField('N', Nvec, dims=('K'))
     if doPrecompEntropy:
       ElogqZ_vec = self.E_logqZ(LP)
+      if ElogqZ_vec.ndim > 1:
+        from IPython import embed; embed()
       SS.setELBOTerm('ElogqZ', ElogqZ_vec, dims=('K'))
 
     if doPrecompMergeEntropy:
@@ -282,7 +284,19 @@ class DPMixtureModel(AllocModel):
     cDiff = self.ELBO_cDiff()
     slack = self.ELBO_slack(SS)
     return cDiff + slack - Hentropy
-             
+
+
+  def calcELBOFromSS_NoCacheableTerms(self, SS):
+    ''' Calculate objective function value, ignoring any cached ELBO terms
+
+        Effectively, this will ignore the entropy term for the DPMixtureModel
+    '''
+    assert self.K == SS.K
+    cDiff = self.ELBO_cDiff()
+    slack = self.ELBO_slack(SS)
+    return cDiff + slack
+
+
   def E_logqZ(self, LP):
     return NumericUtil.calcRlogR(LP['resp'])
 
@@ -416,6 +430,33 @@ class DPMixtureModel(AllocModel):
       del self.cBetaCur
     return Gaps
 
+  ######################################################### Hard Merges
+  #########################################################
+  def calcCachedELBOGapForDeleteProposal(self, SSall_before, 
+                                               SStarget_before,
+                                               SStarget_after,
+                                               delCompUIDs):
+    ''' Calculate (approximately) improvement in entropy term after a delete
+    '''
+    remCompIDs = list()
+    for k in xrange(SSall_before.K):
+        if SSall_before.uIDs[k] not in delCompUIDs:
+            remCompIDs.append(k)
+
+    Hvec_all_before = -1 * SSall_before.getELBOTerm('ElogqZ')
+    Hvec_target_before = -1 * SStarget_before.getELBOTerm('ElogqZ')
+    Hvec_target_after = -1 * SStarget_after.getELBOTerm('ElogqZ')
+  
+    Hvec_rest_before = Hvec_all_before - Hvec_target_before
+    if not np.all(Hvec_rest_before > -1e-10):
+        print 'ASSUMPTION ABOUT Hvec_rest_before > 0 VIOLATED'
+        from IPython import embed; embed()
+
+    Htarget_after = Hvec_target_after.sum()
+    Hrest_after = Hvec_rest_before[remCompIDs].sum()
+
+    gap = Hvec_all_before.sum() - (Htarget_after + Hrest_after)
+    return gap
 
   ######################################################### Soft Merges
   #########################################################
