@@ -78,7 +78,8 @@ def addDataFromBatchToPlan(Plan, hmodel, Dchunk, LPchunk,
 
   ## ------------------------    Track stats specific to chosen subset
   targetLPchunk = hmodel.allocModel.selectSubsetLP(Dchunk, LPchunk, relIDs)
-  targetSSchunk = hmodel.get_global_suff_stats(relData, targetLPchunk)
+  targetSSchunk = hmodel.get_global_suff_stats(relData, targetLPchunk,
+                                               doPrecompEntropy=1)
   targetSSchunk.uIDs = uIDs.copy()
 
   ## ------------------------    targetSS tracks aggregate stats across batches
@@ -111,7 +112,7 @@ def getDataSubsetRelevantToPlan(Dchunk, LPchunk, Plan,
       if 'DocTopicCount' in LPchunk:
           DocTopicCount = LPchunk['DocTopicCount']
           curkeepmask = DocTopicCount[:, delCompID] >= dtargetMinCount
-      elif 'StartStateCount' in LPchunk:
+      elif 'respPair' in LPchunk or 'TransStateCount' in LPchunk:
           curkeepmask = np.zeros(Dchunk.nDoc, dtype=np.int32)
           for n in xrange(Dchunk.nDoc):
               start = Dchunk.doc_range[n]

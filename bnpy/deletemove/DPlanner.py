@@ -74,20 +74,35 @@ def makePlanForEligibleComps(SS, DRecordsByComp=None,
     if nEligibleBySize == 0:
         DeleteLogger.log('  None.')
     else:
-        DeleteLogger.logPosVector(Plan['eligible-by-size-UIDs'], fmt='%5d')
+        eUIDs = Plan['eligible-by-size-UIDs']
+        sizeVec = [Plan['SizeMap'][x] for x in eUIDs]
+        failVec = np.zeros_like(sizeVec)
+        for ii in xrange(failVec.size):
+            if 'nFail' in DRecordsByComp[eUIDs[ii]]:
+                failVec[ii] = DRecordsByComp[eUIDs[ii]]['nFail']
+            else:
+                failVec[ii] = 0
+        DeleteLogger.logPosVector(eUIDs, fmt='%5d', prefix='  UIDss:')
+        DeleteLogger.logPosVector(sizeVec, fmt='%5d', prefix=' sizes:')
+        DeleteLogger.logPosVector(failVec, fmt='%5d', prefix=' nFail:')
+
 
         DeleteLogger.log('Eligible UIDs eliminated by failure count:')
         if nRemovedByFailLimit > 0:
-            DeleteLogger.logPosVector(Plan['eliminated-UIDs'], fmt='%5d')
+            DeleteLogger.logPosVector(Plan['eliminatedUIDs'], fmt='%5d')
         else:
             DeleteLogger.log('  None.')
 
-        DeleteLogger.log('Selected canddidate comps: UIDs and sizes')
+        DeleteLogger.log('Num Tier1 = %d.  Num Tier2 = %d.' \
+                         % (Plan['nCandidateTier1'], Plan['nCandidateTier2']))
+        DeleteLogger.log('Selected candidate comps: UIDs and sizes')
         if nFinalCandidates > 0:
             DeleteLogger.logPosVector(Plan['candidateUIDs'], fmt='%5d')
             DeleteLogger.logPosVector(Plan['candidateSizes'], fmt='%5d')
         else:
             DeleteLogger.log('  None. All disqualified.')
+            return dict()
+
     return Plan
 
 
@@ -104,6 +119,13 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
                * candidateUIDs
 
         Any "empty" Info dict indicates that no eligible comps exist.
+
+        Post Condition
+        -----------
+        DRecordsByComp will have an entry for each candidate uID 
+        including updated fields:
+        * 'count' : value of SS.getCountVec() corresponding to comp uID
+        * 'nFail' : 
     '''
     assert hasattr(SS, 'uIDs')
     if DRecordsByComp is None:
@@ -129,7 +151,7 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
         return dict()
 
     ## -------------------------    Filter out records of states 
-    ##                              that changed recently
+    ## -                            that changed recently
     CountMap = dict()
     SizeMap = dict()
     for ii, uID in enumerate(eligibleUIDs):
@@ -137,23 +159,31 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
         CountMap[uID] = CountVec[eligibleIDs[ii]]
 
     for uID in DRecordsByComp.keys():
-        if uID not in CountMap:
+        if uID not in CountMap or 'count' not in DRecordsByComp[uID]:
             continue
         count = DRecordsByComp[uID]['count']
         percDiff = np.abs(CountMap[uID] - count) / (count + 1e-14)
         if percDiff > 0.15:
             del DRecordsByComp[uID]
 
+    ## --------------------------    Update DRecordsByComp
+    for uID in eligibleUIDs:
+        if uID not in DRecordsByComp:
+            DRecordsByComp[uID] = dict()
+        if 'nFail' not in DRecordsByComp[uID]:
+            DRecordsByComp[uID]['nFail'] = 0
+        DRecordsByComp[uID]['count'] = CountMap[uID]
+
+    ## --------------------------    Prioritize eligible comps by 
+    ## -                             * size (smaller preferred)
+    ## -                             * previous failures (fewer preferred)
     tier1UIDs = list()
     tier2UIDs = list()
     eliminatedUIDs = list()
-    ## --------------------------    Prioritize eligible comps by 
-    ##                               * size (smaller preferred)
-    ##                               * previous failures (fewer preferred)
     sortIDs = np.argsort(SizeVec[eligibleIDs])
     for ii in sortIDs:
         uID = eligibleUIDs[ii]
-        if uID not in DRecordsByComp:
+        if DRecordsByComp[uID]['nFail'] == 0:
             tier1UIDs.append(uID)
         elif DRecordsByComp[uID]['nFail'] < deleteFailLimit:
             tier2UIDs.append(uID)
@@ -196,9 +226,13 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
     Output['tier1UIDs'] = tier1UIDs
     Output['tier2UIDs'] = tier2UIDs
 
+    Output['SizeMap'] = SizeMap
+    Output['nCandidateTier1'] = len([x for x in selectUIDs if x in tier1UIDs])
+    Output['nCandidateTier2'] = len([x for x in selectUIDs if x in tier2UIDs])
     Output['candidateIDs'] = selectIDs
-    Output['candidateUIDs'] = selectUIDs
+    Output['candidateUIDs'] = selectUIDs.tolist()
     Output['candidateSizes'] = [SizeMap[u] for u in selectUIDs]
+
     return Output
 
 

@@ -8,7 +8,7 @@ Log = None
 Cache = defaultdict(lambda: list())
 CacheOrder = list()
 
-DEFAULTLEVEL = 'info'
+DEFAULTLEVEL = 'debug'
 
 def log(msg, level=DEFAULTLEVEL):
   if Log is None:
@@ -27,11 +27,11 @@ def logPhase(title):
   title = '.'*(50-len(title)) + ' %s' % (title)
   log(title, DEFAULTLEVEL)
 
-def logPosVector(vec, fmt='%8.1f', Nmax=10):
+def logPosVector(vec, fmt='%8.1f', Nmax=10, prefix=''):
   if Log is None:
     return
   vstr = ' '.join([fmt % (x) for x in vec[:Nmax]])
-  log(vstr, DEFAULTLEVEL)
+  log(prefix + vstr, DEFAULTLEVEL)
 
 def logProbVector(vec, fmt='%8.4f', Nmax=10):
   if Log is None:

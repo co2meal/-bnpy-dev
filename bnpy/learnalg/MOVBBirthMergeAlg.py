@@ -304,11 +304,16 @@ class MOVBBirthMergeAlg(MOVBAlg):
       ## Time's up, so doesn't matter what other moves are possible.
       return False
 
-    if self.hasMove('delete') and self.doDeleteAtLap(lapFrac):
+    if self.hasMove('delete'):
       ## If any eligible comps exist, we have more moves possible
       ## so return True
+      deleteStartLap = self.algParams['delete']['deleteStartLap']
       nBeforeQuit = self.algParams['delete']['deleteNumStuckBeforeQuit']
       waitedLongEnough = (lapFrac - self.lapLastAcceptedDelete) > nBeforeQuit
+
+      # If we haven't even tried deletes for sufficent num laps, keep going
+      if lapFrac <= deleteStartLap + nBeforeQuit:
+        return True
 
       if isEvenlyDivisibleFloat(lapFrac, 1.0):
         nEligible = DPlanner.getEligibleCount(SS, 
@@ -1211,6 +1216,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
           # are not repeated later
           if len(DeletePlans) > 0:
               DPlan = DeletePlans[0]
+              remIDs = list()
               for ii, uid in enumerate(DPlan['candidateUIDs']):
                   if uid in EPlan['candidateUIDs']:
                       remIDs.append(ii)
@@ -1220,7 +1226,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
               if len(DPlan['candidateUIDs']) == 0:
                   DeletePlans = [EPlan]
               else:
-                  DeletePlans = [EPlan, DPlan]
+                  DeletePlans = [DPlan, EPlan]
           else:
               DeletePlans = [EPlan]
 
@@ -1238,6 +1244,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
                                                    DPlan,                
                                                    LPkwargs=self.algParamsLP,
                                                    SSmemory=self.SSmemory,
+                                                   lapFrac=self.lapFrac,
                                                    **self.algParams['delete'])
 
             nYes = len(DPlan['acceptedUIDs'])
@@ -1269,16 +1276,6 @@ class MOVBBirthMergeAlg(MOVBAlg):
             DeleteLogger.log('DELETED %d empty comps' % (nEmpty),
                              'info') 
 
-        # -------------------    Update stored stats for later plans
-        if moveID == 0 and len(DeletePlans) > 1:
-            FuturePlan = DeletePlans[1]
-            for uID in DPlan['acceptedUIDs']:
-                targetSS = FuturePlan['targetSS']
-                delCompID = np.flatnonzero(targetSS.uIDs == uID)[0]
-                targetSS.removeComp(delCompID)
-                for batchID in FuturePlan['targetSSByBatch']:
-                    FuturePlan['targetSSByBatch'][batchID].removeComp(delCompID)
-
         # -------------------    Update DeleteRecords
         for uID in DPlan['candidateUIDs']:
             if uID in DPlan['acceptedUIDs']:
@@ -1288,9 +1285,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
                 if uID not in self.DeleteRecordsByComp:
                     self.DeleteRecordsByComp[uID]['nFail'] = 0
                 self.DeleteRecordsByComp[uID]['nFail'] += 1
-                kk = np.flatnonzero(newSS.uIDs == uID)[0]
-                count_kk = newSS.getCountVec()[kk]
-                self.DeleteRecordsByComp[uID]['count'] = count_kk
+
 
         if DPlan['didAccept']:
             self.ELBOReady = False
@@ -1308,7 +1303,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
             assert np.allclose(self.SSmemory[batchID].uIDs, self.ActiveIDVec)
     # <<< end for loop over DeletePlans
 
-    # Verify post-condition: all states consistent in newSS and self.SSmemory
+    # Verify post-condition: same states represented by newSS and SSmemory
     for batchID in self.SSmemory:
       assert newSS.K == self.SSmemory[batchID].K
       assert np.allclose(newSS.uIDs, self.SSmemory[batchID].uIDs)
@@ -1317,6 +1312,13 @@ class MOVBBirthMergeAlg(MOVBAlg):
           for key in self.SSmemory[batchID]._ELBOTerms._FieldDims.keys():
               arr = self.SSmemory[batchID].getELBOTerm(key)
               assert np.allclose(0, arr)
+    if newSS.K < SS.K:
+        assert self.ELBOReady is False
+        for key in newSS._ELBOTerms._FieldDims.keys():
+            arr = newSS.getELBOTerm(key)
+            assert np.allclose(0, arr)
+    else:
+        assert self.ELBOReady is True
 
     ## TODO adjust LPmemory??
     return newModel, newSS
@@ -1373,52 +1375,3 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
     if self.doDebugVerbose():
       self.print_msg('<<<<<<<< END   double-check @ lap %.2f' % (self.lapFrac))
-
-
-"""
-DEPRECATED CODE from load_suff_stats_for_batch
-
-    # Adjust / replace terms related to expansion
-    MoveInfoList = list()
-    if prevBirthResults is not None:
-      MoveInfoList.extend(prevBirthResults)
-    if BirthResults is not None:
-      MoveInfoList.extend(BirthResults)
-    for MInfo in MoveInfoList:
-      if 'AdjustInfo' in MInfo and MInfo['AdjustInfo'] is not None:
-        if 'bchecklist' not in MInfo:
-          MInfo['bchecklist'] = np.zeros(int(self.nBatch))
-        bchecklist = MInfo['bchecklist']
-        if bchecklist[batchID] > 0:
-          continue
-        # Do the adjustment work
-        for key in MInfo['AdjustInfo']:
-          if hasattr(SSchunk, key):
-            Kmax = MInfo['AdjustInfo'][key].size
-            arr = getattr(SSchunk, key)
-            arr[:Kmax] += SSchunk.nDoc *  MInfo['AdjustInfo'][key]
-            SSchunk.setField(key, arr, dims=SSchunk._FieldDims[key])
-          elif SSchunk.hasELBOTerm(key):
-            Kmax = MInfo['AdjustInfo'][key].size
-            arr = SSchunk.getELBOTerm(key)
-            arr[:Kmax] += SSchunk.nDoc *  MInfo['AdjustInfo'][key]
-            SSchunk.setELBOTerm(key, arr, dims='K')
-
-        # Record visit, so adjustment is only done once
-        bchecklist[batchID] = 1
-    # Run backwards through results to find most recent ReplaceInfo
-    for MInfo in reversed(MoveInfoList):
-      if 'ReplaceInfo' in MInfo and MInfo['ReplaceInfo'] is not None:
-        if MInfo['bchecklist'][batchID] > 1:
-          break # this batch has had replacements done already
-        for key in MInfo['ReplaceInfo']:
-          if hasattr(SSchunk, key):
-            arr = SSchunk.nDoc * MInfo['ReplaceInfo'][key]
-            SSchunk.setField(key, arr, dims=SSchunk._FieldDims[key])
-          elif SSchunk.hasELBOTerm(key):
-            arr = SSchunk.nDoc * MInfo['ReplaceInfo'][key]
-            SSchunk.setELBOTerm(key, arr, dims=None)
-
-        MInfo['bchecklist'][batchID] = 2
-        break # Stop after the first ReplaceInfo
-"""
