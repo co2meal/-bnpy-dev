@@ -172,7 +172,11 @@ def calcRlogR_numpy(R):
   return np.sum(R * np.log(R), axis=0)
 
 def calcRlogR_numexpr(R):
-  return ne.evaluate("sum(R*log(R), axis=0)")
+  if R.shape[0] > 1:
+    return ne.evaluate("sum(R*log(R), axis=0)")
+  else:
+    # Edge case: numexpr somehow fails if R has shape (1,K)
+    return calcRlogR_numpy(R)
 
 
 ########################################################### standard RlogRdotv
