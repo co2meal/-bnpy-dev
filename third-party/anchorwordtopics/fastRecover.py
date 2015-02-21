@@ -2,7 +2,6 @@ import time
 import sys
 from numpy import *
 import multiprocessing
-#from gurobipy import *
 
 def do_recovery(Q, anchors, loss, params):
     if loss == "originalRecover":
@@ -429,7 +428,7 @@ def nonNegativeRecover(Q, anchors, outfile_name, divergence, max_threads, initia
     
     #normalize the rows of Q_prime
     for v in xrange(V):
-        Q[v,:] = Q[v,:]/Q[v,:].sum()
+        Q[v,:] = Q[v,:] / (Q[v,:].sum() + 1e-14)
 
     s = time.time()
     A = matrix(zeros((V, K)))
@@ -500,17 +499,9 @@ def nonNegativeRecover(Q, anchors, outfile_name, divergence, max_threads, initia
                        (y, X, w, outfile_name, anchors, divergence,
                          XXT, initial_stepsize, epsilon))
                 A[w, :] = alpha
-                '''
-                if v % 1 == 0:
-                    print "word", v, it, "iterations. Gap", gap, "obj", obj, "final stepsize was", stepsize, "took", t, "seconds"
-                    print >>alphaLog, v, alpha
-                    alphaLog.flush()
-                    sys.stdout.flush()
-                '''
 
     #rescale A matrix
     #Bayes rule says P(w|z) proportional to P(z|w)P(w)
-
     A = P_w * A
 
     #normalize columns of A. This is the normalization constant P(z)

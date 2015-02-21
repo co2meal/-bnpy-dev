@@ -16,14 +16,13 @@ def findAnchors(Q, K, params, candidates):
         Q[i, :] = Q[i, :]/float(row_sums[i] + 1e-100)    
 
     # Reduced dimension random projection method for recovering anchor words
-    if params.lowerDim is None:
+    if params.lowerDim is None  or params.lowerDim >= Q.shape[1]:
       Q_red = Q.copy()
     else:
       # Random number generator for generating dimension reduction
       prng_W = RandomState(params.seed)
       Q_red = rp.Random_Projection(Q.T, params.lowerDim, prng_W)
       Q_red = Q_red.T
-
     (anchors, anchor_indices) = gs.Projection_Find(Q_red, K, candidates)
 
     # restore the original Q

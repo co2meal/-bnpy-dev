@@ -366,9 +366,10 @@ class WordsData(DataObj):
       return getattr(self, key)
 
     ## Create CSR matrix representation
-    C = scipy.sparse.csr_matrix((self.word_count, self.word_id, self.doc_range),
-                                 shape=(self.nDoc, self.vocab_size), 
-                                 dtype=np.float64)
+    C = scipy.sparse.csr_matrix(
+        (self.word_count, self.word_id, self.doc_range),
+        shape=(self.nDoc, self.vocab_size), 
+        dtype=np.float64)
     setattr(self, key, C)
     return C
 
@@ -377,6 +378,67 @@ class WordsData(DataObj):
                 '__DocTypeCountMat', '__sparseDocTypeCountMat']:
       if hasattr(self, key):
         del self.__dict__[key]
+
+
+  def getWordTypeCooccurMatrix(self, dtype=np.float64):
+    """ Calculate building blocks for word-word cooccur calculation
+
+        Returns
+        -------
+        Q : 2D matrix, W x W (where W is vocab_size)
+    """
+    Q, sameWordVec, _ = self.getWordTypeCooccurPieces(dtype=dtype)
+    return self._calcWordTypeCooccurMatrix(Q, sameWordVec, self.nDoc)
+
+
+  def getWordTypeCooccurPieces(self, dtype=np.float32):
+    """ Calculate building blocks for word-word cooccur calculation
+
+        These pieces can be used for incremental construction.
+
+        Returns
+        -------
+        Q : 2D matrix, W x W (where W is vocab_size)
+        sameWordVec : 1D array, size W
+        nDoc : scalar
+    """
+    sameWordVec = np.zeros(self.vocab_size)
+    data = np.zeros(self.word_count.shape, dtype=dtype)
+
+    for docID in xrange(self.nDoc):
+      start = self.doc_range[docID]
+      stop = self.doc_range[docID+1]
+      N = self.word_count[start:stop].sum()
+      NNm1 = N * (N-1)
+      sameWordVec[self.word_id[start:stop]] += \
+          self.word_count[start:stop] / NNm1
+      data[start:stop] = self.word_count[start:stop] / np.sqrt(NNm1)
+
+    ## Now, create a sparse matrix that's D x V
+    sparseDocWordMat = scipy.sparse.csr_matrix(
+                             (data, self.word_id, self.doc_range),
+                             shape=(self.nDoc, self.vocab_size), 
+                             dtype=dtype)
+    ## Q : V x V
+    from sklearn.utils.extmath import safe_sparse_dot
+    Q = safe_sparse_dot(sparseDocWordMat.T, sparseDocWordMat, dense_output=1)
+    return Q, sameWordVec, self.nDoc
+
+  def _calcWordTypeCooccurMatrix(self, Q, sameWordVec, nDoc):
+    """ Transform building blocks into the final Q matrix
+
+        Returns
+        -------
+        Q : 2D array, size W x W (where W is vocab_size)
+    """
+    Q /= nDoc
+    sameWordVec /= nDoc
+    diagIDs = np.diag_indices(self.vocab_size)
+    Q[diagIDs] -= sameWordVec
+    
+    # Fix small numerical issues (like diag entries of -1e-15 instead of 0)
+    np.maximum(Q, 0, out=Q)
+    return Q
 
 
   ######################################################### Add new documents
