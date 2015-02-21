@@ -51,6 +51,8 @@ def plotCompsForTask(taskpath, lap=None, figH=None,
       bnpy.viz.GaussViz.plotGauss2DFromHModel(hmodel, figH=figH)
     elif hmodel.obsModel.D == 1:
       bnpy.viz.GaussViz.plotGauss1DFromHModel(hmodel, figH=figH)
+  elif obsName.count('Bern'):
+      bnpy.viz.BernViz.plotCompsFromHModel(hmodel, figH=figH)
   elif obsName.count('Mult'):
     if dataName.lower().count('bars') > 0:
       bnpy.viz.BarsViz.plotBarsFromHModel(hmodel, figH=figH, **kwargs) 
