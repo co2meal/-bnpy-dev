@@ -1,21 +1,18 @@
-''' 
+"""
 Functions for planning a delete move.
 
 - makePlanForEmptyComps
-
 - makePlanForEligibleComps
-
 - getEligibleCompInfo
-
 - getEligibleCount
-
-'''
+"""
 
 import numpy as np
 from bnpy.deletemove import DeleteLogger
 
+
 def makePlanForEmptyComps(curSS, dtargetMinCount=0.01, **kwargs):
-    ''' Create a Plan dict for any empty states.
+    """ Create a Plan dict for any empty states.
 
         Returns
         -------
@@ -24,21 +21,22 @@ def makePlanForEmptyComps(curSS, dtargetMinCount=0.01, **kwargs):
                * candidateUIDs
 
         Any "empty" Plan dict indicates that no empty comps exist.
-    '''
+    """
     Nvec = curSS.getCountVec()
     emptyIDs = np.flatnonzero(Nvec < dtargetMinCount)
     if len(emptyIDs) == 0:
-      return dict()
+        return dict()
     Plan = dict(candidateIDs=emptyIDs.tolist(),
                 candidateUIDs=curSS.uIDs[emptyIDs].tolist(),
-               )
+                )
     return Plan
 
+
 def makePlanForEligibleComps(SS, DRecordsByComp=None,
-                                 dtargetMaxSize=10,
-                                 deleteFailLimit=2,
-                                 lapFrac=-1,
-                                 **kwargs):
+                             dtargetMaxSize=10,
+                             deleteFailLimit=2,
+                             lapFrac=-1,
+                             **kwargs):
     ''' Create a Plan dict for any non-empty states eligible for a delete move.
 
         Really just a thin wrapper around getEligibleCompInfo,
@@ -59,8 +57,8 @@ def makePlanForEligibleComps(SS, DRecordsByComp=None,
         DeleteLogger.log(msg)
 
     Plan = getEligibleCompInfo(SS, DRecordsByComp, dtargetMaxSize,
-                                  deleteFailLimit,
-                                  **kwargs)
+                               deleteFailLimit,
+                               **kwargs)
 
     if len(Plan.keys()) > 0:
         nEligibleBySize = len(Plan['eligible-by-size-UIDs'])
@@ -69,7 +67,7 @@ def makePlanForEligibleComps(SS, DRecordsByComp=None,
     else:
         nEligibleBySize = 0
 
-    DeleteLogger.log('Comp UIDs eligible by size (Limit=%d)' \
+    DeleteLogger.log('Comp UIDs eligible by size (Limit=%d)'
                      % (dtargetMaxSize))
     if nEligibleBySize == 0:
         DeleteLogger.log('  None.')
@@ -86,14 +84,13 @@ def makePlanForEligibleComps(SS, DRecordsByComp=None,
         DeleteLogger.logPosVector(sizeVec, fmt='%5d', prefix=' sizes:')
         DeleteLogger.logPosVector(failVec, fmt='%5d', prefix=' nFail:')
 
-
         DeleteLogger.log('Eligible UIDs eliminated by failure count:')
         if nRemovedByFailLimit > 0:
             DeleteLogger.logPosVector(Plan['eliminatedUIDs'], fmt='%5d')
         else:
             DeleteLogger.log('  None.')
 
-        DeleteLogger.log('Num Tier1 = %d.  Num Tier2 = %d.' \
+        DeleteLogger.log('Num Tier1 = %d.  Num Tier2 = %d.'
                          % (Plan['nCandidateTier1'], Plan['nCandidateTier2']))
         DeleteLogger.log('Selected candidate comps: UIDs and sizes')
         if nFinalCandidates > 0:
@@ -107,10 +104,10 @@ def makePlanForEligibleComps(SS, DRecordsByComp=None,
 
 
 def getEligibleCompInfo(SS, DRecordsByComp=None,
-                           dtargetMaxSize=10,
-                           deleteFailLimit=2,
-                           **kwargs):
-    ''' Get a dict containing lists of component ids eligible for deletion.
+                        dtargetMaxSize=10,
+                        deleteFailLimit=2,
+                        **kwargs):
+    """ Get a dict of lists of component ids eligible for deletion.
 
         Returns
         -------
@@ -122,36 +119,36 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
 
         Post Condition
         -----------
-        DRecordsByComp will have an entry for each candidate uID 
+        DRecordsByComp will have an entry for each candidate uID
         including updated fields:
         * 'count' : value of SS.getCountVec() corresponding to comp uID
-        * 'nFail' : 
-    '''
+        * 'nFail' : number of previous failed delete attempts on uID
+    """
     assert hasattr(SS, 'uIDs')
     if DRecordsByComp is None:
         DRecordsByComp = dict()
 
-    ## -------------------------    Measure size of each current state
+    # ----    Measure size of each current state
     # CountVec refers to individual tokens/atoms
     CountVec = SS.getCountVec()
 
-    # SizeVec refers to smallest-possible exchangeable units of data 
-    #         e.g. documents in a topic-model, sequences for an HMM
+    # SizeVec refers to smallest-possible exchangeable units of data
+    # e.g. documents in a topic-model, sequences for an HMM
     if SS.hasSelectionTerm('DocUsageCount'):
         SizeVec = SS.getSelectionTerm('DocUsageCount')
     else:
-        SizeVec = 2 * CountVec # conservative overestimate
+        SizeVec = 2 * CountVec  # conservative overestimate
 
-    ## -------------------------    Find states small enough for delete
+    # ----    Find states small enough for delete
     eligibleIDs = np.flatnonzero(SizeVec < dtargetMaxSize)
     eligibleUIDs = SS.uIDs[eligibleIDs]
 
-    ## -------------------------    Return blank dict if no eligibles found
+    # ----    Return blank dict if no eligibles found
     if len(eligibleIDs) == 0:
         return dict()
 
-    ## -------------------------    Filter out records of states 
-    ## -                            that changed recently
+    # ----    Filter out records of states
+    # -       that changed recently
     CountMap = dict()
     SizeMap = dict()
     for ii, uID in enumerate(eligibleUIDs):
@@ -166,7 +163,7 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
         if percDiff > 0.15:
             del DRecordsByComp[uID]
 
-    ## --------------------------    Update DRecordsByComp
+    # ----    Update DRecordsByComp
     for uID in eligibleUIDs:
         if uID not in DRecordsByComp:
             DRecordsByComp[uID] = dict()
@@ -174,9 +171,9 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
             DRecordsByComp[uID]['nFail'] = 0
         DRecordsByComp[uID]['count'] = CountMap[uID]
 
-    ## --------------------------    Prioritize eligible comps by 
-    ## -                             * size (smaller preferred)
-    ## -                             * previous failures (fewer preferred)
+    # ----    Prioritize eligible comps by
+    # -       * size (smaller preferred)
+    # -       * previous failures (fewer preferred)
     tier1UIDs = list()
     tier2UIDs = list()
     eliminatedUIDs = list()
@@ -191,15 +188,15 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
             # Any uID here is ineligible for a delete proposal.
             eliminatedUIDs.append(uID)
 
-    ## --------------------------    Select as many first tier as possible
-    ##                               until the target dataset budget is exceeded 
+    # -----    Select as many first tier as possible
+    # until the target dataset budget is exceeded
     if len(tier1UIDs) > 0:
         tier1AggSize = np.cumsum([SizeMap[uID] for uID in tier1UIDs])
 
         # maxLoc is an integer in {0, 1, ... |tier1UIDs|}
         # maxLoc equals m if we want everything at positions 0:m
         maxLoc = np.searchsorted(tier1AggSize, dtargetMaxSize)
-        maxPos = np.maximum(0, maxLoc-1)
+        maxPos = np.maximum(0, maxLoc - 1)
 
         selectUIDs = tier1UIDs[:maxLoc]
         curTargetSize = tier1AggSize[maxPos]
@@ -207,10 +204,10 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
         selectUIDs = list()
         curTargetSize = 0
 
-    ## --------------------------    Fill remaining budget from second tier
+    # ----    Fill remaining budget from second tier
     if curTargetSize < dtargetMaxSize:
         tier2AggSize = np.cumsum([SizeMap[x] for x in tier2UIDs])
-        maxLoc = np.searchsorted(tier2AggSize, dtargetMaxSize-curTargetSize)
+        maxLoc = np.searchsorted(tier2AggSize, dtargetMaxSize - curTargetSize)
         selectUIDs = np.hstack([selectUIDs, tier2UIDs[:maxLoc]])
 
     selectMass = [SizeMap[x] for x in selectUIDs]
@@ -237,16 +234,15 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
 
 
 def getEligibleCount(SS, **kwargs):
-  ''' Get count of all current active comps eligible for deletion
+    """ Get count of all current active comps eligible for deletion
 
-      Returns
-      -------
-      count : int 
-  '''
-  Plan = getEligibleCompInfo(SS, **kwargs)
-  if 'tier1UIDs' in Plan:
-      nTotalEligible = len(Plan['tier1UIDs']) + len(Plan['tier2UIDs'])
-  else:
-      nTotalEligible = 0
-  return nTotalEligible
-          
+        Returns
+        -------
+        count : int
+    """
+    Plan = getEligibleCompInfo(SS, **kwargs)
+    if 'tier1UIDs' in Plan:
+        nTotalEligible = len(Plan['tier1UIDs']) + len(Plan['tier2UIDs'])
+    else:
+        nTotalEligible = 0
+    return nTotalEligible
