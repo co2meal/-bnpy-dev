@@ -573,11 +573,26 @@ class HDPHMM(AllocModel):
                      self.kappa, self.startAlpha)
         return L_ent + Lalloc + Ltop
 
+    def calcELBOFromSS_NoCacheableTerms(self, SS):
+        ''' Calculate sum of all objective terms except the entropy.
+
+            Returns
+            -------
+            scalar
+        '''
+        Lalloc = L_alloc_no_slack(self.initTheta, self.transTheta)
+        Ltop = L_top(self.rho, self.omega, self.alpha, self.gamma,
+                     self.kappa, self.startAlpha)
+        return Lalloc + Ltop
+
     def elbo_entropy(self, Data, LP):
         ''' Calculates entropy of state seq. assignment var. distribution
         '''
         return HMMUtil.calcEntropyFromResp(LP['resp'], LP['respPair'], Data)
 
+
+    ######################################################### Merge ELBO
+    ######################################################### 
     def calcHardMergeGap(self, SS, kA, kB):
       ''' Calculate scalar improvement in ELBO for hard merge of comps kA, kB
           
@@ -636,8 +651,42 @@ class HDPHMM(AllocModel):
         Gaps[ii] = self.calcHardMergeGap(SS, kA, kB)
       return Gaps
 
-  ######################################################### IO Utils
-  #########################################################   for machines
+
+    ######################################################### Delete ELBO
+    ######################################################### 
+    def calcCachedELBOGapForDeleteProposal(self, SSall_before,
+                                                 SStarget_before,
+                                                 SStarget_after,
+                                                 delCompUIDs):
+        ''' Calculate (approx) improvement in entropy term after a delete
+        '''
+        remCompIDs = list()
+        for k in xrange(SSall_before.K):
+            if SSall_before.uIDs[k] not in delCompUIDs:
+                remCompIDs.append(k)
+
+        Hstart_all_before = SSall_before.getELBOTerm('Hstart')
+        Hstart_target_before = SStarget_before.getELBOTerm('Hstart')
+        Hstart_rest_before = Hstart_all_before - Hstart_target_before
+        Hstart_rest_after = Hstart_rest_before[remCompIDs].sum()
+        Hstart_target_after = SStarget_after.getELBOTerm('Hstart').sum()
+
+        Htable_all_before = SSall_before.getELBOTerm('Htable')
+        Htable_target_before = SStarget_before.getELBOTerm('Htable')
+        Htable_rest_before = Htable_all_before - Htable_target_before
+        Htable_rest_after = Htable_rest_before[remCompIDs, remCompIDs].sum()
+        Htable_target_after = SStarget_after.getELBOTerm('Htable').sum()
+
+        gap = Htable_all_before.sum() \
+               - Htable_rest_after \
+               - Htable_target_after \
+               + Hstart_all_before.sum() \
+               - Hstart_rest_after \
+               - Hstart_target_after
+        return gap
+
+    ######################################################### IO Utils
+    #########################################################   for machines
 
 
     def to_dict(self):

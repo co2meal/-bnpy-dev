@@ -17,8 +17,8 @@ from bnpy.birthmove import TargetPlanner, TargetDataSampler, BirthMove
 from bnpy.birthmove import BirthLogger
 from bnpy.mergemove import MergeMove, MergePlanner, MergeLogger
 from bnpy.birthmove.TargetDataSampler import hasValidKey
-from bnpy.deletemove import DeletePlanner, DTargetDataCollector
-from bnpy.deletemove import runDeleteMove_Target, DeleteLogger
+from bnpy.deletemove import DPlanner, DCollector, DEvaluator
+from bnpy.deletemove import DeleteLogger
 
 class MOVBBirthMergeAlg(MOVBAlg):
 
@@ -90,7 +90,6 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
     ## Prep for delete
     DeletePlans = list()
-    DocUsageCount = None
 
     ## Begin loop over batches of data...
     SS = None
@@ -124,14 +123,12 @@ class MOVBBirthMergeAlg(MOVBAlg):
           convThr = finalConvThr + initConvThr * np.exp(-7 * fracComplete)
           self.algParamsLP['convThrLP'] = convThr
 
-      ## Prepare for delete move
+      ## Delete : Evaluate all planned proposals
       if self.isFirstBatch(lapFrac) and self.hasMove('delete'):
         self.DeleteAcceptRecord = dict()
         if self.doDeleteAtLap(lapFrac):
-          hmodel, SS = self.deleteRunMoveAndUpdateMemory(hmodel, SS, 
-                                                         DeletePlans, order)
-        if lapFrac > 1 and SS.hasSelectionTerm('DocUsageCount'):
-          DocUsageCount = SS.getSelectionTerm('DocUsageCount')
+          hmodel, SS = self.deleteAndUpdateMemory(hmodel, SS, 
+                                                  DeletePlans, order)
         DeletePlans = list()
 
       ## Birth move : track birth info from previous lap
@@ -179,20 +176,29 @@ class MOVBBirthMergeAlg(MOVBAlg):
       self.algParamsLP['batchID'] = batchID
       LPchunk = self.memoizedLocalStep(hmodel, Dchunk, batchID,
                                        MergePrepInfo=MergePrepInfo)
-      
+
       ## Summary step
       SS, SSchunk = self.memoizedSummaryStep(hmodel, SS,
                                              Dchunk, LPchunk, batchID,
                                              MergePrepInfo=MergePrepInfo,
                                              order=order)
 
-      ## Delete move : collect target data
+      ## Delete : Make plan for comps to target during next lap
       if self.hasMove('delete') and self.doDeleteAtLap(lapFrac+1):
         if self.isFirstBatch(lapFrac):
-          DeletePlans = self.deleteMakePlans(Dchunk, SS, DocUsageCount)
-        if len(DeletePlans) > 0:
-          self.deleteCollectTarget(Dchunk, hmodel, LPchunk, batchID, 
-                                   DeletePlans)
+          Plan = DPlanner.makePlanForEligibleComps(SS, 
+                                     lapFrac=self.lapFrac,
+                                     DRecordsByComp=self.DeleteRecordsByComp,
+                                     **self.algParams['delete'])
+          if 'candidateUIDs' in Plan:
+              DeletePlans = [Plan]
+          else:
+              DeletePlans = []
+      ## Delete : Collect the 
+      if len(DeletePlans) > 0:
+          DeletePlans = self.deleteCollectTarget(Dchunk, hmodel, LPchunk, 
+                                                 batchID,
+                                                 DeletePlans)
 
       ## Birth move : collect target data
       if self.hasMove('birth') and self.do_birth_at_lap(lapFrac+1.0):
@@ -298,14 +304,19 @@ class MOVBBirthMergeAlg(MOVBAlg):
       ## Time's up, so doesn't matter what other moves are possible.
       return False
 
-    if self.hasMove('delete') and self.doDeleteAtLap(lapFrac):
+    if self.hasMove('delete'):
       ## If any eligible comps exist, we have more moves possible
       ## so return True
+      deleteStartLap = self.algParams['delete']['deleteStartLap']
       nBeforeQuit = self.algParams['delete']['deleteNumStuckBeforeQuit']
       waitedLongEnough = (lapFrac - self.lapLastAcceptedDelete) > nBeforeQuit
 
+      # If we haven't even tried deletes for sufficent num laps, keep going
+      if lapFrac <= deleteStartLap + nBeforeQuit:
+        return True
+
       if isEvenlyDivisibleFloat(lapFrac, 1.0):
-        nEligible = DeletePlanner.getEligibleCount(SS, 
+        nEligible = DPlanner.getEligibleCount(SS, 
                                     DRecordsByComp=self.DeleteRecordsByComp,
                                     **self.algParams['delete'])
       else:
@@ -1151,138 +1162,163 @@ class MOVBBirthMergeAlg(MOVBAlg):
       return False
     return lapFrac >= self.algParams['delete']['deleteStartLap']
 
-  def deleteMakePlans(self, Dchunk, SS, DocUsageCount):
-    Plans = DeletePlanner.makePlans(SS, Dchunk, DocUsageCount,
-                                    lapFrac=self.lapFrac,
-                                    DRecordsByComp=self.DeleteRecordsByComp,
-                                    **self.algParams['delete'])  
-    return Plans
-
-  def deleteCollectTarget(self, Dchunk, hmodel, LPchunk, batchID,
+  def deleteCollectTarget(self, Dchunk, hmodel, LPchunk, 
+                                batchID,
                                 DeletePlans):
-    for DPlan in DeletePlans:
-      DTargetDataCollector.addDataFromBatchToPlan(DPlan, Dchunk, 
-                                  hmodel, LPchunk,
-                                  batchID,
-                                  uIDs=self.ActiveIDVec,
-                                  lapFrac=self.lapFrac,
-                                  isFirstBatch=self.isFirstBatch(self.lapFrac),
-                                  **self.algParams['delete'])
+    """ Add relevant subset of data from provided chunk to Plan
 
+        Returns
+        -------
+        DeletePlans. Updated in place.
+    """
+    for planID, Plan in enumerate(DeletePlans):
+        Plan = DCollector.addDataFromBatchToPlan(Plan, hmodel, Dchunk, LPchunk,
+                                 batchID=batchID,
+                                 uIDs=self.ActiveIDVec,
+                                 lapFrac=self.lapFrac,
+                                 isFirstBatch=self.isFirstBatch(self.lapFrac),
+                                 **self.algParams['delete'])
+        if len(Plan.keys()) == 0:
+            # Empty Plan dict means it went over budget
+            # So, we should remove this Plan from consideration
+            DeletePlans.pop(planID)
+    return DeletePlans
 
-  def deleteRunMoveAndUpdateMemory(self, hmodel, SS, DeletePlans, order=None):
+  def deleteAndUpdateMemory(self, hmodel, SS, DeletePlans, order=None):
+    """ Construct and evaluate planned and last-minute empty delete proposals.
+
+        Returns
+        -------
+        hmodel : bnpy.HModel with updated fields
+        SS : bnpy.suffstats.SuffStatBag, with updated fields
+    """
     self.ELBOReady = True
     self.DeleteAcceptRecord = dict()
-    if self.lapFrac < 1 or SS is None:
+    if self.lapFrac <= 1 or SS is None:
       return hmodel, SS
 
-    DeleteLogger.log('<<<<<<<<<<<<<<<<<<<<<<<<< RunMoveAndUpdateMemory')
-
     ## Make last minute plan for any empty comps
-    EPlan = DeletePlanner.makePlanForEmptyTopics(SS, 
-                                  **self.algParams['delete'])
-    if 'uIDs' in EPlan:
-      nEmpty = len(EPlan['uIDs'])
-      DeleteLogger.log('Last-minute Plan: %d empty' % (nEmpty))
-      if hasattr(self, 'MergeLog') and len(self.MergeLog) > 0:
-        DeleteLogger.log('Skipped other plans due to accepted merge.')
-        ## Accepted Merge means all deletes except trivial one get skipped
-        DeletePlans = [EPlan]
-      else:      
-        ## Adjust the existing plans so EmptyPlan goes first
-        ## and the comps deleted by EmptyPlan are not repeated later
-        remPlanIDs = []
-        for dd, DPlan in enumerate(DeletePlans):
-          remIDs = list()
-          for ii, uid in enumerate(DPlan['uIDs']):
-            if uid in EPlan['uIDs']:
-              remIDs.append(ii)
-          for ii in reversed(sorted(remIDs)):
-            DPlan['uIDs'].pop(ii)
-            DPlan['selectIDs'].pop(ii)
-          if len(DPlan['selectIDs']) == 0:
-            remPlanIDs.append(dd)
-        for rr in reversed(remPlanIDs):
-          DeletePlans.pop(rr)
-        # Insert EmptyPlan at front of the line
-        DeletePlans.insert(0, EPlan)
-    else:
-      if hasattr(self, 'MergeLog') and len(self.MergeLog) > 0:
-        DeleteLogger.log('Skipped due to accepted merge.')
-        return hmodel, SS
+    EPlan = DPlanner.makePlanForEmptyComps(SS, 
+                                           **self.algParams['delete'])
 
+    if hasattr(self, 'MergeLog') and len(self.MergeLog) > 0:
+      ## Accepted merge means skip all deletes except the trivial ones
+      if 'candidateUIDs' in EPlan:
+          DeletePlans = [EPlan]
+      else:
+          return hmodel, SS
+    else:
+      if 'candidateUIDs' in EPlan:
+          nEmpty = len(EPlan['candidateUIDs'])
+          DeleteLogger.log('Last-minute Plan: %d empty' % (nEmpty))
+
+          # Adjust the existing plan so comps deleted by EmptyPlan
+          # are not repeated later
+          if len(DeletePlans) > 0:
+              DPlan = DeletePlans[0]
+              remIDs = list()
+              for ii, uid in enumerate(DPlan['candidateUIDs']):
+                  if uid in EPlan['candidateUIDs']:
+                      remIDs.append(ii)
+              for ii in reversed(sorted(remIDs)):
+                  DPlan['candidateUIDs'].pop(ii)
+
+              if len(DPlan['candidateUIDs']) == 0:
+                  DeletePlans = [EPlan]
+              else:
+                  DeletePlans = [DPlan, EPlan]
+          else:
+              DeletePlans = [EPlan]
+
+    ## Evaluate each proposal
     newSS = SS.copy()
     newModel = hmodel.copy()
-    ## Run Move and see if improved
     for moveID, DPlan in enumerate(DeletePlans):
-      if moveID == 0:
-        self.fastForwardMemory(Kfinal=newSS.K, order=order)
+        if moveID == 0:
+            self.fastForwardMemory(Kfinal=newSS.K, order=order)
 
-      if 'DTargetData' in DPlan:
-        ## Updates SSmemory in-place
-        newModel, newSS, DPlan = runDeleteMove_Target(newModel, newSS, DPlan,
-                                    LPkwargs=self.algParamsLP,
-                                    SSmemory=self.SSmemory,
-                                    **self.algParams['delete'])
-        nYes = len(DPlan['acceptedUIDs'])
-        nAttempt = len(DPlan['uIDs'])
-        DeleteLogger.log('DELETE %d/%d accepted' % (nYes, nAttempt),
-                         'info')
-      else:
-        ## Auto-accepted delete (specific only for empty comps)
-        DPlan['didAccept'] = 2
-        DPlan['acceptedUIDs'] = DPlan['uIDs']
-        newSS.setELBOFieldsToZero()
-        newSS.setMergeFieldsToZero()
-        for uID in DPlan['uIDs']:
-          kk = np.flatnonzero(newSS.uIDs == uID)[0]
-          newSS.removeComp(kk)
-        newModel.update_global_params(newSS)
-        DeleteLogger.log('DELETED %d empty comps' % (len(DPlan['uIDs'])),
-                         'info') 
+        if 'DTargetData' in DPlan:
+            ## Updates SSmemory in-place
+            newModel, newSS, self.SSmemory, DPlan = \
+                 DEvaluator.runDeleteMoveAndUpdateMemory(newModel, newSS, 
+                                                   DPlan,                
+                                                   LPkwargs=self.algParamsLP,
+                                                   SSmemory=self.SSmemory,
+                                                   lapFrac=self.lapFrac,
+                                                   **self.algParams['delete'])
 
-        for mID in range(moveID+1, len(DeletePlans)):
-          FuturePlan = DeletePlans[mID]
-          for uID in DPlan['uIDs']:
-            targetSS = FuturePlan['targetSS']
-            kk = np.flatnonzero(targetSS.uIDs == uID)[0]
-            targetSS.removeComp(kk)
-            for batchID in FuturePlan['targetSSByBatch']:
-              FuturePlan['targetSSByBatch'][batchID].removeComp(kk)
+            nYes = len(DPlan['acceptedUIDs'])
+            nAttempt = len(DPlan['candidateUIDs'])
+            DeleteLogger.log('DELETE %d/%d accepted' % (nYes, nAttempt),
+                             'info')
+        else:
+            ## Auto-accepted delete (specific only for empty comps)
+            DPlan['didAccept'] = 2
+            DPlan['acceptedUIDs'] = DPlan['candidateUIDs']
 
+            # Make all stats stored in Memory have correct size
+            for uID in DPlan['acceptedUIDs']:
+                kk = np.flatnonzero(newSS.uIDs == uID)[0]
+                newSS.removeComp(kk)
+                for batchID in self.SSmemory:
+                    self.SSmemory[batchID].removeComp(kk)
+
+            # Reset all ELBO and Merge terms stored in Memory
+            for batchID in self.SSmemory:
+                self.SSmemory[batchID].setELBOFieldsToZero()
+                self.SSmemory[batchID].setMergeFieldsToZero()
+
+            newSS.setELBOFieldsToZero()
+            newSS.setMergeFieldsToZero()
+            newModel.update_global_params(newSS)
+
+            nEmpty = len(DPlan['candidateUIDs'])
+            DeleteLogger.log('DELETED %d empty comps' % (nEmpty),
+                             'info') 
+
+        # -------------------    Update DeleteRecords
+        for uID in DPlan['candidateUIDs']:
+            if uID in DPlan['acceptedUIDs']:
+                if uID in self.DeleteRecordsByComp:
+                    del self.DeleteRecordsByComp[uID]
+            else:
+                if uID not in self.DeleteRecordsByComp:
+                    self.DeleteRecordsByComp[uID]['nFail'] = 0
+                self.DeleteRecordsByComp[uID]['nFail'] += 1
+
+
+        if DPlan['didAccept']:
+            self.ELBOReady = False
+            self.ActiveIDVec = newSS.uIDs.copy()
+            self.lapLastAcceptedDelete = self.lapFrac
+
+            acceptedUIDs = [x for x in DPlan['acceptedUIDs']]
+            if 'origUIDs' not in self.DeleteAcceptRecord:
+                self.DeleteAcceptRecord['origUIDs'] = SS.uIDs.copy()
+                self.DeleteAcceptRecord['acceptedUIDs'] = acceptedUIDs
+            else:
+                self.DeleteAcceptRecord['acceptedUIDs'].extend(acceptedUIDs)
 
         for batchID in self.SSmemory:
-          self.SSmemory[batchID].setELBOFieldsToZero()
-          self.SSmemory[batchID].setMergeFieldsToZero()
-          for uID in DPlan['uIDs']:
-            kk = np.flatnonzero(self.SSmemory[batchID].uIDs == uID)[0]
-            self.SSmemory[batchID].removeComp(kk)
+            assert np.allclose(self.SSmemory[batchID].uIDs, self.ActiveIDVec)
+    # <<< end for loop over DeletePlans
 
-      ## Add/remove comp from the delete records
-      for uID in DPlan['uIDs']:
-        if uID in DPlan['acceptedUIDs']:
-          if uID in self.DeleteRecordsByComp:
-            del self.DeleteRecordsByComp[uID]
-        else:
-          if uID not in self.DeleteRecordsByComp:
-            self.DeleteRecordsByComp[uID]['nFail'] = 0
-          self.DeleteRecordsByComp[uID]['nFail'] += 1
-          kk = np.flatnonzero(newSS.uIDs == uID)[0]
-          self.DeleteRecordsByComp[uID]['count'] = newSS.getCountVec()[kk]
+    # Verify post-condition: same states represented by newSS and SSmemory
+    for batchID in self.SSmemory:
+      assert newSS.K == self.SSmemory[batchID].K
+      assert np.allclose(newSS.uIDs, self.SSmemory[batchID].uIDs)
 
-      if DPlan['didAccept']:
-        self.ELBOReady = False
-        self.ActiveIDVec = newSS.uIDs.copy()
-        self.lapLastAcceptedDelete = self.lapFrac
-
-        if 'origUIDs' not in self.DeleteAcceptRecord:
-          self.DeleteAcceptRecord['origUIDs'] = SS.uIDs
-          self.DeleteAcceptRecord['acceptedUIDs'] = DPlan['acceptedUIDs']
-        else:
-          self.DeleteAcceptRecord['acceptedUIDs'].extend(DPlan['acceptedUIDs'])
-
-        for batchID in self.SSmemory:
-          assert np.allclose(self.SSmemory[batchID].uIDs, self.ActiveIDVec)
+      if newSS.K < SS.K:
+          for key in self.SSmemory[batchID]._ELBOTerms._FieldDims.keys():
+              arr = self.SSmemory[batchID].getELBOTerm(key)
+              assert np.allclose(0, arr)
+    if newSS.K < SS.K:
+        assert self.ELBOReady is False
+        for key in newSS._ELBOTerms._FieldDims.keys():
+            arr = newSS.getELBOTerm(key)
+            assert np.allclose(0, arr)
+    else:
+        assert self.ELBOReady is True
 
     ## TODO adjust LPmemory??
     return newModel, newSS
@@ -1339,52 +1375,3 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
     if self.doDebugVerbose():
       self.print_msg('<<<<<<<< END   double-check @ lap %.2f' % (self.lapFrac))
-
-
-"""
-DEPRECATED CODE from load_suff_stats_for_batch
-
-    # Adjust / replace terms related to expansion
-    MoveInfoList = list()
-    if prevBirthResults is not None:
-      MoveInfoList.extend(prevBirthResults)
-    if BirthResults is not None:
-      MoveInfoList.extend(BirthResults)
-    for MInfo in MoveInfoList:
-      if 'AdjustInfo' in MInfo and MInfo['AdjustInfo'] is not None:
-        if 'bchecklist' not in MInfo:
-          MInfo['bchecklist'] = np.zeros(int(self.nBatch))
-        bchecklist = MInfo['bchecklist']
-        if bchecklist[batchID] > 0:
-          continue
-        # Do the adjustment work
-        for key in MInfo['AdjustInfo']:
-          if hasattr(SSchunk, key):
-            Kmax = MInfo['AdjustInfo'][key].size
-            arr = getattr(SSchunk, key)
-            arr[:Kmax] += SSchunk.nDoc *  MInfo['AdjustInfo'][key]
-            SSchunk.setField(key, arr, dims=SSchunk._FieldDims[key])
-          elif SSchunk.hasELBOTerm(key):
-            Kmax = MInfo['AdjustInfo'][key].size
-            arr = SSchunk.getELBOTerm(key)
-            arr[:Kmax] += SSchunk.nDoc *  MInfo['AdjustInfo'][key]
-            SSchunk.setELBOTerm(key, arr, dims='K')
-
-        # Record visit, so adjustment is only done once
-        bchecklist[batchID] = 1
-    # Run backwards through results to find most recent ReplaceInfo
-    for MInfo in reversed(MoveInfoList):
-      if 'ReplaceInfo' in MInfo and MInfo['ReplaceInfo'] is not None:
-        if MInfo['bchecklist'][batchID] > 1:
-          break # this batch has had replacements done already
-        for key in MInfo['ReplaceInfo']:
-          if hasattr(SSchunk, key):
-            arr = SSchunk.nDoc * MInfo['ReplaceInfo'][key]
-            SSchunk.setField(key, arr, dims=SSchunk._FieldDims[key])
-          elif SSchunk.hasELBOTerm(key):
-            arr = SSchunk.nDoc * MInfo['ReplaceInfo'][key]
-            SSchunk.setELBOTerm(key, arr, dims=None)
-
-        MInfo['bchecklist'][batchID] = 2
-        break # Stop after the first ReplaceInfo
-"""
