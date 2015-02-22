@@ -122,7 +122,7 @@ def create_best_link( hardmatfile, linkmatfile):
   if os.path.exists( hardmatfile ):
       # symlink support varies across Windows releases, so hard copy instead
       # possible alternative is win32file.CreateSymbolicLink()
-      if platform.startswith('win32') or platform.startwith('cygwin'):
+      if platform.startswith('win32') or platform.startswith('cygwin'):
           copy2( hardmatfile, linkmatfile )
       else:
           os.symlink( hardmatfile, linkmatfile )
