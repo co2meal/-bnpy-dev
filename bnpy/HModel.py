@@ -182,7 +182,8 @@ class HModel(object):
                 # Make sure K is exactly same for both alloc and obs models
                 # Needed because obsModel init can sometimes yield K < Kinput
                 initArgs['K'] = self.obsModel.K
-            self.allocModel.init_global_params(Data, **initArgs)
+            initArgs['Data'] = Data
+            self.allocModel.init_global_params(**initArgs)
 
     # ----    I/O Functions
     def getAllocModelName(self):

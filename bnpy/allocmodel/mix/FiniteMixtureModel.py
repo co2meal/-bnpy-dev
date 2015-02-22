@@ -1,11 +1,11 @@
 '''
 Bayesian parametric mixture model with finite number of components K.
-
 '''
 import numpy as np
 
 from bnpy.allocmodel import AllocModel
 from bnpy.suffstats import SuffStatBag
+from bnpy.util import NumericUtil
 from bnpy.util import logsumexp, np2flatstr, flatstr2np
 from bnpy.util import gammaln, digamma, EPS
 
@@ -28,7 +28,7 @@ class FiniteMixtureModel(AllocModel):
         estimated mixture weights for each component
         w[k] > 0 for all k, sum of vector w is equal to one
 
-    Attributes for VB/soVB/moVB
+    Attributes for VB
     ---------
     * theta : 1D array, size K
         Estimated parameters for Dirichlet posterior over mix weights
@@ -49,7 +49,12 @@ class FiniteMixtureModel(AllocModel):
             raise ValueError("Cannot perform MAP inference if param gamma < 1")
 
     def get_active_comp_probs(self):
-        ''' Return K vector of appearance probabilities for each of the K comps
+        ''' Get vector of appearance probabilities for each active comp.
+
+            Returns
+            -------
+            beta : 1D array, size K
+                beta[k] gives probability of comp. k under this model.
         '''
         if self.inferType == 'EM':
             return self.w
@@ -91,15 +96,12 @@ class FiniteMixtureModel(AllocModel):
         else:
             # Full Bayesian approach, for VB or GS algorithms
             lpr += self.Elogw
-            # Calculate exp in numerically stable manner
-            lpr -= np.max(lpr, axis=1)[:, np.newaxis]
-            np.exp(lpr, out=lpr)
-            # Normalize, so rows sum to one
-            lpr /= lpr.sum(axis=1)[:, np.newaxis]
+            # Calculate exp in numerically safe way,
+            # in-place so no new allocations occur
+            NumericUtil.inplaceExpAndNormalizeRows(lpr)
         LP['resp'] = lpr
         assert np.allclose(lpr.sum(axis=1), 1)
         return LP
-
 
     def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None, **kwargs):
         ''' Calculate sufficient statistics for global updates.
@@ -139,6 +141,12 @@ class FiniteMixtureModel(AllocModel):
         return SS
 
     def update_global_params_EM(self, SS, **kwargs):
+        """ Update attribute w to optimize the ELBO ML/MAP objective.
+
+        Post Condition for EM
+        -------
+        w set to valid vector of size SS.K.
+        """
         if np.allclose(self.gamma, 1.0):
             w = SS.N
         else:
@@ -147,91 +155,157 @@ class FiniteMixtureModel(AllocModel):
         self.K = SS.K
 
     def update_global_params_VB(self, SS, **kwargs):
+        """ Update attribute theta to optimize the ELBO objective.
+
+        Post Condition for VB
+        -------
+        theta set to valid posterior for SS.K components.
+        """
         self.theta = self.gamma + SS.N
         self.Elogw = digamma(self.theta) - digamma(self.theta.sum())
         self.K = SS.K
 
     def update_global_params_soVB(self, SS, rho, **kwargs):
+        """ Update attribute theta to optimize stochastic ELBO objective.
+
+        Post Condition for VB
+        -------
+        theta set to valid posterior for SS.K components.
+        """
         thetaStar = self.gamma + SS.N
         self.theta = rho * thetaStar + (1 - rho) * self.theta
         self.Elogw = digamma(self.theta) - digamma(self.theta.sum())
         self.K = SS.K
 
-    def init_global_params(self, Data, K=0, **kwargs):
-        ''' Initialize global parameters "from scratch" to prep for learning.
+    def init_global_params(self, K=0, **kwargs):
+        """ Initialize global parameters to reasonable default values.
 
-            Will yield uniform distribution (or close to) for all K components,
-            by performing a "pseudo" update in which only one observation was
-            assigned to each of the K comps.
+        Post Condition for EM
+        -------
+        w set to valid K vector.
 
-            Internal Updates
-            --------
-            Sets attributes w (for EM) or alpha (for VB)
-
-            Returns
-            --------
-            None.
-        '''
-        self.K = K
-        if self.inferType == 'EM':
-            self.w = 1.0 / K * np.ones(K)
-        else:
-            # one "pseudo count" per state
-            self.theta = self.gamma + np.ones(K)
-            self.Elogw = digamma(self.theta) - digamma(self.theta.sum())
-
-    def set_global_params(self, hmodel=None, K=None, w=None, beta=None,
-                          gamma=None, nObs=10, **kwargs):
-        ''' Directly set global parameters to provided values
-        '''
-        if beta is not None:
-            w = beta
-        if hmodel is not None:
-            self.K = hmodel.allocModel.K
-            if self.inferType == 'EM':
-                self.w = hmodel.allocModel.w
-            else:
-                self.theta = hmodel.allocModel.theta
-                self.Elogw = digamma(self.theta) - digamma(self.theta.sum())
-            return
-        else:
-            self.K = K
-            if self.inferType == 'EM':
-                self.w = w
-            else:
-                if w is not None:
-                    self.theta = w * nObs
-                elif theta is not None:
-                    self.theta = theta
-                self.Elogw = digamma(self.theta) - digamma(self.theta.sum())
-
-
-    def setParamsFromHModel(self, hmodel):
-        self.K = hmodel.allocModel.K
-        if self.inferType == 'EM':
-            self.w = hmodel.allocModel.w
-        else:
-            self.theta = hmodel.allocModel.theta
-            self.Elogw = digamma(self.theta) - digamma(self.theta.sum())
-
-    def setParamsFromScratch(self, K, N=None):
+        Post Condition for VB
+        -------
+        theta set to valid K vector.
         """
+        self.setParamsFromCountVec(K, np.ones(K))
+
+    def set_global_params(self, hmodel=None, K=None,
+                          w=None, beta=None,
+                          theta=None, **kwargs):
+        """ Set global parameters to provided values.
+
+        Post Condition for EM
+        -------
+        w set to valid vector with K components.
+
+        Post Condition for VB
+        -------
+        theta set to define valid posterior over K components.
+        """
+        if hmodel is not None:
+            self.setParamsFromHModel(hmodel)
+        elif beta is not None:
+            self.setParamsFromBeta(K, beta=beta)
+        elif w is not None:
+            self.setParamsFromBeta(K, beta=w)
+        elif theta is not None and self.inferType.count('VB'):
+            self.K = int(K)
+            self.theta = theta
+            self.Elogw = digamma(self.theta) - digamma(self.theta.sum())
+        else:
+            raise ValueError("Unrecognized set_global_params args")
+
+    def setParamsFromCountVec(self, K, N=None):
+        """ Set params to reasonable values given counts for each comp.
+
+        Parameters
+        --------
+        K : int
+            number of components
+        N : 1D array, size K. optional, default=[1 1 1 1 ... 1]
+            size of each component
+
+        Post Condition for EM
+        --------
+        Attribute w is set to posterior mean given provided vector N.
+        Default behavior sets w to uniform distribution.
+
+        Post Condition for VB
+        ---------
+        Attribute theta is set so q(w) equals posterior given vector N.
+        Default behavior has q(w) with mean of uniform and moderate variance.
         """
         if N is None:
             N = 1.0 * np.ones(K)
-        elif N.ndim == 0:
-            N = N * np.ones(K)
         assert N.ndim == 1
         assert N.size == K
+
+        self.K = int(K)
         if self.inferType == 'EM':
             self.w = (N + self.gamma) / (N + self.gamma).sum()
         else:
             self.theta = N + self.gamma
             self.Elogw = digamma(self.theta) - digamma(self.theta.sum())
 
-        
+    def setParamsFromBeta(self, K, beta=None):
+        """ Set params to reasonable values given comp probabilities.
+
+        Parameters
+        --------
+        K : int
+            number of components
+        beta : 1D array, size K. optional, default=[1 1 1 1 ... 1]
+            probability of each component
+
+        Post Condition for EM
+        --------
+        Attribute w is set to posterior mean given provided vector N.
+        Default behavior sets w to uniform distribution.
+
+        Post Condition for VB
+        ---------
+        Attribute theta is set so q(w) has mean of beta and moderate variance.
+        """
+        if beta is None:
+            beta = 1.0 / K * np.ones(K)
+        assert beta.ndim == 1
+        assert beta.size == K
+
+        self.K = int(K)
+        if self.inferType == 'EM':
+            self.w = beta.copy()
+        else:
+            self.theta = self.K * beta
+            self.Elogw = digamma(self.theta) - digamma(self.theta.sum())
+
+    def setParamsFromHModel(self, hmodel):
+        """ Set parameters exactly as in provided HModel object.
+
+        Parameters
+        ------
+        hmodel : bnpy.HModel
+            The model to copy parameters from.
+
+        Post Condition
+        ------
+        w or theta will be set exactly equal to hmodel's allocModel.
+        """
+        self.K = hmodel.allocModel.K
+        if self.inferType == 'EM':
+            self.w = hmodel.allocModel.w.copy()
+        else:
+            self.theta = hmodel.allocModel.theta.copy()
+            self.Elogw = digamma(self.theta) - digamma(self.theta.sum())
 
     def calc_evidence(self, Data, SS, LP, todict=False, **kwargs):
+        """ Calculate ELBO objective function value for provided state.
+
+        Returns
+        -------
+        L : scalar
+            represents sum of all terms in objective
+        """
         if self.inferType == 'EM':
             return LP['evidence'] + self.log_pdf_dirichlet(self.w)
         elif self.inferType.count('VB') > 0:
