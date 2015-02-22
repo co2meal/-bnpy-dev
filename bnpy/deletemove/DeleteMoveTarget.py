@@ -1,10 +1,6 @@
 import numpy as np
 from matplotlib import pylab
 
-from DeleteLPUtil import deleteCompFromResp_Renorm
-from DeleteLPUtil import deleteCompFromResp_SoftEv
-from DeleteLPUtil import deleteCompFromResp_SoftEvOverlap
-
 from DeleteLogger import log, logPosVector, logProbVector
 from bnpy.viz import BarsViz
 

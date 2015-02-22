@@ -3,6 +3,12 @@
 import os
 import sys
 
+# Configure PYTHONPATH
+root = os.path.sep.join(os.path.abspath(__file__).split(os.path.sep)[:-2])
+sys.path.append(os.path.join(root, 'datasets/'))
+sys.path.append(os.path.join(root, 'third-party/'))
+sys.path.append(os.path.join(root, 'third-party/anchorwordtopics/'))
+
 import data
 import suffstats
 import util
@@ -42,12 +48,7 @@ if not hasWriteableOutdir:
         'Environment variable BNPYOUTDIR not specified.' +
         ' Cannot save results to disk')
 
-# Configure PYTHONPATH
-root = os.path.sep.join(os.path.abspath(__file__).split(os.path.sep)[:-2])
-sys.path.append(os.path.join(root, 'datasets/'))
-sys.path.append(os.path.join(root, 'third-party/'))
-sys.path.append(os.path.join(root, 'third-party/anchorwordtopics/'))
-
+# Configure custom dataset directory
 if 'BNPYDATADIR' in os.environ:
     if os.path.exists(os.environ['BNPYDATADIR']):
         sys.path.append(os.environ['BNPYDATADIR'])
