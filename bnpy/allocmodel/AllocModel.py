@@ -57,6 +57,25 @@ class AllocModel(object):
 
     # ----    ELBO functions
     def calc_evidence(self, Data, SS, LP):
+        """ Calculate ELBO objective function value for provided state.
+
+        Returns
+        -------
+        L : float
+            represents sum of all terms in objective
+        """
+        pass
+
+    def calcELBOFromLP(self, Data, LP):
+        """ Calculate ELBO value for provided data & local parameters
+
+            TODO implement this
+        """
+        pass
+
+    def calcELBOFromSS(self, SS):
+        """ Calculate ELBO value for provided sufficient stats.
+        """
         pass
 
     # ----    I/O functions

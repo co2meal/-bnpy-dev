@@ -1,11 +1,6 @@
 '''
 Bayesian nonparametric mixture model with a unbounded number of components K
 via the Dirichlet process
-
-Attributes
--------
-K : # of components
-gamma : scalar concentration parameter
 '''
 
 import numpy as np
@@ -31,11 +26,41 @@ def c_Beta_Vec(gamma1, gamma0):
 
 class DPMixtureModel(AllocModel):
 
-    # Constructors
-    #########################################################
+    """ Nonparametric mixture model with K active components.
+
+    Attributes
+    -------
+    * inferType : string {'VB', 'moVB', 'soVB'}
+        indicates which updates to perform for local/global steps
+    * K : int
+        number of components
+    * gamma1 : float
+        scalar pseudo-count of ON values
+        used in Beta prior on stick-breaking lengths.
+    * gamma0 : float
+        scalar pseudo-count of OFF values
+        used in Beta prior on stick-breaking lengths.
+
+    Attributes for VB
+    ---------
+    * eta1 : 1D array, size K
+        Posterior ON parameters for Beta posterior factor q(u).
+        eta1[k] > 0 for all k
+    * eta0 : 1D array, size K
+        Posterior OFF parameters for Beta posterior factor q(u).
+        eta0[k] > 0 for all k
+
+    Secondary Attributes for VB
+    ---------
+    * ElogU : 1D array, size K
+        Expected value E[log u[k]] under current q(u[k])
+    * Elog1mU : 1D array, size K
+        Expected value E[log 1 - u[k]] under current q(u[k])
+    """
+
     def __init__(self, inferType, priorDict=None, **priorKwargs):
         if inferType == 'EM':
-            raise ValueError('EM not supported for DPMixModel')
+            raise ValueError('EM not supported.')
         self.inferType = inferType
         if priorDict is not None:
             self.set_prior(**priorDict)
@@ -49,50 +74,55 @@ class DPMixtureModel(AllocModel):
 
     def set_helper_params(self):
         ''' Set dependent attributes given primary global params.
-            For DP mixture, this means precomputing digammas.
+
+        This means storing digamma function evaluations.
         '''
         digammaBoth = digamma(self.eta0 + self.eta1)
         self.ElogU = digamma(self.eta1) - digammaBoth
         self.Elog1mU = digamma(self.eta0) - digammaBoth
 
         # Calculate expected mixture weights E[ log \beta_k ]
-        # NOTE: using copy() allows += without modifying ElogU
+        # Using copy() allows += without modifying ElogU
         self.Elogbeta = self.ElogU.copy()
         self.Elogbeta[1:] += self.Elog1mU[:-1].cumsum()
 
-    # Accessors
-    #########################################################
     def get_active_comp_probs(self):
+        ''' Get vector of appearance probabilities for each active comp.
+
+            Returns
+            -------
+            beta : 1D array, size K
+                beta[k] gives probability of comp. k under this model.
+        '''
         Eu = self.eta1 / (self.eta1 + self.eta0)
         Ebeta = Eu.copy()
         Ebeta[1:] *= np.cumprod(1.0 - Eu[:-1])
         return Ebeta
 
     def get_keys_for_memoized_local_params(self):
-        ''' Return list of string names of the LP fields
-            that this object needs to memoize across visits to a particular batch
+        ''' Return LP field names required for warm starts of local step
         '''
         return list()
 
-    # Local Params
-    #########################################################
     def calc_local_params(self, Data, LP, **kwargs):
-        ''' Calculate local parameters for each data item and each component.    
-            This is part of the E-step.
+        ''' Compute local parameters for each data item and component.
 
-            Args
-            -------
-            Data : bnpy data object with Data.nObs observations
-            LP : local param dict with fields
-                  E_log_soft_ev : Data.nObs x K array
-                      E_log_soft_ev[n,k] = log p(data obs n | comp k)
+        Parameters
+        -------
+        Data : bnpy.data.DataObj subclass
 
-            Returns
-            -------
-            LP : local param dict with fields
-                  resp : Data.nObs x K array whose rows sum to one
-                  resp[n,k] = posterior responsibility that 
-                              comp. k has for data n                
+        LP : dict
+            Local parameters as key-value string/array pairs
+            * E_log_soft_ev : 2D array, N x K
+                E_log_soft_ev[n,k] = log p(data obs n | comp k)
+
+        Returns
+        -------
+        LP : dict
+            Local parameters, with updated fields
+            * resp : 2D array, size N x K array
+                Posterior responsibility each comp has for each item
+                resp[n, k] = p(z[n] = k | x[n])
         '''
         lpr = LP['E_log_soft_ev']
         lpr += self.Elogbeta
@@ -104,49 +134,61 @@ class DPMixtureModel(AllocModel):
         return LP
 
     def selectSubsetLP(self, Data, LP, relIDs):
-        ''' Create subset of provided local params, specified by relevant ID vec
+        ''' Make subset of provided local params for certain data items.
+
+        Returns
+        ------
+        LP : dict
+             New local parameter dict for subset of data, with fields
+             * resp : 2D array, size Nsubset x K
         '''
         resp = LP['resp'][relIDs].copy()
         return dict(resp=resp)
 
-    # Suff Stats
-    #########################################################
     def get_global_suff_stats(self, Data, LP,
                               mergePairSelection=None,
                               doPrecompEntropy=False,
                               doPrecompMergeEntropy=False, mPairIDs=None,
                               **kwargs):
-        ''' Calculate the sufficient statistics for global parameter updates
-            Only adds stats relevant for this allocModel. 
-            Other stats are added by the obsModel.
+        ''' Calculate sufficient statistics for global updates.
 
-            Args
-            -------
-            Data : bnpy data object
-            LP : local param dict with fields
-                  resp : Data.nObs x K array,
-                           where resp[n,k] = posterior resp of comp k
-            doPrecompEntropy : boolean flag
-                          indicates whether to precompute ELBO terms in advance
-                          used for memoized learning algorithms (moVB)
-            doPrecompMergeEntropy : boolean flag
-                          indicates whether to precompute ELBO terms in advance
-                          for all possible merges of pairs of components
-                          used for optional merge moves
+        Parameters
+        -------
+        Data : bnpy data object
+        LP : local param dict with fields
+            resp : Data.nObs x K array,
+                where resp[n,k] = posterior resp of comp k
+        doPrecompEntropy : boolean flag
+            indicates whether to precompute ELBO terms in advance
+            used for memoized learning algorithms (moVB)
+        doPrecompMergeEntropy : boolean flag
+            indicates whether to precompute ELBO terms in advance
+            for certain merge candidates.
 
-            Returns
-            -------
-            SS : SuffStats for K components, with field
-                  N : vector of length-K,
-                       effective number of observations assigned to each comp
+        Returns
+        -------
+        SS : SuffStatBag with K components
+            Summarizes for this mixture model, with fields
+            * N : 1D array, size K
+                N[k] = expected number of items assigned to comp k
+
+            Also has optional ELBO field when precompELBO is True
+            * ElogqZ : 1D array, size K
+                Vector of entropy contributions from each comp.
+                ElogqZ[k] = \sum_{n=1}^N resp[n,k] log resp[n,k]
+
+            Also has optional Merge field when precompMergeELBO is True
+            * ElogqZ : 2D array, size K x K
+                Each term is scalar entropy of merge candidate
         '''
         Nvec = np.sum(LP['resp'], axis=0)
+        K = Nvec.size
         if hasattr(Data, 'dim'):
-            SS = SuffStatBag(K=Nvec.size, D=Data.dim)
+            SS = SuffStatBag(K=K, D=Data.dim)
         else:
-            SS = SuffStatBag(K=Nvec.size, D=Data.vocab_size)
-
+            SS = SuffStatBag(K=K, D=Data.vocab_size)
         SS.setField('N', Nvec, dims=('K'))
+
         if doPrecompEntropy:
             ElogqZ_vec = self.E_logqZ(LP)
             if ElogqZ_vec.ndim > 1:
@@ -156,24 +198,23 @@ class DPMixtureModel(AllocModel):
 
         if doPrecompMergeEntropy:
             resp = LP['resp']
-            if doPrecompMergeEntropy == 2:
-                np.minimum(resp, 1 - EPS, out=resp)
-                ElogqZVec = NumericUtil.calcRlogR(1.0 - resp)
-                SS.setMergeTerm('ElogqZ', -1 * ElogqZVec, dims=('K'))
+            if mPairIDs is None:
+                ElogqZMat = NumericUtil.calcRlogR_allpairs(resp)
             else:
-                if mPairIDs is None:
-                    ElogqZMat = NumericUtil.calcRlogR_allpairs(resp)
-                else:
-                    ElogqZMat = NumericUtil.calcRlogR_specificpairs(
-                        resp, mPairIDs)
-                SS.setMergeTerm('ElogqZ', ElogqZMat, dims=('K', 'K'))
+                ElogqZMat = NumericUtil.calcRlogR_specificpairs(resp, mPairIDs)
+            SS.setMergeTerm('ElogqZ', ElogqZMat, dims=('K', 'K'))
         return SS
 
     def forceSSInBounds(self, SS):
-        '''
-            Returns
-            -------
-            None. SS.N updated in-place.
+        ''' Enforce known bounds on SS fields for numerical stability.
+
+        Post Condition for SS fields
+        --------
+        N : will have no entries below zero
+
+        Post Condition for SS ELBO fields
+        --------
+        ElogqZ : will have no entries above zero
         '''
         np.maximum(SS.N, 0, out=SS.N)
         if SS.hasELBOTerm('ElogqZ'):
@@ -189,13 +230,13 @@ class DPMixtureModel(AllocModel):
             if Hmax > 0:
                 np.minimum(Hmat, 0, out=Hmat)
 
-    # Global Params
-    #########################################################
     def update_global_params_VB(self, SS, **kwargs):
-        ''' Updates global params (stick-breaking Beta params eta1, eta0)
-              for conventional VB learning algorithm.
-            New parameters have exactly the number of components specified by SS. 
-        '''
+        """ Update eta1, eta0 to optimize the ELBO objective.
+
+        Post Condition for VB
+        -------
+        eta1 and eta0 set to valid posterior for SS.K components.
+        """
         self.K = SS.K
         eta1 = self.gamma1 + SS.N
         eta0 = self.gamma0 * np.ones(self.K)
@@ -205,9 +246,12 @@ class DPMixtureModel(AllocModel):
         self.set_helper_params()
 
     def update_global_params_soVB(self, SS, rho, **kwargs):
-        ''' Update global params (stick-breaking Beta params eta1, eta0).
-            for stochastic online VB.
-        '''
+        """ Update eta1, eta0 to optimize stochastic ELBO objective.
+
+        Post Condition for VB
+        -------
+        eta1 and eta0 set to valid posterior for SS.K components.
+        """
         assert self.K == SS.K
         eta1 = self.gamma1 + SS.N
         eta0 = self.gamma0 * np.ones(self.K)
@@ -218,79 +262,140 @@ class DPMixtureModel(AllocModel):
         self.set_helper_params()
 
     def init_global_params(self, Data, K=0, **kwargs):
-        ''' Initialize global parameters "from scratch" to prep for learning.
+        """ Initialize global parameters to reasonable default values.
 
-            Will yield uniform distribution (or close to) for all K components,
-            by performing a "pseudo" update in which only one observation was
-            assigned to each of the K comps.
+        Post Condition for VB
+        -------
+        eta1 and eta0 set to valid K vector.
+        """
+        self.setParamsFromCountVec(K, np.ones(K))
 
-            Internal Updates
-            --------
-            Sets attributes eta1, eta0 (for VB) to viable values
+    def set_global_params(self, hmodel=None, K=None,
+                          beta=None,
+                          eta1=None, eta0=None, **kwargs):
+        """ Set global parameters to provided values.
 
-            Returns
-            --------
-            None. 
-        '''
-        self.K = K
-        Nvec = np.ones(K)
-        eta1 = self.gamma1 + Nvec
-        eta0 = self.gamma0 * np.ones(self.K)
-        eta0[:-1] += Nvec[::-1].cumsum()[::-1][1:]
-        self.eta1 = eta1
-        self.eta0 = eta0
-        self.set_helper_params()
+        Post Condition for EM
+        -------
+        w set to valid vector with K components.
 
-    def set_global_params(self, hmodel=None, K=None, eta1=None,
-                          eta0=None, beta=None, nObs=10, **kwargs):
-        ''' Directly set global parameters eta0, eta1 to provided values
-        '''
+        Post Condition for VB
+        -------
+        theta set to define valid posterior over K components.
+        """
         if hmodel is not None:
-            self.K = hmodel.allocModel.K
-            self.eta1 = hmodel.allocModel.eta1
-            self.eta0 = hmodel.allocModel.eta0
+            self.setParamsFromHModel(hmodel)
+        elif beta is not None:
+            self.setParamsFromBeta(K, beta=beta)
+        elif eta1 is not None:
+            self.K = int(K)
+            self.eta1 = eta1
+            self.eta0 = eta0
             self.set_helper_params()
-            return
-        if beta is not None:
-            if K is None:
-                K = beta.size
-            # convert to expected stick-lengths v
-            if beta.size == K:
-                rem = np.minimum(0.01, 1.0 / K)
-                rem = np.minimum(1.0 / K, beta.min() / K)
-                beta = np.hstack([beta, rem])
-            beta = beta / beta.sum()
-            Ev = beta2rho(beta, K)
-            eta1 = Ev * nObs
-            eta0 = (1 - Ev) * nObs
+        else:
+            raise ValueError("Unrecognized set_global_params args")
 
-        if type(eta1) != np.ndarray or eta1.size != K or eta0.size != K:
-            raise ValueError("Bad DP Parameters")
-        self.K = K
-        self.eta1 = eta1
-        self.eta0 = eta0
+    def setParamsFromCountVec(self, K, N=None):
+        """ Set params to reasonable values given counts for each comp.
+
+        Parameters
+        --------
+        K : int
+            number of components
+        N : 1D array, size K. optional, default=[1 1 1 1 ... 1]
+            size of each component
+
+        Post Condition for VB
+        ---------
+        Attributes eta1, eta0 are set so q(beta) equals its posterior
+        given count vector N.
+        """
+        self.K = int(K)
+
+        if N is None:
+            N = 1.0 * np.ones(K)
+        assert N.ndim == 1
+        assert N.size == K
+        self.eta1 = self.gamma1 + N
+        self.eta0 = self.gamma0 * np.ones(self.K)
+        self.eta0[:-1] += N[::-1].cumsum()[::-1][1:]
         self.set_helper_params()
 
-    # Evidence
-    #########################################################
+    def setParamsFromBeta(self, K, beta=None):
+        """ Set params to reasonable values given comp probabilities.
+
+        Parameters
+        --------
+        K : int
+            number of components
+        beta : 1D array, size K. optional, default=[1 1 1 1 ... 1]
+            probability of each component
+
+        Post Condition for VB
+        ---------
+        Attribute eta1, eta0 is set so q(beta) has properties:
+        * mean of (nearly) beta, allowing for some small remaining mass.
+        * moderate variance.
+        """
+        if beta is None:
+            beta = 1.0 / K * np.ones(K)
+        assert beta.ndim == 1
+        assert beta.size == K
+        assert np.allclose(np.sum(beta), 1.0)
+        self.K = int(K)
+
+        # Append in small remaining/leftover mass
+        betaRem = np.minimum(1.0 / (2 * K), 0.05)
+        betaWithRem = np.hstack([beta * (1.0 - betaRem), betaRem])
+
+        theta = self.K * betaWithRem
+        self.eta1 = theta[:-1].copy()
+        self.eta0 = theta[::-1].cumsum()[::-1][1:]
+        self.set_helper_params()
+
+    def setParamsFromHModel(self, hmodel):
+        """ Set parameters exactly as in provided HModel object.
+
+        Parameters
+        ------
+        hmodel : bnpy.HModel
+            The model to copy parameters from.
+
+        Post Condition
+        ------
+        w or theta will be set exactly equal to hmodel's allocModel.
+        """
+        self.K = hmodel.allocModel.K
+        self.eta1 = hmodel.allocModel.eta1.copy()
+        self.eta0 = hmodel.allocModel.eta0.copy()
+        self.set_helper_params()
+
     def calc_evidence(self, Data, SS, LP=None, todict=False, **kwargs):
-        ''' Calculate ELBO
-        '''
+        """ Calculate ELBO objective function value for provided state.
+
+        Returns
+        -------
+        L : float
+            represents sum of all terms in objective
+        """
         if SS.hasELBOTerm('ElogqZ'):
-            Hentropy = np.sum(SS.getELBOTerm('ElogqZ'))
+            Lentropy = -1 * np.sum(SS.getELBOTerm('ElogqZ'))
         else:
-            Hentropy = np.sum(self.E_logqZ(LP))
+            Lentropy = -1 * np.sum(self.E_logqZ(LP))
         if SS.hasAmpFactor():
-            Hentropy *= SS.ampF
+            Lentropy *= SS.ampF
 
         cDiff = self.ELBO_cDiff()
         slack = self.ELBO_slack(SS)
-        return cDiff + slack - Hentropy
+        return cDiff + slack + Lentropy
 
     def calcELBOFromSS_NoCacheableTerms(self, SS):
-        ''' Calculate objective function value, ignoring any cached ELBO terms
+        ''' Calculate objective value, ignoring any cached ELBO terms.
 
-            Effectively, this will ignore the entropy term for the DPMixtureModel
+        Returns
+        -------
+        L : float
+            represents sum of most terms in objective
         '''
         assert self.K == SS.K
         cDiff = self.ELBO_cDiff()
@@ -298,14 +403,20 @@ class DPMixtureModel(AllocModel):
         return cDiff + slack
 
     def E_logqZ(self, LP):
+        ''' Compute ELBO term related to entropy of soft assignments.
+
+        Returns
+        -------
+        Hvec : 1D array, size K
+        '''
         return NumericUtil.calcRlogR(LP['resp'])
 
     def ELBO_cDiff(self):
-        ''' Compute difference of cumulant functions for ELBO 
+        ''' Compute difference of cumulant functions for ELBO
 
-            Returns
-            -------
-            cDiff : scalar real
+        Returns
+        -------
+        cDiff : scalar real
         '''
         cDiff = self.K * c_Beta(self.gamma1, self.gamma0) \
             - c_Beta(self.eta1, self.eta0)  # already sums over k
@@ -313,6 +424,10 @@ class DPMixtureModel(AllocModel):
 
     def ELBO_slack(self, SS):
         ''' Compute the slack-term for ELBO
+
+        Returns
+        ------
+        Lslack : scalar real
         '''
         slack = np.inner(self.gamma1 - self.eta1, self.ElogU) \
             + np.inner(self.gamma0 - self.eta0, self.Elog1mU) \
@@ -322,7 +437,7 @@ class DPMixtureModel(AllocModel):
     # Hard Merges
     #########################################################
     def calcHardMergeEntropyGap(self, SS, kA, kB):
-        ''' Calc scalar improvement in entropy for hard merge of comps kA, kB
+        ''' Calc scalar improvement in entropy for merge of kA, kB
         '''
         Hmerge = SS.getMergeTerm('ElogqZ')
         Hcur = SS.getELBOTerm('ElogqZ')
@@ -333,10 +448,18 @@ class DPMixtureModel(AllocModel):
         return gap
 
     def calcHardMergeGap(self, SS, kA, kB):
-        ''' Calculate scalar improvement in ELBO for hard merge of comps kA, kB
+        ''' Calculate scalar improvement in ELBO for merge of kA, kB
 
-            For speed, use calcHardMergeGapFast or calcHardMergeGapFastSinglePair.
-            Does *not* include any entropy. 
+        For speed, use one of
+        * calcHardMergeGapFast
+        * calcHardMergeGapFastSinglePair.
+
+        Does *not* include the entropy term for soft assignments.
+
+        Returns
+        -------
+        L : float
+            difference of partial ELBO functions
         '''
         cPrior = c_Beta(self.gamma1, self.gamma0)
         cB = c_Beta(self.eta1[kB], self.eta0[kB])
@@ -356,7 +479,7 @@ class DPMixtureModel(AllocModel):
         return gap
 
     def calcHardMergeGapFast(self, SS, kA, kB):
-        ''' Calculate scalar improvement in ELBO for hard merge of kA, kB
+        ''' Calculate scalar improvement in ELBO for merge of kA, kB
 
             Returns
             -------
@@ -378,7 +501,7 @@ class DPMixtureModel(AllocModel):
         return gap
 
     def calcHardMergeGapFastSinglePair(self, SS, kA, kB):
-        ''' Calculate scalar improvement in ELBO for hard merge of kA, kB
+        ''' Calculate scalar improvement in ELBO for merge of kA, kB
 
             Returns
             -------
@@ -404,7 +527,6 @@ class DPMixtureModel(AllocModel):
         for kB in xrange(1, SS.K):
             for kA in xrange(0, kB):
                 Gap[kA, kB] = self.calcHardMergeGapFast(SS, kA, kB)
-                #Gap[kA, kB] = self.calcHardMergeGap(SS, kA, kB)
         if hasattr(self, 'cBetaNewB'):
             del self.cBetaNewB
             del self.kB
@@ -420,7 +542,6 @@ class DPMixtureModel(AllocModel):
         Gaps = np.zeros(len(PairList))
         for ii, (kA, kB) in enumerate(PairList):
             Gaps[ii] = self.calcHardMergeGapFastSinglePair(SS, kA, kB)
-            #Gaps[ii] = self.calcHardMergeGap(SS, kA, kB)
         if hasattr(self, 'cPrior'):
             del self.cPrior
         if hasattr(self, 'cBetaCur'):
@@ -515,16 +636,12 @@ class DPMixtureModel(AllocModel):
                 gap -= c_Beta(a1, a0)
         return gap
 
-    # IO Utils
-    # for humans
     def get_info_string(self):
         ''' Returns one-line human-readable terse description of this object
         '''
         msgPattern = 'DP mixture with K=%d. Concentration gamma0= %.2f'
         return msgPattern % (self.K, self.gamma0)
 
-    # IO Utils
-    # for machines
     def to_dict(self):
         return dict(eta1=self.eta1, eta0=self.eta0)
 
@@ -545,8 +662,6 @@ class DPMixtureModel(AllocModel):
                     K=self.K,
                     )
 
-    # Local Updates Gibbs
-    #########################################################
     def make_hard_asgn_local_params(self, LP):
         ''' Convert soft assignments to hard assignments for provided local params
 
@@ -584,7 +699,7 @@ class DPMixtureModel(AllocModel):
         return SS, LP
 
     def insertEmptyCompAtLastIndex_SSandLP(self, SS, LP):
-        ''' Create empty component and insert last in order into SS 
+        ''' Create empty component and insert last in order into SS
 
             Returns
             --------
