@@ -88,9 +88,13 @@ class LearnAlg(object):
   def buildRunInfo(self, **kwargs):
     ''' Create dict of information about the current run
     '''
+    # Convert TraceLaps from set to 1D array, sorted in ascending order
+    lapTrace = np.asarray(list(self.TraceLaps))
+    lapTrace.sort()
+    evTrace = np.asarray(self.evTrace)
     return dict(status=self.status,
-                evTrace=self.evTrace,
-                lapTrace=list(self.TraceLaps),
+                evTrace=evTrace,
+                lapTrace=lapTrace,
                 elapsedTimeInSec=time.time() - self.start_time,
                 **kwargs)
 

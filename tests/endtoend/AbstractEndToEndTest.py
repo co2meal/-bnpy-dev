@@ -91,7 +91,11 @@ class AbstractEndToEndTest(unittest.TestCase):
         model1, Info1 = bnpy.run(self.Data, arg2name(aArg), arg2name(oArg),
                                  algName, **kwargs)
         self.pprintResult(model1, Info1)
-        isMonotonic = self.isMonotonic(Info1['evTrace'])
+
+        evTrace = Info1['evTrace']
+        if algName.count('moVB'):
+            evTrace = evTrace[Info1['lapTrace'] >= 1.0]
+        isMonotonic = self.isMonotonic(evTrace)
         assert isMonotonic
 
         model2, Info2 = bnpy.run(self.Data, arg2name(aArg), arg2name(oArg),
@@ -121,6 +125,7 @@ class AbstractEndToEndTest(unittest.TestCase):
                 for iKwArgs in self.nextInitKwArgs(aName, oKwArgs['name']):
                     self.single_run_monotonic(aKwArgs, oKwArgs,
                                               'VB', iKwArgs)
+
     @attr('fast')
     def test_VB__repeatable_and_monotonic(self):
         print ''
@@ -140,6 +145,15 @@ class AbstractEndToEndTest(unittest.TestCase):
                 for iName in self.possibleInitNames:
                     self.single_run_repeatable_and_monotonic(aName, oName,
                                                              'EM', iName)
+
+    @attr('fast')
+    def test_moVB__repeatable_and_monotonic(self):
+        print ''
+        for aName in self.possibleAllocModelNames:
+            for oName in self.possibleObsModelNames:
+                for iName in self.possibleInitNames:
+                    self.single_run_repeatable_and_monotonic(aName, oName,
+                                                             'moVB', iName)
 
     def isMonotonic(self, ELBOvec, atol=1e-6, verbose=True):
         ''' Returns True if monotonically increasing, False otherwise.
