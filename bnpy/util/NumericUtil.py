@@ -146,10 +146,10 @@ def sumRtimesS_numpy(R, S):
   return np.sum(R*S, axis=0)
 
 def sumRtimesS_numexpr(R, S):
-  return ne.evaluate("sum(R*S, axis=0)")
-
-def sumRtimeslogS_numexpr(R, S):
-  return ne.evaluate("sum(R*log(S))")
+  if R.shape[0] > 1:
+      return ne.evaluate("sum(R*S, axis=0)")
+  else:
+      return sumRtimesS_numpy(R, S)
 
 ########################################################### standard RlogR
 ###########################################################
