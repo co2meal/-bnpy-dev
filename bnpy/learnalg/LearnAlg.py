@@ -16,7 +16,7 @@ import sys
 import scipy.io
 
 from bnpy.ioutil import ModelWriter
-from bnpy.util import closeAtMSigFigs, isEvenlyDivisibleFloat
+from bnpy.util import isEvenlyDivisibleFloat
 
 Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
@@ -112,8 +112,8 @@ class LearnAlg(object):
       return False
     isIncreasing = prevBound <= evBound
 
-    M = self.algParams['convergeSigFig']
-    isWithinTHR = closeAtMSigFigs(prevBound, evBound, M=M)
+    thr = self.algParams['convergeThrELBO']
+    isWithinTHR = np.abs(evBound - prevBound) < thr
     mLPkey = 'doMemoizeLocalParams'
     if not isIncreasing and not isWithinTHR:
       serious = True

@@ -9,7 +9,6 @@ Logic for *creating* new components given
 '''
 import numpy as np
 
-from bnpy.util import GramSchmidtUtil as GSU
 from BirthProposalError import BirthProposalError
 import BirthCleanup
 from BirthLogger import log, logPhase, logPosVector

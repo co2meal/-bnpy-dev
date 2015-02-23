@@ -29,8 +29,6 @@ from obsmodel import ObsModelConstructorsByName
 
 class HModel(object):
 
-    # Constructors
-    #########################################################
     def __init__(self, allocModel, obsModel):
         ''' Constructor assembles HModel given fully valid subcomponents
         '''

@@ -18,8 +18,6 @@ import numpy as np
 import scipy.sparse
 import timeit
 
-import LibRlogR
-
 def LoadConfig():
   global Config, cfgfilepath
   root = os.path.sep.join(os.path.abspath(__file__).split(os.path.sep)[:-2])
@@ -241,8 +239,6 @@ def calcRlogR_allpairs_numexpr(R):
     Z[jj,jj+1:] = curZ
   return Z
 
-def calcRlogR_allpairs_c(R):
-  return LibRlogR.calcRlogR_allpairs_c(R)
 
 ########################################################### specific-pairs
 ###########################################################  RlogR
@@ -335,9 +331,6 @@ def calcRlogRdotv_allpairs_numexpr(R, v):
     Z[jj,jj+1:] = curZ
   return Z
 
-def calcRlogRdotv_allpairs_c(R, v):
-  return LibRlogR.calcRlogRdotv_allpairs_c(R, v)
-
 ########################################################### specific-pairs
 ###########################################################  RlogRdotv
 def calcRlogRdotv_specificpairs(R, v, mPairs):
@@ -404,10 +397,6 @@ def calcRlogRdotv_specificpairs_numpyvec(R, v, mPairs):
     curWV *= np.log(curWV)
     ElogqZMat[kA,PartnerDict[kA]] = np.dot(v, curWV)
   return ElogqZMat
-
-
-def calcRlogRdotv_specificpairs_c(R, v, mPairs):
-  return LibRlogR.calcRlogRdotv_specificpairs_c(R, v, mPairs)
 
 ########################################################### AutoConfigure
 ###########################################################
