@@ -1,4 +1,3 @@
-
 '''
 FiniteHMM.py
 

@@ -6,8 +6,8 @@ import numpy as np
 from bnpy.allocmodel import AllocModel
 from bnpy.suffstats import SuffStatBag
 from bnpy.util import NumericUtil
-from bnpy.util import logsumexp, np2flatstr, flatstr2np
-from bnpy.util import gammaln, digamma, EPS
+from bnpy.util import logsumexp
+from bnpy.util import gammaln, digamma
 
 
 class FiniteMixtureModel(AllocModel):
@@ -331,7 +331,7 @@ class FiniteMixtureModel(AllocModel):
     def E_logqZ(self, LP):
         ''' Bishop PRML eq. 10.75
         '''
-        return np.sum(LP['resp'] * np.log(LP['resp'] + EPS), axis=0)
+        return NumericUtil.calcRlogR(LP['resp'])
 
     def E_logpW(self):
         ''' Bishop PRML eq. 10.73

@@ -6,7 +6,6 @@ Handles selection of a plan-of-attack for improving a current model via a birthm
 import numpy as np
 from collections import defaultdict
 
-import bnpy.util.GramSchmidtUtil as GramSchmidtUtil
 from BirthProposalError import BirthProposalError
 
 EPS = 1e-14

@@ -1,7 +1,8 @@
 '''  
-LinAlgUtil.py
+Efficient matrix multiplication subroutines.
 
-Linear algebra utilities.  Mostly efficient matrix multiplication subroutines.
+Thin wrappers around BLAS implementations,
+that make sure the best alignment and striding are used.
 
 Notes
 -------
