@@ -92,6 +92,7 @@ def _initTopicWordEstParams(obsModel, Data, PRNG, K=0,
   if initname == 'randexamples':
     ## Choose K documents at random, then
     ## use each doc's empirical distribution (+random noise) to seed a topic
+    K = np.minimum(K, Data.nDoc)
     chosenDocIDs = PRNG.choice(Data.nDoc, K, replace=False)
     DocWord = Data.getDocTypeCountMatrix()
     topics = DocWord[chosenDocIDs].copy()
@@ -103,6 +104,7 @@ def _initTopicWordEstParams(obsModel, Data, PRNG, K=0,
     if not hasRexAvailable:
       raise NotImplementedError("KMeansRex must be on python path")
     X = Data.getDocTypeCountMatrix()
+    K = np.minimum(K, Data.nDoc)
     topics = KMeansRex.SampleRowsPlusPlus(X, K, seed=seed)
     topics += 0.01 * PRNG.rand(K, Data.vocab_size)
 
@@ -112,6 +114,7 @@ def _initTopicWordEstParams(obsModel, Data, PRNG, K=0,
     if not hasRexAvailable:
       raise NotImplementedError("KMeansRex must be on python path")
     X = Data.getDocTypeCountMatrix()
+    K = np.minimum(K, Data.nDoc)
     topics, Z = KMeansRex.RunKMeans(X, K, seed=seed,
                                        Niter=25,
                                        initname='plusplus')
@@ -134,6 +137,7 @@ def _initTopicWordEstParams(obsModel, Data, PRNG, K=0,
 
     Xsparse = Data.getSparseDocTypeCountMatrix()
     stime = time.time()
+    K = np.minimum(K, Data.vocab_size)
     topics = LearnAnchorTopics.run(Xsparse, K, seed=seed, 
                                                lowerDim=kwargs['spectralDim'],
                                                loss='L2')
