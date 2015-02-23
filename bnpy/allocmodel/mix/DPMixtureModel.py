@@ -1,6 +1,5 @@
 '''
-Bayesian nonparametric mixture model with a unbounded number of components K
-via the Dirichlet process
+Bayesian nonparametric mixture model with Dirichlet process prior.
 '''
 
 import numpy as np
@@ -12,20 +11,119 @@ from bnpy.util import gammaln, digamma, EPS
 from bnpy.util.StickBreakUtil import beta2rho
 
 
-def c_Beta(gamma1, gamma0):
-    ''' Evaluate cumulant function of the Beta distribution
+def convertToN0(N):
+    """ Convert count vector to vector of "greater than" counts.
+
+    Parameters
+    -------
+    N : 1D array, size K
+        each entry k represents the count of items assigned to comp k.
+
+    Returns
+    -------
+    N0 : 1D array, size K
+        each entry k gives the total count of items at index above k
+        N0[k] = np.sum(N[k:])
+
+    Example
+    -------
+    >>> convertToN0([1., 3., 7., 2])
+    [12, 9, 2]
+    """
+    N = np.asarray(N)
+    N0 = np.zeros_like(N)
+    N0[:-1] = N[::-1].cumsum()[::-1][1:]
+    return N0
+
+def c_Beta(g1, g0):
+    ''' Evaluate cumulant function of Beta distribution
+
+    Parameters
+    -------
+    g1 : 1D array, size K
+        represents ON pseudo-count parameter of the Beta
+    g0 : 1D array, size K
+        represents OFF pseudo-count parameter of the Beta
+
+    Returns
+    -------
+    c : float
     '''
-    return np.sum(gammaln(gamma1 + gamma0) - gammaln(gamma1) - gammaln(gamma0))
+    return np.sum(gammaln(g1 + g0) - gammaln(g1) - gammaln(g0))
 
 
-def c_Beta_Vec(gamma1, gamma0):
-    ''' Evaluate cumulant function of the Beta distribution in vectorized way
+def c_Beta_Vec(g1, g0):
+    ''' Evaluate cumulant function of Beta distribution in vectorized way
+
+    Parameters
+    -------
+    g1 : 1D array, size K
+        represents ON pseudo-count parameter of the Beta
+    g0 : 1D array, size K
+        represents OFF pseudo-count parameter of the Beta
+
+    Returns
+    -------
+    cvec : 1D array, size K
     '''
-    return gammaln(gamma1 + gamma0) - gammaln(gamma1) - gammaln(gamma0)
+    return gammaln(g1 + g0) - gammaln(g1) - gammaln(g0)
+
+
+def Lalloc_no_slack(eta1, eta0, gamma1, gamma0):
+    """ Evaluate partial L_alloc objective function, without slack.
+
+    This is exact when evaluated directly after a global step.
+
+    Returns
+    -------
+    Lalloc : float
+    """
+    K = eta1.size
+    return K * c_Beta(gamma1, gamma0) - c_Beta(eta1, eta0)
+
+
+def Lalloc_slack_only(N, eta1, eta0):
+    """ Evaluate slack portion of L_alloc objective.
+
+    Returns
+    -------
+    Lalloc : float
+    """
+    K = N.size
+    assert K == eta1.size
+    assert K == eta0.size
+    N0 = convertToN0(N)
+    digammaBoth = digamma(eta1 + eta0)
+    ElogU = digamma(eta1) - digammaBoth
+    Elog1mU = digamma(eta0) - digammaBoth
+    Lslack = np.inner(N + gamma1 - eta1, ElogU) \
+        + np.inner(N0 + gamma0 - eta0, Elog1mU)
+    return Lslack
+
+
+def Lalloc_with_slack(N, eta1, eta0, gamma1, gamma0):
+    """ Evaluate complete L_alloc objective term given model parameters.
+
+    Returns
+    -------
+    La : float
+    """
+    K = eta1.size
+    return Lalloc_no_slack(eta1, eta0, gamma1, gamma0) \
+        + Lalloc_slack_only(N, eta1, eta0)
+
+
+def Lentropy(resp):
+    """ Evaluate L_entropy objective term given model parameters.
+
+    Returns
+    -------
+    Lentropy : float
+    """
+    return -1 * np.sum(NumericUtil.calcRlogR(resp))
 
 
 class DPMixtureModel(AllocModel):
-
     """ Nonparametric mixture model with K active components.
 
     Attributes
@@ -239,8 +337,7 @@ class DPMixtureModel(AllocModel):
         """
         self.K = SS.K
         eta1 = self.gamma1 + SS.N
-        eta0 = self.gamma0 * np.ones(self.K)
-        eta0[:-1] += SS.N[::-1].cumsum()[::-1][1:]
+        eta0 = self.gamma0 + convertToN0(SS.N)
         self.eta1 = eta1
         self.eta0 = eta0
         self.set_helper_params()
@@ -255,8 +352,7 @@ class DPMixtureModel(AllocModel):
         assert self.K == SS.K
         eta1 = self.gamma1 + SS.N
         eta0 = self.gamma0 * np.ones(self.K)
-        eta0[:-1] += SS.N[::-1].cumsum()[::-1][1:]
-
+        eta0 = self.gamma0 + convertToN0(SS.N)
         self.eta1 = rho * eta1 + (1 - rho) * self.eta1
         self.eta0 = rho * eta0 + (1 - rho) * self.eta0
         self.set_helper_params()
@@ -317,8 +413,7 @@ class DPMixtureModel(AllocModel):
         assert N.ndim == 1
         assert N.size == K
         self.eta1 = self.gamma1 + N
-        self.eta0 = self.gamma0 * np.ones(self.K)
-        self.eta0[:-1] += N[::-1].cumsum()[::-1][1:]
+        self.eta0 = self.gamma0 + convertToN0(N)
         self.set_helper_params()
 
     def setParamsFromBeta(self, K, beta=None):
