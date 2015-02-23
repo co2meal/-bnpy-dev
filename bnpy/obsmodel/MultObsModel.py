@@ -125,7 +125,7 @@ class MultObsModel(AbstractObsModel):
       self.EstParams.setField('phi', phi, dims=('K', 'D'))
     self.K = self.EstParams.K
 
-  def setEstParamsFromPost(self, Post=None):
+  def setEstParamsFromPost(self, Post=None, **kwargs):
     ''' Convert from Post (lam) to EstParams (phi),
          each EstParam is set to its posterior mean.
     '''
