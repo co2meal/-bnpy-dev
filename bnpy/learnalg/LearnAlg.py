@@ -89,7 +89,9 @@ class LearnAlg(object):
     ''' Create dict of information about the current run
     '''
     return dict(status=self.status,
-                evTrace=self.evTrace, lapTrace=self.TraceLaps,
+                evTrace=self.evTrace,
+                lapTrace=list(self.TraceLaps),
+                elapsedTimeInSec=time.time() - self.start_time,
                 **kwargs)
 
   ##################################################### Fcns for birth/merges
