@@ -73,7 +73,7 @@ def parseKeywordArgs(ReqArgs, **kwargs):
   if MovesArgDict['moves'] is not None:
     for move in MovesArgDict['moves'].split(','):
       Moves.add(move)
-  
+
   ## Create parser, fill with default options from files
   parser = makeParserWithDefaultsFromConfigFiles(ReqArgs, Moves)
   parser.add_argument('--kwhelp', action='store_true', help=KwhelpHelpStr)
@@ -182,10 +182,11 @@ def makeParserWithDefaultsFromConfigFiles(ReqArgs, Moves):
   for fpath, secName in configFiles.items():
     if secName is not None:
       secName = ReqArgs[secName]
-    fillParserWithDefaultsFromConfigFile(parser, fpath, secName) 
-    if fpath.count('learn') > 0:
-      for moveName in Moves: 
+    if fpath.count('moves') > 0:
+      for moveName in Moves:
         fillParserWithDefaultsFromConfigFile(parser, fpath, moveName)
+    else:
+      fillParserWithDefaultsFromConfigFile(parser, fpath, secName) 
   return parser
 
 def _getConfigFileDict(ReqArgs):
@@ -213,6 +214,7 @@ def _getConfigFileDict(ReqArgs):
     cfgroot + 'learnalg.conf':'algName',
     cfgroot + 'init.conf':None,
     cfgroot + 'output.conf':None,
+    cfgroot + 'moves.conf':None,
     }
   OnlineDataConfigPath =  cfgroot + 'onlinedata.conf'
   if ReqArgs['algName'] in OnlineDataAlgSet:
@@ -289,8 +291,6 @@ def _getTypeFromString(defVal):
   except Exception:
     return str
 
-########################################################### Organize Parsed Args
-###########################################################  into sections
 def organizeParsedArgDictIntoSections(ReqArgs, Moves, kwargs):
   ''' Organize 'flat' dictionary of key/val pairs into sections
       
@@ -303,10 +303,12 @@ def organizeParsedArgDictIntoSections(ReqArgs, Moves, kwargs):
   for fpath, secName in configFileDict.items():
     if secName is not None:
       secName = ReqArgs[secName]
-    addArgsFromSectionToDict(kwargs, fpath, secName, outDict)
-    if fpath.count('learn') > 0:
+    if fpath.count('moves') > 0:
       for moveName in Moves:
         addArgsFromSectionToDict(kwargs, fpath, moveName, outDict)
+    else:
+        addArgsFromSectionToDict(kwargs, fpath, secName, outDict)
+
   return outDict
 
 def addArgsFromSectionToDict(inDict, confFile, targetSecName, outDict):
