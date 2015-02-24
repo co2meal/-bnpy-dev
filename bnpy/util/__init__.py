@@ -1,7 +1,5 @@
 """
 The :mod:`util` module gathers utility functions
-  for IO, special functions like "logsumexp", 
-  and various random sampling functions
 """
 
 import RandUtil
@@ -14,13 +12,13 @@ from .SpecialFuncUtil import MVgammaln, MVdigamma, digamma, gammaln
 from .SpecialFuncUtil import LOGTWO, LOGPI, LOGTWOPI, EPS
 from .SpecialFuncUtil import logsumexp
 from .VerificationUtil import isEvenlyDivisibleFloat, assert_allclose
-from .ShapeUtil import as1D, as2D, as3D
+from .ShapeUtil import as1D, as2D, as3D, toCArray
 
-__all__ = ['RandUtil', 
+__all__ = ['RandUtil',
            'np2flatstr', 'flatstr2np',
-           'dotATA', 'dotATB', 'dotABT', 
+           'dotATA', 'dotATB', 'dotABT',
            'discrete_single_draw',
            'MVgammaln', 'MVdigamma', 'logsumexp', 'digamma', 'gammaln',
            'isEvenlyDivisibleFloat', 'assert_allclose',
            'LOGTWO', 'LOGTWOPI', 'LOGPI', 'EPS',
-           'as1D', 'as2D', 'as3D']
+           'as1D', 'as2D', 'as3D', 'toCArray']
