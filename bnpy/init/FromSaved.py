@@ -10,27 +10,34 @@ from bnpy.ioutil import ModelReader
 
 
 def init_global_params(hmodel, Data, initname=None, **kwargs):
-    ''' Initialize (in-place) the global params of the given hmodel
-        by copying the global parameters of a previously saved hmodel
+    ''' Initialize (in-place) the global params of the given hmodel.
 
-        Only global parameters are modified.
-        This does NOT alter settings of hmodel's prior distribution.
+    Copies parameters stored to disk from a previous run.
 
-        Args
-        -------
-        hmodel : bnpy model object to initialize
-        Data   : bnpy Data object whose dimensions must match resulting hmodel
-        initname : valid filesystem path to stored result 
+    Only global parameters are modified.
+    This does NOT alter settings of hmodel's prior distribution.
 
-        Returns
-        -------
-        None. hmodel modified in-place.
+    Parameters
+    -------
+    hmodel : bnpy.HModel
+        model object to initialize
+    Data   : bnpy.data.DataObj
+         Dataset to use to drive initialization.
+         hmodel.obsModel dimensions must match this dataset.
+    initname : str
+        valid filesystem path to stored result
+
+    Post Condition
+    -------
+    hmodel has valid global parameters.
     '''
     if os.path.isdir(initname):
         try:
+            # First try assumes initname contains jobname and taskid
             init_global_params_from_bnpy_format(
                 hmodel, Data, initname, **kwargs)
         except:
+            # Second tacks on taskid, if initname contains only jobname
             initname2 = os.path.join(initname, str(kwargs['taskid']))
             init_global_params_from_bnpy_format(
                 hmodel, Data, initname2, **kwargs)
@@ -45,6 +52,13 @@ def init_global_params(hmodel, Data, initname=None, **kwargs):
 def init_global_params_from_bnpy_format(hmodel, Data, initname,
                                         initLapFrac=-1,
                                         prefix='Best', **kwargs):
+    """ Initialize global parameters for hmodel from bnpy disk format.
+
+    Post Condition
+    -------
+    hmodel has valid global parameters.
+    '''
+    """
     if initLapFrac > -1:
         storedModel, lap = ModelReader.loadModelForLap(initname, initLapFrac)
     else:

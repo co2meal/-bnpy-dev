@@ -145,7 +145,7 @@ def _initTopicWordEstParams(obsModel, Data, PRNG, K=0,
     else:
         raise NotImplementedError('Unrecognized initname ' + initname)
 
-    # ...................................................... end initname switch
+    # .... end initname switch
 
     # Double-check for suspicious NaN values
     # These can arise if kmeans delivers any empty clusters
