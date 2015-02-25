@@ -2,36 +2,44 @@
 FromTruth.py
 
 Initialize params of a bnpy model using "ground truth" information,
-such as human annotations 
+such as human annotations
 
-These are provided within a Data object, in either
-* TrueLabels dict, containing either hard or soft local parameter assignments
-* TrueParams dict, containing point-estimates of global parameters
-
+These are provided within the Data object's TrueParams attribute.
 '''
 import numpy as np
 import FromScratchMult
 
 
 def init_global_params(hmodel, Data, initname=None, seed=0, **kwargs):
-    ''' Initialize global params of given hmodel using Data's ground truth.
+    ''' Initialize global params of hmodel using Data's ground truth.
 
-        Args
-        -------
-        hmodel : bnpy model object to initialize
-        Data   : bnpy Data object whose dimensions must match resulting hmodel
-        initname : string name for the routine to use
-                   'truelabels' or 'repeattruelabels'
+    Parameters
+    -------
+    hmodel : bnpy.HModel
+        Model object to initialize.
+    Data   : bnpy.data.DataObj
+        Dataset to use to drive initialization.
+        obsModel dimensions must match this dataset.
+    initname : str
+        name of routine used to do initialization
+        Options: ['trueparams', 'truelabels',
+                  'repeattruelabels',
+                  'truelabelsandempties',
+                  'truelabelsandjunk',
+                 ]
 
-        Returns
-        --------
-        None. hmodel global params updated in-place.
+    Post Condition
+    -------
+    hmodel object has valid global parameters,
+    for both its allocModel and its obsModel.
     '''
     PRNG = np.random.RandomState(seed)
     if initname.count('truelabels') > 0:
         _initFromTrueLP(hmodel, Data, initname, PRNG, **kwargs)
-    else:
+    elif initname.count('trueparams') > 0:
         _initFromTrueParams(hmodel, Data, initname, PRNG, **kwargs)
+    else:
+        raise NotImplementedError('Unknown initname: %s' % (initname))
 
     if hmodel.obsModel.inferType == 'EM':
         assert hasattr(hmodel.obsModel, 'EstParams')
@@ -42,27 +50,34 @@ def init_global_params(hmodel, Data, initname=None, seed=0, **kwargs):
 def _initFromTrueParams(hmodel, Data, initname, PRNG, **kwargs):
     ''' Initialize global parameters of provided model to specific values
 
-        Relies on the set_global_params method implemented by all alloc/obs models
+    Uses named parameters in the dataset's TrueParams attribute,
+    and passes these as kwargs to the set_global_params methods
+    implemented by the allocModel and obsModel.
 
-        Returns
-        --------
-        None. hmodel updated in-place.
+    Post Condition
+    -------
+    hmodel object has valid global parameters,
+    for both its allocModel and its obsModel.
     '''
-    if initname != 'trueparams':
-        raise NotImplementedError('Unknown initname: %s' % (initname))
     InitParams = dict(**Data.TrueParams)
     InitParams['Data'] = Data
     hmodel.set_global_params(**InitParams)
 
 
-def _initFromTrueLP(hmodel, Data, initname, PRNG, nRepeatTrue=2, **kwargs):
-    ''' Initialize global parameters of provided model given local parameters
+def _initFromTrueLP(hmodel, Data, initname, PRNG, nRepeatTrue=2,
+                    initKextra=1,
+                    **kwargs):
+    ''' Initialize global params of provided model given local assignments.
 
-        Relies on update_global_params to set the global params given locals LP
+    Uses the 'Z' or 'resp' fields of the dataset's TrueParams dict
+    to create a local parameters dictionary. This is then used to do a
+    summary step (call get_global_suff_stats) and then a global step
+    (call update_global_params).
 
-        Returns
-        --------
-        None. hmodel updated in-place.
+    Post Condition
+    -------
+    hmodel object has valid global parameters,
+    for both its allocModel and its obsModel.
     '''
 
     # Extract "true" local params dictionary LP specified in the Data struct
@@ -89,9 +104,9 @@ def _initFromTrueLP(hmodel, Data, initname, PRNG, nRepeatTrue=2, **kwargs):
     elif initname == 'subdividetruelabels':
         LP = expandLPWithContigBlocks(LP, Data, PRNG)
     elif initname == 'truelabelsandempties':
-        LP = expandLPWithEmpty(LP, 1)
+        LP = expandLPWithEmpty(LP, initKextra)
     elif initname.count('junk'):
-        LP = expandLPWithJunk(LP, 1, PRNG=PRNG)
+        LP = expandLPWithJunk(LP, initKextra, PRNG=PRNG)
 
     if hasattr(hmodel.allocModel, 'initLPFromResp'):
         LP = hmodel.allocModel.initLPFromResp(Data, LP)
@@ -104,9 +119,11 @@ def _initFromTrueLP(hmodel, Data, initname, PRNG, nRepeatTrue=2, **kwargs):
 def convertLPFromHardToSoft(LP, Data, startIDsAt0=False, Kmax=None):
     ''' Transform array of hard assignment labels in Data into local param dict
 
-        Returns
-        ---------
-        LP : local parameter dict, with fields 'resp'
+    Returns
+    ---------
+    LP : dict
+        with updated fields
+        * 'resp' : 2D array, N x K
     '''
     Z = LP['Z']
     uniqueLabels = np.unique(Z)
@@ -127,6 +144,18 @@ def convertLPFromHardToSoft(LP, Data, startIDsAt0=False, Kmax=None):
 
 def expandLPWithEmpty(LP, nCol):
     ''' Create new LP by adding empty columns at the end
+
+    Parameters
+    --------
+    LP : dict
+        local parameters dict with K components
+    Kextra : int
+        number of new components to insert
+
+    Returns
+    --------
+    LP : dict,
+        with K + Kextra total components.
     '''
     resp = LP['resp']
     LP['resp'] = np.hstack([resp, np.zeros((resp.shape[0], nCol))])
@@ -135,6 +164,18 @@ def expandLPWithEmpty(LP, nCol):
 
 def expandLPWithJunk(LP, Kextra, PRNG=np.random.RandomState, fracJunk=0.01):
     ''' Create new LP by adding extra junk topics
+
+    Parameters
+    --------
+    LP : dict
+        local parameters dict with K components
+    Kextra : int
+        number of new components to insert
+
+    Returns
+    --------
+    LP : dict,
+        with K + Kextra total components.
     '''
     resp = LP['resp']
     N, K = resp.shape
@@ -150,14 +191,24 @@ def expandLPWithJunk(LP, Kextra, PRNG=np.random.RandomState, fracJunk=0.01):
 
 
 def expandLPWithDuplicates(LP, PRNG, nRepeatTrue=2):
-    ''' Create new LP by taking each existing component and duplicating it.
+    ''' Create new LP by randomly splitting each existing component.
 
-        Effectively there are nRepeatTrue "near-duplicates" of each comp,
-          with each original member of comp k assigned to one of these duplicates
+    Creates nRepeatTrue "near-duplicates" of each comp,
+    with each original member of comp k assigned to one of these
+    duplicates at random.
 
-        Returns
-        --------
-        LP : local param dict, with field resp that has repeated comps
+    Parameters
+    --------
+    LP : dict
+        local parameters dict with K components
+    PRNG : random number generator
+    nRepeatTrue : int
+        number of states to split each original component into
+
+    Returns
+    --------
+    LP : dict,
+        with K*nRepeatTrue total components.
     '''
     resp = LP['resp']
     N, Ktrue = resp.shape
@@ -179,11 +230,15 @@ def expandLPWithContigBlocks(LP, Data, PRNG, nPerSeq=2,
                              Kmax=64):
     ''' Expand hard labels at randomly-chosen contiguous blocks
 
-        Example
-        -------
-        [0, 0, 0, 0,    1, 1, 1, 1, 1,   2, 2, 2, 2, 2]
-        could become
-        [3, 3, 4, 4,    1, 1, 1, 1, 1,   5, 5, 6, 6, 6]
+    Example
+    -------
+    [0, 0, 0, 0,    1, 1, 1, 1, 1,   2, 2, 2, 2, 2]
+    could become
+    [3, 3, 4, 4,    1, 1, 1, 1, 1,   5, 5, 6, 6, 6]
+
+    Returns
+    ------
+    LP : dict
     '''
     Z = LP['Z']
     knewID = Z.max() + 1

@@ -1,7 +1,8 @@
 '''
 FromScratchGauss.py
 
-Initialize params of an HModel with gaussian observations from scratch.
+Initialize global params of a Gaussian-family data-generation model,
+from scratch.
 '''
 
 import numpy as np
@@ -17,9 +18,23 @@ def init_global_params(obsModel, Data, K=0, seed=0,
                        **kwargs):
     ''' Initialize parameters for Gaussian obsModel, in place.
 
-        Returns
-        -------
-        Nothing. obsModel is updated in place.
+    Parameters
+    -------
+    obsModel : bnpy.obsModel subclass
+        Observation model object to initialize.
+    Data   : bnpy.data.DataObj
+        Dataset to use to drive initialization.
+        obsModel dimensions must match this dataset.
+    initname : str
+        name of routine used to do initialization
+        Options: ['randexamples', 'randexamplesbydist', 'kmeans',
+                  'randcontigblocks', 'randsoftpartition',
+                 ]
+
+    Post Condition
+    -------
+    obsModel has valid global parameters.
+    Either its EstParams or Post attribute will be contain K components.
     '''
     PRNG = np.random.RandomState(seed)
     X = Data.X
@@ -30,6 +45,7 @@ def init_global_params(obsModel, Data, K=0, seed=0,
         permIDs = PRNG.permutation(Data.nObs).tolist()
         for k in xrange(K):
             resp[permIDs[k], k] = 1.0
+
     elif initname == 'randexamplesbydist':
         # Choose K items from the Data,
         #  selecting the first at random,
@@ -46,6 +62,7 @@ def init_global_params(obsModel, Data, K=0, seed=0,
         resp = np.zeros((Data.nObs, K))
         for k in xrange(K):
             resp[chosenObjIDs[k], k] = 1.0
+
     elif initname == 'randcontigblocks':
         # Choose K contig blocks of provided size from the Data,
         #  selecting each block at random from a particular sequence
@@ -83,25 +100,6 @@ def init_global_params(obsModel, Data, K=0, seed=0,
             rsum[badIDs] = 1
         resp = resp / rsum[:, np.newaxis]
         assert np.allclose(np.sum(resp, axis=1), 1.0)
-
-    elif initname == 'randparams':
-        CovMat = np.diag(np.cov(Data.X.T))
-        mu = np.sqrt(CovMat) * PRNG.randn(K, Data.dim)
-        Sigma = obsModel.get_covar_mat_for_comp('prior')
-        Sigma = np.tile(Sigma, (K, 1, 1))
-        obsModel.setEstParams(mu=mu, Sigma=Sigma)
-        if obsModel.inferType != 'EM':
-            obsModel.setPostFromEstParams(obsModel.EstParams, N=Data.nObs)
-            del obsModel.EstParams
-        return
-
-    elif initname == 'randomnaive':
-        # Generate K "fake" examples from the diagonalized data covariance,
-        #  creating params by assigning each "fake" example to a component.
-        Sig = np.sqrt(np.diag(np.cov(Data.X.T)))
-        Xfake = Sig * PRNG.randn(K, Data.dim)
-        Data = XData(Xfake)
-        resp = np.eye(K)
 
     elif initname == 'kmeans':
         # Fill in resp matrix with hard-clustering from K-means

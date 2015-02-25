@@ -1,8 +1,8 @@
 '''
 FromScratchBern.py
 
-Initialize global params of Bernoulli data-generation model, from scratch.
-
+Initialize global params of Bernoulli data-generation model,
+from scratch.
 '''
 
 import numpy as np
@@ -18,9 +18,23 @@ def init_global_params(obsModel, Data, K=0, seed=0,
                        **kwargs):
     ''' Initialize parameters for Bernoulli obsModel, in place.
 
-        Returns
-        -------
-        Nothing. obsModel is updated in place.
+    Parameters
+    -------
+    obsModel : bnpy.obsModel subclass
+        Observation model object to initialize.
+    Data   : bnpy.data.DataObj
+        Dataset to use to drive initialization.
+        obsModel dimensions must match this dataset.
+    initname : str
+        name of routine used to do initialization
+        Options: ['randexamples', 'randexamplesbydist', 'kmeans',
+                  'randcontigblocks', 'randsoftpartition',
+                 ]
+
+    Post Condition
+    -------
+    obsModel has valid global parameters.
+    Either its EstParams or Post attribute will be contain K components.
     '''
     PRNG = np.random.RandomState(seed)
     X = Data.X
@@ -81,6 +95,20 @@ def init_global_params(obsModel, Data, K=0, seed=0,
         resp = np.zeros((Data.nObs, K))
         for n in xrange(Data.nObs):
             resp[n, labels[n]] = 1
+
+    elif initname == 'randsoftpartition':
+        # Randomly assign all data items some mass in each of K components
+        #  then create component params by M-step given that soft partition
+        resp = PRNG.gamma(1.0 / (K * K), 1, size=(Data.nObs, K))
+        resp[resp < 1e-3] = 0
+        rsum = np.sum(resp, axis=1)
+        badIDs = rsum < 1e-8
+        # if any rows have no content, just set them to unif resp.
+        if np.any(badIDs):
+            resp[badIDs] = 1.0 / K
+            rsum[badIDs] = 1
+        resp = resp / rsum[:, np.newaxis]
+        assert np.allclose(np.sum(resp, axis=1), 1.0)
 
     else:
         raise NotImplementedError('Unrecognized initname ' + initname)

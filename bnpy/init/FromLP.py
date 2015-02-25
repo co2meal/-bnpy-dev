@@ -15,21 +15,23 @@ Log.setLevel(logging.DEBUG)
 
 def init_global_params(hmodel, Data, initname='', initLP=None,
                        **kwargs):
-    ''' Initialize (in-place) the global params of the given hmodel
-        using the true labels associated with the Data
+    ''' Initialize (in-place) the global params of the given hmodel.
 
-        Args
-        -------
-        hmodel : bnpy model object to initialize
-        Data   : bnpy Data object whose dimensions must match resulting hmodel
-        initname : string name for the routine to use
-                   'truelabels' or 'repeattruelabels'
+    Parameters
+    -------
+    hmodel : bnpy.HModel
+        model object to initialize
+    Data   : bnpy.data.DataObj
+         Dataset to use to drive initialization.
+         hmodel.obsModel dimensions must match this dataset.
+    initname : str, ['contigblocksLP', 'sacbLP']
+        name for the routine to use
 
-        Returns
-        --------
-        None. hmodel global parameters updated in-place.
+    Post Condition
+    --------
+    hmodel has valid global parameters.
     '''
-    if type(initLP) == dict:
+    if isinstance(initLP, dict):
         return initHModelFromLP(hmodel, Data, initLP)
 
     elif initname == 'sacbLP':
@@ -49,11 +51,11 @@ def init_global_params(hmodel, Data, initname='', initLP=None,
 def initHModelFromLP(hmodel, Data, LP):
     ''' Initialize provided bnpy HModel given data and local params.
 
-        Executes summary step and global step.
+    Executes summary step and global step given the provided LP.
 
-        Returns
-        --------
-        None. hmodel global parameters updated in-place.
+    Post Condition
+    ------
+    hmodel has valid global parameters.
     '''
     if 'resp' not in LP:
         if 'Z' not in LP:
@@ -67,19 +69,16 @@ def initHModelFromLP(hmodel, Data, LP):
     hmodel.update_global_params(SS)
 
 
-# ContigBlock init
-###########################################################
 def makeLP_ContigBlocks(Data, K=0, KperSeq=None, initNumSeq=None, **kwargs):
-    ''' Create local parameters using a contiguous block hard segmentation.
+    ''' Create local parameters via a contiguous block hard segmentation.
 
-        Divide chosen sequences up into KperSeq contiguous blocks (evenly sized),
-        and assign each block to a separate unique hidden state.
+    Divide chosen sequences up into KperSeq contiguous blocks,
+    each block evenly sized, and assign each block to a unique state.
 
-        Returns
-        -------
-        LP : dict with fields
+    Returns
+    -------
+    LP : dict of local parameters
         * resp : 2D array, Natom x K
-        data atom responsibility parametesr
     '''
     if initNumSeq is None:
         initNumSeq = Data.nDoc
@@ -166,9 +165,8 @@ def initSS_SeqAllocContigBlocks(Data, hmodel, **kwargs):
             returnSS=True,
             **kwargs)
         Ntotalsofar += Z_n.size
-        hmodel, SS, Result = runDeleteMove_SingleSequence(n,
-                                                          Data, SS, SS_n, hmodel,
-                                                          Kmax=Kmax, **kwargs)
+        hmodel, SS, Result = runDeleteMove_SingleSequence(
+            n, Data, SS, SS_n, hmodel, Kmax=Kmax, **kwargs)
         assert np.allclose(SS.N.sum(), Ntotalsofar)
         if orderID == len(randOrderIDs) - 1 \
            or (orderID + 1) % 5 == 0 or orderID < 2:
@@ -219,7 +217,8 @@ def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel,
             tmpAllocFields[key] = SSagg.removeField(key)
 
     # We traverse the current sequence block by block,
-    # Indices a,b denote the start and end of the current block *in this sequence*
+    # Indices a,b denote the start and end of the current block
+    # *in this sequence*
     # SSactive denotes the most recent current stretch assigned to one comp
     # SSab denotes the current block
     for blockID in xrange(nBlocks):
@@ -248,7 +247,7 @@ def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel,
 
         ELBOgap = obsModel.calcHardMergeGap_SpecificPairSS(SSactive, SSab)
         if (ELBOgap >= -0.000001):
-            # Positive value means we prefer to assign block [a,b] to current state
+            # Positive means we prefer to assign block [a,b] to current state
             # So combine the current block into the active block
             # and move on to the next block
             Z[a:b] = kUID
@@ -256,20 +255,19 @@ def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel,
         else:
             # Negative value means we assign block [a,b] to a new state!
             Z[a:b] = kUID + 1
-            SSagg, Z = updateAggSSWithFinishedCurrentBlock(SSagg, SSactive,
-                                                           Z,
-                                                           obsModel,
-                                                           Kmax=Kmax + Kextra,
-                                                           mergeToSimplify=mergeToSimplify)
+            SSagg, Z = updateAggSSWithFinishedCurrentBlock(
+                SSagg, SSactive, Z, obsModel,
+                Kmax=Kmax + Kextra,
+                mergeToSimplify=mergeToSimplify)
 
             # Create a new active block, starting at [a,b]
             SSactive = SSab  # make a soft copy / alias
             kUID = 1 * SSagg.K
 
     # Final block needs to be recorded.
-    SSagg, Z = updateAggSSWithFinishedCurrentBlock(SSagg, SSactive, Z,
-                                                   obsModel,
-                                                   mergeToSimplify=mergeToSimplify)
+    SSagg, Z = updateAggSSWithFinishedCurrentBlock(
+        SSagg, SSactive, Z, obsModel,
+        Kmax=Kmax + Kextra, mergeToSimplify=mergeToSimplify)
 
     # Compute sequence-specific suff stats
     # This includes allocmodel stats
