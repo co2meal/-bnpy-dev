@@ -7,10 +7,8 @@ from collections import defaultdict
 import numpy as np
 import os
 import logging
-Log = logging.getLogger('bnpy')
 
 from MOVBAlg import MOVBAlg, makeDictOfAllWorkspaceVars
-
 from bnpy.suffstats import SuffStatBag
 from bnpy.util import isEvenlyDivisibleFloat
 from bnpy.birthmove import TargetPlanner, TargetDataSampler, BirthMove
@@ -20,355 +18,364 @@ from bnpy.birthmove.TargetDataSampler import hasValidKey
 from bnpy.deletemove import DPlanner, DCollector, DEvaluator
 from bnpy.deletemove import DeleteLogger
 
+
 class MOVBBirthMergeAlg(MOVBAlg):
 
-  def __init__(self, **kwargs):
-    ''' Construct memoized algorithm instance that can do births/merges.
+    def __init__(self, **kwargs):
+        ''' Construct memoized algorithm instance that can do births/merges.
+        '''
+        MOVBAlg.__init__(self, **kwargs)
 
-        Includes specialized internal fields to hold "memoized" statistics
-    '''
-    MOVBAlg.__init__(self, **kwargs)
+        if self.hasMove('merge') or self.hasMove('softmerge'):
+            self.MergeLog = list()
+            self.lapLastAcceptedMerge = self.algParams['startLap']
 
-    if self.hasMove('merge') or self.hasMove('softmerge'):
-      self.MergeLog = list()
-      self.lapLastAcceptedMerge = self.algParams['startLap']
+        if self.hasMove('birth'):
+            # Track the number of laps since birth last attempted
+            #  at each component, to encourage trying diversity
+            self.LapsSinceLastBirth = defaultdict(int)
+            self.BirthRecordsByComp = defaultdict(lambda: dict())
 
-    if self.hasMove('birth'):
-      # Track the number of laps since birth last attempted
-      #  at each component, to encourage trying diversity
-      self.LapsSinceLastBirth = defaultdict(int)
-      self.BirthRecordsByComp = defaultdict(lambda: dict())
+        if self.hasMove('delete'):
+            self.DeleteRecordsByComp = defaultdict(lambda: dict())
+            self.lapLastAcceptedDelete = self.algParams['startLap']
 
-    if self.hasMove('delete'):
-      self.DeleteRecordsByComp = defaultdict(lambda: dict())
-      self.lapLastAcceptedDelete = self.algParams['startLap']
+        self.ELBOReady = True
 
-    self.ELBOReady = True
-
-  ######################################################### fit
-  ######################################################### 
-  def fit(self, hmodel, DataIterator):
-    ''' Run learning algorithm that fits parameters of hmodel to Data.
+    def fit(self, hmodel, DataIterator):
+        ''' Run learning algorithm that fits parameters of hmodel to Data.
 
         Returns
         --------
         Info : dict of run information.
-  
-        In-place updates
+
+        Post Condition
         --------
-        hmodel.
-    '''
-    origmodel = hmodel
-    self.ActiveIDVec = np.arange(hmodel.obsModel.K)
-    self.maxUID = self.ActiveIDVec.max()
-    self.DataIterator = DataIterator
+        hmodel updated in place with improved global parameters.
+        '''
+        origmodel = hmodel
+        self.ActiveIDVec = np.arange(hmodel.obsModel.K)
+        self.maxUID = self.ActiveIDVec.max()
+        self.DataIterator = DataIterator
 
-    ## Initialize progress tracking vars like nBatch, lapFrac, etc.
-    iterid, lapFrac = self.initProgressTrackVars(DataIterator)
+        # Initialize progress tracking vars like nBatch, lapFrac, etc.
+        iterid, lapFrac = self.initProgressTrackVars(DataIterator)
 
-    ## Keep list of params that should be retained across laps
-    self.memoLPkeys = hmodel.allocModel.get_keys_for_memoized_local_params()
+        # Keep list of params that should be retained across laps
+        mkeys = hmodel.allocModel.get_keys_for_memoized_local_params()
+        self.memoLPkeys = mkeys
 
-    ## Save initial state
-    self.saveParams(lapFrac, hmodel)
+        # Save initial state
+        self.saveParams(lapFrac, hmodel)
 
-    ## Custom func hook
-    self.eval_custom_func(isInitial=1, **makeDictOfAllWorkspaceVars(**vars()))
+        # Custom func hook
+        self.eval_custom_func(
+            isInitial=1, **makeDictOfAllWorkspaceVars(**vars()))
 
-    ## Prep for birth 
-    BirthPlans = list()
-    BirthResults = list()
-    prevBirthResults = list()
+        # Prep for birth
+        BirthPlans = list()
+        BirthResults = list()
+        prevBirthResults = list()
 
-    ## Prep for merge
-    MergePlanInfo = dict()
-    if self.hasMove('merge'):
-      mergeStartLap = self.algParams['merge']['mergeStartLap']
-    else:
-      mergeStartLap = 0
-    order = None
+        # Prep for merge
+        MergePlanInfo = dict()
+        if self.hasMove('merge'):
+            mergeStartLap = self.algParams['merge']['mergeStartLap']
+        else:
+            mergeStartLap = 0
+        order = None
 
-    ## Prep for delete
-    DeletePlans = list()
-
-    ## Begin loop over batches of data...
-    SS = None
-    isConverged = False
-    self.set_start_time_now()
-    while DataIterator.has_next_batch():
-
-      ## Grab new data
-      Dchunk = DataIterator.get_next_batch()
-      batchID = DataIterator.batchID
-      Dchunk.batchID = batchID
-
-      ## Update progress-tracking variables
-      iterid += 1
-      lapFrac = (iterid + 1) * self.lapFracInc
-      self.lapFrac = lapFrac
-      nLapsCompleted = lapFrac - self.algParams['startLap']
-      self.set_random_seed_at_lap(lapFrac)
-      if self.doDebugVerbose():
-        self.print_msg('========================== lap %.2f batch %d' \
-                       % (lapFrac, batchID))
-
-      ## Local convergence thr
-      if self.isFirstBatch(lapFrac) and 'convThrLP' in self.algParamsLP:
-        if lapFrac <= 1:
-          finalConvThr = self.algParamsLP['convThrLP']
-          initConvThr = self.algParamsLP['initconvThrLP']          
-        if initConvThr > 0:
-          assert initConvThr >= finalConvThr
-          fracComplete = self.lapFrac / self.algParamsLP['plateauLapLP']
-          convThr = finalConvThr + initConvThr * np.exp(-7 * fracComplete)
-          self.algParamsLP['convThrLP'] = convThr
-
-      ## Delete : Evaluate all planned proposals
-      if self.isFirstBatch(lapFrac) and self.hasMove('delete'):
-        self.DeleteAcceptRecord = dict()
-        if self.doDeleteAtLap(lapFrac):
-          hmodel, SS = self.deleteAndUpdateMemory(hmodel, SS, 
-                                                  DeletePlans, order)
+        # Prep for delete
         DeletePlans = list()
 
-      ## Birth move : track birth info from previous lap
-      if self.isFirstBatch(lapFrac):
-        if self.hasMove('birth') and self.do_birth_at_lap(lapFrac - 1.0):
-          prevBirthResults = BirthResults
-        else:
-          prevBirthResults = list()
+        # Begin loop over batches of data...
+        SS = None
+        isConverged = False
+        self.set_start_time_now()
+        while DataIterator.has_next_batch():
 
-      ## Birth move : create new components
-      if self.hasMove('birth') and self.do_birth_at_lap(lapFrac):
-        if self.doBirthWithPlannedData(lapFrac):
-          hmodel, SS, BirthResults = self.birth_create_new_comps(
-                                            hmodel, SS, BirthPlans,
-                                                        lapFrac=lapFrac)
+            # Grab new data
+            Dchunk = DataIterator.get_next_batch()
+            batchID = DataIterator.batchID
+            Dchunk.batchID = batchID
 
-        if self.doBirthWithDataFromCurrentBatch(lapFrac):
-          hmodel, SS, curResults = self.birth_create_new_comps(
-                                            hmodel, SS, Data=Dchunk,
-                                                        lapFrac=lapFrac)
-          BirthResults.extend(curResults)
-      else:
-        BirthResults = list()
+            # Update progress-tracking variables
+            iterid += 1
+            lapFrac = (iterid + 1) * self.lapFracInc
+            self.lapFrac = lapFrac
+            nLapsCompleted = lapFrac - self.algParams['startLap']
+            self.set_random_seed_at_lap(lapFrac)
+            if self.doDebugVerbose():
+                self.print_msg('========================== lap %.2f batch %d'
+                               % (lapFrac, batchID))
 
-      ## Prepare for merges
-      if self.hasMove('merge') and self.doMergePrepAtLap(lapFrac):
-        MergePrepInfo = self.preparePlansForMerge(hmodel, SS, MergePrepInfo,
-                                                  order=order,
-                                                  BirthResults=BirthResults,
-                                                  lapFrac=lapFrac)
-      elif self.isFirstBatch(lapFrac):
-        if self.doMergePrepAtLap(lapFrac+1):
-          MergePrepInfo = dict(mergePairSelection=
-                               self.algParams['merge']['mergePairSelection'])
-        else:
-          MergePrepInfo = dict()
+            # Local convergence thr
+            if self.isFirstBatch(lapFrac) and 'convThrLP' in self.algParamsLP:
+                if lapFrac <= 1:
+                    finalConvThr = self.algParamsLP['convThrLP']
+                    initConvThr = self.algParamsLP['initconvThrLP']
+                if initConvThr > 0:
+                    assert initConvThr >= finalConvThr
+                    fracComplete = self.lapFrac / \
+                        self.algParamsLP['plateauLapLP']
+                    convThr = finalConvThr + initConvThr * \
+                        np.exp(-7 * fracComplete)
+                    self.algParamsLP['convThrLP'] = convThr
 
-      ## Reset selection terms to zero
-      if self.isFirstBatch(lapFrac):
-        if SS is not None and SS.hasSelectionTerms():
-          SS._SelectTerms.setAllFieldsToZero()
+            # Delete : Evaluate all planned proposals
+            if self.isFirstBatch(lapFrac) and self.hasMove('delete'):
+                self.DeleteAcceptRecord = dict()
+                if self.doDeleteAtLap(lapFrac):
+                    hmodel, SS = self.deleteAndUpdateMemory(hmodel, SS,
+                                                            DeletePlans, order)
+                DeletePlans = list()
 
-      ## Local/E step
-      self.algParamsLP['lapFrac'] = lapFrac ## logging
-      self.algParamsLP['batchID'] = batchID
-      LPchunk = self.memoizedLocalStep(hmodel, Dchunk, batchID,
-                                       MergePrepInfo=MergePrepInfo)
+            # Birth move : track birth info from previous lap
+            if self.isFirstBatch(lapFrac):
+                didBirth = self.do_birth_at_lap(lapFrac - 1.0)
+                if self.hasMove('birth') and didBirth:
+                    prevBirthResults = BirthResults
+                else:
+                    prevBirthResults = list()
 
-      ## Summary step
-      SS, SSchunk = self.memoizedSummaryStep(hmodel, SS,
-                                             Dchunk, LPchunk, batchID,
-                                             MergePrepInfo=MergePrepInfo,
-                                             order=order)
+            # Birth move : create new components
+            if self.hasMove('birth') and self.do_birth_at_lap(lapFrac):
+                if self.doBirthWithPlannedData(lapFrac):
+                    hmodel, SS, BirthResults = self.birth_create_new_comps(
+                        hmodel, SS, BirthPlans,
+                        lapFrac=lapFrac)
 
-      ## Delete : Make plan for comps to target during next lap
-      if self.hasMove('delete') and self.doDeleteAtLap(lapFrac+1):
-        if self.isFirstBatch(lapFrac):
-          Plan = DPlanner.makePlanForEligibleComps(SS, 
-                                     lapFrac=self.lapFrac,
-                                     DRecordsByComp=self.DeleteRecordsByComp,
-                                     **self.algParams['delete'])
-          if 'candidateUIDs' in Plan:
-              DeletePlans = [Plan]
-          else:
-              DeletePlans = []
-      ## Delete : Collect the 
-      if len(DeletePlans) > 0:
-          DeletePlans = self.deleteCollectTarget(Dchunk, hmodel, LPchunk, 
-                                                 batchID,
-                                                 DeletePlans)
+                if self.doBirthWithDataFromCurrentBatch(lapFrac):
+                    hmodel, SS, curResults = self.birth_create_new_comps(
+                        hmodel, SS, Data=Dchunk,
+                        lapFrac=lapFrac)
+                    BirthResults.extend(curResults)
+            else:
+                BirthResults = list()
 
-      ## Birth move : collect target data
-      if self.hasMove('birth') and self.do_birth_at_lap(lapFrac+1.0):
-        if self.isFirstBatch(lapFrac):
-          BirthPlans = self.birth_plan_targets_for_next_lap(
-                                Dchunk, hmodel, SS, LPchunk, BirthResults)
-        BirthPlans = self.birth_collect_target_subsample(
-                                Dchunk, hmodel, LPchunk, BirthPlans, lapFrac)
-      else:
-        BirthPlans = list()
+            # Prepare for merges
+            if self.hasMove('merge') and self.doMergePrepAtLap(lapFrac):
+                MergePrepInfo = self.preparePlansForMerge(
+                    hmodel, SS, MergePrepInfo,
+                    order=order,
+                    BirthResults=BirthResults,
+                    lapFrac=lapFrac)
+            elif self.isFirstBatch(lapFrac):
+                if self.doMergePrepAtLap(lapFrac + 1):
+                    mpSelect = self.algParams['merge']['mergePairSelection']
+                    MergePrepInfo = dict(mergePairSelection=mpSelect)
+                else:
+                    MergePrepInfo = dict()
 
-      ## Birth : Handle removing "extra mass" of fresh components
-      if self.hasMove('birth') and self.isLastBatch(lapFrac):
-        hmodel, SS = self.birth_remove_extra_mass(hmodel, SS, BirthResults)
-        # SS now has size exactly consistent with entire dataset
-      
-      ## Global/M step
-      self.GlobalStep(hmodel, SS, lapFrac)
+            # Reset selection terms to zero
+            if self.isFirstBatch(lapFrac):
+                if SS is not None and SS.hasSelectionTerms():
+                    SS._SelectTerms.setAllFieldsToZero()
 
-      ## ELBO calculation
-      if self.isLastBatch(lapFrac):
-        self.ELBOReady = True # after seeing all data, ELBO will be ready
-      if self.ELBOReady:
-        evBound = hmodel.calc_evidence(SS=SS)
-        
-      ## Merge move!
-      if self.hasMove('merge') and self.isLastBatch(lapFrac) \
-                               and lapFrac > mergeStartLap:
-        hmodel, SS, evBound = self.run_many_merge_moves(hmodel, SS, evBound,
-                                                        lapFrac, MergePrepInfo)
+            # Local/E step
+            self.algParamsLP['lapFrac'] = lapFrac
+            self.algParamsLP['batchID'] = batchID
+            LPchunk = self.memoizedLocalStep(hmodel, Dchunk, batchID,
+                                             MergePrepInfo=MergePrepInfo)
 
-      ## Shuffle : Rearrange topic order (big to small)
-      if self.hasMove('shuffle') and self.isLastBatch(lapFrac):
-        order = np.argsort(-1*SS.getCountVec())
-        sortedalready = np.arange(SS.K)
-        if np.allclose(order, sortedalready):
-          order = None # Already sorted, do nothing!
-        else:
-          self.ActiveIDVec = self.ActiveIDVec[order]
-          SS.reorderComps(order)
-          assert np.allclose(SS.uIDs, self.ActiveIDVec)
+            # Summary step
+            SS, SSchunk = self.memoizedSummaryStep(hmodel, SS,
+                                                   Dchunk, LPchunk, batchID,
+                                                   MergePrepInfo=MergePrepInfo,
+                                                   order=order)
 
-          hmodel.update_global_params(SS)
-          evBound = hmodel.calc_evidence(SS=SS)
+            # Delete : Make plan for comps to target during next lap
+            if self.hasMove('delete') and self.doDeleteAtLap(lapFrac + 1):
+                if self.isFirstBatch(lapFrac):
+                    Plan = DPlanner.makePlanForEligibleComps(
+                        SS,
+                        lapFrac=self.lapFrac,
+                        DRecordsByComp=self.DeleteRecordsByComp,
+                        **self.algParams['delete'])
+                    if 'candidateUIDs' in Plan:
+                        DeletePlans = [Plan]
+                    else:
+                        DeletePlans = []
+            # Delete : Collect the
+            if len(DeletePlans) > 0:
+                DeletePlans = self.deleteCollectTarget(Dchunk, hmodel, LPchunk,
+                                                       batchID,
+                                                       DeletePlans)
 
-      if nLapsCompleted > 1.0 and len(BirthResults) == 0:
-        # evBound will increase monotonically AFTER first lap of the data 
-        # verify_evidence will warn if bound isn't increasing monotonically
-        self.verify_evidence(evBound, prevBound, lapFrac)
+            # Birth move : collect target data
+            if self.hasMove('birth') and self.do_birth_at_lap(lapFrac + 1.0):
+                if self.isFirstBatch(lapFrac):
+                    BirthPlans = self.birth_plan_targets_for_next_lap(
+                        Dchunk, hmodel, SS, LPchunk, BirthResults)
+                BirthPlans = self.birth_collect_target_subsample(
+                    Dchunk, hmodel, LPchunk, BirthPlans, lapFrac)
+            else:
+                BirthPlans = list()
 
-      if self.doDebug() and lapFrac >= 1.0:
-        self.verifyELBOTracking(hmodel, SS, evBound, order=order,
-                                BirthResults=BirthResults)
-            
-      ## Assess convergence
-      countVec = SS.getCountVec()
-      if lapFrac > 1.0:
-        isConverged = self.isCountVecConverged(countVec, prevCountVec)
-        hasMoreMoves = self.hasMoreReasonableMoves(lapFrac, SS)
-        isConverged = isConverged and not hasMoreMoves
-        self.setStatus(lapFrac, isConverged)
+            # Birth : Handle removing "extra mass" of fresh components
+            if self.hasMove('birth') and self.isLastBatch(lapFrac):
+                hmodel, SS = self.birth_remove_extra_mass(
+                    hmodel, SS, BirthResults)
+                # SS now has size exactly consistent with entire dataset
 
-      ## Display progress
-      self.updateNumDataProcessed(Dchunk.get_size())
-      if self.isLogCheckpoint(lapFrac, iterid):
-        self.printStateToLog(hmodel, evBound, lapFrac, iterid)
+            # Global/M step
+            self.GlobalStep(hmodel, SS, lapFrac)
 
-      ## Save diagnostics and params
-      if self.isSaveDiagnosticsCheckpoint(lapFrac, iterid):
-        self.saveDiagnostics(lapFrac, SS, evBound, self.ActiveIDVec)
-      if self.isSaveParamsCheckpoint(lapFrac, iterid):
+            # ELBO calculation
+            if self.isLastBatch(lapFrac):
+                # after seeing all data, ELBO will be ready
+                self.ELBOReady = True
+            if self.ELBOReady:
+                evBound = hmodel.calc_evidence(SS=SS)
+
+            # Merge move!
+            if self.hasMove('merge') and self.isLastBatch(lapFrac) \
+                    and lapFrac > mergeStartLap:
+                hmodel, SS, evBound = self.run_many_merge_moves(
+                    hmodel, SS, evBound, lapFrac, MergePrepInfo)
+
+            # Shuffle : Rearrange topic order (big to small)
+            if self.hasMove('shuffle') and self.isLastBatch(lapFrac):
+                order = np.argsort(-1 * SS.getCountVec())
+                sortedalready = np.arange(SS.K)
+                if np.allclose(order, sortedalready):
+                    order = None  # Already sorted, do nothing!
+                else:
+                    self.ActiveIDVec = self.ActiveIDVec[order]
+                    SS.reorderComps(order)
+                    assert np.allclose(SS.uIDs, self.ActiveIDVec)
+
+                    hmodel.update_global_params(SS)
+                    evBound = hmodel.calc_evidence(SS=SS)
+
+            if nLapsCompleted > 1.0 and len(BirthResults) == 0:
+                # evBound increases monotonically AFTER first lap
+                # verify_evidence warns if this isn't happening
+                self.verify_evidence(evBound, prevBound, lapFrac)
+
+            if self.doDebug() and lapFrac >= 1.0:
+                self.verifyELBOTracking(hmodel, SS, evBound, order=order,
+                                        BirthResults=BirthResults)
+
+            # Assess convergence
+            countVec = SS.getCountVec()
+            if lapFrac > 1.0:
+                isConverged = self.isCountVecConverged(countVec, prevCountVec)
+                hasMoreMoves = self.hasMoreReasonableMoves(lapFrac, SS)
+                isConverged = isConverged and not hasMoreMoves
+                self.setStatus(lapFrac, isConverged)
+
+            # Display progress
+            self.updateNumDataProcessed(Dchunk.get_size())
+            if self.isLogCheckpoint(lapFrac, iterid):
+                self.printStateToLog(hmodel, evBound, lapFrac, iterid)
+
+            # Save diagnostics and params
+            if self.isSaveDiagnosticsCheckpoint(lapFrac, iterid):
+                self.saveDiagnostics(lapFrac, SS, evBound, self.ActiveIDVec)
+            if self.isSaveParamsCheckpoint(lapFrac, iterid):
+                self.saveParams(lapFrac, hmodel, SS)
+
+            # Custom func hook
+            self.eval_custom_func(**makeDictOfAllWorkspaceVars(**vars()))
+
+            if isConverged and self.isLastBatch(lapFrac) \
+               and nLapsCompleted >= self.algParams['minLaps']:
+                break
+            prevCountVec = countVec.copy()
+            prevBound = evBound
+            # .... end loop over data
+
+        # Finished! Save, print and exit
+        self.printStateToLog(hmodel, evBound, lapFrac, iterid, isFinal=1)
         self.saveParams(lapFrac, hmodel, SS)
+        self.eval_custom_func(
+            isFinal=1, **makeDictOfAllWorkspaceVars(**vars()))
 
-      ## Custom func hook
-      self.eval_custom_func(**makeDictOfAllWorkspaceVars(**vars()))
+        # Births and merges require copies of original model object
+        #  we need to make sure original reference has updated parameters, etc.
+        if id(origmodel) != id(hmodel):
+            origmodel.allocModel = hmodel.allocModel
+            origmodel.obsModel = hmodel.obsModel
+        return self.buildRunInfo(evBound=evBound, SS=SS,
+                                 LPmemory=self.LPmemory,
+                                 SSmemory=self.SSmemory)
 
-      if isConverged and self.isLastBatch(lapFrac) \
-         and nLapsCompleted >= self.algParams['minLaps']:
-        break
-      prevCountVec = countVec.copy()
-      prevBound = evBound
-      #.................................................... end loop over data
+    def hasMoreReasonableMoves(self, lapFrac, SS):
+        ''' Decide if more moves will feasibly change current configuration.
+        '''
+        if lapFrac - self.algParams['startLap'] >= self.algParams['nLap']:
+            # Time's up, so doesn't matter what other moves are possible.
+            return False
 
-    # Finished! Save, print and exit
-    self.printStateToLog(hmodel, evBound, lapFrac, iterid, isFinal=1)
-    self.saveParams(lapFrac, hmodel, SS)
-    self.eval_custom_func(isFinal=1, **makeDictOfAllWorkspaceVars(**vars()))
+        if self.hasMove('delete'):
+            # If any eligible comps exist, we have more moves possible
+            # so return True
+            deleteStartLap = self.algParams['delete']['deleteStartLap']
+            nBeforeQuit = self.algParams['delete']['deleteNumStuckBeforeQuit']
+            waitedLongEnough = (
+                lapFrac - self.lapLastAcceptedDelete) > nBeforeQuit
 
-    # Births and merges require copies of original model object
-    #  we need to make sure original reference has updated parameters, etc.
-    if id(origmodel) != id(hmodel):
-      origmodel.allocModel = hmodel.allocModel
-      origmodel.obsModel = hmodel.obsModel
-    return self.buildRunInfo(evBound=evBound, SS=SS,
-                             LPmemory=self.LPmemory,
-                             SSmemory=self.SSmemory)
+            # If we haven't even tried deletes for sufficent num laps, keep
+            # going
+            if lapFrac <= deleteStartLap + nBeforeQuit:
+                return True
 
+            if isEvenlyDivisibleFloat(lapFrac, 1.0):
+                nEligible = DPlanner.getEligibleCount(
+                    SS,
+                    DRecordsByComp=self.DeleteRecordsByComp,
+                    **self.algParams['delete'])
+            else:
+                nEligible = 1
+            if nEligible > 0 or not waitedLongEnough:
+                return True
 
-  def hasMoreReasonableMoves(self, lapFrac, SS):
-    ''' Decide if more moves will feasibly change current configuration. 
-    '''
-    if lapFrac - self.algParams['startLap'] >= self.algParams['nLap']:
-      ## Time's up, so doesn't matter what other moves are possible.
-      return False
+        if self.hasMove('birth') and self.do_birth_at_lap(lapFrac):
+            # If any eligible comps exist, we have more moves possible
+            # so return True
+            if not hasattr(self, 'BirthEligibleHist'):
+                return True
+            if self.BirthEligibleHist['Nable'] > 0:
+                return True
 
-    if self.hasMove('delete'):
-      ## If any eligible comps exist, we have more moves possible
-      ## so return True
-      deleteStartLap = self.algParams['delete']['deleteStartLap']
-      nBeforeQuit = self.algParams['delete']['deleteNumStuckBeforeQuit']
-      waitedLongEnough = (lapFrac - self.lapLastAcceptedDelete) > nBeforeQuit
+        if self.hasMove('merge'):
+            nStuckBeforeQuit = self.algParams[
+                'merge']['mergeNumStuckBeforeQuit']
+            mergeStartLap = self.algParams['merge']['mergeStartLap']
 
-      # If we haven't even tried deletes for sufficent num laps, keep going
-      if lapFrac <= deleteStartLap + nBeforeQuit:
-        return True
+            # If we haven't even tried merges for sufficent num laps, keep
+            # going
+            if lapFrac <= mergeStartLap + nStuckBeforeQuit:
+                return True
 
-      if isEvenlyDivisibleFloat(lapFrac, 1.0):
-        nEligible = DPlanner.getEligibleCount(SS, 
-                                    DRecordsByComp=self.DeleteRecordsByComp,
-                                    **self.algParams['delete'])
-      else:
-        nEligible = 1
-      if nEligible > 0 or not waitedLongEnough:
-        return True
+            # If we've tried many merges without success, exit early
+            if (lapFrac - self.lapLastAcceptedMerge) > nStuckBeforeQuit:
+                return False
+            return True
 
-    if self.hasMove('birth') and self.do_birth_at_lap(lapFrac):
-      ## If any eligible comps exist, we have more moves possible
-      ## so return True
-      if not hasattr(self, 'BirthEligibleHist'):
-        return True
-      if self.BirthEligibleHist['Nable'] > 0:
-        return True
-
-    if self.hasMove('merge'):
-      nStuckBeforeQuit = self.algParams['merge']['mergeNumStuckBeforeQuit']
-      mergeStartLap = self.algParams['merge']['mergeStartLap']
-
-      # If we haven't even tried merges for sufficent num laps, keep going
-      if lapFrac <= mergeStartLap + nStuckBeforeQuit:
-        return True
-
-      # If we've tried many merges without success, exit early
-      if (lapFrac - self.lapLastAcceptedMerge) > nStuckBeforeQuit:
         return False
-      return True
 
-    return False
-
-  ######################################################### Local step
-  #########################################################
-  def memoizedLocalStep(self, hmodel, Dchunk, batchID, MergePrepInfo=None):
-    ''' Execute local step on data chunk.
+    def memoizedLocalStep(self, hmodel, Dchunk, batchID, MergePrepInfo=None):
+        ''' Execute local step on data chunk.
 
         Returns
         --------
         LPchunk : dict of local params for current batch
-    '''
-    if batchID in self.LPmemory:
-      oldLPchunk = self.load_batch_local_params_from_memory(batchID)
-    else:
-      oldLPchunk = None
-    LPchunk = hmodel.calc_local_params(Dchunk, oldLPchunk,
-                                       MergePrepInfo=MergePrepInfo,
-                                       **self.algParamsLP)
-    if self.algParams['doMemoizeLocalParams']:
-      self.save_batch_local_params_to_memory(batchID, LPchunk) 
-    return LPchunk
+        '''
+        if batchID in self.LPmemory:
+            oldLPchunk = self.load_batch_local_params_from_memory(batchID)
+        else:
+            oldLPchunk = None
+        LPchunk = hmodel.calc_local_params(Dchunk, oldLPchunk,
+                                           MergePrepInfo=MergePrepInfo,
+                                           **self.algParamsLP)
+        if self.algParams['doMemoizeLocalParams']:
+            self.save_batch_local_params_to_memory(batchID, LPchunk)
+        return LPchunk
 
-  def load_batch_local_params_from_memory(self, batchID):
-    ''' Load local parameter dict stored in memory for provided batchID
+    def load_batch_local_params_from_memory(self, batchID):
+        ''' Load local parameter dict stored in memory for provided batchID
 
         Ensures "fast-forward" so that all recent merges/births
         are accounted for in the returned LP
@@ -376,107 +383,102 @@ class MOVBBirthMergeAlg(MOVBAlg):
         Returns
         -------
         LPchunk : bnpy local parameters dictionary for batchID
-    '''
-    LPchunk = self.LPmemory[batchID]
-    if self.hasMove('merge') and LPchunk is not None:
-      K =  LPchunk[self.memoLPkeys[0]].shape[1]
-      for MInfo in self.MergeLog:
-        kA = MInfo['kA']
-        kB = MInfo['kB']
-        for key in self.memoLPkeys:
-          if kA >= K or kB >= K:
-            # Stored LPchunk is outdated... forget it.
-            return None
-          kB_column = LPchunk[key][:,kB]
-          LPchunk[key] = np.delete(LPchunk[key], kB, axis=1)
-          LPchunk[key][:,kA] = LPchunk[key][:,kA] + kB_column
+        '''
+        LPchunk = self.LPmemory[batchID]
+        if self.hasMove('merge') and LPchunk is not None:
+            K = LPchunk[self.memoLPkeys[0]].shape[1]
+            for MInfo in self.MergeLog:
+                kA = MInfo['kA']
+                kB = MInfo['kB']
+                for key in self.memoLPkeys:
+                    if kA >= K or kB >= K:
+                        # Stored LPchunk is outdated... forget it.
+                        return None
+                    kB_column = LPchunk[key][:, kB]
+                    LPchunk[key] = np.delete(LPchunk[key], kB, axis=1)
+                    LPchunk[key][:, kA] = LPchunk[key][:, kA] + kB_column
 
-    return LPchunk
+        return LPchunk
 
-
-  def save_batch_local_params_to_memory(self, batchID, LPchunk, doCopy=0):
-    ''' Store certain local params into internal LPmemory cache.
+    def save_batch_local_params_to_memory(self, batchID, LPchunk, doCopy=0):
+        ''' Store certain local params into internal LPmemory cache.
 
         Fields to save determined by the memoLPkeys attribute of this alg.
 
         Returns
         ---------
         None. self.LPmemory updated in-place.
-    '''
-    keepLPchunk = dict()
-    for key in LPchunk.keys():
-      if key in self.memoLPkeys:
-        if doCopy:
-          keepLPchunk[key] = copy.deepcopy(LPchunk[key])
+        '''
+        keepLPchunk = dict()
+        for key in LPchunk.keys():
+            if key in self.memoLPkeys:
+                if doCopy:
+                    keepLPchunk[key] = copy.deepcopy(LPchunk[key])
+                else:
+                    keepLPchunk[key] = LPchunk[key]
+
+        if len(keepLPchunk.keys()) > 0:
+            self.LPmemory[batchID] = keepLPchunk
         else:
-          keepLPchunk[key] = LPchunk[key]
+            self.LPmemory[batchID] = None
 
-    if len(keepLPchunk.keys()) > 0:
-      self.LPmemory[batchID] = keepLPchunk
-    else:
-      self.LPmemory[batchID] = None
-
-  ######################################################### Summary step
-  #########################################################
-  def memoizedSummaryStep(self, hmodel, SS, Dchunk, LPchunk, batchID,
-                                order=None, MergePrepInfo=None):
-    ''' Execute summary step on current batch and update aggregated SS
+    def memoizedSummaryStep(self, hmodel, SS, Dchunk, LPchunk, batchID,
+                            order=None, MergePrepInfo=None):
+        ''' Execute summary step on current batch and update aggregated SS
 
         Returns
         --------
         SS : updated aggregate suff stats
         SSchunk : updated current-batch suff stats
-    '''
-    if MergePrepInfo is None:
-      MergePrepInfo = dict()
-    if batchID in self.SSmemory:
-      ## Decrement old value of SSchunk from aggregated SS
-      # oldSSchunk will have usual Fields and ELBOTerms,
-      # but all MergeTerms and SelectionTerms should be removed.
-      oldSSchunk = self.load_batch_suff_stat_from_memory(batchID, doCopy=0,
-                                                         Kfinal=SS.K,
-                                                         order=order)
-      assert not oldSSchunk.hasMergeTerms()
-      assert oldSSchunk.K == SS.K
-      assert np.allclose(SS.uIDs, oldSSchunk.uIDs)
-      SS -= oldSSchunk
+        '''
+        if MergePrepInfo is None:
+            MergePrepInfo = dict()
+        if batchID in self.SSmemory:
+            # Decrement old value of SSchunk from aggregated SS
+            # oldSSchunk will have usual Fields and ELBOTerms,
+            # but all MergeTerms and SelectionTerms should be removed.
+            oldSSchunk = self.load_batch_suff_stat_from_memory(
+                batchID, doCopy=0, Kfinal=SS.K, order=order)
+            assert not oldSSchunk.hasMergeTerms()
+            assert oldSSchunk.K == SS.K
+            assert np.allclose(SS.uIDs, oldSSchunk.uIDs)
+            SS -= oldSSchunk
 
-    ## Calculate fresh suff stats for current batch
-    if self.hasMove('delete'):
-      trackDocUsage = 1
-    else:
-      trackDocUsage = 0
-    SSchunk = hmodel.get_global_suff_stats(Dchunk, LPchunk, 
-                                           doPrecompEntropy=1,
-                                           trackDocUsage=trackDocUsage,
-                                           **MergePrepInfo)
-    SSchunk.setUIDs(self.ActiveIDVec.copy())
+        # Calculate fresh suff stats for current batch
+        if self.hasMove('delete'):
+            trackDocUsage = 1
+        else:
+            trackDocUsage = 0
+        SSchunk = hmodel.get_global_suff_stats(Dchunk, LPchunk,
+                                               doPrecompEntropy=1,
+                                               trackDocUsage=trackDocUsage,
+                                               **MergePrepInfo)
+        SSchunk.setUIDs(self.ActiveIDVec.copy())
 
-    ## Increment aggregated SS by adding in SSchunk
-    if SS is None:
-      SS = SSchunk.copy()
-    else:
-      assert SSchunk.K == SS.K
-      assert np.allclose(SS.uIDs, self.ActiveIDVec)
-      assert np.allclose(SSchunk.uIDs, self.ActiveIDVec)
-      SS += SSchunk
-      if not SS.hasSelectionTerms() and SSchunk.hasSelectionTerms():
-        SS._SelectTerms = SSchunk._SelectTerms
+        # Increment aggregated SS by adding in SSchunk
+        if SS is None:
+            SS = SSchunk.copy()
+        else:
+            assert SSchunk.K == SS.K
+            assert np.allclose(SS.uIDs, self.ActiveIDVec)
+            assert np.allclose(SSchunk.uIDs, self.ActiveIDVec)
+            SS += SSchunk
+            if not SS.hasSelectionTerms() and SSchunk.hasSelectionTerms():
+                SS._SelectTerms = SSchunk._SelectTerms
 
-    self.save_batch_suff_stat_to_memory(batchID, SSchunk)
+        self.save_batch_suff_stat_to_memory(batchID, SSchunk)
 
-    ## Force aggregated suff stats to obey required constraints.
-    # This avoids numerical issues caused by incremental updates
-    if hasattr(hmodel.allocModel, 'forceSSInBounds'):
-      hmodel.allocModel.forceSSInBounds(SS)
-    if hasattr(hmodel.obsModel, 'forceSSInBounds'):
-      hmodel.obsModel.forceSSInBounds(SS)
-    return SS, SSchunk
+        # Force aggregated suff stats to obey required constraints.
+        # This avoids numerical issues caused by incremental updates
+        if hasattr(hmodel.allocModel, 'forceSSInBounds'):
+            hmodel.allocModel.forceSSInBounds(SS)
+        if hasattr(hmodel.obsModel, 'forceSSInBounds'):
+            hmodel.obsModel.forceSSInBounds(SS)
+        return SS, SSchunk
 
-
-  def load_batch_suff_stat_from_memory(self, batchID, doCopy=0, 
-                                             Kfinal=0, order=None):
-    ''' Load (fast-forwarded) suff stats stored from previous visit to batchID.
+    def load_batch_suff_stat_from_memory(self, batchID, doCopy=0,
+                                         Kfinal=0, order=None):
+        ''' Load (fast-forwarded) suff stats from previous visit to batchID.
 
         Any merges, shuffles, or births which happened since last visit
         are automatically applied.
@@ -484,894 +486,832 @@ class MOVBBirthMergeAlg(MOVBAlg):
         Returns
         -------
         SSchunk : bnpy SuffStatDict object for batchID,
-    '''
-    SSchunk = self.SSmemory[batchID]
-    if doCopy:
-      # Duplicating to avoid changing the raw data stored in SSmemory
-      #  this is done usually when debugging.
-      SSchunk = SSchunk.copy()
+        '''
+        SSchunk = self.SSmemory[batchID]
+        if doCopy:
+            # Duplicating to avoid changing the raw data stored in SSmemory
+            #  this is done usually when debugging.
+            SSchunk = SSchunk.copy()
 
-    # Check to see if we've fast-forwarded this chunk already
-    # If so, we return as-is
-    if SSchunk.K == self.ActiveIDVec.size:
-      if np.allclose(SSchunk.uIDs, self.ActiveIDVec):
+        # Check to see if we've fast-forwarded this chunk already
+        # If so, we return as-is
+        if SSchunk.K == self.ActiveIDVec.size:
+            if np.allclose(SSchunk.uIDs, self.ActiveIDVec):
+                if SSchunk.hasMergeTerms():
+                    SSchunk.removeMergeTerms()
+                return SSchunk
+
+        # Fast-forward accepted softmerges from end of previous lap
+        if self.hasMove('softmerge'):
+            for MInfo in self.MergeLog:
+                SSchunk.multiMergeComps(MInfo['kdel'], MInfo['alph'])
+
+        # Fast-forward accepted merges from end of previous lap
+        if self.hasMove('merge') and SSchunk.hasMergeTerms():
+            for MInfo in self.MergeLog:
+                kA = MInfo['kA']
+                kB = MInfo['kB']
+                if kA < SSchunk.K and kB < SSchunk.K:
+                    SSchunk.mergeComps(kA, kB)
         if SSchunk.hasMergeTerms():
-          SSchunk.removeMergeTerms()
+            SSchunk.removeMergeTerms()
+
+        # Fast-forward any shuffling/reordering that happened
+        if self.hasMove('shuffle') and order is not None:
+            if len(order) == SSchunk.K:
+                SSchunk.reorderComps(order)
+            else:
+                msg = 'Order has wrong size.'
+                msg += '\n size order  : %d' % len(order)
+                msg += '\n size SSchunk: %d' % SSchunk.K
+                raise ValueError(msg)
+
+        isGood = np.allclose(SSchunk.uIDs, self.ActiveIDVec[:SSchunk.K])
+        if not isGood:
+            if self.algParams['debug'] == 'interactive':
+                from IPython import embed
+                embed()
+        assert isGood
+
+        # Fast-forward births from this lap
+        if self.hasMove('birth') and Kfinal > 0 and SSchunk.K < Kfinal:
+            Kextra = Kfinal - SSchunk.K
+            if Kextra > 0:
+                SSchunk.insertEmptyComps(Kextra)
+            assert SSchunk.K == Kfinal
+            SSchunk.setUIDs(self.ActiveIDVec.copy())
+
+        assert np.allclose(SSchunk.uIDs, self.ActiveIDVec)
         return SSchunk
 
-    # Fast-forward accepted softmerges from end of previous lap 
-    if self.hasMove('softmerge'): 
-      for MInfo in self.MergeLog:
-        SSchunk.multiMergeComps(MInfo['kdel'], MInfo['alph'])
-    
-    # Fast-forward accepted merges from end of previous lap 
-    if self.hasMove('merge') and SSchunk.hasMergeTerms():
-      for MInfo in self.MergeLog:
-        kA = MInfo['kA']
-        kB = MInfo['kB']
-        if kA < SSchunk.K and kB < SSchunk.K:
-          SSchunk.mergeComps(kA, kB)
-    if SSchunk.hasMergeTerms():
-      SSchunk.removeMergeTerms()
+    def save_batch_suff_stat_to_memory(self, batchID, SSchunk):
+        ''' Store the provided suff stats into the "memory" for later retrieval
+        '''
+        if SSchunk.hasSelectionTerms():
+            del SSchunk._SelectTerms
+        self.SSmemory[batchID] = SSchunk
 
-    # Fast-forward any shuffling/reordering that happened
-    if self.hasMove('shuffle') and order is not None:
-      if len(order) == SSchunk.K:
-        SSchunk.reorderComps(order)
-      else:
-        msg = 'Order has wrong size.'
-        msg += '\n size order  : %d' % len(order)
-        msg += '\n size SSchunk: %d' % SSchunk.K
-        raise ValueError(msg)
+    def fastForwardMemory(self, Kfinal=0, order=None):
+        ''' Update *every* batch in memory to be current
+        '''
+        for batchID in self.SSmemory:
+            self.load_batch_suff_stat_from_memory(
+                batchID, Kfinal=Kfinal, order=order)
 
-    isGood = np.allclose(SSchunk.uIDs, self.ActiveIDVec[:SSchunk.K])
-    if not isGood:
-      if self.algParams['debug'] == 'interactive':
-        from IPython import embed; embed()
-    assert isGood    
+    def doBirthWithPlannedData(self, lapFrac):
+        return self.isFirstBatch(lapFrac)
 
-    # Fast-forward births from this lap
-    if self.hasMove('birth') and Kfinal > 0 and SSchunk.K < Kfinal:
-      Kextra = Kfinal - SSchunk.K
-      if Kextra > 0:
-        SSchunk.insertEmptyComps(Kextra)
-      assert SSchunk.K == Kfinal
-      SSchunk.setUIDs(self.ActiveIDVec.copy())
+    def doBirthWithDataFromCurrentBatch(self, lapFrac):
+        if self.isLastBatch(lapFrac):
+            return False
+        rem = lapFrac - np.floor(lapFrac)
+        isWithinFrac = rem <= self.algParams['birth']['birthBatchFrac'] + 1e-6
+        isWithinLimit = lapFrac <= self.algParams[
+            'birth']['birthBatchLapLimit']
+        return isWithinFrac and isWithinLimit
 
-    assert np.allclose(SSchunk.uIDs, self.ActiveIDVec)
-    return SSchunk
+    def birth_create_new_comps(self, hmodel, SS, BirthPlans=list(), Data=None,
+                               lapFrac=0):
+        ''' Create new components
 
-  def save_batch_suff_stat_to_memory(self, batchID, SSchunk):
-    ''' Store the provided suff stats into the "memory" for later retrieval
-    '''
-    if SSchunk.hasSelectionTerms():
-      del SSchunk._SelectTerms
-    self.SSmemory[batchID] = SSchunk
+            Returns
+            -------
+            hmodel : bnpy HModel, either existing model or one with more comps
+            SS : bnpy SuffStatBag, either existing SS or one with more comps
+            BirthResults : list of dicts, one entry per birth move
+        '''
+        kwargs = dict(**self.algParams['birth'])
+        kwargs.update(**self.algParamsLP)
 
-  def fastForwardMemory(self, Kfinal=0, order=None):
-    ''' Update *every* batch in memory to be current 
-    '''
-    for batchID in self.SSmemory:
-      self.load_batch_suff_stat_from_memory(batchID, Kfinal=Kfinal, order=order)
+        if 'birthRetainExtraMass' not in kwargs:
+            kwargs['birthRetainExtraMass'] = 1
 
+        if Data is not None:
+            targetData, targetInfo = TargetDataSampler.sample_target_data(
+                Data, model=hmodel, LP=None,
+                randstate=self.PRNG,
+                **kwargs)
+            Plan = dict(Data=targetData, ktarget=-1, targetWordIDs=[-1])
+            BirthPlans = [Plan]
+            kwargs['birthRetainExtraMass'] = 0
 
-  ######################################################### Birth moves!
-  #########################################################
-  def doBirthWithPlannedData(self, lapFrac):
-    return self.isFirstBatch(lapFrac)
+        nMoves = len(BirthPlans)
+        BirthResults = list()
 
-  def doBirthWithDataFromCurrentBatch(self, lapFrac):
-    if self.isLastBatch(lapFrac):
-      return False
-    rem = lapFrac - np.floor(lapFrac)
-    isWithinFrac = rem <= self.algParams['birth']['birthBatchFrac'] + 1e-6
-    isWithinLimit = lapFrac <= self.algParams['birth']['birthBatchLapLimit'] 
-    return isWithinFrac and isWithinLimit
+        def isInPlan(Plan, key):
+            return key in Plan and Plan[key] is not None
 
-  def birth_create_new_comps(self, hmodel, SS, BirthPlans=list(), Data=None,
-                                               lapFrac=0):
-    ''' Create new components 
+        for moveID, Plan in enumerate(BirthPlans):
+            # Unpack data for current move
+            ktarget = Plan['ktarget']
+            targetData = Plan['Data']
+            targetSize = TargetDataSampler.getSize(targetData)
+            # Remember, targetData may be None
 
-        Returns
-        -------
-        hmodel : bnpy HModel, either existing model or one with more comps
-        SS : bnpy SuffStatBag, either existing SS or one with more comps
-        BirthResults : list of dicts, one entry per birth move
-    '''
-    kwargs = dict(**self.algParams['birth'])
-    kwargs.update(**self.algParamsLP)
+            if isInPlan(Plan, 'targetWordIDs'):
+                isBad = len(Plan['targetWordIDs']) == 0
+            elif isInPlan(Plan, 'targetWordFreq'):
+                isBad = False
+            else:
+                isBad = ktarget is None
 
-    if 'birthRetainExtraMass' not in kwargs:
-      kwargs['birthRetainExtraMass'] = 1
+            BirthLogger.logStartMove(lapFrac, moveID + 1, len(BirthPlans))
+            if isBad or targetData is None:
+                msg = Plan['msg']
+                BirthLogger.log(msg, 'moreinfo')
+                BirthLogger.log('SKIPPED. TargetData bad.', 'moreinfo')
+            elif targetSize < kwargs['Kfresh']:
+                msg = "SKIPPED. Target data too small. Size %d, expected >= %d"
+                msg = msg % (targetSize, kwargs['Kfresh'])
+                BirthLogger.log(msg, 'moreinfo')
+            else:
+                newmodel, newSS, MoveInfo = BirthMove.run_birth_move(
+                    hmodel, SS, targetData,
+                    randstate=self.PRNG,
+                    Plan=Plan,
+                    **kwargs)
+                hmodel = newmodel
+                SS = newSS
 
-    if Data is not None:
-      targetData, targetInfo = TargetDataSampler.sample_target_data(
-                                        Data, model=hmodel, LP=None,
-                                        randstate=self.PRNG,
-                                        **kwargs)
-      Plan = dict(Data=targetData, ktarget=-1, targetWordIDs=[-1])
-      BirthPlans = [Plan]
-      kwargs['birthRetainExtraMass'] = 0
+                if MoveInfo['didAddNew']:
+                    BirthResults.append(MoveInfo)
+                    for kk in MoveInfo['birthCompIDs']:
+                        self.LapsSinceLastBirth[kk] = -1
 
-    nMoves = len(BirthPlans)
-    BirthResults = list()
+                        self.maxUID += 1
+                        self.ActiveIDVec = np.append(
+                            self.ActiveIDVec, self.maxUID)
+                    SS.setUIDs(self.ActiveIDVec.copy())
 
-    def isInPlan(Plan, key):
-      return key in Plan and Plan[key] is not None
+                # Update BirthRecords to track comps that fail at births
+                targetUID = Plan['targetUID']
+                if MoveInfo['didAddNew']:
+                    # Remove from records if successful... this comp will
+                    # change a lot
+                    if targetUID in self.BirthRecordsByComp:
+                        del self.BirthRecordsByComp[targetUID]
+                else:
+                    if 'nFail' not in self.BirthRecordsByComp[targetUID]:
+                        self.BirthRecordsByComp[targetUID]['nFail'] = 1
+                    else:
+                        self.BirthRecordsByComp[targetUID]['nFail'] += 1
+                    self.BirthRecordsByComp[targetUID]['count'] = Plan['count']
 
-    for moveID, Plan in enumerate(BirthPlans):
-      # Unpack data for current move
-      ktarget = Plan['ktarget']
-      targetData = Plan['Data']
-      targetSize = TargetDataSampler.getSize(targetData) 
-      # Remember, targetData may be None
+        return hmodel, SS, BirthResults
 
-      if isInPlan(Plan, 'targetWordIDs'):
-        isBad = len(Plan['targetWordIDs']) == 0
-      elif isInPlan(Plan, 'targetWordFreq'):
-        isBad = False
-      else:
-        isBad = ktarget is None
+    def birth_remove_extra_mass(self, hmodel, SS, BirthResults):
+        ''' Adjust model and suff stats to remove extra mass from birth.
 
-      BirthLogger.logStartMove(lapFrac, moveID + 1, len(BirthPlans))
-      if isBad or targetData is None:
-        msg = Plan['msg']
-        BirthLogger.log(msg, 'moreinfo')
-        BirthLogger.log('SKIPPED. TargetData bad.', 'moreinfo')
-      elif targetSize < kwargs['Kfresh']:
-        msg = "SKIPPED. Target data too small. Size %d, but expected >= %d"
-        BirthLogger.log(msg % (targetSize, kwargs['Kfresh']),
-                        'moreinfo')
-      else:
-        newmodel, newSS, MoveInfo = BirthMove.run_birth_move(
-                                           hmodel, SS, targetData,
-                                           randstate=self.PRNG, 
-                                           Plan=Plan,
-                                           **kwargs)
-        hmodel = newmodel
-        SS = newSS
-
-        if MoveInfo['didAddNew']:
-          BirthResults.append(MoveInfo)
-          for kk in MoveInfo['birthCompIDs']:
-            self.LapsSinceLastBirth[kk] = -1
-            
-            self.maxUID += 1
-            self.ActiveIDVec = np.append(self.ActiveIDVec, self.maxUID)
-          SS.setUIDs(self.ActiveIDVec.copy())
-
-        ## Update BirthRecords to track comps that fail at births
-        targetUID = Plan['targetUID']
-        if MoveInfo['didAddNew']:
-          # Remove from records if successful... this comp will change a lot
-          if targetUID in self.BirthRecordsByComp:
-            del self.BirthRecordsByComp[targetUID]
-        else:
-          if 'nFail' not in self.BirthRecordsByComp[targetUID]:
-            self.BirthRecordsByComp[targetUID]['nFail'] = 1
-          else:
-            self.BirthRecordsByComp[targetUID]['nFail'] += 1
-          self.BirthRecordsByComp[targetUID]['count'] = Plan['count']
-
-    return hmodel, SS, BirthResults
-
-  def birth_remove_extra_mass(self, hmodel, SS, BirthResults):
-    ''' Adjust hmodel and suff stats to remove the "extra mass"
-          added during a birth move to brand-new components.
-        After this call, SS should have scale exactly consistent with 
-          the entire dataset (all B batches).
+        After this call, SS should have scale exactly consistent with
+        the entire dataset (all B batches).
 
         Returns
         -------
         hmodel : bnpy HModel
         SS : bnpy SuffStatBag
-    '''
-    didChangeSS = False
-    for MoveInfo in BirthResults:
-      if MoveInfo['didAddNew'] and 'extraSS' in MoveInfo:
-        extraSS = MoveInfo['extraSS']
-        compIDs = MoveInfo['modifiedCompIDs']
-        assert extraSS.K == len(compIDs)
-        SS.subtractSpecificComps(extraSS, compIDs)
-        didChangeSS = True
-        MoveInfo['extraSSDone'] = 1
-    if didChangeSS:
-      hmodel.update_global_params(SS)
-    return hmodel, SS
+        '''
+        didChangeSS = False
+        for MoveInfo in BirthResults:
+            if MoveInfo['didAddNew'] and 'extraSS' in MoveInfo:
+                extraSS = MoveInfo['extraSS']
+                compIDs = MoveInfo['modifiedCompIDs']
+                assert extraSS.K == len(compIDs)
+                SS.subtractSpecificComps(extraSS, compIDs)
+                didChangeSS = True
+                MoveInfo['extraSSDone'] = 1
+        if didChangeSS:
+            hmodel.update_global_params(SS)
+        return hmodel, SS
 
-  def birth_plan_targets_for_next_lap(self, Data, hmodel, SS, LP, BirthResults):
-    ''' Create plans for next lap's birth moves
-    
+    def birth_plan_targets_for_next_lap(self, Data, hmodel, SS, LP,
+                                        BirthResults):
+        ''' Create plans for next lap's birth moves
+
         Returns
         -------
-        BirthPlans : list of dicts, 
+        BirthPlans : list of dicts,
                      each entry represents the plan for one future birth move
-    '''
-    assert SS is not None
-    assert hmodel.allocModel.K == SS.K
-    K =  hmodel.allocModel.K
-    nBirths = self.algParams['birth']['birthPerLap']
+        '''
+        assert SS is not None
+        assert hmodel.allocModel.K == SS.K
+        K = hmodel.allocModel.K
+        nBirths = self.algParams['birth']['birthPerLap']
 
-    if self.algParams['birth']['targetSelectName'] == 'smart':
-      if self.lapFrac < 1:
-        ampF = Data.get_total_size() / float(Data.get_size())
-      else:
-        ampF = 1.0
-      ampF = np.maximum(ampF, 1.0)
-      Plans = TargetPlanner.makePlans_TargetCompsSmart(SS, 
-                                                self.BirthRecordsByComp,
-                                                self.lapFrac,
-                                                ampF=ampF,
-                                                **self.algParams['birth'])
-      self.BirthEligibleHist, CStatus, msg = self.birth_makeEligibilityHist(SS)
-      BirthLogger.logStartPrep(self.lapFrac+1)
-      BirthLogger.log(msg, 'moreinfo')
+        if self.algParams['birth']['targetSelectName'] == 'smart':
+            if self.lapFrac < 1:
+                ampF = Data.get_total_size() / float(Data.get_size())
+            else:
+                ampF = 1.0
+            ampF = np.maximum(ampF, 1.0)
+            Plans = TargetPlanner.makePlans_TargetCompsSmart(
+                SS,
+                self.BirthRecordsByComp,
+                self.lapFrac,
+                ampF=ampF,
+                **self.algParams['birth'])
+            Hist, CStatus, msg = self.birth_makeEligibilityHist(SS)
+            self.BirthEligibleHist = Hist
+            BirthLogger.logStartPrep(self.lapFrac + 1)
+            BirthLogger.log(msg, 'moreinfo')
 
-      SaveVars = dict()
-      SaveVars['lapFrac'] = self.lapFrac
-      SaveVars['msg'] = msg
-      SaveVars['BirthEligibleHist'] = self.BirthEligibleHist
-      
-      savedict = dict()
-      for compID in SS.uIDs:
-        if compID in self.BirthRecordsByComp:
-          savedict[compID] = self.BirthRecordsByComp[compID]
-      SaveVars['BirthRecordsByComp'] = savedict
-      SaveVars['CompStatus'] = CStatus
-      import joblib
-      if self.savedir is not None:
-        dumpfile = os.path.join(self.savedir, 'birth-plans.dump')
-        joblib.dump(SaveVars, dumpfile)
-      return Plans
+            SaveVars = dict()
+            SaveVars['lapFrac'] = self.lapFrac
+            SaveVars['msg'] = msg
+            SaveVars['BirthEligibleHist'] = self.BirthEligibleHist
 
-    # Update counter for duration since last targeted-birth for each comp
-    for kk in range(K):
-      self.LapsSinceLastBirth[kk] += 1
-    # Ignore components that have just been added to the model.
-    excludeList = self.birth_get_all_new_comps(BirthResults)
+            savedict = dict()
+            for compID in SS.uIDs:
+                if compID in self.BirthRecordsByComp:
+                    savedict[compID] = self.BirthRecordsByComp[compID]
+            SaveVars['BirthRecordsByComp'] = savedict
+            SaveVars['CompStatus'] = CStatus
+            import joblib
+            if self.savedir is not None:
+                dumpfile = os.path.join(self.savedir, 'birth-plans.dump')
+                joblib.dump(SaveVars, dumpfile)
+            return Plans
 
-    # For each birth move, create a "plan"
-    BirthPlans = list()
-    for posID in range(nBirths):
-      try:
-        ktarget, ps = TargetPlanner.select_target_comp(
-                             K, SS=SS, Data=Data, model=hmodel,
-                             randstate=self.PRNG,
-                             excludeList=excludeList,
-                             return_ps=1,
-                             lapsSinceLastBirth=self.LapsSinceLastBirth,
-                              **self.algParams['birth'])
-        targetUID = self.ActiveIDVec[ktarget]
+        # Update counter for duration since last targeted-birth for each comp
+        for kk in range(K):
+            self.LapsSinceLastBirth[kk] += 1
+        # Ignore components that have just been added to the model.
+        excludeList = self.birth_get_all_new_comps(BirthResults)
 
-        self.LapsSinceLastBirth[ktarget] = 0
-        excludeList.append(ktarget)
-        Plan = dict(ktarget=ktarget,
-                    targetUID=targetUID,
-                    Data=None,
-                    targetWordIDs=None, 
-                    targetWordFreq=None)
-      except BirthMove.BirthProposalError, e:
-        # Happens when no component is eligible for selection (all excluded)
-        Plan = dict(ktarget=None, 
-                    Data=None,
-                    targetWordIDs=None, 
-                    targetWordFreq=None, 
-                    msg=str(e),
-                    )
-      BirthPlans.append(Plan)
+        # For each birth move, create a "plan"
+        BirthPlans = list()
+        for posID in range(nBirths):
+            try:
+                ktarget, ps = TargetPlanner.select_target_comp(
+                    K, SS=SS, Data=Data, model=hmodel,
+                    randstate=self.PRNG,
+                    excludeList=excludeList,
+                    return_ps=1,
+                    lapsSinceLastBirth=self.LapsSinceLastBirth,
+                    **self.algParams['birth'])
+                targetUID = self.ActiveIDVec[ktarget]
 
+                self.LapsSinceLastBirth[ktarget] = 0
+                excludeList.append(ktarget)
+                Plan = dict(ktarget=ktarget,
+                            targetUID=targetUID,
+                            Data=None,
+                            targetWordIDs=None,
+                            targetWordFreq=None)
+            except BirthMove.BirthProposalError, e:
+                # Happens when no component is eligible for selection (all
+                # excluded)
+                Plan = dict(ktarget=None,
+                            Data=None,
+                            targetWordIDs=None,
+                            targetWordFreq=None,
+                            msg=str(e),
+                            )
+            BirthPlans.append(Plan)
 
-    return BirthPlans
-    
+        return BirthPlans
 
-  def birth_collect_target_subsample(self, Dchunk, model, LPchunk, 
-                                           BirthPlans, lapFrac):
-    ''' Collect subsample of the data in Dchunk, and add that subsample
-          to overall targeted subsample stored in input list BirthPlans
-        This overall sample is aggregated across many batches of data.
-        Data from Dchunk is only collected if more data is needed.
+    def birth_collect_target_subsample(self, Dchunk, model, LPchunk,
+                                       BirthPlans, lapFrac):
+        ''' Collect subsample of the data in Dchunk, and add that subsample
+              to overall targeted subsample stored in input list BirthPlans
+            This overall sample is aggregated across many batches of data.
+            Data from Dchunk is only collected if more data is needed.
+
+            Returns
+            -------
+            BirthPlans : list of planned births for the next lap,
+                          updated to include data from Dchunk if needed
+        '''
+        for Plan in BirthPlans:
+            # Skip this move if component selection failed
+            if Plan['ktarget'] is None and Plan['targetWordIDs'] is None \
+                    and Plan['targetWordFreq'] is None:
+                continue
+
+            birthParams = dict(**self.algParams['birth'])
+
+            # Skip collection if have enough data already
+            if Plan['Data'] is not None:
+                targetSize = TargetDataSampler.getSize(Plan['Data'])
+                if targetSize >= birthParams['targetMaxSize']:
+                    continue
+                birthParams['targetMaxSize'] -= targetSize
+                # TODO: worry about targetMaxSize when we always keep topK
+                # datapoints
+
+            # Sample data from current batch, if more is needed
+            targetData, targetInfo = TargetDataSampler.sample_target_data(
+                Dchunk, model=model, LP=LPchunk,
+                targetCompID=Plan['ktarget'],
+                targetWordIDs=Plan['targetWordIDs'],
+                targetWordFreq=Plan['targetWordFreq'],
+                randstate=self.PRNG,
+                return_Info=True,
+                **birthParams)
+
+            # Update Data for current entry in self.targetDataList
+            if targetData is None:
+                if Plan['Data'] is None:
+                    cmsg = "TargetData: No samples for target comp found."
+                    Plan['msg'] = cmsg
+            else:
+                if Plan['Data'] is None:
+                    Plan['Data'] = targetData
+                    Plan['Info'] = targetInfo
+                else:
+                    Plan['Data'].add_data(targetData)
+                    if 'dist' in Plan['Info']:
+                        Plan['Info']['dist'] = np.append(Plan['Info']['dist'],
+                                                         targetInfo['dist'])
+                size = TargetDataSampler.getSize(Plan['Data'])
+                Plan['msg'] = "TargetData: size %d" % (size)
+
+            if self.isLastBatch(lapFrac) and 'Info' in Plan:
+                if 'dist' in Plan['Info']:
+                    dist = Plan['Info']['dist']
+                    sortIDs = np.argsort(
+                        dist)[:self.algParams['birth']['targetMaxSize']]
+                    Plan['Data'] = Plan['Data'].select_subset_by_mask(sortIDs)
+                    size = TargetDataSampler.getSize(Plan['Data'])
+                    Plan['msg'] = "TargetData: size %d" % (size)
+        return BirthPlans
+
+    def birth_get_all_new_comps(self, BirthResults):
+        ''' Returns list of integer ids of all new components added by
+              birth moves summarized in BirthResults
 
         Returns
         -------
-        BirthPlans : list of planned births for the next lap,
-                      updated to include data from Dchunk if needed
-    '''
-    for Plan in BirthPlans:
-      # Skip this move if component selection failed
-      if Plan['ktarget'] is None and Plan['targetWordIDs'] is None \
-                                 and Plan['targetWordFreq'] is None:
-        continue
+        birthCompIDs : list of int
+            each entry is index of a new component
+        '''
+        birthCompIDs = list()
+        for MoveInfo in BirthResults:
+            birthCompIDs.extend(MoveInfo['birthCompIDs'])
+        return birthCompIDs
 
-      birthParams = dict(**self.algParams['birth'])
-
-      # Skip collection if have enough data already
-      if Plan['Data'] is not None:
-        targetSize = TargetDataSampler.getSize(Plan['Data'])
-        if targetSize >= birthParams['targetMaxSize']:
-            continue
-        birthParams['targetMaxSize'] -= targetSize
-        # TODO: worry about targetMaxSize when we always keep topK datapoints
-
-      # Sample data from current batch, if more is needed
-      targetData, targetInfo = TargetDataSampler.sample_target_data(
-                          Dchunk, model=model, LP=LPchunk,
-                          targetCompID=Plan['ktarget'],
-                          targetWordIDs=Plan['targetWordIDs'],
-                          targetWordFreq=Plan['targetWordFreq'],
-                          randstate=self.PRNG,
-                          return_Info=True,
-                          **birthParams)
-
-      # Update Data for current entry in self.targetDataList
-      if targetData is None:
-        if Plan['Data'] is None:
-          Plan['msg'] = "TargetData: No samples for target comp found."
-      else:
-        if Plan['Data'] is None:
-          Plan['Data'] = targetData
-          Plan['Info'] = targetInfo
-        else:
-          Plan['Data'].add_data(targetData)
-          if 'dist' in Plan['Info']:
-            Plan['Info']['dist'] = np.append(Plan['Info']['dist'],
-                                             targetInfo['dist'])
-        size = TargetDataSampler.getSize(Plan['Data'])
-        Plan['msg'] = "TargetData: size %d" % (size)
-
-      if self.isLastBatch(lapFrac) and 'Info' in Plan:
-        if 'dist' in Plan['Info']:
-          dist = Plan['Info']['dist']
-          sortIDs = np.argsort(dist)[:self.algParams['birth']['targetMaxSize']]
-          Plan['Data'] = Plan['Data'].select_subset_by_mask(sortIDs)
-          size = TargetDataSampler.getSize(Plan['Data'])
-          Plan['msg'] = "TargetData: size %d" % (size)
-    return BirthPlans
-
-  def birth_get_all_new_comps(self, BirthResults):
-    ''' Returns list of integer ids of all new components added by
-          birth moves summarized in BirthResults
-
-        Returns
-        -------
-        birthCompIDs : list of integers, each entry is index of a new component
-    '''
-    birthCompIDs = list()
-    for MoveInfo in BirthResults:
-      birthCompIDs.extend(MoveInfo['birthCompIDs'])
-    return birthCompIDs
-
-  def birth_get_all_modified_comps(self, BirthResults):
-    ''' Returns list of integer ids of all new components added by
-          birth moves summarized in BirthResults
+    def birth_get_all_modified_comps(self, BirthResults):
+        ''' Get list of int ids of all new components added by birth.
 
         Returns
         -------
         mCompIDs : list of integers, each entry is index of modified comp
-    '''
-    mCompIDs = list()
-    for MoveInfo in BirthResults:
-      mCompIDs.extend(MoveInfo['modifiedCompIDs'])
-    return mCompIDs
+        '''
+        mCompIDs = list()
+        for MoveInfo in BirthResults:
+            mCompIDs.extend(MoveInfo['modifiedCompIDs'])
+        return mCompIDs
 
-  def birth_count_new_comps(self, BirthResults):
-    ''' Returns total number of new components added by moves 
-          summarized by BirthResults
-    
+    def birth_count_new_comps(self, BirthResults):
+        ''' Get total number of new components added by moves.
+
         Returns
         -------
         Kextra : int number of components added by given list of moves
-    '''
-    Kextra = 0
-    for MoveInfo in BirthResults:
-      Kextra += len(MoveInfo['birthCompIDs'])
-    return Kextra
+        '''
+        Kextra = 0
+        for MoveInfo in BirthResults:
+            Kextra += len(MoveInfo['birthCompIDs'])
+        return Kextra
 
-  def birth_makeEligibilityHist(self, SS):
-    targetMinSize = self.algParams['birth']['targetMinSize']
-    MAX_FAIL = self.algParams['birth']['birthFailLimit']
+    def birth_makeEligibilityHist(self, SS):
+        targetMinSize = self.algParams['birth']['targetMinSize']
+        MAX_FAIL = self.algParams['birth']['birthFailLimit']
 
-    ## Initialize histogram bins to 0
-    Hist = dict(Ntoosmall=0, Ndisabled=0, Nable=0)
-    for nStrike in range(MAX_FAIL):
-      Hist['Nable' + str(nStrike)] = 0
+        # Initialize histogram bins to 0
+        Hist = dict(Ntoosmall=0, Ndisabled=0, Nable=0)
+        for nStrike in range(MAX_FAIL):
+            Hist['Nable' + str(nStrike)] = 0
 
-    CompStatus = dict()
-    for kk, compID in enumerate(self.ActiveIDVec):
-      if SS.getCountVec()[kk] < targetMinSize:
-        Hist['Ntoosmall'] += 1
-        CompStatus[compID] = 'toosmall'
-      elif compID in self.BirthRecordsByComp:
-        nFail = self.BirthRecordsByComp[compID]['nFail']
-        if nFail < MAX_FAIL:
-          Hist['Nable' + str(nFail)] += 1
-          Hist['Nable'] += 1
-          CompStatus[compID] = 'able-' + str(nFail)
+        CompStatus = dict()
+        for kk, compID in enumerate(self.ActiveIDVec):
+            if SS.getCountVec()[kk] < targetMinSize:
+                Hist['Ntoosmall'] += 1
+                CompStatus[compID] = 'toosmall'
+            elif compID in self.BirthRecordsByComp:
+                nFail = self.BirthRecordsByComp[compID]['nFail']
+                if nFail < MAX_FAIL:
+                    Hist['Nable' + str(nFail)] += 1
+                    Hist['Nable'] += 1
+                    CompStatus[compID] = 'able-' + str(nFail)
+                else:
+                    Hist['Ndisabled'] += 1
+                    CompStatus[compID] = 'disabled'
+            else:
+                Hist['Nable0'] += 1
+                Hist['Nable'] += 1
+                CompStatus[compID] = 'able-0'
+
+        msg = 'Eligibility Hist:'
+        for key in sorted(Hist.keys()):
+            msg += " %s=%d" % (key, Hist[key])
+        return Hist, CompStatus, msg
+
+    def preparePlansForMerge(self, hmodel, SS, prevPrepInfo=None,
+                             order=None,
+                             BirthResults=list(),
+                             lapFrac=0):
+
+        MergeLogger.logPhase('MERGE Plans at lap ' + str(lapFrac))
+        if prevPrepInfo is None:
+            prevPrepInfo = dict()
+        if 'PairScoreMat' not in prevPrepInfo:
+            prevPrepInfo['PairScoreMat'] = None
+
+        if SS is not None:
+            # Remove any merge terms left over from previous lap
+            SS.setMergeFieldsToZero()
+            if SS.hasMergeTerms():
+                delattr(SS, '_MergeTerms')
+
+        mergeStartLap = self.algParams['merge']['mergeStartLap']
+        mergePairSelection = self.algParams['merge']['mergePairSelection']
+        mergeELBOTrackMethod = self.algParams['merge']['mergeELBOTrackMethod']
+        refreshInterval = self.algParams['merge']['mergeScoreRefreshInterval']
+
+        PrepInfo = dict()
+        PrepInfo['doPrecompMergeEntropy'] = 1
+        PrepInfo['mergePairSelection'] = mergePairSelection
+        PrepInfo['mPairIDs'] = list()
+        PrepInfo['PairScoreMat'] = None
+
+        # Short-cut if we use fastBound to compute elbo for merge candidate
+        if mergeELBOTrackMethod == 'fastBound':
+            PrepInfo['doPrecompMergeEntropy'] = 2
+            PrepInfo['mergePairSelection'] = None
+            return PrepInfo
+
+        # Update stored ScoreMatrix to account for recent births/merges
+        if hasValidKey('PairScoreMat', prevPrepInfo):
+            MM = prevPrepInfo['PairScoreMat']
+
+            # Replay any shuffles
+            if order is not None:
+                Ktmp = len(order)
+                assert Ktmp == MM.shape[0]
+                Mnew = np.zeros_like(MM)
+                for kA in xrange(Ktmp):
+                    nA = np.flatnonzero(order == kA)
+                    for kB in xrange(kA + 1, Ktmp):
+                        nB = np.flatnonzero(order == kB)
+                        mA = np.minimum(nA, nB)
+                        mB = np.maximum(nA, nB)
+                        Mnew[mA, mB] = MM[kA, kB]
+                MM = Mnew
+
+            # Replay any recent deletes
+            if hasattr(self, 'DeleteAcceptRecord'):
+                if 'acceptedUIDs' in self.DeleteAcceptRecord:
+                    acceptedUIDs = self.DeleteAcceptRecord['acceptedUIDs']
+                    origUIDs = [x for x in self.DeleteAcceptRecord['origUIDs']]
+                    origUIDs = np.asarray(origUIDs)
+                    for uID in acceptedUIDs:
+                        kk = np.flatnonzero(origUIDs == uID)[0]
+                        MM = np.delete(MM, kk, axis=0)
+                        MM = np.delete(MM, kk, axis=1)
+                        origUIDs = np.delete(origUIDs, kk)
+
+            # Replay any recent birth moves!
+            if len(BirthResults) > 0:
+                Korig = MM.shape[0]
+                Mnew = np.zeros((SS.K, SS.K))
+                Mnew[:Korig, :Korig] = MM
+                MM = Mnew
+            if np.floor(lapFrac) % refreshInterval == 0:
+                MM.fill(0)  # Refresh!
+            prevPrepInfo['PairScoreMat'] = MM
+
+        # Determine which merge pairs we will track in the upcoming lap
+        if mergePairSelection == 'wholeELBObetter':
+            mPairIDs, PairScoreMat = MergePlanner.preselectPairs(
+                hmodel, SS, lapFrac,
+                prevScoreMat=prevPrepInfo['PairScoreMat'],
+                **self.algParams['merge'])
         else:
-          Hist['Ndisabled'] += 1
-          CompStatus[compID] = 'disabled'
-      else:
-        Hist['Nable0'] += 1
-        Hist['Nable'] += 1
-        CompStatus[compID] = 'able-0'
+            mPairIDs, PairScoreMat = MergePlanner.preselect_candidate_pairs(
+                hmodel, SS,
+                randstate=self.PRNG,
+                returnScoreMatrix=1,
+                M=prevPrepInfo['PairScoreMat'],
+                **self.algParams['merge'])
 
-    msg = 'Eligibility Hist:'
-    for key in sorted(Hist.keys()):
-      msg += " %s=%d" % (key, Hist[key])
-    return Hist, CompStatus, msg
+        PrepInfo['mPairIDs'] = mPairIDs
+        PrepInfo['PairScoreMat'] = PairScoreMat
+        TOL = MergePlanner.ELBO_GAP_ACCEPT_TOL
+        MergeLogger.log('MERGE Num pairs selected: %d/%d'
+                        % (len(mPairIDs), np.sum(PairScoreMat > -1 * TOL)),
+                        level='debug')
 
-  ######################################################### Merge moves!
-  #########################################################
-  def preparePlansForMerge(self, hmodel, SS, prevPrepInfo=None,
-                                             order=None,
-                                             BirthResults=list(),
-                                             lapFrac=0):
+        degree = MergePlanner.calcDegreeFromEdgeList(mPairIDs, SS.K)
+        if np.sum(degree > 0) > 0:
+            degree = degree[degree > 0]
+            MergeLogger.log('Num comps in >=1 pair: %d' %
+                            (degree.size), 'debug')
+            MergeLogger.log(
+                'Degree distribution among selected pairs', 'debug')
+            for p in [10, 50, 90, 100]:
+                MergeLogger.log('   %d: %d' %
+                                (p, np.percentile(degree, p)), 'debug')
 
-    MergeLogger.logPhase('MERGE Plans at lap ' + str(lapFrac))
-    if prevPrepInfo is None:
-      prevPrepInfo = dict()
-    if 'PairScoreMat' not in prevPrepInfo:
-      prevPrepInfo['PairScoreMat'] = None
+        return PrepInfo
 
-    if SS is not None:
-      # Remove any merge terms left over from previous lap
-      SS.setMergeFieldsToZero()
-      if SS.hasMergeTerms():
-        delattr(SS, '_MergeTerms')
+    def run_many_merge_moves(self, hmodel, SS,
+                             evBound, lapFrac, MergePrepInfo):
+        ''' Run (potentially many) merge moves on hmodel.
 
-    mergeStartLap = self.algParams['merge']['mergeStartLap']
-    mergePairSelection = self.algParams['merge']['mergePairSelection']
-    mergeELBOTrackMethod = self.algParams['merge']['mergeELBOTrackMethod']
-    refreshInterval = self.algParams['merge']['mergeScoreRefreshInterval']
+        Performing necessary bookkeeping to
+        (1) avoid trying the same merge twice
+        (2) avoid merging a component that has already been merged,
+            since the precomputed entropy will no longer be correct.
 
-    PrepInfo = dict()
-    PrepInfo['doPrecompMergeEntropy'] = 1
-    PrepInfo['mergePairSelection'] = mergePairSelection
-    PrepInfo['mPairIDs'] = list()
-    PrepInfo['PairScoreMat'] = None
-
-    ## Short-cut if we use fastBound to compute elbo for merge candidate
-    if mergeELBOTrackMethod == 'fastBound':
-      PrepInfo['doPrecompMergeEntropy'] = 2
-      PrepInfo['mergePairSelection'] = None
-      return PrepInfo
-
-    ## Update stored ScoreMatrix to account for recent births/merges
-    if hasValidKey('PairScoreMat', prevPrepInfo):
-      MM = prevPrepInfo['PairScoreMat']
-
-      ## Replay any shuffles
-      if order is not None:
-        Ktmp = len(order)
-        assert Ktmp == MM.shape[0]
-        Mnew = np.zeros_like(MM)
-        for kA in xrange(Ktmp):
-          nA = np.flatnonzero(order == kA)
-          for kB in xrange(kA+1, Ktmp):
-            nB = np.flatnonzero(order == kB)
-            mA = np.minimum(nA, nB)
-            mB = np.maximum(nA, nB)
-            Mnew[mA, mB] = MM[kA, kB]
-        MM = Mnew
-
-      ## Replay any recent deletes
-      if hasattr(self, 'DeleteAcceptRecord'):
-        if 'acceptedUIDs' in self.DeleteAcceptRecord:
-          acceptedUIDs =  self.DeleteAcceptRecord['acceptedUIDs']
-          origUIDs = [x for x in self.DeleteAcceptRecord['origUIDs']]
-          origUIDs = np.asarray(origUIDs)
-          for uID in acceptedUIDs:
-            kk = np.flatnonzero(origUIDs == uID)[0]
-            MM = np.delete(MM, kk, axis=0)
-            MM = np.delete(MM, kk, axis=1)
-            origUIDs = np.delete(origUIDs, kk)
-
-      ## Replay any recent birth moves!
-      if len(BirthResults) > 0:
-        Korig = MM.shape[0]
-        Mnew = np.zeros((SS.K, SS.K))
-        Mnew[:Korig, :Korig] = MM
-        MM = Mnew
-      if np.floor(lapFrac) % refreshInterval == 0:
-        MM.fill(0) # Refresh!
-      prevPrepInfo['PairScoreMat'] = MM
-
-    ## Determine which merge pairs we will track in the upcoming lap 
-    if mergePairSelection == 'wholeELBObetter':
-      mPairIDs, PairScoreMat = MergePlanner.preselectPairs(hmodel, SS, lapFrac,
-                                    prevScoreMat=prevPrepInfo['PairScoreMat'],
-                                    **self.algParams['merge'])
-    else:
-      mPairIDs, PairScoreMat = MergePlanner.preselect_candidate_pairs(hmodel,
-                                            SS,
-                                            randstate=self.PRNG,
-                                            returnScoreMatrix=1,
-                                            M=prevPrepInfo['PairScoreMat'],
-                                            **self.algParams['merge'])
-
-    PrepInfo['mPairIDs'] = mPairIDs
-    PrepInfo['PairScoreMat'] = PairScoreMat
-    TOL = MergePlanner.ELBO_GAP_ACCEPT_TOL
-    MergeLogger.log('MERGE Num pairs selected: %d/%d' 
-                     % (len(mPairIDs), np.sum(PairScoreMat > -1 * TOL)),
-                    level='debug')
-
-    degree = MergePlanner.calcDegreeFromEdgeList(mPairIDs, SS.K)
-    if np.sum( degree > 0 ) > 0:
-      degree = degree[degree > 0]
-      MergeLogger.log('Num comps in >=1 pair: %d' % (degree.size), 'debug')
-      MergeLogger.log('Degree distribution among selected pairs', 'debug')
-      for p in [10, 50, 90, 100]:
-        MergeLogger.log('   %d: %d' % (p, np.percentile(degree, p)), 'debug')
-
-    return PrepInfo
-
-  def run_many_merge_moves(self, hmodel, SS, evBound, lapFrac, MergePrepInfo):
-    ''' Run (potentially many) merge moves on hmodel,
-          performing necessary bookkeeping to
-            (1) avoid trying the same merge twice
-            (2) avoid merging a component that has already been merged,
-                since the precomputed entropy will no longer be correct.
         Returns
         -------
         hmodel : bnpy HModel, with (possibly) merged components
         SS : bnpy SuffStatBag, with (possibly) merged components
         evBound : correct ELBO for returned hmodel
-                  guaranteed to be at least as large as input evBound    
-    '''
-    MergeLogger.logPhase('MERGE Moves at lap ' + str(lapFrac))
+                  guaranteed to be at least as large as input evBound
+        '''
+        MergeLogger.logPhase('MERGE Moves at lap ' + str(lapFrac))
 
-    if 'mPairIDs' not in MergePrepInfo or MergePrepInfo['mPairIDs'] is None:
-      MergePrepInfo['mPairIDs'] = list()
+        no_mPairIDs = 'mPairIDs' not in MergePrepInfo
+        no_mPairIDs = no_mPairIDS or MergePrepInfo['mPairIDs'] is None
+        if no_mPairIDs:
+            MergePrepInfo['mPairIDs'] = list()
 
-    if 'PairScoreMat' not in MergePrepInfo:
-      MergePrepInfo['PairScoreMat'] = None
+        if 'PairScoreMat' not in MergePrepInfo:
+            MergePrepInfo['PairScoreMat'] = None
 
-    Korig = SS.K
-    hmodel, SS, newEvBound, Info = MergeMove.run_many_merge_moves(
-                                       hmodel, SS, evBound,
-                                       mPairIDs=MergePrepInfo['mPairIDs'],
-                                       M=MergePrepInfo['PairScoreMat'],
-                                       **self.algParams['merge'])
+        Korig = SS.K
+        hmodel, SS, newEvBound, Info = MergeMove.run_many_merge_moves(
+            hmodel, SS, evBound,
+            mPairIDs=MergePrepInfo['mPairIDs'],
+            M=MergePrepInfo['PairScoreMat'],
+            **self.algParams['merge'])
 
-    # ------ Adjust indexing for counter that determines which comp to target
-    if self.hasMove('birth'):
-      for kA, kB in Info['AcceptedPairs']:
-        self._resetLapsSinceLastBirthAfterMerge(kA, kB)
+        # Adjust indexing for counter that determines which comp to target
+        if self.hasMove('birth'):
+            for kA, kB in Info['AcceptedPairs']:
+                self._resetLapsSinceLastBirthAfterMerge(kA, kB)
 
-    # ------ Record accepted moves, so can adjust memoized stats later
-    self.MergeLog = list()
-    for kA, kB in Info['AcceptedPairs']:
-      self.ActiveIDVec = np.delete(self.ActiveIDVec, kB, axis=0)      
-      self.MergeLog.append(dict(kA=kA, kB=kB, Korig=Korig))
-      self.lapLastAcceptedMerge = lapFrac
-      Korig -= 1
+        # Record accepted moves, so can adjust memoized stats later
+        self.MergeLog = list()
+        for kA, kB in Info['AcceptedPairs']:
+            self.ActiveIDVec = np.delete(self.ActiveIDVec, kB, axis=0)
+            self.MergeLog.append(dict(kA=kA, kB=kB, Korig=Korig))
+            self.lapLastAcceptedMerge = lapFrac
+            Korig -= 1
 
-    # ------ Reset all precalculated merge terms
-    if SS.hasMergeTerms():
-      SS.setMergeFieldsToZero()
+        # Reset all precalculated merge terms
+        if SS.hasMergeTerms():
+            SS.setMergeFieldsToZero()
 
-    ## ScoreMat here will have shape Ka x Ka, where Ka <= K
-    # Ka < K in the case of batch-specific births (whose new comps aren't tracked)
-    # ScoreMat will be updated to size SS.K,SS.K in preparePlansForMerge()
-    MergePrepInfo['PairScoreMat'] = Info['ScoreMat']
-    MergePrepInfo['mPairIDs'] = list()
-    return hmodel, SS, newEvBound
+        # ScoreMat here will have shape Ka x Ka, where Ka <= K
+        # Ka < K in the case of batch-specific births
+        # whose new comps aren't tracked)
+        # ScoreMat will be updated to size SS.K,SS.K in preparePlansForMerge()
+        MergePrepInfo['PairScoreMat'] = Info['ScoreMat']
+        MergePrepInfo['mPairIDs'] = list()
+        return hmodel, SS, newEvBound
 
-  def _resetLapsSinceLastBirthAfterMerge(self, kA, kB):
-    ''' Update internal list of LapsSinceLastBirth to reflect accepted merge
+    def _resetLapsSinceLastBirthAfterMerge(self, kA, kB):
+        ''' Update self.LapsSinceLastBirth to reflect accepted merge
 
-        Returns
+        Post Condition
         ---------
         None. Updates to self.LapsSinceLastBirth happen in-place.
-    '''
-    compList = self.LapsSinceLastBirth.keys()
-    newDict = defaultdict(int)
-    for kk in compList:
-      if kk == kA:
-        newDict[kA] = np.maximum(self.LapsSinceLastBirth[kA], 
-                                 self.LapsSinceLastBirth[kB])
-      elif kk < kB:
-        newDict[kk] = self.LapsSinceLastBirth[kk]
-      elif kk > kB:
-        newDict[kk-1] = self.LapsSinceLastBirth[kk]
-    self.LapsSinceLastBirth = newDict
+        '''
+        compList = self.LapsSinceLastBirth.keys()
+        newDict = defaultdict(int)
+        for kk in compList:
+            if kk == kA:
+                newDict[kA] = np.maximum(self.LapsSinceLastBirth[kA],
+                                         self.LapsSinceLastBirth[kB])
+            elif kk < kB:
+                newDict[kk] = self.LapsSinceLastBirth[kk]
+            elif kk > kB:
+                newDict[kk - 1] = self.LapsSinceLastBirth[kk]
+        self.LapsSinceLastBirth = newDict
 
+    def doDeleteAtLap(self, lapFrac):
+        if 'delete' not in self.algParams:
+            return False
+        return lapFrac >= self.algParams['delete']['deleteStartLap']
 
+    def deleteCollectTarget(self, Dchunk, hmodel, LPchunk,
+                            batchID,
+                            DeletePlans):
+        """ Add relevant subset of data from provided chunk to Plan
 
-  ######################################################### Soft Merge moves
-  #########################################################
-  def run_softmerge_moves(self, hmodel, SS, evBound, lapFrac, LPchunk):
-    ''' Run (potentially many) softmerge moves on hmodel,
+            Returns
+            -------
+            DeletePlans. Updated in place.
+        """
+        for planID, Plan in enumerate(DeletePlans):
+            Plan = DCollector.addDataFromBatchToPlan(
+                Plan, hmodel, Dchunk, LPchunk,
+                batchID=batchID,
+                uIDs=self.ActiveIDVec,
+                lapFrac=self.lapFrac,
+                isFirstBatch=self.isFirstBatch(self.lapFrac),
+                **self.algParams['delete'])
+            if len(Plan.keys()) == 0:
+                # Empty Plan dict means it went over budget
+                # So, we should remove this Plan from consideration
+                DeletePlans.pop(planID)
+        return DeletePlans
 
-        Returns
-        -------
-        hmodel : bnpy HModel, with (possibly) merged components
-        SS : bnpy SuffStatBag, with (possibly) merged components
-        evBound : correct ELBO for returned hmodel
-                  guaranteed to be at least as large as input evBound    
-    '''
-    import bnpy.mergemove.MergeLogger as MergeLogger
+    def deleteAndUpdateMemory(self, hmodel, SS, DeletePlans, order=None):
+        """ Construct and evaluate delete proposals.
 
-    MergeLogger.logStartMove(lapFrac)
-    self.MergeLog = list()
+            Returns
+            -------
+            hmodel : bnpy.HModel with updated fields
+            SS : bnpy.suffstats.SuffStatBag, with updated fields
+        """
+        self.ELBOReady = True
+        self.DeleteAcceptRecord = dict()
+        if self.lapFrac <= 1 or SS is None:
+            return hmodel, SS
 
-    for kdel in reversed(xrange(SS.K)):
-      aFunc = hmodel.allocModel.calcSoftMergeGap_alph
-      oFunc = hmodel.obsModel.calcSoftMergeGap_alph
-      ## Find optimal alph redistribution vector for candidate kdel
-      from bnpy.mergemove.OptimizerMultiwayMerge import find_optimum
-      try:
-        alph, f, Info = find_optimum(SS, kdel, aFunc, oFunc)
-      except ValueError as e:
-        if str(e).lower().count('failure') > 0:
-          MergeLogger.log(str(e))
-          continue
-        raise e
+        # Make last minute plan for any empty comps
+        EPlan = DPlanner.makePlanForEmptyComps(SS,
+                                               **self.algParams['delete'])
 
-      ## Evaluate total evidence improvement using optimal alpha
-      HgapLB = hmodel.allocModel.calcSoftMergeEntropyGap(SS, kdel, alph)
-      ELBOgap = hmodel.allocModel.calcSoftMergeGap(SS, kdel, alph) \
-                + hmodel.obsModel.calcSoftMergeGap(SS, kdel, alph) \
-                + HgapLB
-
-      MergeLogger.log('--------- kdel %d.  N %.1f' 
-                            % (kdel, SS.N[kdel]))
-
-      if np.allclose(SS.N.sum(), LPchunk['resp'].shape[0]) \
-         and SS.K == LPchunk['resp'].shape[1]:
-        from bnpy.util.NumericUtil import calcRlogR
-        R = LPchunk['resp']
-        R2 = np.delete(R, kdel, axis=1)
-        R2[:, kdel:] += R[:, kdel][:,np.newaxis] * alph[kdel+1:][np.newaxis,:]
-        R2[:, :kdel] += R[:, kdel][:,np.newaxis] * alph[:kdel][np.newaxis,:]
-        assert np.allclose(R2.sum(axis=1), 1.0)
-        HgapExact = -1 * np.sum(calcRlogR(R2+1e-100)) \
-                     +   np.sum(calcRlogR(R+1e-100))
-        ELBOgapExact = ELBOgap - HgapLB + HgapExact
-
-        MergeLogger.log(' HgapLB    % 7.1f' % (HgapLB))
-        MergeLogger.log(' HgapExact % 7.1f' % (HgapExact))
-        if ELBOgapExact > 0 and ELBOgap < 0:
-          msg = '******'
+        if hasattr(self, 'MergeLog') and len(self.MergeLog) > 0:
+            # Accepted merge means skip all deletes except the trivial ones
+            if 'candidateUIDs' in EPlan:
+                DeletePlans = [EPlan]
+            else:
+                return hmodel, SS
         else:
-          msg = ''
-        MergeLogger.log(' ELBOgapExact % 7.1f %s' % (ELBOgapExact, msg))
-      MergeLogger.log(' ELBOgapLB    % 7.1f' % (ELBOgap))
+            if 'candidateUIDs' in EPlan:
+                nEmpty = len(EPlan['candidateUIDs'])
+                DeleteLogger.log('Last-minute Plan: %d empty' % (nEmpty))
 
-      MergeLogger.log('Alph')
-      MergeLogger.logPosVector(alph)
+                # Adjust the existing plan so comps deleted by EmptyPlan
+                # are not repeated later
+                if len(DeletePlans) > 0:
+                    DPlan = DeletePlans[0]
+                    remIDs = list()
+                    for ii, uid in enumerate(DPlan['candidateUIDs']):
+                        if uid in EPlan['candidateUIDs']:
+                            remIDs.append(ii)
+                    for ii in reversed(sorted(remIDs)):
+                        DPlan['candidateUIDs'].pop(ii)
 
-      if ELBOgap > 0:
-        MergeLogger.log('ACCEPTED!')
-        ## Accepted!
-        SS.multiMergeComps(kdel, alph)
-        hmodel.update_global_params(SS)
-        evBound += ELBOgap
-        curInfo = dict(ELBOgap=ELBOgap, kdel=kdel, alph=alph)
-        self.MergeLog.append(curInfo)
-        self.verifyELBOTracking(hmodel, SS, evBound)
+                    if len(DPlan['candidateUIDs']) == 0:
+                        DeletePlans = [EPlan]
+                    else:
+                        DeletePlans = [DPlan, EPlan]
+                else:
+                    DeletePlans = [EPlan]
 
-    return hmodel, SS, evBound
+        # Evaluate each proposal
+        newSS = SS.copy()
+        newModel = hmodel.copy()
+        for moveID, DPlan in enumerate(DeletePlans):
+            if moveID == 0:
+                self.fastForwardMemory(Kfinal=newSS.K, order=order)
 
+            if 'DTargetData' in DPlan:
+                # Updates SSmemory in-place
+                newModel, newSS, self.SSmemory, DPlan = \
+                    DEvaluator.runDeleteMoveAndUpdateMemory(
+                        newModel, newSS, DPlan,
+                        LPkwargs=self.algParamsLP,
+                        SSmemory=self.SSmemory,
+                        lapFrac=self.lapFrac,
+                        **self.algParams['delete'])
 
+                nYes = len(DPlan['acceptedUIDs'])
+                nAttempt = len(DPlan['candidateUIDs'])
+                DeleteLogger.log('DELETE %d/%d accepted' % (nYes, nAttempt),
+                                 'info')
+            else:
+                # Auto-accepted delete (specific only for empty comps)
+                DPlan['didAccept'] = 2
+                DPlan['acceptedUIDs'] = DPlan['candidateUIDs']
 
-  ######################################################### Delete Moves
-  #########################################################
-  def doDeleteAtLap(self, lapFrac):
-    if 'delete' not in self.algParams:
-      return False
-    return lapFrac >= self.algParams['delete']['deleteStartLap']
+                # Make all stats stored in Memory have correct size
+                for uID in DPlan['acceptedUIDs']:
+                    kk = np.flatnonzero(newSS.uIDs == uID)[0]
+                    newSS.removeComp(kk)
+                    for batchID in self.SSmemory:
+                        self.SSmemory[batchID].removeComp(kk)
 
-  def deleteCollectTarget(self, Dchunk, hmodel, LPchunk, 
-                                batchID,
-                                DeletePlans):
-    """ Add relevant subset of data from provided chunk to Plan
-
-        Returns
-        -------
-        DeletePlans. Updated in place.
-    """
-    for planID, Plan in enumerate(DeletePlans):
-        Plan = DCollector.addDataFromBatchToPlan(Plan, hmodel, Dchunk, LPchunk,
-                                 batchID=batchID,
-                                 uIDs=self.ActiveIDVec,
-                                 lapFrac=self.lapFrac,
-                                 isFirstBatch=self.isFirstBatch(self.lapFrac),
-                                 **self.algParams['delete'])
-        if len(Plan.keys()) == 0:
-            # Empty Plan dict means it went over budget
-            # So, we should remove this Plan from consideration
-            DeletePlans.pop(planID)
-    return DeletePlans
-
-  def deleteAndUpdateMemory(self, hmodel, SS, DeletePlans, order=None):
-    """ Construct and evaluate planned and last-minute empty delete proposals.
-
-        Returns
-        -------
-        hmodel : bnpy.HModel with updated fields
-        SS : bnpy.suffstats.SuffStatBag, with updated fields
-    """
-    self.ELBOReady = True
-    self.DeleteAcceptRecord = dict()
-    if self.lapFrac <= 1 or SS is None:
-      return hmodel, SS
-
-    ## Make last minute plan for any empty comps
-    EPlan = DPlanner.makePlanForEmptyComps(SS, 
-                                           **self.algParams['delete'])
-
-    if hasattr(self, 'MergeLog') and len(self.MergeLog) > 0:
-      ## Accepted merge means skip all deletes except the trivial ones
-      if 'candidateUIDs' in EPlan:
-          DeletePlans = [EPlan]
-      else:
-          return hmodel, SS
-    else:
-      if 'candidateUIDs' in EPlan:
-          nEmpty = len(EPlan['candidateUIDs'])
-          DeleteLogger.log('Last-minute Plan: %d empty' % (nEmpty))
-
-          # Adjust the existing plan so comps deleted by EmptyPlan
-          # are not repeated later
-          if len(DeletePlans) > 0:
-              DPlan = DeletePlans[0]
-              remIDs = list()
-              for ii, uid in enumerate(DPlan['candidateUIDs']):
-                  if uid in EPlan['candidateUIDs']:
-                      remIDs.append(ii)
-              for ii in reversed(sorted(remIDs)):
-                  DPlan['candidateUIDs'].pop(ii)
-
-              if len(DPlan['candidateUIDs']) == 0:
-                  DeletePlans = [EPlan]
-              else:
-                  DeletePlans = [DPlan, EPlan]
-          else:
-              DeletePlans = [EPlan]
-
-    ## Evaluate each proposal
-    newSS = SS.copy()
-    newModel = hmodel.copy()
-    for moveID, DPlan in enumerate(DeletePlans):
-        if moveID == 0:
-            self.fastForwardMemory(Kfinal=newSS.K, order=order)
-
-        if 'DTargetData' in DPlan:
-            ## Updates SSmemory in-place
-            newModel, newSS, self.SSmemory, DPlan = \
-                 DEvaluator.runDeleteMoveAndUpdateMemory(newModel, newSS, 
-                                                   DPlan,                
-                                                   LPkwargs=self.algParamsLP,
-                                                   SSmemory=self.SSmemory,
-                                                   lapFrac=self.lapFrac,
-                                                   **self.algParams['delete'])
-
-            nYes = len(DPlan['acceptedUIDs'])
-            nAttempt = len(DPlan['candidateUIDs'])
-            DeleteLogger.log('DELETE %d/%d accepted' % (nYes, nAttempt),
-                             'info')
-        else:
-            ## Auto-accepted delete (specific only for empty comps)
-            DPlan['didAccept'] = 2
-            DPlan['acceptedUIDs'] = DPlan['candidateUIDs']
-
-            # Make all stats stored in Memory have correct size
-            for uID in DPlan['acceptedUIDs']:
-                kk = np.flatnonzero(newSS.uIDs == uID)[0]
-                newSS.removeComp(kk)
+                # Reset all ELBO and Merge terms stored in Memory
                 for batchID in self.SSmemory:
-                    self.SSmemory[batchID].removeComp(kk)
+                    self.SSmemory[batchID].setELBOFieldsToZero()
+                    self.SSmemory[batchID].setMergeFieldsToZero()
 
-            # Reset all ELBO and Merge terms stored in Memory
+                newSS.setELBOFieldsToZero()
+                newSS.setMergeFieldsToZero()
+                newModel.update_global_params(newSS)
+
+                nEmpty = len(DPlan['candidateUIDs'])
+                DeleteLogger.log('DELETED %d empty comps' % (nEmpty),
+                                 'info')
+
+            # -------------------    Update DeleteRecords
+            for uID in DPlan['candidateUIDs']:
+                if uID in DPlan['acceptedUIDs']:
+                    if uID in self.DeleteRecordsByComp:
+                        del self.DeleteRecordsByComp[uID]
+                else:
+                    if uID not in self.DeleteRecordsByComp:
+                        self.DeleteRecordsByComp[uID]['nFail'] = 0
+                    self.DeleteRecordsByComp[uID]['nFail'] += 1
+
+            if DPlan['didAccept']:
+                self.ELBOReady = False
+                self.ActiveIDVec = newSS.uIDs.copy()
+                self.lapLastAcceptedDelete = self.lapFrac
+
+                acceptedUIDs = [x for x in DPlan['acceptedUIDs']]
+                if 'origUIDs' not in self.DeleteAcceptRecord:
+                    self.DeleteAcceptRecord['origUIDs'] = SS.uIDs.copy()
+                    self.DeleteAcceptRecord['acceptedUIDs'] = acceptedUIDs
+                else:
+                    self.DeleteAcceptRecord[
+                        'acceptedUIDs'].extend(acceptedUIDs)
+
             for batchID in self.SSmemory:
-                self.SSmemory[batchID].setELBOFieldsToZero()
-                self.SSmemory[batchID].setMergeFieldsToZero()
+                assert np.allclose(
+                    self.SSmemory[batchID].uIDs, self.ActiveIDVec)
+        # <<< end for loop over DeletePlans
 
-            newSS.setELBOFieldsToZero()
-            newSS.setMergeFieldsToZero()
-            newModel.update_global_params(newSS)
-
-            nEmpty = len(DPlan['candidateUIDs'])
-            DeleteLogger.log('DELETED %d empty comps' % (nEmpty),
-                             'info') 
-
-        # -------------------    Update DeleteRecords
-        for uID in DPlan['candidateUIDs']:
-            if uID in DPlan['acceptedUIDs']:
-                if uID in self.DeleteRecordsByComp:
-                    del self.DeleteRecordsByComp[uID]
-            else:
-                if uID not in self.DeleteRecordsByComp:
-                    self.DeleteRecordsByComp[uID]['nFail'] = 0
-                self.DeleteRecordsByComp[uID]['nFail'] += 1
-
-
-        if DPlan['didAccept']:
-            self.ELBOReady = False
-            self.ActiveIDVec = newSS.uIDs.copy()
-            self.lapLastAcceptedDelete = self.lapFrac
-
-            acceptedUIDs = [x for x in DPlan['acceptedUIDs']]
-            if 'origUIDs' not in self.DeleteAcceptRecord:
-                self.DeleteAcceptRecord['origUIDs'] = SS.uIDs.copy()
-                self.DeleteAcceptRecord['acceptedUIDs'] = acceptedUIDs
-            else:
-                self.DeleteAcceptRecord['acceptedUIDs'].extend(acceptedUIDs)
-
+        # Verify post-condition: same states represented by newSS and SSmemory
         for batchID in self.SSmemory:
-            assert np.allclose(self.SSmemory[batchID].uIDs, self.ActiveIDVec)
-    # <<< end for loop over DeletePlans
+            assert newSS.K == self.SSmemory[batchID].K
+            assert np.allclose(newSS.uIDs, self.SSmemory[batchID].uIDs)
 
-    # Verify post-condition: same states represented by newSS and SSmemory
-    for batchID in self.SSmemory:
-      assert newSS.K == self.SSmemory[batchID].K
-      assert np.allclose(newSS.uIDs, self.SSmemory[batchID].uIDs)
+            if newSS.K < SS.K:
+                for key in self.SSmemory[batchID]._ELBOTerms._FieldDims.keys():
+                    arr = self.SSmemory[batchID].getELBOTerm(key)
+                    assert np.allclose(0, arr)
+        if newSS.K < SS.K:
+            assert self.ELBOReady is False
+            for key in newSS._ELBOTerms._FieldDims.keys():
+                arr = newSS.getELBOTerm(key)
+                assert np.allclose(0, arr)
+        else:
+            assert self.ELBOReady is True
 
-      if newSS.K < SS.K:
-          for key in self.SSmemory[batchID]._ELBOTerms._FieldDims.keys():
-              arr = self.SSmemory[batchID].getELBOTerm(key)
-              assert np.allclose(0, arr)
-    if newSS.K < SS.K:
-        assert self.ELBOReady is False
-        for key in newSS._ELBOTerms._FieldDims.keys():
-            arr = newSS.getELBOTerm(key)
-            assert np.allclose(0, arr)
-    else:
-        assert self.ELBOReady is True
+        # TODO adjust LPmemory??
+        return newModel, newSS
 
-    ## TODO adjust LPmemory??
-    return newModel, newSS
+    # Verify ELBO
+    #########################################################
+    def verifyELBOTracking(self, hmodel, SS, evBound=None, order=None,
+                           BirthResults=list(),
+                           **kwargs):
+        ''' Verify current aggregated SS consistent with sum over all batches
+        '''
+        if self.doDebugVerbose():
+            self.print_msg(
+                '>>>>>>>> BEGIN double-check @ lap %.2f' % (self.lapFrac))
 
-  ######################################################### Verify ELBO
-  #########################################################
-  def verifyELBOTracking(self, hmodel, SS, evBound=None, order=None,
-                               BirthResults=list(),
-                               **kwargs):
-    ''' Verify that current aggregated SS consistent with sum over all batches
-    '''
-    if self.doDebugVerbose():
-      self.print_msg('>>>>>>>> BEGIN double-check @ lap %.2f' % (self.lapFrac))
+        if evBound is None:
+            evBound = hmodel.calc_evidence(SS=SS)
 
-    if evBound is None:
-      evBound = hmodel.calc_evidence(SS=SS)
+        # Reconstruct aggregate SS explicitly by sum over all stored batches
+        for batchID in range(len(self.SSmemory.keys())):
+            SSchunk = self.load_batch_suff_stat_from_memory(
+                batchID, doCopy=1, order=order, Kfinal=SS.K)
+            if batchID == 0:
+                SS2 = SSchunk.copy()
+            else:
+                SS2 += SSchunk
 
-    ## Reconstruct aggregate SS explicitly by sum over all stored batches
-    for batchID in range(len(self.SSmemory.keys())):
-      SSchunk = self.load_batch_suff_stat_from_memory(batchID, doCopy=1,
-                                                      order=order,
-                                                      Kfinal=SS.K)
-      if batchID == 0:
-        SS2 = SSchunk.copy()
-      else:
-        SS2 += SSchunk
+        # Add in extra mass from birth moves
+        for MoveInfo in BirthResults:
+            if MoveInfo['didAddNew'] and 'extraSS' in MoveInfo:
+                if 'extraSSDone' not in MoveInfo:
+                    extraSS = MoveInfo['extraSS'].copy()
+                    if extraSS.K < SS2.K:
+                        extraSS.insertEmptyComps(SS2.K - extraSS.K)
+                    SS2 += extraSS
 
-    ## Add in extra mass from birth moves
-    for MoveInfo in BirthResults:
-      if MoveInfo['didAddNew'] and 'extraSS' in MoveInfo:
-        if not 'extraSSDone' in MoveInfo:
-          extraSS = MoveInfo['extraSS'].copy()
-          if extraSS.K < SS2.K:
-            extraSS.insertEmptyComps(SS2.K - extraSS.K)
-          SS2 += extraSS
+        evCheck = hmodel.calc_evidence(SS=SS2)
+        if self.doDebugVerbose():
+            self.print_msg('% 14.8f evBound from agg SS' % (evBound))
+            self.print_msg(
+                '% 14.8f evBound from sum over SSmemory' % (evCheck))
 
-    evCheck = hmodel.calc_evidence(SS=SS2)
-    if self.doDebugVerbose():
-      self.print_msg('% 14.8f evBound from agg SS' % (evBound))
-      self.print_msg('% 14.8f evBound from sum over SSmemory' % (evCheck))
+        condCount = np.allclose(SS.getCountVec(), SS2.getCountVec())
+        condELBO = np.allclose(evBound, evCheck) or not self.ELBOReady
+        condUIDs = np.allclose(SS.uIDs, SS2.uIDs)
 
-    condCount = np.allclose(SS.getCountVec(), SS2.getCountVec())
-    condELBO = np.allclose(evBound, evCheck) or not self.ELBOReady
-    condUIDs = np.allclose(SS.uIDs, SS2.uIDs)
+        if self.algParams['debug'].count('interactive'):
+            isCorrect = condCount and condUIDs and condELBO
+            if not isCorrect:
+                from IPython import embed
+                embed()
+        else:
+            assert condELBO
+            assert condCount
+            assert condUIDs
 
-    if self.algParams['debug'].count('interactive'):
-      isCorrect = condCount and condUIDs and condELBO
-      if not isCorrect:
-        from IPython import embed; embed()
-    else:
-      assert condELBO
-      assert condCount
-      assert condUIDs
-
-    if self.doDebugVerbose():
-      self.print_msg('<<<<<<<< END   double-check @ lap %.2f' % (self.lapFrac))
+        if self.doDebugVerbose():
+            self.print_msg(
+                '<<<<<<<< END   double-check @ lap %.2f' % (self.lapFrac))
