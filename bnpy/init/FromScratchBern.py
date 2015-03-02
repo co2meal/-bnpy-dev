@@ -50,13 +50,20 @@ def init_global_params(obsModel, Data, K=0, seed=0,
         #  selecting the first at random,
         # then subsequently proportional to euclidean distance to the closest
         # item
+        K = np.minimum(K, Data.nObs)
         objID = PRNG.choice(Data.nObs)
         chosenObjIDs = list([objID])
         minDistVec = np.inf * np.ones(Data.nObs)
         for k in range(1, K):
             curDistVec = np.sum((Data.X - Data.X[objID])**2, axis=1)
             minDistVec = np.minimum(minDistVec, curDistVec)
-            objID = PRNG.choice(Data.nObs, ps=minDistVec)
+            sum_minDistVec = np.sum(minDistVec)
+            if sum_minDistVec > 0:
+                p = minDistVec / sum_minDistVec
+            else:
+                D = minDistVec.size
+                p = 1.0 / D * np.ones(D)            
+            objID = PRNG.choice(Data.nObs, p=p)
             chosenObjIDs.append(objID)
         resp = np.zeros((Data.nObs, K))
         for k in xrange(K):

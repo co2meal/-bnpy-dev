@@ -3,7 +3,7 @@
 import os
 import sys
 
-# Configure PYTHONPATH
+# Configure PYTHONPATH before importing any bnpy modules
 root = os.path.sep.join(os.path.abspath(__file__).split(os.path.sep)[:-2])
 sys.path.append(os.path.join(root, 'datasets/'))
 sys.path.append(os.path.join(root, 'third-party/'))

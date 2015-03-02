@@ -13,6 +13,7 @@ import scipy.io
 from bnpy.data.DataObj import DataObj
 from bnpy.util import as1D, toCArray
 
+
 class WordsData(DataObj):
 
     """  Dataset object for sparse discrete words across many documents.
