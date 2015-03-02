@@ -1,7 +1,7 @@
 '''
 BernObsModel
 
-Prior : Dirichlet
+Prior : Beta
 * lam1
 * lam0
 
@@ -30,7 +30,7 @@ class BernObsModel(AbstractObsModel):
 
   def __init__(self, inferType='EM', D=0,
                      Data=None, **PriorArgs):
-    ''' Initialize bare Mult obsmodel with Dirichlet prior. 
+    ''' Initialize bare Bernouli obsmodel with Beta prior. 
         Resulting object lacks either EstParams or Post, 
           which must be created separately.
     '''
@@ -151,7 +151,7 @@ class BernObsModel(AbstractObsModel):
 
   def setPostFromEstParams(self, EstParams, Data=None, nTotalTokens=1,
                                                        **kwargs):
-    ''' Convert from EstParams (mu, Sigma) to Post (nu, B, m, kappa),
+    ''' Convert from EstParams (phi) to Post (lambda1, lambda0),
           each posterior hyperparam is set so EstParam is the posterior mean
     '''
     K = EstParams.K
@@ -272,7 +272,7 @@ class BernObsModel(AbstractObsModel):
   def updatePost(self, SS):
     ''' Update (in place) posterior params for all comps given suff stats
 
-        Afterwards, self.Post contains Dirichlet posterior params
+        Afterwards, self.Post contains beta posterior params
         updated given self.Prior and provided suff stats SS
 
         Returns
@@ -296,15 +296,16 @@ class BernObsModel(AbstractObsModel):
         lam1 : array of dimension (self.SSDims, 'D') (typically K x D)
         lam0 : array of dimension (self.SSDims, 'D') (typically K x D)
     '''
-    lam1 = SS.Count1 + self.Prior.lam1[np.newaxis,:]
-    lam0 = SS.Count0 + self.Prior.lam0[np.newaxis,:]
+
+    lam1 = SS.Count1 + self.Prior.lam1 # Adds prior to last dimension of SS
+    lam0 = SS.Count0 + self.Prior.lam0
     return lam1, lam0
 
   def calcPostParamsForComp(self, SS, kA=None, kB=None):
     ''' Calc params (lam) for specific comp, given suff stats
 
         These params define the common-form of the exponential family 
-        Dirichlet posterior distribution over parameter vector phi.
+        beta posterior distribution over parameter vector phi.
 
         Note kA, kB should be either single indicies or a tuple of indicies,
         depending on the dimensions of SS.Count1 / SS.Count0
@@ -329,7 +330,7 @@ class BernObsModel(AbstractObsModel):
   def updatePost_stochastic(self, SS, rho):
     ''' Stochastic update (in place) posterior for all comps given suff stats.
 
-        Dirichlet common params used here, no need for natural form.
+        Beta common params used here, no need for natural form.
     '''
     assert hasattr(self, 'Post')
     assert self.Post.K == SS.K
@@ -572,7 +573,7 @@ class BernObsModel(AbstractObsModel):
 
         Returns
         -------
-        ElogphiT : 2D array, vocab_size x K
+        ElogphiT : 2D array, D x K
     '''
     ElogphiT = self._E_logphi(k).T.copy()
     return ElogphiT
@@ -585,7 +586,7 @@ class BernObsModel(AbstractObsModel):
 
         Returns
         -------
-        ElogphiT : 2D array, vocab_size x K
+        ElogphiT : 2D array, D x K
     '''
     ElogphiT = self._E_log1mphi(k).T.copy()
     return ElogphiT
