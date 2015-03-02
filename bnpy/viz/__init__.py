@@ -16,5 +16,5 @@ import PlotComps
 
 __all__ = ['GaussViz', 'BernViz', 'BarsViz', 'SequenceViz',
            'PlotTrace', 'PlotELBO', 'PlotK',
-           'PlotComps', 
+           'PlotComps',
            'PlotHeldoutLik']

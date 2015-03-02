@@ -6,7 +6,6 @@ from scratch.
 '''
 
 import numpy as np
-from bnpy.util import discrete_single_draw
 from bnpy.data import XData
 from bnpy.suffstats import SuffStatBag
 from scipy.cluster.vq import kmeans2
@@ -51,13 +50,13 @@ def init_global_params(obsModel, Data, K=0, seed=0,
         #  selecting the first at random,
         # then subsequently proportional to euclidean distance to the closest
         # item
-        objID = discrete_single_draw(np.ones(Data.nObs), PRNG)
+        objID = PRNG.choice(Data.nObs)
         chosenObjIDs = list([objID])
         minDistVec = np.inf * np.ones(Data.nObs)
         for k in range(1, K):
             curDistVec = np.sum((Data.X - Data.X[objID])**2, axis=1)
             minDistVec = np.minimum(minDistVec, curDistVec)
-            objID = discrete_single_draw(minDistVec, PRNG)
+            objID = PRNG.choice(Data.nObs, ps=minDistVec)
             chosenObjIDs.append(objID)
         resp = np.zeros((Data.nObs, K))
         for k in xrange(K):

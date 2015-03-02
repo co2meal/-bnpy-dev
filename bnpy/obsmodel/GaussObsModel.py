@@ -353,7 +353,6 @@ class GaussObsModel(AbstractObsModel):
     covMat = np.tile(minCovMat, (SS.K,1,1))
     for k in xrange(SS.K):
       covMat[k] += SS.xxT[k] / SS.N[k] - np.outer(mu[k], mu[k])      
-
     self.EstParams.setField('mu', mu, dims=('K', 'D'))
     self.EstParams.setField('Sigma', covMat, dims=('K', 'D', 'D'))
     self.K = SS.K

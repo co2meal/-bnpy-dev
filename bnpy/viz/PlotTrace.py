@@ -23,262 +23,267 @@ from JobFilter import filterJobs
 import matplotlib
 matplotlib.rcParams['text.usetex'] = False
 
-Colors = [(0,0,0), # black
-          (0,0,1), # blue
-          (1,0,0), # red
-          (0,1,0.25), # green (darker)
-          (1,0,1), # magenta
-          (0,1,1), # cyan
-          (1,0.6,0), #orange
-         ]
+
+taskidsHelpMsg = "ids of trials/runs to plot from given job." + \
+                 " Example: '4' or '1,2,3' or '2-6'."
+
+Colors = [(0, 0, 0),  # black
+          (0, 0, 1),  # blue
+          (1, 0, 0),  # red
+          (0, 1, 0.25),  # green (darker)
+          (1, 0, 1),  # magenta
+          (0, 1, 1),  # cyan
+          (1, 0.6, 0),  # orange
+          ]
 
 LabelMap = dict(laps='num pass thru data',
                 iters='num alg steps',
                 times='elapsed time (sec)',
                 K='num topics K',
-                evidence='train objective',                
-                )  
-LabelMap['laps-saved-params']='num pass thru data'
-LabelMap['hamming-distance']='Hamming dist.'
-LabelMap['Keff']='num topics K'
-     
+                evidence='train objective',
+                )
+LabelMap['laps-saved-params'] = 'num pass thru data'
+LabelMap['hamming-distance'] = 'Hamming dist.'
+LabelMap['Keff'] = 'num topics K'
+
+
 def plotJobsThatMatchKeywords(jpathPattern='/tmp/', **kwargs):
-  ''' Create line plots for all jobs matching pattern and provided keyword args
-  '''
-  if not jpathPattern.startswith(os.path.sep):
-    jpathPattern = os.path.join(os.environ['BNPYOUTDIR'], jpathPattern)
-  jpaths, legNames = filterJobs(jpathPattern, **kwargs)
-  plotJobs(jpaths, legNames, **kwargs)
+    ''' Create line plots for jobs matching pattern and provided kwargs
+    '''
+    if not jpathPattern.startswith(os.path.sep):
+        jpathPattern = os.path.join(os.environ['BNPYOUTDIR'], jpathPattern)
+    jpaths, legNames = filterJobs(jpathPattern, **kwargs)
+    plotJobs(jpaths, legNames, **kwargs)
+
 
 def plotJobs(jpaths, legNames, styles=None, density=2,
              xvar='laps', yvar='evidence', loc='upper right',
              taskids=None, savefilename=None, tickfontsize=None,
              bbox_to_anchor=None, **kwargs):
-  ''' Create line plots for provided jobs 
-  '''
-  nLines = len(jpaths)
-  if nLines == 0:
-    raise ValueError('Empty job list. Nothing to plot.')
+    ''' Create line plots for provided jobs.
+    '''
+    nLines = len(jpaths)
+    if nLines == 0:
+        raise ValueError('Empty job list. Nothing to plot.')
 
-  nLeg = len(legNames)
-  
-  for lineID in xrange(nLines):
-    if styles is None:
-      curStyle = dict(colorID=lineID)
+    nLeg = len(legNames)
+
+    for lineID in xrange(nLines):
+        if styles is None:
+            curStyle = dict(colorID=lineID)
+        else:
+            curStyle = styles[lineID]
+
+        plot_all_tasks_for_job(jpaths[lineID], legNames[lineID],
+                               xvar=xvar, yvar=yvar,
+                               taskids=taskids, density=density, **curStyle)
+    if loc is not None and len(jpaths) > 1:
+        pylab.legend(loc=loc, bbox_to_anchor=bbox_to_anchor)
+    if tickfontsize is not None:
+        pylab.tick_params(axis='both', which='major', labelsize=tickfontsize)
+
+    if savefilename is not None:
+        try:
+            pylab.show(block=False)
+        except TypeError:
+            pass  # when using IPython notebook
+        pylab.savefig(savefilename, bbox_inches='tight', pad_inches=0)
     else:
-      curStyle = styles[lineID]
+        try:
+            pylab.show(block=True)
+        except TypeError:
+            pass  # when using IPython notebook
 
-    plot_all_tasks_for_job(jpaths[lineID], legNames[lineID], 
-                           xvar=xvar, yvar=yvar,
-                           taskids=taskids, density=density, **curStyle)
-  if loc is not None and len(jpaths) > 1:
-    pylab.legend(loc=loc, bbox_to_anchor=bbox_to_anchor)  
-  if tickfontsize is not None:
-    pylab.tick_params(axis='both', which='major', labelsize=tickfontsize)
-
-  if savefilename is not None:
-    try:
-      pylab.show(block=False)
-    except TypeError:
-      pass # when using IPython notebook
-    pylab.savefig(savefilename, bbox_inches='tight', pad_inches=0)
-  else:
-    try:
-      pylab.show(block=True)
-    except TypeError:
-      pass # when using IPython notebook
-        
 
 def plot_all_tasks_for_job(jobpath, label, taskids=None,
-                                           lineType='.-',
-                                           color=None,
-                                           colorID=0,
-                                           density=2,
-                                           yvar='evidence',
-                                           markersize=10,
-                                           linewidth=2,
-                                           xvar='laps', **kwargs):
-  ''' Create line plot in current figure for each task/run of jobpath
-  '''
-  if not os.path.exists(jobpath):
-    raise ValueError("PATH NOT FOUND: %s" % (jobpath))
-  if color is None:
-    color = Colors[ colorID % len(Colors)]
-  taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
+                           lineType='.-',
+                           color=None,
+                           colorID=0,
+                           density=2,
+                           yvar='evidence',
+                           markersize=10,
+                           linewidth=2,
+                           xvar='laps', **kwargs):
+    ''' Create line plot in current figure for each task/run of jobpath
+    '''
+    if not os.path.exists(jobpath):
+        raise ValueError("PATH NOT FOUND: %s" % (jobpath))
+    if color is None:
+        color = Colors[colorID % len(Colors)]
+    taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
 
-  if yvar == 'hamming-distance':
-    if xvar == 'laps':
-      xvar = 'laps-saved-params'
+    if yvar == 'hamming-distance':
+        if xvar == 'laps':
+            xvar = 'laps-saved-params'
 
-  for tt, taskid in enumerate(taskids):
-    try:
-      xtxtfile = os.path.join(jobpath, taskid, xvar+'.txt')
-      if not os.path.isfile(xtxtfile):
-        xtxtfile = os.path.join(jobpath, taskid, xvar+'-saved-params.txt')
-      xs = np.loadtxt(xtxtfile)
-
-      ytxtfile = os.path.join(jobpath, taskid, yvar+'.txt')
-      if not os.path.isfile(ytxtfile):
-        ytxtfile = os.path.join(jobpath, taskid, yvar+'-saved-params.txt')
-      ys = np.loadtxt(ytxtfile)
-    except IOError as e:
-      try:
-        xs, ys = loadXYFromTopicModelFiles(jobpath, taskid)
-      except ValueError:
+    for tt, taskid in enumerate(taskids):
         try:
-          xs, ys = loadXYFromTopicModelSummaryFiles(jobpath, taskid)
-        except ValueError:
-          raise e
+            xtxtfile = os.path.join(jobpath, taskid, xvar + '.txt')
+            if not os.path.isfile(xtxtfile):
+                xtxtfile = os.path.join(
+                    jobpath, taskid, xvar + '-saved-params.txt')
+            xs = np.loadtxt(xtxtfile)
 
-    if yvar == 'hamming-distance' or yvar == 'Keff':
-      if xvar == 'laps-saved-params':
-        # fix off-by-one error, if we save an extra dist on final lap
-        if xs.size == ys.size - 1:
-          ys = ys[:-1] 
-        elif ys.size == xs.size - 1:
-          xs = xs[:-1] # fix off-by-one error, if we quit early
-      elif xs.size != ys.size:
-        ## Try to subsample both time series at laps where they intersect
-        laps_x = np.loadtxt(os.path.join(jobpath, taskid, 'laps.txt'))
-        laps_y = np.loadtxt(os.path.join(jobpath, taskid,
-                                                  'laps-saved-params.txt'))
-        assert xs.size == laps_x.size
-        if ys.size == laps_y.size-1:
-          laps_y = laps_y[:-1]
-        xs = xs[np.in1d(laps_x, laps_y)]
-        ys = ys[np.in1d(laps_y, laps_x)]
-       
+            ytxtfile = os.path.join(jobpath, taskid, yvar + '.txt')
+            if not os.path.isfile(ytxtfile):
+                ytxtfile = os.path.join(
+                    jobpath, taskid, yvar + '-saved-params.txt')
+            ys = np.loadtxt(ytxtfile)
+        except IOError as e:
+            try:
+                xs, ys = loadXYFromTopicModelFiles(jobpath, taskid)
+            except ValueError:
+                try:
+                    xs, ys = loadXYFromTopicModelSummaryFiles(jobpath, taskid)
+                except ValueError:
+                    raise e
 
-    if xs.size != ys.size:
-      raise ValueError('Dimension mismatch. len(xs)=%d, len(ys)=%d'
-                        % (xs.size, ys.size))
+        if yvar == 'hamming-distance' or yvar == 'Keff':
+            if xvar == 'laps-saved-params':
+                # fix off-by-one error, if we save an extra dist on final lap
+                if xs.size == ys.size - 1:
+                    ys = ys[:-1]
+                elif ys.size == xs.size - 1:
+                    xs = xs[:-1]  # fix off-by-one error, if we quit early
+            elif xs.size != ys.size:
+                # Try to subsample both time series at laps where they
+                # intersect
+                laps_x = np.loadtxt(os.path.join(jobpath, taskid, 'laps.txt'))
+                laps_y = np.loadtxt(os.path.join(jobpath, taskid,
+                                                 'laps-saved-params.txt'))
+                assert xs.size == laps_x.size
+                if ys.size == laps_y.size - 1:
+                    laps_y = laps_y[:-1]
+                xs = xs[np.in1d(laps_x, laps_y)]
+                ys = ys[np.in1d(laps_y, laps_x)]
 
-    ## Cleanup laps data. Verify that it is sorted, with no collisions. 
-    if xvar == 'laps':
-      diff = xs[1:] - xs[:-1]
-      goodIDs = np.flatnonzero(diff >= 0)
-      if len(goodIDs) < xs.size-1:
-        print 'WARNING: looks like we had multiple runs writing to this file!'
-        print jobpath
-        print 'Task: ', taskid
-        print len(goodIDs), xs.size-1
-        xs = np.hstack([xs[goodIDs], xs[-1]])
-        ys = np.hstack([ys[goodIDs], ys[-1]])
+        if xs.size != ys.size:
+            raise ValueError('Dimension mismatch. len(xs)=%d, len(ys)=%d'
+                             % (xs.size, ys.size))
 
-    ## Force plot density (data points per lap) to desired specification
-    # This avoids making plots that have huge file sizes,
-    # due to too much content in the given display space
-    if xvar == 'laps' and xs.size > 10:
-      if (xs[-1] - xs[9]) != 0:
-        curDensity = (xs.size-10) / (xs[-1] - xs[9])
-      else:
-        curDensity = density
-      while curDensity > density:
-        # Thin xs and ys data by a factor of 2
-        # while preserving the first 10 data points
-        xs = np.hstack([xs[:10], xs[10::2]])
-        ys = np.hstack([ys[:10], ys[10::2]])
-        curDensity = (xs.size-10) / (xs[-1] - xs[9])
+        # Cleanup laps data. Verify that it is sorted, with no collisions.
+        if xvar == 'laps':
+            diff = xs[1:] - xs[:-1]
+            goodIDs = np.flatnonzero(diff >= 0)
+            if len(goodIDs) < xs.size - 1:
+                print 'WARNING: looks like multiple runs writing to this file!'
+                print jobpath
+                print 'Task: ', taskid
+                print len(goodIDs), xs.size - 1
+                xs = np.hstack([xs[goodIDs], xs[-1]])
+                ys = np.hstack([ys[goodIDs], ys[-1]])
 
-    plotargs = dict(markersize=markersize, linewidth=linewidth, label=None,
-                    color=color, markeredgecolor=color)
-    plotargs.update(kwargs)
-    if tt == 0:
-      plotargs['label'] = label
+        # Force plot density (data points per lap) to desired specification
+        # This avoids making plots that have huge file sizes,
+        # due to too much content in the given display space
+        if xvar == 'laps' and xs.size > 10:
+            if (xs[-1] - xs[9]) != 0:
+                curDensity = (xs.size - 10) / (xs[-1] - xs[9])
+            else:
+                curDensity = density
+            while curDensity > density:
+                # Thin xs and ys data by a factor of 2
+                # while preserving the first 10 data points
+                xs = np.hstack([xs[:10], xs[10::2]])
+                ys = np.hstack([ys[:10], ys[10::2]])
+                curDensity = (xs.size - 10) / (xs[-1] - xs[9])
 
-    pylab.plot(xs, ys, lineType, **plotargs)
+        plotargs = dict(markersize=markersize, linewidth=linewidth, label=None,
+                        color=color, markeredgecolor=color)
+        plotargs.update(kwargs)
+        if tt == 0:
+            plotargs['label'] = label
 
-  ## Y-axis limit determination
-  # If we have "enough" data about the run beyond two full passes of dataset,
-  # we zoom in on the region of data beyond lap 2
-  if xvar == 'laps' and yvar == 'evidence':
-    if np.sum(xs > 2.0) > 5:
-      pylab.xlim([1.0, xs.max() + .05 * (xs.max()-xs.min())])
-      ymin = ys.max()
-      ymax = ys.min()
-      for line in pylab.gca().get_lines():
-        xd = line.get_xdata()
-        yd = line.get_ydata()
-        loc = np.searchsorted(xd, 2)
-        ymin = np.minimum(ymin, np.percentile(yd[loc:], 2.5))
-        ymax = np.maximum(ymax, yd[loc:].max())
-      pylab.ylim([ymin, ymax + 0.1*(ymax-ymin)])
+        pylab.plot(xs, ys, lineType, **plotargs)
 
-  pylab.xlabel(LabelMap[xvar])
-  pylab.ylabel(LabelMap[yvar])
-   
+    # Y-axis limit determination
+    # If we have "enough" data about the run beyond two full passes of dataset,
+    # we zoom in on the region of data beyond lap 2
+    if xvar == 'laps' and yvar == 'evidence':
+        if np.sum(xs > 2.0) > 5:
+            pylab.xlim([1.0, xs.max() + .05 * (xs.max() - xs.min())])
+            ymin = ys.max()
+            ymax = ys.min()
+            for line in pylab.gca().get_lines():
+                xd = line.get_xdata()
+                yd = line.get_ydata()
+                loc = np.searchsorted(xd, 2)
+                ymin = np.minimum(ymin, np.percentile(yd[loc:], 2.5))
+                ymax = np.maximum(ymax, yd[loc:].max())
+            pylab.ylim([ymin, ymax + 0.1 * (ymax - ymin)])
 
-########################################################### TopicModel files
-###########################################################
+    pylab.xlabel(LabelMap[xvar])
+    pylab.ylabel(LabelMap[yvar])
+
 
 def loadXYFromTopicModelSummaryFiles(jobpath, taskid, xvar='laps', yvar='K'):
-  ''' Load x and y variables for line plots from TopicModel files
-  '''
-  ypath = os.path.join(jobpath, taskid, 'predlik-' + yvar + '.txt')
-  if not os.path.exists(ypath):
-    raise ValueError('No TopicModel summary text files found')
-  lappath =  os.path.join(jobpath, taskid, 'predlik-lapTrain.txt')
-  xs = np.loadtxt(lappath)
-  ys = np.loadtxt(ypath)
-  return xs, ys
+    ''' Load x and y variables for line plots from TopicModel files
+    '''
+    ypath = os.path.join(jobpath, taskid, 'predlik-' + yvar + '.txt')
+    if not os.path.exists(ypath):
+        raise ValueError('No TopicModel summary text files found')
+    lappath = os.path.join(jobpath, taskid, 'predlik-lapTrain.txt')
+    xs = np.loadtxt(lappath)
+    ys = np.loadtxt(ypath)
+    return xs, ys
+
 
 def loadXYFromTopicModelFiles(jobpath, taskid, xvar='laps', yvar='K'):
-  ''' Load x and y variables for line plots from TopicModel files
-  '''
-  tmpathList = glob.glob(os.path.join(jobpath, taskid, 'Lap*TopicModel.mat'))
-  if len(tmpathList) < 1:
-    raise ValueError('No TopicModel.mat files found')
-  tmpathList.sort() # ascending, from lap 0 to lap 1 to lap 100 to ...
-  basenames = [x.split(os.path.sep)[-1] for x in tmpathList];
-  laps = np.asarray([float(x[3:11]) for x in basenames]);
-  Ks = np.zeros_like(laps)
+    ''' Load x and y variables for line plots from TopicModel files
+    '''
+    tmpathList = glob.glob(os.path.join(jobpath, taskid, 'Lap*TopicModel.mat'))
+    if len(tmpathList) < 1:
+        raise ValueError('No TopicModel.mat files found')
+    tmpathList.sort()  # ascending, from lap 0 to lap 1 to lap 100 to ...
+    basenames = [x.split(os.path.sep)[-1] for x in tmpathList]
+    laps = np.asarray([float(x[3:11]) for x in basenames])
+    Ks = np.zeros_like(laps)
+    for tt, tmpath in enumerate(tmpathList):
+        if yvar == 'K':
+            Q = scipy.io.loadmat(tmpath, variable_names=['K', 'probs'])
+            try:
+                Ks[tt] = Q['K']
+            except KeyError:
+                Ks[tt] = Q['probs'].size
+        else:
+            raise ValueError('Unknown yvar type for topic model: ' + yvar)
+    return laps, Ks
 
-  for tt, tmpath in enumerate(tmpathList):
-    if yvar == 'K':
-      Q = scipy.io.loadmat(tmpath, variable_names=['K', 'probs'])
-      try:
-        Ks[tt] = Q['K']
-      except KeyError:
-        Ks[tt] = Q['probs'].size
-    else:
-      raise ValueError('Unknown yvar type for topic model: ' + yvar)
-  return laps, Ks
 
-########################################################### Executable
-###########################################################
-  
 def parse_args(xvar='laps', yvar='evidence'):
-  ''' Returns Namespace of parsed arguments retrieved from command line
-  '''
-  parser = argparse.ArgumentParser()
-  parser.add_argument('dataName', type=str, default='AsteriskK8')
-  parser.add_argument('jpath', type=str, default='demo*')
+    ''' Returns Namespace of parsed arguments retrieved from command line
+    '''
+    parser = argparse.ArgumentParser()
+    parser.add_argument('dataName', type=str, default='AsteriskK8')
+    parser.add_argument('jpath', type=str, default='demo*')
 
-  parser.add_argument('--xvar', type=str, default=xvar,
-        choices=LabelMap.keys(),
-        help="name of x axis variable to plot.")
+    parser.add_argument('--xvar', type=str, default=xvar,
+                        choices=LabelMap.keys(),
+                        help="name of x axis variable to plot.")
 
-  parser.add_argument('--yvar', type=str, default=yvar,
-        choices=LabelMap.keys(),
-        help="name of y axis variable to plot.")
+    parser.add_argument('--yvar', type=str, default=yvar,
+                        choices=LabelMap.keys(),
+                        help="name of y axis variable to plot.")
 
-  parser.add_argument('--taskids', type=str, default=None,
-        help="int ids of tasks (trials/runs) to plot from given job." \
-              + " Example: '4' or '1,2,3' or '2-6'.")
-  parser.add_argument('--savefilename', type=str, default=None,
+    helpMsg = "ids of trials/runs to plot from given job." + \
+              " Example: '4' or '1,2,3' or '2-6'."
+    parser.add_argument(
+        '--taskids', type=str, default=None, help=helpMsg)
+    parser.add_argument(
+        '--savefilename', type=str, default=None,
         help="location where to save figure (absolute path directory)")
 
-  args, unkList = parser.parse_known_args()
+    args, unkList = parser.parse_known_args()
 
-  argDict = BNPYArgParser.arglist_to_kwargs(unkList)
-  argDict.update(args.__dict__)
-  argDict['jpathPattern'] = os.path.join(os.environ['BNPYOUTDIR'],
-                                   args.dataName,
-                                   args.jpath)
-  del argDict['dataName']
-  del argDict['jpath']
-  return argDict
+    argDict = BNPYArgParser.arglist_to_kwargs(unkList)
+    argDict.update(args.__dict__)
+    argDict['jpathPattern'] = os.path.join(os.environ['BNPYOUTDIR'],
+                                           args.dataName,
+                                           args.jpath)
+    del argDict['dataName']
+    del argDict['jpath']
+    return argDict
 
 if __name__ == "__main__":
-  argDict = parse_args('laps', 'evidence')
-  plotJobsThatMatchKeywords(**argDict)
+    argDict = parse_args('laps', 'evidence')
+    plotJobsThatMatchKeywords(**argDict)

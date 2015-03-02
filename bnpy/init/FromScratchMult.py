@@ -93,17 +93,18 @@ def _initTopicWordEstParams(obsModel, Data, PRNG, K=0,
     if initname == 'randexamples':
         # Choose K documents at random, then
         # use each doc's empirical distribution (+random noise) to seed a topic
+        K = np.minimum(K, Data.nDoc)
         chosenDocIDs = PRNG.choice(Data.nDoc, K, replace=False)
         DocWord = Data.getDocTypeCountMatrix()
         topics = DocWord[chosenDocIDs].copy()
         topics += 0.01 * PRNG.rand(K, Data.vocab_size)
 
     elif initname == 'plusplus':
-        # Sample K documents at random using the 'plusplus' distance criteria
-        # then set each of K topics to the empirical distribution of chosen
-        # docs
+        # Sample K documents at random using 'plusplus' distance criteria
+        # then set each of K topics to empirical distribution of chosen docs
         if not hasRexAvailable:
             raise NotImplementedError("KMeansRex must be on python path")
+        K = np.minimum(K, Data.nDoc)
         X = Data.getDocTypeCountMatrix()
         topics = KMeansRex.SampleRowsPlusPlus(X, K, seed=seed)
         topics += 0.01 * PRNG.rand(K, Data.vocab_size)
@@ -113,6 +114,7 @@ def _initTopicWordEstParams(obsModel, Data, PRNG, K=0,
         # then set each of K topics to the means of the resulting clusters
         if not hasRexAvailable:
             raise NotImplementedError("KMeansRex must be on python path")
+        K = np.minimum(K, Data.nDoc)
         X = Data.getDocTypeCountMatrix()
         topics, Z = KMeansRex.RunKMeans(X, K, seed=seed,
                                         Niter=25,
@@ -130,6 +132,8 @@ def _initTopicWordEstParams(obsModel, Data, PRNG, K=0,
         topics = PRNG.gamma(lam, 1., (K, Data.vocab_size))
 
     elif initname == 'anchorword':
+        K = np.minimum(K, Data.vocab_size)
+
         # Set topic-word prob vectors to output of anchor-words spectral method
         if not hasAnchorTopicEstimator:
             raise NotImplementedError(

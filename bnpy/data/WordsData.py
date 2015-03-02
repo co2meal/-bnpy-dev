@@ -11,7 +11,7 @@ import scipy.sparse
 import scipy.io
 
 from bnpy.data.DataObj import DataObj
-
+from bnpy.util import as1D, toCArray
 
 class WordsData(DataObj):
 

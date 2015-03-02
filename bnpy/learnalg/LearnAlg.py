@@ -116,8 +116,14 @@ class LearnAlg(object):
         Info : dict
             contains information about completed run.
         '''
+        # Convert TraceLaps from set to 1D array, sorted in ascending order
+        lapTrace = np.asarray(list(self.TraceLaps))
+        lapTrace.sort()
+        evTrace = np.asarray(self.evTrace)
         return dict(status=self.status,
-                    evTrace=self.evTrace, lapTrace=self.TraceLaps,
+                    evTrace=evTrace,
+                    lapTrace=lapTrace,
+                    elapsedTimeInSec=time.time() - self.start_time,
                     **kwargs)
 
     def hasMove(self, moveName):
