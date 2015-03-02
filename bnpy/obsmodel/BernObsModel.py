@@ -61,11 +61,7 @@ class BernObsModel(AbstractObsModel):
     self.Prior.setField('lam0', lam0, dims=('D'))
 
   def setupWithAllocModel(self, allocModel):
-    ''' Using the allocation model, determine the modeling scenario:
-          doc  : multinomial : each atom is D-vector of integer counts
-          word : categorical : each atom is a single one-of-D indicator 
-    '''
-    pass    
+    self.SSDims = allocModel.getSSDims()
 
 
 
@@ -108,7 +104,7 @@ class BernObsModel(AbstractObsModel):
       self.updateEstParams(SS)
     else:
       self.EstParams = ParamBag(K=phi.shape[0], D=phi.shape[1])
-      self.EstParams.setField('phi', phi, dims=('K', 'D'))
+      self.EstParams.setField('phi', phi, dims=self.SSDims+('D',))
     self.K = self.EstParams.K
 
   def setEstParamsFromPost(self, Post=None):
@@ -119,7 +115,7 @@ class BernObsModel(AbstractObsModel):
       Post = self.Post
     self.EstParams = ParamBag(K=Post.K, D=Post.D)
     phi = Post.lam1 / (Post.lam1 + Post.lam0)
-    self.EstParams.setField('phi', phi, dims=('K','D'))
+    self.EstParams.setField('phi', phi, dims=self.SSDims+('D',))
     self.K = self.EstParams.K
 
   
@@ -148,8 +144,8 @@ class BernObsModel(AbstractObsModel):
       lam0 = as2D(lam0)
       K, D = lam1.shape
       self.Post = ParamBag(K=K, D=D)
-      self.Post.setField('lam1', lam1, dims=('K','D'))
-      self.Post.setField('lam0', lam0, dims=('K','D'))
+      self.Post.setField('lam1', lam1, dims=self.SSDims+('D',))
+      self.Post.setField('lam0', lam0, dims=self.SSDims+('D',))
     self.K = self.Post.K
 
 
@@ -166,8 +162,8 @@ class BernObsModel(AbstractObsModel):
     lam0 = (1-WordCounts) + self.Prior.lam0
 
     self.Post = ParamBag(K=K, D=D)
-    self.Post.setField('lam1', lam1, dims=('K', 'D'))
-    self.Post.setField('lam0', lam0, dims=('K', 'D'))
+    self.Post.setField('lam1', lam1, dims=self.SSDims+('D',))
+    self.Post.setField('lam0', lam0, dims=self.SSDims+('D',))
     self.K = K
 
   ########################################################### Summary
@@ -186,11 +182,13 @@ class BernObsModel(AbstractObsModel):
 
     Resp = LP['resp']  # 2D array, N x K 
     X = Data.X # 2D array, N x D
-    CountON = np.dot(Resp.T, X) # matrix-matrix product, result is K x D
-    CountOFF = np.dot(Resp.T, 1-X)
 
-    SS.setField('Count1', CountON, dims=('K','D'))
-    SS.setField('Count0', CountOFF, dims=('K','D'))
+    #Product over N dimension of Resp and X. For most models, result is K x D
+    CountON = np.tensordot(Resp.T, X, axes=1)
+    CountOFF = np.tensordot(Resp.T, 1-X, axes=1)
+
+    SS.setField('Count1', CountON, dims=self.SSDims+('D',))
+    SS.setField('Count0', CountOFF, dims=self.SSDims+('D',))
     return SS
 
   def forceSSInBounds(self, SS):
@@ -227,9 +225,12 @@ class BernObsModel(AbstractObsModel):
         ---------
         L : 2D array, N x K
     '''
-    logphiT = np.log(self.EstParams.phi.T) # D x K matrix
-    log1mphiT = np.log(1.0 - self.EstParams.phi.T) # D x K matrix
-    return np.dot(Data.X, logphiT) + np.dot(1 - Data.X, log1mphiT)
+    logphiT = np.log(self.EstParams.phi.T) # D x self.SSDims array
+    log1mphiT = np.log(1.0 - self.EstParams.phi.T) # D x self.SSDims array
+
+    # Result is N x self.SSDims (typically N x K)
+    return np.tensordot(Data.X, logphiT, axes=1) + \
+      np.tensordot(1.0-Data.X, log1mphiT, axes=1)
 
   ########################################################### EM M step
   ###########################################################
@@ -245,10 +246,10 @@ class BernObsModel(AbstractObsModel):
     if not hasattr(self, 'EstParams') or self.EstParams.K != SS.K:
       self.EstParams = ParamBag(K=SS.K, D=SS.D)
     phi = SS.Count1 / (SS.Count1 + SS.Count0)
-    ## prevent entries from reaching exactly 0
+    ## prevent entries from reaching exactly 0 or 1
     np.maximum(phi, self.eps_phi, out=phi) 
     np.minimum(phi, 1.0 - self.eps_phi, out=phi) 
-    self.EstParams.setField('phi', phi, dims=('K', 'D'))
+    self.EstParams.setField('phi', phi, dims=self.SSDims+('D',))
 
   def updateEstParams_MAP(self, SS):
     ''' Update EstParams for all comps via MAP estimation given suff stats
@@ -263,7 +264,7 @@ class BernObsModel(AbstractObsModel):
     phi_numer = SS.Count1 + self.Prior.lam1 - 1
     phi_denom = SS.Count1 + SS.Count0 + self.Prior.lam1 + self.Prior.lam0 - 2
     phi = phi_numer / phi_denom
-    self.EstParams.setField('phi', phi, dims=('K', 'D'))
+    self.EstParams.setField('phi', phi, dims=self.SSDims+('D',))
 
 
   ########################################################### Post updates
@@ -283,8 +284,8 @@ class BernObsModel(AbstractObsModel):
       self.Post = ParamBag(K=SS.K, D=SS.D)
 
     lam1, lam0 = self.calcPostParams(SS)
-    self.Post.setField('lam1', lam1, dims=('K', 'D'))
-    self.Post.setField('lam0', lam0, dims=('K', 'D'))
+    self.Post.setField('lam1', lam1, dims=self.SSDims+('D',))
+    self.Post.setField('lam0', lam0, dims=self.SSDims+('D',))
     self.K = SS.K
 
   def calcPostParams(self, SS):
@@ -292,8 +293,8 @@ class BernObsModel(AbstractObsModel):
 
         Returns
         --------
-        lam1 : 2D array, K x D
-        lam0 : 2D array, K x D
+        lam1 : array of dimension (self.SSDims, 'D') (typically K x D)
+        lam0 : array of dimension (self.SSDims, 'D') (typically K x D)
     '''
     lam1 = SS.Count1 + self.Prior.lam1[np.newaxis,:]
     lam0 = SS.Count0 + self.Prior.lam0[np.newaxis,:]
@@ -303,7 +304,10 @@ class BernObsModel(AbstractObsModel):
     ''' Calc params (lam) for specific comp, given suff stats
 
         These params define the common-form of the exponential family 
-        Dirichlet posterior distribution over parameter vector phi
+        Dirichlet posterior distribution over parameter vector phi.
+
+        Note kA, kB should be either single indicies or a tuple of indicies,
+        depending on the dimensions of SS.Count1 / SS.Count0
 
         Returns
         --------
@@ -360,11 +364,12 @@ class BernObsModel(AbstractObsModel):
         ------
         L : 2D array, size nAtom x K
     '''
-    ElogphiT = self.GetCached('E_logphiT', 'all') # D x K
-    Elog1mphiT = self.GetCached('E_log1mphiT', 'all') # D x K
+    ElogphiT = self.GetCached('E_logphiT', 'all') # D x self.SSDims
+    Elog1mphiT = self.GetCached('E_log1mphiT', 'all') # D x self.SSDims
 
-    # Matrix-matrix product, result is N x K
-    L = np.dot(Data.X, ElogphiT) + np.dot(1.0-Data.X, Elog1mphiT)
+    # Result is N x self.SSDims (typically N x K)
+    L = np.tensordot(Data.X, ElogphiT, axes=1) + \
+        np.tensordot(1.0-Data.X, Elog1mphiT, axes=1)
     return L
 
 
@@ -383,22 +388,31 @@ class BernObsModel(AbstractObsModel):
         -------
         obsELBO : scalar float, = E[ log p(x) + log p(phi) - log q(phi)]
     '''
-    L_perComp = np.zeros(SS.K)
     Post = self.Post
     Prior = self.Prior
     if not afterMStep:
-      ElogphiT = self.GetCached('E_logphiT', 'all') # D x K
-      Elog1mphiT = self.GetCached('E_log1mphiT', 'all') # D x K
+      ElogphiT = self.GetCached('E_logphiT', 'all') # D x self.SSDims
+      Elog1mphiT = self.GetCached('E_log1mphiT', 'all') # D x self.SSDims
 
-    for k in xrange(SS.K):
-      L_perComp[k] = c_Diff(Prior.lam1, Prior.lam0,
-                            Post.lam1[k], Post.lam0[k])
-      if not afterMStep:
-        L_perComp[k] += np.inner(SS.Count1[k] + Prior.lam1 - Post.lam1[k],
-                                 ElogphiT[:, k])
-        L_perComp[k] += np.inner(SS.Count0[k] + Prior.lam0 - Post.lam0[k],
-                                 Elog1mphiT[:, k])
-    return np.sum(L_perComp)
+    #for k in xrange(SS.K):
+    #  cDiffTerm += c_Diff(Prior.lam1, Prior.lam0,
+    #                      Post.lam1[k], Post.lam0[k])
+    #  if not afterMStep:
+    #    L_perComp[k] += np.inner(SS.Count1[k] + Prior.lam1 - Post.lam1[k],
+    #                             ElogphiT[:, k])
+    #    L_perComp[k] += np.inner(SS.Count0[k] + Prior.lam0 - Post.lam0[k],
+    #                             Elog1mphiT[:, k])
+
+    cDiffTerm = c_Diff(Prior.lam1, Prior.lam0,
+                       Post.lam1, Post.lam0)
+    
+    slackTerm = 0
+    if not afterMStep:
+      slackTerm = np.sum(np.multiply(SS.Count1 + Prior.lam1 - Post.lam1,
+                                     ElogphiT.T))
+      slackTerm += np.sum(np.multiply(SS.Count0 + Prior.lam0 - Post.lam0,
+                                      Elog1mphiT.T))
+    return cDiffTerm + slackTerm
 
 
   def getDatasetScale(self, SS, extraSS=None):
@@ -428,6 +442,7 @@ class BernObsModel(AbstractObsModel):
         ---------
         gap : scalar real, indicates change in ELBO after merge of kA, kB
     '''
+    raise NotImplementedError('Merges not functional with obsmodel changes')
     Prior = self.Prior
     cPrior = c_Func(Prior.lam1, Prior.lam0)
 
@@ -448,6 +463,7 @@ class BernObsModel(AbstractObsModel):
         Gap : 2D array, size K x K, upper-triangular entries non-zero
               Gap[j,k] : scalar change in ELBO after merge of k into j
     '''
+    raise NotImplementedError('Merges not functional with obsmodel changes')
     Prior = self.Prior
     cPrior = c_Func(Prior.lam1, Prior.lam0)
 
@@ -471,6 +487,7 @@ class BernObsModel(AbstractObsModel):
         Gaps : 1D array, size L
               Gap[j] : scalar change in ELBO after merge of pair in PairList[j]
     '''
+    raise NotImplementedError('Merges not functional with obsmodel changes')
     Gaps = np.zeros(len(PairList))
     for ii, (kA, kB) in enumerate(PairList):
         Gaps[ii] = self.calcHardMergeGap(SS, kA, kB)
@@ -506,6 +523,7 @@ class BernObsModel(AbstractObsModel):
         logM : scalar real
                logM = \sum_{k=1}^K log p( data assigned to comp k | Prior)
     '''
+    raise NotImplementedError('Not configured for new obsmodel yet')
     return self.calcMargLik_CFuncForLoop(SS)
 
   def calcMargLik_CFuncForLoop(self, SS):

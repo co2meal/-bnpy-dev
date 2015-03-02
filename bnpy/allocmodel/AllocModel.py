@@ -11,7 +11,17 @@ class AllocModel(object):
 
   def set_prior(self, **kwargs):
     pass  
-    
+
+
+  def getSSDims(self):
+    '''Called during obsmodel.setupWithAllocModel to determine the dimensions
+       of the statistics computed by the obsmodel.
+
+       Although most models (mix. model, HMM, topic model, etc.) will be just K,
+       this allows for more flexible models (e.g. many relational models have
+       K x K)
+    '''
+    return ('K',)
   ######################################################### Accessors
   #########################################################
   def get_keys_for_memoized_local_params(self):

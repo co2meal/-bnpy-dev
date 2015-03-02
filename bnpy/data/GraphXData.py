@@ -90,7 +90,7 @@ class GraphXData(XData):
 
 
   def _set_dependent_params(self, nNodesTotal=None, nObsTotal=None):
-    self.nNodes = np.max([np.max(self.sourceID), np.max(self.destID)])
+    self.nNodes = np.max([np.max(self.sourceID), np.max(self.destID)]) + 1
     if nNodesTotal is None:
       self.nNodesTotal = self.nNodes
     else:

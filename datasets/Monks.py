@@ -46,7 +46,7 @@ if __name__ == '__main__':
   import matplotlib.pyplot as plt
   
   adjMtx = scipy.io.loadmat(matfilepath)
-  adjMtx = adjMtx['X'].reshape((18,18), order='F')
+  adjMtx = adjMtx['X'].reshape((18,18), order='C')
   G = nx.DiGraph(adjMtx)
   nx.draw_spring(G)
   plt.show()
