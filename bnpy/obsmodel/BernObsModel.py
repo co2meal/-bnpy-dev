@@ -404,8 +404,8 @@ class BernObsModel(AbstractObsModel):
     #                             Elog1mphiT[:, k])
 
     cDiffTerm = c_Diff(Prior.lam1, Prior.lam0,
-                       Post.lam1, Post.lam0)
-    
+                       Post.lam1, Post.lam0,
+                       scaleA = np.prod(np.shape(Prior.lam1)) / SS.D)
     slackTerm = 0
     if not afterMStep:
       slackTerm = np.sum(np.multiply(SS.Count1 + Prior.lam1 - Post.lam1,
@@ -527,6 +527,7 @@ class BernObsModel(AbstractObsModel):
     return self.calcMargLik_CFuncForLoop(SS)
 
   def calcMargLik_CFuncForLoop(self, SS):
+    raise NotImplementedError('Not configured for new obsmodel yet')
     Prior = self.Prior
     logp = np.zeros(SS.K)
     for k in xrange(SS.K):
@@ -595,5 +596,5 @@ def c_Func(lam1, lam0):
   assert lam1.ndim == lam0.ndim
   return np.sum(gammaln(lam1 + lam0) - gammaln(lam1) - gammaln(lam0))
 
-def c_Diff(lamA1, lamA0, lamB1, lamB0):
-  return c_Func(lamA1, lamA0) - c_Func(lamB1, lamB0)
+def c_Diff(lamA1, lamA0, lamB1, lamB0, scaleA=1, scaleB=1):
+  return scaleA*c_Func(lamA1, lamA0) - scaleB*c_Func(lamB1, lamB0)
