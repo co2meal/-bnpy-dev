@@ -80,8 +80,6 @@ class FiniteHMM(AllocModel):
 
       return EPiMat
 
-  ######################################################### Local Params
-  #########################################################
     def calc_local_params(self, Data, LP, **kwargs):
         ''' Local update step
 
@@ -108,15 +106,16 @@ class FiniteHMM(AllocModel):
             digammasumVec = digamma(np.sum(self.transTheta, axis = 1))        
             expELogTrans = np.exp(digamma(self.transTheta) 
                                   - digammasumVec[:,np.newaxis])
-            expELogInit = np.exp(digamma(self.initTheta)
+            ELogPi0 = (digamma(self.initTheta)
                                  - digamma(np.sum(self.initTheta)))
-            initParam = expELogInit
             transParam = expELogTrans
         elif self.inferType == 'EM' > 0:
-            initParam = self.initPi
+            ELogPi0 = np.log(self.initPi + 1e-40)
             transParam = self.transPi
         else:
             raise ValueError('Unrecognized inferType')
+
+        initParam = np.ones(K)
 
         # Run forward-backward algorithm on each sequence
         logMargPr = np.empty(Data.nDoc)
@@ -126,6 +125,8 @@ class FiniteHMM(AllocModel):
             start = Data.doc_range[n]
             stop = Data.doc_range[n+1]
             logSoftEv_n = logSoftEv[start:stop]
+            logSoftEv_n[0] += ELogPi0 # adding in start state log probs
+
             seqResp, seqRespPair, seqLogMargPr = \
                      HMMUtil.FwdBwdAlg(initParam, transParam, logSoftEv_n)
             
@@ -252,7 +253,8 @@ class FiniteHMM(AllocModel):
           self.transPi = SS.respPairSums
         else:
           self.transPi = SS.respPairSums + self.transAlpha - 1.0
-        self.transPi /= self.transPi.sum(axis=1)[:,np.newaxis]
+        rowSums = self.transPi.sum(axis=1) + 1e-15
+        self.transPi /= rowSums[:,np.newaxis]
         
 
     def update_global_params_VB(self, SS, **kwargs):

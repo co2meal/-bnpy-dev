@@ -60,11 +60,6 @@ class HDPHMM(AllocModel):
       expELogPi = digamma(self.transTheta) - digammaSumVec[:, np.newaxis]
       np.exp(expELogPi, out = expELogPi)
       return expELogPi[0:self.K, 0:self.K]
-      
-
-
-  ######################################################### Local Params
-  #########################################################
 
     def calc_local_params(self, Data, LP, 
                                 MergePrepInfo=None,
