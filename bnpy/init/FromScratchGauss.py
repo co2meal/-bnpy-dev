@@ -56,7 +56,7 @@ def init_global_params(obsModel, Data, K=0, seed=0,
         for k in range(1, K):
             curDistVec = np.sum((Data.X - Data.X[objID])**2, axis=1)
             minDistVec = np.minimum(minDistVec, curDistVec)
-            objID = PRNG.choice(Data.nObs, ps=minDistVec)
+            objID = PRNG.choice(Data.nObs, p=minDistVec/minDistVec.sum())
             chosenObjIDs.append(objID)
         resp = np.zeros((Data.nObs, K))
         for k in xrange(K):

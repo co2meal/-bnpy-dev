@@ -106,7 +106,7 @@ class AllocModel(object):
         --------
         LP : dict
             Local parameters as key/value string/array pairs
-            * resp : 2D array, size N x K 
+            * resp : 2D array, size N x K
 
         TODO
         '''
@@ -116,4 +116,3 @@ class AllocModel(object):
         for k in xrange(K):
             LP['resp'][LP['Z'] == k, k] = 1
         return LP
-
