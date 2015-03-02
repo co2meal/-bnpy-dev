@@ -103,7 +103,7 @@ class GroupXData(XData):
         if summary is not None:
             self.summary = summary
         if Xprev is not None:
-            self.Xprev = as2D(toCArray(Xprev), dtype=np.float64)
+            self.Xprev = as2D(toCArray(Xprev, dtype=np.float64))
 
         # Verify attributes are consistent
         self._set_dependent_params(doc_range, nDocTotal)
