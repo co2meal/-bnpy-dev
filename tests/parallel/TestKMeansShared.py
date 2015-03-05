@@ -111,7 +111,7 @@ class TestN1000K10(unittest.TestCase):
     def shortDescription(self):
         return None
 
-    def setUp(self, N=1000, D=25, K=10, nWorkers=2, verbose=0):
+    def setUp(self, N=1000, D=25, K=10, nWorkers=7, verbose=1):
         ''' Create a dataset X (2D array, N x D) and cluster means Mu (2D, KxD)
         '''
         self.N = N
