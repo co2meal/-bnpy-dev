@@ -1,14 +1,14 @@
 import os
 import multiprocessing
 from multiprocessing import sharedctypes
-
+import warnings
 import numpy as np
 import unittest
 import ctypes
 import bnpy
 import time
 
-def localStep_Vectorized(X, Mu, start=None, stop=None):
+def localStep_Vectorized(Xsh, Msh, start=None, stop=None):
     ''' K-means step
 
     Returns
@@ -17,7 +17,11 @@ def localStep_Vectorized(X, Mu, start=None, stop=None):
     * N : 1D array, size K
     * x : 2D array, K x D
     '''
-    # Unpack size variables
+    # Unpack variables
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', RuntimeWarning)
+        Mu = np.ctypeslib.as_array(Msh)
+        X = np.ctypeslib.as_array(Xsh)
     K, D = Mu.shape
 
     if start is not None:
@@ -65,11 +69,16 @@ def sliceGenerator(N=0, nWorkers=0):
 class Worker(multiprocessing.Process):
     """ Single "worker" process that processes tasks delivered via queues
     """
-    def __init__(self, uid, JobQueue, ResultQueue, verbose=0):
+    def __init__(self, uid, JobQueue, ResultQueue, 
+                 Xsh=None,
+                 Msh=None,
+                 verbose=0):
         super(Worker, self).__init__()
         self.uid = uid
         self.JobQueue = JobQueue
         self.ResultQueue = ResultQueue
+        self.Xsh = Xsh
+        self.Msh = Msh
         self.verbose = verbose
 
     def printMsg(self, msg):
@@ -84,12 +93,12 @@ class Worker(multiprocessing.Process):
         jobIterator = iter(self.JobQueue.get, None)
 
         for jobArgs in jobIterator:
-            X, Mu, start, stop = jobArgs
-            # self.printMsg("start=%d, stop=%d" % (start, stop))
-            # msg = "X memory location: %d" % (getPtrForArray(X))
-            # self.printMsg(msg)
+            start, stop = jobArgs
+            msg = "X memory location: %d" % (getPtrForArray(self.Xsh))
+            self.printMsg(msg)
 
-            SS = localStep_Vectorized(X, Mu, start=start, stop=stop)
+            SS = localStep_Vectorized(self.Xsh, self.Msh,
+                                      start=start, stop=stop)
             self.ResultQueue.put(SS)
             self.JobQueue.task_done()
 
@@ -105,9 +114,15 @@ class TestN1000K10(unittest.TestCase):
     def setUp(self, N=1000, D=25, K=10, nWorkers=2, verbose=0):
         ''' Create a dataset X (2D array, N x D) and cluster means Mu (2D, KxD)
         '''
+        self.N = N
+        self.D = D
+        self.K = K
+
         rng = np.random.RandomState((D * K) % 1000)
         self.X = rng.rand(N, D)
         self.Mu = rng.rand(K, D)
+        Xsh = toSharedMemArray(self.X)
+        Msh = toSharedMemArray(self.Mu)
 
         # Create a JobQ (to hold tasks to be done)
         # and a ResultsQ (to hold results of completed tasks)
@@ -120,7 +135,10 @@ class TestN1000K10(unittest.TestCase):
         # We don't need to store references to these processes,
         # We can get everything we need from JobQ and ResultsQ
         for uid in range(self.nWorkers):
-            Worker(uid, self.JobQ, self.ResultQ, verbose=verbose).start()
+            Worker(uid, self.JobQ, self.ResultQ, 
+                   Xsh=Xsh,
+                   Msh=Msh,
+                   verbose=verbose).start()
 
     def tearDown(self):
         """ Shut down all the workers.
@@ -143,9 +161,8 @@ class TestN1000K10(unittest.TestCase):
     def run_serial(self):
         """ Execute on slices processed in serial by master process.
         """        
-        N = self.X.shape[0]
         SSagg = None
-        for start, stop in sliceGenerator(N, self.nWorkers):
+        for start, stop in sliceGenerator(self.N, self.nWorkers):
             SSslice = localStep_Vectorized(self.X, self.Mu, start, stop)
             if start == 0:
                 SSagg = SSslice
@@ -158,11 +175,8 @@ class TestN1000K10(unittest.TestCase):
         """
         # MAP!
         # Create several tasks (one per worker) and add to job queue
-        N = self.X.shape[0]
-        for start, stop in sliceGenerator(N, self.nWorkers):
-            self.JobQ.put((self.X, self.Mu, start, stop))
-            # TODO: provide shared memory version of X/Mu instead??
-            # JobQ.put((X_shared, Mu_shared, start, stop))
+        for start, stop in sliceGenerator(self.N, self.nWorkers):
+            self.JobQ.put((start, stop))
 
         # Pause at this line until all jobs are marked complete.
         self.JobQ.join()
@@ -209,9 +223,8 @@ class TestN1000K10(unittest.TestCase):
         SSall = localStep_Vectorized(self.X, self.Mu)
 
         # Version B: summarize each slice separately, then aggregate
-        N = self.X.shape[0]
         SSagg = None
-        for start, stop in sliceGenerator(N, self.nWorkers):
+        for start, stop in sliceGenerator(self.N, self.nWorkers):
             SSslice = localStep_Vectorized(self.X, self.Mu, start, stop)
             if start == 0:
                 SSagg = SSslice
@@ -262,6 +275,13 @@ class TestN1e6K50(TestN1000K10):
             N=1e6, K=50, D=25, verbose=0, nWorkers=2)
 
 
+def toSharedMemArray(X):
+    """ Get copy of X accessible from shared memory
+    """
+    Xtmp = np.ctypeslib.as_ctypes(X)
+    Xsh = multiprocessing.sharedctypes.RawArray(Xtmp._type_, Xtmp)
+    return Xsh
+
 def getPtrForArray(X):
     """ Get int pointer to memory location of provided array
 
@@ -269,5 +289,8 @@ def getPtrForArray(X):
     --------
     ptr : int
     """
-    ptr, read_only_flag = X.__array_interface__['data']
-    return int(ptr)
+    if isinstance(X, np.ndarray):
+        ptr, read_only_flag = X.__array_interface__['data']
+        return int(ptr)
+    else:
+        return id(X)
