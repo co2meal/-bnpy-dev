@@ -122,12 +122,12 @@ class GraphXData(XData):
       return GraphXData(self.X[mask], self.sourceID[mask], self.destID[mask],
                         nNodesTotal=self.nNodesTotal, nObsTotal=self.nObsTotal)
     return GraphXData(self.X[mask], self.source[mask], self.destID[mask])
-                       
-  #def get_random_sample(self, nObs, randstate=np.random):
-  #  nObs = np.minimum(nObs, self.nObs)
-  #  mask = randstate.permutation(self.nObs)[:nObs]
-  #  Data = self.select_subset_by_mask(mask, doTrackFullSize=False)
-  #  return Data
+                      
+  def get_random_sample(self, nObs, randstate=np.random):
+    nObs = np.minimum(nObs, self.nObs)
+    mask = randstate.permutation(self.nObs)[:nObs]
+    Data = self.select_subset_by_mask(mask, doTrackFullSize=False)
+    return Data
     
   ######################################################### Add Data
   #########################################################
