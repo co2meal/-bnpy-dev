@@ -81,13 +81,24 @@ def init_global_params(obsModel, Data, K=0, seed=0,
     for n in xrange(Data.nObs):
       resp[n, labels[n]] = 1
 
+  elif initname == 'PLACEHOLDER':
+    print '\n\nTHIS IS A PLACEHOLDER ... SOME ACTUALLY GOOD INIT IS NEEDED\n\n'
+    #resp = np.ones((Data.nNodes**2,K,K)) * 1 / (K**2)
+    resp = np.random.normal(1.0/(K**2), 1.0/(K**3),
+                            size=(Data.nNodes**2,K,K))
+    resp = np.maximum(resp, 0)
+    resp /= np.sum(resp, axis=(1,2))[:,np.newaxis,np.newaxis]
+    print resp[0:2]
+
+
   else:
     raise NotImplementedError('Unrecognized initname ' + initname)
 
   # Using the provided resp for each token,
   # we summarize into sufficient statistics
-  # then perform one global step (M step) to get initial global params 
+  # then perform one global step (M step) to get initial global params
   tempLP = dict(resp=resp)
   SS = SuffStatBag(K=K, D=Data.dim)
   SS = obsModel.get_global_suff_stats(Data, SS, tempLP)
   obsModel.update_global_params(SS)
+  

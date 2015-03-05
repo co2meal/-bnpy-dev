@@ -25,6 +25,7 @@ class GraphXData(XData):
 
   @classmethod
   def LoadFromFile(cls, filepath, nObsTotal=None, **kwargs):
+
     ''' Static constructor for loading data from disk into XData instance
     '''
     if filepath.endswith('.mat'):
@@ -36,21 +37,26 @@ class GraphXData(XData):
     ''' Static constructor for loading data from .mat file into GraphXData
         instance.
         If no sourceID/destID field is given, it's assumed that 'X' is of size
-          N^2, and gives edges in order 0->1, ..., 0->N-1, 1->0, etc.
+          N^2-N, and gives edges in order 0->1, ..., 0->N-1, 1->0 1->2, etc.
     '''
     InDict = scipy.io.loadmat( matfilepath, **kwargs)
     if 'X' not in InDict:
       raise KeyError('Stored matfile needs to have data in field named X')
 
     if ('sourceID' not in InDict) or ('destID' not in InDict):
+      #N = (1 + np.sqrt(1 + 4*InDict['X'].shape[0]))/2 #Quad. eqn. solves for N
       N = np.sqrt(InDict['X'].shape[0])
       #This check *might* numerically fail for big N
       if int(N) != N:
         raise ValueError('Either specify sourceID and destID or give a full adjacency matrix')
 
       adjList = np.tile(np.arange(N), (N, 1))
-      InDict['sourceID'] = adjList.T.ravel()
-      InDict['destID'] = adjList.ravel()
+      #diagMask = np.where( np.ravel(np.eye(N)) == 1 )
+      #InDict['sourceID'] = np.delete(np.ravel(adjList.T), diagMask)
+      #InDict['destID'] = np.delete(np.ravel(adjList), diagMask)
+      InDict['sourceID'] = np.ravel(adjList.T)
+      InDict['destID'] = np.ravel(adjList)
+
       
     return cls(**InDict)
 

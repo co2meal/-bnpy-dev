@@ -40,13 +40,40 @@ def get_data_info():
 def get_short_name():
   return 'Monks'
 
+def summarize_data():
+  Data = GraphXData.read_from_mat(matfilepath)
+  Z = Data.TrueParams['Z']
+  N = Data.nNodes
+  zMax = len(np.unique(Z))
+  Npair = np.zeros((zMax, zMax))
+  Nsingle = np.zeros(zMax)
+  
+
+  for i in xrange(N):
+    Nsingle[Z[i]] += 1
+    for j in xrange(N):
+      if i == j:
+        continue
+      for l in xrange(zMax):
+        for m in xrange(zMax):
+          if Z[i] == l and Z[j] == m:
+            if Data.X[i*N+j] == 1:
+              Npair[l,m] += 1
+              
+          
+
+  print 'True community proportions = \n', Nsingle / np.sum(Nsingle)
+  print 'True number of pairwise interactions with observed edge = \n', Npair
+  print np.sum(Npair)
+
   
 if __name__ == '__main__':
   import networkx as nx
   import matplotlib.pyplot as plt
+  summarize_data()
   
-  adjMtx = scipy.io.loadmat(matfilepath)
-  adjMtx = adjMtx['X'].reshape((18,18), order='C')
+  data = scipy.io.loadmat(matfilepath)
+  adjMtx = data['X'].reshape((18,18), order='C')
   G = nx.DiGraph(adjMtx)
-  nx.draw_spring(G)
+  nx.draw_spring(G, node_color=data['TrueZ'], cmap=plt.cm.Reds)
   plt.show()

@@ -180,7 +180,7 @@ class BernObsModel(AbstractObsModel):
     if SS is None:
       SS = SuffStatBag(K=LP['resp'].shape[1], D=Data.dim)
 
-    Resp = LP['resp']  # 2D array, N x K 
+    Resp = LP['resp']  # 2D array, N x self.SSDims 
     X = Data.X # 2D array, N x D
 
     #Product over N dimension of Resp and X. For most models, result is K x D
@@ -406,13 +406,14 @@ class BernObsModel(AbstractObsModel):
 
     cDiffTerm = c_Diff(Prior.lam1, Prior.lam0,
                        Post.lam1, Post.lam0,
-                       scaleA = np.prod(np.shape(Prior.lam1)) / SS.D)
+                       scaleA = np.prod(np.shape(Post.lam1)) / SS.D)
     slackTerm = 0
     if not afterMStep:
       slackTerm = np.sum(np.multiply(SS.Count1 + Prior.lam1 - Post.lam1,
                                      ElogphiT.T))
       slackTerm += np.sum(np.multiply(SS.Count0 + Prior.lam0 - Post.lam0,
                                       Elog1mphiT.T))
+
     return cDiffTerm + slackTerm
 
 

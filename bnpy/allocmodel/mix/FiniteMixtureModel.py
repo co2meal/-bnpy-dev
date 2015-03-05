@@ -171,19 +171,19 @@ class FiniteMixtureModel(AllocModel):
         Returns
         -------
         SS : SuffStats for K components, with field
-              N : vector of length-K,
+              N : matrix of dimensions self.getSSDims() (usually K-len. vector),
                    effective number of observations assigned to each comp
     '''
     Nvec = np.sum( LP['resp'], axis=0 )
     if hasattr(Data, 'dim'):
-      SS = SuffStatBag(K=Nvec.size, D=Data.dim)
+      SS = SuffStatBag(K=Nvec.shape[0], D=Data.dim)
     elif hasattr(Data, 'vocab_size'):
-      SS = SuffStatBag(K=Nvec.size, D=Data.vocab_size)
+      SS = SuffStatBag(K=Nvec.shape[0], D=Data.vocab_size)
 
-    SS.setField('N', Nvec, dims=('K'))
+    SS.setField('N', Nvec, dims=('K',))
     if doPrecompEntropy is not None:
       ElogqZ_vec = self.E_logqZ(LP)
-      SS.setELBOTerm('ElogqZ', ElogqZ_vec, dims=('K'))
+      SS.setELBOTerm('ElogqZ', ElogqZ_vec, dims=('K',))
     return SS
     
 
@@ -270,6 +270,10 @@ class FiniteMixtureModel(AllocModel):
         evZ = self.E_logpZ(SS) -  SS.ampF * ElogqZ
       else:
         evZ = self.E_logpZ(SS) - ElogqZ
+      #print 'Eq(z) = ', -ElogqZ
+      #print 'Ep(z) = ', self.E_logpZ(SS)
+      #print 'evW = ', evW
+      #print '------------'
       return evZ + evW 
     else:
       raise NotImplementedError('Unrecognized inferType ' + self.inferType)
