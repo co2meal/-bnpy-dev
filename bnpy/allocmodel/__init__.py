@@ -9,8 +9,6 @@ from topics.HDPTopicModel import HDPTopicModel
 from hmm.FiniteHMM import FiniteHMM
 from hmm.HDPHMM import HDPHMM
 
-from relational.FiniteSMSB import FiniteSMSB
-
 AllocModelConstructorsByName = {
           'FiniteMixtureModel':FiniteMixtureModel,
           'DPMixtureModel':DPMixtureModel,
@@ -18,7 +16,6 @@ AllocModelConstructorsByName = {
           'HDPTopicModel':HDPTopicModel,
           'FiniteHMM':FiniteHMM,
           'HDPHMM':HDPHMM,
-          'FiniteSMSB':FiniteSMSB,
           }
 
 AllocModelNameSet = set(AllocModelConstructorsByName.keys())
