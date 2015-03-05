@@ -58,7 +58,7 @@ class HModel(object):
         '''
         return copy.deepcopy(self)
 
-    # ----    Local step updates
+
     def calc_local_params(self, Data, LP=None, **kwargs):
         ''' Calculate local parameters specific to each data item.
 
@@ -76,7 +76,6 @@ class HModel(object):
         LP = self.allocModel.calc_local_params(Data, LP, **kwargs)
         return LP
 
-    # ----    Suff stat updates
     def get_global_suff_stats(self, Data, LP, doAmplify=False, **kwargs):
         ''' Calculate sufficient statistics for each component.
 
@@ -97,7 +96,6 @@ class HModel(object):
                 SS.applyAmpFactor(ampF)
         return SS
 
-    # ----    Global step updates
     def update_global_params(self, SS, rho=None, **kwargs):
         ''' Update (in-place) global parameters given provided suff stats.
             This is the M-step of EM.
@@ -117,7 +115,6 @@ class HModel(object):
         self.allocModel.reorderComps(order)
         self.obsModel.reorderComps(order)
 
-    # ----    ELBO Functions
     def calc_evidence(self, Data=None, SS=None, LP=None,
                       scaleFactor=None, todict=False, **kwargs):
         ''' Compute evidence lower bound (ELBO) objective function.
@@ -183,7 +180,6 @@ class HModel(object):
             initArgs['Data'] = Data
             self.allocModel.init_global_params(**initArgs)
 
-    # ----    I/O Functions
     def getAllocModelName(self):
         return self.allocModel.__class__.__name__
 
@@ -195,3 +191,36 @@ class HModel(object):
         s += 'Obs. Data  Model:  %s\n' % (self.obsModel.get_info_string())
         s += 'Obs. Data  Prior:  %s' % (self.obsModel.get_info_string_prior())
         return s
+
+
+    def localStep(self, Data, subset=None,
+                  nWorkers=0, **kwargs):
+        """ DRAFT
+
+        Returns
+        -------
+        SS : bnpy.suffstats.SuffStatBag
+        LP : dict
+        """
+        if nWorkers > 0 and ParallelManager.isReady():
+            SubsetIterator = Data.makeSubsetIterator(subset, nWorkers)
+            for task_subset in SubsetIterator:
+                ParallelManager.addTaskToQueue(
+                    self, Data, task_subset, **kwargs)
+            ParallelManager.joinTasks()
+            result = ParallelManager.reduceTasks()
+        else:
+            result = self._localStep(Data, subset, **kwargs)
+        return result
+
+    def _localStep(self, Data, subset=None, **kwargs):
+        """ DRAFT
+        """
+        LP = self.obsModel.calcLocal(Data, LP, subset, **kwargs)
+        LP = self.allocModel.calcLocal(Data, LP, subset, **kwargs)
+
+        SS = self.allocModel.calcSuffStats(
+            Data, SS, LP, subset, **kwargs)
+        SS = self.obsModel.calcSuffStats(
+            Data, SS, LP, subset, **kwargs)
+        return SS
