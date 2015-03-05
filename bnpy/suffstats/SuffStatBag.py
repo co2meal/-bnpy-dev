@@ -9,7 +9,7 @@ class SuffStatBag(object):
 
     Uses ParamBag as internal representation.
 
-    Tracks three possible sets of parameters, each with own ParamBag
+    Tracks three possible sets of parameters, each with own ParamBag:
     * sufficient statistics fields
     * (optional) precomputed ELBO terms
     * (optional) precomputed terms for potential merges
