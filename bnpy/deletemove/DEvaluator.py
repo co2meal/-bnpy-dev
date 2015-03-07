@@ -17,26 +17,26 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
                                  **kwargs):
     """ Propose model with fewer comps and accept if ELBO improves.
 
-        Will update the memoized suff stats for each batch (SSmemory)
-        in place to reflect any accepted deletions.
+    Will update the memoized suff stats for each batch (SSmemory)
+    in place to reflect any accepted deletions.
 
-        Returns
-        --------
-        bestModel : HModel, with K' states
-        bestSS : SuffStatBag with K' states
-        SSmemory : dict of suff stats, one per batch with K' states
-        Plan : dict, with updated fields
-        * didAccept
-        * acceptedUIDs
-        * acceptedIDs
+    Returns
+    --------
+    bestModel : HModel, with K' states
+    bestSS : SuffStatBag with K' states
+    SSmemory : dict of suff stats, one per batch with K' states
+    Plan : dict, with updated fields
+    * didAccept
+    * acceptedUIDs
+    * acceptedIDs
 
-        Post Condition
-        --------
-        SSmemory has valid stats for each batch under proposed model
-        with K' states. Summing over all entries of SSmemory
-        will be exactly equal to the whole-dataset stats bestSS.
+    Post Condition
+    --------
+    SSmemory has valid stats for each batch under proposed model
+    with K' states. Summing over all entries of SSmemory
+    will be exactly equal to the whole-dataset stats bestSS.
 
-        bestSS and each entry of SSmemory have NO ELBO or Merge terms.
+    bestSS and each entry of SSmemory have NO ELBO or Merge terms.
     """
     if SSmemory is None:
         SSmemory = dict()
@@ -47,37 +47,71 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
         Plan['acceptedUIDs'] = list()
         return curModel, curSS, SSmemory, Plan
 
-    # ----    bestModel, bestSS represent best so far
+    # bestModel, bestSS represent best so far
     bestModel = curModel
     bestSS = curSS
     besttargetSS = Plan['targetSS']
     assert np.allclose(besttargetSS.uIDs, bestSS.uIDs)
 
-    # ----    Calculate the current ELBO score
+    # Calculate the current ELBO score
     targetData = Plan['DTargetData']
     totalScale = curModel.obsModel.getDatasetScale(curSS)
-    bestELBO = curModel.obsModel.calcELBO_Memoized(curSS) \
-        + curModel.allocModel.calcELBOFromSS_NoCacheableTerms(curSS)
-    bestELBO /= totalScale
+    bestELBOobs = curModel.obsModel.calcELBO_Memoized(curSS)
+    bestELBOalloc = curModel.allocModel.calcELBOFromSS_NoCacheableTerms(curSS)
+    bestELBOobs /= totalScale
+    bestELBOalloc /= totalScale
 
+    totalELBOImprovement = 0
     didAccept = 0
     acceptedUIDs = list()
     for delCompUID in Plan['candidateUIDs']:
         if bestSS.K == 1:
             continue  # Don't try to remove the final comp!
 
-        # ----    Construct candidate with delCompUID removed
-        propModel = bestModel.copy()
-        propSS = bestSS.copy()
-        ptargetSS = besttargetSS.copy()
+        delCompID = np.flatnonzero(bestSS.uIDs == delCompUID)[0]
 
-        k = np.flatnonzero(propSS.uIDs == delCompUID)[0]
-        propSS.removeComp(k)
-        ptargetSS.removeComp(k)
+        # Construct candidate with delCompUID removed
+        propModel = bestModel.copy()
+        ptargetSS = besttargetSS.copy()
+        propSS = bestSS.copy()
+        propSS.setMergeFieldsToZero()
+
+        propSS -= ptargetSS
         propModel.update_global_params(propSS)
 
-        # ----    Refine candidate with local/global steps
+        # TODO pick component to merge into by ELBO criteria,
+        # not just hard choice
+        mPairIDs = makeMPairIDsWith(delCompID, propSS.K,  
+                                    Plan['candidateIDs'])
+        #kA, kB, ELBOTerms = propModel.getBestMergePair(propSS, mPairIDs)
+        kA = mPairIDs[0][0]
+        kB = mPairIDs[0][1]
+        from IPython import embed; embed()
+        ELBOTerms = propModel.allocModel.\
+            calcCachedELBOTerms_SinglePair(
+                propSS, kA, kB, delCompID=delCompID)
+        ELBOgap_cached_rest = propModel.allocModel.\
+            calcCachedELBOGap_SinglePair(
+                propSS, kA, kB, delCompID=delCompID) / totalScale
+
+        propSS.mergeComps(kA, kB)
+        for key, arr in ELBOTerms.items():
+            propSS.setELBOTerm(key, arr, propSS._ELBOTerms._FieldDims[key])
+
+        # Here, propSS represents entire dataset
+        ptargetSS.removeComp(delCompID)
+        propSS += ptargetSS
+        propModel.update_global_params(propSS)
+
+        # Verify construction via the merge of all non-target entities
+        propCountPlusTarget = propSS.getCountVec().sum() \
+            + besttargetSS.getCountVec()[delCompID]
+        bestCount = bestSS.getCountVec().sum()
+        assert np.allclose(propCountPlusTarget, bestCount)
+
+        # Refine candidate with local/global steps
         didAcceptCur = 0
+
         for riter in xrange(nRefineIters):
             ptargetLP = propModel.calc_local_params(targetData, **LPkwargs)
             propSS -= ptargetSS
@@ -86,52 +120,53 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
             propSS += ptargetSS
             propModel.update_global_params(propSS)
 
-            propELBO = propModel.obsModel.calcELBO_Memoized(propSS) \
-                + propModel.allocModel.calcELBOFromSS_NoCacheableTerms(propSS)
-            propELBO /= totalScale
-
-            propGap = propModel.allocModel.calcCachedELBOGapForDeleteProposal(
-                curSS,
-                Plan['targetSS'],
-                ptargetSS,
-                acceptedUIDs + [delCompUID],
-            )
-            propGap /= totalScale
-            if not np.isfinite(propELBO):
+            propELBOobs = propModel.obsModel.\
+                calcELBO_Memoized(propSS) / totalScale
+            propELBOalloc = propModel.allocModel.\
+                calcELBOFromSS_NoCacheableTerms(propSS) / totalScale
+            ELBOgap_cached_target = propModel.allocModel.\
+                calcCachedELBOGap_FromSS(
+                    besttargetSS, ptargetSS) / totalScale
+            
+            
+            ELBOgap = propELBOobs - bestELBOobs \
+                      + propELBOalloc - bestELBOalloc \
+                      + ELBOgap_cached_rest + ELBOgap_cached_target
+            if not np.isfinite(ELBOgap):
                 break
-            if propELBO - bestELBO > propGap or bestSS.K > Kmax:
+            if ELBOgap > 0 or bestSS.K > Kmax:
                 didAcceptCur = 1
                 didAccept = 1
                 break
 
-        # ----    Log result of this proposal
-        curMsg = makeLogMessage(bestSS, besttargetSS, bestELBO, label='cur',
-                                compUID=delCompUID)
-        propMsg = makeLogMessage(propSS, ptargetSS, propELBO, label='prop',
-                                 compUID=delCompUID, didAccept=didAcceptCur)
+        # Log result of this proposal
+        curMsg = makeLogMessage(bestSS, besttargetSS, totalELBOImprovement,
+            label='cur', compUID=delCompUID)
+        propMsg = makeLogMessage(propSS, ptargetSS, totalELBOImprovement,
+            label='prop', compUID=delCompUID, didAccept=didAcceptCur)
         DeleteLogger.log(curMsg)
         DeleteLogger.log(propMsg)
 
-        # ----    Update best model/stats to accepted values
+        # Update best model/stats to accepted values
         if didAcceptCur:
+            totalELBOImprovement += ELBOgap
             acceptedUIDs.append(delCompUID)
-            bestELBO = propELBO
+            bestELBOobs = propELBOobs
+            bestELBOalloc = propELBOalloc
             bestModel = propModel
-
             besttargetLP = ptargetLP
             besttargetSS = ptargetSS
-
             bestSS = propSS
-            bestSS.setELBOFieldsToZero()
             bestSS.setMergeFieldsToZero()
         # << end for loop over each candidate comp
 
     Plan['didAccept'] = didAccept
-    Plan['bestELBO'] = bestELBO
     Plan['acceptedUIDs'] = acceptedUIDs
 
-    # ----    Update SSmemory to reflect accepted deletes
+    # Update SSmemory to reflect accepted deletes
     if didAccept:
+        bestSS.setELBOFieldsToZero()
+        bestSS.setMergeFieldsToZero()
         for batchID in SSmemory:
             SSmemory[batchID].setELBOFieldsToZero()
             SSmemory[batchID].setMergeFieldsToZero()
@@ -173,6 +208,26 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
 
     return bestModel, bestSS, SSmemory, Plan
 
+
+def makeMPairIDsWith(k, K, excludeIDs):
+    """ Create list of possible merge pairs including k, excluding excludeIDs.
+
+    Returns
+    -------
+    mPairIDs : list of tuples
+        each entry is a pair (kA, kB) satisfying kA < kB < K
+    """
+    mPairIDs = list()
+    for j in xrange(K):
+        if j in excludeIDs:
+            continue
+        if j == k:
+            continue
+        if j < k:
+            mPairIDs.append((j,k))
+        else:
+            mPairIDs.append((k,j))
+    return mPairIDs
 
 def makeLogMessage(aggSS, targetSS, ELBO,
                    label='cur', didAccept=-1,

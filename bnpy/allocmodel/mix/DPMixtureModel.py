@@ -122,6 +122,46 @@ def Lentropy(resp):
     """
     return -1 * np.sum(NumericUtil.calcRlogR(resp))
 
+def calcCachedELBOGap_SinglePair(SS, kA, kB, 
+                                 delCompID=None, dtargetMinCount=None):
+    """ Compute (lower bound on) gap in cacheable ELBO
+
+    Returns
+    ------
+    gap : scalar
+        L'_entropy - L_entropy >= gap
+    """
+    assert SS.hasELBOTerms()
+    # Hvec : 1D array, size K
+    Hvec = -1 * SS.getELBOTerm('ElogqZ')
+    if delCompID is None:
+        # Use bound - r log r >= 0
+        gap = -1 * (Hvec[kA] + Hvec[kB])
+    else:
+        # Use bound - (1-r) log (1-r) >= r for small values of r 
+        assert delCompID == kA or delCompID == kB
+        gap = np.maximum(
+            -1 * Hvec[delCompID] - SS.N[delCompID],
+            -1 * (Hvec[kA] + Hvec[kB]))
+    return gap
+
+def calcCachedELBOTerms_SinglePair(SS, kA, kB, delCompID=None):
+    """ Calculate all cached ELBO terms under proposed merge.
+    """
+    assert SS.hasELBOTerms()
+    # Hvec : 1D array, size K
+    Hvec = -1 * SS.getELBOTerm('ElogqZ')
+    newHvec = np.delete(Hvec, kB)
+    if delCompID is None:
+        newHvec[kA] = 0
+    else:
+        assert delCompID == kA or delCompID == kB
+        if delCompID == kA:
+            newHvec[kA] = Hvec[kB]
+        newHvec[kA] -= SS.N[delCompID]
+        newHvec[kA] = np.maximum(0, newHvec[kA])
+    return dict(ElogqZ=-1*newHvec)
+
 
 class DPMixtureModel(AllocModel):
     """ Nonparametric mixture model with K active components.
@@ -529,8 +569,21 @@ class DPMixtureModel(AllocModel):
             + np.inner(SS.N, self.Elogbeta)
         return slack
 
-    # Hard Merges
-    #########################################################
+
+    def getBestMergePairInvolvingComp(self, SS, k, partnerIDs):
+        """
+
+        """
+        Hcur = -1 * SS.getELBOTerm('Elogqz').sum()
+        
+        for j in partnerIDs:
+            kA = np.minimum(j, k)
+            kB = np.maximum(j, k)
+            Gap[j] = self.calcHardMergeGapFastSinglePair(SS, kA, kB)        
+            Hgap = Hcur - Hprop
+            Gap[j] += Hgap
+        return Gap
+
     def calcHardMergeEntropyGap(self, SS, kA, kB):
         ''' Calc scalar improvement in entropy for merge of kA, kB
         '''
@@ -643,13 +696,39 @@ class DPMixtureModel(AllocModel):
             del self.cBetaCur
         return Gaps
 
-    # Hard Merges
-    #########################################################
+    def calcCachedELBOTerms_SinglePair(self, SS, kA, kB, delCompID=None):
+        """ Compute ELBO terms after merge of kA, kB
+
+        Returns
+        -------
+        ELBOTerms : dict
+            Key/value pairs are field name (str) and array
+        """
+        return calcCachedELBOTerms_SinglePair(SS, kA, kB, delCompID=delCompID)
+
+    def calcCachedELBOGap_SinglePair(self, SS, kA, kB, 
+                                     delCompID=None):
+        """ Compute (lower bound on) gap in cacheable ELBO
+
+        Returns
+        ------
+        gap : scalar
+            L'_entropy - L_entropy >= gap
+        """
+        return calcCachedELBOGap_SinglePair(SS, kA, kB, delCompID=delCompID)
+
+    def calcCachedELBOGap_FromSS(self, curSS, propSS):
+        """ Compute gap on cachable ELBO term directly
+        """
+        L_cur = -1 * curSS.getELBOTerm('ElogqZ').sum()
+        L_prop = -1 * propSS.getELBOTerm('ElogqZ').sum()
+        return L_prop - L_cur
+
     def calcCachedELBOGapForDeleteProposal(self, SSall_before,
                                            SStarget_before,
                                            SStarget_after,
                                            delCompUIDs):
-        ''' Calculate (approximately) improvement in entropy term after a delete
+        ''' Calculate improvement in entropy term after a delete
         '''
         remCompIDs = list()
         for k in xrange(SSall_before.K):
@@ -670,65 +749,6 @@ class DPMixtureModel(AllocModel):
         Hrest_after = Hvec_rest_before[remCompIDs].sum()
 
         gap = Hvec_all_before.sum() - (Htarget_after + Hrest_after)
-        return gap
-
-    # Soft Merges
-    #########################################################
-    def calcSoftMergeEntropyGap(self, SS, kdel, alph):
-        ''' Calculate improvement in entropy after a multi-way merge.
-        '''
-        Halph = -1 * np.inner(alph, np.log(alph + 1e-100))
-        Hplus = -1 * SS.getELBOTerm('ElogqZ')[kdel] \
-            + SS.getMergeTerm('ElogqZ')[kdel]
-        gap = SS.N[kdel] * Halph - Hplus
-        return gap
-
-    def calcSoftMergeGap(self, SS, kdel, alph):
-        ''' Calculate improvement in allocation ELBO after a multi-way merge.
-        '''
-        if alph.size < SS.K:
-            alph = np.hstack([alph[:kdel], 0, alph[kdel:]])
-        assert alph.size == SS.K
-        assert np.allclose(alph[kdel], 0)
-        gap = 0
-        for k in xrange(SS.K):
-            if k == kdel:
-                gap += c_Beta(self.eta1[k], self.eta0[k]) \
-                    - c_Beta(self.gamma1, self.gamma0)
-            elif k > kdel:
-                a1 = self.eta1[k] + alph[k] * SS.N[kdel]
-                a0 = self.eta0[k] + np.sum(alph[k + 1:]) * SS.N[kdel]
-                gap += c_Beta(self.eta1[k], self.eta0[k]) \
-                    - c_Beta(a1, a0)
-            elif k < kdel:
-                a1 = self.eta1[k] + alph[k] * SS.N[kdel]
-                a0 = self.eta0[k] - SS.N[kdel] + \
-                    np.sum(alph[k + 1:]) * SS.N[kdel]
-                gap += c_Beta(self.eta1[k], self.eta0[k]) \
-                    - c_Beta(a1, a0)
-        return gap
-
-    def calcSoftMergeGap_alph(self, SS, kdel, alph):
-        ''' Calculate improvement in allocation ELBO after a multi-way merge,
-              keeping only terms that depend on redistribution parameters alph
-        '''
-        if alph.size < SS.K:
-            alph = np.hstack([alph[:kdel], 0, alph[kdel:]])
-        assert alph.size == SS.K
-        assert np.allclose(alph[kdel], 0)
-        gap = 0
-        for k in xrange(SS.K):
-            if k == kdel:
-                continue
-            elif k > kdel:
-                a1 = self.eta1[k] + alph[k] * SS.N[kdel]
-                a0 = self.eta0[k] + np.sum(alph[k + 1:]) * SS.N[kdel]
-                gap -= c_Beta(a1, a0)
-            elif k < kdel:
-                a1 = self.eta1[k] + alph[k] * SS.N[kdel]
-                a0 = self.eta0[k] - SS.N[kdel] + \
-                    np.sum(alph[k + 1:]) * SS.N[kdel]
-                gap -= c_Beta(a1, a0)
         return gap
 
     def get_info_string(self):
