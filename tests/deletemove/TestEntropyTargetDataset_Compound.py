@@ -1,7 +1,9 @@
 import numpy as np
 import unittest
 import sys
-
+from bnpy.allocmodel.mix.DPMixtureModel import calcCachedELBOGap_SinglePair
+from bnpy.allocmodel.mix.DPMixtureModel import calcCachedELBOTerms_SinglePair
+from bnpy.suffstats.SuffStatBag import SuffStatBag
 try:
     from matplotlib import pylab
     doViz = True
@@ -99,7 +101,7 @@ class MyTestN1K4(unittest.TestCase):
             assert R.sum(axis=1).min() > 1.0
         elif Rsource == 'toydata':
             raise NotImplementedError('TODO')
-            # Run bnpy for a few iters on toy data to get "realistic" 
+            # TODO run for a few iters on toy data to get "realistic" 
             # responsibility matrix from a junk-y initialization.
 
         R = np.maximum(R, rEPS)
@@ -132,11 +134,48 @@ class MyTestN1K4(unittest.TestCase):
         self.L2_lb = self.L1_lb - self.Horig[-2] + sumH1meps
         self.L3_lb = self.L2_lb - self.Horig[-3] + sumH1meps
 
+        Nvec = R.sum(axis=0)
+        self.L1_lb2 = self.Lorig - self.Horig[-1] - Nvec[-1]
+        self.L2_lb2 = self.L1_lb2 - self.Horig[-2] - Nvec[-2]
+        self.L3_lb2 = self.L2_lb2 - self.Horig[-3] - Nvec[-3]
+
         self.H1_lb = np.delete(self.Horig, -1, axis=0)
         self.H1_lb[0] += sumH1meps
-
         self.H2_lb = np.delete(self.H1_lb, -1, axis=0)
         self.H2_lb[0] += sumH1meps
+
+        self.H1_lb2 = np.delete(self.Horig, -1, axis=0)
+        self.H1_lb2[0] -= Nvec[-1]
+        self.H2_lb2 = np.delete(self.H1_lb2, -1, axis=0)
+        self.H2_lb2[0] -= Nvec[-2]
+
+        SS = SuffStatBag(K=K, D=0)
+        SS.setField("N", Nvec, dims=("K"))
+        SS.setELBOTerm("ElogqZ", -1 * self.Horig, dims=("K"))
+        self.SSorig = SS
+
+        self.gap1 = self.L1 - self.Lorig
+        self.gap1_lb2 = calcCachedELBOGap_SinglePair(
+            SS, 0, K-1, delCompID=K-1)
+
+        # Adjust suff stats to reflect first move
+        ELBOTerms = calcCachedELBOTerms_SinglePair(SS, 0, K-1, delCompID=K-1)
+        SS1 = SS.copy()
+        SS1.mergeComps(0, K-1)
+        SS1.setELBOTerm("ElogqZ", ELBOTerms["ElogqZ"], dims=("K")) 
+        self.SS1 = SS1
+
+        # Adjust suff stats to reflect second move
+        ELBOTerms = calcCachedELBOTerms_SinglePair(SS1, 0, K-2, delCompID=K-2)
+        SS2 = SS1.copy()
+        SS2.mergeComps(0, K-2)
+        SS2.setELBOTerm("ElogqZ", ELBOTerms["ElogqZ"], dims=("K")) 
+        self.SS2 = SS2
+
+        self.gap2 = self.L2 - self.Lorig
+        self.gap2_lb2 = self.gap1_lb2 + calcCachedELBOGap_SinglePair(
+            SS1, 0, K-2, delCompID=K-2)
+
 
     def test_entropy_gt_zero(self):
         """ Verify that all entropy calculations yield positive values.
@@ -170,18 +209,33 @@ class MyTestN1K4(unittest.TestCase):
         pprintRandL(self.Rnew3, self.L3, 'after 3 deletes')
 
     def test_memoized_way_to_compute_bound(self):
-        """ Verify that H1_lb (memoized) equals L1 (which was computed directly)
+        """ Verify that H1_lb (memoized) equals L1 (computed directly)
 
         This will certify that we can use bound without touching local params.
         """
         print ''
-        print 'H1_lb.sum()= % 7.5f' % (self.H1_lb.sum())
-        print 'L1_lb      = % 7.5f' % (self.L1_lb)
+        print 'L1_lb        = % 7.5f' % (self.L1_lb)
+        print 'H1_lb.sum()  = % 7.5f' % (self.H1_lb.sum())
         assert np.allclose(self.L1_lb, self.H1_lb.sum())
+        
         print ''
-        print 'H2_lb.sum()= % 7.5f' % (self.H2_lb.sum())
-        print 'L2_lb      = % 7.5f' % (self.L2_lb)
+        print 'L2_lb        = % 7.5f' % (self.L2_lb)
+        print 'H2_lb.sum()  = % 7.5f' % (self.H2_lb.sum())
         assert np.allclose(self.L2_lb, self.H2_lb.sum())
+
+        print ''
+        print 'L1_lb2       = % 7.5f' % (self.L1_lb2)
+        print 'H1_lb2.sum() = % 7.5f' % (self.H1_lb2.sum())
+        H = self.SS1.getELBOTerm('ElogqZ').sum()
+        print 'SS1.getELBO  = % 7.5f' % (-1*H)
+        assert np.allclose(self.L1_lb2, self.H1_lb2.sum())
+        assert np.allclose(self.L1_lb2, -1 * H)
+        
+        print ''
+        print 'L2_lb2       = % 7.5f' % (self.L2_lb2)
+        print 'H2_lb2.sum() = % 7.5f' % (self.H2_lb2.sum())
+        H = self.SS2.getELBOTerm('ElogqZ').sum()
+        print 'SS2.getELBO  = % 7.5f' % (-1*H)
 
     def test_entropy_bounds_hold(self):
         """ Verify "binary entropy" trick is correct in our calculations.
@@ -190,20 +244,41 @@ class MyTestN1K4(unittest.TestCase):
             \sum_{k=1}^K H'_k >= \sum_{k=1}^K H_k + sum1mepslog1meps
         """
         print ''
-        print 'L1    = % 7.5f' % (self.L1)
-        print 'L1_lb = % 7.5f' % (self.L1_lb)
+        print 'L1     = % 7.5f' % (self.L1)
+        print 'L1_lb2 = % 7.5f' % (self.L1_lb2)
+        print 'L1_lb  = % 7.5f' % (self.L1_lb)
 
         assert self.L1 > self.L1_lb
+        assert self.L1 > self.L1_lb2
 
         print ''
-        print 'L2    = % 7.5f' % (self.L2)
-        print 'L2_lb = % 7.5f' % (self.L2_lb)
+        print 'L2     = % 7.5f' % (self.L2)
+        print 'L2_lb2 = % 7.5f' % (self.L2_lb2)
+        print 'L2_lb  = % 7.5f' % (self.L2_lb)
         assert self.L2 > self.L2_lb
+        assert self.L2 > self.L2_lb2
 
         print ''
-        print 'L3    = % 7.5f' % (self.L3)
-        print 'L3_lb = % 7.5f' % (self.L3_lb)
+        print 'L3     = % 7.5f' % (self.L3)
+        print 'L3_lb2 = % 7.5f' % (self.L3_lb2)
+        print 'L3_lb  = % 7.5f' % (self.L3_lb)
         assert self.L3 > self.L3_lb
+        assert self.L3 > self.L3_lb2
+
+
+    def test_gap_bounds_hold(self):
+        """ Verify gap calculation is correct.
+        """
+        print ''
+        print "GAP L_move1 - L_orig"
+        print 'gap1      = % 7.5f' % (self.gap1)
+        print 'gap1_lb2  = % 7.5f' % (self.gap1_lb2)
+        assert self.gap1 > self.gap1_lb2
+
+        print "GAP L_move2 - L_orig"
+        print 'gap2      = % 7.5f' % (self.gap2)
+        print 'gap2_lb2  = % 7.5f' % (self.gap2_lb2)
+        assert self.gap2 > self.gap2_lb2
 
 class MyTestN1K7(MyTestN1K4):
 
@@ -211,13 +286,13 @@ class MyTestN1K7(MyTestN1K4):
         super(type(self), self).setUp(K=7, N=1)
 
 
-class MyTestK4N50(MyTestN1K4):
+class MyTestN50K4(MyTestN1K4):
 
     def setUp(self):
         super(type(self), self).setUp(K=4, N=50)
 
 
-class MyTestK11N1000(MyTestN1K4):
+class MyTestN1000K11(MyTestN1K4):
 
     def setUp(self):
         super(type(self), self).setUp(K=11, N=1000)
