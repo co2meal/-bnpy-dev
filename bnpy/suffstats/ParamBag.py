@@ -409,3 +409,16 @@ class ParamBag(object):
         elif getattr(self, dimName) == 1 and doExpandD:
           arr = np.expand_dims(arr, axis=dimID)
     return arr
+
+
+  ######################################################### Subtract bags
+  #########################################################
+  def to_dict(self):
+    me = dict()
+    for key in self._FieldDims:
+      me[key] =  getattr(self, key)
+    return me
+
+
+
+   

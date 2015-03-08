@@ -231,6 +231,8 @@ class LearnAlg(object):
     if lap in self.SavedIters or self.savedir is None:
       return
     self.SavedIters.add(lap)
+    if SS is not None:
+      print SS.N
 
     prefix = ModelWriter.makePrefixForLap(lap)
 
@@ -239,9 +241,11 @@ class LearnAlg(object):
 
     if self.outputParams['doSaveFullModel']:
       ModelWriter.save_model(hmodel, self.savedir, prefix,
-                             doSavePriorInfo=np.allclose(lap, 0.0),
-                             doLinkBest=True,
-                             doSaveObsModel=self.outputParams['doSaveObsModel'])
+                           doSavePriorInfo=np.allclose(lap, 0.0),
+                           doLinkBest=True,
+                           doSaveObsModel=self.outputParams['doSaveObsModel'],
+                           SS=SS,
+                           doSaveSuffStats=self.outputParams['doSaveSuffStats'])
 
     if self.outputParams['doSaveTopicModel']:
       ModelWriter.saveTopicModel(hmodel, SS, self.savedir, prefix)

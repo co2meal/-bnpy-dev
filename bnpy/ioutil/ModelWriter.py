@@ -58,7 +58,8 @@ def saveTopicModel(hmodel, SS, fpath, prefix, doLinkBest=False,
   scipy.io.savemat(outmatfile, EstPDict, oned_as='row')
 
 def save_model(hmodel, fname, prefix, doSavePriorInfo=True,
-               doSaveObsModel=True, doLinkBest=False):
+               doSaveObsModel=True, doLinkBest=False, SS=None,
+               doSaveSuffStats=True):
   ''' saves HModel object to mat file persistently
       
       Args
@@ -78,6 +79,9 @@ def save_model(hmodel, fname, prefix, doSavePriorInfo=True,
   if doSavePriorInfo:
     save_alloc_prior(hmodel.allocModel, fname)
     save_obs_prior(hmodel.obsModel, fname)
+
+  if SS is not None and doSaveSuffStats:
+    save_suffStats(SS, fname, prefix, doLinkBest=doLinkBest)
     
 def save_alloc_model(amodel, fpath, prefix, doLinkBest=False):
   amatname = prefix + 'AllocModel.mat'
@@ -110,6 +114,14 @@ def save_obs_prior( obsModel, fpath):
   if len( adict.keys() ) == 0:
     return None
   scipy.io.savemat( outpath, adict, oned_as='row')
+
+def save_suffStats(SS, fpath, prefix, doLinkBest=False):
+  matname = prefix + 'SuffStats.mat'
+  outmatfile = os.path.join(fpath, matname)
+  SSdict = SS.to_dict()
+  scipy.io.savemat(outmatfile, SSdict, oned_as='row')
+  if doLinkBest and prefix != 'Best':
+    create_best_link(outmatfile, os.path.join(fpath, 'BestSuffStats.mat'))
 
 def create_best_link( hardmatfile, linkmatfile):
   ''' Creates a symlink file named linkmatfile that points to hardmatfile,
