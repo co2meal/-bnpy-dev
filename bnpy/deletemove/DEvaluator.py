@@ -64,6 +64,7 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
     totalELBOImprovement = 0
     didAccept = 0
     acceptedUIDs = list()
+    acceptedPairs = list()
     for delCompUID in Plan['candidateUIDs']:
         if bestSS.K == 1:
             continue  # Don't try to remove the final comp!
@@ -83,20 +84,18 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
         # not just hard choice
         mPairIDs = makeMPairIDsWith(delCompID, propSS.K,  
                                     Plan['candidateIDs'])
-        #kA, kB, ELBOTerms = propModel.getBestMergePair(propSS, mPairIDs)
-        kA = mPairIDs[0][0]
-        kB = mPairIDs[0][1]
-        from IPython import embed; embed()
-        ELBOTerms = propModel.allocModel.\
-            calcCachedELBOTerms_SinglePair(
-                propSS, kA, kB, delCompID=delCompID)
+        kA, kB = propModel.getBestMergePair(propSS, mPairIDs)
         ELBOgap_cached_rest = propModel.allocModel.\
             calcCachedELBOGap_SinglePair(
                 propSS, kA, kB, delCompID=delCompID) / totalScale
-
+        ELBOTerms = propModel.allocModel.\
+            calcCachedELBOTerms_SinglePair(
+                propSS, kA, kB, delCompID=delCompID)
+        
         propSS.mergeComps(kA, kB)
         for key, arr in ELBOTerms.items():
             propSS.setELBOTerm(key, arr, propSS._ELBOTerms._FieldDims[key])
+        
 
         # Here, propSS represents entire dataset
         ptargetSS.removeComp(delCompID)
@@ -151,6 +150,7 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
         if didAcceptCur:
             totalELBOImprovement += ELBOgap
             acceptedUIDs.append(delCompUID)
+            acceptedPairs.append((kA, kB))
             bestELBOobs = propELBOobs
             bestELBOalloc = propELBOalloc
             bestModel = propModel
@@ -180,10 +180,12 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
                 SSmemory[batchID] -= Plan['targetSSByBatch'][batchID]
 
             # Update batch-specific stats with accepted deletes
-            for uID in acceptedUIDs:
-                kk = np.flatnonzero(SSmemory[batchID].uIDs == uID)[0]
-                SSmemory[batchID].removeComp(kk)
-
+            #for uID in acceptedUIDs:
+            #    kk = np.flatnonzero(SSmemory[batchID].uIDs == uID)[0]
+            #    SSmemory[batchID].removeComp(kk)
+            for (kA, kB) in acceptedPairs:
+                SSmemory[batchID].mergeComps(kA, kB)
+            
             assert np.allclose(SSmemory[batchID].uIDs, bestSS.uIDs)
             assert SSmemory[batchID].K == besttargetLP['resp'].shape[1]
             assert SSmemory[batchID].K == bestModel.allocModel.K
