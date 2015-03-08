@@ -140,9 +140,9 @@ def calcCachedELBOGap_SinglePair(SS, kA, kB,
     else:
         # Use bound - (1-r) log (1-r) >= r for small values of r 
         assert delCompID == kA or delCompID == kB
-        gap = np.maximum(
-            -1 * Hvec[delCompID] - SS.N[delCompID],
-            -1 * (Hvec[kA] + Hvec[kB]))
+        gap1 = -1 * Hvec[delCompID] - SS.N[delCompID]
+        gap2 = -1 * (Hvec[kA] + Hvec[kB])
+        gap = np.maximum(gap1, gap2)
     return gap
 
 def calcCachedELBOTerms_SinglePair(SS, kA, kB, delCompID=None):
