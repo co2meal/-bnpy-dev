@@ -17,4 +17,8 @@ ObsModelConstructorsByName = {
     'Bern': BernObsModel,
 }
 
+for key, val in ObsModelConstructorsByName.items():
+	expandedkey = key + "ObsModel"
+	ObsModelConstructorsByName[expandedkey] = val
+
 ObsModelNameSet = set(ObsModelConstructorsByName.keys())
