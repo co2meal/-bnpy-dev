@@ -193,6 +193,22 @@ class HModel(object):
         return s
 
 
+    def getBestMergePair(self, SS, mPairIDs):
+        """ Identify best merge pair among given list of candidates.
+
+        Here, best is measured by the pair that would improve ELBO most.
+
+        Returns
+        -------
+        mPair : tuple of (kA, kB)
+        """
+        aGap = self.allocModel.calcHardMergeGap_SpecificPairs(SS, mPairIDs)
+        oGap = self.obsModel.calcHardMergeGap_SpecificPairs(SS, mPairIDs)
+        gap = aGap + oGap
+        bestid = gap.argmax()
+        return mPairIDs[bestid]
+
+
     def localStep(self, Data, subset=None,
                   nWorkers=0, **kwargs):
         """ DRAFT
