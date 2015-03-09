@@ -114,8 +114,8 @@ def load_model( matfilepath, prefix='Best'):
   # avoids circular import
   import bnpy.HModel as HModel
   try:
-    obsModel = load_obs_model(matfilepath, prefix)
     allocModel = load_alloc_model(matfilepath, prefix)
+    obsModel = load_obs_model(matfilepath, prefix, allocModel)
     model = HModel(allocModel, obsModel)
   except IOError as e:
     if prefix == 'Best':
@@ -137,11 +137,12 @@ def load_alloc_model(matfilepath, prefix):
   amodel.from_dict( ADict)
   return amodel
   
-def load_obs_model(matfilepath, prefix):
+def load_obs_model(matfilepath, prefix, allocModel):
   obspriormatfile = os.path.join(matfilepath,'ObsPrior.mat')
   PriorDict = loadDictFromMatfile(obspriormatfile)
   ObsConstr = GDict[PriorDict['name']]
   obsModel = ObsConstr(**PriorDict)
+  obsModel.setupWithAllocModel(allocModel)
 
   obsmodelpath = os.path.join(matfilepath,prefix+'ObsModel.mat')
   ParamDict = loadDictFromMatfile(obsmodelpath)

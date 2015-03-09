@@ -142,7 +142,8 @@ class BernObsModel(AbstractObsModel):
     else:
       lam1 = as2D(lam1)
       lam0 = as2D(lam0)
-      K, D = lam1.shape
+      D = lam1.shape[-1]
+      K = lam1.shape[0]
       self.Post = ParamBag(K=K, D=D)
       self.Post.setField('lam1', lam1, dims=self.SSDims+('D',))
       self.Post.setField('lam0', lam0, dims=self.SSDims+('D',))

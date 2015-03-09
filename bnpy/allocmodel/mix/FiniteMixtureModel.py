@@ -270,10 +270,6 @@ class FiniteMixtureModel(AllocModel):
         evZ = self.E_logpZ(SS) -  SS.ampF * ElogqZ
       else:
         evZ = self.E_logpZ(SS) - ElogqZ
-      #print 'Eq(z) = ', -ElogqZ
-      #print 'Ep(z) = ', self.E_logpZ(SS)
-      #print 'evW = ', evW
-      #print '------------'
       return evZ + evW 
     else:
       raise NotImplementedError('Unrecognized inferType ' + self.inferType)
