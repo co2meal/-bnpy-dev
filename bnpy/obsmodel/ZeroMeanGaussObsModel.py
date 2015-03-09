@@ -66,10 +66,7 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
                 ECovMat = createECovMatFromUserInput(D, Data, ECovMat, sF)
             B = ECovMat * (nu - D - 1)
         else:
-            if B.ndim == 1:
-                B = np.asarray([B], dtype=np.float)
-            elif B.ndim == 0:
-                B = np.asarray([[B]], dtype=np.float)
+            B = as2D(B)
         self.Prior = ParamBag(K=0, D=D)
         self.Prior.setField('nu', nu, dims=None)
         self.Prior.setField('B', B, dims=('D', 'D'))
@@ -453,8 +450,7 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
                              )
             if not afterMStep:
                 aDiff = SS.N[k] + Prior.nu - Post.nu[k]
-                bDiff = SS.xxT[k] + Prior.B \
-                    - Post.B[k]
+                bDiff = SS.xxT[k] + Prior.B - Post.B[k]
                 elbo[k] += 0.5 * aDiff * self.GetCached('E_logdetL', k) \
                     - 0.5 * self._trace__E_L(bDiff, k)
         return elbo.sum() - 0.5 * np.sum(SS.N) * SS.D * LOGTWOPI
