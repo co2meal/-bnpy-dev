@@ -85,13 +85,23 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
             ELBOgap_cached_rest = 0
 
         elif deleteNontargetStrategy == 'merge':
+            # Make sure we haven't used this comp already
+            # in a previous delete
+            usedBefore = False
+            for kA, kB in acceptedPairs:
+                if delCompID == kA:
+                    usedBefore = True
+                elif delCompID == kB:
+                    usedBefore = True
+            if usedBefore:
+                continue # move on to next delCompID in Plan
+
             # Remove all target stats, 
             # so propSS represents only remaining data items
             propSS -= ptargetSS
             propModel.update_global_params(propSS)
 
-            mPairIDs = makeMPairIDsWith(delCompID, propSS.K,  
-                                        Plan['candidateIDs'])
+            mPairIDs = makeMPairIDsWith(delCompID, propSS.K)
             kA, kB = propModel.getBestMergePair(propSS, mPairIDs)
 
             # Compute ELBO gap for cached terms under proposed merge
@@ -146,6 +156,7 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
                       + ELBOgap_cached_rest + ELBOgap_cached_target
             if not np.isfinite(ELBOgap):
                 break
+            # from IPython import embed; embed()
             if ELBOgap > 0 or bestSS.K > Kmax:
                 didAcceptCur = 1
                 didAccept = 1
@@ -230,7 +241,7 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
     return bestModel, bestSS, SSmemory, Plan
 
 
-def makeMPairIDsWith(k, K, excludeIDs):
+def makeMPairIDsWith(k, K, excludeIDs=None):
     """ Create list of possible merge pairs including k, excluding excludeIDs.
 
     Returns
@@ -238,13 +249,15 @@ def makeMPairIDsWith(k, K, excludeIDs):
     mPairIDs : list of tuples
         each entry is a pair (kA, kB) satisfying kA < kB < K
     """
+    if excludeIDs is None:
+        excludeIDs = list()
     mPairIDs = list()
     for j in xrange(K):
         if j in excludeIDs:
             continue
-        if j == k:
+        elif j == k:
             continue
-        if j < k:
+        elif j < k:
             mPairIDs.append((j,k))
         else:
             mPairIDs.append((k,j))
