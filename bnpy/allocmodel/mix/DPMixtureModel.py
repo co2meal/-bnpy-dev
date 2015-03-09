@@ -286,7 +286,9 @@ class DPMixtureModel(AllocModel):
     def get_global_suff_stats(self, Data, LP,
                               mergePairSelection=None,
                               doPrecompEntropy=False,
-                              doPrecompMergeEntropy=False, mPairIDs=None,
+                              doPrecompMergeEntropy=False, 
+                              mPairIDs=None,
+                              trackDocUsage=False,
                               **kwargs):
         ''' Calculate sufficient statistics for global updates.
 
@@ -329,9 +331,6 @@ class DPMixtureModel(AllocModel):
 
         if doPrecompEntropy:
             ElogqZ_vec = self.E_logqZ(LP)
-            if ElogqZ_vec.ndim > 1:
-                from IPython import embed
-                embed()
             SS.setELBOTerm('ElogqZ', ElogqZ_vec, dims=('K'))
 
         if doPrecompMergeEntropy:
@@ -341,6 +340,10 @@ class DPMixtureModel(AllocModel):
             else:
                 ElogqZMat = NumericUtil.calcRlogR_specificpairs(resp, mPairIDs)
             SS.setMergeTerm('ElogqZ', ElogqZMat, dims=('K', 'K'))
+        if trackDocUsage:
+            ## Track num items with signif. mass assigned to each state.
+            DocUsage = np.sum(LP['resp'] > 0.01, axis=0)
+            SS.setSelectionTerm('DocUsageCount', DocUsage, dims='K')
         return SS
 
     def forceSSInBounds(self, SS):
