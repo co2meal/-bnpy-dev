@@ -188,28 +188,35 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
             # Any uID here is ineligible for a delete proposal.
             eliminatedUIDs.append(uID)
 
-    # -----    Select as many first tier as possible
+    # Select as many first tier as possible
     # until the target dataset budget is exceeded
+    canTakeEverything = dtargetMaxSize >= np.floor(CountVec.sum())
     if len(tier1UIDs) > 0:
         tier1AggSize = np.cumsum([SizeMap[uID] for uID in tier1UIDs])
 
-        # maxLoc is an integer in {0, 1, ... |tier1UIDs|}
-        # maxLoc equals m if we want everything at positions 0:m
-        maxLoc = np.searchsorted(tier1AggSize, dtargetMaxSize)
-        maxPos = np.maximum(0, maxLoc - 1)
+        if canTakeEverything:
+            selectUIDs = tier1UIDs
+            curTargetSize = dtargetMaxSize
+        else:
+            # maxLoc is an integer in {0, 1, ... |tier1UIDs|}
+            # maxLoc equals m if we want everything at positions 0:m
+            maxLoc = np.searchsorted(tier1AggSize, dtargetMaxSize)
+            maxPos = np.maximum(0, maxLoc - 1)
 
-        selectUIDs = tier1UIDs[:maxLoc]
-        curTargetSize = tier1AggSize[maxPos]
+            selectUIDs = tier1UIDs[:maxLoc]
+            curTargetSize = tier1AggSize[maxPos]
     else:
         selectUIDs = list()
         curTargetSize = 0
 
-    # ----    Fill remaining budget from second tier
-    if curTargetSize < dtargetMaxSize:
+    # Fill remaining budget from second tier
+    if canTakeEverything:
+        selectUIDs = np.hstack([selectUIDs, tier2UIDs])
+    elif curTargetSize < dtargetMaxSize:
         tier2AggSize = np.cumsum([SizeMap[x] for x in tier2UIDs])
         maxLoc = np.searchsorted(tier2AggSize, dtargetMaxSize - curTargetSize)
         selectUIDs = np.hstack([selectUIDs, tier2UIDs[:maxLoc]])
-
+    
     selectMass = [SizeMap[x] for x in selectUIDs]
     selectIDs = list()
     for uid in selectUIDs:
@@ -229,7 +236,6 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
     Output['candidateIDs'] = selectIDs
     Output['candidateUIDs'] = selectUIDs.tolist()
     Output['candidateSizes'] = [SizeMap[u] for u in selectUIDs]
-
     return Output
 
 

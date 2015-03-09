@@ -156,12 +156,11 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
                       + ELBOgap_cached_rest + ELBOgap_cached_target
             if not np.isfinite(ELBOgap):
                 break
-            # from IPython import embed; embed()
             if ELBOgap > 0 or bestSS.K > Kmax:
                 didAcceptCur = 1
                 didAccept = 1
                 break
-
+            
         # Log result of this proposal
         curMsg = makeLogMessage(bestSS, besttargetSS, 
             ELBOgap_alloc=propELBOalloc - bestELBOalloc,

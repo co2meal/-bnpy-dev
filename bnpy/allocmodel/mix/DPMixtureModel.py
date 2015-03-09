@@ -745,8 +745,6 @@ class DPMixtureModel(AllocModel):
         Hvec_rest_before = Hvec_all_before - Hvec_target_before
         if not np.all(Hvec_rest_before > -1e-10):
             print 'ASSUMPTION ABOUT Hvec_rest_before > 0 VIOLATED'
-            from IPython import embed
-            embed()
 
         Htarget_after = Hvec_target_after.sum()
         Hrest_after = Hvec_rest_before[remCompIDs].sum()
