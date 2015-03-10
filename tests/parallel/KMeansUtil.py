@@ -101,6 +101,9 @@ def runBenchmarkAcrossProblemSizes(TestClass):
     parser.add_argument('--N', type=str, default='10000')
     parser.add_argument('--K', type=str, default='10')
     parser.add_argument('--nWorkers', type=int, default=2)
+    parser.add_argument('--method', type=str, default='parallel')
+    parser.add_argument('--nRepeat', type=int, default=1)
+    parser.add_argument('--verbose', type=int, default=1)
     args = parser.parse_args()
     
     NKDiterator = itertools.product(
@@ -108,10 +111,13 @@ def runBenchmarkAcrossProblemSizes(TestClass):
         rangeFromString(args.K),
         rangeFromString(args.D))
 
+    kwargs = dict()
+    kwargs['nWorkers'] = args.nWorkers
+    kwargs['verbose'] = args.verbose
+
     for (N, K, D) in NKDiterator:
         print '=============================== N=%d K=%d D=%d' % (
             N, K, D)
-        kwargs = dict(**args.__dict__)
         kwargs['N'] = N
         kwargs['K'] = K
         kwargs['D'] = D
@@ -120,7 +126,8 @@ def runBenchmarkAcrossProblemSizes(TestClass):
         # Required first arg is string name of test we'll execute
         myTest = TestClass('run_speed_benchmark', **kwargs) 
         myTest.setUp()
-        TimeInfo = myTest.run_speed_benchmark()
+        TimeInfo = myTest.run_speed_benchmark(method=args.method,
+                                              nRepeat=args.nRepeat)
         myTest.tearDown() # closes all processes
 
 
