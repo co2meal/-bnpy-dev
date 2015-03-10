@@ -63,6 +63,9 @@ class SharedMemWorker(multiprocessing.Process):
 
         for jobArgs in jobIterator:
             start, stop = jobArgs
+            if start is not None:
+                self.printMsg("start=%d, stop=%d" % (start, stop))
+
             msg = "X memory location: %d" % (getPtrForArray(self.Xsh))
             self.printMsg(msg)
 
@@ -220,18 +223,28 @@ class Test(unittest.TestCase):
         assert np.allclose(SSall.CountVec, SS.CountVec)
         assert np.allclose(SSall.DataStatVec, SS.DataStatVec)
 
-    def run_speed_benchmark(self, nRepeat=5):
+
+    def run_speed_benchmark(self, method='all', nRepeat=3):
         """ Compare speed of different algorithms.
         """
-        print ''
-        Results = self.run_all_with_timer(nRepeat=nRepeat)
-
+        if method == 'all':
+            Results = self.run_all_with_timer(nRepeat=nRepeat)
+        elif method == 'parallel':
+            ptime = self.run_with_timer('run_parallel', nRepeat=nRepeat)
+            Results = dict(parallel_time=ptime)
+ 
         for key in ['base_time', 'serial_time', 'parallel_time']:
-            print "%18s | %8.3f sec | %8.3f speedup" % (
-                key, 
-                Results[key], 
-                Results[key.replace('time', 'speedup')],
-                )
+            if key in Results:
+                try:
+                    speedupval = Results[key.replace('time', 'speedup')]
+                    speedupmsg = "| %8.3f speedup" % (speedupval)
+                except KeyError:
+                    speedupmsg = ""
+                print "%18s | %8.3f sec %s" % (
+                    key, 
+                    Results[key], 
+                    speedupmsg
+                    )
         return Results
 
     def run_with_timer(self, funcToCall, nRepeat=3):
@@ -245,9 +258,9 @@ class Test(unittest.TestCase):
     def run_all_with_timer(self, nRepeat=3):
         """ Timing experiments with baseline, serial, and parallel versions.
         """
-        serial_time = self.run_with_timer('run_serial')
-        parallel_time = self.run_with_timer('run_parallel')
-        base_time = self.run_with_timer('run_baseline')
+        serial_time = self.run_with_timer('run_serial', nRepeat)
+        parallel_time = self.run_with_timer('run_parallel', nRepeat)
+        base_time = self.run_with_timer('run_baseline', nRepeat)
 
         return dict(
             base_time=base_time,
@@ -257,6 +270,8 @@ class Test(unittest.TestCase):
             parallel_time=parallel_time,
             parallel_speedup=base_time/parallel_time,
             )
+
+
 
 
 def toSharedMemArray(X):
