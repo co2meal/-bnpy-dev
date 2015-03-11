@@ -1034,7 +1034,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
         MergeLogger.logPhase('MERGE Moves at lap ' + str(lapFrac))
 
         no_mPairIDs = 'mPairIDs' not in MergePrepInfo
-        no_mPairIDs = no_mPairIDS or MergePrepInfo['mPairIDs'] is None
+        no_mPairIDs = no_mPairIDs or MergePrepInfo['mPairIDs'] is None
         if no_mPairIDs:
             MergePrepInfo['mPairIDs'] = list()
 
