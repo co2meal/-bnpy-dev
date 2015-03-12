@@ -187,10 +187,10 @@ class DPMixtureModel(AllocModel):
     def get_active_comp_probs(self):
         ''' Get vector of appearance probabilities for each active comp.
 
-            Returns
-            -------
-            beta : 1D array, size K
-                beta[k] gives probability of comp. k under this model.
+        Returns
+        -------
+        beta : 1D array, size K
+            beta[k] gives probability of comp. k under this model.
         '''
         Eu = self.eta1 / (self.eta1 + self.eta0)
         Ebeta = Eu.copy()
@@ -203,7 +203,7 @@ class DPMixtureModel(AllocModel):
         return list()
 
     def calc_local_params(self, Data, LP, **kwargs):
-        ''' Compute local parameters for each data item and component.
+        ''' Compute local parameters for each data item.
 
         Parameters
         -------
@@ -529,8 +529,6 @@ class DPMixtureModel(AllocModel):
             + np.inner(SS.N, self.Elogbeta)
         return slack
 
-    # Hard Merges
-    #########################################################
     def calcHardMergeEntropyGap(self, SS, kA, kB):
         ''' Calc scalar improvement in entropy for merge of kA, kB
         '''
