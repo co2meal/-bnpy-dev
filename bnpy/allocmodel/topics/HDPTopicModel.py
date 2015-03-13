@@ -1,52 +1,9 @@
-'''
-Bayesian nonparametric admixture model via the Hierarchical Dirichlet Process.
-Uses a direct construction that maintains K active components,
-via a Dirichlet document-level variational factor.
-
-Attributes
--------
-K : # of components
-gamma : scalar positive real, global concentration 
-alpha : scalar positive real, document-level concentration param
-
-Local Model Parameters (document-specific)
---------
-z :  one-of-K topic assignment indicator for tokens
-     z_{dn} : binary indicator vector for assignment of token n in document d
-              z_{dnk} = 1 iff assigned to topic k, 0 otherwise.
-
-pi : document-specific stick-breaking lengths for each active topic 
-     pi : 2D array, size D x K+1
-Tracks remaining "leftover" mass for all (infinitely many) inactive topics
-at index K+1 for variables pi
-
-Local Variational Parameters
---------
-resp :  q(z_dn) = Categorical( z_dn | resp_{dn1}, ... resp_{dnK} )
-
-theta : 2D array, size D x K
-thetaRem : scalar
-q(\pi_d) = Dir( theta[d,0], ... theta[d,K], thetaRem )
-
-
-Global Model Parameters (shared across all documents)
---------
-rho : 1D array, size K
-omega : 1D array, size K
-
-q(u_k) = Beta(rho[k]*omega[k], (1-rho[k])*omega[k])
-
-References
--------
-TODO
-Latent Dirichlet Allocation, by Blei, Ng, and Jordan
-introduces a classic admixture model with Dirichlet-Mult observations.
-'''
 import numpy as np
 import logging
 Log = logging.getLogger('bnpy')
 
 from bnpy.allocmodel.AllocModel import AllocModel
+from bnpy.allocmodel.mix.DPMixtureModel import convertToN0
 from bnpy.suffstats import SuffStatBag
 from bnpy.util import digamma, gammaln
 from bnpy.util import as1D
@@ -55,7 +12,6 @@ import LocalStepManyDocs
 import OptimizerRhoOmega
 
 from bnpy.util.StickBreakUtil import rho2beta
-
 from bnpy.util.NumericUtil import calcRlogRdotv, calcRlogR
 from bnpy.util.NumericUtil import calcRlogRdotv_allpairs
 from bnpy.util.NumericUtil import calcRlogRdotv_specificpairs
@@ -63,10 +19,53 @@ from bnpy.util.NumericUtil import calcRlogR_allpairs, calcRlogR_specificpairs
 
 
 class HDPTopicModel(AllocModel):
+    '''
+    Bayesian nonparametric topic model with a K active components.
+
+    Uses a direct construction that truncates unbounded posterior to
+    K active components (assigned to data), indexed 0, 1, ... K-1.
+    Remaining mass for inactive topics is represented at index K.
+
+    Attributes
+    -------
+    inferType : string {'VB', 'moVB', 'soVB'}
+        indicates which updates to perform for local/global steps
+    K : int
+        number of components
+    alpha : float
+        scalar pseudo-count
+        used in Dirichlet prior on document-topic probabilities.
+    gamma : float
+        scalar concentration of the top-level stick breaking process.
+
+    Attributes for VB
+    ---------
+    rho : 1D array, size K
+        rho[k] defines the mean of each stick-length u[k]
+    omega : 1D array, size K
+        omega[k] controls variance of stick-length u[k]
+
+    Together, rho/omega define the approximate posterior factor q(u[k]):
+        eta1 = rho * omega
+        eta0 = (1-rho) * omega
+        q(u) = \prod_k Beta(u[k] | eta1[k], eta0[k])
+
+    Variational Local Parameters
+    --------
+    resp :  2D array, N x K
+        q(z_n) = Categorical( resp_{n1}, ... resp_{nK} )
+    theta : 2D array, nDoc x K
+        q(pi_d) = Dirichlet( \theta_{d1}, ... \theta_{dK} )
+
+    References
+    -------
+    Latent Dirichlet Allocation, by Blei, Ng, and Jordan
+    introduces a classic topic model with Dirichlet-Mult observations.
+    '''
 
     def __init__(self, inferType, priorDict=None):
         if inferType == 'EM':
-            raise ValueError('HDPDir cannot do EM.')
+            raise ValueError('HDPTopicModel annot do EM.')
         self.inferType = inferType
         self.K = 0
         if priorDict is None:
@@ -75,42 +74,71 @@ class HDPTopicModel(AllocModel):
             self.set_prior(**priorDict)
 
     def get_keys_for_memoized_local_params(self):
-        ''' Return list of string names of the LP fields
-            that moVB needs to memoize across visits to a particular batch
+        ''' Return LP field names required for warm starts of local step
         '''
         return ['DocTopicCount']
 
     def get_active_comp_probs(self):
-        ''' Return K vector of appearance probabilities for each of the K comps
+        ''' Get vector of appearance probabilities for each active comp.
+
+        Returns
+        -------
+        beta : 1D array, size K
+            beta[k] gives probability of comp. k under this model.
         '''
         return self.E_beta_active()
 
     def E_beta_active(self):
-        ''' Return vector beta of appearance probabilities for active components
+        ''' Get vector of appearance probabilities for each active comp.
+
+        Returns
+        -------
+        beta : 1D array, size K
+            beta[k] gives probability of comp. k under this model.        
         '''
         if not hasattr(self, 'Ebeta'):
             self.Ebeta = self.E_beta()
         return self.Ebeta[:-1]
 
     def E_beta(self):
-        ''' Return vector beta of appearance probabilities
+        ''' Get vector of probabilities for active and inactive topics.
 
-            Includes K active topics, and one entry aggregating leftover mass
+        Returns
+        -------
+        beta : 1D array, size K + 1
+            beta[k] gives probability of comp. k under this model.
+            beta[K] (last index) is aggregated over all inactive topics.
         '''
         if not hasattr(self, 'Ebeta'):
             self.Ebeta = rho2beta(self.rho)
         return self.Ebeta
 
     def alpha_E_beta(self):
-        ''' Return vector of alpha * E[beta] of scaled appearance probabilities
+        ''' Return scaled vector alpha * E[beta] for all topics.
 
-            Includes K active topics, and one entry aggregating leftover mass
+        The vector alpha * Ebeta parameterizes the Dirichlet 
+        distribution over the prior on document-topic probabilities.
+
+        Returns
+        -------
+        abeta : 1D array, size K + 1
+            abeta[k] gives scaled parameter for comp. k under this model.
+            abeta[K] (last index) is aggregated over all inactive topics.
         '''
         if not hasattr(self, 'alphaEbeta'):
             self.alphaEbeta = self.alpha * self.E_beta()
         return self.alphaEbeta
 
     def ClearCache(self):
+        """ Clear cached computations stored as attributes.
+
+        Should always be called after a global update.
+
+        Post Condition
+        --------------
+        Cached computations stored as attributes in this object
+        will be erased.
+        """
         if hasattr(self, 'Ebeta'):
             del self.Ebeta
         if hasattr(self, 'alphaEbeta'):
@@ -140,88 +168,52 @@ class HDPTopicModel(AllocModel):
         return 'HDP model with K=%d active comps. gamma=%.2f. alpha=%.2f' \
             % (self.K, self.gamma, self.alpha)
 
-    # VB Local Step
-    # (E-step)
+
     def calc_local_params(self, Data, LP, **kwargs):
         ''' Calculate document-specific quantities (E-step)
 
-              Returns
-              -------
-              LP : local params dict, with fields
-              * resp
-              * theta
-              * ElogPi
-              * DocTopicCount
+        Parameters
+        -------
+        Data : bnpy.data.DataObj subclass
+        LP : dict
+            Local parameters as key-value string/array pairs
+            * E_log_soft_ev : 2D array, N x K
+                E_log_soft_ev[n,k] = log p(data obs n | comp k)
+
+        Returns
+        -------
+        LP : dict
+            Local parameters, with updated fields
+            * resp : 2D array, N x K
+                Posterior responsibility each comp has for each item
+                resp[n, k] = p(z[n] = k | x[n])
+            * theta : 2D array, nDoc x K
+                Positive pseudo-count parameter for active topics,
+                in the approximate posterior on doc-topic probabilities.
+            * thetaRem : scalar float
+                Positive pseudo-count parameter for inactive topics.
+                in the approximate posterior on doc-topic probabilities.
+            * ElogPi : 2D array, nDoc x K
+                Expected value E[log pi[d,k]] under q(pi).
+                This is a function of theta and thetaRem.
         '''
         self.alpha_E_beta()  # create cached copy
-        LP = LocalStepManyDocs.calcLocalParams(Data, LP, self, **kwargs)
+        LP = LocalStepManyDocs.calcLocalParamsForDataSlice(
+            Data, LP, self, **kwargs)
         assert 'resp' in LP
         assert 'DocTopicCount' in LP
         return LP
 
-    def calcLogPrActiveCompsForDoc(self, DocTopicCount_d, out):
-        ''' Calculate log prob of each of the K active topics given doc-topic counts
-
-            Note: for speed, we avoid terms in this expression that are 
-            **constant** across all active topics 0, 1, 2, ... K-2, K-1.
-             These are commented out below.
-
-            Returns
-            -------
-            logp : 1D array, size K
-            logp[k] gives log prob of topic k in provided doc, up to additive const
-        '''
-        np.add(DocTopicCount_d, self.alphaEbeta[:-1], out=out)
-        ##digammaSum = digamma(out.sum() + self.alphaEbeta[-1])
-        digamma(out, out=out)
-        ##out -= digammaSum
-        return out
-
-    def calcLogPrActiveComps_Fast(self, DocTopicCount, activeDocs=None, LP=None,
-                                  out=None):
-        ''' Calculate log prob of each active topic for each active document
-        '''
-        if LP is None:
-            LP = dict()
-
-        # alphaEbeta is 1D array, size K+1
-        alphaEbeta = self.alpha * self.E_beta()
-
-        if activeDocs is None:
-            activeDocTopicCount = DocTopicCount
-        else:
-            activeDocTopicCount = np.take(DocTopicCount, activeDocs, axis=0)
-
-        # theta is 2D array, size D x K
-        if 'theta' in LP:
-            LP['theta'][activeDocs] = activeDocTopicCount + alphaEbeta[:-1]
-        else:
-            LP['theta'] = DocTopicCount + alphaEbeta[:-1]
-
-        theta = LP['theta']
-        if out is None:
-            ElogPi = digamma(theta)
-        else:
-            ElogPi = out
-            ElogPi[activeDocs] = digamma(theta[activeDocs])
-
-        if activeDocs is None:
-            digammaSumTheta = digamma(np.sum(theta, axis=1) + alphaEbeta[-1])
-            ElogPi -= digammaSumTheta[:, np.newaxis]
-        else:
-            digammaSumTheta = digamma(np.sum(theta[activeDocs], axis=1)
-                                      + alphaEbeta[-1])
-            ElogPi[activeDocs] -= digammaSumTheta[:, np.newaxis]
-        return ElogPi
-
     def updateLPGivenDocTopicCount(self, LP, DocTopicCount):
-        ''' Update all local parameters, given topic counts for all docs in set.
+        ''' Update local parameters given doc-topic counts for many docs.
 
-            Returns
-            --------
-            LP : dict of local params, with updated fields
-            * theta, thetaRem
-            * ElogPi, ElogPiRem
+        Returns
+        --------
+        LP : dict of local params, with updated fields
+            * theta : 2D array, nDoc x K
+            * thetaRem : scalar
+            * ElogPi : 2D array, nDoc x K
+            * ElogPiRem : scalar
         '''
         alphaEbeta = self.alpha * self.E_beta()
 
@@ -237,7 +229,19 @@ class HDPTopicModel(AllocModel):
         return LP
 
     def initLPFromResp(self, Data, LP, deleteCompID=None):
-        ''' Obtain initial local params for initializing this model.
+        ''' Fill in remaining local parameters given token-topic resp.
+
+        Args
+        ----
+        LP : dict with fields
+            * resp : 2D array, size N x K
+
+        Returns
+        -------
+        LP : dict with fields
+            * DocTopicCount
+            * theta
+            * ElogPi
         '''
         resp = LP['resp']
         K = resp.shape[1]
@@ -279,9 +283,9 @@ class HDPTopicModel(AllocModel):
     def applyHardMergePairToLP(self, LP, kA, kB):
         ''' Apply hard merge pair to provided local parameters
 
-            Returns
-            --------
-            mergeLP : dict of updated local parameters
+        Returns
+        --------
+        mergeLP : dict of updated local parameters
         '''
         resp = np.delete(LP['resp'], kB, axis=1)
         theta = np.delete(LP['theta'], kB, axis=1)
@@ -316,15 +320,37 @@ class HDPTopicModel(AllocModel):
         subsetLP['resp'] = LP['resp'][subsetTokenIDs].copy()
         return subsetLP
 
-    # Suff Stat Calc
-    #######################################################
-    def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None,
-                              doPrecompMergeEntropy=None,
-                              mPairIDs=None,
-                              mergePairSelection=None,
-                              trackDocUsage=0,
-                              **kwargs):
-        ''' Calculate sufficient statistics.
+    def get_global_suff_stats(
+            self, Data, LP, 
+            doPrecompEntropy=None,
+            doPrecompMergeEntropy=None,
+            mPairIDs=None,
+            mergePairSelection=None,
+            trackDocUsage=0,
+            **kwargs):
+        ''' Calculate sufficient statistics for global updates.
+
+        Parameters
+        -------
+        Data : bnpy data object
+        LP : local param dict with fields
+            resp : Data.nObs x K array,
+                where resp[n,k] = posterior resp of comp k
+        doPrecompEntropy : boolean flag
+            indicates whether to precompute ELBO terms in advance
+            used for memoized learning algorithms (moVB)
+
+        Returns
+        -------
+        SS : SuffStatBag with K components
+            Summarizes for this mixture model, with fields
+            * nDoc : scalar float
+                Counts total documents available in provided data.
+
+            Also has optional ELBO field when precompELBO is True
+            * Hvec : 1D array, size K
+                Vector of entropy contributions from each comp.
+                Hvec[k] = \sum_{n=1}^N H[q(z_n)], a function of 'resp'
         '''
         resp = LP['resp']
         _, K = resp.shape
@@ -334,19 +360,19 @@ class HDPTopicModel(AllocModel):
         SS.setField('sumLogPiRem', np.sum(LP['ElogPiRem']), dims=None)
 
         if doPrecompEntropy:
-            ElogqZ = self.E_logqZ(Data, LP)
-            SS.setELBOTerm('ElogqZ', ElogqZ, dims='K')
+            Hvec = calcHvec(Data, LP)
+            SS.setELBOTerm('Hvec', Hvec, dims='K')
 
-            slack_NmT, slack_NmT_Rem = self.slack_NminusTheta(LP)
-            SS.setELBOTerm('slackNminusTheta', slack_NmT, dims='K')
-            SS.setELBOTerm('slackNminusTheta_Rem', slack_NmT_Rem, dims=None)
+            slackTheta, slackThetaRem = calcMemoPieces_L_slacklocal(LP=LP)
+            SS.setELBOTerm('slackTheta', slackTheta, dims='K')
+            SS.setELBOTerm('slackThetaRem', slackThetaRem, dims=None)
 
-            glnSumTheta, glnTheta, glnThetaRem = self.c_Dir_theta__parts(LP)
+            glnSumTheta, glnTheta, glnThetaRem = calcMemoPieces_L_alloclocal(
+                theta=LP['theta'], thetaRem=LP['thetaRem'])
             SS.setELBOTerm('gammalnSumTheta', glnSumTheta, dims=None)
             SS.setELBOTerm('gammalnTheta', glnTheta, dims='K')
-            SS.setELBOTerm('gammalnTheta_Rem', glnThetaRem, dims=None)
+            SS.setELBOTerm('gammalnThetaRem', glnThetaRem, dims=None)
 
-        # Merge Term caching
         if doPrecompMergeEntropy:
             if mPairIDs is None:
                 raise NotImplementedError("TODO: all pairs for merges")
@@ -430,8 +456,6 @@ class HDPTopicModel(AllocModel):
                 ElogqZMat = calcRlogR_specificpairs(resp, mPairIDs)
         return ElogqZMat
 
-    # VB Global Step
-    #######################################################
     def update_global_params_VB(self, SS, rho=None,
                                 mergeCompA=None, mergeCompB=None,
                                 **kwargs):
@@ -497,8 +521,6 @@ class HDPTopicModel(AllocModel):
                 rho = OptimizerRhoOmega.create_initrho(SS.K)
         return rho, omega
 
-    # soVB Global Step
-    #######################################################
     def update_global_params_soVB(self, SS, rho=None,
                                   mergeCompA=None, mergeCompB=None,
                                   **kwargs):
@@ -515,188 +537,168 @@ class HDPTopicModel(AllocModel):
         self.K = SS.K
         self.ClearCache()
 
-    # Set Global Params
-    #######################################################
     def init_global_params(self, Data, K=0, **kwargs):
         ''' Initialize rho, omega to reasonable values
         '''
-        self.K = K
-        self.rho = OptimizerRhoOmega.create_initrho(K)
-        self.omega = (1.0 + self.gamma) * np.ones(K)
-        self.ClearCache()
+        self.setParamsFromCountVec(K, np.ones(K))
 
-    def set_global_params(self, hmodel=None, rho=None, omega=None,
+    def set_global_params(self, hmodel=None, K=None,
+                          beta=None,
+                          eta1=None, eta0=None, 
+                          rho=None, omega=None,
                           **kwargs):
-        ''' Set rho, omega to provided values.
-        '''
-        if hmodel is not None:
-            self.K = hmodel.allocModel.K
-            if hasattr(hmodel.allocModel, 'rho'):
-                self.rho = hmodel.allocModel.rho
-                self.omega = hmodel.allocModel.omega
-            else:
-                raise AttributeError('Unrecognized hmodel')
-        elif rho is not None and omega is not None:
-            self.rho = rho
-            self.omega = omega
-            self.K = omega.size
-        else:
-            self._set_global_params_from_scratch(**kwargs)
+        """ Set global parameters to provided values.
+
+        Post Condition for VB
+        -------
+        rho/omega set to define valid posterior over K components.
+        """
         self.ClearCache()
-
-    def _set_global_params_from_scratch(self, beta=None, probs=None,
-                                        Data=None, nDoc=None, **kwargs):
-        ''' Set rho, omega to values that reproduce provided appearance probs
-        '''
-        if nDoc is None:
-            nDoc = Data.nDoc
-        if nDoc is None:
-            raise ValueError('Bad parameters. nDoc not specified.')
-        if probs is not None:
-            beta = probs / probs.sum()
-        if beta is not None:
-            Ktmp = beta.size
-            rem = np.minimum(0.05, 1. / (Ktmp))
-            beta = np.hstack([np.squeeze(beta), rem])
-            beta = beta / np.sum(beta)
+        if hmodel is not None:
+            self.setParamsFromHModel(hmodel)
+        elif beta is not None:
+            self.setParamsFromBeta(K, beta=beta)
+        elif eta1 is not None:
+            self.K = int(K)
+            self.omega = eta1 + eta0
+            self.rho = eta1 / self.omega
+        elif rho is not None:
+            self.K = int(K)
+            self.rho = rho.copy()
+            self.omega = omega.copy()
         else:
-            raise ValueError('Bad parameters. Vector beta not specified.')
-        self.K = beta.size - 1
-        self.rho, self.omega = self._convert_beta2rhoomega(beta, )
-        assert self.rho.size == self.K
-        assert self.omega.size == self.K
+            raise ValueError("Unrecognized set_global_params args")
 
-    def _convert_beta2rhoomega(self, beta, nDoc=10):
-        ''' Find vectors rho, omega that are probable given beta
+    def setParamsFromCountVec(self, K, N=None):
+        """ Set params to reasonable values given counts for each comp.
 
-            Returns
-            --------
-            rho : 1D array, size K
-            omega : 1D array, size K
-        '''
-        assert abs(np.sum(beta) - 1.0) < 0.001
-        rho = OptimizerRhoOmega.beta2rho(beta, self.K)
-        omega = (nDoc + self.gamma) * np.ones(rho.size)
-        return rho, omega
+        Parameters
+        --------
+        K : int
+            number of components
+        N : 1D array, size K. optional, default=[1 1 1 1 ... 1]
+            size of each component
 
-    # Calc ELBO
-    #######################################################
+        Post Condition for VB
+        ---------
+        Attributes rho/omega are set so q(beta) equals its posterior
+        given count vector N.
+        """
+        self.ClearCache()
+        self.K = int(K)
+        if N is None:
+            N = 1.0 * np.ones(K)
+        assert N.ndim == 1
+        assert N.size == K
+        eta1 = 1 + N
+        eta0 = self.gamma + convertToN0(N)
+        self.rho = eta1 / (eta1 + eta0)
+        self.omega = eta1 + eta0
+
+    def setParamsFromBeta(self, K, beta=None):
+        """ Set params to reasonable values given comp probabilities.
+
+        Parameters
+        --------
+        K : int
+            number of components
+        beta : 1D array, size K. optional, default=[1/K 1/K ... 1/K]
+            probability of each component
+
+        Post Condition for VB
+        ---------
+        Attributes rho, omega set so q(beta) has properties:
+        * mean of (nearly) beta, allowing for some small remaining mass.
+        * moderate variance.
+        """
+        self.ClearCache()
+        if beta is None:
+            beta = 1.0 / K * np.ones(K)
+        assert beta.ndim == 1
+        assert beta.size == K
+        assert np.allclose(np.sum(beta), 1.0)
+        self.K = int(K)
+
+        # Append in small remaining/leftover mass
+        betaRem = np.minimum(1.0 / (2 * K), 0.05)
+        betaWithRem = np.hstack([beta * (1.0 - betaRem), betaRem])
+        assert np.allclose(np.sum(betaWithRem), 1.0)
+
+        theta = self.K * betaWithRem
+        eta1 = theta[:-1].copy()
+        eta0 = theta[::-1].cumsum()[::-1][1:]
+        self.rho = eta1 / (eta1 + eta0)
+        self.omega = eta1 + eta0
+
+    def setParamsFromHModel(self, hmodel):
+        """ Set parameters exactly as in provided HModel object.
+
+        Parameters
+        ------
+        hmodel : bnpy.HModel
+            The model to copy parameters from.
+
+        Post Condition
+        ------
+        Attributes rho/omega set exactly equal to hmodel's allocModel.
+        """
+        self.ClearCache()
+        self.K = hmodel.allocModel.K
+        if hasattr(hmodel.allocModel, 'eta1'):
+            eta1 = hmodel.allocModel.eta1.copy()
+            eta0 = hmodel.allocModel.eta0.copy()
+            self.rho = eta1 / (eta1 + eta0)
+            self.omega = eta1 + eta0
+        elif hasattr(hmodel.allocModel, 'rho'):
+            self.rho = hmodel.allocModel.rho.copy()
+            self.omega = hmodel.allocModel.omega.copy()
+        else:
+            raise AttributeError('Unrecognized hmodel')
+
     def calc_evidence(self, Data, SS, LP, todict=0, **kwargs):
-        ''' Calculate ELBO objective 
-        '''
-        calpha = SS.nDoc * \
-            (gammaln(self.alpha) + (SS.K + 1) * np.log(self.alpha))
-        U_plus_cDir_alphaBeta = self.E_logpU_logqU_plus_cDirAlphaBeta(SS)
-        slack_alphaBeta, slack_alphaBeta_Rem = self.slack_alphaBeta(SS)
+        """ Calculate ELBO objective function value for provided state.
+
+        Returns
+        -------
+        L : float
+            Represents sum of all terms in ELBO objective.
+        """
+        Lallocglobal = L_allocglobal(
+            self.rho, self.omega, 
+            gamma=self.gamma, 
+            alpha=self.alpha, 
+            nDoc=SS.nDoc)
+        Lslackglobal = L_slackglobal(
+            alphaEbeta=self.alpha_E_beta(),
+            sumLogPi=SS.sumLogPi, sumLogPiRem=SS.sumLogPiRem,
+            )
         if SS.hasELBOTerms():
-            ElogqZ = SS.getELBOTerm('ElogqZ')
-            cDir_theta = self.c_Dir_theta(SS.getELBOTerm('gammalnSumTheta'),
-                                          SS.getELBOTerm('gammalnTheta'),
-                                          SS.getELBOTerm('gammalnTheta_Rem'),
-                                          )
-            slack_NmT = SS.getELBOTerm('slackNminusTheta')
-            slack_NmT_Rem = SS.getELBOTerm('slackNminusTheta_Rem')
+            Lentropy = SS.getELBOTerm('Hvec').sum()
+            Lalloclocal = L_alloclocal(
+                SS.getELBOTerm('gammalnSumTheta'),
+                SS.getELBOTerm('gammalnTheta'),
+                SS.getELBOTerm('gammalnThetaRem'))
+            Lslacklocal = L_slacklocal(
+                SS.getELBOTerm('slackTheta'),
+                SS.getELBOTerm('slackThetaRem')
+                )
         else:
-            ElogqZ = self.E_logqZ(Data, LP)
-            cDir_theta = self.c_Dir_theta(*self.c_Dir_theta__parts(LP))
-            slack_NmT, slack_NmT_Rem = self.slack_NminusTheta(LP)
+            Lentropy = L_entropy(Data, LP)
+            Lalloclocal = L_alloclocal(
+                theta=LP['theta'],
+                thetaRem=LP['thetaRem'])
+            Lslacklocal = L_slacklocal(LP=LP)
 
         if todict:
-            return dict(calpha=calpha,
-                        cDir_theta=-1 * cDir_theta,
-                        entropy=-1 * np.sum(ElogqZ),
-                        cDir_alphaBeta=U_plus_cDir_alphaBeta,
-                        slack=np.sum(slack_NmT + slack_alphaBeta)
-                        + slack_NmT_Rem + slack_alphaBeta_Rem
+            return dict(Lalloclocal=Lalloclocal,
+                        Lallocglobal=Lallocglobal,
+                        Lentropy=Lentropy,
+                        Lslack=Lslackglobal+Lslacklocal,
                         )
+        return Lallocglobal + Lalloclocal + Lentropy +\
+            Lslackglobal + Lslacklocal
 
-        return U_plus_cDir_alphaBeta + calpha \
-            - np.sum(ElogqZ) \
-            - cDir_theta \
-            + np.sum(slack_NmT + slack_alphaBeta) \
-            + slack_NmT_Rem + slack_alphaBeta_Rem
-
-    def slack_alphaBeta(self, SS):
-        ''' Calculate part of doc-topic slack term dependent on alpha * Ebeta
-
-            Returns
-            --------
-            slack_aBeta_active : 1D array, size K
-            slack_aBeta_rem : scalar
-        '''
-        alphaEbeta = self.alpha * self.E_beta()
-        return alphaEbeta[:-1] * SS.sumLogPi, alphaEbeta[-1] * SS.sumLogPiRem
-
-    def slack_NminusTheta(self, LP):
-        ''' Calculate part of doc-topic slack term dependent on N[d,k] - theta[d,k]
-
-            Returns
-            -------
-            slack_active : 1D array, size K
-            slack_rem : scalar
-        '''
-        slack = LP['DocTopicCount'] - LP['theta']
-        slack *= LP['ElogPi']
-        slack_active = np.sum(slack, axis=0)
-        slack_rem = -1 * np.sum(LP['thetaRem'] * LP['ElogPiRem'])
-        return slack_active, slack_rem
-
-    def c_Dir_theta__parts(self, LP):
-        ''' Calculate quantities needed to compute cumulant of q(pi | theta)
-
-            Returns
-            --------
-            gammalnSumTheta : scalar
-            gammalnTheta_active : 1D array, size K
-            gammalnTheta_rem : scalar
-        '''
-        nDoc = LP['theta'].shape[0]
-        sumTheta = np.sum(LP['theta'], axis=1) + LP['thetaRem']
-        gammalnSumTheta = np.sum(gammaln(sumTheta))
-        gammalnTheta_active = np.sum(gammaln(LP['theta']), axis=0)
-        gammalnTheta_rem = nDoc * gammaln(LP['thetaRem'])
-        return gammalnSumTheta, gammalnTheta_active, gammalnTheta_rem
-
-    def c_Dir_theta(self, gammalnSumTheta, gammalnTheta, gammalnTheta_rem):
-        ''' Calculate cumulant function for q(pi | theta)
-        '''
-        return gammalnSumTheta - np.sum(gammalnTheta) - gammalnTheta_rem
-
-    def E_logpU_logqU_plus_cDirAlphaBeta(self, SS):
-        ''' Calculate E[ log p(u) - log q(u) ]
-
-            Returns
-            ---------
-            Elogstuff : real scalar
-        '''
-        g1 = self.rho * self.omega
-        g0 = (1 - self.rho) * self.omega
-        digammaBoth = digamma(g1 + g0)
-        ElogU = digamma(g1) - digammaBoth
-        Elog1mU = digamma(g0) - digammaBoth
-
-        ONcoef = SS.nDoc + 1.0 - g1
-        OFFcoef = SS.nDoc * OptimizerRhoOmega.kvec(self.K) + self.gamma - g0
-
-        cDiff = SS.K * c_Beta(1, self.gamma) - c_Beta(g1, g0)
-        logBetaPDF = np.inner(ONcoef, ElogU) \
-            + np.inner(OFFcoef, Elog1mU)
-        return cDiff + logBetaPDF
-
-    def E_logqZ(self, Data, LP):
-        ''' Calculate E[ log q(z)] for each active topic
-
-            Returns
-            -------
-            ElogqZ : 1D array, size K
-        '''
-        if hasattr(Data, 'word_count'):
-            return calcRlogRdotv(LP['resp'], Data.word_count)
-        else:
-            return calcRlogR(LP['resp'])
-
-    # ideal objective
-    #########################################################
+    """
     def E_cDir_alphabeta__Numeric(self):
         ''' Numeric integration of the expectation
         '''
@@ -743,78 +745,136 @@ class HDPTopicModel(AllocModel):
         cRest = np.sum(ElogU) + np.inner(OFFcoef, Elog1mU)
 
         return calpha + cRest
+    """
 
-    # OLD calc_evidence
-    #########################################################
-    # To be used only to verify the current objective
+    # .... end class HDPTopicModel
 
-    def zzz_calc_evidence(self, Data, SS, LP, **kwargs):
-        ''' Calculate ELBO objective 
-        '''
-        calpha = SS.nDoc * \
-            (gammaln(self.alpha) + (SS.K + 1) * np.log(self.alpha))
-        UandcPi_global = self.E_logpU_logqU_c(SS)
-        Pi_global = self.E_logpPi__global(SS)
-        if SS.hasELBOTerms():
-            ElogqZ = SS.getELBOTerm('ElogqZ')
-            VPi_local = SS.getELBOTerm('VPilocal')
-        else:
-            ElogqZ = self.E_logqZ(Data, LP)
-            VPi_local = self.E_logpPiZ_logqPi(Data, LP)
-        elbo = calpha + UandcPi_global + Pi_global + VPi_local - np.sum(ElogqZ)
-        return dict(calpha=calpha,
-                    UandcPi_global=UandcPi_global,
-                    Pi_global=Pi_global,
-                    ZPi_local=VPi_local,
-                    ElogqZ=ElogqZ,
-                    elbo=elbo)
 
-    def E_logpPi__global(self, SS):
-        ''' Calculate the part of E[ log p(v) ] that depends on global topic probs
-            DEPRECATED
-            Returns
-            --------
-            Elogstuff : real scalar
-        '''
-        alphaEbeta = self.alpha * self.E_beta()
-        return np.inner(alphaEbeta[:-1], SS.sumLogPi) \
-            + alphaEbeta[-1] * SS.sumLogPiRem
+def L_allocglobal(rho, omega, gamma=1.0, alpha=1.0, nDoc=0):
+    """ Compute global-only term of the ELBO objective.
+    """
+    K = rho.size
+    eta1 = rho * omega
+    eta0 = (1-rho) * omega
+    digammaBoth = digamma(eta1 + eta0)
+    ElogU = digamma(eta1) - digammaBoth
+    Elog1mU = digamma(eta0) - digammaBoth
 
-    def E_logpPiZ_logqPi(self, Data, LP):
-        ''' Calculate E[ log p(v) + log p(z) - log q(v) ]
-            DEPRECATED
+    ONcoef = nDoc + 1.0 - eta1
+    OFFcoef = nDoc * OptimizerRhoOmega.kvec(K) + gamma - eta0
 
-            Returns
-            -------
-            Elogstuff : real scalar
-        '''
-        cDiff = -1 * c_Dir(LP['theta'], LP['thetaRem'])
-        logDirPDF = np.sum((LP['DocTopicCount'] - LP['theta']) * LP['ElogPi']) \
-            - np.sum(LP['thetaRem'] * LP['ElogPiRem'])
-        return cDiff + np.sum(logDirPDF)
+    calpha = gammaln(alpha) + (K + 1) * np.log(alpha)
+    cDiff = K * c_Beta(1, gamma) - c_Beta(eta1, eta0)
 
-    def E_logpU_logqU_c(self, SS):
-        ''' Calculate E[ log p(u) - log q(u) ]
-            DEPRECATED
+    return calpha + \
+           cDiff + \
+           np.inner(ONcoef, ElogU) + np.inner(OFFcoef, Elog1mU)
 
-            Returns
-            ---------
-            Elogstuff : real scalar
-        '''
-        g1 = self.rho * self.omega
-        g0 = (1 - self.rho) * self.omega
-        digammaBoth = digamma(g1 + g0)
-        ElogU = digamma(g1) - digammaBoth
-        Elog1mU = digamma(g0) - digammaBoth
+def L_slackglobal(alphaEbeta=None, 
+                  sumLogPi=None, sumLogPiRem=0,
+                  rho=None, omega=None, alpha=1.0):
+    """ Returns arrays whos sum is ELBO term.
 
-        ONcoef = SS.nDoc + 1.0 - g1
-        OFFcoef = SS.nDoc * OptimizerRhoOmega.kvec(self.K) + self.gamma - g0
+    Returns
+    -------
+    L : scalar float
+    """
+    if alphaEbeta is None:
+        alphaEbeta = alpha * Ebeta
+    Svec = alphaEbeta[:-1] * sumLogPi
+    Srem = alphaEbeta[-1] * sumLogPiRem
+    return Svec.sum() + Srem
 
-        cDiff = SS.K * c_Beta(1, self.gamma) - c_Beta(g1, g0)
-        logBetaPDF = np.inner(ONcoef, ElogU) \
-            + np.inner(OFFcoef, Elog1mU)
-        return cDiff + logBetaPDF
+def L_slacklocal(slackTheta=None, slackThetaRem=None, LP=None):
+    ''' Calculate part of ELBO depending on doc-topic slack terms
 
+    Returns
+    -------
+    L : scalar float
+    '''
+    if slackTheta is None:
+        slackTheta, slackThetaRem = calcMemoPieces_L_slacklocal(LP)
+    return slackTheta.sum() + slackThetaRem
+
+def calcMemoPieces_L_slacklocal(LP):
+    """ Calculate part of ELBO depending on doc-topic slack terms.
+
+    Returns
+    -------
+    slackTheta : 1D array, size K
+    slackThetaRem : float
+    """
+    slackTheta = LP['DocTopicCount'] - LP['theta']
+    slackTheta *= LP['ElogPi']
+    slackTheta = np.sum(slackTheta, axis=0)
+    slackThetaRem = -1 * np.sum(LP['thetaRem'] * LP['ElogPiRem'])
+    return slackTheta, slackThetaRem
+
+def L_alloclocal(
+        gammalnSumTheta=None,
+        gammalnTheta=None,
+        gammalnThetaRem=None,
+        theta=None, thetaRem=None, **kwargs):
+    """ Calculate local allocation term of the ELBO objective.
+
+    Returns
+    -------
+    L : scalar float
+    """
+    if theta is not None:
+        gammalnSumTheta, gammalnTheta, gammalnThetaRem =\
+            calcMemoPieces_L_alloclocal(theta, thetaRem)
+    cDiff = gammalnSumTheta - gammalnTheta.sum() - gammalnThetaRem
+    return -1 * cDiff
+
+def calcMemoPieces_L_alloclocal(theta, thetaRem):
+    sumTheta = np.sum(theta, axis=1) + thetaRem
+    gammalnSumTheta = np.sum(gammaln(sumTheta))
+    gammalnTheta = np.sum(gammaln(theta), axis=0)    
+    nDoc = theta.shape[0]
+    gammalnThetaRem = nDoc * gammaln(thetaRem)
+    return gammalnSumTheta, gammalnTheta, gammalnThetaRem
+
+def L_entropy(Data=None, LP=None, resp=None):
+    """ Calculate entropy of soft assignments term in ELBO objective.
+
+    Returns
+    -------
+    L_entropy : scalar float
+    """
+    return calcHvec(Data, LP, resp).sum()
+
+def calcHvec(Data=None, LP=None, resp=None):
+    """ Calculate vector whos sume is the entropy term in ELBO objective.
+
+    Returns
+    -------
+    Hvec : 1D array, size K
+    """
+    if LP is not None:
+        resp = LP['resp']
+    if hasattr(Data, 'word_count'):
+        Hvec = -1 * calcRlogRdotv(resp, Data.word_count)
+    else:
+        Hvec = -1 * calcRlogR(resp)
+    return Hvec
+
+def E_cDalphabeta_surrogate(alpha, rho, omega):
+    """ Compute expected value of cumulant function of alpha * beta.
+
+    Returns
+    -------
+    csur : scalar float
+    """
+    K = rho.size
+    eta1 = rho * omega
+    eta0 = (1-rho) * omega
+    digammaBoth = digamma(eta1 + eta0)
+    ElogU = digamma(eta1) - digammaBoth
+    Elog1mU = digamma(eta0) - digammaBoth
+    OFFcoef = OptimizerRhoOmega.kvec(K)
+    calpha = gammaln(alpha) + (K + 1) * np.log(alpha)
+    return calpha + np.sum(ElogU) + np.inner(OFFcoef, Elog1mU)
 
 def c_Beta(a1, a0):
     ''' Evaluate cumulant function of the Beta distribution
@@ -831,11 +891,11 @@ def c_Beta(a1, a0):
 def c_Dir(AMat, arem=None):
     ''' Evaluate cumulant function of the Dir distribution
 
-        When input is vectorized, we compute sum over all entries.
+    When input is vectorized, we compute sum over all entries.
 
-        Returns
-        -------
-        c : scalar real
+    Returns
+    -------
+    c : scalar real
     '''
     AMat = np.asarray(AMat)
     D = AMat.shape[0]
@@ -861,101 +921,3 @@ def c_Dir__slow(AMat, arem):
         avec = np.hstack([AMat[d], arem])
         c += gammaln(np.sum(avec)) - np.sum(gammaln(avec))
     return c
-
-# Calc ELBO for 1 doc
-#########################################################
-
-
-def calcELBOSingleDoc(Data, docID, singleLP=None,
-                      resp_d=None, Lik_d=None, logLik_d=None,
-                      theta_d=None, thetaRem=None, **kwargs):
-    if hasattr(Data, 'word_count'):
-        start = Data.doc_range[docID]
-        stop = Data.doc_range[docID + 1]
-        wct = Data.word_count[start:stop]
-    else:
-        wct = 1.0
-
-    if logLik_d is None:
-        if Lik_d is None:
-            Lik_d = singleLP['E_log_soft_ev']
-        if Lik_d.max() >= 0:
-            logSoftEv = np.log(Lik_d + 1e-100)
-        else:
-            logSoftEv = Lik_d
-    else:
-        logSoftEv = logLik_d
-
-    if resp_d is None:
-        resp_d = singleLP['resp']
-    if theta_d is None:
-        theta_d = singleLP['theta']
-        if theta_d.ndim < 2:
-            theta_d = theta_d[np.newaxis, :]
-        thetaRem = singleLP['thetaRem']
-
-    if hasattr(Data, 'word_count'):
-        Hvec = calcRlogRdotv(resp_d, wct)
-    else:
-        Hvec = calcRlogR(resp_d)
-    H = -1 * np.sum(Hvec)
-    #H = -1 * np.sum(wct[:,np.newaxis] * (resp_d * np.log(resp_d)))
-
-    Lik = np.dot(wct, resp_d * logSoftEv).sum()
-    #Lik = np.sum(wct[:,np.newaxis] * (resp_d * logSoftEv))
-    cDir = -1 * c_Dir(theta_d, thetaRem)
-    return H + cDir + Lik
-
-
-def calcELBO_AllDocs_AfterEStep(Data, LP=None, logLik_d=None, **kwargs):
-    if hasattr(Data, 'word_count'):
-        wct = Data.word_count[:, np.newaxis]
-    else:
-        wct = 1.0
-
-    if logLik_d is None:
-        Lik_d = LP['E_log_soft_ev']
-        if Lik_d.max() >= 0:
-            logSoftEv = np.log(Lik_d + 1e-100)
-        else:
-            logSoftEv = Lik_d
-    else:
-        logSoftEv = logLik_d
-
-    resp = LP['resp']
-
-    Lik = np.sum(wct * (resp * logSoftEv))
-
-    if hasattr(Data, 'word_count'):
-        Hvec = calcRlogRdotv(LP['resp'], wct)
-    else:
-        Hvec = calcRlogR(LP['resp'])
-    HH = np.sum(Hvec)
-    H = -1 * np.sum(wct * (resp * np.log(resp)))
-    assert np.allclose(H, HH)
-    cDir = -1 * c_Dir(LP['theta'], LP['thetaRem'])
-    return H + cDir + Lik
-
-
-def calcELBOSingleDoc_Fast(wc_d, DocTopicCount_d, Prior_d, sumR_d, alphaEbeta):
-    ''' Evaluate ELBO contributions for single doc, dropping terms constant wrt local step.
-
-        Note: key to some progress was remembering that Prior_d is not just exp(ElogPi)
-              but that it is usually altered by a multiplicative constant for safety
-              we can find this constant offset (in logspace), and adjust sumR_d accordingly
-    '''
-    theta_d = DocTopicCount_d + alphaEbeta[:-1]
-    thetaRem = alphaEbeta[-1]
-
-    digammaSum = digamma(theta_d.sum() + thetaRem)
-    ElogPi_d = digamma(theta_d) - digammaSum
-    ElogPiRem = digamma(thetaRem) - digammaSum
-
-    cDir = -1 * c_Dir(theta_d[np.newaxis, :], thetaRem)
-    slackOn = np.inner(DocTopicCount_d + alphaEbeta[:-1] - theta_d,
-                       ElogPi_d.flatten())
-    slackOff = (alphaEbeta[-1] - thetaRem) * ElogPiRem
-    rest = np.inner(wc_d, np.log(sumR_d)) - \
-        np.inner(DocTopicCount_d, np.log(Prior_d + 1e-100))
-
-    return cDir + slackOn + slackOff + rest

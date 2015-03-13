@@ -76,24 +76,16 @@ class HModel(object):
         LP = self.allocModel.calc_local_params(Data, LP, **kwargs)
         return LP
 
-    def get_global_suff_stats(self, Data, LP, doAmplify=False, **kwargs):
+    def get_global_suff_stats(self, Data, LP, **kwargs):
         ''' Calculate sufficient statistics for each component.
 
-            These stats summarize the data and local parameters
-            assigned to each component.
+        These stats summarize the data and local parameters
+        assigned to each component.
 
-            This is necessary prep for the M-step of EM algorithm.
+        This is necessary prep for the Global Step update.
         '''
         SS = self.allocModel.get_global_suff_stats(Data, LP, **kwargs)
         SS = self.obsModel.get_global_suff_stats(Data, SS, LP, **kwargs)
-        if doAmplify:
-            # Change effective scale of the suff stats, for soVB learning
-            if hasattr(Data, 'nDoc'):
-                ampF = Data.nDocTotal / float(Data.nDoc)
-                SS.applyAmpFactor(ampF)
-            else:
-                ampF = Data.nObsTotal / float(Data.nObs)
-                SS.applyAmpFactor(ampF)
         return SS
 
     def update_global_params(self, SS, rho=None, **kwargs):

@@ -11,7 +11,7 @@ Two K-length vectors
 Objective:
 * argmin ELBO(rho, omega)
 
-Constraints: 
+Constraints:
 * rho satisfies: 0 < rho[k] < 1
 * omega satisfies: 0 < omega[k]
 '''
@@ -39,20 +39,21 @@ def find_optimum_multiple_tries(sumLogPi=0, nDoc=0,
                                 approx_grad=False,
                                 factrList=[1e5, 1e7, 1e9, 1e10, 1e11],
                                 **kwargs):
-    ''' Estimate vectors rho and omega via gradient descent,
-          gracefully using multiple restarts
-          with progressively weaker tolerances until one succeeds
+    ''' Compute rho and omega via gradient descent that optimize ELBO.
 
-        Returns
-        --------
-        rho : 1D array, length K
-        omega : 1D array, length K
-        f : scalar value of minimization objective
-        Info : dict
+    Will gracefully using multiple restarts with progressively
+    weaker tolerances until one succeeds.
 
-        Raises
-        --------
-        ValueError with FAILURE in message if all restarts fail
+    Returns
+    --------
+    rho : 1D array, length K
+    omega : 1D array, length K
+    f : scalar value of minimization objective
+    Info : dict
+
+    Raises
+    --------
+    ValueError with FAILURE in message if all restarts fail
     '''
     rhoomega = None
     Info = dict()
@@ -60,12 +61,12 @@ def find_optimum_multiple_tries(sumLogPi=0, nDoc=0,
     nOverflow = 0
     for trial, factr in enumerate(factrList):
         try:
-            rhoomega, f, Info = find_optimum(sumLogPi, nDoc,
-                                             gamma=gamma, alpha=alpha, kappa=kappa,
-                                             startAlphaLogPi=startAlphaLogPi,
-                                             initrho=initrho, initomega=initomega,
-                                             factr=factr, approx_grad=approx_grad,
-                                             **kwargs)
+            rhoomega, f, Info = find_optimum(
+                sumLogPi, nDoc, gamma=gamma, alpha=alpha, kappa=kappa,
+                startAlphaLogPi=startAlphaLogPi,
+                initrho=initrho, initomega=initomega,
+                factr=factr, approx_grad=approx_grad,
+                **kwargs)
             Info['nRestarts'] = trial
             Info['factr'] = factr
             Info['msg'] = Info['task']
@@ -85,10 +86,12 @@ def find_optimum_multiple_tries(sumLogPi=0, nDoc=0,
     if rhoomega is None:
         if initrho is not None:
             # Last ditch effort, try different initialization
-            return find_optimum_multiple_tries(sumLogPi, nDoc,
-                                               gamma=gamma, alpha=alpha, kappa=kappa,
-                                               initrho=None, initomega=None,
-                                               approx_grad=approx_grad, **kwargs)
+            return find_optimum_multiple_tries(
+                sumLogPi, nDoc, gamma=gamma, alpha=alpha, kappa=kappa,
+                startAlphaLogPi=startAlphaLogPi,
+                initrho=None, initomega=None,
+                factr=factr, approx_grad=approx_grad,
+                **kwargs)
         else:
             raise ValueError(msg)
     Info['nOverflow'] = nOverflow
@@ -102,15 +105,15 @@ def find_optimum(sumLogPi=0, nDoc=0, gamma=1.0, alpha=1.0, kappa=0.0,
                  approx_grad=False, factr=1.0e5, **kwargs):
     ''' Run gradient optimization to estimate best parameters rho, omega
 
-        Returns
-        --------
-        rhoomega : 1D array, length 2*K
-        f : scalar value of minimization objective
-        Info : dict
+    Returns
+    --------
+    rhoomega : 1D array, length 2*K
+    f : scalar value of minimization objective
+    Info : dict
 
-        Raises
-        --------
-        ValueError on an overflow, any NaN, or failure to converge
+    Raises
+    --------
+    ValueError on an overflow, any NaN, or failure to converge
     '''
     if sumLogPi.ndim > 1:
         sumLogPi = np.squeeze(np.asarray(sumLogPi, dtype=np.float64))
@@ -141,18 +144,20 @@ def find_optimum(sumLogPi=0, nDoc=0, gamma=1.0, alpha=1.0, kappa=0.0,
                    nDoc=nDoc, gamma=gamma, alpha=alpha, kappa=kappa,
                    approx_grad=approx_grad, scaleVector=scaleVector)
 
-    c_objFunc = lambda c: objFunc_unconstrained(c, **objArgs)
+    def c_objFunc(c):
+        return objFunc_unconstrained(c, **objArgs)
 
     # Run optimization, raising special error on any overflow or NaN issues
     with warnings.catch_warnings():
         warnings.filterwarnings('error', category=RuntimeWarning,
                                 message='overflow')
         try:
-            chat, fhat, Info = scipy.optimize.fmin_l_bfgs_b(c_objFunc, initc,
-                                                            disp=None,
-                                                            approx_grad=approx_grad,
-                                                            factr=factr,
-                                                            **kwargs)
+            chat, fhat, Info = scipy.optimize.fmin_l_bfgs_b(
+                c_objFunc, initc,
+                disp=None,
+                approx_grad=approx_grad,
+                factr=factr,
+                **kwargs)
         except RuntimeWarning:
             raise ValueError("FAILURE: overflow!")
         except AssertionError:
@@ -166,9 +171,6 @@ def find_optimum(sumLogPi=0, nDoc=0, gamma=1.0, alpha=1.0, kappa=0.0,
     rhoomega = c2rhoomega(chat, scaleVector=scaleVector, returnSingleVector=1)
     rhoomega[:K] = forceRhoInBounds(rhoomega[:K])
     return rhoomega, fhat, Info
-
-# Objective
-# unconstrained
 
 
 def objFunc_unconstrained(c, scaleVector=None, approx_grad=False, **kwargs):
@@ -186,12 +188,12 @@ def objFunc_unconstrained(c, scaleVector=None, approx_grad=False, **kwargs):
 def c2rhoomega(c, scaleVector=None, returnSingleVector=False):
     ''' Transform unconstrained variable c into constrained rho, omega
 
-        Returns
-        --------
-        rho : 1D array, size K, entries between [0, 1]
-        omega : 1D array, size K, positive entries
+    Returns
+    --------
+    rho : 1D array, size K, entries between [0, 1]
+    omega : 1D array, size K, positive entries
 
-        OPTIONAL: may return as one concatenated vector (length 2K)
+    OPTIONAL: may return as one concatenated vector (length 2K)
     '''
     K = c.size / 2
     rho = sigmoid(c[:K])
@@ -210,9 +212,6 @@ def rhoomega2c(rhoomega, scaleVector=None):
         rhoomega = rhoomega / scaleVector
     return np.hstack([invsigmoid(rhoomega[:K]), np.log(rhoomega[K:])])
 
-# Objective
-# constrained
-
 
 def objFunc_constrained(rhoomega,
                         sumLogPi=0, nDoc=0, gamma=1.0, alpha=1.0, kappa=0.0,
@@ -220,15 +219,15 @@ def objFunc_constrained(rhoomega,
                         approx_grad=False, **kwargs):
     ''' Returns constrained objective function and its gradient.
 
-        Args
-        -------
-        rhoomega := 1D array, size 2*K
+    Args
+    -------
+    rhoomega := 1D array, size 2*K
 
-        Returns
-        -------
-        f := -1 * L(rhoomega), 
-             where L is ELBO objective function (log posterior prob)
-        g := gradient of f
+    Returns
+    -------
+    f := -1 * L(rhoomega),
+         where L is ELBO objective function (log posterior prob)
+    g := gradient of f
     '''
     assert not np.any(np.isnan(rhoomega))
     assert not np.any(np.isinf(rhoomega))
@@ -261,9 +260,9 @@ def objFunc_constrained(rhoomega,
         Ebeta[1:] *= np.cumprod(1 - rho)
         elbo_local = np.inner(Ebeta, Tvec)
 
-    # This is special case for unit tests that make sure the optimizer
-    # finds the parameters that set q(u) equal to its prior when nDoc=0
     else:
+        # This is special case for unit tests that make sure the optimizer
+        # finds the parameters that set q(u) equal to its prior when nDoc=0
         scale = 1
         ONcoef = 1 - g1
         OFFcoef = gamma - g0
@@ -295,9 +294,6 @@ def objFunc_constrained(rhoomega,
 
     return -1.0 * elbo, -1.0 * grad
 
-# Util fcns
-###########################################################
-
 
 def _unpack(rhoomega):
     K = rhoomega.size / 2
@@ -309,9 +305,9 @@ def _unpack(rhoomega):
 def kvec(K):
     ''' Obtain descending vector of [K, K-1, ... 1]
 
-        Returns
-        --------
-        kvec : 1D array, size K
+    Returns
+    --------
+    kvec : 1D array, size K
     '''
     return K + 1 - np.arange(1, K + 1)
 
@@ -319,9 +315,20 @@ def kvec(K):
 def c_Beta(g1, g0):
     ''' Calculate cumulant function of the Beta distribution
 
-        Returns
-        -------
-        c : scalar sum of the cumulants defined by provided parameters
+    Input can be vectors, in which case we compute sum over
+    several cumulant functions of the independent distributions:
+    \prod_k Beta(g1[k], g0[k])
+
+    Args
+    ----
+    g1 : 1D array, size K
+        first parameter of a Beta distribution
+    g0 : 1D array, size K
+        second parameter of a Beta distribution     
+
+    Returns
+    -------
+    c : scalar sum of the cumulants defined by provided parameters
     '''
     return np.sum(gammaln(g1 + g0) - gammaln(g1) - gammaln(g0))
 
@@ -329,9 +336,9 @@ def c_Beta(g1, g0):
 def calc_dEbeta_drho(Ebeta, rho, K):
     ''' Calculate partial derivative of Ebeta w.r.t. rho
 
-        Returns
-        ---------
-        Delta : 2D array, size K x K+1
+    Returns
+    ---------
+    Delta : 2D array, size K x K+1
     '''
     Delta = np.tile(-1 * Ebeta, (K, 1))
     Delta /= (1 - rho)[:, np.newaxis]
@@ -339,31 +346,10 @@ def calc_dEbeta_drho(Ebeta, rho, K):
 
     # Using flat indexing seems to be faster (about x2)
     Delta.ravel()[_get_flatLowTriIDs(K)] = 0
-    #Delta[_get_lowTriIDs(K)] = 0
     return Delta
 
+
 flatlowTriIDsDict = dict()
-
-
-def _get_flatLowTriIDs(K):
-    if K in flatlowTriIDsDict:
-        return flatlowTriIDsDict[K]
-    else:
-        flatIDs = np.ravel_multi_index(np.tril_indices(K, -1), (K, K + 1))
-        flatlowTriIDsDict[K] = flatIDs
-        return flatIDs
-
-lowTriIDsDict = dict()
-
-
-def _get_lowTriIDs(K):
-    if K in lowTriIDsDict:
-        return lowTriIDsDict[K]
-    else:
-        ltIDs = np.tril_indices(K, -1)
-        lowTriIDsDict[K] = ltIDs
-        return ltIDs
-
 diagIDsDict = dict()
 
 
@@ -374,3 +360,12 @@ def _get_diagIDs(K):
         diagIDs = np.diag_indices(K)
         diagIDsDict[K] = diagIDs
         return diagIDs
+
+
+def _get_flatLowTriIDs(K):
+    if K in flatlowTriIDsDict:
+        return flatlowTriIDsDict[K]
+    else:
+        flatIDs = np.ravel_multi_index(np.tril_indices(K, -1), (K, K + 1))
+        flatlowTriIDsDict[K] = flatIDs
+        return flatIDs
