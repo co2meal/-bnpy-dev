@@ -225,65 +225,72 @@ def calcELBO_SingleDoc(DocTopicCount_d, DocTopicProb_d, sumResp_d,
 
 
 
-def inferLocal_SingleDoc_TrackELBO(wc_d, Lik_d, alphaEbeta, alphaEbetaRem,
-                                   DocTopicCount_d=None, sumR_d=None,
-                                   nCoordAscentItersLP=10, convThrLP=0.001,
-                                   restartremovejunkLP=0,
-                                   **kwargs):
-    ''' Infer compact local parameters for a single document
+def calcLocalParams_SingleDoc_WithELBOTrace(
+        wc_d, Lik_d, alphaEbeta, alphaEbetaRem,
+        DocTopicCount_d=None, sumR_d=None,
+        nCoordAscentItersLP=10, convThrLP=0.001,
+        restartLP=0,
+        **kwargs):
+    ''' Infer local parameters for a single document, with ELBO trace.
 
-        Assumes q(Pi_d) is a Dirichlet.
+    Performs same calculations as calcLocalParams_SingleDoc, 
+    but (expensively) tracks the ELBO at every local step iteration.
+    Thus, we refactored this into a separate function, so we do not
+    pay a performance penalty for an if statement in the inner loop.
 
-        Args
-        --------
+    Args
+    --------
+    Same as calcLocalParams_SingleDoc
 
-        Kwargs
-        --------
-        restartremovejunkLP : set to 2 to do doc-level removal of small topics
 
-        Returns
-        --------
-        DocTopicCount_d : updated doc-topic counts
-        Prior_d : prob of topic in document, up to mult. constant
-        sumR_d : normalization constant for each token
+    Returns
+    --------
+    DocTopicCount_d : updated doc-topic counts
+    Prior_d : prob of topic in document, up to mult. constant
+    sumR_d : normalization constant for each token
+    Info : dict, with field
+        * 'ELBOtrace' : 1D array, size nIters
+            which gives the ELBO over the iterations on this document
+            up to additive const indep of local params.
     '''
-    if sumR_d is None:
-        sumR_d = np.zeros(Lik_d.shape[0])
+    if sumResp_d is None:
+        sumResp_d = np.zeros(Lik_d.shape[0])
+
+    # Initialize prior from global topic probs
+    DocTopicProb_d = alphaEbeta.copy()
 
     if DocTopicCount_d is None:
-        # Initialize prior from global topic probs
-        Prior_d = alphaEbeta.copy()
-        # Update sumR_d for all tokens in document
-        np.dot(Lik_d, Prior_d, out=sumR_d)
+        # Update sumResp for all tokens in document
+        np.dot(Lik_d, DocTopicProb_d, out=sumResp_d)
 
         # Update DocTopicCounts
-        DocTopicCount_d = np.zeros_like(Prior_d)
-        np.dot(wc_d / sumR_d, Lik_d, out=DocTopicCount_d)
-        DocTopicCount_d *= Prior_d
-    else:
-        # Initialize from provided DocTopicCount_d vector
-        Prior_d = np.zeros(DocTopicCount_d.size)
-
+        DocTopicCount_d = np.zeros_like(DocTopicProb_d)
+        np.dot(wc_d / sumResp_d, Lik_d, out=DocTopicCount_d)
+        DocTopicCount_d *= DocTopicProb_d
+    
     ELBOtrace = list()
     prevDocTopicCount_d = DocTopicCount_d.copy()
     for iter in xrange(nCoordAscentItersLP):
         # Update Prob of Active Topics
-        np.add(DocTopicCount_d, alphaEbeta, out=Prior_d)
-        digamma(Prior_d, out=Prior_d)   # Prior_d = E[ log pi_dk ] + constant
-        #Prior_d -= Prior_d.max()
-        # Prior_d = exp E[ log pi_dk ] / constant
-        np.exp(Prior_d, out=Prior_d)
+        # First, in logspace, so Prob_d[k] = E[ log pi_dk ] + const
+        np.add(DocTopicCount_d, alphaEbeta, out=DocTopicProb_d)
+        digamma(DocTopicProb_d, out=DocTopicProb_d)   
+        # TODO: subtract max for safe exp? doesnt seem necessary...
 
-        # Update sumR_d for all tokens in document
-        np.dot(Lik_d, Prior_d, out=sumR_d)
+        # Convert: Prob_d[k] = exp E[ log pi_dk ] / const
+        np.exp(DocTopicProb_d, out=DocTopicProb_d)
+
+        # Update sumResp for all tokens in document
+        np.dot(Lik_d, DocTopicProb_d, out=sumResp_d)
 
         # Update DocTopicCounts
-        np.dot(wc_d / sumR_d, Lik_d, out=DocTopicCount_d)
-        DocTopicCount_d *= Prior_d
+        np.dot(wc_d / sumResp_d, Lik_d, out=DocTopicCount_d)
+        DocTopicCount_d *= DocTopicProb_d
 
-        # CALC ELBO
-        curELBO = calcELBO_SingleDoc_Dir(DocTopicCount_d, Prior_d, sumR_d,
-                                         wc_d, alphaEbeta, alphaEbetaRem)
+        # Calculate ELBO objective at current assignments
+        curELBO = calcELBO_SingleDoc(
+            DocTopicCount_d, DocTopicProb_d, sumResp_d,
+            wc_d, alphaEbeta, alphaEbetaRem)
         ELBOtrace.append(curELBO)
 
         # Check for convergence
@@ -293,10 +300,13 @@ def inferLocal_SingleDoc_TrackELBO(wc_d, Lik_d, alphaEbeta, alphaEbetaRem,
                 break
         prevDocTopicCount_d[:] = DocTopicCount_d
 
-    Info = dict(maxDiff=maxDiff, iter=iter, ELBOtrace=ELBOtrace)
-    if restartremovejunkLP == 2:
-        DocTopicCount_d, Prior_d, sumR_d, RInfo = removeJunkTopics_SingleDoc(
-            wc_d, Lik_d, alphaEbeta, alphaEbetaRem,
-            DocTopicCount_d, Prior_d, sumR_d, **kwargs)
+    Info = dict(maxDiff=maxDiff, iter=iter)
+    Info['ELBOtrace'] = np.asarray(ELBOtrace)
+    if restartLP:
+        DocTopicCount_d, DocTopicProb_d, sumResp_d, RInfo = \
+            removeJunkTopics_SingleDoc(
+                wc_d, Lik_d, alphaEbeta, alphaEbetaRem,
+                DocTopicCount_d, DocTopicProb_d, sumResp_d, **kwargs)
         Info.update(RInfo)
-    return DocTopicCount_d, Prior_d, sumR_d, Info
+    return DocTopicCount_d, DocTopicProb_d, sumResp_d, Info
+
