@@ -377,7 +377,7 @@ class DPMixtureModel(AllocModel):
 
         Post Condition for VB
         -------
-        theta set to define valid posterior over K components.
+        eta1/eta0 set to define valid posterior over K components.
         """
         if hmodel is not None:
             self.setParamsFromHModel(hmodel)

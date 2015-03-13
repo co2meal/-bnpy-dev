@@ -9,9 +9,8 @@ from LocalStepManyDocs import calcLocalParamsForDataSlice
 
 
 class FiniteTopicModel(AllocModel):
-    '''   
-    Bayesian topic model with a finite number of components K
-
+    '''
+    Bayesian topic model with a finite number of components K.
 
     Attributes
     -------
@@ -22,7 +21,7 @@ class FiniteTopicModel(AllocModel):
     alpha : float
         scalar pseudo-count
         used in Dirichlet prior on document-topic probabilities \pi_d.
-    
+
 
     Attributes for VB
     ---------
@@ -38,12 +37,12 @@ class FiniteTopicModel(AllocModel):
     References
     -------
     Latent Dirichlet Allocation, by Blei, Ng, and Jordan
-    introduces a classic admixture model with Dirichlet-Mult observations.
+    introduces a classic topic model with Dirichlet-Mult observations.
     '''
 
     def __init__(self, inferType, priorDict=None):
         if inferType == 'EM':
-            raise ValueError('LDA cannot do EM.')
+            raise ValueError('FiniteTopicModel cannot do EM.')
         self.inferType = inferType
         self.K = 0
         if priorDict is None:
@@ -103,7 +102,7 @@ class FiniteTopicModel(AllocModel):
         -------
         LP : dict
             Local parameters, with updated fields
-            * resp : 2D array, N x K 
+            * resp : 2D array, N x K
                 Posterior responsibility each comp has for each item
                 resp[n, k] = p(z[n] = k | x[n])
             * theta : 2D array, nDoc x K
@@ -117,7 +116,7 @@ class FiniteTopicModel(AllocModel):
         return LP
 
     def updateLPGivenDocTopicCount(self, LP, DocTopicCount):
-        ''' Update local parameters given topic counts for many docs.
+        ''' Update local parameters given doc-topic counts for many docs.
 
         Returns
         --------
@@ -129,6 +128,45 @@ class FiniteTopicModel(AllocModel):
         LP['theta'] = theta
         LP['ElogPi'] = digamma(theta) \
             - digamma(theta.sum(axis=1))[:, np.newaxis]
+        return LP
+
+
+    def initLPFromResp(self, Data, LP):
+        ''' Fill in remaining local parameters given token-topic resp.
+
+        Args
+        ----
+        LP : dict with fields
+            * resp : 2D array, size N x K
+
+        Returns
+        -------
+        LP : dict with fields
+            * DocTopicCount
+            * theta
+            * ElogPi
+        '''
+        resp = LP['resp']
+        K = resp.shape[1]
+        DocTopicCount = np.zeros((Data.nDoc, K))
+        for d in xrange(Data.nDoc):
+            start = Data.doc_range[d]
+            stop = Data.doc_range[d + 1]
+            if hasattr(Data, 'word_count'):
+                DocTopicCount[d, :] = np.dot(Data.word_count[start:stop],
+                                             resp[start:stop, :])
+            else:
+                DocTopicCount[d, :] = np.sum(resp[start:stop, :], axis=0)
+
+        remMass = np.minimum(0.1, 1.0 / (K * K))
+        newEbeta = (1 - remMass) / K
+        theta = DocTopicCount + self.alpha * newEbeta
+        digammaSumTheta = digamma(theta.sum(axis=1))
+        ElogPi = digamma(theta) - digammaSumTheta[:, np.newaxis]
+        
+        LP['DocTopicCount'] = DocTopicCount
+        LP['theta'] = theta
+        LP['ElogPi'] = ElogPi
         return LP
 
     def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None, **kwargs):
@@ -148,8 +186,8 @@ class FiniteTopicModel(AllocModel):
         -------
         SS : SuffStatBag with K components
             Summarizes for this mixture model, with fields
-            * N : 1D array, size K
-                N[k] = expected number of items assigned to comp k
+            * nDoc : scalar float
+                Counts total documents available in provided data.
 
             Also has optional ELBO field when precompELBO is True
             * Hvec : 1D array, size K
@@ -189,7 +227,7 @@ class FiniteTopicModel(AllocModel):
         Returns
         -------
         L : float
-            represents sum of all terms in objective
+            Represents sum of all terms in ELBO objective.
         """
         if SS.hasELBOTerms():
             Lentropy = SS.getELBOTerm('Hvec').sum()
@@ -241,8 +279,9 @@ def L_alloc(Data=None, LP=None, nDoc=0, alpha=1.0, **kwargs):
     slackVec *= LP['ElogPi']
     return cDiff + np.sum(slackVec)
 
+
 def L_entropy(Data=None, LP=None, resp=None, returnVector=0):
-    """ Calculate entropy of soft assignments.
+    """ Calculate entropy of soft assignments term in ELBO objective.
 
     Returns
     -------
@@ -258,14 +297,15 @@ def L_entropy(Data=None, LP=None, resp=None, returnVector=0):
         return Hvec
     return Hvec.sum()
 
+
 def c_Func(avec, K=0):
     ''' Evaluate cumulant function of the Dirichlet distribution
 
-        Returns
-        -------
-        c : scalar real
+    Returns
+    -------
+    c : scalar real
     '''
-    if type(avec) == float or avec.ndim == 0:
+    if isinstance(avec, float) or avec.ndim == 0:
         assert K > 0
         avec = avec * np.ones(K)
         return gammaln(np.sum(avec)) - np.sum(gammaln(avec))

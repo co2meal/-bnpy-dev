@@ -37,6 +37,7 @@ def logProbVector(vec, fmt='%8.4f', Nmax=10):
     vstr = ' '.join([fmt % (x) for x in vec[:Nmax]])
     log(vstr, 'debug')
 
+
 def configure(taskoutpath=None, doSaveToDisk=0, doWriteStdOut=0):
     global Log
     Log = logging.getLogger('localstep')

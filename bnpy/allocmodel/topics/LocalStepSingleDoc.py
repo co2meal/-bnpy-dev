@@ -1,11 +1,12 @@
 from scipy.special import digamma, gammaln
 import numpy as np
 
+
 def calcLocalParams_SingleDoc(
         wc_d, Lik_d, alphaEbeta, alphaEbetaRem=None,
         DocTopicCount_d=None, sumResp_d=None,
         nCoordAscentItersLP=10, convThrLP=0.001,
-        restartLP=0, 
+        restartLP=0,
         **kwargs):
     ''' Infer local parameters for a single document.
 
@@ -58,13 +59,13 @@ def calcLocalParams_SingleDoc(
         DocTopicCount_d = np.zeros_like(DocTopicProb_d)
         np.dot(wc_d / sumResp_d, Lik_d, out=DocTopicCount_d)
         DocTopicCount_d *= DocTopicProb_d
-    
+
     prevDocTopicCount_d = DocTopicCount_d.copy()
     for iter in xrange(nCoordAscentItersLP):
         # Update Prob of Active Topics
         # First, in logspace, so Prob_d[k] = E[ log pi_dk ] + const
         np.add(DocTopicCount_d, alphaEbeta, out=DocTopicProb_d)
-        digamma(DocTopicProb_d, out=DocTopicProb_d)   
+        digamma(DocTopicProb_d, out=DocTopicProb_d)
         # TODO: subtract max for safe exp? doesnt seem necessary...
 
         # Convert: Prob_d[k] = exp E[ log pi_dk ] / const
@@ -93,7 +94,6 @@ def calcLocalParams_SingleDoc(
         Info.update(RInfo)
 
     return DocTopicCount_d, DocTopicProb_d, sumResp_d, Info
-
 
 
 def removeJunkTopics_SingleDoc(
@@ -129,8 +129,8 @@ def removeJunkTopics_SingleDoc(
     # Determine eligible topics to delete
     if restartCriteriaLP == 'DocTopicCount':
         usedTopics = np.flatnonzero(
-                        np.logical_and(usedTopicMask,
-                                       DocTopicCount_d < restartMaxThrLP))
+            np.logical_and(usedTopicMask,
+                           DocTopicCount_d < restartMaxThrLP))
     else:
         usedTopics = np.flatnonzero(usedTopicMask)
     smallIDs = np.argsort(DocTopicCount_d[usedTopics])[:restartNumTrialsLP]
@@ -224,16 +224,15 @@ def calcELBO_SingleDoc(DocTopicCount_d, DocTopicProb_d, sumResp_d,
     return L_alloc + L_rest
 
 
-
 def calcLocalParams_SingleDoc_WithELBOTrace(
         wc_d, Lik_d, alphaEbeta, alphaEbetaRem=None,
         DocTopicCount_d=None, sumResp_d=None,
         nCoordAscentItersLP=10, convThrLP=0.001,
-        restartLP=0, 
+        restartLP=0,
         **kwargs):
     ''' Infer local parameters for a single document, with ELBO trace.
 
-    Performs same calculations as calcLocalParams_SingleDoc, 
+    Performs same calculations as calcLocalParams_SingleDoc,
     but (expensively) tracks the ELBO at every local step iteration.
     Thus, we refactored this into a separate function, so we do not
     pay a performance penalty for an if statement in the inner loop.
@@ -267,14 +266,14 @@ def calcLocalParams_SingleDoc_WithELBOTrace(
         DocTopicCount_d = np.zeros_like(DocTopicProb_d)
         np.dot(wc_d / sumResp_d, Lik_d, out=DocTopicCount_d)
         DocTopicCount_d *= DocTopicProb_d
-    
+
     ELBOtrace = list()
     prevDocTopicCount_d = DocTopicCount_d.copy()
     for iter in xrange(nCoordAscentItersLP):
         # Update Prob of Active Topics
         # First, in logspace, so Prob_d[k] = E[ log pi_dk ] + const
         np.add(DocTopicCount_d, alphaEbeta, out=DocTopicProb_d)
-        digamma(DocTopicProb_d, out=DocTopicProb_d)   
+        digamma(DocTopicProb_d, out=DocTopicProb_d)
         # TODO: subtract max for safe exp? doesnt seem necessary...
 
         # Convert: Prob_d[k] = exp E[ log pi_dk ] / const
@@ -309,4 +308,3 @@ def calcLocalParams_SingleDoc_WithELBOTrace(
                 DocTopicCount_d, DocTopicProb_d, sumResp_d, **kwargs)
         Info.update(RInfo)
     return DocTopicCount_d, DocTopicProb_d, sumResp_d, Info
-

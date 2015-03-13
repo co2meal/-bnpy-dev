@@ -18,7 +18,7 @@ def calcLocalParamsForDataSlice(
     Returns
     -------
     LP : dict of local params, with fields
-    * DocTopicCount : 2D array, nDoc x K 
+    * DocTopicCount : 2D array, nDoc x K
     * resp : 2D array, N x K
     * model-specific fields for doc-topic probabilities
     '''
@@ -97,6 +97,7 @@ def updateSingleDocLPWithResp(LP_d, Lik_d, Prior_d, sumR_d):
     LP_d['resp'] = resp_d
     return LP_d
 
+
 def writeLogMessageForManyDocs(Data, AI, **kwargs):
     """ Write log message summarizing convergence behavior across docs.
 
@@ -113,7 +114,7 @@ def writeLogMessageForManyDocs(Data, AI, **kwargs):
         return
     if 'batchID' not in kwargs:
         return
-        
+
     perc = [0, 5, 10, 50, 90, 95, 100]
     siter = ' '.join(
         ['%4d' % np.percentile(AI['iter'], p) for p in perc])
