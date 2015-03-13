@@ -226,10 +226,10 @@ def calcELBO_SingleDoc(DocTopicCount_d, DocTopicProb_d, sumResp_d,
 
 
 def calcLocalParams_SingleDoc_WithELBOTrace(
-        wc_d, Lik_d, alphaEbeta, alphaEbetaRem,
-        DocTopicCount_d=None, sumR_d=None,
+        wc_d, Lik_d, alphaEbeta, alphaEbetaRem=None,
+        DocTopicCount_d=None, sumResp_d=None,
         nCoordAscentItersLP=10, convThrLP=0.001,
-        restartLP=0,
+        restartLP=0, 
         **kwargs):
     ''' Infer local parameters for a single document, with ELBO trace.
 
