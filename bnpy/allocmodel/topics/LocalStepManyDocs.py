@@ -6,6 +6,7 @@ from bnpy.util import NumericUtil
 import LocalStepLogger
 
 from LocalStepSingleDoc import calcLocalParams_SingleDoc
+from LocalStepSingleDoc import calcLocalParams_SingleDoc_WithELBOTrace
 
 
 def calcLocalParamsForDataSlice(
