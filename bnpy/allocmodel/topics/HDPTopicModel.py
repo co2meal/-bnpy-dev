@@ -688,6 +688,10 @@ class HDPTopicModel(AllocModel):
                 theta=LP['theta'],
                 thetaRem=LP['thetaRem'])
             Lslacklocal = L_slacklocal(LP=LP)
+        if SS.hasAmpFactor():
+            Lentropy *= SS.ampF
+            Lalloclocal *= SS.ampF
+            Lslacklocal *= SS.ampF
 
         if todict:
             return dict(Lalloclocal=Lalloclocal,
