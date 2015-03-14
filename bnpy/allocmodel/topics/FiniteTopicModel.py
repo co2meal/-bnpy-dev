@@ -9,6 +9,7 @@ from LocalStepManyDocs import calcLocalParamsForDataSlice
 
 
 class FiniteTopicModel(AllocModel):
+
     '''
     Bayesian topic model with a finite number of components K.
 
@@ -130,7 +131,6 @@ class FiniteTopicModel(AllocModel):
             - digamma(theta.sum(axis=1))[:, np.newaxis]
         return LP
 
-
     def initLPFromResp(self, Data, LP):
         ''' Fill in remaining local parameters given token-topic resp.
 
@@ -163,7 +163,7 @@ class FiniteTopicModel(AllocModel):
         theta = DocTopicCount + self.alpha * newEbeta
         digammaSumTheta = digamma(theta.sum(axis=1))
         ElogPi = digamma(theta) - digammaSumTheta[:, np.newaxis]
-        
+
         LP['DocTopicCount'] = DocTopicCount
         LP['theta'] = theta
         LP['ElogPi'] = ElogPi

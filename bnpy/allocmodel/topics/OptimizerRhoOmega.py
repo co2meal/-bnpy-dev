@@ -324,7 +324,7 @@ def c_Beta(g1, g0):
     g1 : 1D array, size K
         first parameter of a Beta distribution
     g0 : 1D array, size K
-        second parameter of a Beta distribution     
+        second parameter of a Beta distribution
 
     Returns
     -------
