@@ -70,6 +70,7 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None,
         Nvec = curSS.getCountVec()
         scoreMsg += " %5d %5d" % (Nvec[jA], Nvec[jB])
 
+        """
         # Extra diagnostics for HDPTopic models
         if isHDPTopicModel:
             scoreMsg += " % .7e" % (OGapMat[kA, kB])
@@ -81,7 +82,7 @@ def run_many_merge_moves(curModel, curSS, curELBO, mPairIDs, M=None,
             cDirThetaGap = curSS.getMergeTerm('gammalnTheta')[jA, jB] \
                 - curSS.getELBOTerm('gammalnTheta')[[jA, jB]].sum()
             scoreMsg += " % .7e" % (cDirThetaGap / sF)
-
+        """
         curModel, curSS, curELBO, MoveInfo = buildCandidateAndKeepIfImproved(
             curModel, curSS, curELBO, jA, jB, Mcand, **kwargs)
         logFunc('%3d | %3d %3d | %d % .7e %s'

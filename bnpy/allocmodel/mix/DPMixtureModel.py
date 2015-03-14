@@ -35,6 +35,7 @@ def convertToN0(N):
     N0[:-1] = N[::-1].cumsum()[::-1][1:]
     return N0
 
+
 def c_Beta(g1, g0):
     ''' Evaluate cumulant function of Beta distribution
 
@@ -124,6 +125,7 @@ def Lentropy(resp):
 
 
 class DPMixtureModel(AllocModel):
+
     """ Nonparametric mixture model with K active components.
 
     Attributes

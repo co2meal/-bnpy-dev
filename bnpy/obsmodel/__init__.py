@@ -1,6 +1,3 @@
-'''
-'''
-
 from DiagGaussObsModel import DiagGaussObsModel
 from GaussObsModel import GaussObsModel
 from ZeroMeanGaussObsModel import ZeroMeanGaussObsModel
