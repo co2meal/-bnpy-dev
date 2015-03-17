@@ -80,7 +80,7 @@ def makePlanForEligibleComps(SS, DRecordsByComp=None,
                 failVec[ii] = DRecordsByComp[eUIDs[ii]]['nFail']
             else:
                 failVec[ii] = 0
-        DeleteLogger.logPosVector(eUIDs, fmt='%5d', prefix='  UIDss:')
+        DeleteLogger.logPosVector(eUIDs, fmt='%5d', prefix='  UIDs:')
         DeleteLogger.logPosVector(sizeVec, fmt='%5d', prefix=' sizes:')
         DeleteLogger.logPosVector(failVec, fmt='%5d', prefix=' nFail:')
 
