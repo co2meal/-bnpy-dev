@@ -21,7 +21,24 @@ from bnpy.viz.TaskRanker import rankTasksForSingleJobOnDisk
 from bnpy.viz.PlotTrace import taskidsHelpMsg
 
 
-def plotCompsForTask(taskpath, lap=None, figH=None,
+def plotCompsFromHModel(hmodel, **kwargs):
+    """ Show plot of learned clusters for provided model.
+    """
+    obsName = hmodel.getObsModelName()
+    if obsName.count('Gauss'):
+        if hmodel.obsModel.D > 2:
+            bnpy.viz.GaussViz.plotCovMatFromHModel(hmodel, **kwargs)
+        elif hmodel.obsModel.D == 2:
+            bnpy.viz.GaussViz.plotGauss2DFromHModel(hmodel, **kwargs)
+        elif hmodel.obsModel.D == 1:
+            bnpy.viz.GaussViz.plotGauss1DFromHModel(hmodel, **kwargs)
+    elif obsName.count('Bern'):
+        bnpy.viz.BernViz.plotCompsFromHModel(hmodel, **kwargs)
+    elif obsName.count('Mult'):
+        if dataName.lower().count('bars') > 0:
+            bnpy.viz.BarsViz.plotBarsFromHModel(hmodel, **kwargs)
+
+def plotCompsForTask(taskpath, lap=None,
                      dataName=None, **kwargs):
     ''' Show plot of learned clusters for single run of saved results on disk
     '''
@@ -45,20 +62,7 @@ def plotCompsForTask(taskpath, lap=None, figH=None,
         print 'Query lap %.2f unavailable. Using %.2f instead.' \
             % (queryLap, lap)
 
-    obsName = hmodel.getObsModelName()
-    if obsName.count('Gauss'):
-        if hmodel.obsModel.D > 2:
-            bnpy.viz.GaussViz.plotCovMatFromHModel(hmodel, figH=figH)
-        elif hmodel.obsModel.D == 2:
-            bnpy.viz.GaussViz.plotGauss2DFromHModel(hmodel, figH=figH)
-        elif hmodel.obsModel.D == 1:
-            bnpy.viz.GaussViz.plotGauss1DFromHModel(hmodel, figH=figH)
-    elif obsName.count('Bern'):
-        bnpy.viz.BernViz.plotCompsFromHModel(hmodel, figH=figH)
-    elif obsName.count('Mult'):
-        if dataName.lower().count('bars') > 0:
-            bnpy.viz.BarsViz.plotBarsFromHModel(hmodel, figH=figH, **kwargs)
-
+    plotCompsFromHModel(hmodel, **kwargs)
 
 def plotCompsForJob(jobpath='', taskids=[1], lap=None,
                     **kwargs):
