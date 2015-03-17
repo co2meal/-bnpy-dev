@@ -97,6 +97,7 @@ def plotGauss2DFromHModel(hmodel, compListToPlot=None,
                           MaxKToDisplay=50,
                           wTHR=0.0001,
                           figH=None,
+                          Data=None,
                           Colors=Colors):
     ''' Plot 2D contours for components in hmodel in current pylab figure
 
@@ -159,9 +160,13 @@ def plotGauss2DFromHModel(hmodel, compListToPlot=None,
             print 'DISPLAY LIMIT EXCEEDED. Showing %d/%d components' \
                 % (nGood, len(activeCompIDs))
             break
-
     if nSkip > 0:
         print 'SKIPPED %d comps with size below %.2f' % (nSkip, wTHR)
+
+    if Data is not None:
+        if hasattr(Data, 'X'):
+            pylab.plot(Data.X[:,0], Data.X[:,1], 'k.')
+
     pylab.axis('image')
 
 

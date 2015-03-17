@@ -7,7 +7,6 @@ import numpy as np
 import DeleteLogger
 from DCollector import hasValidKey
 
-
 def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
                                  nRefineIters=2,
                                  LPkwargs=None,
@@ -15,6 +14,7 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
                                  Kmax=np.inf,
                                  lapFrac=None,
                                  deleteNontargetStrategy='merge',
+                                 doVizDelete=0,
                                  **kwargs):
     """ Propose model with fewer comps and accept if ELBO improves.
 
@@ -171,9 +171,21 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
             ELBOgap_obs=propELBOobs - bestELBOobs,
             ELBOgap_Htrgt=ELBOgap_cached_target,
             ELBOgap_Hrest=ELBOgap_cached_rest)
-        DeleteLogger.log(curMsg)
-        DeleteLogger.log(propMsg)
-        DeleteLogger.log(resultMsg, 'info')
+        if doVizDelete:
+            levelStr = 'info'
+        else:
+            levelStr = 'debug'
+        DeleteLogger.log(curMsg, levelStr)
+        DeleteLogger.log(propMsg, levelStr)
+        DeleteLogger.log(resultMsg, levelStr)
+
+        if doVizDelete:
+            from bnpy.viz.PlotComps import plotCompsFromHModel
+            from matplotlib import pylab
+            plotCompsFromHModel(bestModel, Data=targetData,
+                compsToHighlight=[delCompID])
+            pylab.show(block=1)
+            raw_input('Press any key to continue>>>')
 
         # Update best model/stats to accepted values
         if didAcceptCur:
