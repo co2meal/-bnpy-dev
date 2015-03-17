@@ -167,6 +167,20 @@ class MOVBBirthMergeAlg(MOVBAlg):
                 else:
                     MergePrepInfo = dict()
 
+
+            # Delete : Prepare plan for next lap.
+            if self.hasMove('delete') and self.doDeleteAtLap(lapFrac + 1):
+                if self.isFirstBatch(lapFrac):
+                    Plan = DPlanner.makePlanForEligibleComps(
+                        SS,
+                        lapFrac=self.lapFrac,
+                        DRecordsByComp=self.DeleteRecordsByComp,
+                        **self.algParams['delete'])
+                    if 'candidateUIDs' in Plan:
+                        DeletePlans = [Plan]
+                    else:
+                        DeletePlans = []
+
             # Reset selection terms to zero
             if self.isFirstBatch(lapFrac):
                 if SS is not None and SS.hasSelectionTerms():
@@ -184,19 +198,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
                                                    MergePrepInfo=MergePrepInfo,
                                                    order=order)
 
-            # Delete : Make plan for comps to target during next lap
-            if self.hasMove('delete') and self.doDeleteAtLap(lapFrac + 1):
-                if self.isFirstBatch(lapFrac):
-                    Plan = DPlanner.makePlanForEligibleComps(
-                        SS,
-                        lapFrac=self.lapFrac,
-                        DRecordsByComp=self.DeleteRecordsByComp,
-                        **self.algParams['delete'])
-                    if 'candidateUIDs' in Plan:
-                        DeletePlans = [Plan]
-                    else:
-                        DeletePlans = []
-            # Delete : Collect the
+            # Delete : Collect target dataset
             if len(DeletePlans) > 0:
                 DeletePlans = self.deleteCollectTarget(Dchunk, hmodel, LPchunk,
                                                        batchID,

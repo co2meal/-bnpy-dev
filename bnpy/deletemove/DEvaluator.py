@@ -162,14 +162,18 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
                 break
             
         # Log result of this proposal
-        curMsg = makeLogMessage(bestSS, besttargetSS, 
-            ELBOgap_alloc=propELBOalloc - bestELBOalloc,
-            ELBOgap_obs=propELBOobs - bestELBOobs,
+        curMsg = makeLogMessage(bestSS, besttargetSS,
             label='cur', compUID=delCompUID)
         propMsg = makeLogMessage(propSS, ptargetSS,
-            label='prop', compUID=delCompUID, didAccept=didAcceptCur)
+            label='prop', compUID=delCompUID)
+        resultMsg = makeLogMessageForResult(ELBOgap, didAcceptCur,
+            ELBOgap_alloc=propELBOalloc - bestELBOalloc,
+            ELBOgap_obs=propELBOobs - bestELBOobs,
+            ELBOgap_Htrgt=ELBOgap_cached_target,
+            ELBOgap_Hrest=ELBOgap_cached_rest)
         DeleteLogger.log(curMsg)
         DeleteLogger.log(propMsg)
+        DeleteLogger.log(resultMsg, 'info')
 
         # Update best model/stats to accepted values
         if didAcceptCur:
@@ -262,32 +266,44 @@ def makeMPairIDsWith(k, K, excludeIDs=None):
             mPairIDs.append((k,j))
     return mPairIDs
 
-def makeLogMessage(aggSS, targetSS, ELBOgap_alloc=None, ELBOgap_obs=None,
-                   label='cur', didAccept=-1,
+
+def makeLogMessageForResult(ELBOgap, didAccept=0, 
+                            ELBOgap_alloc=0,
+                            ELBOgap_Htrgt=0,
+                            ELBOgap_Hrest=0,
+                            ELBOgap_obs=0):
+    if didAccept:
+        label = ' ACCEPTED '
+    else:
+        label = ' rejected '
+    label += ' ELBOgap %10.8f' % (ELBOgap)
+    label += '  alloc %10.8f' % (ELBOgap_alloc)
+    label += '  obs %10.8f' % (ELBOgap_obs)
+    label += '  Htrgt %10.8f' % (ELBOgap_Htrgt)
+    label += '  Hrest %10.8f' % (ELBOgap_Hrest)
+    return label
+
+def makeLogMessage(aggSS, targetSS,
+                   label='cur',
                    compUID=0):
 
     if label.count('cur'):
         label = " compUID %3d  " % (compUID) + label
     else:
-        if didAccept:
-            label = '    ACCEPTED ' + label
-        else:
-            label = '             ' + label
+        label = '             ' + label
 
-    msg = '%s K=%3d | aggSize %12.4f' \
+    msg = '%s K=%3d | aggN %10.1f | trgtN %10.1f' \
           % (label,
              targetSS.K,
-             aggSS.getCountVec().sum())
+             aggSS.getCountVec().sum(),
+             targetSS.getCountVec().sum())
 
-    if ELBOgap_alloc is not None:
-        msg += " | ELBOgap_a % .6f | ELBOgap_obs % .6f" % (
-            ELBOgap_alloc,
-            ELBOgap_obs)
     if label.count('cur'):
         k = np.flatnonzero(aggSS.uIDs == compUID)[0]
-        msg += " | aggN[k] %12.4f | targetN[k] %12.4f" \
+        msg += " | aggN[k] %10.1f | trgtN[k] %10.1f" \
                % (aggSS.getCountVec()[k], targetSS.getCountVec()[k])
     else:
-        msg = msg.replace('ELBO', '    ')
-        msg = msg.replace('aggSize', '       ')
+        msg = msg.replace('aggN', '    ')
+        msg = msg.replace('trgtN', '     ')
+
     return msg
