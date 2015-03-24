@@ -184,8 +184,9 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
             from matplotlib import pylab
             plotCompsFromHModel(bestModel, Data=targetData,
                 compsToHighlight=[delCompID])
-            pylab.show(block=1)
+            pylab.show(block=0)
             raw_input('Press any key to continue>>>')
+            pylab.clf()
 
         # Update best model/stats to accepted values
         if didAcceptCur:

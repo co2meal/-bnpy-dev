@@ -1,7 +1,7 @@
 '''
 GaussViz.py
 
-Visualizing 2D covariance matrix of learned Gaussian mixture models
+Visualizing learned Gaussian mixture models.
 '''
 import numpy as np
 from matplotlib import pylab
@@ -27,7 +27,7 @@ def plotGauss1DFromHModel(hmodel,
                           figH=None,
                           Colors=Colors,
                           **kwargs):
-    ''' Plot 1D pdf traces for each component in hmodel
+    ''' Make line plot of pdf for each component (1D observations).
     '''
     if figH is None:
         figH = pylab.figure(figsize=(6, 4))
@@ -98,7 +98,8 @@ def plotGauss2DFromHModel(hmodel, compListToPlot=None,
                           wTHR=0.0001,
                           figH=None,
                           Data=None,
-                          Colors=Colors):
+                          Colors=Colors,
+                          **kwargs):
     ''' Plot 2D contours for components in hmodel in current pylab figure
 
     Parameters
