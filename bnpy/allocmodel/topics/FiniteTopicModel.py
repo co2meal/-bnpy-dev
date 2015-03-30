@@ -185,7 +185,7 @@ class FiniteTopicModel(AllocModel):
         Returns
         -------
         SS : SuffStatBag with K components
-            Summarizes for this mixture model, with fields
+            Relevant fields
             * nDoc : scalar float
                 Counts total documents available in provided data.
 
