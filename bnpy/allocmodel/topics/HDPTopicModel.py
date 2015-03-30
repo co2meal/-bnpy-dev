@@ -342,9 +342,13 @@ class HDPTopicModel(AllocModel):
         Returns
         -------
         SS : SuffStatBag with K components
-            Summarizes for this mixture model, with fields
+            Relevant fields
             * nDoc : scalar float
                 Counts total documents available in provided data.
+            * sumLogPi : 1D array, size K
+                Entry k equals \sum_{d in docs} E[ \log \pi_{dk} ]
+            * sumLogPiRem : scalar float
+                Equals sum over docs of probability of inactive topics.
 
             Also has optional ELBO field when precompELBO is True
             * Hvec : 1D array, size K
