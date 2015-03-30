@@ -34,7 +34,7 @@ Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
 
 FullDataAlgSet = ['EM', 'VB', 'GS']
-OnlineDataAlgSet = ['soVB', 'moVB']
+OnlineDataAlgSet = ['soVB', 'moVB', 'strVB']
 
 def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
                       doSaveToDisk=True, doWriteStdOut=True, 
@@ -394,7 +394,7 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
     -------
     learnAlg : LearnAlg [or subclass] object
                type is defined by string in ReqArgs['algName']
-                one of {'EM', 'VB', 'soVB', 'moVB','GS'}
+                one of {'EM', 'VB', 'soVB', 'moVB','GS', 'strVB'}
   '''
   algName = ReqArgs['algName']
   algP = KwArgs[algName]
@@ -423,7 +423,10 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
                                       algParams=algP, outputParams=outputP)
   elif algName == 'GS':
     learnAlg = bnpy.learnalg.GSAlg(savedir=savepath, seed=algseed, 
-                                      algParams=algP, outputParams=outputP)  
+                                      algParams=algP, outputParams=outputP)
+  elif algName == 'strVB':
+    learnAlg = bnpy.learnalg.STRVBAlg(savedir=savepath, seed=algseed,
+                                      algParams=algP, outputParams=outputP)
   else:
     raise NotImplementedError("Unknown learning algorithm " + algName)
   return learnAlg

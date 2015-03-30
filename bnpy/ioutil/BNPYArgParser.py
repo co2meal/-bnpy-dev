@@ -4,7 +4,7 @@ import os
 import sys
 import numpy as np
 
-OnlineDataAlgSet = ['soVB', 'moVB']
+OnlineDataAlgSet = ['soVB', 'moVB', 'strVB']
 
 dataHelpStr = 'Name of dataset, defined by a python script in $BNPYDATADIR.'
 
@@ -16,7 +16,7 @@ from bnpy.obsmodel import ObsModelNameSet
 choiceStr = ' {' + ','.join([x for x in (ObsModelNameSet)]) + '}'
 oModelHelpStr = 'Name of observation model.' + choiceStr
 
-algChoices = set(['EM','VB','moVB','moVBsimple', 'soVB','GS'])
+algChoices = set(['EM','VB','moVB','moVBsimple', 'soVB','GS', 'strVB'])
 choiceStr = ' {' + ','.join([x for x in (algChoices)]) + '}'
 algHelpStr = 'Name of learning algorithm.' + choiceStr
 

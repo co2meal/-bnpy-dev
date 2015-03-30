@@ -113,6 +113,7 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
   for tt, taskid in enumerate(taskids):
     try:
       xtxtfile = os.path.join(jobpath, taskid, xvar+'.txt')
+      print "xtxtfile " + xtxtfile
       if not os.path.isfile(xtxtfile):
         xtxtfile = os.path.join(jobpath, taskid, xvar+'-saved-params.txt')
       xs = np.loadtxt(xtxtfile)
@@ -200,6 +201,7 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
         xd = line.get_xdata()
         yd = line.get_ydata()
         loc = np.searchsorted(xd, 2)
+        print "xd ", xd
         ymin = np.minimum(ymin, np.percentile(yd[loc:], 2.5))
         ymax = np.maximum(ymax, yd[loc:].max())
       pylab.ylim([ymin, ymax + 0.1*(ymax-ymin)])
