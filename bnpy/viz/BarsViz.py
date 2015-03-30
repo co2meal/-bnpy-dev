@@ -6,212 +6,221 @@ Visualization tools for toy bars data for topic models.
 from matplotlib import pylab
 import numpy as np
 
-imshowArgs = dict(interpolation='nearest', 
-                  cmap='bone', 
-                  vmin=0.0, 
+imshowArgs = dict(interpolation='nearest',
+                  cmap='bone',
+                  vmin=0.0,
                   vmax=0.1)
 
+
 def plotExampleBarsDocs(Data, docIDsToPlot=None, figID=None,
-                              vmax=None, nDocToPlot=16, doShowNow=False,
-                              seed=0, randstate=np.random.RandomState(0),
-                              **kwargs):
+                        vmax=None, nDocToPlot=16, doShowNow=False,
+                        seed=0, randstate=np.random.RandomState(0),
+                        **kwargs):
     kwargs['vmin'] = 0
     kwargs['interpolation'] = 'nearest'
     if vmax is not None:
-      kwargs['vmax'] = vmax
+        kwargs['vmax'] = vmax
     if seed is not None:
-      randstate = np.random.RandomState(seed)
+        randstate = np.random.RandomState(seed)
     if figID is None:
-      pylab.figure()
+        pylab.figure()
     V = Data.vocab_size
     sqrtV = int(np.sqrt(V))
     assert np.allclose(sqrtV * sqrtV, V)
     if docIDsToPlot is not None:
-      nDocToPlot = len(docIDsToPlot)
+        nDocToPlot = len(docIDsToPlot)
     else:
-      size = np.minimum(Data.nDoc, nDocToPlot)
-      docIDsToPlot = randstate.choice(Data.nDoc, size=size, replace=False)
+        size = np.minimum(Data.nDoc, nDocToPlot)
+        docIDsToPlot = randstate.choice(Data.nDoc, size=size, replace=False)
     nRows = np.floor(np.sqrt(nDocToPlot))
     nCols = np.ceil(nDocToPlot / nRows)
     if vmax is None:
-      DocWordArr = Data.getDocTypeCountMatrix()
-      vmax = int(np.max(np.percentile(DocWordArr, 98, axis=0)))
+        DocWordArr = Data.getDocTypeCountMatrix()
+        vmax = int(np.max(np.percentile(DocWordArr, 98, axis=0)))
 
     for plotPos, docID in enumerate(docIDsToPlot):
         start = Data.doc_range[docID]
-        stop = Data.doc_range[docID+1]
+        stop = Data.doc_range[docID + 1]
         wIDs = Data.word_id[start:stop]
         wCts = Data.word_count[start:stop]
         docWordHist = np.zeros(V)
         docWordHist[wIDs] = wCts
         squareIm = np.reshape(docWordHist, (np.sqrt(V), np.sqrt(V)))
 
-        pylab.subplot(nRows, nCols, plotPos+1)
+        pylab.subplot(nRows, nCols, plotPos + 1)
         pylab.imshow(squareIm, **kwargs)
         pylab.axis('image')
         pylab.xticks([])
         pylab.yticks([])
     pylab.tight_layout()
     if doShowNow:
-      pylab.show()
+        pylab.show()
+
 
 def plotBarsFromHModel(hmodel, Data=None, doShowNow=False, figH=None,
                        doSquare=1,
                        xlabels=[],
                        compsToHighlight=None, compListToPlot=None,
-                       activeCompIDs=None,  Kmax=50,
-                       width=6, height=3, vmax=None, **kwargs): 
-  if vmax is not None:
-    kwargs['vmax'] = vmax   
-  if hasattr(hmodel.obsModel, 'Post'):
-    lam = hmodel.obsModel.Post.lam
-    topics = lam / lam.sum(axis=1)[:,np.newaxis]
-  else:
-    topics = hmodel.obsModel.EstParams.phi.copy()
-
-  ## Determine intensity scale for topic-word image
-  global imshowArgs
-  if vmax is not None:
-    imshowArgs['vmax'] = vmax
-  else:
-    imshowArgs['vmax'] = 1.5 * np.percentile(topics, 95)
-
-  if doSquare:
-    figH = showTopicsAsSquareImages(topics, 
-                                    activeCompIDs=activeCompIDs,
-                                    compsToHighlight=compsToHighlight,
-                                    compListToPlot=compListToPlot,
-                                    Kmax=Kmax, figH=figH,
-                                    xlabels=xlabels,
-                                    **kwargs)
-  else:
-    if figH is None:
-      figH = pylab.figure(figsize=(width,height))
+                       activeCompIDs=None, Kmax=50,
+                       width=6, height=3, vmax=None,
+                       block=0,  # unused
+                       jobname='',  # unused
+                       **kwargs):
+    if vmax is not None:
+        kwargs['vmax'] = vmax
+    if hasattr(hmodel.obsModel, 'Post'):
+        lam = hmodel.obsModel.Post.lam
+        topics = lam / lam.sum(axis=1)[:, np.newaxis]
     else:
-      pylab.axes(figH)
-    showAllTopicsInSingleImage(topics, compsToHighlight, **kwargs)
-  if doShowNow:
-    pylab.show()
-  return figH
+        topics = hmodel.obsModel.EstParams.phi.copy()
+
+    # Determine intensity scale for topic-word image
+    global imshowArgs
+    if vmax is not None:
+        imshowArgs['vmax'] = vmax
+    else:
+        imshowArgs['vmax'] = 1.5 * np.percentile(topics, 95)
+
+    if doSquare:
+        figH = showTopicsAsSquareImages(topics,
+                                        activeCompIDs=activeCompIDs,
+                                        compsToHighlight=compsToHighlight,
+                                        compListToPlot=compListToPlot,
+                                        Kmax=Kmax, figH=figH,
+                                        xlabels=xlabels,
+                                        **kwargs)
+    else:
+        if figH is None:
+            figH = pylab.figure(figsize=(width, height))
+        else:
+            pylab.axes(figH)
+        showAllTopicsInSingleImage(topics, compsToHighlight, **kwargs)
+    if doShowNow:
+        pylab.show()
+    return figH
+
 
 def plotBarsForTopicMATFile(matfilename, sortBy=None, keepWorst=0,
                             levels=None, worstThr=0.01,
                             Kmax=20, **kwargs):
-  kwargs['vmin'] = 0
-  kwargs['interpolation'] = 'nearest'
-  if vmax is not None:
-    kwargs['vmax'] = vmax
-  import bnpy.ioutil
-  if isinstance(matfilename, np.ndarray):
-    topics = matfilename
-    probs = np.ones(topics.shape[0])
-  else:
-    topics, probs, alph = bnpy.ioutil.ModelReader.loadTopicModel(matfilename,
-                          returnTPA=1)
-  print 'total K=', topics.shape[0]
-  print 'beta>0.0001 K=', np.sum(probs > .0001)
-  if levels is not None:
-    assert topics.max() > 1.0
-    topics = np.floor(topics)
-    for b in range(len(levels)-1):
-      mask = np.logical_and(topics > levels[b],
-                            topics <= levels[b+1])
-      topics[mask] = b
-  else:
-    topics /= topics.sum(axis=1)[:,np.newaxis]
-  if sortBy == 'probs':
-    sortIDs = np.argsort(-1*probs)
-    if keepWorst > 0:
-      probs = probs[sortIDs]
-      worstLoc = 0
-      while (probs[worstLoc-1] < worstThr):
-        worstLoc -= 1
-      L = len(sortIDs)
-      sortIDs = sortIDs[:L+worstLoc]
-      probs = probs[:L+worstLoc]
-      print probs[-1], '<<<< first above cutoff'
-      keepIDs = np.hstack([sortIDs[:(Kmax-keepWorst)], sortIDs[-keepWorst:]])
-      print probs[:(Kmax-keepWorst)]
-      print probs[-keepWorst:]
-      print len(sortIDs), '<<< count above cutoff'
-      topics = topics[keepIDs]
+    kwargs['vmin'] = 0
+    kwargs['interpolation'] = 'nearest'
+    if vmax is not None:
+        kwargs['vmax'] = vmax
+    import bnpy.ioutil
+    if isinstance(matfilename, np.ndarray):
+        topics = matfilename
+        probs = np.ones(topics.shape[0])
     else:
-      topics = topics[sortIDs[:Kmax]]
-  showTopicsAsSquareImages(topics, Kmax=Kmax, **kwargs)
+        topics, probs, alph = bnpy.ioutil.ModelReader.loadTopicModel(
+            matfilename, returnTPA=1)
+    print 'total K=', topics.shape[0]
+    print 'beta>0.0001 K=', np.sum(probs > .0001)
+    if levels is not None:
+        assert topics.max() > 1.0
+        topics = np.floor(topics)
+        for b in range(len(levels) - 1):
+            mask = np.logical_and(topics > levels[b],
+                                  topics <= levels[b + 1])
+            topics[mask] = b
+    else:
+        topics /= topics.sum(axis=1)[:, np.newaxis]
+    if sortBy == 'probs':
+        sortIDs = np.argsort(-1 * probs)
+        if keepWorst > 0:
+            probs = probs[sortIDs]
+            worstLoc = 0
+            while (probs[worstLoc - 1] < worstThr):
+                worstLoc -= 1
+            L = len(sortIDs)
+            sortIDs = sortIDs[:L + worstLoc]
+            probs = probs[:L + worstLoc]
+            print probs[-1], '<<<< first above cutoff'
+            keepIDs = np.hstack(
+                [sortIDs[:(Kmax - keepWorst)], sortIDs[-keepWorst:]])
+            print probs[:(Kmax - keepWorst)]
+            print probs[-keepWorst:]
+            print len(sortIDs), '<<< count above cutoff'
+            topics = topics[keepIDs]
+        else:
+            topics = topics[sortIDs[:Kmax]]
+    showTopicsAsSquareImages(topics, Kmax=Kmax, **kwargs)
 
-def showTopicsAsSquareImages(topics, 
+
+def showTopicsAsSquareImages(topics,
                              activeCompIDs=None,
                              compsToHighlight=None,
                              compListToPlot=None,
                              xlabels=[],
                              Kmax=50,
-                             W=1, H=1, figH=None, **imshowArgs):
-  if len(xlabels) > 0:
-    H = 1.5 * H
-  K, V = topics.shape
-  sqrtV = int(np.sqrt(V))
-  assert np.allclose(sqrtV, np.sqrt(V))
+                             W=1, H=1, figH=None,
+                             **imshowArgs):
+    if len(xlabels) > 0:
+        H = 1.5 * H
+    K, V = topics.shape
+    sqrtV = int(np.sqrt(V))
+    assert np.allclose(sqrtV, np.sqrt(V))
 
-  if compListToPlot is None:
-    compListToPlot = np.arange(0, K)
-  if activeCompIDs is None:
-    activeCompIDs = np.arange(0, K)
-  compsToHighlight = np.asarray(compsToHighlight)
-  if compsToHighlight.ndim == 0:
-    compsToHighlight = np.asarray([compsToHighlight])
+    if compListToPlot is None:
+        compListToPlot = np.arange(0, K)
+    if activeCompIDs is None:
+        activeCompIDs = np.arange(0, K)
+    compsToHighlight = np.asarray(compsToHighlight)
+    if compsToHighlight.ndim == 0:
+        compsToHighlight = np.asarray([compsToHighlight])
 
-  ## Create Figure
-  Kplot = np.minimum(len(compListToPlot), Kmax)
-  ncols = 5 #int(np.ceil(Kplot / float(nrows)))
-  nrows = int(np.ceil(Kplot / float(ncols)))
-  if figH is None:
-    ## Make a new figure
-    figH, ha = pylab.subplots(nrows=nrows, ncols=ncols,
-                              figsize=(ncols*W,nrows*H))
-  else:
-    ## Use existing figure
-    ## TODO: Find a way to make this call actually change the figsize
-    figH, ha = pylab.subplots(nrows=nrows, ncols=ncols,
-                              figsize=(ncols*W,nrows*H), num=figH.number)
+    # Create Figure
+    Kplot = np.minimum(len(compListToPlot), Kmax)
+    ncols = 5  # int(np.ceil(Kplot / float(nrows)))
+    nrows = int(np.ceil(Kplot / float(ncols)))
+    if figH is None:
+        # Make a new figure
+        figH, ha = pylab.subplots(nrows=nrows, ncols=ncols,
+                                  figsize=(ncols * W, nrows * H))
+    else:
+        # Use existing figure
+        # TODO: Find a way to make this call actually change the figsize
+        figH, ha = pylab.subplots(nrows=nrows, ncols=ncols,
+                                  figsize=(ncols * W, nrows * H),
+                                  num=figH.number)
 
-  for plotID, compID in enumerate(compListToPlot):
-    if plotID >= Kmax:
-      print 'DISPLAY LIMIT EXCEEDED. Showing %d/%d components' \
-             % (plotID, len(activeCompIDs))      
-      break
+    for plotID, compID in enumerate(compListToPlot):
+        if plotID >= Kmax:
+            print 'DISPLAY LIMIT EXCEEDED. Showing %d/%d components' \
+                % (plotID, len(activeCompIDs))
+            break
 
-    if compID not in activeCompIDs:
-      aH = pylab.subplot(nrows, ncols, plotID+1)
-      aH.axis('off')
-      continue
+        if compID not in activeCompIDs:
+            aH = pylab.subplot(nrows, ncols, plotID + 1)
+            aH.axis('off')
+            continue
 
-    kk = np.flatnonzero(compID == activeCompIDs)[0]
-    topicIm = np.reshape(topics[kk,:], (sqrtV, sqrtV))
+        kk = np.flatnonzero(compID == activeCompIDs)[0]
+        topicIm = np.reshape(topics[kk, :], (sqrtV, sqrtV))
 
-    ax = pylab.subplot(nrows, ncols, plotID+1)
-    pylab.imshow(topicIm, aspect=1.0, **imshowArgs)
-    pylab.xticks([])
-    pylab.yticks([])
+        ax = pylab.subplot(nrows, ncols, plotID + 1)
+        pylab.imshow(topicIm, aspect=1.0, **imshowArgs)
+        pylab.xticks([])
+        pylab.yticks([])
 
-    ## Draw colored border around highlighted topics
-    if compID in compsToHighlight:
-      [i.set_color('green') for i in ax.spines.itervalues()]
-      [i.set_linewidth(3) for i in ax.spines.itervalues()]
+        # Draw colored border around highlighted topics
+        if compID in compsToHighlight:
+            [i.set_color('green') for i in ax.spines.itervalues()]
+            [i.set_linewidth(3) for i in ax.spines.itervalues()]
 
-    if xlabels is not None:
-      if len(xlabels) > 0:
-        pylab.xlabel(xlabels[plotID], fontsize=15)
+        if xlabels is not None:
+            if len(xlabels) > 0:
+                pylab.xlabel(xlabels[plotID], fontsize=15)
 
-  ## Disable empty plots!
-  for kdel in xrange(plotID+2, nrows*ncols+1):
-    aH = pylab.subplot(nrows, ncols, kdel)
-    aH.axis('off')
+    # Disable empty plots!
+    for kdel in xrange(plotID + 2, nrows * ncols + 1):
+        aH = pylab.subplot(nrows, ncols, kdel)
+        aH.axis('off')
 
-  ## Fix margins between subplots
-  pylab.subplots_adjust(wspace=0.04, hspace=0.04, left=0.01, right=0.99,
-                        top=0.99, bottom=0.01)
-  return figH
-
+    # Fix margins between subplots
+    pylab.subplots_adjust(wspace=0.04, hspace=0.04, left=0.01, right=0.99,
+                          top=0.99, bottom=0.01)
+    return figH
 
 
 def showAllTopicsInSingleImage(topics, compsToHighlight, **imshowArgs):
@@ -219,7 +228,7 @@ def showAllTopicsInSingleImage(topics, compsToHighlight, **imshowArgs):
     aspectR = V / float(K)
     pylab.imshow(topics, aspect=aspectR, **imshowArgs)
     if compsToHighlight is not None:
-      ks = np.asarray(compsToHighlight)
-      if ks.ndim == 0:
-        ks = np.asarray([ks])
-      pylab.yticks(ks, ['**** %d' % (k) for k in ks])
+        ks = np.asarray(compsToHighlight)
+        if ks.ndim == 0:
+            ks = np.asarray([ks])
+        pylab.yticks(ks, ['**** %d' % (k) for k in ks])
