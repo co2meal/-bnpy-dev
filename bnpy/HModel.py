@@ -100,6 +100,34 @@ class HModel(object):
         SS.applyAmpFactor(ampF)
     return SS
   
+  def calcLocalParamsAndSummarize(self, Data, LP, doAmplify=False, **kwargs):
+    ''' This does both the E-step and M-step of the algorithm.
+        Calculates local parameters specific to each data item and then Calculates
+        sufficient statistics
+    '''
+    if LP is None:
+      LP = dict()
+    # Calculate the "soft evidence" each obsModel component has on each item
+    # Fills in LP['E_log_soft_ev']
+    LP = self.obsModel.calc_local_params(Data, LP, **kwargs)
+
+    # Combine with allocModel probs of each cluster
+    # Fills in LP['resp'], a Data.nObs x K matrix whose rows sum to one
+    LP = self.allocModel.calc_local_params(Data, LP, **kwargs)
+
+    SS = self.allocModel.get_global_suff_stats(Data, LP, **kwargs)
+    SS = self.obsModel.get_global_suff_stats(Data, SS, LP, **kwargs)
+    if doAmplify:
+      # Change effective scale of the suff stats, for soVB learning
+      if hasattr(Data, 'nDoc'):
+        ampF = Data.nDocTotal / float(Data.nDoc)
+        SS.applyAmpFactor(ampF)
+      else:
+        ampF = Data.nObsTotal / float(Data.nObs)
+        SS.applyAmpFactor(ampF)
+    return LP, SS
+
+
   ######################################################### Global Params
   #########################################################   
   def update_global_params(self, SS, rho=None, **kwargs):
@@ -130,6 +158,7 @@ class HModel(object):
     if Data is not None and LP is None and SS is None:
       LP = self.calc_local_params(Data, **kwargs)
       SS = self.get_global_suff_stats(Data, LP)
+
     evA = self.allocModel.calc_evidence(Data, SS, LP, todict=todict, **kwargs)
     evObs = self.obsModel.calc_evidence(Data, SS, LP, todict=todict, **kwargs)
 
