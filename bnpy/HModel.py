@@ -131,6 +131,8 @@ class HModel(object):
             scaleFactor = self.obsModel.getDatasetScale(SS)
         if todict:
             evA.update(evObs)
+            for key in evA:
+                 evA[key] /= scaleFactor
             return evA
         else:
             return (evA + evObs) / scaleFactor

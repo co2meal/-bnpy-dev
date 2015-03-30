@@ -116,7 +116,7 @@ def plotGauss2DFromHModel(hmodel, compListToPlot=None,
     if figH is None:
         figH = pylab.figure(figsize=(4, 4))
     else:
-        pylab.set_axis(figH)
+        pass #pylab.set_axis(figH)
 
     if compsToHighlight is not None:
         compsToHighlight = np.asarray(compsToHighlight)
@@ -131,6 +131,10 @@ def plotGauss2DFromHModel(hmodel, compListToPlot=None,
 
     # Load appearance probabilities as single vector
     w = hmodel.allocModel.get_active_comp_probs()
+
+    if Data is not None:
+        if hasattr(Data, 'X'):
+            pylab.plot(Data.X[:,0], Data.X[:,1], 'k.')
 
     nSkip = 0
     nGood = 0
@@ -162,10 +166,6 @@ def plotGauss2DFromHModel(hmodel, compListToPlot=None,
             break
     if nSkip > 0:
         print 'SKIPPED %d comps with size below %.2f' % (nSkip, wTHR)
-
-    if Data is not None:
-        if hasattr(Data, 'X'):
-            pylab.plot(Data.X[:,0], Data.X[:,1], 'k.')
 
     pylab.axis('image')
 
