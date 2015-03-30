@@ -5,7 +5,6 @@ from WordsData import WordsData
 from DataIteratorFromDisk import DataIteratorFromDisk
 
 __all__ = ['DataObj', 'DataIterator', 'DataIteratorFromDisk',
-           'XData', 'GroupXData', 
+           'XData', 'GroupXData',
            'WordsData',
-          ]
-
+           ]

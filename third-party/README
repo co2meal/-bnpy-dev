@@ -1,0 +1,5 @@
+Required modules developed by third-parties.
+All use permissive licenses, and we've done our best to comply with these licenses.
+
+* munkres 
+The munkres algorithm for optimal alignment of true/estimated states.

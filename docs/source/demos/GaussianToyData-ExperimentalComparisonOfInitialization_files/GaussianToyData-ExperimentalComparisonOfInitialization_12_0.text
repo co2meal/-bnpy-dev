@@ -1,0 +1,161 @@
+Asterisk Toy Data. 8 true clusters.
+  size: 25000 units (single observations)
+  dimension: 2
+Allocation Model:  Finite mixture with K=10. Dir prior param 1.00
+Obs. Data  Model:  Gaussian with full covariance.
+Obs. Data  Prior:  Gauss-Wishart on each mean/prec matrix pair: mu, Lam
+  E[ mu[k] ]     = [ 0.  0.]
+  E[ CovMat[k] ] = 
+  [[ 1.  0.]
+   [ 0.  1.]]
+Learn Alg: EM
+Trial  1/25 | alg. seed: 7451264 | data order seed: 8541952
+savepath: /results/AsteriskK8/compareinit-K=10-randexamples/1
+        1/100 after      0 sec. | K   10 | ev -5.038089258e+06 |  
+        2/100 after      0 sec. | K   10 | ev -6.053169318e-01 | Ndiff    509.257 
+      100/100 after      6 sec. | K   10 | ev -1.380456616e-01 | Ndiff      0.884 
+... done. not converged. max laps thru data exceeded.
+Trial  2/25 | alg. seed: 5565568 | data order seed: 7673856
+savepath: /results/AsteriskK8/compareinit-K=10-randexamples/2
+        1/100 after      0 sec. | K   10 | ev -1.189772070e+07 |  
+        2/100 after      0 sec. | K   10 | ev -8.347043150e-01 | Ndiff    216.938 
+       37/100 after      2 sec. | K   10 | ev  1.085365655e-01 | Ndiff      0.040 
+... done. converged.
+Trial  3/25 | alg. seed: 2559616 | data order seed: 7360256
+savepath: /results/AsteriskK8/compareinit-K=10-randexamples/3
+        1/100 after      0 sec. | K   10 | ev -3.721051647e+06 |  
+        2/100 after      0 sec. | K   10 | ev -5.120293074e-01 | Ndiff    157.057 
+      100/100 after      6 sec. | K   10 | ev -7.953044818e-02 | Ndiff      0.806 
+... done. not converged. max laps thru data exceeded.
+Trial  4/25 | alg. seed: 7606528 | data order seed: 900864
+savepath: /results/AsteriskK8/compareinit-K=10-randexamples/4
+        1/100 after      0 sec. | K   10 | ev -6.381918921e+06 |  
+        2/100 after      0 sec. | K   10 | ev -4.987179142e-01 | Ndiff    308.318 
+      100/100 after      6 sec. | K   10 | ev -1.403154427e-01 | Ndiff      0.118 
+... done. not converged. max laps thru data exceeded.
+Trial  5/25 | alg. seed: 543872 | data order seed: 6479872
+savepath: /results/AsteriskK8/compareinit-K=10-randexamples/5
+        1/100 after      0 sec. | K   10 | ev -4.402459444e+06 |  
+        2/100 after      0 sec. | K   10 | ev -4.673188000e-01 | Ndiff    309.553 
+       99/100 after      6 sec. | K   10 | ev  1.085656906e-01 | Ndiff      0.049 
+... done. converged.
+Trial  6/25 | alg. seed: 8294272 | data order seed: 9149952
+savepath: /results/AsteriskK8/compareinit-K=10-randexamples/6
+        1/100 after      0 sec. | K   10 | ev -4.532363181e+06 |  
+        2/100 after      0 sec. | K   10 | ev -6.146647998e-01 | Ndiff    316.032 
+      100/100 after      6 sec. | K   10 | ev  1.087381524e-01 | Ndiff      0.491 
+... done. not converged. max laps thru data exceeded.
+Trial  7/25 | alg. seed: 6597632 | data order seed: 3441280
+savepath: /results/AsteriskK8/compareinit-K=10-randexamples/7
+        1/100 after      0 sec. | K   10 | ev -5.423481616e+06 |  
+        2/100 after      0 sec. | K   10 | ev -5.894783288e-01 | Ndiff    623.997 
+      100/100 after      7 sec. | K   10 | ev -1.411017196e-01 | Ndiff      0.734 
+... done. not converged. max laps thru data exceeded.
+Trial  8/25 | alg. seed: 5652864 | data order seed: 899584
+savepath: /results/AsteriskK8/compareinit-K=10-randexamples/8
+        1/100 after      0 sec. | K   10 | ev -4.618649171e+06 |  
+        2/100 after      0 sec. | K   10 | ev -6.701893507e-01 | Ndiff    320.923 
+      100/100 after      7 sec. | K   10 | ev  1.085938360e-01 | Ndiff      0.404 
+... done. not converged. max laps thru data exceeded.
+Trial  9/25 | alg. seed: 478720 | data order seed: 3785600
+savepath: /results/AsteriskK8/compareinit-K=10-randexamples/9
+        1/100 after      0 sec. | K   10 | ev -5.109595937e+06 |  
+        2/100 after      0 sec. | K   10 | ev -6.427303551e-01 | Ndiff    319.450 
+       20/100 after      1 sec. | K   10 | ev  1.085102777e-01 | Ndiff      0.037 
+... done. converged.
+Trial 10/25 | alg. seed: 955776 | data order seed: 6801920
+savepath: /results/AsteriskK8/compareinit-K=10-randexamples/10
+        1/100 after      0 sec. | K   10 | ev -3.769531359e+06 |  
+        2/100 after      0 sec. | K   10 | ev -2.988518456e-01 | Ndiff    488.401 
+      100/100 after      6 sec. | K   10 | ev  1.086153722e-01 | Ndiff      0.217 
+... done. not converged. max laps thru data exceeded.
+Trial 11/25 | alg. seed: 3296640 | data order seed: 2531072
+savepath: /results/AsteriskK8/compareinit-K=10-randexamples/11
+        1/100 after      0 sec. | K   10 | ev -4.402603216e+06 |  
+        2/100 after      0 sec. | K   10 | ev -7.074510784e-01 | Ndiff    630.905 
+      100/100 after      6 sec. | K   10 | ev  1.086250809e-01 | Ndiff      0.421 
+... done. not converged. max laps thru data exceeded.
+Trial 12/25 | alg. seed: 2183296 | data order seed: 3886080
+savepath: /results/AsteriskK8/compareinit-K=10-randexamples/12
+        1/100 after      0 sec. | K   10 | ev -4.568839580e+06 |  
+        2/100 after      0 sec. | K   10 | ev -7.081996005e-01 | Ndiff    581.581 
+      100/100 after      6 sec. | K   10 | ev  1.085405004e-01 | Ndiff      0.249 
+... done. not converged. max laps thru data exceeded.
+Trial 13/25 | alg. seed: 9082752 | data order seed: 8818688
+savepath: /results/AsteriskK8/compareinit-K=10-randexamples/13
+        1/100 after      0 sec. | K   10 | ev -2.125579148e+07 |  
+        2/100 after      0 sec. | K   10 | ev -7.031932089e-01 | Ndiff    291.678 
+      100/100 after      6 sec. | K   10 | ev -3.281586650e-01 | Ndiff      0.858 
+... done. not converged. max laps thru data exceeded.
+Trial 14/25 | alg. seed: 1826176 | data order seed: 3528320
+savepath: /results/AsteriskK8/compareinit-K=10-randexamples/14
+        1/100 after      0 sec. | K   10 | ev -5.114279451e+06 |  
+        2/100 after      0 sec. | K   10 | ev -5.950452856e-01 | Ndiff    765.461 
+      100/100 after      6 sec. | K   10 | ev -1.379526882e-01 | Ndiff      0.188 
+... done. not converged. max laps thru data exceeded.
+Trial 15/25 | alg. seed: 2865664 | data order seed: 1024640
+savepath: /results/AsteriskK8/compareinit-K=10-randexamples/15
+        1/100 after      0 sec. | K   10 | ev -3.663796388e+06 |  
+        2/100 after      0 sec. | K   10 | ev -5.210069660e-01 | Ndiff    231.593 
+      100/100 after      6 sec. | K   10 | ev  1.086179282e-01 | Ndiff      0.207 
+... done. not converged. max laps thru data exceeded.
+Trial 16/25 | alg. seed: 6036480 | data order seed: 8819712
+savepath: /results/AsteriskK8/compareinit-K=10-randexamples/16
+        1/100 after      0 sec. | K   10 | ev -2.933777901e+06 |  
+        2/100 after      0 sec. | K   10 | ev -3.786765581e-01 | Ndiff    545.778 
+      100/100 after      6 sec. | K   10 | ev -1.399924635e-01 | Ndiff      0.254 
+... done. not converged. max laps thru data exceeded.
+Trial 17/25 | alg. seed: 8729088 | data order seed: 9034368
+savepath: /results/AsteriskK8/compareinit-K=10-randexamples/17
+        1/100 after      0 sec. | K   10 | ev -6.810981797e+06 |  
+        2/100 after      0 sec. | K   10 | ev -6.580048086e-01 | Ndiff    320.708 
+      100/100 after      6 sec. | K   10 | ev -1.378493652e-01 | Ndiff      0.376 
+... done. not converged. max laps thru data exceeded.
+Trial 18/25 | alg. seed: 8933248 | data order seed: 9882240
+savepath: /results/AsteriskK8/compareinit-K=10-randexamples/18
+        1/100 after      0 sec. | K   10 | ev -6.079875910e+06 |  
+        2/100 after      0 sec. | K   10 | ev -5.028302631e-01 | Ndiff    403.851 
+       43/100 after      3 sec. | K   10 | ev  1.085357929e-01 | Ndiff      0.048 
+... done. converged.
+Trial 19/25 | alg. seed: 793600 | data order seed: 3803392
+savepath: /results/AsteriskK8/compareinit-K=10-randexamples/19
+        1/100 after      0 sec. | K   10 | ev -5.004002662e+06 |  
+        2/100 after      0 sec. | K   10 | ev -5.655078001e-01 | Ndiff    220.619 
+      100/100 after      6 sec. | K   10 | ev  1.086034468e-01 | Ndiff      0.886 
+... done. not converged. max laps thru data exceeded.
+Trial 20/25 | alg. seed: 6725120 | data order seed: 1715072
+savepath: /results/AsteriskK8/compareinit-K=10-randexamples/20
+        1/100 after      0 sec. | K   10 | ev -7.214520759e+06 |  
+        2/100 after      0 sec. | K   10 | ev -6.808426692e-01 | Ndiff    691.060 
+      100/100 after      6 sec. | K   10 | ev -1.373090811e-01 | Ndiff      0.355 
+... done. not converged. max laps thru data exceeded.
+Trial 21/25 | alg. seed: 4116864 | data order seed: 6033536
+savepath: /results/AsteriskK8/compareinit-K=10-randexamples/21
+        1/100 after      0 sec. | K   10 | ev -2.772559421e+06 |  
+        2/100 after      0 sec. | K   10 | ev -3.332692393e-01 | Ndiff    232.407 
+       25/100 after      2 sec. | K   10 | ev  1.085881812e-01 | Ndiff      0.042 
+... done. converged.
+Trial 22/25 | alg. seed: 4644096 | data order seed: 8644096
+savepath: /results/AsteriskK8/compareinit-K=10-randexamples/22
+        1/100 after      0 sec. | K   10 | ev -6.591496824e+06 |  
+        2/100 after      0 sec. | K   10 | ev -8.144558164e-01 | Ndiff    414.050 
+       40/100 after      3 sec. | K   10 | ev -1.377360370e-01 | Ndiff      0.050 
+... done. converged.
+Trial 23/25 | alg. seed: 9808000 | data order seed: 2513920
+savepath: /results/AsteriskK8/compareinit-K=10-randexamples/23
+        1/100 after      0 sec. | K   10 | ev -5.606828878e+06 |  
+        2/100 after      0 sec. | K   10 | ev -6.281483384e-01 | Ndiff    120.879 
+      100/100 after      6 sec. | K   10 | ev  1.086061951e-01 | Ndiff      0.324 
+... done. not converged. max laps thru data exceeded.
+Trial 24/25 | alg. seed: 447360 | data order seed: 6039296
+savepath: /results/AsteriskK8/compareinit-K=10-randexamples/24
+        1/100 after      0 sec. | K   10 | ev -4.547278148e+06 |  
+        2/100 after      0 sec. | K   10 | ev -6.680528521e-01 | Ndiff    637.874 
+      100/100 after      6 sec. | K   10 | ev  1.087554959e-01 | Ndiff      0.218 
+... done. not converged. max laps thru data exceeded.
+Trial 25/25 | alg. seed: 818944 | data order seed: 7907200
+savepath: /results/AsteriskK8/compareinit-K=10-randexamples/25
+        1/100 after      0 sec. | K   10 | ev -6.515168176e+06 |  
+        2/100 after      0 sec. | K   10 | ev -7.869080181e-01 | Ndiff    394.908 
+      100/100 after      6 sec. | K   10 | ev  1.086201284e-01 | Ndiff      0.574 
+... done. not converged. max laps thru data exceeded.
