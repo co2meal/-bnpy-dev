@@ -129,7 +129,8 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
             assert np.allclose(propCountPlusTarget, bestCount)
 
         else:
-            msg = 'Unrecognised deleteNontargetStrategy: %s' % (deleteNontargetStrategy)
+            msg = 'Unrecognised deleteNontargetStrategy: %s' \
+                % (deleteNontargetStrategy)
             raise ValueError(msg)
 
         # Refine candidate with local/global steps
@@ -145,7 +146,8 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
             propELBOobs = propModel.obsModel.\
                 calcELBO_Memoized(propSS) / totalScale
             propELBOalloc = propModel.allocModel.\
-                calcELBOFromSS_NoCacheableTerms(propSS) / totalScale
+                calcELBOFromSS_NoCacheable
+Terms(propSS) / totalScale
             ELBOgap_cached_target = propModel.allocModel.\
                 calcCachedELBOGap_FromSS(
                     besttargetSS, ptargetSS) / totalScale
@@ -182,8 +184,16 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
         if doVizDelete:
             from bnpy.viz.PlotComps import plotCompsFromHModel
             from matplotlib import pylab
-            plotCompsFromHModel(bestModel, Data=targetData,
-                compsToHighlight=[delCompID])
+            if deleteNontargetStrategy == 'merge':
+                if delCompID == kA:
+                    otherID = kB
+                else:
+                    otherID = kA
+                plotCompsFromHModel(bestModel, Data=targetData,
+                    compsToHighlight=[delCompID, otherID])
+            else:
+                plotCompsFromHModel(bestModel, Data=targetData,
+                    compsToHighlight=[delCompID])
             pylab.show(block=1)
             raw_input('Press any key to continue>>>')
 
