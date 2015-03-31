@@ -167,10 +167,9 @@ class MOVBBirthMergeAlg(MOVBAlg):
                 else:
                     MergePrepInfo = dict()
 
-
             # Delete : Prepare plan for next lap.
             if self.hasMove('delete') and self.doDeleteAtLap(lapFrac + 1):
-                if self.isFirstBatch(lapFrac):
+                if self.isFirstBatch(lapFrac) and SS is not None:
                     Plan = DPlanner.makePlanForEligibleComps(
                         SS,
                         lapFrac=self.lapFrac,
