@@ -1,72 +1,45 @@
+"""
+Naive first try at parallel implementation of k-means local step.
+
+Classes
+--------
+Worker : subclass of Process
+    Defines work to be done by a single "worker" process.
+    We assign this process "jobs" via a queue, and read its results
+    from a separate results queue.
+    For each job, the worker reads data via inter-proc communication,
+    and performs local step on a slice of the data.
+
+Test : subclass of unittest.TestCase
+    Defines a single problem to solve: 
+    local step on particular dataset X with parameters Mu
+    Provides baseline, serial, and parallel solutions.
+    * Baseline: monolithic local step.
+    * Serial: perform local step on slices of data in series, aggregate results.
+    * Parallel: assign slices to worker processes, aggregate results from queue.
+"""
+
+import sys
 import os
 import multiprocessing
 from multiprocessing import sharedctypes
-
+import itertools
 import numpy as np
 import unittest
 import ctypes
-import bnpy
 import time
 
-def localStep_Vectorized(X, Mu, start=None, stop=None):
-    ''' K-means step
-
-    Returns
-    -----------
-    SuffStatBag with fields
-    * N : 1D array, size K
-    * x : 2D array, K x D
-    '''
-    # Unpack size variables
-    K, D = Mu.shape
-
-    if start is not None:
-        Xcur = X[start:stop]
-    else:
-        Xcur = X
-
-    # Dist : 2D array, size N x K
-    #     squared euclidean distance from X[n] to Mu[k]
-    #     up to an additive constant independent of Mu[k]
-    Dist = -2 * np.dot(Xcur, Mu.T)
-    Dist += np.sum(np.square(Mu), axis=1)[np.newaxis,:]
-    # Z : 1D array, size N
-    #     Z[n] gives integer id k of closest cluster cntr Mu[k] to X[n,:]
-    Z = Dist.argmin(axis=1)
-
-    CountVec = np.zeros(K)
-    DataStatVec = np.zeros((K, D))
-    for k in xrange(K):
-        mask_k = Z == k
-        CountVec[k] = np.sum(mask_k)
-        DataStatVec[k] = np.sum(Xcur[mask_k], axis=0)
-
-    SS = bnpy.suffstats.SuffStatBag(K=K, D=D)
-    SS.setField('CountVec', CountVec, dims=('K'))
-    SS.setField('DataStatVec', DataStatVec, dims=('K', 'D'))
-    return SS
-
-
-def sliceGenerator(N=0, nWorkers=0):
-    """ Iterate over slices given problem size and num workers
-
-    Yields
-    --------
-    (start,stop) : tuple
-    """
-    batchSize = np.floor(N / nWorkers)
-    for workerID in range(nWorkers):
-        start = workerID * batchSize
-        stop = (workerID + 1) * batchSize
-        if workerID == nWorkers - 1:
-            stop = N
-        yield start, stop
+import bnpy
+from KMeansUtil import localStepForDataSlice
+from KMeansUtil import sliceGenerator
+from KMeansUtil import getPtrForArray
+from KMeansUtil import runBenchmarkAcrossProblemSizes
 
 class Worker(multiprocessing.Process):
-    """ Single "worker" process that processes tasks delivered via queues
+    """ Single "worker" process that processes tasks delivered via queue
     """
     def __init__(self, uid, JobQueue, ResultQueue, verbose=0):
-        super(Worker, self).__init__()
+        super(type(self), self).__init__() # Required super constructor call
         self.uid = uid
         self.JobQueue = JobQueue
         self.ResultQueue = ResultQueue
@@ -85,11 +58,12 @@ class Worker(multiprocessing.Process):
 
         for jobArgs in jobIterator:
             X, Mu, start, stop = jobArgs
-            # self.printMsg("start=%d, stop=%d" % (start, stop))
+            if start is not None:
+                self.printMsg("start=%d, stop=%d" % (start, stop))
             msg = "X memory location: %d" % (getPtrForArray(X))
             self.printMsg(msg)
 
-            SS = localStep_Vectorized(X, Mu, start=start, stop=stop)
+            SS = localStepForDataSlice(X, Mu, start=start, stop=stop)
             self.ResultQueue.put(SS)
             self.JobQueue.task_done()
 
@@ -97,22 +71,36 @@ class Worker(multiprocessing.Process):
         self.printMsg("process CleanUp! pid=%d" % (os.getpid()))
 
 
-class TestN1000K10(unittest.TestCase):
+class Test(unittest.TestCase):
 
     def shortDescription(self):
         return None
 
-    def setUp(self, N=1000, D=25, K=10, nWorkers=7, verbose=1):
-        ''' Create a dataset X (2D array, N x D) and cluster means Mu (2D, KxD)
+    def __init__(self, testname, 
+                 N=1000, D=25, K=10, nWorkers=7, verbose=1):
+        ''' Create dataset X, cluster means Mu.
+
+        Post Condition Attributes
+        --------------
+        X : 2D array, N x D
+        Mu : 2D array, K x D       
         '''
+        super(type(self),self).__init__(testname)
+        self.nWorkers = nWorkers
+        self.verbose = verbose
+        self.N = N
+        self.D = D
+        self.K = K
+
         rng = np.random.RandomState((D * K) % 1000)
         self.X = rng.rand(N, D)
         self.Mu = rng.rand(K, D)
 
+
+    def setUp(self):
         # Create a JobQ (to hold tasks to be done)
         # and a ResultsQ (to hold results of completed tasks)
         manager = multiprocessing.Manager()
-        self.nWorkers = nWorkers
         self.JobQ = manager.Queue()
         self.ResultQ = manager.Queue()
 
@@ -120,12 +108,13 @@ class TestN1000K10(unittest.TestCase):
         # We don't need to store references to these processes,
         # We can get everything we need from JobQ and ResultsQ
         for uid in range(self.nWorkers):
-            Worker(uid, self.JobQ, self.ResultQ, verbose=verbose).start()
+            Worker(uid, self.JobQ, self.ResultQ, verbose=self.verbose).start()
 
     def tearDown(self):
         """ Shut down all the workers.
         """
         self.shutdownWorkers()
+        time.sleep(0.1) # let workers all shut down before we quit
 
     def shutdownWorkers(self):
         """ Shut down all worker processes.
@@ -137,7 +126,7 @@ class TestN1000K10(unittest.TestCase):
     def run_baseline(self):
         """ Execute on entire matrix (no slices) in master process.
         """        
-        SSall = localStep_Vectorized(self.X, self.Mu)
+        SSall = localStepForDataSlice(self.X, self.Mu)
         return SSall
 
     def run_serial(self):
@@ -146,7 +135,7 @@ class TestN1000K10(unittest.TestCase):
         N = self.X.shape[0]
         SSagg = None
         for start, stop in sliceGenerator(N, self.nWorkers):
-            SSslice = localStep_Vectorized(self.X, self.Mu, start, stop)
+            SSslice = localStepForDataSlice(self.X, self.Mu, start, stop)
             if start == 0:
                 SSagg = SSslice
             else:
@@ -156,18 +145,17 @@ class TestN1000K10(unittest.TestCase):
     def run_parallel(self):
         """ Execute on slices processed by workers in parallel.
         """
-        # MAP!
+        # MAP step
         # Create several tasks (one per worker) and add to job queue
         N = self.X.shape[0]
         for start, stop in sliceGenerator(N, self.nWorkers):
-            self.JobQ.put((self.X, self.Mu, start, stop))
-            # TODO: provide shared memory version of X/Mu instead??
-            # JobQ.put((X_shared, Mu_shared, start, stop))
+            self.JobQ.put((self.X[start:stop], self.Mu, None, None))
+            # self.JobQ.put((self.X, self.Mu, start, stop))
 
         # Pause at this line until all jobs are marked complete.
         self.JobQ.join()
 
-        # REDUCE!
+        # REDUCE step
         # Aggregate results across across all workers
         SS = self.ResultQ.get()
         while not self.ResultQ.empty():
@@ -175,29 +163,8 @@ class TestN1000K10(unittest.TestCase):
             SS += SSchunk
         return SS
 
-    def run_with_timer(self, funcToCall, nRepeat=3):
-        starttime = time.time()
-        for r in xrange(nRepeat):
-            getattr(self, funcToCall)()
-        return (time.time() - starttime) / nRepeat
-
-    def run_all_with_timer(self, nRepeat=3):
-
-        serial_time = self.run_with_timer('run_serial')
-        parallel_time = self.run_with_timer('run_parallel')
-        base_time = self.run_with_timer('run_baseline')
-
-        return dict(
-            base_time=base_time,
-            base_speedup=1.0,
-            serial_time=serial_time,
-            serial_speedup=base_time/serial_time,
-            parallel_time=parallel_time,
-            parallel_speedup=base_time/parallel_time,
-            )
-
     def test_correctness_serial(self):
-        ''' Verify that the local step worksas expected.
+        ''' Verify that the local step works as expected.
 
         No parallelization here. 
         Just verifying that we can split computation up into >1 slice,
@@ -206,13 +173,13 @@ class TestN1000K10(unittest.TestCase):
         print ''
 
         # Version A: summarize entire dataset
-        SSall = localStep_Vectorized(self.X, self.Mu)
+        SSall = localStepForDataSlice(self.X, self.Mu)
 
         # Version B: summarize each slice separately, then aggregate
         N = self.X.shape[0]
         SSagg = None
         for start, stop in sliceGenerator(N, self.nWorkers):
-            SSslice = localStep_Vectorized(self.X, self.Mu, start, stop)
+            SSslice = localStepForDataSlice(self.X, self.Mu, start, stop)
             if start == 0:
                 SSagg = SSslice
             else:
@@ -231,43 +198,63 @@ class TestN1000K10(unittest.TestCase):
         * load the resulting suff statistics object into resultsQueue      
         """
         print ''
-
         SS = self.run_parallel()
 
         # Baseline: compute desired answer in master process.
-        SSall = localStep_Vectorized(self.X, self.Mu)
+        SSall = localStepForDataSlice(self.X, self.Mu)
 
         print "Parallel Answer: CountVec = ", SS.CountVec[:3]
         print "   Naive Answer: CountVec = ", SSall.CountVec[:3]
         assert np.allclose(SSall.CountVec, SS.CountVec)
         assert np.allclose(SSall.DataStatVec, SS.DataStatVec)
 
-    def test_speed(self, nRepeat=5):
+    def run_speed_benchmark(self, method='all', nRepeat=3):
         """ Compare speed of different algorithms.
         """
-        print ''
-        Results = self.run_all_with_timer(nRepeat=nRepeat)
-
+        if method == 'all':
+            Results = self.run_all_with_timer(nRepeat=nRepeat)
+        elif method == 'parallel':
+            ptime = self.run_with_timer('run_parallel', nRepeat=nRepeat)
+            Results = dict(parallel_time=ptime)
+ 
         for key in ['base_time', 'serial_time', 'parallel_time']:
-            print "%18s | %8.3f sec | %8.3f speedup" % (
-                key, 
-                Results[key], 
-                Results[key.replace('time', 'speedup')],
-                )
+            if key in Results:
+                try:
+                    speedupval = Results[key.replace('time', 'speedup')]
+                    speedupmsg = "| %8.3f speedup" % (speedupval)
+                except KeyError:
+                    speedupmsg = ""
+                print "%18s | %8.3f sec %s" % (
+                    key, 
+                    Results[key], 
+                    speedupmsg
+                    )
+        return Results
 
-class TestN1e6K50(TestN1000K10):
+    def run_with_timer(self, funcToCall, nRepeat=3):
+        """ Timing experiment specified by funcToCall.
+        """
+        starttime = time.time()
+        for r in xrange(nRepeat):
+            getattr(self, funcToCall)()
+        return (time.time() - starttime) / nRepeat
 
-    def setUp(self):
-        super(type(self), self).setUp(
-            N=1e6, K=50, D=25, verbose=0, nWorkers=2)
+    def run_all_with_timer(self, nRepeat=3):
+        """ Timing experiments with baseline, serial, and parallel versions.
+        """
+        serial_time = self.run_with_timer('run_serial', nRepeat)
+        parallel_time = self.run_with_timer('run_parallel', nRepeat)
+        base_time = self.run_with_timer('run_baseline', nRepeat)
+
+        return dict(
+            base_time=base_time,
+            base_speedup=1.0,
+            serial_time=serial_time,
+            serial_speedup=base_time/serial_time,
+            parallel_time=parallel_time,
+            parallel_speedup=base_time/parallel_time,
+            )
 
 
-def getPtrForArray(X):
-    """ Get int pointer to memory location of provided array
-
-    Returns
-    --------
-    ptr : int
-    """
-    ptr, read_only_flag = X.__array_interface__['data']
-    return int(ptr)
+if __name__ == "__main__":
+    runBenchmarkAcrossProblemSizes(Test)
