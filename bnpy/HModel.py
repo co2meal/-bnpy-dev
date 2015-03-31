@@ -71,14 +71,14 @@ class HModel(object):
     self.JobQ = manager.Queue()
     self.ResultQ = manager.Queue()
 
-    self.nWorkers=5 #TODO: change this
+    self.nWorkers=1 #TODO: change this
 
     for uid in range(self.nWorkers):
         SharedMemWorker.SharedMemWorker(
             uid, self.JobQ, self.ResultQ, 
             Data=Data,
             verbose=1).start() #TODO: change the verbose
-        
+
   def copy(self):
     ''' Create a clone of this object with distinct memory allocation
         Any manipulation of clone's parameters will NOT affect self
@@ -135,11 +135,31 @@ class HModel(object):
 
     # Combine with allocModel probs of each cluster
     # Fills in LP['resp'], a Data.nObs x K matrix whose rows sum to one
-    LP = self.allocModel.calc_local_params(Data, LP, **kwargs)
+    #LP = self.allocModel.calc_local_params(Data, LP, **kwargs)
 
-    SS = self.allocModel.get_global_suff_stats(Data, LP, **kwargs)
-    SS = self.obsModel.get_global_suff_stats(Data, SS, LP, **kwargs)
 
+    #TODO: nObs? Is it really nDoc in this case? 
+
+
+    start=0
+    stop=0
+    while stop < Data.nDoc:
+      stop=max(stop+100,Data.nDoc)
+      LP_chunk=dict()
+      LP_chunk['E_log_soft_ev']=LP['E_log_soft_ev']
+      if 'resp' in LP:
+        LP_chunk['resp']=LP['resp'][start:stop]
+      self.JobQ.put((start,stop,LP_chunk))
+
+
+    self.JobQ.join()
+
+    LP_resp=self.ResultQ.get()
+    while not self.ResultQ.empty():
+      LP_part=self.ResultsQ.get()
+      LP_resp += LP_part
+
+    LP['resp']=LP_resp
     ##TWO OPTIONS
 
     ##COULD DO +=
@@ -149,6 +169,8 @@ class HModel(object):
 
 
 
+    #NOW for LP resp, need to add the jobs to the queue, join, and then get from the non-empty and simply add everything up 
+
 
     ##COULD DO concatenate arrays
     #But then we need to worry about the order, don't we? Or does it not matter...
@@ -157,6 +179,11 @@ class HModel(object):
 
     #Still need to work out the memory issues involved
     #Could we instead of joining, simply have no returns and just modify that memory portion directly?
+
+
+
+    SS = self.allocModel.get_global_suff_stats(Data, LP, **kwargs)
+    SS = self.obsModel.get_global_suff_stats(Data, SS, LP, **kwargs)
 
 
     if doAmplify:
