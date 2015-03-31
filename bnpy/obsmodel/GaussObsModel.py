@@ -222,7 +222,7 @@ class GaussObsModel(AbstractObsModel):
         self.Post.setField('kappa', kappa, dims=('K'))
         self.K = self.Post.K
 
-    def calcSummaryStats(self, Data, SS, LP):
+    def calcSummaryStats(self, Data, SS, LP, **kwargs):
         ''' Calculate summary statistics for given dataset and local parameters
 
         Returns
@@ -539,7 +539,7 @@ class GaussObsModel(AbstractObsModel):
                 np.outer(Post.km[k], Post.km[k]) / Post.kappa[k]
         Post.setField('B', B, dims=('K', 'D', 'D'))
 
-    def calcLogSoftEvMatrix_FromPost(self, Data):
+    def calcLogSoftEvMatrix_FromPost(self, Data, **kwargs):
         ''' Calculate expected log soft ev matrix under Post.
 
         Returns
