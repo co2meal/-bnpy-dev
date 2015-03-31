@@ -24,10 +24,14 @@ from collections import defaultdict
 import numpy as np
 import os
 import copy
+import SharedMemWorker
 
 import init
 from allocmodel import AllocModelConstructorsByName
 from obsmodel import ObsModelConstructorsByName
+import multiprocessing
+from multiprocessing import Process, Queue
+
                    
 class HModel(object):
 
@@ -44,6 +48,8 @@ class HModel(object):
       # Tell the obsModel whether to model docs or words
       obsModel.setupWithAllocModel(allocModel)
 
+
+
   @classmethod
   def CreateEntireModel(cls, inferType, allocModelName, obsModelName, 
                              allocPriorDict, obsPriorDict, Data):
@@ -54,9 +60,25 @@ class HModel(object):
 
     ObsConstr = ObsModelConstructorsByName[obsModelName]
     obsModel = ObsConstr(inferType, Data=Data, **obsPriorDict)
+
     return cls(allocModel, obsModel)
   
     
+  def setupMemory(self,Data):
+        # Create a JobQ (to hold tasks to be done)
+    # and a ResultsQ (to hold results of completed tasks)
+    manager = multiprocessing.Manager()
+    self.JobQ = manager.Queue()
+    self.ResultQ = manager.Queue()
+
+    self.nWorkers=5 #TODO: change this
+
+    for uid in range(self.nWorkers):
+        SharedMemWorker.SharedMemWorker(
+            uid, self.JobQ, self.ResultQ, 
+            Data=Data,
+            verbose=1).start() #TODO: change the verbose
+        
   def copy(self):
     ''' Create a clone of this object with distinct memory allocation
         Any manipulation of clone's parameters will NOT affect self
@@ -117,6 +139,26 @@ class HModel(object):
 
     SS = self.allocModel.get_global_suff_stats(Data, LP, **kwargs)
     SS = self.obsModel.get_global_suff_stats(Data, SS, LP, **kwargs)
+
+    ##TWO OPTIONS
+
+    ##COULD DO +=
+    #In the joining step, simply do LP+=job.get()
+    #Problem is that this would require changing the methods...or just changing the data object passed? So it'd be all zeros everywhere except where relevant
+    #But then if all zeros, how to specify that it only matters on a specific row? Could add in arguments that specify which rows to work on...
+
+
+
+
+    ##COULD DO concatenate arrays
+    #But then we need to worry about the order, don't we? Or does it not matter...
+    #Or does it go in the same order after we call join?
+    #^will not be in same order because different speeds, but could we maintain a pointer to all these different ones
+
+    #Still need to work out the memory issues involved
+    #Could we instead of joining, simply have no returns and just modify that memory portion directly?
+
+
     if doAmplify:
       # Change effective scale of the suff stats, for soVB learning
       if hasattr(Data, 'nDoc'):

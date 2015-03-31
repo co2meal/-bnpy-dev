@@ -379,6 +379,7 @@ def createModel(Data, ReqArgs, KwArgs):
   oPriorDict = KwArgs[oName]
   hmodel = bnpy.HModel.CreateEntireModel(algName, aName, oName, 
                                          aPriorDict, oPriorDict, Data)
+  hmodel.setupMemory(Data)
   return hmodel  
 
 
