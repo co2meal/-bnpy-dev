@@ -46,20 +46,20 @@ class HDPHMM(AllocModel):
         return StickBreakUtil.rho2beta_active(self.rho)
 
     def get_init_prob_vector(self):
-      ''' Get vector of initial probabilities for all K active states
-      '''
-      expELogPi0 = digamma(self.initTheta) - digamma(np.sum(self.initTheta))
-      np.exp(expELogPi0, out = expELogPi0)
-      return expELogPi0[0:self.K]
+        ''' Get vector of initial probabilities for all K active states
+        '''
+        expELogPi0 = digamma(self.initTheta) - digamma(np.sum(self.initTheta))
+        np.exp(expELogPi0, out = expELogPi0)
+        return expELogPi0[0:self.K]
 
 
     def get_trans_prob_matrix(self):
-      ''' Get matrix of transition probabilities for all K active states
-      '''
-      digammaSumVec = digamma(np.sum(self.transTheta, axis = 1))
-      expELogPi = digamma(self.transTheta) - digammaSumVec[:, np.newaxis]
-      np.exp(expELogPi, out = expELogPi)
-      return expELogPi[0:self.K, 0:self.K]
+        ''' Get matrix of transition probabilities for all K active states
+        '''
+        digammaSumVec = digamma(np.sum(self.transTheta, axis = 1))
+        expELogPi = digamma(self.transTheta) - digammaSumVec[:, np.newaxis]
+        np.exp(expELogPi, out = expELogPi)
+        return expELogPi[0:self.K, 0:self.K]
 
     def calc_local_params(self, Data, LP, 
                                 MergePrepInfo=None,
@@ -228,8 +228,6 @@ class HDPHMM(AllocModel):
           subsetLP = dict(resp=resp, TransCount=TransCount, Htable=Htable)
         return subsetLP
 
-  ######################################################### Sufficient Stats
-  #########################################################
     def getSummaryFieldNames(self):
       return ['StartStateCount', 'TransStateCount']
 

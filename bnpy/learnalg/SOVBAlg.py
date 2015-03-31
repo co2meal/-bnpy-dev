@@ -81,10 +81,10 @@ class SOVBAlg(LearnAlg):
             rho = (1 + iterid + self.rhodelay) ** (-1.0 * self.rhoexp)
             if self.algParams['doMemoELBO']:
                 # SS step. Scale at size of current batch.
-                SS = hmodel.get_global_suff_stats(Dchunk, LP, doAmplify=False,
+                SS = hmodel.get_global_suff_stats(Dchunk, LP, 
                                                   doPrecompEntropy=True)
-
                 # Incremental updates for whole-dataset stats
+                # Must happen before applification.
                 if batchID in SSPerBatch:
                     SStotal -= SSPerBatch[batchID]
                 if SStotal is None:
@@ -92,6 +92,24 @@ class SOVBAlg(LearnAlg):
                 else:
                     SStotal += SS
                 SSPerBatch[batchID] = SS.copy()
+                
+                # Scale up to size of whole dataset.
+                if hasattr(Dchunk, 'nDoc'):
+                    ampF = Dchunk.nDocTotal / float(Dchunk.nDoc)
+                    SS.applyAmpFactor(ampF)
+                else:
+                    ampF = Dchunk.nObsTotal / float(Dchunk.nObs)
+                    SS.applyAmpFactor(ampF)
+
+                # M step with learning rate
+                hmodel.update_global_params(SS, rho)
+
+                # ELBO step
+                assert not SStotal.hasAmpFactor()
+                evBound = hmodel.calc_evidence(SS=SStotal)
+            else:
+                # SS step. Scale at size of current batch.
+                SS = hmodel.get_global_suff_stats(Dchunk, LP)
 
                 # Scale up to size of whole dataset.
                 if hasattr(Dchunk, 'nDoc'):
@@ -105,17 +123,8 @@ class SOVBAlg(LearnAlg):
                 hmodel.update_global_params(SS, rho)
 
                 # ELBO step
-                evBound = hmodel.calc_evidence(SS=SStotal)
-            else:
-                # SS step. Scale at size of entire dataset
-                SS = hmodel.get_global_suff_stats(Dchunk, LP, doAmplify=True)
-
-                # M step with learning rate
-                hmodel.update_global_params(SS, rho)
-
-                # ELBO step
+                assert SS.hasAmpFactor()
                 EvChunk = hmodel.calc_evidence(Dchunk, SS, LP)
-
                 if EvMemory[batchID] != 0:
                     EvRunningSum -= EvMemory[batchID]
                 EvRunningSum += EvChunk

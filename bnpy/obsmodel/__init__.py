@@ -1,6 +1,3 @@
-'''
-'''
-
 from DiagGaussObsModel import DiagGaussObsModel
 from GaussObsModel import GaussObsModel
 from ZeroMeanGaussObsModel import ZeroMeanGaussObsModel
@@ -17,8 +14,11 @@ ObsModelConstructorsByName = {
     'Bern': BernObsModel,
 }
 
-for key, val in ObsModelConstructorsByName.items():
-	expandedkey = key + "ObsModel"
-	ObsModelConstructorsByName[expandedkey] = val
+# Make constructor accessible by nickname and fullname
+# Nickname = 'Gauss'
+# Fullname = 'GaussObsModel'
+for val in ObsModelConstructorsByName.values():
+	fullname = str(val.__name__)
+	ObsModelConstructorsByName[fullname] = val
 
 ObsModelNameSet = set(ObsModelConstructorsByName.keys())

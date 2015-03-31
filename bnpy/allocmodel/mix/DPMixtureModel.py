@@ -35,6 +35,7 @@ def convertToN0(N):
     N0[:-1] = N[::-1].cumsum()[::-1][1:]
     return N0
 
+
 def c_Beta(g1, g0):
     ''' Evaluate cumulant function of Beta distribution
 
@@ -164,6 +165,7 @@ def calcCachedELBOTerms_SinglePair(SS, kA, kB, delCompID=None):
 
 
 class DPMixtureModel(AllocModel):
+
     """ Nonparametric mixture model with K active components.
 
     Attributes
@@ -227,10 +229,10 @@ class DPMixtureModel(AllocModel):
     def get_active_comp_probs(self):
         ''' Get vector of appearance probabilities for each active comp.
 
-            Returns
-            -------
-            beta : 1D array, size K
-                beta[k] gives probability of comp. k under this model.
+        Returns
+        -------
+        beta : 1D array, size K
+            beta[k] gives probability of comp. k under this model.
         '''
         Eu = self.eta1 / (self.eta1 + self.eta0)
         Ebeta = Eu.copy()
@@ -243,7 +245,7 @@ class DPMixtureModel(AllocModel):
         return list()
 
     def calc_local_params(self, Data, LP, **kwargs):
-        ''' Compute local parameters for each data item and component.
+        ''' Compute local parameters for each data item.
 
         Parameters
         -------
@@ -420,7 +422,7 @@ class DPMixtureModel(AllocModel):
 
         Post Condition for VB
         -------
-        theta set to define valid posterior over K components.
+        eta1/eta0 set to define valid posterior over K components.
         """
         if hmodel is not None:
             self.setParamsFromHModel(hmodel)
@@ -574,21 +576,6 @@ class DPMixtureModel(AllocModel):
             + np.inner(self.gamma0 - self.eta0, self.Elog1mU) \
             + np.inner(SS.N, self.Elogbeta)
         return slack
-
-
-    def getBestMergePairInvolvingComp(self, SS, k, partnerIDs):
-        """
-
-        """
-        Hcur = -1 * SS.getELBOTerm('Elogqz').sum()
-        
-        for j in partnerIDs:
-            kA = np.minimum(j, k)
-            kB = np.maximum(j, k)
-            Gap[j] = self.calcHardMergeGapFastSinglePair(SS, kA, kB)        
-            Hgap = Hcur - Hprop
-            Gap[j] += Hgap
-        return Gap
 
     def calcHardMergeEntropyGap(self, SS, kA, kB):
         ''' Calc scalar improvement in entropy for merge of kA, kB
