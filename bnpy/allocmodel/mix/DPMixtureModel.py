@@ -525,6 +525,9 @@ class DPMixtureModel(AllocModel):
 
         cDiff = self.ELBO_cDiff()
         slack = self.ELBO_slack(SS)
+        if todict:
+            return dict(Lalloc=cDiff+slack,
+                        Lentropy=Lentropy)
         return cDiff + slack + Lentropy
 
     def calcELBOFromSS_NoCacheableTerms(self, SS):
