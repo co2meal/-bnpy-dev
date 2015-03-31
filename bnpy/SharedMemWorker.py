@@ -48,18 +48,23 @@ class SharedMemWorker(multiprocessing.Process):
         jobIterator = iter(self.JobQueue.get, None)
 
         for jobArgs in jobIterator:
-            start, stop, LP_resp = jobArgs #TODO: **kwargs!!
+            start, stop, LP_part = jobArgs #TODO: **kwargs!!
             if start is not None:
                 self.printMsg("start=%d, stop=%d" % (start, stop))
 
             msg = "X memory location: %d" % (getPtrForArray(self.Data))
             self.printMsg(msg)
 
-            LP_chunk=LP_resp[start:stop]
-            LP_chunk=self.allocModel.calc_local_params(self.Data, LP_chunk)
+            # LP_chunk=LP_resp[start:stop]
+            # LP_small=dict()
+            # LP_small['resp']=LP_chunk
+            # LP_small=self.allocModel.calc_local_params(self.Data, LP_small)
+
+            #TODO: here we run into the problem of how to return this with the original shape, 
+            #if we are calling this with a smaller version
 
             LP_resp=[[0 for i in range(len(LP_resp[0]))] for j in range(len(LP_resp))]#makes it entirely zeros and same size
-            LP_resp[start:stop]=LP_chunk
+            LP_resp[start:stop]=LP_small['resp']
 
             self.ResultQueue.put(LP_resp)
             self.JobQueue.task_done()
