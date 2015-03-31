@@ -185,7 +185,7 @@ class MultObsModel(AbstractObsModel):
         self.Post.setField('lam', lam, dims=('K', 'D'))
         self.K = K
 
-    def calcSummaryStats(self, Data, SS, LP):
+    def calcSummaryStats(self, Data, SS, LP, cslice=(0,None)):
         ''' Calculate summary statistics for given dataset and local parameters
 
         Returns
@@ -208,8 +208,14 @@ class MultObsModel(AbstractObsModel):
             Resp = LP['resp']  # 2D array, size N x K
             # 2D sparse matrix, size V x N
             X = Data.getSparseTokenTypeCountMatrix()
-            WordCounts = (X * Resp).T  # matrix-matrix product
-
+            if cslice[1] is None:
+                WordCounts = (X * Resp).T  # matrix-matrix product
+            else:
+                start = Data.doc_range[cslice[0]]
+                stop = Data.doc_range[cslice[1]]
+                X = X[:, start:stop]
+                WordCounts = (X * Resp).T  # matrix-matrix product
+                
         SS.setField('WordCounts', WordCounts, dims=('K', 'D'))
         SS.setField('SumWordCounts', np.sum(WordCounts, axis=1), dims=('K'))
         return SS
@@ -351,7 +357,7 @@ class MultObsModel(AbstractObsModel):
         # Dirichlet common equivalent to natural here.
         pass
 
-    def calcLogSoftEvMatrix_FromPost(self, Data):
+    def calcLogSoftEvMatrix_FromPost(self, Data, cslice=(0,None), **kwargs):
         ''' Calculate expected log soft ev matrix under Post.
 
         Returns
@@ -363,7 +369,13 @@ class MultObsModel(AbstractObsModel):
             X = Data.getSparseDocTypeCountMatrix()  # nDoc x V
             return X * ElogphiT
         else:
-            return ElogphiT[Data.word_id, :]
+            if cslice[1] == None:
+                return ElogphiT[Data.word_id, :]
+            else:
+                start = Data.doc_range[cslice[0]]
+                stop = Data.doc_range[cslice[1]]
+                wid = Data.word_id[start:stop]
+                return ElogphiT[wid, :]
 
     def calcELBO_Memoized(self, SS, afterMStep=False):
         """ Calculate obsModel's objective using suff stats SS and Post.
