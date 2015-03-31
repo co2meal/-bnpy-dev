@@ -101,6 +101,8 @@ class AbstractObsModel(object):
             # which  is used in the allocation model.
             return 0
         else:
+            if todict:
+                return dict(Ldata=self.calcELBO_Memoized(SS))
             return self.calcELBO_Memoized(SS)
 
     def to_dict(self):
