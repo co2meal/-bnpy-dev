@@ -169,7 +169,9 @@ class FiniteTopicModel(AllocModel):
         LP['ElogPi'] = ElogPi
         return LP
 
-    def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None, **kwargs):
+    def get_global_suff_stats(self, Data, LP, 
+                              doPrecompEntropy=None, 
+                              cslice=(0, None), **kwargs):
         ''' Calculate sufficient statistics for global updates.
 
         Parameters
@@ -198,7 +200,10 @@ class FiniteTopicModel(AllocModel):
         _, K = resp.shape
 
         SS = SuffStatBag(K=K, D=Data.get_dim())
-        SS.setField('nDoc', Data.nDoc, dims=None)
+        if cslice[1] is None:
+            SS.setField('nDoc', Data.nDoc, dims=None)
+        else:
+            SS.setField('nDoc', cslice[1] - cslice[0], dims=None)
         if doPrecompEntropy:
             Hvec = self.L_entropy(Data, LP, returnVector=1)
             Lalloc = self.L_alloc(Data, LP)

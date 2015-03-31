@@ -12,6 +12,7 @@ from LocalStepSingleDoc import calcLocalParams_SingleDoc_WithELBOTrace
 def calcLocalParamsForDataSlice(
         Data, LP, aModel,
         initDocTopicCountLP='scratch',
+        cslice=(0,None),
         **kwargs):
     ''' Calculate all local parameters for provided dataset under a topic model
 
@@ -28,18 +29,22 @@ def calcLocalParamsForDataSlice(
     Lik -= Lik.max(axis=1)[:, np.newaxis]
     NumericUtil.inplaceExp(Lik)
 
+    if cslice[0] is None:
+        cslice = (0, None)
+    nDoc = calcNumDocFromSlice(Data, cslice)
+
     # Prepare the initial DocTopicCount matrix,
     # Useful for warm starts of the local step.
     K = Lik.shape[1]
     initDocTopicCount = None
     if 'DocTopicCount' in LP:
-        if LP['DocTopicCount'].shape == (Data.nDoc, K):
+        if LP['DocTopicCount'].shape == (nDoc, K):
             initDocTopicCount = LP['DocTopicCount'].copy()
 
     N, K = Lik.shape
     sumRespTilde = np.zeros(N)
-    DocTopicCount = np.zeros((Data.nDoc, K))
-    DocTopicProb = np.zeros((Data.nDoc, K))
+    DocTopicCount = np.zeros((nDoc, K))
+    DocTopicProb = np.zeros((nDoc, K))
 
     if str(type(aModel)).count('HDP'):
         alphaEbeta = aModel.alphaEbeta[:-1].copy()
@@ -49,11 +54,15 @@ def calcLocalParamsForDataSlice(
         alphaEbeta = aModel.alpha * np.ones(K)
         alphaEbetaRem = None
 
+    slice_start = Data.doc_range[cslice[0]]
     AggInfo = dict()
-    for d in xrange(Data.nDoc):
-        start = Data.doc_range[d]
-        stop = Data.doc_range[d + 1]
-        Lik_d = Lik[start:stop].copy()  # Local copy
+    for d in xrange(nDoc):
+        start = Data.doc_range[cslice[0] + d]
+        stop = Data.doc_range[cslice[0] + d + 1]
+
+        lstart = start - slice_start
+        lstop = stop - slice_start
+        Lik_d = Lik[lstart:lstop].copy()  # Local copy
         if hasattr(Data, 'word_count'):
             wc_d = Data.word_count[start:stop].copy()
         else:
@@ -63,7 +72,7 @@ def calcLocalParamsForDataSlice(
         else:
             initDTC_d = None
 
-        DocTopicCount[d], DocTopicProb[d], sumRespTilde[start:stop], Info_d \
+        DocTopicCount[d], DocTopicProb[d], sumRespTilde[lstart:lstop], Info_d \
             = calcLocalParams_SingleDoc(
                 wc_d, Lik_d, alphaEbeta, alphaEbetaRem,
                 DocTopicCount_d=initDTC_d,
@@ -72,20 +81,23 @@ def calcLocalParamsForDataSlice(
 
     LP['DocTopicCount'] = DocTopicCount
     LP = aModel.updateLPGivenDocTopicCount(LP, DocTopicCount)
-    LP = updateLPWithResp(LP, Data, Lik, DocTopicProb, sumRespTilde)
+    LP = updateLPWithResp(LP, Data, Lik, DocTopicProb, sumRespTilde, cslice)
     LP['Info'] = AggInfo
     writeLogMessageForManyDocs(Data, AggInfo, **kwargs)
     return LP
 
 
-def updateLPWithResp(LP, Data, Lik, Prior, sumRespTilde):
+def updateLPWithResp(LP, Data, Lik, Prior, sumRespTilde, cslice=(0,None)):
+    nDoc = calcNumDocFromSlice(Data, cslice)
     LP['resp'] = Lik.copy()
-    for d in xrange(Data.nDoc):
-        start = Data.doc_range[d]
-        stop = Data.doc_range[d + 1]
+    slice_start = Data.doc_range[cslice[0]]
+    for d in xrange(nDoc):
+        start = Data.doc_range[cslice[0] + d] - slice_start
+        stop = Data.doc_range[cslice[0] + d + 1] - slice_start
         LP['resp'][start:stop] *= Prior[d]
     LP['resp'] /= sumRespTilde[:, np.newaxis]
     np.maximum(LP['resp'], 1e-300, out=LP['resp'])
+    # assert np.allclose(LP['resp'].sum(axis=1), 1.0)
     return LP
 
 
@@ -97,6 +109,12 @@ def updateSingleDocLPWithResp(LP_d, Lik_d, Prior_d, sumR_d):
     LP_d['resp'] = resp_d
     return LP_d
 
+def calcNumDocFromSlice(Data, cslice):
+    if cslice[1] is None:
+        nDoc = Data.nDoc
+    else:
+        nDoc = cslice[1] - cslice[0]
+    return int(nDoc)
 
 def writeLogMessageForManyDocs(Data, AI, **kwargs):
     """ Write log message summarizing convergence behavior across docs.
