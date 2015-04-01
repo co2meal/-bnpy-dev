@@ -70,8 +70,7 @@ class ParallelVBAlg( LearnAlg ):
         a_calcSummaryStats,
         dataSharedMem,
         aSharedMem,
-        oSharedMem).start() #TODO: need to find the way to import that from where it is
-        #TODO not passing in LPKwargs
+        oSharedMem,LPKwargs=self.LPKwargs).start() #TODO: need to find the way to import that from where it is
     
 
     for iterid in xrange(1, self.algParams['nLap']+1):
@@ -90,7 +89,7 @@ class ParallelVBAlg( LearnAlg ):
 
       #update the memory
       aSharedMem = hmodel.allocModel.fillInSharedMem(aSharedMem)
-      oSharedMem = hmodel.obs<odel.fillInSharedMem(oSharedMem)
+      oSharedMem = hmodel.obsModel.fillInSharedMem(oSharedMem)
 
       ## ELBO calculation
       evBound = hmodel.calc_evidence(Data=Data, SS=SS)
@@ -204,7 +203,9 @@ class ParallelVBAlg( LearnAlg ):
         stop = (workerID + 1) * batchSize
         if workerID == nWorkers - 1:
             stop = nDoc
-        yield start, stop
+        #yields batchID, start, and stop
+        #For VB, batchID=0 since it is online
+        yield 0, start, stop
 
 
 
