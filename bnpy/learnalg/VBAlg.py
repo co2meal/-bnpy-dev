@@ -40,13 +40,13 @@ class VBAlg( LearnAlg ):
       self.set_random_seed_at_lap(lap)
 
       ## Local/E step
-      #LP = hmodel.calc_local_params(Data, LP, **self.algParamsLP)
+      LP = hmodel.calc_local_params(Data, LP, **self.algParamsLP)
 
       ## Summary step
-      #SS = hmodel.get_global_suff_stats(Data, LP)
+      SS = hmodel.get_global_suff_stats(Data, LP)
 
       ##Combined E step and summary step
-      LP, SS = hmodel.calcLocalParamsAndSummarize(Data,LP,**self.algParamsLP)
+      #LP, SS = hmodel.calcLocalParamsAndSummarize(Data,LP,**self.algParamsLP)
 
       ## Global/M step
       hmodel.update_global_params(SS) 

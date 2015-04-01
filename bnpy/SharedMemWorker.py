@@ -23,6 +23,31 @@ import time
 
 import bnpy
 
+
+#Two things for shared memory are: the data object and some pieces of the model...can serialize and not worry about 
+#if have vector of size k (which is not shared memory can do topics)
+
+#Go through 
+#In the consturctor or run method, would need to go through and make the things needed
+
+
+#Worker constructor
+#hand off any shared memory arrays 
+
+
+#Mike will write calcLocal(Data, slice **arrArgs)
+#1) Write the static methods
+#2) Create correct frameworks 
+# Develop proper SharedMemWorker class and how do I pass in arbitrary shared memory that depends on Beta and model?
+
+
+#Run some tests to do some of it
+
+#Job Queue
+#give it a start and stop, could hand off things related to alloc model like alpha or beta vector
+
+
+
 class SharedMemWorker(multiprocessing.Process):
     """ Single "worker" process that processes tasks delivered via queues
     """
