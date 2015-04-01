@@ -44,6 +44,7 @@ class SharedMemWorker(multiprocessing.Process):
         self.ResultQueue = ResultQueue
 
         #Function handles
+        self.makeDataSliceFromSharedMem = makeDataSliceFromSharedMem
         self.o_calcLocalParams=o_calcLocalParams
         self.o_calcSummaryStats=o_calcSummaryStats
         self.a_calcLocalParams=a_calcLocalParams
