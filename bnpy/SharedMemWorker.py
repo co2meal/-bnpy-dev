@@ -24,47 +24,39 @@ import time
 import bnpy
 
 
-#Two things for shared memory are: the data object and some pieces of the model...can serialize and not worry about 
-#if have vector of size k (which is not shared memory can do topics)
-
-#Go through 
-#In the consturctor or run method, would need to go through and make the things needed
-
-
-#Worker constructor
-#hand off any shared memory arrays 
-
-
-#Mike will write calcLocal(Data, slice **arrArgs)
-#1) Write the static methods
-#2) Create correct frameworks 
-# Develop proper SharedMemWorker class and how do I pass in arbitrary shared memory that depends on Beta and model?
-
-
-#Run some tests to do some of it
-
-#Job Queue
-#give it a start and stop, could hand off things related to alloc model like alpha or beta vector
-
-
 class SharedMemWorker(multiprocessing.Process):
     """ Single "worker" process that processes tasks delivered via queues
     """
     def __init__(self, uid, JobQueue, ResultQueue, 
-                 Data=None,
-                 arrArgs=None,
+                 makeDataSliceFromSharedMem,
+                 o_calcLocalParams,
+                 o_calcSummaryStats,
+                 a_calcLocalParams,
+                 a_calcSummaryStats,
+                 dataSharedMem,
+                 aSharedMem,
+                 oSharedMem,
                  LPkwargs=None,
                  verbose=0):
         super(Worker, self).__init__()
         self.uid = uid
-        self.Data = Data
+        self.JobQueue = JobQueue
+        self.ResultQueue = ResultQueue
+
+        #Function handles
+        self.o_calcLocalParams=o_calcLocalParams
+        self.o_calcSummaryStats=o_calcSummaryStats
+        self.a_calcLocalParams=a_calcLocalParams
+        self.a_calcSummaryStats=a_calcSummaryStats
+
+        #Things to unpack
+        self.dataSharedMem=dataSharedMem
+        self.aSharedMem=aSharedMem
+        self.oSharedMem=oSharedMem
         if LPkwargs is None:
             LPkwargs = dict()
         self.LPkwargs = LPkwargs
-        self.arrArgs = arrArgs #TODO: ask Mike about this unpacking!
 
-        self.JobQueue = JobQueue
-        self.ResultQueue = ResultQueue
         self.verbose = verbose
 
     def printMsg(self, msg):
@@ -79,21 +71,22 @@ class SharedMemWorker(multiprocessing.Process):
         jobIterator = iter(self.JobQueue.get, None)
 
         for jobArgs in jobIterator:
-            start, stop = jobArgs
-            sliceArgs = dict(cslice=(start, stop))
-            kwargs.update(sliceArgs)
+            sliceArgs, aArgs, oArgs = jobArgs
+            Dslice = self.makeDataSliceFromSharedMem(self.dataSharedMem,sliceArgs)
+            aArrDict = convertSharedMemToNumpyArrays(self.aSharedMem)
+            aArgs.update(aArrDict)
+            oArrDict = convertSharedMemToNumpyArrays(self.oSharedMem)
+            oArgs.update(oArrDict)
 
-            #TODO insert the static methods here
-            #TODO: could take in array arguments
-            LP = obsModelCalcLocalParams(self.Data, dict(), **kwargs)
-            LP = allocModelCalcLocalParams(self.Data, self.LPKwargs, **kwargs)
+            LP = self.o_calcLocalParams(Dslice, **oArgs)
+            LP = self.a_calcLocalParams(Dslice, LP, **aArgs)
 
-            SS = allocModelGetGlobalSuffStats(self.Data, self.LPKwargs, **sliceArgs)
-            SS = obsModelGetGlobalSuffStats(self.Data, SS, LP, **sliceArgs)
+            SS = a_calcSummaryStats(Dslice, LP, **aArgs)
+            SS = o_calcSummaryStats(Dslice, SS, LP, **oArgs)
 
             self.ResultQueue.put(SS)
-            self.JobQueue.task_done()
-
+            self.JobQueue.task_done() 
+            
         # Clean up
         self.printMsg("process CleanUp! pid=%d" % (os.getpid()))
 
