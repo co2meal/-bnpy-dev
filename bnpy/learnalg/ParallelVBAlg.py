@@ -56,7 +56,7 @@ class ParallelVBAlg( LearnAlg ):
       a_calcSummaryStats = hmodel.allocModel.getHandleCalcSummaryStats()
 
       #Create the shared memory
-      dataSharedMem = Data.converToSharedMem() 
+      dataSharedMem = Data.convertToSharedMem() 
       aSharedMem = hmodel.allocModel.fillInSharedMem() 
       oSharedMem = hmodel.obsModel.fillInSharedMem()
 
@@ -72,8 +72,7 @@ class ParallelVBAlg( LearnAlg ):
         aSharedMem,
         oSharedMem).start() #TODO: need to find the way to import that from where it is
         #TODO not passing in LPKwargs
-    else:
-      self.hmodel = hmodel
+    
 
     for iterid in xrange(1, self.algParams['nLap']+1):
       lap = self.algParams['startLap'] + iterid
@@ -84,7 +83,8 @@ class ParallelVBAlg( LearnAlg ):
         SS = self.calcLocalParamsAndSummarize(hmodel) #TODO fill in params
 
       else:
-        SS = self.serialCalcLocalParamsAndSummarize() 
+        SS = self.serialCalcLocalParamsAndSummarize(hmodel) 
+
       ## Global/M step
       hmodel.update_global_params(SS) 
 
@@ -152,8 +152,44 @@ class ParallelVBAlg( LearnAlg ):
         SS += SSchunk
     return SS
 
-  def serialCalcLocalParamsAndSummarize(self):
-    pass
+  def serialCalcLocalParamsAndSummarize(self, hmodel):
+    SSagg = None
+    for dataBatchID, start, stop in sliceGenerator(self.nDoc, self.nWorkers):
+        sliceArgs = (dataBatchID,start,stop)
+        aArgs = hmodel.allocModel.getSerializableParamsForLocalStep()
+        oArgs = hmodel.obsModel.getSerializableParamsForLocalStep()
+
+        #Below is the code that is called in the run method for SharedMemWorker
+        #Get the function handles
+        makeDataSliceFromSharedMem = hmodel.getHandleMakeDataSliceFromSharedMem()
+        o_calcLocalParams = hmodel.obsModel.getHandleCalcLocalParams()
+        o_calcSummaryStats = hmodel.obsModel.getHandleCalcSummaryStats()
+        a_calcLocalParams = hmodel.allocModel.getHandleCalcLocalParams()
+        a_calcSummaryStats = hmodel.allocModel.getHandleCalcSummaryStats()
+
+        #Create the shared memory
+        dataSharedMem = Data.convertToSharedMem() 
+        aSharedMem = hmodel.allocModel.fillInSharedMem() 
+        oSharedMem = hmodel.obsModel.fillInSharedMem()
+
+        Dslice = makeDataSliceFromSharedMem(dataSharedMem,sliceArgs)
+        aArrDict = convertSharedMemToNumpyArrays(aSharedMem)
+        aArgs.update(aArrDict)
+        oArrDict = convertSharedMemToNumpyArrays(oSharedMem)
+        oArgs.update(oArrDict)
+
+        LP = self.o_calcLocalParams(Dslice, **oArgs)
+        LP = self.a_calcLocalParams(Dslice, LP, **aArgs)
+
+        SSagg = self.a_calcSummaryStats(Dslice, LP, **aArgs)
+        SSagg = self.o_calcSummaryStats(Dslice, SSagg, LP, **oArgs)
+
+        if start == 0:
+            SSagg = SSslice
+        else:
+            SSagg += SSslice
+
+    return SSagg
 
   def sliceGenerator(nDoc=0, nWorkers=0):
     """ Iterate over slices given problem size and num workers
