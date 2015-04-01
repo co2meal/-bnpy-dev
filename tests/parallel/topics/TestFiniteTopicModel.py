@@ -66,12 +66,15 @@ def runBenchmarkAcrossProblemSizes(TestClass):
     """
     import argparse
 
+    if 'OMP_NUM_THREADS' not in os.environ:
+        os.environ['OMP_NUM_THREADS'] = '1'
+
     parser = argparse.ArgumentParser()
-    parser.add_argument('--nDoc', type=str, default='25')
-    parser.add_argument('--N', type=str, default='10000')
-    parser.add_argument('--K', type=str, default='10')
+    parser.add_argument('--nDoc', type=str, default='100')
+    parser.add_argument('--N', type=str, default='200')
+    parser.add_argument('--K', type=str, default='50')
     parser.add_argument('--nWorkers', type=str, default='2')
-    parser.add_argument('--vocab_size', type=int, default=100)
+    parser.add_argument('--vocab_size', type=int, default=1000)
     parser.add_argument('--nCoordAscentItersLP', type=int, default=100)
     parser.add_argument('--convThrLP', type=float, default=0.001)
     parser.add_argument('--method', type=str, default='all')
