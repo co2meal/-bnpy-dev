@@ -173,7 +173,7 @@ def FwdAlg(PiInit, PiMat, SoftEv):
                   margPrObs[t] = p( x[t] | x[1], x[2], ... x[t-1] )
   '''
   if PlatformConfig['FwdBwdImpl'] == "cpp":
-    return FwdAlg_cpp(PiInit, PiMat, SoftEv)
+    return FwdAlg_py(PiInit, PiMat, SoftEv)
   else:
     return FwdAlg_py(PiInit, PiMat, SoftEv)
 
@@ -192,7 +192,7 @@ def BwdAlg(PiInit, PiMat, SoftEv, margPrObs):
                           p( x[t+1], x[t+2], ... x[T] |  x[1] ... x[t])
   '''
   if PlatformConfig['FwdBwdImpl'] == "cpp":
-    return BwdAlg_cpp(PiInit, PiMat, SoftEv, margPrObs)
+    return BwdAlg_py(PiInit, PiMat, SoftEv, margPrObs)
   else:
     return BwdAlg_py(PiInit, PiMat, SoftEv, margPrObs)
 
