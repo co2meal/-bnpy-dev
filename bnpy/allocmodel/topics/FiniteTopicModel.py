@@ -110,25 +110,11 @@ class FiniteTopicModel(AllocModel):
                 Defines approximate posterior on doc-topic weights.
                 q(\pi_d) = Dirichlet(theta[d,0], ... theta[d, K-1])
         '''
-        LP = calcLocalParamsForDataSlice(Data, LP, self, **kwargs)
+        alphaEbeta = self.alpha * np.ones(self.K)
+        LP = calcLocalParamsForDataSlice(Data, LP, alphaEbeta, **kwargs)
         assert 'resp' in LP
         assert 'theta' in LP
         assert 'DocTopicCount' in LP
-        return LP
-
-    def updateLPGivenDocTopicCount(self, LP, DocTopicCount):
-        ''' Update local parameters given doc-topic counts for many docs.
-
-        Returns
-        --------
-        LP : dict of local params, with updated fields
-            * theta : 2D array, nDoc x K
-            * ElogPi : 2D array, nDoc x K
-        '''
-        theta = DocTopicCount + self.alpha
-        LP['theta'] = theta
-        LP['ElogPi'] = digamma(theta) \
-            - digamma(theta.sum(axis=1))[:, np.newaxis]
         return LP
 
     def initLPFromResp(self, Data, LP):

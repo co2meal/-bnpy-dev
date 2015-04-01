@@ -301,15 +301,20 @@ class Test(unittest.TestCase):
         for start, stop in sliceGenerator(self.nDoc, self.nWorkers):
             self.JobQ.put((start, stop))
 
-        # Pause at this line until all jobs are marked complete.
-        self.JobQ.join()
-
         # REDUCE!
         # Aggregate results across across all workers
-        SS = self.ResultQ.get()
-        while not self.ResultQ.empty():
-            SSchunk = self.ResultQ.get()
-            SS += SSchunk
+        # Avoids JobQueue.join() call (which blocks execution)
+        # Instead lets main process aggregate all results as they come in.
+        nTaskDone = 0
+        while nTaskDone < self.nWorkers:
+            if not self.ResultQ.empty():
+                SSchunk = self.ResultQ.get()
+                if nTaskDone == 0:
+                    SS = SSchunk
+                else:
+                    SS += SSchunk
+                nTaskDone += 1
+        # At this point all jobs are marked complete.
         return SS
 
     def test_correctness_serial(self):

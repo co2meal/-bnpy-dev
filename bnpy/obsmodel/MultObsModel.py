@@ -186,7 +186,7 @@ class MultObsModel(AbstractObsModel):
         self.Post.setField('lam', lam, dims=('K', 'D'))
         self.K = K
 
-    def calcSummaryStats(self, Data, SS, LP, cslice=(0,None)):
+    def calcSummaryStats(self, Data, SS, LP, cslice=(0,None), **kwargs):
         ''' Calculate summary statistics for given dataset and local parameters
 
         Returns
