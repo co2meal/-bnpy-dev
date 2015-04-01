@@ -59,6 +59,7 @@ def addDataFromBatchToPlan(Plan, hmodel, Dchunk, LPchunk,
     else:
         Plan['DTargetData'] = relData
         Plan['batchIDs'] = batchIDs
+        Plan['dataUnitIDs'] = relIDs
 
     curTargetSize = getSize(Plan['DTargetData'])
     if curTargetSize > dtargetMaxSize:

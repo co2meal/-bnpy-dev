@@ -126,6 +126,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
             if self.isFirstBatch(lapFrac) and self.hasMove('delete'):
                 self.DeleteAcceptRecord = dict()
                 if self.doDeleteAtLap(lapFrac):
+                    if self.doDebug():
+                        DeletePlans[0]['WholeDataset'] = DataIterator.Data
                     hmodel, SS = self.deleteAndUpdateMemory(hmodel, SS,
                                                             DeletePlans, order)
                 DeletePlans = list()
@@ -1183,7 +1185,6 @@ class MOVBBirthMergeAlg(MOVBAlg):
                         SSmemory=self.SSmemory,
                         lapFrac=self.lapFrac,
                         **self.algParams['delete'])
-
                 nYes = len(DPlan['acceptedUIDs'])
                 nAttempt = len(DPlan['candidateUIDs'])
                 DeleteLogger.log('DELETE %d/%d accepted' % (nYes, nAttempt),
