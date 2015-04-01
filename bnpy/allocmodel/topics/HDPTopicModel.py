@@ -196,35 +196,13 @@ class HDPTopicModel(AllocModel):
                 Expected value E[log pi[d,k]] under q(pi).
                 This is a function of theta and thetaRem.
         '''
-        self.alpha_E_beta()  # create cached copy
+        aEbeta_Kp1 = self.alpha_E_beta()  # create cached copy
+        alphaEbeta = aEbeta_Kp1[:-1].copy() # vector size K
+        alphaEbetaRem = aEbeta_Kp1[-1] * 1.0 # make float
         LP = LocalStepManyDocs.calcLocalParamsForDataSlice(
-            Data, LP, self, **kwargs)
+            Data, LP, alphaEbeta, alphaEbetaRem=alphaEbetaRem, **kwargs)
         assert 'resp' in LP
         assert 'DocTopicCount' in LP
-        return LP
-
-    def updateLPGivenDocTopicCount(self, LP, DocTopicCount):
-        ''' Update local parameters given doc-topic counts for many docs.
-
-        Returns
-        --------
-        LP : dict of local params, with updated fields
-            * theta : 2D array, nDoc x K
-            * thetaRem : scalar
-            * ElogPi : 2D array, nDoc x K
-            * ElogPiRem : scalar
-        '''
-        alphaEbeta = self.alpha * self.E_beta()
-
-        theta = DocTopicCount + alphaEbeta[:-1]
-        digammaSumTheta = digamma(theta.sum(axis=1) + alphaEbeta[-1])
-        ElogPi = digamma(theta) - digammaSumTheta[:, np.newaxis]
-        ElogPiRem = digamma(alphaEbeta[-1]) - digammaSumTheta
-        LP['theta'] = theta
-        LP['thetaRem'] = alphaEbeta[-1]
-        LP['ElogPi'] = ElogPi
-        LP['ElogPiRem'] = ElogPiRem
-        LP['digammaSumTheta'] = digammaSumTheta
         return LP
 
     def initLPFromResp(self, Data, LP, deleteCompID=None):
