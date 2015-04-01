@@ -5,7 +5,7 @@ from bnpy.suffstats import SuffStatBag
 from ...util import digamma, gammaln
 from ...util import NumericUtil
 
-from LocalStepManyDocs import calcLocalParamsForDataSlice
+from LocalStepManyDocs import calcLocalParams
 
 
 class FiniteTopicModel(AllocModel):
@@ -110,25 +110,11 @@ class FiniteTopicModel(AllocModel):
                 Defines approximate posterior on doc-topic weights.
                 q(\pi_d) = Dirichlet(theta[d,0], ... theta[d, K-1])
         '''
-        LP = calcLocalParamsForDataSlice(Data, LP, self, **kwargs)
+        alphaEbeta = self.alpha * np.ones(self.K)
+        LP = calcLocalParams(Data, LP, alphaEbeta, **kwargs)
         assert 'resp' in LP
         assert 'theta' in LP
         assert 'DocTopicCount' in LP
-        return LP
-
-    def updateLPGivenDocTopicCount(self, LP, DocTopicCount):
-        ''' Update local parameters given doc-topic counts for many docs.
-
-        Returns
-        --------
-        LP : dict of local params, with updated fields
-            * theta : 2D array, nDoc x K
-            * ElogPi : 2D array, nDoc x K
-        '''
-        theta = DocTopicCount + self.alpha
-        LP['theta'] = theta
-        LP['ElogPi'] = digamma(theta) \
-            - digamma(theta.sum(axis=1))[:, np.newaxis]
         return LP
 
     def initLPFromResp(self, Data, LP):
@@ -264,6 +250,23 @@ class FiniteTopicModel(AllocModel):
         '''
         return L_alloc(Data=Data, LP=LP, alpha=self.alpha)
 
+    def getSerializableArgsForLocalStep(self):
+        """ Get compact dict of params for local step.
+
+        Returns
+        -------
+        Info : dict
+        """
+        return dict(inferType=self.inferType, 
+                    K=self.K, 
+                    alpha=self.alpha)
+
+    def fillSharedMemForLocalStep(self, ShMem=None):
+        return dict()
+
+    def getLocalAndSummaryFunctions(self):
+        return calcLocalParams, calcSummaryStats
+    
 
 def L_alloc(Data=None, LP=None, nDoc=0, alpha=1.0, **kwargs):
     ''' Calculate allocation term of the ELBO objective.
@@ -318,3 +321,42 @@ def c_Func(avec, K=0):
         return gammaln(np.sum(avec)) - np.sum(gammaln(avec))
     else:
         return np.sum(gammaln(np.sum(avec, axis=1))) - np.sum(gammaln(avec))
+
+
+
+def calcSummaryStats(Dslice, LP=None, alpha=None,
+                     **kwargs):
+    """ Calculate summary from local parameters for given data slice.
+
+    Parameters
+    -------
+    Data : bnpy data object
+    LP : local param dict with fields
+        resp : Data.nObs x K array,
+            where resp[n,k] = posterior resp of comp k
+        doPrecompEntropy : boolean flag
+            indicates whether to precompute ELBO terms in advance
+            used for memoized learning algorithms (moVB)
+
+    Returns
+    -------
+    SS : SuffStatBag with K components
+        * nDoc : scalar float
+            Counts total documents available in provided data.
+
+        Also has optional ELBO field when precompELBO is True
+        * Hvec : 1D array, size K
+            Vector of entropy contributions from each comp.
+            Hvec[k] = \sum_{n=1}^N H[q(z_n)], a function of 'resp'
+    """
+    resp = LP['resp']
+    _, K = resp.shape
+
+    SS = SuffStatBag(K=K, D=Dslice.vocab_size)
+    SS.setField('nDoc', Dslice.nDoc, dims=None)
+    if doPrecompEntropy:
+        Hvec = L_entropy(Dslice, LP, returnVector=1)
+        Lalloc = L_alloc(Dslice, LP, alpha=alpha)
+        SS.setELBOTerm('Hvec', Hvec, dims='K')
+        SS.setELBOTerm('L_alloc', Lalloc, dims=None)
+    return LP
