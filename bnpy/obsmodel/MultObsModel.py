@@ -544,8 +544,8 @@ class MultObsModel(AbstractObsModel):
         ElogphiT = self._E_logphi(k).T.copy()
         return ElogphiT
 
-    def toSerializableDict(self):
-        """ Get compact dict of information about internal state.
+    def getSerializableArgsForLocalStep(self):
+        """ Get compact dict of params for local step.
 
         Returns
         -------
@@ -576,6 +576,8 @@ class MultObsModel(AbstractObsModel):
                 ShMem['ElogphiT'] = numpyToSharedMemArray(ElogphiT)
         return ShMem
 
+    def getLocalAndSummaryFunctions(self):
+        return calcLocalParams, calcSummaryStats
 
 def c_Func(lam):
     ''' Evaluate cumulant function at given params.
@@ -603,14 +605,20 @@ def c_Diff(lam1, lam2):
     return c_Func(lam1) - c_Func(lam2)
 
 
-def calcLocalParams(**kwargs):
-    L = calcLogSoftEvMatrix_FromPost(**kwargs)
-    return dict(E_log_soft_ev=L)
+def calcLocalParams(Dslice, **kwargs):
+    """ Calculate local parameters for provided slice of data.
 
-def calcLogSoftEvMatrix(
-    ElogphiT=None, 
-    doc_range=None, word_id=None, cslice=(0,None), 
-    **kwargs):
+    Returns
+    -------
+    LP : dict with fields
+        * E_log_soft_ev : 2D array, size N x K
+    """
+    E_log_soft_ev = calcLogSoftEvMatrix_FromPost(Dslice, **kwargs)
+    return dict(E_log_soft_ev=E_log_soft_ev)
+
+def calcLogSoftEvMatrix_FromPost(Dslice,
+                                 ElogphiT=None, 
+                                 **kwargs):
     ''' Calculate expected log soft ev matrix.
 
     Model Args
@@ -619,54 +627,30 @@ def calcLogSoftEvMatrix(
 
     Data Args
     ---------
-    doc_range : 1D array
-    word_id : 1D array
-    cslice : tuple of int or None
+    Dslice : data-like
+        doc_range : 1D array
+        word_id : 1D array
 
     Returns
     ------
     L : 2D array, size N x K
     '''
-    if cslice[1] is not None:
-        start = doc_range[cslice[0]]
-        stop = doc_range[cslice[1]]
-        return ElogphiT[word_id[start:stop], :]
-    else:
-        return ElogphiT[word_id, :]
+    return ElogphiT[Dslice.word_id, :]
 
-def calcSummaryStats(SS=None,
-                     vocab_size=None, 
-                     word_id=None,
-                     word_count=None, 
-                     LP=None, cslice=(0,None), **kwargs):
+def calcSummaryStats(Dslice, SS, LP, **kwargs):
     ''' Calculate summary statistics for given dataset and local parameters
 
     Returns
     --------
     SS : SuffStatBag object, with K components.
     '''
-    Resp = LP['resp']  # 2D array, size N x K
-    N, K = Resp.shape
+    Rslice = LP['resp']  # 2D array, size N x K
+    Nslice, K = Rslice.shape
+    Xslice = scipy.sparse.csc_matrix(
+         (Dslice.word_count, Dslice.word_id, np.arange(Nslice + 1)),
+            shape=(vocab_size, Nslice))
 
-    if cslice[1] is None:
-        indptr = np.arange(N + 1)
-        Xslice = scipy.sparse.csc_matrix(
-            (word_count, word_id, indptr),
-            shape=(vocab_size, N))
-    else:
-        start = Data.doc_range[cslice[0]]
-        stop = Data.doc_range[cslice[1]]
-        assert N == stop - start
-        indptr = np.arange(N + 1)
-        Xslice = scipy.sparse.csc_matrix(
-            (word_count[start:stop], word_id[start:stop], indptr),
-            shape=(vocab_size, N))
-
-    if SS is None:
-        SS = SuffStatBag(K=K, D=vocab_size)
-
-    WordCounts = (X * Resp).T  # matrix-matrix product
-            
+    WordCounts = (Xslice * Rslice).T  # matrix-matrix product  
     SS.setField('WordCounts', WordCounts, dims=('K', 'D'))
     SS.setField('SumWordCounts', np.sum(WordCounts, axis=1), dims=('K'))
     return SS
