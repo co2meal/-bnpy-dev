@@ -97,3 +97,18 @@ class AllocModel(object):
   def get_prior_dict(self):
     pass
 
+  ######################################################### Paralllelization functions
+  #########################################################   
+  def calcLocalParams(self):
+    pass
+
+  def calcSummaryStats(self):
+    pass
+
+  ######################################################### Function handles
+  #########################################################   
+  def getHandleCalcLocalParams(self):
+    return self.calcLocalParams
+
+  def getHandleCalcSummaryStats(self):
+     return self.calcSummaryStats

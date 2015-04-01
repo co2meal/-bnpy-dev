@@ -121,87 +121,6 @@ class HModel(object):
         ampF = Data.nObsTotal / float(Data.nObs)
         SS.applyAmpFactor(ampF)
     return SS
-  
-
-  
-  def calcLocalParamsAndSummarize(self, Data, LP, doAmplify=False, **kwargs):
-    ''' This does both the E-step and M-step of the algorithm.
-        Calculates local parameters specific to each data item and then Calculates
-        sufficient statistics
-    '''
-    if LP is None:
-      LP = dict()
-    # Calculate the "soft evidence" each obsModel component has on each item
-    # Fills in LP['E_log_soft_ev']
-    LP = self.obsModel.calc_local_params(Data, LP, **kwargs)
-
-    # Combine with allocModel probs of each cluster
-    # Fills in LP['resp'], a Data.nObs x K matrix whose rows sum to one
-    #LP = self.allocModel.calc_local_params(Data, LP, **kwargs)
-
-
-    #TODO: nObs? Is it really nDoc in this case? 
-
-
-    start=0
-    stop=0
-    while stop < Data.nDoc:
-      stop=max(stop+100,Data.nDoc)
-      LP_chunk=dict()
-      LP_chunk['E_log_soft_ev']=LP['E_log_soft_ev']
-      if 'resp' in LP:
-        LP_chunk['resp']=LP['resp'][start:stop]
-      self.JobQ.put((start,stop,LP_chunk))
-
-
-    self.JobQ.join()
-
-    LP_resp=self.ResultQ.get()
-    while not self.ResultQ.empty():
-      LP_part=self.ResultsQ.get()
-      LP_resp += LP_part
-
-    LP['resp']=LP_resp
-    ##TWO OPTIONS
-
-    ##COULD DO +=
-    #In the joining step, simply do LP+=job.get()
-    #Problem is that this would require changing the methods...or just changing the data object passed? So it'd be all zeros everywhere except where relevant
-    #But then if all zeros, how to specify that it only matters on a specific row? Could add in arguments that specify which rows to work on...
-
-
-
-    #NOW for LP resp, need to add the jobs to the queue, join, and then get from the non-empty and simply add everything up 
-
-
-    ##COULD DO concatenate arrays
-    #But then we need to worry about the order, don't we? Or does it not matter...
-    #Or does it go in the same order after we call join?
-    #^will not be in same order because different speeds, but could we maintain a pointer to all these different ones
-
-    #Still need to work out the memory issues involved
-    #Could we instead of joining, simply have no returns and just modify that memory portion directly?
-
-
-
-    #Better way is to do 
-
-    SS = self.allocModel.get_global_suff_stats(Data, LP, **kwargs)
-    SS = self.obsModel.get_global_suff_stats(Data, SS, LP, **kwargs)
-
-
-    if doAmplify:
-      # Change effective scale of the suff stats, for soVB learning
-      if hasattr(Data, 'nDoc'):
-        ampF = Data.nDocTotal / float(Data.nDoc)
-        SS.applyAmpFactor(ampF)
-      else:
-        ampF = Data.nObsTotal / float(Data.nObs)
-        SS.applyAmpFactor(ampF)
-
-
-    #Can simply do SS+=SSchunk
-    return LP, SS
 
 
   ######################################################### Global Params
@@ -304,3 +223,9 @@ class HModel(object):
     s += 'Obs. Data  Model:  %s\n' % (self.obsModel.get_info_string())
     s += 'Obs. Data  Prior:  %s' % (self.obsModel.get_info_string_prior())
     return s
+
+  ######################################################### Function handles
+  ######################################################### 
+  def getHandleMakeDataSliceFromSharedMem(self):
+    return self.makeDataSliceFromSharedMem
+
