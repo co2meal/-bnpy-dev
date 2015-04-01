@@ -66,12 +66,15 @@ def runBenchmarkAcrossProblemSizes(TestClass):
     """
     import argparse
 
+    if 'OMP_NUM_THREADS' not in os.environ:
+        os.environ['OMP_NUM_THREADS'] = '1'
+
     parser = argparse.ArgumentParser()
-    parser.add_argument('--nDoc', type=str, default='25')
-    parser.add_argument('--N', type=str, default='10000')
-    parser.add_argument('--K', type=str, default='10')
+    parser.add_argument('--nDoc', type=str, default='100')
+    parser.add_argument('--N', type=str, default='200')
+    parser.add_argument('--K', type=str, default='50')
     parser.add_argument('--nWorkers', type=str, default='2')
-    parser.add_argument('--vocab_size', type=int, default=100)
+    parser.add_argument('--vocab_size', type=int, default=1000)
     parser.add_argument('--nCoordAscentItersLP', type=int, default=100)
     parser.add_argument('--convThrLP', type=float, default=0.001)
     parser.add_argument('--method', type=str, default='all')
@@ -298,15 +301,20 @@ class Test(unittest.TestCase):
         for start, stop in sliceGenerator(self.nDoc, self.nWorkers):
             self.JobQ.put((start, stop))
 
-        # Pause at this line until all jobs are marked complete.
-        self.JobQ.join()
-
         # REDUCE!
         # Aggregate results across across all workers
-        SS = self.ResultQ.get()
-        while not self.ResultQ.empty():
-            SSchunk = self.ResultQ.get()
-            SS += SSchunk
+        # Avoids JobQueue.join() call (which blocks execution)
+        # Instead lets main process aggregate all results as they come in.
+        nTaskDone = 0
+        while nTaskDone < self.nWorkers:
+            if not self.ResultQ.empty():
+                SSchunk = self.ResultQ.get()
+                if nTaskDone == 0:
+                    SS = SSchunk
+                else:
+                    SS += SSchunk
+                nTaskDone += 1
+        # At this point all jobs are marked complete.
         return SS
 
     def test_correctness_serial(self):

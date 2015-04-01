@@ -9,8 +9,10 @@ from LocalStepSingleDoc import calcLocalParams_SingleDoc
 from LocalStepSingleDoc import calcLocalParams_SingleDoc_WithELBOTrace
 
 
-def calcLocalParamsForDataSlice(
-        Data, LP, aModel,
+def calcLocalParams(
+        Data, LP, 
+        alphaEbeta,
+        alphaEbetaRem=None,
         initDocTopicCountLP='scratch',
         cslice=(0,None),
         **kwargs):
@@ -29,8 +31,6 @@ def calcLocalParamsForDataSlice(
     Lik -= Lik.max(axis=1)[:, np.newaxis]
     NumericUtil.inplaceExp(Lik)
 
-    if cslice[0] is None:
-        cslice = (0, None)
     nDoc = calcNumDocFromSlice(Data, cslice)
 
     # Prepare the initial DocTopicCount matrix,
@@ -45,14 +45,6 @@ def calcLocalParamsForDataSlice(
     sumRespTilde = np.zeros(N)
     DocTopicCount = np.zeros((nDoc, K))
     DocTopicProb = np.zeros((nDoc, K))
-
-    if str(type(aModel)).count('HDP'):
-        alphaEbeta = aModel.alphaEbeta[:-1].copy()
-        alphaEbetaRem = aModel.alphaEbeta[-1] * 1.0  # to float
-    else:
-        # FiniteTopicModel
-        alphaEbeta = aModel.alpha * np.ones(K)
-        alphaEbetaRem = None
 
     slice_start = Data.doc_range[cslice[0]]
     AggInfo = dict()
@@ -80,12 +72,46 @@ def calcLocalParamsForDataSlice(
         AggInfo = updateConvergenceInfoForDoc_d(d, Info_d, AggInfo, Data)
 
     LP['DocTopicCount'] = DocTopicCount
-    LP = aModel.updateLPGivenDocTopicCount(LP, DocTopicCount)
+    LP = updateLPGivenDocTopicCount(LP, DocTopicCount, 
+        alphaEbeta, alphaEbetaRem)
     LP = updateLPWithResp(LP, Data, Lik, DocTopicProb, sumRespTilde, cslice)
     LP['Info'] = AggInfo
     writeLogMessageForManyDocs(Data, AggInfo, **kwargs)
     return LP
 
+def updateLPGivenDocTopicCount(LP, DocTopicCount,
+                               alphaEbeta, alphaEbetaRem=None):
+    ''' Update local parameters given doc-topic counts for many docs.
+
+    Returns for FiniteTopicModel (alphaEbetaRem is None)
+    --------
+    LP : dict of local params, with updated fields
+        * theta : 2D array, nDoc x K
+        * ElogPi : 2D array, nDoc x K
+
+    Returns for HDPTopicModel (alphaEbetaRem is not None)
+    --------
+        * theta : 2D array, nDoc x K
+        * ElogPi : 2D array, nDoc x K
+        * thetaRem : scalar
+        * ElogPiRem : scalar
+    '''
+    theta = DocTopicCount + alphaEbeta
+
+    if alphaEbetaRem is None:
+        # FiniteTopicModel
+        digammaSumTheta = digamma(theta.sum(axis=1))
+    else:
+        # HDPTopicModel
+        digammaSumTheta = digamma(theta.sum(axis=1) + alphaEbetaRem)
+        LP['thetaRem'] = alphaEbetaRem
+        LP['ElogPiRem'] = digamma(alphaEbetaRem) - digammaSumTheta
+        LP['digammaSumTheta'] = digammaSumTheta # Used for merges
+
+    ElogPi = digamma(theta) - digammaSumTheta[:, np.newaxis]
+    LP['theta'] = theta
+    LP['ElogPi'] = ElogPi
+    return LP
 
 def updateLPWithResp(LP, Data, Lik, Prior, sumRespTilde, cslice=(0,None)):
     nDoc = calcNumDocFromSlice(Data, cslice)
