@@ -9,7 +9,7 @@ from LocalStepSingleDoc import calcLocalParams_SingleDoc
 from LocalStepSingleDoc import calcLocalParams_SingleDoc_WithELBOTrace
 
 
-def calcLocalParamsForDataSlice(
+def calcLocalParams(
         Data, LP, 
         alphaEbeta,
         alphaEbetaRem=None,
@@ -31,8 +31,6 @@ def calcLocalParamsForDataSlice(
     Lik -= Lik.max(axis=1)[:, np.newaxis]
     NumericUtil.inplaceExp(Lik)
 
-    if cslice[0] is None:
-        cslice = (0, None)
     nDoc = calcNumDocFromSlice(Data, cslice)
 
     # Prepare the initial DocTopicCount matrix,
