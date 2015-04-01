@@ -12,6 +12,7 @@ from .SpecialFuncUtil import LOGTWO, LOGPI, LOGTWOPI, EPS
 from .SpecialFuncUtil import logsumexp
 from .VerificationUtil import isEvenlyDivisibleFloat, assert_allclose
 from .ShapeUtil import as1D, as2D, as3D, toCArray
+from .ParallelUtil import numpyToSharedMemArray, sharedMemToNumpyArray
 
 __all__ = ['RandUtil',
            'np2flatstr', 'flatstr2np',
@@ -20,4 +21,5 @@ __all__ = ['RandUtil',
            'MVgammaln', 'MVdigamma', 'logsumexp', 'digamma', 'gammaln',
            'isEvenlyDivisibleFloat', 'assert_allclose',
            'LOGTWO', 'LOGTWOPI', 'LOGPI', 'EPS',
-           'as1D', 'as2D', 'as3D', 'toCArray']
+           'as1D', 'as2D', 'as3D', 'toCArray',
+           'numpyToSharedMemArray', 'sharedMemToNumpyArray']
