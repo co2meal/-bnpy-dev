@@ -4,6 +4,7 @@ from scipy.special import gammaln, digamma
 from bnpy.suffstats import ParamBag, SuffStatBag
 from bnpy.util import dotATA, dotATB, dotABT
 from bnpy.util import as1D, as2D, as3D
+from bnpy.util import numpyToSharedMemArray, sharedMemToNumpyArray
 
 from AbstractObsModel import AbstractObsModel
 
@@ -543,6 +544,38 @@ class MultObsModel(AbstractObsModel):
         ElogphiT = self._E_logphi(k).T.copy()
         return ElogphiT
 
+    def toSerializableDict(self):
+        """ Get compact dict of information about internal state.
+
+        Returns
+        -------
+        Info : dict
+        """
+        return dict(inferType=self.inferType, 
+                    K=self.K, 
+                    DataAtomType=self.DataAtomType)
+
+    def fillSharedMemForLocalStep(self, ShMem=None):
+        """ Get dict of shared mem arrays needed for parallel local step. 
+
+        Returns
+        -------
+        ShMem : dict of RawArray objects
+        """
+        ElogphiT = self.GetCached('E_logphiT', 'all')  # V x K
+        if ShMem is None:
+            ShMem = dict()
+        if 'ElogphiT' not in ShMem:
+            ShMem['ElogphiT'] = numpyToSharedMemArray(ElogphiT)
+        else:       
+            ShMemView = sharedMemToNumpyArray(ShMem['ElogphiT'])
+            if ShMemView.shape == ElogphiT.shape:
+                ShMemView[:] = ElogphiT
+            else:
+                del ShMem['ElogphiT']
+                ShMem['ElogphiT'] = numpyToSharedMemArray(ElogphiT)
+        return ShMem
+
 
 def c_Func(lam):
     ''' Evaluate cumulant function at given params.
@@ -568,3 +601,72 @@ def c_Diff(lam1, lam2):
     assert lam1.ndim == 1
     assert lam2.ndim == 1
     return c_Func(lam1) - c_Func(lam2)
+
+
+def calcLocalParams(**kwargs):
+    L = calcLogSoftEvMatrix_FromPost(**kwargs)
+    return dict(E_log_soft_ev=L)
+
+def calcLogSoftEvMatrix(
+    ElogphiT=None, 
+    doc_range=None, word_id=None, cslice=(0,None), 
+    **kwargs):
+    ''' Calculate expected log soft ev matrix.
+
+    Model Args
+    ------
+    ElogphiT : vocab_size x K matrix
+
+    Data Args
+    ---------
+    doc_range : 1D array
+    word_id : 1D array
+    cslice : tuple of int or None
+
+    Returns
+    ------
+    L : 2D array, size N x K
+    '''
+    if cslice[1] is not None:
+        start = doc_range[cslice[0]]
+        stop = doc_range[cslice[1]]
+        return ElogphiT[word_id[start:stop], :]
+    else:
+        return ElogphiT[word_id, :]
+
+def calcSummaryStats(SS=None,
+                     vocab_size=None, 
+                     word_id=None,
+                     word_count=None, 
+                     LP=None, cslice=(0,None), **kwargs):
+    ''' Calculate summary statistics for given dataset and local parameters
+
+    Returns
+    --------
+    SS : SuffStatBag object, with K components.
+    '''
+    Resp = LP['resp']  # 2D array, size N x K
+    N, K = Resp.shape
+
+    if cslice[1] is None:
+        indptr = np.arange(N + 1)
+        Xslice = scipy.sparse.csc_matrix(
+            (word_count, word_id, indptr),
+            shape=(vocab_size, N))
+    else:
+        start = Data.doc_range[cslice[0]]
+        stop = Data.doc_range[cslice[1]]
+        assert N == stop - start
+        indptr = np.arange(N + 1)
+        Xslice = scipy.sparse.csc_matrix(
+            (word_count[start:stop], word_id[start:stop], indptr),
+            shape=(vocab_size, N))
+
+    if SS is None:
+        SS = SuffStatBag(K=K, D=vocab_size)
+
+    WordCounts = (X * Resp).T  # matrix-matrix product
+            
+    SS.setField('WordCounts', WordCounts, dims=('K', 'D'))
+    SS.setField('SumWordCounts', np.sum(WordCounts, axis=1), dims=('K'))
+    return SS
