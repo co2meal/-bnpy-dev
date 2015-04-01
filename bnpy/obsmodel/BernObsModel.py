@@ -155,7 +155,7 @@ class BernObsModel(AbstractObsModel):
         self.Post.setField('lam0', lam0, dims=('K', 'D'))
         self.K = K
 
-    def calcSummaryStats(self, Data, SS, LP):
+    def calcSummaryStats(self, Data, SS, LP, **kwargs):
         ''' Calculate summary statistics for given dataset and local parameters
 
         Returns
@@ -198,7 +198,7 @@ class BernObsModel(AbstractObsModel):
     def decrementSS(self, SS, k, Data, docID):
         raise NotImplementedError('TODO')
 
-    def calcLogSoftEvMatrix_FromEstParams(self, Data):
+    def calcLogSoftEvMatrix_FromEstParams(self, Data, **kwargs):
         ''' Compute log soft evidence matrix for Dataset under EstParams.
 
         Returns
@@ -324,7 +324,7 @@ class BernObsModel(AbstractObsModel):
         '''
         pass
 
-    def calcLogSoftEvMatrix_FromPost(self, Data):
+    def calcLogSoftEvMatrix_FromPost(self, Data, **kwargs):
         ''' Calculate expected log soft ev matrix under Post.
 
         Returns
