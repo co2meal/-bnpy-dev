@@ -81,12 +81,12 @@ class SharedMemWorker(multiprocessing.Process):
             LP = self.o_calcLocalParams(Dslice, **oArgs)
             LP = self.a_calcLocalParams(Dslice, LP, **aArgs)
 
-            SS = a_calcSummaryStats(Dslice, LP, **aArgs)
-            SS = o_calcSummaryStats(Dslice, SS, LP, **oArgs)
+            SS = self.a_calcSummaryStats(Dslice, LP, **aArgs)
+            SS = self.o_calcSummaryStats(Dslice, SS, LP, **oArgs)
 
             self.ResultQueue.put(SS)
             self.JobQueue.task_done() 
-            
+
         # Clean up
         self.printMsg("process CleanUp! pid=%d" % (os.getpid()))
 
