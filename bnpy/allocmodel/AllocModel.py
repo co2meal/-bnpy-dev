@@ -99,3 +99,5 @@ class AllocModel(object):
   def get_prior_dict(self):
     pass
 
+  def getPseudoSuffStats(self, SS):
+    pass

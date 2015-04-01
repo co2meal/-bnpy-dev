@@ -199,7 +199,7 @@ class DPMixtureModel(AllocModel):
     self.eta1 = eta1
     self.eta0 = eta0
     self.set_helper_params()
-    
+
   def update_global_params_soVB( self, SS, rho, **kwargs ):
     ''' Update global params (stick-breaking Beta params eta1, eta0).
         for stochastic online VB.
@@ -616,3 +616,11 @@ class DPMixtureModel(AllocModel):
            + K * np.log(self.gamma0) \
            + np.sum(gammaln(Nvec)) \
            - gammaln(np.sum(Nvec) + self.gamma0)
+
+  def getPseudoSuffStats(self, SS):
+
+    pseudoNvec = self.eta1 - self.gamma1
+    pSS = SS.copy()
+    pSS.setField('N', pseudoNvec, dims=('K'))
+
+    return pSS

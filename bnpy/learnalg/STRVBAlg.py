@@ -46,8 +46,8 @@ class STRVBAlg(LearnAlg):
         hmodel.
     '''
 
-    # TODO fix this
-    init_SS = None
+    # init_SS = hmodel.allocModel.getPseudoSuffStats()
+    initFlag = False
     delayLen = self.algParams['delay']
     decayFun = lambda x: 0
 
@@ -76,7 +76,7 @@ class STRVBAlg(LearnAlg):
       Dchunk = DataIterator.get_next_batch()
       batchID = DataIterator.batchID
       Dchunk.batchID = batchID
-      
+
       # Update progress-tracking variables
       iterid += 1
       lapFrac = (iterid + 1) * self.lapFracInc
@@ -109,6 +109,10 @@ class STRVBAlg(LearnAlg):
       ## Summary step
       SS, SSchunk = self.memoizedSummaryStep(hmodel, SS,
                                              Dchunk, LPchunk, batchID)
+
+      if not initFlag:
+        initFlag = True
+        init_SS = hmodel.allocModel.getPseudoSuffStats(SS)
 
       ## Global step
       if (nLapsCompleted >= delayLen):
@@ -279,8 +283,10 @@ class STRVBAlg(LearnAlg):
         None. hmodel updated in-place.
     '''
 
-    # hmodel.update_global_params(decayFun(lapFrac)*init_SS + (1-decayFun(lapFrac))*SS)
-    hmodel.update_global_params(SS)
+    iSS = init_SS.copy()
+    iSS.applyAmpFactor(decayFun(lapFrac))
+    SS.applyAmpFactor(1-decayFun(lapFrac))
+    hmodel.update_global_params(iSS + SS)
 
   ######################################################### Init nBatch, etc.
   #########################################################
