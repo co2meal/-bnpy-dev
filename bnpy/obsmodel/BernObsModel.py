@@ -185,8 +185,8 @@ class BernObsModel(AbstractObsModel):
     X = Data.X # 2D array, N x D
 
     #Product over N dimension of Resp and X. For most models, result is K x D
-    CountON = np.tensordot(Resp.T, X, axes=1)
-    CountOFF = np.tensordot(Resp.T, 1-X, axes=1)
+    CountON = np.tensordot(Resp, X, axes=((0,),(0,)))
+    CountOFF = np.tensordot(Resp, 1-X, axes=((0,),(0,)))
 
     SS.setField('Count1', CountON, dims=self.SSDims+('D',))
     SS.setField('Count0', CountOFF, dims=self.SSDims+('D',))
@@ -230,8 +230,8 @@ class BernObsModel(AbstractObsModel):
     log1mphiT = np.log(1.0 - self.EstParams.phi.T) # D x self.SSDims array
 
     # Result is N x self.SSDims (typically N x K)
-    return np.tensordot(Data.X, logphiT, axes=1) + \
-      np.tensordot(1.0-Data.X, log1mphiT, axes=1)
+    return np.tensordot(Data.X, ElogphiT.T, axes=((-1,),(-1,))) + \
+          np.tensordot(1.0-Data.X, Elog1mphiT.T, axes=((-1,),(-1,)))
 
   ########################################################### EM M step
   ###########################################################
@@ -370,8 +370,9 @@ class BernObsModel(AbstractObsModel):
     Elog1mphiT = self.GetCached('E_log1mphiT', 'all') # D x self.SSDims
 
     # Result is N x self.SSDims (typically N x K)
-    L = np.tensordot(Data.X, ElogphiT, axes=1) + \
-        np.tensordot(1.0-Data.X, Elog1mphiT, axes=1)
+    return np.tensordot(Data.X, ElogphiT.T, axes=((-1,),(-1,))) + \
+           np.tensordot(1.0-Data.X, Elog1mphiT.T, axes=((-1,),(-1,)))
+
     return L
 
 
