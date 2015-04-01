@@ -122,6 +122,8 @@ class HModel(object):
         SS.applyAmpFactor(ampF)
     return SS
   
+
+  
   def calcLocalParamsAndSummarize(self, Data, LP, doAmplify=False, **kwargs):
     ''' This does both the E-step and M-step of the algorithm.
         Calculates local parameters specific to each data item and then Calculates
@@ -182,6 +184,8 @@ class HModel(object):
 
 
 
+    #Better way is to do 
+
     SS = self.allocModel.get_global_suff_stats(Data, LP, **kwargs)
     SS = self.obsModel.get_global_suff_stats(Data, SS, LP, **kwargs)
 
@@ -194,6 +198,9 @@ class HModel(object):
       else:
         ampF = Data.nObsTotal / float(Data.nObs)
         SS.applyAmpFactor(ampF)
+
+
+    #Can simply do SS+=SSchunk
     return LP, SS
 
 
