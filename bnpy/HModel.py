@@ -51,32 +51,27 @@ class HModel(object):
         AllocConstr = AllocModelConstructorsByName[allocModelName]
         allocModel = AllocConstr(inferType, allocPriorDict)
 
-    ObsConstr = ObsModelConstructorsByName[obsModelName]
-    obsModel = ObsConstr(inferType, Data=Data, **obsPriorDict)
+        ObsConstr = ObsModelConstructorsByName[obsModelName]
+        obsModel = ObsConstr(inferType, Data=Data, **obsPriorDict)
 
-    return cls(allocModel, obsModel)
+        return cls(allocModel, obsModel)
   
     
-  def setupMemory(self,Data):
+    def setupMemory(self,Data):
         # Create a JobQ (to hold tasks to be done)
     # and a ResultsQ (to hold results of completed tasks)
-    manager = multiprocessing.Manager()
-    self.JobQ = manager.Queue()
-    self.ResultQ = manager.Queue()
+        manager = multiprocessing.Manager()
+        self.JobQ = manager.Queue()
+        self.ResultQ = manager.Queue()
 
-    self.nWorkers=1 #TODO: change this
+        self.nWorkers=1 #TODO: change this
 
-    for uid in range(self.nWorkers):
-        SharedMemWorker.SharedMemWorker(
-            uid, self.JobQ, self.ResultQ, 
-            Data=Data,
-            verbose=1).start() #TODO: change the verbose
+        for uid in range(self.nWorkers):
+            SharedMemWorker.SharedMemWorker(
+                uid, self.JobQ, self.ResultQ, 
+                Data=Data,
+                verbose=1).start() #TODO: change the verbose
 
-  def copy(self):
-    ''' Create a clone of this object with distinct memory allocation
-        Any manipulation of clone's parameters will NOT affect self
-    '''
-    return copy.deepcopy(self)
 
     def copy(self):
         ''' Create a clone of this object with distinct memory allocation

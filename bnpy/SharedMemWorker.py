@@ -23,6 +23,9 @@ import time
 
 import bnpy
 
+from bnpy.util import sharedMemDictToNumpy, sharedMemToNumpyArray
+
+
 
 class SharedMemWorker(multiprocessing.Process):
     """ Single "worker" process that processes tasks delivered via queues

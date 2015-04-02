@@ -7,6 +7,8 @@ import numpy as np
 import multiprocessing
 
 from LearnAlg import LearnAlg, makeDictOfAllWorkspaceVars
+from bnpy.util import sharedMemDictToNumpy, sharedMemToNumpyArray
+
 
 class ParallelVBAlg( LearnAlg ):
 
@@ -172,10 +174,8 @@ class ParallelVBAlg( LearnAlg ):
         oSharedMem = hmodel.obsModel.fillInSharedMem()
 
         Dslice = makeDataSliceFromSharedMem(dataSharedMem,sliceArgs)
-        aArrDict = convertSharedMemToNumpyArrays(aSharedMem)
-        aArgs.update(aArrDict)
-        oArrDict = convertSharedMemToNumpyArrays(oSharedMem)
-        oArgs.update(oArrDict)
+        aArgs.update(sharedMemDictToNumpy(aSharedMem))
+        oArgs.update(sharedMemDictToNumpy(oSharedMem))
 
         LP = self.o_calcLocalParams(Dslice, **oArgs)
         LP = self.a_calcLocalParams(Dslice, LP, **aArgs)
