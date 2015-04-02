@@ -1,0 +1,118 @@
+Asterisk Toy Data. 8 true clusters.
+Entire Dataset Summary:
+  total size: 25000 units
+  batch size: 2500 units
+  num. batches: 10
+Data for Initialization:
+  size: 25000 units (single observations)
+  dimension: 2
+Allocation Model:  DP mixture with K=1. Concentration gamma0= 1.00
+Obs. Data  Model:  Gaussian with full covariance.
+Obs. Data  Prior:  Gauss-Wishart on each mean/prec matrix pair: mu, Lam
+  E[ mu[k] ]     = [ 0.  0.]
+  E[ CovMat[k] ] = 
+  [[ 1.  0.]
+   [ 0.  1.]]
+Learn Alg: moVB
+Trial  1/2 | alg. seed: 2497280 | data order seed: 8541952
+savepath: /results/AsteriskK8/demobirthmerge-Kinit=1/1
+    0.100/20 after      0 sec. | K    1 | ev -1.108127377e+00 |  
+    0.200/20 after      0 sec. | K    1 | ev -1.108663274e+00 |  
+    0.300/20 after      0 sec. | K    1 | ev -1.110766628e+00 |  
+    1.000/20 after      0 sec. | K    1 | ev -1.104282665e+00 |  
+BIRTH ACCEPTED. 4 fresh comps.
+MERGE 0/3 accepted. 
+    2.000/20 after      0 sec. | K    5 | ev -1.016891994e+00 | Ndiff    545.066 
+BIRTH ACCEPTED. 3 fresh comps.
+MERGE 0/5 accepted. 
+    3.000/20 after      1 sec. | K    8 | ev -7.642300722e-01 | Ndiff   1068.284 
+BIRTH ACCEPTED. 4 fresh comps.
+MERGE 3/8 accepted. ev increased  1.9837e-03
+    4.000/20 after      1 sec. | K    9 | ev -4.743017979e-01 | Ndiff   1032.489 
+BIRTH ACCEPTED. 5 fresh comps.
+MERGE 2/9 accepted. ev increased  2.5825e-03
+    5.000/20 after      2 sec. | K   12 | ev -3.074946741e-01 | Ndiff    412.162 
+BIRTH ACCEPTED. 4 fresh comps.
+MERGE 4/5 accepted. ev increased  1.3074e-02
+    6.000/20 after      2 sec. | K   12 | ev -1.276881407e-01 | Ndiff    277.107 
+BIRTH ACCEPTED. 4 fresh comps.
+MERGE 5/7 accepted. ev increased  4.9037e-03
+    7.000/20 after      3 sec. | K   11 | ev -2.572591276e-02 | Ndiff    216.745 
+MERGE 1/1 accepted. ev increased  4.6030e-04
+    8.000/20 after      3 sec. | K   10 | ev -2.584905797e-03 | Ndiff     39.118 
+MERGE 1/1 accepted. ev increased  3.2250e-04
+    9.000/20 after      3 sec. | K    9 | ev  1.109397198e-03 | Ndiff     12.643 
+MERGE 0/0 accepted. 
+   10.000/20 after      3 sec. | K    9 | ev  1.803132779e-03 | Ndiff      4.367 
+MERGE 0/0 accepted. 
+   11.000/20 after      3 sec. | K    9 | ev  1.996103141e-03 | Ndiff      0.794 
+MERGE 0/0 accepted. 
+   12.000/20 after      4 sec. | K    9 | ev  2.072616626e-03 | Ndiff      0.198 
+MERGE 1/1 accepted. ev increased  2.0252e-04
+   13.000/20 after      4 sec. | K    8 | ev  2.408926998e-03 | Ndiff      0.017 
+MERGE 0/0 accepted. 
+   14.000/20 after      4 sec. | K    8 | ev  2.408927530e-03 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   15.000/20 after      4 sec. | K    8 | ev  2.408927530e-03 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   16.000/20 after      4 sec. | K    8 | ev  2.408927530e-03 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   17.000/20 after      4 sec. | K    8 | ev  2.408927530e-03 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   18.000/20 after      5 sec. | K    8 | ev  2.408927530e-03 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   19.000/20 after      5 sec. | K    8 | ev  2.408927530e-03 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   20.000/20 after      5 sec. | K    8 | ev  2.408927530e-03 | Ndiff      0.000 
+... done. converged.
+Trial  2/2 | alg. seed: 1128064 | data order seed: 7673856
+savepath: /results/AsteriskK8/demobirthmerge-Kinit=1/2
+    0.100/20 after      0 sec. | K    1 | ev -1.106116048e+00 |  
+    0.200/20 after      0 sec. | K    1 | ev -1.106848843e+00 |  
+    0.300/20 after      0 sec. | K    1 | ev -1.107106005e+00 |  
+    1.000/20 after      0 sec. | K    1 | ev -1.104282665e+00 |  
+BIRTH ACCEPTED. 4 fresh comps.
+MERGE 0/3 accepted. 
+    2.000/20 after      0 sec. | K    5 | ev -1.034087643e+00 | Ndiff    461.926 
+BIRTH ACCEPTED. 3 fresh comps.
+MERGE 1/5 accepted. ev increased  8.4192e-05
+    3.000/20 after      1 sec. | K    7 | ev -7.444108143e-01 | Ndiff   1080.763 
+BIRTH ACCEPTED. 3 fresh comps.
+MERGE 2/6 accepted. ev increased  4.4727e-03
+    4.000/20 after      1 sec. | K    8 | ev -4.684278566e-01 | Ndiff    632.104 
+BIRTH ACCEPTED. 3 fresh comps.
+MERGE 1/6 accepted. ev increased  2.8012e-04
+    5.000/20 after      1 sec. | K   10 | ev -3.695900973e-01 | Ndiff    352.647 
+BIRTH ACCEPTED. 4 fresh comps.
+MERGE 4/7 accepted. ev increased  3.7992e-03
+    6.000/20 after      2 sec. | K   10 | ev -1.409357981e-01 | Ndiff    284.190 
+BIRTH ACCEPTED. 3 fresh comps.
+MERGE 3/5 accepted. ev increased  1.0351e-02
+    7.000/20 after      2 sec. | K   10 | ev -2.126028050e-02 | Ndiff    130.023 
+MERGE 0/1 accepted. 
+    8.000/20 after      2 sec. | K   10 | ev -2.017934874e-03 | Ndiff     47.118 
+MERGE 1/1 accepted. ev increased  1.3809e-04
+    9.000/20 after      2 sec. | K    9 | ev  1.113776726e-03 | Ndiff     16.418 
+MERGE 0/0 accepted. 
+   10.000/20 after      3 sec. | K    9 | ev  1.808072227e-03 | Ndiff      2.962 
+MERGE 0/0 accepted. 
+   11.000/20 after      3 sec. | K    9 | ev  1.993362590e-03 | Ndiff      0.700 
+MERGE 0/0 accepted. 
+   12.000/20 after      3 sec. | K    9 | ev  2.067939012e-03 | Ndiff      0.110 
+MERGE 1/1 accepted. ev increased  2.0341e-04
+   13.000/20 after      3 sec. | K    8 | ev  2.409556966e-03 | Ndiff      0.007 
+MERGE 0/0 accepted. 
+   14.000/20 after      3 sec. | K    8 | ev  2.409564246e-03 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   15.000/20 after      3 sec. | K    8 | ev  2.409564246e-03 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   16.000/20 after      4 sec. | K    8 | ev  2.409564246e-03 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   17.000/20 after      4 sec. | K    8 | ev  2.409564246e-03 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   18.000/20 after      4 sec. | K    8 | ev  2.409564246e-03 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   19.000/20 after      4 sec. | K    8 | ev  2.409564246e-03 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   20.000/20 after      4 sec. | K    8 | ev  2.409564246e-03 | Ndiff      0.000 
+... done. converged.
