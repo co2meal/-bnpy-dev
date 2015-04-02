@@ -1,3 +1,21 @@
+import numpy as np
+import multiprocessing.sharedctypes
+import warnings
+
+def sharedMemDictToNumpy(ShMem):
+    """ Get views (not copies) of all shared-mem arrays in dict.
+
+    Returns
+    -------
+    d : dict
+    """
+    ArrDict = dict()
+    if ShMem is None:
+        return ArrDict
+    
+    for key, ShArr in ShMem.items():
+        ArrDict[key] = sharedMemToNumpyArray(ShArr)
+    return ArrDict
 
 def numpyToSharedMemArray(X):
     """ Get copy of X accessible as shared memory
@@ -19,6 +37,10 @@ def sharedMemToNumpyArray(Xsh):
     X : ND numpy array (same size as X)
         Any changes to X will also influence data stored in Xsh.
     """
+    if isinstance(Xsh, int):
+        return Xsh
+    elif isinstance(Xsh, np.ndarray):
+        return Xsh
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', RuntimeWarning)
         return np.ctypeslib.as_array(Xsh)

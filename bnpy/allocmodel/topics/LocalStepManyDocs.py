@@ -11,8 +11,9 @@ from LocalStepSingleDoc import calcLocalParams_SingleDoc_WithELBOTrace
 
 def calcLocalParams(
         Data, LP, 
-        alphaEbeta,
+        alphaEbeta=None,
         alphaEbetaRem=None,
+        alpha=None,
         initDocTopicCountLP='scratch',
         cslice=(0,None),
         **kwargs):
@@ -25,26 +26,34 @@ def calcLocalParams(
     * resp : 2D array, N x K
     * model-specific fields for doc-topic probabilities
     '''
+    assert isinstance(cslice, tuple)
+    if len(cslice) != 2:
+        cslice = (0, None)
+    elif cslice[0] is None:
+        cslice = (0, None)
+    nDoc = calcNumDocFromSlice(Data, cslice)
+
     # Prepare the likelihood matrix
     # Make sure it is C-contiguous, so that matrix ops are very fast
     Lik = np.asarray(LP['E_log_soft_ev'], order='C')
     Lik -= Lik.max(axis=1)[:, np.newaxis]
     NumericUtil.inplaceExp(Lik)
 
-    nDoc = calcNumDocFromSlice(Data, cslice)
-
     # Prepare the initial DocTopicCount matrix,
     # Useful for warm starts of the local step.
-    K = Lik.shape[1]
+    N, K = Lik.shape
     initDocTopicCount = None
     if 'DocTopicCount' in LP:
         if LP['DocTopicCount'].shape == (nDoc, K):
             initDocTopicCount = LP['DocTopicCount'].copy()
 
-    N, K = Lik.shape
     sumRespTilde = np.zeros(N)
     DocTopicCount = np.zeros((nDoc, K))
     DocTopicProb = np.zeros((nDoc, K))
+
+    if alphaEbeta is None:
+        assert alpha is not None
+        alphaEbeta = alpha * np.ones(K)
 
     slice_start = Data.doc_range[cslice[0]]
     AggInfo = dict()

@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.special import gammaln, digamma
+import scipy.sparse
 
 from bnpy.suffstats import ParamBag, SuffStatBag
 from bnpy.util import dotATA, dotATB, dotABT
@@ -555,7 +556,7 @@ class MultObsModel(AbstractObsModel):
                     K=self.K, 
                     DataAtomType=self.DataAtomType)
 
-    def fillSharedMemForLocalStep(self, ShMem=None):
+    def fillSharedMemDictForLocalStep(self, ShMem=None):
         """ Get dict of shared mem arrays needed for parallel local step. 
 
         Returns
@@ -576,7 +577,16 @@ class MultObsModel(AbstractObsModel):
                 ShMem['ElogphiT'] = numpyToSharedMemArray(ElogphiT)
         return ShMem
 
-    def getLocalAndSummaryFunctions(self):
+    def getLocalAndSummaryFunctionHandles(self):
+        """ Get function handles for local step and summary step
+
+        Useful for parallelized algorithms.
+
+        Returns
+        -------
+        calcLocalParams : f handle
+        calcSummaryStats : f handle
+        """
         return calcLocalParams, calcSummaryStats
 
 def c_Func(lam):
@@ -647,8 +657,8 @@ def calcSummaryStats(Dslice, SS, LP, **kwargs):
     Rslice = LP['resp']  # 2D array, size N x K
     Nslice, K = Rslice.shape
     Xslice = scipy.sparse.csc_matrix(
-         (Dslice.word_count, Dslice.word_id, np.arange(Nslice + 1)),
-            shape=(vocab_size, Nslice))
+        (Dslice.word_count, Dslice.word_id, np.arange(Nslice + 1)),
+        shape=(Dslice.vocab_size, Nslice))
 
     WordCounts = (Xslice * Rslice).T  # matrix-matrix product  
     SS.setField('WordCounts', WordCounts, dims=('K', 'D'))

@@ -261,12 +261,32 @@ class FiniteTopicModel(AllocModel):
                     K=self.K, 
                     alpha=self.alpha)
 
-    def fillSharedMemForLocalStep(self, ShMem=None):
-        return dict()
+    def fillSharedMemDictForLocalStep(self, ShMem=None):
+        """ Get dict of shared mem arrays needed for parallel local step. 
 
-    def getLocalAndSummaryFunctions(self):
+        Returns
+        -------
+        ShMem : dict of RawArray objects
+        """
+        # No shared memory required here.
+        if isinstance(ShMem, dict):
+            return ShMem
+        else:
+            return dict()
+
+
+    def getLocalAndSummaryFunctionHandles(self):
+        """ Get function handles for local step and summary step
+
+        Useful for parallelized algorithms.
+
+        Returns
+        -------
+        calcLocalParams : f handle
+        calcSummaryStats : f handle
+        """
         return calcLocalParams, calcSummaryStats
-    
+
 
 def L_alloc(Data=None, LP=None, nDoc=0, alpha=1.0, **kwargs):
     ''' Calculate allocation term of the ELBO objective.
@@ -325,6 +345,7 @@ def c_Func(avec, K=0):
 
 
 def calcSummaryStats(Dslice, LP=None, alpha=None,
+                     doPrecompEntropy=0,
                      **kwargs):
     """ Calculate summary from local parameters for given data slice.
 
@@ -359,4 +380,4 @@ def calcSummaryStats(Dslice, LP=None, alpha=None,
         Lalloc = L_alloc(Dslice, LP, alpha=alpha)
         SS.setELBOTerm('Hvec', Hvec, dims='K')
         SS.setELBOTerm('L_alloc', Lalloc, dims=None)
-    return LP
+    return SS
