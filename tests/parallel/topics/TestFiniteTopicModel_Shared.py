@@ -45,7 +45,7 @@ import itertools
 
 import bnpy
 
-from bnpy.util import sharedMemDictToNumpy
+from bnpy.util import sharedMemDictToNumpy, sharedMemToNumpyArray
 
 def runBenchmarkAcrossProblemSizes(TestClass):
     """ Execute speed benchmark across several problem sizes.
@@ -203,9 +203,14 @@ class Worker(multiprocessing.Process):
             Dslice = self.makeDataSliceFromSharedMem(
                 self.dataShMem, (start,stop))
 
+            wc = sharedMemToNumpyArray(self.dataShMem['word_count'])
+            self.printMsg("WCtotal=%d" % wc.sum())
+            self.printMsg("WCslice=%d" % Dslice.word_count.sum())
             # Local step
+            aLPkwargs = self.LPkwargs
+            aLPkwargs.update(**aArgs)
             LP = self.o_calcLocalParams(Dslice, **oArgs)
-            LP = self.a_calcLocalParams(Dslice, LP, **aArgs)
+            LP = self.a_calcLocalParams(Dslice, LP, **aLPkwargs)
 
             # Summary step
             SS = self.a_calcSummaryStats(Dslice, LP, **aArgs)
@@ -226,7 +231,7 @@ class Test(unittest.TestCase):
 
     def __init__(self, testname, seed=0, vocab_size=100,
                 nCoordAscentItersLP=100, convThrLP=0.01,
-                N=1000, nDoc=25, K=10, nWorkers=1, verbose=1,
+                N=200, nDoc=25, K=10, nWorkers=2, verbose=1,
                 **kwargs):
         ''' Create a new test harness for parallel topic model inference.
 
@@ -493,6 +498,8 @@ def allcloseSS(SS1, SS2):
         elif arr1.ndim == 1:
             print arr1[:3]
             print arr2[:3]
+            print arr1.sum()
+            print arr2.sum()
         else:
             print arr1[:2, :3]
             print arr2[:2, :3]
