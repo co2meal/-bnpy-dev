@@ -118,16 +118,16 @@ class AllocModel(object):
         return LP
   ######################################################### Paralllelization functions
   #########################################################   
-  def calcLocalParams(self):
-    pass
+    def calcLocalParams(self):
+       pass
 
-  def calcSummaryStats(self):
-    pass
+    def calcSummaryStats(self):
+       pass
 
   ######################################################### Function handles
   #########################################################   
-  def getHandleCalcLocalParams(self):
-    return self.calcLocalParams
+    def getHandleCalcLocalParams(self):
+       return self.calcLocalParams
 
-  def getHandleCalcSummaryStats(self):
-     return self.calcSummaryStats
+    def getHandleCalcSummaryStats(self):
+       return self.calcSummaryStats
