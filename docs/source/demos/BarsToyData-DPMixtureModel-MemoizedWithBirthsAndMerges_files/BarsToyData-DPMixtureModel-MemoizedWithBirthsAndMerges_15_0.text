@@ -1,0 +1,109 @@
+Toy Bars Data with 10 true topics. Each doc uses ONE topic.
+Entire Dataset Summary:
+  total size: 1000 units
+  batch size: 100 units
+  num. batches: 10
+Data for Initialization:
+  size: 1000 units (documents)
+  vocab size: 900
+  min    5%   50%   95%   max 
+   66    73    79    84    88  nUniqueTokensPerDoc
+  100   100   100   100   100  nTotalTokensPerDoc
+Hist of word_count across tokens 
+      1      2      3    <10   <100  >=100
+   0.77   0.19   0.03    382      0      0
+Hist of unique docs per word type
+     <1    <10   <100  <0.20  <0.50 >=0.50
+      0      0   0.93   0.07      0      0
+Allocation Model:  DP mixture with K=16. Concentration gamma0= 1.00
+Obs. Data  Model:  Multinomial over finite vocabulary.
+Obs. Data  Prior:  Dirichlet over finite vocabulary 
+  lam = [ 0.1  0.1] ...
+Learn Alg: moVB
+Trial  1/2 | alg. seed: 2497280 | data order seed: 8541952
+savepath: /results/MixBarsK10V900/demobirthmerge-Kinit=16/1
+    0.100/20 after      0 sec. | K   16 | ev -6.419219019e+00 |  
+    0.200/20 after      0 sec. | K   16 | ev -6.094286752e+00 |  
+    0.300/20 after      0 sec. | K   16 | ev -5.940957526e+00 |  
+    1.000/20 after      0 sec. | K   16 | ev -5.664293326e+00 |  
+MERGE 5/5 accepted. ev increased  1.2310e-02
+    2.000/20 after      0 sec. | K   11 | ev -5.581792852e+00 | Ndiff      0.000 
+MERGE 1/1 accepted. ev increased  1.6549e-03
+    3.000/20 after      0 sec. | K   10 | ev -5.579189293e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+    4.000/20 after      1 sec. | K   10 | ev -5.579189293e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+    5.000/20 after      1 sec. | K   10 | ev -5.579189293e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+    6.000/20 after      1 sec. | K   10 | ev -5.579189293e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+    7.000/20 after      1 sec. | K   10 | ev -5.579189293e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+    8.000/20 after      1 sec. | K   10 | ev -5.579189293e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+    9.000/20 after      1 sec. | K   10 | ev -5.579189293e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   10.000/20 after      1 sec. | K   10 | ev -5.579189293e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   11.000/20 after      1 sec. | K   10 | ev -5.579189293e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   12.000/20 after      1 sec. | K   10 | ev -5.579189293e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   13.000/20 after      1 sec. | K   10 | ev -5.579189293e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   14.000/20 after      2 sec. | K   10 | ev -5.579189293e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   15.000/20 after      2 sec. | K   10 | ev -5.579189293e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   16.000/20 after      2 sec. | K   10 | ev -5.579189293e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   17.000/20 after      2 sec. | K   10 | ev -5.579189293e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   18.000/20 after      2 sec. | K   10 | ev -5.579189293e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   19.000/20 after      2 sec. | K   10 | ev -5.579189293e+00 | Ndiff      0.000 
+... done. converged.
+Trial  2/2 | alg. seed: 1128064 | data order seed: 7673856
+savepath: /results/MixBarsK10V900/demobirthmerge-Kinit=16/2
+    0.100/20 after      0 sec. | K   16 | ev -6.372100577e+00 |  
+    0.200/20 after      0 sec. | K   16 | ev -6.068842570e+00 |  
+    0.300/20 after      0 sec. | K   16 | ev -5.930562281e+00 |  
+    1.000/20 after      0 sec. | K   16 | ev -5.719622612e+00 |  
+MERGE 6/6 accepted. ev increased  1.6625e-02
+    2.000/20 after      0 sec. | K   10 | ev -5.675899603e+00 | Ndiff      0.000 
+BIRTH ACCEPTED. 2 fresh comps.
+MERGE 1/1 accepted. ev increased  2.0633e-03
+    3.000/20 after      1 sec. | K   11 | ev -5.579254286e+00 | Ndiff     21.000 
+MERGE 1/1 accepted. ev increased  6.6657e-05
+    4.000/20 after      1 sec. | K   10 | ev -5.579187626e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+    5.000/20 after      1 sec. | K   10 | ev -5.579187626e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+    6.000/20 after      1 sec. | K   10 | ev -5.579187626e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+    7.000/20 after      1 sec. | K   10 | ev -5.579187626e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+    8.000/20 after      1 sec. | K   10 | ev -5.579187626e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+    9.000/20 after      1 sec. | K   10 | ev -5.579187626e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   10.000/20 after      1 sec. | K   10 | ev -5.579187626e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   11.000/20 after      1 sec. | K   10 | ev -5.579187626e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   12.000/20 after      1 sec. | K   10 | ev -5.579187626e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   13.000/20 after      2 sec. | K   10 | ev -5.579187626e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   14.000/20 after      2 sec. | K   10 | ev -5.579187626e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   15.000/20 after      2 sec. | K   10 | ev -5.579187626e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   16.000/20 after      2 sec. | K   10 | ev -5.579187626e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   17.000/20 after      2 sec. | K   10 | ev -5.579187626e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   18.000/20 after      2 sec. | K   10 | ev -5.579187626e+00 | Ndiff      0.000 
+MERGE 0/0 accepted. 
+   19.000/20 after      2 sec. | K   10 | ev -5.579187626e+00 | Ndiff      0.000 
+... done. converged.

@@ -10,7 +10,6 @@ Key methods
 import numpy as np
 from collections import defaultdict
 
-import bnpy.util.GramSchmidtUtil as GramSchmidtUtil
 from BirthProposalError import BirthProposalError
 import BirthLogger
 

@@ -1,0 +1,26 @@
+Asterisk Toy Data. 8 true clusters.
+  size: 25000 units (single observations)
+  dimension: 2
+Allocation Model:  Finite mixture with K=8. Dir prior param 1.00
+Obs. Data  Model:  Gaussian with full covariance.
+Obs. Data  Prior:  Gauss-Wishart on each mean/prec matrix pair: mu, Lam
+  E[ mu[k] ]     = [ 0.  0.]
+  E[ CovMat[k] ] = 
+  [[ 1.  0.]
+   [ 0.  1.]]
+Learn Alg: EM
+Trial  1/1 | alg. seed: 4226944 | data order seed: 8541952
+savepath: /results/AsteriskK8/defaultjob/1
+        1/50 after      0 sec. | K    8 | ev -5.233448743e+06 |  
+        2/50 after      0 sec. | K    8 | ev -7.255537859e-01 | Ndiff    469.916 
+        3/50 after      0 sec. | K    8 | ev -4.881217375e-01 | Ndiff    838.469 
+        4/50 after      0 sec. | K    8 | ev -3.600440237e-01 | Ndiff    624.909 
+        5/50 after      0 sec. | K    8 | ev -1.504401133e-01 | Ndiff    382.469 
+        6/50 after      0 sec. | K    8 | ev -1.208708327e-02 | Ndiff    621.636 
+        7/50 after      0 sec. | K    8 | ev  1.924327448e-02 | Ndiff    434.059 
+        8/50 after      0 sec. | K    8 | ev  4.236480859e-02 | Ndiff    239.341 
+        9/50 after      1 sec. | K    8 | ev  7.086226579e-02 | Ndiff    108.915 
+       10/50 after      1 sec. | K    8 | ev  1.053270414e-01 | Ndiff     16.711 
+       11/50 after      1 sec. | K    8 | ev  1.084152629e-01 | Ndiff      0.708 
+       12/50 after      1 sec. | K    8 | ev  1.084158112e-01 | Ndiff      0.019 
+... done. converged.

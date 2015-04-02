@@ -1,0 +1,90 @@
+Toy Bars Data with 10 true topics. Each doc uses 1-3 bars.
+Entire Dataset Summary:
+  total size: 1000 units
+  batch size: 100 units
+  num. batches: 10
+Data for Initialization:
+  size: 1000 units (documents)
+  vocab size: 900
+  min    5%   50%   95%   max 
+   68    76    85    92    99  nUniqueTokensPerDoc
+  100   100   100   100   100  nTotalTokensPerDoc
+Hist of word_count across tokens 
+      1      2      3    <10   <100  >=100
+   0.84   0.14   0.02    200      0      0
+Hist of unique docs per word type
+     <1    <10   <100  <0.20  <0.50 >=0.50
+      0      0   0.75   0.25      0      0
+Allocation Model:  HDP model with K=40 active comps. gamma=1.00. alpha=0.10
+Obs. Data  Model:  Multinomial over finite vocabulary.
+Obs. Data  Prior:  Dirichlet over finite vocabulary 
+  lam = [ 0.1  0.1] ...
+Learn Alg: moVB
+Trial  1/2 | alg. seed: 1730304 | data order seed: 8541952
+savepath: /results/BarsK10V900/demomergedelete-Kinit=40-kmeans/1
+    0.100/50 after      0 sec. | K   40 | ev -7.125462642e+00 |  
+    0.200/50 after      0 sec. | K   40 | ev -6.835502157e+00 |  
+    0.300/50 after      1 sec. | K   40 | ev -6.702812677e+00 |  
+DELETED 3 empty comps
+DELETE 4/4 accepted
+DELETED 4 empty comps
+DELETE 4/4 accepted
+DELETE 3/3 accepted
+MERGE 10/10 accepted. ev increased  1.1177e-01
+MERGE 2/2 accepted. ev increased  1.3788e-02
+    5.000/50 after      8 sec. | K   10 | ev -6.125541990e+00 | Ndiff     16.148 
+MERGE 0/0 accepted. 
+MERGE 0/0 accepted. 
+MERGE 0/0 accepted. 
+MERGE 0/0 accepted. 
+MERGE 0/0 accepted. 
+   10.000/50 after     11 sec. | K   10 | ev -6.121223288e+00 | Ndiff      0.325 
+MERGE 0/0 accepted. 
+MERGE 0/0 accepted. 
+MERGE 0/0 accepted. 
+MERGE 0/0 accepted. 
+MERGE 0/0 accepted. 
+   15.000/50 after     12 sec. | K   10 | ev -6.121112266e+00 | Ndiff      0.030 
+MERGE 0/0 accepted. 
+MERGE 0/0 accepted. 
+MERGE 0/0 accepted. 
+MERGE 0/0 accepted. 
+MERGE 0/0 accepted. 
+   20.000/50 after     14 sec. | K   10 | ev -6.121078540e+00 | Ndiff      0.097 
+MERGE 0/0 accepted. 
+MERGE 0/0 accepted. 
+MERGE 0/0 accepted. 
+MERGE 0/0 accepted. 
+MERGE 0/0 accepted. 
+   25.000/50 after     16 sec. | K   10 | ev -6.120959711e+00 | Ndiff      0.082 
+MERGE 0/0 accepted. 
+   26.000/50 after     16 sec. | K   10 | ev -6.120959653e+00 | Ndiff      0.003 
+... done. converged.
+Trial  2/2 | alg. seed: 2125312 | data order seed: 7673856
+savepath: /results/BarsK10V900/demomergedelete-Kinit=40-kmeans/2
+    0.100/50 after      0 sec. | K   40 | ev -7.137426078e+00 |  
+    0.200/50 after      0 sec. | K   40 | ev -6.749066825e+00 |  
+    0.300/50 after      0 sec. | K   40 | ev -6.594770838e+00 |  
+DELETE 5/5 accepted
+DELETED 6 empty comps
+DELETE 6/6 accepted
+DELETED 1 empty comps
+DELETE 2/2 accepted
+MERGE 7/7 accepted. ev increased  6.2589e-02
+MERGE 1/1 accepted. ev increased  6.8775e-03
+    5.000/50 after      7 sec. | K   12 | ev -6.124634018e+00 | Ndiff      7.627 
+MERGE 0/0 accepted. 
+DELETE 1/1 accepted
+MERGE 0/0 accepted. 
+DELETE 1/1 accepted
+MERGE 0/0 accepted. 
+MERGE 0/0 accepted. 
+MERGE 0/0 accepted. 
+   10.000/50 after      9 sec. | K   10 | ev -6.116230050e+00 | Ndiff      0.467 
+MERGE 0/0 accepted. 
+MERGE 0/0 accepted. 
+MERGE 0/0 accepted. 
+MERGE 0/0 accepted. 
+MERGE 0/0 accepted. 
+   15.000/50 after     10 sec. | K   10 | ev -6.116040914e+00 | Ndiff      0.006 
+... done. converged.

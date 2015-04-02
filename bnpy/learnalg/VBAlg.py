@@ -1,94 +1,96 @@
-'''
-VBLearnAlg.py
-
-Implementation of variational bayes learning algorithm for bnpy models.
-'''
 import numpy as np
 
 from LearnAlg import LearnAlg, makeDictOfAllWorkspaceVars
 
-class VBAlg( LearnAlg ):
 
-  def __init__( self, **kwargs ):
-    ''' Create VBLearnAlg, subtype of generic LearnAlg
-    '''
-    LearnAlg.__init__(self, **kwargs)
-    
-  def fit(self, hmodel, Data, LP=None):
-    ''' Run VB learning algorithm, fit global parameters of hmodel to Data
+class VBAlg(LearnAlg):
+
+    """ Variational Bayes (VB) learning algorithm.
+
+    Extends
+    -------
+    LearnAlg
+    """
+
+    def __init__(self, **kwargs):
+        ''' Create VBLearnAlg, subtype of generic LearnAlg
+        '''
+        LearnAlg.__init__(self, **kwargs)
+
+    def fit(self, hmodel, Data, LP=None):
+        ''' Run VB learning to fit global parameters of hmodel to Data
+
         Returns
         --------
-        Info : dict of run information, with fields
-        * evBound : final ELBO evidence bound
-        * status : str message indicating reason for termination
-                   {'converged', 'max laps exceeded'}
-        * LP : dict of local parameters for final model
-    '''
-    prevBound = -np.inf
-    isConverged = False
+        Info : dict of run information.
 
-    ## Save initial state
-    self.saveParams(0, hmodel)
+        Post Condition
+        --------
+        hmodel updated in place with improved global parameters.
+        '''
+        prevBound = -np.inf
+        isConverged = False
 
-    ## Custom func hook
-    self.eval_custom_func(isInitial=1, **makeDictOfAllWorkspaceVars(**vars()))
+        # Save initial state
+        self.saveParams(0, hmodel)
 
-    self.set_start_time_now()
-    for iterid in xrange(1, self.algParams['nLap']+1):
-      lap = self.algParams['startLap'] + iterid
-      nLapsCompleted = lap - self.algParams['startLap']
-      self.set_random_seed_at_lap(lap)
+        # Custom func hook
+        self.eval_custom_func(
+            isInitial=1, **makeDictOfAllWorkspaceVars(**vars()))
 
-      ## Local/E step
-      LP = hmodel.calc_local_params(Data, LP, **self.algParamsLP)
+        self.set_start_time_now()
+        for iterid in xrange(1, self.algParams['nLap'] + 1):
+            lap = self.algParams['startLap'] + iterid
+            nLapsCompleted = lap - self.algParams['startLap']
+            self.set_random_seed_at_lap(lap)
 
-      ## Summary step
-      SS = hmodel.get_global_suff_stats(Data, LP)
+            # Local/E step
+            self.algParamsLP['lapFrac'] = lap  # logging
+            self.algParamsLP['batchID'] = 1
+            LP = hmodel.calc_local_params(Data, LP, **self.algParamsLP)
 
-      ##Combined E step and summary step
-      #LP, SS = hmodel.calcLocalParamsAndSummarize(Data,LP,**self.algParamsLP)
+            # Summary step
+            SS = hmodel.get_global_suff_stats(Data, LP)
 
-      ## Global/M step
-      hmodel.update_global_params(SS) 
+            # Global/M step
+            hmodel.update_global_params(SS)
 
-      ## ELBO calculation
-      evBound = hmodel.calc_evidence(Data, SS, LP)
-      if lap > 1.0:
-        ## Report warning if bound isn't increasing monotonically
-        self.verify_evidence(evBound, prevBound)
+            # ELBO calculation
+            evBound = hmodel.calc_evidence(Data, SS, LP)
+            if lap > 1.0:
+                # Report warning if bound isn't increasing monotonically
+                self.verify_evidence(evBound, prevBound)
 
-      ## Check convergence of expected counts
-      countVec = SS.getCountVec()
-      if lap > 1.0:
-        isConverged = self.isCountVecConverged(countVec, prevCountVec)
-        self.setStatus(lap, isConverged)
+            # Check convergence of expected counts
+            countVec = SS.getCountVec()
+            if lap > 1.0:
+                isConverged = self.isCountVecConverged(countVec, prevCountVec)
+                self.setStatus(lap, isConverged)
 
-      ## Display progress
-      self.updateNumDataProcessed(Data.get_size())
-      if self.isLogCheckpoint(lap, iterid):
-        self.printStateToLog(hmodel, evBound, lap, iterid)
+            # Display progress
+            self.updateNumDataProcessed(Data.get_size())
+            if self.isLogCheckpoint(lap, iterid):
+                self.printStateToLog(hmodel, evBound, lap, iterid)
 
-      ## Save diagnostics and params
-      if self.isSaveDiagnosticsCheckpoint(lap, iterid):
-        self.saveDiagnostics(lap, SS, evBound)
-      if self.isSaveParamsCheckpoint(lap, iterid):
+            # Save diagnostics and params
+            if self.isSaveDiagnosticsCheckpoint(lap, iterid):
+                self.saveDiagnostics(lap, SS, evBound)
+            if self.isSaveParamsCheckpoint(lap, iterid):
+                self.saveParams(lap, hmodel, SS)
+
+            # Custom func hook
+            self.eval_custom_func(**makeDictOfAllWorkspaceVars(**vars()))
+
+            if nLapsCompleted >= self.algParams['minLaps'] and isConverged:
+                break
+            prevBound = evBound
+            prevCountVec = countVec.copy()
+            # .... end loop over laps
+
+        # Finished! Save, print and exit
         self.saveParams(lap, hmodel, SS)
+        self.printStateToLog(hmodel, evBound, lap, iterid, isFinal=1)
+        self.eval_custom_func(
+            isFinal=1, **makeDictOfAllWorkspaceVars(**vars()))
 
-      ## Custom func hook
-      self.eval_custom_func(**makeDictOfAllWorkspaceVars(**vars()))
-
-      if nLapsCompleted >= self.algParams['minLaps'] and isConverged:
-        break
-      prevBound = evBound
-      prevCountVec = countVec.copy()
-      # ................................................... end loop over laps
-
-    ## Finished! Save, print and exit
-    self.saveParams(lap, hmodel, SS)
-    self.printStateToLog(hmodel, evBound, lap, iterid, isFinal=1)
-    self.eval_custom_func(isFinal=1, **makeDictOfAllWorkspaceVars(**vars()))
-
-    return self.buildRunInfo(evBound=evBound, SS=SS, LP=LP)
-
-
-
+        return self.buildRunInfo(evBound=evBound, SS=SS, LP=LP)
