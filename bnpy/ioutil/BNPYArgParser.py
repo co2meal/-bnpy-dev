@@ -18,7 +18,7 @@ aModelHelpStr = 'Name of allocation model.' + choiceStr
 choiceStr = ' {' + ','.join([x for x in (ObsModelNameSet)]) + '}'
 oModelHelpStr = 'Name of observation model.' + choiceStr
 
-algChoices = set(['EM', 'VB', 'moVB', 'soVB', 'GS'])
+algChoices = set(['EM', 'VB', 'moVB', 'soVB', 'GS','pVB'])
 choiceStr = ' {' + ','.join([x for x in (algChoices)]) + '}'
 algHelpStr = 'Name of learning algorithm.' + choiceStr
 

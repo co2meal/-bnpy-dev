@@ -33,7 +33,7 @@ from bnpy.ioutil import BNPYArgParser
 Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
 
-FullDataAlgSet = ['EM', 'VB', 'GS']
+FullDataAlgSet = ['EM', 'VB', 'GS', 'pVB']
 OnlineDataAlgSet = ['soVB', 'moVB']
 
 
@@ -399,6 +399,9 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
                                        algParams=algP, outputParams=outputP)
     elif algName == 'VB':
         learnAlg = bnpy.learnalg.VBAlg(savedir=savepath, seed=algseed,
+                                       algParams=algP, outputParams=outputP)
+    elif algName == 'pVB':
+        learnAlg = bnpy.learnalg.ParallelVBAlg(savedir=savepath, seed=algseed,
                                        algParams=algP, outputParams=outputP)
     elif algName == 'soVB':
         learnAlg = bnpy.learnalg.SOVBAlg(savedir=savepath, seed=algseed,
