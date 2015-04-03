@@ -11,7 +11,8 @@ from SOVBAlg import SOVBAlg
 from EMAlg import EMAlg
 
 from GSAlg import GSAlg
+from ParallelVBAlg import ParallelVBAlg
 
 __all__ = ['LearnAlg', 'VBAlg', 'MOVBAlg', 'MOVBBirthMergeAlg',
            'SOVBAlg', 'EMAlg',
-           'GSAlg']
+           'GSAlg','ParallelVBAlg']

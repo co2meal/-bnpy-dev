@@ -545,7 +545,7 @@ class MultObsModel(AbstractObsModel):
         ElogphiT = self._E_logphi(k).T.copy()
         return ElogphiT
 
-    def getSerializableArgsForLocalStep(self):
+    def getSerializableParamsForLocalStep(self):
         """ Get compact dict of params for local step.
 
         Returns
