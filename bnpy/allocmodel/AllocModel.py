@@ -116,18 +116,11 @@ class AllocModel(object):
         for k in xrange(K):
             LP['resp'][LP['Z'] == k, k] = 1
         return LP
-  ######################################################### Paralllelization functions
-  #########################################################   
-    def calcLocalParams(self):
-       pass
-
-    def calcSummaryStats(self):
-       pass
 
   ######################################################### Function handles
   #########################################################   
     def getHandleCalcLocalParams(self):
-       return self.calcLocalParams
+       return self.calc_local_params
 
     def getHandleCalcSummaryStats(self):
-       return self.calcSummaryStats
+       return self.get_global_suff_stats

@@ -164,19 +164,10 @@ class AbstractObsModel(object):
         self.Cache.clear()
 
 
-  
-  ######################################################### Paralllelization functions
-  #########################################################   
-    def calcLocalParams(self):
-        pass
-
-    def calcSummaryStats(self):
-        pass
-
   ######################################################### Function handles
   #########################################################   
     def getHandleCalcLocalParams(self):
-        return self.calcLocalParams
+        return self.calc_local_params
 
     def getHandleCalcSummaryStats(self):
-        return self.calcSummaryStats
+        return self.get_global_suff_stats

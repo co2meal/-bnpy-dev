@@ -41,7 +41,8 @@ class ParallelVBAlg( LearnAlg ):
 
 
     isParallel = False #TODO: delete this, this is simply for debugging purposes
-
+    self.nDoc = Data.nDoc
+    self.nWorkers = 2 #TODO change
 
     if isParallel:
       # Create a JobQ (to hold tasks to be done)
@@ -51,16 +52,17 @@ class ParallelVBAlg( LearnAlg ):
       self.ResultQ = manager.Queue()
 
       #Get the function handles
-      makeDataSliceFromSharedMem = hmodel.getHandleMakeDataSliceFromSharedMem()
+      makeDataSliceFromSharedMem = Data.getDataSliceFunctionHandle()
       o_calcLocalParams = hmodel.obsModel.getHandleCalcLocalParams()
       o_calcSummaryStats = hmodel.obsModel.getHandleCalcSummaryStats()
       a_calcLocalParams = hmodel.allocModel.getHandleCalcLocalParams()
       a_calcSummaryStats = hmodel.allocModel.getHandleCalcSummaryStats()
 
       #Create the shared memory
-      dataSharedMem = Data.convertToSharedMem() 
-      aSharedMem = hmodel.allocModel.fillInSharedMem() 
-      oSharedMem = hmodel.obsModel.fillInSharedMem()
+      dataSharedMem = Data.getRawDataAsSharedMemDict()
+      aSharedMem = hmodel.allocModel.fillSharedMemDictForLocalStep()
+      oSharedMem = hmodel.obsModel.fillSharedMemDictForLocalStep()
+
 
       #Create multiple workers
       for uid in range(self.nWorkers):
@@ -74,6 +76,13 @@ class ParallelVBAlg( LearnAlg ):
         aSharedMem,
         oSharedMem,LPKwargs=self.LPKwargs).start() #TODO: need to find the way to import that from where it is
     
+    else: 
+      #Need to store shared mem
+
+      aSharedMem = hmodel.allocModel.fillSharedMemDictForLocalStep()
+      oSharedMem = hmodel.obsModel.fillSharedMemDictForLocalStep()
+      self.dataSharedMem=Data.getRawDataAsSharedMemDict() 
+      self.makeDataSliceFromSharedMem=Data.getDataSliceFunctionHandle()
 
     for iterid in xrange(1, self.algParams['nLap']+1):
       lap = self.algParams['startLap'] + iterid
@@ -90,8 +99,8 @@ class ParallelVBAlg( LearnAlg ):
       hmodel.update_global_params(SS) 
 
       #update the memory
-      aSharedMem = hmodel.allocModel.fillInSharedMem(aSharedMem)
-      oSharedMem = hmodel.obsModel.fillInSharedMem(oSharedMem)
+      aSharedMem = hmodel.allocModel.fillSharedMemDictForLocalStep(aSharedMem)
+      oSharedMem = hmodel.obsModel.fillSharedMemDictForLocalStep(oSharedMem)
 
       ## ELBO calculation
       evBound = hmodel.calc_evidence(Data=Data, SS=SS)
@@ -155,34 +164,31 @@ class ParallelVBAlg( LearnAlg ):
 
   def serialCalcLocalParamsAndSummarize(self, hmodel):
     SSagg = None
-    for dataBatchID, start, stop in sliceGenerator(self.nDoc, self.nWorkers):
+    
+    for dataBatchID, start, stop in self.sliceGenerator(self.nDoc, self.nWorkers):
         sliceArgs = (dataBatchID,start,stop)
         aArgs = hmodel.allocModel.getSerializableParamsForLocalStep()
         oArgs = hmodel.obsModel.getSerializableParamsForLocalStep()
 
         #Below is the code that is called in the run method for SharedMemWorker
         #Get the function handles
-        makeDataSliceFromSharedMem = hmodel.getHandleMakeDataSliceFromSharedMem()
-        o_calcLocalParams = hmodel.obsModel.getHandleCalcLocalParams()
-        o_calcSummaryStats = hmodel.obsModel.getHandleCalcSummaryStats()
-        a_calcLocalParams = hmodel.allocModel.getHandleCalcLocalParams()
-        a_calcSummaryStats = hmodel.allocModel.getHandleCalcSummaryStats()
+        o_calcLocalParams, o_calcSummaryStats = hmodel.obsModel.getLocalAndSummaryFunctionHandles()
+        a_calcLocalParams, a_calcSummaryStats = hmodel.allocModel.getLocalAndSummaryFunctionHandles()
 
         #Create the shared memory
-        dataSharedMem = Data.convertToSharedMem() 
-        aSharedMem = hmodel.allocModel.fillInSharedMem() 
-        oSharedMem = hmodel.obsModel.fillInSharedMem()
+        
+        aSharedMem = hmodel.allocModel.fillSharedMemDictForLocalStep()
+        oSharedMem = hmodel.obsModel.fillSharedMemDictForLocalStep()
 
-        Dslice = makeDataSliceFromSharedMem(dataSharedMem,sliceArgs)
+        Dslice = self.makeDataSliceFromSharedMem(self.dataSharedMem,sliceArgs)
         aArgs.update(sharedMemDictToNumpy(aSharedMem))
         oArgs.update(sharedMemDictToNumpy(oSharedMem))
 
-        LP = self.o_calcLocalParams(Dslice, **oArgs)
-        LP = self.a_calcLocalParams(Dslice, LP, **aArgs)
+        LP = o_calcLocalParams(Dslice, **oArgs)
+        LP = a_calcLocalParams(Dslice, LP, **aArgs)
 
-        SSagg = self.a_calcSummaryStats(Dslice, LP, **aArgs)
-        SSagg = self.o_calcSummaryStats(Dslice, SSagg, LP, **oArgs)
-
+        SSslice = a_calcSummaryStats(Dslice, LP, **aArgs)
+        SSslice = o_calcSummaryStats(Dslice, SSslice, LP, **oArgs)
         if start == 0:
             SSagg = SSslice
         else:
@@ -190,7 +196,7 @@ class ParallelVBAlg( LearnAlg ):
 
     return SSagg
 
-  def sliceGenerator(nDoc=0, nWorkers=0):
+  def sliceGenerator(self, nDoc=0, nWorkers=0):
     """ Iterate over slices given problem size and num workers
 
     Yields

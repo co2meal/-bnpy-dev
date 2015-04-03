@@ -28,7 +28,6 @@ from allocmodel import AllocModelConstructorsByName
 from obsmodel import ObsModelConstructorsByName
 import multiprocessing
 from multiprocessing import Process, Queue
-
                    
 class HModel(object):
 
@@ -237,3 +236,9 @@ class HModel(object):
         SS = self.obsModel.calcSuffStats(
             Data, SS, LP, subset, **kwargs)
         return SS
+
+
+    ######################################################### Function handles
+    ######################################################### 
+    def getHandleMakeDataSliceFromSharedMem(self):
+        return self.makeDataSliceFromSharedMem
