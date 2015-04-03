@@ -3,7 +3,7 @@
 List of functions
 --------------
 
-localStepForDataSlice
+calcLocalParamsAndSummarize
     perform kmeans local step (assignments and summary stats)
     for a "slice" of the provided dataset.
 
@@ -17,8 +17,12 @@ import warnings
 import itertools
 import numpy as np
 import bnpy
+import time
 
-def localStepForDataSlice(X, Mu, start=None, stop=None):
+def calcLocalParamsAndSummarize(X, Mu, 
+                                start=None, stop=None, 
+                                returnVal='SuffStatBag',
+                                sleepPerUnit=0):
     ''' K-means step
 
     Returns
@@ -35,6 +39,14 @@ def localStepForDataSlice(X, Mu, start=None, stop=None):
             X = np.ctypeslib.as_array(X)
             # This does *not* allocate any new memory,
             # just allows using X and Mu as numpy arrays.
+
+    if sleepPerUnit > 0:
+        if start is None:
+            nUnits = X.shape[0]
+        else:
+            nUnits = stop - start
+        time.sleep(nUnits * sleepPerUnit)
+        return 0
 
     # Unpack problem size variables
     K, D = Mu.shape
@@ -64,8 +76,11 @@ def localStepForDataSlice(X, Mu, start=None, stop=None):
     SS = bnpy.suffstats.SuffStatBag(K=K, D=D)
     SS.setField('CountVec', CountVec, dims=('K'))
     SS.setField('DataStatVec', DataStatVec, dims=('K', 'D'))
-    return SS
-
+ 
+    if returnVal == 'SuffStatBag':
+        return SS
+    else:
+        return SS.CountVec.sum()
 
 def sliceGenerator(N=0, nWorkers=0):
     """ Iterate over slices given problem size and num workers
@@ -104,6 +119,8 @@ def runBenchmarkAcrossProblemSizes(TestClass):
     parser.add_argument('--method', type=str, default='parallel')
     parser.add_argument('--nRepeat', type=int, default=1)
     parser.add_argument('--verbose', type=int, default=1)
+    parser.add_argument('--returnVal', type=str, default='SuffStatBag')
+    parser.add_argument('--sleepPerUnit', type=float, default=0)
     args = parser.parse_args()
     
     NKDiterator = itertools.product(
@@ -111,9 +128,7 @@ def runBenchmarkAcrossProblemSizes(TestClass):
         rangeFromString(args.K),
         rangeFromString(args.D))
 
-    kwargs = dict()
-    kwargs['nWorkers'] = args.nWorkers
-    kwargs['verbose'] = args.verbose
+    kwargs = dict(**args.__dict__)
 
     for (N, K, D) in NKDiterator:
         print '=============================== N=%d K=%d D=%d' % (
@@ -126,6 +141,8 @@ def runBenchmarkAcrossProblemSizes(TestClass):
         # Required first arg is string name of test we'll execute
         myTest = TestClass('run_speed_benchmark', **kwargs) 
         myTest.setUp()
+        time.sleep(0.2) # give processes time to launch
+
         TimeInfo = myTest.run_speed_benchmark(method=args.method,
                                               nRepeat=args.nRepeat)
         myTest.tearDown() # closes all processes
