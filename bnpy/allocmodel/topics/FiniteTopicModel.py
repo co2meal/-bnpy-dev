@@ -224,7 +224,6 @@ class FiniteTopicModel(AllocModel):
             Lentropy = SS.getELBOTerm('Hvec').sum()
             Lalloc = SS.getELBOTerm('L_alloc')
         else:
-            print "In 227 LP is", LP
             Lentropy = self.L_entropy(Data, LP, returnVector=0)
             Lalloc = self.L_alloc(Data, LP)
         if SS.hasAmpFactor():
@@ -317,11 +316,8 @@ def L_entropy(Data=None, LP=None, resp=None, returnVector=0):
     L_entropy : scalar float
     """
     if LP is not None:
-        print "LP ISN't none!!"
         resp = LP['resp']
     if hasattr(Data, 'word_count'):
-        print "resp is"
-        print resp
         Hvec = -1 * NumericUtil.calcRlogRdotv(resp, Data.word_count)
     else:
         Hvec = -1 * NumericUtil.calcRlogR(resp)

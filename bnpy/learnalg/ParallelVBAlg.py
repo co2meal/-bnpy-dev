@@ -187,7 +187,7 @@ class ParallelVBAlg( LearnAlg ):
         LP = o_calcLocalParams(Dslice, **oArgs)
         LP = a_calcLocalParams(Dslice, LP, **aArgs)
 
-        SSslice = a_calcSummaryStats(Dslice, LP, **aArgs)
+        SSslice = a_calcSummaryStats(Dslice, LP, doPrecompEntropy=1, **aArgs)
         SSslice = o_calcSummaryStats(Dslice, SSslice, LP, **oArgs)
         if start == 0:
             SSagg = SSslice
