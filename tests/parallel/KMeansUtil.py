@@ -77,6 +77,7 @@ def calcLocalParamsAndSummarize(X, Mu,
     SS.setField('CountVec', CountVec, dims=('K'))
     SS.setField('DataStatVec', DataStatVec, dims=('K', 'D'))
  
+
     if returnVal == 'SuffStatBag':
         return SS
     else:
