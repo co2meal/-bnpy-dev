@@ -65,19 +65,13 @@ class SharedMemWorker(multiprocessing.Process):
         # Construct iterator with sentinel value of None (for termination)
         jobIterator = iter(self.JobQueue.get, None)
 
+        # Loop over tasks in the job queue
         for jobArgs in jobIterator:
             start, stop = jobArgs
-            #if start is not None:
-            #    self.printMsg("start=%d, stop=%d" % (start, stop))
-
-            # msg = "X memory location: %d" % (getPtrForArray(self.Xsh))
-            # self.printMsg(msg)
             SS = calcLocalParamsAndSummarize(self.Xsh, self.Msh,
                                       start=start, stop=stop, 
                                       returnVal=self.returnVal,
                                       sleepPerUnit=self.sleepPerUnit)
-            # self.printMsg("type(SS)=%s" % (type(SS)))
-
             self.ResultQueue.put(SS)
             self.JobQueue.task_done()
 
@@ -153,7 +147,7 @@ class Test(unittest.TestCase):
         """ Execute on entire matrix (no slices) in master process.
         """        
         SSall = calcLocalParamsAndSummarize(
-            self.X, self.Mu, 
+            self.Xsh, self.Msh, 
             sleepPerUnit=self.sleepPerUnit,
             returnVal=self.returnVal)
         return SSall
@@ -189,8 +183,6 @@ class Test(unittest.TestCase):
         # Aggregate results across across all workers
         nDone = 0
         SS = 0
-        self.JobQ.join()
-        '''
         while (nDone < self.nWorkers):
             if not self.ResultQ.empty():
                 SSchunk = self.ResultQ.get()
@@ -199,7 +191,6 @@ class Test(unittest.TestCase):
                 else:
                     SS += SSchunk
                 nDone += 1
-        '''
         return SS
 
     def test_correctness_serial(self):
@@ -262,9 +253,9 @@ class Test(unittest.TestCase):
     def run_all_with_timer(self, nRepeat=3):
         """ Timing experiments with baseline, serial, and parallel versions.
         """
+        base_time = self.run_with_timer('run_baseline', nRepeat)
         serial_time = self.run_with_timer('run_serial', nRepeat)
         parallel_time = self.run_with_timer('run_parallel', nRepeat)
-        base_time = self.run_with_timer('run_baseline', nRepeat)
 
         return dict(
             base_time=base_time,
