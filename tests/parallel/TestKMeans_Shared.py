@@ -179,6 +179,11 @@ class Test(unittest.TestCase):
             # This is much cheaper (hopefully) for inter-proc communication
             self.JobQ.put((start, stop))
 
+        # WAIT 
+        # It is crucial to force main thread to sleep now,
+        # so other processes can take over the CPU
+        self.JobQ.join()
+
         # REDUCE step
         # Aggregate results across across all workers
         nDone = 0
@@ -191,6 +196,8 @@ class Test(unittest.TestCase):
                 else:
                     SS += SSchunk
                 nDone += 1
+            else:
+                time.sleep(0.02) # wait 2 ms before checking again
         return SS
 
     def test_correctness_serial(self):
@@ -254,7 +261,9 @@ class Test(unittest.TestCase):
         """ Timing experiments with baseline, serial, and parallel versions.
         """
         base_time = self.run_with_timer('run_baseline', nRepeat)
+        time.sleep(0.3)
         serial_time = self.run_with_timer('run_serial', nRepeat)
+        time.sleep(0.3)
         parallel_time = self.run_with_timer('run_parallel', nRepeat)
 
         return dict(
