@@ -180,7 +180,9 @@ class ParallelVBAlg( LearnAlg ):
         aSharedMem = hmodel.allocModel.fillSharedMemDictForLocalStep()
         oSharedMem = hmodel.obsModel.fillSharedMemDictForLocalStep()
 
-        Dslice = self.makeDataSliceFromSharedMem(self.dataSharedMem,sliceArgs)
+        cslice = (start,stop)
+        Dslice = self.makeDataSliceFromSharedMem(
+            self.dataSharedMem, cslice=cslice)
         aArgs.update(sharedMemDictToNumpy(aSharedMem))
         oArgs.update(sharedMemDictToNumpy(oSharedMem))
 
