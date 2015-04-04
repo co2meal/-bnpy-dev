@@ -8,6 +8,7 @@ import multiprocessing
 
 from LearnAlg import LearnAlg, makeDictOfAllWorkspaceVars
 from bnpy.util import sharedMemDictToNumpy, sharedMemToNumpyArray
+from SharedMemWorker import SharedMemWorker
 
 
 class ParallelVBAlg( LearnAlg ):
@@ -40,7 +41,7 @@ class ParallelVBAlg( LearnAlg ):
     self.set_start_time_now()
 
 
-    isParallel = False #TODO: delete this, this is simply for debugging purposes
+    isParallel = True #TODO: delete this, this is simply for debugging purposes
     self.nDoc = Data.nDoc
     self.nWorkers = 2 #TODO change
 
@@ -53,10 +54,9 @@ class ParallelVBAlg( LearnAlg ):
 
       #Get the function handles
       makeDataSliceFromSharedMem = Data.getDataSliceFunctionHandle()
-      o_calcLocalParams = hmodel.obsModel.getHandleCalcLocalParams()
-      o_calcSummaryStats = hmodel.obsModel.getHandleCalcSummaryStats()
-      a_calcLocalParams = hmodel.allocModel.getHandleCalcLocalParams()
-      a_calcSummaryStats = hmodel.allocModel.getHandleCalcSummaryStats()
+      o_calcLocalParams, o_calcSummaryStats = hmodel.obsModel.getLocalAndSummaryFunctionHandles()
+      a_calcLocalParams, a_calcSummaryStats = hmodel.allocModel.getLocalAndSummaryFunctionHandles()
+
 
       #Create the shared memory
       dataSharedMem = Data.getRawDataAsSharedMemDict()
@@ -66,7 +66,7 @@ class ParallelVBAlg( LearnAlg ):
 
       #Create multiple workers
       for uid in range(self.nWorkers):
-        sharedMemWorker(uid,self.JobQ, self.ResultQ,
+        SharedMemWorker(uid,self.JobQ, self.ResultQ,
         makeDataSliceFromSharedMem,
         o_calcLocalParams,
         o_calcSummaryStats,
@@ -74,7 +74,7 @@ class ParallelVBAlg( LearnAlg ):
         a_calcSummaryStats,
         dataSharedMem,
         aSharedMem,
-        oSharedMem,LPKwargs=self.LPKwargs).start() #TODO: need to find the way to import that from where it is
+        oSharedMem,verbose=1).start() #TODO: need to find the way to deal with lpkwargs - not being used -import that from where it is
     
     else: 
       #Need to store shared mem
@@ -145,7 +145,7 @@ class ParallelVBAlg( LearnAlg ):
   def calcLocalParamsAndSummarize(self,hmodel):
     # MAP!
     # Create several tasks (one per worker) and add to job queue
-    for dataBatchID,start,stop in sliceGenerator(self.nDoc, self.nWorkers):
+    for dataBatchID,start,stop in self.sliceGenerator(self.nDoc, self.nWorkers):
         sliceArgs = (dataBatchID,start,stop)
         aArgs = hmodel.allocModel.getSerializableParamsForLocalStep()
         oArgs = hmodel.obsModel.getSerializableParamsForLocalStep()
