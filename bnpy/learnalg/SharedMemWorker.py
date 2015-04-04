@@ -41,7 +41,7 @@ class SharedMemWorker(multiprocessing.Process):
                  oSharedMem,
                  LPkwargs=None,
                  verbose=0):
-        super(Worker, self).__init__()
+        super(SharedMemWorker, self).__init__()
         self.uid = uid
         self.JobQueue = JobQueue
         self.ResultQueue = ResultQueue
@@ -57,9 +57,9 @@ class SharedMemWorker(multiprocessing.Process):
         self.dataSharedMem=dataSharedMem
         self.aSharedMem=aSharedMem
         self.oSharedMem=oSharedMem
-        if LPkwargs is None:
-            LPkwargs = dict()
-        self.LPkwargs = LPkwargs
+        # if LPkwargs is None:
+        #     LPkwargs = dict()
+        # self.LPkwargs = LPkwargs
 
         self.verbose = verbose
 
@@ -76,16 +76,16 @@ class SharedMemWorker(multiprocessing.Process):
 
         for jobArgs in jobIterator:
             sliceArgs, aArgs, oArgs = jobArgs
-            Dslice = self.makeDataSliceFromSharedMem(self.dataSharedMem,sliceArgs)
-            aArrDict = convertSharedMemToNumpyArrays(self.aSharedMem)
-            aArgs.update(aArrDict)
-            oArrDict = convertSharedMemToNumpyArrays(self.oSharedMem)
-            oArgs.update(oArrDict)
+
+            dataBatchID, start, stop = sliceArgs
+            Dslice = self.makeDataSliceFromSharedMem(self.dataSharedMem,cslice=(start,stop))
+            aArgs.update(sharedMemDictToNumpy(self.aSharedMem))
+            oArgs.update(sharedMemDictToNumpy(self.oSharedMem))
 
             LP = self.o_calcLocalParams(Dslice, **oArgs)
             LP = self.a_calcLocalParams(Dslice, LP, **aArgs)
 
-            SS = self.a_calcSummaryStats(Dslice, LP, **aArgs)
+            SS = self.a_calcSummaryStats(Dslice, LP, doPrecompEntropy=1, **aArgs)
             SS = self.o_calcSummaryStats(Dslice, SS, LP, **oArgs)
 
             self.ResultQueue.put(SS)
