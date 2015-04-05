@@ -136,6 +136,9 @@ class ParallelVBAlg( LearnAlg ):
       # ................................................... end loop over laps
 
     ## Finished! Save, print and exit
+    for workerID in range(self.nWorkers):
+            # Passing None to JobQ is shutdown signal
+            self.JobQ.put(None)
     self.saveParams(lap, hmodel, SS)
     self.printStateToLog(hmodel, evBound, lap, iterid, isFinal=1)
     self.eval_custom_func(isFinal=1, **makeDictOfAllWorkspaceVars(**vars()))
