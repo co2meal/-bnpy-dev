@@ -110,6 +110,7 @@ class Test(unittest.TestCase):
         self.Xsh = toSharedMemArray(self.X)
         self.Msh = toSharedMemArray(self.Mu)
 
+
     def setUp(self):
         # Create a JobQ (to hold tasks to be done)
         # and a ResultsQ (to hold results of completed tasks)
@@ -260,10 +261,14 @@ class Test(unittest.TestCase):
     def run_all_with_timer(self, nRepeat=3):
         """ Timing experiments with baseline, serial, and parallel versions.
         """
+        print 'BASE----------------'
         base_time = self.run_with_timer('run_baseline', nRepeat)
         time.sleep(0.3)
+        print '\nSERIAL--------------'
         serial_time = self.run_with_timer('run_serial', nRepeat)
         time.sleep(0.3)
+        
+        print '\nPARALLEL------------'
         parallel_time = self.run_with_timer('run_parallel', nRepeat)
 
         return dict(
