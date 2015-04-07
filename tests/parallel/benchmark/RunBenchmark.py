@@ -37,15 +37,22 @@ def main():
         closeWorkers(JobQ, **kwargs)
         time.sleep(.1)
 
-def getScaleFactorForTask(X, nWorker=1, **kwargs):
+def getScaleFactorForTask(X, maxWorker=None, **kwargs):
+    if maxWorker is None:
+        maxWorker = multiprocessing.cpu_count()
+    durationPerSlice = kwargs['durationPerSlice']
     N = X.shape[0]
-    sliceSize = np.floor(N/nWorker)
+    sliceSize = np.floor(N/maxWorker)
     Xslice = X[:sliceSize]
     kwargs['scaleFactor'] = 1
     t = workOnSlice(Xslice, None, None, **kwargs)
-    while t < kwargs['durationPerSlice']:
+    print 'FINDING PROBLEM SCALE.'
+    print '  %d workers\n Min duration of slice: %.2f' \
+        % (maxWorker, durationPerSlice)
+    while t < durationPerSlice:
         kwargs['scaleFactor'] *= 2
         t = workOnSlice(Xslice, None, None, **kwargs)
+    print 'SCALE: ', kwargs['scaleFactor'], 'telapsed=%.3f' % (t)
     return kwargs['scaleFactor']
 
 def workOnSlice(X, start, stop,
@@ -70,18 +77,23 @@ def workOnSlice(X, start, stop,
         Xslice = Xslice.copy()
     elif memoryType == 'random':
         Xslice = np.random.rand(Xslice.shape)
+    nReps = int(np.ceil(scaleFactor))
 
     tstart = time.time()
     if task == 'sleep':
         time.sleep(durationPerSlice * nWorker)
+    elif task == 'sumforloop':
+        for rep in xrange(nReps):
+            s = 0
+            for n in xrange(stop-start):
+                s = 2 * n
     elif task == 'colsumforloop':
-        s = 0.0
-        for i in xrange(int(np.ceil(scaleFactor))):
+        for rep in xrange(nReps):
+            s = 0.0
             for n in xrange(stop-start):
                 s += Xslice[n, 0]
     elif task == 'colsumvector':
-        s = 0.0
-        for i in xrange(int(np.ceil(scaleFactor))):
+        for rep in xrange(nReps):
             s = Xslice[:, 0].sum()
 
     telapsed = time.time() - tstart
