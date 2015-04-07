@@ -38,8 +38,28 @@ def calcLocalParamsAndSummarize(X, Mu,
             Mu = np.ctypeslib.as_array(Mu)
             X = np.ctypeslib.as_array(X)
             # This does *not* allocate any new memory,
-            # just allows using X and Mu as numpy arrays.
+            # just allows using X and Mu as numpy arrays
+    # Unpack problem size variables
+    K, D = Mu.shape
 
+    # Grab current slice (subset) of X to work on    
+    if start is not None:
+        start = int(start)
+        stop = int(stop)
+        Xcur = X[start:stop]
+    else:
+        Xcur = X
+        start = 0
+        stop = X.shape[0]
+
+    if returnVal.count('local'):
+        Xcur = Xcur.copy()
+    #ptr, read_only_flag = X.__array_interface__['data']
+    #print "X    ptr: %s, readonly=%d" % (hex(ptr), read_only_flag)
+    #ptr, read_only_flag = Xcur.__array_interface__['data']
+    #print "Xcur ptr: %s, readonly=%d" % (hex(ptr), read_only_flag)
+    
+    tstart = time.time()
     if sleepPerUnit > 0:
         if start is None:
             nUnits = X.shape[0]
@@ -47,15 +67,55 @@ def calcLocalParamsAndSummarize(X, Mu,
             nUnits = stop - start
         time.sleep(nUnits * sleepPerUnit)
         return 0
+    elif sleepPerUnit == -1:
+        # CPU-bound stuff
+        s = 0
+        for i in xrange(20*(stop - start)):
+             s += 1
+        telapsed = time.time() - tstart
+        print "BIG SUM on slice %d-%d took %.2f sec" % (start, stop, telapsed)
+        return 0
+    elif sleepPerUnit == -1.5:
+        s = 0
+        for i in xrange(50):
+            s += Xcur.sum()
+        telapsed = time.time() - tstart
+        print "SHARED MEM SUM on slice %d-%d took %.2f sec" % (start, stop, telapsed)
+        return 0
 
-    # Unpack problem size variables
-    K, D = Mu.shape
+    elif sleepPerUnit == -1.6:
+        s = 0
+        for i in xrange(50):
+            s += np.sum(Xcur)
+        telapsed = time.time() - tstart
+        print "LOCAL COPY SUM on slice %d-%d took %.2f sec" % (start, stop, telapsed)
+        return 0
+    elif sleepPerUnit == -1.7:
+        s = 0
+        for i in xrange(0, 5*(stop-start)):
+            s += Xcur[0,0]
+        telapsed = time.time() - tstart
+        print "FIRST ENTRY SUM on slice %d-%d took %.2f sec" % (start, stop, telapsed)
+        return 0 
 
-    # Grab current slice (subset) of X to work on    
-    if start is not None:
-        Xcur = X[start:stop]
-    else:
-        Xcur = X
+    elif sleepPerUnit == -1.8:
+        s = 0
+        N = stop - start
+        for i in xrange(0, 5*N):
+            s += Xcur[i % N,0]
+        telapsed = time.time() - tstart
+        print "COL 1 SUM on slice %d-%d took %.2f sec" % (start, stop, telapsed)
+        return 0
+    elif sleepPerUnit == -2:
+        Dist = np.dot(Xcur, Mu.T)
+        telapsed = time.time() - tstart
+        print "MAT PROD on slice %d-%d took %.2f sec" % (start, stop, telapsed)
+        return 0
+    elif sleepPerUnit == -1.9:
+        for i in xrange(75):
+            s = Xcur[:, 0].sum()
+        telapsed = time.time() - tstart
+        print "COL 1 SUM VEC, slice %d-%d took %.2f sec" % (start, stop, telapsed)
 
     # Dist : 2D array, size N x K
     #     squared euclidean distance from X[n] to Mu[k]
@@ -76,25 +136,25 @@ def calcLocalParamsAndSummarize(X, Mu,
     SS = bnpy.suffstats.SuffStatBag(K=K, D=D)
     SS.setField('CountVec', CountVec, dims=('K'))
     SS.setField('DataStatVec', DataStatVec, dims=('K', 'D'))
- 
-
+    
     if returnVal == 'SuffStatBag':
         return SS
     else:
         return SS.CountVec.sum()
 
-def sliceGenerator(N=0, nWorkers=0):
+def sliceGenerator(N=0, nWorkers=0, nTaskPerWorker=1):
     """ Iterate over slices given problem size and num workers
 
     Yields
     --------
     (start,stop) : tuple
     """
-    batchSize = np.floor(N / nWorkers)
-    for workerID in range(nWorkers):
-        start = workerID * batchSize
-        stop = (workerID + 1) * batchSize
-        if workerID == nWorkers - 1:
+    taskSize = np.floor(N / nWorkers)
+    nTask = nWorkers * nTaskPerWorker
+    for taskID in range(nTask):
+        start = taskID * taskSize
+        stop = (taskID + 1) * taskSize
+        if taskID == nTask - 1:
             stop = N
         yield start, stop
 
