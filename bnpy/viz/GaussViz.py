@@ -26,13 +26,12 @@ def plotGauss1DFromHModel(hmodel,
                           wTHR=0.0001,
                           figH=None,
                           Colors=Colors,
+                          Data=None,
                           **kwargs):
     ''' Make line plot of pdf for each component (1D observations).
     '''
     if figH is None:
         figH = pylab.figure(figsize=(6, 4))
-    else:
-        pylab.set_axis(figH)
 
     if compsToHighlight is not None:
         compsToHighlight = as1D(np.asarray(compsToHighlight))
@@ -45,6 +44,13 @@ def plotGauss1DFromHModel(hmodel,
 
     # Load appearance probabilities as single vector
     w = hmodel.allocModel.get_active_comp_probs()
+
+
+    if Data is not None:
+        if hasattr(Data, 'X'):
+            Xtile = np.tile(Data.X[:,0], (2,1))
+            ys = 0.1 * np.arange(2)
+            pylab.plot(Xtile, ys, 'k-')
 
     nSkip = 0
     nGood = 0
@@ -116,8 +122,6 @@ def plotGauss2DFromHModel(hmodel, compListToPlot=None,
     '''
     if figH is None:
         figH = pylab.figure(figsize=(4, 4))
-    else:
-        pass #pylab.set_axis(figH)
 
     if compsToHighlight is not None:
         compsToHighlight = np.asarray(compsToHighlight)
