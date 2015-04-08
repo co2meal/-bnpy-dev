@@ -16,8 +16,10 @@ class ParallelVBAlg( LearnAlg ):
   def __init__( self, **kwargs ):
     ''' Create VBLearnAlg, subtype of generic LearnAlg
     '''
-    LearnAlg.__init__(self, **kwargs)
-    self.nWorkers = 4 #TODO: need to change this
+    LearnAlg.__init__(self, **kwargs)  
+    self.nWorkers = self.algParams['nWorkers']
+    if self.nWorkers==0: #if not specified, break up into number of parallel ones
+      self.nWorkers=multiprocessing.cpu_count()
     
   def fit(self, hmodel, Data, LP=None):
     ''' Run VB learning algorithm, fit global parameters of hmodel to Data
@@ -43,7 +45,6 @@ class ParallelVBAlg( LearnAlg ):
 
     isParallel = True #TODO: delete this, this is simply for debugging purposes
     self.nDoc = Data.nDoc
-    self.nWorkers = 2 #TODO change
 
     if isParallel:
       # Create a JobQ (to hold tasks to be done)
