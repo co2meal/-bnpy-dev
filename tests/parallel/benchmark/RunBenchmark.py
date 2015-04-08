@@ -4,6 +4,12 @@ import argparse
 import os
 import itertools
 import time
+from collections import defaultdict
+from matplotlib import pylab
+import copy
+import sys
+
+ColorMap = dict(monolithic='k', serial='b', parallel='r')
 
 def main():
 
@@ -15,51 +21,135 @@ def main():
     parser.add_argument('--nRepeat', type=int, default=1)
     parser.add_argument('--verbose', type=int, default=1)
     parser.add_argument('--task', type=str, default='sleep')
-    parser.add_argument('--durationPerSlice', type=float, default=1.0)
+    parser.add_argument('--minSliceDuration', type=float, default=1.0)
     parser.add_argument('--scaleFactor', type=float, default=0.0)
     parser.add_argument('--memoryType', type=str, default='shared')
+    parser.add_argument('--savefig', type=int, default=0)
+    parser.add_argument('--maxWorker', type=int, default=multiprocessing.cpu_count())
     args = parser.parse_args()
 
-    kwargs = args.__dict__
-    kwargs['methods'] = args.methods.split()
-    for probSizeArgs in problemGenerator(**kwargs):
-        kwargs.update(probSizeArgs)
+    nWorker_IN = args.nWorker + ''
+    pargs = args.__dict__
+    pargs['methods'] = args.methods.split(',')
 
-        X = makeData(**kwargs)
-        if kwargs['scaleFactor'] == 0 and args.task != 'sleep':
-            kwargs['scaleFactor'] = getScaleFactorForTask(X, **kwargs)
+    for task in args.task.split(','):
+        pargs['task'] = task
+        AllInfo = initBenchmarkInfo(**pargs)
+        pargs['scaleFactor'] = 0.0
 
-        JobQ, ResultQ = launchWorkers(X, **kwargs)
+        for probSizeArgs in problemGenerator(**pargs):
+            kwargs = copy.deepcopy(pargs)
+            kwargs.update(probSizeArgs)
+            X = makeData(**kwargs)
 
-        time.sleep(.1)
-        runAllBenchmarks(X, JobQ, ResultQ, **kwargs)
+            if np.allclose(pargs['scaleFactor'], 0) and args.task != 'sleep':
+                pargs['scaleFactor'] = getScaleFactorForTask(X, **kwargs)
+                kwargs['scaleFactor'] = pargs['scaleFactor']
 
-        closeWorkers(JobQ, **kwargs)
-        time.sleep(.1)
+            JobQ, ResultQ = launchWorkers(X, **kwargs)
+            time.sleep(.1)
 
-def getScaleFactorForTask(X, maxWorker=None, **kwargs):
-    if maxWorker is None:
-        maxWorker = multiprocessing.cpu_count()
-    durationPerSlice = kwargs['durationPerSlice']
+            CurInfo = runAllBenchmarks(X, JobQ, ResultQ, **kwargs)
+            AllInfo = updateBenchmarkInfo(AllInfo, CurInfo, **kwargs)
+
+            closeWorkers(JobQ, **kwargs)
+            time.sleep(.1)
+
+        pylab.figure(1)
+        pylab.xlim([-0.2, kwargs['maxWorker']+0.5])
+        pylab.ylim([-0.002, kwargs['minSliceDuration']*kwargs['maxWorker']*2.2])
+        pylab.legend(loc='upper left')
+        pylab.xlabel('Number of Workers')
+        pylab.ylabel('Wallclock time')
+
+        plotSpeedupFigure(AllInfo, **kwargs)
+        if args.savefig:
+            pylab.figure(1)
+            title = 'BenchmarkPlot_%s_minDur=%.2f_WallclockTimes.eps'\
+                % (task, kwargs['minSliceDuration'])
+            pylab.savefig(title, 
+                format='eps', 
+                bbox_inches='tight',
+                pad_inches=0)
+
+            pylab.figure(2)
+            title = 'BenchmarkPlot_%s_minDur=%.2f_Speedup.eps'\
+                % (task, kwargs['minSliceDuration'])
+            pylab.savefig(title, 
+                format='eps', 
+                bbox_inches='tight',
+                pad_inches=0)
+
+        if not args.savefig:
+            pylab.show(block=1)
+        pylab.close('all')
+      
+def plotSpeedupFigure(AllInfo, maxWorker=1, **kwargs):
+    pylab.figure(2)
+    xs = AllInfo['nWorker']
+    ts_mono = AllInfo['t_monolithic']
+
+    xgrid = np.linspace(0, maxWorker+0.1, 100)
+    pylab.plot(xgrid, xgrid, 'y--', label='ideal parallel')
+
+    for method in ['monolithic', 'serial', 'parallel']:
+        speedupRatio = ts_mono / AllInfo['t_' + method]
+        pylab.plot(xs, speedupRatio, 'o-',
+            label=method,
+            color=ColorMap[method],
+            markeredgecolor=ColorMap[method])    
+
+    pylab.xlim([-0.2, maxWorker+0.5])
+    pylab.ylim([0, maxWorker+0.5])
+    pylab.legend(loc='upper left')
+    pylab.xlabel('Number of Workers')
+    pylab.ylabel('Speedup over Monolithic')
+
+def getScaleFactorForTask(X, maxWorker=1, **kwargs):
+
+    minSliceDuration = kwargs['minSliceDuration']
     N = X.shape[0]
     sliceSize = np.floor(N/maxWorker)
     Xslice = X[:sliceSize]
     kwargs['scaleFactor'] = 1
-    t = workOnSlice(Xslice, None, None, **kwargs)
     print 'FINDING PROBLEM SCALE.'
-    print '  %d workers\n Min duration of slice: %.2f' \
-        % (maxWorker, durationPerSlice)
-    while t < durationPerSlice:
+    print '  Max possible workers %d\n Min duration of slice: %.2f' \
+        % (maxWorker, minSliceDuration)
+
+    t = workOnSlice(Xslice, None, None, **kwargs)
+
+    while t < minSliceDuration:
         kwargs['scaleFactor'] *= 2
         t = workOnSlice(Xslice, None, None, **kwargs)
     print 'SCALE: ', kwargs['scaleFactor'], 'telapsed=%.3f' % (t)
     return kwargs['scaleFactor']
 
+def initBenchmarkInfo(**kwargs):
+    AllInfo = dict()
+    AllInfo['nWorker'] = np.asarray(\
+        [float(x) for x in rangeFromString(kwargs['nWorker'])])
+    AllInfo['t_monolithic'] = np.zeros_like(AllInfo['nWorker'])
+    AllInfo['t_serial'] = np.zeros_like(AllInfo['nWorker'])
+    AllInfo['t_parallel'] = np.zeros_like(AllInfo['nWorker'])
+    return AllInfo
+
+def updateBenchmarkInfo(AllInfo, CurInfo, nRepeat, **kwargs):
+    """ Aggregate information about different experiments into one dict.
+    """
+    for method in CurInfo:
+        tvec = np.asarray([\
+            CurInfo[method][r]['telapsed'] for r in xrange(nRepeat)])
+        key = 't_' + method
+        loc = np.flatnonzero(AllInfo['nWorker'] == kwargs['nWorker'])
+        AllInfo[key][loc] = np.median(tvec)
+    return AllInfo                
+
 def workOnSlice(X, start, stop,
                 task='sleep',
-                durationPerSlice=1.0,
+                minSliceDuration=1.0,
                 memoryType='shared',
                 nWorker=1,
+                maxWorker=1,
                 scaleFactor=1.0,
                 **kwargs):
     """ Perform work on a slice of data.
@@ -81,21 +171,31 @@ def workOnSlice(X, start, stop,
 
     tstart = time.time()
     if task == 'sleep':
-        time.sleep(durationPerSlice * nWorker)
+        # Make sure that we sleep same total amt whether serial or parallel
+        duration = minSliceDuration * (maxWorker / float(nWorker))
+        time.sleep(duration)
     elif task == 'sumforloop':
         for rep in xrange(nReps):
             s = 0
             for n in xrange(stop-start):
                 s = 2 * n
-    elif task == 'colsumforloop':
+    elif task == 'Xcolsumforloop':
         for rep in xrange(nReps):
             s = 0.0
             for n in xrange(stop-start):
                 s += Xslice[n, 0]
-    elif task == 'colsumvector':
+    elif task == 'Xcolsumvector':
         for rep in xrange(nReps):
             s = Xslice[:, 0].sum()
 
+    elif task == 'Xelementwiseproduct':
+        for rep in xrange(nReps):
+            S = Xslice * Xslice
+    elif task == 'Xmatrixproduct':
+        for rep in xrange(nReps):
+            S = np.dot(Xslice.T, Xslice)
+    else:
+        raise NotImplementedError("Unrecognized task: %s" % (task))
     telapsed = time.time() - tstart
     return telapsed
 
@@ -104,17 +204,19 @@ def runBenchmark(X, JobQ, ResultQ,
                  method='serial',
                  nWorker=1, nTaskPerWorker=1,
                  **kwargs):
+    kwargs = dict(**kwargs)
     N = X.shape[0]
     ts = list()
     if method == 'monolithic':
-        kwargs['nWorker'] = nWorker # scale work load by num workers
         t = workOnSlice(X, None, None, **kwargs)
         ts.append(t)
     elif method == 'serial':
+        kwargs['nWorker'] = nWorker # scale work load by num workers
         for start, stop in sliceGenerator(N, nWorker, nTaskPerWorker):
             t = workOnSlice(X, start, stop, **kwargs)
             ts.append(t)
     elif method == 'parallel':
+        kwargs['nWorker'] = nWorker # scale work load by num workers
         for start, stop in sliceGenerator(N, nWorker, nTaskPerWorker):
             JobQ.put((start, stop, kwargs))
 
@@ -129,24 +231,59 @@ def runAllBenchmarks(X, JobQ, ResultQ,
                      nRepeat=1, methods='all', **kwargs):
     methodNames = ['monolithic', 'serial', 'parallel']
     print '======================= ', makeTitle(**kwargs)
-    print '%16s %15s %15s %10s' % (' ', 
-        'wallclock time', 'slice time', 'speedup')
-    for method in methodNames:
-        if 'all' not in methods and method not in methods:
-            continue
+    print '%16s %15s %15s %15s %10s' % (' ', 
+        'slice size', 'slice time', 'wallclock time', 'speedup')
+    Tinfo = defaultdict(dict)
+    for rep in xrange(nRepeat):
+        for method in methodNames:
+            if 'all' not in methods and method not in methods:
+                continue
 
-        for rep in xrange(nRepeat):
             tstart = time.time()
             ts = runBenchmark(X, JobQ, ResultQ, method=method, **kwargs)
             telapsed = time.time() - tstart
+
+            Tinfo[method][rep] = dict()
+            Tinfo[method][rep]['telapsed'] = telapsed
+            Tinfo[method][rep]['ts'] = ts
+
+    # PRINT RESULTS
+    if 'monolithic' in Tinfo:
+        telasped_monolithic = np.median([Tinfo['monolithic'][r]['telapsed'] \
+            for r in xrange(nRepeat)])
+
+    for rep in xrange(nRepeat):
+        for method in methodNames:
+            start, stop = [x for x in sliceGenerator(**kwargs)][0]
             msg = "%16s" % (method)
+            if method == 'monolithic':
+                msg += " %8d x %2d" % (X.shape[0], 1)
+            else:
+                msg += " %8d x %2d" % (stop-start, kwargs['nWorker'])
+            msg += " %11.3f sec" % (np.median(Tinfo[method][rep]['ts']))
+
+            telapsed = Tinfo[method][rep]['telapsed']
             msg += " %11.3f sec" % (telapsed)
-            msg += " %11.3f sec" % (np.median(ts))
-            if method != 'monolithic' and 'all' in methods:
+            if 'monolithic' in Tinfo:
                 msg += " %11.2f" % (telasped_monolithic/telapsed)
             print msg
-        if method == 'monolithic':
-            telasped_monolithic = telapsed
+
+    # PLOT RESULTS
+    pylab.figure(1)
+    pylab.hold('on')
+    for method in methodNames:
+        xs = kwargs['nWorker']*np.ones(nRepeat)
+        ys = [Tinfo[method][r]['telapsed'] for r in xrange(nRepeat)]
+        if kwargs['nWorker'] == 1:
+            label = method
+        else:
+            label = None
+        pylab.plot(xs, ys, '.',
+            color=ColorMap[method], 
+            markeredgecolor=ColorMap[method],
+            label=label)
+    return Tinfo
+    
 
 class SharedMemWorker(multiprocessing.Process):
 
@@ -206,12 +343,15 @@ def problemGenerator(N=None, D=None, nWorker=None, **kwargs):
 
 
 def makeTitle(N=0, D=0, nWorker=0, 
+              minSliceDuration=0,
               task='', memoryType='', scaleFactor=1.0, **kwargs):
     title = "N=%d D=%d nWorker=%d\n" \
         + "task %s\n" \
+        + "minSliceDuration %s\n"\
         + "memoryType %s\n"\
         + "scaleFactor %s\n"
-    return title % (N, D, nWorker, task, memoryType, scaleFactor)
+    return title % (N, D, nWorker, task, 
+                    minSliceDuration, memoryType, scaleFactor)
 
 
 def rangeFromString(commaString):
@@ -243,7 +383,7 @@ def rangeFromHyphen(hyphenString):
 
 
 
-def sliceGenerator(N=0, nWorker=0, nTaskPerWorker=1):
+def sliceGenerator(N=0, nWorker=0, nTaskPerWorker=1, **kwargs):
     """ Iterate over slices given problem size and num workers
 
     Yields
