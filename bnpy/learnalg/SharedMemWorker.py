@@ -57,9 +57,9 @@ class SharedMemWorker(multiprocessing.Process):
         self.dataSharedMem=dataSharedMem
         self.aSharedMem=aSharedMem
         self.oSharedMem=oSharedMem
-        # if LPkwargs is None:
-        #     LPkwargs = dict()
-        # self.LPkwargs = LPkwargs
+        if LPkwargs is None:
+            LPkwargs = dict()
+        self.LPkwargs = LPkwargs
 
         self.verbose = verbose
 
@@ -74,20 +74,30 @@ class SharedMemWorker(multiprocessing.Process):
         # Construct iterator with sentinel value of None (for termination)
         jobIterator = iter(self.JobQueue.get, None)
 
-        for jobArgs in jobIterator:
-            sliceArgs, aArgs, oArgs = jobArgs
+        for sliceArgs, aArgs, oArgs in jobIterator:
 
+            # Grab slice of data to work on
             dataBatchID, start, stop = sliceArgs
-            Dslice = self.makeDataSliceFromSharedMem(self.dataSharedMem,cslice=(start,stop))
+            Dslice = self.makeDataSliceFromSharedMem(
+                self.dataSharedMem, cslice=(start,stop))
+
+            # Prep kwargs for the alloc model, especially local step kwargs
             aArgs.update(sharedMemDictToNumpy(self.aSharedMem))
+            aArgs.update(self.LPkwargs)
+
+            # Prep kwargs for the obs model
             oArgs.update(sharedMemDictToNumpy(self.oSharedMem))
 
+            # Do local step
             LP = self.o_calcLocalParams(Dslice, **oArgs)
             LP = self.a_calcLocalParams(Dslice, LP, **aArgs)
 
-            SS = self.a_calcSummaryStats(Dslice, LP, doPrecompEntropy=1, **aArgs)
+            # Do global step
+            SS = self.a_calcSummaryStats(
+                Dslice, LP, doPrecompEntropy=1, **aArgs)
             SS = self.o_calcSummaryStats(Dslice, SS, LP, **oArgs)
 
+            # Add final suff stats to result queue to wrap up this task!
             self.ResultQueue.put(SS)
             self.JobQueue.task_done() 
 
