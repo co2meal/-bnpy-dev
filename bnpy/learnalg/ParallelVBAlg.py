@@ -45,7 +45,6 @@ class ParallelVBAlg( LearnAlg ):
 
     isParallel = True #TODO: delete this, this is simply for debugging purposes
     self.nDoc = Data.nDoc
-
     if isParallel:
       # Create a JobQ (to hold tasks to be done)
       # and a ResultsQ (to hold results of completed tasks)
@@ -64,7 +63,6 @@ class ParallelVBAlg( LearnAlg ):
       aSharedMem = hmodel.allocModel.fillSharedMemDictForLocalStep()
       oSharedMem = hmodel.obsModel.fillSharedMemDictForLocalStep()
 
-
       #Create multiple workers
       for uid in range(self.nWorkers):
         SharedMemWorker(uid,self.JobQ, self.ResultQ,
@@ -75,8 +73,9 @@ class ParallelVBAlg( LearnAlg ):
         a_calcSummaryStats,
         dataSharedMem,
         aSharedMem,
-        oSharedMem,verbose=1).start() #TODO: need to find the way to deal with lpkwargs - not being used -import that from where it is
-    
+        oSharedMem,
+        LPkwargs=self.algParamsLP,
+        verbose=1).start() 
     else: 
       #Need to store shared mem
 
