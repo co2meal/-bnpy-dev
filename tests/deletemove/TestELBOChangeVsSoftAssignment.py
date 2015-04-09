@@ -73,8 +73,8 @@ def makeGaussianDataWithTwoComps(N=50, D=2,
     """
     PRNG = np.random.RandomState(0)
     if XA is not None and XB is not None:
-        XA = strToFloatArray(XA)
-        XB = strToFloatArray(XB)
+        XA = strToFloatArray(XA)[:,np.newaxis]
+        XB = strToFloatArray(XB)[:,np.newaxis]
     elif D == 2:
         SigmaA = np.diag([sigmaA, sigmaA])
         SigmaB = np.diag([sigmaB, sigmaB])
