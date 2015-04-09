@@ -45,6 +45,8 @@ class VBAlg(LearnAlg):
             self.set_random_seed_at_lap(lap)
 
             # Local/E step
+            self.algParamsLP['lapFrac'] = lap  # logging
+            self.algParamsLP['batchID'] = 1
             LP = hmodel.calc_local_params(Data, LP, **self.algParamsLP)
 
             # Summary step

@@ -129,7 +129,8 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
             assert np.allclose(propCountPlusTarget, bestCount)
 
         else:
-            msg = 'Unrecognised deleteNontargetStrategy: %s' % (deleteNontargetStrategy)
+            msg = 'Unrecognised deleteNontargetStrategy: %s' \
+                % (deleteNontargetStrategy)
             raise ValueError(msg)
 
         # Refine candidate with local/global steps
@@ -182,11 +183,20 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
         if doVizDelete:
             from bnpy.viz.PlotComps import plotCompsFromHModel
             from matplotlib import pylab
+
+            if deleteNontargetStrategy == 'merge':
+                if delCompID == kA:
+                    otherID = kB
+                else:
+                    otherID = kA
+                compsToHighlight = [delCompID, otherID]
+            else:
+                compsToHighlight = [delCompID]
             plotCompsFromHModel(bestModel, Data=targetData,
-                compsToHighlight=[delCompID])
+                compsToHighlight=compsToHighlight)
             pylab.show(block=0)
             raw_input('Press any key to continue>>>')
-            pylab.clf()
+            pylab.close()
 
         # Update best model/stats to accepted values
         if didAcceptCur:
