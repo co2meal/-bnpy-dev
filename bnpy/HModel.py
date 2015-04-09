@@ -21,7 +21,6 @@ Key functions
 import numpy as np
 import os
 import copy
-import SharedMemWorker
 
 import init
 from allocmodel import AllocModelConstructorsByName
@@ -56,22 +55,6 @@ class HModel(object):
         return cls(allocModel, obsModel)
   
     
-    def setupMemory(self,Data):
-        # Create a JobQ (to hold tasks to be done)
-    # and a ResultsQ (to hold results of completed tasks)
-        manager = multiprocessing.Manager()
-        self.JobQ = manager.Queue()
-        self.ResultQ = manager.Queue()
-
-        self.nWorkers=1 #TODO: change this
-
-        for uid in range(self.nWorkers):
-            SharedMemWorker.SharedMemWorker(
-                uid, self.JobQ, self.ResultQ, 
-                Data=Data,
-                verbose=1).start() #TODO: change the verbose
-
-
     def copy(self):
         ''' Create a clone of this object with distinct memory allocation
             Any manipulation of clone's parameters will NOT affect self
