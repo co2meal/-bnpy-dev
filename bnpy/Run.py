@@ -169,14 +169,11 @@ def _run_task_internal(jobname, taskid, nTask,
     if learnAlg.hasMove('delete'):
         import bnpy.deletemove.DeleteLogger as DeleteLogger
         DeleteLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
-    if learnAlg.hasMove('prune'):
-        import bnpy.deletemove.PruneLogger as PruneLogger
-        PruneLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
-    if learnAlg.hasMove('merge') or learnAlg.hasMove('softmerge'):
+    if learnAlg.hasMove('merge'):
         import bnpy.mergemove.MergeLogger as MergeLogger
         MergeLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
-    if str(type(hmodel.allocModel)).count('admix'):
-        import bnpy.allocmodel.admix2.LocalStepLogger as LocalStepLogger
+    if str(type(hmodel.allocModel)).count('TopicModel'):
+        import bnpy.allocmodel.topics.LocalStepLogger as LocalStepLogger
         LocalStepLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
 
     # Prepare special logs if we are running on the Brown CS grid
