@@ -2,7 +2,9 @@ import os
 import numpy as np
 import glob
 
-from bnpy.ioutil.BNPYArgParser import parse_task_ids
+from bnpy.util import as1D
+from bnpy.ioutil.BNPYArgParser import parse_task_ids, arglist_to_kwargs
+from JobFilter import filterJobs
 
 def rankTasksForSingleJobOnDisk(joboutpath):
   ''' Make files for job which allow rank-based referencing of tasks 
@@ -13,11 +15,11 @@ def rankTasksForSingleJobOnDisk(joboutpath):
   '''
   # First, rank the tasks from best to worst
   sortedTaskIDs = rankTasksForSingleJob(joboutpath)
-
+  
   # If we've sorted these same tasks before, just quit early
   infotxtfile = os.path.join(joboutpath, '.info-ranking.txt')
   if os.path.exists(infotxtfile):
-    prevRankedTaskIDs = [int(i) for i in np.loadtxt(infotxtfile)]
+    prevRankedTaskIDs = [int(i) for i in as1D(np.loadtxt(infotxtfile))]
     curRankedTaskIDs = [int(i) for i in sortedTaskIDs]
     if len(sortedTaskIDs) == len(prevRankedTaskIDs):
       if np.allclose(curRankedTaskIDs, prevRankedTaskIDs):
@@ -71,3 +73,20 @@ def rankTasksForSingleJob(joboutpath):
   # Sort in descending order, largest to smallest!
   sortIDs = np.argsort(-1 * ELBOScores)
   return [taskids[t] for t in sortIDs]
+
+
+if __name__ == '__main__':
+  import argparse
+  parser = argparse.ArgumentParser()
+  parser.add_argument('dataName')
+  parser.add_argument('jobNamePattern')
+  args, unkList = parser.parse_known_args()
+  reqDict = arglist_to_kwargs(unkList)
+  jpathPattern = os.path.join(os.environ['BNPYOUTDIR'],
+                              args.dataName,
+                              args.jobNamePattern)
+
+  jobPaths = filterJobs(
+      jpathPattern, returnAll=1, verbose=0, **reqDict)
+  for jpath in jobPaths:
+      rankTasksForSingleJobOnDisk(jpath)

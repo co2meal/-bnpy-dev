@@ -53,7 +53,8 @@ def jpath2jdict(jpath):
 ## kwargs that arent needed for any job pattern matching
 SkipKeys = ['taskids', 'savefilename', 'fileSuffix', 'xvar', 'yvar']
 
-def filterJobs(jpathPattern, verbose=0, **reqKwArgs):
+def filterJobs(jpathPattern, 
+               returnAll=0, verbose=0, **reqKwArgs):
   for key in SkipKeys:
     if key in reqKwArgs:
       del reqKwArgs[key]
@@ -124,6 +125,9 @@ def filterJobs(jpathPattern, verbose=0, **reqKwArgs):
     for kB in xrange(kA+1, K):
       varKeys.update(findKeysWithDiffVals(keepListD[kA], keepListD[kB]))
   varKeys = [x for x in varKeys]
+
+  if returnAll:
+     return keepListP
 
   RangeMap = dict()
   for key in varKeys:
