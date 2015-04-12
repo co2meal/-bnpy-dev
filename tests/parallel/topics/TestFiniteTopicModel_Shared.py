@@ -67,13 +67,13 @@ def runBenchmarkAcrossProblemSizes(TestClass):
         os.environ['OMP_NUM_THREADS'] = '1'
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--nDoc', type=str, default='100')
+    parser.add_argument('--nDoc', type=str, default='150000')
     parser.add_argument('--N', type=str, default='200')
     parser.add_argument('--K', type=str, default='50')
     parser.add_argument('--nWorkers', type=str, default='2')
     parser.add_argument('--vocab_size', type=int, default=1000)
     parser.add_argument('--nCoordAscentItersLP', type=int, default=100)
-    parser.add_argument('--convThrLP', type=float, default=0.001)
+    parser.add_argument('--convThrLP', type=float, default=0.000001)
     parser.add_argument('--method', type=str, default='all')
     parser.add_argument('--nRepeat', type=int, default=1)
     parser.add_argument('--verbose', type=int, default=0)
@@ -219,6 +219,7 @@ class Worker(multiprocessing.Process):
             self.ResultQueue.put(SS)
             self.JobQueue.task_done()
 
+
         # Clean up
         self.printMsg("process CleanUp! pid=%d" % (os.getpid()))
 
@@ -303,11 +304,13 @@ class Test(unittest.TestCase):
     def tearDown(self):
         """ Shut down all the workers.
         """
+
         self.shutdownWorkers()
 
     def shutdownWorkers(self):
         """ Shut down all worker processes.
         """
+
         for workerID in range(self.nWorkers):
             # Passing None to JobQ is shutdown signal
             self.JobQ.put(None)
@@ -323,8 +326,8 @@ class Test(unittest.TestCase):
         """ Execute on slices processed in serial by master process.
         """        
         SSagg = None
-        aArgs = self.hmodel.allocModel.getSerializableArgsForLocalStep()
-        oArgs = self.hmodel.obsModel.getSerializableArgsForLocalStep()
+        aArgs = self.hmodel.allocModel.getSerializableParamsForLocalStep()
+        oArgs = self.hmodel.obsModel.getSerializableParamsForLocalStep()
         for jobInfo in sliceGenerator(self.nDoc, self.nWorkers,
                                       aArgs=aArgs, oArgs=oArgs):
             sliceInfo, aArgs, oArgs = jobInfo
@@ -342,8 +345,8 @@ class Test(unittest.TestCase):
     def run_parallel(self):
         """ Execute on slices processed by workers in parallel.
         """
-        aArgs = self.hmodel.allocModel.getSerializableArgsForLocalStep()
-        oArgs = self.hmodel.obsModel.getSerializableArgsForLocalStep()
+        aArgs = self.hmodel.allocModel.getSerializableParamsForLocalStep()
+        oArgs = self.hmodel.obsModel.getSerializableParamsForLocalStep()
 
         # MAP!
         # Create several tasks (one per worker) and add to job queue
