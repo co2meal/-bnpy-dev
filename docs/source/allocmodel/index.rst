@@ -7,16 +7,21 @@ What is an allocation model?
 
 These components are responsible for:
 
-* Objective function:
+* Objective function
 	computing all terms that do not belong in the observation model. 
 
-* Local Step: 
-	defining the updates to 
+* Local step
+	updating local variational parameters for a chunk of data. 
 
+* Summary step
+  computing sufficient statistics from local parameters.
 
+* Global step
+  updating global parameters given sufficient statistics.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
+   :titlesonly:
 
    MixtureModels-Overview
    TopicModels-Overview
