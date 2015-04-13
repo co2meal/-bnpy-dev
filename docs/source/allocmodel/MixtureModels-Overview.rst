@@ -1,5 +1,5 @@
 =======================
-Mixture Models Overview
+Mixture Models
 =======================
 
 Supported Data Formats
@@ -56,14 +56,14 @@ Mixture models produce the following sufficient statistics:
 	Expected assignments to state k across all data items.
 
 
-Mixture Model Contents
+TOC
 ~~~~~~~~~~~~~~~~~~~~~~
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 3
+   :titlesonly:
 
-   FiniteMixture-Practical.rst
-   FiniteMixture-EMDetails.rst
+   FiniteMixture-ObjectSpec.rst
    FiniteMixture-VBDetails.rst
 
-   DPMixture-Practical.rst
+   DPMixture-ObjectSpec.rst
    DPMixture-VBDetails.rst
