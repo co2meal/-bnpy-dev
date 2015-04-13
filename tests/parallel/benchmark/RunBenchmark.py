@@ -8,6 +8,7 @@ from collections import defaultdict
 from matplotlib import pylab
 import copy
 import sys
+import platform
 
 ColorMap = dict(monolithic='k', serial='b', parallel='r')
 
@@ -62,19 +63,20 @@ def main():
         pylab.xlabel('Number of Workers')
         pylab.ylabel('Wallclock time')
 
+        hostname = platform.node()
         plotSpeedupFigure(AllInfo, **kwargs)
         if args.savefig:
             pylab.figure(1)
-            title = 'BenchmarkPlot_%s_minDur=%.2f_WallclockTimes.eps'\
-                % (task, kwargs['minSliceDuration'])
+            title = 'BenchmarkPlot_%s_%s_minDur=%.2f_WallclockTimes.eps'\
+                % (hostname, task, kwargs['minSliceDuration'])
             pylab.savefig(title, 
                 format='eps', 
                 bbox_inches='tight',
                 pad_inches=0)
 
             pylab.figure(2)
-            title = 'BenchmarkPlot_%s_minDur=%.2f_Speedup.eps'\
-                % (task, kwargs['minSliceDuration'])
+            title = 'BenchmarkPlot_%s_%s_minDur=%.2f_Speedup.eps'\
+                % (hostname, task, kwargs['minSliceDuration'])
             pylab.savefig(title, 
                 format='eps', 
                 bbox_inches='tight',
@@ -84,6 +86,15 @@ def main():
             pylab.show(block=1)
         pylab.close('all')
       
+def getMethodNames(methods='all', **kwargs):
+    allMethodNames = ['monolithic', 'serial', 'parallel']
+    methodNames = list()
+    for name in allMethodNames:
+        if 'all' not in methods and name not in methods:
+            continue
+        methodNames.append(name)
+    return methodNames
+
 def plotSpeedupFigure(AllInfo, maxWorker=1, **kwargs):
     pylab.figure(2)
     xs = AllInfo['nWorker']
@@ -92,7 +103,7 @@ def plotSpeedupFigure(AllInfo, maxWorker=1, **kwargs):
     xgrid = np.linspace(0, maxWorker+0.1, 100)
     pylab.plot(xgrid, xgrid, 'y--', label='ideal parallel')
 
-    for method in ['monolithic', 'serial', 'parallel']:
+    for method in getMethodNames(**kwargs):
         speedupRatio = ts_mono / AllInfo['t_' + method]
         pylab.plot(xs, speedupRatio, 'o-',
             label=method,
@@ -128,9 +139,8 @@ def initBenchmarkInfo(**kwargs):
     AllInfo = dict()
     AllInfo['nWorker'] = np.asarray(\
         [float(x) for x in rangeFromString(kwargs['nWorker'])])
-    AllInfo['t_monolithic'] = np.zeros_like(AllInfo['nWorker'])
-    AllInfo['t_serial'] = np.zeros_like(AllInfo['nWorker'])
-    AllInfo['t_parallel'] = np.zeros_like(AllInfo['nWorker'])
+    for name in getMethodNames(**kwargs):
+      AllInfo['t_' + name] = np.zeros_like(AllInfo['nWorker'])
     return AllInfo
 
 def updateBenchmarkInfo(AllInfo, CurInfo, nRepeat, **kwargs):
@@ -229,16 +239,14 @@ def runBenchmark(X, JobQ, ResultQ,
 
 def runAllBenchmarks(X, JobQ, ResultQ, 
                      nRepeat=1, methods='all', **kwargs):
-    methodNames = ['monolithic', 'serial', 'parallel']
+    methodNames = getMethodNames(methods=methods)
+
     print '======================= ', makeTitle(**kwargs)
     print '%16s %15s %15s %15s %10s' % (' ', 
         'slice size', 'slice time', 'wallclock time', 'speedup')
     Tinfo = defaultdict(dict)
     for rep in xrange(nRepeat):
         for method in methodNames:
-            if 'all' not in methods and method not in methods:
-                continue
-
             tstart = time.time()
             ts = runBenchmark(X, JobQ, ResultQ, method=method, **kwargs)
             telapsed = time.time() - tstart
