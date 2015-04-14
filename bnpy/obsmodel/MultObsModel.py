@@ -570,11 +570,8 @@ class MultObsModel(AbstractObsModel):
             ShMem['ElogphiT'] = numpyToSharedMemArray(ElogphiT)
         else:       
             ShMemView = sharedMemToNumpyArray(ShMem['ElogphiT'])
-            if ShMemView.shape == ElogphiT.shape:
-                ShMemView[:] = ElogphiT
-            else:
-                del ShMem['ElogphiT']
-                ShMem['ElogphiT'] = numpyToSharedMemArray(ElogphiT)
+            assert ShMemView.shape == ElogphiT.shape
+            ShMemView[:] = ElogphiT
         return ShMem
 
     def getLocalAndSummaryFunctionHandles(self):
