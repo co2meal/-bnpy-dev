@@ -34,7 +34,7 @@ Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
 
 FullDataAlgSet = ['EM', 'VB', 'GS', 'pVB']
-OnlineDataAlgSet = ['soVB', 'moVB']
+OnlineDataAlgSet = ['soVB', 'moVB', 'pmoVB']
 
 
 def run(dataName=None, allocModelName=None, obsModelName=None, algName=None,
@@ -413,6 +413,11 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
     elif algName == 'moVB' and not hasMoves:
         learnAlg = bnpy.learnalg.MOVBAlg(savedir=savepath, seed=algseed,
                                          algParams=algP, outputParams=outputP)
+    elif algName == 'pmoVB' and not hasMoves:
+        learnAlg = bnpy.learnalg.ParallelMOVBAlg(
+            savedir=savepath, seed=algseed, 
+            algParams=algP, outputParams=outputP)
+
     elif algName == 'GS':
         learnAlg = bnpy.learnalg.GSAlg(savedir=savepath, seed=algseed,
                                        algParams=algP, outputParams=outputP)

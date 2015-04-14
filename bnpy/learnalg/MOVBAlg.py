@@ -81,7 +81,7 @@ class MOVBAlg(LearnAlg):
             if self.doDebugVerbose():
                 self.print_msg('========================== lap %.2f batch %d'
                                % (lapFrac, batchID))
-
+                
             # Local convergence thr
             if self.isFirstBatch(lapFrac) and 'convThrLP' in self.algParamsLP:
                 if lapFrac <= 1:

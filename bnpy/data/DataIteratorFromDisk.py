@@ -179,22 +179,27 @@ class DataIteratorFromDisk(object):
                 return False
         return True
 
-    def get_next_batch(self):
+    def get_next_batch(self, batchIDOnly=False):
         ''' Get the Data object for the next batch
 
-            Raises
-            --------
-            StopIteration if we have completed all specified laps
+        Keyword args
+        ------------
+        batchIDOnly : boolean
+            If true, return only batch information, not a data object.
 
-            Updates (in-place)
-            --------
-            batchID gives index of batch returned.
-      `     lapID gives how many laps have been *completed*.
-            curLapPos indicates progress through current lap.
+        Raises
+        --------
+        StopIteration if we have completed all specified laps
 
-            Returns
-            --------
-            Data : bnpy Data object for the current batch
+        Updates (in-place)
+        --------
+        batchID gives index of batch returned.
+  `     lapID gives how many laps have been *completed*.
+        curLapPos indicates progress through current lap.
+
+        Returns
+        --------
+        Data : bnpy Data object for the current batch
         '''
         if not self.has_next_batch():
             raise StopIteration()
@@ -208,6 +213,8 @@ class DataIteratorFromDisk(object):
 
         # Create the DataObj for the current batch
         self.batchID = self.batchOrderCurLap[self.curLapPos]
+        if batchIDOnly:
+            return self.batchID
         return self.loadDataForBatch(self.batchID)
 
     def getRandPermOfBatchIDsForCurLap(self):
@@ -285,19 +292,22 @@ class DataIteratorFromDisk(object):
             * nObsTotal [for XData]
         '''
         self.totalSize, self.batchSize = self.get_total_size(self.datafileList)
-        DataInfo = dict()
+
+        conffilepath = os.path.join(self.datapath, 'Info.conf')
+        if os.path.exists(conffilepath):
+            DataInfo = loadDictFromConfFile(conffilepath)
+        else:
+            DataInfo = dict()
         if self.datafileList[0].endswith('.ldac'):
-            vfilepath = os.path.join(self.datapath, 'vocab_size.conf')
-            if os.path.exists(vfilepath):
-                vocab_size = int(np.loadtxt(vfilepath))
-            else:
+            if 'vocab_size' not in DataInfo:
                 vocab_size = int(os.environ['W'])
-            DataInfo['vocab_size'] = vocab_size
+                DataInfo['vocab_size'] = vocab_size
             DataInfo['nDocTotal'] = self.totalSize
         elif self.dtype == 'GroupXData':
             DataInfo['nDocTotal'] = self.totalSize
         else:
             DataInfo['nObsTotal'] = self.totalSize
+        DataInfo['dtype'] = self.dtype
         return DataInfo
 
     def loadDataForBatch(self, batchID):
@@ -319,6 +329,55 @@ class DataIteratorFromDisk(object):
     def loadInitData(self):
         return self.loadDataForBatch(0)
 
+    def getDataSliceFunctionHandle(self):
+        """ Return function handle that can make data slice objects.
+
+        Useful with parallelized algorithms, 
+        when we need to use shared memory.
+
+        Returns
+        -------
+        f : function handle
+        """
+        return self.loadDataForBatch(0).getDataSliceFunctionHandle()
+
+    def calcSliceArgs(self, batchID, workerID, nWorkers):
+        SliceInfo = self.DataInfo
+        SliceInfo['filepath'] = self.datafileList[batchID]
+        SliceInfo['sliceID'] = workerID
+        SliceInfo['nSlice'] = nWorkers
+        return SliceInfo
+
+
+def loadDataForSlice(filepath='', dtype='', **kwargs):
+    """ Return data object loaded from specific file.
+
+    Keyword args
+    ------------
+    workerID
+    nWorkers 
+    """
+    if filepath.endswith('.ldac'):
+        return WordsData.LoadFromFile_ldac(filepath, **kwargs)
+    else:
+        if dtype == 'GroupXData':
+            return GroupXData.LoadFromFile(filepath, **kwargs)
+        else:
+            return XData.LoadFromFile(filepath, **kwargs)
+
+
+def loadDictFromConfFile(filepath):
+    confDict = dict()
+    with open(filepath, 'r') as f:
+        for line in f.readlines():
+            fields = [s.strip() for s in line.strip().split('=')]
+            key = fields[0]
+            try:
+                val = int(fields[1])
+            except TypeError:
+                val = fields[1]
+            confDict[key] = val
+    return confDict
 
 if __name__ == '__main__':
     import argparse
