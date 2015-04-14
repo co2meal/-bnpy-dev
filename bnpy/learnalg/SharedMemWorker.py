@@ -24,7 +24,7 @@ import time
 import bnpy
 
 from bnpy.util import sharedMemDictToNumpy, sharedMemToNumpyArray
-
+from bnpy.data.DataIteratorFromDisk import loadDataForSlice
 
 
 class SharedMemWorker(multiprocessing.Process):
@@ -48,15 +48,15 @@ class SharedMemWorker(multiprocessing.Process):
 
         #Function handles
         self.makeDataSliceFromSharedMem = makeDataSliceFromSharedMem
-        self.o_calcLocalParams=o_calcLocalParams
-        self.o_calcSummaryStats=o_calcSummaryStats
-        self.a_calcLocalParams=a_calcLocalParams
-        self.a_calcSummaryStats=a_calcSummaryStats
+        self.o_calcLocalParams = o_calcLocalParams
+        self.o_calcSummaryStats = o_calcSummaryStats
+        self.a_calcLocalParams = a_calcLocalParams
+        self.a_calcSummaryStats = a_calcSummaryStats
 
         #Things to unpack
-        self.dataSharedMem=dataSharedMem
-        self.aSharedMem=aSharedMem
-        self.oSharedMem=oSharedMem
+        self.dataSharedMem = dataSharedMem
+        self.aSharedMem = aSharedMem
+        self.oSharedMem = oSharedMem
         if LPkwargs is None:
             LPkwargs = dict()
         self.LPkwargs = LPkwargs
@@ -69,17 +69,24 @@ class SharedMemWorker(multiprocessing.Process):
                 print "#%d: %s" % (self.uid, line)
 
     def run(self):
-        self.printMsg("process SetUp! pid=%d" % (os.getpid()))
-
         # Construct iterator with sentinel value of None (for termination)
         jobIterator = iter(self.JobQueue.get, None)
 
         for sliceArgs, aArgs, oArgs in jobIterator:
 
             # Grab slice of data to work on
-            dataBatchID, start, stop = sliceArgs
-            Dslice = self.makeDataSliceFromSharedMem(
-                self.dataSharedMem, cslice=(start,stop))
+            if len(sliceArgs) == 3:
+                # Shared memory        
+                batchID, start, stop = sliceArgs
+                Dslice = self.makeDataSliceFromSharedMem(
+                    self.dataSharedMem, 
+                    batchID=batchID,
+                    cslice=(start,stop))
+
+            else:
+                # Load from file
+                BatchInfo = sliceArgs
+                Dslice = loadDataForSlice(**BatchInfo)
 
             # Prep kwargs for the alloc model, especially local step kwargs
             aArgs.update(sharedMemDictToNumpy(self.aSharedMem))
@@ -100,7 +107,4 @@ class SharedMemWorker(multiprocessing.Process):
             # Add final suff stats to result queue to wrap up this task!
             self.ResultQueue.put(SS)
             self.JobQueue.task_done() 
-
-        # Clean up
-        self.printMsg("process CleanUp! pid=%d" % (os.getpid()))
 

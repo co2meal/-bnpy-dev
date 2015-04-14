@@ -84,7 +84,9 @@ class WordsData(DataObj):
 
     @classmethod
     def LoadFromFile_ldac(
-            cls, filepath, vocab_size=0, nDocTotal=None, **kwargs):
+            cls, filepath, vocab_size=0, nDocTotal=None, 
+            sliceID=None, nSlice=None, filesize=None,
+            **kwargs):
         ''' Constructor for loading data from .ldac format files.
 
         Returns
@@ -95,14 +97,41 @@ class WordsData(DataObj):
         word_id = []
         word_ct = []
         with open(filepath, 'r') as f:
-            for line in f.readlines():
-                Fields = line.strip().split(' ')
-                nUnique = int(Fields[0])
-                doc_sizes.append(nUnique)
-                doc_word_id, doc_word_ct = zip(
-                    *[x.split(':') for x in Fields[1:]])
-                word_id.extend(doc_word_id)
-                word_ct.extend(doc_word_ct)
+            if sliceID is None:
+                # Simple case: read the whole file
+                for line in f.readlines():
+                    Fields = line.strip().split(' ')
+                    nUnique = int(Fields[0])
+                    doc_sizes.append(nUnique)
+                    doc_word_id, doc_word_ct = zip(
+                        *[x.split(':') for x in Fields[1:]])
+                    word_id.extend(doc_word_id)
+                    word_ct.extend(doc_word_ct)
+            else:
+                # Parallel access case: read slice of the file
+                # slices will be roughly even in DISKSIZE, not in num lines
+                # Inspired by: 
+                # https://xor0110.wordpress.com/2013/04/13/
+                # how-to-read-a-chunk-of-lines-from-a-file-in-python/
+                if filesize is None:
+                    f.seek(0,2)
+                    filesize = f.tell()
+                start = filesize * sliceID / nSlice
+                stop = filesize * (sliceID + 1) / nSlice
+                if start == 0:
+                    f.seek(0) # goto start of file
+                else:
+                    f.seek(start-1) # start at linebreak of prev slice
+                    f.readline()
+                while f.tell() < stop:
+                    Fields = f.readline().strip().split(' ')
+                    nUnique = int(Fields[0])
+                    doc_sizes.append(nUnique)
+                    doc_word_id, doc_word_ct = zip(
+                        *[x.split(':') for x in Fields[1:]])
+                    word_id.extend(doc_word_id)
+                    word_ct.extend(doc_word_ct)
+
         doc_range = np.hstack([0, np.cumsum(doc_sizes)])
         return cls(word_id=word_id, word_count=word_ct, nDocTotal=nDocTotal,
                    doc_range=doc_range, vocab_size=vocab_size)
@@ -846,6 +875,22 @@ class WordsData(DataObj):
             MatVars['tokensByDoc'][0, d] = tokenvec
         scipy.io.savemat(filepath, MatVars, oned_as='row')
 
+    def writeWholeDataInfoFile(self, filepath):
+        ''' Write relevant whole-dataset key properties to plain text.
+
+        For WordsData, this includes the fields 
+        * vocab_size
+        * nDocTotal
+
+        Post Condition
+        --------------
+        Writes text file at provided file path. 
+        '''
+        with open(filepath, 'w') as f:
+            f.write("vocab_size = %d\n" % (self.vocab_size))
+            f.write("nDocTotal = %d\n" % (self.nDocTotal))
+
+
     def getDataSliceFunctionHandle(self):
         """ Return function handle that can make data slice objects.
 
@@ -859,7 +904,8 @@ class WordsData(DataObj):
         return makeDataSliceFromSharedMem
 
 def makeDataSliceFromSharedMem(dataShMemDict,
-                               cslice=(0, None)):
+                               cslice=(0, None),
+                               batchID=None):
     """ Create data slice from provided raw arrays and slice indicators.
 
     Returns
@@ -890,6 +936,10 @@ def makeDataSliceFromSharedMem(dataShMemDict,
     >>> np.allclose(Aslice.doc_range, Dslice.doc_range[0:4])
     True
     """
+    if batchID is not None and batchID in dataShMemDict:
+        dataShMemDict = dataShMemDict[batchID]
+
+    # Make local views (NOT copies) to shared mem arrays
     doc_range = sharedMemToNumpyArray(dataShMemDict['doc_range'])
     word_id = sharedMemToNumpyArray(dataShMemDict['word_id'])
     word_count = sharedMemToNumpyArray(dataShMemDict['word_count'])
