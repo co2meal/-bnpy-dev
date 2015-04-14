@@ -99,7 +99,7 @@ class SharedMemWorker(multiprocessing.Process):
             LP = self.o_calcLocalParams(Dslice, **oArgs)
             LP = self.a_calcLocalParams(Dslice, LP, **aArgs)
 
-            # Do global step
+            # Do summary step
             SS = self.a_calcSummaryStats(
                 Dslice, LP, doPrecompEntropy=1, **aArgs)
             SS = self.o_calcSummaryStats(Dslice, SS, LP, **oArgs)
