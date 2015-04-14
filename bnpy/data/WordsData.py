@@ -191,7 +191,7 @@ class WordsData(DataObj):
         self.word_count = as1D(toCArray(word_count, dtype=np.float64))
         self.doc_range = as1D(toCArray(doc_range, dtype=np.int32))
         self.vocab_size = int(vocab_size)
-
+        self.dim = self.vocab_size
         if summary is not None:
             self.summary = summary
 

@@ -65,7 +65,7 @@ class ParallelMOVBAlg(MOVBAlg):
 
         # Create multiple workers
         for uid in range(self.nWorkers):
-            SharedMemWorker(uid, self.JobQ, self.ResultQ,
+            worker = SharedMemWorker(uid, self.JobQ, self.ResultQ,
                             makeDataSliceFromSharedMem,
                             o_calcLocalParams,
                             o_calcSummaryStats,
@@ -75,7 +75,8 @@ class ParallelMOVBAlg(MOVBAlg):
                             aSharedMem,
                             oSharedMem,
                             LPkwargs=self.algParamsLP,
-                            verbose=1).start()
+                            verbose=1)
+            worker.start()
         
         # Begin loop over batches of data...
         SS = None
@@ -101,7 +102,7 @@ class ParallelMOVBAlg(MOVBAlg):
                 DataIterator,
                 hmodel,
                 batchID=batchID)
-
+            
             self.saveDebugStateAtBatch('Estep', batchID, 
                                        SS=SS, hmodel=hmodel)
 
