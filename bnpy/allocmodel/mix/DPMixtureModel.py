@@ -873,7 +873,8 @@ class DPMixtureModel(AllocModel):
         calcSummaryStats : f handle
         """
         return calcLocalParams, calcSummaryStats
-    # .... end class HPMixtureModel
+
+    # .... end class DPMixtureModel
 
 
 def calcLocalParams(Data, LP, Elogbeta=None, **kwargs):
