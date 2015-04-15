@@ -70,17 +70,15 @@ class SharedMemWorker(multiprocessing.Process):
 
     def run(self):
         self.printMsg("process SetUp! pid=%d" % (os.getpid()))
-
         # Construct iterator with sentinel value of None (for termination)
         jobIterator = iter(self.JobQueue.get, None)
 
         for sliceArgs, aArgs, oArgs in jobIterator:
-
+	    start1=time.time()
             # Grab slice of data to work on
             dataBatchID, start, stop = sliceArgs
             Dslice = self.makeDataSliceFromSharedMem(
                 self.dataSharedMem, cslice=(start,stop))
-
             # Prep kwargs for the alloc model, especially local step kwargs
             aArgs.update(sharedMemDictToNumpy(self.aSharedMem))
             aArgs.update(self.LPkwargs)
@@ -100,7 +98,7 @@ class SharedMemWorker(multiprocessing.Process):
             # Add final suff stats to result queue to wrap up this task!
             self.ResultQueue.put(SS)
             self.JobQueue.task_done() 
-
+	    duration=time.time()-start1
         # Clean up
         self.printMsg("process CleanUp! pid=%d" % (os.getpid()))
 
