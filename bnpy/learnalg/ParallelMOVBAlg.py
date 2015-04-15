@@ -102,7 +102,7 @@ class ParallelMOVBAlg(MOVBAlg):
                 DataIterator,
                 hmodel,
                 batchID=batchID)
-            
+
             self.saveDebugStateAtBatch('Estep', batchID, 
                                        SS=SS, hmodel=hmodel)
 
