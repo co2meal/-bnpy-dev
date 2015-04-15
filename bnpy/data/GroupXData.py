@@ -7,9 +7,11 @@ GroupXData
 '''
 
 import numpy as np
+from collections import namedtuple
+
 from XData import XData
 from bnpy.util import as1D, as2D, as3D, toCArray
-
+from bnpy.util import numpyToSharedMemArray, sharedMemToNumpyArray
 
 class GroupXData(XData):
     """ Dataset object for dense real vectors organized in groups.
@@ -26,14 +28,18 @@ class GroupXData(XData):
         each row is a single dense observation vector
     Xprev : 2D array, size N x D, optional
         "previous" observations for auto-regressive likelihoods
-    D : int
+    dim : int
         the dimension of each observation
     nObs : int
         the number of in-memory observations for this instance
-    nObsTotal : int
-        the total size of the dataset which in-memory X is a part of.
     TrueParams : dict
         key/value pairs represent names and arrays of true parameters
+    doc_range : 1D array, size nDoc+1
+        the number of in-memory observations for this instance
+    nDoc : int
+        the number of in-memory documents for this instance
+    nDocTotal : int
+        total number of documents in entire dataset
 
     Example
     --------
@@ -196,7 +202,7 @@ class GroupXData(XData):
             Identifies units (documents) to use to build subset.
         doTrackFullSize : boolean, optional
             default=True
-            If True, return DataObj with same nObsTotal value as this
+            If True, return DataObj with same nDocTotal value as this
             dataset. If False, returned DataObj has smaller size.
         atomMask : 1D array_like of ints, optional
             default=None
@@ -266,3 +272,85 @@ class GroupXData(XData):
 
     def __str__(self):
         return self.X.__str__()
+
+
+    def getRawDataAsSharedMemDict(self):
+        ''' Create dict with copies of raw data as shared memory arrays
+        '''
+        dataShMemDict = dict()
+        dataShMemDict['X'] = numpyToSharedMemArray(self.X)
+        dataShMemDict['doc_range'] = numpyToSharedMemArray(self.doc_range)
+        dataShMemDict['nDocTotal'] = self.nDocTotal
+        if hasattr(self, 'Xprev'):
+            dataShMemDict['Xprev'] = numpyToSharedMemArray(self.Xprev)
+        return dataShMemDict
+
+    def getDataSliceFunctionHandle(self):
+        """ Return function handle that can make data slice objects.
+
+        Useful with parallelized algorithms, 
+        when we need to use shared memory.
+
+        Returns
+        -------
+        f : function handle
+        """
+        return makeDataSliceFromSharedMem
+
+def makeDataSliceFromSharedMem(dataShMemDict,
+                               cslice=(0, None),
+                               batchID=None):
+    """ Create data slice from provided raw arrays and slice indicators.
+
+    Returns
+    -------
+    Dslice : namedtuple with same fields as GroupXData object
+        * X
+        * nObs
+        * nObsTotal
+        * dim
+    Represents subset of documents identified by cslice tuple.
+
+    Example
+    -------
+    >>> Data = GroupXData(np.random.rand(25,2), doc_range=[0,4,12,25])
+    >>> shMemDict = Data.getRawDataAsSharedMemDict()
+    >>> Dslice = makeDataSliceFromSharedMem(shMemDict)
+    >>> np.allclose(Data.X, Dslice.X)
+    True
+    >>> np.allclose(Data.nObs, Dslice.nObs)
+    True
+    >>> Data.dim == Dslice.dim
+    True
+    >>> Aslice = makeDataSliceFromSharedMem(shMemDict, (0, 2))
+    >>> Aslice.nDoc
+    2
+    >>> np.allclose(Aslice.doc_range, Dslice.doc_range[0:(2+1)])
+    True
+    """
+    if batchID is not None and batchID in dataShMemDict:
+        dataShMemDict = dataShMemDict[batchID]
+
+    # Make local views (NOT copies) to shared mem arrays
+    doc_range = sharedMemToNumpyArray(dataShMemDict['doc_range'])
+    X = sharedMemToNumpyArray(dataShMemDict['X'])
+    nDocTotal = int(dataShMemDict['nDocTotal'])
+
+    dim = X.shape[1]
+    if cslice is None:
+        cslice = (0, doc_range.size-1)
+    elif cslice[1] is None:
+        cslice = (0, doc_range.size - 1)
+    tstart = doc_range[cslice[0]]
+    tstop = doc_range[cslice[1]]
+
+    keys = ['X', 'doc_range', 'nDoc', 'nObs', 'dim', 'nDocTotal']
+    Dslice = namedtuple("GroupXDataTuple", keys)(
+        X=X[tstart:tstop],
+        doc_range=doc_range[cslice[0]:cslice[1]+1] - doc_range[cslice[0]],
+        nDoc=cslice[1]-cslice[0],
+        nObs=tstop - tstart,
+        dim=dim,
+        nDocTotal=nDocTotal,
+        )
+    return Dslice
