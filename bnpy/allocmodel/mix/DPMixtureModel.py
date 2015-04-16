@@ -10,6 +10,60 @@ from bnpy.util import NumericUtil
 from bnpy.util import gammaln, digamma, EPS
 from bnpy.util.StickBreakUtil import beta2rho
 
+SSTermDimMap = dict(
+    Hresp='K',
+    )
+
+def calcELBO(**kwargs):
+    """ Calculate ELBO objective for provided model state.
+    """
+    Llinear = calcELBO_LinearTerms(**kwargs)
+    Lnon = calcELBO_NonlinearTerms(**kwargs)
+    return Lnon + Llinear
+
+def calcELBO_LinearTerms(SS=None,
+        N=None,
+        eta1=None, eta0=None, ElogU=None, Elog1mU=None,
+        gamma1=1.0, gamma0=None, 
+        afterGlobalStep=0, todict=0, **kwargs):
+    """ Calculate ELBO objective terms that are linear in suff stats.
+    """
+    if SS is not None:
+        N = SS.N
+    K = N.size
+    Lglobal = K * c_Beta(gamma1, gamma0) - c_Beta(eta1, eta0)
+    if afterGlobalStep:
+        if todict:
+            return dict(Lglobal=Lglobal)
+        return Lglobal
+    # Slack term only needed when not immediately after a global step.
+    N0 = convertToN0(N)
+    if ElogU is None or Elog1mU is None:
+        ElogU, Elog1mU = calcBetaExpectations(eta1, eta0)
+    Lslack = np.inner(N + gamma1 - eta1, ElogU) + \
+             np.inner(N0 + gamma0 - eta0, Elog1mU)
+    if todict:
+        return dict(Lglobal=Lglobal)
+    return Lglobal + Lslack
+
+def calcELBO_NonlinearTerms(SS=None, LP=None,
+        resp=None, Hresp=None,
+        returnMemoizedDict=0, **kwargs):
+    """ Calculate ELBO objective terms non-linear in suff stats.
+    """
+    if Hresp is None:
+        if SS is not None:
+            Hresp = SS.getELBOTerm('Hresp')
+        else:
+            if LP is not None:
+                resp = LP['resp']
+            Hresp = -1 * NumericUtil.calcRlogR(resp)
+    if returnMemoizedDict:
+        return dict(Hresp=Hresp)
+    Lentropy = Hresp.sum()
+    if SS.hasAmpFactor():
+        Lentropy *= SS.ampF
+    return Lentropy
 
 def convertToN0(N):
     """ Convert count vector to vector of "greater than" counts.
@@ -35,93 +89,53 @@ def convertToN0(N):
     N0[:-1] = N[::-1].cumsum()[::-1][1:]
     return N0
 
-
-def c_Beta(g1, g0):
+def c_Beta(eta1, eta0):
     ''' Evaluate cumulant function of Beta distribution
 
     Parameters
     -------
-    g1 : 1D array, size K
+    eta1 : 1D array, size K
         represents ON pseudo-count parameter of the Beta
-    g0 : 1D array, size K
+    eta0 : 1D array, size K
         represents OFF pseudo-count parameter of the Beta
 
     Returns
     -------
     c : float
+        = \sum_k c_B(eta1[k], eta0[k])
     '''
-    return np.sum(gammaln(g1 + g0) - gammaln(g1) - gammaln(g0))
+    return np.sum(gammaln(eta1 + eta0) - gammaln(eta1) - gammaln(eta0))
 
 
-def c_Beta_Vec(g1, g0):
-    ''' Evaluate cumulant function of Beta distribution in vectorized way
+def c_Beta_ReturnVec(eta1, eta0):
+    ''' Evaluate cumulant of Beta distribution for vector of parameters
 
     Parameters
     -------
-    g1 : 1D array, size K
+    eta1 : 1D array, size K
         represents ON pseudo-count parameter of the Beta
-    g0 : 1D array, size K
+    eta0 : 1D array, size K
         represents OFF pseudo-count parameter of the Beta
 
     Returns
     -------
     cvec : 1D array, size K
     '''
-    return gammaln(g1 + g0) - gammaln(g1) - gammaln(g0)
+    return gammaln(eta1 + eta0) - gammaln(eta1) - gammaln(eta0)
 
-
-def Lalloc_no_slack(eta1, eta0, gamma1, gamma0):
-    """ Evaluate partial L_alloc objective function, without slack.
-
-    This is exact when evaluated directly after a global step.
-
+def calcBetaExpectations(eta1, eta0):
+    ''' Evaluate expected value of log u under Beta(u | eta1, eta0)
+    
     Returns
     -------
-    Lalloc : float
-    """
-    K = eta1.size
-    return K * c_Beta(gamma1, gamma0) - c_Beta(eta1, eta0)
-
-
-def Lalloc_slack_only(N, eta1, eta0):
-    """ Evaluate slack portion of L_alloc objective.
-
-    Returns
-    -------
-    Lalloc : float
-    """
-    K = N.size
-    assert K == eta1.size
-    assert K == eta0.size
-    N0 = convertToN0(N)
-    digammaBoth = digamma(eta1 + eta0)
+    ElogU : 1D array, size K
+    Elog1mU : 1D array, size K
+    '''
+    digammaBoth = digamma(eta0 + eta1)
     ElogU = digamma(eta1) - digammaBoth
     Elog1mU = digamma(eta0) - digammaBoth
-    Lslack = np.inner(N + gamma1 - eta1, ElogU) \
-        + np.inner(N0 + gamma0 - eta0, Elog1mU)
-    return Lslack
+    return ElogU, Elog1mU
 
-
-def Lalloc_with_slack(N, eta1, eta0, gamma1, gamma0):
-    """ Evaluate complete L_alloc objective term given model parameters.
-
-    Returns
-    -------
-    La : float
-    """
-    K = eta1.size
-    return Lalloc_no_slack(eta1, eta0, gamma1, gamma0) \
-        + Lalloc_slack_only(N, eta1, eta0)
-
-
-def Lentropy(resp):
-    """ Evaluate L_entropy objective term given model parameters.
-
-    Returns
-    -------
-    Lentropy : float
-    """
-    return -1 * np.sum(NumericUtil.calcRlogR(resp))
 
 def calcCachedELBOGap_SinglePair(SS, kA, kB, 
                                  delCompID=None, dtargetMinCount=None):
@@ -217,9 +231,7 @@ class DPMixtureModel(AllocModel):
 
         This means storing digamma function evaluations.
         '''
-        digammaBoth = digamma(self.eta0 + self.eta1)
-        self.ElogU = digamma(self.eta1) - digammaBoth
-        self.Elog1mU = digamma(self.eta0) - digammaBoth
+        self.ElogU, self.Elog1mU = calcBetaExpectations(self.eta1, self.eta0)
 
         # Calculate expected mixture weights E[ log \beta_k ]
         # Using copy() allows += without modifying ElogU
@@ -332,8 +344,9 @@ class DPMixtureModel(AllocModel):
         SS.setField('N', Nvec, dims=('K'))
 
         if doPrecompEntropy:
-            ElogqZ_vec = self.E_logqZ(LP)
-            SS.setELBOTerm('ElogqZ', ElogqZ_vec, dims=('K'))
+            Mdict = calcELBO_NonlinearTerms(LP=LP, returnMemoizedDict=1)
+            for key in Mdict:
+                SS.setELBOTerm(key, Mdict[key], SSTermDimMap[key])
 
         if doPrecompMergeEntropy:
             resp = LP['resp']
@@ -510,7 +523,7 @@ class DPMixtureModel(AllocModel):
         self.eta0 = hmodel.allocModel.eta0.copy()
         self.set_helper_params()
 
-    def calc_evidence(self, Data, SS, LP=None, todict=False, **kwargs):
+    def calc_evidence(self, Data, SS, LP=None, todict=0, **kwargs):
         """ Calculate ELBO objective function value for provided state.
 
         Returns
@@ -518,64 +531,12 @@ class DPMixtureModel(AllocModel):
         L : float
             represents sum of all terms in objective
         """
-        if SS.hasELBOTerm('ElogqZ'):
-            Lentropy = -1 * np.sum(SS.getELBOTerm('ElogqZ'))
-        else:
-            Lentropy = -1 * np.sum(self.E_logqZ(LP))
-        if SS.hasAmpFactor():
-            Lentropy *= SS.ampF
-
-        cDiff = self.ELBO_cDiff()
-        slack = self.ELBO_slack(SS)
-        if todict:
-            return dict(Lalloc=cDiff+slack,
-                        Lentropy=Lentropy)
-        return cDiff + slack + Lentropy
-
-    def calcELBOFromSS_NoCacheableTerms(self, SS):
-        ''' Calculate objective value, ignoring any cached ELBO terms.
-
-        Returns
-        -------
-        L : float
-            represents sum of most terms in objective
-        '''
-        assert self.K == SS.K
-        cDiff = self.ELBO_cDiff()
-        slack = self.ELBO_slack(SS)
-        return cDiff + slack
-
-    def E_logqZ(self, LP):
-        ''' Compute ELBO term related to entropy of soft assignments.
-
-        Returns
-        -------
-        Hvec : 1D array, size K
-        '''
-        return NumericUtil.calcRlogR(LP['resp'])
-
-    def ELBO_cDiff(self):
-        ''' Compute difference of cumulant functions for ELBO
-
-        Returns
-        -------
-        cDiff : scalar real
-        '''
-        cDiff = self.K * c_Beta(self.gamma1, self.gamma0) \
-            - c_Beta(self.eta1, self.eta0)  # already sums over k
-        return cDiff
-
-    def ELBO_slack(self, SS):
-        ''' Compute the slack-term for ELBO
-
-        Returns
-        ------
-        Lslack : scalar real
-        '''
-        slack = np.inner(self.gamma1 - self.eta1, self.ElogU) \
-            + np.inner(self.gamma0 - self.eta0, self.Elog1mU) \
-            + np.inner(SS.N, self.Elogbeta)
-        return slack
+        return calcELBO(SS=SS, LP=LP,
+            eta1=self.eta1, eta0=self.eta0, 
+            ElogU=self.ElogU, Elog1mU=self.Elog1mU,
+            gamma1=self.gamma1, gamma0=self.gamma0,
+            todict=todict,
+            **kwargs)
 
     def calcHardMergeEntropyGap(self, SS, kA, kB):
         ''' Calc scalar improvement in entropy for merge of kA, kB
@@ -629,11 +590,11 @@ class DPMixtureModel(AllocModel):
         if not hasattr(self, 'cPrior'):
             self.cPrior = c_Beta(self.gamma1, self.gamma0)
         if not hasattr(self, 'cBetaCur'):
-            self.cBetaCur = c_Beta_Vec(self.eta1, self.eta0)
+            self.cBetaCur = c_Beta_ReturnVec(self.eta1, self.eta0)
         if not hasattr(self, 'cBetaNewB') \
            or not (hasattr(self, 'kB') and self.kB == kB):
             self.kB = kB
-            self.cBetaNewB = c_Beta_Vec(self.eta1[:kB],
+            self.cBetaNewB = c_Beta_ReturnVec(self.eta1[:kB],
                                         self.eta0[:kB] - SS.N[kB])
         cDiff_A = self.cBetaCur[kA] \
             - c_Beta(self.eta1[kA] + SS.N[kB], self.eta0[kA] - SS.N[kB])
@@ -651,9 +612,9 @@ class DPMixtureModel(AllocModel):
         if not hasattr(self, 'cPrior'):
             self.cPrior = c_Beta(self.gamma1, self.gamma0)
         if not hasattr(self, 'cBetaCur'):
-            self.cBetaCur = c_Beta_Vec(self.eta1, self.eta0)
+            self.cBetaCur = c_Beta_ReturnVec(self.eta1, self.eta0)
 
-        cBetaNew_AtoB = c_Beta_Vec(self.eta1[kA + 1:kB],
+        cBetaNew_AtoB = c_Beta_ReturnVec(self.eta1[kA + 1:kB],
                                    self.eta0[kA + 1:kB] - SS.N[kB])
         cDiff_A = self.cBetaCur[kA] \
             - c_Beta(self.eta1[kA] + SS.N[kB], self.eta0[kA] - SS.N[kB])
@@ -717,31 +678,6 @@ class DPMixtureModel(AllocModel):
         L_prop = -1 * propSS.getELBOTerm('ElogqZ').sum()
         return L_prop - L_cur
 
-    def calcCachedELBOGapForDeleteProposal(self, SSall_before,
-                                           SStarget_before,
-                                           SStarget_after,
-                                           delCompUIDs):
-        ''' Calculate improvement in entropy term after a delete
-        '''
-        remCompIDs = list()
-        for k in xrange(SSall_before.K):
-            if SSall_before.uIDs[k] not in delCompUIDs:
-                remCompIDs.append(k)
-
-        Hvec_all_before = -1 * SSall_before.getELBOTerm('ElogqZ')
-        Hvec_target_before = -1 * SStarget_before.getELBOTerm('ElogqZ')
-        Hvec_target_after = -1 * SStarget_after.getELBOTerm('ElogqZ')
-
-        Hvec_rest_before = Hvec_all_before - Hvec_target_before
-        if not np.all(Hvec_rest_before > -1e-10):
-            print 'ASSUMPTION ABOUT Hvec_rest_before > 0 VIOLATED'
-
-        Htarget_after = Hvec_target_after.sum()
-        Hrest_after = Hvec_rest_before[remCompIDs].sum()
-
-        gap = Hvec_all_before.sum() - (Htarget_after + Hrest_after)
-        return gap
-
     def get_info_string(self):
         ''' Returns one-line human-readable terse description of this object
         '''
@@ -769,7 +705,7 @@ class DPMixtureModel(AllocModel):
                     )
 
     def make_hard_asgn_local_params(self, LP):
-        ''' Convert soft assignments to hard assignments for provided local params
+        ''' Convert soft assignments to hard for provided local params
 
             Returns
             --------
