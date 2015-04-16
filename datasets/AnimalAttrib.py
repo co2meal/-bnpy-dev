@@ -1,5 +1,5 @@
 '''
-Animals.py
+AnimalAttrib.py
 
 ------------------------------------------------------------------
 Animals with Attributes Dataset, v1.0, May 13th 2009
@@ -41,7 +41,7 @@ if not os.path.isdir(datasetdir):
   raise ValueError('CANNOT FIND DATASET DIRECTORY:\n' + datasetdir)
 
 filepath = os.path.join(datasetdir, 'rawData', 
-                        'AnimalAttr', 'predicate-matrix-binary.txt')
+                        'AnimalAttrib', 'predicate-matrix-binary.txt')
 if not os.path.isfile(filepath):
   raise ValueError('CANNOT FIND DATASET FILE:\n' + filepath)
 
