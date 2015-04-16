@@ -52,7 +52,7 @@ def calcELBO_NonlinearTerms(SS=None, LP=None,
     """ Calculate ELBO objective terms non-linear in suff stats.
     """
     if Hresp is None:
-        if SS is not None:
+        if SS is not None and SS.hasELBOTerm('Hresp'):
             Hresp = SS.getELBOTerm('Hresp')
         else:
             if LP is not None:
