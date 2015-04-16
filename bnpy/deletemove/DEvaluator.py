@@ -128,6 +128,37 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
             bestCount = bestSS.getCountVec().sum()
             assert np.allclose(propCountPlusTarget, bestCount)
 
+            # Pretend we are just doing a hard merge...
+            mergeSS = bestSS.copy()
+            mergeModel = bestModel.copy()
+            mELBOTerms = mergeModel.allocModel.\
+                calcCachedELBOTerms_SinglePair(
+                    mergeSS, kA, kB, delCompID=delCompID)
+            mergeSS.mergeComps(kA, kB)
+            for key, arr in mELBOTerms.items():
+                mergeSS.setELBOTerm(key, arr, propSS._ELBOTerms._FieldDims[key])
+            mergeModel.update_global_params(mergeSS)
+            mergeGap = mergeModel.calc_evidence(SS=mergeSS) - \
+                       bestModel.calc_evidence(SS=bestSS)
+
+            if 'WholeDataset' in Plan:
+                Data = Plan['WholeDataset']
+                remUnitIDs = np.setdiff1d(np.arange(Data.get_size()),
+                                          Plan['dataUnitIDs'])
+                remData = Data.select_subset_by_mask(remUnitIDs)
+
+                remLP = bestModel.calc_local_params(remData)
+                remSS = bestModel.get_global_suff_stats(
+                    remData, remLP, doPrecompEntropy=1, 
+                    doPrecompMergeEntropy=1, mPairIDs=[(kA,kB)])
+                Hvec = -1 * remSS.getELBOTerm('ElogqZ')
+                mHvec = np.delete(Hvec, kB)
+                mHvec[kA] = -1 * remSS.getMergeTerm('ElogqZ')[kA, kB]
+                tight_ELBOgap_rest = (mHvec.sum() - Hvec.sum()) / totalScale
+                
+                print "Hrem fast   %.4f" % (ELBOgap_cached_rest)
+                print "Hrem tight  %.4f" % (tight_ELBOgap_rest)
+                from IPython import embed; embed()
         else:
             msg = 'Unrecognised deleteNontargetStrategy: %s' \
                 % (deleteNontargetStrategy)
@@ -179,7 +210,8 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
         DeleteLogger.log(curMsg, levelStr)
         DeleteLogger.log(propMsg, levelStr)
         DeleteLogger.log(resultMsg, levelStr)
-
+        if deleteNontargetStrategy == 'merge':
+            DeleteLogger.log("mergeGap: %.4f" % mergeGap, levelStr)
         if doVizDelete:
             from bnpy.viz.PlotComps import plotCompsFromHModel
             from matplotlib import pylab
