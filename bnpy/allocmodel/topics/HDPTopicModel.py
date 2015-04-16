@@ -379,7 +379,6 @@ class HDPTopicModel(AllocModel):
                 Mdict['gammalnTheta'], dims='K')
             SS.setELBOTerm('gammalnThetaRem', 
                 Mdict['gammalnThetaRem'], dims=None)
-        print SS.sumLogPi[:3]
         if doPrecompMergeEntropy:
             if mPairIDs is None:
                 raise NotImplementedError("TODO: all pairs for merges")

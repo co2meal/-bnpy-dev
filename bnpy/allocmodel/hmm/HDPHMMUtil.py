@@ -78,21 +78,25 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None,
     if Htable is None:
         if SS is not None and SS.hasELBOTerm('Htable'):
             Htable = SS.getELBOTerm('Htable')
-            Hstart = SS.getELBOTerm('Hstart')
         elif LP is not None:
-            resp = LP['resp']
             if 'respPair' in LP:
                 Htable = HMMUtil.calc_Htable(LP['respPair'])
             else:
                 Htable = np.sum(LP['Htable'], axis=0)
         else:
             Htable = HMMUtil.calc_Htable(respPair)
-        if Hstart is None:
+
+    if Hstart is None:
+        if SS is not None and SS.hasELBOTerm('Hstart'):
+            Hstart = SS.getELBOTerm('Hstart')
+        else:
+            if LP is not None:
+                resp = LP['resp']
             Hstart = HMMUtil.calc_Hstart(resp, Data=Data)
+
     if returnMemoizedDict:
         return dict(Hstart=Hstart, Htable=Htable)
     Lentropy = Htable.sum() + Hstart.sum()
-    
     # For stochastic (soVB), we need to scale up the entropy
     # Only used when --doMemoELBO is set to 0 (not recommended)
     if SS is not None and SS.hasAmpFactor():
