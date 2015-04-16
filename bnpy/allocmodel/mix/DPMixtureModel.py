@@ -10,7 +10,7 @@ from bnpy.util import NumericUtil
 from bnpy.util import gammaln, digamma, EPS
 from bnpy.util.StickBreakUtil import beta2rho
 
-SSTermDimMap = dict(
+ELBOTermDimMap = dict(
     Hresp='K',
     )
 
@@ -61,7 +61,7 @@ def calcELBO_NonlinearTerms(SS=None, LP=None,
     if returnMemoizedDict:
         return dict(Hresp=Hresp)
     Lentropy = Hresp.sum()
-    if SS.hasAmpFactor():
+    if SS is not None and SS.hasAmpFactor():
         Lentropy *= SS.ampF
     return Lentropy
 
@@ -354,7 +354,7 @@ class DPMixtureModel(AllocModel):
         if doPrecompEntropy:
             Mdict = calcELBO_NonlinearTerms(LP=LP, returnMemoizedDict=1)
             for key in Mdict:
-                SS.setELBOTerm(key, Mdict[key], SSTermDimMap[key])
+                SS.setELBOTerm(key, Mdict[key], ELBOTermDimMap[key])
 
         if doPrecompMergeEntropy:
             resp = LP['resp']
