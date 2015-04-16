@@ -537,7 +537,6 @@ class DPMixtureModel(AllocModel):
         Returns
         -------
         L : float
-            represents sum of all terms in objective
         """
         return calcELBO(SS=SS, LP=LP,
             eta1=self.eta1, eta0=self.eta0, 
@@ -547,11 +546,23 @@ class DPMixtureModel(AllocModel):
             **kwargs)
 
     def calcELBO_LinearTerms(self, **kwargs):
+        ''' Compute sum of ELBO terms that are linear/const wrt suff stats
+
+        Returns
+        -------
+        L : float
+        '''
         return calcELBO_LinearTerms(eta1=self.eta1, eta0=self.eta0,
             gamma1=self.gamma1, gamma0=self.gamma0,
             **kwargs)
 
     def calcELBO_NonlinearTerms(self, **kwargs):
+        ''' Compute sum of ELBO terms that are NONlinear wrt suff stats
+
+        Returns
+        -------
+        L : float
+        '''
         return calcELBO_NonlinearTerms(**kwargs)
 
 
