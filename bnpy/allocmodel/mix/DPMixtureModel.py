@@ -65,6 +65,14 @@ def calcELBO_NonlinearTerms(SS=None, LP=None,
         Lentropy *= SS.ampF
     return Lentropy
 
+def calcELBOGain_NonlinearTerms(beforeSS=None, afterSS=None):
+    """ Compute gain in ELBO score by transition from before to after values.
+    """
+    L_before = beforeSS.getELBOTerm('Hresp').sum()
+    L_after = afterSS.getELBOTerm('Hresp').sum()
+    return L_after - L_before
+
+
 def convertToN0(N):
     """ Convert count vector to vector of "greater than" counts.
 
@@ -538,6 +546,17 @@ class DPMixtureModel(AllocModel):
             todict=todict,
             **kwargs)
 
+    def calcELBO_LinearTerms(self, **kwargs):
+        return calcELBO_LinearTerms(eta1=self.eta1, eta0=self.eta0,
+            gamma1=self.gamma1, gamma0=self.gamma0,
+            **kwargs)
+
+    def calcELBO_NonlinearTerms(self, **kwargs):
+        return calcELBO_NonlinearTerms(**kwargs)
+
+    def calcELBOGain_NonlinearTerms(self, **kwargs):
+        return calcELBOGain_NonlinearTerms(**kwargs)
+
     def calcHardMergeEntropyGap(self, SS, kA, kB):
         ''' Calc scalar improvement in entropy for merge of kA, kB
         '''
@@ -671,12 +690,6 @@ class DPMixtureModel(AllocModel):
         """
         return calcCachedELBOGap_SinglePair(SS, kA, kB, delCompID=delCompID)
 
-    def calcCachedELBOGap_FromSS(self, curSS, propSS):
-        """ Compute gap on cachable ELBO term directly
-        """
-        L_cur = -1 * curSS.getELBOTerm('ElogqZ').sum()
-        L_prop = -1 * propSS.getELBOTerm('ElogqZ').sum()
-        return L_prop - L_cur
 
     def get_info_string(self):
         ''' Returns one-line human-readable terse description of this object

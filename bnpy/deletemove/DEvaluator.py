@@ -58,7 +58,8 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
     targetData = Plan['DTargetData']
     totalScale = curModel.obsModel.getDatasetScale(curSS)
     bestELBOobs = curModel.obsModel.calcELBO_Memoized(curSS)
-    bestELBOalloc = curModel.allocModel.calcELBOFromSS_NoCacheableTerms(curSS)
+    bestELBOalloc = curModel.allocModel.calcELBO_LinearTerms(SS=curSS)
+
     bestELBOobs /= totalScale
     bestELBOalloc /= totalScale
 
@@ -82,9 +83,10 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
             propSS.removeComp(delCompID)
             ptargetSS.removeComp(delCompID)
             propModel.update_global_params(propSS)
-            ELBOgap_cached_rest = 0
+            ELBOGain_NonLinear_nontarget = 0
 
         elif deleteNontargetStrategy == 'merge':
+            raise NotImplementedError('TODO')
             # Make sure we haven't used this comp already
             # in a previous delete
             usedBefore = False
@@ -103,7 +105,6 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
 
             mPairIDs = makeMPairIDsWith(delCompID, propSS.K)
             kA, kB = propModel.getBestMergePair(propSS, mPairIDs)
-
             # Compute ELBO gap for cached terms under proposed merge
             ELBOgap_cached_rest = propModel.allocModel.\
                 calcCachedELBOGap_SinglePair(
@@ -174,21 +175,23 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
             propSS += ptargetSS
             propModel.update_global_params(propSS)
 
-            propELBOobs = propModel.obsModel.\
-                calcELBO_Memoized(propSS) / totalScale
-            propELBOalloc = propModel.allocModel.\
-                calcELBOFromSS_NoCacheableTerms(propSS) / totalScale
-            ELBOgap_cached_target = propModel.allocModel.\
-                calcCachedELBOGap_FromSS(
-                    besttargetSS, ptargetSS) / totalScale
+            propELBOobs = propModel.\
+                obsModel.calcELBO_Memoized(propSS) / totalScale
+            propELBOalloc = propModel.\
+                allocModel.calcELBO_LinearTerms(SS=propSS) / totalScale
+            ELBOGain_NonLinear_target = propModel.\
+                allocModel.calcELBOGain_NonlinearTerms(
+                    beforeSS=besttargetSS, 
+                    afterSS=ptargetSS) / totalScale
             
-            
-            ELBOgap = propELBOobs - bestELBOobs \
+            ELBOGain = propELBOobs - bestELBOobs \
                       + propELBOalloc - bestELBOalloc \
-                      + ELBOgap_cached_rest + ELBOgap_cached_target
-            if not np.isfinite(ELBOgap):
+                      + ELBOGain_NonLinear_nontarget \
+                      + ELBOGain_NonLinear_target
+
+            if not np.isfinite(ELBOGain):
                 break
-            if ELBOgap > 0 or bestSS.K > Kmax:
+            if ELBOGain > 0 or bestSS.K > Kmax:
                 didAcceptCur = 1
                 didAccept = 1
                 break
@@ -198,11 +201,11 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
             label='cur', compUID=delCompUID)
         propMsg = makeLogMessage(propSS, ptargetSS,
             label='prop', compUID=delCompUID)
-        resultMsg = makeLogMessageForResult(ELBOgap, didAcceptCur,
+        resultMsg = makeLogMessageForResult(ELBOGain, didAcceptCur,
             ELBOgap_alloc=propELBOalloc - bestELBOalloc,
             ELBOgap_obs=propELBOobs - bestELBOobs,
-            ELBOgap_Htrgt=ELBOgap_cached_target,
-            ELBOgap_Hrest=ELBOgap_cached_rest)
+            ELBOgap_Htrgt=ELBOGain_NonLinear_target,
+            ELBOgap_Hrest=ELBOGain_NonLinear_nontarget)
         if doVizDelete:
             levelStr = 'info'
         else:
@@ -232,7 +235,7 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
 
         # Update best model/stats to accepted values
         if didAcceptCur:
-            totalELBOImprovement += ELBOgap
+            totalELBOImprovement += ELBOGain
             acceptedUIDs.append(delCompUID)
             bestELBOobs = propELBOobs
             bestELBOalloc = propELBOalloc
@@ -322,7 +325,7 @@ def makeMPairIDsWith(k, K, excludeIDs=None):
     return mPairIDs
 
 
-def makeLogMessageForResult(ELBOgap, didAccept=0, 
+def makeLogMessageForResult(ELBOGain, didAccept=0, 
                             ELBOgap_alloc=0,
                             ELBOgap_Htrgt=0,
                             ELBOgap_Hrest=0,
@@ -331,7 +334,7 @@ def makeLogMessageForResult(ELBOgap, didAccept=0,
         label = ' ACCEPTED '
     else:
         label = ' rejected '
-    label += ' ELBOgap %10.8f' % (ELBOgap)
+    label += ' ELBOGain %10.8f' % (ELBOGain)
     label += '  alloc %10.8f' % (ELBOgap_alloc)
     label += '  obs %10.8f' % (ELBOgap_obs)
     label += '  Htrgt %10.8f' % (ELBOgap_Htrgt)
