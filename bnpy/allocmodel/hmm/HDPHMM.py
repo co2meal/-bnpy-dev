@@ -573,7 +573,7 @@ class HDPHMM(AllocModel):
         L : float
         '''
         assert hasattr(self, 'rho')
-        return calcELBO(SS=SS, LP=LP, 
+        return calcELBO(Data=Data, SS=SS, LP=LP, 
             startAlpha=self.startAlpha, alpha=self.alpha, 
             kappa=self.kappa, gamma=self.gamma,
             rho=self.rho, omega=self.omega,
