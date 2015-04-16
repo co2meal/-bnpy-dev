@@ -10,7 +10,7 @@ from bnpy.suffstats import SuffStatBag
 from bnpy.util import digamma, gammaln, EPS
 from bnpy.util import StickBreakUtil
 from bnpy.allocmodel.topics import OptimizerRhoOmega
-from bnpy.allocmodel.topics.HDPTopicModel import c_Beta, c_Dir
+from bnpy.allocmodel.topics.HDPTopicUtil import c_Beta, c_Dir
 
 Log = logging.getLogger('bnpy')
 
@@ -50,7 +50,6 @@ class HDPHMM(AllocModel):
     respPair : 3D array, T x K x K
         q(z_t=k, z_t-1=j) = respPair[t,j,k]
     """
-
     def __init__(self, inferType, priorDict=dict()):
         if inferType == 'EM':
             raise ValueError('EM is not supported for HDPHMM')
@@ -534,8 +533,7 @@ class HDPHMM(AllocModel):
         Args
         --------
         beta : 1D array, size K
-               beta[k] gives top-level probability for active comp k
-
+            beta[k] gives top-level probability for active comp k
         '''
         if nDoc is None:
             nDoc = Data.nDoc
@@ -557,10 +555,10 @@ class HDPHMM(AllocModel):
     def _convert_beta2rhoomega(self, beta, nDoc=10):
         ''' Find vectors rho, omega that are probable given beta
 
-            Returns
-            --------
-            rho : 1D array, size K
-            omega : 1D array, size K
+        Returns
+        --------
+        rho : 1D array, size K
+        omega : 1D array, size K
         '''
         assert abs(np.sum(beta) - 1.0) < 0.001
         rho = OptimizerRhoOmega.beta2rho(beta, self.K)
@@ -573,7 +571,6 @@ class HDPHMM(AllocModel):
         Returns
         -------
         L : float
-            represents sum of all terms in objective
         '''
         assert hasattr(self, 'rho')
         return calcELBO(SS=SS, LP=LP, 
@@ -584,6 +581,12 @@ class HDPHMM(AllocModel):
             todict=todict, **kwargs)
 
     def calcELBO_LinearTerms(self, **kwargs):
+        ''' Compute sum of ELBO terms that are linear/const wrt suff stats
+
+        Returns
+        -------
+        L : float
+        '''
         return calcELBO_LinearTerms(
             startAlpha=self.startAlpha, alpha=self.alpha, 
             kappa=self.kappa, gamma=self.gamma,
@@ -592,6 +595,12 @@ class HDPHMM(AllocModel):
             **kwargs)
 
     def calcELBO_NonlinearTerms(self, **kwargs):
+        ''' Compute sum of ELBO terms that are NONlinear wrt suff stats
+
+        Returns
+        -------
+        L : float
+        '''
         return calcELBO_NonlinearTerms(**kwargs)
 
 
@@ -652,37 +661,6 @@ class HDPHMM(AllocModel):
         for ii, (kA, kB) in enumerate(PairList):
             Gaps[ii] = self.calcHardMergeGap(SS, kA, kB)
         return Gaps
-
-    def calcCachedELBOGapForDeleteProposal(self, SSall_before,
-                                           SStarget_before,
-                                           SStarget_after,
-                                           delCompUIDs):
-        ''' Calculate (approx) improvement in entropy term after a delete
-        '''
-        remCompIDs = list()
-        for k in xrange(SSall_before.K):
-            if SSall_before.uIDs[k] not in delCompUIDs:
-                remCompIDs.append(k)
-
-        Hstart_all_before = SSall_before.getELBOTerm('Hstart')
-        Hstart_target_before = SStarget_before.getELBOTerm('Hstart')
-        Hstart_rest_before = Hstart_all_before - Hstart_target_before
-        Hstart_rest_after = Hstart_rest_before[remCompIDs].sum()
-        Hstart_target_after = SStarget_after.getELBOTerm('Hstart').sum()
-
-        Htable_all_before = SSall_before.getELBOTerm('Htable')
-        Htable_target_before = SStarget_before.getELBOTerm('Htable')
-        Htable_rest_before = Htable_all_before - Htable_target_before
-        Htable_rest_after = Htable_rest_before[remCompIDs, remCompIDs].sum()
-        Htable_target_after = SStarget_after.getELBOTerm('Htable').sum()
-
-        gap = Htable_all_before.sum() \
-            - Htable_rest_after \
-            - Htable_target_after \
-            + Hstart_all_before.sum() \
-            - Hstart_rest_after \
-            - Hstart_target_after
-        return gap
 
     def to_dict(self):
         return dict(transTheta=self.transTheta, startTheta=self.startTheta,

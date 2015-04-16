@@ -4,13 +4,15 @@ import logging
 import LocalStepManyDocs
 import OptimizerRhoOmega
 
+from HDPTopicUtil import calcELBO
+from HDPTopicUtil import calcELBO_LinearTerms, calcELBO_NonlinearTerms
+
 from bnpy.allocmodel.AllocModel import AllocModel
 from bnpy.allocmodel.mix.DPMixtureModel import convertToN0
 from bnpy.suffstats import SuffStatBag
 from bnpy.util import digamma, gammaln
 from bnpy.util import as1D
 from bnpy.util.StickBreakUtil import rho2beta
-from bnpy.util.NumericUtil import calcRlogRdotv, calcRlogR
 from bnpy.util.NumericUtil import calcRlogRdotv_allpairs
 from bnpy.util.NumericUtil import calcRlogRdotv_specificpairs
 from bnpy.util.NumericUtil import calcRlogR_allpairs, calcRlogR_specificpairs
@@ -363,18 +365,20 @@ class HDPTopicModel(AllocModel):
         SS.setField('sumLogPiRem', np.sum(LP['ElogPiRem']), dims=None)
 
         if doPrecompEntropy:
-            Hvec = calcHresp(Data, LP)
-            SS.setELBOTerm('Hresp', Hvec, dims='K')
-
-            slackTheta, slackThetaRem = calcMemoPieces_L_slacklocal(LP=LP)
-            SS.setELBOTerm('slackTheta', slackTheta, dims='K')
-            SS.setELBOTerm('slackThetaRem', slackThetaRem, dims=None)
-
-            glnSumTheta, glnTheta, glnThetaRem = calcMemoPieces_L_alloclocal(
-                theta=LP['theta'], thetaRem=LP['thetaRem'])
-            SS.setELBOTerm('gammalnSumTheta', glnSumTheta, dims=None)
-            SS.setELBOTerm('gammalnTheta', glnTheta, dims='K')
-            SS.setELBOTerm('gammalnThetaRem', glnThetaRem, dims=None)
+            # Compute cacheable terms needed for ELBO evaluation
+            # 'Hresp', 'slackTheta', 'gammalnTheta', etc. 
+            # will be fields in Mdict
+            Mdict = calcELBO_NonlinearTerms(Data=Data, 
+                LP=LP, returnMemoizedDict=1)
+            SS.setELBOTerm('Hresp', Mdict['Hresp'], dims='K')
+            SS.setELBOTerm('slackTheta', Mdict['slackTheta'], dims='K')
+            SS.setELBOTerm('slackThetaRem', Mdict['slackThetaRem'], dims=None)
+            SS.setELBOTerm('gammalnSumTheta',
+                Mdict['gammalnSumTheta'], dims=None)
+            SS.setELBOTerm('gammalnTheta', 
+                Mdict['gammalnTheta'], dims='K')
+            SS.setELBOTerm('gammalnThetaRem', 
+                Mdict['gammalnThetaRem'], dims=None)
 
         if doPrecompMergeEntropy:
             if mPairIDs is None:
@@ -642,6 +646,38 @@ class HDPTopicModel(AllocModel):
         else:
             raise AttributeError('Unrecognized hmodel')
 
+
+    def calc_evidence(self, Data, SS, LP, todict=0, **kwargs):
+        return calcELBO(Data=Data, SS=SS, LP=LP, todict=todict, 
+            alpha=self.alpha, gamma=self.gamma,
+            rho=self.rho, omega=self.omega,
+            **kwargs)
+
+    def calcELBO_LinearTerms(self, **kwargs):
+        ''' Compute sum of ELBO terms that are linear/const wrt suff stats
+
+        Returns
+        -------
+        L : float
+        '''
+        return calcELBO_LinearTerms(
+            alpha=self.alpha, gamma=self.gamma,
+            rho=self.rho, omega=self.omega,
+            **kwargs)
+
+    def calcELBO_NonlinearTerms(self, **kwargs):
+        ''' Compute sum of ELBO terms that are NONlinear wrt suff stats
+
+        Returns
+        -------
+        L : float
+        '''
+        return calcELBO_NonlinearTerms(
+            alpha=self.alpha, rho=self.rho,
+            **kwargs)
+    # .... end class HDPTopicModel
+
+'''
     def calc_evidence(self, Data, SS, LP, todict=0, **kwargs):
         """ Calculate ELBO objective function value for provided state.
 
@@ -687,264 +723,5 @@ class HDPTopicModel(AllocModel):
                         )
         return Lallocglobal + Lalloclocal + Lentropy +\
             Lslackglobal + Lslacklocal
-    # .... end class HDPTopicModel
-
-
-def L_allocglobal(rho, omega, gamma=1.0, alpha=1.0, nDoc=0):
-    """ Compute global-only term of the ELBO objective.
-    """
-    K = rho.size
-    eta1 = rho * omega
-    eta0 = (1 - rho) * omega
-    digammaBoth = digamma(eta1 + eta0)
-    ElogU = digamma(eta1) - digammaBoth
-    Elog1mU = digamma(eta0) - digammaBoth
-
-    ONcoef = nDoc + 1.0 - eta1
-    OFFcoef = nDoc * OptimizerRhoOmega.kvec(K) + gamma - eta0
-
-    calpha = gammaln(alpha) + (K + 1) * np.log(alpha)
-    cDiff = K * c_Beta(1, gamma) - c_Beta(eta1, eta0)
-
-    return calpha + \
-        cDiff + \
-        np.inner(ONcoef, ElogU) + np.inner(OFFcoef, Elog1mU)
-
-
-def L_slackglobal(alphaEbeta=None,
-                  sumLogPi=None, sumLogPiRem=0,
-                  rho=None, omega=None, alpha=1.0):
-    """ Returns arrays whos sum is ELBO term.
-
-    Returns
-    -------
-    L : scalar float
-    """
-    if alphaEbeta is None:
-        alphaEbeta = alpha * Ebeta
-    Svec = alphaEbeta[:-1] * sumLogPi
-    Srem = alphaEbeta[-1] * sumLogPiRem
-    return Svec.sum() + Srem
-
-
-def L_slacklocal(slackTheta=None, slackThetaRem=None, LP=None):
-    ''' Calculate part of ELBO depending on doc-topic slack terms
-
-    Returns
-    -------
-    L : scalar float
-    '''
-    if slackTheta is None:
-        slackTheta, slackThetaRem = calcMemoPieces_L_slacklocal(LP)
-    return slackTheta.sum() + slackThetaRem
-
-
-def calcMemoPieces_L_slacklocal(LP):
-    """ Calculate part of ELBO depending on doc-topic slack terms.
-
-    Returns
-    -------
-    slackTheta : 1D array, size K
-    slackThetaRem : float
-    """
-    slackTheta = LP['DocTopicCount'] - LP['theta']
-    slackTheta *= LP['ElogPi']
-    slackTheta = np.sum(slackTheta, axis=0)
-    slackThetaRem = -1 * np.sum(LP['thetaRem'] * LP['ElogPiRem'])
-    return slackTheta, slackThetaRem
-
-
-def L_alloclocal(
-        gammalnSumTheta=None,
-        gammalnTheta=None,
-        gammalnThetaRem=None,
-        theta=None, thetaRem=None, **kwargs):
-    """ Calculate local allocation term of the ELBO objective.
-
-    Returns
-    -------
-    L : scalar float
-    """
-    if theta is not None:
-        gammalnSumTheta, gammalnTheta, gammalnThetaRem =\
-            calcMemoPieces_L_alloclocal(theta, thetaRem)
-    cDiff = gammalnSumTheta - gammalnTheta.sum() - gammalnThetaRem
-    return -1 * cDiff
-
-
-def calcMemoPieces_L_alloclocal(theta, thetaRem):
-    """ Calculate vector whos sum equals entropy term in ELBO objective.
-
-    Returns
-    -------
-    gammalnSumTheta : float
-    gammalnTheta : 1D array, size K
-    gammalnThetaRem : float
-    """
-    sumTheta = np.sum(theta, axis=1) + thetaRem
-    gammalnSumTheta = np.sum(gammaln(sumTheta))
-    gammalnTheta = np.sum(gammaln(theta), axis=0)
-    nDoc = theta.shape[0]
-    gammalnThetaRem = nDoc * gammaln(thetaRem)
-    return gammalnSumTheta, gammalnTheta, gammalnThetaRem
-
-
-def L_entropy(Data=None, LP=None, resp=None):
-    """ Calculate entropy of soft assignments term in ELBO objective.
-
-    Returns
-    -------
-    L_entropy : scalar float
-    """
-    return calcHresp(Data, LP, resp).sum()
-
-
-def calcHresp(Data=None, LP=None, resp=None):
-    """ Calculate vector whos sum equals entropy term in ELBO objective.
-
-    Returns
-    -------
-    Hvec : 1D array, size K
-    """
-    if LP is not None:
-        resp = LP['resp']
-    if hasattr(Data, 'word_count'):
-        Hvec = -1 * calcRlogRdotv(resp, Data.word_count)
-    else:
-        Hvec = -1 * calcRlogR(resp)
-    return Hvec
-
-
-def calcHrespForMergePairs(resp, Data, mPairIDs):
-    ''' Calculate resp entropy terms for all candidate merge pairs
-
-    Returns
-    ---------
-    Hresp : 2D array, size K x K
-    '''
-    if hasattr(Data, 'word_count'):
-        if mPairIDs is None:
-            Hmat = calcRlogRdotv_allpairs(resp, Data.word_count)
-        else:
-            Hmat = calcRlogRdotv_specificpairs(resp, Data.word_count, mPairIDs)
-    else:
-        if mPairIDs is None:
-            Hmat = calcRlogR_allpairs(resp)
-        else:
-            Hmat = calcRlogR_specificpairs(resp, mPairIDs)
-    return -1 * Hmat
-
-
-def E_cDalphabeta_surrogate(alpha, rho, omega):
-    """ Compute expected value of cumulant function of alpha * beta.
-
-    Returns
-    -------
-    csur : scalar float
-    """
-    K = rho.size
-    eta1 = rho * omega
-    eta0 = (1 - rho) * omega
-    digammaBoth = digamma(eta1 + eta0)
-    ElogU = digamma(eta1) - digammaBoth
-    Elog1mU = digamma(eta0) - digammaBoth
-    OFFcoef = OptimizerRhoOmega.kvec(K)
-    calpha = gammaln(alpha) + (K + 1) * np.log(alpha)
-    return calpha + np.sum(ElogU) + np.inner(OFFcoef, Elog1mU)
-
-
-def c_Beta(a1, a0):
-    ''' Evaluate cumulant function of the Beta distribution
-
-    When input is vectorized, we compute sum over all entries.
-
-    Returns
-    -------
-    c : scalar real
-    '''
-    return np.sum(gammaln(a1 + a0)) - np.sum(gammaln(a1)) - np.sum(gammaln(a0))
-
-
-def c_Dir(AMat, arem=None):
-    ''' Evaluate cumulant function of the Dir distribution
-
-    When input is vectorized, we compute sum over all entries.
-
-    Returns
-    -------
-    c : scalar real
-    '''
-    AMat = np.asarray(AMat)
-    D = AMat.shape[0]
-    if arem is None:
-        if AMat.ndim == 1:
-            return gammaln(np.sum(AMat)) - np.sum(gammaln(AMat))
-        else:
-            return np.sum(gammaln(np.sum(AMat, axis=1))) \
-                - np.sum(gammaln(AMat))
-
-    return np.sum(gammaln(np.sum(AMat, axis=1) + arem)) \
-        - np.sum(gammaln(AMat)) \
-        - D * np.sum(gammaln(arem))
-
-
-def c_Dir__big(AMat, arem):
-    AMatBig = np.hstack([AMat, arem * np.ones(AMat.shape[0])[:, np.newaxis]])
-    return np.sum(gammaln(np.sum(AMatBig, axis=1))) - np.sum(gammaln(AMatBig))
-
-
-def c_Dir__slow(AMat, arem):
-    c = 0
-    for d in xrange(AMat.shape[0]):
-        avec = np.hstack([AMat[d], arem])
-        c += gammaln(np.sum(avec)) - np.sum(gammaln(avec))
-    return c
-
-"""
-def E_cDir_alphabeta__Numeric(self):
-''' Numeric integration of the expectation
 '''
-g1 = self.rho * self.omega
-g0 = (1 - self.rho) * self.omega
-assert self.K <= 2
-if self.K == 1:
-    us = np.linspace(1e-14, 1 - 1e-14, 1000)
-    logpdf = gammaln(g1 + g0) - gammaln(g1) - gammaln(g0) \
-        + (g1 - 1) * np.log(us) + (g0 - 1) * np.log(1 - us)
-    pdf = np.exp(logpdf)
-    b1 = us
-    bRem = 1 - us
-    Egb1 = np.trapz(gammaln(self.alpha * b1) * pdf, us)
-    EgbRem = np.trapz(gammaln(self.alpha * bRem) * pdf, us)
-    EcD = gammaln(self.alpha) - Egb1 - EgbRem
-return EcD
-
-def E_cDir_alphabeta__MonteCarlo(self, S=1000, seed=123):
-''' Monte Carlo approximation to the expectation
-'''
-PRNG = np.random.RandomState(seed)
-g1 = self.rho * self.omega
-g0 = (1 - self.rho) * self.omega
-cD_abeta = np.zeros(S)
-for s in range(S):
-    u = PRNG.beta(g1, g0)
-    u = np.minimum(np.maximum(u, 1e-14), 1 - 1e-14)
-    beta = np.hstack([u, 1.0])
-    beta[1:] *= np.cumprod(1.0 - u)
-    cD_abeta[s] = gammaln(
-        self.alpha) - gammaln(self.alpha * beta).sum()
-return np.mean(cD_abeta)
-
-def E_cDir_alphabeta__Surrogate(self):
-calpha = gammaln(self.alpha) + (self.K + 1) * np.log(self.alpha)
-
-g1 = self.rho * self.omega
-g0 = (1 - self.rho) * self.omega
-digammaBoth = digamma(g1 + g0)
-ElogU = digamma(g1) - digammaBoth
-Elog1mU = digamma(g0) - digammaBoth
-OFFcoef = OptimizerRhoOmega.kvec(self.K)
-cRest = np.sum(ElogU) + np.inner(OFFcoef, Elog1mU)
-
-return calpha + cRest
-"""
+    
