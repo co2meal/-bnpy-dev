@@ -554,8 +554,6 @@ class DPMixtureModel(AllocModel):
     def calcELBO_NonlinearTerms(self, **kwargs):
         return calcELBO_NonlinearTerms(**kwargs)
 
-    def calcELBOGain_NonlinearTerms(self, **kwargs):
-        return calcELBOGain_NonlinearTerms(**kwargs)
 
     def calcHardMergeEntropyGap(self, SS, kA, kB):
         ''' Calc scalar improvement in entropy for merge of kA, kB

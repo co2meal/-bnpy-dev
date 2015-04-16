@@ -2,7 +2,8 @@ import numpy as np
 import logging
 
 import HMMUtil
-from HDPHMMUtil import ELBOTermDimMap, calcELBO, calcELBO_NonlinearTerms
+from HDPHMMUtil import ELBOTermDimMap, calcELBO
+from HDPHMMUtil import calcELBO_LinearTerms, calcELBO_NonlinearTerms
 
 from bnpy.allocmodel import AllocModel
 from bnpy.suffstats import SuffStatBag
@@ -576,10 +577,23 @@ class HDPHMM(AllocModel):
         '''
         assert hasattr(self, 'rho')
         return calcELBO(SS=SS, LP=LP, 
-            startAlpha=self.startAlpha, alpha=self.alpha, kappa=self.kappa, 
-            gamma=self.gamma, rho=self.rho, omega=self.omega,
+            startAlpha=self.startAlpha, alpha=self.alpha, 
+            kappa=self.kappa, gamma=self.gamma,
+            rho=self.rho, omega=self.omega,
             transTheta=self.transTheta, startTheta=self.startTheta,
             todict=todict, **kwargs)
+
+    def calcELBO_LinearTerms(self, **kwargs):
+        return calcELBO_LinearTerms(
+            startAlpha=self.startAlpha, alpha=self.alpha, 
+            kappa=self.kappa, gamma=self.gamma,
+            rho=self.rho, omega=self.omega,
+            transTheta=self.transTheta, startTheta=self.startTheta,
+            **kwargs)
+
+    def calcELBO_NonlinearTerms(self, **kwargs):
+        return calcELBO_NonlinearTerms(**kwargs)
+
 
     def calcHardMergeGap(self, SS, kA, kB):
         ''' Calculate scalar improvement in ELBO for hard merge of comps kA, kB

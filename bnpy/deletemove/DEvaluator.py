@@ -179,11 +179,11 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
                 obsModel.calcELBO_Memoized(propSS) / totalScale
             propELBOalloc = propModel.\
                 allocModel.calcELBO_LinearTerms(SS=propSS) / totalScale
-            ELBOGain_NonLinear_target = propModel.\
-                allocModel.calcELBOGain_NonlinearTerms(
-                    beforeSS=besttargetSS, 
-                    afterSS=ptargetSS) / totalScale
-            
+            ELBOGain_NonLinear_target = (
+                propModel.allocModel.calcELBO_NonlinearTerms(SS=ptargetSS)
+                - bestModel.allocModel.calcELBO_NonlinearTerms(SS=besttargetSS)
+                ) / totalScale
+
             ELBOGain = propELBOobs - bestELBOobs \
                       + propELBOalloc - bestELBOalloc \
                       + ELBOGain_NonLinear_nontarget \
