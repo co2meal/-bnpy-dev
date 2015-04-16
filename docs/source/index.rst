@@ -13,6 +13,7 @@ Quick Links
 
    Installation
    demos/DemoIndex
+   GettingStarted
    allocmodel/index
    obsmodel/index
 
@@ -86,9 +87,4 @@ Goals of this page:
 * Why bnpy and not some other package?
 * Show off demo gallery (like Bokeh)?
 
-
-Index
-==================
-
-* :ref:`genindex`
 
