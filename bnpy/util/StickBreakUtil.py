@@ -84,18 +84,21 @@ def rho2beta_active(rho):
     return beta
 
 
-def rho2beta(rho):
+def rho2beta(rho, returnSize='K+1'):
     ''' Calculate probability for all components including remainder.
 
     Returns
     --------
-    beta : 1D array, size K+1
+    beta : 1D array, size equal to 'K' or 'K+1', depending on returnSize
         beta[k] := probability of topic k
-        Will have positive entries whose sum is 1.
     '''
     rho = np.asarray(rho, dtype=np.float64)
-    beta = np.append(rho, 1.0)
-    beta[1:] *= np.cumprod(1.0 - rho)
+    if returnSize == 'K':
+        beta = rho.copy()
+        beta[1:] *= np.cumprod(1 - rho[:-1])
+    else:
+        beta = np.append(rho, 1.0)
+        beta[1:] *= np.cumprod(1.0 - rho)
     return beta
 
 
