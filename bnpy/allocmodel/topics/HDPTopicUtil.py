@@ -24,6 +24,8 @@ def calcELBO(**kwargs):
     """
     Llinear = calcELBO_LinearTerms(**kwargs)
     Lnon = calcELBO_NonlinearTerms(**kwargs)
+    print 'linear ', Llinear
+    print 'non     ', Lnon
     return Lnon + Llinear
 
 def calcELBO_LinearTerms(SS=None,
@@ -140,7 +142,7 @@ def L_top(nDoc=None, rho=None, omega=None,
     ONcoef = nDoc + 1.0 - eta1
     OFFcoef = nDoc * OptimizerRhoOmega.kvec(K) + gamma - eta0
 
-    calpha = gammaln(alpha) + (K + 1) * np.log(alpha)
+    calpha = nDoc * (gammaln(alpha) + (K + 1) * np.log(alpha))
     cDiff = K * c_Beta(1, gamma) - c_Beta(eta1, eta0)
 
     return calpha + \
