@@ -572,7 +572,7 @@ class WordsData(DataObj):
     resp = np.vstack(respPerDoc)
     resp /= resp.sum(axis=1)[:,np.newaxis]
     TrueParams = dict(K=K, topics=topics, topic_prior=topic_prior, resp=resp)
-
+    TrueParams['beta'] = topic_prior / topic_prior.sum()
     Data = WordsData(word_id, word_count, doc_range, V, TrueParams=TrueParams)
     return Data
 
