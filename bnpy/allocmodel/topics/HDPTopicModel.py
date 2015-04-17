@@ -558,6 +558,8 @@ class HDPTopicModel(AllocModel):
             self.omega = omega.copy()
         else:
             raise ValueError("Unrecognized set_global_params args")
+        print 'rho ', self.rho[:3]
+        print 'omega ', self.omega[:3]
 
     def setParamsFromCountVec(self, K, N=None):
         """ Set params to reasonable values given counts for each comp.
@@ -585,7 +587,7 @@ class HDPTopicModel(AllocModel):
         self.rho = eta1 / (eta1 + eta0)
         self.omega = eta1 + eta0
 
-    def setParamsFromBeta(self, K, beta=None):
+    def setParamsFromBeta(self, K, beta=None, oldWay=1):
         """ Set params to reasonable values given comp probabilities.
 
         Parameters
@@ -608,15 +610,24 @@ class HDPTopicModel(AllocModel):
         assert np.allclose(np.sum(beta), 1.0)
         self.K = int(K)
 
+        if oldWay:
+            betaRem =  np.minimum(0.05, 1./(K))
+            betaWithRem = np.hstack([beta, betaRem])
+            betaWithRem /= betaWithRem.sum()
+            self.rho = OptimizerRhoOmega.beta2rho(betaWithRem, self.K)
+            self.omega = (10 + self.gamma) * np.ones(self.K)
+            return
+
         if beta.size == K:
             # Append in small remaining/leftover mass
             betaRem = np.minimum(1.0 / (2 * K), 0.05)
             betaWithRem = np.hstack([beta * (1.0 - betaRem), betaRem])
+            assert np.allclose(np.sum(betaWithRem), 1.0)
+            
         else:
             assert beta.size == K + 1
             betaWithRem = beta
-        assert np.allclose(np.sum(betaWithRem), 1.0)
-
+        
         # Convert beta to eta1, eta0
         theta = self.K * betaWithRem
         eta1 = theta[:-1].copy()
