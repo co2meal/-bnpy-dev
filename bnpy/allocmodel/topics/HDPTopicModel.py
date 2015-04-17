@@ -605,15 +605,19 @@ class HDPTopicModel(AllocModel):
         if beta is None:
             beta = 1.0 / K * np.ones(K)
         assert beta.ndim == 1
-        assert beta.size == K
         assert np.allclose(np.sum(beta), 1.0)
         self.K = int(K)
 
-        # Append in small remaining/leftover mass
-        betaRem = np.minimum(1.0 / (2 * K), 0.05)
-        betaWithRem = np.hstack([beta * (1.0 - betaRem), betaRem])
+        if beta.size == K:
+            # Append in small remaining/leftover mass
+            betaRem = np.minimum(1.0 / (2 * K), 0.05)
+            betaWithRem = np.hstack([beta * (1.0 - betaRem), betaRem])
+        else:
+            assert beta.size == K + 1
+            betaWithRem = beta
         assert np.allclose(np.sum(betaWithRem), 1.0)
 
+        # Convert beta to eta1, eta0
         theta = self.K * betaWithRem
         eta1 = theta[:-1].copy()
         eta0 = theta[::-1].cumsum()[::-1][1:]
