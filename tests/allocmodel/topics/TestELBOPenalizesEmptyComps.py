@@ -60,7 +60,9 @@ def printProbVector(xvec, fmt='%.4f'):
 
 def resp2ELBO_HDPTopicModel(Data, resp, 
                             gamma=10, alpha=0.5, initprobs='fromdata',
-                            doPointEstimate=False):
+                            doPointEstimate=False,
+                            **kwargs):
+  Ktrue = 10
   K = resp.shape[1]
   scaleF = Data.word_count.sum()
 
@@ -77,7 +79,12 @@ def resp2ELBO_HDPTopicModel(Data, resp,
     init_probs = np.ones(K)
   init_probs = init_probs / np.sum(init_probs)
   amodel.set_global_params(beta=init_probs, Data=Data)
+  estBeta = amodel.get_active_comp_probs()
 
+  print 'doPointEstimate ', doPointEstimate
+  print 'first 3 active: ', estBeta[:3]
+  print 'last  3 active: ', estBeta[Ktrue-2:Ktrue]
+  print '          junk: ', estBeta[Ktrue:]
   ## Create a local params dict and suff stats
   ## These will remain fixed, used to update amodle
   LP = dict(resp=resp)
@@ -108,11 +115,12 @@ def resp2ELBO_HDPTopicModel(Data, resp,
     amodel.update_global_params(SS)
     ELBO = amodel.calc_evidence(Data, SS, LP) / scaleF
 
+  print amodel.gamma, amodel.alpha, initprobs, Data.nDoc
   return ELBO
 
 
 
-def makeDataAndTrueResp(seed=123, nDocTotal=10):
+def makeDataAndTrueResp(seed=123, nDocTotal=10, **kwargs):
   Data = BarsK10V900.get_data(seed, nDocTotal=nDocTotal, nWordsPerDoc=200)
   trueResp = Data.TrueParams['resp'].copy()
   return Data, trueResp
@@ -125,8 +133,8 @@ def makeNewRespWithEmptyStates(resp, nEmpty=1):
   np.maximum(newResp, 1e-40, out=newResp)
   return newResp
 
-def makeFigure():
-  Data, trueResp = makeDataAndTrueResp()
+def makeFigure(**kwargs):
+  Data, trueResp = makeDataAndTrueResp(**kwargs)
 
   kemptyVals = np.asarray([0, 1, 2, 3.])
   ELBOVals = np.zeros_like(kemptyVals, dtype=np.float)
@@ -135,8 +143,8 @@ def makeFigure():
   ## Iterate over the number of empty states (0, 1, 2, ...)
   for ii, kempty in enumerate(kemptyVals):
     resp = makeNewRespWithEmptyStates(trueResp, kempty)
-    PointEstELBOVals[ii] = resp2ELBO_HDPTopicModel(Data, resp, doPointEstimate=1)
-    ELBOVals[ii] =  resp2ELBO_HDPTopicModel(Data, resp)
+    PointEstELBOVals[ii] = resp2ELBO_HDPTopicModel(Data, resp, doPointEstimate=1, **kwargs)
+    ELBOVals[ii] =  resp2ELBO_HDPTopicModel(Data, resp, **kwargs)
 
   # Make largest value the one with kempty=0, to make plot look good
   PointEstELBOVals -= PointEstELBOVals[0]
@@ -184,9 +192,17 @@ def makeFigure():
   legH = pylab.legend(loc='upper left', prop={'size':LEGENDSIZE})
 
 if __name__ == "__main__":
+  import argparse
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--alpha', type=float, default=0.5)
+  parser.add_argument('--gamma', type=float, default=10)
+  parser.add_argument('--initprobs', type=str, default='fromdata')
+  parser.add_argument('--nDocTotal', type=int, default=10)
+  args = parser.parse_args()
+
   from matplotlib import pylab
   pylab.rcParams['ps.useafm'] = True
-  makeFigure()
+  makeFigure(**args.__dict__)
 
   pylab.show(block=False)
   keypress = raw_input('Press y to save, any other key to close >>')
