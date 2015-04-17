@@ -24,8 +24,6 @@ def calcELBO(**kwargs):
     """
     Llinear = calcELBO_LinearTerms(**kwargs)
     Lnon = calcELBO_NonlinearTerms(**kwargs)
-    print 'linear ', Llinear
-    print 'non     ', Lnon
     return Lnon + Llinear
 
 def calcELBO_LinearTerms(SS=None,
