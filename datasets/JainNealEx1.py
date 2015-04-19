@@ -21,7 +21,7 @@ def get_short_name():
 def get_data_info():
   return 'Toy Binary Data. K=%d true clusters. D=%d.' % (K, D)
 
-def get_data(seed=8675309, nPerState=20, **kwargs):
+def get_data(seed=8675309, nObsTotal=None, nPerState=20, **kwargs):
   '''
     Args
     -------
@@ -33,6 +33,8 @@ def get_data(seed=8675309, nPerState=20, **kwargs):
     -------
       Data : bnpy XData object, with nObsTotal observations
   '''
+  if nObsTotal is not None:
+      nPerState = nObsTotal // K
   X, TrueZ = genToyData(seed=seed, nPerState=nPerState)
   Data = XData(X=X, TrueZ=TrueZ)
   Data.name = get_short_name()

@@ -4,6 +4,9 @@ import OptimizerRhoOmega
 from bnpy.util import NumericUtil
 from bnpy.util import digamma, gammaln
 from bnpy.util.StickBreakUtil import rho2beta
+from bnpy.util.NumericUtil import calcRlogRdotv_allpairs
+from bnpy.util.NumericUtil import calcRlogRdotv_specificpairs
+from bnpy.util.NumericUtil import calcRlogR_allpairs, calcRlogR_specificpairs
 
 ELBOTermDimMap = dict(
     slackTheta='K',
@@ -146,8 +149,6 @@ def L_top(nDoc=None, rho=None, omega=None,
     return calpha + \
         cDiff + \
         np.inner(ONcoef, ElogU) + np.inner(OFFcoef, Elog1mU)
-
-
 
 
 def calcHrespForMergePairs(resp, Data, mPairIDs):

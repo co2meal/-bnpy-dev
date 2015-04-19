@@ -6,6 +6,7 @@ import OptimizerRhoOmega
 
 from HDPTopicUtil import calcELBO
 from HDPTopicUtil import calcELBO_LinearTerms, calcELBO_NonlinearTerms
+from HDPTopicUtil import calcHrespForMergePairs
 
 from bnpy.allocmodel.AllocModel import AllocModel
 from bnpy.allocmodel.mix.DPMixtureModel import convertToN0
@@ -13,9 +14,6 @@ from bnpy.suffstats import SuffStatBag
 from bnpy.util import digamma, gammaln
 from bnpy.util import as1D
 from bnpy.util.StickBreakUtil import rho2beta
-from bnpy.util.NumericUtil import calcRlogRdotv_allpairs
-from bnpy.util.NumericUtil import calcRlogRdotv_specificpairs
-from bnpy.util.NumericUtil import calcRlogR_allpairs, calcRlogR_specificpairs
 
 Log = logging.getLogger('bnpy')
 

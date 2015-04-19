@@ -103,7 +103,7 @@ def _initFromTrueLP(hmodel, Data, initname, PRNG, nRepeatTrue=2,
         LP = expandLPWithDuplicates(LP, PRNG, nRepeatTrue)
     elif initname == 'subdividetruelabels':
         LP = expandLPWithContigBlocks(LP, Data, PRNG)
-    elif initname == 'truelabelsandempties':
+    elif initname.count('empty') or initname.count('empties'):        
         LP = expandLPWithEmpty(LP, initKextra)
     elif initname.count('junk'):
         LP = expandLPWithJunk(LP, initKextra, PRNG=PRNG)
@@ -142,7 +142,7 @@ def convertLPFromHardToSoft(LP, Data, startIDsAt0=False, Kmax=None):
     return LP
 
 
-def expandLPWithEmpty(LP, nCol):
+def expandLPWithEmpty(LP, Kextra):
     ''' Create new LP by adding empty columns at the end
 
     Parameters
@@ -158,7 +158,7 @@ def expandLPWithEmpty(LP, nCol):
         with K + Kextra total components.
     '''
     resp = LP['resp']
-    LP['resp'] = np.hstack([resp, np.zeros((resp.shape[0], nCol))])
+    LP['resp'] = np.hstack([resp, np.zeros((resp.shape[0], Kextra))])
     return LP
 
 
