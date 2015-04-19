@@ -359,10 +359,10 @@ class DPMixtureModel(AllocModel):
         if doPrecompMergeEntropy:
             resp = LP['resp']
             if mPairIDs is None:
-                ElogqZMat = NumericUtil.calcRlogR_allpairs(resp)
+                HrespMat = -NumericUtil.calcRlogR_allpairs(resp)
             else:
-                ElogqZMat = NumericUtil.calcRlogR_specificpairs(resp, mPairIDs)
-            SS.setMergeTerm('ElogqZ', ElogqZMat, dims=('K', 'K'))
+                HrespMat = -NumericUtil.calcRlogR_specificpairs(resp, mPairIDs)
+            SS.setMergeTerm('Hresp', HrespMat, dims=('K', 'K'))
         if trackDocUsage:
             ## Track num items with signif. mass assigned to each state.
             DocUsage = np.sum(LP['resp'] > 0.01, axis=0)
