@@ -140,7 +140,7 @@ def L_top(nDoc=None, rho=None, omega=None,
     ONcoef = nDoc + 1.0 - eta1
     OFFcoef = nDoc * OptimizerRhoOmega.kvec(K) + gamma - eta0
 
-    calpha = nDoc * (gammaln(alpha) + (K + 1) * np.log(alpha))
+    calpha = nDoc * K  * np.log(alpha)
     cDiff = K * c_Beta(1, gamma) - c_Beta(eta1, eta0)
 
     return calpha + \
