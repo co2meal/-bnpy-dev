@@ -8,66 +8,86 @@ from bnpy.util import dotATA, dotATB, dotABT
 
 class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
 
-    def __init__(self, inferType='VB', gt_local=True, gt_global=False, Data=None, **PriorArgs):
+    def __init__(self, inferType='VB', Data=None, C = None, **PriorArgs):
         self.D = Data.dim
-        self.E = Data.TrueParams['Lam'].shape[2]
-        self.K = Data.TrueParams['K']
+        self.C = C
+        self.K = 0
         self.inferType = inferType
         self.createPrior(Data, **PriorArgs)
-        self.gt_local = gt_local
-        self.gt_global = gt_global
 
-    def createPrior(self, Data, Psi = None, Nu = None, MuStar = None, NuStar = None):
+    def createPrior(self, Data, Psi = None, f = None, g = None):
         K = self.K
         D = self.D
-        E = self.E
-        Psi = Data.TrueParams['Psi']
-        a = .001
-        b = .001
-        eta = 1.0
-        self.Prior = ParamBag(K=K, D=D, E=E)
+        C = self.C
+        if Psi is None:
+            Psi = Data.TrueParams['Psi']
+        self.Prior = ParamBag(K=K, D=D, C=C)
         self.Prior.setField('Psi', Psi, dims=('D','D'))
-        self.Prior.setField('a', a)
-        self.Prior.setField('b', b)
-        self.Prior.setField('eta', eta)
+        self.Prior.setField('f', f)
+        self.Prior.setField('g', g)
+
+    ######################################################### I/O Utils
+    #########################################################   for humans
+    def get_name(self):
+        return 'ZeroMeanFactorAnalyzer'
+
+    def get_info_string(self):
+        return 'Zero-mean factor analyzer.'
+
+    def get_info_string_prior(self):
+        msg = 'Gamma shape and invScale param on precision of factor loading matrices: f, g\n'
+        if self.D > 2:
+            sfx = ' ...'
+        else:
+            sfx = ''
+        msg += 'f  = %s%s\n' % (str(self.Prior.f), sfx)
+        msg += 'g  = %s%s' % (str(self.Prior.g), sfx)
+        msg = msg.replace('\n', '\n  ')
+        return msg
 
     ########################################################### Suff Stats
     ###########################################################
-    def calcSummaryStats(self, Data, LP):
+    def calcSummaryStats(self, Data, SS, LP):
+        X = Data.X
         resp = LP['resp']
+        aMean = LP['aMean']
+        aCov = LP['aCov']
+
         K = resp.shape[1]
         D = self.D
-        E = self.E
+        C = self.C
         N = Data.nObs
 
-        X = Data.X
-        Y = LP['Y']['Mean']
-
-        SS = SuffStatBag(K=K, D=Data.dim, E=E)
+        if SS is None:
+            SS = SuffStatBag(K=K, D=D, C=C)
 
         # Expected count for each k
         #  Usually computed by allocmodel. But just in case...
         if not hasattr(SS, 'N'):
             SS.setField('N', np.sum(resp, axis=0), dims='K')
+        elif not hasattr(SS.kwargs,'C'):
+            SS.kwargs['C'] = C
+            setattr(SS._Fields, 'C', C)
+
 
         # Expected low-dim mean for each k
-        EY = np.zeros((K,E))
+        Ea = np.zeros((K,C))
         for k in xrange(K):
-            EY[k] = dotATB(resp[:,k][:,np.newaxis], Y[:,k])
-        SS.setField('y', EY, dims=('K','E'))
+            Ea[k] = dotATB(resp[:,k][:,np.newaxis], aMean[:,k])
+        SS.setField('a', Ea, dims=('K','C'))
 
         # Expected low-dim outer-product for each k
-        EYyT = np.zeros((K, E, E))
+        EaaT = np.zeros((K, C, C))
         for n in xrange(N):
             for k in xrange(K):
-                EYyT[k] += resp[n][k] * ( dotATA(Y[n][k][np.newaxis,:]) + LP['Y']['Cov'][k] )
-        SS.setField('yyT', EYyT, dims=('K','E','E'))
+                EaaT[k] += resp[n][k] * (dotATA(aMean[n][k][np.newaxis,:]) + aCov[k])
+        SS.setField('aaT', EaaT, dims=('K','C','C'))
 
         # Expected high-low product for each k
-        xyT = np.zeros((K, D, E))
+        xaT = np.zeros((K, D, C))
         for k in xrange(K):
-            xyT[k] = dotATB(resp[:,k][:,np.newaxis] * X, Y[:,k])
-        SS.setField('xyT', xyT, dims=('K','D','E'))
+            xaT[k] = dotATB(resp[:,k][:,np.newaxis] * X, aMean[:,k])
+        SS.setField('xaT', xaT, dims=('K','D','C'))
 
         # Expected high-dim mean for each k
         SS.setField('x', dotATB(resp, X), dims=('K','D'))
@@ -76,130 +96,129 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
 
   ########################################################### Local step
   ###########################################################
-    def calcLocalParams(self, Data):
-        N = Data.nObs
-        K = self.K
-        D = self.D
-        E = self.E
-        def calcResp(Data, LP):
-            resp = np.zeros((N, K))
-            if self.gt_local:
-                for n in xrange(N):
-                    resp[n][Data.TrueParams['Z'][n]] = 1.0
-            else:
-                for n in xrange(N):
-                    for k in xrange(K):
-                        resp[n,k] = .5 * np.dot( LP['Y']['Mean'][n,k],
-                                                 solve(LP['Y']['Cov'][k], LP['Y']['Mean'][n,k]) ) \
-                                    + .5 * det(LP['Y']['Cov'][k]) #\
-                                    #+ psi(self.Prior.eta / K) - psi(self.Prior.eta)
-                    resp[n] -= max(resp[n])
-                    resp[n] = np.exp(resp[n]) / sum(np.exp(resp[n]))
-            return resp
-        def calcPostY(Data):
-            if self.gt_local:
-                return dict(Mean = np.tile(Data.TrueParams['Y'][:, np.newaxis,:], [1,K,1]),
-                            Cov = np.zeros((K, E, E)))
-            else:
-
-                if not hasattr(self,'Post'):
-                    PRNG = np.random.RandomState(0)
-                    self.Post = ParamBag(K=K, D=D, E=E)
-                    self.Post.setField('lamMean',
-                                       Data.TrueParams['Lam']+10*PRNG.randn(K,D,E), dims=('K','D','E'))
-                    self.Post.setField('lamCov',
-                                       np.zeros((K, D, E, E))+10*PRNG.randn(K,D,E,E), dims=('K','D','E','E'))
-
-                result = dict()
-                result['Cov'] = np.zeros((K, E, E))
-                for k in xrange(K):
-                    result['Cov'][k] = np.eye(E)
-                    for d in xrange(D):
-                        result['Cov'][k] += 1.0/self.Prior.Psi[d][d] * \
-                                            (dotATA(self.Post.lamMean[k][d][np.newaxis,:]) +
-                                             self.Post.lamCov[k][d])
-                    result['Cov'][k] = inv(result['Cov'][k])
-                result['Mean'] = np.zeros((N, K, E))
-                for n in xrange(N):
-                    for k in xrange(K):
-                        result['Mean'][n][k] = np.dot(
-                                                dotABT(result['Cov'][k], self.Post.lamMean[k]),
-                                                solve(self.Prior.Psi, Data.X[n]))
-                return result
-        LP = dict()
-        LP['Y'] = calcPostY(Data)
-        LP['resp'] = calcResp(Data, LP)
+    def calc_local_params(self, Data, LP=None, **kwargs):
+        if LP is None:
+            LP = dict()
+        if self.inferType == 'EM':
+            raise NotImplementedError()
+        else:
+            LP['aMean'], LP['aCov'] = self.calcA_FromPost(Data)
+            LP['E_log_soft_ev'] = self.calcLogSoftEvMatrix_FromPost(Data, LP)
         return LP
 
+    def calcA_FromPost(self, Data):
+        N = Data.nObs
+        K = self.Post.K
+        D = self.D
+        C = self.C
+        aCov = np.zeros((K, C, C))
+        for k in xrange(K):
+            aCov[k] = np.eye(C)
+            for d in xrange(D):
+                aCov[k] += 1.0/self.Prior.Psi[d][d] * \
+                           (dotATA(self.Post.WMean[k][d][np.newaxis,:]) +
+                           self.Post.WCov[k][d])
+            aCov[k] = inv(aCov[k])
+        aMean = np.zeros((N, K, C))
+        for n in xrange(N):
+            for k in xrange(K):
+                aMean[n][k] = np.dot(
+                              dotABT(aCov[k], self.Post.WMean[k]),
+                              solve(self.Prior.Psi, Data.X[n]))
+        return aMean, aCov
+
+    def calcLogSoftEvMatrix_FromPost(self, Data, LP):
+        N = Data.nObs
+        K = self.Post.K
+        L = np.zeros((N, K))
+        for n in xrange(N):
+            for k in xrange(K):
+                L[n,k] = .5 * np.dot( LP['aMean'][n,k],
+                                      solve(LP['aCov'][k], LP['aMean'][n,k]) ) \
+                         + .5 * det(LP['aCov'][k])
+        return L
 
   ########################################################### Global step
   ###########################################################
-
-    def calcPostLam(self, SS):
-        K = self.K
-        D = self.D
-        E = self.E
-        SigmaInvLamLam = np.zeros((K, D, E, E))
-        for k in xrange(K):
-            for d in xrange(D):
-                if hasattr(self, 'Post') and hasattr(self.Post, 'nuShape'):
-                    NukMean = self.Post.nuShape / self.Post.nuInvScale[k]
-                else:
-                    NukMean = self.Prior.a / self.Prior.b * np.ones(E)
-                SigmaInvLamLam[k, d] = np.diag(NukMean) + \
-                                       1.0/(self.Prior.Psi[d][d]) * SS.yyT[k]
-        lamCov = np.zeros((K, D, E, E))
-        for k in xrange(K):
-            for d in xrange(D):
-                lamCov[k, d] = inv(SigmaInvLamLam[k,d])
-        LamBar = np.zeros((K, D, E))
-        for k in xrange(K):
-            for d in xrange(D):
-                LamBar[k, d] = np.dot(lamCov[k,d],
-                                      1.0/self.Prior.Psi[d][d] *
-                                      SS.xyT[k][d])
-        lamMean = LamBar
+    def updatePost(self, SS):
         if not hasattr(self, 'Post') or self.Post.K != SS.K:
-            self.Post = ParamBag(K=K, D=D, E=E)
-        self.Post.setField('lamMean',lamMean,dims=('K','D','E'))
-        self.Post.setField('lamCov',lamCov,dims=('K','D','E','E'))
+            self.Post = ParamBag(K=SS.K, D=SS.D, C=SS.C)
+        WMean, WCov, hShape, hInvScale = self.calcPostParams(SS)
+        self.Post.setField('WMean', WMean, dims=('K','D','C'))
+        self.Post.setField('WCov', WCov, dims=('K','D','C','C'))
+        self.Post.setField('hShape', hShape)
+        self.Post.setField('hInvScale', hInvScale, dims=('K','C'))
+        self.K = SS.K
 
-    def calcPostNu(self):
-        nuShape = self.Prior.a + self.D/2.0
-        nuInvScale = np.zeros((self.K, self.E))
-        for k in xrange(self.K):
-            for e in xrange(self.E):
-                nuInvScale[k,e] = self.Prior.b
-                for d in xrange(self.D):
-                    nuInvScale[k,e] += .5 * (self.Post.lamMean[k,d,e]**2
-                                             + self.Post.lamCov[k,d,e,e])
-        self.Post.setField('nuShape',nuShape)
-        self.Post.setField('nuInvScale', nuInvScale,dims=('K','E'))
-
-    def calcGlobalParams(self, SS):
-        K = self.K
-        D = self.D
-        E = self.E
-        if self.gt_global and not hasattr(self, 'Post'):
-            self.Post = ParamBag(K=K, D=D, E=E)
-            self.Post.setField('lamMean', Data.TrueParams['Lam'], dims=('K','D','E'))
-            self.Post.setField('lamCov', np.zeros((K, D, E, E)), dims=('K','D','E','E'))
-            self.Post.setField('nuShape', np.inf)
-            self.Post.setField('nuInvScale', np.inf)
+    def calcPostParams(self,SS):
+        if hasattr(self.Post,'hshape') and hasattr(self.Post,'hInvScale'):
+            hShape = self.Post.hshape
+            hInvScale = self.Post.hInvScale
         else:
-            for i in xrange(5):
-                self.calcPostLam(SS)
-                self.calcPostNu()
+            hShape = self.Prior.f
+            hInvScale = self.Prior.g * np.ones((SS.K, self.C))
+        for i in xrange(5):
+            WMean, WCov = self.calcPostW(SS, hShape, hInvScale)
+            hShape, hInvScale = self.calcPostH(WMean, WCov)
+        return WMean, WCov, hShape, hInvScale
+
+    def calcPostW(self, SS, hShape, hInvScale):
+        K = SS.K
+        D = self.D
+        C = self.C
+        SigmaInvWW = np.zeros((K, D, C, C))
+        for k in xrange(K):
+            for d in xrange(D):
+                hkMean = hShape / hInvScale[k]
+                SigmaInvWW[k, d] = np.diag(hkMean) + \
+                                       1.0/(self.Prior.Psi[d][d]) * SS.aaT[k]
+        WCov = np.zeros((K, D, C, C))
+        for k in xrange(K):
+            for d in xrange(D):
+                WCov[k, d] = inv(SigmaInvWW[k,d])
+        WBar = np.zeros((K, D, C))
+        for k in xrange(K):
+            for d in xrange(D):
+                WBar[k, d] = np.dot(WCov[k,d],
+                                      1.0/self.Prior.Psi[d][d] *
+                                      SS.xaT[k][d])
+        WMean = WBar
+        return WMean, WCov
+
+    def calcPostH(self, WMean, WCov):
+        K = WMean.shape[0]
+        hShape = self.Prior.f + self.D/2.0
+        hInvScale = np.zeros((K, self.C))
+        for k in xrange(K):
+            for c in xrange(self.C):
+                hInvScale[k,c] = self.Prior.g
+                for d in xrange(self.D):
+                    hInvScale[k,c] += .5 * (WMean[k,d,c]**2 + WCov[k,d,c,c])
+        return hShape, hInvScale
+
+    ########################################################### VB ELBO step
+    ###########################################################
+    def calcELBO_Memoized(self, SS, afterMStep=False):
+        ''' Calculate obsModel's ELBO using sufficient statistics SS and Post.
+
+            Args
+            -------
+            SS : bnpy SuffStatBag, contains fields for N, a, aaT, xaT
+            afterMStep : boolean flag
+                    if 1, elbo calculated assuming M-step just completed
+
+            Returns
+            -------
+            obsELBO : scalar float, = E[ log p(h) + log p(W) + log p(a) + log p(x) - log q(h) - log q(W) - log q(a)]
+        '''
+        elbo = np.zeros(SS.K)
+        Post = self.Post
+        Prior = self.Prior
+
 
 
 if __name__ == '__main__':
-
-    import D3E2K2_ZM
-    Data = D3E2K2_ZM.get_data()
-
-    obsmod = ZeroMeanFactorAnalyzerObsModel(Data=Data, gt_local=False, gt_global=False)
-
-    for i in xrange(10):
-        LP = obsmod.calcLocalParams(Data)
-        SS = obsmod.calcSummaryStats(Data, LP)
-        obsmod.calcGlobalParams(SS)
+    import bnpy
+    hmodel, RInfo = bnpy.run('D3C2K2_ZM', 'FiniteMixtureModel',
+                             'ZeroMeanFactorAnalyzer', 'VB', nLap=50, K=2)
+    # hmodel, RInfo = bnpy.run('AsteriskK8', 'FiniteMixtureModel', 'Gauss', 'VB', nLap=50, K=8)

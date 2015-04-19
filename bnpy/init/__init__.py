@@ -8,3 +8,4 @@ import FromLP
 import FromScratchGauss
 import FromScratchMult
 import FromScratchBern
+import FromScratchFactorAnalyzer

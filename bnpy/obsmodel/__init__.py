@@ -7,6 +7,7 @@ from ZeroMeanGaussObsModel import ZeroMeanGaussObsModel
 from AutoRegGaussObsModel import AutoRegGaussObsModel
 from MultObsModel import MultObsModel
 from BernObsModel import BernObsModel
+from ZeroMeanFactorAnalyzerObsModel import ZeroMeanFactorAnalyzerObsModel
 
 ObsModelConstructorsByName = { \
            'DiagGauss':DiagGaussObsModel,
@@ -14,7 +15,8 @@ ObsModelConstructorsByName = { \
            'ZeroMeanGauss':ZeroMeanGaussObsModel,
            'AutoRegGauss':AutoRegGaussObsModel,
            'Mult':MultObsModel,           
-           'Bern':BernObsModel,           
+           'Bern':BernObsModel,
+           'ZeroMeanFactorAnalyzer':ZeroMeanFactorAnalyzerObsModel,
           }
 
 ObsModelNameSet = set(ObsModelConstructorsByName.keys())

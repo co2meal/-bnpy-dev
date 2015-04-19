@@ -177,6 +177,9 @@ class HModel(object):
       elif str(type(self.obsModel)).count('Bern') > 0:
         init.FromScratchBern.init_global_params(self.obsModel,
                                                 Data, **initArgs)
+      elif str(type(self.obsModel)).count('FactorAnalyzer') > 0:
+        init.FromScratchFactorAnalyzer.init_global_params(self.obsModel,
+                                                          Data, **initArgs)
       else:
         raise NotImplementedError('Unrecognized initname procedure.')
 

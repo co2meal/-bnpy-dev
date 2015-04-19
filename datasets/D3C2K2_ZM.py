@@ -1,5 +1,5 @@
 '''
-D3E2K6.py
+D3C2K6.py
 Simple 3D zero-mean toy dataset of 2 Gaussian components
 '''
 import numpy as np
@@ -14,13 +14,13 @@ import matplotlib.pyplot as plt
 
 # ########################################################## User-facing
 def get_data(seed=8675309, nObsTotal=2500, **kwargs):
-    X, TrueZ, Y, Lam = get_X(seed, nObsTotal)
+    X, TrueZ, a, W = get_X(seed, nObsTotal)
     TrueParams = dict()
-    TrueParams['Lam'] = Lam
-    TrueParams['Y'] = Y
+    TrueParams['W'] = W
+    TrueParams['a'] = a
     TrueParams['K'] = K
     TrueParams['Mu'] = Mu
-    TrueParams['Nu'] = Nu
+    TrueParams['h'] = h
     TrueParams['Pi'] = Pi
     TrueParams['Psi'] = Psi
     Data = XData(X=X, TrueZ=TrueZ, TrueParams=TrueParams)
@@ -29,7 +29,7 @@ def get_data(seed=8675309, nObsTotal=2500, **kwargs):
     return Data
 
 def get_short_name():
-    return 'D3E2K2'
+    return 'D3C2K2'
 
 def get_data_info():
     return 'FA Toy Data. %d true clusters.' % (K)
@@ -40,48 +40,48 @@ def get_data_info():
 
 K = 2
 D = 3
-E = 2
+C = 2
 
 Pi = np.asarray([1., 2.])
 Pi = Pi / Pi.sum()
 
 Mu = np.zeros((K, D))
 
-Nu = np.zeros((K, E))
-Nu[0] = np.asarray([1.0, 2.0])
-Nu[1] = np.asarray([3.0, 1.0])
-#Nu[1] = np.asarray([np.inf, 1.0])
-Nu *= 1e-3
+h = np.zeros((K, C))
+h[0] = np.asarray([1.0, 2.0])
+h[1] = np.asarray([3.0, 1.0])
+#h[1] = np.asarray([np.inf, 1.0])
+h *= 1e-3
 
 Psi = np.diag([1, 2, 1])
 
 def sample_data_from_comp(k, Nk, Lamk, PRNG):
-    Y_k = PRNG.randn(E, Nk)
-    X_k = Mu[k] + np.dot(Lamk, Y_k).T
-    return X_k, Y_k.T
+    a_k = PRNG.randn(C, Nk)
+    X_k = Mu[k] + np.dot(Lamk, a_k).T
+    return X_k, a_k.T
 
 def get_X(seed, nObsTotal):
     PRNG = np.random.RandomState(seed)
     trueList = list()
     Npercomp = PRNG.multinomial(nObsTotal, Pi)
     X = list()
-    Y = list()
-    Lam = np.zeros((K, D, E))
+    a = list()
+    W = np.zeros((K, D, C))
     for k in range(K):
         for d in range(D):
-            Lam[k][d] = PRNG.multivariate_normal(np.zeros(E),inv(np.diag(Nu[k])))
-        X_k, Y_k = sample_data_from_comp(k, Npercomp[k], Lam[k], PRNG)
+            W[k][d] = PRNG.multivariate_normal(np.zeros(C),inv(np.diag(h[k])))
+        X_k, a_k = sample_data_from_comp(k, Npercomp[k], W[k], PRNG)
         X.append(X_k)
-        Y.append(Y_k)
+        a.append(a_k)
         trueList.append(k*np.ones(Npercomp[k]))
     X = np.vstack(X)
-    Y = np.vstack(Y)
+    a = np.vstack(a)
     TrueZ = np.hstack(trueList)
     permIDs = PRNG.permutation(X.shape[0])
     X = X[permIDs]
-    Y = Y[permIDs]
+    a = a[permIDs]
     TrueZ = TrueZ[permIDs]
-    return X, TrueZ, Y, Lam
+    return X, TrueZ, a, W
 
 def plot_data_by_k(Data):
     from bnpy.viz import GaussViz
