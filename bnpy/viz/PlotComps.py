@@ -35,8 +35,7 @@ def plotCompsFromHModel(hmodel, **kwargs):
     elif obsName.count('Bern'):
         bnpy.viz.BernViz.plotCompsFromHModel(hmodel, **kwargs)
     elif obsName.count('Mult'):
-        if dataName.lower().count('bars') > 0:
-            bnpy.viz.BarsViz.plotBarsFromHModel(hmodel, **kwargs)
+        bnpy.viz.BarsViz.plotBarsFromHModel(hmodel, **kwargs)
 
 def plotCompsForTask(taskpath, lap=None,
                      dataName=None, **kwargs):
