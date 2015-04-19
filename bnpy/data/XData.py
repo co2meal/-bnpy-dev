@@ -100,7 +100,7 @@ class XData(DataObj):
             if not hasattr(self, 'TrueParams'):
                 self.TrueParams = dict()
             self.TrueParams['Z'] = as1D(toCArray(TrueZ))
-
+            self.TrueParams['K'] = np.unique(self.TrueParams['Z']).size
         if summary is not None:
             self.summary = summary
 
