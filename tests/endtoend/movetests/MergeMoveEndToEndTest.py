@@ -18,11 +18,11 @@ def arg2name(aArg):
 def pprintResult(model, Info, Ktrue=0):
     """ Pretty print the result of a learning algorithm.
     """
-    print " %25s after %4.1f sec  ELBO=% 7.3f  nLap=%5d  Kfinal=%d  Ktrue=%d"\
+    print " %25s after %4.1f sec and %4d laps.  ELBO=% 7.5f  K=%d  Ktrue=%d"\
      % (Info['status'][:25],
         Info['elapsedTimeInSec'],
-        Info['evBound'],
         Info['lapTrace'][-1],
+        Info['evBound'],
         model.allocModel.K,
         Ktrue,
         )
@@ -47,7 +47,8 @@ def pprintCommandToReproduceError(dataArg, aArg, oArg, algName, **kwargs):
         if key == 'name':
             continue
         kwargs[key] = val
-    kwargs['doWriteStdOut'] = True
+    del kwargs['doWriteStdOut']
+    del kwargs['doSaveToDisk']
     kwargs['printEvery'] = 1
     kwstr = ' '.join(['--%s %s' % (key, kwargs[key]) for key in kwargs])
     print "python -m bnpy.Run %s %s %s %s %s" % (
@@ -58,7 +59,7 @@ def pprintCommandToReproduceError(dataArg, aArg, oArg, algName, **kwargs):
         kwstr,
         )
 
-def is_monotonic(ELBOvec, atol=1e-6, verbose=True):
+def is_monotonic(ELBOvec, atol=1e-5, verbose=True):
     ''' Returns True if provided vector monotonically increases, False o.w. 
 
     Returns
@@ -76,7 +77,6 @@ def is_monotonic(ELBOvec, atol=1e-6, verbose=True):
         print "NOT MONOTONIC!"
         print '  %d violations found in vector of size %d.' % (
             np.sum(1 - maskOK), ELBOvec.size)
-        from IPython import embed; embed()
     return isMonotonic
 
 class MergeMoveEndToEndTest(unittest.TestCase):
@@ -94,7 +94,9 @@ class MergeMoveEndToEndTest(unittest.TestCase):
     def shortDescription(self):
         return None
 
-    def makeAllKwArgs(self, aArg, obsArg, initArg=dict(), **kwargs):
+    def makeAllKwArgs(self, aArg, obsArg, initArg=dict(), 
+        **kwargs):
+
         allKwargs = dict(
             doSaveToDisk=False,
             doWriteStdOut=False,
@@ -105,6 +107,7 @@ class MergeMoveEndToEndTest(unittest.TestCase):
             doFullPassBeforeMstep=1,
             nLap=300,
             nBatch=2,
+            mergeStartLap=2,
         )
         allKwargs.update(kwargs)
         allKwargs.update(aArg)
@@ -117,7 +120,8 @@ class MergeMoveEndToEndTest(unittest.TestCase):
             allKwargs['mergePairSelection'] = 'wholeELBObetter'
         return allKwargs
 
-    def run_MOVBWithMerges_truelabels(self, aArg, oArg,
+    def run_MOVBWithMoves(self, aArg, oArg,
+            moves='merge',
             **kwargs):
         """ Execute single run with merge moves enabled.
 
@@ -132,7 +136,8 @@ class MergeMoveEndToEndTest(unittest.TestCase):
 
         initArg = dict(**kwargs)
         kwargs = self.makeAllKwArgs(aArg, oArg, initArg, 
-            mergeStartLap=2, moves='merge')
+            moves=moves,
+            **kwargs)
         model, Info = bnpy.run(self.Data, 
             arg2name(aArg), arg2name(oArg), algName, **kwargs)
         pprintResult(model, Info, Ktrue=Ktrue)
@@ -143,32 +148,57 @@ class MergeMoveEndToEndTest(unittest.TestCase):
 
         try:
             assert isMonotonic
-            assert model.allocModel.K == Ktrue
             assert model.allocModel.K == model.obsModel.K
+            assert model.allocModel.K == Ktrue
         except AssertionError as e:
-            pprintCommandToReproduceError(self.datasetArg, aArg, oArg, algName, **kwargs)
-            raise(e)
+            pprintCommandToReproduceError(
+                self.datasetArg, aArg, oArg, algName, **kwargs)
+            assert isMonotonic
+            assert model.allocModel.K == model.obsModel.K
+            if not model.allocModel.K == Ktrue:
+                print '>>>>>> WHOA! Kfinal != Ktrue <<<<<<'
+        return Info
 
+    def test_MOVBWithMerges(self, 
+            initnames=['truelabels', 
+                       'repeattruelabels', 
+                       'truelabelsandempty']):
+        print ''
+        for aKwArgs in self.nextAllocKwArgsForVB():
+            for oKwArgs in self.nextObsKwArgsForVB():
+                Info = dict()
+                for iname in initnames:
+                    Info[iname] = self.run_MOVBWithMoves(
+                        aKwArgs, oKwArgs, 
+                        moves='merge',
+                        initKextra=1,
+                        initname=iname)
+                    print Info[iname]['evBound'], '<<<', iname
 
     def test_MOVBWithMerges_truelabelsandempty(self):
         print ''
         for aKwArgs in self.nextAllocKwArgsForVB():
             for oKwArgs in self.nextObsKwArgsForVB():
-                self.run_MOVBWithMerges_truelabels(
+                self.run_MOVBWithMoves(
                     aKwArgs, oKwArgs, 
-                    initname='truelabelsandempty',
+                    initname='truelabelsandempty',                    
+                    moves='merge',
                     initKextra=2)
 
     def test_MOVBWithMerges_truelabels(self):
         print ''
         for aKwArgs in self.nextAllocKwArgsForVB():
             for oKwArgs in self.nextObsKwArgsForVB():
-                self.run_MOVBWithMerges_truelabels(
-                    aKwArgs, oKwArgs, initname='truelabels')
+                self.run_MOVBWithMoves(
+                    aKwArgs, oKwArgs, 
+                    moves='merge',
+                    initname='truelabels')
 
     def test_MOVBWithMerges_repeattruelabels(self):
         print ''
         for aKwArgs in self.nextAllocKwArgsForVB():
             for oKwArgs in self.nextObsKwArgsForVB():
-                self.run_MOVBWithMerges_truelabels(
-                    aKwArgs, oKwArgs, initname='repeattruelabels')
+                self.run_MOVBWithMoves(
+                    aKwArgs, oKwArgs, 
+                    moves='merge',
+                    initname='repeattruelabels')
