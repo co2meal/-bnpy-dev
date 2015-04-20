@@ -10,7 +10,7 @@ from bnpy.suffstats import SuffStatBag
 from bnpy.util import digamma, gammaln, EPS
 from bnpy.util import StickBreakUtil
 from bnpy.allocmodel.topics import OptimizerRhoOmega
-from bnpy.allocmodel.topics.HDPTopicUtil import c_Beta, c_Dir
+from bnpy.allocmodel.topics.HDPTopicUtil import c_Beta, c_Dir, L_top
 
 Log = logging.getLogger('bnpy')
 
@@ -638,12 +638,18 @@ class HDPHMM(AllocModel):
         m_transTheta[:, :m_K] += m_SS.TransStateCount
 
         # Evaluate objective func. for both candidate and current model
-        Ltop = L_top(self.rho, self.omega, self.alpha, self.gamma, self.kappa)
-        m_Ltop = L_top(m_rho, m_omega, self.alpha, self.gamma, self.kappa)
+        Lcur = calcELBO_LinearTerms(SS=SS,
+            rho=self.rho, omega=self.omega, 
+            startTheta=self.startTheta, transTheta=self.transTheta,
+            alpha=self.alpha, startAlpha=self.startAlpha, 
+            gamma=self.gamma, kappa=self.kappa)
 
-        Lalloc = L_alloc_no_slack(self.startTheta, self.transTheta)
-        m_Lalloc = L_alloc_no_slack(m_startTheta, m_transTheta)
-        return (m_Ltop + m_Lalloc) - (Ltop + Lalloc)
+        Lprop = calcELBO_LinearTerms(SS=m_SS,
+            rho=m_rho, omega=m_omega,
+            startTheta=m_startTheta, transTheta=m_transTheta,
+            alpha=self.alpha, startAlpha=self.startAlpha, 
+            gamma=self.gamma, kappa=self.kappa)
+        return Lprop - Lcur
 
     def calcHardMergeGap_AllPairs(self, SS):
         ''' Calc matrix of improvement in ELBO for all possible pairs of comps

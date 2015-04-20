@@ -119,7 +119,7 @@ class GroupXData(XData):
             if not hasattr(self, 'TrueParams'):
                 self.TrueParams = dict()
             self.TrueParams['Z'] = as1D(toCArray(TrueZ))
-
+            self.TrueParams['K'] = np.unique(self.TrueParams['Z']).size
         # Add optional source files for each group/sequence
         if fileNames is not None:
             if len(fileNames) > 1:

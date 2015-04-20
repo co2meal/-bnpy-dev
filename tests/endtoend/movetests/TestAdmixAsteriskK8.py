@@ -13,23 +13,25 @@ class Test(MergeMoveEndToEndTest):
         """ Create the dataset
         """
         self.datasetArg = dict(
-            name='BarsK10V900', 
-            nDocTotal=800, 
-            nWordsPerDoc=100
+            name='AdmixAsteriskK8', 
+            nDocTotal=200, 
+            nObsPerDoc=100,
             )
         datasetMod = __import__(self.datasetArg['name'], fromlist=[])
         self.Data = datasetMod.get_data(**self.datasetArg)
 
     def nextObsKwArgsForVB(self):
-        for lam in [0.1, 0.01]:
-            kwargs = OrderedDict()
-            kwargs['name'] = 'Mult'
-            kwargs['lam'] = lam
-            yield kwargs
+        for sF in [0.5]:
+            for ECovMat in ['covdata']:
+                kwargs = OrderedDict()
+                kwargs['name'] = 'Gauss'
+                kwargs['ECovMat'] = ECovMat
+                kwargs['sF'] = sF
+                yield kwargs
 
     def nextAllocKwArgsForVB(self):
         alpha = 0.5
-        for gamma in [1.0, 50.0]:
+        for gamma in [5.0]:
             kwargs = OrderedDict()
             kwargs['name'] = 'HDPTopicModel'
             kwargs['gamma'] = gamma

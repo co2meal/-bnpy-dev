@@ -10,7 +10,10 @@ from bnpy.viz import GaussViz
 
 ########################################################### User-facing 
 ###########################################################
-def get_data(seed=123, seqLens=1000*np.ones(32), **kwargs):
+def get_data(seed=123, seqLens=1000*np.ones(32), 
+        nDocTotal=None,
+        nPerDoc=None,
+        **kwargs):
   ''' Generate several data sequences, returned as a bnpy data-object
 
     Args
@@ -23,6 +26,8 @@ def get_data(seed=123, seqLens=1000*np.ones(32), **kwargs):
     -------
     Data : bnpy GroupXData object, with nObsTotal observations
   '''
+  if nDocTotal is not None:
+      seqLens = int(nPerDoc) * np.ones(int(nDocTotal))
   fullX, fullZ, doc_range = get_X(seed, seqLens)
   X = np.vstack(fullX)
   Z = np.asarray(fullZ)
