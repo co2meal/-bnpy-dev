@@ -630,7 +630,7 @@ class HDPHMM(AllocModel):
         m_omega = np.delete(self.omega, kB)
 
         # Create candidate startTheta
-        m_startTheta = self.alpha * m_beta.copy()
+        m_startTheta = self.startAlpha * m_beta.copy()
         m_startTheta[:m_K] += m_SS.StartStateCount
 
         # Create candidate transTheta

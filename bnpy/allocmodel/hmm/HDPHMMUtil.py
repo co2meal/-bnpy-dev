@@ -59,10 +59,10 @@ def calcELBO_LinearTerms(SS=None,
     LstartSlack = np.inner(StartStateCount + startAlpha * Ebeta - startTheta,
                           digamma(startTheta) - digamma(startTheta.sum())
                           )
-    digammaSum = np.sum(transTheta, axis=1)
     alphaEbetaPlusKappa = alpha * np.tile(Ebeta, (K,1))
     alphaEbetaPlusKappa[:, :K] += kappa * np.eye(K)
 
+    digammaSum = np.sum(transTheta, axis=1)
     LtransSlack = np.sum((TransStateCount + alphaEbetaPlusKappa - transTheta) *
                          (digamma(transTheta) - digammaSum[:, np.newaxis])
                          )
@@ -105,7 +105,7 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None,
 
 
 def L_top(rho=None, omega=None, alpha=None, 
-          gamma=None, kappa=0, startAlpha=0):
+          gamma=None, kappa=0, startAlpha=0, **kwargs):
     ''' Evaluate the top-level term of the surrogate objective
     '''
     if startAlpha == 0:
