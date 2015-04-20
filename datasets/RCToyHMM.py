@@ -75,11 +75,13 @@ mus = np.asarray([
 # set to 20 times the 2x2 identity matrix
 sigmas = np.tile(20*np.eye(2), (K,1,1))
 
-def get_X(seed, seqLens=1000*np.ones(32)):
+def get_X(seed, seqLens=1000*np.ones(32), nDocTotal=None, nPerDoc=None):
     '''
     Generates X, Z, seqInds according to the gaussian parameters specified above
       and the sequence lengths passed in.
     '''
+    if nDocTotal is not None:
+        seqLens = int(nPerDoc) * np.ones(int(nDocTotal))
     seqLens = np.asarray(seqLens, dtype=np.int32)
     prng = np.random.RandomState(seed)
 
