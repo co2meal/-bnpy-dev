@@ -59,13 +59,17 @@ def pprintCommandToReproduceError(dataArg, aArg, oArg, algName, **kwargs):
         kwstr,
         )
 
-def is_monotonic(ELBOvec, atol=1e-5, verbose=True):
+def is_monotonic(ELBOvec, aArg=None, atol=1e-5, verbose=True):
     ''' Returns True if provided vector monotonically increases, False o.w. 
 
     Returns
     -------
     result : boolean (True or False)
     '''
+    if aArg is not None:
+        if 'name' in aArg:
+            if aArg['name'] == 'HDPTopicModel':
+                atol = 1e-4 # ELBO can fluctuate due to no caching at localstep
     ELBOvec = np.asarray(ELBOvec, dtype=np.float64)
     assert ELBOvec.ndim == 1
     diff = ELBOvec[1:] - ELBOvec[:-1]
@@ -108,11 +112,20 @@ class MergeMoveEndToEndTest(unittest.TestCase):
             nLap=300,
             nBatch=2,
             mergeStartLap=2,
+            nCoordAscentItersLP=50,
+            convThrLP=0.001,
         )
         allKwargs.update(kwargs)
         allKwargs.update(aArg)
         allKwargs.update(obsArg)
         allKwargs.update(initArg)
+
+        if allKwargs['moves'].count('delete'):
+            try:
+                MaxSize = 0.5 * int(self.datasetArg['nDocTotal'])
+            except KeyError:
+                MaxSize = 0.5 * int(self.datasetArg['nObsTotal'])
+            allKwargs['dtargetMaxSize'] = int(MaxSize)
 
         if aArg['name'] == 'HDPTopicModel':
             allKwargs['mergePairSelection'] = 'corrlimitdegree'            
@@ -144,12 +157,14 @@ class MergeMoveEndToEndTest(unittest.TestCase):
 
         afterFirstLapMask = Info['lapTrace'] >= 1.0
         evTraceAfterFirstLap = Info['evTrace'][afterFirstLapMask]
-        isMonotonic = is_monotonic(evTraceAfterFirstLap)
+        isMonotonic = is_monotonic(evTraceAfterFirstLap,
+            aArg=aArg)
 
         try:
             assert isMonotonic
             assert model.allocModel.K == model.obsModel.K
             assert model.allocModel.K == Ktrue
+
         except AssertionError as e:
             pprintCommandToReproduceError(
                 self.datasetArg, aArg, oArg, algName, **kwargs)
@@ -173,32 +188,19 @@ class MergeMoveEndToEndTest(unittest.TestCase):
                         moves='merge',
                         initKextra=1,
                         initname=iname)
-                    print Info[iname]['evBound'], '<<<', iname
 
-    def test_MOVBWithMerges_truelabelsandempty(self):
+
+    def test_MOVBWithDeletes(self, 
+            initnames=['truelabels', 
+                       'repeattruelabels', 
+                       'truelabelsandempty']):
         print ''
         for aKwArgs in self.nextAllocKwArgsForVB():
             for oKwArgs in self.nextObsKwArgsForVB():
-                self.run_MOVBWithMoves(
-                    aKwArgs, oKwArgs, 
-                    initname='truelabelsandempty',                    
-                    moves='merge',
-                    initKextra=2)
-
-    def test_MOVBWithMerges_truelabels(self):
-        print ''
-        for aKwArgs in self.nextAllocKwArgsForVB():
-            for oKwArgs in self.nextObsKwArgsForVB():
-                self.run_MOVBWithMoves(
-                    aKwArgs, oKwArgs, 
-                    moves='merge',
-                    initname='truelabels')
-
-    def test_MOVBWithMerges_repeattruelabels(self):
-        print ''
-        for aKwArgs in self.nextAllocKwArgsForVB():
-            for oKwArgs in self.nextObsKwArgsForVB():
-                self.run_MOVBWithMoves(
-                    aKwArgs, oKwArgs, 
-                    moves='merge',
-                    initname='repeattruelabels')
+                Info = dict()
+                for iname in initnames:
+                    Info[iname] = self.run_MOVBWithMoves(
+                        aKwArgs, oKwArgs, 
+                        moves='delete',
+                        initKextra=1,
+                        initname=iname)
