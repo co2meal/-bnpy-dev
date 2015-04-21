@@ -24,7 +24,7 @@ def get_data(seed=8675309, nObsTotal=2500, **kwargs):
     TrueParams['Pi'] = Pi
     TrueParams['Psi'] = Psi
     Data = XData(X=X, TrueZ=TrueZ, TrueParams=TrueParams)
-    Data.name = 'D3E2K6'
+    Data.name = 'D3C2K2'
     Data.summary = get_data_info()
     return Data
 
