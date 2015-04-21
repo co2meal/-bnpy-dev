@@ -7,9 +7,9 @@ from numpy.linalg import inv
 from bnpy.data import XData
 
 import sys
-sys.path.insert(0, '/Library/Python/2.7/site-packages/mpl_toolkits/')
-from mplot3d import Axes3D
+
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 
 # ########################################################## User-facing
