@@ -783,7 +783,8 @@ class WordsData(DataObj):
 
     # Write to file
     # (instance method)
-    def WriteToFile_ldac(self, filepath, min_word_index=0):
+    def WriteToFile_ldac(self, filepath, 
+            min_word_index=0):
         ''' Write contents of this dataset to plain-text file in "ldac" format.
 
         Each line of file represents one document, and has format
@@ -807,7 +808,15 @@ class WordsData(DataObj):
                 nUniqueInDoc = dstop - dstart
                 idct_list = ["%d:%d" % (word_id[n], self.word_count[n])
                              for n in xrange(dstart, dstop)]
-                docstr = "%d %s" % (nUniqueInDoc, ' '.join(idct_list))
+                if hasattr(self, 'Yr'):
+                    docstr = "%d %.4f %s" % (
+                        nUniqueInDoc, self.Yr[d], ' '.join(idct_list))
+                elif hasattr(self, 'Yb'):
+                    docstr = "%d %d %s" % (
+                        nUniqueInDoc, self.Yb[d], ' '.join(idct_list))
+                else:
+                    docstr = "%d %s" % (
+                        nUniqueInDoc, ' '.join(idct_list))
                 f.write(docstr + '\n')
 
     def WriteToFile_tokenlist(self, filepath, min_word_index=1):

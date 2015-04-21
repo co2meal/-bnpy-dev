@@ -15,6 +15,7 @@ imshowArgs = dict(interpolation='nearest',
 def plotExampleBarsDocs(Data, docIDsToPlot=None, figID=None,
                         vmax=None, nDocToPlot=16, doShowNow=False,
                         seed=0, randstate=np.random.RandomState(0),
+                        xlabels=None,
                         **kwargs):
     kwargs['vmin'] = 0
     kwargs['interpolation'] = 'nearest'
@@ -52,6 +53,8 @@ def plotExampleBarsDocs(Data, docIDsToPlot=None, figID=None,
         pylab.axis('image')
         pylab.xticks([])
         pylab.yticks([])
+        if xlabels is not None:
+            pylab.xlabel(xlabels[plotPos])
     pylab.tight_layout()
     if doShowNow:
         pylab.show()
