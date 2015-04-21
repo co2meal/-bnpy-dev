@@ -32,12 +32,16 @@ def getPrefixForLapQuery(taskpath, lapQuery):
         saveLaps = np.loadtxt(os.path.join(taskpath, 'laps-saved-params.txt'))
     except IOError:
         fileList = glob.glob(os.path.join(taskpath, 'Lap*TopicModel.mat'))
+        if len(fileList) == 0:
+            fileList = glob.glob(os.path.join(taskpath, 'Lap*.log_prob_w'))
+        assert len(fileList) > 0
         saveLaps = list()
         for fpath in sorted(fileList):
             basename = fpath.split(os.path.sep)[-1]
             lapstr = basename[3:11]
             saveLaps.append(float(lapstr))
         saveLaps = np.sort(np.asarray(saveLaps))
+
     if lapQuery is None:
         bestLap = saveLaps[-1]  # take final saved value
     else:
@@ -81,11 +85,21 @@ def load_model(matfilepath, prefix='Best', lap=None):
     except IOError as e:
         if prefix == 'Best':
             matList = glob.glob(os.path.join(matfilepath, '*TopicModel.mat'))
-            if len(matList) < 1:
+            lpwList = glob.glob(os.path.join(matfilepath, '*.log_prob_w'))
+            if len(matList) > 0:
+                matList.sort()  # ascending order, so most recent is last
+                prefix = matList[-1].split(os.path.sep)[-1][:11]
+                model = loadTopicModel(matfilepath, prefix=prefix)
+            elif len(lpwList) > 0:
+                lpwList.sort() # ascenting order
+                prefix = lpwList[-1].split(os.path.sep)[-1][:7]
+
+            else:
                 raise e
-            matList.sort()  # ascending order, so most recent is last
-            prefix = matList[-1].split(os.path.sep)[-1][:11]
-        model = loadTopicModel(matfilepath, prefix=prefix)
+        try:
+            model = loadTopicModel(matfilepath, prefix=prefix)
+        except IOError as e:
+            model = loadTopicModelFromMEDLDA(matfilepath, prefix=prefix)            
     return model
 
 
@@ -211,7 +225,30 @@ def loadWordCountMatrixForLap(matfilepath, lapQuery, toDense=True):
     return WordCounts
 
 
-def loadTopicModel(matfilepath, prefix=None, returnWordCounts=0, returnTPA=0):
+def loadTopicModelFromMEDLDA(matfilepath, prefix=None):
+    ''' Load topic model saved in medlda format.
+    '''
+    # Avoid circular import
+    import bnpy.HModel as HModel
+
+    if prefix is not None:
+        matfilepath = os.path.join(matfilepath, prefix + '.log_prob_w')
+    logtopics = np.loadtxt(matfilepath)
+    topics = np.exp(logtopics)
+    topics /= topics.sum(axis=1)[:,np.newaxis]
+    assert np.all(np.isfinite(topics))
+
+    infAlg = 'VB'
+    aPriorDict = dict(alpha=0.5)
+    amodel = AllocModelConstructorsByName['FiniteTopicModel'](infAlg, aPriorDict)
+    omodel = ObsModelConstructorsByName['Mult'](infAlg, 
+        lam=0.001, D=topics.shape[1])
+    hmodel = HModel(amodel, omodel)
+    hmodel.obsModel.set_global_params(topics=topics, nTotalTokens=1000)
+    return hmodel
+
+def loadTopicModel(matfilepath, prefix=None, 
+        returnWordCounts=0, returnTPA=0):
     ''' Load saved topic model
     '''
     # avoids circular import
