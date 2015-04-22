@@ -15,7 +15,7 @@ import glob
 from ModelWriter import makePrefixForLap
 from bnpy.allocmodel import AllocModelConstructorsByName
 from bnpy.obsmodel import ObsModelConstructorsByName
-
+from bnpy.util import toCArray
 
 def getPrefixForLapQuery(taskpath, lapQuery):
     ''' Search among checkpoint laps for one nearest to query.
@@ -191,11 +191,12 @@ def loadDictFromMatfile(matfilepath):
         if not isinstance(D[key], np.ndarray):
             continue
         x = D[key]
-        if x.ndim == 1:
-            x = x[0]
-        elif x.ndim == 2:
+        if x.ndim == 2:
             x = np.squeeze(x)
-        arr = x.newbyteorder('=').copy()
+        if str(x.dtype).count('int'):
+            arr = toCArray(x, dtype=np.int32)
+        else:
+            arr = toCArray(x, dtype=np.float64)
         assert arr.dtype.byteorder == '='
         assert arr.flags.aligned is True
         assert arr.flags.owndata is True
@@ -219,7 +220,6 @@ def loadTopicModel(matfilepath, prefix=None, returnWordCounts=0, returnTPA=0):
     if prefix is not None:
         matfilepath = os.path.join(matfilepath, prefix + 'TopicModel.mat')
     Mdict = loadDictFromMatfile(matfilepath)
-    Mdict['probs'] = np.asarray(Mdict['probs'], dtype=np.float64)
     if 'SparseWordCount_data' in Mdict:
         data = np.asarray(Mdict['SparseWordCount_data'], dtype=np.float64)
         K = int(Mdict['K'])
@@ -239,9 +239,13 @@ def loadTopicModel(matfilepath, prefix=None, returnWordCounts=0, returnTPA=0):
         if 'WordCounts' in Mdict:
             topics = Mdict['WordCounts'] + Mdict['lam']
         else:
-            topics = np.asarray(
-                Mdict['topics'], dtype=np.float64).newbyteorder('=').copy()
-        probs = Mdict['probs']
+            topics = Mdict['topics']
+        K = topics.shape[0]
+
+        try:
+            probs = Mdict['probs']
+        except KeyError:
+            probs = (1.0/K) * np.ones(K)
         try:
             alpha = float(Mdict['alpha'])
         except KeyError:
@@ -252,10 +256,16 @@ def loadTopicModel(matfilepath, prefix=None, returnWordCounts=0, returnTPA=0):
         return topics, probs, alpha
 
     infAlg = 'VB'
-    aPriorDict = dict(alpha=Mdict['alpha'], gamma=Mdict['gamma'])
-    amodel = HDPTopicModel(infAlg, aPriorDict)
-    omodel = MultObsModel(infAlg, **Mdict)
+    if 'gamma' in Mdict:
+        aPriorDict = dict(alpha=Mdict['alpha'], gamma=Mdict['gamma'])
+        HDPTopicModel = AllocModelConstructorsByName['HDPTopicModel']
+        amodel = HDPTopicModel(infAlg, aPriorDict)
+    else:
+        FiniteTopicModel = AllocModelConstructorsByName['FiniteTopicModel']
+        amodel = FiniteTopicModel(infAlg, dict(alpha=Mdict['alpha']))
+    omodel = ObsModelConstructorsByName['Mult'](infAlg, **Mdict)
     hmodel = HModel(amodel, omodel)
+
     hmodel.set_global_params(**Mdict)
     if returnWordCounts:
         return hmodel, Mdict['WordCounts']
