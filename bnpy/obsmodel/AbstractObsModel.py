@@ -128,3 +128,6 @@ class AbstractObsModel(object):
 
   def ClearCache(self):
     self.Cache.clear()
+
+  def getPseudoSuffStats(self, pSS, SS):
+    pass

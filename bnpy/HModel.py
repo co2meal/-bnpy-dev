@@ -199,3 +199,9 @@ class HModel(object):
     s += 'Obs. Data  Model:  %s\n' % (self.obsModel.get_info_string())
     s += 'Obs. Data  Prior:  %s' % (self.obsModel.get_info_string_prior())
     return s
+
+  def getPseudoSuffStats(self, SS):
+    pSS = SS.copy();
+    self.allocModel.getPseudoSuffStats(pSS, SS)
+    # self.obsModel.getPseudoSuffStats(pSS, SS)
+    return pSS

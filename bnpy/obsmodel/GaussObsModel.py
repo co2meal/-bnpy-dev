@@ -1036,3 +1036,10 @@ def createECovMatFromUserInput(D=0, Data=None, ECovMat='eye', sF=1.0):
   else:
     raise ValueError('Unrecognized ECovMat procedure %s' % (ECovMat))
   return Sigma
+
+  def getPseudoSuffStats(self, pSS, SS):
+
+    pseudoNvec = self.eta1 - self.gamma1
+    pSS.setField('N', pseudoNvec, dims=('K'))
+
+    return pSS

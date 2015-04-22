@@ -46,6 +46,18 @@ class STRVBAlg(LearnAlg):
         hmodel.
     '''
 
+    Data = DataIterator.Data
+    data_size = Data.get_total_size()
+    PRNG = np.random.RandomState()
+    shuffleIDs = PRNG.permutation(data_size).tolist()
+    trainingMask = shuffleIDs[:data_size/2]
+    hoMask = shuffleIDs[data_size/2:]
+    trainData = Data.select_subset_by_mask(trainingMask)
+    hoData = Data.select_subset_by_mask(hoMask)
+
+    DataIterator = trainData.to_iterator()
+
+
     # init_SS = hmodel.allocModel.getPseudoSuffStats()
     initFlag = False
     delayLen = self.algParams['delay']
@@ -112,21 +124,17 @@ class STRVBAlg(LearnAlg):
 
       if not initFlag:
         initFlag = True
-        init_SS = hmodel.allocModel.getPseudoSuffStats(SS)
+        init_SS = hmodel.getPseudoSuffStats(SS)
 
       ## Global step
       if (nLapsCompleted >= delayLen):
         self.GlobalStep(hmodel, SS, lapFrac, decayFun, init_SS)
 
-      ## ELBO calculation
-      evBound = hmodel.calc_evidence(SS=SS)
-      if nLapsCompleted > 1.0:
-        # evBound will increase monotonically AFTER first lap of the data 
-        # verify_evidence will warn if bound isn't increasing monotonically
-        self.verify_evidence(evBound, prevBound, lapFrac)
+      # ## ELBO calculation
+      # evBound = hmodel.calc_evidence(SS=SS)
 
-      if self.doDebug() and lapFrac >= 1.0:
-        self.verifyELBOTracking(hmodel, SS, evBound)
+      ## ELBO calculation
+      evBound = hmodel.calc_evidence(hoData, SS)
 
       self.saveDebugStateAtBatch('Mstep', batchID, Dchunk=Dchunk, SSchunk=SSchunk,
                                  SS=SS, hmodel=hmodel, LPchunk=LPchunk)
@@ -308,39 +316,3 @@ class STRVBAlg(LearnAlg):
       DataIterator.curLapPos = nBatch - 2
       iterid = int(nBatch * lapFrac) - 1
     return iterid, lapFrac
-  
-  ######################################################### Verify memoized ELBO
-  #########################################################
-  def verifyELBOTracking(self, hmodel, SS, evBound=None, **kwargs):
-    ''' Verify that current aggregated SS consistent with sum over all batches
-    '''
-    if self.doDebugVerbose():
-      self.print_msg('>>>>>>>> BEGIN double-check @ lap %.2f' % (self.lapFrac))
-
-    if evBound is None:
-      evBound = hmodel.calc_evidence(SS=SS)
-
-    for batchID in range(len(self.SSmemory.keys())):
-      SSchunk = self.load_batch_suff_stat_from_memory(batchID, doCopy=1)
-      if batchID == 0:
-        SS2 = SSchunk.copy()
-      else:
-        SS2 += SSchunk
-    evCheck = hmodel.calc_evidence(SS=SS2)
-
-    if self.algParams['debug'].count('quiet') == 0:
-      print '% 14.8f evBound from agg SS' % (evBound)
-      print '% 14.8f evBound from sum over SSmemory' % (evCheck)
-    if self.algParams['debug'].count('interactive'):
-      isCorrect = np.allclose(SS.getCountVec(), SS2.getCountVec()) \
-                  and np.allclose(evBound, evCheck)
-      if not isCorrect:
-        from IPython import embed; embed()
-    else:
-      assert np.allclose(SS.getCountVec(), SS2.getCountVec())
-      assert np.allclose(evBound, evCheck)
-
-
-    if self.doDebugVerbose():
-      self.print_msg('<<<<<<<< END   double-check @ lap %.2f' % (self.lapFrac))
-
