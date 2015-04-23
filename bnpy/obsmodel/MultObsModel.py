@@ -174,7 +174,7 @@ class MultObsModel(AbstractObsModel):
 
         if Data is not None:
             nTotalTokens = Data.word_count.sum()
-        if nTotalTokens.ndim == 0:
+        if isinstance(nTotalTokens, int) or nTotalTokens.ndim == 0:
             nTotalTokens = nTotalTokens / K * np.ones(K)
         assert nTotalTokens.sum() > 0
 
