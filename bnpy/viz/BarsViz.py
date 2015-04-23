@@ -157,7 +157,9 @@ def showTopicsAsSquareImages(topics,
                              xlabels=[],
                              Kmax=50,
                              W=1, H=1, figH=None,
-                             **imshowArgs):
+                             **kwargs):
+    imshowArgs.update(kwargs)
+
     if len(xlabels) > 0:
         H = 1.5 * H
     K, V = topics.shape
