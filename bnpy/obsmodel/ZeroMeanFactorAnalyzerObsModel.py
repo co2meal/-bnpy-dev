@@ -1,7 +1,7 @@
 import numpy as np
 from bnpy.suffstats import ParamBag, SuffStatBag
 from bnpy.obsmodel.AbstractObsModel import AbstractObsModel
-from numpy.linalg import inv, solve, det
+from numpy.linalg import inv, solve, det, eig
 from scipy.special import psi, gamma
 from bnpy.util import dotATA, dotATB, dotABT
 from bnpy.util import LOGTWOPI
@@ -27,6 +27,7 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         self.Prior.setField('Psi', Psi, dims=('D','D'))
         self.Prior.setField('f', f)
         self.Prior.setField('g', g)
+        self.Prior.setField('invPsi', inv(Psi), dims=('D','D'))
 
     ######################################################### I/O Utils
     #########################################################   for humans
@@ -58,7 +59,6 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         K = resp.shape[1]
         D = self.D
         C = self.C
-        N = Data.nObs
 
         if SS is None:
             SS = SuffStatBag(K=K, D=D, C=C)
@@ -78,11 +78,13 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         #     Ea[k] = dotATB(resp[:,k][:,np.newaxis], aMean[:,k])
         # SS.setField('a', Ea, dims=('K','C'))
 
+        sqrtResp = np.sqrt(resp)
+
         # Expected low-dim outer-product for each k
         EaaT = np.zeros((K, C, C))
-        for n in xrange(N):
-            for k in xrange(K):
-                EaaT[k] += resp[n][k] * (dotATA(aMean[n][k]) + aCov[k])
+        for k in xrange(K):
+            EaaT[k] = dotATA(sqrtResp[:,k][:,np.newaxis] * aMean[:,k]) + \
+                      SS.N[k] * aCov[k]
         SS.setField('aaT', EaaT, dims=('K','C','C'))
 
         # Expected high-low product for each k
@@ -95,7 +97,6 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         # SS.setField('x', dotATB(resp, X), dims=('K','D'))
 
         # Expected high-dim outer-product for each k
-        sqrtResp = np.sqrt(resp)
         xxT = np.zeros((K, D, D))
         for k in xrange(K):
             xxT[k] = dotATA(sqrtResp[:,k][:,np.newaxis] * X)
@@ -132,18 +133,20 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             for k in xrange(K):
                 aMean[n][k] = np.dot(
                               dotABT(aCov[k], self.Post.WMean[k]),
-                              solve(self.Prior.Psi, Data.X[n]))
+                              np.dot(self.Prior.invPsi, Data.X[n]))
         return aMean, aCov
 
     def calcLogSoftEvMatrix_FromPost(self, Data, LP):
         N = Data.nObs
         K = self.Post.K
         L = np.zeros((N, K))
-        for n in xrange(N):
-            for k in xrange(K):
+        for k in xrange(K):
+            invACovK = inv(LP['aCov'][k])
+            detACovK = det(LP['aCov'][k])
+            for n in xrange(N):
                 L[n,k] = .5 * np.dot( LP['aMean'][n,k],
-                                      solve(LP['aCov'][k], LP['aMean'][n,k]) ) \
-                         + .5 * det(LP['aCov'][k])
+                                      np.dot(invACovK, LP['aMean'][n,k]) ) \
+                         + .5 * detACovK
         return L
 
   ########################################################### Global step
@@ -167,7 +170,7 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         else:
             hShape = self.Prior.f
             hInvScale = self.Prior.g * np.ones((SS.K, self.C))
-        for i in xrange(50):
+        for i in xrange(10):
             WMean, WCov = self.calcPostW(SS, hShape, hInvScale)
             hShape, hInvScale = self.calcPostH(WMean, WCov)
         return WMean, WCov, hShape, hInvScale, SS.aCov
@@ -227,6 +230,9 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         K = SS.K
         C = SS.C
         D = SS.D
+        def logDet(mat):
+            val, vec = eig(mat)
+            return np.log(val).sum()
         for k in xrange(K):
             # terms related with h
             for c in xrange(C):
@@ -237,17 +243,17 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
                            + Post.hShape * (1 - Prior.g / Post.hInvScale[k,c])
             # terms related with W
             for d in xrange(D):
-                elbo[k] +=  1./2 * (np.log(det(Post.WCov[k,d])) + C) \
+                elbo[k] +=  1./2 * (logDet(Post.WCov[k,d]) + C) \
                             + 1./2 * sum(psi(Post.hShape) - np.log(Post.hInvScale[k])) \
                             - 1./2 * np.trace(np.dot(Post.WCov[k,d] + dotATA(Post.WMean[k,d]),
                                                      np.diag(Post.hShape / Post.hInvScale[k])))
             # terms related with a
-            elbo[k] += 1./2 * (np.log(det(Post.aCov[k])) + C) * SS.N[k] \
+            elbo[k] += 1./2 * (logDet(Post.aCov[k]) + C) * SS.N[k] \
                        - 1./2 * np.trace(SS.aaT[k])
             # terms related with x
             elbo[k] += - 1./2 * (D * LOGTWOPI + np.log(np.trace(Prior.Psi))) * SS.N[k] \
-                        - 1./2 * np.trace(solve(Prior.Psi, SS.xxT[k])) \
-                        + np.trace(solve(Prior.Psi, np.dot(SS.xaT[k],Post.WMean[k].T))) \
+                        - 1./2 * np.trace(np.dot(Prior.invPsi, SS.xxT[k])) \
+                        + np.trace(np.dot(Prior.invPsi, np.dot(SS.xaT[k],Post.WMean[k].T))) \
                         - 1./2 * np.trace(np.dot(self.GetCached('E_WT_invPsi_W', k),SS.aaT[k]))
         return elbo.sum()
 
@@ -278,5 +284,6 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
 
 if __name__ == '__main__':
     import bnpy
-    hmodel, RInfo = bnpy.run('D3C2K2_ZM', 'FiniteMixtureModel',
-                             'ZeroMeanFactorAnalyzer', 'VB', nLap=50, K=2)
+    hmodel, RInfo = bnpy.run('D3C2K2_ZM', 'DPMixtureModel',
+                            'ZeroMeanFactorAnalyzer', 'moVB', nLap=50, K=3,
+                            )
