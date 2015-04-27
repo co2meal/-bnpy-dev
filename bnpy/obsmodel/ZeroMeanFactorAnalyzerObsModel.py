@@ -129,11 +129,9 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         for k in xrange(K):
             aCov[k] = inv(np.eye(C) + self.GetCached('E_WT_invPsi_W', k))
         aMean = np.zeros((N, K, C))
-        for n in xrange(N):
-            for k in xrange(K):
-                aMean[n][k] = np.dot(
-                              dotABT(aCov[k], self.Post.WMean[k]),
-                              np.dot(self.Prior.invPsi, Data.X[n]))
+        for k in xrange(K):
+            aCovk_WMeank_invPsi = np.dot(dotABT(aCov[k], self.Post.WMean[k]),self.Prior.invPsi)
+            aMean[:,k] = dotABT(Data.X, aCovk_WMeank_invPsi)
         return aMean, aCov
 
     def calcLogSoftEvMatrix_FromPost(self, Data, LP):
@@ -285,5 +283,5 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
 if __name__ == '__main__':
     import bnpy
     hmodel, RInfo = bnpy.run('D3C2K2_ZM', 'DPMixtureModel',
-                            'ZeroMeanFactorAnalyzer', 'moVB', nLap=50, K=3,
+                            'ZeroMeanFactorAnalyzer', 'moVB', nLap=50, K=3
                             )
