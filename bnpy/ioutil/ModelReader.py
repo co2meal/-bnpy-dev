@@ -226,18 +226,29 @@ def loadWordCountMatrixForLap(matfilepath, lapQuery, toDense=True):
     return WordCounts
 
 
-def loadTopicModelFromMEDLDA(matfilepath, prefix=None):
+def loadTopicModelFromMEDLDA(filepath, 
+        prefix=None,
+        returnTPA=0):
     ''' Load topic model saved in medlda format.
     '''
     # Avoid circular import
     import bnpy.HModel as HModel
 
     if prefix is not None:
-        matfilepath = os.path.join(matfilepath, prefix + '.log_prob_w')
-    logtopics = np.loadtxt(matfilepath)
+        topicfilepath = os.path.join(filepath, prefix + '.log_prob_w')
+        alphafilepath = os.path.join(filepath, prefix + '.alpha')
+
+    logtopics = np.loadtxt(topicfilepath)
     topics = np.exp(logtopics)
     topics /= topics.sum(axis=1)[:,np.newaxis]
     assert np.all(np.isfinite(topics))
+
+    alpha = float(np.loadtxt(alphafilepath))
+
+    if returnTPA:
+        K = topics.shape[0]
+        probs = 1.0/K * np.ones(K)
+        return topics, probs, alpha
 
     infAlg = 'VB'
     aPriorDict = dict(alpha=0.5)
@@ -254,6 +265,11 @@ def loadTopicModel(matfilepath, prefix=None,
     '''
     # avoids circular import
     from bnpy.HModel import HModel
+
+    if glob.glob(matfilepath + "*.log_prob_w") > 0:
+        return loadTopicModelFromMEDLDA(matfilepath, prefix, 
+            returnTPA=returnTPA)
+
     if prefix is not None:
         matfilepath = os.path.join(matfilepath, prefix + 'TopicModel.mat')
     Mdict = loadDictFromMatfile(matfilepath)
