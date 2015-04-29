@@ -15,7 +15,7 @@ import glob
 from ModelWriter import makePrefixForLap
 from bnpy.allocmodel import AllocModelConstructorsByName
 from bnpy.obsmodel import ObsModelConstructorsByName
-from bnpy.util import toCArray
+from bnpy.util import toCArray, as1D
 
 def getPrefixForLapQuery(taskpath, lapQuery):
     ''' Search among checkpoint laps for one nearest to query.
@@ -234,24 +234,27 @@ def loadTopicModelFromMEDLDA(filepath,
     # Avoid circular import
     import bnpy.HModel as HModel
 
-    if prefix is not None:
-        topicfilepath = os.path.join(filepath, prefix + '.log_prob_w')
-        alphafilepath = os.path.join(filepath, prefix + '.alpha')
+    assert prefix is not None
+    alphafilepath = os.path.join(filepath, prefix + '.alpha')
+    etafilepath = os.path.join(filepath, prefix + '.eta')
+    topicfilepath = os.path.join(filepath, prefix + '.log_prob_w')
 
+    alpha = float(np.loadtxt(alphafilepath))
+    eta = np.loadtxt(etafilepath)
     logtopics = np.loadtxt(topicfilepath)
     topics = np.exp(logtopics)
+    topics += 1e-9
     topics /= topics.sum(axis=1)[:,np.newaxis]
     assert np.all(np.isfinite(topics))
 
-    alpha = float(np.loadtxt(alphafilepath))
 
     if returnTPA:
         K = topics.shape[0]
         probs = 1.0/K * np.ones(K)
-        return topics, probs, alpha
+        return topics, probs, alpha, eta
 
     infAlg = 'VB'
-    aPriorDict = dict(alpha=0.5)
+    aPriorDict = dict(alpha=alpha)
     amodel = AllocModelConstructorsByName['FiniteTopicModel'](infAlg, aPriorDict)
     omodel = ObsModelConstructorsByName['Mult'](infAlg, 
         lam=0.001, D=topics.shape[1])
@@ -265,8 +268,7 @@ def loadTopicModel(matfilepath, prefix=None,
     '''
     # avoids circular import
     from bnpy.HModel import HModel
-
-    if glob.glob(matfilepath + "*.log_prob_w") > 0:
+    if len(glob.glob(os.path.join(matfilepath, "*.log_prob_w"))) > 0:
         return loadTopicModelFromMEDLDA(matfilepath, prefix, 
             returnTPA=returnTPA)
 
@@ -306,6 +308,8 @@ def loadTopicModel(matfilepath, prefix=None,
                 alpha = float(os.environ['alpha'])
             else:
                 raise ValueError('Unknown parameter alpha')
+        if 'eta' in Mdict:
+            return topics, probs, alpha, as1D(toCArray(Mdict['eta']))
         return topics, probs, alpha
 
     infAlg = 'VB'
