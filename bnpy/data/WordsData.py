@@ -111,6 +111,8 @@ class WordsData(DataObj):
                         Yvals.append( float(Fields[1]))
                         doc_word_id, doc_word_ct = zip(
                             *[x.split(':') for x in Fields[2:]])
+                    word_id.extend(doc_word_id)
+                    word_ct.extend(doc_word_ct)
 
             else:
                 # Parallel access case: read slice of the file
@@ -134,8 +136,8 @@ class WordsData(DataObj):
                     doc_sizes.append(nUnique)
                     doc_word_id, doc_word_ct = zip(
                         *[x.split(':') for x in Fields[1:]])
-            word_id.extend(doc_word_id)
-            word_ct.extend(doc_word_ct)
+                    word_id.extend(doc_word_id)
+                    word_ct.extend(doc_word_ct)
 
         doc_range = np.hstack([0, np.cumsum(doc_sizes)])
         Data = cls(word_id=word_id, word_count=word_ct, nDocTotal=nDocTotal,
@@ -627,9 +629,8 @@ class WordsData(DataObj):
         docMask = np.asarray(docMask, dtype=np.int32)
         nDoc = len(docMask)
         assert np.max(docMask) < self.nDoc
-        nUniqueTokenPerDoc = self.doc_range[
-            docMask + 1] - self.doc_range[docMask]
-
+        nUniqueTokenPerDoc = \
+            self.doc_range[docMask + 1] - self.doc_range[docMask]
         nUniqueToken = np.sum(nUniqueTokenPerDoc)
         word_id = np.zeros(nUniqueToken, dtype=self.word_id.dtype)
         word_count = np.zeros(nUniqueToken, dtype=self.word_count.dtype)
@@ -641,7 +642,6 @@ class WordsData(DataObj):
             start = self.doc_range[docMask[d]]
             stop = self.doc_range[docMask[d] + 1]
             endLoc = startLoc + (stop - start)
-
             word_count[startLoc:endLoc] = self.word_count[start:stop]
             word_id[startLoc:endLoc] = self.word_id[start:stop]
             doc_range[d] = startLoc
