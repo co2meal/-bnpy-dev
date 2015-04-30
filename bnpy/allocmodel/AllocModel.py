@@ -116,3 +116,11 @@ class AllocModel(object):
         for k in xrange(K):
             LP['resp'][LP['Z'] == k, k] = 1
         return LP
+
+  ######################################################### Function handles
+  #########################################################   
+    def getHandleCalcLocalParams(self):
+       return self.calc_local_params
+
+    def getHandleCalcSummaryStats(self):
+       return self.get_global_suff_stats

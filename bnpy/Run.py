@@ -1,14 +1,25 @@
-"""
-User-facing executable script for running experiments that
-train bnpy models using a variety of possible inference algorithms.
+'''
+ User-facing executable script for running experiments that
+  train bnpy models using a variety of possible inference algorithms
+    ** Expectation Maximization (EM)
+    ** Variational Bayesian Inference (VB)
+    ** Stochastic Online Variational Bayesian Inference (soVB)
+    ** Memoized Online Variational Bayesian Inference (moVB)
+    
+  Quickstart (Command Line)
+  -------
+  To run EM for a 3-component GMM on easy, predefined toy data, do
+  $ python -m bnpy.Run AsteriskK8 MixModel Gauss EM --K=3
 
-Key functions
----------
-- run
-Trains a model on provided data.
-
-"""
-
+  Quickstart (within python script)
+  --------
+  To do the same as above, just call the run method:
+  >> hmodel = run('AsteriskK8', 'MixModel', 'Gauss', 'EM', K=3)
+  
+  Usage
+  -------
+  TODO: write better doc
+'''
 import os
 import sys
 import logging
@@ -22,8 +33,8 @@ from bnpy.ioutil import BNPYArgParser
 Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
 
-FullDataAlgSet = ['EM', 'VB', 'GS']
-OnlineDataAlgSet = ['soVB', 'moVB']
+FullDataAlgSet = ['EM', 'VB', 'GS', 'pVB']
+OnlineDataAlgSet = ['soVB', 'moVB', 'pmoVB']
 
 
 def run(dataName=None, allocModelName=None, obsModelName=None, algName=None,
@@ -389,6 +400,9 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
     elif algName == 'VB':
         learnAlg = bnpy.learnalg.VBAlg(savedir=savepath, seed=algseed,
                                        algParams=algP, outputParams=outputP)
+    elif algName == 'pVB':
+        learnAlg = bnpy.learnalg.ParallelVBAlg(savedir=savepath, seed=algseed,
+                                       algParams=algP, outputParams=outputP)
     elif algName == 'soVB':
         learnAlg = bnpy.learnalg.SOVBAlg(savedir=savepath, seed=algseed,
                                          algParams=algP, outputParams=outputP)
@@ -399,6 +413,11 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
     elif algName == 'moVB' and not hasMoves:
         learnAlg = bnpy.learnalg.MOVBAlg(savedir=savepath, seed=algseed,
                                          algParams=algP, outputParams=outputP)
+    elif algName == 'pmoVB' and not hasMoves:
+        learnAlg = bnpy.learnalg.ParallelMOVBAlg(
+            savedir=savepath, seed=algseed, 
+            algParams=algP, outputParams=outputP)
+
     elif algName == 'GS':
         learnAlg = bnpy.learnalg.GSAlg(savedir=savepath, seed=algseed,
                                        algParams=algP, outputParams=outputP)

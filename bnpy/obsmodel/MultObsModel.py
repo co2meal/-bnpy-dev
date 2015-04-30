@@ -1,9 +1,11 @@
 import numpy as np
 from scipy.special import gammaln, digamma
+import scipy.sparse
 
 from bnpy.suffstats import ParamBag, SuffStatBag
 from bnpy.util import dotATA, dotATB, dotABT
 from bnpy.util import as1D, as2D, as3D
+from bnpy.util import numpyToSharedMemArray, sharedMemToNumpyArray
 
 from AbstractObsModel import AbstractObsModel
 
@@ -185,7 +187,7 @@ class MultObsModel(AbstractObsModel):
         self.Post.setField('lam', lam, dims=('K', 'D'))
         self.K = K
 
-    def calcSummaryStats(self, Data, SS, LP):
+    def calcSummaryStats(self, Data, SS, LP, cslice=(0,None), **kwargs):
         ''' Calculate summary statistics for given dataset and local parameters
 
         Returns
@@ -208,8 +210,14 @@ class MultObsModel(AbstractObsModel):
             Resp = LP['resp']  # 2D array, size N x K
             # 2D sparse matrix, size V x N
             X = Data.getSparseTokenTypeCountMatrix()
-            WordCounts = (X * Resp).T  # matrix-matrix product
-
+            if cslice[1] is None:
+                WordCounts = (X * Resp).T  # matrix-matrix product
+            else:
+                start = Data.doc_range[cslice[0]]
+                stop = Data.doc_range[cslice[1]]
+                X = X[:, start:stop]
+                WordCounts = (X * Resp).T  # matrix-matrix product
+                
         SS.setField('WordCounts', WordCounts, dims=('K', 'D'))
         SS.setField('SumWordCounts', np.sum(WordCounts, axis=1), dims=('K'))
         return SS
@@ -351,7 +359,7 @@ class MultObsModel(AbstractObsModel):
         # Dirichlet common equivalent to natural here.
         pass
 
-    def calcLogSoftEvMatrix_FromPost(self, Data):
+    def calcLogSoftEvMatrix_FromPost(self, Data, cslice=(0,None), **kwargs):
         ''' Calculate expected log soft ev matrix under Post.
 
         Returns
@@ -363,7 +371,13 @@ class MultObsModel(AbstractObsModel):
             X = Data.getSparseDocTypeCountMatrix()  # nDoc x V
             return X * ElogphiT
         else:
-            return ElogphiT[Data.word_id, :]
+            if cslice[1] == None:
+                return ElogphiT[Data.word_id, :]
+            else:
+                start = Data.doc_range[cslice[0]]
+                stop = Data.doc_range[cslice[1]]
+                wid = Data.word_id[start:stop]
+                return ElogphiT[wid, :]
 
     def calcELBO_Memoized(self, SS, afterMStep=False):
         """ Calculate obsModel's objective using suff stats SS and Post.
@@ -531,6 +545,49 @@ class MultObsModel(AbstractObsModel):
         ElogphiT = self._E_logphi(k).T.copy()
         return ElogphiT
 
+    def getSerializableParamsForLocalStep(self):
+        """ Get compact dict of params for local step.
+
+        Returns
+        -------
+        Info : dict
+        """
+        return dict(inferType=self.inferType, 
+                    K=self.K, 
+                    DataAtomType=self.DataAtomType)
+
+    def fillSharedMemDictForLocalStep(self, ShMem=None):
+        """ Get dict of shared mem arrays needed for parallel local step. 
+
+        Returns
+        -------
+        ShMem : dict of RawArray objects
+        """
+        ElogphiT = self.GetCached('E_logphiT', 'all')  # V x K
+        if ShMem is None:
+            ShMem = dict()
+        if 'ElogphiT' not in ShMem:
+            ShMem['ElogphiT'] = numpyToSharedMemArray(ElogphiT)
+        else:       
+            ShMemView = sharedMemToNumpyArray(ShMem['ElogphiT'])
+            if ShMemView.shape == ElogphiT.shape:
+                ShMemView[:] = ElogphiT
+            else:
+                del ShMem['ElogphiT']
+                ShMem['ElogphiT'] = numpyToSharedMemArray(ElogphiT)
+        return ShMem
+
+    def getLocalAndSummaryFunctionHandles(self):
+        """ Get function handles for local step and summary step
+
+        Useful for parallelized algorithms.
+
+        Returns
+        -------
+        calcLocalParams : f handle
+        calcSummaryStats : f handle
+        """
+        return calcLocalParams, calcSummaryStats
 
 def c_Func(lam):
     ''' Evaluate cumulant function at given params.
@@ -556,3 +613,54 @@ def c_Diff(lam1, lam2):
     assert lam1.ndim == 1
     assert lam2.ndim == 1
     return c_Func(lam1) - c_Func(lam2)
+
+
+def calcLocalParams(Dslice, **kwargs):
+    """ Calculate local parameters for provided slice of data.
+
+    Returns
+    -------
+    LP : dict with fields
+        * E_log_soft_ev : 2D array, size N x K
+    """
+    E_log_soft_ev = calcLogSoftEvMatrix_FromPost(Dslice, **kwargs)
+    return dict(E_log_soft_ev=E_log_soft_ev)
+
+def calcLogSoftEvMatrix_FromPost(Dslice,
+                                 ElogphiT=None, 
+                                 **kwargs):
+    ''' Calculate expected log soft ev matrix.
+
+    Model Args
+    ------
+    ElogphiT : vocab_size x K matrix
+
+    Data Args
+    ---------
+    Dslice : data-like
+        doc_range : 1D array
+        word_id : 1D array
+
+    Returns
+    ------
+    L : 2D array, size N x K
+    '''
+    return ElogphiT[Dslice.word_id, :]
+
+def calcSummaryStats(Dslice, SS, LP, **kwargs):
+    ''' Calculate summary statistics for given dataset and local parameters
+
+    Returns
+    --------
+    SS : SuffStatBag object, with K components.
+    '''
+    Rslice = LP['resp']  # 2D array, size N x K
+    Nslice, K = Rslice.shape
+    Xslice = scipy.sparse.csc_matrix(
+        (Dslice.word_count, Dslice.word_id, np.arange(Nslice + 1)),
+        shape=(Dslice.vocab_size, Nslice))
+
+    WordCounts = (Xslice * Rslice).T  # matrix-matrix product  
+    SS.setField('WordCounts', WordCounts, dims=('K', 'D'))
+    SS.setField('SumWordCounts', np.sum(WordCounts, axis=1), dims=('K'))
+    return SS

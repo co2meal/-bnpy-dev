@@ -25,8 +25,7 @@ import copy
 import init
 from allocmodel import AllocModelConstructorsByName
 from obsmodel import ObsModelConstructorsByName
-
-
+                   
 class HModel(object):
 
     def __init__(self, allocModel, obsModel):
@@ -47,11 +46,11 @@ class HModel(object):
         '''
         AllocConstr = AllocModelConstructorsByName[allocModelName]
         allocModel = AllocConstr(inferType, allocPriorDict)
-
         ObsConstr = ObsModelConstructorsByName[obsModelName]
         obsModel = ObsConstr(inferType, Data=Data, **obsPriorDict)
         return cls(allocModel, obsModel)
-
+  
+    
     def copy(self):
         ''' Create a clone of this object with distinct memory allocation
             Any manipulation of clone's parameters will NOT affect self
@@ -202,34 +201,3 @@ class HModel(object):
         return mPairIDs[bestid]
 
 
-    def localStep(self, Data, subset=None,
-                  nWorkers=0, **kwargs):
-        """ DRAFT
-
-        Returns
-        -------
-        SS : bnpy.suffstats.SuffStatBag
-        LP : dict
-        """
-        if nWorkers > 0 and ParallelManager.isReady():
-            SubsetIterator = Data.makeSubsetIterator(subset, nWorkers)
-            for task_subset in SubsetIterator:
-                ParallelManager.addTaskToQueue(
-                    self, Data, task_subset, **kwargs)
-            ParallelManager.joinTasks()
-            result = ParallelManager.reduceTasks()
-        else:
-            result = self._localStep(Data, subset, **kwargs)
-        return result
-
-    def _localStep(self, Data, subset=None, **kwargs):
-        """ DRAFT
-        """
-        LP = self.obsModel.calcLocal(Data, LP, subset, **kwargs)
-        LP = self.allocModel.calcLocal(Data, LP, subset, **kwargs)
-
-        SS = self.allocModel.calcSuffStats(
-            Data, SS, LP, subset, **kwargs)
-        SS = self.obsModel.calcSuffStats(
-            Data, SS, LP, subset, **kwargs)
-        return SS

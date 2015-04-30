@@ -15,7 +15,6 @@ from bnpy.allocmodel.topics.HDPTopicUtil import c_Beta, c_Dir, L_top
 Log = logging.getLogger('bnpy')
 
 class HDPHMM(AllocModel):
-
     """ Hierarchical Dirichlet process Hidden Markov model (HDP-HMM)
 
     Truncated to finite number of K active states.
