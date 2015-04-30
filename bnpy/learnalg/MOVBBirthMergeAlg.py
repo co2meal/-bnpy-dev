@@ -109,19 +109,6 @@ class MOVBBirthMergeAlg(MOVBAlg):
                 self.print_msg('========================== lap %.2f batch %d'
                                % (lapFrac, batchID))
 
-            # Local convergence thr
-            if self.isFirstBatch(lapFrac) and 'convThrLP' in self.algParamsLP:
-                if lapFrac <= 1:
-                    finalConvThr = self.algParamsLP['convThrLP']
-                    initConvThr = self.algParamsLP['initconvThrLP']
-                if initConvThr > 0:
-                    assert initConvThr >= finalConvThr
-                    fracComplete = self.lapFrac / \
-                        self.algParamsLP['plateauLapLP']
-                    convThr = finalConvThr + initConvThr * \
-                        np.exp(-7 * fracComplete)
-                    self.algParamsLP['convThrLP'] = convThr
-
             # Delete : Evaluate all planned proposals
             if self.isFirstBatch(lapFrac) and self.hasMove('delete'):
                 self.DeleteAcceptRecord = dict()

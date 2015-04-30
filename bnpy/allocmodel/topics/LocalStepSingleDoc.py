@@ -165,7 +165,7 @@ def removeJunkTopics_SingleDoc(
 
         Info['nTrial'] += 1
         if not np.isfinite(propELBO):
-            print 'WARNING! not finite in calcELBO_SingleDoc_Dir.'
+            print 'WARNING! propELBO not finite.'
             continue
 
         # Update if accepted!

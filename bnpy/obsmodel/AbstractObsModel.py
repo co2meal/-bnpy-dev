@@ -22,9 +22,11 @@ class AbstractObsModel(object):
         if LP is None:
             LP = dict()
         if self.inferType == 'EM':
-            LP['E_log_soft_ev'] = self.calcLogSoftEvMatrix_FromEstParams(Data)
+            LP['E_log_soft_ev'] = self.calcLogSoftEvMatrix_FromEstParams(
+                Data, **kwargs)
         else:
-            LP['E_log_soft_ev'] = self.calcLogSoftEvMatrix_FromPost(Data)
+            LP['E_log_soft_ev'] = self.calcLogSoftEvMatrix_FromPost(
+                Data, **kwargs)
         return LP
 
     def get_global_suff_stats(self, Data, SS, LP, **kwargs):
@@ -35,7 +37,7 @@ class AbstractObsModel(object):
         SS : bnpy.suffstats.SuffStatBag
             Updated in place from provided value of SS.
         """
-        SS = self.calcSummaryStats(Data, SS, LP)
+        SS = self.calcSummaryStats(Data, SS, LP, **kwargs)
         return SS
 
     def update_global_params(self, SS, rho=None, **kwargs):
@@ -162,3 +164,12 @@ class AbstractObsModel(object):
         ''' Remove all values from the function cache.
         '''
         self.Cache.clear()
+
+
+  ######################################################### Function handles
+  #########################################################   
+    def getHandleCalcLocalParams(self):
+        return self.calc_local_params
+
+    def getHandleCalcSummaryStats(self):
+        return self.get_global_suff_stats

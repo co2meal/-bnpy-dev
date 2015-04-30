@@ -143,7 +143,7 @@ class DataIterator(object):
                 return False
         return True
 
-    def get_next_batch(self):
+    def get_next_batch(self, batchIDOnly=False):
         ''' Get the Data object for the next batch.
 
         Raises
@@ -175,7 +175,10 @@ class DataIterator(object):
 
         # Create the DataObj for the current batch
         self.batchID = self.batchOrderCurLap[self.curLapPos]
-        return self.DataPerBatch[self.batchID]
+        if batchIDOnly:
+            return self.batchID
+        else:
+            return self.DataPerBatch[self.batchID]
 
     def getRandPermOfBatchIDsForCurLap(self):
         ''' Returns array of batchIDs, permuted in random order.
@@ -216,3 +219,39 @@ class DataIterator(object):
         s : string
         '''
         return self.Data.get_text_summary()
+
+
+
+    def getRawDataAsSharedMemDict(self):
+        ''' Create dict with copies of raw data as shared memory arrays
+        '''
+        dataShMemDict = dict()
+        for batchID in xrange(self.nBatch):
+            BatchData = self.DataPerBatch[batchID]
+            ShMem = self.DataPerBatch[batchID].getRawDataAsSharedMemDict()
+            dataShMemDict[batchID] = ShMem
+        return dataShMemDict
+
+
+    def getDataSliceFunctionHandle(self):
+        """ Return function handle that can make data slice objects.
+
+        Useful with parallelized algorithms, 
+        when we need to use shared memory.
+
+        Returns
+        -------
+        f : function handle
+        """
+        return self.DataPerBatch[0].getDataSliceFunctionHandle()
+
+    def calcSliceArgs(self, batchID, workerID, nWorkers):
+        nUnits = self.DataPerBatch[batchID].get_size()
+        nUnitsPerSlice = int(np.floor(nUnits / nWorkers))
+        start = workerID * nUnitsPerSlice
+        if workerID == nWorkers - 1:
+            stop = nUnits
+        else:
+            stop = (workerID + 1) * nUnitsPerSlice
+        return batchID, start, stop
+

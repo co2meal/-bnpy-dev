@@ -10,8 +10,12 @@ from MOVBBirthMergeAlg import MOVBBirthMergeAlg
 from SOVBAlg import SOVBAlg
 from EMAlg import EMAlg
 
+from ParallelVBAlg import ParallelVBAlg
+from ParallelMOVBAlg import ParallelMOVBAlg
+
 from GSAlg import GSAlg
 
 __all__ = ['LearnAlg', 'VBAlg', 'MOVBAlg', 'MOVBBirthMergeAlg',
            'SOVBAlg', 'EMAlg',
-           'GSAlg']
+           'ParallelVBAlg', 'ParallelMOVBAlg',
+           'GSAlg',]

@@ -18,7 +18,7 @@ aModelHelpStr = 'Name of allocation model.' + choiceStr
 choiceStr = ' {' + ','.join([x for x in (ObsModelNameSet)]) + '}'
 oModelHelpStr = 'Name of observation model.' + choiceStr
 
-algChoices = set(['EM', 'VB', 'moVB', 'soVB', 'GS'])
+algChoices = set(['EM', 'VB', 'moVB', 'soVB', 'GS', 'pVB', 'pmoVB'])
 choiceStr = ' {' + ','.join([x for x in (algChoices)]) + '}'
 algHelpStr = 'Name of learning algorithm.' + choiceStr
 
@@ -27,7 +27,7 @@ MovesHelpStr = """String names of moves to perform.
     To perform several move types separate them with commas,
      like 'birth,merge' or 'delete,birth'. Do not include spaces."""
 
-OnlineDataAlgSet = ['soVB', 'moVB']
+OnlineDataAlgSet = ['soVB', 'moVB', 'pmoVB']
 
 def parseRequiredArgs():
     ''' Process standard input for bnpy's required arguments, as a dict.
