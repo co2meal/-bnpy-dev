@@ -290,7 +290,7 @@ class GaussObsModel(AbstractObsModel):
             'xxT', dotATA(Data.X[a:b])[np.newaxis, :, :], dims=('K', 'D', 'D'))
         return SS
 
-    def calcLogSoftEvMatrix_FromEstParams(self, Data):
+    def calcLogSoftEvMatrix_FromEstParams(self, Data, **kwargs):
         ''' Compute log soft evidence matrix for Dataset under EstParams.
 
         Returns

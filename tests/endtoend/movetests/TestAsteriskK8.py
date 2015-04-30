@@ -12,6 +12,13 @@ class Test(MergeMoveEndToEndTest):
     def setUp(self):
         """ Create the dataset
         """
+        self.datasetArg = dict(
+            name='AsteriskK8', 
+            nObsTotal=16000, 
+            )
+        datasetMod = __import__(self.datasetArg['name'], fromlist=[])
+        self.Data = datasetMod.get_data(**self.datasetArg)
+
         import AsteriskK8
         self.Data = AsteriskK8.get_data(nObsTotal=16000)
         

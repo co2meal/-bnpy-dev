@@ -1,4 +1,4 @@
-""" 
+"""
 Shared memory parallel implementation of LP local step
 
 Classes
@@ -28,9 +28,11 @@ from bnpy.data.DataIteratorFromDisk import loadDataForSlice
 
 
 class SharedMemWorker(multiprocessing.Process):
+
     """ Single "worker" process that processes tasks delivered via queues
     """
-    def __init__(self, uid, JobQueue, ResultQueue, 
+
+    def __init__(self, uid, JobQueue, ResultQueue,
                  makeDataSliceFromSharedMem,
                  o_calcLocalParams,
                  o_calcSummaryStats,
@@ -46,14 +48,14 @@ class SharedMemWorker(multiprocessing.Process):
         self.JobQueue = JobQueue
         self.ResultQueue = ResultQueue
 
-        #Function handles
+        # Function handles
         self.makeDataSliceFromSharedMem = makeDataSliceFromSharedMem
         self.o_calcLocalParams = o_calcLocalParams
         self.o_calcSummaryStats = o_calcSummaryStats
         self.a_calcLocalParams = a_calcLocalParams
         self.a_calcSummaryStats = a_calcSummaryStats
 
-        #Things to unpack
+        # Things to unpack
         self.dataSharedMem = dataSharedMem
         self.aSharedMem = aSharedMem
         self.oSharedMem = oSharedMem
@@ -74,15 +76,15 @@ class SharedMemWorker(multiprocessing.Process):
         jobIterator = iter(self.JobQueue.get, None)
 
         for sliceArgs, aArgs, oArgs in jobIterator:
-	    start1=time.time()
+            start1 = time.time()
             # Grab slice of data to work on
             if len(sliceArgs) == 3:
-                # Shared memory        
+                # Shared memory
                 batchID, start, stop = sliceArgs
                 Dslice = self.makeDataSliceFromSharedMem(
-                    self.dataSharedMem, 
+                    self.dataSharedMem,
                     batchID=batchID,
-                    cslice=(start,stop))
+                    cslice=(start, stop))
 
             else:
                 # Load from file
@@ -107,9 +109,8 @@ class SharedMemWorker(multiprocessing.Process):
 
             # Add final suff stats to result queue to wrap up this task!
             self.ResultQueue.put(SS)
-            self.JobQueue.task_done() 
+            self.JobQueue.task_done()
 
-	    duration=time.time()-start1
+            duration = time.time() - start1
         # Clean up
         self.printMsg("process CleanUp! pid=%d" % (os.getpid()))
-

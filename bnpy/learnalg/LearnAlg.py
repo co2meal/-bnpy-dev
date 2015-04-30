@@ -23,6 +23,7 @@ Log.setLevel(logging.DEBUG)
 
 
 class LearnAlg(object):
+
     """ Abstract base class for learning algorithms that train HModels.
 
     Attributes
@@ -117,8 +118,7 @@ class LearnAlg(object):
             contains information about completed run.
         '''
         # Convert TraceLaps from set to 1D array, sorted in ascending order
-        lapTrace = np.asarray(list(self.TraceLaps))
-        lapTrace.sort()
+        lapTrace = np.sort(np.asarray(list(self.TraceLaps)))
         evTrace = np.asarray(self.evTrace)
         return dict(status=self.status,
                     evTrace=evTrace,

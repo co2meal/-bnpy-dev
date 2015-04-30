@@ -747,7 +747,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
                             Data=None,
                             targetWordIDs=None,
                             targetWordFreq=None)
-            except BirthMove.BirthProposalError, e:
+            except BirthMove.BirthProposalError as e:
                 # Happens when no component is eligible for selection (all
                 # excluded)
                 Plan = dict(ktarget=None,

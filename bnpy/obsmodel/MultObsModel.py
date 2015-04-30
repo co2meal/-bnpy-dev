@@ -236,7 +236,7 @@ class MultObsModel(AbstractObsModel):
     def decrementSS(self, SS, k, Data, docID):
         SS.WordCounts[k] -= Data.getSparseDocTypeCountMatrix()[docID, :]
 
-    def calcLogSoftEvMatrix_FromEstParams(self, Data):
+    def calcLogSoftEvMatrix_FromEstParams(self, Data, **kwargs):
         ''' Compute log soft evidence matrix for Dataset under EstParams.
 
         Returns

@@ -81,7 +81,7 @@ class SOVBAlg(LearnAlg):
             rho = (1 + iterid + self.rhodelay) ** (-1.0 * self.rhoexp)
             if self.algParams['doMemoELBO']:
                 # SS step. Scale at size of current batch.
-                SS = hmodel.get_global_suff_stats(Dchunk, LP, 
+                SS = hmodel.get_global_suff_stats(Dchunk, LP,
                                                   doPrecompEntropy=True)
                 # Incremental updates for whole-dataset stats
                 # Must happen before applification.
@@ -92,7 +92,7 @@ class SOVBAlg(LearnAlg):
                 else:
                     SStotal += SS
                 SSPerBatch[batchID] = SS.copy()
-                
+
                 # Scale up to size of whole dataset.
                 if hasattr(Dchunk, 'nDoc'):
                     ampF = Dchunk.nDocTotal / float(Dchunk.nDoc)

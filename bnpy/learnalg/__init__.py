@@ -18,4 +18,4 @@ from GSAlg import GSAlg
 __all__ = ['LearnAlg', 'VBAlg', 'MOVBAlg', 'MOVBBirthMergeAlg',
            'SOVBAlg', 'EMAlg',
            'ParallelVBAlg', 'ParallelMOVBAlg',
-           'GSAlg',]
+           'GSAlg', ]

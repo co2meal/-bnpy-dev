@@ -232,7 +232,7 @@ class AutoRegGaussObsModel(AbstractObsModel):
         self.Post.setField('V', V, dims=('K', 'D', 'D'))
         self.K = self.Post.K
 
-    def calcSummaryStats(self, Data, SS, LP):
+    def calcSummaryStats(self, Data, SS, LP, **kwargs):
         """ Fill in relevant sufficient stats fields into provided SS.
 
         Returns
@@ -306,7 +306,7 @@ class AutoRegGaussObsModel(AbstractObsModel):
         SS.setField('pxT', pxT, dims=('K', 'D', 'D'))
         return SS
 
-    def calcLogSoftEvMatrix_FromEstParams(self, Data):
+    def calcLogSoftEvMatrix_FromEstParams(self, Data, **kwargs):
         ''' Compute log soft evidence matrix for Dataset under EstParams.
 
         Returns
@@ -571,7 +571,7 @@ class AutoRegGaussObsModel(AbstractObsModel):
             B[k] = Post.n_B[k] - np.dot(Post.M[k], Post.n_VMT[k])
         Post.setField('B', B, dims=('K', 'D', 'D'))
 
-    def calcLogSoftEvMatrix_FromPost(self, Data):
+    def calcLogSoftEvMatrix_FromPost(self, Data, **kwargs):
         ''' Calculate expected log soft ev matrix under Post.
 
         Returns

@@ -5,7 +5,7 @@
     ** Variational Bayesian Inference (VB)
     ** Stochastic Online Variational Bayesian Inference (soVB)
     ** Memoized Online Variational Bayesian Inference (moVB)
-    
+
   Quickstart (Command Line)
   -------
   To run EM for a 3-component GMM on easy, predefined toy data, do
@@ -15,7 +15,7 @@
   --------
   To do the same as above, just call the run method:
   >> hmodel = run('AsteriskK8', 'MixModel', 'Gauss', 'EM', K=3)
-  
+
   Usage
   -------
   TODO: write better doc
@@ -128,7 +128,7 @@ def _run_task_internal(jobname, taskid, nTask,
     if algName in OnlineDataAlgSet:
         KwArgs[algName]['nLap'] = KwArgs['OnlineDataPrefs']['nLap']
 
-    if type(dataName) is str:
+    if isinstance(dataName, str):
         if os.path.exists(dataName):
             # dataName is a path to many data files on disk
             Data, InitData = loadDataIteratorFromDisk(
@@ -395,32 +395,37 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
                or 'shuffle' in KwArgs or 'delete' in KwArgs
 
     if algName == 'EM':
-        learnAlg = bnpy.learnalg.EMAlg(savedir=savepath, seed=algseed,
-                                       algParams=algP, outputParams=outputP)
+        learnAlg = bnpy.learnalg.EMAlg(
+            savedir=savepath, seed=algseed,
+            algParams=algP, outputParams=outputP)
     elif algName == 'VB':
-        learnAlg = bnpy.learnalg.VBAlg(savedir=savepath, seed=algseed,
-                                       algParams=algP, outputParams=outputP)
+        learnAlg = bnpy.learnalg.VBAlg(
+            savedir=savepath, seed=algseed,
+            algParams=algP, outputParams=outputP)
     elif algName == 'pVB':
-        learnAlg = bnpy.learnalg.ParallelVBAlg(savedir=savepath, seed=algseed,
-                                       algParams=algP, outputParams=outputP)
+        learnAlg = bnpy.learnalg.ParallelVBAlg(
+            savedir=savepath, seed=algseed,
+            algParams=algP, outputParams=outputP)
     elif algName == 'soVB':
-        learnAlg = bnpy.learnalg.SOVBAlg(savedir=savepath, seed=algseed,
-                                         algParams=algP, outputParams=outputP)
+        learnAlg = bnpy.learnalg.SOVBAlg(
+            savedir=savepath, seed=algseed,
+            algParams=algP, outputParams=outputP)
     elif algName == 'moVB' and hasMoves:
         learnAlg = bnpy.learnalg.MOVBBirthMergeAlg(
             savedir=savepath, seed=algseed,
             algParams=algP, outputParams=outputP)
     elif algName == 'moVB' and not hasMoves:
-        learnAlg = bnpy.learnalg.MOVBAlg(savedir=savepath, seed=algseed,
-                                         algParams=algP, outputParams=outputP)
+        learnAlg = bnpy.learnalg.MOVBAlg(
+            savedir=savepath, seed=algseed,
+            algParams=algP, outputParams=outputP)
     elif algName == 'pmoVB' and not hasMoves:
         learnAlg = bnpy.learnalg.ParallelMOVBAlg(
-            savedir=savepath, seed=algseed, 
+            savedir=savepath, seed=algseed,
             algParams=algP, outputParams=outputP)
-
     elif algName == 'GS':
-        learnAlg = bnpy.learnalg.GSAlg(savedir=savepath, seed=algseed,
-                                       algParams=algP, outputParams=outputP)
+        learnAlg = bnpy.learnalg.GSAlg(
+            savedir=savepath, seed=algseed,
+            algParams=algP, outputParams=outputP)
     else:
         raise NotImplementedError("Unknown learning algorithm " + algName)
     return learnAlg
@@ -474,7 +479,7 @@ def getOutputPath(ReqArgs, KwArgs, taskID=0):
 
     # Handle case where dataName parameter is a file system path
     # to a directory with many files, each one a batch of data
-    if type(dataName) is str and os.path.exists(dataName):
+    if isinstance(dataName, str) and os.path.exists(dataName):
         try:
             dataName = KwArgs['OnlineDataPrefs']['datasetName']
         except KeyError:
