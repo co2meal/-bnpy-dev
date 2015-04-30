@@ -182,5 +182,10 @@ def printTopWordsFromTopics(topics, vocabList, ktarget=None, Ktop=10):
             print '%.3f %s' % (topics[k, wID], vocabList[wID])
 
 if __name__ == "__main__":
-    print showTopWordsForTask('/results/nips/defaultjob/1/',
-                              '/data/nips/vocab.txt', doCounts=0)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('taskpath')
+    parser.add_argument('vocabfilepath')
+    args = parser.parse_args()
+    print showTopWordsForTask(args.taskpath, args.vocabfilepath)    
+
