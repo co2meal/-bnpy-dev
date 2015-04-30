@@ -7,6 +7,7 @@ import numpy as np
 import DeleteLogger
 from DCollector import hasValidKey
 
+
 def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
                                  nRefineIters=2,
                                  LPkwargs=None,
@@ -96,9 +97,9 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
                 elif delCompID == kB:
                     usedBefore = True
             if usedBefore:
-                continue # move on to next delCompID in Plan
+                continue  # move on to next delCompID in Plan
 
-            # Remove all target stats, 
+            # Remove all target stats,
             # so propSS represents only remaining data items
             propSS -= ptargetSS
             propModel.update_global_params(propSS)
@@ -116,7 +117,7 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
             propSS.mergeComps(kA, kB)
             for key, arr in ELBOTerms.items():
                 propSS.setELBOTerm(key, arr, propSS._ELBOTerms._FieldDims[key])
-            
+
             # Remove delCompID from target stats
             ptargetSS.removeComp(delCompID)
             # Add target stats back into propSS, so represents whole dataset
@@ -137,10 +138,13 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
                     mergeSS, kA, kB, delCompID=delCompID)
             mergeSS.mergeComps(kA, kB)
             for key, arr in mELBOTerms.items():
-                mergeSS.setELBOTerm(key, arr, propSS._ELBOTerms._FieldDims[key])
+                mergeSS.setELBOTerm(
+                    key,
+                    arr,
+                    propSS._ELBOTerms._FieldDims[key])
             mergeModel.update_global_params(mergeSS)
             mergeGap = mergeModel.calc_evidence(SS=mergeSS) - \
-                       bestModel.calc_evidence(SS=bestSS)
+                bestModel.calc_evidence(SS=bestSS)
 
             if 'WholeDataset' in Plan:
                 Data = Plan['WholeDataset']
@@ -150,16 +154,17 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
 
                 remLP = bestModel.calc_local_params(remData)
                 remSS = bestModel.get_global_suff_stats(
-                    remData, remLP, doPrecompEntropy=1, 
-                    doPrecompMergeEntropy=1, mPairIDs=[(kA,kB)])
+                    remData, remLP, doPrecompEntropy=1,
+                    doPrecompMergeEntropy=1, mPairIDs=[(kA, kB)])
                 Hvec = -1 * remSS.getELBOTerm('ElogqZ')
                 mHvec = np.delete(Hvec, kB)
                 mHvec[kA] = -1 * remSS.getMergeTerm('ElogqZ')[kA, kB]
                 tight_ELBOgap_rest = (mHvec.sum() - Hvec.sum()) / totalScale
-                
+
                 print "Hrem fast   %.4f" % (ELBOgap_cached_rest)
                 print "Hrem tight  %.4f" % (tight_ELBOgap_rest)
-                from IPython import embed; embed()
+                from IPython import embed
+                embed()
         else:
             msg = 'Unrecognised deleteNontargetStrategy: %s' \
                 % (deleteNontargetStrategy)
@@ -179,15 +184,17 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
                 obsModel.calcELBO_Memoized(propSS) / totalScale
             propELBOalloc = propModel.\
                 allocModel.calcELBO_LinearTerms(SS=propSS) / totalScale
-            ELBOGain_NonLinear_target = (
+
+            propNLELBO = \
                 propModel.allocModel.calcELBO_NonlinearTerms(SS=ptargetSS)
-                - bestModel.allocModel.calcELBO_NonlinearTerms(SS=besttargetSS)
-                ) / totalScale
+            curNLELBO = \
+                bestModel.allocModel.calcELBO_NonlinearTerms(SS=besttargetSS)
+            ELBOGain_NonLinear_target = (propNLELBO - curNLELBO) / totalScale
 
             ELBOGain = propELBOobs - bestELBOobs \
-                      + propELBOalloc - bestELBOalloc \
-                      + ELBOGain_NonLinear_nontarget \
-                      + ELBOGain_NonLinear_target
+                + propELBOalloc - bestELBOalloc \
+                + ELBOGain_NonLinear_nontarget \
+                + ELBOGain_NonLinear_target
 
             if not np.isfinite(ELBOGain):
                 break
@@ -195,13 +202,14 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
                 didAcceptCur = 1
                 didAccept = 1
                 break
-            
+
         # Log result of this proposal
         curMsg = makeLogMessage(bestSS, besttargetSS,
-            label='cur', compUID=delCompUID)
+                                label='cur', compUID=delCompUID)
         propMsg = makeLogMessage(propSS, ptargetSS,
-            label='prop', compUID=delCompUID)
-        resultMsg = makeLogMessageForResult(ELBOGain, didAcceptCur,
+                                 label='prop', compUID=delCompUID)
+        resultMsg = makeLogMessageForResult(
+            ELBOGain, didAcceptCur,
             ELBOgap_alloc=propELBOalloc - bestELBOalloc,
             ELBOgap_obs=propELBOobs - bestELBOobs,
             ELBOgap_Htrgt=ELBOGain_NonLinear_target,
@@ -228,7 +236,7 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
             else:
                 compsToHighlight = [delCompID]
             plotCompsFromHModel(bestModel, Data=targetData,
-                compsToHighlight=compsToHighlight)
+                                compsToHighlight=compsToHighlight)
             pylab.show(block=0)
             raw_input('Press any key to continue>>>')
             pylab.close()
@@ -319,13 +327,13 @@ def makeMPairIDsWith(k, K, excludeIDs=None):
         elif j == k:
             continue
         elif j < k:
-            mPairIDs.append((j,k))
+            mPairIDs.append((j, k))
         else:
-            mPairIDs.append((k,j))
+            mPairIDs.append((k, j))
     return mPairIDs
 
 
-def makeLogMessageForResult(ELBOGain, didAccept=0, 
+def makeLogMessageForResult(ELBOGain, didAccept=0,
                             ELBOgap_alloc=0,
                             ELBOgap_Htrgt=0,
                             ELBOgap_Hrest=0,
@@ -340,6 +348,7 @@ def makeLogMessageForResult(ELBOGain, didAccept=0,
     label += '  Htrgt %10.8f' % (ELBOgap_Htrgt)
     label += '  Hrest %10.8f' % (ELBOgap_Hrest)
     return label
+
 
 def makeLogMessage(aggSS, targetSS,
                    label='cur',

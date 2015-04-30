@@ -12,12 +12,13 @@ class Test(MergeMoveEndToEndTest):
     def setUp(self):
         """ Create the dataset
         """
-        import JainNealEx1
-        self.Data = JainNealEx1.get_data(nPerState=100)
         self.datasetArg = dict(
             name='JainNealEx1', 
             nPerState=100,
             )
+        datasetMod = __import__(self.datasetArg['name'], fromlist=[])
+        self.Data = datasetMod.get_data(**self.datasetArg)
+        
     def nextObsKwArgsForVB(self):
         for lam in [0.5, 0.01]:
             kwargs = OrderedDict()

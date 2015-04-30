@@ -178,7 +178,7 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
         self.Post.setField('B', B, dims=('K', 'D', 'D'))
         self.K = K
 
-    def calcSummaryStats(self, Data, SS, LP):
+    def calcSummaryStats(self, Data, SS, LP, **kwargs):
         ''' Calculate summary statistics for given dataset and local parameters
 
         Returns
@@ -216,7 +216,7 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
     def decrementSS(self, SS, k, x):
         SS.xxT[k] -= np.outer(x, x)
 
-    def calcLogSoftEvMatrix_FromEstParams(self, Data):
+    def calcLogSoftEvMatrix_FromEstParams(self, Data, **kwargs):
         ''' Compute log soft evidence matrix for Dataset under EstParams.
 
         Returns
@@ -397,7 +397,7 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
         '''
         pass
 
-    def calcLogSoftEvMatrix_FromPost(self, Data):
+    def calcLogSoftEvMatrix_FromPost(self, Data, **kwargs):
         ''' Calculate expected log soft ev matrix under Post.
 
         Returns

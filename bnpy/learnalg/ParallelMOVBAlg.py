@@ -1,7 +1,7 @@
 '''
 ParallelVBAlg.py
 
-Implementation of parallel variational bayes learning algorithm for bnpy models.
+Implementation of parallel memoized variational algorithm for bnpy models.
 '''
 import numpy as np
 import multiprocessing
@@ -34,7 +34,7 @@ class ParallelMOVBAlg(MOVBAlg):
         --------
         hmodel updated in place with improved global parameters.
         '''
-         # Initialize Progress Tracking vars like nBatch, lapFrac, etc.
+        # Initialize Progress Tracking vars like nBatch, lapFrac, etc.
         iterid, lapFrac = self.initProgressTrackVars(DataIterator)
 
         # Save initial state
@@ -52,8 +52,10 @@ class ParallelMOVBAlg(MOVBAlg):
 
         # Get the function handles
         makeDataSliceFromSharedMem = DataIterator.getDataSliceFunctionHandle()
-        o_calcLocalParams, o_calcSummaryStats = hmodel.obsModel.getLocalAndSummaryFunctionHandles()
-        a_calcLocalParams, a_calcSummaryStats = hmodel.allocModel.getLocalAndSummaryFunctionHandles()
+        o_calcLocalParams, o_calcSummaryStats = hmodel.obsModel.\
+            getLocalAndSummaryFunctionHandles()
+        a_calcLocalParams, a_calcSummaryStats = hmodel.allocModel.\
+            getLocalAndSummaryFunctionHandles()
 
         # Create the shared memory
         try:
@@ -76,7 +78,7 @@ class ParallelMOVBAlg(MOVBAlg):
                             oSharedMem,
                             LPkwargs=self.algParamsLP,
                             verbose=1).start()
-        
+
         # Begin loop over batches of data...
         SS = None
         isConverged = False
@@ -102,16 +104,18 @@ class ParallelMOVBAlg(MOVBAlg):
                 hmodel,
                 batchID=batchID)
 
-            self.saveDebugStateAtBatch('Estep', batchID, 
+            self.saveDebugStateAtBatch('Estep', batchID,
                                        SS=SS, hmodel=hmodel)
 
             # Summary step
             SS = self.memoizedSummaryStep(hmodel, SS, SSchunk, batchID)
-            
+
             # Global step
             self.GlobalStep(hmodel, SS, lapFrac)
-            aSharedMem = hmodel.allocModel.fillSharedMemDictForLocalStep(aSharedMem)
-            oSharedMem = hmodel.obsModel.fillSharedMemDictForLocalStep(oSharedMem)
+            aSharedMem = hmodel.allocModel.fillSharedMemDictForLocalStep(
+                aSharedMem)
+            oSharedMem = hmodel.obsModel.fillSharedMemDictForLocalStep(
+                oSharedMem)
 
             # ELBO calculation
             evBound = hmodel.calc_evidence(SS=SS)
@@ -167,7 +171,6 @@ class ParallelMOVBAlg(MOVBAlg):
         return self.buildRunInfo(evBound=evBound, SS=SS,
                                  SSmemory=self.SSmemory)
 
-
     def memoizedSummaryStep(self, hmodel, SS, SSchunk, batchID):
         ''' Execute summary step on current batch and update aggregated SS.
 
@@ -194,7 +197,7 @@ class ParallelMOVBAlg(MOVBAlg):
             hmodel.obsModel.forceSSInBounds(SS)
         return SS
 
-    def calcLocalParamsAndSummarize(self, DataIterator, hmodel, 
+    def calcLocalParamsAndSummarize(self, DataIterator, hmodel,
                                     batchID=0, **kwargs):
         # MAP!
         # Create several tasks (one per worker) and add to job queue
@@ -204,7 +207,7 @@ class ParallelMOVBAlg(MOVBAlg):
                 batchID, workerID, nWorkers)
             aArgs = hmodel.allocModel.getSerializableParamsForLocalStep()
             oArgs = hmodel.obsModel.getSerializableParamsForLocalStep()
-            self.JobQ.put((sliceArgs,aArgs,oArgs))
+            self.JobQ.put((sliceArgs, aArgs, oArgs))
 
         # Pause at this line until all jobs are marked complete.
         self.JobQ.join()
@@ -216,4 +219,3 @@ class ParallelMOVBAlg(MOVBAlg):
             SSslice = self.ResultQ.get()
             SSbigslice += SSslice
         return SSbigslice
-

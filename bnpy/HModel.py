@@ -25,7 +25,8 @@ import copy
 import init
 from allocmodel import AllocModelConstructorsByName
 from obsmodel import ObsModelConstructorsByName
-                   
+
+
 class HModel(object):
 
     def __init__(self, allocModel, obsModel):
@@ -49,14 +50,12 @@ class HModel(object):
         ObsConstr = ObsModelConstructorsByName[obsModelName]
         obsModel = ObsConstr(inferType, Data=Data, **obsPriorDict)
         return cls(allocModel, obsModel)
-  
-    
+
     def copy(self):
         ''' Create a clone of this object with distinct memory allocation
             Any manipulation of clone's parameters will NOT affect self
         '''
         return copy.deepcopy(self)
-
 
     def calc_local_params(self, Data, LP=None, **kwargs):
         ''' Calculate local parameters specific to each data item.
@@ -123,7 +122,7 @@ class HModel(object):
         if todict:
             evA.update(evObs)
             for key in evA:
-                 evA[key] /= scaleFactor
+                evA[key] /= scaleFactor
             return evA
         else:
             return (evA + evObs) / scaleFactor
@@ -184,7 +183,6 @@ class HModel(object):
         s += 'Obs. Data  Prior:  %s' % (self.obsModel.get_info_string_prior())
         return s
 
-
     def getBestMergePair(self, SS, mPairIDs):
         """ Identify best merge pair among given list of candidates.
 
@@ -199,5 +197,3 @@ class HModel(object):
         gap = aGap + oGap
         bestid = gap.argmax()
         return mPairIDs[bestid]
-
-

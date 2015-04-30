@@ -26,13 +26,13 @@ class AbstractEndToEndTest(unittest.TestCase):
 
     """ Defines test exercises for executing bnpy.run on provided dataset.
 
-        Attributes
-        ----
-        Data : bnpy.data.DataObj
-            dataset under testing
-        possibleAllocModelNames : list
-        possibleObsModelNames : list
-        possibleInitNames : list
+    Attributes
+    ----
+    Data : bnpy.data.DataObj
+        dataset under testing
+    possibleAllocModelNames : list
+    possibleObsModelNames : list
+    possibleInitNames : list
     """
 
     __test__ = False  # Do not execute this abstract module!

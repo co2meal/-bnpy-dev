@@ -216,7 +216,7 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
         tier2AggSize = np.cumsum([SizeMap[x] for x in tier2UIDs])
         maxLoc = np.searchsorted(tier2AggSize, dtargetMaxSize - curTargetSize)
         selectUIDs = np.hstack([selectUIDs, tier2UIDs[:maxLoc]])
-    
+
     selectMass = [SizeMap[x] for x in selectUIDs]
     selectIDs = list()
     for uid in selectUIDs:
