@@ -136,10 +136,11 @@ def _run_task_internal(jobname, taskid, nTask,
             DataArgs = UnkArgs
             # Set the short name for this dataset,
             # so that the filepath for results is informative.
-            try:
-                Data.name = KwArgs['OnlineDataPrefs']['datasetName']
-            except KeyError:
-                Data.name = 'UnknownData'
+            if not hasattr(Data, 'name'):
+                try:
+                    Data.name = KwArgs['OnlineDataPrefs']['datasetName']
+                except KeyError:
+                    Data.name = 'UnknownDatasetName'
         else:
             DataArgs = getKwArgsForLoadData(ReqArgs, UnkArgs)
             Data, InitData = loadData(ReqArgs, KwArgs, DataArgs, dataorderseed)
