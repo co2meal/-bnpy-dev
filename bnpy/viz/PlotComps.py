@@ -37,6 +37,7 @@ def plotCompsFromHModel(hmodel, **kwargs):
     elif obsName.count('Mult'):
         bnpy.viz.BarsViz.plotBarsFromHModel(hmodel, **kwargs)
 
+
 def plotCompsForTask(taskpath, lap=None,
                      dataName=None, **kwargs):
     ''' Show plot of learned clusters for single run of saved results on disk
@@ -62,6 +63,7 @@ def plotCompsForTask(taskpath, lap=None,
             % (queryLap, lap)
 
     plotCompsFromHModel(hmodel, **kwargs)
+
 
 def plotCompsForJob(jobpath='', taskids=[1], lap=None,
                     **kwargs):

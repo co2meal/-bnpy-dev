@@ -187,5 +187,4 @@ if __name__ == "__main__":
     parser.add_argument('taskpath')
     parser.add_argument('vocabfilepath')
     args = parser.parse_args()
-    print showTopWordsForTask(args.taskpath, args.vocabfilepath)    
-
+    print showTopWordsForTask(args.taskpath, args.vocabfilepath)

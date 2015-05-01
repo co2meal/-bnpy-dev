@@ -922,8 +922,8 @@ def calcSummaryStats(Data, LP,
     if doPrecompMergeEntropy:
         resp = LP['resp']
         if mPairIDs is None:
-            ElogqZMat = NumericUtil.calcRlogR_allpairs(resp)
+            HrespMat = -1 * NumericUtil.calcRlogR_allpairs(resp)
         else:
-            ElogqZMat = NumericUtil.calcRlogR_specificpairs(resp, mPairIDs)
-        SS.setMergeTerm('ElogqZ', ElogqZMat, dims=('K', 'K'))
+            HrespMat = -1 * NumericUtil.calcRlogR_specificpairs(resp, mPairIDs)
+        SS.setMergeTerm('Hresp', HrespMat, dims=('K', 'K'))
     return SS

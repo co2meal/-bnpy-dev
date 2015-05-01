@@ -205,6 +205,9 @@ def loadDictFromMatfile(matfilepath):
         if not isinstance(D[key], np.ndarray):
             continue
         x = D[key]
+        if x.size == 1 and isinstance(x[0], np.unicode_):
+            D[key] = str(x[0])
+            continue
         if x.ndim == 2:
             x = np.squeeze(x)
         if str(x.dtype).count('int'):
