@@ -62,10 +62,101 @@ def jpath2jdict(jpath):
     return D
 
 
-def filterJobs(jpathPattern, verbose=0, **reqKwArgs):
-    for key in SkipKeys:
-        if key in reqKwArgs:
-            del reqKwArgs[key]
+def filterJobs(jpathPattern, 
+               returnAll=0, verbose=0, **reqKwArgs):
+  for key in SkipKeys:
+    if key in reqKwArgs:
+      del reqKwArgs[key]
+
+  if not jpathPattern.endswith('*'):
+    jpathPattern += '*'
+
+  jpathdir = os.path.sep.join(jpathPattern.split(os.path.sep)[:-1] )
+  if not os.path.isdir(jpathdir):
+    raise ValueError('Not valid directory:\n %s' % (jpathdir))
+
+  jpathList = glob.glob(jpathPattern)
+  
+  if verbose:
+    print 'Looking for jobs with pattern:'
+    print jpathPattern
+    print '%d candidates found (before filtering by keywords)' % (len(jpathList))
+    
+  if len(jpathList) == 0:
+    raise ValueError('No matching jobs found.')
+
+  for key in reqKwArgs:
+    try:
+      reqKwArgs[key] = float(reqKwArgs[key])
+    except:
+      pass # keep as string
+
+  if verbose:
+    print '\nRequirements:'
+    for key in reqKwArgs:
+      print '%s = %s' % (key, reqKwArgs[key])
+
+
+  keepListP = list() # list of paths to keep
+  keepListD = list() # list of dicts to keep (one for each path)
+  reqKwMatches = defaultdict(int)
+  for jpath in jpathList:
+    jdict = jpath2jdict(jpath)
+    doKeep = True
+    for reqkey in reqKwArgs:
+      if reqkey not in jdict:
+        doKeep = False
+        continue
+      reqval = reqKwArgs[reqkey]
+      if jdict[reqkey] != reqval:
+        doKeep = False
+      else:
+        reqKwMatches[reqkey] += 1
+    if doKeep:
+      keepListP.append(jpath)
+      keepListD.append(jdict)
+ 
+  if len(keepListP) == 0:
+    for reqkey in reqKwArgs:
+      if reqKwMatches[reqkey] == 0:
+        raise ValueError('BAD REQUIRED PARAMETER.\n'
+              + 'No matches found for %s=%s: ' % (reqkey, reqKwArgs[reqkey]))
+
+  if verbose:
+    print '\nCandidates matching requirements'
+    for p in keepListP:
+      print p.split(os.path.sep)[-1]
+
+  ## Figure out intelligent labels for the final jobs
+  K = len(keepListD)
+  varKeys = set()
+  for kA in xrange(K):
+    for kB in xrange(kA+1, K):
+      varKeys.update(findKeysWithDiffVals(keepListD[kA], keepListD[kB]))
+  varKeys = [x for x in varKeys]
+
+  if returnAll:
+     return keepListP
+
+  RangeMap = dict()
+  for key in varKeys:
+    RangeMap[key] = set()
+    for jdict in keepListD:
+      RangeMap[key].add(jdict[key])
+    RangeMap[key] = [x for x in sorted(RangeMap[key])] # to list
+
+  if len(varKeys) > 1:
+    print 'ERROR! Need to constrain more variables'
+    for key in RangeMap:
+      print key, RangeMap[key]
+    raise ValueError('ERROR! Need to constrain more variables')
+
+  elif len(varKeys) == 1:
+    plotkey = varKeys[0]
+    if type(RangeMap[plotkey][0]) == str:
+      legNames = ['%s' % (x) for x in RangeMap[plotkey]]
+    else:
+      legNames = ['%s=%s' % (plotkey, x) for x in RangeMap[plotkey]]
 
     if not jpathPattern.endswith('*'):
         jpathPattern += '*'
