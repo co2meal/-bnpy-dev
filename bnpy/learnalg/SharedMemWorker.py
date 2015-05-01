@@ -79,7 +79,7 @@ class SharedMemWorker(multiprocessing.Process):
             start1 = time.time()
             # Grab slice of data to work on
             if len(sliceArgs) == 3:
-                # Shared memory
+                # Load data from shared memory        
                 batchID, start, stop = sliceArgs
                 Dslice = self.makeDataSliceFromSharedMem(
                     self.dataSharedMem,
@@ -87,7 +87,7 @@ class SharedMemWorker(multiprocessing.Process):
                     cslice=(start, stop))
 
             else:
-                # Load from file
+                # Load data slice directly from file
                 BatchInfo = sliceArgs
                 Dslice = loadDataForSlice(**BatchInfo)
 
@@ -102,7 +102,7 @@ class SharedMemWorker(multiprocessing.Process):
             LP = self.o_calcLocalParams(Dslice, **oArgs)
             LP = self.a_calcLocalParams(Dslice, LP, **aArgs)
 
-            # Do global step
+            # Do summary step
             SS = self.a_calcSummaryStats(
                 Dslice, LP, doPrecompEntropy=1, **aArgs)
             SS = self.o_calcSummaryStats(Dslice, SS, LP, **oArgs)

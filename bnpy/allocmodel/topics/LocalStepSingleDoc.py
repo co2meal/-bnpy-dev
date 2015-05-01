@@ -50,7 +50,6 @@ def calcLocalParams_SingleDoc(
 
     # Initialize prior from global topic probs
     DocTopicProb_d = alphaEbeta.copy()
-
     if DocTopicCount_d is None:
         # Update sumResp for all tokens in document
         np.dot(Lik_d, DocTopicProb_d, out=sumResp_d)

@@ -15,6 +15,12 @@ from bnpy.util import digamma, gammaln
 from bnpy.util import as1D
 from bnpy.util.StickBreakUtil import rho2beta
 
+from bnpy.util.NumericUtil import calcRlogRdotv, calcRlogR
+from bnpy.util.NumericUtil import calcRlogRdotv_allpairs
+from bnpy.util.NumericUtil import calcRlogRdotv_specificpairs
+from bnpy.util.NumericUtil import calcRlogR_allpairs, calcRlogR_specificpairs
+from bnpy.util import sharedMemToNumpyArray, numpyToSharedMemArray
+
 Log = logging.getLogger('bnpy')
 
 
@@ -100,6 +106,17 @@ class HDPTopicModel(AllocModel):
             self.Ebeta = self.E_beta()
         return self.Ebeta[:-1]
 
+    def E_beta_rem(self):
+        ''' Get scalar probability of remaining/inactive topics.
+
+        Returns
+        -------
+        EbetaRem : float
+        '''
+        if not hasattr(self, 'Ebeta'):
+            self.Ebeta = self.E_beta()
+        return self.Ebeta[-1]
+
     def E_beta(self):
         ''' Get vector of probabilities for active and inactive topics.
 
@@ -121,13 +138,24 @@ class HDPTopicModel(AllocModel):
 
         Returns
         -------
-        abeta : 1D array, size K + 1
+        abeta : 1D array, size K
             abeta[k] gives scaled parameter for comp. k under this model.
             abeta[K] (last index) is aggregated over all inactive topics.
         '''
         if not hasattr(self, 'alphaEbeta'):
-            self.alphaEbeta = self.alpha * self.E_beta()
+            self.alphaEbeta = self.alpha * self.E_beta_active()
         return self.alphaEbeta
+
+    def alpha_E_beta_rem(self):
+        ''' Return scalar  alpha * E[beta_{>K}] for inactive topics.
+
+        Returns
+        -------
+        abetaRem : scalar
+        '''
+        if not hasattr(self, 'alphaEbetaRem'):
+            self.alphaEbetaRem = self.alpha * self.E_beta_rem()
+        return self.alphaEbetaRem
 
     def ClearCache(self):
         """ Clear cached computations stored as attributes.
@@ -143,6 +171,8 @@ class HDPTopicModel(AllocModel):
             del self.Ebeta
         if hasattr(self, 'alphaEbeta'):
             del self.alphaEbeta
+        if hasattr(self, 'alphaEbetaRem'):
+            del self.alphaEbetaRem
 
     def set_prior(self, gamma=1.0, alpha=1.0, **kwargs):
         self.alpha = float(alpha)
@@ -196,9 +226,8 @@ class HDPTopicModel(AllocModel):
                 Expected value E[log pi[d,k]] under q(pi).
                 This is a function of theta and thetaRem.
         '''
-        aEbeta_Kp1 = self.alpha_E_beta()  # create cached copy
-        alphaEbeta = aEbeta_Kp1[:-1].copy() # vector size K
-        alphaEbetaRem = aEbeta_Kp1[-1] * 1.0 # make float
+        alphaEbeta = self.alpha_E_beta().copy()
+        alphaEbetaRem = self.alpha_E_beta_rem()
         LP = LocalStepManyDocs.calcLocalParams(
             Data, LP, alphaEbeta, alphaEbetaRem=alphaEbetaRem, **kwargs)
         assert 'resp' in LP
@@ -333,28 +362,8 @@ class HDPTopicModel(AllocModel):
                 Vector of entropy contributions from each comp.
                 Hvec[k] = \sum_{n=1}^N H[q(z_n)], a function of 'resp'
         '''
-        resp = LP['resp']
-        _, K = resp.shape
-        SS = SuffStatBag(K=K, D=Data.get_dim())
-        SS.setField('nDoc', Data.nDoc, dims=None)
-        SS.setField('sumLogPi', np.sum(LP['ElogPi'], axis=0), dims='K')
-        SS.setField('sumLogPiRem', np.sum(LP['ElogPiRem']), dims=None)
+        SS = calcSummaryStats(Data, LP, doPrecompEntropy=doPrecompEntropy)
 
-        if doPrecompEntropy:
-            # Compute cacheable terms needed for ELBO evaluation
-            # 'Hresp', 'slackTheta', 'gammalnTheta', etc. 
-            # will be fields in Mdict
-            Mdict = calcELBO_NonlinearTerms(Data=Data, 
-                LP=LP, returnMemoizedDict=1)
-            SS.setELBOTerm('Hresp', Mdict['Hresp'], dims='K')
-            SS.setELBOTerm('slackTheta', Mdict['slackTheta'], dims='K')
-            SS.setELBOTerm('slackThetaRem', Mdict['slackThetaRem'], dims=None)
-            SS.setELBOTerm('gammalnSumTheta',
-                Mdict['gammalnSumTheta'], dims=None)
-            SS.setELBOTerm('gammalnTheta', 
-                Mdict['gammalnTheta'], dims='K')
-            SS.setELBOTerm('gammalnThetaRem', 
-                Mdict['gammalnThetaRem'], dims=None)
         if doPrecompMergeEntropy:
             if mPairIDs is None:
                 raise NotImplementedError("TODO: all pairs for merges")
@@ -655,14 +664,100 @@ class HDPTopicModel(AllocModel):
             rho=self.rho, omega=self.omega,
             **kwargs)
 
-    def calcELBO_NonlinearTerms(self, **kwargs):
-        ''' Compute sum of ELBO terms that are NONlinear wrt suff stats
+    def getSerializableParamsForLocalStep(self):
+        """ Get compact dict of params for parallel local step.
 
         Returns
         -------
-        L : float
-        '''
-        return calcELBO_NonlinearTerms(
-            alpha=self.alpha, rho=self.rho,
-            **kwargs)
-    # .... end class HDPTopicModel    
+        Info : dict
+        """
+        return dict(inferType=self.inferType, 
+                    K=self.K, 
+                    alphaEbetaRem=self.alpha_E_beta_rem())
+
+    def fillSharedMemDictForLocalStep(self, ShMem=None):
+        """ Get dict of shared mem arrays needed for parallel local step. 
+
+        Returns
+        -------
+        ShMem : dict of RawArray objects
+        """
+        # No shared memory required here.
+        if not isinstance(ShMem, dict):
+            ShMem = dict()
+        
+        alphaEbeta = self.alpha_E_beta()
+        if 'alphaEbeta' in ShMem:
+            shared_alphaEbeta = sharedMemToNumpyArray(ShMem['alphaEbeta'])
+            assert shared_alphaEbeta.size == self.K
+            shared_alphaEbeta[:] = alphaEbeta
+        else:
+            ShMem['alphaEbeta'] = numpyToSharedMemArray(alphaEbeta.copy())
+        return ShMem
+
+    def getLocalAndSummaryFunctionHandles(self):
+        """ Get function handles for local step and summary step
+
+        Useful for parallelized algorithms.
+
+        Returns
+        -------
+        calcLocalParams : f handle
+        calcSummaryStats : f handle
+        """
+        return LocalStepManyDocs.calcLocalParams, calcSummaryStats
+    # .... end class HDPTopicModel
+
+
+def calcSummaryStats(Dslice, LP=None, alpha=None,
+                     doPrecompEntropy=0,
+                     **kwargs):
+    """ Calculate summary from local parameters for given data slice.
+
+    Parameters
+    -------
+    Data : bnpy data object
+    LP : local param dict with fields
+        resp : Data.nObs x K array,
+            where resp[n,k] = posterior resp of comp k
+    doPrecompEntropy : boolean flag
+        indicates whether to precompute ELBO terms in advance
+        used for memoized learning algorithms (moVB)
+
+    Returns
+    -------
+    SS : SuffStatBag with K components
+        Relevant fields
+        * nDoc : scalar float
+            Counts total documents available in provided data.
+        * sumLogPi : 1D array, size K
+            Entry k equals \sum_{d in docs} E[ \log \pi_{dk} ]
+        * sumLogPiRem : scalar float
+            Equals sum over docs of probability of inactive topics.
+
+        Also has optional ELBO field when precompELBO is True
+        * Hvec : 1D array, size K
+            Vector of entropy contributions from each comp.
+            Hvec[k] = \sum_{n=1}^N H[q(z_n)], a function of 'resp'
+    """
+    resp = LP['resp']
+    _, K = resp.shape
+
+    SS = SuffStatBag(K=K, D=Dslice.dim)
+    SS.setField('nDoc', Dslice.nDoc, dims=None)
+    SS.setField('sumLogPi', np.sum(LP['ElogPi'], axis=0), dims='K')
+    SS.setField('sumLogPiRem', np.sum(LP['ElogPiRem']), dims=None)
+
+    if doPrecompEntropy:
+        Mdict = calcELBO_NonlinearTerms(Data=Dslice, 
+            LP=LP, returnMemoizedDict=1)
+        SS.setELBOTerm('Hresp', Mdict['Hresp'], dims='K')
+        SS.setELBOTerm('slackTheta', Mdict['slackTheta'], dims='K')
+        SS.setELBOTerm('slackThetaRem', Mdict['slackThetaRem'], dims=None)
+        SS.setELBOTerm('gammalnSumTheta',
+            Mdict['gammalnSumTheta'], dims=None)
+        SS.setELBOTerm('gammalnTheta', 
+            Mdict['gammalnTheta'], dims='K')
+        SS.setELBOTerm('gammalnThetaRem', 
+            Mdict['gammalnThetaRem'], dims=None)
+    return SS
