@@ -167,7 +167,8 @@ class DataIteratorFromDisk(object):
 
         self.dtype = decideDataTypeFromModel(aModelType, oModelType)
         self.DataInfo = self.loadWholeDatasetInfo()
-
+        if 'datasetName' in self.DataInfo:
+            self.name = self.DataInfo['datasetName']
         # Decide which order the batches will be traversed in the first lap
         self.batchOrderCurLap = self.getRandPermOfBatchIDsForCurLap()
 
@@ -250,7 +251,9 @@ class DataIteratorFromDisk(object):
     def get_text_summary(self):
         ''' Returns human-readable one-line description of this dataset
         '''
-        if self.datapath.endswith(os.path.sep):
+        if 'datasetName' in self.DataInfo:
+            return self.DataInfo['datasetName']
+        elif self.datapath.endswith(os.path.sep):
             dataName = self.datapath.split(os.path.sep)[-2]
         else:
             dataName = self.datapath.split(os.path.sep)[-1]
@@ -292,7 +295,6 @@ class DataIteratorFromDisk(object):
             * nObsTotal [for XData]
         '''
         self.totalSize, self.batchSize = self.get_total_size(self.datafileList)
-
         conffilepath = os.path.join(self.datapath, 'Info.conf')
         if os.path.exists(conffilepath):
             DataInfo = loadDictFromConfFile(conffilepath)
@@ -374,7 +376,7 @@ def loadDictFromConfFile(filepath):
             key = fields[0]
             try:
                 val = int(fields[1])
-            except TypeError:
+            except ValueError:
                 val = fields[1]
             confDict[key] = val
     return confDict

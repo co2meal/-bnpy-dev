@@ -284,14 +284,8 @@ class DPMixtureModel(AllocModel):
                 Posterior responsibility each comp has for each item
                 resp[n, k] = p(z[n] = k | x[n])
         '''
-        lpr = LP['E_log_soft_ev']
-        lpr += self.Elogbeta
-        # Calculate exp in numerically stable manner (first subtract the max)
-        #  perform this in-place so no new allocations occur
-        NumericUtil.inplaceExpAndNormalizeRows(lpr)
-        LP['resp'] = lpr
-        assert np.allclose(lpr.sum(axis=1), 1)
-        return LP
+        return calcLocalParams(
+            Data, LP, Elogbeta=self.Elogbeta, **kwargs)
 
     def selectSubsetLP(self, Data, LP, relIDs):
         ''' Make subset of provided local params for certain data items.
@@ -306,11 +300,6 @@ class DPMixtureModel(AllocModel):
         return dict(resp=resp)
 
     def get_global_suff_stats(self, Data, LP,
-                              mergePairSelection=None,
-                              doPrecompEntropy=False,
-                              doPrecompMergeEntropy=False, 
-                              mPairIDs=None,
-                              trackDocUsage=False,
                               **kwargs):
         ''' Calculate sufficient statistics for global updates.
 
@@ -343,31 +332,7 @@ class DPMixtureModel(AllocModel):
             * ElogqZ : 2D array, size K x K
                 Each term is scalar entropy of merge candidate
         '''
-        Nvec = np.sum(LP['resp'], axis=0)
-        K = Nvec.size
-        if hasattr(Data, 'dim'):
-            SS = SuffStatBag(K=K, D=Data.dim)
-        else:
-            SS = SuffStatBag(K=K, D=Data.vocab_size)
-        SS.setField('N', Nvec, dims=('K'))
-
-        if doPrecompEntropy:
-            Mdict = calcELBO_NonlinearTerms(LP=LP, returnMemoizedDict=1)
-            for key in Mdict:
-                SS.setELBOTerm(key, Mdict[key], ELBOTermDimMap[key])
-
-        if doPrecompMergeEntropy:
-            resp = LP['resp']
-            if mPairIDs is None:
-                HrespMat = -NumericUtil.calcRlogR_allpairs(resp)
-            else:
-                HrespMat = -NumericUtil.calcRlogR_specificpairs(resp, mPairIDs)
-            SS.setMergeTerm('Hresp', HrespMat, dims=('K', 'K'))
-        if trackDocUsage:
-            ## Track num items with signif. mass assigned to each state.
-            DocUsage = np.sum(LP['resp'] > 0.01, axis=0)
-            SS.setSelectionTerm('DocUsageCount', DocUsage, dims='K')
-        return SS
+        return calcSummaryStats(Data, LP, **kwargs)
 
     def forceSSInBounds(self, SS):
         ''' Enforce known bounds on SS fields for numerical stability.
@@ -836,3 +801,129 @@ class DPMixtureModel(AllocModel):
             + K * np.log(self.gamma0) \
             + np.sum(gammaln(Nvec)) \
             - gammaln(np.sum(Nvec) + self.gamma0)
+
+
+
+    def getSerializableParamsForLocalStep(self):
+        """ Get compact dict of params for parallel local step.
+
+        Returns
+        -------
+        Info : dict
+        """
+        return dict(inferType=self.inferType, 
+                    Elogbeta=self.Elogbeta,
+                    K=self.K)
+
+    def fillSharedMemDictForLocalStep(self, ShMem=None):
+        """ Get dict of shared mem arrays needed for parallel local step. 
+
+        Returns
+        -------
+        ShMem : dict of RawArray objects
+        """
+        # No shared memory required here.
+        if not isinstance(ShMem, dict):
+            ShMem = dict()
+        return ShMem
+
+    def getLocalAndSummaryFunctionHandles(self):
+        """ Get function handles for local step and summary step
+
+        Useful for parallelized algorithms.
+
+        Returns
+        -------
+        calcLocalParams : f handle
+        calcSummaryStats : f handle
+        """
+        return calcLocalParams, calcSummaryStats
+
+    # .... end class DPMixtureModel
+
+
+def calcLocalParams(Data, LP, Elogbeta=None, **kwargs):
+    ''' Compute local parameters for each data item.
+
+    Parameters
+    -------
+    Data : bnpy.data.DataObj subclass
+
+    LP : dict
+        Local parameters as key-value string/array pairs
+        * E_log_soft_ev : 2D array, N x K
+            E_log_soft_ev[n,k] = log p(data obs n | comp k)
+
+    Returns
+    -------
+    LP : dict
+        Local parameters, with updated fields
+        * resp : 2D array, size N x K array
+            Posterior responsibility each comp has for each item
+            resp[n, k] = p(z[n] = k | x[n])
+    '''
+    lpr = LP['E_log_soft_ev']
+    lpr += Elogbeta
+    # Calculate exp in numerically stable manner (first subtract the max)
+    #  perform this in-place so no new allocations occur
+    NumericUtil.inplaceExpAndNormalizeRows(lpr)
+    LP['resp'] = lpr
+    return LP
+
+
+def calcSummaryStats(Data, LP,
+                     doPrecompEntropy=False,
+                     doPrecompMergeEntropy=False, mPairIDs=None,
+                     mergePairSelection=None,
+                     **kwargs):
+    ''' Calculate sufficient statistics for global updates.
+
+    Parameters
+    -------
+    Data : bnpy data object
+    LP : local param dict with fields
+        resp : Data.nObs x K array,
+            where resp[n,k] = posterior resp of comp k
+    doPrecompEntropy : boolean flag
+        indicates whether to precompute ELBO terms in advance
+        used for memoized learning algorithms (moVB)
+    doPrecompMergeEntropy : boolean flag
+        indicates whether to precompute ELBO terms in advance
+        for certain merge candidates.
+
+    Returns
+    -------
+    SS : SuffStatBag with K components
+        Summarizes for this mixture model, with fields
+        * N : 1D array, size K
+            N[k] = expected number of items assigned to comp k
+
+        Also has optional ELBO field when precompELBO is True
+        * ElogqZ : 1D array, size K
+            Vector of entropy contributions from each comp.
+            ElogqZ[k] = \sum_{n=1}^N resp[n,k] log resp[n,k]
+
+        Also has optional Merge field when precompMergeELBO is True
+        * ElogqZ : 2D array, size K x K
+            Each term is scalar entropy of merge candidate
+    '''
+    Nvec = np.sum(LP['resp'], axis=0)
+    K = Nvec.size
+    if hasattr(Data, 'dim'):
+        SS = SuffStatBag(K=K, D=Data.dim)
+    else:
+        SS = SuffStatBag(K=K, D=Data.vocab_size)
+    SS.setField('N', Nvec, dims=('K'))
+
+    if doPrecompEntropy:
+        Mdict = calcELBO_NonlinearTerms(LP=LP, returnMemoizedDict=1)
+        SS.setELBOTerm('Hresp', Mdict['Hresp'], dims=('K'))
+
+    if doPrecompMergeEntropy:
+        resp = LP['resp']
+        if mPairIDs is None:
+            ElogqZMat = NumericUtil.calcRlogR_allpairs(resp)
+        else:
+            ElogqZMat = NumericUtil.calcRlogR_specificpairs(resp, mPairIDs)
+        SS.setMergeTerm('ElogqZ', ElogqZMat, dims=('K', 'K'))
+    return SS

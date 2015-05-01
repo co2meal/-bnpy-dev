@@ -101,17 +101,11 @@ class WordsData(DataObj):
             if sliceID is None:
                 # Simple case: read the whole file
                 for line in f.readlines():
-                    Fields = line.strip().split(' ')
-                    nUnique = int(Fields[0])
+                    nUnique, d_word_id, d_word_ct = \
+                        processLine_ldac__fromstring(line)
                     doc_sizes.append(nUnique)
-                    if Fields[1].count(':'):
-                        doc_word_id, doc_word_ct = zip(
-                            *[x.split(':') for x in Fields[1:]])
-                    else:
-                        Yvals.append( float(Fields[1]))
-                        doc_word_id, doc_word_ct = zip(
-                            *[x.split(':') for x in Fields[2:]])
-
+                    word_id.extend(d_word_id)
+                    word_ct.extend(d_word_ct)
             else:
                 # Parallel access case: read slice of the file
                 # slices will be roughly even in DISKSIZE, not in num lines
@@ -126,16 +120,15 @@ class WordsData(DataObj):
                 if start == 0:
                     f.seek(0) # goto start of file
                 else:
-                    f.seek(start-1) # start at linebreak of prev slice
-                    f.readline()
+                    f.seek(start-1) # start at end of prev slice
+                    f.readline() # then jump to next line brk to start reading
                 while f.tell() < stop:
-                    Fields = f.readline().strip().split(' ')
-                    nUnique = int(Fields[0])
+                    line = f.readline()
+                    nUnique, d_word_id, d_word_ct = \
+                        processLine_ldac__fromstring(line)
                     doc_sizes.append(nUnique)
-                    doc_word_id, doc_word_ct = zip(
-                        *[x.split(':') for x in Fields[1:]])
-            word_id.extend(doc_word_id)
-            word_ct.extend(doc_word_ct)
+                    word_id.extend(d_word_id)
+                    word_ct.extend(d_word_ct)
 
         doc_range = np.hstack([0, np.cumsum(doc_sizes)])
         Data = cls(word_id=word_id, word_count=word_ct, nDocTotal=nDocTotal,
@@ -204,7 +197,7 @@ class WordsData(DataObj):
         self.word_count = as1D(toCArray(word_count, dtype=np.float64))
         self.doc_range = as1D(toCArray(doc_range, dtype=np.int32))
         self.vocab_size = int(vocab_size)
-
+        self.dim = self.vocab_size
         if summary is not None:
             self.summary = summary
 
@@ -551,8 +544,6 @@ class WordsData(DataObj):
         np.maximum(Q, 0, out=Q)
         return Q
 
-    # Add new documents
-    #########################################################
     def add_data(self, WData):
         """ Appends (in-place) provided dataset to this dataset.
 
@@ -576,7 +567,7 @@ class WordsData(DataObj):
     def get_random_sample(self, nDoc, randstate=np.random,
                           candidates=None,
                           p=None):
-        ''' Create WordsData object for random subsample of this document collection
+        ''' Create WordsData object for random subsample of this collection
 
             Args
             -----
@@ -627,9 +618,8 @@ class WordsData(DataObj):
         docMask = np.asarray(docMask, dtype=np.int32)
         nDoc = len(docMask)
         assert np.max(docMask) < self.nDoc
-        nUniqueTokenPerDoc = self.doc_range[
-            docMask + 1] - self.doc_range[docMask]
-
+        nUniqueTokenPerDoc = \
+            self.doc_range[docMask + 1] - self.doc_range[docMask]
         nUniqueToken = np.sum(nUniqueTokenPerDoc)
         word_id = np.zeros(nUniqueToken, dtype=self.word_id.dtype)
         word_count = np.zeros(nUniqueToken, dtype=self.word_count.dtype)
@@ -641,7 +631,6 @@ class WordsData(DataObj):
             start = self.doc_range[docMask[d]]
             stop = self.doc_range[docMask[d] + 1]
             endLoc = startLoc + (stop - start)
-
             word_count[startLoc:endLoc] = self.word_count[start:stop]
             word_id[startLoc:endLoc] = self.word_id[start:stop]
             doc_range[d] = startLoc
@@ -985,3 +974,38 @@ def makeDataSliceFromSharedMem(dataShMemDict,
         dim=vocab_size,
         )
     return Dslice
+
+def processLine_ldac__splitandzip(line):
+    """ 
+
+    Examples
+    --------
+    >>> a, b, c = processLine_ldac__splitandzip('5 66:6 77:7 88:8')
+    >>> print a
+    5
+    >>> print b
+    ('66', '77', '88')
+    >>> print c
+    ('6', '7', '8')
+    """
+    Fields = line.strip().split(' ')
+    nUnique = int(Fields[0])
+    doc_word_id, doc_word_ct = zip(
+        *[x.split(':') for x in Fields[1:]])
+    return nUnique, doc_word_id, doc_word_ct
+
+def processLine_ldac__fromstring(line):
+    """
+    Examples
+    --------
+    >>> a, b, c = processLine_ldac__fromstring('5 66:6 77:7 88:8')
+    >>> print a
+    5.0
+    >>> print b
+    [ 66.  77.  88.]
+    >>> print c
+    [ 6.  7.  8.]
+    """
+    line = line.replace(':', ' ')
+    data = np.fromstring(line, sep=' ', dtype=np.int32)
+    return data[0], data[1::2], data[2::2]
