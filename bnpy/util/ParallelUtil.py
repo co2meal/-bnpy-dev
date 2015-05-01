@@ -44,3 +44,13 @@ def sharedMemToNumpyArray(Xsh):
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', RuntimeWarning)
         return np.ctypeslib.as_array(Xsh)
+
+def fillSharedMemArray(Xsh, Xarr):
+    """ Copy all data from a numpy array into provided shared memory 
+
+    Post Condition
+    --------------
+    Xsh updated in place.
+    """
+    Xsh_arr = sharedMemToNumpyArray(Xsh)
+    Xsh_arr[:] = Xarr

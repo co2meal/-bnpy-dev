@@ -251,7 +251,7 @@ class FiniteTopicModel(AllocModel):
         return L_alloc(Data=Data, LP=LP, alpha=self.alpha)
 
     def getSerializableParamsForLocalStep(self):
-        """ Get compact dict of params for local step.
+        """ Get compact dict of params for parallel local step.
 
         Returns
         -------
@@ -373,7 +373,7 @@ def calcSummaryStats(Dslice, LP=None, alpha=None,
     resp = LP['resp']
     _, K = resp.shape
 
-    SS = SuffStatBag(K=K, D=Dslice.vocab_size)
+    SS = SuffStatBag(K=K, D=Dslice.dim)
     SS.setField('nDoc', Dslice.nDoc, dims=None)
     if doPrecompEntropy:
         Hvec = L_entropy(Dslice, LP, returnVector=1)
