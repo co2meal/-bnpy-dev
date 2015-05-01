@@ -15,7 +15,7 @@ import glob
 from ModelWriter import makePrefixForLap
 from bnpy.allocmodel import AllocModelConstructorsByName
 from bnpy.obsmodel import ObsModelConstructorsByName
-
+from bnpy.util import toCArray, as1D
 
 def getPrefixForLapQuery(taskpath, lapQuery):
     ''' Search among checkpoint laps for one nearest to query.
@@ -205,11 +205,12 @@ def loadDictFromMatfile(matfilepath):
         if not isinstance(D[key], np.ndarray):
             continue
         x = D[key]
-        if x.ndim == 1:
-            x = x[0]
-        elif x.ndim == 2:
+        if x.ndim == 2:
             x = np.squeeze(x)
-        arr = x.newbyteorder('=').copy()
+        if str(x.dtype).count('int'):
+            arr = toCArray(x, dtype=np.int32)
+        else:
+            arr = toCArray(x, dtype=np.float64)
         assert arr.dtype.byteorder == '='
         assert arr.flags.aligned is True
         assert arr.flags.owndata is True
@@ -225,21 +226,35 @@ def loadWordCountMatrixForLap(matfilepath, lapQuery, toDense=True):
     return WordCounts
 
 
-def loadTopicModelFromMEDLDA(matfilepath, prefix=None):
+def loadTopicModelFromMEDLDA(filepath, 
+        prefix=None,
+        returnTPA=0):
     ''' Load topic model saved in medlda format.
     '''
     # Avoid circular import
     import bnpy.HModel as HModel
 
-    if prefix is not None:
-        matfilepath = os.path.join(matfilepath, prefix + '.log_prob_w')
-    logtopics = np.loadtxt(matfilepath)
+    assert prefix is not None
+    alphafilepath = os.path.join(filepath, prefix + '.alpha')
+    etafilepath = os.path.join(filepath, prefix + '.eta')
+    topicfilepath = os.path.join(filepath, prefix + '.log_prob_w')
+
+    alpha = float(np.loadtxt(alphafilepath))
+    eta = np.loadtxt(etafilepath)
+    logtopics = np.loadtxt(topicfilepath)
     topics = np.exp(logtopics)
+    topics += 1e-9
     topics /= topics.sum(axis=1)[:,np.newaxis]
     assert np.all(np.isfinite(topics))
 
+
+    if returnTPA:
+        K = topics.shape[0]
+        probs = 1.0/K * np.ones(K)
+        return topics, probs, alpha, eta
+
     infAlg = 'VB'
-    aPriorDict = dict(alpha=0.5)
+    aPriorDict = dict(alpha=alpha)
     amodel = AllocModelConstructorsByName['FiniteTopicModel'](infAlg, aPriorDict)
     omodel = ObsModelConstructorsByName['Mult'](infAlg, 
         lam=0.001, D=topics.shape[1])
@@ -253,10 +268,13 @@ def loadTopicModel(matfilepath, prefix=None,
     '''
     # avoids circular import
     from bnpy.HModel import HModel
+    if len(glob.glob(os.path.join(matfilepath, "*.log_prob_w"))) > 0:
+        return loadTopicModelFromMEDLDA(matfilepath, prefix, 
+            returnTPA=returnTPA)
+
     if prefix is not None:
         matfilepath = os.path.join(matfilepath, prefix + 'TopicModel.mat')
     Mdict = loadDictFromMatfile(matfilepath)
-    Mdict['probs'] = np.asarray(Mdict['probs'], dtype=np.float64)
     if 'SparseWordCount_data' in Mdict:
         data = np.asarray(Mdict['SparseWordCount_data'], dtype=np.float64)
         K = int(Mdict['K'])
@@ -276,9 +294,13 @@ def loadTopicModel(matfilepath, prefix=None,
         if 'WordCounts' in Mdict:
             topics = Mdict['WordCounts'] + Mdict['lam']
         else:
-            topics = np.asarray(
-                Mdict['topics'], dtype=np.float64).newbyteorder('=').copy()
-        probs = Mdict['probs']
+            topics = Mdict['topics']
+        K = topics.shape[0]
+
+        try:
+            probs = Mdict['probs']
+        except KeyError:
+            probs = (1.0/K) * np.ones(K)
         try:
             alpha = float(Mdict['alpha'])
         except KeyError:
@@ -286,13 +308,21 @@ def loadTopicModel(matfilepath, prefix=None,
                 alpha = float(os.environ['alpha'])
             else:
                 raise ValueError('Unknown parameter alpha')
+        if 'eta' in Mdict:
+            return topics, probs, alpha, as1D(toCArray(Mdict['eta']))
         return topics, probs, alpha
 
     infAlg = 'VB'
-    aPriorDict = dict(alpha=Mdict['alpha'], gamma=Mdict['gamma'])
-    amodel = HDPTopicModel(infAlg, aPriorDict)
-    omodel = MultObsModel(infAlg, **Mdict)
+    if 'gamma' in Mdict:
+        aPriorDict = dict(alpha=Mdict['alpha'], gamma=Mdict['gamma'])
+        HDPTopicModel = AllocModelConstructorsByName['HDPTopicModel']
+        amodel = HDPTopicModel(infAlg, aPriorDict)
+    else:
+        FiniteTopicModel = AllocModelConstructorsByName['FiniteTopicModel']
+        amodel = FiniteTopicModel(infAlg, dict(alpha=Mdict['alpha']))
+    omodel = ObsModelConstructorsByName['Mult'](infAlg, **Mdict)
     hmodel = HModel(amodel, omodel)
+
     hmodel.set_global_params(**Mdict)
     if returnWordCounts:
         return hmodel, Mdict['WordCounts']

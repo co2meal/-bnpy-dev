@@ -93,18 +93,33 @@ class WordsData(DataObj):
         doc_sizes = []
         word_id = []
         word_ct = []
+        Yvals = []
         with open(filepath, 'r') as f:
             for line in f.readlines():
                 Fields = line.strip().split(' ')
                 nUnique = int(Fields[0])
                 doc_sizes.append(nUnique)
-                doc_word_id, doc_word_ct = zip(
-                    *[x.split(':') for x in Fields[1:]])
+                if Fields[1].count(':'):
+                    doc_word_id, doc_word_ct = zip(
+                        *[x.split(':') for x in Fields[1:]])
+                else:
+                    Yvals.append( float(Fields[1]))
+                    doc_word_id, doc_word_ct = zip(
+                        *[x.split(':') for x in Fields[2:]])
                 word_id.extend(doc_word_id)
                 word_ct.extend(doc_word_ct)
+
         doc_range = np.hstack([0, np.cumsum(doc_sizes)])
-        return cls(word_id=word_id, word_count=word_ct, nDocTotal=nDocTotal,
+        Data = cls(word_id=word_id, word_count=word_ct, nDocTotal=nDocTotal,
                    doc_range=doc_range, vocab_size=vocab_size)
+        if len(Yvals) > 0:
+            Yvals = toCArray(Yvals)
+            if np.allclose(Yvals.sum(),
+                           np.int32(Yvals).sum()):
+                Data.Yb = np.int32(Yvals)
+            else:
+                Data.Yr = Yvals
+        return Data
 
     @classmethod
     def read_from_mat(cls, matfilepath, vocabfile=None, **kwargs):
