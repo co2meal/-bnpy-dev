@@ -664,6 +664,19 @@ class HDPTopicModel(AllocModel):
             rho=self.rho, omega=self.omega,
             **kwargs)
 
+    def calcELBO_NonlinearTerms(self, **kwargs):
+        ''' Compute sum of ELBO terms that are nonlinear wrt suff stats
+
+        Returns
+        -------
+        L : float
+        '''
+        return calcELBO_NonlinearTerms(
+            alpha=self.alpha, gamma=self.gamma,
+            rho=self.rho, omega=self.omega,
+            **kwargs)
+
+
     def getSerializableParamsForLocalStep(self):
         """ Get compact dict of params for parallel local step.
 

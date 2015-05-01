@@ -48,7 +48,7 @@ if not os.path.isfile(filepath):
 def get_short_name():
   ''' Return short string used in filepaths to store solutions
   '''
-  return 'AnimalAttr'
+  return 'AnimalAttrib'
 
 def get_data_info():
   return 'Animals Attribute Dataset. 50 animals and 85 binary features.'

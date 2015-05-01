@@ -82,17 +82,17 @@ def rankTasksForSingleJob(joboutpath):
 
 
 if __name__ == '__main__':
-  import argparse
-  parser = argparse.ArgumentParser()
-  parser.add_argument('dataName')
-  parser.add_argument('jobNamePattern')
-  args, unkList = parser.parse_known_args()
-  reqDict = arglist_to_kwargs(unkList)
-  jpathPattern = os.path.join(os.environ['BNPYOUTDIR'],
-                              args.dataName,
-                              args.jobNamePattern)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('dataName')
+    parser.add_argument('jobNamePattern')
+    args, unkList = parser.parse_known_args()
+    reqDict = arglist_to_kwargs(unkList)
+    jpathPattern = os.path.join(os.environ['BNPYOUTDIR'],
+                                args.dataName,
+                                args.jobNamePattern)
 
-  jobPaths = filterJobs(
-      jpathPattern, returnAll=1, verbose=0, **reqDict)
-  for jpath in jobPaths:
-      rankTasksForSingleJobOnDisk(jpath)
+    jobPaths = filterJobs(
+        jpathPattern, returnAll=1, verbose=0, **reqDict)
+    for jpath in jobPaths:
+        rankTasksForSingleJobOnDisk(jpath)
