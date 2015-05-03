@@ -131,7 +131,7 @@ def _initTopicWordEstParams(obsModel, Data, PRNG, K=0,
         lam = obsModel.Prior.lam
         topics = PRNG.gamma(lam, 1., (K, Data.vocab_size))
 
-    elif initname == 'anchorword':
+    elif initname.count('anchor'):
         K = np.minimum(K, Data.vocab_size)
 
         # Set topic-word prob vectors to output of anchor-words spectral method
