@@ -40,6 +40,7 @@ class HModel(object):
     self.obsModel = obsModel
     self.inferType = allocModel.inferType
     self.initParams = None
+    self.pseudoSuffStats = None
     if hasattr(obsModel, 'setupWithAllocModel'):
       # Tell the obsModel whether to model docs or words
       obsModel.setupWithAllocModel(allocModel)
@@ -169,7 +170,7 @@ class HModel(object):
       # * init allocmodel to "uniform" prob over comps
       # * init obsmodel in likelihood-specific, data-driven fashion
       if str(type(self.obsModel)).count('Gauss') > 0:
-        init.FromScratchGauss.init_global_params(self.obsModel, 
+        self.pseudoSuffStats = init.FromScratchGauss.init_global_params(self.obsModel,
                                                  Data, **initArgs)
       elif str(type(self.obsModel)).count('Mult') > 0:
         init.FromScratchMult.init_global_params(self.obsModel,
@@ -199,9 +200,9 @@ class HModel(object):
     s += 'Obs. Data  Model:  %s\n' % (self.obsModel.get_info_string())
     s += 'Obs. Data  Prior:  %s' % (self.obsModel.get_info_string_prior())
     return s
-
-  def getPseudoSuffStats(self, SS):
-    pSS = SS.copy();
-    self.allocModel.getPseudoSuffStats(pSS, SS)
-    # self.obsModel.getPseudoSuffStats(pSS, SS)
-    return pSS
+  #
+  # def getPseudoSuffStats(self, SS):
+  #   pSS = SS.copy();
+  #   self.allocModel.getPseudoSuffStats(pSS, SS)
+  #   # self.obsModel.getPseudoSuffStats(pSS, SS)
+  #   return pSS

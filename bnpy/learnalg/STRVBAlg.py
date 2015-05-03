@@ -1,7 +1,7 @@
 '''
 STRVBAlg.py
 
-Implementation of Streaming VB (strfVB) learn alg for bnpy models
+Implementation of Streaming VB (strVB) learn alg for bnpy models
 '''
 import os
 import copy
@@ -58,13 +58,11 @@ class STRVBAlg(LearnAlg):
     DataIterator = trainData.to_iterator()
 
 
+
     # init_SS = hmodel.allocModel.getPseudoSuffStats()
     initFlag = False
     delayLen = self.algParams['delay']
-    decayFun = lambda x: 0
-
-    if (isinstance(self.algParams['decay'], types.FunctionType)):
-        decayFun = self.algParams['decay']
+    decayFun = eval(self.algParams['decay'])
 
     ## Initialize Progress Tracking vars like nBatch, lapFrac, etc.
     iterid, lapFrac = self.initProgressTrackVars(DataIterator)
@@ -92,6 +90,7 @@ class STRVBAlg(LearnAlg):
       # Update progress-tracking variables
       iterid += 1
       lapFrac = (iterid + 1) * self.lapFracInc
+
       self.lapFrac = lapFrac
       nLapsCompleted = lapFrac - self.algParams['startLap']
       self.set_random_seed_at_lap(lapFrac)
@@ -124,7 +123,7 @@ class STRVBAlg(LearnAlg):
 
       if not initFlag:
         initFlag = True
-        init_SS = hmodel.getPseudoSuffStats(SS)
+        init_SS = hmodel.pseudoSuffStats
 
       ## Global step
       if (nLapsCompleted >= delayLen):
@@ -143,8 +142,7 @@ class STRVBAlg(LearnAlg):
       ## Assess convergence
       countVec = SS.getCountVec()
       if lapFrac > 1.0:
-        isConverged = self.isCountVecConverged(countVec, prevCountVec)
-        self.setStatus(lapFrac, isConverged)
+          break
 
       ## Display progress
       self.updateNumDataProcessed(Dchunk.get_size())
@@ -291,10 +289,24 @@ class STRVBAlg(LearnAlg):
         None. hmodel updated in-place.
     '''
 
-    iSS = init_SS.copy()
-    iSS.applyAmpFactor(decayFun(lapFrac))
-    SS.applyAmpFactor(1-decayFun(lapFrac))
-    hmodel.update_global_params(iSS + SS)
+    decayFactor = decayFun(lapFrac)
+
+    print('Applying decay factor: ' + str(decayFactor))
+
+    if decayFactor == 0:
+        hmodel.update_global_params(SS)
+    elif decayFactor == 1:
+        iSS = init_SS.copy()
+        hmodel.update_global_params(iSS)
+    else:
+        iSS = init_SS.copy()
+        SS._Fields.x = (1-decayFactor)*SS._Fields.x + decayFactor*iSS._Fields.x
+        SS._Fields.xxT = (1-decayFactor)*SS._Fields.xxT + decayFactor*iSS._Fields.xxT
+        SS._Fields.N = (1-decayFactor)*SS._Fields.N + decayFactor*iSS._Fields.N
+        hmodel.update_global_params(iSS + SS)
+        # iSS.applyAmpFactor(decayFactor)
+        # SS.applyAmpFactor(1-decayFactor)
+        # hmodel.update_global_params(iSS + SS)
 
   ######################################################### Init nBatch, etc.
   #########################################################

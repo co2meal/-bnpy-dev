@@ -617,9 +617,9 @@ class DPMixtureModel(AllocModel):
            + np.sum(gammaln(Nvec)) \
            - gammaln(np.sum(Nvec) + self.gamma0)
 
-  def getPseudoSuffStats(self, pSS, SS):
-
-    pseudoNvec = self.eta1 - self.gamma1
-    pSS.setField('N', pseudoNvec, dims=('K'))
-
-    return pSS
+  # def getPseudoSuffStats(self, pSS, SS):
+  #
+  #   pseudoNvec = self.eta1 - self.gamma1
+  #   pSS.setField('N', pseudoNvec, dims=('K'))
+  #
+  #   return pSS

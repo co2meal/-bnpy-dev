@@ -18,7 +18,7 @@ def init_global_params(obsModel, Data, K=0, seed=0,
 
       Returns
       -------
-      Nothing. obsModel is updated in place.
+      Pseudo-Sufficient Statistics. obsModel is updated in place.
   '''
   PRNG = np.random.RandomState(seed)
   X = Data.X
@@ -116,4 +116,4 @@ def init_global_params(obsModel, Data, K=0, seed=0,
   SS = SuffStatBag(K=K, D=Data.dim)
   SS = obsModel.get_global_suff_stats(Data, SS, tempLP)
   obsModel.update_global_params(SS)
-
+  return SS
