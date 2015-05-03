@@ -518,7 +518,7 @@ class HDPTopicModel(AllocModel):
         self.setParamsFromCountVec(K, np.ones(K))
 
     def set_global_params(self, hmodel=None, K=None,
-                          beta=None,
+                          beta=None, probs=None,
                           eta1=None, eta0=None,
                           rho=None, omega=None,
                           **kwargs):
@@ -529,6 +529,8 @@ class HDPTopicModel(AllocModel):
         rho/omega set to define valid posterior over K components.
         """
         self.ClearCache()
+        if probs is not None and beta is None:
+            beta = probs
         if hmodel is not None:
             self.setParamsFromHModel(hmodel)
         elif beta is not None:
@@ -589,14 +591,20 @@ class HDPTopicModel(AllocModel):
         * moderate variance.
         """
         self.ClearCache()
+        K = int(K)
+        self.K = K
+        
         if beta is None:
             beta = 1.0 / K * np.ones(K)
         assert beta.ndim == 1
-        assert np.allclose(np.sum(beta), 1.0)
-        self.K = int(K)
-
+        assert np.sum(beta) <= 1.0
+        assert beta.size == self.K
+        
         if oldWay:
-            betaRem =  np.minimum(0.05, 1./(K))
+            if np.allclose(beta.sum(), 1.0):
+                betaRem =  np.minimum(0.05, 1./(K))
+            else:
+                betaRem = 1 - np.sum(beta)
             betaWithRem = np.hstack([beta, betaRem])
             betaWithRem /= betaWithRem.sum()
             self.rho = OptimizerRhoOmega.beta2rho(betaWithRem, self.K)

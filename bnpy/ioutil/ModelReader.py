@@ -325,7 +325,6 @@ def loadTopicModel(matfilepath, prefix=None,
         amodel = FiniteTopicModel(infAlg, dict(alpha=Mdict['alpha']))
     omodel = ObsModelConstructorsByName['Mult'](infAlg, **Mdict)
     hmodel = HModel(amodel, omodel)
-
     hmodel.set_global_params(**Mdict)
     if returnWordCounts:
         return hmodel, Mdict['WordCounts']
