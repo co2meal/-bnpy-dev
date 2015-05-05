@@ -103,7 +103,8 @@ class ParallelMOVBAlg(MOVBAlg):
             SSchunk = self.calcLocalParamsAndSummarize(
                 DataIterator,
                 hmodel,
-                batchID=batchID)
+                batchID=batchID,
+                lapFrac=lapFrac)
 
             self.saveDebugStateAtBatch('Estep', batchID,
                                        SS=SS, hmodel=hmodel)
@@ -199,13 +200,13 @@ class ParallelMOVBAlg(MOVBAlg):
         return SS
 
     def calcLocalParamsAndSummarize(self, DataIterator, hmodel,
-                                    batchID=0, **kwargs):
+                                    batchID=0, lapFrac=0, **kwargs):
         # MAP!
         # Create several tasks (one per worker) and add to job queue
         nWorkers = self.algParams['nWorkers']
         for workerID in xrange(nWorkers):
             sliceArgs = DataIterator.calcSliceArgs(
-                batchID, workerID, nWorkers)
+                batchID, workerID, nWorkers, lapFrac)
             aArgs = hmodel.allocModel.getSerializableParamsForLocalStep()
             oArgs = hmodel.obsModel.getSerializableParamsForLocalStep()
             self.JobQ.put((sliceArgs, aArgs, oArgs))

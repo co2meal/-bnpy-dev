@@ -117,6 +117,7 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
             xvar = 'laps-saved-params'
 
     for tt, taskid in enumerate(taskids):
+        print jobpath, taskid, '<<<'
         try:
             xtxtfile = os.path.join(jobpath, taskid, xvar + '.txt')
             if not os.path.isfile(xtxtfile):
@@ -181,7 +182,7 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
                 curDensity = (xs.size - 10) / (xs[-1] - xs[9])
             else:
                 curDensity = density
-            while curDensity > density:
+            while curDensity > density and xs.size > 11:
                 # Thin xs and ys data by a factor of 2
                 # while preserving the first 10 data points
                 xs = np.hstack([xs[:10], xs[10::2]])
