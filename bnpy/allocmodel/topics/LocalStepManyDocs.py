@@ -151,7 +151,9 @@ def calcNumDocFromSlice(Data, cslice):
         nDoc = cslice[1] - cslice[0]
     return int(nDoc)
 
-def writeLogMessageForManyDocs(Data, AI, **kwargs):
+def writeLogMessageForManyDocs(Data, AI, 
+        sliceID=None,
+        **kwargs):
     """ Write log message summarizing convergence behavior across docs.
 
     Args
@@ -168,19 +170,30 @@ def writeLogMessageForManyDocs(Data, AI, **kwargs):
     if 'batchID' not in kwargs:
         return
 
-    perc = [0, 5, 10, 50, 90, 95, 100]
+    if isinstance(sliceID, int):
+        sliceID = '%d' % (sliceID)
+    else:
+        sliceID = '0'
+
+    perc = [0, 1, 10, 50, 90, 99, 100]
     siter = ' '.join(
-        ['%4d' % np.percentile(AI['iter'], p) for p in perc])
-    sdiff = ['%6.4f' % np.percentile(AI['maxDiff'], p) for p in perc]
-    sdiff = ' '.join(sdiff)
-    nFail = np.sum(AI['maxDiff'] > kwargs['convThrLP'])
-    msg = '%4.2f %3d %4d %s %s' % (kwargs['lapFrac'], kwargs['batchID'],
-                                   nFail, siter, sdiff)
+        ['%d:%d' % (p, np.percentile(AI['iter'], p)) for p in perc])
+    sdiff = ' '.join(
+        ['%d:%.4f' % (p, np.percentile(AI['maxDiff'], p)) for p in perc])
+    nConverged = np.sum(AI['maxDiff'] <= kwargs['convThrLP'])
+    msg = 'lap %4.2f batch %d slice %s' % (
+        kwargs['lapFrac'], kwargs['batchID'], sliceID)
+
+    msg += ' nConverged %4d/%d' % (nConverged, AI['maxDiff'].size)
     worstDocID = np.argmax(AI['maxDiff'])
-    msg += " %4d" % (worstDocID)
+    msg += " worstDocID %4d \n" % (worstDocID)
+
+    msg += ' iter prctiles %s\n' % (siter)
+    msg += ' diff prctiles %s\n' % (sdiff)
+
     if 'nRestartsAccepted' in AI:
-        msg += " %4d/%4d" % (AI['nRestartsAccepted'],
-                             AI['nRestartsTried'])
+        msg += " nRestarts %4d/%4d\n" % (
+            AI['nRestartsAccepted'], AI['nRestartsTried'])
     LocalStepLogger.log(msg)
 
 

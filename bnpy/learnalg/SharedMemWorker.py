@@ -78,22 +78,20 @@ class SharedMemWorker(multiprocessing.Process):
         for sliceArgs, aArgs, oArgs in jobIterator:
             start1 = time.time()
             # Grab slice of data to work on
-            if len(sliceArgs) == 3:
+            if 'start' in sliceArgs:
                 # Load data from shared memory        
-                batchID, start, stop = sliceArgs
                 Dslice = self.makeDataSliceFromSharedMem(
                     self.dataSharedMem,
-                    batchID=batchID,
-                    cslice=(start, stop))
-
+                    batchID=sliceArgs['batchID'],
+                    cslice=(sliceArgs['start'], sliceArgs['stop']))
             else:
                 # Load data slice directly from file
-                BatchInfo = sliceArgs
-                Dslice = loadDataForSlice(**BatchInfo)
+                Dslice = loadDataForSlice(**sliceArgs)
 
             # Prep kwargs for the alloc model, especially local step kwargs
             aArgs.update(sharedMemDictToNumpy(self.aSharedMem))
             aArgs.update(self.LPkwargs)
+            aArgs.update(sliceArgs)
 
             # Prep kwargs for the obs model
             oArgs.update(sharedMemDictToNumpy(self.oSharedMem))

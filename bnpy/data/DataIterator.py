@@ -245,7 +245,7 @@ class DataIterator(object):
         """
         return self.DataPerBatch[0].getDataSliceFunctionHandle()
 
-    def calcSliceArgs(self, batchID, workerID, nWorkers):
+    def calcSliceArgs(self, batchID, workerID, nWorkers, lapFrac):
         nUnits = self.DataPerBatch[batchID].get_size()
         nUnitsPerSlice = int(np.floor(nUnits / nWorkers))
         start = workerID * nUnitsPerSlice
@@ -253,5 +253,6 @@ class DataIterator(object):
             stop = nUnits
         else:
             stop = (workerID + 1) * nUnitsPerSlice
-        return batchID, start, stop
-
+        SliceInfo = dict(batchID=batchID, start=start, stop=stop,
+            lapFrac=lapFrac, sliceID=workerID)
+        return SliceInfo
