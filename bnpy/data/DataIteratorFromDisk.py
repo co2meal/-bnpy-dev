@@ -331,6 +331,15 @@ class DataIteratorFromDisk(object):
     def loadInitData(self):
         return self.loadDataForBatch(0)
 
+    def getBatch(self, batchID):
+        ''' Returns Data object for requested batch
+
+        Returns
+        -------
+        Dbatch : bnpy DataObj
+        '''
+        return self.loadDataForBatch(batchID)
+
     def getDataSliceFunctionHandle(self):
         """ Return function handle that can make data slice objects.
 
