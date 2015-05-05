@@ -139,12 +139,10 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         K = self.Post.K
         L = np.zeros((N, K))
         for k in xrange(K):
-            invACovK = inv(LP['aCov'][k])
-            detACovK = det(LP['aCov'][k])
-            for n in xrange(N):
-                L[n,k] = .5 * np.dot( LP['aMean'][n,k],
-                                      np.dot(invACovK, LP['aMean'][n,k]) ) \
-                         + .5 * detACovK
+            L[:,k] = .5 * np.einsum('ij,ij->i',
+                                    np.dot(LP['aMean'][:, k], inv(LP['aCov'][k])),
+                                    LP['aMean'][:, k]) \
+                     + .5 * det(LP['aCov'][k])
         return L
 
   ########################################################### Global step
@@ -162,13 +160,13 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         self.K = SS.K
 
     def calcPostParams(self,SS):
-        if hasattr(self.Post,'hshape') and hasattr(self.Post,'hInvScale'):
-            hShape = self.Post.hshape
+        if hasattr(self.Post,'hShape') and hasattr(self.Post,'hInvScale'):
+            hShape = self.Post.hShape
             hInvScale = self.Post.hInvScale
         else:
             hShape = self.Prior.f
             hInvScale = self.Prior.g * np.ones((SS.K, self.C))
-        for i in xrange(10):
+        for i in xrange(3):
             WMean, WCov = self.calcPostW(SS, hShape, hInvScale)
             hShape, hInvScale = self.calcPostH(WMean, WCov)
         return WMean, WCov, hShape, hInvScale, SS.aCov
@@ -179,10 +177,9 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         C = self.C
         SigmaInvWW = np.zeros((K, D, C, C))
         for k in xrange(K):
+            hkMean = np.diag(hShape / hInvScale[k])
             for d in xrange(D):
-                hkMean = hShape / hInvScale[k]
-                SigmaInvWW[k, d] = np.diag(hkMean) + \
-                                       1.0/(self.Prior.Psi[d][d]) * SS.aaT[k]
+                SigmaInvWW[k, d] = hkMean + self.Prior.invPsi[d][d] * SS.aaT[k]
         WCov = np.zeros((K, D, C, C))
         for k in xrange(K):
             for d in xrange(D):
@@ -191,8 +188,7 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         for k in xrange(K):
             for d in xrange(D):
                 WBar[k, d] = np.dot(WCov[k,d],
-                                      1.0/self.Prior.Psi[d][d] *
-                                      SS.xaT[k][d])
+                                      self.Prior.invPsi[d][d] * SS.xaT[k][d])
         WMean = WBar
         return WMean, WCov
 
@@ -283,5 +279,6 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
 if __name__ == '__main__':
     import bnpy
     hmodel, RInfo = bnpy.run('D3C2K2_ZM', 'DPMixtureModel',
-                            'ZeroMeanFactorAnalyzer', 'moVB', nLap=50, K=3
+                            'ZeroMeanFactorAnalyzer', 'moVB',
+                            nLap=50, K=2, initname='fixedResp'
                             )
