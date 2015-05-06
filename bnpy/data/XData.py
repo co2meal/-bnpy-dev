@@ -8,10 +8,11 @@ XData
 
 import numpy as np
 import scipy.io
+from collections import namedtuple
 
 from DataObj import DataObj
 from bnpy.util import as1D, as2D, toCArray
-
+from bnpy.util import numpyToSharedMemArray, sharedMemToNumpyArray
 
 class XData(DataObj):
 
@@ -215,3 +216,79 @@ class XData(DataObj):
 
     def __str__(self):
         return self.X.__str__()
+
+    def getRawDataAsSharedMemDict(self):
+        ''' Create dict with copies of raw data as shared memory arrays
+        '''
+        dataShMemDict = dict()
+        dataShMemDict['X'] = numpyToSharedMemArray(self.X)
+        dataShMemDict['nObsTotal'] = self.nObsTotal
+        if hasattr(self, 'Xprev'):
+            dataShMemDict['Xprev'] = numpyToSharedMemArray(self.Xprev)
+        return dataShMemDict
+
+    def getDataSliceFunctionHandle(self):
+        """ Return function handle that can make data slice objects.
+
+        Useful with parallelized algorithms, 
+        when we need to use shared memory.
+
+        Returns
+        -------
+        f : function handle
+        """
+        return makeDataSliceFromSharedMem
+
+
+def makeDataSliceFromSharedMem(dataShMemDict,
+                               cslice=(0, None),
+                               batchID=None):
+    """ Create data slice from provided raw arrays and slice indicators.
+
+    Returns
+    -------
+    Dslice : namedtuple with same fields as XData object
+        * X
+        * nObs
+        * nObsTotal
+        * dim
+    Represents subset of documents identified by cslice tuple.
+
+    Example
+    -------
+    >>> Data = XData(np.random.rand(25,2))
+    >>> shMemDict = Data.getRawDataAsSharedMemDict()
+    >>> Dslice = makeDataSliceFromSharedMem(shMemDict)
+    >>> np.allclose(Data.X, Dslice.X)
+    True
+    >>> np.allclose(Data.nObs, Dslice.nObs)
+    True
+    >>> Data.dim == Dslice.dim
+    True
+    >>> Aslice = makeDataSliceFromSharedMem(shMemDict, (0, 2))
+    >>> Aslice.nObs
+    2
+
+    TODO: Make compatible with Xprev field in autoreg models.
+    """
+    if batchID is not None and batchID in dataShMemDict:
+        dataShMemDict = dataShMemDict[batchID]
+
+    # Make local views (NOT copies) to shared mem arrays
+    X = sharedMemToNumpyArray(dataShMemDict['X'])
+    nObsTotal = int(dataShMemDict['nObsTotal'])
+
+    N, dim = X.shape
+    if cslice is None:
+        cslice = (0, N)
+    elif cslice[1] is None:
+        cslice = (0, N)
+
+    keys = ['X', 'nObs', 'dim', 'nObsTotal']
+    Dslice = namedtuple("XDataTuple", keys)(
+        X=X[cslice[0]:cslice[1]],
+        nObs=cslice[1] - cslice[0],
+        dim=dim,
+        nObsTotal=nObsTotal,
+        )
+    return Dslice
