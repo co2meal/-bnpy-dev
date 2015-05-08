@@ -113,7 +113,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
             if self.isFirstBatch(lapFrac) and self.hasMove('delete'):
                 self.DeleteAcceptRecord = dict()
                 if self.doDeleteAtLap(lapFrac):
-                    if self.doDebug():
+                    if self.doDebug() and len(DeletePlans) > 0:
                         DeletePlans[0]['WholeDataset'] = DataIterator.Data
                     hmodel, SS = self.deleteAndUpdateMemory(hmodel, SS,
                                                             DeletePlans, order)
@@ -178,7 +178,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
             self.algParamsLP['lapFrac'] = lapFrac
             self.algParamsLP['batchID'] = batchID
             LPchunk = self.memoizedLocalStep(hmodel, Dchunk, batchID,
-                                             MergePrepInfo=MergePrepInfo)
+                                             **MergePrepInfo)
 
             # Summary step
             SS, SSchunk = self.memoizedSummaryStep(hmodel, SS,
@@ -346,7 +346,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
         return False
 
-    def memoizedLocalStep(self, hmodel, Dchunk, batchID, MergePrepInfo=None):
+    def memoizedLocalStep(self, hmodel, Dchunk, batchID, **LPandMergeKwargs):
         ''' Execute local step on data chunk.
 
         Returns
@@ -357,9 +357,10 @@ class MOVBBirthMergeAlg(MOVBAlg):
             oldLPchunk = self.load_batch_local_params_from_memory(batchID)
         else:
             oldLPchunk = None
+
+        LPandMergeKwargs.update(self.algParamsLP)
         LPchunk = hmodel.calc_local_params(Dchunk, oldLPchunk,
-                                           MergePrepInfo=MergePrepInfo,
-                                           **self.algParamsLP)
+            **LPandMergeKwargs)
         if self.algParams['doMemoizeLocalParams']:
             self.save_batch_local_params_to_memory(batchID, LPchunk)
         return LPchunk
@@ -515,6 +516,13 @@ class MOVBBirthMergeAlg(MOVBAlg):
                 msg += '\n size order  : %d' % len(order)
                 msg += '\n size SSchunk: %d' % SSchunk.K
                 raise ValueError(msg)
+
+        isGoodSize = SSchunk.uIDs.size == SSchunk.K
+        if not isGoodSize:
+            if self.algParams['debug'] == 'interactive':
+                from IPython import embed
+                embed()
+        assert isGoodSize
 
         isGood = np.allclose(SSchunk.uIDs, self.ActiveIDVec[:SSchunk.K])
         if not isGood:
@@ -1286,6 +1294,9 @@ class MOVBBirthMergeAlg(MOVBAlg):
             self.print_msg('% 14.8f evBound from agg SS' % (evBound))
             self.print_msg(
                 '% 14.8f evBound from sum over SSmemory' % (evCheck))
+
+            if not self.ELBOReady:
+                self.print_msg('    ELBO not ready. Disregard mismatch here.')
 
         condCount = np.allclose(SS.getCountVec(), SS2.getCountVec())
         condELBO = np.allclose(evBound, evCheck) or not self.ELBOReady
