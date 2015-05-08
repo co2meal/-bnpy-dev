@@ -69,8 +69,10 @@ def is_monotonic(ELBOvec, aArg=None, atol=1e-5, verbose=True):
     if aArg is not None:
         if 'name' in aArg:
             if aArg['name'] == 'HDPTopicModel':
-                # ELBO can fluctuate a big more due to no caching at localstep
-                atol = 1e-3 
+                # ELBO can fluctuate more due to no caching at localstep
+                atol = 1e-3
+            elif aArg['name'] == 'HDPHMM':
+                atol = 1e-4
 
     ELBOvec = np.asarray(ELBOvec, dtype=np.float64)
     assert ELBOvec.ndim == 1
@@ -114,6 +116,7 @@ class MergeMoveEndToEndTest(unittest.TestCase):
             nLap=300,
             nBatch=2,
             mergeStartLap=2,
+            deleteStartLap=2,
             nCoordAscentItersLP=50,
             convThrLP=0.001,
         )
@@ -148,11 +151,12 @@ class MergeMoveEndToEndTest(unittest.TestCase):
         algName = 'moVB'
         pprint(aArg)
         pprint(oArg)
-
         initArg = dict(**kwargs)
+        pprint(initArg)
         kwargs = self.makeAllKwArgs(aArg, oArg, initArg, 
             moves=moves,
             **kwargs)
+
         model, Info = bnpy.run(self.Data, 
             arg2name(aArg), arg2name(oArg), algName, **kwargs)
         pprintResult(model, Info, Ktrue=Ktrue)
@@ -185,10 +189,14 @@ class MergeMoveEndToEndTest(unittest.TestCase):
             for oKwArgs in self.nextObsKwArgsForVB():
                 Info = dict()
                 for iname in initnames:
+                    if iname.count('junk') or iname.count('empty'):
+                        initKextra = 1
+                    else:
+                        initKextra = 0
                     Info[iname] = self.run_MOVBWithMoves(
                         aKwArgs, oKwArgs, 
                         moves='merge',
-                        initKextra=1,
+                        initKextra=initKextra,
                         initname=iname)
 
 
@@ -201,8 +209,12 @@ class MergeMoveEndToEndTest(unittest.TestCase):
             for oKwArgs in self.nextObsKwArgsForVB():
                 Info = dict()
                 for iname in initnames:
+                    if iname.count('junk') or iname.count('empty'):
+                        initKextra = 1
+                    else:
+                        initKextra = 0
                     Info[iname] = self.run_MOVBWithMoves(
                         aKwArgs, oKwArgs, 
                         moves='delete',
-                        initKextra=1,
+                        initKextra=initKextra,
                         initname=iname)
