@@ -1209,6 +1209,9 @@ class MOVBBirthMergeAlg(MOVBAlg):
                 newSS.setELBOFieldsToZero()
                 newSS.setMergeFieldsToZero()
                 newModel.update_global_params(newSS)
+                # Do extra update, to improve numerical 
+                # values found by gradient descent
+                newModel.allocModel.update_global_params(newSS)
 
                 nEmpty = len(DPlan['candidateUIDs'])
                 DeleteLogger.log('DELETED %d empty comps' % (nEmpty),

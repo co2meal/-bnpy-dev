@@ -200,11 +200,7 @@ class LearnAlg(object):
             f.write('%d\n' % (self.totalDataUnitsProcessed))
 
         # Record active counts in plain-text files
-        counts = None
-        try:
-            counts = SS.N
-        except AttributeError:
-            counts = SS.SumWordCounts
+        counts = SS.getCountVec()
         assert counts.ndim == 1
         counts = np.asarray(counts, dtype=np.float32)
         np.maximum(counts, 0, out=counts)
@@ -217,6 +213,13 @@ class LearnAlg(object):
                 ActiveIDVec = np.arange(SS.K)
             flatstr = ' '.join(['%d' % x for x in ActiveIDVec])
             f.write(flatstr + '\n')
+
+        if SS.hasSelectionTerm('DocUsageCount'):
+            ucount = SS.getSelectionTerm('DocUsageCount')
+            flatstr = ' '.join(['%d' % x for x in ucount])
+            with open(self.mkfile('ActiveUsage.txt'), 'a') as f:
+                f.write(flatstr + '\n')
+
 
     def isCountVecConverged(self, Nvec, prevNvec):
         if Nvec.size != prevNvec.size:
