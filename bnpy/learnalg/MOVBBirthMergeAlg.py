@@ -1212,6 +1212,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
                 # Do extra update, to improve numerical 
                 # values found by gradient descent
                 newModel.allocModel.update_global_params(newSS)
+                newModel.allocModel.update_global_params(newSS)
 
                 nEmpty = len(DPlan['candidateUIDs'])
                 DeleteLogger.log('DELETED %d empty comps' % (nEmpty),
