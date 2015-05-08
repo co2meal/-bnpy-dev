@@ -135,9 +135,15 @@ class ParallelMOVBMovesAlg(MOVBBirthMergeAlg):
             self.saveDebugStateAtBatch('Estep', 
                 batchID, SSchunk=SSchunk, SS=SS, hmodel=hmodel)
 
+            if SS is not None and SS.hasMergeTerms():
+                print 'before: ', SS.getMergeTerm('Hresp').max()
+
             # Summary step for whole-dataset stats
             # (does incremental update)
             SS = self.memoizedSummaryStep(hmodel, SS, SSchunk, batchID)
+            if SS.hasMergeTerms():
+                print 'after whole: ', SS.getMergeTerm('Hresp').max()
+                print 'after batch: ', SSchunk.getELBOTerm('Hresp').max()
 
             # Global step
             self.GlobalStep(hmodel, SS, lapFrac)
@@ -146,7 +152,7 @@ class ParallelMOVBMovesAlg(MOVBBirthMergeAlg):
                     aSharedMem)
                 oSharedMem = hmodel.obsModel.fillSharedMemDictForLocalStep(
                     oSharedMem)
-            
+
             # ELBO calculation
             if self.isLastBatch(lapFrac):
                 # after seeing all data, ELBO will be ready

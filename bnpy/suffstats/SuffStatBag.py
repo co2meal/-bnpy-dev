@@ -432,14 +432,16 @@ class SuffStatBag(object):
         return self
 
     def __getattr__(self, key):
+        _Fields = object.__getattribute__(self, "_Fields")
+        _dict = object.__getattribute__(self, "__dict__")
         if key == "_Fields":
-            return object.__getattribute__(self, key)
-        elif hasattr(self._Fields, key):
-            return getattr(self._Fields, key)
+            return _Fields
+        elif hasattr(_Fields, key):
+            return getattr(_Fields, key)
         elif key == '__deepcopy__':  # workaround to allow copying
             return None
-        elif key in self.__dict__:
-            return self.__dict__[key]
+        elif key in _dict:
+            return _dict[key]
         # Field named 'key' doesnt exist.
         errmsg = "'SuffStatBag' object has no attribute '%s'" % (key)
         raise AttributeError(errmsg)
