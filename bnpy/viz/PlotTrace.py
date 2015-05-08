@@ -77,6 +77,38 @@ def plotJobs(jpaths, legNames, styles=None, density=2,
         plot_all_tasks_for_job(jpaths[lineID], legNames[lineID],
                                xvar=xvar, yvar=yvar,
                                taskids=taskids, density=density, **curStyle)
+
+    # Y-axis limit determination
+    # If we have "enough" data about the run beyond two full passes of dataset,
+    # we zoom in on the region of data beyond lap 2
+    if xvar == 'laps' and yvar == 'evidence':
+        xmax = 0
+        ymin = np.inf
+        ymax = -np.inf
+        allRunsHaveXBeyond1 = True
+        for line in pylab.gca().get_lines():
+            xd = line.get_xdata()
+            yd = line.get_ydata()
+            if xd.size < 3:
+                allRunsHaveXBeyond1 = False
+                continue
+            posLap1 = np.searchsorted(xd, 1.0)
+            if posLap1 < xd.size:
+                ymin = np.minimum(ymin, yd[posLap1])
+                ymax = np.maximum(ymax, yd[posLap1:].max())
+            xmax = np.maximum(xmax, xd.max())
+            if xd.max() <= 1:
+                allRunsHaveXBeyond1 = False
+
+        if xmax > 1.5 and allRunsHaveXBeyond1:
+            # If all relevant curves extend beyond x=1, only show that part
+            xmin = 0.9
+        else:
+            xmin = 0
+        if (not np.allclose(ymax, ymin)) and allRunsHaveXBeyond1:
+            pylab.ylim([ymin, ymax + 0.1 * (ymax - ymin)])
+        pylab.xlim([xmin, xmax + .05 * (xmax - xmin)])
+
     if loc is not None and len(jpaths) > 1:
         pylab.legend(loc=loc, bbox_to_anchor=bbox_to_anchor)
     if tickfontsize is not None:
@@ -117,7 +149,6 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
             xvar = 'laps-saved-params'
 
     for tt, taskid in enumerate(taskids):
-        print jobpath, taskid, '<<<'
         try:
             xtxtfile = os.path.join(jobpath, taskid, xvar + '.txt')
             if not os.path.isfile(xtxtfile):
@@ -162,6 +193,9 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
             raise ValueError('Dimension mismatch. len(xs)=%d, len(ys)=%d'
                              % (xs.size, ys.size))
 
+        if xs.size < 3:
+            continue
+
         # Cleanup laps data. Verify that it is sorted, with no collisions.
         if xvar == 'laps':
             diff = xs[1:] - xs[:-1]
@@ -177,7 +211,7 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
         # Force plot density (data points per lap) to desired specification
         # This avoids making plots that have huge file sizes,
         # due to too much content in the given display space
-        if xvar == 'laps' and xs.size > 10:
+        if xvar == 'laps' and xs.size > 20 and np.sum(xs > 5) > 10:
             if (xs[-1] - xs[9]) != 0:
                 curDensity = (xs.size - 10) / (xs[-1] - xs[9])
             else:
@@ -196,22 +230,6 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
             plotargs['label'] = label
 
         pylab.plot(xs, ys, lineType, **plotargs)
-
-    # Y-axis limit determination
-    # If we have "enough" data about the run beyond two full passes of dataset,
-    # we zoom in on the region of data beyond lap 2
-    if xvar == 'laps' and yvar == 'evidence':
-        if np.sum(xs > 2.0) > 5:
-            pylab.xlim([1.0, xs.max() + .05 * (xs.max() - xs.min())])
-            ymin = ys.max()
-            ymax = ys.min()
-            for line in pylab.gca().get_lines():
-                xd = line.get_xdata()
-                yd = line.get_ydata()
-                loc = np.searchsorted(xd, 2)
-                ymin = np.minimum(ymin, np.percentile(yd[loc:], 2.5))
-                ymax = np.maximum(ymax, yd[loc:].max())
-            pylab.ylim([ymin, ymax + 0.1 * (ymax - ymin)])
 
     pylab.xlabel(LabelMap[xvar])
     pylab.ylabel(LabelMap[yvar])

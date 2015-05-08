@@ -109,7 +109,7 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
 
         # Figure out which lap to use
         if lap == 'final':
-            lapsFile = open(path + 'laps.txt')
+            lapsFile = open(path + 'laps-saved-params.txt')
             curLap = lapsFile.readlines()
             curLap = float(curLap[-1])
             lapsFile.close()

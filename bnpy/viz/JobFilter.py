@@ -6,7 +6,8 @@ from collections import defaultdict
 from bnpy.ioutil import BNPYArgParser
 
 # kwargs that arent needed for any job pattern matching
-SkipKeys = ['taskids', 'savefilename', 'fileSuffix', 'xvar', 'yvar']
+SkipKeys = ['taskids', 'savefilename', 'fileSuffix', 
+            'loc', 'xvar', 'yvar']
 
 
 def findKeysWithDiffVals(dA, dB):

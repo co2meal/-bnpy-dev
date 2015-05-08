@@ -9,7 +9,7 @@ any fast routine for this calculation with ease.
 '''
 import numpy as np
 from bnpy.util import EPS
-
+from bnpy.util import digamma, gammaln
 from bnpy.util.NumericUtil import Config as PlatformConfig
 from bnpy.util.NumericUtil import sumRtimesS
 from bnpy.util.NumericUtil import inplaceLog
@@ -17,6 +17,100 @@ from bnpy.util import as2D
 
 from lib.LibFwdBwd import FwdAlg_cpp, BwdAlg_cpp, SummaryAlg_cpp
 
+
+def calcLocalParams(Data, LP, 
+        transTheta=None, startTheta=None,
+        limitMemoryLP=1,
+        mPairIDs=None,
+        cslice=(0,None),
+        **kwargs):       
+    ''' Compute local parameters for provided dataset.
+
+    Returns
+    -------
+    LP : dict of local params, with fields
+        * resp : 2D array, nAtom x K
+        if limitMemoryLP=0:
+            * respPair : 3D array, nAtom x K x K 
+        if limitMemoryLP=1:
+            * TransCount : 3D array, nSeq x K x K       
+    '''
+    # Unpack soft evidence 2D array
+    logLik = LP['E_log_soft_ev']
+    nAtom, K = logLik.shape
+
+    # Calculate trans prob 2D array
+    transPi = digamma(transTheta[:, :K]) - digamma(np.sum(transTheta, axis=1))
+    np.exp(transPi, out=transPi)
+
+    # Calculate LOG of start state prob vector
+    logstartPi = digamma(startTheta[:K]) - digamma(np.sum(startTheta))
+
+    # Set starting probs to uniform,
+    # because Line A below updates first state's logLik to include logstartPi
+    startPi = np.ones(K)
+    logMargPr = np.empty(Data.nDoc)
+    resp = np.empty((nAtom, K))
+
+    # Unpack pairs to track for merging.
+    if mPairIDs is None:
+        mPairIDs = np.zeros((0, 2))
+        M = 0
+    else:
+        M = mPairIDs.shape[0]
+
+    if limitMemoryLP:
+        # Track sufficient statistics directly at each sequence.
+        TransCount = np.empty((Data.nDoc, K, K))
+        Htable = np.empty((Data.nDoc, K, K))
+        mHtable = np.zeros((2 * M, K))
+
+        # Run forward backward algorithm on each sequence n
+        for n in xrange(Data.nDoc):
+            start = Data.doc_range[n]
+            stop = Data.doc_range[n + 1]
+            logLik_n = logLik[start:stop]
+            # Adding in start state probs, in log space for stability.
+            logLik_n[0] += logstartPi  # Line A
+
+            # Run fwd-fwd alg and record result.
+            resp_n, lp_n, TransCount_n, Htable_n, mHtable_n = \
+                FwdBwdAlg_LimitMemory(startPi, transPi, logLik_n, mPairIDs)
+            resp[start:stop] = resp_n
+            logMargPr[n] = lp_n
+            TransCount[n] = TransCount_n
+            Htable[n] = Htable_n
+            mHtable += mHtable_n
+
+        LP['resp'] = resp
+        LP['evidence'] = np.sum(logMargPr)
+        LP['TransCount'] = TransCount
+        LP['Htable'] = Htable
+        LP['mHtable'] = mHtable
+    else:
+        # Track pair-wise assignment probs for each sequence
+        respPair = np.empty((nAtom, K, K))
+
+        # Run the forward backward algorithm on each sequence
+        for n in xrange(Data.nDoc):
+            start = Data.doc_range[n]
+            stop = Data.doc_range[n + 1]
+            logLik_n = logLik[start:stop]
+            # Adding in start state probs, in log space for stability.
+            logLik_n[0] += logstartPi  # Line A
+
+            resp_n, respPair_n, lp_n = \
+                FwdBwdAlg(startPi, transPi, logLik_n)
+            resp[start:stop] = resp_n
+            respPair[start:stop] = respPair_n
+            logMargPr[n] = lp_n
+
+        LP['evidence'] = np.sum(logMargPr)
+        LP['resp'] = resp
+        LP['respPair'] = respPair
+        # ... end if statement on limitMemoryLP
+
+    return LP
 
 def FwdBwdAlg(PiInit, PiMat, logSoftEv):
     '''Execute forward-backward algorithm for one sequence.

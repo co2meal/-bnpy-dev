@@ -75,7 +75,8 @@ def plotJobs(jpaths, legNames, styles=None, fileSuffix='PredLik.mat',
                                xvar=xvar, yvar=yvar, fileSuffix=fileSuffix,
                                showFinalPt=showFinalPt,
                                taskids=taskids, xjitter=xjitter, **curStyle)
-    if loc is not None:
+
+    if loc is not None and len(jpaths) > 1:
         pylab.legend(loc=loc, bbox_to_anchor=bbox_to_anchor)
 
     if tickfontsize is not None:

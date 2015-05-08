@@ -100,9 +100,8 @@ def removeJunkTopics_SingleDoc(
         DocTopicCount_d, DocTopicProb_d, sumResp_d,
         restartNumTrialsLP=5,
         restartNumItersLP=2,
-        restartMaxThrLP=25,
         restartCriteriaLP='smallest',
-        MIN_USAGE_THR=0.01,
+        restartMinSizeThrLP=0.001,
         **kwargs):
     ''' Propose candidate local parameters, accept if ELBO improves.
 
@@ -114,7 +113,10 @@ def removeJunkTopics_SingleDoc(
     Info : dict
     '''
     Info = dict(nTrial=0, nAccept=0)
-    usedTopicMask = DocTopicCount_d > MIN_USAGE_THR
+
+    # usedTopics : 1D array of int ids of topics with mass above MinSizeThr
+    usedTopicMask = DocTopicCount_d > restartMinSizeThrLP
+    usedTopics = np.flatnonzero(usedTopicMask)
     nUsed = np.sum(usedTopicMask)
     if nUsed < 2:
         return DocTopicCount_d, DocTopicProb_d, sumResp_d, Info
@@ -124,14 +126,10 @@ def removeJunkTopics_SingleDoc(
         DocTopicCount_d, DocTopicProb_d, sumResp_d,
         wc_d, alphaEbeta, alphaEbetaRem)
     Info['startELBO'] = curELBO
+    #Info['startDocTopicCount_d'] = DocTopicCount_d.copy()
 
     # Determine eligible topics to delete
-    if restartCriteriaLP == 'DocTopicCount':
-        usedTopics = np.flatnonzero(
-            np.logical_and(usedTopicMask,
-                           DocTopicCount_d < restartMaxThrLP))
-    else:
-        usedTopics = np.flatnonzero(usedTopicMask)
+    # smallTopics : 1D array of int topic ids to try deleting
     smallIDs = np.argsort(DocTopicCount_d[usedTopics])[:restartNumTrialsLP]
     smallTopics = usedTopics[smallIDs]
     smallTopics = smallTopics[:nUsed - 1]
@@ -175,6 +173,9 @@ def removeJunkTopics_SingleDoc(
             DocTopicProb_d[:] = pDocTopicProb_d
             sumResp_d[:] = psumResp_d
             nUsed -= 1
+
+        if nUsed < 2:
+            break
 
     # Package up and return
     Info['finalELBO'] = curELBO
