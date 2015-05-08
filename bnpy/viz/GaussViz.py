@@ -209,7 +209,8 @@ def plotCovMatFromHModel(hmodel,
                          compListToPlot=None,
                          compsToHighlight=None,
                          wTHR=0.001,
-                         figH=None):
+                         figH=None,
+                         **kwargs):
     ''' Plot square image of covariance matrix for each component.
 
     Parameters
