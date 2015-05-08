@@ -218,7 +218,7 @@ class HDPHMM(AllocModel):
                 LP=LP, returnMemoizedDict=1)
             SS.setELBOTerm('Htable', Mdict['Htable'], dims=('K', 'K'))
             SS.setELBOTerm('Hstart', Mdict['Hstart'], dims=('K'))
-            
+
         if doPrecompMergeEntropy:
             subHstart, subHtable = HMMUtil.PrecompMergeEntropy_SpecificPairs(
                 LP, Data, mPairIDs)
@@ -226,8 +226,9 @@ class HDPHMM(AllocModel):
             SS.setMergeTerm('Htable', subHtable, dims=('M', 2, 'K'))
             SS.mPairIDs = np.asarray(mPairIDs)
 
+
         if trackDocUsage:
-            # Track how often topic appears in seq. with mass > thresh.
+            # Track how often topic appears in a seq. with mass > thresh.
             DocUsage = np.zeros(K)
             for n in xrange(Data.nDoc):
                 start = Data.doc_range[n]
@@ -547,6 +548,8 @@ class HDPHMM(AllocModel):
 
         # Create candidate transTheta
         m_transTheta = self.alpha * np.tile(m_beta, (m_K, 1))
+        if self.kappa > 0:
+            m_transTheta[:, :m_K] += self.kappa * np.eye(m_K)
         m_transTheta[:, :m_K] += m_SS.TransStateCount
 
         # Evaluate objective func. for both candidate and current model
@@ -561,6 +564,8 @@ class HDPHMM(AllocModel):
             startTheta=m_startTheta, transTheta=m_transTheta,
             alpha=self.alpha, startAlpha=self.startAlpha, 
             gamma=self.gamma, kappa=self.kappa)
+
+        # Note: This gap relies on fact that all nonlinear terms are entropies,
         return Lprop - Lcur
 
     def calcHardMergeGap_AllPairs(self, SS):
@@ -581,10 +586,9 @@ class HDPHMM(AllocModel):
         return Gaps
 
     def to_dict(self):
-        return dict(transTheta=self.transTheta, startTheta=self.startTheta,
-                    omega=self.omega, rho=self.rho,
-                    gamma=self.gamma, alpha=self.alpha,
-                    kappa=self.kappa)
+        return dict(transTheta=self.transTheta, 
+                    startTheta=self.startTheta,
+                    omega=self.omega, rho=self.rho)
 
     def from_dict(self, myDict):
         self.inferType = myDict['inferType']
@@ -596,4 +600,4 @@ class HDPHMM(AllocModel):
 
     def get_prior_dict(self):
         return dict(gamma=self.gamma, alpha=self.alpha, K=self.K,
-                    kappa=self.kappa, startAlpha=self.startAlpha)
+                    hmmKappa=self.kappa, startAlpha=self.startAlpha)
