@@ -875,6 +875,7 @@ def calcSummaryStats(Data, LP,
                      doPrecompEntropy=False,
                      doPrecompMergeEntropy=False, mPairIDs=None,
                      mergePairSelection=None,
+                     trackDocUsage=False,
                      **kwargs):
     ''' Calculate sufficient statistics for global updates.
 
@@ -926,4 +927,8 @@ def calcSummaryStats(Data, LP,
         else:
             HrespMat = -1 * NumericUtil.calcRlogR_specificpairs(resp, mPairIDs)
         SS.setMergeTerm('Hresp', HrespMat, dims=('K', 'K'))
+    if trackDocUsage:
+        Usage = np.sum(LP['resp'] > 0.01, axis=0)
+        SS.setSelectionTerm('DocUsageCount', Usage, dims='K')
+
     return SS

@@ -217,11 +217,11 @@ class ParallelMOVBAlg(MOVBAlg):
 
         # Reduce step
         # Aggregate results across across all workers
-        SSagg = self.ResultQ.get()
+        SSwholebatch = self.ResultQ.get()
         while not self.ResultQ.empty():
             SSslice = self.ResultQ.get()
-            SSagg += SSslice
-        return SSagg
+            SSwholebatch += SSslice
+        return SSwholebatch
     # ... end class ParallelMOVBAlg
 
 def setupQueuesAndWorkers(DataIterator, hmodel, 

@@ -1266,8 +1266,61 @@ class MOVBBirthMergeAlg(MOVBAlg):
         # TODO adjust LPmemory??
         return newModel, newSS
 
-    # Verify ELBO
-    #########################################################
+    def hasMoreReasonableMoves(self, lapFrac, SS):
+        ''' Decide if more moves will feasibly change current configuration.
+        '''
+        if lapFrac - self.algParams['startLap'] >= self.algParams['nLap']:
+            # Time's up, so doesn't matter what other moves are possible.
+            return False
+
+        if self.hasMove('delete'):
+            # If any eligible comps exist, we have more moves possible
+            # so return True
+            deleteStartLap = self.algParams['delete']['deleteStartLap']
+            nBeforeQuit = self.algParams['delete']['deleteNumStuckBeforeQuit']
+            waitedLongEnough = (
+                lapFrac - self.lapLastAcceptedDelete) > nBeforeQuit
+
+            # If we haven't even tried deletes for sufficent num laps, keep
+            # going
+            if lapFrac <= deleteStartLap + nBeforeQuit:
+                return True
+
+            if isEvenlyDivisibleFloat(lapFrac, 1.0):
+                nEligible = DPlanner.getEligibleCount(
+                    SS,
+                    DRecordsByComp=self.DeleteRecordsByComp,
+                    **self.algParams['delete'])
+            else:
+                nEligible = 1
+            if nEligible > 0 or not waitedLongEnough:
+                return True
+
+        if self.hasMove('birth') and self.do_birth_at_lap(lapFrac):
+            # If any eligible comps exist, we have more moves possible
+            # so return True
+            if not hasattr(self, 'BirthEligibleHist'):
+                return True
+            if self.BirthEligibleHist['Nable'] > 0:
+                return True
+
+        if self.hasMove('merge'):
+            nStuckBeforeQuit = self.algParams[
+                'merge']['mergeNumStuckBeforeQuit']
+            mergeStartLap = self.algParams['merge']['mergeStartLap']
+
+            # If we haven't even tried merges for sufficent num laps, keep
+            # going
+            if lapFrac <= mergeStartLap + nStuckBeforeQuit:
+                return True
+
+            # If we've tried many merges without success, exit early
+            if (lapFrac - self.lapLastAcceptedMerge) > nStuckBeforeQuit:
+                return False
+            return True
+
+        return False
+
     def verifyELBOTracking(self, hmodel, SS, evBound=None, order=None,
                            BirthResults=list(),
                            **kwargs):
