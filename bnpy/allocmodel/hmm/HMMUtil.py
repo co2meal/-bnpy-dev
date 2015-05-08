@@ -57,7 +57,13 @@ def calcLocalParams(Data, LP,
         mPairIDs = np.zeros((0, 2))
         M = 0
     else:
-        M = mPairIDs.shape[0]
+        if len(mPairIDs) == 0:
+            mPairIDs = np.zeros((0, 2))
+            M = 0
+        else:
+            mPairIDs = as2D(mPairIDs)
+            M = mPairIDs.shape[0]
+    assert mPairIDs.shape[1] == 2
 
     if limitMemoryLP:
         # Track sufficient statistics directly at each sequence.

@@ -123,7 +123,7 @@ def L_top(rho=None, omega=None, alpha=None,
     if kappa > 0:
         coefU = K + 1.0 - eta1
         coef1mU = K * OptimizerRhoOmega.kvec(K) + 1.0 + gamma - eta0
-        sumEBeta = np.sum(StickBreakUtil.rho2beta(rho, returnSize='K'))
+        sumEBeta = np.sum(rho2beta(rho, returnSize='K'))
         tBeta = sumEBeta * (np.log(alpha + kappa) - np.log(kappa))
         tKappa = K * (np.log(kappa) - np.log(alpha + kappa))
     else:
