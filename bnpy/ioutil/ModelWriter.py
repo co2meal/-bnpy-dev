@@ -165,6 +165,9 @@ def saveTopicModel(hmodel, SS, fpath, prefix, doLinkBest=False,
     EstPDict = dict()
 
     # Active comp probabilities
+    if hasattr(hmodel.allocModel, 'rho'):
+        EstPDict['rho'] = hmodel.allocModel.rho
+        EstPDict['omega'] = hmodel.allocModel.omega
     EstPDict['probs'] = np.asarray(hmodel.allocModel.get_active_comp_probs(),
                                    dtype=np.float32)
     if hasattr(hmodel.allocModel, 'alpha'):

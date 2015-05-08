@@ -545,8 +545,6 @@ class HDPTopicModel(AllocModel):
             self.omega = omega.copy()
         else:
             raise ValueError("Unrecognized set_global_params args")
-        print 'rho ', self.rho[:3]
-        print 'omega ', self.omega[:3]
 
     def setParamsFromCountVec(self, K, N=None):
         """ Set params to reasonable values given counts for each comp.

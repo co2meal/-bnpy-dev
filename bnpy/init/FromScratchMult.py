@@ -107,7 +107,10 @@ def _initTopicWordEstParams(obsModel, Data, PRNG, K=0,
         K = np.minimum(K, Data.nDoc)
         X = Data.getDocTypeCountMatrix()
         topics = KMeansRex.SampleRowsPlusPlus(X, K, seed=seed)
-        topics += 0.01 * PRNG.rand(K, Data.vocab_size)
+
+        # Add in some "smoothing" random noise
+        # so that every word has positive probability under every topic.
+        topics += PRNG.rand(K, Data.vocab_size)
 
     elif initname == 'kmeansplusplus':
         # Cluster all documents into K hard clusters via K-means
@@ -119,7 +122,10 @@ def _initTopicWordEstParams(obsModel, Data, PRNG, K=0,
         topics, Z = KMeansRex.RunKMeans(X, K, seed=seed,
                                         Niter=25,
                                         initname='plusplus')
-        topics += 0.01 * PRNG.rand(K, Data.vocab_size)
+
+        # Add in some "smoothing" random noise
+        # so that every word has positive probability under every topic.
+        topics += PRNG.rand(K, Data.vocab_size)
 
     elif initname == 'randomfromarg':
         # Draw K topic-word probability vectors i.i.d. from a Dirichlet
@@ -165,5 +171,5 @@ def _initTopicWordEstParams(obsModel, Data, PRNG, K=0,
     # Raise error if any NaN detected
     if np.any(np.isnan(topics)):
         raise ValueError('topics should never be NaN')
-
+    assert np.allclose(np.sum(topics, axis=1), 1.0)
     return topics

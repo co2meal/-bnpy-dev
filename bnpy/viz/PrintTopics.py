@@ -29,16 +29,19 @@ from bnpy.ioutil.ModelReader import loadWordCountMatrixForLap, loadModelForLap
 
 STYLE = """
 <style>
-pre {line-height:13px; font-size:13px; display:inline; color:black;}
+pre.num {line-height:13px; font-size:10px; display:inline; color:gray;}
+pre.word {line-height:13px; font-size:13px; display:inline; color:black;}
 h2 {line-height:16px; font-size:16px; color:gray;
-    text-align:center; padding:0px; margin:0px;}
+    text-align:left; padding:0px; margin:0px;}
 td {padding-top:5px; padding-bottom:5px;}
+table { page-break-inside:auto }
+tr { page-break-inside:avoid; page-break-after:auto }
 </style>
 """
 
 
 def showTopWordsForTask(taskpath, vocabfile, lap=None, doHTML=1,
-                        doCounts=1, **kwargs):
+                        doCounts=1, sortTopics=False, **kwargs):
     ''' Print top words for each topic from results saved on disk.
 
     Returns
@@ -51,6 +54,10 @@ def showTopWordsForTask(taskpath, vocabfile, lap=None, doHTML=1,
     if doCounts and (lap is None or lap > 0):
         WordCounts = loadWordCountMatrixForLap(taskpath, lap)
         countVec = WordCounts.sum(axis=1)
+        if sortTopics:
+            sortIDs = np.argsort(-1*countVec) # -1 to get descending order
+            countVec = countVec[sortIDs]
+            WordCounts = WordCounts[sortIDs]
         if doHTML:
             return htmlTopWordsFromWordCounts(
                 WordCounts, vocabList, countVec=countVec, **kwargs)
@@ -86,15 +93,27 @@ def htmlTopWordsFromWordCounts(WordCounts, vocabList, order=None, Ktop=10,
         k = np.flatnonzero(activeCompIDs == compID)
         if len(k) == 1:
             k = k[0]
-            titleline = '<h2> %6d </h2>' % (countVec[k])
+            titleline = '<h2>%4d/%d %10d</h2>' % (
+                k+1, countVec.size, countVec[k])
             htmllines.append('    <td>' + titleline)
+            htmllines.append('    ')
+            topIDs = np.argsort(-1 * WordCounts[k])[:Ktop]
+            for topID in topIDs:
+                dataline = \
+                    '<pre class="num">%8d </pre><pre class="word">%s </pre>' % (
+                        WordCounts[k, topID],
+                        vocabList[topID][:16])
+                htmllines.append(dataline + "<br />")
+            htmllines.append('    </td>')
+            '''
             htmllines.append('    <pre>')
             topIDs = np.argsort(-1 * WordCounts[k])[:Ktop]
             for topID in topIDs:
-                dataline = '%5d %s ' % (
+                dataline = '%8d %s ' % (
                     WordCounts[k, topID], vocabList[topID][:16])
                 htmllines.append(dataline)
             htmllines.append('    </pre></td>')
+            '''
         else:
             htmllines.append('    <td></td>')
 
@@ -186,5 +205,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('taskpath')
     parser.add_argument('vocabfilepath')
+    parser.add_argument('--sortTopics', default=1)
+    parser.add_argument('--maxKToDisplay', default=10000)
     args = parser.parse_args()
-    print showTopWordsForTask(args.taskpath, args.vocabfilepath)
+    print showTopWordsForTask(args.taskpath, args.vocabfilepath, 
+        sortTopics=args.sortTopics,
+        maxKToDisplay=args.maxKToDisplay)

@@ -7,7 +7,7 @@ from HDPHMMUtil import calcELBO_LinearTerms, calcELBO_NonlinearTerms
 
 from bnpy.allocmodel import AllocModel
 from bnpy.suffstats import SuffStatBag
-from bnpy.util import digamma, gammaln, EPS
+from bnpy.util import digamma, gammaln
 from bnpy.util import StickBreakUtil
 from bnpy.allocmodel.topics import OptimizerRhoOmega
 from bnpy.allocmodel.topics.HDPTopicUtil import c_Beta, c_Dir, L_top
@@ -84,10 +84,7 @@ class HDPHMM(AllocModel):
         np.exp(expELogPi, out=expELogPi)
         return expELogPi[0:self.K, 0:self.K]
 
-    def calc_local_params(self, Data, LP,
-                          MergePrepInfo=None,
-                          limitMemoryLP=0,
-                          **kwargs):
+    def calc_local_params(self, Data, LP, **kwargs):
         ''' Calculate local parameters for each data item and each component.
 
         This is part of the E-step.
@@ -101,97 +98,13 @@ class HDPHMM(AllocModel):
 
         Returns
         -------
-        LP : A dictionary with updated keys 'resp' and 'respPair' (see the
-             documentation for mathematical definitions of resp and respPair).
-             Note that respPair[0,:,:] is undefined.
+        LP : dict of local parameters.
         '''
-        if MergePrepInfo is None or 'mPairIDs' not in MergePrepInfo:
-            mPairIDs = np.zeros((0, 2))
-            M = 0
-        else:
-            mPairIDs = MergePrepInfo['mPairIDs']
-            M = len(mPairIDs)
+        return HMMUtil.calcLocalParams(Data, LP, 
+            transTheta=self.transTheta,
+            startTheta=self.startTheta,
+            **kwargs)
 
-        # Calculate trans matrix arg for fwd/bwd alg
-        digammasumVec = digamma(np.sum(self.transTheta, axis=1))
-        expELogPi = digamma(self.transTheta[:, :self.K]) \
-            - digammasumVec[:, np.newaxis]
-        np.exp(expELogPi, out=expELogPi)
-
-        # Calculate start state log prob vector for fwd/bwd alg
-        ELogPi0 = digamma(self.startTheta[:self.K]) \
-            - digamma(np.sum(self.startTheta))
-
-        # Unpack soft evidence matrix for fwd/bwd alg
-        lpr = LP['E_log_soft_ev']
-
-        if limitMemoryLP:
-            # Set init probs are uniform,
-            # because we'll update the first step's logSoftEv to include log
-            # pi_0
-            expELogPi0 = np.ones(self.K)
-
-            logMargPr = np.empty(Data.nDoc)
-            resp = np.empty((Data.nObs, self.K))
-            Htable = np.empty((Data.nDoc, self.K, self.K))
-            TransCount = np.empty((Data.nDoc, self.K, self.K))
-            mHtable = np.zeros((2 * M, self.K))
-
-            # Run forward backward algorithm on each sequence
-            for n in xrange(Data.nDoc):
-                start = Data.doc_range[n]
-                stop = Data.doc_range[n + 1]
-                logSoftEv_n = lpr[start:stop]
-                logSoftEv_n[0] += ELogPi0  # adding in start state log probs
-
-                resp_n, lp_n, TransCount_n, Htable_n, mHtable_n = \
-                    HMMUtil.FwdBwdAlg_LimitMemory(
-                        expELogPi0,
-                        expELogPi,
-                        logSoftEv_n,
-                        mPairIDs)
-                resp[start:stop] = resp_n
-                logMargPr[n] = lp_n
-                TransCount[n] = TransCount_n
-                Htable[n] = Htable_n
-                mHtable += mHtable_n
-
-            LP['resp'] = resp
-            LP['evidence'] = np.sum(logMargPr)
-            LP['TransCount'] = TransCount
-            LP['Htable'] = Htable
-            LP['mHtable'] = mHtable
-        else:
-            # Set init probs are uniform,
-            # because we'll update the first step's logSoftEv to include log
-            # pi_0
-            expELogPi0 = np.ones(self.K)
-
-            # Run the forward backward algorithm on each sequence
-            logMargPr = np.empty(Data.nDoc)
-            resp = np.empty((Data.nObs, self.K))
-            respPair = np.empty((Data.nObs, self.K, self.K))
-            respPair[0].fill(0)
-
-            for n in xrange(Data.nDoc):
-                start = Data.doc_range[n]
-                stop = Data.doc_range[n + 1]
-                logSoftEv_n = lpr[start:stop]
-                logSoftEv_n[0] += ELogPi0  # adding in start state log probs
-
-                seqResp, seqRespPair, seqLogMargPr = \
-                    HMMUtil.FwdBwdAlg(expELogPi0,
-                                      expELogPi,
-                                      logSoftEv_n)
-                resp[start:stop] = seqResp
-                respPair[start:stop] = seqRespPair
-                logMargPr[n] = seqLogMargPr
-
-            LP['evidence'] = np.sum(logMargPr)
-            LP['resp'] = resp
-            LP['respPair'] = respPair
-
-        return LP
 
     def initLPFromResp(self, Data, LP, limitMemoryLP=1):
         ''' Fill in remaining local parameters given resp.
@@ -684,4 +597,3 @@ class HDPHMM(AllocModel):
     def get_prior_dict(self):
         return dict(gamma=self.gamma, alpha=self.alpha, K=self.K,
                     kappa=self.kappa, startAlpha=self.startAlpha)
-
