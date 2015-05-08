@@ -71,8 +71,6 @@ def is_monotonic(ELBOvec, aArg=None, atol=1e-5, verbose=True):
             if aArg['name'] == 'HDPTopicModel':
                 # ELBO can fluctuate more due to no caching at localstep
                 atol = 1e-3
-            elif aArg['name'] == 'HDPHMM':
-                atol = 1e-4
 
     ELBOvec = np.asarray(ELBOvec, dtype=np.float64)
     assert ELBOvec.ndim == 1
