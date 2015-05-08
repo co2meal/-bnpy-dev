@@ -13,9 +13,10 @@ class Test(MergeMoveEndToEndTest):
         """ Create the dataset
         """
         self.datasetArg = dict(
-            name='DDToyHMM', 
-            nDocTotal=16, 
-            nPerDoc=500,
+            name='ToyARK13', 
+            nDocTotal=26, 
+            nSeq=26, 
+            T=400,
             )
         datasetMod = __import__(self.datasetArg['name'], fromlist=[])
         self.Data = datasetMod.get_data(**self.datasetArg)
@@ -24,9 +25,11 @@ class Test(MergeMoveEndToEndTest):
         for sF in [0.1]:
             for ECovMat in ['eye']:
                 kwargs = OrderedDict()
-                kwargs['name'] = 'Gauss'
+                kwargs['name'] = 'AutoRegGauss'
                 kwargs['ECovMat'] = ECovMat
                 kwargs['sF'] = sF
+                kwargs['VMat'] = ECovMat
+                kwargs['sV'] = sF
                 yield kwargs
 
     def nextAllocKwArgsForVB(self):

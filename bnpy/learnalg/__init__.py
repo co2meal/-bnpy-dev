@@ -12,10 +12,11 @@ from EMAlg import EMAlg
 
 from ParallelVBAlg import ParallelVBAlg
 from ParallelMOVBAlg import ParallelMOVBAlg
+from ParallelMOVBMovesAlg import ParallelMOVBMovesAlg
 
 from GSAlg import GSAlg
 
 __all__ = ['LearnAlg', 'VBAlg', 'MOVBAlg', 'MOVBBirthMergeAlg',
            'SOVBAlg', 'EMAlg',
-           'ParallelVBAlg', 'ParallelMOVBAlg',
+           'ParallelVBAlg', 'ParallelMOVBAlg', 'ParallelMOVBMovesAlg',
            'GSAlg', ]
