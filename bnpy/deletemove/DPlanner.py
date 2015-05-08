@@ -59,7 +59,6 @@ def makePlanForEligibleComps(SS, DRecordsByComp=None,
     Plan = getEligibleCompInfo(SS, DRecordsByComp, dtargetMaxSize,
                                deleteFailLimit,
                                **kwargs)
-
     if len(Plan.keys()) > 0:
         nEligibleBySize = len(Plan['eligible-by-size-UIDs'])
         nRemovedByFailLimit = len(Plan['eliminatedUIDs'])
@@ -109,20 +108,20 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
                         **kwargs):
     """ Get a dict of lists of component ids eligible for deletion.
 
-        Returns
-        -------
-        Info : dict with either no fields, or fields named
-               * candidateIDs
-               * candidateUIDs
+    Returns
+    -------
+    Info : dict with either no fields, or fields named
+        * candidateIDs
+        * candidateUIDs
 
-        Any "empty" Info dict indicates that no eligible comps exist.
+    Any "empty" Info dict indicates that no eligible comps exist.
 
-        Post Condition
-        -----------
-        DRecordsByComp will have an entry for each candidate uID
-        including updated fields:
-        * 'count' : value of SS.getCountVec() corresponding to comp uID
-        * 'nFail' : number of previous failed delete attempts on uID
+    Post Condition
+    -----------
+    DRecordsByComp will have an entry for each candidate uID
+    including updated fields:
+    * 'count' : value of SS.getCountVec() corresponding to comp uID
+    * 'nFail' : number of previous failed delete attempts on uID
     """
     assert hasattr(SS, 'uIDs')
     if DRecordsByComp is None:
@@ -137,24 +136,29 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
     if SS.hasSelectionTerm('DocUsageCount'):
         SizeVec = SS.getSelectionTerm('DocUsageCount')
     else:
-        SizeVec = 2 * CountVec  # conservative overestimate
+        raise NotImplementedError("DocUsageCount selection term required.")
+        #SizeVec = 2 * CountVec  # conservative overestimate
 
     # ----    Find states small enough for delete
     eligibleIDs = np.flatnonzero(SizeVec < dtargetMaxSize)
     eligibleUIDs = SS.uIDs[eligibleIDs]
-
     # ----    Return blank dict if no eligibles found
     if len(eligibleIDs) == 0:
         return dict()
 
-    # ----    Filter out records of states
-    # -       that changed recently
+    # sort these from smallest to largest usage
+    sortIDs = np.argsort(SizeVec[eligibleIDs])
+    eligibleIDs = eligibleIDs[sortIDs]
+    eligibleUIDs = eligibleUIDs[sortIDs]
+
+    # ----    Release potentially eligible UIDs from "failure" jail
+    # If a state has changed mass significantly since last attempt,
+    # we discard its past failures and make it eligible again.
     CountMap = dict()
     SizeMap = dict()
     for ii, uID in enumerate(eligibleUIDs):
         SizeMap[uID] = SizeVec[eligibleIDs[ii]]
         CountMap[uID] = CountVec[eligibleIDs[ii]]
-
     for uID in DRecordsByComp.keys():
         if uID not in CountMap or 'count' not in DRecordsByComp[uID]:
             continue
@@ -163,7 +167,7 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
         if percDiff > 0.15:
             del DRecordsByComp[uID]
 
-    # ----    Update DRecordsByComp
+    # ----    Update DRecordsByComp to track size of each eligible UID
     for uID in eligibleUIDs:
         if uID not in DRecordsByComp:
             DRecordsByComp[uID] = dict()
@@ -177,9 +181,8 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
     tier1UIDs = list()
     tier2UIDs = list()
     eliminatedUIDs = list()
-    sortIDs = np.argsort(SizeVec[eligibleIDs])
-    for ii in sortIDs:
-        uID = eligibleUIDs[ii]
+
+    for uID in eligibleUIDs:
         if DRecordsByComp[uID]['nFail'] == 0:
             tier1UIDs.append(uID)
         elif DRecordsByComp[uID]['nFail'] < deleteFailLimit:

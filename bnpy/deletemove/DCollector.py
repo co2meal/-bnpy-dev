@@ -112,7 +112,7 @@ def getDataSubsetRelevantToPlan(Dchunk, LPchunk, Plan,
         if 'DocTopicCount' in LPchunk:
             DocTopicCount = LPchunk['DocTopicCount']
             curkeepmask = DocTopicCount[:, delCompID] >= dtargetMinCount
-        elif 'respPair' in LPchunk or 'TransStateCount' in LPchunk:
+        elif 'respPair' in LPchunk or 'TransCount' in LPchunk:
             curkeepmask = np.zeros(Dchunk.nDoc, dtype=np.int32)
             for n in xrange(Dchunk.nDoc):
                 start = Dchunk.doc_range[n]

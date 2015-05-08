@@ -88,6 +88,7 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
 
         elif deleteNontargetStrategy == 'merge':
             raise NotImplementedError('TODO')
+            '''
             # Make sure we haven't used this comp already
             # in a previous delete
             usedBefore = False
@@ -163,8 +164,7 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
 
                 print "Hrem fast   %.4f" % (ELBOgap_cached_rest)
                 print "Hrem tight  %.4f" % (tight_ELBOgap_rest)
-                from IPython import embed
-                embed()
+            '''
         else:
             msg = 'Unrecognised deleteNontargetStrategy: %s' \
                 % (deleteNontargetStrategy)
