@@ -476,7 +476,12 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
         Returns
         -------
-        SSchunk : bnpy SuffStatDict object for batchID,
+        SSchunk : bnpy SuffStatDict object for batchID
+
+        Post Condition
+        --------------
+        SSchunk has same ActiveUIDs as self.
+        SSchunk has no merge terms at all.
         '''
         SSchunk = self.SSmemory[batchID]
         if doCopy:

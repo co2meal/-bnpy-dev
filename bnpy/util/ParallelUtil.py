@@ -53,4 +53,6 @@ def fillSharedMemArray(Xsh, Xarr):
     Xsh updated in place.
     """
     Xsh_arr = sharedMemToNumpyArray(Xsh)
-    Xsh_arr[:] = Xarr
+    K = Xarr.shape[0]
+    assert Xsh_arr.shape[0] >= K
+    Xsh_arr[:K] = Xarr

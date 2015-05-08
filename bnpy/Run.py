@@ -396,39 +396,31 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
                or 'shuffle' in KwArgs or 'delete' in KwArgs
 
     if algName == 'EM':
-        learnAlg = bnpy.learnalg.EMAlg(
-            savedir=savepath, seed=algseed,
-            algParams=algP, outputParams=outputP)
+        LearnAlgConstr = bnpy.learnalg.EMAlg
     elif algName == 'VB':
-        learnAlg = bnpy.learnalg.VBAlg(
-            savedir=savepath, seed=algseed,
-            algParams=algP, outputParams=outputP)
+        LearnAlgConstr = bnpy.learnalg.VBAlg
     elif algName == 'pVB':
-        learnAlg = bnpy.learnalg.ParallelVBAlg(
-            savedir=savepath, seed=algseed,
-            algParams=algP, outputParams=outputP)
+        LearnAlgConstr = bnpy.learnalg.ParallelVBAlg
     elif algName == 'soVB':
-        learnAlg = bnpy.learnalg.SOVBAlg(
-            savedir=savepath, seed=algseed,
-            algParams=algP, outputParams=outputP)
-    elif algName == 'moVB' and hasMoves:
-        learnAlg = bnpy.learnalg.MOVBBirthMergeAlg(
-            savedir=savepath, seed=algseed,
-            algParams=algP, outputParams=outputP)
-    elif algName == 'moVB' and not hasMoves:
-        learnAlg = bnpy.learnalg.MOVBAlg(
-            savedir=savepath, seed=algseed,
-            algParams=algP, outputParams=outputP)
-    elif algName == 'pmoVB' and not hasMoves:
-        learnAlg = bnpy.learnalg.ParallelMOVBAlg(
-            savedir=savepath, seed=algseed,
-            algParams=algP, outputParams=outputP)
+        LearnAlgConstr = bnpy.learnalg.SOVBAlg
+    elif algName == 'moVB':
+        if hasMoves:
+            LearnAlgConstr = bnpy.learnalg.MOVBBirthMergeAlg
+        else:
+            LearnAlgConstr = bnpy.learnalg.MOVBAlg
+    elif algName == 'pmoVB':
+        if hasMoves:
+            LearnAlgConstr = bnpy.learnalg.ParallelMOVBMovesAlg
+        else:
+            LearnAlgConstr = bnpy.learnalg.ParallelMOVBAlg
     elif algName == 'GS':
-        learnAlg = bnpy.learnalg.GSAlg(
-            savedir=savepath, seed=algseed,
-            algParams=algP, outputParams=outputP)
+        LearnAlgConstr = bnpy.learnalg.GSAlg
     else:
         raise NotImplementedError("Unknown learning algorithm " + algName)
+
+    learnAlg = LearnAlgConstr(
+        savedir=savepath, seed=algseed,
+        algParams=algP, outputParams=outputP)
     return learnAlg
 
 

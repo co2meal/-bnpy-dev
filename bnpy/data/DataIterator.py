@@ -220,7 +220,14 @@ class DataIterator(object):
         '''
         return self.Data.get_text_summary()
 
+    def getBatch(self, batchID):
+        ''' Returns Data object for requested batch
 
+        Returns
+        -------
+        Dbatch : bnpy DataObj
+        '''
+        return self.DataPerBatch[batchID]
 
     def getRawDataAsSharedMemDict(self):
         ''' Create dict with copies of raw data as shared memory arrays

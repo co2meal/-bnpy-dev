@@ -7,17 +7,20 @@ import numpy as np
 import multiprocessing
 
 from LearnAlg import makeDictOfAllWorkspaceVars
-from MOVBAlg import MOVBAlg
+from MOVBBirthMergeAlg import MOVBBirthMergeAlg
 from bnpy.util import sharedMemDictToNumpy, sharedMemToNumpyArray
 from SharedMemWorker import SharedMemWorker
 
 
-class ParallelMOVBAlg(MOVBAlg):
+class ParallelMOVBMovesAlg(MOVBBirthMergeAlg):
 
     def __init__(self, **kwargs):
         ''' Constructor for ParallelMOVBAlg
         '''
-        MOVBAlg.__init__(self, **kwargs)
+        # Initialize instance vars related to
+        # birth / merge / delete records
+        MOVBBirthMergeAlg.__init__(self, **kwargs)
+
         self.nWorkers = self.algParams['nWorkers']
         maxWorkers = multiprocessing.cpu_count()
         if self.nWorkers < 0:
@@ -25,6 +28,7 @@ class ParallelMOVBAlg(MOVBAlg):
         if self.nWorkers > maxWorkers:
             self.nWorkers = np.maximum(self.nWorkers, maxWorkers)
         self.memoLPkeys = []
+
 
     def fit(self, hmodel, DataIterator, LP=None, **kwargs):
         ''' Run learning algorithm that fits parameters of hmodel to Data.
@@ -37,6 +41,11 @@ class ParallelMOVBAlg(MOVBAlg):
         --------
         hmodel updated in place with improved global parameters.
         '''
+        origmodel = hmodel
+
+        self.ActiveIDVec = np.arange(hmodel.obsModel.K)
+        self.maxUID = self.ActiveIDVec.max()
+        
         # Initialize Progress Tracking vars like nBatch, lapFrac, etc.
         iterid, lapFrac = self.initProgressTrackVars(DataIterator)
 
@@ -56,6 +65,22 @@ class ParallelMOVBAlg(MOVBAlg):
             self.JobQ = JobQ
             self.ResultQ = ResultQ
 
+        # Prep for birth
+        BirthPlans = list()
+        BirthResults = list()
+        prevBirthResults = list()
+
+        # Prep for merge
+        MergePlanInfo = dict()
+        if self.hasMove('merge'):
+            mergeStartLap = self.algParams['merge']['mergeStartLap']
+        else:
+            mergeStartLap = 0
+        order = None
+
+        # Prep for delete
+        DeletePlans = list()
+
         # Begin loop over batches of data...
         SS = None
         isConverged = False
@@ -73,16 +98,39 @@ class ParallelMOVBAlg(MOVBAlg):
                 self.print_msg('========================== lap %.2f batch %d'
                                % (lapFrac, batchID))
 
+            # Prepare for merges
+            if self.hasMove('merge') and self.doMergePrepAtLap(lapFrac):
+                MergePrepInfo = self.preparePlansForMerge(
+                    hmodel, SS, MergePrepInfo,
+                    order=order,
+                    BirthResults=BirthResults,
+                    lapFrac=lapFrac)
+            elif self.isFirstBatch(lapFrac):
+                if self.doMergePrepAtLap(lapFrac + 1):
+                    MergePrepInfo = dict(
+                        mergePairSelection=\
+                            self.algParams['merge']['mergePairSelection'])
+                else:
+                    MergePrepInfo = dict()
+
+            # Reset selection terms to zero
+            if self.isFirstBatch(lapFrac):
+                if SS is not None and SS.hasSelectionTerms():
+                    SS._SelectTerms.setAllFieldsToZero()
+
             # Local/Summary step for current batch
             self.algParamsLP['lapFrac'] = lapFrac  # for logging
             self.algParamsLP['batchID'] = batchID
-
             if self.nWorkers > 0:
                 SSchunk = self.calcLocalParamsAndSummarize_parallel(
-                    DataIterator, hmodel, batchID=batchID, lapFrac=lapFrac)
+                    DataIterator, hmodel, 
+                    MergePrepInfo=MergePrepInfo,
+                    batchID=batchID, lapFrac=lapFrac)
             else:
                 SSchunk = self.calcLocalParamsAndSummarize_main(
-                    DataIterator, hmodel, batchID=batchID, lapFrac=lapFrac)
+                    DataIterator, hmodel, 
+                    MergePrepInfo=MergePrepInfo,
+                    batchID=batchID, lapFrac=lapFrac)
 
             self.saveDebugStateAtBatch('Estep', 
                 batchID, SSchunk=SSchunk, SS=SS, hmodel=hmodel)
@@ -98,9 +146,21 @@ class ParallelMOVBAlg(MOVBAlg):
                     aSharedMem)
                 oSharedMem = hmodel.obsModel.fillSharedMemDictForLocalStep(
                     oSharedMem)
+            
+            # ELBO calculation
+            if self.isLastBatch(lapFrac):
+                # after seeing all data, ELBO will be ready
+                self.ELBOReady = True
+            if self.ELBOReady:
+                evBound = hmodel.calc_evidence(SS=SS)
+
+            # Merge move!
+            if self.hasMove('merge') and self.isLastBatch(lapFrac) \
+                    and lapFrac > mergeStartLap:
+                hmodel, SS, evBound = self.run_many_merge_moves(
+                    hmodel, SS, evBound, lapFrac, MergePrepInfo)
 
             # ELBO calculation
-            evBound = hmodel.calc_evidence(SS=SS)
             nLapsCompleted = lapFrac - self.algParams['startLap']
             if nLapsCompleted > 1.0:
                 # evBound increases monotonically AFTER first lap
@@ -108,7 +168,7 @@ class ParallelMOVBAlg(MOVBAlg):
                 self.verify_evidence(evBound, prevBound, lapFrac)
 
             if self.doDebug() and lapFrac >= 1.0:
-                self.verifyELBOTracking(hmodel, SS, evBound)
+                self.verifyELBOTracking(hmodel, SS, evBound, order=order)
 
             self.saveDebugStateAtBatch('Mstep',
                 batchID, SSchunk=SSchunk, SS=SS, hmodel=hmodel)
@@ -117,6 +177,8 @@ class ParallelMOVBAlg(MOVBAlg):
             countVec = SS.getCountVec()
             if lapFrac > 1.0:
                 isConverged = self.isCountVecConverged(countVec, prevCountVec)
+                hasMoreMoves = self.hasMoreReasonableMoves(lapFrac, SS)
+                isConverged = isConverged and not hasMoreMoves
                 self.setStatus(lapFrac, isConverged)
 
             # Display progress
@@ -149,10 +211,20 @@ class ParallelMOVBAlg(MOVBAlg):
         self.eval_custom_func(
             isFinal=1, **makeDictOfAllWorkspaceVars(**vars()))
 
+        # Births and merges require copies of original model object
+        #  we need to make sure original reference has updated parameters, etc.
+        if id(origmodel) != id(hmodel):
+            origmodel.allocModel = hmodel.allocModel
+            origmodel.obsModel = hmodel.obsModel
+
+        # Return information about this run
         return self.buildRunInfo(evBound=evBound, SS=SS,
                                  SSmemory=self.SSmemory)
 
-    def memoizedSummaryStep(self, hmodel, SS, SSchunk, batchID):
+    def memoizedSummaryStep(self, hmodel, SS, SSchunk, batchID,
+            MergePrepInfo=None,
+            order=None,
+            **kwargs):
         ''' Execute summary step on current batch and update aggregated SS.
 
         Returns
@@ -160,9 +232,14 @@ class ParallelMOVBAlg(MOVBAlg):
         SS : updated aggregate suff stats
         '''
         if batchID in self.SSmemory:
-            oldSSchunk = self.load_batch_suff_stat_from_memory(batchID)
+            oldSSchunk = self.load_batch_suff_stat_from_memory(
+                batchID, doCopy=0, Kfinal=SS.K, order=order)
+            assert not oldSSchunk.hasMergeTerms()
             assert oldSSchunk.K == SS.K
+            assert np.allclose(SS.uIDs, oldSSchunk.uIDs)
             SS -= oldSSchunk
+
+        SSchunk.setUIDs(self.ActiveIDVec.copy())
         if SS is None:
             SS = SSchunk.copy()
         else:
@@ -179,7 +256,9 @@ class ParallelMOVBAlg(MOVBAlg):
         return SS
 
     def calcLocalParamsAndSummarize_main(self, 
-            DataIterator, hmodel, batchID=0, **kwargs):
+            DataIterator, hmodel, 
+            MergePrepInfo=None,
+            batchID=0, **kwargs):
         ''' Execute local step and summary step in main process.
 
         Returns
@@ -187,14 +266,23 @@ class ParallelMOVBAlg(MOVBAlg):
         SSagg : bnpy.suffstats.SuffStatBag
             Aggregated suff stats from all processed slices of the data.
         '''
+        if not isinstance(MergePrepInfo, dict):
+            MergePrepInfo = dict()
+        LPkwargs = self.algParamsLP
+        LPkwargs.update(MergePrepInfo)
+
         Dbatch = DataIterator.getBatch(batchID=batchID)
-        LPbatch = hmodel.calc_local_params(Dbatch, **self.algParamsLP)
+        LPbatch = hmodel.calc_local_params(Dbatch, **LPkwargs)
         SSbatch = hmodel.get_global_suff_stats(Dbatch, LPbatch,
-            doPrecompEntropy=1)
+            doPrecompEntropy=1, **MergePrepInfo)
+        SSbatch.setUIDs(self.ActiveIDVec.copy())
+
         return SSbatch
 
     def calcLocalParamsAndSummarize_parallel(self, 
-            DataIterator, hmodel, batchID=0, **kwargs):
+            DataIterator, hmodel, 
+            MergePrepInfo=None,
+            batchID=0, **kwargs):
         ''' Execute local step and summary step in parallel via workers.
 
         Returns
@@ -207,8 +295,10 @@ class ParallelMOVBAlg(MOVBAlg):
         nWorkers = self.algParams['nWorkers']
         for workerID in xrange(nWorkers):
             sliceArgs = DataIterator.calcSliceArgs(
-                batchID, workerID, nWorkers, lapFrac)
+                batchID, workerID, nWorkers)
             aArgs = hmodel.allocModel.getSerializableParamsForLocalStep()
+            aArgs.update(MergePrepInfo)
+
             oArgs = hmodel.obsModel.getSerializableParamsForLocalStep()
             self.JobQ.put((sliceArgs, aArgs, oArgs))
 
@@ -222,7 +312,6 @@ class ParallelMOVBAlg(MOVBAlg):
             SSslice = self.ResultQ.get()
             SSagg += SSslice
         return SSagg
-    # ... end class ParallelMOVBAlg
 
 def setupQueuesAndWorkers(DataIterator, hmodel, 
         algParamsLP=None, 

@@ -33,11 +33,11 @@ class Test(MergeMoveEndToEndTest):
         alpha = 0.5
         startAlpha = 10
         for gamma in [10.0]:
-            for kappa in [0, 50.0]:
+            for hmmKappa in [0, 50.0]:
                 kwargs = OrderedDict()
                 kwargs['name'] = 'HDPHMM'
                 kwargs['gamma'] = gamma
                 kwargs['alpha'] = alpha
-                kwargs['kappa'] = kappa
+                kwargs['hmmKappa'] = hmmKappa
                 kwargs['startAlpha'] = startAlpha
                 yield kwargs
