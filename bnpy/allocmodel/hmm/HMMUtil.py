@@ -17,7 +17,6 @@ from bnpy.util import as2D
 
 from lib.LibFwdBwd import FwdAlg_cpp, BwdAlg_cpp, SummaryAlg_cpp
 
-
 def calcLocalParams(Data, LP, 
         transTheta=None, startTheta=None,
         limitMemoryLP=1,
@@ -40,7 +39,8 @@ def calcLocalParams(Data, LP,
     nAtom, K = logLik.shape
 
     # Calculate trans prob 2D array
-    transPi = digamma(transTheta[:, :K]) - digamma(np.sum(transTheta, axis=1))
+    digammaSumTransTheta = digamma(np.sum(transTheta, axis=1))[:,np.newaxis]
+    transPi = digamma(transTheta[:, :K]) - digammaSumTransTheta
     np.exp(transPi, out=transPi)
 
     # Calculate LOG of start state prob vector
