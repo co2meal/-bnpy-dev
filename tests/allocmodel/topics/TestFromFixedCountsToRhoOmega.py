@@ -11,6 +11,7 @@ and very flat with respect to omega (so up to 6 significant figs,
     same objective obtained by omega that differ by say 100 or 200)
 '''
 
+import argparse
 import sys
 import numpy as np
 from scipy.optimize import approx_fprime
@@ -133,6 +134,7 @@ class Test(unittest.TestCase):
     def test_FixedCount_GlobalStepToConvergence(self, 
             gamma=10.0, 
             alpha=5.0,
+            nDocRange=[1, 10, 100],
             DocTopicCount_d=[500, 0, 300, 200]):
         ''' Given fixed counts, run rho/omega inference to convergence.
 
@@ -143,27 +145,20 @@ class Test(unittest.TestCase):
         print '------------- [%s]' % np2flatstr(DocTopicCount_d, fmt='%d')
         DocTopicCount_d = np.asarray(DocTopicCount_d)
 
-        for nDoc in [1, 10, 100]:
+        for nDoc in nDocRange:
             print '                    @ nDoc %d' % (nDoc)
             rho, omega = learn_rhoomega_fromFixedCounts(
                 DocTopicCount_d=DocTopicCount_d, nDoc=nDoc,
                 alpha=alpha, gamma=gamma)
+
             print 'restart with 2x smaller omega'
             rho2, omega2 = learn_rhoomega_fromFixedCounts(
                 DocTopicCount_d=DocTopicCount_d, nDoc=nDoc,
                 alpha=alpha, gamma=gamma,
-                initrho=rho, initomega=omega/2)
+                initrho=rho/2, initomega=omega/2)
             assert np.allclose(rho, rho2, atol=0.0001, rtol=0)
 
-            print 'restart with 10x smaller last entry'
-            om = omega.copy()
-            om[-1] /= 10
-            rho2, omega2 = learn_rhoomega_fromFixedCounts(
-                DocTopicCount_d=DocTopicCount_d, nDoc=nDoc,
-                alpha=alpha, gamma=gamma,
-                initrho=rho, initomega=om)
-            assert np.allclose(rho, rho2, atol=0.0001, rtol=0)
-            
+                
 def learn_rhoomega_fromFixedCounts(DocTopicCount_d=None,
         nDoc=0,
         alpha=None, gamma=None,
@@ -234,3 +229,18 @@ def evalELBOandPrint(DocTopicCount=None, alpha=None, gamma=None,
     omstr = np2flatstr(omega, fmt="%6.2f")
     print '%10s %8.5f beta %s | omega %s' % (
             msg, L, betastr, omstr)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--DocTopicCount_d', default='90,9,1')
+    parser.add_argument('--alpha', type=float, default=0.5)
+    parser.add_argument('--gamma', type=float, default=10)
+    parser.add_argument('--nDocRange', type=str, default='1,10')
+    args = parser.parse_args()
+
+    args.nDocRange = [int(nD) for nD in args.nDocRange.split(',')]
+    args.DocTopicCount_d = [float(Ndk) for Ndk in args.DocTopicCount_d.split(',')]
+    myTest = Test("test_FixedCount_GlobalStepToConvergence")
+    myTest.test_FixedCount_GlobalStepToConvergence(
+        **args.__dict__)
