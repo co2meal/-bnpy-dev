@@ -56,6 +56,9 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None,
         returnMemoizedDict=0, **kwargs):
     """ Calculate ELBO objective terms non-linear in suff stats.
     """
+    if Ebeta is None:
+        Ebeta = rho2beta(rho, returnSize='K+1')
+    
     if SS is not None:
         sumLogPi = SS.sumLogPi
         sumLogPiRem = SS.sumLogPiRem
@@ -67,6 +70,19 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None,
         thetaRem = LP['thetaRem']
         ElogPi = LP['ElogPi']
         ElogPiRem = LP['ElogPiRem']
+
+    if DocTopicCount is not None and theta is None:
+        theta = DocTopicCount + alpha * Ebeta[:-1]
+        thetaRem = alpha * Ebeta[-1]
+
+    if theta is not None and ElogPi is None:
+        digammasumtheta = digamma(theta.sum(axis=1) + thetaRem)
+        ElogPi = digamma(theta) - digammasumtheta[:,np.newaxis]
+        ElogPiRem = digamma(thetaRem) - digammasumtheta[:,np.newaxis]
+
+    if sumLogPi is None and ElogPi is not None:
+        sumLogPi = np.sum(ElogPi, axis=0)
+        sumLogPiRem = np.sum(ElogPiRem)
 
     if Hresp is None:
         if SS is not None and SS.hasELBOTerm('Hresp'):
@@ -119,8 +135,6 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None,
         LcDtheta *= SS.ampF
 
     # Next, compute the slack term 
-    if Ebeta is None:
-        Ebeta = rho2beta(rho, returnSize='K+1')
     alphaEbeta = alpha * Ebeta
     Lslack_alphaEbeta = np.sum(alphaEbeta[:-1] * sumLogPi) \
                         + alphaEbeta[-1] * sumLogPiRem
@@ -222,6 +236,22 @@ def E_cDalphabeta_surrogate(alpha, rho, omega):
     OFFcoef = OptimizerRhoOmega.kvec(K)
     calpha = gammaln(alpha) + (K + 1) * np.log(alpha)
     return calpha + np.sum(ElogU) + np.inner(OFFcoef, Elog1mU)
+
+
+def calcELBO_FixedDocTopicCountIgnoreEntropy(
+        alpha=None, gamma=None,
+        rho=None, omega=None,
+        DocTopicCount=None):
+    K = rho.size
+    Hresp = np.zeros(K)
+    Lnon = calcELBO_NonlinearTerms(
+        nDoc=DocTopicCount.shape[0],
+        DocTopicCount=DocTopicCount, alpha=alpha,
+        rho=rho, omega=omega, Hresp=Hresp)
+    Llinear = calcELBO_LinearTerms(alpha=alpha, gamma=gamma, 
+        rho=rho, omega=omega,
+        nDoc=DocTopicCount.shape[0])
+    return Lnon + Llinear
 
 """
 def E_cDir_alphabeta__Numeric(self):
