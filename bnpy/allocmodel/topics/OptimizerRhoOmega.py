@@ -90,7 +90,7 @@ def find_optimum_multiple_tries(sumLogPi=0, nDoc=0,
                 sumLogPi, nDoc, gamma=gamma, alpha=alpha, kappa=kappa,
                 startAlphaLogPi=startAlphaLogPi,
                 initrho=None, initomega=None,
-                factr=factr, approx_grad=approx_grad,
+                approx_grad=approx_grad,
                 **kwargs)
         else:
             raise ValueError(msg)
