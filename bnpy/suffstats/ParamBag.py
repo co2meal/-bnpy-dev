@@ -96,8 +96,16 @@ class ParamBag(object):
                 continue
             if dims[0] == 'K' and 'K' not in dims[1:]:
                 arr = arr[sortIDs]
+            elif dims[0] == 'K' and dims[1] == 'K' and 'K' not in dims[2:]:
+                arr = arr[sortIDs,:][:, sortIDs]
+            elif 'K' not in dims:
+                continue
+            elif dims[0] != 'K' and dims[1] == 'K':
+                arr = arr[:, sortIDs]
+            elif dims[0] != 'K' and dims[2] == 'K':
+                arr = arr[:, :, sortIDs]
             else:
-                raise NotImplementedError('TODO')
+                raise NotImplementedError('TODO' + key + str(dims))
             self.setField(key, arr, dims=dims)
 
     def insertEmptyComps(self, Kextra):

@@ -661,6 +661,10 @@ calcEntropyFromResp = calcEntropyFromResp_faster
 def PrecompMergeEntropy_SpecificPairs(LP, Data, mPairIDs, eps=1e-100):
     ''' Calculate replacement tables for specific candidate merge pairs
 
+    Returns
+    --------
+    sub_Hstart : 1D array, size M
+    sub_Htable : 3D array, size M x 2 x K
     '''
     resp = LP['resp']
     startLocIDs = Data.doc_range[:-1]
