@@ -68,13 +68,18 @@ class SuffStatBag(object):
     def reorderComps(self, order):
         ''' Rearrange internal order of components
         '''
+        assert self.K == order.size
         self._Fields.reorderComps(order)
         if self.hasELBOTerms():
             self._ELBOTerms.reorderComps(order)
         if self.hasMergeTerms():
-            self._MergeTerms.setAllFieldsToZero()
+            self._MergeTerms.reorderComps(order)
+        if self.hasSelectionTerms():
+            self._SelectTerms.reorderComps(order)
         if hasattr(self, 'uIDs'):
             self.uIDs = self.uIDs[order]
+        if hasattr(self, 'mPairIDs'):
+            del self.mPairIDs
 
     def removeField(self, key):
         return self._Fields.removeField(key)

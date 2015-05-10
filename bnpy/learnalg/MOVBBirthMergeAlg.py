@@ -83,10 +83,12 @@ class MOVBBirthMergeAlg(MOVBAlg):
             mergeStartLap = self.algParams['merge']['mergeStartLap']
         else:
             mergeStartLap = 0
-        order = None
 
         # Prep for delete
         DeletePlans = list()
+
+        # Prep for shuffle
+        order = None
 
         # Begin loop over batches of data...
         SS = None
@@ -116,7 +118,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
                     if self.doDebug() and len(DeletePlans) > 0:
                         DeletePlans[0]['WholeDataset'] = DataIterator.Data
                     hmodel, SS = self.deleteAndUpdateMemory(hmodel, SS,
-                                                            DeletePlans, order)
+                                                            DeletePlans)
                 DeletePlans = list()
 
             # Birth move : track birth info from previous lap
@@ -184,7 +186,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
             SS, SSchunk = self.memoizedSummaryStep(hmodel, SS,
                                                    Dchunk, LPchunk, batchID,
                                                    MergePrepInfo=MergePrepInfo,
-                                                   order=order)
+                                                   )
 
             # Delete : Collect target dataset
             if len(DeletePlans) > 0:
@@ -223,6 +225,13 @@ class MOVBBirthMergeAlg(MOVBAlg):
                     and lapFrac > mergeStartLap:
                 hmodel, SS, evBound = self.run_many_merge_moves(
                     hmodel, SS, evBound, lapFrac, MergePrepInfo)
+                # Cancel all planned deletes if merges were accepted.
+                if hasattr(self, 'MergeLog') and len(self.MergeLog) > 0:
+                    DeletePlans = []
+                    # Update memoized stats for each batch
+                    self.fastForwardMemory(Kfinal=SS.K)
+                    if hasattr(SS, 'mPairIDs'):
+                        del SS.mPairIDs
 
             # Shuffle : Rearrange topic order (big to small)
             if self.hasMove('shuffle') and self.isLastBatch(lapFrac):
@@ -234,9 +243,19 @@ class MOVBBirthMergeAlg(MOVBAlg):
                     self.ActiveIDVec = self.ActiveIDVec[order]
                     SS.reorderComps(order)
                     assert np.allclose(SS.uIDs, self.ActiveIDVec)
-
                     hmodel.update_global_params(SS)
                     evBound = hmodel.calc_evidence(SS=SS)
+                    # Update tracked target stats for any upcoming deletes
+                    for DPlan in DeletePlans:
+                        if self.hasMove('merge'):
+                            assert len(self.MergeLog) == 0
+                        DPlan['targetSS'].reorderComps(order)
+                        targetSSbyBatch = DPlan['targetSSByBatch']
+                        for batchID in targetSSbyBatch:
+                            targetSSbyBatch[batchID].reorderComps(order)
+                    # Update memoized stats for each batch
+                    self.fastForwardMemory(Kfinal=SS.K, order=order)
+
 
             if nLapsCompleted > 1.0 and len(BirthResults) == 0:
                 # evBound increases monotonically AFTER first lap
@@ -244,7 +263,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
                 self.verify_evidence(evBound, prevBound, lapFrac)
 
             if self.doDebug() and lapFrac >= 1.0:
-                self.verifyELBOTracking(hmodel, SS, evBound, order=order,
+                self.verifyELBOTracking(hmodel, SS, evBound,
                                         BirthResults=BirthResults)
 
             # Assess convergence
@@ -414,7 +433,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
             self.LPmemory[batchID] = None
 
     def memoizedSummaryStep(self, hmodel, SS, Dchunk, LPchunk, batchID,
-                            order=None, MergePrepInfo=None):
+                            MergePrepInfo=None):
         ''' Execute summary step on current batch and update aggregated SS
 
         Returns
@@ -429,7 +448,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
             # oldSSchunk will have usual Fields and ELBOTerms,
             # but all MergeTerms and SelectionTerms should be removed.
             oldSSchunk = self.load_batch_suff_stat_from_memory(
-                batchID, doCopy=0, Kfinal=SS.K, order=order)
+                batchID, doCopy=0, Kfinal=SS.K)
             assert not oldSSchunk.hasMergeTerms()
             assert oldSSchunk.K == SS.K
             assert np.allclose(SS.uIDs, oldSSchunk.uIDs)
@@ -1123,7 +1142,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
                 DeletePlans.pop(planID)
         return DeletePlans
 
-    def deleteAndUpdateMemory(self, hmodel, SS, DeletePlans, order=None):
+    def deleteAndUpdateMemory(self, hmodel, SS, DeletePlans):
         """ Construct and evaluate delete proposals.
 
             Returns
@@ -1137,11 +1156,10 @@ class MOVBBirthMergeAlg(MOVBAlg):
             return hmodel, SS
 
         # Make last minute plan for any empty comps
-        EPlan = DPlanner.makePlanForEmptyComps(SS,
-                                               **self.algParams['delete'])
-
+        EPlan = DPlanner.makePlanForEmptyComps(SS, **self.algParams['delete'])
         if hasattr(self, 'MergeLog') and len(self.MergeLog) > 0:
             # Accepted merge means skip all deletes except the trivial ones
+            DeleteLogger.log('ABANDONED planned delete due to accepted merge.')
             if 'candidateUIDs' in EPlan:
                 DeletePlans = [EPlan]
             else:
@@ -1173,9 +1191,6 @@ class MOVBBirthMergeAlg(MOVBAlg):
         newSS = SS.copy()
         newModel = hmodel.copy()
         for moveID, DPlan in enumerate(DeletePlans):
-            if moveID == 0:
-                self.fastForwardMemory(Kfinal=newSS.K, order=order)
-
             if 'DTargetData' in DPlan:
                 # Updates SSmemory in-place
                 newModel, newSS, self.SSmemory, DPlan = \
@@ -1240,7 +1255,6 @@ class MOVBBirthMergeAlg(MOVBAlg):
                 else:
                     self.DeleteAcceptRecord[
                         'acceptedUIDs'].extend(acceptedUIDs)
-
             for batchID in self.SSmemory:
                 assert np.allclose(
                     self.SSmemory[batchID].uIDs, self.ActiveIDVec)
@@ -1321,7 +1335,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
         return False
 
-    def verifyELBOTracking(self, hmodel, SS, evBound=None, order=None,
+    def verifyELBOTracking(self, hmodel, SS, evBound=None,
                            BirthResults=list(),
                            **kwargs):
         ''' Verify current aggregated SS consistent with sum over all batches
@@ -1336,7 +1350,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
         # Reconstruct aggregate SS explicitly by sum over all stored batches
         for batchID in range(len(self.SSmemory.keys())):
             SSchunk = self.load_batch_suff_stat_from_memory(
-                batchID, doCopy=1, order=order, Kfinal=SS.K)
+                batchID, doCopy=1, order=None, Kfinal=SS.K)
             if batchID == 0:
                 SS2 = SSchunk.copy()
             else:

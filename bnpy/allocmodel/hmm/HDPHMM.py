@@ -210,6 +210,7 @@ class HDPHMM(AllocModel):
         SS.setField('StartStateCount', StartStateCount, dims=('K'))
         SS.setField('TransStateCount', TransStateCount, dims=('K', 'K'))
         SS.setField('N', N, dims=('K'))
+        SS.setField('nDoc', Data.nDoc, dims=None)
 
         if doPrecompEntropy or 'Htable' in LP:
             # Compute entropy terms!

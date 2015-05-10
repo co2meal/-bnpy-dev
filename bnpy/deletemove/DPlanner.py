@@ -193,7 +193,11 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
 
     # Select as many first tier as possible
     # until the target dataset budget is exceeded
-    canTakeEverything = dtargetMaxSize >= np.floor(CountVec.sum())
+    if hasattr(SS, 'nDoc'):
+        totalSize = SS.nDoc
+    else:
+        totalSize = np.floor(CountVec.sum())
+    canTakeEverything = dtargetMaxSize >= totalSize
     if len(tier1UIDs) > 0:
         tier1AggSize = np.cumsum([SizeMap[uID] for uID in tier1UIDs])
 
