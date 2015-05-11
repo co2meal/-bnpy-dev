@@ -178,10 +178,12 @@ class MergeMoveEndToEndTest(unittest.TestCase):
                 print '>>>>>> WHOA! Kfinal != Ktrue <<<<<<'
         return Info
 
-    def test_MOVBWithMerges(self, 
+
+    def runMany_MOVBWithMoves(self, 
             initnames=['truelabels', 
                        'repeattruelabels', 
-                       'truelabelsandempty']):
+                       'truelabelsandempty'],
+            moves='merge,delete,shuffle'):
         print ''
         for aKwArgs in self.nextAllocKwArgsForVB():
             for oKwArgs in self.nextObsKwArgsForVB():
@@ -193,26 +195,18 @@ class MergeMoveEndToEndTest(unittest.TestCase):
                         initKextra = 0
                     Info[iname] = self.run_MOVBWithMoves(
                         aKwArgs, oKwArgs, 
-                        moves='merge',
+                        moves=moves,
                         initKextra=initKextra,
                         initname=iname)
 
+    def test_MOVBWithMerges(self):
+        self.runMany_MOVBWithMoves(moves='merge')
 
-    def test_MOVBWithDeletes(self, 
-            initnames=['truelabels', 
-                       'repeattruelabels', 
-                       'truelabelsandempty']):
-        print ''
-        for aKwArgs in self.nextAllocKwArgsForVB():
-            for oKwArgs in self.nextObsKwArgsForVB():
-                Info = dict()
-                for iname in initnames:
-                    if iname.count('junk') or iname.count('empty'):
-                        initKextra = 1
-                    else:
-                        initKextra = 0
-                    Info[iname] = self.run_MOVBWithMoves(
-                        aKwArgs, oKwArgs, 
-                        moves='delete',
-                        initKextra=initKextra,
-                        initname=iname)
+    def test_MOVBWithDeletes(self):
+        self.runMany_MOVBWithMoves(moves='delete')
+
+    def test_MOVBWithMergeDeletes(self):
+        self.runMany_MOVBWithMoves(moves='merge,delete')
+
+    def test_MOVBWithShuffleMergeDeletes(self):
+        self.runMany_MOVBWithMoves(moves='shuffle,merge,delete')
