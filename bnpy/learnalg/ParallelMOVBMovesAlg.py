@@ -288,7 +288,7 @@ class ParallelMOVBMovesAlg(MOVBBirthMergeAlg):
     def calcLocalParamsAndSummarize_parallel(self, 
             DataIterator, hmodel, 
             MergePrepInfo=None,
-            batchID=0, **kwargs):
+            batchID=0, lapFrac=-1, **kwargs):
         ''' Execute local step and summary step in parallel via workers.
 
         Returns
@@ -301,7 +301,7 @@ class ParallelMOVBMovesAlg(MOVBBirthMergeAlg):
         nWorkers = self.algParams['nWorkers']
         for workerID in xrange(nWorkers):
             sliceArgs = DataIterator.calcSliceArgs(
-                batchID, workerID, nWorkers)
+                batchID, workerID, nWorkers, lapFrac)
             aArgs = hmodel.allocModel.getSerializableParamsForLocalStep()
             aArgs.update(MergePrepInfo)
 

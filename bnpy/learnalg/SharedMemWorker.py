@@ -106,7 +106,7 @@ class SharedMemWorker(multiprocessing.Process):
             SS = self.o_calcSummaryStats(Dslice, SS, LP, **oArgs)
 
             # Add final suff stats to result queue to wrap up this task!
-            self.ResultQueue.put(SS._ELBOTerms)
+            self.ResultQueue.put(SS)
             self.JobQueue.task_done()
 
             duration = time.time() - start1
