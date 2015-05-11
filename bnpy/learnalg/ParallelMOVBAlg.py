@@ -179,7 +179,7 @@ class ParallelMOVBAlg(MOVBAlg):
         return SS
 
     def calcLocalParamsAndSummarize_main(self, 
-            DataIterator, hmodel, batchID=0, **kwargs):
+            DataIterator, hmodel, batchID=0, lapFrac=-1, **kwargs):
         ''' Execute local step and summary step in main process.
 
         Returns
@@ -194,7 +194,7 @@ class ParallelMOVBAlg(MOVBAlg):
         return SSbatch
 
     def calcLocalParamsAndSummarize_parallel(self, 
-            DataIterator, hmodel, batchID=0, **kwargs):
+            DataIterator, hmodel, batchID=0, lapFrac=-1, **kwargs):
         ''' Execute local step and summary step in parallel via workers.
 
         Returns
