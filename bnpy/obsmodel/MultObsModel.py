@@ -564,14 +564,15 @@ class MultObsModel(AbstractObsModel):
         ShMem : dict of RawArray objects
         """
         ElogphiT = self.GetCached('E_logphiT', 'all')  # V x K
+        K = self.K
         if ShMem is None:
             ShMem = dict()
         if 'ElogphiT' not in ShMem:
             ShMem['ElogphiT'] = numpyToSharedMemArray(ElogphiT)
         else:       
             ShMemView = sharedMemToNumpyArray(ShMem['ElogphiT'])
-            assert ShMemView.shape == ElogphiT.shape
-            ShMemView[:] = ElogphiT
+            assert ShMemView.shape >= ElogphiT.shape
+            ShMemView[:,:K] = ElogphiT
         return ShMem
 
     def getLocalAndSummaryFunctionHandles(self):
@@ -624,7 +625,8 @@ def calcLocalParams(Dslice, **kwargs):
     return dict(E_log_soft_ev=E_log_soft_ev)
 
 def calcLogSoftEvMatrix_FromPost(Dslice,
-                                 ElogphiT=None, 
+                                 ElogphiT=None,
+                                 K=None,
                                  **kwargs):
     ''' Calculate expected log soft ev matrix.
 
@@ -642,7 +644,9 @@ def calcLogSoftEvMatrix_FromPost(Dslice,
     ------
     L : 2D array, size N x K
     '''
-    return ElogphiT[Dslice.word_id, :]
+    if K is None:
+        K = ElogphiT.shape[1]
+    return ElogphiT[Dslice.word_id, :K]
 
 def calcSummaryStats(Dslice, SS, LP, **kwargs):
     ''' Calculate summary statistics for given dataset and local parameters

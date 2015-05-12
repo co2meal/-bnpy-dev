@@ -328,11 +328,6 @@ class HDPTopicModel(AllocModel):
 
     def get_global_suff_stats(
             self, Data, LP,
-            doPrecompEntropy=None,
-            doPrecompMergeEntropy=None,
-            mPairIDs=None,
-            mergePairSelection=None,
-            trackDocUsage=0,
             **kwargs):
         ''' Calculate sufficient statistics for global updates.
 
@@ -362,51 +357,9 @@ class HDPTopicModel(AllocModel):
                 Vector of entropy contributions from each comp.
                 Hvec[k] = \sum_{n=1}^N H[q(z_n)], a function of 'resp'
         '''
-        SS = calcSummaryStats(Data, LP, doPrecompEntropy=doPrecompEntropy)
-
-        if doPrecompMergeEntropy:
-            if mPairIDs is None:
-                raise NotImplementedError("TODO: all pairs for merges")
-
-            Hmat = calcHrespForMergePairs(LP['resp'], Data, mPairIDs)
-            SS.setMergeTerm('Hresp', Hmat, dims=('K', 'K'))
-
-            alphaEbeta = self.alpha_E_beta()
-            sumLogPi = np.zeros((SS.K, SS.K))
-            gammalnTheta = np.zeros((SS.K, SS.K))
-            slackTheta = np.zeros((SS.K, SS.K))
-            for (kA, kB) in mPairIDs:
-                theta_vec = LP['theta'][:, kA] + LP['theta'][:, kB]
-                ElogPi_vec = digamma(theta_vec) - LP['digammaSumTheta']
-                gammalnTheta[kA, kB] = np.sum(gammaln(theta_vec))
-                sumLogPi[kA, kB] = np.sum(ElogPi_vec)
-                # slack = (Ndm - theta_dm) * E[log pi_dm]
-                slack_vec = ElogPi_vec
-                slack_vec *= -1 * (alphaEbeta[kA] + alphaEbeta[kB])
-                slackTheta[kA, kB] = np.sum(slack_vec)
-            SS.setMergeTerm('gammalnTheta', gammalnTheta, dims=('K', 'K'))
-            SS.setMergeTerm('sumLogPi', sumLogPi, dims=('K', 'K'))
-            SS.setMergeTerm('slackTheta', slackTheta, dims=('K', 'K'))
-
-            # Uncomment this for verification of merge calculations.
-            # for (kA, kB) in mPairIDs:
-            #      self.verifySSForMergePair(Data, SS, LP, kA, kB)
-            # .... end merge computations
-
-        # Selection terms (computes doc-topic correlation)
-        if mergePairSelection is not None:
-            if mergePairSelection.count('corr') > 0:
-                Tmat = LP['DocTopicCount']
-                SS.setSelectionTerm('DocTopicPairMat',
-                                    np.dot(Tmat.T, Tmat), dims=('K', 'K'))
-                SS.setSelectionTerm(
-                    'DocTopicSum', np.sum(Tmat, axis=0), dims='K')
-
-        if trackDocUsage:
-            # Track number of times a topic appears with "signif. mass" in a
-            # doc
-            DocUsage = np.sum(LP['DocTopicCount'] > 0.01, axis=0)
-            SS.setSelectionTerm('DocUsageCount', DocUsage, dims='K')
+        if 'mPairIDs' in kwargs:
+            kwargs['alphaEbeta'] = self.alpha_E_beta().copy()
+        SS = calcSummaryStats(Data, LP, **kwargs)
         return SS
 
     def verifySSForMergePair(self, Data, SS, LP, kA, kB):
@@ -708,8 +661,8 @@ class HDPTopicModel(AllocModel):
         alphaEbeta = self.alpha_E_beta()
         if 'alphaEbeta' in ShMem:
             shared_alphaEbeta = sharedMemToNumpyArray(ShMem['alphaEbeta'])
-            assert shared_alphaEbeta.size == self.K
-            shared_alphaEbeta[:] = alphaEbeta
+            assert shared_alphaEbeta.size >= self.K
+            shared_alphaEbeta[:alphaEbeta.size] = alphaEbeta
         else:
             ShMem['alphaEbeta'] = numpyToSharedMemArray(alphaEbeta.copy())
         return ShMem
@@ -728,8 +681,14 @@ class HDPTopicModel(AllocModel):
     # .... end class HDPTopicModel
 
 
-def calcSummaryStats(Dslice, LP=None, alpha=None,
+def calcSummaryStats(Dslice, LP=None, 
+                     alpha=None,
+                     alphaEbeta=None,
                      doPrecompEntropy=0,
+                     doPrecompMergeEntropy=0,
+                     mergePairSelection=None,
+                     mPairIDs=None,
+                     trackDocUsage=0,
                      **kwargs):
     """ Calculate summary from local parameters for given data slice.
 
@@ -779,4 +738,47 @@ def calcSummaryStats(Dslice, LP=None, alpha=None,
             Mdict['gammalnTheta'], dims='K')
         SS.setELBOTerm('gammalnThetaRem', 
             Mdict['gammalnThetaRem'], dims=None)
+
+    if doPrecompMergeEntropy:
+        if mPairIDs is None:
+            raise NotImplementedError("TODO: all pairs for merges")
+
+        Hmat = calcHrespForMergePairs(LP['resp'], Dslice, mPairIDs)
+        SS.setMergeTerm('Hresp', Hmat, dims=('K', 'K'))
+
+        sumLogPi = np.zeros((SS.K, SS.K))
+        gammalnTheta = np.zeros((SS.K, SS.K))
+        slackTheta = np.zeros((SS.K, SS.K))
+        for (kA, kB) in mPairIDs:
+            theta_vec = LP['theta'][:, kA] + LP['theta'][:, kB]
+            ElogPi_vec = digamma(theta_vec) - LP['digammaSumTheta']
+            gammalnTheta[kA, kB] = np.sum(gammaln(theta_vec))
+            sumLogPi[kA, kB] = np.sum(ElogPi_vec)
+            # slack = (Ndm - theta_dm) * E[log pi_dm]
+            slack_vec = ElogPi_vec
+            slack_vec *= -1 * (alphaEbeta[kA] + alphaEbeta[kB])
+            slackTheta[kA, kB] = np.sum(slack_vec)
+        SS.setMergeTerm('gammalnTheta', gammalnTheta, dims=('K', 'K'))
+        SS.setMergeTerm('sumLogPi', sumLogPi, dims=('K', 'K'))
+        SS.setMergeTerm('slackTheta', slackTheta, dims=('K', 'K'))
+
+        # Uncomment this for verification of merge calculations.
+        # for (kA, kB) in mPairIDs:
+        #      self.verifySSForMergePair(Data, SS, LP, kA, kB)
+        # .... end merge computations
+
+    # Selection terms (computes doc-topic correlation)
+    if mergePairSelection is not None:
+        if mergePairSelection.count('corr') > 0:
+            Tmat = LP['DocTopicCount']
+            SS.setSelectionTerm('DocTopicPairMat',
+                                np.dot(Tmat.T, Tmat), dims=('K', 'K'))
+            SS.setSelectionTerm(
+                'DocTopicSum', np.sum(Tmat, axis=0), dims='K')
+
+    if trackDocUsage:
+        # Track number of times a topic appears with "signif. mass" in a
+        # doc
+        DocUsage = np.sum(LP['DocTopicCount'] > 0.01, axis=0)
+        SS.setSelectionTerm('DocUsageCount', DocUsage, dims='K')
     return SS

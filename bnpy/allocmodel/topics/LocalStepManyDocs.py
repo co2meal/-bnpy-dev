@@ -54,6 +54,8 @@ def calcLocalParams(
     if alphaEbeta is None:
         assert alpha is not None
         alphaEbeta = alpha * np.ones(K)
+    else:
+        alphaEbeta = alphaEbeta[:K]
 
     slice_start = Data.doc_range[cslice[0]]
     AggInfo = dict()

@@ -71,7 +71,7 @@ class ParallelMOVBMovesAlg(MOVBBirthMergeAlg):
         prevBirthResults = list()
 
         # Prep for merge
-        MergePlanInfo = dict()
+        MergePrepInfo = dict()
         if self.hasMove('merge'):
             mergeStartLap = self.algParams['merge']['mergeStartLap']
         else:
@@ -118,6 +118,13 @@ class ParallelMOVBMovesAlg(MOVBBirthMergeAlg):
                 if SS is not None and SS.hasSelectionTerms():
                     SS._SelectTerms.setAllFieldsToZero()
 
+            # Update shared memory with new global params    
+            if self.nWorkers > 0:
+                aSharedMem = hmodel.allocModel.fillSharedMemDictForLocalStep(
+                    aSharedMem)
+                oSharedMem = hmodel.obsModel.fillSharedMemDictForLocalStep(
+                    oSharedMem)
+
             # Local/Summary step for current batch
             self.algParamsLP['lapFrac'] = lapFrac  # for logging
             self.algParamsLP['batchID'] = batchID
@@ -135,23 +142,12 @@ class ParallelMOVBMovesAlg(MOVBBirthMergeAlg):
             self.saveDebugStateAtBatch('Estep', 
                 batchID, SSchunk=SSchunk, SS=SS, hmodel=hmodel)
 
-            if SS is not None and SS.hasMergeTerms():
-                print 'before: ', SS.getMergeTerm('Hresp').max()
-
             # Summary step for whole-dataset stats
             # (does incremental update)
             SS = self.memoizedSummaryStep(hmodel, SS, SSchunk, batchID)
-            if SS.hasMergeTerms():
-                print 'after whole: ', SS.getMergeTerm('Hresp').max()
-                print 'after batch: ', SSchunk.getELBOTerm('Hresp').max()
 
             # Global step
             self.GlobalStep(hmodel, SS, lapFrac)
-            if self.nWorkers > 0:
-                aSharedMem = hmodel.allocModel.fillSharedMemDictForLocalStep(
-                    aSharedMem)
-                oSharedMem = hmodel.obsModel.fillSharedMemDictForLocalStep(
-                    oSharedMem)
 
             # ELBO calculation
             if self.isLastBatch(lapFrac):
@@ -165,6 +161,36 @@ class ParallelMOVBMovesAlg(MOVBBirthMergeAlg):
                     and lapFrac > mergeStartLap:
                 hmodel, SS, evBound = self.run_many_merge_moves(
                     hmodel, SS, evBound, lapFrac, MergePrepInfo)
+                # Cancel all planned deletes if merges were accepted.
+                if hasattr(self, 'MergeLog') and len(self.MergeLog) > 0:
+                    DeletePlans = []
+                    # Update memoized stats for each batch
+                    self.fastForwardMemory(Kfinal=SS.K)
+                    if hasattr(SS, 'mPairIDs'):
+                        del SS.mPairIDs
+
+            # Shuffle : Rearrange topic order (big to small)
+            if self.hasMove('shuffle') and self.isLastBatch(lapFrac):
+                order = np.argsort(-1 * SS.getCountVec())
+                sortedalready = np.arange(SS.K)
+                if np.allclose(order, sortedalready):
+                    order = None  # Already sorted, do nothing!
+                else:
+                    self.ActiveIDVec = self.ActiveIDVec[order]
+                    SS.reorderComps(order)
+                    assert np.allclose(SS.uIDs, self.ActiveIDVec)
+                    hmodel.update_global_params(SS)
+                    evBound = hmodel.calc_evidence(SS=SS)
+                    # Update tracked target stats for any upcoming deletes
+                    for DPlan in DeletePlans:
+                        if self.hasMove('merge'):
+                            assert len(self.MergeLog) == 0
+                        DPlan['targetSS'].reorderComps(order)
+                        targetSSbyBatch = DPlan['targetSSByBatch']
+                        for batchID in targetSSbyBatch:
+                            targetSSbyBatch[batchID].reorderComps(order)
+                    # Update memoized stats for each batch
+                    self.fastForwardMemory(Kfinal=SS.K, order=order)
 
             # ELBO calculation
             nLapsCompleted = lapFrac - self.algParams['startLap']
@@ -245,12 +271,18 @@ class ParallelMOVBMovesAlg(MOVBBirthMergeAlg):
             assert np.allclose(SS.uIDs, oldSSchunk.uIDs)
             SS -= oldSSchunk
 
+        # UIDs are not set by parallel workers. Need to do this here
         SSchunk.setUIDs(self.ActiveIDVec.copy())
         if SS is None:
             SS = SSchunk.copy()
         else:
             assert SSchunk.K == SS.K
+            assert np.allclose(SSchunk.uIDs, self.ActiveIDVec)
+            assert np.allclose(SS.uIDs, self.ActiveIDVec)
             SS += SSchunk
+            if not SS.hasSelectionTerms() and SSchunk.hasSelectionTerms():
+                SS._SelectTerms = SSchunk._SelectTerms
+        assert hasattr(SS, 'uIDs')
         self.save_batch_suff_stat_to_memory(batchID, SSchunk)
 
         # Force aggregated suff stats to obey required constraints.
@@ -282,7 +314,6 @@ class ParallelMOVBMovesAlg(MOVBBirthMergeAlg):
         SSbatch = hmodel.get_global_suff_stats(Dbatch, LPbatch,
             doPrecompEntropy=1, **MergePrepInfo)
         SSbatch.setUIDs(self.ActiveIDVec.copy())
-
         return SSbatch
 
     def calcLocalParamsAndSummarize_parallel(self, 
@@ -304,7 +335,6 @@ class ParallelMOVBMovesAlg(MOVBBirthMergeAlg):
                 batchID, workerID, nWorkers, lapFrac)
             aArgs = hmodel.allocModel.getSerializableParamsForLocalStep()
             aArgs.update(MergePrepInfo)
-
             oArgs = hmodel.obsModel.getSerializableParamsForLocalStep()
             self.JobQ.put((sliceArgs, aArgs, oArgs))
 
