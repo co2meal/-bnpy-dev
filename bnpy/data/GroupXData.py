@@ -336,6 +336,7 @@ def makeDataSliceFromSharedMem(dataShMemDict,
     X = sharedMemToNumpyArray(dataShMemDict['X'])
     nDocTotal = int(dataShMemDict['nDocTotal'])
 
+
     dim = X.shape[1]
     if cslice is None:
         cslice = (0, doc_range.size-1)
@@ -344,9 +345,16 @@ def makeDataSliceFromSharedMem(dataShMemDict,
     tstart = doc_range[cslice[0]]
     tstop = doc_range[cslice[1]]
 
-    keys = ['X', 'doc_range', 'nDoc', 'nObs', 'dim', 'nDocTotal']
+    keys = ['X', 'Xprev', 'doc_range', 'nDoc', 'nObs', 'dim', 'nDocTotal']
+
+    if 'Xprev' in dataShMemDict:
+        Xprev = sharedMemToNumpyArray(dataShMemDict['Xprev'])[tstart:tstop]
+    else:
+        Xprev = None
+
     Dslice = namedtuple("GroupXDataTuple", keys)(
         X=X[tstart:tstop],
+        Xprev=Xprev,
         doc_range=doc_range[cslice[0]:cslice[1]+1] - doc_range[cslice[0]],
         nDoc=cslice[1]-cslice[0],
         nObs=tstop - tstart,

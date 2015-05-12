@@ -6,6 +6,7 @@ from bnpy.suffstats import ParamBag, SuffStatBag
 from bnpy.util import LOGTWO, LOGPI, LOGTWOPI, EPS
 from bnpy.util import dotATA, dotATB, dotABT
 from bnpy.util import as1D, as2D, as3D
+from bnpy.util import numpyToSharedMemArray, fillSharedMemArray
 
 from AbstractObsModel import AbstractObsModel
 from GaussObsModel import createECovMatFromUserInput
@@ -239,33 +240,7 @@ class AutoRegGaussObsModel(AbstractObsModel):
         -------
         SS : bnpy.suffstats.SuffStatBag
         """
-        X = Data.X
-        Xprev = Data.Xprev
-        resp = LP['resp']
-        K = resp.shape[1]
-
-        if SS is None:
-            SS = SuffStatBag(K=K, D=Data.dim)
-
-        # Expected count for each k
-        #  Usually computed by allocmodel. But just in case...
-        if not hasattr(SS, 'N'):
-            SS.setField('N', np.sum(resp, axis=0), dims='K')
-
-        # Expected outer products
-        sqrtResp = np.sqrt(resp)
-        xxT = np.empty((K, self.D, self.D))
-        ppT = np.empty((K, self.D, self.D))
-        pxT = np.empty((K, self.D, self.D))
-        for k in xrange(K):
-            sqrtResp_k = sqrtResp[:, k][:, np.newaxis]
-            xxT[k] = dotATA(sqrtResp_k * Data.X)
-            ppT[k] = dotATA(sqrtResp_k * Data.Xprev)
-            pxT[k] = np.dot(Data.Xprev.T, resp[:, k][:, np.newaxis] * Data.X)
-        SS.setField('xxT', xxT, dims=('K', 'D', 'D'))
-        SS.setField('ppT', ppT, dims=('K', 'D', 'D'))
-        SS.setField('pxT', pxT, dims=('K', 'D', 'D'))
-        return SS
+        return calcSummaryStats(Data, SS, LP, **kwargs)
 
     def forceSSInBounds(self, SS):
         ''' Force count vector N to remain positive
@@ -804,7 +779,12 @@ class AutoRegGaussObsModel(AbstractObsModel):
         return B / (nu - self.D - 1)
 
     def _cholB(self, k=None):
-        if k is None:
+        if k == 'all':
+            retMat = np.zeros((self.K, self.D, self.D))
+            for k in xrange(self.K):
+                retMat[k] = scipy.linalg.cholesky(self.Post.B[k], lower=True)
+            return retMat
+        elif k is None:
             B = self.Prior.B
         else:
             B = self.Post.B[k]
@@ -815,7 +795,12 @@ class AutoRegGaussObsModel(AbstractObsModel):
         return 2 * np.sum(np.log(np.diag(cholB)))
 
     def _cholV(self, k=None):
-        if k is None:
+        if k == 'all':
+            retMat = np.zeros((self.K, self.D, self.D))
+            for k in xrange(self.K):
+                retMat[k] = scipy.linalg.cholesky(self.Post.V[k], lower=True)
+            return retMat
+        elif k is None:
             V = self.Prior.V
         else:
             V = self.Post.V[k]
@@ -827,7 +812,15 @@ class AutoRegGaussObsModel(AbstractObsModel):
 
     def _E_logdetL(self, k=None):
         dvec = np.arange(1, self.D + 1, dtype=np.float)
-        if k is None:
+        if k is 'all':
+            dvec = dvec[:,np.newaxis]
+            retVec = self.D * LOGTWO * np.ones(self.K)
+            for kk in xrange(self.K):
+                retVec[kk] -= self.GetCached('logdetB', kk)
+            nuT = self.Post.nu[np.newaxis,:]
+            retVec += np.sum(digamma(0.5 * (nuT + 1 - dvec)), axis=0)
+            return retVec
+        elif k is None:
             nu = self.Prior.nu
         else:
             nu = self.Post.nu[k]
@@ -878,6 +871,57 @@ class AutoRegGaussObsModel(AbstractObsModel):
         E_ALA = self._E_ALA(k)
         return np.trace(np.dot(E_ALA, S))
 
+
+
+    def getSerializableParamsForLocalStep(self):
+        """ Get compact dict of params for local step.
+
+        Returns
+        -------
+        Info : dict
+        """
+        if self.inferType == 'EM':
+            raise NotImplementedError('TODO')
+        return dict(inferType=self.inferType, 
+                    K=self.K,
+                    D=self.D,
+                    )
+
+    def fillSharedMemDictForLocalStep(self, ShMem=None):
+        """ Get dict of shared mem arrays needed for parallel local step. 
+
+        Returns
+        -------
+        ShMem : dict of RawArray objects
+        """
+        if ShMem is None:
+            ShMem = dict()
+        if 'nu' in ShMem:
+            fillSharedMemArray(ShMem['nu'], self.Post.nu)
+            fillSharedMemArray(ShMem['M'], self.Post.M)
+            fillSharedMemArray(ShMem['cholV'], self._cholV('all'))
+            fillSharedMemArray(ShMem['cholB'], self._cholB('all'))
+            fillSharedMemArray(ShMem['E_logdetL'], self._E_logdetL('all'))
+
+        else:
+            ShMem['nu'] = numpyToSharedMemArray(self.Post.nu)
+            ShMem['M'] = numpyToSharedMemArray(self.Post.M)
+            ShMem['cholV'] = numpyToSharedMemArray(self._cholV('all'))
+            ShMem['cholB'] = numpyToSharedMemArray(self._cholB('all'))
+            ShMem['E_logdetL'] = numpyToSharedMemArray(self._E_logdetL('all')) 
+        return ShMem
+
+    def getLocalAndSummaryFunctionHandles(self):
+        """ Get function handles for local step and summary step
+
+        Useful for parallelized algorithms.
+
+        Returns
+        -------
+        calcLocalParams : f handle
+        calcSummaryStats : f handle
+        """
+        return calcLocalParams, calcSummaryStats
     # .... end class
 
 
@@ -914,3 +958,90 @@ def c_Diff(nu, logdetB, M, logdetV,
            nu2, logdetB2, M2, logdetV2):
     return c_Func(nu, logdetB, M, logdetV) \
         - c_Func(nu2, logdetB2, M2, logdetV2)
+
+def calcSummaryStats(Data, SS, LP,
+        **kwargs):
+    ''' Calculate sufficient statistics for local params at data slice.
+
+    Returns
+    -------
+    SS
+    '''
+    X = Data.X
+    Xprev = Data.Xprev
+    resp = LP['resp']
+    K = resp.shape[1]
+    D = Data.dim
+    if SS is None:
+        SS = SuffStatBag(K=K, D=D)
+
+    # Expected count for each k
+    #  Usually computed by allocmodel. But just in case...
+    if not hasattr(SS, 'N'):
+        SS.setField('N', np.sum(resp, axis=0), dims='K')
+
+    # Expected outer products
+    sqrtResp = np.sqrt(resp)
+    xxT = np.empty((K, D, D))
+    ppT = np.empty((K, D, D))
+    pxT = np.empty((K, D, D))
+    for k in xrange(K):
+        sqrtResp_k = sqrtResp[:, k][:, np.newaxis]
+        xxT[k] = dotATA(sqrtResp_k * Data.X)
+        ppT[k] = dotATA(sqrtResp_k * Data.Xprev)
+        pxT[k] = np.dot(Data.Xprev.T, resp[:, k][:, np.newaxis] * Data.X)
+    SS.setField('xxT', xxT, dims=('K', 'D', 'D'))
+    SS.setField('ppT', ppT, dims=('K', 'D', 'D'))
+    SS.setField('pxT', pxT, dims=('K', 'D', 'D'))
+    return SS
+
+def calcLocalParams(Dslice, **kwargs):
+    ''' Compute local parameters for provided data slice.
+
+    Returns
+    -------
+    LP : dict of local params
+    '''
+    L = calcLogSoftEvMatrix_FromPost(Dslice, **kwargs)
+    LP = dict(E_log_soft_ev=L)
+    return LP
+
+def calcLogSoftEvMatrix_FromPost(Dslice,
+        E_logdetL=None,
+        **kwargs):
+    ''' Calculate expected log soft ev matrix for variational.
+
+    Returns
+    ------
+    L : 2D array, size N x K
+    '''
+    K = kwargs['K']
+    L = np.zeros((Dslice.nObs, K))
+    for k in xrange(K):
+        L[:, k] = - 0.5 * Dslice.dim * LOGTWOPI \
+            + 0.5 * E_logdetL[k]  \
+            - 0.5 * _mahalDist_Post(Dslice.X, Dslice.Xprev, k, **kwargs)
+    return L
+
+
+def _mahalDist_Post(X, Xprev, k, D=None, 
+        cholB=None, cholV=None, M=None,
+        nu=None, **kwargs):
+    ''' Calc expected mahalonobis distance from comp k to each data atom
+
+    Returns
+    --------
+    distvec : 1D array, size N
+           distvec[n] gives E[ (x-\mu) \Lam (x-\mu) ] for comp k
+    '''
+    deltaX = X - np.dot(Xprev, M[k].T)
+    Q = np.linalg.solve(cholB[k], deltaX.T)
+    Q *= Q
+
+    # Calc: xprev' * V * xprev
+    Qprev = np.linalg.solve(cholV[k], Xprev.T)
+    Qprev *= Qprev
+    return nu[k] * np.sum(Q, axis=0) + D * np.sum(Qprev, axis=0)
+
+
+
