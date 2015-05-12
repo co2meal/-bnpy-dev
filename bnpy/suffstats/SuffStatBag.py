@@ -450,3 +450,29 @@ class SuffStatBag(object):
         # Field named 'key' doesnt exist.
         errmsg = "'SuffStatBag' object has no attribute '%s'" % (key)
         raise AttributeError(errmsg)
+
+    '''
+    def __getstate__(self):
+        F = self._Fields
+        E = None
+        M = None
+        S = None
+        if self.hasELBOTerms():
+            E = self._ELBOTerms
+        if self.hasMergeTerms():
+            M = self._MergeTerms
+        if self.hasSelectionTerms():
+            S = self._SelectTerms
+        return F, E, M, S
+
+    def __setstate__(self, state):
+        F, E, M, S = state
+        self._Fields = F
+        if E is not None:
+            self._ELBOTerms = E
+        if M is not None:
+            self._MergeTerms = M
+        if S is not None:
+            self._SelectTerms = S
+        self.K = F.K
+    '''
