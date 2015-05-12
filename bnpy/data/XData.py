@@ -284,9 +284,18 @@ def makeDataSliceFromSharedMem(dataShMemDict,
     elif cslice[1] is None:
         cslice = (0, N)
 
-    keys = ['X', 'nObs', 'dim', 'nObsTotal']
+
+    keys = ['X', 'Xprev', 'nObs', 'dim', 'nObsTotal']
+
+    if 'Xprev' in dataShMemDict:
+        Xprev = sharedMemToNumpyArray(
+            dataShMemDict['Xprev'][cslice[0]:cslice[1]])
+    else:
+        Xprev = None
+
     Dslice = namedtuple("XDataTuple", keys)(
         X=X[cslice[0]:cslice[1]],
+        Xprev=Xprev,
         nObs=cslice[1] - cslice[0],
         dim=dim,
         nObsTotal=nObsTotal,
