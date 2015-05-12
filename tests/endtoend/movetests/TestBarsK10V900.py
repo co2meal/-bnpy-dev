@@ -14,8 +14,8 @@ class Test(MergeMoveEndToEndTest):
         """
         self.datasetArg = dict(
             name='BarsK10V900', 
-            nDocTotal=800, 
-            nWordsPerDoc=100
+            nDocTotal=100, 
+            nWordsPerDoc=100,
             )
         datasetMod = __import__(self.datasetArg['name'], fromlist=[])
         self.Data = datasetMod.get_data(**self.datasetArg)

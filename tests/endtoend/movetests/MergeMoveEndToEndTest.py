@@ -138,6 +138,8 @@ class MergeMoveEndToEndTest(unittest.TestCase):
 
     def run_MOVBWithMoves(self, aArg, oArg,
             moves='merge',
+            algName='moVB',
+            nWorkers=0,
             **kwargs):
         """ Execute single run with merge moves enabled.
 
@@ -146,15 +148,13 @@ class MergeMoveEndToEndTest(unittest.TestCase):
         Will raise AssertionError if any bad results detected.
         """
         Ktrue = self.Data.TrueParams['K']
-        algName = 'moVB'
         pprint(aArg)
         pprint(oArg)
         initArg = dict(**kwargs)
         pprint(initArg)
         kwargs = self.makeAllKwArgs(aArg, oArg, initArg, 
-            moves=moves,
+            moves=moves, nWorkers=nWorkers,
             **kwargs)
-
         model, Info = bnpy.run(self.Data, 
             arg2name(aArg), arg2name(oArg), algName, **kwargs)
         pprintResult(model, Info, Ktrue=Ktrue)
@@ -183,6 +183,8 @@ class MergeMoveEndToEndTest(unittest.TestCase):
             initnames=['truelabels', 
                        'repeattruelabels', 
                        'truelabelsandempty'],
+            algName='moVB',
+            nWorkers=0,
             moves='merge,delete,shuffle'):
         print ''
         for aKwArgs in self.nextAllocKwArgsForVB():
@@ -196,6 +198,8 @@ class MergeMoveEndToEndTest(unittest.TestCase):
                     Info[iname] = self.run_MOVBWithMoves(
                         aKwArgs, oKwArgs, 
                         moves=moves,
+                        algName=algName,
+                        nWorkers=nWorkers,
                         initKextra=initKextra,
                         initname=iname)
 
@@ -210,3 +214,11 @@ class MergeMoveEndToEndTest(unittest.TestCase):
 
     def test_MOVBWithShuffleMergeDeletes(self):
         self.runMany_MOVBWithMoves(moves='shuffle,merge,delete')
+
+    def test_MOVBWithMerges_0ParallelWorkers(self):
+        self.runMany_MOVBWithMoves(moves='merge', algName='pmoVB',
+            nWorkers=0)
+
+    def test_MOVBWithMerges_2ParallelWorkers(self):
+        self.runMany_MOVBWithMoves(moves='merge', algName='pmoVB',
+            nWorkers=2)
