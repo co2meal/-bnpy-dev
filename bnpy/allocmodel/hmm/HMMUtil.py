@@ -39,12 +39,12 @@ def calcLocalParams(Data, LP,
     nAtom, K = logLik.shape
 
     # Calculate trans prob 2D array
-    digammaSumTransTheta = digamma(np.sum(transTheta, axis=1))[:,np.newaxis]
-    transPi = digamma(transTheta[:, :K]) - digammaSumTransTheta
+    digammaSumTransTheta = digamma(np.sum(transTheta[:K, :K+1], axis=1))
+    transPi = digamma(transTheta[:K, :K]) - digammaSumTransTheta[:,np.newaxis]
     np.exp(transPi, out=transPi)
 
     # Calculate LOG of start state prob vector
-    logstartPi = digamma(startTheta[:K]) - digamma(np.sum(startTheta))
+    logstartPi = digamma(startTheta[:K]) - digamma(np.sum(startTheta[:K+1]))
 
     # Set starting probs to uniform,
     # because Line A below updates first state's logLik to include logstartPi
