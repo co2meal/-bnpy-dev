@@ -11,6 +11,7 @@ from bnpy.util import digamma, gammaln
 from bnpy.util import StickBreakUtil
 from bnpy.allocmodel.topics import OptimizerRhoOmega
 from bnpy.allocmodel.topics.HDPTopicUtil import c_Beta, c_Dir, L_top
+from bnpy.util import sharedMemToNumpyArray, numpyToSharedMemArray
 
 Log = logging.getLogger('bnpy')
 
@@ -181,62 +182,9 @@ class HDPHMM(AllocModel):
     def getSummaryFieldDims(self):
         return [('K'), ('K', 'K')]
 
-    def get_global_suff_stats(self, Data, LP,
-                              doPrecompEntropy=False,
-                              doPrecompMergeEntropy=False,
-                              mergePairSelection=None,
-                              mPairIDs=None,
-                              trackDocUsage=0,
-                              **kwargs):
+    def get_global_suff_stats(self, Data, LP, **kwargs):
 
-        if mPairIDs is None:
-            M = 0
-        else:
-            M = len(mPairIDs)
-
-        resp = LP['resp']
-        K = resp.shape[1]
-        startLocIDs = Data.doc_range[:-1]
-        StartStateCount = np.sum(resp[startLocIDs], axis=0)
-        N = np.sum(resp, axis=0)
-
-        if 'TransCount' in LP:
-            TransStateCount = np.sum(LP['TransCount'], axis=0)
-        else:
-            respPair = LP['respPair']
-            TransStateCount = np.sum(respPair, axis=0)
-
-        SS = SuffStatBag(K=K, D=Data.dim, M=M)
-        SS.setField('StartStateCount', StartStateCount, dims=('K'))
-        SS.setField('TransStateCount', TransStateCount, dims=('K', 'K'))
-        SS.setField('N', N, dims=('K'))
-        SS.setField('nDoc', Data.nDoc, dims=None)
-
-        if doPrecompEntropy or 'Htable' in LP:
-            # Compute entropy terms!
-            # 'Htable', 'Hstart' will both be in Mdict
-            Mdict = calcELBO_NonlinearTerms(Data=Data, 
-                LP=LP, returnMemoizedDict=1)
-            SS.setELBOTerm('Htable', Mdict['Htable'], dims=('K', 'K'))
-            SS.setELBOTerm('Hstart', Mdict['Hstart'], dims=('K'))
-
-        if doPrecompMergeEntropy:
-            subHstart, subHtable = HMMUtil.PrecompMergeEntropy_SpecificPairs(
-                LP, Data, mPairIDs)
-            SS.setMergeTerm('Hstart', subHstart, dims=('M'))
-            SS.setMergeTerm('Htable', subHtable, dims=('M', 2, 'K'))
-            SS.mPairIDs = np.asarray(mPairIDs)
-
-
-        if trackDocUsage:
-            # Track how often topic appears in a seq. with mass > thresh.
-            DocUsage = np.zeros(K)
-            for n in xrange(Data.nDoc):
-                start = Data.doc_range[n]
-                stop = Data.doc_range[n + 1]
-                DocUsage += np.sum(LP['resp'][start:stop], axis=0) > 0.01
-            SS.setSelectionTerm('DocUsageCount', DocUsage, dims='K')
-        return SS
+        return calcSummaryStats(Data, LP, **kwargs)
 
     def forceSSInBounds(self, SS):
         ''' Force TransStateCount and StartStateCount to be >= 0.
@@ -602,3 +550,116 @@ class HDPHMM(AllocModel):
     def get_prior_dict(self):
         return dict(gamma=self.gamma, alpha=self.alpha, K=self.K,
                     hmmKappa=self.kappa, startAlpha=self.startAlpha)
+
+
+
+    def getSerializableParamsForLocalStep(self):
+        """ Get compact dict of params for parallel local step.
+
+        Returns
+        -------
+        Info : dict
+        """
+        return dict(inferType=self.inferType, 
+                    K=self.K)
+
+    def fillSharedMemDictForLocalStep(self, ShMem=None):
+        """ Get dict of shared mem arrays needed for parallel local step. 
+
+        Returns
+        -------
+        ShMem : dict of RawArray objects
+        """
+        # No shared memory required here.
+        if not isinstance(ShMem, dict):
+            ShMem = dict()
+        
+        K = self.K
+        if 'startTheta' in ShMem:
+            shared_startTheta = sharedMemToNumpyArray(ShMem['startTheta'])
+            assert shared_startTheta.size >= K + 1
+            shared_startTheta[:K+1] = self.startTheta
+
+            shared_transTheta = sharedMemToNumpyArray(ShMem['transTheta'])
+            assert shared_transTheta.shape[0] >= K
+            assert shared_transTheta.shape[1] >= K + 1
+            shared_transTheta[:K, :K+1] = self.transTheta
+        else:
+            ShMem['startTheta'] = numpyToSharedMemArray(self.startTheta)
+            ShMem['transTheta'] = numpyToSharedMemArray(self.transTheta)
+        return ShMem
+
+    def getLocalAndSummaryFunctionHandles(self):
+        """ Get function handles for local step and summary step
+
+        Useful for parallelized algorithms.
+
+        Returns
+        -------
+        calcLocalParams : f handle
+        calcSummaryStats : f handle
+        """
+        return HMMUtil.calcLocalParams, calcSummaryStats
+    # .... end class HDPHMM
+
+
+def calcSummaryStats(Data, LP, 
+        doPrecompEntropy=0,
+        doPrecompMergeEntropy=0,
+        mPairIDs=None,
+        trackDocUsage=0,
+        **kwargs):
+    ''' Calculate summary statistics for given data slice and local params.
+
+    Returns
+    -------
+    SS : SuffStatBag
+    '''
+    if mPairIDs is None:
+        M = 0
+    else:
+        M = len(mPairIDs)
+
+    resp = LP['resp']
+    K = resp.shape[1]
+    startLocIDs = Data.doc_range[:-1]
+    StartStateCount = np.sum(resp[startLocIDs], axis=0)
+    N = np.sum(resp, axis=0)
+
+    if 'TransCount' in LP:
+        TransStateCount = np.sum(LP['TransCount'], axis=0)
+    else:
+        respPair = LP['respPair']
+        TransStateCount = np.sum(respPair, axis=0)
+
+    SS = SuffStatBag(K=K, D=Data.dim, M=M)
+    SS.setField('StartStateCount', StartStateCount, dims=('K'))
+    SS.setField('TransStateCount', TransStateCount, dims=('K', 'K'))
+    SS.setField('N', N, dims=('K'))
+    SS.setField('nDoc', Data.nDoc, dims=None)
+
+    if doPrecompEntropy or 'Htable' in LP:
+        # Compute entropy terms!
+        # 'Htable', 'Hstart' will both be in Mdict
+        Mdict = calcELBO_NonlinearTerms(Data=Data, 
+            LP=LP, returnMemoizedDict=1)
+        SS.setELBOTerm('Htable', Mdict['Htable'], dims=('K', 'K'))
+        SS.setELBOTerm('Hstart', Mdict['Hstart'], dims=('K'))
+
+    if doPrecompMergeEntropy:
+        subHstart, subHtable = HMMUtil.PrecompMergeEntropy_SpecificPairs(
+            LP, Data, mPairIDs)
+        SS.setMergeTerm('Hstart', subHstart, dims=('M'))
+        SS.setMergeTerm('Htable', subHtable, dims=('M', 2, 'K'))
+        SS.mPairIDs = np.asarray(mPairIDs)
+
+
+    if trackDocUsage:
+        # Track how often topic appears in a seq. with mass > thresh.
+        DocUsage = np.zeros(K)
+        for n in xrange(Data.nDoc):
+            start = Data.doc_range[n]
+            stop = Data.doc_range[n + 1]
+            DocUsage += np.sum(LP['resp'][start:stop], axis=0) > 0.01
+        SS.setSelectionTerm('DocUsageCount', DocUsage, dims='K')
+    return SS
