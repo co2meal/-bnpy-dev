@@ -5,7 +5,7 @@ Implementation of parallel variational bayes learning algorithm for bnpy models.
 '''
 import numpy as np
 import multiprocessing
-
+import time
 from LearnAlg import LearnAlg, makeDictOfAllWorkspaceVars
 from bnpy.util import sharedMemDictToNumpy, sharedMemToNumpyArray
 from SharedMemWorker import SharedMemWorker
@@ -42,58 +42,45 @@ class ParallelVBAlg( LearnAlg ):
 
     self.set_start_time_now()
 
-
-    isParallel = True #TODO: delete this, this is simply for debugging purposes
     self.nDoc = Data.nDoc
-    if isParallel:
-      # Create a JobQ (to hold tasks to be done)
-      # and a ResultsQ (to hold results of completed tasks)
-      manager = multiprocessing.Manager()
-      self.JobQ = manager.Queue()
-      self.ResultQ = manager.Queue()
 
-      #Get the function handles
-      makeDataSliceFromSharedMem = Data.getDataSliceFunctionHandle()
-      o_calcLocalParams, o_calcSummaryStats = hmodel.obsModel.getLocalAndSummaryFunctionHandles()
-      a_calcLocalParams, a_calcSummaryStats = hmodel.allocModel.getLocalAndSummaryFunctionHandles()
+    # Create a JobQ (to hold tasks to be done)
+    # and a ResultsQ (to hold results of completed tasks)
+    manager = multiprocessing.Manager()
+    self.JobQ = manager.Queue()
+    self.ResultQ = manager.Queue()
+
+    #Get the function handles
+    makeDataSliceFromSharedMem = Data.getDataSliceFunctionHandle()
+    o_calcLocalParams, o_calcSummaryStats = hmodel.obsModel.getLocalAndSummaryFunctionHandles()
+    a_calcLocalParams, a_calcSummaryStats = hmodel.allocModel.getLocalAndSummaryFunctionHandles()
 
 
-      #Create the shared memory
-      dataSharedMem = Data.getRawDataAsSharedMemDict()
-      aSharedMem = hmodel.allocModel.fillSharedMemDictForLocalStep()
-      oSharedMem = hmodel.obsModel.fillSharedMemDictForLocalStep()
+    #Create the shared memory
+    dataSharedMem = Data.getRawDataAsSharedMemDict()
+    aSharedMem = hmodel.allocModel.fillSharedMemDictForLocalStep()
+    oSharedMem = hmodel.obsModel.fillSharedMemDictForLocalStep()
 
-      #Create multiple workers
-      for uid in range(self.nWorkers):
-        SharedMemWorker(uid,self.JobQ, self.ResultQ,
-        makeDataSliceFromSharedMem,
-        o_calcLocalParams,
-        o_calcSummaryStats,
-        a_calcLocalParams,
-        a_calcSummaryStats,
-        dataSharedMem,
-        aSharedMem,
-        oSharedMem,
-        LPkwargs=self.algParamsLP,
-        verbose=1).start() 
-    else: 
-      #Need to store shared mem
-
-      aSharedMem = hmodel.allocModel.fillSharedMemDictForLocalStep()
-      oSharedMem = hmodel.obsModel.fillSharedMemDictForLocalStep()
-      self.dataSharedMem=Data.getRawDataAsSharedMemDict() 
-      self.makeDataSliceFromSharedMem=Data.getDataSliceFunctionHandle()
+    #Create multiple workers
+    for uid in range(self.nWorkers):
+      SharedMemWorker(uid,self.JobQ, self.ResultQ,
+      makeDataSliceFromSharedMem,
+      o_calcLocalParams,
+      o_calcSummaryStats,
+      a_calcLocalParams,
+      a_calcSummaryStats,
+      dataSharedMem,
+      aSharedMem,
+      oSharedMem,
+      LPkwargs=self.algParamsLP,
+      verbose=1).start() 
+    
 
     for iterid in xrange(1, self.algParams['nLap']+1):
       lap = self.algParams['startLap'] + iterid
       nLapsCompleted = lap - self.algParams['startLap']
       self.set_random_seed_at_lap(lap)
-
-      if isParallel:
-        SS = self.calcLocalParamsAndSummarize(hmodel) #TODO fill in params
-
-      else:
-        SS = self.serialCalcLocalParamsAndSummarize(hmodel) 
+      SS = self.calcLocalParamsAndSummarize(hmodel) 
 
       ## Global/M step
       hmodel.update_global_params(SS) 
