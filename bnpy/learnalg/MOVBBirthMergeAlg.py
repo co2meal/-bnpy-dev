@@ -249,6 +249,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
                     for DPlan in DeletePlans:
                         if self.hasMove('merge'):
                             assert len(self.MergeLog) == 0
+                        from IPython import embed; embed()
                         DPlan['targetSS'].reorderComps(order)
                         targetSSbyBatch = DPlan['targetSSByBatch']
                         for batchID in targetSSbyBatch:
@@ -1135,6 +1136,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
                 uIDs=self.ActiveIDVec,
                 lapFrac=self.lapFrac,
                 isFirstBatch=self.isFirstBatch(self.lapFrac),
+                isLastBatch=self.isLastBatch(self.lapFrac),
                 **self.algParams['delete'])
             if len(Plan.keys()) == 0:
                 # Empty Plan dict means it went over budget
