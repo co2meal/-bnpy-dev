@@ -53,7 +53,7 @@ def makePlanForEligibleComps(SS, DRecordsByComp=None,
 
     if lapFrac > -1:
         msg = '<<<<<<<<<<<<<<<<<<<< makePlanForEligibleComps @ lap %.2f' \
-              % (lapFrac)
+              % (np.ceil(lapFrac))
         DeleteLogger.log(msg)
 
     Plan = getEligibleCompInfo(SS, DRecordsByComp, dtargetMaxSize,
@@ -66,15 +66,20 @@ def makePlanForEligibleComps(SS, DRecordsByComp=None,
     else:
         nEligibleBySize = 0
 
-    if Plan['nEmpty'] > 0:
-        DeleteLogger.log('Skipped %d UIDs for too small size' % (
-            Plan['nEmpty']))
-    DeleteLogger.log('UIDs eligible by size (Min=1. MaxUsage=%d)' % (dtargetMaxSize))
-    if nEligibleBySize == 0:
-        DeleteLogger.log('  None. Smallest non-empty UID has usage: %d' % (
-            Plan['minTooBigSize']))
+    DeleteLogger.log('%d/%d UIDs are eligible by size (1 <= size < %d)' % (
+        SS.K - (Plan['nEmpty'] + Plan['nTooBig']), SS.K, dtargetMaxSize))
+    DeleteLogger.log('  skipped %d/%d UIDs that are empty (size < 1)' % (
+        Plan['nEmpty'], SS.K))
+    DeleteLogger.log('  skipped %d/%d UIDs that are too big (size > %d)' % (
+        Plan['nTooBig'], SS.K, dtargetMaxSize))
 
+    if nEligibleBySize == 0:
+        DeleteLogger.log('  smallest non-empty UID has size: %d' % (
+            Plan['minTooBigSize']))
+        return dict()
     else:
+        DeleteLogger.log('Eligible UIDs:')
+
         eUIDs = Plan['eligible-by-size-UIDs']
         sizeVec = [Plan['SizeMap'][x] for x in eUIDs]
         failVec = np.zeros_like(sizeVec)
@@ -150,6 +155,7 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
         mask_smallEnough, mask_nonTrivial))
 
     nEmpty = np.sum(1 - mask_nonTrivial)
+    nTooBig = np.sum(1 - mask_smallEnough)
     if np.sum(SizeVec >= dtargetMaxSize) > 0:
         minTooBigSize = SizeVec[SizeVec >= dtargetMaxSize].min()
     else:
@@ -158,7 +164,9 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
     eligibleUIDs = SS.uIDs[eligibleIDs]
     # ----    Return blank dict if no eligibles found
     if len(eligibleIDs) == 0:
-        return dict(nEmpty=nEmpty, minTooBigSize=minTooBigSize)
+        return dict(nEmpty=nEmpty, 
+            nTooBig=nTooBig,
+            minTooBigSize=minTooBigSize)
 
     # sort these from smallest to largest usage
     sortIDs = np.argsort(SizeVec[eligibleIDs])
@@ -247,7 +255,8 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
     Output = dict(CountMap=CountMap, 
         SizeMap=SizeMap,
         minTooBigSize=minTooBigSize,
-        nEmpty=nEmpty)
+        nEmpty=nEmpty,
+        nTooBig=nTooBig)
     Output['eligible-by-size-IDs'] = eligibleIDs
     Output['eligible-by-size-UIDs'] = eligibleUIDs
     Output['eliminatedUIDs'] = eliminatedUIDs
