@@ -39,16 +39,16 @@ def makePlanForEligibleComps(SS, DRecordsByComp=None,
                              **kwargs):
     ''' Create a Plan dict for any non-empty states eligible for a delete move.
 
-        Really just a thin wrapper around getEligibleCompInfo,
-        that does logging and verification of correctness.
+    Really just a thin wrapper around getEligibleCompInfo,
+    that does logging and verification of correctness.
 
-        Returns
-        -------
-        Plan : dict with either no fields, or fields named
-               * candidateIDs
-               * candidateUIDs
+    Returns
+    -------
+    Plan : dict with either no fields, or fields named
+    * candidateIDs
+    * candidateUIDs
 
-        Any "empty" Plan dict indicates that no eligible comps exist.
+    Any "empty" Plan dict indicates that no eligible comps exist.
     '''
 
     if lapFrac > -1:
@@ -59,17 +59,21 @@ def makePlanForEligibleComps(SS, DRecordsByComp=None,
     Plan = getEligibleCompInfo(SS, DRecordsByComp, dtargetMaxSize,
                                deleteFailLimit,
                                **kwargs)
-    if len(Plan.keys()) > 0:
+    if 'candidateUIDs' in Plan:
         nEligibleBySize = len(Plan['eligible-by-size-UIDs'])
         nRemovedByFailLimit = len(Plan['eliminatedUIDs'])
         nFinalCandidates = len(Plan['candidateUIDs'])
     else:
         nEligibleBySize = 0
 
-    DeleteLogger.log('Comp UIDs eligible by size (Limit=%d)'
-                     % (dtargetMaxSize))
+    if Plan['nEmpty'] > 0:
+        DeleteLogger.log('Skipped %d UIDs for too small size' % (
+            Plan['nEmpty']))
+    DeleteLogger.log('UIDs eligible by size (Min=1. MaxUsage=%d)' % (dtargetMaxSize))
     if nEligibleBySize == 0:
-        DeleteLogger.log('  None.')
+        DeleteLogger.log('  None. Smallest non-empty UID has usage: %d' % (
+            Plan['minTooBigSize']))
+
     else:
         eUIDs = Plan['eligible-by-size-UIDs']
         sizeVec = [Plan['SizeMap'][x] for x in eUIDs]
@@ -139,12 +143,22 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
         raise NotImplementedError("DocUsageCount selection term required.")
         #SizeVec = 2 * CountVec  # conservative overestimate
 
-    # ----    Find states small enough for delete
-    eligibleIDs = np.flatnonzero(SizeVec < dtargetMaxSize)
+    # ----    Find non-trivial states small enough to fit in target set
+    mask_smallEnough = SizeVec < dtargetMaxSize
+    mask_nonTrivial = SizeVec >= 1
+    eligibleIDs = np.flatnonzero(np.logical_and(
+        mask_smallEnough, mask_nonTrivial))
+
+    nEmpty = np.sum(1 - mask_nonTrivial)
+    if np.sum(SizeVec >= dtargetMaxSize) > 0:
+        minTooBigSize = SizeVec[SizeVec >= dtargetMaxSize].min()
+    else:
+        minTooBigSize = -1
+
     eligibleUIDs = SS.uIDs[eligibleIDs]
     # ----    Return blank dict if no eligibles found
     if len(eligibleIDs) == 0:
-        return dict()
+        return dict(nEmpty=nEmpty, minTooBigSize=minTooBigSize)
 
     # sort these from smallest to largest usage
     sortIDs = np.argsort(SizeVec[eligibleIDs])
@@ -230,13 +244,15 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
         jj = np.flatnonzero(uid == eligibleUIDs)[0]
         selectIDs.append(eligibleIDs[jj])
 
-    Output = dict(CountMap=CountMap, SizeMap=SizeMap)
+    Output = dict(CountMap=CountMap, 
+        SizeMap=SizeMap,
+        minTooBigSize=minTooBigSize,
+        nEmpty=nEmpty)
     Output['eligible-by-size-IDs'] = eligibleIDs
     Output['eligible-by-size-UIDs'] = eligibleUIDs
     Output['eliminatedUIDs'] = eliminatedUIDs
     Output['tier1UIDs'] = tier1UIDs
     Output['tier2UIDs'] = tier2UIDs
-
     Output['SizeMap'] = SizeMap
     Output['nCandidateTier1'] = len([x for x in selectUIDs if x in tier1UIDs])
     Output['nCandidateTier2'] = len([x for x in selectUIDs if x in tier2UIDs])

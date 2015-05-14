@@ -14,23 +14,26 @@ def addDataFromBatchToPlan(Plan, hmodel, Dchunk, LPchunk,
                            batchID=0,
                            lapFrac=None,
                            isFirstBatch=0,
+                           isLastBatch=0,
                            dtargetMaxSize=1000,
                            dtargetMinCount=0.01,
                            **kwargs):
     """ Add relevant data from provided chunk to the planned target set.
 
-        Returns
-        -------
-        Plan : dict, same reference as provided, updated in-place.
+    Returns
+    -------
+    Plan : dict, same reference as provided, updated in-place.
 
-        Updates
-        -------
-        Plan will have new fields if successfully augmented the target set
-        * DTargetData
-        * batchIDs
+    Post Conditions
+    -------
+    Plan dict is updated if current chunk has items to add to target set. 
+    Updated fields:
+    * DTargetData
+    * batchIDs
 
-        If the target set goes over the budget space of dtargetMaxSize,
-        then Plan will be wiped out to an empty dict.
+    Plan dict will be returned empty if:
+    * Target set goes over the budget space of dtargetMaxSize
+    * Target set has no items after the last batch.
     """
     assert uIDs is not None
     assert len(uIDs) == hmodel.allocModel.K
@@ -49,6 +52,10 @@ def addDataFromBatchToPlan(Plan, hmodel, Dchunk, LPchunk,
         msg = ' %6.3f | batch %3d | batch trgtSize 0 | agg trgtSize 0' \
               % (lapFrac, batchID)
         DeleteLogger.log(msg)
+
+        if isLastBatch and not hasValidKey(Plan, 'DTargetData'):
+            DeleteLogger.log("ABANDONED. No relevant items found.")
+            return dict()
         return Plan
 
     # ----    Add all these docs to the Plan
@@ -100,10 +107,10 @@ def getDataSubsetRelevantToPlan(Dchunk, LPchunk, Plan,
                                 dtargetMinCount=0.01):
     """ Get subset of provided DataObj containing units relevant to the Plan.
 
-        Returns
-        --------
-        relData : None or bnpy.data.DataObj
-        relIDs : list of integer ids of relevant units of provided Dchunk
+    Returns
+    --------
+    relData : None or bnpy.data.DataObj
+    relIDs : list of integer ids of relevant units of provided Dchunk
     """
     if not hasValidKey(Plan, 'candidateIDs'):
         return None, []
