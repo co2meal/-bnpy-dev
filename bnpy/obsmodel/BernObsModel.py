@@ -4,6 +4,7 @@ from scipy.special import gammaln, digamma
 from bnpy.suffstats import ParamBag, SuffStatBag
 from bnpy.util import dotATA, dotATB, dotABT
 from bnpy.util import as1D, as2D, as3D
+from bnpy.util import numpyToSharedMemArray, sharedMemToNumpyArray
 
 from AbstractObsModel import AbstractObsModel
 
@@ -162,17 +163,7 @@ class BernObsModel(AbstractObsModel):
         --------
         SS : SuffStatBag object, with K components.
         '''
-        if SS is None:
-            SS = SuffStatBag(K=LP['resp'].shape[1], D=Data.dim)
-
-        Resp = LP['resp']  # 2D array, N x K
-        X = Data.X  # 2D array, N x D
-        CountON = np.dot(Resp.T, X)  # matrix-matrix product, result is K x D
-        CountOFF = np.dot(Resp.T, 1 - X)
-
-        SS.setField('Count1', CountON, dims=('K', 'D'))
-        SS.setField('Count0', CountOFF, dims=('K', 'D'))
-        return SS
+        return calcSummaryStats(Data, SS, LP, **kwargs)
 
     def forceSSInBounds(self, SS):
         ''' Force count vectors to remain positive
@@ -331,8 +322,7 @@ class BernObsModel(AbstractObsModel):
         ------
         L : 2D array, size N x K
         '''
-        ElogphiT = self.GetCached('E_logphiT', 'all')  # D x K
-        Elog1mphiT = self.GetCached('E_log1mphiT', 'all')  # D x K
+        ElogphiT, Elog1mphiT = self.GetCached('E_logphiT_log1mphiT', 'all')
 
         # Matrix-matrix product, result is N x K
         L = np.dot(Data.X, ElogphiT) + np.dot(1.0 - Data.X, Elog1mphiT)
@@ -501,8 +491,20 @@ class BernObsModel(AbstractObsModel):
         else:
             lam1 = self.Post.lam1[k]
             lam0 = self.Post.lam0[k]
-        Elogphi = digamma(lam0) - digamma(lam1 + lam0)
-        return Elogphi
+        Elog1mphi = digamma(lam0) - digamma(lam1 + lam0)
+        return Elog1mphi
+
+    def _E_logphiT_log1mphiT(self, k=None):
+        if k == 'all':
+            lam1T = self.Post.lam1.T.copy()
+            lam0T = self.Post.lam0.T.copy()
+            digammaBoth = digamma(lam1T+lam0T)
+            ElogphiT = digamma(lam1T) - digammaBoth
+            Elog1mphiT = digamma(lam0T) - digammaBoth
+        else:
+            ElogphiT = self._E_logphiT(k)
+            Elog1mphiT = self._E_log1mphiT(k)
+        return ElogphiT, Elog1mphiT
 
     def _E_logphiT(self, k=None):
         ''' Calculate transpose of expected phi matrix
@@ -514,6 +516,13 @@ class BernObsModel(AbstractObsModel):
         -------
         ElogphiT : 2D array, vocab_size x K
         '''
+        if k == 'all':
+            dlam1T = self.Post.lam1.T.copy()
+            dlambothT = self.Post.lam0.T.copy()
+            dlambothT += dlam1T
+            digamma(dlam1T, out=dlam1T)
+            digamma(dlambothT, out=dlambothT)
+            return dlam1T - dlambothT
         ElogphiT = self._E_logphi(k).T.copy()
         return ElogphiT
 
@@ -527,9 +536,60 @@ class BernObsModel(AbstractObsModel):
         -------
         ElogphiT : 2D array, vocab_size x K
         '''
+        if k == 'all':
+            # Copy so lam1T/lam0T are C-contig and can be shared mem.
+            lam1T = self.Post.lam1.T.copy()
+            lam0T = self.Post.lam0.T.copy()
+            return digamma(lam0T) - digamma(lam1T + lam0T) 
+        
         ElogphiT = self._E_log1mphi(k).T.copy()
         return ElogphiT
 
+    def getSerializableParamsForLocalStep(self):
+        """ Get compact dict of params for local step.
+
+        Returns
+        -------
+        Info : dict
+        """
+        return dict(inferType=self.inferType, 
+                    K=self.K)
+
+    def fillSharedMemDictForLocalStep(self, ShMem=None):
+        """ Get dict of shared mem arrays needed for parallel local step. 
+
+        Returns
+        -------
+        ShMem : dict of RawArray objects
+        """
+        ElogphiT, Elog1mphiT = self.GetCached('E_logphiT_log1mphiT', 'all')
+        K = self.K
+        if ShMem is None:
+            ShMem = dict()
+        if 'ElogphiT' not in ShMem:
+            ShMem['ElogphiT'] = numpyToSharedMemArray(ElogphiT)
+            ShMem['Elog1mphiT'] = numpyToSharedMemArray(Elog1mphiT)
+        else:       
+            ElogphiT_shView = sharedMemToNumpyArray(ShMem['ElogphiT'])
+            assert ElogphiT_shView.shape >= K
+            ElogphiT_shView[:,:K] = ElogphiT
+
+            Elog1mphiT_shView = sharedMemToNumpyArray(ShMem['Elog1mphiT'])
+            assert Elog1mphiT_shView.shape >= K
+            Elog1mphiT_shView[:,:K] = Elog1mphiT
+        return ShMem
+
+    def getLocalAndSummaryFunctionHandles(self):
+        """ Get function handles for local step and summary step
+
+        Useful for parallelized algorithms.
+
+        Returns
+        -------
+        calcLocalParams : f handle
+        calcSummaryStats : f handle
+        """
+        return calcLocalParams, calcSummaryStats
 
 def c_Func(lam1, lam0):
     ''' Evaluate cumulant function at given params.
@@ -553,3 +613,62 @@ def c_Diff(lamA1, lamA0, lamB1, lamB0):
     diff : scalar real value of the difference in cumulant functions
     '''
     return c_Func(lamA1, lamA0) - c_Func(lamB1, lamB0)
+
+
+def calcLocalParams(Dslice, **kwargs):
+    """ Calculate local parameters for provided slice of data.
+
+    Returns
+    -------
+    LP : dict with fields
+        * E_log_soft_ev : 2D array, size N x K
+    """
+    E_log_soft_ev = calcLogSoftEvMatrix_FromPost(Dslice, **kwargs)
+    return dict(E_log_soft_ev=E_log_soft_ev)
+
+def calcLogSoftEvMatrix_FromPost(Dslice,
+                                 ElogphiT=None,
+                                 Elog1mphiT=None,
+                                 K=None,
+                                 **kwargs):
+    ''' Calculate expected log soft ev matrix.
+
+    Model Args
+    ------
+    ElogphiT : vocab_size x K matrix
+
+    Data Args
+    ---------
+    Dslice : data-like
+        doc_range : 1D array
+        word_id : 1D array
+
+    Returns
+    ------
+    L : 2D array, size N x K
+    '''
+    if K is None:
+        K = ElogphiT.shape[1]
+    # Matrix-matrix product, result is N x K
+    L = np.dot(Dslice.X, ElogphiT[:, :K]) + \
+        np.dot(1.0 - Dslice.X, Elog1mphiT[:, :K])
+    return L
+
+def calcSummaryStats(Dslice, SS, LP, **kwargs):
+    ''' Calculate summary statistics for given dataset and local parameters
+
+    Returns
+    --------
+    SS : SuffStatBag object, with K components.
+    '''
+    if SS is None:
+        SS = SuffStatBag(K=LP['resp'].shape[1], D=Dslice.dim)
+
+    Resp = LP['resp']  # 2D array, N x K
+    X = Dslice.X  # 2D array, N x D
+    CountON = np.dot(Resp.T, X)  # matrix-matrix product, result is K x D
+    CountOFF = np.dot(Resp.T, 1 - X)
+
+    SS.setField('Count1', CountON, dims=('K', 'D'))
+    SS.setField('Count0', CountOFF, dims=('K', 'D'))
+    return SS
