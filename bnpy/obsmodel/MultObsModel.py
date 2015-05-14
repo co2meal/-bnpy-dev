@@ -525,11 +525,11 @@ class MultObsModel(AbstractObsModel):
             Elogphi = digamma(lam) - digamma(np.sum(lam))
         elif k == 'all':
             AMat = self.Post.lam
-            Elogphi = digamma(
-                AMat) - digamma(np.sum(AMat, axis=1))[:, np.newaxis]
+            Elogphi = digamma(AMat) \
+                - digamma(np.sum(AMat, axis=1))[:, np.newaxis]
         else:
-            Elogphi = digamma(
-                self.Post.lam[k]) - digamma(self.Post.lam[k].sum())
+            Elogphi = digamma(self.Post.lam[k]) - \
+                digamma(self.Post.lam[k].sum())
         return Elogphi
 
     def _E_logphiT(self, k=None):

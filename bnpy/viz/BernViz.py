@@ -76,7 +76,7 @@ def plotCompsAsSquareImages(phi,
 
     # Create Figure
     Kplot = np.minimum(len(compListToPlot), Kmax)
-    ncols = 5  # int(np.ceil(Kplot / float(nrows)))
+    ncols = 3  # int(np.ceil(Kplot / float(nrows)))
     nrows = int(np.ceil(Kplot / float(ncols)))
     if figH is None:
         # Make a new figure

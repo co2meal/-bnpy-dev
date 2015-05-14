@@ -118,8 +118,8 @@ class GroupXData(XData):
         # Add optional true parameters / true hard labels
         if TrueParams is not None:
             self.TrueParams = dict()
-            for key, arr in TrueParams:
-                self.TrueParams[key] = toFloat64CArray(arr)
+            for key, arr in TrueParams.items():
+                self.TrueParams[key] = toCArray(arr)
 
         if TrueZ is not None:
             if not hasattr(self, 'TrueParams'):
