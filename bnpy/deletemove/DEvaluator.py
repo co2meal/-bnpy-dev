@@ -5,7 +5,7 @@ Functions that evaluate delete proposals and decide to accept/reject.
 """
 import numpy as np
 import DeleteLogger
-from DCollector import hasValidKey
+from DCollector import hasValidKey, getSize
 
 
 def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
@@ -40,6 +40,14 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
 
     bestSS and each entry of SSmemory have NO ELBO or Merge terms.
     """
+
+    msg = '<<<<<<<<<<<<<<<<<<<< DEvaluator.runDeleteMove @ lap %6.2f' \
+        % (np.ceil(lapFrac))
+    DeleteLogger.log(msg)
+    DeleteLogger.log('Target Size: %d' % (
+        getSize(Plan['DTargetData'])))
+
+
     if SSmemory is None:
         SSmemory = dict()
     if LPkwargs is None:
@@ -47,6 +55,7 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
     if curSS.K == 1:
         Plan['didAccept'] = 0
         Plan['acceptedUIDs'] = list()
+        DeleteLogger.log('ABANDONED. Cannot delete when K=1.')
         return curModel, curSS, SSmemory, Plan
 
     # bestModel, bestSS represent best so far
@@ -69,7 +78,10 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
     acceptedUIDs = list()
     acceptedPairs = list()
     for delCompUID in Plan['candidateUIDs']:
+        DeleteLogger.log('Deleting UID %d... ' % (delCompUID))
+
         if bestSS.K == 1:
+            DeleteLogger.log('  skipped. Cannot delete when K=1.')
             continue  # Don't try to remove the final comp!
 
         delCompID = np.flatnonzero(bestSS.uIDs == delCompUID)[0]

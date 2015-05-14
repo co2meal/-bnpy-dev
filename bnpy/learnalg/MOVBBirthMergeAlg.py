@@ -249,7 +249,6 @@ class MOVBBirthMergeAlg(MOVBAlg):
                     for DPlan in DeletePlans:
                         if self.hasMove('merge'):
                             assert len(self.MergeLog) == 0
-                        from IPython import embed; embed()
                         DPlan['targetSS'].reorderComps(order)
                         targetSSbyBatch = DPlan['targetSSByBatch']
                         for batchID in targetSSbyBatch:

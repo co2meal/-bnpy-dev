@@ -41,7 +41,7 @@ def addDataFromBatchToPlan(Plan, hmodel, Dchunk, LPchunk,
 
     if isFirstBatch:
         msg = '<<<<<<<<<<<<<<<<<<<< addDataFromBatchToPlan @ lap %6.2f' \
-              % (lapFrac)
+              % (np.ceil(lapFrac))
         DeleteLogger.log(msg)
 
     relData, relIDs = getDataSubsetRelevantToPlan(
