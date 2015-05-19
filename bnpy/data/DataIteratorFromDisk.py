@@ -65,7 +65,7 @@ def decideDataTypeFromModel(aModelType, oModelType):
     -------
     s : string name of type ['XData', 'GroupXData', 'WordsData']
     """
-    if oModelType.count('Gauss'):
+    if oModelType.count('Gauss') or oModelType.count('Bern'):
         try:
             return X_AllocToDataTypeMap[aModelType]
         except KeyError:
