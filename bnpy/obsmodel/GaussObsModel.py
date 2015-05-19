@@ -1041,6 +1041,8 @@ def createECovMatFromUserInput(D=0, Data=None, ECovMat='eye', sF=1.0):
         Sigma = sF * np.eye(D)
     elif ECovMat == 'covdata':
         Sigma = sF * np.cov(Data.X.T, bias=1)
+    elif ECovMat == 'diagcovdata':
+        Sigma = sF * np.diag(np.diag(np.cov(Data.X.T, bias=1)))
     elif ECovMat == 'covfirstdiff':
         if not hasattr(Data, 'Xprev'):
             raise ValueError(
