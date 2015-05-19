@@ -116,8 +116,18 @@ def _initFromTrueLP(hmodel, Data, initname, PRNG, nRepeatTrue=2,
     hmodel.update_global_params(SS)
 
 
-def convertLPFromHardToSoft(LP, Data, startIDsAt0=False, Kmax=None):
+def convertLPFromHardToSoft(LP, Data, 
+        initGarbageState=1,
+        startIDsAt0=False, Kmax=None):
     ''' Transform array of hard assignment labels in Data into local param dict
+
+    Keyword Args
+    ------------
+    initGarbageState : integer flag (0/1)
+        if on, will add a garbage state for each negative id in TrueZ
+    startIDsAt0 : integer flag (0/1)
+        if off, will index states from 0, 1, ... Kmax-1 with no skipping.
+        if on, can potentially have some states with no assigned data.
 
     Returns
     ---------
@@ -134,11 +144,23 @@ def convertLPFromHardToSoft(LP, Data, startIDsAt0=False, Kmax=None):
         uniqueAssigned = np.arange(Kmax)
     else:
         Kmax = len(uniqueAssigned)
-    resp = np.zeros((Data.nObs, Kmax))
+
+    garbageMask = Z < 0
+    if np.sum(garbageMask) > 0 and initGarbageState:
+        Kgarbage = np.unique(Z[garbageMask]).size
+        resp = np.zeros((Z.size, Kmax+Kgarbage))
+        for kk in range(Kgarbage):
+            resp[Z == -1 -kk, Kmax+kk] = 1
+    else:
+        resp = np.zeros((Z.size, Kmax))
+
+    # Fill in "real" states
     for k in range(Kmax):
         mask = Z == uniqueAssigned[k]
         resp[mask, k] = 1.0
     LP['resp'] = resp
+    np.set_printoptions(precision=2, suppress=1)
+    print resp.sum(axis=0)
     return LP
 
 
