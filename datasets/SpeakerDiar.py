@@ -87,6 +87,82 @@ def saveMatFile(dataPath):
     X = np.transpose(data['u'])
     TrueZ = data['zsub']
     doc_range = [0, np.size(TrueZ)]
-    scipy.io.savemat(os.path.join(os.path.expandvars('$BNPYDATADIR/rawData/speakerDiarizationData'), file), {'X' : X, 'TrueZ' : TrueZ, 'doc_range' : doc_range})
-                                                      
-    
+    matfilepath = os.path.join(os.path.expandvars(
+        '$BNPYDATADIR/rawData/speakerDiarizationData'), file)
+    SaveDict = {'X' : X, 'TrueZ' : TrueZ, 'doc_range' : doc_range}    
+    scipy.io.savemat(matfilepath, SaveDict)
+
+def plotXPairHistogram(meetingNum=1, dimIDs=[0,1,2,3]):
+    from matplotlib import pylab
+    Data = get_data(meetingNum=meetingNum)
+    TrueZ = Data.TrueParams['Z']
+    uniqueLabels = np.unique(TrueZ)
+    sizeOfLabels = np.asarray(
+        [np.sum(TrueZ== labelID) for labelID in uniqueLabels])
+    sortIDs = np.argsort(-1 * sizeOfLabels)
+    topLabelIDs = uniqueLabels[sortIDs[:3]]
+    Colors = ['k', 'r', 'b', 'm', 'c']
+    D = len(dimIDs)
+    pylab.subplots(nrows=len(dimIDs), ncols=len(dimIDs))
+    for id1, d1 in enumerate(dimIDs):
+        for id2, d2 in enumerate(dimIDs):
+            pylab.subplot(D, D, id2 + D*id1+1)
+            if id1 == id2:
+                pylab.xticks([])
+                pylab.yticks([])
+                continue
+
+            #if not ((id1 == 0 and id2 == D - 1) or (id2 == 0 and id1 == D-1)):
+            #    continue
+            pylab.hold('on')
+            if id1 < id2:
+                order = reversed([x for x in enumerate(topLabelIDs)])
+            else:
+                order = enumerate(topLabelIDs)
+            cur_d1 = np.minimum(d1, d2)
+            cur_d2 = np.maximum(d1, d2)
+            for kID, labelID in order:
+                dataIDs = TrueZ == labelID
+                pylab.plot(Data.X[dataIDs, cur_d1], 
+                    Data.X[dataIDs, cur_d2], '.',
+                    color=Colors[kID], markeredgecolor=Colors[kID])
+            pylab.ylim([-25, 25])
+            pylab.xlim([-25, 25])
+            if (id2 > 0):
+                pylab.yticks([])
+            if (id1 < D-1):
+                pylab.xticks([])
+            
+    # make a color map of fixed colors
+    from matplotlib import colors
+    cmap = colors.ListedColormap(['white'] + Colors[:3])
+    bounds=[0,1,2,3,4]
+    norm = colors.BoundaryNorm(bounds, cmap.N)
+    Z = np.zeros(Data.X.shape)
+    for kID, labelID in enumerate(topLabelIDs):
+        curIDs = TrueZ == labelID
+        Z[curIDs, :] = bounds[kID+1]
+    pylab.subplots(nrows=1, ncols=2)
+    ax = pylab.subplot(1,2,1)
+    pylab.imshow(Z.T, interpolation='nearest',
+        cmap=cmap,
+        aspect=Z.shape[0]/float(Z.shape[1]),
+        vmin=bounds[0],
+        vmax=bounds[-1],
+        )
+    pylab.yticks([])
+
+    pylab.subplot(1,2,2, sharex=ax)
+    for d in dimIDs:
+        pylab.plot(np.arange(Z.shape[0]), 10*d + Data.X[:, d]/25, 'k.-')
+
+    pylab.show()
+                          
+if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--dimIDs', default='0,1,2,3')
+    parser.add_argument('--meetingNum', type=int, default=1)
+    args = parser.parse_args()
+    args.dimIDs = [int(x) for x in args.dimIDs.split(',')]
+    plotXPairHistogram(**args.__dict__)

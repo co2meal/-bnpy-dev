@@ -53,6 +53,8 @@ def plotJobsThatMatchKeywords(jpathPattern='/tmp/', **kwargs):
 def plotJobs(jpaths, legNames, styles=None, fileSuffix='PredLik.mat',
              xvar='laps', yvar='evidence', loc='upper right',
              minLap=0, showFinalPt=0,
+             scorename='avgScore',
+             prefix='predlik',
              taskids=None, savefilename=None, tickfontsize=None,
              xjitter=None, bbox_to_anchor=None, **kwargs):
     ''' Create line plots for provided jobs
@@ -74,6 +76,8 @@ def plotJobs(jpaths, legNames, styles=None, fileSuffix='PredLik.mat',
         plot_all_tasks_for_job(jpaths[lineID], legNames[lineID], minLap=minLap,
                                xvar=xvar, yvar=yvar, fileSuffix=fileSuffix,
                                showFinalPt=showFinalPt,
+                               scorename=scorename,
+                               prefix=prefix,
                                taskids=taskids, xjitter=xjitter, **curStyle)
 
     if loc is not None and len(jpaths) > 1:
@@ -106,6 +110,8 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
                            showFinalPt=0,
                            fileSuffix='HeldoutLik.mat',
                            xjitter=None,
+                           scorename='avgScore',
+                           prefix='predlik',
                            colorID=0,
                            **kwargs):
     ''' Create line plot in current figure for each task/run of jobpath
@@ -129,14 +135,14 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
             else:
                 suffix = '.txt'
             laps = np.loadtxt(
-                os.path.join(taskoutpath, 'predlik-lapTrain' + suffix))
-            Ks = np.loadtxt(os.path.join(taskoutpath, 'predlik-K' + suffix))
+                os.path.join(taskoutpath, prefix+'-lapTrain' + suffix))
+            Ks = np.loadtxt(os.path.join(taskoutpath, prefix+'-K' + suffix))
             if xvar == 'laps':
                 xs = laps
             else:
                 xs = Ks
             ys = np.loadtxt(
-                os.path.join(taskoutpath, 'predlik-avgScore' + suffix))
+                os.path.join(taskoutpath, prefix + '-' + scorename + suffix))
 
             if minLap > 0 and taskoutpath.count('fix'):
                 mask = laps > minLap
