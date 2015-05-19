@@ -236,10 +236,18 @@ class LearnAlg(object):
     def isSaveParamsCheckpoint(self, lap, nMstepUpdates):
         ''' Answer True/False whether to save full model now
         '''
+        s = self.outputParams['saveEveryLogScaleFactor']
+        sE = self.outputParams['saveEvery']
+        if s > 0:
+            if (lap >= sE ** s):
+                self.outputParams['saveEvery'] = sE ** s
+                print self.outputParams['saveEvery'], '<<<'
         saveEvery = self.outputParams['saveEvery']
         if saveEvery <= 0 or self.savedir is None:
             return False
         return isEvenlyDivisibleFloat(lap, saveEvery) \
+            or (isEvenlyDivisibleFloat(lap, 1.0) \
+                and lap <= self.outputParams['saveEarly']) \
             or nMstepUpdates < 3 \
             or np.allclose(lap, 1.0) \
             or np.allclose(lap, 2.0) \
