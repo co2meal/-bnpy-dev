@@ -3,7 +3,8 @@ import numpy as np
 from bnpy.util import as1D
 
 
-def calcHammingDistance(zTrue, zHat):
+def calcHammingDistance(zTrue, zHat, excludeNegLabels=1,
+        **kwargs):
     ''' Compute Hamming distance: sum of all timesteps with different labels.
 
     Args
@@ -26,10 +27,26 @@ def calcHammingDistance(zTrue, zHat):
     1
     >>> calcHammingDistance([0, 0, 1, 1], [1, 1, 0, 0])
     4
+    >>> calcHammingDistance([1, 1, 0, -1], [1, 1, 0, 0])
+    0
+    >>> calcHammingDistance([-1, -1, -2, 3], [1, 2, 3, 3])
+    0
+    >>> calcHammingDistance([-1, -1, 0, 1], [1, 2, 1, 0])
+    2
+    >>> calcHammingDistance([-1, -1, 0, 1], [1, 2, 1, 0], excludeNegLabels=0)
+    4
     '''
     zHat = as1D(zHat)
     zTrue = as1D(zTrue)
-    return np.sum(zTrue != zHat)
+    if excludeNegLabels:
+        assert np.sum(zHat < 0) == 0
+        good_tstep_mask = zTrue >= 0
+        if np.sum(good_tstep_mask) > 0:
+            print 'EXCLUDED %d/%d timesteps' % (np.sum(zTrue < 0), zTrue.size)
+        dist = np.sum(zTrue[good_tstep_mask] != zHat[good_tstep_mask])
+    else:
+        dist = np.sum(zTrue != zHat)
+    return dist
 
 
 def buildCostMatrix(zHat, zTrue):
@@ -41,6 +58,7 @@ def buildCostMatrix(zHat, zTrue):
         each entry is an integer label in {0, 1, ... Kest-1}
     zTrue : 1D array
         each entry is an integer label in {0, 1, ... Ktrue-1}
+        with optional negative state labels
 
     Returns
     --------
