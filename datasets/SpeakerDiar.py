@@ -2,19 +2,26 @@
 SpeakDiar.py
 
 21 audio recordings of academic conferences making up the NIST speaker 
-  diarization dataset, created to asses the ability of different models to 
-  segment speech data into unique speakers.
+diarization dataset, created to asses the ability of different models to 
+segment speech data into unique speakers.
 
-The 21 recordings are meant to be trained on independently, so get_data() takes
-  a meetingNum parameter (default 1) which determines which recording number
-  will be loaded into bnpy.  The meeting number can be changed with the argument
+The 21 recordings are meant to be trained on independently.
+Thus, get_data() takes a meetingNum parameter (default 1) 
+which determines which sequence will be loaded.
+The meeting number can be changed with the argument
   --meetingNum 3
+
+Notes
+-----
+rttm format specification:
+http://www.itl.nist.gov/iad/mig/tests/rt/2003-fall/docs/RTTM-format-v13.pdf
 '''
 
 import numpy as np
 from bnpy.data import GroupXData
 import scipy.io
 import os
+import sys
 
 fileNames = [
 'AMI_20041210-1052_Nmeans25features_SpNsp.mat',
@@ -165,4 +172,23 @@ if __name__ == '__main__':
     parser.add_argument('--meetingNum', type=int, default=1)
     args = parser.parse_args()
     args.dimIDs = [int(x) for x in args.dimIDs.split(',')]
-    plotXPairHistogram(**args.__dict__)
+    
+    Data = get_data(meetingNum=args.meetingNum)
+    Z = Data.TrueParams['Z']
+    from matplotlib import pylab
+    uLabels = np.unique(Z)
+    uLabels = np.asarray([u for u in uLabels if u > 0 and u < 10])
+    sizes = np.asarray([np.sum(Z==u) for u in uLabels])
+    sortIDs = np.argsort(-1*sizes)
+    Zim = np.zeros((10, Z.size))
+    for rankID, uID in enumerate(uLabels[sortIDs]):
+        Zim[1+rankID, Z == uID] = 1
+    pylab.imshow(1-Zim, 
+        interpolation='nearest',
+        aspect=Zim.shape[1]/float(Zim.shape[0])/3,
+        cmap='bone',
+        vmin=0,
+        vmax=1,
+        origin='lower')
+    pylab.show()
+    #plotXPairHistogram(**args.__dict__)
