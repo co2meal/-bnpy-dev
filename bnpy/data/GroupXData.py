@@ -80,7 +80,7 @@ class GroupXData(XData):
         ''' Constructor for building an instance of GroupXData from disk
         '''
         import scipy.io
-        InDict = scipy.io.loadmat(matfilepath, **kwargs)
+        InDict = scipy.io.loadmat(matfilepath)
         if 'X' not in InDict:
             raise KeyError(
                 'Stored matfile needs to have data in field named X')
