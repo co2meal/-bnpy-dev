@@ -69,23 +69,28 @@ LabelMap['Keff'] = 'num topics K'
 
 
 def plotManyPanelsByPVar(jpathPattern='/tmp/', 
-        pvar='nu', pvals=None,
+        pvar=None, pvals=None,
         W=5, H=4,
         savefilename=None, doShowNow=False,
         **kwargs):
     ''' Create line plots for jobs matching pattern and provided kwargs
     '''
-    prefixfilepath = os.path.sep.join(jpathPattern.split(os.path.sep)[:-1])
-    PPListMap = makePPListMapFromJPattern(jpathPattern)
-    if pvals is None:
-        pvals = PPListMap[pvar]
+    if pvar is None:
+        jpathList = [jpathPattern]
+        pvar=None
+        pvals = [None]
     else:
-        pvals = [p for p in pvals if p in PPListMap[pvar]]
-    jpathList = makeListOfJPatternsWithSpecificVals(PPListMap, 
-        prefixfilepath=prefixfilepath,
-        key=pvar,
-        vals=pvals,
-        **kwargs)
+        prefixfilepath = os.path.sep.join(jpathPattern.split(os.path.sep)[:-1])
+        PPListMap = makePPListMapFromJPattern(jpathPattern)
+        if pvals is None:
+            pvals = PPListMap[pvar]
+        else:
+            pvals = [p for p in pvals if p in PPListMap[pvar]]
+        jpathList = makeListOfJPatternsWithSpecificVals(PPListMap, 
+            prefixfilepath=prefixfilepath,
+            key=pvar,
+            vals=pvals,
+            **kwargs)
 
     nrows = 1
     ncols = len(pvals)
@@ -98,7 +103,8 @@ def plotManyPanelsByPVar(jpathPattern='/tmp/',
             kwargs['loc'] = None
         plotMultipleLinesByLVar(panel_jobPattern,
             **kwargs)
-        pylab.title('%s=%s' % (pvar, pvals[panelID]))
+        if pvar is not None:
+            pylab.title('%s=%s' % (pvar, pvals[panelID]))
 
     pylab.subplots_adjust(bottom=0.15)
 
@@ -116,7 +122,7 @@ def plotManyPanelsByPVar(jpathPattern='/tmp/',
     
 
 def plotMultipleLinesByLVar(jpathPattern,
-        lvar='initname', lvals=None,
+        lvar=None, lvals=None,
         ColorMap=DefaultColorList,
         loc=None, bbox_to_anchor=None,
         savefilename=None, tickfontsize=None, doShowNow=False,
@@ -172,7 +178,7 @@ def plotMultipleLinesByLVar(jpathPattern,
 
 def plotSingleLineAcrossJobsByXVar(jpathPattern, 
         label='',
-        xvar='laps',
+        xvar=None,
         xvals=None,
         xlabel=None,
         yvar='evidence',
@@ -204,6 +210,8 @@ def plotSingleLineAcrossJobsByXVar(jpathPattern,
     for i, jobpath in enumerate(jpathList):
         if not os.path.exists(jobpath):
             raise ValueError("PATH NOT FOUND: %s" % (jobpath))
+        print jobpath.replace(os.environ['BNPYOUTDIR'], '')
+        
         x = float(xvals[i])
         y = loadYValFromDisk(jobpath, taskid, yvar=yvar)
         assert isinstance(x, float)
@@ -234,22 +242,18 @@ def loadYValFromDisk(jobpath, taskid, yvar='evidence'):
     return ys[-1]
 
 
-def parse_args(xvar='sF', 
-        yvar='evidence',
-        lvar='initname',
-        pvar='nu',
-        **kwargs):
+def parse_args(**kwargs):
     ''' Returns Namespace of parsed arguments retrieved from command line
     '''
     parser = argparse.ArgumentParser()
     parser.add_argument('dataName', type=str, default='AsteriskK8')
     parser.add_argument('jpathPattern', type=str, default='demo*')
-    parser.add_argument('--xvar', type=str, default=xvar,
+    parser.add_argument('--xvar', type=str, default=None,
         help="name of x axis variable to plot.")
-    parser.add_argument('--yvar', type=str, default=yvar,
+    parser.add_argument('--yvar', type=str, default='evidence',
         choices=LabelMap.keys(),
         help="name of y axis variable to plot.")
-    parser.add_argument('--lvar', type=str, default=lvar,
+    parser.add_argument('--lvar', type=str, default=None,
         help="quantity that varies across lines")
     parser.add_argument('--pvar', type=str, default=None,
         help="quantity that varies across subplots")
@@ -273,5 +277,5 @@ def parse_args(xvar='sF',
     return argDict
 
 if __name__ == "__main__":
-    argDict = parse_args(xvar='sF', yvar='evidence')
+    argDict = parse_args()
     plotManyPanelsByPVar(doShowNow=1, **argDict)
