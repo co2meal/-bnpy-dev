@@ -159,8 +159,6 @@ def convertLPFromHardToSoft(LP, Data,
         mask = Z == uniqueAssigned[k]
         resp[mask, k] = 1.0
     LP['resp'] = resp
-    np.set_printoptions(precision=2, suppress=1)
-    print resp.sum(axis=0)
     return LP
 
 
