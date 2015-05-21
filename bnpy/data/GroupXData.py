@@ -126,13 +126,25 @@ class GroupXData(XData):
                 self.TrueParams = dict()
             self.TrueParams['Z'] = as1D(toCArray(TrueZ))
             self.TrueParams['K'] = np.unique(self.TrueParams['Z']).size
+
         # Add optional source files for each group/sequence
         if fileNames is not None:
+            if hasattr(fileNames, 'shape') and fileNames.shape == (1,1):
+                fileNames = fileNames[0,0]
             if len(fileNames) > 1:
                 self.fileNames = [str(x).strip()
                                   for x in np.squeeze(fileNames)]
             else:
                 self.fileNames = [str(fileNames[0])]
+        # Add extra data attributes custom for the dataset
+        for key in kwargs:
+            if hasattr(self, key):
+                continue
+            if not key.startswith("__"):
+                arr = np.squeeze(as1D(kwargs[key]))
+                if arr.shape == ():
+                    arr = float(arr)
+                setattr(self, key, arr)
 
     def _set_dependent_params(self, doc_range, nDocTotal=None):
         self.nObs = self.X.shape[0]
@@ -141,7 +153,7 @@ class GroupXData(XData):
         if nDocTotal is None:
             self.nDocTotal = self.nDoc
         else:
-            self.nDocTotal = nDocTotal
+            self.nDocTotal = int(nDocTotal)
 
     def _check_dims(self):
         assert self.X.ndim == 2
@@ -193,6 +205,7 @@ class GroupXData(XData):
     #########################################################
     def select_subset_by_mask(self, docMask=None,
                               atomMask=None,
+                              doTrackTruth=False,
                               doTrackFullSize=True):
         """ Get subset of this dataset identified by provided unit IDs.
 
@@ -240,9 +253,22 @@ class GroupXData(XData):
             nDocTotal = self.nDocTotal
         else:
             nDocTotal = None
+
+        if doTrackTruth and 'Z' in self.TrueParams:
+            TrueZ = self.TrueParams['Z']
+            newTrueZList = list()
+            for d in xrange(len(docMask)):
+                start = self.doc_range[docMask[d]]
+                stop = self.doc_range[docMask[d] + 1]
+                newTrueZList.append(TrueZ[start:stop])
+            newTrueZ = np.hstack(newTrueZList)
+            assert newTrueZ.size == newDocRange[-1]
+        else:
+            newTrueZ = None
         return GroupXData(newX, newDocRange,
                           Xprev=newXprev,
-                          nDocTotal=nDocTotal)
+                          nDocTotal=nDocTotal,
+                          TrueZ=newTrueZ)
 
     def add_data(self, XDataObj):
         """ Appends (in-place) provided dataset to this dataset.
