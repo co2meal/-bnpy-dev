@@ -2,7 +2,7 @@ import numpy as np
 import glob
 import os
 
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from bnpy.ioutil import BNPYArgParser
 
 # kwargs that arent needed for any job pattern matching
@@ -37,22 +37,20 @@ def _isInitname(val):
 
 
 def jpath2jdict(jpath):
-    '''
-        Example
-        ---------
-        >> jpath2dict('abc-nBatch=10-randexamples-HDP')
-        dict(UNK=abc, nBatch=10, initname=randexamples, allocModelName=HDP)
+    ''' Convert provided path string to dictionary of options.
+
+    Example
+    ---------
+    >>> jpath2jdict('abc-nBatch=10-initname=randexamples')
+    OrderedDict([('field1', 'abc'), ('nBatch', '10'), ('initname', 'randexamples')])
     '''
     basename = jpath.split(os.path.sep)[-1]
     fields = basename.split('-')
-    D = dict()
+    D = OrderedDict()
     for fID, field in enumerate(fields):
         if field.count('=') == 1:
             key, val = field.split('=')
-            try:
-                D[key] = float(val)
-            except Exception as e:
-                D[key] = str(val)
+            D[key] = str(val)
         else:
             val = field
             key = mapToKey(val)
@@ -62,12 +60,154 @@ def jpath2jdict(jpath):
                 D['field' + str(fID + 1)] = val
     return D
 
+def makeListOfJPatternsWithSpecificVals(PPListMap,
+        key='',
+        vals=None,
+        **keyValPairs):
+    ''' Make iterable list of jpaths with specific values.
+
+    Example
+    -------
+    >>> jpaths = []
+    >>> jpaths.append('demo-K=25-initname=random')
+    >>> jpaths.append('demo-K=25-initname=smart')
+    >>> jpaths.append('demo-K=50-initname=random')
+    >>> jpaths.append('demo-K=50-initname=smart')
+    >>> PPListMap = makePPListMapFromJPattern(jpathList=jpaths)
+    >>> makeListOfJPatternsWithSpecificVals(PPListMap, key='initname', K='25')
+    ['demo-K=25-initname=random', 'demo-K=25-initname=smart']
+    >>> makeListOfJPatternsWithSpecificVals(PPListMap, key='initname')
+    ['demo-K=*-initname=random', 'demo-K=*-initname=smart']
+    '''
+    assert key in PPListMap
+    if vals is None:
+        vals = PPListMap[key]
+    jpattern = makeJPatternWithSpecificVals(PPListMap, **keyValPairs)
+    jpList = list()
+    for v in vals:
+        wildcardkey = "%s=*" % (key)
+        keyandval = "%s=%s" % (key, v)
+        jpath = jpattern.replace(wildcardkey, keyandval)
+        jpList.append(jpath)
+    return jpList
+
+def makeJPatternWithSpecificVals(PPListMap,
+        prefixfilepath='',
+        **keyValPairs):
+    '''
+    Example
+    -------
+    >>> jpaths = []
+    >>> jpaths.append('demo-K=25-initname=random')
+    >>> jpaths.append('demo-K=25-initname=smart')
+    >>> jpaths.append('demo-K=50-initname=random')
+    >>> jpaths.append('demo-K=50-initname=smart')
+    >>> PPListMap = makePPListMapFromJPattern(jpathList=jpaths)
+    >>> makeJPatternWithSpecificVals(PPListMap, K='25')
+    'demo-K=25-initname=*'
+    >>> makeJPatternWithSpecificVals(PPListMap, initname='smart')
+    'demo-K=*-initname=smart'
+    '''
+    jpattern = ''
+    for key in PPListMap:
+        if len(jpattern) > 0:
+            jpattern += '-'
+
+        # Determine specific value to use next    
+        if len(PPListMap[key]) == 1:
+            val = PPListMap[key][0]
+        elif key in keyValPairs:
+            val = keyValPairs[key]
+        else:
+            val = '*'
+
+        # Append the value to jpattern string
+        if key.startswith('field'):
+            jpattern += val
+        else:
+            jpattern += '%s=%s' % (key, val)
+    if len(prefixfilepath) > 0:
+        jpattern = os.path.join(prefixfilepath, jpattern)
+    return jpattern
+
+def makePPListMapFromJPattern(jpathPattern=None,
+        jpathList=None,
+        verbose=0):
+    ''' Make dict that indicates all possible parameters for jobs.
+    
+    PPList stands for Possible Parameter List.
+
+    Example
+    -------
+    >>> jpaths = []
+    >>> jpaths.append('demo-K=25-initname=random')
+    >>> jpaths.append('demo-K=25-initname=smart')
+    >>> jpaths.append('demo-K=50-initname=random')
+    >>> jpaths.append('demo-K=50-initname=smart')
+    >>> jpaths.append('demo-K=100-initname=random')
+    >>> jpaths.append('demo-K=100-initname=smart')
+    >>> PPListMap = makePPListMapFromJPattern(jpathList=jpaths)
+    >>> PPListMap['K']
+    ['25', '50', '100']
+    >>> PPListMap['initname']
+    ['random', 'smart']
+
+    Returns
+    -------
+    PPListMap : dict mapping str param names to lists of possible values
+    '''
+    if jpathList is None:
+        if jpathPattern.count('*') == 0:
+            jpathPattern += "*"
+        jpathList = glob.glob(jpathPattern)
+
+    if verbose:
+        print 'Looking for jobs with pattern:'
+        print jpathPattern
+        print '%d candidates found' % (len(jpathList))
+        print '    (before filtering by keywords)'
+
+    if len(jpathList) == 0:
+        raise ValueError('No matching jobs found.')
+
+    PPDict = defaultdict(set)
+    for jID, jpath in enumerate(jpathList):
+        jdict = jpath2jdict(jpath)
+        if jID > 0:
+            if len(jdict.keys()) != len(PPDict.keys()):
+                raise ValueError('Inconsistent key lists!')
+            for key in jdict:
+                if key not in PPDict:
+                    raise ValueError('Inconsistent key lists!')        
+        for key in jdict:
+            PPDict[key].add(jdict[key])
+
+    PPListMap = OrderedDict()
+    for key in jdict:
+        try:
+            numvals = sorted([float(x) for x in PPDict[key]])
+            vals = list()
+            for v in numvals:
+                for s in PPDict[key]:
+                    if float(s) == v:
+                        vals.append(s)
+        except ValueError:
+            vals = [str(x) for x in sorted(PPDict[key])]
+        PPListMap[key] = vals
+    return PPListMap
+
 
 def filterJobs(jpathPattern,
                returnAll=0, verbose=0, **reqKwArgs):
     for key in SkipKeys:
         if key in reqKwArgs:
             del reqKwArgs[key]
+
+    for key in reqKwArgs:
+        try:
+            reqKwArgs[key] = float(reqKwArgs[key])
+        except:
+            pass  # keep as string
 
     if not jpathPattern.endswith('*'):
         jpathPattern += '*'
@@ -86,12 +226,6 @@ def filterJobs(jpathPattern,
 
     if len(jpathList) == 0:
         raise ValueError('No matching jobs found.')
-
-    for key in reqKwArgs:
-        try:
-            reqKwArgs[key] = float(reqKwArgs[key])
-        except:
-            pass  # keep as string
 
     if verbose:
         print '\nRequirements:'
