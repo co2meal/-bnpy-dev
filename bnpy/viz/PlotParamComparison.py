@@ -5,8 +5,8 @@ Usage (command-line)
 -------
 ```
 python -m bnpy.viz.PlotParamComparison dataName jobpattern \
-    --colvar nu \
-    --linevar initname \
+    --pvar nu \
+    --lvar initname \
     --xvar sF \
     --yvar hamming-distance \
 ```
@@ -44,17 +44,18 @@ DefaultLinePlotKwArgs = dict(
     markersize=10, 
     linewidth=1.75, 
     label=None,
-    color='k', 
-    markeredgecolor='k')
+    color='k',
+    )
 
-Colors = [(0, 0, 0),  # black
-          (0, 0, 1),  # blue
-          (1, 0, 0),  # red
-          (0, 1, 0.25),  # green (darker)
-          (1, 0, 1),  # magenta
-          (0, 1, 1),  # cyan
-          (1, 0.6, 0),  # orange
-          ]
+DefaultColorList = [
+    (1, 0, 0),  # red
+    (0, 0, 0),  # black
+    (0, 0, 1),  # blue
+    (0, 1, 0.25),  # green (darker)
+    (1, 0, 1),  # magenta
+    (0, 1, 1),  # cyan
+    (1, 0.6, 0),  # orange
+    ]
 
 LabelMap = dict(laps='num pass thru data',
                 iters='num alg steps',
@@ -76,11 +77,10 @@ def plotManyPanelsByPVar(jpathPattern='/tmp/',
     '''
     prefixfilepath = os.path.sep.join(jpathPattern.split(os.path.sep)[:-1])
     PPListMap = makePPListMapFromJPattern(jpathPattern)
-
     if pvals is None:
         pvals = PPListMap[pvar]
-    print pvals
-
+    else:
+        pvals = [p for p in pvals if p in PPListMap[pvar]]
     jpathList = makeListOfJPatternsWithSpecificVals(PPListMap, 
         prefixfilepath=prefixfilepath,
         key=pvar,
@@ -101,7 +101,6 @@ def plotManyPanelsByPVar(jpathPattern='/tmp/',
         pylab.title('%s=%s' % (pvar, pvals[panelID]))
 
     pylab.subplots_adjust(bottom=0.15)
-    pylab.tight_layout()
 
     if savefilename is not None:
         try:
@@ -118,6 +117,7 @@ def plotManyPanelsByPVar(jpathPattern='/tmp/',
 
 def plotMultipleLinesByLVar(jpathPattern,
         lvar='initname', lvals=None,
+        ColorMap=DefaultColorList,
         loc=None, bbox_to_anchor=None,
         savefilename=None, tickfontsize=None, doShowNow=False,
         **kwargs):
@@ -127,17 +127,25 @@ def plotMultipleLinesByLVar(jpathPattern,
     PPListMap = makePPListMapFromJPattern(jpathPattern)
     if lvals is None:
         lvals = PPListMap[lvar]
-
+    else:
+        lvals = [ll for ll in lvals if ll in PPListMap[lvar]]
     jpathList = makeListOfJPatternsWithSpecificVals(PPListMap, 
         prefixfilepath=prefixfilepath,
         key=lvar,
         vals=lvals,
         **kwargs)
 
-    Colors = ['k','b','r','c','m']
     for lineID, line_jobPattern in enumerate(jpathList):
         line_label = '%s=%s' % (lvar, lvals[lineID])
-        line_color = Colors[lineID]
+        if isinstance(ColorMap, dict):
+            for label in [line_label, line_jobPattern]:
+                try:
+                    line_color = ColorMap[label]
+                except KeyError:
+                    line_color = DefaultColorList[lineID]
+        else:
+            # Access next elt in ColorMap list
+            line_color = ColorMap[lineID]
         plotSingleLineAcrossJobsByXVar(line_jobPattern,
             label=line_label,
             color=line_color,
@@ -207,6 +215,7 @@ def plotSingleLineAcrossJobsByXVar(jpathPattern,
     for key in plotargs:
         if key in kwargs:
             plotargs[key] = kwargs[key]
+    plotargs['markeredgecolor'] = plotargs['color']
     plotargs['label'] = label
     pylab.plot(xs, ys, lineStyle, **plotargs)
 
