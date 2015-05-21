@@ -85,11 +85,21 @@ def runViterbiAndSave(**kwargs):
         try:
             Data = kwargs['DataIterator'].Data
         except AttributeError:
-            raise ValueError('DataIterator has no full-dataset attribute Data')
+            from bnpy.data.DataIteratorFromDisk import loadDataForSlice
+            Dinfo = kwargs['DataIterator'].DataInfo
+            if 'evalDataPath' in Dinfo:
+                path = os.path.expandvars(Dinfo['evalDataPath'])
+                Data = loadDataForSlice(path, **Dinfo)
+            else:
+                raise ValueError('DataIterator has no attribute Data')
     else:
         return None
 
-    learnAlgObj = kwargs['learnAlg']
+    if 'savedir' in kwargs:
+        savedir = kwargs['savedir']
+    elif 'learnAlg' in kwargs:
+        learnAlgObj = kwargs['learnAlg']
+        savedir = learnAlgObj.savedir
     hmodel = kwargs['hmodel']
     lapFrac = kwargs['lapFrac']
 
@@ -111,7 +121,7 @@ def runViterbiAndSave(**kwargs):
     # Store MAP sequence to file
     prefix = makePrefixForLap(lapFrac)
     matfilepath = os.path.join(
-        learnAlgObj.savedir,
+        savedir,
         prefix +
         'MAPStateSeqs.mat')
     MATVarsDict = dict(
@@ -120,7 +130,7 @@ def runViterbiAndSave(**kwargs):
 
     zHatFlat = StateSeqUtil.convertStateSeq_list2flat(zHatBySeq, Data)
     Keff = np.unique(zHatFlat).size
-    Kefftxtpath = os.path.join(learnAlgObj.savedir, 'Keff-saved-params.txt')
+    Kefftxtpath = os.path.join(savedir, 'Keff-saved-params.txt')
     with open(Kefftxtpath, 'a') as f:
         f.write('%d\n' % (Keff))
 
@@ -136,7 +146,7 @@ def runViterbiAndSave(**kwargs):
             zHatBySeqAligned)
 
         MATVarsDict = dict(zHatBySeqAligned=zHatBySeqAligned_Arr)
-        matfilepath = os.path.join(learnAlgObj.savedir,
+        matfilepath = os.path.join(savedir,
                                    prefix + 'MAPStateSeqsAligned.mat')
         scipy.io.savemat(matfilepath, MATVarsDict, oned_as='row')
 

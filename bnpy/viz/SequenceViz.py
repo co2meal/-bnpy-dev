@@ -80,7 +80,10 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
     jobpath = os.path.join(os.path.expandvars('$BNPYOUTDIR'),
                            Datamod.get_short_name(), jobname)
     if isinstance(taskids, str):
-        taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
+        if taskids.startswith('.'):
+            taskids = [taskids]
+        else:
+            taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
     elif isinstance(taskids, int):
         taskids = [str(taskids)]
 
@@ -123,6 +126,7 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
 
             hdists = np.loadtxt(os.path.join(path, 'hamming-distance.txt'))
             hlaps = np.loadtxt(os.path.join(path, 'laps-saved-params.txt'))
+            Keffvals = np.loadtxt(os.path.join(path, 'Keff-saved-params.txt'))
 
             loc = np.argmin(np.abs(laps - curLap))
             ELBO = ELBOscores[loc]
@@ -130,6 +134,7 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
 
             loc = np.argmin(np.abs(hlaps - curLap))
             hdist = hdists[loc]
+            Kefffinal = Keffvals[loc]
 
         # Load in the saved Data from $BNPYOUTDIR
         try:
@@ -188,8 +193,15 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
 
             if ii == 0:
                 if showELBOInTitle:
-                    cur_ax.set_title(
-                        'ELBO: %.3f  K=%d  dist=%.2f' % (ELBO, Kfinal, hdist))
+                    fmtSpec = "ELBO: %.3f  K=%d Keff=%d  "
+                    if hdist > 0.01:
+                        fmtSpec += "dist=%.2f"
+                    elif hdist > 0.001:
+                        fmtSpec += "dist=%.3f"
+                    else:
+                        fmtSpec += "dist=%.4f"
+                    title = fmtSpec % (ELBO, Kfinal, Kefffinal, hdist)
+                    cur_ax.set_title(title)
 
             cur_ax.set_xlim([0, maxT])
             cur_ax.set_ylim([0, image.shape[0]])
