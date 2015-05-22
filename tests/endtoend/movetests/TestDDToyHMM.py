@@ -41,3 +41,16 @@ class Test(MergeMoveEndToEndTest):
                 kwargs['hmmKappa'] = hmmKappa
                 kwargs['startAlpha'] = startAlpha
                 yield kwargs
+
+    def test_initStateSeq(self):
+        from bnpy.init.SingleSeqStateCreator import initSingleSeq_SeqAllocContigBlocks
+        for aKwArgs in self.nextAllocKwArgsForVB():
+            for oKwArgs in self.nextObsKwArgsForVB():
+                hmodel = bnpy.HModel.CreateEntireModel(
+                    'VB', aKwArgs['name'], oKwArgs['name'],
+                    aKwArgs, oKwArgs, self.Data)
+                n = 0
+                SS_n, LP_n = initSingleSeq_SeqAllocContigBlocks(
+                    n, self.Data, hmodel,
+                    verbose=True)
+                return
