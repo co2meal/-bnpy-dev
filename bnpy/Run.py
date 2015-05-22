@@ -201,6 +201,12 @@ def _run_task_internal(jobname, taskid, nTask,
         os.symlink(os.getenv('SGE_STDERR_PATH'),
                    os.path.join(taskoutpath, 'stderr'))
 
+        with open(os.path.join(taskoutpath, 'GridInfo.txt'), 'w') as f:
+            f.write(str(jobID) + "\n")
+            f.write(str(taskid) + "\n")
+            f.write('stdout: ' + os.getenv('SGE_STDOUT_PATH') + "\n")
+            f.write('stderr: ' + os.getenv('SGE_STDERR_PATH') + "\n")
+
     # Write descriptions to the log
     if taskid == 1 or jobID > 0:
         # Warn user about any unknown keyword arguments
