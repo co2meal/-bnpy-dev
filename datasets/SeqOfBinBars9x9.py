@@ -8,7 +8,18 @@ There are K=20 true topics
 * one common background topic (with prob of 0.05 for all pixels)
 * one rare foreground topic (with prob of 0.90 for all pixels)
 * 18 bar topics, one for each row/col of the grid.
+
+The basic idea is that the background topic is by far most common.
+It takes over 50% of all timesteps.
+The horizontal bars and the vertical bars form coherent groups,
+where we transition between each bar (1-9) in a standard step-by-step way.
+
+The rare foreground topic simulates the rare "artificial" phenomena 
+reported by some authors, of unusual all-marks-on bursts in chr data.
 '''
+import os
+import sys
+import scipy.io
 import numpy as np
 from bnpy.data import GroupXData
 from bnpy.util import as1D
@@ -16,12 +27,16 @@ from bnpy.util import as1D
 K = 20 # Number of topics
 D = 81 # Vocabulary Size
 
+bgStateID = 18
+fgStateID = 19
+
 Defaults = dict()
-Defaults['nDocTotal'] = 12
-Defaults['T'] = 500
+Defaults['nDocTotal'] = 50
+Defaults['T'] = 10000
 Defaults['bgProb'] = 0.05
 Defaults['fgProb'] = 0.90
 Defaults['seed'] = 8675309
+Defaults['maxTConsec'] = Defaults['T']/5.0
 
 def get_data(**kwargs):
     ''' Create dataset as bnpy DataObj object.
@@ -32,24 +47,38 @@ def get_data(**kwargs):
     return Data
 
 
-def makePi(stickyProb=0.96,  nextProb=0.03, extraStickyProb=0.995,
+def makePi(stickyProb=0.95, extraStickyProb=0.9999,
         **kwargs):
     ''' Make phi matrix that defines probability of each pixel.
     '''
-    bgProb = (1 - stickyProb - nextProb) / (K-2)
-    pi = bgProb * np.ones((K, K))
-    for k in xrange(18):
-        if k < 9:
-            # Horizontal bars
-            pi[k, k] = stickyProb
-            pi[k, (k+1) % 9] = nextProb
+    pi = np.zeros((K, K))
+    # Horizontal bars
+    for k in xrange(9):
+        pi[k, k] = stickyProb
+        if k == 8:
+            pi[k, bgStateID] = 1 - stickyProb
         else:
-            pi[k, k] = stickyProb
-            pi[k, 9 + (k+1) % 9] = nextProb
-    pi[-2, :] = (1 - extraStickyProb) / (K-1)
-    pi[-2, -2] = extraStickyProb
-    pi[-1, :] = (1 - stickyProb) / (K-1)
-    pi[-1, -1] = stickyProb
+            pi[k, (k+1) % 9] = 1 - stickyProb
+
+    # Vertical bars
+    for k in xrange(9, 18):
+        pi[k, k] = stickyProb
+        if k == 17:
+            pi[k, bgStateID] = 1 - stickyProb
+        else:
+            pi[k, 9 + (k+1) % 9] = 1 - stickyProb
+
+    pi[bgStateID, :] = 0.0
+    pi[bgStateID, bgStateID] = extraStickyProb
+    pi[bgStateID, 0] = 5.0 / 12 * (1-extraStickyProb)
+    pi[bgStateID, 9] = 5.0 / 12 * (1-extraStickyProb)
+    pi[bgStateID, fgStateID] = 2.0 / 12 * (1-extraStickyProb)
+    
+    mstickyProb = 0.5 * (stickyProb + extraStickyProb)
+    pi[fgStateID, :] = 0.0
+    pi[fgStateID, fgStateID] = mstickyProb
+    pi[fgStateID, bgStateID] = 1-mstickyProb
+    assert np.allclose(1.0, np.sum(pi,1))
     return pi
 
 def makePhi(fgProb=0.75, bgProb=0.05, **kwargs):
@@ -86,7 +115,7 @@ def generateDataset(**kwargs):
     allX = np.zeros((N,D))
     allZ = np.zeros(N, dtype=np.int32)
     
-    startStates = [0, 9, 18, 19]
+    startStates = [bgStateID, fgStateID]
     states0toKm1 = np.arange(K)
     # Each iteration generates one time-series/sequence
     # with starting state deterministically rotating among all states
@@ -98,21 +127,23 @@ def generateDataset(**kwargs):
         Z = np.zeros(T)
         X = np.zeros((T,D))
         nConsec = 0
-        for t in xrange(T):
-            if t == 0:
-                Z[0] = startStates[i % len(startStates)]
-            else:
+
+        Z[0] = startStates[i % len(startStates)]
+        X[0] = PRNG.rand(D) < phi[Z[0]]
+        for t in xrange(1, T):
+            if nConsec > kwargs['maxTConsec']:
+                # Force transition if we've gone on too long
                 transPi_t = transPi[Z[t-1]].copy()
-                if nConsec > T/4:
-                  transPi_t[Z[t-1]] = 0
-                  transPi_t /= transPi_t.sum()
-                Z[t] = PRNG.choice(states0toKm1, p=transPi_t)
+                transPi_t[Z[t-1]] = 0
+                transPi_t /= transPi_t.sum()
+            else:
+                transPi_t = transPi[Z[t-1]]
+            Z[t] = PRNG.choice(states0toKm1, p=transPi_t)
             X[t] = PRNG.rand(D) < phi[Z[t]]
             if Z[t] == Z[t-1]:
-              nConsec += 1
+                nConsec += 1
             else:
-              nConsec = 0
-
+                nConsec = 0
         allZ[start:stop] = Z
         allX[start:stop] = X
 
@@ -122,18 +153,52 @@ def generateDataset(**kwargs):
     TrueParams['Z'] = allZ
     return GroupXData(allX, doc_range=doc_range, TrueParams=TrueParams)
 
-if __name__ == '__main__':
-    import bnpy.viz.BernViz as BernViz
-    Data = get_data(nDocTotal=50)
-    for k in xrange(20):
+DefaultOutputDir = os.path.join(
+    os.environ['XHMMROOT'], 'datasets', 'SeqOfBinBars9x9')
+def saveDatasetToDisk(outputdir=DefaultOutputDir):
+    ''' Save dataset to disk for scalable experiments.
+    '''
+    Data = get_data()
+    for k in xrange(K):
         print 'N[%d] = %d' % (k, np.sum(Data.TrueParams['Z'] == k))
 
-    BernViz.plotCompsAsSquareImages(Data.TrueParams['phi'])
-    BernViz.pylab.show(block=True)
-    # startStates = [0, 9, 18, 19]
-    # for i in xrange(4):
-    #     start = Data.doc_range[i]
-    #     k = startStates[i]
-    #     print 'Showing 4 examples from cluster %d' % (k)
-    #     BernViz.plotDataAsSquareImages(
-    #         Data, unitIDsToPlot=np.arange(start, start+4), doShowNow=1)
+    # Save it as batches
+    nDocPerBatch = 2
+    nBatch = Data.nDocTotal // nDocPerBatch
+
+    for batchID in xrange(nBatch):
+        mask = np.arange(batchID*nDocPerBatch, (batchID+1)*nDocPerBatch)
+        Dbatch = Data.select_subset_by_mask(mask, doTrackTruth=1)
+
+        outmatpath = os.path.join(outputdir, 'batches/batch%02d.mat' % (batchID))
+        Dbatch.save_to_mat(outmatpath)
+    with open(os.path.join(outputdir, 'batches/Info.conf'), 'w') as f:
+        f.write('datasetName = SeqOfBinBars9x9\n')
+        f.write('nBatchTotal = %d\n' % (nBatch))
+        f.write('nDocTotal = %d\n' % (Data.nDocTotal))
+
+    Dsmall = Data.select_subset_by_mask([0,1], doTrackTruth=1)
+    Dsmall.save_to_mat(os.path.join(outputdir, 'HMMdataset.mat'))
+
+
+if __name__ == '__main__':
+    import scipy.io
+    import bnpy.viz.BernViz as BernViz
+    # saveDatasetToDisk()
+    # BernViz.plotCompsAsSquareImages(Data.TrueParams['phi'])
+
+    Data = get_data(nDocTotal=2)
+
+    pylab = BernViz.pylab
+    pylab.subplots(nrows=1, ncols=Data.nDoc)
+    for d in xrange(2):
+        start = Data.doc_range[d]
+        stop = Data.doc_range[d+1]
+        pylab.subplot(1, Data.nDoc, d+1)
+        Xim = Data.X[start:stop]
+        pylab.imshow(Xim,
+            interpolation='nearest', cmap='bone',
+            aspect=Xim.shape[1]/float(Xim.shape[0]),
+            )
+        pylab.ylim([np.minimum(stop-start,5000), 0])
+    pylab.show(block=True)
