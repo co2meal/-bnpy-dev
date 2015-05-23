@@ -1,124 +1,208 @@
 import numpy as np
 
-from FromTruth import convertLPFromHardToSoft
+from bnpy.deletemove.DEvaluator import runDeleteMoveAndUpdateMemory
 
-def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel,
-        seed=0,
+def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel, 
+        SS=None,
         Kmax=50,
         initBlockLen=20,
-        verbose=False,
+        verbose=0,
         **kwargs):
     ''' Initialize LP and SS for one single sequence.
 
     Returns
     -------
+    SS : aggregate sufficient stats
     SS_n : sufficient stats for this sequence
     LP_n : local parameters for this sequence
     '''
-    assert hasattr(Data, 'nDoc')
-    Data_n = Data.select_subset_by_mask([n], doKeepTruth=1)
+    if verbose:
+        print '<<<<<<<<<<<<<<<< Creating states for seq. %d' % (n)
 
+    assert hasattr(Data, 'nDoc')
+    Data_n = Data.select_subset_by_mask([n], doTrackTruth=1)
     obsModel = hmodel.obsModel
 
-    SSprev = None
     resp_n = np.zeros((Data_n.nObs, Kmax))
-    SS_n = None
-    K_n = 1
+    if SS is None:
+        K = 1
+        SSobsonly = None
+    else:
+        K = SS.K + 1
+        SSobsonly = SS.copy()
+
+    SSprevComp = None
+
     blockTuples = getListOfContigBlocks(Data_n)
     for blockID, (a, b) in enumerate(blockTuples):
         SSab = obsModel.calcSummaryStatsForContigBlock(
             Data_n, a=a, b=b)
 
-        if blockID == 0:
-            SSprev = SSab
-            resp_n[a:b] = K_n
+        if hasattr(Data_n, 'TrueParams'):
+            Zab = Data_n.TrueParams['Z'][a:b]
+            trueStateIDstr = ', '.join(['%d:%d' % (kk, np.sum(Zab==kk)) 
+                for kk in np.unique(Zab)])
+            trueStateIDstr = ' truth: ' + trueStateIDstr
+        else:
+            trueStateIDstr = ''
 
-            if verbose:
+        if blockID == 0:
+            SSprevComp = SSab
+            resp_n[a:b, K-1] = 1
+
+            print verbose
+            if verbose >= 2:
                 print "block %d/%d: %d-%d" % (blockID, len(blockTuples), a, b),
-                print 'assigned to first state %d' % (K_n)
+                print 'assigned to first state %d' % (K-1), trueStateIDstr
+
             continue
 
         # Should we merge current interval [a,b] with previous state?
         ELBOimprovement = obsModel.calcHardMergeGap_SpecificPairSS(
-            SSprev, SSab)
+            SSprevComp, SSab)
         if (ELBOimprovement >= -0.000001):
             # Positive means we merge block [a,b] with previous state
-            SSprev += SSab
-            resp_n[a:b] = K_n
-            if verbose:
+            SSprevComp += SSab
+            resp_n[a:b, K-1] = 1
+            if verbose >= 2:
                 print "block %d/%d: %d-%d" % (blockID, len(blockTuples), a, b),
-                print 'building on existing state %d' % (K_n)
+                print 'building on existing state %d' % (K-1), trueStateIDstr
 
         else:
             # Insert finished block as a new component
-            if SS_n is None:
-                SS_n = SSprev
+            if SSobsonly is None:
+                SSobsonly = SSprevComp
             else:
-                SS_n.insertComps(SSprev)
+                # Remove any keys associated with alloc model
+                for key in SSobsonly._FieldDims.keys():
+                    if key not in SSprevComp._FieldDims:
+                        del SSobsonly._FieldDims[key]
+                SSobsonly.insertComps(SSprevComp)
 
-            # Recluster everythig before current position a
-            resp_n, SS_n = mergeDownLastStateIfPossible(
-                resp_n, SS_n, SSprev, obsModel, verbose=verbose)
-            K_n = SS_n.K
+            # Try to merge this new state into an already existing state
+            resp_n, K, SSobsonly = mergeDownLastStateIfPossible(
+                resp_n, K, SSobsonly, SSprevComp, obsModel, verbose=verbose)
 
             # Assign block [a,b] to a new state!
-            K_n += 1
-            resp_n[a:b] = K_n
-            SSprev = SSab
-            if verbose:
+            K += 1
+            resp_n[a:b, K-1] = 1
+            SSprevComp = SSab
+            if verbose >= 2:
                 print "block %d/%d: %d-%d" % (blockID, len(blockTuples), a, b),
-                print 'building on existing state %d' % (K_n)
+                print 'building on existing state %d' % (K-1), trueStateIDstr
 
+    # Deal with final block
+    if SSobsonly is not None:
+        # Remove any keys associated with alloc model
+        for key in SSobsonly._FieldDims.keys():
+            if key not in SSprevComp._FieldDims:
+                del SSobsonly._FieldDims[key]
+        SSobsonly.insertComps(SSprevComp)
+        resp_n, K, SSobsonly = mergeDownLastStateIfPossible(
+            resp_n, K, SSobsonly, SSprevComp, obsModel, verbose=verbose)
+    del SSobsonly
 
-    # Act on the final block
-    SS_n.insertComps(SSprev)
-    assert np.allclose(SS_n.N.sum(), Data_n.nObs)
+    nRep = 3
+    for rep in range(nRep):
+        if rep == 0:
+            LP_n = dict(resp=resp_n[:, :K])
+            LP_n = hmodel.allocModel.initLPFromResp(Data_n, LP_n)
+        else:
+            LP_n = hmodel.calc_local_params(Data_n)
 
-    # Recluster everythig before current position a
-    resp_n, SS_n = mergeDownLastStateIfPossible(
-        resp_n, SS_n, SSprev, obsModel)
-    K_n = SS_n.K
+        SS_n = hmodel.get_global_suff_stats(Data_n, LP_n)
+        assert np.allclose(SS_n.N.sum(), Data_n.nObs)
+        
+        # Update whole-dataset stats
+        if rep == 0:
+            prevSS_n = SS_n
+            if SS is None:
+                SS = SS_n.copy()
+            else:
+                SS.insertEmptyComps(SS_n.K - SS.K)
+                SS += SS_n
+        else:
+            SS -= prevSS_n
+            SS += SS_n
+            prevSS_n = SS_n
 
-    LP_n = dict(resp=resp_n)
+        if rep == nRep - 1:
+            order = np.argsort(-1 * SS.N)
+            SS_n.reorderComps(order)
+            SS.reorderComps(order)
+        hmodel.update_global_params(SS)
+        for i in range(3):
+            hmodel.allocModel.update_global_params(SS)
 
+    # Try deleting any UIDs unique to this sequence with small size
+    K_n = np.sum(SS_n.N > 0.01)
+    IDs_n = np.flatnonzero(SS_n.N <= initBlockLen)
+    candidateUIDs = list()
+    for uID in IDs_n:
+        if np.allclose(SS.N[uID], SS_n.N[uID]):
+            candidateUIDs.append(uID)
+    if len(candidateUIDs) > 0:
+        SS.uIDs = np.arange(SS.K)
+        SS_n.uIDs = np.arange(SS.K)
+        Plan = dict(
+            candidateUIDs=candidateUIDs,
+            DTargetData=Data_n,
+            targetSS=SS_n,
+            )
+        hmodel, SS, _, DResult = runDeleteMoveAndUpdateMemory(
+            hmodel, SS, Plan,
+            nRefineIters=2,
+            LPkwargs=dict(limitMemoryLP=1),
+            SSmemory=None,
+            Kmax=Kmax,
+            )
+        if verbose >= 2:
+            print 'Cleanup deletes: %d/%d accepted' % (
+                DResult['nAccept'], DResult['nTotal'])
+        delattr(SS, 'uIDs')
+        delattr(SS_n, 'uIDs')
+        K_n -= DResult['nAccept']
     if verbose:
         K_true = len(np.unique(Data_n.TrueParams['Z']))
-        print 'Total states: %d' % (K_n)
-        print 'Total true states: %d' % (K_true)
-    return SS_n, LP_n
+        print 'Total states: %d' % (SS.K)
+        print 'Total states in cur seq: %d' % (K_n)
+        print 'Total true states in cur seq: %d' % (K_true)
+    from IPython import embed; embed()
+    return SS, SS_n, LP_n
 
 
 
-def mergeDownLastStateIfPossible(resp_n, SS_n, SSlast, obsModel,
+def mergeDownLastStateIfPossible(resp_n, K_n, SS, SSprevComp, obsModel,
         verbose=False):
     ''' Try to merge the last state into the existing set.
 
     Returns
     -------
-    SS_n : SuffStatBag
     resp_n : 2D array, size T x Kmax
+    K_n : int
+        total number of states used by sequence n
+    SS_n : SuffStatBag
     '''
-    K_n = SS_n.K
     if K_n == 1:
-        return resp_n, SS_n
+        return resp_n, K_n, SS
 
     kB = K_n - 1
     gaps = np.zeros(K_n - 1)
     for kA in xrange(K_n - 1):
-        gaps[kA] = obsModel.calcHardMergeGap_SpecificPairSS(
-            SS_n.getComp(kA, doCollapseK1=0), SSlast)
+        SS_kA = SS.getComp(kA, doCollapseK1=0)
+        gaps[kA] = obsModel.calcHardMergeGap_SpecificPairSS(SS_kA, SSprevComp)
     kA = np.argmax(gaps)
     if gaps[kA] > -0.00001:
         if verbose:
             print "merging this block into state %d" % (kA)
-        SS_n.mergeComps(kA, kB)
+        SS.mergeComps(kA, kB)
         mask = resp_n[:, kB] > 0
         resp_n[mask, kA] = 1
         resp_n[mask, kB] = 0
-        return resp_n, SS_n
+        return resp_n, K_n - 1, SS
     else:
-        # No merge possible
-        return resp_n, SS_n
+        # No merge would be accepted
+        return resp_n, K_n, SS
 
 def getListOfContigBlocks(Data_n=None, initBlockLen=20, T=None):
     ''' Generate tuples identifying contiguous blocks within given seq.

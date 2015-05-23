@@ -49,8 +49,10 @@ class Test(MergeMoveEndToEndTest):
                 hmodel = bnpy.HModel.CreateEntireModel(
                     'VB', aKwArgs['name'], oKwArgs['name'],
                     aKwArgs, oKwArgs, self.Data)
-                n = 0
-                SS_n, LP_n = initSingleSeq_SeqAllocContigBlocks(
-                    n, self.Data, hmodel,
-                    verbose=True)
-                return
+                SS = None
+                for n in range(self.Data.nDoc):
+                    SS, _, _ = initSingleSeq_SeqAllocContigBlocks(
+                        n, self.Data, hmodel,
+                        SS=SS,
+                        verbose=1)
+                assert SS.K >= self.Data.TrueParams['K']
