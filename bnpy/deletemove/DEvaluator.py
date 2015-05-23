@@ -14,7 +14,7 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
                                  SSmemory=None,
                                  Kmax=np.inf,
                                  lapFrac=None,
-                                 deleteNontargetStrategy='merge',
+                                 deleteNontargetStrategy='forget',
                                  doVizDelete=0,
                                  **kwargs):
     """ Propose model with fewer comps and accept if ELBO improves.
@@ -41,11 +41,11 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
     bestSS and each entry of SSmemory have NO ELBO or Merge terms.
     """
 
-    msg = '<<<<<<<<<<<<<<<<<<<< DEvaluator.runDeleteMove @ lap %6.2f' \
-        % (np.ceil(lapFrac))
-    DeleteLogger.log(msg)
-    DeleteLogger.log('Target Size: %d' % (
-        getSize(Plan['DTargetData'])))
+    if lapFrac is not None:
+        msg = '<<<<<<<<<<<<<<<<<<<< DEvaluator.runDeleteMove @ lap %6.2f' \
+            % (np.ceil(lapFrac))
+        DeleteLogger.log(msg)
+        DeleteLogger.log('Target Size: %d' % (getSize(Plan['DTargetData'])))
 
 
     if SSmemory is None:
@@ -55,7 +55,8 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
     if curSS.K == 1:
         Plan['didAccept'] = 0
         Plan['acceptedUIDs'] = list()
-        DeleteLogger.log('ABANDONED. Cannot delete when K=1.')
+        if lapFrac is not None:
+            DeleteLogger.log('ABANDONED. Cannot delete when K=1.')
         return curModel, curSS, SSmemory, Plan
 
     # bestModel, bestSS represent best so far
@@ -78,10 +79,13 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
     acceptedUIDs = list()
     acceptedPairs = list()
     for delCompUID in Plan['candidateUIDs']:
-        DeleteLogger.log('Deleting UID %d... ' % (delCompUID))
+
+        if lapFrac is not None:
+            DeleteLogger.log('Deleting UID %d... ' % (delCompUID))
 
         if bestSS.K == 1:
-            DeleteLogger.log('  skipped. Cannot delete when K=1.')
+            if lapFrac is not None:
+                DeleteLogger.log('  skipped. Cannot delete when K=1.')
             continue  # Don't try to remove the final comp!
 
         delCompID = np.flatnonzero(bestSS.uIDs == delCompUID)[0]
@@ -230,11 +234,11 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
             levelStr = 'info'
         else:
             levelStr = 'debug'
-        DeleteLogger.log(curMsg, levelStr)
-        DeleteLogger.log(propMsg, levelStr)
-        DeleteLogger.log(resultMsg, levelStr)
-        if deleteNontargetStrategy == 'merge':
-            DeleteLogger.log("mergeGap: %.4f" % mergeGap, levelStr)
+        if lapFrac is not None:
+            DeleteLogger.log(curMsg, levelStr)
+            DeleteLogger.log(propMsg, levelStr)
+            DeleteLogger.log(resultMsg, levelStr)
+
         if doVizDelete:
             from bnpy.viz.PlotComps import plotCompsFromHModel
             from matplotlib import pylab
@@ -272,6 +276,8 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
     Plan['didAccept'] = didAccept
     Plan['acceptedUIDs'] = acceptedUIDs
 
+    Plan['nAccept'] = len(acceptedUIDs)
+    Plan['nTotal'] = len(Plan['candidateUIDs'])
     # Update SSmemory to reflect accepted deletes
     if didAccept:
         bestSS.setELBOFieldsToZero()
