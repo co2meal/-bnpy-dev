@@ -11,6 +11,7 @@ import DeleteLogger
 
 def addDataFromBatchToPlan(Plan, hmodel, Dchunk, LPchunk,
                            uIDs=None,
+                           maxUID=-1,
                            batchID=0,
                            lapFrac=None,
                            isFirstBatch=0,
@@ -36,8 +37,12 @@ def addDataFromBatchToPlan(Plan, hmodel, Dchunk, LPchunk,
     * Target set has no items after the last batch.
     """
     assert uIDs is not None
-    assert len(uIDs) == hmodel.allocModel.K
-    assert len(uIDs) == hmodel.obsModel.K
+    # Remember that recent seqcreate moves
+    # can create more states in local params
+    # than are currently available in the whole-dataset model,
+    # because global step hasn't happened yet.
+    assert len(uIDs) >= hmodel.allocModel.K
+    assert len(uIDs) >= hmodel.obsModel.K
 
     if isFirstBatch:
         msg = '<<<<<<<<<<<<<<<<<<<< addDataFromBatchToPlan @ lap %6.2f' \
@@ -91,14 +96,37 @@ def addDataFromBatchToPlan(Plan, hmodel, Dchunk, LPchunk,
 
     # ----   targetSS tracks aggregate stats across batches
     if not hasValidKey(Plan, 'targetSS'):
+        Kextra = 0
         Plan['targetSS'] = targetSSchunk.copy()
     else:
+        Kextra = targetSSchunk.K - Plan['targetSS'].K
+        if Kextra > 0:
+            Plan['targetSS'].insertEmptyComps(Kextra)
         Plan['targetSS'] += targetSSchunk
+        curUIDs = Plan['targetSS'].uIDs
+        newUIDs = np.arange(maxUID-Kextra+1, maxUID+1)
+        Plan['targetSS'].uIDs = np.hstack([curUIDs, newUIDs])
 
     # ----    targetSSByBatch tracks batch-specific stats
     if not hasValidKey(Plan, 'targetSSByBatch'):
         Plan['targetSSByBatch'] = dict()
     Plan['targetSSByBatch'][batchID] = targetSSchunk
+
+    if np.allclose(lapFrac, np.ceil(lapFrac)):
+        # Update batch-specific info
+        # to account for any recent births
+        for batchID in Plan['targetSSByBatch']:
+            Kcur = Plan['targetSSByBatch'][batchID].K
+            Kfinal = targetSSchunk.K
+            Kextra = Kfinal - Kcur
+            if Kextra > 0:
+                curUIDs = Plan['targetSSByBatch'][batchID].uIDs
+                newUIDs = np.arange(maxUID-Kextra+1, maxUID+1)
+                newUIDs = np.hstack([curUIDs, newUIDs])
+
+                del Plan['targetSSByBatch'][batchID].uIDs
+                Plan['targetSSByBatch'][batchID].insertEmptyComps(Kextra)
+                Plan['targetSSByBatch'][batchID].uIDs = newUIDs
 
     return Plan
 
