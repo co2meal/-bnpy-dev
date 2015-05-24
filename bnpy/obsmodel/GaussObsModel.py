@@ -653,7 +653,11 @@ class GaussObsModel(AbstractObsModel):
         return Gaps
 
     def calcHardMergeGap_SpecificPairSS(self, SS1, SS2):
-        ''' Calc change in ELBO for merge of two K=1 suff stat bags into one comp
+        ''' Calc change in ELBO for merge of two K=1 suff stat bags.
+
+        Returns
+        -------
+        gap : scalar float
         '''
         assert SS1.K == 1
         assert SS2.K == 1

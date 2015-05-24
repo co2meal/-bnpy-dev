@@ -165,6 +165,22 @@ class BernObsModel(AbstractObsModel):
         '''
         return calcSummaryStats(Data, SS, LP, **kwargs)
 
+    def calcSummaryStatsForContigBlock(self, Data, a=0, b=0, **kwargs):
+        ''' Calculate summary stats for a contiguous block of the data.
+
+        Returns
+        --------
+        SS : SuffStatBag object, with 1 component.
+        '''
+        Xab = Data.X[a:b]  # 2D array, Nab x D
+        CountON = np.sum(Xab, axis=0)[np.newaxis, :]
+        CountOFF = (b-a) - CountON
+
+        SS = SuffStatBag(K=1, D=Data.dim)
+        SS.setField('Count1', CountON, dims=('K', 'D'))
+        SS.setField('Count0', CountOFF, dims=('K', 'D'))
+        return SS
+
     def forceSSInBounds(self, SS):
         ''' Force count vectors to remain positive
 
@@ -431,6 +447,32 @@ class BernObsModel(AbstractObsModel):
         for ii, (kA, kB) in enumerate(PairList):
             Gaps[ii] = self.calcHardMergeGap(SS, kA, kB)
         return Gaps
+
+    def calcHardMergeGap_SpecificPairSS(self, SS1, SS2):
+        ''' Calc change in ELBO for merge of two K=1 suff stat bags.
+
+        Returns
+        -------
+        gap : scalar float
+        '''
+        assert SS1.K == 1
+        assert SS2.K == 1
+
+        Prior = self.Prior
+        cPrior = c_Func(Prior.lam1, Prior.lam0)
+
+        # Compute cumulants of individual states 1 and 2
+        lam11, lam10 = self.calcPostParamsForComp(SS1, 0)
+        lam21, lam20 = self.calcPostParamsForComp(SS2, 0)
+        c1 = c_Func(lam11, lam10)
+        c2 = c_Func(lam21, lam20)
+
+        # Compute cumulant of merged state 1&2
+        SSM = SS1 + SS2
+        lamM1, lamM0 = self.calcPostParamsForComp(SSM, 0)
+        cM = c_Func(lamM1, lamM0)
+
+        return c1 + c2 - cPrior - cM
 
     def calcLogMargLikForComp(self, SS, kA, kB=None, **kwargs):
         ''' Calc log marginal likelihood of data assigned to given component

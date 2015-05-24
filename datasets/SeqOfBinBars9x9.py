@@ -151,6 +151,7 @@ def generateDataset(**kwargs):
     TrueParams['beta'] = np.mean(transPi, axis=0)
     TrueParams['phi'] = phi
     TrueParams['Z'] = allZ
+    TrueParams['K'] = K
     return GroupXData(allX, doc_range=doc_range, TrueParams=TrueParams)
 
 DefaultOutputDir = os.path.join(

@@ -13,21 +13,21 @@ class Test(MergeMoveEndToEndTest):
         """ Create the dataset
         """
         self.datasetArg = dict(
-            name='DDToyHMM', 
-            nDocTotal=16, 
-            nPerDoc=500,
+            name='SeqOfBinBars9x9', 
+            nDocTotal=4,
+            T=5000,
+            maxTConsec=500,
             )
         datasetMod = __import__(self.datasetArg['name'], fromlist=[])
         self.Data = datasetMod.get_data(**self.datasetArg)
-
+        
     def nextObsKwArgsForVB(self):
-        for sF in [0.1]:
-            for ECovMat in ['eye']:
-                kwargs = OrderedDict()
-                kwargs['name'] = 'Gauss'
-                kwargs['ECovMat'] = ECovMat
-                kwargs['sF'] = sF
-                yield kwargs
+        for lam in [0.1]:
+            kwargs = OrderedDict()
+            kwargs['name'] = 'Bern'
+            kwargs['lam1'] = lam
+            kwargs['lam0'] = lam            
+            yield kwargs
 
     def nextAllocKwArgsForVB(self):
         alpha = 0.5
@@ -42,6 +42,7 @@ class Test(MergeMoveEndToEndTest):
                 kwargs['startAlpha'] = startAlpha
                 yield kwargs
 
+
     def test_initStateSeq(self):
         from bnpy.init.SingleSeqStateCreator import initSingleSeq_SeqAllocContigBlocks
         for aKwArgs in self.nextAllocKwArgsForVB():
@@ -55,4 +56,3 @@ class Test(MergeMoveEndToEndTest):
                         n, self.Data, hmodel,
                         SS=SS,
                         verbose=1)
-                assert SS.K >= self.Data.TrueParams['K']
