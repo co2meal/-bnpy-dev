@@ -385,41 +385,45 @@ class MOVBBirthMergeAlg(MOVBAlg):
     def localStepWithBirthAtEachSeq(self, hmodel, SS, Dchunk, batchID, 
             lapFrac=0,
             **LPandMergeKwargs):
-        '''
+        ''' Do local step on provided data chunk, possibly making new states.
 
         Returns
         -------
         LPchunk : dict of local params for each seq in current batch
+            Number of states will be greater or equal to hmodel.obsModel.K
         '''
         from bnpy.init.SingleSeqStateCreator import \
             createSingleSeqLPWithNewStates
-        if lapFrac <= 2.0:
-            Kfresh = 3
-        elif lapFrac <= 5:
-            Kfresh = 2
+        if lapFrac <= self.algParams['seqcreate']['earlyLapDelim']:
+            Kfresh = self.algParams['seqcreate']['earlyKfresh']
+        elif lapFrac >= self.algParams['seqcreate']['creationStopLapDelim']:
+            Kfresh = 0
         else:
-            Kfresh = 1
+            Kfresh = self.algParams['seqcreate']['lateKfresh']
+        self.algParams['seqcreate']['Kfresh'] = Kfresh
+        self.algParams['seqcreate']['PRNG'] = self.PRNG
 
         tempModel = hmodel
         tempSS = SS
-        for n in xrange(Dchunk.nDoc):
-            Data_n = Dchunk.select_subset_by_mask([n])
-            LP_n = tempModel.calc_local_params(Data_n, **self.algParamsLP)
-            LP_n, tempModel, tempSS = createSingleSeqLPWithNewStates(
-                Data_n, LP_n, tempModel, SS=tempSS,
-                Kfresh=Kfresh)
+        if Kfresh > 0:
+            for n in xrange(Dchunk.nDoc):
+                Data_n = Dchunk.select_subset_by_mask([n])
+                LP_n = tempModel.calc_local_params(Data_n, **self.algParamsLP)
+                LP_n, tempModel, tempSS = createSingleSeqLPWithNewStates(
+                    Data_n, LP_n, tempModel, SS=tempSS,
+                    **self.algParams['seqcreate'])
 
+        # Do final analysis of all sequences in this chunk
+        # with fixed number of states
         LPandMergeKwargs.update(self.algParamsLP)
         LPchunk = tempModel.calc_local_params(Dchunk, **LPandMergeKwargs)
 
         Kresult = LPchunk['resp'].shape[1]
-        Kextra = Kresult - hmodel.obsModel.K
-        
+        Kextra = Kresult - hmodel.obsModel.K        
         if not self.isFirstBatch(lapFrac):
             Kr, Kx_prev = self.CreateRecords[np.ceil(lapFrac)]
             Kextra += Kx_prev
         self.CreateRecords[np.ceil(lapFrac)] = (Kresult, Kextra)
-
         return LPchunk
 
     def memoizedLocalStep(self, hmodel, Dchunk, batchID, **LPandMergeKwargs):
