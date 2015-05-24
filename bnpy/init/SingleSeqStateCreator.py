@@ -1,6 +1,93 @@
 import numpy as np
 
 from bnpy.deletemove.DEvaluator import runDeleteMoveAndUpdateMemory
+from bnpy.util.StateSeqUtil import calcContigBlocksFromZ
+
+def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel, 
+        SS=None,
+        verbose=0,
+        Kfresh=3,
+        minBlockSize=20,
+        nRefineIters=3,
+        PRNG=None,
+        seed=0,
+        **kwargs):
+    ''' Propose a new LP that has additional states unique to current sequence.
+
+    Returns
+    -------
+    LP_n : dict of local params, with K + Knew states (Knew >= 0)
+    '''
+    if PRNG is None:
+        PRNG = np.random.RandomState(seed)
+    tempModel = hmodel.copy()
+    tempSS = SS
+    if tempSS is not None:
+        tempSS = tempSS.copy()
+        if hasattr(tempSS, 'uIDs'):
+            delattr(tempSS, 'uIDs')
+
+    resp_n = LP_n['resp']
+    K = resp_n.shape[1]
+    origK = K
+    propK = K
+
+    propResp = np.zeros((resp_n.shape[0], resp_n.shape[1] + Kfresh))
+    propResp[:, :propK] = resp_n
+
+    Z_n = np.argmax(resp_n, axis=1)
+    blockSizes, blockStarts = calcContigBlocksFromZ(Z_n)
+    nBlocks = len(blockSizes)
+    blockOrder = np.arange(nBlocks)
+    PRNG.shuffle(blockOrder)
+    for blockID in blockOrder:
+        if blockSizes[blockID] <= minBlockSize:
+            continue
+        # Choose random subwindow of this block to create new state
+        wSize = PRNG.randint(minBlockSize, high=blockSizes[blockID])
+        wStart = PRNG.randint(blockSizes[blockID] - wSize)
+        wStart += blockStarts[blockID]
+        wStop = wStart + wSize
+
+        # Assign proposed window to new state
+        propK = propK + 1
+        propResp[wStart:wStop, :propK-1] = 0
+        propResp[wStart:wStop, propK-1] = 1
+
+        if propK == origK + Kfresh:
+            break
+
+    # Resegment with new states
+    propLP_n = tempModel.allocModel.initLPFromResp(
+        Data_n, dict(resp=propResp[:, :propK]))
+    
+    # Refine this segmentation via repeated local/global steps
+    for step in xrange(nRefineIters):
+        if step == 0:
+            if tempSS is not None and tempSS.K < propK:
+                tempSS.insertEmptyComps(propK - origK)
+        elif step > 0:
+            tempSS -= propSS_n
+        
+        propSS_n = tempModel.get_global_suff_stats(Data_n, propLP_n)
+        if tempSS is None:
+            tempSS = propSS_n.copy()
+        else:
+            tempSS += propSS_n
+
+        if step == nRefineIters - 1:
+            newIDs = np.arange(origK, propK)
+            for newID in reversed(newIDs):
+                if tempSS.N[newID] < 1:
+                    tempSS.removeComp(newID)
+
+        tempModel.update_global_params(tempSS)
+        propLP_n = tempModel.calc_local_params(Data_n, limitMemoryLP=1)
+
+    if propLP_n['evidence'] > LP_n['evidence']:
+        return propLP_n, tempModel, tempSS
+    else:
+        return LP_n, hmodel, SS
 
 def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel, 
         SS=None,
@@ -8,13 +95,14 @@ def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel,
         initBlockLen=20,
         verbose=0,
         **kwargs):
-    ''' Initialize LP and SS for one single sequence.
+    ''' Initialize single sequence using new states and existing ones.
 
     Returns
     -------
-    SS : aggregate sufficient stats
-    SS_n : sufficient stats for this sequence
-    LP_n : local parameters for this sequence
+    hmodel : HModel
+        represents whole dataset
+    SS : SuffStatBag
+        represents whole dataset
     '''
     if verbose:
         print '<<<<<<<<<<<<<<<< Creating states for seq. %d' % (n)
@@ -49,12 +137,9 @@ def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel,
         if blockID == 0:
             SSprevComp = SSab
             resp_n[a:b, K-1] = 1
-
-            print verbose
             if verbose >= 2:
                 print "block %d/%d: %d-%d" % (blockID, len(blockTuples), a, b),
                 print 'assigned to first state %d' % (K-1), trueStateIDstr
-
             continue
 
         # Should we merge current interval [a,b] with previous state?
@@ -102,8 +187,35 @@ def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel,
             resp_n, K, SSobsonly, SSprevComp, obsModel, verbose=verbose)
     del SSobsonly
 
-    nRep = 3
-    for rep in range(nRep):
+    hmodel, SS, SS_n = refineSegmentationViaLocalGlobalSteps(
+        SS, hmodel, Data_n, resp_n, K,
+        verbose=verbose)
+
+    hmodel, SS = removeSmallUniqueCompsViaDelete(
+        SS, hmodel, Data_n, SS_n, 
+        verbose=verbose,
+        initBlockLen=initBlockLen)
+
+    return hmodel, SS
+
+
+def refineSegmentationViaLocalGlobalSteps(
+        SS, hmodel, Data_n, resp_n, K,
+        verbose=0,
+        nSteps=3,
+        ):
+    '''
+
+    Returns
+    -------
+    hmodel : HModel
+        consistent with entire dataset
+    SS : SuffStatBag
+        representing whole dataset
+    SS_n : SuffStatBag
+        represents only current sequence n
+    '''
+    for rep in range(nSteps):
         if rep == 0:
             LP_n = dict(resp=resp_n[:, :K])
             LP_n = hmodel.allocModel.initLPFromResp(Data_n, LP_n)
@@ -126,14 +238,30 @@ def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel,
             SS += SS_n
             prevSS_n = SS_n
 
-        if rep == nRep - 1:
+        # Reorder the states from big to small
+        # using aggregate stats from entire dataset
+        if rep == nSteps - 1:
             order = np.argsort(-1 * SS.N)
             SS_n.reorderComps(order)
             SS.reorderComps(order)
         hmodel.update_global_params(SS)
         for i in range(3):
             hmodel.allocModel.update_global_params(SS)
+    return hmodel, SS, SS_n
 
+def removeSmallUniqueCompsViaDelete(
+        SS, hmodel, Data_n, SS_n,
+        initBlockLen=20,
+        verbose=0):
+    ''' Remove small comps unique to sequence n if accepted by delete move.
+
+    Returns
+    -------
+    hmodel : HModel
+        consistent with entire dataset
+    SS : SuffStatBag
+        representing whole dataset
+    '''
     # Try deleting any UIDs unique to this sequence with small size
     K_n = np.sum(SS_n.N > 0.01)
     IDs_n = np.flatnonzero(SS_n.N <= initBlockLen)
@@ -154,7 +282,6 @@ def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel,
             nRefineIters=2,
             LPkwargs=dict(limitMemoryLP=1),
             SSmemory=None,
-            Kmax=Kmax,
             )
         if verbose >= 2:
             print 'Cleanup deletes: %d/%d accepted' % (
@@ -167,10 +294,7 @@ def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel,
         print 'Total states: %d' % (SS.K)
         print 'Total states in cur seq: %d' % (K_n)
         print 'Total true states in cur seq: %d' % (K_true)
-    from IPython import embed; embed()
-    return SS, SS_n, LP_n
-
-
+    return hmodel, SS
 
 def mergeDownLastStateIfPossible(resp_n, K_n, SS, SSprevComp, obsModel,
         verbose=False):
@@ -193,7 +317,7 @@ def mergeDownLastStateIfPossible(resp_n, K_n, SS, SSprevComp, obsModel,
         gaps[kA] = obsModel.calcHardMergeGap_SpecificPairSS(SS_kA, SSprevComp)
     kA = np.argmax(gaps)
     if gaps[kA] > -0.00001:
-        if verbose:
+        if verbose >= 2:
             print "merging this block into state %d" % (kA)
         SS.mergeComps(kA, kB)
         mask = resp_n[:, kB] > 0
@@ -232,128 +356,3 @@ def getListOfContigBlocks(Data_n=None, initBlockLen=20, T=None):
                 b = T
             bList.append((a, b))
         return bList
-"""
-    if allocFieldNames is None:
-        allocFieldNames = hmodel.allocModel.getSummaryFieldNames()
-        allocFieldDims = hmodel.allocModel.getSummaryFieldDims()
-
-    obsModel = hmodel.obsModel
-
-    if hasattr(Data, 'doc_range'):
-        start = Data.doc_range[n]
-        stop = Data.doc_range[n + 1]
-        T = stop - start
-    else:
-        start = 0
-        T = Data.nObs
-    nBlocks = np.maximum(1, int(T // initBlockLen))
-
-    # Loop over each contig block of data, and assign it en masse to one
-    # cluster
-    Z = -1 * np.ones(T, dtype=np.int32)
-    SSagg = SS
-    tmpAllocFields = dict()
-    if SSagg is None:
-        kUID = 0
-        Norig = 0
-    else:
-        kUID = SSagg.K
-        Norig = SSagg.N.sum()
-        for key in allocFieldNames:
-            tmpAllocFields[key] = SSagg.removeField(key)
-
-    # We traverse the current sequence block by block,
-    # Indices a,b denote the start and end of the current block
-    # *in this sequence*
-    # SSactive denotes the most recent current stretch assigned to one comp
-    # SSab denotes the current block
-    for blockID in xrange(nBlocks):
-        if nBlocks == 1:
-            a = 0
-            b = T
-        elif blockID == 0:
-            # First block
-            a = 0
-            b = a + initBlockLen
-        elif blockID == nBlocks - 1:
-            # Final block
-            a = b
-            b = T
-        else:
-            # All interior blocks
-            a = b
-            b = a + initBlockLen
-
-        SSab = obsModel.calcSummaryStatsForContigBlock(
-            Data, a=start + a, b=start + b)
-        if blockID == 0:
-            Z[a:b] = kUID
-            SSactive = SSab
-            continue
-
-        ELBOgap = obsModel.calcHardMergeGap_SpecificPairSS(SSactive, SSab)
-        if (ELBOgap >= -0.000001):
-            # Positive means we prefer to assign block [a,b] to current state
-            # So combine the current block into the active block
-            # and move on to the next block
-            Z[a:b] = kUID
-            SSactive += SSab
-        else:
-            # Negative value means we assign block [a,b] to a new state!
-            Z[a:b] = kUID + 1
-            SSagg, Z = updateAggSSWithFinishedCurrentBlock(
-                SSagg, SSactive, Z, obsModel,
-                Kmax=Kmax + Kextra,
-                mergeToSimplify=mergeToSimplify)
-
-            # Create a new active block, starting at [a,b]
-            SSactive = SSab  # make a soft copy / alias
-            kUID = 1 * SSagg.K
-
-    # Final block needs to be recorded.
-    SSagg, Z = updateAggSSWithFinishedCurrentBlock(
-        SSagg, SSactive, Z, obsModel,
-        Kmax=Kmax + Kextra, mergeToSimplify=mergeToSimplify)
-
-    # Compute sequence-specific suff stats
-    # This includes allocmodel stats
-    if hasattr(Data, 'nDoc'):
-        Data_n = Data.select_subset_by_mask([n])
-    else:
-        Data_n = Data
-    LP_n = convertLPFromHardToSoft(dict(Z=Z), Data_n, startIDsAt0=True,
-                                   Kmax=SSagg.K)
-    LP_n = hmodel.allocModel.initLPFromResp(Data_n, LP_n)
-    SS_n = hmodel.get_global_suff_stats(Data_n, LP_n)
-
-    # Verify that our aggregate suff stats
-    # represent every single timestep in this sequence
-    assert np.allclose(SSagg.N.sum() - Norig, Z.size)
-    assert np.allclose(SS_n.N.sum(), Z.size)
-    for ii, key in enumerate(allocFieldNames):
-        dims = allocFieldDims[ii]
-        if key in tmpAllocFields:
-            arr, dims2 = tmpAllocFields[key]
-            assert dims == dims2
-            # Inflate with empties
-            if len(dims) == 2 and dims[0] == 'K' and dims[1] == 'K':
-                Kcur = arr.shape[0]
-                Kextra = SSagg.K - Kcur
-                if Kextra > 0:
-                    arrBig = np.zeros((SSagg.K, SSagg.K))
-                    arrBig[:Kcur, :Kcur] = arr
-                    arr = arrBig
-            elif len(dims) == 1 and dims[0] == 'K':
-                Kcur = arr.size
-                Kextra = SSagg.K - Kcur
-                if Kextra > 0:
-                    arr = np.append(arr, np.zeros(Kextra))
-
-            arr += getattr(SS_n, key)
-
-        else:
-            arr = getattr(SS_n, key).copy()
-        SSagg.setField(key, arr, dims)
-
-    return Z, SS_n, SSagg
-"""

@@ -393,14 +393,10 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
     '''
     algName = ReqArgs['algName']
     algP = KwArgs[algName]
-    for moveKey in ['birth', 'merge', 'shuffle', 'delete']:
+    for moveKey in ['birth', 'merge', 'shuffle', 'delete', 'seqcreate']:
         if moveKey in KwArgs:
+            hasMoves = True
             algP[moveKey] = KwArgs[moveKey]
-
-    outputP = KwArgs['OutputPrefs']
-    hasMoves = 'birth' in KwArgs or 'merge' in KwArgs \
-               or 'shuffle' in KwArgs or 'delete' in KwArgs
-
     if algName == 'EM':
         LearnAlgConstr = bnpy.learnalg.EMAlg
     elif algName == 'VB':
@@ -423,7 +419,7 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
         LearnAlgConstr = bnpy.learnalg.GSAlg
     else:
         raise NotImplementedError("Unknown learning algorithm " + algName)
-
+    outputP = KwArgs['OutputPrefs']
     learnAlg = LearnAlgConstr(
         savedir=savepath, seed=algseed,
         algParams=algP, outputParams=outputP)

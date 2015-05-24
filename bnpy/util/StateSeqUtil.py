@@ -3,7 +3,7 @@ import numpy as np
 from bnpy.util import as1D
 
 
-def calcHammingDistance(zTrue, zHat, excludeNegLabels=1,
+def calcHammingDistance(zTrue, zHat, excludeNegLabels=1, verbose=0,
         **kwargs):
     ''' Compute Hamming distance: sum of all timesteps with different labels.
 
@@ -41,7 +41,7 @@ def calcHammingDistance(zTrue, zHat, excludeNegLabels=1,
     if excludeNegLabels:
         assert np.sum(zHat < 0) == 0
         good_tstep_mask = zTrue >= 0
-        if np.sum(good_tstep_mask) < zTrue.size:
+        if verbose and np.sum(good_tstep_mask) < zTrue.size:
             print 'EXCLUDED %d/%d timesteps' % (np.sum(zTrue < 0), zTrue.size)
         dist = np.sum(zTrue[good_tstep_mask] != zHat[good_tstep_mask])
     else:
@@ -157,3 +157,40 @@ def convertStateSeq_MAT2list(zObjArr):
     for n in xrange(N):
         zListBySeq.append(np.squeeze(zObjArr[n, 0]))
     return zListBySeq
+
+def calcContigBlocksFromZ(Zvec):
+    ''' Identify contig blocks assigned to one state in Zvec
+
+    Examples
+    --------
+    >>> calcContigBlocksFromZ([0,0,0,0])
+    (array([ 4.]), array([ 0.]))
+    >>> calcContigBlocksFromZ([0,0,0,1,1])
+    (array([ 3.,  2.]), array([ 0.,  3.]))
+    >>> calcContigBlocksFromZ([0,1,0])
+    (array([ 1.,  1.,  1.]), array([ 0.,  1.,  2.]))
+    >>> calcContigBlocksFromZ([0,1,1])
+    (array([ 1.,  2.]), array([ 0.,  1.]))
+    >>> calcContigBlocksFromZ([6,6,5])
+    (array([ 2.,  1.]), array([ 0.,  2.]))
+
+    Returns
+    -------
+    blockStarts : 1D array of size B
+    blockSizes : 1D array of size B
+    '''
+    changePts = np.asarray(np.hstack([0, 
+        1+np.flatnonzero(np.diff(Zvec)),
+        len(Zvec)]), dtype=np.float64)
+    assert len(changePts) >= 2
+    chPtA = changePts[1:]
+    chPtB = changePts[:-1]
+    blockSizes = chPtA - chPtB
+    blockStarts = np.asarray(changePts[:-1], dtype=np.float64)
+    return blockSizes, blockStarts
+    
+
+
+if __name__ == '__main__':
+    import doctest
+    doctest.run_docstring_examples(calcContigBlocksFromZ, globals())
