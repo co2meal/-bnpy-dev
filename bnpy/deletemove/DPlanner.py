@@ -66,7 +66,7 @@ def makePlanForEligibleComps(SS, DRecordsByComp=None,
     else:
         nEligibleBySize = 0
 
-    DeleteLogger.log('%d/%d UIDs are eligible by size (1 <= size < %d)' % (
+    DeleteLogger.log('%d/%d UIDs are eligible by size (1 <= size <= %d)' % (
         SS.K - (Plan['nEmpty'] + Plan['nTooBig']), SS.K, dtargetMaxSize))
     DeleteLogger.log('  skipped %d/%d UIDs that are empty (size < 1)' % (
         Plan['nEmpty'], SS.K))
@@ -149,7 +149,7 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
         #SizeVec = 2 * CountVec  # conservative overestimate
 
     # ----    Find non-trivial states small enough to fit in target set
-    mask_smallEnough = SizeVec < dtargetMaxSize
+    mask_smallEnough = SizeVec <= dtargetMaxSize
     mask_nonTrivial = SizeVec >= 1
     eligibleIDs = np.flatnonzero(np.logical_and(
         mask_smallEnough, mask_nonTrivial))
@@ -157,7 +157,7 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
     nEmpty = np.sum(1 - mask_nonTrivial)
     nTooBig = np.sum(1 - mask_smallEnough)
     if np.sum(SizeVec >= dtargetMaxSize) > 0:
-        minTooBigSize = SizeVec[SizeVec >= dtargetMaxSize].min()
+        minTooBigSize = SizeVec[SizeVec > dtargetMaxSize].min()
     else:
         minTooBigSize = -1
 

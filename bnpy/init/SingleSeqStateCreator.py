@@ -1,14 +1,18 @@
+import copy
 import numpy as np
 
 from bnpy.deletemove.DEvaluator import runDeleteMoveAndUpdateMemory
 from bnpy.util.StateSeqUtil import calcContigBlocksFromZ
+from bnpy.data.XData import XData
 
 def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel, 
         SS=None,
         verbose=0,
         Kfresh=3,
         minBlockSize=20,
+        maxBlockSize=np.inf,
         nRefineIters=3,
+        creationProposalName='mixture',
         PRNG=None,
         seed=0,
         **kwargs):
@@ -18,6 +22,9 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
     -------
     LP_n : dict of local params, with K + Knew states (Knew >= 0)
     '''
+    kwargs['minBlockSize'] = minBlockSize
+    kwargs['PRNG'] = PRNG
+
     if PRNG is None:
         PRNG = np.random.RandomState(seed)
     tempModel = hmodel.copy()
@@ -28,34 +35,41 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
             delattr(tempSS, 'uIDs')
 
     resp_n = LP_n['resp']
-    K = resp_n.shape[1]
-    origK = K
-    propK = K
+    N, origK = resp_n.shape
 
-    propResp = np.zeros((resp_n.shape[0], resp_n.shape[1] + Kfresh))
-    propResp[:, :propK] = resp_n
+    propResp = np.zeros((N, origK + Kfresh))
+    propResp[:, :origK] = resp_n
 
     Z_n = np.argmax(resp_n, axis=1)
-    blockSizes, blockStarts = calcContigBlocksFromZ(Z_n)
-    nBlocks = len(blockSizes)
-    blockOrder = np.arange(nBlocks)
-    PRNG.shuffle(blockOrder)
-    for blockID in blockOrder:
-        if blockSizes[blockID] <= minBlockSize:
-            continue
-        # Choose random subwindow of this block to create new state
-        wSize = PRNG.randint(minBlockSize, high=blockSizes[blockID])
-        wStart = PRNG.randint(blockSizes[blockID] - wSize)
-        wStart += blockStarts[blockID]
-        wStop = wStart + wSize
 
-        # Assign proposed window to new state
-        propK = propK + 1
-        propResp[wStart:wStop, :propK-1] = 0
-        propResp[wStart:wStop, propK-1] = 1
+    # Target comps with sufficient size in this sequence
+    uIDs = np.unique(Z_n)
+    sizes = np.asarray([np.sum(Z_n == uID) for uID in uIDs])
+    elig_mask = sizes >= minBlockSize
+    if np.sum(elig_mask) == 0:
+        return LP_n, hmodel, SS
+    sizes = sizes[elig_mask]
+    uIDs = uIDs[elig_mask]
+    ktarget = PRNG.choice(uIDs)
 
-        if propK == origK + Kfresh:
-            break
+    if creationProposalName == 'mixture':
+        propResp, propK = proposeNewResp_DPMixtureOnTargetData(Z_n, propResp,
+            ktarget=ktarget,
+            origK=origK,
+            Kfresh=np.minimum(Kfresh,2),
+            tempModel=tempModel,
+            tempSS=tempSS,
+            Data_n=Data_n,
+            **kwargs)
+    elif creationProposalName == 'randwindows':    
+        propResp, propK = proposeNewResp_randomSubwindowsOfContigBlocks(
+            Z_n, propResp, PRNG=PRNG,
+            origK=origK, Kfresh=Kfresh, minBlockSize=0, maxBlockSize=10)
+    else:
+        msg = "Unrecognized creationProposalName: %s" % (creationProposalName)
+        raise NotImplementedError(msg)
+    if propK == origK:
+        return LP_n, hmodel, SS
 
     # Resegment with new states
     propLP_n = tempModel.allocModel.initLPFromResp(
@@ -75,6 +89,7 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
         else:
             tempSS += propSS_n
 
+        # At last step, remove proposals that are too small.
         if step == nRefineIters - 1:
             newIDs = np.arange(origK, propK)
             for newID in reversed(newIDs):
@@ -88,6 +103,123 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
         return propLP_n, tempModel, tempSS
     else:
         return LP_n, hmodel, SS
+
+def proposeNewResp_randomSubwindowsOfContigBlocks(Z_n, propResp,
+        origK=0,
+        Kfresh=3,
+        PRNG=np.random.RandomState,
+        minBlockSize=0,
+        maxBlockSize=10,
+        **kwargs):
+    ''' Create new value of resp matrix by randomly breaking up contig. blocks.
+
+    Returns
+    -------
+    propResp : 2D array, N x K'
+    '''
+    propK = origK
+
+    blockSizes, blockStarts = calcContigBlocksFromZ(Z_n)
+    nBlocks = len(blockSizes)
+    blockOrder = np.arange(nBlocks)
+    PRNG.shuffle(blockOrder)
+    for blockID in blockOrder:
+        if blockSizes[blockID] <= minBlockSize:
+            continue
+        # Choose random subwindow of this block to create new state
+        # min achievable size: minBlockSize + 1
+        # max size: maxBlockSize
+        maxBlockSize = np.minimum(maxBlockSize, blockSizes[blockID])
+        wSize = PRNG.randint(minBlockSize, high=maxBlockSize)
+        wStart = PRNG.randint(blockSizes[blockID] - wSize)
+        wStart += blockStarts[blockID]
+        wStop = wStart + wSize
+
+        # Assign proposed window to new state
+        propK = propK + 1
+        propResp[wStart:wStop, :propK-1] = 0
+        propResp[wStart:wStop, propK-1] = 1
+
+        if propK == origK + Kfresh:
+            break
+    return propResp, propK
+
+
+def proposeNewResp_DPMixtureOnTargetData(Z_n, propResp,
+        ktarget=0,
+        tempModel=None,
+        tempSS=None,
+        Data_n=None,
+        origK=0,
+        Kfresh=3,
+        minBlockSize=0,
+        maxBlockSize=10,
+        nVBIters=3,
+        **kwargs):
+    ''' Create new resp matrix by DP mixture clustering of subsampled data.
+
+    Returns
+    -------
+    propResp : 2D array, N x K'
+    '''
+    # Avoid circular imports
+    from bnpy.allocmodel import DPMixtureModel
+    from bnpy import HModel
+    from bnpy.mergemove import MergePlanner, MergeMove
+
+    relDataIDs = np.flatnonzero(Z_n == ktarget)
+    if hasattr(Data_n, 'Xprev'):
+        Xprev = Data_n.Xprev[relDataIDs]
+    targetData = XData(X=Data_n.X[relDataIDs],
+        Xprev=Xprev)
+
+    myDPModel = DPMixtureModel('VB', gamma0=10)
+    myObsModel = copy.deepcopy(tempModel.obsModel)
+    delattr(myObsModel, 'Post')
+    myObsModel.ClearCache()
+
+    myHModel = HModel(myDPModel, myObsModel)
+    myHModel.init_global_params(targetData, initname='randexamplesbydist',
+        K=Kfresh)
+    Kfresh = myHModel.obsModel.K
+    mergeIsPromising = True
+    while Kfresh > 1 and mergeIsPromising:
+        for vbiter in xrange(nVBIters):
+            targetLP = myHModel.calc_local_params(targetData)
+            targetSS = myHModel.get_global_suff_stats(targetData, targetLP)
+            # Delete unnecessarily small comps
+            if vbiter == nVBIters - 1:
+                smallIDs = np.flatnonzero(targetSS.getCountVec() < 5)
+                for kdel in reversed(smallIDs):
+                    targetSS.removeComp(kdel)
+            # Global step
+            myHModel.update_global_params(targetSS)
+
+        # Do merges
+        mPairIDs, MM = MergePlanner.preselect_candidate_pairs(myHModel, targetSS,
+             preselect_routine='wholeELBO',
+             doLimitNumPairs=0,
+             returnScoreMatrix=1,
+             **kwargs)
+        targetLP = myHModel.calc_local_params(targetData)
+        targetSS = myHModel.get_global_suff_stats(targetData, targetLP,
+            mPairIDs=mPairIDs,
+            doPrecompEntropy=1,
+            doPrecompMergeEntropy=1)
+        myHModel.update_global_params(targetSS)
+        curELBO = myHModel.calc_evidence(SS=targetSS)
+        myHModel, targetSS, curELBO, Info = MergeMove.run_many_merge_moves(
+            myHModel, targetSS, curELBO,
+            mPairIDs, M=MM,
+            isBirthCleanup=1)
+        mergeIsPromising = len(Info['AcceptedPairs']) > 0
+        Kfresh = targetSS.K
+
+    if mergeIsPromising:
+        targetLP = myHModel.calc_local_params(targetData)
+    propResp[relDataIDs, :] = 0
+    propResp[relDataIDs, origK:origK+Kfresh] = targetLP['resp']
+    return propResp, origK+Kfresh
 
 def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel, 
         SS=None,
