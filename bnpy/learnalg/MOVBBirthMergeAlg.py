@@ -179,9 +179,16 @@ class MOVBBirthMergeAlg(MOVBAlg):
             # Local/E step
             self.algParamsLP['lapFrac'] = lapFrac
             self.algParamsLP['batchID'] = batchID
-            LPchunk = self.memoizedLocalStep(hmodel, Dchunk, batchID,
-                                             **MergePrepInfo)
 
+            if self.hasMove('seqcreate'):
+                LPchunk = self.localStepWithBirthAtEachSeq(
+                    hmodel, SS, Dchunk, batchID, 
+                    lapFrac=lapFrac,
+                    **MergePrepInfo)
+            else:
+                LPchunk = self.memoizedLocalStep(hmodel, Dchunk, batchID,
+                                             **MergePrepInfo)
+            
             # Summary step
             SS, SSchunk = self.memoizedSummaryStep(hmodel, SS,
                                                    Dchunk, LPchunk, batchID,
@@ -365,6 +372,37 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
         return False
 
+    def localStepWithBirthAtEachSeq(self, hmodel, SS, Dchunk, batchID, 
+            lapFrac=0,
+            **LPandMergeKwargs):
+        '''
+
+        Returns
+        -------
+        LPchunk : dict of local params for each seq in current batch
+        '''
+        from bnpy.init.SingleSeqStateCreator import \
+            createSingleSeqLPWithNewStates
+        if lapFrac <= 2.0:
+            Kfresh = 3
+        elif lapFrac <= 5:
+            Kfresh = 2
+        else:
+            Kfresh = 1
+
+        tempModel = hmodel
+        tempSS = SS
+        for n in xrange(Dchunk.nDoc):
+            Data_n = Dchunk.select_subset_by_mask([n])
+            LP_n = tempModel.calc_local_params(Data_n, **self.algParamsLP)
+            LP_n, tempModel, tempSS = createSingleSeqLPWithNewStates(
+                Data_n, LP_n, tempModel, SS=tempSS,
+                Kfresh=Kfresh)
+
+        LPandMergeKwargs.update(self.algParamsLP)
+        LPchunk = tempModel.calc_local_params(Dchunk, **LPandMergeKwargs)
+        return LPchunk
+
     def memoizedLocalStep(self, hmodel, Dchunk, batchID, **LPandMergeKwargs):
         ''' Execute local step on data chunk.
 
@@ -463,15 +501,25 @@ class MOVBBirthMergeAlg(MOVBAlg):
                                                doPrecompEntropy=1,
                                                trackDocUsage=trackDocUsage,
                                                **MergePrepInfo)
+        if SSchunk.K > self.ActiveIDVec.size:
+           for newCompID in np.arange(self.ActiveIDVec.size, SSchunk.K):
+                self.maxUID += 1
+                self.ActiveIDVec = np.hstack([
+                    self.ActiveIDVec, self.maxUID])
         SSchunk.setUIDs(self.ActiveIDVec.copy())
+        assert np.allclose(SSchunk.uIDs, self.ActiveIDVec)
 
         # Increment aggregated SS by adding in SSchunk
         if SS is None:
             SS = SSchunk.copy()
         else:
+            if SS.K < SSchunk.K:
+                # Catch up by added empty comps
+                SS.insertEmptyComps(SSchunk.K - SS.K)
+                SS.setUIDs(self.ActiveIDVec.copy())
+
             assert SSchunk.K == SS.K
             assert np.allclose(SS.uIDs, self.ActiveIDVec)
-            assert np.allclose(SSchunk.uIDs, self.ActiveIDVec)
             SS += SSchunk
             if not SS.hasSelectionTerms() and SSchunk.hasSelectionTerms():
                 SS._SelectTerms = SSchunk._SelectTerms
@@ -530,6 +578,16 @@ class MOVBBirthMergeAlg(MOVBAlg):
                     SSchunk.mergeComps(kA, kB)
         if SSchunk.hasMergeTerms():
             SSchunk.removeMergeTerms()
+
+        # Fast-forward births from this lap
+        if self.hasMove('seqcreate') and Kfinal > 0 and SSchunk.K < Kfinal:
+            Kextra = Kfinal - SSchunk.K
+            curUIDs = SSchunk.uIDs
+            if Kextra > 0:
+                SSchunk.insertEmptyComps(Kextra)
+                newUIDs = np.arange(self.maxUID-Kextra+1, self.maxUID+1)
+                SSchunk.setUIDs(np.hstack([curUIDs, newUIDs]))
+            assert SSchunk.K == Kfinal
 
         # Fast-forward any shuffling/reordering that happened
         if self.hasMove('shuffle') and order is not None:
@@ -957,15 +1015,17 @@ class MOVBBirthMergeAlg(MOVBAlg):
         PrepInfo['mPairIDs'] = list()
         PrepInfo['PairScoreMat'] = None
 
-        # Short-cut if we use fastBound to compute elbo for merge candidate
-        if mergeELBOTrackMethod == 'fastBound':
-            PrepInfo['doPrecompMergeEntropy'] = 2
-            PrepInfo['mergePairSelection'] = None
-            return PrepInfo
-
         # Update stored ScoreMatrix to account for recent births/merges
         if hasValidKey('PairScoreMat', prevPrepInfo):
             MM = prevPrepInfo['PairScoreMat']
+
+            # Replay any sequence-specific created states
+            if self.hasMove('seqcreate'):
+                Korig = MM.shape[0]
+                if Korig < SS.K:
+                    Mnew = np.zeros((SS.K, SS.K))
+                    Mnew[:Korig, :Korig] = MM
+                    MM = Mnew
 
             # Replay any shuffles
             if order is not None:
@@ -999,6 +1059,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
                 Mnew = np.zeros((SS.K, SS.K))
                 Mnew[:Korig, :Korig] = MM
                 MM = Mnew
+            # Refresh values
             if np.floor(lapFrac) % refreshInterval == 0:
                 MM.fill(0)  # Refresh!
             prevPrepInfo['PairScoreMat'] = MM

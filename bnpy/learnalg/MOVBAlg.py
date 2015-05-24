@@ -86,7 +86,6 @@ class MOVBAlg(LearnAlg):
             self.algParamsLP['lapFrac'] = lapFrac  # logging
             self.algParamsLP['batchID'] = batchID
             LPchunk = self.memoizedLocalStep(hmodel, Dchunk, batchID)
-
             self.saveDebugStateAtBatch('Estep', batchID, Dchunk=Dchunk,
                                        SS=SS, hmodel=hmodel, LPchunk=LPchunk)
 
