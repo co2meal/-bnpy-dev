@@ -40,6 +40,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
             self.DeleteRecordsByComp = defaultdict(lambda: dict())
             self.lapLastAcceptedDelete = self.algParams['startLap']
 
+        if self.hasMove('seqcreate'):
+            self.CreateRecords = defaultdict(lambda: dict())
         self.ELBOReady = True
 
     def fit(self, hmodel, DataIterator):
@@ -241,6 +243,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
                         del SS.mPairIDs
 
             # Shuffle : Rearrange topic order (big to small)
+            didFastFwd = 0
             if self.hasMove('shuffle') and self.isLastBatch(lapFrac):
                 order = np.argsort(-1 * SS.getCountVec())
                 sortedalready = np.arange(SS.K)
@@ -262,7 +265,14 @@ class MOVBBirthMergeAlg(MOVBAlg):
                             targetSSbyBatch[batchID].reorderComps(order)
                     # Update memoized stats for each batch
                     self.fastForwardMemory(Kfinal=SS.K, order=order)
+                    didFastFwd = 1
 
+            if self.hasMove('seqcreate') and self.isLastBatch(lapFrac):
+                if not didFastFwd:
+                    Kr, Kextra = self.CreateRecords[np.ceil(lapFrac)]
+                    if Kextra > 0:
+                        self.fastForwardMemory(Kfinal=SS.K)
+                        didFastFwd = 1
 
             if nLapsCompleted > 1.0 and len(BirthResults) == 0:
                 # evBound increases monotonically AFTER first lap
@@ -401,6 +411,15 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
         LPandMergeKwargs.update(self.algParamsLP)
         LPchunk = tempModel.calc_local_params(Dchunk, **LPandMergeKwargs)
+
+        Kresult = LPchunk['resp'].shape[1]
+        Kextra = Kresult - hmodel.obsModel.K
+        
+        if not self.isFirstBatch(lapFrac):
+            Kr, Kx_prev = self.CreateRecords[np.ceil(lapFrac)]
+            Kextra += Kx_prev
+        self.CreateRecords[np.ceil(lapFrac)] = (Kresult, Kextra)
+
         return LPchunk
 
     def memoizedLocalStep(self, hmodel, Dchunk, batchID, **LPandMergeKwargs):
@@ -1018,19 +1037,22 @@ class MOVBBirthMergeAlg(MOVBAlg):
         # Update stored ScoreMatrix to account for recent births/merges
         if hasValidKey('PairScoreMat', prevPrepInfo):
             MM = prevPrepInfo['PairScoreMat']
-
             # Replay any sequence-specific created states
             if self.hasMove('seqcreate'):
                 Korig = MM.shape[0]
-                if Korig < SS.K:
-                    Mnew = np.zeros((SS.K, SS.K))
-                    Mnew[:Korig, :Korig] = MM
-                    MM = Mnew
+                # Expand to max size before deletes happened
+                # but after merges happened
+                Kmax, Kextra = self.CreateRecords[np.ceil(lapFrac-1)]
+                if Kextra > 0:
+                    Kmax = Kmax - len(self.MergeLog)
+                    if Korig < Kmax:
+                        Mnew = np.zeros((Kmax, Kmax))
+                        Mnew[:Korig, :Korig] = MM
+                        MM = Mnew
 
             # Replay any shuffles
             if order is not None:
                 Ktmp = len(order)
-                assert Ktmp == MM.shape[0]
                 Mnew = np.zeros_like(MM)
                 for kA in xrange(Ktmp):
                     nA = np.flatnonzero(order == kA)
@@ -1059,6 +1081,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
                 Mnew = np.zeros((SS.K, SS.K))
                 Mnew[:Korig, :Korig] = MM
                 MM = Mnew
+            assert MM.shape[0] == SS.K
+
             # Refresh values
             if np.floor(lapFrac) % refreshInterval == 0:
                 MM.fill(0)  # Refresh!
@@ -1194,6 +1218,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
                 Plan, hmodel, Dchunk, LPchunk,
                 batchID=batchID,
                 uIDs=self.ActiveIDVec,
+                maxUID=self.maxUID,
                 lapFrac=self.lapFrac,
                 isFirstBatch=self.isFirstBatch(self.lapFrac),
                 isLastBatch=self.isLastBatch(self.lapFrac),
@@ -1276,7 +1301,9 @@ class MOVBBirthMergeAlg(MOVBAlg):
                     kk = np.flatnonzero(newSS.uIDs == uID)[0]
                     newSS.removeComp(kk)
                     for batchID in self.SSmemory:
-                        self.SSmemory[batchID].removeComp(kk)
+                        if kk < self.SSmemory[batchID].K:
+                            if self.SSmemory[batchID].uIDs[kk] == uID:
+                                self.SSmemory[batchID].removeComp(kk)
 
                 # Reset all ELBO and Merge terms stored in Memory
                 for batchID in self.SSmemory:
