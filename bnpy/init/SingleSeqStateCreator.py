@@ -93,7 +93,7 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
         if step == nRefineIters - 1:
             newIDs = np.arange(origK, propK)
             for newID in reversed(newIDs):
-                if tempSS.N[newID] < 1:
+                if tempSS.N[newID] <= 1:
                     tempSS.removeComp(newID)
 
         tempModel.update_global_params(tempSS)
@@ -170,6 +170,8 @@ def proposeNewResp_DPMixtureOnTargetData(Z_n, propResp,
     relDataIDs = np.flatnonzero(Z_n == ktarget)
     if hasattr(Data_n, 'Xprev'):
         Xprev = Data_n.Xprev[relDataIDs]
+    else:
+        Xprev = None
     targetData = XData(X=Data_n.X[relDataIDs],
         Xprev=Xprev)
 

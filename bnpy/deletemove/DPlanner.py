@@ -101,6 +101,9 @@ def makePlanForEligibleComps(SS, DRecordsByComp=None,
         DeleteLogger.log('Num Tier1 = %d.  Num Tier2 = %d.'
                          % (Plan['nCandidateTier1'], Plan['nCandidateTier2']))
         DeleteLogger.log('Selected candidate comps: UIDs and sizes')
+
+        if lapFrac > 20:
+            from IPython import embed; embed()
         if nFinalCandidates > 0:
             DeleteLogger.logPosVector(Plan['candidateUIDs'], fmt='%5d')
             DeleteLogger.logPosVector(Plan['candidateSizes'], fmt='%5d')
@@ -150,14 +153,15 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
 
     # ----    Find non-trivial states small enough to fit in target set
     mask_smallEnough = SizeVec <= dtargetMaxSize
+    mask_tooBig = 1 - mask_smallEnough
     mask_nonTrivial = SizeVec >= 1
     eligibleIDs = np.flatnonzero(np.logical_and(
         mask_smallEnough, mask_nonTrivial))
 
     nEmpty = np.sum(1 - mask_nonTrivial)
     nTooBig = np.sum(1 - mask_smallEnough)
-    if np.sum(SizeVec >= dtargetMaxSize) > 0:
-        minTooBigSize = SizeVec[SizeVec > dtargetMaxSize].min()
+    if np.sum(mask_tooBig) > 0:
+        minTooBigSize = SizeVec[mask_tooBig].min()
     else:
         minTooBigSize = -1
 
@@ -229,21 +233,23 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
         else:
             # maxLoc is an integer in {0, 1, ... |tier1UIDs|}
             # maxLoc equals m if we want everything at positions 0:m
-            maxLoc = np.searchsorted(tier1AggSize, dtargetMaxSize)
+            # Adding one makes it work out here.
+            maxLoc = np.searchsorted(tier1AggSize, dtargetMaxSize+1)
             maxPos = np.maximum(0, maxLoc - 1)
 
             selectUIDs = tier1UIDs[:maxLoc]
             curTargetSize = tier1AggSize[maxPos]
     else:
-        selectUIDs = list()
+        selectUIDs = []
         curTargetSize = 0
+    selectUIDs = np.asarray(selectUIDs)
 
     # Fill remaining budget from second tier
     if canTakeEverything:
         selectUIDs = np.hstack([selectUIDs, tier2UIDs])
     elif curTargetSize < dtargetMaxSize:
         tier2AggSize = np.cumsum([SizeMap[x] for x in tier2UIDs])
-        maxLoc = np.searchsorted(tier2AggSize, dtargetMaxSize - curTargetSize)
+        maxLoc = np.searchsorted(tier2AggSize, dtargetMaxSize + 1 - curTargetSize)
         selectUIDs = np.hstack([selectUIDs, tier2UIDs[:maxLoc]])
 
     selectMass = [SizeMap[x] for x in selectUIDs]
