@@ -299,7 +299,6 @@ class MOVBBirthMergeAlg(MOVBAlg):
                 isConverged = self.isCountVecConverged(countVec, prevCountVec)
                 hasMoreMoves = self.hasMoreReasonableMoves(lapFrac, SS)
                 doneRequiredLaps = nLapsCompleted >= self.algParams['minLaps']
-                print isConverged, hasMoreMoves, doneRequiredLaps
                 isConverged = isConverged and not hasMoreMoves \
                     and doneRequiredLaps
                 self.setStatus(lapFrac, isConverged)
@@ -355,10 +354,6 @@ class MOVBBirthMergeAlg(MOVBAlg):
             waitedLongEnough = (
                 lapFrac - self.lapLastAcceptedDelete) > nBeforeQuit
 
-            print 'waitedLongEnough ', waitedLongEnough
-            print 'deleteStartLap ', deleteStartLap
-            print 'nBeforeQuit ', nBeforeQuit
-
             # If we haven't tried deletes for sufficent num laps, keep going
             if lapFrac <= deleteStartLap + nBeforeQuit:
                 return True
@@ -370,7 +365,6 @@ class MOVBBirthMergeAlg(MOVBAlg):
                     **self.algParams['delete'])
             else:
                 nEligible = 1
-            print 'nEligible ', nEligible
 
             if nEligible > 0 or not waitedLongEnough:
                 return True
@@ -378,7 +372,6 @@ class MOVBBirthMergeAlg(MOVBAlg):
         if self.hasMove('birth') and self.do_birth_at_lap(lapFrac):
             # If any eligible comps exist, we have more moves possible
             # so return True
-            print 'BIRTH'
             if not hasattr(self, 'BirthEligibleHist'):
                 return True
             if self.BirthEligibleHist['Nable'] > 0:
@@ -392,9 +385,6 @@ class MOVBBirthMergeAlg(MOVBAlg):
             # If we haven't tried merges for sufficent num laps, keep going
             if lapFrac <= mergeStartLap + nStuckBeforeQuit:
                 return True
-
-            print 'lapLastAcceptedMerge', self.lapLastAcceptedMerge
-            print 'nStuckBeforeQuit', nStuckBeforeQuit
 
             # If we've tried many merges without success, exit early
             if (lapFrac - self.lapLastAcceptedMerge) > nStuckBeforeQuit:

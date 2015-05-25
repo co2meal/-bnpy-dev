@@ -162,7 +162,7 @@ def _run_task_internal(jobname, taskid, nTask,
     if doSaveToDisk:
         taskoutpath = getOutputPath(ReqArgs, KwArgs, taskID=taskid)
         createEmptyOutputPathOnDisk(taskoutpath)
-        writeArgsToFile(ReqArgs, KwArgs, taskoutpath)
+        writeArgsToFile(ReqArgs, KwArgs, taskoutpath, UnkArgs)
     else:
         taskoutpath = None
     configLoggingToConsoleAndFile(taskoutpath, doSaveToDisk, doWriteStdOut)
@@ -426,7 +426,7 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
     return learnAlg
 
 
-def writeArgsToFile(ReqArgs, KwArgs, taskoutpath):
+def writeArgsToFile(ReqArgs, KwArgs, taskoutpath, UnkArgs):
     ''' Save arguments as key/val pairs to a plain text file
     '''
     import json
@@ -437,7 +437,14 @@ def writeArgsToFile(ReqArgs, KwArgs, taskoutpath):
             continue
         argfile = os.path.join(taskoutpath, 'args-' + key + '.txt')
         with open(argfile, 'w') as fout:
-            json.dump(ArgDict[key], fout)
+            for k, val in ArgDict[key].items():
+                fout.write('%s %s\n' % (k, val))
+            #json.dump(ArgDict[key], fout)
+
+    unkfile = os.path.join(taskoutpath, 'args-DatasetPrefs.txt')
+    with open(unkfile, 'w') as fout:
+        for key, val in UnkArgs.items():
+            fout.write('%s %s\n' % (key, val))
 
 
 def createUniqueRandomSeed(jobname, taskID=0):
