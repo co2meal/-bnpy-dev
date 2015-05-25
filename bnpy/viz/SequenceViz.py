@@ -31,6 +31,8 @@ import imp
 import sys
 import argparse
 
+from matplotlib import pylab
+
 from bnpy.util.StateSeqUtil import convertStateSeq_MAT2list
 from bnpy.ioutil import BNPYArgParser
 from bnpy.viz.TaskRanker import rankTasksForSingleJobOnDisk
@@ -63,6 +65,28 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
                          'Valid values are 1,2,...N.')
     sequences -= 1
 
+    # Determine the jobpath and taskids
+    jobpath = os.path.join(os.path.expandvars('$BNPYOUTDIR'),
+                           dataset, jobname)
+    if isinstance(taskids, str):
+        if taskids.startswith('.'):
+            taskids = [taskids]
+        else:
+            taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
+    elif isinstance(taskids, int):
+        taskids = [str(taskids)]
+
+    datasetPrefFile = os.path.join(
+        jobpath, taskids[0],
+        'args-DatasetPrefs.txt')
+    datasetPrefs = dict()
+    with open(datasetPrefFile, 'r') as f:
+        for line in f.readlines():
+            fields = line.strip().split(' ')
+            if len(fields) != 2:
+                continue
+            datasetPrefs[fields[0]] = fields[1]
+
     # Load Data from its python module
     Datamod = imp.load_source(
         dataset,
@@ -71,21 +95,12 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
         if len(sequences) > 1:
             raise ValueError(
                 'Joint modeling of several sequences makes no sense')
-        Data = Datamod.get_data(meetingNum=sequences[0] + 1)
+        Data = Datamod.get_data(meetingNum=sequences[0] + 1,
+            **datasetPrefs)
         sequences[0] = 0
     else:
-        Data = Datamod.get_data()
+        Data = Datamod.get_data(**datasetPrefs)
 
-    # Determine the jobpath and taskids
-    jobpath = os.path.join(os.path.expandvars('$BNPYOUTDIR'),
-                           Datamod.get_short_name(), jobname)
-    if isinstance(taskids, str):
-        if taskids.startswith('.'):
-            taskids = [taskids]
-        else:
-            taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
-    elif isinstance(taskids, int):
-        taskids = [str(taskids)]
 
     # Determine the maximum length among any of the sequences to be plotted
     if maxT is None:
@@ -150,7 +165,8 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
             zHatBySeq = relabelAllSequences(zHatBySeq, specialStateIDs)
 
         # Find maximum number of states we need to display
-        Kmax = np.max([zHatBySeq[i].max() for i in xrange(Data.nDoc)])
+        nSeq = len(zHatBySeq)
+        Kmax = np.max([zHatBySeq[i].max() for i in xrange(nSeq)])
         hasGroundTruth = False
         if hasattr(Data, 'TrueParams') and 'Z' in Data.TrueParams:
             hasGroundTruth = True

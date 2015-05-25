@@ -31,7 +31,7 @@ def get_short_name():
 def get_data_info():
   return 'Toy AutoRegressive Data. %d true clusters.' % (K)
 
-def get_data(seed=8675309, nSeq=52, T=800, **kwargs):
+def get_data(seed=8675309, nDocTotal=52, T=800, **kwargs):
   '''
     Args
     -------
@@ -43,7 +43,7 @@ def get_data(seed=8675309, nSeq=52, T=800, **kwargs):
     -------
       Data : bnpy XData object, with nObsTotal observations
   '''
-  X, Xprev, TrueZ, doc_range = genToyData(seed=seed, nSeq=nSeq, T=T)
+  X, Xprev, TrueZ, doc_range = genToyData(seed=seed, nDocTotal=nDocTotal, T=T)
   Data = GroupXData(X=X, TrueZ=TrueZ, Xprev=Xprev, doc_range=doc_range)
   Data.name = get_short_name()
   Data.summary = get_data_info()
@@ -119,16 +119,21 @@ for k in xrange(K):
 
 
 
-def genToyData(seed=1234, nSeq=52, T=800):
+def genToyData(seed=1234, nDocTotal=52, T=800):
     '''
     Generates X, Z, seqInds according to the gaussian parameters specified above
       and the sequence lengths passed in.
     '''
+    nDocTotal = int(nDocTotal)
+    T = int(T)
+
     prng = np.random.RandomState(seed)
     states0toKm1 = np.arange(K)
 
-    seqLens = T * np.ones(nSeq, dtype=np.int32)
-    doc_range = np.hstack([0, np.cumsum(seqLens)])
+    doc_range = np.zeros(nDocTotal+1, dtype=np.int32)
+    for i in xrange(1, nDocTotal+1):
+        doc_range[i] = doc_range[i-1] + T
+
     N = doc_range[-1]
     allX = np.zeros((N,D))
     allXprev = np.zeros((N,D))
@@ -136,7 +141,7 @@ def genToyData(seed=1234, nSeq=52, T=800):
     
     # Each iteration generates one time-series/sequence
     # with starting state deterministically rotating among all states
-    for i in xrange(nSeq):
+    for i in xrange(nDocTotal):
         start = doc_range[i]
         stop = doc_range[i+1]
 
@@ -243,7 +248,7 @@ if __name__ == '__main__':
   rcParams['xtick.labelsize'] = 15
   rcParams['ytick.labelsize'] = 15
   rcParams['font.size'] = 25
-  X, Xprev, Z, doc_range = genToyData(nSeq=12)
+  X, Xprev, Z, doc_range = genToyData(nDocTotal=12)
   
   N = doc_range.size - 1
   N = np.minimum(N, 4) 

@@ -10,10 +10,8 @@ from bnpy.viz import GaussViz
 
 ########################################################### User-facing 
 ###########################################################
-def get_data(seed=123, seqLens=1000*np.ones(32), 
-        nDocTotal=None,
-        nPerDoc=None,
-        **kwargs):
+def get_data(seed=123, nDocTotal=32, T=1000,
+  **kwargs):
   ''' Generate several data sequences, returned as a bnpy data-object
 
     Args
@@ -26,9 +24,7 @@ def get_data(seed=123, seqLens=1000*np.ones(32),
     -------
     Data : bnpy GroupXData object, with nObsTotal observations
   '''
-  if nDocTotal is not None:
-      seqLens = int(nPerDoc) * np.ones(int(nDocTotal))
-  fullX, fullZ, doc_range = get_X(seed, seqLens)
+  fullX, fullZ, doc_range = get_X(seed, T, nDocTotal)
   X = np.vstack(fullX)
   Z = np.asarray(fullZ)
 
@@ -80,25 +76,22 @@ mus = np.asarray([
 # set to the 2x2 identity matrix
 sigmas = np.tile(np.eye(2), (K,1,1))
 
-def get_X(seed, seqLens):
+def get_X(seed, T, nDocTotal):
     '''
     Generates X, Z, seqInds according to the gaussian parameters specified above
       and the sequence lengths passed in.
     '''
-    seqLens = np.asarray(seqLens, dtype=np.int32)
+    T = int(T)
+    nDocTotal = int(nDocTotal)
+
     prng = np.random.RandomState(seed)
 
     fullX = list()
     fullZ = list()
-    if len(np.shape(seqLens)) == 0:
-        nSeq = 1
-        seqLens = np.asarray([seqLens])
-    else:
-        nSeq = len(seqLens)
-
+    doc_range = np.zeros(nDocTotal+1, dtype=np.int32)
     # Each iteration generates one time-series/sequence
     # with starting state deterministically rotating among all states
-    for i in xrange(nSeq):
+    for i in xrange(nDocTotal):
         Z = list()
         X = list()
         initState = i % K
@@ -106,7 +99,7 @@ def get_X(seed, seqLens):
                                          sigmas[initState,:,:])
         Z.append(initState)
         X.append(initX)
-        for j in xrange(seqLens[i]-1):
+        for j in xrange(T-1):
             nextState = prng.choice(xrange(K), p=transPi[Z[j]])
 
             nextX = prng.multivariate_normal(mus[nextState,:], 
@@ -116,12 +109,11 @@ def get_X(seed, seqLens):
 
         fullZ = np.hstack([fullZ, Z]) # need to concatenate as 1D
         fullX.append(X)
+        doc_range[i+1] = doc_range[i] + T
 
-
-    seq_indptr = np.hstack([0, np.cumsum(seqLens)])
     return (np.vstack(fullX), 
             np.asarray(fullZ, dtype=np.int32).flatten(),
-            seq_indptr,
+            doc_range,
             )
 
 def illustrate():
@@ -138,7 +130,7 @@ def illustrate():
   Colors = ['#a6cee3','#1f78b4','#b2df8a', '#33a02c', 
             '#fb9a99','#e31a1c','#fdbf6f','#ff7f00']
 
-  Data = get_data(seqLens=400*np.ones(16))
+  Data = get_data(T=400, nDocTotal=16)
   for k in xrange(K):
     zmask = Data.TrueParams['Z'] == k
     pylab.plot( Data.X[zmask,0], Data.X[zmask,1], '.', color=Colors[k],

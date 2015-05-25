@@ -103,7 +103,6 @@ def runViterbiAndSave(**kwargs):
     hmodel = kwargs['hmodel']
     lapFrac = kwargs['lapFrac']
 
-    print '----------------- MAP via Viterbi @ lap', lapFrac
     initPi = hmodel.allocModel.get_init_prob_vector()
     transPi = hmodel.allocModel.get_trans_prob_matrix()
 

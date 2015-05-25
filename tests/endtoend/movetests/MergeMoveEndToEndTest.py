@@ -1,6 +1,7 @@
 '''
 Generic tests for using merge moves during model training with bnpy.
 '''
+import os
 import sys
 import numpy as np
 import unittest
@@ -18,11 +19,18 @@ def arg2name(aArg):
 def pprintResult(model, Info, Ktrue=0):
     """ Pretty print the result of a learning algorithm.
     """
-    print " %25s after %4.1f sec and %4d laps.  ELBO=% 7.5f  K=%d  Ktrue=%d"\
+    hdist_str = ''
+    if 'outputdir' in Info and Info['outputdir'] is not None:
+        hdistfile = os.path.join(Info['outputdir'], 'hamming-distance.txt')
+        if os.path.exists(hdistfile):
+            hdist_str = 'hdist=' + '%.3f' % (float(np.loadtxt(hdistfile)[-1]))
+
+    print " %25s after %4.1f sec and %4d laps.  ELBO=% 7.5f %s K=%d  Ktrue=%d"\
      % (Info['status'][:25],
         Info['elapsedTimeInSec'],
         Info['lapTrace'][-1],
         Info['evBound'],
+        hdist_str,
         model.allocModel.K,
         Ktrue,
         )
@@ -117,11 +125,17 @@ class MergeMoveEndToEndTest(unittest.TestCase):
             deleteStartLap=2,
             nCoordAscentItersLP=50,
             convThrLP=0.001,
+            creationProposalName='randwindows',
+            earlyKfresh=5,
+            lateKfresh=3,
+            earlyLapDelim=5,
+            creationStopLap=20,
         )
         allKwargs.update(kwargs)
         allKwargs.update(aArg)
         allKwargs.update(obsArg)
         allKwargs.update(initArg)
+        allKwargs.update(self.datasetArg)
 
         if allKwargs['moves'].count('delete'):
             try:
@@ -179,6 +193,74 @@ class MergeMoveEndToEndTest(unittest.TestCase):
         return Info
 
 
+
+    def run_MOVBWithMoves_SegmentSingleSeq(self, aArg, oArg,
+            moves='merge,delete,shuffle,seqcreate',
+            algName='moVB',
+            nWorkers=0,
+            n=0,
+            **kwargs):
+        """ Execute single run with all moves enabled.
+
+        Post Condition
+        --------------
+        Will raise AssertionError if any bad results detected.
+        """
+        if hasattr(self.Data, 'nDoc'):
+            Data_n = self.Data.select_subset_by_mask([n], doTrackTruth=1)
+            Data_n.name = self.Data.name
+            assert hasattr(Data_n, 'TrueParams')
+        else:
+            raise NotImplementedError('TODO')
+
+        Ktrue = np.unique(Data_n.TrueParams['Z']).size
+
+        pprint(aArg)
+        pprint(oArg)
+        initArg = dict(**kwargs)
+        pprint(initArg)
+        
+        viterbiPath = os.path.expandvars(
+            '$BNPYROOT/bnpy/learnalg/extras/XViterbi.py')
+        kwargs = self.makeAllKwArgs(aArg, oArg, initArg, 
+            moves=moves, nWorkers=nWorkers,
+            customFuncPath=viterbiPath,
+            doSaveToDisk=1,
+            saveEvery=1000,
+            nBatch=1,
+            **kwargs)
+        model, Info = bnpy.run(Data_n, 
+            arg2name(aArg), arg2name(oArg), algName, **kwargs)
+        pprintResult(model, Info, Ktrue=Ktrue)
+
+        try:
+            assert model.allocModel.K == model.obsModel.K
+            assert model.allocModel.K == Ktrue
+
+        except AssertionError as e:
+            pprintCommandToReproduceError(
+                self.datasetArg, aArg, oArg, algName, **kwargs)
+            assert model.allocModel.K == model.obsModel.K
+            if not model.allocModel.K == Ktrue:
+                print '>>>>>> WHOA! Kfinal != Ktrue <<<<<<'
+        print ''
+
+        from bnpy.viz import SequenceViz
+        SequenceViz.plotSingleJob(
+            self.Data.name, kwargs['jobname'], 
+            taskids='1', lap='final',
+            sequences=[1],
+            showELBOInTitle=False,
+            dispTrue=True,
+            aspectFactor=4.0,
+            specialStateIDs=None,
+            cmap='Set1',
+            maxT=None,
+            )
+        SequenceViz.pylab.show(block=1)
+        return Info
+
+
     def runMany_MOVBWithMoves(self, 
             initnames=['truelabels', 
                        'repeattruelabels', 
@@ -222,3 +304,26 @@ class MergeMoveEndToEndTest(unittest.TestCase):
     def test_MOVBWithMerges_2ParallelWorkers(self):
         self.runMany_MOVBWithMoves(moves='merge', algName='pmoVB',
             nWorkers=2)
+
+    def test_MOVBCreateDestroy(self):
+        print ''
+        initnamePatterns = [
+            'initname=randcontigblocks-K=1',
+            'initname=truelabels-K=0',
+            ]
+        for aKwArgs in self.nextAllocKwArgsForVB():
+            for oKwArgs in self.nextObsKwArgsForVB():
+                Info = dict()
+                for iPattern in initnamePatterns:
+                    fields = iPattern.split('-')
+                    initargs = dict(jobname='nosetest-'+iPattern)
+                    for kvstr in fields:
+                        kvpair = kvstr.split('=')
+                        key = kvpair[0]
+                        val = kvpair[1]
+                        initargs[key] = val
+                    self.run_MOVBWithMoves_SegmentSingleSeq(
+                        aKwArgs, oKwArgs,
+                        moves='merge,delete,shuffle,seqcreate',
+                        **initargs)
+                print ''

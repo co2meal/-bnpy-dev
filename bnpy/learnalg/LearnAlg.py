@@ -121,6 +121,7 @@ class LearnAlg(object):
         lapTrace = np.sort(np.asarray(list(self.TraceLaps)))
         evTrace = np.asarray(self.evTrace)
         return dict(status=self.status,
+                    outputdir=self.savedir,
                     evTrace=evTrace,
                     lapTrace=lapTrace,
                     elapsedTimeInSec=time.time() - self.start_time,

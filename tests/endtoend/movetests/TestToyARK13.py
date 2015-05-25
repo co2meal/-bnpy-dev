@@ -15,7 +15,6 @@ class Test(MergeMoveEndToEndTest):
         self.datasetArg = dict(
             name='ToyARK13', 
             nDocTotal=26, 
-            nSeq=26, 
             T=400,
             )
         datasetMod = __import__(self.datasetArg['name'], fromlist=[])
