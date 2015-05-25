@@ -59,11 +59,12 @@ class HDPHMM(AllocModel):
         self.K = 0
 
     def set_prior(self, gamma=10, alpha=0.5,
-                  startAlpha=5.0, hmmKappa=0.0, **kwargs):
+                  startAlpha=5.0, hmmKappa=0.0, nGlobalIters=1, **kwargs):
         self.gamma = gamma
         self.alpha = alpha
         self.startAlpha = startAlpha
         self.kappa = hmmKappa
+        self.nGlobalIters = nGlobalIters
 
     def get_active_comp_probs(self):
         ''' Return K vector of appearance probabilities for each of the K comps
@@ -284,14 +285,12 @@ class HDPHMM(AllocModel):
         # Update theta with recently updated info from suff stats
         self.transTheta, self.startTheta = self._calcTheta(SS)
 
-        # Update rho, omega through numerical optimization
-        self.rho, self.omega = self.find_optimum_rhoOmega(**kwargs)
+        for giter in xrange(self.nGlobalIters):
+            # Update rho, omega through numerical optimization
+            self.rho, self.omega = self.find_optimum_rhoOmega(**kwargs)
 
-        # Pick hyperparameters alpha, gamma that optimize the ELBO
-        # self.alpha, self.gamma = self._find_optimal_alpha_gamma()
-
-        # Update theta again to reflect the new rho, omega
-        self.transTheta, self.startTheta = self._calcTheta(SS)
+            # Update theta again to reflect the new rho, omega
+            self.transTheta, self.startTheta = self._calcTheta(SS)
 
     def update_global_params_soVB(self, SS, rho, **kwargs):
         ''' Updates global parameters when learning with stochastic online VB.
