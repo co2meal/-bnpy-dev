@@ -426,6 +426,9 @@ class MOVBBirthMergeAlg(MOVBAlg):
         seqcreateParams['Kfresh'] = Kfresh
         seqcreateParams['PRNG'] = self.PRNG
 
+        if lapFrac <= 1.0 and self.algParams['doFullPassBeforeMstep']:
+            Kfresh = 0
+
         Korig = hmodel.obsModel.K
         tempModel = hmodel
         tempSS = SS
