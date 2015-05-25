@@ -101,9 +101,6 @@ def makePlanForEligibleComps(SS, DRecordsByComp=None,
         DeleteLogger.log('Num Tier1 = %d.  Num Tier2 = %d.'
                          % (Plan['nCandidateTier1'], Plan['nCandidateTier2']))
         DeleteLogger.log('Selected candidate comps: UIDs and sizes')
-
-        if lapFrac > 20:
-            from IPython import embed; embed()
         if nFinalCandidates > 0:
             DeleteLogger.logPosVector(Plan['candidateUIDs'], fmt='%5d')
             DeleteLogger.logPosVector(Plan['candidateSizes'], fmt='%5d')
@@ -232,13 +229,19 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
             curTargetSize = dtargetMaxSize
         else:
             # maxLoc is an integer in {0, 1, ... |tier1UIDs|}
-            # maxLoc equals m if we want everything at positions 0:m
-            # Adding one makes it work out here.
+            # maxLoc equals m if we want everything in half-open interval 0:m
+            # If we are looking for sizes <= dtargetMaxSize, need to add one
+            # >>> searchsorted([3., 4., 5.], 3)
+            # 0
+            # >>> searchsorted([3., 4., 5.], 3+1)
+            # 1
             maxLoc = np.searchsorted(tier1AggSize, dtargetMaxSize+1)
-            maxPos = np.maximum(0, maxLoc - 1)
-
             selectUIDs = tier1UIDs[:maxLoc]
-            curTargetSize = tier1AggSize[maxPos]
+            if maxLoc > 0:
+                curTargetSize = tier1AggSize[maxLoc - 1]
+            else:
+                # We took no items from this tier
+                curTargetSize = 0      
     else:
         selectUIDs = []
         curTargetSize = 0
@@ -250,9 +253,10 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
     elif curTargetSize < dtargetMaxSize:
         tier2AggSize = np.cumsum([SizeMap[x] for x in tier2UIDs])
         maxLoc = np.searchsorted(tier2AggSize, dtargetMaxSize + 1 - curTargetSize)
-        selectUIDs = np.hstack([selectUIDs, tier2UIDs[:maxLoc]])
+        if maxLoc > 0:
+            selectUIDs = np.hstack([selectUIDs, tier2UIDs[:maxLoc]])
 
-    selectMass = [SizeMap[x] for x in selectUIDs]
+    selectMassVec = [SizeMap[x] for x in selectUIDs]
     selectIDs = list()
     for uid in selectUIDs:
         jj = np.flatnonzero(uid == eligibleUIDs)[0]
@@ -273,7 +277,7 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
     Output['nCandidateTier2'] = len([x for x in selectUIDs if x in tier2UIDs])
     Output['candidateIDs'] = selectIDs
     Output['candidateUIDs'] = selectUIDs.tolist()
-    Output['candidateSizes'] = [SizeMap[u] for u in selectUIDs]
+    Output['candidateSizes'] = selectMassVec
     return Output
 
 
