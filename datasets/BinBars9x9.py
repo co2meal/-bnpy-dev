@@ -10,14 +10,15 @@ import numpy as np
 from bnpy.data import XData
 from bnpy.util import as1D
 
-K = 18 # Number of topics
-D = 81 # Vocabulary Size
+K = 18  # Number of topics
+D = 81  # Vocabulary Size
 
 Defaults = dict()
 Defaults['nObsTotal'] = 500
 Defaults['bgProb'] = 0.05
 Defaults['fgProb'] = 0.90
 Defaults['seed'] = 8675309
+
 
 def get_data(**kwargs):
     ''' Create dataset as bnpy DataObj object.
@@ -27,21 +28,23 @@ def get_data(**kwargs):
     Data.summary = get_data_info()
     return Data
 
+
 def get_data_info():
     s = 'Binary Bars Data with %d true topics.' % (K)
     return s
+
 
 def makePhi(fgProb=0.75, bgProb=0.05, **kwargs):
     ''' Make phi matrix that defines probability of each pixel.
     '''
     phi = bgProb * np.ones((K, np.sqrt(D), np.sqrt(D)))
     for k in xrange(K):
-        if k < K/2:
+        if k < K / 2:
             rowID = k
             # Horizontal bars
             phi[k, rowID, :] = fgProb
         else:
-            colID = k - K/2
+            colID = k - K / 2
             phi[k, :, colID] = fgProb
     phi = np.reshape(phi, (K, D))
     return phi
@@ -57,10 +60,10 @@ def generateRandomBinaryDataFromMixture(**kwargs):
     PRNG = np.random.RandomState(kwargs['seed'])
 
     # Select number of observations from each cluster
-    beta = 1.0/K * np.ones(K)
+    beta = 1.0 / K * np.ones(K)
     if nObsTotal < 2 * K:
         # force examples from every cluster
-        nPerCluster = np.ceil(nObsTotal/K) * np.ones(K)
+        nPerCluster = np.ceil(nObsTotal / K) * np.ones(K)
     else:
         nPerCluster = as1D(PRNG.multinomial(nObsTotal, beta, size=1))
     nPerCluster = np.int32(nPerCluster)
@@ -72,7 +75,7 @@ def generateRandomBinaryDataFromMixture(**kwargs):
     for k in xrange(K):
         stop = start + nPerCluster[k]
         X[start:stop] = np.float64(
-            PRNG.rand(nPerCluster[k], D) < phi[k,:][np.newaxis,:])
+            PRNG.rand(nPerCluster[k], D) < phi[k, :][np.newaxis, :])
         Z[start:stop] = k
         start = stop
 
@@ -89,4 +92,3 @@ if __name__ == '__main__':
     BernViz.plotCompsAsSquareImages(Data.TrueParams['phi'])
     BernViz.plotDataAsSquareImages(
         Data, unitIDsToPlot=np.arange(K), doShowNow=1)
-

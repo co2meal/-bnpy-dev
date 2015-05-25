@@ -15,7 +15,7 @@ class Test(MergeMoveEndToEndTest):
         self.datasetArg = dict(
             name='RCToyHMM', 
             nDocTotal=16, 
-            nPerDoc=500,
+            T=500,
             )
         datasetMod = __import__(self.datasetArg['name'], fromlist=[])
         self.Data = datasetMod.get_data(**self.datasetArg)

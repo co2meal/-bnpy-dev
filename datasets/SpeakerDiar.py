@@ -69,15 +69,15 @@ def get_data(meetingNum=1, **kwargs):
 
     Returns
     -------
-    Data : GroupXData 
+    Data : GroupXData
         holding only the data for a single sequence.
     '''
     if meetingNum <= 0 or meetingNum > len(fileNames):
         raise ValueError('Bad value for meetingNum: %s' % (meetingNum))
 
-    fName = fileNames[meetingNum-1].replace(suffix, '')
+    fName = fileNames[meetingNum - 1].replace(suffix, '')
     matfilepath = os.path.join(datasetdir, 'rawData',
-        'speakerDiarizationData', fName)
+                               'speakerDiarizationData', fName)
 
     if not os.path.isfile(matfilepath):
         raise ValueError(
@@ -86,7 +86,7 @@ def get_data(meetingNum=1, **kwargs):
     Data = GroupXData.read_from_mat(matfilepath)
     Data.summary = \
         'Pre-processed audio data from NIST file %s (meeting %d / 21)' \
-           % (fName.replace(suffix, ''), meetingNum)
+        % (fName.replace(suffix, ''), meetingNum)
     Data.name = 'SpeakerDiar' + str(meetingNum)
 
     Data.fileNames = [fName]
@@ -111,6 +111,7 @@ def createBetterBNPYDatasetFromMATFiles():
             relabelStateSeqWithNegativeIDsForNonspeakerIntervals(
             SavedVars['TrueZ'])
         scipy.io.savemat(outmatpath, SavedVars)
+
 
 def relabelStateSeqWithNegativeIDsForNonspeakerIntervals(Z):
     ''' Relabel provided Z sequence so nonspeaker intervals have neg. ids.
@@ -145,6 +146,7 @@ def relabelStateSeqWithNegativeIDsForNonspeakerIntervals(Z):
             uID, size, frac, aggFrac)
     assert np.allclose(1.0, aggFrac)
     return Znew
+
 
 def createBNPYDatasetFromOriginalMATFiles(dataPath):
     for file in fileNames:
@@ -225,12 +227,13 @@ def plotXPairHistogram(meetingNum=1, dimIDs=[0, 1, 2, 3]):
 
     pylab.show()
 
-def plotBlackWhiteStateSeqForMeeting(meetingNum=1, badUIDs=[-1,-2],
-        **kwargs):
+
+def plotBlackWhiteStateSeqForMeeting(meetingNum=1, badUIDs=[-1, -2],
+                                     **kwargs):
     ''' Make plot like in Fig. 3 of AOAS paper
     '''
     from matplotlib import pylab
-    
+
     Data = get_data(meetingNum=args.meetingNum)
     Z = np.asarray(Data.TrueParams['Z'], dtype=np.int32)
 

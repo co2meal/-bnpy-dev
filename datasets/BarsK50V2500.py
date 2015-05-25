@@ -9,7 +9,7 @@ Generated via the standard LDA generative model
 
 Usage
 ---------
-To visualize example documents, execute this file as a script 
+To visualize example documents, execute this file as a script
 >> python BarsK50V2500.py
 
 To visualize document "1" from within Python
@@ -32,13 +32,13 @@ SEED = 8675309
 PRNG = np.random.RandomState(SEED)
 
 # FIXED DATA GENERATION PARAMS
-K = 50 # Number of topics
-V = 2500 # Vocabulary Size
-gamma = 0.75 # hyperparameter over doc-topic distribution
+K = 50  # Number of topics
+V = 2500  # Vocabulary Size
+gamma = 0.75  # hyperparameter over doc-topic distribution
 
 Defaults = dict()
 Defaults['nDocTotal'] = 2000
-Defaults['nWordsPerDoc'] = 5 * V / (K/2)
+Defaults['nWordsPerDoc'] = 5 * V / (K / 2)
 Defaults['gamma'] = gamma
 Defaults['seed'] = SEED
 
@@ -52,11 +52,12 @@ Defaults['topics'] = Bars2D.Create2DBarsTopicWordParams(V, K, PRNG=PRNG)
 
 
 def get_data_info():
-  s = 'Toy Bars Data with %d true topics. Each doc uses 2-4 bars.' % (K)
-  return s
+    s = 'Toy Bars Data with %d true topics. Each doc uses 2-4 bars.' % (K)
+    return s
+
 
 def get_data(seed=SEED, **kwargs):
-    ''' 
+    '''
         Args
         -------
         seed
@@ -70,21 +71,21 @@ def get_data(seed=SEED, **kwargs):
 
 
 def CreateToyDataFromLDAModel(**kwargs):
-  for key in Defaults:
-    if key not in kwargs:
-      kwargs[key] = Defaults[key]
-  return WordsData.CreateToyDataFromLDAModel(**kwargs)
+    for key in Defaults:
+        if key not in kwargs:
+            kwargs[key] = Defaults[key]
+    return WordsData.CreateToyDataFromLDAModel(**kwargs)
 
 if __name__ == '__main__':
-  import bnpy.viz.BarsViz
-  import argparse
-  parser = argparse.ArgumentParser()
-  for key, val in Defaults.items():
-    if key.count('topic'):
-      continue
-    parser.add_argument('--' + key, type=type(val), default=val)
-  args = parser.parse_args()
+    import bnpy.viz.BarsViz
+    import argparse
+    parser = argparse.ArgumentParser()
+    for key, val in Defaults.items():
+        if key.count('topic'):
+            continue
+        parser.add_argument('--' + key, type=type(val), default=val)
+    args = parser.parse_args()
 
-  WData = CreateToyDataFromLDAModel(**args.__dict__)
-  bnpy.viz.BarsViz.plotExampleBarsDocs(WData, doShowNow=1)
-  raw_input('Press any key to exit. >>')
+    WData = CreateToyDataFromLDAModel(**args.__dict__)
+    bnpy.viz.BarsViz.plotExampleBarsDocs(WData, doShowNow=1)
+    raw_input('Press any key to exit. >>')
