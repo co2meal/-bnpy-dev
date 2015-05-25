@@ -23,6 +23,7 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
     LP_n : dict of local params, with K + Knew states (Knew >= 0)
     '''
     kwargs['minBlockSize'] = minBlockSize
+    kwargs['maxBlockSize'] = maxBlockSize
     kwargs['PRNG'] = PRNG
 
     if PRNG is None:
@@ -64,14 +65,20 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
     elif creationProposalName == 'randwindows':    
         propResp, propK = proposeNewResp_randomSubwindowsOfContigBlocks(
             Z_n, propResp, PRNG=PRNG,
-            origK=origK, Kfresh=Kfresh, minBlockSize=0, maxBlockSize=10)
+            origK=origK, Kfresh=Kfresh, minBlockSize=minBlockSize, 
+            maxBlockSize=maxBlockSize)
+    elif creationProposalName == 'allcontigblocks':
+        propResp, propK = proposeNewResp_eachContigBlockGetsNewState(
+            Z_n, propResp, PRNG=PRNG,
+            origK=origK, Kfresh=Kfresh, minBlockSize=minBlockSize, 
+            maxBlockSize=maxBlockSize)
     else:
         msg = "Unrecognized creationProposalName: %s" % (creationProposalName)
         raise NotImplementedError(msg)
     if propK == origK:
         return LP_n, hmodel, SS
 
-    # Resegment with new states
+    # Create complete LP fields from the proposed resp segmentation
     propLP_n = tempModel.allocModel.initLPFromResp(
         Data_n, dict(resp=propResp[:, :propK]))
     
@@ -103,6 +110,32 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
         return propLP_n, tempModel, tempSS
     else:
         return LP_n, hmodel, SS
+
+def proposeNewResp_eachContigBlockGetsNewState(Z_n, propResp,
+        origK=0,
+        PRNG=np.random.RandomState,
+        minBlockSize=0,
+        maxBlockSize=10,
+        **kwargs):
+    ''' Create new value of resp matrix by using all contig. blocks.
+
+    Returns
+    -------
+    propResp : 2D array, N x K'
+    '''
+    blockSizes, blockStarts = calcContigBlocksFromZ(Z_n)
+    keep_mask = blockSizes >= minBlockSize
+    blockSizes = blockSizes[keep_mask]
+    blockStarts = blockStarts[keep_mask]
+    nBlocks = len(blockSizes)
+
+    propResp = np.zeros((propResp.shape[0], origK+nBlocks))
+    for blockID in range(nBlocks):
+        a = blockStarts[blockID]
+        b = a + blockSizes[blockID]
+        if blockSizes[blockID] >= minBlockSize:
+            propResp[a:b, origK + blockID] = 1
+    return propResp, origK + nBlocks
 
 def proposeNewResp_randomSubwindowsOfContigBlocks(Z_n, propResp,
         origK=0,
