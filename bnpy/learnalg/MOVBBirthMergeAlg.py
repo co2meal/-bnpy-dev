@@ -116,11 +116,10 @@ class MOVBBirthMergeAlg(MOVBAlg):
             # Delete : Evaluate all planned proposals
             if self.isFirstBatch(lapFrac) and self.hasMove('delete'):
                 self.DeleteAcceptRecord = dict()
-                if self.doDeleteAtLap(lapFrac):
-                    if self.doDebug() and len(DeletePlans) > 0:
-                        DeletePlans[0]['WholeDataset'] = DataIterator.Data
-                    hmodel, SS = self.deleteAndUpdateMemory(hmodel, SS,
-                                                            DeletePlans)
+                if self.doDebug() and len(DeletePlans) > 0:
+                    DeletePlans[0]['WholeDataset'] = DataIterator.Data
+                hmodel, SS = self.deleteAndUpdateMemory(hmodel, SS,
+                                                        DeletePlans)
                 DeletePlans = list()
 
             # Birth move : track birth info from previous lap
@@ -259,10 +258,21 @@ class MOVBBirthMergeAlg(MOVBAlg):
                     for DPlan in DeletePlans:
                         if self.hasMove('merge'):
                             assert len(self.MergeLog) == 0
+                        Kextra = SS.K - DPlan['targetSS'].K
+                        if Kextra > 0:
+                            delattr(DPlan['targetSS'], 'uIDs')
+                            DPlan['targetSS'].insertEmptyComps(Kextra)
                         DPlan['targetSS'].reorderComps(order)
+                        DPlan['targetSS'].uIDs = self.ActiveIDVec.copy()
                         targetSSbyBatch = DPlan['targetSSByBatch']
                         for batchID in targetSSbyBatch:
-                            targetSSbyBatch[batchID].reorderComps(order)
+                            batchSS = targetSSbyBatch[batchID]
+                            Kextra = SS.K - batchSS.K
+                            if Kextra > 0:
+                                delattr(batchSS, 'uIDs')
+                                batchSS.insertEmptyComps(Kextra)
+                            batchSS.reorderComps(order)
+                            batchSS.uIDs = self.ActiveIDVec.copy()
                     # Update memoized stats for each batch
                     self.fastForwardMemory(Kfinal=SS.K, order=order)
                     didFastFwd = 1
@@ -285,10 +295,13 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
             # Assess convergence
             countVec = SS.getCountVec()
-            if lapFrac > 1.0:
+            if lapFrac > 1.0 and self.isLastBatch(lapFrac):
                 isConverged = self.isCountVecConverged(countVec, prevCountVec)
                 hasMoreMoves = self.hasMoreReasonableMoves(lapFrac, SS)
-                isConverged = isConverged and not hasMoreMoves
+                doneRequiredLaps = nLapsCompleted >= self.algParams['minLaps']
+                print isConverged, hasMoreMoves, doneRequiredLaps
+                isConverged = isConverged and not hasMoreMoves \
+                    and doneRequiredLaps
                 self.setStatus(lapFrac, isConverged)
 
             # Display progress
@@ -305,8 +318,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
             # Custom func hook
             self.eval_custom_func(**makeDictOfAllWorkspaceVars(**vars()))
 
-            if isConverged and self.isLastBatch(lapFrac) \
-               and nLapsCompleted >= self.algParams['minLaps']:
+            if isConverged and self.isLastBatch(lapFrac):
                 break
             prevCountVec = countVec.copy()
             prevBound = evBound
@@ -327,6 +339,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
                                  LPmemory=self.LPmemory,
                                  SSmemory=self.SSmemory)
 
+
     def hasMoreReasonableMoves(self, lapFrac, SS):
         ''' Decide if more moves will feasibly change current configuration.
         '''
@@ -342,8 +355,11 @@ class MOVBBirthMergeAlg(MOVBAlg):
             waitedLongEnough = (
                 lapFrac - self.lapLastAcceptedDelete) > nBeforeQuit
 
-            # If we haven't even tried deletes for sufficent num laps, keep
-            # going
+            print 'waitedLongEnough ', waitedLongEnough
+            print 'deleteStartLap ', deleteStartLap
+            print 'nBeforeQuit ', nBeforeQuit
+
+            # If we haven't tried deletes for sufficent num laps, keep going
             if lapFrac <= deleteStartLap + nBeforeQuit:
                 return True
 
@@ -354,12 +370,15 @@ class MOVBBirthMergeAlg(MOVBAlg):
                     **self.algParams['delete'])
             else:
                 nEligible = 1
+            print 'nEligible ', nEligible
+
             if nEligible > 0 or not waitedLongEnough:
                 return True
 
         if self.hasMove('birth') and self.do_birth_at_lap(lapFrac):
             # If any eligible comps exist, we have more moves possible
             # so return True
+            print 'BIRTH'
             if not hasattr(self, 'BirthEligibleHist'):
                 return True
             if self.BirthEligibleHist['Nable'] > 0:
@@ -370,10 +389,12 @@ class MOVBBirthMergeAlg(MOVBAlg):
                 'merge']['mergeNumStuckBeforeQuit']
             mergeStartLap = self.algParams['merge']['mergeStartLap']
 
-            # If we haven't even tried merges for sufficent num laps, keep
-            # going
+            # If we haven't tried merges for sufficent num laps, keep going
             if lapFrac <= mergeStartLap + nStuckBeforeQuit:
                 return True
+
+            print 'lapLastAcceptedMerge', self.lapLastAcceptedMerge
+            print 'nStuckBeforeQuit', nStuckBeforeQuit
 
             # If we've tried many merges without success, exit early
             if (lapFrac - self.lapLastAcceptedMerge) > nStuckBeforeQuit:
@@ -381,6 +402,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
             return True
 
         return False
+        # ... end function hasMoreReasonableMoves
 
     def localStepWithBirthAtEachSeq(self, hmodel, SS, Dchunk, batchID, 
             lapFrac=0,
@@ -403,6 +425,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
         self.algParams['seqcreate']['Kfresh'] = Kfresh
         self.algParams['seqcreate']['PRNG'] = self.PRNG
 
+        Korig = hmodel.obsModel.K
         tempModel = hmodel
         tempSS = SS
         if Kfresh > 0:
@@ -418,8 +441,31 @@ class MOVBBirthMergeAlg(MOVBAlg):
         LPandMergeKwargs.update(self.algParamsLP)
         LPchunk = tempModel.calc_local_params(Dchunk, **LPandMergeKwargs)
 
+        # Remove any states that are empty and unique to this batch
+        # since this is better than letting them stick around until later
+        Nchunk = LPchunk['resp'].sum(axis=0)
+        emptyIDs = Korig + np.flatnonzero(Nchunk[Korig:] <= 1)
         Kresult = LPchunk['resp'].shape[1]
-        Kextra = Kresult - hmodel.obsModel.K        
+        Kextra = Kresult - Korig
+        if len(emptyIDs) > 0:
+            SSchunk = tempModel.get_global_suff_stats(Dchunk, LPchunk)
+            for kempty in reversed(emptyIDs):
+                SSchunk.removeComp(kempty)
+                Kextra -= 1
+            # tempSS needs to be a consistent set of stats
+            # that just might double count current chunk after the first lap
+            if SS is None:
+                tempSS = SSchunk
+            else:
+                tempSS = SS.copy()
+                tempSS.insertEmptyComps(Kextra)
+                tempSS += SSchunk
+
+            tempModel.update_global_params(tempSS)
+            LPchunk = tempModel.calc_local_params(Dchunk, **LPandMergeKwargs)
+
+        Kresult = LPchunk['resp'].shape[1]
+        Kextra = Kresult - Korig
         if not self.isFirstBatch(lapFrac):
             Kr, Kx_prev = self.CreateRecords[np.ceil(lapFrac)]
             Kextra += Kx_prev
@@ -1373,60 +1419,6 @@ class MOVBBirthMergeAlg(MOVBAlg):
         # TODO adjust LPmemory??
         return newModel, newSS
 
-    def hasMoreReasonableMoves(self, lapFrac, SS):
-        ''' Decide if more moves will feasibly change current configuration.
-        '''
-        if lapFrac - self.algParams['startLap'] >= self.algParams['nLap']:
-            # Time's up, so doesn't matter what other moves are possible.
-            return False
-
-        if self.hasMove('delete'):
-            # If any eligible comps exist, we have more moves possible
-            # so return True
-            deleteStartLap = self.algParams['delete']['deleteStartLap']
-            nBeforeQuit = self.algParams['delete']['deleteNumStuckBeforeQuit']
-            waitedLongEnough = (
-                lapFrac - self.lapLastAcceptedDelete) > nBeforeQuit
-
-            # If we haven't even tried deletes for sufficent num laps, keep
-            # going
-            if lapFrac <= deleteStartLap + nBeforeQuit:
-                return True
-
-            if isEvenlyDivisibleFloat(lapFrac, 1.0):
-                nEligible = DPlanner.getEligibleCount(
-                    SS,
-                    DRecordsByComp=self.DeleteRecordsByComp,
-                    **self.algParams['delete'])
-            else:
-                nEligible = 1
-            if nEligible > 0 or not waitedLongEnough:
-                return True
-
-        if self.hasMove('birth') and self.do_birth_at_lap(lapFrac):
-            # If any eligible comps exist, we have more moves possible
-            # so return True
-            if not hasattr(self, 'BirthEligibleHist'):
-                return True
-            if self.BirthEligibleHist['Nable'] > 0:
-                return True
-
-        if self.hasMove('merge'):
-            nStuckBeforeQuit = self.algParams[
-                'merge']['mergeNumStuckBeforeQuit']
-            mergeStartLap = self.algParams['merge']['mergeStartLap']
-
-            # If we haven't even tried merges for sufficent num laps, keep
-            # going
-            if lapFrac <= mergeStartLap + nStuckBeforeQuit:
-                return True
-
-            # If we've tried many merges without success, exit early
-            if (lapFrac - self.lapLastAcceptedMerge) > nStuckBeforeQuit:
-                return False
-            return True
-
-        return False
 
     def verifyELBOTracking(self, hmodel, SS, evBound=None,
                            BirthResults=list(),
