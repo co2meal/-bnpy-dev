@@ -422,19 +422,21 @@ class MOVBBirthMergeAlg(MOVBAlg):
             Kfresh = 0
         else:
             Kfresh = self.algParams['seqcreate']['lateKfresh']
-        self.algParams['seqcreate']['Kfresh'] = Kfresh
-        self.algParams['seqcreate']['PRNG'] = self.PRNG
+        seqcreateParams = dict(**self.algParams['seqcreate'])
+        seqcreateParams['Kfresh'] = Kfresh
+        seqcreateParams['PRNG'] = self.PRNG
 
         Korig = hmodel.obsModel.K
         tempModel = hmodel
         tempSS = SS
         if Kfresh > 0:
-            for n in xrange(Dchunk.nDoc):
+            randOrder = self.PRNG.permutation(np.arange(Dchunk.nDoc))
+            for n in randOrder:
                 Data_n = Dchunk.select_subset_by_mask([n])
                 LP_n = tempModel.calc_local_params(Data_n, **self.algParamsLP)
                 LP_n, tempModel, tempSS = createSingleSeqLPWithNewStates(
                     Data_n, LP_n, tempModel, SS=tempSS,
-                    **self.algParams['seqcreate'])
+                    **seqcreateParams)
 
         # Do final analysis of all sequences in this chunk
         # with fixed number of states
