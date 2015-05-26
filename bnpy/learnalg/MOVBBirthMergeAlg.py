@@ -423,11 +423,11 @@ class MOVBBirthMergeAlg(MOVBAlg):
         tempModel = hmodel
         tempSS = SS
 
-        print 'BEFORE:',
-        if SS is None:
-            print 'none'
-        else:
-            print ' '.join(['%4.1f' % (x) for x in SS.N])
+        #print 'BEFORE:',
+        #if SS is None:
+        #    print 'none'
+        #else:
+        #    print ' '.join(['%4.1f' % (x) for x in SS.N])
 
         if Kfresh > 0:
             # Remove current segmentation from suff stats
@@ -435,7 +435,6 @@ class MOVBBirthMergeAlg(MOVBAlg):
                 tempSS = SS.copy()
                 if batchID in self.SSmemory:
                     tempSS -= self.SSmemory[batchID].copy()
-                    print ' '.join(['%4.1f' % (x) for x in tempSS.N])
 
             randOrder = self.PRNG.permutation(np.arange(Dchunk.nDoc))
             for n in randOrder:
@@ -480,8 +479,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
             emptyIDs = Korig + np.flatnonzero(SSchunk.N[Korig:] <= 1)
 
 
-        print 'AFTER  ',
-        print ' '.join(['%4.1f' % (x) for x in LPchunk['resp'].sum(axis=0)])
+        #print 'AFTER  ',
+        #print ' '.join(['%4.1f' % (x) for x in LPchunk['resp'].sum(axis=0)])
 
         Kresult = LPchunk['resp'].shape[1]
         Kextra = Kresult - Korig

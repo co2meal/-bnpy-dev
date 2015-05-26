@@ -125,8 +125,8 @@ class MergeMoveEndToEndTest(unittest.TestCase):
             deleteStartLap=2,
             nCoordAscentItersLP=50,
             convThrLP=0.001,
-            creationProposalName='mixture',
-            #creationProposalName='subdivideExistingBlocks',
+            #creationProposalName='mixture',
+            creationProposalName='subdivideExistingBlocks',
             minBlockSize=10,
             maxBlockSize=25,
             earlyKfresh=10,
@@ -334,9 +334,10 @@ class MergeMoveEndToEndTest(unittest.TestCase):
                         initargs[key] = val
                     self.run_MOVBWithMoves_SegmentSingleSeq(
                         aKwArgs, oKwArgs,
-                        moves='merge,shuffle,seqcreate',
+                        moves='merge,shuffle,delete,seqcreate',
                         **initargs)
-                print ''
+                    print ''
+                    print ''
                 print ''
                 print ''
                 return
