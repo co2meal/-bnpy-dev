@@ -5,6 +5,7 @@ import warnings
 from bnpy.deletemove.DEvaluator import runDeleteMoveAndUpdateMemory
 from bnpy.util.StateSeqUtil import calcContigBlocksFromZ
 from bnpy.data.XData import XData
+from bnpy.allocmodel.hmm.HDPHMMUtil import calcELBOForSingleSeq_FromLP
 
 def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel, 
         SS=None,
@@ -63,15 +64,17 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
             tempSS=tempSS,
             Data_n=Data_n,
             **kwargs)
-    elif creationProposalName == 'randwindows':    
-        propResp, propK = proposeNewResp_randomSubwindowsOfContigBlocks(
+    elif creationProposalName == 'subdivideExistingBlocks':
+        propResp, propK = proposeNewResp_subdivideExistingBlocks(
             Z_n, propResp, PRNG=PRNG,
-            origK=origK, Kfresh=Kfresh, minBlockSize=minBlockSize, 
+            origK=origK, Kfresh=Kfresh, 
+            minBlockSize=minBlockSize, 
             maxBlockSize=maxBlockSize)
-    elif creationProposalName == 'allcontigblocks':
-        propResp, propK = proposeNewResp_eachContigBlockGetsNewState(
+    elif creationProposalName == 'randBlocks':
+        propResp, propK = proposeNewResp_randBlocks(
             Z_n, propResp, PRNG=PRNG,
-            origK=origK, Kfresh=Kfresh, minBlockSize=minBlockSize, 
+            origK=origK, Kfresh=Kfresh, 
+            minBlockSize=minBlockSize, 
             maxBlockSize=maxBlockSize)
     else:
         msg = "Unrecognized creationProposalName: %s" % (creationProposalName)
@@ -130,33 +133,53 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
         tempSS += propSS_n
         nEmpty = np.sum(tempSS.N[origK:] <= 1)
 
-    if kwargs['doVizSeqCreate']:
-        print 'propLP K %3d evidence %.3f' % (
-            propLP_n['resp'].shape[1], propLP_n['evidence'])
-        print ' curLP K %3d evidence %.3f' % (
-            LP_n['resp'].shape[1], LP_n['evidence'])
+    propScore = calcELBOForSingleSeq_FromLP(Data_n, propLP_n, hmodel)
+    curScore = calcELBOForSingleSeq_FromLP(Data_n, LP_n, hmodel)
+    doAccept = propScore > curScore
 
-        if propLP_n['evidence'] > LP_n['evidence']:
+    if kwargs['doVizSeqCreate']:
+        print 'propLP K %3d evidence %.3f  score %.6f' % (
+            propLP_n['resp'].shape[1], propLP_n['evidence'], propScore)
+        print ' curLP K %3d evidence %.3f  score %.6f' % (
+            LP_n['resp'].shape[1], LP_n['evidence'], curScore)
+
+        if doAccept:
             Nnew = propLP_n['resp'][:, origK:].sum(axis=0)
             massNew_str = ' '.join(['%.2f' % (x) for x in Nnew])
             print 'ACCEPTED! Mass of new states: [%s]' % (massNew_str)
-                
         else:
             print 'rejected'
-        showProposal(Data_n, Z_n, propResp, propLP_n, extraIDs_remaining)
+        showProposal(Data_n, Z_n, propResp, propLP_n, extraIDs_remaining,
+            doAccept=doAccept)
+        print ''
+        print ''
+        print ''
 
-
-    if propLP_n['evidence'] > LP_n['evidence']:
+    if doAccept:
         return propLP_n, tempModel, tempSS
     else:
         return LP_n, hmodel, SS
 
-def showProposal(Data_n, Z_n, propResp, propLP_n, origIDs):
+def showProposal(Data_n, Z_n, propResp, propLP_n, origIDs,
+        doAccept=None):
     from matplotlib import pylab
     from bnpy.util.StateSeqUtil import alignEstimatedStateSeqToTruth
     from bnpy.util.StateSeqUtil import makeStateColorMap
     origIDs = np.asarray(origIDs)
     Ztrue = np.asarray(Data_n.TrueParams['Z'], np.int32)
+
+    # Map Ztrue to compact set of uniqueIDs
+    # that densely covers 0, 1, 2, ... Kunique
+    # instead of (possibly) covering 0, 1, 2, ... Ktrue, Ktrue >> Kunique
+    uLabels = np.unique(Ztrue)
+    ZtrueA = -1 * np.ones_like(Ztrue)
+    for uLoc, uID in enumerate(uLabels):
+        mask = Ztrue == uID
+        ZtrueA[mask] = uLoc
+    assert np.all(ZtrueA >= 0)
+    assert np.all(ZtrueA < len(uLabels))
+    Ztrue = ZtrueA
+
     curZA, AlignInfo = alignEstimatedStateSeqToTruth(
         Z_n, Ztrue, returnInfo=1)
 
@@ -169,9 +192,15 @@ def showProposal(Data_n, Z_n, propResp, propLP_n, origIDs):
     propZAstart = alignEstimatedStateSeqToTruth(
         propZstart, Ztrue, useInfo=AlignInfo)
 
-    propZrefined = propLP_n['resp'].argmax(axis=1)
+    # Relabel each unique state represented in propZrefined
+    # so that state ids correspond to those in propZstart
+
+    # Step 1: propZrefined states all have negative ids
+    propZrefined = -1 * propLP_n['resp'].argmax(axis=1) - 1
     for origLoc, kk in enumerate(range(Kcur, propZrefined.max() + 1)):
-        propZrefined[propZrefined == kk] = origIDs[origLoc]
+        propZrefined[propZrefined == -1*kk-1] = origIDs[origLoc]
+    # Transform any original states back to original ids
+    propZrefined[propZrefined < 0] = -1 * propZrefined[propZrefined < 0] - 1
 
     propZArefined = alignEstimatedStateSeqToTruth(
         propZrefined, Ztrue, useInfo=AlignInfo)
@@ -190,12 +219,11 @@ def showProposal(Data_n, Z_n, propResp, propLP_n, origIDs):
         vmin=0, vmax=Kmaxxx-1)
     pylab.subplots(nrows=4, ncols=1, figsize=(12,5))
     # show ground truth
-    print 'UNIQUE IDS in each aligned Z'
-    print np.unique(Ztrue)
-    print np.unique(curZA)
-    print np.unique(propZstart), '>', np.unique(propZAstart)
-    print np.unique(propZrefined), '>', np.unique(propZArefined)
-
+    #print 'UNIQUE IDS in each aligned Z'
+    #print np.unique(Ztrue)
+    #print np.unique(curZA)
+    #print np.unique(propZstart), '>', np.unique(propZAstart)
+    #print np.unique(propZrefined), '>', np.unique(propZArefined)
 
     ax = pylab.subplot(4,1,1)
     pylab.imshow(Ztrue[np.newaxis,:], **imshowArgs)
@@ -215,7 +243,14 @@ def showProposal(Data_n, Z_n, propResp, propLP_n, origIDs):
     # show final
     pylab.subplot(4,1,4, sharex=ax)
     pylab.imshow(propZArefined[np.newaxis,:], **imshowArgs)
-    pylab.title('Refined proposal')
+    if doAccept is None:
+        acceptMsg = ''
+    elif doAccept:
+        acceptMsg = '  ACCEPTED!'
+    else:
+        acceptMsg = '  REJECTED!'
+
+    pylab.title('Refined proposal' + acceptMsg)
     pylab.yticks([]);
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', UserWarning)
@@ -224,71 +259,124 @@ def showProposal(Data_n, Z_n, propResp, propLP_n, origIDs):
     keypress = raw_input("Press any key to continue>>>")
     pylab.close()
 
-def proposeNewResp_eachContigBlockGetsNewState(Z_n, propResp,
+def proposeNewResp_randBlocks(Z_n, propResp,
         origK=0,
         PRNG=np.random.RandomState,
-        minBlockSize=0,
-        maxBlockSize=10,
-        **kwargs):
-    ''' Create new value of resp matrix by using all contig. blocks.
-
-    Returns
-    -------
-    propResp : 2D array, N x K'
-    '''
-    blockSizes, blockStarts = calcContigBlocksFromZ(Z_n)
-    keep_mask = blockSizes >= minBlockSize
-    blockSizes = blockSizes[keep_mask]
-    blockStarts = blockStarts[keep_mask]
-    nBlocks = len(blockSizes)
-
-    propResp = np.zeros((propResp.shape[0], origK+nBlocks))
-    for blockID in range(nBlocks):
-        a = blockStarts[blockID]
-        b = a + blockSizes[blockID]
-        if blockSizes[blockID] >= minBlockSize:
-            propResp[a:b, origK + blockID] = 1
-    return propResp, origK + nBlocks
-
-def proposeNewResp_randomSubwindowsOfContigBlocks(Z_n, propResp,
-        origK=0,
         Kfresh=3,
-        PRNG=np.random.RandomState,
-        minBlockSize=0,
+        minBlockSize=1,
         maxBlockSize=10,
         **kwargs):
-    ''' Create new value of resp matrix by randomly breaking up contig. blocks.
+    ''' Create new value of resp matrix with randomly-placed new blocks.
+
+    We create Kfresh new blocks in total.
+    Each one can potentially wipe out some (or all) of previous blocks.
 
     Returns
     -------
-    propResp : 2D array, N x K'
+    propResp : 2D array of size N x Kmax
+    propK : int
+        total number of states used in propResp array
     '''
-    propK = origK
+    # Unpack and make sure size limits work out
+    T = Z_n.size
+    if minBlockSize >= T:
+        return propResp, origK
+    maxBlockSize = np.minimum(maxBlockSize, T)
+
+    for kfresh in range(Kfresh):
+        blockSize = PRNG.randint(minBlockSize, maxBlockSize)
+        a = PRNG.randint(0, T - blockSize + 1)
+        b = a + blockSize
+        print a, b
+        propResp[a:b, :origK] = 0
+        propResp[a:b, origK+kfresh] = 1
+    return propResp, origK + Kfresh
+
+def proposeNewResp_subdivideExistingBlocks(Z_n, propResp,
+        origK=0,
+        PRNG=np.random.RandomState,
+        nStatesToEdit=3,
+        Kfresh=5,
+        minBlockSize=1,
+        maxBlockSize=10,
+        **kwargs):
+    ''' Create new value of resp matrix with new blocks.
+
+    We select nStatesToEdit states to change.
+    For each one, we take each contiguous block,
+        defined by interval [a,b]
+        and subdivide that interval into arbitrary number of states
+            [a, l1, l2, l3, ... lK, b]
+        where the length of each new block is drawn from
+            l_i ~ uniform(minBlockSize, maxBlockSize)
+
+    Returns
+    -------
+    propResp : 2D array of size N x Kmax
+    propK : int
+        total number of states used in propResp array
+    '''
+    # Unpack and make sure size limits work out
+    T = Z_n.size
+    if minBlockSize >= T:
+        return propResp, origK
+    maxBlockSize = np.minimum(maxBlockSize, T)
 
     blockSizes, blockStarts = calcContigBlocksFromZ(Z_n)
     nBlocks = len(blockSizes)
-    blockOrder = np.arange(nBlocks)
-    PRNG.shuffle(blockOrder)
-    for blockID in blockOrder:
-        if blockSizes[blockID] <= minBlockSize:
-            continue
-        # Choose random subwindow of this block to create new state
-        # min achievable size: minBlockSize + 1
-        # max size: maxBlockSize
-        maxBlockSize = np.minimum(maxBlockSize, blockSizes[blockID])
-        wSize = PRNG.randint(minBlockSize, high=maxBlockSize)
-        wStart = PRNG.randint(blockSizes[blockID] - wSize)
-        wStart += blockStarts[blockID]
-        wStop = wStart + wSize
 
-        # Assign proposed window to new state
-        propK = propK + 1
-        propResp[wStart:wStop, :propK-1] = 0
-        propResp[wStart:wStop, propK-1] = 1
+    candidateStateIDs = list()
+    candidateBlockIDsByState = dict()
+    for blockID in xrange(nBlocks):
+        stateID = Z_n[blockStarts[blockID]]
+        if blockSizes[blockID] >= minBlockSize:
+            candidateStateIDs.append(stateID)
+            if stateID not in candidateBlockIDsByState:
+                candidateBlockIDsByState[stateID] = list()
+            candidateBlockIDsByState[stateID].append(blockID)
 
-        if propK == origK + Kfresh:
+    if len(candidateStateIDs) == 0:
+        return propResp, origK
+    selectedStateIDs = PRNG.choice(candidateStateIDs, 
+        size=np.minimum(len(candidateStateIDs), nStatesToEdit),
+        replace=False)
+
+    kfresh = origK
+    for stateID in selectedStateIDs:
+        if kfresh >= Kfresh:
             break
-    return propResp, propK
+
+        # Find contig blocks assigned to this state
+        for blockID in candidateBlockIDsByState[stateID]:
+            if kfresh >= Kfresh:
+                break
+            a = blockStarts[blockID]
+            b = a + blockSizes[blockID]
+            maxSize = np.minimum(b-a, maxBlockSize)
+            avgSize = (maxSize + minBlockSize) / 2
+            expectedLen = avgSize * Kfresh
+            if expectedLen < (b - a):
+                intervalLocs = [PRNG.randint(a, b-expectedLen)]
+            else:
+                intervalLocs = [a]
+            for ii in range(Kfresh):
+                nextBlockSize = PRNG.randint(minBlockSize, maxSize)
+                intervalLocs.append(nextBlockSize + intervalLocs[ii])
+                if intervalLocs[ii+1] >= b:
+                    break
+            intervalLocs = np.asarray(intervalLocs, dtype=np.int32)
+            intervalLocs = np.minimum(intervalLocs, b)
+            print 'Current interval   : [ %d, %d]' % (a, b)
+            print 'Subdivided interval: ', intervalLocs
+            for iID in range(intervalLocs.size-1):
+                if kfresh >= Kfresh:
+                    break
+                prevLoc = intervalLocs[iID]
+                curLoc = intervalLocs[iID+1]
+                propResp[prevLoc:curLoc, :] = 0
+                propResp[prevLoc:curLoc, kfresh] = 1
+                kfresh += 1
+    return propResp, kfresh
 
 
 def proposeNewResp_DPMixtureOnTargetData(Z_n, propResp,
@@ -636,3 +724,47 @@ def getListOfContigBlocks(Data_n=None, initBlockLen=20, T=None):
                 b = T
             bList.append((a, b))
         return bList
+
+
+"""
+
+def proposeNewResp_randomSubwindowsOfContigBlocks(Z_n, propResp,
+        origK=0,
+        Kfresh=3,
+        PRNG=np.random.RandomState,
+        minBlockSize=0,
+        maxBlockSize=10,
+        **kwargs):
+    ''' Create new value of resp matrix by randomly breaking up contig. blocks.
+
+    Returns
+    -------
+    propResp : 2D array, N x K'
+    '''
+    propK = origK
+
+    blockSizes, blockStarts = calcContigBlocksFromZ(Z_n)
+    nBlocks = len(blockSizes)
+    blockOrder = np.arange(nBlocks)
+    PRNG.shuffle(blockOrder)
+    for blockID in blockOrder:
+        if blockSizes[blockID] <= minBlockSize:
+            continue
+        # Choose random subwindow of this block to create new state
+        # min achievable size: minBlockSize + 1
+        # max size: maxBlockSize
+        maxBlockSize = np.minimum(maxBlockSize, blockSizes[blockID])
+        wSize = PRNG.randint(minBlockSize, high=maxBlockSize)
+        wStart = PRNG.randint(blockSizes[blockID] - wSize)
+        wStart += blockStarts[blockID]
+        wStop = wStart + wSize
+
+        # Assign proposed window to new state
+        propK = propK + 1
+        propResp[wStart:wStop, :propK-1] = 0
+        propResp[wStart:wStop, propK-1] = 1
+
+        if propK == origK + Kfresh:
+            break
+    return propResp, propK
+"""
