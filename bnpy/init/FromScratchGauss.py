@@ -68,7 +68,7 @@ def init_global_params(obsModel, Data, K=0, seed=0,
         if hasattr(Data, 'doc_range'):
             doc_range = Data.doc_range.copy()
         else:
-            doc_range = [0, Data.X.shape[0]]
+            doc_range = np.asarray([0, Data.X.shape[0]])
         nDoc = doc_range.size - 1
         docIDs = np.arange(nDoc)
         PRNG.shuffle(docIDs)

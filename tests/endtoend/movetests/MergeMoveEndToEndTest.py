@@ -125,13 +125,14 @@ class MergeMoveEndToEndTest(unittest.TestCase):
             deleteStartLap=2,
             nCoordAscentItersLP=50,
             convThrLP=0.001,
-            creationProposalName='mixture',
+            #creationProposalName='uniquifyExistingBlocks',
+            creationProposalName='dpmixture',
             #creationProposalName='subdivideExistingBlocks',
             minBlockSize=10,
-            maxBlockSize=25,
+            maxBlockSize=50,
             earlyKfresh=10,
             lateKfresh=3,
-            earlyLapDelim=5,
+            earlyLapDelim=20,
             creationStopLap=20,
             doVizSeqCreate=1,
         )
@@ -197,6 +198,55 @@ class MergeMoveEndToEndTest(unittest.TestCase):
         return Info
 
 
+    def run_MOVBWithMoves_SegmentManySeq(self, aArg, oArg,
+            moves='merge,delete,shuffle,seqcreate',
+            algName='moVB',
+            nWorkers=0,
+            **kwargs):
+        """ Execute single run with all moves enabled.
+
+        Post Condition
+        --------------
+        Will raise AssertionError if any bad results detected.
+        """
+        self.Data.alwaysTrackTruth = 1
+        Ktrue = np.unique(self.Data.TrueParams['Z']).size
+
+        pprint(aArg)
+        pprint(oArg)
+        initArg = dict(**kwargs)
+        pprint(initArg)
+        
+        viterbiPath = os.path.expandvars(
+            '$BNPYROOT/bnpy/learnalg/extras/XViterbi.py')
+        kwargs = self.makeAllKwArgs(aArg, oArg, initArg, 
+            moves=moves, nWorkers=nWorkers,
+            customFuncPath=viterbiPath,
+            doSaveToDisk=1,
+            doWriteStdOut=1,
+            printEvery=1,
+            saveEvery=1000,
+            doFullPassBeforeMstep=1,
+            **kwargs)
+
+        kwargs['jobname'] += '-creationProposalName=%s' % (
+            kwargs['creationProposalName'])
+        model, Info = bnpy.run(self.Data, 
+            arg2name(aArg), arg2name(oArg), algName, **kwargs)
+        pprintResult(model, Info, Ktrue=Ktrue)
+        try:
+            assert model.allocModel.K == model.obsModel.K
+            assert model.allocModel.K == Ktrue
+
+        except AssertionError as e:
+            pprintCommandToReproduceError(
+                self.datasetArg, aArg, oArg, algName, **kwargs)
+            assert model.allocModel.K == model.obsModel.K
+            if not model.allocModel.K == Ktrue:
+                print '>>>>>> WHOA! Kfinal != Ktrue <<<<<<'
+        print ''
+        return Info
+
 
     def run_MOVBWithMoves_SegmentSingleSeq(self, aArg, oArg,
             moves='merge,delete,shuffle,seqcreate',
@@ -238,6 +288,9 @@ class MergeMoveEndToEndTest(unittest.TestCase):
             nBatch=1,
             doFullPassBeforeMstep=1,
             **kwargs)
+
+        kwargs['jobname'] += '-creationProposalName=%s' % (
+            kwargs['creationProposalName'])
         model, Info = bnpy.run(Data_n, 
             arg2name(aArg), arg2name(oArg), algName, **kwargs)
         pprintResult(model, Info, Ktrue=Ktrue)
@@ -315,11 +368,11 @@ class MergeMoveEndToEndTest(unittest.TestCase):
         self.runMany_MOVBWithMoves(moves='merge', algName='pmoVB',
             nWorkers=2)
 
-    def test_MOVBCreateDestroy(self):
+    def test_MOVBCreateDestroy_SingleSeq(self):
         print ''
         initnamePatterns = [
             'initname=randcontigblocks-K=1',
-            #'initname=truelabels-K=0',
+            #'initname=truelabels-K=1',
             ]
         for aKwArgs in self.nextAllocKwArgsForVB():
             for oKwArgs in self.nextObsKwArgsForVB():
@@ -335,6 +388,34 @@ class MergeMoveEndToEndTest(unittest.TestCase):
                     self.run_MOVBWithMoves_SegmentSingleSeq(
                         aKwArgs, oKwArgs,
                         moves='merge,shuffle,seqcreate',
+                        **initargs)
+                print ''
+                print ''
+                print ''
+                return
+
+
+
+    def test_MOVBCreateDestroy_ManySeq(self):
+        print ''
+        initnamePatterns = [
+            'initname=randcontigblocks-K=1',
+            #'initname=truelabels-K=1',
+            ]
+        for aKwArgs in self.nextAllocKwArgsForVB():
+            for oKwArgs in self.nextObsKwArgsForVB():
+                Info = dict()
+                for iPattern in initnamePatterns:
+                    fields = iPattern.split('-')
+                    initargs = dict(jobname='nosetest-'+iPattern)
+                    for kvstr in fields:
+                        kvpair = kvstr.split('=')
+                        key = kvpair[0]
+                        val = kvpair[1]
+                        initargs[key] = val
+                    self.run_MOVBWithMoves_SegmentManySeq(
+                        aKwArgs, oKwArgs,
+                        moves='merge,delete,shuffle,seqcreate',
                         **initargs)
                 print ''
                 print ''

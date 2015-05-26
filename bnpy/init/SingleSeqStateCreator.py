@@ -55,17 +55,26 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
     uIDs = uIDs[elig_mask]
     ktarget = PRNG.choice(uIDs)
 
-    if creationProposalName == 'mixture':
-        propResp, propK = proposeNewResp_DPMixtureOnTargetData(Z_n, propResp,
-            ktarget=ktarget,
-            origK=origK,
-            Kfresh=np.minimum(Kfresh,2),
+    if creationProposalName.count('mixture'):
+        initname = PRNG.choice(['randexamplesbydist', 'randcontigblocks'])
+        propResp, propK = proposeNewResp_dpmixture(Z_n, propResp,
             tempModel=tempModel,
             tempSS=tempSS,
             Data_n=Data_n,
+            ktarget=ktarget,
+            origK=origK,
+            Kfresh=np.maximum(Kfresh,2),
+            initname=initname,
+            initBlockLen=minBlockSize,
             **kwargs)
     elif creationProposalName == 'subdivideExistingBlocks':
         propResp, propK = proposeNewResp_subdivideExistingBlocks(
+            Z_n, propResp, PRNG=PRNG,
+            origK=origK, Kfresh=Kfresh, 
+            minBlockSize=minBlockSize, 
+            maxBlockSize=maxBlockSize)
+    elif creationProposalName == 'uniquifyExistingBlocks':
+        propResp, propK = proposeNewResp_uniquifyExistingBlocks(
             Z_n, propResp, PRNG=PRNG,
             origK=origK, Kfresh=Kfresh, 
             minBlockSize=minBlockSize, 
@@ -379,15 +388,82 @@ def proposeNewResp_subdivideExistingBlocks(Z_n, propResp,
     return propResp, kfresh
 
 
-def proposeNewResp_DPMixtureOnTargetData(Z_n, propResp,
+
+def proposeNewResp_uniquifyExistingBlocks(Z_n, propResp,
+        origK=0,
+        PRNG=np.random.RandomState,
+        nStatesToEdit=3,
+        Kfresh=5,
+        minBlockSize=1,
+        maxBlockSize=10,
+        **kwargs):
+    ''' Create new resp matrix with new unique blocks from existing blocks.
+
+    We select at most nStatesToEdit states to change,
+    where each one has multiple contiguous blocks.
+
+    For each one, we take all its contiguous blocks,
+    defined by intervals [a1,b1], [a2,b2], ... [aN, bN], ...
+    and make a unique state for each interval.
+     
+    Returns
+    -------
+    propResp : 2D array of size N x Kmax
+    propK : int
+        total number of states used in propResp array
+    '''
+    # Unpack and make sure size limits work out
+    T = Z_n.size
+    if minBlockSize >= T:
+        return propResp, origK
+    maxBlockSize = np.minimum(maxBlockSize, T)
+
+    blockSizes, blockStarts = calcContigBlocksFromZ(Z_n)
+    nBlocks = len(blockSizes)
+
+    candidateBlockIDsByState = dict()
+    for blockID in xrange(nBlocks):
+        stateID = Z_n[blockStarts[blockID]]
+        if stateID not in candidateBlockIDsByState:
+            candidateBlockIDsByState[stateID] = list()
+        candidateBlockIDsByState[stateID].append(blockID)
+
+    candidateStateIDs = list()
+    for stateID in candidateBlockIDsByState.keys():
+        if len(candidateBlockIDsByState[stateID]) < 2:
+            del candidateBlockIDsByState[stateID]
+        else:
+            candidateStateIDs.append(stateID)
+    
+    if len(candidateStateIDs) == 0:
+        return propResp, origK
+    selectedStateIDs = PRNG.choice(candidateStateIDs, 
+        size=np.minimum(len(candidateStateIDs), nStatesToEdit),
+        replace=False)
+
+    kfresh = origK
+    for stateID in selectedStateIDs:
+        if kfresh >= Kfresh:
+            break
+
+        # Make each block assigned to this state its own unique proposed state
+        for blockID in candidateBlockIDsByState[stateID]:
+            if kfresh >= Kfresh:
+                break
+            a = blockStarts[blockID]
+            b = a + blockSizes[blockID]
+            propResp[a:b, :] = 0
+            propResp[a:b, kfresh] = 1
+            kfresh += 1
+    return propResp, kfresh
+
+def proposeNewResp_dpmixture(Z_n, propResp,
         ktarget=0,
         tempModel=None,
         tempSS=None,
         Data_n=None,
         origK=0,
         Kfresh=3,
-        minBlockSize=0,
-        maxBlockSize=10,
         nVBIters=3,
         **kwargs):
     ''' Create new resp matrix by DP mixture clustering of subsampled data.
@@ -415,8 +491,8 @@ def proposeNewResp_DPMixtureOnTargetData(Z_n, propResp,
     myObsModel.ClearCache()
 
     myHModel = HModel(myDPModel, myObsModel)
-    myHModel.init_global_params(targetData, initname='randexamplesbydist',
-        K=Kfresh)
+    myHModel.init_global_params(targetData, K=Kfresh, **kwargs)
+
     Kfresh = myHModel.obsModel.K
     mergeIsPromising = True
     while Kfresh > 1 and mergeIsPromising:
@@ -425,9 +501,10 @@ def proposeNewResp_DPMixtureOnTargetData(Z_n, propResp,
             targetSS = myHModel.get_global_suff_stats(targetData, targetLP)
             # Delete unnecessarily small comps
             if vbiter == nVBIters - 1:
-                smallIDs = np.flatnonzero(targetSS.getCountVec() < 5)
+                smallIDs = np.flatnonzero(targetSS.getCountVec() <= 1)
                 for kdel in reversed(smallIDs):
-                    targetSS.removeComp(kdel)
+                    if targetSS.K > 1:
+                        targetSS.removeComp(kdel)
             # Global step
             myHModel.update_global_params(targetSS)
 
@@ -437,7 +514,8 @@ def proposeNewResp_DPMixtureOnTargetData(Z_n, propResp,
              doLimitNumPairs=0,
              returnScoreMatrix=1,
              **kwargs)
-        targetLP = myHModel.calc_local_params(targetData)
+        targetLP = myHModel.calc_local_params(targetData,
+            mPairIDs=mPairIDs, limitMemoryLP=1)
         targetSS = myHModel.get_global_suff_stats(targetData, targetLP,
             mPairIDs=mPairIDs,
             doPrecompEntropy=1,

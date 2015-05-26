@@ -150,13 +150,14 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
 
     # ----    Find non-trivial states small enough to fit in target set
     mask_smallEnough = SizeVec <= dtargetMaxSize
-    mask_tooBig = 1 - mask_smallEnough
+    mask_tooBig = np.logical_not(mask_smallEnough)
     mask_nonTrivial = SizeVec >= 1
     eligibleIDs = np.flatnonzero(np.logical_and(
         mask_smallEnough, mask_nonTrivial))
 
     nEmpty = np.sum(1 - mask_nonTrivial)
     nTooBig = np.sum(1 - mask_smallEnough)
+
     if np.sum(mask_tooBig) > 0:
         minTooBigSize = SizeVec[mask_tooBig].min()
     else:
