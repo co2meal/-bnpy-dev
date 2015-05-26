@@ -80,12 +80,13 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
         jobpath, taskids[0],
         'args-DatasetPrefs.txt')
     datasetPrefs = dict()
-    with open(datasetPrefFile, 'r') as f:
-        for line in f.readlines():
-            fields = line.strip().split(' ')
-            if len(fields) != 2:
-                continue
-            datasetPrefs[fields[0]] = fields[1]
+    if os.path.exists(datasetPrefFile):
+        with open(datasetPrefFile, 'r') as f:
+            for line in f.readlines():
+                fields = line.strip().split(' ')
+                if len(fields) != 2:
+                    continue
+                datasetPrefs[fields[0]] = fields[1]
 
     # Load Data from its python module
     Datamod = imp.load_source(

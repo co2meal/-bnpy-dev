@@ -144,7 +144,7 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
         color = Colors[colorID % len(Colors)]
     taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
 
-    if yvar == 'hamming-distance':
+    if yvar == 'hamming-distance' or yvar == 'Keff':
         if xvar == 'laps':
             xvar = 'laps-saved-params'
 
@@ -169,7 +169,6 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
                     xs, ys = loadXYFromTopicModelSummaryFiles(jobpath, taskid)
                 except ValueError:
                     raise e
-
         if yvar == 'hamming-distance' or yvar == 'Keff':
             if xvar == 'laps-saved-params':
                 # fix off-by-one error, if we save an extra dist on final lap
@@ -189,6 +188,7 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
                 xs = xs[np.in1d(laps_x, laps_y)]
                 ys = ys[np.in1d(laps_y, laps_x)]
 
+    
         if xs.size != ys.size:
             raise ValueError('Dimension mismatch. len(xs)=%d, len(ys)=%d'
                              % (xs.size, ys.size))
