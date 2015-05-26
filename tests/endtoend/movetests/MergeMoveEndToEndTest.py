@@ -130,6 +130,7 @@ class MergeMoveEndToEndTest(unittest.TestCase):
             lateKfresh=3,
             earlyLapDelim=5,
             creationStopLap=20,
+            doVizSeqCreate=1,
         )
         allKwargs.update(kwargs)
         allKwargs.update(aArg)
@@ -209,6 +210,8 @@ class MergeMoveEndToEndTest(unittest.TestCase):
         if hasattr(self.Data, 'nDoc'):
             Data_n = self.Data.select_subset_by_mask([n], doTrackTruth=1)
             Data_n.name = self.Data.name
+            Data_n.alwaysTrackTruth = 1
+
             assert hasattr(Data_n, 'TrueParams')
         else:
             raise NotImplementedError('TODO')
@@ -226,13 +229,15 @@ class MergeMoveEndToEndTest(unittest.TestCase):
             moves=moves, nWorkers=nWorkers,
             customFuncPath=viterbiPath,
             doSaveToDisk=1,
+            doWriteStdOut=1,
+            printEvery=1,
             saveEvery=1000,
             nBatch=1,
+            doFullPassBeforeMstep=1,
             **kwargs)
         model, Info = bnpy.run(Data_n, 
             arg2name(aArg), arg2name(oArg), algName, **kwargs)
         pprintResult(model, Info, Ktrue=Ktrue)
-
         try:
             assert model.allocModel.K == model.obsModel.K
             assert model.allocModel.K == Ktrue
