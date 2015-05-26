@@ -366,8 +366,8 @@ def proposeNewResp_subdivideExistingBlocks(Z_n, propResp,
                     break
             intervalLocs = np.asarray(intervalLocs, dtype=np.int32)
             intervalLocs = np.minimum(intervalLocs, b)
-            print 'Current interval   : [ %d, %d]' % (a, b)
-            print 'Subdivided interval: ', intervalLocs
+            # print 'Current interval   : [ %d, %d]' % (a, b)
+            # print 'Subdivided interval: ', intervalLocs
             for iID in range(intervalLocs.size-1):
                 if kfresh >= Kfresh:
                     break

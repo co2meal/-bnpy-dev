@@ -151,9 +151,6 @@ def alignEstimatedStateSeqToTruth(zHat, zTrue, useInfo=None, returnInfo=False):
         zHatA[mask] = OrigToAlignedMap[kest]
     assert np.all(zHatA >= 0)
 
-    #for (ktrue, kest) in AlignedRowColPairs:
-    #    mask = zHat == kest
-    #    zHatA[mask] = ktrue
     if returnInfo:
         return zHatA, dict(CostMatrix=CostMatrix,
                            AlignedRowColPairs=AlignedRowColPairs,
@@ -263,12 +260,12 @@ def makeStateColorMap(nTrue=1, nExtra=0, nHighlight=0):
         raise ValueError('Cannot display more than %d true colors!' % (
             C.shape[0]))
     C = C[:nTrue]/255.0
-    shadeVals = np.linspace(0.1, 0.8, nExtra)
+    shadeVals = np.linspace(0.2, 0.95, nExtra)
     for shadeID in xrange(nExtra):
         shadeOfRed = np.asarray([shadeVals[shadeID], 0, 0])
         C = np.vstack([C, shadeOfRed[np.newaxis,:]])
 
-    highVals = np.linspace(0.8, 1.0, nHighlight)
+    highVals = np.linspace(0.3, 1.0, nHighlight)
     for highID in xrange(nHighlight):
         yellowColor = np.asarray([highVals[highID], highVals[highID], 0])
         C = np.vstack([C, yellowColor[np.newaxis,:]])
