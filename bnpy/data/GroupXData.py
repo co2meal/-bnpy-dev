@@ -254,6 +254,9 @@ class GroupXData(XData):
         else:
             nDocTotal = None
 
+        if hasattr(self, 'alwaysTrackTruth'):
+            doTrackTruth = doTrackTruth or self.alwaysTrackTruth
+
         if doTrackTruth and 'Z' in self.TrueParams:
             TrueZ = self.TrueParams['Z']
             newTrueZList = list()

@@ -79,7 +79,7 @@ def buildCostMatrix(zHat, zTrue):
     return CostMatrix
 
 
-def alignEstimatedStateSeqToTruth(zHat, zTrue, returnInfo=False):
+def alignEstimatedStateSeqToTruth(zHat, zTrue, useInfo=None, returnInfo=False):
     ''' Relabel the states in zHat to minimize the hamming-distance to zTrue
 
     Args
@@ -103,17 +103,38 @@ def alignEstimatedStateSeqToTruth(zHat, zTrue, returnInfo=False):
                           'To fix, add $BNPYROOT/third-party/ to your path.')
     zHat = as1D(zHat)
     zTrue = as1D(zTrue)
+    Kest = zHat.max() + 1
+    Ktrue = zTrue.max() + 1
 
-    CostMatrix = buildCostMatrix(zHat, zTrue)
-    MunkresAlg = munkres.Munkres()
-    AlignedRowColPairs = MunkresAlg.compute(CostMatrix)
+    if useInfo is None:
+        CostMatrix = buildCostMatrix(zHat, zTrue)
+        MunkresAlg = munkres.Munkres()
+        tmpAlignedRowColPairs = MunkresAlg.compute(CostMatrix)
+        AlignedRowColPairs = list()
+        for (ktrue, kest) in tmpAlignedRowColPairs:
+            if kest < Kest:
+                AlignedRowColPairs.append((ktrue, kest))
+    else:
+        AlignedRowColPairs = useInfo['AlignedRowColPairs']
+        CostMatrix = useInfo['CostMatrix']
+        Ktrue = useInfo['Ktrue']
+        Kest = useInfo['Kest']
+        assert np.allclose(Ktrue, zTrue.max()+1)
+        Khat = zHat.max() + 1
+        kextra = Ktrue
+        for khat in np.arange(Kest, Khat+1):
+            AlignedRowColPairs.append((kextra, khat))
+            kextra += 1
+
     zHatA = -1 * np.ones_like(zHat)
     for (ktrue, kest) in AlignedRowColPairs:
         mask = zHat == kest
         zHatA[mask] = ktrue
     if returnInfo:
         return zHatA, dict(CostMatrix=CostMatrix,
-                           AlignedRowColPairs=AlignedRowColPairs)
+                           AlignedRowColPairs=AlignedRowColPairs,
+                           Ktrue=Ktrue,
+                           Kest=Kest)
     else:
         return zHatA
 
@@ -189,6 +210,38 @@ def calcContigBlocksFromZ(Zvec):
     blockStarts = np.asarray(changePts[:-1], dtype=np.float64)
     return blockSizes, blockStarts
     
+
+def makeStateColorMap(nTrue=1, nExtra=0, nHighlight=0):
+    '''
+    Returns
+    -------
+    Cmap : ListedColormap object
+    '''
+    from matplotlib.colors import ListedColormap
+    C = [
+        [166,206,227],
+        [31,120,180],
+        [178,223,138],
+        [51,160,44],
+        [251,154,153],
+        [227,26,28],
+        [253,191,111],
+        [255,127,0],
+        [202,178,214],
+        [106,61,154],
+        ]
+    C = np.asarray(C[:nTrue])/255.0
+    shadeVals = np.linspace(0.1, 0.8, nExtra)
+    for shadeID in xrange(nExtra):
+        shadeOfRed = np.asarray([shadeVals[shadeID], 0, 0])
+        C = np.vstack([C, shadeOfRed[np.newaxis,:]])
+
+    highVals = np.linspace(0.8, 1.0, nHighlight)
+    for highID in xrange(nHighlight):
+        yellowColor = np.asarray([highVals[highID], highVals[highID], 0])
+        C = np.vstack([C, yellowColor[np.newaxis,:]])
+
+    return ListedColormap(C)
 
 
 if __name__ == '__main__':

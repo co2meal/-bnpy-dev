@@ -1,5 +1,6 @@
 import copy
 import numpy as np
+import warnings
 
 from bnpy.deletemove.DEvaluator import runDeleteMoveAndUpdateMemory
 from bnpy.util.StateSeqUtil import calcContigBlocksFromZ
@@ -96,20 +97,132 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
         else:
             tempSS += propSS_n
 
-        # At last step, remove proposals that are too small.
-        if step == nRefineIters - 1:
-            newIDs = np.arange(origK, propK)
-            for newID in reversed(newIDs):
-                if tempSS.N[newID] <= 1:
-                    tempSS.removeComp(newID)
-
         tempModel.update_global_params(tempSS)
         propLP_n = tempModel.calc_local_params(Data_n, limitMemoryLP=1)
+
+    # Do a few steps to remove empties     
+    extraIDs_remaining = np.arange(origK, propK).tolist()
+    nEmpty = np.sum(tempSS.N[origK:] <= 1)
+    if verbose:
+        print extraIDs_remaining, '<< original extra ids'
+    while nEmpty > 0:
+        if verbose:
+            print ['%.2f' % (x) for x in tempSS.N[origK:]]
+            print extraIDs_remaining, '<< remaining extra ids before'
+
+        L = len(extraIDs_remaining)
+        for kLoc, kk in enumerate(reversed(np.arange(origK, tempSS.K))):
+            if tempSS.N[kk] <= 1:
+                if verbose:
+                    print 'removing comp %d' % (kk)
+                tempSS.removeComp(kk)
+                propSS_n.removeComp(kk)
+                extraIDs_remaining.pop(L - kLoc - 1)
+        if verbose:
+            print extraIDs_remaining, '<< remaining extra ids AFTER'
+
+        # Make model have consistent num of global params
+        tempModel.update_global_params(tempSS)
+
+        propLP_n = tempModel.calc_local_params(Data_n, limitMemoryLP=1)
+        tempSS -= propSS_n
+        propSS_n = tempModel.get_global_suff_stats(Data_n, propLP_n)
+        tempSS += propSS_n
+        nEmpty = np.sum(tempSS.N[origK:] <= 1)
+
+    if kwargs['doVizSeqCreate']:
+        print 'propLP K %3d evidence %.3f' % (
+            propLP_n['resp'].shape[1], propLP_n['evidence'])
+        print ' curLP K %3d evidence %.3f' % (
+            LP_n['resp'].shape[1], LP_n['evidence'])
+
+        if propLP_n['evidence'] > LP_n['evidence']:
+            Nnew = propLP_n['resp'][:, origK:].sum(axis=0)
+            massNew_str = ' '.join(['%.2f' % (x) for x in Nnew])
+            print 'ACCEPTED! Mass of new states: [%s]' % (massNew_str)
+                
+        else:
+            print 'rejected'
+        showProposal(Data_n, Z_n, propResp, propLP_n, extraIDs_remaining)
+
 
     if propLP_n['evidence'] > LP_n['evidence']:
         return propLP_n, tempModel, tempSS
     else:
         return LP_n, hmodel, SS
+
+def showProposal(Data_n, Z_n, propResp, propLP_n, origIDs):
+    from matplotlib import pylab
+    from bnpy.util.StateSeqUtil import alignEstimatedStateSeqToTruth
+    from bnpy.util.StateSeqUtil import makeStateColorMap
+    origIDs = np.asarray(origIDs)
+    Ztrue = np.asarray(Data_n.TrueParams['Z'], np.int32)
+    curZA, AlignInfo = alignEstimatedStateSeqToTruth(
+        Z_n, Ztrue, returnInfo=1)
+
+    nTrue = Ztrue.max() + 1
+    Kcur = curZA.max() + 1
+    nExtra =  curZA.max() + 1 - nTrue
+    Kmax = np.maximum(nTrue, nTrue + nExtra)
+
+    propZstart = propResp.argmax(axis=1)
+    propZAstart = alignEstimatedStateSeqToTruth(
+        propZstart, Ztrue, useInfo=AlignInfo)
+
+    propZrefined = propLP_n['resp'].argmax(axis=1)
+    for origLoc, kk in enumerate(range(Kcur, propZrefined.max() + 1)):
+        propZrefined[propZrefined == kk] = origIDs[origLoc]
+
+    propZArefined = alignEstimatedStateSeqToTruth(
+        propZrefined, Ztrue, useInfo=AlignInfo)
+
+    nHighlight = propZAstart.max() + 1 - Kmax
+
+    cmap = makeStateColorMap(nTrue=nTrue,
+        nExtra=np.maximum(0, nExtra),
+        nHighlight=np.maximum(0, nHighlight))
+
+    Kmaxxx = np.maximum(Kmax, propZAstart.max()+1)
+    Kmaxxx = np.maximum(Kmaxxx, propZArefined.max()+1)
+    imshowArgs = dict(interpolation='nearest', 
+        aspect=Z_n.size/1.0,
+        cmap=cmap,
+        vmin=0, vmax=Kmaxxx-1)
+    pylab.subplots(nrows=4, ncols=1, figsize=(12,5))
+    # show ground truth
+    print 'UNIQUE IDS in each aligned Z'
+    print np.unique(Ztrue)
+    print np.unique(curZA)
+    print np.unique(propZstart), '>', np.unique(propZAstart)
+    print np.unique(propZrefined), '>', np.unique(propZArefined)
+
+
+    ax = pylab.subplot(4,1,1)
+    pylab.imshow(Ztrue[np.newaxis,:], **imshowArgs)
+    pylab.title('Ground truth')
+    pylab.xticks([]); pylab.yticks([]);
+    # show current
+    pylab.subplot(4,1,2, sharex=ax)
+    pylab.imshow(curZA[np.newaxis,:], **imshowArgs)
+    pylab.title('Current estimate')
+    pylab.xticks([]); pylab.yticks([]);
+    # show init
+    pylab.subplot(4,1,3, sharex=ax)
+    pylab.imshow(propZAstart[np.newaxis,:], **imshowArgs)
+    pylab.title('Initial proposal')
+    pylab.xticks([]); pylab.yticks([]);
+
+    # show final
+    pylab.subplot(4,1,4, sharex=ax)
+    pylab.imshow(propZArefined[np.newaxis,:], **imshowArgs)
+    pylab.title('Refined proposal')
+    pylab.yticks([]);
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', UserWarning)
+        pylab.tight_layout()
+    pylab.show(block=False)
+    keypress = raw_input("Press any key to continue>>>")
+
 
 def proposeNewResp_eachContigBlockGetsNewState(Z_n, propResp,
         origK=0,

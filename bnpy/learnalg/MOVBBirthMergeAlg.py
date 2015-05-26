@@ -425,7 +425,12 @@ class MOVBBirthMergeAlg(MOVBAlg):
         if Kfresh > 0:
             randOrder = self.PRNG.permutation(np.arange(Dchunk.nDoc))
             for n in randOrder:
-                Data_n = Dchunk.select_subset_by_mask([n])
+                if seqcreateParams['doVizSeqCreate']:
+                    doTrackTruth = 1
+                else:
+                    doTrackTruth = 0
+                Data_n = Dchunk.select_subset_by_mask([n], 
+                    doTrackTruth=doTrackTruth)
                 LP_n = tempModel.calc_local_params(Data_n, **self.algParamsLP)
                 LP_n, tempModel, tempSS = createSingleSeqLPWithNewStates(
                     Data_n, LP_n, tempModel, SS=tempSS,
