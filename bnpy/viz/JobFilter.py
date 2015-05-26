@@ -82,7 +82,9 @@ def makeListOfJPatternsWithSpecificVals(PPListMap,
     assert key in PPListMap
     if vals is None:
         vals = PPListMap[key]
-    jpattern = makeJPatternWithSpecificVals(PPListMap, **keyValPairs)
+    jpattern = makeJPatternWithSpecificVals(PPListMap,
+        doBest='.best' in vals,
+        **keyValPairs)
     jpList = list()
     for v in vals:
         wildcardkey = "%s=*" % (key)
@@ -93,6 +95,7 @@ def makeListOfJPatternsWithSpecificVals(PPListMap,
 
 def makeJPatternWithSpecificVals(PPListMap,
         prefixfilepath='',
+        doBest=False,
         **keyValPairs):
     '''
     Example
@@ -108,7 +111,10 @@ def makeJPatternWithSpecificVals(PPListMap,
     >>> makeJPatternWithSpecificVals(PPListMap, initname='smart')
     'demo-K=*-initname=smart'
     '''
-    jpattern = ''
+    if doBest:
+        jpattern = '.best'
+    else:
+        jpattern = ''
     for key in PPListMap:
         if len(jpattern) > 0:
             jpattern += '-'

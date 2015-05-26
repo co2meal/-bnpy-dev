@@ -2,10 +2,11 @@ import os
 import numpy as np
 import glob
 
+import JobFilter
+
 from bnpy.util import as1D
 from bnpy.ioutil.BNPYArgParser import parse_task_ids, arglist_to_kwargs
 from JobFilter import filterJobs
-
 
 def rankTasksForSingleJobOnDisk(joboutpath):
     ''' Make files for job allowing rank-based referencing of tasks.
@@ -47,17 +48,16 @@ def rankTasksForSingleJobOnDisk(joboutpath):
         os.symlink(os.path.join(joboutpath, taskidstr),
                    os.path.join(joboutpath, '.rank' + str(rankID)))
 
-        if len(sortedTaskIDs) > 3:
-            if rankID == 1:
-                os.symlink(os.path.join(joboutpath, taskidstr),
-                           os.path.join(joboutpath, '.best'))
-            elif rankID == len(sortedTaskIDs):
-                os.symlink(os.path.join(joboutpath, taskidstr),
-                           os.path.join(joboutpath, '.worst'))
-            elif rankID == int(np.ceil(len(sortedTaskIDs) / 2.0)):
+        if rankID == 1:
+            os.symlink(os.path.join(joboutpath, taskidstr),
+                       os.path.join(joboutpath, '.best'))
+        if rankID == len(sortedTaskIDs):
+            os.symlink(os.path.join(joboutpath, taskidstr),
+                       os.path.join(joboutpath, '.worst'))
+        if len(sortedTaskIDs) > 3: 
+            if rankID == int(np.ceil(len(sortedTaskIDs) / 2.0)):
                 os.symlink(os.path.join(joboutpath, taskidstr),
                            os.path.join(joboutpath, '.median'))
-
 
 def rankTasksForSingleJob(joboutpath):
     ''' Get list of tasks for job, ranked best-to-worst by final ELBO score
@@ -80,6 +80,61 @@ def rankTasksForSingleJob(joboutpath):
     sortIDs = np.argsort(-1 * ELBOScores)
     return [taskids[t] for t in sortIDs]
 
+
+def markBestAmongJobPatternOnDisk(jobPattern, key='initname'):
+    ''' Create symlink to single best run among all jobs matching given pattern.
+
+    Post Condition
+    --------------
+    Creates new job output path on disk, with pattern
+    $BNPYOUTDIR/$dataName/.best-$jobPattern.replace('$key=*', '$key=best')
+    '''
+    prefixfilepath = os.path.sep.join(jobPattern.split(os.path.sep)[:-1])
+    PPListMap = JobFilter.makePPListMapFromJPattern(jobPattern)
+    bestArgs = dict()
+    bestArgs[key] = '.best'
+    bestpath = JobFilter.makeJPatternWithSpecificVals(PPListMap, **bestArgs)
+    bestpath = '.best-' + bestpath
+    bestpath = os.path.join(prefixfilepath, bestpath)  
+
+    # Remove all old hidden rank files
+    if os.path.islink(bestpath):
+        os.unlink(bestpath)
+
+    jpath = findBestAmongJobPattern(jobPattern, key=key)
+    os.symlink(jpath, bestpath)
+
+    
+    
+
+def findBestAmongJobPattern(jobPattern, key='initname',
+        prefixfilepath='',
+        **kwargs):
+    ''' Identify single best run among all jobs/tasks matching given pattern.
+
+    Returns
+    -------
+    bestjpath : str
+        valid file path
+    '''
+    prefixfilepath = os.path.sep.join(jobPattern.split(os.path.sep)[:-1])
+    PPListMap = JobFilter.makePPListMapFromJPattern(jobPattern)
+    jpaths = JobFilter.makeListOfJPatternsWithSpecificVals(PPListMap, 
+        key=key,
+        prefixfilepath=prefixfilepath)
+
+    Scores = np.zeros(len(jpaths))
+    for jID, jpath in enumerate(jpaths):
+        jtaskpath = os.path.join(jpath, '.best')
+        if not os.path.exists(jtaskpath):
+            rankTasksForSingleJobOnDisk(jpath)
+        if not os.path.exists(jtaskpath):
+            msg = 'Does not exist: %s' % (jtaskpath)
+            raise ValueError(msg)
+
+        Scores[jID] =  np.loadtxt(os.path.join(jtaskpath, 'evidence.txt'))[-1]
+    sortIDs = np.argsort(-1 * Scores)
+    return jpaths[sortIDs[0]]
 
 if __name__ == '__main__':
     import argparse
