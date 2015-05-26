@@ -222,7 +222,7 @@ def showProposal(Data_n, Z_n, propResp, propLP_n, origIDs):
         pylab.tight_layout()
     pylab.show(block=False)
     keypress = raw_input("Press any key to continue>>>")
-
+    pylab.close()
 
 def proposeNewResp_eachContigBlockGetsNewState(Z_n, propResp,
         origK=0,

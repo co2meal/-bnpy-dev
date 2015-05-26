@@ -85,15 +85,23 @@ class Test(unittest.TestCase):
             K=2,
             gamma=10.0, 
             alpha=5.0,
-            DocTopicCount_d=[100/2, 100/2]):
+            DocTopicCount_d=[100./2, 100/2]):
         ''' Given fixed counts, run one global update to rho/omega. 
 
         Verify that regardless of initialization,
         the recovered beta value is roughly the same.
         '''
         print ''
-        print '------------- [%s]' % np2flatstr(DocTopicCount_d, fmt='%d')
-        DocTopicCount_d = np.asarray(DocTopicCount_d)
+        DocTopicCount_d = np.asarray(DocTopicCount_d, dtype=np.float64)
+
+        print '------------- alpha %6.3f gamma %6.3f' % (
+            alpha, gamma)
+        print '------------- DocTopicCount [%s]' % (
+            np2flatstr(DocTopicCount_d, fmt='%d'),
+            )
+        print '------------- DocTopicProb  [%s]' % (
+            np2flatstr(DocTopicCount_d/DocTopicCount_d.sum(), fmt='%.3f'),
+            )
         Nd = np.sum(DocTopicCount_d)
         theta_d = DocTopicCount_d + alpha * 1.0 / (K+1) * np.ones(K)
         thetaRem = alpha * 1/(K+1)
@@ -111,7 +119,7 @@ class Test(unittest.TestCase):
                 if isinstance(initrho, int):
                     PRNG = np.random.RandomState(initrho)
                     initrho = PRNG.rand(K)
-                    initomega = PRNG.rand(K)
+                    initomega = 100 * PRNG.rand(K)
                 rho, omega, f, Info = OptimizerRhoOmega.\
                     find_optimum_multiple_tries(
                         alpha=alpha,
@@ -135,28 +143,35 @@ class Test(unittest.TestCase):
             gamma=10.0, 
             alpha=5.0,
             nDocRange=[1, 10, 100],
-            DocTopicCount_d=[500, 0, 300, 200]):
+            DocTopicCount_d=[500, 0, 300, 200],
+            doRestart=1):
         ''' Given fixed counts, run rho/omega inference to convergence.
 
         Verify that regardless of initialization,
         the recovered beta value is roughly the same.
         '''
         print ''
-        print '------------- [%s]' % np2flatstr(DocTopicCount_d, fmt='%d')
-        DocTopicCount_d = np.asarray(DocTopicCount_d)
-
+        DocTopicCount_d = np.asarray(DocTopicCount_d, dtype=np.float64)
+        print 'Fixed DocTopicCount [%s]' % (
+            np2flatstr(DocTopicCount_d, fmt='%5d'),
+            )
+        print 'Est DocTopicProb    [%s]' % (
+            np2flatstr(DocTopicCount_d/DocTopicCount_d.sum(), fmt='%.3f'),
+            )
         for nDoc in nDocRange:
-            print '                    @ nDoc %d' % (nDoc)
+            print 'nDoc = %d' % (nDoc)
+
             rho, omega = learn_rhoomega_fromFixedCounts(
                 DocTopicCount_d=DocTopicCount_d, nDoc=nDoc,
                 alpha=alpha, gamma=gamma)
 
-            print 'restart with 2x smaller omega'
-            rho2, omega2 = learn_rhoomega_fromFixedCounts(
-                DocTopicCount_d=DocTopicCount_d, nDoc=nDoc,
-                alpha=alpha, gamma=gamma,
-                initrho=rho/2, initomega=omega/2)
-            assert np.allclose(rho, rho2, atol=0.0001, rtol=0)
+            if doRestart:
+                print 'restart with 2x smaller omega'
+                rho2, omega2 = learn_rhoomega_fromFixedCounts(
+                    DocTopicCount_d=DocTopicCount_d, nDoc=nDoc,
+                    alpha=alpha, gamma=gamma,
+                    initrho=rho/2, initomega=omega/2)
+                assert np.allclose(rho, rho2, atol=0.0001, rtol=0)
 
                 
 def learn_rhoomega_fromFixedCounts(DocTopicCount_d=None,
@@ -224,11 +239,12 @@ def evalELBOandPrint(DocTopicCount=None, alpha=None, gamma=None,
         gamma=gamma,
         rho=rho,
         omega=omega)
+    nDoc = DocTopicCount.shape[0]
     betaK = rho2beta(rho, returnSize='K')
     betastr = np2flatstr(betaK, fmt="%.4f")
     omstr = np2flatstr(omega, fmt="%6.2f")
-    print '%10s %8.5f beta %s | omega %s' % (
-            msg, L, betastr, omstr)
+    print '%10s % .6e beta %s | omega %s' % (
+            msg, L / float(nDoc), betastr, omstr)
 
 
 if __name__ == '__main__':
@@ -237,10 +253,12 @@ if __name__ == '__main__':
     parser.add_argument('--alpha', type=float, default=0.5)
     parser.add_argument('--gamma', type=float, default=10)
     parser.add_argument('--nDocRange', type=str, default='1,10')
+    parser.add_argument('--doRestart', type=int, default=0)
     args = parser.parse_args()
 
     args.nDocRange = [int(nD) for nD in args.nDocRange.split(',')]
-    args.DocTopicCount_d = [float(Ndk) for Ndk in args.DocTopicCount_d.split(',')]
+    args.DocTopicCount_d = [
+        float(Ndk) for Ndk in args.DocTopicCount_d.split(',')]
     myTest = Test("test_FixedCount_GlobalStepToConvergence")
     myTest.test_FixedCount_GlobalStepToConvergence(
         **args.__dict__)
