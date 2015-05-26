@@ -136,3 +136,25 @@ def L_top(rho=None, omega=None, alpha=None,
         + np.inner(coef1mU, Elog1mU)
     return tAlpha + tKappa + tBeta + diff_cBeta + diff_logU
 
+
+def calcELBOForSingleSeq_FromLP(Data_n, LP_n, hmodel,
+        nExtraGlobalSteps=4,
+        **kwargs):
+    ''' Compute HDPHMM objective score for single sequence.
+
+    Performs relevant global steps to get model parameters.
+
+    Returns
+    -------
+    L : scalar score for current sequence
+    '''
+    assert Data_n.nDoc == 1
+    tempModel = hmodel.copy()
+    SS_n = tempModel.get_global_suff_stats(Data_n, LP_n,
+        doPrecompEntropy=1)
+    tempModel.update_global_params(SS_n)
+    for giter in range(nExtraGlobalSteps):
+        tempModel.allocModel.update_global_params(SS_n)
+
+    L_n = tempModel.calc_evidence(SS=SS_n)
+    return L_n

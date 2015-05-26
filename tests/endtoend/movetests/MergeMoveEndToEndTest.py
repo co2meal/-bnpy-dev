@@ -125,8 +125,11 @@ class MergeMoveEndToEndTest(unittest.TestCase):
             deleteStartLap=2,
             nCoordAscentItersLP=50,
             convThrLP=0.001,
-            creationProposalName='randwindows',
-            earlyKfresh=5,
+            creationProposalName='mixture',
+            #creationProposalName='subdivideExistingBlocks',
+            minBlockSize=10,
+            maxBlockSize=25,
+            earlyKfresh=10,
             lateKfresh=3,
             earlyLapDelim=5,
             creationStopLap=20,
@@ -250,6 +253,7 @@ class MergeMoveEndToEndTest(unittest.TestCase):
                 print '>>>>>> WHOA! Kfinal != Ktrue <<<<<<'
         print ''
 
+        '''
         from bnpy.viz import SequenceViz
         SequenceViz.plotSingleJob(
             self.Data.name, kwargs['jobname'], 
@@ -263,6 +267,7 @@ class MergeMoveEndToEndTest(unittest.TestCase):
             maxT=None,
             )
         SequenceViz.pylab.show(block=1)
+        '''
         return Info
 
 
@@ -314,7 +319,7 @@ class MergeMoveEndToEndTest(unittest.TestCase):
         print ''
         initnamePatterns = [
             'initname=randcontigblocks-K=1',
-            'initname=truelabels-K=0',
+            #'initname=truelabels-K=0',
             ]
         for aKwArgs in self.nextAllocKwArgsForVB():
             for oKwArgs in self.nextObsKwArgsForVB():
@@ -329,6 +334,9 @@ class MergeMoveEndToEndTest(unittest.TestCase):
                         initargs[key] = val
                     self.run_MOVBWithMoves_SegmentSingleSeq(
                         aKwArgs, oKwArgs,
-                        moves='merge,delete,shuffle,seqcreate',
+                        moves='merge,shuffle,seqcreate',
                         **initargs)
                 print ''
+                print ''
+                print ''
+                return

@@ -111,28 +111,54 @@ def alignEstimatedStateSeqToTruth(zHat, zTrue, useInfo=None, returnInfo=False):
         MunkresAlg = munkres.Munkres()
         tmpAlignedRowColPairs = MunkresAlg.compute(CostMatrix)
         AlignedRowColPairs = list()
+        OrigToAlignedMap = dict()
+        AlignedToOrigMap = dict()
         for (ktrue, kest) in tmpAlignedRowColPairs:
             if kest < Kest:
                 AlignedRowColPairs.append((ktrue, kest))
+                OrigToAlignedMap[kest] = ktrue
+                AlignedToOrigMap[ktrue] = kest
     else:
+        # Unpack existing alignment info
         AlignedRowColPairs = useInfo['AlignedRowColPairs']
         CostMatrix = useInfo['CostMatrix']
+        AlignedToOrigMap = useInfo['AlignedToOrigMap']
+        OrigToAlignedMap = useInfo['OrigToAlignedMap']
         Ktrue = useInfo['Ktrue']
         Kest = useInfo['Kest']
+
         assert np.allclose(Ktrue, zTrue.max()+1)
         Khat = zHat.max() + 1
-        kextra = Ktrue
+
+        # Account for extra states present in zHat
+        # that have never been aligned before.
+        # They should align to the next available UID in set
+        # [Ktrue, Ktrue+1, Ktrue+2, ...]
+        # so they don't get confused for a true label
+        ktrueextra = np.max([r for r,c in AlignedRowColPairs])
+        ktrueextra = int(np.maximum(ktrueextra+1, Ktrue))
         for khat in np.arange(Kest, Khat+1):
-            AlignedRowColPairs.append((kextra, khat))
-            kextra += 1
+            if khat in OrigToAlignedMap:
+                continue
+            OrigToAlignedMap[khat] = ktrueextra
+            AlignedToOrigMap[ktrueextra] = khat
+            AlignedRowColPairs.append((ktrueextra,khat))
+            ktrueextra += 1
 
     zHatA = -1 * np.ones_like(zHat)
-    for (ktrue, kest) in AlignedRowColPairs:
+    for kest in np.unique(zHat):
         mask = zHat == kest
-        zHatA[mask] = ktrue
+        zHatA[mask] = OrigToAlignedMap[kest]
+    assert np.all(zHatA >= 0)
+
+    #for (ktrue, kest) in AlignedRowColPairs:
+    #    mask = zHat == kest
+    #    zHatA[mask] = ktrue
     if returnInfo:
         return zHatA, dict(CostMatrix=CostMatrix,
                            AlignedRowColPairs=AlignedRowColPairs,
+                           OrigToAlignedMap=OrigToAlignedMap,
+                           AlignedToOrigMap=AlignedToOrigMap,
                            Ktrue=Ktrue,
                            Kest=Kest)
     else:
@@ -218,7 +244,7 @@ def makeStateColorMap(nTrue=1, nExtra=0, nHighlight=0):
     Cmap : ListedColormap object
     '''
     from matplotlib.colors import ListedColormap
-    C = [
+    C = np.asarray([
         [166,206,227],
         [31,120,180],
         [178,223,138],
@@ -229,8 +255,14 @@ def makeStateColorMap(nTrue=1, nExtra=0, nHighlight=0):
         [255,127,0],
         [202,178,214],
         [106,61,154],
-        ]
-    C = np.asarray(C[:nTrue])/255.0
+        [255,237,11],
+        [177,89,40],
+        [127,127,127],
+        ], dtype=np.float64)
+    if nTrue > C.shape[0]:
+        raise ValueError('Cannot display more than %d true colors!' % (
+            C.shape[0]))
+    C = C[:nTrue]/255.0
     shadeVals = np.linspace(0.1, 0.8, nExtra)
     for shadeID in xrange(nExtra):
         shadeOfRed = np.asarray([shadeVals[shadeID], 0, 0])

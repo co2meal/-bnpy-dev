@@ -422,7 +422,21 @@ class MOVBBirthMergeAlg(MOVBAlg):
         Korig = hmodel.obsModel.K
         tempModel = hmodel
         tempSS = SS
+
+        print 'BEFORE:',
+        if SS is None:
+            print 'none'
+        else:
+            print ' '.join(['%4.1f' % (x) for x in SS.N])
+
         if Kfresh > 0:
+            # Remove current segmentation from suff stats
+            if tempSS is not None:
+                tempSS = SS.copy()
+                if batchID in self.SSmemory:
+                    tempSS -= self.SSmemory[batchID].copy()
+                    print ' '.join(['%4.1f' % (x) for x in tempSS.N])
+
             randOrder = self.PRNG.permutation(np.arange(Dchunk.nDoc))
             for n in randOrder:
                 if seqcreateParams['doVizSeqCreate']:
@@ -443,12 +457,11 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
         # Remove any states that are empty and unique to this batch
         # since this is better than letting them stick around until later
-        Nchunk = LPchunk['resp'].sum(axis=0)
-        emptyIDs = Korig + np.flatnonzero(Nchunk[Korig:] <= 1)
+        SSchunk = tempModel.get_global_suff_stats(Dchunk, LPchunk)
+        emptyIDs = Korig + np.flatnonzero(SSchunk.N[Korig:] <= 1)
         Kresult = LPchunk['resp'].shape[1]
         Kextra = Kresult - Korig
-        if len(emptyIDs) > 0:
-            SSchunk = tempModel.get_global_suff_stats(Dchunk, LPchunk)
+        while len(emptyIDs) > 0:
             for kempty in reversed(emptyIDs):
                 SSchunk.removeComp(kempty)
                 Kextra -= 1
@@ -463,6 +476,12 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
             tempModel.update_global_params(tempSS)
             LPchunk = tempModel.calc_local_params(Dchunk, **LPandMergeKwargs)
+            SSchunk = tempModel.get_global_suff_stats(Dchunk, LPchunk)
+            emptyIDs = Korig + np.flatnonzero(SSchunk.N[Korig:] <= 1)
+
+
+        print 'AFTER  ',
+        print ' '.join(['%4.1f' % (x) for x in LPchunk['resp'].sum(axis=0)])
 
         Kresult = LPchunk['resp'].shape[1]
         Kextra = Kresult - Korig
