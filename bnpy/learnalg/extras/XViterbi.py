@@ -133,6 +133,11 @@ def runViterbiAndSave(**kwargs):
     with open(Kefftxtpath, 'a') as f:
         f.write('%d\n' % (Keff))
 
+    Ktotal = hmodel.obsModel.K
+    Ktotaltxtpath = os.path.join(savedir, 'Ktotal-saved-params.txt')
+    with open(Ktotaltxtpath, 'a') as f:
+        f.write('%d\n' % (Keff))
+
     # Save sequence aligned to truth and calculate Hamming distance
     if (hasattr(Data, 'TrueParams')) and ('Z' in Data.TrueParams):
         zHatFlatAligned = StateSeqUtil.alignEstimatedStateSeqToTruth(

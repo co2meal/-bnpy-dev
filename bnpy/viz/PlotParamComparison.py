@@ -30,9 +30,13 @@ import os
 import scipy.io
 import copy
 
+import TaskRanker
+
 from bnpy.ioutil import BNPYArgParser
 from JobFilter import makeListOfJPatternsWithSpecificVals
 from JobFilter import makePPListMapFromJPattern
+from JobFilter import makeJPatternWithSpecificVals
+from TaskRanker import rankTasksForSingleJobOnDisk
 
 import matplotlib
 matplotlib.rcParams['text.usetex'] = False
@@ -95,18 +99,20 @@ def plotManyPanelsByPVar(jpathPattern='/tmp/',
     nrows = 1
     ncols = len(pvals)
     pylab.subplots(nrows=nrows, ncols=ncols, figsize=(ncols*W, nrows*H))
+
     axH = None
     for panelID, panel_jobPattern in enumerate(jpathList):
         axH = pylab.subplot(nrows, ncols, panelID+1, sharey=axH, sharex=axH)
         # Only show legend on first plot
         if panelID > 0 and 'loc' in kwargs:
             kwargs['loc'] = None
+        kwargs['doShowNow'] = False
         plotMultipleLinesByLVar(panel_jobPattern,
             **kwargs)
         if pvar is not None:
             pylab.title('%s=%s' % (pvar, pvals[panelID]))
 
-    pylab.subplots_adjust(bottom=0.15)
+    pylab.subplots_adjust(bottom=0.15, wspace=0.5)
 
     if savefilename is not None:
         try:
@@ -119,7 +125,11 @@ def plotManyPanelsByPVar(jpathPattern='/tmp/',
             pylab.show(block=True)
         except TypeError:
             pass  # when using IPython notebook
-    
+    Info = dict(
+        nrows=nrows,
+        ncols=ncols,
+        )
+    return Info
 
 def plotMultipleLinesByLVar(jpathPattern,
         lvar=None, lvals=None,
@@ -133,14 +143,31 @@ def plotMultipleLinesByLVar(jpathPattern,
     PPListMap = makePPListMapFromJPattern(jpathPattern)
     if lvals is None:
         lvals = PPListMap[lvar]
-    else:
-        lvals = [ll for ll in lvals if ll in PPListMap[lvar]]
+    elif not isinstance(lvals, list):
+        lvals = [lvals]
+    # Make sure all lval values are street legal (aka exist on disk)
+    lvals = [ll for ll in lvals if ll == '.best' or ll in PPListMap[lvar]]
+
+    if lvals[0] == '.best':
+        xvar = kwargs['xvar']
+        if 'xvals' in kwargs:
+            xvals = kwargs['xvals']
+        else:
+            xvals = PPListMap[xvar]
+        for xval in xvals:
+            keyValDict = dict()
+            keyValDict[xvar] = xval
+            jpatternForXVal = makeJPatternWithSpecificVals(PPListMap,
+                prefixfilepath=prefixfilepath,
+                **keyValDict)
+            TaskRanker.markBestAmongJobPatternOnDisk(jpatternForXVal)
+
+    # Create list of jobs with corresponding pattern
     jpathList = makeListOfJPatternsWithSpecificVals(PPListMap, 
         prefixfilepath=prefixfilepath,
         key=lvar,
         vals=lvals,
         **kwargs)
-
     for lineID, line_jobPattern in enumerate(jpathList):
         line_label = '%s=%s' % (lvar, lvals[lineID])
         if isinstance(ColorMap, dict):
@@ -156,6 +183,7 @@ def plotMultipleLinesByLVar(jpathPattern,
             label=line_label,
             color=line_color,
             lineID=lineID,
+            lvar=lvar,
             **kwargs)
 
     if loc is not None and len(jpathList) > 1:
@@ -185,6 +213,7 @@ def plotSingleLineAcrossJobsByXVar(jpathPattern,
         lineStyle='.-',
         taskid='.best',
         lineID=0,
+        lvar='',
         **kwargs):
     ''' Create line plot in current figure for job matching the pattern
 
@@ -199,7 +228,7 @@ def plotSingleLineAcrossJobsByXVar(jpathPattern,
     PPListMap = makePPListMapFromJPattern(jpathPattern)
     if xvals is None:
         xvals = PPListMap[xvar]
-    
+
     xs = np.zeros(len(xvals))
     ys = np.zeros(len(xvals))
     jpathList = makeListOfJPatternsWithSpecificVals(PPListMap, 
@@ -207,11 +236,14 @@ def plotSingleLineAcrossJobsByXVar(jpathPattern,
         key=xvar,
         vals=xvals,
         **kwargs)
+
     for i, jobpath in enumerate(jpathList):
         if not os.path.exists(jobpath):
             raise ValueError("PATH NOT FOUND: %s" % (jobpath))
-        print jobpath.replace(os.environ['BNPYOUTDIR'], '')
-        
+
+        if taskid.startswith('.'):
+            rankTasksForSingleJobOnDisk(os.path.join(jobpath))
+
         x = float(xvals[i])
         y = loadYValFromDisk(jobpath, taskid, yvar=yvar)
         assert isinstance(x, float)
