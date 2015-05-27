@@ -73,8 +73,8 @@ def proposeNewResp_bisectExistingBlocks(Z_n, propResp,
             a=a,
             b=b,
             stride=stride)
-        print 'BEST BISECTION CUT: [%4d, %4d, %4d] w/ stride %d' % (
-            a, bestm, b, stride)
+        # print 'BEST BISECTION CUT: [%4d, %4d, %4d] w/ stride %d' % (
+        #     a, bestm, b, stride)
         if bestm == a:
             propResp[a:b, :origK] = 0
             propResp[a:b, origK + kfresh] = 1
@@ -177,6 +177,7 @@ def proposeNewResp_subdivideExistingBlocks(Z_n, propResp,
                 propResp[prevLoc:curLoc, :] = 0
                 propResp[prevLoc:curLoc, kfresh] = 1
                 kfresh += 1
+    assert kfresh >= origK
     return propResp, kfresh
 
 
@@ -185,7 +186,7 @@ def proposeNewResp_uniquifyExistingBlocks(Z_n, propResp,
         tempSS=None,
         origK=0,
         PRNG=np.random.RandomState,
-        nStatesToEdit=3,
+        nStatesToEdit=None,
         Kfresh=5,
         minBlockSize=1,
         maxBlockSize=10,
@@ -205,6 +206,9 @@ def proposeNewResp_uniquifyExistingBlocks(Z_n, propResp,
     propK : int
         total number of states used in propResp array
     '''
+    if nStatesToEdit is None:
+        nStatesToEdit = Kfresh
+
     # Unpack and make sure size limits work out
     T = Z_n.size
     if minBlockSize >= T:
@@ -240,11 +244,10 @@ def proposeNewResp_uniquifyExistingBlocks(Z_n, propResp,
         size=np.minimum(len(candidateStateIDs), nStatesToEdit),
         replace=False)
 
-    kfresh = origK
+    kfresh = 0
     for stateID in selectedStateIDs:
         if kfresh >= Kfresh:
             break
-
         # Make each block assigned to this state its own unique proposed state
         for blockID in candidateBlockIDsByState[stateID]:
             if kfresh >= Kfresh:
@@ -252,9 +255,9 @@ def proposeNewResp_uniquifyExistingBlocks(Z_n, propResp,
             a = blockStarts[blockID]
             b = a + blockSizes[blockID]
             propResp[a:b, :] = 0
-            propResp[a:b, kfresh] = 1
+            propResp[a:b, origK + kfresh] = 1
             kfresh += 1
-    return propResp, kfresh
+    return propResp, origK + kfresh
 
 def proposeNewResp_dpmixture(Z_n, propResp,
         ktarget=0,

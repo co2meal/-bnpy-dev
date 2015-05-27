@@ -30,10 +30,13 @@ def refineProposedRespViaLocalGlobalStepsAndDeletes(
         represents whole dataset seen thus far, including current sequence n
 
     '''
+    assert propLP_n['resp'].shape[1] == propK
 
     # Initialize tempSS and tempModel
     # to be fully consistent with propLP_n
     propSS_n = tempModel.get_global_suff_stats(Data_n, propLP_n)
+    assert propSS_n.K == propK
+
     if tempSS is None:
         tempSS = propSS_n.copy()
     else:
