@@ -442,6 +442,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
                     
             randOrder = self.PRNG.permutation(np.arange(Dchunk.nDoc))
             for n in randOrder:
+                seqName = "seq %d/%d in batch %d" % (
+                    n, Dchunk.nDoc, batchID)
                 if seqcreateParams['doVizSeqCreate']:
                     doTrackTruth = 1
                 else:
@@ -452,6 +454,9 @@ class MOVBBirthMergeAlg(MOVBAlg):
                 LP_n, tempModel, tempSS = \
                     createSingleSeqLPWithNewStates_ManyProposals(
                     Data_n, LP_n, tempModel, SS=tempSS,
+                    n=n,
+                    batchID=batchID,
+                    seqName=seqName,
                     **seqcreateParams)
 
         # Do final analysis of all sequences in this chunk
