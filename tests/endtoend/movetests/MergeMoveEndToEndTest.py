@@ -125,13 +125,12 @@ class MergeMoveEndToEndTest(unittest.TestCase):
             deleteStartLap=2,
             nCoordAscentItersLP=50,
             convThrLP=0.001,
-            #creationProposalName='mixture',
-            creationProposalName='subdivideExistingBlocks',
+            creationProposalName='randBlocks',
             minBlockSize=10,
-            maxBlockSize=25,
+            maxBlockSize=50,
             earlyKfresh=10,
             lateKfresh=3,
-            earlyLapDelim=5,
+            earlyLapDelim=20,
             creationStopLap=20,
             doVizSeqCreate=1,
         )
@@ -140,7 +139,6 @@ class MergeMoveEndToEndTest(unittest.TestCase):
         allKwargs.update(obsArg)
         allKwargs.update(initArg)
         allKwargs.update(self.datasetArg)
-
         if allKwargs['moves'].count('delete'):
             try:
                 MaxSize = 0.5 * int(self.datasetArg['nDocTotal'])
@@ -197,12 +195,10 @@ class MergeMoveEndToEndTest(unittest.TestCase):
         return Info
 
 
-
-    def run_MOVBWithMoves_SegmentSingleSeq(self, aArg, oArg,
+    def run_MOVBWithMoves_SegmentManySeq(self, aArg, oArg,
             moves='merge,delete,shuffle,seqcreate',
             algName='moVB',
             nWorkers=0,
-            n=0,
             **kwargs):
         """ Execute single run with all moves enabled.
 
@@ -210,16 +206,8 @@ class MergeMoveEndToEndTest(unittest.TestCase):
         --------------
         Will raise AssertionError if any bad results detected.
         """
-        if hasattr(self.Data, 'nDoc'):
-            Data_n = self.Data.select_subset_by_mask([n], doTrackTruth=1)
-            Data_n.name = self.Data.name
-            Data_n.alwaysTrackTruth = 1
-
-            assert hasattr(Data_n, 'TrueParams')
-        else:
-            raise NotImplementedError('TODO')
-
-        Ktrue = np.unique(Data_n.TrueParams['Z']).size
+        self.Data.alwaysTrackTruth = 1
+        Ktrue = np.unique(self.Data.TrueParams['Z']).size
 
         pprint(aArg)
         pprint(oArg)
@@ -235,9 +223,94 @@ class MergeMoveEndToEndTest(unittest.TestCase):
             doWriteStdOut=1,
             printEvery=1,
             saveEvery=1000,
+            doFullPassBeforeMstep=1,
+            **kwargs)
+
+        kwargs['jobname'] += '-creationProposalName=%s' % (
+            kwargs['creationProposalName'])
+        model, Info = bnpy.run(self.Data, 
+            arg2name(aArg), arg2name(oArg), algName, **kwargs)
+        pprintResult(model, Info, Ktrue=Ktrue)
+        try:
+            assert model.allocModel.K == model.obsModel.K
+            assert model.allocModel.K == Ktrue
+
+        except AssertionError as e:
+            pprintCommandToReproduceError(
+                self.datasetArg, aArg, oArg, algName, **kwargs)
+            assert model.allocModel.K == model.obsModel.K
+            if not model.allocModel.K == Ktrue:
+                print '>>>>>> WHOA! Kfinal != Ktrue <<<<<<'
+        print ''
+        return Info
+
+
+    def run_MOVBWithMoves_SegmentSingleSeq(self, aArg, oArg,
+            moves='merge,delete,shuffle,seqcreate',
+            algName='moVB',
+            nWorkers=0,
+            n=0,
+            **kwargs):
+        """ Execute single run with all moves enabled.
+
+        Post Condition
+        --------------
+        Will raise AssertionError if any bad results detected.
+        """
+        if hasattr(self.Data, 'nDoc'):
+            Data_n = self.Data.select_subset_by_mask([n], doTrackTruth=1)
+
+        else:
+            # Make GroupXData dataset from XData
+            # This code block rearranges rows so that we 
+            # cycle thru the true labels twice as contig blocks.
+            zTrue = self.Data.TrueParams['Z']
+            half1 = list()
+            half2 = list()
+            for uID in np.unique(zTrue):
+                dataIDs = np.flatnonzero(zTrue == uID)
+                Nk = dataIDs.size
+                half1.append(dataIDs[:Nk/2])
+                half2.append(dataIDs[Nk/2:])
+            dIDs_1 = np.hstack([x for x in half1])
+            dIDs_2 = np.hstack([x for x in half2])
+            dIDs = np.hstack([dIDs_1, dIDs_2])
+
+            Data_n = bnpy.data.GroupXData(X=self.Data.X[dIDs], 
+                doc_range=np.asarray([0, self.Data.nObs]),
+                TrueZ=self.Data.TrueParams['Z'][dIDs])
+
+            aArg['name'] = 'HDPHMM'
+            aArg['hmmKappa'] = 50
+            aArg['alpha'] = 0.5
+            aArg['gamma'] = 10.0
+            aArg['startAlpha'] = 10.0
+
+        Data_n.name = self.Data.name
+        Data_n.alwaysTrackTruth = 1
+        assert hasattr(Data_n, 'TrueParams')
+
+        Ktrue = np.unique(Data_n.TrueParams['Z']).size
+
+        pprint(aArg)
+        pprint(oArg)
+        initArg = dict(**kwargs)
+        pprint(initArg)
+        viterbiPath = os.path.expandvars(
+            '$BNPYROOT/bnpy/learnalg/extras/XViterbi.py')
+        kwargs = self.makeAllKwArgs(aArg, oArg, initArg, 
+            moves=moves, nWorkers=nWorkers,
+            customFuncPath=viterbiPath,
+            doSaveToDisk=1,
+            doWriteStdOut=1,
+            printEvery=1,
+            saveEvery=1000,
             nBatch=1,
             doFullPassBeforeMstep=1,
             **kwargs)
+
+        kwargs['jobname'] += '-creationProposalName=%s' % (
+            kwargs['creationProposalName'])
         model, Info = bnpy.run(Data_n, 
             arg2name(aArg), arg2name(oArg), algName, **kwargs)
         pprintResult(model, Info, Ktrue=Ktrue)
@@ -315,18 +388,16 @@ class MergeMoveEndToEndTest(unittest.TestCase):
         self.runMany_MOVBWithMoves(moves='merge', algName='pmoVB',
             nWorkers=2)
 
-    def test_MOVBCreateDestroy(self):
+    def test_MOVBCreateDestroy_SingleSeq(self):
         print ''
-        initnamePatterns = [
-            'initname=randcontigblocks-K=1',
-            #'initname=truelabels-K=0',
-            ]
+        argDict = parseCmdLineArgs()
         for aKwArgs in self.nextAllocKwArgsForVB():
             for oKwArgs in self.nextObsKwArgsForVB():
                 Info = dict()
-                for iPattern in initnamePatterns:
+                for iPattern in argDict['initnameVals'].split(','):
                     fields = iPattern.split('-')
                     initargs = dict(jobname='nosetest-'+iPattern)
+                    initargs.update(argDict)
                     for kvstr in fields:
                         kvpair = kvstr.split('=')
                         key = kvpair[0]
@@ -341,3 +412,51 @@ class MergeMoveEndToEndTest(unittest.TestCase):
                 print ''
                 print ''
                 return
+
+
+
+    def test_MOVBCreateDestroy_ManySeq(self):
+        print ''
+        argDict = parseCmdLineArgs()
+        for aKwArgs in self.nextAllocKwArgsForVB():
+            for oKwArgs in self.nextObsKwArgsForVB():
+                Info = dict()
+                for iPattern in argDict['initnameVals'].split(','):
+                    fields = iPattern.split('-')
+                    initargs = dict(jobname='nosetest-'+iPattern)
+                    initargs.update(argDict)
+                    for kvstr in fields:
+                        kvpair = kvstr.split('=')
+                        key = kvpair[0]
+                        val = kvpair[1]
+                        initargs[key] = val
+                    self.run_MOVBWithMoves_SegmentManySeq(
+                        aKwArgs, oKwArgs,
+                        moves='merge,delete,shuffle,seqcreate',
+                        **initargs)
+                print ''
+                print ''
+                print ''
+                return
+
+def parseCmdLineArgs():
+    cmdlineArgList = sys.argv[1:]
+    argList = list()
+    for aa, arg in enumerate(cmdlineArgList):
+        if arg.startswith('-'):
+            continue
+        elif arg.count('Test.'):
+            continue
+        argList.append(arg)
+        print arg
+    for aa in range(1, len(sys.argv)):
+        sys.argv.pop()
+    print sys.argv, '<<<<<<*****'
+    assert len(argList) % 2 == 0
+    argDict = dict()
+    argDict['initnameVals'] = 'initname=randcontigblocks-K=1'
+    for ii in range(0, len(argList), 2):
+        key = argList[ii]
+        val = argList[ii+1]
+        argDict[key] = val
+    return argDict

@@ -7,22 +7,73 @@ from bnpy.util.StateSeqUtil import calcContigBlocksFromZ
 from bnpy.data.XData import XData
 from bnpy.allocmodel.hmm.HDPHMMUtil import calcELBOForSingleSeq_FromLP
 
+from bnpy.init.SeqCreatePlanner import calcEvalMetricForStates_KL
+from bnpy.init.SeqCreateRefinery import \
+    refineProposedRespViaLocalGlobalStepsAndDeletes
+
+# All proposal generating functions, of the form
+#   proposeNewResp_<creationProposalName>
+from bnpy.init.SeqCreateProposals import *
+
+def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model, 
+        SS=None,
+        **kwargs):
+    ''' Perform many proposal moves on provided sequence.
+
+    Returns
+    -------
+    LP_n
+    tempModel : HModel 
+        represents whole dataset seen thus far, including current sequence n
+    tempSS : SuffStatBag
+        represents whole dataset seen thus far, including current sequence n
+    '''
+    tempSS = SS
+
+    creationProposalNames = kwargs['creationProposalName']
+    propID = 0
+    for creationProposalName in creationProposalNames.split(','):
+        for repID in range(kwargs['creationNumProposal']):
+            if propID > 0:
+                # Remove stats for this seq before next proposal. 
+                SS_n = model.get_global_suff_stats(Data_n, LP_n)
+                tempSS -= SS_n
+
+            # TODO: control to limit Kfresh??
+            curKwargs = dict(**kwargs)
+            curKwargs['creationProposalName'] = creationProposalName
+            LP_n, model, tempSS = createSingleSeqLPWithNewStates(
+                Data_n, LP_n, model,
+                SS=tempSS,
+                **kwargs)
+            propID += 1
+
+    return LP_n, model, tempSS
+
 def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel, 
         SS=None,
         verbose=0,
         Kfresh=3,
         minBlockSize=20,
         maxBlockSize=np.inf,
-        nRefineIters=3,
         creationProposalName='mixture',
         PRNG=None,
         seed=0,
         **kwargs):
     ''' Propose a new LP that has additional states unique to current sequence.
 
+    Args
+    -------
+    SS : SuffStatBag
+        represents whole-dataset seen thus far, EXCLUDING current sequence n
+
     Returns
     -------
     LP_n : dict of local params, with K + Knew states (Knew >= 0)
+    tempModel : HModel 
+        represents whole dataset seen thus far, including current sequence n
+    tempSS : SuffStatBag
+        represents whole dataset seen thus far, including current sequence n
     '''
     kwargs['minBlockSize'] = minBlockSize
     kwargs['maxBlockSize'] = maxBlockSize
@@ -42,30 +93,39 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
 
     propResp = np.zeros((N, origK + Kfresh))
     propResp[:, :origK] = resp_n
-
     Z_n = np.argmax(resp_n, axis=1)
 
-    # Target comps with sufficient size in this sequence
+    # Select the state to target in this sequence.
+    # Must appear with sufficient size.
     uIDs = np.unique(Z_n)
     sizes = np.asarray([np.sum(Z_n == uID) for uID in uIDs])
     elig_mask = sizes >= minBlockSize
-    if np.sum(elig_mask) == 0:
-        return LP_n, hmodel, SS
+    # if np.sum(elig_mask) == 0:
+    #    return LP_n, hmodel, SS
     sizes = sizes[elig_mask]
     uIDs = uIDs[elig_mask]
     ktarget = PRNG.choice(uIDs)
 
-    if creationProposalName == 'mixture':
-        propResp, propK = proposeNewResp_DPMixtureOnTargetData(Z_n, propResp,
-            ktarget=ktarget,
-            origK=origK,
-            Kfresh=np.minimum(Kfresh,2),
+    if creationProposalName.count('mixture'):
+        initname = PRNG.choice(['randexamplesbydist', 'randcontigblocks'])
+        propResp, propK = proposeNewResp_dpmixture(Z_n, propResp,
             tempModel=tempModel,
             tempSS=tempSS,
             Data_n=Data_n,
+            ktarget=ktarget,
+            origK=origK,
+            Kfresh=np.maximum(Kfresh,2),
+            initname=initname,
+            initBlockLen=minBlockSize,
             **kwargs)
     elif creationProposalName == 'subdivideExistingBlocks':
         propResp, propK = proposeNewResp_subdivideExistingBlocks(
+            Z_n, propResp, PRNG=PRNG,
+            origK=origK, Kfresh=Kfresh, 
+            minBlockSize=minBlockSize, 
+            maxBlockSize=maxBlockSize)
+    elif creationProposalName == 'uniquifyExistingBlocks':
+        propResp, propK = proposeNewResp_uniquifyExistingBlocks(
             Z_n, propResp, PRNG=PRNG,
             origK=origK, Kfresh=Kfresh, 
             minBlockSize=minBlockSize, 
@@ -79,59 +139,28 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
     else:
         msg = "Unrecognized creationProposalName: %s" % (creationProposalName)
         raise NotImplementedError(msg)
+
     if propK == origK:
+        SS_n = hmodel.get_global_suff_stats(Data_n, LP_n)
+        if SS is None:
+            SS = SS_n.copy()
+        else:
+            SS += SS_n
+        assert SS.N.sum() >= Z_n.size - 1e-7
         return LP_n, hmodel, SS
 
-    # Create complete LP fields from the proposed resp segmentation
+    # Create complete LP dict from the proposed segmentation
     propLP_n = tempModel.allocModel.initLPFromResp(
         Data_n, dict(resp=propResp[:, :propK]))
-    
-    # Refine this segmentation via repeated local/global steps
-    for step in xrange(nRefineIters):
-        if step == 0:
-            if tempSS is not None and tempSS.K < propK:
-                tempSS.insertEmptyComps(propK - origK)
-        elif step > 0:
-            tempSS -= propSS_n
-        
-        propSS_n = tempModel.get_global_suff_stats(Data_n, propLP_n)
-        if tempSS is None:
-            tempSS = propSS_n.copy()
-        else:
-            tempSS += propSS_n
 
-        tempModel.update_global_params(tempSS)
-        propLP_n = tempModel.calc_local_params(Data_n, limitMemoryLP=1)
-
-    # Do a few steps to remove empties     
-    extraIDs_remaining = np.arange(origK, propK).tolist()
-    nEmpty = np.sum(tempSS.N[origK:] <= 1)
-    if verbose:
-        print extraIDs_remaining, '<< original extra ids'
-    while nEmpty > 0:
-        if verbose:
-            print ['%.2f' % (x) for x in tempSS.N[origK:]]
-            print extraIDs_remaining, '<< remaining extra ids before'
-
-        L = len(extraIDs_remaining)
-        for kLoc, kk in enumerate(reversed(np.arange(origK, tempSS.K))):
-            if tempSS.N[kk] <= 1:
-                if verbose:
-                    print 'removing comp %d' % (kk)
-                tempSS.removeComp(kk)
-                propSS_n.removeComp(kk)
-                extraIDs_remaining.pop(L - kLoc - 1)
-        if verbose:
-            print extraIDs_remaining, '<< remaining extra ids AFTER'
-
-        # Make model have consistent num of global params
-        tempModel.update_global_params(tempSS)
-
-        propLP_n = tempModel.calc_local_params(Data_n, limitMemoryLP=1)
-        tempSS -= propSS_n
-        propSS_n = tempModel.get_global_suff_stats(Data_n, propLP_n)
-        tempSS += propSS_n
-        nEmpty = np.sum(tempSS.N[origK:] <= 1)
+    # Refine this set of local parameters
+    propLP_n, tempModel, tempSS, Info = \
+        refineProposedRespViaLocalGlobalStepsAndDeletes(
+            Data_n, propLP_n, tempModel, tempSS,
+            propK=propK,
+            origK=origK,
+            verbose=verbose,
+            **kwargs)
 
     propScore = calcELBOForSingleSeq_FromLP(Data_n, propLP_n, hmodel)
     curScore = calcELBOForSingleSeq_FromLP(Data_n, LP_n, hmodel)
@@ -149,23 +178,31 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
             print 'ACCEPTED! Mass of new states: [%s]' % (massNew_str)
         else:
             print 'rejected'
-        showProposal(Data_n, Z_n, propResp, propLP_n, extraIDs_remaining,
-            doAccept=doAccept)
+        showProposal(Data_n, Z_n, propResp, propLP_n,
+            doAccept=doAccept,
+            **Info)
         print ''
         print ''
         print ''
 
     if doAccept:
+        assert tempSS.N.sum() >= Z_n.size - 1e-7
         return propLP_n, tempModel, tempSS
     else:
+        SS_n = hmodel.get_global_suff_stats(Data_n, LP_n)
+        if SS is None:
+            SS = SS_n.copy()
+        else:
+            SS += SS_n
+        assert SS.N.sum() >= Z_n.size - 1e-7
         return LP_n, hmodel, SS
 
-def showProposal(Data_n, Z_n, propResp, propLP_n, origIDs,
+def showProposal(Data_n, Z_n, propResp, propLP_n,
+        extraIDs_remaining=None,
         doAccept=None):
     from matplotlib import pylab
     from bnpy.util.StateSeqUtil import alignEstimatedStateSeqToTruth
     from bnpy.util.StateSeqUtil import makeStateColorMap
-    origIDs = np.asarray(origIDs)
     Ztrue = np.asarray(Data_n.TrueParams['Z'], np.int32)
 
     # Map Ztrue to compact set of uniqueIDs
@@ -198,7 +235,7 @@ def showProposal(Data_n, Z_n, propResp, propLP_n, origIDs,
     # Step 1: propZrefined states all have negative ids
     propZrefined = -1 * propLP_n['resp'].argmax(axis=1) - 1
     for origLoc, kk in enumerate(range(Kcur, propZrefined.max() + 1)):
-        propZrefined[propZrefined == -1*kk-1] = origIDs[origLoc]
+        propZrefined[propZrefined == -1*kk-1] = extraIDs_remaining[origLoc]
     # Transform any original states back to original ids
     propZrefined[propZrefined < 0] = -1 * propZrefined[propZrefined < 0] - 1
 
@@ -258,204 +295,6 @@ def showProposal(Data_n, Z_n, propResp, propLP_n, origIDs,
     pylab.show(block=False)
     keypress = raw_input("Press any key to continue>>>")
     pylab.close()
-
-def proposeNewResp_randBlocks(Z_n, propResp,
-        origK=0,
-        PRNG=np.random.RandomState,
-        Kfresh=3,
-        minBlockSize=1,
-        maxBlockSize=10,
-        **kwargs):
-    ''' Create new value of resp matrix with randomly-placed new blocks.
-
-    We create Kfresh new blocks in total.
-    Each one can potentially wipe out some (or all) of previous blocks.
-
-    Returns
-    -------
-    propResp : 2D array of size N x Kmax
-    propK : int
-        total number of states used in propResp array
-    '''
-    # Unpack and make sure size limits work out
-    T = Z_n.size
-    if minBlockSize >= T:
-        return propResp, origK
-    maxBlockSize = np.minimum(maxBlockSize, T)
-
-    for kfresh in range(Kfresh):
-        blockSize = PRNG.randint(minBlockSize, maxBlockSize)
-        a = PRNG.randint(0, T - blockSize + 1)
-        b = a + blockSize
-        print a, b
-        propResp[a:b, :origK] = 0
-        propResp[a:b, origK+kfresh] = 1
-    return propResp, origK + Kfresh
-
-def proposeNewResp_subdivideExistingBlocks(Z_n, propResp,
-        origK=0,
-        PRNG=np.random.RandomState,
-        nStatesToEdit=3,
-        Kfresh=5,
-        minBlockSize=1,
-        maxBlockSize=10,
-        **kwargs):
-    ''' Create new value of resp matrix with new blocks.
-
-    We select nStatesToEdit states to change.
-    For each one, we take each contiguous block,
-        defined by interval [a,b]
-        and subdivide that interval into arbitrary number of states
-            [a, l1, l2, l3, ... lK, b]
-        where the length of each new block is drawn from
-            l_i ~ uniform(minBlockSize, maxBlockSize)
-
-    Returns
-    -------
-    propResp : 2D array of size N x Kmax
-    propK : int
-        total number of states used in propResp array
-    '''
-    # Unpack and make sure size limits work out
-    T = Z_n.size
-    if minBlockSize >= T:
-        return propResp, origK
-    maxBlockSize = np.minimum(maxBlockSize, T)
-
-    blockSizes, blockStarts = calcContigBlocksFromZ(Z_n)
-    nBlocks = len(blockSizes)
-
-    candidateStateIDs = list()
-    candidateBlockIDsByState = dict()
-    for blockID in xrange(nBlocks):
-        stateID = Z_n[blockStarts[blockID]]
-        if blockSizes[blockID] >= minBlockSize:
-            candidateStateIDs.append(stateID)
-            if stateID not in candidateBlockIDsByState:
-                candidateBlockIDsByState[stateID] = list()
-            candidateBlockIDsByState[stateID].append(blockID)
-
-    if len(candidateStateIDs) == 0:
-        return propResp, origK
-    selectedStateIDs = PRNG.choice(candidateStateIDs, 
-        size=np.minimum(len(candidateStateIDs), nStatesToEdit),
-        replace=False)
-
-    kfresh = origK
-    for stateID in selectedStateIDs:
-        if kfresh >= Kfresh:
-            break
-
-        # Find contig blocks assigned to this state
-        for blockID in candidateBlockIDsByState[stateID]:
-            if kfresh >= Kfresh:
-                break
-            a = blockStarts[blockID]
-            b = a + blockSizes[blockID]
-            maxSize = np.minimum(b-a, maxBlockSize)
-            avgSize = (maxSize + minBlockSize) / 2
-            expectedLen = avgSize * Kfresh
-            if expectedLen < (b - a):
-                intervalLocs = [PRNG.randint(a, b-expectedLen)]
-            else:
-                intervalLocs = [a]
-            for ii in range(Kfresh):
-                nextBlockSize = PRNG.randint(minBlockSize, maxSize)
-                intervalLocs.append(nextBlockSize + intervalLocs[ii])
-                if intervalLocs[ii+1] >= b:
-                    break
-            intervalLocs = np.asarray(intervalLocs, dtype=np.int32)
-            intervalLocs = np.minimum(intervalLocs, b)
-            # print 'Current interval   : [ %d, %d]' % (a, b)
-            # print 'Subdivided interval: ', intervalLocs
-            for iID in range(intervalLocs.size-1):
-                if kfresh >= Kfresh:
-                    break
-                prevLoc = intervalLocs[iID]
-                curLoc = intervalLocs[iID+1]
-                propResp[prevLoc:curLoc, :] = 0
-                propResp[prevLoc:curLoc, kfresh] = 1
-                kfresh += 1
-    return propResp, kfresh
-
-
-def proposeNewResp_DPMixtureOnTargetData(Z_n, propResp,
-        ktarget=0,
-        tempModel=None,
-        tempSS=None,
-        Data_n=None,
-        origK=0,
-        Kfresh=3,
-        minBlockSize=0,
-        maxBlockSize=10,
-        nVBIters=3,
-        **kwargs):
-    ''' Create new resp matrix by DP mixture clustering of subsampled data.
-
-    Returns
-    -------
-    propResp : 2D array, N x K'
-    '''
-    # Avoid circular imports
-    from bnpy.allocmodel import DPMixtureModel
-    from bnpy import HModel
-    from bnpy.mergemove import MergePlanner, MergeMove
-
-    relDataIDs = np.flatnonzero(Z_n == ktarget)
-    if hasattr(Data_n, 'Xprev'):
-        Xprev = Data_n.Xprev[relDataIDs]
-    else:
-        Xprev = None
-    targetData = XData(X=Data_n.X[relDataIDs],
-        Xprev=Xprev)
-
-    myDPModel = DPMixtureModel('VB', gamma0=10)
-    myObsModel = copy.deepcopy(tempModel.obsModel)
-    delattr(myObsModel, 'Post')
-    myObsModel.ClearCache()
-
-    myHModel = HModel(myDPModel, myObsModel)
-    myHModel.init_global_params(targetData, initname='randexamplesbydist',
-        K=Kfresh)
-    Kfresh = myHModel.obsModel.K
-    mergeIsPromising = True
-    while Kfresh > 1 and mergeIsPromising:
-        for vbiter in xrange(nVBIters):
-            targetLP = myHModel.calc_local_params(targetData)
-            targetSS = myHModel.get_global_suff_stats(targetData, targetLP)
-            # Delete unnecessarily small comps
-            if vbiter == nVBIters - 1:
-                smallIDs = np.flatnonzero(targetSS.getCountVec() < 5)
-                for kdel in reversed(smallIDs):
-                    targetSS.removeComp(kdel)
-            # Global step
-            myHModel.update_global_params(targetSS)
-
-        # Do merges
-        mPairIDs, MM = MergePlanner.preselect_candidate_pairs(myHModel, targetSS,
-             preselect_routine='wholeELBO',
-             doLimitNumPairs=0,
-             returnScoreMatrix=1,
-             **kwargs)
-        targetLP = myHModel.calc_local_params(targetData)
-        targetSS = myHModel.get_global_suff_stats(targetData, targetLP,
-            mPairIDs=mPairIDs,
-            doPrecompEntropy=1,
-            doPrecompMergeEntropy=1)
-        myHModel.update_global_params(targetSS)
-        curELBO = myHModel.calc_evidence(SS=targetSS)
-        myHModel, targetSS, curELBO, Info = MergeMove.run_many_merge_moves(
-            myHModel, targetSS, curELBO,
-            mPairIDs, M=MM,
-            isBirthCleanup=1)
-        mergeIsPromising = len(Info['AcceptedPairs']) > 0
-        Kfresh = targetSS.K
-
-    if mergeIsPromising:
-        targetLP = myHModel.calc_local_params(targetData)
-    propResp[relDataIDs, :] = 0
-    propResp[relDataIDs, origK:origK+Kfresh] = targetLP['resp']
-    return propResp, origK+Kfresh
 
 def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel, 
         SS=None,

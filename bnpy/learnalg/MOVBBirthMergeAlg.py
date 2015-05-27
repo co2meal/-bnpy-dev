@@ -405,7 +405,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
             Number of states will be greater or equal to hmodel.obsModel.K
         '''
         from bnpy.init.SingleSeqStateCreator import \
-            createSingleSeqLPWithNewStates
+            createSingleSeqLPWithNewStates_ManyProposals
         if lapFrac <= self.algParams['seqcreate']['earlyLapDelim']:
             Kfresh = self.algParams['seqcreate']['earlyKfresh']
         elif lapFrac >= self.algParams['seqcreate']['creationStopLapDelim']:
@@ -423,19 +423,23 @@ class MOVBBirthMergeAlg(MOVBAlg):
         tempModel = hmodel
         tempSS = SS
 
-        #print 'BEFORE:',
-        #if SS is None:
-        #    print 'none'
-        #else:
-        #    print ' '.join(['%4.1f' % (x) for x in SS.N])
+        # print 'BEFORE:',
+        # if SS is None:
+        #     print 'none'
+        # else:
+        #     print ' '.join(['%4.1f' % (x) for x in SS.N])
 
         if Kfresh > 0:
             # Remove current segmentation from suff stats
             if tempSS is not None:
                 tempSS = SS.copy()
                 if batchID in self.SSmemory:
-                    tempSS -= self.SSmemory[batchID].copy()
-
+                    batchSS = self.SSmemory[batchID].copy()
+                    Kextra = tempSS.K - batchSS.K
+                    if Kextra > 0:
+                        batchSS.insertEmptyComps(Kextra)
+                    tempSS -= batchSS
+                    
             randOrder = self.PRNG.permutation(np.arange(Dchunk.nDoc))
             for n in randOrder:
                 if seqcreateParams['doVizSeqCreate']:
@@ -445,7 +449,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
                 Data_n = Dchunk.select_subset_by_mask([n], 
                     doTrackTruth=doTrackTruth)
                 LP_n = tempModel.calc_local_params(Data_n, **self.algParamsLP)
-                LP_n, tempModel, tempSS = createSingleSeqLPWithNewStates(
+                LP_n, tempModel, tempSS = \
+                    createSingleSeqLPWithNewStates_ManyProposals(
                     Data_n, LP_n, tempModel, SS=tempSS,
                     **seqcreateParams)
 
@@ -477,10 +482,6 @@ class MOVBBirthMergeAlg(MOVBAlg):
             LPchunk = tempModel.calc_local_params(Dchunk, **LPandMergeKwargs)
             SSchunk = tempModel.get_global_suff_stats(Dchunk, LPchunk)
             emptyIDs = Korig + np.flatnonzero(SSchunk.N[Korig:] <= 1)
-
-
-        #print 'AFTER  ',
-        #print ' '.join(['%4.1f' % (x) for x in LPchunk['resp'].sum(axis=0)])
 
         Kresult = LPchunk['resp'].shape[1]
         Kextra = Kresult - Korig
