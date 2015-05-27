@@ -120,6 +120,14 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
             initname=initname,
             initBlockLen=minBlockSize,
             **kwargs)
+    elif creationProposalName == 'bisectExistingBlocks':
+        propResp, propK = proposeNewResp_bisectExistingBlocks(
+            Z_n, propResp, PRNG=PRNG,
+            origK=origK, Kfresh=Kfresh,
+            Data_n=Data_n,
+            tempModel=tempModel, 
+            minBlockSize=minBlockSize, 
+            maxBlockSize=maxBlockSize)
     elif creationProposalName == 'subdivideExistingBlocks':
         propResp, propK = proposeNewResp_subdivideExistingBlocks(
             Z_n, propResp, PRNG=PRNG,
@@ -143,6 +151,7 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
         raise NotImplementedError(msg)
 
     if propK == origK:
+        print 'PROPOSAL FAILED TO CREATE NEW STATES'
         SS_n = hmodel.get_global_suff_stats(Data_n, LP_n)
         if SS is None:
             SS = SS_n.copy()

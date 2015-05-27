@@ -188,6 +188,24 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
         '''
         return calcSummaryStats(Data, SS, LP, **kwargs)
 
+    def calcSummaryStatsForContigBlock(self, Data, SS=None,
+            a=None, b=None, **kwargs):
+        ''' Calculate summary statistics for specific block of dataset
+
+        Returns
+        --------
+        SS : SuffStatBag object, with K components.
+        '''
+        SS = SuffStatBag(K=1, D=Data.dim)
+
+        # Expected count
+        SS.setField('N', (b-a) * np.ones(1, dtype=np.float64), dims='K')
+
+        # Expected outer-product
+        xxT = dotATA(Data.X[a:b])[np.newaxis,:,:]
+        SS.setField('xxT', xxT, dims=('K', 'D', 'D'))
+        return SS
+
     def forceSSInBounds(self, SS):
         ''' Force count vector N to remain positive
         '''

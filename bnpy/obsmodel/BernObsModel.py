@@ -177,6 +177,7 @@ class BernObsModel(AbstractObsModel):
         CountOFF = (b-a) - CountON
 
         SS = SuffStatBag(K=1, D=Data.dim)
+        SS.setField('N', np.asarray([b-a], dtype=np.float64), dims='K')
         SS.setField('Count1', CountON, dims=('K', 'D'))
         SS.setField('Count0', CountOFF, dims=('K', 'D'))
         return SS
@@ -703,11 +704,14 @@ def calcSummaryStats(Dslice, SS, LP, **kwargs):
     --------
     SS : SuffStatBag object, with K components.
     '''
-    if SS is None:
-        SS = SuffStatBag(K=LP['resp'].shape[1], D=Dslice.dim)
-
     Resp = LP['resp']  # 2D array, N x K
     X = Dslice.X  # 2D array, N x D
+
+    if SS is None:
+        SS = SuffStatBag(K=LP['resp'].shape[1], D=Dslice.dim)
+    if not hasattr(SS, 'N'):
+        SS.setField('N', np.sum(LP['resp'], axis=0), dims='K')
+
     CountON = np.dot(Resp.T, X)  # matrix-matrix product, result is K x D
     CountOFF = np.dot(Resp.T, 1 - X)
 

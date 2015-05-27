@@ -35,6 +35,7 @@ def init_global_params(obsModel, Data, K=0, seed=0,
     obsModel has valid global parameters.
     Either its EstParams or Post attribute will be contain K components.
     '''
+    K = int(K)
     PRNG = np.random.RandomState(seed)
     X = Data.X
     if initname == 'randexamples':

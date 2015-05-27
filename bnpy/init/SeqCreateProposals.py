@@ -31,10 +31,67 @@ def proposeNewResp_randBlocks(Z_n, propResp,
         blockSize = PRNG.randint(minBlockSize, maxBlockSize)
         a = PRNG.randint(0, T - blockSize + 1)
         b = a + blockSize
-        print a, b
         propResp[a:b, :origK] = 0
         propResp[a:b, origK+kfresh] = 1
     return propResp, origK + Kfresh
+
+
+
+def proposeNewResp_bisectExistingBlocks(Z_n, propResp,
+        Data_n=None,
+        tempModel=None,
+        origK=0,
+        PRNG=np.random.RandomState,
+        Kfresh=3,
+        **kwargs):
+    ''' Create new value of resp matrix with randomly-placed new blocks.
+
+    We create Kfresh new blocks in total.
+    Each one can potentially wipe out some (or all) of previous blocks.
+
+    Returns
+    -------
+    propResp : 2D array of size N x Kmax
+    propK : int
+        total number of states used in propResp array
+    '''
+    # Iterate over current contig blocks 
+    blockSizes, blockStarts = calcContigBlocksFromZ(Z_n)
+    nBlocks = len(blockSizes)
+    randOrder = PRNG.permutation(np.arange(nBlocks))
+    kfresh = 0 # number of new states added
+    for blockID in randOrder:
+        if kfresh >= Kfresh:
+            break
+        a = blockStarts[blockID]
+        b = blockStarts[blockID] + blockSizes[blockID]
+        stride = int(np.ceil((b - a) / 25.0))
+        stride = np.maximum(1, stride)
+        offset = PRNG.choice(np.arange(stride))
+        a += offset
+        bestm = findBestCutForBlock(Data_n, tempModel,
+            a=a,
+            b=b,
+            stride=stride)
+        print 'BEST BISECTION CUT: [%4d, %4d, %4d] w/ stride %d' % (
+            a, bestm, b, stride)
+        if bestm == a:
+            propResp[a:b, :origK] = 0
+            propResp[a:b, origK + kfresh] = 1
+            kfresh += 1
+        else:
+            propResp[a:bestm, :origK] = 0
+            propResp[a:bestm, origK + kfresh] = 1
+            kfresh += 1
+
+            if kfresh >= Kfresh:
+                break
+
+            propResp[bestm:b, :origK] = 0           
+            propResp[bestm:b, origK + kfresh] = 1
+            kfresh += 1
+    return propResp, origK + kfresh
+
 
 def proposeNewResp_subdivideExistingBlocks(Z_n, propResp,
         origK=0,
@@ -276,3 +333,45 @@ def proposeNewResp_dpmixture(Z_n, propResp,
     propResp[relDataIDs, :] = 0
     propResp[relDataIDs, origK:origK+Kfresh] = targetLP['resp']
     return propResp, origK+Kfresh
+
+
+def findBestCutForBlock(Data_n, tempModel,
+        a=0, b=400,
+        stride=3):
+    ''' Search for best cut point over interval [a,b] in provided sequence n.
+    '''
+    tempModel = tempModel.copy()
+    def calcObsModelELBOForInterval(SSab):
+        tempModel.obsModel.update_global_params(SSab)
+        ELBOab = tempModel.obsModel.calc_evidence(None, SSab, None)
+        return ELBOab
+
+    SSab = tempModel.obsModel.calcSummaryStatsForContigBlock(
+        Data_n, a=a, b=b)
+    ELBOab = calcObsModelELBOForInterval(SSab)
+
+    # Initialize specific suff stat bags for intervals [a,m] and [m,b]
+    SSmb = SSab
+    SSam = SSab.copy()
+    SSam.setAllFieldsToZero()
+    assert np.allclose(SSam.N.sum() + SSmb.N.sum(), b-a)
+
+    score = -1 * np.inf * np.ones(b-a)
+    score[0] = ELBOab  
+    for m in np.arange(a+stride, b, stride):
+        assert m > a
+        assert m < b
+        # Grab segment recently converted to [a,m] interval
+        SSstride = tempModel.obsModel.calcSummaryStatsForContigBlock(
+            Data_n, a=(m - stride), b=m)
+        SSam += SSstride
+        SSmb -= SSstride
+        assert np.allclose(SSam.N.sum() + SSmb.N.sum(), b-a)
+
+        ELBOam = calcObsModelELBOForInterval(SSam)
+        ELBOmb = calcObsModelELBOForInterval(SSmb)
+        score[m - a] = ELBOam + ELBOmb
+        #print a, m, b, 'score %.3e  Nam %.3f' % (score[m - a], SSam.N[0])
+  
+    bestm = a + np.argmax(score)
+    return bestm
