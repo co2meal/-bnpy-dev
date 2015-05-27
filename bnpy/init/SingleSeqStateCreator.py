@@ -33,6 +33,7 @@ def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model,
     creationProposalNames = kwargs['creationProposalName'].split(',')
     propID = 0
     for creationProposalName in creationProposalNames:
+        PastAttemptLog = dict()
         for repID in range(kwargs['creationNumProposal']):
             if propID > 0:
                 # Remove stats for this seq before next proposal. 
@@ -45,6 +46,7 @@ def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model,
             LP_n, model, tempSS = createSingleSeqLPWithNewStates(
                 Data_n, LP_n, model,
                 SS=tempSS,
+                PastAttemptLog=PastAttemptLog,
                 **curKwargs)
             propID += 1
     assert tempSS.N.sum() >= LP_n['resp'].shape[0] - 1e-7
