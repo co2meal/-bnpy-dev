@@ -30,9 +30,9 @@ def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model,
     '''
     tempSS = SS
 
-    creationProposalNames = kwargs['creationProposalName']
+    creationProposalNames = kwargs['creationProposalName'].split(',')
     propID = 0
-    for creationProposalName in creationProposalNames.split(','):
+    for creationProposalName in creationProposalNames:
         for repID in range(kwargs['creationNumProposal']):
             if propID > 0:
                 # Remove stats for this seq before next proposal. 
@@ -45,9 +45,9 @@ def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model,
             LP_n, model, tempSS = createSingleSeqLPWithNewStates(
                 Data_n, LP_n, model,
                 SS=tempSS,
-                **kwargs)
+                **curKwargs)
             propID += 1
-
+    assert tempSS.N.sum() >= LP_n['resp'].shape[0] - 1e-7
     return LP_n, model, tempSS
 
 def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel, 
@@ -77,6 +77,8 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
     tempSS : SuffStatBag
         represents whole dataset seen thus far, including current sequence n
     '''
+    kwargs['creationProposalName'] = creationProposalName
+    kwargs['Kfresh'] = Kfresh
     kwargs['minBlockSize'] = minBlockSize
     kwargs['maxBlockSize'] = maxBlockSize
     kwargs['PRNG'] = PRNG
@@ -150,8 +152,7 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
         msg = "Unrecognized creationProposalName: %s" % (creationProposalName)
         raise NotImplementedError(msg)
 
-    if propK == origK:
-        print 'PROPOSAL FAILED TO CREATE NEW STATES'
+    if propK == origK and np.allclose(Z_n, propResp.argmax(axis=1)):
         SS_n = hmodel.get_global_suff_stats(Data_n, LP_n)
         if SS is None:
             SS = SS_n.copy()
@@ -189,11 +190,13 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
             print 'ACCEPTED! Mass of new states: [%s]' % (massNew_str)
         else:
             print 'rejected'
+
+        kwargs.update(Info)
         showProposal(Data_n, Z_n, propResp, propLP_n,
             doAccept=doAccept,
             n=n,
             seqName=seqName,
-            **Info)
+            **kwargs)
         print ''
         print ''
         print ''
@@ -216,6 +219,8 @@ def showProposal(Data_n, Z_n, propResp, propLP_n,
         extraIDs_remaining=None,
         doAccept=None,
         doCompactTrueLabels=False,
+        Kfresh=None,
+        creationProposalName=None,
         **kwargs):
     from matplotlib import pylab
     from bnpy.util.StateSeqUtil import alignEstimatedStateSeqToTruth
@@ -274,8 +279,8 @@ def showProposal(Data_n, Z_n, propResp, propLP_n,
         vmin=0, vmax=Kmaxxx-1)
     pylab.subplots(nrows=4, ncols=1, figsize=(12,5))
     # show ground truth
-    print 'UNIQUE IDS in each aligned Z'
-    print np.unique(Ztrue)
+    #print 'UNIQUE IDS in each aligned Z'
+    #print np.unique(Ztrue)
     #print np.unique(curZA)
     #print np.unique(propZstart), '>', np.unique(propZAstart)
     #print np.unique(propZrefined), '>', np.unique(propZArefined)
@@ -314,6 +319,9 @@ def showProposal(Data_n, Z_n, propResp, propLP_n,
         pylab.tight_layout()
     pylab.show(block=False)
     keypress = raw_input("Press any key to continue>>>")
+    if keypress.count('embed'):
+        from IPython import embed;
+        embed()
     pylab.close()
 
 def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel, 

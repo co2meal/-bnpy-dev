@@ -396,16 +396,18 @@ class MergeMoveEndToEndTest(unittest.TestCase):
                 Info = dict()
                 for iPattern in argDict['initnameVals'].split(','):
                     fields = iPattern.split('-')
-                    initargs = dict(jobname='nosetest-'+iPattern)
+                    initargs = dict()
                     for kvstr in fields:
                         kvpair = kvstr.split('=')
                         key = kvpair[0]
                         val = kvpair[1]
                         initargs[key] = val
                     initargs.update(argDict)
+                    initargs['jobname'] = 'nosetest-initname=%s-K=%s' % (
+                        initargs['initname'], initargs['K'])
                     self.run_MOVBWithMoves_SegmentSingleSeq(
                         aKwArgs, oKwArgs,
-                        moves='merge,shuffle,delete,seqcreate',
+                        moves='merge,delete,shuffle,seqcreate',
                         **initargs)
                     print ''
                     print ''
@@ -423,18 +425,21 @@ class MergeMoveEndToEndTest(unittest.TestCase):
                 Info = dict()
                 for iPattern in argDict['initnameVals'].split(','):
                     fields = iPattern.split('-')
-                    initargs = dict(jobname='nosetest-'+iPattern)
-                    initargs.update(argDict)
+                    initargs = dict()
                     for kvstr in fields:
                         kvpair = kvstr.split('=')
                         key = kvpair[0]
                         val = kvpair[1]
                         initargs[key] = val
+                    initargs.update(argDict)
+                    initargs['jobname'] = 'nosetest-initname=%s-K=%s' % (
+                        initargs['initname'], initargs['K'])
                     self.run_MOVBWithMoves_SegmentManySeq(
                         aKwArgs, oKwArgs,
                         moves='merge,delete,shuffle,seqcreate',
                         **initargs)
-                print ''
+                    print ''
+                    print ''
                 print ''
                 print ''
                 return
