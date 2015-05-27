@@ -91,8 +91,8 @@ def proposeNewResp_bisectExistingBlocks(Z_n, propResp,
             maxOverlapWithPreviousFailure = np.maximum(
                 maxOverlapWithPreviousFailure, IoU) 
         if maxOverlapWithPreviousFailure > 0.95:
-            print 'SKIPPING BLOCK %d,%d with overlap %.2f' % (
-                a, b, maxOverlapWithPreviousFailure)
+            # print 'SKIPPING BLOCK %d,%d with overlap %.2f' % (
+            #     a, b, maxOverlapWithPreviousFailure)
             continue
 
         stride = int(np.ceil((b - a) / 25.0))

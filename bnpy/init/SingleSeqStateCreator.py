@@ -30,7 +30,7 @@ def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model,
     '''
     tempSS = SS
 
-    creationProposalNames = kwargs['creationProposalName'].split(',')
+    creationProposalNames = kwargs['creationProposalName'].split('+')
     propID = 0
     for creationProposalName in creationProposalNames:
         PastAttemptLog = dict()

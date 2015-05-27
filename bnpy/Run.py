@@ -142,7 +142,7 @@ def _run_task_internal(jobname, taskid, nTask,
                 except KeyError:
                     Data.name = 'UnknownDatasetName'
         else:
-            DataArgs = getKwArgsForLoadData(ReqArgs, UnkArgs)
+            DataArgs = getKwArgsForLoadData(ReqArgs, UnkArgs, KwArgs)
             Data, InitData = loadData(ReqArgs, KwArgs, DataArgs, dataorderseed)
     else:
         Data = dataName
@@ -304,7 +304,7 @@ def loadData(ReqArgs, KwArgs, DataArgs, dataorderseed):
         return DataIterator, InitData
 
 
-def getKwArgsForLoadData(ReqArgs, UnkArgs):
+def getKwArgsForLoadData(ReqArgs, UnkArgs, KwArgs=dict()):
     ''' Determine which keyword arguments can be passed to Data module
 
         Returns
@@ -336,6 +336,10 @@ def getKwArgsForLoadData(ReqArgs, UnkArgs):
         for name in datamod.Defaults.keys():
             dataArgNames.add(name)
     DataArgs = dict([(k, v) for k, v in UnkArgs.items() if k in dataArgNames])
+
+    if 'seqcreate' in KwArgs:
+        if 'doVizSeqCreate' in KwArgs['seqcreate']:
+            DataArgs['alwaysTrackTruth'] = KwArgs['seqcreate']['doVizSeqCreate']
     return DataArgs
 
 
