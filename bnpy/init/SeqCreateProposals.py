@@ -43,6 +43,7 @@ def proposeNewResp_bisectExistingBlocks(Z_n, propResp,
         origK=0,
         PRNG=np.random.RandomState,
         Kfresh=3,
+        PastAttemptLog=dict(),
         **kwargs):
     ''' Create new value of resp matrix with randomly-placed new blocks.
 
@@ -58,13 +59,40 @@ def proposeNewResp_bisectExistingBlocks(Z_n, propResp,
     # Iterate over current contig blocks 
     blockSizes, blockStarts = calcContigBlocksFromZ(Z_n)
     nBlocks = len(blockSizes)
-    randOrder = PRNG.permutation(np.arange(nBlocks))
+
+    sortOrder = np.argsort(-1 * blockSizes)
+    blockSizes = blockSizes[sortOrder]
+    blockStarts = blockStarts[sortOrder]
+
     kfresh = 0 # number of new states added
-    for blockID in randOrder:
+    for blockID in range(nBlocks):
         if kfresh >= Kfresh:
             break
         a = blockStarts[blockID]
         b = blockStarts[blockID] + blockSizes[blockID]
+
+        # Avoid overlapping with previous attempts that failed
+        maxOverlapWithPreviousFailure = 0.0
+        for (preva,prevb), prevm in PastAttemptLog.items():
+            # skip previous attempts that succeed
+            if prevm > preva:
+                continue
+            Tunion = np.maximum(b, prevb) - np.minimum(a, preva) 
+            minb = np.minimum(b, prevb)
+            maxa = np.maximum(a, preva)
+            if maxa < minb:
+                Tintersect = minb - maxa
+            else:
+                Tintersect = 0
+                continue
+            IoU = Tintersect / float(Tunion)
+            maxOverlapWithPreviousFailure = np.maximum(
+                maxOverlapWithPreviousFailure, IoU) 
+        if maxOverlapWithPreviousFailure > 0.95:
+            print 'SKIPPING BLOCK %d,%d with overlap %.2f' % (
+                a, b, maxOverlapWithPreviousFailure)
+            continue
+
         stride = int(np.ceil((b - a) / 25.0))
         stride = np.maximum(1, stride)
         offset = PRNG.choice(np.arange(stride))
@@ -73,6 +101,8 @@ def proposeNewResp_bisectExistingBlocks(Z_n, propResp,
             a=a,
             b=b,
             stride=stride)
+
+        PastAttemptLog[(a,b)] = bestm
         # print 'BEST BISECTION CUT: [%4d, %4d, %4d] w/ stride %d' % (
         #     a, bestm, b, stride)
         if bestm == a:
