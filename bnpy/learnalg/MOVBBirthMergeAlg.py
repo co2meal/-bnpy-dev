@@ -406,13 +406,19 @@ class MOVBBirthMergeAlg(MOVBAlg):
         '''
         from bnpy.init.SingleSeqStateCreator import \
             createSingleSeqLPWithNewStates_ManyProposals
-        if lapFrac <= self.algParams['seqcreate']['earlyLapDelim']:
-            Kfresh = self.algParams['seqcreate']['earlyKfresh']
-        elif lapFrac >= self.algParams['seqcreate']['creationStopLapDelim']:
+        if lapFrac <= self.algParams['seqcreate']['creationLapDelim_early']:
+            Kfresh = self.algParams['seqcreate']['creationKfresh_early']
+            numProp = self.algParams['seqcreate']['creationNumProposal_early']
+
+        elif lapFrac > self.algParams['seqcreate']['creationLapDelim_late']:
             Kfresh = 0
+            numProp = 0
         else:
-            Kfresh = self.algParams['seqcreate']['lateKfresh']
+            Kfresh = self.algParams['seqcreate']['creationKfresh_late']
+            numProp = self.algParams['seqcreate']['creationNumProposal_late']
+
         seqcreateParams = dict(**self.algParams['seqcreate'])
+        seqcreateParams['creationNumProposal'] = numProp
         seqcreateParams['Kfresh'] = Kfresh
         seqcreateParams['PRNG'] = self.PRNG
 
@@ -422,12 +428,6 @@ class MOVBBirthMergeAlg(MOVBAlg):
         Korig = hmodel.obsModel.K
         tempModel = hmodel
         tempSS = SS
-
-        # print 'BEFORE:',
-        # if SS is None:
-        #     print 'none'
-        # else:
-        #     print ' '.join(['%4.1f' % (x) for x in SS.N])
 
         if Kfresh > 0:
             # Remove current segmentation from suff stats

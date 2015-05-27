@@ -1,4 +1,6 @@
 import numpy as np
+import copy
+import warnings
 
 from bnpy.util.StateSeqUtil import calcContigBlocksFromZ
 from bnpy.data.XData import XData
@@ -297,6 +299,7 @@ def proposeNewResp_dpmixture(Z_n, propResp,
         origK=0,
         Kfresh=3,
         nVBIters=3,
+        PRNG=None,
         **kwargs):
     ''' Create new resp matrix by DP mixture clustering of subsampled data.
 
@@ -323,7 +326,10 @@ def proposeNewResp_dpmixture(Z_n, propResp,
     myObsModel.ClearCache()
 
     myHModel = HModel(myDPModel, myObsModel)
-    myHModel.init_global_params(targetData, K=Kfresh, **kwargs)
+    initname = PRNG.choice(['randexamplesbydist', 'randcontigblocks'])
+    myHModel.init_global_params(targetData, K=Kfresh, 
+        initname=initname,
+        **kwargs)
 
     Kfresh = myHModel.obsModel.K
     mergeIsPromising = True

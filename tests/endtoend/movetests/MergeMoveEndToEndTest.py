@@ -128,10 +128,6 @@ class MergeMoveEndToEndTest(unittest.TestCase):
             creationProposalName='randBlocks',
             minBlockSize=10,
             maxBlockSize=50,
-            earlyKfresh=10,
-            lateKfresh=3,
-            earlyLapDelim=20,
-            creationStopLap=20,
             doVizSeqCreate=1,
         )
         allKwargs.update(kwargs)
