@@ -256,6 +256,7 @@ def makeStateColorMap(nTrue=1, nExtra=0, nHighlight=0):
         [177,89,40],
         [127,127,127],
         ], dtype=np.float64)
+    C = np.vstack([C, 0.5 * C, 0.25 * C])
     if nTrue > C.shape[0]:
         raise ValueError('Cannot display more than %d true colors!' % (
             C.shape[0]))

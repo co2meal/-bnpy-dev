@@ -397,12 +397,12 @@ class MergeMoveEndToEndTest(unittest.TestCase):
                 for iPattern in argDict['initnameVals'].split(','):
                     fields = iPattern.split('-')
                     initargs = dict(jobname='nosetest-'+iPattern)
-                    initargs.update(argDict)
                     for kvstr in fields:
                         kvpair = kvstr.split('=')
                         key = kvpair[0]
                         val = kvpair[1]
                         initargs[key] = val
+                    initargs.update(argDict)
                     self.run_MOVBWithMoves_SegmentSingleSeq(
                         aKwArgs, oKwArgs,
                         moves='merge,shuffle,delete,seqcreate',
@@ -438,6 +438,123 @@ class MergeMoveEndToEndTest(unittest.TestCase):
                 print ''
                 print ''
                 return
+
+    def test_findBestCut_SingleSeq(self, n=0, **kwargs):
+        """ Interactively try out findBestCut.
+
+        Post Condition
+        --------------
+        Will raise AssertionError if any bad results detected.
+        """
+        print ''
+        argDict = parseCmdLineArgs()
+        for aArg in self.nextAllocKwArgsForVB():
+            for oArg in self.nextObsKwArgsForVB():
+                for iPattern in argDict['initnameVals'].split(','):
+                    fields = iPattern.split('-')
+                    for kvstr in fields:
+                        kvpair = kvstr.split('=')
+                        key = kvpair[0]
+                        val = kvpair[1]
+                        argDict[key] = val
+                    break
+        if hasattr(self.Data, 'nDoc'):
+            Data_n = self.Data.select_subset_by_mask([n], doTrackTruth=1)
+
+        else:
+            # Make GroupXData dataset from XData
+            # This code block rearranges rows so that we 
+            # cycle thru the true labels twice as contig blocks.
+            zTrue = self.Data.TrueParams['Z']
+            half1 = list()
+            half2 = list()
+            for uID in np.unique(zTrue):
+                dataIDs = np.flatnonzero(zTrue == uID)
+                Nk = dataIDs.size
+                half1.append(dataIDs[:Nk/2])
+                half2.append(dataIDs[Nk/2:])
+            dIDs_1 = np.hstack([x for x in half1])
+            dIDs_2 = np.hstack([x for x in half2])
+            dIDs = np.hstack([dIDs_1, dIDs_2])
+
+            Data_n = bnpy.data.GroupXData(X=self.Data.X[dIDs], 
+                doc_range=np.asarray([0, self.Data.nObs]),
+                TrueZ=self.Data.TrueParams['Z'][dIDs])
+
+            aArg['name'] = 'HDPHMM'
+            aArg['hmmKappa'] = 50
+            aArg['alpha'] = 0.5
+            aArg['gamma'] = 10.0
+            aArg['startAlpha'] = 10.0
+
+        Data_n.name = self.Data.name
+        Data_n.alwaysTrackTruth = 1
+        assert hasattr(Data_n, 'TrueParams')
+
+        # Create and initialize model
+        hmodel = bnpy.HModel.CreateEntireModel('VB',
+            aArg['name'], oArg['name'], aArg, oArg, Data_n)
+        print argDict
+        hmodel.init_global_params(Data_n, **argDict)
+
+        # Run initial segmentation
+        LP_n = hmodel.calc_local_params(Data_n)
+        Z_n = LP_n['resp'].argmax(axis=1)
+        Ztrue = np.asarray(Data_n.TrueParams['Z'], dtype=np.int32)
+        Ktrue = np.max(Ztrue) + 1
+
+        # Explore the findBestCut idea
+        from matplotlib import pylab
+        from bnpy.init.SeqCreateProposals import findBestCutForBlock
+        while True:
+            keypress = raw_input("Enter start stop stride >>> ")
+            fields = keypress.split(" ")
+            if len(fields) < 2:
+                break
+            a = int(fields[0])
+            b = int(fields[1])
+            if len(fields) > 2:
+                stride = int(fields[2])
+            else:
+                stride = 3
+            m = findBestCutForBlock(Data_n, hmodel, a=a, b=b, stride=stride)
+            print "Best Cut: [a=%d, m=%d, b=%d]" % (a, m, b)
+
+            Kcur = LP_n['resp'].shape[1]
+            Kmax_cur = np.maximum(Kcur, Ktrue)
+            CMap = bnpy.util.StateSeqUtil.makeStateColorMap(
+                nTrue=Kmax_cur, nExtra=2)
+
+            Z_n_mod = Z_n.copy()
+            Z_n_mod[a:m] = Kmax_cur
+            Z_n_mod[m:b] = Kmax_cur + 1
+
+            imshowArgs = dict(interpolation='nearest', 
+                aspect=Z_n.size/1.0,
+                cmap=CMap,
+                vmin=0, vmax=Kmax_cur + 1)
+
+            pylab.close()
+            pylab.subplots(nrows=3, ncols=1)
+            ax = pylab.subplot(3,1,1)
+            pylab.imshow(Ztrue[np.newaxis,:], **imshowArgs)
+            pylab.yticks([]);
+            
+            pylab.subplot(3,1,2, sharex=ax)
+            pylab.imshow(Z_n[np.newaxis,:], **imshowArgs)
+            pylab.yticks([]);
+            
+            pylab.subplot(3,1,3, sharex=ax)
+            pylab.imshow(Z_n_mod[np.newaxis,:], **imshowArgs)
+            pylab.yticks([]);
+            
+            L = b - a 
+            amin = np.maximum(0, a-L/5)
+            bmax = np.minimum(Z_n.size-1, b+L/5)
+            pylab.xlim([amin, bmax]);
+
+            pylab.show(block=0)
+
 
 def parseCmdLineArgs():
     cmdlineArgList = sys.argv[1:]
