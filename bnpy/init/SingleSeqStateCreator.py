@@ -4,7 +4,7 @@ import warnings
 
 from bnpy.deletemove.DEvaluator import runDeleteMoveAndUpdateMemory
 from bnpy.util.StateSeqUtil import calcContigBlocksFromZ
-from bnpy.data.XData import XData
+
 from bnpy.allocmodel.hmm.HDPHMMUtil import calcELBOForSingleSeq_FromLP
 
 from bnpy.init.SeqCreatePlanner import calcEvalMetricForStates_KL
@@ -111,45 +111,27 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
     sizes = sizes[elig_mask]
     uIDs = uIDs[elig_mask]
     ktarget = PRNG.choice(uIDs)
-
-    if creationProposalName.count('mixture'):
-        initname = PRNG.choice(['randexamplesbydist', 'randcontigblocks'])
-        propResp, propK = proposeNewResp_dpmixture(Z_n, propResp,
-            tempModel=tempModel,
-            tempSS=tempSS,
-            Data_n=Data_n,
-            ktarget=ktarget,
-            origK=origK,
-            Kfresh=np.maximum(Kfresh,2),
-            initname=initname,
-            initBlockLen=minBlockSize,
-            **kwargs)
-    elif creationProposalName == 'bisectExistingBlocks':
-        propResp, propK = proposeNewResp_bisectExistingBlocks(
-            Z_n, propResp, PRNG=PRNG,
-            origK=origK, Kfresh=Kfresh,
-            Data_n=Data_n,
-            tempModel=tempModel, 
-            minBlockSize=minBlockSize, 
-            maxBlockSize=maxBlockSize)
-    elif creationProposalName == 'subdivideExistingBlocks':
-        propResp, propK = proposeNewResp_subdivideExistingBlocks(
-            Z_n, propResp, PRNG=PRNG,
-            origK=origK, Kfresh=Kfresh, 
-            minBlockSize=minBlockSize, 
-            maxBlockSize=maxBlockSize)
-    elif creationProposalName == 'uniquifyExistingBlocks':
-        propResp, propK = proposeNewResp_uniquifyExistingBlocks(
-            Z_n, propResp, PRNG=PRNG,
-            origK=origK, Kfresh=Kfresh, 
-            minBlockSize=minBlockSize, 
-            maxBlockSize=maxBlockSize)
-    elif creationProposalName == 'randBlocks':
-        propResp, propK = proposeNewResp_randBlocks(
-            Z_n, propResp, PRNG=PRNG,
-            origK=origK, Kfresh=Kfresh, 
-            minBlockSize=minBlockSize, 
-            maxBlockSize=maxBlockSize)
+    
+    # Prepare all the arguments to pass to proposal function
+    allPropKwArgs = dict(
+        tempModel=tempModel,
+        tempSS=tempSS,
+        Data_n=Data_n,
+        ktarget=ktarget,
+        PRNG=PRNG,
+        origK=origK, 
+        Kfresh=Kfresh, 
+        minBlockSize=minBlockSize, 
+        maxBlockSize=maxBlockSize,
+        )
+    allPropKwArgs.update(kwargs)
+    
+    # Execute the proposal. Calls a function imported from SeqCreateProposals.
+    propFuncName = 'proposeNewResp_' + creationProposalName
+    GlobalVars = globals()
+    if propFuncName in GlobalVars:
+        propFunc = GlobalVars[propFuncName]
+        propResp, propK = propFunc(Z_n, propResp, **allPropKwArgs)
     else:
         msg = "Unrecognized creationProposalName: %s" % (creationProposalName)
         raise NotImplementedError(msg)
