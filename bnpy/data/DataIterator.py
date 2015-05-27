@@ -74,7 +74,8 @@ class DataIterator(object):
     """
 
     def __init__(self, Data, nBatch=10, nLap=10,
-                 dataorderseed=42, startLap=0, **kwargs):
+                 dataorderseed=42, startLap=0, 
+                 alwaysTrackTruth=False, **kwargs):
         ''' Create an iterator over batches/subsets of a large dataset.
 
         Each batch/subset is represented by an instance of
@@ -125,7 +126,9 @@ class DataIterator(object):
         self.IDsPerBatch = list()
         for b in xrange(nBatch):
             curBatchMask = shuffleIDs[:nUnitPerBatch[b]]
-            Dchunk = Data.select_subset_by_mask(curBatchMask)
+            Dchunk = Data.select_subset_by_mask(curBatchMask,
+                doTrackTruth=alwaysTrackTruth)
+            Dchunk.alwaysTrackTruth = alwaysTrackTruth
             self.DataPerBatch.append(Dchunk)
             self.IDsPerBatch.append(curBatchMask)
             # Remove units assigned to this batch
