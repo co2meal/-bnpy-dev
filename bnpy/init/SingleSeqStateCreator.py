@@ -59,6 +59,8 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
         creationProposalName='mixture',
         PRNG=None,
         seed=0,
+        n=0,
+        seqName='',
         **kwargs):
     ''' Propose a new LP that has additional states unique to current sequence.
 
@@ -180,6 +182,8 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
             print 'rejected'
         showProposal(Data_n, Z_n, propResp, propLP_n,
             doAccept=doAccept,
+            n=n,
+            seqName=seqName,
             **Info)
         print ''
         print ''
@@ -198,24 +202,29 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
         return LP_n, hmodel, SS
 
 def showProposal(Data_n, Z_n, propResp, propLP_n,
+        n=0,
+        seqName='',
         extraIDs_remaining=None,
-        doAccept=None):
+        doAccept=None,
+        doCompactTrueLabels=False,
+        **kwargs):
     from matplotlib import pylab
     from bnpy.util.StateSeqUtil import alignEstimatedStateSeqToTruth
     from bnpy.util.StateSeqUtil import makeStateColorMap
     Ztrue = np.asarray(Data_n.TrueParams['Z'], np.int32)
 
-    # Map Ztrue to compact set of uniqueIDs
-    # that densely covers 0, 1, 2, ... Kunique
-    # instead of (possibly) covering 0, 1, 2, ... Ktrue, Ktrue >> Kunique
-    uLabels = np.unique(Ztrue)
-    ZtrueA = -1 * np.ones_like(Ztrue)
-    for uLoc, uID in enumerate(uLabels):
-        mask = Ztrue == uID
-        ZtrueA[mask] = uLoc
-    assert np.all(ZtrueA >= 0)
-    assert np.all(ZtrueA < len(uLabels))
-    Ztrue = ZtrueA
+    if doCompactTrueLabels:
+        # Map Ztrue to compact set of uniqueIDs
+        # that densely covers 0, 1, 2, ... Kunique
+        # instead of (possibly) covering 0, 1, 2, ... Ktrue, Ktrue >> Kunique
+        uLabels = np.unique(Ztrue)
+        ZtrueA = -1 * np.ones_like(Ztrue)
+        for uLoc, uID in enumerate(uLabels):
+            mask = Ztrue == uID
+            ZtrueA[mask] = uLoc
+        assert np.all(ZtrueA >= 0)
+        assert np.all(ZtrueA < len(uLabels))
+        Ztrue = ZtrueA
 
     curZA, AlignInfo = alignEstimatedStateSeqToTruth(
         Z_n, Ztrue, returnInfo=1)
@@ -256,15 +265,15 @@ def showProposal(Data_n, Z_n, propResp, propLP_n,
         vmin=0, vmax=Kmaxxx-1)
     pylab.subplots(nrows=4, ncols=1, figsize=(12,5))
     # show ground truth
-    #print 'UNIQUE IDS in each aligned Z'
-    #print np.unique(Ztrue)
+    print 'UNIQUE IDS in each aligned Z'
+    print np.unique(Ztrue)
     #print np.unique(curZA)
     #print np.unique(propZstart), '>', np.unique(propZAstart)
     #print np.unique(propZrefined), '>', np.unique(propZArefined)
 
     ax = pylab.subplot(4,1,1)
     pylab.imshow(Ztrue[np.newaxis,:], **imshowArgs)
-    pylab.title('Ground truth')
+    pylab.title('Ground truth' + ' ' + seqName)
     pylab.xticks([]); pylab.yticks([]);
     # show current
     pylab.subplot(4,1,2, sharex=ax)
@@ -289,6 +298,8 @@ def showProposal(Data_n, Z_n, propResp, propLP_n,
 
     pylab.title('Refined proposal' + acceptMsg)
     pylab.yticks([]);
+    pylab.xticks([0, Z_n.size]);
+
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', UserWarning)
         pylab.tight_layout()
