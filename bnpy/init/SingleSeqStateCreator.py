@@ -17,30 +17,69 @@ from bnpy.init.SeqCreateProposals import *
 
 def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model, 
         SS=None,
+        lapFrac=0,
+        nDocSeenForProposal=0,
         **kwargs):
     ''' Perform many proposal moves on provided sequence.
+
+    Args
+    ----
+    SS : SuffStatBag
+        represents whole dataset seen thus far,
+        including *previous* stats from current sequence n
 
     Returns
     -------
     LP_n
     tempModel : HModel 
-        represents whole dataset seen thus far, including current sequence n
+        represents whole dataset seen thus far
+        with all global params fully updated from tempSS suff stats
     tempSS : SuffStatBag
-        represents whole dataset seen thus far, including current sequence n
+        represents whole dataset seen thus far
+        including TWO versions of stats for current sequence n
     '''
-    tempSS = SS
+    if 'verbose' not in kwargs:
+        kwargs['verbose'] = 0
+    
+    if lapFrac > 1:
+        assert SS.nDoc == Data_n.nDocTotal + nDocSeenForProposal
+    else:
+        if SS is not None:
+            assert SS.nDoc == nDocSeenForProposal
+
+    if SS is not None:
+        tempSS = SS.copy(includeELBOTerms=False, includeMergeTerms=False)
+    else:
+        tempSS = None
 
     creationProposalNames = kwargs['creationProposalName'].split('+')
+    creationNumProposal = kwargs['creationNumProposal']
+
+    origK = model.obsModel.K
     propID = 0
     for creationProposalName in creationProposalNames:
         PastAttemptLog = dict()
-        for repID in range(kwargs['creationNumProposal']):
+        for repID in range(creationNumProposal):
             if propID > 0:
-                # Remove stats for this seq before next proposal. 
+                # Remove current stats for this seq before next proposal. 
                 SS_n = model.get_global_suff_stats(Data_n, LP_n)
                 tempSS -= SS_n
 
-            # TODO: control to limit Kfresh??
+            if kwargs['verbose']:
+                print '======== lapFrac %.3f seqName %s | proposal %d/%d' % (
+                    lapFrac, kwargs['seqName'], propID+1, creationNumProposal)
+                if propID == 0:
+                    print '   BEFORE tempSS.nDoc %d' % (tempSS.nDoc)
+                    print 'N ', ' '.join(
+                        ['%5.1f' % (x) for x in tempSS.N[:20]])
+
+            if lapFrac > 1:
+                assert tempSS.nDoc == Data_n.nDocTotal + nDocSeenForProposal
+            else:
+                if tempSS is not None:
+                    assert tempSS.nDoc == nDocSeenForProposal
+
+            # TODO: stop repeated proposals if K exceeds Kmax?
             curKwargs = dict(**kwargs)
             curKwargs['creationProposalName'] = creationProposalName
             LP_n, model, tempSS = createSingleSeqLPWithNewStates(
@@ -49,8 +88,42 @@ def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model,
                 PastAttemptLog=PastAttemptLog,
                 **curKwargs)
             propID += 1
-    assert tempSS.N.sum() >= LP_n['resp'].shape[0] - 1e-7
-    return LP_n, model, tempSS
+
+            if kwargs['verbose']:
+                print '--- AFTER tempSS.nDoc %d' % (tempSS.nDoc)
+                print 'N ', ' '.join(
+                    ['%5.1f' % (x) for x in tempSS.N[:20]])
+
+            if lapFrac > 1:
+                assert tempSS.nDoc == nDocSeenForProposal + 1 + \
+                    Data_n.nDocTotal
+            else:
+                assert tempSS.nDoc == nDocSeenForProposal + 1
+
+    T_n = LP_n['resp'].shape[0]
+    assert tempSS.N.sum() >= T_n - 1e-7
+
+    didAnyProposals = propID > 0
+    if didAnyProposals:
+        if lapFrac > 1:
+            # Will have two versions of the current sequence
+            assert tempSS.N.sum() >= 2 * T_n - 1e-7
+            assert tempSS.nDoc == Data_n.nDocTotal + nDocSeenForProposal + 1
+        else:
+            assert tempSS.nDoc == nDocSeenForProposal + 1
+
+    else:
+        if lapFrac > 1:
+            assert tempSS.nDoc == Data_n.nDocTotal
+        else:
+            assert tempSS.nDoc == nDocSeenForProposal + 1
+
+    Info = dict(
+        didAnyProposals=didAnyProposals,
+        origK=origK,
+        propK=tempSS.K,
+        )
+    return LP_n, model, tempSS, Info
 
 def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel, 
         SS=None,
@@ -64,20 +137,31 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
         n=0,
         seqName='',
         **kwargs):
-    ''' Propose a new LP that has additional states unique to current sequence.
+    ''' Try a proposal for new LP for current sequence n.
 
     Args
     -------
     SS : SuffStatBag
-        represents whole-dataset seen thus far, EXCLUDING current sequence n
+        represents whole-dataset seen thus far
+        if first lap: 
+            does NOT include stats from n
+        else:
+            includes *previous* stats from current sequence n
 
     Returns
     -------
     LP_n : dict of local params, with K + Knew states (Knew >= 0)
     tempModel : HModel 
-        represents whole dataset seen thus far, including current sequence n
+        represents whole dataset seen thus far
+        with all global params fully updated from tempSS suff stats
     tempSS : SuffStatBag
-        represents whole dataset seen thus far, including current sequence n
+        represents whole dataset seen thus far
+        if first lap: 
+            include only the most recent stats from n
+            whether accepted or rejected.
+        else 
+            includes *previous* stats from current sequence n
+            and the most recent stats from n
     '''
     kwargs['creationProposalName'] = creationProposalName
     kwargs['Kfresh'] = Kfresh
@@ -137,6 +221,8 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
         raise NotImplementedError(msg)
 
     if propK == origK and np.allclose(Z_n, propResp.argmax(axis=1)):
+        if kwargs['doVizSeqCreate']:
+            print 'rejected. proposal is no change from original.'
         SS_n = hmodel.get_global_suff_stats(Data_n, LP_n)
         if SS is None:
             SS = SS_n.copy()
@@ -158,11 +244,23 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
             verbose=verbose,
             **kwargs)
 
+    if origK == tempSS.K and np.allclose(Z_n, propLP_n['resp'].argmax(axis=1)):
+        if kwargs['doVizSeqCreate']:
+            print 'rejected. proposal is no change from original.'
+        SS_n = hmodel.get_global_suff_stats(Data_n, LP_n)
+        if SS is None:
+            SS = SS_n.copy()
+        else:
+            SS += SS_n
+        assert SS.N.sum() >= Z_n.size - 1e-7
+        return LP_n, hmodel, SS
+
     propScore = calcELBOForSingleSeq_FromLP(Data_n, propLP_n, hmodel)
     curScore = calcELBOForSingleSeq_FromLP(Data_n, LP_n, hmodel)
-    doAccept = propScore > curScore
+    doAccept = propScore > curScore + 1e-6
 
     if kwargs['doVizSeqCreate']:
+        print seqName
         print 'propLP K %3d evidence %.3f  score %.6f' % (
             propLP_n['resp'].shape[1], propLP_n['evidence'], propScore)
         print ' curLP K %3d evidence %.3f  score %.6f' % (
@@ -176,14 +274,20 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
             print 'rejected'
 
         kwargs.update(Info)
-        showProposal(Data_n, Z_n, propResp, propLP_n,
-            doAccept=doAccept,
-            n=n,
-            seqName=seqName,
-            **kwargs)
-        print ''
-        print ''
-        print ''
+
+        if kwargs['doVizSeqCreate'] > 1:
+            doShow = doAccept
+        else:
+            doShow = True
+        if doShow:
+            showProposal(Data_n, Z_n, propResp, propLP_n,
+                doAccept=doAccept,
+                n=n,
+                seqName=seqName,
+                **kwargs)
+            print ''
+            print ''
+            print ''
 
     if doAccept:
         assert tempSS.N.sum() >= Z_n.size - 1e-7

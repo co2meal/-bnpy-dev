@@ -55,15 +55,16 @@ def refineProposedRespViaLocalGlobalStepsAndDeletes(
         tempModel.update_global_params(tempSS)
     # Here, tempSS and tempModel are fully-consistent with propLP_n
     assert tempSS.K == propK
-
+    assert tempModel.obsModel.K == propK
+    
     # Perform "consistent" removal of empty components
     # This guarantees that tempModel and tempSS reflect
     # the whole dataset, including updated propLP_n/propSS_n
     propLP_n, propSS_n, tempModel, tempSS, Info = \
         deleteEmptyCompsAndKeepConsistentWithWholeDataset(
-            Data_n, propLP_n, propSS_n, tempModel, tempSS,
+            Data_n, propSS_n, tempModel, tempSS,
+            propLP_n=propLP_n,
             origK=origK,
-            propK=propK,
             verbose=verbose,
             **kwargs)
 
@@ -72,16 +73,16 @@ def refineProposedRespViaLocalGlobalStepsAndDeletes(
 
 
 def deleteEmptyCompsAndKeepConsistentWithWholeDataset(
-        Data_n, propLP_n, propSS_n, tempModel, tempSS,
+        Data_n, propSS_n, tempModel, tempSS,
+        propLP_n=None,
         origK=None,
-        propK=None,
         verbose=0,
         **kwargs):
     ''' Remove empty components and return consistent model/SS values.
 
     Args
     -------
-    propLP_n
+    Data_n
     propSS_n
     tempModel
     tempSS
@@ -95,9 +96,16 @@ def deleteEmptyCompsAndKeepConsistentWithWholeDataset(
     tempSS
     Info
     '''
+    if propLP_n is None:
+        # Do one first step
+        propLP_n = tempModel.calc_local_params(Data_n, limitMemoryLP=1)
+        tempSS -= propSS_n
+        propSS_n = tempModel.get_global_suff_stats(Data_n, propLP_n)
+        tempSS += propSS_n
+        tempModel.update_global_params(tempSS)
 
     # Remove any empty extra components
-    extraIDs_remaining = np.arange(origK, propK).tolist()
+    extraIDs_remaining = np.arange(origK, tempSS.K).tolist()
     nEmpty = np.sum(tempSS.N[origK:] <= 1)
     if verbose:
         print extraIDs_remaining, '<< original extra ids'
@@ -124,6 +132,9 @@ def deleteEmptyCompsAndKeepConsistentWithWholeDataset(
         nEmpty = np.sum(tempSS.N[origK:] <= 1)
         # ... end loop removing empties
 
+    # Do final update to make tempModel consistent with tempSS
+    tempModel.update_global_params(tempSS)
+
     if verbose:
         print extraIDs_remaining, '<< remaining extra ids AFTER'
 
@@ -133,4 +144,5 @@ def deleteEmptyCompsAndKeepConsistentWithWholeDataset(
     Info = dict(
         extraIDs_remaining=np.asarray(extraIDs_remaining),
         )
+
     return propLP_n, propSS_n, tempModel, tempSS, Info

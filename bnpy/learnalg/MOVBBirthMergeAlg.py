@@ -406,6 +406,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
         '''
         from bnpy.init.SingleSeqStateCreator import \
             createSingleSeqLPWithNewStates_ManyProposals
+        from bnpy.init.SeqCreateRefinery import \
+            deleteEmptyCompsAndKeepConsistentWithWholeDataset
         if lapFrac <= self.algParams['seqcreate']['creationLapDelim_early']:
             Kfresh = self.algParams['seqcreate']['creationKfresh_early']
             numProp = self.algParams['seqcreate']['creationNumProposal_early']
@@ -429,21 +431,22 @@ class MOVBBirthMergeAlg(MOVBAlg):
         tempModel = hmodel
         tempSS = SS
 
-        if Kfresh > 0:
-            # Remove current segmentation from suff stats
-            if tempSS is not None:
-                tempSS = SS.copy()
-                if batchID in self.SSmemory:
-                    batchSS = self.SSmemory[batchID].copy()
-                    Kextra = tempSS.K - batchSS.K
-                    if Kextra > 0:
-                        batchSS.insertEmptyComps(Kextra)
-                    tempSS -= batchSS
-                    
+        if lapFrac > 1:
+            assert np.allclose(SS.nDoc, Dchunk.nDocTotal)
+
+        didAnyProposals = False
+        if Kfresh > 0 and numProp > 0:
+            # NOTE: Here, make sure SS retains all information from
+            # *ALL* previously seen batches, including the current one.
+            # Otherwise, could wipe out special states and lose guarantees.
+
             randOrder = self.PRNG.permutation(np.arange(Dchunk.nDoc))
-            for n in randOrder:
-                seqName = "seq %d/%d in batch %d" % (
-                    n, Dchunk.nDoc, batchID)
+            for orderID, n in enumerate(randOrder):
+                # Track num docs we've done a proposal before current n.
+                nDocSeenForProposal = orderID
+
+                seqName = "seqUID %d | %d/%d in batch %d" % (
+                    n, orderID+1, Dchunk.nDoc, batchID)
                 if seqcreateParams['doVizSeqCreate']:
                     doTrackTruth = 1
                 else:
@@ -451,23 +454,117 @@ class MOVBBirthMergeAlg(MOVBAlg):
                 Data_n = Dchunk.select_subset_by_mask([n], 
                     doTrackTruth=doTrackTruth)
                 LP_n = tempModel.calc_local_params(Data_n, **self.algParamsLP)
-                LP_n, tempModel, tempSS = \
+                LP_n, tempModel, tempSS, Info = \
                     createSingleSeqLPWithNewStates_ManyProposals(
                     Data_n, LP_n, tempModel, SS=tempSS,
-                    n=n,
+                    lapFrac=lapFrac,
+                    nDocSeenForProposal=orderID,
                     batchID=batchID,
                     seqName=seqName,
+                    n=n,
                     **seqcreateParams)
+                SS_n = tempModel.get_global_suff_stats(Data_n, LP_n)
+                if orderID == 0:
+                    SSchunk = SS_n
+                else:
+                    Kextra = SS_n.K - SSchunk.K
+                    if Kextra > 0:
+                        SSchunk.insertEmptyComps(Kextra)
+                    SSchunk += SS_n
+
+                if Info['didAnyProposals']:
+                    if lapFrac > 1:
+                        nDocTotal = Data_n.nDocTotal
+                        assert tempSS.nDoc == nDocTotal + \
+                            nDocSeenForProposal + 1
+                    else:
+                        assert tempSS.nDoc == nDocSeenForProposal + 1
+                didAnyProposals = didAnyProposals or Info['didAnyProposals']
+
+            assert SSchunk.nDoc == Dchunk.nDoc
+            assert SSchunk.K == tempSS.K
+            assert tempSS.nDoc >= SSchunk.nDoc
+
+            # Remove any states that are empty and unique to this batch
+            # since this is better than letting them stick around until later
+            LPchunk, SSchunk, tempModel, tempSS, Info = \
+                deleteEmptyCompsAndKeepConsistentWithWholeDataset(
+                    Dchunk, SSchunk, tempModel, tempSS,
+                    origK=Korig)
 
         # Do final analysis of all sequences in this chunk
-        # with fixed number of states
+        # so that every sequence can use every newfound state
         LPandMergeKwargs.update(self.algParamsLP)
         LPchunk = tempModel.calc_local_params(Dchunk, **LPandMergeKwargs)
+        SSchunk = tempModel.get_global_suff_stats(Dchunk, LPchunk,
+            doPrecompEntropy=1)
 
-        # Remove any states that are empty and unique to this batch
-        # since this is better than letting them stick around until later
-        SSchunk = tempModel.get_global_suff_stats(Dchunk, LPchunk)
+
+        if didAnyProposals and lapFrac > 1:
+            assert SS != tempSS
+            assert SS.nDoc == Dchunk.nDocTotal
+            
+            # Compute whole-dataset ELBO on current model
+            delattr(tempModel.allocModel, 'rho')
+            tempModel.update_global_params(SS)
+            assert SS.hasELBOTerms()
+            curELBO = tempModel.calc_evidence(SS=SS)
+            assert np.isfinite(curELBO)
+
+            print '<<<<<<<<<<<<<<<<<<<<< lap %.2f batch %d' % (
+                lapFrac, batchID)
+            print '------- BEFORE'
+            print 'Whole N ', ' '.join(
+                        ['%5.1f' % (x) for x in SS.N[:20]])
+            print 'Batch N ', ' '.join(
+                        ['%5.1f' % (x) for x in self.SSmemory[batchID].N[:20]])
+            
+            # Compute whole-dataset ELBO on proposed model
+            # Adjusting suff stats to exactly represent whole dataset
+            # including new assignments of current batch
+            delattr(tempModel.allocModel, 'rho')
+            tempSS = SS.copy()
+            prevSSchunk = self.SSmemory[batchID].copy()
+            Kextra = tempSS.K - prevSSchunk.K
+            if Kextra > 0:
+                prevSSchunk.insertEmptyComps(Kextra)
+            tempSS -= prevSSchunk
+            Kextra = SSchunk.K - tempSS.K
+            if Kextra > 0:
+                tempSS.insertEmptyComps(Kextra)
+            tempSS += SSchunk
+            tempModel.update_global_params(tempSS)
+            assert tempSS.nDoc == Dchunk.nDocTotal
+            assert tempSS.hasELBOTerms()
+            propELBO = tempModel.calc_evidence(SS=tempSS)
+            assert np.isfinite(propELBO)
+
+            print '------- AFTER'
+            print 'Whole N ', ' '.join(
+                        ['%5.1f' % (x) for x in tempSS.N[:20]])
+            print 'Batch N ', ' '.join(
+                        ['%5.1f' % (x) for x in SSchunk.N[:20]])
+
+            print 'curELBO  % .5f' % (curELBO)
+            print 'propELBO % .5f' % (propELBO)
+            if propELBO > curELBO:
+                print 'ACCEPTED!'
+            else:
+                print 'rejected'
+                LPchunk = hmodel.calc_local_params(Dchunk, **LPandMergeKwargs)
+
+        Kresult = LPchunk['resp'].shape[1]
+        Kextra = Kresult - Korig
+        if not self.isFirstBatch(lapFrac):
+            Kr, Kx_prev = self.CreateRecords[np.ceil(lapFrac)]
+            Kextra += Kx_prev
+        self.CreateRecords[np.ceil(lapFrac)] = (Kresult, Kextra)
+        return LPchunk
+
+        ''' EDIT this chunk is superceded by call to deleteAndKeepConsistent
         emptyIDs = Korig + np.flatnonzero(SSchunk.N[Korig:] <= 1)
+        if len(emptyIDs) > 0:
+            print 'REALLY SHOULD DELETE EMPTIES HERE'
         Kresult = LPchunk['resp'].shape[1]
         Kextra = Kresult - Korig
         while len(emptyIDs) > 0:
@@ -487,14 +584,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
             LPchunk = tempModel.calc_local_params(Dchunk, **LPandMergeKwargs)
             SSchunk = tempModel.get_global_suff_stats(Dchunk, LPchunk)
             emptyIDs = Korig + np.flatnonzero(SSchunk.N[Korig:] <= 1)
-
-        Kresult = LPchunk['resp'].shape[1]
-        Kextra = Kresult - Korig
-        if not self.isFirstBatch(lapFrac):
-            Kr, Kx_prev = self.CreateRecords[np.ceil(lapFrac)]
-            Kextra += Kx_prev
-        self.CreateRecords[np.ceil(lapFrac)] = (Kresult, Kextra)
-        return LPchunk
+        '''
 
     def memoizedLocalStep(self, hmodel, Dchunk, batchID, **LPandMergeKwargs):
         ''' Execute local step on data chunk.
