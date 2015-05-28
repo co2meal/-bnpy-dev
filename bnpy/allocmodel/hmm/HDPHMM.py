@@ -59,12 +59,14 @@ class HDPHMM(AllocModel):
         self.K = 0
 
     def set_prior(self, gamma=10, alpha=0.5,
-                  startAlpha=5.0, hmmKappa=0.0, nGlobalIters=1, **kwargs):
+                  startAlpha=5.0, hmmKappa=0.0, 
+                  nGlobalIters=1, nGlobalItersBigChange=10, **kwargs):
         self.gamma = gamma
         self.alpha = alpha
         self.startAlpha = startAlpha
         self.kappa = hmmKappa
         self.nGlobalIters = nGlobalIters
+        self.nGlobalItersBigChange = nGlobalItersBigChange
 
     def get_active_comp_probs(self):
         ''' Return K vector of appearance probabilities for each of the K comps
@@ -209,8 +211,14 @@ class HDPHMM(AllocModel):
     def find_optimum_rhoOmega(self, **kwargs):
         ''' Performs numerical optimization of rho and omega for M-step update.
 
-            Note that the optimizer forces rho to be in [EPS, 1-EPS] for
-            the sake of numerical stability
+        Note that the optimizer forces rho to be in [EPS, 1-EPS] for
+        the sake of numerical stability
+
+        Returns
+        -------
+        rho : 1D array, size K
+        omega : 1D array, size K
+        Info : dict of information about optimization.
         '''
 
         # Calculate expected log transition probability
@@ -259,7 +267,7 @@ class HDPHMM(AllocModel):
                 omega = (self.gamma + 1) * np.ones(SS.K)
                 rho = 1 / float(1 + self.gamma) * np.ones(SS.K)
 
-        return rho, omega
+        return rho, omega, Info
 
     def update_global_params_EM(self, SS, **kwargs):
         raise ValueError('HDPHMM does not support EM')
@@ -270,7 +278,15 @@ class HDPHMM(AllocModel):
         ''' Update global parameters.
         '''
         self.K = SS.K
+        if not hasattr(self, 'rho') or self.rho.size != SS.K:
+            # Big change from previous model is being proposed.
+            # We'll init rho from scratch, and need more iters to improve.
+            nGlobalIters = self.nGlobalItersBigChange
+        else:
+            # Small change required. Current rho is good initialization.
+            nGlobalIters = self.nGlobalIters
 
+        
         # Special update case for merges:
         # Fast, heuristic update for new rho given original value
         if mergeCompA is not None:
@@ -285,12 +301,12 @@ class HDPHMM(AllocModel):
         # Update theta with recently updated info from suff stats
         self.transTheta, self.startTheta = self._calcTheta(SS)
 
-        for giter in xrange(self.nGlobalIters):
+        for giter in xrange(nGlobalIters):
             # Update rho, omega through numerical optimization
-            self.rho, self.omega = self.find_optimum_rhoOmega(**kwargs)
-
+            self.rho, self.omega, Info = self.find_optimum_rhoOmega(**kwargs)
             # Update theta again to reflect the new rho, omega
             self.transTheta, self.startTheta = self._calcTheta(SS)
+        return Info
 
     def update_global_params_soVB(self, SS, rho, **kwargs):
         ''' Updates global parameters when learning with stochastic online VB.

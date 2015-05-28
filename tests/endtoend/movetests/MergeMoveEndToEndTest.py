@@ -219,7 +219,6 @@ class MergeMoveEndToEndTest(unittest.TestCase):
             doWriteStdOut=1,
             printEvery=1,
             saveEvery=1000,
-            doFullPassBeforeMstep=1,
             **kwargs)
 
         kwargs['jobname'] += '-creationProposalName=%s' % (
@@ -302,7 +301,6 @@ class MergeMoveEndToEndTest(unittest.TestCase):
             printEvery=1,
             saveEvery=1000,
             nBatch=1,
-            doFullPassBeforeMstep=1,
             **kwargs)
 
         kwargs['jobname'] += '-creationProposalName=%s' % (
