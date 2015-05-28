@@ -513,7 +513,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
             print '<<<<<<<<<<<<<<<<<<<<< lap %.2f batch %d' % (
                 lapFrac, batchID)
-            print '------- BEFORE'
+            print '------- BEFORE K=%d' % (SS.K)
             print 'Whole N ', ' '.join(
                         ['%5.1f' % (x) for x in SS.N[:20]])
             print 'Batch N ', ' '.join(
@@ -539,7 +539,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
             propELBO = tempModel.calc_evidence(SS=tempSS)
             assert np.isfinite(propELBO)
 
-            print '------- AFTER'
+            print '------- AFTER K=%d' % (tempSS.K)
             print 'Whole N ', ' '.join(
                         ['%5.1f' % (x) for x in tempSS.N[:20]])
             print 'Batch N ', ' '.join(
