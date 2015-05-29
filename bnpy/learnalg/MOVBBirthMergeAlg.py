@@ -504,7 +504,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
         # Track total docs seen thus far, 
         # to be sure SS bookkeeping is done correctly
-        self.nDocSeenInCurLap  += Dchunk.nDoc
+        if didAnyProposals:
+            self.nDocSeenInCurLap  += Dchunk.nDoc
 
         # Do final analysis of all sequences in this chunk
         # so that every sequence can use every newfound state
