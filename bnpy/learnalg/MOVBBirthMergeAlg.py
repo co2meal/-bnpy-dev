@@ -440,6 +440,9 @@ class MOVBBirthMergeAlg(MOVBAlg):
             # *ALL* previously seen batches, including the current one.
             # Otherwise, could wipe out special states and lose guarantees.
 
+            if self.isFirstBatch(lapFrac):
+                self.SeqCreatePastAttemptLog = dict()
+
             randOrder = self.PRNG.permutation(np.arange(Dchunk.nDoc))
             for orderID, n in enumerate(randOrder):
                 # Track num docs we've done a proposal before current n.
@@ -461,6 +464,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
                     nDocSeenForProposal=orderID,
                     batchID=batchID,
                     seqName=seqName,
+                    PastAttemptLog=self.SeqCreatePastAttemptLog,
                     n=n,
                     **seqcreateParams)
                 SS_n = tempModel.get_global_suff_stats(Data_n, LP_n)
@@ -545,8 +549,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
             print 'Batch N ', ' '.join(
                         ['%5.1f' % (x) for x in SSchunk.N[:20]])
 
-            print 'curELBO  % .5f' % (curELBO)
-            print 'propELBO % .5f' % (propELBO)
+            print 'curELBO  % .7f' % (curELBO)
+            print 'propELBO % .7f' % (propELBO)
             if propELBO > curELBO:
                 print 'ACCEPTED!'
             else:

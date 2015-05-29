@@ -14,8 +14,8 @@ class Test(MergeMoveEndToEndTest):
         """
         self.datasetArg = dict(
             name='SeqOfBinBars9x9', 
-            nDocTotal=4,
-            T=5000,
+            nDocTotal=1,
+            T=15000,
             maxTConsec=500,
             )
         datasetMod = __import__(self.datasetArg['name'], fromlist=[])
@@ -33,7 +33,7 @@ class Test(MergeMoveEndToEndTest):
         alpha = 0.5
         startAlpha = 10
         for gamma in [10.0]:
-            for hmmKappa in [0, 50.0]:
+            for hmmKappa in [50.0, 0]:
                 kwargs = OrderedDict()
                 kwargs['name'] = 'HDPHMM'
                 kwargs['gamma'] = gamma

@@ -202,7 +202,7 @@ def convertStateSeq_MAT2list(zObjArr):
         zListBySeq.append(np.squeeze(zObjArr[n, 0]))
     return zListBySeq
 
-def calcContigBlocksFromZ(Zvec):
+def calcContigBlocksFromZ(Zvec, returnStates=False):
     ''' Identify contig blocks assigned to one state in Zvec
 
     Examples
@@ -231,6 +231,8 @@ def calcContigBlocksFromZ(Zvec):
     chPtB = changePts[:-1]
     blockSizes = chPtA - chPtB
     blockStarts = np.asarray(changePts[:-1], dtype=np.float64)
+    if returnStates:
+        return blockSizes, blockStarts, Zvec[np.int32(blockStarts)].copy()
     return blockSizes, blockStarts
     
 
