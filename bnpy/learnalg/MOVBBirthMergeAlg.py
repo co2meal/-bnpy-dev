@@ -443,6 +443,9 @@ class MOVBBirthMergeAlg(MOVBAlg):
             if self.isFirstBatch(lapFrac):
                 self.SeqCreatePastAttemptLog = dict()
 
+            if SS is None or self.isFirstBatch(lapFrac):
+                self.nDocSeenInCurLap = 0            
+
             randOrder = self.PRNG.permutation(np.arange(Dchunk.nDoc))
             for orderID, n in enumerate(randOrder):
                 # Track num docs we've done a proposal before current n.
@@ -462,6 +465,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
                     Data_n, LP_n, tempModel, SS=tempSS,
                     lapFrac=lapFrac,
                     nDocSeenForProposal=orderID,
+                    nDocSeenInCurLap=self.nDocSeenInCurLap,
                     batchID=batchID,
                     seqName=seqName,
                     PastAttemptLog=self.SeqCreatePastAttemptLog,
@@ -482,7 +486,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
                         assert tempSS.nDoc == nDocTotal + \
                             nDocSeenForProposal + 1
                     else:
-                        assert tempSS.nDoc == nDocSeenForProposal + 1
+                        assert tempSS.nDoc == nDocSeenForProposal + 1 + \
+                            self.nDocSeenInCurLap
                 didAnyProposals = didAnyProposals or Info['didAnyProposals']
 
             assert SSchunk.nDoc == Dchunk.nDoc
@@ -495,6 +500,11 @@ class MOVBBirthMergeAlg(MOVBAlg):
                 deleteEmptyCompsAndKeepConsistentWithWholeDataset(
                     Dchunk, SSchunk, tempModel, tempSS,
                     origK=Korig)
+
+
+        # Track total docs seen thus far, 
+        # to be sure SS bookkeeping is done correctly
+        self.nDocSeenInCurLap  += Dchunk.nDoc
 
         # Do final analysis of all sequences in this chunk
         # so that every sequence can use every newfound state

@@ -20,6 +20,7 @@ def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model,
         lapFrac=0,
         PastAttemptLog=None,
         nDocSeenForProposal=0,
+        nDocSeenInCurLap=0,
         **kwargs):
     ''' Perform many proposal moves on provided sequence.
 
@@ -46,7 +47,7 @@ def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model,
         assert SS.nDoc == Data_n.nDocTotal + nDocSeenForProposal
     else:
         if SS is not None:
-            assert SS.nDoc == nDocSeenForProposal
+            assert SS.nDoc == nDocSeenInCurLap + nDocSeenForProposal
 
     if SS is not None:
         tempSS = SS.copy(includeELBOTerms=False, includeMergeTerms=False)
@@ -80,8 +81,9 @@ def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model,
                 assert tempSS.nDoc == Data_n.nDocTotal + nDocSeenForProposal
             else:
                 if tempSS is not None:
-                    assert tempSS.nDoc == nDocSeenForProposal
-
+                    assert tempSS.nDoc == nDocSeenInCurLap + \
+                        nDocSeenForProposal
+                    
             # TODO: stop repeated proposals if K exceeds Kmax?
             curKwargs = dict(**kwargs)
             curKwargs['creationProposalName'] = creationProposalName
@@ -101,7 +103,8 @@ def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model,
                 assert tempSS.nDoc == nDocSeenForProposal + 1 + \
                     Data_n.nDocTotal
             else:
-                assert tempSS.nDoc == nDocSeenForProposal + 1
+                assert tempSS.nDoc == nDocSeenForProposal + 1 + \
+                    nDocSeenInCurLap
 
     T_n = LP_n['resp'].shape[0]
     assert tempSS.N.sum() >= T_n - 1e-7
@@ -113,13 +116,15 @@ def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model,
             assert tempSS.N.sum() >= 2 * T_n - 1e-7
             assert tempSS.nDoc == Data_n.nDocTotal + nDocSeenForProposal + 1
         else:
-            assert tempSS.nDoc == nDocSeenForProposal + 1
+            assert tempSS.nDoc == nDocSeenForProposal + 1 + \
+                nDocSeenInCurLap
 
     else:
         if lapFrac > 1:
             assert tempSS.nDoc == Data_n.nDocTotal
         else:
-            assert tempSS.nDoc == nDocSeenForProposal + 1
+            assert tempSS.nDoc == nDocSeenForProposal + 1 + \
+                nDocSeenInCurLap
 
     Info = dict(
         didAnyProposals=didAnyProposals,
