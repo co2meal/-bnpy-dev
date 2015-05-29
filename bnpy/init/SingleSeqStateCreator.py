@@ -18,6 +18,7 @@ from bnpy.init.SeqCreateProposals import *
 def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model, 
         SS=None,
         lapFrac=0,
+        PastAttemptLog=None,
         nDocSeenForProposal=0,
         **kwargs):
     ''' Perform many proposal moves on provided sequence.
@@ -52,13 +53,15 @@ def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model,
     else:
         tempSS = None
 
+    if PastAttemptLog is None:
+        PastAttemptLog = dict()
+
     creationProposalNames = kwargs['creationProposalName'].split('+')
     creationNumProposal = kwargs['creationNumProposal']
 
     origK = model.obsModel.K
     propID = 0
     for creationProposalName in creationProposalNames:
-        PastAttemptLog = dict()
         for repID in range(creationNumProposal):
             if propID > 0:
                 # Remove current stats for this seq before next proposal. 
@@ -123,6 +126,9 @@ def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model,
         origK=origK,
         propK=tempSS.K,
         )
+
+    if 'blocks' in PastAttemptLog:
+        del PastAttemptLog['blocks']
     return LP_n, model, tempSS, Info
 
 def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel, 

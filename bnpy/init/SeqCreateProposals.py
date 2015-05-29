@@ -59,12 +59,68 @@ def proposeNewResp_bisectExistingBlocks(Z_n, propResp,
         total number of states used in propResp array
     '''
     # Iterate over current contig blocks 
-    blockSizes, blockStarts = calcContigBlocksFromZ(Z_n)
+    blockSizes, blockStarts, blockStates = \
+        calcContigBlocksFromZ(Z_n, returnStates=1)
     nBlocks = len(blockSizes)
 
-    sortOrder = np.argsort(-1 * blockSizes)
-    blockSizes = blockSizes[sortOrder]
-    blockStarts = blockStarts[sortOrder]
+    if 'blocks' not in PastAttemptLog:
+        PastAttemptLog['blocks'] = dict()
+    if 'strategy' not in PastAttemptLog:
+        PastAttemptLog['strategy'] = 'byState'
+        #PastAttemptLog['strategy'] = PRNG.choice(
+        #    ['byState', 'bySize'])
+
+    if PastAttemptLog['strategy'] == 'byState':            
+        candidateStates = set(np.unique(blockStates))
+
+        if 'nTryByState' not in PastAttemptLog:
+            PastAttemptLog['nTryByState'] = dict()
+
+        minTry = np.inf
+        for badState, nTry in PastAttemptLog['nTryByState'].items():
+            if badState in candidateStates:
+                if nTry < minTry:
+                    minTry = nTry
+        untriedList = [x for x in candidateStates
+            if x not in PastAttemptLog['nTryByState']]
+        if len(untriedList) > 0:
+            candidateStates = untriedList
+        else:
+            # Keep only candidates that have been tried the least
+            for badState, nTry in PastAttemptLog['nTryByState'].items():
+                # Remove bad State from candidateStates
+                if badState in candidateStates:
+                    if nTry > minTry:
+                        candidateStates.remove(badState)
+        candidateStates = np.asarray([x for x in candidateStates])
+        # Pick a state that we haven't tried yet,
+        # uniformly at random
+        if len(candidateStates) > 0:
+            chosenState = PRNG.choice(np.asarray(candidateStates))
+            if chosenState in PastAttemptLog['nTryByState']:
+                PastAttemptLog['nTryByState'][chosenState] += 1
+            else:
+                PastAttemptLog['nTryByState'][chosenState] = 1
+
+            # Rank blocks from this state the best! 
+            chosen_mask = blockStates == chosenState
+            remBlockIDs = np.flatnonzero(np.logical_not(chosen_mask))
+            PRNG.shuffle(remBlockIDs)
+            order = np.hstack([
+                np.flatnonzero(chosen_mask),
+                remBlockIDs
+                ])
+
+        else:
+            # Just use the block sizes and starts in random order
+            order = PRNG.permutation(blockSizes.size)
+        blockSizes = blockSizes[order]
+        blockStarts = blockStarts[order]            
+
+    else:
+        sortOrder = np.argsort(-1 * blockSizes)
+        blockSizes = blockSizes[sortOrder]
+        blockStarts = blockStarts[sortOrder]
 
     kfresh = 0 # number of new states added
     for blockID in range(nBlocks):
@@ -75,7 +131,7 @@ def proposeNewResp_bisectExistingBlocks(Z_n, propResp,
 
         # Avoid overlapping with previous attempts that failed
         maxOverlapWithPreviousFailure = 0.0
-        for (preva,prevb), prevm in PastAttemptLog.items():
+        for (preva,prevb), prevm in PastAttemptLog['blocks'].items():
             # skip previous attempts that succeed
             if prevm > preva:
                 continue
@@ -104,7 +160,7 @@ def proposeNewResp_bisectExistingBlocks(Z_n, propResp,
             b=b,
             stride=stride)
 
-        PastAttemptLog[(a,b)] = bestm
+        PastAttemptLog['blocks'][(a,b)] = bestm
         # print 'BEST BISECTION CUT: [%4d, %4d, %4d] w/ stride %d' % (
         #     a, bestm, b, stride)
         if bestm == a:
