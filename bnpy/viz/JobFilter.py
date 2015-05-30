@@ -209,19 +209,11 @@ def filterJobs(jpathPattern,
         if key in reqKwArgs:
             del reqKwArgs[key]
 
-    for key in reqKwArgs:
-        try:
-            reqKwArgs[key] = float(reqKwArgs[key])
-        except:
-            pass  # keep as string
-
-    if not jpathPattern.endswith('*'):
-        jpathPattern += '*'
-
     jpathdir = os.path.sep.join(jpathPattern.split(os.path.sep)[:-1])
     if not os.path.isdir(jpathdir):
         raise ValueError('Not valid directory:\n %s' % (jpathdir))
-
+    if not jpathPattern.endswith('*'):
+        jpathPattern += '*'
     jpathList = glob.glob(jpathPattern)
 
     if verbose:
@@ -300,97 +292,6 @@ def filterJobs(jpathPattern,
         else:
             legNames = ['%s=%s' % (plotkey, x) for x in RangeMap[plotkey]]
 
-    jpathdir = os.path.sep.join(jpathPattern.split(os.path.sep)[:-1])
-    if not os.path.isdir(jpathdir):
-        raise ValueError('Not valid directory:\n %s' % (jpathdir))
-    if not jpathPattern.endswith('*'):
-        jpathPattern += '*'
-    jpathList = glob.glob(jpathPattern)
-
-    if verbose:
-        print 'Looking for jobs with pattern:'
-        print jpathPattern
-        msg = '%d candidates found (before filtering by keywords)'
-        msg = msg % (len(jpathList))
-        print msg
-
-    if len(jpathList) == 0:
-        raise ValueError('No matching jobs found.')
-
-    for key in reqKwArgs:
-        try:
-            reqKwArgs[key] = float(reqKwArgs[key])
-        except:
-            pass  # keep as string
-
-    if verbose:
-        print '\nRequirements:'
-        for key in reqKwArgs:
-            print '%s = %s' % (key, reqKwArgs[key])
-
-    keepListP = list()  # list of paths to keep
-    keepListD = list()  # list of dicts to keep (one for each path)
-    reqKwMatches = defaultdict(int)
-    for jpath in jpathList:
-        jdict = jpath2jdict(jpath)
-        doKeep = True
-        for reqkey in reqKwArgs:
-            if reqkey not in jdict:
-                doKeep = False
-                continue
-            reqval = reqKwArgs[reqkey]
-            if jdict[reqkey] != reqval:
-                doKeep = False
-            else:
-                reqKwMatches[reqkey] += 1
-        if doKeep:
-            keepListP.append(jpath)
-            keepListD.append(jdict)
-
-    if len(keepListP) == 0:
-        for reqkey in reqKwArgs:
-            if reqKwMatches[reqkey] == 0:
-                msg = 'BAD REQUIRED PARAMETER.\n'
-                msg += 'No matches found for %s=%s: '
-                msg = msg % (reqkey, reqKwArgs[reqkey])
-                raise ValueError()
-
-    if verbose:
-        print '\nCandidates matching requirements'
-        for p in keepListP:
-            print p.split(os.path.sep)[-1]
-
-    # Figure out intelligent labels for the final jobs
-    K = len(keepListD)
-    varKeys = set()
-    for kA in xrange(K):
-        for kB in xrange(kA + 1, K):
-            varKeys.update(
-                findKeysWithDiffVals(
-                    keepListD[kA],
-                    keepListD[kB]))
-    varKeys = [x for x in varKeys]
-
-    RangeMap = dict()
-    for key in varKeys:
-        RangeMap[key] = set()
-        for jdict in keepListD:
-            RangeMap[key].add(jdict[key])
-        RangeMap[key] = [x for x in sorted(RangeMap[key])]  # to list
-
-    if len(varKeys) > 1:
-        print 'ERROR! Need to constrain more variables'
-        for key in RangeMap:
-            print key, RangeMap[key]
-        raise ValueError('ERROR! Need to constrain more variables')
-
-    elif len(varKeys) == 1:
-        plotkey = varKeys[0]
-        if isinstance(RangeMap[plotkey][0], str):
-            legNames = ['%s' % (x) for x in RangeMap[plotkey]]
-        else:
-            legNames = ['%s=%s' % (plotkey, x) for x in RangeMap[plotkey]]
-
         # Build list of final jpaths in order of decided legend
         keepListFinal = list()
         for x in RangeMap[plotkey]:
@@ -406,7 +307,9 @@ def filterJobs(jpathPattern,
         for name in legNames:
             print name
 
+
     return keepListFinal, legNames
+
 
 if __name__ == '__main__':
     import argparse
@@ -414,8 +317,8 @@ if __name__ == '__main__':
     parser.add_argument('dataName', default='AsteriskK8')
     parser.add_argument('jobName', default='bm')
     args, unkList = parser.parse_known_args()
-    reqDict = BNPYArgParser.arglist_to_kwargs(unkList)
-
+    reqDict = BNPYArgParser.arglist_to_kwargs(unkList,
+        doConvertFromStr=False)
     jpath = os.path.join(os.environ['BNPYOUTDIR'],
                          args.dataName,
                          args.jobName)

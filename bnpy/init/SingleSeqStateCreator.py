@@ -324,7 +324,11 @@ def showProposal(Data_n, Z_n, propResp, propLP_n,
     from matplotlib import pylab
     from bnpy.util.StateSeqUtil import alignEstimatedStateSeqToTruth
     from bnpy.util.StateSeqUtil import makeStateColorMap
-    Ztrue = np.asarray(Data_n.TrueParams['Z'], np.int32)
+
+    if hasattr(Data_n, 'TrueParams') and 'Z' in Data_n.TrueParams:
+        Ztrue = np.asarray(Data_n.TrueParams['Z'], np.int32)
+    else:
+        Ztrue = Z_n.copy()
 
     if doCompactTrueLabels:
         # Map Ztrue to compact set of uniqueIDs
@@ -355,8 +359,9 @@ def showProposal(Data_n, Z_n, propResp, propLP_n,
     # so that state ids correspond to those in propZstart
 
     # Step 1: propZrefined states all have negative ids
+    Kprop = propLP_n['resp'].shape[1]
     propZrefined = -1 * propLP_n['resp'].argmax(axis=1) - 1
-    for origLoc, kk in enumerate(range(Kcur, propZrefined.max() + 1)):
+    for origLoc, kk in enumerate(range(Kcur, Kprop)):
         propZrefined[propZrefined == -1*kk-1] = extraIDs_remaining[origLoc]
     # Transform any original states back to original ids
     propZrefined[propZrefined < 0] = -1 * propZrefined[propZrefined < 0] - 1
@@ -387,17 +392,17 @@ def showProposal(Data_n, Z_n, propResp, propLP_n,
     ax = pylab.subplot(4,1,1)
     pylab.imshow(Ztrue[np.newaxis,:], **imshowArgs)
     pylab.title('Ground truth' + ' ' + seqName)
-    pylab.xticks([]); pylab.yticks([]);
+    pylab.yticks([]);
     # show current
     pylab.subplot(4,1,2, sharex=ax)
     pylab.imshow(curZA[np.newaxis,:], **imshowArgs)
     pylab.title('Current estimate')
-    pylab.xticks([]); pylab.yticks([]);
+    pylab.yticks([]);
     # show init
     pylab.subplot(4,1,3, sharex=ax)
     pylab.imshow(propZAstart[np.newaxis,:], **imshowArgs)
     pylab.title('Initial proposal')
-    pylab.xticks([]); pylab.yticks([]);
+    pylab.yticks([]);
 
     # show final
     pylab.subplot(4,1,4, sharex=ax)
@@ -411,7 +416,14 @@ def showProposal(Data_n, Z_n, propResp, propLP_n,
 
     pylab.title('Refined proposal' + acceptMsg)
     pylab.yticks([]);
-    pylab.xticks([0, Z_n.size]);
+
+    #scale10 = np.floor(np.log10(Ztrue.size)) - 1
+    #scale10 = np.maximum(10**scale10, 5)
+    #xticks = np.linspace(0, Ztrue.size, np.ceil(Ztrue.size/scale10))
+    #xticks[1:-1] = scale10 * np.round(xticks[1:-1]/scale10)
+    #if xticks.size > 13:
+    #    xticks = np.hstack([xticks[::10], xticks[-1]])  
+    #pylab.xticks(xticks);
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', UserWarning)

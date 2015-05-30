@@ -256,8 +256,8 @@ class GroupXData(XData):
 
         if hasattr(self, 'alwaysTrackTruth'):
             doTrackTruth = doTrackTruth or self.alwaysTrackTruth
-
-        if doTrackTruth and 'Z' in self.TrueParams:
+        hasTrueZ = hasattr(self,'TrueParams') and 'Z' in self.TrueParams
+        if doTrackTruth and hasTrueZ:
             TrueZ = self.TrueParams['Z']
             newTrueZList = list()
             for d in xrange(len(docMask)):
