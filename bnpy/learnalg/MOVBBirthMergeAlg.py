@@ -439,10 +439,24 @@ class MOVBBirthMergeAlg(MOVBAlg):
             # NOTE: Here, make sure SS retains all information from
             # *ALL* previously seen batches, including the current one.
             # Otherwise, could wipe out special states and lose guarantees.
-
+            #self.SeqCreatePastAttemptLog = dict()
+            
             if self.isFirstBatch(lapFrac):
-                self.SeqCreatePastAttemptLog = dict()
-
+                
+                if not hasattr(self, 'SeqCreatePastAttemptLog'):
+                    self.SeqCreatePastAttemptLog = dict()
+                
+                elif 'nTryByStateUID' in self.SeqCreatePastAttemptLog:
+                    for uID in self.SeqCreatePastAttemptLog['nTryByStateUID']:
+                        if uID not in self.ActiveIDVec:
+                            continue
+                        print ' uid %d: nTry %d' % (
+                            uID, 
+                            self.SeqCreatePastAttemptLog['nTryByStateUID'][uID])
+                    print '^^^^^^^^^^^^^^^^^^^^^^^^^^'
+                self.SeqCreatePastAttemptLog['maxUID'] = 1 * self.maxUID
+                self.SeqCreatePastAttemptLog['uIDs'] = self.ActiveIDVec.copy()
+            
             if SS is None or self.isFirstBatch(lapFrac):
                 self.nDocSeenInCurLap = 0            
 

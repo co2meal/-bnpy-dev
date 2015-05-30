@@ -253,8 +253,9 @@ class MergeMoveEndToEndTest(unittest.TestCase):
         Will raise AssertionError if any bad results detected.
         """
         if hasattr(self.Data, 'nDoc'):
-            Data_n = self.Data.select_subset_by_mask([n], doTrackTruth=1)
-
+            Data_n = self.Data.select_subset_by_mask([n], 
+                doTrackTruth=1, doTrackFullSize=0)
+            assert Data_n.nDocTotal == 1
         else:
             # Make GroupXData dataset from XData
             # This code block rearranges rows so that we 
@@ -283,9 +284,9 @@ class MergeMoveEndToEndTest(unittest.TestCase):
 
         Data_n.name = self.Data.name
         Data_n.alwaysTrackTruth = 1
-        assert hasattr(Data_n, 'TrueParams')
-
-        Ktrue = np.unique(Data_n.TrueParams['Z']).size
+        if hasattr(self.Data, 'TrueParams'):
+            assert hasattr(Data_n, 'TrueParams')
+            Ktrue = np.unique(Data_n.TrueParams['Z']).size
 
         pprint(aArg)
         pprint(oArg)
@@ -307,17 +308,22 @@ class MergeMoveEndToEndTest(unittest.TestCase):
             kwargs['creationProposalName'])
         model, Info = bnpy.run(Data_n, 
             arg2name(aArg), arg2name(oArg), algName, **kwargs)
-        pprintResult(model, Info, Ktrue=Ktrue)
-        try:
-            assert model.allocModel.K == model.obsModel.K
-            assert model.allocModel.K == Ktrue
 
-        except AssertionError as e:
-            pprintCommandToReproduceError(
-                self.datasetArg, aArg, oArg, algName, **kwargs)
-            assert model.allocModel.K == model.obsModel.K
-            if not model.allocModel.K == Ktrue:
-                print '>>>>>> WHOA! Kfinal != Ktrue <<<<<<'
+
+        if Ktrue == 0:
+            pprintResult(model, Info, Ktrue=Ktrue)
+        else:
+            pprintResult(model, Info, Ktrue=Ktrue)
+            try:
+                assert model.allocModel.K == model.obsModel.K
+                assert model.allocModel.K == Ktrue
+
+            except AssertionError as e:
+                pprintCommandToReproduceError(
+                    self.datasetArg, aArg, oArg, algName, **kwargs)
+                assert model.allocModel.K == model.obsModel.K
+                if not model.allocModel.K == Ktrue:
+                    print '>>>>>> WHOA! Kfinal != Ktrue <<<<<<'
         print ''
 
         '''
@@ -458,8 +464,9 @@ class MergeMoveEndToEndTest(unittest.TestCase):
                         argDict[key] = val
                     break
         if hasattr(self.Data, 'nDoc'):
-            Data_n = self.Data.select_subset_by_mask([n], doTrackTruth=1)
-
+            Data_n = self.Data.select_subset_by_mask([n], 
+                doTrackTruth=1, doTrackFullSize=0)
+            assert Data_n.nDocTotal == 1
         else:
             # Make GroupXData dataset from XData
             # This code block rearranges rows so that we 

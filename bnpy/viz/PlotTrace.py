@@ -294,7 +294,7 @@ def parse_args(xvar='laps', yvar='evidence'):
 
     args, unkList = parser.parse_known_args()
 
-    argDict = BNPYArgParser.arglist_to_kwargs(unkList)
+    argDict = BNPYArgParser.arglist_to_kwargs(unkList, doConvertFromStr=False)
     argDict.update(args.__dict__)
     argDict['jpathPattern'] = os.path.join(os.environ['BNPYOUTDIR'],
                                            args.dataName,
