@@ -161,7 +161,7 @@ def createBNPYDatasetFromOriginalMATFiles(dataPath):
         scipy.io.savemat(matfilepath, SaveDict)
 
 
-def plotXPairHistogram(meetingNum=1, dimIDs=[0, 1, 2, 3]):
+def plotXPairHistogram(meetingNum=1, dimIDs=[0, 1, 2, 3], numStatesToShow=3):
     from matplotlib import pylab
     Data = get_data(meetingNum=meetingNum)
     TrueZ = Data.TrueParams['Z']
@@ -169,7 +169,7 @@ def plotXPairHistogram(meetingNum=1, dimIDs=[0, 1, 2, 3]):
     sizeOfLabels = np.asarray(
         [np.sum(TrueZ == labelID) for labelID in uniqueLabels])
     sortIDs = np.argsort(-1 * sizeOfLabels)
-    topLabelIDs = uniqueLabels[sortIDs[:3]]
+    topLabelIDs = uniqueLabels[sortIDs[:numStatesToShow]]
     Colors = ['k', 'r', 'b', 'm', 'c']
     D = len(dimIDs)
     pylab.subplots(nrows=len(dimIDs), ncols=len(dimIDs))
@@ -202,6 +202,7 @@ def plotXPairHistogram(meetingNum=1, dimIDs=[0, 1, 2, 3]):
             if (id1 < D - 1):
                 pylab.xticks([])
 
+    '''
     # make a color map of fixed colors
     from matplotlib import colors
     cmap = colors.ListedColormap(['white'] + Colors[:3])
@@ -224,7 +225,7 @@ def plotXPairHistogram(meetingNum=1, dimIDs=[0, 1, 2, 3]):
     pylab.subplot(1, 2, 2, sharex=ax)
     for d in dimIDs:
         pylab.plot(np.arange(Z.shape[0]), 10 * d + Data.X[:, d] / 25, 'k.-')
-
+    '''
     pylab.show()
 
 
@@ -268,7 +269,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dimIDs', default='0,1,2,3')
     parser.add_argument('--meetingNum', type=int, default=1)
+    parser.add_argument('--numStatesToShow', type=int, default=4)
     args = parser.parse_args()
     args.dimIDs = [int(x) for x in args.dimIDs.split(',')]
-    plotBlackWhiteStateSeqForMeeting(**args.__dict__)
-    # plotXPairHistogram(**args.__dict__)
+    #plotBlackWhiteStateSeqForMeeting(**args.__dict__)
+    plotXPairHistogram(**args.__dict__)

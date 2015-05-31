@@ -208,6 +208,11 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
                 xs = np.hstack([xs[goodIDs], xs[-1]])
                 ys = np.hstack([ys[goodIDs], ys[-1]])
 
+        if xvar == 'laps' and yvar == 'evidence':
+            mask = xs >= 1.0
+            xs = xs[mask]
+            ys = ys[mask]
+
         # Force plot density (data points per lap) to desired specification
         # This avoids making plots that have huge file sizes,
         # due to too much content in the given display space
