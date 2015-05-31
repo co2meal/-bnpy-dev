@@ -95,13 +95,22 @@ def runViterbiAndSave(**kwargs):
     else:
         return None
 
+    hmodel = kwargs['hmodel']
+    lapFrac = kwargs['lapFrac']
+
     if 'savedir' in kwargs:
         savedir = kwargs['savedir']
     elif 'learnAlg' in kwargs:
         learnAlgObj = kwargs['learnAlg']
         savedir = learnAlgObj.savedir
-    hmodel = kwargs['hmodel']
-    lapFrac = kwargs['lapFrac']
+        if hasattr(learnAlgObj, 'start_time'):
+            elapsedTime = learnAlgObj.get_elapsed_time()
+        else:
+            elapsedTime = 0.0
+
+    timestxtpath = os.path.join(savedir, 'times-saved-params.txt')
+    with open(timestxtpath, 'a') as f:
+        f.write('%.3f\n' % (elapsedTime))
 
     initPi = hmodel.allocModel.get_init_prob_vector()
     transPi = hmodel.allocModel.get_trans_prob_matrix()
