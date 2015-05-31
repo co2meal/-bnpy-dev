@@ -101,6 +101,8 @@ class SuffStatBag(object):
         return _ELBOTerms
 
     def removeMergeTerms(self):
+        if hasattr(self, 'mPairIDs'):
+            del self.mPairIDs
         if not self.hasMergeTerms():
             return None
         MergeTerms = self._MergeTerms
