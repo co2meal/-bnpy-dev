@@ -143,7 +143,9 @@ def proposeNewResp_bisectExistingBlocks(Z_n, propResp,
         sortOrder = np.argsort(-1 * blockSizes)
         blockSizes = blockSizes[sortOrder]
         blockStarts = blockStarts[sortOrder]
-        blockStates = blockStates[sortOrder]            
+        blockStates = blockStates[sortOrder]
+
+    nBlocks = len(blockSizes)
     kfresh = 0 # number of new states added
     for blockID in range(nBlocks):
         if kfresh >= Kfresh:
