@@ -143,7 +143,10 @@ class GroupXData(XData):
             if not key.startswith("__"):
                 arr = np.squeeze(as1D(kwargs[key]))
                 if arr.shape == ():
-                    arr = float(arr)
+                    try:
+                        arr = float(arr)
+                    except TypeError:
+                        continue
                 setattr(self, key, arr)
 
     def _set_dependent_params(self, doc_range, nDocTotal=None):
