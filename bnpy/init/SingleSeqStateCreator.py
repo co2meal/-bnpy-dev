@@ -266,8 +266,14 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
         assert SS.N.sum() >= Z_n.size - 1e-7
         return LP_n, hmodel, SS
 
-    propScore = calcELBOForSingleSeq_FromLP(Data_n, propLP_n, hmodel)
-    curScore = calcELBOForSingleSeq_FromLP(Data_n, LP_n, hmodel)
+    # EDIT: the single sequence ELBO is really not a good metric.
+    # It can downweight a proposal that takes a crappy state used in many seq
+    # and replaces it with a new cluster for this sequence only,
+    # because it only looks at the current sequence's data.
+    #propScore = calcELBOForSingleSeq_FromLP(Data_n, propLP_n, hmodel)
+    #curScore = calcELBOForSingleSeq_FromLP(Data_n, LP_n, hmodel)
+    propScore = propLP_n['evidence']
+    curScore = LP_n['evidence']
     doAccept = propScore > curScore + 1e-6
 
     if kwargs['doVizSeqCreate']:
@@ -291,10 +297,11 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
         else:
             doShow = True
         if doShow:
-            showProposal(Data_n, Z_n, propResp, propLP_n,
+            showProposal(Data_n, LP_n, propResp, propLP_n,
                 doAccept=doAccept,
                 n=n,
                 seqName=seqName,
+                curModel=hmodel,
                 **kwargs)
             print ''
             print ''
@@ -312,7 +319,7 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
         assert SS.N.sum() >= Z_n.size - 1e-7
         return LP_n, hmodel, SS
 
-def showProposal(Data_n, Z_n, propResp, propLP_n,
+def showProposal(Data_n, LP_n, propResp, propLP_n,
         n=0,
         seqName='',
         extraIDs_remaining=None,
@@ -320,11 +327,13 @@ def showProposal(Data_n, Z_n, propResp, propLP_n,
         doCompactTrueLabels=False,
         Kfresh=None,
         creationProposalName=None,
+        curModel=None,
         **kwargs):
     from matplotlib import pylab
     from bnpy.util.StateSeqUtil import alignEstimatedStateSeqToTruth
     from bnpy.util.StateSeqUtil import makeStateColorMap
 
+    Z_n = LP_n['resp'].argmax(axis=1)
     if hasattr(Data_n, 'TrueParams') and 'Z' in Data_n.TrueParams:
         Ztrue = np.asarray(Data_n.TrueParams['Z'], np.int32)
     else:
@@ -346,8 +355,8 @@ def showProposal(Data_n, Z_n, propResp, propLP_n,
     curZA, AlignInfo = alignEstimatedStateSeqToTruth(
         Z_n, Ztrue, returnInfo=1)
 
+    Kcur = LP_n['resp'].shape[1]
     nTrue = Ztrue.max() + 1
-    Kcur = curZA.max() + 1
     nExtra =  curZA.max() + 1 - nTrue
     Kmax = np.maximum(nTrue, nTrue + nExtra)
 
@@ -365,7 +374,7 @@ def showProposal(Data_n, Z_n, propResp, propLP_n,
         propZrefined[propZrefined == -1*kk-1] = extraIDs_remaining[origLoc]
     # Transform any original states back to original ids
     propZrefined[propZrefined < 0] = -1 * propZrefined[propZrefined < 0] - 1
-
+    # Align to true states
     propZArefined = alignEstimatedStateSeqToTruth(
         propZrefined, Ztrue, useInfo=AlignInfo)
 
