@@ -439,10 +439,22 @@ class MOVBBirthMergeAlg(MOVBAlg):
             # NOTE: Here, make sure SS retains all information from
             # *ALL* previously seen batches, including the current one.
             # Otherwise, could wipe out special states and lose guarantees.
-
+            
             if self.isFirstBatch(lapFrac):
-                self.SeqCreatePastAttemptLog = dict()
-
+                if not hasattr(self, 'SeqCreatePastAttemptLog'):
+                    self.SeqCreatePastAttemptLog = dict()
+                
+                elif 'nTryByStateUID' in self.SeqCreatePastAttemptLog:
+                    for uID in self.SeqCreatePastAttemptLog['nTryByStateUID']:
+                        if uID not in self.ActiveIDVec:
+                            continue
+                        print ' uid %d: nTry %d' % (
+                            uID, 
+                            self.SeqCreatePastAttemptLog['nTryByStateUID'][uID])
+                    print '^^^^^^^^^^^^^^^^^^^^^^^^^^'
+                self.SeqCreatePastAttemptLog['maxUID'] = 1 * self.maxUID
+                self.SeqCreatePastAttemptLog['uIDs'] = self.ActiveIDVec.copy()
+            
             if SS is None or self.isFirstBatch(lapFrac):
                 self.nDocSeenInCurLap = 0            
 
@@ -538,8 +550,9 @@ class MOVBBirthMergeAlg(MOVBAlg):
             # Adjusting suff stats to exactly represent whole dataset
             # including new assignments of current batch
             delattr(tempModel.allocModel, 'rho')
-            tempSS = SS.copy()
-            prevSSchunk = self.SSmemory[batchID].copy()
+            tempSS = SS.copy(includeELBOTerms=1, includeMergeTerms=0)
+            prevSSchunk = self.SSmemory[batchID].copy(includeELBOTerms=1,
+                includeMergeTerms=0)
             Kextra = tempSS.K - prevSSchunk.K
             if Kextra > 0:
                 prevSSchunk.insertEmptyComps(Kextra)
@@ -547,10 +560,13 @@ class MOVBBirthMergeAlg(MOVBAlg):
             Kextra = SSchunk.K - tempSS.K
             if Kextra > 0:
                 tempSS.insertEmptyComps(Kextra)
+            # Add in newest stats for this batch, which might have new states
+            assert SSchunk.hasELBOTerms()
+            assert tempSS.hasELBOTerms()
             tempSS += SSchunk
             tempModel.update_global_params(tempSS)
+            # Now, compute the whole-dataset objective
             assert tempSS.nDoc == Dchunk.nDocTotal
-            assert tempSS.hasELBOTerms()
             propELBO = tempModel.calc_evidence(SS=tempSS)
             assert np.isfinite(propELBO)
 
@@ -760,6 +776,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
             if np.allclose(SSchunk.uIDs, self.ActiveIDVec):
                 if SSchunk.hasMergeTerms():
                     SSchunk.removeMergeTerms()
+                if hasattr(SSchunk, 'mPairIDs'):
+                    del SSchunk.mPairIDs
                 return SSchunk
 
         # Fast-forward accepted softmerges from end of previous lap
@@ -776,6 +794,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
                     SSchunk.mergeComps(kA, kB)
         if SSchunk.hasMergeTerms():
             SSchunk.removeMergeTerms()
+        if hasattr(SSchunk, 'mPairIDs'):
+            del SSchunk.mPairIDs
 
         # Fast-forward births from this lap
         if self.hasMove('seqcreate') and Kfinal > 0 and SSchunk.K < Kfinal:

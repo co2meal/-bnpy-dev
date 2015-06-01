@@ -83,8 +83,7 @@ def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model,
                 if tempSS is not None:
                     assert tempSS.nDoc == nDocSeenInCurLap + \
                         nDocSeenForProposal
-                    
-            # TODO: stop repeated proposals if K exceeds Kmax?
+
             curKwargs = dict(**kwargs)
             curKwargs['creationProposalName'] = creationProposalName
             LP_n, model, tempSS = createSingleSeqLPWithNewStates(
@@ -146,6 +145,7 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
         PRNG=None,
         seed=0,
         n=0,
+        Kmax=200,
         seqName='',
         **kwargs):
     ''' Try a proposal for new LP for current sequence n.
@@ -175,10 +175,26 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
             and the most recent stats from n
     '''
     kwargs['creationProposalName'] = creationProposalName
-    kwargs['Kfresh'] = Kfresh
     kwargs['minBlockSize'] = minBlockSize
     kwargs['maxBlockSize'] = maxBlockSize
     kwargs['PRNG'] = PRNG
+
+    resp_n = LP_n['resp']
+    N, origK = resp_n.shape
+    if origK >= Kmax:
+        if kwargs['doVizSeqCreate']:
+            print 'skipped. at max capacity for states.'
+        SS_n = hmodel.get_global_suff_stats(Data_n, LP_n)
+        if SS is None:
+            SS = SS_n.copy()
+        else:
+            SS += SS_n
+        assert SS.N.sum() >= LP_n['resp'].shape[0] - 1e-7
+        return LP_n, hmodel, SS
+    else:
+        Kfresh = np.minimum(Kfresh, Kmax - origK)
+    # Set Kfresh AFTER it has been adjusted to avoid going over capacity
+    kwargs['Kfresh'] = Kfresh
 
     if PRNG is None:
         PRNG = np.random.RandomState(seed)
@@ -189,9 +205,6 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
         if hasattr(tempSS, 'uIDs'):
             delattr(tempSS, 'uIDs')
 
-    resp_n = LP_n['resp']
-    N, origK = resp_n.shape
-
     propResp = np.zeros((N, origK + Kfresh))
     propResp[:, :origK] = resp_n
     Z_n = np.argmax(resp_n, axis=1)
@@ -201,12 +214,13 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
     uIDs = np.unique(Z_n)
     sizes = np.asarray([np.sum(Z_n == uID) for uID in uIDs])
     elig_mask = sizes >= minBlockSize
-    # if np.sum(elig_mask) == 0:
-    #    return LP_n, hmodel, SS
-    sizes = sizes[elig_mask]
-    uIDs = uIDs[elig_mask]
-    ktarget = PRNG.choice(uIDs)
-    
+    if np.sum(elig_mask) > 0:
+        sizes = sizes[elig_mask]
+        uIDs = uIDs[elig_mask]
+        ktarget = PRNG.choice(uIDs)
+    else:
+        ktarget = PRNG.choice(uIDs)    
+
     # Prepare all the arguments to pass to proposal function
     allPropKwArgs = dict(
         tempModel=tempModel,
@@ -214,9 +228,9 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
         Data_n=Data_n,
         ktarget=ktarget,
         PRNG=PRNG,
-        origK=origK, 
-        Kfresh=Kfresh, 
-        minBlockSize=minBlockSize, 
+        origK=origK,
+        Kfresh=Kfresh,
+        minBlockSize=minBlockSize,
         maxBlockSize=maxBlockSize,
         )
     allPropKwArgs.update(kwargs)
@@ -266,8 +280,14 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
         assert SS.N.sum() >= Z_n.size - 1e-7
         return LP_n, hmodel, SS
 
-    propScore = calcELBOForSingleSeq_FromLP(Data_n, propLP_n, hmodel)
-    curScore = calcELBOForSingleSeq_FromLP(Data_n, LP_n, hmodel)
+    # EDIT: the single sequence ELBO is really not a good metric.
+    # It can downweight a proposal that takes a crappy state used in many seq
+    # and replaces it with a new cluster for this sequence only,
+    # because it only looks at the current sequence's data.
+    #propScore = calcELBOForSingleSeq_FromLP(Data_n, propLP_n, hmodel)
+    #curScore = calcELBOForSingleSeq_FromLP(Data_n, LP_n, hmodel)
+    propScore = propLP_n['evidence']
+    curScore = LP_n['evidence']
     doAccept = propScore > curScore + 1e-6
 
     if kwargs['doVizSeqCreate']:
@@ -291,10 +311,11 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
         else:
             doShow = True
         if doShow:
-            showProposal(Data_n, Z_n, propResp, propLP_n,
+            showProposal(Data_n, LP_n, propResp, propLP_n,
                 doAccept=doAccept,
                 n=n,
                 seqName=seqName,
+                curModel=hmodel,
                 **kwargs)
             print ''
             print ''
@@ -312,7 +333,7 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
         assert SS.N.sum() >= Z_n.size - 1e-7
         return LP_n, hmodel, SS
 
-def showProposal(Data_n, Z_n, propResp, propLP_n,
+def showProposal(Data_n, LP_n, propResp, propLP_n,
         n=0,
         seqName='',
         extraIDs_remaining=None,
@@ -320,11 +341,17 @@ def showProposal(Data_n, Z_n, propResp, propLP_n,
         doCompactTrueLabels=False,
         Kfresh=None,
         creationProposalName=None,
+        curModel=None,
         **kwargs):
     from matplotlib import pylab
     from bnpy.util.StateSeqUtil import alignEstimatedStateSeqToTruth
     from bnpy.util.StateSeqUtil import makeStateColorMap
-    Ztrue = np.asarray(Data_n.TrueParams['Z'], np.int32)
+
+    Z_n = LP_n['resp'].argmax(axis=1)
+    if hasattr(Data_n, 'TrueParams') and 'Z' in Data_n.TrueParams:
+        Ztrue = np.asarray(Data_n.TrueParams['Z'], np.int32)
+    else:
+        Ztrue = Z_n.copy()
 
     if doCompactTrueLabels:
         # Map Ztrue to compact set of uniqueIDs
@@ -342,8 +369,8 @@ def showProposal(Data_n, Z_n, propResp, propLP_n,
     curZA, AlignInfo = alignEstimatedStateSeqToTruth(
         Z_n, Ztrue, returnInfo=1)
 
+    Kcur = LP_n['resp'].shape[1]
     nTrue = Ztrue.max() + 1
-    Kcur = curZA.max() + 1
     nExtra =  curZA.max() + 1 - nTrue
     Kmax = np.maximum(nTrue, nTrue + nExtra)
 
@@ -355,12 +382,13 @@ def showProposal(Data_n, Z_n, propResp, propLP_n,
     # so that state ids correspond to those in propZstart
 
     # Step 1: propZrefined states all have negative ids
+    Kprop = propLP_n['resp'].shape[1]
     propZrefined = -1 * propLP_n['resp'].argmax(axis=1) - 1
-    for origLoc, kk in enumerate(range(Kcur, propZrefined.max() + 1)):
+    for origLoc, kk in enumerate(range(Kcur, Kprop)):
         propZrefined[propZrefined == -1*kk-1] = extraIDs_remaining[origLoc]
     # Transform any original states back to original ids
     propZrefined[propZrefined < 0] = -1 * propZrefined[propZrefined < 0] - 1
-
+    # Align to true states
     propZArefined = alignEstimatedStateSeqToTruth(
         propZrefined, Ztrue, useInfo=AlignInfo)
 
@@ -387,17 +415,17 @@ def showProposal(Data_n, Z_n, propResp, propLP_n,
     ax = pylab.subplot(4,1,1)
     pylab.imshow(Ztrue[np.newaxis,:], **imshowArgs)
     pylab.title('Ground truth' + ' ' + seqName)
-    pylab.xticks([]); pylab.yticks([]);
+    pylab.yticks([]);
     # show current
     pylab.subplot(4,1,2, sharex=ax)
     pylab.imshow(curZA[np.newaxis,:], **imshowArgs)
     pylab.title('Current estimate')
-    pylab.xticks([]); pylab.yticks([]);
+    pylab.yticks([]);
     # show init
     pylab.subplot(4,1,3, sharex=ax)
     pylab.imshow(propZAstart[np.newaxis,:], **imshowArgs)
     pylab.title('Initial proposal')
-    pylab.xticks([]); pylab.yticks([]);
+    pylab.yticks([]);
 
     # show final
     pylab.subplot(4,1,4, sharex=ax)
@@ -411,7 +439,14 @@ def showProposal(Data_n, Z_n, propResp, propLP_n,
 
     pylab.title('Refined proposal' + acceptMsg)
     pylab.yticks([]);
-    pylab.xticks([0, Z_n.size]);
+
+    #scale10 = np.floor(np.log10(Ztrue.size)) - 1
+    #scale10 = np.maximum(10**scale10, 5)
+    #xticks = np.linspace(0, Ztrue.size, np.ceil(Ztrue.size/scale10))
+    #xticks[1:-1] = scale10 * np.round(xticks[1:-1]/scale10)
+    #if xticks.size > 13:
+    #    xticks = np.hstack([xticks[::10], xticks[-1]])  
+    #pylab.xticks(xticks);
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', UserWarning)
