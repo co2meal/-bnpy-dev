@@ -134,7 +134,7 @@ def applyParserToStdInOrKwargs(parser, **kwargs):
     return ArgDict, arglist_to_kwargs(unkList)
 
 
-def arglist_to_kwargs(alist):
+def arglist_to_kwargs(alist, doConvertFromStr=True):
     ''' Transform list into key/val pair dictionary
 
     Neighboring entries in list are interpreted as key/value pairs.
@@ -159,7 +159,7 @@ def arglist_to_kwargs(alist):
         if curarg.startswith('--'):
             argname = curarg[2:]
             argval = alist[a + 1]
-            if isinstance(argval, str):
+            if isinstance(argval, str) and doConvertFromStr:
                 curType = _getTypeFromString(argval)
                 kwargs[argname] = curType(argval)
             else:

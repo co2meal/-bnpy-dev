@@ -96,9 +96,12 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
         if len(sequences) > 1:
             raise ValueError(
                 'Joint modeling of several sequences makes no sense')
-        Data = Datamod.get_data(meetingNum=sequences[0] + 1,
+        Data = Datamod.get_data(meetingNum=sequences[0]+1,
             **datasetPrefs)
+        jobpath = jobpath.replace(
+            'SpeakerDiar', 'SpeakerDiar'+str(sequences[0]+1))
         sequences[0] = 0
+
     else:
         Data = Datamod.get_data(**datasetPrefs)
 
@@ -136,27 +139,38 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
             curLap = int(lap)
 
         if showELBOInTitle:
-            Kvals = np.loadtxt(os.path.join(path, 'K.txt'))
-            ELBOscores = np.loadtxt(os.path.join(path, 'evidence.txt'))
-            laps = np.loadtxt(os.path.join(path, 'laps.txt'))
-
             hdists = np.loadtxt(os.path.join(path, 'hamming-distance.txt'))
             hlaps = np.loadtxt(os.path.join(path, 'laps-saved-params.txt'))
             Keffvals = np.loadtxt(os.path.join(path, 'Keff-saved-params.txt'))
-
-            loc = np.argmin(np.abs(laps - curLap))
-            ELBO = ELBOscores[loc]
-            Kfinal = Kvals[loc]
-
+            # Determine scalar values to display
             loc = np.argmin(np.abs(hlaps - curLap))
             hdist = hdists[loc]
             Kefffinal = Keffvals[loc]
+
+            try:
+                Kvals = np.loadtxt(os.path.join(path, 'K.txt'))
+                ELBOscores = np.loadtxt(os.path.join(path, 'evidence.txt'))
+                laps = np.loadtxt(os.path.join(path, 'laps.txt'))
+
+                loc = np.argmin(np.abs(laps - curLap))
+                ELBO = ELBOscores[loc]
+                Kfinal = Kvals[loc]
+            except IOError:
+                ELBO = 0.0
+                Kfinal = Kefffinal 
 
         # Load in the saved Data from $BNPYOUTDIR
         try:
             filename = 'Lap%08.3fMAPStateSeqsAligned.mat' % curLap
             zHatBySeq = scipy.io.loadmat(path + filename)
-            zHatBySeq = convertStateSeq_MAT2list(zHatBySeq['zHatBySeqAligned'])
+            key1 = 'zHatBySeqAligned'
+            key2 = 'zHatBySeq'
+            if key1 in zHatBySeq:
+                zHatBySeq = convertStateSeq_MAT2list(zHatBySeq[key1])
+            elif key2 in zHatBySeq:
+                zHatBySeq = convertStateSeq_MAT2list(zHatBySeq[key2])
+            else:
+                raise IOError
         except IOError:
             filename = 'Lap%08.3fMAPStateSeqs.mat' % curLap
             zHatBySeq = scipy.io.loadmat(path + filename)
@@ -169,9 +183,18 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
         nSeq = len(zHatBySeq)
         Kmax = np.max([zHatBySeq[i].max() for i in xrange(nSeq)])
         hasGroundTruth = False
+
+        vmin = 0
+        Kignore = 0
         if hasattr(Data, 'TrueParams') and 'Z' in Data.TrueParams:
             hasGroundTruth = True
             Kmax = np.maximum(Data.TrueParams['Z'].max(), Kmax)
+            uLabels = np.unique(Data.TrueParams['Z'])
+            Kignore = np.sum(uLabels < 0)
+            if Kignore > 0:
+                for k in range(1, Kignore+1):
+                    print 'ignoring state %d  Ttrue = %d' % (
+                        -k, np.sum(Data.TrueParams['Z']==-k))
 
         # In case there's only one sequence, make sure it's index-able
         for ii, seqNum in enumerate(sequences):
@@ -195,8 +218,9 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
                 vmax = cmap.N
             else:
                 vmax = Kmax
-            cur_ax.imshow(image + .0001, interpolation='nearest',
-                          vmin=0, vmax=vmax,
+
+            cur_ax.imshow(Kignore + image + .0001, interpolation='nearest',
+                          vmin=vmin, vmax=vmax,
                           cmap=cmap)
             if tt == 0:
                 if seqNames is not None:

@@ -267,7 +267,7 @@ class HDPHMM(AllocModel):
                 omega = (self.gamma + 1) * np.ones(SS.K)
                 rho = 1 / float(1 + self.gamma) * np.ones(SS.K)
 
-        return rho, omega, Info
+        return rho, omega
 
     def update_global_params_EM(self, SS, **kwargs):
         raise ValueError('HDPHMM does not support EM')
@@ -303,10 +303,10 @@ class HDPHMM(AllocModel):
 
         for giter in xrange(nGlobalIters):
             # Update rho, omega through numerical optimization
-            self.rho, self.omega, Info = self.find_optimum_rhoOmega(**kwargs)
+            self.rho, self.omega = self.find_optimum_rhoOmega(**kwargs)
             # Update theta again to reflect the new rho, omega
             self.transTheta, self.startTheta = self._calcTheta(SS)
-        return Info
+
 
     def update_global_params_soVB(self, SS, rho, **kwargs):
         ''' Updates global parameters when learning with stochastic online VB.

@@ -143,7 +143,10 @@ class GroupXData(XData):
             if not key.startswith("__"):
                 arr = np.squeeze(as1D(kwargs[key]))
                 if arr.shape == ():
-                    arr = float(arr)
+                    try:
+                        arr = float(arr)
+                    except TypeError:
+                        continue
                 setattr(self, key, arr)
 
     def _set_dependent_params(self, doc_range, nDocTotal=None):
@@ -256,8 +259,8 @@ class GroupXData(XData):
 
         if hasattr(self, 'alwaysTrackTruth'):
             doTrackTruth = doTrackTruth or self.alwaysTrackTruth
-
-        if doTrackTruth and 'Z' in self.TrueParams:
+        hasTrueZ = hasattr(self,'TrueParams') and 'Z' in self.TrueParams
+        if doTrackTruth and hasTrueZ:
             TrueZ = self.TrueParams['Z']
             newTrueZList = list()
             for d in xrange(len(docMask)):

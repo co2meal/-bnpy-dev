@@ -397,6 +397,7 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
     '''
     algName = ReqArgs['algName']
     algP = KwArgs[algName]
+    hasMoves = False
     for moveKey in ['birth', 'merge', 'shuffle', 'delete', 'seqcreate']:
         if moveKey in KwArgs:
             hasMoves = True

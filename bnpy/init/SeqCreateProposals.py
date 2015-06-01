@@ -70,44 +70,66 @@ def proposeNewResp_bisectExistingBlocks(Z_n, propResp,
         #PastAttemptLog['strategy'] = PRNG.choice(
         #    ['byState', 'bySize'])
 
-    if PastAttemptLog['strategy'] == 'byState':            
-        candidateStates = set(np.unique(blockStates))
+    if PastAttemptLog['strategy'] == 'byState':
+        Kcur = blockStates.max() + 1
+        Kextra = Kcur - PastAttemptLog['uIDs'].size
+        if Kextra > 0:
+            maxUID = PastAttemptLog['maxUID']
+            uIDs = PastAttemptLog['uIDs']
+            for extraPos in range(Kextra):
+                maxUID += 1
+                uIDs = np.append(uIDs, maxUID)
+            PastAttemptLog['maxUID'] = maxUID
+            PastAttemptLog['uIDs'] = uIDs
 
-        if 'nTryByState' not in PastAttemptLog:
-            PastAttemptLog['nTryByState'] = dict()
+        candidateStateUIDs = set()
+        for state in np.unique(blockStates):
+            uid = PastAttemptLog['uIDs'][state]
+            candidateStateUIDs.add(uid)
+
+        if 'nTryByStateUID' not in PastAttemptLog:
+            PastAttemptLog['nTryByStateUID'] = dict()
 
         minTry = np.inf
-        for badState, nTry in PastAttemptLog['nTryByState'].items():
-            if badState in candidateStates:
+        for badState, nTry in PastAttemptLog['nTryByStateUID'].items():
+            if badState in candidateStateUIDs:
                 if nTry < minTry:
                     minTry = nTry
-        untriedList = [x for x in candidateStates
-            if x not in PastAttemptLog['nTryByState']]
+        untriedList = [x for x in candidateStateUIDs
+            if x not in PastAttemptLog['nTryByStateUID']
+            or PastAttemptLog['nTryByStateUID'][x] == minTry]
         if len(untriedList) > 0:
-            candidateStates = untriedList
+            candidateStateUIDs = untriedList
         else:
             # Keep only candidates that have been tried the least
-            for badState, nTry in PastAttemptLog['nTryByState'].items():
-                # Remove bad State from candidateStates
-                if badState in candidateStates:
+            for badState, nTry in PastAttemptLog['nTryByStateUID'].items():
+                # Remove bad State from candidateStateUIDs
+                if badState in candidateStateUIDs:
                     if nTry > minTry:
-                        candidateStates.remove(badState)
-        candidateStates = np.asarray([x for x in candidateStates])
+                        candidateStateUIDs.remove(badState)
+        candidateStateUIDs = np.asarray([x for x in candidateStateUIDs])
         # Pick a state that we haven't tried yet,
         # uniformly at random
-        if len(candidateStates) > 0:
-            chosenState = PRNG.choice(np.asarray(candidateStates))
-            if chosenState in PastAttemptLog['nTryByState']:
-                PastAttemptLog['nTryByState'][chosenState] += 1
-            else:
-                PastAttemptLog['nTryByState'][chosenState] = 1
+        if len(candidateStateUIDs) > 0:
+            chosenStateUID = PRNG.choice(np.asarray(candidateStateUIDs))
+            chosenState = np.flatnonzero(
+                chosenStateUID == PastAttemptLog['uIDs'])[0]
 
-            # Rank blocks from this state the best! 
             chosen_mask = blockStates == chosenState
+            chosenBlockIDs = np.flatnonzero(chosen_mask)
+
+            if chosenBlockIDs.size > 1:
+                # Favor blocks assigned to this state that are larger
+                p = blockSizes[chosen_mask].copy()
+                p /= p.sum()
+                chosenBlockIDs = PRNG.choice(chosenBlockIDs, 
+                    size=np.minimum(Kfresh, len(chosenBlockIDs)),
+                    p=p, replace=False)
+                print blockSizes[chosenBlockIDs], '((((('
             remBlockIDs = np.flatnonzero(np.logical_not(chosen_mask))
             PRNG.shuffle(remBlockIDs)
             order = np.hstack([
-                np.flatnonzero(chosen_mask),
+                chosenBlockIDs,
                 remBlockIDs
                 ])
 
@@ -116,12 +138,14 @@ def proposeNewResp_bisectExistingBlocks(Z_n, propResp,
             order = PRNG.permutation(blockSizes.size)
         blockSizes = blockSizes[order]
         blockStarts = blockStarts[order]            
-
+        blockStates = blockStates[order]            
     else:
         sortOrder = np.argsort(-1 * blockSizes)
         blockSizes = blockSizes[sortOrder]
         blockStarts = blockStarts[sortOrder]
+        blockStates = blockStates[sortOrder]
 
+    nBlocks = len(blockSizes)
     kfresh = 0 # number of new states added
     for blockID in range(nBlocks):
         if kfresh >= Kfresh:
@@ -161,12 +185,25 @@ def proposeNewResp_bisectExistingBlocks(Z_n, propResp,
             stride=stride)
 
         PastAttemptLog['blocks'][(a,b)] = bestm
-        # print 'BEST BISECTION CUT: [%4d, %4d, %4d] w/ stride %d' % (
-        #     a, bestm, b, stride)
+
+        print 'TARGETING UID: ', PastAttemptLog['uIDs'][blockStates[blockID]]
+        print 'BEST BISECTION CUT: [%4d, %4d, %4d] w/ stride %d' % (
+             a, bestm, b, stride)
+
+        curUID = PastAttemptLog['uIDs'][blockStates[blockID]]
+        if bestm == a:
+            if curUID in PastAttemptLog['nTryByStateUID']:
+                PastAttemptLog['nTryByStateUID'][curUID] += 1
+            else:
+                PastAttemptLog['nTryByStateUID'][curUID] = 1
+        else:
+            PastAttemptLog['nTryByStateUID'][curUID] = 0 # success!
+
         if bestm == a:
             propResp[a:b, :origK] = 0
             propResp[a:b, origK + kfresh] = 1
             kfresh += 1
+            
         else:
             propResp[a:bestm, :origK] = 0
             propResp[a:bestm, origK + kfresh] = 1
@@ -178,6 +215,9 @@ def proposeNewResp_bisectExistingBlocks(Z_n, propResp,
             propResp[bestm:b, :origK] = 0           
             propResp[bestm:b, origK + kfresh] = 1
             kfresh += 1
+
+
+
     return propResp, origK + kfresh
 
 
