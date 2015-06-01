@@ -439,10 +439,8 @@ class MOVBBirthMergeAlg(MOVBAlg):
             # NOTE: Here, make sure SS retains all information from
             # *ALL* previously seen batches, including the current one.
             # Otherwise, could wipe out special states and lose guarantees.
-            #self.SeqCreatePastAttemptLog = dict()
             
             if self.isFirstBatch(lapFrac):
-                
                 if not hasattr(self, 'SeqCreatePastAttemptLog'):
                     self.SeqCreatePastAttemptLog = dict()
                 
