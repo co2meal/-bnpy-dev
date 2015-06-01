@@ -83,8 +83,7 @@ def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model,
                 if tempSS is not None:
                     assert tempSS.nDoc == nDocSeenInCurLap + \
                         nDocSeenForProposal
-                    
-            # TODO: stop repeated proposals if K exceeds Kmax?
+
             curKwargs = dict(**kwargs)
             curKwargs['creationProposalName'] = creationProposalName
             LP_n, model, tempSS = createSingleSeqLPWithNewStates(
@@ -146,6 +145,7 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
         PRNG=None,
         seed=0,
         n=0,
+        Kmax=200,
         seqName='',
         **kwargs):
     ''' Try a proposal for new LP for current sequence n.
@@ -175,10 +175,26 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
             and the most recent stats from n
     '''
     kwargs['creationProposalName'] = creationProposalName
-    kwargs['Kfresh'] = Kfresh
     kwargs['minBlockSize'] = minBlockSize
     kwargs['maxBlockSize'] = maxBlockSize
     kwargs['PRNG'] = PRNG
+
+    resp_n = LP_n['resp']
+    N, origK = resp_n.shape
+    if origK >= Kmax:
+        if kwargs['doVizSeqCreate']:
+            print 'skipped. at max capacity for states.'
+        SS_n = hmodel.get_global_suff_stats(Data_n, LP_n)
+        if SS is None:
+            SS = SS_n.copy()
+        else:
+            SS += SS_n
+        assert SS.N.sum() >= LP_n['resp'].shape[0] - 1e-7
+        return LP_n, hmodel, SS
+    else:
+        Kfresh = np.minimum(Kfresh, Kmax - origK)
+    # Set Kfresh AFTER it has been adjusted to avoid going over capacity
+    kwargs['Kfresh'] = Kfresh
 
     if PRNG is None:
         PRNG = np.random.RandomState(seed)
@@ -189,9 +205,6 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
         if hasattr(tempSS, 'uIDs'):
             delattr(tempSS, 'uIDs')
 
-    resp_n = LP_n['resp']
-    N, origK = resp_n.shape
-
     propResp = np.zeros((N, origK + Kfresh))
     propResp[:, :origK] = resp_n
     Z_n = np.argmax(resp_n, axis=1)
@@ -201,12 +214,13 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
     uIDs = np.unique(Z_n)
     sizes = np.asarray([np.sum(Z_n == uID) for uID in uIDs])
     elig_mask = sizes >= minBlockSize
-    # if np.sum(elig_mask) == 0:
-    #    return LP_n, hmodel, SS
-    sizes = sizes[elig_mask]
-    uIDs = uIDs[elig_mask]
-    ktarget = PRNG.choice(uIDs)
-    
+    if np.sum(elig_mask) > 0:
+        sizes = sizes[elig_mask]
+        uIDs = uIDs[elig_mask]
+        ktarget = PRNG.choice(uIDs)
+    else:
+        ktarget = PRNG.choice(uIDs)    
+
     # Prepare all the arguments to pass to proposal function
     allPropKwArgs = dict(
         tempModel=tempModel,
@@ -214,9 +228,9 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
         Data_n=Data_n,
         ktarget=ktarget,
         PRNG=PRNG,
-        origK=origK, 
-        Kfresh=Kfresh, 
-        minBlockSize=minBlockSize, 
+        origK=origK,
+        Kfresh=Kfresh,
+        minBlockSize=minBlockSize,
         maxBlockSize=maxBlockSize,
         )
     allPropKwArgs.update(kwargs)
