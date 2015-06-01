@@ -288,6 +288,7 @@ def objFunc_constrained(rhoomega,
     gradomega = ONcoef * (rho * trigamma_g1 - trigamma_omega) \
         + OFFcoef * ((1 - rho) * trigamma_g0 - trigamma_omega)
     if nDoc > 0:
+        # TODO make this line faster. This is the hot spot.
         Delta = calc_dEbeta_drho(Ebeta, rho, K)
         gradrho += np.dot(Delta, Tvec)
     grad = np.hstack([gradrho, gradomega])
@@ -301,7 +302,7 @@ def _unpack(rhoomega):
     omega = rhoomega[-K:]
     return rho, omega, K
 
-
+kvecCache = dict()
 def kvec(K):
     ''' Obtain descending vector of [K, K-1, ... 1]
 
@@ -309,8 +310,12 @@ def kvec(K):
     --------
     kvec : 1D array, size K
     '''
-    return K + 1 - np.arange(1, K + 1)
-
+    try:
+        return kvecCache[K]
+    except KeyError as e:
+        kvec = K + 1 - np.arange(1, K + 1)
+        kvecCache[K] = kvec
+        return kvec
 
 def c_Beta(g1, g0):
     ''' Calculate cumulant function of the Beta distribution
@@ -347,6 +352,7 @@ def calc_dEbeta_drho(Ebeta, rho, K):
     # Using flat indexing seems to be faster (about x2)
     Delta.ravel()[_get_flatLowTriIDs(K)] = 0
     return Delta
+
 
 
 flatlowTriIDsDict = dict()
