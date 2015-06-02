@@ -665,6 +665,17 @@ def proposeNewResp_dpmixture(Z_n, propResp,
         chosenStateUID == PastAttemptLog['uIDs'])[0]
             
     relDataIDs = np.flatnonzero(Z_n == ktarget)
+
+    # If the selected state is too small, just make a new state for all relIDs
+    if relDataIDs.size < Kfresh:
+        if chosenStateUID in PastAttemptLog['nTryByStateUID']:
+            PastAttemptLog['nTryByStateUID'][chosenStateUID] += 1
+        else:
+            PastAttemptLog['nTryByStateUID'][chosenStateUID] = 1
+        propResp[relDataIDs,:] = 0
+        propResp[relDataIDs,origK+1] = 1
+        return propResp, origK+1
+
     if hasattr(Data_n, 'Xprev'):
         Xprev = Data_n.Xprev[relDataIDs]
     else:
