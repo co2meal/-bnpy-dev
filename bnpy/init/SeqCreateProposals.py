@@ -360,8 +360,6 @@ def proposeNewResp_bisectGrownBlocks(Z_n, propResp,
 
         stride = int(np.ceil((b - a) / 25.0))
         stride = np.maximum(1, stride)
-        offset = PRNG.choice(np.arange(stride))
-        a += offset
 
         # If we've tried this state before and FAILED,
         # maybe its time to randomly grow this block outwards
@@ -381,7 +379,6 @@ def proposeNewResp_bisectGrownBlocks(Z_n, propResp,
                     newb = np.minimum(newb, Data_n.nObs)
                 a = newa
                 b = newb
-                
         bestm = findBestCutForBlock(Data_n, tempModel,
             a=a,
             b=b,
