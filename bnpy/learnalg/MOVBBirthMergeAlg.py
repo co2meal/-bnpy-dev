@@ -94,6 +94,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
         # Begin loop over batches of data...
         SS = None
+        evBound = None
         isConverged = False
         self.set_start_time_now()
         while DataIterator.has_next_batch():
@@ -185,6 +186,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
                 LPchunk = self.localStepWithBirthAtEachSeq(
                     hmodel, SS, Dchunk, batchID, 
                     lapFrac=lapFrac,
+                    evBound=evBound,
                     **MergePrepInfo)
             else:
                 LPchunk = self.memoizedLocalStep(hmodel, Dchunk, batchID,
@@ -396,6 +398,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
     def localStepWithBirthAtEachSeq(self, hmodel, SS, Dchunk, batchID, 
             lapFrac=0,
+            evBound=None,
             **LPandMergeKwargs):
         ''' Do local step on provided data chunk, possibly making new states.
 
@@ -428,8 +431,11 @@ class MOVBBirthMergeAlg(MOVBAlg):
             Kfresh = 0
 
         Korig = hmodel.obsModel.K
-        tempModel = hmodel
-        tempSS = SS
+        tempModel = hmodel.copy()
+        if SS is None:
+            tempSS = None
+        else:
+            tempSS = SS.copy(includeELBOTerms=1, includeMergeTerms=0)
 
         if lapFrac > 1:
             assert np.allclose(SS.nDoc, Dchunk.nDocTotal)
@@ -530,12 +536,10 @@ class MOVBBirthMergeAlg(MOVBAlg):
         if didAnyProposals and lapFrac > 1:
             assert SS != tempSS
             assert SS.nDoc == Dchunk.nDocTotal
-            
-            # Compute whole-dataset ELBO on current model
-            delattr(tempModel.allocModel, 'rho')
-            tempModel.update_global_params(SS)
-            assert SS.hasELBOTerms()
-            curELBO = tempModel.calc_evidence(SS=SS)
+            assert tempModel != hmodel
+
+            # Use most recent estimate of whole-dataset ELBO on current model
+            curELBO = evBound * 1.0
             assert np.isfinite(curELBO)
 
             print '<<<<<<<<<<<<<<<<<<<<< lap %.2f batch %d' % (
@@ -1581,6 +1585,9 @@ class MOVBBirthMergeAlg(MOVBAlg):
         if evBound is None:
             evBound = hmodel.calc_evidence(SS=SS)
 
+        ## All merges and deletes should be fast forwarded anyway
+        tmpLog = self.MergeLog
+        self.MergeLog = []
         # Reconstruct aggregate SS explicitly by sum over all stored batches
         for batchID in range(len(self.SSmemory.keys())):
             SSchunk = self.load_batch_suff_stat_from_memory(
@@ -1589,6 +1596,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
                 SS2 = SSchunk.copy()
             else:
                 SS2 += SSchunk
+        self.MergeLog = tmpLog
 
         # Add in extra mass from birth moves
         for MoveInfo in BirthResults:
