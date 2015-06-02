@@ -232,7 +232,10 @@ def calcContigBlocksFromZ(Zvec, returnStates=False):
     blockSizes = chPtA - chPtB
     blockStarts = np.asarray(changePts[:-1], dtype=np.float64)
     if returnStates:
-        return blockSizes, blockStarts, Zvec[np.int32(blockStarts)].copy()
+        blockStates = Zvec[np.int32(blockStarts)].copy()
+        if blockStates.size == 1:
+            blockStates = np.asarray([blockStates])
+        return blockSizes, blockStarts, blockStates
     return blockSizes, blockStarts
     
 
