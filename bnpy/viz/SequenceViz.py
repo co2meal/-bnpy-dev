@@ -248,7 +248,7 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
             cur_ax.set_ylim([0, image.shape[0]])
             cur_ax.set_yticks([])
             # ... end loop over sequences
-    return zHatBySeq
+    return axes, zHatBySeq
 
 
 def relabelAllSequences(zBySeq, specialStateIDs):

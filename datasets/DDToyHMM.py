@@ -119,8 +119,13 @@ def get_X(seed, T, nDocTotal):
             doc_range,
             )
 
+Colors = ['#a6cee3', '#1f78b4', '#b2df8a', '#33a02c',
+              '#fb9a99', '#e31a1c', '#fdbf6f', '#ff7f00']
 
-def illustrate():
+def illustrate(Colors=Colors):
+    if hasattr(Colors, 'colors'):
+        Colors = Colors.colors
+
     from matplotlib import pylab
     rcParams = pylab.rcParams
     rcParams['ps.fonttype'] = 42
@@ -130,10 +135,8 @@ def illustrate():
     rcParams['legend.fontsize'] = 25
 
     import bnpy
-    Colors = ['#a6cee3', '#1f78b4', '#b2df8a', '#33a02c',
-              '#fb9a99', '#e31a1c', '#fdbf6f', '#ff7f00']
-
-    Data = get_data(T=400, nDocTotal=16)
+    
+    Data = get_data(T=1000, nDocTotal=8)
     for k in xrange(K):
         zmask = Data.TrueParams['Z'] == k
         pylab.plot(Data.X[zmask, 0], Data.X[zmask, 1], '.', color=Colors[k],
@@ -156,12 +159,12 @@ def illustrate():
             ty = 0 - mus[k, 1]
             xy = (mus[k, 0] - 0.2 * tx, mus[k, 1] - 0.2 * ty)
             '''
-      pylab.annotate( u'\u27F2',
+            pylab.annotate( u'\u27F2',
                       xy=(mus[k,0], mus[k,1]),
                      color=Colors[k],
                      fontsize=35,
                     )
-      '''
+            '''
             pylab.gca().yaxis.set_ticks_position('left')
             pylab.gca().xaxis.set_ticks_position('bottom')
 
@@ -169,12 +172,12 @@ def illustrate():
             pylab.ylim([-38, 38])
             pylab.xlim([-38, 38])
 
+    
+if __name__ == '__main__':
+    illustrate()
     pylab.savefig('DatasetIllustration-DDToyHMM.eps', bbox_inches='tight',
                   pad_inches=0)
     pylab.show(block=True)
-
-if __name__ == '__main__':
-    illustrate()
 
 # P.arrow( x, y, dx, dy, **kwargs )
 # P.arrow( 0.5, 0.8, 0.0, -0.2, fc="k", ec="k",
