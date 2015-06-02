@@ -106,13 +106,14 @@ def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model,
                     nDocSeenInCurLap
 
     T_n = LP_n['resp'].shape[0]
-    assert tempSS.N.sum() >= T_n - 1e-7
+    assert tempSS.N.sum() >= T_n - 1e-5
 
     didAnyProposals = propID > 0
     if didAnyProposals:
         if lapFrac > 1:
             # Will have two versions of the current sequence
-            assert tempSS.N.sum() >= 2 * T_n - 1e-7
+            Norig = SS.N.sum()
+            assert tempSS.N.sum() >= Norig + T_n - 1e-5
             assert tempSS.nDoc == Data_n.nDocTotal + nDocSeenForProposal + 1
         else:
             assert tempSS.nDoc == nDocSeenForProposal + 1 + \
@@ -189,7 +190,7 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
             SS = SS_n.copy()
         else:
             SS += SS_n
-        assert SS.N.sum() >= LP_n['resp'].shape[0] - 1e-7
+        assert SS.N.sum() >= LP_n['resp'].shape[0] - 1e-5
         return LP_n, hmodel, SS
     else:
         Kfresh = np.minimum(Kfresh, Kmax - origK)
@@ -253,7 +254,7 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
             SS = SS_n.copy()
         else:
             SS += SS_n
-        assert SS.N.sum() >= Z_n.size - 1e-7
+        assert SS.N.sum() >= Z_n.size - 1e-5
         return LP_n, hmodel, SS
 
     # Create complete LP dict from the proposed segmentation
@@ -277,7 +278,7 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
             SS = SS_n.copy()
         else:
             SS += SS_n
-        assert SS.N.sum() >= Z_n.size - 1e-7
+        assert SS.N.sum() >= Z_n.size - 1e-5
         return LP_n, hmodel, SS
 
     # EDIT: the single sequence ELBO is really not a good metric.
@@ -322,7 +323,7 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
             print ''
 
     if doAccept:
-        assert tempSS.N.sum() >= Z_n.size - 1e-7
+        assert tempSS.N.sum() >= Z_n.size - 1e-5
         return propLP_n, tempModel, tempSS
     else:
         SS_n = hmodel.get_global_suff_stats(Data_n, LP_n)
@@ -330,7 +331,7 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
             SS = SS_n.copy()
         else:
             SS += SS_n
-        assert SS.N.sum() >= Z_n.size - 1e-7
+        assert SS.N.sum() >= Z_n.size - 1e-5
         return LP_n, hmodel, SS
 
 def showProposal(Data_n, LP_n, propResp, propLP_n,
