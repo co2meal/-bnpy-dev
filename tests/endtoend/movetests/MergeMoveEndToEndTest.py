@@ -128,7 +128,7 @@ class MergeMoveEndToEndTest(unittest.TestCase):
             creationProposalName='randBlocks',
             minBlockSize=10,
             maxBlockSize=50,
-            doVizSeqCreate=1,
+            doVizSeqCreate=0,
         )
         allKwargs.update(kwargs)
         allKwargs.update(aArg)
@@ -444,7 +444,7 @@ class MergeMoveEndToEndTest(unittest.TestCase):
                 print ''
                 return
 
-    def test_findBestCut_SingleSeq(self, n=0, **kwargs):
+    def interactivetest_findBestCut_SingleSeq(self, n=0, **kwargs):
         """ Interactively try out findBestCut.
 
         Post Condition

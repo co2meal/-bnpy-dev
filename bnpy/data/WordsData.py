@@ -599,7 +599,9 @@ class WordsData(DataObj):
         dataShMemDict['vocab_size'] = self.vocab_size
         return dataShMemDict
 
-    def select_subset_by_mask(self, docMask, doTrackFullSize=True):
+    def select_subset_by_mask(self, docMask, 
+            doTrackFullSize=True,
+            doTrackTruth=False):
         ''' Returns WordsData object representing a subset this dataset.
 
         Args
@@ -627,10 +629,12 @@ class WordsData(DataObj):
 
         # Fill in new word_id, word_count, and doc_range
         startLoc = 0
+        newMask = list()
         for d in xrange(nDoc):
             start = self.doc_range[docMask[d]]
             stop = self.doc_range[docMask[d] + 1]
             endLoc = startLoc + (stop - start)
+            newMask.extend(range(start, stop))
             word_count[startLoc:endLoc] = self.word_count[start:stop]
             word_id[startLoc:endLoc] = self.word_id[start:stop]
             doc_range[d] = startLoc
@@ -640,8 +644,25 @@ class WordsData(DataObj):
         nDocTotal = None
         if doTrackFullSize:
             nDocTotal = self.nDocTotal
+
+        if hasattr(self, 'alwaysTrackTruth'):
+            doTrackTruth = doTrackTruth or self.alwaysTrackTruth
+        hasTrueZ = hasattr(self,'TrueParams') and 'Z' in self.TrueParams
+        if doTrackTruth and hasTrueZ:
+            newTrueParams = dict()
+            for key, arr in self.TrueParams.items():
+              if key == 'Z' or key == 'resp':
+                  newMask = np.asarray(newMask, dtype=np.int32)
+                  newTrueParams[key] = arr[newMask]
+              elif isinstance(arr, np.ndarray):
+                  newTrueParams[key] = arr.copy()
+              else:
+                  newTrueParams[key] = arr
+        else:
+            newTrueParams = None
+
         return WordsData(word_id, word_count, doc_range, self.vocab_size,
-                         nDocTotal=nDocTotal)
+                         nDocTotal=nDocTotal, TrueParams=newTrueParams)
 
     @classmethod
     def CreateToyDataSimple(cls, nDoc=10, nUniqueTokensPerDoc=10,
