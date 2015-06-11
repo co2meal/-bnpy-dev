@@ -297,6 +297,7 @@ class HDPHMM(AllocModel):
             omega = self.omega
             omega[mergeCompA] += omega[mergeCompB]
             self.omega = np.delete(omega, mergeCompB, axis=0)
+        # TODO think about smarter init for rho/omega??
 
         # Update theta with recently updated info from suff stats
         self.transTheta, self.startTheta = self._calcTheta(SS)
