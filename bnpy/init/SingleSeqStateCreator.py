@@ -44,7 +44,8 @@ def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model,
         kwargs['verbose'] = 0
     
     if lapFrac > 1:
-        assert SS.nDoc == Data_n.nDocTotal + nDocSeenForProposal
+        #assert SS.nDoc == Data_n.nDocTotal + nDocSeenForProposal
+        assert SS.nDoc >= Data_n.nDocTotal
     else:
         if SS is not None:
             assert SS.nDoc == nDocSeenInCurLap + nDocSeenForProposal
@@ -59,6 +60,16 @@ def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model,
 
     creationProposalNames = kwargs['creationProposalName'].split('+')
     creationNumProposal = kwargs['creationNumProposal']
+
+    if creationNumProposal < 1.0:
+        beyondReqFrac = (lapFrac - np.floor(lapFrac)) > creationNumProposal + 1e-5
+        isLastLap = np.allclose(lapFrac, np.ceil(lapFrac))
+        if beyondReqFrac or isLastLap:
+            creationNumProposal = 0
+        else:
+            creationNumProposal = 1
+    else:
+        creationNumProposal = int(creationNumProposal)
 
     origK = model.obsModel.K
     propID = 0
@@ -114,17 +125,17 @@ def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model,
             # Will have two versions of the current sequence
             Norig = SS.N.sum()
             assert tempSS.N.sum() >= Norig + T_n - 1e-5
-            assert tempSS.nDoc == Data_n.nDocTotal + nDocSeenForProposal + 1
-        else:
-            assert tempSS.nDoc == nDocSeenForProposal + 1 + \
-                nDocSeenInCurLap
+            #assert tempSS.nDoc == Data_n.nDocTotal + nDocSeenForProposal + 1
+        #else:
+        #    assert tempSS.nDoc == nDocSeenForProposal + 1 + \
+        #        nDocSeenInCurLap
 
-    else:
-        if lapFrac > 1:
-            assert tempSS.nDoc == Data_n.nDocTotal
-        else:
-            assert tempSS.nDoc == nDocSeenForProposal + 1 + \
-                nDocSeenInCurLap
+    #else:
+    #    if lapFrac > 1:
+    #        assert tempSS.nDoc == Data_n.nDocTotal
+    #    else:
+    #        assert tempSS.nDoc == nDocSeenForProposal + 1 + \
+    #            nDocSeenInCurLap
 
     Info = dict(
         didAnyProposals=didAnyProposals,

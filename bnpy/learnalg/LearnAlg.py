@@ -172,7 +172,8 @@ class LearnAlg(object):
             return False
         return isEvenlyDivisibleFloat(lap, traceEvery) \
             or nMstepUpdates < 3 \
-            or lap in self.TraceLaps
+            or lap in self.TraceLaps \
+            or isEvenlyDivisibleFloat(lap, 1.0)
 
     def saveDiagnostics(self, lap, SS, evBound, ActiveIDVec=None):
         ''' Save trace stats to disk
@@ -312,7 +313,8 @@ class LearnAlg(object):
         printEvery = self.outputParams['printEvery']
         if printEvery <= 0:
             return False
-        return isEvenlyDivisibleFloat(lap, printEvery) or nMstepUpdates < 3
+        return isEvenlyDivisibleFloat(lap, printEvery) \
+            or nMstepUpdates < 3
 
     def printStateToLog(self, hmodel, evBound, lap, iterid,
                         isFinal=0, rho=None):

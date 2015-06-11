@@ -16,7 +16,9 @@ from ParallelMOVBMovesAlg import ParallelMOVBMovesAlg
 
 from GSAlg import GSAlg
 
+from SharedMemWorker import SharedMemWorker
+
 __all__ = ['LearnAlg', 'VBAlg', 'MOVBAlg', 'MOVBBirthMergeAlg',
            'SOVBAlg', 'EMAlg',
            'ParallelVBAlg', 'ParallelMOVBAlg', 'ParallelMOVBMovesAlg',
-           'GSAlg', ]
+           'GSAlg', 'SharedMemWorker']

@@ -167,7 +167,9 @@ class XData(DataObj):
         s += '  dimension: %d' % (self.get_dim())
         return s
 
-    def select_subset_by_mask(self, mask, doTrackFullSize=True):
+    def select_subset_by_mask(self, mask, 
+            doTrackFullSize=True,
+            doTrackTruth=False):
         ''' Get subset of this dataset identified by provided unit IDs.
 
         Parameters
@@ -187,9 +189,23 @@ class XData(DataObj):
         else:
             newXprev = None
         newX = self.X[mask]
+
+        if hasattr(self, 'alwaysTrackTruth'):
+            doTrackTruth = doTrackTruth or self.alwaysTrackTruth
+        hasTrueZ = hasattr(self,'TrueParams') and 'Z' in self.TrueParams
+        if doTrackTruth and hasTrueZ:
+            TrueZ = self.TrueParams['Z']
+            newTrueZ = TrueZ[mask]
+        else:
+            newTrueZ = None
+
         if doTrackFullSize:
-            return XData(newX, Xprev=newXprev, nObsTotal=self.nObsTotal)
-        return XData(X=newX, Xprev=newXprev)
+            nObsTotal = self.nObsTotal
+        else:
+            nObsTotal = None
+
+        return XData(X=newX, Xprev=newXprev, 
+            TrueZ=newTrueZ, nObsTotal=nObsTotal)
 
     def add_data(self, XDataObj):
         """ Appends (in-place) provided dataset to this dataset.
