@@ -34,6 +34,7 @@ import argparse
 from matplotlib import pylab
 
 from bnpy.util.StateSeqUtil import convertStateSeq_MAT2list
+from bnpy.util.StateSeqUtil import convertStateSeq_list2flat, convertStateSeq_flat2list
 from bnpy.ioutil import BNPYArgParser
 from bnpy.viz.TaskRanker import rankTasksForSingleJobOnDisk
 from bnpy.viz.PlotTrace import taskidsHelpMsg
@@ -48,6 +49,7 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
                   seqNames=None,
                   cmap='Set1',
                   maxT=None,
+                  colorManyToOne=False,
                   ):
     '''
     Returns the array of Data corresponding to a single sequence to display
@@ -196,6 +198,20 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
                     print 'ignoring state %d  Ttrue = %d' % (
                         -k, np.sum(Data.TrueParams['Z']==-k))
 
+            if colorManyToOne:
+                # For each state in zHat, find best true sequence
+                Zflat = convertStateSeq_list2flat(zHatBySeq, Data)
+                ZflatA = -1 * np.ones_like(Zflat)
+                for uID in np.unique(Zflat):
+                    overlap = np.zeros(uLabels.size)
+                    for ii, trueID in enumerate(uLabels):
+                        overlap[ii] = np.sum(np.logical_and(
+                            Data.TrueParams['Z'] == trueID,
+                            Zflat == uID))
+                    bestii = overlap.argmax()
+                    ZflatA[Zflat == uID] = uLabels[bestii]
+                zHatBySeq = convertStateSeq_flat2list(ZflatA, Data)
+
         # In case there's only one sequence, make sure it's index-able
         for ii, seqNum in enumerate(sequences):
             image = np.tile(zHatBySeq[seqNum], (NUM_STACK, 1))
@@ -206,7 +222,10 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
                 stop = Data.doc_range[seqNum + 1]
                 img_trueZ = np.tile(Data.TrueParams['Z'][start:stop],
                                     (NUM_STACK, 1))
-                image = np.vstack((image, img_trueZ))
+                if dispTrue == 2:
+                    image = img_trueZ # Show only true labels
+                else:
+                    image = np.vstack((image, img_trueZ))
 
             image = image[:, :maxT]
             if len(sequences) == 1 or len(taskids) == 1:
