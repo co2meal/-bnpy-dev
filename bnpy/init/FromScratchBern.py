@@ -62,7 +62,7 @@ def init_global_params(obsModel, Data, K=0, seed=0,
                 p = minDistVec / sum_minDistVec
             else:
                 D = minDistVec.size
-                p = 1.0 / D * np.ones(D)            
+                p = 1.0 / D * np.ones(D)
             objID = PRNG.choice(Data.nObs, p=p)
             chosenObjIDs.append(objID)
         resp = np.zeros((Data.nObs, K))

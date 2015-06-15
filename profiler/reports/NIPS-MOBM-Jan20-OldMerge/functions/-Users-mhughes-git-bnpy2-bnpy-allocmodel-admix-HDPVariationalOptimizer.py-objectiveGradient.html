@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">objectiveGradient</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">objectiveGradient</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>objectiveGradient</h1>
+	  </div>
+
+          <p>64475 Calls, 205.02 s</p>
+	  <p>Generated 17:37:25 01/20/14 EST</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix/HDPVariationalOptimizer.py">/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix/HDPVariationalOptimizer.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line166">166</td>
+              <td><pre>@profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line167">167</td>
+              <td><pre>def objectiveGradient(Cvec, alpha0, gamma, nDoc, sumLogPi, E=dict()):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line168">168</td>
+              <td><pre>  ''' Calculate gradient of objectiveFunc, objective for HDP variational </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line169">169</td>
+              <td><pre>      Returns</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line170">170</td>
+              <td><pre>      -------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line171">171</td>
+              <td><pre>        gvec : 2*K length vector,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line172">172</td>
+              <td><pre>              where each entry gives partial derivative with respect to</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line173">173</td>
+              <td><pre>                  the corresponding entry of Cvec</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line174">174</td>
+              <td><pre>  '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line175">175</td>
+              <td><pre>  # UNPACK unconstrained input Cvec into intended params U</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.41 s</td>
+              <td>64475</td>
+              <td id="line176">176</td>
+              <td><pre>  Uvec = np.exp(Cvec)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.15 s</td>
+              <td>64475</td>
+              <td id="line177">177</td>
+              <td><pre>  K = Uvec.size/2</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.36 s</td>
+              <td>64475</td>
+              <td id="line178">178</td>
+              <td><pre>  U1 = np.asarray(Uvec[:K], dtype=np.float64)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.30 s</td>
+              <td>64475</td>
+              <td id="line179">179</td>
+              <td><pre>  U0 = np.asarray(Uvec[K:], dtype=np.float64)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line180">180</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.57 s</td>
+              <td>64475</td>
+              <td id="line181">181</td>
+              <td><pre>  kvec = K+1 - np.arange(1, K+1)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line182">182</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.49 s</td>
+              <td>64475</td>
+              <td id="line183">183</td>
+              <td><pre>  digammaU1 = digamma(U1)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.40 s</td>
+              <td>64475</td>
+              <td id="line184">184</td>
+              <td><pre>  digammaU0 = digamma(U0)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.55 s</td>
+              <td>64475</td>
+              <td id="line185">185</td>
+              <td><pre>  digammaBoth = digamma(U1+U0)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line186">186</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.18 s</td>
+              <td>64475</td>
+              <td id="line187">187</td>
+              <td><pre>  if E is None or len(E.keys()) == 0:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 17.46 s</td>
+              <td>64475</td>
+              <td id="line188">188</td>
+              <td><pre>    E = calcExpectations(U1, U0)</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 173.90 s</td>
+              <td>64475</td>
+              <td id="line189">189</td>
+              <td><pre>  dU1, dU0 = calcDerivatives(U1, U0, E=E)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line190">190</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.41 s</td>
+              <td>64475</td>
+              <td id="line191">191</td>
+              <td><pre>  dU1_Elogp_v = (alpha0 - 1) * dU1['Elog1mv']</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.33 s</td>
+              <td>64475</td>
+              <td id="line192">192</td>
+              <td><pre>  dU0_Elogp_v = (alpha0 - 1) * dU0['Elog1mv']</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line193">193</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line194">194</td>
+              <td><pre>  dU1_Elogp_pi = nDoc * dU1['Elogv'] \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line195">195</td>
+              <td><pre>                  + nDoc * kvec * dU1['Elog1mv'] \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.79 s</td>
+              <td>64475</td>
+              <td id="line196">196</td>
+              <td><pre>                  + gamma * np.dot(dU1['Ebeta'], sumLogPi)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line197">197</td>
+              <td><pre>  dU0_Elogp_pi = nDoc * dU0['Elogv'] \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line198">198</td>
+              <td><pre>                  + nDoc * kvec * dU0['Elog1mv'] \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.58 s</td>
+              <td>64475</td>
+              <td id="line199">199</td>
+              <td><pre>                  + gamma * np.dot(dU0['Ebeta'], sumLogPi)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line200">200</td>
+              <td><pre>  </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line201">201</td>
+              <td><pre>  dU1_Elogq_v = digammaBoth - digammaU1 \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line202">202</td>
+              <td><pre>                  + E['logv'] + (U1 - 1) * dU1['Elogv'] \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.48 s</td>
+              <td>64475</td>
+              <td id="line203">203</td>
+              <td><pre>                  + (U0 - 1) * dU1['Elog1mv']</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line204">204</td>
+              <td><pre>  dU0_Elogq_v = digammaBoth - digammaU0 \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line205">205</td>
+              <td><pre>                  + (U1 - 1) * dU0['Elogv'] \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.40 s</td>
+              <td>64475</td>
+              <td id="line206">206</td>
+              <td><pre>                  + E['log1mv'] + (U0 - 1) * dU0['Elog1mv']</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line207">207</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.39 s</td>
+              <td>64475</td>
+              <td id="line208">208</td>
+              <td><pre>  gvecU1 = dU1_Elogp_v + dU1_Elogp_pi - dU1_Elogq_v</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.38 s</td>
+              <td>64475</td>
+              <td id="line209">209</td>
+              <td><pre>  gvecU0 = dU0_Elogp_v + dU0_Elogp_pi - dU0_Elogq_v</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 2.09 s</td>
+              <td>64475</td>
+              <td id="line210">210</td>
+              <td><pre>  gvecU = -1 * np.hstack([gvecU1, gvecU0])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line211">211</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line212">212</td>
+              <td><pre>  # Apply chain rule!</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.29 s</td>
+              <td>64475</td>
+              <td id="line213">213</td>
+              <td><pre>  gvecC = Uvec * gvecU</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.11 s</td>
+              <td>64475</td>
+              <td id="line214">214</td>
+              <td><pre>  return gvecC</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

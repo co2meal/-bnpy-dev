@@ -1,15 +1,15 @@
 """
-Collection of functions and classes for testing parallel execution 
+Collection of functions and classes for testing parallel execution
 of the local step for HDPHMM variational inference.
 
 Usage
 -----
 From a shell/terminal, use like a standard Python script.
-$ python TestHDPHMM.py --N 200 --nDoc 500 --K 50 --nWorkers 2 
+$ python TestHDPHMM.py --N 200 --nDoc 500 --K 50 --nWorkers 2
 
 Keyword Args
 ------------
-* nDoc : int or range 
+* nDoc : int or range
     total number of data sequences to generate
 * T : int or range
     length of each data sequence
@@ -42,6 +42,7 @@ import bnpy
 from bnpy.util import sharedMemDictToNumpy, sharedMemToNumpyArray
 from bnpy.learnalg import SharedMemWorker
 
+
 def runBenchmarkAcrossProblemSizes(TestClass):
     """ Execute speed benchmark across several problem sizes.
 
@@ -65,13 +66,13 @@ def runBenchmarkAcrossProblemSizes(TestClass):
     parser.add_argument('--nDoc', type=str, default='64')
     parser.add_argument('--K', type=str, default='50')
     parser.add_argument('--T', type=int, default='10000')
-    parser.add_argument('--dataset', type=str, default='BigChromatinCD4T')
+    parser.add_argument('--dataset', type=str, default='SeqOfBinBars9x9')
     parser.add_argument('--nWorkers', type=str, default='2')
     parser.add_argument('--method', type=str, default='all')
     parser.add_argument('--nRepeat', type=int, default=1)
     parser.add_argument('--verbose', type=int, default=0)
     args = parser.parse_args()
-    
+
     argIterator = itertools.product(
         rangeFromString(args.nDoc),
         rangeFromString(args.K),
@@ -90,11 +91,12 @@ def runBenchmarkAcrossProblemSizes(TestClass):
 
         # Create test instance with desired keyword args.
         # Required first arg is string name of test we'll execute
-        myTest = TestClass('run_speed_benchmark', **kwargs) 
+        myTest = TestClass('run_speed_benchmark', **kwargs)
         myTest.setUp()
         TimeInfo = myTest.run_speed_benchmark(method=args.method,
                                               nRepeat=args.nRepeat)
-        myTest.tearDown() # closes all processes
+        myTest.tearDown()  # closes all processes
+
 
 class Test(unittest.TestCase):
 
@@ -102,9 +104,9 @@ class Test(unittest.TestCase):
         return None
 
     def __init__(self, testname, seed=0,
-                dataset='BigChromatinCD4T',
-                T=10000, nDoc=8, K=3, nWorkers=2, verbose=1,
-                **kwargs):
+                 dataset='BigChromatinCD4T',
+                 T=10000, nDoc=8, K=3, nWorkers=2, verbose=1,
+                 **kwargs):
         ''' Create a new test harness for parallel topic model inference.
 
         Post Condition Attributes
@@ -112,7 +114,7 @@ class Test(unittest.TestCase):
         Data : bnpy DataObj dataset
         hmodel : bnpy HModel
         '''
-        super(type(self),self).__init__(testname)
+        super(type(self), self).__init__(testname)
         self.nWorkers = nWorkers
         self.verbose = verbose
         self.T = T
@@ -127,13 +129,12 @@ class Test(unittest.TestCase):
             alpha=0.5, gamma=10.0, nGlobalSteps=1, nGlobalStepsBigChange=3,
             startAlpha=10, hmmKappa=100)
         self.hmodel = bnpy.HModel.CreateEntireModel(
-             'moVB', 'HDPHMM', 'Bern',
-             hmmKwargs,
-             dict(lam1=0.1, lam0=0.3), 
-             self.Data)
-        self.hmodel.init_global_params(self.Data, 
-             initname='randcontigblocks', K=K)
-
+            'moVB', 'HDPHMM', 'Bern',
+            hmmKwargs,
+            dict(lam1=0.1, lam0=0.3),
+            self.Data)
+        self.hmodel.init_global_params(self.Data,
+                                       initname='randcontigblocks', K=K)
 
     def setUp(self, **kwargs):
         ''' Launch pool of worker processes, with queues to communicate with.
@@ -149,23 +150,23 @@ class Test(unittest.TestCase):
 
         dataSharedMem = self.Data.getRawDataAsSharedMemDict()
 
-        aSharedMem=self.hmodel.allocModel.fillSharedMemDictForLocalStep()
-        oSharedMem=self.hmodel.obsModel.fillSharedMemDictForLocalStep()
+        aSharedMem = self.hmodel.allocModel.fillSharedMemDictForLocalStep()
+        oSharedMem = self.hmodel.obsModel.fillSharedMemDictForLocalStep()
 
         # Launch desired number of worker processes
         # We don't need to store references to these processes,
         # We can get everything we need from JobQ and ResultQ
         for uid in range(self.nWorkers):
             worker = SharedMemWorker(uid, self.JobQ, self.ResultQ,
-                 self.Data.getDataSliceFunctionHandle(),
-                 o_L,
-                 o_S,
-                 a_L,
-                 a_S,
-                 dataSharedMem,
-                 aSharedMem,
-                 oSharedMem,
-                 verbose=self.verbose)
+                                     self.Data.getDataSliceFunctionHandle(),
+                                     o_L,
+                                     o_S,
+                                     a_L,
+                                     a_S,
+                                     dataSharedMem,
+                                     aSharedMem,
+                                     oSharedMem,
+                                     verbose=self.verbose)
             worker.start()
 
     def tearDown(self):
@@ -184,14 +185,14 @@ class Test(unittest.TestCase):
 
     def run_baseline(self):
         """ Execute on entire matrix (no slices) in master process.
-        """        
+        """
         SSall = calcLocalParamsAndSummarize(self.Data, self.hmodel)
         return SSall
 
     '''
     def run_serial(self):
         """ Execute on slices processed in serial by master process.
-        """        
+        """
         SSagg = None
         aArgs = self.hmodel.allocModel.getSerializableParamsForLocalStep()
         oArgs = self.hmodel.obsModel.getSerializableParamsForLocalStep()
@@ -243,7 +244,7 @@ class Test(unittest.TestCase):
     def test_correctness_serial(self):
         ''' Verify that the local step works as expected.
 
-        No parallelization here. 
+        No parallelization here.
         Just verifying that we can split computation up into >1 slice,
         add up results from all slices and still get the same answer.
         '''
@@ -252,28 +253,26 @@ class Test(unittest.TestCase):
         SSserial = self.run_serial()
         allcloseSS(SSbase, SSserial)
 
-    
     def test_correctness_parallel(self):
         """ Verify that we can execute local step across several processes
 
         Each process does the following:
         * grab its chunk of data from a shared jobQueue
         * performs computations on this chunk
-        * load the resulting suff statistics object into resultsQueue      
+        * load the resulting suff statistics object into resultsQueue
         """
         print ''
         SSparallel = self.run_parallel()
         SSbase = self.run_baseline()
         allcloseSS(SSparallel, SSbase)
 
-    
     def test_speed(self, nRepeat=5):
         """ Compare speed of different algorithms.
         """
         print ''
         Results = self.run_all_with_timer(nRepeat=nRepeat)
         assert True
-    
+
     def run_speed_benchmark(self, method='all', nRepeat=3):
         """ Compare speed of different algorithms.
         """
@@ -284,11 +283,11 @@ class Test(unittest.TestCase):
             Results = dict(parallel_time=ptime)
         elif method == 'serial':
             ptime = self.run_with_timer('run_serial', nRepeat=nRepeat)
-            Results = dict(serial_time=ptime)    
+            Results = dict(serial_time=ptime)
         else:
             ptime = self.run_with_timer('run_baseline', nRepeat=nRepeat)
             Results = dict(base_time=ptime)
-        
+
         for key in ['base_time', 'serial_time', 'parallel_time']:
             if key in Results:
                 try:
@@ -297,10 +296,10 @@ class Test(unittest.TestCase):
                 except KeyError:
                     speedupmsg = ""
                 print "%18s | %8.3f sec %s" % (
-                    key, 
-                    Results[key], 
+                    key,
+                    Results[key],
                     speedupmsg
-                    )
+                )
         return Results
 
     def run_with_timer(self, funcToCall, nRepeat=3):
@@ -316,16 +315,16 @@ class Test(unittest.TestCase):
         """
         parallel_time = self.run_with_timer('run_parallel', nRepeat)
         base_time = self.run_with_timer('run_baseline', nRepeat)
-        serial_time = base_time # self.run_with_timer('run_serial', nRepeat)
-        
+        serial_time = base_time  # self.run_with_timer('run_serial', nRepeat)
+
         return dict(
             base_time=base_time,
             base_speedup=1.0,
             serial_time=serial_time,
-            serial_speedup=base_time/serial_time,
+            serial_speedup=base_time / serial_time,
             parallel_time=parallel_time,
-            parallel_speedup=base_time/parallel_time,
-            )
+            parallel_speedup=base_time / parallel_time,
+        )
 
 
 def calcLocalParamsAndSummarize(Data, hmodel, start=None, stop=None, **kwargs):
@@ -352,6 +351,7 @@ def calcLocalParamsAndSummarize(Data, hmodel, start=None, stop=None, **kwargs):
     SS = hmodel.obsModel.get_global_suff_stats(Data, SS, LP, **sliceArgs)
     return SS
 
+
 def sliceGenerator(nDoc=0, nWorkers=0, aArgs=dict(), oArgs=dict()):
     """ Iterate over slices given problem size and num workers
 
@@ -367,11 +367,17 @@ def sliceGenerator(nDoc=0, nWorkers=0, aArgs=dict(), oArgs=dict()):
             stop = nDoc
         yield dict(start=start, stop=stop, batchID=0), aArgs, oArgs
 
+
 def loadToyDataset(dataset, nDoc=3, T=1000, **kwargs):
-    if dataset == 'BigChromatinCD4T':
-        cachefilename = '/ltmp/%s_nDoc=128.mat' % (dataset)
+    if os.path.exists('/tmp/'):
+        tmproot = '/tmp/'
     else:
-        cachefilename = '/ltmp/%s_nDoc=%d_T=%d.mat' % (dataset, nDoc, T)
+        tmproot = '/ltmp/'
+
+    if dataset == 'BigChromatinCD4T':
+        cachefilename = '%s/%s_nDoc=128.mat' % (tmproot, dataset)
+    else:
+        cachefilename = '%s/%s_nDoc=%d_T=%d.mat' % (tmproot, dataset, nDoc, T)
 
     if os.path.exists(cachefilename):
         print 'Loading dataset from disk...'
@@ -406,6 +412,7 @@ def loadToyDataset(dataset, nDoc=3, T=1000, **kwargs):
         Data = Data.select_subset_by_mask(np.arange(nDoc))
     return Data
 
+
 def rangeFromString(commaString):
     """ Convert a comma string like "1,5-7" into a list [1,5,6,7]
 
@@ -422,6 +429,7 @@ def rangeFromString(commaString):
     flatList = itertools.chain(*listOfLists)
     return flatList
 
+
 def rangeFromHyphen(hyphenString):
     """ Convert a hyphen string like "5-7" into a list [5,6,7]
 
@@ -430,7 +438,7 @@ def rangeFromHyphen(hyphenString):
     myList : list of integers
     """
     x = [int(x) for x in hyphenString.split('-')]
-    return range(x[0], x[-1]+1)
+    return range(x[0], x[-1] + 1)
 
 
 def allcloseSS(SS1, SS2):
@@ -447,8 +455,8 @@ def allcloseSS(SS1, SS2):
         elif arr1.ndim == 1:
             print arr1[:3]
             print arr2[:3]
-            #print arr1.sum()
-            #print arr2.sum()
+            # print arr1.sum()
+            # print arr2.sum()
         else:
             print arr1[:2, :3]
             print arr2[:2, :3]

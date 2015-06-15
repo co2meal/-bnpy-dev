@@ -2,6 +2,7 @@ import numpy as np
 import multiprocessing.sharedctypes
 import warnings
 
+
 def sharedMemDictToNumpy(ShMem):
     """ Get views (not copies) of all shared-mem arrays in dict.
 
@@ -12,10 +13,11 @@ def sharedMemDictToNumpy(ShMem):
     ArrDict = dict()
     if ShMem is None:
         return ArrDict
-    
+
     for key, ShArr in ShMem.items():
         ArrDict[key] = sharedMemToNumpyArray(ShArr)
     return ArrDict
+
 
 def numpyToSharedMemArray(X):
     """ Get copy of X accessible as shared memory
@@ -28,6 +30,7 @@ def numpyToSharedMemArray(X):
     Xtmp = np.ctypeslib.as_ctypes(X)
     Xsh = multiprocessing.sharedctypes.RawArray(Xtmp._type_, Xtmp)
     return Xsh
+
 
 def sharedMemToNumpyArray(Xsh):
     """ Get view (not copy) of shared memory as numpy array.
@@ -45,8 +48,9 @@ def sharedMemToNumpyArray(Xsh):
         warnings.simplefilter('ignore', RuntimeWarning)
         return np.ctypeslib.as_array(Xsh)
 
+
 def fillSharedMemArray(Xsh, Xarr):
-    """ Copy all data from a numpy array into provided shared memory 
+    """ Copy all data from a numpy array into provided shared memory
 
     Post Condition
     --------------

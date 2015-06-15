@@ -174,10 +174,10 @@ class BernObsModel(AbstractObsModel):
         '''
         Xab = Data.X[a:b]  # 2D array, Nab x D
         CountON = np.sum(Xab, axis=0)[np.newaxis, :]
-        CountOFF = (b-a) - CountON
+        CountOFF = (b - a) - CountON
 
         SS = SuffStatBag(K=1, D=Data.dim)
-        SS.setField('N', np.asarray([b-a], dtype=np.float64), dims='K')
+        SS.setField('N', np.asarray([b - a], dtype=np.float64), dims='K')
         SS.setField('Count1', CountON, dims=('K', 'D'))
         SS.setField('Count0', CountOFF, dims=('K', 'D'))
         return SS
@@ -541,7 +541,7 @@ class BernObsModel(AbstractObsModel):
         if k == 'all':
             lam1T = self.Post.lam1.T.copy()
             lam0T = self.Post.lam0.T.copy()
-            digammaBoth = digamma(lam1T+lam0T)
+            digammaBoth = digamma(lam1T + lam0T)
             ElogphiT = digamma(lam1T) - digammaBoth
             Elog1mphiT = digamma(lam0T) - digammaBoth
         else:
@@ -583,8 +583,8 @@ class BernObsModel(AbstractObsModel):
             # Copy so lam1T/lam0T are C-contig and can be shared mem.
             lam1T = self.Post.lam1.T.copy()
             lam0T = self.Post.lam0.T.copy()
-            return digamma(lam0T) - digamma(lam1T + lam0T) 
-        
+            return digamma(lam0T) - digamma(lam1T + lam0T)
+
         ElogphiT = self._E_log1mphi(k).T.copy()
         return ElogphiT
 
@@ -595,11 +595,11 @@ class BernObsModel(AbstractObsModel):
         -------
         Info : dict
         """
-        return dict(inferType=self.inferType, 
+        return dict(inferType=self.inferType,
                     K=self.K)
 
     def fillSharedMemDictForLocalStep(self, ShMem=None):
-        """ Get dict of shared mem arrays needed for parallel local step. 
+        """ Get dict of shared mem arrays needed for parallel local step.
 
         Returns
         -------
@@ -612,14 +612,14 @@ class BernObsModel(AbstractObsModel):
         if 'ElogphiT' not in ShMem:
             ShMem['ElogphiT'] = numpyToSharedMemArray(ElogphiT)
             ShMem['Elog1mphiT'] = numpyToSharedMemArray(Elog1mphiT)
-        else:       
+        else:
             ElogphiT_shView = sharedMemToNumpyArray(ShMem['ElogphiT'])
             assert ElogphiT_shView.shape >= K
-            ElogphiT_shView[:,:K] = ElogphiT
+            ElogphiT_shView[:, :K] = ElogphiT
 
             Elog1mphiT_shView = sharedMemToNumpyArray(ShMem['Elog1mphiT'])
             assert Elog1mphiT_shView.shape >= K
-            Elog1mphiT_shView[:,:K] = Elog1mphiT
+            Elog1mphiT_shView[:, :K] = Elog1mphiT
         return ShMem
 
     def getLocalAndSummaryFunctionHandles(self):
@@ -633,6 +633,7 @@ class BernObsModel(AbstractObsModel):
         calcSummaryStats : f handle
         """
         return calcLocalParams, calcSummaryStats
+
 
 def c_Func(lam1, lam0):
     ''' Evaluate cumulant function at given params.
@@ -669,6 +670,7 @@ def calcLocalParams(Dslice, **kwargs):
     E_log_soft_ev = calcLogSoftEvMatrix_FromPost(Dslice, **kwargs)
     return dict(E_log_soft_ev=E_log_soft_ev)
 
+
 def calcLogSoftEvMatrix_FromPost(Dslice,
                                  ElogphiT=None,
                                  Elog1mphiT=None,
@@ -696,6 +698,7 @@ def calcLogSoftEvMatrix_FromPost(Dslice,
     L = np.dot(Dslice.X, ElogphiT[:, :K]) + \
         np.dot(1.0 - Dslice.X, Elog1mphiT[:, :K])
     return L
+
 
 def calcSummaryStats(Dslice, SS, LP, **kwargs):
     ''' Calculate summary statistics for given dataset and local parameters

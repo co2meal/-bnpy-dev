@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">get_word_variational</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">get_word_variational</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>get_word_variational</h1>
+	  </div>
+
+          <p>42060 Calls, 48.77 s</p>
+	  <p>Generated 17:01:27 01/20/14 EST</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix/HDPModel.py">/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix/HDPModel.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line151">151</td>
+              <td><pre>@profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line152">152</td>
+              <td><pre>def get_word_variational( self, Data, LP):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line153">153</td>
+              <td><pre>    ''' Update and return word-topic assignment variational parameters</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line154">154</td>
+              <td><pre>    '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line155">155</td>
+              <td><pre>    # Operate on wv matrix, which is nDistinctWords x K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line156">156</td>
+              <td><pre>    #  has been preallocated for speed (so we can do += later)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>300</td>
+              <td id="line157">157</td>
+              <td><pre>    wv = LP['word_variational']         </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>300</td>
+              <td id="line158">158</td>
+              <td><pre>    K = wv.shape[1]        </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line159">159</td>
+              <td><pre>    # Fill in entries of wv with log likelihood terms</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 2.42 s</td>
+              <td>300</td>
+              <td id="line160">160</td>
+              <td><pre>    wv[:] = LP['E_logsoftev_WordsData']</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line161">161</td>
+              <td><pre>    # Add doc-specific log prior to doc-specific rows</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>300</td>
+              <td id="line162">162</td>
+              <td><pre>    ElogPi = LP['E_logPi'][:,:K]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.08 s</td>
+              <td>42060</td>
+              <td id="line163">163</td>
+              <td><pre>    for d in xrange(Data.nDoc):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 3.69 s</td>
+              <td>41760</td>
+              <td id="line164">164</td>
+              <td><pre>        wv[Data.doc_range[d,0]:Data.doc_range[d,1], :] += ElogPi[d,:]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line165">165</td>
+              <td><pre>    # Take exp of wv in numerically stable manner (first subtract the max)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line166">166</td>
+              <td><pre>    #  in-place so no new allocations occur</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 7.36 s</td>
+              <td>300</td>
+              <td id="line167">167</td>
+              <td><pre>    wv -= np.max(wv, axis=1)[:,np.newaxis]</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 20.13 s</td>
+              <td>300</td>
+              <td id="line168">168</td>
+              <td><pre>    np.exp(wv, out=wv)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line169">169</td>
+              <td><pre>    # Normalize, so rows of wv sum to one</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 12.90 s</td>
+              <td>300</td>
+              <td id="line170">170</td>
+              <td><pre>    wv /= wv.sum(axis=1)[:,np.newaxis]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 2.18 s</td>
+              <td>300</td>
+              <td id="line171">171</td>
+              <td><pre>    assert np.allclose(LP['word_variational'].sum(axis=1), 1)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>300</td>
+              <td id="line172">172</td>
+              <td><pre>    return LP</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

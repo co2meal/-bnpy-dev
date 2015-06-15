@@ -47,7 +47,6 @@ def runDeleteMoveAndUpdateMemory(curModel, curSS, Plan,
         DeleteLogger.log(msg)
         DeleteLogger.log('Target Size: %d' % (getSize(Plan['DTargetData'])))
 
-
     if SSmemory is None:
         SSmemory = dict()
     if LPkwargs is None:

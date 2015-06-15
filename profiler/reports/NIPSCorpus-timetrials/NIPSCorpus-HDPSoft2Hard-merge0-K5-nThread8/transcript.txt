@@ -1,0 +1,8 @@
+  min    5%   50%   95%   max 
+Learn Alg: moVB
+Trial  1/1 | alg. seed: 4226944 | data order seed: 8541952
+    0.100/1 after      0 sec. | K    5 |*ev -2.155792822e+06 
+    0.200/1 after      0 sec. | K    5 |*ev -3.744559234e+06 
+    0.300/1 after      1 sec. | K    5 |*ev -4.826966891e+06 
+    1.000/1 after      2 sec. | K    5 | ev -1.488092420e+07 
+... done. max passes thru data exceeded.

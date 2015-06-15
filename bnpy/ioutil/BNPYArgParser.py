@@ -10,7 +10,7 @@ from bnpy.obsmodel import ObsModelNameSet
 KwhelpHelpStr = "Include --kwhelp to print our keyword argument help and exit"
 
 dataHelpStr = "Name of dataset or dataset object." \
-               + " Name can point to python script in $BNPYDATADIR"
+    + " Name can point to python script in $BNPYDATADIR"
 
 choiceStr = ' {' + ','.join([x for x in (AllocModelNameSet)]) + '}'
 aModelHelpStr = 'Name of allocation model.' + choiceStr
@@ -28,6 +28,7 @@ MovesHelpStr = """String names of moves to perform.
      like 'birth,merge' or 'delete,birth'. Do not include spaces."""
 
 OnlineDataAlgSet = ['soVB', 'moVB', 'pmoVB']
+
 
 def parseRequiredArgs():
     ''' Process standard input for bnpy's required arguments, as a dict.
@@ -119,7 +120,7 @@ def applyParserToStdInOrKwargs(parser, **kwargs):
     --------
     ArgDict : dict
         Parsed key/value pairs for all fields defined in parser
-    UnkDict : dict 
+    UnkDict : dict
         Key/value pairs for any keys unknown by the parser.
     '''
     if len(kwargs.keys()) > 0:
@@ -142,7 +143,7 @@ def arglist_to_kwargs(alist, doConvertFromStr=True):
     Returns
     -------
     kwargs : dict
-        Each value is cast to appropriate primitive type 
+        Each value is cast to appropriate primitive type
         (float/int/str) if possible. Complicated types are left alone.
 
     Examples
@@ -229,9 +230,9 @@ def _getConfigFileDict(ReqArgs):
 
     Returns
     --------
-    ConfigPathMap : dict with key/value pairs s.t. 
-    * key : absolute filepath to config file 
-    * value : string name of required arg 
+    ConfigPathMap : dict with key/value pairs s.t.
+    * key : absolute filepath to config file
+    * value : string name of required arg
 
     Examples
     --------
@@ -346,7 +347,7 @@ def organizeParsedArgDictIntoSections(ReqArgs, Moves, kwargs):
 
     Returns
     --------
-    finalArgDict : dict 
+    finalArgDict : dict
         with sections for algName, obsModelName, etc.
     '''
     outDict = dict()
@@ -424,12 +425,11 @@ def parse_task_ids(jobpath, taskids=None, dtype=str):
             taskids = [int(taskids)]
         else:
             taskids = [int(t) for t in taskids]
-        taskids.sort() # sort the integers (not strings)!
+        taskids.sort()  # sort the integers (not strings)!
     except ValueError as e:
         if not str(e).count('int'):
             raise e
-        taskids = [str(t) for t in taskids]
-        taskids.sort() # deal with strs or mixed case
+        taskids = sorted([str(t) for t in taskids])
     # Return list of strings
     taskidstrs = [dtype(t) for t in taskids]
     return taskidstrs

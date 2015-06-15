@@ -2,6 +2,7 @@ from DataIterator import DataIterator
 
 
 class DataObj(object):
+
     ''' Abstract base class for all bnpy data objects.
 
     Defines all required functions that base classes must inherit.

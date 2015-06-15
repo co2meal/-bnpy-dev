@@ -6,18 +6,19 @@ import bnpy
 DPSpec = dict(gamma0=10.0)
 GaussSpec = dict(ECovMat='eye', sF=0.5, nu=0, kappa=1e-8)
 
+
 class Test(unittest.TestCase):
 
     def setUp(self, N=100, Data=None, likelihood='Gauss',
               **kwargs):
         GaussSpec.update(kwargs)
         DPSpec.update(kwargs)
- 
+
         self.Data = Data
-        self.oneresp = 1e-50 * np.ones((2*N, 2))
+        self.oneresp = 1e-50 * np.ones((2 * N, 2))
         self.oneresp[:, 0] = 1.0
 
-        self.trueresp = 1e-50 * np.ones((2*N, 2))
+        self.trueresp = 1e-50 * np.ones((2 * N, 2))
         self.trueresp[:N, 0] = 1.0
         self.trueresp[N:, 1] = 1.0
 
@@ -52,10 +53,12 @@ class Test(unittest.TestCase):
         ELBOdict = self.hmodel.calc_evidence(SS=SS, todict=1)
         return ELBOdict
 
+
 def strToRange(s):
     """ Convert string to range
     """
     return [int(i) for i in s.split(',')]
+
 
 def strToFloatArray(s):
     """ Convert string to range
@@ -63,7 +66,7 @@ def strToFloatArray(s):
     return np.asarray([float(i) for i in s.split(',')])
 
 
-def makeGaussianDataWithTwoComps(N=50, D=2, 
+def makeGaussianDataWithTwoComps(N=50, D=2,
                                  likelihood='Gauss',
                                  sigmaA=1, sigmaB=1,
                                  muA=3, muB=-3,
@@ -73,15 +76,15 @@ def makeGaussianDataWithTwoComps(N=50, D=2,
     """
     PRNG = np.random.RandomState(0)
     if XA is not None and XB is not None:
-        XA = strToFloatArray(XA)[:,np.newaxis]
-        XB = strToFloatArray(XB)[:,np.newaxis]
+        XA = strToFloatArray(XA)[:, np.newaxis]
+        XB = strToFloatArray(XB)[:, np.newaxis]
     elif D == 2:
         SigmaA = np.diag([sigmaA, sigmaA])
         SigmaB = np.diag([sigmaB, sigmaB])
         XA = PRNG.multivariate_normal([muA, 0], SigmaA, N)
         XB = PRNG.multivariate_normal([muB, 0], SigmaB, N)
     else:
-        randVals = PRNG.randn(2*N,1)
+        randVals = PRNG.randn(2 * N, 1)
         XA = np.sqrt(sigmaA) * randVals[::2] + muA
         XB = np.sqrt(sigmaB) * randVals[1::2] + muB
 
@@ -109,7 +112,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     from matplotlib import pylab
-    
+
     for N in strToRange(args.N):
         args.N = N
         epsvals = np.linspace(0, 1, 100)
@@ -119,7 +122,7 @@ if __name__ == '__main__':
         myTest = Test("setUp")
         myTest.setUp(Data=Data, **args.__dict__)
         for ii, epsval in enumerate(epsvals):
-            resp = (1-epsval) * myTest.oneresp + epsval * myTest.trueresp
+            resp = (1 - epsval) * myTest.oneresp + epsval * myTest.trueresp
             ELBOvals[ii] = myTest.evalELBOFromResp(resp)
             ELBOdict[ii] = myTest.evalELBODictFromResp(resp)
             ELBOsum = np.sum([ELBOdict[ii][k] for k in ELBOdict[ii]])
@@ -128,16 +131,16 @@ if __name__ == '__main__':
         pylab.subplots(nrows=3, ncols=1, figsize=(7, 9))
         figH = pylab.subplot(3, 1, 1)
         bnpy.viz.PlotComps.plotCompsFromHModel(
-            myTest.hmodel, Data=myTest.Data, figH=figH, Colors=['c', 'm'])    
-        pylab.title('N = %d  gamma=%.2f' 
-            % (args.N, args.gamma0))
+            myTest.hmodel, Data=myTest.Data, figH=figH, Colors=['c', 'm'])
+        pylab.title('N = %d  gamma=%.2f'
+                    % (args.N, args.gamma0))
         if args.D == 1:
             pylab.xlim([-10, 10])
 
         ax2 = pylab.subplot(3, 1, 2)
         pylab.plot(epsvals, ELBOvals, 'k.-')
         pylab.ylabel('ELBO')
-        goodIDs = np.flatnonzero( ELBOvals[1:] > ELBOvals[0])
+        goodIDs = np.flatnonzero(ELBOvals[1:] > ELBOvals[0])
         if goodIDs.size > 0:
             pylab.title('K=2 preferred for eps > %s' % (epsvals[goodIDs[0]]))
         else:

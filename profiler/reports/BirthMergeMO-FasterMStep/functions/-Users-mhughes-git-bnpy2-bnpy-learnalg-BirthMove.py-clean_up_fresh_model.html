@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="../../assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="../../assets/css/docs.css" rel="stylesheet">
+    <!-- <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet"> -->
+    <link rel="stylesheet" href="../../assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">clean_up_fresh_model</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">clean_up_fresh_model</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>clean_up_fresh_model</h1>
+	  </div>
+
+          <p>7 Calls, 2.5989 s</p>
+	  <p>Generated 17:01:51 01/05/14 EST</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/learnalg/BirthMove.py">/Users/mhughes/git/bnpy2/bnpy/learnalg/BirthMove.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line154">154</td>
+              <td><pre class="prettyprint">@profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line155">155</td>
+              <td><pre class="prettyprint">def clean_up_fresh_model(targetData, curModel, freshModel, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line156">156</td>
+              <td><pre class="prettyprint">                            randstate=np.random, **mergeKwArgs):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line157">157</td>
+              <td><pre class="prettyprint">  ''' Returns a "cleaned" fresh model,  </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line158">158</td>
+              <td><pre class="prettyprint">      1) verifies fresh model improves over default (single component) model</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line159">159</td>
+              <td><pre class="prettyprint">      2) perform merges within fresh, requiring improvement on target data</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line160">160</td>
+              <td><pre class="prettyprint">      3) perform merges within full (combined) model,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line161">161</td>
+              <td><pre class="prettyprint">            aiming only to remove the new/fresh comps</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line162">162</td>
+              <td><pre class="prettyprint">  '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line163">163</td>
+              <td><pre class="prettyprint">  import MergeMove</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line164">164</td>
+              <td><pre class="prettyprint"> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line165">165</td>
+              <td><pre class="prettyprint">  # Step 1: verify fresh model preferred over single comp model</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td>1.6 s</td>
+              <td>7</td>
+              <td id="line166">166</td>
+              <td><pre class="prettyprint">  targetLP = freshModel.calc_local_params(targetData)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line167">167</td>
+              <td><pre class="prettyprint">  targetSS = freshModel.get_global_suff_stats(targetData, targetLP,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.16 s</td>
+              <td>7</td>
+              <td id="line168">168</td>
+              <td><pre class="prettyprint">                  doPrecompEntropy=True, doPrecompMergeEntropy=True)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.081 s</td>
+              <td>7</td>
+              <td id="line169">169</td>
+              <td><pre class="prettyprint">  freshEvBound = freshModel.calc_evidence(SS=targetSS)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line170">170</td>
+              <td><pre class="prettyprint"> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.074 s</td>
+              <td>7</td>
+              <td id="line171">171</td>
+              <td><pre class="prettyprint">  singleModel = curModel.copy()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line172">172</td>
+              <td><pre class="prettyprint">  singleSS = targetSS.getComp(0, doCollapseK1=False)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.28 s</td>
+              <td>7</td>
+              <td id="line173">173</td>
+              <td><pre class="prettyprint">  singleModel.update_global_params(singleSS)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line174">174</td>
+              <td><pre class="prettyprint"> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.27 s</td>
+              <td>7</td>
+              <td id="line175">175</td>
+              <td><pre class="prettyprint">  singleLP = singleModel.calc_local_params(targetData)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line176">176</td>
+              <td><pre class="prettyprint">  singleSS = singleModel.get_global_suff_stats(targetData, singleLP,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.011 s</td>
+              <td>7</td>
+              <td id="line177">177</td>
+              <td><pre class="prettyprint">                  doPrecompEntropy=True)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.058 s</td>
+              <td>7</td>
+              <td id="line178">178</td>
+              <td><pre class="prettyprint">  singleModel.update_global_params(singleSS)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line179">179</td>
+              <td><pre class="prettyprint"> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.016 s</td>
+              <td>7</td>
+              <td id="line180">180</td>
+              <td><pre class="prettyprint">  singleEvBound = singleModel.calc_evidence(SS=singleSS)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line181">181</td>
+              <td><pre class="prettyprint"> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line182">182</td>
+              <td><pre class="prettyprint">  improveEvBound = freshEvBound - singleEvBound</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line183">183</td>
+              <td><pre class="prettyprint">  if improveEvBound <= 0 or improveEvBound < 0.00001 * abs(singleEvBound):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line184">184</td>
+              <td><pre class="prettyprint">    msg = "BIRTH terminated. Not better than single component on target data."</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line185">185</td>
+              <td><pre class="prettyprint">    msg += "\n  K=%3d | %.7e" % (targetSS.K, freshEvBound)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line186">186</td>
+              <td><pre class="prettyprint">    msg += "\n  K=%3d | %.7e" % (singleSS.K, singleEvBound)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line187">187</td>
+              <td><pre class="prettyprint">    raise BirthProposalError(msg)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line188">188</td>
+              <td><pre class="prettyprint"> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line189">189</td>
+              <td><pre class="prettyprint">  # Step 2: perform many merges among the fresh components</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line190">190</td>
+              <td><pre class="prettyprint">  for trial in xrange(3):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line191">191</td>
+              <td><pre class="prettyprint">    if trial > 0:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line192">192</td>
+              <td><pre class="prettyprint">      targetLP = freshModel.calc_local_params(targetData)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line193">193</td>
+              <td><pre class="prettyprint">      targetSS = freshModel.get_global_suff_stats(targetData, targetLP,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line194">194</td>
+              <td><pre class="prettyprint">                    doPrecompEntropy=True, doPrecompMergeEntropy=True)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line195">195</td>
+              <td><pre class="prettyprint">    prevK = targetSS.K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line196">196</td>
+              <td><pre class="prettyprint">    freshModel, targetSS, Info = MergeMove.run_many_merge_moves(</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line197">197</td>
+              <td><pre class="prettyprint">                               freshModel, targetData, targetSS,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line198">198</td>
+              <td><pre class="prettyprint">                               nMergeTrials=targetSS.K**2, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line199">199</td>
+              <td><pre class="prettyprint">                               randstate=randstate, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line200">200</td>
+              <td><pre class="prettyprint">                               **mergeKwArgs)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line201">201</td>
+              <td><pre class="prettyprint">    if targetSS.K == prevK:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line202">202</td>
+              <td><pre class="prettyprint">      break # no merges happened</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line203">203</td>
+              <td><pre class="prettyprint">    else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line204">204</td>
+              <td><pre class="prettyprint">      Log.info("**** Merged away %d fresh comps" % (prevK - targetSS.K))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line205">205</td>
+              <td><pre class="prettyprint">  """</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line206">206</td>
+              <td><pre class="prettyprint">  # Step 3: create expanded model,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line207">207</td>
+              <td><pre class="prettyprint">  #          and try merging fresh comps with existing ones</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line208">208</td>
+              <td><pre class="prettyprint">  origLP = curModel.calc_local_params(targetData)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line209">209</td>
+              <td><pre class="prettyprint">  expandSS = curModel.get_global_suff_stats(targetData, origLP) </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line210">210</td>
+              <td><pre class="prettyprint">  expandSS.insertComps(targetSS)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line211">211</td>
+              <td><pre class="prettyprint">  expandModel = curModel.copy()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line212">212</td>
+              <td><pre class="prettyprint">  expandModel.update_global_params(expandSS)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line213">213</td>
+              <td><pre class="prettyprint"> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line214">214</td>
+              <td><pre class="prettyprint">  compList = list(curModel.obsModel.K + np.arange(targetSS.K))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line215">215</td>
+              <td><pre class="prettyprint">  expandLP = expandModel.calc_local_params(targetData)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line216">216</td>
+              <td><pre class="prettyprint">  expandSS = expandModel.get_global_suff_stats(targetData, expandLP,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line217">217</td>
+              <td><pre class="prettyprint">                  doPrecompEntropy=True, doPrecompMergeEntropy=True)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line218">218</td>
+              <td><pre class="prettyprint">  prevK = expandSS.K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line219">219</td>
+              <td><pre class="prettyprint">  expandModel, expandSS, Info = MergeMove.run_many_merge_moves(</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line220">220</td>
+              <td><pre class="prettyprint">                               expandModel, targetData, expandSS,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line221">221</td>
+              <td><pre class="prettyprint">                               nMergeTrials=expandSS.K**2, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line222">222</td>
+              <td><pre class="prettyprint">                               compList=compList,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line223">223</td>
+              <td><pre class="prettyprint">                               doExcludePairsInList=True,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line224">224</td>
+              <td><pre class="prettyprint">                               randstate=randstate, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line225">225</td>
+              <td><pre class="prettyprint">                               **mergeKwArgs)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line226">226</td>
+              <td><pre class="prettyprint"> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line227">227</td>
+              <td><pre class="prettyprint">  for k in reversed(sorted(Info['acceptedIDs'])):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line228">228</td>
+              <td><pre class="prettyprint">    ktarget = k - curModel.obsModel.K </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line229">229</td>
+              <td><pre class="prettyprint">    if ktarget >= 0:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line230">230</td>
+              <td><pre class="prettyprint">      targetSS.removeComp(ktarget)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line231">231</td>
+              <td><pre class="prettyprint">  """</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line232">232</td>
+              <td><pre class="prettyprint"> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line233">233</td>
+              <td><pre class="prettyprint">  return targetSS</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="../../assets/js/bootstrap.min.js"></script>
+    <script src="../../assets/js/main.js"></script>
+    <script src="https://google-code-prettify.googlecode.com/svn/loader/run_prettify.js"></script>
+  </body>
+</html>

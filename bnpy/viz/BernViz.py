@@ -35,9 +35,9 @@ def plotCompsFromHModel(hmodel, doShowNow=False,
     return figH
 
 
-def plotCompsAsRowsInSingleImage(phi, compsToHighlight, 
-        width=6, height=3,
-        **kwargs):
+def plotCompsAsRowsInSingleImage(phi, compsToHighlight,
+                                 width=6, height=3,
+                                 **kwargs):
     figH = pylab.figure(figsize=(width, height))
     K, D = phi.shape
     aspectR = D / float(K)
@@ -48,6 +48,7 @@ def plotCompsAsRowsInSingleImage(phi, compsToHighlight,
             ks = np.asarray([ks])
         pylab.yticks(ks, ['**** %d' % (k) for k in ks])
     return figH
+
 
 def plotCompsAsSquareImages(phi,
                             compsToHighlight=None,

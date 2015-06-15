@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">calc_local_params</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">calc_local_params</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>calc_local_params</h1>
+	  </div>
+
+          <p>90 Calls, 33.37 s</p>
+	  <p>Generated 23:15:54 06/03/14 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix/HDPStickBreak.py">/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix/HDPStickBreak.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line78">78</td>
+              <td><pre> @profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line79">79</td>
+              <td><pre> def calc_local_params(self, Data, LP, methodLP='memo', **kwargs):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line80">80</td>
+              <td><pre>   ''' doInPlaceLP : makes a copy of the giant nObs x K matrix Resp</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line81">81</td>
+              <td><pre>   '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>80</td>
+              <td id="line82">82</td>
+              <td><pre>   kwargs = dict(**kwargs) # local copy</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line83">83</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>80</td>
+              <td id="line84">84</td>
+              <td><pre>   methods = methodLP.split(',')</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>80</td>
+              <td id="line85">85</td>
+              <td><pre>   if len(methods) == 1:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>50</td>
+              <td id="line86">86</td>
+              <td><pre>     if 'doInPlaceLP' not in kwargs:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line87">87</td>
+              <td><pre>       kwargs['doInPlaceLP'] = 1</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>50</td>
+              <td id="line88">88</td>
+              <td><pre>     LP = LocalStepSBBagOfWords.calcLocalDocParams(Data, LP, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>50</td>
+              <td id="line89">89</td>
+              <td><pre>                                 self.topicPrior1, self.topicPrior0,</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 26.95 s</td>
+              <td>50</td>
+              <td id="line90">90</td>
+              <td><pre>                                 methodLP=methodLP, **kwargs)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 2.05 s</td>
+              <td>50</td>
+              <td id="line91">91</td>
+              <td><pre>     bestLP = self._local_update_Resp(Data, LP, **kwargs)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line92">92</td>
+              <td><pre>   else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>30</td>
+              <td id="line93">93</td>
+              <td><pre>     bestLP = None</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>30</td>
+              <td id="line94">94</td>
+              <td><pre>     bestMethod = np.zeros(Data.nDoc)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>30</td>
+              <td id="line95">95</td>
+              <td><pre>     didSkipMemo = 0</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>90</td>
+              <td id="line96">96</td>
+              <td><pre>     for mID, mname in enumerate(reversed(sorted(methods))):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>60</td>
+              <td id="line97">97</td>
+              <td><pre>       curLP = dict(**LP) # create new dict, but reference same key/val objs</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line98">98</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>60</td>
+              <td id="line99">99</td>
+              <td><pre>       hasDTCount = 'DocTopicCount' in LP \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>40</td>
+              <td id="line100">100</td>
+              <td><pre>                      and LP['DocTopicCount'].shape[1] == self.K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>60</td>
+              <td id="line101">101</td>
+              <td><pre>       if mname == 'memo' and not hasDTCount:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line102">102</td>
+              <td><pre>         didSkipMemo = 1</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line103">103</td>
+              <td><pre>         continue</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line104">104</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>50</td>
+              <td id="line105">105</td>
+              <td><pre>       if mname.count('bounce'):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line106">106</td>
+              <td><pre>         if not 'word_variational' in bestLP or didSkipMemo:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line107">107</td>
+              <td><pre>           continue</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line108">108</td>
+              <td><pre>         initLP = self.createBounceLP(Data, bestLP)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line109">109</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>50</td>
+              <td id="line110">110</td>
+              <td><pre>       kwargs['doInPlaceLP'] = 0</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>50</td>
+              <td id="line111">111</td>
+              <td><pre>       curLP = self.calc_local_params(Data, curLP, methodLP=mname, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>50</td>
+              <td id="line112">112</td>
+              <td><pre>                                                            **kwargs) </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 3.97 s</td>
+              <td>50</td>
+              <td id="line113">113</td>
+              <td><pre>       curELBO = self.calcPerDocELBO(Data, curLP)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line114">114</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>50</td>
+              <td id="line115">115</td>
+              <td><pre>       if bestLP == None:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>30</td>
+              <td id="line116">116</td>
+              <td><pre>         bestELBO = curELBO</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>30</td>
+              <td id="line117">117</td>
+              <td><pre>         bestLP = curLP</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>30</td>
+              <td id="line118">118</td>
+              <td><pre>         bestMethod[:] = mID</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line119">119</td>
+              <td><pre>       else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line120">120</td>
+              <td><pre>         # determine which docs have it better under current method</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>20</td>
+              <td id="line121">121</td>
+              <td><pre>         docIDs = curELBO > bestELBO + 1e-8 # ensure difference is meaningful</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>20</td>
+              <td id="line122">122</td>
+              <td><pre>         if np.sum(docIDs) > 0:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>19</td>
+              <td id="line123">123</td>
+              <td><pre>           bestMethod[docIDs] = mID</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>19</td>
+              <td id="line124">124</td>
+              <td><pre>           bestELBO[docIDs] = curELBO[docIDs]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>19</td>
+              <td id="line125">125</td>
+              <td><pre>           bestLP = self._swap_LP_for_specific_docs(Data, bestLP, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.06 s</td>
+              <td>19</td>
+              <td id="line126">126</td>
+              <td><pre>                                                          curLP, docIDs)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>20</td>
+              <td id="line127">127</td>
+              <td><pre>         del curLP['word_variational']</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line128">128</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>30</td>
+              <td id="line129">129</td>
+              <td><pre>     bestLP['perDocELBO'] = bestELBO</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line130">130</td>
+              <td><pre>     # Record the best method to file</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>30</td>
+              <td id="line131">131</td>
+              <td><pre>     if 'logdirLP' in kwargs and kwargs['logdirLP']:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line132">132</td>
+              <td><pre>       write_wins_to_log = LocalStepSBBagOfWords.write_method_wins_to_log</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line133">133</td>
+              <td><pre>       for mID, mname in enumerate(reversed(sorted(methods))):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line134">134</td>
+              <td><pre>         nWins = np.sum(bestMethod == mID)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line135">135</td>
+              <td><pre>         nTotal = bestMethod.size</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line136">136</td>
+              <td><pre>         write_wins_to_log(Data, mname, nWins, nTotal, kwargs['logdirLP'])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.30 s</td>
+              <td>80</td>
+              <td id="line137">137</td>
+              <td><pre>   assert np.allclose( bestLP['word_variational'].sum(axis=1), 1.0)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>80</td>
+              <td id="line138">138</td>
+              <td><pre>   return bestLP</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

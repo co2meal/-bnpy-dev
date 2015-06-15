@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">createLearnAlg</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">createLearnAlg</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>createLearnAlg</h1>
+	  </div>
+
+          <p>7 Calls, 0.00 s</p>
+	  <p>Generated 14:15:41 10/16/14 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/Run.py">/Users/mhughes/git/bnpy2/bnpy/Run.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line369">369</td>
+              <td class="code "><div class="code-listing"><pre>@profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line370">370</td>
+              <td class="code "><div class="code-listing"><pre>def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line371">371</td>
+              <td class="code "><div class="code-listing"><pre>  ''' Creates a bnpy LearnAlg object for the given Data and model</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line372">372</td>
+              <td class="code "><div class="code-listing"><pre>      This object is responsible for:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line373">373</td>
+              <td class="code "><div class="code-listing"><pre>        * preparing a directory to save the data (savepath)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line374">374</td>
+              <td class="code "><div class="code-listing"><pre>        * setting random seeds specific to the *learning algorithm*</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line375">375</td>
+              <td class="code "><div class="code-listing"><pre>          </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line376">376</td>
+              <td class="code "><div class="code-listing"><pre>    Returns</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line377">377</td>
+              <td class="code "><div class="code-listing"><pre>    -------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line378">378</td>
+              <td class="code "><div class="code-listing"><pre>    learnAlg : LearnAlg [or subclass] object</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line379">379</td>
+              <td class="code "><div class="code-listing"><pre>               type is defined by string in ReqArgs['algName']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line380">380</td>
+              <td class="code "><div class="code-listing"><pre>                one of {'EM', 'VB', 'soVB', 'moVB','GS'}</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line381">381</td>
+              <td class="code "><div class="code-listing"><pre>  '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line382">382</td>
+              <td class="code "><div class="code-listing"><pre>  algName = ReqArgs['algName']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line383">383</td>
+              <td class="code "><div class="code-listing"><pre>  algP = KwArgs[algName]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line384">384</td>
+              <td class="code "><div class="code-listing"><pre>  for moveKey in ['birth', 'softmerge', 'merge', 'shuffle', 'delete', 'prune']:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line385">385</td>
+              <td class="code "><div class="code-listing"><pre>    if moveKey in KwArgs:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line386">386</td>
+              <td class="code "><div class="code-listing"><pre>      algP[moveKey] = KwArgs[moveKey]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line387">387</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line388">388</td>
+              <td class="code "><div class="code-listing"><pre>  outputP = KwArgs['OutputPrefs']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line389">389</td>
+              <td class="code "><div class="code-listing"><pre>  hasMoves = 'birth' in KwArgs or 'merge' in KwArgs \</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line390">390</td>
+              <td class="code "><div class="code-listing"><pre>             or 'shuffle' in KwArgs or 'delete' in KwArgs</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line391">391</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line392">392</td>
+              <td class="code "><div class="code-listing"><pre>  if algName == 'EM':</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line393">393</td>
+              <td class="code "><div class="code-listing"><pre>    learnAlg = bnpy.learnalg.EMAlg(savedir=savepath, seed=algseed,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line394">394</td>
+              <td class="code "><div class="code-listing"><pre>                                      algParams=algP, outputParams=outputP)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line395">395</td>
+              <td class="code "><div class="code-listing"><pre>  elif algName == 'VB':</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line396">396</td>
+              <td class="code "><div class="code-listing"><pre>    learnAlg = bnpy.learnalg.VBAlg(savedir=savepath, seed=algseed,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line397">397</td>
+              <td class="code "><div class="code-listing"><pre>                                      algParams=algP, outputParams=outputP)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line398">398</td>
+              <td class="code "><div class="code-listing"><pre>  elif algName == 'soVB':</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line399">399</td>
+              <td class="code "><div class="code-listing"><pre>    learnAlg = bnpy.learnalg.SOVBAlg(savedir=savepath, seed=algseed,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line400">400</td>
+              <td class="code "><div class="code-listing"><pre>                                      algParams=algP, outputParams=outputP)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line401">401</td>
+              <td class="code "><div class="code-listing"><pre>  elif algName == 'moVB' and hasMoves:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line402">402</td>
+              <td class="code "><div class="code-listing"><pre>    learnAlg = bnpy.learnalg.MOVBBirthMergeAlg(savedir=savepath, seed=algseed, </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line403">403</td>
+              <td class="code "><div class="code-listing"><pre>                                      algParams=algP, outputParams=outputP)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line404">404</td>
+              <td class="code "><div class="code-listing"><pre>  elif algName == 'moVB' and not hasMoves:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line405">405</td>
+              <td class="code "><div class="code-listing"><pre>    learnAlg = bnpy.learnalg.MOVBAlg(savedir=savepath, seed=algseed, </pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line406">406</td>
+              <td class="code danger"><div class="code-listing"><pre>                                      algParams=algP, outputParams=outputP)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line407">407</td>
+              <td class="code "><div class="code-listing"><pre>  elif algName == 'GS':</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line408">408</td>
+              <td class="code "><div class="code-listing"><pre>    learnAlg = bnpy.learnalg.GSAlg(savedir=savepath, seed=algseed, </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line409">409</td>
+              <td class="code "><div class="code-listing"><pre>                                      algParams=algP, outputParams=outputP)  </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line410">410</td>
+              <td class="code "><div class="code-listing"><pre>  else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line411">411</td>
+              <td class="code "><div class="code-listing"><pre>    raise NotImplementedError("Unknown learning algorithm " + algName)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line412">412</td>
+              <td class="code "><div class="code-listing"><pre>  return learnAlg</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

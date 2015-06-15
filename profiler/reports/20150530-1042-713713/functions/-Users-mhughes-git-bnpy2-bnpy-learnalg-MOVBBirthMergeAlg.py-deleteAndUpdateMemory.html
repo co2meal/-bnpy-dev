@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">deleteAndUpdateMemory</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">deleteAndUpdateMemory</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>deleteAndUpdateMemory</h1>
+	  </div>
+
+          <p>549 Calls, 1.57 s</p>
+	  <p>Generated 10:48:22 05/30/15 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/learnalg/MOVBBirthMergeAlg.py">/Users/mhughes/git/bnpy2/bnpy/learnalg/MOVBBirthMergeAlg.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1438">1438</td>
+              <td class="code "><div class="code-listing"><pre>   @profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1439">1439</td>
+              <td class="code "><div class="code-listing"><pre>   def deleteAndUpdateMemory(self, hmodel, SS, DeletePlans):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1440">1440</td>
+              <td class="code "><div class="code-listing"><pre>       """ Construct and evaluate delete proposals.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1441">1441</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1442">1442</td>
+              <td class="code "><div class="code-listing"><pre>           Returns</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1443">1443</td>
+              <td class="code "><div class="code-listing"><pre>           -------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1444">1444</td>
+              <td class="code "><div class="code-listing"><pre>           hmodel : bnpy.HModel with updated fields</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1445">1445</td>
+              <td class="code "><div class="code-listing"><pre>           SS : bnpy.suffstats.SuffStatBag, with updated fields</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1446">1446</td>
+              <td class="code "><div class="code-listing"><pre>       """</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line1447">1447</td>
+              <td class="code "><div class="code-listing"><pre>       self.ELBOReady = True</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line1448">1448</td>
+              <td class="code "><div class="code-listing"><pre>       self.DeleteAcceptRecord = dict()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line1449">1449</td>
+              <td class="code "><div class="code-listing"><pre>       if self.lapFrac <= 1 or SS is None:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line1450">1450</td>
+              <td class="code "><div class="code-listing"><pre>           return hmodel, SS</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1451">1451</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1452">1452</td>
+              <td class="code "><div class="code-listing"><pre>       # Make last minute plan for any empty comps</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line1453">1453</td>
+              <td class="code "><div class="code-listing"><pre>       EPlan = DPlanner.makePlanForEmptyComps(SS, **self.algParams['delete'])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line1454">1454</td>
+              <td class="code "><div class="code-listing"><pre>       if hasattr(self, 'MergeLog') and len(self.MergeLog) > 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1455">1455</td>
+              <td class="code "><div class="code-listing"><pre>           # Accepted merge means skip all deletes except the trivial ones</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1456">1456</td>
+              <td class="code "><div class="code-listing"><pre>           DeleteLogger.log('ABANDONED planned delete due to accepted merge.')</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1457">1457</td>
+              <td class="code "><div class="code-listing"><pre>           if 'candidateUIDs' in EPlan:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1458">1458</td>
+              <td class="code "><div class="code-listing"><pre>               DeletePlans = [EPlan]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1459">1459</td>
+              <td class="code "><div class="code-listing"><pre>           else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1460">1460</td>
+              <td class="code "><div class="code-listing"><pre>               return hmodel, SS</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1461">1461</td>
+              <td class="code "><div class="code-listing"><pre>       else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line1462">1462</td>
+              <td class="code "><div class="code-listing"><pre>           if 'candidateUIDs' in EPlan:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line1463">1463</td>
+              <td class="code "><div class="code-listing"><pre>               nEmpty = len(EPlan['candidateUIDs'])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line1464">1464</td>
+              <td class="code "><div class="code-listing"><pre>               DeleteLogger.log('Last-minute Plan: %d empty' % (nEmpty))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1465">1465</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1466">1466</td>
+              <td class="code "><div class="code-listing"><pre>               # Adjust the existing plan so comps deleted by EmptyPlan</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1467">1467</td>
+              <td class="code "><div class="code-listing"><pre>               # are not repeated later</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line1468">1468</td>
+              <td class="code "><div class="code-listing"><pre>               if len(DeletePlans) > 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1469">1469</td>
+              <td class="code "><div class="code-listing"><pre>                   DPlan = DeletePlans[0]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1470">1470</td>
+              <td class="code "><div class="code-listing"><pre>                   remIDs = list()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1471">1471</td>
+              <td class="code "><div class="code-listing"><pre>                   for ii, uid in enumerate(DPlan['candidateUIDs']):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1472">1472</td>
+              <td class="code "><div class="code-listing"><pre>                       if uid in EPlan['candidateUIDs']:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1473">1473</td>
+              <td class="code "><div class="code-listing"><pre>                           remIDs.append(ii)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1474">1474</td>
+              <td class="code "><div class="code-listing"><pre>                   for ii in reversed(sorted(remIDs)):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1475">1475</td>
+              <td class="code "><div class="code-listing"><pre>                       DPlan['candidateUIDs'].pop(ii)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1476">1476</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1477">1477</td>
+              <td class="code "><div class="code-listing"><pre>                   if len(DPlan['candidateUIDs']) == 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1478">1478</td>
+              <td class="code "><div class="code-listing"><pre>                       DeletePlans = [EPlan]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1479">1479</td>
+              <td class="code "><div class="code-listing"><pre>                   else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1480">1480</td>
+              <td class="code "><div class="code-listing"><pre>                       DeletePlans = [DPlan, EPlan]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1481">1481</td>
+              <td class="code "><div class="code-listing"><pre>               else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line1482">1482</td>
+              <td class="code "><div class="code-listing"><pre>                   DeletePlans = [EPlan]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1483">1483</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1484">1484</td>
+              <td class="code "><div class="code-listing"><pre>       # Evaluate each proposal</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line1485">1485</td>
+              <td class="code "><div class="code-listing"><pre>       newSS = SS.copy()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>2</td>
+              <td id="line1486">1486</td>
+              <td class="code "><div class="code-listing"><pre>       newModel = hmodel.copy()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line1487">1487</td>
+              <td class="code "><div class="code-listing"><pre>       for moveID, DPlan in enumerate(DeletePlans):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line1488">1488</td>
+              <td class="code "><div class="code-listing"><pre>           if 'DTargetData' in DPlan:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1489">1489</td>
+              <td class="code "><div class="code-listing"><pre>               # Updates SSmemory in-place</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1490">1490</td>
+              <td class="code "><div class="code-listing"><pre>               newModel, newSS, self.SSmemory, DPlan = \</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1491">1491</td>
+              <td class="code "><div class="code-listing"><pre>                   DEvaluator.runDeleteMoveAndUpdateMemory(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1492">1492</td>
+              <td class="code "><div class="code-listing"><pre>                       newModel, newSS, DPlan,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1493">1493</td>
+              <td class="code "><div class="code-listing"><pre>                       LPkwargs=self.algParamsLP,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1494">1494</td>
+              <td class="code "><div class="code-listing"><pre>                       SSmemory=self.SSmemory,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1495">1495</td>
+              <td class="code "><div class="code-listing"><pre>                       lapFrac=self.lapFrac,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1496">1496</td>
+              <td class="code "><div class="code-listing"><pre>                       **self.algParams['delete'])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1497">1497</td>
+              <td class="code "><div class="code-listing"><pre>               nYes = len(DPlan['acceptedUIDs'])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1498">1498</td>
+              <td class="code "><div class="code-listing"><pre>               nAttempt = len(DPlan['candidateUIDs'])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1499">1499</td>
+              <td class="code "><div class="code-listing"><pre>               DeleteLogger.log('DELETE %d/%d accepted' % (nYes, nAttempt),</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1500">1500</td>
+              <td class="code "><div class="code-listing"><pre>                                'info')</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1501">1501</td>
+              <td class="code "><div class="code-listing"><pre>           else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1502">1502</td>
+              <td class="code "><div class="code-listing"><pre>               # Auto-accepted delete (specific only for empty comps)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line1503">1503</td>
+              <td class="code "><div class="code-listing"><pre>               DPlan['didAccept'] = 2</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line1504">1504</td>
+              <td class="code "><div class="code-listing"><pre>               DPlan['acceptedUIDs'] = DPlan['candidateUIDs']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1505">1505</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1506">1506</td>
+              <td class="code "><div class="code-listing"><pre>               # Make all stats stored in Memory have correct size</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>63</td>
+              <td id="line1507">1507</td>
+              <td class="code "><div class="code-listing"><pre>               for uID in DPlan['acceptedUIDs']:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>61</td>
+              <td id="line1508">1508</td>
+              <td class="code "><div class="code-listing"><pre>                   kk = np.flatnonzero(newSS.uIDs == uID)[0]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.09 s</td>
+              <td>61</td>
+              <td id="line1509">1509</td>
+              <td class="code "><div class="code-listing"><pre>                   newSS.removeComp(kk)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>549</td>
+              <td id="line1510">1510</td>
+              <td class="code "><div class="code-listing"><pre>                   for batchID in self.SSmemory:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>488</td>
+              <td id="line1511">1511</td>
+              <td class="code "><div class="code-listing"><pre>                       if kk < self.SSmemory[batchID].K:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>488</td>
+              <td id="line1512">1512</td>
+              <td class="code "><div class="code-listing"><pre>                           if self.SSmemory[batchID].uIDs[kk] == uID:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.63 s</td>
+              <td>488</td>
+              <td id="line1513">1513</td>
+              <td class="code "><div class="code-listing"><pre>                               self.SSmemory[batchID].removeComp(kk)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1514">1514</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1515">1515</td>
+              <td class="code "><div class="code-listing"><pre>               # Reset all ELBO and Merge terms stored in Memory</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>18</td>
+              <td id="line1516">1516</td>
+              <td class="code "><div class="code-listing"><pre>               for batchID in self.SSmemory:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>16</td>
+              <td id="line1517">1517</td>
+              <td class="code "><div class="code-listing"><pre>                   self.SSmemory[batchID].setELBOFieldsToZero()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>16</td>
+              <td id="line1518">1518</td>
+              <td class="code "><div class="code-listing"><pre>                   self.SSmemory[batchID].setMergeFieldsToZero()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1519">1519</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line1520">1520</td>
+              <td class="code "><div class="code-listing"><pre>               newSS.setELBOFieldsToZero()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line1521">1521</td>
+              <td class="code "><div class="code-listing"><pre>               newSS.setMergeFieldsToZero()</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 0.69 s</td>
+              <td>2</td>
+              <td id="line1522">1522</td>
+              <td class="code danger"><div class="code-listing"><pre>               newModel.update_global_params(newSS)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1523">1523</td>
+              <td class="code "><div class="code-listing"><pre>               # Do extra update, to improve numerical </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1524">1524</td>
+              <td class="code "><div class="code-listing"><pre>               # values found by gradient descent</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.06 s</td>
+              <td>2</td>
+              <td id="line1525">1525</td>
+              <td class="code "><div class="code-listing"><pre>               newModel.allocModel.update_global_params(newSS)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.06 s</td>
+              <td>2</td>
+              <td id="line1526">1526</td>
+              <td class="code "><div class="code-listing"><pre>               newModel.allocModel.update_global_params(newSS)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1527">1527</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line1528">1528</td>
+              <td class="code "><div class="code-listing"><pre>               nEmpty = len(DPlan['candidateUIDs'])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line1529">1529</td>
+              <td class="code "><div class="code-listing"><pre>               DeleteLogger.log('DELETED %d empty comps' % (nEmpty),</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line1530">1530</td>
+              <td class="code "><div class="code-listing"><pre>                                'info')</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1531">1531</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1532">1532</td>
+              <td class="code "><div class="code-listing"><pre>           # -------------------    Update DeleteRecords</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>63</td>
+              <td id="line1533">1533</td>
+              <td class="code "><div class="code-listing"><pre>           for uID in DPlan['candidateUIDs']:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>61</td>
+              <td id="line1534">1534</td>
+              <td class="code "><div class="code-listing"><pre>               if uID in DPlan['acceptedUIDs']:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>61</td>
+              <td id="line1535">1535</td>
+              <td class="code "><div class="code-listing"><pre>                   if uID in self.DeleteRecordsByComp:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1536">1536</td>
+              <td class="code "><div class="code-listing"><pre>                       del self.DeleteRecordsByComp[uID]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1537">1537</td>
+              <td class="code "><div class="code-listing"><pre>               else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1538">1538</td>
+              <td class="code "><div class="code-listing"><pre>                   if uID not in self.DeleteRecordsByComp:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1539">1539</td>
+              <td class="code "><div class="code-listing"><pre>                       self.DeleteRecordsByComp[uID]['nFail'] = 0</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1540">1540</td>
+              <td class="code "><div class="code-listing"><pre>                   self.DeleteRecordsByComp[uID]['nFail'] += 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1541">1541</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line1542">1542</td>
+              <td class="code "><div class="code-listing"><pre>           if DPlan['didAccept']:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line1543">1543</td>
+              <td class="code "><div class="code-listing"><pre>               self.ELBOReady = False</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line1544">1544</td>
+              <td class="code "><div class="code-listing"><pre>               self.ActiveIDVec = newSS.uIDs.copy()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line1545">1545</td>
+              <td class="code "><div class="code-listing"><pre>               self.lapLastAcceptedDelete = self.lapFrac</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1546">1546</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>63</td>
+              <td id="line1547">1547</td>
+              <td class="code "><div class="code-listing"><pre>               acceptedUIDs = [x for x in DPlan['acceptedUIDs']]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line1548">1548</td>
+              <td class="code "><div class="code-listing"><pre>               if 'origUIDs' not in self.DeleteAcceptRecord:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line1549">1549</td>
+              <td class="code "><div class="code-listing"><pre>                   self.DeleteAcceptRecord['origUIDs'] = SS.uIDs.copy()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line1550">1550</td>
+              <td class="code "><div class="code-listing"><pre>                   self.DeleteAcceptRecord['acceptedUIDs'] = acceptedUIDs</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1551">1551</td>
+              <td class="code "><div class="code-listing"><pre>               else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1552">1552</td>
+              <td class="code "><div class="code-listing"><pre>                   self.DeleteAcceptRecord[</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1553">1553</td>
+              <td class="code "><div class="code-listing"><pre>                       'acceptedUIDs'].extend(acceptedUIDs)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>18</td>
+              <td id="line1554">1554</td>
+              <td class="code "><div class="code-listing"><pre>           for batchID in self.SSmemory:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>16</td>
+              <td id="line1555">1555</td>
+              <td class="code "><div class="code-listing"><pre>               assert np.allclose(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>16</td>
+              <td id="line1556">1556</td>
+              <td class="code "><div class="code-listing"><pre>                   self.SSmemory[batchID].uIDs, self.ActiveIDVec)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1557">1557</td>
+              <td class="code "><div class="code-listing"><pre>       # <<< end for loop over DeletePlans</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1558">1558</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1559">1559</td>
+              <td class="code "><div class="code-listing"><pre>       # Verify post-condition: same states represented by newSS and SSmemory</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>18</td>
+              <td id="line1560">1560</td>
+              <td class="code "><div class="code-listing"><pre>       for batchID in self.SSmemory:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>16</td>
+              <td id="line1561">1561</td>
+              <td class="code "><div class="code-listing"><pre>           assert newSS.K == self.SSmemory[batchID].K</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>16</td>
+              <td id="line1562">1562</td>
+              <td class="code "><div class="code-listing"><pre>           assert np.allclose(newSS.uIDs, self.SSmemory[batchID].uIDs)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1563">1563</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>16</td>
+              <td id="line1564">1564</td>
+              <td class="code "><div class="code-listing"><pre>           if newSS.K < SS.K:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>48</td>
+              <td id="line1565">1565</td>
+              <td class="code "><div class="code-listing"><pre>               for key in self.SSmemory[batchID]._ELBOTerms._FieldDims.keys():</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>32</td>
+              <td id="line1566">1566</td>
+              <td class="code "><div class="code-listing"><pre>                   arr = self.SSmemory[batchID].getELBOTerm(key)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>32</td>
+              <td id="line1567">1567</td>
+              <td class="code "><div class="code-listing"><pre>                   assert np.allclose(0, arr)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line1568">1568</td>
+              <td class="code "><div class="code-listing"><pre>       if newSS.K < SS.K:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line1569">1569</td>
+              <td class="code "><div class="code-listing"><pre>           assert self.ELBOReady is False</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line1570">1570</td>
+              <td class="code "><div class="code-listing"><pre>           for key in newSS._ELBOTerms._FieldDims.keys():</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line1571">1571</td>
+              <td class="code "><div class="code-listing"><pre>               arr = newSS.getELBOTerm(key)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line1572">1572</td>
+              <td class="code "><div class="code-listing"><pre>               assert np.allclose(0, arr)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1573">1573</td>
+              <td class="code "><div class="code-listing"><pre>       else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1574">1574</td>
+              <td class="code "><div class="code-listing"><pre>           assert self.ELBOReady is True</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1575">1575</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1576">1576</td>
+              <td class="code "><div class="code-listing"><pre>       # TODO adjust LPmemory??</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line1577">1577</td>
+              <td class="code "><div class="code-listing"><pre>       return newModel, newSS</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

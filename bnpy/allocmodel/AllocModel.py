@@ -16,7 +16,6 @@ class AllocModel(object):
         '''
         return list()
 
-    # ----    Local step update
     def calc_local_params(self, Data, LP):
         ''' Compute local parameters for each data item and component.
         '''
@@ -27,13 +26,11 @@ class AllocModel(object):
         '''
         pass
 
-    # ----    Summary step update
     def get_global_suff_stats(self, Data, SS, LP):
         ''' Calculate sufficient statistics for each component.
         '''
         pass
 
-    # ----    Global step update
     def update_global_params(self, SS, rho=None, **kwargs):
         ''' Update (in-place) global parameters for this model.
 
@@ -55,7 +52,6 @@ class AllocModel(object):
             raise ValueError(
                 'Unrecognized Inference Type! %s' % (self.inferType))
 
-    # ----    ELBO functions
     def calc_evidence(self, Data, SS, LP):
         """ Calculate ELBO objective function value for provided state.
 
@@ -78,7 +74,6 @@ class AllocModel(object):
         """
         pass
 
-    # ----    I/O functions
     def get_info_string(self):
         ''' Returns one-line human-readable terse description of this object
         '''
@@ -117,10 +112,8 @@ class AllocModel(object):
             LP['resp'][LP['Z'] == k, k] = 1
         return LP
 
-  ######################################################### Function handles
-  #########################################################   
     def getHandleCalcLocalParams(self):
-       return self.calc_local_params
+        return self.calc_local_params
 
     def getHandleCalcSummaryStats(self):
-       return self.get_global_suff_stats
+        return self.get_global_suff_stats

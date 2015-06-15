@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="../../assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="../../assets/css/docs.css" rel="stylesheet">
+    <!-- <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet"> -->
+    <link rel="stylesheet" href="../../assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">to_sparse_docword_matrix</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">to_sparse_docword_matrix</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>to_sparse_docword_matrix</h1>
+	  </div>
+
+          <p>4236 Calls, 0.556198 s</p>
+	  <p>Generated 17:47:58 01/05/14 EST</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/data/WordsData.py">/Users/mhughes/git/bnpy2/bnpy/data/WordsData.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line211">211</td>
+              <td><pre class="prettyprint">@profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line212">212</td>
+              <td><pre class="prettyprint">def to_sparse_docword_matrix(self):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line213">213</td>
+              <td><pre class="prettyprint">    ''' Create sparse matrix that represents a document</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line214">214</td>
+              <td><pre class="prettyprint">        by vocabulary word matrix. Used for </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line215">215</td>
+              <td><pre class="prettyprint">        efficient initialization of global parameters</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line216">216</td>
+              <td><pre class="prettyprint">    '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line217">217</td>
+              <td><pre class="prettyprint">    if hasattr(self, "__sparseDocWordMat__"):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line218">218</td>
+              <td><pre class="prettyprint">        return self.__sparseDocWordMat__</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line219">219</td>
+              <td><pre class="prettyprint">    row_ind = list()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line220">220</td>
+              <td><pre class="prettyprint">    col_ind = list()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line221">221</td>
+              <td><pre class="prettyprint">    doc_range = self.doc_range</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line222">222</td>
+              <td><pre class="prettyprint">    word_count = self.word_count</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4236</td>
+              <td id="line223">223</td>
+              <td><pre class="prettyprint">    for d in xrange(self.nDocTotal):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.012 s</td>
+              <td>4228</td>
+              <td id="line224">224</td>
+              <td><pre class="prettyprint">        numDistinct = doc_range[d,1] - doc_range[d,0]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.017 s</td>
+              <td>4228</td>
+              <td id="line225">225</td>
+              <td><pre class="prettyprint">        doc_ind_temp = [d]*numDistinct</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.011 s</td>
+              <td>4228</td>
+              <td id="line226">226</td>
+              <td><pre class="prettyprint">        row_ind.extend(doc_ind_temp)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.12 s</td>
+              <td>4228</td>
+              <td id="line227">227</td>
+              <td><pre class="prettyprint">        col_ind.extend(self.word_id[ (doc_range[d,0]):(doc_range[d,1]) ])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line228">228</td>
+              <td><pre class="prettyprint">    self.__sparseDocWordMat__ = scipy.sparse.csr_matrix(</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line229">229</td>
+              <td><pre class="prettyprint">              (word_count, (row_ind,col_ind)),</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td>0.39 s</td>
+              <td>8</td>
+              <td id="line230">230</td>
+              <td><pre class="prettyprint">              shape=(self.nDocTotal, self.vocab_size) )</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line231">231</td>
+              <td><pre class="prettyprint">    return self.__sparseDocWordMat__</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="../../assets/js/bootstrap.min.js"></script>
+    <script src="../../assets/js/main.js"></script>
+    <script src="https://google-code-prettify.googlecode.com/svn/loader/run_prettify.js"></script>
+  </body>
+</html>

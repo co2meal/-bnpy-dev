@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">_synchronize_and_verify</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">_synchronize_and_verify</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>_synchronize_and_verify</h1>
+	  </div>
+
+          <p>1667282 Calls, 17.39 s</p>
+	  <p>Generated 09:02:40 01/21/14 EST</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/learnalg/MergeTracker.py">/Users/mhughes/git/bnpy2/bnpy/learnalg/MergeTracker.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line155">155</td>
+              <td><pre> @profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line156">156</td>
+              <td><pre> def _synchronize_and_verify(self):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line157">157</td>
+              <td><pre>   ''' Make sure excludePairs and excludeList are up-to-date with each other</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line158">158</td>
+              <td><pre>   '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.04 s</td>
+              <td>31196</td>
+              <td id="line159">159</td>
+              <td><pre>   for kx in list(self.excludeList):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.05 s</td>
+              <td>28848</td>
+              <td id="line160">160</td>
+              <td><pre>     assert kx >= 0</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.05 s</td>
+              <td>28848</td>
+              <td id="line161">161</td>
+              <td><pre>     assert kx < self.K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.83 s</td>
+              <td>1667282</td>
+              <td id="line162">162</td>
+              <td><pre>     for kk in range(self.K):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 2.64 s</td>
+              <td>1638434</td>
+              <td id="line163">163</td>
+              <td><pre>       self.excludePairs[kk].add(kx)</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 4.65 s</td>
+              <td>1638434</td>
+              <td id="line164">164</td>
+              <td><pre>       self.excludePairs[kx].add(kk)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line165">165</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.14 s</td>
+              <td>130552</td>
+              <td id="line166">166</td>
+              <td><pre>   for kk in range(self.K):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.14 s</td>
+              <td>128204</td>
+              <td id="line167">167</td>
+              <td><pre>     kset = self.excludePairs[kk]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line168">168</td>
+              <td><pre>     # if kk has any more possible valid partners, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line169">169</td>
+              <td><pre>     #  then set can have at most K-1 members (missing a partner)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.16 s</td>
+              <td>128204</td>
+              <td id="line170">170</td>
+              <td><pre>     if len(kset) > self.K - 1: </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.06 s</td>
+              <td>28911</td>
+              <td id="line171">171</td>
+              <td><pre>       self.excludeList.add(kk)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line172">172</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.18 s</td>
+              <td>130552</td>
+              <td id="line173">173</td>
+              <td><pre>   for kk in self.excludePairs:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.15 s</td>
+              <td>128204</td>
+              <td id="line174">174</td>
+              <td><pre>     assert kk >= 0</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.16 s</td>
+              <td>128204</td>
+              <td id="line175">175</td>
+              <td><pre>     assert kk < self.K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 2.39 s</td>
+              <td>128204</td>
+              <td id="line176">176</td>
+              <td><pre>     karr = np.asarray(list(self.excludePairs[kk]))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 2.43 s</td>
+              <td>128204</td>
+              <td id="line177">177</td>
+              <td><pre>     assert np.all(karr >= 0)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 2.31 s</td>
+              <td>128204</td>
+              <td id="line178">178</td>
+              <td><pre>     assert np.all(karr < self.K)</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">birth_create_new_comps</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">birth_create_new_comps</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>birth_create_new_comps</h1>
+	  </div>
+
+          <p>45 Calls, 103.94 s</p>
+	  <p>Generated 16:17:15 04/27/14 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/learnalg/MemoizedOnlineVBLearnAlg.py">/Users/mhughes/git/bnpy2/bnpy/learnalg/MemoizedOnlineVBLearnAlg.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line409">409</td>
+              <td><pre> @profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line410">410</td>
+              <td><pre> def birth_create_new_comps(self, hmodel, SS, BirthPlans=list(), Data=None):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line411">411</td>
+              <td><pre>   ''' Create new components </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line412">412</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line413">413</td>
+              <td><pre>       Returns</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line414">414</td>
+              <td><pre>       -------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line415">415</td>
+              <td><pre>       hmodel : bnpy HModel, either existing model or one with more comps</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line416">416</td>
+              <td><pre>       SS : bnpy SuffStatBag, either existing SS or one with more comps</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line417">417</td>
+              <td><pre>       BirthResults : list of dicts, one entry per birth move</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line418">418</td>
+              <td><pre>   '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>23</td>
+              <td id="line419">419</td>
+              <td><pre>   kwargs = dict(**self.algParams['birth'])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line420">420</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>23</td>
+              <td id="line421">421</td>
+              <td><pre>   if 'birthRetainExtraMass' not in kwargs:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>23</td>
+              <td id="line422">422</td>
+              <td><pre>     kwargs['birthRetainExtraMass'] = 1</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line423">423</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>23</td>
+              <td id="line424">424</td>
+              <td><pre>   if Data is not None:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line425">425</td>
+              <td><pre>     targetData = TargetDataSampler.sample_target_data(</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line426">426</td>
+              <td><pre>                                       Data, model=hmodel, LP=None,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line427">427</td>
+              <td><pre>                                       randstate=self.PRNG,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line428">428</td>
+              <td><pre>                                       **kwargs)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line429">429</td>
+              <td><pre>     Plan = dict(Data=targetData, ktarget=-1)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line430">430</td>
+              <td><pre>     BirthPlans = [Plan]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line431">431</td>
+              <td><pre>     kwargs['birthRetainExtraMass'] = 0</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line432">432</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>23</td>
+              <td id="line433">433</td>
+              <td><pre>   nMoves = len(BirthPlans)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>23</td>
+              <td id="line434">434</td>
+              <td><pre>   BirthResults = list()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>45</td>
+              <td id="line435">435</td>
+              <td><pre>   for moveID, Plan in enumerate(BirthPlans):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line436">436</td>
+              <td><pre>     # Unpack data for current move</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>22</td>
+              <td id="line437">437</td>
+              <td><pre>     ktarget = Plan['ktarget']</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>22</td>
+              <td id="line438">438</td>
+              <td><pre>     targetData = Plan['Data']</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>22</td>
+              <td id="line439">439</td>
+              <td><pre>     targetSize = TargetDataSampler.getSize(targetData)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line440">440</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>22</td>
+              <td id="line441">441</td>
+              <td><pre>     if ktarget is None or targetData is None:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line442">442</td>
+              <td><pre>       msg = Plan['msg']</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line443">443</td>
+              <td><pre>     elif targetSize < kwargs['targetMinSize']:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line444">444</td>
+              <td><pre>       msg = "BIRTH skipped. Target data too small. Size %d."</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line445">445</td>
+              <td><pre>       msg = msg % (targetSize)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line446">446</td>
+              <td><pre>     else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line447">447</td>
+              <td><pre>       if SS is not None:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line448">448</td>
+              <td><pre>         oldSize = SS.N.sum()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line449">449</td>
+              <td><pre>       hmodel, SS, MoveInfo = BirthMove.run_birth_move(</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line450">450</td>
+              <td><pre>                                          hmodel, SS, targetData, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line451">451</td>
+              <td><pre>                                          randstate=self.PRNG, </pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 103.93 s</td>
+              <td>21</td>
+              <td id="line452">452</td>
+              <td><pre>                                          **kwargs)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line453">453</td>
+              <td><pre>       if MoveInfo['didAddNew'] and kwargs['birthRetainExtraMass']:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line454">454</td>
+              <td><pre>         newSize = SS.N.sum()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line455">455</td>
+              <td><pre>         assert np.allclose(newSize- oldSize, targetData.word_count.sum())</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line456">456</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line457">457</td>
+              <td><pre>       msg = MoveInfo['msg']</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line458">458</td>
+              <td><pre>       if MoveInfo['didAddNew']:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line459">459</td>
+              <td><pre>         BirthResults.append(MoveInfo)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>17</td>
+              <td id="line460">460</td>
+              <td><pre>         for kk in MoveInfo['birthCompIDs']:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>13</td>
+              <td id="line461">461</td>
+              <td><pre>           self.LapsSinceLastBirth[kk] = -1</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line462">462</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>22</td>
+              <td id="line463">463</td>
+              <td><pre>     if Data is None:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>22</td>
+              <td id="line464">464</td>
+              <td><pre>         self.print_msg( "%d/%d %s" % (moveID+1, nMoves, msg) )</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line465">465</td>
+              <td><pre>     else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line466">466</td>
+              <td><pre>         self.print_msg( "%d/%d BATCH %s" % (moveID+1, nMoves, msg) )</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>23</td>
+              <td id="line467">467</td>
+              <td><pre>   return hmodel, SS, BirthResults</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

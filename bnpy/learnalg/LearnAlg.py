@@ -98,7 +98,7 @@ class LearnAlg(object):
         self.start_time = time.time()
 
     def updateNumDataProcessed(self, N):
-        ''' Update internal count of total number of data observations processed.
+        ''' Update internal count of number of data observations processed.
             Each lap thru dataset of size N, this should be updated by N
         '''
         self.totalDataUnitsProcessed += N
@@ -222,7 +222,6 @@ class LearnAlg(object):
             with open(self.mkfile('ActiveUsage.txt'), 'a') as f:
                 f.write(flatstr + '\n')
 
-
     def isCountVecConverged(self, Nvec, prevNvec):
         if Nvec.size != prevNvec.size:
             # Warning: the old value of maxDiff is still used for printing
@@ -248,8 +247,8 @@ class LearnAlg(object):
         if saveEvery <= 0 or self.savedir is None:
             return False
         return isEvenlyDivisibleFloat(lap, saveEvery) \
-            or (isEvenlyDivisibleFloat(lap, 1.0) \
-                and lap <= self.outputParams['saveEarly']) \
+            or (isEvenlyDivisibleFloat(lap, 1.0) and
+                lap <= self.outputParams['saveEarly']) \
             or nMstepUpdates < 3 \
             or np.allclose(lap, 1.0) \
             or np.allclose(lap, 2.0) \

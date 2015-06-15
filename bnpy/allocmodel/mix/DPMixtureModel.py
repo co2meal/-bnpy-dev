@@ -12,7 +12,8 @@ from bnpy.util.StickBreakUtil import beta2rho
 
 ELBOTermDimMap = dict(
     Hresp='K',
-    )
+)
+
 
 def calcELBO(**kwargs):
     """ Calculate ELBO objective for provided model state.
@@ -21,11 +22,12 @@ def calcELBO(**kwargs):
     Lnon = calcELBO_NonlinearTerms(**kwargs)
     return Lnon + Llinear
 
+
 def calcELBO_LinearTerms(SS=None,
-        N=None,
-        eta1=None, eta0=None, ElogU=None, Elog1mU=None,
-        gamma1=1.0, gamma0=None, 
-        afterGlobalStep=0, todict=0, **kwargs):
+                         N=None,
+                         eta1=None, eta0=None, ElogU=None, Elog1mU=None,
+                         gamma1=1.0, gamma0=None,
+                         afterGlobalStep=0, todict=0, **kwargs):
     """ Calculate ELBO objective terms that are linear in suff stats.
     """
     if SS is not None:
@@ -41,14 +43,15 @@ def calcELBO_LinearTerms(SS=None,
     if ElogU is None or Elog1mU is None:
         ElogU, Elog1mU = calcBetaExpectations(eta1, eta0)
     Lslack = np.inner(N + gamma1 - eta1, ElogU) + \
-             np.inner(N0 + gamma0 - eta0, Elog1mU)
+        np.inner(N0 + gamma0 - eta0, Elog1mU)
     if todict:
         return dict(Lglobal=Lglobal)
     return Lglobal + Lslack
 
+
 def calcELBO_NonlinearTerms(SS=None, LP=None,
-        resp=None, Hresp=None,
-        returnMemoizedDict=0, **kwargs):
+                            resp=None, Hresp=None,
+                            returnMemoizedDict=0, **kwargs):
     """ Calculate ELBO objective terms non-linear in suff stats.
     """
     if Hresp is None:
@@ -64,6 +67,7 @@ def calcELBO_NonlinearTerms(SS=None, LP=None,
     if SS is not None and SS.hasAmpFactor():
         Lentropy *= SS.ampF
     return Lentropy
+
 
 def calcELBOGain_NonlinearTerms(beforeSS=None, afterSS=None):
     """ Compute gain in ELBO score by transition from before to after values.
@@ -96,6 +100,7 @@ def convertToN0(N):
     N0 = np.zeros_like(N)
     N0[:-1] = N[::-1].cumsum()[::-1][1:]
     return N0
+
 
 def c_Beta(eta1, eta0):
     ''' Evaluate cumulant function of Beta distribution
@@ -131,9 +136,10 @@ def c_Beta_ReturnVec(eta1, eta0):
     '''
     return gammaln(eta1 + eta0) - gammaln(eta1) - gammaln(eta0)
 
+
 def calcBetaExpectations(eta1, eta0):
     ''' Evaluate expected value of log u under Beta(u | eta1, eta0)
-    
+
     Returns
     -------
     ElogU : 1D array, size K
@@ -145,7 +151,7 @@ def calcBetaExpectations(eta1, eta0):
     return ElogU, Elog1mU
 
 
-def calcCachedELBOGap_SinglePair(SS, kA, kB, 
+def calcCachedELBOGap_SinglePair(SS, kA, kB,
                                  delCompID=None, dtargetMinCount=None):
     """ Compute (lower bound on) gap in cacheable ELBO
 
@@ -161,12 +167,13 @@ def calcCachedELBOGap_SinglePair(SS, kA, kB,
         # Use bound - r log r >= 0
         gap = -1 * (Hvec[kA] + Hvec[kB])
     else:
-        # Use bound - (1-r) log (1-r) >= r for small values of r 
+        # Use bound - (1-r) log (1-r) >= r for small values of r
         assert delCompID == kA or delCompID == kB
         gap1 = -1 * Hvec[delCompID] - SS.N[delCompID]
         gap2 = -1 * (Hvec[kA] + Hvec[kB])
         gap = np.maximum(gap1, gap2)
     return gap
+
 
 def calcCachedELBOTerms_SinglePair(SS, kA, kB, delCompID=None):
     """ Calculate all cached ELBO terms under proposed merge.
@@ -183,7 +190,7 @@ def calcCachedELBOTerms_SinglePair(SS, kA, kB, delCompID=None):
             newHvec[kA] = Hvec[kB]
         newHvec[kA] -= SS.N[delCompID]
         newHvec[kA] = np.maximum(0, newHvec[kA])
-    return dict(ElogqZ=-1*newHvec)
+    return dict(ElogqZ=-1 * newHvec)
 
 
 class DPMixtureModel(AllocModel):
@@ -504,11 +511,11 @@ class DPMixtureModel(AllocModel):
         L : float
         """
         return calcELBO(SS=SS, LP=LP,
-            eta1=self.eta1, eta0=self.eta0, 
-            ElogU=self.ElogU, Elog1mU=self.Elog1mU,
-            gamma1=self.gamma1, gamma0=self.gamma0,
-            todict=todict,
-            **kwargs)
+                        eta1=self.eta1, eta0=self.eta0,
+                        ElogU=self.ElogU, Elog1mU=self.Elog1mU,
+                        gamma1=self.gamma1, gamma0=self.gamma0,
+                        todict=todict,
+                        **kwargs)
 
     def calcELBO_LinearTerms(self, **kwargs):
         ''' Compute sum of ELBO terms that are linear/const wrt suff stats
@@ -518,8 +525,8 @@ class DPMixtureModel(AllocModel):
         L : float
         '''
         return calcELBO_LinearTerms(eta1=self.eta1, eta0=self.eta0,
-            gamma1=self.gamma1, gamma0=self.gamma0,
-            **kwargs)
+                                    gamma1=self.gamma1, gamma0=self.gamma0,
+                                    **kwargs)
 
     def calcELBO_NonlinearTerms(self, **kwargs):
         ''' Compute sum of ELBO terms that are NONlinear wrt suff stats
@@ -529,7 +536,6 @@ class DPMixtureModel(AllocModel):
         L : float
         '''
         return calcELBO_NonlinearTerms(**kwargs)
-
 
     def calcHardMergeEntropyGap(self, SS, kA, kB):
         ''' Calc scalar improvement in entropy for merge of kA, kB
@@ -588,7 +594,7 @@ class DPMixtureModel(AllocModel):
            or not (hasattr(self, 'kB') and self.kB == kB):
             self.kB = kB
             self.cBetaNewB = c_Beta_ReturnVec(self.eta1[:kB],
-                                        self.eta0[:kB] - SS.N[kB])
+                                              self.eta0[:kB] - SS.N[kB])
         cDiff_A = self.cBetaCur[kA] \
             - c_Beta(self.eta1[kA] + SS.N[kB], self.eta0[kA] - SS.N[kB])
         cDiff_AtoB = np.sum(self.cBetaCur[kA + 1:kB] - self.cBetaNewB[kA + 1:])
@@ -608,7 +614,7 @@ class DPMixtureModel(AllocModel):
             self.cBetaCur = c_Beta_ReturnVec(self.eta1, self.eta0)
 
         cBetaNew_AtoB = c_Beta_ReturnVec(self.eta1[kA + 1:kB],
-                                   self.eta0[kA + 1:kB] - SS.N[kB])
+                                         self.eta0[kA + 1:kB] - SS.N[kB])
         cDiff_A = self.cBetaCur[kA] \
             - c_Beta(self.eta1[kA] + SS.N[kB], self.eta0[kA] - SS.N[kB])
         cDiff_AtoB = np.sum(self.cBetaCur[kA + 1:kB] - cBetaNew_AtoB)
@@ -653,7 +659,7 @@ class DPMixtureModel(AllocModel):
         """
         return calcCachedELBOTerms_SinglePair(SS, kA, kB, delCompID=delCompID)
 
-    def calcCachedELBOGap_SinglePair(self, SS, kA, kB, 
+    def calcCachedELBOGap_SinglePair(self, SS, kA, kB,
                                      delCompID=None):
         """ Compute (lower bound on) gap in cacheable ELBO
 
@@ -663,7 +669,6 @@ class DPMixtureModel(AllocModel):
             L'_entropy - L_entropy >= gap
         """
         return calcCachedELBOGap_SinglePair(SS, kA, kB, delCompID=delCompID)
-
 
     def get_info_string(self):
         ''' Returns one-line human-readable terse description of this object
@@ -802,8 +807,6 @@ class DPMixtureModel(AllocModel):
             + np.sum(gammaln(Nvec)) \
             - gammaln(np.sum(Nvec) + self.gamma0)
 
-
-
     def getSerializableParamsForLocalStep(self):
         """ Get compact dict of params for parallel local step.
 
@@ -811,12 +814,12 @@ class DPMixtureModel(AllocModel):
         -------
         Info : dict
         """
-        return dict(inferType=self.inferType, 
+        return dict(inferType=self.inferType,
                     Elogbeta=self.Elogbeta,
                     K=self.K)
 
     def fillSharedMemDictForLocalStep(self, ShMem=None):
-        """ Get dict of shared mem arrays needed for parallel local step. 
+        """ Get dict of shared mem arrays needed for parallel local step.
 
         Returns
         -------

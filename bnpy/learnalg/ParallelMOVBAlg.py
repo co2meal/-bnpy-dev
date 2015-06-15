@@ -50,8 +50,8 @@ class ParallelMOVBAlg(MOVBAlg):
         # Setup workers for parallel runs
         if self.nWorkers > 0:
             JobQ, ResultQ, aSharedMem, oSharedMem = setupQueuesAndWorkers(
-                DataIterator, hmodel, 
-                nWorkers=self.nWorkers, 
+                DataIterator, hmodel,
+                nWorkers=self.nWorkers,
                 algParamsLP=self.algParamsLP)
             self.JobQ = JobQ
             self.ResultQ = ResultQ
@@ -84,8 +84,9 @@ class ParallelMOVBAlg(MOVBAlg):
                 SSchunk = self.calcLocalParamsAndSummarize_main(
                     DataIterator, hmodel, batchID=batchID, lapFrac=lapFrac)
 
-            self.saveDebugStateAtBatch('Estep', 
-                batchID, SSchunk=SSchunk, SS=SS, hmodel=hmodel)
+            self.saveDebugStateAtBatch(
+                'Estep', batchID, SSchunk=SSchunk,
+                SS=SS, hmodel=hmodel)
 
             # Summary step for whole-dataset stats
             # (does incremental update)
@@ -110,8 +111,8 @@ class ParallelMOVBAlg(MOVBAlg):
             if self.doDebug() and lapFrac >= 1.0:
                 self.verifyELBOTracking(hmodel, SS, evBound)
 
-            self.saveDebugStateAtBatch('Mstep',
-                batchID, SSchunk=SSchunk, SS=SS, hmodel=hmodel)
+            self.saveDebugStateAtBatch(
+                'Mstep', batchID, SSchunk=SSchunk, SS=SS, hmodel=hmodel)
 
             # Assess convergence
             countVec = SS.getCountVec()
@@ -178,8 +179,10 @@ class ParallelMOVBAlg(MOVBAlg):
             hmodel.obsModel.forceSSInBounds(SS)
         return SS
 
-    def calcLocalParamsAndSummarize_main(self, 
-            DataIterator, hmodel, batchID=0, lapFrac=-1, **kwargs):
+    def calcLocalParamsAndSummarize_main(
+            self, DataIterator, hmodel,
+            batchID=0,
+            lapFrac=-1, **kwargs):
         ''' Execute local step and summary step in main process.
 
         Returns
@@ -190,11 +193,11 @@ class ParallelMOVBAlg(MOVBAlg):
         Dbatch = DataIterator.getBatch(batchID=batchID)
         LPbatch = hmodel.calc_local_params(Dbatch, **self.algParamsLP)
         SSbatch = hmodel.get_global_suff_stats(Dbatch, LPbatch,
-            doPrecompEntropy=1)
+                                               doPrecompEntropy=1)
         return SSbatch
 
-    def calcLocalParamsAndSummarize_parallel(self, 
-            DataIterator, hmodel, batchID=0, lapFrac=-1, **kwargs):
+    def calcLocalParamsAndSummarize_parallel(
+            self, DataIterator, hmodel, batchID=0, lapFrac=-1, **kwargs):
         ''' Execute local step and summary step in parallel via workers.
 
         Returns
@@ -224,10 +227,11 @@ class ParallelMOVBAlg(MOVBAlg):
         return SSwholebatch
     # ... end class ParallelMOVBAlg
 
-def setupQueuesAndWorkers(DataIterator, hmodel, 
-        algParamsLP=None, 
-        nWorkers=0, 
-        **kwargs):
+
+def setupQueuesAndWorkers(DataIterator, hmodel,
+                          algParamsLP=None,
+                          nWorkers=0,
+                          **kwargs):
     ''' Create pool of worker processes for provided dataset and model.
 
     Returns
@@ -261,16 +265,16 @@ def setupQueuesAndWorkers(DataIterator, hmodel,
     # Create multiple workers
     for uid in range(nWorkers):
         worker = SharedMemWorker(uid, JobQ, ResultQ,
-                        makeDataSliceFromSharedMem,
-                        o_calcLocalParams,
-                        o_calcSummaryStats,
-                        a_calcLocalParams,
-                        a_calcSummaryStats,
-                        dataSharedMem,
-                        aSharedMem,
-                        oSharedMem,
-                        LPkwargs=algParamsLP,
-                        verbose=1)
+                                 makeDataSliceFromSharedMem,
+                                 o_calcLocalParams,
+                                 o_calcSummaryStats,
+                                 a_calcLocalParams,
+                                 a_calcSummaryStats,
+                                 dataSharedMem,
+                                 aSharedMem,
+                                 oSharedMem,
+                                 LPkwargs=algParamsLP,
+                                 verbose=1)
         worker.start()
 
     return JobQ, ResultQ, aSharedMem, oSharedMem

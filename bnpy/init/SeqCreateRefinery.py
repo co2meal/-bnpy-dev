@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def refineProposedRespViaLocalGlobalStepsAndDeletes(
         Data_n, propLP_n, tempModel, tempSS,
         propK=None,
@@ -17,7 +18,7 @@ def refineProposedRespViaLocalGlobalStepsAndDeletes(
     tempSS : SuffStatBag
         represents whole dataset seen thus far, EXCLUDING current sequence n
         not required to have any new states unique to sequence n
-    
+
     Returns
     -------
     propLP_n : dict with updated local params
@@ -56,7 +57,7 @@ def refineProposedRespViaLocalGlobalStepsAndDeletes(
     # Here, tempSS and tempModel are fully-consistent with propLP_n
     assert tempSS.K == propK
     assert tempModel.obsModel.K == propK
-    
+
     # Perform "consistent" removal of empty components
     # This guarantees that tempModel and tempSS reflect
     # the whole dataset, including updated propLP_n/propSS_n
@@ -143,6 +144,6 @@ def deleteEmptyCompsAndKeepConsistentWithWholeDataset(
     # step has updated the initial proposal
     Info = dict(
         extraIDs_remaining=np.asarray(extraIDs_remaining),
-        )
+    )
 
     return propLP_n, propSS_n, tempModel, tempSS, Info

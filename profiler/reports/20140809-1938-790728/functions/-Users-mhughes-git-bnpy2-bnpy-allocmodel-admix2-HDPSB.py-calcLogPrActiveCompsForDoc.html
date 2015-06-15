@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">calcLogPrActiveCompsForDoc</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">calcLogPrActiveCompsForDoc</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>calcLogPrActiveCompsForDoc</h1>
+	  </div>
+
+          <p>225593 Calls, 23.61 s</p>
+	  <p>Generated 19:39:35 08/09/14 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix2/HDPSB.py">/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix2/HDPSB.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line154">154</td>
+              <td><pre> @profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line155">155</td>
+              <td><pre> def calcLogPrActiveCompsForDoc(self, DocTopicCount_d):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line156">156</td>
+              <td><pre>   ''' Calculate log prob of each of the K active topics given doc-topic counts</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line157">157</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line158">158</td>
+              <td><pre>       Returns</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line159">159</td>
+              <td><pre>       -------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line160">160</td>
+              <td><pre>       logp : 1D array, size K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line161">161</td>
+              <td><pre>              logp[k] gives probability of topic k in provided doc</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line162">162</td>
+              <td><pre>   '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 2.52 s</td>
+              <td>225593</td>
+              <td id="line163">163</td>
+              <td><pre>   Ebeta, Ebeta_gt = self.E_beta_and_betagt()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line164">164</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.68 s</td>
+              <td>225593</td>
+              <td id="line165">165</td>
+              <td><pre>   eta1 = DocTopicCount_d + self.alpha * Ebeta</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 11.90 s</td>
+              <td>225593</td>
+              <td id="line166">166</td>
+              <td><pre>   eta0 = gtsum(DocTopicCount_d) + self.alpha * Ebeta_gt</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line167">167</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.45 s</td>
+              <td>225593</td>
+              <td id="line168">168</td>
+              <td><pre>   digammaBoth = digamma(eta1+eta0)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.44 s</td>
+              <td>225593</td>
+              <td id="line169">169</td>
+              <td><pre>   ElogVd = digamma(eta1) - digammaBoth</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.33 s</td>
+              <td>225593</td>
+              <td id="line170">170</td>
+              <td><pre>   Elog1mVd = digamma(eta0) - digammaBoth</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.60 s</td>
+              <td>225593</td>
+              <td id="line171">171</td>
+              <td><pre>   ElogPi = ElogVd.copy()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 2.41 s</td>
+              <td>225593</td>
+              <td id="line172">172</td>
+              <td><pre>   ElogPi[1:] += np.cumsum(Elog1mVd[:-1])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.28 s</td>
+              <td>225593</td>
+              <td id="line173">173</td>
+              <td><pre>   return ElogPi</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

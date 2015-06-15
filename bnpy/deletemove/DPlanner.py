@@ -146,7 +146,7 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
         SizeVec = SS.getSelectionTerm('DocUsageCount')
     else:
         raise NotImplementedError("DocUsageCount selection term required.")
-        #SizeVec = 2 * CountVec  # conservative overestimate
+        # SizeVec = 2 * CountVec  # conservative overestimate
 
     # ----    Find non-trivial states small enough to fit in target set
     mask_smallEnough = SizeVec <= dtargetMaxSize
@@ -166,9 +166,9 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
     eligibleUIDs = SS.uIDs[eligibleIDs]
     # ----    Return blank dict if no eligibles found
     if len(eligibleIDs) == 0:
-        return dict(nEmpty=nEmpty, 
-            nTooBig=nTooBig,
-            minTooBigSize=minTooBigSize)
+        return dict(nEmpty=nEmpty,
+                    nTooBig=nTooBig,
+                    minTooBigSize=minTooBigSize)
 
     # sort these from smallest to largest usage
     sortIDs = np.argsort(SizeVec[eligibleIDs])
@@ -236,13 +236,13 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
             # 0
             # >>> searchsorted([3., 4., 5.], 3+1)
             # 1
-            maxLoc = np.searchsorted(tier1AggSize, dtargetMaxSize+1)
+            maxLoc = np.searchsorted(tier1AggSize, dtargetMaxSize + 1)
             selectUIDs = tier1UIDs[:maxLoc]
             if maxLoc > 0:
                 curTargetSize = tier1AggSize[maxLoc - 1]
             else:
                 # We took no items from this tier
-                curTargetSize = 0      
+                curTargetSize = 0
     else:
         selectUIDs = []
         curTargetSize = 0
@@ -253,7 +253,11 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
         selectUIDs = np.hstack([selectUIDs, tier2UIDs])
     elif curTargetSize < dtargetMaxSize:
         tier2AggSize = np.cumsum([SizeMap[x] for x in tier2UIDs])
-        maxLoc = np.searchsorted(tier2AggSize, dtargetMaxSize + 1 - curTargetSize)
+        maxLoc = np.searchsorted(
+            tier2AggSize,
+            dtargetMaxSize +
+            1 -
+            curTargetSize)
         if maxLoc > 0:
             selectUIDs = np.hstack([selectUIDs, tier2UIDs[:maxLoc]])
 
@@ -263,11 +267,11 @@ def getEligibleCompInfo(SS, DRecordsByComp=None,
         jj = np.flatnonzero(uid == eligibleUIDs)[0]
         selectIDs.append(eligibleIDs[jj])
 
-    Output = dict(CountMap=CountMap, 
-        SizeMap=SizeMap,
-        minTooBigSize=minTooBigSize,
-        nEmpty=nEmpty,
-        nTooBig=nTooBig)
+    Output = dict(CountMap=CountMap,
+                  SizeMap=SizeMap,
+                  minTooBigSize=minTooBigSize,
+                  nEmpty=nEmpty,
+                  nTooBig=nTooBig)
     Output['eligible-by-size-IDs'] = eligibleIDs
     Output['eligible-by-size-UIDs'] = eligibleUIDs
     Output['eliminatedUIDs'] = eliminatedUIDs

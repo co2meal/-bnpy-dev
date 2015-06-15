@@ -4,7 +4,9 @@ XViterbi.py
 Learning alg extension for monitoring progress of HMM models.
 
 This learning algorithm extension computes and stores optimal state sequences
-for every time-series in the provided dataset. Saving will occur every time a parameter-saving checkpoint is reached in the algorithm (specified by the --saveEvery keyword argument).
+for every time-series in the provided dataset. Saving will occur every
+time a parameter-saving checkpoint is reached in the algorithm
+(specified by the --saveEvery keyword argument).
 
 Usage
 --------
@@ -12,7 +14,9 @@ Add the following keyword arg to any call to bnpy.run
  --customFuncPath /path/to/bnpyrepo/bnpy/learnalg/extras/XViterbi.py
 
 Example: use with MoCap6 dataset
-$ python -m bnpy.Run MoCap6 FiniteHMM Gauss VB --K 10 --nLap 50 --saveEvery 10 --customFuncPath /path/to/bnpyrepo/bnpy/learnalg/extras/XViterbi.py
+$ python -m bnpy.Run MoCap6 FiniteHMM Gauss VB --K 10 --nLap 50 \
+    --saveEvery 10
+    --customFuncPath /path/to/bnpyrepo/bnpy/learnalg/extras/XViterbi.py
 
 Notes
 --------
@@ -69,7 +73,8 @@ def runViterbiAndSave(**kwargs):
     Keyword Args (all workspace variables passed along from learning alg)
     -------
     hmodel : current HModel object
-    Data : current Data object, representing *entire* dataset (not just one chunk)
+    Data : current Data object
+        representing *entire* dataset (not just one chunk)
 
     Returns
     -------
@@ -167,17 +172,18 @@ def runViterbiAndSave(**kwargs):
         calcHammingDistanceAndSave(zHatFlatAligned, **kwargs)
 
 
-def calcHammingDistanceAndSave(zHatFlatAligned, 
-        excludeTstepsWithNegativeTrueLabels=1,
-        **kwargs):
+def calcHammingDistanceAndSave(zHatFlatAligned,
+                               excludeTstepsWithNegativeTrueLabels=1,
+                               **kwargs):
     ''' Calculate hamming distance for all sequences, saving to flat file.
 
-    Excludes any 
+    Excludes any
 
     Keyword Args (all workspace variables passed along from learning alg)
     -------
     hmodel : current HModel object
-    Data : current Data object, representing *entire* dataset (not just one chunk)
+    Data : current Data object
+        representing *entire* dataset (not just one chunk)
 
     Returns
     -------
@@ -190,7 +196,7 @@ def calcHammingDistanceAndSave(zHatFlatAligned,
     Data = kwargs['Data']
     zTrue = Data.TrueParams['Z']
     hdistance = StateSeqUtil.calcHammingDistance(
-        zTrue, 
+        zTrue,
         zHatFlatAligned,
         **kwargs)
     normhdist = float(hdistance) / float(zHatFlatAligned.size)

@@ -187,7 +187,7 @@ class MultObsModel(AbstractObsModel):
         self.Post.setField('lam', lam, dims=('K', 'D'))
         self.K = K
 
-    def calcSummaryStats(self, Data, SS, LP, cslice=(0,None), **kwargs):
+    def calcSummaryStats(self, Data, SS, LP, cslice=(0, None), **kwargs):
         ''' Calculate summary statistics for given dataset and local parameters
 
         Returns
@@ -217,7 +217,7 @@ class MultObsModel(AbstractObsModel):
                 stop = Data.doc_range[cslice[1]]
                 X = X[:, start:stop]
                 WordCounts = (X * Resp).T  # matrix-matrix product
-                
+
         SS.setField('WordCounts', WordCounts, dims=('K', 'D'))
         SS.setField('SumWordCounts', np.sum(WordCounts, axis=1), dims=('K'))
         return SS
@@ -359,7 +359,7 @@ class MultObsModel(AbstractObsModel):
         # Dirichlet common equivalent to natural here.
         pass
 
-    def calcLogSoftEvMatrix_FromPost(self, Data, cslice=(0,None), **kwargs):
+    def calcLogSoftEvMatrix_FromPost(self, Data, cslice=(0, None), **kwargs):
         ''' Calculate expected log soft ev matrix under Post.
 
         Returns
@@ -552,12 +552,12 @@ class MultObsModel(AbstractObsModel):
         -------
         Info : dict
         """
-        return dict(inferType=self.inferType, 
-                    K=self.K, 
+        return dict(inferType=self.inferType,
+                    K=self.K,
                     DataAtomType=self.DataAtomType)
 
     def fillSharedMemDictForLocalStep(self, ShMem=None):
-        """ Get dict of shared mem arrays needed for parallel local step. 
+        """ Get dict of shared mem arrays needed for parallel local step.
 
         Returns
         -------
@@ -569,10 +569,10 @@ class MultObsModel(AbstractObsModel):
             ShMem = dict()
         if 'ElogphiT' not in ShMem:
             ShMem['ElogphiT'] = numpyToSharedMemArray(ElogphiT)
-        else:       
+        else:
             ShMemView = sharedMemToNumpyArray(ShMem['ElogphiT'])
             assert ShMemView.shape >= ElogphiT.shape
-            ShMemView[:,:K] = ElogphiT
+            ShMemView[:, :K] = ElogphiT
         return ShMem
 
     def getLocalAndSummaryFunctionHandles(self):
@@ -586,6 +586,7 @@ class MultObsModel(AbstractObsModel):
         calcSummaryStats : f handle
         """
         return calcLocalParams, calcSummaryStats
+
 
 def c_Func(lam):
     ''' Evaluate cumulant function at given params.
@@ -624,6 +625,7 @@ def calcLocalParams(Dslice, **kwargs):
     E_log_soft_ev = calcLogSoftEvMatrix_FromPost(Dslice, **kwargs)
     return dict(E_log_soft_ev=E_log_soft_ev)
 
+
 def calcLogSoftEvMatrix_FromPost(Dslice,
                                  ElogphiT=None,
                                  K=None,
@@ -648,6 +650,7 @@ def calcLogSoftEvMatrix_FromPost(Dslice,
         K = ElogphiT.shape[1]
     return ElogphiT[Dslice.word_id, :K]
 
+
 def calcSummaryStats(Dslice, SS, LP, **kwargs):
     ''' Calculate summary statistics for given dataset and local parameters
 
@@ -661,7 +664,7 @@ def calcSummaryStats(Dslice, SS, LP, **kwargs):
         (Dslice.word_count, Dslice.word_id, np.arange(Nslice + 1)),
         shape=(Dslice.vocab_size, Nslice))
 
-    WordCounts = (Xslice * Rslice).T  # matrix-matrix product  
+    WordCounts = (Xslice * Rslice).T  # matrix-matrix product
     SS.setField('WordCounts', WordCounts, dims=('K', 'D'))
     SS.setField('SumWordCounts', np.sum(WordCounts, axis=1), dims=('K'))
     return SS

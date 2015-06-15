@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">preselect_all_merge_candidates</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">preselect_all_merge_candidates</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>preselect_all_merge_candidates</h1>
+	  </div>
+
+          <p>11 Calls, 0.01 s</p>
+	  <p>Generated 14:41:58 03/07/14 EST</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/learnalg/MergeMove.py">/Users/mhughes/git/bnpy2/bnpy/learnalg/MergeMove.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line302">302</td>
+              <td><pre>@profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line303">303</td>
+              <td><pre>def preselect_all_merge_candidates(curModel, SS, randstate=np.random,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line304">304</td>
+              <td><pre>                                   preselectroutine='random', mergePerLap=10,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line305">305</td>
+              <td><pre>                                   compIDs=list(), **kwargs):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line306">306</td>
+              <td><pre>  ''' </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line307">307</td>
+              <td><pre>      Create and return a list of tuples,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line308">308</td>
+              <td><pre>        where each tuple represents a set of component IDs to try to merge</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line309">309</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line310">310</td>
+              <td><pre>      Args</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line311">311</td>
+              <td><pre>      --------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line312">312</td>
+              <td><pre>      curModel : bnpy HModel </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line313">313</td>
+              <td><pre>      SS : bnpy SuffStatBag. If None, defaults to random selection.</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line314">314</td>
+              <td><pre>      randstate : numpy random number generator</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line315">315</td>
+              <td><pre>      preselectroutine : name of procedure to select candidate pairs</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line316">316</td>
+              <td><pre>                          {'random', 'marglik', 'freshallpairs'}</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line317">317</td>
+              <td><pre>      mergePerLap : int number of candidates to identify </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line318">318</td>
+              <td><pre>                      (may be less if K small)            </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line319">319</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line320">320</td>
+              <td><pre>      Returns</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line321">321</td>
+              <td><pre>      --------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line322">322</td>
+              <td><pre>      mPairList : list of component ID candidates for positions kA, kB</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line323">323</td>
+              <td><pre>                    each entry is a tuple of two integers</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line324">324</td>
+              <td><pre>  '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line325">325</td>
+              <td><pre>  nMergeTrials = mergePerLap</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line326">326</td>
+              <td><pre>  K = curModel.allocModel.K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line327">327</td>
+              <td><pre>  if SS is None: # Handle first lap</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line328">328</td>
+              <td><pre>    preselectroutine = 'random'</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line329">329</td>
+              <td><pre>  aList = list()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line330">330</td>
+              <td><pre>  bList = list()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line331">331</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line332">332</td>
+              <td><pre>  partnerIDs = set(range(K))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line333">333</td>
+              <td><pre>  partnerIDs.difference_update(compIDs)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line334">334</td>
+              <td><pre>  if preselectroutine == 'allpairsfromlist':</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line335">335</td>
+              <td><pre>    compIDs = sorted(compIDs)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line336">336</td>
+              <td><pre>    L = len(compIDs)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line337">337</td>
+              <td><pre>    for aa in xrange(L-1):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line338">338</td>
+              <td><pre>      for bb in xrange(aa+1, L):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line339">339</td>
+              <td><pre>        aList.append(compIDs[aa])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line340">340</td>
+              <td><pre>        bList.append(compIDs[bb])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line341">341</td>
+              <td><pre>    aList = aList[:nMergeTrials]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line342">342</td>
+              <td><pre>    bList = bList[:nMergeTrials]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line343">343</td>
+              <td><pre>  elif preselectroutine == 'allpairsfromlistbipartite':</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line344">344</td>
+              <td><pre>    compIDs = sorted(compIDs)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line345">345</td>
+              <td><pre>    L = len(compIDs)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line346">346</td>
+              <td><pre>    for kA in compIDs:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line347">347</td>
+              <td><pre>      for kB in list(partnerIDs):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line348">348</td>
+              <td><pre>        aList.append(np.minimum(kA, kB))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line349">349</td>
+              <td><pre>        bList.append(np.maximum(kA, kB))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line350">350</td>
+              <td><pre>    aList = aList[:nMergeTrials]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line351">351</td>
+              <td><pre>    bList = bList[:nMergeTrials]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line352">352</td>
+              <td><pre>  elif preselectroutine == 'bestnmatchfromlist':</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line353">353</td>
+              <td><pre>    # Loop thru and find 3 best pairs for each comp in list</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line354">354</td>
+              <td><pre>    compIDs = sorted(compIDs)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line355">355</td>
+              <td><pre>    L = len(compIDs)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line356">356</td>
+              <td><pre>    MTracker = MergeTracker(K)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line357">357</td>
+              <td><pre>    MSelector = MergePairSelector()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line358">358</td>
+              <td><pre>    cID = 0</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line359">359</td>
+              <td><pre>    trial = 0</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line360">360</td>
+              <td><pre>    hasPairs = MTracker.hasAvailablePairs</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line361">361</td>
+              <td><pre>    while hasPairs() and cID < L and len(aList) < nMergeTrials:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line362">362</td>
+              <td><pre>      nPartners = 0</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line363">363</td>
+              <td><pre>      hasPartners = MTracker.hasAvailablePartnersForComp</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line364">364</td>
+              <td><pre>      while hasPartners(compIDs[cID]) and nPartners < 3:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line365">365</td>
+              <td><pre>        kA, kB = MSelector.select_merge_components(curModel, SS, MTracker,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line366">366</td>
+              <td><pre>                                    mergename='marglik', kA=compIDs[cID],</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line367">367</td>
+              <td><pre>                                    randstate=randstate)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line368">368</td>
+              <td><pre>        MTracker.recordResult(kA=kA, kB=kB)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line369">369</td>
+              <td><pre>        aList.append(kA)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line370">370</td>
+              <td><pre>        bList.append(kB)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line371">371</td>
+              <td><pre>        nPartners += 1</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line372">372</td>
+              <td><pre>        trial += 1</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line373">373</td>
+              <td><pre>      cID += 1</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line374">374</td>
+              <td><pre>    # reindex aList, bList so we're likely to try all compIDs once</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line375">375</td>
+              <td><pre>    aList = aList[::3] + aList[1::3] + aList[2::3]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line376">376</td>
+              <td><pre>    bList = bList[::3] + bList[1::3] + bList[2::3]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line377">377</td>
+              <td><pre>    aList = aList[:nMergeTrials]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line378">378</td>
+              <td><pre>    bList = bList[:nMergeTrials]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line379">379</td>
+              <td><pre>    # at this point, we've added each fresh comp once</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line380">380</td>
+              <td><pre>    # continue to add random pairs to list until we've maxed out nMergeTrials </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line381">381</td>
+              <td><pre>    while MTracker.hasAvailablePairs() and trial < nMergeTrials:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line382">382</td>
+              <td><pre>      kA, kB = MSelector.select_merge_components(curModel, SS, MTracker,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line383">383</td>
+              <td><pre>                                    mergename='marglik',</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line384">384</td>
+              <td><pre>                                    randstate=randstate)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line385">385</td>
+              <td><pre>      MTracker.recordResult(kA=kA, kB=kB)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line386">386</td>
+              <td><pre>      aList.append(kA)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line387">387</td>
+              <td><pre>      bList.append(kB)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line388">388</td>
+              <td><pre>      trial += 1</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line389">389</td>
+              <td><pre>  elif preselectroutine == 'freshbestmatch':</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line390">390</td>
+              <td><pre>    compIDs = sorted(compIDs)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line391">391</td>
+              <td><pre>    L = len(compIDs)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line392">392</td>
+              <td><pre>    MTracker = MergeTracker(K)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line393">393</td>
+              <td><pre>    MSelector = MergePairSelector()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line394">394</td>
+              <td><pre>    trial = 0</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line395">395</td>
+              <td><pre>    while MTracker.hasAvailablePairs() and trial < np.minimum(L,nMergeTrials):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line396">396</td>
+              <td><pre>      kA = compIDs[trial]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line397">397</td>
+              <td><pre>      kA, kB = MSelector.select_merge_components(curModel, SS, MTracker,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line398">398</td>
+              <td><pre>                                    mergename='marglik', kA=kA,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line399">399</td>
+              <td><pre>                                    randstate=randstate)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line400">400</td>
+              <td><pre>      MTracker.recordResult(kA=kA, kB=kB)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line401">401</td>
+              <td><pre>      aList.append(kA)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line402">402</td>
+              <td><pre>      bList.append(kB)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line403">403</td>
+              <td><pre>      trial += 1</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line404">404</td>
+              <td><pre>    # at this point, we've added each fresh comp once</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line405">405</td>
+              <td><pre>    # continue to add to list until we've maxed out nMergeTrials </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line406">406</td>
+              <td><pre>    while MTracker.hasAvailablePairs() and trial < nMergeTrials:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line407">407</td>
+              <td><pre>      kA, kB = MSelector.select_merge_components(curModel, SS, MTracker,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line408">408</td>
+              <td><pre>                                    mergename='marglik',</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line409">409</td>
+              <td><pre>                                    randstate=randstate)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line410">410</td>
+              <td><pre>      MTracker.recordResult(kA=kA, kB=kB)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line411">411</td>
+              <td><pre>      aList.append(kA)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line412">412</td>
+              <td><pre>      bList.append(kB)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line413">413</td>
+              <td><pre>      trial += 1</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line414">414</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line415">415</td>
+              <td><pre>  elif preselectroutine == 'random':</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line416">416</td>
+              <td><pre>    MTracker = MergeTracker(K)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line417">417</td>
+              <td><pre>    MSelector = MergePairSelector()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line418">418</td>
+              <td><pre>    trial = 0</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>11</td>
+              <td id="line419">419</td>
+              <td><pre>    while MTracker.hasAvailablePairs() and trial < nMergeTrials:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line420">420</td>
+              <td><pre>      trial += 1      </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line421">421</td>
+              <td><pre>      kA, kB = MSelector.select_merge_components(curModel, SS, MTracker,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line422">422</td>
+              <td><pre>                                    mergename='random', </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line423">423</td>
+              <td><pre>                                    randstate=randstate)</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line424">424</td>
+              <td><pre>      MTracker.recordResult(kA=kA, kB=kB)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line425">425</td>
+              <td><pre>      aList.append(kA)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line426">426</td>
+              <td><pre>      bList.append(kB)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line427">427</td>
+              <td><pre>  elif preselectroutine == 'marglik':</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line428">428</td>
+              <td><pre>    MSelector = MergePairSelector()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line429">429</td>
+              <td><pre>    M = np.zeros((K, K))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line430">430</td>
+              <td><pre>    for kA in xrange(K):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line431">431</td>
+              <td><pre>      for kB in xrange(kA+1, K):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line432">432</td>
+              <td><pre>        M[kA, kB] = MSelector._calcMScoreForCandidatePair(curModel, SS, kA, kB)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line433">433</td>
+              <td><pre>    # find the n largest non-zero entries</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line434">434</td>
+              <td><pre>    flatM = M.flatten()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line435">435</td>
+              <td><pre>    bestIDs = np.argsort(flatM)[::-1]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line436">436</td>
+              <td><pre>    bestIDs = bestIDs[ flatM[bestIDs] != 0]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line437">437</td>
+              <td><pre>    bestrs, bestcs = np.unravel_index(bestIDs, M.shape)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line438">438</td>
+              <td><pre>    assert np.all(bestrs < bestcs)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line439">439</td>
+              <td><pre>    aList = bestrs[:nMergeTrials].tolist()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line440">440</td>
+              <td><pre>    bList = bestcs[:nMergeTrials].tolist()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line441">441</td>
+              <td><pre>  elif preselectroutine == 'marglikfromlistbipartite':</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line442">442</td>
+              <td><pre>    ''' consider best candidates for each comp in list,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line443">443</td>
+              <td><pre>            only partnering with nodes outside the list</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line444">444</td>
+              <td><pre>    '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line445">445</td>
+              <td><pre>    MTracker = MergeTracker(K)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line446">446</td>
+              <td><pre>    MSelector = MergePairSelector()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line447">447</td>
+              <td><pre>    M = np.zeros((K, K))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line448">448</td>
+              <td><pre>    for kA in sorted(compIDs):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line449">449</td>
+              <td><pre>      for kB in list(partnerIDs):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line450">450</td>
+              <td><pre>        M[kA, kB] = MSelector._calcMScoreForCandidatePair(curModel, SS, kA, kB)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line451">451</td>
+              <td><pre>      # find the L largest non-zero entries</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line452">452</td>
+              <td><pre>      bestIDs = np.argsort( M[kA,:])[::-1]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line453">453</td>
+              <td><pre>      bestIDs = bestIDs[ M[kA, bestIDs] != 0]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line454">454</td>
+              <td><pre>      bestIDs = bestIDs[:3]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line455">455</td>
+              <td><pre>      for kB in bestIDs:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line456">456</td>
+              <td><pre>        MTracker.recordResult(kA=np.minimum(kA, kB), kB=np.maximum(kA, kB))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line457">457</td>
+              <td><pre>        aList.append(np.minimum(kA,kB))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line458">458</td>
+              <td><pre>        bList.append(np.maximum(kA,kB))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line459">459</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line460">460</td>
+              <td><pre>    # reindex aList, bList so we're likely to try all compIDs once</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line461">461</td>
+              <td><pre>    aList = aList[::3] + aList[1::3] + aList[2::3]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line462">462</td>
+              <td><pre>    bList = bList[::3] + bList[1::3] + bList[2::3]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line463">463</td>
+              <td><pre>    aList = aList[:nMergeTrials]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line464">464</td>
+              <td><pre>    bList = bList[:nMergeTrials]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line465">465</td>
+              <td><pre>  assert len(aList) == len(bList)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line466">466</td>
+              <td><pre>  assert len(aList) <= nMergeTrials</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line467">467</td>
+              <td><pre>  return zip(aList, bList)</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

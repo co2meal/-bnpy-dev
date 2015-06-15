@@ -103,7 +103,7 @@ def _initFromTrueLP(hmodel, Data, initname, PRNG, nRepeatTrue=2,
         LP = expandLPWithDuplicates(LP, PRNG, nRepeatTrue)
     elif initname == 'subdividetruelabels':
         LP = expandLPWithContigBlocks(LP, Data, PRNG)
-    elif initname.count('empty') or initname.count('empties'):        
+    elif initname.count('empty') or initname.count('empties'):
         LP = expandLPWithEmpty(LP, initKextra)
     elif initname.count('junk'):
         LP = expandLPWithJunk(LP, initKextra, PRNG=PRNG)
@@ -116,9 +116,9 @@ def _initFromTrueLP(hmodel, Data, initname, PRNG, nRepeatTrue=2,
     hmodel.update_global_params(SS)
 
 
-def convertLPFromHardToSoft(LP, Data, 
-        initGarbageState=1,
-        startIDsAt0=False, Kmax=None):
+def convertLPFromHardToSoft(LP, Data,
+                            initGarbageState=1,
+                            startIDsAt0=False, Kmax=None):
     ''' Transform array of hard assignment labels in Data into local param dict
 
     Keyword Args
@@ -148,9 +148,9 @@ def convertLPFromHardToSoft(LP, Data,
     garbageMask = Z < 0
     if np.sum(garbageMask) > 0 and initGarbageState:
         Kgarbage = np.unique(Z[garbageMask]).size
-        resp = np.zeros((Z.size, Kmax+Kgarbage))
+        resp = np.zeros((Z.size, Kmax + Kgarbage))
         for kk in range(Kgarbage):
-            resp[Z == -1 -kk, Kmax+kk] = 1
+            resp[Z == -1 - kk, Kmax + kk] = 1
     else:
         resp = np.zeros((Z.size, Kmax))
 

@@ -23,9 +23,6 @@ matfilepath = os.path.join(datasetdir, 'rawData', 'MoCap124.mat')
 if not os.path.isfile(matfilepath):
     raise ValueError('CANNOT FIND DATASET MAT FILE:\n' + matfilepath)
 
-# User-facing
-###########################################################
-
 
 def get_data(**kwargs):
     Data = GroupXData.read_from_mat(matfilepath)
@@ -79,8 +76,9 @@ def CreateBNPYDataDict(origmatfile='/tmp/MoCapSensorData_R1_nCh12_W12.mat',
     Vars = Vars['data_struct']
     N = 124
 
-    # Define the doc_range indices that indicate where each seq starts and stops
-    # Remember that we need to without the "start observation" for each sequence
+    # Define the doc_range indices
+    # indicate where each seq starts and stops
+    # Remember that we need to discard "start observation" for each sequence
     # to allow autoregressive likelihoods
     T_all = 0
     doc_range = np.zeros(N + 1, dtype=np.int32)

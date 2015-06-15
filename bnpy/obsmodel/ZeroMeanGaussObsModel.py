@@ -189,7 +189,7 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
         return calcSummaryStats(Data, SS, LP, **kwargs)
 
     def calcSummaryStatsForContigBlock(self, Data, SS=None,
-            a=None, b=None, **kwargs):
+                                       a=None, b=None, **kwargs):
         ''' Calculate summary statistics for specific block of dataset
 
         Returns
@@ -199,10 +199,10 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
         SS = SuffStatBag(K=1, D=Data.dim)
 
         # Expected count
-        SS.setField('N', (b-a) * np.ones(1, dtype=np.float64), dims='K')
+        SS.setField('N', (b - a) * np.ones(1, dtype=np.float64), dims='K')
 
         # Expected outer-product
-        xxT = dotATA(Data.X[a:b])[np.newaxis,:,:]
+        xxT = dotATA(Data.X[a:b])[np.newaxis, :, :]
         SS.setField('xxT', xxT, dims=('K', 'D', 'D'))
         return SS
 
@@ -635,11 +635,11 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
     def _E_logdetL(self, k=None):
         dvec = np.arange(1, self.D + 1, dtype=np.float)
         if k == 'all':
-            dvec = dvec[:,np.newaxis]
+            dvec = dvec[:, np.newaxis]
             retVec = self.D * LOGTWO * np.ones(self.K)
             for kk in xrange(self.K):
                 retVec[kk] -= self.GetCached('logdetB', kk)
-            nuT = self.Post.nu[np.newaxis,:]
+            nuT = self.Post.nu[np.newaxis, :]
             retVec += np.sum(digamma(0.5 * (nuT + 1 - dvec)), axis=0)
             return retVec
         elif k is None:
@@ -668,13 +668,13 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
         """
         if self.inferType == 'EM':
             raise NotImplementedError('TODO')
-        return dict(inferType=self.inferType, 
+        return dict(inferType=self.inferType,
                     K=self.K,
                     D=self.D,
                     )
 
     def fillSharedMemDictForLocalStep(self, ShMem=None):
-        """ Get dict of shared mem arrays needed for parallel local step. 
+        """ Get dict of shared mem arrays needed for parallel local step.
 
         Returns
         -------
@@ -789,6 +789,7 @@ def calcLocalParams(Dslice, **kwargs):
     LP = dict(E_log_soft_ev=L)
     return LP
 
+
 def calcLogSoftEvMatrix_FromPost(Dslice, **kwargs):
     ''' Calculate expected log soft ev matrix for variational.
 
@@ -804,6 +805,7 @@ def calcLogSoftEvMatrix_FromPost(Dslice, **kwargs):
             - 0.5 * _mahalDist_Post(Dslice.X, k, **kwargs)
     return L
 
+
 def _mahalDist_Post(X, k, cholB=None, nu=None, **kwargs):
     ''' Calc expected mahalonobis distance from comp k to each data atom
 
@@ -815,4 +817,3 @@ def _mahalDist_Post(X, k, cholB=None, nu=None, **kwargs):
     Q = np.linalg.solve(cholB[k], X.T)
     Q *= Q
     return nu[k] * np.sum(Q, axis=0)
-

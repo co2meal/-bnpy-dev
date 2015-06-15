@@ -13,7 +13,7 @@ def Create2DBarsTopicWordParams(V, K, fracMassOnTopic=0.95, PRNG=np.random):
         ---------
         V : int vocab size
         K : int number of topics
-        fracMassOnTopic : fraction of total probability mass for "on-topic" words
+        fracMassOnTopic : fraction of probability mass for "on-topic" words
         PRNG : random number generator (for reproducibility)
 
         Returns
@@ -40,7 +40,7 @@ def Create2DBarsTopicWordParams(V, K, fracMassOnTopic=0.95, PRNG=np.random):
 
     # Add smoothing mass to all entries in "topics"
     #  instead of picking this value out of thin air, instead,
-    #  set it so that 95% of the mass of each topic is on the "on-topic" bar words
+    #  set so 95% of the mass of each topic is on the "on-topic" bar words
     #  if s is the smoothing mass added, and B is num "on topic" words, then
     # fracMassOnTopic = (1 + s) * B / ( (1+s)*B + s*(V-B) ), and we solve for
     # s
@@ -65,7 +65,7 @@ def Create2DBarsTopicWordParams2(V, K, r=0.5, fracMassOnTopic=0.95,
         ---------
         V : int vocab size
         K : int number of topics
-        fracMassOnTopic : fraction of total probability mass for "on-topic" words
+        fracMassOnTopic : fraction of probability mass for "on-topic" words
         PRNG : random number generator (for reproducibility)
 
         Returns

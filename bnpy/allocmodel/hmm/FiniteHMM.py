@@ -21,6 +21,7 @@ def log_pdf_dirichlet(PiMat, alphavec):
 
 
 class FiniteHMM(AllocModel):
+
     ''' Hidden Markov model (HMM) with finite number of hidden states.
 
     Attributes

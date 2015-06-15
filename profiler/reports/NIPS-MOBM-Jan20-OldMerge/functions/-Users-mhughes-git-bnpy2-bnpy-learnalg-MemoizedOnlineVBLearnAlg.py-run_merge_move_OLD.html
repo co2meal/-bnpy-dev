@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">run_merge_move_OLD</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">run_merge_move_OLD</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>run_merge_move_OLD</h1>
+	  </div>
+
+          <p>1578013 Calls, 1113.13 s</p>
+	  <p>Generated 17:37:26 01/20/14 EST</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/learnalg/MemoizedOnlineVBLearnAlg.py">/Users/mhughes/git/bnpy2/bnpy/learnalg/MemoizedOnlineVBLearnAlg.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line542">542</td>
+              <td><pre> @profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line543">543</td>
+              <td><pre> def run_merge_move_OLD(self, hmodel, Data, SS, evBound):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line544">544</td>
+              <td><pre>   ''' Run (potentially many) merge moves on hmodel,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line545">545</td>
+              <td><pre>         performing necessary bookkeeping to</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line546">546</td>
+              <td><pre>           (1) avoid trying the same merge twice</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line547">547</td>
+              <td><pre>           (2) avoid merging a component that has already been merged,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line548">548</td>
+              <td><pre>               since the precomputed entropy will no longer be correct.</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line549">549</td>
+              <td><pre>       Returns</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line550">550</td>
+              <td><pre>       -------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line551">551</td>
+              <td><pre>       hmodel : bnpy HModel, with (possibly) some merged components</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line552">552</td>
+              <td><pre>       SS : bnpy SuffStatBag, with (possibly) merged components</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line553">553</td>
+              <td><pre>       evBound : correct ELBO for returned hmodel</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line554">554</td>
+              <td><pre>                 guaranteed to be at least as large as input evBound    </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line555">555</td>
+              <td><pre>   '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>3</td>
+              <td id="line556">556</td>
+              <td><pre>   import OldMergeMove</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line557">557</td>
+              <td><pre>   self.MergeLog = list() # clear memory of recent merges!</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line558">558</td>
+              <td><pre>   excludeList = list()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line559">559</td>
+              <td><pre>   excludePairs = defaultdict(lambda:set())</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line560">560</td>
+              <td><pre>   nMergeAttempts = self.algParams['merge']['mergePerLap']</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line561">561</td>
+              <td><pre>   trialID = 0</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2364</td>
+              <td id="line562">562</td>
+              <td><pre>   while trialID < nMergeAttempts:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line563">563</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line564">564</td>
+              <td><pre>     # Synchronize contents of the excludeList and excludePairs</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line565">565</td>
+              <td><pre>     # So that comp excluded in excludeList (due to accepted merge)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line566">566</td>
+              <td><pre>     #  is automatically contained in the set of excluded pairs </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.08 s</td>
+              <td>29571</td>
+              <td id="line567">567</td>
+              <td><pre>     for kx in excludeList:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 3.96 s</td>
+              <td>1578013</td>
+              <td id="line568">568</td>
+              <td><pre>       for kk in excludePairs:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 4.68 s</td>
+              <td>1550804</td>
+              <td id="line569">569</td>
+              <td><pre>         excludePairs[kk].add(kx)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 4.49 s</td>
+              <td>1550804</td>
+              <td id="line570">570</td>
+              <td><pre>         excludePairs[kx].add(kk)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line571">571</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.33 s</td>
+              <td>130582</td>
+              <td id="line572">572</td>
+              <td><pre>     for kk in excludePairs:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.38 s</td>
+              <td>128220</td>
+              <td id="line573">573</td>
+              <td><pre>       if len(excludePairs[kk]) > hmodel.obsModel.K - 2:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.09 s</td>
+              <td>23034</td>
+              <td id="line574">574</td>
+              <td><pre>         if kk not in excludeList:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>52</td>
+              <td id="line575">575</td>
+              <td><pre>           excludeList.append(kk)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line576">576</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2362</td>
+              <td id="line577">577</td>
+              <td><pre>     if len(excludeList) > hmodel.obsModel.K - 2:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line578">578</td>
+              <td><pre>       Log.info('Merge Done. No more options to try!')</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line579">579</td>
+              <td><pre>       break # when we don't have any more comps to merge</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line580">580</td>
+              <td><pre>       </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.04 s</td>
+              <td>2361</td>
+              <td id="line581">581</td>
+              <td><pre>     if self.hasMove('birth') and len(self.BirthCompIDs) > 0:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>9</td>
+              <td id="line582">582</td>
+              <td><pre>       kA = self.BirthCompIDs.pop()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>9</td>
+              <td id="line583">583</td>
+              <td><pre>       if kA in excludeList:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line584">584</td>
+              <td><pre>         continue</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line585">585</td>
+              <td><pre>     else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2352</td>
+              <td id="line586">586</td>
+              <td><pre>       kA = None</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line587">587</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2361</td>
+              <td id="line588">588</td>
+              <td><pre>     hmodel, SS, evBound, MoveInfo = OldMergeMove.run_merge_move(</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2361</td>
+              <td id="line589">589</td>
+              <td><pre>                hmodel, None, SS, evBound, randstate=self.PRNG,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2361</td>
+              <td id="line590">590</td>
+              <td><pre>                excludeList=excludeList, excludePairs=excludePairs,</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 1098.06 s</td>
+              <td>2361</td>
+              <td id="line591">591</td>
+              <td><pre>                kA=kA, **self.algParams['merge'])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>2361</td>
+              <td id="line592">592</td>
+              <td><pre>     trialID += 1</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.70 s</td>
+              <td>2361</td>
+              <td id="line593">593</td>
+              <td><pre>     self.print_msg(MoveInfo['msg'])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line594">594</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line595">595</td>
+              <td><pre>     # Begin Bookkeeping!</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>2361</td>
+              <td id="line596">596</td>
+              <td><pre>     if 'kA' in MoveInfo and 'kB' in MoveInfo:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2361</td>
+              <td id="line597">597</td>
+              <td><pre>       kA = MoveInfo['kA']</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2361</td>
+              <td id="line598">598</td>
+              <td><pre>       kB = MoveInfo['kB']</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>2361</td>
+              <td id="line599">599</td>
+              <td><pre>       excludePairs[kA].add(kB)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>2361</td>
+              <td id="line600">600</td>
+              <td><pre>       excludePairs[kB].add(kA)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line601">601</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2361</td>
+              <td id="line602">602</td>
+              <td><pre>     if MoveInfo['didAccept']:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>50</td>
+              <td id="line603">603</td>
+              <td><pre>       self.MergeLog.append(dict(kA=kA, kB=kB))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line604">604</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line605">605</td>
+              <td><pre>       # Adjust excluded lists since components kB+1, kB+2, ... K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line606">606</td>
+              <td><pre>       #  have been shifted down by one due to removal of kB</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>990</td>
+              <td id="line607">607</td>
+              <td><pre>       for kk in range(len(excludeList)):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>940</td>
+              <td id="line608">608</td>
+              <td><pre>         if excludeList[kk] > kB:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>245</td>
+              <td id="line609">609</td>
+              <td><pre>           excludeList[kk] -= 1</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line610">610</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line611">611</td>
+              <td><pre>       # Exclude new merged component kA from future attempts        </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line612">612</td>
+              <td><pre>       #  since precomputed entropy terms involving kA aren't good</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>50</td>
+              <td id="line613">613</td>
+              <td><pre>       excludeList.append(kA)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line614">614</td>
+              <td><pre>   </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line615">615</td>
+              <td><pre>       # Adjust excluded pairs to remove kB and shift down kB+1, ... K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>50</td>
+              <td id="line616">616</td>
+              <td><pre>       newExcludePairs = defaultdict(lambda:set())</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2172</td>
+              <td id="line617">617</td>
+              <td><pre>       for kk in excludePairs.keys():</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.06 s</td>
+              <td>2122</td>
+              <td id="line618">618</td>
+              <td><pre>         ksarr = np.asarray(list(excludePairs[kk]))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.04 s</td>
+              <td>2122</td>
+              <td id="line619">619</td>
+              <td><pre>         ksarr[ksarr > kB] -= 1</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2122</td>
+              <td id="line620">620</td>
+              <td><pre>         if kk > kB:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>611</td>
+              <td id="line621">621</td>
+              <td><pre>           newExcludePairs[kk-1] = set(ksarr)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1511</td>
+              <td id="line622">622</td>
+              <td><pre>         elif kk < kB:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>1461</td>
+              <td id="line623">623</td>
+              <td><pre>           newExcludePairs[kk] = set(ksarr)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>50</td>
+              <td id="line624">624</td>
+              <td><pre>       excludePairs = newExcludePairs</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line625">625</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line626">626</td>
+              <td><pre>       # Adjust internal tracking of laps since birth</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>50</td>
+              <td id="line627">627</td>
+              <td><pre>       if self.hasMove('birth'):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>50</td>
+              <td id="line628">628</td>
+              <td><pre>         compList = self.LapsSinceLastBirth.keys()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>50</td>
+              <td id="line629">629</td>
+              <td><pre>         newDict = defaultdict(int)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>495</td>
+              <td id="line630">630</td>
+              <td><pre>         for kk in compList:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>445</td>
+              <td id="line631">631</td>
+              <td><pre>           if kk == kA:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line632">632</td>
+              <td><pre>             newDict[kA] = np.maximum(self.LapsSinceLastBirth[kA], self.LapsSinceLastBirth[kB])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>437</td>
+              <td id="line633">633</td>
+              <td><pre>           elif kk < kB:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>358</td>
+              <td id="line634">634</td>
+              <td><pre>             newDict[kk] = self.LapsSinceLastBirth[kk]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>79</td>
+              <td id="line635">635</td>
+              <td><pre>           elif kk > kB:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>71</td>
+              <td id="line636">636</td>
+              <td><pre>             newDict[kk-1] = self.LapsSinceLastBirth[kk]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>50</td>
+              <td id="line637">637</td>
+              <td><pre>         self.LapsSinceLastBirth = newDict</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line638">638</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line639">639</td>
+              <td><pre>   if SS.hasMergeTerms():</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line640">640</td>
+              <td><pre>     SS.setMergeFieldsToZero()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line641">641</td>
+              <td><pre>   return hmodel, SS, evBound</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">getEligibleCompInfo</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">getEligibleCompInfo</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>getEligibleCompInfo</h1>
+	  </div>
+
+          <p>13 Calls, 0.00 s</p>
+	  <p>Generated 10:48:21 05/30/15 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/deletemove/DPlanner.py">/Users/mhughes/git/bnpy2/bnpy/deletemove/DPlanner.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line116">116</td>
+              <td class="code "><div class="code-listing"><pre>@profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line117">117</td>
+              <td class="code "><div class="code-listing"><pre>def getEligibleCompInfo(SS, DRecordsByComp=None,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line118">118</td>
+              <td class="code "><div class="code-listing"><pre>                        dtargetMaxSize=10,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line119">119</td>
+              <td class="code "><div class="code-listing"><pre>                        deleteFailLimit=2,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line120">120</td>
+              <td class="code "><div class="code-listing"><pre>                        **kwargs):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line121">121</td>
+              <td class="code "><div class="code-listing"><pre>    """ Get a dict of lists of component ids eligible for deletion.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line122">122</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line123">123</td>
+              <td class="code "><div class="code-listing"><pre>    Returns</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line124">124</td>
+              <td class="code "><div class="code-listing"><pre>    -------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line125">125</td>
+              <td class="code "><div class="code-listing"><pre>    Info : dict with either no fields, or fields named</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line126">126</td>
+              <td class="code "><div class="code-listing"><pre>        * candidateIDs</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line127">127</td>
+              <td class="code "><div class="code-listing"><pre>        * candidateUIDs</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line128">128</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line129">129</td>
+              <td class="code "><div class="code-listing"><pre>    Any "empty" Info dict indicates that no eligible comps exist.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line130">130</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line131">131</td>
+              <td class="code "><div class="code-listing"><pre>    Post Condition</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line132">132</td>
+              <td class="code "><div class="code-listing"><pre>    -----------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line133">133</td>
+              <td class="code "><div class="code-listing"><pre>    DRecordsByComp will have an entry for each candidate uID</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line134">134</td>
+              <td class="code "><div class="code-listing"><pre>    including updated fields:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line135">135</td>
+              <td class="code "><div class="code-listing"><pre>    * 'count' : value of SS.getCountVec() corresponding to comp uID</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line136">136</td>
+              <td class="code "><div class="code-listing"><pre>    * 'nFail' : number of previous failed delete attempts on uID</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line137">137</td>
+              <td class="code "><div class="code-listing"><pre>    """</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line138">138</td>
+              <td class="code "><div class="code-listing"><pre>    assert hasattr(SS, 'uIDs')</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line139">139</td>
+              <td class="code "><div class="code-listing"><pre>    if DRecordsByComp is None:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line140">140</td>
+              <td class="code "><div class="code-listing"><pre>        DRecordsByComp = dict()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line141">141</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line142">142</td>
+              <td class="code "><div class="code-listing"><pre>    # ----    Measure size of each current state</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line143">143</td>
+              <td class="code "><div class="code-listing"><pre>    # CountVec refers to individual tokens/atoms</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line144">144</td>
+              <td class="code "><div class="code-listing"><pre>    CountVec = SS.getCountVec()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line145">145</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line146">146</td>
+              <td class="code "><div class="code-listing"><pre>    # SizeVec refers to smallest-possible exchangeable units of data</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line147">147</td>
+              <td class="code "><div class="code-listing"><pre>    # e.g. documents in a topic-model, sequences for an HMM</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line148">148</td>
+              <td class="code "><div class="code-listing"><pre>    if SS.hasSelectionTerm('DocUsageCount'):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line149">149</td>
+              <td class="code "><div class="code-listing"><pre>        SizeVec = SS.getSelectionTerm('DocUsageCount')</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line150">150</td>
+              <td class="code "><div class="code-listing"><pre>    else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line151">151</td>
+              <td class="code "><div class="code-listing"><pre>        raise NotImplementedError("DocUsageCount selection term required.")</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line152">152</td>
+              <td class="code "><div class="code-listing"><pre>        #SizeVec = 2 * CountVec  # conservative overestimate</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line153">153</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line154">154</td>
+              <td class="code "><div class="code-listing"><pre>    # ----    Find non-trivial states small enough to fit in target set</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line155">155</td>
+              <td class="code "><div class="code-listing"><pre>    mask_smallEnough = SizeVec <= dtargetMaxSize</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line156">156</td>
+              <td class="code "><div class="code-listing"><pre>    mask_tooBig = np.logical_not(mask_smallEnough)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line157">157</td>
+              <td class="code "><div class="code-listing"><pre>    mask_nonTrivial = SizeVec >= 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line158">158</td>
+              <td class="code "><div class="code-listing"><pre>    eligibleIDs = np.flatnonzero(np.logical_and(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line159">159</td>
+              <td class="code "><div class="code-listing"><pre>        mask_smallEnough, mask_nonTrivial))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line160">160</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line161">161</td>
+              <td class="code "><div class="code-listing"><pre>    nEmpty = np.sum(1 - mask_nonTrivial)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line162">162</td>
+              <td class="code "><div class="code-listing"><pre>    nTooBig = np.sum(1 - mask_smallEnough)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line163">163</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line164">164</td>
+              <td class="code "><div class="code-listing"><pre>    if np.sum(mask_tooBig) > 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line165">165</td>
+              <td class="code "><div class="code-listing"><pre>        minTooBigSize = SizeVec[mask_tooBig].min()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line166">166</td>
+              <td class="code "><div class="code-listing"><pre>    else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line167">167</td>
+              <td class="code "><div class="code-listing"><pre>        minTooBigSize = -1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line168">168</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line169">169</td>
+              <td class="code "><div class="code-listing"><pre>    eligibleUIDs = SS.uIDs[eligibleIDs]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line170">170</td>
+              <td class="code "><div class="code-listing"><pre>    # ----    Return blank dict if no eligibles found</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line171">171</td>
+              <td class="code "><div class="code-listing"><pre>    if len(eligibleIDs) == 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line172">172</td>
+              <td class="code "><div class="code-listing"><pre>        return dict(nEmpty=nEmpty, </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line173">173</td>
+              <td class="code "><div class="code-listing"><pre>            nTooBig=nTooBig,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line174">174</td>
+              <td class="code "><div class="code-listing"><pre>            minTooBigSize=minTooBigSize)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line175">175</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line176">176</td>
+              <td class="code "><div class="code-listing"><pre>    # sort these from smallest to largest usage</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line177">177</td>
+              <td class="code "><div class="code-listing"><pre>    sortIDs = np.argsort(SizeVec[eligibleIDs])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line178">178</td>
+              <td class="code "><div class="code-listing"><pre>    eligibleIDs = eligibleIDs[sortIDs]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line179">179</td>
+              <td class="code "><div class="code-listing"><pre>    eligibleUIDs = eligibleUIDs[sortIDs]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line180">180</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line181">181</td>
+              <td class="code "><div class="code-listing"><pre>    # ----    Release potentially eligible UIDs from "failure" jail</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line182">182</td>
+              <td class="code "><div class="code-listing"><pre>    # If a state has changed mass significantly since last attempt,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line183">183</td>
+              <td class="code "><div class="code-listing"><pre>    # we discard its past failures and make it eligible again.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line184">184</td>
+              <td class="code "><div class="code-listing"><pre>    CountMap = dict()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line185">185</td>
+              <td class="code "><div class="code-listing"><pre>    SizeMap = dict()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>13</td>
+              <td id="line186">186</td>
+              <td class="code "><div class="code-listing"><pre>    for ii, uID in enumerate(eligibleUIDs):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>12</td>
+              <td id="line187">187</td>
+              <td class="code "><div class="code-listing"><pre>        SizeMap[uID] = SizeVec[eligibleIDs[ii]]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>12</td>
+              <td id="line188">188</td>
+              <td class="code "><div class="code-listing"><pre>        CountMap[uID] = CountVec[eligibleIDs[ii]]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line189">189</td>
+              <td class="code "><div class="code-listing"><pre>    for uID in DRecordsByComp.keys():</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line190">190</td>
+              <td class="code "><div class="code-listing"><pre>        if uID not in CountMap or 'count' not in DRecordsByComp[uID]:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line191">191</td>
+              <td class="code "><div class="code-listing"><pre>            continue</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line192">192</td>
+              <td class="code "><div class="code-listing"><pre>        count = DRecordsByComp[uID]['count']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line193">193</td>
+              <td class="code "><div class="code-listing"><pre>        percDiff = np.abs(CountMap[uID] - count) / (count + 1e-14)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line194">194</td>
+              <td class="code "><div class="code-listing"><pre>        if percDiff > 0.15:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line195">195</td>
+              <td class="code "><div class="code-listing"><pre>            del DRecordsByComp[uID]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line196">196</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line197">197</td>
+              <td class="code "><div class="code-listing"><pre>    # ----    Update DRecordsByComp to track size of each eligible UID</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>13</td>
+              <td id="line198">198</td>
+              <td class="code "><div class="code-listing"><pre>    for uID in eligibleUIDs:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>12</td>
+              <td id="line199">199</td>
+              <td class="code "><div class="code-listing"><pre>        if uID not in DRecordsByComp:</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td>< 0.01 s</td>
+              <td>12</td>
+              <td id="line200">200</td>
+              <td class="code danger"><div class="code-listing"><pre>            DRecordsByComp[uID] = dict()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>12</td>
+              <td id="line201">201</td>
+              <td class="code "><div class="code-listing"><pre>        if 'nFail' not in DRecordsByComp[uID]:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>12</td>
+              <td id="line202">202</td>
+              <td class="code "><div class="code-listing"><pre>            DRecordsByComp[uID]['nFail'] = 0</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>12</td>
+              <td id="line203">203</td>
+              <td class="code "><div class="code-listing"><pre>        DRecordsByComp[uID]['count'] = CountMap[uID]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line204">204</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line205">205</td>
+              <td class="code "><div class="code-listing"><pre>    # ----    Prioritize eligible comps by</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line206">206</td>
+              <td class="code "><div class="code-listing"><pre>    # -       * size (smaller preferred)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line207">207</td>
+              <td class="code "><div class="code-listing"><pre>    # -       * previous failures (fewer preferred)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line208">208</td>
+              <td class="code "><div class="code-listing"><pre>    tier1UIDs = list()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line209">209</td>
+              <td class="code "><div class="code-listing"><pre>    tier2UIDs = list()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line210">210</td>
+              <td class="code "><div class="code-listing"><pre>    eliminatedUIDs = list()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line211">211</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>13</td>
+              <td id="line212">212</td>
+              <td class="code "><div class="code-listing"><pre>    for uID in eligibleUIDs:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>12</td>
+              <td id="line213">213</td>
+              <td class="code "><div class="code-listing"><pre>        if DRecordsByComp[uID]['nFail'] == 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>12</td>
+              <td id="line214">214</td>
+              <td class="code "><div class="code-listing"><pre>            tier1UIDs.append(uID)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line215">215</td>
+              <td class="code "><div class="code-listing"><pre>        elif DRecordsByComp[uID]['nFail'] < deleteFailLimit:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line216">216</td>
+              <td class="code "><div class="code-listing"><pre>            tier2UIDs.append(uID)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line217">217</td>
+              <td class="code "><div class="code-listing"><pre>        else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line218">218</td>
+              <td class="code "><div class="code-listing"><pre>            # Any uID here is ineligible for a delete proposal.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line219">219</td>
+              <td class="code "><div class="code-listing"><pre>            eliminatedUIDs.append(uID)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line220">220</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line221">221</td>
+              <td class="code "><div class="code-listing"><pre>    # Select as many first tier as possible</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line222">222</td>
+              <td class="code "><div class="code-listing"><pre>    # until the target dataset budget is exceeded</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line223">223</td>
+              <td class="code "><div class="code-listing"><pre>    if hasattr(SS, 'nDoc'):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line224">224</td>
+              <td class="code "><div class="code-listing"><pre>        totalSize = SS.nDoc</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line225">225</td>
+              <td class="code "><div class="code-listing"><pre>    else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line226">226</td>
+              <td class="code "><div class="code-listing"><pre>        totalSize = np.floor(CountVec.sum())</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line227">227</td>
+              <td class="code "><div class="code-listing"><pre>    canTakeEverything = dtargetMaxSize >= totalSize</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line228">228</td>
+              <td class="code "><div class="code-listing"><pre>    if len(tier1UIDs) > 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>13</td>
+              <td id="line229">229</td>
+              <td class="code "><div class="code-listing"><pre>        tier1AggSize = np.cumsum([SizeMap[uID] for uID in tier1UIDs])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line230">230</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line231">231</td>
+              <td class="code "><div class="code-listing"><pre>        if canTakeEverything:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line232">232</td>
+              <td class="code "><div class="code-listing"><pre>            selectUIDs = tier1UIDs</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line233">233</td>
+              <td class="code "><div class="code-listing"><pre>            curTargetSize = dtargetMaxSize</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line234">234</td>
+              <td class="code "><div class="code-listing"><pre>        else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line235">235</td>
+              <td class="code "><div class="code-listing"><pre>            # maxLoc is an integer in {0, 1, ... |tier1UIDs|}</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line236">236</td>
+              <td class="code "><div class="code-listing"><pre>            # maxLoc equals m if we want everything in half-open interval 0:m</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line237">237</td>
+              <td class="code "><div class="code-listing"><pre>            # If we are looking for sizes <= dtargetMaxSize, need to add one</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line238">238</td>
+              <td class="code "><div class="code-listing"><pre>            # >>> searchsorted([3., 4., 5.], 3)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line239">239</td>
+              <td class="code "><div class="code-listing"><pre>            # 0</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line240">240</td>
+              <td class="code "><div class="code-listing"><pre>            # >>> searchsorted([3., 4., 5.], 3+1)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line241">241</td>
+              <td class="code "><div class="code-listing"><pre>            # 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line242">242</td>
+              <td class="code "><div class="code-listing"><pre>            maxLoc = np.searchsorted(tier1AggSize, dtargetMaxSize+1)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line243">243</td>
+              <td class="code "><div class="code-listing"><pre>            selectUIDs = tier1UIDs[:maxLoc]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line244">244</td>
+              <td class="code "><div class="code-listing"><pre>            if maxLoc > 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line245">245</td>
+              <td class="code "><div class="code-listing"><pre>                curTargetSize = tier1AggSize[maxLoc - 1]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line246">246</td>
+              <td class="code "><div class="code-listing"><pre>            else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line247">247</td>
+              <td class="code "><div class="code-listing"><pre>                # We took no items from this tier</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line248">248</td>
+              <td class="code "><div class="code-listing"><pre>                curTargetSize = 0      </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line249">249</td>
+              <td class="code "><div class="code-listing"><pre>    else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line250">250</td>
+              <td class="code "><div class="code-listing"><pre>        selectUIDs = []</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line251">251</td>
+              <td class="code "><div class="code-listing"><pre>        curTargetSize = 0</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line252">252</td>
+              <td class="code "><div class="code-listing"><pre>    selectUIDs = np.asarray(selectUIDs)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line253">253</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line254">254</td>
+              <td class="code "><div class="code-listing"><pre>    # Fill remaining budget from second tier</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line255">255</td>
+              <td class="code "><div class="code-listing"><pre>    if canTakeEverything:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line256">256</td>
+              <td class="code "><div class="code-listing"><pre>        selectUIDs = np.hstack([selectUIDs, tier2UIDs])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line257">257</td>
+              <td class="code "><div class="code-listing"><pre>    elif curTargetSize < dtargetMaxSize:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line258">258</td>
+              <td class="code "><div class="code-listing"><pre>        tier2AggSize = np.cumsum([SizeMap[x] for x in tier2UIDs])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line259">259</td>
+              <td class="code "><div class="code-listing"><pre>        maxLoc = np.searchsorted(tier2AggSize, dtargetMaxSize + 1 - curTargetSize)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line260">260</td>
+              <td class="code "><div class="code-listing"><pre>        if maxLoc > 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line261">261</td>
+              <td class="code "><div class="code-listing"><pre>            selectUIDs = np.hstack([selectUIDs, tier2UIDs[:maxLoc]])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line262">262</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>5</td>
+              <td id="line263">263</td>
+              <td class="code "><div class="code-listing"><pre>    selectMassVec = [SizeMap[x] for x in selectUIDs]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line264">264</td>
+              <td class="code "><div class="code-listing"><pre>    selectIDs = list()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>5</td>
+              <td id="line265">265</td>
+              <td class="code "><div class="code-listing"><pre>    for uid in selectUIDs:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line266">266</td>
+              <td class="code "><div class="code-listing"><pre>        jj = np.flatnonzero(uid == eligibleUIDs)[0]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line267">267</td>
+              <td class="code "><div class="code-listing"><pre>        selectIDs.append(eligibleIDs[jj])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line268">268</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line269">269</td>
+              <td class="code "><div class="code-listing"><pre>    Output = dict(CountMap=CountMap, </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line270">270</td>
+              <td class="code "><div class="code-listing"><pre>        SizeMap=SizeMap,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line271">271</td>
+              <td class="code "><div class="code-listing"><pre>        minTooBigSize=minTooBigSize,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line272">272</td>
+              <td class="code "><div class="code-listing"><pre>        nEmpty=nEmpty,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line273">273</td>
+              <td class="code "><div class="code-listing"><pre>        nTooBig=nTooBig)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line274">274</td>
+              <td class="code "><div class="code-listing"><pre>    Output['eligible-by-size-IDs'] = eligibleIDs</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line275">275</td>
+              <td class="code "><div class="code-listing"><pre>    Output['eligible-by-size-UIDs'] = eligibleUIDs</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line276">276</td>
+              <td class="code "><div class="code-listing"><pre>    Output['eliminatedUIDs'] = eliminatedUIDs</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line277">277</td>
+              <td class="code "><div class="code-listing"><pre>    Output['tier1UIDs'] = tier1UIDs</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line278">278</td>
+              <td class="code "><div class="code-listing"><pre>    Output['tier2UIDs'] = tier2UIDs</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line279">279</td>
+              <td class="code "><div class="code-listing"><pre>    Output['SizeMap'] = SizeMap</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>5</td>
+              <td id="line280">280</td>
+              <td class="code "><div class="code-listing"><pre>    Output['nCandidateTier1'] = len([x for x in selectUIDs if x in tier1UIDs])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>5</td>
+              <td id="line281">281</td>
+              <td class="code "><div class="code-listing"><pre>    Output['nCandidateTier2'] = len([x for x in selectUIDs if x in tier2UIDs])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line282">282</td>
+              <td class="code "><div class="code-listing"><pre>    Output['candidateIDs'] = selectIDs</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line283">283</td>
+              <td class="code "><div class="code-listing"><pre>    Output['candidateUIDs'] = selectUIDs.tolist()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line284">284</td>
+              <td class="code "><div class="code-listing"><pre>    Output['candidateSizes'] = selectMassVec</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line285">285</td>
+              <td class="code "><div class="code-listing"><pre>    return Output</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

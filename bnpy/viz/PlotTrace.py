@@ -188,7 +188,6 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
                 xs = xs[np.in1d(laps_x, laps_y)]
                 ys = ys[np.in1d(laps_y, laps_x)]
 
-    
         if xs.size != ys.size:
             raise ValueError('Dimension mismatch. len(xs)=%d, len(ys)=%d'
                              % (xs.size, ys.size))

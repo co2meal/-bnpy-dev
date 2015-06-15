@@ -14,9 +14,6 @@ from bnpy.viz import GaussViz
 DEFAULT_SEED = 123
 DEFAULT_LEN = 2000
 
-# User-facing
-###########################################################
-
 
 def get_data(seed=DEFAULT_SEED, T=DEFAULT_LEN, **kwargs):
     ''' Generate toy data sequences, returned as a bnpy data-object
@@ -50,9 +47,6 @@ def get_short_name():
 def get_data_info():
     return 'Toy sequential data with unique state in third sequence.'
 
-# Data generation
-###########################################################
-
 D = 1
 K = 4
 
@@ -75,9 +69,7 @@ Sigma_master = None
 
 
 def get_X(seed, T=DEFAULT_LEN):
-    '''
-    Generates X, Z, seqInds according to the gaussian parameters specified above
-      and the sequence lengths passed in.
+    ''' TODO
     '''
     prng = np.random.RandomState(seed)
 
@@ -85,7 +77,7 @@ def get_X(seed, T=DEFAULT_LEN):
     Ts = int(T) * np.ones(3, dtype=np.int32)
 
     # Covariance for each component
-    # Orig ref: covariance for all states drawn from InvWishart(0.5, deg-free=3) prior
+    # Covariance for all states drawn from InvWishart(0.5, deg-free=3) prior
     # This is the same as an inverse gamma with a = 3/2, b= 0.25 (=.5/2)
     # which is the same as a gamma on precision, with a = 3/2, b = 4
     invSigmas = prng.gamma(3.0 / 2, 4, size=K)

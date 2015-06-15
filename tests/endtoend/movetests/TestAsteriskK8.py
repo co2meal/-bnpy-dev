@@ -13,15 +13,15 @@ class Test(MergeMoveEndToEndTest):
         """ Create the dataset
         """
         self.datasetArg = dict(
-            name='AsteriskK8', 
-            nObsTotal=16000, 
-            )
+            name='AsteriskK8',
+            nObsTotal=16000,
+        )
         datasetMod = __import__(self.datasetArg['name'], fromlist=[])
         self.Data = datasetMod.get_data(**self.datasetArg)
 
         import AsteriskK8
         self.Data = AsteriskK8.get_data(nObsTotal=16000)
-        
+
     def nextObsKwArgsForVB(self):
         for sF in [0.5, 5.0]:
             for ECovMat in ['eye', 'covdata']:

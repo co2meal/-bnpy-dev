@@ -13,19 +13,19 @@ class Test(MergeMoveEndToEndTest):
         """ Create the dataset
         """
         self.datasetArg = dict(
-            name='JainNealEx1', 
+            name='JainNealEx1',
             nPerState=100,
             nObsTotal=500,
-            )
+        )
         datasetMod = __import__(self.datasetArg['name'], fromlist=[])
         self.Data = datasetMod.get_data(**self.datasetArg)
-        
+
     def nextObsKwArgsForVB(self):
         for lam in [0.5, 0.01]:
             kwargs = OrderedDict()
             kwargs['name'] = 'Bern'
             kwargs['lam1'] = lam
-            kwargs['lam0'] = lam            
+            kwargs['lam0'] = lam
             yield kwargs
 
     def nextAllocKwArgsForVB(self):

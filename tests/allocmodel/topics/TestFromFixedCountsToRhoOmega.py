@@ -1,7 +1,7 @@
 '''
-Basic unittest that will instantiate a fixed DocTopicCount 
+Basic unittest that will instantiate a fixed DocTopicCount
 (assumed the same for all documents, for simplicity),
-and then examine how inference of rho/omega procedes given this 
+and then examine how inference of rho/omega procedes given this
 fixed set of counts.
 
 Conclusions
@@ -31,12 +31,13 @@ def np2flatstr(xvec, fmt='%9.3f', Kmax=10):
     strList = [(fmt % (x)) for x in xvec[:Kmax]]
     return ' '.join(strList)
 
+
 def pprintResult(Results):
     K = Results[0]['rho'].size
     rhoinitstr = 'init : '
-    rhoeststr =  'final: '
-    ominitstr =  'init : '
-    omeststr =  'final: '
+    rhoeststr = 'final: '
+    ominitstr = 'init : '
+    omeststr = 'final: '
     betastr = 'final: '
     for Info in Results:
         rho_init = Info['init'][:K]
@@ -61,14 +62,16 @@ def pprintResult(Results):
     print betastr
     print ''
 
+
 class Test(unittest.TestCase):
+
     def shortDescription(self):
         return None
 
     def testMany_FixedCount_GlobalStepOnce(self):
         Nd = 100
         for n1 in [10, 20, 30, 40, 50]:
-            DocTopicCount_d = np.asarray([n1, Nd-n1])
+            DocTopicCount_d = np.asarray([n1, Nd - n1])
             self.test_FixedCount_GlobalStepOnce(
                 DocTopicCount_d=DocTopicCount_d,
                 alpha=0.5, gamma=10.0)
@@ -76,17 +79,17 @@ class Test(unittest.TestCase):
     def testMany_FixedCount_GlobalStepToConvergence(self):
         Nd = 100
         for n1 in [10, 20, 30, 40, 50]:
-            DocTopicCount_d = np.asarray([n1, Nd-n1])
+            DocTopicCount_d = np.asarray([n1, Nd - n1])
             self.test_FixedCount_GlobalStepToConvergence(
                 DocTopicCount_d=DocTopicCount_d,
                 alpha=0.5, gamma=10.0)
 
-    def test_FixedCount_GlobalStepOnce(self, 
-            K=2,
-            gamma=10.0, 
-            alpha=5.0,
-            DocTopicCount_d=[100./2, 100/2]):
-        ''' Given fixed counts, run one global update to rho/omega. 
+    def test_FixedCount_GlobalStepOnce(self,
+                                       K=2,
+                                       gamma=10.0,
+                                       alpha=5.0,
+                                       DocTopicCount_d=[100. / 2, 100 / 2]):
+        ''' Given fixed counts, run one global update to rho/omega.
 
         Verify that regardless of initialization,
         the recovered beta value is roughly the same.
@@ -98,13 +101,13 @@ class Test(unittest.TestCase):
             alpha, gamma)
         print '------------- DocTopicCount [%s]' % (
             np2flatstr(DocTopicCount_d, fmt='%d'),
-            )
+        )
         print '------------- DocTopicProb  [%s]' % (
-            np2flatstr(DocTopicCount_d/DocTopicCount_d.sum(), fmt='%.3f'),
-            )
+            np2flatstr(DocTopicCount_d / DocTopicCount_d.sum(), fmt='%.3f'),
+        )
         Nd = np.sum(DocTopicCount_d)
-        theta_d = DocTopicCount_d + alpha * 1.0 / (K+1) * np.ones(K)
-        thetaRem = alpha * 1/(K+1)
+        theta_d = DocTopicCount_d + alpha * 1.0 / (K + 1) * np.ones(K)
+        thetaRem = alpha * 1 / (K + 1)
         assert np.allclose(theta_d.sum() + thetaRem, alpha + Nd)
         digammaSum = digamma(theta_d.sum() + thetaRem)
         Elogpi_d = digamma(theta_d) - digammaSum
@@ -131,7 +134,7 @@ class Test(unittest.TestCase):
                     )
                 betaK = rho2beta(rho, returnSize='K')
                 Info.update(nDoc=nDoc, alpha=alpha, gamma=gamma,
-                        rho=rho, omega=omega, betaK=betaK)
+                            rho=rho, omega=omega, betaK=betaK)
                 Results.append(Info)
             pprintResult(Results)
             beta1 = Results[0]['betaK']
@@ -139,12 +142,16 @@ class Test(unittest.TestCase):
                 beta_i = Results[i]['betaK']
                 assert np.allclose(beta1, beta_i, atol=0.0001, rtol=0)
 
-    def test_FixedCount_GlobalStepToConvergence(self, 
-            gamma=10.0, 
-            alpha=5.0,
-            nDocRange=[1, 10, 100],
-            DocTopicCount_d=[500, 0, 300, 200],
-            doRestart=1):
+    def test_FixedCount_GlobalStepToConvergence(self,
+                                                gamma=10.0,
+                                                alpha=5.0,
+                                                nDocRange=[1, 10, 100],
+                                                DocTopicCount_d=[
+                                                    500,
+                                                    0,
+                                                    300,
+                                                    200],
+                                                doRestart=1):
         ''' Given fixed counts, run rho/omega inference to convergence.
 
         Verify that regardless of initialization,
@@ -154,10 +161,10 @@ class Test(unittest.TestCase):
         DocTopicCount_d = np.asarray(DocTopicCount_d, dtype=np.float64)
         print 'Fixed DocTopicCount [%s]' % (
             np2flatstr(DocTopicCount_d, fmt='%5d'),
-            )
+        )
         print 'Est DocTopicProb    [%s]' % (
-            np2flatstr(DocTopicCount_d/DocTopicCount_d.sum(), fmt='%.3f'),
-            )
+            np2flatstr(DocTopicCount_d / DocTopicCount_d.sum(), fmt='%.3f'),
+        )
         for nDoc in nDocRange:
             print 'nDoc = %d' % (nDoc)
 
@@ -170,14 +177,14 @@ class Test(unittest.TestCase):
                 rho2, omega2 = learn_rhoomega_fromFixedCounts(
                     DocTopicCount_d=DocTopicCount_d, nDoc=nDoc,
                     alpha=alpha, gamma=gamma,
-                    initrho=rho/2, initomega=omega/2)
+                    initrho=rho / 2, initomega=omega / 2)
                 assert np.allclose(rho, rho2, atol=0.0001, rtol=0)
 
-                
+
 def learn_rhoomega_fromFixedCounts(DocTopicCount_d=None,
-        nDoc=0,
-        alpha=None, gamma=None,
-        initrho=None, initomega=None):
+                                   nDoc=0,
+                                   alpha=None, gamma=None,
+                                   initrho=None, initomega=None):
     Nd = np.sum(DocTopicCount_d)
     K = DocTopicCount_d.size
     if initrho is None:
@@ -190,18 +197,18 @@ def learn_rhoomega_fromFixedCounts(DocTopicCount_d=None,
         omega = initomega
 
     evalELBOandPrint(
-                rho=rho, omega=omega,
-                DocTopicCount=np.tile(DocTopicCount_d, (nDoc,1)),
-                alpha=alpha, gamma=gamma,
-                msg='init',
-                )
+        rho=rho, omega=omega,
+        DocTopicCount=np.tile(DocTopicCount_d, (nDoc, 1)),
+        alpha=alpha, gamma=gamma,
+        msg='init',
+    )
     betaK = rho2beta(rho, returnSize="K")
     prevbetaK = np.zeros_like(betaK)
     iterid = 0
     while np.sum(np.abs(betaK - prevbetaK)) > 0.000001:
         iterid += 1
         theta_d = DocTopicCount_d + alpha * betaK
-        thetaRem = alpha * (1-np.sum(betaK))
+        thetaRem = alpha * (1 - np.sum(betaK))
         assert np.allclose(theta_d.sum() + thetaRem, alpha + Nd)
         digammaSum = digamma(theta_d.sum() + thetaRem)
         Elogpi_d = digamma(theta_d) - digammaSum
@@ -220,18 +227,19 @@ def learn_rhoomega_fromFixedCounts(DocTopicCount_d=None,
             )
         prevbetaK = betaK.copy()
         betaK = rho2beta(rho, returnSize="K")
-        if iterid < 5 or iterid % 10 == 0:  
+        if iterid < 5 or iterid % 10 == 0:
             evalELBOandPrint(
                 rho=rho, omega=omega,
-                DocTopicCount=np.tile(DocTopicCount_d, (nDoc,1)),
+                DocTopicCount=np.tile(DocTopicCount_d, (nDoc, 1)),
                 alpha=alpha, gamma=gamma,
                 msg=str(iterid),
-                )
+            )
     return rho, omega
-            
+
+
 def evalELBOandPrint(DocTopicCount=None, alpha=None, gamma=None,
-        rho=None, omega=None, msg=''):
-    ''' Check on the objective. 
+                     rho=None, omega=None, msg=''):
+    ''' Check on the objective.
     '''
     L = calcELBO_FixedDocTopicCountIgnoreEntropy(
         DocTopicCount=DocTopicCount,
@@ -244,7 +252,7 @@ def evalELBOandPrint(DocTopicCount=None, alpha=None, gamma=None,
     betastr = np2flatstr(betaK, fmt="%.4f")
     omstr = np2flatstr(omega, fmt="%6.2f")
     print '%10s % .6e beta %s | omega %s' % (
-            msg, L / float(nDoc), betastr, omstr)
+        msg, L / float(nDoc), betastr, omstr)
 
 
 if __name__ == '__main__':

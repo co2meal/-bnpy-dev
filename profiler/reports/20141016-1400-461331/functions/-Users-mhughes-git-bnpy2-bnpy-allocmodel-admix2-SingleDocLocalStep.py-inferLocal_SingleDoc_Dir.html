@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">inferLocal_SingleDoc_Dir</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">inferLocal_SingleDoc_Dir</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>inferLocal_SingleDoc_Dir</h1>
+	  </div>
+
+          <p>5458816 Calls, 688.45 s</p>
+	  <p>Generated 14:15:41 10/16/14 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix2/SingleDocLocalStep.py">/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix2/SingleDocLocalStep.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line5">5</td>
+              <td class="code "><div class="code-listing"><pre>@profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line6">6</td>
+              <td class="code "><div class="code-listing"><pre>def inferLocal_SingleDoc_Dir(wc_d, Lik_d, alphaEbeta, alphaEbetaRem,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line7">7</td>
+              <td class="code "><div class="code-listing"><pre>                             DocTopicCount_d=None, sumR_d=None,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line8">8</td>
+              <td class="code "><div class="code-listing"><pre>                             nCoordAscentItersLP=10, convThrLP=0.001, </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line9">9</td>
+              <td class="code "><div class="code-listing"><pre>                             restartremovejunkLP=0,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line10">10</td>
+              <td class="code "><div class="code-listing"><pre>                             **kwargs):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line11">11</td>
+              <td class="code "><div class="code-listing"><pre>  ''' Infer compact local parameters for a single document</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line12">12</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line13">13</td>
+              <td class="code "><div class="code-listing"><pre>      Assumes q(Pi_d) is a Dirichlet.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line14">14</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line15">15</td>
+              <td class="code "><div class="code-listing"><pre>      Args</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line16">16</td>
+              <td class="code "><div class="code-listing"><pre>      --------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line17">17</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line18">18</td>
+              <td class="code "><div class="code-listing"><pre>      Kwargs</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line19">19</td>
+              <td class="code "><div class="code-listing"><pre>      --------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line20">20</td>
+              <td class="code "><div class="code-listing"><pre>      restartremovejunkLP : set to 2 to do doc-level removal of small topics</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line21">21</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line22">22</td>
+              <td class="code "><div class="code-listing"><pre>      Returns</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line23">23</td>
+              <td class="code "><div class="code-listing"><pre>      --------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line24">24</td>
+              <td class="code "><div class="code-listing"><pre>      DocTopicCount_d : updated doc-topic counts</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line25">25</td>
+              <td class="code "><div class="code-listing"><pre>      Prior_d : prob of topic in document, up to mult. constant</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line26">26</td>
+              <td class="code "><div class="code-listing"><pre>      sumR_d : normalization constant for each token</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line27">27</td>
+              <td class="code "><div class="code-listing"><pre>  ''' </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.12 s</td>
+              <td>65385</td>
+              <td id="line28">28</td>
+              <td class="code "><div class="code-listing"><pre>  if sumR_d is None:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.39 s</td>
+              <td>65385</td>
+              <td id="line29">29</td>
+              <td class="code "><div class="code-listing"><pre>    sumR_d = np.zeros(Lik_d.shape[0])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line30">30</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line31">31</td>
+              <td class="code "><div class="code-listing"><pre>  ## Initialize using global topic probabilities</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.11 s</td>
+              <td>65385</td>
+              <td id="line32">32</td>
+              <td class="code "><div class="code-listing"><pre>  if DocTopicCount_d is None:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.23 s</td>
+              <td>65385</td>
+              <td id="line33">33</td>
+              <td class="code "><div class="code-listing"><pre>    Prior_d = alphaEbeta.copy()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line34">34</td>
+              <td class="code "><div class="code-listing"><pre>    ## Update sumR_d for all tokens in document</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.83 s</td>
+              <td>65385</td>
+              <td id="line35">35</td>
+              <td class="code "><div class="code-listing"><pre>    np.dot(Lik_d, Prior_d, out=sumR_d)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line36">36</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line37">37</td>
+              <td class="code "><div class="code-listing"><pre>    ## Update DocTopicCounts</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.78 s</td>
+              <td>65385</td>
+              <td id="line38">38</td>
+              <td class="code "><div class="code-listing"><pre>    DocTopicCount_d = np.zeros_like(Prior_d)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.14 s</td>
+              <td>65385</td>
+              <td id="line39">39</td>
+              <td class="code "><div class="code-listing"><pre>    np.dot(wc_d / sumR_d, Lik_d, out=DocTopicCount_d)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.31 s</td>
+              <td>65385</td>
+              <td id="line40">40</td>
+              <td class="code "><div class="code-listing"><pre>    DocTopicCount_d *= Prior_d</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line41">41</td>
+              <td class="code "><div class="code-listing"><pre>      </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.26 s</td>
+              <td>65385</td>
+              <td id="line42">42</td>
+              <td class="code "><div class="code-listing"><pre>  prevDocTopicCount_d = DocTopicCount_d.copy()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 9.29 s</td>
+              <td>5458816</td>
+              <td id="line43">43</td>
+              <td class="code "><div class="code-listing"><pre>  for iter in xrange(nCoordAscentItersLP):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line44">44</td>
+              <td class="code "><div class="code-listing"><pre>    ## Update Prob of Active Topics</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 25.41 s</td>
+              <td>5425053</td>
+              <td id="line45">45</td>
+              <td class="code "><div class="code-listing"><pre>    np.add(DocTopicCount_d, alphaEbeta, out=Prior_d)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 79.30 s</td>
+              <td>5425053</td>
+              <td id="line46">46</td>
+              <td class="code "><div class="code-listing"><pre>    digamma(Prior_d, out=Prior_d)   # Prior_d = E[ log pi_dk ] + constant</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 84.23 s</td>
+              <td>5425053</td>
+              <td id="line47">47</td>
+              <td class="code "><div class="code-listing"><pre>    Prior_d -= Prior_d.max()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 32.38 s</td>
+              <td>5425053</td>
+              <td id="line48">48</td>
+              <td class="code "><div class="code-listing"><pre>    np.exp(Prior_d, out=Prior_d)    # Prior_d = exp E[ log pi_dk ] / constant</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line49">49</td>
+              <td class="code "><div class="code-listing"><pre>      </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line50">50</td>
+              <td class="code "><div class="code-listing"><pre>    ## Update sumR_d for all tokens in document</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 60.83 s</td>
+              <td>5425053</td>
+              <td id="line51">51</td>
+              <td class="code "><div class="code-listing"><pre>    np.dot(Lik_d, Prior_d, out=sumR_d)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line52">52</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line53">53</td>
+              <td class="code "><div class="code-listing"><pre>    ## Update DocTopicCounts</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 87.10 s</td>
+              <td>5425053</td>
+              <td id="line54">54</td>
+              <td class="code "><div class="code-listing"><pre>    np.dot(wc_d / sumR_d, Lik_d, out=DocTopicCount_d)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 24.49 s</td>
+              <td>5425053</td>
+              <td id="line55">55</td>
+              <td class="code "><div class="code-listing"><pre>    DocTopicCount_d *= Prior_d</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line56">56</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line57">57</td>
+              <td class="code "><div class="code-listing"><pre>    ## Check for convergence</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 113.95 s</td>
+              <td>5425053</td>
+              <td id="line58">58</td>
+              <td class="code "><div class="code-listing"><pre>    maxDiff = np.max(np.abs(DocTopicCount_d - prevDocTopicCount_d))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 11.96 s</td>
+              <td>5425053</td>
+              <td id="line59">59</td>
+              <td class="code "><div class="code-listing"><pre>    if maxDiff < convThrLP:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.05 s</td>
+              <td>31622</td>
+              <td id="line60">60</td>
+              <td class="code "><div class="code-listing"><pre>      break</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 19.76 s</td>
+              <td>5393431</td>
+              <td id="line61">61</td>
+              <td class="code "><div class="code-listing"><pre>    prevDocTopicCount_d[:] = DocTopicCount_d</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line62">62</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.18 s</td>
+              <td>65385</td>
+              <td id="line63">63</td>
+              <td class="code "><div class="code-listing"><pre>  Info = dict(maxDiff=maxDiff, iter=iter)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.12 s</td>
+              <td>65385</td>
+              <td id="line64">64</td>
+              <td class="code "><div class="code-listing"><pre>  if restartremovejunkLP == 2:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.10 s</td>
+              <td>65385</td>
+              <td id="line65">65</td>
+              <td class="code "><div class="code-listing"><pre>    DocTopicCount_d, Prior_d, sumR_d, RInfo = removeJunkTopics_SingleDoc(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.10 s</td>
+              <td>65385</td>
+              <td id="line66">66</td>
+              <td class="code "><div class="code-listing"><pre>                     wc_d, Lik_d, alphaEbeta, alphaEbetaRem, </pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 134.70 s</td>
+              <td>65385</td>
+              <td id="line67">67</td>
+              <td class="code danger"><div class="code-listing"><pre>                     DocTopicCount_d, Prior_d, sumR_d, **kwargs)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.23 s</td>
+              <td>65385</td>
+              <td id="line68">68</td>
+              <td class="code "><div class="code-listing"><pre>    Info.update(RInfo)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.11 s</td>
+              <td>65385</td>
+              <td id="line69">69</td>
+              <td class="code "><div class="code-listing"><pre>  return DocTopicCount_d, Prior_d, sumR_d, Info</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

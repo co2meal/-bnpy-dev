@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">calcHardMergeGap</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">calcHardMergeGap</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>calcHardMergeGap</h1>
+	  </div>
+
+          <p>78 Calls, 0.24 s</p>
+	  <p>Generated 10:48:20 05/30/15 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/allocmodel/hmm/HDPHMM.py">/Users/mhughes/git/bnpy2/bnpy/allocmodel/hmm/HDPHMM.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line508">508</td>
+              <td class="code "><div class="code-listing"><pre>   @profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line509">509</td>
+              <td class="code "><div class="code-listing"><pre>   def calcHardMergeGap(self, SS, kA, kB):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line510">510</td>
+              <td class="code "><div class="code-listing"><pre>       ''' Calculate scalar improvement in ELBO for hard merge of comps kA, kB</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line511">511</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line512">512</td>
+              <td class="code "><div class="code-listing"><pre>       Does *not* include any entropy.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line513">513</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line514">514</td>
+              <td class="code "><div class="code-listing"><pre>       Returns</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line515">515</td>
+              <td class="code "><div class="code-listing"><pre>       ---------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line516">516</td>
+              <td class="code "><div class="code-listing"><pre>       L : scalar</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line517">517</td>
+              <td class="code "><div class="code-listing"><pre>       '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>78</td>
+              <td id="line518">518</td>
+              <td class="code "><div class="code-listing"><pre>       m_K = SS.K - 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>78</td>
+              <td id="line519">519</td>
+              <td class="code "><div class="code-listing"><pre>       m_SS = SuffStatBag(K=SS.K, D=0)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>78</td>
+              <td id="line520">520</td>
+              <td class="code "><div class="code-listing"><pre>       m_SS.setField('StartStateCount', SS.StartStateCount.copy(), dims='K')</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>78</td>
+              <td id="line521">521</td>
+              <td class="code "><div class="code-listing"><pre>       m_SS.setField('TransStateCount', SS.TransStateCount.copy(),</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>78</td>
+              <td id="line522">522</td>
+              <td class="code "><div class="code-listing"><pre>                     dims=('K', 'K'))</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 0.06 s</td>
+              <td>78</td>
+              <td id="line523">523</td>
+              <td class="code danger"><div class="code-listing"><pre>       m_SS.mergeComps(kA, kB)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line524">524</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line525">525</td>
+              <td class="code "><div class="code-listing"><pre>       # Create candidate beta vector</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>78</td>
+              <td id="line526">526</td>
+              <td class="code "><div class="code-listing"><pre>       m_beta = StickBreakUtil.rho2beta(self.rho)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>78</td>
+              <td id="line527">527</td>
+              <td class="code "><div class="code-listing"><pre>       m_beta[kA] += m_beta[kB]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>78</td>
+              <td id="line528">528</td>
+              <td class="code "><div class="code-listing"><pre>       m_beta = np.delete(m_beta, kB, axis=0)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line529">529</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line530">530</td>
+              <td class="code "><div class="code-listing"><pre>       # Create candidate rho and omega vectors</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>78</td>
+              <td id="line531">531</td>
+              <td class="code "><div class="code-listing"><pre>       m_rho = StickBreakUtil.beta2rho(m_beta, m_K)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>78</td>
+              <td id="line532">532</td>
+              <td class="code "><div class="code-listing"><pre>       m_omega = np.delete(self.omega, kB)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line533">533</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line534">534</td>
+              <td class="code "><div class="code-listing"><pre>       # Create candidate startTheta</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>78</td>
+              <td id="line535">535</td>
+              <td class="code "><div class="code-listing"><pre>       m_startTheta = self.startAlpha * m_beta.copy()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>78</td>
+              <td id="line536">536</td>
+              <td class="code "><div class="code-listing"><pre>       m_startTheta[:m_K] += m_SS.StartStateCount</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line537">537</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line538">538</td>
+              <td class="code "><div class="code-listing"><pre>       # Create candidate transTheta</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>78</td>
+              <td id="line539">539</td>
+              <td class="code "><div class="code-listing"><pre>       m_transTheta = self.alpha * np.tile(m_beta, (m_K, 1))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>78</td>
+              <td id="line540">540</td>
+              <td class="code "><div class="code-listing"><pre>       if self.kappa > 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>78</td>
+              <td id="line541">541</td>
+              <td class="code "><div class="code-listing"><pre>           m_transTheta[:, :m_K] += self.kappa * np.eye(m_K)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>78</td>
+              <td id="line542">542</td>
+              <td class="code "><div class="code-listing"><pre>       m_transTheta[:, :m_K] += m_SS.TransStateCount</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line543">543</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line544">544</td>
+              <td class="code "><div class="code-listing"><pre>       # Evaluate objective func. for both candidate and current model</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>78</td>
+              <td id="line545">545</td>
+              <td class="code "><div class="code-listing"><pre>       Lcur = calcELBO_LinearTerms(SS=SS,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>78</td>
+              <td id="line546">546</td>
+              <td class="code "><div class="code-listing"><pre>           rho=self.rho, omega=self.omega, </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>78</td>
+              <td id="line547">547</td>
+              <td class="code "><div class="code-listing"><pre>           startTheta=self.startTheta, transTheta=self.transTheta,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>78</td>
+              <td id="line548">548</td>
+              <td class="code "><div class="code-listing"><pre>           alpha=self.alpha, startAlpha=self.startAlpha, </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.06 s</td>
+              <td>78</td>
+              <td id="line549">549</td>
+              <td class="code "><div class="code-listing"><pre>           gamma=self.gamma, kappa=self.kappa)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line550">550</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>78</td>
+              <td id="line551">551</td>
+              <td class="code "><div class="code-listing"><pre>       Lprop = calcELBO_LinearTerms(SS=m_SS,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>78</td>
+              <td id="line552">552</td>
+              <td class="code "><div class="code-listing"><pre>           rho=m_rho, omega=m_omega,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>78</td>
+              <td id="line553">553</td>
+              <td class="code "><div class="code-listing"><pre>           startTheta=m_startTheta, transTheta=m_transTheta,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>78</td>
+              <td id="line554">554</td>
+              <td class="code "><div class="code-listing"><pre>           alpha=self.alpha, startAlpha=self.startAlpha, </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.06 s</td>
+              <td>78</td>
+              <td id="line555">555</td>
+              <td class="code "><div class="code-listing"><pre>           gamma=self.gamma, kappa=self.kappa)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line556">556</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line557">557</td>
+              <td class="code "><div class="code-listing"><pre>       # Note: This gap relies on fact that all nonlinear terms are entropies,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>78</td>
+              <td id="line558">558</td>
+              <td class="code "><div class="code-listing"><pre>       return Lprop - Lcur</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

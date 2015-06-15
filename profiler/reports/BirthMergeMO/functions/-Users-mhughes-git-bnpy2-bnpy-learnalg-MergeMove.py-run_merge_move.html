@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="../../assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="../../assets/css/docs.css" rel="stylesheet">
+    <!-- <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet"> -->
+    <link rel="stylesheet" href="../../assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">run_merge_move</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">run_merge_move</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>run_merge_move</h1>
+	  </div>
+
+          <p>250 Calls, 183.114 s</p>
+	  <p>Generated 18:11:05 01/04/14 EST</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/learnalg/MergeMove.py">/Users/mhughes/git/bnpy2/bnpy/learnalg/MergeMove.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line23">23</td>
+              <td><pre class="prettyprint">@profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line24">24</td>
+              <td><pre class="prettyprint">def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line25">25</td>
+              <td><pre class="prettyprint">                   kA=None, kB=None, excludeList=list(), </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line26">26</td>
+              <td><pre class="prettyprint">                   excludePairs=defaultdict(lambda: set()),</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line27">27</td>
+              <td><pre class="prettyprint">                   mergename='marglik', randstate=np.random.RandomState(),</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line28">28</td>
+              <td><pre class="prettyprint">                   **kwargs):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line29">29</td>
+              <td><pre class="prettyprint">  ''' Creates candidate model with two components merged,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line30">30</td>
+              <td><pre class="prettyprint">      and returns either candidate or current model,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line31">31</td>
+              <td><pre class="prettyprint">      whichever has higher log probability (ELBO).</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line32">32</td>
+              <td><pre class="prettyprint"> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line33">33</td>
+              <td><pre class="prettyprint">      Args</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line34">34</td>
+              <td><pre class="prettyprint">      --------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line35">35</td>
+              <td><pre class="prettyprint">       curModel : bnpy model whose components will be merged</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line36">36</td>
+              <td><pre class="prettyprint">       Data : bnpy Data object </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line37">37</td>
+              <td><pre class="prettyprint">       SS : bnpy SuffStatDict object for Data under curModel</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line38">38</td>
+              <td><pre class="prettyprint">            must contain precomputed merge entropy in order to try a merge.</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line39">39</td>
+              <td><pre class="prettyprint">       curEv : current evidence bound, provided to save re-computation.</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line40">40</td>
+              <td><pre class="prettyprint">                curEv = curModel.calc_evidence(SS=SS)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line41">41</td>
+              <td><pre class="prettyprint">       kA, kB : (optional) integer ids for which specific components to merge</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line42">42</td>
+              <td><pre class="prettyprint">       excludeList : (optional) list of integer ids excluded when selecting</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line43">43</td>
+              <td><pre class="prettyprint">                      which components to merge. useful when doing multiple </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line44">44</td>
+              <td><pre class="prettyprint">                      rounds of merges, since precomputed merge terms are </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line45">45</td>
+              <td><pre class="prettyprint">                      valid for one merge only.</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line46">46</td>
+              <td><pre class="prettyprint">      Returns</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line47">47</td>
+              <td><pre class="prettyprint">      --------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line48">48</td>
+              <td><pre class="prettyprint">      hmodel, SS, evBound, MoveInfo</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line49">49</td>
+              <td><pre class="prettyprint"> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line50">50</td>
+              <td><pre class="prettyprint">      hmodel := candidate or current model (bnpy HModel object)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line51">51</td>
+              <td><pre class="prettyprint">      SS := suff stats for Data under hmodel</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line52">52</td>
+              <td><pre class="prettyprint">      evBound := log evidence (ELBO) of Data under hmodel</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line53">53</td>
+              <td><pre class="prettyprint">      MoveInfo := dict of info about this merge move, with fields</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line54">54</td>
+              <td><pre class="prettyprint">            didAccept := boolean flag, true if candidate accepted</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line55">55</td>
+              <td><pre class="prettyprint">            msg := human-readable string about this move</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line56">56</td>
+              <td><pre class="prettyprint">            kA, kB := indices of the components to be merged.</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line57">57</td>
+              <td><pre class="prettyprint">  ''' </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>250</td>
+              <td id="line58">58</td>
+              <td><pre class="prettyprint">  if SS is None:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line59">59</td>
+              <td><pre class="prettyprint">    LP = curModel.calc_local_params(Data)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line60">60</td>
+              <td><pre class="prettyprint">    SS = curModel.get_global_suff_stats(Data, LP,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line61">61</td>
+              <td><pre class="prettyprint">                                        doPrecompEntropy=True,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line62">62</td>
+              <td><pre class="prettyprint">                                        doPrecompMerge=True)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>250</td>
+              <td id="line63">63</td>
+              <td><pre class="prettyprint">  if curEv is None:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line64">64</td>
+              <td><pre class="prettyprint">    curEv = curModel.calc_evidence(SS=SS)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line65">65</td>
+              <td><pre class="prettyprint">    </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line66">66</td>
+              <td><pre class="prettyprint">  # Need at least two components to merge!</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>250</td>
+              <td id="line67">67</td>
+              <td><pre class="prettyprint">  if curModel.allocModel.K == 1:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line68">68</td>
+              <td><pre class="prettyprint">    MoveInfo = dict(didAccept=0, msg="need >= 2 comps to merge")    </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line69">69</td>
+              <td><pre class="prettyprint">    return curModel, SS, curEv, MoveInfo  </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line70">70</td>
+              <td><pre class="prettyprint">  </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>250</td>
+              <td id="line71">71</td>
+              <td><pre class="prettyprint">  if not SS.hasMergeTerms():</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line72">72</td>
+              <td><pre class="prettyprint">    MoveInfo = dict(didAccept=0, msg="suff stats did not have merge terms")    </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line73">73</td>
+              <td><pre class="prettyprint">    return curModel, SS, curEv, MoveInfo  </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line74">74</td>
+              <td><pre class="prettyprint"> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>250</td>
+              <td id="line75">75</td>
+              <td><pre class="prettyprint">  if kA in excludeList:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line76">76</td>
+              <td><pre class="prettyprint">    MoveInfo = dict(didAccept=0, msg="target comp kA must be excluded.")    </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line77">77</td>
+              <td><pre class="prettyprint">    return curModel, SS, curEv, MoveInfo  </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line78">78</td>
+              <td><pre class="prettyprint">    </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line79">79</td>
+              <td><pre class="prettyprint">  # Select which 2 components kA, kB in {1, 2, ... K} to merge</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>250</td>
+              <td id="line80">80</td>
+              <td><pre class="prettyprint">  if kA is None or kB is None:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>250</td>
+              <td id="line81">81</td>
+              <td><pre class="prettyprint">    kA, kB = select_merge_components(curModel, Data, SS,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>250</td>
+              <td id="line82">82</td>
+              <td><pre class="prettyprint">                                     kA=kA, excludeList=excludeList, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>250</td>
+              <td id="line83">83</td>
+              <td><pre class="prettyprint">																		 excludePairs=excludePairs,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>250</td>
+              <td id="line84">84</td>
+              <td><pre class="prettyprint">                                     mergename=mergename, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>74 s</td>
+              <td>250</td>
+              <td id="line85">85</td>
+              <td><pre class="prettyprint">                                     randstate=randstate)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line86">86</td>
+              <td><pre class="prettyprint">  # Enforce that kA < kB. </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line87">87</td>
+              <td><pre class="prettyprint">  # This step is essential for indexing mergeEntropy matrix, etc.</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>250</td>
+              <td id="line88">88</td>
+              <td><pre class="prettyprint">  assert kA != kB</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>250</td>
+              <td id="line89">89</td>
+              <td><pre class="prettyprint">  assert kA not in excludeList</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>250</td>
+              <td id="line90">90</td>
+              <td><pre class="prettyprint">  assert kB not in excludeList</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>250</td>
+              <td id="line91">91</td>
+              <td><pre class="prettyprint">  assert (kA,kB) not in excludePairs</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>250</td>
+              <td id="line92">92</td>
+              <td><pre class="prettyprint">  kMin = np.minimum(kA,kB)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>250</td>
+              <td id="line93">93</td>
+              <td><pre class="prettyprint">  kB  = np.maximum(kA,kB)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>250</td>
+              <td id="line94">94</td>
+              <td><pre class="prettyprint">  kA = kMin</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line95">95</td>
+              <td><pre class="prettyprint">  </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line96">96</td>
+              <td><pre class="prettyprint">  # Create candidate merged model</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td>99 s</td>
+              <td>250</td>
+              <td id="line97">97</td>
+              <td><pre class="prettyprint">  propModel, propSS = propose_merge_candidate(curModel, SS, kA, kB)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line98">98</td>
+              <td><pre class="prettyprint"> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line99">99</td>
+              <td><pre class="prettyprint">  # Decide whether to accept the merge</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>10 s</td>
+              <td>250</td>
+              <td id="line100">100</td>
+              <td><pre class="prettyprint">  propEv = propModel.calc_evidence(SS=propSS)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line101">101</td>
+              <td><pre class="prettyprint"> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>250</td>
+              <td id="line102">102</td>
+              <td><pre class="prettyprint">  if np.isnan(propEv) or np.isinf(propEv):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line103">103</td>
+              <td><pre class="prettyprint">    raise ValueError('propEv should never be nan/inf')</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line104">104</td>
+              <td><pre class="prettyprint">    </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>250</td>
+              <td id="line105">105</td>
+              <td><pre class="prettyprint">  if doVizMerge:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line106">106</td>
+              <td><pre class="prettyprint">    viz_merge_proposal(curModel, propModel, kA, kB, curEv, propEv)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line107">107</td>
+              <td><pre class="prettyprint"> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>250</td>
+              <td id="line108">108</td>
+              <td><pre class="prettyprint">  if propEv > curEv:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>9</td>
+              <td id="line109">109</td>
+              <td><pre class="prettyprint">    msg = "merge %3d & %3d | ev +%.3e ****" % (kA, kB, propEv - curEv)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>9</td>
+              <td id="line110">110</td>
+              <td><pre class="prettyprint">    MoveInfo = dict(didAccept=1, kA=kA, kB=kB, msg=msg)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>9</td>
+              <td id="line111">111</td>
+              <td><pre class="prettyprint">    return propModel, propSS, propEv, MoveInfo</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line112">112</td>
+              <td><pre class="prettyprint">  else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>241</td>
+              <td id="line113">113</td>
+              <td><pre class="prettyprint">    msg = "merge %3d & %3d | ev -%.3e" % (kA, kB, curEv - propEv)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>241</td>
+              <td id="line114">114</td>
+              <td><pre class="prettyprint">    MoveInfo = dict(didAccept=0, kA=kA, kB=kB, msg=msg)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>241</td>
+              <td id="line115">115</td>
+              <td><pre class="prettyprint">    return curModel, SS, curEv, MoveInfo</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="../../assets/js/bootstrap.min.js"></script>
+    <script src="../../assets/js/main.js"></script>
+    <script src="https://google-code-prettify.googlecode.com/svn/loader/run_prettify.js"></script>
+  </body>
+</html>

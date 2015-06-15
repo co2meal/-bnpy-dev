@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">runViterbiAlg</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">runViterbiAlg</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>runViterbiAlg</h1>
+	  </div>
+
+          <p>224000 Calls, 15.48 s</p>
+	  <p>Generated 10:48:20 05/30/15 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/allocmodel/hmm/HMMUtil.py">/Users/mhughes/git/bnpy2/bnpy/allocmodel/hmm/HMMUtil.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line507">507</td>
+              <td class="code "><div class="code-listing"><pre>@profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line508">508</td>
+              <td class="code "><div class="code-listing"><pre>def runViterbiAlg(logSoftEv, logPi0, logPi):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line509">509</td>
+              <td class="code "><div class="code-listing"><pre>    ''' Run viterbi algorithm to estimate MAP states for single sequence.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line510">510</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line511">511</td>
+              <td class="code "><div class="code-listing"><pre>    Args</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line512">512</td>
+              <td class="code "><div class="code-listing"><pre>    ------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line513">513</td>
+              <td class="code "><div class="code-listing"><pre>    logSoftEv : 2D array, T x K</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line514">514</td>
+              <td class="code "><div class="code-listing"><pre>        log soft evidence matrix</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line515">515</td>
+              <td class="code "><div class="code-listing"><pre>        each row t := log p( x[t] | z[t]=k )</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line516">516</td>
+              <td class="code "><div class="code-listing"><pre>    pi0 : 1D array, length K</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line517">517</td>
+              <td class="code "><div class="code-listing"><pre>        initial state probability vector, sums to one</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line518">518</td>
+              <td class="code "><div class="code-listing"><pre>    pi : 2D array, shape K x K</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line519">519</td>
+              <td class="code "><div class="code-listing"><pre>        j-th row is is transition probability vector for state j</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line520">520</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line521">521</td>
+              <td class="code "><div class="code-listing"><pre>    Returns</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line522">522</td>
+              <td class="code "><div class="code-listing"><pre>    ------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line523">523</td>
+              <td class="code "><div class="code-listing"><pre>    zHat : 1D array, length T, representing the MAP state sequence</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line524">524</td>
+              <td class="code "><div class="code-listing"><pre>        zHat[t] gives the integer label {1, 2, ... K} of state at timestep t</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line525">525</td>
+              <td class="code "><div class="code-listing"><pre>    '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>224</td>
+              <td id="line526">526</td>
+              <td class="code "><div class="code-listing"><pre>    if np.any(logPi0 > 0):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>224</td>
+              <td id="line527">527</td>
+              <td class="code "><div class="code-listing"><pre>        logPi0 = np.log(logPi0 + EPS)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>224</td>
+              <td id="line528">528</td>
+              <td class="code "><div class="code-listing"><pre>    if np.any(logPi > 0):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>224</td>
+              <td id="line529">529</td>
+              <td class="code "><div class="code-listing"><pre>        logPi = np.log(logPi + EPS)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>224</td>
+              <td id="line530">530</td>
+              <td class="code "><div class="code-listing"><pre>    T, K = np.shape(logSoftEv)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line531">531</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line532">532</td>
+              <td class="code "><div class="code-listing"><pre>    # ScoreTable : 2D array, shape T x K</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line533">533</td>
+              <td class="code "><div class="code-listing"><pre>    #   entry t,k gives the log probability of reaching state k at time t</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line534">534</td>
+              <td class="code "><div class="code-listing"><pre>    #   under the most likely path</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>224</td>
+              <td id="line535">535</td>
+              <td class="code "><div class="code-listing"><pre>    ScoreTable = np.zeros((T, K))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line536">536</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line537">537</td>
+              <td class="code "><div class="code-listing"><pre>    # PtrTable : 2D array, size T x K</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line538">538</td>
+              <td class="code "><div class="code-listing"><pre>    #   entry t,k gives the integer id of the state j at timestep t-1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line539">539</td>
+              <td class="code "><div class="code-listing"><pre>    #   which would be part of the most likely path to reaching k at t</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>224</td>
+              <td id="line540">540</td>
+              <td class="code "><div class="code-listing"><pre>    PtrTable = np.zeros((T, K))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line541">541</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>224</td>
+              <td id="line542">542</td>
+              <td class="code "><div class="code-listing"><pre>    ScoreTable[0, :] = logSoftEv[0] + logPi0</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>224</td>
+              <td id="line543">543</td>
+              <td class="code "><div class="code-listing"><pre>    PtrTable[0, :] = -1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line544">544</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>224</td>
+              <td id="line545">545</td>
+              <td class="code "><div class="code-listing"><pre>    ids0toK = range(K)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.32 s</td>
+              <td>224000</td>
+              <td id="line546">546</td>
+              <td class="code "><div class="code-listing"><pre>    for t in xrange(1, T):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 3.51 s</td>
+              <td>223776</td>
+              <td id="line547">547</td>
+              <td class="code "><div class="code-listing"><pre>        ScoreMat_t = logPi + ScoreTable[t - 1, :][:, np.newaxis]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 3.26 s</td>
+              <td>223776</td>
+              <td id="line548">548</td>
+              <td class="code "><div class="code-listing"><pre>        bestIDvec = np.argmax(ScoreMat_t, axis=0)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line549">549</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.31 s</td>
+              <td>223776</td>
+              <td id="line550">550</td>
+              <td class="code "><div class="code-listing"><pre>        PtrTable[t, :] = bestIDvec</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.77 s</td>
+              <td>223776</td>
+              <td id="line551">551</td>
+              <td class="code "><div class="code-listing"><pre>        ScoreTable[t, :] = logSoftEv[t, :] \</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 5.11 s</td>
+              <td>223776</td>
+              <td id="line552">552</td>
+              <td class="code danger"><div class="code-listing"><pre>            + ScoreMat_t[(bestIDvec, ids0toK)]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line553">553</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line554">554</td>
+              <td class="code "><div class="code-listing"><pre>    # Follow backward pointers to construct most likely state sequence</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>224</td>
+              <td id="line555">555</td>
+              <td class="code "><div class="code-listing"><pre>    z = np.zeros(T)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>224</td>
+              <td id="line556">556</td>
+              <td class="code "><div class="code-listing"><pre>    z[-1] = np.argmax(ScoreTable[-1])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.29 s</td>
+              <td>224000</td>
+              <td id="line557">557</td>
+              <td class="code "><div class="code-listing"><pre>    for t in reversed(xrange(T - 1)):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.86 s</td>
+              <td>223776</td>
+              <td id="line558">558</td>
+              <td class="code "><div class="code-listing"><pre>        z[t] = PtrTable[t + 1, z[t + 1]]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>224</td>
+              <td id="line559">559</td>
+              <td class="code "><div class="code-listing"><pre>    return z</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

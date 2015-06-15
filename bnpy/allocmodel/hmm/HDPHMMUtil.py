@@ -6,9 +6,10 @@ from bnpy.allocmodel.topics.HDPTopicUtil import c_Beta, c_Dir
 from bnpy.allocmodel.topics import OptimizerRhoOmega
 
 ELBOTermDimMap = dict(
-    Htable=('K','K'),
+    Htable=('K', 'K'),
     Hstart=('K'),
-    )
+)
+
 
 def calcELBO(**kwargs):
     """ Calculate ELBO objective for provided model state.
@@ -22,13 +23,14 @@ def calcELBO(**kwargs):
     Lnon = calcELBO_NonlinearTerms(**kwargs)
     return Lnon + Llinear
 
+
 def calcELBO_LinearTerms(SS=None,
-        StartStateCount=None, TransStateCount=None,
-        rho=None, omega=None,
-        Ebeta=None,
-        startTheta=None, transTheta=None,
-        startAlpha=0, alpha=0, kappa=None, gamma=None, 
-        afterGlobalStep=0, todict=0, **kwargs):
+                         StartStateCount=None, TransStateCount=None,
+                         rho=None, omega=None,
+                         Ebeta=None,
+                         startTheta=None, transTheta=None,
+                         startAlpha=0, alpha=0, kappa=None, gamma=None,
+                         afterGlobalStep=0, todict=0, **kwargs):
     """ Calculate ELBO objective terms that are linear in suff stats.
 
     Returns
@@ -57,9 +59,9 @@ def calcELBO_LinearTerms(SS=None,
         TransStateCount = np.hstack([TransStateCount, np.zeros((K, 1))])
 
     LstartSlack = np.inner(StartStateCount + startAlpha * Ebeta - startTheta,
-                          digamma(startTheta) - digamma(startTheta.sum())
-                          )
-    alphaEbetaPlusKappa = alpha * np.tile(Ebeta, (K,1))
+                           digamma(startTheta) - digamma(startTheta.sum())
+                           )
+    alphaEbetaPlusKappa = alpha * np.tile(Ebeta, (K, 1))
     alphaEbetaPlusKappa[:, :K] += kappa * np.eye(K)
 
     digammaSum = np.sum(transTheta, axis=1)
@@ -70,9 +72,9 @@ def calcELBO_LinearTerms(SS=None,
 
 
 def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None,
-        resp=None, respPair=None,
-        Htable=None, Hstart=None,
-        returnMemoizedDict=0, **kwargs):
+                            resp=None, respPair=None,
+                            Htable=None, Hstart=None,
+                            returnMemoizedDict=0, **kwargs):
     """ Calculate ELBO objective terms non-linear in suff stats.
     """
     if Htable is None:
@@ -104,7 +106,7 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None,
     return Lentropy
 
 
-def L_top(rho=None, omega=None, alpha=None, 
+def L_top(rho=None, omega=None, alpha=None,
           gamma=None, kappa=0, startAlpha=0, **kwargs):
     ''' Evaluate the top-level term of the surrogate objective
     '''
@@ -138,8 +140,8 @@ def L_top(rho=None, omega=None, alpha=None,
 
 
 def calcELBOForSingleSeq_FromLP(Data_n, LP_n, hmodel,
-        nExtraGlobalSteps=4,
-        **kwargs):
+                                nExtraGlobalSteps=4,
+                                **kwargs):
     ''' Compute HDPHMM objective score for single sequence.
 
     Performs relevant global steps to get model parameters.
@@ -151,7 +153,7 @@ def calcELBOForSingleSeq_FromLP(Data_n, LP_n, hmodel,
     assert Data_n.nDoc == 1
     tempModel = hmodel.copy()
     SS_n = tempModel.get_global_suff_stats(Data_n, LP_n,
-        doPrecompEntropy=1)
+                                           doPrecompEntropy=1)
     tempModel.update_global_params(SS_n)
     for giter in range(nExtraGlobalSteps):
         tempModel.allocModel.update_global_params(SS_n)

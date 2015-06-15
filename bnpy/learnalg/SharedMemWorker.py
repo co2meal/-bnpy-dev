@@ -79,7 +79,7 @@ class SharedMemWorker(multiprocessing.Process):
             start1 = time.time()
             # Grab slice of data to work on
             if 'start' in sliceArgs:
-                # Load data from shared memory        
+                # Load data from shared memory
                 Dslice = self.makeDataSliceFromSharedMem(
                     self.dataSharedMem,
                     batchID=sliceArgs['batchID'],

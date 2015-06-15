@@ -11,6 +11,7 @@ from bnpy.util import gammaln, digamma
 
 
 class FiniteMixtureModel(AllocModel):
+
     """ Parametric mixture model with finite number of components K
 
     Attributes

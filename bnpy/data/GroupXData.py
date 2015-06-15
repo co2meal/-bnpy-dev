@@ -13,7 +13,9 @@ from XData import XData
 from bnpy.util import as1D, as2D, as3D, toCArray
 from bnpy.util import numpyToSharedMemArray, sharedMemToNumpyArray
 
+
 class GroupXData(XData):
+
     """ Dataset object for dense real vectors organized in groups.
 
     GroupXData can represent situations like:
@@ -129,8 +131,8 @@ class GroupXData(XData):
 
         # Add optional source files for each group/sequence
         if fileNames is not None:
-            if hasattr(fileNames, 'shape') and fileNames.shape == (1,1):
-                fileNames = fileNames[0,0]
+            if hasattr(fileNames, 'shape') and fileNames.shape == (1, 1):
+                fileNames = fileNames[0, 0]
             if len(fileNames) > 1:
                 self.fileNames = [str(x).strip()
                                   for x in np.squeeze(fileNames)]
@@ -259,7 +261,7 @@ class GroupXData(XData):
 
         if hasattr(self, 'alwaysTrackTruth'):
             doTrackTruth = doTrackTruth or self.alwaysTrackTruth
-        hasTrueZ = hasattr(self,'TrueParams') and 'Z' in self.TrueParams
+        hasTrueZ = hasattr(self, 'TrueParams') and 'Z' in self.TrueParams
         if doTrackTruth and hasTrueZ:
             TrueZ = self.TrueParams['Z']
             newTrueZList = list()
@@ -305,7 +307,6 @@ class GroupXData(XData):
     def __str__(self):
         return self.X.__str__()
 
-
     def getRawDataAsSharedMemDict(self):
         ''' Create dict with copies of raw data as shared memory arrays
         '''
@@ -320,7 +321,7 @@ class GroupXData(XData):
     def getDataSliceFunctionHandle(self):
         """ Return function handle that can make data slice objects.
 
-        Useful with parallelized algorithms, 
+        Useful with parallelized algorithms,
         when we need to use shared memory.
 
         Returns
@@ -328,6 +329,7 @@ class GroupXData(XData):
         f : function handle
         """
         return makeDataSliceFromSharedMem
+
 
 def makeDataSliceFromSharedMem(dataShMemDict,
                                cslice=(0, None),
@@ -368,10 +370,9 @@ def makeDataSliceFromSharedMem(dataShMemDict,
     X = sharedMemToNumpyArray(dataShMemDict['X'])
     nDocTotal = int(dataShMemDict['nDocTotal'])
 
-
     dim = X.shape[1]
     if cslice is None:
-        cslice = (0, doc_range.size-1)
+        cslice = (0, doc_range.size - 1)
     elif cslice[1] is None:
         cslice = (0, doc_range.size - 1)
     tstart = doc_range[cslice[0]]
@@ -387,10 +388,10 @@ def makeDataSliceFromSharedMem(dataShMemDict,
     Dslice = namedtuple("GroupXDataTuple", keys)(
         X=X[tstart:tstop],
         Xprev=Xprev,
-        doc_range=doc_range[cslice[0]:cslice[1]+1] - doc_range[cslice[0]],
-        nDoc=cslice[1]-cslice[0],
+        doc_range=doc_range[cslice[0]:cslice[1] + 1] - doc_range[cslice[0]],
+        nDoc=cslice[1] - cslice[0],
         nObs=tstop - tstart,
         dim=dim,
         nDocTotal=nDocTotal,
-        )
+    )
     return Dslice

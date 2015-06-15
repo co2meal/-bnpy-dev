@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">L_top</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">L_top</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>L_top</h1>
+	  </div>
+
+          <p>334 Calls, 0.10 s</p>
+	  <p>Generated 10:48:20 05/30/15 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/allocmodel/hmm/HDPHMMUtil.py">/Users/mhughes/git/bnpy2/bnpy/allocmodel/hmm/HDPHMMUtil.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line110">110</td>
+              <td class="code "><div class="code-listing"><pre>@profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line111">111</td>
+              <td class="code "><div class="code-listing"><pre>def L_top(rho=None, omega=None, alpha=None, </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line112">112</td>
+              <td class="code "><div class="code-listing"><pre>          gamma=None, kappa=0, startAlpha=0, **kwargs):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line113">113</td>
+              <td class="code "><div class="code-listing"><pre>    ''' Evaluate the top-level term of the surrogate objective</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line114">114</td>
+              <td class="code "><div class="code-listing"><pre>    '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>334</td>
+              <td id="line115">115</td>
+              <td class="code "><div class="code-listing"><pre>    if startAlpha == 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line116">116</td>
+              <td class="code "><div class="code-listing"><pre>        startAlpha = alpha</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line117">117</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>334</td>
+              <td id="line118">118</td>
+              <td class="code "><div class="code-listing"><pre>    K = rho.size</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>334</td>
+              <td id="line119">119</td>
+              <td class="code "><div class="code-listing"><pre>    eta1 = rho * omega</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>334</td>
+              <td id="line120">120</td>
+              <td class="code "><div class="code-listing"><pre>    eta0 = (1 - rho) * omega</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>334</td>
+              <td id="line121">121</td>
+              <td class="code "><div class="code-listing"><pre>    digamma_omega = digamma(omega)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>334</td>
+              <td id="line122">122</td>
+              <td class="code "><div class="code-listing"><pre>    ElogU = digamma(eta1) - digamma_omega</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>334</td>
+              <td id="line123">123</td>
+              <td class="code "><div class="code-listing"><pre>    Elog1mU = digamma(eta0) - digamma_omega</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 0.04 s</td>
+              <td>334</td>
+              <td id="line124">124</td>
+              <td class="code danger"><div class="code-listing"><pre>    diff_cBeta = K * c_Beta(1.0, gamma) - c_Beta(eta1, eta0)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line125">125</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>334</td>
+              <td id="line126">126</td>
+              <td class="code "><div class="code-listing"><pre>    tAlpha = K * K * np.log(alpha) + K * np.log(startAlpha)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>334</td>
+              <td id="line127">127</td>
+              <td class="code "><div class="code-listing"><pre>    if kappa > 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>334</td>
+              <td id="line128">128</td>
+              <td class="code "><div class="code-listing"><pre>        coefU = K + 1.0 - eta1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>334</td>
+              <td id="line129">129</td>
+              <td class="code "><div class="code-listing"><pre>        coef1mU = K * OptimizerRhoOmega.kvec(K) + 1.0 + gamma - eta0</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>334</td>
+              <td id="line130">130</td>
+              <td class="code "><div class="code-listing"><pre>        sumEBeta = np.sum(rho2beta(rho, returnSize='K'))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>334</td>
+              <td id="line131">131</td>
+              <td class="code "><div class="code-listing"><pre>        tBeta = sumEBeta * (np.log(alpha + kappa) - np.log(kappa))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>334</td>
+              <td id="line132">132</td>
+              <td class="code "><div class="code-listing"><pre>        tKappa = K * (np.log(kappa) - np.log(alpha + kappa))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line133">133</td>
+              <td class="code "><div class="code-listing"><pre>    else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line134">134</td>
+              <td class="code "><div class="code-listing"><pre>        coefU = (K + 1) + 1.0 - eta1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line135">135</td>
+              <td class="code "><div class="code-listing"><pre>        coef1mU = (K + 1) * OptimizerRhoOmega.kvec(K) + gamma - eta0</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line136">136</td>
+              <td class="code "><div class="code-listing"><pre>        tBeta = 0</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line137">137</td>
+              <td class="code "><div class="code-listing"><pre>        tKappa = 0</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line138">138</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>334</td>
+              <td id="line139">139</td>
+              <td class="code "><div class="code-listing"><pre>    diff_logU = np.inner(coefU, ElogU) \</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>334</td>
+              <td id="line140">140</td>
+              <td class="code "><div class="code-listing"><pre>        + np.inner(coef1mU, Elog1mU)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>334</td>
+              <td id="line141">141</td>
+              <td class="code "><div class="code-listing"><pre>    return tAlpha + tKappa + tBeta + diff_cBeta + diff_logU</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

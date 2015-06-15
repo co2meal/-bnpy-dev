@@ -8,20 +8,18 @@ from bnpy.data import GroupXData
 from bnpy.viz import GaussViz
 
 
-# User-facing
-###########################################################
 def get_data(seed=123456, nDocTotal=32, T=1000, **kwargs):
     ''' Generate several data sequences, returned as a bnpy data-object
 
-      Args
-      -------
-      seed : integer seed for random number generator,
-              used for actually *generating* the data
-      seqLens : total number of observations in each sequence
+    Args
+    -------
+    seed : integer seed for random number generator,
+          used for actually *generating* the data
+    seqLens : total number of observations in each sequence
 
-      Returns
-      -------
-      Data : bnpy GroupXData object, with nObsTotal observations
+    Returns
+    -------
+    Data : bnpy GroupXData object, with nObsTotal observations
     '''
     fullX, fullZ, doc_range = get_X(seed, nDocTotal, T)
     X = np.vstack(fullX)
@@ -44,8 +42,6 @@ def get_short_name():
 def get_data_info():
     return 'Toy HMM data with reverse-cycle transition matrix.'
 
-# Data generation
-###########################################################
 
 D = 2
 K = 8
@@ -79,9 +75,7 @@ sigmas = np.tile(20 * np.eye(2), (K, 1, 1))
 
 
 def get_X(seed, nDocTotal=None, T=None):
-    '''
-    Generates X, Z, seqInds according to the gaussian parameters specified above
-      and the sequence lengths passed in.
+    ''' TODO
     '''
     nDocTotal = int(nDocTotal)
     T = int(T)

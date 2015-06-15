@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">find_optimum</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">find_optimum</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>find_optimum</h1>
+	  </div>
+
+          <p>9212 Calls, 191.69 s</p>
+	  <p>Generated 10:48:20 05/30/15 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/allocmodel/topics/OptimizerRhoOmega.py">/Users/mhughes/git/bnpy2/bnpy/allocmodel/topics/OptimizerRhoOmega.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line103">103</td>
+              <td class="code "><div class="code-listing"><pre>@profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line104">104</td>
+              <td class="code "><div class="code-listing"><pre>def find_optimum(sumLogPi=0, nDoc=0, gamma=1.0, alpha=1.0, kappa=0.0,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line105">105</td>
+              <td class="code "><div class="code-listing"><pre>                 startAlphaLogPi=0.0,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line106">106</td>
+              <td class="code "><div class="code-listing"><pre>                 initrho=None, initomega=None, scaleVector=None,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line107">107</td>
+              <td class="code "><div class="code-listing"><pre>                 approx_grad=False, factr=1.0e5, **kwargs):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line108">108</td>
+              <td class="code "><div class="code-listing"><pre>    ''' Run gradient optimization to estimate best parameters rho, omega</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line109">109</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line110">110</td>
+              <td class="code "><div class="code-listing"><pre>    Returns</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line111">111</td>
+              <td class="code "><div class="code-listing"><pre>    --------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line112">112</td>
+              <td class="code "><div class="code-listing"><pre>    rhoomega : 1D array, length 2*K</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line113">113</td>
+              <td class="code "><div class="code-listing"><pre>    f : scalar value of minimization objective</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line114">114</td>
+              <td class="code "><div class="code-listing"><pre>    Info : dict</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line115">115</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line116">116</td>
+              <td class="code "><div class="code-listing"><pre>    Raises</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line117">117</td>
+              <td class="code "><div class="code-listing"><pre>    --------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line118">118</td>
+              <td class="code "><div class="code-listing"><pre>    ValueError on an overflow, any NaN, or failure to converge</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line119">119</td>
+              <td class="code "><div class="code-listing"><pre>    '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>9212</td>
+              <td id="line120">120</td>
+              <td class="code "><div class="code-listing"><pre>    if sumLogPi.ndim > 1:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line121">121</td>
+              <td class="code "><div class="code-listing"><pre>        sumLogPi = np.squeeze(np.asarray(sumLogPi, dtype=np.float64))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line122">122</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>9212</td>
+              <td id="line123">123</td>
+              <td class="code "><div class="code-listing"><pre>    assert sumLogPi.ndim == 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>9212</td>
+              <td id="line124">124</td>
+              <td class="code "><div class="code-listing"><pre>    K = sumLogPi.size - 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line125">125</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line126">126</td>
+              <td class="code "><div class="code-listing"><pre>    # Determine initial value</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>9212</td>
+              <td id="line127">127</td>
+              <td class="code "><div class="code-listing"><pre>    if initrho is None:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line128">128</td>
+              <td class="code "><div class="code-listing"><pre>        initrho = create_initrho(K)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.02 s</td>
+              <td>9212</td>
+              <td id="line129">129</td>
+              <td class="code "><div class="code-listing"><pre>    initrho = forceRhoInBounds(initrho)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>9212</td>
+              <td id="line130">130</td>
+              <td class="code "><div class="code-listing"><pre>    if initomega is None:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>302</td>
+              <td id="line131">131</td>
+              <td class="code "><div class="code-listing"><pre>        initomega = create_initomega(K, nDoc, gamma)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.14 s</td>
+              <td>9212</td>
+              <td id="line132">132</td>
+              <td class="code "><div class="code-listing"><pre>    initomega = forceOmegaInBounds(initomega)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>9212</td>
+              <td id="line133">133</td>
+              <td class="code "><div class="code-listing"><pre>    assert initrho.size == K</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>9212</td>
+              <td id="line134">134</td>
+              <td class="code "><div class="code-listing"><pre>    assert initomega.size == K</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line135">135</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line136">136</td>
+              <td class="code "><div class="code-listing"><pre>    # Initialize rescaling vector</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>9212</td>
+              <td id="line137">137</td>
+              <td class="code "><div class="code-listing"><pre>    if scaleVector is None:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.39 s</td>
+              <td>9212</td>
+              <td id="line138">138</td>
+              <td class="code "><div class="code-listing"><pre>        scaleVector = np.hstack([np.ones(K), np.ones(K)])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line139">139</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line140">140</td>
+              <td class="code "><div class="code-listing"><pre>    # Create init vector in unconstrained space</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.21 s</td>
+              <td>9212</td>
+              <td id="line141">141</td>
+              <td class="code "><div class="code-listing"><pre>    initrhoomega = np.hstack([initrho, initomega])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.96 s</td>
+              <td>9212</td>
+              <td id="line142">142</td>
+              <td class="code "><div class="code-listing"><pre>    initc = rhoomega2c(initrhoomega, scaleVector=scaleVector)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line143">143</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line144">144</td>
+              <td class="code "><div class="code-listing"><pre>    # Define objective function (unconstrained!)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>9212</td>
+              <td id="line145">145</td>
+              <td class="code "><div class="code-listing"><pre>    objArgs = dict(sumLogPi=sumLogPi, startAlphaLogPi=startAlphaLogPi,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>9212</td>
+              <td id="line146">146</td>
+              <td class="code "><div class="code-listing"><pre>                   nDoc=nDoc, gamma=gamma, alpha=alpha, kappa=kappa,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.04 s</td>
+              <td>9212</td>
+              <td id="line147">147</td>
+              <td class="code "><div class="code-listing"><pre>                   approx_grad=approx_grad, scaleVector=scaleVector)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line148">148</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.15 s</td>
+              <td>9212</td>
+              <td id="line149">149</td>
+              <td class="code "><div class="code-listing"><pre>    @profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line150">150</td>
+              <td class="code "><div class="code-listing"><pre>    def c_objFunc(c):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line151">151</td>
+              <td class="code "><div class="code-listing"><pre>        return objFunc_unconstrained(c, **objArgs)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line152">152</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line153">153</td>
+              <td class="code "><div class="code-listing"><pre>    # Run optimization, raising special error on any overflow or NaN issues</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.12 s</td>
+              <td>9212</td>
+              <td id="line154">154</td>
+              <td class="code "><div class="code-listing"><pre>    with warnings.catch_warnings():</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>9212</td>
+              <td id="line155">155</td>
+              <td class="code "><div class="code-listing"><pre>        warnings.filterwarnings('error', category=RuntimeWarning,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.28 s</td>
+              <td>9212</td>
+              <td id="line156">156</td>
+              <td class="code "><div class="code-listing"><pre>                                message='overflow')</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>9212</td>
+              <td id="line157">157</td>
+              <td class="code "><div class="code-listing"><pre>        try:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>9212</td>
+              <td id="line158">158</td>
+              <td class="code "><div class="code-listing"><pre>            chat, fhat, Info = scipy.optimize.fmin_l_bfgs_b(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>9212</td>
+              <td id="line159">159</td>
+              <td class="code "><div class="code-listing"><pre>                c_objFunc, initc,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>9212</td>
+              <td id="line160">160</td>
+              <td class="code "><div class="code-listing"><pre>                disp=None,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>9212</td>
+              <td id="line161">161</td>
+              <td class="code "><div class="code-listing"><pre>                approx_grad=approx_grad,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>9212</td>
+              <td id="line162">162</td>
+              <td class="code "><div class="code-listing"><pre>                factr=factr,</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 186.01 s</td>
+              <td>9212</td>
+              <td id="line163">163</td>
+              <td class="code danger"><div class="code-listing"><pre>                **kwargs)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line164">164</td>
+              <td class="code "><div class="code-listing"><pre>        except RuntimeWarning:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line165">165</td>
+              <td class="code "><div class="code-listing"><pre>            raise ValueError("FAILURE: overflow!")</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line166">166</td>
+              <td class="code "><div class="code-listing"><pre>        except AssertionError:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line167">167</td>
+              <td class="code "><div class="code-listing"><pre>            raise ValueError("FAILURE: NaN/Inf detected!")</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line168">168</td>
+              <td class="code "><div class="code-listing"><pre>    # Raise error on abnormal warnings (like bad line search)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>9212</td>
+              <td id="line169">169</td>
+              <td class="code "><div class="code-listing"><pre>    if Info['warnflag'] > 1:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line170">170</td>
+              <td class="code "><div class="code-listing"><pre>        raise ValueError("FAILURE: " + Info['task'])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line171">171</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line172">172</td>
+              <td class="code "><div class="code-listing"><pre>    # Convert final answer back to rhoomega (safely)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>9212</td>
+              <td id="line173">173</td>
+              <td class="code "><div class="code-listing"><pre>    Info['init'] = initrhoomega</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.84 s</td>
+              <td>9212</td>
+              <td id="line174">174</td>
+              <td class="code "><div class="code-listing"><pre>    rhoomega = c2rhoomega(chat, scaleVector=scaleVector, returnSingleVector=1)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.05 s</td>
+              <td>9212</td>
+              <td id="line175">175</td>
+              <td class="code "><div class="code-listing"><pre>    rhoomega[:K] = forceRhoInBounds(rhoomega[:K])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>9212</td>
+              <td id="line176">176</td>
+              <td class="code "><div class="code-listing"><pre>    return rhoomega, fhat, Info</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

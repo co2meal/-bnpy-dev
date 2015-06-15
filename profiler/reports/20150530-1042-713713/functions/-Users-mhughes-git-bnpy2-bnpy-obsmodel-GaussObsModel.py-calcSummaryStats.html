@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">calcSummaryStats</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">calcSummaryStats</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>calcSummaryStats</h1>
+	  </div>
+
+          <p>63083 Calls, 4.48 s</p>
+	  <p>Generated 10:48:22 05/30/15 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/obsmodel/GaussObsModel.py">/Users/mhughes/git/bnpy2/bnpy/obsmodel/GaussObsModel.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1014">1014</td>
+              <td class="code "><div class="code-listing"><pre>@profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1015">1015</td>
+              <td class="code "><div class="code-listing"><pre>def calcSummaryStats(Data, SS, LP, **kwargs):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1016">1016</td>
+              <td class="code "><div class="code-listing"><pre>    ''' Calculate summary statistics for given dataset and local parameters</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1017">1017</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1018">1018</td>
+              <td class="code "><div class="code-listing"><pre>    Returns</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1019">1019</td>
+              <td class="code "><div class="code-listing"><pre>    --------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1020">1020</td>
+              <td class="code "><div class="code-listing"><pre>    SS : SuffStatBag object, with K components.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1021">1021</td>
+              <td class="code "><div class="code-listing"><pre>    '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1551</td>
+              <td id="line1022">1022</td>
+              <td class="code "><div class="code-listing"><pre>    X = Data.X</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1551</td>
+              <td id="line1023">1023</td>
+              <td class="code "><div class="code-listing"><pre>    resp = LP['resp']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1551</td>
+              <td id="line1024">1024</td>
+              <td class="code "><div class="code-listing"><pre>    K = resp.shape[1]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1025">1025</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1551</td>
+              <td id="line1026">1026</td>
+              <td class="code "><div class="code-listing"><pre>    if SS is None:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1027">1027</td>
+              <td class="code "><div class="code-listing"><pre>        SS = SuffStatBag(K=K, D=Data.dim)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1028">1028</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1029">1029</td>
+              <td class="code "><div class="code-listing"><pre>    # Expected count for each k</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1030">1030</td>
+              <td class="code "><div class="code-listing"><pre>    #  Usually computed by allocmodel. But just in case...</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>1551</td>
+              <td id="line1031">1031</td>
+              <td class="code "><div class="code-listing"><pre>    if not hasattr(SS, 'N'):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line1032">1032</td>
+              <td class="code "><div class="code-listing"><pre>        SS.setField('N', np.sum(resp, axis=0), dims='K')</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1033">1033</td>
+              <td class="code "><div class="code-listing"><pre>    # Expected mean for each k</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.47 s</td>
+              <td>1551</td>
+              <td id="line1034">1034</td>
+              <td class="code "><div class="code-listing"><pre>    SS.setField('x', dotATB(resp, X), dims=('K', 'D'))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1035">1035</td>
+              <td class="code "><div class="code-listing"><pre>    # Expected outer-product for each k</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.18 s</td>
+              <td>1551</td>
+              <td id="line1036">1036</td>
+              <td class="code "><div class="code-listing"><pre>    sqrtResp = np.sqrt(resp)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1551</td>
+              <td id="line1037">1037</td>
+              <td class="code "><div class="code-listing"><pre>    xxT = np.zeros((K, Data.dim, Data.dim))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.13 s</td>
+              <td>63083</td>
+              <td id="line1038">1038</td>
+              <td class="code "><div class="code-listing"><pre>    for k in xrange(K):</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 3.49 s</td>
+              <td>61532</td>
+              <td id="line1039">1039</td>
+              <td class="code danger"><div class="code-listing"><pre>        xxT[k] = dotATA(sqrtResp[:, k][:, np.newaxis] * Data.X)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.15 s</td>
+              <td>1551</td>
+              <td id="line1040">1040</td>
+              <td class="code "><div class="code-listing"><pre>    SS.setField('xxT', xxT, dims=('K', 'D', 'D'))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1551</td>
+              <td id="line1041">1041</td>
+              <td class="code "><div class="code-listing"><pre>    return SS</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">createSingleSeqLPWithNewStates_ManyProposals</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">createSingleSeqLPWithNewStates_ManyProposals</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>createSingleSeqLPWithNewStates_ManyProposals</h1>
+	  </div>
+
+          <p>448 Calls, 276.32 s</p>
+	  <p>Generated 10:48:21 05/30/15 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/init/SingleSeqStateCreator.py">/Users/mhughes/git/bnpy2/bnpy/init/SingleSeqStateCreator.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line18">18</td>
+              <td class="code "><div class="code-listing"><pre>@profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line19">19</td>
+              <td class="code "><div class="code-listing"><pre>def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model, </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line20">20</td>
+              <td class="code "><div class="code-listing"><pre>        SS=None,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line21">21</td>
+              <td class="code "><div class="code-listing"><pre>        lapFrac=0,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line22">22</td>
+              <td class="code "><div class="code-listing"><pre>        PastAttemptLog=None,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line23">23</td>
+              <td class="code "><div class="code-listing"><pre>        nDocSeenForProposal=0,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line24">24</td>
+              <td class="code "><div class="code-listing"><pre>        nDocSeenInCurLap=0,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line25">25</td>
+              <td class="code "><div class="code-listing"><pre>        **kwargs):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line26">26</td>
+              <td class="code "><div class="code-listing"><pre>    ''' Perform many proposal moves on provided sequence.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line27">27</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line28">28</td>
+              <td class="code "><div class="code-listing"><pre>    Args</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line29">29</td>
+              <td class="code "><div class="code-listing"><pre>    ----</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line30">30</td>
+              <td class="code "><div class="code-listing"><pre>    SS : SuffStatBag</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line31">31</td>
+              <td class="code "><div class="code-listing"><pre>        represents whole dataset seen thus far,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line32">32</td>
+              <td class="code "><div class="code-listing"><pre>        including *previous* stats from current sequence n</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line33">33</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line34">34</td>
+              <td class="code "><div class="code-listing"><pre>    Returns</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line35">35</td>
+              <td class="code "><div class="code-listing"><pre>    -------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line36">36</td>
+              <td class="code "><div class="code-listing"><pre>    LP_n</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line37">37</td>
+              <td class="code "><div class="code-listing"><pre>    tempModel : HModel </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line38">38</td>
+              <td class="code "><div class="code-listing"><pre>        represents whole dataset seen thus far</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line39">39</td>
+              <td class="code "><div class="code-listing"><pre>        with all global params fully updated from tempSS suff stats</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line40">40</td>
+              <td class="code "><div class="code-listing"><pre>    tempSS : SuffStatBag</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line41">41</td>
+              <td class="code "><div class="code-listing"><pre>        represents whole dataset seen thus far</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line42">42</td>
+              <td class="code "><div class="code-listing"><pre>        including TWO versions of stats for current sequence n</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line43">43</td>
+              <td class="code "><div class="code-listing"><pre>    '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>96</td>
+              <td id="line44">44</td>
+              <td class="code "><div class="code-listing"><pre>    if 'verbose' not in kwargs:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>96</td>
+              <td id="line45">45</td>
+              <td class="code "><div class="code-listing"><pre>        kwargs['verbose'] = 0</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line46">46</td>
+              <td class="code "><div class="code-listing"><pre>    </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>96</td>
+              <td id="line47">47</td>
+              <td class="code "><div class="code-listing"><pre>    if lapFrac > 1:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>64</td>
+              <td id="line48">48</td>
+              <td class="code "><div class="code-listing"><pre>        assert SS.nDoc == Data_n.nDocTotal + nDocSeenForProposal</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line49">49</td>
+              <td class="code "><div class="code-listing"><pre>    else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>32</td>
+              <td id="line50">50</td>
+              <td class="code "><div class="code-listing"><pre>        if SS is not None:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>31</td>
+              <td id="line51">51</td>
+              <td class="code "><div class="code-listing"><pre>            assert SS.nDoc == nDocSeenInCurLap + nDocSeenForProposal</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line52">52</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>96</td>
+              <td id="line53">53</td>
+              <td class="code "><div class="code-listing"><pre>    if SS is not None:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.10 s</td>
+              <td>95</td>
+              <td id="line54">54</td>
+              <td class="code "><div class="code-listing"><pre>        tempSS = SS.copy(includeELBOTerms=False, includeMergeTerms=False)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line55">55</td>
+              <td class="code "><div class="code-listing"><pre>    else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line56">56</td>
+              <td class="code "><div class="code-listing"><pre>        tempSS = None</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line57">57</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>96</td>
+              <td id="line58">58</td>
+              <td class="code "><div class="code-listing"><pre>    if PastAttemptLog is None:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line59">59</td>
+              <td class="code "><div class="code-listing"><pre>        PastAttemptLog = dict()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line60">60</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>96</td>
+              <td id="line61">61</td>
+              <td class="code "><div class="code-listing"><pre>    creationProposalNames = kwargs['creationProposalName'].split('+')</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>96</td>
+              <td id="line62">62</td>
+              <td class="code "><div class="code-listing"><pre>    creationNumProposal = kwargs['creationNumProposal']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line63">63</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>96</td>
+              <td id="line64">64</td>
+              <td class="code "><div class="code-listing"><pre>    origK = model.obsModel.K</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>96</td>
+              <td id="line65">65</td>
+              <td class="code "><div class="code-listing"><pre>    propID = 0</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>192</td>
+              <td id="line66">66</td>
+              <td class="code "><div class="code-listing"><pre>    for creationProposalName in creationProposalNames:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>448</td>
+              <td id="line67">67</td>
+              <td class="code "><div class="code-listing"><pre>        for repID in range(creationNumProposal):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>352</td>
+              <td id="line68">68</td>
+              <td class="code "><div class="code-listing"><pre>            if propID > 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line69">69</td>
+              <td class="code "><div class="code-listing"><pre>                # Remove current stats for this seq before next proposal. </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.04 s</td>
+              <td>256</td>
+              <td id="line70">70</td>
+              <td class="code "><div class="code-listing"><pre>                SS_n = model.get_global_suff_stats(Data_n, LP_n)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.22 s</td>
+              <td>256</td>
+              <td id="line71">71</td>
+              <td class="code "><div class="code-listing"><pre>                tempSS -= SS_n</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line72">72</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>352</td>
+              <td id="line73">73</td>
+              <td class="code "><div class="code-listing"><pre>            if kwargs['verbose']:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line74">74</td>
+              <td class="code "><div class="code-listing"><pre>                print '======== lapFrac %.3f seqName %s | proposal %d/%d' % (</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line75">75</td>
+              <td class="code "><div class="code-listing"><pre>                    lapFrac, kwargs['seqName'], propID+1, creationNumProposal)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line76">76</td>
+              <td class="code "><div class="code-listing"><pre>                if propID == 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line77">77</td>
+              <td class="code "><div class="code-listing"><pre>                    print '   BEFORE tempSS.nDoc %d' % (tempSS.nDoc)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line78">78</td>
+              <td class="code "><div class="code-listing"><pre>                    print 'N ', ' '.join(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line79">79</td>
+              <td class="code "><div class="code-listing"><pre>                        ['%5.1f' % (x) for x in tempSS.N[:20]])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line80">80</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>352</td>
+              <td id="line81">81</td>
+              <td class="code "><div class="code-listing"><pre>            if lapFrac > 1:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>192</td>
+              <td id="line82">82</td>
+              <td class="code "><div class="code-listing"><pre>                assert tempSS.nDoc == Data_n.nDocTotal + nDocSeenForProposal</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line83">83</td>
+              <td class="code "><div class="code-listing"><pre>            else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>160</td>
+              <td id="line84">84</td>
+              <td class="code "><div class="code-listing"><pre>                if tempSS is not None:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>159</td>
+              <td id="line85">85</td>
+              <td class="code "><div class="code-listing"><pre>                    assert tempSS.nDoc == nDocSeenInCurLap + \</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>159</td>
+              <td id="line86">86</td>
+              <td class="code "><div class="code-listing"><pre>                        nDocSeenForProposal</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line87">87</td>
+              <td class="code "><div class="code-listing"><pre>                    </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line88">88</td>
+              <td class="code "><div class="code-listing"><pre>            # TODO: stop repeated proposals if K exceeds Kmax?</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>352</td>
+              <td id="line89">89</td>
+              <td class="code "><div class="code-listing"><pre>            curKwargs = dict(**kwargs)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>352</td>
+              <td id="line90">90</td>
+              <td class="code "><div class="code-listing"><pre>            curKwargs['creationProposalName'] = creationProposalName</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>352</td>
+              <td id="line91">91</td>
+              <td class="code "><div class="code-listing"><pre>            LP_n, model, tempSS = createSingleSeqLPWithNewStates(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>352</td>
+              <td id="line92">92</td>
+              <td class="code "><div class="code-listing"><pre>                Data_n, LP_n, model,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>352</td>
+              <td id="line93">93</td>
+              <td class="code "><div class="code-listing"><pre>                SS=tempSS,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>352</td>
+              <td id="line94">94</td>
+              <td class="code "><div class="code-listing"><pre>                lapFrac=lapFrac,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>352</td>
+              <td id="line95">95</td>
+              <td class="code "><div class="code-listing"><pre>                PastAttemptLog=PastAttemptLog,</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 274.91 s</td>
+              <td>352</td>
+              <td id="line96">96</td>
+              <td class="code danger"><div class="code-listing"><pre>                **curKwargs)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>352</td>
+              <td id="line97">97</td>
+              <td class="code "><div class="code-listing"><pre>            propID += 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line98">98</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>352</td>
+              <td id="line99">99</td>
+              <td class="code "><div class="code-listing"><pre>            if kwargs['verbose']:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line100">100</td>
+              <td class="code "><div class="code-listing"><pre>                print '--- AFTER tempSS.nDoc %d' % (tempSS.nDoc)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line101">101</td>
+              <td class="code "><div class="code-listing"><pre>                print 'N ', ' '.join(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line102">102</td>
+              <td class="code "><div class="code-listing"><pre>                    ['%5.1f' % (x) for x in tempSS.N[:20]])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line103">103</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>352</td>
+              <td id="line104">104</td>
+              <td class="code "><div class="code-listing"><pre>            if lapFrac > 1:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>192</td>
+              <td id="line105">105</td>
+              <td class="code "><div class="code-listing"><pre>                assert tempSS.nDoc == nDocSeenForProposal + 1 + \</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>192</td>
+              <td id="line106">106</td>
+              <td class="code "><div class="code-listing"><pre>                    Data_n.nDocTotal</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line107">107</td>
+              <td class="code "><div class="code-listing"><pre>            else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>160</td>
+              <td id="line108">108</td>
+              <td class="code "><div class="code-listing"><pre>                assert tempSS.nDoc == nDocSeenForProposal + 1 + \</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>160</td>
+              <td id="line109">109</td>
+              <td class="code "><div class="code-listing"><pre>                    nDocSeenInCurLap</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line110">110</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>96</td>
+              <td id="line111">111</td>
+              <td class="code "><div class="code-listing"><pre>    T_n = LP_n['resp'].shape[0]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>96</td>
+              <td id="line112">112</td>
+              <td class="code "><div class="code-listing"><pre>    assert tempSS.N.sum() >= T_n - 1e-7</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line113">113</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>96</td>
+              <td id="line114">114</td>
+              <td class="code "><div class="code-listing"><pre>    didAnyProposals = propID > 0</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>96</td>
+              <td id="line115">115</td>
+              <td class="code "><div class="code-listing"><pre>    if didAnyProposals:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>96</td>
+              <td id="line116">116</td>
+              <td class="code "><div class="code-listing"><pre>        if lapFrac > 1:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line117">117</td>
+              <td class="code "><div class="code-listing"><pre>            # Will have two versions of the current sequence</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>64</td>
+              <td id="line118">118</td>
+              <td class="code "><div class="code-listing"><pre>            assert tempSS.N.sum() >= 2 * T_n - 1e-7</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>64</td>
+              <td id="line119">119</td>
+              <td class="code "><div class="code-listing"><pre>            assert tempSS.nDoc == Data_n.nDocTotal + nDocSeenForProposal + 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line120">120</td>
+              <td class="code "><div class="code-listing"><pre>        else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>32</td>
+              <td id="line121">121</td>
+              <td class="code "><div class="code-listing"><pre>            assert tempSS.nDoc == nDocSeenForProposal + 1 + \</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>32</td>
+              <td id="line122">122</td>
+              <td class="code "><div class="code-listing"><pre>                nDocSeenInCurLap</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line123">123</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line124">124</td>
+              <td class="code "><div class="code-listing"><pre>    else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line125">125</td>
+              <td class="code "><div class="code-listing"><pre>        if lapFrac > 1:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line126">126</td>
+              <td class="code "><div class="code-listing"><pre>            assert tempSS.nDoc == Data_n.nDocTotal</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line127">127</td>
+              <td class="code "><div class="code-listing"><pre>        else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line128">128</td>
+              <td class="code "><div class="code-listing"><pre>            assert tempSS.nDoc == nDocSeenForProposal + 1 + \</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line129">129</td>
+              <td class="code "><div class="code-listing"><pre>                nDocSeenInCurLap</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line130">130</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>96</td>
+              <td id="line131">131</td>
+              <td class="code "><div class="code-listing"><pre>    Info = dict(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>96</td>
+              <td id="line132">132</td>
+              <td class="code "><div class="code-listing"><pre>        didAnyProposals=didAnyProposals,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>96</td>
+              <td id="line133">133</td>
+              <td class="code "><div class="code-listing"><pre>        origK=origK,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>96</td>
+              <td id="line134">134</td>
+              <td class="code "><div class="code-listing"><pre>        propK=tempSS.K,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line135">135</td>
+              <td class="code "><div class="code-listing"><pre>        )</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line136">136</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>96</td>
+              <td id="line137">137</td>
+              <td class="code "><div class="code-listing"><pre>    if 'blocks' in PastAttemptLog:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>96</td>
+              <td id="line138">138</td>
+              <td class="code "><div class="code-listing"><pre>        del PastAttemptLog['blocks']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>96</td>
+              <td id="line139">139</td>
+              <td class="code "><div class="code-listing"><pre>    return LP_n, model, tempSS, Info</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

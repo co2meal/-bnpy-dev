@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">calcSummaryStats</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">calcSummaryStats</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>calcSummaryStats</h1>
+	  </div>
+
+          <p>1550 Calls, 1.36 s</p>
+	  <p>Generated 10:48:20 05/30/15 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/allocmodel/hmm/HDPHMM.py">/Users/mhughes/git/bnpy2/bnpy/allocmodel/hmm/HDPHMM.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line654">654</td>
+              <td class="code "><div class="code-listing"><pre>@profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line655">655</td>
+              <td class="code "><div class="code-listing"><pre>def calcSummaryStats(Data, LP, </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line656">656</td>
+              <td class="code "><div class="code-listing"><pre>        doPrecompEntropy=0,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line657">657</td>
+              <td class="code "><div class="code-listing"><pre>        doPrecompMergeEntropy=0,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line658">658</td>
+              <td class="code "><div class="code-listing"><pre>        mPairIDs=None,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line659">659</td>
+              <td class="code "><div class="code-listing"><pre>        trackDocUsage=0,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line660">660</td>
+              <td class="code "><div class="code-listing"><pre>        **kwargs):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line661">661</td>
+              <td class="code "><div class="code-listing"><pre>    ''' Calculate summary statistics for given data slice and local params.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line662">662</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line663">663</td>
+              <td class="code "><div class="code-listing"><pre>    Returns</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line664">664</td>
+              <td class="code "><div class="code-listing"><pre>    -------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line665">665</td>
+              <td class="code "><div class="code-listing"><pre>    SS : SuffStatBag</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line666">666</td>
+              <td class="code "><div class="code-listing"><pre>    '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1550</td>
+              <td id="line667">667</td>
+              <td class="code "><div class="code-listing"><pre>    if mPairIDs is None:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1542</td>
+              <td id="line668">668</td>
+              <td class="code "><div class="code-listing"><pre>        M = 0</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line669">669</td>
+              <td class="code "><div class="code-listing"><pre>    else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line670">670</td>
+              <td class="code "><div class="code-listing"><pre>        M = len(mPairIDs)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line671">671</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1550</td>
+              <td id="line672">672</td>
+              <td class="code "><div class="code-listing"><pre>    resp = LP['resp']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1550</td>
+              <td id="line673">673</td>
+              <td class="code "><div class="code-listing"><pre>    K = resp.shape[1]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1550</td>
+              <td id="line674">674</td>
+              <td class="code "><div class="code-listing"><pre>    startLocIDs = Data.doc_range[:-1]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.05 s</td>
+              <td>1550</td>
+              <td id="line675">675</td>
+              <td class="code "><div class="code-listing"><pre>    StartStateCount = np.sum(resp[startLocIDs], axis=0)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.11 s</td>
+              <td>1550</td>
+              <td id="line676">676</td>
+              <td class="code "><div class="code-listing"><pre>    N = np.sum(resp, axis=0)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line677">677</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1550</td>
+              <td id="line678">678</td>
+              <td class="code "><div class="code-listing"><pre>    if 'TransCount' in LP:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>1550</td>
+              <td id="line679">679</td>
+              <td class="code "><div class="code-listing"><pre>        TransStateCount = np.sum(LP['TransCount'], axis=0)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line680">680</td>
+              <td class="code "><div class="code-listing"><pre>    else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line681">681</td>
+              <td class="code "><div class="code-listing"><pre>        respPair = LP['respPair']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line682">682</td>
+              <td class="code "><div class="code-listing"><pre>        TransStateCount = np.sum(respPair, axis=0)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line683">683</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.07 s</td>
+              <td>1550</td>
+              <td id="line684">684</td>
+              <td class="code "><div class="code-listing"><pre>    SS = SuffStatBag(K=K, D=Data.dim, M=M)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.14 s</td>
+              <td>1550</td>
+              <td id="line685">685</td>
+              <td class="code "><div class="code-listing"><pre>    SS.setField('StartStateCount', StartStateCount, dims=('K'))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.13 s</td>
+              <td>1550</td>
+              <td id="line686">686</td>
+              <td class="code "><div class="code-listing"><pre>    SS.setField('TransStateCount', TransStateCount, dims=('K', 'K'))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.12 s</td>
+              <td>1550</td>
+              <td id="line687">687</td>
+              <td class="code "><div class="code-listing"><pre>    SS.setField('N', N, dims=('K'))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.11 s</td>
+              <td>1550</td>
+              <td id="line688">688</td>
+              <td class="code "><div class="code-listing"><pre>    SS.setField('nDoc', Data.nDoc, dims=None)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line689">689</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1550</td>
+              <td id="line690">690</td>
+              <td class="code "><div class="code-listing"><pre>    if doPrecompEntropy or 'Htable' in LP:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line691">691</td>
+              <td class="code "><div class="code-listing"><pre>        # Compute entropy terms!</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line692">692</td>
+              <td class="code "><div class="code-listing"><pre>        # 'Htable', 'Hstart' will both be in Mdict</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1413</td>
+              <td id="line693">693</td>
+              <td class="code "><div class="code-listing"><pre>        Mdict = calcELBO_NonlinearTerms(Data=Data, </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.19 s</td>
+              <td>1413</td>
+              <td id="line694">694</td>
+              <td class="code "><div class="code-listing"><pre>            LP=LP, returnMemoizedDict=1)</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 0.24 s</td>
+              <td>1413</td>
+              <td id="line695">695</td>
+              <td class="code danger"><div class="code-listing"><pre>        SS.setELBOTerm('Htable', Mdict['Htable'], dims=('K', 'K'))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.12 s</td>
+              <td>1413</td>
+              <td id="line696">696</td>
+              <td class="code "><div class="code-listing"><pre>        SS.setELBOTerm('Hstart', Mdict['Hstart'], dims=('K'))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line697">697</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1550</td>
+              <td id="line698">698</td>
+              <td class="code "><div class="code-listing"><pre>    if doPrecompMergeEntropy:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line699">699</td>
+              <td class="code "><div class="code-listing"><pre>        subHstart, subHtable = HMMUtil.PrecompMergeEntropy_SpecificPairs(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line700">700</td>
+              <td class="code "><div class="code-listing"><pre>            LP, Data, mPairIDs)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line701">701</td>
+              <td class="code "><div class="code-listing"><pre>        SS.setMergeTerm('Hstart', subHstart, dims=('M'))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line702">702</td>
+              <td class="code "><div class="code-listing"><pre>        SS.setMergeTerm('Htable', subHtable, dims=('M', 2, 'K'))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line703">703</td>
+              <td class="code "><div class="code-listing"><pre>        SS.mPairIDs = np.asarray(mPairIDs)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line704">704</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line705">705</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1550</td>
+              <td id="line706">706</td>
+              <td class="code "><div class="code-listing"><pre>    if trackDocUsage:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line707">707</td>
+              <td class="code "><div class="code-listing"><pre>        # Track how often topic appears in a seq. with mass > thresh.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line708">708</td>
+              <td class="code "><div class="code-listing"><pre>        DocUsage = np.zeros(K)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>120</td>
+              <td id="line709">709</td>
+              <td class="code "><div class="code-listing"><pre>        for n in xrange(Data.nDoc):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>96</td>
+              <td id="line710">710</td>
+              <td class="code "><div class="code-listing"><pre>            start = Data.doc_range[n]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>96</td>
+              <td id="line711">711</td>
+              <td class="code "><div class="code-listing"><pre>            stop = Data.doc_range[n + 1]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>96</td>
+              <td id="line712">712</td>
+              <td class="code "><div class="code-listing"><pre>            DocUsage += np.sum(LP['resp'][start:stop], axis=0) > 0.01</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line713">713</td>
+              <td class="code "><div class="code-listing"><pre>        SS.setSelectionTerm('DocUsageCount', DocUsage, dims='K')</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1550</td>
+              <td id="line714">714</td>
+              <td class="code "><div class="code-listing"><pre>    return SS</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>
