@@ -13,6 +13,7 @@ from GaussObsModel import createECovMatFromUserInput
 
 
 class AutoRegGaussObsModel(AbstractObsModel):
+
     ''' First-order auto-regressive data generation model.
 
     Attributes for Prior (Matrix-Normal-Wishart)
@@ -813,11 +814,11 @@ class AutoRegGaussObsModel(AbstractObsModel):
     def _E_logdetL(self, k=None):
         dvec = np.arange(1, self.D + 1, dtype=np.float)
         if k is 'all':
-            dvec = dvec[:,np.newaxis]
+            dvec = dvec[:, np.newaxis]
             retVec = self.D * LOGTWO * np.ones(self.K)
             for kk in xrange(self.K):
                 retVec[kk] -= self.GetCached('logdetB', kk)
-            nuT = self.Post.nu[np.newaxis,:]
+            nuT = self.Post.nu[np.newaxis, :]
             retVec += np.sum(digamma(0.5 * (nuT + 1 - dvec)), axis=0)
             return retVec
         elif k is None:
@@ -871,8 +872,6 @@ class AutoRegGaussObsModel(AbstractObsModel):
         E_ALA = self._E_ALA(k)
         return np.trace(np.dot(E_ALA, S))
 
-
-
     def getSerializableParamsForLocalStep(self):
         """ Get compact dict of params for local step.
 
@@ -882,13 +881,13 @@ class AutoRegGaussObsModel(AbstractObsModel):
         """
         if self.inferType == 'EM':
             raise NotImplementedError('TODO')
-        return dict(inferType=self.inferType, 
+        return dict(inferType=self.inferType,
                     K=self.K,
                     D=self.D,
                     )
 
     def fillSharedMemDictForLocalStep(self, ShMem=None):
-        """ Get dict of shared mem arrays needed for parallel local step. 
+        """ Get dict of shared mem arrays needed for parallel local step.
 
         Returns
         -------
@@ -908,7 +907,7 @@ class AutoRegGaussObsModel(AbstractObsModel):
             ShMem['M'] = numpyToSharedMemArray(self.Post.M)
             ShMem['cholV'] = numpyToSharedMemArray(self._cholV('all'))
             ShMem['cholB'] = numpyToSharedMemArray(self._cholB('all'))
-            ShMem['E_logdetL'] = numpyToSharedMemArray(self._E_logdetL('all')) 
+            ShMem['E_logdetL'] = numpyToSharedMemArray(self._E_logdetL('all'))
         return ShMem
 
     def getLocalAndSummaryFunctionHandles(self):
@@ -959,8 +958,9 @@ def c_Diff(nu, logdetB, M, logdetV,
     return c_Func(nu, logdetB, M, logdetV) \
         - c_Func(nu2, logdetB2, M2, logdetV2)
 
+
 def calcSummaryStats(Data, SS, LP,
-        **kwargs):
+                     **kwargs):
     ''' Calculate sufficient statistics for local params at data slice.
 
     Returns
@@ -995,6 +995,7 @@ def calcSummaryStats(Data, SS, LP,
     SS.setField('pxT', pxT, dims=('K', 'D', 'D'))
     return SS
 
+
 def calcLocalParams(Dslice, **kwargs):
     ''' Compute local parameters for provided data slice.
 
@@ -1006,9 +1007,10 @@ def calcLocalParams(Dslice, **kwargs):
     LP = dict(E_log_soft_ev=L)
     return LP
 
+
 def calcLogSoftEvMatrix_FromPost(Dslice,
-        E_logdetL=None,
-        **kwargs):
+                                 E_logdetL=None,
+                                 **kwargs):
     ''' Calculate expected log soft ev matrix for variational.
 
     Returns
@@ -1024,9 +1026,9 @@ def calcLogSoftEvMatrix_FromPost(Dslice,
     return L
 
 
-def _mahalDist_Post(X, Xprev, k, D=None, 
-        cholB=None, cholV=None, M=None,
-        nu=None, **kwargs):
+def _mahalDist_Post(X, Xprev, k, D=None,
+                    cholB=None, cholV=None, M=None,
+                    nu=None, **kwargs):
     ''' Calc expected mahalonobis distance from comp k to each data atom
 
     Returns
@@ -1042,6 +1044,3 @@ def _mahalDist_Post(X, Xprev, k, D=None,
     Qprev = np.linalg.solve(cholV[k], Xprev.T)
     Qprev *= Qprev
     return nu[k] * np.sum(Q, axis=0) + D * np.sum(Qprev, axis=0)
-
-
-

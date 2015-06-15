@@ -17,12 +17,13 @@ from bnpy.util import as2D
 
 from lib.LibFwdBwd import FwdAlg_cpp, BwdAlg_cpp, SummaryAlg_cpp
 
-def calcLocalParams(Data, LP, 
-        transTheta=None, startTheta=None,
-        limitMemoryLP=1,
-        mPairIDs=None,
-        cslice=(0,None),
-        **kwargs):       
+
+def calcLocalParams(Data, LP,
+                    transTheta=None, startTheta=None,
+                    limitMemoryLP=1,
+                    mPairIDs=None,
+                    cslice=(0, None),
+                    **kwargs):
     ''' Compute local parameters for provided dataset.
 
     Returns
@@ -30,21 +31,21 @@ def calcLocalParams(Data, LP,
     LP : dict of local params, with fields
         * resp : 2D array, nAtom x K
         if limitMemoryLP=0:
-            * respPair : 3D array, nAtom x K x K 
+            * respPair : 3D array, nAtom x K x K
         if limitMemoryLP=1:
-            * TransCount : 3D array, nSeq x K x K       
+            * TransCount : 3D array, nSeq x K x K
     '''
     # Unpack soft evidence 2D array
     logLik = LP['E_log_soft_ev']
     nAtom, K = logLik.shape
 
     # Calculate trans prob 2D array
-    digammaSumTransTheta = digamma(np.sum(transTheta[:K, :K+1], axis=1))
-    transPi = digamma(transTheta[:K, :K]) - digammaSumTransTheta[:,np.newaxis]
+    digammaSumTransTheta = digamma(np.sum(transTheta[:K, :K + 1], axis=1))
+    transPi = digamma(transTheta[:K, :K]) - digammaSumTransTheta[:, np.newaxis]
     np.exp(transPi, out=transPi)
 
     # Calculate LOG of start state prob vector
-    logstartPi = digamma(startTheta[:K]) - digamma(np.sum(startTheta[:K+1]))
+    logstartPi = digamma(startTheta[:K]) - digamma(np.sum(startTheta[:K + 1]))
 
     # Set starting probs to uniform,
     # because Line A below updates first state's logLik to include logstartPi
@@ -117,6 +118,7 @@ def calcLocalParams(Data, LP,
         # ... end if statement on limitMemoryLP
 
     return LP
+
 
 def FwdBwdAlg(PiInit, PiMat, logSoftEv):
     '''Execute forward-backward algorithm for one sequence.

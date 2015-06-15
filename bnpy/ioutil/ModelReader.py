@@ -17,6 +17,7 @@ from bnpy.allocmodel import AllocModelConstructorsByName
 from bnpy.obsmodel import ObsModelConstructorsByName
 from bnpy.util import toCArray, as1D
 
+
 def getPrefixForLapQuery(taskpath, lapQuery):
     ''' Search among checkpoint laps for one nearest to query.
 
@@ -91,7 +92,7 @@ def load_model(matfilepath, prefix='Best', lap=None):
                 prefix = matList[-1].split(os.path.sep)[-1][:11]
                 model = loadTopicModel(matfilepath, prefix=prefix)
             elif len(lpwList) > 0:
-                lpwList.sort() # ascenting order
+                lpwList.sort()  # ascenting order
                 prefix = lpwList[-1].split(os.path.sep)[-1][:7]
 
             else:
@@ -99,7 +100,7 @@ def load_model(matfilepath, prefix='Best', lap=None):
         try:
             model = loadTopicModel(matfilepath, prefix=prefix)
         except IOError as e:
-            model = loadTopicModelFromMEDLDA(matfilepath, prefix=prefix)            
+            model = loadTopicModelFromMEDLDA(matfilepath, prefix=prefix)
     return model
 
 
@@ -229,9 +230,9 @@ def loadWordCountMatrixForLap(matfilepath, lapQuery, toDense=True):
     return WordCounts
 
 
-def loadTopicModelFromMEDLDA(filepath, 
-        prefix=None,
-        returnTPA=0):
+def loadTopicModelFromMEDLDA(filepath,
+                             prefix=None,
+                             returnTPA=0):
     ''' Load topic model saved in medlda format.
     '''
     # Avoid circular import
@@ -247,33 +248,34 @@ def loadTopicModelFromMEDLDA(filepath,
     logtopics = np.loadtxt(topicfilepath)
     topics = np.exp(logtopics)
     topics += 1e-9
-    topics /= topics.sum(axis=1)[:,np.newaxis]
+    topics /= topics.sum(axis=1)[:, np.newaxis]
     assert np.all(np.isfinite(topics))
-
 
     if returnTPA:
         K = topics.shape[0]
-        probs = 1.0/K * np.ones(K)
+        probs = 1.0 / K * np.ones(K)
         return topics, probs, alpha, eta
 
     infAlg = 'VB'
     aPriorDict = dict(alpha=alpha)
-    amodel = AllocModelConstructorsByName['FiniteTopicModel'](infAlg, aPriorDict)
-    omodel = ObsModelConstructorsByName['Mult'](infAlg, 
-        lam=0.001, D=topics.shape[1])
+    amodel = AllocModelConstructorsByName[
+        'FiniteTopicModel'](infAlg, aPriorDict)
+    omodel = ObsModelConstructorsByName['Mult'](infAlg,
+                                                lam=0.001, D=topics.shape[1])
     hmodel = HModel(amodel, omodel)
     hmodel.obsModel.set_global_params(topics=topics, nTotalTokens=1000)
     return hmodel
 
-def loadTopicModel(matfilepath, prefix=None, 
-        returnWordCounts=0, returnTPA=0):
+
+def loadTopicModel(matfilepath, prefix=None,
+                   returnWordCounts=0, returnTPA=0):
     ''' Load saved topic model
     '''
     # avoids circular import
     from bnpy.HModel import HModel
     if len(glob.glob(os.path.join(matfilepath, "*.log_prob_w"))) > 0:
-        return loadTopicModelFromMEDLDA(matfilepath, prefix, 
-            returnTPA=returnTPA)
+        return loadTopicModelFromMEDLDA(matfilepath, prefix,
+                                        returnTPA=returnTPA)
 
     if prefix is not None:
         matfilepath = os.path.join(matfilepath, prefix + 'TopicModel.mat')
@@ -303,7 +305,7 @@ def loadTopicModel(matfilepath, prefix=None,
         try:
             probs = Mdict['probs']
         except KeyError:
-            probs = (1.0/K) * np.ones(K)
+            probs = (1.0 / K) * np.ones(K)
         try:
             alpha = float(Mdict['alpha'])
         except KeyError:

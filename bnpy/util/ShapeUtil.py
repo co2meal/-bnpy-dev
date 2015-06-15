@@ -45,7 +45,7 @@ def as1D(x):
     >>> as1D([[3,4,5,6]])
     array([3, 4, 5, 6])
     """
-    if type(x) != np.ndarray:
+    if not isinstance(x, np.ndarray):
         x = np.asarray_chkfinite(x)
     if x.ndim < 1:
         x = np.asarray_chkfinite([x])
@@ -71,7 +71,7 @@ def as2D(x):
     >>> as2D([[3,4,5,6]])
     array([[3, 4, 5, 6]])
     """
-    if type(x) != np.ndarray:
+    if not isinstance(x, np.ndarray):
         x = np.asarray_chkfinite(x)
     if x.ndim < 1:
         x = np.asarray_chkfinite([x])
@@ -96,7 +96,7 @@ def as3D(x):
     >>> as3D([[3,4,5,6]])
     array([[[3, 4, 5, 6]]])
     """
-    if type(x) != np.ndarray:
+    if not isinstance(x, np.ndarray):
         x = np.asarray_chkfinite(x)
     if x.ndim < 1:
         x = np.asarray_chkfinite([x])

@@ -1,11 +1,11 @@
 """
-Collection of functions and classes for testing a naive version 
+Collection of functions and classes for testing a naive version
 of parallel execution for topic model variational inference.
 
 Usage
 -----
 From a shell/terminal, use like a standard Python script.
-$ python TestFiniteTopicModel.py --N 200 --nDoc 500 --K 50 --nWorkers 2 
+$ python TestFiniteTopicModel.py --N 200 --nDoc 500 --K 50 --nWorkers 2
 
 For some keyword args (like N, nDoc, K, nWorkers),
 can use range syntax to easily compare performance as params change.
@@ -16,7 +16,7 @@ Keyword Args
 ------------
 * N : int or range
     number of words per document for toy data
-* nDoc : int or range 
+* nDoc : int or range
     total number of documents to generate
 * K : int or range
     number of topics
@@ -46,6 +46,7 @@ import itertools
 import bnpy
 
 from bnpy.util import sharedMemDictToNumpy, sharedMemToNumpyArray
+
 
 def runBenchmarkAcrossProblemSizes(TestClass):
     """ Execute speed benchmark across several problem sizes.
@@ -78,7 +79,7 @@ def runBenchmarkAcrossProblemSizes(TestClass):
     parser.add_argument('--nRepeat', type=int, default=1)
     parser.add_argument('--verbose', type=int, default=0)
     args = parser.parse_args()
-    
+
     NKDiterator = itertools.product(
         rangeFromString(args.N),
         rangeFromString(args.K),
@@ -103,11 +104,11 @@ def runBenchmarkAcrossProblemSizes(TestClass):
 
         # Create test instance with desired keyword args.
         # Required first arg is string name of test we'll execute
-        myTest = TestClass('run_speed_benchmark', **kwargs) 
+        myTest = TestClass('run_speed_benchmark', **kwargs)
         myTest.setUp()
         TimeInfo = myTest.run_speed_benchmark(method=args.method,
                                               nRepeat=args.nRepeat)
-        myTest.tearDown() # closes all processes
+        myTest.tearDown()  # closes all processes
 
 
 def calcLocalParamsAndSummarize(Data, hmodel, start=None, stop=None, **kwargs):
@@ -135,6 +136,7 @@ def calcLocalParamsAndSummarize(Data, hmodel, start=None, stop=None, **kwargs):
     SS = hmodel.obsModel.get_global_suff_stats(Data, SS, LP, **sliceArgs)
     return SS
 
+
 def sliceGenerator(nDoc=0, nWorkers=0, aArgs=dict(), oArgs=dict()):
     """ Iterate over slices given problem size and num workers
 
@@ -150,10 +152,13 @@ def sliceGenerator(nDoc=0, nWorkers=0, aArgs=dict(), oArgs=dict()):
             stop = nDoc
         yield (start, stop), aArgs, oArgs
 
+
 class Worker(multiprocessing.Process):
+
     """ Single "worker" process that processes tasks delivered via queues
     """
-    def __init__(self, uid, JobQueue, ResultQueue, 
+
+    def __init__(self, uid, JobQueue, ResultQueue,
                  dataShMem=None,
                  aShMem=None,
                  oShMem=None,
@@ -201,7 +206,7 @@ class Worker(multiprocessing.Process):
 
             start, stop = sliceArgs
             Dslice = self.makeDataSliceFromSharedMem(
-                self.dataShMem, (start,stop))
+                self.dataShMem, (start, stop))
 
             wc = sharedMemToNumpyArray(self.dataShMem['word_count'])
             self.printMsg("WCtotal=%d" % wc.sum())
@@ -219,7 +224,6 @@ class Worker(multiprocessing.Process):
             self.ResultQueue.put(SS)
             self.JobQueue.task_done()
 
-
         # Clean up
         self.printMsg("process CleanUp! pid=%d" % (os.getpid()))
 
@@ -229,11 +233,10 @@ class Test(unittest.TestCase):
     def shortDescription(self):
         return None
 
-
     def __init__(self, testname, seed=0, vocab_size=100,
-                nCoordAscentItersLP=100, convThrLP=0.01,
-                N=200, nDoc=25, K=10, nWorkers=2, verbose=1,
-                **kwargs):
+                 nCoordAscentItersLP=100, convThrLP=0.01,
+                 N=200, nDoc=25, K=10, nWorkers=2, verbose=1,
+                 **kwargs):
         ''' Create a new test harness for parallel topic model inference.
 
         Post Condition Attributes
@@ -241,7 +244,7 @@ class Test(unittest.TestCase):
         Data : bnpy DataObj dataset
         hmodel : bnpy HModel
         '''
-        super(type(self),self).__init__(testname)
+        super(type(self), self).__init__(testname)
         self.nWorkers = nWorkers
         self.verbose = verbose
         self.N = N
@@ -253,19 +256,18 @@ class Test(unittest.TestCase):
         PRNG = np.random.RandomState(seed)
         topics = PRNG.gamma(1.0, 1.0, size=(K, vocab_size))
         np.maximum(topics, 1e-30, out=topics)
-        topics /= topics.sum(axis=1)[:,np.newaxis]
-        topic_prior = 1.0/K * np.ones(K)
+        topics /= topics.sum(axis=1)[:, np.newaxis]
+        topic_prior = 1.0 / K * np.ones(K)
         self.Data = bnpy.data.WordsData.CreateToyDataFromLDAModel(
             nWordsPerDoc=N, nDocTotal=nDoc, K=K, topics=topics,
             seed=seed, topic_prior=topic_prior)
 
         self.hmodel = bnpy.HModel.CreateEntireModel(
-             'VB', 'FiniteTopicModel', 'Mult',
-             dict(alpha=0.1, gamma=5),
-             dict(lam=0.1), 
-             self.Data)
+            'VB', 'FiniteTopicModel', 'Mult',
+            dict(alpha=0.1, gamma=5),
+            dict(lam=0.1),
+            self.Data)
         self.hmodel.init_global_params(self.Data, initname='randexamples', K=K)
-
 
     def setUp(self, **kwargs):
         ''' Launch pool of worker processes, with queues to communicate with.
@@ -288,14 +290,14 @@ class Test(unittest.TestCase):
             o_calcLocalParams=o_L,
             o_calcSummaryStats=o_S,
             makeDataSliceFromSharedMem=self.Data.getDataSliceFunctionHandle(),
-            )
+        )
 
         # Launch desired number of worker processes
         # We don't need to store references to these processes,
         # We can get everything we need from JobQ and ResultsQ
         for uid in range(self.nWorkers):
             worker = Worker(
-                uid, self.JobQ, self.ResultQ, 
+                uid, self.JobQ, self.ResultQ,
                 LPkwargs=self.LPkwargs,
                 verbose=self.verbose,
                 **ShMemArgs)
@@ -317,14 +319,14 @@ class Test(unittest.TestCase):
 
     def run_baseline(self):
         """ Execute on entire matrix (no slices) in master process.
-        """        
+        """
         SSall = calcLocalParamsAndSummarize(self.Data, self.hmodel,
                                             **self.LPkwargs)
         return SSall
 
     def run_serial(self):
         """ Execute on slices processed in serial by master process.
-        """        
+        """
         SSagg = None
         aArgs = self.hmodel.allocModel.getSerializableParamsForLocalStep()
         oArgs = self.hmodel.obsModel.getSerializableParamsForLocalStep()
@@ -373,7 +375,7 @@ class Test(unittest.TestCase):
     def test_correctness_serial(self):
         ''' Verify that the local step works as expected.
 
-        No parallelization here. 
+        No parallelization here.
         Just verifying that we can split computation up into >1 slice,
         add up results from all slices and still get the same answer.
         '''
@@ -382,28 +384,26 @@ class Test(unittest.TestCase):
         SSserial = self.run_serial()
         allcloseSS(SSbase, SSserial)
 
-    
     def test_correctness_parallel(self):
         """ Verify that we can execute local step across several processes
 
         Each process does the following:
         * grab its chunk of data from a shared jobQueue
         * performs computations on this chunk
-        * load the resulting suff statistics object into resultsQueue      
+        * load the resulting suff statistics object into resultsQueue
         """
         print ''
         SSparallel = self.run_parallel()
         SSbase = self.run_baseline()
         allcloseSS(SSparallel, SSbase)
 
-    
     def test_speed(self, nRepeat=5):
         """ Compare speed of different algorithms.
         """
         print ''
         Results = self.run_all_with_timer(nRepeat=nRepeat)
         assert True
-    
+
     def run_speed_benchmark(self, method='all', nRepeat=3):
         """ Compare speed of different algorithms.
         """
@@ -414,11 +414,10 @@ class Test(unittest.TestCase):
             Results = dict(parallel_time=ptime)
         elif method == 'serial':
             ptime = self.run_with_timer('run_serial', nRepeat=nRepeat)
-            Results = dict(serial_time=ptime)    
+            Results = dict(serial_time=ptime)
         else:
             ptime = self.run_with_timer('run_baseline', nRepeat=nRepeat)
             Results = dict(base_time=ptime)
-            
 
         for key in ['base_time', 'serial_time', 'parallel_time']:
             if key in Results:
@@ -428,10 +427,10 @@ class Test(unittest.TestCase):
                 except KeyError:
                     speedupmsg = ""
                 print "%18s | %8.3f sec %s" % (
-                    key, 
-                    Results[key], 
+                    key,
+                    Results[key],
                     speedupmsg
-                    )
+                )
         return Results
 
     def run_with_timer(self, funcToCall, nRepeat=3):
@@ -453,11 +452,10 @@ class Test(unittest.TestCase):
             base_time=base_time,
             base_speedup=1.0,
             serial_time=serial_time,
-            serial_speedup=base_time/serial_time,
+            serial_speedup=base_time / serial_time,
             parallel_time=parallel_time,
-            parallel_speedup=base_time/parallel_time,
-            )
-
+            parallel_speedup=base_time / parallel_time,
+        )
 
 
 def rangeFromString(commaString):
@@ -476,6 +474,7 @@ def rangeFromString(commaString):
     flatList = itertools.chain(*listOfLists)
     return flatList
 
+
 def rangeFromHyphen(hyphenString):
     """ Convert a hyphen string like "5-7" into a list [5,6,7]
 
@@ -484,7 +483,7 @@ def rangeFromHyphen(hyphenString):
     myList : list of integers
     """
     x = [int(x) for x in hyphenString.split('-')]
-    return range(x[0], x[-1]+1)
+    return range(x[0], x[-1] + 1)
 
 
 def allcloseSS(SS1, SS2):

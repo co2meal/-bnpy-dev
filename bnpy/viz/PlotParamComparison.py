@@ -45,11 +45,11 @@ taskidsHelpMsg = "ids of trials/runs to plot from given job." + \
                  " Example: '4' or '1,2,3' or '2-6'."
 
 DefaultLinePlotKwArgs = dict(
-    markersize=10, 
-    linewidth=1.75, 
+    markersize=10,
+    linewidth=1.75,
     label=None,
     color='k',
-    )
+)
 
 DefaultColorList = [
     (1, 0, 0),  # red
@@ -59,7 +59,7 @@ DefaultColorList = [
     (1, 0, 1),  # magenta
     (0, 1, 1),  # cyan
     (1, 0.6, 0),  # orange
-    ]
+]
 
 LabelMap = dict(laps='num pass thru data',
                 iters='num alg steps',
@@ -72,16 +72,16 @@ LabelMap['hamming-distance'] = 'Hamming dist.'
 LabelMap['Keff'] = 'num topics K'
 
 
-def plotManyPanelsByPVar(jpathPattern='/tmp/', 
-        pvar=None, pvals=None,
-        W=5, H=4,
-        savefilename=None, doShowNow=False,
-        **kwargs):
+def plotManyPanelsByPVar(jpathPattern='/tmp/',
+                         pvar=None, pvals=None,
+                         W=5, H=4,
+                         savefilename=None, doShowNow=False,
+                         **kwargs):
     ''' Create line plots for jobs matching pattern and provided kwargs
     '''
     if pvar is None:
         jpathList = [jpathPattern]
-        pvar=None
+        pvar = None
         pvals = [None]
     else:
         prefixfilepath = os.path.sep.join(jpathPattern.split(os.path.sep)[:-1])
@@ -90,7 +90,8 @@ def plotManyPanelsByPVar(jpathPattern='/tmp/',
             pvals = PPListMap[pvar]
         else:
             pvals = [p for p in pvals if p in PPListMap[pvar]]
-        jpathList = makeListOfJPatternsWithSpecificVals(PPListMap, 
+        jpathList = makeListOfJPatternsWithSpecificVals(
+            PPListMap,
             prefixfilepath=prefixfilepath,
             key=pvar,
             vals=pvals,
@@ -98,17 +99,17 @@ def plotManyPanelsByPVar(jpathPattern='/tmp/',
 
     nrows = 1
     ncols = len(pvals)
-    pylab.subplots(nrows=nrows, ncols=ncols, figsize=(ncols*W, nrows*H))
+    pylab.subplots(nrows=nrows, ncols=ncols, figsize=(ncols * W, nrows * H))
 
     axH = None
     for panelID, panel_jobPattern in enumerate(jpathList):
-        axH = pylab.subplot(nrows, ncols, panelID+1, sharey=axH, sharex=axH)
+        axH = pylab.subplot(nrows, ncols, panelID + 1, sharey=axH, sharex=axH)
         # Only show legend on first plot
         if panelID > 0 and 'loc' in kwargs:
             kwargs['loc'] = None
         kwargs['doShowNow'] = False
         plotMultipleLinesByLVar(panel_jobPattern,
-            **kwargs)
+                                **kwargs)
         if pvar is not None:
             pylab.title('%s=%s' % (pvar, pvals[panelID]))
 
@@ -128,15 +129,17 @@ def plotManyPanelsByPVar(jpathPattern='/tmp/',
     Info = dict(
         nrows=nrows,
         ncols=ncols,
-        )
+    )
     return Info
 
+
 def plotMultipleLinesByLVar(jpathPattern,
-        lvar=None, lvals=None,
-        ColorMap=DefaultColorList,
-        loc=None, bbox_to_anchor=None,
-        savefilename=None, tickfontsize=None, doShowNow=False,
-        **kwargs):
+                            lvar=None, lvals=None,
+                            ColorMap=DefaultColorList,
+                            loc=None, bbox_to_anchor=None,
+                            savefilename=None, tickfontsize=None,
+                            doShowNow=False,
+                            **kwargs):
     ''' Create line plots for provided jobs.
     '''
     prefixfilepath = os.path.sep.join(jpathPattern.split(os.path.sep)[:-1])
@@ -157,13 +160,14 @@ def plotMultipleLinesByLVar(jpathPattern,
         for xval in xvals:
             keyValDict = dict()
             keyValDict[xvar] = xval
-            jpatternForXVal = makeJPatternWithSpecificVals(PPListMap,
-                prefixfilepath=prefixfilepath,
-                **keyValDict)
+            jpatternForXVal = makeJPatternWithSpecificVals(
+                PPListMap,
+                prefixfilepath=prefixfilepath, **keyValDict)
             TaskRanker.markBestAmongJobPatternOnDisk(jpatternForXVal)
 
     # Create list of jobs with corresponding pattern
-    jpathList = makeListOfJPatternsWithSpecificVals(PPListMap, 
+    jpathList = makeListOfJPatternsWithSpecificVals(
+        PPListMap,
         prefixfilepath=prefixfilepath,
         key=lvar,
         vals=lvals,
@@ -180,17 +184,17 @@ def plotMultipleLinesByLVar(jpathPattern,
             # Access next elt in ColorMap list
             line_color = ColorMap[lineID]
         plotSingleLineAcrossJobsByXVar(line_jobPattern,
-            label=line_label,
-            color=line_color,
-            lineID=lineID,
-            lvar=lvar,
-            **kwargs)
+                                       label=line_label,
+                                       color=line_color,
+                                       lineID=lineID,
+                                       lvar=lvar,
+                                       **kwargs)
 
     if loc is not None and len(jpathList) > 1:
         pylab.legend(loc=loc, bbox_to_anchor=bbox_to_anchor)
     if tickfontsize is not None:
         pylab.tick_params(axis='both', which='major', labelsize=tickfontsize)
-    
+
     if savefilename is not None:
         try:
             pylab.show(block=False)
@@ -204,17 +208,17 @@ def plotMultipleLinesByLVar(jpathPattern,
             pass  # when using IPython notebook
 
 
-def plotSingleLineAcrossJobsByXVar(jpathPattern, 
-        label='',
-        xvar=None,
-        xvals=None,
-        xlabel=None,
-        yvar='evidence',
-        lineStyle='.-',
-        taskid='.best',
-        lineID=0,
-        lvar='',
-        **kwargs):
+def plotSingleLineAcrossJobsByXVar(jpathPattern,
+                                   label='',
+                                   xvar=None,
+                                   xvals=None,
+                                   xlabel=None,
+                                   yvar='evidence',
+                                   lineStyle='.-',
+                                   taskid='.best',
+                                   lineID=0,
+                                   lvar='',
+                                   **kwargs):
     ''' Create line plot in current figure for job matching the pattern
 
     Iterates over each xval in provided list of values.
@@ -223,7 +227,7 @@ def plotSingleLineAcrossJobsByXVar(jpathPattern,
     Post Condition
     --------------
     Current axes have one line added.
-    '''   
+    '''
     prefixfilepath = os.path.sep.join(jpathPattern.split(os.path.sep)[:-1])
     PPListMap = makePPListMapFromJPattern(jpathPattern)
     if xvals is None:
@@ -231,7 +235,8 @@ def plotSingleLineAcrossJobsByXVar(jpathPattern,
 
     xs = np.zeros(len(xvals))
     ys = np.zeros(len(xvals))
-    jpathList = makeListOfJPatternsWithSpecificVals(PPListMap, 
+    jpathList = makeListOfJPatternsWithSpecificVals(
+        PPListMap,
         prefixfilepath=prefixfilepath,
         key=xvar,
         vals=xvals,
@@ -265,6 +270,7 @@ def plotSingleLineAcrossJobsByXVar(jpathPattern,
         pylab.xlabel(xlabel)
         pylab.ylabel(LabelMap[yvar])
 
+
 def loadYValFromDisk(jobpath, taskid, yvar='evidence'):
     ytxtfile = os.path.join(jobpath, taskid, yvar + '.txt')
     if not os.path.isfile(ytxtfile):
@@ -281,16 +287,16 @@ def parse_args(**kwargs):
     parser.add_argument('dataName', type=str, default='AsteriskK8')
     parser.add_argument('jpathPattern', type=str, default='demo*')
     parser.add_argument('--xvar', type=str, default=None,
-        help="name of x axis variable to plot.")
+                        help="name of x axis variable to plot.")
     parser.add_argument('--yvar', type=str, default='evidence',
-        choices=LabelMap.keys(),
-        help="name of y axis variable to plot.")
+                        choices=LabelMap.keys(),
+                        help="name of y axis variable to plot.")
     parser.add_argument('--lvar', type=str, default=None,
-        help="quantity that varies across lines")
+                        help="quantity that varies across lines")
     parser.add_argument('--pvar', type=str, default=None,
-        help="quantity that varies across subplots")
+                        help="quantity that varies across subplots")
     parser.add_argument('--taskid', type=str, default='1',
-        help="specify which task to plot (.best, .worst, etc)")
+                        help="specify which task to plot (.best, .worst, etc)")
     parser.add_argument(
         '--savefilename', type=str, default=None,
         help="location where to save figure (absolute path directory)")

@@ -25,6 +25,7 @@ Log = logging.getLogger('bnpy')
 
 
 class HDPTopicModel(AllocModel):
+
     '''
     Bayesian nonparametric topic model with a K active components.
 
@@ -544,16 +545,16 @@ class HDPTopicModel(AllocModel):
         self.ClearCache()
         K = int(K)
         self.K = K
-        
+
         if beta is None:
             beta = 1.0 / K * np.ones(K)
         assert beta.ndim == 1
         assert np.sum(beta) <= 1.0
         assert beta.size == self.K
-        
+
         if oldWay:
             if np.allclose(beta.sum(), 1.0):
-                betaRem =  np.minimum(0.05, 1./(K))
+                betaRem = np.minimum(0.05, 1. / (K))
             else:
                 betaRem = 1 - np.sum(beta)
             betaWithRem = np.hstack([beta, betaRem])
@@ -567,11 +568,11 @@ class HDPTopicModel(AllocModel):
             betaRem = np.minimum(1.0 / (2 * K), 0.05)
             betaWithRem = np.hstack([beta * (1.0 - betaRem), betaRem])
             assert np.allclose(np.sum(betaWithRem), 1.0)
-            
+
         else:
             assert beta.size == K + 1
             betaWithRem = beta
-        
+
         # Convert beta to eta1, eta0
         theta = self.K * betaWithRem
         eta1 = theta[:-1].copy()
@@ -604,12 +605,11 @@ class HDPTopicModel(AllocModel):
         else:
             raise AttributeError('Unrecognized hmodel')
 
-
     def calc_evidence(self, Data, SS, LP, todict=0, **kwargs):
-        return calcELBO(Data=Data, SS=SS, LP=LP, todict=todict, 
-            alpha=self.alpha, gamma=self.gamma,
-            rho=self.rho, omega=self.omega,
-            **kwargs)
+        return calcELBO(Data=Data, SS=SS, LP=LP, todict=todict,
+                        alpha=self.alpha, gamma=self.gamma,
+                        rho=self.rho, omega=self.omega,
+                        **kwargs)
 
     def calcELBO_LinearTerms(self, **kwargs):
         ''' Compute sum of ELBO terms that are linear/const wrt suff stats
@@ -635,7 +635,6 @@ class HDPTopicModel(AllocModel):
             rho=self.rho, omega=self.omega,
             **kwargs)
 
-
     def getSerializableParamsForLocalStep(self):
         """ Get compact dict of params for parallel local step.
 
@@ -643,12 +642,12 @@ class HDPTopicModel(AllocModel):
         -------
         Info : dict
         """
-        return dict(inferType=self.inferType, 
-                    K=self.K, 
+        return dict(inferType=self.inferType,
+                    K=self.K,
                     alphaEbetaRem=self.alpha_E_beta_rem())
 
     def fillSharedMemDictForLocalStep(self, ShMem=None):
-        """ Get dict of shared mem arrays needed for parallel local step. 
+        """ Get dict of shared mem arrays needed for parallel local step.
 
         Returns
         -------
@@ -657,7 +656,7 @@ class HDPTopicModel(AllocModel):
         # No shared memory required here.
         if not isinstance(ShMem, dict):
             ShMem = dict()
-        
+
         alphaEbeta = self.alpha_E_beta()
         if 'alphaEbeta' in ShMem:
             shared_alphaEbeta = sharedMemToNumpyArray(ShMem['alphaEbeta'])
@@ -681,7 +680,7 @@ class HDPTopicModel(AllocModel):
     # .... end class HDPTopicModel
 
 
-def calcSummaryStats(Dslice, LP=None, 
+def calcSummaryStats(Dslice, LP=None,
                      alpha=None,
                      alphaEbeta=None,
                      doPrecompEntropy=0,
@@ -727,17 +726,17 @@ def calcSummaryStats(Dslice, LP=None,
     SS.setField('sumLogPiRem', np.sum(LP['ElogPiRem']), dims=None)
 
     if doPrecompEntropy:
-        Mdict = calcELBO_NonlinearTerms(Data=Dslice, 
-            LP=LP, returnMemoizedDict=1)
+        Mdict = calcELBO_NonlinearTerms(Data=Dslice,
+                                        LP=LP, returnMemoizedDict=1)
         SS.setELBOTerm('Hresp', Mdict['Hresp'], dims='K')
         SS.setELBOTerm('slackTheta', Mdict['slackTheta'], dims='K')
         SS.setELBOTerm('slackThetaRem', Mdict['slackThetaRem'], dims=None)
         SS.setELBOTerm('gammalnSumTheta',
-            Mdict['gammalnSumTheta'], dims=None)
-        SS.setELBOTerm('gammalnTheta', 
-            Mdict['gammalnTheta'], dims='K')
-        SS.setELBOTerm('gammalnThetaRem', 
-            Mdict['gammalnThetaRem'], dims=None)
+                       Mdict['gammalnSumTheta'], dims=None)
+        SS.setELBOTerm('gammalnTheta',
+                       Mdict['gammalnTheta'], dims='K')
+        SS.setELBOTerm('gammalnThetaRem',
+                       Mdict['gammalnThetaRem'], dims=None)
 
     if doPrecompMergeEntropy:
         if mPairIDs is None:

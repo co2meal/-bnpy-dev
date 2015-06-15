@@ -29,7 +29,6 @@ class ParallelMOVBMovesAlg(MOVBBirthMergeAlg):
             self.nWorkers = np.maximum(self.nWorkers, maxWorkers)
         self.memoLPkeys = []
 
-
     def fit(self, hmodel, DataIterator, LP=None, **kwargs):
         ''' Run learning algorithm that fits parameters of hmodel to Data.
 
@@ -45,7 +44,7 @@ class ParallelMOVBMovesAlg(MOVBBirthMergeAlg):
 
         self.ActiveIDVec = np.arange(hmodel.obsModel.K)
         self.maxUID = self.ActiveIDVec.max()
-        
+
         # Initialize Progress Tracking vars like nBatch, lapFrac, etc.
         iterid, lapFrac = self.initProgressTrackVars(DataIterator)
 
@@ -59,8 +58,8 @@ class ParallelMOVBMovesAlg(MOVBBirthMergeAlg):
         # Setup workers for parallel runs
         if self.nWorkers > 0:
             JobQ, ResultQ, aSharedMem, oSharedMem = setupQueuesAndWorkers(
-                DataIterator, hmodel, 
-                nWorkers=self.nWorkers, 
+                DataIterator, hmodel,
+                nWorkers=self.nWorkers,
                 algParamsLP=self.algParamsLP)
             self.JobQ = JobQ
             self.ResultQ = ResultQ
@@ -108,8 +107,8 @@ class ParallelMOVBMovesAlg(MOVBBirthMergeAlg):
             elif self.isFirstBatch(lapFrac):
                 if self.doMergePrepAtLap(lapFrac + 1):
                     MergePrepInfo = dict(
-                        mergePairSelection=\
-                            self.algParams['merge']['mergePairSelection'])
+                        mergePairSelection=self.algParams[
+                            'merge']['mergePairSelection'])
                 else:
                     MergePrepInfo = dict()
 
@@ -118,7 +117,7 @@ class ParallelMOVBMovesAlg(MOVBBirthMergeAlg):
                 if SS is not None and SS.hasSelectionTerms():
                     SS._SelectTerms.setAllFieldsToZero()
 
-            # Update shared memory with new global params    
+            # Update shared memory with new global params
             if self.nWorkers > 0:
                 aSharedMem = hmodel.allocModel.fillSharedMemDictForLocalStep(
                     aSharedMem)
@@ -130,17 +129,17 @@ class ParallelMOVBMovesAlg(MOVBBirthMergeAlg):
             self.algParamsLP['batchID'] = batchID
             if self.nWorkers > 0:
                 SSchunk = self.calcLocalParamsAndSummarize_parallel(
-                    DataIterator, hmodel, 
+                    DataIterator, hmodel,
                     MergePrepInfo=MergePrepInfo,
                     batchID=batchID, lapFrac=lapFrac)
             else:
                 SSchunk = self.calcLocalParamsAndSummarize_main(
-                    DataIterator, hmodel, 
+                    DataIterator, hmodel,
                     MergePrepInfo=MergePrepInfo,
                     batchID=batchID, lapFrac=lapFrac)
 
-            self.saveDebugStateAtBatch('Estep', 
-                batchID, SSchunk=SSchunk, SS=SS, hmodel=hmodel)
+            self.saveDebugStateAtBatch(
+                'Estep', batchID, SSchunk=SSchunk, SS=SS, hmodel=hmodel)
 
             # Summary step for whole-dataset stats
             # (does incremental update)
@@ -202,8 +201,8 @@ class ParallelMOVBMovesAlg(MOVBBirthMergeAlg):
             if self.doDebug() and lapFrac >= 1.0:
                 self.verifyELBOTracking(hmodel, SS, evBound, order=order)
 
-            self.saveDebugStateAtBatch('Mstep',
-                batchID, SSchunk=SSchunk, SS=SS, hmodel=hmodel)
+            self.saveDebugStateAtBatch(
+                'Mstep', batchID, SSchunk=SSchunk, SS=SS, hmodel=hmodel)
 
             # Assess convergence
             countVec = SS.getCountVec()
@@ -254,9 +253,9 @@ class ParallelMOVBMovesAlg(MOVBBirthMergeAlg):
                                  SSmemory=self.SSmemory)
 
     def memoizedSummaryStep(self, hmodel, SS, SSchunk, batchID,
-            MergePrepInfo=None,
-            order=None,
-            **kwargs):
+                            MergePrepInfo=None,
+                            order=None,
+                            **kwargs):
         ''' Execute summary step on current batch and update aggregated SS.
 
         Returns
@@ -293,10 +292,10 @@ class ParallelMOVBMovesAlg(MOVBBirthMergeAlg):
             hmodel.obsModel.forceSSInBounds(SS)
         return SS
 
-    def calcLocalParamsAndSummarize_main(self, 
-            DataIterator, hmodel, 
-            MergePrepInfo=None,
-            batchID=0, **kwargs):
+    def calcLocalParamsAndSummarize_main(self,
+                                         DataIterator, hmodel,
+                                         MergePrepInfo=None,
+                                         batchID=0, **kwargs):
         ''' Execute local step and summary step in main process.
 
         Returns
@@ -311,15 +310,15 @@ class ParallelMOVBMovesAlg(MOVBBirthMergeAlg):
 
         Dbatch = DataIterator.getBatch(batchID=batchID)
         LPbatch = hmodel.calc_local_params(Dbatch, **LPkwargs)
-        SSbatch = hmodel.get_global_suff_stats(Dbatch, LPbatch,
-            doPrecompEntropy=1, **MergePrepInfo)
+        SSbatch = hmodel.get_global_suff_stats(
+            Dbatch, LPbatch, doPrecompEntropy=1, **MergePrepInfo)
         SSbatch.setUIDs(self.ActiveIDVec.copy())
         return SSbatch
 
-    def calcLocalParamsAndSummarize_parallel(self, 
-            DataIterator, hmodel, 
-            MergePrepInfo=None,
-            batchID=0, lapFrac=-1, **kwargs):
+    def calcLocalParamsAndSummarize_parallel(self,
+                                             DataIterator, hmodel,
+                                             MergePrepInfo=None,
+                                             batchID=0, lapFrac=-1, **kwargs):
         ''' Execute local step and summary step in parallel via workers.
 
         Returns
@@ -349,10 +348,11 @@ class ParallelMOVBMovesAlg(MOVBBirthMergeAlg):
             SSagg += SSslice
         return SSagg
 
-def setupQueuesAndWorkers(DataIterator, hmodel, 
-        algParamsLP=None, 
-        nWorkers=0, 
-        **kwargs):
+
+def setupQueuesAndWorkers(DataIterator, hmodel,
+                          algParamsLP=None,
+                          nWorkers=0,
+                          **kwargs):
     ''' Create pool of worker processes for provided dataset and model.
 
     Returns
@@ -386,16 +386,16 @@ def setupQueuesAndWorkers(DataIterator, hmodel,
     # Create multiple workers
     for uid in range(nWorkers):
         worker = SharedMemWorker(uid, JobQ, ResultQ,
-                        makeDataSliceFromSharedMem,
-                        o_calcLocalParams,
-                        o_calcSummaryStats,
-                        a_calcLocalParams,
-                        a_calcSummaryStats,
-                        dataSharedMem,
-                        aSharedMem,
-                        oSharedMem,
-                        LPkwargs=algParamsLP,
-                        verbose=1)
+                                 makeDataSliceFromSharedMem,
+                                 o_calcLocalParams,
+                                 o_calcSummaryStats,
+                                 a_calcLocalParams,
+                                 a_calcSummaryStats,
+                                 dataSharedMem,
+                                 aSharedMem,
+                                 oSharedMem,
+                                 LPkwargs=algParamsLP,
+                                 verbose=1)
         worker.start()
 
     return JobQ, ResultQ, aSharedMem, oSharedMem

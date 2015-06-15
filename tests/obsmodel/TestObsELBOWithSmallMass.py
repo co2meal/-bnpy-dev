@@ -4,7 +4,9 @@ import copy
 
 import bnpy
 
+
 class Test(unittest.TestCase):
+
     """ Basic unit test for verifying ELBO gap before/after delete
 
 
@@ -13,10 +15,11 @@ class Test(unittest.TestCase):
 
     TODO: understand why current default values fail to yield positive gap!
     """
+
     def shortDescription(self):
         return None
 
-    def __init__(self, testname, 
+    def __init__(self, testname,
                  obsModelName='ZeroMeanGauss',
                  K=2, N=100, D=1, seed=None, sF=1.0, xval=None,
                  Reps=0.01,
@@ -59,7 +62,7 @@ class Test(unittest.TestCase):
         # BEFORE
         # resp : NxK responsibilities
         #    last column is all zeros except for one entry
-        resp = 1.0/(K-1) + 100 * PRNG.rand(N, K)
+        resp = 1.0 / (K - 1) + 100 * PRNG.rand(N, K)
         resp = np.maximum(resp, 1e-40)
         resp[:, -1] = 1e-40
         resp[0, 0] = 1 - self.Reps
@@ -71,10 +74,10 @@ class Test(unittest.TestCase):
         beforeModel.update_global_params(beforeSS)
 
         # AFTER
-        # resp : Nx(K-1) 
+        # resp : Nx(K-1)
         #    original last column has been reassigned via the argmax rule
         kmax = resp[0, :-1].argmax()
-        respNew = np.delete(resp, K-1, axis=1)
+        respNew = np.delete(resp, K - 1, axis=1)
         respNew[0, kmax] += resp[0, -1]
         assert np.allclose(respNew.sum(axis=1), 1.0)
         afterLP = dict(resp=respNew)
@@ -82,7 +85,7 @@ class Test(unittest.TestCase):
         afterModel.update_global_params(afterSS)
 
         # AFTER2
-        # resp : NxK 
+        # resp : NxK
         #    original last column still represented, but with zero mass
         resp2 = resp.copy()
         resp2[:, -1] = 0
@@ -106,7 +109,6 @@ class Test(unittest.TestCase):
         print 'K=%d  D=%d  N=%d  %s' % (K, D, N, self.obsModelName)
         print '----------------- setup complete.'
 
-
     def test_suff_stats_represent_same_whole_dataset(self):
         assert np.allclose(self.beforeSS.N.sum(),
                            self.afterSS.N.sum())
@@ -121,7 +123,7 @@ class Test(unittest.TestCase):
         assert afterELBO >= beforeELBO
 
         after2ELBO = self.after2Model.calcELBO_Memoized(self.after2SS)
-        #print " after2ELB0  % 9.6f" % (after2ELBO)
+        # print " after2ELB0  % 9.6f" % (after2ELBO)
         assert np.allclose(afterELBO, after2ELBO)
 
     def calc_ELBO_gap(self):
@@ -133,39 +135,43 @@ class Test(unittest.TestCase):
         beforeELBO = self.beforeModel.calcELBO_Memoized(self.beforeSS)
         return beforeELBO
 
+
 class TestRange(unittest.TestCase):
+
     """ Verify expected gap for a range of possible models.
 
     Each possible model depends on provided params K, N, D.
-    Dataset is drawn from Normal(0, I) given provided seed. 
+    Dataset is drawn from Normal(0, I) given provided seed.
     """
 
     def runTest(self):
         for obsModelName in ['Gauss', 'DiagGauss']:
-          for K in [2]:
-            for N in [1, 2, 4, 16, 100, 500, 5000]:
-                for D in [1, 2, 16, 32, 64]:
-                  for seed in [2, 111, 222, 333]:
-                    kwargs = dict(obsModelName=obsModelName,
-                                  seed=seed,
-                                  K=K, N=N, D=D)
-                    curTest = Test("test_ELBO_gap", **kwargs)
-                    curTest.setUp()
-                    curTest.run()
-                    curTest.tearDown()
+            for K in [2]:
+                for N in [1, 2, 4, 16, 100, 500, 5000]:
+                    for D in [1, 2, 16, 32, 64]:
+                        for seed in [2, 111, 222, 333]:
+                            kwargs = dict(obsModelName=obsModelName,
+                                          seed=seed,
+                                          K=K, N=N, D=D)
+                            curTest = Test("test_ELBO_gap", **kwargs)
+                            curTest.setUp()
+                            curTest.run()
+                            curTest.tearDown()
+
 
 def calcAllocELBO(Data, resp, gamma0=5):
     N = resp.sum(axis=0)
     SS = bnpy.suffstats.SuffStatBag(K=resp.shape[1])
     SS.setField('N', N, dims='K')
-  
+
     from bnpy.allocmodel import DPMixtureModel
     model = DPMixtureModel('VB', dict(gamma0=gamma0))
     model.update_global_params(SS)
     L = model.calc_evidence(Data, SS, dict(resp=resp))
     return L
-    
 
+
+'''
 class TestPlotGapVsXVals(unittest.TestCase):
 
     def runTest(self):
@@ -173,7 +179,6 @@ class TestPlotGapVsXVals(unittest.TestCase):
         obsModelName = 'ZeroMeanGauss'
         xvals = np.linspace(-4, 4, 100)
         gaps = np.zeros_like(xvals)
-
 
         for ii, xval in enumerate(xvals):
             kwargs = dict(obsModelName=obsModelName,
@@ -195,3 +200,4 @@ class TestPlotGapVsXVals(unittest.TestCase):
         pylab.legend(['L_data', 'L_data + L_alloc + L_entropy'],
                      loc='center right')
         pylab.show(block=1)
+'''

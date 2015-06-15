@@ -15,7 +15,8 @@ ELBOTermDimMap = dict(
     gammalnThetaRem=None,
     gammalnSumTheta=None,
     Hresp=None,
-    )
+)
+
 
 def calcELBO(**kwargs):
     """ Calculate ELBO objective for provided model state.
@@ -29,11 +30,12 @@ def calcELBO(**kwargs):
     Lnon = calcELBO_NonlinearTerms(**kwargs)
     return Lnon + Llinear
 
+
 def calcELBO_LinearTerms(SS=None,
-        nDoc=None,
-        rho=None, omega=None, Ebeta=None,
-        alpha=0, gamma=None, 
-        afterGlobalStep=0, todict=0, **kwargs):
+                         nDoc=None,
+                         rho=None, omega=None, Ebeta=None,
+                         alpha=0, gamma=None,
+                         afterGlobalStep=0, todict=0, **kwargs):
     """ Calculate ELBO objective terms that are linear in suff stats.
 
     Returns
@@ -44,25 +46,28 @@ def calcELBO_LinearTerms(SS=None,
     if SS is not None:
         nDoc = SS.nDoc
     return L_top(nDoc=nDoc,
-        rho=rho, omega=omega, Ebeta=Ebeta,
-        alpha=alpha, gamma=gamma)
+                 rho=rho, omega=omega, Ebeta=Ebeta,
+                 alpha=alpha, gamma=gamma)
+
 
 def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None,
-        rho=None, Ebeta=None, alpha=None,
-        resp=None, DocTopicCount=None, theta=None, ElogPi=None,
-        nDoc=None, sumLogPi=None, sumLogPiRem=None,
-        Hresp=None, slackTheta=None, slackThetaRem=None,
-        gammalnTheta=None, gammalnSumTheta=None, gammalnThetaRem=None,
-        returnMemoizedDict=0, **kwargs):
+                            rho=None, Ebeta=None, alpha=None,
+                            resp=None, DocTopicCount=None, theta=None,
+                            ElogPi=None,
+                            nDoc=None, sumLogPi=None, sumLogPiRem=None,
+                            Hresp=None, slackTheta=None, slackThetaRem=None,
+                            gammalnTheta=None, gammalnSumTheta=None,
+                            gammalnThetaRem=None,
+                            returnMemoizedDict=0, **kwargs):
     """ Calculate ELBO objective terms non-linear in suff stats.
     """
     if Ebeta is None:
         Ebeta = rho2beta(rho, returnSize='K+1')
-    
+
     if SS is not None:
         sumLogPi = SS.sumLogPi
         sumLogPiRem = SS.sumLogPiRem
-    
+
     if LP is not None:
         resp = LP['resp']
         DocTopicCount = LP['DocTopicCount']
@@ -77,8 +82,8 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None,
 
     if theta is not None and ElogPi is None:
         digammasumtheta = digamma(theta.sum(axis=1) + thetaRem)
-        ElogPi = digamma(theta) - digammasumtheta[:,np.newaxis]
-        ElogPiRem = digamma(thetaRem) - digammasumtheta[:,np.newaxis]
+        ElogPi = digamma(theta) - digammasumtheta[:, np.newaxis]
+        ElogPiRem = digamma(thetaRem) - digammasumtheta[:, np.newaxis]
 
     if sumLogPi is None and ElogPi is not None:
         sumLogPi = np.sum(ElogPi, axis=0)
@@ -116,17 +121,17 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None,
 
     if returnMemoizedDict:
         return dict(Hresp=Hresp,
-            slackTheta=slackTheta,
-            slackThetaRem=slackThetaRem,
-            gammalnTheta=gammalnTheta,
-            gammalnThetaRem=gammalnThetaRem,
-            gammalnSumTheta=gammalnSumTheta)
+                    slackTheta=slackTheta,
+                    slackThetaRem=slackThetaRem,
+                    gammalnTheta=gammalnTheta,
+                    gammalnThetaRem=gammalnThetaRem,
+                    gammalnSumTheta=gammalnSumTheta)
 
     # First, compute all local-only terms
     Lentropy = Hresp.sum()
     Lslack = slackTheta.sum() + slackThetaRem
-    LcDtheta =  -1 * (gammalnSumTheta - gammalnTheta.sum() - gammalnThetaRem)
-    
+    LcDtheta = -1 * (gammalnSumTheta - gammalnTheta.sum() - gammalnThetaRem)
+
     # For stochastic (soVB), we need to scale up these terms
     # Only used when --doMemoELBO is set to 0 (not recommended)
     if SS is not None and SS.hasAmpFactor():
@@ -134,17 +139,17 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None,
         Lslack *= SS.ampF
         LcDtheta *= SS.ampF
 
-    # Next, compute the slack term 
+    # Next, compute the slack term
     alphaEbeta = alpha * Ebeta
     Lslack_alphaEbeta = np.sum(alphaEbeta[:-1] * sumLogPi) \
-                        + alphaEbeta[-1] * sumLogPiRem
+        + alphaEbeta[-1] * sumLogPiRem
     Lslack += Lslack_alphaEbeta
 
-    return LcDtheta + Lslack + Lentropy 
+    return LcDtheta + Lslack + Lentropy
 
 
-def L_top(nDoc=None, rho=None, omega=None, 
-        alpha=None, gamma=None, **kwargs):
+def L_top(nDoc=None, rho=None, omega=None,
+          alpha=None, gamma=None, **kwargs):
     ''' Evaluate the top-level term of the surrogate objective
     '''
     K = rho.size
@@ -157,7 +162,7 @@ def L_top(nDoc=None, rho=None, omega=None,
     ONcoef = nDoc + 1.0 - eta1
     OFFcoef = nDoc * OptimizerRhoOmega.kvec(K) + gamma - eta0
 
-    calpha = nDoc * K  * np.log(alpha)
+    calpha = nDoc * K * np.log(alpha)
     cDiff = K * c_Beta(1, gamma) - c_Beta(eta1, eta0)
 
     return calpha + \
@@ -248,9 +253,9 @@ def calcELBO_FixedDocTopicCountIgnoreEntropy(
         nDoc=DocTopicCount.shape[0],
         DocTopicCount=DocTopicCount, alpha=alpha,
         rho=rho, omega=omega, Hresp=Hresp)
-    Llinear = calcELBO_LinearTerms(alpha=alpha, gamma=gamma, 
-        rho=rho, omega=omega,
-        nDoc=DocTopicCount.shape[0])
+    Llinear = calcELBO_LinearTerms(alpha=alpha, gamma=gamma,
+                                   rho=rho, omega=omega,
+                                   nDoc=DocTopicCount.shape[0])
     return Lnon + Llinear
 
 """

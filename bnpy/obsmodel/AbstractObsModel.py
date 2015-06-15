@@ -165,9 +165,6 @@ class AbstractObsModel(object):
         '''
         self.Cache.clear()
 
-
-  ######################################################### Function handles
-  #########################################################   
     def getHandleCalcLocalParams(self):
         return self.calc_local_params
 

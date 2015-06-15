@@ -15,13 +15,14 @@ from bnpy.init.SeqCreateRefinery import \
 #   proposeNewResp_<creationProposalName>
 from bnpy.init.SeqCreateProposals import *
 
-def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model, 
-        SS=None,
-        lapFrac=0,
-        PastAttemptLog=None,
-        nDocSeenForProposal=0,
-        nDocSeenInCurLap=0,
-        **kwargs):
+
+def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model,
+                                                 SS=None,
+                                                 lapFrac=0,
+                                                 PastAttemptLog=None,
+                                                 nDocSeenForProposal=0,
+                                                 nDocSeenInCurLap=0,
+                                                 **kwargs):
     ''' Perform many proposal moves on provided sequence.
 
     Args
@@ -33,7 +34,7 @@ def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model,
     Returns
     -------
     LP_n
-    tempModel : HModel 
+    tempModel : HModel
         represents whole dataset seen thus far
         with all global params fully updated from tempSS suff stats
     tempSS : SuffStatBag
@@ -42,9 +43,9 @@ def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model,
     '''
     if 'verbose' not in kwargs:
         kwargs['verbose'] = 0
-    
+
     if lapFrac > 1:
-        #assert SS.nDoc == Data_n.nDocTotal + nDocSeenForProposal
+        # assert SS.nDoc == Data_n.nDocTotal + nDocSeenForProposal
         assert SS.nDoc >= Data_n.nDocTotal
     else:
         if SS is not None:
@@ -62,7 +63,8 @@ def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model,
     creationNumProposal = kwargs['creationNumProposal']
 
     if creationNumProposal < 1.0:
-        beyondReqFrac = (lapFrac - np.floor(lapFrac)) > creationNumProposal + 1e-5
+        beyondReqFrac = (
+            lapFrac - np.floor(lapFrac)) > creationNumProposal + 1e-5
         isLastLap = np.allclose(lapFrac, np.ceil(lapFrac))
         if beyondReqFrac or isLastLap:
             creationNumProposal = 0
@@ -76,13 +78,14 @@ def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model,
     for creationProposalName in creationProposalNames:
         for repID in range(creationNumProposal):
             if propID > 0:
-                # Remove current stats for this seq before next proposal. 
+                # Remove current stats for this seq before next proposal.
                 SS_n = model.get_global_suff_stats(Data_n, LP_n)
                 tempSS -= SS_n
 
             if kwargs['verbose']:
                 print '======== lapFrac %.3f seqName %s | proposal %d/%d' % (
-                    lapFrac, kwargs['seqName'], propID+1, creationNumProposal)
+                    lapFrac, kwargs['seqName'],
+                    propID + 1, creationNumProposal)
                 if propID == 0:
                     print '   BEFORE tempSS.nDoc %d' % (tempSS.nDoc)
                     print 'N ', ' '.join(
@@ -125,12 +128,12 @@ def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model,
             # Will have two versions of the current sequence
             Norig = SS.N.sum()
             assert tempSS.N.sum() >= Norig + T_n - 1e-5
-            #assert tempSS.nDoc == Data_n.nDocTotal + nDocSeenForProposal + 1
-        #else:
+            # assert tempSS.nDoc == Data_n.nDocTotal + nDocSeenForProposal + 1
+        # else:
         #    assert tempSS.nDoc == nDocSeenForProposal + 1 + \
         #        nDocSeenInCurLap
 
-    #else:
+    # else:
     #    if lapFrac > 1:
     #        assert tempSS.nDoc == Data_n.nDocTotal
     #    else:
@@ -141,32 +144,33 @@ def createSingleSeqLPWithNewStates_ManyProposals(Data_n, LP_n, model,
         didAnyProposals=didAnyProposals,
         origK=origK,
         propK=tempSS.K,
-        )
+    )
 
     if 'blocks' in PastAttemptLog:
         del PastAttemptLog['blocks']
     return LP_n, model, tempSS, Info
 
-def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel, 
-        SS=None,
-        verbose=0,
-        Kfresh=3,
-        minBlockSize=20,
-        maxBlockSize=np.inf,
-        creationProposalName='mixture',
-        PRNG=None,
-        seed=0,
-        n=0,
-        Kmax=200,
-        seqName='',
-        **kwargs):
+
+def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
+                                   SS=None,
+                                   verbose=0,
+                                   Kfresh=3,
+                                   minBlockSize=20,
+                                   maxBlockSize=np.inf,
+                                   creationProposalName='mixture',
+                                   PRNG=None,
+                                   seed=0,
+                                   n=0,
+                                   Kmax=200,
+                                   seqName='',
+                                   **kwargs):
     ''' Try a proposal for new LP for current sequence n.
 
     Args
     -------
     SS : SuffStatBag
         represents whole-dataset seen thus far
-        if first lap: 
+        if first lap:
             does NOT include stats from n
         else:
             includes *previous* stats from current sequence n
@@ -174,15 +178,15 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
     Returns
     -------
     LP_n : dict of local params, with K + Knew states (Knew >= 0)
-    tempModel : HModel 
+    tempModel : HModel
         represents whole dataset seen thus far
         with all global params fully updated from tempSS suff stats
     tempSS : SuffStatBag
         represents whole dataset seen thus far
-        if first lap: 
+        if first lap:
             include only the most recent stats from n
             whether accepted or rejected.
-        else 
+        else
             includes *previous* stats from current sequence n
             and the most recent stats from n
     '''
@@ -231,7 +235,7 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
         uIDs = uIDs[elig_mask]
         ktarget = PRNG.choice(uIDs)
     else:
-        ktarget = PRNG.choice(uIDs)    
+        ktarget = PRNG.choice(uIDs)
 
     # Prepare all the arguments to pass to proposal function
     allPropKwArgs = dict(
@@ -244,9 +248,9 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
         Kfresh=Kfresh,
         minBlockSize=minBlockSize,
         maxBlockSize=maxBlockSize,
-        )
+    )
     allPropKwArgs.update(kwargs)
-    
+
     # Execute the proposal. Calls a function imported from SeqCreateProposals.
     propFuncName = 'proposeNewResp_' + creationProposalName
     GlobalVars = globals()
@@ -296,8 +300,8 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
     # It can downweight a proposal that takes a crappy state used in many seq
     # and replaces it with a new cluster for this sequence only,
     # because it only looks at the current sequence's data.
-    #propScore = calcELBOForSingleSeq_FromLP(Data_n, propLP_n, hmodel)
-    #curScore = calcELBOForSingleSeq_FromLP(Data_n, LP_n, hmodel)
+    # propScore = calcELBOForSingleSeq_FromLP(Data_n, propLP_n, hmodel)
+    # curScore = calcELBOForSingleSeq_FromLP(Data_n, LP_n, hmodel)
     propScore = propLP_n['evidence']
     curScore = LP_n['evidence']
     doAccept = propScore > curScore + 1e-6
@@ -324,11 +328,11 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
             doShow = True
         if doShow:
             showProposal(Data_n, LP_n, propResp, propLP_n,
-                doAccept=doAccept,
-                n=n,
-                seqName=seqName,
-                curModel=hmodel,
-                **kwargs)
+                         doAccept=doAccept,
+                         n=n,
+                         seqName=seqName,
+                         curModel=hmodel,
+                         **kwargs)
             print ''
             print ''
             print ''
@@ -345,16 +349,17 @@ def createSingleSeqLPWithNewStates(Data_n, LP_n, hmodel,
         assert SS.N.sum() >= Z_n.size - 1e-5
         return LP_n, hmodel, SS
 
+
 def showProposal(Data_n, LP_n, propResp, propLP_n,
-        n=0,
-        seqName='',
-        extraIDs_remaining=None,
-        doAccept=None,
-        doCompactTrueLabels=False,
-        Kfresh=None,
-        creationProposalName=None,
-        curModel=None,
-        **kwargs):
+                 n=0,
+                 seqName='',
+                 extraIDs_remaining=None,
+                 doAccept=None,
+                 doCompactTrueLabels=False,
+                 Kfresh=None,
+                 creationProposalName=None,
+                 curModel=None,
+                 **kwargs):
     from matplotlib import pylab
     from bnpy.util.StateSeqUtil import alignEstimatedStateSeqToTruth
     from bnpy.util.StateSeqUtil import makeStateColorMap
@@ -383,7 +388,7 @@ def showProposal(Data_n, LP_n, propResp, propLP_n,
 
     Kcur = LP_n['resp'].shape[1]
     nTrue = Ztrue.max() + 1
-    nExtra =  curZA.max() + 1 - nTrue
+    nExtra = curZA.max() + 1 - nTrue
     Kmax = np.maximum(nTrue, nTrue + nExtra)
 
     propZstart = propResp.argmax(axis=1)
@@ -397,7 +402,7 @@ def showProposal(Data_n, LP_n, propResp, propLP_n,
     Kprop = propLP_n['resp'].shape[1]
     propZrefined = -1 * propLP_n['resp'].argmax(axis=1) - 1
     for origLoc, kk in enumerate(range(Kcur, Kprop)):
-        propZrefined[propZrefined == -1*kk-1] = extraIDs_remaining[origLoc]
+        propZrefined[propZrefined == -1 * kk - 1] = extraIDs_remaining[origLoc]
     # Transform any original states back to original ids
     propZrefined[propZrefined < 0] = -1 * propZrefined[propZrefined < 0] - 1
     # Align to true states
@@ -407,41 +412,41 @@ def showProposal(Data_n, LP_n, propResp, propLP_n,
     nHighlight = propZAstart.max() + 1 - Kmax
 
     cmap = makeStateColorMap(nTrue=nTrue,
-        nExtra=np.maximum(0, nExtra),
-        nHighlight=np.maximum(0, nHighlight))
+                             nExtra=np.maximum(0, nExtra),
+                             nHighlight=np.maximum(0, nHighlight))
 
-    Kmaxxx = np.maximum(Kmax, propZAstart.max()+1)
-    Kmaxxx = np.maximum(Kmaxxx, propZArefined.max()+1)
-    imshowArgs = dict(interpolation='nearest', 
-        aspect=Z_n.size/1.0,
-        cmap=cmap,
-        vmin=0, vmax=Kmaxxx-1)
-    pylab.subplots(nrows=4, ncols=1, figsize=(12,5))
+    Kmaxxx = np.maximum(Kmax, propZAstart.max() + 1)
+    Kmaxxx = np.maximum(Kmaxxx, propZArefined.max() + 1)
+    imshowArgs = dict(interpolation='nearest',
+                      aspect=Z_n.size / 1.0,
+                      cmap=cmap,
+                      vmin=0, vmax=Kmaxxx - 1)
+    pylab.subplots(nrows=4, ncols=1, figsize=(12, 5))
     # show ground truth
-    #print 'UNIQUE IDS in each aligned Z'
-    #print np.unique(Ztrue)
-    #print np.unique(curZA)
-    #print np.unique(propZstart), '>', np.unique(propZAstart)
-    #print np.unique(propZrefined), '>', np.unique(propZArefined)
+    # print 'UNIQUE IDS in each aligned Z'
+    # print np.unique(Ztrue)
+    # print np.unique(curZA)
+    # print np.unique(propZstart), '>', np.unique(propZAstart)
+    # print np.unique(propZrefined), '>', np.unique(propZArefined)
 
-    ax = pylab.subplot(4,1,1)
-    pylab.imshow(Ztrue[np.newaxis,:], **imshowArgs)
+    ax = pylab.subplot(4, 1, 1)
+    pylab.imshow(Ztrue[np.newaxis, :], **imshowArgs)
     pylab.title('Ground truth' + ' ' + seqName)
-    pylab.yticks([]);
+    pylab.yticks([])
     # show current
-    pylab.subplot(4,1,2, sharex=ax)
-    pylab.imshow(curZA[np.newaxis,:], **imshowArgs)
+    pylab.subplot(4, 1, 2, sharex=ax)
+    pylab.imshow(curZA[np.newaxis, :], **imshowArgs)
     pylab.title('Current estimate')
-    pylab.yticks([]);
+    pylab.yticks([])
     # show init
-    pylab.subplot(4,1,3, sharex=ax)
-    pylab.imshow(propZAstart[np.newaxis,:], **imshowArgs)
+    pylab.subplot(4, 1, 3, sharex=ax)
+    pylab.imshow(propZAstart[np.newaxis, :], **imshowArgs)
     pylab.title('Initial proposal')
-    pylab.yticks([]);
+    pylab.yticks([])
 
     # show final
-    pylab.subplot(4,1,4, sharex=ax)
-    pylab.imshow(propZArefined[np.newaxis,:], **imshowArgs)
+    pylab.subplot(4, 1, 4, sharex=ax)
+    pylab.imshow(propZArefined[np.newaxis, :], **imshowArgs)
     if doAccept is None:
         acceptMsg = ''
     elif doAccept:
@@ -450,15 +455,7 @@ def showProposal(Data_n, LP_n, propResp, propLP_n,
         acceptMsg = '  REJECTED!'
 
     pylab.title('Refined proposal' + acceptMsg)
-    pylab.yticks([]);
-
-    #scale10 = np.floor(np.log10(Ztrue.size)) - 1
-    #scale10 = np.maximum(10**scale10, 5)
-    #xticks = np.linspace(0, Ztrue.size, np.ceil(Ztrue.size/scale10))
-    #xticks[1:-1] = scale10 * np.round(xticks[1:-1]/scale10)
-    #if xticks.size > 13:
-    #    xticks = np.hstack([xticks[::10], xticks[-1]])  
-    #pylab.xticks(xticks);
+    pylab.yticks([])
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore', UserWarning)
@@ -466,16 +463,17 @@ def showProposal(Data_n, LP_n, propResp, propLP_n,
     pylab.show(block=False)
     keypress = raw_input("Press any key to continue>>>")
     if keypress.count('embed'):
-        from IPython import embed;
+        from IPython import embed
         embed()
     pylab.close()
 
-def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel, 
-        SS=None,
-        Kmax=50,
-        initBlockLen=20,
-        verbose=0,
-        **kwargs):
+
+def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel,
+                                       SS=None,
+                                       Kmax=50,
+                                       initBlockLen=20,
+                                       verbose=0,
+                                       **kwargs):
     ''' Initialize single sequence using new states and existing ones.
 
     Returns
@@ -509,18 +507,18 @@ def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel,
 
         if hasattr(Data_n, 'TrueParams'):
             Zab = Data_n.TrueParams['Z'][a:b]
-            trueStateIDstr = ', '.join(['%d:%d' % (kk, np.sum(Zab==kk)) 
-                for kk in np.unique(Zab)])
+            trueStateIDstr = ', '.join(['%d:%d' % (kk, np.sum(Zab == kk))
+                                        for kk in np.unique(Zab)])
             trueStateIDstr = ' truth: ' + trueStateIDstr
         else:
             trueStateIDstr = ''
 
         if blockID == 0:
             SSprevComp = SSab
-            resp_n[a:b, K-1] = 1
+            resp_n[a:b, K - 1] = 1
             if verbose >= 2:
                 print "block %d/%d: %d-%d" % (blockID, len(blockTuples), a, b),
-                print 'assigned to first state %d' % (K-1), trueStateIDstr
+                print 'assigned to first state %d' % (K - 1), trueStateIDstr
             continue
 
         # Should we merge current interval [a,b] with previous state?
@@ -529,10 +527,10 @@ def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel,
         if (ELBOimprovement >= -0.000001):
             # Positive means we merge block [a,b] with previous state
             SSprevComp += SSab
-            resp_n[a:b, K-1] = 1
+            resp_n[a:b, K - 1] = 1
             if verbose >= 2:
                 print "block %d/%d: %d-%d" % (blockID, len(blockTuples), a, b),
-                print 'building on existing state %d' % (K-1), trueStateIDstr
+                print 'building on existing state %d' % (K - 1), trueStateIDstr
 
         else:
             # Insert finished block as a new component
@@ -551,11 +549,11 @@ def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel,
 
             # Assign block [a,b] to a new state!
             K += 1
-            resp_n[a:b, K-1] = 1
+            resp_n[a:b, K - 1] = 1
             SSprevComp = SSab
             if verbose >= 2:
                 print "block %d/%d: %d-%d" % (blockID, len(blockTuples), a, b),
-                print 'building on existing state %d' % (K-1), trueStateIDstr
+                print 'building on existing state %d' % (K - 1), trueStateIDstr
 
     # Deal with final block
     if SSobsonly is not None:
@@ -573,7 +571,7 @@ def initSingleSeq_SeqAllocContigBlocks(n, Data, hmodel,
         verbose=verbose)
 
     hmodel, SS = removeSmallUniqueCompsViaDelete(
-        SS, hmodel, Data_n, SS_n, 
+        SS, hmodel, Data_n, SS_n,
         verbose=verbose,
         initBlockLen=initBlockLen)
 
@@ -584,7 +582,7 @@ def refineSegmentationViaLocalGlobalSteps(
         SS, hmodel, Data_n, resp_n, K,
         verbose=0,
         nSteps=3,
-        ):
+):
     '''
 
     Returns
@@ -605,7 +603,7 @@ def refineSegmentationViaLocalGlobalSteps(
 
         SS_n = hmodel.get_global_suff_stats(Data_n, LP_n)
         assert np.allclose(SS_n.N.sum(), Data_n.nObs)
-        
+
         # Update whole-dataset stats
         if rep == 0:
             prevSS_n = SS_n
@@ -629,6 +627,7 @@ def refineSegmentationViaLocalGlobalSteps(
         for i in range(3):
             hmodel.allocModel.update_global_params(SS)
     return hmodel, SS, SS_n
+
 
 def removeSmallUniqueCompsViaDelete(
         SS, hmodel, Data_n, SS_n,
@@ -657,13 +656,13 @@ def removeSmallUniqueCompsViaDelete(
             candidateUIDs=candidateUIDs,
             DTargetData=Data_n,
             targetSS=SS_n,
-            )
+        )
         hmodel, SS, _, DResult = runDeleteMoveAndUpdateMemory(
             hmodel, SS, Plan,
             nRefineIters=2,
             LPkwargs=dict(limitMemoryLP=1),
             SSmemory=None,
-            )
+        )
         if verbose >= 2:
             print 'Cleanup deletes: %d/%d accepted' % (
                 DResult['nAccept'], DResult['nTotal'])
@@ -677,8 +676,9 @@ def removeSmallUniqueCompsViaDelete(
         print 'Total true states in cur seq: %d' % (K_true)
     return hmodel, SS
 
+
 def mergeDownLastStateIfPossible(resp_n, K_n, SS, SSprevComp, obsModel,
-        verbose=False):
+                                 verbose=False):
     ''' Try to merge the last state into the existing set.
 
     Returns
@@ -709,6 +709,7 @@ def mergeDownLastStateIfPossible(resp_n, K_n, SS, SSprevComp, obsModel,
         # No merge would be accepted
         return resp_n, K_n, SS
 
+
 def getListOfContigBlocks(Data_n=None, initBlockLen=20, T=None):
     ''' Generate tuples identifying contiguous blocks within given seq.
 
@@ -732,7 +733,7 @@ def getListOfContigBlocks(Data_n=None, initBlockLen=20, T=None):
         bList = list()
         for blockID in range(nBlocks):
             a = blockID * initBlockLen
-            b = (blockID+1) * initBlockLen
+            b = (blockID + 1) * initBlockLen
             if blockID == nBlocks - 1:
                 b = T
             bList.append((a, b))

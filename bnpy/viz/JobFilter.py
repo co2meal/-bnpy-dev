@@ -6,7 +6,7 @@ from collections import defaultdict, OrderedDict
 from bnpy.ioutil import BNPYArgParser
 
 # kwargs that arent needed for any job pattern matching
-SkipKeys = ['taskids', 'savefilename', 'fileSuffix', 
+SkipKeys = ['taskids', 'savefilename', 'fileSuffix',
             'loc', 'xvar', 'yvar']
 
 
@@ -42,7 +42,8 @@ def jpath2jdict(jpath):
     Example
     ---------
     >>> jpath2jdict('abc-nBatch=10-initname=randexamples')
-    OrderedDict([('field1', 'abc'), ('nBatch', '10'), ('initname', 'randexamples')])
+    OrderedDict(\
+[('field1', 'abc'), ('nBatch', '10'), ('initname', 'randexamples')])
     '''
     basename = jpath.split(os.path.sep)[-1]
     fields = basename.split('-')
@@ -60,10 +61,11 @@ def jpath2jdict(jpath):
                 D['field' + str(fID + 1)] = val
     return D
 
+
 def makeListOfJPatternsWithSpecificVals(PPListMap,
-        key='',
-        vals=None,
-        **keyValPairs):
+                                        key='',
+                                        vals=None,
+                                        **keyValPairs):
     ''' Make iterable list of jpaths with specific values.
 
     Example
@@ -83,8 +85,8 @@ def makeListOfJPatternsWithSpecificVals(PPListMap,
     if vals is None:
         vals = PPListMap[key]
     jpattern = makeJPatternWithSpecificVals(PPListMap,
-        doBest='.best' in vals,
-        **keyValPairs)
+                                            doBest='.best' in vals,
+                                            **keyValPairs)
     jpList = list()
     for v in vals:
         wildcardkey = "%s=*" % (key)
@@ -93,10 +95,11 @@ def makeListOfJPatternsWithSpecificVals(PPListMap,
         jpList.append(jpath)
     return jpList
 
+
 def makeJPatternWithSpecificVals(PPListMap,
-        prefixfilepath='',
-        doBest=False,
-        **keyValPairs):
+                                 prefixfilepath='',
+                                 doBest=False,
+                                 **keyValPairs):
     '''
     Example
     -------
@@ -119,7 +122,7 @@ def makeJPatternWithSpecificVals(PPListMap,
         if len(jpattern) > 0:
             jpattern += '-'
 
-        # Determine specific value to use next    
+        # Determine specific value to use next
         if len(PPListMap[key]) == 1:
             val = PPListMap[key][0]
         elif key in keyValPairs:
@@ -136,11 +139,12 @@ def makeJPatternWithSpecificVals(PPListMap,
         jpattern = os.path.join(prefixfilepath, jpattern)
     return jpattern
 
+
 def makePPListMapFromJPattern(jpathPattern=None,
-        jpathList=None,
-        verbose=0):
+                              jpathList=None,
+                              verbose=0):
     ''' Make dict that indicates all possible parameters for jobs.
-    
+
     PPList stands for Possible Parameter List.
 
     Example
@@ -184,7 +188,7 @@ def makePPListMapFromJPattern(jpathPattern=None,
                 raise ValueError('Inconsistent key lists!')
             for key in jdict:
                 if key not in PPDict:
-                    raise ValueError('Inconsistent key lists!')        
+                    raise ValueError('Inconsistent key lists!')
         for key in jdict:
             PPDict[key].add(jdict[key])
 
@@ -307,7 +311,6 @@ def filterJobs(jpathPattern,
         for name in legNames:
             print name
 
-
     return keepListFinal, legNames
 
 
@@ -318,7 +321,7 @@ if __name__ == '__main__':
     parser.add_argument('jobName', default='bm')
     args, unkList = parser.parse_known_args()
     reqDict = BNPYArgParser.arglist_to_kwargs(unkList,
-        doConvertFromStr=False)
+                                              doConvertFromStr=False)
     jpath = os.path.join(os.environ['BNPYOUTDIR'],
                          args.dataName,
                          args.jobName)

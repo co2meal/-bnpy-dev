@@ -4,6 +4,7 @@ from collections import OrderedDict
 
 import bnpy
 from MergeMoveEndToEndTest import MergeMoveEndToEndTest
+from bnpy.init.SingleSeqStateCreator import initSingleSeq_SeqAllocContigBlocks
 
 
 class Test(MergeMoveEndToEndTest):
@@ -13,20 +14,20 @@ class Test(MergeMoveEndToEndTest):
         """ Create the dataset
         """
         self.datasetArg = dict(
-            name='SeqOfBinBars9x9', 
+            name='SeqOfBinBars9x9',
             nDocTotal=1,
             T=15000,
             maxTConsec=500,
-            )
+        )
         datasetMod = __import__(self.datasetArg['name'], fromlist=[])
         self.Data = datasetMod.get_data(**self.datasetArg)
-        
+
     def nextObsKwArgsForVB(self):
         for lam in [0.1]:
             kwargs = OrderedDict()
             kwargs['name'] = 'Bern'
             kwargs['lam1'] = lam
-            kwargs['lam0'] = lam            
+            kwargs['lam0'] = lam
             yield kwargs
 
     def nextAllocKwArgsForVB(self):
@@ -42,9 +43,7 @@ class Test(MergeMoveEndToEndTest):
                 kwargs['startAlpha'] = startAlpha
                 yield kwargs
 
-
     def test_initStateSeq(self):
-        from bnpy.init.SingleSeqStateCreator import initSingleSeq_SeqAllocContigBlocks
         for aKwArgs in self.nextAllocKwArgsForVB():
             for oKwArgs in self.nextObsKwArgsForVB():
                 hmodel = bnpy.HModel.CreateEntireModel(

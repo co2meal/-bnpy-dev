@@ -4,7 +4,7 @@ from bnpy.util import as1D
 
 
 def calcHammingDistance(zTrue, zHat, excludeNegLabels=1, verbose=0,
-        **kwargs):
+                        **kwargs):
     ''' Compute Hamming distance: sum of all timesteps with different labels.
 
     Args
@@ -127,7 +127,7 @@ def alignEstimatedStateSeqToTruth(zHat, zTrue, useInfo=None, returnInfo=False):
         Ktrue = useInfo['Ktrue']
         Kest = useInfo['Kest']
 
-        assert np.allclose(Ktrue, zTrue.max()+1)
+        assert np.allclose(Ktrue, zTrue.max() + 1)
         Khat = zHat.max() + 1
 
         # Account for extra states present in zHat
@@ -135,14 +135,14 @@ def alignEstimatedStateSeqToTruth(zHat, zTrue, useInfo=None, returnInfo=False):
         # They should align to the next available UID in set
         # [Ktrue, Ktrue+1, Ktrue+2, ...]
         # so they don't get confused for a true label
-        ktrueextra = np.max([r for r,c in AlignedRowColPairs])
-        ktrueextra = int(np.maximum(ktrueextra+1, Ktrue))
-        for khat in np.arange(Kest, Khat+1):
+        ktrueextra = np.max([r for r, c in AlignedRowColPairs])
+        ktrueextra = int(np.maximum(ktrueextra + 1, Ktrue))
+        for khat in np.arange(Kest, Khat + 1):
             if khat in OrigToAlignedMap:
                 continue
             OrigToAlignedMap[khat] = ktrueextra
             AlignedToOrigMap[ktrueextra] = khat
-            AlignedRowColPairs.append((ktrueextra,khat))
+            AlignedRowColPairs.append((ktrueextra, khat))
             ktrueextra += 1
 
     zHatA = -1 * np.ones_like(zHat)
@@ -202,6 +202,7 @@ def convertStateSeq_MAT2list(zObjArr):
         zListBySeq.append(np.squeeze(zObjArr[n, 0]))
     return zListBySeq
 
+
 def calcContigBlocksFromZ(Zvec, returnStates=False):
     ''' Identify contig blocks assigned to one state in Zvec
 
@@ -223,9 +224,9 @@ def calcContigBlocksFromZ(Zvec, returnStates=False):
     blockStarts : 1D array of size B
     blockSizes : 1D array of size B
     '''
-    changePts = np.asarray(np.hstack([0, 
-        1+np.flatnonzero(np.diff(Zvec)),
-        len(Zvec)]), dtype=np.float64)
+    changePts = np.asarray(np.hstack([0,
+                                      1 + np.flatnonzero(np.diff(Zvec)),
+                                      len(Zvec)]), dtype=np.float64)
     assert len(changePts) >= 2
     chPtA = changePts[1:]
     chPtB = changePts[:-1]
@@ -237,7 +238,7 @@ def calcContigBlocksFromZ(Zvec, returnStates=False):
             blockStates = np.asarray([blockStates])
         return blockSizes, blockStarts, blockStates
     return blockSizes, blockStarts
-    
+
 
 def makeStateColorMap(nTrue=1, nExtra=0, nHighlight=0):
     '''
@@ -247,37 +248,37 @@ def makeStateColorMap(nTrue=1, nExtra=0, nHighlight=0):
     '''
     from matplotlib.colors import ListedColormap
     C = np.asarray([
-        [166,206,227],
-        [31,120,180],
-        [178,223,138],
-        [51,160,44],
-        [251,154,153],
-        [227,26,28],
-        [254,153,41],
-        [255,127,0],
-        [202,178,214],
-        [106,61,154],
-        [223,194,125],
-        [140,81,10],
-        [128,205,193],
-        [1,102,94],
-        [241,182,218],
-        [197,27,125],
-        ], dtype=np.float64)
+        [166, 206, 227],
+        [31, 120, 180],
+        [178, 223, 138],
+        [51, 160, 44],
+        [251, 154, 153],
+        [227, 26, 28],
+        [254, 153, 41],
+        [255, 127, 0],
+        [202, 178, 214],
+        [106, 61, 154],
+        [223, 194, 125],
+        [140, 81, 10],
+        [128, 205, 193],
+        [1, 102, 94],
+        [241, 182, 218],
+        [197, 27, 125],
+    ], dtype=np.float64)
     C = np.vstack([C, 0.5 * C, 0.25 * C])
     if nTrue > C.shape[0]:
         raise ValueError('Cannot display more than %d true colors!' % (
             C.shape[0]))
-    C = C[:nTrue]/255.0
+    C = C[:nTrue] / 255.0
     shadeVals = np.linspace(0.2, 0.95, nExtra)
     for shadeID in xrange(nExtra):
         shadeOfRed = np.asarray([shadeVals[shadeID], 0, 0])
-        C = np.vstack([C, shadeOfRed[np.newaxis,:]])
+        C = np.vstack([C, shadeOfRed[np.newaxis, :]])
 
     highVals = np.linspace(0.3, 1.0, nHighlight)
     for highID in xrange(nHighlight):
         yellowColor = np.asarray([highVals[highID], highVals[highID], 0])
-        C = np.vstack([C, yellowColor[np.newaxis,:]])
+        C = np.vstack([C, yellowColor[np.newaxis, :]])
 
     return ListedColormap(C)
 

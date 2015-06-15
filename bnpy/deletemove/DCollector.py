@@ -27,7 +27,7 @@ def addDataFromBatchToPlan(Plan, hmodel, Dchunk, LPchunk,
 
     Post Conditions
     -------
-    Plan dict is updated if current chunk has items to add to target set. 
+    Plan dict is updated if current chunk has items to add to target set.
     Updated fields:
     * DTargetData
     * batchIDs
@@ -104,7 +104,7 @@ def addDataFromBatchToPlan(Plan, hmodel, Dchunk, LPchunk,
             Plan['targetSS'].insertEmptyComps(Kextra)
         Plan['targetSS'] += targetSSchunk
         curUIDs = Plan['targetSS'].uIDs
-        newUIDs = np.arange(maxUID-Kextra+1, maxUID+1)
+        newUIDs = np.arange(maxUID - Kextra + 1, maxUID + 1)
         Plan['targetSS'].uIDs = np.hstack([curUIDs, newUIDs])
 
     # ----    targetSSByBatch tracks batch-specific stats
@@ -121,7 +121,7 @@ def addDataFromBatchToPlan(Plan, hmodel, Dchunk, LPchunk,
             Kextra = Kfinal - Kcur
             if Kextra > 0:
                 curUIDs = Plan['targetSSByBatch'][batchID].uIDs
-                newUIDs = np.arange(maxUID-Kextra+1, maxUID+1)
+                newUIDs = np.arange(maxUID - Kextra + 1, maxUID + 1)
                 newUIDs = np.hstack([curUIDs, newUIDs])
 
                 del Plan['targetSSByBatch'][batchID].uIDs

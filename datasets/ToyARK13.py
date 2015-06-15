@@ -123,9 +123,7 @@ for k in xrange(K):
 
 
 def genToyData(seed=1234, nDocTotal=52, T=800):
-    '''
-    Generates X, Z, seqInds according to the gaussian parameters specified above
-      and the sequence lengths passed in.
+    ''' TODO
     '''
     nDocTotal = int(nDocTotal)
     T = int(T)

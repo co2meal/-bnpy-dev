@@ -74,7 +74,7 @@ class DataIterator(object):
     """
 
     def __init__(self, Data, nBatch=10, nLap=10,
-                 dataorderseed=42, startLap=0, 
+                 dataorderseed=42, startLap=0,
                  alwaysTrackTruth=False, **kwargs):
         ''' Create an iterator over batches/subsets of a large dataset.
 
@@ -127,7 +127,7 @@ class DataIterator(object):
         for b in xrange(nBatch):
             curBatchMask = shuffleIDs[:nUnitPerBatch[b]]
             Dchunk = Data.select_subset_by_mask(curBatchMask,
-                doTrackTruth=alwaysTrackTruth)
+                                                doTrackTruth=alwaysTrackTruth)
             Dchunk.alwaysTrackTruth = alwaysTrackTruth
             self.DataPerBatch.append(Dchunk)
             self.IDsPerBatch.append(curBatchMask)
@@ -242,11 +242,10 @@ class DataIterator(object):
             dataShMemDict[batchID] = ShMem
         return dataShMemDict
 
-
     def getDataSliceFunctionHandle(self):
         """ Return function handle that can make data slice objects.
 
-        Useful with parallelized algorithms, 
+        Useful with parallelized algorithms,
         when we need to use shared memory.
 
         Returns
@@ -264,5 +263,5 @@ class DataIterator(object):
         else:
             stop = (workerID + 1) * nUnitsPerSlice
         SliceInfo = dict(batchID=batchID, start=start, stop=stop,
-            lapFrac=lapFrac, sliceID=workerID)
+                         lapFrac=lapFrac, sliceID=workerID)
         return SliceInfo

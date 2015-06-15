@@ -14,6 +14,7 @@ from DataObj import DataObj
 from bnpy.util import as1D, as2D, toCArray
 from bnpy.util import numpyToSharedMemArray, sharedMemToNumpyArray
 
+
 class XData(DataObj):
 
     """ Dataset object for dense vectors of real-valued observations.
@@ -167,9 +168,9 @@ class XData(DataObj):
         s += '  dimension: %d' % (self.get_dim())
         return s
 
-    def select_subset_by_mask(self, mask, 
-            doTrackFullSize=True,
-            doTrackTruth=False):
+    def select_subset_by_mask(self, mask,
+                              doTrackFullSize=True,
+                              doTrackTruth=False):
         ''' Get subset of this dataset identified by provided unit IDs.
 
         Parameters
@@ -192,7 +193,7 @@ class XData(DataObj):
 
         if hasattr(self, 'alwaysTrackTruth'):
             doTrackTruth = doTrackTruth or self.alwaysTrackTruth
-        hasTrueZ = hasattr(self,'TrueParams') and 'Z' in self.TrueParams
+        hasTrueZ = hasattr(self, 'TrueParams') and 'Z' in self.TrueParams
         if doTrackTruth and hasTrueZ:
             TrueZ = self.TrueParams['Z']
             newTrueZ = TrueZ[mask]
@@ -204,8 +205,8 @@ class XData(DataObj):
         else:
             nObsTotal = None
 
-        return XData(X=newX, Xprev=newXprev, 
-            TrueZ=newTrueZ, nObsTotal=nObsTotal)
+        return XData(X=newX, Xprev=newXprev,
+                     TrueZ=newTrueZ, nObsTotal=nObsTotal)
 
     def add_data(self, XDataObj):
         """ Appends (in-place) provided dataset to this dataset.
@@ -246,7 +247,7 @@ class XData(DataObj):
     def getDataSliceFunctionHandle(self):
         """ Return function handle that can make data slice objects.
 
-        Useful with parallelized algorithms, 
+        Useful with parallelized algorithms,
         when we need to use shared memory.
 
         Returns
@@ -300,7 +301,6 @@ def makeDataSliceFromSharedMem(dataShMemDict,
     elif cslice[1] is None:
         cslice = (0, N)
 
-
     keys = ['X', 'Xprev', 'nObs', 'dim', 'nObsTotal']
 
     if 'Xprev' in dataShMemDict:
@@ -315,5 +315,5 @@ def makeDataSliceFromSharedMem(dataShMemDict,
         nObs=cslice[1] - cslice[0],
         dim=dim,
         nObsTotal=nObsTotal,
-        )
+    )
     return Dslice

@@ -97,7 +97,7 @@ class ParamBag(object):
             if dims[0] == 'K' and 'K' not in dims[1:]:
                 arr = arr[sortIDs]
             elif dims[0] == 'K' and dims[1] == 'K' and 'K' not in dims[2:]:
-                arr = arr[sortIDs,:][:, sortIDs]
+                arr = arr[sortIDs, :][:, sortIDs]
             elif 'K' not in dims:
                 continue
             elif dims[0] != 'K' and dims[1] == 'K':

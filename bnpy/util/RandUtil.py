@@ -47,7 +47,7 @@ def multinomial(Nsamp, ps, randstate=np.random):
 
 
 def mvnrand(mu, Sigma, N=1, PRNG=np.random.RandomState()):
-    if type(PRNG) == int:
+    if isinstance(PRNG, int):
         PRNG = np.random.RandomState(PRNG)
     return PRNG.multivariate_normal(mu, Sigma, (N))
 

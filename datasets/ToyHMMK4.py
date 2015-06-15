@@ -22,22 +22,19 @@ from bnpy.viz import GaussViz
 
 import scipy.io
 
-# User-facing
-###########################################################
-
 
 def get_data(seed=86758, seqLens=((3000, 3000, 3000, 3000, 500)), **kwargs):
     ''' Generate several data sequences, returned as a bnpy data-object
 
-      Args
-      -------
-      seed : integer seed for random number generator,
-              used for actually *generating* the data
-      nObsTotal : total number of observations for the dataset.
+    Args
+    -------
+    seed : integer seed for random number generator,
+          used for actually *generating* the data
+    nObsTotal : total number of observations for the dataset.
 
-      Returns
-      -------
-      Data : bnpy GroupXData object, with nObsTotal observations
+    Returns
+    -------
+    Data : bnpy GroupXData object, with nObsTotal observations
     '''
     fullX, fullZ, seqIndicies = get_X(seed, seqLens)
     X = np.vstack(fullX)
@@ -58,8 +55,6 @@ def get_short_name():
 def get_data_info():
     return 'Toy data sequences, each using %d shared clusters.' % (K)
 
-# Data generation
-###########################################################
 K = 4
 D = 2
 
@@ -82,9 +77,7 @@ sigmas[3, :, :] = np.asarray([[2, 0], [0, 2]])
 
 
 def get_X(seed, seqLens):
-    '''
-    Generates X, Z, seqInds according to the gaussian parameters specified above
-      and the sequence lengths passed in.
+    ''' TODO
     '''
     prng = np.random.RandomState(seed)
 
