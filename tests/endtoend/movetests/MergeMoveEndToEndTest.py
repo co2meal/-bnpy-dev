@@ -103,10 +103,10 @@ class MergeMoveEndToEndTest(unittest.TestCase):
 
     """ Defines test exercises for executing bnpy.run on provided dataset.
 
-        Attributes
-        ----
-        Data : bnpy.data.DataObj
-            dataset under testing
+    Attributes
+    ----
+    Data : bnpy.data.DataObj
+        dataset under testing
     """
 
     __test__ = False  # Do not execute this abstract module!
@@ -568,13 +568,10 @@ def parseCmdLineArgs():
     for aa, arg in enumerate(cmdlineArgList):
         if arg.startswith('-'):
             continue
-        elif arg.count('Test.'):
+        elif arg.count('.py'):
             continue
         argList.append(arg)
-        print arg
-    for aa in range(1, len(sys.argv)):
-        sys.argv.pop()
-    print sys.argv, '<<<<<<*****'
+
     assert len(argList) % 2 == 0
     argDict = dict()
     argDict['initnameVals'] = 'initname=randcontigblocks-K=1'
