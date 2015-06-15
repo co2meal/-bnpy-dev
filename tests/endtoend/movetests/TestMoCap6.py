@@ -13,9 +13,9 @@ class Test(MergeMoveEndToEndTest):
         """ Create the dataset
         """
         self.datasetArg = dict(
-            name='MoCap6', 
-            nDocTotal=6, 
-            )
+            name='MoCap6',
+            nDocTotal=6,
+        )
         datasetMod = __import__(self.datasetArg['name'], fromlist=[])
         self.Data = datasetMod.get_data(**self.datasetArg)
 

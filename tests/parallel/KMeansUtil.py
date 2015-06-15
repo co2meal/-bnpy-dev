@@ -18,6 +18,7 @@ import itertools
 import numpy as np
 import bnpy
 
+
 def localStepForDataSlice(X, Mu, start=None, stop=None):
     ''' K-means step
 
@@ -39,7 +40,7 @@ def localStepForDataSlice(X, Mu, start=None, stop=None):
     # Unpack problem size variables
     K, D = Mu.shape
 
-    # Grab current slice (subset) of X to work on    
+    # Grab current slice (subset) of X to work on
     if start is not None:
         Xcur = X[start:stop]
     else:
@@ -49,7 +50,7 @@ def localStepForDataSlice(X, Mu, start=None, stop=None):
     #     squared euclidean distance from X[n] to Mu[k]
     #     up to an additive constant independent of Mu[k]
     Dist = -2 * np.dot(Xcur, Mu.T)
-    Dist += np.sum(np.square(Mu), axis=1)[np.newaxis,:]
+    Dist += np.sum(np.square(Mu), axis=1)[np.newaxis, :]
     # Z : 1D array, size N
     #     Z[n] gives integer id k of closest cluster cntr Mu[k] to X[n,:]
     Z = Dist.argmin(axis=1)
@@ -82,6 +83,7 @@ def sliceGenerator(N=0, nWorkers=0):
             stop = N
         yield start, stop
 
+
 def runBenchmarkAcrossProblemSizes(TestClass):
     """ Execute speed benchmark across several N/D/K values.
 
@@ -105,7 +107,7 @@ def runBenchmarkAcrossProblemSizes(TestClass):
     parser.add_argument('--nRepeat', type=int, default=1)
     parser.add_argument('--verbose', type=int, default=1)
     args = parser.parse_args()
-    
+
     NKDiterator = itertools.product(
         rangeFromString(args.N),
         rangeFromString(args.K),
@@ -124,11 +126,11 @@ def runBenchmarkAcrossProblemSizes(TestClass):
 
         # Create test instance with desired keyword args.
         # Required first arg is string name of test we'll execute
-        myTest = TestClass('run_speed_benchmark', **kwargs) 
+        myTest = TestClass('run_speed_benchmark', **kwargs)
         myTest.setUp()
         TimeInfo = myTest.run_speed_benchmark(method=args.method,
                                               nRepeat=args.nRepeat)
-        myTest.tearDown() # closes all processes
+        myTest.tearDown()  # closes all processes
 
 
 def getPtrForArray(X):
@@ -148,6 +150,7 @@ def getPtrForArray(X):
     else:
         return id(X)
 
+
 def rangeFromString(commaString):
     """ Convert a comma string like "1,5-7" into a list [1,5,6,7]
 
@@ -164,6 +167,7 @@ def rangeFromString(commaString):
     flatList = itertools.chain(*listOfLists)
     return flatList
 
+
 def rangeFromHyphen(hyphenString):
     """ Convert a hyphen string like "5-7" into a list [5,6,7]
 
@@ -172,5 +176,4 @@ def rangeFromHyphen(hyphenString):
     myList : list of integers
     """
     x = [int(x) for x in hyphenString.split('-')]
-    return range(x[0], x[-1]+1)
-
+    return range(x[0], x[-1] + 1)

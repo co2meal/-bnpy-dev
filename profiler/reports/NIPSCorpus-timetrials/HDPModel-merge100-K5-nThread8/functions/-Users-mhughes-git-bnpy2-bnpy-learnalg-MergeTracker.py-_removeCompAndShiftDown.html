@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">_removeCompAndShiftDown</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">_removeCompAndShiftDown</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>_removeCompAndShiftDown</h1>
+	  </div>
+
+          <p>11 Calls, 0.00 s</p>
+	  <p>Generated 14:41:23 03/07/14 EST</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/learnalg/MergeTracker.py">/Users/mhughes/git/bnpy2/bnpy/learnalg/MergeTracker.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line135">135</td>
+              <td><pre> @profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line136">136</td>
+              <td><pre> def _removeCompAndShiftDown(self, kB):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line137">137</td>
+              <td><pre>   ''' Call when comp kB has been "merged away",</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line138">138</td>
+              <td><pre>         and we need to remove it and reindex the model </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line139">139</td>
+              <td><pre>         from K to K-1 components</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line140">140</td>
+              <td><pre>   '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line141">141</td>
+              <td><pre>   self.K -= 1</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line142">142</td>
+              <td><pre>   self.removedIDs.append(kB)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line143">143</td>
+              <td><pre>   # ------------ shift down excludeList</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line144">144</td>
+              <td><pre>   if kB in self.excludeList:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line145">145</td>
+              <td><pre>     raise ValueError('Bad! kB=%d should be excluded.' % (kB))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line146">146</td>
+              <td><pre>   self.excludeList = self._getReindexedSet(self.excludeList, kB)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line147">147</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line148">148</td>
+              <td><pre>   # ------------ shift down excludePairs</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line149">149</td>
+              <td><pre>   newXPairs = defaultdict(lambda:set())</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>11</td>
+              <td id="line150">150</td>
+              <td><pre>   for kk in self.excludePairs:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>9</td>
+              <td id="line151">151</td>
+              <td><pre>     kset = self.excludePairs[kk]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>9</td>
+              <td id="line152">152</td>
+              <td><pre>     if kB in kset:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line153">153</td>
+              <td><pre>       kset.remove(kB)</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td>< 0.01 s</td>
+              <td>9</td>
+              <td id="line154">154</td>
+              <td><pre>     kset = self._getReindexedSet(kset, kB)     </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>9</td>
+              <td id="line155">155</td>
+              <td><pre>     if kk < kB:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line156">156</td>
+              <td><pre>       newXPairs[kk] = kset</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>9</td>
+              <td id="line157">157</td>
+              <td><pre>     if kk > kB:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line158">158</td>
+              <td><pre>       newXPairs[kk-1] = kset</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line159">159</td>
+              <td><pre>   self.excludePairs = newXPairs</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

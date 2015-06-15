@@ -8,6 +8,7 @@ from bnpy.util import as1D
 from bnpy.ioutil.BNPYArgParser import parse_task_ids, arglist_to_kwargs
 from JobFilter import filterJobs
 
+
 def rankTasksForSingleJobOnDisk(joboutpath):
     ''' Make files for job allowing rank-based referencing of tasks.
 
@@ -54,10 +55,11 @@ def rankTasksForSingleJobOnDisk(joboutpath):
         if rankID == len(sortedTaskIDs):
             os.symlink(os.path.join(joboutpath, taskidstr),
                        os.path.join(joboutpath, '.worst'))
-        if len(sortedTaskIDs) > 3: 
+        if len(sortedTaskIDs) > 3:
             if rankID == int(np.ceil(len(sortedTaskIDs) / 2.0)):
                 os.symlink(os.path.join(joboutpath, taskidstr),
                            os.path.join(joboutpath, '.median'))
+
 
 def rankTasksForSingleJob(joboutpath):
     ''' Get list of tasks for job, ranked best-to-worst by final ELBO score
@@ -82,7 +84,7 @@ def rankTasksForSingleJob(joboutpath):
 
 
 def markBestAmongJobPatternOnDisk(jobPattern, key='initname'):
-    ''' Create symlink to single best run among all jobs matching given pattern.
+    ''' Create symlink to best run among all jobs matching given pattern.
 
     Post Condition
     --------------
@@ -95,7 +97,7 @@ def markBestAmongJobPatternOnDisk(jobPattern, key='initname'):
     bestArgs[key] = '.best'
     bestpath = JobFilter.makeJPatternWithSpecificVals(PPListMap, **bestArgs)
     bestpath = '.best-' + bestpath
-    bestpath = os.path.join(prefixfilepath, bestpath)  
+    bestpath = os.path.join(prefixfilepath, bestpath)
 
     # Remove all old hidden rank files
     if os.path.islink(bestpath):
@@ -104,12 +106,10 @@ def markBestAmongJobPatternOnDisk(jobPattern, key='initname'):
     jpath = findBestAmongJobPattern(jobPattern, key=key)
     os.symlink(jpath, bestpath)
 
-    
-    
 
 def findBestAmongJobPattern(jobPattern, key='initname',
-        prefixfilepath='',
-        **kwargs):
+                            prefixfilepath='',
+                            **kwargs):
     ''' Identify single best run among all jobs/tasks matching given pattern.
 
     Returns
@@ -119,7 +119,8 @@ def findBestAmongJobPattern(jobPattern, key='initname',
     '''
     prefixfilepath = os.path.sep.join(jobPattern.split(os.path.sep)[:-1])
     PPListMap = JobFilter.makePPListMapFromJPattern(jobPattern)
-    jpaths = JobFilter.makeListOfJPatternsWithSpecificVals(PPListMap, 
+    jpaths = JobFilter.makeListOfJPatternsWithSpecificVals(
+        PPListMap,
         key=key,
         prefixfilepath=prefixfilepath)
 
@@ -132,7 +133,7 @@ def findBestAmongJobPattern(jobPattern, key='initname',
             msg = 'Does not exist: %s' % (jtaskpath)
             raise ValueError(msg)
 
-        Scores[jID] =  np.loadtxt(os.path.join(jtaskpath, 'evidence.txt'))[-1]
+        Scores[jID] = np.loadtxt(os.path.join(jtaskpath, 'evidence.txt'))[-1]
     sortIDs = np.argsort(-1 * Scores)
     return jpaths[sortIDs[0]]
 

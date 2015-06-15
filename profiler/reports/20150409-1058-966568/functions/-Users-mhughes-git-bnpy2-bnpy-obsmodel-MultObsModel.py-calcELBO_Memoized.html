@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">calcELBO_Memoized</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">calcELBO_Memoized</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>calcELBO_Memoized</h1>
+	  </div>
+
+          <p>153 Calls, 0.05 s</p>
+	  <p>Generated 10:58:35 04/09/15 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/obsmodel/MultObsModel.py">/Users/mhughes/git/bnpy2/bnpy/obsmodel/MultObsModel.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line407">407</td>
+              <td class="code "><div class="code-listing"><pre>   @profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line408">408</td>
+              <td class="code "><div class="code-listing"><pre>   def calcELBO_Memoized(self, SS, afterMStep=False):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line409">409</td>
+              <td class="code "><div class="code-listing"><pre>       """ Calculate obsModel's objective using suff stats SS and Post.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line410">410</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line411">411</td>
+              <td class="code "><div class="code-listing"><pre>       Args</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line412">412</td>
+              <td class="code "><div class="code-listing"><pre>       -------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line413">413</td>
+              <td class="code "><div class="code-listing"><pre>       SS : bnpy SuffStatBag</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line414">414</td>
+              <td class="code "><div class="code-listing"><pre>       afterMStep : boolean flag</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line415">415</td>
+              <td class="code "><div class="code-listing"><pre>           if 1, elbo calculated assuming M-step just completed</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line416">416</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line417">417</td>
+              <td class="code "><div class="code-listing"><pre>       Returns</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line418">418</td>
+              <td class="code "><div class="code-listing"><pre>       -------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line419">419</td>
+              <td class="code "><div class="code-listing"><pre>       obsELBO : scalar float</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line420">420</td>
+              <td class="code "><div class="code-listing"><pre>           Equal to E[ log p(x) + log p(phi) - log q(phi)]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line421">421</td>
+              <td class="code "><div class="code-listing"><pre>       """</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line422">422</td>
+              <td class="code "><div class="code-listing"><pre>       elbo = np.zeros(SS.K)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line423">423</td>
+              <td class="code "><div class="code-listing"><pre>       Post = self.Post</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line424">424</td>
+              <td class="code "><div class="code-listing"><pre>       Prior = self.Prior</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line425">425</td>
+              <td class="code "><div class="code-listing"><pre>       if not afterMStep:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>3</td>
+              <td id="line426">426</td>
+              <td class="code "><div class="code-listing"><pre>           Elogphi = self.GetCached('E_logphi', 'all')  # K x V</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line427">427</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>153</td>
+              <td id="line428">428</td>
+              <td class="code "><div class="code-listing"><pre>       for k in xrange(SS.K):</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 0.02 s</td>
+              <td>150</td>
+              <td id="line429">429</td>
+              <td class="code danger"><div class="code-listing"><pre>           elbo[k] = c_Diff(Prior.lam, Post.lam[k])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>150</td>
+              <td id="line430">430</td>
+              <td class="code "><div class="code-listing"><pre>           if not afterMStep:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>150</td>
+              <td id="line431">431</td>
+              <td class="code "><div class="code-listing"><pre>               elbo[k] += np.inner(SS.WordCounts[k] + Prior.lam - Post.lam[k],</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>150</td>
+              <td id="line432">432</td>
+              <td class="code "><div class="code-listing"><pre>                                   Elogphi[k])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line433">433</td>
+              <td class="code "><div class="code-listing"><pre>       return np.sum(elbo)</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

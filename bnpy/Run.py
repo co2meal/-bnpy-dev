@@ -337,9 +337,8 @@ def getKwArgsForLoadData(ReqArgs, UnkArgs, KwArgs=dict()):
             dataArgNames.add(name)
     DataArgs = dict([(k, v) for k, v in UnkArgs.items() if k in dataArgNames])
 
-    if 'seqcreate' in KwArgs:
-        if 'doVizSeqCreate' in KwArgs['seqcreate']:
-            DataArgs['alwaysTrackTruth'] = KwArgs['seqcreate']['doVizSeqCreate']
+    if 'seqcreate' in KwArgs and 'doVizSeqCreate' in KwArgs['seqcreate']:
+        DataArgs['alwaysTrackTruth'] = KwArgs['seqcreate']['doVizSeqCreate']
     return DataArgs
 
 
@@ -434,7 +433,6 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
 def writeArgsToFile(ReqArgs, KwArgs, taskoutpath, UnkArgs):
     ''' Save arguments as key/val pairs to a plain text file
     '''
-    import json
     ArgDict = ReqArgs
     ArgDict.update(KwArgs)
     for key in ArgDict:
@@ -444,7 +442,6 @@ def writeArgsToFile(ReqArgs, KwArgs, taskoutpath, UnkArgs):
         with open(argfile, 'w') as fout:
             for k, val in ArgDict[key].items():
                 fout.write('%s %s\n' % (k, val))
-            #json.dump(ArgDict[key], fout)
 
     unkfile = os.path.join(taskoutpath, 'args-DatasetPrefs.txt')
     with open(unkfile, 'w') as fout:

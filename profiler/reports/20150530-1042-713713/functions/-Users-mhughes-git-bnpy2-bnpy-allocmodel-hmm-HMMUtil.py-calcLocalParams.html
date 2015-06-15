@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">calcLocalParams</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">calcLocalParams</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>calcLocalParams</h1>
+	  </div>
+
+          <p>1478 Calls, 46.65 s</p>
+	  <p>Generated 10:48:20 05/30/15 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/allocmodel/hmm/HMMUtil.py">/Users/mhughes/git/bnpy2/bnpy/allocmodel/hmm/HMMUtil.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line20">20</td>
+              <td class="code "><div class="code-listing"><pre>@profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line21">21</td>
+              <td class="code "><div class="code-listing"><pre>def calcLocalParams(Data, LP, </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line22">22</td>
+              <td class="code "><div class="code-listing"><pre>        transTheta=None, startTheta=None,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line23">23</td>
+              <td class="code "><div class="code-listing"><pre>        limitMemoryLP=1,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line24">24</td>
+              <td class="code "><div class="code-listing"><pre>        mPairIDs=None,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line25">25</td>
+              <td class="code "><div class="code-listing"><pre>        cslice=(0,None),</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line26">26</td>
+              <td class="code "><div class="code-listing"><pre>        **kwargs):       </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line27">27</td>
+              <td class="code "><div class="code-listing"><pre>    ''' Compute local parameters for provided dataset.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line28">28</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line29">29</td>
+              <td class="code "><div class="code-listing"><pre>    Returns</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line30">30</td>
+              <td class="code "><div class="code-listing"><pre>    -------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line31">31</td>
+              <td class="code "><div class="code-listing"><pre>    LP : dict of local params, with fields</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line32">32</td>
+              <td class="code "><div class="code-listing"><pre>        * resp : 2D array, nAtom x K</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line33">33</td>
+              <td class="code "><div class="code-listing"><pre>        if limitMemoryLP=0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line34">34</td>
+              <td class="code "><div class="code-listing"><pre>            * respPair : 3D array, nAtom x K x K </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line35">35</td>
+              <td class="code "><div class="code-listing"><pre>        if limitMemoryLP=1:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line36">36</td>
+              <td class="code "><div class="code-listing"><pre>            * TransCount : 3D array, nSeq x K x K       </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line37">37</td>
+              <td class="code "><div class="code-listing"><pre>    '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line38">38</td>
+              <td class="code "><div class="code-listing"><pre>    # Unpack soft evidence 2D array</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>667</td>
+              <td id="line39">39</td>
+              <td class="code "><div class="code-listing"><pre>    logLik = LP['E_log_soft_ev']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>667</td>
+              <td id="line40">40</td>
+              <td class="code "><div class="code-listing"><pre>    nAtom, K = logLik.shape</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line41">41</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line42">42</td>
+              <td class="code "><div class="code-listing"><pre>    # Calculate trans prob 2D array</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>667</td>
+              <td id="line43">43</td>
+              <td class="code "><div class="code-listing"><pre>    digammaSumTransTheta = digamma(np.sum(transTheta[:K, :K+1], axis=1))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.16 s</td>
+              <td>667</td>
+              <td id="line44">44</td>
+              <td class="code "><div class="code-listing"><pre>    transPi = digamma(transTheta[:K, :K]) - digammaSumTransTheta[:,np.newaxis]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>667</td>
+              <td id="line45">45</td>
+              <td class="code "><div class="code-listing"><pre>    np.exp(transPi, out=transPi)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line46">46</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line47">47</td>
+              <td class="code "><div class="code-listing"><pre>    # Calculate LOG of start state prob vector</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>667</td>
+              <td id="line48">48</td>
+              <td class="code "><div class="code-listing"><pre>    logstartPi = digamma(startTheta[:K]) - digamma(np.sum(startTheta[:K+1]))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line49">49</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line50">50</td>
+              <td class="code "><div class="code-listing"><pre>    # Set starting probs to uniform,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line51">51</td>
+              <td class="code "><div class="code-listing"><pre>    # because Line A below updates first state's logLik to include logstartPi</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>667</td>
+              <td id="line52">52</td>
+              <td class="code "><div class="code-listing"><pre>    startPi = np.ones(K)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>667</td>
+              <td id="line53">53</td>
+              <td class="code "><div class="code-listing"><pre>    logMargPr = np.empty(Data.nDoc)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>667</td>
+              <td id="line54">54</td>
+              <td class="code "><div class="code-listing"><pre>    resp = np.empty((nAtom, K))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line55">55</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line56">56</td>
+              <td class="code "><div class="code-listing"><pre>    # Unpack pairs to track for merging.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>667</td>
+              <td id="line57">57</td>
+              <td class="code "><div class="code-listing"><pre>    if mPairIDs is None:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>659</td>
+              <td id="line58">58</td>
+              <td class="code "><div class="code-listing"><pre>        mPairIDs = np.zeros((0, 2))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>659</td>
+              <td id="line59">59</td>
+              <td class="code "><div class="code-listing"><pre>        M = 0</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line60">60</td>
+              <td class="code "><div class="code-listing"><pre>    else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line61">61</td>
+              <td class="code "><div class="code-listing"><pre>        if len(mPairIDs) == 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line62">62</td>
+              <td class="code "><div class="code-listing"><pre>            mPairIDs = np.zeros((0, 2))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line63">63</td>
+              <td class="code "><div class="code-listing"><pre>            M = 0</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line64">64</td>
+              <td class="code "><div class="code-listing"><pre>        else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line65">65</td>
+              <td class="code "><div class="code-listing"><pre>            mPairIDs = as2D(mPairIDs)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line66">66</td>
+              <td class="code "><div class="code-listing"><pre>            M = mPairIDs.shape[0]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>667</td>
+              <td id="line67">67</td>
+              <td class="code "><div class="code-listing"><pre>    assert mPairIDs.shape[1] == 2</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line68">68</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>667</td>
+              <td id="line69">69</td>
+              <td class="code "><div class="code-listing"><pre>    if limitMemoryLP:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line70">70</td>
+              <td class="code "><div class="code-listing"><pre>        # Track sufficient statistics directly at each sequence.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>667</td>
+              <td id="line71">71</td>
+              <td class="code "><div class="code-listing"><pre>        TransCount = np.empty((Data.nDoc, K, K))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>667</td>
+              <td id="line72">72</td>
+              <td class="code "><div class="code-listing"><pre>        Htable = np.empty((Data.nDoc, K, K))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>667</td>
+              <td id="line73">73</td>
+              <td class="code "><div class="code-listing"><pre>        mHtable = np.zeros((2 * M, K))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line74">74</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line75">75</td>
+              <td class="code "><div class="code-listing"><pre>        # Run forward backward algorithm on each sequence n</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1478</td>
+              <td id="line76">76</td>
+              <td class="code "><div class="code-listing"><pre>        for n in xrange(Data.nDoc):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>811</td>
+              <td id="line77">77</td>
+              <td class="code "><div class="code-listing"><pre>            start = Data.doc_range[n]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>811</td>
+              <td id="line78">78</td>
+              <td class="code "><div class="code-listing"><pre>            stop = Data.doc_range[n + 1]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>811</td>
+              <td id="line79">79</td>
+              <td class="code "><div class="code-listing"><pre>            logLik_n = logLik[start:stop]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line80">80</td>
+              <td class="code "><div class="code-listing"><pre>            # Adding in start state probs, in log space for stability.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>811</td>
+              <td id="line81">81</td>
+              <td class="code "><div class="code-listing"><pre>            logLik_n[0] += logstartPi  # Line A</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line82">82</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line83">83</td>
+              <td class="code "><div class="code-listing"><pre>            # Run fwd-fwd alg and record result.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line84">84</td>
+              <td class="code "><div class="code-listing"><pre>            resp_n, lp_n, TransCount_n, Htable_n, mHtable_n = \</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 46.26 s</td>
+              <td>811</td>
+              <td id="line85">85</td>
+              <td class="code danger"><div class="code-listing"><pre>                FwdBwdAlg_LimitMemory(startPi, transPi, logLik_n, mPairIDs)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.06 s</td>
+              <td>811</td>
+              <td id="line86">86</td>
+              <td class="code "><div class="code-listing"><pre>            resp[start:stop] = resp_n</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>811</td>
+              <td id="line87">87</td>
+              <td class="code "><div class="code-listing"><pre>            logMargPr[n] = lp_n</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>811</td>
+              <td id="line88">88</td>
+              <td class="code "><div class="code-listing"><pre>            TransCount[n] = TransCount_n</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>811</td>
+              <td id="line89">89</td>
+              <td class="code "><div class="code-listing"><pre>            Htable[n] = Htable_n</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>811</td>
+              <td id="line90">90</td>
+              <td class="code "><div class="code-listing"><pre>            mHtable += mHtable_n</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line91">91</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>667</td>
+              <td id="line92">92</td>
+              <td class="code "><div class="code-listing"><pre>        LP['resp'] = resp</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>667</td>
+              <td id="line93">93</td>
+              <td class="code "><div class="code-listing"><pre>        LP['evidence'] = np.sum(logMargPr)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>667</td>
+              <td id="line94">94</td>
+              <td class="code "><div class="code-listing"><pre>        LP['TransCount'] = TransCount</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>667</td>
+              <td id="line95">95</td>
+              <td class="code "><div class="code-listing"><pre>        LP['Htable'] = Htable</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>667</td>
+              <td id="line96">96</td>
+              <td class="code "><div class="code-listing"><pre>        LP['mHtable'] = mHtable</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line97">97</td>
+              <td class="code "><div class="code-listing"><pre>    else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line98">98</td>
+              <td class="code "><div class="code-listing"><pre>        # Track pair-wise assignment probs for each sequence</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line99">99</td>
+              <td class="code "><div class="code-listing"><pre>        respPair = np.empty((nAtom, K, K))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line100">100</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line101">101</td>
+              <td class="code "><div class="code-listing"><pre>        # Run the forward backward algorithm on each sequence</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line102">102</td>
+              <td class="code "><div class="code-listing"><pre>        for n in xrange(Data.nDoc):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line103">103</td>
+              <td class="code "><div class="code-listing"><pre>            start = Data.doc_range[n]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line104">104</td>
+              <td class="code "><div class="code-listing"><pre>            stop = Data.doc_range[n + 1]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line105">105</td>
+              <td class="code "><div class="code-listing"><pre>            logLik_n = logLik[start:stop]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line106">106</td>
+              <td class="code "><div class="code-listing"><pre>            # Adding in start state probs, in log space for stability.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line107">107</td>
+              <td class="code "><div class="code-listing"><pre>            logLik_n[0] += logstartPi  # Line A</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line108">108</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line109">109</td>
+              <td class="code "><div class="code-listing"><pre>            resp_n, respPair_n, lp_n = \</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line110">110</td>
+              <td class="code "><div class="code-listing"><pre>                FwdBwdAlg(startPi, transPi, logLik_n)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line111">111</td>
+              <td class="code "><div class="code-listing"><pre>            resp[start:stop] = resp_n</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line112">112</td>
+              <td class="code "><div class="code-listing"><pre>            respPair[start:stop] = respPair_n</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line113">113</td>
+              <td class="code "><div class="code-listing"><pre>            logMargPr[n] = lp_n</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line114">114</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line115">115</td>
+              <td class="code "><div class="code-listing"><pre>        LP['evidence'] = np.sum(logMargPr)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line116">116</td>
+              <td class="code "><div class="code-listing"><pre>        LP['resp'] = resp</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line117">117</td>
+              <td class="code "><div class="code-listing"><pre>        LP['respPair'] = respPair</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line118">118</td>
+              <td class="code "><div class="code-listing"><pre>        # ... end if statement on limitMemoryLP</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line119">119</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>667</td>
+              <td id="line120">120</td>
+              <td class="code "><div class="code-listing"><pre>    return LP</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

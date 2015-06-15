@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">get_global_suff_stats</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">get_global_suff_stats</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>get_global_suff_stats</h1>
+	  </div>
+
+          <p>10 Calls, 0.07 s</p>
+	  <p>Generated 23:36:40 05/21/14 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/obsmodel/MultObsModel.py">/Users/mhughes/git/bnpy2/bnpy/obsmodel/MultObsModel.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line117">117</td>
+              <td><pre>   @profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line118">118</td>
+              <td><pre>   def get_global_suff_stats(self, Data, SS, LP, **kwargs):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line119">119</td>
+              <td><pre>       ''' Calculate and return sufficient statistics.</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line120">120</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line121">121</td>
+              <td><pre>           Returns</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line122">122</td>
+              <td><pre>           -------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line123">123</td>
+              <td><pre>           SS : bnpy SuffStatDict object, with updated fields</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line124">124</td>
+              <td><pre>               WordCounts : K x VocabSize matrix</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line125">125</td>
+              <td><pre>                 WordCounts[k,v] = # times vocab word v seen with topic k</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line126">126</td>
+              <td><pre>       '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line127">127</td>
+              <td><pre>       if 'hard_asgn' in LP:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line128">128</td>
+              <td><pre>         Nmat = LP['hard_asgn'] # N x K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line129">129</td>
+              <td><pre>         BMat = Data.to_sparse_matrix(doBinary=True) # V x N </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line130">130</td>
+              <td><pre>         TopicWordCounts = (BMat * Nmat).T # matrix-matrix product</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line131">131</td>
+              <td><pre>       elif self.dataAtomType == 'doc':</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line132">132</td>
+              <td><pre>         DocWordMat = Data.to_sparse_docword_matrix() # D x V</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line133">133</td>
+              <td><pre>         TopicWordCounts = LP['resp'].T * DocWordMat # mat-mat product</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line134">134</td>
+              <td><pre>       else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line135">135</td>
+              <td><pre>         wv = LP['word_variational']  # N x K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line136">136</td>
+              <td><pre>         WMat = Data.to_sparse_matrix() # V x N</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 0.06 s</td>
+              <td>10</td>
+              <td id="line137">137</td>
+              <td><pre>         TopicWordCounts = (WMat * wv).T # matrix-matrix product</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line138">138</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line139">139</td>
+              <td><pre>       SS.setField('WordCounts', TopicWordCounts, dims=('K','D'))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line140">140</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line141">141</td>
+              <td><pre>       if self.dataAtomType == 'word':</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line142">142</td>
+              <td><pre>         SS.setField('N', np.sum(TopicWordCounts,axis=1), dims=('K'))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line143">143</td>
+              <td><pre>       return SS</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

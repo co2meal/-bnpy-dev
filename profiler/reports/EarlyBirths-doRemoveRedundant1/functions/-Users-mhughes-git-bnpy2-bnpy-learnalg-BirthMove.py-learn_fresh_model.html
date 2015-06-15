@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">learn_fresh_model</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">learn_fresh_model</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>learn_fresh_model</h1>
+	  </div>
+
+          <p>4 Calls, 266.77 s</p>
+	  <p>Generated 15:39:20 02/17/14 EST</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/learnalg/BirthMove.py">/Users/mhughes/git/bnpy2/bnpy/learnalg/BirthMove.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line126">126</td>
+              <td><pre>@profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line127">127</td>
+              <td><pre>def learn_fresh_model(freshModel, targetData, Kmax=500, Kfresh=10,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line128">128</td>
+              <td><pre>                      freshInitName='randexamples', freshAlgName='VB',</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line129">129</td>
+              <td><pre>                      nFreshLap=50, randstate=np.random,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line130">130</td>
+              <td><pre>                      doRemoveRedundant=True,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line131">131</td>
+              <td><pre>                      doSimpleThrTest=False, curModel=None, **kwargs):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line132">132</td>
+              <td><pre>  ''' Learn a new model with Kfresh components</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line133">133</td>
+              <td><pre>      Enforces an "upper limit" on number of components Kmax,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line134">134</td>
+              <td><pre>        so if Kexisting + Kfresh would exceed Kmax,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line135">135</td>
+              <td><pre>          we only consider Kmax-Kexisting components</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line136">136</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line137">137</td>
+              <td><pre>      Returns</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line138">138</td>
+              <td><pre>      -------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line139">139</td>
+              <td><pre>      freshSS : bnpy SuffStatDict with Kfresh components</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line140">140</td>
+              <td><pre>  '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line141">141</td>
+              <td><pre>  Kfresh = np.minimum(Kfresh, Kmax - freshModel.obsModel.K)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line142">142</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line143">143</td>
+              <td><pre>  if Kfresh < 2:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line144">144</td>
+              <td><pre>    raise BirthProposalError('BIRTH: Skipped to avoid exceeding user-specified limit of Kmax=%d components. ' % (Kmax))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line145">145</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.06 s</td>
+              <td>4</td>
+              <td id="line146">146</td>
+              <td><pre>  seed = randstate.choice(xrange(100000))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line147">147</td>
+              <td><pre>  freshModel.init_global_params(targetData, K=Kfresh, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.22 s</td>
+              <td>4</td>
+              <td id="line148">148</td>
+              <td><pre>                                seed=seed, initname=freshInitName)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line149">149</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line150">150</td>
+              <td><pre>  LearnAlgConstructor = dict()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line151">151</td>
+              <td><pre>  LearnAlgConstructor['VB'] = VBLearnAlg</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line152">152</td>
+              <td><pre>  algP = dict(nLap=nFreshLap, convergeSigFig=6, startLap=0)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line153">153</td>
+              <td><pre>  outP = dict(saveEvery=-1, traceEvery=-1, printEvery=-1)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line154">154</td>
+              <td><pre>  learnAlg = LearnAlgConstructor[freshAlgName](savedir=None, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line155">155</td>
+              <td><pre>                    algParams=algP, outputParams=outP, seed=seed)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line156">156</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 61.51 s</td>
+              <td>4</td>
+              <td id="line157">157</td>
+              <td><pre>  targetLP, evBound = learnAlg.fit(freshModel, targetData)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>4</td>
+              <td id="line158">158</td>
+              <td><pre>  targetSS = freshModel.get_global_suff_stats(targetData, targetLP)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line159">159</td>
+              <td><pre>  </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line160">160</td>
+              <td><pre>  if doSimpleThrTest:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line161">161</td>
+              <td><pre>    Nthr = np.maximum(100, 0.05 * targetData.nObs)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line162">162</td>
+              <td><pre>    rejectIDs = np.flatnonzero(targetSS.N < Nthr)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line163">163</td>
+              <td><pre>    rejectIDs = np.sort(rejectIDs)[::-1]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line164">164</td>
+              <td><pre>    for kreject in rejectIDs:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line165">165</td>
+              <td><pre>      targetSS.removeComp(kreject)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line166">166</td>
+              <td><pre>    </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line167">167</td>
+              <td><pre>  elif curModel is not None:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line168">168</td>
+              <td><pre>    targetSS = clean_up_fresh_model(targetData, curModel, freshModel, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 31.35 s</td>
+              <td>4</td>
+              <td id="line169">169</td>
+              <td><pre>                            randstate=randstate, **kwargs)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line170">170</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line171">171</td>
+              <td><pre>  if targetSS.K < 2:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line172">172</td>
+              <td><pre>    msg = 'BIRTH: Didnt create >1 useful comp from Data of size %d'</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line173">173</td>
+              <td><pre>    raise BirthProposalError(msg % (targetData.nObs))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line174">174</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line175">175</td>
+              <td><pre>  if doRemoveRedundant:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line176">176</td>
+              <td><pre>    targetSS = clean_up_expanded_suff_stats(targetData, curModel, targetSS,</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 173.61 s</td>
+              <td>4</td>
+              <td id="line177">177</td>
+              <td><pre>                            randstate=randstate, **kwargs)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line178">178</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line179">179</td>
+              <td><pre>  if targetSS.K < 2:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line180">180</td>
+              <td><pre>    msg = 'BIRTH: Didnt create >1 useful comp from Data of size %d'</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line181">181</td>
+              <td><pre>    raise BirthProposalError(msg % (targetData.nObs))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line182">182</td>
+              <td><pre>  return targetSS</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

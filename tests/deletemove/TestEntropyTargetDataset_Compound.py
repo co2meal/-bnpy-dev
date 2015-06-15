@@ -12,6 +12,7 @@ except ImportError:
 
 rEPS = 1e-40
 
+
 def makeNewResp_Exact(resp, delCompID, targetCompID):
     """ Create new resp matrix by following hard merge procedure.
 
@@ -21,21 +22,23 @@ def makeNewResp_Exact(resp, delCompID, targetCompID):
         all mass formerly assigned to delCompID transferred to targetCompID.
     """
     if targetCompID >= delCompID:
-      raise ValueError('INDEXING SUCKS!')
+        raise ValueError('INDEXING SUCKS!')
     respNew = np.delete(resp, delCompID, axis=1)
-    respNew[:,targetCompID] += resp[:, delCompID]
+    respNew[:, targetCompID] += resp[:, delCompID]
     respNew = np.maximum(respNew, rEPS)
     return respNew
 
+
 def calcRlogR(R):
     """
-    
+
     Returns
     -------
     H : 2D array, size N x K
         each entry is positive.
     """
     return -1 * R * np.log(R)
+
 
 def pprintR(R):
     """ Pretty printing of 2D array R
@@ -46,6 +49,7 @@ def pprintR(R):
         print R[:3, :10]
         print R[-3:, :10]
 
+
 def pprintRandL(R, L, Rmsg=''):
     """ Pretty printing of 2D array R and corresponding entropy.
     """
@@ -53,7 +57,7 @@ def pprintRandL(R, L, Rmsg=''):
     strR = ''
     nRows = np.minimum(3, R.shape[0])
     for r in range(nRows):
-        strR += '  '.join(['%.4f' % (x) for x in R[r,:10]]) + '\n'
+        strR += '  '.join(['%.4f' % (x) for x in R[r, :10]]) + '\n'
 
     strR = strR.replace('[', ' ')
     strR = strR.replace(']', ' ')
@@ -69,7 +73,9 @@ def pprintRandL(R, L, Rmsg=''):
             line = '%13s' % (' ') + line
         print line
 
+
 class MyTestN1K4(unittest.TestCase):
+
     """ Unit test for calculation of (bounds on) entropy of compound moves.
 
     We are particularly interested in what to do with "non target"
@@ -87,36 +93,35 @@ class MyTestN1K4(unittest.TestCase):
     def shortDescription(self):
         return None
 
-    def setUp(self, K=4, N=1, 
-                    dtargetMinResp=0.01,
-                    nMoves=3,
-                    Rsource='random'):
+    def setUp(self, K=4, N=1,
+              dtargetMinResp=0.01,
+              nMoves=3,
+              Rsource='random'):
         """ Create original R and a several compound hard merge proposals.
         """
         rng = np.random.RandomState(101)
 
         if Rsource == 'random':
-            R = 1.0/(K-nMoves) + rng.rand(N, K)
+            R = 1.0 / (K - nMoves) + rng.rand(N, K)
             R[:, -nMoves:] = dtargetMinResp
             assert R.sum(axis=1).min() > 1.0
         elif Rsource == 'toydata':
             raise NotImplementedError('TODO')
-            # TODO run for a few iters on toy data to get "realistic" 
+            # TODO run for a few iters on toy data to get "realistic"
             # responsibility matrix from a junk-y initialization.
 
         R = np.maximum(R, rEPS)
-        R /= R.sum(axis=1)[:,np.newaxis]
-        assert np.all(R[:,-nMoves:] <= dtargetMinResp)
+        R /= R.sum(axis=1)[:, np.newaxis]
+        assert np.all(R[:, -nMoves:] <= dtargetMinResp)
 
         self.K = K
         self.R = R
-        self.Rnew1 = makeNewResp_Exact(R, K-1, 0)
-        self.Rnew2 = makeNewResp_Exact(self.Rnew1, K-2, 0)
-        self.Rnew3 = makeNewResp_Exact(self.Rnew2, K-3, 0)
+        self.Rnew1 = makeNewResp_Exact(R, K - 1, 0)
+        self.Rnew2 = makeNewResp_Exact(self.Rnew1, K - 2, 0)
+        self.Rnew3 = makeNewResp_Exact(self.Rnew2, K - 3, 0)
 
-        assert np.all(self.Rnew1[:, (K-2):] <= dtargetMinResp)
-        assert np.all(self.Rnew2[:, (K-3):] <= dtargetMinResp)
-
+        assert np.all(self.Rnew1[:, (K - 2):] <= dtargetMinResp)
+        assert np.all(self.Rnew2[:, (K - 3):] <= dtargetMinResp)
 
         self.Horig = calcRlogR(self.R).sum(axis=0)
         self.H1 = calcRlogR(self.Rnew1).sum(axis=0)
@@ -129,7 +134,7 @@ class MyTestN1K4(unittest.TestCase):
         self.L3 = np.sum(self.H3)
 
         Reps = dtargetMinResp
-        sumH1meps = N * (1-Reps) * np.log(1-Reps)
+        sumH1meps = N * (1 - Reps) * np.log(1 - Reps)
         self.L1_lb = self.Lorig - self.Horig[-1] + sumH1meps
         self.L2_lb = self.L1_lb - self.Horig[-2] + sumH1meps
         self.L3_lb = self.L2_lb - self.Horig[-3] + sumH1meps
@@ -156,26 +161,37 @@ class MyTestN1K4(unittest.TestCase):
 
         self.gap1 = self.L1 - self.Lorig
         self.gap1_lb2 = calcCachedELBOGap_SinglePair(
-            SS, 0, K-1, delCompID=K-1)
+            SS, 0, K - 1, delCompID=K - 1)
 
         # Adjust suff stats to reflect first move
-        ELBOTerms = calcCachedELBOTerms_SinglePair(SS, 0, K-1, delCompID=K-1)
+        ELBOTerms = calcCachedELBOTerms_SinglePair(
+            SS,
+            0,
+            K -
+            1,
+            delCompID=K -
+            1)
         SS1 = SS.copy()
-        SS1.mergeComps(0, K-1)
-        SS1.setELBOTerm("ElogqZ", ELBOTerms["ElogqZ"], dims=("K")) 
+        SS1.mergeComps(0, K - 1)
+        SS1.setELBOTerm("ElogqZ", ELBOTerms["ElogqZ"], dims=("K"))
         self.SS1 = SS1
 
         # Adjust suff stats to reflect second move
-        ELBOTerms = calcCachedELBOTerms_SinglePair(SS1, 0, K-2, delCompID=K-2)
+        ELBOTerms = calcCachedELBOTerms_SinglePair(
+            SS1,
+            0,
+            K -
+            2,
+            delCompID=K -
+            2)
         SS2 = SS1.copy()
-        SS2.mergeComps(0, K-2)
-        SS2.setELBOTerm("ElogqZ", ELBOTerms["ElogqZ"], dims=("K")) 
+        SS2.mergeComps(0, K - 2)
+        SS2.setELBOTerm("ElogqZ", ELBOTerms["ElogqZ"], dims=("K"))
         self.SS2 = SS2
 
         self.gap2 = self.L2 - self.Lorig
         self.gap2_lb2 = self.gap1_lb2 + calcCachedELBOGap_SinglePair(
-            SS1, 0, K-2, delCompID=K-2)
-
+            SS1, 0, K - 2, delCompID=K - 2)
 
     def test_entropy_gt_zero(self):
         """ Verify that all entropy calculations yield positive values.
@@ -217,7 +233,7 @@ class MyTestN1K4(unittest.TestCase):
         print 'L1_lb        = % 7.5f' % (self.L1_lb)
         print 'H1_lb.sum()  = % 7.5f' % (self.H1_lb.sum())
         assert np.allclose(self.L1_lb, self.H1_lb.sum())
-        
+
         print ''
         print 'L2_lb        = % 7.5f' % (self.L2_lb)
         print 'H2_lb.sum()  = % 7.5f' % (self.H2_lb.sum())
@@ -227,15 +243,15 @@ class MyTestN1K4(unittest.TestCase):
         print 'L1_lb2       = % 7.5f' % (self.L1_lb2)
         print 'H1_lb2.sum() = % 7.5f' % (self.H1_lb2.sum())
         H = self.SS1.getELBOTerm('ElogqZ').sum()
-        print 'SS1.getELBO  = % 7.5f' % (-1*H)
+        print 'SS1.getELBO  = % 7.5f' % (-1 * H)
         assert np.allclose(self.L1_lb2, self.H1_lb2.sum())
         assert np.allclose(self.L1_lb2, -1 * H)
-        
+
         print ''
         print 'L2_lb2       = % 7.5f' % (self.L2_lb2)
         print 'H2_lb2.sum() = % 7.5f' % (self.H2_lb2.sum())
         H = self.SS2.getELBOTerm('ElogqZ').sum()
-        print 'SS2.getELBO  = % 7.5f' % (-1*H)
+        print 'SS2.getELBO  = % 7.5f' % (-1 * H)
 
     def test_entropy_bounds_hold(self):
         """ Verify "binary entropy" trick is correct in our calculations.
@@ -265,7 +281,6 @@ class MyTestN1K4(unittest.TestCase):
         assert self.L3 > self.L3_lb
         assert self.L3 > self.L3_lb2
 
-
     def test_gap_bounds_hold(self):
         """ Verify gap calculation is correct.
         """
@@ -279,6 +294,7 @@ class MyTestN1K4(unittest.TestCase):
         print 'gap2      = % 7.5f' % (self.gap2)
         print 'gap2_lb2  = % 7.5f' % (self.gap2_lb2)
         assert self.gap2 > self.gap2_lb2
+
 
 class MyTestN1K7(MyTestN1K4):
 
@@ -296,4 +312,3 @@ class MyTestN1000K11(MyTestN1K4):
 
     def setUp(self):
         super(type(self), self).setUp(K=11, N=1000)
-

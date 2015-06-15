@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">E_logsoftev_WordsData</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">E_logsoftev_WordsData</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>E_logsoftev_WordsData</h1>
+	  </div>
+
+          <p>10 Calls, 0.47 s</p>
+	  <p>Generated 23:42:12 05/21/14 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/obsmodel/MultObsModel.py">/Users/mhughes/git/bnpy2/bnpy/obsmodel/MultObsModel.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line99">99</td>
+              <td><pre>   @profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line100">100</td>
+              <td><pre>   def E_logsoftev_WordsData(self, Data):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line101">101</td>
+              <td><pre>       ''' Return log soft evidence probabilities for each word token.</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line102">102</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line103">103</td>
+              <td><pre>           Returns</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line104">104</td>
+              <td><pre>           -------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line105">105</td>
+              <td><pre>           E_logsoftev_words : nDistinctWords x K matrix</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line106">106</td>
+              <td><pre>                               entry n,k gives E log p( word n | topic k)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line107">107</td>
+              <td><pre>       '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line108">108</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line109">109</td>
+              <td><pre>       # Obtain matrix where col k = E[ log phi[k] ], for easier indexing</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>10</td>
+              <td id="line110">110</td>
+              <td><pre>       Elogphi = self.getElogphiMatrix().T.copy()</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 0.45 s</td>
+              <td>10</td>
+              <td id="line111">111</td>
+              <td><pre>       E_logsoftev_words = Elogphi[Data.word_id, :]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line112">112</td>
+              <td><pre>       return E_logsoftev_words, Elogphi</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

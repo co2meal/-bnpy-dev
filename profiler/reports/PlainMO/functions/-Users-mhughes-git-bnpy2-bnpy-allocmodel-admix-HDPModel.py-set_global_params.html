@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="../../assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="../../assets/css/docs.css" rel="stylesheet">
+    <!-- <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet"> -->
+    <link rel="stylesheet" href="../../assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">set_global_params</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">set_global_params</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>set_global_params</h1>
+	  </div>
+
+          <p>1 Calls, 0.003738 s</p>
+	  <p>Generated 17:58:12 01/04/14 EST</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix/HDPModel.py">/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix/HDPModel.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line245">245</td>
+              <td><pre class="prettyprint">@profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line246">246</td>
+              <td><pre class="prettyprint">def set_global_params(self, K=0, beta=None, U1=None, U0=None, **kwargs):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line247">247</td>
+              <td><pre class="prettyprint">    self.K = K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line248">248</td>
+              <td><pre class="prettyprint">    if U1 is not None and U0 is not None:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line249">249</td>
+              <td><pre class="prettyprint">      self.U1 = U1</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line250">250</td>
+              <td><pre class="prettyprint">      self.U0 = U0</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line251">251</td>
+              <td><pre class="prettyprint">    if beta is not None:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line252">252</td>
+              <td><pre class="prettyprint">      assert beta.size == K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line253">253</td>
+              <td><pre class="prettyprint">      beta = np.hstack([beta, np.min(beta)/100.])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line254">254</td>
+              <td><pre class="prettyprint">      beta = beta/np.sum(beta)</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line255">255</td>
+              <td><pre class="prettyprint">      vMean = HVO.beta2v(beta)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line256">256</td>
+              <td><pre class="prettyprint">      vMass = 100</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line257">257</td>
+              <td><pre class="prettyprint">      self.U1 = vMass * vMean</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line258">258</td>
+              <td><pre class="prettyprint">      self.U0 = vMass * (1-vMean)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line259">259</td>
+              <td><pre class="prettyprint">    else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line260">260</td>
+              <td><pre class="prettyprint">      raise ValueError('Bad HDP parameters')          </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line261">261</td>
+              <td><pre class="prettyprint">    assert self.U1.size == K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line262">262</td>
+              <td><pre class="prettyprint">    assert self.U0.size == K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line263">263</td>
+              <td><pre class="prettyprint">    self.set_helper_params()</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="../../assets/js/bootstrap.min.js"></script>
+    <script src="../../assets/js/main.js"></script>
+    <script src="https://google-code-prettify.googlecode.com/svn/loader/run_prettify.js"></script>
+  </body>
+</html>

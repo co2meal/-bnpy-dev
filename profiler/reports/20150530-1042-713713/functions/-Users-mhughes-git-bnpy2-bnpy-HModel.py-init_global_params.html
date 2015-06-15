@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">init_global_params</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">init_global_params</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>init_global_params</h1>
+	  </div>
+
+          <p>1 Calls, 0.13 s</p>
+	  <p>Generated 10:48:20 05/30/15 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/HModel.py">/Users/mhughes/git/bnpy2/bnpy/HModel.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line147">147</td>
+              <td class="code "><div class="code-listing"><pre>   @profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line148">148</td>
+              <td class="code "><div class="code-listing"><pre>   def init_global_params(self, Data, **initArgs):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line149">149</td>
+              <td class="code "><div class="code-listing"><pre>       ''' Initialize (in-place) global parameters</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line150">150</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line151">151</td>
+              <td class="code "><div class="code-listing"><pre>           Keyword Args</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line152">152</td>
+              <td class="code "><div class="code-listing"><pre>           -------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line153">153</td>
+              <td class="code "><div class="code-listing"><pre>           K : number of components</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line154">154</td>
+              <td class="code "><div class="code-listing"><pre>           initname : string name of routine for initialization</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line155">155</td>
+              <td class="code "><div class="code-listing"><pre>       '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line156">156</td>
+              <td class="code "><div class="code-listing"><pre>       initname = initArgs['initname']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line157">157</td>
+              <td class="code "><div class="code-listing"><pre>       if initname.count(os.path.sep) > 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line158">158</td>
+              <td class="code "><div class="code-listing"><pre>           init.FromSaved.init_global_params(self, Data, **initArgs)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line159">159</td>
+              <td class="code "><div class="code-listing"><pre>       elif initname.count('true') > 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line160">160</td>
+              <td class="code "><div class="code-listing"><pre>           init.FromTruth.init_global_params(self, Data, **initArgs)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line161">161</td>
+              <td class="code "><div class="code-listing"><pre>       elif initname.count('LP') > 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line162">162</td>
+              <td class="code "><div class="code-listing"><pre>           init.FromLP.init_global_params(self, Data, **initArgs)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line163">163</td>
+              <td class="code "><div class="code-listing"><pre>       else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line164">164</td>
+              <td class="code "><div class="code-listing"><pre>           # Set hmodel global parameters "from scratch", in two stages</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line165">165</td>
+              <td class="code "><div class="code-listing"><pre>           # * init allocmodel to "uniform" prob over comps</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line166">166</td>
+              <td class="code "><div class="code-listing"><pre>           # * init obsmodel in likelihood-specific, data-driven fashion</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line167">167</td>
+              <td class="code "><div class="code-listing"><pre>           if str(type(self.obsModel)).count('Gauss') > 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line168">168</td>
+              <td class="code "><div class="code-listing"><pre>               init.FromScratchGauss.init_global_params(self.obsModel,</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 0.13 s</td>
+              <td>1</td>
+              <td id="line169">169</td>
+              <td class="code danger"><div class="code-listing"><pre>                                                        Data, **initArgs)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line170">170</td>
+              <td class="code "><div class="code-listing"><pre>           elif str(type(self.obsModel)).count('Mult') > 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line171">171</td>
+              <td class="code "><div class="code-listing"><pre>               init.FromScratchMult.init_global_params(self.obsModel,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line172">172</td>
+              <td class="code "><div class="code-listing"><pre>                                                       Data, **initArgs)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line173">173</td>
+              <td class="code "><div class="code-listing"><pre>           elif str(type(self.obsModel)).count('Bern') > 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line174">174</td>
+              <td class="code "><div class="code-listing"><pre>               init.FromScratchBern.init_global_params(self.obsModel,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line175">175</td>
+              <td class="code "><div class="code-listing"><pre>                                                       Data, **initArgs)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line176">176</td>
+              <td class="code "><div class="code-listing"><pre>           else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line177">177</td>
+              <td class="code "><div class="code-listing"><pre>               raise NotImplementedError('Unrecognized initname procedure.')</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line178">178</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line179">179</td>
+              <td class="code "><div class="code-listing"><pre>           if 'K' in initArgs:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line180">180</td>
+              <td class="code "><div class="code-listing"><pre>               # Make sure K is exactly same for both alloc and obs models</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line181">181</td>
+              <td class="code "><div class="code-listing"><pre>               # Needed because obsModel init can sometimes yield K < Kinput</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line182">182</td>
+              <td class="code "><div class="code-listing"><pre>               initArgs['K'] = self.obsModel.K</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line183">183</td>
+              <td class="code "><div class="code-listing"><pre>           initArgs['Data'] = Data</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line184">184</td>
+              <td class="code "><div class="code-listing"><pre>           self.allocModel.init_global_params(**initArgs)</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

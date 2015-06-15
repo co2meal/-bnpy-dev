@@ -180,9 +180,6 @@ def plotXPairHistogram(meetingNum=1, dimIDs=[0, 1, 2, 3], numStatesToShow=3):
                 pylab.xticks([])
                 pylab.yticks([])
                 continue
-
-            # if not ((id1 == 0 and id2 == D - 1) or (id2 == 0 and id1 == D-1)):
-            #    continue
             pylab.hold('on')
             if id1 < id2:
                 order = reversed([x for x in enumerate(topLabelIDs)])
@@ -272,5 +269,5 @@ if __name__ == '__main__':
     parser.add_argument('--numStatesToShow', type=int, default=4)
     args = parser.parse_args()
     args.dimIDs = [int(x) for x in args.dimIDs.split(',')]
-    #plotBlackWhiteStateSeqForMeeting(**args.__dict__)
+    # plotBlackWhiteStateSeqForMeeting(**args.__dict__)
     plotXPairHistogram(**args.__dict__)

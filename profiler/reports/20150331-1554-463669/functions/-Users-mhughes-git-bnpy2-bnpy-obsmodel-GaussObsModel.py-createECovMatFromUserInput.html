@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">createECovMatFromUserInput</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">createECovMatFromUserInput</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>createECovMatFromUserInput</h1>
+	  </div>
+
+          <p>1 Calls, 0.00 s</p>
+	  <p>Generated 15:54:38 03/31/15 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/obsmodel/GaussObsModel.py">/Users/mhughes/git/bnpy2/bnpy/obsmodel/GaussObsModel.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line960">960</td>
+              <td class="code "><div class="code-listing"><pre>@profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line961">961</td>
+              <td class="code "><div class="code-listing"><pre>def createECovMatFromUserInput(D=0, Data=None, ECovMat='eye', sF=1.0):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line962">962</td>
+              <td class="code "><div class="code-listing"><pre>    ''' Create expected covariance matrix defining Wishart prior.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line963">963</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line964">964</td>
+              <td class="code "><div class="code-listing"><pre>        The creation process follows user-specified criteria.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line965">965</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line966">966</td>
+              <td class="code "><div class="code-listing"><pre>    Args</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line967">967</td>
+              <td class="code "><div class="code-listing"><pre>    --------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line968">968</td>
+              <td class="code "><div class="code-listing"><pre>    D : positive integer, size of each observation</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line969">969</td>
+              <td class="code "><div class="code-listing"><pre>    Data : [optional] dataset to use to make Sigma in data-driven way</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line970">970</td>
+              <td class="code "><div class="code-listing"><pre>    ECovMat : string name of the procedure to use to create Sigma</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line971">971</td>
+              <td class="code "><div class="code-listing"><pre>        'eye' : make Sigma a multiple of the identity matrix</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line972">972</td>
+              <td class="code "><div class="code-listing"><pre>        'covdata' : set Sigma to a multiple of the data covariance matrix</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line973">973</td>
+              <td class="code "><div class="code-listing"><pre>        'fromtruelabels' : set Sigma to the empirical mean of the</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line974">974</td>
+              <td class="code "><div class="code-listing"><pre>            covariances for each true cluster in the dataset</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line975">975</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line976">976</td>
+              <td class="code "><div class="code-listing"><pre>    Returns</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line977">977</td>
+              <td class="code "><div class="code-listing"><pre>    --------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line978">978</td>
+              <td class="code "><div class="code-listing"><pre>    Sigma : 2D array, size D x D</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line979">979</td>
+              <td class="code "><div class="code-listing"><pre>        Symmetric and positive definite.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line980">980</td>
+              <td class="code "><div class="code-listing"><pre>    '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line981">981</td>
+              <td class="code "><div class="code-listing"><pre>    if Data is not None:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line982">982</td>
+              <td class="code "><div class="code-listing"><pre>        assert D == Data.dim</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line983">983</td>
+              <td class="code "><div class="code-listing"><pre>    if ECovMat == 'eye':</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line984">984</td>
+              <td class="code danger"><div class="code-listing"><pre>        Sigma = sF * np.eye(D)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line985">985</td>
+              <td class="code "><div class="code-listing"><pre>    elif ECovMat == 'covdata':</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line986">986</td>
+              <td class="code "><div class="code-listing"><pre>        Sigma = sF * np.cov(Data.X.T, bias=1)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line987">987</td>
+              <td class="code "><div class="code-listing"><pre>    elif ECovMat == 'covfirstdiff':</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line988">988</td>
+              <td class="code "><div class="code-listing"><pre>        if not hasattr(Data, 'Xprev'):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line989">989</td>
+              <td class="code "><div class="code-listing"><pre>            raise ValueError(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line990">990</td>
+              <td class="code "><div class="code-listing"><pre>                'covfirstdiff only applies to auto-regressive datasets')</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line991">991</td>
+              <td class="code "><div class="code-listing"><pre>        Xdiff = Data.X - Data.Xprev</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line992">992</td>
+              <td class="code "><div class="code-listing"><pre>        Sigma = sF * np.cov(Xdiff.T, bias=1)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line993">993</td>
+              <td class="code "><div class="code-listing"><pre>    elif ECovMat == 'diagcovfirstdiff':</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line994">994</td>
+              <td class="code "><div class="code-listing"><pre>        if not hasattr(Data, 'Xprev'):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line995">995</td>
+              <td class="code "><div class="code-listing"><pre>            raise ValueError(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line996">996</td>
+              <td class="code "><div class="code-listing"><pre>                'covfirstdiff only applies to auto-regressive datasets')</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line997">997</td>
+              <td class="code "><div class="code-listing"><pre>        Xdiff = Data.X - Data.Xprev</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line998">998</td>
+              <td class="code "><div class="code-listing"><pre>        Sigma = sF * np.diag(np.diag(np.cov(Xdiff.T, bias=1)))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line999">999</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1000">1000</td>
+              <td class="code "><div class="code-listing"><pre>    elif ECovMat == 'fromtruelabels':</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1001">1001</td>
+              <td class="code "><div class="code-listing"><pre>        ''' Set Cov Matrix Sigma using the true labels in empirical Bayes style</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1002">1002</td>
+              <td class="code "><div class="code-listing"><pre>            Sigma = \sum_{c : class labels} w_c * SampleCov[ data from class c]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1003">1003</td>
+              <td class="code "><div class="code-listing"><pre>        '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1004">1004</td>
+              <td class="code "><div class="code-listing"><pre>        if hasattr(Data, 'TrueLabels'):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1005">1005</td>
+              <td class="code "><div class="code-listing"><pre>            Z = Data.TrueLabels</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1006">1006</td>
+              <td class="code "><div class="code-listing"><pre>        else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1007">1007</td>
+              <td class="code "><div class="code-listing"><pre>            Z = Data.TrueParams['Z']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1008">1008</td>
+              <td class="code "><div class="code-listing"><pre>        Zvals = np.unique(Z)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1009">1009</td>
+              <td class="code "><div class="code-listing"><pre>        Kmax = len(Zvals)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1010">1010</td>
+              <td class="code "><div class="code-listing"><pre>        wHat = np.zeros(Kmax)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1011">1011</td>
+              <td class="code "><div class="code-listing"><pre>        SampleCov = np.zeros((Kmax, D, D))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1012">1012</td>
+              <td class="code "><div class="code-listing"><pre>        for kLoc, kVal in enumerate(Zvals):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1013">1013</td>
+              <td class="code "><div class="code-listing"><pre>            mask = Z == kVal</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1014">1014</td>
+              <td class="code "><div class="code-listing"><pre>            wHat[kLoc] = np.sum(mask)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1015">1015</td>
+              <td class="code "><div class="code-listing"><pre>            SampleCov[kLoc] = np.cov(Data.X[mask].T, bias=1)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1016">1016</td>
+              <td class="code "><div class="code-listing"><pre>        wHat = wHat / np.sum(wHat)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1017">1017</td>
+              <td class="code "><div class="code-listing"><pre>        Sigma = 1e-8 * np.eye(D)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1018">1018</td>
+              <td class="code "><div class="code-listing"><pre>        for k in range(Kmax):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1019">1019</td>
+              <td class="code "><div class="code-listing"><pre>            Sigma += wHat[k] * SampleCov[k]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1020">1020</td>
+              <td class="code "><div class="code-listing"><pre>    else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1021">1021</td>
+              <td class="code "><div class="code-listing"><pre>        raise ValueError('Unrecognized ECovMat procedure %s' % (ECovMat))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line1022">1022</td>
+              <td class="code "><div class="code-listing"><pre>    return Sigma</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

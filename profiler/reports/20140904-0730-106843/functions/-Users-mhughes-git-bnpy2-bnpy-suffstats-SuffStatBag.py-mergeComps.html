@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">mergeComps</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">mergeComps</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>mergeComps</h1>
+	  </div>
+
+          <p>880 Calls, 0.27 s</p>
+	  <p>Generated 07:32:05 09/04/14 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/suffstats/SuffStatBag.py">/Users/mhughes/git/bnpy2/bnpy/suffstats/SuffStatBag.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line225">225</td>
+              <td><pre> @profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line226">226</td>
+              <td><pre> def mergeComps(self, kA, kB):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line227">227</td>
+              <td><pre>   ''' Merge components kA, kB into a single component</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line228">228</td>
+              <td><pre>   '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>176</td>
+              <td id="line229">229</td>
+              <td><pre>   if self.K <= 1:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line230">230</td>
+              <td><pre>     raise ValueError('Must have at least 2 components to merge.')</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>176</td>
+              <td id="line231">231</td>
+              <td><pre>   if kB == kA:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line232">232</td>
+              <td><pre>     raise ValueError('Distinct component ids required.')</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>880</td>
+              <td id="line233">233</td>
+              <td><pre>   for key, dims in self._Fields._FieldDims.items():</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>704</td>
+              <td id="line234">234</td>
+              <td><pre>     if dims is not None and dims != ():</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>528</td>
+              <td id="line235">235</td>
+              <td><pre>       arr = getattr(self._Fields, key)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>528</td>
+              <td id="line236">236</td>
+              <td><pre>       if self.hasMergeTerm(key) and dims == ('K'):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line237">237</td>
+              <td><pre>         # some special terms need to be precomputed, like sumLogPiActive</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line238">238</td>
+              <td><pre>         arr[kA] = getattr(self._MergeTerms, key)[kA,kB]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>528</td>
+              <td id="line239">239</td>
+              <td><pre>       elif dims[0] == 'K':</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line240">240</td>
+              <td><pre>         # applies to vast majority of all fields</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>352</td>
+              <td id="line241">241</td>
+              <td><pre>         arr[kA] += arr[kB]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>176</td>
+              <td id="line242">242</td>
+              <td><pre>       elif len(dims) > 1 and dims[1] == 'K':</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>176</td>
+              <td id="line243">243</td>
+              <td><pre>         arr[:, kA] += arr[:, kB]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line244">244</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>176</td>
+              <td id="line245">245</td>
+              <td><pre>   if self.hasELBOTerms():</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>352</td>
+              <td id="line246">246</td>
+              <td><pre>     for key, dims in self._ELBOTerms._FieldDims.items():</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>176</td>
+              <td id="line247">247</td>
+              <td><pre>       if self.hasMergeTerm(key) and dims == ('K'):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>176</td>
+              <td id="line248">248</td>
+              <td><pre>         arr = getattr(self._ELBOTerms, key)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>176</td>
+              <td id="line249">249</td>
+              <td><pre>         mArr = getattr(self._MergeTerms, key)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>176</td>
+              <td id="line250">250</td>
+              <td><pre>         if mArr.ndim == 2:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>176</td>
+              <td id="line251">251</td>
+              <td><pre>           arr[kA] = mArr[kA,kB]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line252">252</td>
+              <td><pre>         else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line253">253</td>
+              <td><pre>           arr[kA] += mArr[kB]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line254">254</td>
+              <td><pre>         ###self._ELBOTerms.setField(key, arr, dims=dims)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line255">255</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>176</td>
+              <td id="line256">256</td>
+              <td><pre>   if self.hasMergeTerms():</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>352</td>
+              <td id="line257">257</td>
+              <td><pre>     for key, dims in self._MergeTerms._FieldDims.items():</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>176</td>
+              <td id="line258">258</td>
+              <td><pre>       if dims == ('K','K'):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>176</td>
+              <td id="line259">259</td>
+              <td><pre>         mArr = getattr(self._MergeTerms, key)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>176</td>
+              <td id="line260">260</td>
+              <td><pre>         mArr[kA,kA+1:] = np.nan</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>176</td>
+              <td id="line261">261</td>
+              <td><pre>         mArr[:kA,kA] = np.nan</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line262">262</td>
+              <td><pre>       elif dims == ('K'):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line263">263</td>
+              <td><pre>         mArr = getattr(self._MergeTerms, key)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line264">264</td>
+              <td><pre>         mArr[kA] = np.nan</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line265">265</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>176</td>
+              <td id="line266">266</td>
+              <td><pre>   if self.hasSelectionTerms():</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>495</td>
+              <td id="line267">267</td>
+              <td><pre>     for key, dims in self._SelectTerms._FieldDims.items():</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>330</td>
+              <td id="line268">268</td>
+              <td><pre>       mArr = getattr(self._SelectTerms, key)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>330</td>
+              <td id="line269">269</td>
+              <td><pre>       if dims == ('K','K'):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>165</td>
+              <td id="line270">270</td>
+              <td><pre>         ab = mArr[kB, kB] + 2 * mArr[kA, kB] + mArr[kA,kA]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>165</td>
+              <td id="line271">271</td>
+              <td><pre>         mArr[kA,:] += mArr[kB,:]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>165</td>
+              <td id="line272">272</td>
+              <td><pre>         mArr[:,kA] += mArr[:, kB]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>165</td>
+              <td id="line273">273</td>
+              <td><pre>         mArr[kA,kA] = ab</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>165</td>
+              <td id="line274">274</td>
+              <td><pre>       elif dims == ('K'):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>165</td>
+              <td id="line275">275</td>
+              <td><pre>         mArr[kA] = mArr[kA] + mArr[kB]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line276">276</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 0.10 s</td>
+              <td>176</td>
+              <td id="line277">277</td>
+              <td><pre>   self._Fields.removeComp(kB)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>176</td>
+              <td id="line278">278</td>
+              <td><pre>   if self.hasELBOTerms():</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>176</td>
+              <td id="line279">279</td>
+              <td><pre>     self._ELBOTerms.removeComp(kB)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>176</td>
+              <td id="line280">280</td>
+              <td><pre>   if self.hasMergeTerms():</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.04 s</td>
+              <td>176</td>
+              <td id="line281">281</td>
+              <td><pre>     self._MergeTerms.removeComp(kB)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>176</td>
+              <td id="line282">282</td>
+              <td><pre>   if self.hasSelectionTerms():</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.05 s</td>
+              <td>165</td>
+              <td id="line283">283</td>
+              <td><pre>     self._SelectTerms.removeComp(kB)</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

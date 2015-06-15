@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">calcLocalParams</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">calcLocalParams</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>calcLocalParams</h1>
+	  </div>
+
+          <p>6 Calls, 62.70 s</p>
+	  <p>Generated 19:25:30 08/09/14 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix2/LocalUtil.py">/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix2/LocalUtil.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line7">7</td>
+              <td><pre>@profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line8">8</td>
+              <td><pre>def calcLocalParams(Data, LP, aModel, methodLP='scratch', **kwargs):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line9">9</td>
+              <td><pre>  ''' Calculate all local parameters for provided dataset under a topic model</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line10">10</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line11">11</td>
+              <td><pre>      Returns</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line12">12</td>
+              <td><pre>      -------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line13">13</td>
+              <td><pre>      LP : dict of local params, with fields</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line14">14</td>
+              <td><pre>      * DocTopicCount</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line15">15</td>
+              <td><pre>      * resp</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line16">16</td>
+              <td><pre>      * model-specific fields for doc-topic probabilities</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line17">17</td>
+              <td><pre>  ''' </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line18">18</td>
+              <td><pre>  ## Prepare the log soft ev matrix </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line19">19</td>
+              <td><pre>  Lik = LP['E_log_soft_ev']</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.16 s</td>
+              <td>6</td>
+              <td id="line20">20</td>
+              <td><pre>  Lik -= Lik.max(axis=1)[:,np.newaxis] </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.29 s</td>
+              <td>6</td>
+              <td id="line21">21</td>
+              <td><pre>  NumericUtil.inplaceExp(Lik)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line22">22</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line23">23</td>
+              <td><pre>  K = Lik.shape[1]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line24">24</td>
+              <td><pre>  hasDocTopicCount = 'DocTopicCount' in LP \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>5</td>
+              <td id="line25">25</td>
+              <td><pre>                     and LP['DocTopicCount'].shape == (Data.nDoc, K)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line26">26</td>
+              <td><pre>  if methodLP == 'memo' and hasDocTopicCount:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>5</td>
+              <td id="line27">27</td>
+              <td><pre>    initDocTopicCount = LP['DocTopicCount']</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line28">28</td>
+              <td><pre>  else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line29">29</td>
+              <td><pre>    initDocTopicCount = None</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line30">30</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line31">31</td>
+              <td><pre>  DocTopicCount, Prior, sumR = calcDocTopicCountForData(Data, aModel, Lik,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line32">32</td>
+              <td><pre>                                      initDocTopicCount=initDocTopicCount,</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 61.63 s</td>
+              <td>6</td>
+              <td id="line33">33</td>
+              <td><pre>                                      **kwargs)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line34">34</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>6</td>
+              <td id="line35">35</td>
+              <td><pre>  LP = aModel.updateLPGivenDocTopicCount(LP, DocTopicCount)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.59 s</td>
+              <td>6</td>
+              <td id="line36">36</td>
+              <td><pre>  LP = updateLPWithResp(LP, Data, Lik, Prior, sumR)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line37">37</td>
+              <td><pre>  LP['DocTopicCount'] = DocTopicCount</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line38">38</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line39">39</td>
+              <td><pre>  return LP</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

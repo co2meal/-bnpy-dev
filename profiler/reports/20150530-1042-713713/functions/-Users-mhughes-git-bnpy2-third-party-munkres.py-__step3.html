@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">__step3</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">__step3</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>__step3</h1>
+	  </div>
+
+          <p>40474 Calls, 0.08 s</p>
+	  <p>Generated 10:48:23 05/30/15 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/third-party/munkres.py">/Users/mhughes/git/bnpy2/third-party/munkres.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line478">478</td>
+              <td class="code "><div class="code-listing"><pre>   @profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line479">479</td>
+              <td class="code "><div class="code-listing"><pre>   def __step3(self):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line480">480</td>
+              <td class="code "><div class="code-listing"><pre>       """</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line481">481</td>
+              <td class="code "><div class="code-listing"><pre>       Cover each column containing a starred zero. If K columns are</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line482">482</td>
+              <td class="code "><div class="code-listing"><pre>       covered, the starred zeros describe a complete set of unique</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line483">483</td>
+              <td class="code "><div class="code-listing"><pre>       assignments. In this case, Go to DONE, otherwise, Go to Step 4.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line484">484</td>
+              <td class="code "><div class="code-listing"><pre>       """</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>12</td>
+              <td id="line485">485</td>
+              <td class="code "><div class="code-listing"><pre>       n = self.n</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>12</td>
+              <td id="line486">486</td>
+              <td class="code "><div class="code-listing"><pre>       count = 0</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>644</td>
+              <td id="line487">487</td>
+              <td class="code "><div class="code-listing"><pre>       for i in range(n):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.04 s</td>
+              <td>40474</td>
+              <td id="line488">488</td>
+              <td class="code "><div class="code-listing"><pre>           for j in range(n):</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 0.04 s</td>
+              <td>39842</td>
+              <td id="line489">489</td>
+              <td class="code danger"><div class="code-listing"><pre>               if self.marked[i][j] == 1:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>625</td>
+              <td id="line490">490</td>
+              <td class="code "><div class="code-listing"><pre>                   self.col_covered[j] = True</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>625</td>
+              <td id="line491">491</td>
+              <td class="code "><div class="code-listing"><pre>                   count += 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line492">492</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>12</td>
+              <td id="line493">493</td>
+              <td class="code "><div class="code-listing"><pre>       if count >= n:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line494">494</td>
+              <td class="code "><div class="code-listing"><pre>           step = 7  # done</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line495">495</td>
+              <td class="code "><div class="code-listing"><pre>       else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>5</td>
+              <td id="line496">496</td>
+              <td class="code "><div class="code-listing"><pre>           step = 4</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line497">497</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>12</td>
+              <td id="line498">498</td>
+              <td class="code "><div class="code-listing"><pre>       return step</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="../../assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="../../assets/css/docs.css" rel="stylesheet">
+    <!-- <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet"> -->
+    <link rel="stylesheet" href="../../assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">objectiveFunc</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">objectiveFunc</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>objectiveFunc</h1>
+	  </div>
+
+          <p>8567 Calls, 4.04734 s</p>
+	  <p>Generated 17:01:51 01/05/14 EST</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix/HDPVariationalOptimizer.py">/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix/HDPVariationalOptimizer.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line139">139</td>
+              <td><pre class="prettyprint">@profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line140">140</td>
+              <td><pre class="prettyprint">def objectiveFunc(Cvec, alpha0, gamma, nDoc, sumLogPi):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line141">141</td>
+              <td><pre class="prettyprint">  ''' Calculate unconstrained objective function for HDP variational learning</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line142">142</td>
+              <td><pre class="prettyprint">  '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.21 s</td>
+              <td>8567</td>
+              <td id="line143">143</td>
+              <td><pre class="prettyprint">  assert not np.any(np.isnan(Cvec))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.16 s</td>
+              <td>8567</td>
+              <td id="line144">144</td>
+              <td><pre class="prettyprint">  assert not np.any(np.isinf(Cvec))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line145">145</td>
+              <td><pre class="prettyprint"> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.048 s</td>
+              <td>8567</td>
+              <td id="line146">146</td>
+              <td><pre class="prettyprint">  Uvec = np.exp(Cvec)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.15 s</td>
+              <td>8567</td>
+              <td id="line147">147</td>
+              <td><pre class="prettyprint">  assert not np.any(np.isinf(Uvec))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line148">148</td>
+              <td><pre class="prettyprint"> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.019 s</td>
+              <td>8567</td>
+              <td id="line149">149</td>
+              <td><pre class="prettyprint">  K = Uvec.size/2</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.017 s</td>
+              <td>8567</td>
+              <td id="line150">150</td>
+              <td><pre class="prettyprint">  U1 = Uvec[:K]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.015 s</td>
+              <td>8567</td>
+              <td id="line151">151</td>
+              <td><pre class="prettyprint">  U0 = Uvec[K:]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line152">152</td>
+              <td><pre class="prettyprint"> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line153">153</td>
+              <td><pre class="prettyprint">  # PREPARE building-block expectations</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td>2.4 s</td>
+              <td>8567</td>
+              <td id="line154">154</td>
+              <td><pre class="prettyprint">  E = calcExpectations(U1, U0)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.081 s</td>
+              <td>8567</td>
+              <td id="line155">155</td>
+              <td><pre class="prettyprint">  kvec = K+1 - np.arange(1, K+1)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line156">156</td>
+              <td><pre class="prettyprint"> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line157">157</td>
+              <td><pre class="prettyprint">  # CALCULATE each term in the function</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.17 s</td>
+              <td>8567</td>
+              <td id="line158">158</td>
+              <td><pre class="prettyprint">  E_logp_v = (alpha0 - 1) * np.sum(E['log1mv'])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line159">159</td>
+              <td><pre class="prettyprint"> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line160">160</td>
+              <td><pre class="prettyprint">  E_logp_pi = nDoc * np.sum(E['logv']) \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line161">161</td>
+              <td><pre class="prettyprint">            + nDoc * np.inner(kvec, E['log1mv']) \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.28 s</td>
+              <td>8567</td>
+              <td id="line162">162</td>
+              <td><pre class="prettyprint">            + np.inner(gamma * E['beta'] - 1, sumLogPi)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line163">163</td>
+              <td><pre class="prettyprint">        </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line164">164</td>
+              <td><pre class="prettyprint">  E_logq_v = np.sum(gammaln(U1 + U0) - gammaln(U1) - gammaln(U0)) \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line165">165</td>
+              <td><pre class="prettyprint">            + np.inner(U1 - 1, E['logv']) \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.41 s</td>
+              <td>8567</td>
+              <td id="line166">166</td>
+              <td><pre class="prettyprint">            + np.inner(U0 - 1, E['log1mv'])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line167">167</td>
+              <td><pre class="prettyprint"> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.043 s</td>
+              <td>8567</td>
+              <td id="line168">168</td>
+              <td><pre class="prettyprint">  f = -1 * (E_logp_v + E_logp_pi - E_logq_v)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.012 s</td>
+              <td>8567</td>
+              <td id="line169">169</td>
+              <td><pre class="prettyprint">  return f</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="../../assets/js/bootstrap.min.js"></script>
+    <script src="../../assets/js/main.js"></script>
+    <script src="https://google-code-prettify.googlecode.com/svn/loader/run_prettify.js"></script>
+  </body>
+</html>

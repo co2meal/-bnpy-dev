@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">memoizedSummaryStep</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">memoizedSummaryStep</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>memoizedSummaryStep</h1>
+	  </div>
+
+          <p>24 Calls, 0.23 s</p>
+	  <p>Generated 10:48:21 05/30/15 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/learnalg/MOVBBirthMergeAlg.py">/Users/mhughes/git/bnpy2/bnpy/learnalg/MOVBBirthMergeAlg.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line678">678</td>
+              <td class="code "><div class="code-listing"><pre>   @profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line679">679</td>
+              <td class="code "><div class="code-listing"><pre>   def memoizedSummaryStep(self, hmodel, SS, Dchunk, LPchunk, batchID,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line680">680</td>
+              <td class="code "><div class="code-listing"><pre>                           MergePrepInfo=None):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line681">681</td>
+              <td class="code "><div class="code-listing"><pre>       ''' Execute summary step on current batch and update aggregated SS</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line682">682</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line683">683</td>
+              <td class="code "><div class="code-listing"><pre>       Returns</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line684">684</td>
+              <td class="code "><div class="code-listing"><pre>       --------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line685">685</td>
+              <td class="code "><div class="code-listing"><pre>       SS : updated aggregate suff stats</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line686">686</td>
+              <td class="code "><div class="code-listing"><pre>       SSchunk : updated current-batch suff stats</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line687">687</td>
+              <td class="code "><div class="code-listing"><pre>       '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line688">688</td>
+              <td class="code "><div class="code-listing"><pre>       if MergePrepInfo is None:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line689">689</td>
+              <td class="code "><div class="code-listing"><pre>           MergePrepInfo = dict()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line690">690</td>
+              <td class="code "><div class="code-listing"><pre>       if batchID in self.SSmemory:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line691">691</td>
+              <td class="code "><div class="code-listing"><pre>           # Decrement old value of SSchunk from aggregated SS</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line692">692</td>
+              <td class="code "><div class="code-listing"><pre>           # oldSSchunk will have usual Fields and ELBOTerms,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line693">693</td>
+              <td class="code "><div class="code-listing"><pre>           # but all MergeTerms and SelectionTerms should be removed.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>16</td>
+              <td id="line694">694</td>
+              <td class="code "><div class="code-listing"><pre>           oldSSchunk = self.load_batch_suff_stat_from_memory(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>16</td>
+              <td id="line695">695</td>
+              <td class="code "><div class="code-listing"><pre>               batchID, doCopy=0, Kfinal=SS.K)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>16</td>
+              <td id="line696">696</td>
+              <td class="code "><div class="code-listing"><pre>           assert not oldSSchunk.hasMergeTerms()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>16</td>
+              <td id="line697">697</td>
+              <td class="code "><div class="code-listing"><pre>           assert oldSSchunk.K == SS.K</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>16</td>
+              <td id="line698">698</td>
+              <td class="code "><div class="code-listing"><pre>           assert np.allclose(SS.uIDs, oldSSchunk.uIDs)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>16</td>
+              <td id="line699">699</td>
+              <td class="code "><div class="code-listing"><pre>           SS -= oldSSchunk</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line700">700</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line701">701</td>
+              <td class="code "><div class="code-listing"><pre>       # Calculate fresh suff stats for current batch</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line702">702</td>
+              <td class="code "><div class="code-listing"><pre>       if self.hasMove('delete'):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line703">703</td>
+              <td class="code "><div class="code-listing"><pre>           trackDocUsage = 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line704">704</td>
+              <td class="code "><div class="code-listing"><pre>       else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line705">705</td>
+              <td class="code "><div class="code-listing"><pre>           trackDocUsage = 0</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line706">706</td>
+              <td class="code "><div class="code-listing"><pre>       SSchunk = hmodel.get_global_suff_stats(Dchunk, LPchunk,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line707">707</td>
+              <td class="code "><div class="code-listing"><pre>                                              doPrecompEntropy=1,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line708">708</td>
+              <td class="code "><div class="code-listing"><pre>                                              trackDocUsage=trackDocUsage,</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 0.17 s</td>
+              <td>24</td>
+              <td id="line709">709</td>
+              <td class="code danger"><div class="code-listing"><pre>                                              **MergePrepInfo)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line710">710</td>
+              <td class="code "><div class="code-listing"><pre>       if SSchunk.K > self.ActiveIDVec.size:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>14</td>
+              <td id="line711">711</td>
+              <td class="code "><div class="code-listing"><pre>          for newCompID in np.arange(self.ActiveIDVec.size, SSchunk.K):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line712">712</td>
+              <td class="code "><div class="code-listing"><pre>               self.maxUID += 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line713">713</td>
+              <td class="code "><div class="code-listing"><pre>               self.ActiveIDVec = np.hstack([</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line714">714</td>
+              <td class="code "><div class="code-listing"><pre>                   self.ActiveIDVec, self.maxUID])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line715">715</td>
+              <td class="code "><div class="code-listing"><pre>       SSchunk.setUIDs(self.ActiveIDVec.copy())</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line716">716</td>
+              <td class="code "><div class="code-listing"><pre>       assert np.allclose(SSchunk.uIDs, self.ActiveIDVec)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line717">717</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line718">718</td>
+              <td class="code "><div class="code-listing"><pre>       # Increment aggregated SS by adding in SSchunk</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line719">719</td>
+              <td class="code "><div class="code-listing"><pre>       if SS is None:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line720">720</td>
+              <td class="code "><div class="code-listing"><pre>           SS = SSchunk.copy()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line721">721</td>
+              <td class="code "><div class="code-listing"><pre>       else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>23</td>
+              <td id="line722">722</td>
+              <td class="code "><div class="code-listing"><pre>           if SS.K < SSchunk.K:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line723">723</td>
+              <td class="code "><div class="code-listing"><pre>               # Catch up by added empty comps</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line724">724</td>
+              <td class="code "><div class="code-listing"><pre>               SS.insertEmptyComps(SSchunk.K - SS.K)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line725">725</td>
+              <td class="code "><div class="code-listing"><pre>               SS.setUIDs(self.ActiveIDVec.copy())</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line726">726</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>23</td>
+              <td id="line727">727</td>
+              <td class="code "><div class="code-listing"><pre>           assert SSchunk.K == SS.K</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>23</td>
+              <td id="line728">728</td>
+              <td class="code "><div class="code-listing"><pre>           assert np.allclose(SS.uIDs, self.ActiveIDVec)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>23</td>
+              <td id="line729">729</td>
+              <td class="code "><div class="code-listing"><pre>           SS += SSchunk</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>23</td>
+              <td id="line730">730</td>
+              <td class="code "><div class="code-listing"><pre>           if not SS.hasSelectionTerms() and SSchunk.hasSelectionTerms():</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line731">731</td>
+              <td class="code "><div class="code-listing"><pre>               SS._SelectTerms = SSchunk._SelectTerms</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line732">732</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line733">733</td>
+              <td class="code "><div class="code-listing"><pre>       self.save_batch_suff_stat_to_memory(batchID, SSchunk)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line734">734</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line735">735</td>
+              <td class="code "><div class="code-listing"><pre>       # Force aggregated suff stats to obey required constraints.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line736">736</td>
+              <td class="code "><div class="code-listing"><pre>       # This avoids numerical issues caused by incremental updates</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line737">737</td>
+              <td class="code "><div class="code-listing"><pre>       if hasattr(hmodel.allocModel, 'forceSSInBounds'):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line738">738</td>
+              <td class="code "><div class="code-listing"><pre>           hmodel.allocModel.forceSSInBounds(SS)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line739">739</td>
+              <td class="code "><div class="code-listing"><pre>       if hasattr(hmodel.obsModel, 'forceSSInBounds'):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line740">740</td>
+              <td class="code "><div class="code-listing"><pre>           hmodel.obsModel.forceSSInBounds(SS)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line741">741</td>
+              <td class="code "><div class="code-listing"><pre>       return SS, SSchunk</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

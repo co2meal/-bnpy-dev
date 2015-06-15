@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">selectPairsUsingAtMostNOfEachComp</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">selectPairsUsingAtMostNOfEachComp</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>selectPairsUsingAtMostNOfEachComp</h1>
+	  </div>
+
+          <p>18 Calls, 0.00 s</p>
+	  <p>Generated 10:48:22 05/30/15 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/mergemove/MergePlanner.py">/Users/mhughes/git/bnpy2/bnpy/mergemove/MergePlanner.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line75">75</td>
+              <td class="code "><div class="code-listing"><pre>@profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line76">76</td>
+              <td class="code "><div class="code-listing"><pre>def selectPairsUsingAtMostNOfEachComp(AdjMat, extraFixedEdges=None,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line77">77</td>
+              <td class="code "><div class="code-listing"><pre>                                      N=3, Nextra=0):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line78">78</td>
+              <td class="code "><div class="code-listing"><pre>    '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line79">79</td>
+              <td class="code "><div class="code-listing"><pre>        Args</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line80">80</td>
+              <td class="code "><div class="code-listing"><pre>        --------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line81">81</td>
+              <td class="code "><div class="code-listing"><pre>        AdjMat : 2D array, size K x K</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line82">82</td>
+              <td class="code "><div class="code-listing"><pre>        N : max degree of each node</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line83">83</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line84">84</td>
+              <td class="code "><div class="code-listing"><pre>        Returns</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line85">85</td>
+              <td class="code "><div class="code-listing"><pre>        --------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line86">86</td>
+              <td class="code "><div class="code-listing"><pre>        pairIDs : list of tuples, one entry per selected pair</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line87">87</td>
+              <td class="code "><div class="code-listing"><pre>    '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line88">88</td>
+              <td class="code "><div class="code-listing"><pre>    if np.sum(AdjMat) == 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line89">89</td>
+              <td class="code "><div class="code-listing"><pre>        return list()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line90">90</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line91">91</td>
+              <td class="code "><div class="code-listing"><pre>    # AMat :</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line92">92</td>
+              <td class="code "><div class="code-listing"><pre>    # tracks all remaining CANDIDATE edges where both node under the degree</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line93">93</td>
+              <td class="code "><div class="code-listing"><pre>    # limit.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line94">94</td>
+              <td class="code "><div class="code-listing"><pre>    AMat = AdjMat.copy()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line95">95</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line96">96</td>
+              <td class="code "><div class="code-listing"><pre>    xdegree = np.zeros(AdjMat.shape[0], dtype=np.int32)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line97">97</td>
+              <td class="code "><div class="code-listing"><pre>    if extraFixedEdges is not None:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line98">98</td>
+              <td class="code "><div class="code-listing"><pre>        for kA, kB in extraFixedEdges:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line99">99</td>
+              <td class="code "><div class="code-listing"><pre>            xdegree[kA] += 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line100">100</td>
+              <td class="code "><div class="code-listing"><pre>            xdegree[kB] += 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line101">101</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line102">102</td>
+              <td class="code "><div class="code-listing"><pre>    # degree : tracks CANDIDATE edges (including extra) that not excluded</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line103">103</td>
+              <td class="code "><div class="code-listing"><pre>    # newdegree : tracks edges we will KEEP</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line104">104</td>
+              <td class="code "><div class="code-listing"><pre>    newdegree = np.zeros_like(xdegree)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line105">105</td>
+              <td class="code "><div class="code-listing"><pre>    newdegree += xdegree</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line106">106</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line107">107</td>
+              <td class="code "><div class="code-listing"><pre>    exhaustedMask = newdegree >= N</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line108">108</td>
+              <td class="code "><div class="code-listing"><pre>    AMat[exhaustedMask, :] = 0</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line109">109</td>
+              <td class="code "><div class="code-listing"><pre>    AMat[:, exhaustedMask] = 0</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line110">110</td>
+              <td class="code "><div class="code-listing"><pre>    degree = np.sum(AMat, axis=0) + np.sum(AMat, axis=1) + xdegree</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line111">111</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line112">112</td>
+              <td class="code "><div class="code-listing"><pre>    # Traverse comps from largest to smallest degree</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line113">113</td>
+              <td class="code "><div class="code-listing"><pre>    pairIDs = list()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line114">114</td>
+              <td class="code "><div class="code-listing"><pre>    nodeOrder = np.argsort(-1 * degree)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>14</td>
+              <td id="line115">115</td>
+              <td class="code "><div class="code-listing"><pre>    for nodeID in nodeOrder:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line116">116</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line117">117</td>
+              <td class="code "><div class="code-listing"><pre>        # Get list of remaining possible partners for node</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>13</td>
+              <td id="line118">118</td>
+              <td class="code "><div class="code-listing"><pre>        partners = np.flatnonzero(AMat[nodeID, :] + AMat[:, nodeID])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line119">119</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line120">120</td>
+              <td class="code "><div class="code-listing"><pre>        # Sort node's partners from smallest to largest degree,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line121">121</td>
+              <td class="code "><div class="code-listing"><pre>        # since we want to prioritize keeping small degree partners</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>18</td>
+              <td id="line122">122</td>
+              <td class="code "><div class="code-listing"><pre>        partners = partners[np.argsort([degree[p] for p in partners])]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line123">123</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>13</td>
+              <td id="line124">124</td>
+              <td class="code "><div class="code-listing"><pre>        Ncur = N - newdegree[nodeID]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>13</td>
+              <td id="line125">125</td>
+              <td class="code "><div class="code-listing"><pre>        keepPartners = partners[:Ncur]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>13</td>
+              <td id="line126">126</td>
+              <td class="code "><div class="code-listing"><pre>        rejectPartners = partners[Ncur:]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line127">127</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>18</td>
+              <td id="line128">128</td>
+              <td class="code "><div class="code-listing"><pre>        for p in keepPartners:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>5</td>
+              <td id="line129">129</td>
+              <td class="code "><div class="code-listing"><pre>            kA = np.minimum(p, nodeID)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>5</td>
+              <td id="line130">130</td>
+              <td class="code "><div class="code-listing"><pre>            kB = np.maximum(p, nodeID)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>5</td>
+              <td id="line131">131</td>
+              <td class="code "><div class="code-listing"><pre>            pairIDs.append((kA, kB))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>5</td>
+              <td id="line132">132</td>
+              <td class="code "><div class="code-listing"><pre>            AMat[kA, kB] = 0  # make pair ineligible for future partnerships</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>5</td>
+              <td id="line133">133</td>
+              <td class="code "><div class="code-listing"><pre>            newdegree[p] += 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>5</td>
+              <td id="line134">134</td>
+              <td class="code "><div class="code-listing"><pre>            newdegree[nodeID] += 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line135">135</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>13</td>
+              <td id="line136">136</td>
+              <td class="code "><div class="code-listing"><pre>        for p in rejectPartners:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line137">137</td>
+              <td class="code "><div class="code-listing"><pre>            kA = np.minimum(p, nodeID)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line138">138</td>
+              <td class="code "><div class="code-listing"><pre>            kB = np.maximum(p, nodeID)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line139">139</td>
+              <td class="code "><div class="code-listing"><pre>            AMat[kA, kB] = 0  # make pair ineligible for future partnerships</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line140">140</td>
+              <td class="code "><div class="code-listing"><pre>            degree[p] -= 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line141">141</td>
+              <td class="code "><div class="code-listing"><pre>            degree[nodeID] -= 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line142">142</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>13</td>
+              <td id="line143">143</td>
+              <td class="code "><div class="code-listing"><pre>        exhaustedMask = newdegree >= N</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>13</td>
+              <td id="line144">144</td>
+              <td class="code "><div class="code-listing"><pre>        AMat[exhaustedMask, :] = 0</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>13</td>
+              <td id="line145">145</td>
+              <td class="code "><div class="code-listing"><pre>        AMat[:, exhaustedMask] = 0</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td>< 0.01 s</td>
+              <td>13</td>
+              <td id="line146">146</td>
+              <td class="code danger"><div class="code-listing"><pre>        degree = np.sum(AMat, axis=0) + np.sum(AMat, axis=1) + xdegree</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line147">147</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line148">148</td>
+              <td class="code "><div class="code-listing"><pre>    cond1 = np.allclose(degree, xdegree)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line149">149</td>
+              <td class="code "><div class="code-listing"><pre>    cond2 = np.max(newdegree) <= N + Nextra</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line150">150</td>
+              <td class="code "><div class="code-listing"><pre>    if not cond1:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line151">151</td>
+              <td class="code "><div class="code-listing"><pre>        print 'WARNING: BAD DEGREE CALCULATION'</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line152">152</td>
+              <td class="code "><div class="code-listing"><pre>    if not cond2:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line153">153</td>
+              <td class="code "><div class="code-listing"><pre>        print 'WARNING: BAD NEWDEGREE CALCULATION'</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line154">154</td>
+              <td class="code "><div class="code-listing"><pre>        print 'max(newdegree)=%d' % (np.max(newdegree))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line155">155</td>
+              <td class="code "><div class="code-listing"><pre>        print 'N + Nextra: %d' % (N + Nextra)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line156">156</td>
+              <td class="code "><div class="code-listing"><pre>    return pairIDs</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

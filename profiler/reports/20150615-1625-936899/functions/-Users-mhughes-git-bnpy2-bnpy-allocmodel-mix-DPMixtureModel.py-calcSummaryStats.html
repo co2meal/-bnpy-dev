@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">calcSummaryStats</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">calcSummaryStats</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>calcSummaryStats</h1>
+	  </div>
+
+          <p>30 Calls, 0.03 s</p>
+	  <p>Generated 16:25:31 06/15/15 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/allocmodel/mix/DPMixtureModel.py">/Users/mhughes/git/bnpy2/bnpy/allocmodel/mix/DPMixtureModel.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line925">925</td>
+              <td class="code "><div class="code-listing"><pre>@profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line926">926</td>
+              <td class="code "><div class="code-listing"><pre>def calcSummaryStats(Data, LP,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line927">927</td>
+              <td class="code "><div class="code-listing"><pre>                     doPrecompEntropy=False,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line928">928</td>
+              <td class="code "><div class="code-listing"><pre>                     doPrecompMergeEntropy=False, mPairIDs=None,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line929">929</td>
+              <td class="code "><div class="code-listing"><pre>                     mergePairSelection=None,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line930">930</td>
+              <td class="code "><div class="code-listing"><pre>                     trackDocUsage=False,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line931">931</td>
+              <td class="code "><div class="code-listing"><pre>                     **kwargs):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line932">932</td>
+              <td class="code "><div class="code-listing"><pre>    ''' Calculate sufficient statistics for global updates.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line933">933</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line934">934</td>
+              <td class="code "><div class="code-listing"><pre>    Parameters</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line935">935</td>
+              <td class="code "><div class="code-listing"><pre>    -------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line936">936</td>
+              <td class="code "><div class="code-listing"><pre>    Data : bnpy data object</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line937">937</td>
+              <td class="code "><div class="code-listing"><pre>    LP : local param dict with fields</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line938">938</td>
+              <td class="code "><div class="code-listing"><pre>        resp : Data.nObs x K array,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line939">939</td>
+              <td class="code "><div class="code-listing"><pre>            where resp[n,k] = posterior resp of comp k</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line940">940</td>
+              <td class="code "><div class="code-listing"><pre>    doPrecompEntropy : boolean flag</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line941">941</td>
+              <td class="code "><div class="code-listing"><pre>        indicates whether to precompute ELBO terms in advance</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line942">942</td>
+              <td class="code "><div class="code-listing"><pre>        used for memoized learning algorithms (moVB)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line943">943</td>
+              <td class="code "><div class="code-listing"><pre>    doPrecompMergeEntropy : boolean flag</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line944">944</td>
+              <td class="code "><div class="code-listing"><pre>        indicates whether to precompute ELBO terms in advance</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line945">945</td>
+              <td class="code "><div class="code-listing"><pre>        for certain merge candidates.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line946">946</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line947">947</td>
+              <td class="code "><div class="code-listing"><pre>    Returns</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line948">948</td>
+              <td class="code "><div class="code-listing"><pre>    -------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line949">949</td>
+              <td class="code "><div class="code-listing"><pre>    SS : SuffStatBag with K components</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line950">950</td>
+              <td class="code "><div class="code-listing"><pre>        Summarizes for this mixture model, with fields</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line951">951</td>
+              <td class="code "><div class="code-listing"><pre>        * N : 1D array, size K</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line952">952</td>
+              <td class="code "><div class="code-listing"><pre>            N[k] = expected number of items assigned to comp k</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line953">953</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line954">954</td>
+              <td class="code "><div class="code-listing"><pre>        Also has optional ELBO field when precompELBO is True</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line955">955</td>
+              <td class="code "><div class="code-listing"><pre>        * ElogqZ : 1D array, size K</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line956">956</td>
+              <td class="code "><div class="code-listing"><pre>            Vector of entropy contributions from each comp.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line957">957</td>
+              <td class="code "><div class="code-listing"><pre>            ElogqZ[k] = \sum_{n=1}^N resp[n,k] log resp[n,k]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line958">958</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line959">959</td>
+              <td class="code "><div class="code-listing"><pre>        Also has optional Merge field when precompMergeELBO is True</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line960">960</td>
+              <td class="code "><div class="code-listing"><pre>        * ElogqZ : 2D array, size K x K</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line961">961</td>
+              <td class="code "><div class="code-listing"><pre>            Each term is scalar entropy of merge candidate</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line962">962</td>
+              <td class="code "><div class="code-listing"><pre>    '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>30</td>
+              <td id="line963">963</td>
+              <td class="code "><div class="code-listing"><pre>    Nvec = np.sum(LP['resp'], axis=0)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>30</td>
+              <td id="line964">964</td>
+              <td class="code "><div class="code-listing"><pre>    K = Nvec.size</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>30</td>
+              <td id="line965">965</td>
+              <td class="code "><div class="code-listing"><pre>    if hasattr(Data, 'dim'):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>30</td>
+              <td id="line966">966</td>
+              <td class="code "><div class="code-listing"><pre>        SS = SuffStatBag(K=K, D=Data.dim)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line967">967</td>
+              <td class="code "><div class="code-listing"><pre>    else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line968">968</td>
+              <td class="code "><div class="code-listing"><pre>        SS = SuffStatBag(K=K, D=Data.vocab_size)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>30</td>
+              <td id="line969">969</td>
+              <td class="code "><div class="code-listing"><pre>    SS.setField('N', Nvec, dims=('K'))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line970">970</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>30</td>
+              <td id="line971">971</td>
+              <td class="code "><div class="code-listing"><pre>    if doPrecompEntropy:</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 0.01 s</td>
+              <td>30</td>
+              <td id="line972">972</td>
+              <td class="code danger"><div class="code-listing"><pre>        Mdict = calcELBO_NonlinearTerms(LP=LP, returnMemoizedDict=1)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>30</td>
+              <td id="line973">973</td>
+              <td class="code "><div class="code-listing"><pre>        SS.setELBOTerm('Hresp', Mdict['Hresp'], dims=('K'))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line974">974</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>30</td>
+              <td id="line975">975</td>
+              <td class="code "><div class="code-listing"><pre>    if doPrecompMergeEntropy:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line976">976</td>
+              <td class="code "><div class="code-listing"><pre>        resp = LP['resp']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line977">977</td>
+              <td class="code "><div class="code-listing"><pre>        if mPairIDs is None:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line978">978</td>
+              <td class="code "><div class="code-listing"><pre>            HrespMat = -1 * NumericUtil.calcRlogR_allpairs(resp)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line979">979</td>
+              <td class="code "><div class="code-listing"><pre>        else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line980">980</td>
+              <td class="code "><div class="code-listing"><pre>            HrespMat = -1 * NumericUtil.calcRlogR_specificpairs(resp, mPairIDs)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line981">981</td>
+              <td class="code "><div class="code-listing"><pre>        SS.setMergeTerm('Hresp', HrespMat, dims=('K', 'K'))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>30</td>
+              <td id="line982">982</td>
+              <td class="code "><div class="code-listing"><pre>    if trackDocUsage:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line983">983</td>
+              <td class="code "><div class="code-listing"><pre>        Usage = np.sum(LP['resp'] > 0.01, axis=0)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line984">984</td>
+              <td class="code "><div class="code-listing"><pre>        SS.setSelectionTerm('DocUsageCount', Usage, dims='K')</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line985">985</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>30</td>
+              <td id="line986">986</td>
+              <td class="code "><div class="code-listing"><pre>    return SS</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

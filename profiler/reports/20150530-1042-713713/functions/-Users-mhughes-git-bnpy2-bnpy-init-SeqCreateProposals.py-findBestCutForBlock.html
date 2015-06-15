@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">findBestCutForBlock</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">findBestCutForBlock</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>findBestCutForBlock</h1>
+	  </div>
+
+          <p>5099 Calls, 26.51 s</p>
+	  <p>Generated 10:48:21 05/30/15 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/init/SeqCreateProposals.py">/Users/mhughes/git/bnpy2/bnpy/init/SeqCreateProposals.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line438">438</td>
+              <td class="code "><div class="code-listing"><pre>@profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line439">439</td>
+              <td class="code "><div class="code-listing"><pre>def findBestCutForBlock(Data_n, tempModel,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line440">440</td>
+              <td class="code "><div class="code-listing"><pre>        a=0, b=400,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line441">441</td>
+              <td class="code "><div class="code-listing"><pre>        stride=3):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line442">442</td>
+              <td class="code "><div class="code-listing"><pre>    ''' Search for best cut point over interval [a,b] in provided sequence n.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line443">443</td>
+              <td class="code "><div class="code-listing"><pre>    '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.00 s</td>
+              <td>232</td>
+              <td id="line444">444</td>
+              <td class="code "><div class="code-listing"><pre>    tempModel = tempModel.copy()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>232</td>
+              <td id="line445">445</td>
+              <td class="code "><div class="code-listing"><pre>    @profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line446">446</td>
+              <td class="code "><div class="code-listing"><pre>    def calcObsModelELBOForInterval(SSab):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line447">447</td>
+              <td class="code "><div class="code-listing"><pre>        tempModel.obsModel.update_global_params(SSab)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line448">448</td>
+              <td class="code "><div class="code-listing"><pre>        ELBOab = tempModel.obsModel.calc_evidence(None, SSab, None)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line449">449</td>
+              <td class="code "><div class="code-listing"><pre>        return ELBOab</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line450">450</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>232</td>
+              <td id="line451">451</td>
+              <td class="code "><div class="code-listing"><pre>    SSab = tempModel.obsModel.calcSummaryStatsForContigBlock(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.10 s</td>
+              <td>232</td>
+              <td id="line452">452</td>
+              <td class="code "><div class="code-listing"><pre>        Data_n, a=a, b=b)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.46 s</td>
+              <td>232</td>
+              <td id="line453">453</td>
+              <td class="code "><div class="code-listing"><pre>    ELBOab = calcObsModelELBOForInterval(SSab)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line454">454</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line455">455</td>
+              <td class="code "><div class="code-listing"><pre>    # Initialize specific suff stat bags for intervals [a,m] and [m,b]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>232</td>
+              <td id="line456">456</td>
+              <td class="code "><div class="code-listing"><pre>    SSmb = SSab</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.13 s</td>
+              <td>232</td>
+              <td id="line457">457</td>
+              <td class="code "><div class="code-listing"><pre>    SSam = SSab.copy()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.07 s</td>
+              <td>232</td>
+              <td id="line458">458</td>
+              <td class="code "><div class="code-listing"><pre>    SSam.setAllFieldsToZero()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.04 s</td>
+              <td>232</td>
+              <td id="line459">459</td>
+              <td class="code "><div class="code-listing"><pre>    assert np.allclose(SSam.N.sum() + SSmb.N.sum(), b-a)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line460">460</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>232</td>
+              <td id="line461">461</td>
+              <td class="code "><div class="code-listing"><pre>    score = -1 * np.inf * np.ones(b-a)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>232</td>
+              <td id="line462">462</td>
+              <td class="code "><div class="code-listing"><pre>    score[0] = ELBOab  </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>5099</td>
+              <td id="line463">463</td>
+              <td class="code "><div class="code-listing"><pre>    for m in np.arange(a+stride, b, stride):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4867</td>
+              <td id="line464">464</td>
+              <td class="code "><div class="code-listing"><pre>        assert m > a</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4867</td>
+              <td id="line465">465</td>
+              <td class="code "><div class="code-listing"><pre>        assert m < b</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line466">466</td>
+              <td class="code "><div class="code-listing"><pre>        # Grab segment recently converted to [a,m] interval</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>4867</td>
+              <td id="line467">467</td>
+              <td class="code "><div class="code-listing"><pre>        SSstride = tempModel.obsModel.calcSummaryStatsForContigBlock(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.91 s</td>
+              <td>4867</td>
+              <td id="line468">468</td>
+              <td class="code "><div class="code-listing"><pre>            Data_n, a=(m - stride), b=m)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 2.66 s</td>
+              <td>4867</td>
+              <td id="line469">469</td>
+              <td class="code "><div class="code-listing"><pre>        SSam += SSstride</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.98 s</td>
+              <td>4867</td>
+              <td id="line470">470</td>
+              <td class="code "><div class="code-listing"><pre>        SSmb -= SSstride</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.82 s</td>
+              <td>4867</td>
+              <td id="line471">471</td>
+              <td class="code "><div class="code-listing"><pre>        assert np.allclose(SSam.N.sum() + SSmb.N.sum(), b-a)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line472">472</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 8.64 s</td>
+              <td>4867</td>
+              <td id="line473">473</td>
+              <td class="code danger"><div class="code-listing"><pre>        ELBOam = calcObsModelELBOForInterval(SSam)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 8.60 s</td>
+              <td>4867</td>
+              <td id="line474">474</td>
+              <td class="code "><div class="code-listing"><pre>        ELBOmb = calcObsModelELBOForInterval(SSmb)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.04 s</td>
+              <td>4867</td>
+              <td id="line475">475</td>
+              <td class="code "><div class="code-listing"><pre>        score[m - a] = ELBOam + ELBOmb</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line476">476</td>
+              <td class="code "><div class="code-listing"><pre>        #print a, m, b, 'score %.3e  Nam %.3f' % (score[m - a], SSam.N[0])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line477">477</td>
+              <td class="code "><div class="code-listing"><pre>  </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>232</td>
+              <td id="line478">478</td>
+              <td class="code "><div class="code-listing"><pre>    bestm = a + np.argmax(score)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>232</td>
+              <td id="line479">479</td>
+              <td class="code "><div class="code-listing"><pre>    return bestm</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

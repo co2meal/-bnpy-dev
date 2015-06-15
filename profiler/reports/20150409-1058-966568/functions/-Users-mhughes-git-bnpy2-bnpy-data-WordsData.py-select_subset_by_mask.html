@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">select_subset_by_mask</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">select_subset_by_mask</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>select_subset_by_mask</h1>
+	  </div>
+
+          <p>51 Calls, 0.00 s</p>
+	  <p>Generated 10:58:34 04/09/15 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/data/WordsData.py">/Users/mhughes/git/bnpy2/bnpy/data/WordsData.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line594">594</td>
+              <td class="code "><div class="code-listing"><pre>   @profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line595">595</td>
+              <td class="code "><div class="code-listing"><pre>   def select_subset_by_mask(self, docMask, doTrackFullSize=True):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line596">596</td>
+              <td class="code "><div class="code-listing"><pre>       ''' Returns WordsData object representing a subset this dataset.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line597">597</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line598">598</td>
+              <td class="code "><div class="code-listing"><pre>       Args</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line599">599</td>
+              <td class="code "><div class="code-listing"><pre>       -------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line600">600</td>
+              <td class="code "><div class="code-listing"><pre>       docMask : 1D array, size nDoc</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line601">601</td>
+              <td class="code "><div class="code-listing"><pre>           each entry indicates a document id to include in subset</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line602">602</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line603">603</td>
+              <td class="code "><div class="code-listing"><pre>       doTrackFullSize : boolean</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line604">604</td>
+              <td class="code "><div class="code-listing"><pre>           If True, return dataset whose nDocTotal attribute equals</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line605">605</td>
+              <td class="code "><div class="code-listing"><pre>           the value of self.nDocTotal. If False, nDocTotal=nDoc.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line606">606</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line607">607</td>
+              <td class="code "><div class="code-listing"><pre>       Returns</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line608">608</td>
+              <td class="code "><div class="code-listing"><pre>       --------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line609">609</td>
+              <td class="code "><div class="code-listing"><pre>       Dchunk : WordsData object</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line610">610</td>
+              <td class="code "><div class="code-listing"><pre>       '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line611">611</td>
+              <td class="code "><div class="code-listing"><pre>       docMask = np.asarray(docMask, dtype=np.int32)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line612">612</td>
+              <td class="code "><div class="code-listing"><pre>       nDoc = len(docMask)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line613">613</td>
+              <td class="code "><div class="code-listing"><pre>       assert np.max(docMask) < self.nDoc</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line614">614</td>
+              <td class="code "><div class="code-listing"><pre>       nUniqueTokenPerDoc = self.doc_range[</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line615">615</td>
+              <td class="code "><div class="code-listing"><pre>           docMask + 1] - self.doc_range[docMask]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line616">616</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line617">617</td>
+              <td class="code "><div class="code-listing"><pre>       nUniqueToken = np.sum(nUniqueTokenPerDoc)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line618">618</td>
+              <td class="code "><div class="code-listing"><pre>       word_id = np.zeros(nUniqueToken, dtype=self.word_id.dtype)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line619">619</td>
+              <td class="code "><div class="code-listing"><pre>       word_count = np.zeros(nUniqueToken, dtype=self.word_count.dtype)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line620">620</td>
+              <td class="code "><div class="code-listing"><pre>       doc_range = np.zeros(nDoc + 1, dtype=self.doc_range.dtype)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line621">621</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line622">622</td>
+              <td class="code "><div class="code-listing"><pre>       # Fill in new word_id, word_count, and doc_range</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line623">623</td>
+              <td class="code "><div class="code-listing"><pre>       startLoc = 0</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>51</td>
+              <td id="line624">624</td>
+              <td class="code "><div class="code-listing"><pre>       for d in xrange(nDoc):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>50</td>
+              <td id="line625">625</td>
+              <td class="code "><div class="code-listing"><pre>           start = self.doc_range[docMask[d]]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>50</td>
+              <td id="line626">626</td>
+              <td class="code "><div class="code-listing"><pre>           stop = self.doc_range[docMask[d] + 1]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>50</td>
+              <td id="line627">627</td>
+              <td class="code "><div class="code-listing"><pre>           endLoc = startLoc + (stop - start)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line628">628</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>50</td>
+              <td id="line629">629</td>
+              <td class="code "><div class="code-listing"><pre>           word_count[startLoc:endLoc] = self.word_count[start:stop]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>50</td>
+              <td id="line630">630</td>
+              <td class="code "><div class="code-listing"><pre>           word_id[startLoc:endLoc] = self.word_id[start:stop]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>50</td>
+              <td id="line631">631</td>
+              <td class="code "><div class="code-listing"><pre>           doc_range[d] = startLoc</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>50</td>
+              <td id="line632">632</td>
+              <td class="code "><div class="code-listing"><pre>           startLoc += (stop - start)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line633">633</td>
+              <td class="code "><div class="code-listing"><pre>       doc_range[-1] = nUniqueToken</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line634">634</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line635">635</td>
+              <td class="code "><div class="code-listing"><pre>       nDocTotal = None</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line636">636</td>
+              <td class="code "><div class="code-listing"><pre>       if doTrackFullSize:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line637">637</td>
+              <td class="code "><div class="code-listing"><pre>           nDocTotal = self.nDocTotal</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line638">638</td>
+              <td class="code "><div class="code-listing"><pre>       return WordsData(word_id, word_count, doc_range, self.vocab_size,</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line639">639</td>
+              <td class="code danger"><div class="code-listing"><pre>                        nDocTotal=nDocTotal)</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

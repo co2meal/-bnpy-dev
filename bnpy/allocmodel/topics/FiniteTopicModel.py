@@ -155,8 +155,8 @@ class FiniteTopicModel(AllocModel):
         LP['ElogPi'] = ElogPi
         return LP
 
-    def get_global_suff_stats(self, Data, LP, 
-                              doPrecompEntropy=None, 
+    def get_global_suff_stats(self, Data, LP,
+                              doPrecompEntropy=None,
                               cslice=(0, None), **kwargs):
         ''' Calculate sufficient statistics for global updates.
 
@@ -257,12 +257,12 @@ class FiniteTopicModel(AllocModel):
         -------
         Info : dict
         """
-        return dict(inferType=self.inferType, 
-                    K=self.K, 
+        return dict(inferType=self.inferType,
+                    K=self.K,
                     alpha=self.alpha)
 
     def fillSharedMemDictForLocalStep(self, ShMem=None):
-        """ Get dict of shared mem arrays needed for parallel local step. 
+        """ Get dict of shared mem arrays needed for parallel local step.
 
         Returns
         -------
@@ -273,7 +273,6 @@ class FiniteTopicModel(AllocModel):
             return ShMem
         else:
             return dict()
-
 
     def getLocalAndSummaryFunctionHandles(self):
         """ Get function handles for local step and summary step
@@ -341,7 +340,6 @@ def c_Func(avec, K=0):
         return gammaln(np.sum(avec)) - np.sum(gammaln(avec))
     else:
         return np.sum(gammaln(np.sum(avec, axis=1))) - np.sum(gammaln(avec))
-
 
 
 def calcSummaryStats(Dslice, LP=None, alpha=None,

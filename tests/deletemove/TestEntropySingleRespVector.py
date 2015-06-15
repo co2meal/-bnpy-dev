@@ -11,13 +11,15 @@ except ImportError:
 
 rEPS = 1e-40
 
+
 def makeNewResp_Exact(resp):
     """ Create new resp matrix that exactly obeys required constraints.
     """
     respNew = resp[:, 1:].copy()
-    respNew /= respNew.sum(axis=1)[:,np.newaxis]
+    respNew /= respNew.sum(axis=1)[:, np.newaxis]
     respNew = np.maximum(respNew, rEPS)
     return respNew
+
 
 def makeNewResp_Approx(resp):
     """ Create new resp matrix that exactly obeys required constraints.
@@ -26,15 +28,17 @@ def makeNewResp_Approx(resp):
     respNew = np.maximum(respNew, rEPS)
     return respNew
 
+
 def calcRlogR(R):
     """
-    
+
     Returns
     -------
     H : 2D array, size N x K
         each entry is positive.
     """
     return -1 * R * np.log(R)
+
 
 class TestK2(unittest.TestCase):
 
@@ -47,21 +51,20 @@ class TestK2(unittest.TestCase):
         rVals = np.linspace(rEPS, 1 - rSum, 100)
         N = rVals.size
         resp = np.zeros((N, K))
-        resp[:,0] = dtargetMinResp
+        resp[:, 0] = dtargetMinResp
         if K > 2:
             resp[:, 2] = rVals
         if K > 3:
-            resp[:, 3:] = respOther[np.newaxis,:]
-        resp[:, 1] = 1.0 - resp[:,0] - resp[:, 2:].sum(axis=1)
+            resp[:, 3:] = respOther[np.newaxis, :]
+        resp[:, 1] = 1.0 - resp[:, 0] - resp[:, 2:].sum(axis=1)
         resp = np.maximum(resp, rEPS)
-        resp /= resp.sum(axis=1)[:,np.newaxis]
+        resp /= resp.sum(axis=1)[:, np.newaxis]
 
         self.K = K
         self.R = resp
         self.Rnew_Exact = makeNewResp_Exact(resp)
         self.Rnew_Approx = makeNewResp_Approx(resp)
         self.rVals = rVals
-
 
     def test_entropy_gt_zero(self):
         """ Verify that all entropy calculations yield positive values.
@@ -98,30 +101,29 @@ class TestK2(unittest.TestCase):
 
         print '--- R original'
         print self.R[:3]
-        print self.R[-3:,:]
+        print self.R[-3:, :]
 
         print '--- R proposal'
         print self.Rnew_Exact[:3]
-        print self.Rnew_Exact[-3:,:]
-
+        print self.Rnew_Exact[-3:, :]
 
         pylab.plot(rVals, H, 'k-', label='H original')
         pylab.plot(rVals, Hnew_exact, 'b-', label='H proposal exact')
         pylab.plot(rVals, Hnew_approx, 'r-', label='H proposal approx')
         pylab.legend(loc='best')
-        pylab.xlim([rVals.min()-.01, rVals.max()+.01])
+        pylab.xlim([rVals.min() - .01, rVals.max() + .01])
         ybuf = 0.05 * H.max()
-        pylab.ylim([ybuf, H.max()+ybuf])
+        pylab.ylim([ybuf, H.max() + ybuf])
         pylab.show(block=True)
 
 
 class TestK3(TestK2):
-  
+
     def setUp(self):
         super(TestK3, self).setUp(K=3, respOther=0)
 
 
 class TestK4(TestK2):
-  
+
     def setUp(self):
         super(TestK4, self).setUp(K=4, respOther=[0.97])

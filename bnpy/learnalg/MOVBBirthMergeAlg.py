@@ -184,14 +184,14 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
             if self.hasMove('seqcreate'):
                 LPchunk = self.localStepWithBirthAtEachSeq(
-                    hmodel, SS, Dchunk, batchID, 
+                    hmodel, SS, Dchunk, batchID,
                     lapFrac=lapFrac,
                     evBound=evBound,
                     **MergePrepInfo)
             else:
                 LPchunk = self.memoizedLocalStep(hmodel, Dchunk, batchID,
-                                             **MergePrepInfo)
-            
+                                                 **MergePrepInfo)
+
             # Summary step
             SS, SSchunk = self.memoizedSummaryStep(hmodel, SS,
                                                    Dchunk, LPchunk, batchID,
@@ -340,7 +340,6 @@ class MOVBBirthMergeAlg(MOVBAlg):
                                  LPmemory=self.LPmemory,
                                  SSmemory=self.SSmemory)
 
-
     def hasMoreReasonableMoves(self, lapFrac, SS):
         ''' Decide if more moves will feasibly change current configuration.
         '''
@@ -396,10 +395,10 @@ class MOVBBirthMergeAlg(MOVBAlg):
         return False
         # ... end function hasMoreReasonableMoves
 
-    def localStepWithBirthAtEachSeq(self, hmodel, SS, Dchunk, batchID, 
-            lapFrac=0,
-            evBound=None,
-            **LPandMergeKwargs):
+    def localStepWithBirthAtEachSeq(self, hmodel, SS, Dchunk, batchID,
+                                    lapFrac=0,
+                                    evBound=None,
+                                    **LPandMergeKwargs):
         ''' Do local step on provided data chunk, possibly making new states.
 
         Returns
@@ -445,24 +444,25 @@ class MOVBBirthMergeAlg(MOVBAlg):
             # NOTE: Here, make sure SS retains all information from
             # *ALL* previously seen batches, including the current one.
             # Otherwise, could wipe out special states and lose guarantees.
-            
+
             if self.isFirstBatch(lapFrac):
                 if not hasattr(self, 'SeqCreatePastAttemptLog'):
                     self.SeqCreatePastAttemptLog = dict()
-                
+
                 elif 'nTryByStateUID' in self.SeqCreatePastAttemptLog:
                     for uID in self.SeqCreatePastAttemptLog['nTryByStateUID']:
                         if uID not in self.ActiveIDVec:
                             continue
                         print ' uid %d: nTry %d' % (
-                            uID, 
-                            self.SeqCreatePastAttemptLog['nTryByStateUID'][uID])
+                            uID,
+                            self.SeqCreatePastAttemptLog['nTryByStateUID'][uID]
+                            )
                     print '^^^^^^^^^^^^^^^^^^^^^^^^^^'
                 self.SeqCreatePastAttemptLog['maxUID'] = 1 * self.maxUID
                 self.SeqCreatePastAttemptLog['uIDs'] = self.ActiveIDVec.copy()
-            
+
             if SS is None or self.isFirstBatch(lapFrac):
-                self.nDocSeenInCurLap = 0            
+                self.nDocSeenInCurLap = 0
 
             randOrder = self.PRNG.permutation(np.arange(Dchunk.nDoc))
             for orderID, n in enumerate(randOrder):
@@ -470,25 +470,25 @@ class MOVBBirthMergeAlg(MOVBAlg):
                 nDocSeenForProposal = orderID
 
                 seqName = "seqUID %d | %d/%d in batch %d" % (
-                    n, orderID+1, Dchunk.nDoc, batchID)
+                    n, orderID + 1, Dchunk.nDoc, batchID)
                 if seqcreateParams['doVizSeqCreate']:
                     doTrackTruth = 1
                 else:
                     doTrackTruth = 0
-                Data_n = Dchunk.select_subset_by_mask([n], 
-                    doTrackTruth=doTrackTruth)
+                Data_n = Dchunk.select_subset_by_mask(
+                    [n], doTrackTruth=doTrackTruth)
                 LP_n = tempModel.calc_local_params(Data_n, **self.algParamsLP)
                 LP_n, tempModel, tempSS, Info = \
                     createSingleSeqLPWithNewStates_ManyProposals(
-                    Data_n, LP_n, tempModel, SS=tempSS,
-                    lapFrac=lapFrac,
-                    nDocSeenForProposal=orderID,
-                    nDocSeenInCurLap=self.nDocSeenInCurLap,
-                    batchID=batchID,
-                    seqName=seqName,
-                    PastAttemptLog=self.SeqCreatePastAttemptLog,
-                    n=n,
-                    **seqcreateParams)
+                        Data_n, LP_n, tempModel, SS=tempSS,
+                        lapFrac=lapFrac,
+                        nDocSeenForProposal=orderID,
+                        nDocSeenInCurLap=self.nDocSeenInCurLap,
+                        batchID=batchID,
+                        seqName=seqName,
+                        PastAttemptLog=self.SeqCreatePastAttemptLog,
+                        n=n,
+                        **seqcreateParams)
                 SS_n = tempModel.get_global_suff_stats(Data_n, LP_n)
                 if orderID == 0:
                     SSchunk = SS_n
@@ -519,19 +519,17 @@ class MOVBBirthMergeAlg(MOVBAlg):
                     Dchunk, SSchunk, tempModel, tempSS,
                     origK=Korig)
 
-
-        # Track total docs seen thus far, 
+        # Track total docs seen thus far,
         # to be sure SS bookkeeping is done correctly
         if didAnyProposals:
-            self.nDocSeenInCurLap  += Dchunk.nDoc
+            self.nDocSeenInCurLap += Dchunk.nDoc
 
         # Do final analysis of all sequences in this chunk
         # so that every sequence can use every newfound state
         LPandMergeKwargs.update(self.algParamsLP)
         LPchunk = tempModel.calc_local_params(Dchunk, **LPandMergeKwargs)
         SSchunk = tempModel.get_global_suff_stats(Dchunk, LPchunk,
-            doPrecompEntropy=1)
-
+                                                  doPrecompEntropy=1)
 
         if didAnyProposals and lapFrac > 1:
             assert SS != tempSS
@@ -546,17 +544,17 @@ class MOVBBirthMergeAlg(MOVBAlg):
                 lapFrac, batchID)
             print '------- BEFORE K=%d' % (SS.K)
             print 'Whole N ', ' '.join(
-                        ['%5.1f' % (x) for x in SS.N[:20]])
+                ['%5.1f' % (x) for x in SS.N[:20]])
             print 'Batch N ', ' '.join(
-                        ['%5.1f' % (x) for x in self.SSmemory[batchID].N[:20]])
-            
+                ['%5.1f' % (x) for x in self.SSmemory[batchID].N[:20]])
+
             # Compute whole-dataset ELBO on proposed model
             # Adjusting suff stats to exactly represent whole dataset
             # including new assignments of current batch
             delattr(tempModel.allocModel, 'rho')
             tempSS = SS.copy(includeELBOTerms=1, includeMergeTerms=0)
             prevSSchunk = self.SSmemory[batchID].copy(includeELBOTerms=1,
-                includeMergeTerms=0)
+                                                      includeMergeTerms=0)
             Kextra = tempSS.K - prevSSchunk.K
             if Kextra > 0:
                 prevSSchunk.insertEmptyComps(Kextra)
@@ -576,9 +574,9 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
             print '------- AFTER K=%d' % (tempSS.K)
             print 'Whole N ', ' '.join(
-                        ['%5.1f' % (x) for x in tempSS.N[:20]])
+                ['%5.1f' % (x) for x in tempSS.N[:20]])
             print 'Batch N ', ' '.join(
-                        ['%5.1f' % (x) for x in SSchunk.N[:20]])
+                ['%5.1f' % (x) for x in SSchunk.N[:20]])
 
             print 'curELBO  % .7f' % (curELBO)
             print 'propELBO % .7f' % (propELBO)
@@ -635,7 +633,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
 
         LPandMergeKwargs.update(self.algParamsLP)
         LPchunk = hmodel.calc_local_params(Dchunk, oldLPchunk,
-            **LPandMergeKwargs)
+                                           **LPandMergeKwargs)
         if self.algParams['doMemoizeLocalParams']:
             self.save_batch_local_params_to_memory(batchID, LPchunk)
         return LPchunk
@@ -720,7 +718,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
                                                trackDocUsage=trackDocUsage,
                                                **MergePrepInfo)
         if SSchunk.K > self.ActiveIDVec.size:
-           for newCompID in np.arange(self.ActiveIDVec.size, SSchunk.K):
+            for newCompID in np.arange(self.ActiveIDVec.size, SSchunk.K):
                 self.maxUID += 1
                 self.ActiveIDVec = np.hstack([
                     self.ActiveIDVec, self.maxUID])
@@ -807,7 +805,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
             curUIDs = SSchunk.uIDs
             if Kextra > 0:
                 SSchunk.insertEmptyComps(Kextra)
-                newUIDs = np.arange(self.maxUID-Kextra+1, self.maxUID+1)
+                newUIDs = np.arange(self.maxUID - Kextra + 1, self.maxUID + 1)
                 SSchunk.setUIDs(np.hstack([curUIDs, newUIDs]))
             assert SSchunk.K == Kfinal
 
@@ -1245,7 +1243,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
                 Korig = MM.shape[0]
                 # Expand to max size before deletes happened
                 # but after merges happened
-                Kmax, Kextra = self.CreateRecords[np.ceil(lapFrac-1)]
+                Kmax, Kextra = self.CreateRecords[np.ceil(lapFrac - 1)]
                 if Kextra > 0:
                     Kmax = Kmax - len(self.MergeLog)
                     if Korig < Kmax:
@@ -1516,7 +1514,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
                 newSS.setELBOFieldsToZero()
                 newSS.setMergeFieldsToZero()
                 newModel.update_global_params(newSS)
-                # Do extra update, to improve numerical 
+                # Do extra update, to improve numerical
                 # values found by gradient descent
                 newModel.allocModel.update_global_params(newSS)
                 newModel.allocModel.update_global_params(newSS)
@@ -1572,7 +1570,6 @@ class MOVBBirthMergeAlg(MOVBAlg):
         # TODO adjust LPmemory??
         return newModel, newSS
 
-
     def verifyELBOTracking(self, hmodel, SS, evBound=None,
                            BirthResults=list(),
                            **kwargs):
@@ -1585,7 +1582,7 @@ class MOVBBirthMergeAlg(MOVBAlg):
         if evBound is None:
             evBound = hmodel.calc_evidence(SS=SS)
 
-        ## All merges and deletes should be fast forwarded anyway
+        # All merges and deletes should be fast forwarded anyway
         tmpLog = self.MergeLog
         self.MergeLog = []
         # Reconstruct aggregate SS explicitly by sum over all stored batches

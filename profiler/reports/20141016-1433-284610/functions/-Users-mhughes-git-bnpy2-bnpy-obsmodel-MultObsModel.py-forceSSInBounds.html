@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">forceSSInBounds</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">forceSSInBounds</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>forceSSInBounds</h1>
+	  </div>
+
+          <p>100 Calls, 0.15 s</p>
+	  <p>Generated 14:45:19 10/16/14 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/obsmodel/MultObsModel.py">/Users/mhughes/git/bnpy2/bnpy/obsmodel/MultObsModel.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line240">240</td>
+              <td class="code "><div class="code-listing"><pre> @profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line241">241</td>
+              <td class="code "><div class="code-listing"><pre> def forceSSInBounds(self, SS):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line242">242</td>
+              <td class="code "><div class="code-listing"><pre>   ''' Force count vectors to remain positive</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line243">243</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line244">244</td>
+              <td class="code "><div class="code-listing"><pre>       This avoids numerical problems due to incremental add/subtract ops</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line245">245</td>
+              <td class="code "><div class="code-listing"><pre>       which can cause computations like </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line246">246</td>
+              <td class="code "><div class="code-listing"><pre>           x = 10.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line247">247</td>
+              <td class="code "><div class="code-listing"><pre>           x += 1e-15</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line248">248</td>
+              <td class="code "><div class="code-listing"><pre>           x -= 10</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line249">249</td>
+              <td class="code "><div class="code-listing"><pre>           x -= 1e-15</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line250">250</td>
+              <td class="code "><div class="code-listing"><pre>       to be slightly different than zero instead of exactly zero.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line251">251</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line252">252</td>
+              <td class="code "><div class="code-listing"><pre>       Returns</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line253">253</td>
+              <td class="code "><div class="code-listing"><pre>       -------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line254">254</td>
+              <td class="code "><div class="code-listing"><pre>       None. SS updated in-place.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line255">255</td>
+              <td class="code "><div class="code-listing"><pre>   '''</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 0.07 s</td>
+              <td>100</td>
+              <td id="line256">256</td>
+              <td class="code danger"><div class="code-listing"><pre>   np.maximum(SS.WordCounts, 0, out=SS.WordCounts)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>100</td>
+              <td id="line257">257</td>
+              <td class="code "><div class="code-listing"><pre>   np.maximum(SS.SumWordCounts, 0, out=SS.SumWordCounts)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.07 s</td>
+              <td>100</td>
+              <td id="line258">258</td>
+              <td class="code "><div class="code-listing"><pre>   if not np.allclose(SS.WordCounts.sum(axis=1), SS.SumWordCounts):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line259">259</td>
+              <td class="code "><div class="code-listing"><pre>     raise ValueError('Bad Word Counts!')</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="../../assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="../../assets/css/docs.css" rel="stylesheet">
+    <!-- <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet"> -->
+    <link rel="stylesheet" href="../../assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">dist_mahalanobis</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">dist_mahalanobis</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>dist_mahalanobis</h1>
+	  </div>
+
+          <p>375 Calls, 0.24223 s</p>
+	  <p>Generated 17:50:34 01/04/14 EST</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/distr/GaussWishDistr.py">/Users/mhughes/git/bnpy2/bnpy/distr/GaussWishDistr.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line76">76</td>
+              <td><pre class="prettyprint">@profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line77">77</td>
+              <td><pre class="prettyprint">def dist_mahalanobis(self, X):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line78">78</td>
+              <td><pre class="prettyprint">  '''Calculate Mahalanobis distance to x</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line79">79</td>
+              <td><pre class="prettyprint">           dist(x) = (x-m)'*W*(x-m)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line80">80</td>
+              <td><pre class="prettyprint">     If X is a matrix, we compute a vector of distances to each row vector</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line81">81</td>
+              <td><pre class="prettyprint">           dist(X)[n] = (x_n-m)'*W*(x_n-m)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line82">82</td>
+              <td><pre class="prettyprint">  '''           </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.052 s</td>
+              <td>375</td>
+              <td id="line83">83</td>
+              <td><pre class="prettyprint">  dX = (X-self.m).T</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td>0.11 s</td>
+              <td>375</td>
+              <td id="line84">84</td>
+              <td><pre class="prettyprint">  Q  = np.linalg.solve( self.cholinvW(), dX )</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.01 s</td>
+              <td>375</td>
+              <td id="line85">85</td>
+              <td><pre class="prettyprint">  Q *= Q</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.072 s</td>
+              <td>375</td>
+              <td id="line86">86</td>
+              <td><pre class="prettyprint">  return np.sum( Q, axis=0)</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="../../assets/js/bootstrap.min.js"></script>
+    <script src="../../assets/js/main.js"></script>
+    <script src="https://google-code-prettify.googlecode.com/svn/loader/run_prettify.js"></script>
+  </body>
+</html>

@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">buildCostMatrix</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">buildCostMatrix</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>buildCostMatrix</h1>
+	  </div>
+
+          <p>18094 Calls, 2.05 s</p>
+	  <p>Generated 10:48:23 05/30/15 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/util/StateSeqUtil.py">/Users/mhughes/git/bnpy2/bnpy/util/StateSeqUtil.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line53">53</td>
+              <td class="code "><div class="code-listing"><pre>@profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line54">54</td>
+              <td class="code "><div class="code-listing"><pre>def buildCostMatrix(zHat, zTrue):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line55">55</td>
+              <td class="code "><div class="code-listing"><pre>    ''' Construct cost matrix for alignment of estimated and true sequences</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line56">56</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line57">57</td>
+              <td class="code "><div class="code-listing"><pre>    Args</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line58">58</td>
+              <td class="code "><div class="code-listing"><pre>    --------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line59">59</td>
+              <td class="code "><div class="code-listing"><pre>    zHat : 1D array</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line60">60</td>
+              <td class="code "><div class="code-listing"><pre>        each entry is an integer label in {0, 1, ... Kest-1}</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line61">61</td>
+              <td class="code "><div class="code-listing"><pre>    zTrue : 1D array</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line62">62</td>
+              <td class="code "><div class="code-listing"><pre>        each entry is an integer label in {0, 1, ... Ktrue-1}</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line63">63</td>
+              <td class="code "><div class="code-listing"><pre>        with optional negative state labels</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line64">64</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line65">65</td>
+              <td class="code "><div class="code-listing"><pre>    Returns</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line66">66</td>
+              <td class="code "><div class="code-listing"><pre>    --------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line67">67</td>
+              <td class="code "><div class="code-listing"><pre>    CostMatrix : 2D array, size Ktrue x Kest</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line68">68</td>
+              <td class="code "><div class="code-listing"><pre>        CostMatrix[j,k] = count of events across all timesteps,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line69">69</td>
+              <td class="code "><div class="code-listing"><pre>        where j is assigned, but k is not.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line70">70</td>
+              <td class="code "><div class="code-listing"><pre>    '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line71">71</td>
+              <td class="code "><div class="code-listing"><pre>    zHat = as1D(zHat)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line72">72</td>
+              <td class="code "><div class="code-listing"><pre>    zTrue = as1D(zTrue)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line73">73</td>
+              <td class="code "><div class="code-listing"><pre>    Ktrue = int(np.max(zTrue)) + 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line74">74</td>
+              <td class="code "><div class="code-listing"><pre>    Kest = int(np.max(zHat)) + 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line75">75</td>
+              <td class="code "><div class="code-listing"><pre>    K = np.maximum(Ktrue, Kest)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line76">76</td>
+              <td class="code "><div class="code-listing"><pre>    CostMatrix = np.zeros((K, K))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>307</td>
+              <td id="line77">77</td>
+              <td class="code "><div class="code-listing"><pre>    for ktrue in xrange(K):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>18094</td>
+              <td id="line78">78</td>
+              <td class="code "><div class="code-listing"><pre>        for kest in xrange(K):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.52 s</td>
+              <td>17794</td>
+              <td id="line79">79</td>
+              <td class="code "><div class="code-listing"><pre>            CostMatrix[ktrue, kest] = np.sum(np.logical_and(zTrue == ktrue,</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 1.51 s</td>
+              <td>17794</td>
+              <td id="line80">80</td>
+              <td class="code danger"><div class="code-listing"><pre>                                                            zHat != kest))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line81">81</td>
+              <td class="code "><div class="code-listing"><pre>    return CostMatrix</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

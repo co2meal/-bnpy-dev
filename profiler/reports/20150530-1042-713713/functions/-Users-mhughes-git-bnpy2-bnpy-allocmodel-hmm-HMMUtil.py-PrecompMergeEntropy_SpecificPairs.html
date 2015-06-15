@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">PrecompMergeEntropy_SpecificPairs</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">PrecompMergeEntropy_SpecificPairs</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>PrecompMergeEntropy_SpecificPairs</h1>
+	  </div>
+
+          <p>48 Calls, 0.00 s</p>
+	  <p>Generated 10:48:20 05/30/15 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/allocmodel/hmm/HMMUtil.py">/Users/mhughes/git/bnpy2/bnpy/allocmodel/hmm/HMMUtil.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line680">680</td>
+              <td class="code "><div class="code-listing"><pre>@profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line681">681</td>
+              <td class="code "><div class="code-listing"><pre>def PrecompMergeEntropy_SpecificPairs(LP, Data, mPairIDs, eps=1e-100):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line682">682</td>
+              <td class="code "><div class="code-listing"><pre>    ''' Calculate replacement tables for specific candidate merge pairs</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line683">683</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line684">684</td>
+              <td class="code "><div class="code-listing"><pre>    Returns</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line685">685</td>
+              <td class="code "><div class="code-listing"><pre>    --------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line686">686</td>
+              <td class="code "><div class="code-listing"><pre>    sub_Hstart : 1D array, size M</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line687">687</td>
+              <td class="code "><div class="code-listing"><pre>    sub_Htable : 3D array, size M x 2 x K</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line688">688</td>
+              <td class="code "><div class="code-listing"><pre>    '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line689">689</td>
+              <td class="code "><div class="code-listing"><pre>    resp = LP['resp']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line690">690</td>
+              <td class="code "><div class="code-listing"><pre>    startLocIDs = Data.doc_range[:-1]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line691">691</td>
+              <td class="code "><div class="code-listing"><pre>    K = resp.shape[1]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line692">692</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line693">693</td>
+              <td class="code "><div class="code-listing"><pre>    sub_Hstart = np.zeros(len(mPairIDs))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line694">694</td>
+              <td class="code "><div class="code-listing"><pre>    sub_Htable = np.zeros((len(mPairIDs), 2, K))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line695">695</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>48</td>
+              <td id="line696">696</td>
+              <td class="code "><div class="code-listing"><pre>    for mID, mPair in enumerate(mPairIDs):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>40</td>
+              <td id="line697">697</td>
+              <td class="code "><div class="code-listing"><pre>        kA, kB = mPair</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>40</td>
+              <td id="line698">698</td>
+              <td class="code "><div class="code-listing"><pre>        sub_Hstart[mID] = calc_sub_Hstart_forMergePair(</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td>< 0.01 s</td>
+              <td>40</td>
+              <td id="line699">699</td>
+              <td class="code danger"><div class="code-listing"><pre>            resp, kA, kB, Data=Data, eps=eps)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>40</td>
+              <td id="line700">700</td>
+              <td class="code "><div class="code-listing"><pre>        if 'mHtable' in LP:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>40</td>
+              <td id="line701">701</td>
+              <td class="code "><div class="code-listing"><pre>            sub_Htable[mID] = LP['mHtable'][(2 * mID):(2 * mID + 2)]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line702">702</td>
+              <td class="code "><div class="code-listing"><pre>        else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line703">703</td>
+              <td class="code "><div class="code-listing"><pre>            sub_Htable[mID] = calc_sub_Htable_forMergePair(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line704">704</td>
+              <td class="code "><div class="code-listing"><pre>                LP['respPair'], kA, kB, eps=eps)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line705">705</td>
+              <td class="code "><div class="code-listing"><pre>    return sub_Hstart, sub_Htable</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

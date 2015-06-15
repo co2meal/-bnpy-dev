@@ -9,12 +9,14 @@ from nose.plugins.attrib import attr
 
 import bnpy
 
+
 def arg2name(aArg):
     if isinstance(aArg, dict):
         aName = aArg['name']
     elif isinstance(aArg, str):
         aName = aArg
     return aName
+
 
 def pprintResult(model, Info, Ktrue=0):
     """ Pretty print the result of a learning algorithm.
@@ -26,15 +28,16 @@ def pprintResult(model, Info, Ktrue=0):
             hdist_str = 'hdist=' + '%.3f' % (float(np.loadtxt(hdistfile)[-1]))
 
     print " %25s after %4.1f sec and %4d laps.  ELBO=% 7.5f %s K=%d  Ktrue=%d"\
-     % (Info['status'][:25],
-        Info['elapsedTimeInSec'],
-        Info['lapTrace'][-1],
-        Info['evBound'],
-        hdist_str,
-        model.allocModel.K,
-        Ktrue,
-        )
-    
+        % (Info['status'][:25],
+           Info['elapsedTimeInSec'],
+           Info['lapTrace'][-1],
+           Info['evBound'],
+           hdist_str,
+           model.allocModel.K,
+           Ktrue,
+           )
+
+
 def pprint(val):
     """ Pretty print the provided value.
     """
@@ -50,6 +53,7 @@ def pprint(val):
                 msg += " %s=%s" % (k, str(v))
         print '  ' + firstMsg + ' ' + msg
 
+
 def pprintCommandToReproduceError(dataArg, aArg, oArg, algName, **kwargs):
     for key, val in dataArg.items():
         if key == 'name':
@@ -61,14 +65,15 @@ def pprintCommandToReproduceError(dataArg, aArg, oArg, algName, **kwargs):
     kwstr = ' '.join(['--%s %s' % (key, kwargs[key]) for key in kwargs])
     print "python -m bnpy.Run %s %s %s %s %s" % (
         dataArg['name'],
-        aArg['name'], 
+        aArg['name'],
         oArg['name'],
-        algName, 
+        algName,
         kwstr,
-        )
+    )
+
 
 def is_monotonic(ELBOvec, aArg=None, atol=1e-5, verbose=True):
-    ''' Returns True if provided vector monotonically increases, False o.w. 
+    ''' Returns True if provided vector monotonically increases, False o.w.
 
     Returns
     -------
@@ -93,6 +98,7 @@ def is_monotonic(ELBOvec, aArg=None, atol=1e-5, verbose=True):
             % (np.sum(1 - maskOK), ELBOvec.size, diff[diff < 0].max())
     return isMonotonic
 
+
 class MergeMoveEndToEndTest(unittest.TestCase):
 
     """ Defines test exercises for executing bnpy.run on provided dataset.
@@ -108,8 +114,8 @@ class MergeMoveEndToEndTest(unittest.TestCase):
     def shortDescription(self):
         return None
 
-    def makeAllKwArgs(self, aArg, obsArg, initArg=dict(), 
-        **kwargs):
+    def makeAllKwArgs(self, aArg, obsArg, initArg=dict(),
+                      **kwargs):
 
         allKwargs = dict(
             doSaveToDisk=False,
@@ -143,16 +149,16 @@ class MergeMoveEndToEndTest(unittest.TestCase):
             allKwargs['dtargetMaxSize'] = int(MaxSize)
 
         if aArg['name'] == 'HDPTopicModel':
-            allKwargs['mergePairSelection'] = 'corrlimitdegree'            
+            allKwargs['mergePairSelection'] = 'corrlimitdegree'
         else:
             allKwargs['mergePairSelection'] = 'wholeELBObetter'
         return allKwargs
 
     def run_MOVBWithMoves(self, aArg, oArg,
-            moves='merge',
-            algName='moVB',
-            nWorkers=0,
-            **kwargs):
+                          moves='merge',
+                          algName='moVB',
+                          nWorkers=0,
+                          **kwargs):
         """ Execute single run with merge moves enabled.
 
         Post Condition
@@ -164,17 +170,17 @@ class MergeMoveEndToEndTest(unittest.TestCase):
         pprint(oArg)
         initArg = dict(**kwargs)
         pprint(initArg)
-        kwargs = self.makeAllKwArgs(aArg, oArg, initArg, 
-            moves=moves, nWorkers=nWorkers,
-            **kwargs)
-        model, Info = bnpy.run(self.Data, 
-            arg2name(aArg), arg2name(oArg), algName, **kwargs)
+        kwargs = self.makeAllKwArgs(
+            aArg, oArg, initArg,
+            moves=moves, nWorkers=nWorkers, **kwargs)
+        model, Info = bnpy.run(
+            self.Data, arg2name(aArg), arg2name(oArg), algName, **kwargs)
         pprintResult(model, Info, Ktrue=Ktrue)
 
         afterFirstLapMask = Info['lapTrace'] >= 1.0
         evTraceAfterFirstLap = Info['evTrace'][afterFirstLapMask]
         isMonotonic = is_monotonic(evTraceAfterFirstLap,
-            aArg=aArg)
+                                   aArg=aArg)
 
         try:
             assert isMonotonic
@@ -190,9 +196,8 @@ class MergeMoveEndToEndTest(unittest.TestCase):
                 print '>>>>>> WHOA! Kfinal != Ktrue <<<<<<'
         return Info
 
-
-    def run_MOVBWithMoves_SegmentManySeq(self, aArg, oArg,
-            moves='merge,delete,shuffle,seqcreate',
+    def run_MOVBWithMoves_SegmentManySeq(
+            self, aArg, oArg, moves='merge,delete,shuffle,seqcreate',
             algName='moVB',
             nWorkers=0,
             **kwargs):
@@ -209,22 +214,22 @@ class MergeMoveEndToEndTest(unittest.TestCase):
         pprint(oArg)
         initArg = dict(**kwargs)
         pprint(initArg)
-        
+
         viterbiPath = os.path.expandvars(
             '$BNPYROOT/bnpy/learnalg/extras/XViterbi.py')
-        kwargs = self.makeAllKwArgs(aArg, oArg, initArg, 
-            moves=moves, nWorkers=nWorkers,
-            customFuncPath=viterbiPath,
-            doSaveToDisk=1,
-            doWriteStdOut=1,
-            printEvery=1,
-            saveEvery=1000,
-            **kwargs)
+        kwargs = self.makeAllKwArgs(aArg, oArg, initArg,
+                                    moves=moves, nWorkers=nWorkers,
+                                    customFuncPath=viterbiPath,
+                                    doSaveToDisk=1,
+                                    doWriteStdOut=1,
+                                    printEvery=1,
+                                    saveEvery=1000,
+                                    **kwargs)
 
         kwargs['jobname'] += '-creationProposalName=%s' % (
             kwargs['creationProposalName'])
-        model, Info = bnpy.run(self.Data, 
-            arg2name(aArg), arg2name(oArg), algName, **kwargs)
+        model, Info = bnpy.run(
+            self.Data, arg2name(aArg), arg2name(oArg), algName, **kwargs)
         pprintResult(model, Info, Ktrue=Ktrue)
         try:
             assert model.allocModel.K == model.obsModel.K
@@ -239,13 +244,10 @@ class MergeMoveEndToEndTest(unittest.TestCase):
         print ''
         return Info
 
-
-    def run_MOVBWithMoves_SegmentSingleSeq(self, aArg, oArg,
+    def run_MOVBWithMoves_SegmentSingleSeq(
+            self, aArg, oArg,
             moves='merge,delete,shuffle,seqcreate',
-            algName='moVB',
-            nWorkers=0,
-            n=0,
-            **kwargs):
+            algName='moVB', nWorkers=0, n=0, **kwargs):
         """ Execute single run with all moves enabled.
 
         Post Condition
@@ -253,12 +255,12 @@ class MergeMoveEndToEndTest(unittest.TestCase):
         Will raise AssertionError if any bad results detected.
         """
         if hasattr(self.Data, 'nDoc'):
-            Data_n = self.Data.select_subset_by_mask([n], 
-                doTrackTruth=1, doTrackFullSize=0)
+            Data_n = self.Data.select_subset_by_mask(
+                [n], doTrackTruth=1, doTrackFullSize=0)
             assert Data_n.nDocTotal == 1
         else:
             # Make GroupXData dataset from XData
-            # This code block rearranges rows so that we 
+            # This code block rearranges rows so that we
             # cycle thru the true labels twice as contig blocks.
             zTrue = self.Data.TrueParams['Z']
             half1 = list()
@@ -266,13 +268,14 @@ class MergeMoveEndToEndTest(unittest.TestCase):
             for uID in np.unique(zTrue):
                 dataIDs = np.flatnonzero(zTrue == uID)
                 Nk = dataIDs.size
-                half1.append(dataIDs[:Nk/2])
-                half2.append(dataIDs[Nk/2:])
+                half1.append(dataIDs[:Nk / 2])
+                half2.append(dataIDs[Nk / 2:])
             dIDs_1 = np.hstack([x for x in half1])
             dIDs_2 = np.hstack([x for x in half2])
             dIDs = np.hstack([dIDs_1, dIDs_2])
 
-            Data_n = bnpy.data.GroupXData(X=self.Data.X[dIDs], 
+            Data_n = bnpy.data.GroupXData(
+                X=self.Data.X[dIDs],
                 doc_range=np.asarray([0, self.Data.nObs]),
                 TrueZ=self.Data.TrueParams['Z'][dIDs])
 
@@ -294,21 +297,20 @@ class MergeMoveEndToEndTest(unittest.TestCase):
         pprint(initArg)
         viterbiPath = os.path.expandvars(
             '$BNPYROOT/bnpy/learnalg/extras/XViterbi.py')
-        kwargs = self.makeAllKwArgs(aArg, oArg, initArg, 
-            moves=moves, nWorkers=nWorkers,
-            customFuncPath=viterbiPath,
-            doSaveToDisk=1,
-            doWriteStdOut=1,
-            printEvery=1,
-            saveEvery=1000,
-            nBatch=1,
-            **kwargs)
+        kwargs = self.makeAllKwArgs(aArg, oArg, initArg,
+                                    moves=moves, nWorkers=nWorkers,
+                                    customFuncPath=viterbiPath,
+                                    doSaveToDisk=1,
+                                    doWriteStdOut=1,
+                                    printEvery=1,
+                                    saveEvery=1000,
+                                    nBatch=1,
+                                    **kwargs)
 
         kwargs['jobname'] += '-creationProposalName=%s' % (
             kwargs['creationProposalName'])
-        model, Info = bnpy.run(Data_n, 
-            arg2name(aArg), arg2name(oArg), algName, **kwargs)
-
+        model, Info = bnpy.run(
+            Data_n, arg2name(aArg), arg2name(oArg), algName, **kwargs)
 
         if Ktrue == 0:
             pprintResult(model, Info, Ktrue=Ktrue)
@@ -329,7 +331,7 @@ class MergeMoveEndToEndTest(unittest.TestCase):
         '''
         from bnpy.viz import SequenceViz
         SequenceViz.plotSingleJob(
-            self.Data.name, kwargs['jobname'], 
+            self.Data.name, kwargs['jobname'],
             taskids='1', lap='final',
             sequences=[1],
             showELBOInTitle=False,
@@ -343,14 +345,13 @@ class MergeMoveEndToEndTest(unittest.TestCase):
         '''
         return Info
 
-
-    def runMany_MOVBWithMoves(self, 
-            initnames=['truelabels', 
-                       'repeattruelabels', 
-                       'truelabelsandempty'],
-            algName='moVB',
-            nWorkers=0,
-            moves='merge,delete,shuffle'):
+    def runMany_MOVBWithMoves(self,
+                              initnames=['truelabels',
+                                         'repeattruelabels',
+                                         'truelabelsandempty'],
+                              algName='moVB',
+                              nWorkers=0,
+                              moves='merge,delete,shuffle'):
         print ''
         for aKwArgs in self.nextAllocKwArgsForVB():
             for oKwArgs in self.nextObsKwArgsForVB():
@@ -361,7 +362,7 @@ class MergeMoveEndToEndTest(unittest.TestCase):
                     else:
                         initKextra = 0
                     Info[iname] = self.run_MOVBWithMoves(
-                        aKwArgs, oKwArgs, 
+                        aKwArgs, oKwArgs,
                         moves=moves,
                         algName=algName,
                         nWorkers=nWorkers,
@@ -382,11 +383,11 @@ class MergeMoveEndToEndTest(unittest.TestCase):
 
     def test_MOVBWithMerges_0ParallelWorkers(self):
         self.runMany_MOVBWithMoves(moves='merge', algName='pmoVB',
-            nWorkers=0)
+                                   nWorkers=0)
 
     def test_MOVBWithMerges_2ParallelWorkers(self):
         self.runMany_MOVBWithMoves(moves='merge', algName='pmoVB',
-            nWorkers=2)
+                                   nWorkers=2)
 
     def test_MOVBCreateDestroy_SingleSeq(self):
         print ''
@@ -414,8 +415,6 @@ class MergeMoveEndToEndTest(unittest.TestCase):
                 print ''
                 print ''
                 return
-
-
 
     def test_MOVBCreateDestroy_ManySeq(self):
         print ''
@@ -464,12 +463,12 @@ class MergeMoveEndToEndTest(unittest.TestCase):
                         argDict[key] = val
                     break
         if hasattr(self.Data, 'nDoc'):
-            Data_n = self.Data.select_subset_by_mask([n], 
-                doTrackTruth=1, doTrackFullSize=0)
+            Data_n = self.Data.select_subset_by_mask(
+                [n], doTrackTruth=1, doTrackFullSize=0)
             assert Data_n.nDocTotal == 1
         else:
             # Make GroupXData dataset from XData
-            # This code block rearranges rows so that we 
+            # This code block rearranges rows so that we
             # cycle thru the true labels twice as contig blocks.
             zTrue = self.Data.TrueParams['Z']
             half1 = list()
@@ -477,13 +476,14 @@ class MergeMoveEndToEndTest(unittest.TestCase):
             for uID in np.unique(zTrue):
                 dataIDs = np.flatnonzero(zTrue == uID)
                 Nk = dataIDs.size
-                half1.append(dataIDs[:Nk/2])
-                half2.append(dataIDs[Nk/2:])
+                half1.append(dataIDs[:Nk / 2])
+                half2.append(dataIDs[Nk / 2:])
             dIDs_1 = np.hstack([x for x in half1])
             dIDs_2 = np.hstack([x for x in half2])
             dIDs = np.hstack([dIDs_1, dIDs_2])
 
-            Data_n = bnpy.data.GroupXData(X=self.Data.X[dIDs], 
+            Data_n = bnpy.data.GroupXData(
+                X=self.Data.X[dIDs],
                 doc_range=np.asarray([0, self.Data.nObs]),
                 TrueZ=self.Data.TrueParams['Z'][dIDs])
 
@@ -498,8 +498,8 @@ class MergeMoveEndToEndTest(unittest.TestCase):
         assert hasattr(Data_n, 'TrueParams')
 
         # Create and initialize model
-        hmodel = bnpy.HModel.CreateEntireModel('VB',
-            aArg['name'], oArg['name'], aArg, oArg, Data_n)
+        hmodel = bnpy.HModel.CreateEntireModel(
+            'VB', aArg['name'], oArg['name'], aArg, oArg, Data_n)
         print argDict
         hmodel.init_global_params(Data_n, **argDict)
 
@@ -535,29 +535,29 @@ class MergeMoveEndToEndTest(unittest.TestCase):
             Z_n_mod[a:m] = Kmax_cur
             Z_n_mod[m:b] = Kmax_cur + 1
 
-            imshowArgs = dict(interpolation='nearest', 
-                aspect=Z_n.size/1.0,
-                cmap=CMap,
-                vmin=0, vmax=Kmax_cur + 1)
+            imshowArgs = dict(interpolation='nearest',
+                              aspect=Z_n.size / 1.0,
+                              cmap=CMap,
+                              vmin=0, vmax=Kmax_cur + 1)
 
             pylab.close()
             pylab.subplots(nrows=3, ncols=1)
-            ax = pylab.subplot(3,1,1)
-            pylab.imshow(Ztrue[np.newaxis,:], **imshowArgs)
-            pylab.yticks([]);
-            
-            pylab.subplot(3,1,2, sharex=ax)
-            pylab.imshow(Z_n[np.newaxis,:], **imshowArgs)
-            pylab.yticks([]);
-            
-            pylab.subplot(3,1,3, sharex=ax)
-            pylab.imshow(Z_n_mod[np.newaxis,:], **imshowArgs)
-            pylab.yticks([]);
-            
-            L = b - a 
-            amin = np.maximum(0, a-L/5)
-            bmax = np.minimum(Z_n.size-1, b+L/5)
-            pylab.xlim([amin, bmax]);
+            ax = pylab.subplot(3, 1, 1)
+            pylab.imshow(Ztrue[np.newaxis, :], **imshowArgs)
+            pylab.yticks([])
+
+            pylab.subplot(3, 1, 2, sharex=ax)
+            pylab.imshow(Z_n[np.newaxis, :], **imshowArgs)
+            pylab.yticks([])
+
+            pylab.subplot(3, 1, 3, sharex=ax)
+            pylab.imshow(Z_n_mod[np.newaxis, :], **imshowArgs)
+            pylab.yticks([])
+
+            L = b - a
+            amin = np.maximum(0, a - L / 5)
+            bmax = np.minimum(Z_n.size - 1, b + L / 5)
+            pylab.xlim([amin, bmax])
 
             pylab.show(block=0)
 
@@ -580,6 +580,6 @@ def parseCmdLineArgs():
     argDict['initnameVals'] = 'initname=randcontigblocks-K=1'
     for ii in range(0, len(argList), 2):
         key = argList[ii]
-        val = argList[ii+1]
+        val = argList[ii + 1]
         argDict[key] = val
     return argDict

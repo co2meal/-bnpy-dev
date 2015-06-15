@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">forceRhoInBounds</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">forceRhoInBounds</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>forceRhoInBounds</h1>
+	  </div>
+
+          <p>18424 Calls, 1.69 s</p>
+	  <p>Generated 10:48:23 05/30/15 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/util/StickBreakUtil.py">/Users/mhughes/git/bnpy2/bnpy/util/StickBreakUtil.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line34">34</td>
+              <td class="code "><div class="code-listing"><pre>@profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line35">35</td>
+              <td class="code "><div class="code-listing"><pre>def forceRhoInBounds(rho, EPS=EPS):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line36">36</td>
+              <td class="code "><div class="code-listing"><pre>    ''' Verify every entry of rho (and beta) are within [EPS, 1-EPS]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line37">37</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line38">38</td>
+              <td class="code "><div class="code-listing"><pre>    Leads to numerical stability.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line39">39</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line40">40</td>
+              <td class="code "><div class="code-listing"><pre>    Returns</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line41">41</td>
+              <td class="code "><div class="code-listing"><pre>    -------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line42">42</td>
+              <td class="code "><div class="code-listing"><pre>    rho : 1D array, size K</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line43">43</td>
+              <td class="code "><div class="code-listing"><pre>        Each entry satisfies: EPS <= rho[k] <= 1-EPS.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line44">44</td>
+              <td class="code "><div class="code-listing"><pre>    '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.15 s</td>
+              <td>18424</td>
+              <td id="line45">45</td>
+              <td class="code "><div class="code-listing"><pre>    rho = np.maximum(np.minimum(rho, 1.0 - EPS), EPS)</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 0.68 s</td>
+              <td>18424</td>
+              <td id="line46">46</td>
+              <td class="code danger"><div class="code-listing"><pre>    beta = rho2beta_active(rho)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>18424</td>
+              <td id="line47">47</td>
+              <td class="code "><div class="code-listing"><pre>    didFix = 0</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.12 s</td>
+              <td>18424</td>
+              <td id="line48">48</td>
+              <td class="code "><div class="code-listing"><pre>    badMask = beta < EPS</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.37 s</td>
+              <td>18424</td>
+              <td id="line49">49</td>
+              <td class="code "><div class="code-listing"><pre>    if np.any(beta < EPS):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line50">50</td>
+              <td class="code "><div class="code-listing"><pre>        beta[badMask] = 1.01 * EPS</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line51">51</td>
+              <td class="code "><div class="code-listing"><pre>        addedMass = np.sum(badMask) * 1.01 * EPS</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line52">52</td>
+              <td class="code "><div class="code-listing"><pre>        beta[np.logical_not(badMask)] *= (1 - addedMass)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line53">53</td>
+              <td class="code "><div class="code-listing"><pre>        didFix = 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.30 s</td>
+              <td>18424</td>
+              <td id="line54">54</td>
+              <td class="code "><div class="code-listing"><pre>    if (1.0 - np.sum(beta)) < EPS:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line55">55</td>
+              <td class="code "><div class="code-listing"><pre>        kmax = beta.argmax()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line56">56</td>
+              <td class="code "><div class="code-listing"><pre>        beta[kmax] -= 1.01 * EPS</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line57">57</td>
+              <td class="code "><div class="code-listing"><pre>        didFix = 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>18424</td>
+              <td id="line58">58</td>
+              <td class="code "><div class="code-listing"><pre>    if didFix:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line59">59</td>
+              <td class="code "><div class="code-listing"><pre>        rho = beta2rho(beta, rho.size)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>18424</td>
+              <td id="line60">60</td>
+              <td class="code "><div class="code-listing"><pre>    return rho</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">create_model_with_new_comps</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">create_model_with_new_comps</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>create_model_with_new_comps</h1>
+	  </div>
+
+          <p>21 Calls, 9.09 s</p>
+	  <p>Generated 16:17:14 04/27/14 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/birthmove/BirthCreate.py">/Users/mhughes/git/bnpy2/bnpy/birthmove/BirthCreate.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line15">15</td>
+              <td><pre>@profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line16">16</td>
+              <td><pre>def create_model_with_new_comps(bigModel, bigSS, freshData, **kwargs):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line17">17</td>
+              <td><pre>  '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line18">18</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line19">19</td>
+              <td><pre>    Returns</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line20">20</td>
+              <td><pre>    -------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line21">21</td>
+              <td><pre>    freshModel : HModel with Kfresh components,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line22">22</td>
+              <td><pre>                   scale *may not* be consistent with target dataset</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line23">23</td>
+              <td><pre>    freshSS : SuffStatBag with Kfresh components,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line24">24</td>
+              <td><pre>                   scale will be consistent with target dataset</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line25">25</td>
+              <td><pre>  '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.08 s</td>
+              <td>21</td>
+              <td id="line26">26</td>
+              <td><pre>  freshModel = bigModel.copy()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line27">27</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line28">28</td>
+              <td><pre>  if kwargs['creationRoutine'] == 'findmissingtopics':</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line29">29</td>
+              <td><pre>    freshModel = create_new_model_findmissingtopics(</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line30">30</td>
+              <td><pre>                                  freshModel, freshData, </pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 3.65 s</td>
+              <td>21</td>
+              <td id="line31">31</td>
+              <td><pre>                                  bigModel, **kwargs)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line32">32</td>
+              <td><pre>  else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line33">33</td>
+              <td><pre>    freshModel.init_global_params(freshData, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line34">34</td>
+              <td><pre>                                  K=kwargs['Kfresh'],</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line35">35</td>
+              <td><pre>                                  initname=kwargs['creationRoutine'],</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line36">36</td>
+              <td><pre>                                  randstate=kwargs['randstate']) </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line37">37</td>
+              <td><pre>    </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line38">38</td>
+              <td><pre>  # TODO: do fast LP calculation, since we're just checking for empties</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 2.51 s</td>
+              <td>21</td>
+              <td id="line39">39</td>
+              <td><pre>  freshLP = freshModel.calc_local_params(freshData)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>21</td>
+              <td id="line40">40</td>
+              <td><pre>  freshSS = freshModel.get_global_suff_stats(freshData, freshLP)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line41">41</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line42">42</td>
+              <td><pre>  if kwargs['cleanupDeleteEmpty']:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line43">43</td>
+              <td><pre>    freshModel, freshSS = BirthCleanup.delete_empty_comps(</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line44">44</td>
+              <td><pre>                            freshData, freshModel, freshSS, Korig=0, **kwargs)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 2.81 s</td>
+              <td>21</td>
+              <td id="line45">45</td>
+              <td><pre>    freshLP = freshModel.calc_local_params(freshData)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>21</td>
+              <td id="line46">46</td>
+              <td><pre>    freshSS = freshModel.get_global_suff_stats(freshData, freshLP)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line47">47</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line48">48</td>
+              <td><pre>  # TODO: sort new comps in largest-to-smallest order</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line49">49</td>
+              <td><pre>  return freshModel, freshSS</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">calcSummaryStats</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">calcSummaryStats</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>calcSummaryStats</h1>
+	  </div>
+
+          <p>100 Calls, 2.26 s</p>
+	  <p>Generated 14:15:42 10/16/14 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/obsmodel/MultObsModel.py">/Users/mhughes/git/bnpy2/bnpy/obsmodel/MultObsModel.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line206">206</td>
+              <td class="code "><div class="code-listing"><pre> @profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line207">207</td>
+              <td class="code "><div class="code-listing"><pre> def calcSummaryStats(self, Data, SS, LP):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line208">208</td>
+              <td class="code "><div class="code-listing"><pre>   ''' Calculate summary statistics for given dataset and local parameters</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line209">209</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line210">210</td>
+              <td class="code "><div class="code-listing"><pre>       Returns</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line211">211</td>
+              <td class="code "><div class="code-listing"><pre>       --------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line212">212</td>
+              <td class="code "><div class="code-listing"><pre>       SS : SuffStatBag object, with K components</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line213">213</td>
+              <td class="code "><div class="code-listing"><pre>            if DataAtomType == 'doc', </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line214">214</td>
+              <td class="code "><div class="code-listing"><pre>   '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>100</td>
+              <td id="line215">215</td>
+              <td class="code "><div class="code-listing"><pre>   if SS is None:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line216">216</td>
+              <td class="code "><div class="code-listing"><pre>     SS = SuffStatBag(K=LP['resp'].shape[1], D=Data.vocab_size)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line217">217</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>100</td>
+              <td id="line218">218</td>
+              <td class="code "><div class="code-listing"><pre>   if self.DataAtomType == 'doc':</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line219">219</td>
+              <td class="code "><div class="code-listing"><pre>     ## X : 2D sparse matrix, size nDoc x vocab_size</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line220">220</td>
+              <td class="code "><div class="code-listing"><pre>     X = Data.getSparseDocTypeCountMatrix()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line221">221</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line222">222</td>
+              <td class="code "><div class="code-listing"><pre>     ## WordCounts : 2D array, size K x vocab_size</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line223">223</td>
+              <td class="code "><div class="code-listing"><pre>     ##  obtained by sparse matrix multiply </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line224">224</td>
+              <td class="code "><div class="code-listing"><pre>     ##  here, '*' operator does this because X is sparse matrix type</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line225">225</td>
+              <td class="code "><div class="code-listing"><pre>     WordCounts = LP['resp'].T * X</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line226">226</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line227">227</td>
+              <td class="code "><div class="code-listing"><pre>     # TODO: log ref measure for multinomial??</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line228">228</td>
+              <td class="code "><div class="code-listing"><pre>     #logh = self.logh(Data)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line229">229</td>
+              <td class="code "><div class="code-listing"><pre>     #SS.setField('logh', logh, dims=None)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line230">230</td>
+              <td class="code "><div class="code-listing"><pre>   </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line231">231</td>
+              <td class="code "><div class="code-listing"><pre>   else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>100</td>
+              <td id="line232">232</td>
+              <td class="code "><div class="code-listing"><pre>     Resp = LP['resp']  # 2D array, size N x K </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>100</td>
+              <td id="line233">233</td>
+              <td class="code "><div class="code-listing"><pre>     X = Data.getSparseTokenTypeCountMatrix() # 2D sparse matrix, size V x N</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 2.17 s</td>
+              <td>100</td>
+              <td id="line234">234</td>
+              <td class="code danger"><div class="code-listing"><pre>     WordCounts = (X * Resp).T # matrix-matrix product</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line235">235</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>100</td>
+              <td id="line236">236</td>
+              <td class="code "><div class="code-listing"><pre>   SS.setField('WordCounts', WordCounts, dims=('K','D'))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.07 s</td>
+              <td>100</td>
+              <td id="line237">237</td>
+              <td class="code "><div class="code-listing"><pre>   SS.setField('SumWordCounts', np.sum(WordCounts, axis=1), dims=('K'))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>100</td>
+              <td id="line238">238</td>
+              <td class="code "><div class="code-listing"><pre>   return SS</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

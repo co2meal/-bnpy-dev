@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="../../assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="../../assets/css/docs.css" rel="stylesheet">
+    <!-- <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet"> -->
+    <link rel="stylesheet" href="../../assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">get_global_suff_stats</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">get_global_suff_stats</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>get_global_suff_stats</h1>
+	  </div>
+
+          <p>376 Calls, 260.693 s</p>
+	  <p>Generated 14:46:01 01/05/14 EST</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix/HDPModel.py">/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix/HDPModel.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line177">177</td>
+              <td><pre class="prettyprint">   @profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line178">178</td>
+              <td><pre class="prettyprint">   def get_global_suff_stats(self, Data, LP, doPrecompEntropy=False, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line179">179</td>
+              <td><pre class="prettyprint">                                             doPrecompMergeEntropy=False):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line180">180</td>
+              <td><pre class="prettyprint">       ''' Count expected number of times each topic is used across all docs    </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line181">181</td>
+              <td><pre class="prettyprint">       '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>376</td>
+              <td id="line182">182</td>
+              <td><pre class="prettyprint">       wv = LP['word_variational']</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>376</td>
+              <td id="line183">183</td>
+              <td><pre class="prettyprint">       _, K = wv.shape</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line184">184</td>
+              <td><pre class="prettyprint">       # Turn dim checking off, since some stats have dim K+1 instead of K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.01 s</td>
+              <td>376</td>
+              <td id="line185">185</td>
+              <td><pre class="prettyprint">       SS = SuffStatBag(K=K, D=Data.vocab_size)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.029 s</td>
+              <td>376</td>
+              <td id="line186">186</td>
+              <td><pre class="prettyprint">       SS.setField('nDoc', Data.nDoc, dims=None)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.013 s</td>
+              <td>376</td>
+              <td id="line187">187</td>
+              <td><pre class="prettyprint">       sumLogPi = np.sum(LP['E_logPi'], axis=0)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.031 s</td>
+              <td>376</td>
+              <td id="line188">188</td>
+              <td><pre class="prettyprint">       SS.setField('sumLogPiActive', sumLogPi[:K], dims='K')</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.026 s</td>
+              <td>376</td>
+              <td id="line189">189</td>
+              <td><pre class="prettyprint">       SS.setField('sumLogPiUnused', sumLogPi[-1], dims=None)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>376</td>
+              <td id="line190">190</td>
+              <td><pre class="prettyprint">       if doPrecompEntropy:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line191">191</td>
+              <td><pre class="prettyprint">           # Z terms</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.024 s</td>
+              <td>114</td>
+              <td id="line192">192</td>
+              <td><pre class="prettyprint">           SS.setELBOTerm('ElogpZ', self.E_logpZ(Data, LP), dims='K')</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>9.2 s</td>
+              <td>114</td>
+              <td id="line193">193</td>
+              <td><pre class="prettyprint">           SS.setELBOTerm('ElogqZ', self.E_logqZ(Data, LP), dims='K')</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line194">194</td>
+              <td><pre class="prettyprint">           # Pi terms</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line195">195</td>
+              <td><pre class="prettyprint">           # Note: no terms needed for ElogpPI</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line196">196</td>
+              <td><pre class="prettyprint">           # SS already has field sumLogPi, which is sufficient for this term</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.055 s</td>
+              <td>114</td>
+              <td id="line197">197</td>
+              <td><pre class="prettyprint">           ElogqPiC, ElogqPiA, ElogqPiU = self.E_logqPi_Memoized_from_LP(LP)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>114</td>
+              <td id="line198">198</td>
+              <td><pre class="prettyprint">           SS.setELBOTerm('ElogqPiConst', ElogqPiC, dims=None)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>114</td>
+              <td id="line199">199</td>
+              <td><pre class="prettyprint">           SS.setELBOTerm('ElogqPiActive', ElogqPiA, dims='K')</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>114</td>
+              <td id="line200">200</td>
+              <td><pre class="prettyprint">           SS.setELBOTerm('ElogqPiUnused', ElogqPiU, dims=None)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line201">201</td>
+              <td><pre class="prettyprint"></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>376</td>
+              <td id="line202">202</td>
+              <td><pre class="prettyprint">       if doPrecompMergeEntropy:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>1.9 s</td>
+              <td>107</td>
+              <td id="line203">203</td>
+              <td><pre class="prettyprint">           ElogpZMat, sLgPiMat, ElogqPiMat = self.memo_elbo_terms_for_merge(LP)</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td>2.5e+02 s</td>
+              <td>107</td>
+              <td id="line204">204</td>
+              <td><pre class="prettyprint">           ElogqZMat = self.E_logqZ_memo_terms_for_merge(Data, LP)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.018 s</td>
+              <td>107</td>
+              <td id="line205">205</td>
+              <td><pre class="prettyprint">           SS.setMergeTerm('ElogpZ', ElogpZMat, dims=('K','K'))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>107</td>
+              <td id="line206">206</td>
+              <td><pre class="prettyprint">           SS.setMergeTerm('ElogqZ', ElogqZMat, dims=('K','K'))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>107</td>
+              <td id="line207">207</td>
+              <td><pre class="prettyprint">           SS.setMergeTerm('ElogqPiActive', ElogqPiMat, dims=('K','K'))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>107</td>
+              <td id="line208">208</td>
+              <td><pre class="prettyprint">           SS.setMergeTerm('sumLogPiActive', sLgPiMat, dims=('K','K'))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>376</td>
+              <td id="line209">209</td>
+              <td><pre class="prettyprint">       return SS</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="../../assets/js/bootstrap.min.js"></script>
+    <script src="../../assets/js/main.js"></script>
+    <script src="https://google-code-prettify.googlecode.com/svn/loader/run_prettify.js"></script>
+  </body>
+</html>

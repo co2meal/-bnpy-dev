@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">_sample_target_WordsData</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">_sample_target_WordsData</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>_sample_target_WordsData</h1>
+	  </div>
+
+          <p>1 Calls, 0.10 s</p>
+	  <p>Generated 23:15:54 06/03/14 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/birthmove/TargetDataSampler.py">/Users/mhughes/git/bnpy2/bnpy/birthmove/TargetDataSampler.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line70">70</td>
+              <td><pre>@profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line71">71</td>
+              <td><pre>def _sample_target_WordsData(Data, model, LP, return_Info=0, **kwargs):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line72">72</td>
+              <td><pre>  ''' Obtain a subsample of provided set of documents,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line73">73</td>
+              <td><pre>        which satisfy criteria set by provided keyword arguments, including</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line74">74</td>
+              <td><pre>        minimum size of each document, relationship to targeted component, etc.</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line75">75</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line76">76</td>
+              <td><pre>    Keyword Args</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line77">77</td>
+              <td><pre>    --------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line78">78</td>
+              <td><pre>    targetCompID : int, range: [0, 1, ... K-1]. **optional**</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line79">79</td>
+              <td><pre>                   if present, we target documents that use a specific topic</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line80">80</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line81">81</td>
+              <td><pre>    targetMinWordsPerDoc : int,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line82">82</td>
+              <td><pre>                           each document in returned targetData</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line83">83</td>
+              <td><pre>                           must have at least this many words</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line84">84</td>
+              <td><pre>    Returns</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line85">85</td>
+              <td><pre>    --------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line86">86</td>
+              <td><pre>    targetData : WordsData dataset,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line87">87</td>
+              <td><pre>                  with at most targetMaxSize documents</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line88">88</td>
+              <td><pre>    DebugInfo : (optional), dictionary with debugging info</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line89">89</td>
+              <td><pre>  '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line90">90</td>
+              <td><pre>  DocWordMat = Data.to_sparse_docword_matrix()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line91">91</td>
+              <td><pre>  DebugInfo = dict()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line92">92</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line93">93</td>
+              <td><pre>  candidates = np.arange(Data.nDoc)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line94">94</td>
+              <td><pre>  if kwargs['targetMinWordsPerDoc'] > 0:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line95">95</td>
+              <td><pre>    nWordPerDoc = np.asarray(DocWordMat.sum(axis=1))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line96">96</td>
+              <td><pre>    candidates = nWordPerDoc >= kwargs['targetMinWordsPerDoc']</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line97">97</td>
+              <td><pre>    candidates = np.flatnonzero(candidates)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line98">98</td>
+              <td><pre>  if len(candidates) < 1:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line99">99</td>
+              <td><pre>    return None</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line100">100</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line101">101</td>
+              <td><pre>  # ............................................... target a specific Comp</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line102">102</td>
+              <td><pre>  if hasValidKey('targetCompID', kwargs):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line103">103</td>
+              <td><pre>    if hasValidKey('DocTopicCount', LP):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line104">104</td>
+              <td><pre>      Ndk = LP['DocTopicCount'][candidates].copy()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line105">105</td>
+              <td><pre>      Ndk /= np.sum(Ndk,axis=1)[:,np.newaxis] + 1e-9</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line106">106</td>
+              <td><pre>      mask = Ndk[:, kwargs['targetCompID']] > kwargs['targetCompFrac']</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line107">107</td>
+              <td><pre>    elif hasValidKey('resp', LP):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line108">108</td>
+              <td><pre>      mask = LP['resp'][:, kwargs['targetCompID']] > kwargs['targetCompFrac']</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line109">109</td>
+              <td><pre>      if candidates is not None:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line110">110</td>
+              <td><pre>        mask = mask[candidates]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line111">111</td>
+              <td><pre>    else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line112">112</td>
+              <td><pre>      raise ValueError('LP must have either DocTopicCount or resp')</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line113">113</td>
+              <td><pre>    candidates = candidates[mask]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line114">114</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line115">115</td>
+              <td><pre>  # ............................................... target a specific Word</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line116">116</td>
+              <td><pre>  elif hasValidKey('targetWordIDs', kwargs):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line117">117</td>
+              <td><pre>    wordIDs = kwargs['targetWordIDs']</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line118">118</td>
+              <td><pre>    TinyMatrix = DocWordMat[candidates, :].toarray()[:, wordIDs]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line119">119</td>
+              <td><pre>    targetCountPerDoc = np.sum(TinyMatrix > 0, axis=1)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line120">120</td>
+              <td><pre>    mask = targetCountPerDoc >= kwargs['targetWordMinCount']</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line121">121</td>
+              <td><pre>    candidates = candidates[mask]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line122">122</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line123">123</td>
+              <td><pre>  # ............................................... target based on WordFreq</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line124">124</td>
+              <td><pre>  elif hasValidKey('targetWordFreq', kwargs):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line125">125</td>
+              <td><pre>    wordFreq = kwargs['targetWordFreq']</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line126">126</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line127">127</td>
+              <td><pre>    ScoreMat = calcDocWordUnderpredictionScores(Data, model, LP)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line128">128</td>
+              <td><pre>    ScoreMat = ScoreMat[candidates]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line129">129</td>
+              <td><pre>    DebugInfo['ScoreMat'] = ScoreMat</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line130">130</td>
+              <td><pre>    if kwargs['targetSelectName'].count('score'):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line131">131</td>
+              <td><pre>      ScoreMat = np.maximum(0, ScoreMat)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line132">132</td>
+              <td><pre>      ScoreMat /= ScoreMat.sum(axis=1)[:,np.newaxis]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line133">133</td>
+              <td><pre>      distPerDoc = calcDistBetweenHist(ScoreMat, wordFreq)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line134">134</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line135">135</td>
+              <td><pre>      DebugInfo['distPerDoc'] = distPerDoc</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line136">136</td>
+              <td><pre>    else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line137">137</td>
+              <td><pre>      EmpWordFreq = DocWordMat[candidates,:].toarray()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line138">138</td>
+              <td><pre>      EmpWordFreq /= EmpWordFreq.sum(axis=1)[:,np.newaxis]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line139">139</td>
+              <td><pre>      distPerDoc = calcDistBetweenHist(EmpWordFreq, wordFreq)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line140">140</td>
+              <td><pre>      DebugInfo['distPerDoc'] = distPerDoc</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line141">141</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line142">142</td>
+              <td><pre>    keepIDs = distPerDoc.argsort()[:kwargs['targetMaxSize']]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line143">143</td>
+              <td><pre>    candidates = candidates[keepIDs]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line144">144</td>
+              <td><pre>    DebugInfo['candidates'] = candidates</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line145">145</td>
+              <td><pre>    DebugInfo['dist'] = distPerDoc[keepIDs]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line146">146</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line147">147</td>
+              <td><pre>  if len(candidates) < 1:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line148">148</td>
+              <td><pre>    return None</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line149">149</td>
+              <td><pre>  elif len(candidates) <= kwargs['targetMaxSize']:</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 0.10 s</td>
+              <td>1</td>
+              <td id="line150">150</td>
+              <td><pre>    targetData = Data.select_subset_by_mask(candidates)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line151">151</td>
+              <td><pre>  else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line152">152</td>
+              <td><pre>    targetData = Data.get_random_sample(kwargs['targetMaxSize'],</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line153">153</td>
+              <td><pre>                                      randstate=kwargs['randstate'],</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line154">154</td>
+              <td><pre>                                      candidates=candidates) </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line155">155</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line156">156</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line157">157</td>
+              <td><pre>  if hasValidKey('targetHoldout', kwargs) and kwargs['targetHoldout']:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line158">158</td>
+              <td><pre>    return makeHeldoutData(targetData, **kwargs)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line159">159</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line160">160</td>
+              <td><pre>  if return_Info:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line161">161</td>
+              <td><pre>    return targetData, DebugInfo</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line162">162</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line163">163</td>
+              <td><pre>  return targetData</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

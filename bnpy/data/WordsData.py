@@ -15,6 +15,7 @@ from bnpy.data.DataObj import DataObj
 from bnpy.util import as1D, toCArray
 from bnpy.util import numpyToSharedMemArray, sharedMemToNumpyArray
 
+
 class WordsData(DataObj):
 
     """  Dataset object for sparse discrete words across many documents.
@@ -84,7 +85,7 @@ class WordsData(DataObj):
 
     @classmethod
     def LoadFromFile_ldac(
-            cls, filepath, vocab_size=0, nDocTotal=None, 
+            cls, filepath, vocab_size=0, nDocTotal=None,
             sliceID=None, nSlice=None, filesize=None,
             **kwargs):
         ''' Constructor for loading data from .ldac format files.
@@ -109,19 +110,19 @@ class WordsData(DataObj):
             else:
                 # Parallel access case: read slice of the file
                 # slices will be roughly even in DISKSIZE, not in num lines
-                # Inspired by: 
+                # Inspired by:
                 # https://xor0110.wordpress.com/2013/04/13/
                 # how-to-read-a-chunk-of-lines-from-a-file-in-python/
                 if filesize is None:
-                    f.seek(0,2)
+                    f.seek(0, 2)
                     filesize = f.tell()
                 start = filesize * sliceID / nSlice
                 stop = filesize * (sliceID + 1) / nSlice
                 if start == 0:
-                    f.seek(0) # goto start of file
+                    f.seek(0)  # goto start of file
                 else:
-                    f.seek(start-1) # start at end of prev slice
-                    f.readline() # then jump to next line brk to start reading
+                    f.seek(start - 1)  # start at end of prev slice
+                    f.readline()  # then jump to next line brk to start reading
                 while f.tell() < stop:
                     line = f.readline()
                     nUnique, d_word_id, d_word_ct = \
@@ -588,7 +589,6 @@ class WordsData(DataObj):
         return self.select_subset_by_mask(docMask=docMask,
                                           doTrackFullSize=False)
 
-
     def getRawDataAsSharedMemDict(self):
         ''' Create dict with copies of raw data as shared memory arrays
         '''
@@ -599,9 +599,9 @@ class WordsData(DataObj):
         dataShMemDict['vocab_size'] = self.vocab_size
         return dataShMemDict
 
-    def select_subset_by_mask(self, docMask, 
-            doTrackFullSize=True,
-            doTrackTruth=False):
+    def select_subset_by_mask(self, docMask,
+                              doTrackFullSize=True,
+                              doTrackTruth=False):
         ''' Returns WordsData object representing a subset this dataset.
 
         Args
@@ -647,17 +647,17 @@ class WordsData(DataObj):
 
         if hasattr(self, 'alwaysTrackTruth'):
             doTrackTruth = doTrackTruth or self.alwaysTrackTruth
-        hasTrueZ = hasattr(self,'TrueParams') and 'Z' in self.TrueParams
+        hasTrueZ = hasattr(self, 'TrueParams') and 'Z' in self.TrueParams
         if doTrackTruth and hasTrueZ:
             newTrueParams = dict()
             for key, arr in self.TrueParams.items():
-              if key == 'Z' or key == 'resp':
-                  newMask = np.asarray(newMask, dtype=np.int32)
-                  newTrueParams[key] = arr[newMask]
-              elif isinstance(arr, np.ndarray):
-                  newTrueParams[key] = arr.copy()
-              else:
-                  newTrueParams[key] = arr
+                if key == 'Z' or key == 'resp':
+                    newMask = np.asarray(newMask, dtype=np.int32)
+                    newTrueParams[key] = arr[newMask]
+                elif isinstance(arr, np.ndarray):
+                    newTrueParams[key] = arr.copy()
+                else:
+                    newTrueParams[key] = arr
         else:
             newTrueParams = None
 
@@ -843,8 +843,8 @@ class WordsData(DataObj):
 
     # Write to file
     # (instance method)
-    def WriteToFile_ldac(self, filepath, 
-            min_word_index=0):
+    def WriteToFile_ldac(self, filepath,
+                         min_word_index=0):
         ''' Write contents of this dataset to plain-text file in "ldac" format.
 
         Each line of file represents one document, and has format
@@ -910,23 +910,22 @@ class WordsData(DataObj):
     def writeWholeDataInfoFile(self, filepath):
         ''' Write relevant whole-dataset key properties to plain text.
 
-        For WordsData, this includes the fields 
+        For WordsData, this includes the fields
         * vocab_size
         * nDocTotal
 
         Post Condition
         --------------
-        Writes text file at provided file path. 
+        Writes text file at provided file path.
         '''
         with open(filepath, 'w') as f:
             f.write("vocab_size = %d\n" % (self.vocab_size))
             f.write("nDocTotal = %d\n" % (self.nDocTotal))
 
-
     def getDataSliceFunctionHandle(self):
         """ Return function handle that can make data slice objects.
 
-        Useful with parallelized algorithms, 
+        Useful with parallelized algorithms,
         when we need to use shared memory.
 
         Returns
@@ -934,6 +933,7 @@ class WordsData(DataObj):
         f : function handle
         """
         return makeDataSliceFromSharedMem
+
 
 def makeDataSliceFromSharedMem(dataShMemDict,
                                cslice=(0, None),
@@ -976,28 +976,29 @@ def makeDataSliceFromSharedMem(dataShMemDict,
     word_id = sharedMemToNumpyArray(dataShMemDict['word_id'])
     word_count = sharedMemToNumpyArray(dataShMemDict['word_count'])
     vocab_size = int(dataShMemDict['vocab_size'])
-    
+
     if cslice is None:
-        cslice = (0, doc_range.size-1)
+        cslice = (0, doc_range.size - 1)
     elif cslice[1] is None:
         cslice = (0, doc_range.size - 1)
 
     tstart = doc_range[cslice[0]]
     tstop = doc_range[cslice[1]]
-    keys = ['vocab_size', 'doc_range', 
+    keys = ['vocab_size', 'doc_range',
             'word_id', 'word_count', 'nDoc', 'dim']
     Dslice = namedtuple("WordsDataTuple", keys)(
         vocab_size=vocab_size,
-        doc_range=doc_range[cslice[0]:cslice[1]+1] - doc_range[cslice[0]],
+        doc_range=doc_range[cslice[0]:cslice[1] + 1] - doc_range[cslice[0]],
         word_id=word_id[tstart:tstop],
         word_count=word_count[tstart:tstop],
-        nDoc=cslice[1]-cslice[0],
+        nDoc=cslice[1] - cslice[0],
         dim=vocab_size,
-        )
+    )
     return Dslice
 
+
 def processLine_ldac__splitandzip(line):
-    """ 
+    """
 
     Examples
     --------
@@ -1014,6 +1015,7 @@ def processLine_ldac__splitandzip(line):
     doc_word_id, doc_word_ct = zip(
         *[x.split(':') for x in Fields[1:]])
     return nUnique, doc_word_id, doc_word_ct
+
 
 def processLine_ldac__fromstring(line):
     """

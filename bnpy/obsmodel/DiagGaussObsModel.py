@@ -13,6 +13,7 @@ from GaussObsModel import createECovMatFromUserInput
 
 
 class DiagGaussObsModel(AbstractObsModel):
+
     ''' Diagonal gaussian data generation model for real vectors.
 
     Attributes for Prior (Normal-Wishart)
@@ -732,8 +733,8 @@ class DiagGaussObsModel(AbstractObsModel):
         '''
         if k == 'all':
             # retVec : K x D
-            retVec = LOGTWO - np.log(self.Post.beta.copy()) # no strided!
-            retVec += digamma(0.5 * self.Post.nu)[:,np.newaxis]
+            retVec = LOGTWO - np.log(self.Post.beta.copy())  # no strided!
+            retVec += digamma(0.5 * self.Post.nu)[:, np.newaxis]
             return retVec
         elif k is None:
             nu = self.Prior.nu
@@ -792,8 +793,6 @@ class DiagGaussObsModel(AbstractObsModel):
             beta = self.Post.beta[k]
         return 1.0 / kappa + (nu / beta) * (m * m)
 
-
-
     def getSerializableParamsForLocalStep(self):
         """ Get compact dict of params for local step.
 
@@ -803,13 +802,13 @@ class DiagGaussObsModel(AbstractObsModel):
         """
         if self.inferType == 'EM':
             raise NotImplementedError('TODO')
-        return dict(inferType=self.inferType, 
+        return dict(inferType=self.inferType,
                     K=self.K,
                     D=self.D,
                     )
 
     def fillSharedMemDictForLocalStep(self, ShMem=None):
-        """ Get dict of shared mem arrays needed for parallel local step. 
+        """ Get dict of shared mem arrays needed for parallel local step.
 
         Returns
         -------
@@ -831,7 +830,7 @@ class DiagGaussObsModel(AbstractObsModel):
             ShMem['m'] = numpyToSharedMemArray(self.Post.m.copy())
             ShMem['beta'] = numpyToSharedMemArray(self.Post.beta.copy())
             ShMem['E_logL'] = numpyToSharedMemArray(self._E_logL('all'))
-            
+
         return ShMem
 
     def getLocalAndSummaryFunctionHandles(self):
@@ -890,6 +889,7 @@ def c_Diff(nu1, beta1, m1, kappa1,
         + 0.5 * (nu1 * np.log(beta1) - nu2 * np.log(beta2))
     return np.sum(cDiff)
 
+
 def calcSummaryStats(Data, SS, LP, **kwargs):
     ''' Calculate summary statistics for given dataset and local parameters
 
@@ -930,6 +930,7 @@ def calcLocalParams(Dslice, **kwargs):
     LP = dict(E_log_soft_ev=L)
     return LP
 
+
 def calcLogSoftEvMatrix_FromPost(Dslice, **kwargs):
     ''' Calculate expected log soft ev matrix for variational.
 
@@ -947,8 +948,8 @@ def calcLogSoftEvMatrix_FromPost(Dslice, **kwargs):
 
 
 def _mahalDist_Post(X, k, D=None,
-        beta=None, 
-        m=None, nu=None, kappa=None, **kwargs):
+                    beta=None,
+                    m=None, nu=None, kappa=None, **kwargs):
     ''' Calc expected mahalonobis distance from comp k to each data atom
 
         Returns

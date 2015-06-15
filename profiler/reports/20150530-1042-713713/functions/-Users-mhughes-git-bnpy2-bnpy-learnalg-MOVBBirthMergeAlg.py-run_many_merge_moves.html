@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">run_many_merge_moves</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">run_many_merge_moves</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>run_many_merge_moves</h1>
+	  </div>
+
+          <p>6 Calls, 1.31 s</p>
+	  <p>Generated 10:48:21 05/30/15 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/learnalg/MOVBBirthMergeAlg.py">/Users/mhughes/git/bnpy2/bnpy/learnalg/MOVBBirthMergeAlg.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1327">1327</td>
+              <td class="code "><div class="code-listing"><pre>   @profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1328">1328</td>
+              <td class="code "><div class="code-listing"><pre>   def run_many_merge_moves(self, hmodel, SS,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1329">1329</td>
+              <td class="code "><div class="code-listing"><pre>                            evBound, lapFrac, MergePrepInfo):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1330">1330</td>
+              <td class="code "><div class="code-listing"><pre>       ''' Run (potentially many) merge moves on hmodel.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1331">1331</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1332">1332</td>
+              <td class="code "><div class="code-listing"><pre>       Performing necessary bookkeeping to</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1333">1333</td>
+              <td class="code "><div class="code-listing"><pre>       (1) avoid trying the same merge twice</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1334">1334</td>
+              <td class="code "><div class="code-listing"><pre>       (2) avoid merging a component that has already been merged,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1335">1335</td>
+              <td class="code "><div class="code-listing"><pre>           since the precomputed entropy will no longer be correct.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1336">1336</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1337">1337</td>
+              <td class="code "><div class="code-listing"><pre>       Returns</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1338">1338</td>
+              <td class="code "><div class="code-listing"><pre>       -------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1339">1339</td>
+              <td class="code "><div class="code-listing"><pre>       hmodel : bnpy HModel, with (possibly) merged components</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1340">1340</td>
+              <td class="code "><div class="code-listing"><pre>       SS : bnpy SuffStatBag, with (possibly) merged components</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1341">1341</td>
+              <td class="code "><div class="code-listing"><pre>       evBound : correct ELBO for returned hmodel</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1342">1342</td>
+              <td class="code "><div class="code-listing"><pre>                 guaranteed to be at least as large as input evBound</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1343">1343</td>
+              <td class="code "><div class="code-listing"><pre>       '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line1344">1344</td>
+              <td class="code "><div class="code-listing"><pre>       MergeLogger.logPhase('MERGE Moves at lap ' + str(lapFrac))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1345">1345</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line1346">1346</td>
+              <td class="code "><div class="code-listing"><pre>       no_mPairIDs = 'mPairIDs' not in MergePrepInfo</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line1347">1347</td>
+              <td class="code "><div class="code-listing"><pre>       no_mPairIDs = no_mPairIDs or MergePrepInfo['mPairIDs'] is None</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line1348">1348</td>
+              <td class="code "><div class="code-listing"><pre>       if no_mPairIDs:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1349">1349</td>
+              <td class="code "><div class="code-listing"><pre>           MergePrepInfo['mPairIDs'] = list()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1350">1350</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line1351">1351</td>
+              <td class="code "><div class="code-listing"><pre>       if 'PairScoreMat' not in MergePrepInfo:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1352">1352</td>
+              <td class="code "><div class="code-listing"><pre>           MergePrepInfo['PairScoreMat'] = None</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1353">1353</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line1354">1354</td>
+              <td class="code "><div class="code-listing"><pre>       Korig = SS.K</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line1355">1355</td>
+              <td class="code "><div class="code-listing"><pre>       hmodel, SS, newEvBound, Info = MergeMove.run_many_merge_moves(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line1356">1356</td>
+              <td class="code "><div class="code-listing"><pre>           hmodel, SS, evBound,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line1357">1357</td>
+              <td class="code "><div class="code-listing"><pre>           mPairIDs=MergePrepInfo['mPairIDs'],</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line1358">1358</td>
+              <td class="code "><div class="code-listing"><pre>           M=MergePrepInfo['PairScoreMat'],</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 1.31 s</td>
+              <td>1</td>
+              <td id="line1359">1359</td>
+              <td class="code danger"><div class="code-listing"><pre>           **self.algParams['merge'])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1360">1360</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1361">1361</td>
+              <td class="code "><div class="code-listing"><pre>       # Adjust indexing for counter that determines which comp to target</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line1362">1362</td>
+              <td class="code "><div class="code-listing"><pre>       if self.hasMove('birth'):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1363">1363</td>
+              <td class="code "><div class="code-listing"><pre>           for kA, kB in Info['AcceptedPairs']:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1364">1364</td>
+              <td class="code "><div class="code-listing"><pre>               self._resetLapsSinceLastBirthAfterMerge(kA, kB)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1365">1365</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1366">1366</td>
+              <td class="code "><div class="code-listing"><pre>       # Record accepted moves, so can adjust memoized stats later</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line1367">1367</td>
+              <td class="code "><div class="code-listing"><pre>       self.MergeLog = list()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line1368">1368</td>
+              <td class="code "><div class="code-listing"><pre>       for kA, kB in Info['AcceptedPairs']:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>5</td>
+              <td id="line1369">1369</td>
+              <td class="code "><div class="code-listing"><pre>           self.ActiveIDVec = np.delete(self.ActiveIDVec, kB, axis=0)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>5</td>
+              <td id="line1370">1370</td>
+              <td class="code "><div class="code-listing"><pre>           self.MergeLog.append(dict(kA=kA, kB=kB, Korig=Korig))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>5</td>
+              <td id="line1371">1371</td>
+              <td class="code "><div class="code-listing"><pre>           self.lapLastAcceptedMerge = lapFrac</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>5</td>
+              <td id="line1372">1372</td>
+              <td class="code "><div class="code-listing"><pre>           Korig -= 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1373">1373</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1374">1374</td>
+              <td class="code "><div class="code-listing"><pre>       # Reset all precalculated merge terms</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line1375">1375</td>
+              <td class="code "><div class="code-listing"><pre>       if SS.hasMergeTerms():</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line1376">1376</td>
+              <td class="code "><div class="code-listing"><pre>           SS.setMergeFieldsToZero()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1377">1377</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1378">1378</td>
+              <td class="code "><div class="code-listing"><pre>       # ScoreMat here will have shape Ka x Ka, where Ka <= K</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1379">1379</td>
+              <td class="code "><div class="code-listing"><pre>       # Ka < K in the case of batch-specific births</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1380">1380</td>
+              <td class="code "><div class="code-listing"><pre>       # whose new comps aren't tracked)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line1381">1381</td>
+              <td class="code "><div class="code-listing"><pre>       # ScoreMat will be updated to size SS.K,SS.K in preparePlansForMerge()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line1382">1382</td>
+              <td class="code "><div class="code-listing"><pre>       MergePrepInfo['PairScoreMat'] = Info['ScoreMat']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line1383">1383</td>
+              <td class="code "><div class="code-listing"><pre>       MergePrepInfo['mPairIDs'] = list()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line1384">1384</td>
+              <td class="code "><div class="code-listing"><pre>       return hmodel, SS, newEvBound</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

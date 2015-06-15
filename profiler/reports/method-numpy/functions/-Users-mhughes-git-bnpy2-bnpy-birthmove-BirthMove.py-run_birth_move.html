@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">run_birth_move</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">run_birth_move</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>run_birth_move</h1>
+	  </div>
+
+          <p>72 Calls, 103.90 s</p>
+	  <p>Generated 16:17:14 04/27/14 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/birthmove/BirthMove.py">/Users/mhughes/git/bnpy2/bnpy/birthmove/BirthMove.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line11">11</td>
+              <td><pre>@profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line12">12</td>
+              <td><pre>def run_birth_move(bigModel, bigSS, freshData, **kwargsIN):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line13">13</td>
+              <td><pre>  ''' Run birth move on provided target data, creating up to Kfresh new comps</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line14">14</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line15">15</td>
+              <td><pre>      Returns</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line16">16</td>
+              <td><pre>      -------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line17">17</td>
+              <td><pre>      bigmodel</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line18">18</td>
+              <td><pre>      bigSS</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line19">19</td>
+              <td><pre>      MoveInfo</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line20">20</td>
+              <td><pre>  '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line21">21</td>
+              <td><pre>  kwargs = dict(**kwargsIN) # make local copy!</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line22">22</td>
+              <td><pre>  origids = dict( bigModel=id(bigModel), bigSS=id(bigSS) )</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line23">23</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line24">24</td>
+              <td><pre>  try:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line25">25</td>
+              <td><pre>    if bigSS is None:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line26">26</td>
+              <td><pre>      msg = "BIRTH failed. SS must be valid SuffStatBag, not None."</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line27">27</td>
+              <td><pre>      raise BirthProposalError(msg)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line28">28</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line29">29</td>
+              <td><pre>    if bigSS.K + kwargs['Kfresh'] > kwargs['Kmax']:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line30">30</td>
+              <td><pre>      kwargs['Kfresh'] = kwargs['Kmax'] - bigSS.K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line31">31</td>
+              <td><pre>    if kwargs['Kfresh'] < 1:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line32">32</td>
+              <td><pre>      msg = "BIRTH failed. Reached upper limit of Kmax=%d comps."</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line33">33</td>
+              <td><pre>      msg = msg % (kwargs['Kmax'])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line34">34</td>
+              <td><pre>      raise BirthProposalError(msg)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line35">35</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line36">36</td>
+              <td><pre>    # Create freshModel, freshSS, both with Kfresh comps</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line37">37</td>
+              <td><pre>    #  freshSS has scale freshData</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line38">38</td>
+              <td><pre>    #  freshModel has arbitrary scale</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line39">39</td>
+              <td><pre>    freshModel, freshSS = BirthCreate.create_model_with_new_comps(</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line40">40</td>
+              <td><pre>                                            bigModel, bigSS, freshData,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 9.10 s</td>
+              <td>21</td>
+              <td id="line41">41</td>
+              <td><pre>                                            **kwargs)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line42">42</td>
+              <td><pre>    </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line43">43</td>
+              <td><pre>    # Create xbigModel and xbigSS, with K + Kfresh comps</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line44">44</td>
+              <td><pre>    #      freshData can be assigned to any of the K+Kfresh comps</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line45">45</td>
+              <td><pre>    #      so, any of the K+Kfresh comps may be changed </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line46">46</td>
+              <td><pre>    #          but original comps won't lose influence of bigSS</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line47">47</td>
+              <td><pre>    #  xbigSS has scale bigData + freshData</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line48">48</td>
+              <td><pre>    #  xbigModel has scale bigData + freshData</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line49">49</td>
+              <td><pre>    if kwargs['expandOrder'] == 'expandThenRefine':</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line50">50</td>
+              <td><pre>      xbigModel, xbigSS, xfreshSS, AI, RI = BirthRefine.expand_then_refine(</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line51">51</td>
+              <td><pre>                                           freshModel, freshSS, freshData,    </pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 85.19 s</td>
+              <td>21</td>
+              <td id="line52">52</td>
+              <td><pre>                                               bigModel, bigSS, **kwargs)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line53">53</td>
+              <td><pre>    else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line54">54</td>
+              <td><pre>      raise NotImplementedError('TODO')</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line55">55</td>
+              <td><pre>      # BirthRefine.refine_then_expand()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line56">56</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>18</td>
+              <td id="line57">57</td>
+              <td><pre>    assert xbigModel.obsModel.K == xbigSS.K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line58">58</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>18</td>
+              <td id="line59">59</td>
+              <td><pre>    if kwargs['birthVerifyELBOIncrease']:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>18</td>
+              <td id="line60">60</td>
+              <td><pre>      assert xfreshSS.hasELBOTerms()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line61">61</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.07 s</td>
+              <td>18</td>
+              <td id="line62">62</td>
+              <td><pre>      curbigModel = bigModel.copy()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>18</td>
+              <td id="line63">63</td>
+              <td><pre>      nStep = 3</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>72</td>
+              <td id="line64">64</td>
+              <td><pre>      for step in range(nStep):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>54</td>
+              <td id="line65">65</td>
+              <td><pre>        doELBO = (step == nStep-1) # only on last step</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 8.15 s</td>
+              <td>54</td>
+              <td id="line66">66</td>
+              <td><pre>        curfreshLP = curbigModel.calc_local_params(freshData)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>54</td>
+              <td id="line67">67</td>
+              <td><pre>        curfreshSS = curbigModel.get_global_suff_stats(freshData, curfreshLP,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.25 s</td>
+              <td>54</td>
+              <td id="line68">68</td>
+              <td><pre>                                                       doPrecompEntropy=doELBO)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.05 s</td>
+              <td>54</td>
+              <td id="line69">69</td>
+              <td><pre>        curbigModel.update_global_params(bigSS + curfreshSS)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line70">70</td>
+              <td><pre>   </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.05 s</td>
+              <td>18</td>
+              <td id="line71">71</td>
+              <td><pre>      curELBO  = curbigModel.calc_evidence(SS=curfreshSS)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>18</td>
+              <td id="line72">72</td>
+              <td><pre>      propELBO = xbigModel.calc_evidence(SS=xfreshSS)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line73">73</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>18</td>
+              <td id="line74">74</td>
+              <td><pre>      percDiff = (propELBO - curELBO)/np.abs(curELBO)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>18</td>
+              <td id="line75">75</td>
+              <td><pre>      didPass = propELBO > curELBO and percDiff > 0.0001      </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>18</td>
+              <td id="line76">76</td>
+              <td><pre>      ELBOmsg = " propEv %.4e | curEv %.4e" % (propELBO, curELBO)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line77">77</td>
+              <td><pre>    else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line78">78</td>
+              <td><pre>      didPass = True</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line79">79</td>
+              <td><pre>      propELBO = None</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line80">80</td>
+              <td><pre>      curELBO = None</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line81">81</td>
+              <td><pre>      ELBOmsg = ''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line82">82</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line83">83</td>
+              <td><pre>    # Visualize, if desired</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>18</td>
+              <td id="line84">84</td>
+              <td><pre>    Kcur = bigSS.K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>18</td>
+              <td id="line85">85</td>
+              <td><pre>    Ktotal = xbigSS.K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>18</td>
+              <td id="line86">86</td>
+              <td><pre>    birthCompIDs = range(Kcur, Ktotal)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>18</td>
+              <td id="line87">87</td>
+              <td><pre>    if 'doVizBirth' in kwargs and kwargs['doVizBirth']:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line88">88</td>
+              <td><pre>      VizBirth.viz_birth_proposal(bigModel, xbigModel, birthCompIDs,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line89">89</td>
+              <td><pre>                                  curELBO=curELBO, propELBO=propELBO, **kwargs)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line90">90</td>
+              <td><pre>      from IPython import embed; embed()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line91">91</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line92">92</td>
+              <td><pre>    # Reject. Abandon the move.</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>18</td>
+              <td id="line93">93</td>
+              <td><pre>    if not didPass:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>14</td>
+              <td id="line94">94</td>
+              <td><pre>      msg = "BIRTH failed. No improvement over current model." + ELBOmsg</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>14</td>
+              <td id="line95">95</td>
+              <td><pre>      raise BirthProposalError(msg)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line96">96</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line97">97</td>
+              <td><pre>    assert xbigModel.obsModel.K == xbigSS.K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line98">98</td>
+              <td><pre>    ### Create dict of info about this birth move</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line99">99</td>
+              <td><pre>    msg = 'BIRTH: %d fresh comps. %s.' % (len(birthCompIDs), ELBOmsg)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line100">100</td>
+              <td><pre>    MoveInfo = dict(didAddNew=True,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line101">101</td>
+              <td><pre>                    msg=msg,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line102">102</td>
+              <td><pre>                    AdjustInfo=AI, ReplaceInfo=RI,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line103">103</td>
+              <td><pre>                    modifiedCompIDs=[],</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line104">104</td>
+              <td><pre>                    birthCompIDs=birthCompIDs,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line105">105</td>
+              <td><pre>                    )</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line106">106</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line107">107</td>
+              <td><pre>    assert not xbigSS.hasELBOTerms()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line108">108</td>
+              <td><pre>    assert not xbigSS.hasMergeTerms()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line109">109</td>
+              <td><pre>    xfreshSS.removeELBOTerms()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line110">110</td>
+              <td><pre>    if kwargs['birthRetainExtraMass']:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line111">111</td>
+              <td><pre>      MoveInfo['extraSS'] = xfreshSS</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line112">112</td>
+              <td><pre>      MoveInfo['modifiedCompIDs'] = range(Ktotal)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line113">113</td>
+              <td><pre>    else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line114">114</td>
+              <td><pre>      # Restore xbigSS to same scale as original "big" dataset</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line115">115</td>
+              <td><pre>      xbigSS -= xfreshSS</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line116">116</td>
+              <td><pre>      assert np.allclose(xbigSS.N.sum(), bigSS.N.sum())</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line117">117</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line118">118</td>
+              <td><pre>    if bigSS.hasMergeTerms():</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line119">119</td>
+              <td><pre>      MergeTerms = bigSS._MergeTerms.copy()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line120">120</td>
+              <td><pre>      MergeTerms.insertEmptyComps(Ktotal-Kcur)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line121">121</td>
+              <td><pre>      xbigSS.restoreMergeTerms(MergeTerms)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line122">122</td>
+              <td><pre>    if bigSS.hasELBOTerms():</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line123">123</td>
+              <td><pre>      ELBOTerms = bigSS._ELBOTerms.copy()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line124">124</td>
+              <td><pre>      ELBOTerms.insertEmptyComps(Ktotal-Kcur)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line125">125</td>
+              <td><pre>      if AI is not None:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>12</td>
+              <td id="line126">126</td>
+              <td><pre>        for key in AI:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line127">127</td>
+              <td><pre>          if hasattr(ELBOTerms, key):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line128">128</td>
+              <td><pre>            arr = getattr(ELBOTerms, key) + bigSS.nDoc * AI[key]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line129">129</td>
+              <td><pre>            ELBOTerms.setField(key, arr, dims='K')</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>12</td>
+              <td id="line130">130</td>
+              <td><pre>        for key in RI:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line131">131</td>
+              <td><pre>          if hasattr(ELBOTerms, key):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line132">132</td>
+              <td><pre>            ELBOTerms.setField(key, bigSS.nDoc * RI[key], dims=None)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line133">133</td>
+              <td><pre>      xbigSS.restoreELBOTerms(ELBOTerms)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line134">134</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line135">135</td>
+              <td><pre>    return xbigModel, xbigSS, MoveInfo</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>17</td>
+              <td id="line136">136</td>
+              <td><pre>  except BirthProposalError, e:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line137">137</td>
+              <td><pre>    ### Clean-up code when birth proposal fails for any reason, including:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line138">138</td>
+              <td><pre>    #  * user-specified Kmax limit reached</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line139">139</td>
+              <td><pre>    #  * delete phase removed all new components</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line140">140</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line141">141</td>
+              <td><pre>    # Verify guarantees that input model and input suff stats haven't changed</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>17</td>
+              <td id="line142">142</td>
+              <td><pre>    assert origids['bigModel'] == id(bigModel)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>17</td>
+              <td id="line143">143</td>
+              <td><pre>    assert origids['bigSS'] == id(bigSS)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line144">144</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line145">145</td>
+              <td><pre>    # Return failure info</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>17</td>
+              <td id="line146">146</td>
+              <td><pre>    MoveInfo = dict(didAddNew=False,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>17</td>
+              <td id="line147">147</td>
+              <td><pre>                    msg=str(e),</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>17</td>
+              <td id="line148">148</td>
+              <td><pre>                    modifiedCompIDs=[],</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>17</td>
+              <td id="line149">149</td>
+              <td><pre>                    birthCompIDs=[])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>17</td>
+              <td id="line150">150</td>
+              <td><pre>    return bigModel, bigSS, MoveInfo</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

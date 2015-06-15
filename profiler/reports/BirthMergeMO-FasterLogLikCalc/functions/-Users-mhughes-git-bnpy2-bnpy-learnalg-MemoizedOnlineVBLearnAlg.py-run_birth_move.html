@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="../../assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="../../assets/css/docs.css" rel="stylesheet">
+    <!-- <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet"> -->
+    <link rel="stylesheet" href="../../assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">run_birth_move</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">run_birth_move</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>run_birth_move</h1>
+	  </div>
+
+          <p>99 Calls, 69.399 s</p>
+	  <p>Generated 14:46:02 01/05/14 EST</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/learnalg/MemoizedOnlineVBLearnAlg.py">/Users/mhughes/git/bnpy2/bnpy/learnalg/MemoizedOnlineVBLearnAlg.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line243">243</td>
+              <td><pre class="prettyprint"> @profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line244">244</td>
+              <td><pre class="prettyprint"> def run_birth_move(self, hmodel, Dchunk, SS, lapFrac):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line245">245</td>
+              <td><pre class="prettyprint">   ''' Run birth moves on hmodel.</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line246">246</td>
+              <td><pre class="prettyprint">       Internally handles </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line247">247</td>
+              <td><pre class="prettyprint">         * creating new components, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line248">248</td>
+              <td><pre class="prettyprint">         * suff stat bookkeeping, etc.</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line249">249</td>
+              <td><pre class="prettyprint"></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line250">250</td>
+              <td><pre class="prettyprint">       On first batch of data in current lap, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line251">251</td>
+              <td><pre class="prettyprint">         * new components created, using data in self.targetDataList</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line252">252</td>
+              <td><pre class="prettyprint">         * target components for births on next lap selected</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line253">253</td>
+              <td><pre class="prettyprint"></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line254">254</td>
+              <td><pre class="prettyprint">       On last batch in current lap,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line255">255</td>
+              <td><pre class="prettyprint">         * suff stats adjusted to remove 'extra mass'</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line256">256</td>
+              <td><pre class="prettyprint"></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line257">257</td>
+              <td><pre class="prettyprint">       Returns</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line258">258</td>
+              <td><pre class="prettyprint">       -------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line259">259</td>
+              <td><pre class="prettyprint">       hmodel : bnpy HModel, with (possibly) new components</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line260">260</td>
+              <td><pre class="prettyprint">       SS : bnpy SuffStatBag, with (possibly) new components</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line261">261</td>
+              <td><pre class="prettyprint">   '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line262">262</td>
+              <td><pre class="prettyprint">   # Determine whether to run birth now (at current lap)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>99</td>
+              <td id="line263">263</td>
+              <td><pre class="prettyprint">   if not self.do_birth_at_lap(lapFrac):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line264">264</td>
+              <td><pre class="prettyprint">     if self.isFirstBatch(lapFrac):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line265">265</td>
+              <td><pre class="prettyprint">       Log.info("BIRTH skipped. Exceeded target fraction of total laps.")</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line266">266</td>
+              <td><pre class="prettyprint">       self.BirthCompIDs = list()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line267">267</td>
+              <td><pre class="prettyprint">       self.BirthInfoCurLap = list()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line268">268</td>
+              <td><pre class="prettyprint">     return hmodel, SS</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line269">269</td>
+              <td><pre class="prettyprint"></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>89</td>
+              <td id="line270">270</td>
+              <td><pre class="prettyprint">   if self.isFirstBatch(lapFrac):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line271">271</td>
+              <td><pre class="prettyprint">     self.BirthCompIDs = list()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line272">272</td>
+              <td><pre class="prettyprint">     self.BirthInfoCurLap = list()</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td>69 s</td>
+              <td>8</td>
+              <td id="line273">273</td>
+              <td><pre class="prettyprint">     hmodel, SS = self.onBirthFirstBatchCreateNewComps(hmodel, SS)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line274">274</td>
+              <td><pre class="prettyprint">     # Prepare for the next lap birth moves,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line275">275</td>
+              <td><pre class="prettyprint">     #   by choosing the next target components</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line276">276</td>
+              <td><pre class="prettyprint">     if self.do_birth_at_lap(lapFrac + 1):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line277">277</td>
+              <td><pre class="prettyprint">       self.targetDataList = self.onBirthFirstBatchPrepForNextLapBirth(SS)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line278">278</td>
+              <td><pre class="prettyprint">     else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line279">279</td>
+              <td><pre class="prettyprint">       self.targetDataList = list()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line280">280</td>
+              <td><pre class="prettyprint"></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line281">281</td>
+              <td><pre class="prettyprint">   # Handle removing "extra mass" of fresh components</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line282">282</td>
+              <td><pre class="prettyprint">   #  to make SS have size exactly consistent with entire dataset</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>89</td>
+              <td id="line283">283</td>
+              <td><pre class="prettyprint">   if self.isLastBatch(lapFrac):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>9</td>
+              <td id="line284">284</td>
+              <td><pre class="prettyprint">     SS = self.onBirthLastBatchRemoveExtraMass(SS)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line285">285</td>
+              <td><pre class="prettyprint"></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>89</td>
+              <td id="line286">286</td>
+              <td><pre class="prettyprint">   return hmodel, SS</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="../../assets/js/bootstrap.min.js"></script>
+    <script src="../../assets/js/main.js"></script>
+    <script src="https://google-code-prettify.googlecode.com/svn/loader/run_prettify.js"></script>
+  </body>
+</html>

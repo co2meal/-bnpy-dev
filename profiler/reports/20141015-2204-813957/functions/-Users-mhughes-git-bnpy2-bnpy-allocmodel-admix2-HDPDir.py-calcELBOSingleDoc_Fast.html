@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">calcELBOSingleDoc_Fast</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">calcELBOSingleDoc_Fast</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>calcELBOSingleDoc_Fast</h1>
+	  </div>
+
+          <p>375651 Calls, 74.04 s</p>
+	  <p>Generated 22:22:49 10/15/14 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix2/HDPDir.py">/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix2/HDPDir.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line897">897</td>
+              <td class="code "><div class="code-listing"><pre>@profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line898">898</td>
+              <td class="code "><div class="code-listing"><pre>def calcELBOSingleDoc_Fast(wc_d, DocTopicCount_d, Prior_d, sumR_d, alphaEbeta):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line899">899</td>
+              <td class="code "><div class="code-listing"><pre>  ''' Evaluate ELBO contributions for single doc, dropping terms constant wrt local step.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line900">900</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line901">901</td>
+              <td class="code "><div class="code-listing"><pre>      Note: key to some progress was remembering that Prior_d is not just exp(ElogPi)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line902">902</td>
+              <td class="code "><div class="code-listing"><pre>            but that it is usually altered by a multiplicative constant for safety</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line903">903</td>
+              <td class="code "><div class="code-listing"><pre>            we can find this constant offset (in logspace), and adjust sumR_d accordingly</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line904">904</td>
+              <td class="code "><div class="code-listing"><pre>  '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 2.09 s</td>
+              <td>375651</td>
+              <td id="line905">905</td>
+              <td class="code "><div class="code-listing"><pre>  theta_d = DocTopicCount_d + alphaEbeta[:-1]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.81 s</td>
+              <td>375651</td>
+              <td id="line906">906</td>
+              <td class="code "><div class="code-listing"><pre>  thetaRem = alphaEbeta[-1]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line907">907</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 6.59 s</td>
+              <td>375651</td>
+              <td id="line908">908</td>
+              <td class="code "><div class="code-listing"><pre>  digammaSum = digamma(theta_d.sum() + thetaRem)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 7.46 s</td>
+              <td>375651</td>
+              <td id="line909">909</td>
+              <td class="code "><div class="code-listing"><pre>  ElogPi_d = digamma(theta_d) - digammaSum</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 2.21 s</td>
+              <td>375651</td>
+              <td id="line910">910</td>
+              <td class="code "><div class="code-listing"><pre>  ElogPiRem = digamma(thetaRem) - digammaSum                  </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line911">911</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 40.08 s</td>
+              <td>375651</td>
+              <td id="line912">912</td>
+              <td class="code danger"><div class="code-listing"><pre>  cDir = -1 * c_Dir(theta_d[np.newaxis,:], thetaRem)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 3.21 s</td>
+              <td>375651</td>
+              <td id="line913">913</td>
+              <td class="code "><div class="code-listing"><pre>  slackOn = np.inner(DocTopicCount_d + alphaEbeta[:-1] - theta_d,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 2.84 s</td>
+              <td>375651</td>
+              <td id="line914">914</td>
+              <td class="code "><div class="code-listing"><pre>                     ElogPi_d.flatten())</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.19 s</td>
+              <td>375651</td>
+              <td id="line915">915</td>
+              <td class="code "><div class="code-listing"><pre>  slackOff = (alphaEbeta[-1] - thetaRem) * ElogPiRem</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 6.51 s</td>
+              <td>375651</td>
+              <td id="line916">916</td>
+              <td class="code "><div class="code-listing"><pre>  rest = np.inner(wc_d, np.log(sumR_d)) - np.inner(DocTopicCount_d, np.log(Prior_d))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.07 s</td>
+              <td>375651</td>
+              <td id="line917">917</td>
+              <td class="code "><div class="code-listing"><pre>  return cDir + slackOn + slackOff + rest  </pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

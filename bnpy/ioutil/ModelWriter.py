@@ -203,5 +203,3 @@ def saveTopicModel(hmodel, SS, fpath, prefix, doLinkBest=False,
 
     outmatfile = os.path.join(fpath, prefix + 'TopicModel')
     scipy.io.savemat(outmatfile, EstPDict, oned_as='row')
-
-

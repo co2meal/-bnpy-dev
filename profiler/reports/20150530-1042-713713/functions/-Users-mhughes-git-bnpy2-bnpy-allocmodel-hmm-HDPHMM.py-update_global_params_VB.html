@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">update_global_params_VB</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">update_global_params_VB</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>update_global_params_VB</h1>
+	  </div>
+
+          <p>10767 Calls, 199.98 s</p>
+	  <p>Generated 10:48:20 05/30/15 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/allocmodel/hmm/HDPHMM.py">/Users/mhughes/git/bnpy2/bnpy/allocmodel/hmm/HDPHMM.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line289">289</td>
+              <td class="code "><div class="code-listing"><pre>   @profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line290">290</td>
+              <td class="code "><div class="code-listing"><pre>   def update_global_params_VB(self, SS,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line291">291</td>
+              <td class="code "><div class="code-listing"><pre>                               mergeCompA=None, mergeCompB=None,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line292">292</td>
+              <td class="code "><div class="code-listing"><pre>                               **kwargs):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line293">293</td>
+              <td class="code "><div class="code-listing"><pre>       ''' Update global parameters.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line294">294</td>
+              <td class="code "><div class="code-listing"><pre>       '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>1555</td>
+              <td id="line295">295</td>
+              <td class="code "><div class="code-listing"><pre>       self.K = SS.K</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>1555</td>
+              <td id="line296">296</td>
+              <td class="code "><div class="code-listing"><pre>       if not hasattr(self, 'rho') or self.rho.size != SS.K:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line297">297</td>
+              <td class="code "><div class="code-listing"><pre>           # Big change from previous model is being proposed.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line298">298</td>
+              <td class="code "><div class="code-listing"><pre>           # We'll init rho from scratch, and need more iters to improve.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>339</td>
+              <td id="line299">299</td>
+              <td class="code "><div class="code-listing"><pre>           nGlobalIters = self.nGlobalItersBigChange</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line300">300</td>
+              <td class="code "><div class="code-listing"><pre>       else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line301">301</td>
+              <td class="code "><div class="code-listing"><pre>           # Small change required. Current rho is good initialization.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1216</td>
+              <td id="line302">302</td>
+              <td class="code "><div class="code-listing"><pre>           nGlobalIters = self.nGlobalIters</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line303">303</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line304">304</td>
+              <td class="code "><div class="code-listing"><pre>       </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line305">305</td>
+              <td class="code "><div class="code-listing"><pre>       # Special update case for merges:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line306">306</td>
+              <td class="code "><div class="code-listing"><pre>       # Fast, heuristic update for new rho given original value</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1555</td>
+              <td id="line307">307</td>
+              <td class="code "><div class="code-listing"><pre>       if mergeCompA is not None:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>5</td>
+              <td id="line308">308</td>
+              <td class="code "><div class="code-listing"><pre>           beta = OptimizerRhoOmega.rho2beta_active(self.rho)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>5</td>
+              <td id="line309">309</td>
+              <td class="code "><div class="code-listing"><pre>           beta[mergeCompA] += beta[mergeCompB]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>5</td>
+              <td id="line310">310</td>
+              <td class="code "><div class="code-listing"><pre>           beta = np.delete(beta, mergeCompB, axis=0)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>5</td>
+              <td id="line311">311</td>
+              <td class="code "><div class="code-listing"><pre>           self.rho = OptimizerRhoOmega.beta2rho(beta, SS.K)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>5</td>
+              <td id="line312">312</td>
+              <td class="code "><div class="code-listing"><pre>           omega = self.omega</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>5</td>
+              <td id="line313">313</td>
+              <td class="code "><div class="code-listing"><pre>           omega[mergeCompA] += omega[mergeCompB]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>5</td>
+              <td id="line314">314</td>
+              <td class="code "><div class="code-listing"><pre>           self.omega = np.delete(omega, mergeCompB, axis=0)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line315">315</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line316">316</td>
+              <td class="code "><div class="code-listing"><pre>       # Update theta with recently updated info from suff stats</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.37 s</td>
+              <td>1555</td>
+              <td id="line317">317</td>
+              <td class="code "><div class="code-listing"><pre>       self.transTheta, self.startTheta = self._calcTheta(SS)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line318">318</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>10767</td>
+              <td id="line319">319</td>
+              <td class="code "><div class="code-listing"><pre>       for giter in xrange(nGlobalIters):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line320">320</td>
+              <td class="code "><div class="code-listing"><pre>           # Update rho, omega through numerical optimization</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 197.53 s</td>
+              <td>9212</td>
+              <td id="line321">321</td>
+              <td class="code danger"><div class="code-listing"><pre>           self.rho, self.omega, Info = self.find_optimum_rhoOmega(**kwargs)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line322">322</td>
+              <td class="code "><div class="code-listing"><pre>           # Update theta again to reflect the new rho, omega</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.99 s</td>
+              <td>9212</td>
+              <td id="line323">323</td>
+              <td class="code "><div class="code-listing"><pre>           self.transTheta, self.startTheta = self._calcTheta(SS)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1555</td>
+              <td id="line324">324</td>
+              <td class="code "><div class="code-listing"><pre>       return Info</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

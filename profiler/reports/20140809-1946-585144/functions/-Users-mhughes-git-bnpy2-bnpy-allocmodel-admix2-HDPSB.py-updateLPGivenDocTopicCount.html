@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">updateLPGivenDocTopicCount</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">updateLPGivenDocTopicCount</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>updateLPGivenDocTopicCount</h1>
+	  </div>
+
+          <p>6 Calls, 0.03 s</p>
+	  <p>Generated 19:47:35 08/09/14 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix2/HDPSB.py">/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix2/HDPSB.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line175">175</td>
+              <td><pre> @profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line176">176</td>
+              <td><pre> def updateLPGivenDocTopicCount(self, LP, DocTopicCount):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line177">177</td>
+              <td><pre>   ''' Update all local parameters, given topic counts for all docs in set.</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line178">178</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line179">179</td>
+              <td><pre>       Returns</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line180">180</td>
+              <td><pre>       --------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line181">181</td>
+              <td><pre>       LP : dict of local params, with updated fields</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line182">182</td>
+              <td><pre>       * eta1, eta0</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line183">183</td>
+              <td><pre>       * ElogVd, Elog1mVd</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line184">184</td>
+              <td><pre>       * ElogPi</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line185">185</td>
+              <td><pre>   '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line186">186</td>
+              <td><pre>   DocTopicCount_gt = gtsum(DocTopicCount)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line187">187</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line188">188</td>
+              <td><pre>   Ebeta, Ebeta_gt = self.E_beta_and_betagt()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line189">189</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line190">190</td>
+              <td><pre>   eta1 = DocTopicCount + self.alpha * Ebeta</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line191">191</td>
+              <td><pre>   eta0 = DocTopicCount_gt + self.alpha * Ebeta_gt</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line192">192</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line193">193</td>
+              <td><pre>   ## Double-check!</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line194">194</td>
+              <td><pre>   Ebeta2, Ebeta_gt2 = self.E_beta_and_betagt()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line195">195</td>
+              <td><pre>   assert np.allclose(Ebeta2, Ebeta)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line196">196</td>
+              <td><pre>   assert np.allclose(Ebeta_gt2, Ebeta_gt)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line197">197</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line198">198</td>
+              <td><pre>   digammaBoth = digamma(eta1+eta0)</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 0.01 s</td>
+              <td>6</td>
+              <td id="line199">199</td>
+              <td><pre>   ElogV = digamma(eta1) - digammaBoth</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line200">200</td>
+              <td><pre>   Elog1mV = digamma(eta0) - digammaBoth</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line201">201</td>
+              <td><pre>   ElogPi = ElogV.copy()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line202">202</td>
+              <td><pre>   ElogPi[:, 1:] += np.cumsum(Elog1mV[:, :-1], axis=1)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line203">203</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line204">204</td>
+              <td><pre>   LP['DocTopicCount_gt'] = DocTopicCount_gt</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line205">205</td>
+              <td><pre>   LP['eta1'] = eta1</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line206">206</td>
+              <td><pre>   LP['eta0'] = eta0</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line207">207</td>
+              <td><pre>   LP['ElogV'] = ElogV</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line208">208</td>
+              <td><pre>   LP['Elog1mV'] = Elog1mV</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line209">209</td>
+              <td><pre>   LP['ElogPi'] = ElogPi</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line210">210</td>
+              <td><pre>   return LP</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

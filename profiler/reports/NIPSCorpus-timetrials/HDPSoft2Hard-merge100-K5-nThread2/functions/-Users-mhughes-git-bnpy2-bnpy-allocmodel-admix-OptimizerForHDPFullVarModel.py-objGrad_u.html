@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">objGrad_u</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">objGrad_u</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>objGrad_u</h1>
+	  </div>
+
+          <p>216 Calls, 0.18 s</p>
+	  <p>Generated 14:41:50 03/07/14 EST</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix/OptimizerForHDPFullVarModel.py">/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix/OptimizerForHDPFullVarModel.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line181">181</td>
+              <td><pre>@profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line182">182</td>
+              <td><pre>def objGrad_u(u, sumLogPi, nDoc, gamma, alpha0):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line183">183</td>
+              <td><pre>  ''' Returns 2K-vector gradient of the constrained objective</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line184">184</td>
+              <td><pre>      Args</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line185">185</td>
+              <td><pre>      -------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line186">186</td>
+              <td><pre>      u := 2K-vector of real numbers, subject to 0 < u</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line187">187</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line188">188</td>
+              <td><pre>      Returns</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line189">189</td>
+              <td><pre>      -------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line190">190</td>
+              <td><pre>      g := 2K-vector of real numbers, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line191">191</td>
+              <td><pre>            g[k] = gradient of -1 * L(u) with respect to u[k]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line192">192</td>
+              <td><pre>  '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>216</td>
+              <td id="line193">193</td>
+              <td><pre>  assert not np.any(np.isnan(u))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line194">194</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line195">195</td>
+              <td><pre>  # UNPACK AND PREPARE building-block quantities</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>216</td>
+              <td id="line196">196</td>
+              <td><pre>  u1, u0 = _unpack(u)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>216</td>
+              <td id="line197">197</td>
+              <td><pre>  K = u1.size</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>216</td>
+              <td id="line198">198</td>
+              <td><pre>  E = _calcExpectations(u1, u0)</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 0.10 s</td>
+              <td>216</td>
+              <td id="line199">199</td>
+              <td><pre>  dU1, dU0 = _calcGradients(u1, u0, E=E)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line200">200</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>216</td>
+              <td id="line201">201</td>
+              <td><pre>  kvec = K + 1 - np.arange(1, K+1)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line202">202</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>216</td>
+              <td id="line203">203</td>
+              <td><pre>  digammaU1 = digamma(u1)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>216</td>
+              <td id="line204">204</td>
+              <td><pre>  digammaU0 = digamma(u0)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>216</td>
+              <td id="line205">205</td>
+              <td><pre>  digammaBoth = digamma(u1+u0)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line206">206</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line207">207</td>
+              <td><pre>  dU1_Elogpmq_v = digammaU1 - digammaBoth \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line208">208</td>
+              <td><pre>                  + (1 - u1) * dU1['Elogv'] \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line209">209</td>
+              <td><pre>                  - E['logv'] \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>216</td>
+              <td id="line210">210</td>
+              <td><pre>                  + (alpha0 - u0) * dU1['Elog1-v']</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line211">211</td>
+              <td><pre>  dU0_Elogpmq_v = digammaU0 - digammaBoth \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line212">212</td>
+              <td><pre>                  + (1 - u1) * dU0['Elogv'] \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line213">213</td>
+              <td><pre>                  - E['log1-v'] \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>216</td>
+              <td id="line214">214</td>
+              <td><pre>                  + (alpha0 - u0) * dU0['Elog1-v']</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line215">215</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>216</td>
+              <td id="line216">216</td>
+              <td><pre>  if nDoc > 0:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line217">217</td>
+              <td><pre>    dU1_Elogp_pi = dU1['Elogv'] + kvec * dU1['Elog1-v'] \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>216</td>
+              <td id="line218">218</td>
+              <td><pre>                  + gamma * np.dot(dU1['Ebeta'], sumLogPi/nDoc)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line219">219</td>
+              <td><pre>    dU0_Elogp_pi = dU0['Elogv'] + kvec * dU0['Elog1-v'] \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>216</td>
+              <td id="line220">220</td>
+              <td><pre>                  + gamma * np.dot(dU0['Ebeta'], sumLogPi/nDoc)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>216</td>
+              <td id="line221">221</td>
+              <td><pre>    dU1_Elogpmq_v /= nDoc</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>216</td>
+              <td id="line222">222</td>
+              <td><pre>    dU0_Elogpmq_v /= nDoc</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line223">223</td>
+              <td><pre>  else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line224">224</td>
+              <td><pre>    dU1_Elogp_pi = 0</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line225">225</td>
+              <td><pre>    dU0_Elogp_pi = 0</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line226">226</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>216</td>
+              <td id="line227">227</td>
+              <td><pre>  gvecU1 = dU1_Elogp_pi + dU1_Elogpmq_v</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>216</td>
+              <td id="line228">228</td>
+              <td><pre>  gvecU0 = dU0_Elogp_pi + dU0_Elogpmq_v</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>216</td>
+              <td id="line229">229</td>
+              <td><pre>  gvecU = np.hstack([gvecU1, gvecU0])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>216</td>
+              <td id="line230">230</td>
+              <td><pre>  return -1.0 * gvecU</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">removeComp</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">removeComp</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>removeComp</h1>
+	  </div>
+
+          <p>18864 Calls, 1.12 s</p>
+	  <p>Generated 10:48:22 05/30/15 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/suffstats/ParamBag.py">/Users/mhughes/git/bnpy2/bnpy/suffstats/ParamBag.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line160">160</td>
+              <td class="code "><div class="code-listing"><pre>@profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line161">161</td>
+              <td class="code "><div class="code-listing"><pre>def removeComp(self, k):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line162">162</td>
+              <td class="code "><div class="code-listing"><pre>    ''' Updates self in-place to remove component "k"</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line163">163</td>
+              <td class="code "><div class="code-listing"><pre>    '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2220</td>
+              <td id="line164">164</td>
+              <td class="code "><div class="code-listing"><pre>    if k < 0 or k >= self.K:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line165">165</td>
+              <td class="code "><div class="code-listing"><pre>        msg = 'Bad compID. Expected [0, %d], got %d' % (self.K - 1, k)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line166">166</td>
+              <td class="code "><div class="code-listing"><pre>        raise IndexError(msg)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2220</td>
+              <td id="line167">167</td>
+              <td class="code "><div class="code-listing"><pre>    if self.K <= 1:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line168">168</td>
+              <td class="code "><div class="code-listing"><pre>        raise ValueError('Cannot remove final component.')</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2220</td>
+              <td id="line169">169</td>
+              <td class="code "><div class="code-listing"><pre>    self.K -= 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>10167</td>
+              <td id="line170">170</td>
+              <td class="code "><div class="code-listing"><pre>    for key in self._FieldDims:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>7947</td>
+              <td id="line171">171</td>
+              <td class="code "><div class="code-listing"><pre>        arr = getattr(self, key)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>7947</td>
+              <td id="line172">172</td>
+              <td class="code "><div class="code-listing"><pre>        dims = self._FieldDims[key]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7947</td>
+              <td id="line173">173</td>
+              <td class="code "><div class="code-listing"><pre>        if dims is not None:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>18864</td>
+              <td id="line174">174</td>
+              <td class="code "><div class="code-listing"><pre>            for dimID, name in enumerate(dims):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>11851</td>
+              <td id="line175">175</td>
+              <td class="code "><div class="code-listing"><pre>                if name == 'K':</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.48 s</td>
+              <td>8914</td>
+              <td id="line176">176</td>
+              <td class="code "><div class="code-listing"><pre>                    arr = np.delete(arr, k, axis=dimID)</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 0.53 s</td>
+              <td>7013</td>
+              <td id="line177">177</td>
+              <td class="code danger"><div class="code-listing"><pre>            self.setField(key, arr, dims)</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

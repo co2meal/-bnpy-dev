@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="../../assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="../../assets/css/docs.css" rel="stylesheet">
+    <!-- <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet"> -->
+    <link rel="stylesheet" href="../../assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">_getAllowedShapes</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">_getAllowedShapes</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>_getAllowedShapes</h1>
+	  </div>
+
+          <p>354384 Calls, 11.2936 s</p>
+	  <p>Generated 18:11:05 01/04/14 EST</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/suffstats/ParamBag.py">/Users/mhughes/git/bnpy2/bnpy/suffstats/ParamBag.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line321">321</td>
+              <td><pre class="prettyprint"> @profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line322">322</td>
+              <td><pre class="prettyprint"> def _getAllowedShapes(self, shape):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line323">323</td>
+              <td><pre class="prettyprint">   ''' Return set of allowed shapes that can be squeezed into given shape.</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line324">324</td>
+              <td><pre class="prettyprint"></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line325">325</td>
+              <td><pre class="prettyprint">       Examples</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line326">326</td>
+              <td><pre class="prettyprint">       --------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line327">327</td>
+              <td><pre class="prettyprint">       >>> PB = ParamBag() # fixing K,D doesn't matter</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line328">328</td>
+              <td><pre class="prettyprint">       >>> PB._getAllowedShapes(())</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line329">329</td>
+              <td><pre class="prettyprint">       set([()])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line330">330</td>
+              <td><pre class="prettyprint">       >>> PB._getAllowedShapes((1))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line331">331</td>
+              <td><pre class="prettyprint">       set([(), (1,)])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line332">332</td>
+              <td><pre class="prettyprint">       >>> PB._getAllowedShapes((23))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line333">333</td>
+              <td><pre class="prettyprint">       set([(23)])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line334">334</td>
+              <td><pre class="prettyprint">       >>> PB._getAllowedShapes((3,1))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line335">335</td>
+              <td><pre class="prettyprint">       set([(3), (3,1)])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line336">336</td>
+              <td><pre class="prettyprint">       >>> PB._getAllowedShapes((1,1))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line337">337</td>
+              <td><pre class="prettyprint">       set([(), (1,), (1,1)])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line338">338</td>
+              <td><pre class="prettyprint">   '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.24 s</td>
+              <td>147660</td>
+              <td id="line339">339</td>
+              <td><pre class="prettyprint">   allowedShapes = set()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.24 s</td>
+              <td>147660</td>
+              <td id="line340">340</td>
+              <td><pre class="prettyprint">   if len(shape) == 0:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.11 s</td>
+              <td>59064</td>
+              <td id="line341">341</td>
+              <td><pre class="prettyprint">     allowedShapes.add(tuple())</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.075 s</td>
+              <td>59064</td>
+              <td id="line342">342</td>
+              <td><pre class="prettyprint">     return allowedShapes</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>1.2 s</td>
+              <td>88596</td>
+              <td id="line343">343</td>
+              <td><pre class="prettyprint">   shapeVec = np.asarray(shape, dtype=np.int32)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.59 s</td>
+              <td>88596</td>
+              <td id="line344">344</td>
+              <td><pre class="prettyprint">   onesMask = shapeVec == 1</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.35 s</td>
+              <td>88596</td>
+              <td id="line345">345</td>
+              <td><pre class="prettyprint">   keepMask = np.logical_not(onesMask)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>1.1 s</td>
+              <td>88596</td>
+              <td id="line346">346</td>
+              <td><pre class="prettyprint">   nOnes = sum(onesMask)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.7 s</td>
+              <td>265788</td>
+              <td id="line347">347</td>
+              <td><pre class="prettyprint">   for b in range(2**nOnes):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>1.2 s</td>
+              <td>177192</td>
+              <td id="line348">348</td>
+              <td><pre class="prettyprint">     bStr = np.binary_repr(b)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.8 s</td>
+              <td>177192</td>
+              <td id="line349">349</td>
+              <td><pre class="prettyprint">     bStr = '0'*(nOnes - len(bStr)) + bStr</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td>3.3 s</td>
+              <td>354384</td>
+              <td id="line350">350</td>
+              <td><pre class="prettyprint">     keepMask[onesMask] = np.asarray([int(x) > 0 for x in bStr])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.55 s</td>
+              <td>177192</td>
+              <td id="line351">351</td>
+              <td><pre class="prettyprint">     curShape = shapeVec[keepMask]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.79 s</td>
+              <td>177192</td>
+              <td id="line352">352</td>
+              <td><pre class="prettyprint">     allowedShapes.add(tuple(curShape))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>0.11 s</td>
+              <td>88596</td>
+              <td id="line353">353</td>
+              <td><pre class="prettyprint">   return allowedShapes</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="../../assets/js/bootstrap.min.js"></script>
+    <script src="../../assets/js/main.js"></script>
+    <script src="https://google-code-prettify.googlecode.com/svn/loader/run_prettify.js"></script>
+  </body>
+</html>

@@ -343,7 +343,7 @@ class DataIteratorFromDisk(object):
     def getDataSliceFunctionHandle(self):
         """ Return function handle that can make data slice objects.
 
-        Useful with parallelized algorithms, 
+        Useful with parallelized algorithms,
         when we need to use shared memory.
 
         Returns
@@ -368,7 +368,7 @@ def loadDataForSlice(filepath='', dtype='', **kwargs):
     Keyword args
     ------------
     workerID
-    nWorkers 
+    nWorkers
     """
     if filepath.endswith('.ldac'):
         return WordsData.LoadFromFile_ldac(filepath, **kwargs)

@@ -14,6 +14,7 @@ from bnpy.util import sharedMemDictToNumpy
 
 ColorMap = dict(monolithic='k', serial='b', parallel='r')
 
+
 def main():
 
     parser = argparse.ArgumentParser()
@@ -22,7 +23,10 @@ def main():
     parser.add_argument('--nCoordAscentItersLP', type=int, default=100)
     parser.add_argument('--convThrLP', type=float, default=0.00001)
     parser.add_argument('--nWorker', type=str, default='1')
-    parser.add_argument('--maxWorker', type=int, default=multiprocessing.cpu_count())
+    parser.add_argument(
+        '--maxWorker',
+        type=int,
+        default=multiprocessing.cpu_count())
     parser.add_argument('--methods', type=str, default='monolithic,parallel')
     parser.add_argument('--nRepeat', type=int, default=1)
     parser.add_argument('--task', type=str, default='localstep')
@@ -40,7 +44,7 @@ def main():
         pargs['task'] = task
         AllInfo = initBenchmarkInfo(**pargs)
         pargs['scaleFactor'] = 0.0
-        
+
         for nWorker in rangeFromString(nWorker_IN):
             # Make independent dict for all kwargs of current problem
             # so can edit these fields without editing the args for other tasks
@@ -56,12 +60,13 @@ def main():
             aSharedMem = hmodel.allocModel.fillSharedMemDictForLocalStep()
             oSharedMem = hmodel.obsModel.fillSharedMemDictForLocalStep()
             ShMem = dict(dataSharedMem=dataSharedMem,
-                aSharedMem=aSharedMem,
-                oSharedMem=oSharedMem)
+                         aSharedMem=aSharedMem,
+                         oSharedMem=oSharedMem)
 
             # Make function handles
             fH = dict()
-            fH['makeDataSliceFromSharedMem'] = Data.getDataSliceFunctionHandle()
+            fH['makeDataSliceFromSharedMem'] = Data.getDataSliceFunctionHandle(
+            )
             fH['a_calcLocalParams'], fH['a_calcSummaryStats'] = \
                 hmodel.allocModel.getLocalAndSummaryFunctionHandles()
             fH['o_calcLocalParams'], fH['o_calcSummaryStats'] = \
@@ -76,7 +81,10 @@ def main():
 
             # Determine right scale of problem
             if np.allclose(pargs['scaleFactor'], 0) and args.task != 'sleep':
-                pargs['scaleFactor'] = getScaleFactorForTask(ShMem, fH=fH, **kwargs)
+                pargs['scaleFactor'] = getScaleFactorForTask(
+                    ShMem,
+                    fH=fH,
+                    **kwargs)
                 kwargs['scaleFactor'] = pargs['scaleFactor']
 
             # Launch worker processes
@@ -108,7 +116,7 @@ def main():
         if not args.savefig:
             pylab.show(block=1)
         pylab.close('all')
-    
+
 
 def workOnSlice(ShMem,
                 start=None, stop=None,
@@ -127,7 +135,7 @@ def workOnSlice(ShMem,
         stop = int(stop)
 
     Dslice = fH['makeDataSliceFromSharedMem'](
-                 ShMem['dataSharedMem'], cslice=(start,stop))
+        ShMem['dataSharedMem'], cslice=(start, stop))
 
     kwargs.update(sharedMemDictToNumpy(ShMem['aSharedMem']))
     kwargs.update(sharedMemDictToNumpy(ShMem['oSharedMem']))
@@ -145,13 +153,14 @@ def workOnSlice(ShMem,
 
             # Do summary step
             SS = fH['a_calcSummaryStats'](
-                    Dslice, LP, doPrecompEntropy=1, **kwargs)
+                Dslice, LP, doPrecompEntropy=1, **kwargs)
             SS = fH['o_calcSummaryStats'](Dslice, SS, LP, **kwargs)
 
     else:
         raise NotImplementedError("Unrecognized task: %s" % (task))
     telapsed = time.time() - tstart
     return telapsed
+
 
 class SharedMemWorker(multiprocessing.Process):
 
@@ -173,10 +182,11 @@ class SharedMemWorker(multiprocessing.Process):
 
         for start, stop in jobIterator:
             t = workOnSlice(self.ShMem,
-                        start=start, stop=stop,
-                        fH=self.fH, **self.kwargs)
+                            start=start, stop=stop,
+                            fH=self.fH, **self.kwargs)
             self.ResultQ.put(t)
             self.JobQ.task_done()
+
 
 def launchWorkers(ShMem, fH, nWorker=1, **kwargs):
 
@@ -201,15 +211,17 @@ def loadDataset(datasetName='', **kwargs):
     Data = DataMod.get_data(**kwargs)
     return Data
 
+
 def createModel(Data, K=50, **kwargs):
     hmodel = bnpy.HModel.CreateEntireModel(
-         'VB', 'FiniteTopicModel', 'Mult',
-         dict(alpha=0.1, gamma=5),
-         dict(lam=0.1), 
-         Data)
+        'VB', 'FiniteTopicModel', 'Mult',
+        dict(alpha=0.1, gamma=5),
+        dict(lam=0.1),
+        Data)
     hmodel.init_global_params(Data, initname='randexamples', K=K)
     return hmodel
-      
+
+
 def getMethodNames(methods='all', **kwargs):
     allMethodNames = ['monolithic', 'serial', 'parallel']
     methodNames = list()
@@ -219,17 +231,18 @@ def getMethodNames(methods='all', **kwargs):
         methodNames.append(name)
     return methodNames
 
+
 def printResultsTable(Tinfo, nRepeat=1, methods='', **kwargs):
 
     print '======================= ', makeTitle(**kwargs)
-    print '%16s %15s %15s %15s %10s' % (' ', 
-        'slice size', 'slice time', 'wallclock time', 'speedup')
+    print '%16s %15s %15s %15s %10s' % (
+        ' ', 'slice size', 'slice time', 'wallclock time', 'speedup')
 
     nDocTotal = kwargs['nDocTotal']
     # PRINT RESULTS
     if 'monolithic' in Tinfo:
-        telasped_monolithic = np.median([Tinfo['monolithic'][r]['telapsed_wall'] \
-            for r in xrange(nRepeat)])
+        telasped_monolithic = np.median(
+            [Tinfo['monolithic'][r]['telapsed_wall'] for r in xrange(nRepeat)])
 
     for rep in xrange(nRepeat):
         for method in getMethodNames(methods):
@@ -238,13 +251,14 @@ def printResultsTable(Tinfo, nRepeat=1, methods='', **kwargs):
             if method == 'monolithic':
                 msg += " %8d x %2d" % (nDocTotal, 1)
             else:
-                msg += " %8d x %2d" % (stop-start, kwargs['nWorker'])
-            msg += " %11.3f sec" % (np.median(Tinfo[method][rep]['telapsed_slices']))
+                msg += " %8d x %2d" % (stop - start, kwargs['nWorker'])
+            msg += " %11.3f sec" % (
+                np.median(Tinfo[method][rep]['telapsed_slices']))
 
             telapsed = Tinfo[method][rep]['telapsed_wall']
             msg += " %11.3f sec" % (telapsed)
             if 'monolithic' in Tinfo:
-                msg += " %11.2f" % (telasped_monolithic/telapsed)
+                msg += " %11.2f" % (telasped_monolithic / telapsed)
             print msg
 
 
@@ -253,18 +267,18 @@ def plotSpeedupFigure(AllInfo, maxWorker=1, **kwargs):
     xs = AllInfo['nWorker']
     ts_mono = AllInfo['t_monolithic']
 
-    xgrid = np.linspace(0, maxWorker+0.1, 100)
+    xgrid = np.linspace(0, maxWorker + 0.1, 100)
     pylab.plot(xgrid, xgrid, 'y--', label='ideal parallel')
 
     for method in getMethodNames(**kwargs):
         speedupRatio = ts_mono / AllInfo['t_' + method]
         pylab.plot(xs, speedupRatio, 'o-',
-            label=method,
-            color=ColorMap[method],
-            markeredgecolor=ColorMap[method])    
+                   label=method,
+                   color=ColorMap[method],
+                   markeredgecolor=ColorMap[method])
 
-    pylab.xlim([-0.2, maxWorker+0.5])
-    pylab.ylim([0, maxWorker+0.5])
+    pylab.xlim([-0.2, maxWorker + 0.5])
+    pylab.ylim([0, maxWorker + 0.5])
     pylab.legend(loc='upper left')
     pylab.xlabel('Number of Workers')
     pylab.ylabel('Speedup over Monolithic')
@@ -272,16 +286,17 @@ def plotSpeedupFigure(AllInfo, maxWorker=1, **kwargs):
     if kwargs['savefig']:
         title = 'BenchmarkPlot_%s_%s_minDur=%.2f_Speedup.eps'\
             % (platform.node(), kwargs['task'], kwargs['minSliceDuration'])
-        pylab.savefig(title, 
-            format='eps', 
-            bbox_inches='tight',
-            pad_inches=0)
+        pylab.savefig(title,
+                      format='eps',
+                      bbox_inches='tight',
+                      pad_inches=0)
 
 
-def getScaleFactorForTask(ShMem, fH=dict(), maxWorker=1, nDocTotal=0, **kwargs):
+def getScaleFactorForTask(
+        ShMem, fH=dict(), maxWorker=1, nDocTotal=0, **kwargs):
 
     minSliceDuration = kwargs['minSliceDuration']
-    sliceSize = np.floor(nDocTotal/maxWorker)
+    sliceSize = np.floor(nDocTotal / maxWorker)
 
     kwargs['scaleFactor'] = 1
     print 'FINDING PROBLEM SCALE WITH SPECIFIED DURATION...'
@@ -298,32 +313,34 @@ def getScaleFactorForTask(ShMem, fH=dict(), maxWorker=1, nDocTotal=0, **kwargs):
     kwargs['minSliceDuration'] = t
     return kwargs['scaleFactor']
 
+
 def initBenchmarkInfo(**kwargs):
     AllInfo = dict()
-    AllInfo['nWorker'] = np.asarray(\
+    AllInfo['nWorker'] = np.asarray(
         [float(x) for x in rangeFromString(kwargs['nWorker'])])
     for name in getMethodNames(**kwargs):
-      AllInfo['t_' + name] = np.zeros_like(AllInfo['nWorker'])
+        AllInfo['t_' + name] = np.zeros_like(AllInfo['nWorker'])
     return AllInfo
+
 
 def updateBenchmarkInfo(AllInfo, CurInfo, nRepeat, **kwargs):
     """ Aggregate information about different experiments into one dict.
     """
     for method in CurInfo:
-        tvec = np.asarray([\
+        tvec = np.asarray([
             CurInfo[method][r]['telapsed_wall'] for r in xrange(nRepeat)])
         key = 't_' + method
         loc = np.flatnonzero(AllInfo['nWorker'] == kwargs['nWorker'])
         AllInfo[key][loc] = np.median(tvec)
-    return AllInfo                
+    return AllInfo
 
 
 def runBenchmark(
-         JobQ, ResultQ,
-         ShMem,
-         method='serial',
-         nWorker=1, nTaskPerWorker=1,
-         **kwargs):
+        JobQ, ResultQ,
+        ShMem,
+        method='serial',
+        nWorker=1, nTaskPerWorker=1,
+        **kwargs):
     """ Run benchmark timing experiment for specific computation method.
     """
     nDoc = kwargs['nDocTotal']
@@ -332,22 +349,22 @@ def runBenchmark(
         t = workOnSlice(ShMem, None, None, **kwargs)
         ts.append(t)
     elif method == 'serial':
-        kwargs['nWorker'] = nWorker # scale work load by num workers
+        kwargs['nWorker'] = nWorker  # scale work load by num workers
         for start, stop in sliceGenerator(nDoc, nWorker, nTaskPerWorker):
             t = workOnSlice(ShMem, start, stop, **kwargs)
             ts.append(t)
     elif method == 'parallel':
-        kwargs['nWorker'] = nWorker # scale work load by num workers
+        kwargs['nWorker'] = nWorker  # scale work load by num workers
         for start, stop in sliceGenerator(nDoc, nWorker, nTaskPerWorker):
             JobQ.put((start, stop))
-        JobQ.join() # requires each worker to use task_done to unblock
+        JobQ.join()  # requires each worker to use task_done to unblock
         while not ResultQ.empty():
             t = ResultQ.get()
             ts.append(t)
     return ts
 
 
-def makeTitle(nDocTotal=0, nWorker=0, 
+def makeTitle(nDocTotal=0, nWorker=0,
               minSliceDuration=0,
               task='', memoryType='', scaleFactor=1.0, **kwargs):
     title = "nDoc=%d nWorker=%d\n" \
@@ -355,7 +372,7 @@ def makeTitle(nDocTotal=0, nWorker=0,
         + "minSliceDuration %s\n"\
         + "memoryType %s\n"\
         + "scaleFactor %s\n"
-    return title % (nDocTotal, nWorker, task, 
+    return title % (nDocTotal, nWorker, task,
                     minSliceDuration, memoryType, scaleFactor)
 
 

@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">construct_LP_with_comps_removed</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">construct_LP_with_comps_removed</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>construct_LP_with_comps_removed</h1>
+	  </div>
+
+          <p>7373 Calls, 1.41 s</p>
+	  <p>Generated 16:17:14 04/27/14 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/deletemove/DeleteMoveBagOfWords.py">/Users/mhughes/git/bnpy2/bnpy/deletemove/DeleteMoveBagOfWords.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line61">61</td>
+              <td><pre>@profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line62">62</td>
+              <td><pre>def construct_LP_with_comps_removed(Data, model, compIDs=0, LP=None,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line63">63</td>
+              <td><pre>                                    betamethod='current',</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line64">64</td>
+              <td><pre>                                    remBetaMaxFactor=1.1):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line65">65</td>
+              <td><pre>  ''' Create local params consistent with deleting component at compID.</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line66">66</td>
+              <td><pre>      Every field in returned dict LP will have scale consistent with Data.</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line67">67</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line68">68</td>
+              <td><pre>      Returns</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line69">69</td>
+              <td><pre>      -------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line70">70</td>
+              <td><pre>      LP : dict of local parameters</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line71">71</td>
+              <td><pre>  '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line72">72</td>
+              <td><pre>  if type(compIDs) == int:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line73">73</td>
+              <td><pre>    compIDs = [compIDs]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line74">74</td>
+              <td><pre>  assert type(compIDs) == list or type(compIDs) == np.ndarray</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line75">75</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line76">76</td>
+              <td><pre>  if LP is None:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line77">77</td>
+              <td><pre>    LP = model.calc_local_params(Data)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line78">78</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line79">79</td>
+              <td><pre>  nObs, K = LP['word_variational'].shape  </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line80">80</td>
+              <td><pre>  Knew = K - len(compIDs)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>73</td>
+              <td id="line81">81</td>
+              <td><pre>  Rnew = np.zeros((nObs, Knew))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line82">82</td>
+              <td><pre>  if len(compIDs) == 1:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line83">83</td>
+              <td><pre>    rvec = np.squeeze(LP['word_variational'][:,compIDs[0]])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line84">84</td>
+              <td><pre>    remComps = range(compIDs[0]) + range(compIDs[0] + 1, K)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line85">85</td>
+              <td><pre>    #Rnew[:, :compIDs[0]] = LP['word_variational'][:, :compIDs[0]]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line86">86</td>
+              <td><pre>    #Rnew[:, compIDs[0]:] = LP['word_variational'][:, compIDs[0]+1:]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line87">87</td>
+              <td><pre>  else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line88">88</td>
+              <td><pre>    rvec = LP['word_variational'][:, compIDs].sum(axis=1)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line89">89</td>
+              <td><pre>    remComps = [k for k in xrange(K) if k not in compIDs]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line90">90</td>
+              <td><pre>    </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line91">91</td>
+              <td><pre>  assert len(remComps) == Knew</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 0.67 s</td>
+              <td>73</td>
+              <td id="line92">92</td>
+              <td><pre>  Rnew[:] = LP['word_variational'][:, remComps]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line93">93</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line94">94</td>
+              <td><pre>  assert rvec.size == nObs</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line95">95</td>
+              <td><pre>  assert rvec.ndim == 1</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line96">96</td>
+              <td><pre>  #Rnew /= (1.0 - rvec)[:,np.newaxis]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.28 s</td>
+              <td>73</td>
+              <td id="line97">97</td>
+              <td><pre>  Rnew /= np.sum(Rnew, axis=1)[:,np.newaxis]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line98">98</td>
+              <td><pre>  </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.07 s</td>
+              <td>73</td>
+              <td id="line99">99</td>
+              <td><pre>  mask = np.abs(1.0 - np.sum(Rnew, axis=1)) > 1e-7</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line100">100</td>
+              <td><pre>  if np.sum(mask) > 0:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line101">101</td>
+              <td><pre>    Rnew[mask] = 1./Knew # fallback to </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line102">102</td>
+              <td><pre>    print 'NUM MANUALLY RESCUED:  %d/%d' % (np.sum(mask), mask.size)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.09 s</td>
+              <td>73</td>
+              <td id="line103">103</td>
+              <td><pre>  assert np.allclose(1.0, np.sum(Rnew, axis=1))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line104">104</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line105">105</td>
+              <td><pre>  newLP = dict()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line106">106</td>
+              <td><pre>  newLP['word_variational'] = Rnew</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line107">107</td>
+              <td><pre>  newLP['DocTopicCount'] = np.zeros((Data.nDoc, Knew))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>7373</td>
+              <td id="line108">108</td>
+              <td><pre>  for d in xrange(Data.nDoc):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>7300</td>
+              <td id="line109">109</td>
+              <td><pre>    start = Data.doc_range[d,0]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>7300</td>
+              <td id="line110">110</td>
+              <td><pre>    stop = Data.doc_range[d,1]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>7300</td>
+              <td id="line111">111</td>
+              <td><pre>    newLP['DocTopicCount'][d,:] = np.dot(</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>7300</td>
+              <td id="line112">112</td>
+              <td><pre>                                     Data.word_count[start:stop],        </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.12 s</td>
+              <td>7300</td>
+              <td id="line113">113</td>
+              <td><pre>                                     newLP['word_variational'][start:stop,:]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line114">114</td>
+              <td><pre>                                       )</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line115">115</td>
+              <td><pre>  # Estimate the active beta probabilities for remaining comps</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line116">116</td>
+              <td><pre>  remEbeta = model.allocModel.Ebeta[-1]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line117">117</td>
+              <td><pre>  if betamethod == 'current':</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line118">118</td>
+              <td><pre>    aEbeta = model.allocModel.Ebeta[:-1]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line119">119</td>
+              <td><pre>    aEbeta = aEbeta[remComps].copy()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line120">120</td>
+              <td><pre>  elif betamethod == 'prior':</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line121">121</td>
+              <td><pre>    Ev = 1.0/(1.0 + model.allocModel.alpha0)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line122">122</td>
+              <td><pre>    aEbeta = OptimHDP.v2beta(Ev * np.ones(Knew))[:-1]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line123">123</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line124">124</td>
+              <td><pre>  # Adjust active and remaining probability vectors, so that</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line125">125</td>
+              <td><pre>  #  * all sum together to equal unity</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line126">126</td>
+              <td><pre>  #  * "remaining" left-over mass does not exceed specified limit</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line127">127</td>
+              <td><pre>  assert aEbeta.size == Knew</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line128">128</td>
+              <td><pre>  remBeta = 1 - np.sum(aEbeta)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line129">129</td>
+              <td><pre>  if remBeta > remEbeta * remBetaMaxFactor:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line130">130</td>
+              <td><pre>    aEbeta *= (1.0 - remEbeta * remBetaMaxFactor)/aEbeta.sum()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line131">131</td>
+              <td><pre>    remBeta = 1 - np.sum(aEbeta)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line132">132</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line133">133</td>
+              <td><pre>  assert np.allclose(1.0, remBeta + np.sum(aEbeta))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line134">134</td>
+              <td><pre>  gamma = model.allocModel.gamma</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line135">135</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line136">136</td>
+              <td><pre>  newLP = LStep.update_theta(newLP, gamma*aEbeta, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line137">137</td>
+              <td><pre>                                    unusedTopicPrior=gamma*remBeta)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>73</td>
+              <td id="line138">138</td>
+              <td><pre>  newLP = LStep.update_ElogPi(newLP, gamma*remBeta)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line139">139</td>
+              <td><pre>  return newLP</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

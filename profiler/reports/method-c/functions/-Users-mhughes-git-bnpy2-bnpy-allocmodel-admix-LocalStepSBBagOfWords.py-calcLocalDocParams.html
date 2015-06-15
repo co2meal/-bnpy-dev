@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">calcLocalDocParams</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">calcLocalDocParams</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>calcLocalDocParams</h1>
+	  </div>
+
+          <p>2020 Calls, 42.87 s</p>
+	  <p>Generated 08:28:38 05/14/14 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix/LocalStepSBBagOfWords.py">/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix/LocalStepSBBagOfWords.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line11">11</td>
+              <td><pre>@profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line12">12</td>
+              <td><pre>def calcLocalDocParams(Data, LP, topicPrior1, topicPrior0, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line13">13</td>
+              <td><pre>                             nCoordAscentItersLP=20,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line14">14</td>
+              <td><pre>                             convThrLP=0.01,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line15">15</td>
+              <td><pre>                             methodLP='numpy',</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line16">16</td>
+              <td><pre>                             doUniformFirstTime=False, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line17">17</td>
+              <td><pre>                             **kwargs):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line18">18</td>
+              <td><pre>  ''' Calculate local paramters for all documents, given topic prior</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line19">19</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line20">20</td>
+              <td><pre>      Args</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line21">21</td>
+              <td><pre>      -------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line22">22</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line23">23</td>
+              <td><pre>      Returns </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line24">24</td>
+              <td><pre>      -------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line25">25</td>
+              <td><pre>      LP : dictionary with fields</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line26">26</td>
+              <td><pre>  '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>20</td>
+              <td id="line27">27</td>
+              <td><pre>  D = Data.nDoc</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>20</td>
+              <td id="line28">28</td>
+              <td><pre>  K = topicPrior1.size</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line29">29</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line30">30</td>
+              <td><pre>  # Precompute ONCE exp( E_logsoftev ), in-place</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>20</td>
+              <td id="line31">31</td>
+              <td><pre>  expEloglik = LP['E_logsoftev_WordsData']</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.70 s</td>
+              <td>20</td>
+              <td id="line32">32</td>
+              <td><pre>  expEloglik -= expEloglik.max(axis=1)[:,np.newaxis] </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 2.10 s</td>
+              <td>20</td>
+              <td id="line33">33</td>
+              <td><pre>  NumericUtil.inplaceExp(expEloglik)  </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>20</td>
+              <td id="line34">34</td>
+              <td><pre>  if methodLP != 'numpy':</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>20</td>
+              <td id="line35">35</td>
+              <td><pre>    if not np.isfortran(expEloglik):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 2.38 s</td>
+              <td>20</td>
+              <td id="line36">36</td>
+              <td><pre>      expEloglik = np.asfortranarray(expEloglik)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line37">37</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line38">38</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line39">39</td>
+              <td><pre>  ######## Allocate document-specific variables</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>20</td>
+              <td id="line40">40</td>
+              <td><pre>  docptr = np.hstack([0, Data.doc_range[:,1]])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>20</td>
+              <td id="line41">41</td>
+              <td><pre>  if 'DocTopicCount' in LP:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line42">42</td>
+              <td><pre>    doUniformFirstTime = False</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line43">43</td>
+              <td><pre>    # Update U1, U0</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line44">44</td>
+              <td><pre>    LP = update_U1U0_SB(LP, topicPrior1, topicPrior0)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line45">45</td>
+              <td><pre>    # Update expected value of log Pi[d,k]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.07 s</td>
+              <td>10</td>
+              <td id="line46">46</td>
+              <td><pre>    LP = update_ElogPi_SB(LP)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line47">47</td>
+              <td><pre>    if methodLP == 'numpy':</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line48">48</td>
+              <td><pre>      expElogpi = np.exp(LP['E_logPi'])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line49">49</td>
+              <td><pre>    else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line50">50</td>
+              <td><pre>      expElogpi = np.empty((D,K), order='F')</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line51">51</td>
+              <td><pre>      np.exp(LP['E_logPi'], out=expElogpi)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line52">52</td>
+              <td><pre>  else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line53">53</td>
+              <td><pre>    if methodLP == 'numpy':</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line54">54</td>
+              <td><pre>      LP['DocTopicCount'] = np.zeros((D, K))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line55">55</td>
+              <td><pre>      expElogpi = np.ones((D,K))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line56">56</td>
+              <td><pre>    else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line57">57</td>
+              <td><pre>      LP['DocTopicCount'] = np.zeros((D, K), order='F')</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line58">58</td>
+              <td><pre>      expElogpi = np.ones((D,K), order='F')</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>10</td>
+              <td id="line59">59</td>
+              <td><pre>    doUniformFirstTime = True</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line60">60</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line61">61</td>
+              <td><pre>  ######## Allocate token-specific variables</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line62">62</td>
+              <td><pre>  # sumRTilde : nDistinctWords vector. row n = \sum_{k} \tilde{r}_{nk} </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>20</td>
+              <td id="line63">63</td>
+              <td><pre>  sumRTilde = np.zeros(Data.nObs)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line64">64</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line65">65</td>
+              <td><pre>  ######## Repeat updates until old_theta has stopped changing ...</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>20</td>
+              <td id="line66">66</td>
+              <td><pre>  activeDocs = np.arange(D)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>20</td>
+              <td id="line67">67</td>
+              <td><pre>  old_DocTopicCount = LP['DocTopicCount'].copy()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line68">68</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2020</td>
+              <td id="line69">69</td>
+              <td><pre>  for ii in xrange(nCoordAscentItersLP):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line70">70</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line71">71</td>
+              <td><pre>    # Update expElogpi for active documents</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2000</td>
+              <td id="line72">72</td>
+              <td><pre>    if ii > 0:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.44 s</td>
+              <td>1980</td>
+              <td id="line73">73</td>
+              <td><pre>      expElogpi[activeDocs] = np.exp(LP['E_logPi'][activeDocs])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line74">74</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2000</td>
+              <td id="line75">75</td>
+              <td><pre>    sumRTilde, LP['DocTopicCount'] = LibLocalStep.calcDocTopicCount(</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2000</td>
+              <td id="line76">76</td>
+              <td><pre>                                       activeDocs, docptr,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2000</td>
+              <td id="line77">77</td>
+              <td><pre>                                       Data.word_count, expElogpi, expEloglik,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2000</td>
+              <td id="line78">78</td>
+              <td><pre>                                       sumRTilde, LP['DocTopicCount'],</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 20.31 s</td>
+              <td>2000</td>
+              <td id="line79">79</td>
+              <td><pre>                                       methodLP=methodLP,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line80">80</td>
+              <td><pre>                                     )</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line81">81</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line82">82</td>
+              <td><pre>    # Update U1, U0</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.89 s</td>
+              <td>2000</td>
+              <td id="line83">83</td>
+              <td><pre>    LP = update_U1U0_SB(LP, topicPrior1, topicPrior0)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line84">84</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line85">85</td>
+              <td><pre>    # Update expected value of log Pi[d,k]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 14.01 s</td>
+              <td>2000</td>
+              <td id="line86">86</td>
+              <td><pre>    LP = update_ElogPi_SB(LP)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line87">87</td>
+              <td><pre>    </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line88">88</td>
+              <td><pre>    # Assess convergence</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.63 s</td>
+              <td>2000</td>
+              <td id="line89">89</td>
+              <td><pre>    docDiffs = np.max(np.abs(old_DocTopicCount - LP['DocTopicCount']), axis=1)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.05 s</td>
+              <td>2000</td>
+              <td id="line90">90</td>
+              <td><pre>    if np.max(docDiffs) < convThrLP:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line91">91</td>
+              <td><pre>      break</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.04 s</td>
+              <td>2000</td>
+              <td id="line92">92</td>
+              <td><pre>    activeDocs = np.flatnonzero(docDiffs > convThrLP)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line93">93</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line94">94</td>
+              <td><pre>    # Store DocTopicCount for next round's convergence test</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line95">95</td>
+              <td><pre>    # Here, the "[:]" syntax ensures we do NOT copy the pointer</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.10 s</td>
+              <td>2000</td>
+              <td id="line96">96</td>
+              <td><pre>    old_DocTopicCount[:] = LP['DocTopicCount']</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line97">97</td>
+              <td><pre>    ### end loop over alternating-ascent updates</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line98">98</td>
+              <td><pre>  </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>20</td>
+              <td id="line99">99</td>
+              <td><pre>  LP['sumRTilde'] = sumRTilde</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>20</td>
+              <td id="line100">100</td>
+              <td><pre>  LP['expElogpi'] = expElogpi</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>20</td>
+              <td id="line101">101</td>
+              <td><pre>  LP['expEloglik'] = expEloglik</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.09 s</td>
+              <td>20</td>
+              <td id="line102">102</td>
+              <td><pre>  del LP['E_logsoftev_WordsData']</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>20</td>
+              <td id="line103">103</td>
+              <td><pre>  return LP</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

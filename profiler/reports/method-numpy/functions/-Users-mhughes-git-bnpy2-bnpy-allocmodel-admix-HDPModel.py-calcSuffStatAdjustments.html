@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">calcSuffStatAdjustments</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">calcSuffStatAdjustments</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>calcSuffStatAdjustments</h1>
+	  </div>
+
+          <p>97 Calls, 0.01 s</p>
+	  <p>Generated 16:17:14 04/27/14 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix/HDPModel.py">/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix/HDPModel.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line219">219</td>
+              <td><pre> @profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line220">220</td>
+              <td><pre> def calcSuffStatAdjustments(self, SS, Kextra):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line221">221</td>
+              <td><pre>   '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line222">222</td>
+              <td><pre>       Returns</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line223">223</td>
+              <td><pre>       -------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line224">224</td>
+              <td><pre>       AdjustInfo</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line225">225</td>
+              <td><pre>       ReplaceInfo</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line226">226</td>
+              <td><pre>   ''' </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line227">227</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line228">228</td>
+              <td><pre>   AdjustInfo = dict()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line229">229</td>
+              <td><pre>   ReplaceInfo = dict()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line230">230</td>
+              <td><pre>   Korig = SS.K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line231">231</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line232">232</td>
+              <td><pre>   ## Calculate corrected theta terms for new components K+1,K+2,... K+Kfresh</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line233">233</td>
+              <td><pre>   ## Essentially, divide up the existing "left-over" mass among Kfresh comps</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line234">234</td>
+              <td><pre>   ##   using the stick-breaking prior as the division procedure</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line235">235</td>
+              <td><pre>   remEbeta = float(self.Ebeta[-1])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line236">236</td>
+              <td><pre>   newEbeta = np.zeros(Kextra)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>97</td>
+              <td id="line237">237</td>
+              <td><pre>   for k in xrange(Kextra):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>76</td>
+              <td id="line238">238</td>
+              <td><pre>     newEbeta[k] = 1.0/(1.0+self.alpha0) * remEbeta</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>76</td>
+              <td id="line239">239</td>
+              <td><pre>     remEbeta = remEbeta - newEbeta[k]</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line240">240</td>
+              <td><pre>   assert np.allclose(np.sum(newEbeta) + remEbeta, self.Ebeta[-1])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line241">241</td>
+              <td><pre>   newTheta = self.gamma * newEbeta</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line242">242</td>
+              <td><pre>   newTheta_u = self.gamma * remEbeta</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line243">243</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line244">244</td>
+              <td><pre>   ## Determine "adjustment" that will occur for each SS field</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line245">245</td>
+              <td><pre>   ##   on a per-document basis document </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line246">246</td>
+              <td><pre>   ##   to create a sensible expanded theta parameter</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line247">247</td>
+              <td><pre>   nDoc = SS.nDoc</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line248">248</td>
+              <td><pre>   sumDigammaSumTheta = SS.sumDigammaSumTheta</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line249">249</td>
+              <td><pre>   AdjustInfo['sumLogPiActive'] = np.zeros(SS.K + Kextra)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line250">250</td>
+              <td><pre>   AdjustInfo['sumLogPiActive'][-Kextra:] = digamma(newTheta) \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line251">251</td>
+              <td><pre>                                             - sumDigammaSumTheta / nDoc</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line252">252</td>
+              <td><pre>   ReplaceInfo['sumLogPiUnused'] = digamma(newTheta_u) \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line253">253</td>
+              <td><pre>                                             - sumDigammaSumTheta / nDoc</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line254">254</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line255">255</td>
+              <td><pre>   # Calculate adjustments to ELBO terms</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line256">256</td>
+              <td><pre>   avgDigammaSumTheta = sumDigammaSumTheta / nDoc</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line257">257</td>
+              <td><pre>   qPiActive = (newTheta - 1) * (digamma(newTheta) - avgDigammaSumTheta) \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line258">258</td>
+              <td><pre>               - gammaln(newTheta)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line259">259</td>
+              <td><pre>   AdjustInfo['ElogqPiActive'] = np.hstack([np.zeros(Korig), qPiActive])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line260">260</td>
+              <td><pre>   qPiUnused = (newTheta_u - 1) * (digamma(newTheta_u) - avgDigammaSumTheta) \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line261">261</td>
+              <td><pre>               - gammaln(newTheta_u)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line262">262</td>
+              <td><pre>   ReplaceInfo['ElogqPiUnused'] = qPiUnused</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line263">263</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line264">264</td>
+              <td><pre>   return AdjustInfo, ReplaceInfo</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

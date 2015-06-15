@@ -13,12 +13,12 @@ class Test(MergeMoveEndToEndTest):
         """ Create the dataset
         """
         self.datasetArg = dict(
-            name='StarCovarK5', 
+            name='StarCovarK5',
             nObsTotal=10000,
-            )
+        )
         datasetMod = __import__(self.datasetArg['name'], fromlist=[])
         self.Data = datasetMod.get_data(**self.datasetArg)
-        
+
     def nextObsKwArgsForVB(self):
         for sF in [0.5]:
             for ECovMat in ['covdata']:

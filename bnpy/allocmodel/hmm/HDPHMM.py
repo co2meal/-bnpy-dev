@@ -15,7 +15,9 @@ from bnpy.util import sharedMemToNumpyArray, numpyToSharedMemArray
 
 Log = logging.getLogger('bnpy')
 
+
 class HDPHMM(AllocModel):
+
     """ Hierarchical Dirichlet process Hidden Markov model (HDP-HMM)
 
     Truncated to finite number of K active states.
@@ -50,6 +52,7 @@ class HDPHMM(AllocModel):
     respPair : 3D array, T x K x K
         q(z_t=k, z_t-1=j) = respPair[t,j,k]
     """
+
     def __init__(self, inferType, priorDict=dict()):
         if inferType == 'EM':
             raise ValueError('EM is not supported for HDPHMM')
@@ -59,7 +62,7 @@ class HDPHMM(AllocModel):
         self.K = 0
 
     def set_prior(self, gamma=10, alpha=0.5,
-                  startAlpha=5.0, hmmKappa=0.0, 
+                  startAlpha=5.0, hmmKappa=0.0,
                   nGlobalIters=1, nGlobalItersBigChange=10, **kwargs):
         self.gamma = gamma
         self.alpha = alpha
@@ -76,7 +79,8 @@ class HDPHMM(AllocModel):
     def get_init_prob_vector(self):
         ''' Get vector of initial probabilities for all K active states
         '''
-        expELogPi0 = digamma(self.startTheta) - digamma(np.sum(self.startTheta))
+        expELogPi0 = digamma(
+            self.startTheta) - digamma(np.sum(self.startTheta))
         np.exp(expELogPi0, out=expELogPi0)
         return expELogPi0[0:self.K]
 
@@ -104,11 +108,10 @@ class HDPHMM(AllocModel):
         -------
         LP : dict of local parameters.
         '''
-        return HMMUtil.calcLocalParams(Data, LP, 
-            transTheta=self.transTheta,
-            startTheta=self.startTheta,
-            **kwargs)
-
+        return HMMUtil.calcLocalParams(Data, LP,
+                                       transTheta=self.transTheta,
+                                       startTheta=self.startTheta,
+                                       **kwargs)
 
     def initLPFromResp(self, Data, LP, limitMemoryLP=1):
         ''' Fill in remaining local parameters given resp.
@@ -286,7 +289,6 @@ class HDPHMM(AllocModel):
             # Small change required. Current rho is good initialization.
             nGlobalIters = self.nGlobalIters
 
-        
         # Special update case for merges:
         # Fast, heuristic update for new rho given original value
         if mergeCompA is not None:
@@ -307,7 +309,6 @@ class HDPHMM(AllocModel):
             self.rho, self.omega = self.find_optimum_rhoOmega(**kwargs)
             # Update theta again to reflect the new rho, omega
             self.transTheta, self.startTheta = self._calcTheta(SS)
-
 
     def update_global_params_soVB(self, SS, rho, **kwargs):
         ''' Updates global parameters when learning with stochastic online VB.
@@ -451,12 +452,12 @@ class HDPHMM(AllocModel):
         L : float
         '''
         assert hasattr(self, 'rho')
-        return calcELBO(Data=Data, SS=SS, LP=LP, 
-            startAlpha=self.startAlpha, alpha=self.alpha, 
-            kappa=self.kappa, gamma=self.gamma,
-            rho=self.rho, omega=self.omega,
-            transTheta=self.transTheta, startTheta=self.startTheta,
-            todict=todict, **kwargs)
+        return calcELBO(Data=Data, SS=SS, LP=LP,
+                        startAlpha=self.startAlpha, alpha=self.alpha,
+                        kappa=self.kappa, gamma=self.gamma,
+                        rho=self.rho, omega=self.omega,
+                        transTheta=self.transTheta, startTheta=self.startTheta,
+                        todict=todict, **kwargs)
 
     def calcELBO_LinearTerms(self, **kwargs):
         ''' Compute sum of ELBO terms that are linear/const wrt suff stats
@@ -466,7 +467,7 @@ class HDPHMM(AllocModel):
         L : float
         '''
         return calcELBO_LinearTerms(
-            startAlpha=self.startAlpha, alpha=self.alpha, 
+            startAlpha=self.startAlpha, alpha=self.alpha,
             kappa=self.kappa, gamma=self.gamma,
             rho=self.rho, omega=self.omega,
             transTheta=self.transTheta, startTheta=self.startTheta,
@@ -480,7 +481,6 @@ class HDPHMM(AllocModel):
         L : float
         '''
         return calcELBO_NonlinearTerms(**kwargs)
-
 
     def calcHardMergeGap(self, SS, kA, kB):
         ''' Calculate scalar improvement in ELBO for hard merge of comps kA, kB
@@ -518,16 +518,16 @@ class HDPHMM(AllocModel):
         m_transTheta[:, :m_K] += m_SS.TransStateCount
 
         # Evaluate objective func. for both candidate and current model
-        Lcur = calcELBO_LinearTerms(SS=SS,
-            rho=self.rho, omega=self.omega, 
+        Lcur = calcELBO_LinearTerms(
+            SS=SS, rho=self.rho, omega=self.omega,
             startTheta=self.startTheta, transTheta=self.transTheta,
-            alpha=self.alpha, startAlpha=self.startAlpha, 
+            alpha=self.alpha, startAlpha=self.startAlpha,
             gamma=self.gamma, kappa=self.kappa)
 
-        Lprop = calcELBO_LinearTerms(SS=m_SS,
-            rho=m_rho, omega=m_omega,
+        Lprop = calcELBO_LinearTerms(
+            SS=m_SS, rho=m_rho, omega=m_omega,
             startTheta=m_startTheta, transTheta=m_transTheta,
-            alpha=self.alpha, startAlpha=self.startAlpha, 
+            alpha=self.alpha, startAlpha=self.startAlpha,
             gamma=self.gamma, kappa=self.kappa)
 
         # Note: This gap relies on fact that all nonlinear terms are entropies,
@@ -551,7 +551,7 @@ class HDPHMM(AllocModel):
         return Gaps
 
     def to_dict(self):
-        return dict(transTheta=self.transTheta, 
+        return dict(transTheta=self.transTheta,
                     startTheta=self.startTheta,
                     omega=self.omega, rho=self.rho)
 
@@ -567,8 +567,6 @@ class HDPHMM(AllocModel):
         return dict(gamma=self.gamma, alpha=self.alpha, K=self.K,
                     hmmKappa=self.kappa, startAlpha=self.startAlpha)
 
-
-
     def getSerializableParamsForLocalStep(self):
         """ Get compact dict of params for parallel local step.
 
@@ -576,11 +574,11 @@ class HDPHMM(AllocModel):
         -------
         Info : dict
         """
-        return dict(inferType=self.inferType, 
+        return dict(inferType=self.inferType,
                     K=self.K)
 
     def fillSharedMemDictForLocalStep(self, ShMem=None):
-        """ Get dict of shared mem arrays needed for parallel local step. 
+        """ Get dict of shared mem arrays needed for parallel local step.
 
         Returns
         -------
@@ -589,17 +587,17 @@ class HDPHMM(AllocModel):
         # No shared memory required here.
         if not isinstance(ShMem, dict):
             ShMem = dict()
-        
+
         K = self.K
         if 'startTheta' in ShMem:
             shared_startTheta = sharedMemToNumpyArray(ShMem['startTheta'])
             assert shared_startTheta.size >= K + 1
-            shared_startTheta[:K+1] = self.startTheta
+            shared_startTheta[:K + 1] = self.startTheta
 
             shared_transTheta = sharedMemToNumpyArray(ShMem['transTheta'])
             assert shared_transTheta.shape[0] >= K
             assert shared_transTheta.shape[1] >= K + 1
-            shared_transTheta[:K, :K+1] = self.transTheta
+            shared_transTheta[:K, :K + 1] = self.transTheta
         else:
             ShMem['startTheta'] = numpyToSharedMemArray(self.startTheta)
             ShMem['transTheta'] = numpyToSharedMemArray(self.transTheta)
@@ -619,12 +617,12 @@ class HDPHMM(AllocModel):
     # .... end class HDPHMM
 
 
-def calcSummaryStats(Data, LP, 
-        doPrecompEntropy=0,
-        doPrecompMergeEntropy=0,
-        mPairIDs=None,
-        trackDocUsage=0,
-        **kwargs):
+def calcSummaryStats(Data, LP,
+                     doPrecompEntropy=0,
+                     doPrecompMergeEntropy=0,
+                     mPairIDs=None,
+                     trackDocUsage=0,
+                     **kwargs):
     ''' Calculate summary statistics for given data slice and local params.
 
     Returns
@@ -657,8 +655,8 @@ def calcSummaryStats(Data, LP,
     if doPrecompEntropy or 'Htable' in LP:
         # Compute entropy terms!
         # 'Htable', 'Hstart' will both be in Mdict
-        Mdict = calcELBO_NonlinearTerms(Data=Data, 
-            LP=LP, returnMemoizedDict=1)
+        Mdict = calcELBO_NonlinearTerms(Data=Data,
+                                        LP=LP, returnMemoizedDict=1)
         SS.setELBOTerm('Htable', Mdict['Htable'], dims=('K', 'K'))
         SS.setELBOTerm('Hstart', Mdict['Hstart'], dims=('K'))
 
@@ -668,7 +666,6 @@ def calcSummaryStats(Data, LP,
         SS.setMergeTerm('Hstart', subHstart, dims=('M'))
         SS.setMergeTerm('Htable', subHtable, dims=('M', 2, 'K'))
         SS.mPairIDs = np.asarray(mPairIDs)
-
 
     if trackDocUsage:
         # Track how often topic appears in a seq. with mass > thresh.

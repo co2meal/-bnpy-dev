@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">calcContigBlocksFromZ</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">calcContigBlocksFromZ</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>calcContigBlocksFromZ</h1>
+	  </div>
+
+          <p>352 Calls, 0.04 s</p>
+	  <p>Generated 10:48:23 05/30/15 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/util/StateSeqUtil.py">/Users/mhughes/git/bnpy2/bnpy/util/StateSeqUtil.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line212">212</td>
+              <td class="code "><div class="code-listing"><pre>@profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line213">213</td>
+              <td class="code "><div class="code-listing"><pre>def calcContigBlocksFromZ(Zvec, returnStates=False):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line214">214</td>
+              <td class="code "><div class="code-listing"><pre>    ''' Identify contig blocks assigned to one state in Zvec</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line215">215</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line216">216</td>
+              <td class="code "><div class="code-listing"><pre>    Examples</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line217">217</td>
+              <td class="code "><div class="code-listing"><pre>    --------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line218">218</td>
+              <td class="code "><div class="code-listing"><pre>    >>> calcContigBlocksFromZ([0,0,0,0])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line219">219</td>
+              <td class="code "><div class="code-listing"><pre>    (array([ 4.]), array([ 0.]))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line220">220</td>
+              <td class="code "><div class="code-listing"><pre>    >>> calcContigBlocksFromZ([0,0,0,1,1])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line221">221</td>
+              <td class="code "><div class="code-listing"><pre>    (array([ 3.,  2.]), array([ 0.,  3.]))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line222">222</td>
+              <td class="code "><div class="code-listing"><pre>    >>> calcContigBlocksFromZ([0,1,0])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line223">223</td>
+              <td class="code "><div class="code-listing"><pre>    (array([ 1.,  1.,  1.]), array([ 0.,  1.,  2.]))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line224">224</td>
+              <td class="code "><div class="code-listing"><pre>    >>> calcContigBlocksFromZ([0,1,1])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line225">225</td>
+              <td class="code "><div class="code-listing"><pre>    (array([ 1.,  2.]), array([ 0.,  1.]))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line226">226</td>
+              <td class="code "><div class="code-listing"><pre>    >>> calcContigBlocksFromZ([6,6,5])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line227">227</td>
+              <td class="code "><div class="code-listing"><pre>    (array([ 2.,  1.]), array([ 0.,  2.]))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line228">228</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line229">229</td>
+              <td class="code "><div class="code-listing"><pre>    Returns</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line230">230</td>
+              <td class="code "><div class="code-listing"><pre>    -------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line231">231</td>
+              <td class="code "><div class="code-listing"><pre>    blockStarts : 1D array of size B</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line232">232</td>
+              <td class="code "><div class="code-listing"><pre>    blockSizes : 1D array of size B</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line233">233</td>
+              <td class="code "><div class="code-listing"><pre>    '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>352</td>
+              <td id="line234">234</td>
+              <td class="code "><div class="code-listing"><pre>    changePts = np.asarray(np.hstack([0, </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>352</td>
+              <td id="line235">235</td>
+              <td class="code "><div class="code-listing"><pre>        1+np.flatnonzero(np.diff(Zvec)),</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 0.02 s</td>
+              <td>352</td>
+              <td id="line236">236</td>
+              <td class="code danger"><div class="code-listing"><pre>        len(Zvec)]), dtype=np.float64)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>352</td>
+              <td id="line237">237</td>
+              <td class="code "><div class="code-listing"><pre>    assert len(changePts) >= 2</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>352</td>
+              <td id="line238">238</td>
+              <td class="code "><div class="code-listing"><pre>    chPtA = changePts[1:]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>352</td>
+              <td id="line239">239</td>
+              <td class="code "><div class="code-listing"><pre>    chPtB = changePts[:-1]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>352</td>
+              <td id="line240">240</td>
+              <td class="code "><div class="code-listing"><pre>    blockSizes = chPtA - chPtB</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>352</td>
+              <td id="line241">241</td>
+              <td class="code "><div class="code-listing"><pre>    blockStarts = np.asarray(changePts[:-1], dtype=np.float64)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>352</td>
+              <td id="line242">242</td>
+              <td class="code "><div class="code-listing"><pre>    if returnStates:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>352</td>
+              <td id="line243">243</td>
+              <td class="code "><div class="code-listing"><pre>        return blockSizes, blockStarts, Zvec[np.int32(blockStarts)].copy()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line244">244</td>
+              <td class="code "><div class="code-listing"><pre>    return blockSizes, blockStarts</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

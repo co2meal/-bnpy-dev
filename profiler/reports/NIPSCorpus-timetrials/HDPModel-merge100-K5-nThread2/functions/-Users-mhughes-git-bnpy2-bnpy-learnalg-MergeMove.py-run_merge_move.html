@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">run_merge_move</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">run_merge_move</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>run_merge_move</h1>
+	  </div>
+
+          <p>3 Calls, 0.15 s</p>
+	  <p>Generated 14:41:07 03/07/14 EST</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/learnalg/MergeMove.py">/Users/mhughes/git/bnpy2/bnpy/learnalg/MergeMove.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line130">130</td>
+              <td><pre>@profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line131">131</td>
+              <td><pre>def run_merge_move(curModel, Data, SS=None, curEv=None, doVizMerge=False,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line132">132</td>
+              <td><pre>                   kA=None, kB=None, MTracker=None, MSelector=None,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line133">133</td>
+              <td><pre>                   mergename='marglik', randstate=np.random.RandomState(),</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line134">134</td>
+              <td><pre>                   doUpdateAllComps=0, savedir=None, doVerbose=False, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line135">135</td>
+              <td><pre>                   doWriteLog=False, **kwargs):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line136">136</td>
+              <td><pre>  ''' Creates candidate model with two components merged,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line137">137</td>
+              <td><pre>      and returns either candidate or current model,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line138">138</td>
+              <td><pre>      whichever has higher log probability (ELBO).</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line139">139</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line140">140</td>
+              <td><pre>      Args</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line141">141</td>
+              <td><pre>      --------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line142">142</td>
+              <td><pre>       curModel : bnpy model whose components will be merged</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line143">143</td>
+              <td><pre>       Data : bnpy Data object </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line144">144</td>
+              <td><pre>       SS : bnpy SuffStatDict object for Data under curModel</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line145">145</td>
+              <td><pre>            must contain precomputed merge entropy in order to try a merge.</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line146">146</td>
+              <td><pre>       curEv : current evidence bound, provided to save re-computation.</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line147">147</td>
+              <td><pre>                curEv = curModel.calc_evidence(SS=SS)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line148">148</td>
+              <td><pre>       kA, kB : (optional) integer ids for which specific components to merge</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line149">149</td>
+              <td><pre>       excludeList : (optional) list of integer ids excluded when selecting</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line150">150</td>
+              <td><pre>                      which components to merge. useful when doing multiple </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line151">151</td>
+              <td><pre>                      rounds of merges, since precomputed merge terms are </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line152">152</td>
+              <td><pre>                      valid for one merge only.</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line153">153</td>
+              <td><pre>      Returns</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line154">154</td>
+              <td><pre>      --------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line155">155</td>
+              <td><pre>      hmodel, SS, evBound, MoveInfo</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line156">156</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line157">157</td>
+              <td><pre>      hmodel := candidate or current model (bnpy HModel object)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line158">158</td>
+              <td><pre>      SS := suff stats for Data under hmodel</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line159">159</td>
+              <td><pre>      evBound := log evidence (ELBO) of Data under hmodel</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line160">160</td>
+              <td><pre>      MoveInfo := dict of info about this merge move, with fields</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line161">161</td>
+              <td><pre>            didAccept := boolean flag, true if candidate accepted</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line162">162</td>
+              <td><pre>            msg := human-readable string about this move</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line163">163</td>
+              <td><pre>            kA, kB := indices of the components to be merged.</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line164">164</td>
+              <td><pre>  ''' </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line165">165</td>
+              <td><pre>  if SS is None:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line166">166</td>
+              <td><pre>    LP = curModel.calc_local_params(Data)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line167">167</td>
+              <td><pre>    SS = curModel.get_global_suff_stats(Data, LP,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line168">168</td>
+              <td><pre>                                        doPrecompEntropy=True,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line169">169</td>
+              <td><pre>                                        doPrecompMerge=True)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line170">170</td>
+              <td><pre>  if curEv is None:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line171">171</td>
+              <td><pre>    curEv = curModel.calc_evidence(SS=SS)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line172">172</td>
+              <td><pre>  if MTracker is None:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line173">173</td>
+              <td><pre>    MTracker = MergeTracker(SS.K)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line174">174</td>
+              <td><pre>  if MSelector is None:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line175">175</td>
+              <td><pre>    MSelector = MergePairSelector()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line176">176</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line177">177</td>
+              <td><pre>  # Need at least two components to merge!</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line178">178</td>
+              <td><pre>  if curModel.allocModel.K == 1:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line179">179</td>
+              <td><pre>    MoveInfo = dict(didAccept=0, msg="need >= 2 comps to merge")    </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line180">180</td>
+              <td><pre>    return curModel, SS, curEv, MoveInfo  </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line181">181</td>
+              <td><pre>  </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line182">182</td>
+              <td><pre>  if not SS.hasMergeTerms() and curModel.allocModel.requireMergeTerms():</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line183">183</td>
+              <td><pre>    MoveInfo = dict(didAccept=0, msg="suff stats did not have merge terms")    </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line184">184</td>
+              <td><pre>    return curModel, SS, curEv, MoveInfo</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line185">185</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line186">186</td>
+              <td><pre>  if kA is not None and kA not in MTracker.getAvailableComps():</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line187">187</td>
+              <td><pre>    MoveInfo = dict(didAccept=0, msg="target comp kA must be excluded.")    </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line188">188</td>
+              <td><pre>    return curModel, SS, curEv, MoveInfo  </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line189">189</td>
+              <td><pre>    </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line190">190</td>
+              <td><pre>  # Select which 2 components kA, kB in {1, 2, ... K} to merge</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line191">191</td>
+              <td><pre>  if kA is None or kB is None:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line192">192</td>
+              <td><pre>    kA, kB = select_merge_components(curModel, Data, SS,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line193">193</td>
+              <td><pre>                                     kA=kA, MTracker=MTracker,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line194">194</td>
+              <td><pre>                                     MSelector=MSelector,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line195">195</td>
+              <td><pre>                                     mergename=mergename, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line196">196</td>
+              <td><pre>                                     randstate=randstate)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line197">197</td>
+              <td><pre>  # Create candidate merged model</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 0.14 s</td>
+              <td>3</td>
+              <td id="line198">198</td>
+              <td><pre>  propModel, propSS = propose_merge_candidate(curModel, SS, kA, kB, doUpdateAllComps=doUpdateAllComps)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line199">199</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line200">200</td>
+              <td><pre>  # Decide whether to accept the merge</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line201">201</td>
+              <td><pre>  propEv = propModel.calc_evidence(SS=propSS)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line202">202</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line203">203</td>
+              <td><pre>  if np.isnan(propEv) or np.isinf(propEv):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line204">204</td>
+              <td><pre>    raise ValueError('propEv should never be nan/inf')</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line205">205</td>
+              <td><pre>    </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line206">206</td>
+              <td><pre>  if doVizMerge:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line207">207</td>
+              <td><pre>    viz_merge_proposal(curModel, propModel, kA, kB, curEv, propEv)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line208">208</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line209">209</td>
+              <td><pre>  evDiff = propEv - curEv</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line210">210</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line211">211</td>
+              <td><pre>  </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line212">212</td>
+              <td><pre>  if (propEv > 0 and curEv < 0) and hasattr(Data, 'nDoc'):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line213">213</td>
+              <td><pre>    print 'CRAP! ---------------------------------------!!!!@@@@@@$$$$$'</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line214">214</td>
+              <td><pre>    print '    propEv % .5e' % (propEv)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line215">215</td>
+              <td><pre>    print '    curEv  % .5e' % (curEv)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line216">216</td>
+              <td><pre>    MoveInfo = dict(didAccept=0, kA=kA, kB=kB, msg="CRAP. bad proposed evidence.")</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line217">217</td>
+              <td><pre>    return curModel, SS, curEv, MoveInfo</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line218">218</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line219">219</td>
+              <td><pre>  if propEv >= curEv:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line220">220</td>
+              <td><pre>    MSelector.reindexAfterMerge(kA, kB)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line221">221</td>
+              <td><pre>    msg = "merge %3d & %3d | ev +%.3e ****" % (kA, kB, propEv - curEv)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line222">222</td>
+              <td><pre>    MoveInfo = dict(didAccept=1, kA=kA, kB=kB, msg=msg, evDiff=evDiff)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line223">223</td>
+              <td><pre>    if doWriteLog:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line224">224</td>
+              <td><pre>      log_merge_move(MoveInfo, MSelector, curModel, SS, savedir)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line225">225</td>
+              <td><pre>    return propModel, propSS, propEv, MoveInfo</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line226">226</td>
+              <td><pre>  else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line227">227</td>
+              <td><pre>    msg = "merge %3d & %3d | ev -%.3e" % (kA, kB, curEv - propEv)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line228">228</td>
+              <td><pre>    MoveInfo = dict(didAccept=0, kA=kA, kB=kB, msg=msg, evDiff=evDiff)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line229">229</td>
+              <td><pre>    if doWriteLog:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line230">230</td>
+              <td><pre>      log_merge_move(MoveInfo, MSelector, curModel, SS, savedir)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line231">231</td>
+              <td><pre>    return curModel, SS, curEv, MoveInfo</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

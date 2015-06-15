@@ -135,8 +135,8 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
             else:
                 suffix = '.txt'
             laps = np.loadtxt(
-                os.path.join(taskoutpath, prefix+'-lapTrain' + suffix))
-            Ks = np.loadtxt(os.path.join(taskoutpath, prefix+'-K' + suffix))
+                os.path.join(taskoutpath, prefix + '-lapTrain' + suffix))
+            Ks = np.loadtxt(os.path.join(taskoutpath, prefix + '-K' + suffix))
             if xvar == 'laps':
                 xs = laps
             else:

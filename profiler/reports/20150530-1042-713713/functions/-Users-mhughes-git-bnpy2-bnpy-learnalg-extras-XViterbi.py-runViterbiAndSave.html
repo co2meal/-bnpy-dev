@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">runViterbiAndSave</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">runViterbiAndSave</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>runViterbiAndSave</h1>
+	  </div>
+
+          <p>231 Calls, 30.86 s</p>
+	  <p>Generated 10:48:22 05/30/15 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/learnalg/extras/XViterbi.py">/Users/mhughes/git/bnpy2/bnpy/learnalg/extras/XViterbi.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line68">68</td>
+              <td class="code "><div class="code-listing"><pre>@profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line69">69</td>
+              <td class="code "><div class="code-listing"><pre>def runViterbiAndSave(**kwargs):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line70">70</td>
+              <td class="code "><div class="code-listing"><pre>    ''' Run viterbi alg on each sequence in dataset, and save to file.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line71">71</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line72">72</td>
+              <td class="code "><div class="code-listing"><pre>    Keyword Args (all workspace variables passed along from learning alg)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line73">73</td>
+              <td class="code "><div class="code-listing"><pre>    -------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line74">74</td>
+              <td class="code "><div class="code-listing"><pre>    hmodel : current HModel object</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line75">75</td>
+              <td class="code "><div class="code-listing"><pre>    Data : current Data object, representing *entire* dataset (not just one chunk)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line76">76</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line77">77</td>
+              <td class="code "><div class="code-listing"><pre>    Returns</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line78">78</td>
+              <td class="code "><div class="code-listing"><pre>    -------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line79">79</td>
+              <td class="code "><div class="code-listing"><pre>    None. MAP state sequences are saved to a MAT file.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line80">80</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line81">81</td>
+              <td class="code "><div class="code-listing"><pre>    Output</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line82">82</td>
+              <td class="code "><div class="code-listing"><pre>    -------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line83">83</td>
+              <td class="code "><div class="code-listing"><pre>    MATfile format: Lap0020.000MAPStateSeqs.mat</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line84">84</td>
+              <td class="code "><div class="code-listing"><pre>    '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line85">85</td>
+              <td class="code "><div class="code-listing"><pre>    if 'Data' in kwargs:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line86">86</td>
+              <td class="code "><div class="code-listing"><pre>        Data = kwargs['Data']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line87">87</td>
+              <td class="code "><div class="code-listing"><pre>    elif 'DataIterator' in kwargs:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line88">88</td>
+              <td class="code "><div class="code-listing"><pre>        try:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line89">89</td>
+              <td class="code "><div class="code-listing"><pre>            Data = kwargs['DataIterator'].Data</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line90">90</td>
+              <td class="code "><div class="code-listing"><pre>        except AttributeError:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line91">91</td>
+              <td class="code "><div class="code-listing"><pre>            from bnpy.data.DataIteratorFromDisk import loadDataForSlice</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line92">92</td>
+              <td class="code "><div class="code-listing"><pre>            Dinfo = kwargs['DataIterator'].DataInfo</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line93">93</td>
+              <td class="code "><div class="code-listing"><pre>            if 'evalDataPath' in Dinfo:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line94">94</td>
+              <td class="code "><div class="code-listing"><pre>                path = os.path.expandvars(Dinfo['evalDataPath'])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line95">95</td>
+              <td class="code "><div class="code-listing"><pre>                Data = loadDataForSlice(path, **Dinfo)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line96">96</td>
+              <td class="code "><div class="code-listing"><pre>            else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line97">97</td>
+              <td class="code "><div class="code-listing"><pre>                raise ValueError('DataIterator has no attribute Data')</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line98">98</td>
+              <td class="code "><div class="code-listing"><pre>    else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line99">99</td>
+              <td class="code "><div class="code-listing"><pre>        return None</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line100">100</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line101">101</td>
+              <td class="code "><div class="code-listing"><pre>    if 'savedir' in kwargs:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line102">102</td>
+              <td class="code "><div class="code-listing"><pre>        savedir = kwargs['savedir']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line103">103</td>
+              <td class="code "><div class="code-listing"><pre>    elif 'learnAlg' in kwargs:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line104">104</td>
+              <td class="code "><div class="code-listing"><pre>        learnAlgObj = kwargs['learnAlg']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line105">105</td>
+              <td class="code "><div class="code-listing"><pre>        savedir = learnAlgObj.savedir</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line106">106</td>
+              <td class="code "><div class="code-listing"><pre>    hmodel = kwargs['hmodel']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line107">107</td>
+              <td class="code "><div class="code-listing"><pre>    lapFrac = kwargs['lapFrac']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line108">108</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line109">109</td>
+              <td class="code "><div class="code-listing"><pre>    initPi = hmodel.allocModel.get_init_prob_vector()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line110">110</td>
+              <td class="code "><div class="code-listing"><pre>    transPi = hmodel.allocModel.get_trans_prob_matrix()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line111">111</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.13 s</td>
+              <td>7</td>
+              <td id="line112">112</td>
+              <td class="code "><div class="code-listing"><pre>    LP = hmodel.obsModel.calc_local_params(Data)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line113">113</td>
+              <td class="code "><div class="code-listing"><pre>    Lik = LP['E_log_soft_ev']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line114">114</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line115">115</td>
+              <td class="code "><div class="code-listing"><pre>    # Loop over each sequence in the collection</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line116">116</td>
+              <td class="code "><div class="code-listing"><pre>    zHatBySeq = list()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>231</td>
+              <td id="line117">117</td>
+              <td class="code "><div class="code-listing"><pre>    for n in range(Data.nDoc):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>224</td>
+              <td id="line118">118</td>
+              <td class="code "><div class="code-listing"><pre>        start = Data.doc_range[n]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>224</td>
+              <td id="line119">119</td>
+              <td class="code "><div class="code-listing"><pre>        stop = Data.doc_range[n + 1]</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 17.93 s</td>
+              <td>224</td>
+              <td id="line120">120</td>
+              <td class="code danger"><div class="code-listing"><pre>        zHat = runViterbiAlg(Lik[start:stop], initPi, transPi)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>224</td>
+              <td id="line121">121</td>
+              <td class="code "><div class="code-listing"><pre>        zHatBySeq.append(zHat)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line122">122</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line123">123</td>
+              <td class="code "><div class="code-listing"><pre>    # Store MAP sequence to file</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line124">124</td>
+              <td class="code "><div class="code-listing"><pre>    prefix = makePrefixForLap(lapFrac)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line125">125</td>
+              <td class="code "><div class="code-listing"><pre>    matfilepath = os.path.join(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line126">126</td>
+              <td class="code "><div class="code-listing"><pre>        savedir,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line127">127</td>
+              <td class="code "><div class="code-listing"><pre>        prefix +</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line128">128</td>
+              <td class="code "><div class="code-listing"><pre>        'MAPStateSeqs.mat')</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line129">129</td>
+              <td class="code "><div class="code-listing"><pre>    MATVarsDict = dict(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line130">130</td>
+              <td class="code "><div class="code-listing"><pre>        zHatBySeq=StateSeqUtil.convertStateSeq_list2MAT(zHatBySeq))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>7</td>
+              <td id="line131">131</td>
+              <td class="code "><div class="code-listing"><pre>    scipy.io.savemat(matfilepath, MATVarsDict, oned_as='row')</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line132">132</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line133">133</td>
+              <td class="code "><div class="code-listing"><pre>    zHatFlat = StateSeqUtil.convertStateSeq_list2flat(zHatBySeq, Data)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line134">134</td>
+              <td class="code "><div class="code-listing"><pre>    Keff = np.unique(zHatFlat).size</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line135">135</td>
+              <td class="code "><div class="code-listing"><pre>    Kefftxtpath = os.path.join(savedir, 'Keff-saved-params.txt')</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line136">136</td>
+              <td class="code "><div class="code-listing"><pre>    with open(Kefftxtpath, 'a') as f:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line137">137</td>
+              <td class="code "><div class="code-listing"><pre>        f.write('%d\n' % (Keff))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line138">138</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line139">139</td>
+              <td class="code "><div class="code-listing"><pre>    Ktotal = hmodel.obsModel.K</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line140">140</td>
+              <td class="code "><div class="code-listing"><pre>    Ktotaltxtpath = os.path.join(savedir, 'Ktotal-saved-params.txt')</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line141">141</td>
+              <td class="code "><div class="code-listing"><pre>    with open(Ktotaltxtpath, 'a') as f:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line142">142</td>
+              <td class="code "><div class="code-listing"><pre>        f.write('%d\n' % (Keff))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line143">143</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line144">144</td>
+              <td class="code "><div class="code-listing"><pre>    # Save sequence aligned to truth and calculate Hamming distance</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line145">145</td>
+              <td class="code "><div class="code-listing"><pre>    if (hasattr(Data, 'TrueParams')) and ('Z' in Data.TrueParams):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line146">146</td>
+              <td class="code "><div class="code-listing"><pre>        zHatFlatAligned = StateSeqUtil.alignEstimatedStateSeqToTruth(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line147">147</td>
+              <td class="code "><div class="code-listing"><pre>            zHatFlat,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 11.70 s</td>
+              <td>7</td>
+              <td id="line148">148</td>
+              <td class="code "><div class="code-listing"><pre>            Data.TrueParams['Z'])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line149">149</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line150">150</td>
+              <td class="code "><div class="code-listing"><pre>        zHatBySeqAligned = StateSeqUtil.convertStateSeq_flat2list(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line151">151</td>
+              <td class="code "><div class="code-listing"><pre>            zHatFlatAligned, Data)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line152">152</td>
+              <td class="code "><div class="code-listing"><pre>        zHatBySeqAligned_Arr = StateSeqUtil.convertStateSeq_list2MAT(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line153">153</td>
+              <td class="code "><div class="code-listing"><pre>            zHatBySeqAligned)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line154">154</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line155">155</td>
+              <td class="code "><div class="code-listing"><pre>        MATVarsDict = dict(zHatBySeqAligned=zHatBySeqAligned_Arr)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line156">156</td>
+              <td class="code "><div class="code-listing"><pre>        matfilepath = os.path.join(savedir,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line157">157</td>
+              <td class="code "><div class="code-listing"><pre>                                   prefix + 'MAPStateSeqsAligned.mat')</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>7</td>
+              <td id="line158">158</td>
+              <td class="code "><div class="code-listing"><pre>        scipy.io.savemat(matfilepath, MATVarsDict, oned_as='row')</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line159">159</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line160">160</td>
+              <td class="code "><div class="code-listing"><pre>        kwargs['Data'] = Data</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line161">161</td>
+              <td class="code "><div class="code-listing"><pre>        calcHammingDistanceAndSave(zHatFlatAligned, **kwargs)</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

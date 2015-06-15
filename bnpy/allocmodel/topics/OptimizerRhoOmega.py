@@ -303,6 +303,8 @@ def _unpack(rhoomega):
     return rho, omega, K
 
 kvecCache = dict()
+
+
 def kvec(K):
     ''' Obtain descending vector of [K, K-1, ... 1]
 
@@ -316,6 +318,7 @@ def kvec(K):
         kvec = K + 1 - np.arange(1, K + 1)
         kvecCache[K] = kvec
         return kvec
+
 
 def c_Beta(g1, g0):
     ''' Calculate cumulant function of the Beta distribution
@@ -352,7 +355,6 @@ def calc_dEbeta_drho(Ebeta, rho, K):
     # Using flat indexing seems to be faster (about x2)
     Delta.ravel()[_get_flatLowTriIDs(K)] = 0
     return Delta
-
 
 
 flatlowTriIDsDict = dict()

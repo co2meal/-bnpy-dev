@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">removeJunkTopicsFromDoc</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">removeJunkTopicsFromDoc</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>removeJunkTopicsFromDoc</h1>
+	  </div>
+
+          <p>930996 Calls, 159.69 s</p>
+	  <p>Generated 22:22:49 10/15/14 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix2/LocalUtil.py">/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix2/LocalUtil.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line375">375</td>
+              <td class="code "><div class="code-listing"><pre>@profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line376">376</td>
+              <td class="code "><div class="code-listing"><pre>def removeJunkTopicsFromDoc(wc_d, DocTopicCount_d, Prior_d, sumR_d, </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line377">377</td>
+              <td class="code "><div class="code-listing"><pre>                     Lik_d, alphaEbeta, aFunc,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line378">378</td>
+              <td class="code "><div class="code-listing"><pre>                     restartNumTrialsLP=5,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line379">379</td>
+              <td class="code "><div class="code-listing"><pre>                     restartNumItersLP=2, </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line380">380</td>
+              <td class="code "><div class="code-listing"><pre>                     MIN_USAGE_THR=0.01, **kwargs):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line381">381</td>
+              <td class="code "><div class="code-listing"><pre>  ''' Create candidate models that remove junk topics, accept if improved.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line382">382</td>
+              <td class="code "><div class="code-listing"><pre>  '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.18 s</td>
+              <td>65385</td>
+              <td id="line383">383</td>
+              <td class="code "><div class="code-listing"><pre>  Info = dict(nTrial=0, nAccept=0)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.64 s</td>
+              <td>65385</td>
+              <td id="line384">384</td>
+              <td class="code "><div class="code-listing"><pre>  usedTopicMask = DocTopicCount_d > MIN_USAGE_THR</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.33 s</td>
+              <td>65385</td>
+              <td id="line385">385</td>
+              <td class="code "><div class="code-listing"><pre>  nUsed = np.sum(usedTopicMask)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.32 s</td>
+              <td>65385</td>
+              <td id="line386">386</td>
+              <td class="code "><div class="code-listing"><pre>  if nUsed < 2:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>66</td>
+              <td id="line387">387</td>
+              <td class="code "><div class="code-listing"><pre>    return DocTopicCount_d, Prior_d, sumR_d, Info</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.52 s</td>
+              <td>65319</td>
+              <td id="line388">388</td>
+              <td class="code "><div class="code-listing"><pre>  usedTopics = np.flatnonzero(usedTopicMask)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.82 s</td>
+              <td>65319</td>
+              <td id="line389">389</td>
+              <td class="code "><div class="code-listing"><pre>  smallIDs = np.argsort(DocTopicCount_d[usedTopics])[:restartNumTrialsLP]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.26 s</td>
+              <td>65319</td>
+              <td id="line390">390</td>
+              <td class="code "><div class="code-listing"><pre>  smallTopics = usedTopics[smallIDs]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.32 s</td>
+              <td>65319</td>
+              <td id="line391">391</td>
+              <td class="code "><div class="code-listing"><pre>  smallTopics = smallTopics[:nUsed-1]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.13 s</td>
+              <td>65319</td>
+              <td id="line392">392</td>
+              <td class="code "><div class="code-listing"><pre>  curELBO = calcELBOSingleDoc_Fast(wc_d, DocTopicCount_d, </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 15.08 s</td>
+              <td>65319</td>
+              <td id="line393">393</td>
+              <td class="code "><div class="code-listing"><pre>                                   Prior_d, sumR_d, alphaEbeta)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.14 s</td>
+              <td>65319</td>
+              <td id="line394">394</td>
+              <td class="code "><div class="code-listing"><pre>  Info['startELBO'] = curELBO</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.25 s</td>
+              <td>65319</td>
+              <td id="line395">395</td>
+              <td class="code "><div class="code-listing"><pre>  pDocTopicCount_d =  DocTopicCount_d.copy()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.22 s</td>
+              <td>65319</td>
+              <td id="line396">396</td>
+              <td class="code "><div class="code-listing"><pre>  pPrior_d = Prior_d.copy() </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.80 s</td>
+              <td>65319</td>
+              <td id="line397">397</td>
+              <td class="code "><div class="code-listing"><pre>  psumR_d = np.zeros_like(sumR_d)  </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.00 s</td>
+              <td>375651</td>
+              <td id="line398">398</td>
+              <td class="code "><div class="code-listing"><pre>  for kID in smallTopics:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.12 s</td>
+              <td>310332</td>
+              <td id="line399">399</td>
+              <td class="code "><div class="code-listing"><pre>    pDocTopicCount_d[:] = DocTopicCount_d</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.79 s</td>
+              <td>310332</td>
+              <td id="line400">400</td>
+              <td class="code "><div class="code-listing"><pre>    pDocTopicCount_d[kID] = 0</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.08 s</td>
+              <td>310332</td>
+              <td id="line401">401</td>
+              <td class="code "><div class="code-listing"><pre>    pPrior_d[:] = Prior_d</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line402">402</td>
+              <td class="code "><div class="code-listing"><pre>    </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 2.15 s</td>
+              <td>930996</td>
+              <td id="line403">403</td>
+              <td class="code "><div class="code-listing"><pre>    for iter in xrange(restartNumItersLP):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line404">404</td>
+              <td class="code "><div class="code-listing"><pre>      ## Update Prob of Active Topics</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 19.90 s</td>
+              <td>620664</td>
+              <td id="line405">405</td>
+              <td class="code "><div class="code-listing"><pre>      aFunc(pDocTopicCount_d, pPrior_d) # Prior_d = E[ log pi_dk ]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 10.74 s</td>
+              <td>620664</td>
+              <td id="line406">406</td>
+              <td class="code "><div class="code-listing"><pre>      pPrior_d -= pPrior_d.max()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 3.95 s</td>
+              <td>620664</td>
+              <td id="line407">407</td>
+              <td class="code "><div class="code-listing"><pre>      np.exp(pPrior_d, out=pPrior_d)    # Prior_d = exp E[ log pi_dk ]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line408">408</td>
+              <td class="code "><div class="code-listing"><pre>      </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line409">409</td>
+              <td class="code "><div class="code-listing"><pre>      ## Update sumR_d for all tokens in document</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 7.48 s</td>
+              <td>620664</td>
+              <td id="line410">410</td>
+              <td class="code "><div class="code-listing"><pre>      np.dot(Lik_d, pPrior_d, out=psumR_d)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line411">411</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line412">412</td>
+              <td class="code "><div class="code-listing"><pre>      ## Update DocTopicCounts</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 10.26 s</td>
+              <td>620664</td>
+              <td id="line413">413</td>
+              <td class="code "><div class="code-listing"><pre>      np.dot(wc_d / psumR_d, Lik_d, out=pDocTopicCount_d)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 2.94 s</td>
+              <td>620664</td>
+              <td id="line414">414</td>
+              <td class="code "><div class="code-listing"><pre>      pDocTopicCount_d *= pPrior_d</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.67 s</td>
+              <td>310332</td>
+              <td id="line415">415</td>
+              <td class="code "><div class="code-listing"><pre>    Info['nTrial'] += 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line416">416</td>
+              <td class="code "><div class="code-listing"><pre>    ## Evaluate proposal and accept/reject</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.57 s</td>
+              <td>310332</td>
+              <td id="line417">417</td>
+              <td class="code "><div class="code-listing"><pre>    propELBO = calcELBOSingleDoc_Fast(wc_d, pDocTopicCount_d, </pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 69.30 s</td>
+              <td>310332</td>
+              <td id="line418">418</td>
+              <td class="code danger"><div class="code-listing"><pre>                                      pPrior_d, psumR_d, alphaEbeta)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.89 s</td>
+              <td>310332</td>
+              <td id="line419">419</td>
+              <td class="code "><div class="code-listing"><pre>    if not np.isfinite(propELBO):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line420">420</td>
+              <td class="code "><div class="code-listing"><pre>      continue</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.68 s</td>
+              <td>310332</td>
+              <td id="line421">421</td>
+              <td class="code "><div class="code-listing"><pre>    if propELBO > curELBO:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.87 s</td>
+              <td>199615</td>
+              <td id="line422">422</td>
+              <td class="code "><div class="code-listing"><pre>      nUsed -= 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.44 s</td>
+              <td>199615</td>
+              <td id="line423">423</td>
+              <td class="code "><div class="code-listing"><pre>      Info['nAccept'] += 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.38 s</td>
+              <td>199615</td>
+              <td id="line424">424</td>
+              <td class="code "><div class="code-listing"><pre>      curELBO = propELBO</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.84 s</td>
+              <td>199615</td>
+              <td id="line425">425</td>
+              <td class="code "><div class="code-listing"><pre>      DocTopicCount_d[:] = pDocTopicCount_d</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.70 s</td>
+              <td>199615</td>
+              <td id="line426">426</td>
+              <td class="code "><div class="code-listing"><pre>      Prior_d[:] = pPrior_d</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.69 s</td>
+              <td>199615</td>
+              <td id="line427">427</td>
+              <td class="code "><div class="code-listing"><pre>      sumR_d[:] = psumR_d</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.13 s</td>
+              <td>65319</td>
+              <td id="line428">428</td>
+              <td class="code "><div class="code-listing"><pre>  Info['finalELBO'] = curELBO</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.12 s</td>
+              <td>65319</td>
+              <td id="line429">429</td>
+              <td class="code "><div class="code-listing"><pre>  return DocTopicCount_d, Prior_d, sumR_d, Info</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

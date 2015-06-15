@@ -548,6 +548,7 @@ class TestSticky(unittest.TestCase):
 
                         # Approx gradient
                         oFunc_cons = OptimizerRhoOmega.objFunc_constrained
+
                         def objFunc(x):
                             return oFunc_cons(x, approx_grad=1, **kwargs)
                         epsvec = np.hstack(

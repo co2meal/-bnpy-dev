@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">delete_comps_from_expanded_model_to_improve_ELBO</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">delete_comps_from_expanded_model_to_improve_ELBO</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>delete_comps_from_expanded_model_to_improve_ELBO</h1>
+	  </div>
+
+          <p>94 Calls, 21.30 s</p>
+	  <p>Generated 16:17:14 04/27/14 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/birthmove/BirthCleanup.py">/Users/mhughes/git/bnpy2/bnpy/birthmove/BirthCleanup.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line6">6</td>
+              <td><pre>@profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line7">7</td>
+              <td><pre>def delete_comps_from_expanded_model_to_improve_ELBO(Data, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line8">8</td>
+              <td><pre>                              xbigModel, xbigSS, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line9">9</td>
+              <td><pre>                              xfreshSS, xfreshLP=None,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line10">10</td>
+              <td><pre>                              Korig=0, **kwargs):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line11">11</td>
+              <td><pre>  ''' Attempts deleting components K, K-1, K-2, ... Korig,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line12">12</td>
+              <td><pre>       keeping (and building on) any proposals that improve the ELBO</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line13">13</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line14">14</td>
+              <td><pre>     Returns</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line15">15</td>
+              <td><pre>     ---------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line16">16</td>
+              <td><pre>      model : HModel with Knew comps</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line17">17</td>
+              <td><pre>      SS : SuffStatBag with Knew comps</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line18">18</td>
+              <td><pre>      ELBO : evidence lower bound for the returned model</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line19">19</td>
+              <td><pre>  '''  </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line20">20</td>
+              <td><pre>  K = xbigSS.K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line21">21</td>
+              <td><pre>  assert xbigSS.K == xfreshSS.K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line22">22</td>
+              <td><pre>  assert xbigModel.obsModel.K == K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line23">23</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line24">24</td>
+              <td><pre>  origIDs = range(0, K)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line25">25</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line26">26</td>
+              <td><pre>  if K == 1:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line27">27</td>
+              <td><pre>    return xbigModel, xbigSS, xfreshSS, origIDs</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line28">28</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line29">29</td>
+              <td><pre>  nDoc = xbigSS.nDoc</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line30">30</td>
+              <td><pre>  wc = xbigSS.WordCounts.sum()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line31">31</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.04 s</td>
+              <td>21</td>
+              <td id="line32">32</td>
+              <td><pre>  xfreshELBO = xbigModel.calc_evidence(SS=xfreshSS)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line33">33</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>94</td>
+              <td id="line34">34</td>
+              <td><pre>  for k in reversed(range(Korig, K)):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line35">35</td>
+              <td><pre>    assert xbigSS.nDoc == nDoc</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line36">36</td>
+              <td><pre>    assert np.allclose(xbigSS.WordCounts.sum(), wc)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line37">37</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line38">38</td>
+              <td><pre>    if kwargs['cleanupDeleteViaLP']:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line39">39</td>
+              <td><pre>      rbigModel, rbigSS, rfreshSS, rfreshELBO, rfreshLP = _make_candidate_LP(</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line40">40</td>
+              <td><pre>                                                    xbigModel, Data,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line41">41</td>
+              <td><pre>                                                    xbigSS, xfreshSS, xfreshLP, </pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 20.77 s</td>
+              <td>73</td>
+              <td id="line42">42</td>
+              <td><pre>                                                    k)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line43">43</td>
+              <td><pre>    else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line44">44</td>
+              <td><pre>      rbigModel, rbigSS, rfreshSS, rfreshELBO = _make_candidate(</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line45">45</td>
+              <td><pre>                                                    xbigModel, Data,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line46">46</td>
+              <td><pre>                                                    xbigSS, xfreshSS, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line47">47</td>
+              <td><pre>                                                    k)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line48">48</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line49">49</td>
+              <td><pre>    # If ELBO has improved, set current model to delete component k</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line50">50</td>
+              <td><pre>    didAccept = False</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line51">51</td>
+              <td><pre>    if rfreshELBO >= xfreshELBO:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line52">52</td>
+              <td><pre>      xbigSS = rbigSS</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line53">53</td>
+              <td><pre>      xfreshSS = rfreshSS</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line54">54</td>
+              <td><pre>      xbigModel = rbigModel</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line55">55</td>
+              <td><pre>      xfreshELBO = rfreshELBO</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line56">56</td>
+              <td><pre>      if kwargs['cleanupDeleteViaLP']:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line57">57</td>
+              <td><pre>        xfreshLP = rfreshLP</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line58">58</td>
+              <td><pre>      didAccept = True</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line59">59</td>
+              <td><pre>      del origIDs[k]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line60">60</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>73</td>
+              <td id="line61">61</td>
+              <td><pre>    if xfreshSS.K == 1:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line62">62</td>
+              <td><pre>      break</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line63">63</td>
+              <td><pre>    ### end loop over comps to delete</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line64">64</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>21</td>
+              <td id="line65">65</td>
+              <td><pre>  if xbigSS.K == Korig:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line66">66</td>
+              <td><pre>    msg = "BIRTH failed. Deleting all new comps improves ELBO."</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line67">67</td>
+              <td><pre>    raise BirthProposalError(msg)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line68">68</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>18</td>
+              <td id="line69">69</td>
+              <td><pre>  if didAccept:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line70">70</td>
+              <td><pre>    # Make sure that final model has correct scale</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.47 s</td>
+              <td>3</td>
+              <td id="line71">71</td>
+              <td><pre>    xbigModel.update_global_params(xbigSS + xfreshSS)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line72">72</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>18</td>
+              <td id="line73">73</td>
+              <td><pre>  return xbigModel, xbigSS, xfreshSS, origIDs</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

@@ -126,7 +126,6 @@ def removeJunkTopics_SingleDoc(
         DocTopicCount_d, DocTopicProb_d, sumResp_d,
         wc_d, alphaEbeta, alphaEbetaRem)
     Info['startELBO'] = curELBO
-    #Info['startDocTopicCount_d'] = DocTopicCount_d.copy()
 
     # Determine eligible topics to delete
     # smallTopics : 1D array of int topic ids to try deleting

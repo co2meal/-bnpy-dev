@@ -795,11 +795,11 @@ class GaussObsModel(AbstractObsModel):
     def _E_logdetL(self, k=None):
         dvec = np.arange(1, self.D + 1, dtype=np.float)
         if k == 'all':
-            dvec = dvec[:,np.newaxis]
+            dvec = dvec[:, np.newaxis]
             retVec = self.D * LOGTWO * np.ones(self.K)
             for kk in xrange(self.K):
                 retVec[kk] -= self.GetCached('logdetB', kk)
-            nuT = self.Post.nu[np.newaxis,:]
+            nuT = self.Post.nu[np.newaxis, :]
             retVec += np.sum(digamma(0.5 * (nuT + 1 - dvec)), axis=0)
             return retVec
         elif k is None:
@@ -844,7 +844,6 @@ class GaussObsModel(AbstractObsModel):
         Q = np.linalg.solve(self.GetCached('cholB', k), m.T)
         return self.D / kappa + nu * np.inner(Q, Q)
 
-
     def getSerializableParamsForLocalStep(self):
         """ Get compact dict of params for local step.
 
@@ -854,13 +853,13 @@ class GaussObsModel(AbstractObsModel):
         """
         if self.inferType == 'EM':
             raise NotImplementedError('TODO')
-        return dict(inferType=self.inferType, 
+        return dict(inferType=self.inferType,
                     K=self.K,
                     D=self.D,
                     )
 
     def fillSharedMemDictForLocalStep(self, ShMem=None):
-        """ Get dict of shared mem arrays needed for parallel local step. 
+        """ Get dict of shared mem arrays needed for parallel local step.
 
         Returns
         -------
@@ -881,7 +880,7 @@ class GaussObsModel(AbstractObsModel):
             ShMem['m'] = numpyToSharedMemArray(self.Post.m.copy())
             ShMem['cholB'] = numpyToSharedMemArray(self._cholB('all'))
             ShMem['E_logdetL'] = numpyToSharedMemArray(self._E_logdetL('all'))
-            
+
         return ShMem
 
     def getLocalAndSummaryFunctionHandles(self):
@@ -953,7 +952,6 @@ def c_Diff(nu1, logdetB1, m1, kappa1,
         + 0.5 * (nu1 * logdetB1 - nu2 * logdetB2)
 
 
-
 def calcSummaryStats(Data, SS, LP, **kwargs):
     ''' Calculate summary statistics for given dataset and local parameters
 
@@ -982,10 +980,12 @@ def calcSummaryStats(Data, SS, LP, **kwargs):
     SS.setField('xxT', xxT, dims=('K', 'D', 'D'))
     return SS
 
+
 def calcLocalParams(Dslice, **kwargs):
     L = calcLogSoftEvMatrix_FromPost(Dslice, **kwargs)
     LP = dict(E_log_soft_ev=L)
     return LP
+
 
 def calcLogSoftEvMatrix_FromPost(Dslice, **kwargs):
     ''' Calculate expected log soft ev matrix for variational.
@@ -1002,9 +1002,10 @@ def calcLogSoftEvMatrix_FromPost(Dslice, **kwargs):
             - 0.5 * _mahalDist_Post(Dslice.X, k, **kwargs)
     return L
 
-def _mahalDist_Post(X, k, D=None, 
-        cholB=None, 
-        m=None, nu=None, kappa=None, **kwargs):
+
+def _mahalDist_Post(X, k, D=None,
+                    cholB=None,
+                    m=None, nu=None, kappa=None, **kwargs):
     ''' Calc expected mahalonobis distance from comp k to each data atom
 
     Returns
@@ -1016,7 +1017,6 @@ def _mahalDist_Post(X, k, D=None,
                         (X - m[k]).T)
     Q *= Q
     return nu[k] * np.sum(Q, axis=0) + D / kappa[k]
-
 
 
 def createECovMatFromUserInput(D=0, Data=None, ECovMat='eye', sF=1.0):

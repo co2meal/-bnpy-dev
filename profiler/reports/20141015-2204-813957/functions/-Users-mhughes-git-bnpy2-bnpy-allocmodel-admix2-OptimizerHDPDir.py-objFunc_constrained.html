@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">objFunc_constrained</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">objFunc_constrained</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>objFunc_constrained</h1>
+	  </div>
+
+          <p>700 Calls, 0.79 s</p>
+	  <p>Generated 22:22:49 10/15/14 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix2/OptimizerHDPDir.py">/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix2/OptimizerHDPDir.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line211">211</td>
+              <td class="code "><div class="code-listing"><pre>@profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line212">212</td>
+              <td class="code "><div class="code-listing"><pre>def objFunc_constrained(rhoomega,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line213">213</td>
+              <td class="code "><div class="code-listing"><pre>                     sumLogPi=0, nDoc=0, gamma=1.0, alpha=1.0,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line214">214</td>
+              <td class="code "><div class="code-listing"><pre>                     approx_grad=False, **kwargs):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line215">215</td>
+              <td class="code "><div class="code-listing"><pre>  ''' Returns constrained objective function and its gradient</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line216">216</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line217">217</td>
+              <td class="code "><div class="code-listing"><pre>      Args</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line218">218</td>
+              <td class="code "><div class="code-listing"><pre>      -------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line219">219</td>
+              <td class="code "><div class="code-listing"><pre>      rhoomega := 1D array, size 2*K</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line220">220</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line221">221</td>
+              <td class="code "><div class="code-listing"><pre>      Returns</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line222">222</td>
+              <td class="code "><div class="code-listing"><pre>      -------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line223">223</td>
+              <td class="code "><div class="code-listing"><pre>      f := -1 * L(rhoomega), </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line224">224</td>
+              <td class="code "><div class="code-listing"><pre>           where L is ELBO objective function (log posterior prob)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line225">225</td>
+              <td class="code "><div class="code-listing"><pre>      g := gradient of f</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line226">226</td>
+              <td class="code "><div class="code-listing"><pre>  '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>700</td>
+              <td id="line227">227</td>
+              <td class="code "><div class="code-listing"><pre>  assert not np.any(np.isnan(rhoomega))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>700</td>
+              <td id="line228">228</td>
+              <td class="code "><div class="code-listing"><pre>  assert not np.any(np.isinf(rhoomega))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>700</td>
+              <td id="line229">229</td>
+              <td class="code "><div class="code-listing"><pre>  rho, omega, K = _unpack(rhoomega)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line230">230</td>
+              <td class="code "><div class="code-listing"><pre>  </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>700</td>
+              <td id="line231">231</td>
+              <td class="code "><div class="code-listing"><pre>  g1 = rho * omega</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>700</td>
+              <td id="line232">232</td>
+              <td class="code "><div class="code-listing"><pre>  g0 = (1 - rho) * omega</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>700</td>
+              <td id="line233">233</td>
+              <td class="code "><div class="code-listing"><pre>  digammaomega =  digamma(omega)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>700</td>
+              <td id="line234">234</td>
+              <td class="code "><div class="code-listing"><pre>  assert not np.any(np.isinf(digammaomega))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line235">235</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>700</td>
+              <td id="line236">236</td>
+              <td class="code "><div class="code-listing"><pre>  Elogu = digamma(g1) - digammaomega</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>700</td>
+              <td id="line237">237</td>
+              <td class="code "><div class="code-listing"><pre>  Elog1mu = digamma(g0) - digammaomega</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line238">238</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>700</td>
+              <td id="line239">239</td>
+              <td class="code "><div class="code-listing"><pre>  if nDoc > 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>700</td>
+              <td id="line240">240</td>
+              <td class="code "><div class="code-listing"><pre>    scale = nDoc</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>700</td>
+              <td id="line241">241</td>
+              <td class="code "><div class="code-listing"><pre>    ONcoef = 1 + (1.0 - g1)/nDoc</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>700</td>
+              <td id="line242">242</td>
+              <td class="code "><div class="code-listing"><pre>    OFFcoef = kvec(K) + (gamma - g0)/nDoc</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line243">243</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line244">244</td>
+              <td class="code "><div class="code-listing"><pre>    ## Calc local term</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>700</td>
+              <td id="line245">245</td>
+              <td class="code "><div class="code-listing"><pre>    Tvec = sumLogPi/nDoc</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>700</td>
+              <td id="line246">246</td>
+              <td class="code "><div class="code-listing"><pre>    Ebeta = np.hstack([rho, 1.0])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>700</td>
+              <td id="line247">247</td>
+              <td class="code "><div class="code-listing"><pre>    Ebeta[1:] *= np.cumprod(1-rho)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>700</td>
+              <td id="line248">248</td>
+              <td class="code "><div class="code-listing"><pre>    elbo_local = alpha * np.inner(Ebeta, Tvec) </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line249">249</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line250">250</td>
+              <td class="code "><div class="code-listing"><pre>  else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line251">251</td>
+              <td class="code "><div class="code-listing"><pre>    scale = 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line252">252</td>
+              <td class="code "><div class="code-listing"><pre>    ONcoef = 1 - g1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line253">253</td>
+              <td class="code "><div class="code-listing"><pre>    OFFcoef = gamma - g0</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line254">254</td>
+              <td class="code "><div class="code-listing"><pre>    elbo_local = 0</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line255">255</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line256">256</td>
+              <td class="code "><div class="code-listing"><pre>  elbo = -1 * c_Beta(g1, g0)/scale \</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line257">257</td>
+              <td class="code "><div class="code-listing"><pre>           + np.inner(ONcoef, Elogu) \</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line258">258</td>
+              <td class="code "><div class="code-listing"><pre>           + np.inner(OFFcoef, Elog1mu) \</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.04 s</td>
+              <td>700</td>
+              <td id="line259">259</td>
+              <td class="code "><div class="code-listing"><pre>           + elbo_local</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line260">260</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>700</td>
+              <td id="line261">261</td>
+              <td class="code "><div class="code-listing"><pre>  if approx_grad:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line262">262</td>
+              <td class="code "><div class="code-listing"><pre>    return -1.0 * elbo</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line263">263</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line264">264</td>
+              <td class="code "><div class="code-listing"><pre>  ## Gradient computation!  </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.08 s</td>
+              <td>700</td>
+              <td id="line265">265</td>
+              <td class="code "><div class="code-listing"><pre>  trigamma_omega = polygamma(1, omega)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.08 s</td>
+              <td>700</td>
+              <td id="line266">266</td>
+              <td class="code "><div class="code-listing"><pre>  trigamma_g1 = polygamma(1, g1)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.08 s</td>
+              <td>700</td>
+              <td id="line267">267</td>
+              <td class="code "><div class="code-listing"><pre>  trigamma_g0 = polygamma(1, g0)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>700</td>
+              <td id="line268">268</td>
+              <td class="code "><div class="code-listing"><pre>  assert np.all(np.isfinite(trigamma_omega))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>700</td>
+              <td id="line269">269</td>
+              <td class="code "><div class="code-listing"><pre>  assert np.all(np.isfinite(trigamma_g1))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line270">270</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>700</td>
+              <td id="line271">271</td>
+              <td class="code "><div class="code-listing"><pre>  gradrho = ONcoef * omega * trigamma_g1 \</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>700</td>
+              <td id="line272">272</td>
+              <td class="code "><div class="code-listing"><pre>            - OFFcoef * omega * trigamma_g0</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>700</td>
+              <td id="line273">273</td>
+              <td class="code "><div class="code-listing"><pre>  gradomega = ONcoef * (rho * trigamma_g1 - trigamma_omega) \</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>700</td>
+              <td id="line274">274</td>
+              <td class="code "><div class="code-listing"><pre>            + OFFcoef * ((1-rho) * trigamma_g0 - trigamma_omega)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>700</td>
+              <td id="line275">275</td>
+              <td class="code "><div class="code-listing"><pre>  if nDoc > 0:</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 0.22 s</td>
+              <td>700</td>
+              <td id="line276">276</td>
+              <td class="code danger"><div class="code-listing"><pre>    Delta = calc_dEbeta_drho(Ebeta, rho, K)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>700</td>
+              <td id="line277">277</td>
+              <td class="code "><div class="code-listing"><pre>    gradrho += alpha * np.dot(Delta, Tvec)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>700</td>
+              <td id="line278">278</td>
+              <td class="code "><div class="code-listing"><pre>  grad = np.hstack([gradrho, gradomega])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line279">279</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>700</td>
+              <td id="line280">280</td>
+              <td class="code "><div class="code-listing"><pre>  return -1.0 * elbo, -1.0 * grad</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

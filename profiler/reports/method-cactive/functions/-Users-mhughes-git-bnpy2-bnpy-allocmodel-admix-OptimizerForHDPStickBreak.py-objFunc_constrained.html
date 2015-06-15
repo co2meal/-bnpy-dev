@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">objFunc_constrained</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">objFunc_constrained</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>objFunc_constrained</h1>
+	  </div>
+
+          <p>331 Calls, 0.48 s</p>
+	  <p>Generated 09:49:17 05/14/14 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix/OptimizerForHDPStickBreak.py">/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix/OptimizerForHDPStickBreak.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line225">225</td>
+              <td><pre>@profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line226">226</td>
+              <td><pre>def objFunc_constrained(rhoomega,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line227">227</td>
+              <td><pre>                     sumLogVd=0, sumLog1mVd=0, nDoc=0, gamma=1.0, alpha=1.0,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line228">228</td>
+              <td><pre>                     approx_grad=False):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line229">229</td>
+              <td><pre>  ''' Returns constrained objective function and its gradient</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line230">230</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line231">231</td>
+              <td><pre>      Args</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line232">232</td>
+              <td><pre>      -------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line233">233</td>
+              <td><pre>      rhoomega := 1D array, size 2*K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line234">234</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line235">235</td>
+              <td><pre>      Returns</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line236">236</td>
+              <td><pre>      -------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line237">237</td>
+              <td><pre>      f := -1 * L(rhoomega), </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line238">238</td>
+              <td><pre>           where L is ELBO objective function (log posterior prob)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line239">239</td>
+              <td><pre>      g := gradient of f</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line240">240</td>
+              <td><pre>  '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line241">241</td>
+              <td><pre>  rho, omega, K = _unpack(rhoomega)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line242">242</td>
+              <td><pre>  assert not np.any(np.isnan(rhoomega))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line243">243</td>
+              <td><pre>  assert not np.any(np.isinf(omega))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line244">244</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line245">245</td>
+              <td><pre>  u1 = rho * omega</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line246">246</td>
+              <td><pre>  u0 = (1 - rho) * omega</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line247">247</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line248">248</td>
+              <td><pre>  gammalnomega = gammaln(omega)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line249">249</td>
+              <td><pre>  digammaomega =  digamma(omega)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line250">250</td>
+              <td><pre>  assert not np.any(np.isinf(gammalnomega))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line251">251</td>
+              <td><pre>  assert not np.any(np.isinf(digammaomega))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line252">252</td>
+              <td><pre>  if not approx_grad:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.05 s</td>
+              <td>331</td>
+              <td id="line253">253</td>
+              <td><pre>    psiP_omega = polygamma(1, omega)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line254">254</td>
+              <td><pre>    assert not np.any(np.isinf(psiP_omega))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line255">255</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>331</td>
+              <td id="line256">256</td>
+              <td><pre>  logc = np.sum(gammaln(u1) + gammaln(u0) - gammalnomega)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line257">257</td>
+              <td><pre>  if nDoc > 0:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line258">258</td>
+              <td><pre>    logc = logc/nDoc</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line259">259</td>
+              <td><pre>    B1 = 1 + (1.0 - u1)/nDoc</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line260">260</td>
+              <td><pre>    kvec = K + 1 - np.arange(1, K+1)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line261">261</td>
+              <td><pre>    C1 = kvec + (alpha - u0)/nDoc</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line262">262</td>
+              <td><pre>  else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line263">263</td>
+              <td><pre>    B1 = 1 - u1</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line264">264</td>
+              <td><pre>    C1 = alpha - u0</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line265">265</td>
+              <td><pre>    </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line266">266</td>
+              <td><pre>  B2 = digamma(u1) - digammaomega</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line267">267</td>
+              <td><pre>  C2 = digamma(u0) - digammaomega</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line268">268</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line269">269</td>
+              <td><pre>  elbo = logc + np.inner( B1, B2) \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line270">270</td>
+              <td><pre>              + np.inner( C1, C2)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line271">271</td>
+              <td><pre>  if nDoc > 0:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line272">272</td>
+              <td><pre>    rho1m = 1 - rho</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line273">273</td>
+              <td><pre>    cumprod1mrho = np.ones(K)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line274">274</td>
+              <td><pre>    cumprod1mrho[1:] = np.cumprod(rho1m[:-1])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line275">275</td>
+              <td><pre>    P = sumLogVd/nDoc</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line276">276</td>
+              <td><pre>    Q = sumLog1mVd/nDoc</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line277">277</td>
+              <td><pre>    rPand1mrQ = rho * P + (1-rho) * Q</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line278">278</td>
+              <td><pre>    elbo += gamma * np.inner(cumprod1mrho, rPand1mrQ) </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line279">279</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line280">280</td>
+              <td><pre>  if approx_grad:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line281">281</td>
+              <td><pre>    return -1.0 * elbo</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line282">282</td>
+              <td><pre>  </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.05 s</td>
+              <td>331</td>
+              <td id="line283">283</td>
+              <td><pre>  psiP_u1 = polygamma(1, u1)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.04 s</td>
+              <td>331</td>
+              <td id="line284">284</td>
+              <td><pre>  psiP_u0 = polygamma(1, u0)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line285">285</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line286">286</td>
+              <td><pre>  gradrho = B1 * omega * psiP_u1 - C1 * omega * psiP_u0</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line287">287</td>
+              <td><pre>  gradomega = B1 * (   rho * psiP_u1 - psiP_omega) \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line288">288</td>
+              <td><pre>            + C1 * ((1-rho)* psiP_u0 - psiP_omega)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line289">289</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line290">290</td>
+              <td><pre>  if nDoc > 0:</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 0.15 s</td>
+              <td>331</td>
+              <td id="line291">291</td>
+              <td><pre>    RMat = calc_drho_dcumprod1mrho(cumprod1mrho, rho, K)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>331</td>
+              <td id="line292">292</td>
+              <td><pre>    gB = np.dot(RMat, rPand1mrQ) + cumprod1mrho * (P-Q)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line293">293</td>
+              <td><pre>    gradrho += gamma * gB</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line294">294</td>
+              <td><pre>    # Alternate version (slower)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line295">295</td>
+              <td><pre>    #Mat1, Mat0 = calc_drho_dU1U0(cumprod1mrho, rho, K)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line296">296</td>
+              <td><pre>    #gA = np.dot(Mat1, P) + np.dot(Mat0, Q)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line297">297</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>331</td>
+              <td id="line298">298</td>
+              <td><pre>  grad = np.hstack([gradrho, gradomega])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>331</td>
+              <td id="line299">299</td>
+              <td><pre>  return -1.0 * elbo, -1.0 * grad</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

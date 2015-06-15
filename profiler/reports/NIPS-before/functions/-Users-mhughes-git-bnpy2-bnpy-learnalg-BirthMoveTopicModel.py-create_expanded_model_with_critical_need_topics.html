@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">create_expanded_model_with_critical_need_topics</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">create_expanded_model_with_critical_need_topics</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>create_expanded_model_with_critical_need_topics</h1>
+	  </div>
+
+          <p>4 Calls, 4.12 s</p>
+	  <p>Generated 14:36:55 03/09/14 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/learnalg/BirthMoveTopicModel.py">/Users/mhughes/git/bnpy2/bnpy/learnalg/BirthMoveTopicModel.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line188">188</td>
+              <td><pre>@profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line189">189</td>
+              <td><pre>def create_expanded_model_with_critical_need_topics(Data, curModel, curLP,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line190">190</td>
+              <td><pre>                                              fracKeep=0.5, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line191">191</td>
+              <td><pre>                                              allSS=None,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line192">192</td>
+              <td><pre>                                              Kfresh=10, **kwargs):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line193">193</td>
+              <td><pre>  '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line194">194</td>
+              <td><pre>  '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line195">195</td>
+              <td><pre>  K = curModel.obsModel.K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line196">196</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.08 s</td>
+              <td>4</td>
+              <td id="line197">197</td>
+              <td><pre>  Lik = np.exp(curModel.obsModel.getElogphiMatrix())</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line198">198</td>
+              <td><pre>  Prior = np.exp(curLP['E_logPi'][:,:K])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line199">199</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line200">200</td>
+              <td><pre>  # DocWordFreq : vocab_size x nDoc</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.14 s</td>
+              <td>4</td>
+              <td id="line201">201</td>
+              <td><pre>  DocWordFreq_model = np.dot( Lik.T, Prior.T )</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.10 s</td>
+              <td>4</td>
+              <td id="line202">202</td>
+              <td><pre>  DocWordFreq_model = DocWordFreq_model / DocWordFreq_model.sum(axis=0)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line203">203</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.25 s</td>
+              <td>4</td>
+              <td id="line204">204</td>
+              <td><pre>  DocWordFreq_empirical = Data.to_sparse_docword_matrix().toarray().T</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.04 s</td>
+              <td>4</td>
+              <td id="line205">205</td>
+              <td><pre>  DocWordFreq_empirical = DocWordFreq_empirical + 1e-100</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.06 s</td>
+              <td>4</td>
+              <td id="line206">206</td>
+              <td><pre>  DocWordFreq_empirical /= DocWordFreq_empirical.sum(axis=0)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line207">207</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.45 s</td>
+              <td>4</td>
+              <td id="line208">208</td>
+              <td><pre>  KLperDoc = calcKLdivergence_discrete(DocWordFreq_empirical, DocWordFreq_model)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line209">209</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line210">210</td>
+              <td><pre>  sortedDocIDs = np.argsort( -1 * KLperDoc )</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line211">211</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line212">212</td>
+              <td><pre>  Nkeep = int(fracKeep * len(sortedDocIDs))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.07 s</td>
+              <td>4</td>
+              <td id="line213">213</td>
+              <td><pre>  DocWordFreq_missing = DocWordFreq_empirical[:, sortedDocIDs[:Nkeep]] \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.21 s</td>
+              <td>4</td>
+              <td id="line214">214</td>
+              <td><pre>                         - DocWordFreq_model[:, sortedDocIDs[:Nkeep]] </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>4</td>
+              <td id="line215">215</td>
+              <td><pre>  DocWordFreq_missing = np.maximum(1e-7, DocWordFreq_missing)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>4</td>
+              <td id="line216">216</td>
+              <td><pre>  DocWordFreq_missing /= DocWordFreq_missing.sum(axis=0)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>4</td>
+              <td id="line217">217</td>
+              <td><pre>  DocWordFreq_missing = DocWordFreq_missing.T.copy(order='F')</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line218">218</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line219">219</td>
+              <td><pre>  DocWordFreq_clusterctrs, Z = KMeansRex.RunKMeans(DocWordFreq_missing, Kfresh,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line220">220</td>
+              <td><pre>                               initname='plusplus',</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.34 s</td>
+              <td>4</td>
+              <td id="line221">221</td>
+              <td><pre>                               Niter=10, seed=0)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line222">222</td>
+              <td><pre>  DocWordFreq_clusterctrs /= DocWordFreq_clusterctrs.sum(axis=1)[:,np.newaxis]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line223">223</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line224">224</td>
+              <td><pre>  Korig = curModel.obsModel.K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.06 s</td>
+              <td>4</td>
+              <td id="line225">225</td>
+              <td><pre>  expandModel = curModel.copy()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line226">226</td>
+              <td><pre>  if kwargs['expandbydirectappend']:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line227">227</td>
+              <td><pre>    expandModel.insert_global_params( beta=np.ones(Kfresh)/Kfresh, K=Kfresh,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line228">228</td>
+              <td><pre>                                    topics=DocWordFreq_clusterctrs</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line229">229</td>
+              <td><pre>                                   )</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line230">230</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line231">231</td>
+              <td><pre>  else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.06 s</td>
+              <td>4</td>
+              <td id="line232">232</td>
+              <td><pre>    freshModel = curModel.copy()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line233">233</td>
+              <td><pre>    freshModel.set_global_params(beta=np.ones(Kfresh)/Kfresh, K=Kfresh,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.08 s</td>
+              <td>4</td>
+              <td id="line234">234</td>
+              <td><pre>                                    topics=DocWordFreq_clusterctrs</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line235">235</td>
+              <td><pre>                                   )</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 1.27 s</td>
+              <td>4</td>
+              <td id="line236">236</td>
+              <td><pre>    freshLP = freshModel.calc_local_params(Data)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>4</td>
+              <td id="line237">237</td>
+              <td><pre>    freshSS = freshModel.get_global_suff_stats(Data, freshLP)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>4</td>
+              <td id="line238">238</td>
+              <td><pre>    expandSS = allSS.copy()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>4</td>
+              <td id="line239">239</td>
+              <td><pre>    expandSS.insertComps(freshSS)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.77 s</td>
+              <td>4</td>
+              <td id="line240">240</td>
+              <td><pre>    expandModel.update_global_params( expandSS)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line241">241</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line242">242</td>
+              <td><pre>  assert expandModel.allocModel.K == Korig + Kfresh</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line243">243</td>
+              <td><pre>  assert expandModel.obsModel.K == Korig + Kfresh</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>4</td>
+              <td id="line244">244</td>
+              <td><pre>  return expandModel</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

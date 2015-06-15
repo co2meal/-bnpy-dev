@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">calcELBO_Memoized</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">calcELBO_Memoized</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>calcELBO_Memoized</h1>
+	  </div>
+
+          <p>20346 Calls, 16.54 s</p>
+	  <p>Generated 08:00:58 09/16/14 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/obsmodel/GaussObsModel.py">/Users/mhughes/git/bnpy2/bnpy/obsmodel/GaussObsModel.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line578">578</td>
+              <td><pre> @profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line579">579</td>
+              <td><pre> def calcELBO_Memoized(self, SS, afterMStep=False):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line580">580</td>
+              <td><pre>   ''' Calculate obsModel's ELBO using sufficient statistics SS and Post.</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line581">581</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line582">582</td>
+              <td><pre>       Args</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line583">583</td>
+              <td><pre>       -------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line584">584</td>
+              <td><pre>       SS : bnpy SuffStatBag, contains fields for N, x, xxT</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line585">585</td>
+              <td><pre>       afterMStep : boolean flag</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line586">586</td>
+              <td><pre>                if 1, elbo calculated assuming M-step just completed</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line587">587</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line588">588</td>
+              <td><pre>       Returns</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line589">589</td>
+              <td><pre>       -------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line590">590</td>
+              <td><pre>       obsELBO : scalar float, = E[ log p(x) + log p(phi) - log q(phi)]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line591">591</td>
+              <td><pre>   '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>313</td>
+              <td id="line592">592</td>
+              <td><pre>   elbo = np.zeros(SS.K)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>313</td>
+              <td id="line593">593</td>
+              <td><pre>   Post = self.Post</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>313</td>
+              <td id="line594">594</td>
+              <td><pre>   Prior = self.Prior</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.04 s</td>
+              <td>20346</td>
+              <td id="line595">595</td>
+              <td><pre>   for k in xrange(SS.K):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>20033</td>
+              <td id="line596">596</td>
+              <td><pre>     elbo[k] = c_Diff(Prior.nu,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.31 s</td>
+              <td>20033</td>
+              <td id="line597">597</td>
+              <td><pre>                       self.GetCached('logdetB'),</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>20033</td>
+              <td id="line598">598</td>
+              <td><pre>                       Prior.m, Prior.kappa,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.04 s</td>
+              <td>20033</td>
+              <td id="line599">599</td>
+              <td><pre>                       Post.nu[k],</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 3.51 s</td>
+              <td>20033</td>
+              <td id="line600">600</td>
+              <td><pre>                       self.GetCached('logdetB', k),</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.76 s</td>
+              <td>20033</td>
+              <td id="line601">601</td>
+              <td><pre>                       Post.m[k], Post.kappa[k],</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line602">602</td>
+              <td><pre>                       )</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.04 s</td>
+              <td>20033</td>
+              <td id="line603">603</td>
+              <td><pre>     if not afterMStep:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.33 s</td>
+              <td>20033</td>
+              <td id="line604">604</td>
+              <td><pre>       aDiff = SS.N[k] + Prior.nu - Post.nu[k]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line605">605</td>
+              <td><pre>       bDiff = SS.xxT[k] + Prior.B \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line606">606</td>
+              <td><pre>                         + Prior.kappa * np.outer(Prior.m, Prior.m) \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line607">607</td>
+              <td><pre>                         - Post.B[k] \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.45 s</td>
+              <td>20033</td>
+              <td id="line608">608</td>
+              <td><pre>                         - Post.kappa[k] * np.outer(Post.m[k], Post.m[k])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line609">609</td>
+              <td><pre>       cDiff = SS.x[k] + Prior.kappa * Prior.m \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.60 s</td>
+              <td>20033</td>
+              <td id="line610">610</td>
+              <td><pre>                       - Post.kappa[k] * Post.m[k]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.32 s</td>
+              <td>20033</td>
+              <td id="line611">611</td>
+              <td><pre>       dDiff = SS.N[k] + Prior.kappa - Post.kappa[k]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>20033</td>
+              <td id="line612">612</td>
+              <td><pre>       elbo[k] += 0.5 * aDiff * self.GetCached('E_logdetL', k) \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line613">613</td>
+              <td><pre>                - 0.5 * self._trace__E_L(bDiff, k) \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line614">614</td>
+              <td><pre>                + np.inner(cDiff, self.GetCached('E_Lmu', k)) \</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 8.03 s</td>
+              <td>20033</td>
+              <td id="line615">615</td>
+              <td><pre>                - 0.5 * dDiff * self.GetCached('E_muLmu', k)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>313</td>
+              <td id="line616">616</td>
+              <td><pre>   return elbo.sum() - 0.5 * np.sum(SS.N) * SS.D * LOGTWOPI</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

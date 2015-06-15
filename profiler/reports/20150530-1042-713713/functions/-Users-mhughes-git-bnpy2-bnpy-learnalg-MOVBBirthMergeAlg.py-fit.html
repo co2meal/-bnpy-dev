@@ -1,0 +1,2143 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">fit</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">fit</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>fit</h1>
+	  </div>
+
+          <p>25 Calls, 346.11 s</p>
+	  <p>Generated 10:48:21 05/30/15 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/learnalg/MOVBBirthMergeAlg.py">/Users/mhughes/git/bnpy2/bnpy/learnalg/MOVBBirthMergeAlg.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line48">48</td>
+              <td class="code "><div class="code-listing"><pre>   @profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line49">49</td>
+              <td class="code "><div class="code-listing"><pre>   def fit(self, hmodel, DataIterator):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line50">50</td>
+              <td class="code "><div class="code-listing"><pre>       ''' Run learning algorithm that fits parameters of hmodel to Data.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line51">51</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line52">52</td>
+              <td class="code "><div class="code-listing"><pre>       Returns</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line53">53</td>
+              <td class="code "><div class="code-listing"><pre>       --------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line54">54</td>
+              <td class="code "><div class="code-listing"><pre>       Info : dict of run information.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line55">55</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line56">56</td>
+              <td class="code "><div class="code-listing"><pre>       Post Condition</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line57">57</td>
+              <td class="code "><div class="code-listing"><pre>       --------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line58">58</td>
+              <td class="code "><div class="code-listing"><pre>       hmodel updated in place with improved global parameters.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line59">59</td>
+              <td class="code "><div class="code-listing"><pre>       '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line60">60</td>
+              <td class="code "><div class="code-listing"><pre>       origmodel = hmodel</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line61">61</td>
+              <td class="code "><div class="code-listing"><pre>       self.ActiveIDVec = np.arange(hmodel.obsModel.K)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line62">62</td>
+              <td class="code "><div class="code-listing"><pre>       self.maxUID = self.ActiveIDVec.max()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line63">63</td>
+              <td class="code "><div class="code-listing"><pre>       self.DataIterator = DataIterator</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line64">64</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line65">65</td>
+              <td class="code "><div class="code-listing"><pre>       # Initialize progress tracking vars like nBatch, lapFrac, etc.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line66">66</td>
+              <td class="code "><div class="code-listing"><pre>       iterid, lapFrac = self.initProgressTrackVars(DataIterator)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line67">67</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line68">68</td>
+              <td class="code "><div class="code-listing"><pre>       # Keep list of params that should be retained across laps</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line69">69</td>
+              <td class="code "><div class="code-listing"><pre>       mkeys = hmodel.allocModel.get_keys_for_memoized_local_params()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line70">70</td>
+              <td class="code "><div class="code-listing"><pre>       self.memoLPkeys = mkeys</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line71">71</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line72">72</td>
+              <td class="code "><div class="code-listing"><pre>       # Save initial state</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line73">73</td>
+              <td class="code "><div class="code-listing"><pre>       self.saveParams(lapFrac, hmodel)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line74">74</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line75">75</td>
+              <td class="code "><div class="code-listing"><pre>       # Custom func hook</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line76">76</td>
+              <td class="code "><div class="code-listing"><pre>       self.eval_custom_func(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 3.60 s</td>
+              <td>1</td>
+              <td id="line77">77</td>
+              <td class="code "><div class="code-listing"><pre>           isInitial=1, **makeDictOfAllWorkspaceVars(**vars()))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line78">78</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line79">79</td>
+              <td class="code "><div class="code-listing"><pre>       # Prep for birth</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line80">80</td>
+              <td class="code "><div class="code-listing"><pre>       BirthPlans = list()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line81">81</td>
+              <td class="code "><div class="code-listing"><pre>       BirthResults = list()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line82">82</td>
+              <td class="code "><div class="code-listing"><pre>       prevBirthResults = list()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line83">83</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line84">84</td>
+              <td class="code "><div class="code-listing"><pre>       # Prep for merge</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line85">85</td>
+              <td class="code "><div class="code-listing"><pre>       MergePlanInfo = dict()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line86">86</td>
+              <td class="code "><div class="code-listing"><pre>       if self.hasMove('merge'):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line87">87</td>
+              <td class="code "><div class="code-listing"><pre>           mergeStartLap = self.algParams['merge']['mergeStartLap']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line88">88</td>
+              <td class="code "><div class="code-listing"><pre>       else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line89">89</td>
+              <td class="code "><div class="code-listing"><pre>           mergeStartLap = 0</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line90">90</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line91">91</td>
+              <td class="code "><div class="code-listing"><pre>       # Prep for delete</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line92">92</td>
+              <td class="code "><div class="code-listing"><pre>       DeletePlans = list()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line93">93</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line94">94</td>
+              <td class="code "><div class="code-listing"><pre>       # Prep for shuffle</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line95">95</td>
+              <td class="code "><div class="code-listing"><pre>       order = None</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line96">96</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line97">97</td>
+              <td class="code "><div class="code-listing"><pre>       # Begin loop over batches of data...</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line98">98</td>
+              <td class="code "><div class="code-listing"><pre>       SS = None</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line99">99</td>
+              <td class="code "><div class="code-listing"><pre>       isConverged = False</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line100">100</td>
+              <td class="code "><div class="code-listing"><pre>       self.set_start_time_now()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>25</td>
+              <td id="line101">101</td>
+              <td class="code "><div class="code-listing"><pre>       while DataIterator.has_next_batch():</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line102">102</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line103">103</td>
+              <td class="code "><div class="code-listing"><pre>           # Grab new data</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line104">104</td>
+              <td class="code "><div class="code-listing"><pre>           Dchunk = DataIterator.get_next_batch()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line105">105</td>
+              <td class="code "><div class="code-listing"><pre>           batchID = DataIterator.batchID</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line106">106</td>
+              <td class="code "><div class="code-listing"><pre>           Dchunk.batchID = batchID</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line107">107</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line108">108</td>
+              <td class="code "><div class="code-listing"><pre>           # Update progress-tracking variables</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line109">109</td>
+              <td class="code "><div class="code-listing"><pre>           iterid += 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line110">110</td>
+              <td class="code "><div class="code-listing"><pre>           lapFrac = (iterid + 1) * self.lapFracInc</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line111">111</td>
+              <td class="code "><div class="code-listing"><pre>           self.lapFrac = lapFrac</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line112">112</td>
+              <td class="code "><div class="code-listing"><pre>           nLapsCompleted = lapFrac - self.algParams['startLap']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line113">113</td>
+              <td class="code "><div class="code-listing"><pre>           self.set_random_seed_at_lap(lapFrac)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line114">114</td>
+              <td class="code "><div class="code-listing"><pre>           if self.doDebugVerbose():</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line115">115</td>
+              <td class="code "><div class="code-listing"><pre>               self.print_msg('========================== lap %.2f batch %d'</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line116">116</td>
+              <td class="code "><div class="code-listing"><pre>                              % (lapFrac, batchID))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line117">117</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line118">118</td>
+              <td class="code "><div class="code-listing"><pre>           # Delete : Evaluate all planned proposals</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line119">119</td>
+              <td class="code "><div class="code-listing"><pre>           if self.isFirstBatch(lapFrac) and self.hasMove('delete'):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line120">120</td>
+              <td class="code "><div class="code-listing"><pre>               self.DeleteAcceptRecord = dict()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line121">121</td>
+              <td class="code "><div class="code-listing"><pre>               if self.doDebug() and len(DeletePlans) > 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line122">122</td>
+              <td class="code "><div class="code-listing"><pre>                   DeletePlans[0]['WholeDataset'] = DataIterator.Data</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line123">123</td>
+              <td class="code "><div class="code-listing"><pre>               hmodel, SS = self.deleteAndUpdateMemory(hmodel, SS,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.58 s</td>
+              <td>3</td>
+              <td id="line124">124</td>
+              <td class="code "><div class="code-listing"><pre>                                                       DeletePlans)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line125">125</td>
+              <td class="code "><div class="code-listing"><pre>               DeletePlans = list()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line126">126</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line127">127</td>
+              <td class="code "><div class="code-listing"><pre>           # Birth move : track birth info from previous lap</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line128">128</td>
+              <td class="code "><div class="code-listing"><pre>           if self.isFirstBatch(lapFrac):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line129">129</td>
+              <td class="code "><div class="code-listing"><pre>               didBirth = self.do_birth_at_lap(lapFrac - 1.0)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line130">130</td>
+              <td class="code "><div class="code-listing"><pre>               if self.hasMove('birth') and didBirth:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line131">131</td>
+              <td class="code "><div class="code-listing"><pre>                   prevBirthResults = BirthResults</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line132">132</td>
+              <td class="code "><div class="code-listing"><pre>               else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line133">133</td>
+              <td class="code "><div class="code-listing"><pre>                   prevBirthResults = list()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line134">134</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line135">135</td>
+              <td class="code "><div class="code-listing"><pre>           # Birth move : create new components</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line136">136</td>
+              <td class="code "><div class="code-listing"><pre>           if self.hasMove('birth') and self.do_birth_at_lap(lapFrac):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line137">137</td>
+              <td class="code "><div class="code-listing"><pre>               if self.doBirthWithPlannedData(lapFrac):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line138">138</td>
+              <td class="code "><div class="code-listing"><pre>                   hmodel, SS, BirthResults = self.birth_create_new_comps(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line139">139</td>
+              <td class="code "><div class="code-listing"><pre>                       hmodel, SS, BirthPlans,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line140">140</td>
+              <td class="code "><div class="code-listing"><pre>                       lapFrac=lapFrac)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line141">141</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line142">142</td>
+              <td class="code "><div class="code-listing"><pre>               if self.doBirthWithDataFromCurrentBatch(lapFrac):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line143">143</td>
+              <td class="code "><div class="code-listing"><pre>                   hmodel, SS, curResults = self.birth_create_new_comps(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line144">144</td>
+              <td class="code "><div class="code-listing"><pre>                       hmodel, SS, Data=Dchunk,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line145">145</td>
+              <td class="code "><div class="code-listing"><pre>                       lapFrac=lapFrac)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line146">146</td>
+              <td class="code "><div class="code-listing"><pre>                   BirthResults.extend(curResults)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line147">147</td>
+              <td class="code "><div class="code-listing"><pre>           else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line148">148</td>
+              <td class="code "><div class="code-listing"><pre>               BirthResults = list()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line149">149</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line150">150</td>
+              <td class="code "><div class="code-listing"><pre>           # Prepare for merges</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line151">151</td>
+              <td class="code "><div class="code-listing"><pre>           if self.hasMove('merge') and self.doMergePrepAtLap(lapFrac):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line152">152</td>
+              <td class="code "><div class="code-listing"><pre>               MergePrepInfo = self.preparePlansForMerge(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line153">153</td>
+              <td class="code "><div class="code-listing"><pre>                   hmodel, SS, MergePrepInfo,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line154">154</td>
+              <td class="code "><div class="code-listing"><pre>                   order=order,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line155">155</td>
+              <td class="code "><div class="code-listing"><pre>                   BirthResults=BirthResults,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.28 s</td>
+              <td>1</td>
+              <td id="line156">156</td>
+              <td class="code "><div class="code-listing"><pre>                   lapFrac=lapFrac)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>23</td>
+              <td id="line157">157</td>
+              <td class="code "><div class="code-listing"><pre>           elif self.isFirstBatch(lapFrac):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line158">158</td>
+              <td class="code "><div class="code-listing"><pre>               if self.doMergePrepAtLap(lapFrac + 1):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line159">159</td>
+              <td class="code "><div class="code-listing"><pre>                   mpSelect = self.algParams['merge']['mergePairSelection']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line160">160</td>
+              <td class="code "><div class="code-listing"><pre>                   MergePrepInfo = dict(mergePairSelection=mpSelect)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line161">161</td>
+              <td class="code "><div class="code-listing"><pre>               else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line162">162</td>
+              <td class="code "><div class="code-listing"><pre>                   MergePrepInfo = dict()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line163">163</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line164">164</td>
+              <td class="code "><div class="code-listing"><pre>           # Delete : Prepare plan for next lap.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line165">165</td>
+              <td class="code "><div class="code-listing"><pre>           if self.hasMove('delete') and self.doDeleteAtLap(lapFrac + 1):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>9</td>
+              <td id="line166">166</td>
+              <td class="code "><div class="code-listing"><pre>               if self.isFirstBatch(lapFrac) and SS is not None:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line167">167</td>
+              <td class="code "><div class="code-listing"><pre>                   Plan = DPlanner.makePlanForEligibleComps(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line168">168</td>
+              <td class="code "><div class="code-listing"><pre>                       SS,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line169">169</td>
+              <td class="code "><div class="code-listing"><pre>                       lapFrac=self.lapFrac,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line170">170</td>
+              <td class="code "><div class="code-listing"><pre>                       DRecordsByComp=self.DeleteRecordsByComp,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line171">171</td>
+              <td class="code "><div class="code-listing"><pre>                       **self.algParams['delete'])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line172">172</td>
+              <td class="code "><div class="code-listing"><pre>                   if 'candidateUIDs' in Plan:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line173">173</td>
+              <td class="code "><div class="code-listing"><pre>                       DeletePlans = [Plan]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line174">174</td>
+              <td class="code "><div class="code-listing"><pre>                   else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line175">175</td>
+              <td class="code "><div class="code-listing"><pre>                       DeletePlans = []</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line176">176</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line177">177</td>
+              <td class="code "><div class="code-listing"><pre>           # Reset selection terms to zero</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line178">178</td>
+              <td class="code "><div class="code-listing"><pre>           if self.isFirstBatch(lapFrac):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line179">179</td>
+              <td class="code "><div class="code-listing"><pre>               if SS is not None and SS.hasSelectionTerms():</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line180">180</td>
+              <td class="code "><div class="code-listing"><pre>                   SS._SelectTerms.setAllFieldsToZero()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line181">181</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line182">182</td>
+              <td class="code "><div class="code-listing"><pre>           # Local/E step</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line183">183</td>
+              <td class="code "><div class="code-listing"><pre>           self.algParamsLP['lapFrac'] = lapFrac</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line184">184</td>
+              <td class="code "><div class="code-listing"><pre>           self.algParamsLP['batchID'] = batchID</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line185">185</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line186">186</td>
+              <td class="code "><div class="code-listing"><pre>           if self.hasMove('seqcreate'):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line187">187</td>
+              <td class="code "><div class="code-listing"><pre>               LPchunk = self.localStepWithBirthAtEachSeq(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line188">188</td>
+              <td class="code "><div class="code-listing"><pre>                   hmodel, SS, Dchunk, batchID, </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line189">189</td>
+              <td class="code "><div class="code-listing"><pre>                   lapFrac=lapFrac,</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 307.87 s</td>
+              <td>24</td>
+              <td id="line190">190</td>
+              <td class="code danger"><div class="code-listing"><pre>                   **MergePrepInfo)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line191">191</td>
+              <td class="code "><div class="code-listing"><pre>           else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line192">192</td>
+              <td class="code "><div class="code-listing"><pre>               LPchunk = self.memoizedLocalStep(hmodel, Dchunk, batchID,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line193">193</td>
+              <td class="code "><div class="code-listing"><pre>                                            **MergePrepInfo)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line194">194</td>
+              <td class="code "><div class="code-listing"><pre>           </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line195">195</td>
+              <td class="code "><div class="code-listing"><pre>           # Summary step</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line196">196</td>
+              <td class="code "><div class="code-listing"><pre>           SS, SSchunk = self.memoizedSummaryStep(hmodel, SS,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line197">197</td>
+              <td class="code "><div class="code-listing"><pre>                                                  Dchunk, LPchunk, batchID,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.23 s</td>
+              <td>24</td>
+              <td id="line198">198</td>
+              <td class="code "><div class="code-listing"><pre>                                                  MergePrepInfo=MergePrepInfo,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line199">199</td>
+              <td class="code "><div class="code-listing"><pre>                                                  )</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line200">200</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line201">201</td>
+              <td class="code "><div class="code-listing"><pre>           # Delete : Collect target dataset</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line202">202</td>
+              <td class="code "><div class="code-listing"><pre>           if len(DeletePlans) > 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line203">203</td>
+              <td class="code "><div class="code-listing"><pre>               DeletePlans = self.deleteCollectTarget(Dchunk, hmodel, LPchunk,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line204">204</td>
+              <td class="code "><div class="code-listing"><pre>                                                      batchID,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.03 s</td>
+              <td>8</td>
+              <td id="line205">205</td>
+              <td class="code "><div class="code-listing"><pre>                                                      DeletePlans)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line206">206</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line207">207</td>
+              <td class="code "><div class="code-listing"><pre>           # Birth move : collect target data</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line208">208</td>
+              <td class="code "><div class="code-listing"><pre>           if self.hasMove('birth') and self.do_birth_at_lap(lapFrac + 1.0):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line209">209</td>
+              <td class="code "><div class="code-listing"><pre>               if self.isFirstBatch(lapFrac):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line210">210</td>
+              <td class="code "><div class="code-listing"><pre>                   BirthPlans = self.birth_plan_targets_for_next_lap(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line211">211</td>
+              <td class="code "><div class="code-listing"><pre>                       Dchunk, hmodel, SS, LPchunk, BirthResults)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line212">212</td>
+              <td class="code "><div class="code-listing"><pre>               BirthPlans = self.birth_collect_target_subsample(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line213">213</td>
+              <td class="code "><div class="code-listing"><pre>                   Dchunk, hmodel, LPchunk, BirthPlans, lapFrac)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line214">214</td>
+              <td class="code "><div class="code-listing"><pre>           else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line215">215</td>
+              <td class="code "><div class="code-listing"><pre>               BirthPlans = list()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line216">216</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line217">217</td>
+              <td class="code "><div class="code-listing"><pre>           # Birth : Handle removing "extra mass" of fresh components</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line218">218</td>
+              <td class="code "><div class="code-listing"><pre>           if self.hasMove('birth') and self.isLastBatch(lapFrac):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line219">219</td>
+              <td class="code "><div class="code-listing"><pre>               hmodel, SS = self.birth_remove_extra_mass(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line220">220</td>
+              <td class="code "><div class="code-listing"><pre>                   hmodel, SS, BirthResults)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line221">221</td>
+              <td class="code "><div class="code-listing"><pre>               # SS now has size exactly consistent with entire dataset</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line222">222</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line223">223</td>
+              <td class="code "><div class="code-listing"><pre>           # Global/M step</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 2.86 s</td>
+              <td>24</td>
+              <td id="line224">224</td>
+              <td class="code "><div class="code-listing"><pre>           self.GlobalStep(hmodel, SS, lapFrac)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line225">225</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line226">226</td>
+              <td class="code "><div class="code-listing"><pre>           # ELBO calculation</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line227">227</td>
+              <td class="code "><div class="code-listing"><pre>           if self.isLastBatch(lapFrac):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line228">228</td>
+              <td class="code "><div class="code-listing"><pre>               # after seeing all data, ELBO will be ready</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line229">229</td>
+              <td class="code "><div class="code-listing"><pre>               self.ELBOReady = True</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line230">230</td>
+              <td class="code "><div class="code-listing"><pre>           if self.ELBOReady:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.57 s</td>
+              <td>10</td>
+              <td id="line231">231</td>
+              <td class="code "><div class="code-listing"><pre>               evBound = hmodel.calc_evidence(SS=SS)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line232">232</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line233">233</td>
+              <td class="code "><div class="code-listing"><pre>           # Merge move!</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line234">234</td>
+              <td class="code "><div class="code-listing"><pre>           if self.hasMove('merge') and self.isLastBatch(lapFrac) \</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line235">235</td>
+              <td class="code "><div class="code-listing"><pre>                   and lapFrac > mergeStartLap:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line236">236</td>
+              <td class="code "><div class="code-listing"><pre>               hmodel, SS, evBound = self.run_many_merge_moves(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 1.31 s</td>
+              <td>1</td>
+              <td id="line237">237</td>
+              <td class="code "><div class="code-listing"><pre>                   hmodel, SS, evBound, lapFrac, MergePrepInfo)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line238">238</td>
+              <td class="code "><div class="code-listing"><pre>               # Cancel all planned deletes if merges were accepted.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line239">239</td>
+              <td class="code "><div class="code-listing"><pre>               if hasattr(self, 'MergeLog') and len(self.MergeLog) > 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line240">240</td>
+              <td class="code "><div class="code-listing"><pre>                   DeletePlans = []</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line241">241</td>
+              <td class="code "><div class="code-listing"><pre>                   # Update memoized stats for each batch</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.10 s</td>
+              <td>1</td>
+              <td id="line242">242</td>
+              <td class="code "><div class="code-listing"><pre>                   self.fastForwardMemory(Kfinal=SS.K)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line243">243</td>
+              <td class="code "><div class="code-listing"><pre>                   if hasattr(SS, 'mPairIDs'):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line244">244</td>
+              <td class="code "><div class="code-listing"><pre>                       del SS.mPairIDs</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line245">245</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line246">246</td>
+              <td class="code "><div class="code-listing"><pre>           # Shuffle : Rearrange topic order (big to small)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line247">247</td>
+              <td class="code "><div class="code-listing"><pre>           didFastFwd = 0</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line248">248</td>
+              <td class="code "><div class="code-listing"><pre>           if self.hasMove('shuffle') and self.isLastBatch(lapFrac):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line249">249</td>
+              <td class="code "><div class="code-listing"><pre>               order = np.argsort(-1 * SS.getCountVec())</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line250">250</td>
+              <td class="code "><div class="code-listing"><pre>               sortedalready = np.arange(SS.K)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line251">251</td>
+              <td class="code "><div class="code-listing"><pre>               if np.allclose(order, sortedalready):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line252">252</td>
+              <td class="code "><div class="code-listing"><pre>                   order = None  # Already sorted, do nothing!</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line253">253</td>
+              <td class="code "><div class="code-listing"><pre>               else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line254">254</td>
+              <td class="code "><div class="code-listing"><pre>                   self.ActiveIDVec = self.ActiveIDVec[order]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line255">255</td>
+              <td class="code "><div class="code-listing"><pre>                   SS.reorderComps(order)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line256">256</td>
+              <td class="code "><div class="code-listing"><pre>                   assert np.allclose(SS.uIDs, self.ActiveIDVec)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.13 s</td>
+              <td>3</td>
+              <td id="line257">257</td>
+              <td class="code "><div class="code-listing"><pre>                   hmodel.update_global_params(SS)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.09 s</td>
+              <td>3</td>
+              <td id="line258">258</td>
+              <td class="code "><div class="code-listing"><pre>                   evBound = hmodel.calc_evidence(SS=SS)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line259">259</td>
+              <td class="code "><div class="code-listing"><pre>                   # Update tracked target stats for any upcoming deletes</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line260">260</td>
+              <td class="code "><div class="code-listing"><pre>                   for DPlan in DeletePlans:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line261">261</td>
+              <td class="code "><div class="code-listing"><pre>                       if self.hasMove('merge'):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line262">262</td>
+              <td class="code "><div class="code-listing"><pre>                           assert len(self.MergeLog) == 0</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line263">263</td>
+              <td class="code "><div class="code-listing"><pre>                       Kextra = SS.K - DPlan['targetSS'].K</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line264">264</td>
+              <td class="code "><div class="code-listing"><pre>                       if Kextra > 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line265">265</td>
+              <td class="code "><div class="code-listing"><pre>                           delattr(DPlan['targetSS'], 'uIDs')</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line266">266</td>
+              <td class="code "><div class="code-listing"><pre>                           DPlan['targetSS'].insertEmptyComps(Kextra)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line267">267</td>
+              <td class="code "><div class="code-listing"><pre>                       DPlan['targetSS'].reorderComps(order)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line268">268</td>
+              <td class="code "><div class="code-listing"><pre>                       DPlan['targetSS'].uIDs = self.ActiveIDVec.copy()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line269">269</td>
+              <td class="code "><div class="code-listing"><pre>                       targetSSbyBatch = DPlan['targetSSByBatch']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line270">270</td>
+              <td class="code "><div class="code-listing"><pre>                       for batchID in targetSSbyBatch:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line271">271</td>
+              <td class="code "><div class="code-listing"><pre>                           batchSS = targetSSbyBatch[batchID]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line272">272</td>
+              <td class="code "><div class="code-listing"><pre>                           Kextra = SS.K - batchSS.K</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line273">273</td>
+              <td class="code "><div class="code-listing"><pre>                           if Kextra > 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line274">274</td>
+              <td class="code "><div class="code-listing"><pre>                               delattr(batchSS, 'uIDs')</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line275">275</td>
+              <td class="code "><div class="code-listing"><pre>                               batchSS.insertEmptyComps(Kextra)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line276">276</td>
+              <td class="code "><div class="code-listing"><pre>                           batchSS.reorderComps(order)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line277">277</td>
+              <td class="code "><div class="code-listing"><pre>                           batchSS.uIDs = self.ActiveIDVec.copy()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line278">278</td>
+              <td class="code "><div class="code-listing"><pre>                   # Update memoized stats for each batch</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.04 s</td>
+              <td>3</td>
+              <td id="line279">279</td>
+              <td class="code "><div class="code-listing"><pre>                   self.fastForwardMemory(Kfinal=SS.K, order=order)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line280">280</td>
+              <td class="code "><div class="code-listing"><pre>                   didFastFwd = 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line281">281</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line282">282</td>
+              <td class="code "><div class="code-listing"><pre>           if self.hasMove('seqcreate') and self.isLastBatch(lapFrac):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line283">283</td>
+              <td class="code "><div class="code-listing"><pre>               if not didFastFwd:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line284">284</td>
+              <td class="code "><div class="code-listing"><pre>                   Kr, Kextra = self.CreateRecords[np.ceil(lapFrac)]</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line285">285</td>
+              <td class="code "><div class="code-listing"><pre>                   if Kextra > 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line286">286</td>
+              <td class="code "><div class="code-listing"><pre>                       self.fastForwardMemory(Kfinal=SS.K)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line287">287</td>
+              <td class="code "><div class="code-listing"><pre>                       didFastFwd = 1</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line288">288</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line289">289</td>
+              <td class="code "><div class="code-listing"><pre>           if nLapsCompleted > 1.0 and len(BirthResults) == 0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line290">290</td>
+              <td class="code "><div class="code-listing"><pre>               # evBound increases monotonically AFTER first lap</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line291">291</td>
+              <td class="code "><div class="code-listing"><pre>               # verify_evidence warns if this isn't happening</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>16</td>
+              <td id="line292">292</td>
+              <td class="code "><div class="code-listing"><pre>               self.verify_evidence(evBound, prevBound, lapFrac)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line293">293</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line294">294</td>
+              <td class="code "><div class="code-listing"><pre>           if self.doDebug() and lapFrac >= 1.0:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line295">295</td>
+              <td class="code "><div class="code-listing"><pre>               self.verifyELBOTracking(hmodel, SS, evBound,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line296">296</td>
+              <td class="code "><div class="code-listing"><pre>                                       BirthResults=BirthResults)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line297">297</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line298">298</td>
+              <td class="code "><div class="code-listing"><pre>           # Assess convergence</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line299">299</td>
+              <td class="code "><div class="code-listing"><pre>           countVec = SS.getCountVec()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line300">300</td>
+              <td class="code "><div class="code-listing"><pre>           if lapFrac > 1.0 and self.isLastBatch(lapFrac):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line301">301</td>
+              <td class="code "><div class="code-listing"><pre>               isConverged = self.isCountVecConverged(countVec, prevCountVec)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line302">302</td>
+              <td class="code "><div class="code-listing"><pre>               hasMoreMoves = self.hasMoreReasonableMoves(lapFrac, SS)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line303">303</td>
+              <td class="code "><div class="code-listing"><pre>               doneRequiredLaps = nLapsCompleted >= self.algParams['minLaps']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line304">304</td>
+              <td class="code "><div class="code-listing"><pre>               isConverged = isConverged and not hasMoreMoves \</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line305">305</td>
+              <td class="code "><div class="code-listing"><pre>                   and doneRequiredLaps</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>2</td>
+              <td id="line306">306</td>
+              <td class="code "><div class="code-listing"><pre>               self.setStatus(lapFrac, isConverged)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line307">307</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line308">308</td>
+              <td class="code "><div class="code-listing"><pre>           # Display progress</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line309">309</td>
+              <td class="code "><div class="code-listing"><pre>           self.updateNumDataProcessed(Dchunk.get_size())</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line310">310</td>
+              <td class="code "><div class="code-listing"><pre>           if self.isLogCheckpoint(lapFrac, iterid):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>6</td>
+              <td id="line311">311</td>
+              <td class="code "><div class="code-listing"><pre>               self.printStateToLog(hmodel, evBound, lapFrac, iterid)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line312">312</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line313">313</td>
+              <td class="code "><div class="code-listing"><pre>           # Save diagnostics and params</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line314">314</td>
+              <td class="code "><div class="code-listing"><pre>           if self.isSaveDiagnosticsCheckpoint(lapFrac, iterid):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>6</td>
+              <td id="line315">315</td>
+              <td class="code "><div class="code-listing"><pre>               self.saveDiagnostics(lapFrac, SS, evBound, self.ActiveIDVec)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line316">316</td>
+              <td class="code "><div class="code-listing"><pre>           if self.isSaveParamsCheckpoint(lapFrac, iterid):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>6</td>
+              <td id="line317">317</td>
+              <td class="code "><div class="code-listing"><pre>               self.saveParams(lapFrac, hmodel, SS)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line318">318</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line319">319</td>
+              <td class="code "><div class="code-listing"><pre>           # Custom func hook</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 27.30 s</td>
+              <td>24</td>
+              <td id="line320">320</td>
+              <td class="code "><div class="code-listing"><pre>           self.eval_custom_func(**makeDictOfAllWorkspaceVars(**vars()))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line321">321</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line322">322</td>
+              <td class="code "><div class="code-listing"><pre>           if isConverged and self.isLastBatch(lapFrac):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line323">323</td>
+              <td class="code "><div class="code-listing"><pre>               break</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line324">324</td>
+              <td class="code "><div class="code-listing"><pre>           prevCountVec = countVec.copy()</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line325">325</td>
+              <td class="code "><div class="code-listing"><pre>           prevBound = evBound</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line326">326</td>
+              <td class="code "><div class="code-listing"><pre>           # .... end loop over data</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line327">327</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line328">328</td>
+              <td class="code "><div class="code-listing"><pre>       # Finished! Save, print and exit</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line329">329</td>
+              <td class="code "><div class="code-listing"><pre>       self.printStateToLog(hmodel, evBound, lapFrac, iterid, isFinal=1)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line330">330</td>
+              <td class="code "><div class="code-listing"><pre>       self.saveParams(lapFrac, hmodel, SS)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line331">331</td>
+              <td class="code "><div class="code-listing"><pre>       self.eval_custom_func(</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line332">332</td>
+              <td class="code "><div class="code-listing"><pre>           isFinal=1, **makeDictOfAllWorkspaceVars(**vars()))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line333">333</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line334">334</td>
+              <td class="code "><div class="code-listing"><pre>       # Births and merges require copies of original model object</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line335">335</td>
+              <td class="code "><div class="code-listing"><pre>       #  we need to make sure original reference has updated parameters, etc.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line336">336</td>
+              <td class="code "><div class="code-listing"><pre>       if id(origmodel) != id(hmodel):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line337">337</td>
+              <td class="code "><div class="code-listing"><pre>           origmodel.allocModel = hmodel.allocModel</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line338">338</td>
+              <td class="code "><div class="code-listing"><pre>           origmodel.obsModel = hmodel.obsModel</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line339">339</td>
+              <td class="code "><div class="code-listing"><pre>       return self.buildRunInfo(evBound=evBound, SS=SS,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line340">340</td>
+              <td class="code "><div class="code-listing"><pre>                                LPmemory=self.LPmemory,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line341">341</td>
+              <td class="code "><div class="code-listing"><pre>                                SSmemory=self.SSmemory)</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

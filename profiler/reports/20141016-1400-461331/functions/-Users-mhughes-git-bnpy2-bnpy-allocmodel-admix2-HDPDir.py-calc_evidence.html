@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">calc_evidence</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">calc_evidence</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>calc_evidence</h1>
+	  </div>
+
+          <p>100 Calls, 0.07 s</p>
+	  <p>Generated 14:15:41 10/16/14 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix2/HDPDir.py">/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix2/HDPDir.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line586">586</td>
+              <td class="code "><div class="code-listing"><pre> @profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line587">587</td>
+              <td class="code "><div class="code-listing"><pre> def calc_evidence(self, Data, SS, LP, todict=0, **kwargs):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line588">588</td>
+              <td class="code "><div class="code-listing"><pre>   ''' Calculate ELBO objective </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line589">589</td>
+              <td class="code "><div class="code-listing"><pre>   '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>100</td>
+              <td id="line590">590</td>
+              <td class="code "><div class="code-listing"><pre>   calpha = SS.nDoc * (gammaln(self.alpha) + (SS.K+1) * np.log(self.alpha))</pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 0.04 s</td>
+              <td>100</td>
+              <td id="line591">591</td>
+              <td class="code danger"><div class="code-listing"><pre>   U_plus_cDir_alphaBeta = self.E_logpU_logqU_plus_cDirAlphaBeta(SS)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>100</td>
+              <td id="line592">592</td>
+              <td class="code "><div class="code-listing"><pre>   slack_alphaBeta, slack_alphaBeta_Rem = self.slack_alphaBeta(SS)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>100</td>
+              <td id="line593">593</td>
+              <td class="code "><div class="code-listing"><pre>   if SS.hasELBOTerms():</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>100</td>
+              <td id="line594">594</td>
+              <td class="code "><div class="code-listing"><pre>     ElogqZ = SS.getELBOTerm('ElogqZ')</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>100</td>
+              <td id="line595">595</td>
+              <td class="code "><div class="code-listing"><pre>     cDir_theta = self.c_Dir_theta(SS.getELBOTerm('gammalnSumTheta'),</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>100</td>
+              <td id="line596">596</td>
+              <td class="code "><div class="code-listing"><pre>                                   SS.getELBOTerm('gammalnTheta'),</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>100</td>
+              <td id="line597">597</td>
+              <td class="code "><div class="code-listing"><pre>                                   SS.getELBOTerm('gammalnTheta_Rem'),</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line598">598</td>
+              <td class="code "><div class="code-listing"><pre>                                   )</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>100</td>
+              <td id="line599">599</td>
+              <td class="code "><div class="code-listing"><pre>     slack_NmT = SS.getELBOTerm('slackNminusTheta')</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>100</td>
+              <td id="line600">600</td>
+              <td class="code "><div class="code-listing"><pre>     slack_NmT_Rem = SS.getELBOTerm('slackNminusTheta_Rem')</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line601">601</td>
+              <td class="code "><div class="code-listing"><pre>   else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line602">602</td>
+              <td class="code "><div class="code-listing"><pre>     ElogqZ = self.E_logqZ(Data, LP)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line603">603</td>
+              <td class="code "><div class="code-listing"><pre>     cDir_theta = self.c_Dir_theta(*self.c_Dir_theta__parts(LP))</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line604">604</td>
+              <td class="code "><div class="code-listing"><pre>     slack_NmT, slack_NmT_Rem = self.slack_NminusTheta(LP)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line605">605</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>100</td>
+              <td id="line606">606</td>
+              <td class="code "><div class="code-listing"><pre>   if todict:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line607">607</td>
+              <td class="code "><div class="code-listing"><pre>     return dict(calpha=calpha,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line608">608</td>
+              <td class="code "><div class="code-listing"><pre>                 cDir_theta=-1*cDir_theta,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line609">609</td>
+              <td class="code "><div class="code-listing"><pre>                 entropy=-1*np.sum(ElogqZ),</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line610">610</td>
+              <td class="code "><div class="code-listing"><pre>                 cDir_alphaBeta=U_plus_cDir_alphaBeta,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line611">611</td>
+              <td class="code "><div class="code-listing"><pre>                 slack=np.sum(slack_NmT + slack_alphaBeta) \</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line612">612</td>
+              <td class="code "><div class="code-listing"><pre>                       + slack_NmT_Rem + slack_alphaBeta_Rem</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line613">613</td>
+              <td class="code "><div class="code-listing"><pre>                )</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line614">614</td>
+              <td class="code "><div class="code-listing"><pre></pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line615">615</td>
+              <td class="code "><div class="code-listing"><pre>   return U_plus_cDir_alphaBeta + calpha \</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line616">616</td>
+              <td class="code "><div class="code-listing"><pre>          - np.sum(ElogqZ) \</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line617">617</td>
+              <td class="code "><div class="code-listing"><pre>          - cDir_theta \</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line618">618</td>
+              <td class="code "><div class="code-listing"><pre>          + np.sum(slack_NmT + slack_alphaBeta) \</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>100</td>
+              <td id="line619">619</td>
+              <td class="code "><div class="code-listing"><pre>          + slack_NmT_Rem + slack_alphaBeta_Rem </pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

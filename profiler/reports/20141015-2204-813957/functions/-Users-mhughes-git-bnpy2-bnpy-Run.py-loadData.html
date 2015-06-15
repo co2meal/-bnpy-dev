@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/font-awesome/css/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">loadData</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">loadData</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>loadData</h1>
+	  </div>
+
+          <p>1 Calls, 0.74 s</p>
+	  <p>Generated 22:22:48 10/15/14 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/Run.py">/Users/mhughes/git/bnpy2/bnpy/Run.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed table-code-listing">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line246">246</td>
+              <td class="code "><div class="code-listing"><pre>@profile</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line247">247</td>
+              <td class="code "><div class="code-listing"><pre>def loadData(ReqArgs, KwArgs, DataArgs, dataorderseed):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line248">248</td>
+              <td class="code "><div class="code-listing"><pre>  ''' Load DataObj specified by the user, using particular random seed.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line249">249</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line250">250</td>
+              <td class="code "><div class="code-listing"><pre>      Returns</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line251">251</td>
+              <td class="code "><div class="code-listing"><pre>      --------</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line252">252</td>
+              <td class="code "><div class="code-listing"><pre>      either </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line253">253</td>
+              <td class="code "><div class="code-listing"><pre>        Data, InitData  </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line254">254</td>
+              <td class="code "><div class="code-listing"><pre>      or</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line255">255</td>
+              <td class="code "><div class="code-listing"><pre>        DataIterator, InitData</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line256">256</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line257">257</td>
+              <td class="code "><div class="code-listing"><pre>      InitData must be a bnpy.data.DataObj object.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line258">258</td>
+              <td class="code "><div class="code-listing"><pre>      This DataObj is used for two early-stage steps in the training process</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line259">259</td>
+              <td class="code "><div class="code-listing"><pre>        (a) Constructing observation model of appropriate dimensions</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line260">260</td>
+              <td class="code "><div class="code-listing"><pre>            For example, with 3D real data,</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line261">261</td>
+              <td class="code "><div class="code-listing"><pre>            can only model the observations with a Gaussian over 3D vectors. </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line262">262</td>
+              <td class="code "><div class="code-listing"><pre>        (b) Initializing global model parameters</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line263">263</td>
+              <td class="code "><div class="code-listing"><pre>            Esp. in online settings, avoiding local optima might require</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line264">264</td>
+              <td class="code "><div class="code-listing"><pre>             using parameters initialized from a much bigger dataset</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line265">265</td>
+              <td class="code "><div class="code-listing"><pre>             than each individual batch.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line266">266</td>
+              <td class="code "><div class="code-listing"><pre>      For full dataset learning scenarios, InitData can be the same as Data.</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line267">267</td>
+              <td class="code "><div class="code-listing"><pre>  '''</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line268">268</td>
+              <td class="code "><div class="code-listing"><pre>  datamod = __import__(ReqArgs['dataName'],fromlist=[])</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line269">269</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line270">270</td>
+              <td class="code "><div class="code-listing"><pre>  algName = ReqArgs['algName']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line271">271</td>
+              <td class="code "><div class="code-listing"><pre>  if algName in FullDataAlgSet:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line272">272</td>
+              <td class="code "><div class="code-listing"><pre>    Data = datamod.get_data(**DataArgs)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line273">273</td>
+              <td class="code "><div class="code-listing"><pre>    return Data, Data</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line274">274</td>
+              <td class="code "><div class="code-listing"><pre>  elif algName in OnlineDataAlgSet:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.27 s</td>
+              <td>1</td>
+              <td id="line275">275</td>
+              <td class="code "><div class="code-listing"><pre>    InitData = datamod.get_data(**DataArgs)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line276">276</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line277">277</td>
+              <td class="code "><div class="code-listing"><pre>    if 'OnlineDataPrefs' in KwArgs:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line278">278</td>
+              <td class="code "><div class="code-listing"><pre>      KwArgs[algName]['nLap'] = KwArgs['OnlineDataPrefs']['nLap']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line279">279</td>
+              <td class="code "><div class="code-listing"><pre>      OnlineDataArgs = KwArgs['OnlineDataPrefs']</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line280">280</td>
+              <td class="code "><div class="code-listing"><pre>      OnlineDataArgs['dataorderseed'] = dataorderseed</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line281">281</td>
+              <td class="code "><div class="code-listing"><pre>      OnlineDataArgs.update(DataArgs)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line282">282</td>
+              <td class="code "><div class="code-listing"><pre>      if hasattr(datamod, 'get_iterator'):</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line283">283</td>
+              <td class="code "><div class="code-listing"><pre>        ## Load custom iterator defined in data module</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line284">284</td>
+              <td class="code "><div class="code-listing"><pre>        DataIterator = datamod.get_iterator(**OnlineDataArgs)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line285">285</td>
+              <td class="code "><div class="code-listing"><pre>      else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line286">286</td>
+              <td class="code "><div class="code-listing"><pre>        ## Make an iterator over dataset provided by get_data        </pre></div></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 0.46 s</td>
+              <td>1</td>
+              <td id="line287">287</td>
+              <td class="code danger"><div class="code-listing"><pre>        DataIterator = InitData.to_iterator(**OnlineDataArgs)</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line288">288</td>
+              <td class="code "><div class="code-listing"><pre>    else:</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line289">289</td>
+              <td class="code "><div class="code-listing"><pre>      raise ValueError('Online algorithm requires valid DataIterator args.')</pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line290">290</td>
+              <td class="code "><div class="code-listing"><pre> </pre></div></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>1</td>
+              <td id="line291">291</td>
+              <td class="code "><div class="code-listing"><pre>    return DataIterator, InitData</pre></div></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="fa fa-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

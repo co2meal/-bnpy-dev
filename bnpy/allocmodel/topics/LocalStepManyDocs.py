@@ -10,12 +10,12 @@ from LocalStepSingleDoc import calcLocalParams_SingleDoc_WithELBOTrace
 
 
 def calcLocalParams(
-        Data, LP, 
+        Data, LP,
         alphaEbeta=None,
         alphaEbetaRem=None,
         alpha=None,
         initDocTopicCountLP='scratch',
-        cslice=(0,None),
+        cslice=(0, None),
         **kwargs):
     ''' Calculate all local parameters for provided dataset under a topic model
 
@@ -83,12 +83,13 @@ def calcLocalParams(
         AggInfo = updateConvergenceInfoForDoc_d(d, Info_d, AggInfo, Data)
 
     LP['DocTopicCount'] = DocTopicCount
-    LP = updateLPGivenDocTopicCount(LP, DocTopicCount, 
-        alphaEbeta, alphaEbetaRem)
+    LP = updateLPGivenDocTopicCount(LP, DocTopicCount,
+                                    alphaEbeta, alphaEbetaRem)
     LP = updateLPWithResp(LP, Data, Lik, DocTopicProb, sumRespTilde, cslice)
     LP['Info'] = AggInfo
     writeLogMessageForManyDocs(Data, AggInfo, **kwargs)
     return LP
+
 
 def updateLPGivenDocTopicCount(LP, DocTopicCount,
                                alphaEbeta, alphaEbetaRem=None):
@@ -117,14 +118,15 @@ def updateLPGivenDocTopicCount(LP, DocTopicCount,
         digammaSumTheta = digamma(theta.sum(axis=1) + alphaEbetaRem)
         LP['thetaRem'] = alphaEbetaRem
         LP['ElogPiRem'] = digamma(alphaEbetaRem) - digammaSumTheta
-        LP['digammaSumTheta'] = digammaSumTheta # Used for merges
+        LP['digammaSumTheta'] = digammaSumTheta  # Used for merges
 
     ElogPi = digamma(theta) - digammaSumTheta[:, np.newaxis]
     LP['theta'] = theta
     LP['ElogPi'] = ElogPi
     return LP
 
-def updateLPWithResp(LP, Data, Lik, Prior, sumRespTilde, cslice=(0,None)):
+
+def updateLPWithResp(LP, Data, Lik, Prior, sumRespTilde, cslice=(0, None)):
     nDoc = calcNumDocFromSlice(Data, cslice)
     LP['resp'] = Lik.copy()
     slice_start = Data.doc_range[cslice[0]]
@@ -146,6 +148,7 @@ def updateSingleDocLPWithResp(LP_d, Lik_d, Prior_d, sumR_d):
     LP_d['resp'] = resp_d
     return LP_d
 
+
 def calcNumDocFromSlice(Data, cslice):
     if cslice[1] is None:
         nDoc = Data.nDoc
@@ -153,9 +156,10 @@ def calcNumDocFromSlice(Data, cslice):
         nDoc = cslice[1] - cslice[0]
     return int(nDoc)
 
-def writeLogMessageForManyDocs(Data, AI, 
-        sliceID=None,
-        **kwargs):
+
+def writeLogMessageForManyDocs(Data, AI,
+                               sliceID=None,
+                               **kwargs):
     """ Write log message summarizing convergence behavior across docs.
 
     Args

@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">load_batch_suff_stat_from_memory</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">load_batch_suff_stat_from_memory</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>load_batch_suff_stat_from_memory</h1>
+	  </div>
+
+          <p>297 Calls, 0.41 s</p>
+	  <p>Generated 08:00:58 09/16/14 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/learnalg/MOVBBirthMergeAlg.py">/Users/mhughes/git/bnpy2/bnpy/learnalg/MOVBBirthMergeAlg.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line369">369</td>
+              <td><pre> @profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line370">370</td>
+              <td><pre> def load_batch_suff_stat_from_memory(self, batchID, doCopy=0, </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line371">371</td>
+              <td><pre>                                            Kfinal=0, order=None):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line372">372</td>
+              <td><pre>   ''' Load (fast-forwarded) suff stats stored from previous visit to batchID.</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line373">373</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line374">374</td>
+              <td><pre>       Any merges, shuffles, or births which happened since last visit</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line375">375</td>
+              <td><pre>       are automatically applied.</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line376">376</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line377">377</td>
+              <td><pre>       Returns</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line378">378</td>
+              <td><pre>       -------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line379">379</td>
+              <td><pre>       SSchunk : bnpy SuffStatDict object for batchID,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line380">380</td>
+              <td><pre>   '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>27</td>
+              <td id="line381">381</td>
+              <td><pre>   SSchunk = self.SSmemory[batchID]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>27</td>
+              <td id="line382">382</td>
+              <td><pre>   if doCopy:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line383">383</td>
+              <td><pre>     # Duplicating to avoid changing the raw data stored in SSmemory</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line384">384</td>
+              <td><pre>     #  this is done usually when debugging.</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line385">385</td>
+              <td><pre>     SSchunk = SSchunk.copy()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line386">386</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line387">387</td>
+              <td><pre>   # Check to see if we've fast-forwarded this chunk already</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line388">388</td>
+              <td><pre>   # If so, we can just use it as is.</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>27</td>
+              <td id="line389">389</td>
+              <td><pre>   if SSchunk.K == self.ActiveIDVec.size:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line390">390</td>
+              <td><pre>     if np.allclose(SSchunk.uIDs, self.ActiveIDVec):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>3</td>
+              <td id="line391">391</td>
+              <td><pre>       return SSchunk</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line392">392</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line393">393</td>
+              <td><pre>   # Fast-forward accepted softmerges from end of previous lap </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line394">394</td>
+              <td><pre>   if self.hasMove('softmerge'): </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line395">395</td>
+              <td><pre>     for MInfo in self.MergeLog:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line396">396</td>
+              <td><pre>       SSchunk.multiMergeComps(MInfo['kdel'], MInfo['alph'])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line397">397</td>
+              <td><pre>   </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line398">398</td>
+              <td><pre>   # Fast-forward accepted merges from end of previous lap </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line399">399</td>
+              <td><pre>   if self.hasMove('merge'): </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>297</td>
+              <td id="line400">400</td>
+              <td><pre>     for MInfo in self.MergeLog:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>273</td>
+              <td id="line401">401</td>
+              <td><pre>       kA = MInfo['kA']</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>273</td>
+              <td id="line402">402</td>
+              <td><pre>       kB = MInfo['kB']</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>273</td>
+              <td id="line403">403</td>
+              <td><pre>       if kA < SSchunk.K and kB < SSchunk.K and SSchunk.K == MInfo['Korig']:</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 0.38 s</td>
+              <td>273</td>
+              <td id="line404">404</td>
+              <td><pre>         SSchunk.mergeComps(kA, kB)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line405">405</td>
+              <td><pre>   if SSchunk.hasMergeTerms():</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line406">406</td>
+              <td><pre>     SSchunk.setMergeFieldsToZero()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line407">407</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line408">408</td>
+              <td><pre>   # Fast-forward any shuffling/reordering that happened</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line409">409</td>
+              <td><pre>   if self.hasMove('shuffle') and order is not None:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line410">410</td>
+              <td><pre>     if SSchunk.K == self.ActiveIDVec.size:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line411">411</td>
+              <td><pre>       if not np.allclose(SSchunk.uIDs, self.ActiveIDVec):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line412">412</td>
+              <td><pre>         SSchunk.reorderComps(order)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line413">413</td>
+              <td><pre>     else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line414">414</td>
+              <td><pre>       SSchunk.reorderComps(order)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line415">415</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line416">416</td>
+              <td><pre>   isGood = np.allclose(SSchunk.uIDs, self.ActiveIDVec[:SSchunk.K])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line417">417</td>
+              <td><pre>   if not isGood:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line418">418</td>
+              <td><pre>     if self.algParams['debug'] == 'interactive':</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line419">419</td>
+              <td><pre>       from IPython import embed; embed()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line420">420</td>
+              <td><pre>   assert isGood    </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line421">421</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line422">422</td>
+              <td><pre>   # Fast-forward births from this lap</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line423">423</td>
+              <td><pre>   if self.hasMove('birth') and Kfinal > 0 and SSchunk.K < Kfinal:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line424">424</td>
+              <td><pre>     Kextra = Kfinal - SSchunk.K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line425">425</td>
+              <td><pre>     if Kextra > 0:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line426">426</td>
+              <td><pre>       SSchunk.insertEmptyComps(Kextra)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line427">427</td>
+              <td><pre>     assert SSchunk.K == Kfinal</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line428">428</td>
+              <td><pre>     SSchunk.setUIDs(self.ActiveIDVec.copy())</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line429">429</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line430">430</td>
+              <td><pre>   assert np.allclose(SSchunk.uIDs, self.ActiveIDVec)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>24</td>
+              <td id="line431">431</td>
+              <td><pre>   return SSchunk  </pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

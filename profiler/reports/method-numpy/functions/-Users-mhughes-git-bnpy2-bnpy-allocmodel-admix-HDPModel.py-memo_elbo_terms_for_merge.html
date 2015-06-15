@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">memo_elbo_terms_for_merge</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">memo_elbo_terms_for_merge</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>memo_elbo_terms_for_merge</h1>
+	  </div>
+
+          <p>506 Calls, 0.39 s</p>
+	  <p>Generated 17:44:13 03/09/14 EDT</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix/HDPModel.py">/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix/HDPModel.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line546">546</td>
+              <td><pre> @profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line547">547</td>
+              <td><pre> def memo_elbo_terms_for_merge(self, LP):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line548">548</td>
+              <td><pre>   ''' Calculate some ELBO terms for merge proposals for current batch</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line549">549</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line550">550</td>
+              <td><pre>       Returns</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line551">551</td>
+              <td><pre>       --------</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line552">552</td>
+              <td><pre>       ElogpZMat   : KxK matrix</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line553">553</td>
+              <td><pre>       sumLogPiMat : KxK matrix</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line554">554</td>
+              <td><pre>       ElogqPiMat  : KxK matrix</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line555">555</td>
+              <td><pre>   '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line556">556</td>
+              <td><pre>   CMat = LP["DocTopicCount"]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line557">557</td>
+              <td><pre>   alph = LP["alphaPi"]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line558">558</td>
+              <td><pre>   digammaPerDocSum = digamma(alph.sum(axis=1))[:, np.newaxis]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line559">559</td>
+              <td><pre>   alph = alph[:, :-1] # ignore last column ("remainder" topic)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line560">560</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line561">561</td>
+              <td><pre>   ElogpZMat = np.zeros((self.K, self.K))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line562">562</td>
+              <td><pre>   sumLogPiMat = np.zeros((self.K, self.K))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line563">563</td>
+              <td><pre>   ElogqPiMat = np.zeros((self.K, self.K))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>506</td>
+              <td id="line564">564</td>
+              <td><pre>   for jj in range(self.K):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>498</td>
+              <td id="line565">565</td>
+              <td><pre>     M = self.K - jj - 1</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line566">566</td>
+              <td><pre>     # nDoc x M matrix, alpha_{dm} for each merge pair m with comp jj</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>498</td>
+              <td id="line567">567</td>
+              <td><pre>     mergeAlph = alph[:,jj][:,np.newaxis] + alph[:, jj+1:]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line568">568</td>
+              <td><pre>     # nDoc x M matrix, E[log pi_m] for each merge pair m with comp jj</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 0.19 s</td>
+              <td>498</td>
+              <td id="line569">569</td>
+              <td><pre>     mergeElogPi = digamma(mergeAlph) - digammaPerDocSum</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>498</td>
+              <td id="line570">570</td>
+              <td><pre>     assert mergeElogPi.shape[1] == M</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line571">571</td>
+              <td><pre>     # nDoc x M matrix, count for merged topic m each doc</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>498</td>
+              <td id="line572">572</td>
+              <td><pre>     mergeCMat = CMat[:, jj][:,np.newaxis] + CMat[:, jj+1:]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>498</td>
+              <td id="line573">573</td>
+              <td><pre>     ElogpZMat[jj, jj+1:] = np.sum(mergeCMat * mergeElogPi, axis=0)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line574">574</td>
+              <td><pre>         </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.01 s</td>
+              <td>498</td>
+              <td id="line575">575</td>
+              <td><pre>     sumLogPiMat[jj, jj+1:] = np.sum(mergeElogPi,axis=0)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.02 s</td>
+              <td>498</td>
+              <td id="line576">576</td>
+              <td><pre>     curElogqPiMat = np.sum((mergeAlph-1.)*mergeElogPi, axis=0) \</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.11 s</td>
+              <td>498</td>
+              <td id="line577">577</td>
+              <td><pre>                                     - np.sum(gammaln(mergeAlph),axis=0)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>498</td>
+              <td id="line578">578</td>
+              <td><pre>     assert curElogqPiMat.size == M</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>498</td>
+              <td id="line579">579</td>
+              <td><pre>     ElogqPiMat[jj, jj+1:] = curElogqPiMat</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line580">580</td>
+              <td><pre></pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>8</td>
+              <td id="line581">581</td>
+              <td><pre>   return ElogpZMat, sumLogPiMat, ElogqPiMat</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="../../assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="../../assets/css/docs.css" rel="stylesheet">
+    <!-- <link href="//netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet"> -->
+    <link rel="stylesheet" href="../../assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">select_birth_component</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">select_birth_component</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>select_birth_component</h1>
+	  </div>
+
+          <p>298 Calls, 0.002563 s</p>
+	  <p>Generated 14:46:02 01/05/14 EST</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/learnalg/BirthMove.py">/Users/mhughes/git/bnpy2/bnpy/learnalg/BirthMove.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line237">237</td>
+              <td><pre class="prettyprint">@profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line238">238</td>
+              <td><pre class="prettyprint">def select_birth_component(SS, targetSelectName='sizebiased', </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line239">239</td>
+              <td><pre class="prettyprint">                           randstate=np.random, emptyTHR=100,</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line240">240</td>
+              <td><pre class="prettyprint">                           lapsSinceLastBirth=defaultdict(int),</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line241">241</td>
+              <td><pre class="prettyprint">                           excludeList=list(), doVerbose=False, **kwargs):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line242">242</td>
+              <td><pre class="prettyprint">  ''' Choose a single component among indices {1,2,3, ... K-1, K}</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line243">243</td>
+              <td><pre class="prettyprint">      to target with a birth proposal.</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line244">244</td>
+              <td><pre class="prettyprint">  '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line245">245</td>
+              <td><pre class="prettyprint">  K = SS.K</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line246">246</td>
+              <td><pre class="prettyprint">  if len(excludeList) >= K:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line247">247</td>
+              <td><pre class="prettyprint">    raise BirthProposalError('All comps excluded. Selection failed.')</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line248">248</td>
+              <td><pre class="prettyprint">  </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line249">249</td>
+              <td><pre class="prettyprint">  ps = np.zeros(K)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line250">250</td>
+              <td><pre class="prettyprint">  if targetSelectName == 'uniform':</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line251">251</td>
+              <td><pre class="prettyprint">    ps = np.ones(K)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line252">252</td>
+              <td><pre class="prettyprint">  elif targetSelectName == 'sizebiased':</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line253">253</td>
+              <td><pre class="prettyprint">    ps = SS.N.copy()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line254">254</td>
+              <td><pre class="prettyprint">    ps[SS.N < emptyTHR] = 0</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line255">255</td>
+              <td><pre class="prettyprint">  elif targetSelectName == 'delaybiased':</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line256">256</td>
+              <td><pre class="prettyprint">    # Bias choice towards components that have not been selected in a long time</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line257">257</td>
+              <td><pre class="prettyprint">    lapDist = np.asarray([lapsSinceLastBirth[kk] for kk in range(K)])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line258">258</td>
+              <td><pre class="prettyprint">    ps = np.maximum(lapDist + 1e-5, 0)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line259">259</td>
+              <td><pre class="prettyprint">    ps = ps * ps</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line260">260</td>
+              <td><pre class="prettyprint">  elif targetSelectName == 'delayandsizebiased':</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line261">261</td>
+              <td><pre class="prettyprint">    # Bias choice towards components that have not been selected in a long time</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line262">262</td>
+              <td><pre class="prettyprint">    #  *and* which have many members</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td>< 0.01 s</td>
+              <td>298</td>
+              <td id="line263">263</td>
+              <td><pre class="prettyprint">    lapDist = np.asarray([lapsSinceLastBirth[kk] for kk in range(K)])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line264">264</td>
+              <td><pre class="prettyprint">    ps = np.maximum(lapDist + 1e-5, 0)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line265">265</td>
+              <td><pre class="prettyprint">    ps = ps * ps * SS.N</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line266">266</td>
+              <td><pre class="prettyprint">    ps[SS.N < emptyTHR] = 0</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line267">267</td>
+              <td><pre class="prettyprint">  else:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line268">268</td>
+              <td><pre class="prettyprint">    raise NotImplementedError('Unrecognized procedure: ' + targetSelectName)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line269">269</td>
+              <td><pre class="prettyprint">  # Make final selection at random</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line270">270</td>
+              <td><pre class="prettyprint">  ps[excludeList] = 0</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line271">271</td>
+              <td><pre class="prettyprint">  if np.sum(ps) < EPS:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line272">272</td>
+              <td><pre class="prettyprint">    raise BirthProposalError('All comps have zero probability. Selection failed.');</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line273">273</td>
+              <td><pre class="prettyprint">  sortIDs = np.argsort(ps)[::-1]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line274">274</td>
+              <td><pre class="prettyprint">  if doVerbose:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line275">275</td>
+              <td><pre class="prettyprint">    for kk in sortIDs[:6]:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line276">276</td>
+              <td><pre class="prettyprint">      print "comp %3d : %.2f prob | %3d delay | %8d size" % (kk, ps[kk]/sum(ps), lapsSinceLastBirth[kk], SS.N[kk])</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line277">277</td>
+              <td><pre class="prettyprint">  kbirth = discrete_single_draw(ps, randstate)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>< 0.01 s</td>
+              <td>7</td>
+              <td id="line278">278</td>
+              <td><pre class="prettyprint">  return kbirth</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="../../assets/js/bootstrap.min.js"></script>
+    <script src="../../assets/js/main.js"></script>
+    <script src="https://google-code-prettify.googlecode.com/svn/loader/run_prettify.js"></script>
+  </body>
+</html>

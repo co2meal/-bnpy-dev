@@ -1,4 +1,4 @@
-""" 
+"""
 Shared memory parallel implementation of k-means local step.
 
 Classes
@@ -11,12 +11,12 @@ SharedMemWorker : subclass of Process
     from a separate results queue.
 
 Test : subclass of unittest.TestCase
-    Defines a single problem to solve: 
+    Defines a single problem to solve:
     local step on particular dataset X with parameters Mu
     Provides baseline, serial, and parallel solutions.
     * Baseline: monolithic local step.
-    * Serial: perform local step on slices of data in series, aggregate results.
-    * Parallel: assign slices to worker processes, aggregate results from queue.
+    * Serial: perform local step on slices of data in series, then aggregate.
+    * Parallel: assign slices to worker processes, aggregate from queue.
 """
 
 import sys
@@ -35,14 +35,17 @@ from KMeansUtil import sliceGenerator
 from KMeansUtil import getPtrForArray
 from KMeansUtil import runBenchmarkAcrossProblemSizes
 
+
 class SharedMemWorker(multiprocessing.Process):
+
     """ Single "worker" process that processes tasks delivered via queues
     """
-    def __init__(self, uid, JobQueue, ResultQueue, 
+
+    def __init__(self, uid, JobQueue, ResultQueue,
                  Xsh=None,
                  Msh=None,
                  verbose=0):
-        super(type(self), self).__init__() # Required super constructor call
+        super(type(self), self).__init__()  # Required super constructor call
         self.uid = uid
         self.JobQueue = JobQueue
         self.ResultQueue = ResultQueue
@@ -70,7 +73,7 @@ class SharedMemWorker(multiprocessing.Process):
             self.printMsg(msg)
 
             SS = localStepForDataSlice(self.Xsh, self.Msh,
-                                      start=start, stop=stop)
+                                       start=start, stop=stop)
             self.ResultQueue.put(SS)
             self.JobQueue.task_done()
 
@@ -83,16 +86,16 @@ class Test(unittest.TestCase):
     def shortDescription(self):
         return None
 
-    def __init__(self, testname, 
+    def __init__(self, testname,
                  N=1000, D=25, K=10, nWorkers=7, verbose=1):
         ''' Create dataset X, cluster means Mu.
 
         Post Condition Attributes
         --------------
         X : 2D array, N x D
-        Mu : 2D array, K x D       
+        Mu : 2D array, K x D
         '''
-        super(type(self),self).__init__(testname)
+        super(type(self), self).__init__(testname)
         self.nWorkers = nWorkers
         self.verbose = verbose
         self.N = N
@@ -115,10 +118,11 @@ class Test(unittest.TestCase):
         # Launch desired number of worker processes
         # We don't need to store references to these processes,
         # We can get everything we need from JobQ and ResultsQ
-        # SHARED MEM: we need to give workers access to shared memory at startup
+        # SHARED MEM: we need to give workers access to shared memory at
+        # startup
         for uid in range(self.nWorkers):
             SharedMemWorker(
-                uid, self.JobQ, self.ResultQ, 
+                uid, self.JobQ, self.ResultQ,
                 Xsh=self.Xsh,
                 Msh=self.Msh,
                 verbose=self.verbose).start()
@@ -127,7 +131,7 @@ class Test(unittest.TestCase):
         """ Shut down all the workers.
         """
         self.shutdownWorkers()
-        time.sleep(0.1) # let workers all shut down before we quit
+        time.sleep(0.1)  # let workers all shut down before we quit
 
     def shutdownWorkers(self):
         """ Shut down all worker processes.
@@ -138,13 +142,13 @@ class Test(unittest.TestCase):
 
     def run_baseline(self):
         """ Execute on entire matrix (no slices) in master process.
-        """        
+        """
         SSall = localStepForDataSlice(self.X, self.Mu)
         return SSall
 
     def run_serial(self):
         """ Execute on slices processed in serial by master process.
-        """        
+        """
         N = self.X.shape[0]
         SSagg = None
         for start, stop in sliceGenerator(N, self.nWorkers):
@@ -180,7 +184,7 @@ class Test(unittest.TestCase):
     def test_correctness_serial(self):
         ''' Verify that the local step works as expected.
 
-        No parallelization here. 
+        No parallelization here.
         Just verifying that we can split computation up into >1 slice,
         add up results from all slices and still get the same answer.
         '''
@@ -209,7 +213,7 @@ class Test(unittest.TestCase):
         Each process does the following:
         * grab its chunk of data from a shared jobQueue
         * performs computations on this chunk
-        * load the resulting suff statistics object into resultsQueue      
+        * load the resulting suff statistics object into resultsQueue
         """
         print ''
 
@@ -223,7 +227,6 @@ class Test(unittest.TestCase):
         assert np.allclose(SSall.CountVec, SS.CountVec)
         assert np.allclose(SSall.DataStatVec, SS.DataStatVec)
 
-
     def run_speed_benchmark(self, method='all', nRepeat=3):
         """ Compare speed of different algorithms.
         """
@@ -232,7 +235,7 @@ class Test(unittest.TestCase):
         elif method == 'parallel':
             ptime = self.run_with_timer('run_parallel', nRepeat=nRepeat)
             Results = dict(parallel_time=ptime)
- 
+
         for key in ['base_time', 'serial_time', 'parallel_time']:
             if key in Results:
                 try:
@@ -241,10 +244,10 @@ class Test(unittest.TestCase):
                 except KeyError:
                     speedupmsg = ""
                 print "%18s | %8.3f sec %s" % (
-                    key, 
-                    Results[key], 
+                    key,
+                    Results[key],
                     speedupmsg
-                    )
+                )
         return Results
 
     def run_with_timer(self, funcToCall, nRepeat=3):
@@ -266,12 +269,10 @@ class Test(unittest.TestCase):
             base_time=base_time,
             base_speedup=1.0,
             serial_time=serial_time,
-            serial_speedup=base_time/serial_time,
+            serial_speedup=base_time / serial_time,
             parallel_time=parallel_time,
-            parallel_speedup=base_time/parallel_time,
-            )
-
-
+            parallel_speedup=base_time / parallel_time,
+        )
 
 
 def toSharedMemArray(X):

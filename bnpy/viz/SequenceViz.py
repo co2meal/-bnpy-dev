@@ -34,7 +34,8 @@ import argparse
 from matplotlib import pylab
 
 from bnpy.util.StateSeqUtil import convertStateSeq_MAT2list
-from bnpy.util.StateSeqUtil import convertStateSeq_list2flat, convertStateSeq_flat2list
+from bnpy.util.StateSeqUtil import convertStateSeq_list2flat
+from bnpy.util.StateSeqUtil import convertStateSeq_flat2list
 from bnpy.ioutil import BNPYArgParser
 from bnpy.viz.TaskRanker import rankTasksForSingleJobOnDisk
 from bnpy.viz.PlotTrace import taskidsHelpMsg
@@ -98,15 +99,14 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
         if len(sequences) > 1:
             raise ValueError(
                 'Joint modeling of several sequences makes no sense')
-        Data = Datamod.get_data(meetingNum=sequences[0]+1,
-            **datasetPrefs)
+        Data = Datamod.get_data(meetingNum=sequences[0] + 1,
+                                **datasetPrefs)
         jobpath = jobpath.replace(
-            'SpeakerDiar', 'SpeakerDiar'+str(sequences[0]+1))
+            'SpeakerDiar', 'SpeakerDiar' + str(sequences[0] + 1))
         sequences[0] = 0
 
     else:
         Data = Datamod.get_data(**datasetPrefs)
-
 
     # Determine the maximum length among any of the sequences to be plotted
     if maxT is None:
@@ -159,7 +159,7 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
                 Kfinal = Kvals[loc]
             except IOError:
                 ELBO = 0.0
-                Kfinal = Kefffinal 
+                Kfinal = Kefffinal
 
         # Load in the saved Data from $BNPYOUTDIR
         try:
@@ -194,9 +194,9 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
             uLabels = np.unique(Data.TrueParams['Z'])
             Kignore = np.sum(uLabels < 0)
             if Kignore > 0:
-                for k in range(1, Kignore+1):
+                for k in range(1, Kignore + 1):
                     print 'ignoring state %d  Ttrue = %d' % (
-                        -k, np.sum(Data.TrueParams['Z']==-k))
+                        -k, np.sum(Data.TrueParams['Z'] == -k))
 
             if colorManyToOne:
                 # For each state in zHat, find best true sequence
@@ -223,7 +223,7 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
                 img_trueZ = np.tile(Data.TrueParams['Z'][start:stop],
                                     (NUM_STACK, 1))
                 if dispTrue == 2:
-                    image = img_trueZ # Show only true labels
+                    image = img_trueZ  # Show only true labels
                 else:
                     image = np.vstack((image, img_trueZ))
 

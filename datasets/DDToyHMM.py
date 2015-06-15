@@ -8,21 +8,19 @@ from bnpy.data import GroupXData
 from bnpy.viz import GaussViz
 
 
-# User-facing
-###########################################################
 def get_data(seed=123, nDocTotal=32, T=1000,
              **kwargs):
     ''' Generate several data sequences, returned as a bnpy data-object
 
-      Args
-      -------
-      seed : integer seed for random number generator,
-              used for actually *generating* the data
-      seqLens : total number of observations in each sequence
+    Args
+    -------
+    seed : integer seed for random number generator,
+          used for actually *generating* the data
+    seqLens : total number of observations in each sequence
 
-      Returns
-      -------
-      Data : bnpy GroupXData object, with nObsTotal observations
+    Returns
+    -------
+    Data : bnpy GroupXData object, with nObsTotal observations
     '''
     fullX, fullZ, doc_range = get_X(seed, T, nDocTotal)
     X = np.vstack(fullX)
@@ -44,9 +42,6 @@ def get_short_name():
 
 def get_data_info():
     return 'Toy HMM data with diagonally-dominant transition matrix.'
-
-# Data generation
-###########################################################
 
 D = 2
 K = 8
@@ -80,9 +75,7 @@ sigmas = np.tile(np.eye(2), (K, 1, 1))
 
 
 def get_X(seed, T, nDocTotal):
-    '''
-    Generates X, Z, seqInds according to the gaussian parameters specified above
-      and the sequence lengths passed in.
+    ''' Generates X, Z, seqInds
     '''
     T = int(T)
     nDocTotal = int(nDocTotal)
@@ -120,7 +113,8 @@ def get_X(seed, T, nDocTotal):
             )
 
 Colors = ['#a6cee3', '#1f78b4', '#b2df8a', '#33a02c',
-              '#fb9a99', '#e31a1c', '#fdbf6f', '#ff7f00']
+          '#fb9a99', '#e31a1c', '#fdbf6f', '#ff7f00']
+
 
 def illustrate(Colors=Colors):
     if hasattr(Colors, 'colors'):
@@ -135,7 +129,7 @@ def illustrate(Colors=Colors):
     rcParams['legend.fontsize'] = 25
 
     import bnpy
-    
+
     Data = get_data(T=1000, nDocTotal=8)
     for k in xrange(K):
         zmask = Data.TrueParams['Z'] == k
@@ -172,7 +166,7 @@ def illustrate(Colors=Colors):
             pylab.ylim([-38, 38])
             pylab.xlim([-38, 38])
 
-    
+
 if __name__ == '__main__':
     illustrate()
     pylab.savefig('DatasetIllustration-DDToyHMM.eps', bbox_inches='tight',

@@ -21,14 +21,14 @@ class Test(MergeMoveEndToEndTest):
             name=self.Data.name,
             nDocTotal=1,
             T=self.Data.doc_range[1],
-            )
-        
+        )
+
     def nextObsKwArgsForVB(self):
         for lam in [0.1]:
             kwargs = OrderedDict()
             kwargs['name'] = 'Bern'
             kwargs['lam1'] = lam
-            kwargs['lam0'] = 3*lam            
+            kwargs['lam0'] = 3 * lam
             yield kwargs
 
     def nextAllocKwArgsForVB(self):
@@ -43,4 +43,3 @@ class Test(MergeMoveEndToEndTest):
                 kwargs['hmmKappa'] = hmmKappa
                 kwargs['startAlpha'] = startAlpha
                 yield kwargs
-

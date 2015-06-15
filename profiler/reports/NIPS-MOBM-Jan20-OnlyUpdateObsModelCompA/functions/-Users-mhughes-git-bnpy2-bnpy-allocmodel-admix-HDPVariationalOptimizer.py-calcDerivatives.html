@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Profiling Results</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap -->
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/Users/mhughes/git/bnpy2/profile/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="/Users/mhughes/git/bnpy2/profile/assets/css/font-awesome/font-awesome.min.css">
+  </head>
+
+  <body id="top">
+    <header class="navbar navbar-inverse navbar-static-top bs-docs-nav" role="banner">
+      <div class="container">
+        <div class="navbar-header">
+          <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".bs-navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a href="../index.html" class="navbar-brand">Profiling Results</a>
+        </div>
+        <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
+          <ul class="nav navbar-nav">
+            <li>
+              <a href="../index.html">Summary</a>
+            </li>
+            <li class="active">
+              <a href="#">calcDerivatives</a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <div class="container bs-docs-container">
+      <div class="row">
+	<div class="col-md-2">
+	  <div class="bs-sidebar affix-top hidden-print" role="complementary">
+	    <ul class="nav bs-sidenav">
+              <li><a href="#function">calcDerivatives</a></li>
+	      <!-- <li><a href="#parents">Parents</a></li> -->
+	      <!-- <li><a href="#children">Possible Children</a></li> -->
+	      <li><a href="#listing">Function Listing</a></li>
+	    </ul>
+
+	  </div>
+	</div>
+        <div class="col-md-10">
+	  <div class="page-header" id="function">
+	    <h1>calcDerivatives</h1>
+	  </div>
+
+          <p>3238034 Calls, 134.20 s</p>
+	  <p>Generated 23:01:27 01/20/14 EST</p>
+          <p>Function in file <a href="/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix/HDPVariationalOptimizer.py">/Users/mhughes/git/bnpy2/bnpy/allocmodel/admix/HDPVariationalOptimizer.py</a></p>
+
+          <h3 id="listing">Function listing</h3>
+          <table class="table table-borderless table-condensed">
+            <tr>
+              <th>time</th>
+              <th>calls</th>
+              <th>line</th>
+              <th>code</th>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line216">216</td>
+              <td><pre>@profile</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line217">217</td>
+              <td><pre>def calcDerivatives(U1, U0, E=dict()):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line218">218</td>
+              <td><pre>  ''' Calculate derivatives of building-block terms</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line219">219</td>
+              <td><pre>  '''</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.27 s</td>
+              <td>59009</td>
+              <td id="line220">220</td>
+              <td><pre>  U1 = np.asarray(U1, dtype=np.float64)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.23 s</td>
+              <td>59009</td>
+              <td id="line221">221</td>
+              <td><pre>  U0 = np.asarray(U0, dtype=np.float64)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.11 s</td>
+              <td>59009</td>
+              <td id="line222">222</td>
+              <td><pre>  K = U1.size</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line223">223</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.17 s</td>
+              <td>59009</td>
+              <td id="line224">224</td>
+              <td><pre>  if E is None or len(E.keys()) == 0:</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line225">225</td>
+              <td><pre>    E = calcExpectations(U1, U0)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line226">226</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.11 s</td>
+              <td>59009</td>
+              <td id="line227">227</td>
+              <td><pre>  dU1 = dict()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.10 s</td>
+              <td>59009</td>
+              <td id="line228">228</td>
+              <td><pre>  dU0 = dict()</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line229">229</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 5.59 s</td>
+              <td>59009</td>
+              <td id="line230">230</td>
+              <td><pre>  polygamma1Both = polygamma(1, U0 + U1)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 5.49 s</td>
+              <td>59009</td>
+              <td id="line231">231</td>
+              <td><pre>  dU1['Elogv'] = polygamma(1,U1) - polygamma1Both</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.26 s</td>
+              <td>59009</td>
+              <td id="line232">232</td>
+              <td><pre>  dU0['Elogv'] = -polygamma1Both</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.22 s</td>
+              <td>59009</td>
+              <td id="line233">233</td>
+              <td><pre>  dU1['Elog1mv'] = -polygamma1Both</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 5.26 s</td>
+              <td>59009</td>
+              <td id="line234">234</td>
+              <td><pre>  dU0['Elog1mv'] = polygamma(1,U0) - polygamma1Both</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line235">235</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.28 s</td>
+              <td>59009</td>
+              <td id="line236">236</td>
+              <td><pre>  dU1_Ebeta = np.zeros((K,K+1))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.22 s</td>
+              <td>59009</td>
+              <td id="line237">237</td>
+              <td><pre>  dU0_Ebeta = np.zeros((K,K+1))</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line238">238</td>
+              <td><pre>  </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.27 s</td>
+              <td>59009</td>
+              <td id="line239">239</td>
+              <td><pre>  Usum = U1 + U0</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.46 s</td>
+              <td>59009</td>
+              <td id="line240">240</td>
+              <td><pre>  Q1 = U1 / (Usum * Usum)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.43 s</td>
+              <td>59009</td>
+              <td id="line241">241</td>
+              <td><pre>  Q0 = U0 / (Usum * Usum)</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 5.30 s</td>
+              <td>3238034</td>
+              <td id="line242">242</td>
+              <td><pre>  for m in xrange(K):</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 12.31 s</td>
+              <td>3179025</td>
+              <td id="line243">243</td>
+              <td><pre>    dU1_Ebeta[m,m] = Q0[m] * E['beta'][m]/E['v'][m]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 11.78 s</td>
+              <td>3179025</td>
+              <td id="line244">244</td>
+              <td><pre>    dU0_Ebeta[m,m] = -Q1[m] * E['beta'][m]/E['v'][m]</pre></td>
+            </tr>
+            
+            <tr class="danger">
+              <td> 42.60 s</td>
+              <td>3179025</td>
+              <td id="line245">245</td>
+              <td><pre>    dU1_Ebeta[m,m+1:] = -Q0[m] * E['beta'][m+1:]/E['1mv'][m]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 42.49 s</td>
+              <td>3179025</td>
+              <td id="line246">246</td>
+              <td><pre>    dU0_Ebeta[m,m+1:] = Q1[m] * E['beta'][m+1:]/E['1mv'][m]</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td>--</td>
+              <td>0</td>
+              <td id="line247">247</td>
+              <td><pre> </pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.09 s</td>
+              <td>59009</td>
+              <td id="line248">248</td>
+              <td><pre>  dU1['Ebeta'] = dU1_Ebeta</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.09 s</td>
+              <td>59009</td>
+              <td id="line249">249</td>
+              <td><pre>  dU0['Ebeta'] = dU0_Ebeta</pre></td>
+            </tr>
+            
+            <tr class="">
+              <td> 0.08 s</td>
+              <td>59009</td>
+              <td id="line250">250</td>
+              <td><pre>  return dU1, dU0</pre></td>
+            </tr>
+            
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <a href="#top" class="scrollToTop hidden-phone" >
+      <i class="icon-chevron-up"></i>
+    </a>
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://code.jquery.com/jquery.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/bootstrap.min.js"></script>
+    <script src="/Users/mhughes/git/bnpy2/profile/assets/js/main.js"></script>
+
+  </body>
+</html>

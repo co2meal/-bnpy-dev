@@ -13,10 +13,10 @@ class Test(MergeMoveEndToEndTest):
         """ Create the dataset
         """
         self.datasetArg = dict(
-            name='AdmixAsteriskK8', 
-            nDocTotal=200, 
+            name='AdmixAsteriskK8',
+            nDocTotal=200,
             nObsPerDoc=100,
-            )
+        )
         datasetMod = __import__(self.datasetArg['name'], fromlist=[])
         self.Data = datasetMod.get_data(**self.datasetArg)
 
