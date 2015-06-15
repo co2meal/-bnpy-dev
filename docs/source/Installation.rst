@@ -14,7 +14,7 @@ Optionally, we also require these packages for visualization:
 * matplotlib
 
 
-**Recommended installation**
+How to install prerequisites (recommended)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 We highly recommend the Enthought Python distribution. 
@@ -23,7 +23,7 @@ It's one-click install comes with all the requirements for **bnpy** and avoids t
 
 Furthermore, the numerical subroutines for matrix operations that ship with the EPD are almost always better than what a novice user can build themselves from source or have installed from other routes. We've routinely observed speedups of 2-4x on basic operations like matrix multiplication.
 
-**Alternative installation**
+How to install prerequisites (advanced)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 You can either build numpy and scipy from source, or install via a package manager like "easy_install" or "pip". If you must go this route, we recommend using pip.  You can search the web for the latest and greatest instructions for installing these.

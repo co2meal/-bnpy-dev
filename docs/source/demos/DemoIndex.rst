@@ -1,13 +1,29 @@
-
 =====================
 Demo Gallery
 =====================
 
+
 Gaussian Toy Data Demos
 =======================
 
-.. image:: DemoIndex_files/DemoIndex_2_0.png
 
+`EM for finite mixture model <./GaussianToyData-FiniteMixtureModel-EM.html>`__
+-----------------------------
+
+.. raw:: html
+
+	<div class="row">
+	<div class="media">
+	<div class="pull-left">
+	<a href="#">
+	  <img class="media-object" src="..." alt="...">
+	</a>
+	</div>
+	<div class="media-body">
+	Quick hello-world example for beginners.
+	</div>
+	</div>
+	</div>
 
 
 `EM for finite mixture model <./GaussianToyData-FiniteMixtureModel-EM.html>`__

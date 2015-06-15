@@ -2,49 +2,40 @@
    sphinx-quickstart on Mon Mar  2 15:33:33 2015.
    Must contain the root `toctree` directive.
 
-Welcome to bnpy
+bnpy : Bayesian nonparametric clustering for Python
 ===============
 
-Quick Links
-~~~~~~~~~~~~
+Our goal is to make it easy for 
+Python programmers 
+to train state-of-the-art clustering models on large datasets.
+We focus on nonparametric models based on the Dirichlet process, especially extensions that handle hierarchical and sequential datasets.
+Traditional parametric counterparts (like finite mixture models) are also supported. 
 
-.. toctree::
-   :maxdepth: 1
 
-   Installation
-   demos/DemoIndex
-   GettingStarted
-   allocmodel/index
-   obsmodel/index
+Training a model with **bnpy** requires the user to specify the dataset, the model, and the algorithm to use. Flexible keyword options allow advanced users lots of control, but smart defaults make it simple for beginners. 
+**bnpy**'s modular implementation makes it possible to try many variants of models and algorithms, to find the best fit for the data at hand.
 
-Purpose: Hierarchical Dirichlet Process clustering made easy
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+For example, to train a 25 component Gaussian mixture model via EM on your dataset:
 
-Our goal is to make it easy to train popular clustering models on large datasets, so you can try many different models and find one that works best. 
-We focus on nonparametric models based on the Dirichlet process
-and extensions that handle hierarchical and sequential datasets.
-We also provide traditional parametric (finite) counterparts.
+.. code-block:: python
 
-Training a model with **bnpy** is as simple as specifying the dataset (as a python script), names for the desired model components, and the algorithm to use.  
+  >>> python -m bnpy.Run MyDataset.py FiniteMixtureModel Gauss EM --K 25
 
-For example, to train a Gaussian mixture model via EM on your dataset:
+Alternatively, we can try a **Dirichlet process**-based Gaussian mixture model:
 
 .. code-block:: bash
 
-	$ python -m bnpy.Run MyDataset.py FiniteMixtureModel Gauss EM
+	$ python -m bnpy.Run MyDataset.py DPMixtureModel Gauss VB --K 25
 
-Alternatively, you can easily use the Dirichlet Process mixture model and the 
-variational Bayes (VB) algorithm:
-
-.. code-block:: bash
-
-	$ python -m bnpy.Run MyDataset.py DPMixtureModel Gauss VB
-
-You could even take advantage of sequential structure in your data by training a Markov model using memoized variational inference, with delete and merge moves:
+Next, we could take advantage of sequential structure in your data by training a hidden Markov model using memoized variational inference.
 
 .. code-block:: bash
 
 	$ python -m bnpy.Run MyDataset.py HDPHMM DiagGauss moVB --moves merge,delete
+
+.. code-block:: python
+
+  >>> bnpy.run(MyDatasetObject, 'HDPHMM', 'DiagGauss', 'moVB', moves='merge,delete')
 
 
 Supported clustering models
@@ -70,21 +61,40 @@ Supported clustering models
 Supported data-generation models (likelihoods)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-* Bernoulli for binary data
-    * `Bern`
-* Multinomial for discrete, bag-of-words data
-    * `Mult`
-* Gaussian for real-valued vector data
-    * `Gauss` : Full-covariance 
-    * `DiagGauss` : Diagonal-covariance
+* Real-valued vector observations (1-dim, 2-dim, ... D-dim)
+    * `Gauss` : Full-covariance Gaussian
+    * `DiagGauss` : Diagonal-covariance Gaussian
     * `ZeroMeanGauss` : Zero-mean, full-covariance
-* Auto-regressive Gaussian
-    * `AutoRegGauss`
+    * `AutoRegGauss` : first-order auto-regressive Gaussian 
+* Binary vector observations (1-dim, 2-dim, ... D-dim)
+    * `Bern` : Bernoulli 
+* Discrete, bag-of-words data (each observation is one of V symbols)
+    * `Mult` : Multinomial
 
 
-Goals of this page:
-* High level overview of bnpy capabilities
-* Why bnpy and not some other package?
-* Show off demo gallery (like Bokeh)?
+Supported algorithms
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+* Variational methods
+    * `EM` : Expectation-maximization
+    * `VB` : variational Bayes
+    * `soVB` : stochastic variational (online)
+    * `moVB` : memoized variational (online)
+
+* COMING SOON
+    * Gibbs sampling
+
+Why bnpy?
+======================================
+TODO
+
+
+
+.. toctree::
+    :maxdepth: 2
+
+    Installation
+    UserGuide
+    demos/DemoIndex
+    
 

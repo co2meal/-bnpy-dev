@@ -14,7 +14,6 @@
 
 import sys
 import os
-import sphinx_bootstrap_theme
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -112,8 +111,7 @@ todo_include_todos = True
 # -- Options for HTML output ----------------------------------------------
 
 # Add any paths that contain custom themes here, relative to this directory.
-html_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
-#html_theme_path = [html_theme_path[0] + '/bootstrap']
+html_theme_path = ["./_theme/"]
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
@@ -129,7 +127,9 @@ html_theme_options = {
     'navbar_title': "bnpy",
 
     # Tab name for entire site. (Default: "Site")
-    'navbar_site_name': "Contents",
+    'navbar_site_name': 'Site Index', #"Index",
+
+    'navbar_include_searchbox': False,
 
     # A list of tuples containing pages or urls to link to.
     # Valid tuples should be in the following forms:
@@ -140,20 +140,24 @@ html_theme_options = {
     # an arbitrary url.
     'navbar_links': [
         ("Demo Gallery", "demos/DemoIndex"),
+        ("Installation", "Installation"),
+        ("User Guide", "UserGuide"),
+        ("Alloc Model Guide", "allocmodel/index"),
+        ("Obs Model Guide", "obsmodel/index"),
     ],
 
     # Render the next and previous page links in navbar. (Default: true)
-    'navbar_sidebarrel': True,
+    'navbar_sidebarrel': False,
 
     # Render the current pages TOC in the navbar. (Default: true)
-    'navbar_pagenav': True,
+    'navbar_pagenav': False,
 
     # Tab name for the current pages TOC. (Default: "Page")
     'navbar_pagenav_name': "Page",
 
     # Global TOC depth for "site" navbar tab. (Default: 1)
     # Switching to -1 shows all levels.
-    'globaltoc_depth': 2,
+    'globaltoc_depth': 1,
 
     # Include hidden TOCs in Site navbar?
     #
@@ -195,7 +199,7 @@ html_theme_options = {
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = "bnpy_logo.png"
+html_logo = None #"_static/bnpy_logo.png"
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
@@ -218,10 +222,15 @@ html_last_updated_fmt = '%b %d, %Y'
 
 # If true, SmartyPants will be used to convert quotes and dashes to
 # typographically correct entities.
-#html_use_smartypants = True
+html_use_smartypants = True
 
 # Custom sidebar templates, maps document names to template names.
 #html_sidebars = {}
+html_sidebars = {'**': [
+    'localtoc.html', 
+    #'sourcelink.html',
+    'searchbox.html']}
+
 
 # Additional templates that should be rendered to pages, maps page names to
 # template names.
@@ -231,19 +240,19 @@ html_last_updated_fmt = '%b %d, %Y'
 #html_domain_indices = True
 
 # If false, no index is generated.
-#html_use_index = True
+html_use_index = True
 
 # If true, the index is split into individual pages for each letter.
 #html_split_index = False
 
 # If true, links to the reST sources are added to the pages.
-#html_show_sourcelink = True
+html_show_sourcelink = True
 
 # If true, "Created using Sphinx" is shown in the HTML footer. Default is True.
-#html_show_sphinx = True
+html_show_sphinx = True
 
 # If true, "(C) Copyright ..." is shown in the HTML footer. Default is True.
-#html_show_copyright = True
+html_show_copyright = True
 
 # If true, an OpenSearch description file will be output, and all pages will
 # contain a <link> tag referring to it.  The value of this option must be the
@@ -257,7 +266,7 @@ html_last_updated_fmt = '%b %d, %Y'
 # Sphinx supports the following languages:
 #   'da', 'de', 'en', 'es', 'fi', 'fr', 'hu', 'it', 'ja'
 #   'nl', 'no', 'pt', 'ro', 'ru', 'sv', 'tr'
-#html_search_language = 'en'
+html_search_language = 'en'
 
 # A dictionary with options for the search language support, empty by default.
 # Now only 'ja' uses this config value

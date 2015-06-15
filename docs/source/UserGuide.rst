@@ -3,18 +3,27 @@ User Guide
 ============
 
 **bnpy** is designed for:
+
 * *affordable* training on large datasets
 * *easy* comparison of different models
 * *easy* comparison of learning algorithms.
 
 This page defines the key concepts and terminology (like 'allocation model' or 'global parameter') that make this general inference framework possible.
 
+TODO:
+
+* explain all possible kwarg settings 
+* resource for explaining variational inference
+* resource for explaining merges/deletes/births
+* practical overview of how the code works
+* concept overview for key terms
+
 Prerequisites
 -------------
 We assume the reader has seen mixture models before.
 
 Modular Representations for Probabilistic Models
-================================================
+====================================
 
 Allocation and Data-Generation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -37,8 +46,8 @@ Fundamental operations of variational inference
 
 
 Dataset Representation
-======================
+=================
 
 
 Learning Algorithms: Loops of common operations
-======================
+====================================
