@@ -2,7 +2,6 @@
 Obs Model Guide
 ===================
 
-
 What is an ObsModel?
 
 .. toctree::
