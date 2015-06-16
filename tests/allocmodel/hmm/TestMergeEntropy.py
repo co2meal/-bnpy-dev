@@ -22,7 +22,7 @@ class TestMergeEntropyCalc_EndToEnd(unittest.TestCase):
         ''' Create a valid Data - model - LP - SS configuration
         '''
         # Make toy data
-        Data = ToyHMMK4.get_data(12345, seqLens=(15, 10, 7))
+        Data = ToyHMMK4.get_data(12345, T=15, nDocTotal=3)
         self.Data = Data
 
         hmodel, Info = bnpy.run(Data, 'HDPHMM', 'Gauss', 'VB',
@@ -30,10 +30,10 @@ class TestMergeEntropyCalc_EndToEnd(unittest.TestCase):
                                 alpha=0.5, gamma=5.0,
                                 ECovMat='eye', sF=1.0, kappa=1e-5,
                                 doWriteStdOut=False, doSaveToDisk=False)
-        LP = hmodel.calc_local_params(Data)
+        LP = hmodel.calc_local_params(Data, limitMemoryLP=0)
+        assert 'mHtable' not in LP
 
         self.mPairIDs = [(0, 1), (2, 3), (4, 5), (1, 5), (3, 4)]
-
         SS = hmodel.get_global_suff_stats(Data, LP, doPrecompEntropy=1,
                                           doPrecompMergeEntropy=1,
                                           mPairIDs=self.mPairIDs)
@@ -64,11 +64,10 @@ class TestMergeEntropyCalc_EndToEnd(unittest.TestCase):
             self.verify__mergeELBOfromSS_equals_mergeELBOfromLP(mID)
 
     def verify__mergeELBOfromSS_equals_mergeELBOfromLP(self, mID=0):
-        ''' Verify that a single merge pair, the ELBO is identical when computed
-            in two different ways
+        ''' Verify identical ELBO value from two methods for single merge pair
 
-            Method 1: Using tables in suff stats
-            Method 2: Using direct construction of the local parameters
+        Method 1: Using tables in suff stats
+        Method 2: Using direct construction of the local parameters
         '''
         print ''
 
@@ -128,12 +127,12 @@ class TestMergeEntropyCalc_EndToEnd(unittest.TestCase):
 
     def verify__twomergemoveELBOfromSS_lt_twomergemoveELBOfromLP(
             self, mID=0, mID2=1):
-        ''' Verify ELBO computation when two merges are attempted in succession.
+        ''' Verify ELBO calc when two merges are attempted in succession.
 
-            Requirement: The components involved in both merges must be distinct!
+        Requirement: The components involved in both merges must be distinct!
 
-            Method 1: Using tables in suff stats
-            Method 2: Using direct construction of the local parameters
+        Method 1: Using tables in suff stats
+        Method 2: Using direct construction of the local parameters
         '''
         print ''
 
@@ -286,7 +285,7 @@ class TestMergeEntropyCalc_SingleTimeSlice(unittest.TestCase):
 
         # Method 2/2
         # Compute table of scalars for original
-        # Also compute O(K) replacement entries for this table required by merge
+        # Also compute O(K) replacement entries for table required by merge
         # then, just do some table operations and sums to get final L_entropy
         Htable_orig = HMMUtil.calc_Htable(respPair)
         Mtable = HMMUtil.calc_sub_Htable_forMergePair(respPair, kA, kB)
