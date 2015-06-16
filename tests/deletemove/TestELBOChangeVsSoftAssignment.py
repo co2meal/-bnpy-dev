@@ -13,7 +13,8 @@ class Test(unittest.TestCase):
               **kwargs):
         GaussSpec.update(kwargs)
         DPSpec.update(kwargs)
-
+        if Data is None:
+            Data = makeGaussianDataWithTwoComps(N=N)
         self.Data = Data
         self.oneresp = 1e-50 * np.ones((2 * N, 2))
         self.oneresp[:, 0] = 1.0
@@ -148,7 +149,7 @@ if __name__ == '__main__':
 
         pylab.subplot(3, 1, 3, sharex=ax2)
         pylab.plot(epsvals, [d['Lentropy'] for d in ELBOdict], 'r.-')
-        pylab.plot(epsvals, [d['Lalloc'] for d in ELBOdict], 'b.-')
+        pylab.plot(epsvals, [d['Lglobal'] for d in ELBOdict], 'b.-')
         pylab.plot(epsvals, [d['Ldata'] for d in ELBOdict], 'g.-')
         pylab.legend(['Lentropy', 'Lalloc', 'Ldata'], loc='center right')
         pylab.xlabel('eps')

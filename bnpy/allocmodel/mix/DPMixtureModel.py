@@ -20,6 +20,10 @@ def calcELBO(**kwargs):
     """
     Llinear = calcELBO_LinearTerms(**kwargs)
     Lnon = calcELBO_NonlinearTerms(**kwargs)
+    if 'todict' in kwargs and kwargs['todict']:
+        assert isinstance(Llinear, dict)
+        Llinear.update(Lnon)
+        return Llinear
     return Lnon + Llinear
 
 
@@ -51,7 +55,7 @@ def calcELBO_LinearTerms(SS=None,
 
 def calcELBO_NonlinearTerms(SS=None, LP=None,
                             resp=None, Hresp=None,
-                            returnMemoizedDict=0, **kwargs):
+                            returnMemoizedDict=0, todict=0, **kwargs):
     """ Calculate ELBO objective terms non-linear in suff stats.
     """
     if Hresp is None:
@@ -66,6 +70,8 @@ def calcELBO_NonlinearTerms(SS=None, LP=None,
     Lentropy = Hresp.sum()
     if SS is not None and SS.hasAmpFactor():
         Lentropy *= SS.ampF
+    if todict:
+        return dict(Lentropy=Lentropy)
     return Lentropy
 
 

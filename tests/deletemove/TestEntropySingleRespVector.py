@@ -85,7 +85,7 @@ class TestK2(unittest.TestCase):
 
         assert np.all(H > Hnew_exact)
 
-    def test_plot_entropy_vs_rVals(self):
+    def plot_entropy_vs_rVals(self):
         if not doViz:
             self.skipTest("Required module matplotlib unavailable.")
         H = np.sum(calcRlogR(self.R), axis=1)
