@@ -6,7 +6,6 @@ import bnpy
 
 runViterbiAlg = bnpy.allocmodel.hmm.HMMUtil.runViterbiAlg
 runViterbiAlg_forloop = bnpy.allocmodel.hmm.HMMUtil.runViterbiAlg_forloop
-viterbi = bnpy.allocmodel.hmm.HMMUtil.viterbi
 
 INPUTmatfile = 'kmurphy-viterbi-reference/ViterbiTestInput.mat'
 OUTPUTmatfile = 'kmurphy-viterbi-reference/ViterbiTestOutput.mat'
@@ -45,13 +44,5 @@ class TestViterbi(unittest.TestCase):
             Q['logEvidence'],
             Q['logPiInit'],
             Q['logPiTrans'])
-        pprintZ(zHat)
-        assert np.allclose(zHat, self.zTrue)
-
-    def test_viterbi__failure_expected(self):
-        print ''
-        print "THIS IS EXPECTED TO FAIL. The 'viterbi' method is deprecated."
-        Q = self.MATdict
-        zHat = viterbi(Q['logEvidence'], Q['logPiInit'], Q['logPiTrans'])
         pprintZ(zHat)
         assert np.allclose(zHat, self.zTrue)

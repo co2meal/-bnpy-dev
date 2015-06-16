@@ -19,8 +19,8 @@ class TestDPHardMerge(unittest.TestCase):
                 truncType='z'))
         SS = bnpy.suffstats.SuffStatBag(K=5, D=1)
         SS.setField('N', np.arange(K), dims='K')
-        SS.setELBOTerm('ElogqZ', np.zeros(K), dims='K')
-        SS.setMergeTerm('ElogqZ', np.zeros((K, K)), dims=('K', 'K'))
+        SS.setELBOTerm('Hresp', np.zeros(K), dims='K')
+        SS.setMergeTerm('Hresp', np.zeros((K, K)), dims=('K', 'K'))
         aModel.update_global_params(SS)
         self.beforeModel = aModel
         self.beforeSS = SS

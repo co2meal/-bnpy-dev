@@ -137,13 +137,16 @@ class TestSummaryAlg_ToyData(TestSummaryAlg_K4T2):
     def setUp(self):
         T = 3000
         import DDToyHMM
-        Data = DDToyHMM.get_data(seed=0, seqLens=(T))
-
+        Data = DDToyHMM.get_data(seed=0, nDocTotal=1, T=T)
         initPi = DDToyHMM.initPi
         transPi = DDToyHMM.transPi
         LP = dict(Z=Data.TrueParams['Z'])
         LP = convertLPFromHardToSoft(LP, Data)
         Keff = LP['resp'].shape[1]
+
+        assert LP['resp'].shape[0] == T
+        assert LP['Z'].shape[0] == T
+
 
         K = initPi.size
         SoftEv = np.zeros((T, K))
