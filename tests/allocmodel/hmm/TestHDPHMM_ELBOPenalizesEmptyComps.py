@@ -48,9 +48,10 @@ class TestHDPHMM_ELBOPenalizesEmptyComps(unittest.TestCase):
                     for kappa in [1.1, 17.76, 100]:
                         print '%5.2f %5.2f %7.2f' % (alpha, gamma, kappa)
 
-                        self.test_ELBO_penalizes_empty_comps(alpha=alpha, gamma=gamma,
-                                                             hmmKappa=kappa,
-                                                             initprobs=initprobs)
+                        self.test_ELBO_penalizes_empty_comps(
+                            alpha=alpha, gamma=gamma,
+                            hmmKappa=kappa,
+                            initprobs=initprobs)
 
 
 def printProbVector(xvec, fmt='%.4f'):
@@ -99,7 +100,7 @@ def resp2ELBO_HDPHMM(Data, resp, gamma=10, alpha=0.5, hmmKappa=0,
         # Verify that the updates give expected values for "leftover" index
         Ebeta = amodel.get_active_comp_probs()
         betaRem = 1 - np.sum(amodel.get_active_comp_probs())
-        betaRemFromInitTheta = amodel.initTheta[-1] / amodel.startAlpha
+        betaRemFromInitTheta = amodel.startTheta[-1] / amodel.startAlpha
         betaRemFromTransTheta = amodel.transTheta[0, -1] / alpha
         assert np.allclose(betaRem, betaRemFromInitTheta)
         assert np.allclose(betaRem, betaRemFromTransTheta)

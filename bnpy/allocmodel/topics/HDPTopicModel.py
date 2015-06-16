@@ -287,6 +287,16 @@ class HDPTopicModel(AllocModel):
         LP['ElogPiRem'] = ElogPiRem
         return LP
 
+    def updateLPGivenDocTopicCount(self, LP, DocTopicCount):
+        ''' Given DocTopicCount array, update relevant local parameters.
+
+        Returns
+        -------
+        LP : dict, with updated fields
+        '''
+        return LocalStepManyDocs.updateLPGivenDocTopicCount(
+            LP, DocTopicCount, self.alpha_E_beta(), self.alpha_E_beta_rem())
+
     def applyHardMergePairToLP(self, LP, kA, kB):
         ''' Apply hard merge pair to provided local parameters
 
@@ -549,7 +559,7 @@ class HDPTopicModel(AllocModel):
         if beta is None:
             beta = 1.0 / K * np.ones(K)
         assert beta.ndim == 1
-        assert np.sum(beta) <= 1.0
+        assert np.sum(beta) <= 1.0 + 1e-9
         assert beta.size == self.K
 
         if oldWay:

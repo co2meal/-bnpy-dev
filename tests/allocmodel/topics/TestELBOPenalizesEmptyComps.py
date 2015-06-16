@@ -1,12 +1,14 @@
 import numpy as np
 import unittest
 import sys
+import os
 
 import bnpy
 import BarsK10V900
 HDPTopicModel = bnpy.allocmodel.HDPTopicModel
 
-sys.path.append('HDP-point-estimation')
+filepath = os.path.sep.join(__file__.split(os.path.sep)[:-1])
+sys.path.append(os.path.join(filepath, 'HDP-point-estimation'))
 import HDPPE
 HDPPE = HDPPE.HDPPE
 
