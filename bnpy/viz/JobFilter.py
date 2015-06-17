@@ -281,7 +281,12 @@ def filterJobs(jpathPattern,
         RangeMap[key] = set()
         for jdict in keepListD:
             RangeMap[key].add(jdict[key])
-        RangeMap[key] = [x for x in sorted(RangeMap[key])]  # to list
+        RangeMap[key] = [x for x in RangeMap[key]]  # to list
+        try:
+            float(RangeMap[key][0])
+            RangeMap[key].sort(key=float)
+        except ValueError as e:
+            RangeMap[key].sort()
 
     if len(varKeys) > 1:
         print 'ERROR! Need to constrain more variables'
@@ -291,10 +296,14 @@ def filterJobs(jpathPattern,
 
     elif len(varKeys) == 1:
         plotkey = varKeys[0]
-        if isinstance(RangeMap[plotkey][0], str):
+        if plotkey.count('initname'):
             legNames = ['%s' % (x) for x in RangeMap[plotkey]]
         else:
             legNames = ['%s=%s' % (plotkey, x) for x in RangeMap[plotkey]]
+        #if isinstance(RangeMap[plotkey][0], str):
+        #    legNames = ['%s' % (x) for x in RangeMap[plotkey]]
+        #else:
+        #    legNames = ['%s=%s' % (plotkey, x) for x in RangeMap[plotkey]]
 
         # Build list of final jpaths in order of decided legend
         keepListFinal = list()

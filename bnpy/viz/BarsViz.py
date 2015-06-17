@@ -3,8 +3,9 @@ BarsViz.py
 
 Visualization tools for toy bars data for topic models.
 '''
-from matplotlib import pylab
 import numpy as np
+
+from PlotUtil import pylab
 
 imshowArgs = dict(interpolation='nearest',
                   cmap='bone',

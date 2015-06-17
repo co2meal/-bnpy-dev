@@ -8,12 +8,12 @@ Usage (command-line)
 python -m bnpy.viz.PlotComps dataName aModelName obsModelName algName [kwargs]
 
 '''
-from matplotlib import pylab
 import numpy as np
 import argparse
 import os
 import sys
 
+from PlotUtil import pylab
 import bnpy.ioutil.BNPYArgParser as BNPYArgParser
 import bnpy.viz
 from bnpy.ioutil import ModelReader
