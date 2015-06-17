@@ -4,7 +4,7 @@ GaussViz.py
 Visualizing learned Gaussian mixture models.
 '''
 import numpy as np
-from matplotlib import pylab
+from PlotUtil import pylab
 
 from bnpy.util import as1D, as2D
 
