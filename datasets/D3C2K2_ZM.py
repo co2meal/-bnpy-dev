@@ -4,8 +4,9 @@ Simple 3D zero-mean toy dataset of 2 Gaussian components
 '''
 import numpy as np
 from numpy.linalg import inv
+from scipy.linalg import cholesky
 from bnpy.data import XData
-
+from bnpy.util import dotATA
 import sys
 
 import matplotlib.pyplot as plt
@@ -13,7 +14,7 @@ from mpl_toolkits.mplot3d import Axes3D
 
 
 # ########################################################## User-facing
-def get_data(seed=8675309, nObsTotal=2500, **kwargs):
+def get_data(seed=8675309, nObsTotal=250000, **kwargs):
     X, TrueZ, a, W = get_X(seed, nObsTotal)
     TrueParams = dict()
     TrueParams['W'] = W
@@ -53,11 +54,16 @@ h[1] = np.asarray([3.0, 1.0])
 #h[1] = np.asarray([np.inf, 1.0])
 h *= 1e-3
 
-Psi = np.diag([1, 2, 1])
+Psi = np.zeros((K,D,D))
+Psi[0] = np.diag([1, 5, 1]) * 100
+Psi[1] = np.diag([1, 1, 5]) * 1000
 
 def sample_data_from_comp(k, Nk, Lamk, PRNG):
     a_k = PRNG.randn(C, Nk)
-    X_k = Mu[k] + np.dot(Lamk, a_k).T
+    X_k_mean = Mu[k] + np.dot(Lamk, a_k).T
+    X_k = np.zeros((Nk, D))
+    for n in xrange(Nk):
+        X_k[n] = PRNG.multivariate_normal(X_k_mean[n], Psi[k])
     return X_k, a_k.T
 
 def get_X(seed, nObsTotal):

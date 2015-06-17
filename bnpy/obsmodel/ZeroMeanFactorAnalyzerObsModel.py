@@ -1,7 +1,7 @@
 import numpy as np
 from bnpy.suffstats import ParamBag, SuffStatBag
 from bnpy.obsmodel.AbstractObsModel import AbstractObsModel
-from numpy.linalg import inv, solve
+from numpy.linalg import inv, solve, det, slogdet
 from scipy.linalg import cholesky, solve_triangular
 from scipy.special import psi, gammaln
 from bnpy.util import dotATA
@@ -12,23 +12,21 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
 
     def __init__(self, inferType='VB', Data=None, C = None, **PriorArgs):
         self.D = Data.dim
-        self.C = Data.TrueParams['a'].shape[1]
         self.C = C
         self.K = 0
         self.inferType = inferType
         self.createPrior(Data, **PriorArgs)
         self.Cache = dict()
 
-    def createPrior(self, Data, Psi = None, f = None, g = None):
+    def createPrior(self, Data, f = None, g = None, s=None, t = None):
         K = self.K
         D = self.D
         C = self.C
-        if Psi is None:
-            Psi = Data.TrueParams['Psi']
         self.Prior = ParamBag(K=K, D=D, C=C)
-        self.Prior.setField('Psi', Psi, dims=('D','D'))
         self.Prior.setField('f', f)
         self.Prior.setField('g', g)
+        self.Prior.setField('s', s)
+        self.Prior.setField('t', t)
 
     ######################################################### I/O Utils
     #########################################################   for humans
@@ -46,6 +44,9 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             sfx = ''
         msg += 'f  = %s%s\n' % (str(self.Prior.f), sfx)
         msg += 'g  = %s%s' % (str(self.Prior.g), sfx)
+        msg += '\nGamma shape and invScale param on precision of diagonal noise matrices: s, t\n'
+        msg += 's  = %s%s\n' % (str(self.Prior.s), sfx)
+        msg += 't  = %s%s' % (str(self.Prior.t), sfx)
         msg = msg.replace('\n', '\n  ')
         return msg
 
@@ -72,6 +73,21 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         elif not hasattr(SS.kwargs,'C'):
             SS.kwargs['C'] = C
             setattr(SS._Fields, 'C', C)
+
+        # if hasattr(Data, 'TrueParams'):
+        #     N = Data.nObs
+        #     resp = np.zeros((N, K))
+        #     Z = Data.TrueParams['Z']
+        #     idx0 = np.nonzero(Z-1)
+        #     idx1 = np.nonzero(Z)
+        #     resp[idx0, 0] = 1.
+        #     resp[idx1, 1] = 1
+        #     aMean = np.zeros((N,K,C))
+        #     aMean[idx0, 0] = Data.TrueParams['a'][idx0]
+        #     aMean[idx1, 1] = Data.TrueParams['a'][idx1]
+        #     aCov = np.zeros((K,C,C))
+        # SS.setField('N', np.sum(resp, axis=0), dims='K')
+
 
         # Expected low-dim mean for each k
         # Ea = np.zeros((K,C))
@@ -128,12 +144,11 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         aCov = np.zeros((K, C, C))
         for k in xrange(K):
             aCov[k] = inv(np.eye(C) + self.GetCached('E_WT_invPsi_W', k))
-        assert hasattr(self, 'Post')
-        self.Post.setField('aCov', aCov, dims=('K','C','C'))
         # calculate aMean
         aMean = np.zeros((N, K, C))
         for k in xrange(K):
-            aCovk_WMeankT_invPsi = np.inner(aCov[k], self.Post.WMean[k]) * 1./np.diag(self.Prior.Psi)
+            aCovk_WMeankT_invPsi = np.inner(aCov[k], self.Post.WMean[k]) * \
+                                   (self.Post.PhiShape[k] / self.Post.PhiInvScale[k])
             aMean[:,k] = np.inner(Data.X, aCovk_WMeankT_invPsi)
         return aMean, aCov
     # @profile
@@ -141,9 +156,13 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         N = Data.nObs
         K = self.Post.K
         L = np.zeros((N, K))
+        DataX2 = Data.X**2
         for k in xrange(K):
-            Q = solve_triangular(self.GetCached('cholACov', k), LP['aMean'][:,k].T, lower=True)
-            L[:,k] = .5 * np.einsum('ij,ij->j', Q, Q) + .5 * self.GetCached('logdetACov', k)
+            L[:,k] = .5 * np.einsum('ij,ji->i', LP['aMean'][:,k],
+                                    np.inner(inv(LP['aCov'][k]), LP['aMean'][:,k])) \
+                     - .5 * np.inner(self.Post.PhiShape[k] / self.Post.PhiInvScale[k], DataX2) \
+                     + .5 * np.sum(psi(self.Post.PhiShape[k]) - np.log(self.Post.PhiInvScale[k])) \
+                     + .5 * np.prod(slogdet(LP['aCov'][k]))
         return L
 
   ########################################################### Global step
@@ -153,42 +172,49 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         self.ClearCache()
         if not hasattr(self, 'Post') or self.Post.K != SS.K:
             self.Post = ParamBag(K=SS.K, D=SS.D, C=SS.C)
-        WMean, WCov, hShape, hInvScale, aCov = self.calcPostParams(SS)
+        WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale = self.calcPostParams(SS)
         self.Post.setField('WMean', WMean, dims=('K','D','C'))
         self.Post.setField('WCov', WCov, dims=('K','D','C','C'))
         self.Post.setField('hShape', hShape)
         self.Post.setField('hInvScale', hInvScale, dims=('K','C'))
-        self.Post.setField('aCov', aCov, dims=('K','C','C'))
+        self.Post.setField('PhiShape', PhiShape, dims=('K'))
+        self.Post.setField('PhiInvScale', PhiInvScale, dims=('K','D'))
         self.K = SS.K
 
     def calcPostParams(self, SS):
-        if hasattr(self.Post,'hShape') and hasattr(self.Post,'hInvScale'):
+        if hasattr(self.Post,'hShape') and hasattr(self.Post,'hInvScale') \
+           and hasattr(self.Post,'PhiShape') and hasattr(self.Post,'PhiInvScale'):
             hShape = self.Post.hShape
             hInvScale = self.Post.hInvScale
+            PhiShape = self.Post.PhiShape
+            PhiInvScale = self.Post.PhiInvScale
         else:
             hShape = self.Prior.f
             hInvScale = self.Prior.g * np.ones((SS.K, self.C))
-        for i in xrange(3):
-            WMean, WCov = self.calcPostW(SS, hShape, hInvScale)
+            PhiShape = self.Prior.s * np.ones(SS.K)
+            PhiInvScale = self.Prior.t * np.ones((SS.K, self.D))
+        for i in xrange(1):
+            WMean, WCov = self.calcPostW(SS, hShape, hInvScale, PhiShape, PhiInvScale)
             hShape, hInvScale = self.calcPostH(WMean, WCov)
-        return WMean, WCov, hShape, hInvScale, SS.aCov
+            PhiShape, PhiInvScale = self.calcPostPhi(SS, WMean, WCov)
+        return WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale
 
     # @profile
-    def calcPostW(self, SS, hShape, hInvScale):
+    def calcPostW(self, SS, hShape, hInvScale, PhiShape, PhiInvScale):
         K = SS.K
         D = self.D
         C = self.C
         SigmaInvWW = np.zeros((K, D, C, C))
         for k in xrange(K):
             SigmaInvWW[k] = np.diag(hShape / hInvScale[k]) + \
-                            1./ np.diag(self.Prior.Psi)[:,np.newaxis,np.newaxis] * \
+                            (PhiShape[k] / PhiInvScale[k])[:,np.newaxis,np.newaxis] * \
                             np.tile(SS.aaT[k], (D,1,1))
         WCov = inv(SigmaInvWW)
         WBar = np.zeros((K, D, C))
         for k in xrange(K):
             for d in xrange(D):
                 WBar[k, d] = np.dot(WCov[k,d],
-                                    1./np.diag(self.Prior.Psi)[d] * SS.xaT[k][d])
+                                    PhiShape[k] / PhiInvScale[k,d] * SS.xaT[k,d])
         WMean = WBar
         return WMean, WCov
 
@@ -202,6 +228,19 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             for c in xrange(C):
                 hInvScale[k,c] = self.Prior.g + .5 * np.sum(WMean[k,:,c]**2 + WCov[k,:,c,c])
         return hShape, hInvScale
+    # @profile
+    def calcPostPhi(self, SS, WMean, WCov):
+        K = SS.K
+        D = self.D
+        PhiShape = self.Prior.s + .5 * SS.N
+        PhiInvScale = self.Prior.t * np.ones((K, D))
+        for k in xrange(K):
+            for d in xrange(D):
+                PhiInvScale[k,d] += .5 * (SS.diagXxT[k,d]
+                                    - 2 * np.dot(SS.xaT[k,d], WMean[k,d])
+                                    + np.einsum('ij,ji', np.outer(WMean[k,d],WMean[k,d])
+                                                + WCov[k,d], SS.aaT[k]))
+        return PhiShape, PhiInvScale
 
     ########################################################### VB ELBO step
     ###########################################################
@@ -226,6 +265,15 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         C = SS.C
         D = SS.D
         for k in xrange(K):
+            # terms related with Phi
+            for d in xrange(D):
+                elbo[k] += - Post.PhiShape[k] * np.log(Post.PhiInvScale[k,d]) \
+                           + Prior.s * np.log(Prior.t) \
+                           + gammaln(Post.PhiShape[k]) - gammaln(Prior.s) \
+                           - (Post.PhiShape[k] - Prior.s) * \
+                             (psi(Post.PhiShape[k]) - np.log(Post.PhiInvScale[k,d])) \
+                           + Post.PhiShape[k] * (1 - Prior.t / Post.PhiInvScale[k,d])
+
             # terms related with h
             for c in xrange(C):
                 elbo[k] += - Post.hShape * np.log(Post.hInvScale[k,c]) \
@@ -241,15 +289,16 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
                                               Post.hShape / Post.hInvScale[k]))
 
             # terms related with a
-            elbo[k] += .5 * (self.GetCached('logdetACov', k) + C) * SS.N[k] \
+            elbo[k] += .5 * (np.prod(slogdet(SS.aCov[k])) + C) * SS.N[k] \
                        - .5 * np.trace(SS.aaT[k])
 
             # terms related with x
-            elbo[k] += - .5 * (D * LOGTWOPI + np.sum(np.log(np.diag(Prior.Psi)))) * SS.N[k] \
-                       - .5 * np.dot(1./np.diag(Prior.Psi), SS.diagXxT[k]) \
-                       + np.dot(1./np.diag(Prior.Psi),
+            elbo[k] += - .5 * (D * LOGTWOPI -
+                               np.sum(psi(Post.PhiShape[k]) - np.log(Post.PhiInvScale[k]))) * SS.N[k] \
+                       - .5 * np.dot(Post.PhiShape[k] / Post.PhiInvScale[k], SS.diagXxT[k]) \
+                       + np.dot(Post.PhiShape[k] / Post.PhiInvScale[k],
                                 np.einsum('ij, ij->i', SS.xaT[k], Post.WMean[k])) \
-                       - .5 * np.einsum('ij,ij', SS.aaT[k],self.GetCached('E_WT_invPsi_W', k))
+                       - .5 * np.einsum('ij,ji', self.GetCached('E_WT_invPsi_W', k), SS.aaT[k])
         return np.sum(elbo)
 
     def getDatasetScale(self, SS):
@@ -265,6 +314,7 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
 
     ########################################################### VB Expectations
     ###########################################################
+    # @profile
     def _E_WWT(self, k=None):
         if k is None:
             raise NotImplementedError()
@@ -273,22 +323,15 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             D = self.D
             result = np.zeros((D,C,C))
             for d in xrange(D):
-                result[d] = dotATA(self.Post.WMean[k][d]) + self.Post.WCov[k][d]
+                result[d] = np.outer(self.Post.WMean[k][d],self.Post.WMean[k][d]) + self.Post.WCov[k][d]
             return result
 
     def _E_WT_invPsi_W(self, k=None):
         if k is None:
             raise NotImplementedError()
         else:
-            return np.sum(1./np.diag(self.Prior.Psi)[:, np.newaxis, np.newaxis] * \
-                          self.GetCached('E_WWT', k), axis=0)
-
-    def _cholACov(self, k):
-        return cholesky(self.Post.aCov[k], lower=True)
-
-    def _logdetACov(self, k):
-        cholACov = self.GetCached('cholACov', k)
-        return 2 * np.sum(np.log(np.diag(cholACov)))
+            return np.sum((self.Post.PhiShape[k] / self.Post.PhiInvScale[k])[:, np.newaxis, np.newaxis]
+                          * self.GetCached('E_WWT', k), axis=0)
 
     def _cholWCov(self, k):
         D = self.D
