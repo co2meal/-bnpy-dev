@@ -1,20 +1,12 @@
 '''
-PlotELBO.py
-
-Executable for plotting the learning objective function (log evidence)
-  vs. time/number of passes thru data (laps)
-
-Usage (command-line)
--------
-python -m bnpy.viz.PlotELBO dataName aModelName obsModelName algName [kwargs]
 '''
-from matplotlib import pylab
 import numpy as np
 import argparse
 import os
 import glob
 import scipy.io
 
+from PlotUtil import pylab
 from bnpy.ioutil import BNPYArgParser
 from JobFilter import filterJobs
 

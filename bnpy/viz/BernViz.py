@@ -3,9 +3,8 @@ BernViz.py
 
 Visualization tools for beta-bernoulli observation models.
 '''
-
-from matplotlib import pylab
 import numpy as np
+from PlotUtil import pylab
 
 imshowArgs = dict(interpolation='nearest',
                   cmap='bone',

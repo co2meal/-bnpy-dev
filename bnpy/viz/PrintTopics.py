@@ -18,7 +18,7 @@ Options
     ids of the tasks (individual runs) of the given job to plot.
     Ex: "1" or "3" or "1,2,3" or "1-6"
 '''
-from matplotlib import pylab
+from PlotUtil import pylab
 import numpy as np
 import argparse
 import os

@@ -22,7 +22,6 @@ Loop over panels
         Plot line
 
 '''
-from matplotlib import pylab
 import numpy as np
 import argparse
 import glob
@@ -30,6 +29,7 @@ import os
 import scipy.io
 import copy
 
+from PlotUtil import pylab
 import TaskRanker
 
 from bnpy.ioutil import BNPYArgParser
@@ -38,8 +38,6 @@ from JobFilter import makePPListMapFromJPattern
 from JobFilter import makeJPatternWithSpecificVals
 from TaskRanker import rankTasksForSingleJobOnDisk
 
-import matplotlib
-matplotlib.rcParams['text.usetex'] = False
 
 taskidsHelpMsg = "ids of trials/runs to plot from given job." + \
                  " Example: '4' or '1,2,3' or '2-6'."

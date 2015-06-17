@@ -10,19 +10,15 @@ Usage (command-line)
 -------
 python -m bnpy.viz.PlotTrace dataName jobpattern [kwargs]
 '''
-from matplotlib import pylab
 import numpy as np
 import argparse
 import glob
 import os
 import scipy.io
 
+from PlotUtil import pylab
 from bnpy.ioutil import BNPYArgParser
 from JobFilter import filterJobs
-
-import matplotlib
-matplotlib.rcParams['text.usetex'] = False
-
 
 taskidsHelpMsg = "ids of trials/runs to plot from given job." + \
                  " Example: '4' or '1,2,3' or '2-6'."
@@ -46,7 +42,6 @@ LabelMap['laps-saved-params'] = 'num pass thru data'
 LabelMap['hamming-distance'] = 'Hamming dist.'
 LabelMap['Keff'] = 'num topics K'
 
-
 def plotJobsThatMatchKeywords(jpathPattern='/tmp/', **kwargs):
     ''' Create line plots for jobs matching pattern and provided kwargs
     '''
@@ -54,7 +49,6 @@ def plotJobsThatMatchKeywords(jpathPattern='/tmp/', **kwargs):
         jpathPattern = os.path.join(os.environ['BNPYOUTDIR'], jpathPattern)
     jpaths, legNames = filterJobs(jpathPattern, **kwargs)
     plotJobs(jpaths, legNames, **kwargs)
-
 
 def plotJobs(jpaths, legNames, styles=None, density=2,
              xvar='laps', yvar='evidence', loc='upper right',
@@ -306,6 +300,8 @@ def parse_args(xvar='laps', yvar='evidence'):
     del argDict['dataName']
     del argDict['jpath']
     return argDict
+
+plotJobsThatMatch = plotJobsThatMatchKeywords
 
 if __name__ == "__main__":
     argDict = parse_args('laps', 'evidence')
