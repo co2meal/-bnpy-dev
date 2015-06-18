@@ -1,0 +1,34 @@
+Toy Bars Data with 10 true topics. Each doc uses 1-3 bars.
+  size: 1000 units (documents)
+  vocab size: 900
+  min    5%   50%   95%   max 
+   68    76    85    92    99  nUniqueTokensPerDoc
+  100   100   100   100   100  nTotalTokensPerDoc
+Hist of word_count across tokens 
+      1      2      3    <10   <100  >=100
+   0.84   0.14   0.02    200      0      0
+Hist of unique docs per word type
+     <1    <10   <100  <0.20  <0.50 >=0.50
+      0      0   0.75   0.25      0      0
+Allocation Model:  Finite LDA model with K=10 comps. alpha=0.10
+Obs. Data  Model:  Multinomial over finite vocabulary.
+Obs. Data  Prior:  Dirichlet over finite vocabulary 
+  lam = [ 0.1  0.1] ...
+Learn Alg: VB
+Trial  1/2 | alg. seed: 2497280 | data order seed: 8541952
+savepath: /results/BarsK10V900/demobarsVB-Kinit=10-kmeans/1
+        1/500 after      1 sec. | K   10 | ev -6.384955954e+00 |  
+        2/500 after      1 sec. | K   10 | ev -6.340769182e+00 | Ndiff    487.173 
+       25/500 after      5 sec. | K   10 | ev -6.294641929e+00 | Ndiff      2.642 
+       50/500 after      8 sec. | K   10 | ev -6.294527751e+00 | Ndiff      0.117 
+       54/500 after      9 sec. | K   10 | ev -6.294523143e+00 | Ndiff      0.049 
+... done. converged.
+Trial  2/2 | alg. seed: 1128064 | data order seed: 7673856
+savepath: /results/BarsK10V900/demobarsVB-Kinit=10-kmeans/2
+        1/500 after      1 sec. | K   10 | ev -6.308175604e+00 |  
+        2/500 after      1 sec. | K   10 | ev -6.262134141e+00 | Ndiff    467.564 
+       25/500 after      5 sec. | K   10 | ev -6.234179645e+00 | Ndiff      2.107 
+       50/500 after      8 sec. | K   10 | ev -6.234039377e+00 | Ndiff      0.527 
+       75/500 after     11 sec. | K   10 | ev -6.234010173e+00 | Ndiff      0.155 
+       98/500 after     14 sec. | K   10 | ev -6.233997917e+00 | Ndiff      0.044 
+... done. converged.

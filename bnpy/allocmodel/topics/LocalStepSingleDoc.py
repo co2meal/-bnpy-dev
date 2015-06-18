@@ -1,263 +1,309 @@
 from scipy.special import digamma, gammaln
 import numpy as np
 
-def inferLocal_SingleDoc_TrackELBO(wc_d, Lik_d, alphaEbeta, alphaEbetaRem,
-                             DocTopicCount_d=None, sumR_d=None,
-                             nCoordAscentItersLP=10, convThrLP=0.001, 
-                             restartremovejunkLP=0,
-                             **kwargs):
-  ''' Infer compact local parameters for a single document
 
-      Assumes q(Pi_d) is a Dirichlet.
+def calcLocalParams_SingleDoc(
+        wc_d, Lik_d, alphaEbeta, alphaEbetaRem=None,
+        DocTopicCount_d=None, sumResp_d=None,
+        nCoordAscentItersLP=10, convThrLP=0.001,
+        restartLP=0,
+        **kwargs):
+    ''' Infer local parameters for a single document.
 
-      Args
-      --------
+    Args
+    --------
+    wc_d : scalar or 1D array, size N
+        word counts for document d
+    Lik_d : 2D array, size N x K
+        Likelihood values for each token n and topic k.
+    alphaEbeta : 1D array, size K
+        Scalar prior parameter for each active topic, under the prior.
+    alphaEbetaRem : None or scalar
+        Scalar prior parameter for all inactive topics, aggregated.
+        Used only for ELBO calculation, not any update equations.
 
-      Kwargs
-      --------
-      restartremovejunkLP : set to 2 to do doc-level removal of small topics
+    Kwargs
+    --------
+    nCoordAscentItersLP : int
+        Number of local step iterations to do for this document.
+    convThrLP : float
+        Threshold for convergence to halt iterations early.
+    restartLP : int
+        If 0, do not perform sparse restarts.
+        If 1, perform sparse restarts.
 
-      Returns
-      --------
-      DocTopicCount_d : updated doc-topic counts
-      Prior_d : prob of topic in document, up to mult. constant
-      sumR_d : normalization constant for each token
-  ''' 
-  if sumR_d is None:
-    sumR_d = np.zeros(Lik_d.shape[0])
+    Returns
+    --------
+    DocTopicCount_d : 1D array, size K
+    DocTopicProb_d : 1D array, size K
+        Updated probability vector for active topics in this doc.
+        Known up to a multiplicative constant.
+    sumResp_d : 1D array, size N_d
+        sumResp_d[n] is normalization constant for token n.
+        That is, resp[n, :] / sumResp_d[n] will sum to one, when
+        resp[n,k] is computed from DocTopicCount_d and Lik_d.
+    Info : dict
+        Contains info about convergence, sparse restarts, etc.
+    '''
+    if sumResp_d is None:
+        sumResp_d = np.zeros(Lik_d.shape[0])
 
-  if DocTopicCount_d is None:
-    ## Initialize prior from global topic probs
-    Prior_d = alphaEbeta.copy()
-    ## Update sumR_d for all tokens in document
-    np.dot(Lik_d, Prior_d, out=sumR_d)
+    # Initialize prior from global topic probs
+    DocTopicProb_d = alphaEbeta.copy()
+    if DocTopicCount_d is None:
+        # Update sumResp for all tokens in document
+        np.dot(Lik_d, DocTopicProb_d, out=sumResp_d)
 
-    ## Update DocTopicCounts
-    DocTopicCount_d = np.zeros_like(Prior_d)
-    np.dot(wc_d / sumR_d, Lik_d, out=DocTopicCount_d)
-    DocTopicCount_d *= Prior_d
-  else:
-    ## Initialize from provided DocTopicCount_d vector
-    Prior_d = np.zeros(DocTopicCount_d.size)
-      
-  ELBOtrace = list()
-  prevDocTopicCount_d = DocTopicCount_d.copy()
-  for iter in xrange(nCoordAscentItersLP):
-    ## Update Prob of Active Topics
-    np.add(DocTopicCount_d, alphaEbeta, out=Prior_d)
-    digamma(Prior_d, out=Prior_d)   # Prior_d = E[ log pi_dk ] + constant
-    #Prior_d -= Prior_d.max()
-    np.exp(Prior_d, out=Prior_d)    # Prior_d = exp E[ log pi_dk ] / constant
-      
-    ## Update sumR_d for all tokens in document
-    np.dot(Lik_d, Prior_d, out=sumR_d)
+        # Update DocTopicCounts
+        DocTopicCount_d = np.zeros_like(DocTopicProb_d)
+        np.dot(wc_d / sumResp_d, Lik_d, out=DocTopicCount_d)
+        DocTopicCount_d *= DocTopicProb_d
 
-    ## Update DocTopicCounts
-    np.dot(wc_d / sumR_d, Lik_d, out=DocTopicCount_d)
-    DocTopicCount_d *= Prior_d
+    prevDocTopicCount_d = DocTopicCount_d.copy()
+    for iter in xrange(nCoordAscentItersLP):
+        # Update Prob of Active Topics
+        # First, in logspace, so Prob_d[k] = E[ log pi_dk ] + const
+        np.add(DocTopicCount_d, alphaEbeta, out=DocTopicProb_d)
+        digamma(DocTopicProb_d, out=DocTopicProb_d)
+        # TODO: subtract max for safe exp? doesnt seem necessary...
 
-    ## CALC ELBO
-    curELBO = calcELBO_SingleDoc_Dir(DocTopicCount_d, Prior_d, sumR_d,
-                                     wc_d, alphaEbeta, alphaEbetaRem)
-    ELBOtrace.append(curELBO)
+        # Convert: Prob_d[k] = exp E[ log pi_dk ] / const
+        np.exp(DocTopicProb_d, out=DocTopicProb_d)
 
-    ## Check for convergence
-    if iter % 5 == 0:
-      maxDiff = np.max(np.abs(DocTopicCount_d - prevDocTopicCount_d))
-      if maxDiff < convThrLP:
-        break
-    prevDocTopicCount_d[:] = DocTopicCount_d
+        # Update sumResp for all tokens in document
+        np.dot(Lik_d, DocTopicProb_d, out=sumResp_d)
 
-  Info = dict(maxDiff=maxDiff, iter=iter, ELBOtrace=ELBOtrace)
-  if restartremovejunkLP == 2:
-    DocTopicCount_d, Prior_d, sumR_d, RInfo = removeJunkTopics_SingleDoc(
-                     wc_d, Lik_d, alphaEbeta, alphaEbetaRem, 
-                     DocTopicCount_d, Prior_d, sumR_d, **kwargs)
-    Info.update(RInfo)
-  return DocTopicCount_d, Prior_d, sumR_d, Info
+        # Update DocTopicCounts
+        np.dot(wc_d / sumResp_d, Lik_d, out=DocTopicCount_d)
+        DocTopicCount_d *= DocTopicProb_d
 
+        # Check for convergence
+        if iter % 5 == 0:
+            maxDiff = np.max(np.abs(DocTopicCount_d - prevDocTopicCount_d))
+            if maxDiff < convThrLP:
+                break
+        prevDocTopicCount_d[:] = DocTopicCount_d
 
-def inferLocal_SingleDoc_Dir(wc_d, Lik_d, alphaEbeta, alphaEbetaRem,
-                             DocTopicCount_d=None, sumR_d=None,
-                             nCoordAscentItersLP=10, convThrLP=0.001, 
-                             restartremovejunkLP=0,
-                             **kwargs):
-  ''' Infer compact local parameters for a single document
+    Info = dict(maxDiff=maxDiff, iter=iter)
+    if restartLP:
+        DocTopicCount_d, DocTopicProb_d, sumResp_d, RInfo = \
+            removeJunkTopics_SingleDoc(
+                wc_d, Lik_d, alphaEbeta, alphaEbetaRem,
+                DocTopicCount_d, DocTopicProb_d, sumResp_d, **kwargs)
+        Info.update(RInfo)
 
-      Assumes q(Pi_d) is a Dirichlet.
-
-      Args
-      --------
-
-      Kwargs
-      --------
-      restartremovejunkLP : set to 2 to do doc-level removal of small topics
-
-      Returns
-      --------
-      DocTopicCount_d : updated doc-topic counts
-      Prior_d : prob of topic in document, up to mult. constant
-      sumR_d : normalization constant for each token
-  ''' 
-  if sumR_d is None:
-    sumR_d = np.zeros(Lik_d.shape[0])
-
-  if DocTopicCount_d is None:
-    ## Initialize prior from global topic probs
-    Prior_d = alphaEbeta.copy()
-    ## Update sumR_d for all tokens in document
-    np.dot(Lik_d, Prior_d, out=sumR_d)
-
-    ## Update DocTopicCounts
-    DocTopicCount_d = np.zeros_like(Prior_d)
-    np.dot(wc_d / sumR_d, Lik_d, out=DocTopicCount_d)
-    DocTopicCount_d *= Prior_d
-  else:
-    ## Initialize from provided DocTopicCount_d vector
-    Prior_d = np.zeros(DocTopicCount_d.size)
-      
-  prevDocTopicCount_d = DocTopicCount_d.copy()
-  for iter in xrange(nCoordAscentItersLP):
-    ## Update Prob of Active Topics
-    np.add(DocTopicCount_d, alphaEbeta, out=Prior_d)
-    digamma(Prior_d, out=Prior_d)   # Prior_d = E[ log pi_dk ] + constant
-    #Prior_d -= Prior_d.max()
-    np.exp(Prior_d, out=Prior_d)    # Prior_d = exp E[ log pi_dk ] / constant
-      
-    ## Update sumR_d for all tokens in document
-    np.dot(Lik_d, Prior_d, out=sumR_d)
-
-    ## Update DocTopicCounts
-    np.dot(wc_d / sumR_d, Lik_d, out=DocTopicCount_d)
-    DocTopicCount_d *= Prior_d
-
-    ## Check for convergence
-    if iter % 5 == 0:
-      maxDiff = np.max(np.abs(DocTopicCount_d - prevDocTopicCount_d))
-      if maxDiff < convThrLP:
-        break
-    prevDocTopicCount_d[:] = DocTopicCount_d
-
-  Info = dict(maxDiff=maxDiff, iter=iter)
-  if restartremovejunkLP == 2:
-    DocTopicCount_d, Prior_d, sumR_d, RInfo = removeJunkTopics_SingleDoc(
-                     wc_d, Lik_d, alphaEbeta, alphaEbetaRem, 
-                     DocTopicCount_d, Prior_d, sumR_d, **kwargs)
-    Info.update(RInfo)
-  return DocTopicCount_d, Prior_d, sumR_d, Info
+    return DocTopicCount_d, DocTopicProb_d, sumResp_d, Info
 
 
-def removeJunkTopics_SingleDoc(wc_d, Lik_d, alphaEbeta, alphaEbetaRem,
-                               DocTopicCount_d, Prior_d, sumR_d,
-                               restartNumTrialsLP=5,
-                               restartNumItersLP=2, 
-                               restartMaxThrLP=25,
-                               restartCriteriaLP='smallest',
-                               MIN_USAGE_THR=0.01, 
-                               **kwargs):
-  ''' Create candidate models that remove junk topics, accept if improved.
-  '''
-  Info = dict(nTrial=0, nAccept=0)
-  usedTopicMask = DocTopicCount_d > MIN_USAGE_THR
-  nUsed = np.sum(usedTopicMask)
-  if nUsed < 2:
-    return DocTopicCount_d, Prior_d, sumR_d, Info
-    
-  ## Measure current model quality via ELBO
-  curELBO = calcELBO_SingleDoc_Dir(DocTopicCount_d, Prior_d, sumR_d,
-                                   wc_d, alphaEbeta, alphaEbetaRem)
-  Info['startELBO'] = curELBO
+def removeJunkTopics_SingleDoc(
+        wc_d, Lik_d, alphaEbeta, alphaEbetaRem,
+        DocTopicCount_d, DocTopicProb_d, sumResp_d,
+        restartNumTrialsLP=5,
+        restartNumItersLP=2,
+        restartCriteriaLP='smallest',
+        restartMinSizeThrLP=0.001,
+        **kwargs):
+    ''' Propose candidate local parameters, accept if ELBO improves.
 
-  ## Determine eligible topics to delete
-  if restartCriteriaLP == 'DocTopicCount':
-    usedTopics = np.flatnonzero(np.logical_and(usedTopicMask,
-                                          DocTopicCount_d < restartMaxThrLP))
-  else:
+    Returns
+    --------
+    DocTopicCount_d : 1D array, size K
+    DocTopicProb_d : 1D array, size K
+    sumResp_d : 1D array, size N
+    Info : dict
+    '''
+    Info = dict(nTrial=0, nAccept=0)
+
+    # usedTopics : 1D array of int ids of topics with mass above MinSizeThr
+    usedTopicMask = DocTopicCount_d > restartMinSizeThrLP
     usedTopics = np.flatnonzero(usedTopicMask)
-  smallIDs = np.argsort(DocTopicCount_d[usedTopics])[:restartNumTrialsLP]
-  smallTopics = usedTopics[smallIDs]
-  smallTopics = smallTopics[:nUsed-1]
+    nUsed = np.sum(usedTopicMask)
+    if nUsed < 2:
+        return DocTopicCount_d, DocTopicProb_d, sumResp_d, Info
 
-  pDocTopicCount_d = np.zeros_like(DocTopicCount_d)
-  pPrior_d = np.zeros_like(Prior_d)
-  psumR_d = np.zeros_like(sumR_d)  
+    # Measure current model quality via ELBO
+    curELBO = calcELBO_SingleDoc(
+        DocTopicCount_d, DocTopicProb_d, sumResp_d,
+        wc_d, alphaEbeta, alphaEbetaRem)
+    Info['startELBO'] = curELBO
 
-  for kID in smallTopics:
-    ## Propose deleting current "small" topic
-    pDocTopicCount_d[:] = DocTopicCount_d
-    pDocTopicCount_d[kID] = 0
-    
-    ## Refine initial proposal via standard coord ascent updates
-    for iter in xrange(restartNumItersLP):
-      # Update Prob of Active Topics
-      np.add(pDocTopicCount_d, alphaEbeta, out=pPrior_d)
-      digamma(pPrior_d, out=pPrior_d)   # Prior_d = E[ log pi_dk ] + const
-      #pPrior_d -= pPrior_d.max()
-      np.exp(pPrior_d, out=pPrior_d)    # Prior_d = exp E[ log pi_dk ] / const
-     
-      # Update sumR_d for all tokens in document
-      np.dot(Lik_d, pPrior_d, out=psumR_d)
+    # Determine eligible topics to delete
+    # smallTopics : 1D array of int topic ids to try deleting
+    smallIDs = np.argsort(DocTopicCount_d[usedTopics])[:restartNumTrialsLP]
+    smallTopics = usedTopics[smallIDs]
+    smallTopics = smallTopics[:nUsed - 1]
 
-      # Update DocTopicCounts
-      np.dot(wc_d / psumR_d, Lik_d, out=pDocTopicCount_d)
-      pDocTopicCount_d *= pPrior_d
+    pDocTopicCount_d = np.zeros_like(DocTopicCount_d)
+    pDocTopicProb_d = np.zeros_like(DocTopicProb_d)
+    psumResp_d = np.zeros_like(sumResp_d)
 
-    ## Evaluate proposal quality via ELBO
-    propELBO = calcELBO_SingleDoc_Dir(pDocTopicCount_d, pPrior_d, psumR_d,
-                                      wc_d, alphaEbeta, alphaEbetaRem)
+    for kID in smallTopics:
+        # Propose deleting current "small" topic
+        pDocTopicCount_d[:] = DocTopicCount_d
+        pDocTopicCount_d[kID] = 0
 
-    Info['nTrial'] += 1
-    if not np.isfinite(propELBO):
-      print 'WARNING! not finite in calcELBO_SingleDoc_Dir.'
-      continue
+        # Refine initial proposal via standard coord ascent updates
+        for iter in xrange(restartNumItersLP):
+            np.add(pDocTopicCount_d, alphaEbeta, out=pDocTopicProb_d)
+            digamma(pDocTopicProb_d, out=pDocTopicProb_d)
+            np.exp(pDocTopicProb_d, out=pDocTopicProb_d)
 
-    ## Update current model if accepted!
-    if propELBO > curELBO:
-      Info['nAccept'] += 1
-      curELBO = propELBO
-      DocTopicCount_d[:] = pDocTopicCount_d
-      Prior_d[:] = pPrior_d
-      sumR_d[:] = psumR_d
-      nUsed -= 1
+            np.dot(Lik_d, pDocTopicProb_d, out=psumResp_d)
 
-  ## Package up and return
-  Info['finalELBO'] = curELBO
-  return DocTopicCount_d, Prior_d, sumR_d, Info  
+            # Update DocTopicCounts
+            np.dot(wc_d / psumResp_d, Lik_d, out=pDocTopicCount_d)
+            pDocTopicCount_d *= pDocTopicProb_d
+
+        # Evaluate proposal quality via ELBO
+        propELBO = calcELBO_SingleDoc(
+            pDocTopicCount_d, pDocTopicProb_d, psumResp_d,
+            wc_d, alphaEbeta, alphaEbetaRem)
+
+        Info['nTrial'] += 1
+        if not np.isfinite(propELBO):
+            print 'WARNING! propELBO not finite.'
+            continue
+
+        # Update if accepted!
+        if propELBO > curELBO:
+            Info['nAccept'] += 1
+            curELBO = propELBO
+            DocTopicCount_d[:] = pDocTopicCount_d
+            DocTopicProb_d[:] = pDocTopicProb_d
+            sumResp_d[:] = psumResp_d
+            nUsed -= 1
+
+        if nUsed < 2:
+            break
+
+    # Package up and return
+    Info['finalELBO'] = curELBO
+    return DocTopicCount_d, DocTopicProb_d, sumResp_d, Info
 
 
-                               
-def calcELBO_SingleDoc_Dir(DocTopicCount_d, Prior_d, sumR_d,
-                           wc_d, alphaEbeta, alphaEbetaRem):
-  ''' Calculate single document contribution to the ELBO (log evidence bound).
-  '''
-  theta_d = DocTopicCount_d + alphaEbeta
+def calcELBO_SingleDoc(DocTopicCount_d, DocTopicProb_d, sumResp_d,
+                       wc_d, alphaEbeta, alphaEbetaRem):
+    ''' Calculate single document contribution to the ELBO objective.
 
-  if alphaEbetaRem is None:
-    ## LDA model, with K active topics
-    sumTheta = theta_d.sum()
-    digammaSum = digamma(sumTheta)
-    ElogPi_d = digamma(theta_d) - digammaSum
+    This isolates all ELBO terms that depend on local parameters of this doc.
 
-    L_cDir = np.sum(gammaln(theta_d)) - gammaln(sumTheta)
-    # SLACK terms are always equal to zero!
-    #L_slack = np.inner(DocTopicCount_d + alphaEbeta - theta_d, ElogPi_d)
-  else:
-    ## HDP model, with K active topics and one "leftover aggregate mass" topic
-    sumTheta = theta_d.sum() + alphaEbetaRem
-    digammaSum = digamma(sumTheta)
-    ElogPi_d = digamma(theta_d) - digammaSum
-    ElogPiRem = digamma(alphaEbetaRem) - digammaSum
+    Returns
+    -------
+    L : scalar float
+        value of ELBO objective, up to additive constant.
+        This constant is independent of any local parameter attached to doc d.
+    '''
+    theta_d = DocTopicCount_d + alphaEbeta
 
-    L_cDir = np.sum(gammaln(theta_d)) + gammaln(alphaEbetaRem) \
-             - gammaln(sumTheta)
-    # SLACK terms are always equal to zero!
-    #L_slack = np.inner(DocTopicCount_d + alphaEbeta - theta_d, ElogPi_d) 
-    #L_slackRem =  (alphaEbetaRem - thetaRem) * ElogPiRem
-            
-  if isinstance(wc_d, float):
-    L_rest = np.sum(np.log(sumR_d))
-  else:
-    L_rest = np.inner(wc_d, np.log(sumR_d))
+    if alphaEbetaRem is None:
+        # LDA model, with K active topics
+        sumTheta = theta_d.sum()
+        digammaSum = digamma(sumTheta)
+        ElogPi_d = digamma(theta_d) - digammaSum
 
-  L_rest -= np.inner(DocTopicCount_d, np.log(Prior_d+1e-100))
-  return L_cDir + L_rest  
+        L_alloc = np.sum(gammaln(theta_d)) - gammaln(sumTheta)
+        # SLACK terms are always equal to zero!
+    else:
+        # HDP, with K active topics and one aggregate "leftover" topic
+        sumTheta = theta_d.sum() + alphaEbetaRem
+        digammaSum = digamma(sumTheta)
+        ElogPi_d = digamma(theta_d) - digammaSum
+        ElogPiRem = digamma(alphaEbetaRem) - digammaSum
+
+        L_alloc = np.sum(gammaln(theta_d)) + gammaln(alphaEbetaRem) \
+            - gammaln(sumTheta)
+        # SLACK terms are always equal to zero!
+
+    if isinstance(wc_d, float):
+        L_rest = np.sum(np.log(sumResp_d))
+    else:
+        L_rest = np.inner(wc_d, np.log(sumResp_d))
+    L_rest -= np.inner(DocTopicCount_d, np.log(DocTopicProb_d + 1e-100))
+
+    return L_alloc + L_rest
+
+
+def calcLocalParams_SingleDoc_WithELBOTrace(
+        wc_d, Lik_d, alphaEbeta, alphaEbetaRem=None,
+        DocTopicCount_d=None, sumResp_d=None,
+        nCoordAscentItersLP=10, convThrLP=0.001,
+        restartLP=0,
+        **kwargs):
+    ''' Infer local parameters for a single document, with ELBO trace.
+
+    Performs same calculations as calcLocalParams_SingleDoc,
+    but (expensively) tracks the ELBO at every local step iteration.
+    Thus, we refactored this into a separate function, so we do not
+    pay a performance penalty for an if statement in the inner loop.
+
+    Args
+    --------
+    Same as calcLocalParams_SingleDoc
+
+
+    Returns
+    --------
+    DocTopicCount_d : updated doc-topic counts
+    Prior_d : prob of topic in document, up to mult. constant
+    sumR_d : normalization constant for each token
+    Info : dict, with field
+        * 'ELBOtrace' : 1D array, size nIters
+            which gives the ELBO over the iterations on this document
+            up to additive const indep of local params.
+    '''
+    if sumResp_d is None:
+        sumResp_d = np.zeros(Lik_d.shape[0])
+
+    # Initialize prior from global topic probs
+    DocTopicProb_d = alphaEbeta.copy()
+
+    if DocTopicCount_d is None:
+        # Update sumResp for all tokens in document
+        np.dot(Lik_d, DocTopicProb_d, out=sumResp_d)
+
+        # Update DocTopicCounts
+        DocTopicCount_d = np.zeros_like(DocTopicProb_d)
+        np.dot(wc_d / sumResp_d, Lik_d, out=DocTopicCount_d)
+        DocTopicCount_d *= DocTopicProb_d
+
+    ELBOtrace = list()
+    prevDocTopicCount_d = DocTopicCount_d.copy()
+    for iter in xrange(nCoordAscentItersLP):
+        # Update Prob of Active Topics
+        # First, in logspace, so Prob_d[k] = E[ log pi_dk ] + const
+        np.add(DocTopicCount_d, alphaEbeta, out=DocTopicProb_d)
+        digamma(DocTopicProb_d, out=DocTopicProb_d)
+        # TODO: subtract max for safe exp? doesnt seem necessary...
+
+        # Convert: Prob_d[k] = exp E[ log pi_dk ] / const
+        np.exp(DocTopicProb_d, out=DocTopicProb_d)
+
+        # Update sumResp for all tokens in document
+        np.dot(Lik_d, DocTopicProb_d, out=sumResp_d)
+
+        # Update DocTopicCounts
+        np.dot(wc_d / sumResp_d, Lik_d, out=DocTopicCount_d)
+        DocTopicCount_d *= DocTopicProb_d
+
+        # Calculate ELBO objective at current assignments
+        curELBO = calcELBO_SingleDoc(
+            DocTopicCount_d, DocTopicProb_d, sumResp_d,
+            wc_d, alphaEbeta, alphaEbetaRem)
+        ELBOtrace.append(curELBO)
+
+        # Check for convergence
+        if iter % 5 == 0:
+            maxDiff = np.max(np.abs(DocTopicCount_d - prevDocTopicCount_d))
+            if maxDiff < convThrLP:
+                break
+        prevDocTopicCount_d[:] = DocTopicCount_d
+
+    Info = dict(maxDiff=maxDiff, iter=iter)
+    Info['ELBOtrace'] = np.asarray(ELBOtrace)
+    if restartLP:
+        DocTopicCount_d, DocTopicProb_d, sumResp_d, RInfo = \
+            removeJunkTopics_SingleDoc(
+                wc_d, Lik_d, alphaEbeta, alphaEbetaRem,
+                DocTopicCount_d, DocTopicProb_d, sumResp_d, **kwargs)
+        Info.update(RInfo)
+    return DocTopicCount_d, DocTopicProb_d, sumResp_d, Info
