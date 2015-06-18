@@ -114,12 +114,15 @@ def generateDataset(**kwargs):
 
     if isinstance(T_in, str):
         Tvals = [int(T) for T in T_in.split(',')]
-        if len(Tvals) == 1:
-            seqLens = Tvals[0] * np.ones(nSeq, dtype=np.int32)
-        elif len(Tvals) < nSeq:
-            seqLens = np.tile(T, nSeq)[:nSeq]
-        elif len(Tvals) >= nSeq:
-            seqLens = np.asarray(Tvals, dtype=np.int32)[:nSeq]
+    else:
+        Tvals = [T_in]
+
+    if len(Tvals) == 1:
+        seqLens = Tvals[0] * np.ones(nSeq, dtype=np.int32)
+    elif len(Tvals) < nSeq:
+        seqLens = np.tile(Tvals, nSeq)[:nSeq]
+    elif len(Tvals) >= nSeq:
+        seqLens = np.asarray(Tvals, dtype=np.int32)[:nSeq]
 
     doc_range = np.hstack([0, np.cumsum(seqLens)])
     N = doc_range[-1]
