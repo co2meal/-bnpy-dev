@@ -26,6 +26,9 @@ build/
 !/.gitignore
 *~
 
+# Plain-text files specifying system paths
+*.path
+
 # Auto-generated files from the OS
 *~lock*
 *.DS_Store
