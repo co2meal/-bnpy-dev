@@ -114,7 +114,6 @@ class QuadTreeData(TreeData, DataObj):
         else: 
             return QuadTreeData(X=self.X[begin:end], nTrees=1, tree_delims=l, TrueZ=self.TrueLabels[begin:end])
         
-
     def select_subset_by_mask(self, mask, doTrackFullSize=True):
         if doTrackFullSize:
             return QuadTreeData(self.X[mask], nTrees=self.nTrees)
