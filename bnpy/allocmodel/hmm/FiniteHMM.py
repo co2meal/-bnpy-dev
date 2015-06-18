@@ -352,7 +352,7 @@ class FiniteHMM(AllocModel):
             if self.inferType == 'EM':
                 self.startPi = hmodel.allocModel.startPi
                 self.transPi = hmodel.allocModel.transPi
-            elif self.inferType == 'VB':
+            elif self.inferType.count('VB'):
                 self.startTheta = hmodel.allocModel.startTheta
                 self.transTheta = hmodel.allocModel.transTheta
         else:
@@ -360,7 +360,7 @@ class FiniteHMM(AllocModel):
             if self.inferType == 'EM':
                 self.startPi = startPi
                 self.transPi = transPi
-            elif self.inferType == 'VB':
+            elif self.inferType.count('VB'):
                 self.startTheta = startTheta
                 self.transTheta = transTheta
 

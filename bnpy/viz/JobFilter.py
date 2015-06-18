@@ -7,7 +7,7 @@ from bnpy.ioutil import BNPYArgParser
 
 # kwargs that arent needed for any job pattern matching
 SkipKeys = ['taskids', 'savefilename', 'fileSuffix',
-            'loc', 'xvar', 'yvar']
+            'loc', 'xvar', 'yvar', 'bbox_to_anchor']
 
 
 def findKeysWithDiffVals(dA, dB):
