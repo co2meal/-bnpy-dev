@@ -30,7 +30,7 @@ import ctypes
 import time
 
 import bnpy
-from KMeansUtil import localStepForDataSlice
+from KMeansUtil import calcLocalParamsAndSummarize
 from KMeansUtil import sliceGenerator
 from KMeansUtil import getPtrForArray
 from KMeansUtil import runBenchmarkAcrossProblemSizes
@@ -54,24 +54,24 @@ class Worker(multiprocessing.Process):
                 print "#%d: %s" % (self.uid, line)
 
     def run(self):
-        self.printMsg("process SetUp! pid=%d" % (os.getpid()))
+        #self.printMsg("process SetUp! pid=%d" % (os.getpid()))
 
         # Construct iterator with sentinel value of None (for termination)
         jobIterator = iter(self.JobQueue.get, None)
 
         for jobArgs in jobIterator:
             X, Mu, start, stop = jobArgs
-            if start is not None:
-                self.printMsg("start=%d, stop=%d" % (start, stop))
-            msg = "X memory location: %d" % (getPtrForArray(X))
-            self.printMsg(msg)
+            # if start is not None:
+            #    self.printMsg("start=%d, stop=%d" % (start, stop))
+            #msg = "X memory location: %d" % (getPtrForArray(X))
+            #self.printMsg(msg)
 
-            SS = localStepForDataSlice(X, Mu, start=start, stop=stop)
+            SS = calcLocalParamsAndSummarize(X, Mu, start=start, stop=stop)
             self.ResultQueue.put(SS)
             self.JobQueue.task_done()
 
         # Clean up
-        self.printMsg("process CleanUp! pid=%d" % (os.getpid()))
+        # self.printMsg("process CleanUp! pid=%d" % (os.getpid()))
 
 
 class Test(unittest.TestCase):
@@ -79,8 +79,10 @@ class Test(unittest.TestCase):
     def shortDescription(self):
         return None
 
-    def __init__(self, testname,
-                 N=1000, D=25, K=10, nWorkers=7, verbose=1):
+
+    def __init__(self, testname, 
+                 N=1000, D=25, K=10, nWorkers=2, 
+                 verbose=1, **kwargs):
         ''' Create dataset X, cluster means Mu.
 
         Post Condition Attributes
@@ -128,7 +130,7 @@ class Test(unittest.TestCase):
     def run_baseline(self):
         """ Execute on entire matrix (no slices) in master process.
         """
-        SSall = localStepForDataSlice(self.X, self.Mu)
+        SSall = calcLocalParamsAndSummarize(self.X, self.Mu)
         return SSall
 
     def run_serial(self):
@@ -137,7 +139,7 @@ class Test(unittest.TestCase):
         N = self.X.shape[0]
         SSagg = None
         for start, stop in sliceGenerator(N, self.nWorkers):
-            SSslice = localStepForDataSlice(self.X, self.Mu, start, stop)
+            SSslice = calcLocalParamsAndSummarize(self.X, self.Mu, start, stop)
             if start == 0:
                 SSagg = SSslice
             else:
@@ -175,13 +177,13 @@ class Test(unittest.TestCase):
         print ''
 
         # Version A: summarize entire dataset
-        SSall = localStepForDataSlice(self.X, self.Mu)
+        SSall = calcLocalParamsAndSummarize(self.X, self.Mu)
 
         # Version B: summarize each slice separately, then aggregate
         N = self.X.shape[0]
         SSagg = None
         for start, stop in sliceGenerator(N, self.nWorkers):
-            SSslice = localStepForDataSlice(self.X, self.Mu, start, stop)
+            SSslice = calcLocalParamsAndSummarize(self.X, self.Mu, start, stop)
             if start == 0:
                 SSagg = SSslice
             else:
@@ -203,7 +205,7 @@ class Test(unittest.TestCase):
         SS = self.run_parallel()
 
         # Baseline: compute desired answer in master process.
-        SSall = localStepForDataSlice(self.X, self.Mu)
+        SSall = calcLocalParamsAndSummarize(self.X, self.Mu)
 
         print "Parallel Answer: CountVec = ", SS.CountVec[:3]
         print "   Naive Answer: CountVec = ", SSall.CountVec[:3]

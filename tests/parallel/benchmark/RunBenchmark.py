@@ -19,7 +19,7 @@ def main():
     parser.add_argument('--N', type=str, default='10000')
     parser.add_argument('--D', type=str, default='25')
     parser.add_argument('--nWorker', type=str, default='1')
-    parser.add_argument('--methods', type=str, default='parallel')
+    parser.add_argument('--methods', type=str, default='monolithic,parallel')
     parser.add_argument('--nRepeat', type=int, default=1)
     parser.add_argument('--verbose', type=int, default=1)
     parser.add_argument('--task', type=str, default='sleep')
