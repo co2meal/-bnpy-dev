@@ -21,6 +21,9 @@ def calcELBO(**kwargs):
     """
     Llinear = calcELBO_LinearTerms(**kwargs)
     Lnon = calcELBO_NonlinearTerms(**kwargs)
+    if 'todict' in kwargs and kwargs['todict']:
+        Llinear.update(Lnon)
+        return Llinear
     return Lnon + Llinear
 
 
@@ -42,6 +45,10 @@ def calcELBO_LinearTerms(SS=None,
                  kappa=kappa, startAlpha=startAlpha)
     LdiffcDir = - c_Dir(transTheta) - c_Dir(startTheta)
     if afterGlobalStep:
+        if todict:
+            return dict(
+                Lalloc=Ltop+LdiffcDir,
+                Lslack=0)
         return Ltop + LdiffcDir
 
     K = rho.size
@@ -58,23 +65,29 @@ def calcELBO_LinearTerms(SS=None,
     if TransStateCount.shape[-1] == K:
         TransStateCount = np.hstack([TransStateCount, np.zeros((K, 1))])
 
-    LstartSlack = np.inner(StartStateCount + startAlpha * Ebeta - startTheta,
-                           digamma(startTheta) - digamma(startTheta.sum())
-                           )
+    LstartSlack = np.inner(
+        StartStateCount + startAlpha * Ebeta - startTheta,
+        digamma(startTheta) - digamma(startTheta.sum())
+        )
     alphaEbetaPlusKappa = alpha * np.tile(Ebeta, (K, 1))
     alphaEbetaPlusKappa[:, :K] += kappa * np.eye(K)
 
     digammaSum = np.sum(transTheta, axis=1)
-    LtransSlack = np.sum((TransStateCount + alphaEbetaPlusKappa - transTheta) *
-                         (digamma(transTheta) - digammaSum[:, np.newaxis])
-                         )
+    LtransSlack = np.sum(
+        (TransStateCount + alphaEbetaPlusKappa - transTheta) *
+        (digamma(transTheta) - digammaSum[:, np.newaxis])
+        )
+    if todict:
+        return dict(
+            Lalloc=Ltop+LdiffcDir,
+            Lslack=LstartSlack+LtransSlack)
     return Ltop + LdiffcDir + LstartSlack + LtransSlack
 
 
 def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None,
                             resp=None, respPair=None,
                             Htable=None, Hstart=None,
-                            returnMemoizedDict=0, **kwargs):
+                            returnMemoizedDict=0, todict=0, **kwargs):
     """ Calculate ELBO objective terms non-linear in suff stats.
     """
     if Htable is None:
@@ -103,6 +116,9 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None,
     # Only used when --doMemoELBO is set to 0 (not recommended)
     if SS is not None and SS.hasAmpFactor():
         Lentropy *= SS.ampF
+
+    if todict:
+        return dict(Lentropy=Lentropy)
     return Lentropy
 
 

@@ -110,8 +110,17 @@ def generateDataset(**kwargs):
     PRNG = np.random.RandomState(kwargs['seed'])
 
     nSeq = kwargs['nDocTotal']
-    T = kwargs['T']
-    seqLens = T * np.ones(nSeq, dtype=np.int32)
+    T_in = kwargs['T']
+
+    if isinstance(T_in, str):
+        Tvals = [int(T) for T in T_in.split(',')]
+        if len(Tvals) == 1:
+            seqLens = Tvals[0] * np.ones(nSeq, dtype=np.int32)
+        elif len(Tvals) < nSeq:
+            seqLens = np.tile(T, nSeq)[:nSeq]
+        elif len(Tvals) >= nSeq:
+            seqLens = np.asarray(Tvals, dtype=np.int32)[:nSeq]
+
     doc_range = np.hstack([0, np.cumsum(seqLens)])
     N = doc_range[-1]
     allX = np.zeros((N, D))
