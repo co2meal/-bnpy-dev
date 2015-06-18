@@ -270,37 +270,35 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 """
 
-__docformat__ = 'restructuredtext'
-
-# ---------------------------------------------------------------------------
-# Imports
-# ---------------------------------------------------------------------------
-
 import sys
 import copy
+
+__docformat__ = 'restructuredtext'
 
 # ---------------------------------------------------------------------------
 # Exports
 # ---------------------------------------------------------------------------
 
-__all__     = ['Munkres', 'make_cost_matrix']
+__all__ = ['Munkres', 'make_cost_matrix']
 
 # ---------------------------------------------------------------------------
 # Globals
 # ---------------------------------------------------------------------------
 
 # Info about the module
-__version__   = "1.0.6"
-__author__    = "Brian Clapper, bmc@clapper.org"
-__url__       = "http://software.clapper.org/munkres/"
+__version__ = "1.0.6"
+__author__ = "Brian Clapper, bmc@clapper.org"
+__url__ = "http://software.clapper.org/munkres/"
 __copyright__ = "(c) 2008 Brian M. Clapper"
-__license__   = "BSD-style license"
+__license__ = "BSD-style license"
 
 # ---------------------------------------------------------------------------
 # Classes
 # ---------------------------------------------------------------------------
 
+
 class Munkres:
+
     """
     Calculate the Munkres solution to the classical assignment problem.
     See the module documentation for usage.
@@ -399,12 +397,12 @@ class Munkres:
         done = False
         step = 1
 
-        steps = { 1 : self.__step1,
-                  2 : self.__step2,
-                  3 : self.__step3,
-                  4 : self.__step4,
-                  5 : self.__step5,
-                  6 : self.__step6 }
+        steps = {1: self.__step1,
+                 2: self.__step2,
+                 3: self.__step3,
+                 4: self.__step4,
+                 5: self.__step5,
+                 6: self.__step6}
 
         while not done:
             try:
@@ -483,7 +481,7 @@ class Munkres:
                     count += 1
 
         if count >= n:
-            step = 7 # done
+            step = 7  # done
         else:
             step = 4
 
@@ -543,14 +541,14 @@ class Munkres:
             if row >= 0:
                 count += 1
                 path[count][0] = row
-                path[count][1] = path[count-1][1]
+                path[count][1] = path[count - 1][1]
             else:
                 done = True
 
             if not done:
                 col = self.__find_prime_in_row(path[count][0])
                 count += 1
-                path[count][0] = path[count-1][0]
+                path[count][0] = path[count - 1][0]
                 path[count][1] = col
 
         self.__convert_path(path, count)
@@ -650,7 +648,7 @@ class Munkres:
         return col
 
     def __convert_path(self, path, count):
-        for i in range(count+1):
+        for i in range(count + 1):
             if self.marked[path[i][0]][path[i][1]] == 1:
                 self.marked[path[i][0]][path[i][1]] = 0
             else:
@@ -673,6 +671,7 @@ class Munkres:
 # Functions
 # ---------------------------------------------------------------------------
 
+
 def make_cost_matrix(profit_matrix, inversion_function):
     """
     Create a cost matrix from a profit matrix by calling
@@ -691,7 +690,8 @@ def make_cost_matrix(profit_matrix, inversion_function):
 
     .. python::
 
-        cost_matrix = Munkres.make_cost_matrix(matrix, lambda x : sys.maxsize - x)
+        cost_matrix = Munkres.make_cost_matrix(matrix,
+                                               lambda x : sys.maxsize - x)
 
     :Parameters:
         profit_matrix : list of lists
@@ -707,6 +707,7 @@ def make_cost_matrix(profit_matrix, inversion_function):
     for row in profit_matrix:
         cost_matrix.append([inversion_function(value) for value in row])
     return cost_matrix
+
 
 def print_matrix(matrix, msg=None):
     """
