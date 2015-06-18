@@ -69,6 +69,7 @@ def main():
             pylab.figure(1)
             title = 'BenchmarkPlot_%s_%s_minDur=%.2f_WallclockTimes.eps'\
                 % (hostname, task, kwargs['minSliceDuration'])
+
             pylab.savefig(title, 
                 format='eps', 
                 bbox_inches='tight',
