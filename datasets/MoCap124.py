@@ -12,10 +12,8 @@ import scipy.io
 from bnpy.data import GroupXData
 
 datasetdir = os.path.sep.join(
-    os.path.abspath(__file__).split(
-        os.path.sep)[
-            :-
-            1])
+    os.path.abspath(__file__).split(os.path.sep)[:-1])
+
 if not os.path.isdir(datasetdir):
     raise ValueError('CANNOT FIND DATASET DIRECTORY:\n' + datasetdir)
 
