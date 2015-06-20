@@ -1,483 +1,534 @@
+'''
+BernObsModel
+
+Prior : Beta
+* lam1
+* lam0
+
+EstParams
+-------- 
+for k in 1 2, ... K:
+  * EstParams.phi[k]
+
+Post
+--------
+for k = 1, 2, ... K:
+  * Post.lam1[k]
+  * Post.lam0[k]
+
+'''
 import numpy as np
 from scipy.special import gammaln, digamma
 
 from bnpy.suffstats import ParamBag, SuffStatBag
 from bnpy.util import dotATA, dotATB, dotABT
 from bnpy.util import as1D, as2D, as3D
-from bnpy.util import numpyToSharedMemArray, sharedMemToNumpyArray
 
-from AbstractObsModel import AbstractObsModel
-
+from AbstractObsModel import AbstractObsModel 
 
 class BernObsModel(AbstractObsModel):
 
-    ''' Bernoulli data generation model for binary vectors.
-
-    Attributes for Prior (Beta)
-    --------
-    lam1 : 1D array, size D
-        pseudo-count of positive (binary value=1) observations
-    lam0 : 1D array, size D
-        pseudo-count of negative (binary value=0) observations
-
-    Attributes for k-th component of EstParams (EM point estimates)
-    ---------
-    phi[k] : 1D array, size D
-        phi[k] is a vector of positive numbers in range [0, 1]
-        phi[k,d] is probability that dimension d has binary value 1.
-
-    Attributes for k-th component of Post (VB parameter)
-    ---------
-    lam1[k] : 1D array, size D
-    lam0[k] : 1D array, size D
+  def __init__(self, inferType='EM', D=0,
+                     Data=None, **PriorArgs):
+    ''' Initialize bare Bernouli obsmodel with Beta prior. 
+        Resulting object lacks either EstParams or Post, 
+          which must be created separately.
     '''
+    if Data is not None:
+      self.D = Data.dim
+    elif D > 0:
+      self.D = int(D)
+    self.K = 0
+    self.inferType = inferType
+    self.createPrior(Data, **PriorArgs)
+    self.Cache = dict()
 
-    def __init__(self, inferType='EM', D=0,
-                 Data=None, **PriorArgs):
-        ''' Initialize bare obsmodel with valid prior hyperparameters.
+    self.stateShape = (20,)
+    self.SSDims = ('K',)
 
-        Resulting object lacks either EstParams or Post,
-        which must be created separately (see init_global_params).
-        '''
-        if Data is not None:
-            self.D = Data.dim
-        elif D > 0:
-            self.D = int(D)
-        self.K = 0
-        self.inferType = inferType
-        self.createPrior(Data, **PriorArgs)
-        self.Cache = dict()
+  def createPrior(self, Data, lam1=1.0, lam0=1.0, eps_phi=1e-14, **kwargs):
+    ''' Initialize Prior ParamBag object, with field 'lam'
+    '''
+    D = self.D
+    self.eps_phi = eps_phi
+    self.Prior = ParamBag(K=0, D=D)
+    lam1 = np.asarray(lam1, dtype=np.float)
+    lam0 = np.asarray(lam0, dtype=np.float)
+    if lam1.ndim == 0:
+      lam1 = lam1 * np.ones(D)
+    if lam0.ndim == 0:
+      lam0 = lam0 * np.ones(D)
+    assert lam1.size == D
+    assert lam0.size == D
+    self.Prior.setField('lam1', lam1, dims=('D'))
+    self.Prior.setField('lam0', lam0, dims=('D'))
 
-    def createPrior(self, Data, lam1=1.0, lam0=1.0, eps_phi=1e-14, **kwargs):
-        ''' Initialize Prior ParamBag attribute.
-        '''
-        D = self.D
-        self.eps_phi = eps_phi
-        self.Prior = ParamBag(K=0, D=D)
-        lam1 = np.asarray(lam1, dtype=np.float)
-        lam0 = np.asarray(lam0, dtype=np.float)
-        if lam1.ndim == 0:
-            lam1 = lam1 * np.ones(D)
-        if lam0.ndim == 0:
-            lam0 = lam0 * np.ones(D)
-        assert lam1.size == D
-        assert lam0.size == D
-        self.Prior.setField('lam1', lam1, dims=('D'))
-        self.Prior.setField('lam0', lam0, dims=('D'))
+  def setupWithAllocModel(self, allocModel):
+    self.SSDims = allocModel.getSSDims()
 
-    def get_name(self):
-        return 'Bern'
 
-    def get_info_string(self):
-        return 'Bernoulli over %d binary attributes.' % (self.D)
 
-    def get_info_string_prior(self):
-        msg = 'Beta over %d attributes.\n' % (self.D)
-        if self.D > 2:
-            sfx = ' ...'
-        else:
-            sfx = ''
-        msg += 'lam1 = %s%s\n' % (str(self.Prior.lam1[:2]), sfx)
-        msg += 'lam0 = %s%s\n' % (str(self.Prior.lam0[:2]), sfx)
-        msg = msg.replace('\n', '\n  ')
-        return msg
+  ######################################################### I/O Utils
+  #########################################################   for humans
+  def get_name(self):
+    return 'Bern'
 
-    def setEstParams(self, obsModel=None, SS=None, LP=None, Data=None,
-                     phi=None,
-                     **kwargs):
-        ''' Set attribute EstParams to provided values.
-        '''
-        self.ClearCache()
-        if obsModel is not None:
-            self.EstParams = obsModel.EstParams.copy()
-            self.K = self.EstParams.K
-            return
+  def get_info_string(self):
+    return 'Bernoulli over %d binary attributes.' % (self.D)
+  
+  def get_info_string_prior(self):
+    msg = 'Beta over %d attributes.\n' % (self.D)
+    if self.D > 2:
+      sfx = ' ...'
+    else:
+      sfx = ''
+    msg += 'lam1 = %s%s\n' % (str(self.Prior.lam1[:2]), sfx)
+    msg += 'lam0 = %s%s\n' % (str(self.Prior.lam0[:2]), sfx)
+    msg = msg.replace('\n', '\n  ')
+    return msg
 
-        if LP is not None and Data is not None:
-            SS = self.calcSummaryStats(Data, None, LP)
+  ######################################################### Set EstParams
+  #########################################################
+  def setEstParams(self, obsModel=None, SS=None, LP=None, Data=None,
+                          phi=None,
+                          **kwargs):
+    ''' Create EstParams ParamBag with fields phi
+    '''
+    self.ClearCache()
+    if obsModel is not None:
+      self.EstParams = obsModel.EstParams.copy()
+      self.K = self.EstParams.K
+      return
+    
+    if LP is not None and Data is not None:
+      SS = self.calcSummaryStats(Data, None, LP)
 
-        if SS is not None:
-            self.updateEstParams(SS)
-        else:
-            self.EstParams = ParamBag(K=phi.shape[0], D=phi.shape[1])
-            self.EstParams.setField('phi', phi, dims=('K', 'D'))
-        self.K = self.EstParams.K
+    if SS is not None:
+      self.updateEstParams(SS)
+    else:
+      self.EstParams = ParamBag(K=phi.shape[0], D=phi.shape[1])
+      self.EstParams.setField('phi', phi, dims=self.SSDims+('D',))
+    self.K = self.EstParams.K
 
-    def setEstParamsFromPost(self, Post=None):
-        ''' Set attribute EstParams based on values in Post.
-        '''
-        if Post is None:
-            Post = self.Post
-        self.EstParams = ParamBag(K=Post.K, D=Post.D)
-        phi = Post.lam1 / (Post.lam1 + Post.lam0)
-        self.EstParams.setField('phi', phi, dims=('K', 'D'))
-        self.K = self.EstParams.K
+  def setEstParamsFromPost(self, Post=None):
+    ''' Convert from Post (lam) to EstParams (phi),
+         each EstParam is set to its posterior mean.
+    '''
+    if Post is None:
+      Post = self.Post
+    self.EstParams = ParamBag(K=Post.K, D=Post.D)
+    phi = Post.lam1 / (Post.lam1 + Post.lam0)
+    self.EstParams.setField('phi', phi, dims=self.SSDims+('D',))
+    self.K = self.EstParams.K
 
-    def setPostFactors(self, obsModel=None, SS=None, LP=None, Data=None,
-                       lam1=None, lam0=None, **kwargs):
-        ''' Set attribute Post to provided values.
-        '''
-        self.ClearCache()
-        if obsModel is not None:
-            if hasattr(obsModel, 'Post'):
-                self.Post = obsModel.Post.copy()
-                self.K = self.Post.K
-            else:
-                self.setPostFromEstParams(obsModel.EstParams)
-            return
-
-        if LP is not None and Data is not None:
-            SS = self.calcSummaryStats(Data, None, LP)
-
-        if SS is not None:
-            self.updatePost(SS)
-        else:
-            lam1 = as2D(lam1)
-            lam0 = as2D(lam0)
-            K, D = lam1.shape
-            self.Post = ParamBag(K=K, D=D)
-            self.Post.setField('lam1', lam1, dims=('K', 'D'))
-            self.Post.setField('lam0', lam0, dims=('K', 'D'))
+  
+  ######################################################### Set Post
+  #########################################################
+  def setPostFactors(self, obsModel=None, SS=None, LP=None, Data=None,
+                           lam1=None, lam0=None, **kwargs):
+    ''' Create Post ParamBag with fields (lam)
+    '''
+    self.ClearCache()
+    if obsModel is not None:
+      if hasattr(obsModel, 'Post'):
+        self.Post = obsModel.Post.copy()
         self.K = self.Post.K
+      else:
+        self.setPostFromEstParams(obsModel.EstParams)
+      return
+    
+    if LP is not None and Data is not None:
+      SS = self.calcSummaryStats(Data, None, LP)
 
-    def setPostFromEstParams(self, EstParams, Data=None, nTotalTokens=1,
-                             **kwargs):
-        ''' Set attribute Post based on values in EstParams.
-        '''
-        K = EstParams.K
-        D = EstParams.D
+    if SS is not None:
+      self.updatePost(SS)
+    else:
+      lam1 = as2D(lam1)
+      lam0 = as2D(lam0)
+      D = lam1.shape[-1]
+      K = lam1.shape[0]
+      self.Post = ParamBag(K=K, D=D)
+      self.Post.setField('lam1', lam1, dims=self.SSDims+('D',))
+      self.Post.setField('lam0', lam0, dims=self.SSDims+('D',))
+    self.K = self.Post.K
 
-        WordCounts = EstParams.phi * nTotalTokens
-        lam1 = WordCounts + self.Prior.lam1
-        lam0 = (1 - WordCounts) + self.Prior.lam0
 
-        self.Post = ParamBag(K=K, D=D)
-        self.Post.setField('lam1', lam1, dims=('K', 'D'))
-        self.Post.setField('lam0', lam0, dims=('K', 'D'))
-        self.K = K
+  def setPostFromEstParams(self, EstParams, Data=None, nTotalTokens=1,
+                                                       **kwargs):
+    ''' Convert from EstParams (phi) to Post (lambda1, lambda0),
+          each posterior hyperparam is set so EstParam is the posterior mean
+    '''
+    K = EstParams.K
+    D = EstParams.D
 
-    def calcSummaryStats(self, Data, SS, LP, **kwargs):
-        ''' Calculate summary statistics for given dataset and local parameters
+    WordCounts = EstParams.phi * nTotalTokens
+    lam1 = WordCounts + self.Prior.lam1
+    lam0 = (1-WordCounts) + self.Prior.lam0
+
+    self.Post = ParamBag(K=K, D=D)
+    self.Post.setField('lam1', lam1, dims=self.SSDims+('D',))
+    self.Post.setField('lam0', lam0, dims=self.SSDims+('D',))
+    self.K = K
+
+  ########################################################### Summary
+  ########################################################### 
+
+  def calcSummaryStats(self, Data, SS, LP):
+    ''' Calculate summary statistics for given dataset and local parameters
 
         Returns
         --------
-        SS : SuffStatBag object, with K components.
-        '''
-        return calcSummaryStats(Data, SS, LP, **kwargs)
+        SS : SuffStatBag object, with K components
+             if DataAtomType == 'doc', 
+    '''
+    if SS is None:
+      SS = SuffStatBag(K=LP['resp'].shape[1], D=Data.dim)
 
-    def calcSummaryStatsForContigBlock(self, Data, a=0, b=0, **kwargs):
-        ''' Calculate summary stats for a contiguous block of the data.
+    self.stateShape = SS.getNumericalDims(self.SSDims)
+    if 'Count1' in LP:
+      Count1 = np.expand_dims(LP['Count1'], axis=-1)
+    else:
+      Count1 = np.tensordot(LP['resp'], Data.X, axes=((0,),(0,)))
 
-        Returns
-        --------
-        SS : SuffStatBag object, with 1 component.
-        '''
-        Xab = Data.X[a:b]  # 2D array, Nab x D
-        CountON = np.sum(Xab, axis=0)[np.newaxis, :]
-        CountOFF = (b - a) - CountON
+    if 'Count0' in LP:
+      Count0 = np.expand_dims(LP['Count0'], axis=-1)
+    else:
+      Count0 = np.tensordot(LP['resp'], 1-Data.X, axes=((0,),(0,)))
 
-        SS = SuffStatBag(K=1, D=Data.dim)
-        SS.setField('N', np.asarray([b - a], dtype=np.float64), dims='K')
-        SS.setField('Count1', CountON, dims=('K', 'D'))
-        SS.setField('Count0', CountOFF, dims=('K', 'D'))
-        return SS
+    SS.setField('Count1', Count1, dims=self.SSDims+('D',))
+    SS.setField('Count0', Count0, dims=self.SSDims+('D',))
 
-    def forceSSInBounds(self, SS):
-        ''' Force count vectors to remain positive
+    return SS
+
+  def forceSSInBounds(self, SS):
+    ''' Force count vectors to remain positive
 
         This avoids numerical problems due to incremental add/subtract ops
-        which can cause computations like
+        which can cause computations like 
             x = 10.
             x += 1e-15
             x -= 10
             x -= 1e-15
         to be slightly different than zero instead of exactly zero.
 
-        Post Condition
+        Returns
         -------
-        Fields Count1, Count0 guaranteed to be positive.
-        '''
-        np.maximum(SS.Count1, 0, out=SS.Count1)
-        np.maximum(SS.Count0, 0, out=SS.Count0)
+        None. SS updated in-place.
+    '''
+    np.maximum(SS.Count1, 0, out=SS.Count1)
+    np.maximum(SS.Count0, 0, out=SS.Count0)
 
-    def incrementSS(self, SS, k, Data, docID):
-        raise NotImplementedError('TODO')
 
-    def decrementSS(self, SS, k, Data, docID):
-        raise NotImplementedError('TODO')
+  def incrementSS(self, SS, k, Data, docID):
+    raise NotImplementedError('TODO')
 
-    def calcLogSoftEvMatrix_FromEstParams(self, Data, **kwargs):
-        ''' Compute log soft evidence matrix for Dataset under EstParams.
+  def decrementSS(self, SS, k, Data, docID):
+    raise NotImplementedError('TODO')
+
+  ########################################################### EM E step
+  ###########################################################
+  def calcLogSoftEvMatrix_FromEstParams(self, Data):
+    ''' Calculate log soft evidence matrix for given Dataset under EstParams
 
         Returns
         ---------
         L : 2D array, N x K
-        '''
-        logphiT = np.log(self.EstParams.phi.T)  # D x K matrix
-        log1mphiT = np.log(1.0 - self.EstParams.phi.T)  # D x K matrix
-        return np.dot(Data.X, logphiT) + np.dot(1 - Data.X, log1mphiT)
+    '''
+    logphiT = np.log(self.EstParams.phi.T) # D x self.SSDims array
+    log1mphiT = np.log(1.0 - self.EstParams.phi.T) # D x self.SSDims array
 
-    def updateEstParams_MaxLik(self, SS):
-        ''' Update attribute EstParams for all comps given suff stats.
+    # Result is N x self.SSDims (typically N x K)
+    return np.tensordot(Data.X, logphiT, axes=1) + \
+      np.tensordot(1.0-Data.X, log1mphiT, axes=1)
 
-        Update uses the maximum likelihood objective for point estimation.
+  ########################################################### EM M step
+  ###########################################################
+  def updateEstParams_MaxLik(self, SS):
+    ''' Update EstParams for all comps via maximum likelihood given suff stats
 
-        Post Condition
+        Returns
         ---------
-        Attributes K and EstParams updated in-place.
-        '''
-        self.ClearCache()
-        self.K = SS.K
-        if not hasattr(self, 'EstParams') or self.EstParams.K != SS.K:
-            self.EstParams = ParamBag(K=SS.K, D=SS.D)
-        phi = SS.Count1 / (SS.Count1 + SS.Count0)
-        # prevent entries from reaching exactly 0
-        np.maximum(phi, self.eps_phi, out=phi)
-        np.minimum(phi, 1.0 - self.eps_phi, out=phi)
-        self.EstParams.setField('phi', phi, dims=('K', 'D'))
+        None. Fields K and EstParams updated in-place.
+    '''
+    self.ClearCache()
+    self.K = SS.K
+    if not hasattr(self, 'EstParams') or self.EstParams.K != SS.K:
+      self.EstParams = ParamBag(K=SS.K, D=SS.D)
+    phi = SS.Count1 / (SS.Count1 + SS.Count0)
+    ## prevent entries from reaching exactly 0 or 1
+    np.maximum(phi, self.eps_phi, out=phi) 
+    np.minimum(phi, 1.0 - self.eps_phi, out=phi) 
+    self.EstParams.setField('phi', phi, dims=self.SSDims+('D',))
 
-    def updateEstParams_MAP(self, SS):
-        ''' Update attribute EstParams for all comps given suff stats.
+  def updateEstParams_MAP(self, SS):
+    ''' Update EstParams for all comps via MAP estimation given suff stats
 
-        Update uses the MAP objective for point estimation.
-
-        Post Condition
+        Returns
         ---------
-        Attributes K and EstParams updated in-place.
-        '''
-        self.ClearCache()
-        if not hasattr(self, 'EstParams') or self.EstParams.K != SS.K:
-            self.EstParams = ParamBag(K=SS.K, D=SS.D)
-        phi_numer = SS.Count1 + self.Prior.lam1 - 1
-        phi_denom = SS.Count1 + SS.Count0 + \
-            self.Prior.lam1 + self.Prior.lam0 - 2
-        phi = phi_numer / phi_denom
-        self.EstParams.setField('phi', phi, dims=('K', 'D'))
+        None. Fields K and EstParams updated in-place.
+    '''
+    self.ClearCache()
+    if not hasattr(self, 'EstParams') or self.EstParams.K != SS.K:
+      self.EstParams = ParamBag(K=SS.K, D=SS.D)
+    phi_numer = SS.Count1 + self.Prior.lam1 - 1
+    phi_denom = SS.Count1 + SS.Count0 + self.Prior.lam1 + self.Prior.lam0 - 2
+    phi = phi_numer / phi_denom
+    self.EstParams.setField('phi', phi, dims=self.SSDims+('D',))
 
-    def updatePost(self, SS):
-        ''' Update attribute Post for all comps given suff stats.
 
-        Update uses the variational objective.
+  ########################################################### Post updates
+  ########################################################### 
+  def updatePost(self, SS):
+    ''' Update (in place) posterior params for all comps given suff stats
 
-        Post Condition
+        Afterwards, self.Post contains beta posterior params
+        updated given self.Prior and provided suff stats SS
+
+        Returns
         ---------
-        Attributes K and Post updated in-place.
-        '''
-        self.ClearCache()
-        if not hasattr(self, 'Post') or self.Post.K != SS.K:
-            self.Post = ParamBag(K=SS.K, D=SS.D)
+        None. Fields K and Post updated in-place.
+    '''
+    self.ClearCache()
+    if not hasattr(self, 'Post') or self.Post.K != SS.K:
+      self.Post = ParamBag(K=SS.K, D=SS.D)
+      self.Post.addDims(dimStrs=self.SSDims,
+                        dimInts=SS.getNumericalDims(self.SSDims))
 
-        lam1, lam0 = self.calcPostParams(SS)
-        self.Post.setField('lam1', lam1, dims=('K', 'D'))
-        self.Post.setField('lam0', lam0, dims=('K', 'D'))
-        self.K = SS.K
+    lam1, lam0 = self.calcPostParams(SS)
+    self.Post.setField('lam1', lam1, dims=self.SSDims+('D',))
+    self.Post.setField('lam0', lam0, dims=self.SSDims+('D',))
+    self.K = SS.K
+    self.stateShape = SS.getNumericalDims(self.SSDims)
 
-    def calcPostParams(self, SS):
-        ''' Calc posterior parameters for all comps given suff stats.
+  def calcPostParams(self, SS):
+    ''' Calc updated params (lam) for all comps given suff stats
 
         Returns
         --------
-        lam1 : 2D array, K x D
-        lam0 : 2D array, K x D
-        '''
-        lam1 = SS.Count1 + self.Prior.lam1[np.newaxis, :]
-        lam0 = SS.Count0 + self.Prior.lam0[np.newaxis, :]
-        return lam1, lam0
+        lam1 : array of dimension (self.SSDims, 'D') (typically K x D)
+        lam0 : array of dimension (self.SSDims, 'D') (typically K x D)
+    '''
 
-    def calcPostParamsForComp(self, SS, kA=None, kB=None):
-        ''' Calc params (lam) for specific comp, given suff stats
+    lam1 = SS.Count1 + self.Prior.lam1 # Adds prior to last dimension of SS
+    lam0 = SS.Count0 + self.Prior.lam0
+    return lam1, lam0
 
-            These params define the common-form of the exponential family
-            Dirichlet posterior distribution over parameter vector phi
+  def calcPostParamsForComp(self, SS, kA=None, kB=None):
+    ''' Calc params (lam) for specific comp, given suff stats
 
-            Returns
-            --------
-            lam : 1D array, size D
-        '''
-        if kB is None:
-            lam1_k = SS.Count1[kA].copy()
-            lam0_k = SS.Count0[kA].copy()
-        else:
-            lam1_k = SS.Count1[kA] + SS.Count1[kB]
-            lam0_k = SS.Count0[kA] + SS.Count0[kB]
-        lam1_k += self.Prior.lam1
-        lam0_k += self.Prior.lam0
-        return lam1_k, lam0_k
+        These params define the common-form of the exponential family 
+        beta posterior distribution over parameter vector phi.
 
-    def updatePost_stochastic(self, SS, rho):
-        ''' Update attribute Post for all comps given suff stats
+        Note kA, kB should be either single indicies or a tuple of indicies,
+        depending on the dimensions of SS.Count1 / SS.Count0
 
-        Update uses the stochastic variational formula.
+        Returns
+        --------
+        lam : 1D array, size D
+    '''
+    if kB is None:
+      lam1_k = SS.Count1[kA].copy()
+      lam0_k = SS.Count0[kA].copy()
+    else:
+      lam1_k = SS.Count1[kA] + SS.Count1[kB]
+      lam0_k = SS.Count0[kA] + SS.Count0[kB]
+    lam1_k += self.Prior.lam1
+    lam0_k += self.Prior.lam0
+    return lam1_k, lam0_k
 
-        Post Condition
-        ---------
-        Attributes K and Post updated in-place.
-        '''
-        assert hasattr(self, 'Post')
-        assert self.Post.K == SS.K
-        self.ClearCache()
 
-        lam1, lam0 = self.calcPostParams(SS)
-        Post = self.Post
-        Post.lam1[:] = (1 - rho) * Post.lam1 + rho * lam1
-        Post.lam0[:] = (1 - rho) * Post.lam0 + rho * lam0
+  ########################################################### Stochastic Post
+  ########################################################### update
+  def updatePost_stochastic(self, SS, rho):
+    ''' Stochastic update (in place) posterior for all comps given suff stats.
 
-    def convertPostToNatural(self):
-        ''' Convert current posterior params from common to natural form
-        '''
-        pass
+        Beta common params used here, no need for natural form.
+    '''
+    assert hasattr(self, 'Post')
+    assert self.Post.K == SS.K
+    self.ClearCache()
+    
+    lam1, lam0 = self.calcPostParams(SS)
+    Post = self.Post
+    Post.lam1[:] = (1-rho) * Post.lam1 + rho * lam1
+    Post.lam0[:] = (1-rho) * Post.lam0 + rho * lam0
 
-    def convertPostToCommon(self):
-        ''' Convert current posterior params from natural to common form
-        '''
-        pass
+  def convertPostToNatural(self):
+    ''' Convert (in-place) current posterior params from common to natural form
 
-    def calcLogSoftEvMatrix_FromPost(self, Data, **kwargs):
-        ''' Calculate expected log soft ev matrix under Post.
+        Beta common form is equivalent to the natural form for our purposes
+    '''
+    pass
+    
+  def convertPostToCommon(self):
+    ''' Convert (in-place) current posterior params from natural to common form
+
+        Beta common form is equivalent to the natural form for our purposes
+    '''
+    pass
+
+
+  ########################################################### VB
+  ########################################################### 
+  def calcLogSoftEvMatrix_FromPost(self, Data):
+    ''' Calculate expected log soft ev matrix for given dataset under posterior
 
         Returns
         ------
-        L : 2D array, size N x K
-        '''
-        ElogphiT, Elog1mphiT = self.GetCached('E_logphiT_log1mphiT', 'all')
+        L : 2D array, size nAtom x K
+    '''
+    ElogphiT = self.GetCached('E_logphiT', 'all') # D x self.SSDims
+    Elog1mphiT = self.GetCached('E_log1mphiT', 'all') # D x self.SSDims
 
-        # Matrix-matrix product, result is N x K
-        L = np.dot(Data.X, ElogphiT) + np.dot(1.0 - Data.X, Elog1mphiT)
-        return L
+    # sparse binary data. Too expensive to actually allocate
+    # ev matrix, so just store E[logphi_{lm}], E[log1-phi_{lm}]
+    if hasattr(Data, 'isSparse') and Data.isSparse: 
+      L = np.zeros((2,)+(self.stateShape))
+      L[0] = Elog1mphiT[0].T
+      L[1] = ElogphiT[0].T
+    else: # Compute entire matrix, of size N x self.SSDims (typically N x K)
+      L = np.tensordot(Data.X, ElogphiT.T, axes=((-1,),(-1,))) + \
+          np.tensordot(1.0-Data.X, Elog1mphiT.T, axes=((-1,),(-1,)))
 
-    def calcELBO_Memoized(self, SS, afterMStep=False):
-        """ Calculate obsModel's objective using suff stats SS and Post.
+    return L
+
+
+  ########################################################### VB ELBO step
+  ########################################################### 
+  def calcELBO_Memoized(self, SS, afterMStep=False):
+    ''' Calculate obsModel's ELBO using sufficient statistics SS and Post.
 
         Args
         -------
-        SS : bnpy SuffStatBag
+        SS : bnpy SuffStatBag, contains fields for N, x, xxT
         afterMStep : boolean flag
-            if 1, elbo calculated assuming M-step just completed
+                 if 1, elbo calculated assuming M-step just completed
 
         Returns
         -------
-        obsELBO : scalar float
-            Equal to E[ log p(x) + log p(phi) - log q(phi)]
-        """
-        L_perComp = np.zeros(SS.K)
-        Post = self.Post
-        Prior = self.Prior
-        if not afterMStep:
-            ElogphiT = self.GetCached('E_logphiT', 'all')  # D x K
-            Elog1mphiT = self.GetCached('E_log1mphiT', 'all')  # D x K
+        obsELBO : scalar float, = E[ log p(x) + log p(phi) - log q(phi)]
+    '''
+    Post = self.Post
+    Prior = self.Prior
 
-        for k in xrange(SS.K):
-            L_perComp[k] = c_Diff(Prior.lam1, Prior.lam0,
-                                  Post.lam1[k], Post.lam0[k])
-            if not afterMStep:
-                L_perComp[k] += np.inner(
-                    SS.Count1[k] + Prior.lam1 - Post.lam1[k],
-                    ElogphiT[:, k])
-                L_perComp[k] += np.inner(
-                    SS.Count0[k] + Prior.lam0 - Post.lam0[k],
-                    Elog1mphiT[:, k])
-        return np.sum(L_perComp)
+    if not afterMStep:
+      ElogphiT = self.GetCached('E_logphiT', 'all') # D x self.SSDims
+      Elog1mphiT = self.GetCached('E_log1mphiT', 'all') # D x self.SSDims
 
-    def getDatasetScale(self, SS, extraSS=None):
-        ''' Get number of observed scalars in dataset from suff stats.
+    #for k in xrange(SS.K):
+    #  cDiffTerm += c_Diff(Prior.lam1, Prior.lam0,
+    #                      Post.lam1[k], Post.lam0[k])
+    #  if not afterMStep:
+    #    L_perComp[k] += np.inner(SS.Count1[k] + Prior.lam1 - Post.lam1[k],
+    #                             ElogphiT[:, k])
+    #    L_perComp[k] += np.inner(SS.Count0[k] + Prior.lam0 - Post.lam0[k],
+    #                             Elog1mphiT[:, k])
+
+    cDiffTerm = c_Diff(Prior.lam1, Prior.lam0,
+                       Post.lam1, Post.lam0,
+                       scaleA = np.prod(np.shape(Post.lam1)) / SS.D)
+
+    slackTerm = 0
+    if not afterMStep:
+      slackTerm = np.sum(np.multiply(SS.Count1 + Prior.lam1 - Post.lam1,
+                                     ElogphiT.T))
+      slackTerm += np.sum(np.multiply(SS.Count0 + Prior.lam0 - Post.lam0,
+                                      Elog1mphiT.T))
+      #print 'cdiffTerm + slackTerm = ', cDiffTerm + slackTerm
+      #print 'obsmodel slack = ', slackTerm
+    return cDiffTerm + slackTerm
+
+
+  def getDatasetScale(self, SS, extraSS=None):
+    ''' Get scale factor for dataset, indicating number of observed scalars. 
 
         Used for normalizing the ELBO so it has reasonable range.
 
         Returns
         ---------
         s : scalar positive integer
-        '''
-        s = SS.Count1.sum() + SS.Count0.sum()
-        if extraSS is None:
-            return s
+            total number of word tokens observed in the sufficient stats
+    '''
+    if hasattr(SS, 'datasetScale'):
+      s = SS.datasetScale
+    else:
+      s = SS.Count1.sum() + SS.Count0.sum()
 
-        else:
-            sextra = extraSS.Count1.sum() + extraSS.Count0.sum()
-            return s - sextra
+    if extraSS is None:
+      return s
 
-    def calcHardMergeGap(self, SS, kA, kB):
-        ''' Calculate change in ELBO after a hard merge applied to this model
+    else:
+      sextra = extraSS.Count1.sum() + extraSS.Count0.sum()
+      return s - sextra
+
+  ######################################################### Hard Merge
+  #########################################################
+  def calcHardMergeGap(self, SS, kA, kB):
+    ''' Calculate change in ELBO after a hard merge applied to this model
 
         Returns
         ---------
         gap : scalar real, indicates change in ELBO after merge of kA, kB
-        '''
-        Prior = self.Prior
-        cPrior = c_Func(Prior.lam1, Prior.lam0)
+    '''
+    raise NotImplementedError('Merges not functional with obsmodel changes')
+    Prior = self.Prior
+    cPrior = c_Func(Prior.lam1, Prior.lam0)
 
-        Post = self.Post
-        cA = c_Func(Post.lam1[kA], Post.lam0[kA])
-        cB = c_Func(Post.lam1[kB], Post.lam0[kB])
+    Post = self.Post
+    cA = c_Func(Post.lam1[kA], Post.lam0[kA])
+    cB = c_Func(Post.lam1[kB], Post.lam0[kB])
 
-        lam1, lam0 = self.calcPostParamsForComp(SS, kA, kB)
-        cAB = c_Func(lam1, lam0)
-        return cA + cB - cPrior - cAB
+    lam1, lam0 = self.calcPostParamsForComp(SS, kA, kB)
+    cAB = c_Func(lam1, lam0)
+    return cA + cB - cPrior - cAB
 
-    def calcHardMergeGap_AllPairs(self, SS):
-        ''' Calculate change in ELBO for all possible candidate hard merge pairs
+
+  def calcHardMergeGap_AllPairs(self, SS):
+    ''' Calculate change in ELBO for all possible candidate hard merge pairs 
 
         Returns
         ---------
         Gap : 2D array, size K x K, upper-triangular entries non-zero
               Gap[j,k] : scalar change in ELBO after merge of k into j
-        '''
-        Prior = self.Prior
-        cPrior = c_Func(Prior.lam1, Prior.lam0)
+    '''
+    raise NotImplementedError('Merges not functional with obsmodel changes')
+    Prior = self.Prior
+    cPrior = c_Func(Prior.lam1, Prior.lam0)
 
-        Post = self.Post
-        c = np.zeros(SS.K)
-        for k in xrange(SS.K):
-            c[k] = c_Func(Post.lam1[k], Post.lam0[k])
+    Post = self.Post
+    c = np.zeros(SS.K)
+    for k in xrange(SS.K):
+      c[k] = c_Func(Post.lam1[k], Post.lam0[k])
 
-        Gap = np.zeros((SS.K, SS.K))
-        for j in xrange(SS.K):
-            for k in xrange(j + 1, SS.K):
-                cjk = c_Func(*self.calcPostParamsForComp(SS, j, k))
-                Gap[j, k] = c[j] + c[k] - cPrior - cjk
-        return Gap
+    Gap = np.zeros((SS.K, SS.K))
+    for j in xrange(SS.K):
+      for k in xrange(j+1, SS.K):
+        cjk = c_Func(*self.calcPostParamsForComp(SS, j, k))
+        Gap[j,k] = c[j] + c[k] - cPrior - cjk
+    return Gap
 
-    def calcHardMergeGap_SpecificPairs(self, SS, PairList):
-        ''' Calc change in ELBO for specific list of candidate hard merge pairs
+  def calcHardMergeGap_SpecificPairs(self, SS, PairList):
+    ''' Calc change in ELBO for specific list of candidate hard merge pairs
 
         Returns
         ---------
         Gaps : 1D array, size L
               Gap[j] : scalar change in ELBO after merge of pair in PairList[j]
-        '''
-        Gaps = np.zeros(len(PairList))
-        for ii, (kA, kB) in enumerate(PairList):
-            Gaps[ii] = self.calcHardMergeGap(SS, kA, kB)
-        return Gaps
+    '''
+    raise NotImplementedError('Merges not functional with obsmodel changes')
+    Gaps = np.zeros(len(PairList))
+    for ii, (kA, kB) in enumerate(PairList):
+        Gaps[ii] = self.calcHardMergeGap(SS, kA, kB)
+    return Gaps
 
-    def calcHardMergeGap_SpecificPairSS(self, SS1, SS2):
-        ''' Calc change in ELBO for merge of two K=1 suff stat bags.
-
-        Returns
-        -------
-        gap : scalar float
-        '''
-        assert SS1.K == 1
-        assert SS2.K == 1
-
-        Prior = self.Prior
-        cPrior = c_Func(Prior.lam1, Prior.lam0)
-
-        # Compute cumulants of individual states 1 and 2
-        lam11, lam10 = self.calcPostParamsForComp(SS1, 0)
-        lam21, lam20 = self.calcPostParamsForComp(SS2, 0)
-        c1 = c_Func(lam11, lam10)
-        c2 = c_Func(lam21, lam20)
-
-        # Compute cumulant of merged state 1&2
-        SSM = SS1 + SS2
-        lamM1, lamM0 = self.calcPostParamsForComp(SSM, 0)
-        cM = c_Func(lamM1, lamM0)
-
-        return c1 + c2 - cPrior - cM
-
-    def calcLogMargLikForComp(self, SS, kA, kB=None, **kwargs):
-        ''' Calc log marginal likelihood of data assigned to given component
-
+  ########################################################### Marg Lik
+  ###########################################################
+  def calcLogMargLikForComp(self, SS, kA, kB=None, **kwargs):
+    ''' Calc log marginal likelihood of data assigned to given component
+          (up to an additive constant that depends on the prior)
+        Requires Data pre-summarized into sufficient stats for each comp.
+        If multiple comp IDs are provided, we combine into a "merged" component.
+        
         Args
         -------
         SS : bnpy suff stats object
@@ -487,237 +538,91 @@ class BernObsModel(AbstractObsModel):
         Returns
         -------
         logM : scalar real
-               logM = log p( data assigned to comp kA )
+               logM = log p( data assigned to comp kA ) 
                       computed up to an additive constant
-        '''
-        return -1 * c_Func(*self.calcPostParamsForComp(SS, kA, kB))
+    '''
+    return -1 * c_Func(*self.calcPostParamsForComp(SS, kA, kB))
 
-    def calcMargLik(self, SS):
-        ''' Calc log marginal likelihood combining all comps, given suff stats
+  def calcMargLik(self, SS):
+    ''' Calc log marginal likelihood combining all comps, given suff stats
 
         Returns
         --------
         logM : scalar real
                logM = \sum_{k=1}^K log p( data assigned to comp k | Prior)
-        '''
-        return self.calcMargLik_CFuncForLoop(SS)
+    '''
+    raise NotImplementedError('Not configured for new obsmodel yet')
+    return self.calcMargLik_CFuncForLoop(SS)
 
-    def calcMargLik_CFuncForLoop(self, SS):
-        Prior = self.Prior
-        logp = np.zeros(SS.K)
-        for k in xrange(SS.K):
-            lam1, lam0 = self.calcPostParamsForComp(SS, k)
-            logp[k] = c_Diff(Prior.lam1, Prior.lam0,
-                             lam1, lam0)
-        return np.sum(logp)
+  def calcMargLik_CFuncForLoop(self, SS):
+    raise NotImplementedError('Not configured for new obsmodel yet')
+    Prior = self.Prior
+    logp = np.zeros(SS.K)
+    for k in xrange(SS.K):
+      lam1, lam0 = self.calcPostParamsForComp(SS, k)
+      logp[k] = c_Diff(Prior.lam1, Prior.lam0,
+                       lam1, lam0)
+    return np.sum(logp)
 
-    def _E_logphi(self, k=None):
-        if k is None or k == 'prior':
-            lam1 = self.Prior.lam1
-            lam0 = self.Prior.lam0
-        elif k == 'all':
-            lam1 = self.Post.lam1
-            lam0 = self.Post.lam0
-        else:
-            lam1 = self.Post.lam1[k]
-            lam0 = self.Post.lam0[k]
-        Elogphi = digamma(lam1) - digamma(lam1 + lam0)
-        return Elogphi
+  ########################################################### Expectations
+  ########################################################### 
+  def _E_logphi(self, k=None):
+    if k is None or k == 'prior':
+      lam1 = self.Prior.lam1
+      lam0 = self.Prior.lam0
+    elif k == 'all':
+      lam1 = self.Post.lam1
+      lam0 = self.Post.lam0
+    else:
+      lam1 = self.Post.lam1[k]
+      lam0 = self.Post.lam0[k]
+    Elogphi = digamma(lam1) - digamma(lam1 + lam0)
+    return Elogphi
 
-    def _E_log1mphi(self, k=None):
-        if k is None or k == 'prior':
-            lam1 = self.Prior.lam1
-            lam0 = self.Prior.lam0
-        elif k == 'all':
-            lam1 = self.Post.lam1
-            lam0 = self.Post.lam0
-        else:
-            lam1 = self.Post.lam1[k]
-            lam0 = self.Post.lam0[k]
-        Elog1mphi = digamma(lam0) - digamma(lam1 + lam0)
-        return Elog1mphi
+  def _E_log1mphi(self, k=None):
+    if k is None or k == 'prior':
+      lam1 = self.Prior.lam1
+      lam0 = self.Prior.lam0
+    elif k == 'all':
+      lam1 = self.Post.lam1
+      lam0 = self.Post.lam0
+    else:
+      lam1 = self.Post.lam1[k]
+      lam0 = self.Post.lam0[k]
+    Elogphi = digamma(lam0) - digamma(lam1 + lam0)
+    return Elogphi
 
-    def _E_logphiT_log1mphiT(self, k=None):
-        if k == 'all':
-            lam1T = self.Post.lam1.T.copy()
-            lam0T = self.Post.lam0.T.copy()
-            digammaBoth = digamma(lam1T + lam0T)
-            ElogphiT = digamma(lam1T) - digammaBoth
-            Elog1mphiT = digamma(lam0T) - digammaBoth
-        else:
-            ElogphiT = self._E_logphiT(k)
-            Elog1mphiT = self._E_log1mphiT(k)
-        return ElogphiT, Elog1mphiT
-
-    def _E_logphiT(self, k=None):
-        ''' Calculate transpose of expected phi matrix
+  def _E_logphiT(self, k=None):
+    ''' Calculate transpose of expected phi matrix 
 
         Important to make a copy of the matrix so it is C-contiguous,
         which leads to much much faster matrix operations.
 
         Returns
         -------
-        ElogphiT : 2D array, vocab_size x K
-        '''
-        if k == 'all':
-            dlam1T = self.Post.lam1.T.copy()
-            dlambothT = self.Post.lam0.T.copy()
-            dlambothT += dlam1T
-            digamma(dlam1T, out=dlam1T)
-            digamma(dlambothT, out=dlambothT)
-            return dlam1T - dlambothT
-        ElogphiT = self._E_logphi(k).T.copy()
-        return ElogphiT
+        ElogphiT : 2D array, D x K
+    '''
+    ElogphiT = self._E_logphi(k).T.copy()
+    return ElogphiT
 
-    def _E_log1mphiT(self, k=None):
-        ''' Calculate transpose of expected 1-minus-phi matrix
+  def _E_log1mphiT(self, k=None):
+    ''' Calculate transpose of expected 1-minus-phi matrix 
 
         Important to make a copy of the matrix so it is C-contiguous,
         which leads to much much faster matrix operations.
 
         Returns
         -------
-        ElogphiT : 2D array, vocab_size x K
-        '''
-        if k == 'all':
-            # Copy so lam1T/lam0T are C-contig and can be shared mem.
-            lam1T = self.Post.lam1.T.copy()
-            lam0T = self.Post.lam0.T.copy()
-            return digamma(lam0T) - digamma(lam1T + lam0T)
+        ElogphiT : 2D array, D x K
+    '''
+    ElogphiT = self._E_log1mphi(k).T.copy()
+    return ElogphiT
 
-        ElogphiT = self._E_log1mphi(k).T.copy()
-        return ElogphiT
-
-    def getSerializableParamsForLocalStep(self):
-        """ Get compact dict of params for local step.
-
-        Returns
-        -------
-        Info : dict
-        """
-        return dict(inferType=self.inferType,
-                    K=self.K)
-
-    def fillSharedMemDictForLocalStep(self, ShMem=None):
-        """ Get dict of shared mem arrays needed for parallel local step.
-
-        Returns
-        -------
-        ShMem : dict of RawArray objects
-        """
-        ElogphiT, Elog1mphiT = self.GetCached('E_logphiT_log1mphiT', 'all')
-        K = self.K
-        if ShMem is None:
-            ShMem = dict()
-        if 'ElogphiT' not in ShMem:
-            ShMem['ElogphiT'] = numpyToSharedMemArray(ElogphiT)
-            ShMem['Elog1mphiT'] = numpyToSharedMemArray(Elog1mphiT)
-        else:
-            ElogphiT_shView = sharedMemToNumpyArray(ShMem['ElogphiT'])
-            assert ElogphiT_shView.shape >= K
-            ElogphiT_shView[:, :K] = ElogphiT
-
-            Elog1mphiT_shView = sharedMemToNumpyArray(ShMem['Elog1mphiT'])
-            assert Elog1mphiT_shView.shape >= K
-            Elog1mphiT_shView[:, :K] = Elog1mphiT
-        return ShMem
-
-    def getLocalAndSummaryFunctionHandles(self):
-        """ Get function handles for local step and summary step
-
-        Useful for parallelized algorithms.
-
-        Returns
-        -------
-        calcLocalParams : f handle
-        calcSummaryStats : f handle
-        """
-        return calcLocalParams, calcSummaryStats
 
 
 def c_Func(lam1, lam0):
-    ''' Evaluate cumulant function at given params.
+  assert lam1.ndim == lam0.ndim
+  return np.sum(gammaln(lam1 + lam0) - gammaln(lam1) - gammaln(lam0))
 
-    Returns
-    --------
-    c : scalar real value of cumulant function at provided args
-    '''
-    assert lam1.ndim == lam0.ndim
-    return np.sum(gammaln(lam1 + lam0) - gammaln(lam1) - gammaln(lam0))
-
-
-def c_Diff(lamA1, lamA0, lamB1, lamB0):
-    ''' Evaluate difference of cumulant functions c(params1) - c(params2)
-
-    May be more numerically stable than directly using c_Func
-    to find the difference.
-
-    Returns
-    -------
-    diff : scalar real value of the difference in cumulant functions
-    '''
-    return c_Func(lamA1, lamA0) - c_Func(lamB1, lamB0)
-
-
-def calcLocalParams(Dslice, **kwargs):
-    """ Calculate local parameters for provided slice of data.
-
-    Returns
-    -------
-    LP : dict with fields
-        * E_log_soft_ev : 2D array, size N x K
-    """
-    E_log_soft_ev = calcLogSoftEvMatrix_FromPost(Dslice, **kwargs)
-    return dict(E_log_soft_ev=E_log_soft_ev)
-
-
-def calcLogSoftEvMatrix_FromPost(Dslice,
-                                 ElogphiT=None,
-                                 Elog1mphiT=None,
-                                 K=None,
-                                 **kwargs):
-    ''' Calculate expected log soft ev matrix.
-
-    Model Args
-    ------
-    ElogphiT : vocab_size x K matrix
-
-    Data Args
-    ---------
-    Dslice : data-like
-        doc_range : 1D array
-        word_id : 1D array
-
-    Returns
-    ------
-    L : 2D array, size N x K
-    '''
-    if K is None:
-        K = ElogphiT.shape[1]
-    # Matrix-matrix product, result is N x K
-    L = np.dot(Dslice.X, ElogphiT[:, :K]) + \
-        np.dot(1.0 - Dslice.X, Elog1mphiT[:, :K])
-    return L
-
-
-def calcSummaryStats(Dslice, SS, LP, **kwargs):
-    ''' Calculate summary statistics for given dataset and local parameters
-
-    Returns
-    --------
-    SS : SuffStatBag object, with K components.
-    '''
-    Resp = LP['resp']  # 2D array, N x K
-    X = Dslice.X  # 2D array, N x D
-
-    if SS is None:
-        SS = SuffStatBag(K=LP['resp'].shape[1], D=Dslice.dim)
-    if not hasattr(SS, 'N'):
-        SS.setField('N', np.sum(LP['resp'], axis=0), dims='K')
-
-    CountON = np.dot(Resp.T, X)  # matrix-matrix product, result is K x D
-    CountOFF = np.dot(Resp.T, 1 - X)
-
-    SS.setField('Count1', CountON, dims=('K', 'D'))
-    SS.setField('Count0', CountOFF, dims=('K', 'D'))
-    return SS
+def c_Diff(lamA1, lamA0, lamB1, lamB0, scaleA=1, scaleB=1):
+  return scaleA*c_Func(lamA1, lamA0) - scaleB*c_Func(lamB1, lamB0)

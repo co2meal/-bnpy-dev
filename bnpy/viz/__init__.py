@@ -12,13 +12,9 @@ import PlotELBO
 import PlotK
 import PlotHeldoutLik
 
-import PlotParamComparison
 import PlotComps
-
-import JobFilter
-import TaskRanker
 
 __all__ = ['GaussViz', 'BernViz', 'BarsViz', 'SequenceViz',
            'PlotTrace', 'PlotELBO', 'PlotK',
-           'PlotComps', 'PlotParamComparison',
-           'PlotHeldoutLik', 'JobFilter', 'TaskRanker']
+           'PlotComps', 
+           'PlotHeldoutLik']
