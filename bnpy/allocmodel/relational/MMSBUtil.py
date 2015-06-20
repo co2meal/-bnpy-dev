@@ -16,7 +16,8 @@ def calc_full_resp_sparse(Data, ElogPi, logSoftEv, epsilonEv, K):
     
   This is only here for testing and error checking.
   '''
-
+  print '********* COMPUTING FULL RESPONSIBILITY MATRIX **********'
+  
   fullResp = ElogPi[Data.nodes,np.newaxis,:,np.newaxis] + \
              ElogPi[np.newaxis,:,np.newaxis,:] + np.log(epsilonEv[0])
   fullResp[Data.respInds[:,0], Data.respInds[:,1]] += \
@@ -36,12 +37,15 @@ def calc_full_resp_sparse(Data, ElogPi, logSoftEv, epsilonEv, K):
   fullResp[np.arange(Data.nNodes), Data.nodes] = 0
   if Data.heldOut is not None:
     fullResp[Data.heldOut[0],Data.heldOut[1]] = 0.0
-  print '********* COMPUTING FULL RESPONSIBILITY MATRIX **********'
+
   return fullResp
 
 
 
-def calc_full_resp_nonsparse(Data, ELogPi, logSoftEv, K, epsilon, M):  
+def calc_full_resp_nonsparse(Data, ELogPi, logSoftEv, K, epsilon, M):
+  print '********* COMPUTING FULL RESPONSIBILITY MATRIX **********'
+  print '********** NOT WORKING W/ HELD-OUT DATA *****************'
+
   mask = Data.assortativeMask
   fullResp = np.zeros((Data.nNodes,Data.nNodesTotal,K,K))
   diag = np.diag_indices(K)
@@ -54,10 +58,8 @@ def calc_full_resp_nonsparse(Data, ELogPi, logSoftEv, K, epsilon, M):
   np.exp(fullResp, out=fullResp)
     
   fullResp[np.arange(Data.nNodes),Data.nodes,:,:] = 0.0
-  
 
-  print '********* COMPUTING FULL RESPONSIBILITY MATRIX **********'
-  print '********** NOT WORKING W/ HELD-OUT DATA *****************'
+
   return fullResp
 
 

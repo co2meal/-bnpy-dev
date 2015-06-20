@@ -67,8 +67,7 @@ class HDPaMMSB(AllocModel):
     D = Data.dim
 
     self._update_Epi_stats(N=Data.nNodesTotal,K=self.K)
-
-
+    
     if Data.isSparse:
       LP = self._calc_local_params_sparse(Data, LP, MergePrepInfo, **kwargs)
     else:
@@ -78,6 +77,12 @@ class HDPaMMSB(AllocModel):
 
   def _calc_local_params_nonsparse(self, Data, LP, MergePrepInfo=None,
                                    **kwargs):
+    '''
+    Calculates the local params when using a real-valued dataset
+      (e.g. when using gaussian emissions)
+    Only calculates the diagonal of the resp matrix, \eta_{ijkk} and the
+      normalization constants Z_{ij}
+    '''
     K = self.K
     D = Data.dim
     if self.M == np.inf: 
@@ -235,6 +240,10 @@ class HDPaMMSB(AllocModel):
 
 
   def _update_Epi_stats(self, N, K):
+    '''
+    Recomputes various statistics about pi needed for updates and ELBO
+      evaluation.  
+    '''
     if self.expELogPi is None or self.expELogPi.shape != (N,K):
       self.expELogPi = np.zeros((N,K))
     if self.sumExpELogPi is None or self.sumExpELogPi.shape != (N):
@@ -312,15 +321,16 @@ class HDPaMMSB(AllocModel):
                                                   self.epsilon, self.M)
 
       if Data.isSparse:
-        extraObsModelTerm = MMSBUtil.assortative_elbo_extraObsModel_sparse(Data,
-                                                                           LP,
-                                                                  self.epsilon)
+        extraObsModelTerm = \
+            MMSBUtil.assortative_elbo_extraObsModel_sparse(Data,
+                                                           LP,
+                                                           self.epsilon)
       else:
         extraObsModelTerm = \
-                        MMSBUtil.assortative_elbo_extraObsModel_nonsparse(Data,
-                                                                           LP,
-                                                                  self.epsilon,
-                                                                        self.M)
+            MMSBUtil.assortative_elbo_extraObsModel_nonsparse(Data,
+                                                              LP,
+                                                              self.epsilon,
+                                                              self.M)
 
       SS.setELBOTerm('Elogqz', entropy, dims=None)
       SS.setELBOTerm('ExtraObsModel', extraObsModelTerm, dims=None)
@@ -709,117 +719,3 @@ class HDPaMMSB(AllocModel):
     recall = numRight[1] / numOnes
     precision = (numRight[1]+EPS) / (numRight[1] + numWrong[0] + EPS)
     return precision, recall
-
-
-
-'''
-  def calc_local_params(self, Data, LP, MergePrepInfo=None, **kwargs):
-    N = Data.nNodes
-    K = self.K
-    D = Data.dim
-    respI = Data.respInds
-    ElogPi = digamma(self.theta[:,0:K]) - \
-             digamma(np.sum(self.theta[:,0:K], axis=1))[:,np.newaxis]
-    self._update_Epi_stats(N=Data.nNodesTotal,K=self.K)
-
-
-    if Data.isSparse:
-      logSoftEv = LP['E_log_soft_ev']
-      expLogSoftEv = np.exp(logSoftEv)
-      epsilonEv = np.zeros(2)
-      epsilonEv[0] = 1-self.epsilon
-      epsilonEv[1] = self.epsilon
-
-      assert logSoftEv.shape == (2,K)
-      resp = ElogPi[Data.nodes,np.newaxis,:] + ElogPi[np.newaxis,:,:] + \
-                                        logSoftEv[0,:]
-
-      resp[respI[:,0], respI[:,1]] += \
-                                      (logSoftEv[1,:] - logSoftEv[0,:])
-      np.exp(resp, out=resp)           
-
-      # Calculate the normalization constant Z_{ij} for each resp_{ij}
-      ## sum_k \tilde\pi_{ik} \tilde\pi_{jk} (f(w_k,x_{ij}) - f(\eps,x_{ij}))
-      normConst = np.einsum('ik,jk,k->ij',self.expELogPi,self.expELogPi,
-                            expLogSoftEv[0,:]-epsilonEv[0])
-      normConst[respI[:,0],respI[:,1]] = \
-                   np.einsum('ik,ik,k->i',self.expELogPi[respI[:,0]],
-                             self.expELogPi[respI[:,1]],
-                             expLogSoftEv[1,:]-epsilonEv[1])
- 
-      ## += \tilde\pi_{i} \tilde\pi_{j} f(\eps,x_{ij})
-      normConst += \
-        self.sumExpELogPi[np.newaxis,:]*self.sumExpELogPi[:,np.newaxis]* \
-                                    epsilonEv[0]
-      normConst[respI[:,0],respI[:,1]] -= \
-       self.sumExpELogPi[respI[:,0]]*self.sumExpELogPi[respI[:,1]]* \
-                                    epsilonEv[0]
-      normConst[respI[:,0],respI[:,1]] += \
-       self.sumExpELogPi[respI[:,0]]*self.sumExpELogPi[respI[:,1]]* \
-                                    epsilonEv[1]
-
-      resp /= normConst[:,:,np.newaxis]
-
-      # Do the right thing for diagonal entries of resp and Z
-      diag = np.diag_indices(N)
-      normConst[diag] = np.inf
-      resp[diag] = 0
-
-      # Using sparse data, so the obsmodel needs us to comp. counts here
-      LP['Count1'] = np.sum(resp[Data.respInds[:,0],Data.respInds[:,1]], axis=0)
-      LP['Count0'] = np.sum(resp, axis=(0,1)) - LP['Count1']
-
-      LP['normConst'] = normConst
-      LP['resp'] = resp
-
-      return LP
-
-
-  def _update_Epi_stats(self, N, K):
-    if self.expELogPi is None or self.expELogPi.shape != (N,K):
-      self.expELogPi = np.zeros((N,K))
-    if self.sumExpELogPi is None or self.sumExpELogPi.shape != (N):
-      self.sumExpELogPi = np.zeros(N)
-
-    ElogPi = digamma(self.theta[:,0:K]) - \
-             digamma(np.sum(self.theta[:,0:K], axis=1))[:,np.newaxis]
-    np.exp(ElogPi, out=self.expELogPi)
-    np.sum(self.expELogPi, axis=1, out=self.sumExpELogPi)
-
-  ######################################################### Suff Stats
-  #########################################################
-  def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None, **kwargs):
-    nNodes = Data.nNodes
-    K = LP['resp'].shape[-1]
-    self.K = K
-
-    # Calculate sumSource[i,l] = \sum_j s_{ijl} = \sum_j \sum_m \phi_{ijlm}
-    scratch = np.ones((nNodes,nNodes,K))
-    scratch *= (1-self.epsilon) / LP['normConst'][:,:,np.newaxis]
-
-    scratch *= (self.sumExpELogPi[:,np.newaxis]-self.expELogPi)[np.newaxis,:,:]
-    scratch[Data.respInds[:,0],Data.respInds[:,1]] *= \
-                                          (self.epsilon / (1-self.epsilon))   
-
-    sumSource = np.sum(scratch, axis=1) * self.expELogPi
-    sumSource += np.sum(LP['resp'], axis=1)
-
-    # Calculate sumReceiver[i,l] = \sum_j r_{jil} = \sum_j \sum_m \phi_{jiml}
-    scratch.fill(1)
-    scratch *= (1-self.epsilon) / LP['normConst'].T[:,:,np.newaxis]
-
-    scratch *= (self.sumExpELogPi[:,np.newaxis]-self.expELogPi)[np.newaxis,:,:]
-    scratch[Data.respInds[:,1],Data.respInds[:,0]] *= \
-                                          (self.epsilon / (1-self.epsilon))   
-
-    sumReceiver = np.sum(scratch, axis=1) * self.expELogPi
-    sumReceiver += np.sum(LP['resp'], axis=0)
-
-    SS = SuffStatBag(K=K, D=Data.dim, nNodes=Data.nNodes)
-    SS.setField('sumSource', sumSource, dims=('nNodes','K'))
-    SS.setField('sumReceiver', sumReceiver, dims=('nNodes','K'))
-
-    # TODO : should this also compute the K x K Npair?
-    SS.setField('N', np.sum(LP['resp'], axis=(0,1)), dims=('K'))
-    return SS
- '''

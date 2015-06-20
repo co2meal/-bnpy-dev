@@ -21,12 +21,13 @@ def get_data(seed=123, nNodes=100, K=6, alpha=0.05,
     Data : bnpy GraphXData object, with nObsTotal observations
   '''
 
-  sourceID, destID, Z, w, pi = \
+  edgeSet, Z, w, pi = \
                                gen_data(seed, nNodes, K, alpha, tau1, tau0)
   TrueParams = dict(Z=Z, w=w, pi=pi)
   adjList = np.tile(np.arange(nNodes), (nNodes, 1))
-  data = GraphXData(X=None, sourceID=sourceID,
-                    destID=destID, nNodesTotal=nNodes, nNodes=nNodes,
+
+  data = GraphXData(X=None, edgeSet=edgeSet,
+                    nNodesTotal=nNodes, nNodes=nNodes,
                     TrueParams=TrueParams, isSparse=True, isDirected=False)
   data.name = get_short_name()
   return data
@@ -90,7 +91,7 @@ def gen_data(seed, nNodes, K, alpha,
       if y_ij == 1:
         sourceID.append(i)
         destID.append(j)
-  return sourceID, destID, TrueZ, w, pi
+  return set(zip(sourceID,destID)), TrueZ, w, pi
 
 
 if __name__ == '__main__':

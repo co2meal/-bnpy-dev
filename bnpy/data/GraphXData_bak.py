@@ -44,8 +44,7 @@ class GraphXData(XData):
     txt = np.loadtxt(filepath, dtype=np.int32)
     sourceID = txt[:,0]
     destID = txt[:,1]
-    edgeSet = set(zip(sourceID,destID))
-    return cls(X=None, edgeSet=edgeSet, isSparse=isSparse,
+    return cls(X=None, sourceID=sourceID, destID=destID, isSparse=isSparse,
                nNodesTotal=nNodesTotal, nNodes=nNodesTotal)
     
     
@@ -73,32 +72,34 @@ class GraphXData(XData):
     return cls(**InDict)
 
 
-  def __init__(self, X=None, edgeSet=None, nNodesTotal=None,
+  def __init__(self, X, sourceID, destID, nNodesTotal=None,
                TrueParams=None, summary=None, isSparse=False,
-               nodes=None, nNodes=None, heldOut=None,
+               edgeSet=None, nodes=None, nNodes=None, heldOut=None,
                **kwargs):
     self.isSparse = isSparse
     self.TrueParams = TrueParams
-
-    if X is None and edgeSet is None:
-      ValueError('Either specify the full adjacency matrix X or the sparse edgeSet')
 
     if X is not None and X.ndim < 3:
       X = np.expand_dims(X, axis=-1)
 
     if self.isSparse:
-      self.edgeSet = edgeSet
-      self.nNodesTotal = self._mapDownIDs()
-      if nNodesTotal is not None:
-        self.nNodesTotal = nNodesTotal
+      if sourceID is not None and len(sourceID) != np.max(sourceID)+1:
+        sourceID, destID = self._mapDownIDs(sourceID, destID)
+      if nNodesTotal is None:
+        nNodesTotal = max(max(sourceID), max(destID)) + 1
       if nNodes is None:
-        self.nNodes = self.nNodesTotal
+        self.nNodes = nNodesTotal
       else:
         self.nNodes = nNodes
-      self.X = None
-      self.dim = 1
-      self.nEdges = len(edgeSet)
-      self.nObs = self.nEdges
+      if X is not None:
+        self.X = X
+        self.dim = np.shape(X)[-1]
+      else:
+        self.X = None
+        self.dim = 1
+      self._setup_sparse(sourceID=sourceID, destID=destID, edgeSet=edgeSet)
+      self._set_dependent_params(nNodesTotal=nNodesTotal)
+
 
       if nodes is None:
         self.nodes = np.arange(self.nNodes)
@@ -106,7 +107,7 @@ class GraphXData(XData):
         self.nodes = nodes
       self._create_resp_indices()
         
-    else: # Setup for non-sparse (e.g. real-valued) data
+    else: # Setup for non-sparse data
       self.dim = np.shape(X)[-1]
       self.Xmatrix = X
       self.X = np.reshape(X, (X.shape[0]*X.shape[1],)+(X.shape[2:]))
@@ -138,6 +139,7 @@ class GraphXData(XData):
                              np.random.randint(low=0, high=self.nNodes,
                                                size=(2,linksHeldOut)),
                              axis=1)
+    #from IPython import embed; embed()
 
     # Ensure no self-loops got chosen
     for i in xrange(self.heldOut.shape[1]):
@@ -147,7 +149,6 @@ class GraphXData(XData):
                                                 size=(2,))
     self.heldOutSet = set(zip(self.heldOut[0], self.heldOut[1]))
 
-
   def _map_down_heldOut(self):
     np.random.seed(123)
     heldOut = np.zeros((2,len(self.heldOut[0])), dtype=np.int32)
@@ -156,6 +157,18 @@ class GraphXData(XData):
       heldOut[0,ee] = ind
     heldOut[1,:] = self.heldOut[1,:]
     self.heldOut = heldOut    
+
+  def _setup_sparse(self, sourceID=None, destID=None, edgeSet=None):
+    if edgeSet is None:
+      assert len(destID) == len(sourceID)
+      edgeSet = set()
+      for i in xrange(len(sourceID)):
+        edgeSet.add((int(sourceID[i]), int(destID[i])))
+    self.edgeSet = edgeSet
+    self.nEdges = len(edgeSet)
+    self.nObs = self.nEdges
+    self.sourceID = sourceID
+    self.destID = destID
 
     
   def _check_dims(self):
@@ -180,11 +193,16 @@ class GraphXData(XData):
 
   def _set_dependent_params(self, nNodesTotal=None, nObsTotal=None):
     if not self.isSparse:
+      #self.nNodes = np.max([np.max(self.sourceID), np.max(self.destID)]) + 1
       self.nNodes = self.Xmatrix.shape[0]
+
     if nNodesTotal is None:
       self.nNodesTotal = self.nNodes
     else:
       self.nNodesTotal = nNodesTotal
+
+    #if not self.isSparse:
+    #  super(GraphXData,self)._set_dependent_params(nObsTotal=nObsTotal)
 
   def get_stats_summary(self):
     ''' Returns human-readable summary of this dataset's basic properties
@@ -213,17 +231,7 @@ class GraphXData(XData):
       respInds[ee,1] = e[1]
     self.respInds = respInds.astype(int)
     
-  def _mapDownIDs(self):
-    '''
-    Used for sparse data.  Maps the node IDs present in edgeSet so that they
-      make up a continuous range 0,...,N
-    '''
-    edges = np.asarray([[e[0], e[1]] for e in self.edgeSet])
-    sourceID = edges[:,0]
-    destID = edges[:,1]
-    if len(sourceID) == np.max(sourceID)+1:
-      return
-    
+  def _mapDownIDs(self, sourceID, destID):
     uniqueS = np.unique(sourceID)
     indMap = dict(zip(uniqueS,np.arange(len(uniqueS))))
     uniqueD = np.unique(destID)
@@ -233,13 +241,11 @@ class GraphXData(XData):
       if node not in indMap:
         indMap[node] = N
         N += 1
-        
     self.indMap = indMap
     sourceID = np.asarray([indMap[node] for node in sourceID])
     destID = np.asarray([indMap[node] for node in destID])
-    self.edgeSet = set(zip(sourceID,destID))
-    print  max(max(sourceID), max(destID)) + 1
-    return max(max(sourceID), max(destID)) + 1
+
+    return sourceID, destID
 
 
   def makeAssortativeMask(self, delta):
@@ -296,10 +302,10 @@ class GraphXData(XData):
                               axis=1)
           
     if doTrackFullSize:
-      return GraphXData(X=None, edgeSet=edgeSet,
+      return GraphXData(X=None, sourceID=None, destID=None, edgeSet=edgeSet,
                         nNodesTotal=self.nNodesTotal, nNodes=len(mask),
                         nodes=mask, isSparse=True, heldOut=heldOut)
-    return GraphXData(X=None, edgeSet=edgeSet,
+    return GraphXData(X=None, sourceID=None, destID=None, edgeSet=edgeSet,
                       nodes=mask, edgeRange=edgeRange, isSparse=True,
                       nNodes=len(mask), heldOut=heldOut)
 
@@ -319,14 +325,15 @@ class GraphXData(XData):
 
     self.nNodes += GraphXDataObj.nNodes
     self.nNodesTotal += GraphXDataObj.nNodesTotal
-    self.edgeSet = set.union(GraphXDataObj.edgeSet)
+    self.sourceID = np.append(self.sourceID, GraphXDataObj.sourceID)
+    self.destID = np.append(self.destID, GraphXDataObj.destID)
     
 
   #########################################################  I/O methods
   #########################################################
   def __str__(self):
-    return super(GraphXData,self).__str__() + \
-      '\n edgeSet:' + self.edgeSet.__str__()
+    return super(GraphXData,self).__str__() + '\n sourceID: ' + \
+      self.sourceID.__str__() + '\n destID: ' + self.destID.__str__()
       
 
     
