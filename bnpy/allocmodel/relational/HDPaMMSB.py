@@ -67,9 +67,6 @@ class HDPaMMSB(AllocModel):
     D = Data.dim
 
     self._update_Epi_stats(N=Data.nNodesTotal,K=self.K)
-    LP['evSquare'] = \
-                LP['E_log_soft_ev'].reshape((Data.nNodes,Data.nNodesTotal,K))
-    
 
 
     if Data.isSparse:
@@ -92,6 +89,8 @@ class HDPaMMSB(AllocModel):
     mask = Data.assortativeMask
 
     assert(LP['E_log_soft_ev'].shape == (Data.nNodesTotal*Data.nNodes,K))
+    LP['evSquare'] = \
+                LP['E_log_soft_ev'].reshape((Data.nNodes,Data.nNodesTotal,K))
     logSoftEv = LP['evSquare']
     expLogSoftEv = np.exp(logSoftEv)
 
