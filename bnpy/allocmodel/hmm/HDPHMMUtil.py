@@ -69,14 +69,15 @@ def calcELBO_LinearTerms(SS=None,
         StartStateCount + startAlpha * Ebeta - startTheta,
         digamma(startTheta) - digamma(startTheta.sum())
         )
+
     alphaEbetaPlusKappa = alpha * np.tile(Ebeta, (K, 1))
     alphaEbetaPlusKappa[:, :K] += kappa * np.eye(K)
-
-    digammaSum = np.sum(transTheta, axis=1)
+    digammaSum = digamma(np.sum(transTheta, axis=1))
     LtransSlack = np.sum(
         (TransStateCount + alphaEbetaPlusKappa - transTheta) *
         (digamma(transTheta) - digammaSum[:, np.newaxis])
         )
+
     if todict:
         return dict(
             Lalloc=Ltop+LdiffcDir,
