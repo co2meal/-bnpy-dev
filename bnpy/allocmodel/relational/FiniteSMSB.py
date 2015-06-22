@@ -11,12 +11,6 @@ For all nodes i:
 
 For l,m = 1,...,K:
    w_{lm} ~ Beta(tau_1, tau_0)
-
-
-Attributes
--------
-    K       : integer number of components
-    gamma   : scalar parameter of symmetric Dirichlet prior on mixture weights
 '''
 
 
@@ -32,6 +26,22 @@ from bnpy.allocmodel import AllocModel
 
 class FiniteSMSB(FiniteMixtureModel):
 
+    ''' Single membership stochastic block model, with K components.
+
+    Attributes
+    -------
+    * inferType : string {'EM', 'VB', 'moVB', 'soVB'}
+        indicates which updates to perform for local/global steps
+    * K : int
+        number of components
+    * alpha : float
+        scalar symmetric Dirichlet prior on mixture weights
+
+    Attributes for VB
+    ---------
+    TODO
+    '''
+
     def __init__(self, inferType, priorDict=dict()):
         self.EStepLaps = 25
         super(FiniteSMSB, self).__init__(inferType, priorDict)
@@ -44,33 +54,32 @@ class FiniteSMSB(FiniteMixtureModel):
         self.estZ = 0
 
     def getSSDims(self):
-        '''Called during obsmodel.setupWithAllocModel to determine the dimensions
-           of the statistics computed by the obsmodel.
+        ''' Get dimensions of interactions between components.
 
-           Overridden from the default of ('K',), as we need E_log_soft_ev to be
+        Overrides default of ('K',), as we need E_log_soft_ev to be
            dimension E x K x K
         '''
         return ('K', 'K',)
 
     def calc_local_params(self, Data, LP, **kwargs):
         ''' Calculate local parameters for each data item and each component.
-            This is part of the E-step.  Note that this is the main place in which
-            we differ from FiniteMixtureModel.py
 
-            Args
-            -------
-            Data : bnpy data object with Data.nObs observations
-            LP : local param dict with fields
-                  E_log_soft_ev : Data.nObs x K x K array
-                      E_log_soft_ev[n,l,m] = log p(data obs n | comps l, m)
+        This is part of the E-step.
+        Note that this is the main place we differ from FiniteMixtureModel.py
 
-            Returns
-            -------
-            LP : local param dict with fields
-                 resp : 2D array, size Data.nObs x K array
-                        resp[n,l,m] = posterior responsibility comps. l,m have for
-                        item n
+        Args
+        -------
+        Data : bnpy data object with Data.nObs observations
+        LP : local param dict with fields
+              E_log_soft_ev : Data.nObs x K x K array
+                  E_log_soft_ev[n,l,m] = log p(data obs n | comps l, m)
 
+        Returns
+        -------
+        LP : local param dict with fields
+             resp : 2D array, size Data.nObs x K array
+                    resp[n,l,m] = posterior responsibility comps. l,m have for
+                    item n
         '''
 
         if self.inferType.count('EM') > 0:
@@ -92,7 +101,8 @@ class FiniteSMSB(FiniteMixtureModel):
         respTerm = np.zeros(K)
         for lap in xrange(self.EStepLaps):
             for i in xrange(Data.nNodes):
-                respTerm = np.einsum('jlm,jm->l', logSoftEv[i, :, :, :], resp) + \
+                respTerm = np.einsum(
+                    'jlm,jm->l', logSoftEv[i, :, :, :], resp) + \
                     np.einsum('jlm,jl->m', logSoftEv[:, i, :, :], resp)
                 resp[i, :] = np.exp(Elogpi + respTerm)
                 resp[i, :] /= np.sum(resp[i, :])
@@ -110,47 +120,42 @@ class FiniteSMSB(FiniteMixtureModel):
         return LP
 
     def make_hard_asgn_local_params(self, Data, LP):
-        ''' Convert soft assignments to hard assignments for provided local params
+        ''' Convert soft assignments to hard assignments.
 
-            Returns
-            --------
-            LP : local params dict, with new fields
-                 Z : 1D array, size N
-                        Z[n] is an integer in range {0, 1, 2, ... K-1}
-                 resp : 2D array, size N x K+1 (with final column empty)
-                        resp[n,k] = 1 iff Z[n] == k
+        Returns
+        --------
+        LP : local params dict, with new fields
+             Z : 1D array, size N
+                    Z[n] is an integer in range {0, 1, 2, ... K-1}
+             resp : 2D array, size N x K+1 (with final column empty)
+                    resp[n,k] = 1 iff Z[n] == k
         '''
         Z = np.argmax(LP['respSingle'], axis=1)
-        # zAligned = StateSeqUtil.alignEstimatedStateSeqToTruth(Z,
-        #                                                      Data.TrueParams['Z'])
         self.estZ = Z
-        # self.hamming = \
-        #          StateSeqUtil.calcHammingDistance(Data.TrueParams['Z'], zAligned)
 
-    # Suff Stats
-    #########################################################
     def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None, **kwargs):
         ''' Calculate the sufficient statistics for global parameter updates
-            Only adds stats relevant for this allocModel.
-            Other stats are added by the obsModel.
 
-            Args
-            -------
-            Data : bnpy data object
-            LP : local param dict with fields
-                  resp : Data.nObs x K array,
-                           where resp[n,k] = posterior resp of comp k
-            doPrecompEntropy : boolean flag
-                          indicates whether to precompute ELBO terms in advance
-                          used for memoized learning algorithms (moVB)
+        Only adds stats relevant for this allocModel.
+        Other stats are added by the obsModel.
 
-            Returns
-            -------
-            SS : SuffStats for K components, with field
-                  N : vector of dimension K,
-                       effective number of observations assigned to each comp
-                  Npair : matrix of dimensions K x K, where Npair[l,m] =
-                          effective # of obs x_{ij} with z_{il} and z_{jm}
+        Args
+        -------
+        Data : bnpy data object
+        LP : local param dict with fields
+              resp : Data.nObs x K array,
+                       where resp[n,k] = posterior resp of comp k
+        doPrecompEntropy : boolean flag
+                      indicates whether to precompute ELBO terms in advance
+                      used for memoized learning algorithms (moVB)
+
+        Returns
+        -------
+        SS : SuffStats for K components, with field
+              N : vector of dimension K,
+                   effective number of observations assigned to each comp
+              Npair : matrix of dimensions K x K, where Npair[l,m] =
+                      effective # of obs x_{ij} with z_{il} and z_{jm}
 
         '''
         Npair = np.sum(LP['resp'], axis=0)
@@ -165,15 +170,9 @@ class FiniteSMSB(FiniteMixtureModel):
             SS.setELBOTerm('ElogqZ', ElogqZ_vec, dims=('K',))
         return SS
 
-    # Evidence
-    #########################################################
-
     def E_logqZ(self, LP):
         return np.sum(
             LP['respSingle'] * np.log(LP['respSingle'] + EPS), axis=0)
-
-    # IO Utils
-    # for machines
 
     def to_dict(self):
         myDict = super(FiniteSMSB, self).to_dict()

@@ -1,3 +1,7 @@
+'''
+FiniteUndirectedMMSB.py
+'''
+
 import numpy as np
 from scipy.cluster.vq import kmeans2
 
@@ -9,18 +13,14 @@ from FiniteMMSB import FiniteMMSB
 
 
 class FiniteUndirectedMMSB(FiniteMMSB):
-    # Constructors
-    #########################################################
 
     def __init__(self, inferType, priorDict=dict()):
         super(FiniteUndirectedMMSB, self).__init__(inferType, priorDict)
 
     def getSSDims(self):
-        '''Called during obsmodel.setupWithAllocModel to determine the dimensions
-           of the statistics computed by the obsmodel.
+        ''' Determine dimensions of statistics for obsmodel.
 
-           Overridden from the default of ('K',), as we need E_log_soft_ev to be
-           dimension E x K(K+1)/2
+        Overrides default ('K'), to be E x K(K+1)/2
         '''
         return ('KupperTriangular',)
 
@@ -95,9 +95,6 @@ class FiniteUndirectedMMSB(FiniteMMSB):
 
         LP['Count1'] = Count1[upper]
         LP['Count0'] = Count0[upper]
-
-        #from IPython import embed; embed()
-
         return LP
 
     def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None, **kwargs):
@@ -119,27 +116,17 @@ class FiniteUndirectedMMSB(FiniteMMSB):
 
         return SS
 
-    # Suff Stats
-    #########################################################
     def forceSSInBounds(self, SS):
-        ''' Force SS.respPairSums and firstStateResp to be >= 0.  This avoids
-            numerical issues in moVB (where SS "chunks" are added and subtracted)
-              such as:
-                x = 10
-                x += 1e-15
-                x -= 10
-                x -= 1e-15
-              resulting in x < 0.
+        ''' Force certain fields in bounds, to avoid numerical issues.
 
-              Returns
-              -------
-              Nothing.  SS is updated in-place.
+        Returns
+        -------
+        Nothing.  SS is updated in-place.
         '''
         np.maximum(SS.sumSource, 0, out=SS.sumSource)
 
     def update_global_params_VB(self, SS, **kwargs):
         self.theta = self.alpha + SS.sumSource
-        # print self.theta[0:4,:]
 
     def calc_evidence(self, Data, SS, LP, **kwargs):
         N = float(SS.sumSource.shape[0])
@@ -150,12 +137,4 @@ class FiniteUndirectedMMSB(FiniteMMSB):
             entropy = self.elbo_entropy(LP, Data)
 
         entropy *= ((N * (N - 1) / 2) / (N**2 - N))
-        # print entropy
-        #upper = np.triu_indices(N)
-        # e2 = np.sum(LP['squareResp'][upper[0],upper[1]]*
-        #            np.log(EPS+LP['squareResp'][upper[0],upper[1]]))
-        # print e2
         return alloc + entropy
-
-    # def elbo_entropy(self, LP):
-    #  return super(FiniteUndirectedMMSB, self).elbo_entropy(LP)

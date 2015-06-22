@@ -44,6 +44,8 @@ class FiniteaMMSB(FiniteMMSB):
         self.epsilon = epsilon
 
     def getSSDims(self):
+        ''' Get dimensions of interactions between components.
+        '''
         return ('K',)
 
     def calc_local_params(self, Data, LP, **kwargs):
@@ -216,11 +218,10 @@ class FiniteaMMSB(FiniteMMSB):
 
         # H += \sum_ij \sum_k \phi_{ijkk}
         #      (log f(w_k,x_ij) - log f(\epsilon,x_ij))
-        scratch = np.ones((Data.nNodes, Data.nNodes, self.K))
-
+        # scratch = np.ones((Data.nNodes, Data.nNodes, self.K))
         scratch = LP['resp'] * (
-            logSoftEv[0, :] - np.log(1 - self.epsilon))\
-            [np.newaxis, np.newaxis, :]
+            logSoftEv[0, :] - np.log(1 - self.epsilon))
+        scratch = scratch[np.newaxis, np.newaxis, :]
         scratch[Data.respInds[:, 0], Data.respInds[:, 1]] /= \
             (logSoftEv[0, :] - np.log(1 - self.epsilon))[np.newaxis, :]
         scratch[Data.respInds[:, 0], Data.respInds[:, 1]] *= \
