@@ -1,128 +1,108 @@
 '''
 ToyMMSBK6.py
 '''
+
 import numpy as np
 from bnpy.data import GraphXData
 
+K = 6
 
-########################################################### User-facing 
-###########################################################
-def get_data(seed=123, nNodes=100, K=6, alpha=0.05,
-             tau1=1.0, tau0=10.0, genSparse=True, isDirected=True, **kwargs):
-  ''' 
+
+def get_data(
+        seed=123, nNodes=100, alpha=0.05,
+        w_diag=.8,
+        w_offdiag_eps=.01,
+        **kwargs):
+    ''' Create toy dataset as bnpy GraphXData object.
+
     Args
     -------
-    seed : integer seed for random number generator,
-            used for actually *generating* the data
-    seqLens : total number of observations in each sequence
+    seed : int
+        seed for random number generator
+    nNodes : int
+        number of nodes in the generated network
 
     Returns
     -------
-    Data : bnpy GraphXData object, with nObsTotal observations
-  '''
+    Data : bnpy GraphXData object
+    '''
+    prng = np.random.RandomState(seed)
 
-  edgeSet, Z, w, pi = \
-                               gen_data(seed, nNodes, K, alpha, tau1, tau0)
-  TrueParams = dict(Z=Z, w=w, pi=pi)
-  adjList = np.tile(np.arange(nNodes), (nNodes, 1))
+    # Create membership probabilities at each node
+    if not hasattr(alpha, '__len__'):
+        alpha = alpha * np.ones(K)
+    pi = prng.dirichlet(alpha, size=nNodes)
 
-  data = GraphXData(X=None, edgeSet=edgeSet,
-                    nNodesTotal=nNodes, nNodes=nNodes,
-                    TrueParams=TrueParams, isSparse=True, isDirected=False)
-  data.name = get_short_name()
-  return data
+    # Create block relation matrix W, shape K x K
+    w = w_offdiag_eps * np.ones((K, K))
+    w[np.diag_indices(6)] = w_diag
+
+    # Generate community assignments, s, r, and pack into TrueZ
+    s = np.zeros((nNodes, nNodes), dtype=int)
+    r = np.zeros((nNodes, nNodes), dtype=int)
+    for i in xrange(nNodes):
+        s[i, :] = prng.choice(xrange(K), p=pi[i, :], size=nNodes)
+        r[:, i] = prng.choice(xrange(K), p=pi[i, :], size=nNodes)
+    TrueZ = np.zeros((nNodes, nNodes, 2), dtype=int)
+    TrueZ[:, :, 0] = s
+    TrueZ[:, :, 1] = r
+
+    TrueParams = dict(Z=TrueZ, w=w, pi=pi)
+
+    # Generate edge set
+    sourceID = list()
+    destID = list()
+    for i in xrange(nNodes):
+        for j in xrange(nNodes):
+            if i == j:
+                continue
+            y_ij = prng.binomial(n=1, p=w[s[i, j], r[i, j]])
+            if y_ij == 1:
+                sourceID.append(i)
+                destID.append(j)
+    EdgeSet = set(zip(sourceID, destID))
+
+    Data = GraphXData(X=None, edgeSet=EdgeSet,
+                      nNodesTotal=nNodes, nNodes=nNodes,
+                      TrueParams=TrueParams, isSparse=True)
+    Data.name = get_short_name()
+    return Data
 
 
 def get_short_name():
-  return 'ToyMMSBK6'
-
-########################################################### Data generation
-###########################################################
-w = np.asarray([
-  [    .75,    .05,    .05,    .05,    .05,   .05],
-  [    .05,    .75,    .05,    .05,    .05,   .05],
-  [    .05,    .05,    .75,    .05,    .05,   .05],
-  [    .05,    .05,    .05,    .75,    .05,   .05],
-  [    .05,    .05,    .05,    .05,    .75,   .05],
-  [    .05,    .05,    .05,    .05,    .05,   .75]
-  ])
-diag = .8
-eps = .0001
-w[:,:] = eps
-w[np.diag_indices(6)] = diag
-
-
-def gen_data(seed, nNodes, K, alpha,
-             tau1=3.0, tau0=1.0, genSparse=False, isDirected=True, **kwargs):
-  N = nNodes
-  if not hasattr(alpha, '__len__'):
-    alpha = alpha * np.ones(K)
-  prng = np.random.RandomState(seed)
-  pi = prng.dirichlet(alpha, size=nNodes)
-
-  # Generate community assignments
-  #z = np.zeros((N,N), dtype=int)
-  #for i in xrange(N):
-  #  z[i,:] = prng.choice(xrange(K), p=pi[i,:], size=nNodes)
-  s = np.zeros((N,N), dtype=int)
-  r = np.zeros((N,N), dtype=int)
-  for i in xrange(N):
-    s[i,:] = prng.choice(xrange(K), p=pi[i,:], size=nNodes)
-    r[:,i] = prng.choice(xrange(K), p=pi[i,:], size=nNodes)
-
-  # Make source / receiver assignments
-  TrueZ = np.zeros((N,N,2), dtype=int)
-  TrueZ[:,:,0] = s
-  TrueZ[:,:,1] = r
-
-  # Generate graph
-  sourceID = list()
-  destID = list()
-  for i in xrange(N):
-    for j in xrange(N):
-      if i == j:
-        continue
-      #if j > i:
-      #  break
-      #ind1 = np.min([z[i,j], z[j,i]])
-      #ind2 = np.max([z[i,j], z[j,i]])
-      #y_ij = prng.binomial(n=1, p=w[ind1,ind2])
-      y_ij = prng.binomial(n=1, p=w[s[i,j],r[i,j]])
-      if y_ij == 1:
-        sourceID.append(i)
-        destID.append(j)
-  return set(zip(sourceID,destID)), TrueZ, w, pi
+    return 'ToyMMSBK6'
 
 
 if __name__ == '__main__':
-  import matplotlib.pyplot as plt
-  from bnpy.viz import RelationalViz as relviz
-  Data = get_data(nNodes=100)
-  colors = np.argmax(Data.TrueParams['pi'], axis=1)
+    import matplotlib.pyplot as plt
+    from bnpy.viz import RelationalViz
 
-  relviz.plotTrueLabels('ToyMMSBK6', Data, gtypes=['Actual','VarDist', 'EdgePr'],
-                        mixColors=True, thresh=.73, colorEdges=False, title='')
+    Data = get_data(nNodes=100)
+    w = Data.TrueParams['w']
 
+    # RelationalViz.plotTrueLabels(
+    #    'ToyMMSBK6', Data,
+    #    gtypes=['Actual', 'VarDist', 'EdgePr'],
+    #    mixColors=True, thresh=.73, colorEdges=False, title='')
 
-  #relviz.plotTransMtx(Data, gtypes=['Actual', 'EdgePr'])
-  # Plot subset of pi
-  Epi = Data.TrueParams['pi']
-  fix, ax = plt.subplots(1)
-  ax.imshow(Epi[0:30,:], cmap='Greys', interpolation='nearest')
-  ax.get_xaxis().set_visible(False)
-  ax.get_yaxis().set_visible(False)
+    # Plot subset of pi
+    Epi = Data.TrueParams['pi']
+    fix, ax = plt.subplots(1)
+    ax.imshow(
+        Epi[0:30, :],
+        cmap='Greys', interpolation='nearest',
+        vmin=0, vmax=1.0)
+    ax.set_ylabel('nodes')
+    ax.set_xlabel('states')
+    ax.set_title('Membership vectors pi')
 
-  #relviz.plotEpi(None, Data)
+    # Plot w
+    fig, ax = plt.subplots(1)
+    im = ax.imshow(
+        w, cmap='Greys', interpolation='nearest',
+        vmin=0, vmax=1.0)
+    ax.set_xlabel('states')
+    ax.set_xlabel('states')
+    ax.set_title('Edge probability matrix w')
 
-  # Plot w
-  fig, ax = plt.subplots(1)
-  im = ax.imshow(1-w, cmap='gray', interpolation='nearest')
-  ax.get_xaxis().set_visible(False)
-  ax.get_yaxis().set_visible(False)
-
-  
-
-  plt.show()
-
-
-
+    plt.show()

@@ -13,525 +13,525 @@ from bnpy.viz.TaskRanker import rankTasksForSingleJobOnDisk
 from bnpy.viz import TaskRanker
 
 
-
 def permuteTransMtx(A, Z):
-  perms = np.array([])
-  for k in xrange(np.max(Z)+1):
-    perms = np.append(perms, np.where(Z == k))
-  
-  A = A[perms,:]
-  A = A[:,perms]
-  return A
-  
+    perms = np.array([])
+    for k in xrange(np.max(Z) + 1):
+        perms = np.append(perms, np.where(Z == k))
+
+    A = A[perms, :]
+    A = A[:, perms]
+    return A
+
+
 def plotNpair(Npair, curAx, fig, cmap='gray', title=''):
-  plt.figure(fig.number)
-  im = curAx.imshow(Npair / np.sum(Npair), cmap=cmap, vmin=0,
-                    interpolation='nearest')
-  Kmax = np.shape(Npair)[0] - 1
-  curAx.set_xlim([-0.5, Kmax+0.5])
-  curAx.set_ylim([-0.5, Kmax+0.5])
-  curAx.set_yticks(np.arange(Kmax+1))
-  curAx.set_xticks(np.arange(Kmax+1))
-  curAx.invert_yaxis()
-  vmax = np.max(Npair / np.sum(Npair))
-  cbar = fig.colorbar(im, ticks=[0, vmax])
-  curAx.set_title(title)
+    plt.figure(fig.number)
+    im = curAx.imshow(Npair / np.sum(Npair), cmap=cmap, vmin=0,
+                      interpolation='nearest')
+    Kmax = np.shape(Npair)[0] - 1
+    curAx.set_xlim([-0.5, Kmax + 0.5])
+    curAx.set_ylim([-0.5, Kmax + 0.5])
+    curAx.set_yticks(np.arange(Kmax + 1))
+    curAx.set_xticks(np.arange(Kmax + 1))
+    curAx.invert_yaxis()
+    vmax = np.max(Npair / np.sum(Npair))
+    cbar = fig.colorbar(im, ticks=[0, vmax])
+    curAx.set_title(title)
+
 
 def plotEpi(jobnames, Data, laps=['final'], doBlockPerm=True, doShowTrue=True):
-  print '*** NOTE *** plotEpi is ignoring your jobnames right now'
-  Epi = Data.TrueParams['pi']
-  estZ = np.argmax(Epi, axis=1)
+    print '*** NOTE *** plotEpi is ignoring your jobnames right now'
+    Epi = Data.TrueParams['pi']
+    estZ = np.argmax(Epi, axis=1)
 
-  if doBlockPerm: # Permute by most likely community
-    perms = np.array([])
-    for k in xrange(np.max(estZ)+1):
-      perms = np.append(perms, np.where(estZ == k))
-    Epi = Epi[perms.astype(int)]
+    if doBlockPerm:  # Permute by most likely community
+        perms = np.array([])
+        for k in xrange(np.max(estZ) + 1):
+            perms = np.append(perms, np.where(estZ == k))
+        Epi = Epi[perms.astype(int)]
 
-  fig,ax = plt.subplots(1)
-  ax.imshow(Epi, cmap='Greys', interpolation='nearest')
+    fig, ax = plt.subplots(1)
+    ax.imshow(Epi, cmap='Greys', interpolation='nearest')
 
-  
+
 def drawGraph(Data, curAx, fig, colors='r', cmap='gist_rainbow', title='',
               labels=None, edgeColors='k', edgeCmap=plt.cm.Greys):
-  N = Data.nNodes
-  if labels is None:
-    labels = np.arange(N)
-     
-  #G = nx.DiGraph()
-  G.add_nodes_from(np.arange(Data.nNodes))
-  Data.sourceID.sort()
-  Data.destID.sort()
-  for i in xrange(len(Data.sourceID)):
-    if Data.sourceID[i] == Data.destID[i]:
-      continue
-    if Data.X is not None:
-      if Data.X[Data.sourceID[i]*N + Data.destID[i]] == 1:
-        G.add_edge(Data.sourceID[i], Data.destID[i])
-    else:
-      G.add_edge(Data.sourceID[i], Data.destID[i])      
+    N = Data.nNodes
+    if labels is None:
+        labels = np.arange(N)
 
-  plt.figure(fig.number)
-  pos = nx.spring_layout(G)
-  nx.draw_networkx_nodes(G, pos, node_color=colors, cmap=cmap)
-  nx.draw_networkx_labels(G, pos, labels=dict(zip(np.arange(N),labels)))
-  nx.draw_networkx_edges(G, pos, edge_color=edgeColors, edge_cmap=edgeCmap,
-                         edge_vmin=min(edgeColors),
-                         edge_vmax=max(edgeColors))
+    G = nx.DiGraph()
+    G.add_nodes_from(np.arange(Data.nNodes))
+    Data.sourceID.sort()
+    Data.destID.sort()
+    for i in xrange(len(Data.sourceID)):
+        if Data.sourceID[i] == Data.destID[i]:
+            continue
+        if Data.X is not None:
+            if Data.X[Data.sourceID[i] * N + Data.destID[i]] == 1:
+                G.add_edge(Data.sourceID[i], Data.destID[i])
+        else:
+            G.add_edge(Data.sourceID[i], Data.destID[i])
 
-  # Beautification step (turn off axes, trim window size, apply lipstick, etc)
-  curAx.get_xaxis().set_visible(False)
-  curAx.get_yaxis().set_visible(False)
-  curAx.set_frame_on(False)
-  cut = 1.05
-  xmax= max(xx for xx,yy in pos.values())
-  ymax= max(yy for xx,yy in pos.values())
-  ygap = cut*ymax - ymax
-  xgap = cut*xmax - xmax
-  plt.xlim(0-xgap,xmax+xgap)
-  plt.ylim(0-ygap,ymax+ygap)
+    plt.figure(fig.number)
+    pos = nx.spring_layout(G)
+    nx.draw_networkx_nodes(G, pos, node_color=colors, cmap=cmap)
+    nx.draw_networkx_labels(G, pos, labels=dict(zip(np.arange(N), labels)))
+    nx.draw_networkx_edges(G, pos, edge_color=edgeColors, edge_cmap=edgeCmap,
+                           edge_vmin=min(edgeColors),
+                           edge_vmax=max(edgeColors))
 
-  #curAx.set_title('Actual Graph :' + title)  
-   
+    # Beautification step
+    # (turn off axes, trim window size, apply lipstick, etc)
+    curAx.get_xaxis().set_visible(False)
+    curAx.get_yaxis().set_visible(False)
+    curAx.set_frame_on(False)
+    cut = 1.05
+    xmax = max(xx for xx, yy in pos.values())
+    ymax = max(yy for xx, yy in pos.values())
+    ygap = cut * ymax - ymax
+    xgap = cut * xmax - xmax
+    plt.xlim(0 - xgap, xmax + xgap)
+    plt.ylim(0 - ygap, ymax + ygap)
+
+
 def drawGraphVariationalDist(Data, Epi, curAx, fig, colors=None, labels=None,
                              cmap='gist_rainbow', title='', thresh=0.7,
                              seed=1234,
                              colorEdges=False, edgeCmap=plt.cm.Greys):
-  np.random.seed(seed)
-  G = nx.Graph()
-  N = Data.nNodes
-  G.add_nodes_from(np.arange(N))
+    np.random.seed(seed)
+    G = nx.Graph()
+    N = Data.nNodes
+    G.add_nodes_from(np.arange(N))
+    if colorEdges:
+        edgeColors = list()
+    else:
+        edgeColors = 'k'
 
-  if colorEdges:
-    edgeColors = list()
-  else:
-    edgeColors = 'k'
-  
-  for i in xrange(N):
-    for j in xrange(N):
-      if i == j or i > j:
-        continue
-      varDist = 1.0 - np.sum(np.abs(Epi[i] - Epi[j])) / 2.0
-      if varDist > thresh:
-        G.add_edge(i,j)
-        if colorEdges:
-          edgeColors.append(varDist)
+    for i in xrange(N):
+        for j in xrange(N):
+            if i == j or i > j:
+                continue
+            varDist = 1.0 - np.sum(np.abs(Epi[i] - Epi[j])) / 2.0
+            if varDist > thresh:
+                G.add_edge(i, j)
+                if colorEdges:
+                    edgeColors.append(varDist)
 
-  if labels is not None:
-    labels=dict(zip(np.arange(N),labels))
+    if labels is not None:
+        labels = dict(zip(np.arange(N), labels))
 
-  plt.figure(fig.number)
-  pos = nx.spring_layout(G)
-  print len(colors)
-  nx.draw_networkx_nodes(G, pos, node_color=colors, cmap=cmap)
-  nx.draw_networkx_labels(G, pos, labels=labels)                          
-  nx.draw_networkx_edges(G, pos, edge_color=edgeColors, edge_cmap=edgeCmap,
-                         edge_vmin=min(edgeColors),
-                         edge_vmax=max(edgeColors))
-  curAx.get_xaxis().set_visible(False)
-  curAx.get_yaxis().set_visible(False)
-  curAx.set_frame_on(False)
+    plt.figure(fig.number)
+    pos = nx.spring_layout(G)
+    nx.draw_networkx_nodes(G, pos, node_color=colors, cmap=cmap)
+    nx.draw_networkx_labels(G, pos, labels=labels)
+    nx.draw_networkx_edges(G, pos, edge_color=edgeColors, edge_cmap=edgeCmap,
+                           edge_vmin=min(edgeColors),
+                           edge_vmax=max(edgeColors))
+    curAx.get_xaxis().set_visible(False)
+    curAx.get_yaxis().set_visible(False)
+    curAx.set_frame_on(False)
 
-  # Trim the frame to fit tightly around the graph
-  cut = 1.05
-  xmax= max(xx for xx,yy in pos.values())
-  ymax= max(yy for xx,yy in pos.values())
-  ygap = cut*ymax - ymax
-  xgap = cut*xmax - xmax
-  plt.xlim(0-xgap,xmax+xgap)
-  plt.ylim(0-ygap,ymax+ygap)
+    # Trim the frame to fit tightly around the graph
+    cut = 1.05
+    xmax = max(xx for xx, yy in pos.values())
+    ymax = max(yy for xx, yy in pos.values())
+    ygap = cut * ymax - ymax
+    xgap = cut * xmax - xmax
+    plt.xlim(0 - xgap, xmax + xgap)
+    plt.ylim(0 - ygap, ymax + ygap)
 
-  #curAx.set_title('VarDist :' + title)  
 
 def drawGraphEdgePr(Data, Epi, Ew, curAx, fig, colors=None, labels=None,
                     cmap='gist_rainbow', title='', thresh=0.7, seed=1234):
-  np.random.seed(seed)
-  G = nx.Graph()
-  N = Data.nNodes
-  G.add_nodes_from(np.arange(N))
-  #var = np.zeros((100,100))
+    np.random.seed(seed)
+    G = nx.Graph()
+    N = Data.nNodes
+    G.add_nodes_from(np.arange(N))
+    for i in xrange(N):
+        for j in xrange(N):
+            if i == j:
+                continue
+            pr = np.sum(
+                Epi[i, np.newaxis, :, np.newaxis] *
+                Epi[np.newaxis, j, np.newaxis, :] * Ew)
+            if pr > thresh:
+                G.add_edge(i, j)
 
-  for i in xrange(N):
-    for j in xrange(N):
-      if i == j:
-        continue
-      pr = np.sum(Epi[i,np.newaxis,:,np.newaxis]*Epi[np.newaxis,j,np.newaxis,:]*
-                  Ew)
-      #var[i,j] = (1.0 - np.sum(np.abs(Epi[i] - Epi[j])) / 2.0)
-      if pr > thresh:
-        G.add_edge(i,j)
+    plt.figure(fig.number)
+    pos = nx.spring_layout(G)
+    nx.draw_networkx_nodes(G, pos, node_color=colors, cmap=cmap)
 
-  plt.figure(fig.number)
-  pos = nx.spring_layout(G)
-  nx.draw_networkx_nodes(G, pos, node_color=colors, cmap=cmap)
+    if labels is None:
+        labels = np.arange(N)
+    else:
+        labels = ['%.2f' % l for l in labels]
+    nx.draw_networkx_labels(G, pos, labels=dict(zip(np.arange(N), labels)))
+    nx.draw_networkx_edges(G, pos)
 
-  if labels is None:
-    labels = np.arange(N)
-  else:
-    labels = ['%.2f' % l for l in labels]
-  nx.draw_networkx_labels(G, pos, labels=dict(zip(np.arange(N),labels)))
-  nx.draw_networkx_edges(G, pos)
+    curAx.get_xaxis().set_visible(False)
+    curAx.get_yaxis().set_visible(False)
+    curAx.set_frame_on(False)
 
-  curAx.get_xaxis().set_visible(False)
-  curAx.get_yaxis().set_visible(False)
-  curAx.set_frame_on(False)
+    # Trim the frame to fit tightly around the graph
+    cut = 1.05
+    xmax = max(xx for xx, yy in pos.values())
+    ymax = max(yy for xx, yy in pos.values())
+    ygap = cut * ymax - ymax
+    xgap = cut * xmax - xmax
+    plt.xlim(0 - xgap, xmax + xgap)
+    plt.ylim(0 - ygap, ymax + ygap)
 
-  # Trim the frame to fit tightly around the graph
-  cut = 1.05
-  xmax= max(xx for xx,yy in pos.values())
-  ymax= max(yy for xx,yy in pos.values())
-  ygap = cut*ymax - ymax
-  xgap = cut*xmax - xmax
-  plt.xlim(0-xgap,xmax+xgap)
-  plt.ylim(0-ygap,ymax+ygap)
 
-  #curAx.set_title('EdgePr :' + title)  
-
-  
-  
 def plotSingleJob(dataset, jobname, taskids='1', lap='final',
                   showELBOInTitle=True, cmap='gray', title='', mixZs=False):
-  Datamod = imp.load_source(dataset,
-                            os.path.expandvars('$BNPYDATADIR/'+dataset+'.py'))
-  Data = Datamod.get_data()
-  jobpath = os.path.join(os.path.expandvars('$BNPYOUTDIR'),
-                         Datamod.get_short_name(), jobname)
-  print dataset
-  if type(taskids) == str:
-    taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
-    print taskids
-  elif type(taskids) == int:
-    taskids = [str(taskids)]
-  f_pair, axes_pair = plt.subplots(1, len(taskids))
-  f_graph, axes_graph = plt.subplots(1, len(taskids))
-  f_vardist, axes_vardist = plt.subplots(1, len(taskids), frameon=False)
+    Datamod = imp.load_source(
+        dataset,
+        os.path.expandvars('$BNPYDATADIR/' + dataset + '.py'))
+    Data = Datamod.get_data()
+    jobpath = os.path.join(os.path.expandvars('$BNPYOUTDIR'),
+                           Datamod.get_short_name(), jobname)
+    print dataset
+    if isinstance(taskids, str):
+        taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
+        print taskids
+    elif isinstance(taskids, int):
+        taskids = [str(taskids)]
+    f_pair, axes_pair = plt.subplots(1, len(taskids))
+    f_graph, axes_graph = plt.subplots(1, len(taskids))
+    f_vardist, axes_vardist = plt.subplots(1, len(taskids), frameon=False)
 
-  if len(taskids) == 1:
-    axes_pair = [axes_pair]
-  
-  for tt, taskid in enumerate(taskids):
-    curAx = axes_pair[tt]
-    path = os.path.join(jobpath, taskid) + os.path.sep
+    if len(taskids) == 1:
+        axes_pair = [axes_pair]
 
-    #Figure out which lap to use
-    if lap == 'final':
-      lapsFile = open(path+'laps.txt')
-      curLap = lapsFile.readlines()
-      curLap = float(curLap[-1])
-      lapsFile.close()
-    else:
-      curLap = int(lap)
+    for tt, taskid in enumerate(taskids):
+        curAx = axes_pair[tt]
+        path = os.path.join(jobpath, taskid) + os.path.sep
 
-    if showELBOInTitle:
-      ELBOscores = np.loadtxt(os.path.join(path, 'evidence.txt'))
-      laps = np.loadtxt(os.path.join(path, 'laps.txt'))
-      savedLaps = np.loadtxt(os.path.join(path, 'laps-saved-params.txt'))
+        # Figure out which lap to use
+        if lap == 'final':
+            lapsFile = open(path + 'laps.txt')
+            curLap = lapsFile.readlines()
+            curLap = float(curLap[-1])
+            lapsFile.close()
+        else:
+            curLap = int(lap)
 
-      loc = np.argmin(np.abs(laps - curLap))
-      ELBO = ELBOscores[loc]
-      title = title + ' ELBO: %.3f' % ELBO
+        if showELBOInTitle:
+            ELBOscores = np.loadtxt(os.path.join(path, 'evidence.txt'))
+            laps = np.loadtxt(os.path.join(path, 'laps.txt'))
+            savedLaps = np.loadtxt(os.path.join(path, 'laps-saved-params.txt'))
 
-    # Plot the Npair matrix
-    filename = 'Lap%08.3fSuffStats.mat' % (curLap)
-    Npair = scipy.io.loadmat(path + filename)
-    Npair = Npair['Npair']
-    plotNpair(Npair, curAx, f_pair, cmap=cmap, title=title)
+            loc = np.argmin(np.abs(laps - curLap))
+            ELBO = ELBOscores[loc]
+            title = title + ' ELBO: %.3f' % ELBO
 
-    # Draw network graph, colored by estimated communities
-    filename = 'Lap%08.3fAllocModel.mat' % (curLap)
-    amod = scipy.io.loadmat(path + filename)
-    estZ = amod['estZ']
-    if mixZs: # used to 
-      theta = amod['theta']
-      pi = theta / np.sum(theta, axis=1)[:,np.newaxis]
-      K = pi.shape[1]
-      N = pi.shape[0]
-      zs = np.asarray([float(z) for z in np.arange(K)])
-      estZ = np.tile(zs, (N,1))
-      estZ *= pi
-      estZ = np.sum(estZ, axis=1)
-      estZ /= np.max(estZ)
-    drawGraph(Data, axes_graph, f_graph, estZ, title=title)
-    axes_graph.set_title(title)
+        # Plot the Npair matrix
+        filename = 'Lap%08.3fSuffStats.mat' % (curLap)
+        Npair = scipy.io.loadmat(path + filename)
+        Npair = Npair['Npair']
+        plotNpair(Npair, curAx, f_pair, cmap=cmap, title=title)
 
-    # Plot graph with edges based on variational dist. of pi_i and pi_j
-    Epi = amod['theta']
-    Epi /= np.sum(Epi, axis=1)[:,np.newaxis]
-    drawGraphVariationalDist(Data, Epi, axes_vardist, f_vardist, Z=estZ,
-                             title=title)
+        # Draw network graph, colored by estimated communities
+        filename = 'Lap%08.3fAllocModel.mat' % (curLap)
+        amod = scipy.io.loadmat(path + filename)
+        estZ = amod['estZ']
+        if mixZs:  # used to
+            theta = amod['theta']
+            pi = theta / np.sum(theta, axis=1)[:, np.newaxis]
+            K = pi.shape[1]
+            N = pi.shape[0]
+            zs = np.asarray([float(z) for z in np.arange(K)])
+            estZ = np.tile(zs, (N, 1))
+            estZ *= pi
+            estZ = np.sum(estZ, axis=1)
+            estZ /= np.max(estZ)
+        drawGraph(Data, axes_graph, f_graph, estZ, title=title)
+        axes_graph.set_title(title)
+
+        # Plot graph with edges based on variational dist. of pi_i and pi_j
+        Epi = amod['theta']
+        Epi /= np.sum(Epi, axis=1)[:, np.newaxis]
+        drawGraphVariationalDist(Data, Epi, axes_vardist, f_vardist, Z=estZ,
+                                 title=title)
 
 
 def plotTrueLabels(dataset, Data=None, gtypes=['Actual'], thresh=.5,
                    mixColors=False, colorEdges=False, title=''):
-  if Data is None:
-    Datamod = imp.load_source(dataset,
-                              os.path.expandvars('$BNPYDATADIR/'+dataset+'.py'))
-    Data = Datamod.get_data()
+    if Data is None:
+        Datamod = imp.load_source(
+            dataset,
+            os.path.expandvars('$BNPYDATADIR/' + dataset + '.py'))
+        Data = Datamod.get_data()
 
-  if mixColors:
-    Epi = Data.TrueParams['pi']
-    K = np.shape(Epi)[1]
-    colors = np.sum(Epi*np.arange(K)[np.newaxis,:], axis=1)
-  else:
-    if Data.TrueParams['Z'].ndim == 1: #single membership model
-      colors = Data.TrueParams['Z']
+    if mixColors:
+        Epi = Data.TrueParams['pi']
+        K = np.shape(Epi)[1]
+        colors = np.sum(Epi * np.arange(K)[np.newaxis, :], axis=1)
     else:
-      colors = np.argmax(Data.TrueParams['pi'], axis=1)
+        if Data.TrueParams['Z'].ndim == 1:  # single membership model
+            colors = Data.TrueParams['Z']
+        else:
+            colors = np.argmax(Data.TrueParams['pi'], axis=1)
 
-  if Data.TrueParams['pi'].ndim == 2:
-    pi = Data.TrueParams['pi']
-    
-  for gtype in gtypes:
-    fig, ax = plt.subplots(1)
-    if gtype == 'Actual':
-      if title is None:
-        title = dataset + 'True Labels'
-      drawGraph(Data, curAx=ax, fig=fig, colors=colors,
-                title=title)
+    if Data.TrueParams['pi'].ndim == 2:
+        pi = Data.TrueParams['pi']
 
-    elif gtype == 'VarDist':
-      if title is None:
-        title = dataset + 'True Labels'
-      drawGraphVariationalDist(Data, pi, ax, fig, colors=colors,
-                               title=title,
-                               thresh=thresh, colorEdges=colorEdges)
+    for gtype in gtypes:
+        fig, ax = plt.subplots(1)
+        if gtype == 'Actual':
+            if title is None:
+                title = dataset + 'True Labels'
+            drawGraph(Data, curAx=ax, fig=fig, colors=colors,
+                      title=title)
 
-    elif gtype == 'EdgePr':
-      drawGraphEdgePr(Data, pi, Data.TrueParams['w'], ax, fig,
-                      colors=colors, title=title, thresh=thresh)
+        elif gtype == 'VarDist':
+            if title is None:
+                title = dataset + 'True Labels'
+            drawGraphVariationalDist(Data, pi, ax, fig, colors=colors,
+                                     title=title,
+                                     thresh=thresh, colorEdges=colorEdges)
+
+        elif gtype == 'EdgePr':
+            drawGraphEdgePr(Data, pi, Data.TrueParams['w'], ax, fig,
+                            colors=colors, title=title, thresh=thresh)
 
 
 def plotTransMtxTruth(Data, perms=None, gtypes=['Actual'], doPerm=False,
                       thresh=.22):
 
-  pi = Data.TrueParams['pi']
-  Z = np.argmax(pi, axis=1)
-  N = Data.nNodes
-  K = np.max(Z)+1
+    pi = Data.TrueParams['pi']
+    Z = np.argmax(pi, axis=1)
+    N = Data.nNodes
+    K = np.max(Z) + 1
 
-  if doPerm:
-    if perms is None:
-      curPerms = np.array([])
-      for k in xrange(np.max(Z)+1):
-        curPerms = np.append(curPerms, np.where(Z == k))
-      curPerms = curPerms.astype(int)
-    else:
-      curPerms = perms
+    if doPerm:
+        if perms is None:
+            curPerms = np.array([])
+            for k in xrange(np.max(Z) + 1):
+                curPerms = np.append(curPerms, np.where(Z == k))
+            curPerms = curPerms.astype(int)
+        else:
+            curPerms = perms
 
-  for gtype in gtypes:
-    if gtype == 'Actual':
-      plotActualTransMtx(Data, perms, doPerm)
-    elif gtype == 'EdgePr':
-      phi = loadTrueObsParams(Data)
-      plotEdgePrTransMtx(Data, pi, phi, perms, doPerm)
+    for gtype in gtypes:
+        if gtype == 'Actual':
+            plotActualTransMtx(Data, perms, doPerm)
+        elif gtype == 'EdgePr':
+            phi = loadTrueObsParams(Data)
+            plotEdgePrTransMtx(Data, pi, phi, perms, doPerm)
 
 
 def loadTrueObsParams(Data):
-  if 'w' in Data.TrueParams:
-    phi = np.asarray(Data.TrueParams['w'])
-  elif 'sigma' in Data.TrueParams and 'mu' in Data.TrueParams:
-    phi = np.asarray(Data.TrueParams['mu'])
-    if phi.ndim == 1: # Assortative case
-      K = len(phi)
-      mu = np.zeros((K,K))
-      mu[np.diag_indices(K)] = phi
-      phi = mu
+    if 'w' in Data.TrueParams:
+        phi = np.asarray(Data.TrueParams['w'])
+    elif 'sigma' in Data.TrueParams and 'mu' in Data.TrueParams:
+        phi = np.asarray(Data.TrueParams['mu'])
+        if phi.ndim == 1:  # Assortative case
+            K = len(phi)
+            mu = np.zeros((K, K))
+            mu[np.diag_indices(K)] = phi
+            phi = mu
 
-  else:
-    raise NotImplementedError('DATA TYPE NOT SUPPORTED BY RELATIONALVIZ.PY')
-  return phi
+    else:
+        raise NotImplementedError(
+            'DATA TYPE NOT SUPPORTED BY RELATIONALVIZ.PY')
+    return phi
 
 
 def plotTransMtxEst(Data, dataset, jobnames, perms=None,
                     gtypes=['Actual'], doPerm=False, thresh=.22):
 
-  for jobname in jobnames:
-    jobpath = os.path.join(os.path.expandvars('$BNPYOUTDIR'),
-                           dataset, jobname)
-    ranks = TaskRanker.rankTasksForSingleJob(jobpath)
-    print jobpath
-    amod = scipy.io.loadmat(os.path.join(jobpath, str(ranks[0]),
-                                         'BestAllocModel.mat'))
-    aprior = scipy.io.loadmat(os.path.join(jobpath, str(ranks[0]),
-                                           'AllocPrior.mat'))
-    omod = scipy.io.loadmat(os.path.join(jobpath, str(ranks[0]),
-                                         'BestObsModel.mat'))
-    ss = scipy.io.loadmat(os.path.join(jobpath, str(ranks[0]),
-                                         'BestSuffStats.mat'))
+    for jobname in jobnames:
+        jobpath = os.path.join(os.path.expandvars('$BNPYOUTDIR'),
+                               dataset, jobname)
+        ranks = TaskRanker.rankTasksForSingleJob(jobpath)
+        print jobpath
+        amod = scipy.io.loadmat(os.path.join(jobpath, str(ranks[0]),
+                                             'BestAllocModel.mat'))
+        aprior = scipy.io.loadmat(os.path.join(jobpath, str(ranks[0]),
+                                               'AllocPrior.mat'))
+        omod = scipy.io.loadmat(os.path.join(jobpath, str(ranks[0]),
+                                             'BestObsModel.mat'))
+        ss = scipy.io.loadmat(os.path.join(jobpath, str(ranks[0]),
+                                           'BestSuffStats.mat'))
 
-    # Get expectations under q() of model parameters
-    Epi = amod['theta']
-    Epi /= np.sum(Epi, axis=1)[:,np.newaxis]
-    Ephi = computeMeanObsParams(omod, aprior)
-    if Ephi.shape[0] != Epi.shape[1]:
-      Epi = Epi[:,:-1]
+        # Get expectations under q() of model parameters
+        Epi = amod['theta']
+        Epi /= np.sum(Epi, axis=1)[:, np.newaxis]
+        Ephi = computeMeanObsParams(omod, aprior)
+        if Ephi.shape[0] != Epi.shape[1]:
+            Epi = Epi[:, :-1]
 
+        Z = np.argmax(Epi, axis=1)
+        N = Epi.shape[0]
+        K = np.max(Z) + 1
 
-    Z = np.argmax(Epi, axis=1)
-    N = Epi.shape[0]
-    K = np.max(Z)+1
+        if doPerm:
+            if perms is None:
+                curPerms = np.array([])
+                for k in xrange(np.max(Z) + 1):
+                    curPerms = np.append(curPerms, np.where(Z == k))
+                curPerms = curPerms.astype(int)
+            else:
+                curPerms = perms
+        else:
+            curPerms = None
 
-    if doPerm:
-      if perms is None:
-        curPerms = np.array([])
-        for k in xrange(np.max(Z)+1):
-          curPerms = np.append(curPerms, np.where(Z == k))
-        curPerms = curPerms.astype(int)
-      else:
-        curPerms = perms
-    else:
-      curPerms = None
+        for gtype in gtypes:
+            if gtype == 'Actual':
+                plotActualTransMtx(Data, curPerms, doPerm)
+            elif gtype == 'EdgePr':
+                print '--------'
+                print dataset + '/' + jobname
+                print ranks[0]
+                prs = plotEdgePrTransMtx(Data, Epi, Ephi, curPerms, doPerm,
+                                         title=jobname,
+                                         true=None)
+                scipy.io.savemat(dataset + '-' + jobname + '.mat',
+                                 {'prs': prs, 'perms': curPerms})
 
-    for gtype in gtypes:
-      if gtype == 'Actual':
-        plotActualTransMtx(Data, curPerms, doPerm)
-      elif gtype == 'EdgePr':
-        print '--------'
-        print dataset+'/'+jobname
-        print ranks[0]
-        prs = plotEdgePrTransMtx(Data, Epi, Ephi, curPerms, doPerm,
-                                 title=jobname,
-                                 true=None)
-        scipy.io.savemat(dataset+'-'+jobname+'.mat',
-                         {'prs':prs, 'perms':curPerms})
+        # plt.show()
 
-    #plt.show()
 
 def computeMeanObsParams(omod, aprior):
-  
-  if omod['name'][0].count('Bern') > 0:
-    tau1 = omod['lam1']
-    tau0 = omod['lam0']
-    Ephi = np.squeeze(tau1 / (tau1 + tau0))
 
-    if Ephi.ndim == 1: # Assortative case
-      K = len(Ephi)
-      phi = np.ones((K,K)) * aprior['epsilon']
-      phi[np.diag_indices(K)] = Ephi
-      Ephi = phi
+    if omod['name'][0].count('Bern') > 0:
+        tau1 = omod['lam1']
+        tau0 = omod['lam0']
+        Ephi = np.squeeze(tau1 / (tau1 + tau0))
 
-  elif omod['name'][0].count('Gauss') > 0:
-    Ephi = np.squeeze(omod['m'])
+        if Ephi.ndim == 1:  # Assortative case
+            K = len(Ephi)
+            phi = np.ones((K, K)) * aprior['epsilon']
+            phi[np.diag_indices(K)] = Ephi
+            Ephi = phi
 
-    if Ephi.ndim == 1: # Assortative case
-      K = len(Ephi)
-      mu = np.zeros((K,K))
-      mu[np.diag_indices(K)] = Ephi
-      Ephi = mu
+    elif omod['name'][0].count('Gauss') > 0:
+        Ephi = np.squeeze(omod['m'])
 
-  return Ephi
+        if Ephi.ndim == 1:  # Assortative case
+            K = len(Ephi)
+            mu = np.zeros((K, K))
+            mu[np.diag_indices(K)] = Ephi
+            Ephi = mu
 
-      
+    return Ephi
+
+
 def plotActualTransMtx(Data, perms=None, doPerm=True):
 
-  G = nx.DiGraph()
-  G.add_nodes_from(np.arange(Data.nNodes))
-  for i in xrange(len(Data.sourceID)):
-    if Data.sourceID[i] == Data.destID[i]:
-      continue
-    if Data.X is not None:
-      if Data.X[Data.sourceID[i]*N + Data.destID[i]] == 1:
-        G.add_edge(Data.sourceID[i], Data.destID[i])
-    else:
-      G.add_edge(Data.sourceID[i], Data.destID[i])         
-  A = nx.to_numpy_matrix(G)
-  scipy.io.savemat('Actual.mat', {'A':A})
-  if doPerm:
-    if perms is not None:
-      A = A[perms,:]
-      A = A[:,perms]
+    G = nx.DiGraph()
+    G.add_nodes_from(np.arange(Data.nNodes))
+    for i in xrange(len(Data.sourceID)):
+        if Data.sourceID[i] == Data.destID[i]:
+            continue
+        if Data.X is not None:
+            if Data.X[Data.sourceID[i] * N + Data.destID[i]] == 1:
+                G.add_edge(Data.sourceID[i], Data.destID[i])
+        else:
+            G.add_edge(Data.sourceID[i], Data.destID[i])
+    A = nx.to_numpy_matrix(G)
+    scipy.io.savemat('Actual.mat', {'A': A})
+    if doPerm:
+        if perms is not None:
+            A = A[perms, :]
+            A = A[:, perms]
 
-  fig, ax = plt.subplots(1)
+    fig, ax = plt.subplots(1)
 
-  ax.imshow(A, cmap='Greys', interpolation='nearest')
+    ax.imshow(A, cmap='Greys', interpolation='nearest')
 
- 
-  
+
 def plotEdgePrTransMtx(Data, pi, phi, perms, doPerm, title='', true=None):
-  N = pi.shape[0]
-  prs = np.zeros((N,N))
+    N = pi.shape[0]
+    prs = np.zeros((N, N))
 
-  for i in xrange(N):
-    for j in xrange(N):
-      if i == j:
-        continue
-      prs[i,j] = np.sum(pi[i,np.newaxis,:,np.newaxis]*pi[np.newaxis,j,np.newaxis,:]*phi)
-      
-  if doPerm:
-    prs = prs[perms,:]
-    prs = prs[:,perms]
-    
-  fig, ax = plt.subplots(1)
-  if true is not None:
-    ax.imshow(prs-true, cmap='coolwarm_r', interpolation='nearest',
-              vmin=-1.0, vmax=1.0)
-    pass
-  else:
-    ax.imshow(prs, cmap='Greys', interpolation='nearest')
-    pass
-  
-  #ax.set_title(title)
-  return prs
+    for i in xrange(N):
+        for j in xrange(N):
+            if i == j:
+                continue
+            prs[i,
+                j] = np.sum(pi[i,
+                               np.newaxis,
+                               :,
+                               np.newaxis] * pi[np.newaxis,
+                                                j,
+                                                np.newaxis,
+                                                :] * phi)
+
+    if doPerm:
+        prs = prs[perms, :]
+        prs = prs[:, perms]
+
+    fig, ax = plt.subplots(1)
+    if true is not None:
+        ax.imshow(prs - true, cmap='coolwarm_r', interpolation='nearest',
+                  vmin=-1.0, vmax=1.0)
+        pass
+    else:
+        ax.imshow(prs, cmap='Greys', interpolation='nearest')
+        pass
+
+    # ax.set_title(title)
+    return prs
 
 if __name__ == "__main__":
-  parser = argparse.ArgumentParser()
-  parser.add_argument('--dataset')
-  parser.add_argument('--jobnames')
-  parser.add_argument('--taskids', type=str, default='1',
-         help="int ids of tasks (trials/runs) to plot from given job." \
-              + " Example: '4' or '1,2,3' or '2-6'.")
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--dataset')
+    parser.add_argument('--jobnames')
+    parser.add_argument(
+        '--taskids', type=str, default='1',
+        help="int ids of tasks (trials/runs) to plot from given job." +
+        " Example: '4' or '1,2,3' or '2-6'.")
 
-  parser.add_argument('--lap', default = 'final')
-  parser.add_argument('--sequences', default='1')
-  args = parser.parse_args()
+    parser.add_argument('--lap', default='final')
+    parser.add_argument('--sequences', default='1')
+    args = parser.parse_args()
 
-  jobs = args.jobnames.split(',')
+    jobs = args.jobnames.split(',')
 
-  for job in jobs:
-    plotSingleJob(dataset = args.dataset,
-                  jobname = job,
-                  taskids = args.taskids,
-                  lap = args.lap)
-
-  plt.show()
-
+    for job in jobs:
+        plotSingleJob(dataset=args.dataset,
+                      jobname=job,
+                      taskids=args.taskids,
+                      lap=args.lap)
+    plt.show()
 
 
 def getEstZ(jobnames, dataset):
-  zdict = dict()
-  pidict = dict()
-  for jobname in jobnames:
-    jobpath = os.path.join(os.path.expandvars('$BNPYOUTDIR'),
-                           dataset, jobname)
-    ranks = TaskRanker.rankTasksForSingleJob(jobpath)
+    zdict = dict()
+    pidict = dict()
+    for jobname in jobnames:
+        jobpath = os.path.join(os.path.expandvars('$BNPYOUTDIR'),
+                               dataset, jobname)
+        ranks = TaskRanker.rankTasksForSingleJob(jobpath)
 
-    amod = scipy.io.loadmat(os.path.join(jobpath, str(ranks[0]),
-                                         'BestAllocModel.mat'))
-    aprior = scipy.io.loadmat(os.path.join(jobpath, str(ranks[0]),
-                                           'AllocPrior.mat'))
-    omod = scipy.io.loadmat(os.path.join(jobpath, str(ranks[0]),
-                                         'BestObsModel.mat'))
-    ss = scipy.io.loadmat(os.path.join(jobpath, str(ranks[0]),
-                                         'BestSuffStats.mat'))
+        amod = scipy.io.loadmat(os.path.join(jobpath, str(ranks[0]),
+                                             'BestAllocModel.mat'))
+        aprior = scipy.io.loadmat(os.path.join(jobpath, str(ranks[0]),
+                                               'AllocPrior.mat'))
+        omod = scipy.io.loadmat(os.path.join(jobpath, str(ranks[0]),
+                                             'BestObsModel.mat'))
+        ss = scipy.io.loadmat(os.path.join(jobpath, str(ranks[0]),
+                                           'BestSuffStats.mat'))
 
-    # Get expectations under q() of model parameters
-    Epi = amod['theta']
-    Epi /= np.sum(Epi, axis=1)[:,np.newaxis]
-    tau1 = omod['lam1']
-    tau0 = omod['lam0']
-    Ew = np.squeeze(tau1 / (tau1 + tau0))
+        # Get expectations under q() of model parameters
+        Epi = amod['theta']
+        Epi /= np.sum(Epi, axis=1)[:, np.newaxis]
+        tau1 = omod['lam1']
+        tau0 = omod['lam0']
+        Ew = np.squeeze(tau1 / (tau1 + tau0))
 
-    if Ew.shape[0] != Epi.shape[1]:
-      Epi = Epi[:,:-1]
+        if Ew.shape[0] != Epi.shape[1]:
+            Epi = Epi[:, :-1]
 
-    if Ew.ndim == 1: # Assortative case
-      K = len(Ew)
-      w = np.ones((K,K)) * aprior['epsilon']
-      w[np.diag_indices(K)] = Ew
-      Ew = w
+        if Ew.ndim == 1:  # Assortative case
+            K = len(Ew)
+            w = np.ones((K, K)) * aprior['epsilon']
+            w[np.diag_indices(K)] = Ew
+            Ew = w
 
-    zdict[jobname] = np.argmax(Epi, axis=1)
-    pidict[jobname] = Epi
-  
-  return zdict, pidict
+        zdict[jobname] = np.argmax(Epi, axis=1)
+        pidict[jobname] = Epi
 
+    return zdict, pidict

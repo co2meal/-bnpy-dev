@@ -234,7 +234,6 @@ class GraphXData(XData):
         sourceID = np.asarray([indMap[node] for node in sourceID])
         destID = np.asarray([indMap[node] for node in destID])
         self.edgeSet = set(zip(sourceID, destID))
-        print max(max(sourceID), max(destID)) + 1
         return max(max(sourceID), max(destID)) + 1
 
     def makeAssortativeMask(self, delta):

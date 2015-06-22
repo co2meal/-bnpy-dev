@@ -82,6 +82,11 @@ class BernObsModel(AbstractObsModel):
         msg = msg.replace('\n', '\n  ')
         return msg
 
+    def setupWithAllocModel(self, allocModel):
+        ''' Setup expected dimensions of sufficient stats.
+        '''
+        self.SSDims = allocModel.getSSDims()
+
     def setEstParams(self, obsModel=None, SS=None, LP=None, Data=None,
                      phi=None,
                      **kwargs):
@@ -134,10 +139,11 @@ class BernObsModel(AbstractObsModel):
         else:
             lam1 = as2D(lam1)
             lam0 = as2D(lam0)
-            K, D = lam1.shape
+            K = lam1.shape[0]
+            D = lam1.shape[-1]
             self.Post = ParamBag(K=K, D=D)
-            self.Post.setField('lam1', lam1, dims=('K', 'D'))
-            self.Post.setField('lam0', lam0, dims=('K', 'D'))
+            self.Post.setField('lam1', lam1, dims=self.SSDims+('D',))
+            self.Post.setField('lam0', lam0, dims=self.SSDims+('D',))
         self.K = self.Post.K
 
     def setPostFromEstParams(self, EstParams, Data=None, nTotalTokens=1,
@@ -363,9 +369,11 @@ class BernObsModel(AbstractObsModel):
         Post = self.Post
         Prior = self.Prior
         if not afterMStep:
-            ElogphiT = self.GetCached('E_logphiT', 'all')  # D x K
-            Elog1mphiT = self.GetCached('E_log1mphiT', 'all')  # D x K
-
+            ElogphiT = self.GetCached('E_logphiT', 'all') 
+            Elog1mphiT = self.GetCached('E_log1mphiT', 'all')
+            # with relational/graph datasets, these have shape D x K x K
+            # otherwise, these have shape D x K 
+            
         for k in xrange(SS.K):
             L_perComp[k] = c_Diff(Prior.lam1, Prior.lam0,
                                   Post.lam1[k], Post.lam0[k])
@@ -390,7 +398,6 @@ class BernObsModel(AbstractObsModel):
         s = SS.Count1.sum() + SS.Count0.sum()
         if extraSS is None:
             return s
-
         else:
             sextra = extraSS.Count1.sum() + extraSS.Count0.sum()
             return s - sextra
