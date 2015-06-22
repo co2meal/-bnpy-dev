@@ -12,8 +12,6 @@ import MMSBUtil
 
 
 class HDPaMMSB(AllocModel):
-    # Constructors
-    #########################################################
 
     def __init__(self, inferType, priorDict=dict()):
         if inferType == 'EM':
@@ -58,8 +56,6 @@ class HDPaMMSB(AllocModel):
         '''
         return StickBreakUtil.rho2beta_active(self.rho)
 
-    # Local Params
-    #########################################################
     def calc_local_params(self, Data, LP, MergePrepInfo=None, **kwargs):
         N = Data.nNodes
         K = self.K
@@ -83,11 +79,10 @@ class HDPaMMSB(AllocModel):
 
     def _calc_local_params_nonsparse(self, Data, LP, MergePrepInfo=None,
                                      **kwargs):
-        '''
-        Calculates the local params when using a real-valued dataset
-          (e.g. when using gaussian emissions)
-        Only calculates the diagonal of the resp matrix, \eta_{ijkk} and the
-          normalization constants Z_{ij}
+        ''' Calculate local params when data is nonsparse (eg Gaussian).
+
+        Only calculates the diagonal of the resp matrix,
+        \eta_{ijkk} and the normalization constants Z_{ij}
         '''
         K = self.K
         D = Data.dim
@@ -115,47 +110,18 @@ class HDPaMMSB(AllocModel):
             self.ELogPi[np.newaxis, :, :]
         np.exp(resp, out=resp)
 
-        normConst = np.einsum('ik,jk,ijk->ij',
-                              self.expELogPi[Data.nodes, :],
-                              self.expELogPi,
-                              expLogSoftEv - (mask * (1 - self.epsilon) / (2 * self.M) +
-                                              (1 - mask) * self.epsilon / (2 * self.M))[:, :, np.newaxis]
-                              )
+        normConst = np.einsum(
+            'ik,jk,ijk->ij',
+            self.expELogPi[Data.nodes, :],
+            self.expELogPi,
+            expLogSoftEv - (mask * (1 - self.epsilon) / (2 * self.M) +
+                            (1 - mask) * self.epsilon / (2 * self.M))[:, :, np.newaxis]
+        )
         normConst += self.sumExpELogPi[Data.nodes, np.newaxis] * \
             self.sumExpELogPi[np.newaxis, :] * \
             (mask * (1 - self.epsilon) / (2 * self.M) +
              (1 - mask) * self.epsilon / (2 * self.M))
-        '''
-    # Calculate the normalization constant Z_{ij} for each resp_{ij}
-    ## sum_k \tilde\pi_{ik} \tilde\pi_{jk} (f(w_k,x_{ij}) - f(\eps,x_{ij}))
-    normConst = np.einsum('ik,jk,k->ij',
-                          self.expELogPi[Data.nodes,:],
-                          self.expELogPi,
-                          expLogSoftEv[0,:]-epsilonEv[0])
-    normConst[respI[:,0],respI[:,1]] = \
-                         np.einsum('ik,ik,k->i',self.expELogPi[respI[:,0]],
-                                   self.expELogPi[respI[:,1]],
-                                   expLogSoftEv[1,:]-epsilonEv[1])
-    normConst[respI[:,0],respI[:,1]] = \
-                         np.sum(self.expELogPi[Data.nodes[respI[:,0]]]*
-                                self.expELogPi[respI[:,1]]*
-                                (expLogSoftEv[1,:]-epsilonEv[1]),
-                                axis=1)
 
-    ## += \tilde\pi_{i} \tilde\pi_{j} f(\eps,x_{ij})
-    normConst += \
-                 self.sumExpELogPi[Data.nodes,np.newaxis] * \
-                 self.sumExpELogPi[np.newaxis,:] * \
-                 epsilonEv[0]
-    normConst[respI[:,0],respI[:,1]] -= \
-                               self.sumExpELogPi[Data.nodes[respI[:,0]]] * \
-                               self.sumExpELogPi[respI[:,1]] * \
-                               epsilonEv[0]
-    normConst[respI[:,0],respI[:,1]] += \
-                               self.sumExpELogPi[Data.nodes[respI[:,0]]] * \
-                               self.sumExpELogPi[respI[:,1]] * \
-                               epsilonEv[1]
-    '''
         resp /= normConst[:, :, np.newaxis]
         normConst[np.arange(Data.nNodes), Data.nodes] = np.inf
         resp[np.arange(Data.nNodes), Data.nodes, :] = 0.0
@@ -164,11 +130,6 @@ class HDPaMMSB(AllocModel):
         LP['normConst'] = normConst
         LP['respSquare'] = resp
         LP['resp'] = np.reshape(resp, (Data.nNodes * Data.nNodesTotal, K))
-
-        # LP['fullResp'] = MMSBUtil.calc_full_resp_nonsparse(Data, self.ELogPi,
-        #                                                   logSoftEv, self.K,
-        #                                                   self.epsilon, self.M)
-        #LP['fullResp'] /= normConst[:,:,np.newaxis,np.newaxis]
 
         return LP
 
@@ -228,10 +189,6 @@ class HDPaMMSB(AllocModel):
 
         LP['normConst'] = normConst
         LP['resp'] = resp
-
-        # LP['fullResp'] = MMSBUtil.calc_full_resp(Data, self.ELogPi, logSoftEv,
-        #                                         epsilonEv, self.K)
-        #LP['fullResp'] /= normConst[:,:,np.newaxis,np.newaxis]
 
         if Data.heldOut is not None:
             LP['resp'][Data.heldOut[0], Data.heldOut[1]] = 0.0
@@ -295,26 +252,11 @@ class HDPaMMSB(AllocModel):
 
         return LP
 
-    # Suff Stats
-    #########################################################
     def get_global_suff_stats(self, Data, LP, doPrecompEntropy=None, **kwargs):
         nNodes = Data.nNodesTotal
         inds = Data.nodes
         K = LP['resp'].shape[-1]
         self.K = K
-
-        '''
-    sumSource = np.sum(LP['fullResp'], axis=(1,3))
-    sumReceiver = np.sum(LP['fullResp'], axis=(0,2))
-    SS = SuffStatBag(K=K, D=Data.dim, nNodes=nNodes)
-    SS.setField('sumSource', sumSource, dims=('nNodes','K'))
-    SS.setField('sumReceiver', sumReceiver, dims=('nNodes','K'))
-    SS.setField('N', np.sum(LP['resp'], axis=(0,)), dims=('K'))
-
-    #print SS.N
-    #print np.sum(SS.N)
-    return SS
-    '''
 
         if Data.isSparse:
             SS = self._get_global_suff_stats_sparse(Data, LP)
@@ -322,29 +264,24 @@ class HDPaMMSB(AllocModel):
             SS = self._get_global_suff_stats_nonsparse(Data, LP)
 
         if doPrecompEntropy is not None:
-            entropy = MMSBUtil.assortative_elbo_entropy(LP, SS, Data,
-                                                        Data.nNodesTotal, K,
-                                                        self.ELogPi, self.expELogPi,
-                                                        self.epsilon, self.M)
+            entropy = MMSBUtil.assortative_elbo_entropy(
+                LP, SS, Data,
+                Data.nNodesTotal, K,
+                self.ELogPi, self.expELogPi, self.epsilon, self.M)
 
             if Data.isSparse:
                 extraObsModelTerm = \
-                    MMSBUtil.assortative_elbo_extraObsModel_sparse(Data,
-                                                                   LP,
-                                                                   self.epsilon)
+                    MMSBUtil.assortative_elbo_extraObsModel_sparse(
+                        Data, LP, self.epsilon)
             else:
                 extraObsModelTerm = \
-                    MMSBUtil.assortative_elbo_extraObsModel_nonsparse(Data,
-                                                                      LP,
-                                                                      self.epsilon,
-                                                                      self.M)
+                    MMSBUtil.assortative_elbo_extraObsModel_nonsparse(
+                        Data, LP, self.epsilon, self.M)
 
             SS.setELBOTerm('Elogqz', entropy, dims=None)
             SS.setELBOTerm('ExtraObsModel', extraObsModelTerm, dims=None)
 
-        #assert np.allclose(SS.sumSource, np.sum(LP['fullResp'], axis=(1,3)))
-        #assert np.allclose(SS.sumReceiver, np.sum(LP['fullResp'], axis=(0,2)))
-
+        # assert np.allclose(SS.sumSource, np.sum(LP['fullResp'], axis=(1,3)))
         return SS
 
     def _get_global_suff_stats_nonsparse(self, Data, LP):
@@ -359,8 +296,9 @@ class HDPaMMSB(AllocModel):
 
         # Calculate sumSource[i,l] = \sum_j s_{ijl} = \sum_j \sum_m resp_{ijlm}
         scratch = np.ones((Data.nNodes, Data.nNodesTotal, K))
-        scratch[:, :, :] = (mask * ((1 - self.epsilon) / (2 * self.M)) +
-                            (1 - mask) * (self.epsilon / (2 * self.M)))[:, :, np.newaxis]
+        scratch[:, :, :] = \
+            (mask * ((1 - self.epsilon) / (2 * self.M)) +
+             (1 - mask) * (self.epsilon / (2 * self.M)))[:, :, np.newaxis]
         scratch /= LP['normConst'][:, :, np.newaxis]
 
         scratch *= \
@@ -373,8 +311,9 @@ class HDPaMMSB(AllocModel):
 
         # Calculate sumReceiver[i,l] = \sum_j r_{jil} = \sum_j \sum_m
         # resp_{jiml}
-        scratch[:, :, :] = (mask * ((1 - self.epsilon) / (2 * self.M)) +
-                            (1 - mask) * (self.epsilon / (2 * self.M)))[:, :, np.newaxis]
+        scratch[:, :, :] = \
+            (mask * ((1 - self.epsilon) / (2 * self.M)) +
+             (1 - mask) * (self.epsilon / (2 * self.M)))[:, :, np.newaxis]
         scratch /= LP['normConst'][:, :, np.newaxis]
         scratch *= \
             (self.sumExpELogPi[inds, np.newaxis] -
@@ -432,24 +371,15 @@ class HDPaMMSB(AllocModel):
         return SS
 
     def forceSSInBounds(self, SS):
-        ''' Force SS.respPairSums and firstStateResp to be >= 0.  This avoids
-            numerical issues in moVB (where SS "chunks" are added and subtracted)
-              such as:
-                x = 10
-                x += 1e-15
-                x -= 10
-                x -= 1e-15
-              resulting in x < 0.
+        ''' Force certain fields in bounds, to avoid numerical issues.
 
-              Returns
-              -------
-              Nothing.  SS is updated in-place.
+        Returns
+        -------
+        Nothing.  SS is updated in-place.
         '''
         np.maximum(SS.sumSource, 0, out=SS.sumSource)
         np.maximum(SS.sumReceiver, 0, out=SS.sumReceiver)
 
-    # Global Params
-    #########################################################
     def update_global_params_VB(self, SS, **kwargs):
         self.K = SS.K
 
@@ -602,10 +532,9 @@ class HDPaMMSB(AllocModel):
         if SS.hasELBOTerm('Elogqz'):
             entropy = SS.getELBOTerm('Elogqz')
         else:
-            entropy = MMSBUtil.assortative_elbo_entropy(LP, SS, Data,
-                                                        Data.nNodesTotal, self.K,
-                                                        self.ELogPi, self.expELogPi,
-                                                        self.epsilon, self.M)
+            entropy = MMSBUtil.assortative_elbo_entropy(
+                LP, SS, Data, Data.nNodesTotal, self.K,
+                self.ELogPi, self.expELogPi, self.epsilon, self.M)
 
         if SS.hasELBOTerm('ExtraObsModel'):
             extraObsModelTerm = SS.getELBOTerm('ExtraObsModel')
@@ -649,8 +578,6 @@ class HDPaMMSB(AllocModel):
 
         return pU_Norm - qU_Norm + U_Meat + pPi_Norm - qPi_Norm
 
-    # IO Utils
-    # for machines
     def to_dict(self):
         # return dict(theta=self.theta, rho=self.rho, omega=self.omega,
         #            edgePrPi=self.edgePrPi)
@@ -695,8 +622,8 @@ class HDPaMMSB(AllocModel):
 
         nEvalPoints = 50
         threshs = (np.arange(nEvalPoints) + 1.0) / float(nEvalPoints)
-        self.precision, self.recall = self.calcEdgePrPrecisionRecall(self.edgePrPi,
-                                                                     threshs)
+        self.precision, self.recall = \
+            self.calcEdgePrPrecisionRecall(self.edgePrPi, threshs)
 
     def calcEdgePrPrecisionRecall(self, edgePr, threshs):
         numRight = np.zeros((2, len(threshs)))

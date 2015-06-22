@@ -10,10 +10,9 @@ from bnpy.util import gammaln, digamma, EPS
 
 
 def calc_full_resp_sparse(Data, ElogPi, logSoftEv, epsilonEv, K):
-    '''
-    Computes the full unnormalized N x N x K x K resp (i.e. phi) matrix, which
-    isn't normally necessary for the assortative-MMSB.
+    ''' Calcualte full unnormalized N x N x K x K resp (i.e. phi) matrix.
 
+    This isn't normally necessary for the assortative-MMSB.
     This is only here for testing and error checking.
     '''
     print '********* COMPUTING FULL RESPONSIBILITY MATRIX **********'
@@ -49,8 +48,9 @@ def calc_full_resp_nonsparse(Data, ELogPi, logSoftEv, K, epsilon, M):
     mask = Data.assortativeMask
     fullResp = np.zeros((Data.nNodes, Data.nNodesTotal, K, K))
     diag = np.diag_indices(K)
-    fullResp[:, :] = (mask * np.log((1 - epsilon) / (2 * M)) +
-                      (1 - mask) * np.log(epsilon / (2 * M)))[:, :, np.newaxis, np.newaxis]
+    fullResp[:, :] = \
+        (mask * np.log((1 - epsilon) / (2 * M)) +
+         (1 - mask) * np.log(epsilon / (2 * M)))[:, :, np.newaxis, np.newaxis]
 
     fullResp[:, :, diag[0], diag[1]] = logSoftEv
     fullResp += ELogPi[Data.nodes, np.newaxis, :, np.newaxis] + \
@@ -66,9 +66,6 @@ def assortative_elbo_entropy(LP, SS, Data,
                              N, K,
                              ELogPi, expELogPi,
                              epsilon, M=None):
-
-    # return np.sum(-LP['fullResp'] * np.log(LP['fullResp']+EPS))
-
     if Data.isSparse:
         H = _entropyTermsWithF_sparse(LP, SS, Data,
                                       N, K,
@@ -95,7 +92,6 @@ def assortative_elbo_entropy(LP, SS, Data,
     H += np.sum(ELogPi * SS.sumSource)
     H += np.sum(ELogPi * SS.sumReceiver)
 
-    #assert np.allclose(-H, np.sum(-LP['fullResp']*np.log(LP['fullResp']+EPS)))
     return -H
 
 
@@ -119,13 +115,11 @@ def _entropyTermsWithF_nonsparse(LP, SS, Data,
 
     diag = np.diag_indices(Data.nNodes)
 
-    # scratch = LP['resp'] * (logSoftEv - (mask*np.log((1-epsilon)/(2*M)) +
-    #                                (1-mask)*np.log(epsilon/(2*M)))[:,np.newaxis])
-
     mask2 = Data.assortativeMask
     square = LP['evSquare']
-    scratch2 = LP['respSquare'] * (square - (mask2 * np.log((1 - epsilon) / (2 * M)) +
-                                             (1 - mask2) * np.log(epsilon / (2 * M)))[:, :, np.newaxis])
+    scratch2 = LP['respSquare'] * \
+        (square - (mask2 * np.log((1 - epsilon) / (2 * M)) +
+                   (1 - mask2) * np.log(epsilon / (2 * M)))[:, :, np.newaxis])
 
     H += np.sum(scratch2)
     return H
@@ -148,14 +142,15 @@ def _entropyTermsWithF_sparse(LP, SS, Data,
         heldOut1s = 0
         heldOut0s = 0
 
-    H = (Data.nNodes * Data.nNodesTotal - Data.nNodes - len(Data.edgeSet) - heldOut0s) * np.log(1 - epsilon) +\
+    H = (Data.nNodes * Data.nNodesTotal - Data.nNodes - len(Data.edgeSet) -
+         heldOut0s) * np.log(1 - epsilon) + \
         (len(Data.edgeSet) - heldOut1s) * np.log(epsilon)
 
     # H += \sum_ij \sum_k \phi_{ijkk} (log f(w_k,x_ij) - log f(\epsilon,x_ij))
     scratch = np.ones((Data.nNodes, Data.nNodesTotal, K))
 
-    scratch = LP[
-        'resp'] * (logSoftEv[0, :] - np.log(1 - epsilon))[np.newaxis, np.newaxis, :]
+    scratch = LP['resp'] * \
+        (logSoftEv[0, :] - np.log(1 - epsilon))[np.newaxis, np.newaxis, :]
     scratch[Data.respInds[:, 0], Data.respInds[:, 1]] /= \
         (logSoftEv[0, :] - np.log(1 - epsilon))[np.newaxis, :]
     scratch[Data.respInds[:, 0], Data.respInds[:, 1]] *= \
@@ -169,12 +164,15 @@ def assortative_elbo_extraObsModel_sparse(Data, LP, epsilon):
     '''
     Returns portions of E_q[log p(y | s,r,phi)] not computed by the obsModel.
 
-    Specifically, \sum_{i,j} \sum_{\ell \neq m}^K resp_{ij\ell m}*log(f(eps,x_ij))
+    Specifically,
+    \sum_{i,j} \sum_{\ell \neq m}^K resp_{ij\ell m}*log(f(eps,x_ij))
     while the obsmodel does \sum_{i,j} \sum_k^K resp_{ijkk} * log f(phi_k,x_ij)
     '''
     extra = (1 - np.sum(LP['resp'], axis=2)) * np.log(1 - epsilon)
     extra[Data.respInds[:, 0], Data.respInds[:, 1]] = \
-        (1 - np.sum(LP['resp'][Data.respInds[:, 0], Data.respInds[:, 1]], axis=1)) * \
+        (1 - np.sum(
+            LP['resp'][Data.respInds[:, 0], Data.respInds[:, 1]],
+            axis=1)) * \
         np.log(epsilon)
     extra[np.arange(Data.nNodes), Data.nodes] = 0.0
 
