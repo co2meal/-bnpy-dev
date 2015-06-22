@@ -1,4 +1,8 @@
+'''
+FiniteaMMSB.py
 
+Assortative mixed membership stochastic blockmodel.
+'''
 import numpy as np
 from scipy.cluster.vq import kmeans2
 
@@ -11,6 +15,24 @@ import MMSBUtil
 
 
 class FiniteaMMSB(FiniteMMSB):
+
+    """ Assortative version of FiniteMMSB. Finite number of components K.
+
+    Attributes
+    -------
+    * inferType : string {'EM', 'VB', 'moVB', 'soVB'}
+        indicates which updates to perform for local/global steps
+    * K : int
+        number of components
+    * alpha : float
+        scalar symmetric Dirichlet prior on mixture weights
+
+    Attributes for VB
+    ---------
+    * theta : 1D array, size K
+        Estimated parameters for Dirichlet posterior over mix weights
+        theta[k] > 0 for all k
+    """
 
     def __init__(self, inferType, priorDict=dict()):
         super(FiniteaMMSB, self).__init__(inferType, priorDict)
@@ -44,7 +66,8 @@ class FiniteaMMSB(FiniteMMSB):
 
             assert logSoftEv.shape == (2, K)
             resp = ElogPi[Data.nodes, np.newaxis, :] + \
-                ElogPi[np.newaxis, :, :] + logSoftEv[0, :]
+                ElogPi[np.newaxis, :, :] + \
+                logSoftEv[0, :]
 
             resp[respI[:, 0], respI[:, 1]] += \
                 (logSoftEv[1, :] - logSoftEv[0, :])
@@ -61,16 +84,17 @@ class FiniteaMMSB(FiniteMMSB):
                 self.expELogPi[respI[:, 1]],
                 expLogSoftEv[1, :] - epsilonEv[1])
 
-            # += \tilde\pi_{i} \tilde\pi_{j} f(\eps,x_{ij})
-            normConst += \
-                self.sumExpELogPi[np.newaxis, :] * \
-                self.sumExpELogPi[:, np.newaxis] * epsilonEv[0]
+            normConst += self.sumExpELogPi[np.newaxis, :] * \
+                self.sumExpELogPi[:, np.newaxis] * \
+                epsilonEv[0]
             normConst[respI[:, 0], respI[:, 1]] -= \
                 self.sumExpELogPi[respI[:, 0]] * \
-                self.sumExpELogPi[respI[:, 1]] * epsilonEv[0]
+                self.sumExpELogPi[respI[:, 1]] * \
+                epsilonEv[0]
             normConst[respI[:, 0], respI[:, 1]] += \
                 self.sumExpELogPi[respI[:, 0]] * \
-                self.sumExpELogPi[respI[:, 1]] * epsilonEv[1]
+                self.sumExpELogPi[respI[:, 1]] * \
+                epsilonEv[1]
             resp /= normConst[:, :, np.newaxis]
 
             # Do the right thing for entries resp_{ii}
@@ -80,10 +104,9 @@ class FiniteaMMSB(FiniteMMSB):
 
             # Using sparse data, so the obsmodel needs us to comp. counts here
             LP['Count1'] = np.sum(
-                resp[
-                    Data.respInds[
-                        :, 0], Data.respInds[
-                        :, 1]], axis=0)
+                resp[Data.respInds[:, 0],
+                     Data.respInds[:, 1]],
+                axis=0)
             LP['Count0'] = np.sum(resp, axis=(0, 1)) - LP['Count1']
 
             LP['normConst'] = normConst
@@ -124,8 +147,8 @@ class FiniteaMMSB(FiniteMMSB):
         sumSource = np.sum(scratch, axis=1) * self.expELogPi
         sumSource += np.sum(LP['resp'], axis=1)
 
-        # Calculate sumReceiver[i,l] = \sum_j r_{jil} = \sum_j \sum_m
-        # \phi_{jiml}
+        # Calculate sumReceiver[i,l]
+        # = \sum_j r_{jil} = \sum_j \sum_m \phi_{jiml}
         scratch.fill(1)
         scratch *= (1 - self.epsilon) / LP['normConst'].T[:, :, np.newaxis]
 
@@ -145,8 +168,6 @@ class FiniteaMMSB(FiniteMMSB):
         SS = SuffStatBag(K=K, D=Data.dim, nNodes=Data.nNodes)
         SS.setField('sumSource', sumSource, dims=('nNodes', 'K'))
         SS.setField('sumReceiver', sumReceiver, dims=('nNodes', 'K'))
-        from IPython import embed
-        embed()
         # TODO : should this also compute the K x K Npair?
         SS.setField('N', np.sum(LP['resp'], axis=(0, 1)), dims=('K'))
         return SS
@@ -166,6 +187,7 @@ class FiniteaMMSB(FiniteMMSB):
                 self.sumExpELogPi)
         extraObsModelTerm = MMSBUtil.assortative_elbo_extraObsModel(
             Data, LP, self.epsilon)
+
         return alloc + entropy + extraObsModelTerm
 
     def elbo_extraObsModel(self, Data, LP):
@@ -189,14 +211,16 @@ class FiniteaMMSB(FiniteMMSB):
 
         # \sum_ij log f(\epsilon, x_{ij})
         H = (Data.nNodes**2 - Data.nNodes - len(Data.edgeSet)) * \
-            np.log(1 - self.epsilon) + len(Data.edgeSet) * np.log(self.epsilon)
+            np.log(1 - self.epsilon) + \
+            len(Data.edgeSet) * np.log(self.epsilon)
 
-        # H += \sum_ij \sum_k \phi_{ijkk} (log f(w_k,x_ij) - log
-        # f(\epsilon,x_ij))
+        # H += \sum_ij \sum_k \phi_{ijkk}
+        #      (log f(w_k,x_ij) - log f(\epsilon,x_ij))
         scratch = np.ones((Data.nNodes, Data.nNodes, self.K))
-        scratch = LP['resp'] * \
-            (logSoftEv[0, :] - np.log(1 - self.epsilon))[
-            np.newaxis, np.newaxis, :]
+
+        scratch = LP['resp'] * (
+            logSoftEv[0, :] - np.log(1 - self.epsilon))\
+            [np.newaxis, np.newaxis, :]
         scratch[Data.respInds[:, 0], Data.respInds[:, 1]] /= \
             (logSoftEv[0, :] - np.log(1 - self.epsilon))[np.newaxis, :]
         scratch[Data.respInds[:, 0], Data.respInds[:, 1]] *= \
@@ -216,8 +240,10 @@ class FiniteaMMSB(FiniteMMSB):
         scratch *= (1 - self.epsilon) / LP['normConst'][:, :, np.newaxis]
         scratch[Data.respInds[:, 0], Data.respInds[:, 1]] *= \
             (self.epsilon / (1 - self.epsilon))
-        scratch *= self.sumExpELogPi[:, np.newaxis] - \
-            self.expELogPi[np.newaxis, :, :]
+        scratch *= (self.sumExpELogPi[:,
+                                      np.newaxis] - self.expELogPi)[np.newaxis,
+                                                                    :,
+                                                                    :]
         scratch *= self.expELogPi[:, np.newaxis, :]
         scratch += LP['resp']
         preS1 = scratch.copy()
@@ -226,13 +252,14 @@ class FiniteaMMSB(FiniteMMSB):
         assert np.allclose(preS1, np.sum(LP['fullResp'], axis=3))
         H += np.sum(scratch)
 
-        # H += complicated_2
         scratch.fill(1)
         scratch *= (1 - self.epsilon) / LP['normConst'][:, :, np.newaxis]
         scratch[Data.respInds[:, 0], Data.respInds[:, 1]] *= \
-            self.epsilon / (1 - self.epsilon)
-        scratch *= (self.sumExpELogPi[:, np.newaxis] -
-                    self.expELogPi)[:, np.newaxis, :]
+            (self.epsilon / (1 - self.epsilon))
+        scratch *= (self.sumExpELogPi[:,
+                                      np.newaxis] - self.expELogPi)[:,
+                                                                    np.newaxis,
+                                                                    :]
         scratch *= self.expELogPi[np.newaxis, :, :]
         scratch += LP['resp']
         preS2 = scratch.copy()
