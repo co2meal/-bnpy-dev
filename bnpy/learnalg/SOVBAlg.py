@@ -104,9 +104,9 @@ class SOVBAlg(LearnAlg):
                 hmodel.update_global_params(SS, rho)
                 # ELBO step
                 assert not SStotal.hasAmpFactor()
-                evBound = hmodel.calc_evidence(SS=SStotal,
+                evBound = hmodel.calc_evidence(
+                    SS=SStotal,
                     afterGlobalStep=not self.algParams['useSlackTermsInELBO'])
-
             else:
                 # SS step. Scale at size of current batch.
                 SS = hmodel.get_global_suff_stats(Dchunk, LP)

@@ -300,10 +300,6 @@ def filterJobs(jpathPattern,
             legNames = ['%s' % (x) for x in RangeMap[plotkey]]
         else:
             legNames = ['%s=%s' % (plotkey, x) for x in RangeMap[plotkey]]
-        #if isinstance(RangeMap[plotkey][0], str):
-        #    legNames = ['%s' % (x) for x in RangeMap[plotkey]]
-        #else:
-        #    legNames = ['%s=%s' % (plotkey, x) for x in RangeMap[plotkey]]
 
         # Build list of final jpaths in order of decided legend
         keepListFinal = list()

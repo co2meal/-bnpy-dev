@@ -42,6 +42,7 @@ LabelMap['laps-saved-params'] = 'num pass thru data'
 LabelMap['hamming-distance'] = 'Hamming dist.'
 LabelMap['Keff'] = 'num topics K'
 
+
 def plotJobsThatMatchKeywords(jpathPattern='/tmp/', **kwargs):
     ''' Create line plots for jobs matching pattern and provided kwargs
     '''
@@ -49,6 +50,7 @@ def plotJobsThatMatchKeywords(jpathPattern='/tmp/', **kwargs):
         jpathPattern = os.path.join(os.environ['BNPYOUTDIR'], jpathPattern)
     jpaths, legNames = filterJobs(jpathPattern, **kwargs)
     plotJobs(jpaths, legNames, **kwargs)
+
 
 def plotJobs(jpaths, legNames, styles=None, density=2,
              xvar='laps', yvar='evidence', loc='upper right',
