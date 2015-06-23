@@ -85,6 +85,7 @@ class BernObsModel(AbstractObsModel):
     def setupWithAllocModel(self, allocModel):
         ''' Setup expected dimensions of sufficient stats.
         '''
+        from IPython import embed; embed()
         self.SSDims = allocModel.getSSDims()
 
     def setEstParams(self, obsModel=None, SS=None, LP=None, Data=None,

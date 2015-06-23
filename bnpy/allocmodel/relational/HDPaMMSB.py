@@ -7,7 +7,7 @@ from bnpy.util import gammaln, digamma, EPS
 
 from bnpy.util import StickBreakUtil
 from bnpy.allocmodel.topics import OptimizerRhoOmega
-from bnpy.allocmodel.topics.HDPTopicModel import c_Beta, c_Dir
+
 import MMSBUtil
 
 

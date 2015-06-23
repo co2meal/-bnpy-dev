@@ -37,20 +37,16 @@ def get_data(
     # Generate node assignments
     Z = prng.choice(xrange(K), p=pi, size=nNodes)
     TrueParams = dict(Z=Z, w=w, pi=pi)
-    from IPython import embed
-    embed()
 
     # Generate edges
-    X = np.zeros((nNodes, nNodes))
+    AdjMat = np.zeros((nNodes, nNodes))
     for i in xrange(nNodes):
         for j in xrange(nNodes):
-            if i == j:
-                X[i, j] = 0
-            else:
-                X[i, j] = prng.binomial(n=1, p=w[Z[i], Z[j]])
+            if i != j:
+                AdjMat[i, j] = prng.binomial(n=1, p=w[Z[i], Z[j]])
 
-    Data = GraphXData(X=X,
-                      nNodesTotal=nNodes, nNodes=nNodes,
+    Data = GraphXData(AdjMat=AdjMat,
+                      nNodesTotal=nNodes,
                       TrueParams=TrueParams)
     Data.name = get_short_name()
     return Data
@@ -62,34 +58,6 @@ def get_short_name():
 
 def get_data_info():
     return 'Toy SMSB dataset. K=%d' % (K)
-
-
-def summarize_data(Data):
-    Z = Data.TrueParams['Z']
-    N = Data.nNodes
-    zMax = len(np.unique(Z))
-    Npair = np.zeros((zMax, zMax))
-    Nsingle = np.zeros(zMax)
-
-    for i in xrange(N):
-        Nsingle[Z[i]] += 1
-        for j in xrange(N):
-            if i == j:
-                continue
-            for l in xrange(zMax):
-                for m in xrange(zMax):
-                    if Z[i] == l and Z[j] == m:
-                        if Data.X[i * N + j] == 1:
-                            Npair[l, m] += 1
-
-    X = Data.X.reshape((N, N))
-    deg = np.sum(X, axis=1) + np.sum(X, axis=0)
-    cnts = np.bincount(deg.astype(int))
-    fig, ax = plt.subplots(1)
-    ax.scatter(np.arange(len(cnts)), cnts)
-    print 'True community proportions = \n', Nsingle / np.sum(Nsingle)
-    print 'True number of pairwise interactions with observed edge = \n', Npair
-    print np.sum(Npair)
 
 
 if __name__ == "__main__":
@@ -115,7 +83,7 @@ if __name__ == "__main__":
 
     # Plot adj matrix
     f, ax = plt.subplots(1)
-    Xdisp = Data.X.reshape(Data.nNodes, Data.nNodes)
+    Xdisp = np.squeeze(Data.toAdjacencyMatrix())
     sortids = np.argsort(Data.TrueParams['Z'])
     Xdisp = Xdisp[sortids, :]
     Xdisp = Xdisp[:, sortids]

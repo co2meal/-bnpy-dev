@@ -52,20 +52,15 @@ def get_data(
 
     TrueParams = dict(Z=TrueZ, w=w, pi=pi)
 
-    # Generate edge set
-    sourceID = list()
-    destID = list()
+    # Generate adjacency matrix
+    AdjMat = np.zeros((nNodes, nNodes))
     for i in xrange(nNodes):
         for j in xrange(nNodes):
             if i == j:
                 continue
-            y_ij = prng.binomial(n=1, p=w[s[i, j], r[i, j]])
-            if y_ij == 1:
-                sourceID.append(i)
-                destID.append(j)
-    EdgeSet = set(zip(sourceID, destID))
+            AdjMat[i,j] = prng.binomial(n=1, p=w[s[i, j], r[i, j]])
 
-    Data = GraphXData(X=None, edgeSet=EdgeSet,
+    Data = GraphXData(AdjMat=AdjMat,
                       nNodesTotal=nNodes, nNodes=nNodes,
                       TrueParams=TrueParams, isSparse=True)
     Data.name = get_short_name()
@@ -91,9 +86,7 @@ if __name__ == '__main__':
 
     # Plot adj matrix
     f, ax = plt.subplots(1)
-    Xdisp = np.zeros((Data.nNodes, Data.nNodes))
-    for (i, j) in Data.edgeSet:
-        Xdisp[i, j] = 1
+    Xdisp = np.squeeze(Data.toAdjacencyMatrix())
     sortids = np.argsort(Data.TrueParams['pi'].argmax(axis=1))
     Xdisp = Xdisp[sortids, :]
     Xdisp = Xdisp[:, sortids]
