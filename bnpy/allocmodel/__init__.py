@@ -10,6 +10,9 @@ from hmm.FiniteHMM import FiniteHMM
 from hmm.HDPHMM import HDPHMM
 
 from relational.FiniteSMSB import FiniteSMSB
+from relational.FiniteMMSB import FiniteMMSB
+from relational.FiniteaMMSB import FiniteaMMSB
+from relational.HDPaMMSB import HDPaMMSB
 
 
 AllocModelConstructorsByName = {
@@ -20,6 +23,9 @@ AllocModelConstructorsByName = {
     'FiniteHMM': FiniteHMM,
     'HDPHMM': HDPHMM,
     'FiniteSMSB': FiniteSMSB,
+    'FiniteMMSB': FiniteMMSB,
+    'FiniteaMMSB': FiniteaMMSB,
+    'HDPaMMSB': HDPaMMSB,
 }
 
 AllocModelNameSet = set(AllocModelConstructorsByName.keys())

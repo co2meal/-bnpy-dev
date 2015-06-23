@@ -83,7 +83,7 @@ if __name__ == '__main__':
     Data = get_data(nNodes=100)
     w = Data.TrueParams['w']
 
-    # Draw graph with nodes colored by their mixed community membership
+    # # Draw graph with nodes colored by their mixed community membership
     # RelationalViz.plotTrueLabels(
     #  'ToyMMSBK6', Data,
     #  gtypes=['Actual'],
@@ -92,8 +92,8 @@ if __name__ == '__main__':
     # Plot adj matrix
     f, ax = plt.subplots(1)
     Xdisp = np.zeros((Data.nNodes, Data.nNodes))
-    for (i,j) in Data.edgeSet:
-        Xdisp[i,j] = 1
+    for (i, j) in Data.edgeSet:
+        Xdisp[i, j] = 1
     sortids = np.argsort(Data.TrueParams['pi'].argmax(axis=1))
     Xdisp = Xdisp[sortids, :]
     Xdisp = Xdisp[:, sortids]

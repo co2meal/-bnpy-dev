@@ -114,9 +114,10 @@ class HDPaMMSB(AllocModel):
             'ik,jk,ijk->ij',
             self.expELogPi[Data.nodes, :],
             self.expELogPi,
-            expLogSoftEv - (mask * (1 - self.epsilon) / (2 * self.M) +
-                            (1 - mask) * self.epsilon / (2 * self.M))[:, :, np.newaxis]
-        )
+            expLogSoftEv - (
+                mask * (1 - self.epsilon) / (2 * self.M) +
+                (1 - mask) * self.epsilon / (2 * self.M))[:, :, np.newaxis]
+                )
         normConst += self.sumExpELogPi[Data.nodes, np.newaxis] * \
             self.sumExpELogPi[np.newaxis, :] * \
             (mask * (1 - self.epsilon) / (2 * self.M) +

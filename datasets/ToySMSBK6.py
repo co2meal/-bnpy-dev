@@ -3,6 +3,7 @@ from bnpy.data import GraphXData
 
 K = 6
 
+
 def get_data(
         seed=123, nNodes=100,
         w_diag=.95,
@@ -27,7 +28,7 @@ def get_data(
     prng = np.random.RandomState(seed)
 
     # Create membership probabilities at each node
-    pi = 1.0/K * np.ones(K)
+    pi = 1.0 / K * np.ones(K)
 
     # Create block relation matrix W, shape K x K
     w = w_offdiag_eps * np.ones((K, K))
@@ -36,7 +37,8 @@ def get_data(
     # Generate node assignments
     Z = prng.choice(xrange(K), p=pi, size=nNodes)
     TrueParams = dict(Z=Z, w=w, pi=pi)
-    from IPython import embed; embed()
+    from IPython import embed
+    embed()
 
     # Generate edges
     X = np.zeros((nNodes, nNodes))
@@ -97,9 +99,9 @@ if __name__ == "__main__":
     Data = get_data(nNodes=100)
     w = Data.TrueParams['w']
 
-    # Plot illustrated graph
-    #f, ax = plt.subplots(1)
-    #RelationalViz.drawGraph(
+    # # Plot illustrated graph
+    # f, ax = plt.subplots(1)
+    # RelationalViz.drawGraph(
     #    Data, fig=f, curAx=ax, colors=Data.TrueParams['Z'],)
 
     # Plot w
