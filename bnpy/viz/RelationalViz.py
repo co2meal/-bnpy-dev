@@ -61,16 +61,8 @@ def drawGraph(Data, curAx, fig, colors='r', cmap='gist_rainbow', title='',
 
     G = nx.DiGraph()
     G.add_nodes_from(np.arange(Data.nNodes))
-    Data.sourceID.sort()
-    Data.destID.sort()
-    for i in xrange(len(Data.sourceID)):
-        if Data.sourceID[i] == Data.destID[i]:
-            continue
-        if Data.X is not None:
-            if Data.X[Data.sourceID[i] * N + Data.destID[i]] == 1:
-                G.add_edge(Data.sourceID[i], Data.destID[i])
-        else:
-            G.add_edge(Data.sourceID[i], Data.destID[i])
+    for e in Data.edgeSet:
+      G.add_edge(e[0], e[1])
 
     plt.figure(fig.number)
     pos = nx.spring_layout(G)
@@ -306,12 +298,10 @@ def plotTransMtxTruth(Data, perms=None, gtypes=['Actual'], doPerm=False,
 
     if doPerm:
         if perms is None:
-            curPerms = np.array([])
+            perms = np.array([])
             for k in xrange(np.max(Z) + 1):
-                curPerms = np.append(curPerms, np.where(Z == k))
-            curPerms = curPerms.astype(int)
-        else:
-            curPerms = perms
+                perms = np.append(perms, np.where(Z == k))
+            perms = perms.astype(int)
 
     for gtype in gtypes:
         if gtype == 'Actual':
@@ -420,26 +410,24 @@ def computeMeanObsParams(omod, aprior):
 
 def plotActualTransMtx(Data, perms=None, doPerm=True):
 
+  if Data.isSparse:
     G = nx.DiGraph()
     G.add_nodes_from(np.arange(Data.nNodes))
-    for i in xrange(len(Data.sourceID)):
-        if Data.sourceID[i] == Data.destID[i]:
-            continue
-        if Data.X is not None:
-            if Data.X[Data.sourceID[i] * N + Data.destID[i]] == 1:
-                G.add_edge(Data.sourceID[i], Data.destID[i])
-        else:
-            G.add_edge(Data.sourceID[i], Data.destID[i])
+    for e in Data.edgeSet:
+      G.add_edge(e[0], e[1])
     A = nx.to_numpy_matrix(G)
-    scipy.io.savemat('Actual.mat', {'A': A})
-    if doPerm:
-        if perms is not None:
-            A = A[perms, :]
-            A = A[:, perms]
+  else:
+    A = np.squeeze(Data.Xmatrix[:,:,0])
 
-    fig, ax = plt.subplots(1)
+  if doPerm:
+    print 'do perm'
+    if perms is not None:
+      print 'ok im here'
+      A = A[perms, :]
+      A = A[:, perms]
 
-    ax.imshow(A, cmap='Greys', interpolation='nearest')
+  fig, ax = plt.subplots(1)
+  ax.imshow(A, cmap='Greys', interpolation='nearest')
 
 
 def plotEdgePrTransMtx(Data, pi, phi, perms, doPerm, title='', true=None):
