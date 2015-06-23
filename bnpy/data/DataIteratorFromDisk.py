@@ -65,7 +65,7 @@ X_AllocToDataTypeMap = dict(
   )
 
 def decideDataTypeFromModel(aModelType, oModelType):
-  if oModelType.count('Gauss'):
+  if oModelType.count('Gauss') or oModelType.count('Factor'):
     try:
       return X_AllocToDataTypeMap[aModelType]
     except KeyError:

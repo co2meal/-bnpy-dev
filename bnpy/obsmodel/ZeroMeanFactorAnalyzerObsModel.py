@@ -120,6 +120,12 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
 
         # aCov is not instance-dependent; pass it to SS then self.Post to calc ELBO
         SS.setField('aCov', aCov, dims=('K','C','C'))
+
+        # We'd better pass r * logdet(aCov) to SS then ELBO
+        logdetACov = np.zeros(K)
+        for k in xrange(K):
+            logdetACov[k] = np.prod(slogdet(SS.aCov[k])) * SS.N[k]
+        SS.setField('logdetACov', logdetACov, dims=('K'))
         return SS
 
   ########################################################### Local step
@@ -289,8 +295,9 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
                                               Post.hShape / Post.hInvScale[k]))
 
             # terms related with a
-            elbo[k] += .5 * (np.prod(slogdet(SS.aCov[k])) + C) * SS.N[k] \
-                       - .5 * np.trace(SS.aaT[k])
+            # elbo[k] += .5 * (np.prod(slogdet(SS.aCov[k])) + C) * SS.N[k] \
+            #            - .5 * np.trace(SS.aaT[k])
+            elbo[k] += .5 * (SS.logdetACov[k] + C * SS.N[k] - np.trace(SS.aaT[k]))
 
             # terms related with x
             elbo[k] += - .5 * (D * LOGTWOPI -
