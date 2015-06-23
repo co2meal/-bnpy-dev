@@ -10,10 +10,13 @@ K = 6
 
 def get_data(
         seed=123, nNodes=100, alpha=0.05,
-        w_diag=.8,
+        w_diag=.95,
         w_offdiag_eps=.01,
         **kwargs):
     ''' Create toy dataset as bnpy GraphXData object.
+
+    Uses a simple mixed membership generative model.
+    Assumes high within-block edge probability, small epsilon otherwise.
 
     Args
     -------
@@ -81,10 +84,23 @@ if __name__ == '__main__':
     w = Data.TrueParams['w']
 
     # Draw graph with nodes colored by their mixed community membership
-    RelationalViz.plotTrueLabels(
-      'ToyMMSBK6', Data,
-      gtypes=['Actual'],
-      mixColors=True, thresh=.65, colorEdges=False, title='ToyMMSBK6 Graph')
+    # RelationalViz.plotTrueLabels(
+    #  'ToyMMSBK6', Data,
+    #  gtypes=['Actual'],
+    #  mixColors=True, thresh=.65, colorEdges=False, title='ToyMMSBK6 Graph')
+
+    # Plot adj matrix
+    f, ax = plt.subplots(1)
+    Xdisp = np.zeros((Data.nNodes, Data.nNodes))
+    for (i,j) in Data.edgeSet:
+        Xdisp[i,j] = 1
+    sortids = np.argsort(Data.TrueParams['pi'].argmax(axis=1))
+    Xdisp = Xdisp[sortids, :]
+    Xdisp = Xdisp[:, sortids]
+    ax.imshow(
+        Xdisp, cmap='Greys', interpolation='nearest',
+        vmin=0, vmax=1)
+    ax.set_title('Adjacency matrix')
 
     # Plot subset of pi
     Epi = Data.TrueParams['pi']

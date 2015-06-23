@@ -59,6 +59,12 @@ def drawGraph(Data, curAx, fig, colors='r', cmap='gist_rainbow', title='',
     if labels is None:
         labels = np.arange(N)
 
+    if not hasattr(Data, 'edgeSet'):
+        assert len(np.unique(Data.X)) <= 2 # binary
+        inds = np.where(Data.X == 1)
+        edgeSet=set(zip(inds[0], inds[1]))
+        Data.edgeSet = edgeSet
+
     G = nx.DiGraph()
     G.add_nodes_from(np.arange(Data.nNodes))
     for e in Data.edgeSet:

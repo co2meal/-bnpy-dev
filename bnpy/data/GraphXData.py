@@ -1,24 +1,39 @@
 '''
 GraphXData.py
 
-Data object for holding network (graph) based data.  Supports both sparse and dense data storage (sparse only for 1-dimensional binary data).
+Data object for holding network (graph) based data.  
+Supports both sparse and dense data storage, though sparse storage is 
+only for 1D binary observations.
 
 Attributes
 -------
-isSparse : boolean value that determines how the data is stored
-X : For dense data storage.  NxNxD array representing the data on each edge of 
-    a graph.  Is set to None when isSparse is true
-edgeSet : For sparse data storage.  A set() that contains the tuple (i,j) if
-          there is an edge from i to j in the graph (equivalently, if
-          X[i,j] = 1).  Note that (i,j) in edgeSet does not imply (j,i) is in
-          edgeSet.
-nObs/nEdges : total number of unique observations in the current, in-memory 
-              batch.  Is equal to len(edgeSet) in the case of sparse data and
-              to N^2 in the case of dense data
-nNodes : total number of nodes in the current, in-memory batch.  Identical to
-         nEdges and nObs in the case of dense data
-nodes : Node IDs represented in the current in-memory batch.  
-TrueParams : (optional) dict holding the dataset's true parameters
+isSparse : boolean 
+    Indicates whether this object does dense storage of full adjacency matrix,
+    or sparse storage of only "on" binary edges
+X : 3D array, shape N x N x D
+    Stores full adjacency matrix for underlying graph.
+    Will be None when isSparse is True.
+edgeSet : set of tuples (i,j), where i,j are node IDs 
+    (i,j) in edgeSet implies an edge from i to j with weight 1 exists,
+    equivalently X[i,j] = 1.
+    Will be None when isSparse is False.
+nObs/nEdges : int
+    Total number of unique observations in the current, in-memory batch.
+    Equal to len(edgeSet) when isSparse is True.
+    Equal to nNodes**2 when isSparse is False.
+nNodes : int
+    Total number of nodes in the current, in-memory batch. 
+nodes : 1D array, size nNodes
+    Node IDs represented in the current in-memory batch.
+
+Optional Attributes
+------------------- 
+TrueParams : dict
+    Holds dataset's true parameters, including fields
+    * Z :
+    * w : 2D array, size K x K
+        w[j,k] gives probability of edge between block j and block k
+
 edgeRange : Tuple (start,end), indicating which edges this dataset has from
              the list of N^2-N edges (1,2),(1,3),...,(2,1), etc.  Used in
              making minibatches of a larger dataset
@@ -30,20 +45,20 @@ Example
 >>> import numpy as np
 >>> from bnpy.data import GraphXData
 >>> X = np.asarray([[0, 1, 1], \
-...                 [0, 0, 1], \
-...                 [1, 0, 0]])
->>> nonSparse = GraphXData(X=X, edgeSet=None, isSparse=False)
->>> nonSparse.nNodes ; nonSparse.nObs
+                    [0, 0, 1], \
+                    [1, 0, 0]])
+>>> denseData = GraphXData(X=X, edgeSet=None, isSparse=False)
+>>> denseData.nNodes
 3
-3
->>> nonSparse.nodes
+>>> denseData.nodes
 array([0, 1, 2])
-
 >>> inds = np.where(X==1)
->>> sparse = GraphXData(X=None, edgeSet=set(zip(inds[0], inds[1])),
-...                     isSparse=True)
->>> sparse.nNodes ; sparse.nObs
+>>> sparseData = GraphXData(X=None,\
+                        edgeSet=set(zip(inds[0], inds[1])),\
+                        isSparse=True)
+>>> sparseData.nNodes
 3
+>>> sparseData.nObs
 4
 '''
 
@@ -51,7 +66,6 @@ import numpy as np
 import scipy.io
 
 from XData import XData
-
 
 class GraphXData(XData):
 
@@ -70,6 +84,8 @@ class GraphXData(XData):
     @classmethod
     def read_from_txt(
             cls, filepath, isSparse=False, nNodesTotal=None, **kwargs):
+        ''' Static constructor loading .txt file into GraphXData instance.
+        '''
         txt = np.loadtxt(filepath, dtype=np.int32)
         sourceID = txt[:, 0]
         destID = txt[:, 1]
@@ -79,10 +95,7 @@ class GraphXData(XData):
 
     @classmethod
     def read_from_mat(cls, matfilepath, nObsTotal=None, **kwargs):
-        ''' Static constructor loading from .mat file into GraphXData instance.
-
-        If no sourceID/destID field is given, it's assumed that 'X' is of size
-        N^2-N, and gives edges in order 0->1, ..., 0->N-1, 1->0 1->2, etc.
+        ''' Static constructor loading .mat file into GraphXData instance.
         '''
         InDict = scipy.io.loadmat(matfilepath, **kwargs)
         if 'X' not in InDict:
@@ -91,11 +104,8 @@ class GraphXData(XData):
         N = InDict['X'].shape[0]
         InDict['nNodesTotal'] = N
         InDict['nNodes'] = N
-        InDict['sourceID'] = None
-        InDict['destID'] = None
         if 'TrueZ' in InDict:
             InDict['TrueParams'] = {'Z': InDict['TrueZ']}
-
         return cls(**InDict)
 
     def __init__(self, X=None, edgeSet=None, nNodesTotal=None,
@@ -133,7 +143,8 @@ class GraphXData(XData):
                 self.nodes = nodes
             self._create_resp_indices()
 
-        else:  # Setup for non-sparse (e.g. real-valued) data
+        else:  
+            # Setup for non-sparse (e.g. real-valued) data
             self.dim = np.shape(X)[-1]
             self.Xmatrix = X
             self.X = np.reshape(X, (X.shape[0] * X.shape[1],) + (X.shape[2:]))
@@ -253,11 +264,17 @@ class GraphXData(XData):
         self.raveledMask = np.ravel(self.assortativeMask)
 
     def select_subset_by_mask(self, mask, doTrackFullSize=True):
-        ''' Creates new XData object by selecting certain rows (observations)
+        ''' Creates new GraphXData object using a subset of edges.
 
-        If doTrackFullSize is True,
-            ensure nObsTotal and nNodesTotal attributes are the same
-            as the full dataset.
+        Args
+        ----
+        mask : 1D array_like
+        doTrackFullSize : boolean
+            if True, retain nObsTotal and nNodesTotal attributes.
+
+        Returns
+        -------
+        subsetData : GraphXData object
         '''
         if self.isSparse:
             return self._select_subset_by_mask_sparse(mask, doTrackFullSize)
@@ -314,7 +331,7 @@ class GraphXData(XData):
         return Data
 
     def add_data(self, GraphXDataObj):
-        ''' Updates (in-place) this object by adding new data
+        ''' Updates (in-place) this object by adding new nodes.
         '''
         super(GraphXData, self).add_data(GraphXDataObj)
 
