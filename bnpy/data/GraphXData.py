@@ -139,6 +139,7 @@ class GraphXData(XData):
             self.nNodesTotal = nNodesTotal
         self.nNodes = self.nNodesTotal
         self.nEdges = self.edges.shape[0]
+        self.nObs = self.nEdges
         self.dim = self.X.shape[1]
 
 
@@ -158,7 +159,7 @@ class GraphXData(XData):
     def get_dataset_scale(self):
         return self.nNodesTotal**2 - self.nNodesTotal
 
-    def select_subset_by_mask(self, mask, doTrackFullSize=True):
+    def select_subset_by_mask(self, mask, doTrackFullSize=True, **kwargs):
         ''' Creates new GraphXData object using a subset of edges.
 
         Args

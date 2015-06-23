@@ -1,4 +1,6 @@
 import numpy as np
+import itertools
+
 from scipy.special import gammaln, digamma
 
 from bnpy.suffstats import ParamBag, SuffStatBag
@@ -8,6 +10,7 @@ from bnpy.util import numpyToSharedMemArray, sharedMemToNumpyArray
 
 from AbstractObsModel import AbstractObsModel
 
+nx = np.newaxis
 
 class BernObsModel(AbstractObsModel):
 
@@ -33,7 +36,7 @@ class BernObsModel(AbstractObsModel):
     '''
 
     def __init__(self, inferType='EM', D=0,
-                 Data=None, **PriorArgs):
+                 Data=None, CompDims=('K',), **PriorArgs):
         ''' Initialize bare obsmodel with valid prior hyperparameters.
 
         Resulting object lacks either EstParams or Post,
@@ -47,6 +50,7 @@ class BernObsModel(AbstractObsModel):
         self.inferType = inferType
         self.createPrior(Data, **PriorArgs)
         self.Cache = dict()
+        self.CompDims = CompDims
 
     def createPrior(self, Data, lam1=1.0, lam0=1.0, eps_phi=1e-14, **kwargs):
         ''' Initialize Prior ParamBag attribute.
@@ -62,8 +66,8 @@ class BernObsModel(AbstractObsModel):
             lam0 = lam0 * np.ones(D)
         assert lam1.size == D
         assert lam0.size == D
-        self.Prior.setField('lam1', lam1, dims=('D'))
-        self.Prior.setField('lam0', lam0, dims=('D'))
+        self.Prior.setField('lam1', lam1, dims=('D',))
+        self.Prior.setField('lam0', lam0, dims=('D',))
 
     def get_name(self):
         return 'Bern'
@@ -83,10 +87,9 @@ class BernObsModel(AbstractObsModel):
         return msg
 
     def setupWithAllocModel(self, allocModel):
-        ''' Setup expected dimensions of sufficient stats.
+        ''' Setup expected dimensions of components.
         '''
-        from IPython import embed; embed()
-        self.SSDims = allocModel.getSSDims()
+        self.CompDims = allocModel.getCompDims()
 
     def setEstParams(self, obsModel=None, SS=None, LP=None, Data=None,
                      phi=None,
@@ -106,7 +109,7 @@ class BernObsModel(AbstractObsModel):
             self.updateEstParams(SS)
         else:
             self.EstParams = ParamBag(K=phi.shape[0], D=phi.shape[1])
-            self.EstParams.setField('phi', phi, dims=('K', 'D'))
+            self.EstParams.setField('phi', phi, dims=('K', 'D',))
         self.K = self.EstParams.K
 
     def setEstParamsFromPost(self, Post=None):
@@ -116,7 +119,7 @@ class BernObsModel(AbstractObsModel):
             Post = self.Post
         self.EstParams = ParamBag(K=Post.K, D=Post.D)
         phi = Post.lam1 / (Post.lam1 + Post.lam0)
-        self.EstParams.setField('phi', phi, dims=('K', 'D'))
+        self.EstParams.setField('phi', phi, dims=('K', 'D',))
         self.K = self.EstParams.K
 
     def setPostFactors(self, obsModel=None, SS=None, LP=None, Data=None,
@@ -143,8 +146,8 @@ class BernObsModel(AbstractObsModel):
             K = lam1.shape[0]
             D = lam1.shape[-1]
             self.Post = ParamBag(K=K, D=D)
-            self.Post.setField('lam1', lam1, dims=self.SSDims+('D',))
-            self.Post.setField('lam0', lam0, dims=self.SSDims+('D',))
+            self.Post.setField('lam1', lam1, dims=self.CompDims+('D',))
+            self.Post.setField('lam0', lam0, dims=self.CompDims+('D',))
         self.K = self.Post.K
 
     def setPostFromEstParams(self, EstParams, Data=None, nTotalTokens=1,
@@ -275,8 +278,8 @@ class BernObsModel(AbstractObsModel):
             self.Post = ParamBag(K=SS.K, D=SS.D)
 
         lam1, lam0 = self.calcPostParams(SS)
-        self.Post.setField('lam1', lam1, dims=('K', 'D'))
-        self.Post.setField('lam0', lam0, dims=('K', 'D'))
+        self.Post.setField('lam1', lam1, dims=self.CompDims + ('D',))
+        self.Post.setField('lam0', lam0, dims=self.CompDims + ('D',))
         self.K = SS.K
 
     def calcPostParams(self, SS):
@@ -284,11 +287,15 @@ class BernObsModel(AbstractObsModel):
 
         Returns
         --------
-        lam1 : 2D array, K x D
-        lam0 : 2D array, K x D
+        lam1 : 2D array, K x D (or K x K x D if relational)
+        lam0 : 2D array, K x D (or K x K x D if relational)
         '''
-        lam1 = SS.Count1 + self.Prior.lam1[np.newaxis, :]
-        lam0 = SS.Count0 + self.Prior.lam0[np.newaxis, :]
+        if SS.Count1.ndim == 2:
+            lam1 = SS.Count1 + self.Prior.lam1[np.newaxis, :]
+            lam0 = SS.Count0 + self.Prior.lam0[np.newaxis, :]
+        elif SS.Count1.ndim == 3:
+            lam1 = SS.Count1 + self.Prior.lam1[np.newaxis, np.newaxis, :]
+            lam0 = SS.Count0 + self.Prior.lam0[np.newaxis, np.newaxis, :]
         return lam1, lam0
 
     def calcPostParamsForComp(self, SS, kA=None, kB=None):
@@ -349,7 +356,8 @@ class BernObsModel(AbstractObsModel):
         ElogphiT, Elog1mphiT = self.GetCached('E_logphiT_log1mphiT', 'all')
 
         # Matrix-matrix product, result is N x K
-        L = np.dot(Data.X, ElogphiT) + np.dot(1.0 - Data.X, Elog1mphiT)
+        L = np.tensordot(Data.X, ElogphiT, axes=1) + \
+            np.tensordot(1.0 - Data.X, Elog1mphiT, axes=1)
         return L
 
     def calcELBO_Memoized(self, SS, afterMStep=False):
@@ -366,7 +374,6 @@ class BernObsModel(AbstractObsModel):
         obsELBO : scalar float
             Equal to E[ log p(x) + log p(phi) - log q(phi)]
         """
-        L_perComp = np.zeros(SS.K)
         Post = self.Post
         Prior = self.Prior
         if not afterMStep:
@@ -374,18 +381,35 @@ class BernObsModel(AbstractObsModel):
             Elog1mphiT = self.GetCached('E_log1mphiT', 'all')
             # with relational/graph datasets, these have shape D x K x K
             # otherwise, these have shape D x K 
-            
-        for k in xrange(SS.K):
-            L_perComp[k] = c_Diff(Prior.lam1, Prior.lam0,
-                                  Post.lam1[k], Post.lam0[k])
+
+        if self.CompDims == ('K'):
+            # Typical case: K x D     
+            L_perComp = np.zeros(SS.K)
+            for k in xrange(SS.K):
+                L_perComp[k] = c_Diff(Prior.lam1, Prior.lam0,
+                                      Post.lam1[k], Post.lam0[k])
+                if not afterMStep:
+                    L_perComp[k] += np.inner(
+                        SS.Count1[k] + Prior.lam1 - Post.lam1[k],
+                        ElogphiT[:, k])
+                    L_perComp[k] += np.inner(
+                        SS.Count0[k] + Prior.lam0 - Post.lam0[k],
+                        Elog1mphiT[:, k])
+            Ldata = np.sum(L_perComp)
+
+        else:
+            # Relational case, K x K x D
+            cPrior = c_Func(Prior.lam1, Prior.lam0)
+            Ldata = SS.K*SS.K * cPrior - c_Func(Post.lam1, Post.lam0)
             if not afterMStep:
-                L_perComp[k] += np.inner(
-                    SS.Count1[k] + Prior.lam1 - Post.lam1[k],
-                    ElogphiT[:, k])
-                L_perComp[k] += np.inner(
-                    SS.Count0[k] + Prior.lam0 - Post.lam0[k],
-                    Elog1mphiT[:, k])
-        return np.sum(L_perComp)
+                Ldata += np.sum(
+                    (SS.Count1 + Prior.lam1[nx, nx, :] - Post.lam1) * \
+                    ElogphiT.T)
+                Ldata += np.sum(
+                    (SS.Count0 + Prior.lam0[nx, nx, :] - Post.lam0) * \
+                    Elog1mphiT.T)
+            
+        return Ldata
 
     def getDatasetScale(self, SS, extraSS=None):
         ''' Get number of observed scalars in dataset from suff stats.
@@ -703,8 +727,13 @@ def calcLogSoftEvMatrix_FromPost(Dslice,
     if K is None:
         K = ElogphiT.shape[1]
     # Matrix-matrix product, result is N x K
-    L = np.dot(Dslice.X, ElogphiT[:, :K]) + \
-        np.dot(1.0 - Dslice.X, Elog1mphiT[:, :K])
+    if ElogphiT.ndim == 2:
+        L = np.dot(Dslice.X, ElogphiT[:, :K]) + \
+            np.dot(1.0 - Dslice.X, Elog1mphiT[:, :K])
+    else:
+        L = np.tensordot(Dslice.X, ElogphiT[:, :K, :K], axis=1) + \
+            np.tensordot(1.0 - Dslice.X, Elog1mphiT[:, :K, :K], axis=1)
+
     return L
 
 
@@ -715,17 +744,23 @@ def calcSummaryStats(Dslice, SS, LP, **kwargs):
     --------
     SS : SuffStatBag object, with K components.
     '''
-    Resp = LP['resp']  # 2D array, N x K
     X = Dslice.X  # 2D array, N x D
+    Resp = LP['resp']
+    if Resp.ndim == 2:
+        CompDims = ('K',) # typical case
+    elif Resp.ndim == 3:
+        CompDims = ('K','K') # relational data
+
 
     if SS is None:
         SS = SuffStatBag(K=LP['resp'].shape[1], D=Dslice.dim)
     if not hasattr(SS, 'N'):
-        SS.setField('N', np.sum(LP['resp'], axis=0), dims='K')
+        SS.setField('N', np.sum(LP['resp'], axis=0), dims=CompDims)
 
-    CountON = np.dot(Resp.T, X)  # matrix-matrix product, result is K x D
-    CountOFF = np.dot(Resp.T, 1 - X)
+    # Matrix-matrix product, result is K x D (or KxKxD if relational)
+    CountON = np.tensordot(Resp.T, X, axes=1)
+    CountOFF = np.tensordot(Resp.T, 1 - X, axes=1)
 
-    SS.setField('Count1', CountON, dims=('K', 'D'))
-    SS.setField('Count0', CountOFF, dims=('K', 'D'))
+    SS.setField('Count1', CountON, dims=CompDims+('D',))
+    SS.setField('Count0', CountOFF, dims=CompDims+('D',))
     return SS

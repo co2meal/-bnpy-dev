@@ -3,8 +3,8 @@ FiniteMMSB.py
 '''
 
 import numpy as np
-from scipy.cluster.vq import kmeans2
 
+from scipy.sparse import csc_matrix
 from bnpy.allocmodel import AllocModel
 from bnpy.suffstats import SuffStatBag
 from bnpy.util import gammaln, digamma, EPS
@@ -17,16 +17,18 @@ class FiniteMMSB(AllocModel):
 
     Attributes
     -------
-    * inferType : string {'EM', 'VB', 'moVB', 'soVB'}
+    inferType : string {'EM', 'VB', 'moVB', 'soVB'}
         indicates which updates to perform for local/global steps
-    * K : int
+    K : int
         number of components
-    * alpha : float
+    alpha : float
         scalar symmetric Dirichlet prior on mixture weights
 
     Attributes for VB
     ---------
-    TODO
+    theta : 2D array, nNodes x K
+        theta[n,:] gives parameters for Dirichlet variational factor
+        defining distribution over membership probabilities for node n
     """
 
     def __init__(self, inferType, priorDict=dict()):
@@ -47,11 +49,14 @@ class FiniteMMSB(AllocModel):
     def get_active_comp_probs(self):
         print 'TODO'
 
-    def getSSDims(self):
-        ''' Get dimensions of interactions between components.
+    def getCompDims(self):
+        ''' Get dimensions of latent component interactions.
 
-        Overrides default of ('K',), as we need E_log_soft_ev to be
-           dimension E x K x K
+        Overrides default of ('K',), since E_log_soft_ev needs to be ('K','K')
+
+        Returns
+        -------
+        dims : tuple
         '''
         return ('K', 'K',)
 
@@ -112,9 +117,9 @@ class FiniteMMSB(AllocModel):
             resp += logSoftEv
 
             # In-place exp and normalize
-            resp -= np.max(resp, axis=(1,2))[:, np.newaxis]
+            resp -= np.max(resp, axis=(1,2))[:, np.newaxis, np.newaxis]
             np.exp(resp, out=resp)
-            resp /= resp.sum(axis=(1,2))[:, np.newaxis]
+            resp /= resp.sum(axis=(1,2))[:, np.newaxis, np.newaxis]
             LP['resp'] = resp
         return LP
 
@@ -127,66 +132,60 @@ class FiniteMMSB(AllocModel):
             * sumSource : nNodes x K
             * sumReceiver : nNodes x K
         '''
-        if 'resp' in LP:
-            K = LP['resp'].shape[-1]
-        else:
-            K = LP['sumSource'].shape[1]
+        K = LP['resp'].shape[-1]
 
-        N = Data.nNodes
-        SS = SuffStatBag(K=K, D=Data.dim, N=N)
+        V = Data.nNodes
+        SS = SuffStatBag(K=K, D=Data.dim, V=V)
 
         # sumSource[i,l] = \sum_j E_q[s_{ijl}]
         if 'sumSource' in LP:
             sumSource = LP['sumSource']
         else:
-            srcResp = resp.sum(axis=2)
+            srcResp = LP['resp'].sum(axis=2)
             # Method A: forloop
             sumSource = np.zeros((Data.nNodes, K))
             for i in xrange(Data.nNodes):
                 mask_i = Data.edges[:,0] == i
-                sumSource[i,:] = srcResp[mask_i].sum()
+                sumSource[i,:] = srcResp[mask_i].sum(axis=0)
 
             # Method B: sparse matrix multiply
-            srcNodeIndicMat = scipy.sparse.csc_matrix(
+            srcNodeIndicMat = csc_matrix(
                 (np.ones(Data.nEdges), 
                  Data.edges[:,0],
-                 np.arange(Data.nNodes)),
+                 np.arange(Data.nEdges+1)),
                 shape=(Data.nNodes, Data.nEdges))
             sumSource2 = srcNodeIndicMat * srcResp
             assert np.allclose(sumSource, sumSource2)
-        SS.setField('sumSource', sumSource, dims=('N', 'K'))
+        SS.setField('sumSource', sumSource, dims=('V', 'K'))
 
         # sumReceiver[i,l] = \sum_j E_q[r_{jil}]
         if 'sumReceiver' in LP:
             sumReceiver = LP['sumReceiver']
         else:
-            rcvResp = resp.sum(axis=1)
+            rcvResp = LP['resp'].sum(axis=1)
 
             # Method A: forloop
             sumReceiver = np.zeros((Data.nNodes, K))
             for i in xrange(Data.nNodes):
                 mask_i = Data.edges[:,1] == i
-                sumReceiver[i,:] = srcResp[mask_i].sum()
+                sumReceiver[i,:] += rcvResp[mask_i].sum(axis=0)
 
             # Method B: sparse matrix multiply
-            rcvNodeIndicMat = scipy.sparse.csc_matrix(
+            rcvNodeIndicMat = csc_matrix(
                 (np.ones(Data.nEdges), 
                  Data.edges[:,1],
-                 np.arange(Data.nNodes)),
+                 np.arange(Data.nEdges+1)),
                 shape=(Data.nNodes, Data.nEdges))
             sumReceiver2 = rcvNodeIndicMat * rcvResp
             assert np.allclose(sumReceiver, sumReceiver2)
-        SS.setField('sumReceiver', sumReceiver, dims=('N', 'K'))
+        SS.setField('sumReceiver', sumReceiver, dims=('V', 'K'))
 
-        if 'resp' in LP:
-            Npair = np.sum(LP['squareResp'], axis=(0, 1))
-        else:
-            Npair = LP['Count1'] + LP['Count0']
-        SS.setField('N', Npair, dims=('K', 'K'))
+        Nvec = sumSource.sum(axis=0) + sumReceiver.sum(axis=0)
+        SS.setField('N', Nvec, dims=('K',))
 
         if doPrecompEntropy:
             Hresp = self.L_entropy(LP)
-            SS.setELBOTerm('Hresp', Hresp, dims=('K', 'K'))
+            SS.setELBOTerm('Hresp', Hresp, dims=None)
         return SS
 
     def forceSSInBounds(self, SS):
@@ -241,7 +240,7 @@ class FiniteMMSB(AllocModel):
         self.theta = self.alpha * np.ones((Data.nNodes, K))
 
 
-    def calc_evidence(self, Data, SS, LP, **kwargs):
+    def calc_evidence(self, Data, SS, LP, todict=0, **kwargs):
         ''' Compute training objective function on provided input.
 
         Returns
@@ -251,7 +250,7 @@ class FiniteMMSB(AllocModel):
         Lalloc = self.L_alloc_no_slack()
         Lslack = self.L_slack(SS)
         if SS.hasELBOTerm('Hresp'):
-            Lentropy = SS.getELBOTerm('Hresp').sum()
+            Lentropy = SS.getELBOTerm('Hresp')
         else:
             Lentropy = self.L_entropy(LP)
         if todict:

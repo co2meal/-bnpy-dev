@@ -7,6 +7,8 @@ import sys
 import argparse
 import networkx as nx
 
+import bnpy
+
 from bnpy.util.StateSeqUtil import convertStateSeq_MAT2list
 from bnpy.ioutil import BNPYArgParser
 from bnpy.viz.TaskRanker import rankTasksForSingleJobOnDisk
@@ -188,32 +190,72 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
     Data = Datamod.get_data()
     jobpath = os.path.join(os.path.expandvars('$BNPYOUTDIR'),
                            Datamod.get_short_name(), jobname)
-    print dataset
+
     if isinstance(taskids, str):
         taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
-        print taskids
     elif isinstance(taskids, int):
         taskids = [str(taskids)]
-    f_pair, axes_pair = plt.subplots(1, len(taskids))
-    f_graph, axes_graph = plt.subplots(1, len(taskids))
-    f_vardist, axes_vardist = plt.subplots(1, len(taskids), frameon=False)
 
-    if len(taskids) == 1:
-        axes_pair = [axes_pair]
+    #f_pair, axes_pair = plt.subplots(1, len(taskids))
+    #f_graph, axes_graph = plt.subplots(1, len(taskids))
+    #f_vardist, axes_vardist = plt.subplots(1, len(taskids), frameon=False)
+    #if len(taskids) == 1:
+    #    axes_pair = [axes_pair]
+
+    AdjMat = np.squeeze(Data.toAdjacencyMatrix())
+    sortids = np.argsort(Data.TrueParams['pi'].argmax(axis=1))
+    AdjMat = AdjMat[sortids, :]
+    AdjMat = AdjMat[:, sortids]
+
+
+    # Show the true adj mat and the estimated side-by-side
+    ncols = len(taskids)+1
+    plt.subplots(nrows=1, ncols=ncols, figsize=(3, 3*ncols))
+    plt.subplot(1, ncols, 1)
+    plt.imshow(AdjMat, cmap='Greys', interpolation='nearest', vmin=0, vmax=1)
 
     for tt, taskid in enumerate(taskids):
-        curAx = axes_pair[tt]
-        path = os.path.join(jobpath, taskid) + os.path.sep
+        # curAx = axes_pair[tt]
+        taskoutpath = os.path.join(jobpath, taskid) + os.path.sep
 
         # Figure out which lap to use
         if lap == 'final':
-            lapsFile = open(path + 'laps.txt')
+            lapsFile = open(taskoutpath + 'laps.txt')
             curLap = lapsFile.readlines()
             curLap = float(curLap[-1])
             lapsFile.close()
         else:
             curLap = int(lap)
 
+        hmodel, curLap = bnpy.ioutil.ModelReader.loadModelForLap(
+            taskoutpath, curLap)
+        Ew = hmodel.obsModel.Post.lam1 / \
+            (hmodel.obsModel.Post.lam1 + hmodel.obsModel.Post.lam0)
+        LP = hmodel.calc_local_params(Data)
+        taskAdjMat = np.zeros((Data.nNodes, Data.nNodes, Data.dim))
+        for s in range(Data.nNodes):
+            for t in range(Data.nNodes):
+                if s == t:
+                    continue
+                eid = np.flatnonzero(
+                    np.logical_and(Data.edges[:,0] == s, 
+                                   Data.edges[:,1] == t))[0]
+                resp_st = LP['resp'][eid, :, :]
+                taskAdjMat[s,t] = np.sum(resp_st[:,:,np.newaxis] * Ew, axis=(0,1))
+                assert np.allclose(resp_st.sum(), 1.0)
+
+        assert taskAdjMat.min() >= 0
+        assert taskAdjMat.max() <= 1.0
+        taskAdjMat = np.squeeze(taskAdjMat)
+        taskAdjMat = taskAdjMat[sortids,:]
+        taskAdjMat = taskAdjMat[:, sortids]
+
+        plt.subplot(1, ncols, 2+tt)
+        plt.imshow(taskAdjMat,
+                   cmap='Greys', interpolation='nearest', vmin=0, vmax=1)
+        
+        print 'ERROR: ', np.sum(AdjMat - taskAdjMat)
+        '''
         if showELBOInTitle:
             ELBOscores = np.loadtxt(os.path.join(path, 'evidence.txt'))
             laps = np.loadtxt(os.path.join(path, 'laps.txt'))
@@ -251,6 +293,7 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
         Epi /= np.sum(Epi, axis=1)[:, np.newaxis]
         drawGraphVariationalDist(Data, Epi, axes_vardist, f_vardist, Z=estZ,
                                  title=title)
+        '''
 
 
 def plotTrueLabels(dataset, Data=None, gtypes=['Actual'], thresh=.5,
@@ -471,24 +514,20 @@ def plotEdgePrTransMtx(Data, pi, phi, perms, doPerm, title='', true=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset')
-    parser.add_argument('--jobnames')
+    parser.add_argument('dataName')
+    parser.add_argument('jobname')
     parser.add_argument(
         '--taskids', type=str, default='1',
         help="int ids of tasks (trials/runs) to plot from given job." +
         " Example: '4' or '1,2,3' or '2-6'.")
 
     parser.add_argument('--lap', default='final')
-    parser.add_argument('--sequences', default='1')
     args = parser.parse_args()
 
-    jobs = args.jobnames.split(',')
-
-    for job in jobs:
-        plotSingleJob(dataset=args.dataset,
-                      jobname=job,
-                      taskids=args.taskids,
-                      lap=args.lap)
+    plotSingleJob(dataset=args.dataName,
+                  jobname=args.jobname,
+                  taskids=args.taskids,
+                  lap=args.lap)
     plt.show()
 
 

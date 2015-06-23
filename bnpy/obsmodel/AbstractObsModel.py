@@ -141,6 +141,9 @@ class AbstractObsModel(object):
             PDict['min_covar'] = self.min_covar
         if hasattr(self, 'inferType'):
             PDict['inferType'] = self.inferType
+        if hasattr(self, 'CompDims'):
+            PDict['CompDims'] = self.CompDims
+
         if hasattr(self, 'Prior'):
             PDict['D'] = self.Prior.D
             for key in self.Prior._FieldDims.keys():

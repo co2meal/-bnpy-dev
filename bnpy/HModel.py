@@ -158,6 +158,9 @@ class HModel(object):
             elif str(type(self.obsModel)).count('Mult') > 0:
                 init.FromScratchMult.init_global_params(self.obsModel,
                                                         Data, **initArgs)
+            elif str(type(Data)).count('Graph') > 0:
+                init.FromScratchRelational.init_global_params(
+                    self.obsModel, Data, **initArgs)
             elif str(type(self.obsModel)).count('Bern') > 0:
                 init.FromScratchBern.init_global_params(self.obsModel,
                                                         Data, **initArgs)
