@@ -22,8 +22,11 @@ class GraphXData(XData):
     X : 2D array, shape nEdges x D
         Row e contains the vector observation associated with edge e.
     nEdges : int
-        Total number of edges observed in current, in-memory batch.
+        Number of edges in current, in-memory batch.
         Always equal to edges.shape[0].
+    nEdgesTotal : int
+        Number of edges in whole dataset, across all batches.
+        Always >= nEdges.
     nNodesTotal : int
         Total number of nodes in the dataset.
     nodes : 1D array, size nNodes
@@ -53,7 +56,7 @@ class GraphXData(XData):
 
     def __init__(self, edges=None, X=None,
                  AdjMat=None,
-                 nNodesTotal=None,
+                 nNodesTotal=None, nEdgesTotal=None,
                  TrueParams=None, name=None, summary=None,
                  nodes=None, nNodes=None, heldOut=None,
                  **kwargs):
@@ -109,7 +112,8 @@ class GraphXData(XData):
             self.edges = self.edges[nonselfloopmask].copy()
             self.X = self.X[nonselfloopmask].copy()
 
-        self._set_size_attributes(nNodesTotal=nNodesTotal)
+        self._set_size_attributes(nNodesTotal=nNodesTotal, 
+                                  nEdgesTotal=nEdgesTotal)
         self._verify_attributes()
         if nodes is None:
             self.nodes = np.arange(self.nNodes)
@@ -125,18 +129,24 @@ class GraphXData(XData):
         assert self.edges.max() < self.nNodes
         nSelfLoops = np.sum(self.edges[:,0] == self.edges[:,1])
         assert nSelfLoops == 0
+        assert self.nEdges <= self.nEdgesTotal
 
-    def _set_size_attributes(self, nNodesTotal=None):
+    def _set_size_attributes(self, nNodesTotal=None, nEdgesTotal=None):
         ''' Set internal fields that define sizes/dims.
 
         Post condition
         --------------
         Fields nNodes and nNodes total have proper, consistent values.
         '''
+        if nEdgesTotal is None:
+            self.nEdgesTotal = self.edges.shape[0]
+        else:
+            self.nEdgesTotal = nEdgesTotal
         if nNodesTotal is None:
             self.nNodesTotal = self.edges.max() + 1
         else:
             self.nNodesTotal = nNodesTotal
+
         self.nNodes = self.nNodesTotal
         self.nEdges = self.edges.shape[0]
         self.nObs = self.nEdges
@@ -151,13 +161,13 @@ class GraphXData(XData):
         return s
 
     def get_total_size(self):
-        return self.nNodesTotal
+        return self.nEdgesTotal
 
     def get_size(self):
-        return self.nNodes
+        return self.nEdges
 
     def get_dataset_scale(self):
-        return self.nNodesTotal**2 - self.nNodesTotal
+        return self.nEdges
 
     def select_subset_by_mask(self, mask, doTrackFullSize=True, **kwargs):
         ''' Creates new GraphXData object using a subset of edges.
@@ -178,13 +188,17 @@ class GraphXData(XData):
         X = self.X[mask]
 
         if doTrackFullSize:
+            nEdgesTotal = self.nEdgesTotal
             nNodesTotal = self.nNodesTotal
             nodes = self.nodes
         else:
+            nEdgesTotal = None
             nNodesTotal = None
             nodes = None
         return GraphXData(edges=edges, X=X, 
-                          nNodesTotal=nNodesTotal, nodes=nodes)
+                          nNodesTotal=nNodesTotal, 
+                          nEdgesTotal=nEdgesTotal,
+                          nodes=nodes)
 
     def add_data(self, otherDataObj):
         ''' Updates (in-place) this object by adding new nodes.
@@ -193,7 +207,8 @@ class GraphXData(XData):
         self.X = np.vstack([self.X, otherDataObj.X])
         self.edges = np.vstack([self.edges, otherDataObj.edges])
         self._set_size_attributes(
-            nNodesTotal=self.nNodesTotal+otherDataObj.nNodesTotal)
+            nNodesTotal=self.nNodesTotal+otherDataObj.nNodesTotal,
+            nEdgesTotal=self.nEdgesTotal+otherDataObj.nEdgesTotal)
         self.nodes = nodes
 
     def toAdjacencyMatrix(self):
@@ -208,42 +223,39 @@ class GraphXData(XData):
         return AdjMat
 
     @classmethod
-    def LoadFromFile(cls, filepath,
-                     nNodesTotal=None, isSparse=False, **kwargs):
+    def LoadFromFile(cls, filepath, **kwargs):
         ''' Static constructor for loading data from disk into XData instance
         '''
         if filepath.endswith('.mat'):
             return cls.read_from_mat(filepath, **kwargs)
         elif filepath.endswith('.txt'):
-            return cls.read_from_txt(filepath, isSparse=isSparse,
-                                     nNodesTotal=nNodesTotal)
+            return cls.read_from_txt(filepath, **kwargs)
         raise NotImplemented('File extension not supported')
 
     @classmethod
-    def read_from_txt(cls, filepath,
-                      nNodesTotal=None, isSparse=False, **kwargs):
+    def read_from_txt(cls, filepath, 
+                      nEdgesTotal=None, nNodesTotal=None, **kwargs):
         ''' Static constructor loading .txt file into GraphXData instance.
         '''
         txt = np.loadtxt(filepath, dtype=np.int32)
         sourceID = txt[:, 0]
         destID = txt[:, 1]
         edgeSet = set(zip(sourceID, destID))
-        return cls(X=None, edgeSet=edgeSet, isSparse=isSparse,
-                   nNodesTotal=nNodesTotal, nNodes=nNodesTotal)
+        return cls(nNodesTotal=nNodesTotal, nEdgesTotal=nEdgesTotal)
 
     @classmethod
-    def read_from_mat(cls, matfilepath, nObsTotal=None, **kwargs):
+    def read_from_mat(cls, matfilepath, **kwargs):
         ''' Static constructor loading .mat file into GraphXData instance.
+
+        Keyword args (optional)
+        ---------------
+        nNodesTotal : int
+        nEdgesTotal : int
         '''
         InDict = scipy.io.loadmat(matfilepath, **kwargs)
-        if 'X' not in InDict:
-            raise KeyError(
-                'Stored matfile needs to have data in field named X')
-        N = InDict['X'].shape[0]
-        InDict['nNodesTotal'] = N
-        InDict['nNodes'] = N
         if 'TrueZ' in InDict:
             InDict['TrueParams'] = {'Z': InDict['TrueZ']}
+        InDict.update(kwargs) # nNodesTotal, nEdgesTotal passed in here
         return cls(**InDict)
 
 

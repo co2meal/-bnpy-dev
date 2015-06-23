@@ -116,7 +116,6 @@ class HModel(object):
             Data, SS, LP, todict=todict, **kwargs)
         evObs = self.obsModel.calc_evidence(
             Data, SS, LP, todict=todict, **kwargs)
-
         if scaleFactor is None:
             scaleFactor = self.obsModel.getDatasetScale(SS)
         if todict:
