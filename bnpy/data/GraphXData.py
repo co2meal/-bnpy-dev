@@ -1,21 +1,50 @@
 '''
 GraphXData.py
 
-Data object for holding observations of edges of a graph / network.
+Data object for holding network (graph) based data.  Supports both sparse and dense data storage (sparse only for 1-dimensional binary data).
 
 Attributes
 -------
-X : 2D array, size nObs x D
-sourceID : 1D array, size nObs, holding the ID of the source node of edge i
-destID : 1D array, size nObs, holding the ID of the destination node of edge i
-nObs : int total number of unique observations in the current, in-memory batch
-TrueParams : (optional) dict
-summary : (optional) string providing human-readable description of this data
-
+isSparse : boolean value that determines how the data is stored
+X : For dense data storage.  NxNxD array representing the data on each edge of 
+    a graph.  Is set to None when isSparse is true
+edgeSet : For sparse data storage.  A set() that contains the tuple (i,j) if
+          there is an edge from i to j in the graph (equivalently, if
+          X[i,j] = 1).  Note that (i,j) in edgeSet does not imply (j,i) is in
+          edgeSet.
+nObs/nEdges : total number of unique observations in the current, in-memory 
+              batch.  Is equal to len(edgeSet) in the case of sparse data and
+              to N^2 in the case of dense data
+nNodes : total number of nodes in the current, in-memory batch.  Identical to
+         nEdges and nObs in the case of dense data
+nodes : Node IDs represented in the current in-memory batch.  
+TrueParams : (optional) dict holding the dataset's true parameters
 edgeRange : Tuple (start,end), indicating which edges this dataset has from
              the list of N^2-N edges (1,2),(1,3),...,(2,1), etc.  Used in
              making minibatches of a larger dataset
+respInds : For sparse data only.  Assuming the full adjacency matrix X were
+           stored, X[respInds[:,0],respInds[:,1]] == 1
 
+Example
+--------
+>>> import numpy as np
+>>> from bnpy.data import GraphXData
+>>> X = np.asarray([[0, 1, 1], \
+...                 [0, 0, 1], \
+...                 [1, 0, 0]])
+>>> nonSparse = GraphXData(X=X, edgeSet=None, isSparse=False)
+>>> nonSparse.nNodes ; nonSparse.nObs
+3
+3
+>>> nonSparse.nodes
+array([0, 1, 2])
+
+>>> inds = np.where(X==1)
+>>> sparse = GraphXData(X=None, edgeSet=set(zip(inds[0], inds[1])),
+...                     isSparse=True)
+>>> sparse.nNodes ; sparse.nObs
+3
+4
 '''
 
 import numpy as np
@@ -113,7 +142,8 @@ class GraphXData(XData):
                 self.nodes = np.arange(self.nNodes)
             else:
                 self.nodes = nodes
-            self.nObs = self.X.shape[0]
+            self.nObs = self.X.shape[0]**2
+            self.nEdges = self.nObs**2
 
         # Held out data. Only passed in if this is a subset of a larger dataset
         self.heldOut = heldOut
@@ -153,25 +183,6 @@ class GraphXData(XData):
         heldOut[1, :] = self.heldOut[1, :]
         self.heldOut = heldOut
 
-    def _check_dims(self):
-        if self.isSparse:
-            assert self.sourceID.ndim == 1
-            assert self.sourceID.flags.c_contiguous
-            assert self.sourceID.flags.owndata
-            assert self.sourceID.flags.aligned
-            assert self.sourceID.flags.writeable
-
-            assert self.destID.ndim == 1
-            assert self.destID.flags.c_contiguous
-            assert self.destID.flags.owndata
-            assert self.destID.flags.aligned
-            assert self.destID.flags.writeable
-
-            assert self.destID.shape[0] == self.sourceID.shape[0]
-            assert self.sourceID.shape[0] == self.X.shape[0]
-
-        super(GraphXData, self)._check_dims()
-
     def _set_dependent_params(self, nNodesTotal=None, nObsTotal=None):
         if not self.isSparse:
             self.nNodes = self.Xmatrix.shape[0]
@@ -187,8 +198,7 @@ class GraphXData(XData):
             s = 'Graph with N = %d nodes and %d edges\n' % (
                 self.nNodes, self.nObs)
         else:
-            s = 'Graph with N = %d nodes and real-valued edges of ' % (
-                self.nNodes)
+            s = 'Graph with N = %d nodes and real-valued edges with %d-dimensional observations' % (self.nNodes, self.D)
         s += ' dimension: %d' % (self.get_dim())
         return s
 

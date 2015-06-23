@@ -80,10 +80,11 @@ if __name__ == '__main__':
     Data = get_data(nNodes=100)
     w = Data.TrueParams['w']
 
-    # RelationalViz.plotTrueLabels(
-    #    'ToyMMSBK6', Data,
-    #    gtypes=['Actual', 'VarDist', 'EdgePr'],
-    #    mixColors=True, thresh=.73, colorEdges=False, title='')
+    # Draw graph with nodes colored by their mixed community membership
+    RelationalViz.plotTrueLabels(
+      'ToyMMSBK6', Data,
+      gtypes=['Actual'],
+      mixColors=True, thresh=.65, colorEdges=False, title='ToyMMSBK6 Graph')
 
     # Plot subset of pi
     Epi = Data.TrueParams['pi']
