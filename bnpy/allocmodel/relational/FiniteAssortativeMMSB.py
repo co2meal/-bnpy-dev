@@ -126,12 +126,23 @@ class FiniteAssortativeMMSB(FiniteMMSB):
         NodeStateCount_bg = \
             Data.getSparseSrcNodeMat() * srcresp_bg + \
             Data.getSparseRcvNodeMat() * rcvresp_bg
-        LP['NodeStateCount_bg'] = NodeStateCount_bg
+        # NodeStateCount_fg : 2D array, size nNodes x K
+        nodeMat = Data.getSparseSrcNodeMat() + Data.getSparseRcvNodeMat()
+        NodeStateCount_fg = nodeMat * LP['resp']
+        LP['NodeStateCount'] = NodeStateCount_bg + NodeStateCount_fg
+        LP['N_fg'] = NodeStateCount_fg.sum(axis=0)
 
         # Ldata_bg : scalar
         #     cached value of ELBO term Ldata for background component
         resp_bg = 1.0 - resp.sum(axis=1)
         LP['Ldata_bg'] = np.inner(resp_bg, logepsEvVec)
+
+        LP['Lentropy_normConst'] = np.sum(respNormConst)
+        LP['Lentropy_lik_fg'] = -1 * np.sum(
+            LP['resp']*LP['E_log_soft_ev'], axis=0)
+        LP['Lentropy_prior'] = -1 * np.sum(
+            LP['NodeStateCount'] * ElogPi, axis=0)
+        LP['Lentropy_lik_bg'] = -1 * LP['Ldata_bg']
         return LP
 
 
@@ -148,20 +159,20 @@ class FiniteAssortativeMMSB(FiniteMMSB):
         K = LP['resp'].shape[-1]
         SS = SuffStatBag(K=K, D=Data.dim, V=V)
 
-        nodeMat = Data.getSparseSrcNodeMat() + Data.getSparseRcvNodeMat()
-        NodeStateCount_fg = nodeMat * LP['resp']
-        SS.setField('NodeStateCount', 
-            NodeStateCount_fg + LP['NodeStateCount_bg'], dims=('V', 'K'))
+        SS.setField('NodeStateCount', LP['NodeStateCount'], dims=('V', 'K'))
         assert np.allclose(SS.NodeStateCount.sum(), Data.nEdges*2)
 
-        Nvec = NodeStateCount_fg.sum(axis=0)
-        SS.setField('N', Nvec, dims=('K',))
+        SS.setField('N', LP['N_fg'], dims=('K',))
         SS.setField('scaleFactor', Data.nEdges, dims=None)
         SS.setELBOTerm('Ldata_bg', LP['Ldata_bg'], dims=None)
 
         if doPrecompEntropy:
-            Hresp = self.L_entropy(LP)
-            SS.setELBOTerm('Hresp', Hresp, dims=None)
+            Hresp = LP['Lentropy_prior'].sum() + \
+                LP['Lentropy_lik_fg'].sum() + \
+                LP['Lentropy_normConst'] + \
+                LP['Lentropy_lik_bg']
+            Hresp2 = self.L_entropy(LP)
+            SS.setELBOTerm('Hresp', Hresp2, dims=None)
         return SS
 
  
