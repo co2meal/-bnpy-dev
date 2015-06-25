@@ -142,46 +142,36 @@ class FiniteMMSB(AllocModel):
             sumSource = LP['sumSource']
         else:
             srcResp = LP['resp'].sum(axis=2)
-            # Method A: forloop
-            sumSource = np.zeros((Data.nNodes, K))
-            for i in xrange(Data.nNodes):
-                mask_i = Data.edges[:,0] == i
-                sumSource[i,:] = srcResp[mask_i].sum(axis=0)
+            # # Method A: forloop
+            # sumSource = np.zeros((Data.nNodes, K))
+            # for i in xrange(Data.nNodes):
+            #     mask_i = Data.edges[:,0] == i
+            #     sumSource[i,:] = srcResp[mask_i].sum(axis=0)
 
             # Method B: sparse matrix multiply
-            srcNodeIndicMat = csc_matrix(
-                (np.ones(Data.nEdges), 
-                 Data.edges[:,0],
-                 np.arange(Data.nEdges+1)),
-                shape=(Data.nNodes, Data.nEdges))
-            sumSource2 = srcNodeIndicMat * srcResp
-            assert np.allclose(sumSource, sumSource2)
-        SS.setField('sumSource', sumSource, dims=('V', 'K'))
+            srcMat = Data.getSparseSrcNodeMat()
+            sumSource = srcMat * srcResp
 
         # sumReceiver[i,l] = \sum_j E_q[r_{jil}]
         if 'sumReceiver' in LP:
             sumReceiver = LP['sumReceiver']
         else:
             rcvResp = LP['resp'].sum(axis=1)
-
-            # Method A: forloop
-            sumReceiver = np.zeros((Data.nNodes, K))
-            for i in xrange(Data.nNodes):
-                mask_i = Data.edges[:,1] == i
-                sumReceiver[i,:] += rcvResp[mask_i].sum(axis=0)
-
+            
             # Method B: sparse matrix multiply
-            rcvNodeIndicMat = csc_matrix(
-                (np.ones(Data.nEdges), 
-                 Data.edges[:,1],
-                 np.arange(Data.nEdges+1)),
-                shape=(Data.nNodes, Data.nEdges))
-            sumReceiver2 = rcvNodeIndicMat * rcvResp
-            assert np.allclose(sumReceiver, sumReceiver2)
-        SS.setField('sumReceiver', sumReceiver, dims=('V', 'K'))
+            rcvMat = Data.getSparseRcvNodeMat()
+            sumReceiver = rcvMat * rcvResp
 
-        Nvec = sumSource.sum(axis=0) + sumReceiver.sum(axis=0)
-        SS.setField('N', Nvec, dims=('K',))
+            # # Method A: forloop
+            # sumReceiver = np.zeros((Data.nNodes, K))
+            # for i in xrange(Data.nNodes):
+            #     mask_i = Data.edges[:,1] == i
+            #     sumReceiver[i,:] += rcvResp[mask_i].sum(axis=0)
+
+        SS.setField('NodeStateCount', sumSource + sumReceiver, dims=('V', 'K'))
+        
+        Nresp = np.sum(LP['resp'], axis=0)
+        SS.setField('N', Nresp, dims=('K','K'))
 
         if doPrecompEntropy:
             Hresp = self.L_entropy(LP)
@@ -195,8 +185,7 @@ class FiniteMMSB(AllocModel):
         -------
         Nothing.  SS is updated in-place.
         '''
-        np.maximum(SS.sumSource, 0, out=SS.sumSource)
-        np.maximum(SS.sumReceiver, 0, out=SS.sumReceiver)
+        np.maximum(SS.NodeStateCount, 0, out=SS.NodeStateCount)
 
     def update_global_params_VB(self, SS, **kwargs):
         ''' Update global parameter theta to optimize VB objective.
@@ -205,7 +194,7 @@ class FiniteMMSB(AllocModel):
         --------------
         Attribute theta set to optimal value given suff stats.
         '''
-        self.theta = self.alpha + SS.sumSource + SS.sumReceiver
+        self.theta = self.alpha + SS.NodeStateCount
 
     def set_global_params(self, hmodel=None, theta=None, **kwargs):
         ''' Set global parameters to specific values.
@@ -280,7 +269,7 @@ class FiniteMMSB(AllocModel):
         '''
         ElogPi = digamma(self.theta) - \
             digamma(np.sum(self.theta, axis=1))[:, np.newaxis]
-        Q = SS.sumSource + SS.sumReceiver + self.alpha - self.theta
+        Q = SS.NodeStateCount + self.alpha - self.theta
         Lslack = np.sum(Q * ElogPi)
         return Lslack
 

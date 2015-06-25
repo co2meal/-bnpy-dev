@@ -38,27 +38,34 @@ def init_global_params(obsModel, Data, K=0, seed=0,
     PRNG = np.random.RandomState(seed)
     AdjMat = Data.toAdjacencyMatrix()
 
+    K = np.minimum(K, Data.nNodes)
+    if len(obsModel.CompDims) == 2:
+        CompDims = (K, K,)
+    else:
+        CompDims = (K,)
+
     if initname == 'randexamples':
         # Choose K rows of AdjMat uniformly at random from the Data
-        K = np.minimum(K, Data.nNodes)
         chosenNodes = PRNG.choice(AdjMat.shape[0], size=K, replace=False)
 
-        # Build resp from chosenNodes        
-        resp = np.zeros((Data.nEdges, K, K))
+        # Build resp from chosenNodes 
+        resp = np.zeros((Data.nEdges,) + CompDims)
         for k in xrange(K):
             srcnode_mask = np.flatnonzero(
                 Data.edges[:,0] == chosenNodes[k])
             on_mask = srcnode_mask[
                 np.sum(Data.X[srcnode_mask,:], axis=1) > 0]
-            resp[on_mask, :, :] = 0.05 / (K**2-1) * PRNG.rand(K,K)
-            resp[on_mask, k, k] = 0.95
+            if len(CompDims) == 2:
+                resp[on_mask, :, :] = 0.05 / (K**2-1) * PRNG.rand(K,K)
+                resp[on_mask, k, k] = 0.95
+            else:
+                resp[on_mask, k] = 0.95
     
     elif initname == 'randexamplesbydist':
         # Choose K items from the Data,
         #  selecting the first at random,
         # then subsequently proportional to euclidean distance to the closest
         # item
-        K = np.minimum(K, Data.nNodes)
         objID = PRNG.choice(AdjMat.shape[0])
         chosenNodes = list([objID])
         minDistVec = np.inf * np.ones(AdjMat.shape[0])
@@ -81,8 +88,11 @@ def init_global_params(obsModel, Data, K=0, seed=0,
                 Data.edges[:,0] == chosenNodes[k])
             on_mask = srcnode_mask[
                 np.sum(Data.X[srcnode_mask,:], axis=1) > 0]
-            resp[on_mask, :, :] = 0.05 / (K**2-1.0) * PRNG.rand(K,K)
-            resp[on_mask, k, k] = 0.95    
+            if len(CompDims) == 2:
+                resp[on_mask, :, :] = 0.05 / (K**2-1) * PRNG.rand(K,K)
+                resp[on_mask, k, k] = 0.95
+            else:
+                resp[on_mask, k] = 0.95
 
     elif initname == 'kmeans':
         # Fill in resp matrix with hard-clustering from K-means
@@ -95,8 +105,11 @@ def init_global_params(obsModel, Data, K=0, seed=0,
                 Data.edges[:,0] == labels[n])
             on_mask = srcnode_mask[
                 np.sum(Data.X[srcnode_mask,:], axis=1) > 0]
-            resp[on_mask, :, :] = 0.05 / (K**2-1.0) * PRNG.rand(K,K)
-            resp[on_mask, k, k] = 0.95    
+            if len(CompDims) == 2:
+                resp[on_mask, :, :] = 0.05 / (K**2-1) * PRNG.rand(K,K)
+                resp[on_mask, k, k] = 0.95
+            else:
+                resp[on_mask, k] = 0.95
 
     else:
         raise NotImplementedError('Unrecognized initname ' + initname)

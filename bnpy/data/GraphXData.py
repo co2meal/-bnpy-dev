@@ -8,6 +8,9 @@ GraphXData
 
 import numpy as np
 import scipy.io
+
+from scipy.sparse import csc_matrix
+
 from bnpy.util import as1D, as2D, as3D, toCArray
 from XData import XData
 
@@ -166,9 +169,6 @@ class GraphXData(XData):
     def get_size(self):
         return self.nEdges
 
-    def get_dataset_scale(self):
-        return self.nEdges
-
     def select_subset_by_mask(self, mask, doTrackFullSize=True, **kwargs):
         ''' Creates new GraphXData object using a subset of edges.
 
@@ -221,6 +221,46 @@ class GraphXData(XData):
         AdjMat = np.zeros((self.nNodes, self.nNodes, self.dim))
         AdjMat[self.edges[:,0], self.edges[:,1]] = self.X
         return AdjMat
+
+    def getSparseSrcNodeMat(self):
+        ''' Get sparse indicator matrix to sum edges by source node.
+
+        Returns
+        -------
+        S : 2D sparse matrix, size nNode x nEdges
+            S[s,e] is 1 iff node s is the source for edge e
+            Take any vector or matrix A with first axis for edges, and
+            S * A will sum over rows of A by source node.
+        '''
+        try:
+            return self.SrcNodeMat
+        except AttributeError:
+            self.SrcNodeMat = csc_matrix(
+                (np.ones(self.nEdges), 
+                 self.edges[:,0],
+                 np.arange(self.nEdges+1)),
+                shape=(self.nNodes, self.nEdges))
+        return self.SrcNodeMat
+
+    def getSparseRcvNodeMat(self):
+        ''' Get sparse indicator matrix to sum edges by receiver node.
+
+        Returns
+        -------
+        S : 2D sparse matrix, size nNode x nEdges
+            S[s,e] is 1 iff node s is the receiver for edge e
+            Take any vector or matrix A with first axis for edges, and
+            S * A will sum over rows of A by receiver node.
+        '''
+        try:
+            return self.RcvNodeMat
+        except AttributeError:
+            self.RcvNodeMat = csc_matrix(
+                (np.ones(self.nEdges), 
+                 self.edges[:,1],
+                 np.arange(self.nEdges+1)),
+                shape=(self.nNodes, self.nEdges))
+        return self.RcvNodeMat
 
     @classmethod
     def LoadFromFile(cls, filepath, **kwargs):

@@ -117,7 +117,10 @@ class HModel(object):
         evObs = self.obsModel.calc_evidence(
             Data, SS, LP, todict=todict, **kwargs)
         if scaleFactor is None:
-            scaleFactor = self.obsModel.getDatasetScale(SS)
+            if hasattr(SS, 'scaleFactor'):
+                scaleFactor = SS.scaleFactor
+            else:
+                scaleFactor = self.obsModel.getDatasetScale(SS)
         if todict:
             evA.update(evObs)
             for key in evA:
