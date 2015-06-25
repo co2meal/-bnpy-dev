@@ -60,6 +60,17 @@ class FiniteMMSB(AllocModel):
         '''
         return ('K', 'K',)
 
+    def E_logPi(self):
+        ''' Compute expected value of log \pi for each node and state.
+
+        Returns
+        -------
+        ElogPi : 2D array, nNodes x K
+        '''
+        sumtheta = self.theta.sum(axis=1)
+        ElogPi = digamma(self.theta) - digamma(sumtheta)[:, np.newaxis]
+        return ElogPi
+
     def calc_local_params(self, Data, LP, **kwargs):
         ''' Compute local parameters for provided dataset.
 
@@ -80,8 +91,7 @@ class FiniteMMSB(AllocModel):
             raise NotImplementedError("TODO")
 
         K = self.K
-        ElogPi = digamma(self.theta) - \
-            digamma(np.sum(self.theta, axis=1))[:, np.newaxis]
+        ElogPi = self.E_logPi()
 
         # resp : nEdges x K x K
         #    resp[e(s,t),k,l] = ElogPi[s,k] + ElogPi[t,l] + likelihood
@@ -91,15 +101,14 @@ class FiniteMMSB(AllocModel):
         if Data.isSparse:  # Sparse binary data.
             raise NotImplementedError("TODO")
 
-        else:
-            logSoftEv = LP['E_log_soft_ev']  # E x K x K
-            resp += logSoftEv
+        logSoftEv = LP['E_log_soft_ev']  # E x K x K
+        resp += logSoftEv
 
-            # In-place exp and normalize
-            resp -= np.max(resp, axis=(1,2))[:, np.newaxis, np.newaxis]
-            np.exp(resp, out=resp)
-            resp /= resp.sum(axis=(1,2))[:, np.newaxis, np.newaxis]
-            LP['resp'] = resp
+        # In-place exp and normalize
+        resp -= np.max(resp, axis=(1,2))[:, np.newaxis, np.newaxis]
+        np.exp(resp, out=resp)
+        resp /= resp.sum(axis=(1,2))[:, np.newaxis, np.newaxis]
+        LP['resp'] = resp
         return LP
 
     def get_global_suff_stats(self, Data, LP, doPrecompEntropy=0, **kwargs):

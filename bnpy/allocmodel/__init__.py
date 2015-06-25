@@ -12,6 +12,7 @@ from hmm.HDPHMM import HDPHMM
 from relational.FiniteSMSB import FiniteSMSB
 from relational.FiniteMMSB import FiniteMMSB
 from relational.FiniteAssortativeMMSB import FiniteAssortativeMMSB
+from relational.HDPMMSB import HDPMMSB
 from relational.HDPaMMSB import HDPaMMSB
 
 
@@ -25,6 +26,7 @@ AllocModelConstructorsByName = {
     'FiniteSMSB': FiniteSMSB,
     'FiniteMMSB': FiniteMMSB,
     'FiniteAssortativeMMSB': FiniteAssortativeMMSB,
+    'HDPMMSB': HDPMMSB,
     'HDPaMMSB': HDPaMMSB,
 }
 
