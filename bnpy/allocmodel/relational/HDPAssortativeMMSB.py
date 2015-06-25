@@ -10,13 +10,16 @@ from bnpy.allocmodel import AllocModel
 from bnpy.suffstats import SuffStatBag
 from bnpy.util import gammaln, digamma, EPS
 
-from FiniteMMSB import FiniteMMSB
-import MMSBUtil
+from bnpy.util import StickBreakUtil
+from bnpy.allocmodel.topics import OptimizerRhoOmega
+from bnpy.allocmodel.topics.HDPTopicUtil import c_Beta, c_Dir, L_top
 
+from FiniteAssortativeMMSB import FiniteAssortativeMMSB
+from HDPMMSB import updateRhoOmega, updateThetaAndThetaRem
 
-class FiniteAssortativeMMSB(FiniteMMSB):
+class HDPAssortativeMMSB(FiniteAssortativeMMSB):
 
-    """ Assortative version of FiniteMMSB. Finite number of components K.
+    """ Assortative version of MMSB, with HDP prior.
 
     Attributes
     -------
@@ -35,10 +38,11 @@ class FiniteAssortativeMMSB(FiniteMMSB):
     """
 
     def __init__(self, inferType, priorDict=dict()):
-        super(FiniteAssortativeMMSB, self).__init__(inferType, priorDict)
+        super(HDPAssortativeMMSB, self).__init__(inferType, priorDict)
 
-    def set_prior(self, alpha=0.1, epsilon=0.05):
+    def set_prior(self, alpha=0.5, gamma=10, epsilon=0.05):
         self.alpha = alpha
+        self.gamma = gamma
         self.epsilon = epsilon
 
     def getCompDims(self):
@@ -52,157 +56,138 @@ class FiniteAssortativeMMSB(FiniteMMSB):
         '''
         return ('K',)
 
-    def calc_local_params(self, Data, LP, **kwargs):
-        ''' Compute local parameters for provided dataset.
+    def E_logPi(self, returnRem=0):
+        ''' Compute expected probability \pi for each node and state
+
+        Returns
+        -------
+        ElogPi : nNodes x K
+        '''
+        digammasumtheta = digamma(
+            self.theta.sum(axis=1) + self.thetaRem)
+        ElogPi = digamma(self.theta) - digammasumtheta[:, np.newaxis]
+        if returnRem:
+            ElogPiRem = digamma(self.thetaRem) - digammasumtheta
+            return ElogPi, ElogPiRem
+        return ElogPi
+
+    # calc_local_params inherited from FiniteAssortativeMMSB
+    # get_global_suff_stats inherited from FiniteAssortativeMMSB
+ 
+
+    def update_global_params_VB(self, SS, **kwargs):
+        ''' Update global parameter theta to optimize VB objective.
+
+        Post condition
+        --------------
+        Attributes rho,omega,theta set to optimal value given suff stats.
+        '''
+        nGlobalIters = 2
+
+        if not hasattr(self, 'rho'):
+            self.rho = OptimizerRhoOmega.create_initrho(SS.K)
+        if not hasattr(self, 'omega'):
+            nDoc = SS.NodeStateCount.shape[0]
+            self.omega = (nDoc + self.gamma) * np.ones(SS.K)
+
+        # Update theta with recently updated info from suff stats
+        self.theta, self.thetaRem = updateThetaAndThetaRem(
+            SS, alpha=self.alpha, rho=self.rho)
+
+        for giter in xrange(nGlobalIters):
+            self.rho, self.omega = updateRhoOmega(
+                theta=self.theta, thetaRem=self.thetaRem,
+                initrho=self.rho, initomega=self.omega, 
+                alpha=self.alpha, gamma=self.gamma)
+
+            self.theta, self.thetaRem = updateThetaAndThetaRem(
+                SS, alpha=self.alpha, rho=self.rho)
+
+        
+    def set_global_params(self, hmodel=None,
+                          rho=None, omega=None, theta=None, thetaRem=None,
+                          **kwargs):
+        ''' Set rho, omega, theta to specific provided values.
+        '''
+        if hmodel is not None:
+            self.K = hmodel.allocModel.K
+            if hasattr(hmodel.allocModel, 'rho'):
+                self.rho = hmodel.allocModel.rho
+                self.omega = hmodel.allocModel.omega
+            else:
+                raise AttributeError('Unrecognized hmodel. No field rho.')
+            if hasattr(hmodel.allocModel, 'theta'):
+                self.theta = hmodel.allocModel.theta
+                self.thetaRem = hmodel.allocModel.thetaRem
+            else:
+                raise AttributeError('Unrecognized hmodel. No field theta.')
+        elif rho is not None \
+                and omega is not None \
+                and theta is not None:
+            self.rho = rho
+            self.omega = omega
+            self.theta = theta
+            self.thetaRem = thetaRem
+            self.K = omega.size
+        else:
+            self._set_global_params_from_scratch(**kwargs)
+
+    def _set_global_params_from_scratch(self, beta=None,
+                                        Data=None, nNodes=None, **kwargs):
+        ''' Set rho, omega to values that reproduce provided appearance probs
 
         Args
-        -------
-        Data : GraphData object
-        LP : dict of local params, with fields
-            * E_log_soft_ev : nEdges x K
-        
-        Returns
-        -------
-        LP : dict of local params, with fields
-            * resp : nEdges x K
-                resp[e,k] = prob that edge e is explained by 
-                connection from state/block combination k,k
+        --------
+        beta : 1D array, size K
+            beta[k] gives top-level probability for active comp k
         '''
-        K = self.K
-        ElogPi = digamma(self.theta) - \
-            digamma(np.sum(self.theta, axis=1))[:, np.newaxis]
+        if nNodes is None:
+            nNodes = Data.nNodes
+        if nNodes is None:
+            raise ValueError('Bad parameters. nNodes not specified.')
+        if beta is None:
+            raise ValueError('Bad parameters. Vector beta not specified.')
+        beta = beta / beta.sum()
+        Ktmp = beta.size
+        rem = np.minimum(0.05, 1. / (Ktmp))
+        beta = np.hstack([np.squeeze(beta), rem])
+        beta = beta / np.sum(beta)
+        self.K = beta.size - 1
+        self.rho, self.omega = self._beta2rhoomega(beta, nNodes)
+        assert self.rho.size == self.K
+        assert self.omega.size == self.K
 
-        # epsEvVec : 1D array, size nEdges
-        #    holds the likelihood that edge was generated by bg state "epsilon"
-        logepsEvVec = np.sum(
-            np.log(self.epsilon) * Data.X + \
-            np.log(1-self.epsilon) * (1-Data.X),
-            axis=1)
-        epsEvVec = np.exp(logepsEvVec)
-
-        # resp : 2D array, nEdges x K
-        resp = ElogPi[Data.edges[:,0], :] + \
-            ElogPi[Data.edges[:,1], :] + \
-            LP['E_log_soft_ev']
-        np.exp(resp, out=resp)
-
-        expElogPi = np.exp(ElogPi)
-
-        # sumPi_fg : 1D array, size nEdges
-        #    sumPi_fg[e] = \sum_k \pi[s,k] \pi[t,k] for edge e=(s,t)
-        sumPi_fg = np.sum(
-            expElogPi[Data.edges[:,0]] * expElogPi[Data.edges[:,1]],
-            axis=1)
-        # sumPi : 1D array, size nEdges
-        #    sumPi[e] = \sum_j,k \pi[s,j] \pi[t,k] for edge e=(s,t)
-        sumexpElogPi = expElogPi.sum(axis=1)
-        sumPi = sumexpElogPi[Data.edges[:,0]] * \
-            sumexpElogPi[Data.edges[:,1]]
-
-        # respNormConst : 1D array, size nEdges
-        respNormConst = resp.sum(axis=1)
-        respNormConst += (sumPi - sumPi_fg) * epsEvVec
-        # Normalize the rows of resp
-        resp /= respNormConst[:,np.newaxis]
-        LP['resp'] = resp
-
-        # src/rcv resp_bg : 2D array, size nEdges x K
-        #     srcresp_bg[n,k] = sum of resp mass 
-        #         when edge n's src asgned to k, but rcv is not
-        #     rcvresp_bg[n,k] = sum of resp mass 
-        #         when edge n's rcv asgned to k, but src is not
-        epsEvVec /= respNormConst
-        expElogPi_bg = sumexpElogPi[:,np.newaxis] - expElogPi
-        srcresp_bg = epsEvVec[:,np.newaxis] * \
-                expElogPi[Data.edges[:,0]] * \
-                expElogPi_bg[Data.edges[:,1]]
-        rcvresp_bg = epsEvVec[:,np.newaxis] * \
-                expElogPi[Data.edges[:,1]] * \
-                expElogPi_bg[Data.edges[:,0]]
-        # NodeStateCount_bg : 2D array, size nNodes x K
-        #     NodeStateCount_bg[v,k] = count of node v asgned to state k
-        #         when other node in edge is NOT assigned to state k
-        NodeStateCount_bg = \
-            Data.getSparseSrcNodeMat() * srcresp_bg + \
-            Data.getSparseRcvNodeMat() * rcvresp_bg
-        # NodeStateCount_fg : 2D array, size nNodes x K
-        nodeMat = Data.getSparseSrcNodeMat() + Data.getSparseRcvNodeMat()
-        NodeStateCount_fg = nodeMat * LP['resp']
-        LP['NodeStateCount'] = NodeStateCount_bg + NodeStateCount_fg
-        LP['N_fg'] = NodeStateCount_fg.sum(axis=0)
-
-        # Ldata_bg : scalar
-        #     cached value of ELBO term Ldata for background component
-        resp_bg = 1.0 - resp.sum(axis=1)
-        LP['Ldata_bg'] = np.inner(resp_bg, logepsEvVec)
-
-        LP['Lentropy_normConst'] = np.sum(np.log(respNormConst))
-        LP['Lentropy_lik_fg'] = -1 * np.sum(
-            LP['resp']*LP['E_log_soft_ev'], axis=0)
-        LP['Lentropy_prior'] = -1 * np.sum(
-            LP['NodeStateCount'] * ElogPi, axis=0)
-        LP['Lentropy_lik_bg'] = -1 * LP['Ldata_bg']
-        return LP
-
-
-    def initLPFromResp(self, Data, LP):
-        ''' Initialize local parameters given LP dict with resp field.
-        '''
-        K = LP['resp'].shape[-1]
-        if LP['resp'].ndim == 2:
-            resp = LP['resp']
-            raise NotImplementedError("TODO")
-        else:
-            resp = np.zeros((Data.nEdges, K))
-            for k in xrange(K):
-                resp[:,k] = LP['resp'][:, k, k]
-            srcresp_bg = LP['resp'].sum(axis=2) - resp
-            rcvresp_bg = LP['resp'].sum(axis=2) - resp
-
-        LP['resp'] = resp
-        NodeStateCount_bg = \
-            Data.getSparseSrcNodeMat() * srcresp_bg + \
-            Data.getSparseRcvNodeMat() * rcvresp_bg
-        # NodeStateCount_fg : 2D array, size nNodes x K
-        nodeMat = Data.getSparseSrcNodeMat() + Data.getSparseRcvNodeMat()
-        NodeStateCount_fg = nodeMat * LP['resp']
-        LP['NodeStateCount'] = NodeStateCount_bg + NodeStateCount_fg
-        LP['N_fg'] = NodeStateCount_fg.sum(axis=0)
-        return LP
-
-
-    def get_global_suff_stats(self, Data, LP, doPrecompEntropy=0, **kwargs):
-        ''' Compute sufficient stats for provided dataset and local params
+    def _beta2rhoomega(self, beta, nDoc=10):
+        ''' Find vectors rho, omega that are probable given beta
 
         Returns
-        -------
-        SS : SuffStatBag with K components and fields
-            * sumSource : nNodes x K
-            * sumReceiver : nNodes x K
+        --------
+        rho : 1D array, size K
+        omega : 1D array, size K
         '''
-        V = Data.nNodes
-        K = LP['resp'].shape[-1]
-        SS = SuffStatBag(K=K, D=Data.dim, V=V)
+        assert abs(np.sum(beta) - 1.0) < 0.001
+        rho = OptimizerRhoOmega.beta2rho(beta, self.K)
+        omega = (nDoc + self.gamma) * np.ones(rho.size)
+        return rho, omega
 
-        SS.setField('NodeStateCount', LP['NodeStateCount'], dims=('V', 'K'))
-        assert np.allclose(SS.NodeStateCount.sum(), Data.nEdges*2)
+    def init_global_params(self, Data, K=0, **kwargs):
+        ''' Initialize global parameters "from scratch" to reasonable values.
 
-        SS.setField('N', LP['N_fg'], dims=('K',))
-        SS.setField('scaleFactor', Data.nEdges, dims=None)
+        Post condition
+        --------------
+        Attributes theta, K set to reasonable values.
+        '''
+        self.K = K
+        PRNG = np.random.RandomState(K)
+        initNodeStateCount = PRNG.rand(Data.nNodes, K)
+        self.theta = self.alpha + initNodeStateCount
 
-        if 'Ldata_bg' in LP:
-            SS.setELBOTerm('Ldata_bg', LP['Ldata_bg'], dims=None)
+        self.rho = OptimizerRhoOmega.create_initrho(K)
+        self.omega = (1.0 + self.gamma) * np.ones(K)
 
-        if doPrecompEntropy:
-            Hresp = LP['Lentropy_prior'].sum() + \
-                LP['Lentropy_lik_fg'].sum() + \
-                LP['Lentropy_normConst'] + \
-                LP['Lentropy_lik_bg']
-            # easy lower bound: Hresp_lb = self.L_entropy(LP)
-            SS.setELBOTerm('Hresp', Hresp, dims=None)
-        return SS
+        Ebeta = StickBreakUtil.rho2beta(self.rho, returnSize='K')
+        self.thetaRem = self.alpha * (1 - Ebeta.sum())
 
- 
     def calc_evidence(self, Data, SS, LP, todict=0, **kwargs):
         ''' Compute training objective function on provided input.
 
@@ -215,7 +200,7 @@ class FiniteAssortativeMMSB(FiniteMMSB):
         if SS.hasELBOTerm('Hresp'):
             Lentropy = SS.getELBOTerm('Hresp')
         else:
-            Lentropy = self.L_entropy(LP)
+            Lentropy = self.L_entropy(LP) # inherited from FiniteA__MMSB
 
         if SS.hasELBOTerm('Ldata_bg'):
             Lbgdata = SS.getELBOTerm('Ldata_bg')
@@ -227,80 +212,48 @@ class FiniteAssortativeMMSB(FiniteMMSB):
                 Lbgdata=Lbgdata)
         return Lalloc + Lentropy + Lslack + Lbgdata
 
-    def _calc_local_params_Naive(self, Data, LP, **kwargs):
-        ''' Compute local parameters for provided dataset.
 
-        Args
-        -------
-        Data : GraphData object
-        LP : dict of local params, with fields
-            * E_log_soft_ev : nEdges x K
-        
+    def L_alloc_no_slack(self):
+        ''' Compute allocation term of objective function, without slack term
+
         Returns
         -------
-        LP : dict of local params, with fields
-            * resp : nEdges x K
-                resp[e,k] = prob that edge e is explained by 
-                connection from state/block combination k,k
+        L : scalar float
         '''
-        K = self.K
-        ElogPi = digamma(self.theta) - \
-            digamma(np.sum(self.theta, axis=1))[:, np.newaxis]
+        prior_cDir = L_top(nDoc=self.theta.shape[0], 
+            alpha=self.alpha, gamma=self.gamma,
+            rho=self.rho, omega=self.omega)
+        post_cDir = c_Dir(self.theta, self.thetaRem)
+        return prior_cDir - post_cDir
 
-        # resp : nEdges x K x K
-        #    resp[e(s,t),k,l] = ElogPi[s,k] + ElogPi[t,l] + likelihood
-        resp = ElogPi[Data.edges[:,0], :, np.newaxis] + \
-               ElogPi[Data.edges[:,1], np.newaxis, :]
+    def L_slack(self, SS):
+        ''' Compute slack term of the allocation objective function.
 
-        if Data.isSparse:  # Sparse binary data.
-            raise NotImplementedError("TODO")
+        Returns
+        -------
+        L : scalar float
+        '''
+        ElogPi, ElogPiRem = self.E_logPi(returnRem=1)
+        Ebeta = StickBreakUtil.rho2beta(self.rho, returnSize='K')
+        Q = SS.NodeStateCount + self.alpha * Ebeta - self.theta
+        Lslack = np.sum(Q * ElogPi)
 
-        logSoftEv = LP['E_log_soft_ev']  # E x K x K
-        for k in xrange(K):
-            resp[:, k, k] += logSoftEv[:, k]
+        alphaEbetaRem = self.alpha * (1.0 - Ebeta.sum())
+        LslackRem = np.sum((alphaEbetaRem - self.thetaRem) * ElogPiRem)
+        return Lslack + LslackRem
 
-        logepsEvVec = np.sum(
-            np.log(self.epsilon) * Data.X + \
-            np.log(1-self.epsilon) * (1-Data.X),
-            axis=1)
-        for j, k in itertools.product(xrange(K), xrange(K)):
-            if j == k:
-                continue
-            resp[:, j, k] += logepsEvVec
+    def to_dict(self):
+        return dict(theta=self.theta, rho=self.rho, omega=self.omega)
 
-        # In-place exp and normalize
-        #resp -= np.max(resp, axis=(1,2))[:, np.newaxis, np.newaxis]
-        np.exp(resp, out=resp)
-        respNormConst = resp.sum(axis=(1,2))[:, np.newaxis, np.newaxis]
+    def from_dict(self, myDict):
+        self.inferType = myDict['inferType']
+        self.K = myDict['K']
+        self.theta = myDict['theta']
+        self.rho = myDict['rho']
+        self.omega = myDict['omega']
 
-        respNormConst_fg = np.zeros(Data.nEdges)
-        for k in xrange(K):
-            respNormConst_fg += resp[:, k, k]
+    def get_prior_dict(self):
+        return dict(alpha=self.alpha, gamma=self.gamma)
 
 
-        resp /= respNormConst
-        LP['resp'] = resp
-        LP['respNormConst'] = respNormConst
-        LP['respNormConst_fg'] = respNormConst_fg
 
-        NodeStateCount_fg = np.zeros((Data.nNodes, K))
-        for k in xrange(K):
-            NodeStateCount_fg[:,k] += \
-                Data.getSparseSrcNodeMat() * resp[:, k, k]
-            NodeStateCount_fg[:,k] += \
-                Data.getSparseRcvNodeMat() * resp[:, k, k]
-
-        NodeStateCount_bg = np.zeros((Data.nNodes, K))
-        for k in xrange(K):
-            srcResp =  resp[:, k, :k].sum(axis=1) + \
-                resp[:, k, k+1:].sum(axis=1)
-            rcvResp =  resp[:, :k, k].sum(axis=1) + \
-                resp[:, k+1:, k].sum(axis=1)
-
-            NodeStateCount_bg[:,k] += \
-                Data.getSparseSrcNodeMat() * srcResp
-            NodeStateCount_bg[:,k] += \
-                Data.getSparseRcvNodeMat() * rcvResp
-        LP['NodeStateCount_bg'] = NodeStateCount_bg
-        LP['NodeStateCount_fg'] = NodeStateCount_fg
-        return LP
