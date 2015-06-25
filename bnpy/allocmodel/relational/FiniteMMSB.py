@@ -60,27 +60,6 @@ class FiniteMMSB(AllocModel):
         '''
         return ('K', 'K',)
 
-    def initLPFromTruth(self, Data):
-        K = np.max(Data.TrueParams['Z']) + 1
-        N = Data.nNodes
-        Z = Data.TrueParams['Z']
-        resp = np.zeros((N, N, K, K))
-        for i in xrange(N):
-            for j in xrange(N):
-                resp[i, j, Z[i, j, 0], Z[j, i, 0]] = 1
-        diag = np.diag_indices(N)
-        resp[diag[0], diag[1], :, :] = 0
-        squareResp = resp
-        resp = np.reshape(resp, (N**2, K, K))
-        LP = {'resp': resp, 'squareResp': squareResp}
-
-        if Data.isSparse:
-            LP['Count1'] = np.sum(squareResp[Data.respInds[:, 0],
-                                             Data.respInds[:, 1]], axis=0)
-            LP['Count0'] = np.sum(squareResp, axis=(0, 1)) - LP['Count1']
-
-        return LP
-
     def calc_local_params(self, Data, LP, **kwargs):
         ''' Compute local parameters for provided dataset.
 
@@ -226,7 +205,9 @@ class FiniteMMSB(AllocModel):
         Attributes theta, K set to reasonable values.
         '''
         self.K = K
-        self.theta = self.alpha * np.ones((Data.nNodes, K))
+        PRNG = np.random.RandomState(K)
+        initNodeStateCount = PRNG.rand(Data.nNodes, K)
+        self.theta = self.alpha + initNodeStateCount
 
 
     def calc_evidence(self, Data, SS, LP, todict=0, **kwargs):
@@ -298,3 +279,26 @@ class FiniteMMSB(AllocModel):
         '''
         return np.argmax(self.theta, axis=1)
 
+
+    '''
+    def initLPFromTruth(self, Data):
+        K = np.max(Data.TrueParams['Z']) + 1
+        N = Data.nNodes
+        Z = Data.TrueParams['Z']
+        resp = np.zeros((N, N, K, K))
+        for i in xrange(N):
+            for j in xrange(N):
+                resp[i, j, Z[i, j, 0], Z[j, i, 0]] = 1
+        diag = np.diag_indices(N)
+        resp[diag[0], diag[1], :, :] = 0
+        squareResp = resp
+        resp = np.reshape(resp, (N**2, K, K))
+        LP = {'resp': resp, 'squareResp': squareResp}
+
+        if Data.isSparse:
+            LP['Count1'] = np.sum(squareResp[Data.respInds[:, 0],
+                                             Data.respInds[:, 1]], axis=0)
+            LP['Count0'] = np.sum(squareResp, axis=(0, 1)) - LP['Count1']
+
+        return LP
+    '''
