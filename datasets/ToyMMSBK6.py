@@ -29,6 +29,7 @@ def get_data(
     -------
     Data : bnpy GraphXData object
     '''
+    nNodes = int(nNodes)
     prng = np.random.RandomState(seed)
 
     # Create membership probabilities at each node
