@@ -86,8 +86,7 @@ class FiniteAssortativeMMSB(FiniteMMSB):
             LP['E_log_soft_ev']
         np.exp(resp, out=resp)
 
-        expElogPi = ElogPi
-        np.exp(ElogPi, out=expElogPi)
+        expElogPi = np.exp(ElogPi)
 
         # sumPi_fg : 1D array, size nEdges
         #    sumPi_fg[e] = \sum_k \pi[s,k] \pi[t,k] for edge e=(s,t)
@@ -137,12 +136,38 @@ class FiniteAssortativeMMSB(FiniteMMSB):
         resp_bg = 1.0 - resp.sum(axis=1)
         LP['Ldata_bg'] = np.inner(resp_bg, logepsEvVec)
 
-        LP['Lentropy_normConst'] = np.sum(respNormConst)
+        LP['Lentropy_normConst'] = np.sum(np.log(respNormConst))
         LP['Lentropy_lik_fg'] = -1 * np.sum(
             LP['resp']*LP['E_log_soft_ev'], axis=0)
         LP['Lentropy_prior'] = -1 * np.sum(
             LP['NodeStateCount'] * ElogPi, axis=0)
         LP['Lentropy_lik_bg'] = -1 * LP['Ldata_bg']
+        return LP
+
+
+    def initLPFromResp(self, Data, LP):
+        ''' Initialize local parameters given LP dict with resp field.
+        '''
+        K = LP['resp'].shape[-1]
+        if LP['resp'].ndim == 2:
+            resp = LP['resp']
+            raise NotImplementedError("TODO")
+        else:
+            resp = np.zeros((Data.nEdges, K))
+            for k in xrange(K):
+                resp[:,k] = LP['resp'][:, k, k]
+            srcresp_bg = LP['resp'].sum(axis=2) - resp
+            rcvresp_bg = LP['resp'].sum(axis=2) - resp
+
+        LP['resp'] = resp
+        NodeStateCount_bg = \
+            Data.getSparseSrcNodeMat() * srcresp_bg + \
+            Data.getSparseRcvNodeMat() * rcvresp_bg
+        # NodeStateCount_fg : 2D array, size nNodes x K
+        nodeMat = Data.getSparseSrcNodeMat() + Data.getSparseRcvNodeMat()
+        NodeStateCount_fg = nodeMat * LP['resp']
+        LP['NodeStateCount'] = NodeStateCount_bg + NodeStateCount_fg
+        LP['N_fg'] = NodeStateCount_fg.sum(axis=0)
         return LP
 
 
@@ -164,15 +189,17 @@ class FiniteAssortativeMMSB(FiniteMMSB):
 
         SS.setField('N', LP['N_fg'], dims=('K',))
         SS.setField('scaleFactor', Data.nEdges, dims=None)
-        SS.setELBOTerm('Ldata_bg', LP['Ldata_bg'], dims=None)
+
+        if 'Ldata_bg' in LP:
+            SS.setELBOTerm('Ldata_bg', LP['Ldata_bg'], dims=None)
 
         if doPrecompEntropy:
             Hresp = LP['Lentropy_prior'].sum() + \
                 LP['Lentropy_lik_fg'].sum() + \
                 LP['Lentropy_normConst'] + \
                 LP['Lentropy_lik_bg']
-            Hresp2 = self.L_entropy(LP)
-            SS.setELBOTerm('Hresp', Hresp2, dims=None)
+            # easy lower bound: Hresp_lb = self.L_entropy(LP)
+            SS.setELBOTerm('Hresp', Hresp, dims=None)
         return SS
 
  

@@ -182,14 +182,29 @@ def drawGraphEdgePr(Data, Epi, Ew, curAx, fig, colors=None, labels=None,
     plt.ylim(0 - ygap, ymax + ygap)
 
 
-def plotSingleJob(dataset, jobname, taskids='1', lap='final',
+def plotSingleJob(dataName, jobname, taskids='1', lap='final',
                   showELBOInTitle=True, cmap='gray', title='', mixZs=False):
-    Datamod = imp.load_source(
-        dataset,
-        os.path.expandvars('$BNPYDATADIR/' + dataset + '.py'))
-    Data = Datamod.get_data()
+    ''' Visualize results of single run
+    '''
+
+    # Load data, with same dataset size prefs as specified at inference time.
     jobpath = os.path.join(os.path.expandvars('$BNPYOUTDIR'),
-                           Datamod.get_short_name(), jobname)
+                           dataName, jobname)
+    datasetPrefFile = os.path.join(
+        jobpath, taskids[0],
+        'args-DatasetPrefs.txt')
+    datasetPrefs = dict()
+    if os.path.exists(datasetPrefFile):
+        with open(datasetPrefFile, 'r') as f:
+            for line in f.readlines():
+                fields = line.strip().split(' ')
+                if len(fields) != 2:
+                    continue
+                datasetPrefs[fields[0]] = fields[1]
+    Datamod = imp.load_source(
+        dataName,
+        os.path.expandvars('$BNPYDATADIR/' + dataName + '.py'))
+    Data = Datamod.get_data(**datasetPrefs)
 
     if isinstance(taskids, str):
         taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
@@ -210,7 +225,7 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
 
     # Show the true adj mat and the estimated side-by-side
     ncols = len(taskids)+1
-    plt.subplots(nrows=1, ncols=ncols, figsize=(3, 3*ncols))
+    plt.subplots(nrows=1, ncols=ncols, figsize=(3*ncols, 3))
     plt.subplot(1, ncols, 1)
     plt.imshow(AdjMat, cmap='Greys', interpolation='nearest', vmin=0, vmax=1)
 
@@ -233,16 +248,13 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
             (hmodel.obsModel.Post.lam1 + hmodel.obsModel.Post.lam0)
         LP = hmodel.calc_local_params(Data)
         taskAdjMat = np.zeros((Data.nNodes, Data.nNodes, Data.dim))
-        for s in range(Data.nNodes):
-            for t in range(Data.nNodes):
-                if s == t:
-                    continue
-                eid = np.flatnonzero(
-                    np.logical_and(Data.edges[:,0] == s, 
-                                   Data.edges[:,1] == t))[0]
-                resp_st = LP['resp'][eid, :, :]
-                taskAdjMat[s,t] = np.sum(resp_st[:,:,np.newaxis] * Ew, axis=(0,1))
+        for eid, (s,t) in enumerate(Data.edges):
+            resp_st = LP['resp'][eid]
+            if resp_st.ndim == 2: # K x K
                 assert np.allclose(resp_st.sum(), 1.0)
+                taskAdjMat[s,t] = np.sum(resp_st[:,:,np.newaxis] * Ew, axis=(0,1))
+            else:
+                taskAdjMat[s,t] = np.sum(resp_st[:,np.newaxis] * Ew, axis=0)
 
         assert taskAdjMat.min() >= 0
         assert taskAdjMat.max() <= 1.0
@@ -254,7 +266,6 @@ def plotSingleJob(dataset, jobname, taskids='1', lap='final',
         plt.imshow(taskAdjMat,
                    cmap='Greys', interpolation='nearest', vmin=0, vmax=1)
         
-        print 'ERROR: ', np.sum(AdjMat - taskAdjMat)
         '''
         if showELBOInTitle:
             ELBOscores = np.loadtxt(os.path.join(path, 'evidence.txt'))
@@ -524,7 +535,7 @@ if __name__ == "__main__":
     parser.add_argument('--lap', default='final')
     args = parser.parse_args()
 
-    plotSingleJob(dataset=args.dataName,
+    plotSingleJob(dataName=args.dataName,
                   jobname=args.jobname,
                   taskids=args.taskids,
                   lap=args.lap)

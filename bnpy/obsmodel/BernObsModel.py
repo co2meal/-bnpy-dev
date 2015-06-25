@@ -50,7 +50,10 @@ class BernObsModel(AbstractObsModel):
         self.inferType = inferType
         self.createPrior(Data, **PriorArgs)
         self.Cache = dict()
-        self.CompDims = CompDims
+        if isinstance(CompDims, tuple):
+            self.CompDims = CompDims
+        elif isinstance(CompDims, str):
+            self.CompDims = tuple(CompDims)
 
     def createPrior(self, Data, lam1=1.0, lam0=1.0, eps_phi=1e-14, **kwargs):
         ''' Initialize Prior ParamBag attribute.
@@ -143,9 +146,15 @@ class BernObsModel(AbstractObsModel):
         else:
             lam1 = as2D(lam1)
             lam0 = as2D(lam0)
-            K = lam1.shape[0]
             D = lam1.shape[-1]
-            self.Post = ParamBag(K=K, D=D)
+            if self.D != D:
+                if not lam1.shape[0] == self.D:
+                    raise ValueError("Bad dimension for lam1, lam0")
+                lam1 = lam1.T.copy()
+                lam0 = lam0.T.copy()
+                
+            K = lam1.shape[0]
+            self.Post = ParamBag(K=K, D=self.D)
             self.Post.setField('lam1', lam1, dims=self.CompDims+('D',))
             self.Post.setField('lam0', lam0, dims=self.CompDims+('D',))
         self.K = self.Post.K
