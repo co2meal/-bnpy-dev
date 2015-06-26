@@ -95,7 +95,7 @@ def get_data(
                         else:
                             X[i, j] = np.random.uniform(low=delta, high=M)
 
-        Data = GraphXData(X=X, edgeSet=None,
+        Data = GraphXData(AdjMat=X, X=None, edges=None,
                           nNodesTotal=nNodes, nNodes=nNodes,
                           TrueParams=TrueParams, isSparse=False)
         return Data

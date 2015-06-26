@@ -93,8 +93,8 @@ class GraphXData(XData):
             for eid, (i,j) in enumerate(edges):
                 X[eid] = AdjMat[i,j]
 
-        if X is None or edges is None:
-            ValueError(
+        if AdjMat is None and (X is None or edges is None):
+            raise ValueError(
                 'Must specify adjacency matrix AdjMat, or ' + 
                 'a list of edges and corresponding dense observations X')
 
@@ -281,7 +281,8 @@ class GraphXData(XData):
         sourceID = txt[:, 0]
         destID = txt[:, 1]
         edgeSet = set(zip(sourceID, destID))
-        return cls(nNodesTotal=nNodesTotal, nEdgesTotal=nEdgesTotal)
+        return cls(nNodesTotal=nNodesTotal, nEdgesTotal=nEdgesTotal,
+                   edgeSet=edgeSet)
 
     @classmethod
     def read_from_mat(cls, matfilepath, **kwargs):
