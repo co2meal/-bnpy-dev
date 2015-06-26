@@ -83,18 +83,6 @@ def summarize_data():
     fig2, ax2 = plt.subplots(1)
     relviz.drawGraph(Data, ax2, fig2, Z, title='Graph With True Labels',
                      cmap='Set2')
-    from IPython import embed
-    embed()
-    from sklearn.cluster import spectral_clustering
-    A = Data.X.reshape((18, 18))
-    labels = spectral_clustering(A, 4, 6)
-    fig3, ax3 = plt.subplots(1)
-    relviz.drawGraph(
-        Data,
-        ax3,
-        fig3,
-        colors=labels,
-        title='Spectral Clustering')
     plt.show()
 
 if __name__ == '__main__':
