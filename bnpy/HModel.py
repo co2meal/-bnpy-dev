@@ -144,6 +144,9 @@ class HModel(object):
             initname : string name of routine for initialization
         '''
         initname = initArgs['initname']
+        if 'initLP' not in initArgs:
+            initArgs['initLP'] = None
+
         if initname.count(os.path.sep) > 0:
             init.FromSaved.init_global_params(self, Data, **initArgs)
         elif initname.count('true') > 0:
@@ -161,8 +164,9 @@ class HModel(object):
                 init.FromScratchMult.init_global_params(self.obsModel,
                                                         Data, **initArgs)
             elif str(type(Data)).count('Graph') > 0:
-                init.FromScratchRelational.init_global_params(
+                initLP = init.FromScratchRelational.init_global_params(
                     self.obsModel, Data, **initArgs)
+                initArgs['initLP'] = initLP
             elif str(type(self.obsModel)).count('Bern') > 0:
                 init.FromScratchBern.init_global_params(self.obsModel,
                                                         Data, **initArgs)

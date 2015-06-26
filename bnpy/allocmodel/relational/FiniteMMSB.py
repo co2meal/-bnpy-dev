@@ -213,9 +213,13 @@ class FiniteMMSB(AllocModel):
         --------------
         Attributes theta, K set to reasonable values.
         '''
+        if 'initLP' in kwargs:
+            initSS = self.get_global_suff_stats(Data, kwargs['initLP'])
+            initNodeStateCount = initSS.NodeStateCount
+        else:
+            PRNG = np.random.RandomState(K)
+            initNodeStateCount = PRNG.rand(Data.nNodes, K)
         self.K = K
-        PRNG = np.random.RandomState(K)
-        initNodeStateCount = PRNG.rand(Data.nNodes, K)
         self.theta = self.alpha + initNodeStateCount
 
 
