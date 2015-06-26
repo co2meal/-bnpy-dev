@@ -70,7 +70,7 @@ def init_global_params(obsModel, Data, K=0, seed=0,
         chosenNodes = list([objID])
         minDistVec = np.inf * np.ones(AdjMat.shape[0])
         for k in range(1, K):
-            curDistVec = np.sum((AdjMat - AdjMat[objID])**2, axis=1)
+            curDistVec = np.sum((AdjMat - AdjMat[objID])**2, axis=(1,2))
             minDistVec = np.minimum(minDistVec, curDistVec)
             sum_minDistVec = np.sum(minDistVec)
             if sum_minDistVec > 0:
@@ -78,7 +78,7 @@ def init_global_params(obsModel, Data, K=0, seed=0,
             else:
                 D = minDistVec.size
                 p = 1.0 / D * np.ones(D)
-            objID = PRNG.choice(Data.nObs, p=p)
+            objID = PRNG.choice(Data.nNodes, p=p)
             chosenNodes.append(objID)
 
         # Build resp from chosenNodes        
@@ -98,13 +98,16 @@ def init_global_params(obsModel, Data, K=0, seed=0,
         # Fill in resp matrix with hard-clustering from K-means
         # using an initialization with K randomly selected points from X
         np.random.seed(seed)
-        centroids, labels = kmeans2(data=AdjMat, k=K, minit='points')
+        if AdjMat.shape[2] != 1:
+         raise NotImplementedError('Network data k-means initialization' +
+                                   'only handles 1-D data')
+        centroids, labels = kmeans2(data=AdjMat.squeeze(), k=K, minit='points')
         resp = np.zeros((Data.nEdges, K, K))
         for n in xrange(Data.nNodes):
-            srcnode_mask = np.flatnonzero(
-                Data.edges[:,0] == labels[n])
+            srcnode_mask = np.flatnonzero(Data.edges[:,0] == labels[n])
             on_mask = srcnode_mask[
                 np.sum(Data.X[srcnode_mask,:], axis=1) > 0]
+            k = labels[n]
             if len(CompDims) == 2:
                 resp[on_mask, :, :] = 0.05 / (K**2-1) * PRNG.rand(K,K)
                 resp[on_mask, k, k] = 0.95
