@@ -1,0 +1,6 @@
+To replicate results:
+1) Run sampler.py (Orientation graph will be produced)
+2) After running sampler.py,
+	i) To produce interscale graph, first run interscale.m and then interscale.py
+	ii) To produce position (far), first run position_far.m and then position_far.py
+	iii) To produce position (near), first run position_near.m and then position_near.py 

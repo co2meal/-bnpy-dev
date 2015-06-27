@@ -10,7 +10,7 @@ from bnpy.allocmodel.tree import HMTUtil
 from scipy.io import loadmat
 from collections import deque
 
-path = '/Users/mertterzihan/Desktop/pepper256.mat'
+path = 'PATH_TO/pepper128.mat'
 
 def get_data(seed=8675309, nObsTotal=25000, **kwargs):
   q = deque()
