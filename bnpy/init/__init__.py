@@ -9,3 +9,4 @@ import FromScratchGauss
 import FromScratchMult
 import FromScratchBern
 import FromScratchFactorAnalyzer
+import SingleSeqStateCreator

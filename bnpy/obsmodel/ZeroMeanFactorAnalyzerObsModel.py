@@ -53,7 +53,7 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
     ########################################################### Suff Stats
     ###########################################################
     # @profile
-    def calcSummaryStats(self, Data, SS, LP):
+    def calcSummaryStats(self, Data, SS, LP, **kwargs):
         X = Data.X
         resp = LP['resp']
 

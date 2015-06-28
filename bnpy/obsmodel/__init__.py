@@ -1,6 +1,3 @@
-'''
-'''
-
 from DiagGaussObsModel import DiagGaussObsModel
 from GaussObsModel import GaussObsModel
 from ZeroMeanGaussObsModel import ZeroMeanGaussObsModel
@@ -9,14 +6,21 @@ from MultObsModel import MultObsModel
 from BernObsModel import BernObsModel
 from ZeroMeanFactorAnalyzerObsModel import ZeroMeanFactorAnalyzerObsModel
 
-ObsModelConstructorsByName = { \
-           'DiagGauss':DiagGaussObsModel,
-           'Gauss':GaussObsModel,
-           'ZeroMeanGauss':ZeroMeanGaussObsModel,
-           'AutoRegGauss':AutoRegGaussObsModel,
-           'Mult':MultObsModel,           
-           'Bern':BernObsModel,
-           'ZeroMeanFactorAnalyzer':ZeroMeanFactorAnalyzerObsModel,
-          }
+ObsModelConstructorsByName = {
+    'DiagGauss': DiagGaussObsModel,
+    'Gauss': GaussObsModel,
+    'ZeroMeanGauss': ZeroMeanGaussObsModel,
+    'AutoRegGauss': AutoRegGaussObsModel,
+    'Mult': MultObsModel,
+    'Bern': BernObsModel,
+    'ZeroMeanFactorAnalyzer': ZeroMeanFactorAnalyzerObsModel,
+}
+
+# Make constructor accessible by nickname and fullname
+# Nickname = 'Gauss'
+# Fullname = 'GaussObsModel'
+for val in ObsModelConstructorsByName.values():
+    fullname = str(val.__name__)
+    ObsModelConstructorsByName[fullname] = val
 
 ObsModelNameSet = set(ObsModelConstructorsByName.keys())
