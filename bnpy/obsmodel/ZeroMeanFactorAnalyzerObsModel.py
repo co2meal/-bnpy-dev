@@ -56,8 +56,6 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
     def calcSummaryStats(self, Data, SS, LP):
         X = Data.X
         resp = LP['resp']
-        aMean = LP['aMean']
-        aCov = LP['aCov']
 
         K = resp.shape[1]
         D = self.D
@@ -74,58 +72,13 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             SS.kwargs['C'] = C
             setattr(SS._Fields, 'C', C)
 
-        # if hasattr(Data, 'TrueParams'):
-        #     N = Data.nObs
-        #     resp = np.zeros((N, K))
-        #     Z = Data.TrueParams['Z']
-        #     idx0 = np.nonzero(Z-1)
-        #     idx1 = np.nonzero(Z)
-        #     resp[idx0, 0] = 1.
-        #     resp[idx1, 1] = 1
-        #     aMean = np.zeros((N,K,C))
-        #     aMean[idx0, 0] = Data.TrueParams['a'][idx0]
-        #     aMean[idx1, 1] = Data.TrueParams['a'][idx1]
-        #     aCov = np.zeros((K,C,C))
-        # SS.setField('N', np.sum(resp, axis=0), dims='K')
-
-
-        # Expected low-dim mean for each k
-        # Ea = np.zeros((K,C))
-        # for k in xrange(K):
-        #     Ea[k] = dotATB(resp[:,k][:,np.newaxis], aMean[:,k])
-        # SS.setField('a', Ea, dims=('K','C'))
-
-        # Expected low-dim outer-product for each k
-        EaaT = np.zeros((K, C, C))
+        # Expected outer-product for each k
         sqrtResp = np.sqrt(resp)
+        xxT = np.zeros( (K, D, D) )
         for k in xrange(K):
-            EaaT[k] = dotATA(sqrtResp[:,k][:,np.newaxis] * aMean[:,k]) + \
-                      SS.N[k] * aCov[k]
-        SS.setField('aaT', EaaT, dims=('K','C','C'))
+            xxT[k] = dotATA(sqrtResp[:,k][:,np.newaxis] * X)
+        SS.setField('xxT', xxT, dims=('K','D','D'))
 
-        # Expected high-low product for each k
-        xaT = np.zeros((K, D, C))
-        for k in xrange(K):
-            xaT[k] = np.dot(X.T, resp[:,k][:,np.newaxis] * aMean[:,k])
-        SS.setField('xaT', xaT, dims=('K','D','C'))
-
-        # Expected high-dim mean for each k
-        # SS.setField('x', dotATB(resp, X), dims=('K','D'))
-
-        # Expected high-dim outer-product for each k
-        diagXxT = np.zeros((K, D))
-        for k in xrange(K):
-            diagXxT[k] = np.einsum('ij,ij->j', resp[:,k][:,np.newaxis] * X, X)
-        SS.setField('diagXxT', diagXxT, dims=('K','D'))
-
-        # aCov is not instance-dependent; pass it to SS then self.Post to calc ELBO
-        SS.setField('aCov', aCov, dims=('K','C','C'))
-
-        # We'd better pass r * logdet(aCov) to SS then ELBO
-        logdetACov = np.zeros(K)
-        for k in xrange(K):
-            logdetACov[k] = np.prod(slogdet(SS.aCov[k])) * SS.N[k]
-        SS.setField('logdetACov', logdetACov, dims=('K'))
         return SS
 
   ########################################################### Local step
@@ -137,7 +90,7 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         if self.inferType == 'EM':
             raise NotImplementedError()
         else:
-            LP['aMean'], LP['aCov'] = self.calcA_FromPost(Data)
+            LP['aMean'] = self.calcA_FromPost(Data)
             LP['E_log_soft_ev'] = self.calcLogSoftEvMatrix_FromPost(Data, LP)
         return LP
     # @profile
@@ -146,17 +99,13 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         K = self.Post.K
         D = self.D
         C = self.C
-        # calculate aCov
-        aCov = np.zeros((K, C, C))
-        for k in xrange(K):
-            aCov[k] = inv(np.eye(C) + self.GetCached('E_WT_invPsi_W', k))
         # calculate aMean
         aMean = np.zeros((N, K, C))
         for k in xrange(K):
-            aCovk_WMeankT_invPsi = np.inner(aCov[k], self.Post.WMean[k]) * \
+            aCovk_WMeankT_invPsi = np.inner(self.Post.aCov[k], self.Post.WMean[k]) * \
                                    (self.Post.PhiShape[k] / self.Post.PhiInvScale[k])
             aMean[:,k] = np.inner(Data.X, aCovk_WMeankT_invPsi)
-        return aMean, aCov
+        return aMean
     # @profile
     def calcLogSoftEvMatrix_FromPost(self, Data, LP):
         N = Data.nObs
@@ -165,10 +114,10 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         DataX2 = Data.X**2
         for k in xrange(K):
             L[:,k] = .5 * np.einsum('ij,ji->i', LP['aMean'][:,k],
-                                    np.inner(inv(LP['aCov'][k]), LP['aMean'][:,k])) \
+                                    np.inner(inv(self.Post.aCov[k]), LP['aMean'][:,k])) \
                      - .5 * np.inner(self.Post.PhiShape[k] / self.Post.PhiInvScale[k], DataX2) \
                      + .5 * np.sum(psi(self.Post.PhiShape[k]) - np.log(self.Post.PhiInvScale[k])) \
-                     + .5 * np.prod(slogdet(LP['aCov'][k]))
+                     + .5 * np.prod(slogdet(self.Post.aCov[k]))
         return L
 
   ########################################################### Global step
@@ -178,50 +127,72 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         self.ClearCache()
         if not hasattr(self, 'Post') or self.Post.K != SS.K:
             self.Post = ParamBag(K=SS.K, D=SS.D, C=SS.C)
-        WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale = self.calcPostParams(SS)
+        WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov = self.calcPostParams(SS)
         self.Post.setField('WMean', WMean, dims=('K','D','C'))
         self.Post.setField('WCov', WCov, dims=('K','D','C','C'))
         self.Post.setField('hShape', hShape)
         self.Post.setField('hInvScale', hInvScale, dims=('K','C'))
         self.Post.setField('PhiShape', PhiShape, dims=('K'))
         self.Post.setField('PhiInvScale', PhiInvScale, dims=('K','D'))
+        self.Post.setField('aCov', aCov, dims=('K','C','C'))
         self.K = SS.K
 
     def calcPostParams(self, SS):
         if hasattr(self.Post,'hShape') and hasattr(self.Post,'hInvScale') \
-           and hasattr(self.Post,'PhiShape') and hasattr(self.Post,'PhiInvScale'):
+           and hasattr(self.Post,'PhiShape') and hasattr(self.Post,'PhiInvScale')\
+           and hasattr(self.Post, 'WMean') and hasattr(self.Post, 'aCov'):
+            WMean = self.Post.WMean
             hShape = self.Post.hShape
             hInvScale = self.Post.hInvScale
             PhiShape = self.Post.PhiShape
             PhiInvScale = self.Post.PhiInvScale
+            aCov = self.Post.aCov
         else:
+            WMean = np.random.randn(SS.K, self.D, self.C)
             hShape = self.Prior.f
             hInvScale = self.Prior.g * np.ones((SS.K, self.C))
             PhiShape = self.Prior.s * np.ones(SS.K)
             PhiInvScale = self.Prior.t * np.ones((SS.K, self.D))
+            aCov = np.tile(np.eye(self.C), (SS.K,1,1))
         for i in xrange(1):
-            WMean, WCov = self.calcPostW(SS, hShape, hInvScale, PhiShape, PhiInvScale)
+            WMean, WCov = self.calcPostW(SS, WMean, hShape, hInvScale, PhiShape, PhiInvScale, aCov)
+            aCov = self.calcPostACov(WMean, WCov, PhiShape, PhiInvScale)
             hShape, hInvScale = self.calcPostH(WMean, WCov)
-            PhiShape, PhiInvScale = self.calcPostPhi(SS, WMean, WCov)
-        return WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale
+            PhiShape, PhiInvScale = self.calcPostPhi(SS, WMean, WCov, PhiShape, PhiInvScale, aCov)
+        return WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov
+
+    def calcPostACov(self, WMean, WCov, PhiShape, PhiInvScale):
+        C = self.C
+        D = self.D
+        K = WMean.shape[0]
+        aCov = np.zeros((K, C, C))
+        for k in xrange(K):
+            E_W_WT = np.zeros((D, C, C))
+            for d in xrange(D):
+                E_W_WT[d] = np.outer(WMean[k][d], WMean[k][d]) + WCov[k][d]
+            E_WT_Phi_W = np.sum((PhiShape[k] / PhiInvScale[k])[:, np.newaxis, np.newaxis]
+                                * E_W_WT, axis=0)
+            aCov[k] = inv(np.eye(C) + E_WT_Phi_W)
+        return aCov
 
     # @profile
-    def calcPostW(self, SS, hShape, hInvScale, PhiShape, PhiInvScale):
+    def calcPostW(self, SS, WMean_old, hShape, hInvScale, PhiShape, PhiInvScale, aCov):
         K = SS.K
         D = self.D
         C = self.C
-        SigmaInvWW = np.zeros((K, D, C, C))
+        WCov = np.zeros((K, D, C, C))
+        WMean = np.zeros((K, D, C))
         for k in xrange(K):
-            SigmaInvWW[k] = np.diag(hShape / hInvScale[k]) + \
-                            (PhiShape[k] / PhiInvScale[k])[:,np.newaxis,np.newaxis] * \
-                            np.tile(SS.aaT[k], (D,1,1))
-        WCov = inv(SigmaInvWW)
-        WBar = np.zeros((K, D, C))
-        for k in xrange(K):
+            L = aCov[k]
+            LU = np.dot(L, np.dot(WMean_old[k].T, np.diag(PhiShape[k] / PhiInvScale[k])))
+            aaT = SS.N[k]*L + np.dot(LU, np.inner(SS.xxT[k],LU))
+            xaT = np.inner(SS.xxT[k], LU)
+            SigmaInvWW = np.diag(hShape / hInvScale[k]) \
+                         + (PhiShape[k] / PhiInvScale[k])[:,np.newaxis,np.newaxis] \
+                         * np.tile(aaT, (D,1,1))
+            WCov[k] = inv(SigmaInvWW)
             for d in xrange(D):
-                WBar[k, d] = np.dot(WCov[k,d],
-                                    PhiShape[k] / PhiInvScale[k,d] * SS.xaT[k,d])
-        WMean = WBar
+                WMean[k, d] = np.dot(WCov[k,d], PhiShape[k] / PhiInvScale[k,d] * xaT[d])
         return WMean, WCov
 
     # @profile
@@ -234,18 +205,23 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             for c in xrange(C):
                 hInvScale[k,c] = self.Prior.g + .5 * np.sum(WMean[k,:,c]**2 + WCov[k,:,c,c])
         return hShape, hInvScale
+
     # @profile
-    def calcPostPhi(self, SS, WMean, WCov):
+    def calcPostPhi(self, SS, WMean, WCov, PhiShape_old, PhiInvScale_old, aCov):
         K = SS.K
         D = self.D
         PhiShape = self.Prior.s + .5 * SS.N
         PhiInvScale = self.Prior.t * np.ones((K, D))
         for k in xrange(K):
+            L = aCov[k]
+            LU = np.dot(L, np.dot(WMean[k].T, np.diag(PhiShape_old[k] / PhiInvScale_old[k])))
+            aaT = SS.N[k]*L + np.dot(LU, np.inner(SS.xxT[k],LU))
+            xaT = np.inner(SS.xxT[k], LU)
             for d in xrange(D):
-                PhiInvScale[k,d] += .5 * (SS.diagXxT[k,d]
-                                    - 2 * np.dot(SS.xaT[k,d], WMean[k,d])
-                                    + np.einsum('ij,ji', np.outer(WMean[k,d],WMean[k,d])
-                                                + WCov[k,d], SS.aaT[k]))
+                PhiInvScale[k,d] += .5 * (SS.xxT[k,d,d]
+                                    - 2 * np.dot(xaT[d], WMean[k,d])
+                                    + np.einsum('ij,ji', np.outer(WMean[k,d], WMean[k,d])
+                                                + WCov[k,d], aaT))
         return PhiShape, PhiInvScale
 
     ########################################################### VB ELBO step
@@ -256,13 +232,14 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
 
             Args
             -------
-            SS : bnpy SuffStatBag, contains fields for N, a, aaT, xaT
+            SS : bnpy SuffStatBag, contains fields for N, xxT
             afterMStep : boolean flag
                     if 1, elbo calculated assuming M-step just completed
 
             Returns
             -------
-            obsELBO : scalar float, = E[ log p(h) + log p(W) + log p(a) + log p(x) - log q(h) - log q(W) - log q(a)]
+            obsELBO : scalar float, = E[ log p(Phi) + log p(h) + log p(W) + log p(a) + log p(x)
+                                         - log q(Phi) - log q(h) - log q(W) - log q(a) ]
         '''
         elbo = np.zeros(SS.K)
         Post = self.Post
@@ -295,17 +272,20 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
                                               Post.hShape / Post.hInvScale[k]))
 
             # terms related with a
-            # elbo[k] += .5 * (np.prod(slogdet(SS.aCov[k])) + C) * SS.N[k] \
-            #            - .5 * np.trace(SS.aaT[k])
-            elbo[k] += .5 * (SS.logdetACov[k] + C * SS.N[k] - np.trace(SS.aaT[k]))
+            L = Post.aCov[k]
+            LU = np.dot(L, np.dot(Post.WMean[k].T, np.diag(Post.PhiShape[k] / Post.PhiInvScale[k])))
+            aaT = SS.N[k]*L + np.dot(LU, np.inner(SS.xxT[k],LU))
+            xaT = np.inner(SS.xxT[k], LU)
+            elbo[k] += .5 * (np.prod(slogdet(L)) + C) * SS.N[k] \
+                       - .5 * np.trace(aaT)
 
             # terms related with x
             elbo[k] += - .5 * (D * LOGTWOPI -
                                np.sum(psi(Post.PhiShape[k]) - np.log(Post.PhiInvScale[k]))) * SS.N[k] \
-                       - .5 * np.dot(Post.PhiShape[k] / Post.PhiInvScale[k], SS.diagXxT[k]) \
+                       - .5 * np.dot(Post.PhiShape[k] / Post.PhiInvScale[k], np.diag(SS.xxT[k])) \
                        + np.dot(Post.PhiShape[k] / Post.PhiInvScale[k],
-                                np.einsum('ij, ij->i', SS.xaT[k], Post.WMean[k])) \
-                       - .5 * np.einsum('ij,ji', self.GetCached('E_WT_invPsi_W', k), SS.aaT[k])
+                                np.einsum('ij, ij->i', xaT, Post.WMean[k])) \
+                       - .5 * np.einsum('ij,ji', self.GetCached('E_WT_invPsi_W', k), aaT)
         return np.sum(elbo)
 
     def getDatasetScale(self, SS):

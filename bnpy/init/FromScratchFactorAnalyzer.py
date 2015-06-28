@@ -27,16 +27,13 @@ def init_global_params(obsModel, Data, K=0, seed=0,
     if initname == 'randexamples':
         # Choose K items uniformly at random from the Data
         #    then component params by M-step given those single items
-        N = K
-        resp = np.zeros((N, K))
-        aMean = PRNG.normal(0, 1, (N,K,C))
-        aCov = np.tile(np.eye(C), (K,1,1))
+        resp = np.eye(K)
+        # N = K
+        # resp = np.zeros((N, K))
         permIDs = PRNG.permutation(Data.nObs).tolist()
-        for k in xrange(K):
+        # for k in xrange(K):
             # resp[permIDs[k],k] = 1.0
             # aMean[permIDs[k],k] = PRNG.normal(0, obsModel.Prior.f / obsModel.Prior.g, C)
-            resp = np.eye(K)
-            aMean[k,k] = PRNG.normal(0, obsModel.Prior.f / obsModel.Prior.g, C)
     elif initname == 'fixedResp':
         assert 'Z' in Data.TrueParams
         Z = Data.TrueParams['Z']
@@ -54,7 +51,7 @@ def init_global_params(obsModel, Data, K=0, seed=0,
             print "Initializing %d / %d" % (i, numIter-1)
     else:
         raise NotImplementedError('Unrecognized initname ' + initname)
-    tempLP = dict(resp=resp, aMean=aMean, aCov=aCov)
+    tempLP = dict(resp=resp)
     tmpData = XData(X=Data.X[permIDs[:K]])
     SS = SuffStatBag(K=K, D=Data.dim, C=C)
     SS = obsModel.get_global_suff_stats(tmpData, SS, tempLP)
