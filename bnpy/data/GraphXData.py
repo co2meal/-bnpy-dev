@@ -93,8 +93,8 @@ class GraphXData(XData):
             for eid, (i,j) in enumerate(edges):
                 X[eid] = AdjMat[i,j]
 
-        if X is None or edges is None:
-            ValueError(
+        if AdjMat is None and (X is None or edges is None):
+            raise ValueError(
                 'Must specify adjacency matrix AdjMat, or ' + 
                 'a list of edges and corresponding dense observations X')
 
@@ -277,11 +277,11 @@ class GraphXData(XData):
                       nEdgesTotal=None, nNodesTotal=None, **kwargs):
         ''' Static constructor loading .txt file into GraphXData instance.
         '''
-        txt = np.loadtxt(filepath, dtype=np.int32)
-        sourceID = txt[:, 0]
-        destID = txt[:, 1]
-        edgeSet = set(zip(sourceID, destID))
-        return cls(nNodesTotal=nNodesTotal, nEdgesTotal=nEdgesTotal)
+        txt = np.loadtxt(filepath, dtype=np.float64)
+        edges = txt[:, :2]
+        X = txt[:, 2:]
+        return cls(nNodesTotal=nNodesTotal, nEdgesTotal=nEdgesTotal,
+                   edges=edges, X=X)
 
     @classmethod
     def read_from_mat(cls, matfilepath, **kwargs):
