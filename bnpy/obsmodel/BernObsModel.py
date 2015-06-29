@@ -12,6 +12,7 @@ from AbstractObsModel import AbstractObsModel
 
 nx = np.newaxis
 
+
 class BernObsModel(AbstractObsModel):
 
     ''' Bernoulli data generation model for binary vectors.
@@ -152,11 +153,11 @@ class BernObsModel(AbstractObsModel):
                     raise ValueError("Bad dimension for lam1, lam0")
                 lam1 = lam1.T.copy()
                 lam0 = lam0.T.copy()
-                
+
             K = lam1.shape[0]
             self.Post = ParamBag(K=K, D=self.D)
-            self.Post.setField('lam1', lam1, dims=self.CompDims+('D',))
-            self.Post.setField('lam0', lam0, dims=self.CompDims+('D',))
+            self.Post.setField('lam1', lam1, dims=self.CompDims + ('D',))
+            self.Post.setField('lam0', lam0, dims=self.CompDims + ('D',))
         self.K = self.Post.K
 
     def setPostFromEstParams(self, EstParams, Data=None, nTotalTokens=1,
@@ -386,13 +387,13 @@ class BernObsModel(AbstractObsModel):
         Post = self.Post
         Prior = self.Prior
         if not afterMStep:
-            ElogphiT = self.GetCached('E_logphiT', 'all') 
+            ElogphiT = self.GetCached('E_logphiT', 'all')
             Elog1mphiT = self.GetCached('E_log1mphiT', 'all')
             # with relational/graph datasets, these have shape D x K x K
-            # otherwise, these have shape D x K 
+            # otherwise, these have shape D x K
 
         if self.CompDims == ('K'):
-            # Typical case: K x D     
+            # Typical case: K x D
             L_perComp = np.zeros(SS.K)
             for k in xrange(SS.K):
                 L_perComp[k] = c_Diff(Prior.lam1, Prior.lam0,
@@ -409,15 +410,15 @@ class BernObsModel(AbstractObsModel):
         else:
             # Relational case, K x K x D
             cPrior = c_Func(Prior.lam1, Prior.lam0)
-            Ldata = SS.K*SS.K * cPrior - c_Func(Post.lam1, Post.lam0)
+            Ldata = SS.K * SS.K * cPrior - c_Func(Post.lam1, Post.lam0)
             if not afterMStep:
                 Ldata += np.sum(
-                    (SS.Count1 + Prior.lam1[nx, nx, :] - Post.lam1) * \
+                    (SS.Count1 + Prior.lam1[nx, nx, :] - Post.lam1) *
                     ElogphiT.T)
                 Ldata += np.sum(
-                    (SS.Count0 + Prior.lam0[nx, nx, :] - Post.lam0) * \
+                    (SS.Count0 + Prior.lam0[nx, nx, :] - Post.lam0) *
                     Elog1mphiT.T)
-            
+
         return Ldata
 
     def getDatasetScale(self, SS, extraSS=None):
@@ -455,7 +456,7 @@ class BernObsModel(AbstractObsModel):
         return cA + cB - cPrior - cAB
 
     def calcHardMergeGap_AllPairs(self, SS):
-        ''' Calculate change in ELBO for all possible candidate hard merge pairs
+        ''' Calculate change in ELBO for all candidate hard merge pairs
 
         Returns
         ---------
@@ -726,8 +727,6 @@ def calcLogSoftEvMatrix_FromPost(Dslice,
     Data Args
     ---------
     Dslice : data-like
-        doc_range : 1D array
-        word_id : 1D array
 
     Returns
     ------
@@ -756,10 +755,9 @@ def calcSummaryStats(Dslice, SS, LP, **kwargs):
     X = Dslice.X  # 2D array, N x D
     Resp = LP['resp']
     if Resp.ndim == 2:
-        CompDims = ('K',) # typical case
+        CompDims = ('K',)  # typical case
     elif Resp.ndim == 3:
-        CompDims = ('K','K') # relational data
-
+        CompDims = ('K', 'K')  # relational data
 
     if SS is None:
         SS = SuffStatBag(K=LP['resp'].shape[1], D=Dslice.dim)
@@ -770,6 +768,6 @@ def calcSummaryStats(Dslice, SS, LP, **kwargs):
     CountON = np.tensordot(Resp.T, X, axes=1)
     CountOFF = np.tensordot(Resp.T, 1 - X, axes=1)
 
-    SS.setField('Count1', CountON, dims=CompDims+('D',))
-    SS.setField('Count0', CountOFF, dims=CompDims+('D',))
+    SS.setField('Count1', CountON, dims=CompDims + ('D',))
+    SS.setField('Count0', CountOFF, dims=CompDims + ('D',))
     return SS
