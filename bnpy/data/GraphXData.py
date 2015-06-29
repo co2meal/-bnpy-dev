@@ -32,9 +32,11 @@ class GraphXData(XData):
         Always >= nEdges.
     nNodesTotal : int
         Total number of nodes in the dataset.
-    nodes : 1D array, size nNodes
-        Node IDs represented in the current in-memory batch.
-
+    nodeNames : (optional) list of size nNodes
+        Human-readable names for each node. 
+    nodeZ : (optional) 1D array, size nNodes
+        int cluster assignment for each node in "ground-truth" labeling.
+        
     Optional Attributes
     ------------------- 
     TrueParams : dict
@@ -60,8 +62,9 @@ class GraphXData(XData):
     def __init__(self, edges=None, X=None,
                  AdjMat=None,
                  nNodesTotal=None, nEdgesTotal=None,
-                 TrueParams=None, name=None, summary=None,
-                 nodes=None, nNodes=None, heldOut=None,
+                 nNodes=None,
+                 TrueParams=None,
+                 nodeNames=None, nodeZ=None,
                  **kwargs):
         ''' Construct a GraphXData object.
 
@@ -118,10 +121,14 @@ class GraphXData(XData):
         self._set_size_attributes(nNodesTotal=nNodesTotal, 
                                   nEdgesTotal=nEdgesTotal)
         self._verify_attributes()
-        if nodes is None:
-            self.nodes = np.arange(self.nNodes)
+
+        if TrueParams is None:
+            if nodeZ is not None:
+                self.TrueParams = dict()
+                self.TrueParams['nodeZ'] = nodeZ
         else:
-            self.nodes = nodes
+            self.TrueParams = TrueParams
+
         # TODO Held out data
 
     def _verify_attributes(self):
@@ -190,26 +197,22 @@ class GraphXData(XData):
         if doTrackFullSize:
             nEdgesTotal = self.nEdgesTotal
             nNodesTotal = self.nNodesTotal
-            nodes = self.nodes
         else:
             nEdgesTotal = None
             nNodesTotal = None
-            nodes = None
         return GraphXData(edges=edges, X=X, 
                           nNodesTotal=nNodesTotal, 
                           nEdgesTotal=nEdgesTotal,
-                          nodes=nodes)
+                          )
 
     def add_data(self, otherDataObj):
         ''' Updates (in-place) this object by adding new nodes.
         '''
-        nodes = np.union1d(self.nodes, otherDataObj.nodes)
         self.X = np.vstack([self.X, otherDataObj.X])
         self.edges = np.vstack([self.edges, otherDataObj.edges])
         self._set_size_attributes(
             nNodesTotal=self.nNodesTotal+otherDataObj.nNodesTotal,
             nEdgesTotal=self.nEdgesTotal+otherDataObj.nEdgesTotal)
-        self.nodes = nodes
 
     def toAdjacencyMatrix(self):
         ''' Return adjacency matrix representation of this dataset.

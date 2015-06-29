@@ -159,22 +159,29 @@ class FiniteAssortativeMMSB(FiniteMMSB):
         ''' Initialize local parameters given LP dict with resp field.
         '''
         K = LP['resp'].shape[-1]
+        nodeMat = Data.getSparseSrcNodeMat() + Data.getSparseRcvNodeMat()
+
         if LP['resp'].ndim == 2:
+            # Assortative block relations
             resp = LP['resp']
-            raise NotImplementedError("TODO")
+            resp_bg = LP['resp_bg']
+            assert resp_bg.shape == (Data.nEdges,)
+            NodeStateCount_bg = 0.0
+
         else:
+            # Full K x K block relations
             resp = np.zeros((Data.nEdges, K))
             for k in xrange(K):
                 resp[:,k] = LP['resp'][:, k, k]
             srcresp_bg = LP['resp'].sum(axis=2) - resp
-            rcvresp_bg = LP['resp'].sum(axis=2) - resp
+            rcvresp_bg = LP['resp'].sum(axis=1) - resp
+            NodeStateCount_bg = \
+                Data.getSparseSrcNodeMat() * srcresp_bg + \
+                Data.getSparseRcvNodeMat() * rcvresp_bg
 
         LP['resp'] = resp
-        NodeStateCount_bg = \
-            Data.getSparseSrcNodeMat() * srcresp_bg + \
-            Data.getSparseRcvNodeMat() * rcvresp_bg
+
         # NodeStateCount_fg : 2D array, size nNodes x K
-        nodeMat = Data.getSparseSrcNodeMat() + Data.getSparseRcvNodeMat()
         NodeStateCount_fg = nodeMat * LP['resp']
         LP['NodeStateCount'] = NodeStateCount_bg + NodeStateCount_fg
         LP['N_fg'] = NodeStateCount_fg.sum(axis=0)
@@ -194,8 +201,11 @@ class FiniteAssortativeMMSB(FiniteMMSB):
         K = LP['resp'].shape[-1]
         SS = SuffStatBag(K=K, D=Data.dim, V=V)
 
+        if 'NodeStateCount' not in LP:
+            LP = self.initLPFromResp(Data, LP)
+
         SS.setField('NodeStateCount', LP['NodeStateCount'], dims=('V', 'K'))
-        assert np.allclose(SS.NodeStateCount.sum(), Data.nEdges*2)
+        # assert np.allclose(SS.NodeStateCount.sum(), Data.nEdges*2)
 
         SS.setField('N', LP['N_fg'], dims=('K',))
         SS.setField('scaleFactor', Data.nEdges, dims=None)

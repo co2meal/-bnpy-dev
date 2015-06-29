@@ -218,12 +218,17 @@ def plotSingleJob(dataName, jobname, taskids='1', lap='final',
     #    axes_pair = [axes_pair]
 
     AdjMat = np.squeeze(Data.toAdjacencyMatrix())
-    sortids = np.argsort(Data.TrueParams['pi'].argmax(axis=1))
-    AdjMat = AdjMat[sortids, :]
-    AdjMat = AdjMat[:, sortids]
+    if hasattr(Data, 'TrueParams'):
+        if 'nodeZ' in Data.TrueParams:
+            sortids = np.argsort(Data.TrueParams['nodeZ'])
+        elif 'pi' in Data.TrueParams:
+            sortids = np.argsort(Data.TrueParams['pi'].argmax(axis=1))
+        AdjMat = AdjMat[sortids, :]
+        AdjMat = AdjMat[:, sortids]
 
 
     # Show the true adj mat and the estimated side-by-side
+    # First, the true adjacency matrix
     ncols = len(taskids)+1
     plt.subplots(nrows=1, ncols=ncols, figsize=(3*ncols, 3))
     plt.subplot(1, ncols, 1)
@@ -246,15 +251,33 @@ def plotSingleJob(dataName, jobname, taskids='1', lap='final',
             taskoutpath, curLap)
         Ew = hmodel.obsModel.Post.lam1 / \
             (hmodel.obsModel.Post.lam1 + hmodel.obsModel.Post.lam0)
-        LP = hmodel.calc_local_params(Data)
+        isAssortative = str(type(hmodel.allocModel)).count('Assort')
+        if isAssortative:
+            K = hmodel.allocModel.K
+            Ew_tmp = hmodel.allocModel.epsilon * np.ones((K, K, Ew.shape[-1]))
+            for k in xrange(K):
+                Ew_tmp[k,k] = Ew[k]
+            Ew = Ew_tmp
         taskAdjMat = np.zeros((Data.nNodes, Data.nNodes, Data.dim))
-        for eid, (s,t) in enumerate(Data.edges):
-            resp_st = LP['resp'][eid]
-            if resp_st.ndim == 2: # K x K
-                assert np.allclose(resp_st.sum(), 1.0)
-                taskAdjMat[s,t] = np.sum(resp_st[:,:,np.newaxis] * Ew, axis=(0,1))
-            else:
-                taskAdjMat[s,t] = np.sum(resp_st[:,np.newaxis] * Ew, axis=0)
+        useLP = 0
+        if useLP:
+            LP = hmodel.calc_local_params(Data)
+            for eid, (s,t) in enumerate(Data.edges):
+                resp_st = LP['resp'][eid]
+                if isAssortative:
+                    taskAdjMat[s,t] = np.sum(
+                        resp_st[:,np.newaxis] * Ew, axis=0)
+                else:
+                    assert np.allclose(resp_st.sum(), 1.0)
+                    taskAdjMat[s,t] = np.sum(
+                        resp_st[:,:,np.newaxis] * Ew, axis=(0,1))
+
+        else:
+            Epi = np.exp(hmodel.allocModel.E_logPi())
+            for eid, (s,t) in enumerate(Data.edges):
+                for d in xrange(Data.dim):
+                    taskAdjMat[s,t,d] = np.inner(Epi[s,:], 
+                        np.dot(Ew[:,:,d], Epi[t,:]))
 
         assert taskAdjMat.min() >= 0
         assert taskAdjMat.max() <= 1.0
