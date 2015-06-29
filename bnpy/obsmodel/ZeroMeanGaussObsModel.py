@@ -426,7 +426,7 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
         Q *= Q
         return self.Post.nu[k] * np.sum(Q, axis=0)
 
-    def calcELBO_Memoized(self, SS, afterMStep=False):
+    def calcELBO_Memoized(self, SS, returnVec=0, afterMStep=False):
         """ Calculate obsModel's objective using suff stats SS and Post.
 
         Args
@@ -454,6 +454,8 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
                 bDiff = SS.xxT[k] + Prior.B - Post.B[k]
                 elbo[k] += 0.5 * aDiff * self.GetCached('E_logdetL', k) \
                     - 0.5 * self._trace__E_L(bDiff, k)
+        if returnVec:
+            return elbo - (0.5 * SS.D * LOGTWOPI) * SS.N
         return elbo.sum() - 0.5 * np.sum(SS.N) * SS.D * LOGTWOPI
 
     def getDatasetScale(self, SS):
