@@ -125,8 +125,12 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
     # @profile
     def updatePost(self, SS):
         self.ClearCache()
-        if not hasattr(self, 'Post') or self.Post.K != SS.K:
+        # if not hasattr(self, 'Post') or self.Post.K != SS.K:
+        #     self.Post = ParamBag(K=SS.K, D=SS.D, C=SS.C)
+        if not hasattr(self, 'Post'):
             self.Post = ParamBag(K=SS.K, D=SS.D, C=SS.C)
+        elif self.Post.K != SS.K:
+            self.Post.K = SS.K
         WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov = self.calcPostParams(SS)
         self.Post.setField('WMean', WMean, dims=('K','D','C'))
         self.Post.setField('WCov', WCov, dims=('K','D','C','C'))
@@ -148,7 +152,8 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             PhiInvScale = self.Post.PhiInvScale
             aCov = self.Post.aCov
         else:
-            WMean = np.random.randn(SS.K, self.D, self.C)
+            PRNG = np.random.RandomState(2)
+            WMean = PRNG.randn(SS.K, self.D, self.C)
             hShape = self.Prior.f
             hInvScale = self.Prior.g * np.ones((SS.K, self.C))
             PhiShape = self.Prior.s * np.ones(SS.K)
@@ -160,20 +165,6 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             hShape, hInvScale = self.calcPostH(WMean, WCov)
             PhiShape, PhiInvScale = self.calcPostPhi(SS, WMean, WCov, PhiShape, PhiInvScale, aCov)
         return WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov
-
-    def calcPostACov(self, WMean, WCov, PhiShape, PhiInvScale):
-        C = self.C
-        D = self.D
-        K = WMean.shape[0]
-        aCov = np.zeros((K, C, C))
-        for k in xrange(K):
-            E_W_WT = np.zeros((D, C, C))
-            for d in xrange(D):
-                E_W_WT[d] = np.outer(WMean[k][d], WMean[k][d]) + WCov[k][d]
-            E_WT_Phi_W = np.sum((PhiShape[k] / PhiInvScale[k])[:, np.newaxis, np.newaxis]
-                                * E_W_WT, axis=0)
-            aCov[k] = inv(np.eye(C) + E_WT_Phi_W)
-        return aCov
 
     # @profile
     def calcPostW(self, SS, WMean_old, hShape, hInvScale, PhiShape, PhiInvScale, aCov):
@@ -194,6 +185,20 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             for d in xrange(D):
                 WMean[k, d] = np.dot(WCov[k,d], PhiShape[k] / PhiInvScale[k,d] * xaT[d])
         return WMean, WCov
+
+    def calcPostACov(self, WMean, WCov, PhiShape, PhiInvScale):
+        C = self.C
+        D = self.D
+        K = WMean.shape[0]
+        aCov = np.zeros((K, C, C))
+        for k in xrange(K):
+            E_W_WT = np.zeros((D, C, C))
+            for d in xrange(D):
+                E_W_WT[d] = np.outer(WMean[k][d], WMean[k][d]) + WCov[k][d]
+            E_WT_Phi_W = np.sum((PhiShape[k] / PhiInvScale[k])[:, np.newaxis, np.newaxis]
+                                * E_W_WT, axis=0)
+            aCov[k] = inv(np.eye(C) + E_WT_Phi_W)
+        return aCov
 
     # @profile
     def calcPostH(self, WMean, WCov):
@@ -335,6 +340,79 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         for d in xrange(D):
             result[d] = 2 * np.sum(np.log(np.diag(cholWCov[d])))
         return result
+
+    ########################################################### Merge
+    ###########################################################
+    def calcHardMergeGap(self, SS, kA, kB):
+        ''' Calculate change in ELBO after a hard merge applied to this model
+
+            Returns
+            ---------
+            gap : scalar real, indicates change in ELBO after merge of kA, kB
+        '''
+        Post = self.Post
+        Prior = self.Prior
+        # cA = c_Func(Post.nu[kA], Post.B[kA], Post.m[kA], Post.kappa[kA])
+        # cB = c_Func(Post.nu[kB], Post.B[kB], Post.m[kB], Post.kappa[kB])
+        # cPrior = c_Func(Prior.nu, Prior.B, Prior.m, Prior.kappa)
+        #
+        # nu, B, m, kappa = self.calcPostParamsForComp(SS, kA, kB)
+        # cAB = c_Func(nu, B, m, kappa)
+        # return cA + cB - cPrior - cAB
+
+    def calcPostParamsForComp(self, SS, kA=None, kB=None):
+        if kB is None:
+            SN = SS.N[kA]
+            SxxT = SS.xxT[kA]
+        else:
+            if SS.N[kA] < SS.N[kB]:
+                tmp = kA
+                kA = kB
+                kB = tmp
+            SN = SS.N[kA] + SS.N[kB]
+            SxxT = SS.xxT[kA] + SS.xxT[kB]
+        D = self.D
+        C = self.C
+        Post = self.Post
+        WMean_old = Post.WMean[kA]
+        WCov_old = Post.WCov[kA]
+        hShape = Post.hShape
+        hInvScale_old = Post.hInvScale[kA]
+        PhiShape_old = Post.PhiShape[kA]
+        PhiInvScale_old = Post.PhiInvScale[kA]
+        aCov_old = Post.aCov[kA]
+        # calc W
+        L = aCov_old
+        LU = np.dot(L, np.dot(WMean_old.T, np.diag(PhiShape_old / PhiInvScale_old)))
+        aaT = SN * L + np.dot(LU, np.inner(SxxT, LU))
+        xaT = np.inner(SxxT, LU)
+        SigmaInvWW = np.diag(hShape / hInvScale_old) \
+                     + (PhiShape_old / PhiInvScale_old)[:,np.newaxis,np.newaxis] \
+                     * np.tile(aaT, (D,1,1))
+        WCov = inv(SigmaInvWW)
+        WMean = np.zeros((D,C))
+        for d in xrange(D):
+            WMean[d] = np.dot(WCov[d], PhiShape_old / PhiInvScale_old[d] * xaT[d])
+        # calc H
+        hInvScale = np.zeros(C)
+        for c in xrange(C):
+            hInvScale[c] = self.Prior.g + .5 * np.sum(WMean[:,c]**2 + WCov[:,c,c])
+        # calc Phi
+        PhiShape = self.Prior.s + .5 * SN
+        PhiInvScale = self.Prior.t * np.ones(D)
+        L = aCov_old
+        LU = np.dot(L, np.dot(WMean.T, np.diag(PhiShape / PhiInvScale)))
+        aaT = SN * L + np.dot(LU, np.inner(SxxT,LU))
+        xaT = np.inner(SxxT, LU)
+        for d in xrange(D):
+            PhiInvScale[d] += .5 * (SxxT[d,d]
+                              - 2 * np.dot(xaT[d], WMean[d])
+                              + np.einsum('ij,ji', np.outer(WMean[d], WMean[d])
+                                          + WCov[d], aaT))
+        # calc aCov
+        aCov = aCov_old
+        return WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov
+
 
 
 if __name__ == '__main__':

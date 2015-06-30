@@ -8,9 +8,11 @@ from scipy.linalg import cholesky
 from bnpy.data import XData
 from bnpy.util import dotATA
 import sys
+sys.path.insert(0, '/Library/Python/2.7/site-packages/mpl_toolkits/')
+from mplot3d import Axes3D
 
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+# from mpl_toolkits.mplot3d import Axes3D
 
 
 # ########################################################## User-facing
@@ -55,8 +57,8 @@ h[1] = np.asarray([3.0, 1.0])
 h *= 1e-3
 
 Psi = np.zeros((K,D,D))
-Psi[0] = np.diag([1, 5, 1]) * 100
-Psi[1] = np.diag([1, 1, 5]) * 1000
+Psi[0] = np.diag([1, 5, 1]) * 10
+Psi[1] = np.diag([1, 1, 5]) * 20
 
 def sample_data_from_comp(k, Nk, Lamk, PRNG):
     a_k = PRNG.randn(C, Nk)
@@ -97,8 +99,8 @@ def plot_data_by_k(Data):
         c = k % len(GaussViz.Colors)
         idx = np.flatnonzero(Data.TrueParams['Z'] == k)
         x = Data.X[idx, 0]
-        y = Data.X[idx,1]
-        z = Data.X[idx,2]
+        y = Data.X[idx, 1]
+        z = Data.X[idx, 2]
         ax.scatter(x, y, z, c=GaussViz.Colors[c], marker='o')
     ax.set_xlabel('X Label')
     ax.set_ylabel('Y Label')
@@ -106,5 +108,5 @@ def plot_data_by_k(Data):
     plt.show()
 
 if __name__ == '__main__':
-    Data = get_data(nObsTotal=5000)
+    Data = get_data(nObsTotal=1000)
     plot_data_by_k(Data)
