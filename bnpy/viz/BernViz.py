@@ -17,6 +17,7 @@ def plotCompsFromHModel(hmodel, doShowNow=False,
                         xlabels=[],
                         compsToHighlight=None, compListToPlot=None,
                         activeCompIDs=None, Kmax=50,
+                        Data=None,
                         block=0,  # unused
                         jobname='',  # unused
                         **kwargs):

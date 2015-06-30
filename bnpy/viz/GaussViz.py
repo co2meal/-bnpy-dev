@@ -138,7 +138,8 @@ def plotGauss2DFromHModel(hmodel, compListToPlot=None,
 
     if Data is not None:
         if hasattr(Data, 'X'):
-            pylab.plot(Data.X[:, 0], Data.X[:, 1], 'k.')
+            pylab.plot(Data.X[:, 0], Data.X[:, 1], '.', 
+                color=(.3,.3,.3), alpha=0.5)
 
     nSkip = 0
     nGood = 0
