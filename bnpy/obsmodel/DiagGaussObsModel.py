@@ -497,7 +497,7 @@ class DiagGaussObsModel(AbstractObsModel):
         dist += self.D / self.Post.kappa[k]
         return dist
 
-    def calcELBO_Memoized(self, SS, afterMStep=False):
+    def calcELBO_Memoized(self, SS, returnVec=0, afterMStep=False):
         """ Calculate obsModel's objective using suff stats SS and Post.
 
         Args
@@ -532,7 +532,11 @@ class DiagGaussObsModel(AbstractObsModel):
                     - 0.5 * np.inner(bDiff, self._E_L(k)) \
                     + np.inner(cDiff, self.GetCached('E_Lmu', k)) \
                     - 0.5 * dDiff * np.sum(self.GetCached('E_muLmu', k))
-        return elbo.sum() - 0.5 * np.sum(SS.N) * SS.D * LOGTWOPI
+        
+        elbo += -(0.5 * SS.D * LOGTWOPI) * SS.N
+        if returnVec:
+            return elbo
+        return elbo.sum()
 
     def getDatasetScale(self, SS):
         ''' Get number of observed scalars in dataset from suff stats.

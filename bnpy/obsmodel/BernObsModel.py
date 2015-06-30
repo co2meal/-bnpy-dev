@@ -345,7 +345,7 @@ class BernObsModel(AbstractObsModel):
         L = np.dot(Data.X, ElogphiT) + np.dot(1.0 - Data.X, Elog1mphiT)
         return L
 
-    def calcELBO_Memoized(self, SS, afterMStep=False):
+    def calcELBO_Memoized(self, SS, returnVec=0, afterMStep=False):
         """ Calculate obsModel's objective using suff stats SS and Post.
 
         Args
@@ -376,6 +376,9 @@ class BernObsModel(AbstractObsModel):
                 L_perComp[k] += np.inner(
                     SS.Count0[k] + Prior.lam0 - Post.lam0[k],
                     Elog1mphiT[:, k])
+
+        if returnVec:
+            return L_perComp
         return np.sum(L_perComp)
 
     def getDatasetScale(self, SS, extraSS=None):

@@ -379,7 +379,7 @@ class MultObsModel(AbstractObsModel):
                 wid = Data.word_id[start:stop]
                 return ElogphiT[wid, :]
 
-    def calcELBO_Memoized(self, SS, afterMStep=False):
+    def calcELBO_Memoized(self, SS, returnVec=0, afterMStep=False):
         """ Calculate obsModel's objective using suff stats SS and Post.
 
         Args
@@ -404,6 +404,8 @@ class MultObsModel(AbstractObsModel):
             if not afterMStep:
                 elbo[k] += np.inner(SS.WordCounts[k] + Prior.lam - Post.lam[k],
                                     Elogphi[k])
+        if returnVec:
+            return elbo
         return np.sum(elbo)
 
     def logh(self, Data):
