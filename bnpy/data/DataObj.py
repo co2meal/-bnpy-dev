@@ -9,6 +9,7 @@ Attributes
 nObs : 
 '''
 from DataIterator import DataIterator
+import numpy as np
 
 class DataObj(object):
   @classmethod
@@ -83,3 +84,24 @@ class DataObj(object):
     ''' Updates (in-place) this dataset to append all data in provided Data object
     '''
     pass
+
+def getHOData(Data, frac):
+    ''' Separates data into training data and held out data
+    '''
+    data_size = Data.get_total_size()
+    PRNG = np.random.RandomState()
+    shuffleIDs = PRNG.permutation(data_size).tolist()
+    trainMask = shuffleIDs[:int(data_size*(1.0-frac))]
+    hoMask = shuffleIDs[int(data_size*(1.0-frac)):]
+    trainData = Data.select_subset_by_mask(trainMask)
+
+    hoData = Data.select_subset_by_mask(hoMask)
+
+    if hasattr(Data, 'TrueParams') and 'Z' in Data.TrueParams:
+        hoData.TrueParams = dict()
+        trainData.TrueParams = dict()
+        hoData.TrueParams['Z'] = Data.TrueParams['Z'][hoMask]
+        trainData.TrueParams['Z'] = Data.TrueParams['Z'][trainMask]
+        trainData.name = Data.name
+
+    return trainData, hoData

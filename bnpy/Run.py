@@ -104,7 +104,7 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
     hmodel, Info = _run_task_internal(jobname, taskid, nTask,
                       ReqArgs, KwArgs, UnkArgs,
                       dataName, allocModelName, obsModelName, algName,
-                      doSaveToDisk, doWriteStdOut)
+                      doSaveToDisk, doWriteStdOut, kwargs['hoData'])
     if (Info['evBound'] > bestEvBound):
       bestModel = hmodel
       bestEvBound = Info['evBound']
@@ -116,7 +116,7 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
 def _run_task_internal(jobname, taskid, nTask,
                       ReqArgs, KwArgs, UnkArgs,
                       dataName, allocModelName, obsModelName, algName,
-                      doSaveToDisk, doWriteStdOut):
+                      doSaveToDisk, doWriteStdOut, hoData=None):
   ''' Internal method (should never be called by end-user!)
       Executes learning for a particular job and particular taskid.
       
@@ -237,7 +237,7 @@ def _run_task_internal(jobname, taskid, nTask,
   Log.info('savepath: %s' % (taskoutpath))
 
   # Fit the model to the data!
-  RunInfo = learnAlg.fit(hmodel, Data)
+  RunInfo = learnAlg.fit(hmodel, Data, hoData)
   return hmodel, RunInfo
 
 

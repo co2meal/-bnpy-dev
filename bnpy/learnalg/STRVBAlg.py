@@ -34,7 +34,7 @@ class STRVBAlg(LearnAlg):
 
   ######################################################### fit
   ######################################################### 
-  def fit(self, hmodel, DataIterator):
+  def fit(self, hmodel, DataIterator, hoData = None):
     ''' Run learning algorithm that fits parameters of hmodel to Data.
 
         Returns
@@ -45,19 +45,6 @@ class STRVBAlg(LearnAlg):
         --------
         hmodel.
     '''
-
-    Data = DataIterator.Data
-    data_size = Data.get_total_size()
-    PRNG = np.random.RandomState()
-    shuffleIDs = PRNG.permutation(data_size).tolist()
-    trainingMask = shuffleIDs[:data_size/2]
-    hoMask = shuffleIDs[data_size/2:]
-    trainData = Data.select_subset_by_mask(trainingMask)
-    hoData = Data.select_subset_by_mask(hoMask)
-
-    DataIterator = trainData.to_iterator()
-
-
 
     # init_SS = hmodel.allocModel.getPseudoSuffStats()
     initFlag = False
@@ -133,7 +120,7 @@ class STRVBAlg(LearnAlg):
       # evBound = hmodel.calc_evidence(SS=SS)
 
       ## ELBO calculation
-      evBound = hmodel.calc_evidence(hoData, SS)
+      evBound = hmodel.calc_evidence(hoData, SS=SS)
 
       self.saveDebugStateAtBatch('Mstep', batchID, Dchunk=Dchunk, SSchunk=SSchunk,
                                  SS=SS, hmodel=hmodel, LPchunk=LPchunk)
@@ -289,24 +276,27 @@ class STRVBAlg(LearnAlg):
         None. hmodel updated in-place.
     '''
 
-    decayFactor = decayFun(lapFrac)
+    # The delay functionality assumes that the model is Gaussian DP mixture model
+    a = repr(hmodel.getAllocModelName())
+    b = repr('DPMixtureModel')
+    c = repr(hmodel.getObsModelName())
+    d = repr('GaussObsModel')
 
-    print('Applying decay factor: ' + str(decayFactor))
-
-    if decayFactor == 0:
-        hmodel.update_global_params(SS)
-    elif decayFactor == 1:
-        iSS = init_SS.copy()
-        hmodel.update_global_params(iSS)
+    if (a==b and c==d):
+        decayFactor = max(0,decayFun(lapFrac))
+        if decayFactor == 0:
+            hmodel.update_global_params(SS)
+        elif decayFactor == 1:
+            iSS = init_SS.copy()
+            hmodel.update_global_params(iSS)
+        else:
+            iSS = init_SS.copy()
+            SS._Fields.x = (1-decayFactor)*SS._Fields.x + decayFactor*iSS._Fields.x
+            SS._Fields.xxT = (1-decayFactor)*SS._Fields.xxT + decayFactor*iSS._Fields.xxT
+            SS._Fields.N = (1-decayFactor)*SS._Fields.N + decayFactor*iSS._Fields.N
+            hmodel.update_global_params(iSS + SS)
     else:
-        iSS = init_SS.copy()
-        SS._Fields.x = (1-decayFactor)*SS._Fields.x + decayFactor*iSS._Fields.x
-        SS._Fields.xxT = (1-decayFactor)*SS._Fields.xxT + decayFactor*iSS._Fields.xxT
-        SS._Fields.N = (1-decayFactor)*SS._Fields.N + decayFactor*iSS._Fields.N
-        hmodel.update_global_params(iSS + SS)
-        # iSS.applyAmpFactor(decayFactor)
-        # SS.applyAmpFactor(1-decayFactor)
-        # hmodel.update_global_params(iSS + SS)
+        hmodel.update_global_params(SS)
 
   ######################################################### Init nBatch, etc.
   #########################################################

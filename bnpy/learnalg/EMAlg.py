@@ -14,7 +14,7 @@ class EMAlg( LearnAlg ):
     '''
     super(type(self), self).__init__( **kwargs )
     
-  def fit(self, hmodel, Data, LP=None):
+  def fit(self, hmodel, Data, hoData=None, LP=None):
     ''' Fit point estimates of global parameters of hmodel to Data
         Returns
         --------
@@ -46,7 +46,11 @@ class EMAlg( LearnAlg ):
       SS = hmodel.get_global_suff_stats(Data, LP)
 
       ## ELBO calculation (needs to be BEFORE Mstep for EM)
-      evBound = hmodel.calc_evidence(Data, SS, LP)
+      if (hoData == None):
+          evBound = hmodel.calc_evidence(Data, SS, LP)
+      else:
+          evBound = hmodel.calc_evidence(hoData, SS, LP)
+
       if lap > 1.0:
         ## Report warning if bound isn't increasing monotonically
         self.verify_evidence(evBound, prevBound)

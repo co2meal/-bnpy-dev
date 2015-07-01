@@ -17,6 +17,7 @@ save_model = ioutil.ModelWriter.save_model
 
 import init
 import learnalg
+import datasets
 import birthmove
 import mergemove
 #import deletemove

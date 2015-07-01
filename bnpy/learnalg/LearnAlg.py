@@ -57,7 +57,18 @@ class LearnAlg(object):
         -------
         Info : dict of diagnostics about this run
     '''
+    self.fit(hmodel,Data, None)
+
+  def fit(self, hmodel, Data, hoData):
+    ''' Execute learning algorithm for hmodel on Data, but evaluate ELBO on hoData (held out data)
+        This method is extended by any subclass of LearnAlg
+
+        Returns
+        -------
+        Info : dict of diagnostics about this run
+    '''
     pass
+
 
   def set_random_seed_at_lap(self, lap):
     ''' Set internal random generator deterministically

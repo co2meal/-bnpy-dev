@@ -33,7 +33,7 @@ class MOVBAlg(LearnAlg):
 
   ######################################################### fit
   ######################################################### 
-  def fit(self, hmodel, DataIterator):
+  def fit(self, hmodel, DataIterator, hoData=None):
     ''' Run learning algorithm that fits parameters of hmodel to Data.
 
         Returns
@@ -103,7 +103,13 @@ class MOVBAlg(LearnAlg):
       self.GlobalStep(hmodel, SS, lapFrac)
 
       ## ELBO calculation
-      evBound = hmodel.calc_evidence(SS=SS)
+
+
+      if (hoData == None):
+          evBound = hmodel.calc_evidence(SS=SS)
+      else:
+          evBound = hmodel.calc_evidence(hoData, SS)
+
       if nLapsCompleted > 1.0:
         # evBound will increase monotonically AFTER first lap of the data 
         # verify_evidence will warn if bound isn't increasing monotonically

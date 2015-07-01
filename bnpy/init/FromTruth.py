@@ -24,11 +24,11 @@ def init_global_params(hmodel, Data, initname=None, seed=0, **kwargs):
 
       Returns
       --------
-      None. hmodel global params updated in-place.
+      Pseudo-Sufficient Statistics. hmodel global params updated in-place.
   '''
   PRNG = np.random.RandomState(seed)
   if initname.count('truelabels') > 0:
-    _initFromTrueLP(hmodel, Data, initname, PRNG, **kwargs)
+    SS = _initFromTrueLP(hmodel, Data, initname, PRNG, **kwargs)
   else:
     _initFromTrueParams(hmodel, Data, initname, PRNG, **kwargs)
 
@@ -36,6 +36,9 @@ def init_global_params(hmodel, Data, initname=None, seed=0, **kwargs):
     assert hasattr(hmodel.obsModel, 'EstParams')
   else:
     assert hasattr(hmodel.obsModel, 'Post')
+
+  if initname.count('truelabels') > 0:
+    return SS
 
 
 def _initFromTrueParams(hmodel, Data, initname, PRNG, **kwargs):
@@ -61,7 +64,7 @@ def _initFromTrueLP(hmodel, Data, initname, PRNG, nRepeatTrue=2, **kwargs):
 
       Returns
       --------
-      None. hmodel updated in-place.
+      Pseudo-Sufficient Statistics. hmodel updated in-place.
   '''
 
   ## Extract "true" local params dictionary LP specified in the Data struct
@@ -97,6 +100,7 @@ def _initFromTrueLP(hmodel, Data, initname, PRNG, nRepeatTrue=2, **kwargs):
   ## Perform global update step given these local params
   SS = hmodel.get_global_suff_stats(Data, LP)
   hmodel.update_global_params(SS)
+  return SS
 
 
 def convertLPFromHardToSoft(LP, Data, startIDsAt0=False, Kmax=None):

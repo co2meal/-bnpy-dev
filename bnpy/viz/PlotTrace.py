@@ -174,12 +174,16 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
         curDensity = (xs.size-10) / (xs[-1] - xs[9])
       else:
         curDensity = density
+      count = 0
       while curDensity > density:
         # Thin xs and ys data by a factor of 2
         # while preserving the first 10 data points
         xs = np.hstack([xs[:10], xs[10::2]])
         ys = np.hstack([ys[:10], ys[10::2]])
         curDensity = (xs.size-10) / (xs[-1] - xs[9])
+        count = count+1
+        if (count == 100):
+          print "oop"
 
     plotargs = dict(markersize=markersize, linewidth=linewidth, label=None,
                     color=color, markeredgecolor=color)
@@ -202,8 +206,9 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
         yd = line.get_ydata()
         loc = np.searchsorted(xd, 2)
         print "xd ", xd
-        ymin = np.minimum(ymin, np.percentile(yd[loc:], 2.5))
-        ymax = np.maximum(ymax, yd[loc:].max())
+        if (len(yd) > loc):
+          ymin = np.minimum(ymin, np.percentile(yd[loc:], 2.5))
+          ymax = np.maximum(ymax, yd[loc:].max())
       pylab.ylim([ymin, ymax + 0.1*(ymax-ymin)])
 
   pylab.xlabel(LabelMap[xvar])

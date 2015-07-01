@@ -8,7 +8,6 @@ from MOVBAlg import MOVBAlg
 from STRVBAlg import STRVBAlg
 from MOVBBirthMergeAlg import MOVBBirthMergeAlg
 
-
 from SOVBAlg import SOVBAlg
 from EMAlg import EMAlg
 

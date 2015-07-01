@@ -17,7 +17,7 @@ class SOVBAlg(LearnAlg):
     self.rhodelay = self.algParams['rhodelay']
     self.rhoexp = self.algParams['rhoexp']
 
-  def fit(self, hmodel, DataIterator, SS=None):
+  def fit(self, hmodel, DataIterator, hoData=None, SS=None):
     ''' Run soVB learning algorithm, fit global parameters of hmodel to Data
         Returns
         --------
@@ -111,13 +111,16 @@ class SOVBAlg(LearnAlg):
         hmodel.update_global_params(SS, rho)
 
         ## ELBO step
-        EvChunk = hmodel.calc_evidence(Dchunk, SS, LP)      
 
-        if EvMemory[batchID] != 0:
-          EvRunningSum -= EvMemory[batchID]
-        EvRunningSum += EvChunk
-        EvMemory[batchID] = EvChunk
-        evBound = EvRunningSum / nBatch
+        if (hoData == None):
+            EvChunk = hmodel.calc_evidence(Dchunk, SS, LP)
+            if EvMemory[batchID] != 0:
+              EvRunningSum -= EvMemory[batchID]
+            EvRunningSum += EvChunk
+            EvMemory[batchID] = EvChunk
+            evBound = EvRunningSum / nBatch
+        else:
+            evBound = hmodel.calc_evidence(hoData, SS, LP)
 
       ## Display progress
       self.updateNumDataProcessed(Dchunk.get_size())
