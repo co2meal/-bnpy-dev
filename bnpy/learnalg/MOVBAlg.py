@@ -142,7 +142,7 @@ class MOVBAlg(LearnAlg):
         self.eval_custom_func(
             isFinal=1, **makeDictOfAllWorkspaceVars(**vars()))
 
-        return self.buildRunInfo(evBound=evBound, SS=SS,
+        return self.buildRunInfo(Data=Data, evBound=evBound, SS=SS,
                                  LPmemory=self.LPmemory,
                                  SSmemory=self.SSmemory)
 

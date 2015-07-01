@@ -306,11 +306,34 @@ class DPMixtureModel(AllocModel):
         Returns
         ------
         LP : dict
-             New local parameter dict for subset of data, with fields
-             * resp : 2D array, size Nsubset x K
+            New local parameter dict for subset of data, with fields
+            * resp : 2D array, size Nsubset x K
         '''
         resp = LP['resp'][relIDs].copy()
-        return dict(resp=resp)
+        relLP = dict(resp=resp)
+        return relLP
+
+    def fillSubsetLP(self, Data, LP, targetLP, targetIDs=[]):
+        ''' Replace subset of local params with provided updated values.
+
+        Returns
+        ------
+        LP : dict, with fields
+            * resp : 2D array, size N x K
+        '''
+        targetK = targetLP['resp'].shape[-1]
+        curK = LP['resp'].shape[-1]
+        Kx = targetK - curK
+        N = LP['resp'].shape[0]
+        if Kx > 0:
+            resp = np.zeros((N, targetK))
+            resp[:, :curK] = LP['resp']
+        else:
+            resp = LP['resp']
+        resp[targetIDs] = targetLP['resp']
+        newLP = dict(resp=resp)
+        return newLP
+
 
     def get_global_suff_stats(self, Data, LP,
                               **kwargs):

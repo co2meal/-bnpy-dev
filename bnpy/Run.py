@@ -230,6 +230,9 @@ def _run_task_internal(jobname, taskid, nTask,
 
     # Fit the model to the data!
     RunInfo = learnAlg.fit(hmodel, Data)
+    RunInfo['UnkArgs'] = UnkArgs
+    RunInfo['KwArgs'] = KwArgs
+    RunInfo['ReqArgs'] = ReqArgs
     return hmodel, RunInfo
 
 

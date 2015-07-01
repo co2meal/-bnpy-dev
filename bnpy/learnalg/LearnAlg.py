@@ -109,7 +109,7 @@ class LearnAlg(object):
         '''
         return time.time() - self.start_time
 
-    def buildRunInfo(self, **kwargs):
+    def buildRunInfo(self, Data, **kwargs):
         ''' Create dict of information about the current run.
 
         Returns
@@ -124,6 +124,7 @@ class LearnAlg(object):
                     outputdir=self.savedir,
                     evTrace=evTrace,
                     lapTrace=lapTrace,
+                    Data=Data,
                     elapsedTimeInSec=time.time() - self.start_time,
                     **kwargs)
 
