@@ -1,6 +1,7 @@
 import numpy as np
 
 from BProposals import *
+from BViz import showBirthProposal
 
 def makeCandidateLPWithNewComps(
         Data_t, curLP_t, propModel, curSS_nott, **Plan):
@@ -28,14 +29,15 @@ def makeCandidateLPWithNewComps(
     propLP_t, xcurSS_nott = refineCandidateViaLocalGlobalStepsAndDeletes(
             Data_t, propLP_t, propModel, curSS_nott, xcurSS_nott,
             **Plan)
-
+    assert np.allclose(curSS_nott.getCountVec(),
+                       xcurSS_nott.getCountVec()[:curSS_nott.K],
+                       rtol=0, atol=1e-6)
     return propLP_t, xcurSS_nott
-
 
 
 def refineCandidateViaLocalGlobalStepsAndDeletes(
         Data_t, propLP_t, propModel, curSS_nott, xcurSS_nott,
-        bRefineIters=3,
+        bRefineIters=3, doVizBirth=0,
         verbose=0,
         **kwargs):
     ''' Improve proposed LP via conventional updates and delete moves.
@@ -60,23 +62,31 @@ def refineCandidateViaLocalGlobalStepsAndDeletes(
     propSS = xcurSS_nott
     assert propSS.K == propK
 
-    propSS += propSS_t
-    print ' '.join(['%.1f' % x for x in propSS.N[origK:]])
-    propModel.update_global_params(propSS)
-    propSS -= propSS_t
-
     # Refine via repeated local/global steps
     for step in xrange(bRefineIters):
-        propLP_t = propModel.calc_local_params(Data_t)
-        propSS_t = propModel.get_global_suff_stats(Data_t, propLP_t)
-
+        # Increment to full size, and verify
         propSS += propSS_t
         wholeSize = propSS.getCountVec().sum()
         assert np.allclose(wholeSize, tSize + nottSize, atol=1e-6, rtol=0)
-        print ' '.join(['%.1f' % x for x in propSS.N[origK:]])
+        # Global step at full size
         propModel.update_global_params(propSS)
+        # Display counts, for debugging
+        newNstr = ' '.join(['%.1f' % x for x in propSS.N[origK:]])
+        if 'targetCompID' in kwargs:
+            targetNstr = 'target %.1f | new ' % (
+                propSS.N[kwargs['targetCompID']])
+        else:
+            targetNstr = ''
+        print targetNstr, newNstr 
+        # Visualize proposed model
+        if doVizBirth == 'refine':
+            showBirthProposal(**locals())
+
+        # Decrement summary
         propSS -= propSS_t
 
+        propLP_t = propModel.calc_local_params(Data_t)
+        propSS_t = propModel.get_global_suff_stats(Data_t, propLP_t)
 
     # Here, propSS and propModel are fully-consistent,
     # representing both propLP_t and curSS_nott
@@ -86,4 +96,6 @@ def refineCandidateViaLocalGlobalStepsAndDeletes(
 
     # Remove empty/redundant components
     # TODO
+
+    assert np.allclose(xcurSS_nott.getCountVec().sum(), nottSize)
     return propLP_t, xcurSS_nott

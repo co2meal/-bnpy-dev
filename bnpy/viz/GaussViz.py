@@ -172,7 +172,8 @@ def plotGauss2DFromHModel(hmodel, compListToPlot=None,
     if nSkip > 0:
         print 'SKIPPED %d comps with size below %.2f' % (nSkip, wTHR)
 
-    pylab.axis('image')
+    pylab.gca().set_aspect('equal', 'datalim')
+    # pylab.axis('image')
 
 
 def plotGauss2DContour(mu, Sigma, color='b', radiusLengths=[0.5, 1.25, 2]):

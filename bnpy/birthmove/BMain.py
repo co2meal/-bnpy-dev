@@ -24,13 +24,16 @@ def runBirthMove(
     curModel = curModel.copy()
     propModel = curModel.copy()
 
-    # Create target dataset, and associated summaries
+    Plan['doVizBirth'] = doVizBirth
+
+    # Create target dataset and LP
     try:
         Data_t, curLP_t, targetIDs = subsampleTargetFromDataAndLP(
             Data_b, curModel, curLP_b, **Plan)
     except ValueError as e:
+        # Planned target set does not exist, so exit
         return curLP_b
-
+    # Create relevant summaries
     curSS_b = curModel.get_global_suff_stats(
         Data_b, curLP_b, doPrecompEntropy=1)
     curSS_t = curModel.get_global_suff_stats(
@@ -47,6 +50,7 @@ def runBirthMove(
     # Propose new local parameters for target set
     propLP_t, xcurSS_nott = makeCandidateLPWithNewComps(
         Data_t, curLP_t, propModel, curSS_nott, **Plan)
+    # Evaluate proposal score
     propSS_t = propModel.get_global_suff_stats(
         Data_t, propLP_t, doPrecompEntropy=1)
     propSS = propSS_t + xcurSS_nott
@@ -65,7 +69,6 @@ def runBirthMove(
     else:
         # Reject
         return curLP_b
-
 
 
 def subsampleTargetFromDataAndLP(Data, model, LP, **Plan):
@@ -92,26 +95,27 @@ def subsampleTargetFromDataAndLP(Data, model, LP, **Plan):
 def _sample_target_XData(
         Data, model, LP, 
         PRNG=np.random, 
-        targetMaxSize=1000, targetCompID=None, targetRespThr=0.01, **Plan):
+        btargetMaxSize=1000, targetCompID=None, btargetRespThr=0.01, **Plan):
     ''' Select subset of provided XData dataset
     '''
     if targetCompID is not None:
-        targetIDs = np.flatnonzero(LP['resp'][:, targetCompID] > targetRespThr)
+        targetIDs = np.flatnonzero(LP['resp'][:, targetCompID] > btargetRespThr)
         if len(targetIDs) < 2:
             raise ValueError('Target too small.')
         PRNG.shuffle(targetIDs)
-        targetIDs = targetIDs[:targetMaxSize]
+        targetIDs = targetIDs[:btargetMaxSize]
     else:
         # For births based on current Data from batch
-        size = np.minimum(Data.get_size(), targetMaxSize)
+        size = np.minimum(Data.get_size(), btargetMaxSize)
         if size == Data.get_size():
             targetIDs = np.arange(size)
         else:
             targetIDs = PRNG.choice(
-                Data.get_size(), size=targetMaxSize, replace=False)
+                Data.get_size(), size=btargetMaxSize, replace=False)
     if len(targetIDs) < 2:
         raise ValueError('Target too small.')
-    Data_t = Data.select_subset_by_mask(targetIDs, doTrackFullSize=False)
+    Data_t = Data.select_subset_by_mask(
+        targetIDs, doTrackFullSize=False, doTrackTruth=True)
     LP_t = model.allocModel.selectSubsetLP(Data, LP, targetIDs)
     Plan['targetIDs'] = targetIDs
     return Data_t, LP_t, targetIDs
@@ -120,28 +124,28 @@ def _sample_target_XData(
 def _sample_target_GroupXData(
         Data, model, LP, 
         PRNG=np.random, 
-        targetMaxSize=1000, targetCompID=None, targetRespThr=0.01, **Plan):
+        btargetMaxSize=1000, targetCompID=None, btargetRespThr=0.01, **Plan):
     ''' Select subset of provided GroupXData dataset
     '''
     if targetCompID is not None:
         if 'DocTopicCount' in LP:
             targetIDs = np.flatnonzero(
-                LP['DocTopicCount'][:, targetCompID] > targetRespThr)
+                LP['DocTopicCount'][:, targetCompID] > btargetRespThr)
         else:
             targetIDs = np.flatnonzero(
-                LP['resp'][:, targetCompID] > targetRespThr)
+                LP['resp'][:, targetCompID] > btargetRespThr)
         if len(targetIDs) < 1:
             raise ValueError('Target too small.')
         PRNG.shuffle(targetIDs)
-        targetIDs = targetIDs[:targetMaxSize]
+        targetIDs = targetIDs[:btargetMaxSize]
     else:
         # For births based on current Data from batch
-        size = np.minimum(Data.get_size(), targetMaxSize)
+        size = np.minimum(Data.get_size(), btargetMaxSize)
         if size == Data.get_size():
             targetIDs = np.arange(size)
         else:
             targetIDs = PRNG.choice(
-                Data.get_size(), size=targetMaxSize, replace=False)
+                Data.get_size(), size=btargetMaxSize, replace=False)
 
     if len(targetIDs) < 1:
         raise ValueError('Target too small.')
