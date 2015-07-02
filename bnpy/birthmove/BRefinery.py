@@ -1,5 +1,6 @@
 import numpy as np
 
+import BLogger
 from BProposals import *
 from BViz import showBirthProposal
 
@@ -39,7 +40,7 @@ def refineCandidateViaLocalGlobalStepsAndDeletes(
         Data_t, propLP_t, propModel, curSS_nott, xcurSS_nott,
         bRefineIters=3, doVizBirth=0,
         verbose=0,
-        **kwargs):
+        **Plan):
     ''' Improve proposed LP via conventional updates and delete moves.
 
     Args
@@ -63,7 +64,7 @@ def refineCandidateViaLocalGlobalStepsAndDeletes(
     assert propSS.K == propK
 
     # Refine via repeated local/global steps
-    for step in xrange(bRefineIters):
+    for riter in xrange(bRefineIters):
         # Increment to full size, and verify
         propSS += propSS_t
         wholeSize = propSS.getCountVec().sum()
@@ -71,13 +72,8 @@ def refineCandidateViaLocalGlobalStepsAndDeletes(
         # Global step at full size
         propModel.update_global_params(propSS)
         # Display counts, for debugging
-        newNstr = ' '.join(['%.1f' % x for x in propSS.N[origK:]])
-        if 'targetCompID' in kwargs:
-            targetNstr = 'target %.1f | new ' % (
-                propSS.N[kwargs['targetCompID']])
-        else:
-            targetNstr = ''
-        print targetNstr, newNstr 
+        BLogger.printRefineStatus(propSS=propSS, origK=origK, riter=riter, **Plan)
+
         # Visualize proposed model
         if doVizBirth == 'refine':
             showBirthProposal(**locals())

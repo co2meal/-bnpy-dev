@@ -6,9 +6,9 @@ from matplotlib import pylab
 from bnpy.viz import GaussViz
 
 DefaultPlan = dict(
-    targetCompID=0,
+    btargetCompID=0,
     bcreationProposalName='randomSplit',
-    targetMaxSize=200)
+    btargetMaxSize=200)
 
 def showBirthProposal(
         curModel=None, propModel=None,
@@ -53,7 +53,7 @@ def _viz_Gauss_before_after(
         nrows=1, ncols=2, figsize=(8, 4))
     h1 = pylab.subplot(1, 2, 1)
     GaussViz.plotGauss2DFromHModel(
-        curModel, compsToHighlight=Plan['targetCompID'], figH=h1)
+        curModel, compsToHighlight=Plan['btargetCompID'], figH=h1)
     pylab.title('%.4f' % (curLscore))
 
     h2 = pylab.subplot(1, 2, 2, sharex=h1, sharey=h1)
@@ -89,4 +89,6 @@ if __name__ == '__main__':
 
     Plan = dict(**DefaultPlan)
     Plan.update(Info['UnkArgs'])
+    algName = Info['ReqArgs']['algName']
+    Plan['PRNG'] = np.random.RandomState(Info['KwArgs'][algName]['algseed'])
     showBirthFromScratch(hmodel, Data=Info['Data'], **Plan)

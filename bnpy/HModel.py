@@ -55,7 +55,9 @@ class HModel(object):
         ''' Create a clone of this object with distinct memory allocation
             Any manipulation of clone's parameters will NOT affect self
         '''
-        return copy.deepcopy(self)
+        copyObj = copy.deepcopy(self)
+        copyObj.obsModel.ClearCache()
+        return copyObj
 
     def calc_local_params(self, Data, LP=None, **kwargs):
         ''' Calculate local parameters specific to each data item.

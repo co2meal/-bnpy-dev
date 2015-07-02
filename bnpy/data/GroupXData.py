@@ -201,10 +201,15 @@ class GroupXData(XData):
     def toXData(self):
         ''' Return simplified XData instance, losing group structure
         '''
-        if hasattr(self, 'Xprev'):
-            return XData(self.X, Xprev=self.Xprev)
+        if hasattr(self, 'TrueParams'):
+            TParams = self.TrueParams
         else:
-            return XData(self.X)
+            TParams=None
+
+        if hasattr(self, 'Xprev'):
+            return XData(self.X, Xprev=self.Xprev, TrueParams=TParams)
+        else:
+            return XData(self.X, TrueParams=TParams)
 
     # Create Subset
     #########################################################

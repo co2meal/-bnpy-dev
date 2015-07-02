@@ -1,3 +1,4 @@
+import copy
 import numpy as np
 import logging
 
@@ -155,7 +156,8 @@ class HDPHMM(AllocModel):
         '''
         relIDs = np.asarray(relIDs, dtype=np.int32)
         if relIDs.size == Data.nDoc:
-            return dict(**LP)
+            if np.allclose(relIDs, np.arange(Data.nDoc)):
+                return copy.deepcopy(LP)
         T_all = np.sum(Data.doc_range[relIDs + 1] - Data.doc_range[relIDs])
         K = LP['resp'].shape[1]
         resp = np.zeros((T_all, K))
@@ -181,6 +183,42 @@ class HDPHMM(AllocModel):
         else:
             subsetLP = dict(resp=resp, TransCount=TransCount, Htable=Htable)
         return subsetLP
+
+    def fillSubsetLP(self, Data, LP, targetLP, targetIDs):
+        ''' Fill in local parameters for a subset of sequences/documents.
+
+        Args
+        -----
+        LP : dict of local params
+            represents K states and nDoc sequences
+        targetLP : dict of local params
+            represents K+Kx states and a subset of nDoc sequences
+
+        Returns
+        -------
+        newLP : dict of local params, with K + Kx components
+        '''
+        nAtom = LP['resp'].shape[0]
+        Knew = targetLP['resp'].shape[1]
+        Kold = LP['resp'].shape[1]
+        newResp = np.zeros((nAtom, Knew))
+        newResp[:, :Kold] = LP['resp']
+        newTransCount = np.zeros((Data.nDoc, Knew, Knew))
+        newTransCount[:, :Kold, :Kold] = LP['TransCount']
+        newHtable = np.zeros((Data.nDoc, Knew, Knew))
+        newHtable[:, :Kold, :Kold] = LP['Htable']
+        start_t = 0        
+        for ii, n in enumerate(targetIDs):
+            assert n >= 0
+            assert n < Data.nDoc
+            start = Data.doc_range[n]        
+            stop = Data.doc_range[n+1]
+            stop_t = start_t + (stop-start)
+            newResp[start:stop] = targetLP['resp'][start_t:stop_t]
+            newTransCount[n] = targetLP['TransCount'][ii]
+            newHtable[n] = targetLP['Htable'][ii]
+            start_t = stop_t
+        return dict(resp=newResp, TransCount=newTransCount, Htable=newHtable)
 
     def getSummaryFieldNames(self):
         return ['StartStateCount', 'TransStateCount']

@@ -124,6 +124,8 @@ def _run_task_internal(jobname, taskid, nTask,
 
     algseed = createUniqueRandomSeed(jobname, taskID=taskid)
     dataorderseed = createUniqueRandomSeed('', taskID=taskid)
+    KwArgs[algName]['algseed'] = algseed
+    KwArgs[algName]['dataorderseed'] = dataorderseed
 
     if algName in OnlineDataAlgSet:
         KwArgs[algName]['nLap'] = KwArgs['OnlineDataPrefs']['nLap']

@@ -70,12 +70,29 @@ def expandLP_randomSplit(
     xcurSS_nott = curSS_nott.copy(includeELBOTerms=1, includeMergeTerms=0)
     xcurSS_nott.insertEmptyComps(Kfresh)
     
+    origK = curSS_nott.K
     propK = curSS_nott.K + Kfresh
     propResp = np.zeros((curLP_t['resp'].shape[0], propK))
+    propResp[:, :origK] = curLP_t['resp']
 
-    allids = np.arange(Data_t.get_size())
-    Aids = PRNG.choice(allids, replace=False, size=10)
-    Bids = PRNG.choice(np.setdiff1d(allids, Aids), replace=False, size=10)
+    if 'btargetCompID' in Plan:
+        atomids = np.flatnonzero(
+            curLP_t['resp'][:, Plan['btargetCompID']] > 0.01)
+    else:
+        atomids = np.arange(propResp.shape[0])
+
+    # randomly permute atomids
+    PRNG.shuffle(atomids)
+    if atomids.size > 20:
+        Aids = atomids[:10]
+        Bids = atomids[10:20]
+    else:
+        half = atomids.size / 2
+        Aids = atomids[:half]
+        Bids = atomids[half:]
+
+    # Force all atomids to only be explained by new comps
+    propResp[atomids, :] = 0.0
     propResp[Aids, -2] = 1.0
     propResp[Bids, -1] = 1.0
 

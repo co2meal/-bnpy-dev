@@ -107,6 +107,8 @@ def _initFromTrueLP(hmodel, Data, initname, PRNG, nRepeatTrue=2,
         LP = expandLPWithEmpty(LP, initKextra)
     elif initname.count('junk'):
         LP = expandLPWithJunk(LP, initKextra, PRNG=PRNG)
+    elif initname.count('dropwords'):
+        LP = dropWordsFromLP(Data, LP, PRNG=PRNG)
 
     if hasattr(hmodel.allocModel, 'initLPFromResp'):
         LP = hmodel.allocModel.initLPFromResp(Data, LP)
@@ -181,6 +183,24 @@ def expandLPWithEmpty(LP, Kextra):
     LP['resp'] = np.hstack([resp, np.zeros((resp.shape[0], Kextra))])
     return LP
 
+def dropWordsFromLP(Data, LP, 
+                    PRNG=np.random, initTargetTopic=0, initNumDropWords=10):
+    ''' Select a topic and remove certain words from its support entirely.
+
+    Returns
+    --------
+    LP : dict,
+        with K + Kextra total components.
+    '''
+    resp = LP['resp']
+    Mat = Data.getSparseTokenTypeCountMatrix()
+    wordCount_k = Mat * resp[:, initTargetTopic]
+    topWords = np.argsort(-1 * wordCount_k)[:initNumDropWords]
+    for v in topWords:
+        mask = Data.word_id == v
+        resp[mask, initTargetTopic] = 0
+    LP['resp'] = resp
+    return LP
 
 def expandLPWithJunk(LP, Kextra, PRNG=np.random.RandomState, fracJunk=0.01):
     ''' Create new LP by adding extra junk topics
