@@ -21,7 +21,8 @@ def runBirthMove(
 
     Returns
     -------
-    LP_b : dict of local params for current batch, with K + Kx comps
+    Info : dict with fields
+        LP_b : dict of local params for current batch, with K + Kx comps
     '''
     curModel = curModel.copy()
     propModel = curModel.copy()
@@ -35,7 +36,7 @@ def runBirthMove(
     except BirthProposalError as e:
         # Planned target set does not exist, so exit
         BLogger.printEarlyExitMsg("Planned target dataset too small.", e)
-        return curLP_b
+        return dict(newLP_b=curLP_b, curLP_b=curLP_b)
 
     # Create relevant summaries
     curSS_b = curModel.get_global_suff_stats(
@@ -63,7 +64,7 @@ def runBirthMove(
 
     # Propose new local parameters for target set
     propLP_t, xcurSS_nott = makeCandidateLPWithNewComps(
-        Data_t, curLP_t, propModel, curSS_nott, **Plan)
+        Data_t, curLP_t, propModel, curModel, curSS_nott, **Plan)
     # Evaluate proposal score
     propSS_t = propModel.get_global_suff_stats(
         Data_t, propLP_t, doPrecompEntropy=1)
@@ -82,15 +83,26 @@ def runBirthMove(
             from IPython import embed;
             embed()
 
+    Result = dict(
+        curLP_b=curLP_b,
+        propLP_t=propLP_t,
+        newLP_b=curLP_b,
+        curModel=curModel,
+        propModel=propModel,
+        Lscore_gain=propLscore - curLscore,
+        propLscore=propLscore,
+        curLscore=curLscore,
+        )
     if propLscore > curLscore:
         # Accept
         propLP_b = propModel.allocModel.fillSubsetLP(
             Data_b, curLP_b, propLP_t, targetIDs=targetIDs)
-        return propLP_b
+        Result['newLP_b'] = propLP_b
     else:
-        # Reject
-        return curLP_b
+        # Reject. Do nothing.
+        pass
 
+    return Result
 
 def subsampleTargetFromDataAndLP(Data, model, LP, **Plan):
     ''' Select target data items and associated local parameters.

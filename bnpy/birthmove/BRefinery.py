@@ -2,10 +2,10 @@ import numpy as np
 
 import BLogger
 from BProposals import *
-from BViz import showBirthProposal
+import BViz
 
 def makeCandidateLPWithNewComps(
-        Data_t, curLP_t, propModel, curSS_nott, **Plan):
+        Data_t, curLP_t, propModel, curModel, curSS_nott, **Plan):
     ''' 
 
     Returns
@@ -28,7 +28,7 @@ def makeCandidateLPWithNewComps(
 
     # Refine candidate local parameters
     propLP_t, xcurSS_nott = refineCandidateViaLocalGlobalStepsAndDeletes(
-            Data_t, propLP_t, propModel, curSS_nott, xcurSS_nott,
+            Data_t, propLP_t, propModel, curModel, curSS_nott, xcurSS_nott,
             **Plan)
     assert np.allclose(curSS_nott.getCountVec(),
                        xcurSS_nott.getCountVec()[:curSS_nott.K],
@@ -37,7 +37,7 @@ def makeCandidateLPWithNewComps(
 
 
 def refineCandidateViaLocalGlobalStepsAndDeletes(
-        Data_t, propLP_t, propModel, curSS_nott, xcurSS_nott,
+        Data_t, propLP_t, propModel, curModel, curSS_nott, xcurSS_nott,
         bRefineIters=3, doVizBirth=0,
         verbose=0,
         **Plan):
@@ -76,7 +76,7 @@ def refineCandidateViaLocalGlobalStepsAndDeletes(
 
         # Visualize proposed model
         if doVizBirth == 'refine':
-            showBirthProposal(**locals())
+            BViz.showBirthBeforeAfter(**locals())
 
         # Decrement summary
         propSS -= propSS_t
