@@ -19,6 +19,10 @@ def runBenchmark():
     -------
     TimeInfo : info about timing results.
     """
+    # Force only single thread to be used for BLAS/Linpack ops like 
+    # matrix multiples, etc.
+    os.environ['OMP_NUM_THREADS'] = '1'
+
     # Define expected args and parse from standard input (stdin)
     parser = argparse.ArgumentParser()
     parser.add_argument('--K', type=int, default='10')
