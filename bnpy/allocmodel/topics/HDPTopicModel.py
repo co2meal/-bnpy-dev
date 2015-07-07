@@ -280,6 +280,7 @@ class HDPTopicModel(AllocModel):
         ElogPi = digamma(theta) - digammaSumTheta[:, np.newaxis]
         ElogPiRem = digamma(thetaRem) - digammaSumTheta
 
+        LP['digammaSumTheta'] = digammaSumTheta
         LP['DocTopicCount'] = DocTopicCount
         LP['theta'] = theta
         LP['thetaRem'] = thetaRem

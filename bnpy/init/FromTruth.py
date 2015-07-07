@@ -106,9 +106,9 @@ def _initFromTrueLP(hmodel, Data, initname, PRNG, nRepeatTrue=2,
     elif initname.count('empty') or initname.count('empties'):
         LP = expandLPWithEmpty(LP, initKextra)
     elif initname.count('junk'):
-        LP = expandLPWithJunk(LP, initKextra, PRNG=PRNG)
+        LP = expandLPWithJunk(LP, initKextra, PRNG=PRNG, **kwargs)
     elif initname.count('dropwords'):
-        LP = dropWordsFromLP(Data, LP, PRNG=PRNG)
+        LP = dropWordsFromLP(Data, LP, PRNG=PRNG, **kwargs)
 
     if hasattr(hmodel.allocModel, 'initLPFromResp'):
         LP = hmodel.allocModel.initLPFromResp(Data, LP)
@@ -184,7 +184,11 @@ def expandLPWithEmpty(LP, Kextra):
     return LP
 
 def dropWordsFromLP(Data, LP, 
-                    PRNG=np.random, initTargetTopic=0, initNumDropWords=10):
+                    PRNG=np.random, 
+                    initTargetCompID=0, 
+                    initDropWordIDs=None,
+                    initNumDropWords=10,
+                    **kwargs):
     ''' Select a topic and remove certain words from its support entirely.
 
     Returns
@@ -194,15 +198,26 @@ def dropWordsFromLP(Data, LP,
     '''
     resp = LP['resp']
     Mat = Data.getSparseTokenTypeCountMatrix()
-    wordCount_k = Mat * resp[:, initTargetTopic]
-    topWords = np.argsort(-1 * wordCount_k)[:initNumDropWords]
-    for v in topWords:
+    wordCount_k = Mat * resp[:, initTargetCompID]
+
+    if initDropWordIDs is None or initDropWordIDs == 'None':
+        initDropWordIDs = np.argsort(-1 * wordCount_k)[:initNumDropWords]
+    if isinstance(initDropWordIDs, str):
+        initDropWordIDs = [int(x) for x in initDropWordIDs.split(',')]
+
+    initDropWordIDs = np.asarray(initDropWordIDs)
+    for v in initDropWordIDs:
         mask = Data.word_id == v
-        resp[mask, initTargetTopic] = 0
+        resp[mask, initTargetCompID] = 1e-100
+
+    print 'initDropWordIDs:',
+    print '   ', initDropWordIDs
+
     LP['resp'] = resp
     return LP
 
-def expandLPWithJunk(LP, Kextra, PRNG=np.random.RandomState, fracJunk=0.01):
+def expandLPWithJunk(LP, Kextra, PRNG=np.random.RandomState, 
+        initFracJunk=0.01, **kwargs):
     ''' Create new LP by adding extra junk topics
 
     Parameters
@@ -217,16 +232,18 @@ def expandLPWithJunk(LP, Kextra, PRNG=np.random.RandomState, fracJunk=0.01):
     LP : dict,
         with K + Kextra total components.
     '''
+    print kwargs, '<<<'
     resp = LP['resp']
     N, K = resp.shape
     respNew = np.hstack([resp, np.zeros((N, Kextra))])
-    Nextra = int(fracJunk * N)
+    Nextra = int(initFracJunk * N)
     selectIDs = PRNG.choice(N, Nextra * Kextra).tolist()
     for k in xrange(Kextra):
         IDs_k = selectIDs[:Nextra]
         respNew[IDs_k, :K] = 0.01 / K
         respNew[IDs_k, K + k] = 1 - 0.01
         del selectIDs[:Nextra]
+    print respNew.sum(axis=0)
     return dict(resp=respNew)
 
 

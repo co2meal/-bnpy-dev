@@ -536,13 +536,13 @@ class WordsData(DataObj):
         -------
         Q : 2D array, size W x W (where W is vocab_size)
         """
-        Q /= nDoc
-        sameWordVec /= nDoc
+        Q /= np.float32(nDoc)
+        sameWordVec /= np.float32(nDoc)
         diagIDs = np.diag_indices(self.vocab_size)
         Q[diagIDs] -= sameWordVec
 
         # Fix small numerical issues (like diag entries of -1e-15 instead of 0)
-        np.maximum(Q, 0, out=Q)
+        np.maximum(Q, 1e-100, out=Q)
         return Q
 
     def add_data(self, WData):
