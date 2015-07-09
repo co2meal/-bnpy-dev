@@ -98,13 +98,18 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
     KwArgs['OutputPrefs']['taskid'] = taskID
   nTask = KwArgs['OutputPrefs']['nTask']
   
+  if 'hoData' in 'kwargs':
+    hoData = kwargs['hoData']
+  else:
+    hoData = None
+
   bestInfo = None
   bestEvBound = -np.inf
   for taskid in range(starttaskid, starttaskid + nTask):
     hmodel, Info = _run_task_internal(jobname, taskid, nTask,
                       ReqArgs, KwArgs, UnkArgs,
                       dataName, allocModelName, obsModelName, algName,
-                      doSaveToDisk, doWriteStdOut, kwargs['hoData'])
+                      doSaveToDisk, doWriteStdOut, hoData=hoData)
     if (Info['evBound'] > bestEvBound):
       bestModel = hmodel
       bestEvBound = Info['evBound']
