@@ -52,7 +52,9 @@ class VBAlg( LearnAlg ):
       if (hoData == None):
           evBound = hmodel.calc_evidence(Data, SS, LP)
       else:
-          evBound = hmodel.calc_evidence(hoData, SS, LP)
+          hoLP = hmodel.calc_local_params(hoData)
+          hoSS = hmodel.get_global_suff_stats(hoData,hoLP)
+          evBound = hmodel.calc_evidence(hoData,hoSS,hoLP)
 
       if lap > 1.0:
         ## Report warning if bound isn't increasing monotonically

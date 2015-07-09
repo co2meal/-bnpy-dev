@@ -117,10 +117,14 @@ class STRVBAlg(LearnAlg):
         self.GlobalStep(hmodel, SS, lapFrac, decayFun, init_SS)
 
       # ## ELBO calculation
-      # evBound = hmodel.calc_evidence(SS=SS)
+      if (hoData == None):
+         evBound = hmodel.calc_evidence(SS=SS)
 
-      ## ELBO calculation
-      evBound = hmodel.calc_evidence(hoData, SS=SS)
+      ## ELBO calculation for held out data
+      else:
+          hoLP = hmodel.calc_local_params(hoData)
+          hoSS = hmodel.get_global_suff_stats(hoData,hoLP)
+          evBound = hmodel.calc_evidence(hoData,hoSS,hoLP)
 
       self.saveDebugStateAtBatch('Mstep', batchID, Dchunk=Dchunk, SSchunk=SSchunk,
                                  SS=SS, hmodel=hmodel, LPchunk=LPchunk)
@@ -276,7 +280,7 @@ class STRVBAlg(LearnAlg):
         None. hmodel updated in-place.
     '''
 
-    # The delay functionality assumes that the model is Gaussian DP mixture model
+    # The decay functionality assumes that the model is Gaussian DP mixture model
     a = repr(hmodel.getAllocModelName())
     b = repr('DPMixtureModel')
     c = repr(hmodel.getObsModelName())
@@ -290,11 +294,13 @@ class STRVBAlg(LearnAlg):
             iSS = init_SS.copy()
             hmodel.update_global_params(iSS)
         else:
-            iSS = init_SS.copy()
-            SS._Fields.x = (1-decayFactor)*SS._Fields.x + decayFactor*iSS._Fields.x
-            SS._Fields.xxT = (1-decayFactor)*SS._Fields.xxT + decayFactor*iSS._Fields.xxT
-            SS._Fields.N = (1-decayFactor)*SS._Fields.N + decayFactor*iSS._Fields.N
-            hmodel.update_global_params(iSS + SS)
+            tempSS = init_SS.copy()
+            tempSS.applyAmpFactor(decayFactor)
+            tempSS += SS
+            # SS._Fields.x = SS._Fields.x + decayFactor*iSS._Fields.x
+            # SS._Fields.xxT = SS._Fields.xxT + decayFactor*iSS._Fields.xxT
+            # SS._Fields.N = SS._Fields.N + decayFactor*iSS._Fields.N
+            hmodel.update_global_params(tempSS)
     else:
         hmodel.update_global_params(SS)
 

@@ -180,7 +180,7 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
         # while preserving the first 10 data points
         xs = np.hstack([xs[:10], xs[10::2]])
         ys = np.hstack([ys[:10], ys[10::2]])
-        curDensity = (xs.size-10) / (xs[-1] - xs[9])
+        curDensity = (xs.size-11) / (xs[-1] - xs[9])
         count = count+1
         if (count == 100):
           print "oop"

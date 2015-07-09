@@ -108,7 +108,9 @@ class MOVBAlg(LearnAlg):
       if (hoData == None):
           evBound = hmodel.calc_evidence(SS=SS)
       else:
-          evBound = hmodel.calc_evidence(hoData, SS)
+          hoLP = hmodel.calc_local_params(hoData)
+          hoSS = hmodel.get_global_suff_stats(hoData,hoLP)
+          evBound = hmodel.calc_evidence(hoData,hoSS,hoLP)
 
       if nLapsCompleted > 1.0:
         # evBound will increase monotonically AFTER first lap of the data 

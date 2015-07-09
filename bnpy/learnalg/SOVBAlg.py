@@ -103,6 +103,14 @@ class SOVBAlg(LearnAlg):
 
         ## ELBO step
         evBound = hmodel.calc_evidence(SS=SStotal)
+
+        if (hoData == None):
+            evBound = hmodel.calc_evidence(SS=SStotal)
+        else:
+            hoLP = hmodel.calc_local_params(hoData)
+            hoSS = hmodel.get_global_suff_stats(hoData,hoLP)
+            evBound = hmodel.calc_evidence(hoData,hoSS,hoLP)
+
       else:
         ## SS step. Scale at size of entire dataset
         SS = hmodel.get_global_suff_stats(Dchunk, LP, doAmplify=True)
@@ -120,7 +128,9 @@ class SOVBAlg(LearnAlg):
             EvMemory[batchID] = EvChunk
             evBound = EvRunningSum / nBatch
         else:
-            evBound = hmodel.calc_evidence(hoData, SS, LP)
+            hoLP = hmodel.calc_local_params(hoData)
+            hoSS = hmodel.get_global_suff_stats(hoData,hoLP)
+            evBound = hmodel.calc_evidence(hoData,hoSS,hoLP)
 
       ## Display progress
       self.updateNumDataProcessed(Dchunk.get_size())
