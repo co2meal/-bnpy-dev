@@ -2,20 +2,9 @@ import numpy as np
 from scipy.special import gammaln, digamma
 
 import bnpy
+from DeleteProposal import makeLPWithMinNonzeroValFromLP
 
-'''
-BRAINSTORM
-
-* option A: reconfigure all words of given type
-pro: big changes
-con: cant accept any other moves for entire lap
-
-* option B: reconfig r vals only for words of type assigned to target topic
-pro: can change any assignments to non-involved topics
-con: 
-'''
-
-
+np.set_printoptions(precision=3, suppress=1, linewidth=100)
 
 def evaluateReconfigWordMoveCandidate_LP(
         Data, curModel, 
@@ -28,7 +17,6 @@ def evaluateReconfigWordMoveCandidate_LP(
     propModel = curModel.copy()
     curModel = curModel.copy()
     Korig = curModel.allocModel.K
-
 
     # Evaluate current model
     curSS = curModel.get_global_suff_stats(
@@ -43,7 +31,9 @@ def evaluateReconfigWordMoveCandidate_LP(
     propModel.update_global_params(propSS)
 
     mPairIDs = [(targetCompID, Korig)]
-    for ctr, kk in enumerate(destCompIDs):
+    if not destCompIDs[0] == targetCompID:
+        destCompIDs = np.insert(destCompIDs, 0, targetCompID)
+    for ctr, kk in enumerate(destCompIDs[1:]):
         mPairIDs.append((kk, Korig+ctr+1))
     print 'Candidate merge pairs: '
     print mPairIDs
@@ -76,17 +66,18 @@ def evaluateReconfigWordMoveCandidate_LP(
 
 def makeReconfigWordMoveCandidate_LP(
         Data, curLP, curModel, 
-        targetWordIDs=[0,1,2,3],
+        targetWordIDs=[0,1,2,3,4,5],
         targetCompID=5,
         destCompIDs=[0],
-        deleteStrategy='truelabels',
+        proposalName='truelabels',
         minResp=0.001,
+        doShowViz=False,
         **curLPkwargs):
-    '''
+    ''' Create candidate local parameters dictionary for reconfig word move.
 
     Returns
     -------
-    propcurLP : dict of local params
+    propLP : dict of local params
         Replaces targetCompID with K "new" states,
         each one tracking exactly one existing state.
     '''
@@ -96,12 +87,13 @@ def makeReconfigWordMoveCandidate_LP(
     assert maxRespValBelowThr < 1e-90
 
     Natom, Korig = curResp.shape
-    destCompIDs = np.insert(destCompIDs, 0, targetCompID)
+    if destCompIDs[0] != targetCompID:
+        destCompIDs = np.insert(destCompIDs, 0, targetCompID)
     Kprop = Korig + len(destCompIDs)
 
     propResp = 1e-100 * np.ones((Natom, Kprop))
     propResp[:, :Korig] = curResp
-    if deleteStrategy.count('truelabels'):
+    if proposalName.count('truelabels'):
         # Identify atoms that match both target state and one-of target wordids
         relAtoms_byWords = np.zeros(Data.word_id.size, dtype=np.int32)
         for v in targetWordIDs:
@@ -126,95 +118,192 @@ def makeReconfigWordMoveCandidate_LP(
         reltrueResp *= curResp[relAtoms_twords, targetCompID][:, np.newaxis]
         assert np.allclose(curResp[relAtoms_twords, targetCompID],
                            reltrueResp.sum(axis=1))
-
         propResp[relAtoms_twords, Korig:] = reltrueResp
 
         assert np.allclose(1.0, propResp.sum(axis=1))
         propLP = curModel.allocModel.initLPFromResp(
             Data, dict(resp=propResp))
         return propLP
-    
-    Lik = curLP['E_log_soft_ev'][:, remCompIDs].copy()
 
-    # From-scratch strategy
+    relDocIDs = np.flatnonzero(
+        curLP['DocTopicCount'][:, targetCompID] > minResp)
+    relDocIDs_withwords = list()
+    xlabels = list()
     for d in relDocIDs:
-        mask_d = np.arange(Data.doc_range[d],Data.doc_range[d+1])
-        relAtomIDs_d = mask_d[
-            curLP['resp'][mask_d, targetCompID] > minResp]
-        fixedDocTopicCount_d = curLP['DocTopicCount'][d, remCompIDs]
-        relLik_d = Lik[relAtomIDs_d, :]
-        relwc_d = Data.word_count[relAtomIDs_d]
-        
-        targetsumResp_d = curLP['resp'][relAtomIDs_d, targetCompID] * relwc_d
-        sumResp_d = np.zeros_like(targetsumResp_d)
-        
-        DocTopicCount_d = np.zeros_like(fixedDocTopicCount_d)
-        DocTopicProb_d = np.zeros_like(DocTopicCount_d)
-        sumalphaEbeta = curModel.allocModel.alpha_E_beta()[targetCompID]
-        alphaEbeta = sumalphaEbeta * 1.0 / (Korig-1.0) * np.ones(Korig-1)
-        for riter in range(10):
-            np.add(DocTopicCount_d, alphaEbeta, out=DocTopicProb_d)
-            digamma(DocTopicProb_d, out=DocTopicProb_d)
-            DocTopicProb_d -= DocTopicProb_d.max()
-            np.exp(DocTopicProb_d, out=DocTopicProb_d)
-            
-            # Update sumResp for all tokens in document
-            np.dot(relLik_d, DocTopicProb_d, out=sumResp_d)
+        word_id_d = Data.word_id[Data.doc_range[d]:Data.doc_range[d+1]]
+        word_ct_d = Data.word_count[Data.doc_range[d]:Data.doc_range[d+1]]
+        nTargetWords_d = 0
+        for v in targetWordIDs:
+            nTargetWords_d += np.sum(word_ct_d[word_id_d == v])
+        if nTargetWords_d < 1:
+            continue
+        relDocIDs_withwords.append(d)
 
-            # Update DocTopicCount_d: 1D array, shape K
-            #     sum(DocTopicCount_d) equals Nd[targetCompID]
-            np.dot(targetsumResp_d / sumResp_d, relLik_d, out=DocTopicCount_d)
-            DocTopicCount_d *= DocTopicProb_d
-            DocTopicCount_d += fixedDocTopicCount_d
+    # Show the raw doc words
+    if doShowViz:
+        xlabels = list()
+        for d in relDocIDs_withwords:
+            msg = 'N_d[trgt]=%5.0f  N_d[dest]=%5.0f' % (
+                curLP['DocTopicCount'][d, targetCompID],
+                curLP['DocTopicCount'][d, destCompIDs[1]],
+                )
+            xlabels.append(msg)
+        bnpy.viz.BarsViz.plotExampleBarsDocs(
+            Data, docIDsToPlot=relDocIDs_withwords[:16],
+            xlabels=xlabels[:16],
+            doShowNow=1)
 
-        DocTopicCount_dj = curLP['DocTopicCount'][d, targetCompID]
-        DocTopicCount_dnew = np.sum(DocTopicCount_d) - \
-            fixedDocTopicCount_d.sum()
-        assert np.allclose(DocTopicCount_dj, DocTopicCount_dnew,
-                           rtol=0, atol=1e-6)
+    WType_x_Atom = Data.getTokenTypeCountMatrix()[targetWordIDs, :]
+    for d in relDocIDs_withwords:
+        # Find atoms in this doc that 
+        # (1) use target words, and
+        # (2) are assigned to target comp
+        relAtomIDs_d = np.arange(Data.doc_range[d],Data.doc_range[d+1])
+        relAtomIDs_dk = relAtomIDs_d[
+            curLP['resp'][relAtomIDs_d, targetCompID] > minResp]
+        relAtomIDs_dkv = relAtomIDs_dk[
+            WType_x_Atom[:, relAtomIDs_dk].sum(axis=0) > 0]
 
-        # Create proposal resp for relevant atoms in this doc only
-        propResp_d = relLik_d.copy()
-        propResp_d *= DocTopicProb_d[np.newaxis, :]
-        propResp_d /= sumResp_d[:, np.newaxis]
-        propResp_d *= curLP['resp'][relAtomIDs_d, targetCompID][:,np.newaxis]
+        destRatio = curLP["DocTopicCount"][d, destCompIDs]
+        destRatio /= destRatio.sum()
 
-        for n in range(propResp_d.shape[0]):
-            size_n = curLP['resp'][relAtomIDs_d[n], targetCompID]
-            sizeOrder_n = np.argsort(propResp_d[n,:])
-            for k, compID in enumerate(sizeOrder_n):
-                if propResp_d[n, compID] > minResp:
-                    break
-                propResp_d[n, compID] = 1e-100
-                biggerCompIDs = sizeOrder_n[k+1:]
-                propResp_d[n, biggerCompIDs] /= \
-                    propResp_d[n,biggerCompIDs].sum()
-                propResp_d[n, biggerCompIDs] *= size_n
+        destResp = destRatio * \
+            curLP["resp"][relAtomIDs_dkv, targetCompID][:,np.newaxis]
 
-        # Fill in huge resp matrix with specific values
-        propResp[relAtomIDs_d, Korig-1:] = propResp_d
-        assert np.allclose(propResp.sum(axis=1), 1.0, rtol=0, atol=1e-8)
+        # Reassign curResp mass for target words using doc-topic counts alone
+        propResp[relAtomIDs_dkv, targetCompID] = 1e-100
+        propResp[relAtomIDs_dkv, Korig:] = destResp
 
-    propcurLP = curModel.allocModel.initLPFromResp(Data, dict(resp=propResp))
-    return propcurLP
+        assert np.allclose(propResp.sum(axis=1), 1.0)
 
-def makeLPWithMinNonzeroValFromLP(Data, hmodel, LP, minResp=0.001):
-    ''' Create sparse-ified local parameters, where all resp > threshold
 
+    propLP = curModel.allocModel.initLPFromResp(Data, dict(resp=propResp))
+    return propLP
+
+
+def makeReconfigWordPlan(Data, curSS, **kwargs):
+    ''' Make plan for targeted proposal to reconfigure word assignments.
+
+    Compare each pair j,k of existing topics, looking for
+    a set of words that appears in topic j but not in topic k,
+    yet has high co-occurance with words appearing in topic k but not j.
+    The big idea is that these words may need to transfer some mass from j to k.    
+
+    TODO
+    ----
+    Go beyond proposals that have just a pair of topics interacting.
+    
     Returns
     -------
-    sparseLP : dict of local parameters
+    Plan : dict with fields
+    * targetCompID
+    * targetWordsID
+    * destCompIDs
     '''
-    respS = LP['resp'].copy()
-    Natom, Korig = respS.shape
-    for n in xrange(Natom):
-        sizeOrder_n = np.argsort(respS[n,:])
-        for posLoc, compID in enumerate(sizeOrder_n):
-            if respS[n, compID] > minResp:
-                break
-            respS[n, compID] = 1e-100
-            biggerCompIDs = sizeOrder_n[posLoc+1:]
-            respS[n, biggerCompIDs] /= respS[n, biggerCompIDs].sum()
-    sparseLP = hmodel.allocModel.initLPFromResp(Data, dict(resp=respS))
-    sparseLP['E_log_soft_ev'] = LP['E_log_soft_ev'].copy()
-    return sparseLP
+    QMat = Data.getWordTypeCooccurMatrix()
+    usedWordsByTopic = [None for k in range(curSS.K)]
+    for k in xrange(curSS.K):
+        usedWordsByTopic[k] = np.flatnonzero(curSS.WordCounts[k, :] > 10)
+
+    bestScore = 0
+    targetWordIDs = None
+    destCompIDs = None
+    for k in xrange(curSS.K):
+        for kdest in xrange(curSS.K):
+            if k == kdest:
+                continue
+            in_k_not_kdest = np.setdiff1d(usedWordsByTopic[k],
+                                          usedWordsByTopic[kdest])
+            in_kdest_not_k = np.setdiff1d(usedWordsByTopic[kdest],
+                                          usedWordsByTopic[k])
+            ScoreByOnTopicWord_k = \
+                QMat[in_k_not_kdest, :][:, in_kdest_not_k].sum(axis=1)
+            # Use all words that score more than twice median
+            medianScore = np.median(ScoreByOnTopicWord_k)
+            targetWordIDs_k = np.flatnonzero(
+                ScoreByOnTopicWord_k > 2 * medianScore)
+            curScore = ScoreByOnTopicWord_k[targetWordIDs_k].sum()
+            # Record the total score for this combo, and the targetWordIDs
+            if curScore > bestScore:
+                bestScore = curScore
+                targetWordIDs = in_k_not_kdest[targetWordIDs_k]
+                destCompIDs = [k, kdest]
+    return dict(
+        targetWordIDs=targetWordIDs,
+        destCompIDs=destCompIDs,
+        targetCompID=destCompIDs[0],
+        )
+
+
+if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--initDropWordIDs', type=str, default='0,1,2,3,4,5')
+    parser.add_argument('--initTargetCompID', type=int, default=0)
+    parser.add_argument('--destCompIDs', type=str, default='5,0')
+    parser.add_argument('--doPlan', type=int, default=0)
+    args = parser.parse_args()
+
+    import BarsK10V900
+    Data = BarsK10V900.get_data(nDocTotal=300, nWordsPerDoc=200)
+
+    LPkwargs = dict(
+        nCoordAscentItersLP=50,
+        convThrLP=0.001,
+        restartLP=1,
+        )
+    curModel, Info = bnpy.run(
+        Data, 'HDPTopicModel', 'Mult', 'moVB',
+        lam=0.1, alpha=0.5, gamma=10,
+        nLap=10, nBatch=2, printEvery=25,
+        initname='truelabelsdropwords', 
+        initTargetCompID=args.initTargetCompID,
+        initDropWordIDs=args.initDropWordIDs,
+        **LPkwargs)
+    curLP = curModel.calc_local_params(Data, **LPkwargs)
+    curLP = makeLPWithMinNonzeroValFromLP(Data, curModel, curLP)
+    curSS = curModel.get_global_suff_stats(
+        Data, curLP, doPrecompEntropy=1)
+
+    if args.doPlan:
+        Plan = makeReconfigWordPlan(Data, curSS)
+    else:
+        initDropWordIDs = [int(k) for k in args.initDropWordIDs.split(',')]
+        destCompIDs = [int(k) for k in args.destCompIDs.split(',')]
+        Plan = dict(
+            targetWordIDs=initDropWordIDs,
+            destCompIDs=destCompIDs,
+            targetCompID=destCompIDs[0],
+            )            
+
+    print 'Model is STUCK!'
+    print 'Ideal knowledge of missing words:', args.initDropWordIDs
+    print 'Planned target words: ', Plan['targetWordIDs']
+
+    print 'curSS counts of target words by topic'
+    for k in Plan['destCompIDs']:
+        print 'topic %d: %s' % (
+            k, str(curSS.WordCounts[k, Plan['targetWordIDs']]))
+
+    print ''
+    print 'Proposing a candidate set of local parameters...'
+    propLP_true = makeReconfigWordMoveCandidate_LP(
+        Data, curLP, curModel, 
+        proposalName='truelabels', **Plan)
+    propModel_true, Result = evaluateReconfigWordMoveCandidate_LP(
+        Data, curModel, curLP=curLP, propLP=propLP_true,
+        proposalName='truelabels', **Plan)
+    print ''
+    print 'Proposing a candidate set of local parameters...'
+    propLP_scratch = makeReconfigWordMoveCandidate_LP(
+        Data, curLP, curModel, 
+        proposalName='fromscratch', **Plan)
+    propModel_scratch, Result = evaluateReconfigWordMoveCandidate_LP(
+        Data, curModel, curLP=curLP, propLP=propLP_scratch,
+        proposalName='fromscratch', **Plan)
+
+    propSS = Result['SS']
+    for k in Plan['destCompIDs']:
+        print 'Topic %d: counts of target words' % (k)
+        print propSS.WordCounts[k, Plan['targetWordIDs']]
+
