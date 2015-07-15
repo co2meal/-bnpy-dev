@@ -86,10 +86,12 @@ class ParamBag(object):
             curShape = getattr(self, key).shape
             self.setField(key, np.zeros(curShape), dims=dims)
 
-    def reorderComps(self, sortIDs):
+    def reorderComps(self, sortIDs, fieldsToIgnore=[]):
         ''' Rearrange internal order of all fields along dimension 'K'
         '''
         for key in self._FieldDims:
+            if key in fieldsToIgnore:
+                continue
             arr = getattr(self, key)
             dims = self._FieldDims[key]
             if arr.ndim == 0:
@@ -147,8 +149,9 @@ class ParamBag(object):
                 arrC = np.append(arrA, arrB, axis=0)
                 self.setField(key, arrC, dims=dims)
             elif dims is None:
-                self.setField(
-                    key, getattr(self, key) + getattr(PB, key), dims=None)
+                if hasattr(PB, key):
+                    self.setField(
+                        key, getattr(self, key) + getattr(PB, key), dims=None)
 
     def removeComp(self, k):
         ''' Updates self in-place to remove component "k"

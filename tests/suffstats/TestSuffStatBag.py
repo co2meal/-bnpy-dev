@@ -169,3 +169,15 @@ class TestSuffStatBag(unittest.TestCase):
 
         for key in M._FieldDims:
             assert np.allclose(SS.getMergeTerm(key), tmpSS.getMergeTerm(key))
+
+    def test_only_good_uids_can_add(self, K=2, D=2):
+        SS = self.makeSuffStatBagAndFillWithOnes(K, D)
+        SS2 = self.makeSuffStatBagAndFillWithOnes(K, D)
+        SS2.setUIDs([3,4])
+
+        assert np.allclose(SS.uids, [0,1])
+        try:
+            SS + SS2
+            assert False
+        except ValueError as e:
+            assert 'uid' in str(e).lower()
