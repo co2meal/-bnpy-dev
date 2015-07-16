@@ -647,7 +647,8 @@ class WordsData(DataObj):
 
         if hasattr(self, 'alwaysTrackTruth'):
             doTrackTruth = doTrackTruth or self.alwaysTrackTruth
-        hasTrueZ = hasattr(self, 'TrueParams') and 'Z' in self.TrueParams
+        hasTrueZ = hasattr(self, 'TrueParams') and \
+            ('Z' in self.TrueParams or 'resp' in self.TrueParams)
         if doTrackTruth and hasTrueZ:
             newTrueParams = dict()
             for key, arr in self.TrueParams.items():

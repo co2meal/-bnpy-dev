@@ -494,6 +494,50 @@ class SuffStatBag(object):
         self.insertComps(xSS)
         self.removeComp(uid=uid)
 
+    def transferMassFromExistingToExpansion(self, uid=0, xSS=None, 
+            keysToSetNonExtraZero=['sumLogPiRemVec']):
+        ''' Transfer mass from existing component to expansion components.
+
+        Post Condition
+        --------------
+        All entries of provided xSS are added last in index order.
+        All fields associated with uid are decremented by xSS's contents.
+        '''
+        if not np.intersect1d(xSS.uids, self.uids).size == 0:
+            raise ValueError("Cannot expand with same uids.")
+        k = self.uid2k(uid)
+
+        # Decrement Fields terms
+        for key, dims in self._Fields._FieldDims.items():
+            arr = getattr(self._Fields, key)                        
+            if key in keysToSetNonExtraZero:
+                arr.fill(0)
+            elif dims is None:
+                pass
+            elif dims == ('K', 'K'):
+                raise NotImplementedError('TODO')
+            elif dims[0] == 'K':
+                if hasattr(xSS, key+'EmptyComp'):
+                    arr[k] += getattr(xSS, key+'EmptyComp')
+                else:
+                    arr[k] -= getattr(xSS, key).sum(axis=0)
+        # Decrement ELBO terms
+        for key, dims in self._ELBOTerms._FieldDims.items():
+            arr = getattr(self._ELBOTerms, key)                        
+            if dims is None:
+                pass
+            elif dims == ('K', 'K'):
+                raise NotImplementedError('TODO')
+            elif dims[0] == 'K':
+                if hasattr(xSS._ELBOTerms, key+'EmptyComp'):
+                    arr[k] += getattr(xSS._ELBOTerms, key+'EmptyComp')
+                else:
+                    arr[k] = 0
+        # Insert the expansion stats at indices K, K+1, ...
+        self.insertComps(xSS)
+
+
+
 
     def __add__(self, PB):
         if self.K != PB.K or self.D != PB.D:

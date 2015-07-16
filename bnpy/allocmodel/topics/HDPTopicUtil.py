@@ -58,6 +58,8 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None,
                             Hresp=None, slackTheta=None, slackThetaRem=None,
                             gammalnTheta=None, gammalnSumTheta=None,
                             gammalnThetaRem=None,
+                            thetaEmptyComp=None, ElogPiEmptyComp=None,
+                            gammalnThetaOrigComp=None, slackThetaOrigComp=None,
                             returnMemoizedDict=0, **kwargs):
     """ Calculate ELBO objective terms non-linear in suff stats.
     """
@@ -75,6 +77,11 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None,
         thetaRem = LP['thetaRem']
         ElogPi = LP['ElogPi']
         ElogPiRem = LP['ElogPiRem']
+        if 'thetaEmptyComp' in LP:
+            thetaEmptyComp = LP['thetaEmptyComp']
+            ElogPiEmptyComp = LP['ElogPiEmptyComp']
+            gammalnThetaOrigComp = LP['gammalnThetaOrigComp']
+            slackThetaOrigComp = LP['slackThetaOrigComp']
 
     if DocTopicCount is not None and theta is None:
         theta = DocTopicCount + alpha * Ebeta[:-1]
@@ -119,13 +126,23 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None,
             gammalnTheta = np.sum(gammaln(theta), axis=0)
             gammalnThetaRem = theta.shape[0] * gammaln(thetaRem)
 
+    if thetaEmptyComp is not None:
+        gammalnThetaEmptyComp = gammaln(thetaEmptyComp) - \
+            gammalnThetaOrigComp
+        slackThetaEmptyComp = - 1 * np.sum(thetaEmptyComp * ElogPiEmptyComp) - \
+            slackThetaOrigComp
+
     if returnMemoizedDict:
-        return dict(Hresp=Hresp,
+        Mdict = dict(Hresp=Hresp,
                     slackTheta=slackTheta,
                     slackThetaRem=slackThetaRem,
                     gammalnTheta=gammalnTheta,
                     gammalnThetaRem=gammalnThetaRem,
                     gammalnSumTheta=gammalnSumTheta)
+        if thetaEmptyComp is not None:
+            Mdict['gammalnThetaEmptyComp'] = gammalnThetaEmptyComp
+            Mdict['slackThetaEmptyComp'] = slackThetaEmptyComp
+        return Mdict
 
     # First, compute all local-only terms
     Lentropy = Hresp.sum()

@@ -732,16 +732,21 @@ def calcSummaryStats(Dslice, LP=None,
     resp = LP['resp']
     _, K = resp.shape
 
-    if 'ElogPi' not in LP:        
+    if 'digammaSumTheta' not in LP:
         digammaSumTheta = digamma(LP['theta'].sum(axis=1) + LP['thetaRem'])
-        LP['ElogPiRem'] = digamma(LP['thetaRem']) - digammaSumTheta
         LP['digammaSumTheta'] = digammaSumTheta # Used for merges
-        LP['ElogPi'] = digamma(LP['theta']) - digammaSumTheta[:, np.newaxis]
 
+    if 'ElogPi' not in LP:        
+        LP['ElogPiRem'] = digamma(LP['thetaRem']) - LP['digammaSumTheta']
+        LP['ElogPi'] = digamma(LP['theta']) - \
+            LP['digammaSumTheta'][:, np.newaxis]
 
     SS = SuffStatBag(K=K, D=Dslice.dim)
     SS.setField('nDoc', Dslice.nDoc, dims=None)
     SS.setField('sumLogPi', np.sum(LP['ElogPi'], axis=0), dims='K')
+    if 'ElogPiEmptyComp' in LP:
+        sumLogPiEmptyComp = np.sum(LP['ElogPiEmptyComp'])
+        SS.setField('sumLogPiEmptyComp', sumLogPiEmptyComp, dims=None)
     if doTrackTruncationGrowth:
         remvec = np.zeros(K)
         remvec[K-1] = np.sum(LP['ElogPiRem'])
@@ -749,19 +754,22 @@ def calcSummaryStats(Dslice, LP=None,
     else:
         SS.setField('sumLogPiRem', np.sum(LP['ElogPiRem']), dims=None)
 
-
     if doPrecompEntropy:
         Mdict = calcELBO_NonlinearTerms(Data=Dslice,
                                         LP=LP, returnMemoizedDict=1)
         SS.setELBOTerm('Hresp', Mdict['Hresp'], dims='K')
         SS.setELBOTerm('slackTheta', Mdict['slackTheta'], dims='K')
-        SS.setELBOTerm('slackThetaRem', Mdict['slackThetaRem'], dims=None)
-        SS.setELBOTerm('gammalnSumTheta',
-                       Mdict['gammalnSumTheta'], dims=None)
         SS.setELBOTerm('gammalnTheta',
                        Mdict['gammalnTheta'], dims='K')
-        SS.setELBOTerm('gammalnThetaRem',
-                       Mdict['gammalnThetaRem'].sum(), dims=None)
+        if 'ElogPiEmptyComp' in LP:
+            SS.setELBOTerm('slackThetaEmptyComp', Mdict['slackThetaEmptyComp'])
+            SS.setELBOTerm('gammalnThetaEmptyComp', Mdict['gammalnThetaEmptyComp'])
+        else:
+            SS.setELBOTerm('gammalnSumTheta',
+                           Mdict['gammalnSumTheta'], dims=None)
+            SS.setELBOTerm('slackThetaRem', Mdict['slackThetaRem'], dims=None)
+            SS.setELBOTerm('gammalnThetaRem',
+                           Mdict['gammalnThetaRem'].sum(), dims=None)
 
     if doPrecompMergeEntropy:
         if mPairIDs is None:
@@ -807,7 +815,7 @@ def calcSummaryStats(Dslice, LP=None,
         SS.setSelectionTerm('DocUsageCount', DocUsage, dims='K')
     return SS
 
-
+'''
 def calcSummaryStats_expansion(
         Dslice, LP,
         doPrecompEntropy=0,
@@ -853,16 +861,25 @@ def calcSummaryStats_expansion(
     SS = SuffStatBag(K=Kx, D=Dslice.dim, uids=uids)
     SS.setField('sumLogPi', np.sum(LP['ElogPi'], axis=0), dims='K')
 
+    print LP.keys, '<<<'
+    if 'ElogPiEmptyComp' in LP:
+        sumLogPiEmptyComp = np.sum(LP['ElogPiEmptyComp'])
+        SS.setField('sumLogPiEmptyComp', sumLogPiEmptyComp, dims=None)
+
     if doTrackTruncationGrowth:
         remvec = np.zeros(Kx)
         remvec[Kx-1] = np.sum(LP['ElogPiRem'])
         SS.setField('sumLogPiRemVec', remvec, dims='K')
 
     if doPrecompEntropy:
-        Mdict = calcELBO_NonlinearTerms(Data=Dslice,
-                                        LP=LP, returnMemoizedDict=1)
+        Mdict = calcELBO_NonlinearTerms(
+            Data=Dslice, LP=LP, returnMemoizedDict=1)
+
         SS.setELBOTerm('Hresp', Mdict['Hresp'], dims='K')
         SS.setELBOTerm('slackTheta', Mdict['slackTheta'], dims='K')
-        SS.setELBOTerm('gammalnTheta',
-                       Mdict['gammalnTheta'], dims='K')
+        SS.setELBOTerm('gammalnTheta', Mdict['gammalnTheta'], dims='K')
+        if 'ElogPiEmptyComp' in LP:
+            SS.setELBOTerm('slackThetaEmptyComp', Mdict['slackThetaEmptyComp'])
+            SS.setELBOTerm('gammalnThetaEmptyComp', Mdict['gammalnThetaEmptyComp'])
     return SS
+'''
