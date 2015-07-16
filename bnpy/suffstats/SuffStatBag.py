@@ -486,13 +486,13 @@ class SuffStatBag(object):
         '''
         if not np.intersect1d(xSS.uids, self.uids).size == 0:
             raise ValueError("Cannot expand with same uids.")
-        self.removeComp(uid=uid)
+
         for key in self._Fields._FieldDims:
             if key in keysToSetNonExtraZero:
                 arr = getattr(self._Fields, key)
                 arr.fill(0)
         self.insertComps(xSS)
-
+        self.removeComp(uid=uid)
 
 
     def __add__(self, PB):
