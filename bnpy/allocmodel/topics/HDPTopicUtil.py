@@ -28,6 +28,9 @@ def calcELBO(**kwargs):
     """
     Llinear = calcELBO_LinearTerms(**kwargs)
     Lnon = calcELBO_NonlinearTerms(**kwargs)
+    if isinstance(Lnon, dict):
+        Llinear.update(Lnon)
+        return Llinear
     return Lnon + Llinear
 
 
@@ -45,9 +48,9 @@ def calcELBO_LinearTerms(SS=None,
     """
     if SS is not None:
         nDoc = SS.nDoc
-    return L_top(nDoc=nDoc,
-                 rho=rho, omega=omega, Ebeta=Ebeta,
-                 alpha=alpha, gamma=gamma)
+    return L_alloc(
+        nDoc=nDoc, rho=rho, omega=omega, Ebeta=Ebeta,
+        alpha=alpha, gamma=gamma, todict=todict)
 
 
 def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None, todict=0,
@@ -60,6 +63,7 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None, todict=0,
                             gammalnTheta=None, gammalnSumTheta=None,
                             gammalnThetaRem=None,
                             thetaEmptyComp=None, ElogPiEmptyComp=None,
+                            ElogPiOrigComp=None,
                             gammalnThetaOrigComp=None, slackThetaOrigComp=None,
                             returnMemoizedDict=0, **kwargs):
     """ Calculate ELBO objective terms non-linear in suff stats.
@@ -69,6 +73,7 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None, todict=0,
 
     if SS is not None:
         sumLogPi = SS.sumLogPi
+        nDoc = SS.nDoc
         if hasattr(SS, 'sumLogPiRemVec'):
             sumLogPiRemVec = SS.sumLogPiRemVec
         else:
@@ -77,6 +82,7 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None, todict=0,
     if LP is not None:
         resp = LP['resp']
         DocTopicCount = LP['DocTopicCount']
+        nDoc = DocTopicCount.shape[0]
         theta = LP['theta']
         thetaRem = LP['thetaRem']
         ElogPi = LP['ElogPi']
@@ -84,6 +90,7 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None, todict=0,
         if 'thetaEmptyComp' in LP:
             thetaEmptyComp = LP['thetaEmptyComp']
             ElogPiEmptyComp = LP['ElogPiEmptyComp']
+            ElogPiOrigComp = LP['ElogPiOrigComp']
             gammalnThetaOrigComp = LP['gammalnThetaOrigComp']
             slackThetaOrigComp = LP['slackThetaOrigComp']
 
@@ -131,10 +138,10 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None, todict=0,
             gammalnThetaRem = theta.shape[0] * gammaln(thetaRem)
 
     if thetaEmptyComp is not None:
-        gammalnThetaEmptyComp = gammaln(thetaEmptyComp) - \
+        gammalnThetaEmptyComp = nDoc * gammaln(thetaEmptyComp) - \
             gammalnThetaOrigComp
-        slackThetaEmptyComp = - 1 * np.sum(
-            thetaEmptyComp * ElogPiEmptyComp) - slackThetaOrigComp
+        slackThetaEmptyComp = -np.sum(thetaEmptyComp * ElogPiEmptyComp) - \
+            slackThetaOrigComp
 
     if returnMemoizedDict:
         Mdict = dict(Hresp=Hresp,
@@ -179,8 +186,39 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None, todict=0,
     return LcDtheta + Lslack + Lentropy
 
 
+
+def L_alloc(nDoc=None, rho=None, omega=None,
+            alpha=None, gamma=None, todict=0, **kwargs):
+    ''' Evaluate the top-level term of the surrogate objective
+    '''
+    K = rho.size
+    eta1 = rho * omega
+    eta0 = (1 - rho) * omega
+    digammaBoth = digamma(eta1 + eta0)
+    ElogU = digamma(eta1) - digammaBoth
+    Elog1mU = digamma(eta0) - digammaBoth
+
+    Ltop_cDiff = K * c_Beta(1, gamma) - c_Beta(eta1, eta0)
+    Ltop_logpDiff = np.inner(1.0 - eta1, ElogU) + \
+        np.inner(gamma - eta0, Elog1mU)
+
+    LcDsur_const = nDoc * K * np.log(alpha)
+    LcDsur_rhoomega = nDoc * np.sum(ElogU) + \
+        nDoc * np.inner(OptimizerRhoOmega.kvec(K), Elog1mU)
+
+    Lalloc = Ltop_cDiff + Ltop_logpDiff + LcDsur_const + LcDsur_rhoomega
+
+    if todict:
+        return dict(
+            Lalloc=Lalloc,
+            Lalloc_top_cDiff=Ltop_cDiff,
+            Lalloc_top_logpDiff=Ltop_logpDiff,
+            Lalloc_cDsur_const=LcDsur_const,
+            Lalloc_cDsur_rhoomega=LcDsur_rhoomega)
+    return Lalloc
+
 def L_top(nDoc=None, rho=None, omega=None,
-          alpha=None, gamma=None, **kwargs):
+          alpha=None, gamma=None, todict=0, **kwargs):
     ''' Evaluate the top-level term of the surrogate objective
     '''
     K = rho.size
@@ -195,10 +233,9 @@ def L_top(nDoc=None, rho=None, omega=None,
 
     calpha = nDoc * K * np.log(alpha)
     cDiff = K * c_Beta(1, gamma) - c_Beta(eta1, eta0)
-
     return calpha + \
         cDiff + \
-        np.inner(ONcoef, ElogU) + np.inner(OFFcoef, Elog1mU)
+         + np.inner(ONcoef, ElogU) + np.inner(OFFcoef, Elog1mU)
 
 
 def calcHrespForMergePairs(resp, Data, mPairIDs):

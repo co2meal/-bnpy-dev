@@ -8,6 +8,7 @@ Contains:
 
 '''
 
+import bnpy
 import sys
 import numpy as np
 from scipy.optimize import approx_fprime
@@ -23,6 +24,71 @@ np.set_printoptions(precision=3, suppress=False, linewidth=140)
 def np2flatstr(xvec, fmt='%9.3f', Kmax=10):
     return ' '.join([fmt % (x) for x in xvec[:Kmax]])
 
+
+
+class TestObjFunc(unittest.TestCase):
+
+    def shortDescription(self):
+        return None
+
+    def test_objFunc_equals_HDPTopicModelELBO(self):
+        print ''
+        # First, define some helper functions
+        # with common interface to compute objective wrt rho/omega
+        from bnpy.allocmodel.topics.HDPTopicUtil import \
+            L_alloc, calcELBO_NonlinearTerms
+        def f_HDPTopicUtil(rho, omega, **kwargs):
+            return L_alloc(rho=rho, omega=omega, **kwargs) + \
+                calcELBO_NonlinearTerms(rho=rho, omega=omega, **kwargs)
+        def f_objFunc(rho, omega, **kwargs):
+            f, grad = OptimizerRhoOmega.objFunc_constrained(
+                np.hstack([rho, omega]), **kwargs)
+            return -1 * kwargs['nDoc'] * f
+
+        for K in [1, 2, 10]:
+            for seed in [3, 7]:
+                PRNG = np.random.RandomState(seed)
+                # Create random suff stats
+                SS = bnpy.suffstats.SuffStatBag(K=K, D=0)
+                SS.setField('sumLogPi', -100 * PRNG.rand(K), dims='K')
+                sumLogPiRemVec = np.zeros(K)
+                sumLogPiRemVec[-1] = -500 * PRNG.rand()
+                SS.setField('sumLogPiRemVec', sumLogPiRemVec, dims='K')
+                SS.setField('nDoc', 20, dims=None)
+
+                SS.setELBOTerm('Hresp', np.zeros(K), dims='K')
+                SS.setELBOTerm('gammalnTheta', np.zeros(K), dims='K')
+                SS.setELBOTerm('slackTheta', np.zeros(K), dims='K')
+                SS.setELBOTerm('gammalnSumTheta', 0, dims=None)
+                SS.setELBOTerm('gammalnThetaRem', 0, dims=None)
+                SS.setELBOTerm('slackThetaRem', 0, dims=None)
+
+                rho1 = PRNG.rand(K)
+                rho2 = PRNG.rand(K)
+                omega1 = SS.nDoc + SS.nDoc * PRNG.rand(K)
+                omega2 = SS.nDoc + SS.nDoc * PRNG.rand(K)
+
+                f_kwargs = dict(
+                    nDoc=SS.nDoc,
+                    sumLogPi=None,
+                    sumLogPiActiveVec=SS.sumLogPi,
+                    sumLogPiRemVec=SS.sumLogPiRemVec,
+                    SS=SS,
+                    alpha=0.678,
+                    gamma=11)
+                valA1 = f_objFunc(rho1, omega1, **f_kwargs)
+                valA2 = f_objFunc(rho2, omega2, **f_kwargs)
+
+                valB1 = f_HDPTopicUtil(rho1, omega1, **f_kwargs)
+                valB2 = f_HDPTopicUtil(rho2, omega2, **f_kwargs)
+
+                print 'rho1:', rho1
+                print 'rho2:', rho2
+                print 'fdiff_objFunc      :', valA1 - valA2
+                print 'fdiff_HDPTopicUtil :', valB1 - valB2
+
+                assert np.allclose(valA1 - valA2, valB1 - valB2, 
+                    rtol=0, atol=1e-6)
 
 class Test0Docs(unittest.TestCase):
 

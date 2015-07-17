@@ -514,7 +514,9 @@ class SuffStatBag(object):
             elif dims == ('K', 'K'):
                 raise NotImplementedError('TODO')
             elif dims[0] == 'K':
-                if hasattr(xSS, key+'EmptyComp'):
+                if key == 'sumLogPiRemVec':
+                    arr[-1] -= getattr(xSS, key).sum(axis=0)
+                elif hasattr(xSS, key+'EmptyComp'):
                     arr[k] += getattr(xSS, key+'EmptyComp')
                 else:
                     arr[k] -= getattr(xSS, key).sum(axis=0)

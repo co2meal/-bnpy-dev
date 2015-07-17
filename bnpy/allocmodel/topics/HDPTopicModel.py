@@ -760,7 +760,8 @@ def calcSummaryStats(Dslice, LP=None,
     SS.setField('nDoc', Dslice.nDoc, dims=None)
     SS.setField('sumLogPi', np.sum(LP['ElogPi'], axis=0), dims='K')
     if 'ElogPiEmptyComp' in LP:
-        sumLogPiEmptyComp = np.sum(LP['ElogPiEmptyComp'])
+        sumLogPiEmptyComp = np.sum(LP['ElogPiEmptyComp']) - \
+            np.sum(LP['ElogPiOrigComp'])
         SS.setField('sumLogPiEmptyComp', sumLogPiEmptyComp, dims=None)
     if doTrackTruncationGrowth:
         remvec = np.zeros(K)

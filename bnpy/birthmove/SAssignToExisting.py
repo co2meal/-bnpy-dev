@@ -49,6 +49,8 @@ def assignSplitStats_HDPTopicModel(
         Dslice, curModel, curLPslice, curSSwhole, propXSS,
         targetUID=0,
         returnPropSS=0,
+        LPkwargs=None,
+        verbose=False,
         **kwargs):
     ''' Reassign target comp. using an existing set of proposal states.
 
@@ -70,8 +72,7 @@ def assignSplitStats_HDPTopicModel(
     xtheta = np.zeros((Dslice.nDoc, Kfresh))
     thetaRem = curModel.allocModel.alpha_E_beta_rem()
 
-    targetalphaEbeta = curModel.allocModel.alpha_E_beta()[ktarget]
-    xalphaEbeta = targetalphaEbeta * 1.0 / (Kfresh+1) * np.ones(Kfresh)
+    xalphaEbeta = _calc_expansion_alphaEbeta(curModel, ktarget, Kfresh)
     thetaEmptyComp = xalphaEbeta[0] * 1.0
 
     # From-scratch strategy
@@ -89,8 +90,8 @@ def assignSplitStats_HDPTopicModel(
         
         xDocTopicCount_d = np.zeros(Kfresh)
         xDocTopicProb_d = np.zeros_like(xDocTopicCount_d)
-
-        for riter in range(10):
+        prevxDocTopicCount_d = 500*np.ones(Kfresh)
+        for riter in range(LPkwargs['nCoordAscentItersLP']):
             np.add(xDocTopicCount_d, xalphaEbeta, out=xDocTopicProb_d)
             digamma(xDocTopicProb_d, out=xDocTopicProb_d)
             xDocTopicProb_d -= xDocTopicProb_d.max()
@@ -109,6 +110,21 @@ def assignSplitStats_HDPTopicModel(
                 curLPslice['DocTopicCount'][d, ktarget],
                 DocTopicCount_dnew,
                 rtol=0, atol=1e-6)
+            if verbose:
+                print ' '.join(['%6.1f' % x for x in xDocTopicCount_d])
+            maxDiff_d = np.abs(prevxDocTopicCount_d - xDocTopicCount_d).max()
+            if maxDiff_d < LPkwargs['convThrLP']:
+                break
+            prevxDocTopicCount_d[:] = xDocTopicCount_d
+
+        if verbose:
+            print '---'
+            weightedtrueDocTopicCount_d = np.dot(
+                targetsumResp_d,
+                Dslice.TrueParams['resp'][start:stop])
+            print ' '.join(
+                ['%6.1f' % x for x in weightedtrueDocTopicCount_d])
+            print ' '
 
         # Create proposal resp for relevant atoms in this doc only
         xResp_d = xLik_d
@@ -136,18 +152,53 @@ def assignSplitStats_HDPTopicModel(
     xLPslice['ElogPiRem'] = ElogPiRem
     xLPslice['thetaEmptyComp'] = thetaEmptyComp
     xLPslice['ElogPiEmptyComp'] = ElogPiEmptyComp
+    xLPslice['ElogPiOrigComp'] = curLPslice['ElogPi'][:, ktarget]
     xLPslice['gammalnThetaOrigComp'] = np.sum(
         gammaln(curLPslice['theta'][:, ktarget]))
     slack = curLPslice['DocTopicCount'][:, ktarget] - \
-            curLPslice['ElogPi'][:, ktarget]
+            curLPslice['theta'][:, ktarget]
     xLPslice['slackThetaOrigComp'] = np.sum(
         slack * curLPslice['ElogPi'][:, ktarget])
-    print thetaEmptyComp, '<<< empty theta'
+
     xSSslice = tmpModel.get_global_suff_stats(
         Dslice, xLPslice, doPrecompEntropy=1, doTrackTruncationGrowth=1)
     xSSslice.setUIDs(propXSS.uids)
 
     if returnPropSS:
+        return _verify_HDPTopicModel_and_return_xSSslice_and_propSSslice(
+            Dslice, curModel, curLPslice, xLPslice, xSSslice, 
+            ktarget=ktarget, **kwargs)
+    return xSSslice
+
+def _calc_expansion_alphaEbeta(curModel, ktarget=0, Kfresh=0):
+    ''' Calculate values of alphaEbeta for expansion of Kfresh new components
+
+    Leaves some fraction of mass leftover for the displaced component.
+
+    Returns
+    -------
+    xalphaEbeta_vec : 1D array, size K
+        sum will be slightly less than alphaEbeta[ktarget]
+    '''
+    target_alphaEbeta = curModel.allocModel.alpha_E_beta()[ktarget]
+    xalphaEbeta_vec = target_alphaEbeta * 1.0 / (Kfresh+1) * np.ones(Kfresh)
+    return xalphaEbeta_vec
+
+def _verify_HDPTopicModel_and_return_xSSslice_and_propSSslice(
+            Dslice, curModel, curLPslice, xLPslice, xSSslice, 
+            ktarget=None,
+            **kwargs):
+        '''
+
+        Returns
+        -------
+        xSSslice
+        propSSslice
+        '''
+        Kfresh = xLPslice['resp'].shape[1]
+        Korig = curLPslice['resp'].shape[1]
+        xalphaEbeta = _calc_expansion_alphaEbeta(curModel, ktarget, Kfresh)
+
         propLPslice = dict()
         propLPslice['resp'] = np.hstack([curLPslice['resp'], xLPslice['resp']])
         propLPslice['resp'][:, ktarget] = 1e-100
@@ -161,13 +212,27 @@ def assignSplitStats_HDPTopicModel(
             Dslice, propLPslice,
             alphaEbeta=propalphaEbeta,
             alphaEbetaRem=propalphaEbetaRem)
+
         # Verify computations
-        assert np.allclose(xDocTopicCount,
+        assert np.allclose(xLPslice['DocTopicCount'],
                            propLPslice['DocTopicCount'][:, Korig:])
-        assert np.allclose(xtheta,
+        assert np.allclose(xLPslice['theta'],
                            propLPslice['theta'][:, Korig:])
         propSSslice = curModel.get_global_suff_stats(
             Dslice, propLPslice, doPrecompEntropy=1, doTrackTruncationGrowth=1)
+        assert np.allclose(propSSslice.getELBOTerm('gammalnTheta')[ktarget],
+                           Dslice.nDoc * gammaln(propalphaEbeta[ktarget]))
+        slackThetaEmpty = np.sum(
+            (0 - xalphaEbeta[0]) * propLPslice['ElogPi'][:, ktarget])
+        slackThetaOrig = np.sum(
+            (curLPslice['DocTopicCount'][:, ktarget] - \
+            curLPslice['theta'][:, ktarget]) * \
+            curLPslice['ElogPi'][:, ktarget])
+
+        assert np.allclose(xLPslice['slackThetaOrigComp'], slackThetaOrig)
+        assert np.allclose(propSSslice.getELBOTerm('slackTheta')[ktarget],
+                           slackThetaEmpty)
+        assert np.allclose(xSSslice.getELBOTerm('slackThetaEmptyComp'),
+                           slackThetaEmpty - slackThetaOrig)
 
         return xSSslice, propSSslice
-    return xSSslice

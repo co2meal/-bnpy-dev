@@ -1,6 +1,6 @@
 import numpy as np
 
-from SAssignToExisting import assignSplitStats
+from SAssignToExisting import assignSplitStats, _calc_expansion_alphaEbeta
 from scipy.special import digamma, gammaln
 
 try:
@@ -137,17 +137,18 @@ def createSplitStats_HDPTopicModel_truelabels(
     '''
     ktarget = curSSwhole.uid2k(targetUID)
 
-    trueResp = Dslice.TrueParams['resp']
+    trueResp = Dslice.TrueParams['resp'].copy()
     Ktrue = trueResp.shape[1]
     Korig = curSSwhole.K
 
     scaledResp = trueResp
-    scaledResp /= curLPslice['resp'][:, ktarget][:, np.newaxis]
+    scaledResp *= curLPslice['resp'][:, ktarget][:, np.newaxis]
     np.maximum(scaledResp, 1e-100, out=scaledResp)
-
+    assert np.allclose(scaledResp.sum(axis=1),
+                       curLPslice['resp'][:, ktarget])
     xLPslice = dict(resp=scaledResp)
-    targetalphaEbeta = curModel.allocModel.alpha_E_beta()[ktarget]
-    xalphaEbeta = targetalphaEbeta * 1.0 / (Ktrue+1) * np.ones(Ktrue)
+
+    xalphaEbeta = _calc_expansion_alphaEbeta(curModel, ktarget, Ktrue)
     thetaEmptyComp = xalphaEbeta[0] * 1.0
     thetaRem = curLPslice['thetaRem'] * 1.0
 
@@ -172,12 +173,12 @@ def createSplitStats_HDPTopicModel_truelabels(
     xLPslice['ElogPi'] = xElogPi
     xLPslice['ElogPiRem'] = ElogPiRem
     xLPslice['thetaEmptyComp'] = thetaEmptyComp
-    xLPslice['ElogPiEmptyComp'] = ElogPiEmptyComp - \
-        curLPslice['ElogPi'][:, ktarget]
+    xLPslice['ElogPiEmptyComp'] = ElogPiEmptyComp
+    xLPslice['ElogPiOrigComp'] = curLPslice['ElogPi'][:, ktarget]
     xLPslice['gammalnThetaOrigComp'] = np.sum(
         gammaln(curLPslice['theta'][:, ktarget]))
     slack = curLPslice['DocTopicCount'][:, ktarget] - \
-            curLPslice['ElogPi'][:, ktarget]
+            curLPslice['theta'][:, ktarget]
     xLPslice['slackThetaOrigComp'] = np.sum(
         slack * curLPslice['ElogPi'][:, ktarget])
 
@@ -186,26 +187,61 @@ def createSplitStats_HDPTopicModel_truelabels(
     xSSslice.setUIDs(newUIDs[:Ktrue])
 
     if returnPropSS:
-        propLPslice = dict()
-        propLPslice['resp'] = np.hstack([curLPslice['resp'], xLPslice['resp']])
-        propLPslice['resp'][:, ktarget] = 1e-100
-        curalphaEbeta = curModel.allocModel.alpha_E_beta().copy()
-        propalphaEbetaRem = curModel.allocModel.alpha_E_beta_rem() * 1.0
-        propalphaEbeta = np.hstack([curalphaEbeta, xalphaEbeta])
-        propalphaEbeta[ktarget] = xalphaEbeta[0] * 1.0
-        assert np.allclose(np.sum(propalphaEbeta) + propalphaEbetaRem,
-                           curModel.allocModel.alpha)
-        propLPslice = curModel.allocModel.initLPFromResp(
-            Dslice, propLPslice,
-            alphaEbeta=propalphaEbeta,
-            alphaEbetaRem=propalphaEbetaRem)
-        # Verify computations
-        assert np.allclose(xDocTopicCount,
-                           propLPslice['DocTopicCount'][:, Korig:])
-        assert np.allclose(xtheta,
-                           propLPslice['theta'][:, Korig:])
-        propSSslice = curModel.get_global_suff_stats(
-            Dslice, propLPslice, doPrecompEntropy=1, doTrackTruncationGrowth=1)
-
-        return xSSslice, propSSslice
+        from SAssignToExisting import \
+             _verify_HDPTopicModel_and_return_xSSslice_and_propSSslice
+        return _verify_HDPTopicModel_and_return_xSSslice_and_propSSslice(
+            Dslice, curModel, curLPslice, xLPslice, xSSslice,
+            ktarget=ktarget, **kwargs)
     return xSSslice
+
+
+
+def createSplitStats_HDPTopicModel_kmeans(
+        Dslice, curModel, curLPslice, curSSwhole=None,
+        targetUID=0, LPkwargs=DefaultLPkwargs,
+        newUIDs=None,
+        lapFrac=0,
+        returnPropSS=0,
+        **kwargs):
+    ''' Reassign target component to new states, based on true labels.
+
+    Returns
+    -------
+    xSSslice : stats for reassigned mass
+        total count is equal to SS.N[ktarget]
+        number of components is Kx
+    '''
+    ktarget = curSSwhole.uid2k(targetUID)
+    xK = newUIDs.size
+
+    # First, cluster the documents that prominently use the target topic
+    doc_mask = np.flatnonzero(curLPslice['DocTopicCount'][:, ktarget] > 1)
+    Dtarget = Dslice.select_subset_by_mask(doc_mask)
+    Xtarget = Dtarget.getDocTypeCountMatrix()
+    Mu, Z = RunKMeans(Xtarget, xK, seed=lapFrac)
+    Z = Z.flatten()
+
+    # Make a token-specific resp that assigns all words from each doc
+    # to the given topic
+    xresp = np.zeros((Dslice.word_id.size, xK))
+    Kused = 0
+    for k in range(xK):
+        docs_k = np.flatnonzero(Z == k)
+        Nk = docs_k.size
+        for d in docs_k:
+            start = Dslice.doc_range[d]
+            stop = Dslice.doc_range[d+1]
+            xresp[start:stop, Kused] = 1.0
+        Kused += 1
+    xresp = xresp[:, :Kused]
+
+    xSSfake = curModel.obsModel.get_global_suff_stats(
+        Dslice, None, dict(resp=xresp))
+    xSSfake.setUIDs(newUIDs[:Kused])
+    return assignSplitStats(
+        Dslice, curModel, curLPslice, curSSwhole, xSSfake,
+        targetUID=targetUID,
+        LPkwargs=LPkwargs,
+        returnPropSS=returnPropSS,
+        lapFrac=lapFrac,
+        **kwargs)
