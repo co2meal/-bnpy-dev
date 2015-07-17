@@ -48,6 +48,7 @@ def assignSplitStats_DPMixtureModel(
 def assignSplitStats_HDPTopicModel(
         Dslice, curModel, curLPslice, curSSwhole, propXSS,
         targetUID=0,
+        returnPropSS=0,
         **kwargs):
     ''' Reassign target comp. using an existing set of proposal states.
 
@@ -135,8 +136,38 @@ def assignSplitStats_HDPTopicModel(
     xLPslice['ElogPiRem'] = ElogPiRem
     xLPslice['thetaEmptyComp'] = thetaEmptyComp
     xLPslice['ElogPiEmptyComp'] = ElogPiEmptyComp
-
+    xLPslice['gammalnThetaOrigComp'] = np.sum(
+        gammaln(curLPslice['theta'][:, ktarget]))
+    slack = curLPslice['DocTopicCount'][:, ktarget] - \
+            curLPslice['ElogPi'][:, ktarget]
+    xLPslice['slackThetaOrigComp'] = np.sum(
+        slack * curLPslice['ElogPi'][:, ktarget])
+    print thetaEmptyComp, '<<< empty theta'
     xSSslice = tmpModel.get_global_suff_stats(
-        Dslice, xLPslice, doPrecompEntropy=1)
+        Dslice, xLPslice, doPrecompEntropy=1, doTrackTruncationGrowth=1)
     xSSslice.setUIDs(propXSS.uids)
+
+    if returnPropSS:
+        propLPslice = dict()
+        propLPslice['resp'] = np.hstack([curLPslice['resp'], xLPslice['resp']])
+        propLPslice['resp'][:, ktarget] = 1e-100
+        curalphaEbeta = curModel.allocModel.alpha_E_beta().copy()
+        propalphaEbetaRem = curModel.allocModel.alpha_E_beta_rem() * 1.0
+        propalphaEbeta = np.hstack([curalphaEbeta, xalphaEbeta])
+        propalphaEbeta[ktarget] = xalphaEbeta[0] * 1.0
+        assert np.allclose(np.sum(propalphaEbeta) + propalphaEbetaRem,
+                           curModel.allocModel.alpha)
+        propLPslice = curModel.allocModel.initLPFromResp(
+            Dslice, propLPslice,
+            alphaEbeta=propalphaEbeta,
+            alphaEbetaRem=propalphaEbetaRem)
+        # Verify computations
+        assert np.allclose(xDocTopicCount,
+                           propLPslice['DocTopicCount'][:, Korig:])
+        assert np.allclose(xtheta,
+                           propLPslice['theta'][:, Korig:])
+        propSSslice = curModel.get_global_suff_stats(
+            Dslice, propLPslice, doPrecompEntropy=1, doTrackTruncationGrowth=1)
+
+        return xSSslice, propSSslice
     return xSSslice

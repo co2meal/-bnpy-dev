@@ -235,7 +235,9 @@ class HDPTopicModel(AllocModel):
         assert 'DocTopicCount' in LP
         return LP
 
-    def initLPFromResp(self, Data, LP, deleteCompID=None):
+    def initLPFromResp(
+            self, Data, LP, 
+            alphaEbeta=None, alphaEbetaRem=None):
         ''' Fill in remaining local parameters given token-topic resp.
 
         Args
@@ -262,19 +264,23 @@ class HDPTopicModel(AllocModel):
             else:
                 DocTopicCount[d, :] = np.sum(resp[start:stop, :], axis=0)
 
-        if deleteCompID is None:
-            remMass = np.minimum(0.1, 1.0 / (K * K))
-            newEbeta = (1 - remMass) / K
-        else:
-            assert K < self.K
-            assert deleteCompID < self.K
-            Ebeta = self.get_active_comp_probs()
-            newEbeta = np.delete(Ebeta, deleteCompID, axis=0)
-            newEbeta += Ebeta[deleteCompID] / K
-            remMass = 1.0 - np.sum(newEbeta)
+        if alphaEbeta is None:
+            EbetaRem = float(np.minimum(0.1, 1.0 / (K * K)))
+            Ebeta = (1 - EbetaRem) / K
 
-        theta = DocTopicCount + self.alpha * newEbeta
-        thetaRem = self.alpha * remMass
+            alphaEbeta = self.alpha * Ebeta
+            alphaEbetaRem = self.alpha * EbetaRem
+        else:
+            alphaEbeta = np.asarray(alphaEbeta)
+            alphaEbetaRem = float(alphaEbetaRem)
+
+        assert alphaEbeta.size == K
+        assert np.allclose(
+            np.sum(alphaEbetaRem) + np.sum(alphaEbeta), self.alpha,
+            atol=1e-7, rtol=0)
+
+        theta = DocTopicCount + alphaEbeta
+        thetaRem = alphaEbetaRem
 
         digammaSumTheta = digamma(theta.sum(axis=1) + thetaRem)
         ElogPi = digamma(theta) - digammaSumTheta[:, np.newaxis]
@@ -438,10 +444,19 @@ class HDPTopicModel(AllocModel):
             initrho = None   # default initialization
             initomega = None
         try:
-            sumLogPi = np.append(SS.sumLogPi, SS.sumLogPiRem)
+            if hasattr(SS, 'sumLogPiRemVec'):
+                sumLogPiActiveVec = SS.sumLogPi
+                sumLogPiRemVec = SS.sumLogPiRemVec
+                sumLogPi = None
+            else:
+                sumLogPiActiveVec = None
+                sumLogPiRemVec = None
+                sumLogPi = np.append(SS.sumLogPi, SS.sumLogPiRem)
             rho, omega, f, Info = OptimizerRhoOmega.\
                 find_optimum_multiple_tries(
                     sumLogPi=sumLogPi,
+                    sumLogPiActiveVec=sumLogPiActiveVec,
+                    sumLogPiRemVec=sumLogPiRemVec,
                     nDoc=SS.nDoc,
                     gamma=self.gamma, alpha=self.alpha,
                     initrho=initrho, initomega=initomega)
@@ -762,8 +777,10 @@ def calcSummaryStats(Dslice, LP=None,
         SS.setELBOTerm('gammalnTheta',
                        Mdict['gammalnTheta'], dims='K')
         if 'ElogPiEmptyComp' in LP:
-            SS.setELBOTerm('slackThetaEmptyComp', Mdict['slackThetaEmptyComp'])
-            SS.setELBOTerm('gammalnThetaEmptyComp', Mdict['gammalnThetaEmptyComp'])
+            SS.setELBOTerm('slackThetaEmptyComp',
+                           Mdict['slackThetaEmptyComp'])
+            SS.setELBOTerm('gammalnThetaEmptyComp',
+                           Mdict['gammalnThetaEmptyComp'])
         else:
             SS.setELBOTerm('gammalnSumTheta',
                            Mdict['gammalnSumTheta'], dims=None)

@@ -26,7 +26,7 @@ def main(nBatch=5, nSetupLaps=1, targetUID=0, **kwargs):
 
             LPbatch = hmodel.calc_local_params(Dbatch, **LPkwargs)
             SSbatch = hmodel.get_global_suff_stats(
-                Dbatch, LPbatch, doPrecompEntropy=1)
+                Dbatch, LPbatch, doPrecompEntropy=1, doTrackTruncationGrowth=1)
 
             if batchID in SSmemory:        
                 SS -= SSmemory[batchID]
@@ -35,6 +35,8 @@ def main(nBatch=5, nSetupLaps=1, targetUID=0, **kwargs):
                 SS = SSbatch.copy()
             else:
                 SS += SSbatch
+            hmodel.update_global_params(SS)
+
 
     for batchID in xrange(nBatch):
         print 'batch %d/%d' % (batchID+1, nBatch)
@@ -42,7 +44,7 @@ def main(nBatch=5, nSetupLaps=1, targetUID=0, **kwargs):
 
         LPbatch = hmodel.calc_local_params(Dbatch, **LPkwargs)
         SSbatch = hmodel.get_global_suff_stats(
-            Dbatch, LPbatch, doPrecompEntropy=1)
+            Dbatch, LPbatch, doPrecompEntropy=1, doTrackTruncationGrowth=1)
 
         if batchID in SSmemory:        
             SS -= SSmemory[batchID]
@@ -53,18 +55,30 @@ def main(nBatch=5, nSetupLaps=1, targetUID=0, **kwargs):
             SS += SSbatch
         
         if batchID == 0:
-            xSSbatch = createSplitStats(
+            xSSbatch, propSSbatch = createSplitStats(
                 Dbatch, hmodel, LPbatch, curSSwhole=SS,
                 creationProposalName='truelabels',
                 targetUID=targetUID,
                 newUIDs=np.arange(100, 100+15),
-                LPkwargs=LPkwargs)
+                LPkwargs=LPkwargs,
+                returnPropSS=1)
             xSS = xSSbatch.copy()
+            propSS_agg = propSSbatch.copy()
         else:
-            xSSbatch = assignSplitStats(
+            xSSbatch, propSSbatch = assignSplitStats(
                 Dbatch, hmodel, LPbatch, SS, xSS,
-                targetUID=targetUID)
+                targetUID=targetUID,
+                returnPropSS=1)
             xSS += xSSbatch
+            propSS_agg += propSSbatch
+
+        propSS_whole = propSS_agg.copy()
+        for rembatchID in range(batchID+1, nBatch):
+            SSbatch = SSmemory[rembatchID].copy()
+            Kextra = propSS_whole.K - SSbatch.K
+            if Kextra > 0:
+                SSbatch.insertEmptyComps(Kextra)
+            propSS_whole += SSbatch
 
         hmodel.update_global_params(SS)
 
@@ -74,10 +88,23 @@ def main(nBatch=5, nSetupLaps=1, targetUID=0, **kwargs):
             propSS = SS.copy()
             propSS.transferMassFromExistingToExpansion(
                 uid=targetUID, xSS=xSS)
+
+            for field in ['sumLogPi', 'sumLogPiRemVec']:
+                arr = getattr(propSS, field)
+                arr_direct = getattr(propSS_whole, field)
+                assert np.allclose(arr, arr_direct)
+            for field in ['gammalnTheta', 'slackTheta', 'slackThetaRem',
+                          'gammalnSumTheta', 'gammalnThetaRem']:
+                arr = getattr(propSS._ELBOTerms, field)
+                arr_direct = getattr(propSS_whole._ELBOTerms, field)
+                print field
+                assert np.allclose(arr, arr_direct)
+
             propModel = hmodel.copy()
             propModel.update_global_params(propSS)
 
             propLscore = propModel.calc_evidence(SS=propSS)
+
             print propSS.getCountVec()
             print ' cursize %.1f   propsize %.1f' % (
                 SS.getCountVec().sum(), propSS.getCountVec().sum())
@@ -87,6 +114,8 @@ def main(nBatch=5, nSetupLaps=1, targetUID=0, **kwargs):
                 print 'ACCEPTED!'
             else:
                 print 'REJECTED <<<<<<<<<< :('
+            from IPython import embed; embed()
+
 
 if __name__ == '__main__':
     main()

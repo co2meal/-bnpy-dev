@@ -494,8 +494,7 @@ class SuffStatBag(object):
         self.insertComps(xSS)
         self.removeComp(uid=uid)
 
-    def transferMassFromExistingToExpansion(self, uid=0, xSS=None, 
-            keysToSetNonExtraZero=['sumLogPiRemVec']):
+    def transferMassFromExistingToExpansion(self, uid=0, xSS=None):
         ''' Transfer mass from existing component to expansion components.
 
         Post Condition
@@ -510,9 +509,7 @@ class SuffStatBag(object):
         # Decrement Fields terms
         for key, dims in self._Fields._FieldDims.items():
             arr = getattr(self._Fields, key)                        
-            if key in keysToSetNonExtraZero:
-                arr.fill(0)
-            elif dims is None:
+            if dims is None:
                 pass
             elif dims == ('K', 'K'):
                 raise NotImplementedError('TODO')

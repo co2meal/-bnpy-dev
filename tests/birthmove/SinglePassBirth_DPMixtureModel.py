@@ -72,8 +72,8 @@ def main(nBatch=100, nSetupLaps=1, targetUID=0, **kwargs):
             propSS.transferMassFromExistingToExpansion(
                 uid=targetUID, xSS=xSS)
             propModel = hmodel.copy()
-            propModel.update_global_params(xSS)
-            propLscore = propModel.calc_evidence(SS=xSS)
+            propModel.update_global_params(propSS)
+            propLscore = propModel.calc_evidence(SS=propSS)
     
             print propSS.N
             print ' cursize %.1f   propsize %.1f' % (SS.N.sum(), propSS.N.sum())

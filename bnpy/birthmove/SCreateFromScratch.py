@@ -125,6 +125,7 @@ def createSplitStats_HDPTopicModel_truelabels(
         targetUID=0, LPkwargs=DefaultLPkwargs,
         newUIDs=None,
         lapFrac=0,
+        returnPropSS=0,
         **kwargs):
     ''' Reassign target component to new states, based on true labels.
 
@@ -138,6 +139,7 @@ def createSplitStats_HDPTopicModel_truelabels(
 
     trueResp = Dslice.TrueParams['resp']
     Ktrue = trueResp.shape[1]
+    Korig = curSSwhole.K
 
     scaledResp = trueResp
     scaledResp /= curLPslice['resp'][:, ktarget][:, np.newaxis]
@@ -180,6 +182,30 @@ def createSplitStats_HDPTopicModel_truelabels(
         slack * curLPslice['ElogPi'][:, ktarget])
 
     xSSslice = curModel.get_global_suff_stats(
-        Dslice, xLPslice, doPrecompEntropy=1)
+        Dslice, xLPslice, doPrecompEntropy=1, doTrackTruncationGrowth=1)
     xSSslice.setUIDs(newUIDs[:Ktrue])
+
+    if returnPropSS:
+        propLPslice = dict()
+        propLPslice['resp'] = np.hstack([curLPslice['resp'], xLPslice['resp']])
+        propLPslice['resp'][:, ktarget] = 1e-100
+        curalphaEbeta = curModel.allocModel.alpha_E_beta().copy()
+        propalphaEbetaRem = curModel.allocModel.alpha_E_beta_rem() * 1.0
+        propalphaEbeta = np.hstack([curalphaEbeta, xalphaEbeta])
+        propalphaEbeta[ktarget] = xalphaEbeta[0] * 1.0
+        assert np.allclose(np.sum(propalphaEbeta) + propalphaEbetaRem,
+                           curModel.allocModel.alpha)
+        propLPslice = curModel.allocModel.initLPFromResp(
+            Dslice, propLPslice,
+            alphaEbeta=propalphaEbeta,
+            alphaEbetaRem=propalphaEbetaRem)
+        # Verify computations
+        assert np.allclose(xDocTopicCount,
+                           propLPslice['DocTopicCount'][:, Korig:])
+        assert np.allclose(xtheta,
+                           propLPslice['theta'][:, Korig:])
+        propSSslice = curModel.get_global_suff_stats(
+            Dslice, propLPslice, doPrecompEntropy=1, doTrackTruncationGrowth=1)
+
+        return xSSslice, propSSslice
     return xSSslice

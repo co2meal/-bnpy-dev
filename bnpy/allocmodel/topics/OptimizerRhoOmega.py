@@ -32,7 +32,9 @@ from bnpy.util.StickBreakUtil import create_initrho, create_initomega
 Log = logging.getLogger('bnpy')
 
 
-def find_optimum_multiple_tries(sumLogPi=0, nDoc=0,
+def find_optimum_multiple_tries(sumLogPi=0,
+                                sumLogPiActiveVec=0, sumLogPiRemVec=0,
+                                nDoc=0,
                                 gamma=1.0, alpha=1.0, kappa=0.0,
                                 startAlphaLogPi=0.0,
                                 initrho=None, initomega=None,
@@ -62,7 +64,8 @@ def find_optimum_multiple_tries(sumLogPi=0, nDoc=0,
     for trial, factr in enumerate(factrList):
         try:
             rhoomega, f, Info = find_optimum(
-                sumLogPi, nDoc, gamma=gamma, alpha=alpha, kappa=kappa,
+                sumLogPi, sumLogPiActiveVec, sumLogPiRemVec,
+                nDoc, gamma=gamma, alpha=alpha, kappa=kappa,
                 startAlphaLogPi=startAlphaLogPi,
                 initrho=initrho, initomega=initomega,
                 factr=factr, approx_grad=approx_grad,
@@ -87,7 +90,8 @@ def find_optimum_multiple_tries(sumLogPi=0, nDoc=0,
         if initrho is not None:
             # Last ditch effort, try different initialization
             return find_optimum_multiple_tries(
-                sumLogPi, nDoc, gamma=gamma, alpha=alpha, kappa=kappa,
+                sumLogPi, sumLogPiActiveVec, sumLogPiRemVec,
+                nDoc, gamma=gamma, alpha=alpha, kappa=kappa,
                 startAlphaLogPi=startAlphaLogPi,
                 initrho=None, initomega=None,
                 approx_grad=approx_grad,
@@ -99,7 +103,8 @@ def find_optimum_multiple_tries(sumLogPi=0, nDoc=0,
     return rho, omega, f, Info
 
 
-def find_optimum(sumLogPi=0, nDoc=0, gamma=1.0, alpha=1.0, kappa=0.0,
+def find_optimum(sumLogPi=0, sumLogPiActiveVec=0, sumLogPiRemVec=0,
+                 nDoc=0, gamma=1.0, alpha=1.0, kappa=0.0,
                  startAlphaLogPi=0.0,
                  initrho=None, initomega=None, scaleVector=None,
                  approx_grad=False, factr=1.0e5, **kwargs):
@@ -115,11 +120,15 @@ def find_optimum(sumLogPi=0, nDoc=0, gamma=1.0, alpha=1.0, kappa=0.0,
     --------
     ValueError on an overflow, any NaN, or failure to converge
     '''
-    if sumLogPi.ndim > 1:
-        sumLogPi = np.squeeze(np.asarray(sumLogPi, dtype=np.float64))
-
-    assert sumLogPi.ndim == 1
-    K = sumLogPi.size - 1
+    if sumLogPi is not None:
+        if sumLogPi.ndim > 1:
+            sumLogPi = np.squeeze(np.asarray(sumLogPi, dtype=np.float64))
+        assert sumLogPi.ndim == 1
+        K = sumLogPi.size - 1
+    else:
+        assert sumLogPiActiveVec.ndim == 1
+        assert sumLogPiActiveVec.shape == sumLogPiRemVec.shape
+        K = sumLogPiActiveVec.size
 
     # Determine initial value
     if initrho is None:
@@ -140,9 +149,13 @@ def find_optimum(sumLogPi=0, nDoc=0, gamma=1.0, alpha=1.0, kappa=0.0,
     initc = rhoomega2c(initrhoomega, scaleVector=scaleVector)
 
     # Define objective function (unconstrained!)
-    objArgs = dict(sumLogPi=sumLogPi, startAlphaLogPi=startAlphaLogPi,
-                   nDoc=nDoc, gamma=gamma, alpha=alpha, kappa=kappa,
-                   approx_grad=approx_grad, scaleVector=scaleVector)
+    objArgs = dict(
+        sumLogPi=sumLogPi, 
+        sumLogPiActiveVec=sumLogPiActiveVec,
+        sumLogPiRemVec=sumLogPiRemVec,
+        startAlphaLogPi=startAlphaLogPi,
+        nDoc=nDoc, gamma=gamma, alpha=alpha, kappa=kappa,
+        approx_grad=approx_grad, scaleVector=scaleVector)
 
     def c_objFunc(c):
         return objFunc_unconstrained(c, **objArgs)
@@ -214,7 +227,9 @@ def rhoomega2c(rhoomega, scaleVector=None):
 
 
 def objFunc_constrained(rhoomega,
-                        sumLogPi=0, nDoc=0, gamma=1.0, alpha=1.0, kappa=0.0,
+                        sumLogPi=0, 
+                        sumLogPiActiveVec=None, sumLogPiRemVec=None,
+                        nDoc=0, gamma=1.0, alpha=1.0, kappa=0.0,
                         startAlphaLogPi=0.0,
                         approx_grad=False, **kwargs):
     ''' Returns constrained objective function and its gradient.
@@ -241,24 +256,40 @@ def objFunc_constrained(rhoomega,
     Elogu = digamma(g1) - digammaomega
     Elog1mu = digamma(g0) - digammaomega
 
-    # Any practical call to this will have nDoc > 0
     if nDoc > 0:
+        # Any practical call to this will have nDoc > 0
         if kappa > 0:
             scale = 1.0
             ONcoef = K + 1.0 - g1
             OFFcoef = K * kvec(K) + 1.0 + gamma - g0
             Tvec = alpha * sumLogPi + startAlphaLogPi
             Tvec[:-1] += np.log(alpha + kappa) - np.log(kappa)
+            # Calc local term
+            Ebeta = np.hstack([rho, 1.0])
+            Ebeta[1:] *= np.cumprod(1 - rho)
+            elbo_local = np.inner(Ebeta, Tvec)
+
+        elif sumLogPiRemVec is not None:
+            scale = nDoc
+            ONcoef = 1 + (1.0 - g1) / scale
+            OFFcoef = kvec(K) + (gamma - g0) / scale
+            Pvec = alpha * sumLogPiActiveVec / scale
+            Qvec = alpha * sumLogPiRemVec / scale
+
+            # Calc local term
+            Ebeta_gtm1 = np.hstack([1.0, np.cumprod(1 - rho[:-1])])
+            elbo_local = np.inner(rho * Ebeta_gtm1, Pvec) + \
+                np.inner((1-rho) * Ebeta_gtm1, Qvec)
         else:
             scale = nDoc
             ONcoef = 1 + (1.0 - g1) / scale
             OFFcoef = kvec(K) + (gamma - g0) / scale
             Tvec = alpha * sumLogPi / scale + startAlphaLogPi / scale
 
-        # Calc local term
-        Ebeta = np.hstack([rho, 1.0])
-        Ebeta[1:] *= np.cumprod(1 - rho)
-        elbo_local = np.inner(Ebeta, Tvec)
+            # Calc local term
+            Ebeta = np.hstack([rho, 1.0])
+            Ebeta[1:] *= np.cumprod(1 - rho)
+            elbo_local = np.inner(Ebeta, Tvec)
 
     else:
         # This is special case for unit tests that make sure the optimizer
@@ -288,9 +319,19 @@ def objFunc_constrained(rhoomega,
     gradomega = ONcoef * (rho * trigamma_g1 - trigamma_omega) \
         + OFFcoef * ((1 - rho) * trigamma_g0 - trigamma_omega)
     if nDoc > 0:
-        # TODO make this line faster. This is the hot spot.
-        Delta = calc_dEbeta_drho(Ebeta, rho, K)
-        gradrho += np.dot(Delta, Tvec)
+        if sumLogPiRemVec is None:
+            # TODO make this line faster. This is the hot spot.
+            Delta = calc_dEbeta_drho(Ebeta, rho, K)
+            gradrho += np.dot(Delta, Tvec)
+        else:
+            Ebeta = np.hstack([rho, 1.0])
+            Ebeta[1:] *= np.cumprod(1 - rho)
+
+            Psi = calc_Psi(Ebeta, rho, K)
+            gradrho += np.dot(Psi, Qvec)
+
+            Delta = calc_dEbeta_drho(Ebeta, rho, K)[:, :K]
+            gradrho += np.dot(Delta, Pvec)
     grad = np.hstack([gradrho, gradomega])
 
     return -1.0 * elbo, -1.0 * grad
@@ -357,7 +398,22 @@ def calc_dEbeta_drho(Ebeta, rho, K):
     return Delta
 
 
+def calc_Psi(Ebeta, rho, K):
+    ''' Calculate partial derivative of Ebeta_gt w.r.t. rho
+
+    Returns
+    ---------
+    Psi : 2D array, size K x K
+    '''
+    Ebeta_gt = 1.0 - np.cumsum(Ebeta[:K])
+    Psi = np.tile(-1 * Ebeta_gt, (K, 1))
+    Psi /= (1 - rho)[:, np.newaxis]
+    Psi.ravel()[_get_flatLowTriIDs_KxK(K)] = 0
+    return Psi
+
+
 flatlowTriIDsDict = dict()
+flatlowTriIDsDict_KxK = dict()
 diagIDsDict = dict()
 
 
@@ -373,7 +429,13 @@ def _get_diagIDs(K):
 def _get_flatLowTriIDs(K):
     if K in flatlowTriIDsDict:
         return flatlowTriIDsDict[K]
-    else:
-        flatIDs = np.ravel_multi_index(np.tril_indices(K, -1), (K, K + 1))
-        flatlowTriIDsDict[K] = flatIDs
-        return flatIDs
+    flatIDs = np.ravel_multi_index(np.tril_indices(K, -1), (K, K + 1))
+    flatlowTriIDsDict[K] = flatIDs
+    return flatIDs
+
+def _get_flatLowTriIDs_KxK(K):
+    if K in flatlowTriIDsDict_KxK:
+        return flatlowTriIDsDict_KxK[K]
+    flatIDs = np.ravel_multi_index(np.tril_indices(K, -1), (K, K))
+    flatlowTriIDsDict_KxK[K] = flatIDs
+    return flatIDs

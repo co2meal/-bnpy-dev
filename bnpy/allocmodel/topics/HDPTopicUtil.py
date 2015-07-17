@@ -50,11 +50,12 @@ def calcELBO_LinearTerms(SS=None,
                  alpha=alpha, gamma=gamma)
 
 
-def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None,
+def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None, todict=0,
                             rho=None, Ebeta=None, alpha=None,
                             resp=None, DocTopicCount=None, theta=None,
                             ElogPi=None,
-                            nDoc=None, sumLogPi=None, sumLogPiRem=None,
+                            nDoc=None, sumLogPi=None,
+                            sumLogPiRem=None, sumLogPiRemVec=None,
                             Hresp=None, slackTheta=None, slackThetaRem=None,
                             gammalnTheta=None, gammalnSumTheta=None,
                             gammalnThetaRem=None,
@@ -68,7 +69,10 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None,
 
     if SS is not None:
         sumLogPi = SS.sumLogPi
-        sumLogPiRem = SS.sumLogPiRem
+        if hasattr(SS, 'sumLogPiRemVec'):
+            sumLogPiRemVec = SS.sumLogPiRemVec
+        else:
+            sumLogPiRem = SS.sumLogPiRem
 
     if LP is not None:
         resp = LP['resp']
@@ -129,8 +133,8 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None,
     if thetaEmptyComp is not None:
         gammalnThetaEmptyComp = gammaln(thetaEmptyComp) - \
             gammalnThetaOrigComp
-        slackThetaEmptyComp = - 1 * np.sum(thetaEmptyComp * ElogPiEmptyComp) - \
-            slackThetaOrigComp
+        slackThetaEmptyComp = - 1 * np.sum(
+            thetaEmptyComp * ElogPiEmptyComp) - slackThetaOrigComp
 
     if returnMemoizedDict:
         Mdict = dict(Hresp=Hresp,
@@ -158,9 +162,19 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None,
 
     # Next, compute the slack term
     alphaEbeta = alpha * Ebeta
-    Lslack_alphaEbeta = np.sum(alphaEbeta[:-1] * sumLogPi) \
-        + alphaEbeta[-1] * sumLogPiRem
+    Lslack_alphaEbeta = np.sum(alphaEbeta[:-1] * sumLogPi)
+    if sumLogPiRemVec is not None:
+        Ebeta_gt = 1 - np.cumsum(Ebeta[:-1])
+        Lslack_alphaEbeta += alpha * np.inner(Ebeta_gt, sumLogPiRemVec)
+    else:
+        Lslack_alphaEbeta += alphaEbeta[-1] * sumLogPiRem
     Lslack += Lslack_alphaEbeta
+
+    if todict:
+        return dict(
+            Lslack=Lslack,
+            Lentropy=Lentropy,
+            LcDtheta=LcDtheta)
 
     return LcDtheta + Lslack + Lentropy
 

@@ -368,6 +368,91 @@ class TestManyDocs(unittest.TestCase):
                                     gapprox[K + worstIDs[:5]], fmt='% .6f')
                             assert oGradOK
 
+
+
+    def testGradientExactAndApproxAgree__sumLogPiRemVec(self):
+        ''' Verify computed gradient similar for exact and approx methods
+        '''
+        print ''
+        for K in [1, 2, 10, 54]:
+            for alpha in [0.1, 0.95]:
+                for gamma in [1., 9.45]:
+                    for nDoc in [1, 100, 1000]:
+
+                        print '============= K %d | nDoc %d | alpha %.2f' \
+                              % (K, nDoc, alpha)
+
+                        for seed in [111, 222, 333]:
+                            PRNG = np.random.RandomState(seed)
+                            u = np.linspace(0.01, 0.99, K)
+                            Vd = sampleVd(u, nDoc, alpha, PRNG=PRNG)
+                            sumLogPi = summarizeVdToPi(Vd)
+                            sumLogPiRemVec = np.zeros(K)
+                            sumLogPiActiveVec = np.zeros(K)
+                            sumLogPiActiveVec[:] = sumLogPi[:-1]
+                            sumLogPiRemVec[-1] = sumLogPi[-1]
+
+                            rho = PRNG.rand(K)
+                            omega = 100 * PRNG.rand(K)
+                            rhoomega = np.hstack([rho, omega])
+                            kwargs = dict(alpha=alpha,
+                                          gamma=gamma,
+                                          nDoc=nDoc,
+                                          sumLogPiActiveVec=sumLogPiActiveVec,
+                                          sumLogPiRemVec=sumLogPiRemVec)
+
+                            # Exact gradient
+                            f, g = OptimizerRhoOmega.objFunc_constrained(
+                                rhoomega, approx_grad=0, **kwargs)
+
+                            # Approx gradient
+                            oFunc_cons = OptimizerRhoOmega.objFunc_constrained
+                            objFunc = lambda x: oFunc_cons(
+                                x, approx_grad=1, **kwargs)
+                            epsvec = np.hstack(
+                                [1e-8 * np.ones(K), 1e-8 * np.ones(K)])
+                            gapprox = approx_fprime(rhoomega, objFunc, epsvec)
+
+                            print '      rho 1:10 ', np2flatstr(rho)
+                            print '     grad 1:10 ', np2flatstr(
+                                g[:K], fmt='% .6e')
+                            print ' autograd 1:10 ', np2flatstr(
+                                gapprox[:K], fmt='% .6e')
+                            if K > 10:
+                                print '     rho K-10:K ', np2flatstr(rho[-10:])
+                                print '    grad K-10:K ', np2flatstr(
+                                    g[K - 10:K], fmt='% .6e')
+                                print 'autograd K-10:K ', np2flatstr(
+                                    gapprox[K - 10:K], fmt='% .6e')
+                            rtol_rho = 0.01
+                            atol_rho = 1e-6
+                            rtol_omega = 0.05
+                            atol_omega = 0.01
+                            # Note: small omega derivas cause lots of problems
+                            # so we should use high atol to avoid these issues
+                            assert np.allclose(g[:K], gapprox[:K],
+                                               atol=atol_rho,
+                                               rtol=rtol_rho)
+                            oGradOK = np.allclose(g[K:], gapprox[K:],
+                                                  atol=atol_omega,
+                                                  rtol=rtol_omega)
+                            if not oGradOK:
+                                print 'VIOLATION DETECTED!'
+                                print 'grad_approx DOES NOT EQUAL grad_exact'
+
+                                absDiff = np.abs(g[K:] - gapprox[K:])
+                                tolDiff = (atol_omega
+                                           + rtol_omega * np.abs(gapprox[K:])
+                                           - absDiff)
+                                worstIDs = np.argsort(tolDiff)
+                                print 'Top 5 worst mismatches'
+                                print np2flatstr(
+                                    g[K + worstIDs[:5]], fmt='% .6f')
+                                print np2flatstr(
+                                    gapprox[K + worstIDs[:5]], fmt='% .6f')
+                            assert oGradOK
+
+
     def testRecoverGlobalSticksFromGeneratedData(self):
         ''' Verify that mean of V_d matrix is equal to original vector u
         '''
