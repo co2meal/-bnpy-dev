@@ -202,9 +202,18 @@ def L_alloc(nDoc=None, rho=None, omega=None,
     Ltop_logpDiff = np.inner(1.0 - eta1, ElogU) + \
         np.inner(gamma - eta0, Elog1mU)
 
-    LcDsur_const = nDoc * K * np.log(alpha)
-    LcDsur_rhoomega = nDoc * np.sum(ElogU) + \
-        nDoc * np.inner(OptimizerRhoOmega.kvec(K), Elog1mU)
+    nDoc = np.asarray(nDoc)
+    if nDoc.size > 1:
+        LcDsur_const = 0
+        LcDsur_rhoomega = 0
+        for Kd in range(nDoc.size):
+            LcDsur_const += nDoc[Kd] * Kd * np.log(alpha)
+            LcDsur_rhoomega += nDoc[Kd] * (np.sum(ElogU[:Kd]) + \
+                np.inner(OptimizerRhoOmega.kvec(Kd), Elog1mU[:Kd]))
+    else:
+        LcDsur_const = nDoc * K * np.log(alpha)
+        LcDsur_rhoomega = nDoc * np.sum(ElogU) + \
+            nDoc * np.inner(OptimizerRhoOmega.kvec(K), Elog1mU)
 
     Lalloc = Ltop_cDiff + Ltop_logpDiff + LcDsur_const + LcDsur_rhoomega
 
