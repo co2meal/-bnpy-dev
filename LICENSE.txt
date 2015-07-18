@@ -1,3 +1,13 @@
+=====
+Notes
+=====
+
+bnpy is distributed under a 3-clause BSD license. This same license is also used by NumPy, SciPy, and other dependencies.
+
+==================================
+Official 3-clause BSD License Text
+==================================
+
 Copyright (c) 2013-2015, bnpy developers
 All rights reserved.
 
