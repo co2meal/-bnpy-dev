@@ -5,10 +5,12 @@ from scipy.special import digamma, gammaln
 
 try:
     import KMeansRex
-    RunKMeans = KMeansRex.RunKMeans
+    def RunKMeans(X, K, seed):
+        return KMeansRex.RunKMeans(
+            X, K, initname='plusplus', seed=seed, Niter=500)
 except ImportError:
     from scipy.cluster.vq import kmeans2
-    def RunKMeans(X, K, seed=0, Niter=50, **kwargs):
+    def RunKMeans(X, K, seed):
         np.random.seed(seed)
         Mu, Z = kmeans2(X, K, minit='points')
         return Mu, Z
@@ -218,7 +220,7 @@ def createSplitStats_HDPTopicModel_kmeans(
     doc_mask = np.flatnonzero(curLPslice['DocTopicCount'][:, ktarget] > 1)
     Dtarget = Dslice.select_subset_by_mask(doc_mask)
     Xtarget = Dtarget.getDocTypeCountMatrix()
-    Mu, Z = RunKMeans(Xtarget, xK, seed=lapFrac)
+    Mu, Z = RunKMeans(Xtarget, xK, seed=lapFrac*1000)
     Z = Z.flatten()
 
     # Make a token-specific resp that assigns all words from each doc
