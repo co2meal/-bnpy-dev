@@ -98,7 +98,7 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None, \
     KwArgs['OutputPrefs']['taskid'] = taskID
   nTask = KwArgs['OutputPrefs']['nTask']
   
-  if 'hoData' in 'kwargs':
+  if 'hoData' in kwargs:
     hoData = kwargs['hoData']
   else:
     hoData = None
