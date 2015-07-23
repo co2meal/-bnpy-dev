@@ -774,7 +774,6 @@ class WordsData(DataObj):
         if topic_prior is None:
             topic_prior = gamma * probs
         from bnpy.util import RandUtil
-        PRNG = np.random.RandomState(seed)
 
         K = topics.shape[0]
         V = topics.shape[1]
@@ -793,6 +792,9 @@ class WordsData(DataObj):
         # lists
         startPos = 0
         for d in xrange(nDocTotal):
+            docseed = (seed * d) % (100000000) # need docseed to have type int
+            PRNG = np.random.RandomState(docseed)
+
             # Draw topic appearance probabilities for this document
             Pi[d, :] = PRNG.dirichlet(topic_prior)
 
