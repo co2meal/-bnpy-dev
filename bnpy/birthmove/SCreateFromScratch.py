@@ -239,7 +239,10 @@ def createSplitStats_HDPTopicModel_kmeans(
 
     xSSfake = curModel.obsModel.get_global_suff_stats(
         Dslice, None, dict(resp=xresp))
+    bigtosmall = np.argsort(-1 * xSSfake.getCountVec())
+    xSSfake.reorderComps(bigtosmall)
     xSSfake.setUIDs(newUIDs[:Kused])
+
     return assignSplitStats(
         Dslice, curModel, curLPslice, curSSwhole, xSSfake,
         targetUID=targetUID,

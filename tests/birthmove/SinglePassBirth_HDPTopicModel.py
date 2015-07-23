@@ -1,5 +1,7 @@
 import argparse
 import numpy as np
+import os
+import sys
 import bnpy
 import time
 
@@ -12,14 +14,18 @@ from matplotlib import pylab;
 ConfigPylabDefaults(pylab)
 
 DefaultKwargs = dict(
-     nDocPerBatch=10, nDocTotal=500, nWordsPerDoc=400,
-     nFixedInitLaps=0, Kinit=1, targetUID=0,
+     nDocPerBatch=10,
+     nDocTotal=500, nWordsPerDoc=400,
+     nFixedInitLaps=0,
+     Kinit=1,
+     targetUID=0,
      creationProposalName='kmeans',
      doInteractiveViz=False,
      ymin=-2,
      ymax=1.5, 
      Kfresh=10, 
-     doPause=1,     
+     doShowAfter=1,
+     outputdir='/tmp/',
     )
 
 def main(**kwargs):
@@ -49,7 +55,8 @@ def main(**kwargs):
     targetUID = args.targetUID
     doInteractiveViz = args.doInteractiveViz
     Kfresh = args.Kfresh
-
+    outputdir = args.outputdir
+    print "OUTPUT: ", outputdir
     nBatch = int(nDocTotal // nDocPerBatch)
 
     LPkwargs = DefaultLPkwargs
@@ -58,12 +65,18 @@ def main(**kwargs):
     Data = BarsK10V900.get_data(nDocTotal=nDocTotal, nWordsPerDoc=nWordsPerDoc)
     Data.alwaysTrackTruth = 1
     DataIterator = Data.to_iterator(nBatch=nBatch, nLap=10)
+    
+    # Use first few docs to initialize!
+    initPRNG = np.random.RandomState(5678)
+    #initDocIDs = initPRNG.choice(Data.nDoc, 25, replace=False)
+    initDocIDs = DataIterator.IDsPerBatch[0][:4]
+    InitData = Data.select_subset_by_mask(initDocIDs)
 
     hmodel = bnpy.HModel.CreateEntireModel(
         'moVB', 'HDPTopicModel', 'Mult',
         dict(alpha=0.5, gamma=10), dict(lam=0.1), Data)
     hmodel.init_global_params(
-        DataIterator.getBatch(0), K=Kinit, initname='kmeansplusplus')
+        InitData, K=Kinit, initname='kmeansplusplus', seed=5678)
 
     # Do some fixed-truncation local/global steps
     SS = None
@@ -111,10 +124,13 @@ def main(**kwargs):
                 Dbatch, hmodel, LPbatch, curSSwhole=SS,
                 creationProposalName=creationProposalName,
                 targetUID=targetUID,
+                batchPos=batchID,
                 newUIDs=np.arange(100, 100+Kfresh),
                 LPkwargs=LPkwargs,
                 returnPropSS=1)
+
             xSSbatch_first = xSSbatch
+            LPbatch_first = LPbatch
             xSS = xSSbatch.copy()
             propSS_agg = propSSbatch.copy()
         else:
@@ -137,7 +153,7 @@ def main(**kwargs):
 
         hmodel.update_global_params(SS)
 
-        if batchID < 25 or (batchID + 1) % 2 == 0:
+        if batchID < 32 or (batchID + 1) % 4 == 0:
             curLscore = hmodel.calc_evidence(SS=SS)
             curLbyterm = hmodel.calc_evidence(SS=SS, todict=1)
 
@@ -235,9 +251,19 @@ def main(**kwargs):
                    linewidth=linewidth,
                    alpha=alpha,
                    label=label)
-    pylab.show(block=False)
-    xlims = [0, Lines['xs'].max() * 1.05]
+    pylab.gca().set_xscale('log')
+    M = int(np.ceil(np.log(nDocTotal)/np.log(2)))
+    xticks = np.asarray([2**x for x in range(0, M+1)])
+    if xticks.size > 5:
+        xticks = xticks[::2] # keep every second
+    if xticks[-1] < M:
+        xticks = np.append(xticks, M)
+
+    xlims = [1.0/8.0, xticks[-1] * 2]
     pylab.xlim(xlims)
+    pylab.xticks(xticks)
+    pylab.gca().set_xticklabels(xticks)
+
     pylab.ylim([args.ymin, args.ymax])
     pylab.plot(xlims, np.zeros_like(xlims), 'k--')
     pylab.xlabel('number of docs processed')
@@ -249,9 +275,9 @@ def main(**kwargs):
         xstop = Lines['xs'][good_xs[-1]] + nDocPerBatch // 2
         pylab.axvspan(xstart, xstop, color='green', alpha=0.2)
         if xstart > nDocPerBatch:
-            pylab.axvspan(xlims[0], xstart, color='red', alpha=0.2)
+            pylab.axvspan(xticks[0], xstart, color='red', alpha=0.2)
         if xstop < nDocTotal:
-            pylab.axvspan(xstop, xlims[-1], color='red', alpha=0.2)
+            pylab.axvspan(xstop, xticks[-1], color='red', alpha=0.2)
     else:
         pylab.axvspan(xlims[0], xlims[-1], color='red', alpha=0.2)
     pylab.draw()
@@ -261,55 +287,61 @@ def main(**kwargs):
     lhandles = [lhandles[o] for o in order]
     labels = [labels[o] for o in order]
     pylab.legend(lhandles, labels,
-                 loc='lower right',
+                 loc='lower left',
                  ncol=1)
     keys = ['nWordsPerDoc', 'nDocPerBatch', 'nDocTotal', 
             'Kinit', 'targetUID', 'nFixedInitLaps']
-    filename = '/tmp/ELBOgain'
+    filesuffix = ''
     for key in keys:
-        filename += '-%s=%d' % (key, getattr(args, key))
-    pylab.savefig(filename + '.png', bbox_inches='tight', pad_inches=0)
-    pylab.savefig(filename + '.eps', bbox_inches='tight', pad_inches=0)
-    
+        filesuffix += '-%s=%d' % (key, getattr(args, key))
+    filename = os.path.join(outputdir, 'ELBOgain')
+    pylab.savefig(filename + filesuffix + '.png', bbox_inches='tight', pad_inches=0)
 
     bnpy.viz.PlotComps.plotCompsFromHModel(
         hmodel, compsToHighlight=[targetUID])
-    filename = '/tmp/BeforeComps'
-    for key in keys:
-        filename += '-%s=%d' % (key, getattr(args, key))
-    pylab.savefig(filename + '.png', bbox_inches='tight', pad_inches=0)
-    pylab.savefig(filename + '.eps', bbox_inches='tight', pad_inches=0)
+    filename = os.path.join(outputdir, 'BeforeComps')
+    pylab.savefig(filename + filesuffix + '.png', bbox_inches='tight', pad_inches=0)
 
     seedModel = hmodel.copy()
     seedModel.update_global_params(xSSbatch_first)
     bnpy.viz.PlotComps.plotCompsFromHModel(
         seedModel)
-    filename = '/tmp/FirstFreshComps'
-    for key in keys:
-        filename += '-%s=%d' % (key, getattr(args, key))
-    pylab.savefig(filename + '.png', bbox_inches='tight', pad_inches=0)
-    pylab.savefig(filename + '.eps', bbox_inches='tight', pad_inches=0)
-
-    from IPython import embed; embed()
-    bnpy.viz.BarsViz.showTopicsAsSquareImages(
-        DataIterator.getBatch(0).getDocTypeCountMatrix())
-    filename = '/tmp/FirstDocs'
-    for key in keys:
-        filename += '-%s=%d' % (key, getattr(args, key))
-    pylab.savefig(filename + '.png', bbox_inches='tight', pad_inches=0)
-    pylab.savefig(filename + '.eps', bbox_inches='tight', pad_inches=0)
-    pylab.show(block=False)
+    filename = os.path.join(outputdir, 'FirstFreshComps')
+    pylab.savefig(filename + filesuffix + '.png', bbox_inches='tight', pad_inches=0)
 
     bnpy.viz.PlotComps.plotCompsFromHModel(
         propModel, compsToHighlight=highlightComps)
-    filename = '/tmp/AfterComps'
-    for key in keys:
-        filename += '-%s=%d' % (key, getattr(args, key))
-    pylab.savefig(filename + '.png', bbox_inches='tight', pad_inches=0)
-    pylab.savefig(filename + '.eps', bbox_inches='tight', pad_inches=0)
-    pylab.show(block=False)
+    filename = os.path.join(outputdir, 'AfterComps')
+    pylab.savefig(filename + filesuffix + '.png', bbox_inches='tight', pad_inches=0)
+    print filename + filesuffix + '.png', '<<<<<<'
 
-    if args.doPause:
+    # Show document subset!
+    Dfirst = DataIterator.getBatch(0)
+    DocTypeMat = Dfirst.getDocTypeCountMatrix()
+    PRNG = np.random.RandomState(0)
+    if Dfirst.nDoc > 25:
+        relDocs = PRNG.choice(nDocPerBatch, 25, replace=False)
+        DocTypeMat = DocTypeMat[relDocs]
+    else:
+        relDocs = np.arange(Dfirst.nDoc)
+    bnpy.viz.BarsViz.showTopicsAsSquareImages(DocTypeMat, vmax=5, cmap='bone_r')
+    filename = os.path.join(outputdir, 'FirstDocs')
+    pylab.savefig(filename + filesuffix + '.png', bbox_inches='tight', pad_inches=0)
+
+    # Show reassigned subset of document subset!
+    relResp = LPbatch_first['resp'][:, targetUID]
+    for relID, d in enumerate(relDocs):
+        start = Dfirst.doc_range[d]
+        stop = Dfirst.doc_range[d+1]
+        DocTypeMat[relID, Dfirst.word_id[start:stop]] *= relResp[start:stop]
+    bnpy.viz.BarsViz.showTopicsAsSquareImages(DocTypeMat, vmax=5, cmap='bone_r')
+    filename = os.path.join(outputdir, 'FirstRelevantDocs')
+    pylab.savefig(filename + filesuffix + '.png', bbox_inches='tight', pad_inches=0)
+
+
+
+    if args.doShowAfter:
+        pylab.show(block=False)
         keypress = raw_input("Press key to continue >>>")
         if keypress.count('embed'):
             from IPython import embed; embed()

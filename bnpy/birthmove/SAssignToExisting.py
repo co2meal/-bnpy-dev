@@ -50,6 +50,7 @@ def assignSplitStats_HDPTopicModel(
         targetUID=0,
         returnPropSS=0,
         LPkwargs=None,
+        batchPos=None,
         verbose=False,
         **kwargs):
     ''' Reassign target comp. using an existing set of proposal states.
@@ -63,17 +64,22 @@ def assignSplitStats_HDPTopicModel(
     Korig = curSSwhole.K
     Kfresh = propXSS.K
     ktarget = curSSwhole.uid2k(targetUID)
+    Nfresh_active = propXSS.getCountVec()
+    Kfresh_active = np.flatnonzero(Nfresh_active > 1e-50)[-1] + 1
 
     tmpModel = curModel.copy()
     tmpModel.obsModel.update_global_params(propXSS)
 
     xLPslice = tmpModel.obsModel.calc_local_params(Dslice)
+
     xDocTopicCount = np.zeros((Dslice.nDoc, Kfresh))
-    xtheta = np.zeros((Dslice.nDoc, Kfresh))
-    thetaRem = curModel.allocModel.alpha_E_beta_rem()
 
     xalphaEbeta = _calc_expansion_alphaEbeta(curModel, ktarget, Kfresh)
     thetaEmptyComp = xalphaEbeta[0] * 1.0
+    thetaRem = curModel.allocModel.alpha_E_beta_rem()
+    xtheta = np.tile(xalphaEbeta, (Dslice.nDoc, 1))
+
+    xalphaEbeta_active = xalphaEbeta[:Kfresh_active]
 
     # From-scratch strategy
     for d in range(Dslice.nDoc):
@@ -82,17 +88,17 @@ def assignSplitStats_HDPTopicModel(
 
         wc_d = Dslice.word_count[start:stop]
 
-        xLik_d = xLPslice['E_log_soft_ev'][start:stop, :]
+        xLik_d = xLPslice['E_log_soft_ev'][start:stop, :Kfresh_active]
         np.exp(xLik_d, out=xLik_d)
        
         targetsumResp_d = curLPslice['resp'][start:stop, ktarget] * wc_d
         xsumResp_d = np.zeros_like(targetsumResp_d)
         
-        xDocTopicCount_d = np.zeros(Kfresh)
+        xDocTopicCount_d = np.zeros(Kfresh_active)
         xDocTopicProb_d = np.zeros_like(xDocTopicCount_d)
-        prevxDocTopicCount_d = 500*np.ones(Kfresh)
+        prevxDocTopicCount_d = 500*np.ones(Kfresh_active)
         for riter in range(LPkwargs['nCoordAscentItersLP']):
-            np.add(xDocTopicCount_d, xalphaEbeta, out=xDocTopicProb_d)
+            np.add(xDocTopicCount_d, xalphaEbeta_active, out=xDocTopicProb_d)
             digamma(xDocTopicProb_d, out=xDocTopicProb_d)
             xDocTopicProb_d -= xDocTopicProb_d.max()
             np.exp(xDocTopicProb_d, out=xDocTopicProb_d)
@@ -132,10 +138,11 @@ def assignSplitStats_HDPTopicModel(
         xResp_d /= xsumResp_d[:, np.newaxis]
         xResp_d *= curLPslice['resp'][start:stop, ktarget][:, np.newaxis]
         np.maximum(xResp_d, 1e-100, out=xResp_d)
-        xDocTopicCount[d, :] = xDocTopicCount_d
-        xtheta[d, :] = xDocTopicCount_d + xalphaEbeta
+        xDocTopicCount[d, :Kfresh_active] = xDocTopicCount_d
+        xtheta[d, :Kfresh_active] += xDocTopicCount_d
 
     xLPslice['resp'] = xLPslice['E_log_soft_ev'] # modified in-place
+    xLPslice['resp'][:, Kfresh_active:] = 1e-100
     del xLPslice['E_log_soft_ev']
 
     digammaSumTheta = curLPslice['digammaSumTheta'].copy()
@@ -162,12 +169,17 @@ def assignSplitStats_HDPTopicModel(
 
     xSSslice = tmpModel.get_global_suff_stats(
         Dslice, xLPslice, doPrecompEntropy=1, doTrackTruncationGrowth=1)
+    if batchPos == 0:
+        order = np.argsort(-1 * xSSslice.getCountVec())
+        xSSslice.reorderComps(order)
+    else:
+        order = None
     xSSslice.setUIDs(propXSS.uids)
 
     if returnPropSS:
         return _verify_HDPTopicModel_and_return_xSSslice_and_propSSslice(
             Dslice, curModel, curLPslice, xLPslice, xSSslice, 
-            ktarget=ktarget, **kwargs)
+            ktarget=ktarget, order=order, **kwargs)
     return xSSslice
 
 def _calc_expansion_alphaEbeta(curModel, ktarget=0, Kfresh=0):
@@ -187,13 +199,14 @@ def _calc_expansion_alphaEbeta(curModel, ktarget=0, Kfresh=0):
 def _verify_HDPTopicModel_and_return_xSSslice_and_propSSslice(
             Dslice, curModel, curLPslice, xLPslice, xSSslice, 
             ktarget=None,
+            order=None,
             **kwargs):
         '''
 
         Returns
         -------
         xSSslice
-        propSSslice
+        propSSslice : optional
         '''
         Kfresh = xLPslice['resp'].shape[1]
         Korig = curLPslice['resp'].shape[1]
@@ -220,6 +233,10 @@ def _verify_HDPTopicModel_and_return_xSSslice_and_propSSslice(
                            propLPslice['theta'][:, Korig:])
         propSSslice = curModel.get_global_suff_stats(
             Dslice, propLPslice, doPrecompEntropy=1, doTrackTruncationGrowth=1)
+        if order is not None:
+            order = np.hstack([np.arange(Korig), order+Korig])
+            propSSslice.reorderComps(order)
+            propSSslice.setUIDs(np.arange(propSSslice.K))
         assert np.allclose(propSSslice.getELBOTerm('gammalnTheta')[ktarget],
                            Dslice.nDoc * gammaln(propalphaEbeta[ktarget]))
         slackThetaEmpty = np.sum(
