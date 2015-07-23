@@ -8,7 +8,7 @@ import numpy as np
 from PlotUtil import pylab
 
 imshowArgs = dict(interpolation='nearest',
-                  cmap='bone',
+                  cmap='bone_r', # zero is white, large values are black
                   vmin=0.0,
                   vmax=0.1)
 
@@ -160,7 +160,6 @@ def showTopicsAsSquareImages(topics,
                              W=1, H=1, figH=None,
                              **kwargs):
     imshowArgs.update(kwargs)
-
     if len(xlabels) > 0:
         H = 1.5 * H
     K, V = topics.shape
@@ -203,7 +202,6 @@ def showTopicsAsSquareImages(topics,
 
         kk = np.flatnonzero(compID == activeCompIDs)[0]
         topicIm = np.reshape(topics[kk, :], (sqrtV, sqrtV))
-
         ax = pylab.subplot(nrows, ncols, plotID + 1)
         pylab.imshow(topicIm, aspect=1.0, **imshowArgs)
         pylab.xticks([])
