@@ -441,7 +441,7 @@ class WordsData(DataObj):
         setattr(self, key, C)
         return C
 
-    def getDocTypeCountMatrix(self):
+    def getDocTypeCountMatrix(self, weights=None, **kwargs):
         ''' Get dense matrix counting vocab usage for each document.
 
         Returns
@@ -450,15 +450,16 @@ class WordsData(DataObj):
             C[d,v] = total count of vocab type v in document d
         '''
         key = '__DocTypeCountMat'
-        if hasattr(self, key):
+        if hasattr(self, key) and weights is None:
             return getattr(self, key)
 
-        C = self.getSparseDocTypeCountMatrix()
+        C = self.getSparseDocTypeCountMatrix(weights=weights, **kwargs)
         X = C.toarray()
-        setattr(self, key, X)
+        if weights is None:
+            setattr(self, key, X)
         return X
 
-    def getSparseDocTypeCountMatrix(self, **kwargs):
+    def getSparseDocTypeCountMatrix(self, weights=None, **kwargs):
         ''' Make sparse matrix counting vocab usage for each document.
 
         Returns
@@ -468,15 +469,21 @@ class WordsData(DataObj):
         '''
         # Check cache, return the matrix if we've computed it already
         key = '__sparseDocTypeCountMat'
-        if hasattr(self, key):
+        if hasattr(self, key) and weights is None:
             return getattr(self, key)
+
+        if weights is None:
+            data = self.word_count
+        else:
+            data = self.word_count * weights
 
         # Create CSR matrix representation
         C = scipy.sparse.csr_matrix(
-            (self.word_count, self.word_id, self.doc_range),
+            (data, self.word_id, self.doc_range),
             shape=(self.nDoc, self.vocab_size),
             dtype=np.float64)
-        setattr(self, key, C)
+        if weights is None:
+            setattr(self, key, C)
         return C
 
     def clearCache(self):
