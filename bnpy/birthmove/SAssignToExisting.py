@@ -16,6 +16,7 @@ def assignSplitStats(
     xSSslice = assignSplitStatsFunc(
         Dslice, hmodel, curLPslice, curSSwhole, propXSS,
         **kwargs)
+
     return xSSslice
 
 def assignSplitStats_DPMixtureModel(
@@ -87,7 +88,6 @@ def assignSplitStats_HDPTopicModel(
         stop = Dslice.doc_range[d+1]
 
         wc_d = Dslice.word_count[start:stop]
-
         xLik_d = xLPslice['E_log_soft_ev'][start:stop, :Kfresh_active]
         np.exp(xLik_d, out=xLik_d)
        
@@ -118,9 +118,11 @@ def assignSplitStats_HDPTopicModel(
                 rtol=0, atol=1e-6)
             if verbose:
                 print ' '.join(['%6.1f' % x for x in xDocTopicCount_d])
-            maxDiff_d = np.abs(prevxDocTopicCount_d - xDocTopicCount_d).max()
-            if maxDiff_d < LPkwargs['convThrLP']:
-                break
+            if riter % 5 == 0:
+                maxDiff_d = np.max(np.abs(
+                    prevxDocTopicCount_d - xDocTopicCount_d))
+                if maxDiff_d < LPkwargs['convThrLP']:
+                    break
             prevxDocTopicCount_d[:] = xDocTopicCount_d
 
         if verbose:
