@@ -5,31 +5,36 @@ import sys
 import bnpy
 import time
 
+from matplotlib import pylab;
+from distutils.dir_util import mkpath
 from bnpy.birthmove.BirthProposalError import BirthProposalError
 from bnpy.birthmove.SCreateFromScratch import createSplitStats
 from bnpy.birthmove.SAssignToExisting import assignSplitStats
 from bnpy.birthmove.SCreateFromScratch import DefaultLPkwargs
 from bnpy.viz.PlotUtil import ConfigPylabDefaults
 from bnpy.viz.PrintTopics import printTopWordsFromWordCounts
-from matplotlib import pylab;
+from bnpy.viz.PrintTopics import plotCompsFromWordCounts, uidsAndCounts2strlist
 
 ConfigPylabDefaults(pylab)
 
 DefaultKwargs = dict(
-     nDocPerBatch=10,
-     nDocTotal=500,
-     nWordsPerDoc=400,
-     nFixedInitLaps=0,
-     Kinit=1,
-     targetUID=0,
-     creationProposalName='kmeans',
-     doInteractiveViz=False,
-     ymin=-2,
-     dataName='nips',
-     ymax=1.5, 
-     Kfresh=10, 
-     doShowAfter=1,
-     outputdir='/tmp/',
+    nDocPerBatch=10,
+    nDocTotal=500,
+    nWordsPerDoc=400,
+    nFixedInitLaps=0,
+    Kinit=1,
+    targetUID=0,
+    creationProposalName='kmeans',
+    doInteractiveViz=False,
+    ymin=-2,
+    dataName='nips',
+    ymax=1.5, 
+    Kfresh=10, 
+    doShowAfter=1,
+    outputdir='/tmp/',
+    b_includeRemainderTopic=1,
+    b_nRefineSteps=3,
+    b_minNumAtomsInDoc=100,
     )
 
 def main(**kwargs):
@@ -66,20 +71,28 @@ def main(**kwargs):
 
     LPkwargs = DefaultLPkwargs
 
+    bkwargs = dict()
+    for key in args.__dict__:
+        if key.startswith('b_'):
+            bkwargs[key] = getattr(args, key)
+    print 'BIRTH kwargs:'
+    for key in bkwargs:
+        print key, bkwargs[key]
+
     if dataName.count('BarsK10V900'):
         import BarsK10V900
         Data = BarsK10V900.get_data(
             nDocTotal=nDocTotal, nWordsPerDoc=nWordsPerDoc)
         Data.alwaysTrackTruth = 1
     else:   
-        os.environ['BNPYDATADIR'] = \
-            '/Users/mhughes/git/x-topics/datasets/nips/'
+        os.environ['BNPYDATADIR'] = os.path.join(
+            os.environ['HOME'], 'git/x-topics/datasets/' + dataName + '/')
         sys.path.append(os.environ['BNPYDATADIR'])
-        import nips
-        Data = nips.get_data()
+        dataMod = __import__(dataName, fromlist=[])
+        Data = dataMod.get_data()
         vocabList = Data.vocabList
         Data = Data.select_subset_by_mask(range(nDocTotal))
-        Data.name = 'nips'
+        Data.name = dataName
         Data.vocabList = vocabList
     DataIterator = Data.to_iterator(nBatch=nBatch, nLap=10)
     
@@ -119,12 +132,15 @@ def main(**kwargs):
             SS = SSbatch
             SS.setUIDs(uids)
         hmodel.update_global_params(SS)
-        from IPython import embed; embed()
 
         for pos, targetUID in enumerate(SS.uids):
             if targetUID in rejectedComps:
                 continue
-            startuid = 1000 * nRep + 10 * pos
+            propdir = 'rep=%d_targetUID=%d' % (nRep, targetUID)
+            b_debugOutputDir = os.path.join(outputdir, propdir)
+            mkpath(b_debugOutputDir)
+
+            startuid = 1000 * nRep + Kfresh * pos
             newUIDs=np.arange(startuid, startuid+Kfresh)
             try:
                 xSS, Info = createSplitStats(
@@ -134,7 +150,9 @@ def main(**kwargs):
                     batchPos=0,
                     newUIDs=newUIDs,
                     LPkwargs=LPkwargs,
-                    returnPropSS=0)
+                    returnPropSS=0,
+                    b_debugOutputDir=b_debugOutputDir,
+                    **bkwargs)
             except BirthProposalError as e:
                 print 'SKIPPED!'
                 print str(e)
@@ -159,7 +177,12 @@ def main(**kwargs):
             curLscore = hmodel.calc_evidence(SS=SS)
             propLscore = propModel.calc_evidence(SS=propSS)
 
+            curLdict = hmodel.calc_evidence(SS=SS, todict=1)
+            propLdict = propModel.calc_evidence(SS=propSS, todict=1)
+
             if doInteractiveViz:
+                xlabels = uidsAndCounts2strlist(propSS)
+
                 if Data.name.count('Bars'):
                     bnpy.viz.BarsViz.showTopicsAsSquareImages(
                         Info['xSSfake'].WordCounts,
@@ -170,17 +193,19 @@ def main(**kwargs):
                     bnpy.viz.PlotComps.plotCompsFromHModel(
                         propModel,
                         compsToHighlight=[pos],
-                        xlabels=[
-                            '%.0f' % (x)
-                            for x in propSS.getCountVec()])
+                        xlabels=xlabels)
                 else:
                     print 'TOPIC TO SPLIT'
                     ktarget = SS.uid2k(targetUID)
                     printTopWordsFromWordCounts(
                         SS.WordCounts[ktarget][np.newaxis,:], Data.vocabList)
-                    print 'PROPOSED TOPICS'
+                    print 'NEW TOPICS'
                     printTopWordsFromWordCounts(
-                        propSS.WordCounts[-Kfresh:], Data.vocabList)
+                        propSS.WordCounts, Data.vocabList)
+                    plotCompsFromWordCounts(
+                        propSS.WordCounts, Data.vocabList,
+                        xlabels=xlabels,
+                        )
 
             # Decision time: accept or reject
             if propLscore > curLscore:
@@ -194,9 +219,11 @@ def main(**kwargs):
             print ' curLscore %.5f' % (curLscore)
             print 'propLscore %.5f' % (propLscore)
 
+            for key in ['Ldata', 'Lentropy', 'Lalloc', 'LcDtheta']:
+                print '  %s : %.5f' % (key, propLdict[key] - curLdict[key])
+
             if doInteractiveViz:
-                if Data.name.count('Bars'):
-                    pylab.show(block=False)
+                pylab.show(block=False)
                 keypress = raw_input("Press any key >>>")
                 if keypress == 'embed':
                     from IPython import embed; embed()

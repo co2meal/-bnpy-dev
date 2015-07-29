@@ -1,8 +1,14 @@
 import numpy as np
+import os
+import sys
 
 from SAssignToExisting import assignSplitStats, _calc_expansion_alphaEbeta
 from scipy.special import digamma, gammaln
 from BirthProposalError import BirthProposalError
+from bnpy.viz.PlotComps import plotAndSaveCompsFromSS
+from bnpy.viz.ProposalViz import plotELBOtermsForProposal
+from bnpy.viz.ProposalViz import plotDocUsageForProposal
+from bnpy.viz.ProposalViz import makeSingleProposalHTMLStr
 
 try:
     import KMeansRex
@@ -18,7 +24,7 @@ except ImportError:
 
 def createSplitStats(
         Dslice, hmodel, curLPslice, curSSwhole=None,
-        creationProposalName='truelabels',
+        b_creationProposalName='truelabels',
         **kwargs):
     ''' Reassign target component to new states.
 
@@ -32,7 +38,7 @@ def createSplitStats(
         (k,v) for (k,v) in globals().items()
         if str(k).count('createSplitStats')])
     aName = hmodel.getAllocModelName()
-    funcName = 'createSplitStats_' + aName + '_' + creationProposalName
+    funcName = 'createSplitStats_' + aName + '_' + b_creationProposalName
     if funcName not in createSplitStatsMap:
         raise NotImplementedError('Unrecognized function: ' + funcName)
     
@@ -40,6 +46,13 @@ def createSplitStats(
     xSSslice = createSplitStatsFunc(
         Dslice, hmodel, curLPslice, curSSwhole=curSSwhole,
         **kwargs)
+
+    if 'b_debugOutputDir' in kwargs and kwargs['b_debugOutputDir']:
+        htmlstr = makeSingleProposalHTMLStr(**kwargs)
+        htmlfilepath = os.path.join(kwargs['b_debugOutputDir'], 'index.html')
+        with open(htmlfilepath, 'w') as f:
+            f.write(htmlstr)
+        print "DEBUGGER WROTE: ", htmlfilepath
     return xSSslice
 
 
@@ -257,7 +270,10 @@ def createSplitStats_HDPTopicModel_MultBregDiv(
         targetUID=0, LPkwargs=DefaultLPkwargs,
         newUIDs=None,
         lapFrac=0,
-        includeRemainderTopic=1,
+        b_includeRemainderTopic=1,
+        b_nRefineSteps=3,
+        b_minNumAtomsInDoc=100,
+        b_debugOutputDir=None,
         returnPropSS=0,
         **kwargs):
     ''' Reassign target component to new states using bregman divergence.
@@ -278,8 +294,9 @@ def createSplitStats_HDPTopicModel_MultBregDiv(
         K=xK,
         ktarget=ktarget,
         lapFrac=lapFrac,
+        b_minNumAtomsInDoc=b_minNumAtomsInDoc,
         **kwargs)
-    if includeRemainderTopic:
+    if b_includeRemainderTopic:
         chosenDocIDs = chosenDocIDs[:-1]
         Kused = 1
     else:
@@ -292,7 +309,7 @@ def createSplitStats_HDPTopicModel_MultBregDiv(
         xresp[start:stop, Kused] = curLPslice['resp'][start:stop, ktarget]
         Kused += 1
     xresp = xresp[:, :Kused]
-    if includeRemainderTopic:
+    if b_includeRemainderTopic:
         emptyIDs = xresp.sum(axis=1) < 1e-50
         xresp[emptyIDs, 0] = curLPslice['resp'][emptyIDs, ktarget]
     xSSfake = curModel.obsModel.get_global_suff_stats(
@@ -301,13 +318,29 @@ def createSplitStats_HDPTopicModel_MultBregDiv(
     bigtosmall = np.argsort(-1 * xSSfake.getCountVec())
     xSSfake.reorderComps(bigtosmall)
     xSSfake.setUIDs(newUIDs[:Kused])
-
     DebugInfo = dict(
         chosenDocIDs=chosenDocIDs,
         xSSfake=xSSfake,
         )
+    if b_debugOutputDir:
+        plotAndSaveCompsFromSS(
+            curModel, curSSwhole, b_debugOutputDir, 'OrigComps.png',
+            vocabList=Dslice.vocabList,
+            compsToHighlight=[ktarget])
+        plotAndSaveCompsFromSS(
+            curModel, xSSfake, b_debugOutputDir, 'NewComps_Init.png',
+            vocabList=Dslice.vocabList)
+        curLdict = curModel.calc_evidence(SS=curSSwhole, todict=1)
+        propLdictList = list()
+        docUsageByUID = dict()
+        for k, uid in enumerate(xSSfake.uids):
+            if k == 0:
+                docUsageByUID[uid] = [Dslice.nDoc - xSSfake.K]
+            else:
+                docUsageByUID[uid] = [1]
+
     xSSslice = xSSfake
-    for i in range(5):
+    for i in range(b_nRefineSteps):
         xSSslice = assignSplitStats(
             Dslice, curModel, curLPslice, curSSwhole, xSSslice,
             targetUID=targetUID,
@@ -315,18 +348,51 @@ def createSplitStats_HDPTopicModel_MultBregDiv(
             returnPropSS=returnPropSS,
             lapFrac=lapFrac,
             **kwargs)
-        print xSSslice.getCountVec()
-    nnzCount = np.sum(xSSslice.getCountVec() >= 1 - 1e-4)
-    if nnzCount < 2:
-        raise BirthProposalError(
-            "Could not create at least two comps with mass >= 1.")
+        CountVec = xSSslice.getCountVec()
+        print ' '.join(['%.0f' % (x) for x in CountVec])
+        if i < (b_nRefineSteps-2):
+            # On every step, delete virtually empty comps (mass < 1)
+            badids = np.flatnonzero(CountVec < 1)
+            for k in reversed(badids):
+                xSSslice.removeComp(k)
+        elif i == (b_nRefineSteps-2):
+            # After all but last step, delete small (but not empty) comps
+            badids = np.flatnonzero(CountVec < b_minNumAtomsInDoc)
+            for k in reversed(badids):
+                xSSslice.removeComp(k)
+        if b_debugOutputDir:
+            plotAndSaveCompsFromSS(
+                curModel, xSSslice, b_debugOutputDir,
+                filename='NewComps_Step%d.png' % (i+1),
+                vocabList=Dslice.vocabList)
+            propSS = curSSwhole.copy()
+            propSS.transferMassFromExistingToExpansion(
+                uid=targetUID, xSS=xSSslice)
+            propModel = curModel.copy()
+            propModel.update_global_params(propSS)
+            propLdict = propModel.calc_evidence(SS=propSS, todict=1)
+            propLdictList.append(propLdict)
+            docUsageVec = xSSslice.getSelectionTerm('DocUsageCount')
+            for k, uid in enumerate(xSSslice.uids):
+                docUsageByUID[uid].append(docUsageVec[k])
+        nnzCount = np.sum(xSSslice.getCountVec() >= 1)
+        if nnzCount < 2:
+            raise BirthProposalError(
+                "Could not create at least two comps with mass >= 1.")
+    if b_debugOutputDir:
+        savefilename = os.path.join(b_debugOutputDir, 'ProposalTrace_ELBO.png')
+        plotELBOtermsForProposal(curLdict, propLdictList,
+                                 savefilename=savefilename)
+        savefilename = os.path.join(b_debugOutputDir, 'ProposalTrace_DocUsage.png')
+        plotDocUsageForProposal(docUsageByUID,
+                                savefilename=savefilename)
     if returnPropSS:
         return xSSslice[0], xSSslice[1]
     return xSSslice, DebugInfo
 
 def sampleDocIDsByBregDiv_Mult(
         Dslice, curModel=None, curLPslice=None,
-        K=5, ktarget=None, minCountThr=10, 
+        K=5, ktarget=None, b_minNumAtomsInDoc=10, 
         lapFrac=0, doSample=True,
         **kwargs):
     ''' Sample document ids by Bregman divergence.
@@ -340,7 +406,7 @@ def sampleDocIDsByBregDiv_Mult(
         weights=curLPslice['resp'][:,ktarget])
     # Keep only rows with minimum count
     rowsWithEnoughData = np.flatnonzero(
-        DocWordMat.sum(axis=1) > minCountThr)
+        DocWordMat.sum(axis=1) > b_minNumAtomsInDoc)
     DocWordMat = DocWordMat[rowsWithEnoughData]
     Keff = np.minimum(K, DocWordMat.shape[0])
     if Keff < 1:

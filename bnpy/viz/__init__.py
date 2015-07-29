@@ -6,6 +6,7 @@ import BarsViz
 import BernViz
 import GaussViz
 import SequenceViz
+import ProposalViz
 
 import PlotTrace
 import PlotELBO
@@ -19,6 +20,6 @@ import JobFilter
 import TaskRanker
 
 __all__ = ['GaussViz', 'BernViz', 'BarsViz', 'SequenceViz',
-           'PlotTrace', 'PlotELBO', 'PlotK',
+           'PlotTrace', 'PlotELBO', 'PlotK', 'ProposalViz',
            'PlotComps', 'PlotParamComparison',
            'PlotHeldoutLik', 'JobFilter', 'TaskRanker']

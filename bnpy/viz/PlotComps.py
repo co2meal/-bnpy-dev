@@ -19,7 +19,7 @@ import bnpy.viz
 from bnpy.ioutil import ModelReader
 from bnpy.viz.TaskRanker import rankTasksForSingleJobOnDisk
 from bnpy.viz.PlotTrace import taskidsHelpMsg
-
+from bnpy.viz.PrintTopics import uidsAndCounts2strlist
 
 def plotCompsFromHModel(hmodel, **kwargs):
     """ Show plot of learned clusters for provided model.
@@ -35,7 +35,11 @@ def plotCompsFromHModel(hmodel, **kwargs):
     elif obsName.count('Bern'):
         bnpy.viz.BernViz.plotCompsFromHModel(hmodel, **kwargs)
     elif obsName.count('Mult'):
-        bnpy.viz.BarsViz.plotBarsFromHModel(hmodel, **kwargs)
+        if 'vocabList' in kwargs and kwargs['vocabList'] is not None:
+            bnpy.viz.PrintTopics.plotCompsFromHModel(hmodel, **kwargs)
+        else:
+            bnpy.viz.BarsViz.plotBarsFromHModel(hmodel, **kwargs)
+
 
 
 def plotCompsForTask(taskpath, lap=None,
@@ -88,6 +92,20 @@ def plotCompsForJob(jobpath='', taskids=[1], lap=None,
     if 'block' in kwargs:
         pylab.show(block=kwargs['block'])
 
+
+def plotAndSaveCompsFromSS(hmodel, SS, b_debugOutputDir, filename, **kwargs):
+    '''
+    '''
+    if 'xlabels' not in kwargs:
+        xlabels = uidsAndCounts2strlist(SS)
+        kwargs['xlabels'] = xlabels    
+    tmpModel = hmodel.copy()
+    tmpModel.obsModel.update_global_params(SS)
+    plotCompsFromHModel(tmpModel, **kwargs)
+    outfilepath = os.path.join(b_debugOutputDir, filename)
+    pylab.savefig(outfilepath, pad_inches=0, bbox_inches='tight')
+    pylab.close('all')
+    print 'Wrote: %s' % (outfilepath)
 
 def parseArgs(**kwargs):
     ''' Read args from stdin into defined dict fields

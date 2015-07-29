@@ -159,7 +159,12 @@ def showTopicsAsSquareImages(topics,
                              Kmax=50,
                              W=1, H=1, figH=None,
                              **kwargs):
-    imshowArgs.update(kwargs)
+    global imshowArgs    
+    local_imshowArgs = dict(**imshowArgs)
+    for key in local_imshowArgs:
+        if key in kwargs:
+            local_imshowArgs[key] = kwargs[key]
+
     if len(xlabels) > 0:
         H = 1.5 * H
     K, V = topics.shape
@@ -203,7 +208,7 @@ def showTopicsAsSquareImages(topics,
         kk = np.flatnonzero(compID == activeCompIDs)[0]
         topicIm = np.reshape(topics[kk, :], (sqrtV, sqrtV))
         ax = pylab.subplot(nrows, ncols, plotID + 1)
-        pylab.imshow(topicIm, aspect=1.0, **imshowArgs)
+        pylab.imshow(topicIm, aspect=1.0, **local_imshowArgs)
         pylab.xticks([])
         pylab.yticks([])
 
@@ -214,7 +219,7 @@ def showTopicsAsSquareImages(topics,
 
         if xlabels is not None:
             if len(xlabels) > 0:
-                pylab.xlabel(xlabels[plotID], fontsize=15)
+                pylab.xlabel(xlabels[plotID], fontsize=11)
 
     # Disable empty plots!
     for kdel in xrange(plotID + 2, nrows * ncols + 1):

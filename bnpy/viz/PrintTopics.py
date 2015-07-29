@@ -193,6 +193,128 @@ def printTopWordsFromTopics(topics, vocabList, ktarget=None, Ktop=10):
         for wID in topIDs[:Ktop]:
             print '%.3f %s' % (topics[k, wID], vocabList[wID])
 
+def plotCompsFromHModel(hmodel, **kwargs):
+    ''' Create subplots of top 10 words from each topic, from a trained model.
+    '''
+    WordCounts = hmodel.obsModel.Post.lam
+    WordCounts -= hmodel.obsModel.Prior.lam[np.newaxis,:]
+    plotCompsFromWordCounts(WordCounts, **kwargs)
+
+def plotCompsFromWordCounts(
+        WordCounts, vocabList=None,
+        compListToPlot=None,
+        compsToHighlight=None,
+        xlabels=None,
+        wordSizeLimit=10,
+        Ktop=10, Kmax=32,
+        H=2.2, W=1.5, figH=None, ncols=8):
+    ''' Create subplots of top 10 words from each topic, from word count array.
+
+    Post Condition
+    --------------
+    Current matplotlib figure has subplot for each topic.
+    '''
+    if vocabList is None:
+        raise ValueError('Missing vocabList. Cannot display topics.')
+    WordCounts = np.asarray(WordCounts, dtype=np.float64)
+    if WordCounts.ndim == 1:
+        WordCounts = WordCounts[np.newaxis,:]
+    K, vocab_size = WordCounts.shape
+    N = np.sum(WordCounts, axis=1)
+
+    if compListToPlot is None:
+        compListToPlot = np.arange(0, K)
+    Kplot = np.minimum(len(compListToPlot), Kmax)
+    if len(compListToPlot) > Kmax:
+        print 'DISPLAY LIMIT EXCEEDED. Showing %d/%d components' \
+            % (Kplot, len(compListToPlot))
+    compListToPlot = compListToPlot[:Kplot]
+    # Parse comps to highlight
+    compsToHighlight = np.asarray(compsToHighlight)
+    if compsToHighlight.ndim == 0:
+        compsToHighlight = np.asarray([compsToHighlight])
+    nrows = int(np.ceil(Kplot / float(ncols)))
+    # Create Figure
+    figH, ha = pylab.subplots(nrows=nrows, ncols=ncols,
+                              figsize=(ncols * W, nrows * H))
+    for plotID, compID in enumerate(compListToPlot):
+        ax = pylab.subplot(nrows, ncols, plotID + 1)
+
+        topicMultilineStr = ''
+        topIDs = np.argsort(-1 * WordCounts[compID])
+        for wID in topIDs[:Ktop]:
+            wctStr = count2str(WordCounts[compID, wID])
+            topicMultilineStr += '%s %s\n' % (
+                wctStr, vocabList[wID][:wordSizeLimit])
+        pylab.text(0, 0, topicMultilineStr, fontsize=10, family='monospace')
+        pylab.xlim([0, 1]);
+        pylab.ylim([0, 1]);
+        pylab.xticks([])
+        pylab.yticks([])
+
+        # Draw colored border around highlighted topics
+        if compID in compsToHighlight:
+            [i.set_color('green') for i in ax.spines.itervalues()]
+            [i.set_linewidth(3) for i in ax.spines.itervalues()]
+        if xlabels is not None:
+            if len(xlabels) > 0:
+                pylab.xlabel(xlabels[plotID], fontsize=11)
+    # Disable empty plots!
+    for kdel in xrange(plotID + 2, nrows * ncols + 1):
+        aH = pylab.subplot(nrows, ncols, kdel)
+        aH.axis('off')
+    # Fix margins between subplots
+    pylab.subplots_adjust(wspace=0.04, hspace=0.18, left=0.01, right=0.99,
+                          top=0.99, bottom=0.1)
+    return figH
+
+def count2str(val, width=4):
+    ''' Pretty print large positive count values in confined 4 char format.
+
+    Examples
+    --------
+    >>> count2str(1, width=4)
+    '   1'
+    >>> count2str(10, width=4)
+    '  10'
+    >>> count2str(9999, width=4)
+    '9999'
+    >>> count2str(10003, width=4)
+    ' 10k'
+    >>> count2str(123000, width=4)
+    '123k'
+    >>> count2str(7654321, width=4)
+    '  7M'
+    >>> count2str(987654321, width=4)
+    '987M'
+    >>> count2str(1111111111, width=4)
+    ' >1B'
+    '''
+    assert width >= 4
+    if val < 10**(width):
+        fmt = '%' + str(width) + 'd'
+        return fmt % (val)
+    elif val < 10**6:
+        nThou = val // 1000
+        fmt = '%' + str(width-1) + 'd'
+        return fmt % (nThou) + 'k'
+    elif val < 10**9:
+        nMil = val // 1000000
+        fmt = '%' + str(width-1) + 'd'
+        return fmt % (nMil) + 'M'
+    else:
+        fmt = '%' + str(width) + 's'
+        return fmt % ('>1B')
+
+def countvec2list(countvec):
+    return [count2str(x) for x in countvec]
+
+
+def uidsAndCounts2strlist(SS):
+    countvec = SS.getCountVec()
+    return ['%5d : %s' % (
+        SS.uids[k], count2str(countvec[k])) for k in range(SS.K)]
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()

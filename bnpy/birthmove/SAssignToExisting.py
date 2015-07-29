@@ -53,6 +53,7 @@ def assignSplitStats_HDPTopicModel(
         LPkwargs=None,
         batchPos=None,
         verbose=False,
+        doSortBigToSmall=False,
         **kwargs):
     ''' Reassign target comp. using an existing set of proposal states.
 
@@ -170,8 +171,9 @@ def assignSplitStats_HDPTopicModel(
         slack * curLPslice['ElogPi'][:, ktarget])
 
     xSSslice = tmpModel.get_global_suff_stats(
-        Dslice, xLPslice, doPrecompEntropy=1, doTrackTruncationGrowth=1)
-    if batchPos == 0:
+        Dslice, xLPslice,
+        trackDocUsage=1, doPrecompEntropy=1, doTrackTruncationGrowth=1)
+    if batchPos == 0 and doSortBigToSmall:
         order = np.argsort(-1 * xSSslice.getCountVec())
         xSSslice.reorderComps(order)
     else:
