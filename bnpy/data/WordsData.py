@@ -133,7 +133,7 @@ class WordsData(DataObj):
 
         doc_range = np.hstack([0, np.cumsum(doc_sizes)])
         Data = cls(word_id=word_id, word_count=word_ct, nDocTotal=nDocTotal,
-                   doc_range=doc_range, vocab_size=vocab_size)
+                   doc_range=doc_range, vocab_size=vocab_size, **kwargs)
         if len(Yvals) > 0:
             Yvals = toCArray(Yvals)
             if np.allclose(Yvals.sum(),
@@ -212,7 +212,8 @@ class WordsData(DataObj):
         elif vocabfile is not None:
             with open(vocabfile, 'r') as f:
                 self.vocabList = [x.strip() for x in f.readlines()]
-
+        else:
+            self.vocabList = None
         self._verify_attributes()
         self._set_corpus_size_attributes(nDocTotal)
 
@@ -244,9 +245,9 @@ class WordsData(DataObj):
         docEndBiggerThanStart = self.doc_range[1:] - self.doc_range[:-1]
         assert np.all(docEndBiggerThanStart)
 
-        if hasattr(self, 'vocabList'):
+        if hasattr(self, 'vocabList') and self.vocabList is not None:
             if len(self.vocabList) != self.vocab_size:
-                del self.vocabList
+                self.vocabList = None
 
     def get_size(self):
         return self.nDoc
@@ -669,8 +670,15 @@ class WordsData(DataObj):
         else:
             newTrueParams = None
 
+        if hasattr(self, 'vocabList'):
+            newVocabList = self.vocabList
+        else:
+            newVocabList = None            
+
         return WordsData(word_id, word_count, doc_range, self.vocab_size,
-                         nDocTotal=nDocTotal, TrueParams=newTrueParams)
+                         nDocTotal=nDocTotal,
+                         TrueParams=newTrueParams,
+                         vocabList=newVocabList)
 
     @classmethod
     def CreateToyDataSimple(cls, nDoc=10, nUniqueTokensPerDoc=10,

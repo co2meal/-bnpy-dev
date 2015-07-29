@@ -125,6 +125,11 @@ class HModel(object):
             evA.update(evObs)
             for key in evA:
                 evA[key] /= scaleFactor
+            # Identify unique keys, ignoring subdivided terms
+            # eg Lalloc_top_term1 and Lalloc_top_term2 are not counted,
+            # since we expect they are already aggregated in term Lalloc
+            ukeys = list(set([key.split('_')[0] for key in evA.keys()]))
+            evA['Ltotal'] = sum([evA[key] for key in ukeys])
             return evA
         else:
             return (evA + evObs) / scaleFactor
