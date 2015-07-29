@@ -213,8 +213,10 @@ def delete_empty_comps(Data, model, SS=None,
         SS = model.get_global_suff_stats(Data, LP)
 
     K = SS.K
+    CleanUpList = []
     for k in reversed(range(Korig, K)):
         if SS.N[k] < kwargs['cleanupMinSize']:
+            CleanUpList.append(k)
             if SS.K > 1:
                 SS.removeComp(k)
             else:
@@ -222,5 +224,5 @@ def delete_empty_comps(Data, model, SS=None,
                 raise BirthProposalError(msg)
 
     if SS.K < model.allocModel.K:
-        model.update_global_params(SS)
+        model.update_global_params(SS, BirthCleanUpList=CleanUpList)
     return model, SS

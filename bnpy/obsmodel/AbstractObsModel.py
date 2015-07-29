@@ -52,7 +52,7 @@ class AbstractObsModel(object):
         elif rho is not None and rho < 1.0:
             return self.updatePost_stochastic(SS, rho)
         else:
-            return self.updatePost(SS)
+            return self.updatePost(SS, **kwargs)
 
     def set_global_params(self, **kwargs):
         ''' Set global parameters to specific provided values.
