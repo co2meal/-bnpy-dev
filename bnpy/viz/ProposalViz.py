@@ -24,6 +24,9 @@ htmlstart = """
         padding-bottom: 10px;
         padding-left: 10px;
     }
+    tr {
+        outline: thin solid black;
+    }
     </style>
     <body>
     <div align=center>
@@ -111,7 +114,7 @@ def plotDocUsageForProposal(docUsageByUID, savefilename=None, **kwargs):
 
 
 
-def makeSingleProposalHTMLStr(b_debugOutputDir='', **kwargs):
+def makeSingleProposalHTMLStr(DebugInfo, b_debugOutputDir='', **kwargs):
     ''' Create string representing complete HTML page for one proposal.
 
     Returns
@@ -127,6 +130,12 @@ def makeSingleProposalHTMLStr(b_debugOutputDir='', **kwargs):
     htmlstr += '<td class="png">%s</td>' % (
         makeImgTag("OrigComps.png"))
     htmlstr += "</tr>\n"
+    # Row : status report
+    htmlstr += "<tr>"
+    htmlstr += '<td class="comment">Proposal outcome:</td>'
+    htmlstr += '<td>%s</td>' % (DebugInfo['status'])
+    htmlstr += "</tr>\n"
+    
     # Row 2: ELBO trace
     htmlstr += "<tr>"
     htmlstr += '<td class="comment">ELBO terms at each refinement step.</td>'
@@ -156,6 +165,17 @@ def makeSingleProposalHTMLStr(b_debugOutputDir='', **kwargs):
         htmlstr += '<td class="png">%s</td>' % (
             makeImgTag(basenameWithPNG))
         htmlstr += "</tr>\n"
+
+    mnames = glob.glob(os.path.join(b_debugOutputDir,"MergeComps_*.png"))
+    for mergeID in range(len(mnames)):
+        basenameWithPNG = "MergeComps_%d.png" % (mergeID+1)
+        htmlstr += "<tr>"
+        htmlstr += '<td class="comment">Cleanup Phase: Merged Pair %d</td>' %(
+            mergeID+1)
+        htmlstr += '<td class="png">%s</td>' % (
+            makeImgTag(basenameWithPNG))
+        htmlstr += "</tr>\n"
+
 
     htmlstr += "</table>"    
     htmlstr += htmlend

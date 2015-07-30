@@ -32,6 +32,7 @@ DefaultKwargs = dict(
     b_includeRemainderTopic=1,
     b_nRefineSteps=3,
     b_minNumAtomsInDoc=100,
+    b_mergeLam=0.1,
     )
 
 def main(**kwargs):
@@ -45,7 +46,7 @@ def main(**kwargs):
         except Exception as e:
             try:
                 float(val)
-                _type = int
+                _type = float
             except:
                 _type = str
         parser.add_argument('--' + key, default=val, type=_type)
@@ -100,7 +101,7 @@ def main(**kwargs):
 def runBirthForEveryCompInModel(
         hmodel=None, Data=None,
         bkwargs=dict(),
-        nInitSteps=2,
+        nInitSteps=4,
         outputdir='/tmp/',
         args=None,
         **kwargs):
@@ -114,7 +115,8 @@ def runBirthForEveryCompInModel(
     # Define output directory
     outputdir = os.path.join(
         outputdir,
-        '%s_nDoc=%d_K=%d' % (args.dataName, nDocTotal, args.Kinit)) 
+        '%s_nDoc=%d_K=%d_mergeLam=%.2f' % (
+            args.dataName, nDocTotal, args.Kinit, args.b_mergeLam)) 
     print ''
     print '=============='
     print "OUTPUT: ", outputdir
@@ -125,6 +127,7 @@ def runBirthForEveryCompInModel(
             Data, LP, doPrecompEntropy=1, doTrackTruncationGrowth=1)
         if i < nInitSteps:
             # Shuffle and remove really small comps
+            # except on last step, since we need LP and SS to match up
             bigtosmall = np.argsort(-1 * SS.getCountVec())
             SS.reorderComps(bigtosmall)
             for k in range(SS.K-1, 0, -1):
@@ -133,12 +136,19 @@ def runBirthForEveryCompInModel(
                     SS.removeComp(k)
         hmodel.update_global_params(SS)
 
+    # Obtain LP and SS exactly for the current hmodel.
+    # Do NOT do any more global steps on hmodel.
+    # We rely on this LP to be "fresh" in the proposal ELBO calculations.
+    LP = hmodel.calc_local_params(Data, **LPkwargs)
+    SS = hmodel.get_global_suff_stats(
+        Data, LP, doPrecompEntropy=1, doTrackTruncationGrowth=1)
+
     for pos, targetUID in enumerate(SS.uids):
         propdir = 'targetUID=%d_includeRemainderTopic=%d_Kfresh=%d' % (
             targetUID, bkwargs['b_includeRemainderTopic'], args.Kfresh)
         b_debugOutputDir = os.path.join(outputdir, propdir)
         mkpath(b_debugOutputDir)
-        startuid = 100 * targetUID + 1
+        startuid = 1000 + 100 * targetUID + 1
         newUIDs=np.arange(startuid, startuid+args.Kfresh)
 
         print propdir
@@ -171,9 +181,10 @@ def runBirthForEveryCompInModel(
         # Create model via global step from proposed stats
         propModel = hmodel.copy()
         propModel.update_global_params(propSS)
+        propLscore = propModel.calc_evidence(SS=propSS)
+
         # Compare ELBO scores
         curLscore = hmodel.calc_evidence(SS=SS)
-        propLscore = propModel.calc_evidence(SS=propSS)
 
         # Decision time: accept or reject
         if propLscore > curLscore:

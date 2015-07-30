@@ -266,7 +266,7 @@ class HDPTopicModel(AllocModel):
 
         if alphaEbeta is None:
             EbetaRem = float(np.minimum(0.1, 1.0 / (K * K)))
-            Ebeta = (1 - EbetaRem) / K
+            Ebeta = (1 - EbetaRem) / K * np.ones(K)
 
             alphaEbeta = self.alpha * Ebeta
             alphaEbetaRem = self.alpha * EbetaRem

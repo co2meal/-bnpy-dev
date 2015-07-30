@@ -34,7 +34,7 @@ def calcELBO(**kwargs):
     return Lnon + Llinear
 
 
-def calcELBO_LinearTerms(SS=None,
+def calcELBO_LinearTerms(SS=None, LP=None,
                          nDoc=None,
                          rho=None, omega=None, Ebeta=None,
                          alpha=0, gamma=None,
@@ -46,7 +46,9 @@ def calcELBO_LinearTerms(SS=None,
     L : scalar float
         L is sum of any term in ELBO that is const/linear wrt suff stats.
     """
-    if SS is not None:
+    if LP is not None:
+        nDoc = LP['theta'].shape[0]
+    elif SS is not None:
         nDoc = SS.nDoc
     return L_alloc(
         nDoc=nDoc, rho=rho, omega=omega, Ebeta=Ebeta,
@@ -71,14 +73,6 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None, todict=0,
     if Ebeta is None:
         Ebeta = rho2beta(rho, returnSize='K+1')
 
-    if SS is not None:
-        sumLogPi = SS.sumLogPi
-        nDoc = SS.nDoc
-        if hasattr(SS, 'sumLogPiRemVec'):
-            sumLogPiRemVec = SS.sumLogPiRemVec
-        else:
-            sumLogPiRem = SS.sumLogPiRem
-
     if LP is not None:
         resp = LP['resp']
         DocTopicCount = LP['DocTopicCount']
@@ -87,12 +81,21 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None, todict=0,
         thetaRem = LP['thetaRem']
         ElogPi = LP['ElogPi']
         ElogPiRem = LP['ElogPiRem']
+        sumLogPi = np.sum(ElogPi, axis=0)
+        sumLogPiRem = np.sum(ElogPiRem)
         if 'thetaEmptyComp' in LP:
             thetaEmptyComp = LP['thetaEmptyComp']
             ElogPiEmptyComp = LP['ElogPiEmptyComp']
             ElogPiOrigComp = LP['ElogPiOrigComp']
             gammalnThetaOrigComp = LP['gammalnThetaOrigComp']
             slackThetaOrigComp = LP['slackThetaOrigComp']
+    elif SS is not None:
+        sumLogPi = SS.sumLogPi
+        nDoc = SS.nDoc
+        if hasattr(SS, 'sumLogPiRemVec'):
+            sumLogPiRemVec = SS.sumLogPiRemVec
+        else:
+            sumLogPiRem = SS.sumLogPiRem
 
     if DocTopicCount is not None and theta is None:
         theta = DocTopicCount + alpha * Ebeta[:-1]

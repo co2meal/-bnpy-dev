@@ -2,6 +2,7 @@ import numpy as np
 import os
 import sys
 
+from SCleanup import cleanupMergeClusters, cleanupDeleteSmallClusters
 from SAssignToExisting import assignSplitStats, _calc_expansion_alphaEbeta
 from scipy.special import digamma, gammaln
 from BirthProposalError import BirthProposalError
@@ -43,17 +44,22 @@ def createSplitStats(
         raise NotImplementedError('Unrecognized function: ' + funcName)
     
     createSplitStatsFunc = createSplitStatsMap[funcName]
-    xSSslice = createSplitStatsFunc(
+    xSSslice, DebugInfo = createSplitStatsFunc(
         Dslice, hmodel, curLPslice, curSSwhole=curSSwhole,
         **kwargs)
 
     if 'b_debugOutputDir' in kwargs and kwargs['b_debugOutputDir']:
-        htmlstr = makeSingleProposalHTMLStr(**kwargs)
+        htmlstr = makeSingleProposalHTMLStr(DebugInfo, **kwargs)
         htmlfilepath = os.path.join(kwargs['b_debugOutputDir'], 'index.html')
         with open(htmlfilepath, 'w') as f:
             f.write(htmlstr)
         print "DEBUGGER WROTE: ", htmlfilepath
-    return xSSslice
+
+    nnzCount = np.sum(xSSslice.getCountVec() >= 1)
+    if nnzCount < 2:
+        raise BirthProposalError(
+            "Could not create at least two comps with mass >= 1.")
+    return xSSslice, DebugInfo
 
 
 
@@ -334,13 +340,21 @@ def createSplitStats_HDPTopicModel_MultBregDiv(
         propLdictList = list()
         docUsageByUID = dict()
         for k, uid in enumerate(xSSfake.uids):
-            if k == 0:
-                docUsageByUID[uid] = [Dslice.nDoc - xSSfake.K]
+            if k == 0 and b_includeRemainderTopic:
+                docUsage_ktarget = np.sum( 
+                    curLPslice['DocTopicCount'][:, ktarget] > 0.01)
+                docUsage_rest = docUsage_ktarget - Kused + \
+                    b_includeRemainderTopic
+                docUsageByUID[uid] = [docUsage_rest]
             else:
                 docUsageByUID[uid] = [1]
 
     xSSslice = xSSfake
+    nnzCount = np.sum(xSSslice.getCountVec() >= 1)
     for i in range(b_nRefineSteps):
+        # Obtain valid suff stats that represent Dslice for given model
+        # using xSSslice as initial "seed" clusters.
+        # Note: xSSslice need only have observation-model stats here.
         xSSslice = assignSplitStats(
             Dslice, curModel, curLPslice, curSSwhole, xSSslice,
             targetUID=targetUID,
@@ -348,18 +362,9 @@ def createSplitStats_HDPTopicModel_MultBregDiv(
             returnPropSS=returnPropSS,
             lapFrac=lapFrac,
             **kwargs)
+        # Show diagnostics for new states
         CountVec = xSSslice.getCountVec()
         print ' '.join(['%.0f' % (x) for x in CountVec])
-        if i < (b_nRefineSteps-2):
-            # On every step, delete virtually empty comps (mass < 1)
-            badids = np.flatnonzero(CountVec < 1)
-            for k in reversed(badids):
-                xSSslice.removeComp(k)
-        elif i == (b_nRefineSteps-2):
-            # After all but last step, delete small (but not empty) comps
-            badids = np.flatnonzero(CountVec < b_minNumAtomsInDoc)
-            for k in reversed(badids):
-                xSSslice.removeComp(k)
         if b_debugOutputDir:
             plotAndSaveCompsFromSS(
                 curModel, xSSslice, b_debugOutputDir,
@@ -372,13 +377,33 @@ def createSplitStats_HDPTopicModel_MultBregDiv(
             propModel.update_global_params(propSS)
             propLdict = propModel.calc_evidence(SS=propSS, todict=1)
             propLdictList.append(propLdict)
+
             docUsageVec = xSSslice.getSelectionTerm('DocUsageCount')
             for k, uid in enumerate(xSSslice.uids):
                 docUsageByUID[uid].append(docUsageVec[k])
+
+        # Cleanup by deleting small clusters 
+        if i < b_nRefineSteps - 1:
+            if i == b_nRefineSteps - 2:
+                # After all but last step, delete small (but not empty) comps
+                minNumAtomsToStay = b_minNumAtomsInDoc
+            else:
+                # Always remove empty clusters. They waste our time.
+                minNumAtomsToStay = 1
+            xSSslice = cleanupDeleteSmallClusters(xSSslice, minNumAtomsToStay)
+        # Cleanup by merging clusters
+        if i == b_nRefineSteps - 2 and kwargs['b_mergeLam'] > 0:
+            DebugInfo['mergestep'] = i + 1
+            xSSslice = cleanupMergeClusters(
+                xSSslice, curModel,
+                obsSS=xSSfake,
+                vocabList=Dslice.vocabList,
+                b_debugOutputDir=b_debugOutputDir, **kwargs)
+        # Exit early if no promising new clusters are created
         nnzCount = np.sum(xSSslice.getCountVec() >= 1)
         if nnzCount < 2:
-            raise BirthProposalError(
-                "Could not create at least two comps with mass >= 1.")
+            break
+
     if b_debugOutputDir:
         savefilename = os.path.join(b_debugOutputDir, 'ProposalTrace_ELBO.png')
         plotELBOtermsForProposal(curLdict, propLdictList,
@@ -386,6 +411,17 @@ def createSplitStats_HDPTopicModel_MultBregDiv(
         savefilename = os.path.join(b_debugOutputDir, 'ProposalTrace_DocUsage.png')
         plotDocUsageForProposal(docUsageByUID,
                                 savefilename=savefilename)
+        GainELBO = propLdictList[-1]['Ltotal'] - curLdict['Ltotal']
+        if np.sum(xSSslice.getCountVec() > 1) < 2:
+            DebugInfo['status'] = \
+                'Rejected. Did not create >1 new comps with significant mass'
+        elif GainELBO > 0:
+            DebugInfo['status'] = \
+                'Accepted. ELBO improved by %.3f' % (GainELBO)
+        else:
+            DebugInfo['status'] = 'Rejected. ELBO did not improve.'
+            
+
     if returnPropSS:
         return xSSslice[0], xSSslice[1]
     return xSSslice, DebugInfo
@@ -426,8 +462,8 @@ def sampleDocIDsByBregDiv_Mult(
     for k in range(K):
         # Find data point with largest minDiv value
         if doSample:
-            p = minDiv[:,0] / np.sum(minDiv)
-            n = PRNG.choice(minDiv.size, p=p)
+            pvec = minDiv[:,0] / np.sum(minDiv)
+            n = PRNG.choice(minDiv.size, p=pvec)
         else:
             n = minDiv.argmax()
         chosenDocIDs[k] = rowsWithEnoughData[n]
@@ -478,6 +514,7 @@ def calcBregDiv_Mult(WordCountData, WordCountMeans):
     assert np.all(Nmean >= 1.0 - 1e-10)
     Div = np.zeros((N, K))
     for k in xrange(K):
-        Div[:, k] = np.sum(WordCountData * np.log(WordCountData / WordCountMeans[k,:][np.newaxis,:]), axis=1)
+        Div[:, k] = np.sum(WordCountData * np.log(
+            WordCountData / WordCountMeans[k,:][np.newaxis,:]), axis=1)
         Div[:, k] += Nx * np.log(Nmean[k]/Nx)
     return Div

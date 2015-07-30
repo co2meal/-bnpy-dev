@@ -57,6 +57,13 @@ def assignSplitStats_HDPTopicModel(
         **kwargs):
     ''' Reassign target comp. using an existing set of proposal states.
 
+    Args
+    ----
+    curModel : bnpy HModel
+        must be exact model used to create the local parameters
+    curLPslice : dict of local parameters
+        obtained exactly from curModel
+
     Returns
     -------
     xSSslice : stats for reassigned mass
@@ -69,6 +76,9 @@ def assignSplitStats_HDPTopicModel(
     Nfresh_active = propXSS.getCountVec()
     Kfresh_active = np.flatnonzero(Nfresh_active > 1e-50)[-1] + 1
 
+    thetaRem = curModel.allocModel.alpha_E_beta_rem()
+    assert np.allclose(thetaRem, curLPslice['thetaRem'])
+
     tmpModel = curModel.copy()
     tmpModel.obsModel.update_global_params(propXSS)
 
@@ -76,14 +86,15 @@ def assignSplitStats_HDPTopicModel(
 
     xDocTopicCount = np.zeros((Dslice.nDoc, Kfresh))
 
+
     xalphaEbeta = _calc_expansion_alphaEbeta(curModel, ktarget, Kfresh)
     thetaEmptyComp = xalphaEbeta[0] * 1.0
-    thetaRem = curModel.allocModel.alpha_E_beta_rem()
+
     xtheta = np.tile(xalphaEbeta, (Dslice.nDoc, 1))
 
     xalphaEbeta_active = xalphaEbeta[:Kfresh_active]
 
-    # From-scratch strategy
+    # Visit each doc and compute token assignments
     for d in range(Dslice.nDoc):
         start = Dslice.doc_range[d]
         stop = Dslice.doc_range[d+1]
@@ -160,6 +171,15 @@ def assignSplitStats_HDPTopicModel(
     xLPslice['thetaRem'] = thetaRem
     xLPslice['ElogPi'] = xElogPi
     xLPslice['ElogPiRem'] = ElogPiRem
+
+    assert np.allclose(xLPslice['resp'].sum(axis=1),
+                       curLPslice['resp'][:, ktarget])
+    assert np.allclose(xLPslice['DocTopicCount'].sum(axis=1),
+                       curLPslice['DocTopicCount'][:, ktarget])
+    assert np.allclose(thetaEmptyComp + xtheta.sum(axis=1),
+                       curLPslice['theta'][:, ktarget])
+
+    # Fill in more advanced stuff
     xLPslice['thetaEmptyComp'] = thetaEmptyComp
     xLPslice['ElogPiEmptyComp'] = ElogPiEmptyComp
     xLPslice['ElogPiOrigComp'] = curLPslice['ElogPi'][:, ktarget]
@@ -170,9 +190,11 @@ def assignSplitStats_HDPTopicModel(
     xLPslice['slackThetaOrigComp'] = np.sum(
         slack * curLPslice['ElogPi'][:, ktarget])
 
+    # Compute sufficent stats for expanded local parameters
     xSSslice = tmpModel.get_global_suff_stats(
         Dslice, xLPslice,
         trackDocUsage=1, doPrecompEntropy=1, doTrackTruncationGrowth=1)
+
     if batchPos == 0 and doSortBigToSmall:
         order = np.argsort(-1 * xSSslice.getCountVec())
         xSSslice.reorderComps(order)

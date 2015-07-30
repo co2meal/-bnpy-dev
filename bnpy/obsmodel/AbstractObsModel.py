@@ -1,3 +1,5 @@
+import copy
+
 class AbstractObsModel(object):
 
     ''' Generic parent class for observation/data-generation models.
@@ -164,6 +166,11 @@ class AbstractObsModel(object):
         ''' Remove all values from the function cache.
         '''
         self.Cache.clear()
+
+    def copy(self):
+        ''' Make deep copy (no shared memory) of this object.
+        '''
+        return copy.deepcopy(self)
 
     def getHandleCalcLocalParams(self):
         return self.calc_local_params
