@@ -25,7 +25,7 @@ def cleanupMergeClusters(
         xSSslice, curModel,
         obsSS=None,
         vocabList=None,
-        b_mergeLam=5,
+        b_mergeLam=None,
         b_debugOutputDir=None,
         **kwargs):
     ''' Merge all possible pairs of clusters that improve the Ldata objective.
@@ -48,7 +48,8 @@ def cleanupMergeClusters(
     # For merges, we can crank up value of the topic-word prior hyperparameter,
     # to prioritize only care big differences in word counts across many terms
     tmpModel = curModel.copy()
-    tmpModel.obsModel.Prior.lam[:] = b_mergeLam
+    if b_mergeLam is not None:
+        tmpModel.obsModel.Prior.lam[:] = b_mergeLam
 
     mergeID = 0
     for trial in range(3):
@@ -101,7 +102,7 @@ def cleanupMergeClusters(
                 bnpy.viz.PlotUtil.pylab.savefig(
                     savefilename, pad_inches=0, bbox_inches='tight')
 
-    if mergeID > 0:
+    if mergeID > 0 and b_debugOutputDir:
         tmpModel.obsModel.update_global_params(xSSslice)
         plotAndSaveCompsFromSS(
             tmpModel, xSSslice, b_debugOutputDir, 'NewComps_AfterMerge.png',

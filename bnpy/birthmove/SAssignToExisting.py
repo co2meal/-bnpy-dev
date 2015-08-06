@@ -40,7 +40,7 @@ def assignSplitStats_DPMixtureModel(
     tmpModel.update_global_params(propXSS)
 
     xLPslice = tmpModel.calc_local_params(Dslice)
-    xLPslice['resp'] /= curLPslice['resp'][:, ktarget][:, np.newaxis]
+    xLPslice['resp'] *= curLPslice['resp'][:, ktarget][:, np.newaxis]
 
     xSSslice = tmpModel.get_global_suff_stats(
         Dslice, xLPslice, doPrecompEntropy=1)

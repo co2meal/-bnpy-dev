@@ -14,12 +14,12 @@ from bnpy.viz.ProposalViz import makeSingleProposalHTMLStr
 
 try:
     import KMeansRex
-    def RunKMeans(X, K, seed):
+    def RunKMeans(X, K, seed=0):
         return KMeansRex.RunKMeans(
             X, K, initname='plusplus', seed=seed, Niter=500)
 except ImportError:
     from scipy.cluster.vq import kmeans2
-    def RunKMeans(X, K, seed):
+    def RunKMeans(X, K, seed=0):
         np.random.seed(seed)
         Mu, Z = kmeans2(X, K, minit='points')
         return Mu, Z
@@ -34,11 +34,14 @@ def createSplitStats(
     -------
     xSSslice : SuffStatBag
         Contains exact summaries for reassignment of target mass.
-        * Total count is equal to SS.N[ktarget]
+        * Total mass is equal to mass assigned to ktarget in curLPslice
         * Number of components is Kx
     Info : dict
         Contains info for detailed debugging of construction process.
     '''
+    if 'b_debugOutputDir' in kwargs and kwargs['b_debugOutputDir'] == 'None':
+        kwargs['b_debugOutputDir'] = None
+
     createSplitStatsMap = dict([
         (k,v) for (k,v) in globals().items()
         if str(k).count('createSplitStats')])
@@ -47,22 +50,35 @@ def createSplitStats(
     if funcName not in createSplitStatsMap:
         raise NotImplementedError('Unrecognized function: ' + funcName)
     
+    # Execute model-specific function to make expansion stats
+    # This call may return early if expansion failed,
+    # due to creating too few states that are big-enough.
+    # Need to finalize debug html before raising error.
     createSplitStatsFunc = createSplitStatsMap[funcName]
     xSSslice, DebugInfo = createSplitStatsFunc(
         Dslice, hmodel, curLPslice, curSSwhole=curSSwhole,
         **kwargs)
-
+    # Write final debug HTML page, if specified.
     if 'b_debugOutputDir' in kwargs and kwargs['b_debugOutputDir']:
         htmlstr = makeSingleProposalHTMLStr(DebugInfo, **kwargs)
         htmlfilepath = os.path.join(kwargs['b_debugOutputDir'], 'index.html')
         with open(htmlfilepath, 'w') as f:
             f.write(htmlstr)
         print "DEBUGGER WROTE: ", htmlfilepath
-
+    # Raise error if we didn't create enough "big-enough" states.
     nnzCount = np.sum(xSSslice.getCountVec() >= 1)
     if nnzCount < 2:
         raise BirthProposalError(
             "Could not create at least two comps with mass >= 1.")
+    # If here, we have a valid proposal. 
+    # Need to verify mass conservation
+    ktarget = curSSwhole.uid2k(kwargs['targetUID'])
+    if hasattr(Dslice, 'word_count'):
+        origMass = np.inner(Dslice.word_count, curLPslice['resp'][:,ktarget])
+    else:
+        origMass = curLPslice['resp'][:,ktarget].sum()
+    newMass = xSSslice.getCountVec().sum()
+    assert np.allclose(newMass, origMass, atol=1e-6, rtol=0)
     return xSSslice, DebugInfo
 
 
@@ -71,9 +87,11 @@ def createSplitStats_DPMixtureModel_kmeans(
         Dslice, hmodel, curLPslice, 
         curSSwhole=None,
         targetUID=0, 
+        ktarget=None,
         LPkwargs=dict(),
         newUIDs=None,
         lapFrac=0,
+        b_minSize=2,
         **kwargs):
     ''' Reassign target component to new states, via kmeans.
 
@@ -87,28 +105,45 @@ def createSplitStats_DPMixtureModel_kmeans(
         ktarget = curSSwhole.uid2k(targetUID)
 
     xK = newUIDs.size
-    Dtarget = Dslice.select_subset_by_mask(
-        np.flatnonzero(curLPslice['resp'][:, ktarget] > 0.05))
+    keepIDs = np.flatnonzero(curLPslice['resp'][:, ktarget] > 0.05)
+    if len(keepIDs) < xK:
+        raise BirthProposalError(
+            "Not enough data. Looked for %d atoms, found only %d" % (
+                xK, len(keepIDs)))
+
+    Dtarget = Dslice.select_subset_by_mask(keepIDs)
+    # Run Kmeans on subset of data.
     Xtarget = Dtarget.X
-    Mu, Z = RunKMeans(Xtarget, xK, Niter=25, seed=lapFrac)
+    Mu, Z = RunKMeans(Xtarget, xK, seed=lapFrac)
     Z = Z.flatten()
+    # Create soft assignment matrix, keeping only big-enough clusters
     resp = np.zeros((Xtarget.shape[0], xK))
     Kused = 0
     for k in range(xK):
         mask_k = Z == k
         Nk = np.sum(mask_k)
-        if Nk > 5:
+        if Nk >= b_minSize:
             resp[mask_k, Kused] = 1.0
             Kused += 1
-    resp = resp[:, :Kused]
-    
-    LPtarget = dict(resp=resp)
-    SSfake = hmodel.get_global_suff_stats(Dtarget, LPtarget)
-    SSfake.setUIDs(newUIDs[:Kused])
+    if Kused < 2:
+        raise BirthProposalError(
+            "Init clusters not big enough. Only <=1 with size >%d." % (
+                b_minSize))
+
+    resp = resp[:, :Kused] * curLPslice['resp'][keepIDs, ktarget][:,np.newaxis]
+    xLPfake = dict(resp=resp)
+    xSSfake = hmodel.get_global_suff_stats(Dtarget, xLPfake)
+    xSSfake.setUIDs(newUIDs[:Kused])
 
     xSSslice = assignSplitStats(
-        Dslice, hmodel, curLPslice, curSSwhole, SSfake, targetUID=targetUID)
-    return xSSslice
+        Dslice, hmodel, curLPslice, xSSfake,
+        curSSwhole=curSSwhole,
+        targetUID=targetUID)
+
+    DebugInfo = dict(
+        Z=Z,
+        Mu=Mu)
+    return xSSslice, DebugInfo
 
 
 def createSplitStats_DPMixtureModel_truelabels(
@@ -256,7 +291,7 @@ def createSplitStats_HDPTopicModel_BregDiv(
                 minNumAtomsToStay = 1
             xSSslice = cleanupDeleteSmallClusters(xSSslice, minNumAtomsToStay)
         # Cleanup by merging clusters
-        if i == b_nRefineSteps - 2 and kwargs['b_mergeLam'] > 0:
+        if i == b_nRefineSteps - 2:
             DebugInfo['mergestep'] = i + 1
             xSSslice = cleanupMergeClusters(
                 xSSslice, curModel,

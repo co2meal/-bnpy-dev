@@ -28,14 +28,11 @@ import bnpy
 import inspect
 
 from bnpy.ioutil import BNPYArgParser
+from bnpy.ioutil.BNPYArgParser import FullDataAlgSet, OnlineDataAlgSet
 
 # Configure Logger
 Log = logging.getLogger('bnpy')
 Log.setLevel(logging.DEBUG)
-
-FullDataAlgSet = ['EM', 'VB', 'GS', 'pVB']
-OnlineDataAlgSet = ['soVB', 'moVB', 'pmoVB']
-
 
 def run(dataName=None, allocModelName=None, obsModelName=None, algName=None,
         doSaveToDisk=True, doWriteStdOut=True,
@@ -414,6 +411,8 @@ def createLearnAlg(Data, model, ReqArgs, KwArgs, algseed=0, savepath=None):
         LearnAlgConstr = bnpy.learnalg.ParallelVBAlg
     elif algName == 'soVB':
         LearnAlgConstr = bnpy.learnalg.SOVBAlg
+    elif algName == 'memoVB':
+        LearnAlgConstr = bnpy.learnalg.MemoVBMovesAlg
     elif algName == 'moVB':
         if hasMoves:
             LearnAlgConstr = bnpy.learnalg.MOVBBirthMergeAlg

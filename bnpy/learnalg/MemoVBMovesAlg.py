@@ -3,12 +3,15 @@ Implementation of parallel memoized variational algorithm for bnpy models.
 '''
 import numpy as np
 import multiprocessing
+from collections import defaultdict
 
+from bnpy.birthmove import createSplitStats, assignSplitStats
+from bnpy.birthmove import BirthProposalError
+from bnpy.mergemove import selectCandidateMergePairs, ELBO_GAP_ACCEPT_TOL
 from bnpy.util import sharedMemDictToNumpy, sharedMemToNumpyArray
 from LearnAlg import makeDictOfAllWorkspaceVars
-from MOVBBirthMergeAlg import MOVBBirthMergeAlg
+from LearnAlg import LearnAlg
 from SharedMemWorker import SharedMemWorker
-
 
 class MemoVBMovesAlg(LearnAlg):
 
@@ -18,11 +21,13 @@ class MemoVBMovesAlg(LearnAlg):
         # Initialize instance vars related to
         # birth / merge / delete records
         LearnAlg.__init__(self, **kwargs)
-        self.nWorkers = self.algParams['nWorkers']
-        if self.nWorkers < 0:
-            self.nWorkers = maxWorkers + self.nWorkers
-        if self.nWorkers > maxWorkers:
-            self.nWorkers = np.maximum(self.nWorkers, maxWorkers)
+        self.SSmemory = dict()
+        self.LastUpdateLap = dict()
+
+    def makeNewUIDs(self, b_Kfresh=0, **kwargs):
+        newUIDs = np.arange(self.maxUID + 1, self.maxUID + b_Kfresh + 1)
+        self.maxUID += b_Kfresh
+        return newUIDs
 
     def fit(self, hmodel, DataIterator, **kwargs):
         ''' Run learning algorithm that fits parameters of hmodel to Data.
@@ -36,6 +41,7 @@ class MemoVBMovesAlg(LearnAlg):
         hmodel updated in place with improved global parameters.
         '''
         origmodel = hmodel
+        self.maxUID = hmodel.obsModel.K - 1
 
         # Initialize Progress Tracking vars like nBatch, lapFrac, etc.
         iterid, lapFrac = self.initProgressTrackVars(DataIterator)
@@ -51,6 +57,9 @@ class MemoVBMovesAlg(LearnAlg):
         SS = None
         isConverged = False
         self.set_start_time_now()
+        MoveLog = list()
+        MoveRecordsByUID = dict()
+        ConvStatus = np.zeros(DataIterator.nBatch)
         while DataIterator.has_next_batch():
 
             batchID = DataIterator.get_next_batch(batchIDOnly=1)
@@ -66,15 +75,16 @@ class MemoVBMovesAlg(LearnAlg):
                 self.print_msg('========================== lap %.2f batch %d'
                                % (lapFrac, batchID))
 
-            # Prepare for merges
-            if self.hasMove('merge') and self.doMergeAtLap(lapFrac+1):
-                MovePlans = self.makePlan_Merge(
-                    hmodel, SS, MovePlans)
-
-            # Reset selection terms to zero
+            # Reset at top of every lap
             if self.isFirstBatch(lapFrac):
+                MovePlans = dict()
                 if SS is not None and SS.hasSelectionTerms():
                     SS._SelectTerms.setAllFieldsToZero()
+
+            MovePlans = self.makeMovePlans(
+                hmodel, SS, MovePlans,
+                MoveRecordsByUID=MoveRecordsByUID,
+                lapFrac=lapFrac)
 
             # Local/Summary step for current batch
             SSbatch = self.calcLocalParamsAndSummarize_withExpansionMoves(
@@ -85,11 +95,14 @@ class MemoVBMovesAlg(LearnAlg):
                 MovePlans=MovePlans)
 
             self.saveDebugStateAtBatch(
-                'Estep', batchID, SSbatch=SSbatch, SS=SS, hmodel=hmodel)
+                'Estep', batchID, SSchunk=SSbatch, SS=SS, hmodel=hmodel)
 
-            # Summary step for whole-dataset stats
-            # Incremental update of SS given new SSbatch
-            SS = self.memoizedSummaryStep(hmodel, SS, SSbatch, batchID)
+            # Incremental update of whole-data SS given new SSbatch
+            oldSSbatch = self.loadBatchAndFastForward(batchID, lapFrac, MoveLog)
+            SS = self.incrementWholeDataSummary(
+                SS, SSbatch, oldSSbatch, hmodel=hmodel)
+            self.SSmemory[batchID] = SSbatch
+            self.LastUpdateLap[batchID] = lapFrac
 
             # Global step
             hmodel = self.globalStep(hmodel, SS, lapFrac)
@@ -99,23 +112,35 @@ class MemoVBMovesAlg(LearnAlg):
 
             # Birth moves!
             if self.hasMove('birth') and hasattr(SS, 'propXSS'):
-                hmodel, SS, Lscore, MoveLog = self.runMoves_Birth(
-                    hmodel, SS, Lscore, MoveLog, MovePlans)
+                hmodel, SS, Lscore, MoveLog, MoveRecordsByUID = \
+                    self.runMoves_Birth(
+                        hmodel, SS, Lscore, MovePlans,
+                        MoveLog=MoveLog,
+                        MoveRecordsByUID=MoveRecordsByUID,
+                        lapFrac=lapFrac)
 
             if self.isLastBatch(lapFrac):
                 # Merge move!
-                if self.hasMove('merge'):
-                    hmodel, SS, Lscore, MoveLog = self.runMoves_Merge(
-                        hmodel, SS, Lscore, MoveLog, MovePlans)
+                if self.hasMove('merge') and 'm_UIDPairs' in MovePlans:
+                    hmodel, SS, Lscore, MoveLog, MoveRecordsByUID = \
+                        self.runMoves_Merge(
+                            hmodel, SS, Lscore, MovePlans,
+                            MoveLog=MoveLog,
+                            MoveRecordsByUID=MoveRecordsByUID,
+                            lapFrac=lapFrac,)
 
                 # Shuffle : Rearrange order (big to small)
                 if self.hasMove('shuffle'):
-                    hmodel, SS, Lscore, MoveLog = self.runMoves_Shuffle(
-                        hmodel, SS, Lscore, MoveLog, MovePlans)
+                    hmodel, SS, Lscore, MoveLog, MoveRecordsByUID = \
+                        self.runMoves_Shuffle(
+                            hmodel, SS, Lscore, MovePlans,
+                            MoveLog=MoveLog,
+                            MoveRecordsByUID=MoveRecordsByUID,
+                            lapFrac=lapFrac,)
 
             nLapsCompleted = lapFrac - self.algParams['startLap']
             if nLapsCompleted > 1.0:
-                # evBound increases monotonically AFTER first lap
+                # Lscore increases monotonically AFTER first lap
                 # verify_evidence warns if this isn't happening
                 self.verify_evidence(Lscore, prevLscore, lapFrac)
 
@@ -123,24 +148,24 @@ class MemoVBMovesAlg(LearnAlg):
             if self.doDebug() and lapFrac >= 1.0:
                 self.verifyELBOTracking(hmodel, SS, Lscore, MoveLog)
             self.saveDebugStateAtBatch(
-                'Mstep', batchID, SSbatch=SSbatch, SS=SS, hmodel=hmodel)
+                'Mstep', batchID, SSchunk=SSbatch, SS=SS, hmodel=hmodel)
 
             # Assess convergence
             countVec = SS.getCountVec()
             if lapFrac > 1.0:
-                convergeStatusByBatch[batchID] = self.isCountVecConverged(
+                ConvStatus[batchID] = self.isCountVecConverged(
                     countVec, prevCountVec)
-                isConverged = np.min(convStatusByBatch) and \
-                    self.hasMoreReasonableMoves(SS, MoveLog)
+                isConverged = np.min(ConvStatus) and \
+                    self.hasMoreReasonableMoves(SS, MoveRecordsByUID, lapFrac)
                 self.setStatus(lapFrac, isConverged)
 
             # Display progress
             if self.isLogCheckpoint(lapFrac, iterid):
-                self.printStateToLog(hmodel, evBound, lapFrac, iterid)
+                self.printStateToLog(hmodel, Lscore, lapFrac, iterid)
 
             # Save diagnostics and params
             if self.isSaveDiagnosticsCheckpoint(lapFrac, iterid):
-                self.saveDiagnostics(lapFrac, SS, evBound)
+                self.saveDiagnostics(lapFrac, SS, Lscore)
             if self.isSaveParamsCheckpoint(lapFrac, iterid):
                 self.saveParams(lapFrac, hmodel, SS)
 
@@ -152,11 +177,11 @@ class MemoVBMovesAlg(LearnAlg):
                     nLapsCompleted >= self.algParams['minLaps']:
                 break
             prevCountVec = countVec.copy()
-            prevBound = evBound
+            prevLscore = Lscore
             # .... end loop over data
 
         # Finished! Save, print and exit
-        self.printStateToLog(hmodel, evBound, lapFrac, iterid, isFinal=1)
+        self.printStateToLog(hmodel, Lscore, lapFrac, iterid, isFinal=1)
         self.saveParams(lapFrac, hmodel, SS)
         self.eval_custom_func(
             isFinal=1, **makeDictOfAllWorkspaceVars(**vars()))
@@ -168,80 +193,14 @@ class MemoVBMovesAlg(LearnAlg):
             origmodel.obsModel = hmodel.obsModel
 
         # Return information about this run
-        return self.buildRunInfo(evBound=evBound, SS=SS,
+        return self.buildRunInfo(DataIterator, evBound=Lscore, SS=SS,
                                  SSmemory=self.SSmemory)
-
-
-    def memoizedSummaryStep(self, hmodel, SS, SSbatch, batchID,
-                            MergePrepInfo=None,
-                            order=None,
-                            **kwargs):
-        ''' Execute summary step on current batch and update aggregated SS.
-
-        Returns
-        --------
-        SS : updated aggregate suff stats
-        '''
-        if batchID in self.SSmemory:
-            oldSSbatch = self.load_batch_suff_stat_from_memory(
-                batchID, doCopy=0, Kfinal=SS.K, order=order)
-            assert not oldSSbatch.hasMergeTerms()
-            assert oldSSbatch.K == SS.K
-            assert np.allclose(SS.uIDs, oldSSbatch.uIDs)
-            SS -= oldSSbatch
-
-        # UIDs are not set by parallel workers. Need to do this here
-        SSbatch.setUIDs(self.ActiveIDVec.copy())
-        if SS is None:
-            SS = SSbatch.copy()
-        else:
-            assert SSbatch.K == SS.K
-            assert np.allclose(SSbatch.uIDs, self.ActiveIDVec)
-            assert np.allclose(SS.uIDs, self.ActiveIDVec)
-            SS += SSbatch
-            if not SS.hasSelectionTerms() and SSbatch.hasSelectionTerms():
-                SS._SelectTerms = SSbatch._SelectTerms
-        assert hasattr(SS, 'uIDs')
-        self.save_batch_suff_stat_to_memory(batchID, SSbatch)
-
-        # Force aggregated suff stats to obey required constraints.
-        # This avoids numerical issues caused by incremental updates
-        if hasattr(hmodel.allocModel, 'forceSSInBounds'):
-            hmodel.allocModel.forceSSInBounds(SS)
-        if hasattr(hmodel.obsModel, 'forceSSInBounds'):
-            hmodel.obsModel.forceSSInBounds(SS)
-        return SS
-
-    def calcLocalParamsAndSummarize_withFixedTruncation(
-            self, DataIterator, hmodel,
-            batchID=0,
-            MovePlans=None,
-            **kwargs):
-        ''' Execute local step and summary step, single-threaded.
-
-        Returns
-        -------
-        SSbatch : bnpy.suffstats.SuffStatBag
-            exact summary of local params for data in specified batch.
-        '''
-        # Fetch the current batch of data
-        Dbatch = DataIterator.getBatch(batchID=batchID)
-        # Prepare the kwargs for the local and summary steps
-        # including args for the desired merges/deletes/etc.
-        if not isinstance(MovePlans, dict):
-            MovePlans = dict()
-        LPkwargs = self.algParamsLP
-        LPkwargs.update(MovePlans)
-        # Do the real work here: calc local params and summaries
-        LPbatch = hmodel.calc_local_params(Dbatch, **LPkwargs)
-        SSbatch = hmodel.get_global_suff_stats(
-            Dbatch, LPbatch, doPrecompEntropy=1, **MovePlans)
-        return SSbatch
 
     def calcLocalParamsAndSummarize_withExpansionMoves(
             self, DataIterator, curModel,
             SS=None,
             batchID=0,
+            lapFrac=0,
             MovePlans=None,
             **kwargs):
         ''' Execute local step and summary step, with expansion proposals.
@@ -261,107 +220,414 @@ class MemoVBMovesAlg(LearnAlg):
         # Do the real work here: calc local params and summaries
         LPbatch = curModel.calc_local_params(Dbatch, **LPkwargs)
         SSbatch = curModel.get_global_suff_stats(
-            Dbatch, LPbatch, doPrecompEntropy=1, **MovePlans)
+            Dbatch, LPbatch, doPrecompEntropy=1, 
+            doTrackTruncationGrowth=1, **MovePlans)
         # Prepare whole-dataset stats
         if SS is None:
             curSSwhole = SSbatch.copy()
         else:
+            SSbatch.setUIDs(SS.uids)
             curSSwhole = SS
-
-        for ii, targetUID in enumerate(MovePlans['SplitTargetUIDs']):
-            if ii == 0:
-                SSbatch.propXSS = dict()
-            xSSbatch, Info = \
-                createSplitStats(
-                    Dbatch, LPbatch, curModel,
-                    curSSwhole=curSSwhole,
-                    targetUID=targetUID, 
-                    LPkwargs=LPkwargs)
-            SSbatch.propXSS[targetUID] = xSSbatch
-
+        # Try each planned birth
+        SSbatch.propXSS = dict()
+        if 'BirthTargetUIDs' in MovePlans:
+            for ii, targetUID in enumerate(MovePlans['BirthTargetUIDs']):
+                print 'targetUID', targetUID
+                try:
+                    xSSbatch, Info = \
+                        createSplitStats(
+                            Dbatch, curModel, LPbatch,
+                            curSSwhole=curSSwhole,
+                            targetUID=targetUID,
+                            newUIDs=self.makeNewUIDs(**self.algParams['birth']),
+                            LPkwargs=LPkwargs,
+                            **self.algParams['birth'])
+                    SSbatch.propXSS[targetUID] = xSSbatch
+                    print '  ', xSSbatch.getCountVec()
+                except BirthProposalError as e:
+                    print str(e)
         return SSbatch
 
-    def calcLocalParamsAndSummarize_parallel(self,
-                                             DataIterator, hmodel,
-                                             MergePrepInfo=None,
-                                             batchID=0, lapFrac=-1, **kwargs):
-        ''' Execute local step and summary step in parallel via workers.
+    def incrementWholeDataSummary(self, SS, SSbatch, oldSSbatch, hmodel=None):
+        ''' Update whole dataset sufficient stats object.
 
         Returns
         -------
-        SSagg : bnpy.suffstats.SuffStatBag
-            Aggregated suff stats from all processed slices of the data.
+        SS : SuffStatBag
+            represents whole dataset seen thus far.
         '''
-        # Map Step
-        # Create several tasks (one per worker) and add to job queue
-        nWorkers = self.algParams['nWorkers']
-        for workerID in xrange(nWorkers):
-            sliceArgs = DataIterator.calcSliceArgs(
-                batchID, workerID, nWorkers, lapFrac)
-            aArgs = hmodel.allocModel.getSerializableParamsForLocalStep()
-            aArgs.update(MergePrepInfo)
-            oArgs = hmodel.obsModel.getSerializableParamsForLocalStep()
-            self.JobQ.put((sliceArgs, aArgs, oArgs))
+        if SS is None:
+            SS = SSbatch.copy()
+        else:
+            if oldSSbatch is not None:
+                SS -= oldSSbatch
+            SS += SSbatch
+            if hasattr(SSbatch, 'propXSS'):
+                if hasattr(SS, 'propXSS'):
+                    for uid in SS.propXSS:
+                        SS.propXSS[uid] += SSbatch.propXSS[uid]
+                else:
+                    SS.propXSS = SSbatch.propXSS
+        # Force aggregated suff stats to obey required constraints.
+        # This avoids numerical issues caused by incremental updates
+        if hmodel is not None:
+            if hasattr(hmodel.allocModel, 'forceSSInBounds'):
+                hmodel.allocModel.forceSSInBounds(SS)
+            if hasattr(hmodel.obsModel, 'forceSSInBounds'):
+                hmodel.obsModel.forceSSInBounds(SS)
+        return SS
 
-        # Pause at this line until all jobs are marked complete.
-        self.JobQ.join()
+    def loadBatchAndFastForward(self, batchID, lapFrac, MoveLog, doCopy=0):
+        ''' Retrieve batch from memory, and apply any relevant moves to it.
 
-        # Reduce step
-        # Aggregate results across across all workers
-        SSagg = self.ResultQ.get()
-        while not self.ResultQ.empty():
-            SSslice = self.ResultQ.get()
-            SSagg += SSslice
-        return SSagg
+        Returns
+        -------
+        oldSSbatch : SuffStatBag, or None if specified batch not in memory.
+
+        Post Condition
+        --------------
+        LastUpdateLap attribute will indicate batchID was updated at lapFrac,
+        unless working with a copy not raw memory (doCopy=1).
+        '''
+        try:
+            SSbatch = self.SSmemory[batchID]
+        except KeyError:
+            return None
+
+        if doCopy:
+            SSbatch = SSbatch.copy()
+
+        for (lap, op, kwargs, beforeUIDs, afterUIDs) in MoveLog:
+            if lap < self.LastUpdateLap[batchID]:
+                continue
+            assert np.allclose(SSbatch.uids, beforeUIDs)
+            if op == 'merge':
+                SSbatch.mergeComps(**kwargs)
+            elif op == 'birth':
+                targetUID = kwargs['targetUID']
+                hasStoredProposal = hasattr(SSbatch, 'propXSS') and \
+                                    targetUID in SSbatch.propXSS
+                if hasStoredProposal:
+                    SSbatch.transferMassFromExistingToExpansion(
+                        uid=targetUID, xSS=SSbatch.propXSS[targetUID])
+                else:
+                    Kfresh = afterUIDs.size - beforeUIDs.size
+                    SSbatch.insertEmptyComps(Kfresh)
+                    SSbatch.setUIDs(afterUIDs)
+            else:
+                raise NotImplementedError("TODO")
+            assert np.allclose(SSbatch.uids, afterUIDs)
+        # Discard merge terms, since all accepted merges have been incorporated
+        SSbatch.removeMergeTerms()
+        if not doCopy:
+            self.LastUpdateLap[batchID] = lapFrac
+        return SSbatch
+
+    def globalStep(self, hmodel, SS, lapFrac):
+        ''' Do global update, if appropriate at current lap.
+
+        Post Condition
+        ---------
+        hmodel global parameters updated in place.
+        '''
+        doFullPass = self.algParams['doFullPassBeforeMstep']
+
+        if self.algParams['doFullPassBeforeMstep'] == 1:
+            if lapFrac >= 1.0:
+                hmodel.update_global_params(SS)
+        elif doFullPass > 1.0:
+            if lapFrac >= 1.0 or (doFullPass < SS.nDoc):
+                # update if we've seen specified num of docs, not before
+                hmodel.update_global_params(SS)
+        else:
+            hmodel.update_global_params(SS)
+        return hmodel
 
 
-def setupQueuesAndWorkers(DataIterator, hmodel,
-                          algParamsLP=None,
-                          nWorkers=0,
-                          **kwargs):
-    ''' Create pool of worker processes for provided dataset and model.
+    def makeMovePlans(self, hmodel, SS, MovePlans=dict(), **kwargs):
+        isFirst = self.isFirstBatch(kwargs['lapFrac'])
+        if isFirst:
+            MovePlans = dict()
+        if self.hasMove('birth'):
+            MovePlans = self.makeMovePlans_Birth(
+                hmodel, SS, MovePlans=MovePlans, **kwargs)
+        if isFirst and self.hasMove('merge'):
+            MovePlans = self.makeMovePlans_Merge(
+                hmodel, SS, MovePlans=MovePlans, **kwargs)
+        return MovePlans
 
-    Returns
-    -------
-    JobQ : multiprocessing task queue
-        Used for passing tasks to workers
-    ResultQ : multiprocessing task Queue
-        Used for receiving SuffStatBags from workers
-    '''
-    # Create a JobQ (to hold tasks to be done)
-    # and a ResultsQ (to hold results of completed tasks)
-    manager = multiprocessing.Manager()
-    JobQ = manager.Queue()
-    ResultQ = manager.Queue()
 
-    # Get the function handles
-    makeDataSliceFromSharedMem = DataIterator.getDataSliceFunctionHandle()
-    o_calcLocalParams, o_calcSummaryStats = hmodel.obsModel.\
-        getLocalAndSummaryFunctionHandles()
-    a_calcLocalParams, a_calcSummaryStats = hmodel.allocModel.\
-        getLocalAndSummaryFunctionHandles()
+    def makeMovePlans_Merge(self, hmodel, SS,
+            MovePlans=dict(),
+            MoveRecordsByUID=dict(),
+            lapFrac=0,
+            **kwargs):
+        ''' Plan out which merges to attempt in current batch (or lap).
 
-    # Create the shared memory
-    try:
-        dataSharedMem = DataIterator.getRawDataAsSharedMemDict()
-    except AttributeError as e:
-        dataSharedMem = None
-    aSharedMem = hmodel.allocModel.fillSharedMemDictForLocalStep()
-    oSharedMem = hmodel.obsModel.fillSharedMemDictForLocalStep()
+        Returns
+        -------
+        MovePlans : dict
+            * mergePairUIDs : list of pairs of uids to merge
+        '''
+        if SS is None:
+            return MovePlans
+        MArgs = self.algParams['merge']
+        MPlan = selectCandidateMergePairs(hmodel, SS, **MArgs)
+        # Do not track m_UIDPairs field unless it is non-empty
+        if len(MPlan['m_UIDPairs']) < 1:
+            del MPlan['m_UIDPairs']
+            del MPlan['mPairIDs']
+        else:
+            MPlan['doPrecompMergeEntropy'] = 1
+        MovePlans.update(MPlan)
+        return MovePlans
 
-    # Create multiple workers
-    for uid in range(nWorkers):
-        worker = SharedMemWorker(uid, JobQ, ResultQ,
-                                 makeDataSliceFromSharedMem,
-                                 o_calcLocalParams,
-                                 o_calcSummaryStats,
-                                 a_calcLocalParams,
-                                 a_calcSummaryStats,
-                                 dataSharedMem,
-                                 aSharedMem,
-                                 oSharedMem,
-                                 LPkwargs=algParamsLP,
-                                 verbose=1)
-        worker.start()
+    def makeMovePlans_Birth(self, hmodel, SS,
+            MovePlans=dict(),
+            MoveRecordsByUID=dict(),
+            lapFrac=0,
+            **kwargs):
+        ''' Plan out which births to attempt in current batch (or lap).
 
-    return JobQ, ResultQ, aSharedMem, oSharedMem
+        Returns
+        -------
+        MovePlans : dict
+            * BirthTargetUIDs : list of uids (ints) indicating comps to target
+        '''
+        B = self.algParams['birth']
+        if self.hasMove('birth'):
+            if SS is None:
+                MovePlans['BirthTargetUIDs'] = np.arange(hmodel.obsModel.K)
+            elif lapFrac <= 1.0:
+                totalnewK = B['b_Kfresh'] * SS.K
+                maxnewK = B['Kmax'] - SS.K
+                if totalnewK > maxnewK:
+                    # Prioritize which comps to target
+                    sortIDs = np.argsort(-1 * SS.getCountVec())
+                    nMax = maxnewK // B['b_Kfresh']
+                    MovePlans['BirthTargetUIDs'] = SS.uids[sortIDs[:nMax]]
+                else:
+                    MovePlans['BirthTargetUIDs'] = SS.uids.copy()
+            else:
+                MovePlans['BirthTargetUIDs'] = list()
+        # Convert to list
+        MovePlans['BirthTargetUIDs'] = [x for x in MovePlans['BirthTargetUIDs']]
+        return MovePlans
+
+    def runMoves_Birth(self, hmodel, SS, Lscore, MovePlans,
+            MoveLog=list(),
+            MoveRecordsByUID=dict(),
+            lapFrac=0,
+            **kwargs):
+        ''' Execute planned birth/split moves.
+
+        Returns
+        -------
+        hmodel
+        SS
+        Lscore
+        MoveLog
+        MoveRecordsByUID
+        '''
+        for targetUID in SS.propXSS.keys():
+            if targetUID not in MoveRecordsByUID:
+                MoveRecordsByUID[targetUID] = defaultdict(int)
+
+            targetCount = SS.getCountVec()[SS.uid2k(targetUID)]
+            MoveRecordsByUID[targetUID]['b_nTrial'] += 1
+            MoveRecordsByUID[targetUID]['b_latestLap'] = lapFrac
+            MoveRecordsByUID[targetUID]['b_latestCount'] = targetCount
+            # Construct proposal statistics    
+            propSS = SS.copy()
+            propSS.transferMassFromExistingToExpansion(
+                uid=targetUID, xSS=SS.propXSS[targetUID])
+            # Create model via global step from proposed stats
+            propModel = hmodel.copy()
+            propModel.update_global_params(propSS)
+            # Compute score of proposal
+            propLscore = propModel.calc_evidence(SS=propSS)
+
+            if propLscore > Lscore:
+                MoveRecordsByUID[targetUID]['b_nSuccess'] += 1
+                print 'ACCEPT!'
+                # Write necessary information to the log
+                MoveArgs = dict(targetUID=targetUID,
+                                newUIDs=SS.propXSS[targetUID].uids)
+                infoTuple = (
+                    lapFrac, 'birth', MoveArgs,
+                    SS.uids.copy(), propSS.uids.copy())
+                MoveLog.append(infoTuple)
+                # Set proposal values as new "current" values
+                SS = propSS
+                hmodel = propModel
+                Lscore = propLscore
+            else:
+                MoveRecordsByUID[targetUID]['b_nFail'] += 1
+                print 'reject :('
+
+        # For now, we will discard propXSS afterwards
+        del SS.propXSS
+        return hmodel, SS, Lscore, MoveLog, MoveRecordsByUID 
+
+
+    def runMoves_Merge(self, hmodel, SS, Lscore, MovePlans,
+            MoveLog=list(),
+            MoveRecordsByUID=dict(),
+            lapFrac=0,
+            **kwargs):
+        ''' Execute planned merge moves.
+
+        Returns
+        -------
+        hmodel
+        SS : SuffStatBag
+            Contains updated fields and ELBO terms for K-Kaccepted comps.
+            All merge terms will be set to zero.
+        Lscore
+        MoveLog
+        MoveRecordsByUID
+        '''
+        assert SS.hasMergeTerms()
+        acceptedUIDs = set()
+        for (uidA, uidB) in MovePlans['m_UIDPairs']:
+            # Skip uids that we have already accepted in a previous merge.
+            if uidA in acceptedUIDs or uidB in acceptedUIDs:
+                continue
+            # Update records for when each uid was last attempted
+            for u in [uidA, uidB]:
+                if u not in MoveRecordsByUID:
+                    MoveRecordsByUID[u] = defaultdict(int)
+
+                targetCount = SS.getCountVec()[SS.uid2k(u)]
+                MoveRecordsByUID[u]['m_nTrial'] += 1
+                MoveRecordsByUID[u]['m_latestLap'] = lapFrac
+                MoveRecordsByUID[u]['m_latestCount'] = targetCount
+            propSS = SS.copy()
+            propSS.mergeComps(uidA=uidA, uidB=uidB)
+            propModel = hmodel.copy()
+            propModel.update_global_params(propSS)
+            propLscore = propModel.calc_evidence(SS=propSS)
+            assert np.isfinite(propLscore)
+
+            if propLscore > Lscore - ELBO_GAP_ACCEPT_TOL:
+                acceptedUIDs.add(uidA)
+                acceptedUIDs.add(uidB)
+                MoveRecordsByUID[uidA]['m_nSuccess'] += 1
+                MoveRecordsByUID[uidA]['m_nSuccessRecent'] += 1 
+                MoveRecordsByUID[uidA]['m_nFailRecent'] = 0
+                print 'm_ACCEPT!'
+                # Write necessary information to the log
+                MoveArgs = dict(uidA=uidA, uidB=uidB)
+                infoTuple = (lapFrac, 'merge', MoveArgs,
+                             SS.uids.copy(), propSS.uids.copy())
+                MoveLog.append(infoTuple)
+                # Set proposal values as new "current" values
+                SS = propSS
+                hmodel = propModel
+                Lscore = propLscore
+            else:
+                for u in [uidA, uidB]:
+                    MoveRecordsByUID[u]['m_nFail'] += 1
+                    MoveRecordsByUID[u]['m_nFailRecent'] += 1
+                    MoveRecordsByUID[u]['m_nSuccessRecent'] = 0
+                print 'm_reject :('
+        # Finally, set all merge fields to zero,
+        # since all possible merges have been accepted
+        SS.setMergeFieldsToZero()
+        return hmodel, SS, Lscore, MoveLog, MoveRecordsByUID
+
+    def runMoves_Shuffle(self, hmodel, SS, Lscore, MovePlans,
+            MoveLog=list(),
+            MoveRecordsByUID=dict(),
+            lapFrac=0,
+            **kwargs):
+        ''' Execute shuffle move, which need not be planned in advance.
+
+        Returns
+        -------
+        hmodel
+            Reordered copies of the K input states.
+        SS : SuffStatBag
+            Reordered copies of the K input states.
+        Lscore
+        MoveLog
+        MoveRecordsByUID
+        '''
+        bigtosmallorder = np.argsort(-1 * SS.getCountVec())
+        sortedalready = np.arange(SS.K)
+        if not np.allclose(order, sortedalready):
+            MoveLog.append(lapFrac, 'shuffle', 
+                           dict(bigtosmallorder=bigtosmallorder),
+                           SS.uids, SS.uids[bigtosmallorder])
+            SS.reorderComps(bigtosmallorder)
+            hmodel.update_global_params(SS)
+            Lscore = hmodel.calc_evidence(SS=SS)
+        return hmodel, SS, Lscore, MoveLog, MoveRecordsByUID
+
+    def initProgressTrackVars(self, DataIterator):
+        ''' Initialize internal attributes tracking how many steps we've taken.
+
+        Returns
+        -------
+        iterid : int
+        lapFrac : float
+
+        Post Condition
+        --------------
+        Creates attributes nBatch, lapFracInc
+        '''
+        # Define how much of data we see at each mini-batch
+        nBatch = float(DataIterator.nBatch)
+        self.nBatch = nBatch
+        self.lapFracInc = 1.0 / nBatch
+
+        # Set-up progress-tracking variables
+        iterid = -1
+        lapFrac = np.maximum(0, self.algParams['startLap'] - 1.0 / nBatch)
+        if lapFrac > 0:
+            # When restarting an existing run,
+            #  need to start with last update for final batch from previous lap
+            DataIterator.lapID = int(np.ceil(lapFrac)) - 1
+            DataIterator.curLapPos = nBatch - 2
+            iterid = int(nBatch * lapFrac) - 1
+        return iterid, lapFrac
+
+    def doDebug(self):
+        debug = self.algParams['debug']
+        return debug.count('q') or debug.count('on') or debug.count('interact')
+
+    def doDebugVerbose(self):
+        return self.doDebug() and self.algParams['debug'].count('q') == 0
+
+
+    def hasMoreReasonableMoves(self, SS, MoveRecordsByUID, lapFrac, **kwargs):
+        ''' Decide if more moves will feasibly change current configuration.
+
+        Returns
+        -------
+        hasMovesLeft : boolean
+            True means further iterations likely see births/merges accepted.
+            False means all possible moves likely to be rejected.
+        '''
+        if lapFrac - self.algParams['startLap'] >= self.algParams['nLap']:
+            # Time's up, so doesn't matter what other moves are possible.
+            return False
+
+        if self.hasMove('birth'):
+            hasMovesLeft_Birth = True
+
+        if self.hasMove('merge'):
+            hasMovesLeft_Merge = True
+            nStuck = self.algParams['merge']['mergeNumStuckBeforeQuit']
+            mergeStartLap = self.algParams['merge']['mergeStartLap']
+
+            if lapFrac > mergeStartLap + nStuck:
+                # If tried merges for at least nStuck laps without accepting,
+                # we consider all possible merges exhausted and exit early.
+                lapLastAcceptedMerge = np.max(
+                    [MoveRecordsByUID[u]['m_latestLap'] for u in SS.uids])
+                if (lapFrac - lapLastAcceptedMerge) > nStuckBeforeQuit:
+                    hasMovesLeft_Merge = False
+
+        return hasMovesLeft_Merge or hasMovesLeft_Birth
+        # ... end function hasMoreReasonableMoves
