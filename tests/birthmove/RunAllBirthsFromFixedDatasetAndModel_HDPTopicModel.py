@@ -28,12 +28,16 @@ DefaultKwargs = dict(
     Kfresh=10, 
     doShowAfter=1,
     outputdir='/tmp/',
-    b_creationProposalName='MultBregDiv',
+    b_creationProposalName='BregDiv',
     b_includeRemainderTopic=1,
     b_nRefineSteps=3,
+    b_initHardCluster=0,
     b_minNumAtomsInDoc=100,
     b_mergeLam=0.1,
     )
+
+outdirPattern = 'targetUID=%d_initHardCluster=%d_' + \
+                'includeRemainderTopic=%d_Kfresh=%d'
 
 def main(**kwargs):
     DefaultKwargs.update(kwargs)
@@ -115,8 +119,8 @@ def runBirthForEveryCompInModel(
     # Define output directory
     outputdir = os.path.join(
         outputdir,
-        '%s_nDoc=%d_K=%d_mergeLam=%.2f' % (
-            args.dataName, nDocTotal, args.Kinit, args.b_mergeLam)) 
+        '%s_nDoc=%d_K=%d' % (
+            args.dataName, nDocTotal, args.Kinit)) 
     print ''
     print '=============='
     print "OUTPUT: ", outputdir
@@ -143,15 +147,18 @@ def runBirthForEveryCompInModel(
     SS = hmodel.get_global_suff_stats(
         Data, LP, doPrecompEntropy=1, doTrackTruncationGrowth=1)
 
-    for pos, targetUID in enumerate(SS.uids):
-        propdir = 'targetUID=%d_includeRemainderTopic=%d_Kfresh=%d' % (
-            targetUID, bkwargs['b_includeRemainderTopic'], args.Kfresh)
-        b_debugOutputDir = os.path.join(outputdir, propdir)
+    for pos, targetUID in [(0, 0)]: #enumerate(SS.uids):
+        jobdir = outdirPattern % (
+            targetUID, 
+            bkwargs['b_initHardCluster'],
+            bkwargs['b_includeRemainderTopic'],
+            args.Kfresh)
+        b_debugOutputDir = os.path.join(outputdir, jobdir)
         mkpath(b_debugOutputDir)
         startuid = 1000 + 100 * targetUID + 1
         newUIDs=np.arange(startuid, startuid+args.Kfresh)
 
-        print propdir
+        print jobdir
         print 'newUIDs: ', newUIDs
         try:
             xSS, Info = createSplitStats(

@@ -273,8 +273,14 @@ def count2str(val, width=4):
 
     Examples
     --------
+    >>> count2str(.02, width=4)
+    '0.02'
+    >>> count2str(.99, width=4)
+    '0.99'
     >>> count2str(1, width=4)
     '   1'
+    >>> count2str(1.9, width=4)
+    '   2'
     >>> count2str(10, width=4)
     '  10'
     >>> count2str(9999, width=4)
@@ -291,6 +297,13 @@ def count2str(val, width=4):
     ' >1B'
     '''
     assert width >= 4
+    if val < 0.01:
+        fmt = '%' + str(width) + 's'
+        return fmt % ('<.01')
+    elif val < 1:
+        fmt = '%' + str(width) + '.2f'
+        return fmt % (val)
+    val = np.round(val)
     if val < 10**(width):
         fmt = '%' + str(width) + 'd'
         return fmt % (val)

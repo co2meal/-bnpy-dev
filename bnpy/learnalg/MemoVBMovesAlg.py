@@ -68,7 +68,7 @@ class MemoVBMovesAlg(LearnAlg):
 
             # Prepare for merges
             if self.hasMove('merge') and self.doMergeAtLap(lapFrac+1):
-                MovePlans = self.makePlanForMerge(
+                MovePlans = self.makePlan_Merge(
                     hmodel, SS, MovePlans)
 
             # Reset selection terms to zero
@@ -76,28 +76,20 @@ class MemoVBMovesAlg(LearnAlg):
                 if SS is not None and SS.hasSelectionTerms():
                     SS._SelectTerms.setAllFieldsToZero()
 
-            # TODO shared memory??
-
             # Local/Summary step for current batch
-            self.algParamsLP['lapFrac'] = lapFrac  # for logging
-            self.algParamsLP['batchID'] = batchID
-            if self.nWorkers > 0:
-                SSchunk = self.calcLocalParamsAndSummarize_parallel(
-                    DataIterator, hmodel,
-                    MergePrepInfo=MergePrepInfo,
-                    batchID=batchID, lapFrac=lapFrac)
-            else:
-                SSchunk = self.calcLocalParamsAndSummarize_main(
-                    DataIterator, hmodel,
-                    MergePrepInfo=MergePrepInfo,
-                    batchID=batchID, lapFrac=lapFrac)
+            SSbatch = self.calcLocalParamsAndSummarize_withExpansionMoves(
+                DataIterator, hmodel,
+                SS=SS,
+                batchID=batchID,
+                lapFrac=lapFrac,
+                MovePlans=MovePlans)
 
             self.saveDebugStateAtBatch(
-                'Estep', batchID, SSchunk=SSchunk, SS=SS, hmodel=hmodel)
+                'Estep', batchID, SSbatch=SSbatch, SS=SS, hmodel=hmodel)
 
             # Summary step for whole-dataset stats
-            # (does incremental update)
-            SS = self.memoizedSummaryStep(hmodel, SS, SSchunk, batchID)
+            # Incremental update of SS given new SSbatch
+            SS = self.memoizedSummaryStep(hmodel, SS, SSbatch, batchID)
 
             # Global step
             hmodel = self.globalStep(hmodel, SS, lapFrac)
@@ -105,21 +97,22 @@ class MemoVBMovesAlg(LearnAlg):
             # ELBO calculation
             Lscore = hmodel.calc_evidence(SS=SS)
 
+            # Birth moves!
             if self.hasMove('birth') and hasattr(SS, 'propXSS'):
-                hmodel, SS, Lscore, MoveLog = self.splitMoves(
+                hmodel, SS, Lscore, MoveLog = self.runMoves_Birth(
                     hmodel, SS, Lscore, MoveLog, MovePlans)
 
-            # Merge move!
-            if self.hasMove('merge') and self.doMergeAtLap(lapFrac):
-                hmodel, SS, Lscore, MoveLog = self.mergeMoves(
-                    hmodel, SS, Lscore, MoveLog, MovePlans)
+            if self.isLastBatch(lapFrac):
+                # Merge move!
+                if self.hasMove('merge'):
+                    hmodel, SS, Lscore, MoveLog = self.runMoves_Merge(
+                        hmodel, SS, Lscore, MoveLog, MovePlans)
 
-            # Shuffle : Rearrange order (big to small)
-            if self.hasMove('shuffle') and self.isLastBatch(lapFrac):
-                hmodel, SS, Lscore, MoveLog = self.shuffleMove(
-                    hmodel, SS, Lscore, MoveLog, MovePlans)
+                # Shuffle : Rearrange order (big to small)
+                if self.hasMove('shuffle'):
+                    hmodel, SS, Lscore, MoveLog = self.runMoves_Shuffle(
+                        hmodel, SS, Lscore, MoveLog, MovePlans)
 
-            # ELBO calculation
             nLapsCompleted = lapFrac - self.algParams['startLap']
             if nLapsCompleted > 1.0:
                 # evBound increases monotonically AFTER first lap
@@ -130,7 +123,7 @@ class MemoVBMovesAlg(LearnAlg):
             if self.doDebug() and lapFrac >= 1.0:
                 self.verifyELBOTracking(hmodel, SS, Lscore, MoveLog)
             self.saveDebugStateAtBatch(
-                'Mstep', batchID, SSchunk=SSchunk, SS=SS, hmodel=hmodel)
+                'Mstep', batchID, SSbatch=SSbatch, SS=SS, hmodel=hmodel)
 
             # Assess convergence
             countVec = SS.getCountVec()
@@ -163,10 +156,6 @@ class MemoVBMovesAlg(LearnAlg):
             # .... end loop over data
 
         # Finished! Save, print and exit
-        for workerID in range(self.nWorkers):
-            # Passing None to JobQ is shutdown signal
-            self.JobQ.put(None)
-
         self.printStateToLog(hmodel, evBound, lapFrac, iterid, isFinal=1)
         self.saveParams(lapFrac, hmodel, SS)
         self.eval_custom_func(
@@ -182,7 +171,8 @@ class MemoVBMovesAlg(LearnAlg):
         return self.buildRunInfo(evBound=evBound, SS=SS,
                                  SSmemory=self.SSmemory)
 
-    def memoizedSummaryStep(self, hmodel, SS, SSchunk, batchID,
+
+    def memoizedSummaryStep(self, hmodel, SS, SSbatch, batchID,
                             MergePrepInfo=None,
                             order=None,
                             **kwargs):
@@ -193,26 +183,26 @@ class MemoVBMovesAlg(LearnAlg):
         SS : updated aggregate suff stats
         '''
         if batchID in self.SSmemory:
-            oldSSchunk = self.load_batch_suff_stat_from_memory(
+            oldSSbatch = self.load_batch_suff_stat_from_memory(
                 batchID, doCopy=0, Kfinal=SS.K, order=order)
-            assert not oldSSchunk.hasMergeTerms()
-            assert oldSSchunk.K == SS.K
-            assert np.allclose(SS.uIDs, oldSSchunk.uIDs)
-            SS -= oldSSchunk
+            assert not oldSSbatch.hasMergeTerms()
+            assert oldSSbatch.K == SS.K
+            assert np.allclose(SS.uIDs, oldSSbatch.uIDs)
+            SS -= oldSSbatch
 
         # UIDs are not set by parallel workers. Need to do this here
-        SSchunk.setUIDs(self.ActiveIDVec.copy())
+        SSbatch.setUIDs(self.ActiveIDVec.copy())
         if SS is None:
-            SS = SSchunk.copy()
+            SS = SSbatch.copy()
         else:
-            assert SSchunk.K == SS.K
-            assert np.allclose(SSchunk.uIDs, self.ActiveIDVec)
+            assert SSbatch.K == SS.K
+            assert np.allclose(SSbatch.uIDs, self.ActiveIDVec)
             assert np.allclose(SS.uIDs, self.ActiveIDVec)
-            SS += SSchunk
-            if not SS.hasSelectionTerms() and SSchunk.hasSelectionTerms():
-                SS._SelectTerms = SSchunk._SelectTerms
+            SS += SSbatch
+            if not SS.hasSelectionTerms() and SSbatch.hasSelectionTerms():
+                SS._SelectTerms = SSbatch._SelectTerms
         assert hasattr(SS, 'uIDs')
-        self.save_batch_suff_stat_to_memory(batchID, SSchunk)
+        self.save_batch_suff_stat_to_memory(batchID, SSbatch)
 
         # Force aggregated suff stats to obey required constraints.
         # This avoids numerical issues caused by incremental updates
@@ -224,20 +214,25 @@ class MemoVBMovesAlg(LearnAlg):
 
     def calcLocalParamsAndSummarize_withFixedTruncation(
             self, DataIterator, hmodel,
+            batchID=0,
             MovePlans=None,
-            batchID=0, **kwargs):
+            **kwargs):
         ''' Execute local step and summary step, single-threaded.
 
         Returns
         -------
         SSbatch : bnpy.suffstats.SuffStatBag
+            exact summary of local params for data in specified batch.
         '''
+        # Fetch the current batch of data
+        Dbatch = DataIterator.getBatch(batchID=batchID)
+        # Prepare the kwargs for the local and summary steps
+        # including args for the desired merges/deletes/etc.
         if not isinstance(MovePlans, dict):
             MovePlans = dict()
         LPkwargs = self.algParamsLP
         LPkwargs.update(MovePlans)
-
-        Dbatch = DataIterator.getBatch(batchID=batchID)
+        # Do the real work here: calc local params and summaries
         LPbatch = hmodel.calc_local_params(Dbatch, **LPkwargs)
         SSbatch = hmodel.get_global_suff_stats(
             Dbatch, LPbatch, doPrecompEntropy=1, **MovePlans)
@@ -245,35 +240,44 @@ class MemoVBMovesAlg(LearnAlg):
 
     def calcLocalParamsAndSummarize_withExpansionMoves(
             self, DataIterator, curModel,
-            MovePlans=dict(),
             SS=None,
-            batchID=0, **kwargs):
+            batchID=0,
+            MovePlans=None,
+            **kwargs):
         ''' Execute local step and summary step, with expansion proposals.
 
         Returns
         -------
         SSbatch : bnpy.suffstats.SuffStatBag
         '''
+        # Fetch the current batch of data
+        Dbatch = DataIterator.getBatch(batchID=batchID)
+        # Prepare the kwargs for the local and summary steps
+        # including args for the desired merges/deletes/etc.
         if not isinstance(MovePlans, dict):
-            MovePlans = dict(SplitPlans=[])
+            MovePlans = dict()
         LPkwargs = self.algParamsLP
         LPkwargs.update(MovePlans)
-
-        Dbatch = DataIterator.getBatch(batchID=batchID)
+        # Do the real work here: calc local params and summaries
         LPbatch = curModel.calc_local_params(Dbatch, **LPkwargs)
         SSbatch = curModel.get_global_suff_stats(
             Dbatch, LPbatch, doPrecompEntropy=1, **MovePlans)
-
+        # Prepare whole-dataset stats
         if SS is None:
-            SSwhole = SSbatch.copy()
+            curSSwhole = SSbatch.copy()
         else:
-            SSwhole = SS
-        for ii, SplitPlan in enumerate(MovePlans['SplitPlans']):
-            xSSbatch, MovePlans['SplitPlans'][ii] = \
-                bnpy.birthmove.makeExpansionStatsForPlan(
-                    Dbatch, LPbatch, curModel, SSwhole,
-                    Plan=SplitPlan, **LPkwargs)
-            SSbatch.propXSS[uid] = xSSbatch
+            curSSwhole = SS
+
+        for ii, targetUID in enumerate(MovePlans['SplitTargetUIDs']):
+            if ii == 0:
+                SSbatch.propXSS = dict()
+            xSSbatch, Info = \
+                createSplitStats(
+                    Dbatch, LPbatch, curModel,
+                    curSSwhole=curSSwhole,
+                    targetUID=targetUID, 
+                    LPkwargs=LPkwargs)
+            SSbatch.propXSS[targetUID] = xSSbatch
 
         return SSbatch
 

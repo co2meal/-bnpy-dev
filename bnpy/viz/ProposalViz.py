@@ -157,7 +157,16 @@ def makeSingleProposalHTMLStr(DebugInfo, b_debugOutputDir='', **kwargs):
     htmlstr += "</tr>\n"
 
     fnames = glob.glob(os.path.join(b_debugOutputDir,"NewComps_Step*.png"))
+    mnames = glob.glob(os.path.join(b_debugOutputDir,"NewComps_AfterM*.png"))
     for stepID in range(len(fnames)):
+        if stepID == len(fnames) - 1 and len(mnames) > 0:
+            basenameWithPNG = "NewComps_AfterMerge.png"
+            htmlstr += "<tr>"
+            htmlstr += '<td class="comment">After merge cleanup.</td>'
+            htmlstr += '<td class="png">%s</td>' % (
+                makeImgTag(basenameWithPNG))
+            htmlstr += "</tr>\n"
+
         basenameWithPNG = "NewComps_Step%d.png" % (stepID+1)
         htmlstr += "<tr>"
         htmlstr += '<td class="comment">After refinement step %d.</td>' % (
