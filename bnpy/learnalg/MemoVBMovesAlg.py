@@ -13,6 +13,7 @@ from LearnAlg import makeDictOfAllWorkspaceVars
 from LearnAlg import LearnAlg
 from SharedMemWorker import SharedMemWorker
 
+
 class MemoVBMovesAlg(LearnAlg):
 
     def __init__(self, **kwargs):
@@ -98,7 +99,8 @@ class MemoVBMovesAlg(LearnAlg):
                 'Estep', batchID, SSchunk=SSbatch, SS=SS, hmodel=hmodel)
 
             # Incremental update of whole-data SS given new SSbatch
-            oldSSbatch = self.loadBatchAndFastForward(batchID, lapFrac, MoveLog)
+            oldSSbatch = self.loadBatchAndFastForward(
+                batchID, lapFrac, MoveLog)
             SS = self.incrementWholeDataSummary(
                 SS, SSbatch, oldSSbatch, hmodel=hmodel)
             self.SSmemory[batchID] = SSbatch
@@ -220,7 +222,7 @@ class MemoVBMovesAlg(LearnAlg):
         # Do the real work here: calc local params and summaries
         LPbatch = curModel.calc_local_params(Dbatch, **LPkwargs)
         SSbatch = curModel.get_global_suff_stats(
-            Dbatch, LPbatch, doPrecompEntropy=1, 
+            Dbatch, LPbatch, doPrecompEntropy=1,
             doTrackTruncationGrowth=1, **MovePlans)
         # Prepare whole-dataset stats
         if SS is None:
@@ -234,18 +236,18 @@ class MemoVBMovesAlg(LearnAlg):
             for ii, targetUID in enumerate(MovePlans['BirthTargetUIDs']):
                 print 'targetUID', targetUID
                 try:
+                    newUIDs = self.makeNewUIDs(**self.algParams['birth'])
                     xSSbatch, Info = \
                         createSplitStats(
                             Dbatch, curModel, LPbatch,
                             curSSwhole=curSSwhole,
                             targetUID=targetUID,
-                            newUIDs=self.makeNewUIDs(**self.algParams['birth']),
+                            newUIDs=newUIDs,
                             LPkwargs=LPkwargs,
                             **self.algParams['birth'])
                     SSbatch.propXSS[targetUID] = xSSbatch
-                    print '  ', xSSbatch.getCountVec()
                 except BirthProposalError as e:
-                    print str(e)
+                    print '  ', str(e)
         return SSbatch
 
     def incrementWholeDataSummary(self, SS, SSbatch, oldSSbatch, hmodel=None):
@@ -303,10 +305,12 @@ class MemoVBMovesAlg(LearnAlg):
             assert np.allclose(SSbatch.uids, beforeUIDs)
             if op == 'merge':
                 SSbatch.mergeComps(**kwargs)
+            elif op == 'shuffle':
+                SSbatch.reorderComps(kwargs['bigtosmallorder'])
             elif op == 'birth':
                 targetUID = kwargs['targetUID']
                 hasStoredProposal = hasattr(SSbatch, 'propXSS') and \
-                                    targetUID in SSbatch.propXSS
+                    targetUID in SSbatch.propXSS
                 if hasStoredProposal:
                     SSbatch.transferMassFromExistingToExpansion(
                         uid=targetUID, xSS=SSbatch.propXSS[targetUID])
@@ -343,7 +347,6 @@ class MemoVBMovesAlg(LearnAlg):
             hmodel.update_global_params(SS)
         return hmodel
 
-
     def makeMovePlans(self, hmodel, SS, MovePlans=dict(), **kwargs):
         isFirst = self.isFirstBatch(kwargs['lapFrac'])
         if isFirst:
@@ -356,12 +359,11 @@ class MemoVBMovesAlg(LearnAlg):
                 hmodel, SS, MovePlans=MovePlans, **kwargs)
         return MovePlans
 
-
     def makeMovePlans_Merge(self, hmodel, SS,
-            MovePlans=dict(),
-            MoveRecordsByUID=dict(),
-            lapFrac=0,
-            **kwargs):
+                            MovePlans=dict(),
+                            MoveRecordsByUID=dict(),
+                            lapFrac=0,
+                            **kwargs):
         ''' Plan out which merges to attempt in current batch (or lap).
 
         Returns
@@ -371,6 +373,9 @@ class MemoVBMovesAlg(LearnAlg):
         '''
         if SS is None:
             return MovePlans
+        if lapFrac < self.algParams['merge']['mergeStartLap']:
+            return MovePlans
+
         MArgs = self.algParams['merge']
         MPlan = selectCandidateMergePairs(hmodel, SS, **MArgs)
         # Do not track m_UIDPairs field unless it is non-empty
@@ -383,10 +388,10 @@ class MemoVBMovesAlg(LearnAlg):
         return MovePlans
 
     def makeMovePlans_Birth(self, hmodel, SS,
-            MovePlans=dict(),
-            MoveRecordsByUID=dict(),
-            lapFrac=0,
-            **kwargs):
+                            MovePlans=dict(),
+                            MoveRecordsByUID=dict(),
+                            lapFrac=0,
+                            **kwargs):
         ''' Plan out which births to attempt in current batch (or lap).
 
         Returns
@@ -411,14 +416,15 @@ class MemoVBMovesAlg(LearnAlg):
             else:
                 MovePlans['BirthTargetUIDs'] = list()
         # Convert to list
-        MovePlans['BirthTargetUIDs'] = [x for x in MovePlans['BirthTargetUIDs']]
+        MovePlans['BirthTargetUIDs'] = [
+            x for x in MovePlans['BirthTargetUIDs']]
         return MovePlans
 
     def runMoves_Birth(self, hmodel, SS, Lscore, MovePlans,
-            MoveLog=list(),
-            MoveRecordsByUID=dict(),
-            lapFrac=0,
-            **kwargs):
+                       MoveLog=list(),
+                       MoveRecordsByUID=dict(),
+                       lapFrac=0,
+                       **kwargs):
         ''' Execute planned birth/split moves.
 
         Returns
@@ -437,7 +443,7 @@ class MemoVBMovesAlg(LearnAlg):
             MoveRecordsByUID[targetUID]['b_nTrial'] += 1
             MoveRecordsByUID[targetUID]['b_latestLap'] = lapFrac
             MoveRecordsByUID[targetUID]['b_latestCount'] = targetCount
-            # Construct proposal statistics    
+            # Construct proposal statistics
             propSS = SS.copy()
             propSS.transferMassFromExistingToExpansion(
                 uid=targetUID, xSS=SS.propXSS[targetUID])
@@ -467,14 +473,13 @@ class MemoVBMovesAlg(LearnAlg):
 
         # For now, we will discard propXSS afterwards
         del SS.propXSS
-        return hmodel, SS, Lscore, MoveLog, MoveRecordsByUID 
-
+        return hmodel, SS, Lscore, MoveLog, MoveRecordsByUID
 
     def runMoves_Merge(self, hmodel, SS, Lscore, MovePlans,
-            MoveLog=list(),
-            MoveRecordsByUID=dict(),
-            lapFrac=0,
-            **kwargs):
+                       MoveLog=list(),
+                       MoveRecordsByUID=dict(),
+                       lapFrac=0,
+                       **kwargs):
         ''' Execute planned merge moves.
 
         Returns
@@ -487,6 +492,8 @@ class MemoVBMovesAlg(LearnAlg):
         MoveLog
         MoveRecordsByUID
         '''
+        if lapFrac < self.algParams['merge']['mergeStartLap']:
+            return hmodel, SS, Lscore, MoveLog, MoveRecordsByUID
         assert SS.hasMergeTerms()
         acceptedUIDs = set()
         for (uidA, uidB) in MovePlans['m_UIDPairs']:
@@ -508,12 +515,11 @@ class MemoVBMovesAlg(LearnAlg):
             propModel.update_global_params(propSS)
             propLscore = propModel.calc_evidence(SS=propSS)
             assert np.isfinite(propLscore)
-
             if propLscore > Lscore - ELBO_GAP_ACCEPT_TOL:
                 acceptedUIDs.add(uidA)
                 acceptedUIDs.add(uidB)
                 MoveRecordsByUID[uidA]['m_nSuccess'] += 1
-                MoveRecordsByUID[uidA]['m_nSuccessRecent'] += 1 
+                MoveRecordsByUID[uidA]['m_nSuccessRecent'] += 1
                 MoveRecordsByUID[uidA]['m_nFailRecent'] = 0
                 print 'm_ACCEPT!'
                 # Write necessary information to the log
@@ -537,10 +543,10 @@ class MemoVBMovesAlg(LearnAlg):
         return hmodel, SS, Lscore, MoveLog, MoveRecordsByUID
 
     def runMoves_Shuffle(self, hmodel, SS, Lscore, MovePlans,
-            MoveLog=list(),
-            MoveRecordsByUID=dict(),
-            lapFrac=0,
-            **kwargs):
+                         MoveLog=list(),
+                         MoveRecordsByUID=dict(),
+                         lapFrac=0,
+                         **kwargs):
         ''' Execute shuffle move, which need not be planned in advance.
 
         Returns
@@ -555,10 +561,12 @@ class MemoVBMovesAlg(LearnAlg):
         '''
         bigtosmallorder = np.argsort(-1 * SS.getCountVec())
         sortedalready = np.arange(SS.K)
-        if not np.allclose(order, sortedalready):
-            MoveLog.append(lapFrac, 'shuffle', 
-                           dict(bigtosmallorder=bigtosmallorder),
-                           SS.uids, SS.uids[bigtosmallorder])
+        if not np.allclose(bigtosmallorder, sortedalready):
+            moveTuple = (
+                lapFrac, 'shuffle',
+                dict(bigtosmallorder=bigtosmallorder),
+                SS.uids, SS.uids[bigtosmallorder])
+            MoveLog.append(moveTuple)
             SS.reorderComps(bigtosmallorder)
             hmodel.update_global_params(SS)
             Lscore = hmodel.calc_evidence(SS=SS)
@@ -599,7 +607,6 @@ class MemoVBMovesAlg(LearnAlg):
     def doDebugVerbose(self):
         return self.doDebug() and self.algParams['debug'].count('q') == 0
 
-
     def hasMoreReasonableMoves(self, SS, MoveRecordsByUID, lapFrac, **kwargs):
         ''' Decide if more moves will feasibly change current configuration.
 
@@ -620,7 +627,6 @@ class MemoVBMovesAlg(LearnAlg):
             hasMovesLeft_Merge = True
             nStuck = self.algParams['merge']['mergeNumStuckBeforeQuit']
             mergeStartLap = self.algParams['merge']['mergeStartLap']
-
             if lapFrac > mergeStartLap + nStuck:
                 # If tried merges for at least nStuck laps without accepting,
                 # we consider all possible merges exhausted and exit early.

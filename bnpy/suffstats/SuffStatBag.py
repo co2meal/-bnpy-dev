@@ -243,7 +243,6 @@ class SuffStatBag(object):
             self._SelectTerms = ParamBag(K=self.K)
         self._SelectTerms.setField(key, value, dims=dims)
 
-
     def insertComps(self, SS):
         self._Fields.insertComps(SS)
         self.uids = np.hstack([self.uids, SS.uids])
@@ -259,8 +258,8 @@ class SuffStatBag(object):
 
     def insertEmptyComps(self, Kextra, newuids=None):
         if newuids is None:
-            uidstart = self.uids.max()+1
-            newuids = np.arange(uidstart, uidstart+Kextra)
+            uidstart = self.uids.max() + 1
+            newuids = np.arange(uidstart, uidstart + Kextra)
         self._Fields.insertEmptyComps(Kextra)
         self.uids = np.hstack([self.uids, newuids])
         if hasattr(self, '_ELBOTerms'):
@@ -295,7 +294,7 @@ class SuffStatBag(object):
         Returns
         -------
         rowID : int
-            index of tracked merge quantities related to specific uid pair. 
+            index of tracked merge quantities related to specific uid pair.
         '''
         assert hasattr(self, 'mUIDPairs')
         rowID = np.flatnonzero(
@@ -306,7 +305,8 @@ class SuffStatBag(object):
                 'Bad search for correct merge UID pair.\n' + str(rowID))
         rowID = rowID[0]
 
-    def mergeComps(self, kA=None, kB=None, uidA=None, uidB=None):
+    def mergeComps(self, kA=None, kB=None, uidA=None, uidB=None,
+                   fieldsToIgnore=['sumLogPiRemVec']):
         ''' Merge components kA, kB into a single component, in-place.
 
         Post Condition
@@ -337,7 +337,7 @@ class SuffStatBag(object):
             rowID = None
 
         # Fill entry [kA] of each field with correct value.
-        self._mergeFieldsAtIndexKA(kA, kB, rowID)
+        self._mergeFieldsAtIndexKA(kA, kB, rowID, fieldsToIgnore)
         # Fill entry [kA] of each elboterm with correct value.
         self._mergeELBOTermsAtIndexKA(kA, kB, rowID)
 
@@ -349,9 +349,19 @@ class SuffStatBag(object):
         self.uids = np.delete(self.uids, kB)
         assert uidA in self.uids
         assert uidB not in self.uids
-        
+
         # Finally, remove dimension kB from all fields
+        Stash = dict()
+        for key in fieldsToIgnore:
+            if key in self._Fields._FieldDims:
+                arr, dims = self.removeField(key)
+                Stash[key] = arr, dims
         self._Fields.removeComp(kB)
+        # Reset ignored field 'sumLogPiRemVec'
+        for key in Stash:
+            arr, dims = Stash[key]
+            self.setField(key, arr[1:], dims)
+
         if self.hasELBOTerms():
             self._ELBOTerms.removeComp(kB)
         if self.hasMergeTerms():
@@ -385,7 +395,7 @@ class SuffStatBag(object):
                     mArr = mArr[keepRowIDs]
                     self._MergeTerms.setField(key, mArr, dims=dims)
 
-    def _mergeFieldsAtIndexKA(self, kA, kB, rowID):
+    def _mergeFieldsAtIndexKA(self, kA, kB, rowID, fieldsToIgnore):
         ''' For each field, rewrite values for comp kA to merge kA, kB.
 
         Post Condition
@@ -394,6 +404,8 @@ class SuffStatBag(object):
         The array will have entries related to component kA overwritten.
         '''
         for key, dims in self._Fields._FieldDims.items():
+            if key in fieldsToIgnore:
+                continue
             if dims is not None and dims != ():
                 # Get numpy array object for field named by key
                 arr = getattr(self._Fields, key)
@@ -448,7 +460,7 @@ class SuffStatBag(object):
 
     def _setMergeTermsAtIndexKAToNaN(self, kA, kB, rowID):
         ''' Make terms tracked for kA incompatible for future merges.
-        '''        
+        '''
         if self.hasMergeTerms():
             for key, dims in self._MergeTerms._FieldDims.items():
                 mArr = getattr(self._MergeTerms, key)
@@ -475,8 +487,8 @@ class SuffStatBag(object):
                 elif dims == ('K'):
                     mArr[kA] = mArr[kA] + mArr[kB]
 
-    def replaceCompWithExpansion(self, uid=0, xSS=None, 
-            keysToSetNonExtraZero=['sumLogPiRemVec']):
+    def replaceCompWithExpansion(self, uid=0, xSS=None,
+                                 keysToSetNonExtraZero=['sumLogPiRemVec']):
         ''' Replace existing component with expanded set of statistics.
 
         Post Condition
@@ -508,7 +520,7 @@ class SuffStatBag(object):
 
         # Decrement Fields terms
         for key, dims in self._Fields._FieldDims.items():
-            arr = getattr(self._Fields, key)                        
+            arr = getattr(self._Fields, key)
             if dims is None:
                 pass
             elif dims == ('K', 'K'):
@@ -516,27 +528,24 @@ class SuffStatBag(object):
             elif dims[0] == 'K':
                 if key == 'sumLogPiRemVec':
                     arr[-1] -= getattr(xSS, key).sum(axis=0)
-                elif hasattr(xSS, key+'EmptyComp'):
-                    arr[k] += getattr(xSS, key+'EmptyComp')
+                elif hasattr(xSS, key + 'EmptyComp'):
+                    arr[k] += getattr(xSS, key + 'EmptyComp')
                 else:
                     arr[k] -= getattr(xSS, key).sum(axis=0)
         # Decrement ELBO terms
         for key, dims in self._ELBOTerms._FieldDims.items():
-            arr = getattr(self._ELBOTerms, key)                        
+            arr = getattr(self._ELBOTerms, key)
             if dims is None:
                 pass
             elif dims == ('K', 'K'):
                 raise NotImplementedError('TODO')
             elif dims[0] == 'K':
-                if hasattr(xSS._ELBOTerms, key+'EmptyComp'):
-                    arr[k] += getattr(xSS._ELBOTerms, key+'EmptyComp')
+                if hasattr(xSS._ELBOTerms, key + 'EmptyComp'):
+                    arr[k] += getattr(xSS._ELBOTerms, key + 'EmptyComp')
                 else:
                     arr[k] = 0
         # Insert the expansion stats at indices K, K+1, ...
         self.insertComps(xSS)
-
-
-
 
     def __add__(self, PB):
         if self.K != PB.K or self.D != PB.D:

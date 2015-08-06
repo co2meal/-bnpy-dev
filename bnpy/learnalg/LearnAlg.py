@@ -213,7 +213,10 @@ class LearnAlg(object):
 
         with open(self.mkfile('ActiveIDs.txt'), 'a') as f:
             if ActiveIDVec is None:
-                ActiveIDVec = np.arange(SS.K)
+                if SS is None:
+                    ActiveIDVec = np.arange(SS.K)
+                else:
+                    ActiveIDVec = SS.uids
             flatstr = ' '.join(['%d' % x for x in ActiveIDVec])
             f.write(flatstr + '\n')
 
