@@ -156,7 +156,7 @@ class MemoVBMovesAlg(LearnAlg):
             countVec = SS.getCountVec()
             if lapFrac > 1.0:
                 ConvStatus[batchID] = self.isCountVecConverged(
-                    countVec, prevCountVec)
+                    countVec, prevCountVec, batchID=batchID)
                 isConverged = np.min(ConvStatus) and \
                     self.hasMoreReasonableMoves(SS, MoveRecordsByUID, lapFrac)
                 self.setStatus(lapFrac, isConverged)
