@@ -48,7 +48,7 @@ def expand_then_refine(freshModel, freshSS, freshData,
     if xbigModel.allocModel.K < Kx:
         xbigModel.allocModel.update_global_params(xbigSS)
     if xbigModel.obsModel.K < Kx:
-        xbigModel.obsModel.update_global_params(xbigSS)
+        xbigModel.obsModel.update_global_params(xbigSS, nBirthExpand = freshSS.K)
     xbigSS.subtractSpecificComps(freshSS, range(bigSS.K, bigSS.K + freshSS.K))
     if kwargs['birthDebug']:
         Info['xbigModelInit'] = xbigModel.copy()

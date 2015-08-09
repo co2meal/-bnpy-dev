@@ -310,7 +310,7 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
         self.EstParams.setField('Sigma', Sigma, dims=('K', 'D', 'D'))
         self.K = SS.K
 
-    def updatePost(self, SS):
+    def updatePost(self, SS, **kwargs):
         ''' Update attribute Post for all comps given suff stats.
 
         Update uses the variational objective.

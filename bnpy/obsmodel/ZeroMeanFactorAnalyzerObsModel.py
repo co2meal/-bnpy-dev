@@ -11,14 +11,21 @@ from bnpy.util import LOGTWOPI
 class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
 
     def __init__(self, inferType='VB', Data=None, C = None, **PriorArgs):
-        self.D = Data.dim
+        if Data is not None:
+            self.D = Data.dim
+        else:
+            self.D = int(PriorArgs['D'])
+        if C is None:
+            C = 1
+        else:
+            C = int(C)
         self.C = C
         self.K = 0
         self.inferType = inferType
         self.createPrior(Data, **PriorArgs)
         self.Cache = dict()
 
-    def createPrior(self, Data, f = None, g = None, s=None, t = None):
+    def createPrior(self, Data, f = None, g = None, s=None, t = None, **kwargs):
         K = self.K
         D = self.D
         C = self.C
@@ -140,12 +147,13 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
 
     def calcPostParams(self, SS,
                        newCompList = [],
-                       nIter4NewComp = 50,
+                       nIter4NewComp = 5,
                        mergeCompA=None, mergeCompB=None,
                        isBirthCreate = False,
-                       BirthCleanUpList = [],
-                       BirthExpandList = [],
-                       BirthRefineList = []):
+                       BirthCleanUpList = None,
+                       nBirthExpand = None,
+                       BirthRefineList = [],
+                       kdel = None):
         C = SS.C
         D = SS.D
         K = SS.K
@@ -162,31 +170,59 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             if mergeCompA is not None and mergeCompB is not None:
                 assert SS.K + 1 == self.Post.K
                 assert mergeCompA < mergeCompB
-                if np.allclose(SS.xxT[mergeCompA],0) and np.allclose(SS.N[mergeCompA],0):
-                    eigVal = np.zeros(D)
-                    eigVec = np.zeros((D,D))
-                else:
-                    eigVal, eigVec = eig(SS.xxT[mergeCompA] / SS.N[mergeCompA])
-                Post.WMean[mergeCompA] = eigVec[:,:C]
-                Post.PhiShape[mergeCompA] = self.Prior.s + .5 * SS.N[mergeCompA]
-                sigma2 = np.sum(eigVal[C:])
-                Post.PhiInvScale[mergeCompA] = self.Prior.t + sigma2 * (Post.PhiShape[mergeCompA] - 1)
-                assert np.all(Post.PhiInvScale[mergeCompA]) > 0
                 Post.removeComp(mergeCompB)
-                newCompList=np.array([mergeCompA])
+                newCompList = np.array([mergeCompA])
+            elif BirthCleanUpList is not None:
+                assert SS.K + len(BirthCleanUpList) == Post.K
+                BirthCleanUpList = sorted(BirthCleanUpList, reverse=True)
+                for k in BirthCleanUpList:
+                    self.Post.removeComp(k)
+            elif nBirthExpand is not None:
+                assert SS.K == nBirthExpand + Post.K
+                newCompList = np.arange(Post.K, SS.K)
+            elif kdel is not None:
+                kdel = sorted(kdel, reverse=True)
+                for k in kdel:
+                    Post.removeComp(k)
             elif Post.K != SS.K:
                 raise NotImplementedError
+
             WMean = Post.WMean
             PhiShape = Post.PhiShape
             PhiInvScale = Post.PhiInvScale
             hShape = Post.hShape
             hInvScale = Post.hInvScale
             aCov = Post.aCov
+
+            for k in newCompList:
+                if np.allclose(SS.xxT[k],0) and np.allclose(SS.N[k],0):
+                    PRNG = np.random.RandomState(0)
+                    eigVal = PRNG.randn(D)
+                    eigVec = PRNG.randn(D, D)
+                else:
+                    eigVal, eigVec = eig(SS.xxT[k] / SS.N[k])
+                    idx = np.argsort(eigVal)[::-1]
+                    eigVal = eigVal[idx]
+                    eigVec = eigVec[:, idx]
+                PhiShape[k] = self.Prior.s + .5 * SS.N[k]
+                sigma2 = np.sum(eigVal[C:]) / (D - C)
+                PhiInvScale[k] = self.Prior.t + sigma2 * (PhiShape[k] - 1)
+                assert np.all(PhiInvScale[k]) > 0
+                hInvScale[k] = self.Prior.g * np.ones(C)
+                WMean[k] = np.dot(eigVec[:,:C], np.diag(np.sqrt(eigVal[:C] - sigma2)))
+                E_W_WT = np.zeros((D, C, C))
+                for d in xrange(D):
+                    E_W_WT[d] = np.outer(WMean[k,d], WMean[k,d])
+                E_WT_Phi_W = np.sum((PhiShape[k] / PhiInvScale[k])[:, np.newaxis, np.newaxis]
+                                     * E_W_WT, axis=0)
+                aCov[k] = inv(np.eye(C) + E_WT_Phi_W)
+
         xaT, aaT = self.get_xaT_aaT(SS, WMean, PhiShape, PhiInvScale, aCov)
         WMean, WCov = self.calcPostW(SS, xaT, aaT, hShape, hInvScale, PhiShape, PhiInvScale)
         hShape, hInvScale = self.calcPostH(WMean, WCov)
         PhiShape, PhiInvScale = self.calcPostPhi(SS, xaT, aaT, WMean, WCov)
         aCov = self.calcPostACov(WMean, WCov, PhiShape, PhiInvScale)
+
         if len(newCompList) > 0:
             idx = newCompList
             for i in xrange(nIter4NewComp - 1):
@@ -256,9 +292,10 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         else:
             K = len(idx)
         D = self.D
-        PhiShape = self.Prior.s + .5 * SS.N
+        PhiShape = self.Prior.s * np.ones(K)
         PhiInvScale = self.Prior.t * np.ones((K, D))
         for i, k in enumerate(idx):
+            PhiShape[i] += .5 * SS.N[k]
             for d in xrange(D):
                 PhiInvScale[i,d] += .5 * (SS.xxT[k,d,d]
                                     - 2 * np.dot(xaT[k,d], WMean[k,d])
@@ -406,7 +443,10 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         for d in xrange(D):
             elbo += - PhiShape * np.log(PhiInvScale[d]) \
                     + Prior.s * np.log(Prior.t) \
-                    + gammaln(PhiShape) - gammaln(Prior.s)
+                    + gammaln(PhiShape) - gammaln(Prior.s) \
+                    - (PhiShape - Prior.s) * \
+                      (psi(PhiShape) - np.log(PhiInvScale[d])) \
+                    + PhiShape * (1 - Prior.t / PhiInvScale[d])
         for c in xrange(C):
             elbo += - hShape * np.log(hInvScale[c]) \
                     + Prior.f * np.log(Prior.g) \
@@ -416,9 +456,19 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         L = aCov
         LU = np.dot(L, np.dot(WMean.T, np.diag(PhiShape / PhiInvScale)))
         aaT = SS.N * L + np.dot(LU, np.inner(SS.xxT, LU))
+        xaT = np.inner(SS.xxT, LU)
+        E_WWT = np.zeros((D,C,C))
+        for d in xrange(D):
+            E_WWT[d] = np.outer(WMean[d], WMean[d]) + WCov[d]
+        E_WT_invPsi_W = np.sum((PhiShape / PhiInvScale)[:, np.newaxis, np.newaxis]
+                               * E_WWT, axis=0)
         elbo += .5 * (np.prod(slogdet(L)) + C) * SS.N \
                 - .5 * np.trace(aaT)
-        elbo += -.5 * D * SS.N * LOGTWOPI
+        elbo += -.5 * D * SS.N * LOGTWOPI \
+                + .5 * (np.sum(psi(PhiShape) - np.log(PhiInvScale))) * SS.N \
+                - .5 * np.dot(PhiShape / PhiInvScale, np.diag(SS.xxT)) \
+                + np.dot(PhiShape / PhiInvScale, np.einsum('ij, ij->i', xaT, WMean)) \
+                - .5 * np.einsum('ij,ji', E_WT_invPsi_W, aaT)
         return elbo
 
     def calcHardMergeGap(self, SS, kA, kB):
@@ -443,7 +493,7 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov = \
              self.calcPostParamsForComp(SS, kA=kA, kB=kB)
         elboAB = self.elbo4comp(SS_AB, WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov)
-        return elboA + elboB - elboAB
+        return - elboA - elboB + elboAB
 
     def calcHardMergeGap_AllPairs(self, SS):
         ''' Calculate change in ELBO for all candidate hard merge pairs
@@ -470,8 +520,9 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             for k in xrange(j + 1, SS.K):
                 WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov \
                     = self.calcPostParamsForComp(SS, j, k)
-                ejk = self.elbo4comp(SS.getComp(j) + SS.getComp(k), WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov)
-                Gap[j, k] = e[j] + e[k] - ejk
+                ejk = self.elbo4comp(SS.getComp(j) + SS.getComp(k), WMean, WCov,
+                                     hShape, hInvScale, PhiShape, PhiInvScale, aCov)
+                Gap[j, k] = - e[j] - e[k] + ejk
         return Gap
 
     def calcHardMergeGap_SpecificPairs(self, SS, PairList):
@@ -487,32 +538,15 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             Gaps[ii] = self.calcHardMergeGap(SS, kA, kB)
         return Gaps
 
-    def calcHardMergeGap_SpecificPairSS(self, SS1, SS2):
-        ''' Calc change in ELBO for merge of two K=1 suff stat bags.
-
-        Returns
-        -------
-        gap : scalar float
-        '''
-        assert SS1.K == 1
-        assert SS2.K == 1
-        SS12 = SS1 + SS2
-        WMean1, WCov1, hShape1, hInvScale1, PhiShape1, PhiInvScale1, aCov1 \
-            = self.calcPostParamsForComp(SS1, kA=0)
-        WMean2, WCov2, hShape2, hInvScale2, PhiShape2, PhiInvScale2, aCov2 \
-            = self.calcPostParamsForComp(SS2, kA=0)
-        WMean12, WCov12, hShape12, hInvScale12, PhiShape12, PhiInvScale12, aCov12 \
-            = self.calcPostParamsForComp(SS12, kA=0)
-        elbo1 = self.elbo4comp(SS1, WMean1, WCov1, hShape1, hInvScale1, PhiShape1, PhiInvScale1, aCov1)
-        elbo2 = self.elbo4comp(SS2, WMean2, WCov2, hShape2, hInvScale2, PhiShape2, PhiInvScale2, aCov2)
-        elbo12 = self.elbo4comp(SS12, WMean12, WCov12, hShape12, hInvScale12, PhiShape12, PhiInvScale12, aCov12)
-        return elbo1 + elbo2 - elbo12
-
-    def calcPostParamsForComp(self, SS, kA=None, kB=None, nIter4NewComp=50):
+    def calcPostParamsForComp(self, SS, kA=None, kB=None, nIter4NewComp=5):
         D = self.D
         C = self.C
         if kB is None:
             nIter = 1
+            SN = SS.N[kA]
+            SxxT = SS.xxT[kA]
+        elif kB == -1 and SS.K == 1:
+            nIter = nIter4NewComp
             SN = SS.N[kA]
             SxxT = SS.xxT[kA]
         else:
@@ -520,18 +554,28 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             SN = SS.N[kA] + SS.N[kB]
             SxxT = SS.xxT[kA] + SS.xxT[kB]
             if np.allclose(SxxT,0) and np.allclose(SN,0):
-                eigVal = np.zeros(D)
-                eigVec = np.zeros((D,D))
+                PRNG = np.random.RandomState(0)
+                eigVal = PRNG.randn(D)
+                eigVec = PRNG.randn(D, D)
             else:
                 eigVal, eigVec = eig(SxxT / SN)
-            WMean = eigVec[:,:C]
+                idx = np.argsort(eigVal)[::-1]
+                eigVal = eigVal[idx]
+                eigVec = eigVec[:, idx]
             PhiShape = self.Prior.s + .5 * SN
-            sigma2 = np.sum(eigVal[C:])
+            sigma2 = np.sum(eigVal[C:]) / (D - C)
             PhiInvScale = self.Prior.t + sigma2 * (PhiShape - 1) * np.ones(D)
+            WMean = np.dot(eigVec[:,:C], np.diag(np.sqrt(eigVal[:C] - sigma2)))
             assert np.all(PhiInvScale) > 0
             hShape = self.Prior.f
             hInvScale = self.Prior.g * np.ones(C)
-            aCov = np.eye(C)
+            E_W_WT = np.zeros((D, C, C))
+            for d in xrange(D):
+                E_W_WT[d] = np.outer(WMean[d], WMean[d])
+            E_WT_Phi_W = np.sum((PhiShape / PhiInvScale)[:, np.newaxis, np.newaxis]
+                                 * E_W_WT, axis=0)
+            aCov = inv(np.eye(C) + E_WT_Phi_W)
+
         for i in xrange(nIter):
             # get xaT, aaT
             LU = np.dot(aCov, np.dot(WMean.T, np.diag(PhiShape / PhiInvScale)))
@@ -563,38 +607,68 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             aCov = inv(np.eye(C) + E_WT_Phi_W)
         return WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov
 
-
+    def setPostFactors(self, aCov=None,
+                       WMean=None, WCov=None, PhiShape=None, PhiInvScale=None,
+                       hShape=None, hInvScale=None, **kwargs):
+        self.Post = ParamBag(K=WMean.shape[0], D=WMean.shape[1], C=WMean.shape[2])
+        self.Post.setField('WMean', WMean, dims=('K','D','C'))
+        self.Post.setField('WCov', WCov, dims=('K','D','C','C'))
+        self.Post.setField('hShape', hShape)
+        if hInvScale.ndim == 1:
+            hInvScale = hInvScale[:, np.newaxis]
+        self.Post.setField('hInvScale', hInvScale, dims=('K','C'))
+        self.Post.setField('PhiShape', PhiShape, dims=('K'))
+        self.Post.setField('PhiInvScale', PhiInvScale, dims=('K','D'))
+        self.Post.setField('aCov', aCov, dims=('K','C','C'))
 
 if __name__ == '__main__':
     import bnpy, profile
-    # profile.run("bnpy.run('D3C2K2_ZM', 'FiniteMixtureModel','ZeroMeanFactorAnalyzer', 'VB',nLap=500, K=2, printEvery=50)",sort=1)
     import StarCovarK5
-    Data = StarCovarK5.get_data()
+    Data = StarCovarK5.get_data(nObsTotal=10000)
     import matplotlib.pylab as plt
-    # plt.figure(100)
-    # plt.scatter(Data.X[:,0], Data.X[:,1], c='r', marker='o')
-    # plt.show()
     hmodel, RInfo = bnpy.run(Data, 'DPMixtureModel',
                             'ZeroMeanFactorAnalyzer', 'moVB',
-                            C=1, nLap=100, nObsTotal=10000, K=20,
+                            C=1, nLap=1000, K=20, printEvery=10,
                             moves='merge', mergeStartLap=10)
-    LP = hmodel.calc_local_params(Data)
-    from bnpy.viz.GaussViz import plotGauss2DContour
+    # hmodel = bnpy.load_model('/Users/Geng/Documents/Brown/research/patch/FAPY/StarCovarK5/defaultjob/1')
+    # from bnpy.viz import PlotELBO
+    # PlotELBO.plotJobsThatMatchKeywords('StarCovarK5/defaultjob');
+
+    from bnpy.viz.GaussViz import plotGauss2DContour, Colors
     import matplotlib.pylab as plt
     for k in xrange(hmodel.obsModel.K):
-        # plt.figure(k)
+        plt.figure(k)
         sigma = np.inner(hmodel.obsModel.Post.WMean[k], hmodel.obsModel.Post.WMean[k]) \
                 + np.sum(np.diagonal(hmodel.obsModel.Post.WCov[k]),axis=1) \
                 + np.diag(hmodel.obsModel.Post.PhiInvScale[k] /
-                          hmodel.obsModel.Post.PhiShape[k])
-        plotGauss2DContour(np.zeros(hmodel.obsModel.D), sigma, color='b')
-    # for k in xrange(hmodel.obsModel.K):
-    #     plt.figure(k)
-    #     idx = (np.argmax(LP['resp'], axis=1) == k)
-    #     x = Data.X[idx,0]
-    #     y = Data.X[idx,1]
-    #     plt.scatter(x, y, c='r', marker='o')
+                          (hmodel.obsModel.Post.PhiShape[k] - 1))
+        plotGauss2DContour(np.zeros(hmodel.obsModel.D), sigma)
+        plt.axis([-1, 1, -1, 1])
     plt.show()
+
+    # LP = hmodel.calc_local_params(Data)
+    # SS = hmodel.get_global_suff_stats(Data, LP, doPrecompEntropy=True,
+    #                                   doPrecompMergeEntropy=True, mPairIDs=[(3,5)])
+    # print SS.N
+    # ELBO = hmodel.calc_evidence(Data=Data, SS=SS, LP=LP)
+    # print 'Original elbo is: ' + str(ELBO)
+    #
+    # from bnpy.mergemove import MergeMove
+    # MergeMove.run_many_merge_moves(hmodel, SS, ELBO, [(3,5)])
+
+
+    # from IPython import embed; embed()
+    # SS.mergeComps(3,5)
+    # hmodel.update_global_params(SS, mergeCompA=3, mergeCompB=5)
+    # print 'Merged elbo is: ' + str(hmodel.calc_evidence(Data=Data, SS=SS))
+
+    # propModel = hmodel.copy()
+    # propSS = SS.copy()
+    # kdel = [6,1]
+    # for k in kdel:
+    #     propSS.removeComp(k)
+    # propModel.update_global_params(propSS, kdel=kdel)
+    # print propModel.calc_evidence(Data, propSS)
 
 
     # hmodel, RInfo = bnpy.run('D2C1K2_ZM', 'DPMixtureModel',
