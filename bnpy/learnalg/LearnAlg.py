@@ -213,7 +213,10 @@ class LearnAlg(object):
 
         with open(self.mkfile('ActiveIDs.txt'), 'a') as f:
             if ActiveIDVec is None:
-                ActiveIDVec = np.arange(SS.K)
+                if SS is None:
+                    ActiveIDVec = np.arange(SS.K)
+                else:
+                    ActiveIDVec = SS.uids
             flatstr = ' '.join(['%d' % x for x in ActiveIDVec])
             f.write(flatstr + '\n')
 
@@ -223,16 +226,27 @@ class LearnAlg(object):
             with open(self.mkfile('ActiveUsage.txt'), 'a') as f:
                 f.write(flatstr + '\n')
 
-    def isCountVecConverged(self, Nvec, prevNvec):
+    def isCountVecConverged(self, Nvec, prevNvec, batchID=None):
         if Nvec.size != prevNvec.size:
             # Warning: the old value of maxDiff is still used for printing
             return False
 
         maxDiff = np.max(np.abs(Nvec - prevNvec))
         isConverged = maxDiff < self.algParams['convergeThr']
+        if batchID is not None:
+            if not hasattr(self, 'ConvergeInfoByBatch'):
+                self.ConvergeInfoByBatch = dict()
+            self.ConvergeInfoByBatch[batchID] = dict(
+                isConverged=isConverged,
+                maxDiff=maxDiff)
+            isConverged = np.min([
+                self.ConvergeInfoByBatch[b]['isConverged']
+                for b in self.ConvergeInfoByBatch])
+            maxDiff = np.max([
+                self.ConvergeInfoByBatch[b]['maxDiff']
+                for b in self.ConvergeInfoByBatch])
         self.ConvergeInfo = dict(isConverged=isConverged,
-                                 maxDiff=maxDiff
-                                 )
+                                 maxDiff=maxDiff)
         return isConverged
 
     def isSaveParamsCheckpoint(self, lap, nMstepUpdates):

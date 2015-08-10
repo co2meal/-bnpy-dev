@@ -150,9 +150,6 @@ class ParamBag(object):
                 self.setField(key, arrC, dims=dims)
             elif dims is None:
                 pass
-                # #if hasattr(PB, key):
-                # #    self.setField(
-                # #        key, getattr(self, key) + getattr(PB, key), dims=None)
 
     def removeComp(self, k):
         ''' Updates self in-place to remove component "k"
