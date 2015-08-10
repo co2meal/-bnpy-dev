@@ -8,6 +8,7 @@ from collections import defaultdict
 from bnpy.birthmove import createSplitStats, assignSplitStats
 from bnpy.birthmove import BirthProposalError, selectTargetCompsForBirth
 from bnpy.mergemove import selectCandidateMergePairs, ELBO_GAP_ACCEPT_TOL
+from bnpy.deletemove import selectCandidateDeleteComps
 from bnpy.util import sharedMemDictToNumpy, sharedMemToNumpyArray
 from LearnAlg import makeDictOfAllWorkspaceVars
 from LearnAlg import LearnAlg
@@ -333,6 +334,9 @@ class MemoVBMovesAlg(LearnAlg):
                 SSbatch.mergeComps(**kwargs)
             elif op == 'shuffle':
                 SSbatch.reorderComps(kwargs['bigtosmallorder'])
+            elif op == 'prune':
+                for uid in kwargs['emptyCompUIDs']:
+                    SSbatch.removeComp(uid=uid)
             elif op == 'birth':
                 targetUID = kwargs['targetUID']
                 hasStoredProposal = hasattr(SSbatch, 'propXSS') and \
@@ -380,6 +384,9 @@ class MemoVBMovesAlg(LearnAlg):
         if self.hasMove('birth'):
             MovePlans = self.makeMovePlans_Birth(
                 hmodel, SS, MovePlans=MovePlans, **kwargs)
+        if isFirst and self.hasMove('delete'):
+            MovePlans = self.makeMovePlans_Delete(
+                hmodel, SS, MovePlans=MovePlans, **kwargs)
         if isFirst and self.hasMove('merge'):
             MovePlans = self.makeMovePlans_Merge(
                 hmodel, SS, MovePlans=MovePlans, **kwargs)
@@ -390,12 +397,12 @@ class MemoVBMovesAlg(LearnAlg):
                             MoveRecordsByUID=dict(),
                             lapFrac=0,
                             **kwargs):
-        ''' Plan out which merges to attempt in current batch (or lap).
+        ''' Plan out which merges to attempt in current lap.
 
         Returns
         -------
         MovePlans : dict
-            * mergePairUIDs : list of pairs of uids to merge
+            * m_UIDPairs : list of pairs of uids to merge
         '''
         if SS is None:
             return MovePlans
@@ -412,6 +419,33 @@ class MemoVBMovesAlg(LearnAlg):
         else:
             MPlan['doPrecompMergeEntropy'] = 1
         MovePlans.update(MPlan)
+        return MovePlans
+
+    def makeMovePlans_Delete(self, hmodel, SS,
+                            MovePlans=dict(),
+                            MoveRecordsByUID=dict(),
+                            lapFrac=0,
+                            **kwargs):
+        ''' Plan out which deletes to attempt in current lap.
+
+        Returns
+        -------
+        MovePlans : dict
+            * d_targetUIDs : list of uids to delete
+        '''
+        if SS is None:
+            return MovePlans
+        if lapFrac < self.algParams['delete']['d_startLap']:
+            return MovePlans
+        if self.hasMove('birth'):
+            BArgs = self.algParams['birth']
+        else:
+            BArgs = dict()
+        DArgs = self.algParams['delete']
+        DArgs.update(BArgs)
+        DPlan = selectCandidateDeleteComps(
+            hmodel, SS, MovePlans=MovePlans, **DArgs)
+        MovePlans.update(DPlan)
         return MovePlans
 
     def makeMovePlans_Birth(self, hmodel, SS,
@@ -602,6 +636,20 @@ class MemoVBMovesAlg(LearnAlg):
         MoveLog
         MoveRecordsByUID
         '''
+        emptyCompLocs = np.flatnonzero(SS.getCountVec() < 0.001)
+        emptyCompUIDs = [SS.uids[k] for k in emptyCompLocs]
+        if emptyCompLocs.size > 0:
+            beforeUIDs = SS.uids.copy()
+            for uid in emptyCompUIDs:
+                SS.removeComp(uid=uid)
+            afterUIDs = SS.uids.copy()
+            moveTuple = (
+                lapFrac, 'prune',
+                dict(emptyCompUIDs=emptyCompUIDs),
+                beforeUIDs,
+                afterUIDs)
+            MoveLog.append(moveTuple)
+
         bigtosmallorder = np.argsort(-1 * SS.getCountVec())
         sortedalready = np.arange(SS.K)
         if not np.allclose(bigtosmallorder, sortedalready):
@@ -613,6 +661,10 @@ class MemoVBMovesAlg(LearnAlg):
             SS.reorderComps(bigtosmallorder)
             hmodel.update_global_params(SS)
             Lscore = hmodel.calc_evidence(SS=SS)
+        elif emptyCompLocs.size > 0:
+            hmodel.update_global_params(SS)
+            Lscore = hmodel.calc_evidence(SS=SS)
+
         return hmodel, SS, Lscore, MoveLog, MoveRecordsByUID
 
     def initProgressTrackVars(self, DataIterator):
