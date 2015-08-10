@@ -11,6 +11,7 @@ from bnpy.viz.PlotComps import plotAndSaveCompsFromSS
 from bnpy.viz.ProposalViz import plotELBOtermsForProposal
 from bnpy.viz.ProposalViz import plotDocUsageForProposal
 from bnpy.viz.ProposalViz import makeSingleProposalHTMLStr
+from bnpy.viz.PrintTopics import count2str
 
 try:
     import KMeansRex
@@ -247,6 +248,30 @@ def createSplitStats_HDPTopicModel_BregDiv(
 
     xSSslice = xSSfake
     nnzCount = np.sum(xSSslice.getCountVec() >= 1)
+
+    strUIDs = ' '.join([count2str(u) for u in xSSfake.uids])
+
+    print 'targetUID ', targetUID
+    print '  ', strUIDs
+    def pprintCountVec(SS, uids=xSSfake.uids, uidpairsToAccept=None):
+        s = ''
+        emptyVal = '     '
+        for uid in uids:
+            try:
+                k = SS.uid2k(uid)
+                s += ' ' + count2str(SS.getCountVec()[k])
+            except:
+                didWriteThisUID = False
+                if uidpairsToAccept:
+                    for uidA, uidB in uidpairsToAccept:
+                        if uidB == uid:
+                            s += ' m' + '%3d' % (uidA)
+                            didWriteThisUID = True
+                            break
+                if not didWriteThisUID:
+                    s += emptyVal
+        return '  ' + s
+
     for i in range(b_nRefineSteps):
         # Obtain valid suff stats that represent Dslice for given model
         # using xSSslice as initial "seed" clusters.
@@ -262,8 +287,8 @@ def createSplitStats_HDPTopicModel_BregDiv(
             **kwargs)
 
         # Show diagnostics for new states
-        CountVec = xSSslice.getCountVec()
-        print ' '.join(['%.0f' % (x) for x in CountVec])
+        print pprintCountVec(xSSslice)
+
         if b_debugOutputDir:
             plotAndSaveCompsFromSS(
                 curModel, xSSslice, b_debugOutputDir,
@@ -289,7 +314,8 @@ def createSplitStats_HDPTopicModel_BregDiv(
             else:
                 # Always remove empty clusters. They waste our time.
                 minNumAtomsToStay = 1
-            xSSslice = cleanupDeleteSmallClusters(xSSslice, minNumAtomsToStay)
+            xSSslice = cleanupDeleteSmallClusters(
+                xSSslice, minNumAtomsToStay, pprintCountVec=pprintCountVec)
         # Cleanup by merging clusters
         if i == b_nRefineSteps - 2:
             DebugInfo['mergestep'] = i + 1
@@ -297,6 +323,7 @@ def createSplitStats_HDPTopicModel_BregDiv(
                 xSSslice, curModel,
                 obsSS=xSSfake,
                 vocabList=Dslice.vocabList,
+                pprintCountVec=pprintCountVec,
                 b_debugOutputDir=b_debugOutputDir, **kwargs)
         # Exit early if no promising new clusters are created
         nnzCount = np.sum(xSSslice.getCountVec() >= 1)

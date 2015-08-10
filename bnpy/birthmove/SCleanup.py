@@ -3,8 +3,9 @@ import bnpy.viz
 import os
 
 from bnpy.viz.PlotComps import plotAndSaveCompsFromSS
+from bnpy.viz.PrintTopics import count2str
 
-def cleanupDeleteSmallClusters(xSSslice, minAtomCountThr):
+def cleanupDeleteSmallClusters(xSSslice, minAtomCountThr, pprintCountVec=None):
     ''' Remove all clusters with size less than specified amount.
 
     Returns
@@ -19,6 +20,8 @@ def cleanupDeleteSmallClusters(xSSslice, minAtomCountThr):
         if xSSslice.K == 1:
             break
         xSSslice.removeComp(k)
+    if pprintCountVec and badids.size > 0:
+        print pprintCountVec(xSSslice)
     return xSSslice
 
 def cleanupMergeClusters(
@@ -27,6 +30,7 @@ def cleanupMergeClusters(
         vocabList=None,
         b_mergeLam=None,
         b_debugOutputDir=None,
+        pprintCountVec=None,
         **kwargs):
     ''' Merge all possible pairs of clusters that improve the Ldata objective.
 
@@ -53,14 +57,12 @@ def cleanupMergeClusters(
 
     mergeID = 0
     for trial in range(3):
-        print 'Merge! Wave %d' % (trial)
         tmpModel.obsModel.update_global_params(xSSslice)
         GainLdata = tmpModel.obsModel.calcHardMergeGap_AllPairs(xSSslice)
         triuIDs = np.triu_indices(xSSslice.K, 1)
         posLocs = np.flatnonzero(GainLdata[triuIDs] > 0)
         if posLocs.size == 0:
             # No merges to accept. Stop!
-            print 'No more merges to accept. Done.'
             break
 
         # Rank the positive pairs from largest to smallest
@@ -85,9 +87,6 @@ def cleanupMergeClusters(
         for posID, (uidA, uidB) in enumerate(uidpairsToAccept):
             mergeID += 1
             kA, kB = origidsToAccept[posID]
-            print 'Merge uids %d and %d: +%.3f' % (
-                uidA, uidB, GainLdata[kA,kB])
-
             xSSslice.mergeComps(uidA=uidA, uidB=uidB)
             if b_debugOutputDir:
                 savefilename = os.path.join(
@@ -101,6 +100,9 @@ def cleanupMergeClusters(
                     )
                 bnpy.viz.PlotUtil.pylab.savefig(
                     savefilename, pad_inches=0, bbox_inches='tight')
+
+        if len(uidpairsToAccept) > 0:
+            print pprintCountVec(xSSslice, uidpairsToAccept=uidpairsToAccept)
 
     if mergeID > 0 and b_debugOutputDir:
         tmpModel.obsModel.update_global_params(xSSslice)
