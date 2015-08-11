@@ -277,9 +277,9 @@ def calcRlogR_specificpairs(R, mPairs):
 
     Returns
     --------
-    Z : 2D array, size K x K
-        Z[a,b] = sum(Rab*log(Rab)), Rab = R[:,a] + R[:,b]
-        We restrict potential pairs a,b to satisfy a < b
+    Hvec : 1D array, size M
+        H[m] = sum(Rab*log(Rab))
+        where Rab = R[:,a] + R[:,b], and (a,b) = mPairs[m]
     '''
     if Config['calcRlogR'] == "numexpr" and hasNumexpr:
         return calcRlogR_specificpairs_numexpr(R, mPairs)
@@ -289,25 +289,24 @@ def calcRlogR_specificpairs(R, mPairs):
 
 def calcRlogR_specificpairs_numpy(R, mPairs):
     K = R.shape[1]
-    ElogqZMat = np.zeros((K, K))
+    Hvec = np.zeros(len(mPairs))
     if K == 1:
-        return ElogqZMat
-    for kA, kB in mPairs:
+        return Hvec
+    for m, (kA, kB) in enumerate(mPairs):
         curR = R[:, kA] + R[:, kB]
         curR *= np.log(curR)
-        ElogqZMat[kA, kB] = np.sum(curR, axis=0)
-    return ElogqZMat
-
+        Hvec[m] = np.sum(curR, axis=0)
+    return Hvec
 
 def calcRlogR_specificpairs_numexpr(R, mPairs):
     K = R.shape[1]
-    ElogqZMat = np.zeros((K, K))
+    Hvec = np.zeros(len(mPairs))
     if K == 1:
-        return ElogqZMat
-    for (kA, kB) in mPairs:
+        return Hvec
+    for m, (kA, kB) in enumerate(mPairs):
         curR = R[:, kA] + R[:, kB]
-        ElogqZMat[kA, kB] = ne.evaluate("sum(curR * log(curR), axis=0)")
-    return ElogqZMat
+        Hvec[m] = ne.evaluate("sum(curR * log(curR), axis=0)")
+    return Hvec
 
 
 def calcRlogRdotv_allpairs(R, v):

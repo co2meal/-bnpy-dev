@@ -940,12 +940,17 @@ def calcSummaryStats(Data, LP,
         * ElogqZ : 2D array, size K x K
             Each term is scalar entropy of merge candidate
     '''
+    if mPairIDs is not None and len(mPairIDs) > 0:
+        M = len(mPairIDs)
+    else:
+        M = 0
     Nvec = np.sum(LP['resp'], axis=0)
     K = Nvec.size
     if hasattr(Data, 'dim'):
-        SS = SuffStatBag(K=K, D=Data.dim)
+        SS = SuffStatBag(K=K, D=Data.dim, M=M)
     else:
-        SS = SuffStatBag(K=K, D=Data.vocab_size)
+        SS = SuffStatBag(K=K, D=Data.vocab_size, M=M)
+
     SS.setField('N', Nvec, dims=('K'))
 
     if doPrecompEntropy:
@@ -954,11 +959,8 @@ def calcSummaryStats(Data, LP,
 
     if doPrecompMergeEntropy:
         resp = LP['resp']
-        if mPairIDs is None:
-            HrespMat = -1 * NumericUtil.calcRlogR_allpairs(resp)
-        else:
-            HrespMat = -1 * NumericUtil.calcRlogR_specificpairs(resp, mPairIDs)
-        SS.setMergeTerm('Hresp', HrespMat, dims=('K', 'K'))
+        Hresp_vec = -1 * NumericUtil.calcRlogR_specificpairs(resp, mPairIDs)
+        SS.setMergeTerm('Hresp', Hresp_vec, dims=('M'))
     if trackDocUsage:
         Usage = np.sum(LP['resp'] > 0.01, axis=0)
         SS.setSelectionTerm('DocUsageCount', Usage, dims='K')
