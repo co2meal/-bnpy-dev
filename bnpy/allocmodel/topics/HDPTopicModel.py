@@ -7,6 +7,7 @@ import OptimizerRhoOmega
 from HDPTopicUtil import calcELBO
 from HDPTopicUtil import calcELBO_LinearTerms, calcELBO_NonlinearTerms
 from HDPTopicUtil import calcHrespForMergePairs
+from HDPTopicUtil import calcMergeTermsFromSeparateLP
 
 from bnpy.allocmodel.AllocModel import AllocModel
 from bnpy.allocmodel.mix.DPMixtureModel import convertToN0
@@ -344,8 +345,8 @@ class HDPTopicModel(AllocModel):
         subsetLP['resp'] = LP['resp'][subsetTokenIDs].copy()
         return subsetLP
 
-    def calcMergeTermDictFromSeparateLP(self, **kwargs):
-        return calcMergeTermDictFromSeparateLP(**kwargs)
+    def calcMergeTermsFromSeparateLP(self, **kwargs):
+        return calcMergeTermsFromSeparateLP(**kwargs)
 
     def get_global_suff_stats(
             self, Data, LP,

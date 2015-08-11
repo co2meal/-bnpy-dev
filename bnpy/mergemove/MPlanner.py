@@ -14,6 +14,7 @@ ELBO_GAP_ACCEPT_TOL = 1e-6
 def selectCandidateMergePairs(hmodel, SS,
         m_maxNumPairsContainingComp=3,
         MovePlans=dict(),
+        MoveRecordsByUID=dict(),
         **kwargs):
     ''' Select candidate pairs to consider for merge move.
     
@@ -53,7 +54,6 @@ def selectCandidateMergePairs(hmodel, SS,
         uidB = SS.uids[triuIDs[1][loc]]
         ctA = uidUsageCount[uidA]
         ctB = uidUsageCount[uidB]
-        
         if ctA >= m_maxNumPairsContainingComp or \
                 ctB >= m_maxNumPairsContainingComp:
             continue

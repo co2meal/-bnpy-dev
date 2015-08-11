@@ -7,6 +7,7 @@ from bnpy.util.StickBreakUtil import rho2beta
 from bnpy.util.NumericUtil import calcRlogRdotv_allpairs
 from bnpy.util.NumericUtil import calcRlogRdotv_specificpairs
 from bnpy.util.NumericUtil import calcRlogR_allpairs, calcRlogR_specificpairs
+from bnpy.util.NumericUtil import calcRlogR, calcRlogRdotv
 
 ELBOTermDimMap = dict(
     slackTheta='K',
@@ -348,14 +349,18 @@ def calcELBO_FixedDocTopicCountIgnoreEntropy(
     return Lnon + Llinear
 
 
-def calcMergeTermDictFromSeparateLP(
-        Data, LPa, SSa, LPb, SSb, mUIDPairs):
+def calcMergeTermsFromSeparateLP(
+        Data=None,
+        LPa=None, SSa=None,
+        LPb=None, SSb=None,
+        mUIDPairs=None):
     ''' Compute merge terms that combine two comps from separate LP dicts.
     
     Returns
     -------
     Mdict : dict of key, array-value pairs
     '''
+    M = len(mUIDPairs)
     m_sumLogPi = np.zeros(M)
     m_gammalnTheta = np.zeros(M)
     m_slackTheta = np.zeros(M)
@@ -368,9 +373,10 @@ def calcMergeTermDictFromSeparateLP(
 
         m_resp = LPa['resp'][:, kA] + LPb['resp'][:, kB]
         if hasattr(Data, 'word_count'):
-            m_Hresp[m] = calcRlogRdotv(m_resp[:,np.newaxis], Data.word_count)
+            m_Hresp[m] = -1 * calcRlogRdotv(
+                m_resp[:,np.newaxis], Data.word_count)
         else:
-            m_Hresp[m] = calcRlogR(m_resp[:,np.newaxis])
+            m_Hresp[m] = -1 * calcRlogR(m_resp[:,np.newaxis])
 
         DTC_vec = LPa['DocTopicCount'][:, kA] + LPb['DocTopicCount'][:, kB]
         theta_vec = LPa['theta'][:, kA] + LPb['theta'][:, kB]
@@ -379,7 +385,7 @@ def calcMergeTermDictFromSeparateLP(
         m_sumLogPi[m] = np.sum(ElogPi_vec)
         # slack = (Ndm - theta_dm) * E[log pi_dm]
         slack_vec = ElogPi_vec
-        slack_vec *= -1 * (DTC_vec - theta_vec)
+        slack_vec *= (DTC_vec - theta_vec)
         m_slackTheta[m] = np.sum(slack_vec)
     return dict(
         Hresp=m_Hresp,

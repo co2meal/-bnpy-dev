@@ -232,7 +232,6 @@ def expandLPWithJunk(LP, Kextra, PRNG=np.random.RandomState,
     LP : dict,
         with K + Kextra total components.
     '''
-    print kwargs, '<<<'
     resp = LP['resp']
     N, K = resp.shape
     respNew = np.hstack([resp, np.zeros((N, Kextra))])
@@ -243,7 +242,6 @@ def expandLPWithJunk(LP, Kextra, PRNG=np.random.RandomState,
         respNew[IDs_k, :K] = 0.01 / K
         respNew[IDs_k, K + k] = 1 - 0.01
         del selectIDs[:Nextra]
-    print respNew.sum(axis=0)
     return dict(resp=respNew)
 
 

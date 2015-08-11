@@ -82,7 +82,6 @@ class MemoVBMovesAlg(LearnAlg):
                 MovePlans = dict()
                 if SS is not None and SS.hasSelectionTerms():
                     SS._SelectTerms.setAllFieldsToZero()
-
             MovePlans = self.makeMovePlans(
                 hmodel, SS, MovePlans,
                 MoveRecordsByUID=MoveRecordsByUID,
@@ -132,8 +131,21 @@ class MemoVBMovesAlg(LearnAlg):
                             MoveLog=MoveLog,
                             MoveRecordsByUID=MoveRecordsByUID,
                             lapFrac=lapFrac,)
-                else:
-                    SS.removeMergeTerms()
+                # Afterwards, always discard any tracked merge terms
+                SS.removeMergeTerms()
+
+                # Delete move!
+                if self.hasMove('delete') and 'd_targetUIDs' in MovePlans:
+                    hmodel, SS, Lscore, MoveLog, MoveRecordsByUID = \
+                        self.runMoves_Delete(
+                            hmodel, SS, Lscore, MovePlans,
+                            MoveLog=MoveLog,
+                            MoveRecordsByUID=MoveRecordsByUID,
+                            lapFrac=lapFrac,)
+                # Afterwards, always discard any tracking terms
+                SS.removeMergeTerms()
+                if hasattr(SS, 'propXSS'):
+                    del SS.propXSS
 
                 # Shuffle : Rearrange order (big to small)
                 if self.hasMove('shuffle'):
@@ -275,19 +287,32 @@ class MemoVBMovesAlg(LearnAlg):
                         MoveRecordsByUID[targetUID]['b_nFailRecent'] += 1
                         MoveRecordsByUID[targetUID]['b_nSuccessRecent'] = 0
                         MoveRecordsByUID[targetUID]['b_latestLap'] = lapFrac
-                        targetCount = SS.getCountVec()[SS.uid2k(targetUID)]
+                        targetCount = curSSwhole.getCountVec()[
+                            curSSwhole.uid2k(targetUID)]
                         MoveRecordsByUID[targetUID]['b_latestCount'] = \
                             targetCount
+        # Prepare deletes
         if 'd_targetUIDs' in MovePlans:
-            from IPython import embed; embed()
-            xSS = curSSwhole.copy()
+            targetUID = MovePlans['d_targetUIDs'][0]
+            # Make copy of current suff stats (minus target state)
+            # to inspire reclustering of junk state.
+            propRemSS = curSSwhole.copy(
+                includeELBOTerms=False, includeMergeTerms=False)
+            for uid in propRemSS.uids:
+                if uid not in MovePlans['d_absorbingUIDSet']:
+                    propRemSS.removeComp(uid=uid)
+            mUIDPairs = list()
+            for uid in propRemSS.uids:
+                mUIDPairs.append((uid, uid+1000))
+            propRemSS.setUIDs([u+1000 for u in propRemSS.uids])
 
             SSbatch.propXSS[targetUID] = assignSplitStats(
-                Dbatch, curModel, LPbatch, xSS,
+                Dbatch, curModel, LPbatch, propRemSS,
                 curSSwhole=curSSwhole,
                 targetUID=targetUID,
                 LPkwargs=LPkwargs,
-                **self.algParams['birth'])
+                keepTargetCompAsEmpty=0,
+                mUIDPairs=mUIDPairs)
         return SSbatch
 
     def incrementWholeDataSummary(
@@ -367,6 +392,16 @@ class MemoVBMovesAlg(LearnAlg):
                     Kfresh = afterUIDs.size - beforeUIDs.size
                     SSbatch.insertEmptyComps(Kfresh)
                     SSbatch.setUIDs(afterUIDs)
+            elif op == 'delete':
+                SSbatch.removeMergeTerms()
+                targetUID = kwargs['targetUID']
+                hasStoredProposal = hasattr(SSbatch, 'propXSS') and \
+                    targetUID in SSbatch.propXSS
+                assert hasStoredProposal
+                SSbatch.replaceCompWithExpansion(
+                    uid=targetUID, xSS=SSbatch.propXSS[targetUID])
+                for (uidA, uidB) in SSbatch.mUIDPairs:
+                    SSbatch.mergeComps(uidA=uidA, uidB=uidB)
             else:
                 raise NotImplementedError("TODO")
             assert np.allclose(SSbatch.uids, afterUIDs)
@@ -403,11 +438,11 @@ class MemoVBMovesAlg(LearnAlg):
         if self.hasMove('birth'):
             MovePlans = self.makeMovePlans_Birth(
                 hmodel, SS, MovePlans=MovePlans, **kwargs)
-        if isFirst and self.hasMove('delete'):
-            MovePlans = self.makeMovePlans_Delete(
-                hmodel, SS, MovePlans=MovePlans, **kwargs)
         if isFirst and self.hasMove('merge'):
             MovePlans = self.makeMovePlans_Merge(
+                hmodel, SS, MovePlans=MovePlans, **kwargs)
+        if isFirst and self.hasMove('delete'):
+            MovePlans = self.makeMovePlans_Delete(
                 hmodel, SS, MovePlans=MovePlans, **kwargs)
         return MovePlans
 
@@ -425,12 +460,19 @@ class MemoVBMovesAlg(LearnAlg):
         '''
         if SS is None:
             return MovePlans
-        if lapFrac < self.algParams['merge']['mergeStartLap']:
+        if np.ceil(lapFrac) < self.algParams['merge']['m_startLap']:
+            return MovePlans
+        stopLap = self.algParams['merge']['m_stopLap']
+        if stopLap > 0 and np.ceil(lapFrac) >= stopLap:
             return MovePlans
 
         MArgs = self.algParams['merge']
         MPlan = selectCandidateMergePairs(
-            hmodel, SS, MovePlans=MovePlans, **MArgs)
+            hmodel, SS,
+            MovePlans=MovePlans,
+            MoveRecordsByUID=MoveRecordsByUID,
+            lapFrac=lapFrac,
+            **MArgs)
         # Do not track m_UIDPairs field unless it is non-empty
         if len(MPlan['m_UIDPairs']) < 1:
             del MPlan['m_UIDPairs']
@@ -454,8 +496,12 @@ class MemoVBMovesAlg(LearnAlg):
         '''
         if SS is None:
             return MovePlans
-        if lapFrac < self.algParams['delete']['d_startLap']:
+        if np.ceil(lapFrac) < self.algParams['delete']['d_startLap']:
             return MovePlans
+        stopLap = self.algParams['delete']['d_stopLap']
+        if stopLap > 0 and np.ceil(lapFrac) >= stopLap:
+            return MovePlans
+
         if self.hasMove('birth'):
             BArgs = self.algParams['birth']
         else:
@@ -463,7 +509,11 @@ class MemoVBMovesAlg(LearnAlg):
         DArgs = self.algParams['delete']
         DArgs.update(BArgs)
         DPlan = selectCandidateDeleteComps(
-            hmodel, SS, MovePlans=MovePlans, **DArgs)
+            hmodel, SS,
+            MovePlans=MovePlans,
+            MoveRecordsByUID=MoveRecordsByUID,
+            lapFrac=lapFrac,
+            **DArgs)
         MovePlans.update(DPlan)
         return MovePlans
 
@@ -479,6 +529,12 @@ class MemoVBMovesAlg(LearnAlg):
         MovePlans : dict
             * BirthTargetUIDs : list of uids (ints) indicating comps to target
         '''
+        if np.ceil(lapFrac) < self.algParams['birth']['b_startLap']:
+            return MovePlans
+        stopLap = self.algParams['birth']['b_stopLap']
+        if stopLap > 0 and np.ceil(lapFrac) >= stopLap:
+            return MovePlans
+
         if self.hasMove('birth'):
             print 'EXPANSION STAGE ======================='
             BArgs = self.algParams['birth']    
@@ -515,19 +571,19 @@ class MemoVBMovesAlg(LearnAlg):
             print 'EVALUATION STAGE ======================='
         acceptedUIDs = list()
         for targetUID in SS.propXSS.keys():
+            # Skip delete proposals, which are handled differently
             if 'd_targetUIDs' in MovePlans:
                 if targetUID in MovePlans['d_targetUIDs']:
                     continue
-
-            print 'targetUID', targetUID
+            # Prepare record-keeping            
             if targetUID not in MoveRecordsByUID:
                 MoveRecordsByUID[targetUID] = defaultdict(int)
-
             targetCount = SS.getCountVec()[SS.uid2k(targetUID)]
             MoveRecordsByUID[targetUID]['b_nTrial'] += 1
             MoveRecordsByUID[targetUID]['b_latestLap'] = lapFrac
             MoveRecordsByUID[targetUID]['b_latestCount'] = targetCount
             # Construct proposal statistics
+            print 'targetUID', targetUID
             propSS = SS.copy()
             propSS.transferMassFromExistingToExpansion(
                 uid=targetUID, xSS=SS.propXSS[targetUID])
@@ -542,6 +598,7 @@ class MemoVBMovesAlg(LearnAlg):
                 MoveRecordsByUID[targetUID]['b_nSuccess'] += 1
                 MoveRecordsByUID[targetUID]['b_nFailRecent'] = 0
                 MoveRecordsByUID[targetUID]['b_nSuccessRecent'] += 1
+                MoveRecordsByUID[targetUID]['b_latestLapAccept'] = lapFrac
                 # Write necessary information to the log
                 MoveArgs = dict(targetUID=targetUID,
                                 newUIDs=SS.propXSS[targetUID].uids)
@@ -592,14 +649,17 @@ class MemoVBMovesAlg(LearnAlg):
         MoveLog
         MoveRecordsByUID
         '''
-        if lapFrac < self.algParams['merge']['mergeStartLap']:
-            return hmodel, SS, Lscore, MoveLog, MoveRecordsByUID
-        assert SS.hasMergeTerms()
         acceptedUIDs = set()
+        nTrial = 0
+        nAccept = 0
+        nSkip = 0
+        Ndiff = 0.0
         for (uidA, uidB) in MovePlans['m_UIDPairs']:
             # Skip uids that we have already accepted in a previous merge.
             if uidA in acceptedUIDs or uidB in acceptedUIDs:
+                nSkip += 1
                 continue
+            nTrial += 1            
             # Update records for when each uid was last attempted
             for u in [uidA, uidB]:
                 if u not in MoveRecordsByUID:
@@ -616,12 +676,14 @@ class MemoVBMovesAlg(LearnAlg):
             propLscore = propModel.calc_evidence(SS=propSS)
             assert np.isfinite(propLscore)
             if propLscore > Lscore - ELBO_GAP_ACCEPT_TOL:
+                nAccept += 1
+                Ndiff += targetCount
                 acceptedUIDs.add(uidA)
                 acceptedUIDs.add(uidB)
                 MoveRecordsByUID[uidA]['m_nSuccess'] += 1
                 MoveRecordsByUID[uidA]['m_nSuccessRecent'] += 1
                 MoveRecordsByUID[uidA]['m_nFailRecent'] = 0
-
+                MoveRecordsByUID[uidA]['m_latestLapAccept'] = lapFrac
                 # Write necessary information to the log
                 MoveArgs = dict(uidA=uidA, uidB=uidB)
                 infoTuple = (lapFrac, 'merge', MoveArgs,
@@ -636,7 +698,9 @@ class MemoVBMovesAlg(LearnAlg):
                     MoveRecordsByUID[u]['m_nFail'] += 1
                     MoveRecordsByUID[u]['m_nFailRecent'] += 1
                     MoveRecordsByUID[u]['m_nSuccessRecent'] = 0
-
+        if nTrial > 0:
+            print 'MERGE %d/%d accepted. Ndiff %.2f. %d skipped.' % (
+                nAccept, nTrial, Ndiff, nSkip)
         # Finally, set all merge fields to zero,
         # since all possible merges have been accepted
         SS.removeMergeTerms()
@@ -691,6 +755,77 @@ class MemoVBMovesAlg(LearnAlg):
 
         return hmodel, SS, Lscore, MoveLog, MoveRecordsByUID
 
+
+    def runMoves_Delete(self, hmodel, SS, Lscore, MovePlans,
+                        MoveLog=list(),
+                        MoveRecordsByUID=dict(),
+                        lapFrac=0,
+                        **kwargs):
+        ''' Execute planned delete move.
+
+        Returns
+        -------
+        hmodel
+        SS
+        Lscore
+        MoveLog
+        MoveRecordsByUID
+        '''
+        nAccept = 0
+        nTrial = 0
+        Ndiff = 0.0
+        for targetUID in MovePlans['d_targetUIDs']:
+            nTrial += 1
+            assert targetUID in SS.propXSS
+            # Prepare record keeping
+            if targetUID not in MoveRecordsByUID:
+                MoveRecordsByUID[targetUID] = defaultdict(int)
+            targetCount = SS.getCountVec()[SS.uid2k(targetUID)]
+            MoveRecordsByUID[targetUID]['d_nTrial'] += 1
+            MoveRecordsByUID[targetUID]['d_latestLap'] = lapFrac
+            MoveRecordsByUID[targetUID]['d_latestCount'] = targetCount
+            # Construct proposed stats
+            propSS = SS.copy()
+            propSS.replaceCompWithExpansion(uid=targetUID,
+                                            xSS=SS.propXSS[targetUID])
+            for (uidA, uidB) in propSS.mUIDPairs:
+                propSS.mergeComps(uidA=uidA, uidB=uidB)
+            # Construct proposed model and its ELBO score
+            propModel = hmodel.copy()
+            propModel.update_global_params(propSS)
+            propLdict = propModel.calc_evidence(SS=propSS, todict=1)
+            propLscore = propLdict['Ltotal']
+            # Make decision
+            if propLscore > Lscore:
+                # Accept
+                nAccept += 1
+                Ndiff += targetCount
+                MoveRecordsByUID[targetUID]['d_nFailRecent'] = 0
+                MoveRecordsByUID[targetUID]['d_latestLapAccept'] = lapFrac
+                # Write necessary information to the log
+                MoveArgs = dict(targetUID=targetUID)
+                infoTuple = (lapFrac, 'delete', MoveArgs,
+                             SS.uids.copy(), propSS.uids.copy())
+                MoveLog.append(infoTuple)
+                # Set proposal values as new "current" values
+                hmodel = propModel
+                Lscore = propLscore
+                SS = propSS
+                del SS.propXSS[targetUID]
+            else:
+                # Reject!
+                MoveRecordsByUID[targetUID]['d_nFail'] += 1
+                MoveRecordsByUID[targetUID]['d_nFailRecent'] += 1
+
+        if nTrial > 0:
+            print 'DELETE %d/%d accepted. Ndiff %.2f.' % (
+                nAccept, nTrial, Ndiff)
+        # Discard plans, because they have come to fruition.
+        for key in MovePlans.keys():
+            if key.startswith('d_'):
+                del MovePlans[key]
+        return hmodel, SS, Lscore, MoveLog, MoveRecordsByUID
+
     def initProgressTrackVars(self, DataIterator):
         ''' Initialize internal attributes tracking how many steps we've taken.
 
@@ -741,18 +876,51 @@ class MemoVBMovesAlg(LearnAlg):
 
         if self.hasMove('birth'):
             hasMovesLeft_Birth = True
+        else:
+            hasMovesLeft_Birth = False
 
         if self.hasMove('merge'):
-            hasMovesLeft_Merge = True
-            nStuck = self.algParams['merge']['mergeNumStuckBeforeQuit']
-            mergeStartLap = self.algParams['merge']['mergeStartLap']
-            if lapFrac > mergeStartLap + nStuck:
-                # If tried merges for at least nStuck laps without accepting,
-                # we consider all possible merges exhausted and exit early.
-                lapLastAcceptedMerge = np.max(
-                    [MoveRecordsByUID[u]['m_latestLap'] for u in SS.uids])
-                if (lapFrac - lapLastAcceptedMerge) > nStuckBeforeQuit:
+            nStuck = self.algParams['merge']['m_nStuckBeforeQuit']
+            startLap = self.algParams['merge']['m_startLap']
+            stopLap = self.algParams['merge']['m_stopLap']
+            if stopLap < 0:
+                stopLap = np.inf
+            if lapFrac > stopLap:
+                hasMovesLeft_Merge = False
+            elif (lapFrac > startLap + nStuck):
+                # If tried for at least nStuck laps without accepting,
+                # we consider the method exhausted and exit early.
+                lapLastAccepted = np.max(
+                    [MoveRecordsByUID[u]['m_latestLapAccept']
+                        for u in MoveRecordsByUID])
+                if (lapFrac - lapLastAccepted) > nStuck:
                     hasMovesLeft_Merge = False
+            else:
+                hasMovesLeft_Merge = True
+        else:
+            hasMovesLeft_Merge = False
 
-        return hasMovesLeft_Merge or hasMovesLeft_Birth
+        if self.hasMove('delete'):
+            nStuck = self.algParams['delete']['d_nStuckBeforeQuit']
+            startLap = self.algParams['delete']['d_startLap']
+            stopLap = self.algParams['delete']['d_stopLap']
+            if stopLap < 0:
+                stopLap = np.inf
+            if lapFrac > stopLap:
+                hasMovesLeft_Delete = False
+            elif lapFrac > startLap + nStuck:
+                # If tried for at least nStuck laps without accepting,
+                # we consider the method exhausted and exit early.
+                lapLastAccepted = np.max(
+                    [MoveRecordsByUID[u]['d_latestLapAccept']
+                        for u in MoveRecordsByUID])
+
+                if (lapFrac - lapLastAccepted) > nStuck:
+                    hasMovesLeft_Delete = False
+            else:
+                hasMovesLeft_Delete = True
+        else:
+            hasMovesLeft_Delete = False
+
+        return hasMovesLeft_Birth or hasMovesLeft_Merge or hasMovesLeft_Delete
         # ... end function hasMoreReasonableMoves

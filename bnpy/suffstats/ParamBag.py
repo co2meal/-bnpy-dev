@@ -139,7 +139,9 @@ class ParamBag(object):
         self.K += PB.K
         for key in self._FieldDims:
             dims = self._FieldDims[key]
-            if dims is not None and dims[0] == 'K':
+            if dims is None:
+                pass
+            elif dims[0] == 'K':
                 if self.doCollapseK1:
                     arrA = self._getExpandedField(key, dims, K=origK)
                     arrB = PB._getExpandedField(key, dims)
@@ -148,8 +150,11 @@ class ParamBag(object):
                     arrB = getattr(PB, key)
                 arrC = np.append(arrA, arrB, axis=0)
                 self.setField(key, arrC, dims=dims)
-            elif dims is None:
-                pass
+            elif dims[0] == 'M':
+                self.setField(key, getattr(PB, key), dims=dims)
+            else:
+                raise NotImplementedError(
+                    "Unknown insert request. key %s" % (key))
 
     def removeComp(self, k):
         ''' Updates self in-place to remove component "k"

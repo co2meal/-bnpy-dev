@@ -267,8 +267,12 @@ class SuffStatBag(object):
                 self._ELBOTerms.insertComps(SS._ELBOTerms)
             else:
                 self._ELBOTerms.insertEmptyComps(SS.K)
-        if hasattr(self, '_MergeTerms'):
-            self._MergeTerms.insertEmptyComps(SS.K)
+        if SS.hasMergeTerms():
+            if self.hasMergeTerms():
+                self._MergeTerms.insertComps(SS._MergeTerms)
+            else:
+                self._MergeTerms = SS._MergeTerms.copy()
+                self._MergeTerms.K = self.K
         if hasattr(self, '_SelectTerms'):
             self._SelectTerms.insertEmptyComps(SS.K)
 
@@ -525,6 +529,10 @@ class SuffStatBag(object):
             if key in keysToSetNonExtraZero:
                 arr = getattr(self._Fields, key)
                 arr.fill(0)
+
+        if hasattr(xSS, 'mUIDPairs'):
+            assert not self.hasMergeTerms()
+            self.setMergeUIDPairs(xSS.mUIDPairs)
         self.insertComps(xSS)
         self.removeComp(uid=uid)
 

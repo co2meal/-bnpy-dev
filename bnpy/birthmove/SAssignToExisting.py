@@ -60,6 +60,7 @@ def assignSplitStats_HDPTopicModel(
         verbose=False,
         doSortBigToSmall=False,
         mUIDPairs=list(),
+        keepTargetCompAsEmpty=True,
         **kwargs):
     ''' Reassign target comp. using an existing set of proposal states.
 
@@ -95,7 +96,7 @@ def assignSplitStats_HDPTopicModel(
 
     # Initialize alphaEbeta for expansion components
     xalphaEbeta, thetaEmptyComp = _calc_expansion_alphaEbeta(
-        curModel, ktarget, Kfresh)
+        curModel, ktarget, Kfresh, keepTargetCompAsEmpty)
     xalphaEbeta_active = xalphaEbeta[:Kfresh_active]
 
     # Initialize DocTopicCount and Theta
@@ -183,22 +184,23 @@ def assignSplitStats_HDPTopicModel(
 
     # Compute quantities related to leaving ktarget empty,
     # as we expand and transfer mass to other comps
-    ElogPiEmptyComp = digamma(thetaEmptyComp) - digammaSumTheta
-    xLPslice['thetaEmptyComp'] = thetaEmptyComp
-    xLPslice['ElogPiEmptyComp'] = ElogPiEmptyComp
+    if keepTargetCompAsEmpty:
+        ElogPiEmptyComp = digamma(thetaEmptyComp) - digammaSumTheta
+        xLPslice['thetaEmptyComp'] = thetaEmptyComp
+        xLPslice['ElogPiEmptyComp'] = ElogPiEmptyComp
+    
     xLPslice['ElogPiOrigComp'] = curLPslice['ElogPi'][:, ktarget]
     xLPslice['gammalnThetaOrigComp'] = np.sum(
         gammaln(curLPslice['theta'][:, ktarget]))
     slack = curLPslice['DocTopicCount'][:, ktarget] - \
-            curLPslice['theta'][:, ktarget]
+        curLPslice['theta'][:, ktarget]
     xLPslice['slackThetaOrigComp'] = np.sum(
         slack * curLPslice['ElogPi'][:, ktarget])
-
+    
     # Compute sufficent stats for expanded local parameters
     xSSslice = tmpModel.get_global_suff_stats(
         Dslice, xLPslice,
         trackDocUsage=1, doPrecompEntropy=1, doTrackTruncationGrowth=1)
-
     if batchPos == 0 and doSortBigToSmall:
         order = np.argsort(-1 * xSSslice.getCountVec())
         xSSslice.reorderComps(order)
@@ -207,10 +209,13 @@ def assignSplitStats_HDPTopicModel(
     xSSslice.setUIDs(propXSS.uids)
 
     if mUIDPairs is not None and len(mUIDPairs) > 0:
-        xSSslice = curModel.allocModel.calcMergeTermsFromSeparateLP(
-            Dslice, xLPslice, xSSslice, 
-            curLPslice, curSSwhole.uids,
-            mUIDPairs)
+        Mdict = curModel.allocModel.calcMergeTermsFromSeparateLP(
+            Data=Dslice, LPa=curLPslice, SSa=curSSwhole,
+            LPb=xLPslice, SSb=xSSslice, 
+            mUIDPairs=mUIDPairs)
+        xSSslice.setMergeUIDPairs(mUIDPairs)
+        for key, arr in Mdict.items():
+            xSSslice.setMergeTerm(key, arr, dims='M')
 
     if returnPropSS:
         return _verify_HDPTopicModel_and_return_xSSslice_and_propSSslice(
@@ -218,7 +223,10 @@ def assignSplitStats_HDPTopicModel(
             ktarget=ktarget, order=order, **kwargs)
     return xSSslice
 
-def _calc_expansion_alphaEbeta(curModel, ktarget=0, Kfresh=0):
+def _calc_expansion_alphaEbeta(
+        curModel,
+        ktarget=0, Kfresh=0,
+        keepTargetCompAsEmpty=0):
     ''' Calculate values of alphaEbeta for expansion of Kfresh new components
 
     Leaves some fraction of mass leftover for the displaced component.
@@ -229,9 +237,13 @@ def _calc_expansion_alphaEbeta(curModel, ktarget=0, Kfresh=0):
         sum plus xalphaEbeta_empty will be equal to alphaEbeta[ktarget]
     xalphaEbeta_empty : scalar
     '''
-    target_alphaEbeta = curModel.allocModel.alpha_E_beta()[ktarget]
-    xalphaEbeta_vec = target_alphaEbeta * 1.0 / (Kfresh + 1) * np.ones(Kfresh)
-    xalphaEbeta_empty = target_alphaEbeta * 1.0 / (Kfresh + 1)
+    target_aEbeta = curModel.allocModel.alpha_E_beta()[ktarget]
+    if keepTargetCompAsEmpty:
+        xalphaEbeta_vec = target_aEbeta * 1.0 / (Kfresh + 1) * np.ones(Kfresh)
+        xalphaEbeta_empty = target_aEbeta * 1.0 / (Kfresh + 1)
+    else:
+        xalphaEbeta_vec = target_aEbeta * 1.0 / (Kfresh) * np.ones(Kfresh)
+        xalphaEbeta_empty = 0
     return xalphaEbeta_vec, xalphaEbeta_empty
 
 def _verify_HDPTopicModel_and_return_xSSslice_and_propSSslice(
