@@ -347,6 +347,46 @@ def calcELBO_FixedDocTopicCountIgnoreEntropy(
                                    nDoc=DocTopicCount.shape[0])
     return Lnon + Llinear
 
+
+def calcMergeTermDictFromSeparateLP(
+        Data, LPa, SSa, LPb, SSb, mUIDPairs):
+    ''' Compute merge terms that combine two comps from separate LP dicts.
+    
+    Returns
+    -------
+    Mdict : dict of key, array-value pairs
+    '''
+    m_sumLogPi = np.zeros(M)
+    m_gammalnTheta = np.zeros(M)
+    m_slackTheta = np.zeros(M)
+    m_Hresp = np.zeros(M)
+
+    assert np.allclose(LPa['digammaSumTheta'], LPb['digammaSumTheta'])
+    for m, (uidA, uidB) in enumerate(mUIDPairs):
+        kA = SSa.uid2k(uidA)
+        kB = SSb.uid2k(uidB)
+
+        m_resp = LPa['resp'][:, kA] + LPb['resp'][:, kB]
+        if hasattr(Data, 'word_count'):
+            m_Hresp[m] = calcRlogRdotv(m_resp[:,np.newaxis], Data.word_count)
+        else:
+            m_Hresp[m] = calcRlogR(m_resp[:,np.newaxis])
+
+        DTC_vec = LPa['DocTopicCount'][:, kA] + LPb['DocTopicCount'][:, kB]
+        theta_vec = LPa['theta'][:, kA] + LPb['theta'][:, kB]
+        m_gammalnTheta[m] = np.sum(gammaln(theta_vec))
+        ElogPi_vec = digamma(theta_vec) - LPa['digammaSumTheta']
+        m_sumLogPi[m] = np.sum(ElogPi_vec)
+        # slack = (Ndm - theta_dm) * E[log pi_dm]
+        slack_vec = ElogPi_vec
+        slack_vec *= -1 * (DTC_vec - theta_vec)
+        m_slackTheta[m] = np.sum(slack_vec)
+    return dict(
+        Hresp=m_Hresp,
+        gammalnTheta=m_gammalnTheta,
+        slackTheta=m_slackTheta,
+        sumLogPi=m_sumLogPi)
+
 """
 def E_cDir_alphabeta__Numeric(self):
 ''' Numeric integration of the expectation

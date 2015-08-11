@@ -344,6 +344,9 @@ class HDPTopicModel(AllocModel):
         subsetLP['resp'] = LP['resp'][subsetTokenIDs].copy()
         return subsetLP
 
+    def calcMergeTermDictFromSeparateLP(self, **kwargs):
+        return calcMergeTermDictFromSeparateLP(**kwargs)
+
     def get_global_suff_stats(
             self, Data, LP,
             **kwargs):

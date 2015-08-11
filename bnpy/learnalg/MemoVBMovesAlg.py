@@ -276,8 +276,18 @@ class MemoVBMovesAlg(LearnAlg):
                         MoveRecordsByUID[targetUID]['b_nSuccessRecent'] = 0
                         MoveRecordsByUID[targetUID]['b_latestLap'] = lapFrac
                         targetCount = SS.getCountVec()[SS.uid2k(targetUID)]
-                        MoveRecordsByUID[targetUID]['b_latestCount'] = targetCount
-                    
+                        MoveRecordsByUID[targetUID]['b_latestCount'] = \
+                            targetCount
+        if 'd_targetUIDs' in MovePlans:
+            from IPython import embed; embed()
+            xSS = curSSwhole.copy()
+
+            SSbatch.propXSS[targetUID] = assignSplitStats(
+                Dbatch, curModel, LPbatch, xSS,
+                curSSwhole=curSSwhole,
+                targetUID=targetUID,
+                LPkwargs=LPkwargs,
+                **self.algParams['birth'])
         return SSbatch
 
     def incrementWholeDataSummary(
@@ -505,6 +515,10 @@ class MemoVBMovesAlg(LearnAlg):
             print 'EVALUATION STAGE ======================='
         acceptedUIDs = list()
         for targetUID in SS.propXSS.keys():
+            if 'd_targetUIDs' in MovePlans:
+                if targetUID in MovePlans['d_targetUIDs']:
+                    continue
+
             print 'targetUID', targetUID
             if targetUID not in MoveRecordsByUID:
                 MoveRecordsByUID[targetUID] = defaultdict(int)

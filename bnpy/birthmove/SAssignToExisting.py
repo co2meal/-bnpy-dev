@@ -59,6 +59,7 @@ def assignSplitStats_HDPTopicModel(
         batchPos=None,
         verbose=False,
         doSortBigToSmall=False,
+        mUIDPairs=list(),
         **kwargs):
     ''' Reassign target comp. using an existing set of proposal states.
 
@@ -204,6 +205,12 @@ def assignSplitStats_HDPTopicModel(
     else:
         order = None
     xSSslice.setUIDs(propXSS.uids)
+
+    if mUIDPairs is not None and len(mUIDPairs) > 0:
+        xSSslice = curModel.allocModel.calcMergeTermsFromSeparateLP(
+            Dslice, xLPslice, xSSslice, 
+            curLPslice, curSSwhole.uids,
+            mUIDPairs)
 
     if returnPropSS:
         return _verify_HDPTopicModel_and_return_xSSslice_and_propSSslice(
