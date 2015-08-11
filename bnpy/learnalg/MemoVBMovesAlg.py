@@ -104,7 +104,7 @@ class MemoVBMovesAlg(LearnAlg):
             oldSSbatch = self.loadBatchAndFastForward(
                 batchID, lapFrac, MoveLog)
             SS = self.incrementWholeDataSummary(
-                SS, SSbatch, oldSSbatch, hmodel=hmodel)
+                SS, SSbatch, oldSSbatch, lapFrac=lapFrac, hmodel=hmodel)
             self.SSmemory[batchID] = SSbatch
             self.LastUpdateLap[batchID] = lapFrac
 
@@ -132,6 +132,8 @@ class MemoVBMovesAlg(LearnAlg):
                             MoveLog=MoveLog,
                             MoveRecordsByUID=MoveRecordsByUID,
                             lapFrac=lapFrac,)
+                else:
+                    SS.removeMergeTerms()
 
                 # Shuffle : Rearrange order (big to small)
                 if self.hasMove('shuffle'):
@@ -227,6 +229,10 @@ class MemoVBMovesAlg(LearnAlg):
         SSbatch = curModel.get_global_suff_stats(
             Dbatch, LPbatch, doPrecompEntropy=1,
             doTrackTruncationGrowth=1, **MovePlans)
+
+        if 'm_UIDPairs' in MovePlans:
+            SSbatch.setMergeUIDPairs(MovePlans['m_UIDPairs'])
+
         # Prepare whole-dataset stats
         if SS is None:
             curSSwhole = SSbatch.copy()
@@ -274,7 +280,10 @@ class MemoVBMovesAlg(LearnAlg):
                     
         return SSbatch
 
-    def incrementWholeDataSummary(self, SS, SSbatch, oldSSbatch, hmodel=None):
+    def incrementWholeDataSummary(
+            self, SS, SSbatch, oldSSbatch,
+            hmodel=None,
+            lapFrac=0):
         ''' Update whole dataset sufficient stats object.
 
         Returns
@@ -616,7 +625,8 @@ class MemoVBMovesAlg(LearnAlg):
 
         # Finally, set all merge fields to zero,
         # since all possible merges have been accepted
-        SS.setMergeFieldsToZero()
+        SS.removeMergeTerms()
+        assert not hasattr(SS, 'M')
         return hmodel, SS, Lscore, MoveLog, MoveRecordsByUID
 
     def runMoves_Shuffle(self, hmodel, SS, Lscore, MovePlans,
@@ -638,7 +648,7 @@ class MemoVBMovesAlg(LearnAlg):
         '''
         emptyCompLocs = np.flatnonzero(SS.getCountVec() < 0.001)
         emptyCompUIDs = [SS.uids[k] for k in emptyCompLocs]
-        if emptyCompLocs.size > 0:
+        if emptyCompLocs.size > 0 and self.algParams['shuffle']['s_doPrune']:
             beforeUIDs = SS.uids.copy()
             for uid in emptyCompUIDs:
                 SS.removeComp(uid=uid)

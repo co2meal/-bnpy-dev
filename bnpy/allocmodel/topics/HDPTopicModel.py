@@ -744,6 +744,11 @@ def calcSummaryStats(Dslice, LP=None,
             Vector of entropy contributions from each comp.
             Hvec[k] = \sum_{n=1}^N H[q(z_n)], a function of 'resp'
     """
+    if mPairIDs is None:
+        M = 0
+    else:
+        M = len(mPairIDs)
+
     resp = LP['resp']
     _, K = resp.shape
 
@@ -756,7 +761,7 @@ def calcSummaryStats(Dslice, LP=None,
         LP['ElogPi'] = digamma(LP['theta']) - \
             LP['digammaSumTheta'][:, np.newaxis]
 
-    SS = SuffStatBag(K=K, D=Dslice.dim)
+    SS = SuffStatBag(K=K, D=Dslice.dim, M=M)
     SS.setField('nDoc', Dslice.nDoc, dims=None)
     SS.setField('sumLogPi', np.sum(LP['ElogPi'], axis=0), dims='K')
     if 'ElogPiEmptyComp' in LP:
@@ -792,25 +797,24 @@ def calcSummaryStats(Dslice, LP=None,
     if doPrecompMergeEntropy:
         if mPairIDs is None:
             raise NotImplementedError("TODO: all pairs for merges")
+        m_Hresp = calcHrespForMergePairs(LP['resp'], Dslice, mPairIDs)
+        SS.setMergeTerm('Hresp', m_Hresp, dims=('M'))
 
-        Hmat = calcHrespForMergePairs(LP['resp'], Dslice, mPairIDs)
-        SS.setMergeTerm('Hresp', Hmat, dims=('K', 'K'))
-
-        sumLogPi = np.zeros((SS.K, SS.K))
-        gammalnTheta = np.zeros((SS.K, SS.K))
-        slackTheta = np.zeros((SS.K, SS.K))
-        for (kA, kB) in mPairIDs:
+        m_sumLogPi = np.zeros(M)
+        m_gammalnTheta = np.zeros(M)
+        m_slackTheta = np.zeros(M)
+        for m, (kA, kB) in enumerate(mPairIDs):
             theta_vec = LP['theta'][:, kA] + LP['theta'][:, kB]
             ElogPi_vec = digamma(theta_vec) - LP['digammaSumTheta']
-            gammalnTheta[kA, kB] = np.sum(gammaln(theta_vec))
-            sumLogPi[kA, kB] = np.sum(ElogPi_vec)
+            m_gammalnTheta[m] = np.sum(gammaln(theta_vec))
+            m_sumLogPi[m] = np.sum(ElogPi_vec)
             # slack = (Ndm - theta_dm) * E[log pi_dm]
             slack_vec = ElogPi_vec
             slack_vec *= -1 * (alphaEbeta[kA] + alphaEbeta[kB])
-            slackTheta[kA, kB] = np.sum(slack_vec)
-        SS.setMergeTerm('gammalnTheta', gammalnTheta, dims=('K', 'K'))
-        SS.setMergeTerm('sumLogPi', sumLogPi, dims=('K', 'K'))
-        SS.setMergeTerm('slackTheta', slackTheta, dims=('K', 'K'))
+            m_slackTheta[m] = np.sum(slack_vec)
+        SS.setMergeTerm('gammalnTheta', m_gammalnTheta, dims=('M'))
+        SS.setMergeTerm('sumLogPi', m_sumLogPi, dims=('M'))
+        SS.setMergeTerm('slackTheta', m_slackTheta, dims=('M'))
 
         # Uncomment this for verification of merge calculations.
         # for (kA, kB) in mPairIDs:

@@ -53,6 +53,20 @@ class SuffStatBag(object):
             raise ValueError(emsg)
         self.uids = np.asarray(uids, dtype=np.int32)
 
+    def setMergeUIDPairs(self, mUIDPairs):
+        self.mUIDPairs = np.asarray(mUIDPairs, dtype=np.int32).copy()
+        if self.mUIDPairs.ndim < 2:
+            self.mUIDPairs = self.mUIDPairs[np.newaxis,:]
+        assert self.mUIDPairs.ndim == 2
+        assert self.mUIDPairs.shape[1] == 2
+        M = self.mUIDPairs.shape[0]
+        self._kwargs['M'] = M
+        self._Fields.M = M
+        if self.hasELBOTerms():
+            self._ELBOTerms.M = M
+        if self.hasMergeTerms():
+            self._MergeTerms.M = M
+
     def uid2k(self, uid):
         ''' Indentify the position index of provided uid.
         '''
@@ -156,6 +170,8 @@ class SuffStatBag(object):
     def removeMergeTerms(self):
         if hasattr(self, 'mUIDPairs'):
             del self.mUIDPairs
+        if hasattr(self._Fields, 'M'):
+            del self._Fields.M
         if not self.hasMergeTerms():
             return None
         MergeTerms = self._MergeTerms
@@ -304,6 +320,7 @@ class SuffStatBag(object):
             raise ValueError(
                 'Bad search for correct merge UID pair.\n' + str(rowID))
         rowID = rowID[0]
+        return rowID
 
     def mergeComps(self, kA=None, kB=None, uidA=None, uidB=None,
                    fieldsToIgnore=['sumLogPiRemVec']):
@@ -385,9 +402,8 @@ class SuffStatBag(object):
                           (mUIDPairs[:, 0] != uidB) *
                           (mUIDPairs[:, 1] != uidB))
             keepRowIDs = np.flatnonzero(keepRowIDs)
-            self.mUIDPairs = mUIDPairs[keepRowIDs]
-            self.M = len(keepRowIDs)
-            self._MergeTerms.M = self.M
+            self.setMergeUIDPairs(mUIDPairs[keepRowIDs])
+
             # Remove any other pairs related to kA, kB
             for key, dims in self._MergeTerms._FieldDims.items():
                 mArr = getattr(self._MergeTerms, key)
@@ -413,8 +429,13 @@ class SuffStatBag(object):
 
                 # Now edit this array in place
                 if self.hasMergeTerm(key) and dims == ('K'):
+                    mArr = getattr(self._MergeTerms, key)
+                    mdims = self._MergeTerms._FieldDims[key]
                     # Use precomputed term stored under _MergeTerms
-                    arr[kA] = getattr(self._MergeTerms, key)[kA, kB]
+                    if mdims == ('M'):
+                        arr[kA] = mArr[rowID]
+                    else:
+                        arr[kA] = mArr[kA, kB]
                 elif dims == ('K', 'K'):
                     # Special logic for HMM transition matrix
                     arr[kA] += arr[kB]
@@ -443,12 +464,11 @@ class SuffStatBag(object):
                 mdims = self._MergeTerms._FieldDims[key]
 
                 if mdims[0] == 'M':
-                    mArr = mArr[rowID]
-                    if mArr.ndim == 2 and mArr.shape[0] == 2:
-                        arr[kA, :] = mArr[0]
-                        arr[:, kA] = mArr[1]
-                    elif mArr.ndim <= 1 and mArr.size == 1:
-                        arr[kA] = mArr
+                    if mArr.ndim == 3 and mArr.shape[1] == 2:
+                        arr[kA, :] = mArr[rowID, 0]
+                        arr[:, kA] = mArr[rowID, 1]
+                    elif mArr.ndim <= 1:
+                        arr[kA] = mArr[rowID]
                     else:
                         raise NotImplementedError('TODO')
 
@@ -469,9 +489,11 @@ class SuffStatBag(object):
                     mArr[:kA, kA] = np.nan
                 elif dims == ('K'):
                     mArr[kA] = np.nan
-                elif dims[0] == 'M' and key == 'Htable':
-                    if len(dims) == 3 and dims[-1] == 'K':
+                elif dims[0] == 'M':
+                    if len(dims) == 3 and dims[-1] == 'K' and key == 'Htable':
                         mArr[:, :, kA] = 0
+                    else:
+                        mArr[rowID] = 0
 
     def _mergeSelectionTermsAtIndexKA(self, kA, kB, rowID):
         ''' Update terms at index kA.
@@ -564,8 +586,8 @@ class SuffStatBag(object):
             SSsum._MergeTerms = PB._MergeTerms.copy()
         if hasattr(self, '_SelectTerms') and hasattr(PB, '_SelectTerms'):
             SSsum._SelectTerms = self._SelectTerms + PB._SelectTerms
-        if not hasattr(self, 'mPairIDs') and hasattr(PB, 'mPairIDs'):
-            SSsum.mPairIDs = PB.mPairIDs
+        if not hasattr(self, 'mUIDPairs') and hasattr(PB, 'mUIDPairs'):
+            self.setMergeUIDPairs(PB.mUIDPairs)
         return SSsum
 
     def __iadd__(self, PB):
@@ -584,8 +606,8 @@ class SuffStatBag(object):
             self._MergeTerms = PB._MergeTerms.copy()
         if hasattr(self, '_SelectTerms') and hasattr(PB, '_SelectTerms'):
             self._SelectTerms += PB._SelectTerms
-        if not hasattr(self, 'mPairIDs') and hasattr(PB, 'mPairIDs'):
-            self.mPairIDs = PB.mPairIDs
+        if not hasattr(self, 'mUIDPairs') and hasattr(PB, 'mUIDPairs'):
+            self.setMergeUIDPairs(PB.mUIDPairs)
         return self
 
     def __sub__(self, PB):

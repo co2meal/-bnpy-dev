@@ -250,12 +250,15 @@ def L_top(nDoc=None, rho=None, omega=None,
          + np.inner(ONcoef, ElogU) + np.inner(OFFcoef, Elog1mU)
 
 
-def calcHrespForMergePairs(resp, Data, mPairIDs):
+def calcHrespForMergePairs(resp, Data, mPairIDs, returnVec=1):
     ''' Calculate resp entropy terms for all candidate merge pairs
 
     Returns
     ---------
     Hresp : 2D array, size K x K
+    or 
+    Hresp : 1D array, size M
+        where each entry corresponds to one merge pair in mPairIDs
     '''
     if hasattr(Data, 'word_count'):
         if mPairIDs is None:
@@ -267,7 +270,13 @@ def calcHrespForMergePairs(resp, Data, mPairIDs):
             Hmat = calcRlogR_allpairs(resp)
         else:
             Hmat = calcRlogR_specificpairs(resp, mPairIDs)
-    return -1 * Hmat
+    if returnVec:
+        Hvec = np.zeros(len(mPairIDs))
+        for ii, (kA, kB) in enumerate(mPairIDs):
+            Hvec[ii] = -1 * Hmat[kA, kB]
+        return Hvec
+    else:
+        return -1 * Hmat
 
 
 def c_Beta(a1, a0):
