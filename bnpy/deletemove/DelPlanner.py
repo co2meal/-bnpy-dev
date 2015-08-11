@@ -39,7 +39,10 @@ def selectCandidateDeleteComps(
         size = countVec[k]
         if uid not in MoveRecordsByUID:
             MoveRecordsByUID[uid] = defaultdict(int)
-        tooSmall = size <= DArgs['b_minAtomCountToTarget']
+        if 'b_minAtomCountToTarget' in DArgs:
+            tooSmall = size <= DArgs['b_minAtomCountToTarget']
+        else:
+            tooSmall = True
         hasFailureRecord_Birth = MoveRecordsByUID[uid]['b_nFailRecent'] > 0
         hasFailureRecord_Delete = MoveRecordsByUID[uid]['d_nFailRecent'] > 0
         if (tooSmall or hasFailureRecord_Birth):
