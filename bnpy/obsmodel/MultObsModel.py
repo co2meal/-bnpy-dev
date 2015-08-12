@@ -205,6 +205,7 @@ class MultObsModel(AbstractObsModel):
             # obtained by sparse matrix multiply
             # here, '*' operator does this because X is sparse matrix type
             WordCounts = LP['resp'].T * X
+            SS.setField('N', LP['resp'].sum(axis=0), dims=('K'))
 
         else:
             Resp = LP['resp']  # 2D array, size N x K

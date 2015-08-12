@@ -79,7 +79,9 @@ def init_global_params(obsModel, Data, K=0, seed=0,
 
 
 def initSSByBregDiv_Mult(
-        Dslice, curModel=None, curLPslice=None,
+        Dslice=None, 
+        curModel=None, 
+        curLPslice=None,
         K=5, ktarget=None, 
         b_minNumAtomsInDoc=None, 
         b_includeRemainderTopic=0,
@@ -111,9 +113,11 @@ def initSSByBregDiv_Mult(
 
     Keff = np.minimum(K, enoughDocWordMat.shape[0])
     if Keff < 1:
-        raise BirthProposalError(
-            "Not enough data. Looked for %d documents, found only %d" % (
+        DebugInfo = dict(
+            msg="Not enough data. Looked for %d documents, found only %d." % (
                 K, Keff))
+        return None, DebugInfo
+
     K = Keff
     np.maximum(enoughDocWordMat, 1e-100, out=enoughDocWordMat)
 
@@ -162,7 +166,7 @@ def initSSByBregDiv_Mult(
     xdocLP = convertLPFromHardToSoft(
         dict(Z=Z), Dslice, initGarbageState=0)
     if curModel.obsModel.DataAtomType.count('word'):
-        xLP = convertLPFromDocsToTokens(docLP, Dslice)
+        xLP = convertLPFromDocsToTokens(xdocLP, Dslice)
     else:
         xLP = xdocLP
     if curLPslice is not None:

@@ -49,17 +49,18 @@ def createSplitStats(
     Info : dict
         Contains info for detailed debugging of construction process.
     '''
+    if 'b_debugOutputDir' not in kwargs:
+        kwargs['b_debugOutputDir'] = None
     if 'b_debugOutputDir' in kwargs and kwargs['b_debugOutputDir'] == 'None':
         kwargs['b_debugOutputDir'] = None
+    b_debugOutputDir = kwargs['b_debugOutputDir']
 
     createSplitStatsMap = dict([
         (k,v) for (k,v) in globals().items()
         if str(k).count('createSplitStats')])
-    aName = hmodel.getAllocModelName()
-    funcName = 'createSplitStats_' + aName + '_' + b_creationProposalName
+    funcName = 'createSplitStats' + '_' + b_creationProposalName
     if funcName not in createSplitStatsMap:
-        raise NotImplementedError('Unrecognized function: ' + funcName)
-    
+        raise NotImplementedError('Unrecognized function: ' + funcName)    
     # Execute model-specific function to make expansion stats
     # This call may return early if expansion failed,
     # due to creating too few states that are big-enough.
@@ -75,6 +76,10 @@ def createSplitStats(
         with open(htmlfilepath, 'w') as f:
             f.write(htmlstr)
         BLogger.pprint("WROTE HTML: " + htmlfilepath, 'debug')
+
+    # Raise error if we didn't create valid SS
+    if xSSslice is None:
+        raise BirthProposalError(DebugInfo['msg'])
     # Raise error if we didn't create enough "big-enough" states.
     nnzCount = np.sum(xSSslice.getCountVec() >= 1)
     if nnzCount < 2:
@@ -94,8 +99,7 @@ def createSplitStats(
 
 
 
-
-def createSplitStats_DPMixtureModel_BregDiv(
+def createSplitStats_BregDiv(
         Dslice, curModel, curLPslice, 
         curSSwhole=None,
         targetUID=0,
@@ -118,14 +122,18 @@ def createSplitStats_DPMixtureModel_BregDiv(
         number of components is Kx
     DebugInfo : dict with info for visualization, etc
     '''
+    BLogger.pprint('targetUID ' + str(targetUID))
+    # Parse some kwarg input
     if hasattr(Dslice, 'vocabList') and Dslice.vocabList is not None:
         vocabList = Dslice.vocabList
-
-    if curSSwhole is None:
-        curSSwhole = curModel.get_global_suff_stats(Dslice, curLPslice)
     if ktarget is None:
         ktarget = curSSwhole.uid2k(targetUID)
-
+    if b_debugOutputDir:
+        plotAndSaveCompsFromSS(
+            curModel, curSSwhole, b_debugOutputDir, 'OrigComps.png',
+            vocabList=vocabList,
+            compsToHighlight=[ktarget])
+    # Create suff stats for some new states
     xK = newUIDs.size
     xSSfake, DebugInfo = initSSByBregDiv(
         Dslice=Dslice,
@@ -134,30 +142,35 @@ def createSplitStats_DPMixtureModel_BregDiv(
         K=xK,
         ktarget=ktarget,
         lapFrac=lapFrac,
-        seed=lapFrac,
+        seed=1000 * lapFrac,
         **kwargs)
+    if xSSfake is None:
+        return None, DebugInfo
+    # Record some debug info about the new states
     xSSfake.setUIDs(newUIDs[:xSSfake.K])
-    # Log info about targetted UID
     strUIDs = vec2str(xSSfake.uids)
-    BLogger.pprint('targetUID ' + str(targetUID))
     BLogger.pprint('   ' + strUIDs)
-
     if b_debugOutputDir:
-        plotAndSaveCompsFromSS(
-            curModel, curSSwhole, b_debugOutputDir, 'OrigComps.png',
-            compsToHighlight=[ktarget],
-            vocabList=vocabList)
         plotAndSaveCompsFromSS(
             curModel, xSSfake, b_debugOutputDir, 'NewComps_Init.png',
             vocabList=vocabList)
         curLdict = curModel.calc_evidence(SS=curSSwhole, todict=1)
         propLdictList = list()
 
+        docUsageByUID = dict()
+        for k, uid in enumerate(xSSfake.uids):
+            if k == 0 and b_includeRemainderTopic:
+                docUsage_ktarget = np.sum( 
+                    curLPslice['DocTopicCount'][:, ktarget] > 0.01)
+                docUsage_rest = docUsage_ktarget - xSSfake.K + \
+                    b_includeRemainderTopic
+                docUsageByUID[uid] = [docUsage_rest]
+            else:
+                docUsageByUID[uid] = [1]
+
     xSSslice = xSSfake
-    nnzCount = np.sum(xSSslice.getCountVec() >= 1)
     # Make a function to help with logging
     pprintCountVec = BLogger.makeFunctionToPrettyPrintCounts(xSSfake)
-
     
     for i in range(b_nRefineSteps):
         # Obtain valid suff stats that represent Dslice for given model
@@ -186,6 +199,11 @@ def createSplitStats_DPMixtureModel_BregDiv(
             propModel.update_global_params(propSS)
             propLdict = propModel.calc_evidence(SS=propSS, todict=1)
             propLdictList.append(propLdict)
+            if curModel.getAllocModelName().count('HDP'):
+                docUsageVec = xSSslice.getSelectionTerm('DocUsageCount')
+                for k, uid in enumerate(xSSslice.uids):
+                    docUsageByUID[uid].append(docUsageVec[k])
+
         # Cleanup by deleting small clusters 
         if i < b_nRefineSteps - 1:
             if i == b_nRefineSteps - 2:
@@ -224,261 +242,14 @@ def createSplitStats_DPMixtureModel_BregDiv(
                 'Accepted. ELBO improved by %.3f' % (GainELBO)
         else:
             DebugInfo['status'] = 'Rejected. ELBO did not improve.'
-
+        if curModel.getAllocModelName().count('HDP'):
+            savefilename = os.path.join(
+                b_debugOutputDir, 'ProposalTrace_DocUsage.png')
+            plotDocUsageForProposal(docUsageByUID,
+                                    savefilename=savefilename)
     if returnPropSS:
         raise NotImplementedError("TODO")
     return xSSslice, DebugInfo
-
-
-
-
-
-
-def createSplitStats_DPMixtureModel_kmeans(
-        Dslice, hmodel, curLPslice, 
-        curSSwhole=None,
-        targetUID=0, 
-        ktarget=None,
-        LPkwargs=dict(),
-        newUIDs=None,
-        lapFrac=0,
-        b_minSize=2,
-        **kwargs):
-    ''' Reassign target component to new states, via kmeans.
-
-    Returns
-    -------
-    xSSslice : stats for reassigned mass
-        total count is equal to SS.N[ktarget]
-        number of components is Kx
-    '''
-    if ktarget is None:
-        ktarget = curSSwhole.uid2k(targetUID)
-
-    xK = newUIDs.size
-    keepIDs = np.flatnonzero(curLPslice['resp'][:, ktarget] > 0.05)
-    if len(keepIDs) < xK:
-        raise BirthProposalError(
-            "Not enough data. Looked for %d atoms, found only %d" % (
-                xK, len(keepIDs)))
-
-    Dtarget = Dslice.select_subset_by_mask(keepIDs)
-    # Run Kmeans on subset of data.
-    Xtarget = Dtarget.X
-    Mu, Z = RunKMeans(Xtarget, xK, seed=lapFrac)
-    Z = Z.flatten()
-    # Create soft assignment matrix, keeping only big-enough clusters
-    resp = np.zeros((Xtarget.shape[0], xK))
-    Kused = 0
-    for k in range(xK):
-        mask_k = Z == k
-        Nk = np.sum(mask_k)
-        if Nk >= b_minSize:
-            resp[mask_k, Kused] = 1.0
-            Kused += 1
-    if Kused < 2:
-        raise BirthProposalError(
-            "Init clusters not big enough. Only <=1 with size >%d." % (
-                b_minSize))
-
-    resp = resp[:, :Kused] * curLPslice['resp'][keepIDs, ktarget][:,np.newaxis]
-    xLPfake = dict(resp=resp)
-    xSSfake = hmodel.get_global_suff_stats(Dtarget, xLPfake)
-    xSSfake.setUIDs(newUIDs[:Kused])
-
-    xSSslice = assignSplitStats(
-        Dslice, hmodel, curLPslice, xSSfake,
-        curSSwhole=curSSwhole,
-        targetUID=targetUID)
-
-    DebugInfo = dict(
-        Z=Z,
-        Mu=Mu)
-    return xSSslice, DebugInfo
-
-
-def createSplitStats_DPMixtureModel_truelabels(
-        Dslice, hmodel, curLPslice, curSSwhole=None,
-        targetUID=0, LPkwargs=dict(),
-        newUIDs=None,
-        lapFrac=0,
-        **kwargs):
-    ''' Reassign target component to new states, based on true labels.
-
-    Returns
-    -------
-    xSSslice : stats for reassigned mass
-        total count is equal to SS.N[ktarget]
-        number of components is Kx
-    '''
-    ktarget = curSSwhole.uid2k(targetUID)
-
-    uLabels = np.unique(Dslice.TrueParams['Z'])
-    Ktrue = uLabels.size
-    trueResp = np.zeros((Dslice.nObs, Ktrue))
-    for k in range(Ktrue):
-        trueResp[Dslice.TrueParams['Z'] == k, k] = 1.0
-    scaledResp = trueResp
-    scaledResp /= curLPslice['resp'][:, ktarget][:, np.newaxis]
-    np.maximum(scaledResp, 1e-100, out=scaledResp)
-
-    xLPslice = dict(resp=scaledResp)
-    xSSslice = hmodel.get_global_suff_stats(
-        Dslice, xLPslice, doPrecompEntropy=1)
-    xSSslice.setUIDs(newUIDs[:Ktrue])
-    return xSSslice
-
-
-def createSplitStats_HDPTopicModel_BregDiv(
-        Dslice, curModel, curLPslice, 
-        curSSwhole=None,
-        targetUID=0,
-        ktarget=None,
-        LPkwargs=DefaultLPkwargs,
-        newUIDs=None,
-        lapFrac=0,
-        b_includeRemainderTopic=1,
-        b_nRefineSteps=3,
-        b_minNumAtomsInDoc=100,
-        b_debugOutputDir=None,
-        returnPropSS=0,
-        **kwargs):
-    ''' Reassign target component to new states using bregman divergence.
-
-    Returns
-    -------
-    xSSslice : stats for reassigned mass
-        total count is equal to SS.N[ktarget]
-        number of components is Kx
-    DebugInfo : dict with info for visualization, etc
-    '''
-    if curSSwhole is None:
-        curSSwhole = curModel.get_global_suff_stats(Dslice, curLPslice)
-    if ktarget is None:
-        ktarget = curSSwhole.uid2k(targetUID)
-
-    xK = newUIDs.size
-    xSSfake, DebugInfo = initSSByBregDiv_Mult(
-        Dslice, curModel, curLPslice,
-        K=xK,
-        ktarget=ktarget,
-        lapFrac=lapFrac,
-        b_minNumAtomsInDoc=b_minNumAtomsInDoc,
-        b_includeRemainderTopic=b_includeRemainderTopic,
-        **kwargs)
-    xSSfake.setUIDs(newUIDs[:xSSfake.K])
-
-    if b_debugOutputDir:
-        plotAndSaveCompsFromSS(
-            curModel, curSSwhole, b_debugOutputDir, 'OrigComps.png',
-            vocabList=Dslice.vocabList,
-            compsToHighlight=[ktarget])
-        plotAndSaveCompsFromSS(
-            curModel, xSSfake, b_debugOutputDir, 'NewComps_Init.png',
-            vocabList=Dslice.vocabList)
-        curLdict = curModel.calc_evidence(SS=curSSwhole, todict=1)
-        propLdictList = list()
-        docUsageByUID = dict()
-        for k, uid in enumerate(xSSfake.uids):
-            if k == 0 and b_includeRemainderTopic:
-                docUsage_ktarget = np.sum( 
-                    curLPslice['DocTopicCount'][:, ktarget] > 0.01)
-                docUsage_rest = docUsage_ktarget - xSSfake.K + \
-                    b_includeRemainderTopic
-                docUsageByUID[uid] = [docUsage_rest]
-            else:
-                docUsageByUID[uid] = [1]
-
-    xSSslice = xSSfake
-    nnzCount = np.sum(xSSslice.getCountVec() >= 1)
-
-    strUIDs = vec2str(xSSfake.uids)
-    BLogger.pprint('targetUID ' + str(targetUID))
-    BLogger.pprint('   ' + strUIDs)
-    pprintCountVec = BLogger.makeFunctionToPrettyPrintCounts(xSSfake)
-
-    for i in range(b_nRefineSteps):
-        # Obtain valid suff stats that represent Dslice for given model
-        # using xSSslice as initial "seed" clusters.
-        # Note: xSSslice need only have observation-model stats here.
-        xSSslice = assignSplitStats(
-            Dslice, curModel, curLPslice, xSSslice,
-            curSSwhole=curSSwhole,
-            targetUID=targetUID,
-            ktarget=ktarget,
-            LPkwargs=LPkwargs,
-            returnPropSS=returnPropSS,
-            lapFrac=lapFrac,
-            **kwargs)
-
-        # Show diagnostics for new states
-        pprintCountVec(xSSslice)
-
-        if b_debugOutputDir:
-            plotAndSaveCompsFromSS(
-                curModel, xSSslice, b_debugOutputDir,
-                filename='NewComps_Step%d.png' % (i+1),
-                vocabList=Dslice.vocabList)
-            propSS = curSSwhole.copy()
-            propSS.transferMassFromExistingToExpansion(
-                uid=targetUID, xSS=xSSslice)
-            propModel = curModel.copy()
-            propModel.update_global_params(propSS)
-            propLdict = propModel.calc_evidence(SS=propSS, todict=1)
-            propLdictList.append(propLdict)
-
-            docUsageVec = xSSslice.getSelectionTerm('DocUsageCount')
-            for k, uid in enumerate(xSSslice.uids):
-                docUsageByUID[uid].append(docUsageVec[k])
-
-        # Cleanup by deleting small clusters 
-        if i < b_nRefineSteps - 1:
-            if i == b_nRefineSteps - 2:
-                # After all but last step, delete small (but not empty) comps
-                minNumAtomsToStay = b_minNumAtomsInDoc
-            else:
-                # Always remove empty clusters. They waste our time.
-                minNumAtomsToStay = 1
-            xSSslice = cleanupDeleteSmallClusters(
-                xSSslice, minNumAtomsToStay, pprintCountVec=pprintCountVec)
-        # Cleanup by merging clusters
-        if i == b_nRefineSteps - 2:
-            DebugInfo['mergestep'] = i + 1
-            xSSslice = cleanupMergeClusters(
-                xSSslice, curModel,
-                obsSS=xSSfake,
-                vocabList=Dslice.vocabList,
-                pprintCountVec=pprintCountVec,
-                b_debugOutputDir=b_debugOutputDir, **kwargs)
-        # Exit early if no promising new clusters are created
-        nnzCount = np.sum(xSSslice.getCountVec() >= 1)
-        if nnzCount < 2:
-            break
-
-    if b_debugOutputDir:
-        savefilename = os.path.join(
-            b_debugOutputDir, 'ProposalTrace_ELBO.png')
-        plotELBOtermsForProposal(curLdict, propLdictList,
-                                 savefilename=savefilename)
-        savefilename = os.path.join(
-            b_debugOutputDir, 'ProposalTrace_DocUsage.png')
-        plotDocUsageForProposal(docUsageByUID,
-                                savefilename=savefilename)
-        GainELBO = propLdictList[-1]['Ltotal'] - curLdict['Ltotal']
-        if np.sum(xSSslice.getCountVec() > 1) < 2:
-            DebugInfo['status'] = \
-                'Rejected. Did not create >1 new comps with significant mass'
-        elif GainELBO > 0:
-            DebugInfo['status'] = \
-                'Accepted. ELBO improved by %.3f' % (GainELBO)
-        else:
-            DebugInfo['status'] = 'Rejected. ELBO did not improve.'
-
-    if returnPropSS:
-        return xSSslice[0], xSSslice[1]
-    return xSSslice, DebugInfo
-
-
 
 """
 def createSplitStats_HDPTopicModel_truelabels(
@@ -609,4 +380,101 @@ def createSplitStats_HDPTopicModel_kmeans(
         returnPropSS=returnPropSS,
         lapFrac=lapFrac,
         **kwargs)
+
+
+
+def createSplitStats_DPMixtureModel_kmeans(
+        Dslice, hmodel, curLPslice, 
+        curSSwhole=None,
+        targetUID=0, 
+        ktarget=None,
+        LPkwargs=dict(),
+        newUIDs=None,
+        lapFrac=0,
+        b_minSize=2,
+        **kwargs):
+    ''' Reassign target component to new states, via kmeans.
+
+    Returns
+    -------
+    xSSslice : stats for reassigned mass
+        total count is equal to SS.N[ktarget]
+        number of components is Kx
+    '''
+    if ktarget is None:
+        ktarget = curSSwhole.uid2k(targetUID)
+
+    xK = newUIDs.size
+    keepIDs = np.flatnonzero(curLPslice['resp'][:, ktarget] > 0.05)
+    if len(keepIDs) < xK:
+        raise BirthProposalError(
+            "Not enough data. Looked for %d atoms, found only %d" % (
+                xK, len(keepIDs)))
+
+    Dtarget = Dslice.select_subset_by_mask(keepIDs)
+    # Run Kmeans on subset of data.
+    Xtarget = Dtarget.X
+    Mu, Z = RunKMeans(Xtarget, xK, seed=lapFrac)
+    Z = Z.flatten()
+    # Create soft assignment matrix, keeping only big-enough clusters
+    resp = np.zeros((Xtarget.shape[0], xK))
+    Kused = 0
+    for k in range(xK):
+        mask_k = Z == k
+        Nk = np.sum(mask_k)
+        if Nk >= b_minSize:
+            resp[mask_k, Kused] = 1.0
+            Kused += 1
+    if Kused < 2:
+        raise BirthProposalError(
+            "Init clusters not big enough. Only <=1 with size >%d." % (
+                b_minSize))
+
+    resp = resp[:, :Kused] * curLPslice['resp'][keepIDs, ktarget][:,np.newaxis]
+    xLPfake = dict(resp=resp)
+    xSSfake = hmodel.get_global_suff_stats(Dtarget, xLPfake)
+    xSSfake.setUIDs(newUIDs[:Kused])
+
+    xSSslice = assignSplitStats(
+        Dslice, hmodel, curLPslice, xSSfake,
+        curSSwhole=curSSwhole,
+        targetUID=targetUID)
+
+    DebugInfo = dict(
+        Z=Z,
+        Mu=Mu)
+    return xSSslice, DebugInfo
+
+
+def createSplitStats_DPMixtureModel_truelabels(
+        Dslice, hmodel, curLPslice, curSSwhole=None,
+        targetUID=0, LPkwargs=dict(),
+        newUIDs=None,
+        lapFrac=0,
+        **kwargs):
+    ''' Reassign target component to new states, based on true labels.
+
+    Returns
+    -------
+    xSSslice : stats for reassigned mass
+        total count is equal to SS.N[ktarget]
+        number of components is Kx
+    '''
+    ktarget = curSSwhole.uid2k(targetUID)
+
+    uLabels = np.unique(Dslice.TrueParams['Z'])
+    Ktrue = uLabels.size
+    trueResp = np.zeros((Dslice.nObs, Ktrue))
+    for k in range(Ktrue):
+        trueResp[Dslice.TrueParams['Z'] == k, k] = 1.0
+    scaledResp = trueResp
+    scaledResp /= curLPslice['resp'][:, ktarget][:, np.newaxis]
+    np.maximum(scaledResp, 1e-100, out=scaledResp)
+
+    xLPslice = dict(resp=scaledResp)
+    xSSslice = hmodel.get_global_suff_stats(
+        Dslice, xLPslice, doPrecompEntropy=1)
+    xSSslice.setUIDs(newUIDs[:Ktrue])
+    return xSSslice
+
 """

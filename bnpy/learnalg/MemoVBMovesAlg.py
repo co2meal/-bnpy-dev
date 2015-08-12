@@ -550,7 +550,8 @@ class MemoVBMovesAlg(LearnAlg):
                     MovePlans=MovePlans,
                     lapFrac=lapFrac,
                     **BArgs)
-            assert isinstance(MovePlans['BirthTargetUIDs'], list)
+            if 'BirthTargetUIDs' in MovePlans:
+                assert isinstance(MovePlans['BirthTargetUIDs'], list)
 
         return MovePlans
 

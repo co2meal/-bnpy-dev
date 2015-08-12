@@ -11,6 +11,8 @@ def selectTargetCompsForBirth(
         **BArgs):
     ''' Select specific comps to target with birth move.
 
+    TODO avoid comps that have not enough docs in Mult case.
+
     Returns
     -------
     MovePlans : dict, with fields
@@ -40,12 +42,12 @@ def selectTargetCompsForBirth(
         oldsize = MoveRecordsByUID[uid]['b_latestCount']
         nFailRecent = MoveRecordsByUID[uid]['b_nFailRecent']
 
-        bigEnough = size > BArgs['b_minAtomCountToTarget']
+        bigEnough = size > BArgs['b_minNumAtomsForTargetComp']
         if oldsize == 0 or nFailRecent == 0:
             hasFailureRecord = False
         else:
             sizePercDiff = np.abs(size - oldsize)/np.abs(oldsize)
-            if sizePercDiff > BArgs['b_minChangeInAtomCountToReactivate']:
+            if sizePercDiff > BArgs['b_minPercChangeInNumAtomsToReactivate']:
                 hasFailureRecord = False
             else:
                 hasFailureRecord = True
@@ -59,7 +61,7 @@ def selectTargetCompsForBirth(
         ScoreByEligibleUID[uid] = ScoreVec[ii]
     BLogger.pprint(
         'UIDs disqualified as too small. Required size >%d.' % (
-            BArgs['b_minAtomCountToTarget']), 'debug')
+            BArgs['b_minNumAtomsForTargetComp']), 'debug')
     BLogger.pprint(
         '  ' + BLogger.vec2str([u[0] for u in uidsTooSmall]), 'debug')
     BLogger.pprint(
