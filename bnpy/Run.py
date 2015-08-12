@@ -175,13 +175,13 @@ def _run_task_internal(jobname, taskid, nTask,
     learnAlg = createLearnAlg(Data, hmodel, ReqArgs, KwArgs,
                               algseed=algseed, savepath=taskoutpath)
     if learnAlg.hasMove('birth'):
-        import bnpy.birthmove.BirthLogger as BirthLogger
+        import bnpy.birthmove.BLogger as BirthLogger
         BirthLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
     if learnAlg.hasMove('delete'):
-        import bnpy.deletemove.DeleteLogger as DeleteLogger
+        import bnpy.deletemove.DLogger as DeleteLogger
         DeleteLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
     if learnAlg.hasMove('merge'):
-        import bnpy.mergemove.MergeLogger as MergeLogger
+        import bnpy.mergemove.MLogger as MergeLogger
         MergeLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
     if str(type(hmodel.allocModel)).count('TopicModel'):
         import bnpy.allocmodel.topics.LocalStepLogger as LocalStepLogger

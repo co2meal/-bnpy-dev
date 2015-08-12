@@ -472,11 +472,14 @@ class WordsData(DataObj):
         key = '__sparseDocTypeCountMat'
         if hasattr(self, key) and weights is None:
             return getattr(self, key)
-
         if weights is None:
             data = self.word_count
         else:
-            data = self.word_count * weights
+            assert weights.ndim == 1
+            if weights.size == self.word_count.size:
+                data = self.word_count * weights
+            else:
+                data = self.word_count
 
         # Create CSR matrix representation
         C = scipy.sparse.csr_matrix(
@@ -485,6 +488,10 @@ class WordsData(DataObj):
             dtype=np.float64)
         if weights is None:
             setattr(self, key, C)
+        elif weights.size == self.nDoc:
+            W = scipy.sparse.csr_matrix(
+                    (weights, np.arange(self.nDoc), np.arange(self.nDoc+1)))
+            C = W * C
         return C
 
     def clearCache(self):

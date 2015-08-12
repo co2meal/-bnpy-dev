@@ -7,7 +7,6 @@ such as human annotations
 These are provided within the Data object's TrueParams attribute.
 '''
 import numpy as np
-import FromScratchMult
 
 
 def init_global_params(hmodel, Data, initname=None, seed=0, **kwargs):

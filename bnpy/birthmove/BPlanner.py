@@ -15,8 +15,9 @@ def selectTargetCompsForBirth(
     MovePlans : dict, with fields
     * BirthTargetUIDs : list of ints
     '''
-    if 'BirthTargetUIDs' in MovePlans and len(MovePlans['BirthTargetUIDs']) > 0:
-        return MovePlans
+    if 'BirthTargetUIDs' in MovePlans:
+        if len(MovePlans['BirthTargetUIDs']) > 0:
+            return MovePlans
 
     countVec = SS.getCountVec()
     countVec = np.maximum(countVec, 1e-100)

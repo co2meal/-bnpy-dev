@@ -2,16 +2,25 @@ import numpy as np
 import os
 import sys
 import bnpy.init.FromTruth
+import BLogger
 
-from SCleanup import cleanupMergeClusters, cleanupDeleteSmallClusters
-from SAssignToExisting import assignSplitStats, _calc_expansion_alphaEbeta
 from scipy.special import digamma, gammaln
+from BCleanup import cleanupMergeClusters, cleanupDeleteSmallClusters
+from BRefine import assignSplitStats, _calc_expansion_alphaEbeta
 from BirthProposalError import BirthProposalError
 from bnpy.viz.PlotComps import plotAndSaveCompsFromSS
 from bnpy.viz.ProposalViz import plotELBOtermsForProposal
 from bnpy.viz.ProposalViz import plotDocUsageForProposal
 from bnpy.viz.ProposalViz import makeSingleProposalHTMLStr
 from bnpy.viz.PrintTopics import count2str
+
+from bnpy.init import initSSByBregDiv
+
+DefaultLPkwargs = dict(
+    restartLP=1,
+    convThrLP=0.001,
+    nCoordAscentItersLP=50,
+    )
 
 try:
     import KMeansRex
@@ -65,7 +74,7 @@ def createSplitStats(
         htmlfilepath = os.path.join(kwargs['b_debugOutputDir'], 'index.html')
         with open(htmlfilepath, 'w') as f:
             f.write(htmlstr)
-        print "DEBUGGER WROTE: ", htmlfilepath
+        BLogger.pprint("DEBUGGER WROTE: ", htmlfilepath)
     # Raise error if we didn't create enough "big-enough" states.
     nnzCount = np.sum(xSSslice.getCountVec() >= 1)
     if nnzCount < 2:
@@ -81,6 +90,146 @@ def createSplitStats(
     newMass = xSSslice.getCountVec().sum()
     assert np.allclose(newMass, origMass, atol=1e-6, rtol=0)
     return xSSslice, DebugInfo
+
+
+
+
+def createSplitStats_DPMixtureModel_BregDiv(
+        Dslice, curModel, curLPslice, 
+        curSSwhole=None,
+        targetUID=0,
+        ktarget=None,
+        LPkwargs=DefaultLPkwargs,
+        newUIDs=None,
+        lapFrac=0,
+        b_nRefineSteps=3,
+        b_debugOutputDir=None,
+        b_minNumAtomsForNewComp=None,
+        returnPropSS=0,
+        vocabList=None,
+        **kwargs):
+    ''' Reassign target component to new states using bregman divergence.
+
+    Returns
+    -------
+    xSSslice : stats for reassigned mass
+        total count is equal to SS.getCountVec()[ktarget]
+        number of components is Kx
+    DebugInfo : dict with info for visualization, etc
+    '''
+    if hasattr(Dslice, 'vocabList') and Dslice.vocabList is not None:
+        vocabList = Dslice.vocabList
+
+    if curSSwhole is None:
+        curSSwhole = curModel.get_global_suff_stats(Dslice, curLPslice)
+    if ktarget is None:
+        ktarget = curSSwhole.uid2k(targetUID)
+
+    xK = newUIDs.size
+    xSSfake, DebugInfo = initSSByBregDiv(
+        Dslice=Dslice,
+        curModel=curModel,
+        curLPslice=curLPslice,
+        K=xK,
+        ktarget=ktarget,
+        lapFrac=lapFrac,
+        seed=lapFrac,
+        **kwargs)
+    xSSfake.setUIDs(newUIDs[:xSSfake.K])
+    # Log info about targetted UID
+    strUIDs = ' '.join([count2str(u) for u in xSSfake.uids])
+    BLogger.pprint('targetUID ' + str(targetUID), 'info')
+    BLogger.pprint('  ' + strUIDs, 'info')
+
+    if b_debugOutputDir:
+        plotAndSaveCompsFromSS(
+            curModel, curSSwhole, b_debugOutputDir, 'OrigComps.png',
+            compsToHighlight=[ktarget],
+            vocabList=vocabList)
+        plotAndSaveCompsFromSS(
+            curModel, xSSfake, b_debugOutputDir, 'NewComps_Init.png',
+            vocabList=vocabList)
+        curLdict = curModel.calc_evidence(SS=curSSwhole, todict=1)
+        propLdictList = list()
+
+    xSSslice = xSSfake
+    nnzCount = np.sum(xSSslice.getCountVec() >= 1)
+    # Make a function to help with logging
+    pprintCountVec = BLogger.makeFunctionToPrettyPrintCounts(xSSfake)
+
+    
+    for i in range(b_nRefineSteps):
+        # Obtain valid suff stats that represent Dslice for given model
+        # using xSSslice as initial "seed" clusters.
+        # Note: xSSslice need only have observation-model stats here.
+        xSSslice = assignSplitStats(
+            Dslice, curModel, curLPslice, xSSslice,
+            curSSwhole=curSSwhole,
+            targetUID=targetUID,
+            ktarget=ktarget,
+            LPkwargs=LPkwargs,
+            returnPropSS=returnPropSS,
+            lapFrac=lapFrac,
+            **kwargs)
+        # Show diagnostics for new states
+        pprintCountVec(xSSslice)
+        if b_debugOutputDir:
+            plotAndSaveCompsFromSS(
+                curModel, xSSslice, b_debugOutputDir,
+                filename='NewComps_Step%d.png' % (i+1),
+                vocabList=vocabList)
+            propSS = curSSwhole.copy()
+            propSS.transferMassFromExistingToExpansion(
+                uid=targetUID, xSS=xSSslice)
+            propModel = curModel.copy()
+            propModel.update_global_params(propSS)
+            propLdict = propModel.calc_evidence(SS=propSS, todict=1)
+            propLdictList.append(propLdict)
+        # Cleanup by deleting small clusters 
+        if i < b_nRefineSteps - 1:
+            if i == b_nRefineSteps - 2:
+                # After all but last step, delete small (but not empty) comps
+                minNumAtomsToStay = b_minNumAtomsForNewComp
+            else:
+                # Always remove empty clusters. They waste our time.
+                minNumAtomsToStay = 1
+            xSSslice = cleanupDeleteSmallClusters(
+                xSSslice, minNumAtomsToStay, pprintCountVec=pprintCountVec)
+        # Cleanup by merging clusters
+        if i == b_nRefineSteps - 2:
+            DebugInfo['mergestep'] = i + 1
+            xSSslice = cleanupMergeClusters(
+                xSSslice, curModel,
+                obsSS=xSSfake,
+                vocabList=Dslice.vocabList,
+                pprintCountVec=pprintCountVec,
+                b_debugOutputDir=b_debugOutputDir, **kwargs)
+        # Exit early if no promising new clusters are created
+        nnzCount = np.sum(xSSslice.getCountVec() >= 1)
+        if nnzCount < 2:
+            break
+
+    if b_debugOutputDir:
+        savefilename = os.path.join(
+            b_debugOutputDir, 'ProposalTrace_ELBO.png')
+        plotELBOtermsForProposal(curLdict, propLdictList,
+                                 savefilename=savefilename)
+        GainELBO = propLdictList[-1]['Ltotal'] - curLdict['Ltotal']
+        if np.sum(xSSslice.getCountVec() > 1) < 2:
+            DebugInfo['status'] = \
+                'Rejected. Did not create >1 new comps with significant mass'
+        elif GainELBO > 0:
+            DebugInfo['status'] = \
+                'Accepted. ELBO improved by %.3f' % (GainELBO)
+        else:
+            DebugInfo['status'] = 'Rejected. ELBO did not improve.'
+
+    if returnPropSS:
+        raise NotImplementedError("TODO")
+    return xSSslice, DebugInfo
+
+
+
 
 
 
@@ -179,13 +328,6 @@ def createSplitStats_DPMixtureModel_truelabels(
     return xSSslice
 
 
-
-DefaultLPkwargs = dict(
-    restartLP=1,
-    convThrLP=0.001,
-    nCoordAscentItersLP=50,
-    )
-
 def createSplitStats_HDPTopicModel_BregDiv(
         Dslice, curModel, curLPslice, 
         curSSwhole=None,
@@ -250,9 +392,8 @@ def createSplitStats_HDPTopicModel_BregDiv(
     nnzCount = np.sum(xSSslice.getCountVec() >= 1)
 
     strUIDs = ' '.join([count2str(u) for u in xSSfake.uids])
-
-    print 'targetUID ', targetUID
-    print '  ', strUIDs
+    BLogger.pprint('targetUID ' + str(targetUID), 'info')
+    BLogger.pprint('  ' + strUIDs, 'info')
     def pprintCountVec(SS, uids=xSSfake.uids, uidpairsToAccept=None):
         s = ''
         emptyVal = '     '
@@ -270,7 +411,7 @@ def createSplitStats_HDPTopicModel_BregDiv(
                             break
                 if not didWriteThisUID:
                     s += emptyVal
-        return '  ' + s
+        BLogger.pprint('  ' + s, 'info')
 
     for i in range(b_nRefineSteps):
         # Obtain valid suff stats that represent Dslice for given model
@@ -287,7 +428,7 @@ def createSplitStats_HDPTopicModel_BregDiv(
             **kwargs)
 
         # Show diagnostics for new states
-        print pprintCountVec(xSSslice)
+        pprintCountVec(xSSslice)
 
         if b_debugOutputDir:
             plotAndSaveCompsFromSS(
@@ -353,139 +494,6 @@ def createSplitStats_HDPTopicModel_BregDiv(
         return xSSslice[0], xSSslice[1]
     return xSSslice, DebugInfo
 
-def initSSByBregDiv_Mult(
-        Dslice, curModel=None, curLPslice=None,
-        K=5, ktarget=None, 
-        b_minNumAtomsInDoc=10, 
-        b_includeRemainderTopic=0,
-        b_initHardCluster=0,
-        lapFrac=0, doSample=True,
-        **kwargs):
-    ''' Create observation model statistics via Breg. distance sampling.
-
-    Returns
-    -------
-    xSS : SuffStatBag
-    Info : dict
-        contains info about which docs were used to inspire this init. 
-    '''
-    PRNG = np.random.RandomState(1000 * lapFrac)
-    DocWordMat = Dslice.getDocTypeCountMatrix(
-        weights=curLPslice['resp'][:,ktarget])
-    # Keep only rows with minimum count
-    rowsWithEnoughData = np.flatnonzero(
-        DocWordMat.sum(axis=1) > b_minNumAtomsInDoc)
-    enoughDocWordMat = DocWordMat[rowsWithEnoughData]
-    Keff = np.minimum(K, enoughDocWordMat.shape[0])
-    if Keff < 1:
-        raise BirthProposalError(
-            "Not enough data. Looked for %d documents, found only %d" % (
-                K, Keff))
-    K = Keff
-    np.maximum(enoughDocWordMat, 1e-100, out=enoughDocWordMat)
-
-    WholeDataMean = calcClusterMean_Mult(
-        enoughDocWordMat, hmodel=curModel)[np.newaxis, :]
-    minDiv = calcBregDiv_Mult(enoughDocWordMat, WholeDataMean)
-    assert minDiv.min() > -1e-10
-    WCMeans = np.zeros((K, WholeDataMean.shape[1]))
-    lamVals = np.zeros(K+1)
-    chosenDocIDs = np.zeros(K, dtype=np.int32)
-    for k in range(K):
-        # Find data point with largest minDiv value
-        if doSample:
-            pvec = minDiv[:,0] / np.sum(minDiv)
-            n = PRNG.choice(minDiv.size, p=pvec)
-        else:
-            n = minDiv.argmax()
-        chosenDocIDs[k] = rowsWithEnoughData[n]
-        lamVals[k] = minDiv[n]
-        # Add this point to the clusters
-        WCMeans[k,:] = calcClusterMean_Mult(
-            enoughDocWordMat[n], hmodel=curModel)
-        # Recalculate minimum distance to existing means
-        curDiv = calcBregDiv_Mult(enoughDocWordMat, WCMeans[k])
-        np.minimum(curDiv, minDiv, out=minDiv)
-        minDiv[n] = 0
-        assert minDiv.min() > -1e-10
-    lamVals[-1] = minDiv.max()
-
-    if b_includeRemainderTopic == 1:
-        chosenDocIDs = chosenDocIDs[:-1]
-        WCMeans = np.vstack([WholeDataMean, WCMeans[:-1]])
-        WCMeans[0] -= DocWordMat[chosenDocIDs].sum(axis=0)
-
-    Z = -1 * np.ones(Dslice.nDoc, dtype=np.int32)
-    if b_initHardCluster:
-        DivMat = calcBregDiv_Mult(enoughDocWordMat, WCMeans)
-        Z[rowsWithEnoughData] = DivMat.argmin(axis=1)
-    else:
-        if b_includeRemainderTopic:
-            Z[chosenDocIDs] = 1 + np.arange(len(chosenDocIDs))
-            Z[Z<1] = 0 # all other docs to rem cluster
-        else:
-            Z[chosenDocIDs] = np.arange(len(chosenDocIDs))
-
-    docLP = bnpy.init.FromTruth.convertLPFromHardToSoft(
-        dict(Z=Z), Dslice, initGarbageState=0)
-    xtokenLP = bnpy.init.FromTruth.convertLPFromDocsToTokens(docLP, Dslice)
-    xtokenLP['resp'] *= curLPslice['resp'][:, ktarget][:,np.newaxis]    
-
-    # Verify that initial xLP resp is a subset of curLP's resp,
-    # leaving out only the docs that didnt have enough tokens.
-    assert np.all(xtokenLP['resp'].sum(axis=1) <= \
-                  curLPslice['resp'][:, ktarget] + 1e-5)
-    xSS = curModel.obsModel.get_global_suff_stats(Dslice, None, xtokenLP)
-
-    # Reorder the components from big to small
-    bigtosmall = np.argsort(-1 * xSS.getCountVec())
-    xSS.reorderComps(bigtosmall)
-
-    Info = dict(
-        Z=Z,
-        Means=WCMeans, 
-        lamVals=lamVals, 
-        chosenDocIDs=chosenDocIDs)
-    return xSS, Info
-
-def calcClusterMean_Mult(WordCountData, lam=0.05, hmodel=None):
-    if hmodel is not None:
-        lam = hmodel.obsModel.Prior.lam
-    if WordCountData.ndim == 1:
-        WordCountData = WordCountData[np.newaxis,:]
-    WordCountSumVec = np.sum(WordCountData, axis=0)
-    ClusterMean = WordCountSumVec + lam
-    return ClusterMean
-
-def calcBregDiv_Mult(WordCountData, WordCountMeans):
-    ''' Calculate Bregman divergence between rows of two matrices.
-
-    Args
-    ----
-    WordCountData : 2D array, N x vocab_size
-    WordCountMeans : 2D array, K x vocab_size
-
-    Returns
-    -------
-    Div : 2D array, N x K
-    '''
-    if WordCountData.ndim == 1:
-        WordCountData = WordCountData[np.newaxis,:]
-    if WordCountMeans.ndim == 1:
-        WordCountMeans = WordCountMeans[np.newaxis,:]
-    assert WordCountData.shape[1] == WordCountMeans.shape[1]
-    N = WordCountData.shape[0]
-    K = WordCountMeans.shape[0]
-    Nx = WordCountData.sum(axis=1)
-    assert np.all(Nx >= 1.0 - 1e-10)
-    Nmean = WordCountMeans.sum(axis=1)
-    assert np.all(Nmean >= 1.0 - 1e-10)
-    Div = np.zeros((N, K))
-    for k in xrange(K):
-        Div[:, k] = np.sum(WordCountData * np.log(
-            WordCountData / WordCountMeans[k,:][np.newaxis,:]), axis=1)
-        Div[:, k] += Nx * np.log(Nmean[k]/Nx)
-    return Div
 
 
 """

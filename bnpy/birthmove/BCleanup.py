@@ -21,7 +21,7 @@ def cleanupDeleteSmallClusters(xSSslice, minAtomCountThr, pprintCountVec=None):
             break
         xSSslice.removeComp(k)
     if pprintCountVec and badids.size > 0:
-        print pprintCountVec(xSSslice)
+        pprintCountVec(xSSslice)
     return xSSslice
 
 def cleanupMergeClusters(
@@ -102,7 +102,7 @@ def cleanupMergeClusters(
                     savefilename, pad_inches=0, bbox_inches='tight')
 
         if len(uidpairsToAccept) > 0:
-            print pprintCountVec(xSSslice, uidpairsToAccept=uidpairsToAccept)
+            pprintCountVec(xSSslice, uidpairsToAccept=uidpairsToAccept)
 
     if mergeID > 0 and b_debugOutputDir:
         tmpModel.obsModel.update_global_params(xSSslice)

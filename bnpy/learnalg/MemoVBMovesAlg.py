@@ -170,10 +170,10 @@ class MemoVBMovesAlg(LearnAlg):
 
             # Assess convergence
             countVec = SS.getCountVec()
-            if lapFrac > 1.0:
+            if nLapsCompleted > 1.0:
                 ConvStatus[batchID] = self.isCountVecConverged(
                     countVec, prevCountVec, batchID=batchID)
-                isConverged = np.min(ConvStatus) and \
+                isConverged = np.min(ConvStatus) and not \
                     self.hasMoreReasonableMoves(SS, MoveRecordsByUID, lapFrac)
                 self.setStatus(lapFrac, isConverged)
 
@@ -895,6 +895,8 @@ class MemoVBMovesAlg(LearnAlg):
                         for u in MoveRecordsByUID])
                 if (lapFrac - lapLastAccepted) > nStuck:
                     hasMovesLeft_Merge = False
+                else:
+                    hasMovesLeft_Merge = True
             else:
                 hasMovesLeft_Merge = True
         else:
@@ -917,10 +919,11 @@ class MemoVBMovesAlg(LearnAlg):
 
                 if (lapFrac - lapLastAccepted) > nStuck:
                     hasMovesLeft_Delete = False
+                else:
+                    hasMovesLeft_Delete = True
             else:
                 hasMovesLeft_Delete = True
         else:
             hasMovesLeft_Delete = False
-
         return hasMovesLeft_Birth or hasMovesLeft_Merge or hasMovesLeft_Delete
         # ... end function hasMoreReasonableMoves

@@ -334,6 +334,24 @@ class DPMixtureModel(AllocModel):
         newLP = dict(resp=resp)
         return newLP
 
+    def calcMergeTermsFromSeparateLP(
+            self, Data=None, LPa=None, SSa=None,
+            LPb=None, SSb=None, mUIDPairs=None):
+        ''' Compute merge terms for case of expansion LP proposals.
+
+        Returns
+        -------
+        Mdict : dict, with fields
+        * Hresp
+        '''
+        M = len(mUIDPairs)
+        m_Hresp = np.zeros(M)
+        for m, (uidA, uidB) in enumerate(mUIDPairs):
+            kA = SSa.uid2k(uidA)
+            kB = SSb.uid2k(uidB)
+            respAB = LPa['resp'][:, kA] + LPb['resp'][:, kB]
+            m_Hresp[m] = -1 * NumericUtil.calcRlogR(respAB[:,np.newaxis])
+        return dict(Hresp=m_Hresp)
 
     def get_global_suff_stats(self, Data, LP,
                               **kwargs):
@@ -402,9 +420,10 @@ class DPMixtureModel(AllocModel):
         -------
         eta1 and eta0 set to valid posterior for SS.K components.
         """
+        N = SS.getCountVec()
         self.K = SS.K
-        eta1 = self.gamma1 + SS.N
-        eta0 = self.gamma0 + convertToN0(SS.N)
+        eta1 = self.gamma1 + N
+        eta0 = self.gamma0 + convertToN0(N)
         self.eta1 = eta1
         self.eta0 = eta0
         self.set_helper_params()
@@ -416,10 +435,10 @@ class DPMixtureModel(AllocModel):
         -------
         eta1 and eta0 set to valid posterior for SS.K components.
         """
+        N = SS.getCountVec()
         assert self.K == SS.K
-        eta1 = self.gamma1 + SS.N
-        eta0 = self.gamma0 * np.ones(self.K)
-        eta0 = self.gamma0 + convertToN0(SS.N)
+        eta1 = self.gamma1 + N
+        eta0 = self.gamma0 + convertToN0(N)
         self.eta1 = rho * eta1 + (1 - rho) * self.eta1
         self.eta0 = rho * eta0 + (1 - rho) * self.eta0
         self.set_helper_params()

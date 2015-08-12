@@ -1,29 +1,32 @@
 import numpy as np
 from scipy.special import digamma, gammaln
 
+import BLogger
+
 def assignSplitStats(
-        Dslice, hmodel, curLPslice, propXSS,
+        Dslice, curModel, curLPslice, propXSS,
         **kwargs):
     assignSplitStatsMap = dict([
         (k,v) for (k,v) in globals().items()
         if str(k).count('assignSplitStats')])
-    aName = hmodel.getAllocModelName()
+    aName = curModel.getAllocModelName()
     funcName = 'assignSplitStats_' + aName
     if funcName not in assignSplitStatsMap:
         raise NotImplementedError('Unrecognized function: ' + funcName)
     
     assignSplitStatsFunc = assignSplitStatsMap[funcName]
     xSSslice = assignSplitStatsFunc(
-        Dslice, hmodel, curLPslice, propXSS,
+        Dslice, curModel, curLPslice, propXSS,
         **kwargs)
 
     return xSSslice
 
 def assignSplitStats_DPMixtureModel(
-        Dslice, hmodel, curLPslice, propXSS,
+        Dslice, curModel, curLPslice, propXSS,
         targetUID=0,
         ktarget=None,
         curSSwhole=None,
+        mUIDPairs=None,
         **kwargs):
     ''' Reassign target comp. using an existing set of proposal states.
 
@@ -36,7 +39,7 @@ def assignSplitStats_DPMixtureModel(
     if ktarget is None:
         ktarget = curSSwhole.uid2k(targetUID)
 
-    tmpModel = hmodel.copy()
+    tmpModel = curModel.copy()
     tmpModel.update_global_params(propXSS)
 
     xLPslice = tmpModel.calc_local_params(Dslice)
@@ -45,6 +48,16 @@ def assignSplitStats_DPMixtureModel(
     xSSslice = tmpModel.get_global_suff_stats(
         Dslice, xLPslice, doPrecompEntropy=1)
     xSSslice.setUIDs(propXSS.uids)
+
+    if mUIDPairs is not None and len(mUIDPairs) > 0:
+        Mdict = curModel.allocModel.calcMergeTermsFromSeparateLP(
+            Data=Dslice, LPa=curLPslice, SSa=curSSwhole,
+            LPb=xLPslice, SSb=xSSslice, 
+            mUIDPairs=mUIDPairs)
+        xSSslice.setMergeUIDPairs(mUIDPairs)
+        for key, arr in Mdict.items():
+            xSSslice.setMergeTerm(key, arr, dims='M')
+
     return xSSslice
 
 
@@ -140,13 +153,15 @@ def assignSplitStats_HDPTopicModel(
             prevxDocTopicCount_d[:] = xDocTopicCount_d
 
         if verbose:
-            print '---'
+            BLogger.pprint('---')
             weightedtrueDocTopicCount_d = np.dot(
                 targetsumResp_d,
                 Dslice.TrueParams['resp'][start:stop])
-            print ' '.join(
-                ['%6.1f' % x for x in weightedtrueDocTopicCount_d])
-            print ' '
+            BLogger.pprint(
+                ' '.join(
+                    ['%6.1f' % x for x in weightedtrueDocTopicCount_d])
+                )
+            BLogger.pprint(' ')
 
         # Create proposal resp for relevant atoms in this doc only
         xResp_d = xLik_d

@@ -6,7 +6,6 @@ Initialize global params of a bnpy model using a set of local parameters
 import numpy as np
 
 from FromTruth import convertLPFromHardToSoft
-from SingleSeqStateCreator import initSingleSeq_SeqAllocContigBlocks
 
 import logging
 Log = logging.getLogger('bnpy')
