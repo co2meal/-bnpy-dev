@@ -322,6 +322,10 @@ def count2str(val, width=4):
 def countvec2list(countvec):
     return [count2str(x) for x in countvec]
 
+def vec2str(vec, width=4):
+    if len(vec) == 0:
+        return 'empty'
+    return ' '.join([count2str(x, width=width) for x in vec])
 
 def uidsAndCounts2strlist(SS):
     countvec = SS.getCountVec()

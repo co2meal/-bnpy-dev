@@ -12,7 +12,7 @@ from bnpy.viz.PlotComps import plotAndSaveCompsFromSS
 from bnpy.viz.ProposalViz import plotELBOtermsForProposal
 from bnpy.viz.ProposalViz import plotDocUsageForProposal
 from bnpy.viz.ProposalViz import makeSingleProposalHTMLStr
-from bnpy.viz.PrintTopics import count2str
+from bnpy.viz.PrintTopics import vec2str
 
 from bnpy.init import initSSByBregDiv
 
@@ -74,7 +74,7 @@ def createSplitStats(
         htmlfilepath = os.path.join(kwargs['b_debugOutputDir'], 'index.html')
         with open(htmlfilepath, 'w') as f:
             f.write(htmlstr)
-        BLogger.pprint("DEBUGGER WROTE: ", htmlfilepath)
+        BLogger.pprint("WROTE HTML: " + htmlfilepath, 'debug')
     # Raise error if we didn't create enough "big-enough" states.
     nnzCount = np.sum(xSSslice.getCountVec() >= 1)
     if nnzCount < 2:
@@ -83,7 +83,8 @@ def createSplitStats(
     # If here, we have a valid proposal. 
     # Need to verify mass conservation
     ktarget = curSSwhole.uid2k(kwargs['targetUID'])
-    if hasattr(Dslice, 'word_count'):
+    if hasattr(Dslice, 'word_count') and \
+            hmodel.obsModel.DataAtomType.count('word'):
         origMass = np.inner(Dslice.word_count, curLPslice['resp'][:,ktarget])
     else:
         origMass = curLPslice['resp'][:,ktarget].sum()
@@ -137,9 +138,9 @@ def createSplitStats_DPMixtureModel_BregDiv(
         **kwargs)
     xSSfake.setUIDs(newUIDs[:xSSfake.K])
     # Log info about targetted UID
-    strUIDs = ' '.join([count2str(u) for u in xSSfake.uids])
-    BLogger.pprint('targetUID ' + str(targetUID), 'info')
-    BLogger.pprint('  ' + strUIDs, 'info')
+    strUIDs = vec2str(xSSfake.uids)
+    BLogger.pprint('targetUID ' + str(targetUID))
+    BLogger.pprint('   ' + strUIDs)
 
     if b_debugOutputDir:
         plotAndSaveCompsFromSS(
@@ -391,27 +392,10 @@ def createSplitStats_HDPTopicModel_BregDiv(
     xSSslice = xSSfake
     nnzCount = np.sum(xSSslice.getCountVec() >= 1)
 
-    strUIDs = ' '.join([count2str(u) for u in xSSfake.uids])
-    BLogger.pprint('targetUID ' + str(targetUID), 'info')
-    BLogger.pprint('  ' + strUIDs, 'info')
-    def pprintCountVec(SS, uids=xSSfake.uids, uidpairsToAccept=None):
-        s = ''
-        emptyVal = '     '
-        for uid in uids:
-            try:
-                k = SS.uid2k(uid)
-                s += ' ' + count2str(SS.getCountVec()[k])
-            except:
-                didWriteThisUID = False
-                if uidpairsToAccept:
-                    for uidA, uidB in uidpairsToAccept:
-                        if uidB == uid:
-                            s += ' m' + '%3d' % (uidA)
-                            didWriteThisUID = True
-                            break
-                if not didWriteThisUID:
-                    s += emptyVal
-        BLogger.pprint('  ' + s, 'info')
+    strUIDs = vec2str(xSSfake.uids)
+    BLogger.pprint('targetUID ' + str(targetUID))
+    BLogger.pprint('   ' + strUIDs)
+    pprintCountVec = BLogger.makeFunctionToPrettyPrintCounts(xSSfake)
 
     for i in range(b_nRefineSteps):
         # Obtain valid suff stats that represent Dslice for given model

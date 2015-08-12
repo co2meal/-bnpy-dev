@@ -5,10 +5,11 @@ import numpy as np
 import multiprocessing
 from collections import defaultdict
 
-from bnpy.birthmove import createSplitStats, assignSplitStats
+from bnpy.birthmove import createSplitStats, assignSplitStats, BLogger
 from bnpy.birthmove import BirthProposalError, selectTargetCompsForBirth
+from bnpy.mergemove import MLogger
 from bnpy.mergemove import selectCandidateMergePairs, ELBO_GAP_ACCEPT_TOL
-from bnpy.deletemove import selectCandidateDeleteComps
+from bnpy.deletemove import DLogger, selectCandidateDeleteComps
 from bnpy.util import sharedMemDictToNumpy, sharedMemToNumpyArray
 from LearnAlg import makeDictOfAllWorkspaceVars
 from LearnAlg import LearnAlg
@@ -255,6 +256,8 @@ class MemoVBMovesAlg(LearnAlg):
         # Try each planned birth
         SSbatch.propXSS = dict()
         if 'BirthTargetUIDs' in MovePlans:
+            BLogger.pprint(
+                'EXPANSION local step at lap %.2f ==========' % (lapFrac))
             # Loop thru copy of the target comp UID list
             # So that we can remove elements from it within the loop
             for ii, targetUID in enumerate(list(MovePlans['BirthTargetUIDs'])):
@@ -278,7 +281,7 @@ class MemoVBMovesAlg(LearnAlg):
                                 LPkwargs=LPkwargs,
                                 **self.algParams['birth'])
                     except BirthProposalError as e:
-                        print '  ', str(e)
+                        BLogger.pprint('  ' + str(e))
                         MovePlans['BirthTargetUIDs'].remove(targetUID)
                         if targetUID not in MoveRecordsByUID:
                             MoveRecordsByUID[targetUID] = defaultdict(int)
@@ -536,7 +539,6 @@ class MemoVBMovesAlg(LearnAlg):
             return MovePlans
 
         if self.hasMove('birth'):
-            print 'EXPANSION STAGE ======================='
             BArgs = self.algParams['birth']    
             if SS is None:
                 MovePlans['BirthTargetUIDs'] = \
@@ -568,7 +570,8 @@ class MemoVBMovesAlg(LearnAlg):
         MoveRecordsByUID
         '''
         if len(SS.propXSS.keys()) > 0:
-            print 'EVALUATION STAGE ======================='
+            BLogger.pprint(
+                'EVALUATION at lap %.2f ==================' % (lapFrac))
         acceptedUIDs = list()
         for targetUID in SS.propXSS.keys():
             # Skip delete proposals, which are handled differently
@@ -583,7 +586,7 @@ class MemoVBMovesAlg(LearnAlg):
             MoveRecordsByUID[targetUID]['b_latestLap'] = lapFrac
             MoveRecordsByUID[targetUID]['b_latestCount'] = targetCount
             # Construct proposal statistics
-            print 'targetUID', targetUID
+            BLogger.pprint('targetUID ' + str(targetUID))
             propSS = SS.copy()
             propSS.transferMassFromExistingToExpansion(
                 uid=targetUID, xSS=SS.propXSS[targetUID])
@@ -594,7 +597,8 @@ class MemoVBMovesAlg(LearnAlg):
             propLscore = propModel.calc_evidence(SS=propSS)
 
             if propLscore > Lscore:
-                print '   ACCEPTED. gainLtotal % .2f' % (propLscore-Lscore)
+                BLogger.pprint(
+                    '   ACCEPTED. gainLtotal % .2f' % (propLscore-Lscore))
                 MoveRecordsByUID[targetUID]['b_nSuccess'] += 1
                 MoveRecordsByUID[targetUID]['b_nFailRecent'] = 0
                 MoveRecordsByUID[targetUID]['b_nSuccessRecent'] += 1
@@ -618,9 +622,11 @@ class MemoVBMovesAlg(LearnAlg):
                 curLdata = hmodel.obsModel.calc_evidence(None, SS, None)
                 nAtoms = hmodel.obsModel.getDatasetScale(SS)
                 gainLdata = (propLdata - curLdata) / nAtoms
-                print '   REJECTED. gainLdata % .2f' % (gainLdata)
-
+                BLogger.pprint(
+                    '   REJECTED. gainLtotal % .2f' % (propLscore-Lscore))
                 if gainLdata > 0.01:
+                    BLogger.pprint(
+                        '   Retained. gainLdata % .2f' % (gainLdata))
                     # Track for next time!
                     assert targetUID in SS.propXSS
                 else:
@@ -699,8 +705,10 @@ class MemoVBMovesAlg(LearnAlg):
                     MoveRecordsByUID[u]['m_nFailRecent'] += 1
                     MoveRecordsByUID[u]['m_nSuccessRecent'] = 0
         if nTrial > 0:
-            print 'MERGE %d/%d accepted. Ndiff %.2f. %d skipped.' % (
+            msg = 'MERGE %d/%d accepted. Ndiff %.2f. %d skipped.' % (
                 nAccept, nTrial, Ndiff, nSkip)
+            MLogger.pprint(msg)
+            self.print_msg(msg)
         # Finally, set all merge fields to zero,
         # since all possible merges have been accepted
         SS.removeMergeTerms()
@@ -818,8 +826,10 @@ class MemoVBMovesAlg(LearnAlg):
                 MoveRecordsByUID[targetUID]['d_nFailRecent'] += 1
 
         if nTrial > 0:
-            print 'DELETE %d/%d accepted. Ndiff %.2f.' % (
+            msg = 'DELETE %d/%d accepted. Ndiff %.2f.' % (
                 nAccept, nTrial, Ndiff)
+            DLogger.pprint(msg)
+            self.print_msg(msg)
         # Discard plans, because they have come to fruition.
         for key in MovePlans.keys():
             if key.startswith('d_'):

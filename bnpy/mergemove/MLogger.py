@@ -6,9 +6,15 @@ from collections import defaultdict
 # Configure Logger
 Log = None
 
-def log(msg, level='debug'):
+def pprint(msg, level=logging.DEBUG):
+    global Log
     if Log is None:
         return
+    if isinstance(level, str):
+        if level.count('info'):
+            level = logging.INFO
+        elif level.count('debug'):
+            level = logging.DEBUG
     Log.log(level, msg)
 
 def configure(taskoutpath, doSaveToDisk=0, doWriteStdOut=0):

@@ -2,11 +2,13 @@ import logging
 import os
 import sys
 from collections import defaultdict
+from bnpy.viz.PrintTopics import vec2str, count2str
 
 # Configure Logger
 Log = None
 
-def pprint(msg, level=logging.DEBUG):
+def pprint(msg, level=logging.INFO):
+    global Log
     if Log is None:
         return
     if isinstance(level, str):
@@ -30,7 +32,7 @@ def configure(taskoutpath, doSaveToDisk=0, doWriteStdOut=0):
             os.path.join(
                 taskoutpath,
                 "birth-transcript-verbose.txt"))
-        fh.setLevel(logging.DEBUG)
+        fh.setLevel(0)
         fh.setFormatter(formatter)
         Log.addHandler(fh)
 
@@ -46,7 +48,7 @@ def configure(taskoutpath, doSaveToDisk=0, doWriteStdOut=0):
     # Config logger that can write to stdout
     if doWriteStdOut:
         ch = logging.StreamHandler(sys.stdout)
-        ch.setLevel(logging.INFO)
+        ch.setLevel(logging.INFO+1)
         ch.setFormatter(formatter)
         Log.addHandler(ch)
     # Config null logger, avoids error messages about no handler existing
