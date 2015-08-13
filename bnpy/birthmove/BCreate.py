@@ -21,7 +21,6 @@ DefaultLPkwargs = dict(
     convThrLP=0.001,
     nCoordAscentItersLP=50,
     )
-
 try:
     import KMeansRex
     def RunKMeans(X, K, seed=0):
