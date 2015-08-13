@@ -9,7 +9,7 @@ import numpy as np
 from bnpy.data import XData
 from bnpy.suffstats import SuffStatBag
 from scipy.cluster.vq import kmeans2
-
+from FromTruth import convertLPFromHardToSoft
 
 def init_global_params(obsModel, Data, K=0, seed=0,
                        initname='randexamples',
@@ -139,12 +139,12 @@ def initSSByBregDiv_ZeroMeanGauss(
     '''
     PRNG = np.random.RandomState(seed)
     if curLPslice is None:
-        targetAtoms = np.arange(Data.nObs)
-        targetX = Data.X
+        targetAtoms = np.arange(Dslice.nObs)
+        targetX = Dslice.X
     else:
         targetAtoms = np.flatnonzero(
             curLPslice['resp'][:,ktarget] > b_minRespToIncludeInInit)
-        targetX = Data.X[targetAtoms]
+        targetX = Dslice.X[targetAtoms]
 
     Keff = np.minimum(K, targetX.shape[0])
     if Keff < 1:
@@ -156,26 +156,30 @@ def initSSByBregDiv_ZeroMeanGauss(
     K = Keff
     WholeDataMean = calcClusterMean_ZeroMeanGauss(
         targetX, hmodel=curModel)
-    Mu = np.zeros((K, WholeDataMean.shape[1]))    
-    minDiv = np.inf * np.ones(Xtarget.shape[0])
+    Mu = np.zeros((K, Dslice.dim, Dslice.dim))    
+    minDiv = np.inf * np.ones((targetX.shape[0],1))
     lamVals = np.zeros(K)
     chosenAtomIDs = np.zeros(K, dtype=np.int32)
     for k in range(K):
-        # Find data point with largest minDiv value
-        if doSample:
-            pvec = minDiv[:,0] / np.sum(minDiv)
-            n = PRNG.choice(minDiv.size, p=pvec)
+        if k == 0:
+            # Choose first point uniformly at randomly
+            n = PRNG.choice(minDiv.size)
         else:
-            n = minDiv.argmax()
+            if doSample:
+                pvec = minDiv[:,0] / np.sum(minDiv)
+                n = PRNG.choice(minDiv.size, p=pvec)
+            else:
+                n = minDiv.argmax()
         chosenAtomIDs[k] = targetAtoms[n]
         # Add this point to the clusters
-        Mu[k,:] = calcClusterMean_ZeroMeanGauss(
+        Mu[k] = calcClusterMean_ZeroMeanGauss(
             targetX[n], hmodel=curModel)
         # Recalculate minimum distance to existing means
         curDiv = calcBregDiv_ZeroMeanGauss(targetX, Mu[k])
         np.minimum(curDiv, minDiv, out=minDiv)
         lamVals[k] = minDiv[n]
-        minDiv[n] = 0
+        minDiv[n] = 1e-10
+        minDiv = np.maximum(minDiv, 1e-10)
         assert minDiv.min() > -1e-10
     
     Z = -1 * np.ones(Dslice.nObs, dtype=np.int32)
@@ -239,15 +243,18 @@ def calcBregDiv_ZeroMeanGauss(X, Mu):
         Mu = Mu[np.newaxis,:]
     assert Mu.ndim == 3
     assert X.shape[1] == Mu.shape[2]
-    N = X.shape[0]
+    N, D = X.shape
     K = Mu.shape[0]
     Div = np.zeros((N, K))
+    logdetX = np.log(np.square(X) + 1e-100).sum(axis=1)
     for k in xrange(K):
         # cholMu_k is a lower-triangular matrix
         cholMu_k = np.linalg.cholesky(Mu[k])
         logdetMu_k = 2 * np.sum(np.log(np.diag(cholMu_k)))
-        Q = np.linalg.solve(cholMu_k, X.T)
-        Q *= Q
-        Div[:,k] = 0.5 * np.sum(Q, axis=0) + \
-                   0.5 * logdetMu_k - 0.5
+        xxTinvMu = np.linalg.solve(cholMu_k, X.T)
+        xxTinvMu *= xxTinvMu
+        tr_xxTinvMu = np.sum(xxTinvMu, axis=0)
+        Div[:,k] = - 0.5 * D + 0.5 * tr_xxTinvMu
+        # Div[:, k] += 0.5 * logdetMu_k - 0.5 * logdetX
+        assert Div.min() > -1e-10
     return Div

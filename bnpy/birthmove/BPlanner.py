@@ -96,5 +96,36 @@ def selectTargetCompsForBirth(
     return MovePlans
     
 
+def canBirthHappenAtLap(lapFrac, b_startLap=-1, b_stopLap=-1, **kwargs):
+    ''' Make binary yes/no decision if birth move can happen at provided lap.
 
+    Returns
+    -------
+    answer : boolean
+        True only if lapFrac >= b_startLap and lapFrac < stopLap
 
+    Examples
+    --------
+    >>> canBirthHappenAtLap(0.1, b_startLap=1, b_stopLap=2)
+    True
+    >>> canBirthHappenAtLap(1.0, b_startLap=1, b_stopLap=2)
+    True
+    >>> canBirthHappenAtLap(1.1, b_startLap=1, b_stopLap=2)
+    False
+    >>> canBirthHappenAtLap(2.0, b_startLap=1, b_stopLap=2)
+    False
+    >>> canBirthHappenAtLap(10.5, b_startLap=1, b_stopLap=2)
+    False
+    >>> canBirthHappenAtLap(10.5, b_startLap=1, b_stopLap=11)
+    False
+    >>> canBirthHappenAtLap(10.5, b_startLap=1, b_stopLap=12)
+    True
+    '''
+    if b_startLap < 0:
+        return False
+    elif b_startLap >= 0 and np.ceil(lapFrac) < b_startLap:
+        return False 
+    elif b_stopLap >= 0 and np.ceil(lapFrac) >= b_stopLap:
+        return False
+    else:
+        return True

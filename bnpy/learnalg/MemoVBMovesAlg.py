@@ -805,6 +805,8 @@ class MemoVBMovesAlg(LearnAlg):
             propLdict = propModel.calc_evidence(SS=propSS, todict=1)
             propLscore = propLdict['Ltotal']
             # Make decision
+            if lapFrac > 10:
+                from IPython import embed; embed()
             if propLscore > Lscore:
                 # Accept
                 nAccept += 1
