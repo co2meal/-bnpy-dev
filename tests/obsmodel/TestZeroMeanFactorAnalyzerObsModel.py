@@ -70,26 +70,17 @@ if __name__ == '__main__':
     eigVec = eigVec[:, idx]
     PhiShape = Prior.s + .5 * SS.N
     sigma2 = np.sum(eigVal[C:]) / (D - C)
-    PhiInvScale = Prior.t + sigma2 * (PhiShape - 1) * np.ones(D)
+    PhiInvScale = sigma2 * (PhiShape) * np.ones(D)
     WMean = np.dot(eigVec[:,:C], np.diag(np.sqrt(eigVal[:C] - sigma2)))
     assert np.all(PhiInvScale) > 0
     hShape = Prior.f + .5 * D
     hInvScale = Prior.g * np.ones(C)
-    # aCov = np.eye(C)
-    # LU = np.dot(aCov, np.dot(WMean.T, np.diag(PhiShape / PhiInvScale)))
-    # aaT = SS.N * aCov + np.dot(LU, np.inner(SS.xxT, LU))
-    # SigmaInvWW = np.diag(hShape / hInvScale) \
-    #                         + (PhiShape / PhiInvScale)[:,np.newaxis,np.newaxis] \
-    #                         * np.tile(aaT, (D,1,1))
-    # WCov = inv(SigmaInvWW)
     E_W_WT = np.zeros((D, C, C))
     for d in xrange(D):
-        # E_W_WT[d] = np.outer(WMean[d], WMean[d]) + WCov[d]
         E_W_WT[d] = np.outer(WMean[d], WMean[d])
     E_WT_Phi_W = np.sum((PhiShape / PhiInvScale)[:, np.newaxis, np.newaxis]
                             * E_W_WT, axis=0)
     aCov = inv(np.eye(C) + E_WT_Phi_W)
-
 
     nIter = 200
     j = 0
