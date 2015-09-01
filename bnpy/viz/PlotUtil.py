@@ -1,12 +1,9 @@
-from matplotlib import pylab
-
 ExportInfo = dict(
     doExport=False,
     dpi=100,
     W_in=4,
     H_in=4,
 )
-
 
 def ConfigPylabDefaults(pylab):
     rcParams = pylab.rcParams
@@ -22,5 +19,8 @@ def ConfigPylabDefaults(pylab):
     rcParams['figure.subplot.left'] = 0.15
     rcParams['figure.subplot.right'] = 0.95
     rcParams['figure.subplot.bottom'] = 0.15
-    rcParams['figure.subplot.top'] = 0.95
+    rcParams['figure.subplot.top'] = 0.9
     rcParams['savefig.dpi'] = ExportInfo['dpi']
+
+from matplotlib import pylab
+ConfigPylabDefaults(pylab)
