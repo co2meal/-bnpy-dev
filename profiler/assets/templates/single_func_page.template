@@ -6,9 +6,9 @@
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Bootstrap -->
-    <link href="{{rootdir}}/profile/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
-    <link href="{{rootdir}}/profile/assets/css/docs.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{rootdir}}/profile/assets/font-awesome/css/font-awesome.min.css">
+    <link href="{{rootdir}}/profiler/assets/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="{{rootdir}}/profiler/assets/css/docs.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{rootdir}}/profiler/assets/font-awesome/css/font-awesome.min.css">
   </head>
 
   <body id="top">
@@ -85,8 +85,8 @@
     <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
     <script src="https://code.jquery.com/jquery.js"></script>
     <!-- Include all compiled plugins (below), or include individual files as needed -->
-    <script src="{{rootdir}}/profile/assets/js/bootstrap.min.js"></script>
-    <script src="{{rootdir}}/profile/assets/js/main.js"></script>
+    <script src="{{rootdir}}/profiler/assets/js/bootstrap.min.js"></script>
+    <script src="{{rootdir}}/profiler/assets/js/main.js"></script>
 
   </body>
 </html>

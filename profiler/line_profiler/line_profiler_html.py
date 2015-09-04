@@ -202,7 +202,9 @@ def create_html(save_path, template_path, stats, unit):
     # Create save path (and all necessary parent directories)
     mkpath(save_path)
 
-    stats = {k:timings for (k,timings) in stats.items() if sum(t[2] for t in timings) != 0}
+    stats = {
+        k:timings for (k,timings) in stats.items()
+        if sum(t[2] for t in timings) != 0}
 
     create_index_html(save_path, template_path, stats, unit)
 
@@ -210,7 +212,9 @@ def create_html(save_path, template_path, stats, unit):
     # print >>stream, 'Timer unit: %g s' % unit
     # print >>stream, ''
     for (fn, lineno, name), timings in sorted(stats.items()):
-        create_func_html(save_path, template_path, fn, lineno, name, stats[fn, lineno, name], unit)
+        create_func_html(
+            save_path, template_path, fn, lineno, name,
+            stats[fn, lineno, name], unit)
 
 def create_index_html(save_path, template_path, stats, unit):
     """ Create index.html for the given timings
