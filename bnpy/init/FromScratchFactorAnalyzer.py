@@ -33,4 +33,4 @@ def init_global_params(obsModel, Data, K=0, seed=0,
     tempLP = dict(resp=resp)
     SS = SuffStatBag(K=K, D=Data.dim, C=obsModel.C)
     SS = obsModel.get_global_suff_stats(Data, SS, tempLP)
-    obsModel.update_global_params(SS, isBirthCreate = 'Kfresh' in kwargs)
+    obsModel.update_global_params(SS)

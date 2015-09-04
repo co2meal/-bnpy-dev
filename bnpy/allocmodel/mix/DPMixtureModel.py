@@ -253,10 +253,14 @@ class DPMixtureModel(AllocModel):
         This means storing digamma function evaluations.
         '''
         self.ElogU, self.Elog1mU = calcBetaExpectations(self.eta1, self.eta0)
+        if self.Elog1mU.ndim == 2 and self.Elog1mU.shape[0] is 1:
+            self.Elog1mU = np.reshape(self.Elog1mU,self.Elog1mU.shape[1])
 
         # Calculate expected mixture weights E[ log \beta_k ]
         # Using copy() allows += without modifying ElogU
         self.Elogbeta = self.ElogU.copy()
+        if self.Elogbeta.ndim == 2 and self.Elogbeta.shape[0] is 1:
+            self.Elogbeta = np.reshape(self.Elogbeta,self.Elogbeta.shape[1])
         self.Elogbeta[1:] += self.Elog1mU[:-1].cumsum()
 
     def get_active_comp_probs(self):
