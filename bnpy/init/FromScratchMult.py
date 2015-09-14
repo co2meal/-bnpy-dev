@@ -36,6 +36,10 @@ def init_global_params(obsModel, Data, K=0, seed=0,
         -------
         Nothing. obsModel is updated in place.
     '''
+    import bnpy
+    X = Data.getDocTypeCountMatrix()
+    Z, Mu, Ls = bnpy.init.FromScratchGauss.runKMeans_bregmanDiv(
+        X, 15, obsModel, Niter=30)
     PRNG = np.random.RandomState(seed)
     K = np.minimum(Data.nDoc, K)
 

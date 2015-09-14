@@ -258,3 +258,60 @@ def calcBregDiv_ZeroMeanGauss(X, Mu):
         # Div[:, k] += 0.5 * logdetMu_k - 0.5 * logdetX
         assert Div.min() > -1e-10
     return Div
+
+def runKMeans_bregmanDiv(X, K, obsModel, W=None,
+                         Niter=10, seed=0, init='plusplus'):
+    ''' Run hard clustering algorithm to find K clusters.
+
+    Returns
+    -------
+    Z : 1D array, size N
+    Mu : 2D array, size K x D
+    Lscores : 1D array, size Niter
+    '''
+    Mu, _ = initMu_bregmanDivPlusPlus(X, K, obsModel, W=W, seed=seed)
+    Lscores = list()
+    prevN = np.zeros(K)
+    for riter in xrange(Niter):
+        Div = obsModel.calcSmoothedBregDiv(X=X, Mu=Mu, smoothFrac=0.1)
+        Z = np.argmin(Div, axis=1)
+        Ldata = Div.min(axis=1).sum()
+        Lprior = obsModel.calcBregDivFromPrior(Mu=Mu, smoothFrac=0.1).sum()
+        Lscore = Ldata + Lprior
+        print riter, Lscore
+        Lscores.append(Lscore)
+        N = np.zeros(K)
+        for k in xrange(K):
+            N[k] = np.sum(Z==k)
+            if N[k] > 0:
+                Xk = X[Z==k]
+                Mu[k] = obsModel.calcSmoothedMu(Xk)
+        if np.max(np.abs(N - prevN)) == 0:
+            break
+        prevN[:] = N
+    return Z, Mu, Lscores
+
+def initMu_bregmanDivPlusPlus(X, K, obsModel, W=None, seed=0):
+    ''' Initialize cluster means Mu for K clusters.
+
+    Returns
+    -------
+    Mu : 2D array, size K x D
+    minDiv : 1D array, size N
+    '''
+    PRNG = np.random.RandomState(seed)
+    N = X.shape[0]
+    if W is None:
+        W = np.ones(N)
+    Z = np.zeros(K)
+    Mu = [None for k in range(K)]
+    Z[0] = PRNG.choice(N, p=W/np.sum(W))
+    Mu[0] = obsModel.calcSmoothedMu(X[Z[0]])
+    minDiv = obsModel.calcSmoothedBregDiv(X=X, Mu=Mu[0])[:,0]
+    for k in range(1, K):
+        Z[k] = PRNG.choice(N, p=minDiv/np.sum(minDiv))
+        Mu[k] = obsModel.calcSmoothedMu(X[Z[k]])
+        curDiv = obsModel.calcSmoothedBregDiv(X=X, Mu=Mu[k])[:,0]
+        minDiv = np.minimum(minDiv, curDiv)
+    Mu = np.vstack(Mu)
+    return Mu, minDiv
