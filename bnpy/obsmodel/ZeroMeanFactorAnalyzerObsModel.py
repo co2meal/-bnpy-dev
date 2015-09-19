@@ -1,11 +1,11 @@
 import numpy as np
 from bnpy.suffstats import ParamBag, SuffStatBag
 from bnpy.obsmodel.AbstractObsModel import AbstractObsModel
-from numpy.linalg import inv, solve, det, slogdet, eig
+from numpy.linalg import inv, solve, det, slogdet, eig, LinAlgError
 from scipy.special import psi, gammaln
 from bnpy.util import dotATA
 from bnpy.util import LOGTWOPI
-
+from IPython import embed
 
 class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
 
@@ -58,7 +58,6 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
 
     ########################################################### Suff Stats
     ###########################################################
-    # @profile
     def calcSummaryStats(self, Data, SS, LP, **kwargs):
         X = Data.X
         resp = LP['resp']
@@ -89,7 +88,6 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
 
   ########################################################### Local step
   ###########################################################
-    # @profile
     def calc_local_params(self, Data, LP=None, **kwargs):
         if LP is None:
             LP = dict()
@@ -99,9 +97,9 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             LP['aMean'] = self.calcAMean_FromPost(Data)
             LP['E_log_soft_ev'] = self.calcLogSoftEvMatrix_FromPost(Data, LP)
         return LP
-    # @profile
+
     def calcAMean_FromPost(self, Data):
-        '''  Compute the mean value of a_k for each data point
+        '''  Compute the posterior mean of a_k for each data point
         See Eq. in the writeup
 
         Returns
@@ -119,7 +117,7 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
                                    (self.Post.PhiShape[k] / self.Post.PhiInvScale[k])
             aMean[k] = np.inner(Data.X, aCovk_WMeankT_invPsi)
         return aMean
-    # @profile
+
     def calcLogSoftEvMatrix_FromPost(self, Data, LP):
         N = Data.nObs
         K = self.Post.K
@@ -129,8 +127,12 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             L[:,k] = .5 * np.einsum('ij,ji->i', LP['aMean'][k],
                                     np.inner(inv(self.Post.aCov[k]), LP['aMean'][k])) \
                      - .5 * np.inner(self.Post.PhiShape[k] / self.Post.PhiInvScale[k], DataX2) \
-                     + .5 * np.sum(psi(self.Post.PhiShape[k]) - np.log(self.Post.PhiInvScale[k])) \
-                     + .5 * np.prod(slogdet(self.Post.aCov[k]))
+                     + .5 * np.sum(psi(self.Post.PhiShape[k]) - np.log(self.Post.PhiInvScale[k])) #\
+            # warnings.filterwarnings('error')
+            try:
+                L[:,k] += + .5 * np.prod(slogdet(self.Post.aCov[k]))
+            except Warning:
+                embed()
         return L
 
   ########################################################### Global step
@@ -149,7 +151,6 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         self.K = SS.K
         assert self.K == self.Post.K
 
-    #@profile
     def calcPostParams(self, SS, nIter = 5):
         WMean, hShape, hInvScale, PhiShape, PhiInvScale, aCov = self.initPostParams(SS)
         for ii in xrange(nIter):
@@ -199,11 +200,13 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             WMean[k] = np.dot(eigVec[:,:C], np.diag(np.sqrt(eigVal[:C] - sigma2)))
             E_WT_Phi_W = np.sum((PhiShape[k] / PhiInvScale[k])[:, np.newaxis, np.newaxis]
                                 * np.einsum('ij,ik->ijk', WMean[k], WMean[k]), axis=0)
-            aCov[k] = inv(np.eye(C) + E_WT_Phi_W)
+            try:
+                aCov[k] = inv(np.eye(C) + E_WT_Phi_W)
+            except LinAlgError:
+                embed()
         return WMean, hShape, hInvScale, PhiShape, PhiInvScale, aCov
 
     @staticmethod
-    #@profile
     def get_xaT_aaT(SS, WMean, PhiShape, PhiInvScale, aCov):
         ''' Construct xaT and aaT given SS and post parameters
         See Eq. in the writeup
@@ -224,9 +227,8 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             aaT[k] = SS.N[k] * aCov[k] + np.dot(LU, xaT[k])
         return xaT, aaT
 
-    #@profile
     def calcPostW(self, SS, xaT, aaT, hShape, hInvScale, PhiShape, PhiInvScale, idx=None):
-        ''' Compute mean and covariance for each W_{kd}
+        ''' Compute posterior mean and covariance for each W_{kd}
         See Eq. in the writeup
 
         Returns
@@ -252,9 +254,8 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
                 WMean[i, d] = np.dot(WCov[i,d], PhiShape[k] / PhiInvScale[k,d] * xaT[k,d])
         return WMean, WCov
 
-    #@profile
     def calcPostH(self, WMean, WCov, idx=None):
-        ''' Compute shape and inverse-scale parameters for each h_c
+        ''' Compute posterior shape and inverse-scale parameters for each h_c
         See Eq. in the writeup
 
         Returns
@@ -274,9 +275,8 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             hInvScale[i] += .5 * np.sum(WMean[k]**2 + np.diagonal(WCov[k],axis1=1,axis2=2), axis=0)
         return hShape, hInvScale
 
-    #@profile
     def calcPostPhi(self, SS, xaT, aaT, WMean, WCov, idx=None):
-        ''' Compute shape and inverse-scale parameters for each Phi_d
+        ''' Compute posterior shape and inverse-scale parameters for each Phi_d
         See Eq. in the writeup
 
         Returns
@@ -301,9 +301,8 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
                                     + np.einsum('ij,ji', E_WT_W[d], aaT[k]))
         return PhiShape, PhiInvScale
 
-    #@profile
     def calcPostACov(self, WMean, WCov, PhiShape, PhiInvScale, idx=None):
-        ''' Compute covariance for each a_k
+        ''' Compute posterior covariance for each a_k
         See Eq. in the writeup
 
         Returns
@@ -327,7 +326,6 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
 
     ########################################################### VB ELBO step
     ###########################################################
-    #@profile
     def calcELBO_Memoized(self, SS, afterMStep=False):
         ''' Calculate obsModel's ELBO using sufficient statistics SS and Post.
 
@@ -406,7 +404,6 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
 
     ########################################################### Merge
     ###########################################################
-    #@profile
     def elbo4comp(self, SS, WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale,  aCov):
         elbo = 0.0
         C = self.C
@@ -438,7 +435,6 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
                 - .5 * np.einsum('ij,ji', E_WT_Phi_W, aaT)
         return elbo
 
-    #@profile
     def calcHardMergeGap(self, SS, kA, kB):
         ''' Calculate change in ELBO after a hard merge applied to this model
 
@@ -470,7 +466,6 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         elboAB = self.elbo4comp(SS_AB, WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov)
         return - elboA - elboB + elboAB
 
-    #@profile
     def calcHardMergeGap_AllPairs(self, SS):
         ''' Calculate change in ELBO for all candidate hard merge pairs
 
@@ -502,7 +497,6 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
                 Gap[j, k] = - e[j] - e[k] + ejk
         return Gap
 
-    #@profile
     def calcHardMergeGap_SpecificPairs(self, SS, PairList):
         ''' Calc change in ELBO for specific list of candidate hard merge pairs
 
@@ -516,7 +510,6 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             Gaps[ii] = self.calcHardMergeGap(SS, kA, kB)
         return Gaps
 
-    #@profile
     def calcPostParamsForComp(self, SS, kA=None, kB=None, nIter=5):
         D = self.D
         C = self.C
@@ -603,6 +596,12 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
               + np.diag(Post.PhiInvScale[k] / (Post.PhiShape[k] - 1))
         return cov
 
+    def sampleFromComp(self, k=None, N=1, seed=0):
+        PRNG = np.random.RandomState(seed)
+        cov = self.getGaussCov4Comp(k=k)
+        result = PRNG.multivariate_normal(np.zeros(self.D), cov, N)
+        return result
+
 
 
 if __name__ == '__main__':
@@ -616,7 +615,7 @@ if __name__ == '__main__':
     hmodel, RInfo = bnpy.run('/Users/Geng/Documents/Brown/research/patch/HDP_patches/BerkSeg500/Patches_Size8x8_Stride4',
                              'DPMixtureModel', 'ZeroMeanFactorAnalyzer', 'moVB',
                             C=30, nLap=10, K=10, Kmax=300,
-                            jobname='FA/C30', datasetName='DeadLeavesD25')#,
+                            jobname='FA/C30', datasetName='Half')#,
                             # moves='birth,merge,delete',
                             # birthPerLap = 1, targetMinSize=1000, targetMaxSize=10000)
 
