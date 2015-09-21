@@ -631,7 +631,10 @@ class MultObsModel(AbstractObsModel):
         N = X.shape[0]
         K = Mu.shape[0]
 
-        MuX = X + smoothFrac * self.Prior.lam
+        if smoothFrac == 0:
+            MuX = X + 1e-20
+        else:
+            MuX = X + smoothFrac * self.Prior.lam
         NX = MuX.sum(axis=1)
 
         Div = np.zeros((N, K))

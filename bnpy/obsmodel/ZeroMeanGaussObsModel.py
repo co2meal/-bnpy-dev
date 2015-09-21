@@ -661,6 +661,122 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
             B = self.Post.B[k]
         return nu * np.trace(np.linalg.solve(B, Smat))
 
+
+    def calcSmoothedMu(self, X, W=None):
+        ''' Compute smoothed estimate of probability of each word.
+
+        Returns
+        -------
+        Mu : 1D array, size D (dim of data)
+        '''
+        if X.ndim < 2:
+            X = X[np.newaxis, :]
+        if X.ndim == 2:
+            if W is None:
+                NX = X.shape[0]
+                SX = np.dot(X.T, X)
+            else:
+                NX = np.sum(W)
+                wX = np.sqrt(W) * X
+                SX = np.dot(wX.T, wX)
+        else:
+            raise ValueError("TODO")
+        assert SX.ndim == 2
+        assert SX.shape == (self.D, self.D)
+        Mu = (SX + self.Prior.B) / (NX + self.Prior.nu - self.D - 1)
+        return Mu
+
+    def calcSmoothedBregDiv(self, X, Mu, smoothFrac=0.5):
+        ''' Compute Bregman divergence between data X and clusters Mu.
+
+        Smooth the data via update with prior parameters.
+
+        Returns
+        -------
+        Div : 2D array, N x K
+            Div[n,k] = smoothed distance between X[n] and Mu[k]
+        '''
+        if Mu.ndim < 3:
+            Mu = Mu[np.newaxis, :]
+        assert Mu.ndim == 3
+        K = Mu.shape[0]
+        
+        if X.ndim < 2:
+            X = X[np.newaxis, :]
+        N = X.shape[0]
+        D = X.shape[1]
+
+        if X.ndim < 3:
+            X_3d = np.zeros((N, D, D))
+            for n in range(N):
+                X_3d[n] = np.outer(X[n], X[n])
+        else:
+            X_3d = X
+        assert X_3d.ndim == 3
+
+        if smoothFrac == 0:
+            X_3d += 1e-30 * np.eye(D)[np.newaxis,:, :]
+        else:
+            X_3d += smoothFrac * self.Prior.B[np.newaxis, :, :]
+            X_3d /= (1 + (smoothFrac * self.Prior.nu) - self.D - 1)
+
+        logdetXXT = np.zeros(N)
+        for n in range(N):
+            cholX_n = np.linalg.cholesky(X_3d[n])
+            logdetXXT[n] = 2 * np.sum(np.log(np.diag(cholX_n)))
+
+        Div = np.zeros((N, K))
+        for k in xrange(K):
+            try:
+                cholMu_k = np.linalg.cholesky(Mu[k])
+            except Exception as e:
+                from IPython import embed; embed()
+            logdetMu_k = 2 * np.sum(np.log(np.diag(cholMu_k)))
+            tr_XXTinvMu = np.zeros(N)
+            for n in range(N):
+                tr_XXTinvMu[n] = np.trace(np.linalg.solve(Mu[k], X_3d[n]))
+            Div[:,k] = - 0.5 * D + 0.5 * tr_XXTinvMu + \
+                0.5 * logdetMu_k - 0.5 * logdetXXT
+
+        assert Div.min() > -1e-8
+        np.maximum(Div, 0, out=Div)
+        assert Div.min() >= 0
+        return Div
+
+    def calcBregDivFromPrior(self, Mu, smoothFrac=0.5):
+        ''' Compute Bregman divergence between Mu and prior mean.
+
+        Returns
+        -------
+        Div : 1D array, size K
+            Div[k] = distance between Mu[k] and priorMu
+        '''
+        if Mu.ndim < 2:
+            Mu = Mu[np.newaxis, :]
+        if Mu.ndim < 3:
+            Mu = Mu[np.newaxis, :]
+        assert Mu.ndim == 3
+        K = Mu.shape[0]
+        D = Mu.shape[1]
+
+        priorN = (1-smoothFrac) * self.Prior.nu
+        priorMu = (1-smoothFrac) * self.Prior.B / (priorN - self.D - 1)
+
+        logdetPMu = np.log(np.linalg.det(priorMu))
+
+        Div = np.zeros(K)
+        for k in xrange(K):
+            cholMu_k = np.linalg.cholesky(Mu[k])
+            logdetMu_k = 2 * np.sum(np.log(np.diag(cholMu_k)))
+
+            tr_PMuinvMu = np.trace(np.linalg.solve(Mu[k], priorMu))
+            Div[k] = - 0.5 * D + 0.5 * tr_PMuinvMu + \
+                0.5 * logdetMu_k - 0.5 * logdetPMu
+        assert Div.min() > -1e-8
+        np.maximum(Div, 0, out=Div)
+        assert Div.min() >= 0
+        return priorN * Div
+
     def getSerializableParamsForLocalStep(self):
         """ Get compact dict of params for local step.
 
