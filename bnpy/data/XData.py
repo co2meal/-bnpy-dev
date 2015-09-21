@@ -67,10 +67,11 @@ class XData(DataObj):
         return cls(X, nObsTotal=nObsTotal, **kwargs)
 
     @classmethod
-    def read_from_mat(cls, matfilepath, nObsTotal=None, **kwargs):
+    def read_from_mat(cls, matfilepath, nObsTotal=None,
+                      variable_names=None, **kwargs):
         ''' Constructor for loading .mat file into XData instance.
         '''
-        InDict = scipy.io.loadmat(matfilepath)
+        InDict = scipy.io.loadmat(matfilepath, variable_names=variable_names)
         if 'X' not in InDict:
             raise KeyError(
                 'Stored matfile needs to have data in field named X')
