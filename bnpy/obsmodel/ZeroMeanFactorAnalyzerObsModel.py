@@ -250,8 +250,8 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
                          + (PhiShape[k] / PhiInvScale[k])[:,np.newaxis,np.newaxis] \
                          * np.tile(aaT[k], (D,1,1))
             WCov[i] = inv(SigmaInvWW)
-            for d in xrange(D):
-                WMean[i, d] = np.dot(WCov[i,d], PhiShape[k] / PhiInvScale[k,d] * xaT[k,d])
+            WMean[i,:] = calcWMean_k_vectorized(
+                WCov[i], PhiShape[k], PhiInvScale[k], xaT[k])
         return WMean, WCov
 
     def calcPostH(self, WMean, WCov, idx=None):
@@ -601,6 +601,61 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         cov = self.getGaussCov4Comp(k=k)
         result = PRNG.multivariate_normal(np.zeros(self.D), cov, N)
         return result
+
+
+
+def calcWMean_k_forloop(WCov_k, PhiShape_k, PhiInvScale_k, xaT_k):
+    ''' Compute WMean for specific cluster k, using forloop.
+
+    Args
+    ----
+    WCov_k : 3D array, D x C x C
+    PhiShape_k : scalar
+    PhiInvScale_k : 1D array, size D
+    xaT_k : 2D array, size D x C
+        
+    Returns
+    -------
+    WMean_k : 2D array, size D x C
+        where WMean_k[d] = matrix_product(WCov_k[d], xaT_k[d] rescaled) 
+    '''
+    D = WCov_k.shape[0]
+    C = WCov_k.shape[1]
+    WMean_k = np.zeros((D,C))
+    for d in range(D):
+        WMean_k[d] = np.dot(WCov_k[d], PhiShape_k / PhiInvScale_k[d] * xaT_k[d])
+    return WMean_k
+
+def calcWMean_k_vectorized(WCov_k, PhiShape_k, PhiInvScale_k, xaT_k):
+    ''' Compute WMean for specific cluster k, using einsum vectorization.
+    
+    Should be much faster than forloop version.
+
+    Examples
+    --------
+    >>> P = np.ones((2,3,3))
+    >>> Q = np.random.rand(2,3)
+    >>> R1 = calcWMean_k_vectorized(P, 1, np.ones(2), Q)
+    >>> R2 = calcWMean_k_forloop(P, 1, np.ones(2), Q)
+    >>> print np.allclose(R1, R2)
+    True
+    >>> print R1.shape
+    (2, 3)
+
+    Args
+    ----
+    WCov_k : 3D array, D x C x C
+    PhiShape_k : scalar
+    PhiInvScale_k : 1D array, size D
+    xaT_k : 2D array, size D x C
+
+    Returns
+    -------
+    WMean_k : 2D array, size D x C 
+    '''
+    scaled_xaT_k = xaT_k * (PhiShape_k / PhiInvScale_k[:,np.newaxis])
+    WMean_k = np.einsum('ijk,i...k->ij', WCov_k, scaled_xaT_k)
+    return WMean_k
 
 
 
