@@ -260,7 +260,7 @@ def calcBregDiv_ZeroMeanGauss(X, Mu):
     return Div
 
 def runKMeans_bregmanDiv(X, K, obsModel, W=None,
-                         Niter=10, seed=0, init='plusplus',
+                         Niter=100, seed=0, init='plusplus',
                          smoothFracInit=1.0, smoothFrac=0):
     ''' Run hard clustering algorithm to find K clusters.
 
@@ -270,13 +270,13 @@ def runKMeans_bregmanDiv(X, K, obsModel, W=None,
     Mu : 2D array, size K x D
     Lscores : 1D array, size Niter
     '''
-    Mu, _ = initMu_bregmanDivPlusPlus(
+    Mu, _ = initKMeans_bregmanDiv(
         X, K, obsModel, W=W, seed=seed, smoothFrac=smoothFracInit)
     Lscores = list()
     prevN = np.zeros(K)
     for riter in xrange(Niter):
         Div = obsModel.calcSmoothedBregDiv(
-            X=X, Mu=Mu, smoothFrac=smoothFrac)
+            X=X, Mu=Mu, W=W, smoothFrac=smoothFrac)
         Z = np.argmin(Div, axis=1)
         Ldata = Div.min(axis=1).sum()
         Lprior = obsModel.calcBregDivFromPrior(
@@ -285,20 +285,31 @@ def runKMeans_bregmanDiv(X, K, obsModel, W=None,
         Lscores.append(Lscore)
         N = np.zeros(K)
         for k in xrange(K):
-            N[k] = np.sum(Z==k)
+            if W is None:
+                W_k = None
+                N[k] = np.sum(Z==k)
+            else:
+                W_k = W[Z==k]
+                N[k] = np.sum(W_k)
             if N[k] > 0:
-                Xk = X[Z==k]
-                Mu[k] = obsModel.calcSmoothedMu(Xk)
-        print riter, Lscore, Lprior
-        print '   ', ' '.join(['%.0f' % (x) for x in N])
+                Mu[k] = obsModel.calcSmoothedMu(X[Z==k], W_k)
+            else:
+                Mu[k] = obsModel.calcSmoothedMu(X=None)
 
+        print riter, Lscore
+        if W is None:
+            print '   ', ' '.join(['%.0f' % (x) for x in N])
+        else:
+            if not np.allclose(N.sum(), W.sum()):
+                from IPython import embed; embed()
+            print '   ', ' '.join(['%.2f' % (x) for x in N])
         if np.max(np.abs(N - prevN)) == 0:
             break
         prevN[:] = N
     return Z, Mu, Lscores
 
-def initMu_bregmanDivPlusPlus(
-        X, K, obsModel, W=None, seed=0, smoothFrac=0.1):
+def initKMeans_bregmanDiv(
+        X, K, obsModel, W=None, seed=0, smoothFrac=1.0):
     ''' Initialize cluster means Mu for K clusters.
 
     Returns
@@ -314,17 +325,17 @@ def initMu_bregmanDivPlusPlus(
     Z[0] = PRNG.choice(N, p=W/np.sum(W))
 
     # Initialize Mu array : K x Mushape
-    Mu0 = obsModel.calcSmoothedMu(X[Z[0]])
+    Mu0 = obsModel.calcSmoothedMu(X[Z[0]], W=W[Z[0]])
     Mu = np.zeros((K,)+Mu0.shape)
     Mu[0] = Mu0
     minDiv = obsModel.calcSmoothedBregDiv(
-        X=X, Mu=Mu0, smoothFrac=smoothFrac)[:,0]
+        X=X, Mu=Mu0, W=W, smoothFrac=smoothFrac)[:,0]
     minDiv[Z[0]] = 0
     for k in range(1, K):
         Z[k] = PRNG.choice(N, p=minDiv/np.sum(minDiv))
-        Mu[k] = obsModel.calcSmoothedMu(X[Z[k]])
+        Mu[k] = obsModel.calcSmoothedMu(X[Z[k]], W=W[Z[k]])
         curDiv = obsModel.calcSmoothedBregDiv(
-            X=X, Mu=Mu[k], smoothFrac=smoothFrac)[:,0]
+            X=X, Mu=Mu[k], W=W, smoothFrac=smoothFrac)[:,0]
         curDiv[Z[k]] = 0
         minDiv = np.minimum(minDiv, curDiv)
     return Mu, minDiv

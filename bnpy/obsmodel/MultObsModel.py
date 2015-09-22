@@ -598,19 +598,22 @@ class MultObsModel(AbstractObsModel):
         Mu : 1D array, size D (aka vocab_size)
         '''
         if X is None:
-            X = np.zeros(self.D)
+            Mu = self.Prior.lam
+            Mu /= Mu.sum()
+            return Mu
+
         if X.ndim > 1:
             if W is None:
                 X = np.sum(X, axis=0)
             else:
-                X = np.sum(W*X, axis=0)
+                X = np.dot(W, X)
         assert X.ndim == 1
         assert X.size == self.D
         Mu = X + self.Prior.lam
         Mu /= Mu.sum()
         return Mu
 
-    def calcSmoothedBregDiv(self, X, Mu, smoothFrac=0.1):
+    def calcSmoothedBregDiv(self, X, Mu, W=None, smoothFrac=0.0):
         ''' Compute Bregman divergence between data X and clusters Mu.
 
         Smooth the data via update with prior parameters.
@@ -620,8 +623,6 @@ class MultObsModel(AbstractObsModel):
         Div : 2D array, N x K
             Div[n,k] = smoothed distance between X[n] and Mu[k]
         '''
-        if X is None:
-            X = np.zeros(self.D)
         if X.ndim < 2:
             X = X[np.newaxis,:]
         if Mu.ndim < 2:
@@ -630,6 +631,9 @@ class MultObsModel(AbstractObsModel):
         assert Mu.ndim == 2
         N = X.shape[0]
         K = Mu.shape[0]
+        if W is not None:
+            assert W.ndim == 1
+            assert W.size == N
 
         if smoothFrac == 0:
             MuX = X + 1e-20
@@ -641,12 +645,14 @@ class MultObsModel(AbstractObsModel):
         for k in xrange(K):
             Mu_k = NX[:,np.newaxis] * Mu[k,:][np.newaxis,:]
             Div[:,k] = np.sum(MuX * np.log(MuX / Mu_k), axis=1)
+        if W is not None:
+            Div *= W[:,np.newaxis]
         assert Div.min() > -1e-8
         np.maximum(Div, 0, out=Div)
         assert Div.min() >= 0
         return Div
 
-    def calcBregDivFromPrior(self, Mu, smoothFrac=0.1):
+    def calcBregDivFromPrior(self, Mu, smoothFrac=0.0):
         ''' Compute Bregman divergence between Mu and prior mean.
 
         Returns
