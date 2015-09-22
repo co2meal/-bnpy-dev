@@ -261,7 +261,7 @@ def calcBregDiv_ZeroMeanGauss(X, Mu):
 
 def runKMeans_bregmanDiv(X, K, obsModel, W=None,
                          Niter=10, seed=0, init='plusplus',
-                         smoothFrac=0.1):
+                         smoothFracInit=1.0, smoothFrac=0):
     ''' Run hard clustering algorithm to find K clusters.
 
     Returns
@@ -271,7 +271,7 @@ def runKMeans_bregmanDiv(X, K, obsModel, W=None,
     Lscores : 1D array, size Niter
     '''
     Mu, _ = initMu_bregmanDivPlusPlus(
-        X, K, obsModel, W=W, seed=seed, smoothFrac=smoothFrac)
+        X, K, obsModel, W=W, seed=seed, smoothFrac=smoothFracInit)
     Lscores = list()
     prevN = np.zeros(K)
     for riter in xrange(Niter):
@@ -289,7 +289,7 @@ def runKMeans_bregmanDiv(X, K, obsModel, W=None,
             if N[k] > 0:
                 Xk = X[Z==k]
                 Mu[k] = obsModel.calcSmoothedMu(Xk)
-        print riter, Lscore
+        print riter, Lscore, Lprior
         print '   ', ' '.join(['%.0f' % (x) for x in N])
 
         if np.max(np.abs(N - prevN)) == 0:
@@ -319,7 +319,6 @@ def initMu_bregmanDivPlusPlus(
     Mu[0] = Mu0
     minDiv = obsModel.calcSmoothedBregDiv(
         X=X, Mu=Mu0, smoothFrac=smoothFrac)[:,0]
-    # minDiv -= minDiv.min()
     minDiv[Z[0]] = 0
     for k in range(1, K):
         Z[k] = PRNG.choice(N, p=minDiv/np.sum(minDiv))

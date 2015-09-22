@@ -638,6 +638,94 @@ class BernObsModel(AbstractObsModel):
         return calcLocalParams, calcSummaryStats
 
 
+    def calcSmoothedMu(self, X, W=None):
+        ''' Compute smoothed estimate of probability of each word.
+
+        Returns
+        -------
+        Mu : 1D array, size D (aka vocab_size)
+        '''
+        if X is None:
+            X = np.zeros(self.D)
+        if X.ndim > 1:
+            if W is None:
+                NX = X.shape[0]
+                X = np.sum(X, axis=0)
+            else:
+                NX = np.sum(W)
+                X = np.sum(W*X, axis=0)
+        else:
+            NX = 1
+        assert X.ndim == 1
+        assert X.size == self.D
+        Mu = X + self.Prior.lam1
+        Mu /= (NX + self.Prior.lam1 + self.Prior.lam0)
+        return Mu
+
+    def calcSmoothedBregDiv(self, X, Mu, smoothFrac=0.1):
+        ''' Compute Bregman divergence between data X and clusters Mu.
+
+        Smooth the data via update with prior parameters.
+
+        Returns
+        -------
+        Div : 2D array, N x K
+            Div[n,k] = smoothed distance between X[n] and Mu[k]
+        '''
+        if X is None:
+            X = np.zeros(self.D)
+        if X.ndim < 2:
+            X = X[np.newaxis,:]
+        if Mu.ndim < 2:
+            Mu = Mu[np.newaxis, :]
+        assert X.ndim == 2
+        assert Mu.ndim == 2
+        N = X.shape[0]
+        K = Mu.shape[0]
+
+        if smoothFrac == 0:
+            MuX = np.minimum(X, 1 - 1e-14)
+            MuX = np.maximum(MuX, 1e-14)
+        else:
+            MuX = X + smoothFrac * self.Prior.lam1
+            NX = 1.0 + \
+                smoothFrac * (self.Prior.lam1 + self.Prior.lam0)
+            MuX /= NX
+
+        Div = np.zeros((N, K))
+        for k in xrange(K):
+            Mu_k = Mu[k,:][np.newaxis,:]
+            Div[:,k] = np.sum(MuX * np.log(MuX / Mu_k), axis=1) + \
+                np.sum((1-MuX) * np.log((1-MuX) / (1-Mu_k)), axis=1)
+        assert Div.min() > -1e-8
+        np.maximum(Div, 0, out=Div)
+        assert Div.min() >= 0
+        return Div
+
+    def calcBregDivFromPrior(self, Mu, smoothFrac=0.1):
+        ''' Compute Bregman divergence between Mu and prior mean.
+
+        Returns
+        -------
+        Div : 1D array, size K
+            Div[k] = distance between Mu[k] and priorMu
+        '''
+        if Mu.ndim < 2:
+            Mu = Mu[np.newaxis, :]
+        assert Mu.ndim == 2
+        K = Mu.shape[0]
+
+        priorMu = self.Prior.lam1 / (self.Prior.lam1 + self.Prior.lam0)
+        priorN = (1-smoothFrac) * (self.Prior.lam1 + self.Prior.lam0)
+
+        Div = np.zeros((K, self.D))
+        for k in xrange(K):
+            Div[k, :] = priorMu * np.log(priorMu / Mu[k,:]) + \
+                (1-priorMu) * np.log((1-priorMu)/(1-Mu[k,:]))
+        return np.dot(Div, priorN)
+
+
+
 def c_Func(lam1, lam0):
     ''' Evaluate cumulant function at given params.
 
