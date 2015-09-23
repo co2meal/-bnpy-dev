@@ -144,23 +144,23 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
         color = Colors[colorID % len(Colors)]
     taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
 
-    if yvar == 'hamming-distance' or yvar == 'Keff':
+    if yvar == 'hamming-distance':
         if xvar == 'laps':
             xvar = 'laps-saved-params'
 
     for tt, taskid in enumerate(taskids):
         try:
-            xtxtfile = os.path.join(jobpath, taskid, xvar + '.txt')
-            if not os.path.isfile(xtxtfile):
-                xtxtfile = os.path.join(
-                    jobpath, taskid, xvar + '-saved-params.txt')
-            xs = np.loadtxt(xtxtfile)
-
+            var_ext = ''
             ytxtfile = os.path.join(jobpath, taskid, yvar + '.txt')
             if not os.path.isfile(ytxtfile):
+                var_ext = '-saved-params'
                 ytxtfile = os.path.join(
-                    jobpath, taskid, yvar + '-saved-params.txt')
+                    jobpath, taskid, yvar + var_ext + '.txt')
             ys = np.loadtxt(ytxtfile)
+
+            xtxtfile = os.path.join(jobpath, taskid, xvar + var_ext + '.txt')
+            xs = np.loadtxt(xtxtfile)
+
         except IOError as e:
             try:
                 xs, ys = loadXYFromTopicModelFiles(jobpath, taskid)
@@ -169,6 +169,7 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
                     xs, ys = loadXYFromTopicModelSummaryFiles(jobpath, taskid)
                 except ValueError:
                     raise e
+
         if yvar == 'hamming-distance' or yvar == 'Keff':
             if xvar == 'laps-saved-params':
                 # fix off-by-one error, if we save an extra dist on final lap
