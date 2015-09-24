@@ -1025,10 +1025,11 @@ class MOVBBirthMergeAlg(MOVBAlg):
                     savedict[compID] = self.BirthRecordsByComp[compID]
             SaveVars['BirthRecordsByComp'] = savedict
             SaveVars['CompStatus'] = CStatus
-            import joblib
-            if self.savedir is not None:
-                dumpfile = os.path.join(self.savedir, 'birth-plans.dump')
-                joblib.dump(SaveVars, dumpfile)
+            # # Uncomment in future when birth logging is more of a priority
+            # import joblib
+            # if self.savedir is not None:
+            #    dumpfile = os.path.join(self.savedir, 'birth-plans.dump')
+            #    joblib.dump(SaveVars, dumpfile)
             return Plans
 
         # Update counter for duration since last targeted-birth for each comp
