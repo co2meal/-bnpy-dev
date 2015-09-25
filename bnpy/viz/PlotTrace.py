@@ -170,6 +170,10 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
             ys = np.loadtxt(ytxtfile)
 
             xtxtfile = os.path.join(jobpath, taskid, xvar + var_ext + '.txt')
+            if not os.path.isfile(xtxtfile):
+                var_ext = '-saved-params'
+                xtxtfile = os.path.join(
+                    jobpath, taskid, xvar + var_ext + '.txt')
             xs = np.loadtxt(xtxtfile)
 
         except IOError as e:
