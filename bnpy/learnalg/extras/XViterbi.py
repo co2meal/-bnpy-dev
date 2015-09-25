@@ -199,11 +199,10 @@ def calcHammingDistanceAndSave(zHatFlatAligned,
         zTrue,
         zHatFlatAligned,
         **kwargs)
-    normhdist = float(hdistance) / float(zHatFlatAligned.size)
-
+    
     learnAlgObj = kwargs['learnAlg']
     lapFrac = kwargs['lapFrac']
     prefix = makePrefixForLap(lapFrac)
     outpath = os.path.join(learnAlgObj.savedir, 'hamming-distance.txt')
     with open(outpath, 'a') as f:
-        f.write('%.6f\n' % (normhdist))
+        f.write('%.6f\n' % (hdistance))
