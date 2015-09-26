@@ -2,6 +2,7 @@ import numpy as np
 from bnpy.suffstats import ParamBag, SuffStatBag
 from bnpy.obsmodel.AbstractObsModel import AbstractObsModel
 from numpy.linalg import inv, solve, det, slogdet, eig, LinAlgError
+from scipy.linalg import eigh
 from scipy.special import psi, gammaln
 from bnpy.util import dotATA
 from bnpy.util import LOGTWOPI
@@ -151,7 +152,7 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         self.K = SS.K
         assert self.K == self.Post.K
 
-    def calcPostParams(self, SS, nIter = 5):
+    def calcPostParams(self, SS, nIter=5):
         WMean, hShape, hInvScale, PhiShape, PhiInvScale, aCov = self.initPostParams(SS)
         for ii in xrange(nIter):
             xaT, aaT = self.get_xaT_aaT(SS, WMean, PhiShape, PhiInvScale, aCov)
@@ -183,19 +184,12 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
                 for kk in range(K):
                     if not np.allclose(SS.N[kk], 0):
                         break
-                eigVal, eigVec = eig(SS.xxT[kk] / SS.N[kk])
+                eigVal, eigVec = eigh(SS.xxT[kk] / SS.N[kk], eigvals=(D-C,D-1))
+                sigma2 = (np.trace(SS.xxT[kk]) / SS.N[kk] - np.sum(eigVal)) / (D-C)
             else:
-                if not np.all(np.isfinite(SS.xxT[k] / SS.N[k])):
-                    from IPython import embed
-                    embed()
-                eigVal, eigVec = eig(SS.xxT[k] / SS.N[k])
-            eigVal = np.real(eigVal)
-            eigVec = np.real(eigVec)
-            idx = np.argsort(-1 * eigVal)
-            eigVal = eigVal[idx]
-            eigVec = eigVec[:, idx]
+                eigVal, eigVec = eigh(SS.xxT[k] / SS.N[k], eigvals=(D-C,D-1))
+                sigma2 = (np.trace(SS.xxT[k]) / SS.N[k] - np.sum(eigVal)) / (D-C)
             PhiShape[k] = self.Prior.s + .5 * SS.N[k]
-            sigma2 = np.sum(eigVal[C:]) / (D - C)
             PhiInvScale[k] = sigma2 * PhiShape[k]
             WMean[k] = np.dot(eigVec[:,:C], np.diag(np.sqrt(eigVal[:C] - sigma2)))
             E_WT_Phi_W = np.sum((PhiShape[k] / PhiInvScale[k])[:, np.newaxis, np.newaxis]
@@ -250,8 +244,8 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
                          + (PhiShape[k] / PhiInvScale[k])[:,np.newaxis,np.newaxis] \
                          * np.tile(aaT[k], (D,1,1))
             WCov[i] = inv(SigmaInvWW)
-            WMean[i,:] = calcWMean_k_vectorized(
-                WCov[i], PhiShape[k], PhiInvScale[k], xaT[k])
+            scaled_xaT = xaT[k] * (PhiShape[k] / PhiInvScale[k,:,np.newaxis])
+            WMean[i,:] = np.einsum('ijk,i...k->ij', WCov[i], scaled_xaT)
         return WMean, WCov
 
     def calcPostH(self, WMean, WCov, idx=None):
@@ -295,10 +289,9 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         for i, k in enumerate(idx):
             PhiShape[i] += .5 * SS.N[k]
             E_WT_W = np.einsum('ij,ik->ijk', WMean[k], WMean[k]) + WCov[k]
-            for d in xrange(D):
-                PhiInvScale[i,d] += .5 * (SS.xxT[k,d,d]
-                                    - 2 * np.dot(xaT[k,d], WMean[k,d])
-                                    + np.einsum('ij,ji', E_WT_W[d], aaT[k]))
+            PhiInvScale[i] += .5 * (np.diag(SS.xxT[k])
+                                    - 2 * np.einsum('ij,ij->i', xaT[k], WMean[k])
+                                    + np.einsum('ijk,...kj->i', E_WT_W, aaT[k]))
         return PhiShape, PhiInvScale
 
     def calcPostACov(self, WMean, WCov, PhiShape, PhiInvScale, idx=None):
@@ -519,20 +512,16 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         else:
             SN = SS.N[kA] + SS.N[kB]
             SxxT = SS.xxT[kA] + SS.xxT[kB]
-        if np.allclose(SN,0):
-            for kC in range(self.K):
-                if not np.allclose(SS.N[kC], 0):
+        if np.allclose(SS.N, 0):
+            for kk in range(SS.K):
+                if not np.allclose(SS.N[kk], 0):
                     break
-            eigVal, eigVec = eig(SS.xxT[kC] / SS.N[kC])
+            eigVal, eigVec = eigh(SxxT[kk] / SN[kk], eigvals=(D-C,D-1))
+            sigma2 = (np.trace(SS.xxT[kk]) / SS.N[kk] - np.sum(eigVal)) / (D-C)
         else:
-            eigVal, eigVec = eig(SxxT / SN)
-        eigVal = np.real(eigVal)
-        eigVec = np.real(eigVec)
-        idx = np.argsort(eigVal)[::-1]
-        eigVal = eigVal[idx]
-        eigVec = eigVec[:, idx]
+            eigVal, eigVec = eigh(SxxT / SN, eigvals=(D-C,D-1))
+            sigma2 = (np.trace(SxxT) / SN - np.sum(eigVal)) / (D-C)
         PhiShape = self.Prior.s + .5 * SN
-        sigma2 = np.sum(eigVal[C:]) / (D - C)
         PhiInvScale = sigma2 * (PhiShape) * np.ones(D)
         WMean = np.dot(eigVec[:,:C], np.diag(np.sqrt(eigVal[:C] - sigma2)))
         hShape = self.Prior.f + .5 * D
@@ -551,17 +540,18 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
                         + (PhiShape / PhiInvScale)[:,np.newaxis,np.newaxis] \
                         * np.tile(aaT, (D,1,1))
             WCov = inv(SigmaInvWW)
-            for d in xrange(D):
-                WMean[d] = np.dot(WCov[d], PhiShape / PhiInvScale[d] * xaT[d])
+            # for d in xrange(D):
+            #     WMean[d] = np.dot(WCov[d], PhiShape / PhiInvScale[d] * xaT[d])
+            scaled_xaT = xaT * (PhiShape / PhiInvScale[:,np.newaxis])
+            WMean = np.einsum('ijk,i...k->ij', WCov, scaled_xaT)
             # calc H
             hInvScale = self.Prior.g + .5 * np.sum(WMean**2 + np.diagonal(WCov,axis1=1,axis2=2), axis=0)
             # calc Phi
             PhiShape = self.Prior.s + .5 * SN
-            PhiInvScale = self.Prior.t * np.ones(D)
             E_WT_W = np.einsum('ij,ik->ijk', WMean, WMean) + WCov
-            for d in xrange(D):
-                PhiInvScale[d] += .5 * (SxxT[d,d] - 2 * np.dot(xaT[d], WMean[d])
-                                        + np.einsum('ij,ji', E_WT_W[d], aaT))
+            PhiInvScale = self.Prior.t + .5 * (np.diag(SS.xxT)
+                                               - 2 * np.einsum('ij,ij->i', xaT, WMean)
+                                               + np.einsum('ijk,...kj->i', E_WT_W, aaT))
             # calc aCov
             E_WT_Phi_W = np.sum((PhiShape / PhiInvScale)[:, np.newaxis, np.newaxis] * E_WT_W, axis=0)
             aCov = inv(np.eye(C) + E_WT_Phi_W)
@@ -601,62 +591,6 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         cov = self.getGaussCov4Comp(k=k)
         result = PRNG.multivariate_normal(np.zeros(self.D), cov, N)
         return result
-
-
-
-def calcWMean_k_forloop(WCov_k, PhiShape_k, PhiInvScale_k, xaT_k):
-    ''' Compute WMean for specific cluster k, using forloop.
-
-    Args
-    ----
-    WCov_k : 3D array, D x C x C
-    PhiShape_k : scalar
-    PhiInvScale_k : 1D array, size D
-    xaT_k : 2D array, size D x C
-        
-    Returns
-    -------
-    WMean_k : 2D array, size D x C
-        where WMean_k[d] = matrix_product(WCov_k[d], xaT_k[d] rescaled) 
-    '''
-    D = WCov_k.shape[0]
-    C = WCov_k.shape[1]
-    WMean_k = np.zeros((D,C))
-    for d in range(D):
-        WMean_k[d] = np.dot(WCov_k[d], PhiShape_k / PhiInvScale_k[d] * xaT_k[d])
-    return WMean_k
-
-def calcWMean_k_vectorized(WCov_k, PhiShape_k, PhiInvScale_k, xaT_k):
-    ''' Compute WMean for specific cluster k, using einsum vectorization.
-    
-    Should be much faster than forloop version.
-
-    Examples
-    --------
-    >>> P = np.ones((2,3,3))
-    >>> Q = np.random.rand(2,3)
-    >>> R1 = calcWMean_k_vectorized(P, 1, np.ones(2), Q)
-    >>> R2 = calcWMean_k_forloop(P, 1, np.ones(2), Q)
-    >>> print np.allclose(R1, R2)
-    True
-    >>> print R1.shape
-    (2, 3)
-
-    Args
-    ----
-    WCov_k : 3D array, D x C x C
-    PhiShape_k : scalar
-    PhiInvScale_k : 1D array, size D
-    xaT_k : 2D array, size D x C
-
-    Returns
-    -------
-    WMean_k : 2D array, size D x C 
-    '''
-    scaled_xaT_k = xaT_k * (PhiShape_k / PhiInvScale_k[:,np.newaxis])
-    WMean_k = np.einsum('ijk,i...k->ij', WCov_k, scaled_xaT_k)
-    return WMean_k
-
 
 
 if __name__ == '__main__':
