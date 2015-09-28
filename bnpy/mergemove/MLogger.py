@@ -6,7 +6,7 @@ from collections import defaultdict
 # Configure Logger
 Log = None
 
-def pprint(msg, level=logging.DEBUG):
+def pprint(msg, level=logging.DEBUG+1):
     global Log
     if Log is None:
         return

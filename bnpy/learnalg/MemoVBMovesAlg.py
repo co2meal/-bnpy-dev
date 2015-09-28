@@ -14,7 +14,7 @@ from bnpy.util import sharedMemDictToNumpy, sharedMemToNumpyArray
 from LearnAlg import makeDictOfAllWorkspaceVars
 from LearnAlg import LearnAlg
 from SharedMemWorker import SharedMemWorker
-
+from bnpy.viz.PrintTopics import count2str
 
 class MemoVBMovesAlg(LearnAlg):
 
@@ -466,12 +466,25 @@ class MemoVBMovesAlg(LearnAlg):
         MovePlans : dict
             * m_UIDPairs : list of pairs of uids to merge
         '''
+        ceilLap = np.ceil(lapFrac)
         if SS is None:
+            msg = "MERGE @ lap %.2f: Disabled." + \
+                " Cannot plan merge on first lap." + \
+                " Need valid SS that represent whole dataset."
+            MLogger.pprint(msg % (ceilLap))
             return MovePlans
-        if np.ceil(lapFrac) < self.algParams['merge']['m_startLap']:
+
+        startLap = self.algParams['merge']['m_startLap']
+        if np.ceil(lapFrac) < startLap:
+            msg = "MERGE @ lap %.2f: Disabled." + \
+                " Waiting for lap >= %d (--m_startLap)."
+            MLogger.pprint(msg % (ceilLap, startLap))
             return MovePlans
         stopLap = self.algParams['merge']['m_stopLap']
         if stopLap > 0 and np.ceil(lapFrac) >= stopLap:
+            msg = "MERGE @ lap %.2f: Disabled." + \
+                " Beyond lap %d (--m_stopLap)."
+            MLogger.pprint(msg % (ceilLap, stopLap))
             return MovePlans
 
         MArgs = self.algParams['merge']
@@ -485,6 +498,10 @@ class MemoVBMovesAlg(LearnAlg):
         if len(MPlan['m_UIDPairs']) < 1:
             del MPlan['m_UIDPairs']
             del MPlan['mPairIDs']
+            msg = "MERGE @ lap %.2f: Ineligible." + \
+                " No promising candidates."
+            MLogger.pprint(msg % (ceilLap))
+
         else:
             MPlan['doPrecompMergeEntropy'] = 1
         MovePlans.update(MPlan)
@@ -579,11 +596,14 @@ class MemoVBMovesAlg(LearnAlg):
             BLogger.pprint(
                 'EVALUATION at lap %.2f ==================' % (lapFrac))
         acceptedUIDs = list()
+        nAccept = 0
+        nTrial = 0
         for targetUID in SS.propXSS.keys():
             # Skip delete proposals, which are handled differently
             if 'd_targetUIDs' in MovePlans:
                 if targetUID in MovePlans['d_targetUIDs']:
                     continue
+            nTrial += 1
             BLogger.startUIDSpecificLog(targetUID)
             # Prepare record-keeping            
             if targetUID not in MoveRecordsByUID:
@@ -605,6 +625,7 @@ class MemoVBMovesAlg(LearnAlg):
             propLscore = propModel.calc_evidence(SS=propSS)
 
             if propLscore > Lscore:
+                nAccept += 1
                 BLogger.pprint(
                     '   ACCEPTED. gainLtotal % .2f' % (propLscore-Lscore))
                 BLogger.pprint(
@@ -634,7 +655,8 @@ class MemoVBMovesAlg(LearnAlg):
                 del SS.propXSS[targetUID]
 
             else:
-                propLdata = propModel.obsModel.calc_evidence(None, propSS, None)
+                propLdata = propModel.obsModel.calc_evidence(
+                    None, propSS, None)
                 curLdata = hmodel.obsModel.calc_evidence(None, SS, None)
                 nAtoms = hmodel.obsModel.getDatasetScale(SS)
                 gainLdata = (propLdata - curLdata) / nAtoms
@@ -654,6 +676,10 @@ class MemoVBMovesAlg(LearnAlg):
                     MoveRecordsByUID[targetUID]['b_nSuccessRecent'] = 0
             BLogger.stopUIDSpecificLog(targetUID)
 
+        msg = "BIRTH @ lap %.2f : %d/%d accepted."
+        msg = msg % (
+            lapFrac, nAccept, nTrial)
+        BLogger.pprint(msg)
         return hmodel, SS, Lscore, MoveLog, MoveRecordsByUID
 
     def runMoves_Merge(self, hmodel, SS, Lscore, MovePlans,
@@ -678,12 +704,16 @@ class MemoVBMovesAlg(LearnAlg):
         nAccept = 0
         nSkip = 0
         Ndiff = 0.0
-        for (uidA, uidB) in MovePlans['m_UIDPairs']:
+        MLogger.pprint("EVALUATING merges at lap %.2f" % (
+            lapFrac), 'debug')
+        for ii, (uidA, uidB) in enumerate(MovePlans['m_UIDPairs']):
             # Skip uids that we have already accepted in a previous merge.
             if uidA in acceptedUIDs or uidB in acceptedUIDs:
                 nSkip += 1
+                MLogger.pprint("%4d, %4d : skipped." % (
+                    uidA, uidB), 'debug')
                 continue
-            nTrial += 1            
+            nTrial += 1           
             # Update records for when each uid was last attempted
             for u in [uidA, uidB]:
                 if u not in MoveRecordsByUID:
@@ -699,9 +729,17 @@ class MemoVBMovesAlg(LearnAlg):
             propModel.update_global_params(propSS)
             propLscore = propModel.calc_evidence(SS=propSS)
             assert np.isfinite(propLscore)
+
+            propSizeStr = count2str(propSS.getCountForUID(uidA))
             if propLscore > Lscore - ELBO_GAP_ACCEPT_TOL:
                 nAccept += 1
                 Ndiff += targetCount
+                MLogger.pprint(
+                    "%4d, %4d : accepted." % (uidA, uidB) +
+                    " gain %.3e  " % (propLscore - Lscore) +
+                    " size %s  " % (propSizeStr),
+                    'debug')
+
                 acceptedUIDs.add(uidA)
                 acceptedUIDs.add(uidB)
                 MoveRecordsByUID[uidA]['m_nSuccess'] += 1
@@ -718,13 +756,21 @@ class MemoVBMovesAlg(LearnAlg):
                 hmodel = propModel
                 Lscore = propLscore
             else:
+                MLogger.pprint(
+                    "%4d, %4d : rejected." % (uidA, uidB) +
+                    " gain %.3f  " % (propLscore - Lscore) +
+                    " size %s  " % (propSizeStr),
+                    'debug')
+
                 for u in [uidA, uidB]:
                     MoveRecordsByUID[u]['m_nFail'] += 1
                     MoveRecordsByUID[u]['m_nFailRecent'] += 1
                     MoveRecordsByUID[u]['m_nSuccessRecent'] = 0
         if nTrial > 0:
-            msg = 'MERGE %d/%d accepted. Ndiff %.2f. %d skipped.' % (
-                nAccept, nTrial, Ndiff, nSkip)
+            msg = "MERGE @ lap %.2f : %d/%d accepted." + \
+                " Ndiff %.2f. %d skipped."
+            msg = msg % (
+                lapFrac, nAccept, nTrial, Ndiff, nSkip)
             MLogger.pprint(msg)
             self.print_msg(msg)
         # Finally, set all merge fields to zero,

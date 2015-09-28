@@ -86,6 +86,19 @@ class SuffStatBag(object):
             return self.SumWordCounts
         raise ValueError('Counts not available')
 
+    def getCountForUID(self, uid=None):
+        ''' Return count for specified unique cluster id.
+
+        Returns
+        -------
+        Count : scalar real value. Non-negative.
+        '''
+        k = self.uid2k(uid)
+        if 'N' in self._Fields._FieldDims:
+            return self.N[k]
+        elif 'SumWordCounts' in self._Fields._FieldDims:
+            return self.SumWordCounts[k]
+
     def copy(self, includeELBOTerms=True, includeMergeTerms=True):
         if not includeELBOTerms:
             E = self.removeELBOTerms()

@@ -727,10 +727,7 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
 
         Div = np.zeros((N, K))
         for k in xrange(K):
-            try:
-                cholMu_k = np.linalg.cholesky(Mu[k])
-            except Exception as e:
-                from IPython import embed; embed()
+            cholMu_k = np.linalg.cholesky(Mu[k])
             logdetMu_k = 2 * np.sum(np.log(np.diag(cholMu_k)))
             tr_XXTinvMu = np.zeros(N)
             for n in range(N):
