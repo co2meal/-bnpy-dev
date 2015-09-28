@@ -6,6 +6,7 @@ from bnpy.viz.PrintTopics import vec2str, count2str
 
 # Configure Logger
 Log = None
+taskoutpath = None
 
 def pprint(msg, level=logging.INFO):
     global Log
@@ -18,8 +19,44 @@ def pprint(msg, level=logging.INFO):
             level = logging.DEBUG
     Log.log(level, msg)
 
-def configure(taskoutpath, doSaveToDisk=0, doWriteStdOut=0):
+def startUIDSpecificLog(uid=0):
+    ''' Open log file (in append mode) for specific uid.
+
+    Post condition
+    --------------
+    Creates a log file specific to the given uid, 
+    which will capture all subsequent log output.
+    '''
+    global taskoutpath
+    fh = logging.FileHandler(
+            os.path.join(
+                taskoutpath,
+                "birth-log-by-uid-%d.txt" % (uid)))
+    fh.setLevel(0)
+    fh.setFormatter(logging.Formatter('%(message)s'))
+    Log.addHandler(fh)
+
+def stopUIDSpecificLog(uid=0):
+    ''' Close log file corresponding to specific uid.
+
+    Post condition
+    --------------
+    If the specified uid has an associated log open,
+    then it will be closed.
+    '''
+    for i in range(len(Log.handlers)):
+        fh = Log.handlers[i]
+        if isinstance(fh, logging.FileHandler):
+            if fh.baseFilename.count('uid-%d' % (uid)):
+                fh.close()
+                Log.removeHandler(fh)
+                break
+
+def configure(taskoutpathIN, doSaveToDisk=0, doWriteStdOut=0):
     global Log
+    global taskoutpath
+
+    taskoutpath = taskoutpathIN
     Log = logging.getLogger('birthmove')
 
     Log.setLevel(logging.DEBUG)
@@ -48,7 +85,7 @@ def configure(taskoutpath, doSaveToDisk=0, doWriteStdOut=0):
     # Config logger that can write to stdout
     if doWriteStdOut:
         ch = logging.StreamHandler(sys.stdout)
-        ch.setLevel(logging.INFO+1)
+        ch.setLevel(logging.DEBUG+1)
         ch.setFormatter(formatter)
         Log.addHandler(ch)
     # Config null logger, avoids error messages about no handler existing
@@ -56,7 +93,10 @@ def configure(taskoutpath, doSaveToDisk=0, doWriteStdOut=0):
         Log.addHandler(logging.NullHandler())
 
 def makeFunctionToPrettyPrintCounts(initSS):
-    def pprintCountVec(SS, uids=initSS.uids, uidpairsToAccept=None):
+    def pprintCountVec(SS, uids=initSS.uids, 
+                       cleanupMassRemoved=None, 
+                       cleanupSizeThr=None, 
+                       uidpairsToAccept=None):
         s = ''
         emptyVal = '     '
         for uid in uids:
@@ -73,5 +113,7 @@ def makeFunctionToPrettyPrintCounts(initSS):
                             break
                 if not didWriteThisUID:
                     s += emptyVal
+        if cleanupSizeThr:
+            s += " (removed %d units from comps below minimum size of %d)" % (cleanupMassRemoved, cleanupSizeThr)
         pprint('  ' + s, 'info')
     return pprintCountVec

@@ -14,7 +14,7 @@ from bnpy.viz.ProposalViz import plotDocUsageForProposal
 from bnpy.viz.ProposalViz import makeSingleProposalHTMLStr
 from bnpy.viz.PrintTopics import vec2str
 
-from bnpy.init import initSSByBregDiv
+from bnpy.init.FromScratchBreg import initSS_BregmanDiv
 
 DefaultLPkwargs = dict(
     restartLP=1,
@@ -78,12 +78,15 @@ def createSplitStats(
 
     # Raise error if we didn't create valid SS
     if xSSslice is None:
-        raise BirthProposalError(DebugInfo['msg'])
+        raise BirthProposalError(DebugInfo['errorMsg'])
     # Raise error if we didn't create enough "big-enough" states.
-    nnzCount = np.sum(xSSslice.getCountVec() >= 1)
+    minCount = kwargs['b_minNumAtomsForNewComp']
+    nnzCount = np.sum(xSSslice.getCountVec() >= minCount)
     if nnzCount < 2:
         raise BirthProposalError(
-            "Could not create at least two comps with mass >= 1.")
+            "Could not create at least two comps" + \
+            " with mass >= %.1f, set via --%s" % (
+                minCount, 'b_minNumAtomsForNewComp'))
     # If here, we have a valid proposal. 
     # Need to verify mass conservation
     ktarget = curSSwhole.uid2k(kwargs['targetUID'])
@@ -101,7 +104,7 @@ def createSplitStats(
 def createSplitStats_BregDiv(
         Dslice, curModel, curLPslice, 
         curSSwhole=None,
-        targetUID=0,
+        targetUID=None,
         ktarget=None,
         LPkwargs=DefaultLPkwargs,
         newUIDs=None,
@@ -121,7 +124,7 @@ def createSplitStats_BregDiv(
         number of components is Kx
     DebugInfo : dict with info for visualization, etc
     '''
-    BLogger.pprint('targetUID ' + str(targetUID))
+    BLogger.pprint('Creating proposal for targetUID %s' % (targetUID))
     # Parse some kwarg input
     if hasattr(Dslice, 'vocabList') and Dslice.vocabList is not None:
         vocabList = Dslice.vocabList
@@ -134,15 +137,15 @@ def createSplitStats_BregDiv(
             compsToHighlight=[ktarget])
     # Create suff stats for some new states
     xK = newUIDs.size
-    xSSfake, DebugInfo = initSSByBregDiv(
-        Dslice=Dslice,
-        curModel=curModel,
-        curLPslice=curLPslice,
-        K=xK,
+
+    xSSfake, DebugInfo = initSS_BregmanDiv(
+        Dslice, curModel, curLPslice, 
+        K=xK, 
         ktarget=ktarget,
         lapFrac=lapFrac,
         seed=1000 * lapFrac,
         **kwargs)
+    BLogger.pprint(DebugInfo['targetAssemblyMsg'])
     if xSSfake is None:
         return None, DebugInfo
     # Record some debug info about the new states
@@ -206,7 +209,8 @@ def createSplitStats_BregDiv(
         # Cleanup by deleting small clusters 
         if i < b_nRefineSteps - 1:
             if i == b_nRefineSteps - 2:
-                # After all but last step, delete small (but not empty) comps
+                # After all but last step, 
+                # delete small (but not empty) comps
                 minNumAtomsToStay = b_minNumAtomsForNewComp
             else:
                 # Always remove empty clusters. They waste our time.

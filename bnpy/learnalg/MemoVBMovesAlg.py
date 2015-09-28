@@ -261,6 +261,7 @@ class MemoVBMovesAlg(LearnAlg):
             # Loop thru copy of the target comp UID list
             # So that we can remove elements from it within the loop
             for ii, targetUID in enumerate(list(MovePlans['BirthTargetUIDs'])):
+                BLogger.startUIDSpecificLog(targetUID)
                 if hasattr(SS, 'propXSS') and targetUID in SS.propXSS:
                     SSbatch.propXSS[targetUID] = assignSplitStats(
                         Dbatch, curModel, LPbatch,
@@ -269,6 +270,7 @@ class MemoVBMovesAlg(LearnAlg):
                         targetUID=targetUID,
                         LPkwargs=LPkwargs,
                         **self.algParams['birth'])
+                    BLogger.pprint('... expansion assignment done.', 'debug')
                 else:
                     try:
                         newUIDs = self.makeNewUIDs(**self.algParams['birth'])
@@ -280,6 +282,7 @@ class MemoVBMovesAlg(LearnAlg):
                                 newUIDs=newUIDs,
                                 LPkwargs=LPkwargs,
                                 **self.algParams['birth'])
+                        BLogger.pprint('... expansion proposal creation done.', 'debug')
                     except BirthProposalError as e:
                         BLogger.pprint('  ' + str(e))
                         MovePlans['BirthTargetUIDs'].remove(targetUID)
@@ -294,6 +297,8 @@ class MemoVBMovesAlg(LearnAlg):
                             curSSwhole.uid2k(targetUID)]
                         MoveRecordsByUID[targetUID]['b_latestCount'] = \
                             targetCount
+                BLogger.stopUIDSpecificLog(targetUID)
+
         # Prepare deletes
         if 'd_targetUIDs' in MovePlans:
             targetUID = MovePlans['d_targetUIDs'][0]
@@ -579,15 +584,17 @@ class MemoVBMovesAlg(LearnAlg):
             if 'd_targetUIDs' in MovePlans:
                 if targetUID in MovePlans['d_targetUIDs']:
                     continue
+            BLogger.startUIDSpecificLog(targetUID)
             # Prepare record-keeping            
             if targetUID not in MoveRecordsByUID:
                 MoveRecordsByUID[targetUID] = defaultdict(int)
-            targetCount = SS.getCountVec()[SS.uid2k(targetUID)]
+            ktarget = SS.uid2k(targetUID)
+            targetCount = SS.getCountVec()[ktarget]
             MoveRecordsByUID[targetUID]['b_nTrial'] += 1
             MoveRecordsByUID[targetUID]['b_latestLap'] = lapFrac
             MoveRecordsByUID[targetUID]['b_latestCount'] = targetCount
             # Construct proposal statistics
-            BLogger.pprint('targetUID ' + str(targetUID))
+            BLogger.pprint('Evaluating targetUID ' + str(targetUID))
             propSS = SS.copy()
             propSS.transferMassFromExistingToExpansion(
                 uid=targetUID, xSS=SS.propXSS[targetUID])
@@ -600,6 +607,14 @@ class MemoVBMovesAlg(LearnAlg):
             if propLscore > Lscore:
                 BLogger.pprint(
                     '   ACCEPTED. gainLtotal % .2f' % (propLscore-Lscore))
+                BLogger.pprint(
+                    "   Mass transfered to new comps: %.2f" % (
+                        SS.getCountVec()[ktarget] - \
+                            propSS.getCountVec()[ktarget]))
+                BLogger.pprint(
+                    "   Remaining mass at targetUID %d: %.2f" % (
+                        targetUID, propSS.getCountVec()[ktarget]))
+
                 MoveRecordsByUID[targetUID]['b_nSuccess'] += 1
                 MoveRecordsByUID[targetUID]['b_nFailRecent'] = 0
                 MoveRecordsByUID[targetUID]['b_nSuccessRecent'] += 1
@@ -627,7 +642,8 @@ class MemoVBMovesAlg(LearnAlg):
                     '   REJECTED. gainLtotal % .2f' % (propLscore-Lscore))
                 if gainLdata > 0.01:
                     BLogger.pprint(
-                        '   Retained. gainLdata % .2f' % (gainLdata))
+                        '   Retained. gainLdata % .2f is promising' % (
+                            gainLdata))
                     # Track for next time!
                     assert targetUID in SS.propXSS
                 else:
@@ -636,6 +652,7 @@ class MemoVBMovesAlg(LearnAlg):
                     MoveRecordsByUID[targetUID]['b_nFail'] += 1
                     MoveRecordsByUID[targetUID]['b_nFailRecent'] += 1
                     MoveRecordsByUID[targetUID]['b_nSuccessRecent'] = 0
+            BLogger.stopUIDSpecificLog(targetUID)
 
         return hmodel, SS, Lscore, MoveLog, MoveRecordsByUID
 
@@ -805,8 +822,6 @@ class MemoVBMovesAlg(LearnAlg):
             propLdict = propModel.calc_evidence(SS=propSS, todict=1)
             propLscore = propLdict['Ltotal']
             # Make decision
-            if lapFrac > 10:
-                from IPython import embed; embed()
             if propLscore > Lscore:
                 # Accept
                 nAccept += 1

@@ -9,7 +9,7 @@ import FromScratchGauss
 import FromScratchMult
 import FromScratchBern
 
-from FromScratchMult import initSSByBregDiv_Mult
+# from FromScratchMult import initSSByBregDiv_Mult
 # from FromScratchBern import initSSByBregDiv_Bern
 # from FromScratchGauss import initSSByBregDiv_Gauss
 # from FromScratchGauss import initSSByBregDiv_ZeroMeanGauss

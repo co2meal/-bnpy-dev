@@ -5,7 +5,8 @@ import os
 from bnpy.viz.PlotComps import plotAndSaveCompsFromSS
 from bnpy.viz.PrintTopics import count2str
 
-def cleanupDeleteSmallClusters(xSSslice, minAtomCountThr, pprintCountVec=None):
+def cleanupDeleteSmallClusters(
+        xSSslice, minNumAtomsToStay, pprintCountVec=None):
     ''' Remove all clusters with size less than specified amount.
 
     Returns
@@ -15,13 +16,16 @@ def cleanupDeleteSmallClusters(xSSslice, minAtomCountThr, pprintCountVec=None):
         Will not exactly represent data Dslice afterwards (if delete occurs).
     '''
     CountVec = xSSslice.getCountVec()
-    badids = np.flatnonzero(CountVec < minAtomCountThr)
+    badids = np.flatnonzero(CountVec < minNumAtomsToStay)
+    massRemoved = np.sum(CountVec[badids])
     for k in reversed(badids):
         if xSSslice.K == 1:
             break
         xSSslice.removeComp(k)
     if pprintCountVec and badids.size > 0:
-        pprintCountVec(xSSslice)
+        pprintCountVec(xSSslice,
+            cleanupMassRemoved=massRemoved,
+            cleanupSizeThr=minNumAtomsToStay)
     return xSSslice
 
 def cleanupMergeClusters(

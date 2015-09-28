@@ -27,6 +27,7 @@ def selectTargetCompsForBirth(
             return MovePlans
 
     countVec = SS.getCountVec()
+    K = countVec.size
     countVec = np.maximum(countVec, 1e-100)
     ScoreVec = -1.0 / countVec * \
         hmodel.obsModel.calc_evidence(None, SS, None, returnVec=1)
@@ -42,7 +43,7 @@ def selectTargetCompsForBirth(
         oldsize = MoveRecordsByUID[uid]['b_latestCount']
         nFailRecent = MoveRecordsByUID[uid]['b_nFailRecent']
 
-        bigEnough = size > BArgs['b_minNumAtomsForTargetComp']
+        bigEnough = size >= BArgs['b_minNumAtomsForTargetComp']
         if oldsize == 0 or nFailRecent == 0:
             hasFailureRecord = False
         else:
@@ -60,7 +61,7 @@ def selectTargetCompsForBirth(
             continue
         ScoreByEligibleUID[uid] = ScoreVec[ii]
     BLogger.pprint(
-        'UIDs disqualified as too small. Required size >%d.' % (
+        'UIDs disqualified as too small. Required size >= %d.' % (
             BArgs['b_minNumAtomsForTargetComp']), 'debug')
     BLogger.pprint(
         '  ' + BLogger.vec2str([u[0] for u in uidsTooSmall]), 'debug')
@@ -77,6 +78,18 @@ def selectTargetCompsForBirth(
     UIDs = [x for x in ScoreByEligibleUID.keys()]
     BLogger.pprint(
         'Eligible UIDs: ' + BLogger.vec2str(UIDs), 'debug')
+    # Lite-version of logs
+    BLogger.pprint(
+        'Num UIDs qualified for birth: %d/%d' % (len(UIDs), K))
+    BLogger.pprint(
+        'Num disqualified as too small: %d/%d.' % (
+            len(uidsTooSmall),K)
+        + " Required size >= %d via --b_minNumAtomsForTargetComp" % (
+            BArgs['b_minNumAtomsForTargetComp'])
+        )
+    BLogger.pprint(
+        'Num disqualified for past failures: %d/%d' % (
+            len(uidsWithFailRecord), K))
     if len(UIDs) == 0:
         return MovePlans
     # Finalize corresponding scores

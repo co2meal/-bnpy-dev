@@ -596,6 +596,7 @@ class MultObsModel(AbstractObsModel):
         Returns
         -------
         Mu : 1D array, size D (aka vocab_size)
+            Each entry is non-negative, whole vector sums to one.
         '''
         if X is None:
             Mu = self.Prior.lam
