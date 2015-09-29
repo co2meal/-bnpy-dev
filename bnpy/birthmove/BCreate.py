@@ -124,7 +124,8 @@ def createSplitStats_BregDiv(
         number of components is Kx
     DebugInfo : dict with info for visualization, etc
     '''
-    BLogger.pprint('Creating proposal for targetUID %s' % (targetUID))
+    BLogger.pprint('Creating proposal for targetUID %s at lap %.2f' % (
+        targetUID, lapFrac))
     # Parse some kwarg input
     if hasattr(Dslice, 'vocabList') and Dslice.vocabList is not None:
         vocabList = Dslice.vocabList

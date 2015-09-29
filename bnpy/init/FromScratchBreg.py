@@ -34,7 +34,7 @@ def initSS_BregmanDiv(
     DebugInfo : dict
         contains info about provenance of this initialization.
     '''
-    PRNG = np.random.RandomState(seed)
+    PRNG = np.random.RandomState(int(seed))
     DebugInfo, targetData, targetX, targetW, chosenRespIDs = \
         makeDataSubsetByThresholdResp(
             Dslice,
@@ -148,7 +148,7 @@ def initKMeans_BregmanDiv(
     Mu : 2D array, size K x D
     minDiv : 1D array, size N
     '''
-    PRNG = np.random.RandomState(seed)
+    PRNG = np.random.RandomState(int(seed))
     N = X.shape[0]
     if W is None:
         W = np.ones(N)

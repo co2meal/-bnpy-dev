@@ -84,7 +84,8 @@ class MemoVBMovesAlg(LearnAlg):
                 if SS is not None and SS.hasSelectionTerms():
                     SS._SelectTerms.setAllFieldsToZero()
             MovePlans = self.makeMovePlans(
-                hmodel, SS, MovePlans,
+                hmodel, SS, 
+                MovePlans=MovePlans,
                 MoveRecordsByUID=MoveRecordsByUID,
                 lapFrac=lapFrac)
 
@@ -269,6 +270,7 @@ class MemoVBMovesAlg(LearnAlg):
                         curSSwhole=curSSwhole,
                         targetUID=targetUID,
                         LPkwargs=LPkwargs,
+                        lapFrac=lapFrac,
                         **self.algParams['birth'])
                     BLogger.pprint('... expansion assignment done.', 'debug')
                 else:
@@ -281,6 +283,7 @@ class MemoVBMovesAlg(LearnAlg):
                                 targetUID=targetUID,
                                 newUIDs=newUIDs,
                                 LPkwargs=LPkwargs,
+                                lapFrac=lapFrac,
                                 **self.algParams['birth'])
                         BLogger.pprint('... expansion proposal creation done.', 'debug')
                     except BirthProposalError as e:
@@ -439,19 +442,29 @@ class MemoVBMovesAlg(LearnAlg):
             hmodel.update_global_params(SS)
         return hmodel
 
-    def makeMovePlans(self, hmodel, SS, MovePlans=dict(), **kwargs):
-        isFirst = self.isFirstBatch(kwargs['lapFrac'])
+    def makeMovePlans(self, hmodel, SS, 
+                      MovePlans=dict(), lapFrac=-1, **kwargs):
+        ''' Plan which comps to target for each possible move.
+
+        Returns
+        -------
+        MovePlans : dict
+        '''
+        isFirst = self.isFirstBatch(lapFrac)
         if isFirst:
             MovePlans = dict()
         if self.hasMove('birth'):
             MovePlans = self.makeMovePlans_Birth(
-                hmodel, SS, MovePlans=MovePlans, **kwargs)
+                hmodel, SS, 
+                lapFrac=lapFrac, MovePlans=MovePlans, **kwargs)
         if isFirst and self.hasMove('merge'):
             MovePlans = self.makeMovePlans_Merge(
-                hmodel, SS, MovePlans=MovePlans, **kwargs)
+                hmodel, SS, 
+                lapFrac=lapFrac, MovePlans=MovePlans, **kwargs)
         if isFirst and self.hasMove('delete'):
             MovePlans = self.makeMovePlans_Delete(
-                hmodel, SS, MovePlans=MovePlans, **kwargs)
+                hmodel, SS, 
+                lapFrac=lapFrac, MovePlans=MovePlans, **kwargs)
         return MovePlans
 
     def makeMovePlans_Merge(self, hmodel, SS,
@@ -545,7 +558,7 @@ class MemoVBMovesAlg(LearnAlg):
     def makeMovePlans_Birth(self, hmodel, SS,
                             MovePlans=dict(),
                             MoveRecordsByUID=dict(),
-                            lapFrac=0,
+                            lapFrac=-2,
                             **kwargs):
         ''' Select comps to target with birth in current batch (or lap).
 
