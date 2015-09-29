@@ -18,7 +18,6 @@ def selectTargetCompsForBirth(
     MovePlans : dict, with fields
     * BirthTargetUIDs : list of ints
     '''
-    BLogger.pprint('PLANNING BIRTH at lap %.2f ==========' % (lapFrac))
     if 'BirthTargetUIDs' in MovePlans:
         if len(MovePlans['BirthTargetUIDs']) > 0:
             uidStr = BLogger.vec2str(MovePlans['BirthTargetUIDs'])
@@ -35,7 +34,7 @@ def selectTargetCompsForBirth(
 
     uidsTooSmall = list()
     uidsWithFailRecord = list()
-    ScoreByEligibleUID = dict()
+    eligible_mask = np.zeros(K, dtype=np.bool8)
     for ii, uid in enumerate(SS.uids):
         if uid not in MoveRecordsByUID:
             MoveRecordsByUID[uid] = defaultdict(int)
@@ -59,43 +58,51 @@ def selectTargetCompsForBirth(
         if hasFailureRecord:
             uidsWithFailRecord.append((uid, nFailRecent))
             continue
-        ScoreByEligibleUID[uid] = ScoreVec[ii]
+        eligible_mask[ii] = 1
+
+    nDQ_toosmall = len(uidsTooSmall)
+    nDQ_pastfail = len(uidsWithFailRecord)
+    MovePlans['b_curPlan_FailUIDs'] = list() # Track uids that fail to launch
+    MovePlans['b_curPlan_nDQ_toosmall'] = nDQ_toosmall
+    MovePlans['b_curPlan_nDQ_pastfail'] = nDQ_pastfail
+
+    msg = "%d/%d UIDs too small." + \
+        " Required size >= %d (--b_minNumAtomsForTargetComp)"
+    msg = msg % (nDQ_toosmall, K, BArgs['b_minNumAtomsForTargetComp'])
+    BLogger.pprint(msg, 'debug')
+    if nDQ_toosmall > 0:
+        BLogger.pprint(
+            ' uids  ' + BLogger.vec2str([u[0] for u in uidsTooSmall]), 'debug')
+        BLogger.pprint(
+            ' sizes ' + BLogger.vec2str([u[1] for u in uidsTooSmall]), 'debug')
+    
     BLogger.pprint(
-        'UIDs disqualified as too small. Required size >= %d.' % (
-            BArgs['b_minNumAtomsForTargetComp']), 'debug')
-    BLogger.pprint(
-        '  ' + BLogger.vec2str([u[0] for u in uidsTooSmall]), 'debug')
-    BLogger.pprint(
-        '  ' + BLogger.vec2str([u[1] for u in uidsTooSmall]), 'debug')
-    BLogger.pprint(
-        'UIDs disqualified for past failures.', 'debug')
-    BLogger.pprint(
-        '  ' + BLogger.vec2str([u[0] for u in uidsWithFailRecord]), 'debug')
-    BLogger.pprint(
-        '  ' + BLogger.vec2str([u[1] for u in uidsWithFailRecord]), 'debug')
+        '%d/%d UIDs disqualified for past failures.' % (
+            nDQ_pastfail, K),
+        'debug')
+    if nDQ_pastfail > 0:
+        BLogger.pprint(
+            ' uids  ' + BLogger.vec2str([u[0] for u in uidsWithFailRecord]),
+            'debug')
+        BLogger.pprint(
+            ' sizes ' + BLogger.vec2str([u[1] for u in uidsWithFailRecord]),
+            'debug')
 
     # Finalize list of eligible UIDs
-    UIDs = [x for x in ScoreByEligibleUID.keys()]
+    UIDs = SS.uids[eligible_mask]
+
+    BLogger.pprint('%d/%d UIDs eligible' % (len(UIDs), K), 'debug')
     BLogger.pprint(
-        'Eligible UIDs: ' + BLogger.vec2str(UIDs), 'debug')
-    # Lite-version of logs
-    BLogger.pprint(
-        'Num UIDs qualified for birth: %d/%d' % (len(UIDs), K))
-    BLogger.pprint(
-        'Num disqualified as too small: %d/%d.' % (
-            len(uidsTooSmall),K)
-        + " Required size >= %d via --b_minNumAtomsForTargetComp" % (
-            BArgs['b_minNumAtomsForTargetComp'])
-        )
-    BLogger.pprint(
-        'Num disqualified for past failures: %d/%d' % (
-            len(uidsWithFailRecord), K))
+        ' uids  ' + BLogger.vec2str(UIDs), 'debug')
     if len(UIDs) == 0:
         return MovePlans
     # Finalize corresponding scores
-    Scores = np.asarray([x for x in ScoreByEligibleUID.values()])
+    Scores = ScoreVec[eligible_mask]
     BLogger.pprint(
-        'Eligible Scores: ' + BLogger.vec2str(Scores), 'debug')
+        ' sizes ' + BLogger.vec2str(countVec[eligible_mask]), 'debug')
+    BLogger.pprint(
+        ' score ' + BLogger.vec2str(Scores), 'debug')
+
     # Figure out how many new states we can target this round.
     totalnewK = BArgs['b_Kfresh'] * Scores.size
     maxnewK = BArgs['Kmax'] - SS.K
@@ -104,8 +111,16 @@ def selectTargetCompsForBirth(
     nToKeep = maxnewK // BArgs['b_Kfresh']
     keepIDs = np.argsort(-1 * Scores)[:nToKeep]
     MovePlans['BirthTargetUIDs'] = [UIDs[s] for s in keepIDs]
+
+    BLogger.pprint('%d UIDs chosen for proposals (ranked by score)' % (
+        len(keepIDs)))
     BLogger.pprint(
-        'Target UIDs: ' + BLogger.vec2str(MovePlans['BirthTargetUIDs']))
+        ' uids  ' + BLogger.vec2str(MovePlans['BirthTargetUIDs']))
+    BLogger.pprint(
+        ' sizes ' + BLogger.vec2str(countVec[eligible_mask][keepIDs]), 'debug')
+    BLogger.pprint(
+        ' score ' + BLogger.vec2str(Scores[keepIDs]), 'debug')
+
     return MovePlans
     
 

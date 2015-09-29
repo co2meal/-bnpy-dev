@@ -220,7 +220,7 @@ def makeDataSubsetByThresholdResp(
         Natoms_targetAboveThr = rowsWithEnoughData.size
 
         targetAssemblyMsg = \
-            "Targeted comp has %.2f docs with >eps mass" % (
+            "  Targeted comp has %.2f docs with mass >eps" % (
                 Natoms_target) \
             + " out of %d docs in current dataset." % (
                 Natoms_total) \
@@ -277,7 +277,7 @@ def makeDataSubsetByThresholdResp(
             Natoms_target = curLP['resp'][:,ktarget].sum()
             Natoms_targetAboveThr = chosenRespIDs.size
             targetAssemblyMsg = \
-                "Targeted comp has %.2f %s assigned out of %d." % (
+                "  Targeted comp has %.2f %s assigned out of %d." % (
                     Natoms_target, atomType, Natoms_total) \
                 + "\n  Filtering to find atoms with resp > %.2f" % (
                     b_minRespForEachTargetAtom) \

@@ -17,6 +17,7 @@ def plotExampleBarsDocs(Data, docIDsToPlot=None, figID=None,
                         vmax=None, nDocToPlot=16, doShowNow=False,
                         seed=0, randstate=np.random.RandomState(0),
                         xlabels=None,
+                        W=1, H=1,
                         **kwargs):
     kwargs['vmin'] = 0
     kwargs['interpolation'] = 'nearest'
@@ -24,8 +25,6 @@ def plotExampleBarsDocs(Data, docIDsToPlot=None, figID=None,
         kwargs['vmax'] = vmax
     if seed is not None:
         randstate = np.random.RandomState(seed)
-    if figID is None:
-        pylab.figure()
     V = Data.vocab_size
     sqrtV = int(np.sqrt(V))
     assert np.allclose(sqrtV * sqrtV, V)
@@ -34,11 +33,15 @@ def plotExampleBarsDocs(Data, docIDsToPlot=None, figID=None,
     else:
         size = np.minimum(Data.nDoc, nDocToPlot)
         docIDsToPlot = randstate.choice(Data.nDoc, size=size, replace=False)
-    nRows = np.floor(np.sqrt(nDocToPlot))
-    nCols = np.ceil(nDocToPlot / nRows)
+    ncols = 5
+    nrows = int(np.ceil(nDocToPlot / float(ncols)))
     if vmax is None:
         DocWordArr = Data.getDocTypeCountMatrix()
         vmax = int(np.max(np.percentile(DocWordArr, 98, axis=0)))
+
+    if figID is None:
+        figH, ha = pylab.subplots(nrows=nrows, ncols=ncols,
+                                  figsize=(ncols * W, nrows * H))
 
     for plotPos, docID in enumerate(docIDsToPlot):
         start = Data.doc_range[docID]
@@ -49,14 +52,22 @@ def plotExampleBarsDocs(Data, docIDsToPlot=None, figID=None,
         docWordHist[wIDs] = wCts
         squareIm = np.reshape(docWordHist, (np.sqrt(V), np.sqrt(V)))
 
-        pylab.subplot(nRows, nCols, plotPos + 1)
+        pylab.subplot(nrows, ncols, plotPos + 1)
         pylab.imshow(squareIm, **kwargs)
         pylab.axis('image')
         pylab.xticks([])
         pylab.yticks([])
         if xlabels is not None:
             pylab.xlabel(xlabels[plotPos])
-    pylab.tight_layout()
+
+    # Disable empty plots!
+    for kdel in xrange(plotPos + 2, nrows * ncols + 1):
+        aH = pylab.subplot(nrows, ncols, kdel)
+        aH.axis('off')
+
+    # Fix margins between subplots
+    pylab.subplots_adjust(wspace=0.04, hspace=0.04, left=0.01, right=0.99,
+                          top=0.99, bottom=0.01)
     if doShowNow:
         pylab.show()
 

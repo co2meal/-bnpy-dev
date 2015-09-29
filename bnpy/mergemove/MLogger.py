@@ -6,7 +6,7 @@ from collections import defaultdict
 # Configure Logger
 Log = None
 
-def pprint(msg, level=logging.DEBUG+1):
+def pprint(msg, level=logging.DEBUG):
     global Log
     if Log is None:
         return
@@ -31,7 +31,7 @@ def configure(taskoutpath, doSaveToDisk=0, doWriteStdOut=0):
             os.path.join(
                 taskoutpath,
                 "merge-transcript-verbose.txt"))
-        fh.setLevel(logging.DEBUG)
+        fh.setLevel(0)
         fh.setFormatter(formatter)
         Log.addHandler(fh)
 
@@ -39,7 +39,7 @@ def configure(taskoutpath, doSaveToDisk=0, doWriteStdOut=0):
         fh = logging.FileHandler(
             os.path.join(
                 taskoutpath,
-                "merge-transcript.txt"))
+                "merge-transcript-summary.txt"))
         fh.setLevel(logging.DEBUG + 1)
         fh.setFormatter(formatter)
         Log.addHandler(fh)

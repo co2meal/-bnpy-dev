@@ -7,11 +7,18 @@ from bnpy.viz.PrintTopics import vec2str, count2str
 # Configure Logger
 Log = None
 taskoutpath = None
+DEFAULTLEVEL = logging.DEBUG
 
-def pprint(msg, level=logging.INFO):
+def pprint(msg, level=None):
     global Log
+    global DEFAULTLEVEL
+
+    if DEFAULTLEVEL == 'print':
+        print msg
     if Log is None:
         return
+    if level is None:
+        level = DEFAULTLEVEL
     if isinstance(level, str):
         if level.count('info'):
             level = logging.INFO
@@ -64,7 +71,7 @@ def configure(taskoutpathIN, doSaveToDisk=0, doWriteStdOut=0):
     formatter = logging.Formatter('%(message)s')
     # Config logger to save transcript of log messages to plain-text file
     if doSaveToDisk:
-        # birth-vtranscript.txt logs everything
+        # birth-transcript-verbose.txt logs all messages that describe births
         fh = logging.FileHandler(
             os.path.join(
                 taskoutpath,
@@ -73,11 +80,11 @@ def configure(taskoutpathIN, doSaveToDisk=0, doWriteStdOut=0):
         fh.setFormatter(formatter)
         Log.addHandler(fh)
 
-        # birth-transcript.txt logs high-level messages
+        # birth-transcript-summary.txt logs one summary message per lap
         fh = logging.FileHandler(
             os.path.join(
                 taskoutpath,
-                "birth-transcript.txt"))
+                "birth-transcript-summary.txt"))
         fh.setLevel(logging.DEBUG + 1)
         fh.setFormatter(formatter)
         Log.addHandler(fh)
@@ -115,5 +122,5 @@ def makeFunctionToPrettyPrintCounts(initSS):
                     s += emptyVal
         if cleanupSizeThr:
             s += " (removed %d units from comps below minimum size of %d)" % (cleanupMassRemoved, cleanupSizeThr)
-        pprint('  ' + s, 'info')
+        pprint('  ' + s)
     return pprintCountVec

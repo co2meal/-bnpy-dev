@@ -257,11 +257,13 @@ class MemoVBMovesAlg(LearnAlg):
         # Try each planned birth
         SSbatch.propXSS = dict()
         if 'BirthTargetUIDs' in MovePlans:
-            BLogger.pprint(
-                'EXPANSION local step at lap %.2f ==========' % (lapFrac))
             # Loop thru copy of the target comp UID list
             # So that we can remove elements from it within the loop
             for ii, targetUID in enumerate(list(MovePlans['BirthTargetUIDs'])):
+                if ii == 0:
+                    BLogger.pprint(
+                        'CREATING birth proposals at lap %.2f' % (lapFrac))
+
                 BLogger.startUIDSpecificLog(targetUID)
                 if hasattr(SS, 'propXSS') and targetUID in SS.propXSS:
                     SSbatch.propXSS[targetUID] = assignSplitStats(
@@ -272,7 +274,7 @@ class MemoVBMovesAlg(LearnAlg):
                         LPkwargs=LPkwargs,
                         lapFrac=lapFrac,
                         **self.algParams['birth'])
-                    BLogger.pprint('... expansion assignment done.', 'debug')
+                    BLogger.pprint('... expansion assignment done.')
                 else:
                     try:
                         newUIDs = self.makeNewUIDs(**self.algParams['birth'])
@@ -285,10 +287,11 @@ class MemoVBMovesAlg(LearnAlg):
                                 LPkwargs=LPkwargs,
                                 lapFrac=lapFrac,
                                 **self.algParams['birth'])
-                        BLogger.pprint('... expansion proposal creation done.', 'debug')
+                        BLogger.pprint('  Success. Created %d clusters.' % (
+                            Info['Kfinal']))
                     except BirthProposalError as e:
-                        BLogger.pprint('  ' + str(e))
                         MovePlans['BirthTargetUIDs'].remove(targetUID)
+                        MovePlans['b_curPlan_FailUIDs'].append(targetUID)
                         if targetUID not in MoveRecordsByUID:
                             MoveRecordsByUID[targetUID] = defaultdict(int)
                         MoveRecordsByUID[targetUID]['b_nTrial'] += 1
@@ -300,6 +303,7 @@ class MemoVBMovesAlg(LearnAlg):
                             curSSwhole.uid2k(targetUID)]
                         MoveRecordsByUID[targetUID]['b_latestCount'] = \
                             targetCount
+                        BLogger.pprint('  Failed. ' + str(e))
                 BLogger.stopUIDSpecificLog(targetUID)
 
         # Prepare deletes
@@ -484,20 +488,20 @@ class MemoVBMovesAlg(LearnAlg):
             msg = "MERGE @ lap %.2f: Disabled." + \
                 " Cannot plan merge on first lap." + \
                 " Need valid SS that represent whole dataset."
-            MLogger.pprint(msg % (ceilLap))
+            MLogger.pprint(msg % (ceilLap), 'info')
             return MovePlans
 
         startLap = self.algParams['merge']['m_startLap']
         if np.ceil(lapFrac) < startLap:
             msg = "MERGE @ lap %.2f: Disabled." + \
                 " Waiting for lap >= %d (--m_startLap)."
-            MLogger.pprint(msg % (ceilLap, startLap))
+            MLogger.pprint(msg % (ceilLap, startLap), 'info')
             return MovePlans
         stopLap = self.algParams['merge']['m_stopLap']
         if stopLap > 0 and np.ceil(lapFrac) >= stopLap:
             msg = "MERGE @ lap %.2f: Disabled." + \
                 " Beyond lap %d (--m_stopLap)."
-            MLogger.pprint(msg % (ceilLap, stopLap))
+            MLogger.pprint(msg % (ceilLap, stopLap), 'info')
             return MovePlans
 
         MArgs = self.algParams['merge']
@@ -513,7 +517,7 @@ class MemoVBMovesAlg(LearnAlg):
             del MPlan['mPairIDs']
             msg = "MERGE @ lap %.2f: Ineligible." + \
                 " No promising candidates."
-            MLogger.pprint(msg % (ceilLap))
+            MLogger.pprint(msg % (ceilLap), 'info')
 
         else:
             MPlan['doPrecompMergeEntropy'] = 1
@@ -567,17 +571,34 @@ class MemoVBMovesAlg(LearnAlg):
         MovePlans : dict
             * BirthTargetUIDs : list of uids (ints) indicating comps to target
         '''
-        if np.ceil(lapFrac) < self.algParams['birth']['b_startLap']:
-            return MovePlans
+        ceilLap = np.ceil(lapFrac)
+        startLap = self.algParams['birth']['b_startLap']
         stopLap = self.algParams['birth']['b_stopLap']
-        if stopLap > 0 and np.ceil(lapFrac) >= stopLap:
+
+        if ceilLap < startLap:
+            msg = "BIRTH @ lap %.2f: Disabled." + \
+                " Waiting for lap >= %d (--b_startLap)."
+            if self.isLastBatch(lapFrac):
+                BLogger.pprint(msg % (ceilLap, startLap), 'info')
+            return MovePlans
+        if stopLap > 0 and ceilLap >= stopLap:
+            msg = "BIRTH @ lap %.2f: Disabled." + \
+                " Beyond lap %d (--b_stopLap)."
+            if self.isLastBatch(lapFrac):            
+                BLogger.pprint(msg % (ceilLap, stopLap), 'info')
             return MovePlans
 
         if self.hasMove('birth'):
             BArgs = self.algParams['birth']    
+            msg = "PLANNING birth at lap %.3f"
+            BLogger.pprint(msg % (lapFrac))
             if SS is None:
-                MovePlans['BirthTargetUIDs'] = \
-                    np.arange(hmodel.obsModel.K).tolist()
+                K = hmodel.obsModel.K
+                BLogger.pprint("  Trying all %d clusters" % (K))
+                MovePlans['BirthTargetUIDs'] = np.arange(K).tolist()
+                MovePlans['b_curPlan_FailUIDs'] = list()
+                MovePlans['b_curPlan_nDQ_toosmall'] = 0
+                MovePlans['b_curPlan_nDQ_pastfail'] = 0
             else:
                 MovePlans = selectTargetCompsForBirth(
                     hmodel, SS,
@@ -587,6 +608,10 @@ class MemoVBMovesAlg(LearnAlg):
                     **BArgs)
             if 'BirthTargetUIDs' in MovePlans:
                 assert isinstance(MovePlans['BirthTargetUIDs'], list)
+            elif self.isLastBatch(lapFrac):
+                msg = "BIRTH @ lap %.2f: Not happening." + \
+                    " No eligible candidates."
+                BLogger.pprint(msg % (ceilLap), 'info')
 
         return MovePlans
 
@@ -607,10 +632,20 @@ class MemoVBMovesAlg(LearnAlg):
         '''
         if len(SS.propXSS.keys()) > 0:
             BLogger.pprint(
-                'EVALUATION at lap %.2f ==================' % (lapFrac))
+                'EVALUATING birth proposals at lap %.2f' % (lapFrac))
         acceptedUIDs = list()
-        nAccept = 0
-        nTrial = 0
+        if 'b_nAccept' in MovePlans:
+            nAccept = MovePlans['b_nAccept']
+        else:
+            nAccept = 0
+        if 'b_nTrial' in MovePlans:
+            nTrial = MovePlans['b_nTrial']
+        else:
+            nTrial = 0
+        if 'b_Knew' in MovePlans:
+            totalKnew = MovePlans['b_Knew']
+        else:
+            totalKnew = 0
         for targetUID in SS.propXSS.keys():
             # Skip delete proposals, which are handled differently
             if 'd_targetUIDs' in MovePlans:
@@ -627,7 +662,9 @@ class MemoVBMovesAlg(LearnAlg):
             MoveRecordsByUID[targetUID]['b_latestLap'] = lapFrac
             MoveRecordsByUID[targetUID]['b_latestCount'] = targetCount
             # Construct proposal statistics
-            BLogger.pprint('Evaluating targetUID ' + str(targetUID))
+            BLogger.pprint(
+                'Evaluating targetUID %d at lap %.2f' % (
+                    targetUID, lapFrac))
             propSS = SS.copy()
             propSS.transferMassFromExistingToExpansion(
                 uid=targetUID, xSS=SS.propXSS[targetUID])
@@ -640,15 +677,15 @@ class MemoVBMovesAlg(LearnAlg):
             if propLscore > Lscore:
                 nAccept += 1
                 BLogger.pprint(
-                    '   ACCEPTED. gainLtotal % .2f' % (propLscore-Lscore))
+                    '   Accepted. gain % .2e' % (propLscore-Lscore))
                 BLogger.pprint(
-                    "   Mass transfered to new comps: %.2f" % (
+                    "    Mass transfered to new comps: %.2f" % (
                         SS.getCountVec()[ktarget] - \
                             propSS.getCountVec()[ktarget]))
                 BLogger.pprint(
-                    "   Remaining mass at targetUID %d: %.2f" % (
+                    "    Remaining mass at targetUID %d: %.2f" % (
                         targetUID, propSS.getCountVec()[ktarget]))
-
+                totalKnew += propSS.K - SS.K
                 MoveRecordsByUID[targetUID]['b_nSuccess'] += 1
                 MoveRecordsByUID[targetUID]['b_nFailRecent'] = 0
                 MoveRecordsByUID[targetUID]['b_nSuccessRecent'] += 1
@@ -666,7 +703,6 @@ class MemoVBMovesAlg(LearnAlg):
                 SS = propSS
                 MovePlans['BirthTargetUIDs'].remove(targetUID)
                 del SS.propXSS[targetUID]
-
             else:
                 propLdata = propModel.obsModel.calc_evidence(
                     None, propSS, None)
@@ -674,7 +710,7 @@ class MemoVBMovesAlg(LearnAlg):
                 nAtoms = hmodel.obsModel.getDatasetScale(SS)
                 gainLdata = (propLdata - curLdata) / nAtoms
                 BLogger.pprint(
-                    '   REJECTED. gainLtotal % .2f' % (propLscore-Lscore))
+                    '   Rejected. gain % .2e' % (propLscore-Lscore))
                 if gainLdata > 0.01:
                     BLogger.pprint(
                         '   Retained. gainLdata % .2f is promising' % (
@@ -689,10 +725,31 @@ class MemoVBMovesAlg(LearnAlg):
                     MoveRecordsByUID[targetUID]['b_nSuccessRecent'] = 0
             BLogger.stopUIDSpecificLog(targetUID)
 
-        msg = "BIRTH @ lap %.2f : %d/%d accepted."
-        msg = msg % (
-            lapFrac, nAccept, nTrial)
-        BLogger.pprint(msg)
+        if 'b_nFailedProp' not in MovePlans:
+            MovePlans['b_nFailedProp'] = 0
+        if 'b_curPlan_FailUIDs' in MovePlans:
+            MovePlans['b_nFailedProp'] += len(MovePlans['b_curPlan_FailUIDs'])
+            nTrial += len(MovePlans['b_curPlan_FailUIDs'])
+
+        MovePlans['b_Knew'] = totalKnew
+        MovePlans['b_nAccept'] = nAccept
+        MovePlans['b_nTrial'] = nTrial
+        if self.isLastBatch(lapFrac):
+            if nTrial > 0:
+                msg = "BIRTH @ lap %.2f : Added %d states in %d proposals." \
+                    + " %d/%d succeeded. %d/%d failed construction."
+                msg = msg % (
+                    lapFrac, totalKnew, nTrial, 
+                    nAccept, nTrial,
+                    MovePlans['b_nFailedProp'], nTrial)
+                BLogger.pprint(msg, 'info')
+            elif MovePlans['b_nFailedProp'] > 0:
+                msg = "BIRTH @ lap %.2f : %d failed proposals."
+                msg = msg % (
+                    lapFrac,
+                    MovePlans['b_nFailedProp'])
+                BLogger.pprint(msg, 'info')
+
         return hmodel, SS, Lscore, MoveLog, MoveRecordsByUID
 
     def runMoves_Merge(self, hmodel, SS, Lscore, MovePlans,
@@ -784,8 +841,7 @@ class MemoVBMovesAlg(LearnAlg):
                 " Ndiff %.2f. %d skipped."
             msg = msg % (
                 lapFrac, nAccept, nTrial, Ndiff, nSkip)
-            MLogger.pprint(msg)
-            self.print_msg(msg)
+            MLogger.pprint(msg, 'info')
         # Finally, set all merge fields to zero,
         # since all possible merges have been accepted
         SS.removeMergeTerms()
@@ -962,7 +1018,25 @@ class MemoVBMovesAlg(LearnAlg):
             return False
 
         if self.hasMove('birth'):
-            hasMovesLeft_Birth = True
+            nStuck = self.algParams['birth']['b_nStuckBeforeQuit']
+            startLap = self.algParams['birth']['b_startLap']
+            stopLap = self.algParams['birth']['b_stopLap']
+            if stopLap < 0:
+                stopLap = np.inf
+            if lapFrac > stopLap:
+                hasMovesLeft_Birth = False
+            elif (lapFrac > startLap + nStuck):
+                # If tried for at least nStuck laps without accepting,
+                # we consider the method exhausted and exit early.
+                lapLastAccepted = np.max(
+                    [MoveRecordsByUID[u]['b_latestLapAccept']
+                        for u in MoveRecordsByUID])
+                if (lapFrac - lapLastAccepted) > nStuck:
+                    hasMovesLeft_Birth = False
+                else:
+                    hasMovesLeft_Birth = True
+            else:
+                hasMovesLeft_Birth = True
         else:
             hasMovesLeft_Birth = False
 

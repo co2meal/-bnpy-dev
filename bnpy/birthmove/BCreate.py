@@ -85,7 +85,7 @@ def createSplitStats(
     if nnzCount < 2:
         raise BirthProposalError(
             "Could not create at least two comps" + \
-            " with mass >= %.1f, set via --%s" % (
+            " with mass >= %.1f (--%s)" % (
                 minCount, 'b_minNumAtomsForNewComp'))
     # If here, we have a valid proposal. 
     # Need to verify mass conservation
@@ -149,6 +149,11 @@ def createSplitStats_BregDiv(
     BLogger.pprint(DebugInfo['targetAssemblyMsg'])
     if xSSfake is None:
         return None, DebugInfo
+    BLogger.pprint('  Initialized Bregman clustering with %d clusters.' % (
+        xSSfake.K))
+    BLogger.pprint('  Running %d refinement iterations (--b_nRefineSteps)' % (
+        b_nRefineSteps))
+
     # Record some debug info about the new states
     xSSfake.setUIDs(newUIDs[:xSSfake.K])
     strUIDs = vec2str(xSSfake.uids)
@@ -232,6 +237,7 @@ def createSplitStats_BregDiv(
         if nnzCount < 2:
             break
 
+    DebugInfo['Kfinal'] = xSSslice.K
     if b_debugOutputDir:
         savefilename = os.path.join(
             b_debugOutputDir, 'ProposalTrace_ELBO.png')

@@ -32,6 +32,8 @@ def cleanupMergeClusters(
         xSSslice, curModel,
         obsSS=None,
         vocabList=None,
+        b_cleanupMaxNumMergeIters=3,
+        b_cleanupMaxNumAcceptPerIter=1,
         b_mergeLam=None,
         b_debugOutputDir=None,
         pprintCountVec=None,
@@ -60,9 +62,10 @@ def cleanupMergeClusters(
         tmpModel.obsModel.Prior.lam[:] = b_mergeLam
 
     mergeID = 0
-    for trial in range(3):
+    for trial in range(b_cleanupMaxNumMergeIters):
         tmpModel.obsModel.update_global_params(xSSslice)
         GainLdata = tmpModel.obsModel.calcHardMergeGap_AllPairs(xSSslice)
+
         triuIDs = np.triu_indices(xSSslice.K, 1)
         posLocs = np.flatnonzero(GainLdata[triuIDs] > 0)
         if posLocs.size == 0:
@@ -74,6 +77,7 @@ def cleanupMergeClusters(
         posLocs = posLocs[sortIDs]
 
         usedUIDs = set()
+        nAccept = 0
         uidpairsToAccept = list()
         origidsToAccept = list()
         for loc in posLocs:
@@ -87,6 +91,9 @@ def cleanupMergeClusters(
             usedUIDs.add(uidB)
             uidpairsToAccept.append((uidA, uidB))
             origidsToAccept.append((kA, kB))
+            nAccept += 1
+            if nAccept >= b_cleanupMaxNumAcceptPerIter:
+                break
 
         for posID, (uidA, uidB) in enumerate(uidpairsToAccept):
             mergeID += 1

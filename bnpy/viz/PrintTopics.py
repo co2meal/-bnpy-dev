@@ -296,13 +296,18 @@ def count2str(val, width=4):
     >>> count2str(1111111111, width=4)
     ' >1B'
     '''
+    val = np.asarray(val)
     assert width >= 4
-    if val < 0.01:
-        fmt = '%' + str(width) + 's'
-        return fmt % ('<.01')
-    elif val < 1:
-        fmt = '%' + str(width) + '.2f'
-        return fmt % (val)
+    if val.dtype == np.float:
+        if val < 0.01:
+            fmt = '%' + str(width) + 's'
+            return fmt % ('<.01')
+        elif val < 1:
+            fmt = '%' + str(width) + '.2f'
+            return fmt % (val)
+    else:
+            fmt = '%' + str(width) + 'd'
+            return fmt % (val)
     val = np.round(val)
     if val < 10**(width):
         fmt = '%' + str(width) + 'd'
