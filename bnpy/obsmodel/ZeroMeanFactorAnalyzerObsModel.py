@@ -26,8 +26,10 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         WCovType = str(WCovType).lower()
         if WCovType == 'diag' or WCovType == 'full':
             self.WCovType = WCovType
+        elif WCovType == 'none': # early result, full WCov
+            self.WCovType = 'full'
         else:
-            raise NameError('Unrecognized WCov type \'%s\'!' % WCovType)
+            raise NameError('Unrecognized WCov type: %s.' % WCovType)
         self.nPostUpdate = nPostUpdate
         self.createPrior(Data, **PriorArgs)
         self.Cache = dict()
@@ -613,7 +615,12 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         self.K = K
         self.Post = ParamBag(K=K, D=D, C=C)
         self.Post.setField('WMean', WMean, dims=('K','D','C'))
-        self.Post.setField('WCov', WCov, dims=('K','D','C','C'))
+        if WCov.ndim == 4:
+            self.WCovType = 'full'
+            self.Post.setField('WCov', WCov, dims=('K','D','C','C'))
+        elif WCov.ndim == 3:
+            self.WCovType = 'diag'
+            self.Post.setField('WCov', WCov, dims=('K','D','C'))
         self.Post.setField('hShape', float(hShape))
         if hInvScale.ndim == 1:
             hInvScale = hInvScale[:, np.newaxis]
@@ -647,7 +654,7 @@ if __name__ == '__main__':
     # Data = StarCovarK5.get_data(nObsTotal=5000)
     import DeadLeavesD25
     Data = DeadLeavesD25.get_data()
-    hmodel, RInfo = bnpy.run('StarCovarK5', 'DPMixtureModel', 'ZeroMeanFactorAnalyzer', 'moVB',
+    hmodel, RInfo = bnpy.run('DeadLeavesD25', 'DPMixtureModel', 'ZeroMeanFactorAnalyzer', 'moVB',
                              C=1, nLap=100, K=1, WCovType='full', moves='birth,merge,delete,shuffle')
 
     # import matplotlib.pylab as plt

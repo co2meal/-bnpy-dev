@@ -8,9 +8,9 @@ from bnpy.data import XData
 nBatch = 50
 modelName = 'C50/10/'
 
-dataPath = '/Users/Geng/Documents/Brown/research/patch/HDP_patches/BerkSeg500/Patches_Size8x8_Stride4/'
+dataPath = '/Users/Geng/Documents/Brown/research/patch/HDP_patches/BerkSeg500/Patches_Size8x8_Stride4_noisy/'
 modelPath = '/Users/Geng/Documents/Brown/research/patch/FAPY/Half/' + modelName
-savePath = '/Users/Geng/Documents/Brown/research/patch/coOccurTest/' + modelName
+savePath = '/Users/Geng/Documents/Brown/research/patch/coOccurTest/' + modelName + '/noisy/'
 
 
 def build_img_from_lst(lst, H, W, patchH, patchW, pace):
@@ -88,7 +88,7 @@ def main(direction, reorder=True):
             kMaxImg = build_img_from_lst(kMaxX, H, W, patchH, patchW, stride)
             COMat += build_co_occur_mat(kMaxImg, direction, K)
     result = COMat / np.sum(COMat, axis=1)[:,np.newaxis]
-    savemat(savePath + 'COMat_%d_new' % direction, dict(COMat=result))
+    savemat(savePath + 'COMat_%d' % direction, dict(COMat=result))
 
 if __name__ == '__main__':
     direction = [0, 45, 90, 135]
