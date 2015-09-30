@@ -286,6 +286,8 @@ class HDPHMM(AllocModel):
             rho, omega, fofu, Info = \
                 OptimizerRhoOmega.find_optimum_multiple_tries(
                     sumLogPi=sumELogPi,
+                    sumLogPiActiveVec=None,
+                    sumLogPiRemVec=None,
                     startAlphaLogPi=self.startAlpha * startELogPi,
                     nDoc=self.K + 1,
                     gamma=self.gamma,
