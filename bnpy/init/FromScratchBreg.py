@@ -238,8 +238,8 @@ def makeDataSubsetByThresholdResp(
                 Natoms_total=Natoms_total,
                 Natoms_target=Natoms_target,
                 Natoms_targetAboveThr=Natoms_targetAboveThr,
-                errorMsg="Filtered dataset too small." + \
-                    "Wanted %d items, found %d." % (K, Keff))
+                errorMsg="Dataset too small to cluster." + \
+                    " Wanted 2 or more items, found %d." % (Keff))
             return DebugInfo, None, None, None, None
         # Assemble the target dataset
         targetData = Data.select_subset_by_mask(rowsWithEnoughData)

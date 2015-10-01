@@ -599,7 +599,7 @@ class MultObsModel(AbstractObsModel):
             Each entry is non-negative, whole vector sums to one.
         '''
         if X is None:
-            Mu = self.Prior.lam
+            Mu = self.Prior.lam.copy()
             Mu /= Mu.sum()
             return Mu
 

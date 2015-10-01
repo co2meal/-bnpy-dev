@@ -121,6 +121,7 @@ def makeFunctionToPrettyPrintCounts(initSS):
                 if not didWriteThisUID:
                     s += emptyVal
         if cleanupSizeThr:
-            s += " (removed %d units from comps below minimum size of %d)" % (cleanupMassRemoved, cleanupSizeThr)
+            s += " (removed comps below minimum size of %d)" % (
+                cleanupSizeThr)
         pprint('  ' + s)
     return pprintCountVec
