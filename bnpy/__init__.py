@@ -31,9 +31,16 @@ load_model = ioutil.ModelReader.load_model
 save_model = ioutil.ModelWriter.save_model
 
 # Configure save location
+hasOutdir = False
 hasWriteableOutdir = False
 if 'BNPYOUTDIR' in os.environ:
+    hasOutdir = True
     outdir = os.environ['BNPYOUTDIR']
+    if not os.path.exists(outdir):
+        try:
+            os.makedirs(outdir)
+        except OSError as e:
+            pass
     if os.path.exists(outdir):
         try:
             testfilepath = os.path.join(
@@ -44,9 +51,14 @@ if 'BNPYOUTDIR' in os.environ:
             sys.exit('BNPYOUTDIR not writeable: %s' % (outdir))
         hasWriteableOutdir = True
 if not hasWriteableOutdir:
-    raise ValueError(
-        'Environment variable BNPYOUTDIR not specified.' +
-        ' Cannot save results to disk')
+    if hasOutdir:
+        raise ValueError(
+            'BNPYOUTDIR has invalid value. Need valid writeable directory. \n' +
+            os.environ['BNPYOUTDIR'])
+    else:
+        raise ValueError(
+            'Environment variable BNPYOUTDIR not specified.' +
+            ' Cannot save results to disk')
 
 # Configure custom dataset directory
 if 'BNPYDATADIR' in os.environ:
