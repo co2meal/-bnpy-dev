@@ -536,12 +536,25 @@ class MemoVBMovesAlg(LearnAlg):
         MovePlans : dict
             * d_targetUIDs : list of uids to delete
         '''
+        ceilLap = np.ceil(lapFrac)
         if SS is None:
+            msg = "DELETE @ lap %.2f: Disabled." + \
+                " Cannot delete before first complete lap," + \
+                " because SS that represents whole dataset is required."
+            DLogger.pprint(msg % (ceilLap), 'info')
             return MovePlans
-        if np.ceil(lapFrac) < self.algParams['delete']['d_startLap']:
+
+        startLap = self.algParams['delete']['d_startLap']
+        if ceilLap < startLap:
+            msg = "DELETE @ lap %.2f: Disabled." + \
+                " Waiting for lap >= %d (--d_startLap)."
+            DLogger.pprint(msg % (ceilLap, startLap), 'info')
             return MovePlans
         stopLap = self.algParams['delete']['d_stopLap']
-        if stopLap > 0 and np.ceil(lapFrac) >= stopLap:
+        if stopLap > 0 and ceilLap >= stopLap:
+            msg = "DELETE @ lap %.2f: Disabled." + \
+                " Beyond lap %d (--d_stopLap)."
+            DLogger.pprint(msg % (ceilLap, stopLap), 'info')
             return MovePlans
 
         if self.hasMove('birth'):
@@ -556,7 +569,12 @@ class MemoVBMovesAlg(LearnAlg):
             MoveRecordsByUID=MoveRecordsByUID,
             lapFrac=lapFrac,
             **DArgs)
-        MovePlans.update(DPlan)
+        if 'failMsg' in DPlan:
+            DLogger.pprint(
+                'DELETE @ lap %.2f: %s' % (ceilLap, DPlan['failMsg']),
+                'info')
+        else:
+            MovePlans.update(DPlan)
         return MovePlans
 
     def makeMovePlans_Birth(self, hmodel, SS,
@@ -912,6 +930,9 @@ class MemoVBMovesAlg(LearnAlg):
         MoveLog
         MoveRecordsByUID
         '''
+        if len(MovePlans['d_targetUIDs']) > 0:
+            DLogger.pprint('EVALUATING delete @ lap %.2f' % (lapFrac))
+
         nAccept = 0
         nTrial = 0
         Ndiff = 0.0
@@ -936,6 +957,12 @@ class MemoVBMovesAlg(LearnAlg):
             propModel.update_global_params(propSS)
             propLdict = propModel.calc_evidence(SS=propSS, todict=1)
             propLscore = propLdict['Ltotal']
+
+            msg = '%d : gain % .3e' % (targetUID, propLscore-Lscore)
+            msg += "\n    curL % .3e" % (Lscore)
+            msg += "\n   propL % .3e" % (propLscore)
+            DLogger.pprint(msg)
+
             # Make decision
             if propLscore > Lscore:
                 # Accept
@@ -959,10 +986,9 @@ class MemoVBMovesAlg(LearnAlg):
                 MoveRecordsByUID[targetUID]['d_nFailRecent'] += 1
 
         if nTrial > 0:
-            msg = 'DELETE %d/%d accepted. Ndiff %.2f.' % (
-                nAccept, nTrial, Ndiff)
-            DLogger.pprint(msg)
-            self.print_msg(msg)
+            msg = 'DELETE @ lap %.2f: %d/%d accepted. Ndiff %.2f.' % (
+                lapFrac, nAccept, nTrial, Ndiff)
+            DLogger.pprint(msg, 'info')
         # Discard plans, because they have come to fruition.
         for key in MovePlans.keys():
             if key.startswith('d_'):

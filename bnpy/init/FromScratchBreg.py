@@ -7,7 +7,10 @@ Initialize suff stats for observation models via Bregman clustering.
 import numpy as np
 import bnpy.data
 
-from FromTruth import convertLPFromHardToSoft
+from FromTruth import \
+    convertLPFromHardToSoft, \
+    convertLPFromTokensToDocs, \
+    convertLPFromDocsToTokens
 
 def initSS_BregmanDiv(
         Dslice=None, 

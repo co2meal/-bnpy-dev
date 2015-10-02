@@ -31,7 +31,7 @@ def configure(taskoutpath, doSaveToDisk=0, doWriteStdOut=0):
             os.path.join(
                 taskoutpath,
                 "delete-transcript-verbose.txt"))
-        fh.setLevel(logging.DEBUG)
+        fh.setLevel(0)
         fh.setFormatter(formatter)
         Log.addHandler(fh)
 
@@ -39,7 +39,7 @@ def configure(taskoutpath, doSaveToDisk=0, doWriteStdOut=0):
         fh = logging.FileHandler(
             os.path.join(
                 taskoutpath,
-                "delete-transcript.txt"))
+                "delete-transcript-summary.txt"))
         fh.setLevel(logging.DEBUG + 1)
         fh.setFormatter(formatter)
         Log.addHandler(fh)
@@ -47,8 +47,7 @@ def configure(taskoutpath, doSaveToDisk=0, doWriteStdOut=0):
     # Config logger that can write to stdout
     if doWriteStdOut:
         ch = logging.StreamHandler(sys.stdout)
-        # ch.setLevel(logging.INFO)
-        ch.setLevel(0)        
+        ch.setLevel(logging.INFO)
         ch.setFormatter(formatter)
         Log.addHandler(ch)
     # Config null logger, avoids error messages about no handler existing

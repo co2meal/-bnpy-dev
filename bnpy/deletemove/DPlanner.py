@@ -18,8 +18,9 @@ def selectCandidateDeleteComps(
     MovePlans : dict, with fields
     * d_targetUIDs : list of ints
     '''
-    DLogger.pprint("DPLANNER: selecting target at lap %.2f" % (lapFrac))
-
+    DLogger.pprint("PLANNING delete at lap %.2f" % (lapFrac))
+    K = SS.K
+    
     # Determine uids eligible for either
     # a) being deleted, or
     # b) "absorbing" deleted comps.
@@ -32,9 +33,10 @@ def selectCandidateDeleteComps(
         for uid in MovePlans['BirthTargetUIDs']:
             eligibleUIDs.discard(uid)
     if len(eligibleUIDs) < 3:
-        # Need >2 states to absorb, and one to remove
-        DLogger.pprint("No eligible UIDs. All occupied by merge or birth.")
-        return dict()
+        failMsg = "Disabled. At least 3 UIDs" + \
+            " not occupied by merge or birth required." + \
+            " Only have %d." % (len(eligibleUIDs))
+        return dict(failMsg=failMsg)
 
     # Compute score for each eligible state
     countVec = np.maximum(SS.getCountVec(), 1e-100)
@@ -72,20 +74,32 @@ def selectCandidateDeleteComps(
         ScoreByEligibleUID[uid] = ScoreVec[k]
 
     # Log which uids were marked has high potential births
-    DLogger.pprint('UIDs disqualified for potential future birth:', 'debug')
-    DLogger.pprint(
-        '  ' + vec2str([u for u in canDoBirthList]), 'debug')
+    msg = '%d/%d UIDs un-deleteable due to potential birth proposal' % (
+        len(canDoBirthList), K)
+    DLogger.pprint(msg)
+    if len(canDoBirthList) > 0:
+        DLogger.pprint(
+            '  ' + vec2str([u for u in canDoBirthList]), 'debug')
     # Log which uids were marked has having a record.
-    DLogger.pprint('UIDs disqualified for past failures:', 'debug')
-    DLogger.pprint(
-        '  ' + vec2str([u for u in hasFailRecordList]), 'debug')
+    msg = '%d/%d UIDs un-deleteable for past failures' % (
+        len(hasFailRecordList), K)
+    DLogger.pprint(msg)
+    if len(hasFailRecordList) > 0:
+        DLogger.pprint(
+            '  ' + vec2str([u for u in hasFailRecordList]), 'debug')
     # Log all remaining eligible uids
     UIDs = [x for x in ScoreByEligibleUID.keys()]
-    DLogger.pprint('All UIDs eligible for deletion:', 'debug')
+    msg = '%d/%d UIDs eligible for targeted delete proposal' % (
+        len(UIDs), K)
+    DLogger.pprint(msg)
+    if len(UIDs) == 0:
+        failMsg = "Nope. 0 UIDs eligible for targeting." + \
+            " %d too busy with birth. %d have past failures." % (
+                len(canDoBirthList), len(hasFailRecordList))
+        return dict(failMsg=failMsg)
+
     DLogger.pprint(
         ' uid   ' + vec2str([u for u in UIDs]), 'debug')
-    if len(UIDs) == 0:
-        return dict()
     # Log eligible counts and scores
     DLogger.pprint(
         ' count ' + vec2str([countVec[SS.uid2k(u)] for u in UIDs]), 'debug')
@@ -100,6 +114,7 @@ def selectCandidateDeleteComps(
     eligibleUIDs.discard(targetUID)
     MovePlans['d_absorbingUIDSet'] = eligibleUIDs
 
+    DLogger.pprint('Selecting one single state to target.')
     DLogger.pprint('targetUID: ' + count2str(targetUID))
     DLogger.pprint('absorbingUIDs: ' + vec2str(eligibleUIDs))
 
