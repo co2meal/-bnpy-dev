@@ -1,4 +1,3 @@
-import sys
 import numpy as np
 from bnpy.suffstats import ParamBag, SuffStatBag
 from bnpy.obsmodel.AbstractObsModel import AbstractObsModel
@@ -6,7 +5,7 @@ from numpy.linalg import inv, solve, det, slogdet, eig, LinAlgError
 from scipy.linalg import eigh
 from scipy.special import psi, gammaln
 from bnpy.util import dotATA
-from bnpy.util import LOGTWOPI
+from bnpy.util import LOGTWOPI, EPS
 from IPython import embed
 
 class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
@@ -197,12 +196,12 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             else:
                 eigVal, eigVec = eigh(SS.xxT[k] / SS.N[k], eigvals=(D-C,D-1))
                 sigma2 = (np.trace(SS.xxT[k]) / SS.N[k] - np.sum(eigVal)) / (D-C)
-            if sigma2 <= 0 or not np.all(eigVal >= 0) or not np.all(eigVal - sigma2 >= 0):
+            if sigma2 <= EPS or not np.all(eigVal - sigma2 >= EPS):
                 assert np.allclose(sigma2, 0)
-                assert np.allclose(eigVal[eigVal<0], 0)
-                assert np.allclose((eigVal-sigma2)[eigVal-sigma2<0], 0)
-                sigma2 = sys.float_info.epsilon
-                eigVal[eigVal<sys.float_info.epsilon] = sys.float_info.epsilon
+                assert np.allclose(eigVal[eigVal<EPS], 0)
+                assert np.allclose((eigVal-sigma2)[eigVal-sigma2<EPS], 0)
+                sigma2 = EPS
+                eigVal[eigVal<EPS] = EPS
             PhiShape[k] = self.Prior.s + .5 * SS.N[k]
             PhiInvScale[k] = sigma2 * PhiShape[k]
             assert np.all(PhiInvScale[k] > 0)

@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pylab as plt
 from scipy.io import loadmat, savemat
+from scipy.linalg import cholesky, solve_triangular
 from math import floor
 import bnpy
 from bnpy.data import XData
@@ -10,7 +11,7 @@ modelName = 'C50/10/'
 
 dataPath = '/Users/Geng/Documents/Brown/research/patch/HDP_patches/BerkSeg500/Patches_Size8x8_Stride4_noisy/'
 modelPath = '/Users/Geng/Documents/Brown/research/patch/FAPY/Half/' + modelName
-savePath = '/Users/Geng/Documents/Brown/research/patch/coOccurTest/' + modelName + '/noisy/'
+savePath = '/Users/Geng/Documents/Brown/research/patch/coOccurTest/' + modelName + 'noisy/'
 
 
 def build_img_from_lst(lst, H, W, patchH, patchW, pace):
@@ -59,12 +60,22 @@ def build_co_occur_mat(img, dir, K):
     return result
 
 
-def main(direction, reorder=True):
+def main(direction, reorder=True, noiseStd=None):
     hmodel = bnpy.load_model(modelPath)
     K = hmodel.obsModel.K
+    w = hmodel.allocModel.get_active_comp_probs()
     if reorder:
-        w = hmodel.allocModel.get_active_comp_probs()
         kMap = dict(zip(np.argsort(-1 * w), np.arange(K)))
+    if noiseStd is not None:
+        noiseStd /= 255
+        logW = np.log(w)
+        D = hmodel.obsModel.D
+        cholCovs = np.zeros((K, D, D))
+        logdetCovs = np.zeros(K)
+        for k in xrange(K):
+            Cov = hmodel.obsModel.getGaussCov4Comp(k=k) + noiseStd**2 * np.eye(D)
+            cholCovs[k] = cholesky(Cov, lower=1)
+            logdetCovs[k] = 2 * np.sum(np.log(np.diag(cholCovs[k])))
     COMat = np.zeros((K,K))
     for b in xrange(nBatch):
         print 'processing batch %3d' % b
@@ -79,8 +90,16 @@ def main(direction, reorder=True):
             idx_start = docRange[d]
             idx_end = docRange[d+1]
             Data = XData(rawData['X'][idx_start:idx_end])
-            LP = hmodel.calc_local_params(Data)
-            kMaxX = np.argmax(LP['resp'], axis=1)
+            if noiseStd is None:
+                LP = hmodel.calc_local_params(Data)
+                kMaxX = np.argmax(LP['resp'], axis=1)
+            else:
+                resp = np.zeros((Data.nObs, K))
+                for k in xrange(K):
+                    resp[:,k] = logW[k] \
+                                - 0.5 * logdetCovs[k] \
+                                - 0.5 * _mahalDist(Data.X, cholCovs[k])
+                kMaxX = np.argmax(resp, axis=1)
             if reorder:
                 kMaxX = map(lambda x: kMap[x], kMaxX)
             H = rawData['BatchEffImgSizes'][d, 0]
@@ -88,13 +107,21 @@ def main(direction, reorder=True):
             kMaxImg = build_img_from_lst(kMaxX, H, W, patchH, patchW, stride)
             COMat += build_co_occur_mat(kMaxImg, direction, K)
     result = COMat / np.sum(COMat, axis=1)[:,np.newaxis]
-    savemat(savePath + 'COMat_%d' % direction, dict(COMat=result))
+    if noiseStd is not None:
+        suffix = '_std%d' % (noiseStd*255)
+    savemat(savePath + 'COMat_%d' % direction + suffix, dict(COMat=result))
+
+def _mahalDist(X, cholCov):
+    Q = solve_triangular(cholCov, X.T, lower=True)  # zero mean assumed here!
+    Q *= Q
+    return np.sum(Q, axis=0)
 
 if __name__ == '__main__':
     direction = [0, 45, 90, 135]
     for i in direction:
         print 'Direction: %d' % i
-        main(i)
+        main(i, noiseStd=25.0)
+
     # k = 10
     # hmodel = bnpy.load_model(modelPath)
     # PRNG = np.random.RandomState(0)
