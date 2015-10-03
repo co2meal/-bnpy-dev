@@ -27,10 +27,14 @@ def init_global_params(obsModel, Data, K=0, seed=0,
         permIDs = PRNG.permutation(Data.nObs).tolist()
         for k in xrange(K):
             resp[permIDs[k], k] = 1.0
+        aMean = PRNG.randn(K, Data.nObs, obsModel.C)
     else:
         raise NotImplementedError('Unrecognized initname ' + initname)
 
-    tempLP = dict(resp=resp)
+    if obsModel.calcXxT:
+        tempLP = dict(resp=resp)
+    else:
+        tempLP = dict(resp=resp, aMean=aMean)
     SS = SuffStatBag(K=K, D=Data.dim, C=obsModel.C)
     SS = obsModel.get_global_suff_stats(Data, SS, tempLP)
     obsModel.update_global_params(SS)

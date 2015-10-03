@@ -10,7 +10,9 @@ from IPython import embed
 
 class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
 
-    def __init__(self, inferType='VB', Data=None, C = None, WCovType = None, nPostUpdate=None, **PriorArgs):
+    def __init__(self, inferType='VB', Data=None, C = None,
+                 WCovType = None, nPostUpdate=None, calcXxT=None,
+                 **PriorArgs):
         if Data is not None:
             self.D = Data.dim
         else:
@@ -30,6 +32,7 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         else:
             raise NameError('Unrecognized WCov type: %s.' % WCovType)
         self.nPostUpdate = nPostUpdate
+        self.calcXxT = calcXxT
         self.createPrior(Data, **PriorArgs)
         self.Cache = dict()
 
@@ -84,13 +87,26 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             SS.kwargs['C'] = C
             setattr(SS._Fields, 'C', C)
 
-        # Expected outer-product for each k
         sqrtResp = np.sqrt(resp)
-        xxT = np.zeros( (K, D, D) )
-        for k in xrange(K):
-            xxT[k] = dotATA(sqrtResp[:,k][:,np.newaxis] * X)
-        SS.setField('xxT', xxT, dims=('K','D','D'))
-
+        if self.calcXxT:
+            # Expected outer-product of x for each k
+            xxT = np.zeros( (K, D, D) )
+            for k in xrange(K):
+                xxT[k] = dotATA(sqrtResp[:,k][:,np.newaxis] * X)
+            SS.setField('xxT', xxT, dims=('K','D','D'))
+        else:
+            aMean = LP['aMean']
+            # xaT and aaT
+            xaT = np.zeros( (K, D, C) )
+            aaT = np.zeros( (K, C, C) )
+            x2 = X**2
+            for k in xrange(K):
+                xaT[k] = np.dot(X.T, resp[:,k][:,np.newaxis] * aMean[k])
+                aaT[k] = dotATA(sqrtResp[:,k][:,np.newaxis] * aMean[k])
+            diagXxT = np.dot(resp.T, x2)
+            SS.setField('xaT', xaT, dims=('K','D','C'))
+            SS.setField('aaT', aaT, dims=('K','C','C'))
+            SS.setField('diagXxT', diagXxT, dims=('K','D'))
         return SS
 
   ########################################################### Local step
@@ -160,9 +176,28 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         assert self.K == self.Post.K
 
     def calcPostParams(self, SS):
-        WMean, hShape, hInvScale, PhiShape, PhiInvScale, aCov = self.initPostParams(SS)
+        if self.calcXxT:
+            WMean, hShape, hInvScale, PhiShape, PhiInvScale, aCov = self.initPostParams(SS)
+        elif hasattr(self, 'Post'):
+            WMean, hShape, hInvScale, PhiShape, PhiInvScale, aCov = \
+                (self.Post.WMean, self.Post.hShape, self.Post.hInvScale,
+                 self.Post.PhiShape, self.Post.PhiInvScale, self.Post.aCov)
+        else:
+            Prior = self.Prior
+            PRNG = np.random.RandomState()
+            WMean = PRNG.randn(SS.K, SS.D, SS.C)
+            hShape = Prior.f + .5 * SS.D
+            hInvScale = Prior.g * np.ones((SS.K, SS.C))
+            PhiShape = Prior.s * np.ones(SS.K)
+            PhiInvScale = Prior.t * np.ones((SS.K, SS.D))
+            aCov = np.tile(np.eye(SS.C),(SS.K,1,1))
+
         for ii in xrange(self.nPostUpdate):
-            xaT, aaT = self.get_xaT_aaT(SS, WMean, PhiShape, PhiInvScale, aCov)
+            if self.calcXxT:
+                xaT, aaT = self.get_xaT_aaT(SS, WMean, PhiShape, PhiInvScale, aCov)
+            else:
+                xaT = SS.xaT
+                aaT = SS.aaT + SS.N[:,np.newaxis,np.newaxis] * aCov
             WMean, WCov = self.calcPostW(SS, xaT, aaT, hShape, hInvScale, PhiShape, PhiInvScale)
             hShape, hInvScale = self.calcPostH(WMean, WCov)
             PhiShape, PhiInvScale = self.calcPostPhi(SS, xaT, aaT, WMean, WCov)
@@ -304,8 +339,11 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
                 E_WT_W +=  WCov[k][:,:,np.newaxis] * np.eye(self.C)
             elif self.WCovType == 'full':
                 E_WT_W += WCov[k]
-            PhiInvScale[k] += .5 * (np.diag(SS.xxT[k])
-                                    - 2 * np.einsum('ij,ij->i', xaT[k], WMean[k])
+            if self.calcXxT:
+                PhiInvScale[k] += 0.5 * np.diag(SS.xxT[k])
+            else:
+                PhiInvScale[k] += 0.5 * SS.diagXxT[k]
+            PhiInvScale[k] += .5 * (- 2 * np.einsum('ij,ij->i', xaT[k], WMean[k])
                                     + np.einsum('ijk,...kj->i', E_WT_W, aaT[k]))
             assert np.all(PhiInvScale[k] > 0)
         return PhiShape, PhiInvScale
@@ -386,11 +424,15 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
                        - .5 * np.dot(np.sum(np.diagonal(E_WT_W, axis1=1, axis2=2), axis=0),
                                      Post.hShape / Post.hInvScale[k])
             # terms related with a
-            L = Post.aCov[k]
-            LU = np.dot(L, np.dot(Post.WMean[k].T, np.diag(Post.PhiShape[k] / Post.PhiInvScale[k])))
-            xaT = np.inner(SS.xxT[k], LU)
-            aaT = SS.N[k]*L + np.dot(LU, xaT)
-            elbo[k] += .5 * (np.prod(slogdet(L)) + C) * SS.N[k] \
+            if self.calcXxT:
+                L = Post.aCov[k]
+                LU = np.dot(L, np.dot(Post.WMean[k].T, np.diag(Post.PhiShape[k] / Post.PhiInvScale[k])))
+                xaT = np.inner(SS.xxT[k], LU)
+                aaT = SS.N[k]*L + np.dot(LU, xaT)
+            else:
+                xaT = SS.xaT[k]
+                aaT = SS.aaT[k] + SS.N[k,np.newaxis,np.newaxis] * Post.aCov[k]
+            elbo[k] += .5 * (np.prod(slogdet(Post.aCov[k])) + C) * SS.N[k] \
                        - .5 * np.trace(aaT)
 
             # terms related with x
@@ -398,10 +440,13 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
                                 * E_WT_W, axis=0)
             elbo[k] += - .5 * (D * LOGTWOPI -
                                np.sum(psi(Post.PhiShape[k]) - np.log(Post.PhiInvScale[k]))) * SS.N[k] \
-                       - .5 * np.dot(Post.PhiShape[k] / Post.PhiInvScale[k], np.diag(SS.xxT[k])) \
                        + np.dot(Post.PhiShape[k] / Post.PhiInvScale[k],
                                 np.einsum('ij, ij->i', xaT, Post.WMean[k])) \
                        - .5 * np.einsum('ij,ji', E_WT_Phi_W, aaT)
+            if self.calcXxT:
+                elbo[k] += - .5 * np.dot(Post.PhiShape[k] / Post.PhiInvScale[k], np.diag(SS.xxT[k]))
+            else:
+                elbo[k] += - .5 * np.dot(Post.PhiShape[k] / Post.PhiInvScale[k], SS.diagXxT[k])
         return np.sum(elbo)
 
     def getDatasetScale(self, SS):
@@ -419,6 +464,8 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
     ########################################################### Merge
     ###########################################################
     def elbo4comp(self, SS, WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale,  aCov):
+        if not self.calcXxT:
+            raise NotImplementedError('Merge move is not allowed for aaT and xaT!')
         elbo = 0.0
         C = self.C
         D = self.D
@@ -463,6 +510,8 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             ---------
             gap : scalar real, indicates change in ELBO after merge of kA, kB
         '''
+        if not self.calcXxT:
+            raise NotImplementedError('Merge move is not allowed for aaT and xaT!')
         C = self.C
         D = self.D
         # elboA = self.elbo4comp(SS.getComp(kA), self.Post.WMean[kA], self.Post.WCov[kA],
@@ -495,6 +544,8 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         Gap : 2D array, size K x K, upper-triangular entries non-zero
               Gap[j,k] : scalar change in ELBO after merge of k into j
         '''
+        if not self.calcXxT:
+            raise NotImplementedError('Merge move is not allowed for aaT and xaT!')
         e = np.zeros(SS.K)
         for k in xrange(SS.K):
             # Post = self.Post
@@ -526,12 +577,16 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         Gaps : 1D array, size L
               Gap[j] : scalar change in ELBO after merge of pair in PairList[j]
         '''
+        if not self.calcXxT:
+            raise NotImplementedError('Merge move is not allowed for aaT and xaT!')
         Gaps = np.zeros(len(PairList))
         for ii, (kA, kB) in enumerate(PairList):
             Gaps[ii] = self.calcHardMergeGap(SS, kA, kB)
         return Gaps
 
     def calcPostParamsForComp(self, SS, kA=None, kB=None):
+        if not self.calcXxT:
+            raise NotImplementedError('Merge move is not allowed for aaT and xaT!')
         D = self.D
         C = self.C
         if kB is None:
@@ -553,9 +608,8 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             assert np.allclose(sigma2, 0)
             assert np.allclose(eigVal[eigVal<0], 0)
             assert np.allclose((eigVal-sigma2)[eigVal-sigma2<0], 0)
-            eps = sys.float_info.epsilon
-            sigma2 = eps
-            eigVal[eigVal<eps] = eps
+            sigma2 = EPS
+            eigVal[eigVal<EPS] = EPS
         PhiShape = self.Prior.s + .5 * SN
         PhiInvScale = sigma2 * (PhiShape) * np.ones(D)
         WMean = np.dot(eigVec[:,:C], np.diag(np.sqrt(eigVal[:C] - sigma2)))
@@ -653,8 +707,9 @@ if __name__ == '__main__':
     # Data = StarCovarK5.get_data(nObsTotal=5000)
     import DeadLeavesD25
     Data = DeadLeavesD25.get_data()
-    hmodel, RInfo = bnpy.run('DeadLeavesD25', 'DPMixtureModel', 'ZeroMeanFactorAnalyzer', 'moVB',
-                             C=1, nLap=100, K=1, WCovType='full', moves='birth,merge,delete,shuffle')
+    hmodel, RInfo = bnpy.run('StarCovarK5', 'DPMixtureModel', 'ZeroMeanFactorAnalyzer', 'moVB',
+                             C=1, nLap=200, K=5, WCovType='diag', calcXxT=0)#,
+                             #moves='birth,merge,delete,shuffle')
 
     # import matplotlib.pylab as plt
     # hmodel, RInfo = bnpy.run('/Users/Geng/Documents/Brown/research/patch/HDP_patches/BerkSeg500/Patches_Size8x8_Stride4',
@@ -695,8 +750,8 @@ if __name__ == '__main__':
     for k in xrange(hmodel.obsModel.K):
         # plt.figure(k)
         sigma = hmodel.obsModel.getGaussCov4Comp(k)
-        plotGauss2DContour(np.zeros(hmodel.obsModel.D), sigma)
         # plt.imshow(sigma, interpolation='nearest', cmap='hot', clim=[-.25, 1])
+        plotGauss2DContour(np.zeros(hmodel.obsModel.D), sigma)
     plt.show()
 
     # LP = hmodel.calc_local_params(Data)
