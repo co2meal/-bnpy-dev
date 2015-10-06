@@ -1,5 +1,5 @@
 '''
-FromScratchBreg.py
+FromScratchBregman.py
 
 Initialize suff stats for observation models via Bregman clustering.
 '''
@@ -12,6 +12,21 @@ from FromTruth import \
     convertLPFromTokensToDocs, \
     convertLPFromDocsToTokens
 
+def init_global_params(hmodel, Data, **kwargs):
+    ''' Initialize parameters of observation model.
+    
+    Post Condition
+    --------------
+    hmodel internal parameters updated to reflect sufficient statistics.
+    '''
+    SS, Info = initSS_BregmanDiv(
+        Data, hmodel, includeAllocSummary=True, **kwargs)
+    hmodel.allocModel.update_global_params(SS)
+    hmodel.obsModel.update_global_params(SS)
+
+    Info['targetSS'] = SS
+    return Info
+
 def initSS_BregmanDiv(
         Dslice=None, 
         curModel=None, 
@@ -19,7 +34,9 @@ def initSS_BregmanDiv(
         K=5, 
         ktarget=None, 
         seed=0,
-        b_NiterForBregmanKMeansInit=2,
+        includeAllocSummary=False,
+        b_NiterForBregmanKMeans=None,
+        init_NiterForBregmanKMeans=2,
         **kwargs):
     ''' Create observation model statistics via Breg. distance sampling.
 
@@ -37,6 +54,10 @@ def initSS_BregmanDiv(
     DebugInfo : dict
         contains info about provenance of this initialization.
     '''
+    if b_NiterForBregmanKMeans is None:
+        Niter = np.maximum(init_NiterForBregmanKMeans, 0)
+    else:
+        Niter = np.maximum(b_NiterForBregmanKMeans, 0)
     PRNG = np.random.RandomState(int(seed))
     DebugInfo, targetData, targetX, targetW, chosenRespIDs = \
         makeDataSubsetByThresholdResp(
@@ -54,7 +75,7 @@ def initSS_BregmanDiv(
     targetZ, Mu, Lscores = runKMeans_BregmanDiv(
         targetX, K, curModel.obsModel,
         W=targetW,
-        Niter=np.maximum(b_NiterForBregmanKMeansInit, 0),
+        Niter=Niter,
         seed=seed) 
     # Convert segmentation Z into proper local parameters dict LP
     xtargetLP = convertLPFromHardToSoft(
@@ -70,8 +91,12 @@ def initSS_BregmanDiv(
         assert np.all(xtargetLP['resp'].sum(axis=1) <= \
                       curLPslice['resp'][chosenRespIDs, ktarget] + 1e-5)
     # Summarize the local parameters
-    xSS = curModel.obsModel.get_global_suff_stats(
-        targetData, None, xtargetLP)
+    if includeAllocSummary:
+        xSS = curModel.get_global_suff_stats(
+            targetData, xtargetLP)
+    else:
+        xSS = curModel.obsModel.get_global_suff_stats(
+            targetData, None, xtargetLP)
     # Reorder the components from big to small
     bigtosmall = np.argsort(-1 * xSS.getCountVec())
     xSS.reorderComps(bigtosmall)
@@ -273,6 +298,10 @@ def makeDataSubsetByThresholdResp(
             chosenRespIDs = None
             Natoms_target = targetX.shape[0]
             Natoms_targetAboveThr = targetX.shape[0]
+            targetAssemblyMsg = \
+                "  Using all %d/%d atoms for initialization." % (
+                    Natoms_target, Natoms_total)
+
         else:
             chosenRespIDs = np.flatnonzero(
                 curLP['resp'][:,ktarget] > 

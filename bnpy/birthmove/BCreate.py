@@ -14,7 +14,7 @@ from bnpy.viz.ProposalViz import plotDocUsageForProposal
 from bnpy.viz.ProposalViz import makeSingleProposalHTMLStr
 from bnpy.viz.PrintTopics import vec2str
 
-from bnpy.init.FromScratchBreg import initSS_BregmanDiv
+from bnpy.init.FromScratchBregman import initSS_BregmanDiv
 
 DefaultLPkwargs = dict(
     restartLP=1,

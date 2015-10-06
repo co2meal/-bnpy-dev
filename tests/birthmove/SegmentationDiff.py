@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import bnpy
 import BarsK10V900
@@ -27,28 +28,59 @@ b_kwargs = dict(
     )
 
 def main():
-    Data = BarsK10V900.get_data(nDocTotal=40, nWordsPerDoc=500)
-    pathA = "/data/liv/xdump/BarsK10V900/btest-nDoc=40-b_minPerc=0.1/3/"
-    pathB = "/data/liv/xdump/BarsK10V900/btest-nDoc=40-b_minPerc=0.1/2/"
+    nDoc = 100
+    Data = BarsK10V900.get_data(nDocTotal=nDoc, nWordsPerDoc=500, seed=12345)
+    pathA = "$BNPYOUTDIR/BarsD100K10/seattle-alg=bnpyDPbirthmerge-lik=Mult-lam=0.1-K=10-initname=randexamples-nBatch=1/1/"
+    pathB = "$BNPYOUTDIR/BarsD100K10/seattle-alg=bnpyDPbirthmerge-lik=Mult-lam=0.1-K=50-initname=randexamples-nBatch=1/1/"
     aM, aLP, aSS, aLscore = loadModelWithLPSSandLscore(Data, pathA, 'A')
     bM, bLP, bSS, bLscore = loadModelWithLPSSandLscore(Data, pathB, 'B')
 
     bZ = bLP['resp'].argmax(axis=1)
-    ktarget = bZ[32]
-    targetUID = bSS.uids[ktarget]
+    aZ = aLP['resp'].argmax(axis=1)
 
-    docIDsInClusterWith32 = np.flatnonzero(bZ == ktarget)
+    aaZ = alignEstimatedStateSeqToTruth(aZ, bZ)    
+    offDocIDs = np.flatnonzero(aaZ != bZ)
+
+    from IPython import embed; embed()
+
+    return
+    #for doc in offDocIDs:
+    #  ktarget = aaZ[doc]
+    #  targetUID = bSS.uids[ktarget]
+    #  cLP = copy.deepcopy(bLP)
+    #  cLP['resp'][doc,:] = 1e-40
+    #  cLP['resp'][doc,ktarget] = 1.0
+    #  calcLscoreFromModel(Data, bM, cLP, 'B swap doc %d' % (doc))
+    #  bnpy.viz.BarsViz.plotExampleBarsDocs(Data, docIDsToPlot=[doc], vmax=10)
 
     cLP = copy.deepcopy(bLP)
-    cLP['resp'][10,:] = 1e-40
-    cLP['resp'][10,10] = 1.0
-    calcLscoreFromModel(Data, bM, cLP, 'B swap 10')
+    for doc in offDocIDs:
+      ktarget = aaZ[doc]
+      targetUID = bSS.uids[ktarget]
+      cLP['resp'][doc,:] = 1e-40
+      cLP['resp'][doc,ktarget] = 1.0
+    calcLscoreFromModel(
+        Data, bM, cLP, 'B swap both')
+    
+    for doc in offDocIDs:
+        cLP = dict(
+            resp=np.hstack([bLP['resp'], 1e-40 * np.ones((nDoc,1))])
+            )
+        cLP['resp'][doc,:] = 1e-40
+        cLP['resp'][doc,-1] = 1.0
+        calcLscoreFromModel(Data, bM, cLP, 'B new doc %d' % (doc))
+    
+    
+    pylab.show(block=0)
+    pylab.draw()
+    from IPython import embed; embed()
+    return 
+    #cLP = copy.deepcopy(bLP)
+    #cLP['resp'][32,:] = 1e-40
+    #cLP['resp'][32,10] = 1.0
+    #calcLscoreFromModel(Data, bM, cLP, 'B swap 32')
 
-    cLP = copy.deepcopy(bLP)
-    cLP['resp'][32,:] = 1e-40
-    cLP['resp'][32,10] = 1.0
-    calcLscoreFromModel(Data, bM, cLP, 'B swap 32')
-
+    return
     cLP = copy.deepcopy(bLP)
     cLP['resp'][32,:] = 1e-40
     cLP['resp'][32,10] = 1.0
@@ -106,16 +138,16 @@ def calcLscoreFromModel(Data, M, LP=None, label=''):
     SS = M.get_global_suff_stats(Data, LP, doPrecompEntropy=1)
     M.update_global_params(SS)
     Lscore = M.calc_evidence(SS=SS)
-    print "%15s K=%d  L=%.3f Ntotal=%.2f" % (label, SS.K, Lscore, SS.N.sum())
+    print "%15s K=%d  L=%.5f Ntotal=%.2f" % (label, SS.K, Lscore, SS.N.sum())
     return M, LP, SS, Lscore        
 
 def loadModelWithLPSSandLscore(Data, path, label=''):
-    M = bnpy.load_model(path)
+    M = bnpy.load_model(os.path.expandvars(path))
     LP = M.calc_local_params(Data)
     SS = M.get_global_suff_stats(Data, LP, doPrecompEntropy=1)
     M.update_global_params(SS)
     Lscore = M.calc_evidence(SS=SS)
-    print "%15s K=%d  L=%.3f Ntotal=%.2f" % (label, SS.K, Lscore, SS.N.sum())
+    print "%15s K=%d  L=%.5f Ntotal=%.2f" % (label, SS.K, Lscore, SS.N.sum())
     return M, LP, SS, Lscore
 
 if __name__ == "__main__":

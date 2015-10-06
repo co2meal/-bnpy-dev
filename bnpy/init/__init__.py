@@ -8,6 +8,7 @@ import FromLP
 import FromScratchGauss
 import FromScratchMult
 import FromScratchBern
+import FromScratchBregman
 
 # from FromScratchMult import initSSByBregDiv_Mult
 # from FromScratchBern import initSSByBregDiv_Bern
