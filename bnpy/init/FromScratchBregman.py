@@ -66,7 +66,7 @@ def initSS_BregmanDiv(
             del kwargs[key]
     if 'NiterForBregmanKMeans' in kwargs:
         NiterForBregmanKMeans = kwargs['NiterForBregmanKMeans']
-    
+
     Niter = np.maximum(NiterForBregmanKMeans, 0)
     PRNG = np.random.RandomState(int(seed))
     DebugInfo, targetData, targetX, targetW, chosenRespIDs = \
@@ -102,6 +102,9 @@ def initSS_BregmanDiv(
                       curLPslice['resp'][chosenRespIDs, ktarget] + 1e-5)
     # Summarize the local parameters
     if includeAllocSummary:
+        if hasattr(curModel.allocModel, 'initLPFromResp'):
+            xtargetLP = curModel.allocModel.initLPFromResp(
+                targetData, xtargetLP)
         xSS = curModel.get_global_suff_stats(
             targetData, xtargetLP)
     else:
