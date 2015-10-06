@@ -110,6 +110,7 @@ def parseKeywordArgs(ReqArgs, **kwargs):
     # into a multi-level dict, with section names like
     # 'EM', 'Gauss', 'MixModel', 'Init', etc.
     kwargs = organizeParsedArgDictIntoSections(ReqArgs, Moves, kwargs)
+    kwargs['MoveNames'] = [movestr for movestr in Moves]
     return kwargs, unkDict
 
 

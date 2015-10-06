@@ -3,6 +3,8 @@ Implementation of parallel memoized variational algorithm for bnpy models.
 '''
 import numpy as np
 import multiprocessing
+import ElapsedTimeLogger 
+
 from collections import defaultdict
 
 from bnpy.birthmove import createSplitStats, assignSplitStats, BLogger
@@ -192,10 +194,12 @@ class MemoVBMovesAlg(LearnAlg):
             # Custom func hook
             self.eval_custom_func(**makeDictOfAllWorkspaceVars(**vars()))
 
-            if isConverged and \
-                    self.isLastBatch(lapFrac) and \
+            if self.isLastBatch(lapFrac):
+                ElapsedTimeLogger.writeToLogOnLapCompleted(lapFrac)
+
+                if isConverged and \
                     nLapsCompleted >= self.algParams['minLaps']:
-                break
+                    break
             prevCountVec = countVec.copy()
             prevLscore = Lscore
             # .... end loop over data
@@ -239,13 +243,17 @@ class MemoVBMovesAlg(LearnAlg):
         LPkwargs = self.algParamsLP
         LPkwargs.update(MovePlans)
         # Do the real work here: calc local params and summaries
+        ElapsedTimeLogger.startEvent('local', 'update')
         LPbatch = curModel.calc_local_params(Dbatch, **LPkwargs)
+        ElapsedTimeLogger.stopEvent('local', 'update')
+
+        ElapsedTimeLogger.startEvent('local', 'summary')
         SSbatch = curModel.get_global_suff_stats(
             Dbatch, LPbatch, doPrecompEntropy=1,
             doTrackTruncationGrowth=1, **MovePlans)
-
         if 'm_UIDPairs' in MovePlans:
             SSbatch.setMergeUIDPairs(MovePlans['m_UIDPairs'])
+        ElapsedTimeLogger.stopEvent('local', 'summary')
 
         # Prepare whole-dataset stats
         if SS is None:
@@ -257,6 +265,7 @@ class MemoVBMovesAlg(LearnAlg):
         # Try each planned birth
         SSbatch.propXSS = dict()
         if 'BirthTargetUIDs' in MovePlans:
+            ElapsedTimeLogger.startEvent('birth', 'localexpansion')
             # Loop thru copy of the target comp UID list
             # So that we can remove elements from it within the loop
             for ii, targetUID in enumerate(list(MovePlans['BirthTargetUIDs'])):
@@ -305,9 +314,11 @@ class MemoVBMovesAlg(LearnAlg):
                             targetCount
                         BLogger.pprint('  Failed. ' + str(e))
                 BLogger.stopUIDSpecificLog(targetUID)
+            ElapsedTimeLogger.stopEvent('birth', 'localexpansion')
 
         # Prepare deletes
         if 'd_targetUIDs' in MovePlans:
+            ElapsedTimeLogger.startEvent('delete', 'localexpansion')
             targetUID = MovePlans['d_targetUIDs'][0]
             # Make copy of current suff stats (minus target state)
             # to inspire reclustering of junk state.
@@ -328,6 +339,7 @@ class MemoVBMovesAlg(LearnAlg):
                 LPkwargs=LPkwargs,
                 keepTargetCompAsEmpty=0,
                 mUIDPairs=mUIDPairs)
+            ElapsedTimeLogger.stopEvent('delete', 'localexpansion')
         return SSbatch
 
     def incrementWholeDataSummary(
@@ -341,6 +353,7 @@ class MemoVBMovesAlg(LearnAlg):
         SS : SuffStatBag
             represents whole dataset seen thus far.
         '''
+        ElapsedTimeLogger.startEvent('global', 'increment')
         if SS is None:
             SS = SSbatch.copy()
         else:
@@ -363,6 +376,7 @@ class MemoVBMovesAlg(LearnAlg):
                 hmodel.allocModel.forceSSInBounds(SS)
             if hasattr(hmodel.obsModel, 'forceSSInBounds'):
                 hmodel.obsModel.forceSSInBounds(SS)
+        ElapsedTimeLogger.stopEvent('global', 'increment')
         return SS
 
     def loadBatchAndFastForward(self, batchID, lapFrac, MoveLog, doCopy=0):
@@ -377,6 +391,7 @@ class MemoVBMovesAlg(LearnAlg):
         LastUpdateLap attribute will indicate batchID was updated at lapFrac,
         unless working with a copy not raw memory (doCopy=1).
         '''
+        ElapsedTimeLogger.startEvent('global', 'loadbatch')
         try:
             SSbatch = self.SSmemory[batchID]
         except KeyError:
@@ -424,6 +439,7 @@ class MemoVBMovesAlg(LearnAlg):
         SSbatch.removeMergeTerms()
         if not doCopy:
             self.LastUpdateLap[batchID] = lapFrac
+        ElapsedTimeLogger.stopEvent('global', 'loadbatch')
         return SSbatch
 
     def globalStep(self, hmodel, SS, lapFrac):
@@ -433,8 +449,8 @@ class MemoVBMovesAlg(LearnAlg):
         ---------
         hmodel global parameters updated in place.
         '''
+        ElapsedTimeLogger.startEvent('global', 'update')
         doFullPass = self.algParams['doFullPassBeforeMstep']
-
         if self.algParams['doFullPassBeforeMstep'] == 1:
             if lapFrac >= 1.0:
                 hmodel.update_global_params(SS)
@@ -444,6 +460,7 @@ class MemoVBMovesAlg(LearnAlg):
                 hmodel.update_global_params(SS)
         else:
             hmodel.update_global_params(SS)
+        ElapsedTimeLogger.stopEvent('global', 'update')
         return hmodel
 
     def makeMovePlans(self, hmodel, SS, 
@@ -458,17 +475,23 @@ class MemoVBMovesAlg(LearnAlg):
         if isFirst:
             MovePlans = dict()
         if self.hasMove('birth'):
+            ElapsedTimeLogger.startEvent('birth', 'plan')
             MovePlans = self.makeMovePlans_Birth(
                 hmodel, SS, 
                 lapFrac=lapFrac, MovePlans=MovePlans, **kwargs)
+            ElapsedTimeLogger.stopEvent('birth', 'plan')
         if isFirst and self.hasMove('merge'):
+            ElapsedTimeLogger.startEvent('merge', 'plan')
             MovePlans = self.makeMovePlans_Merge(
                 hmodel, SS, 
                 lapFrac=lapFrac, MovePlans=MovePlans, **kwargs)
+            ElapsedTimeLogger.stopEvent('merge', 'plan')
         if isFirst and self.hasMove('delete'):
+            ElapsedTimeLogger.startEvent('delete', 'plan')
             MovePlans = self.makeMovePlans_Delete(
                 hmodel, SS, 
                 lapFrac=lapFrac, MovePlans=MovePlans, **kwargs)
+            ElapsedTimeLogger.stopEvent('delete', 'plan')
         return MovePlans
 
     def makeMovePlans_Merge(self, hmodel, SS,
@@ -648,6 +671,7 @@ class MemoVBMovesAlg(LearnAlg):
         MoveLog
         MoveRecordsByUID
         '''
+        ElapsedTimeLogger.startEvent('birth', 'eval')
         if len(SS.propXSS.keys()) > 0:
             BLogger.pprint(
                 'EVALUATING birth proposals at lap %.2f' % (lapFrac))
@@ -767,7 +791,7 @@ class MemoVBMovesAlg(LearnAlg):
                     lapFrac,
                     MovePlans['b_nFailedProp'])
                 BLogger.pprint(msg, 'info')
-
+        ElapsedTimeLogger.stopEvent('birth', 'eval')
         return hmodel, SS, Lscore, MoveLog, MoveRecordsByUID
 
     def runMoves_Merge(self, hmodel, SS, Lscore, MovePlans,
@@ -787,6 +811,7 @@ class MemoVBMovesAlg(LearnAlg):
         MoveLog
         MoveRecordsByUID
         '''
+        ElapsedTimeLogger.startEvent('merge', 'eval')
         acceptedUIDs = set()
         nTrial = 0
         nAccept = 0
@@ -864,6 +889,7 @@ class MemoVBMovesAlg(LearnAlg):
         # since all possible merges have been accepted
         SS.removeMergeTerms()
         assert not hasattr(SS, 'M')
+        ElapsedTimeLogger.stopEvent('merge', 'eval')
         return hmodel, SS, Lscore, MoveLog, MoveRecordsByUID
 
     def runMoves_Shuffle(self, hmodel, SS, Lscore, MovePlans,
@@ -930,6 +956,8 @@ class MemoVBMovesAlg(LearnAlg):
         MoveLog
         MoveRecordsByUID
         '''
+        ElapsedTimeLogger.startEvent('delete', 'eval')
+
         if len(MovePlans['d_targetUIDs']) > 0:
             DLogger.pprint('EVALUATING delete @ lap %.2f' % (lapFrac))
 
@@ -993,6 +1021,7 @@ class MemoVBMovesAlg(LearnAlg):
         for key in MovePlans.keys():
             if key.startswith('d_'):
                 del MovePlans[key]
+        ElapsedTimeLogger.stopEvent('delete', 'eval')
         return hmodel, SS, Lscore, MoveLog, MoveRecordsByUID
 
     def initProgressTrackVars(self, DataIterator):

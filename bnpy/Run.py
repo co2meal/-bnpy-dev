@@ -187,6 +187,12 @@ def _run_task_internal(jobname, taskid, nTask,
         import bnpy.allocmodel.topics.LocalStepLogger as LocalStepLogger
         LocalStepLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
 
+    # Set up logging for how long each step of the alg takes.
+    import bnpy.learnalg.ElapsedTimeLogger as ElapsedTimeLogger
+    ElapsedTimeLogger.configure(
+        taskoutpath, KwArgs['MoveNames'], doSaveToDisk, doWriteStdOut)
+
+
     # Prepare special logs if we are running on the Brown CS grid
     try:
         jobID = int(os.getenv('JOB_ID'))
