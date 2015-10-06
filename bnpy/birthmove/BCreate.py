@@ -8,7 +8,7 @@ from scipy.special import digamma, gammaln
 from BCleanup import cleanupMergeClusters, cleanupDeleteSmallClusters
 from BRefine import assignSplitStats, _calc_expansion_alphaEbeta
 from BirthProposalError import BirthProposalError
-from bnpy.viz.PlotComps import plotAndSaveCompsFromSS
+from bnpy.viz.PlotComps import plotCompsFromSS
 from bnpy.viz.ProposalViz import plotELBOtermsForProposal
 from bnpy.viz.ProposalViz import plotDocUsageForProposal
 from bnpy.viz.ProposalViz import makeSingleProposalHTMLStr
@@ -132,8 +132,9 @@ def createSplitStats_BregDiv(
     if ktarget is None:
         ktarget = curSSwhole.uid2k(targetUID)
     if b_debugOutputDir:
-        plotAndSaveCompsFromSS(
-            curModel, curSSwhole, b_debugOutputDir, 'OrigComps.png',
+        plotCompsFromSS(
+            curModel, curSSwhole, 
+            os.path.join(b_debugOutputDir, 'OrigComps.png'),
             vocabList=vocabList,
             compsToHighlight=[ktarget])
     # Create suff stats for some new states
@@ -159,8 +160,9 @@ def createSplitStats_BregDiv(
     strUIDs = vec2str(xSSfake.uids)
     BLogger.pprint('   ' + strUIDs)
     if b_debugOutputDir:
-        plotAndSaveCompsFromSS(
-            curModel, xSSfake, b_debugOutputDir, 'NewComps_Init.png',
+        plotCompsFromSS(
+            curModel, xSSfake, 
+            os.path.join(b_debugOutputDir, 'NewComps_Init.png'),
             vocabList=vocabList)
         curLdict = curModel.calc_evidence(SS=curSSwhole, todict=1)
         propLdictList = list()
@@ -196,9 +198,9 @@ def createSplitStats_BregDiv(
         # Show diagnostics for new states
         pprintCountVec(xSSslice)
         if b_debugOutputDir:
-            plotAndSaveCompsFromSS(
-                curModel, xSSslice, b_debugOutputDir,
-                filename='NewComps_Step%d.png' % (i+1),
+            plotCompsFromSS(
+                curModel, xSSslice, 
+                os.path.join(b_debugOutputDir, 'NewComps_Step%d.png' % (i+1)),
                 vocabList=vocabList)
             propSS = curSSwhole.copy()
             propSS.transferMassFromExistingToExpansion(

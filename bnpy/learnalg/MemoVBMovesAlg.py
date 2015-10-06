@@ -338,7 +338,8 @@ class MemoVBMovesAlg(LearnAlg):
                 targetUID=targetUID,
                 LPkwargs=LPkwargs,
                 keepTargetCompAsEmpty=0,
-                mUIDPairs=mUIDPairs)
+                mUIDPairs=mUIDPairs,
+                lapFrac=lapFrac)
             ElapsedTimeLogger.stopEvent('delete', 'localexpansion')
         return SSbatch
 

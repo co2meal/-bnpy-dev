@@ -53,10 +53,14 @@ def selectCandidateDeleteComps(
         if uid not in MoveRecordsByUID:
             MoveRecordsByUID[uid] = defaultdict(int)
         # First criteria: avoid comps we've failed deleting in the past
-        hasFailureRecord_Delete = MoveRecordsByUID[uid]['d_nFailRecent'] > 0
-        if hasFailureRecord_Delete:
-            hasFailRecordList.append(uid)
-            continue
+        # unless they have changed by a reasonable amount.
+        nFailRecent_Delete = MoveRecordsByUID[uid]['d_nFailRecent'] > 0
+        oldsize = MoveRecordsByUID[uid]['d_latestCount']
+        if oldsize > 0 and nFailRecent_Delete > 0:
+            sizePercDiff = np.abs(size - oldsize)/(1e-100 + np.abs(oldsize))
+            if sizePercDiff <= DArgs['b_minPercChangeInNumAtomsToReactivate']:
+                hasFailRecordList.append(uid)
+                continue
         # Second: do not delete comps we have not yet tried with births
         if not BPlanner.canBirthHappenAtLap(lapFrac, **DArgs):
             eligibleForBirth = False

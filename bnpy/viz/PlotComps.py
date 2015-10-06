@@ -93,8 +93,14 @@ def plotCompsForJob(jobpath='', taskids=[1], lap=None,
         pylab.show(block=kwargs['block'])
 
 
-def plotAndSaveCompsFromSS(hmodel, SS, b_debugOutputDir, filename, **kwargs):
-    '''
+def plotCompsFromSS(hmodel, SS, outfilepath=None, **kwargs):
+    ''' Plot components defined by provided summary statistics.
+
+    Provided hmodel is just used for its hyperparameters, not current comps.
+
+    Post condition
+    --------------
+    Create matplotlib figure showing (subset of) SS.K components.
     '''
     if 'xlabels' not in kwargs:
         xlabels = uidsAndCounts2strlist(SS)
@@ -102,10 +108,10 @@ def plotAndSaveCompsFromSS(hmodel, SS, b_debugOutputDir, filename, **kwargs):
     tmpModel = hmodel.copy()
     tmpModel.obsModel.update_global_params(SS)
     plotCompsFromHModel(tmpModel, **kwargs)
-    outfilepath = os.path.join(b_debugOutputDir, filename)
-    pylab.savefig(outfilepath, pad_inches=0, bbox_inches='tight')
-    pylab.close('all')
-    print 'Wrote: %s' % (outfilepath)
+    if outfilepath is not None:
+        pylab.savefig(outfilepath, pad_inches=0)
+        pylab.close('all')
+        print 'Wrote: %s' % (outfilepath)
 
 def parseArgs(**kwargs):
     ''' Read args from stdin into defined dict fields

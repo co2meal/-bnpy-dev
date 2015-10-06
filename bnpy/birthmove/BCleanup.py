@@ -2,7 +2,7 @@ import numpy as np
 import bnpy.viz
 import os
 
-from bnpy.viz.PlotComps import plotAndSaveCompsFromSS
+from bnpy.viz.PlotComps import plotCompsFromSS
 from bnpy.viz.PrintTopics import count2str
 
 def cleanupDeleteSmallClusters(
@@ -117,8 +117,9 @@ def cleanupMergeClusters(
 
     if mergeID > 0 and b_debugOutputDir:
         tmpModel.obsModel.update_global_params(xSSslice)
-        plotAndSaveCompsFromSS(
-            tmpModel, xSSslice, b_debugOutputDir, 'NewComps_AfterMerge.png',
+        outpath = os.path.join(b_debugOutputDir, 'NewComps_AfterMerge.png')
+        plotCompsFromSS(
+            tmpModel, xSSslice, outpath,
             vocabList=vocabList,
             )
 

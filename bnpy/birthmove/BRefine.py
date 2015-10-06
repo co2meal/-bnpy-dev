@@ -222,7 +222,6 @@ def assignSplitStats_HDPTopicModel(
     else:
         order = None
     xSSslice.setUIDs(propXSS.uids)
-
     if mUIDPairs is not None and len(mUIDPairs) > 0:
         Mdict = curModel.allocModel.calcMergeTermsFromSeparateLP(
             Data=Dslice, LPa=curLPslice, SSa=curSSwhole,
