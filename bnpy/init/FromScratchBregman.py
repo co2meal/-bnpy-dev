@@ -35,8 +35,7 @@ def initSS_BregmanDiv(
         ktarget=None, 
         seed=0,
         includeAllocSummary=False,
-        b_NiterForBregmanKMeans=None,
-        init_NiterForBregmanKMeans=2,
+        NiterForBregmanKMeans=1,
         **kwargs):
     ''' Create observation model statistics via Breg. distance sampling.
 
@@ -46,7 +45,7 @@ def initSS_BregmanDiv(
 
     Keyword args
     ------------
-    b_initNiterKMeans : Number of 
+    TODO
 
     Returns
     -------
@@ -54,10 +53,21 @@ def initSS_BregmanDiv(
     DebugInfo : dict
         contains info about provenance of this initialization.
     '''
-    if b_NiterForBregmanKMeans is None:
-        Niter = np.maximum(init_NiterForBregmanKMeans, 0)
-    else:
-        Niter = np.maximum(b_NiterForBregmanKMeans, 0)
+    # Reformat any keyword argument to drop 
+    # prefix of 'b_' or 'init_'
+    for key, val in kwargs.items():
+        if key.startswith('b_'):
+            newkey = key[2:]
+            kwargs[newkey] = val
+            del kwargs[key]
+        elif key.startswith('init_'):
+            newkey = key[5:]
+            kwargs[newkey] = val
+            del kwargs[key]
+    if 'NiterForBregmanKMeans' in kwargs:
+        NiterForBregmanKMeans = kwargs['NiterForBregmanKMeans']
+    
+    Niter = np.maximum(NiterForBregmanKMeans, 0)
     PRNG = np.random.RandomState(int(seed))
     DebugInfo, targetData, targetX, targetW, chosenRespIDs = \
         makeDataSubsetByThresholdResp(
@@ -200,9 +210,11 @@ def initKMeans_BregmanDiv(
     return chosenZ, Mu, minDiv
 
 def makeDataSubsetByThresholdResp(
-        Data, curModel, curLP, ktarget,
-        b_minNumAtomsInEachTargetDoc=100,
-        b_minRespForEachTargetAtom=0.1,
+        Data, curModel, 
+        curLP=None,
+        ktarget=None,
+        minNumAtomsInEachTargetDoc=100,
+        minRespForEachTargetAtom=0.1,
         K=0,
         **kwargs):
     ''' Make subset of provided dataset by thresholding assignments.
@@ -240,11 +252,11 @@ def makeDataSubsetByThresholdResp(
         # Make nDoc x vocab_size array 
         X = Data.getSparseDocTypeCountMatrix(weights=weights)
         # Keep only rows with minimum count
-        if b_minNumAtomsInEachTargetDoc is None:
+        if minNumAtomsInEachTargetDoc is None:
             rowsWithEnoughData = np.arange(X.shape[0])
         else:
             rowsWithEnoughData = np.flatnonzero(
-                np.asarray(X.sum(axis=1)) > b_minNumAtomsInEachTargetDoc)
+                np.asarray(X.sum(axis=1)) > minNumAtomsInEachTargetDoc)
         Natoms_targetAboveThr = rowsWithEnoughData.size
 
         targetAssemblyMsg = \
@@ -253,7 +265,7 @@ def makeDataSubsetByThresholdResp(
             + " out of %d docs in current dataset." % (
                 Natoms_total) \
             + "\n  Filtering to find docs with > %d words assigned." % (
-                b_minNumAtomsInEachTargetDoc) \
+                minNumAtomsInEachTargetDoc) \
             + "\n  Found %d docs meeting this requirement." % (
                 Natoms_targetAboveThr)
 
@@ -305,14 +317,14 @@ def makeDataSubsetByThresholdResp(
         else:
             chosenRespIDs = np.flatnonzero(
                 curLP['resp'][:,ktarget] > 
-                b_minRespForEachTargetAtom)
+                minRespForEachTargetAtom)
             Natoms_target = curLP['resp'][:,ktarget].sum()
             Natoms_targetAboveThr = chosenRespIDs.size
             targetAssemblyMsg = \
                 "  Targeted comp has %.2f %s assigned out of %d." % (
                     Natoms_target, atomType, Natoms_total) \
                 + "\n  Filtering to find atoms with resp > %.2f" % (
-                    b_minRespForEachTargetAtom) \
+                    minRespForEachTargetAtom) \
                 + "\n  Found %d atoms meeting this requirement." % (
                     Natoms_targetAboveThr)
 
