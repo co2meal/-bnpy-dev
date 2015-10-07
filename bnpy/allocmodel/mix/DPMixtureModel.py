@@ -40,7 +40,7 @@ def calcELBO_LinearTerms(SS=None,
     Lglobal = K * c_Beta(gamma1, gamma0) - c_Beta(eta1, eta0)
     if afterGlobalStep:
         if todict:
-            return dict(Lglobal=Lglobal)
+            return dict(Lalloc=Lglobal)
         return Lglobal
     # Slack term only needed when not immediately after a global step.
     N0 = convertToN0(N)
@@ -49,7 +49,7 @@ def calcELBO_LinearTerms(SS=None,
     Lslack = np.inner(N + gamma1 - eta1, ElogU) + \
         np.inner(N0 + gamma0 - eta0, Elog1mU)
     if todict:
-        return dict(Lglobal=Lglobal)
+        return dict(Lalloc=Lglobal)
     return Lglobal + Lslack
 
 
