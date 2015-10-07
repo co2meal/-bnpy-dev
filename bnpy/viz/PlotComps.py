@@ -109,7 +109,7 @@ def plotCompsFromSS(hmodel, SS, outfilepath=None, **kwargs):
     tmpModel.obsModel.update_global_params(SS)
     plotCompsFromHModel(tmpModel, **kwargs)
     if outfilepath is not None:
-        pylab.savefig(outfilepath, pad_inches=0)
+        pylab.savefig(outfilepath)
         pylab.close('all')
         print 'Wrote: %s' % (outfilepath)
 

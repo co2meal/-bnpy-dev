@@ -238,8 +238,13 @@ def showTopicsAsSquareImages(topics,
         aH.axis('off')
 
     # Fix margins between subplots
-    pylab.subplots_adjust(wspace=0.04, hspace=0.04, left=0.01, right=0.99,
-                          top=0.99, bottom=0.01)
+    pylab.subplots_adjust(
+        wspace=0.1,
+        hspace=0.1 * nrows,
+        left=0.001, right=0.999,
+        bottom=0.1, top=0.999)
+    #pylab.subplots_adjust(wspace=0.04, hspace=0.04, left=0.01, right=0.99,
+    #                      top=0.99, bottom=0.01)
     return figH
 
 

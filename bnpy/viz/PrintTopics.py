@@ -334,8 +334,15 @@ def vec2str(vec, width=4):
 
 def uidsAndCounts2strlist(SS):
     countvec = SS.getCountVec()
-    return ['%5d : %s' % (
-        SS.uids[k], count2str(countvec[k])) for k in range(SS.K)]
+    if SS.hasSelectionTerm('DocUsageCount'):
+        usagevec = SS._SelectTerms.DocUsageCount
+        return ['%5d : %s \n %s docs' % (
+            SS.uids[k], 
+            count2str(countvec[k]),
+            count2str(usagevec[k])) for k in range(SS.K)]
+    else:
+        return ['%5d : %s' % (
+            SS.uids[k], count2str(countvec[k])) for k in range(SS.K)]
 
 if __name__ == "__main__":
     import argparse
