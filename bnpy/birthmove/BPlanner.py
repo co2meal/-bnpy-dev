@@ -2,6 +2,7 @@ import numpy as np
 from collections import defaultdict
 
 import BLogger
+from bnpy.viz.PrintTopics import vec2str
 
 def selectTargetCompsForBirth(
         hmodel, SS,
@@ -20,7 +21,7 @@ def selectTargetCompsForBirth(
     '''
     if 'BirthTargetUIDs' in MovePlans:
         if len(MovePlans['BirthTargetUIDs']) > 0:
-            uidStr = BLogger.vec2str(MovePlans['BirthTargetUIDs'])
+            uidStr = vec2str(MovePlans['BirthTargetUIDs'])
             BLogger.pprint(
                 'Keeping existing targetUIDs: ' + uidStr)
             return MovePlans
@@ -72,9 +73,9 @@ def selectTargetCompsForBirth(
     BLogger.pprint(msg, 'debug')
     if nDQ_toosmall > 0:
         BLogger.pprint(
-            ' uids  ' + BLogger.vec2str([u[0] for u in uidsTooSmall]), 'debug')
+            ' uids  ' + vec2str([u[0] for u in uidsTooSmall]), 'debug')
         BLogger.pprint(
-            ' sizes ' + BLogger.vec2str([u[1] for u in uidsTooSmall]), 'debug')
+            ' sizes ' + vec2str([u[1] for u in uidsTooSmall]), 'debug')
     
     BLogger.pprint(
         '%d/%d UIDs disqualified for past failures.' % (
@@ -82,10 +83,10 @@ def selectTargetCompsForBirth(
         'debug')
     if nDQ_pastfail > 0:
         BLogger.pprint(
-            ' uids  ' + BLogger.vec2str([u[0] for u in uidsWithFailRecord]),
+            ' uids  ' + vec2str([u[0] for u in uidsWithFailRecord]),
             'debug')
         BLogger.pprint(
-            ' sizes ' + BLogger.vec2str([u[1] for u in uidsWithFailRecord]),
+            ' sizes ' + vec2str([u[1] for u in uidsWithFailRecord]),
             'debug')
 
     # Finalize list of eligible UIDs
@@ -93,15 +94,15 @@ def selectTargetCompsForBirth(
 
     BLogger.pprint('%d/%d UIDs eligible' % (len(UIDs), K), 'debug')
     BLogger.pprint(
-        ' uids  ' + BLogger.vec2str(UIDs), 'debug')
+        ' uids  ' + vec2str(UIDs), 'debug')
     if len(UIDs) == 0:
         return MovePlans
     # Finalize corresponding scores
     Scores = ScoreVec[eligible_mask]
     BLogger.pprint(
-        ' sizes ' + BLogger.vec2str(countVec[eligible_mask]), 'debug')
+        ' sizes ' + vec2str(countVec[eligible_mask]), 'debug')
     BLogger.pprint(
-        ' score ' + BLogger.vec2str(Scores), 'debug')
+        ' score ' + vec2str(Scores), 'debug')
 
     # Figure out how many new states we can target this round.
     totalnewK = BArgs['b_Kfresh'] * Scores.size
@@ -115,11 +116,11 @@ def selectTargetCompsForBirth(
     BLogger.pprint('%d UIDs chosen for proposals (ranked by score)' % (
         len(keepIDs)))
     BLogger.pprint(
-        ' uids  ' + BLogger.vec2str(MovePlans['BirthTargetUIDs']))
+        ' uids  ' + vec2str(MovePlans['BirthTargetUIDs']))
     BLogger.pprint(
-        ' sizes ' + BLogger.vec2str(countVec[eligible_mask][keepIDs]), 'debug')
+        ' sizes ' + vec2str(countVec[eligible_mask][keepIDs]), 'debug')
     BLogger.pprint(
-        ' score ' + BLogger.vec2str(Scores[keepIDs]), 'debug')
+        ' score ' + vec2str(Scores[keepIDs]), 'debug')
 
     return MovePlans
     

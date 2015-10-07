@@ -385,7 +385,10 @@ class MemoVBMovesAlg(LearnAlg):
         else:
             if oldSSbatch is not None:
                 SS -= oldSSbatch
-            SS += SSbatch
+            try:
+                SS += SSbatch
+            except ValueError:
+                from IPython import embed; embed()
             if hasattr(SSbatch, 'propXSS'):
                 if not hasattr(SS, 'propXSS'):
                     SS.propXSS = dict()

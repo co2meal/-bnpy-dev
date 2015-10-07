@@ -286,6 +286,8 @@ class SuffStatBag(object):
             else:
                 self._MergeTerms = SS._MergeTerms.copy()
                 self._MergeTerms.K = self.K
+        elif self.hasMergeTerms():
+            self._MergeTerms.K = self.K
         if hasattr(self, '_SelectTerms'):
             self._SelectTerms.insertEmptyComps(SS.K)
 
