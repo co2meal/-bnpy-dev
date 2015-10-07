@@ -46,7 +46,7 @@ def cleanupMergeClusters(
         May have fewer components than K.
     '''
     xSSslice.removeELBOandMergeTerms()
-
+    xSSslice.removeSelectionTerms()
     # Discard all fields unrelated to observation model
     reqFields = set()
     for key in obsSS._Fields._FieldDims.keys():
@@ -110,7 +110,7 @@ def cleanupMergeClusters(
                     xlabels=[str(uidA), str(uidB)],
                     )
                 bnpy.viz.PlotUtil.pylab.savefig(
-                    savefilename, pad_inches=0, bbox_inches='tight')
+                    savefilename, pad_inches=0)
 
         if len(uidpairsToAccept) > 0:
             pprintCountVec(xSSslice, uidpairsToAccept=uidpairsToAccept)

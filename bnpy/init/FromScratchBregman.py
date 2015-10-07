@@ -78,6 +78,7 @@ def initSS_BregmanDiv(
             K=K,
             **kwargs)
     if targetData is None:
+        assert 'errorMsg' in DebugInfo
         return None, DebugInfo
 
     K = np.minimum(K, targetX.shape[0])

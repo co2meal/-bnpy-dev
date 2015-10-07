@@ -3,12 +3,13 @@ Implementation of parallel memoized variational algorithm for bnpy models.
 '''
 import numpy as np
 import multiprocessing
+import os
 import ElapsedTimeLogger 
 
 from collections import defaultdict
 
 from bnpy.birthmove import createSplitStats, assignSplitStats, BLogger
-from bnpy.birthmove import BirthProposalError, selectTargetCompsForBirth
+from bnpy.birthmove import selectTargetCompsForBirth
 from bnpy.mergemove import MLogger
 from bnpy.mergemove import selectCandidateMergePairs, ELBO_GAP_ACCEPT_TOL
 from bnpy.deletemove import DLogger, selectCandidateDeleteComps
@@ -242,15 +243,22 @@ class MemoVBMovesAlg(LearnAlg):
             MovePlans = dict()
         LPkwargs = self.algParamsLP
         LPkwargs.update(MovePlans)
-        # Do the real work here: calc local params and summaries
+        if self.algParams['birth']['b_debugWriteHTML']:
+            trackDocUsage = 1
+        else:
+            trackDocUsage = 0
+        # Do the real work here: calc local params
         ElapsedTimeLogger.startEvent('local', 'update')
         LPbatch = curModel.calc_local_params(Dbatch, **LPkwargs)
         ElapsedTimeLogger.stopEvent('local', 'update')
-
+        # Summary time!
         ElapsedTimeLogger.startEvent('local', 'summary')
         SSbatch = curModel.get_global_suff_stats(
-            Dbatch, LPbatch, doPrecompEntropy=1,
-            doTrackTruncationGrowth=1, **MovePlans)
+            Dbatch, LPbatch,
+            doPrecompEntropy=1,
+            doTrackTruncationGrowth=1,
+            trackDocUsage=trackDocUsage,
+            **MovePlans)
         if 'm_UIDPairs' in MovePlans:
             SSbatch.setMergeUIDPairs(MovePlans['m_UIDPairs'])
         ElapsedTimeLogger.stopEvent('local', 'summary')
@@ -266,12 +274,29 @@ class MemoVBMovesAlg(LearnAlg):
         SSbatch.propXSS = dict()
         if 'BirthTargetUIDs' in MovePlans:
             ElapsedTimeLogger.startEvent('birth', 'localexpansion')
+
             # Loop thru copy of the target comp UID list
             # So that we can remove elements from it within the loop
             for ii, targetUID in enumerate(list(MovePlans['BirthTargetUIDs'])):
                 if ii == 0:
                     BLogger.pprint(
                         'CREATING birth proposals at lap %.2f' % (lapFrac))
+
+                BArgs = self.algParams['birth'].copy()
+                if BArgs['b_debugWriteHTML']:
+                    BArgs['b_debugOutputDir'] = os.path.join(
+                        self.savedir, 
+                        'html-birth-logs',
+                        'lap=%04d_batchPos%04dof%d_targetUID=%04d' % (
+                            np.ceil(lapFrac), 
+                            np.ceil(lapFrac/self.lapFracInc),
+                            self.nBatch,
+                            targetUID))
+                    if not os.path.exists(BArgs['b_debugOutputDir']):
+                        os.makedirs(BArgs['b_debugOutputDir'])
+                    BLogger.pprint(
+                        'HTML output directory:\n' +
+                        BArgs['b_debugOutputDir'])
 
                 BLogger.startUIDSpecificLog(targetUID)
                 if hasattr(SS, 'propXSS') and targetUID in SS.propXSS:
@@ -282,23 +307,24 @@ class MemoVBMovesAlg(LearnAlg):
                         targetUID=targetUID,
                         LPkwargs=LPkwargs,
                         lapFrac=lapFrac,
-                        **self.algParams['birth'])
+                        **BArgs)
                     BLogger.pprint('... expansion assignment done.')
                 else:
-                    try:
-                        newUIDs = self.makeNewUIDs(**self.algParams['birth'])
-                        SSbatch.propXSS[targetUID], Info = \
-                            createSplitStats(
-                                Dbatch, curModel, LPbatch,
-                                curSSwhole=curSSwhole,
-                                targetUID=targetUID,
-                                newUIDs=newUIDs,
-                                LPkwargs=LPkwargs,
-                                lapFrac=lapFrac,
-                                **self.algParams['birth'])
-                        BLogger.pprint('  Success. Created %d clusters.' % (
-                            Info['Kfinal']))
-                    except BirthProposalError as e:
+                    newUIDs = self.makeNewUIDs(**self.algParams['birth'])
+                    propxSSbatch, Info = \
+                        createSplitStats(
+                            Dbatch, curModel, LPbatch,
+                            curSSwhole=curSSwhole,
+                            targetUID=targetUID,
+                            newUIDs=newUIDs,
+                            LPkwargs=LPkwargs,
+                            lapFrac=lapFrac,
+                            **BArgs)
+                    if propxSSbatch is not None:
+                        # Move on to the evaluation stage!
+                        SSbatch.propXSS[targetUID] = propxSSbatch
+                    else:
+                        # Failure.
                         MovePlans['BirthTargetUIDs'].remove(targetUID)
                         MovePlans['b_curPlan_FailUIDs'].append(targetUID)
                         if targetUID not in MoveRecordsByUID:
@@ -312,7 +338,6 @@ class MemoVBMovesAlg(LearnAlg):
                             curSSwhole.uid2k(targetUID)]
                         MoveRecordsByUID[targetUID]['b_latestCount'] = \
                             targetCount
-                        BLogger.pprint('  Failed. ' + str(e))
                 BLogger.stopUIDSpecificLog(targetUID)
             ElapsedTimeLogger.stopEvent('birth', 'localexpansion')
 

@@ -2,17 +2,17 @@ import logging
 import os
 import sys
 from collections import defaultdict
-from bnpy.viz.PrintTopics import vec2str, count2str
 
 # Configure Logger
 Log = None
+RecentMessages = None
 taskoutpath = None
 DEFAULTLEVEL = logging.DEBUG
 
 def pprint(msg, level=None):
     global Log
     global DEFAULTLEVEL
-
+    global RecentMessages
     if DEFAULTLEVEL == 'print':
         print msg
     if Log is None:
@@ -25,6 +25,8 @@ def pprint(msg, level=None):
         elif level.count('debug'):
             level = logging.DEBUG
     Log.log(level, msg)
+    if isinstance(RecentMessages, list):
+        RecentMessages.append(msg)
 
 def startUIDSpecificLog(uid=0):
     ''' Open log file (in append mode) for specific uid.
@@ -34,6 +36,7 @@ def startUIDSpecificLog(uid=0):
     Creates a log file specific to the given uid, 
     which will capture all subsequent log output.
     '''
+    global RecentMessages
     global taskoutpath
     fh = logging.FileHandler(
             os.path.join(
@@ -42,6 +45,7 @@ def startUIDSpecificLog(uid=0):
     fh.setLevel(0)
     fh.setFormatter(logging.Formatter('%(message)s'))
     Log.addHandler(fh)
+    RecentMessages = list()
 
 def stopUIDSpecificLog(uid=0):
     ''' Close log file corresponding to specific uid.
@@ -51,6 +55,7 @@ def stopUIDSpecificLog(uid=0):
     If the specified uid has an associated log open,
     then it will be closed.
     '''
+    global RecentMessages
     for i in range(len(Log.handlers)):
         fh = Log.handlers[i]
         if isinstance(fh, logging.FileHandler):
@@ -58,6 +63,7 @@ def stopUIDSpecificLog(uid=0):
                 fh.close()
                 Log.removeHandler(fh)
                 break
+    RecentMessages = None
 
 def configure(taskoutpathIN, doSaveToDisk=0, doWriteStdOut=0):
     global Log
@@ -100,6 +106,7 @@ def configure(taskoutpathIN, doSaveToDisk=0, doWriteStdOut=0):
         Log.addHandler(logging.NullHandler())
 
 def makeFunctionToPrettyPrintCounts(initSS):
+    from bnpy.viz.PrintTopics import count2str
     def pprintCountVec(SS, uids=initSS.uids, 
                        cleanupMassRemoved=None, 
                        cleanupSizeThr=None, 

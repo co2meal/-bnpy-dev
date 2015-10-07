@@ -35,7 +35,7 @@ except ImportError:
 
 def createSplitStats(
         Dslice, hmodel, curLPslice, curSSwhole=None,
-        b_creationProposalName='truelabels',
+        b_creationProposalName='bregmankmeans',
         **kwargs):
     ''' Reassign target component to new states.
 
@@ -74,34 +74,12 @@ def createSplitStats(
         htmlfilepath = os.path.join(kwargs['b_debugOutputDir'], 'index.html')
         with open(htmlfilepath, 'w') as f:
             f.write(htmlstr)
-        BLogger.pprint("WROTE HTML: " + htmlfilepath, 'debug')
 
-    # Raise error if we didn't create valid SS
-    if xSSslice is None:
-        raise BirthProposalError(DebugInfo['errorMsg'])
-    # Raise error if we didn't create enough "big-enough" states.
-    minCount = kwargs['b_minNumAtomsForNewComp']
-    nnzCount = np.sum(xSSslice.getCountVec() >= minCount)
-    if nnzCount < 2:
-        raise BirthProposalError(
-            "Could not create at least two comps" + \
-            " with mass >= %.1f (--%s)" % (
-                minCount, 'b_minNumAtomsForNewComp'))
-    # If here, we have a valid proposal. 
-    # Need to verify mass conservation
-    ktarget = curSSwhole.uid2k(kwargs['targetUID'])
-    if hasattr(Dslice, 'word_count') and \
-            hmodel.obsModel.DataAtomType.count('word'):
-        origMass = np.inner(Dslice.word_count, curLPslice['resp'][:,ktarget])
-    else:
-        origMass = curLPslice['resp'][:,ktarget].sum()
-    newMass = xSSslice.getCountVec().sum()
-    assert np.allclose(newMass, origMass, atol=1e-6, rtol=0)
     return xSSslice, DebugInfo
 
 
 
-def createSplitStats_BregDiv(
+def createSplitStats_bregmankmeans(
         Dslice, curModel, curLPslice, 
         curSSwhole=None,
         targetUID=None,
@@ -115,7 +93,7 @@ def createSplitStats_BregDiv(
         returnPropSS=0,
         vocabList=None,
         **kwargs):
-    ''' Reassign target component to new states using bregman divergence.
+    ''' Reassign target cluster to new states using Bregman K-means.
 
     Returns
     -------
@@ -131,6 +109,7 @@ def createSplitStats_BregDiv(
         vocabList = Dslice.vocabList
     if ktarget is None:
         ktarget = curSSwhole.uid2k(targetUID)
+    # Debug mode: make plot of the current model's components
     if b_debugOutputDir:
         plotCompsFromSS(
             curModel, curSSwhole, 
@@ -139,7 +118,6 @@ def createSplitStats_BregDiv(
             compsToHighlight=[ktarget])
     # Create suff stats for some new states
     xK = newUIDs.size
-
     xSSfake, DebugInfo = initSS_BregmanDiv(
         Dslice, curModel, curLPslice, 
         K=xK, 
@@ -148,13 +126,15 @@ def createSplitStats_BregDiv(
         seed=1000 * lapFrac,
         **kwargs)
     BLogger.pprint(DebugInfo['targetAssemblyMsg'])
+    # EXIT: if proposal initialization fails, quit early
     if xSSfake is None:
+        BLogger.pprint('Proposal Init Failed. ' + DebugInfo['errorMsg'])
         return None, DebugInfo
-    BLogger.pprint('  Initialized Bregman clustering with %d clusters.' % (
-        xSSfake.K))
+    # Describe the initialization.
+    BLogger.pprint('  Initialized Bregman clustering with %d clusters %s.' % (
+        xSSfake.K, '(--b_Kfresh=%d)' % kwargs['b_Kfresh']))
     BLogger.pprint('  Running %d refinement iterations (--b_nRefineSteps)' % (
         b_nRefineSteps))
-
     # Record some debug info about the new states
     xSSfake.setUIDs(newUIDs[:xSSfake.K])
     strUIDs = vec2str(xSSfake.uids)
@@ -168,15 +148,13 @@ def createSplitStats_BregDiv(
         propLdictList = list()
 
         docUsageByUID = dict()
-        for k, uid in enumerate(xSSfake.uids):
-            if k == 0 and b_includeRemainderTopic:
-                docUsage_ktarget = np.sum( 
-                    curLPslice['DocTopicCount'][:, ktarget] > 0.01)
-                docUsage_rest = docUsage_ktarget - xSSfake.K + \
-                    b_includeRemainderTopic
-                docUsageByUID[uid] = [docUsage_rest]
-            else:
-                docUsageByUID[uid] = [1]
+        if curModel.getAllocModelName().count('HDP'):
+            for k, uid in enumerate(xSSfake.uids):
+                if 'targetZ' in DebugInfo:
+                    initDocUsage_uid = np.sum(DebugInfo['targetZ'] == k)
+                else:
+                    initDocUsage_uid = 0.0
+                docUsageByUID[uid] = [initDocUsage_uid]
 
     xSSslice = xSSfake
     # Make a function to help with logging
@@ -245,20 +223,34 @@ def createSplitStats_BregDiv(
             b_debugOutputDir, 'ProposalTrace_ELBO.png')
         plotELBOtermsForProposal(curLdict, propLdictList,
                                  savefilename=savefilename)
-        GainELBO = propLdictList[-1]['Ltotal'] - curLdict['Ltotal']
-        if np.sum(xSSslice.getCountVec() > 1) < 2:
-            DebugInfo['status'] = \
-                'Rejected. Did not create >1 new comps with significant mass'
-        elif GainELBO > 0:
-            DebugInfo['status'] = \
-                'Accepted. ELBO improved by %.3f' % (GainELBO)
-        else:
-            DebugInfo['status'] = 'Rejected. ELBO did not improve.'
         if curModel.getAllocModelName().count('HDP'):
             savefilename = os.path.join(
                 b_debugOutputDir, 'ProposalTrace_DocUsage.png')
             plotDocUsageForProposal(docUsageByUID,
                                     savefilename=savefilename)
+
+    # Raise error if we didn't create enough "big-enough" states.
+    nnzCount = np.sum(xSSslice.getCountVec() >= b_minNumAtomsForNewComp)
+    if nnzCount < 2:
+        DebugInfo['errorMsg'] = \
+            "Could not create at least two comps" + \
+            " with mass >= %.1f (--%s)" % (
+                b_minNumAtomsForNewComp, 'b_minNumAtomsForNewComp')
+        BLogger.pprint('Refinement Failed. ' + DebugInfo['errorMsg'])
+        return None, DebugInfo
+
+    # If here, we have a valid proposal. 
+    # Need to verify mass conservation
+    if hasattr(Dslice, 'word_count') and \
+            curModel.obsModel.DataAtomType.count('word'):
+        origMass = np.inner(Dslice.word_count, curLPslice['resp'][:,ktarget])
+    else:
+        origMass = curLPslice['resp'][:,ktarget].sum()
+    newMass = xSSslice.getCountVec().sum()
+    assert np.allclose(newMass, origMass, atol=1e-6, rtol=0)
+    BLogger.pprint('Success. Created %d new comps.' % (
+        DebugInfo['Kfinal']))
+
     if returnPropSS:
         raise NotImplementedError("TODO")
     return xSSslice, DebugInfo
