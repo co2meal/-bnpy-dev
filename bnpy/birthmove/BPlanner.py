@@ -26,6 +26,14 @@ def selectTargetCompsForBirth(
                 'Keeping existing targetUIDs: ' + uidStr)
             return MovePlans
 
+    if BArgs['Kmax'] - SS.K <= 0:
+        BLogger.pprint(
+            "Cannot plan any more births." + \
+            " Reached upper limit of %d existing comps (--Kmax)" % (
+                BArgs['Kmax'])
+            )
+        return MovePlans
+
     countVec = SS.getCountVec()
     K = countVec.size
     countVec = np.maximum(countVec, 1e-100)
@@ -57,7 +65,7 @@ def selectTargetCompsForBirth(
             uidsTooSmall.append((uid, size))
             continue
         if hasFailureRecord:
-            uidsWithFailRecord.append((uid, nFailRecent))
+            uidsWithFailRecord.append((uid, size, nFailRecent))
             continue
         eligible_mask[ii] = 1
 
@@ -105,16 +113,32 @@ def selectTargetCompsForBirth(
         ' score ' + vec2str(Scores), 'debug')
 
     # Figure out how many new states we can target this round.
-    totalnewK = BArgs['b_Kfresh'] * Scores.size
+    # Prioritize the top comps as ranked by the Ldata score
+    # until we max out the budget of Kmax total comps.
     maxnewK = BArgs['Kmax'] - SS.K
-    # Prioritize which comps to target
-    # Keeping the first nToKeep, as ranked by the Ldata score
-    nToKeep = maxnewK // BArgs['b_Kfresh']
-    keepIDs = np.argsort(-1 * Scores)[:nToKeep]
+    totalnewK_perEligibleComp = np.minimum(
+        np.ceil(countVec[eligible_mask]), BArgs['b_Kfresh'])
+    sortorder = np.argsort(-1 * ScoreVec[eligible_mask])
+    sortedCumulNewK = np.cumsum(totalnewK_perEligibleComp[sortorder])
+    nToKeep = np.searchsorted(sortedCumulNewK, maxnewK + 0.0042)
+    if nToKeep > 0:
+        keepIDs = sortorder[:nToKeep]
+        newK = sortedCumulNewK[nToKeep-1]
+    else:
+        keepIDs = sortorder[:1]    
+        newK = maxnewK
     MovePlans['BirthTargetUIDs'] = [UIDs[s] for s in keepIDs]
 
-    BLogger.pprint('%d UIDs chosen for proposals (ranked by score)' % (
-        len(keepIDs)))
+    if nToKeep < len(UIDs):
+        BLogger.pprint(
+            'Selected %d/%d eligible UIDs to track.' % (nToKeep, len(UIDs)) + \
+            '\n Could create up to %d new clusters, %d total clusters.' % (
+                newK, newK + SS.K) + \
+            '\n Total budget allows at most %d clusters (--Kmax).' % (
+                BArgs['Kmax']),
+            )
+    BLogger.pprint('%d/%d UIDs chosen for proposals (ranked by score)' % (
+        len(keepIDs), len(UIDs)))
     BLogger.pprint(
         ' uids  ' + vec2str(MovePlans['BirthTargetUIDs']))
     BLogger.pprint(

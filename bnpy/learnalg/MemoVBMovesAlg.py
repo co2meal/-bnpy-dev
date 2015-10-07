@@ -269,7 +269,7 @@ class MemoVBMovesAlg(LearnAlg):
         else:
             SSbatch.setUIDs(SS.uids)
             curSSwhole = SS
-
+        from IPython import embed; embed()
         # Try each planned birth
         SSbatch.propXSS = dict()
         if 'BirthTargetUIDs' in MovePlans:
@@ -277,7 +277,7 @@ class MemoVBMovesAlg(LearnAlg):
 
             # Loop thru copy of the target comp UID list
             # So that we can remove elements from it within the loop
-            for ii, targetUID in enumerate(list(MovePlans['BirthTargetUIDs'])):
+            for ii, targetUID in enumerate(MovePlans['BirthTargetUIDs']):
                 if ii == 0:
                     BLogger.pprint(
                         'CREATING birth proposals at lap %.2f' % (lapFrac))
@@ -345,6 +345,8 @@ class MemoVBMovesAlg(LearnAlg):
         if 'd_targetUIDs' in MovePlans:
             ElapsedTimeLogger.startEvent('delete', 'localexpansion')
             targetUID = MovePlans['d_targetUIDs'][0]
+            if targetUID == 39 and lapFrac > 15:
+                from IPython import embed; embed()
             # Make copy of current suff stats (minus target state)
             # to inspire reclustering of junk state.
             propRemSS = curSSwhole.copy(
@@ -385,10 +387,7 @@ class MemoVBMovesAlg(LearnAlg):
         else:
             if oldSSbatch is not None:
                 SS -= oldSSbatch
-            try:
-                SS += SSbatch
-            except ValueError:
-                from IPython import embed; embed()
+            SS += SSbatch
             if hasattr(SSbatch, 'propXSS'):
                 if not hasattr(SS, 'propXSS'):
                     SS.propXSS = dict()
@@ -445,9 +444,16 @@ class MemoVBMovesAlg(LearnAlg):
                 hasStoredProposal = hasattr(SSbatch, 'propXSS') and \
                     targetUID in SSbatch.propXSS
                 if hasStoredProposal:
-                    SSbatch.transferMassFromExistingToExpansion(
-                        uid=targetUID, xSS=SSbatch.propXSS[targetUID])
-                else:
+                    cur_newUIDs = SSbatch.propXSS[targetUID].uids
+                    expected_newUIDs = np.setdiff1d(afterUIDs, beforeUIDs)
+                    sameSize = cur_newUIDs.size == expected_newUIDs.size
+                    if sameSize and np.all(cur_newUIDs == expected_newUIDs):
+                        SSbatch.transferMassFromExistingToExpansion(
+                           uid=targetUID, xSS=SSbatch.propXSS[targetUID])
+                    else:
+                        hasStoredProposal = False
+
+                if not hasStoredProposal:
                     Kfresh = afterUIDs.size - beforeUIDs.size
                     SSbatch.insertEmptyComps(Kfresh)
                     SSbatch.setUIDs(afterUIDs)
@@ -1019,7 +1025,7 @@ class MemoVBMovesAlg(LearnAlg):
             msg += "\n    curL % .3e" % (Lscore)
             msg += "\n   propL % .3e" % (propLscore)
             DLogger.pprint(msg)
-
+            
             # Make decision
             if propLscore > Lscore:
                 # Accept

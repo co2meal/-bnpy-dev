@@ -241,6 +241,7 @@ def makeDataSubsetByThresholdResp(
     '''
     if isinstance(Data, bnpy.data.WordsData):
         Natoms_total = Data.nDoc
+        Natoms_whole = Data.nDocTotal
         atomType = 'doc'
         if curLP is None:
             weights = None
@@ -266,8 +267,9 @@ def makeDataSubsetByThresholdResp(
         targetAssemblyMsg = \
             "  Targeted comp has %.2f docs with mass >eps" % (
                 Natoms_target) \
-            + " out of %d docs in current dataset." % (
+            + " out of %d docs in current data batch." % (
                 Natoms_total) \
+            + "\n  Entire dataset has %d docs." % (Natoms_whole) \
             + "\n  Filtering to find docs with > %d words assigned." % (
                 minNumAtomsInEachTargetDoc) \
             + "\n  Found %d docs meeting this requirement." % (

@@ -116,8 +116,19 @@ def createSplitStats_bregmankmeans(
             os.path.join(b_debugOutputDir, 'OrigComps.png'),
             vocabList=vocabList,
             compsToHighlight=[ktarget])
-    # Create suff stats for some new states
+    # Determine exactly how many states we can make...
     xK = newUIDs.size
+    if xK + curSSwhole.K > kwargs['Kmax']:
+        xK = kwargs['Kmax'] - curSSwhole.K
+        newUIDs = newUIDs[:xK]
+        if xK <= 1:
+            errorMsg = 'Cancelled.' + \
+                'Adding 2 or more states would exceed budget of %d comps.' % (
+                    kwargs['Kmax'])
+            BLogger.pprint(errorMsg)
+            return None, dict(errorMsg=errorMsg)
+
+    # Create suff stats for some new states
     xSSfake, DebugInfo = initSS_BregmanDiv(
         Dslice, curModel, curLPslice, 
         K=xK, 
