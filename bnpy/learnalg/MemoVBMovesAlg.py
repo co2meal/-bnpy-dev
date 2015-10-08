@@ -269,7 +269,7 @@ class MemoVBMovesAlg(LearnAlg):
         else:
             SSbatch.setUIDs(SS.uids)
             curSSwhole = SS
-        from IPython import embed; embed()
+        
         # Try each planned birth
         SSbatch.propXSS = dict()
         if 'BirthTargetUIDs' in MovePlans:
@@ -325,7 +325,7 @@ class MemoVBMovesAlg(LearnAlg):
                         SSbatch.propXSS[targetUID] = propxSSbatch
                     else:
                         # Failure.
-                        MovePlans['BirthTargetUIDs'].remove(targetUID)
+                        # MovePlans['BirthTargetUIDs'].remove(targetUID)
                         MovePlans['b_curPlan_FailUIDs'].append(targetUID)
                         if targetUID not in MoveRecordsByUID:
                             MoveRecordsByUID[targetUID] = defaultdict(int)
@@ -341,12 +341,14 @@ class MemoVBMovesAlg(LearnAlg):
                 BLogger.stopUIDSpecificLog(targetUID)
             ElapsedTimeLogger.stopEvent('birth', 'localexpansion')
 
+        if 'b_curPlan_FailUIDs' in MovePlans:
+            for failUID in MovePlans['b_curPlan_FailUIDs']:
+                MovePlans['BirthTargetUIDs'].remove(failUID)
+
         # Prepare deletes
         if 'd_targetUIDs' in MovePlans:
             ElapsedTimeLogger.startEvent('delete', 'localexpansion')
             targetUID = MovePlans['d_targetUIDs'][0]
-            if targetUID == 39 and lapFrac > 15:
-                from IPython import embed; embed()
             # Make copy of current suff stats (minus target state)
             # to inspire reclustering of junk state.
             propRemSS = curSSwhole.copy(
