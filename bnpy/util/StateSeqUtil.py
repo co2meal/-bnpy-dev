@@ -7,6 +7,8 @@ def calcHammingDistance(zTrue, zHat, excludeNegLabels=1, verbose=0,
                         **kwargs):
     ''' Compute Hamming distance: sum of all timesteps with different labels.
 
+    Normalizes result to be within [0, 1].
+
     Args
     --------
     zHat : 1D array
@@ -22,30 +24,32 @@ def calcHammingDistance(zTrue, zHat, excludeNegLabels=1, verbose=0,
     Examples
     ------
     >>> calcHammingDistance([0, 0, 1, 1], [0, 0, 1, 1])
-    0
+    0.0
     >>> calcHammingDistance([0, 0, 1, 1], [0, 0, 1, 2])
-    1
+    0.25
     >>> calcHammingDistance([0, 0, 1, 1], [1, 1, 0, 0])
-    4
+    1.0
     >>> calcHammingDistance([1, 1, 0, -1], [1, 1, 0, 0])
-    0
+    0.0
     >>> calcHammingDistance([-1, -1, -2, 3], [1, 2, 3, 3])
-    0
-    >>> calcHammingDistance([-1, -1, 0, 1], [1, 2, 1, 0])
-    2
-    >>> calcHammingDistance([-1, -1, 0, 1], [1, 2, 1, 0], excludeNegLabels=0)
-    4
+    0.0
+    >>> calcHammingDistance([-1, -1, 0, 1], [1, 2, 0, 1], excludeNegLabels=1)
+    0.0
+    >>> calcHammingDistance([-1, -1, 0, 1], [1, 2, 0, 1], excludeNegLabels=0)
+    0.5
     '''
     zHat = as1D(zHat)
     zTrue = as1D(zTrue)
     if excludeNegLabels:
         assert np.sum(zHat < 0) == 0
         good_tstep_mask = zTrue >= 0
+        nGood = np.sum(good_tstep_mask)
         if verbose and np.sum(good_tstep_mask) < zTrue.size:
             print 'EXCLUDED %d/%d timesteps' % (np.sum(zTrue < 0), zTrue.size)
         dist = np.sum(zTrue[good_tstep_mask] != zHat[good_tstep_mask])
+        dist = dist/float(nGood)
     else:
-        dist = np.sum(zTrue != zHat)
+        dist = np.sum(zTrue != zHat) / float(zHat.size)
     return dist
 
 

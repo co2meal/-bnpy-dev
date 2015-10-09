@@ -15,8 +15,7 @@ from bnpy.util.NumericUtil import sumRtimesS
 from bnpy.util.NumericUtil import inplaceLog
 from bnpy.util import as2D
 
-from lib.LibFwdBwd import FwdAlg_cpp, BwdAlg_cpp, SummaryAlg_cpp
-
+from lib.LibFwdBwd import cppReady, FwdAlg_cpp, BwdAlg_cpp, SummaryAlg_cpp
 
 def calcLocalParams(Data, LP,
                     transTheta=None, startTheta=None,
@@ -276,7 +275,7 @@ def FwdAlg(PiInit, PiMat, SoftEv):
     margPrObs : 1D array, size T
         margPrObs[t] = p( x[t] | x[1], x[2], ... x[t-1] )
     '''
-    if PlatformConfig['FwdBwdImpl'] == "cpp":
+    if cppReady() and PlatformConfig['FwdBwdImpl'] == "cpp":
         return FwdAlg_cpp(PiInit, PiMat, SoftEv)
     else:
         return FwdAlg_py(PiInit, PiMat, SoftEv)
@@ -298,7 +297,7 @@ def BwdAlg(PiInit, PiMat, SoftEv, margPrObs):
                         -------------------------------------
                         p( x[t+1], x[t+2], ... x[T] |  x[1] ... x[t])
     '''
-    if PlatformConfig['FwdBwdImpl'] == "cpp":
+    if cppReady() and PlatformConfig['FwdBwdImpl'] == "cpp":
         return BwdAlg_cpp(PiInit, PiMat, SoftEv, margPrObs)
     else:
         return BwdAlg_py(PiInit, PiMat, SoftEv, margPrObs)
@@ -396,7 +395,7 @@ def SummaryAlg(*args):
     TransStateCount
     Htable
     '''
-    if PlatformConfig['FwdBwdImpl'] == "cpp":
+    if cppReady() and PlatformConfig['FwdBwdImpl'] == "cpp":
         return SummaryAlg_cpp(*args)
     else:
         return SummaryAlg_py(*args)

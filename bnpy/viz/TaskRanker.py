@@ -74,8 +74,13 @@ def rankTasksForSingleJob(joboutpath):
     for tid, taskidstr in enumerate(taskids):
         assert isinstance(taskidstr, str)
 
-        taskELBOTrace = np.loadtxt(os.path.join(joboutpath,
-                                                taskidstr, 'evidence.txt'))
+        try:
+            taskELBOTrace = np.loadtxt(os.path.join(
+                joboutpath, taskidstr, 'evidence.txt'))
+        except IOError:
+            taskELBOTrace = np.loadtxt(os.path.join(
+                joboutpath, taskidstr, 'evidence-saved-params.txt'))
+
         ELBOScores[tid] = taskELBOTrace[-1]
 
     # Sort in descending order, largest to smallest!
