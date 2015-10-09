@@ -106,8 +106,8 @@ class AbstractObsModel(object):
             return 0
         else:
             if todict:
-                return dict(Ldata=self.calcELBO_Memoized(SS))
-            return self.calcELBO_Memoized(SS)
+                return dict(Ldata=self.calcELBO_Memoized(SS, **kwargs))
+            return self.calcELBO_Memoized(SS, **kwargs)
 
     def to_dict(self):
         """ Convert all attributes to dictionary for pickling/storage.
