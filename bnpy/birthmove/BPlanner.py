@@ -6,6 +6,7 @@ from bnpy.viz.PrintTopics import vec2str
 
 def selectTargetCompsForBirth(
         hmodel, SS,
+        curSSbatch=None,
         MoveRecordsByUID=dict(),
         MovePlans=dict(),
         lapFrac=0,
@@ -41,17 +42,28 @@ def selectTargetCompsForBirth(
         hmodel.obsModel.calc_evidence(None, SS, None, returnVec=1)
     ScoreVec[countVec < 1] = np.nan
 
+    SizeVec_b = curSSbatch.getCountVec()
+    atomstr = 'atoms'
+    if hasattr(curSSbatch, 'WordCounts'):
+        if curSSbatch.hasSelectionTerm('DocUsageCount'):
+            SizeVec_b = curSSbatch.getSelectionTerm('DocUsageCount')
+            atomstr = 'docs'
+
     uidsTooSmall = list()
     uidsWithFailRecord = list()
     eligible_mask = np.zeros(K, dtype=np.bool8)
     for ii, uid in enumerate(SS.uids):
         if uid not in MoveRecordsByUID:
             MoveRecordsByUID[uid] = defaultdict(int)
+
+        bigEnough = SizeVec_b[ii] >= BArgs['b_minNumAtomsForTargetComp']
+        if not bigEnough:
+            uidsTooSmall.append((uid, SizeVec_b[ii]))
+            continue
+
         size = countVec[ii]
         oldsize = MoveRecordsByUID[uid]['b_latestCount']
         nFailRecent = MoveRecordsByUID[uid]['b_nFailRecent']
-
-        bigEnough = size >= BArgs['b_minNumAtomsForTargetComp']
         if oldsize == 0 or nFailRecent == 0:
             hasFailureRecord = False
         else:
@@ -61,9 +73,6 @@ def selectTargetCompsForBirth(
             else:
                 hasFailureRecord = True
 
-        if not bigEnough:
-            uidsTooSmall.append((uid, size))
-            continue
         if hasFailureRecord:
             uidsWithFailRecord.append((uid, size, nFailRecent))
             continue
@@ -75,49 +84,56 @@ def selectTargetCompsForBirth(
     MovePlans['b_curPlan_nDQ_toosmall'] = nDQ_toosmall
     MovePlans['b_curPlan_nDQ_pastfail'] = nDQ_pastfail
 
-    msg = "%d/%d UIDs too small." + \
+    msg = "%d/%d UIDs too small (too few %s)." + \
         " Required size >= %d (--b_minNumAtomsForTargetComp)"
-    msg = msg % (nDQ_toosmall, K, BArgs['b_minNumAtomsForTargetComp'])
+    msg = msg % (nDQ_toosmall, K, atomstr,
+        BArgs['b_minNumAtomsForTargetComp'])
     BLogger.pprint(msg, 'debug')
     if nDQ_toosmall > 0:
-        BLogger.pprint(
-            ' uids  ' + vec2str([u[0] for u in uidsTooSmall]), 'debug')
-        BLogger.pprint(
-            ' sizes ' + vec2str([u[1] for u in uidsTooSmall]), 'debug')
+        lineUID = vec2str([u[0] for u in uidsTooSmall])
+        lineSize = vec2str([u[1] for u in uidsTooSmall])
+        BLogger.pprint([lineUID, lineSize], 
+            prefix=['%6s' % 'uids',
+                '%6s' % atomstr],
+            )
     
     BLogger.pprint(
         '%d/%d UIDs disqualified for past failures.' % (
             nDQ_pastfail, K),
         'debug')
     if nDQ_pastfail > 0:
-        BLogger.pprint(
-            ' uids  ' + vec2str([u[0] for u in uidsWithFailRecord]),
-            'debug')
-        BLogger.pprint(
-            ' sizes ' + vec2str([u[1] for u in uidsWithFailRecord]),
-            'debug')
-
+        lineUID = vec2str([u[0] for u in uidsWithFailRecord])
+        lineSize = vec2str([u[1] for u in uidsWithFailRecord])
+        BLogger.pprint([lineUID, lineSize],
+            prefix=['%6s' % 'uids',
+                '%6s' % 'size'],
+            )
+        
     # Finalize list of eligible UIDs
     UIDs = SS.uids[eligible_mask]
-
     BLogger.pprint('%d/%d UIDs eligible' % (len(UIDs), K), 'debug')
-    BLogger.pprint(
-        ' uids  ' + vec2str(UIDs), 'debug')
+    # EXIT if nothing eligible.
     if len(UIDs) == 0:
         return MovePlans
-    # Finalize corresponding scores
-    Scores = ScoreVec[eligible_mask]
-    BLogger.pprint(
-        ' sizes ' + vec2str(countVec[eligible_mask]), 'debug')
-    BLogger.pprint(
-        ' score ' + vec2str(Scores), 'debug')
+
+    lineUID = vec2str(UIDs)
+    lineSize = vec2str(countVec[eligible_mask])
+    lineBatchSize = vec2str(SizeVec_b[eligible_mask])
+    lineScore = vec2str(ScoreVec[eligible_mask])
+    BLogger.pprint([lineUID, lineSize, lineBatchSize, lineScore],
+            prefix=['%6s' % 'uids',
+                '%6s' % 'size',
+                '%6s' % atomstr,
+                '%6s' % 'score',
+                ],
+            )
 
     # Figure out how many new states we can target this round.
     # Prioritize the top comps as ranked by the Ldata score
     # until we max out the budget of Kmax total comps.
     maxnewK = BArgs['Kmax'] - SS.K
     totalnewK_perEligibleComp = np.minimum(
-        np.ceil(countVec[eligible_mask]), BArgs['b_Kfresh'])
+        np.ceil(SizeVec_b[eligible_mask]), BArgs['b_Kfresh'])
     sortorder = np.argsort(-1 * ScoreVec[eligible_mask])
     sortedCumulNewK = np.cumsum(totalnewK_perEligibleComp[sortorder])
     nToKeep = np.searchsorted(sortedCumulNewK, maxnewK + 0.0042)
@@ -144,8 +160,7 @@ def selectTargetCompsForBirth(
     BLogger.pprint(
         ' sizes ' + vec2str(countVec[eligible_mask][keepIDs]), 'debug')
     BLogger.pprint(
-        ' score ' + vec2str(Scores[keepIDs]), 'debug')
-
+        ' score ' + vec2str(ScoreVec[eligible_mask][keepIDs]), 'debug')
     return MovePlans
     
 

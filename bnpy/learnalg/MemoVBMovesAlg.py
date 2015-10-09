@@ -99,7 +99,8 @@ class MemoVBMovesAlg(LearnAlg):
                 batchID=batchID,
                 lapFrac=lapFrac,
                 MovePlans=MovePlans,
-                MoveRecordsByUID=MoveRecordsByUID)
+                MoveRecordsByUID=MoveRecordsByUID,
+                MoveLog=MoveLog)
 
             self.saveDebugStateAtBatch(
                 'Estep', batchID, SSchunk=SSbatch, SS=SS, hmodel=hmodel)
@@ -228,6 +229,7 @@ class MemoVBMovesAlg(LearnAlg):
             lapFrac=0,
             MovePlans=None,
             MoveRecordsByUID=dict(),
+            MoveLog=None,
             **kwargs):
         ''' Execute local step and summary step, with expansion proposals.
 
@@ -242,6 +244,7 @@ class MemoVBMovesAlg(LearnAlg):
         if not isinstance(MovePlans, dict):
             MovePlans = dict()
         LPkwargs = self.algParamsLP
+        # MovePlans indicates which merge pairs to track in local step.
         LPkwargs.update(MovePlans)
         if self.algParams['birth']['b_debugWriteHTML']:
             trackDocUsage = 1
@@ -263,12 +266,29 @@ class MemoVBMovesAlg(LearnAlg):
             SSbatch.setMergeUIDPairs(MovePlans['m_UIDPairs'])
         ElapsedTimeLogger.stopEvent('local', 'summary')
 
-        # Prepare whole-dataset stats
+        # Prepare current snapshot of whole-dataset stats
+        # These must reflect the latest assignment to this batch,
+        # AND all previous batches
         if SS is None:
             curSSwhole = SSbatch.copy()
         else:
             SSbatch.setUIDs(SS.uids)
-            curSSwhole = SS
+            curSSwhole = SS.copy(includeELBOTerms=1, includeMergeTerms=0)
+            curSSwhole += SSbatch
+            if lapFrac > 1.0:
+                oldSSbatch = self.loadBatchAndFastForward(
+                    batchID, lapFrac, MoveLog, doCopy=1)
+                curSSwhole -= oldSSbatch
+
+        # Prepare plans for which births to try,
+        # using recently updated stats.
+        if self.hasMove('birth'):
+            ElapsedTimeLogger.startEvent('birth', 'plan')
+            MovePlans = self.makeMovePlans_Birth(
+                curModel, curSSwhole,
+                curSSbatch=SSbatch,
+                lapFrac=lapFrac, MovePlans=MovePlans, **kwargs)
+            ElapsedTimeLogger.stopEvent('birth', 'plan')
         
         # Try each planned birth
         SSbatch.propXSS = dict()
@@ -500,8 +520,9 @@ class MemoVBMovesAlg(LearnAlg):
         ElapsedTimeLogger.stopEvent('global', 'update')
         return hmodel
 
-    def makeMovePlans(self, hmodel, SS, 
-                      MovePlans=dict(), lapFrac=-1, **kwargs):
+    def makeMovePlans(self, hmodel, SS,
+                      MovePlans=dict(), 
+                      lapFrac=-1, **kwargs):
         ''' Plan which comps to target for each possible move.
 
         Returns
@@ -511,12 +532,12 @@ class MemoVBMovesAlg(LearnAlg):
         isFirst = self.isFirstBatch(lapFrac)
         if isFirst:
             MovePlans = dict()
-        if self.hasMove('birth'):
-            ElapsedTimeLogger.startEvent('birth', 'plan')
-            MovePlans = self.makeMovePlans_Birth(
-                hmodel, SS, 
-                lapFrac=lapFrac, MovePlans=MovePlans, **kwargs)
-            ElapsedTimeLogger.stopEvent('birth', 'plan')
+        # if self.hasMove('birth'):
+        #    ElapsedTimeLogger.startEvent('birth', 'plan')
+        #    MovePlans = self.makeMovePlans_Birth(
+        #        hmodel, SS, 
+        #        lapFrac=lapFrac, MovePlans=MovePlans, **kwargs)
+        #    ElapsedTimeLogger.stopEvent('birth', 'plan')
         if isFirst and self.hasMove('merge'):
             ElapsedTimeLogger.startEvent('merge', 'plan')
             MovePlans = self.makeMovePlans_Merge(
@@ -637,11 +658,13 @@ class MemoVBMovesAlg(LearnAlg):
             MovePlans.update(DPlan)
         return MovePlans
 
-    def makeMovePlans_Birth(self, hmodel, SS,
-                            MovePlans=dict(),
-                            MoveRecordsByUID=dict(),
-                            lapFrac=-2,
-                            **kwargs):
+    def makeMovePlans_Birth(
+            self, hmodel, SS,
+            curSSbatch=None,
+            MovePlans=dict(),
+            MoveRecordsByUID=dict(),
+            lapFrac=-2,
+            **kwargs):
         ''' Select comps to target with birth in current batch (or lap).
 
         Returns
@@ -680,6 +703,7 @@ class MemoVBMovesAlg(LearnAlg):
             else:
                 MovePlans = selectTargetCompsForBirth(
                     hmodel, SS,
+                    curSSbatch=curSSbatch,
                     MoveRecordsByUID=MoveRecordsByUID,
                     MovePlans=MovePlans,
                     lapFrac=lapFrac,
