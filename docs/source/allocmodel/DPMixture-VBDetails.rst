@@ -162,7 +162,7 @@ Useful expectations
 For each component k = 1, 2, ... K:
 
 .. math::
-	E_q[ \log \beta_k ] &= E_q[ \log u_k ] + \sum_{\ell=1}^{k-1} \E_q[ \log 1 - u_{\ell}]
+	E_q[ \log \beta_k ] &= E_q[ \log u_k ] + \sum_{\ell=1}^{k-1} E_q[ \log 1 - u_{\ell}]
 	\\
 where we can substitute definitions above. 
 
@@ -216,7 +216,7 @@ This whole function produces a scalar that indicates the entropy (level of uncer
 In practice, we can simplify this computation across each component:
 
 .. math::
-	\mathcal{L}_{entropy}(r) &= \sum_{k=1}^K H_k, \quad	H_k \triangleq \sum_{n=1} r_{nk} \log r_{nk}
+	\mathcal{L}_{entropy}(r) = \sum_{k=1}^K H_k, \quad	H_k \triangleq \sum_{n=1} r_{nk} \log r_{nk}
 
 Where each value :math:`H_k` satisfies :math:`H_k > 0`.
 	
