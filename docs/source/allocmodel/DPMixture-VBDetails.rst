@@ -63,8 +63,7 @@ For each component k = 1, 2, 3, ...
 	component to which data item n is assigned.
 
 .. math::
-	z = [ z_1, z_2, \ldots z_N ]
-	z_n \in \{1, 2, 3, 4, \ldots}
+	z = [ z_1, z_2, \ldots z_N ], \quad	z_n \in \{1, 2, 3, 4, \ldots\}
 
 The generative model for this variable is
 
