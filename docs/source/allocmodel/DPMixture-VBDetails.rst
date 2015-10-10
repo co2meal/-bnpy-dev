@@ -45,11 +45,11 @@ of size K+1, by defining the last index to aggregate
 all entries larger than index K.
 
 .. math::
-	\beta = [ \beta_1, \beta_2, \ldots \beta_K \beta_{>K} ]
-	\\ \beta_1 \triangleq p(z_n = 1)
+	\beta &= [ \beta_1, \beta_2, \ldots \beta_K \beta_{>K} ]
+	\\ \beta_1 &\triangleq p(z_n = 1)
 	\\ \ldots
-	\\ \beta_K \triangleq p(z_n = K)
-	\\ \beta_{>K} \triangleq \sum_{\ell=K+1}^{\infty} p(z_n = \ell)
+	\\ \beta_K &\triangleq p(z_n = K)
+	\\ \beta_{>K} &\triangleq \sum_{\ell=K+1}^{\infty} p(z_n = \ell)
 
 This variable is determined completely by the value of :math:`u`, via the stick-breaking construction:
 
