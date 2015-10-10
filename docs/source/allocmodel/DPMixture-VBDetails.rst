@@ -56,7 +56,7 @@ This variable is determined completely by the value of :math:`u`, via the stick-
 For each component k = 1, 2, 3, ...
 
 .. math::
-	\beta_k = u_k \prod_{\ell=1}{\ell<k} (1 - u_\ell)
+	\beta_k = u_k \prod_{\ell=1}^{k-1} (1 - u_\ell)
 
 * Data-cluster assignments :math:`{z}`
 	Integer :math:`z_n` indicates the 
