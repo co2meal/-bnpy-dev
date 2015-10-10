@@ -162,8 +162,9 @@ Useful expectations
 For each component k = 1, 2, ... K:
 
 .. math::
-	E_q[ \log \beta_k ] &= E_q[ \log u_k ] + \sum_{\ell=1}^{k-1} \E_q[ \log 1 - u_\ell]
 	:label:Elogbeta
+
+	E_q[ \log \beta_k ] &= E_q[ \log u_k ] + \sum_{\ell=1}^{k-1} \E_q[ \log 1 - u_{\ell}]
 
 where we can substitute definitions above. 
 
@@ -197,10 +198,7 @@ The function \\(c_B\\) is the cumulant function of the Beta distribution,
 which takes as arguments two positive scalars \\(a, b \\).
 
 .. math::
-	c_B(a, b) &\triangleq 
-	\log \Gamma(a + b)
-	 - \log \Gamma(a)
-	 - \log \Gamma(b)
+	c_B(a, b) &\triangleq \log \Gamma(a + b) - \log \Gamma(a) - \log \Gamma(b)
 
 The required expectations are functions of :math:`{\eta}` defined above in :eq: Elogu. 
 
