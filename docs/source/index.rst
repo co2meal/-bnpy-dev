@@ -89,6 +89,6 @@ Supported algorithms
 
     demos/DemoIndex
     Installation
-    UserGuide
+    ConceptGuide
     
 
