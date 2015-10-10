@@ -1,12 +1,9 @@
-.. bnpy documentation master file, created by
-   sphinx-quickstart on Mon Mar  2 15:33:33 2015.
-   Must contain the root `toctree` directive.
-
-bnpy : Bayesian nonparametric clustering for Python
+Welcome to bnpy
 ===============
 
-Our goal is to make it easy for 
-Python programmers 
+**bnpy** is Bayesian nonparametric clustering for Python.
+
+Our goal is to make it easy for Python programmers 
 to train state-of-the-art clustering models on large datasets.
 We focus on nonparametric models based on the Dirichlet process, especially extensions that handle hierarchical and sequential datasets.
 Traditional parametric counterparts (like finite mixture models) are also supported. 
@@ -38,7 +35,7 @@ Next, we could take advantage of sequential structure in your data by training a
   >>> bnpy.run(MyDatasetObject, 'HDPHMM', 'DiagGauss', 'moVB', moves='merge,delete')
 
 
-Supported clustering models
+Supported allocation models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * Mixture models
@@ -58,7 +55,7 @@ Supported clustering models
     * grammar models
 
 
-Supported data-generation models (likelihoods)
+Supported observation models (likelihoods)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * Real-valued vector observations (1-dim, 2-dim, ... D-dim)
@@ -73,7 +70,7 @@ Supported data-generation models (likelihoods)
 
 
 Supported algorithms
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 
 * Variational methods
     * `EM` : Expectation-maximization
@@ -84,17 +81,14 @@ Supported algorithms
 * COMING SOON
     * Gibbs sampling
 
-Why bnpy?
-======================================
-TODO
 
 
 
 .. toctree::
-    :maxdepth: 2
+    :hidden:
 
+    demos/DemoIndex
     Installation
     UserGuide
-    demos/DemoIndex
     
 
