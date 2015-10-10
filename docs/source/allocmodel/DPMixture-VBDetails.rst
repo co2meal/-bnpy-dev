@@ -163,7 +163,7 @@ For each component k = 1, 2, ... K:
 
 .. math::
 	E_q[ \log \beta_k ] &= E_q[ \log u_k ] + \sum_{\ell=1}^{k-1} \E_q[ \log 1 - u_{\ell}]
-
+	\\
 where we can substitute definitions above. 
 
 
