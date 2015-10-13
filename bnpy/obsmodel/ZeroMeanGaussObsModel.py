@@ -663,30 +663,38 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
 
 
     def calcSmoothedMu(self, X, W=None):
-        ''' Compute smoothed estimate of probability of each word.
+        ''' Compute smoothed estimate of mean of statistic xxT.
+
+        Args
+        ----
+        X : 2D array, size N x D
 
         Returns
         -------
-        Mu : 1D array, size D (dim of data)
+        Mu : 2D array, size D x D
         '''
-        if X.ndim < 2:
-            X = X[np.newaxis, :]
-        if X.ndim == 2:
-            if W is None:
-                NX = X.shape[0]
-                SX = np.dot(X.T, X)
-            else:
-                NX = np.sum(W)
-                wX = np.sqrt(W) * X
-                SX = np.dot(wX.T, wX)
+        if X is None:
+            Mu = self.Prior.B / self.Prior.nu
+            return Mu
+        if X.ndim == 1:
+            X = X[np.newaxis,:]
+        N, D = X.shape
+        # Compute suff stats
+        if W is None:
+            sum_wxxT = np.dot(X.T, X)
+            sum_w = X.shape[0]
         else:
-            raise ValueError("TODO")
-        assert SX.ndim == 2
-        assert SX.shape == (self.D, self.D)
-        Mu = (SX + self.Prior.B) / (NX + self.Prior.nu - self.D - 1)
+            W = as1D(W)
+            wX = np.sqrt(W)[:,np.newaxis] * X
+            sum_wxxT = np.dot(wX.T, wX)
+            sum_w = np.sum(W)
+        Mu = (self.Prior.B + sum_wxxT) / (self.Prior.nu + sum_w)
+        assert Mu.ndim == 2
+        assert Mu.shape == (D, D,)
         return Mu
 
-    def calcSmoothedBregDiv(self, X, Mu, smoothFrac=0.5):
+    def calcSmoothedBregDiv(self, X, Mu, 
+                            W=None, smoothFrac=0.0, eps=1e-10):
         ''' Compute Bregman divergence between data X and clusters Mu.
 
         Smooth the data via update with prior parameters.
@@ -696,51 +704,61 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
         Div : 2D array, N x K
             Div[n,k] = smoothed distance between X[n] and Mu[k]
         '''
+        if X.ndim < 2:
+            X = X[np.newaxis,:]
         if Mu.ndim < 3:
             Mu = Mu[np.newaxis, :]
+        assert X.ndim == 2
         assert Mu.ndim == 3
-        K = Mu.shape[0]
-        
-        if X.ndim < 2:
-            X = X[np.newaxis, :]
         N = X.shape[0]
         D = X.shape[1]
-
-        if X.ndim < 3:
-            X_3d = np.zeros((N, D, D))
-            for n in range(N):
-                X_3d[n] = np.outer(X[n], X[n])
-        else:
-            X_3d = X
-        assert X_3d.ndim == 3
+        K = Mu.shape[0]
+        assert Mu.shape[1] == D
+        assert Mu.shape[2] == D
+        if W is not None:
+            assert W.ndim == 1
+            assert W.size == N
 
         if smoothFrac == 0:
-            X_3d += 1e-30 * np.eye(D)[np.newaxis,:, :]
-        else:
-            X_3d += smoothFrac * self.Prior.B[np.newaxis, :, :]
-            X_3d /= (1 + (smoothFrac * self.Prior.nu) - self.D - 1)
+            priorMu = self.Prior.B / self.Prior.nu
 
-        logdetXXT = np.zeros(N)
-        for n in range(N):
-            cholX_n = np.linalg.cholesky(X_3d[n])
-            logdetXXT[n] = 2 * np.sum(np.log(np.diag(cholX_n)))
+        logdet_xxT = np.zeros(N)
+        tr_xxTInvMu = np.zeros((N, K))
+        for n in xrange(N):
+            if smoothFrac == 0:
+                smooth_xxT = np.outer(X[n], X[n]) + eps * priorMu
+                smooth_xxT /= (1.0 + eps)
+            else:
+                smooth_xxT = np.outer(X[n], X[n]) + self.Prior.B
+                smooth_xxT /= (1.0 + self.Prior.nu)
+            s, logdet = np.linalg.slogdet(smooth_xxT)
+            logdet_xxT[n] = s * logdet
+
+            for k in xrange(K):
+                tr_xxTInvMu[n, k] = np.trace(
+                    np.linalg.solve(Mu[k], smooth_xxT))
 
         Div = np.zeros((N, K))
         for k in xrange(K):
-            cholMu_k = np.linalg.cholesky(Mu[k])
-            logdetMu_k = 2 * np.sum(np.log(np.diag(cholMu_k)))
-            tr_XXTinvMu = np.zeros(N)
-            for n in range(N):
-                tr_XXTinvMu[n] = np.trace(np.linalg.solve(Mu[k], X_3d[n]))
-            Div[:,k] = - 0.5 * D + 0.5 * tr_XXTinvMu + \
-                0.5 * logdetMu_k - 0.5 * logdetXXT
+            chol_Mu_k = np.linalg.cholesky(Mu[k])
+            logdet_Mu_k = 2.0 * np.sum(np.log(np.diag(chol_Mu_k)))
+            # xxTInvMu_k = np.linalg.solve(chol_Mu_k, X.T)
+            # xxTInvMu_k *= xxTInvMu_k
+            # tr_xxTInvMu_k = np.sum(xxTInvMu_k, axis=0)
+            # assert tr_xxTInvMu_k.shape == (N,)
 
+            Div[:,k] = -0.5 * D - 0.5 * logdet_xxT + \
+                0.5 * logdet_Mu_k + \
+                0.5 * tr_xxTInvMu[:, k]
+
+        if W is not None:
+            Div *= W[:,np.newaxis]
         assert Div.min() > -1e-8
         np.maximum(Div, 0, out=Div)
         assert Div.min() >= 0
         return Div
 
-    def calcBregDivFromPrior(self, Mu, smoothFrac=0.5):
+    def calcBregDivFromPrior(self, Mu, smoothFrac=0.0):
         ''' Compute Bregman divergence between Mu and prior mean.
 
         Returns
@@ -748,30 +766,25 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
         Div : 1D array, size K
             Div[k] = distance between Mu[k] and priorMu
         '''
-        if Mu.ndim < 2:
-            Mu = Mu[np.newaxis, :]
         if Mu.ndim < 3:
             Mu = Mu[np.newaxis, :]
         assert Mu.ndim == 3
         K = Mu.shape[0]
         D = Mu.shape[1]
+        assert D == Mu.shape[2]
 
-        priorN = (1-smoothFrac) * self.Prior.nu
-        priorMu = (1-smoothFrac) * self.Prior.B / (priorN - self.D - 1)
-
-        logdetPMu = np.log(np.linalg.det(priorMu))
+        priorMu = self.Prior.B / self.Prior.nu
+        priorN = (1-smoothFrac) * (self.Prior.nu)
 
         Div = np.zeros(K)
+        s, logdet = np.linalg.slogdet(priorMu)
+        logdet_prior = s * logdet
         for k in xrange(K):
-            cholMu_k = np.linalg.cholesky(Mu[k])
-            logdetMu_k = 2 * np.sum(np.log(np.diag(cholMu_k)))
-
-            tr_PMuinvMu = np.trace(np.linalg.solve(Mu[k], priorMu))
-            Div[k] = - 0.5 * D + 0.5 * tr_PMuinvMu + \
-                0.5 * logdetMu_k - 0.5 * logdetPMu
-        assert Div.min() > -1e-8
-        np.maximum(Div, 0, out=Div)
-        assert Div.min() >= 0
+            chol_Mu_k = np.linalg.cholesky(Mu[k])
+            logdet_Mu_k = 2.0 * np.sum(np.log(np.diag(chol_Mu_k)))
+            tr_PriorInvMu_k = np.trace(np.linalg.solve(Mu[k], priorMu))
+            Div[k] = -0.5 * logdet_prior + 0.5 * logdet_Mu_k + \
+                0.5 * tr_PriorInvMu_k - 0.5 * D
         return priorN * Div
 
     def getSerializableParamsForLocalStep(self):

@@ -5,6 +5,7 @@ The :mod:`util` module gathers utility functions
 import RandUtil
 
 from .PrettyPrintUtil import np2flatstr, flatstr2np
+from .PrettyPrintUtil import split_str_into_fixed_width_lines
 from .MatMultUtil import dotATA, dotATB, dotABT
 from .RandUtil import choice, multinomial
 from .SpecialFuncUtil import MVgammaln, MVdigamma, digamma, gammaln
@@ -16,6 +17,7 @@ from .ParallelUtil import numpyToSharedMemArray, sharedMemToNumpyArray
 from .ParallelUtil import sharedMemDictToNumpy, fillSharedMemArray
 
 __all__ = ['RandUtil',
+           'split_str_into_fixed_width_lines',
            'np2flatstr', 'flatstr2np',
            'dotATA', 'dotATB', 'dotABT',
            'choice', 'multinomial',

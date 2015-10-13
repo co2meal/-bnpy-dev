@@ -897,6 +897,7 @@ class GaussObsModel(AbstractObsModel):
         """
         return calcLocalParams, calcSummaryStats
 
+
     # .... end class
 
 

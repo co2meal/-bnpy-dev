@@ -7,6 +7,7 @@ Initialize suff stats for observation models via Bregman clustering.
 import numpy as np
 import bnpy.data
 
+from bnpy.util import split_str_into_fixed_width_lines
 from FromTruth import \
     convertLPFromHardToSoft, \
     convertLPFromTokensToDocs, \
@@ -123,7 +124,8 @@ def initSS_BregmanDiv(
 
 def runKMeans_BregmanDiv(X, K, obsModel, W=None,
                          Niter=100, seed=0, init='plusplus',
-                         smoothFracInit=1.0, smoothFrac=0):
+                         smoothFracInit=1.0, smoothFrac=0,
+                         logFunc=None, eps=1e-10):
     ''' Run hard clustering algorithm to find K clusters.
 
     Returns
@@ -148,7 +150,8 @@ def runKMeans_BregmanDiv(X, K, obsModel, W=None,
     prevN = np.zeros(K)
     for riter in xrange(Niter):
         Div = obsModel.calcSmoothedBregDiv(
-            X=X, Mu=Mu, W=W, smoothFrac=smoothFrac)
+            X=X, Mu=Mu, W=W, 
+            smoothFrac=smoothFrac, eps=eps)
         Z = np.argmin(Div, axis=1)
         Ldata = Div.min(axis=1).sum()
         Lprior = obsModel.calcBregDivFromPrior(
@@ -167,17 +170,19 @@ def runKMeans_BregmanDiv(X, K, obsModel, W=None,
                 Mu[k] = obsModel.calcSmoothedMu(X[Z==k], W_k)
             else:
                 Mu[k] = obsModel.calcSmoothedMu(X=None)
-
-        # print riter, Lscore
-        # if W is None:
-        #     print '   ', ' '.join(['%.0f' % (x) for x in N])
-        # else:
-        #     assert np.allclose(N.sum(), W.sum())
-        #     print '   ', ' '.join(['%.2f' % (x) for x in N])
+        if logFunc:
+            logFunc("iter %d: Lscore %.3e" % (riter, Lscore))
+            if W is None:
+                 str_sum_w = ' '.join(['%7.0f' % (x) for x in N])
+            else:
+                 assert np.allclose(N.sum(), W.sum())
+                 str_sum_w = ' '.join(['%7.2f' % (x) for x in N])
+            str_sum_w = split_str_into_fixed_width_lines(str_sum_w, tostr=True)
+            logFunc(str_sum_w)
         if np.max(np.abs(N - prevN)) == 0:
             break
         prevN[:] = N
-    return Z, Mu, Lscores
+    return Z, Mu, np.asarray(Lscores)
 
 def initKMeans_BregmanDiv(
         X, K, obsModel, W=None, seed=0, smoothFrac=1.0):

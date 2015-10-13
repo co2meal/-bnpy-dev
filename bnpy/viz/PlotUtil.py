@@ -1,3 +1,5 @@
+from matplotlib import pylab
+
 ExportInfo = dict(
     doExport=False,
     dpi=100,
@@ -5,7 +7,8 @@ ExportInfo = dict(
     H_in=4,
 )
 
-def ConfigPylabDefaults(pylab):
+
+def ConfigPylabDefaults(pylab, **kwargs):
     rcParams = pylab.rcParams
     rcParams['ps.fonttype'] = 42  # Make fonts export as text (not bitmap)
     rcParams['text.usetex'] = False
@@ -19,8 +22,6 @@ def ConfigPylabDefaults(pylab):
     rcParams['figure.subplot.left'] = 0.15
     rcParams['figure.subplot.right'] = 0.95
     rcParams['figure.subplot.bottom'] = 0.15
-    rcParams['figure.subplot.top'] = 0.9
+    rcParams['figure.subplot.top'] = 0.95
     rcParams['savefig.dpi'] = ExportInfo['dpi']
-
-from matplotlib import pylab
-ConfigPylabDefaults(pylab)
+    rcParams.update(kwargs)

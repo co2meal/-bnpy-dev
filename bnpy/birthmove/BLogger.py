@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 from collections import defaultdict
+from bnpy.util import split_str_into_fixed_width_lines
 
 # Configure Logger
 Log = None
@@ -20,7 +21,6 @@ def pprint(msg, prefix='', level=None, linewidth=80):
             prefix_ii = prefix[ii]
             msgs_ii = split_across_lines(m_ii,
                 linewidth=linewidth-len(prefix_ii))
-            msgs_ii[0] = ' ' + msgs_ii[0] # hack!
             msgs.extend(msgs_ii)
             prefixes.extend([prefix[ii] for i in range(len(msgs_ii))])
         for ii in range(len(msgs)):
@@ -40,44 +40,6 @@ def pprint(msg, prefix='', level=None, linewidth=80):
     Log.log(level, msg)
     if isinstance(RecentMessages, list):
         RecentMessages.append(msg)
-
-def split_across_lines(mstr, linewidth=80):
-    ''' Split provided string across lines nicely.
-
-    Examples
-    --------
-    >>> s = ' abc def ghi jkl mno pqr'  
-    >>> split_across_lines(s, linewidth=5)
-    >>> split_across_lines(s, linewidth=7)
-    >>> split_across_lines(s, linewidth=10)
-    >>> s = '   abc   def   ghi   jkl   mno   pqr'  
-    >>> split_across_lines(s, linewidth=5)
-    >>> split_across_lines(s, linewidth=7)
-    >>> split_across_lines(s, linewidth=10)
-    >>> s = '  abc1  def2  ghi3  jkl4'  
-    >>> split_across_lines(s, linewidth=3)
-    >>> split_across_lines(s, linewidth=6)
-    >>> split_across_lines(s, linewidth=9)
-    >>> split_across_lines(s, linewidth=80)
-    '''
-    mlist = list()
-    breakPos = 0
-    while breakPos < len(mstr):
-        if (len(mstr) - breakPos) <= linewidth:
-            # Take it all and quit
-            mlist.append(mstr[breakPos:])
-            break
-        else:
-            nextPos = breakPos+linewidth
-            while nextPos > breakPos + 1:
-                if mstr[nextPos-1] != ' ' and mstr[nextPos] == ' ':
-                    break
-                nextPos -= 1
-            nextstr = mstr[breakPos:nextPos]
-            if len(nextstr.strip()) > 0:
-                mlist.append(nextstr)
-            breakPos = nextPos
-    return mlist
 
 
 def startUIDSpecificLog(uid=0):
