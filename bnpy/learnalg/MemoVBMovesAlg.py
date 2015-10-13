@@ -246,10 +246,10 @@ class MemoVBMovesAlg(LearnAlg):
         LPkwargs = self.algParamsLP
         # MovePlans indicates which merge pairs to track in local step.
         LPkwargs.update(MovePlans)
-        if self.algParams['birth']['b_debugWriteHTML']:
-            trackDocUsage = 1
-        else:
-            trackDocUsage = 0
+        trackDocUsage = 0
+        if self.hasMove('birth'):
+            if self.algParams['birth']['b_debugWriteHTML']:
+                trackDocUsage = 1
         # Do the real work here: calc local params
         ElapsedTimeLogger.startEvent('local', 'update')
         LPbatch = curModel.calc_local_params(Dbatch, **LPkwargs)

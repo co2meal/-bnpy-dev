@@ -282,7 +282,7 @@ def makeDataSubsetByThresholdResp(
 
         # Raise error if target dataset not big enough.
         Keff = np.minimum(K, rowsWithEnoughData.size)
-        if Keff <= 1:
+        if Keff <= 1 and K > 1:
             DebugInfo = dict(
                 targetAssemblyMsg=targetAssemblyMsg,
                 atomType=atomType,
@@ -341,7 +341,7 @@ def makeDataSubsetByThresholdResp(
 
             # Raise error if target dataset not big enough.
             Keff = np.minimum(K, chosenRespIDs.size)
-            if Keff <= 1:
+            if Keff <= 1 and K > 1:
                 DebugInfo = dict(
                     targetAssemblyMsg=targetAssemblyMsg,
                     atomType=atomType,
