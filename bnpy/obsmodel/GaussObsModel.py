@@ -898,6 +898,171 @@ class GaussObsModel(AbstractObsModel):
         return calcLocalParams, calcSummaryStats
 
 
+    def calcSmoothedMu(self, X, W=None):
+        ''' Compute smoothed estimate of mean of statistic xxT.
+
+        Args
+        ----
+        X : 2D array, size N x D
+
+        Returns
+        -------
+        Mu_1 : 2D array, size D x D
+        Mu_2 : 1D array, size D
+        '''
+        if X is None:
+            Mu1 = self.Prior.B / self.Prior.nu
+            Mu2 = self.Prior.m
+            return Mu1, Mu2
+
+        if X.ndim == 1:
+            X = X[np.newaxis,:]
+        N, D = X.shape
+        # Compute suff stats
+        if W is None:
+            sum_wxxT = np.dot(X.T, X)
+            sum_wx = np.sum(X, axis=0)
+            sum_w = X.shape[0]
+        else:
+            W = as1D(W)
+            wX = np.sqrt(W)[:,np.newaxis] * X
+            sum_wxxT = np.dot(wX.T, wX)
+            sum_wx = np.dot(W, X)
+            sum_w = np.sum(W)
+
+        mmT = np.outer(self.Prior.m, self.Prior.m)
+        Mu_1 = (self.Prior.B + mmT * self.Prior.nu + sum_wxxT) / \
+            (2*self.Prior.nu + sum_w)
+        Mu_2 = (self.Prior.m * self.Prior.nu + sum_wx) / \
+                    (self.Prior.nu + sum_w)
+        assert Mu_1.ndim == 2
+        assert Mu_1.shape == (D, D,)
+        assert Mu_2.shape == (D,)
+        return Mu_1, Mu_2
+
+    def calcSmoothedBregDiv(self, X, Mu, 
+                            W=None, smoothFrac=0.0, eps=1e-10):
+        ''' Compute Bregman divergence between data X and clusters Mu.
+
+        Smooth the data via update with prior parameters.
+
+        Args
+        ----
+        X : 2D array, size N x D
+        Mu : list of size K, or tuple
+
+        Returns
+        -------
+        Div : 2D array, N x K
+            Div[n,k] = smoothed distance between X[n] and Mu[k]
+        '''
+        # Parse X
+        if X.ndim < 2:
+            X = X[np.newaxis,:]
+        assert X.ndim == 2
+        N = X.shape[0]
+        D = X.shape[1]
+        # Parse Mu
+        if isinstance(Mu, tuple):
+            Mu = [Mu]
+        assert isinstance(Mu, list)
+        K = len(Mu)
+        assert Mu[0][0].shape[0] == D
+        assert Mu[0][0].shape[1] == D
+        assert Mu[0][1].size == D
+        # Parse W
+        if W is not None:
+            assert W.ndim == 1
+            assert W.size == N
+
+        prior_xxT = self.Prior.B + \
+            self.Prior.nu * np.outer(self.Prior.m, self.Prior.m) 
+        prior_xxT /= (self.Prior.nu + self.Prior.nu)
+
+        prior_x = self.Prior.m
+
+        logdet_xxT = np.zeros(N)
+        logdet_M = np.zeros(K)
+        tr_MuXInvMu = np.zeros((N, K))
+        for n in xrange(N):
+            if smoothFrac == 0:
+                smooth_xxT = np.outer(X[n], X[n]) + eps * prior_xxT
+                smooth_x = X[n]
+            else:
+                smooth_xxT = np.outer(X[n], X[n]) + \
+                    2 * self.Prior.nu * prior_xxT
+                smooth_xxT /= (1.0 + 2*self.Prior.nu)
+                smooth_x = (X[n] + self.Prior.m * self.Prior.nu) / \
+                    (1.0 + self.Prior.nu)
+            MuX = smooth_xxT - np.outer(smooth_x, smooth_x)
+            s, logdet = np.linalg.slogdet(MuX)
+            logdet_xxT[n] = s * logdet
+
+            for k in xrange(K):
+                mmT_k = np.outer(Mu[k][1], Mu[k][1])
+                M_k = Mu[k][0] - mmT_k
+                
+                if n == 0:
+                    logdet_M[k] = np.log(np.linalg.det(M_k))
+
+                tr_MuXInvMu[n, k] = np.trace(
+                    np.linalg.solve(
+                        M_k, 
+                        0.5 * (smooth_xxT - Mu[k][0])
+                            - np.outer(smooth_x, Mu[k][1]) + mmT_k))
+
+        Div = np.zeros((N, K))
+        for k in xrange(K):
+            Div[:,k] = tr_MuXInvMu[:,k] - \
+                0.5 * logdet_xxT + \
+                0.5 * logdet_M[k]
+        if W is not None:
+            Div *= W[:,np.newaxis]
+        try:
+            assert Div.min() > -1e-8
+        except AssertionError:
+            from IPython import embed; embed()
+        np.maximum(Div, 0, out=Div)
+        assert Div.min() >= 0
+        return Div
+
+    def calcBregDivFromPrior(self, Mu, smoothFrac=0.0):
+        ''' Compute Bregman divergence between Mu and prior mean.
+
+        Returns
+        -------
+        Div : 1D array, size K
+            Div[k] = distance between Mu[k] and priorMu
+        '''
+        assert isinstance(Mu, list)
+        K = len(Mu)
+        assert K >= 1
+        assert Mu[0][0].ndim == 2
+        assert Mu[0][1].ndim == 1
+        D = Mu[0][0].shape[0]
+        assert D == Mu[0][0].shape[1]
+        assert D == Mu[0][1].size
+
+        priorMu_1 = self.Prior.B / self.Prior.nu
+        priorN = (1-smoothFrac) * (self.Prior.nu)
+        priorMu_2 = self.Prior.m
+
+        Div = np.zeros(K)
+        for k in xrange(K):
+            M_k = Mu[k][0] - np.outer(Mu[k][1], Mu[k][1])
+            Div[k] = \
+                - 0.5 * np.log(
+                    np.linalg.det(
+                        priorMu_1 - np.outer(priorMu_2, priorMu_2))) + \
+                0.5 * np.log(np.linalg.det(M_k)) + \
+                np.trace(np.linalg.solve(
+                    M_k,
+                    0.5 * (priorMu_1 - Mu[k][0]) - \
+                    np.outer(priorMu_2, Mu[k][1]) + \
+                    np.outer(Mu[k][1], Mu[k][1])
+                    ))
+        return priorN * Div
+
     # .... end class
 
 
