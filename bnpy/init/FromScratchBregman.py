@@ -192,7 +192,8 @@ def initKMeans_BregmanDiv(
     -------
     chosenZ : 1D array, size K
         int ids of atoms selected
-    Mu : 2D array, size K x D
+    Mu : list of size K
+        each entry is a tuple of ND arrays
     minDiv : 1D array, size N
     '''
     PRNG = np.random.RandomState(int(seed))
@@ -204,7 +205,7 @@ def initKMeans_BregmanDiv(
 
     # Initialize Mu array : K x Mushape
     Mu0 = obsModel.calcSmoothedMu(X[chosenZ[0]], W=W[chosenZ[0]])
-    Mu = np.zeros((K,)+Mu0.shape)
+    Mu = [None for k in range(K)]
     Mu[0] = Mu0
     minDiv = obsModel.calcSmoothedBregDiv(
         X=X, Mu=Mu0, W=W, smoothFrac=smoothFrac)[:,0]

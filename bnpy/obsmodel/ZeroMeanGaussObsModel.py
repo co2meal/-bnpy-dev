@@ -727,7 +727,6 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
         for n in xrange(N):
             if smoothFrac == 0:
                 smooth_xxT = np.outer(X[n], X[n]) + eps * priorMu
-                smooth_xxT /= (1.0 + eps)
             else:
                 smooth_xxT = np.outer(X[n], X[n]) + self.Prior.B
                 smooth_xxT /= (1.0 + self.Prior.nu)
