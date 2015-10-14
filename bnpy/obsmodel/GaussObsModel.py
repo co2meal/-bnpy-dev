@@ -910,8 +910,10 @@ class GaussObsModel(AbstractObsModel):
         Mu_1 : 2D array, size D x D
         Mu_2 : 1D array, size D
         '''
+        k_mmT = self.Prior.kappa * np.outer(self.Prior.m, self.Prior.m)
         if X is None:
-            Mu1 = self.Prior.B / self.Prior.nu
+            Mu1 = (self.Prior.B + k_mmT) / \
+                (self.Prior.nu + self.Prior.kappa)
             Mu2 = self.Prior.m
             return Mu1, Mu2
 
@@ -930,11 +932,10 @@ class GaussObsModel(AbstractObsModel):
             sum_wx = np.dot(W, X)
             sum_w = np.sum(W)
 
-        mmT = np.outer(self.Prior.m, self.Prior.m)
-        Mu_1 = (self.Prior.B + mmT * self.Prior.nu + sum_wxxT) / \
-            (2*self.Prior.nu + sum_w)
-        Mu_2 = (self.Prior.m * self.Prior.nu + sum_wx) / \
-                    (self.Prior.nu + sum_w)
+        Mu_1 = (self.Prior.B + k_mmT + sum_wxxT) / \
+            (self.Prior.nu + self.Prior.kappa + sum_w)
+        Mu_2 = (self.Prior.m * self.Prior.kappa + sum_wx) / \
+                    (self.Prior.kappa + sum_w)
         assert Mu_1.ndim == 2
         assert Mu_1.shape == (D, D,)
         assert Mu_2.shape == (D,)
@@ -976,8 +977,8 @@ class GaussObsModel(AbstractObsModel):
             assert W.size == N
 
         prior_xxT = self.Prior.B + \
-            self.Prior.nu * np.outer(self.Prior.m, self.Prior.m) 
-        prior_xxT /= (self.Prior.nu + self.Prior.nu)
+            self.Prior.kappa * np.outer(self.Prior.m, self.Prior.m) 
+        prior_xxT /= (self.Prior.nu + self.Prior.kappa)
 
         prior_x = self.Prior.m
 
@@ -989,11 +990,10 @@ class GaussObsModel(AbstractObsModel):
                 smooth_xxT = np.outer(X[n], X[n]) + eps * prior_xxT
                 smooth_x = X[n]
             else:
-                smooth_xxT = np.outer(X[n], X[n]) + \
-                    2 * self.Prior.nu * prior_xxT
-                smooth_xxT /= (1.0 + 2*self.Prior.nu)
-                smooth_x = (X[n] + self.Prior.m * self.Prior.nu) / \
-                    (1.0 + self.Prior.nu)
+                smooth_xxT = np.outer(X[n], X[n]) + prior_xxT
+                smooth_xxT /= (1.0 + self.Prior.nu + self.Prior.kappa)
+                smooth_x = (X[n] + self.Prior.m * self.Prior.kappa) / \
+                    (1.0 + self.Prior.kappa)
             MuX = smooth_xxT - np.outer(smooth_x, smooth_x)
             s, logdet = np.linalg.slogdet(MuX)
             logdet_xxT[n] = s * logdet
@@ -1043,13 +1043,30 @@ class GaussObsModel(AbstractObsModel):
         assert D == Mu[0][0].shape[1]
         assert D == Mu[0][1].size
 
-        priorMu_1 = self.Prior.B / self.Prior.nu
-        priorN = (1-smoothFrac) * (self.Prior.nu)
+        kmmT = self.Prior.kappa * np.outer(self.Prior.m, self.Prior.m)
+        priorS = (self.Prior.B) / (self.Prior.nu)
+        priorMu_1 = (self.Prior.B + kmmT) / (self.Prior.nu + self.Prior.kappa)
         priorMu_2 = self.Prior.m
 
-        Div = np.zeros(K)
+        priorN_ZMG = (1-smoothFrac) * self.Prior.nu
+        priorN_FVG = (1-smoothFrac) * self.Prior.kappa
+
+        Div_ZMG = np.zeros(K) # zero-mean gaussian
+        Div_FVG = np.zeros(K) # fixed variance gaussian
+        extraTerm = np.zeros(K)
         for k in xrange(K):
-            M_k = Mu[k][0] - np.outer(Mu[k][1], Mu[k][1])
+            S_k = Mu[k][0] - np.outer(Mu[k][1], Mu[k][1])
+            logdet_S_k = np.log(np.linalg.det(S_k))
+            Div_ZMG[k] = 0.5 * logdet_S_k - \
+                0.5 * np.log(np.linalg.det(priorS)) + \
+                0.5 * np.trace(np.linalg.solve(S_k, priorS)) - \
+                0.5
+            pmT = np.outer(priorMu_2 - Mu[k][1], priorMu_2 - Mu[k][1])
+            Div_FVG[k] = 0.5 * np.trace(np.linalg.solve(S_k, pmT))
+            # Extra term from norm constant of conditional p(u2 | u1-u2^2)
+            extraTerm[k] = 0.5 * logdet_S_k
+            
+            '''
             Div[k] = \
                 - 0.5 * np.log(
                     np.linalg.det(
@@ -1061,7 +1078,8 @@ class GaussObsModel(AbstractObsModel):
                     np.outer(priorMu_2, Mu[k][1]) + \
                     np.outer(Mu[k][1], Mu[k][1])
                     ))
-        return priorN * Div
+            '''
+        return priorN_ZMG * Div_ZMG + priorN_FVG * Div_FVG + extraTerm
 
     # .... end class
 
