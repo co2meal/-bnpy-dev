@@ -108,21 +108,25 @@ def makePlot_cumulant_Mu(
 
 def makePlot_bregmanDiv_Mu(
         mu_grid=None, mu=0.5, ngrid=100):
+    if isinstance(mu, list) and len(mu) > 1:
+        pylab.figure()
+        for m in mu:
+            makePlot_bregmanDiv_Mu(mu=m, ngrid=5000)
+        pylab.legend(loc='upper right', fontsize=13)
+        pylab.ylim([-.01, 1.6])
+        pylab.xlim([0, 1.0])
+        pylab.savefig('BetaBern_bregmanDiv.eps')
+        return
     label = 'mu=%.2f' % (mu)
     if mu_grid is None:
         mu_grid = np.linspace(1e-15, 1-1e-15, ngrid)
     div_grid = bregmanDiv(mu_grid, mu)
-    pylab.plot(mu_grid, div_grid, '--', linewidth=2, label=label)
+    pylab.plot(mu_grid, div_grid, '-', linewidth=1, label=label)
     pylab.xlabel('x')
     pylab.ylabel('Bregman div.  D(x, mu)')
 
-if __name__ == '__main__':
-    nuRange = [1/2.0, 1, 2.0, 8, 32, 128]
-    mu_Phi = 0.7
-    print "mu(Mode[phi]): ", mu_Phi
-    print "Mode[phi]: ", mu2phi(mu_Phi)
 
-
+def makePlot_pdf_Mu_range(nuRange):
     pylab.figure()
     for nu in nuRange[::-1]:
         tau = mu_Phi * nu
@@ -132,23 +136,7 @@ if __name__ == '__main__':
     pylab.ylim([0, 10])
     pylab.savefig('BetaBern_densityMu.eps')
 
-    '''
-    pylab.figure()
-    for mu in [0.01, 0.1, 0.5, 0.9, 0.99]:
-        makePlot_bregmanDiv_Mu(mu=mu, ngrid=5000)
-    pylab.legend(loc='upper left', fontsize=13)
-    pylab.yticks([0,1,2,3])
-    pylab.ylim([-.0001, 3.5])
-    pylab.savefig('BetaBern_bregmanDiv.eps')
-
-    pylab.figure()
-    makePlot_cumulant_Phi(ngrid=1000)
-    pylab.savefig('BetaBern_cumulantPhi.eps')
-
-    pylab.figure()
-    makePlot_cumulant_Mu(ngrid=1000)
-    pylab.savefig('BetaBern_cumulantMu.eps')
-
+def makePlot_pdf_Phi_range(nuRange):
     pylab.figure()
     for nu in nuRange[::-1]:
         tau = mu_Phi * nu
@@ -158,6 +146,29 @@ if __name__ == '__main__':
     pylab.ylim([0, 2.0]); pylab.yticks([0, 1, 2])
     pylab.xlim([-10, 6])
     pylab.savefig('BetaBern_densityPhi.eps')
-    '''
+    
 
+
+if __name__ == '__main__':
+    muRange = [0.02, 0.1, 0.5, 0.9, 0.98]
+    nuRange = [1/2.0, 1, 2.0, 8, 32, 128]
+    mu_Phi = 0.7
+    print "mu(Mode[phi]): ", mu_Phi
+    print "Mode[phi]: ", mu2phi(mu_Phi)
+
+    makePlot_bregmanDiv_Mu(mu=muRange, ngrid=10000)
+    
+    '''
+    makePlot_pdf_Mu_range(nuRange)
+    makePlot_pdf_Phi_range(nuRange)
+
+
+    pylab.figure()
+    makePlot_cumulant_Phi(ngrid=1000)
+    pylab.savefig('BetaBern_cumulantPhi.eps')
+
+    pylab.figure()
+    makePlot_cumulant_Mu(ngrid=1000)
+    pylab.savefig('BetaBern_cumulantMu.eps')
+    '''
     pylab.show()

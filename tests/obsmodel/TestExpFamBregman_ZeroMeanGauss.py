@@ -170,21 +170,12 @@ def makePlot_bregmanDiv_Mu(
     pylab.ylabel('Bregman div.  D(x, mu)')
 
 if __name__ == '__main__':
-    nuRange = [1/2.0, 1, 2.0, 8, 32, 128]
+    nuRange = [0.5, 1, 2.0, 8, 32, 128]
     mu_Phi = 0.5 * 1.0/3.0
     print "mu(Mode[phi]): ", mu_Phi
     print "Mode[phi]: ", mu2phi(mu_Phi)
 
-    pylab.figure()
-    for nu in nuRange[::-1]:
-        tau = mu_Phi * nu
-        checkFacts_pdf_Phi(nu=nu, tau=tau, min_phi=-50, ngrid=5e6)
-        makePlot_pdf_Phi(nu=nu, tau=tau, min_phi=4*mu2phi(mu_Phi), ngrid=2e4)
-    pylab.legend(loc='upper left', fontsize=13)
-    pylab.xticks([-12, -9, -6, -3, 0])
-    pylab.savefig('ZMG_densityPhi.eps')
-    
-    '''
+
     pylab.figure()
     for nu in nuRange[::-1]:
         tau = mu_Phi * nu
@@ -193,6 +184,15 @@ if __name__ == '__main__':
     pylab.legend(loc='upper right', fontsize=13)
     pylab.savefig('ZMG_densityMu.eps')
 
+    '''
+    pylab.figure()
+    for nu in nuRange[::-1]:
+        tau = mu_Phi * nu
+        checkFacts_pdf_Phi(nu=nu, tau=tau, min_phi=-50, ngrid=5e6)
+        makePlot_pdf_Phi(nu=nu, tau=tau, min_phi=4*mu2phi(mu_Phi), ngrid=2e4)
+    pylab.legend(loc='upper left', fontsize=13)
+    pylab.xticks([-12, -9, -6, -3, 0])
+    pylab.savefig('ZMG_densityPhi.eps')
     
     pylab.figure()
     makePlot_cumulant_Prior(tau=5.0, ngrid=5000)
