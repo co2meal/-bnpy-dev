@@ -706,15 +706,15 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
         '''
         if X.ndim < 2:
             X = X[np.newaxis,:]
-        if Mu.ndim < 3:
-            Mu = Mu[np.newaxis, :]
         assert X.ndim == 2
-        assert Mu.ndim == 3
         N = X.shape[0]
         D = X.shape[1]
-        K = Mu.shape[0]
-        assert Mu.shape[1] == D
-        assert Mu.shape[2] == D
+        if not isinstance(Mu, list):
+            Mu = [Mu]
+        K = len(Mu)
+        assert Mu[0].ndim == 2
+        assert Mu[0].shape[0] == D
+        assert Mu[0].shape[1] == D
         if W is not None:
             assert W.ndim == 1
             assert W.size == N
@@ -765,12 +765,11 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
         Div : 1D array, size K
             Div[k] = distance between Mu[k] and priorMu
         '''
-        if Mu.ndim < 3:
-            Mu = Mu[np.newaxis, :]
-        assert Mu.ndim == 3
-        K = Mu.shape[0]
-        D = Mu.shape[1]
-        assert D == Mu.shape[2]
+        if not isinstance(Mu, list):
+            Mu = [Mu]
+        K = len(Mu)
+        D = Mu[0].shape[0]
+        assert D == Mu[0].shape[1]
 
         priorMu = self.Prior.B / self.Prior.nu
         priorN = (1-smoothFrac) * (self.Prior.nu)

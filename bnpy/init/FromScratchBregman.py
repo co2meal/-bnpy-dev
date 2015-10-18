@@ -158,6 +158,12 @@ def runKMeans_BregmanDiv(X, K, obsModel, W=None,
             Mu=Mu, smoothFrac=smoothFrac).sum()
         Lscore = Ldata + Lprior
         Lscores.append(Lscore)
+
+        try:
+            assert np.all(np.diff(Lscores) <= 0)
+        except AssertionError:
+            from IPython import embed; embed()
+
         N = np.zeros(K)
         for k in xrange(K):
             if W is None:

@@ -26,7 +26,10 @@ def test_Gauss(K, N=1000, D=1, W=None, eps=1e-10):
         Data.X, K, hmodel.obsModel,
         W=W, smoothFrac=0, smoothFracInit=1.0,
         logFunc=print, eps=eps)
-    #assert np.all(np.diff(Lscores) <= 0)
+    try:
+        assert np.all(np.diff(Lscores) <= 0)
+    except AssertionError:
+        from IPython import embed; embed()
     return Z, Mu, Lscores
 
 def test_ZeroMeanGauss(K, N=1000, D=1, W=None, eps=1e-10):
@@ -93,6 +96,8 @@ if __name__ == '__main__':
         for K in [3, 5, 7, 10, 20, 50]:
             if K > N:
                 continue
+            #Z1, Mu1, L1 = test_ZeroMeanGauss(K, N, D=1, W=None, eps=1e-10)
+            #Z1, Mu1, L1 = test_ZeroMeanGauss(K, N, D=2, W=None, eps=1e-10)
             Z1, Mu1, L1 = test_Gauss(K, N, D=1, W=None, eps=1e-10)
             #Z2, Mu2, L2 = test_Gauss(K, N, D=1, W=None, eps=1e-10)
             #assert np.allclose(Z1, Z2)
