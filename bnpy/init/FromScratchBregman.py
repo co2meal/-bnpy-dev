@@ -162,6 +162,8 @@ def runKMeans_BregmanDiv(X, K, obsModel, W=None,
         try:
             assert np.all(np.diff(Lscores) <= 0)
         except AssertionError:
+            print 'In the kmeans update loop of FromScratchBregman.py'
+            print 'Lscores not monotonically decreasing...'
             from IPython import embed; embed()
 
         N = np.zeros(K)

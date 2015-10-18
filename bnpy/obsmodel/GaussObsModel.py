@@ -908,15 +908,12 @@ class GaussObsModel(AbstractObsModel):
         Returns
         -------
         Mu_1 : 2D array, size D x D
-            Covariance of X[n]
+            Expected value of Cov[ X[n] ]
         Mu_2 : 1D array, size D
-            Mean of X[n]
+            Expected value of Mean[ X[n] ]
         '''
-        B_kmmT = self.Prior.B + \
-            self.Prior.kappa * np.outer(self.Prior.m, self.Prior.m)
         if X is None:
-            Mu1 = B_kmmT / (self.Prior.nu + 1)
-            #Mu1 = self.Prior.B / self.Prior.nu
+            Mu1 = self.Prior.B / self.Prior.nu
             Mu2 = self.Prior.m
             return Mu1, Mu2
 
@@ -930,17 +927,20 @@ class GaussObsModel(AbstractObsModel):
             sum_w = X.shape[0]
         else:
             W = as1D(W)
-            wX = np.sqrt(W)[:,np.newaxis] * X
-            sum_wxxT = np.dot(wX.T, wX)
+            sqrtWX = np.sqrt(W)[:,np.newaxis] * X
+            sum_wxxT = np.dot(sqrtWX.T, sqrtWX)
             sum_wx = np.dot(W, X)
             sum_w = np.sum(W)
 
         kappa = self.Prior.kappa + sum_w
         m = (self.Prior.m * self.Prior.kappa + sum_wx) / kappa
-
-        B = B_kmmT + sum_wxxT - kappa * np.outer(m,m)        
-        Mu_1 = B / (self.Prior.nu + 1 + sum_w)
         Mu_2 = m
+
+        prior_kmmT = self.Prior.kappa * np.outer(self.Prior.m, self.Prior.m)
+        post_kmmT = kappa * np.outer(m,m)
+        B = sum_wxxT + self.Prior.B + prior_kmmT - post_kmmT
+        Mu_1 = B / (self.Prior.nu + sum_w)
+
         assert Mu_1.ndim == 2
         assert Mu_1.shape == (D, D,)
         assert Mu_2.shape == (D,)
@@ -982,40 +982,33 @@ class GaussObsModel(AbstractObsModel):
             assert W.size == N
 
         prior_x = self.Prior.m
-        prior_covx = self.Prior.B / (self.Prior.nu + 1.0)
+        prior_covx = self.Prior.B / (self.Prior.nu)
 
-        logdet_SX = np.zeros(N)
-        logdet_SMu = np.zeros(K)
-        tr_MuXInvMu = np.zeros((N, K))
-        for n in xrange(N):
-            if smoothFrac == 0:            
-                S_X =  np.outer(X[n], X[n]) + eps * prior_covx
-                smooth_x = X[n]
-            else:
-                S_X = np.outer(X[n], X[n]) + self.Prior.nu * prior_covx
-                S_X /= (1.0 + self.Prior.nu)
-                smooth_x = (X[n] + self.Prior.m * self.Prior.kappa) / \
-                    (1.0 + self.Prior.kappa)
+        logdet_MuCov = np.zeros(K)
+        tr_InvMu_CovX_ddT = np.zeros((N, K))
 
-            s, logdet = np.linalg.slogdet(S_X)
-            logdet_SX[n] = s * logdet
-
-            for k in xrange(K):
-                S_k = Mu[k][0]               
-                if n == 0:
-                    logdet_SMu[k] = np.log(np.linalg.det(S_k))
-                tr_MuXInvMu[n, k] = \
-                    - 0.5 \
-                    + 0.5 * np.trace(np.linalg.solve(S_k, S_X)) \
-                    + np.trace(np.linalg.solve(S_k,
-                        np.outer(smooth_x - Mu[k][1],
-                                 smooth_x - Mu[k][1])))
+        Cov_X = eps * prior_covx
+        s, logdet = np.linalg.slogdet(Cov_X)
+        logdet_XCov = s * logdet
 
         Div = np.zeros((N, K))
         for k in xrange(K):
-            Div[:,k] = tr_MuXInvMu[:,k] + \
-                0.5 * logdet_SMu[k] + \
-                - 0.5 * logdet_SX
+            chol_muVar_k = np.linalg.cholesky(Mu[k][0])
+            s, logdet = np.linalg.slogdet(Mu[k][0])
+            logdet_MuCov[k] = s * logdet
+
+            tr_InvMu_CovX_k = np.trace(np.linalg.solve(
+                Mu[k][0], Cov_X))
+
+            XdiffMu_k = X - Mu[k][1]
+            tr_InvMu_XdXdT_k = np.linalg.solve(chol_muVar_k, XdiffMu_k.T)
+            tr_InvMu_XdXdT_k *= tr_InvMu_XdXdT_k
+            tr_InvMu_XdXdT_k = tr_InvMu_XdXdT_k.sum(axis=0)
+
+            Div[:,k] = -0.5 \
+                - 0.5 * logdet_XCov \
+                + 0.5 * logdet_MuCov[k] \
+                + 0.5 * (tr_InvMu_CovX_k + tr_InvMu_XdXdT_k)
 
         if W is not None:
             Div *= W[:,np.newaxis]
@@ -1046,10 +1039,7 @@ class GaussObsModel(AbstractObsModel):
         assert D == Mu[0][0].shape[1]
         assert D == Mu[0][1].size
 
-        k_mmT = self.Prior.kappa * np.outer(self.Prior.m, self.Prior.m)
-        priorS = (self.Prior.B + k_mmT) / (self.Prior.nu + 1.0)
-
-        #priorS = (self.Prior.B) / (self.Prior.nu)        
+        priorCov = self.Prior.B / self.Prior.nu
         priorMu_2 = self.Prior.m
 
         priorN_ZMG = (1-smoothFrac) * self.Prior.nu
@@ -1057,25 +1047,21 @@ class GaussObsModel(AbstractObsModel):
 
         Div_ZMG = np.zeros(K) # zero-mean gaussian
         Div_FVG = np.zeros(K) # fixed variance gaussian
-        extraTerm = np.zeros(K)
  
-        s, logdet = np.linalg.slogdet(priorS)
-        logdet_priorS = s * logdet
+        s, logdet = np.linalg.slogdet(priorCov)
+        logdet_priorCov = s * logdet
         for k in xrange(K):
-            S_k = Mu[k][0] # - np.outer(Mu[k][1], Mu[k][1])
-            s, logdet = np.linalg.slogdet(S_k)
-            logdet_S_k = s * logdet
-            Div_ZMG[k] = 0.5 * logdet_S_k + \
-                - 0.5 * logdet_priorS \
-                + 0.5 * np.trace(np.linalg.solve(S_k, priorS)) \
+            Cov_k = Mu[k][0]
+            s, logdet = np.linalg.slogdet(Cov_k)
+            logdet_Cov_k = s * logdet
+            Div_ZMG[k] = 0.5 * logdet_Cov_k + \
+                - 0.5 * logdet_priorCov \
+                + 0.5 * np.trace(np.linalg.solve(Cov_k, priorCov)) \
                 - 0.5
             pmT = np.outer(priorMu_2 - Mu[k][1], priorMu_2 - Mu[k][1])
-            Div_FVG[k] = 0.5 * np.trace(np.linalg.solve(S_k, pmT))
-            # Extra term from norm constant of conditional p(u2 | u1-u2^2)
-            extraTerm[k] = 0.5 * logdet_S_k
+            Div_FVG[k] = 0.5 * np.trace(np.linalg.solve(Cov_k, pmT))
             
-        return priorN_ZMG * Div_ZMG + priorN_FVG * Div_FVG #+ extraTerm
-
+        return priorN_ZMG * Div_ZMG + priorN_FVG * Div_FVG
     # .... end class
 
 

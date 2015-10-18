@@ -6,7 +6,7 @@ runBregKMeans = bnpy.init.FromScratchBregman.runKMeans_BregmanDiv
 
 from bnpy.viz.PlotUtil import pylab
 
-def test_Gauss(K, N=1000, D=1, W=None, eps=1e-10):
+def test_Gauss(K, N=1000, D=1, W=None, eps=1e-10, nu=0.001, kappa=0.001):
     import StarCovarK5
     Data = StarCovarK5.get_data(nObsTotal=N)
     if D < Data.X.shape[1]:
@@ -14,7 +14,7 @@ def test_Gauss(K, N=1000, D=1, W=None, eps=1e-10):
     hmodel = bnpy.HModel.CreateEntireModel(
         'VB', 'DPMixtureModel', 'Gauss',
         dict(gamma0=10),
-        dict(ECovMat='eye', sF=0.5, nu=0.001, kappa=0.001),
+        dict(ECovMat='eye', sF=0.5, nu=nu, kappa=kappa),
         Data)
     if W:
         W = np.asarray(W)
@@ -91,14 +91,19 @@ def test_Mult(K, N=1000, W=None):
     assert np.all(np.diff(Lscores) <= 0)
 
 if __name__ == '__main__':
-    for N in [5, 10, 211, 333, 500, 1000]:
+    for N in [5, 10, 33, 211, 345, 500, 1000]:
         print('')
-        for K in [3, 5, 7, 10, 20, 50]:
+        for K in [1, 3, 5, 7, 10, 20, 50]:
             if K > N:
                 continue
             #Z1, Mu1, L1 = test_ZeroMeanGauss(K, N, D=1, W=None, eps=1e-10)
             #Z1, Mu1, L1 = test_ZeroMeanGauss(K, N, D=2, W=None, eps=1e-10)
-            Z1, Mu1, L1 = test_Gauss(K, N, D=1, W=None, eps=1e-10)
+            test_Gauss(K, N, D=1, W=1, eps=1e-10)
+            test_Gauss(K, N, D=1, W=1, eps=1e-10, 
+                nu=3, kappa=2)
+            test_Gauss(K, N, D=2, W=1, eps=1e-10)
+            test_Gauss(K, N, D=2, W=1, eps=1e-10, 
+                nu=3, kappa=2)
             #Z2, Mu2, L2 = test_Gauss(K, N, D=1, W=None, eps=1e-10)
             #assert np.allclose(Z1, Z2)
             #if isinstance(Mu1, np.ndarray):
