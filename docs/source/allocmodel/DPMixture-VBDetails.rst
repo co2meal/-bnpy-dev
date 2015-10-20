@@ -45,26 +45,25 @@ of size K+1, by defining the last index to aggregate
 all entries larger than index K.
 
 .. math::
-	\beta = [ \beta_1, \beta_2, \ldots \beta_K \beta_{>K} ]
-	\\ \beta_1 \triangleq p(z_n = 1)
+	\beta &= [ \beta_1, \beta_2, \ldots \beta_K \beta_{>K} ]
+	\\ \beta_1 &\triangleq p(z_n = 1)
 	\\ \ldots
-	\\ \beta_K \triangleq p(z_n = K)
-	\\ \beta_{>K} \triangleq \sum_{\ell=K+1}^{\infty} p(z_n = \ell)
+	\\ \beta_K &\triangleq p(z_n = K)
+	\\ \beta_{>K} &\triangleq \sum_{\ell=K+1}^{\infty} p(z_n = \ell)
 
 This variable is determined completely by the value of :math:`u`, via the stick-breaking construction:
 
 For each component k = 1, 2, 3, ...
 
 .. math::
-	\beta_k = u_k \prod_{\ell=1}{\ell<k} (1 - u_\ell)
+	\beta_k = u_k \prod_{\ell=1}^{k-1} (1 - u_\ell)
 
 * Data-cluster assignments :math:`{z}`
 	Integer :math:`z_n` indicates the 
 	component to which data item n is assigned.
 
 .. math::
-	z = [ z_1, z_2, \ldots z_N ]
-	z_n \in \{1, 2, 3, 4, \ldots}
+	z = [ z_1, z_2, \ldots z_N ], \quad	z_n \in \{1, 2, 3, 4, \ldots\}
 
 The generative model for this variable is
 
@@ -163,9 +162,8 @@ Useful expectations
 For each component k = 1, 2, ... K:
 
 .. math::
-	E_q[ \log \beta_k ] &= E_q[ \log u_k ] + \sum_{\ell=1}^{k-1} \E_q[ \log 1 - u_\ell]
-	:label:Elogbeta
-
+	E_q[ \log \beta_k ] &= E_q[ \log u_k ] + \sum_{\ell=1}^{k-1} E_q[ \log 1 - u_{\ell}]
+	\\
 where we can substitute definitions above. 
 
 
@@ -198,10 +196,7 @@ The function \\(c_B\\) is the cumulant function of the Beta distribution,
 which takes as arguments two positive scalars \\(a, b \\).
 
 .. math::
-	c_B(a, b) &\triangleq 
-	\log \Gamma(a + b)
-	 - \log \Gamma(a)
-	 - \log \Gamma(b)
+	c_B(a, b) \triangleq \log \Gamma(a + b) - \log \Gamma(a) - \log \Gamma(b)
 
 The required expectations are functions of :math:`{\eta}` defined above in :eq: Elogu. 
 
@@ -221,9 +216,7 @@ This whole function produces a scalar that indicates the entropy (level of uncer
 In practice, we can simplify this computation across each component:
 
 .. math::
-	\mathcal{L}_{entropy}(r) &= \sum_{k=1}^K H_k
-	\\
-	H_k \triangleq \sum_{n=1} r_{nk} \log r_{nk}
+	\mathcal{L}_{entropy}(r) = \sum_{k=1}^K H_k, \quad	H_k \triangleq \sum_{n=1} r_{nk} \log r_{nk}
 
 Where each value :math:`H_k` satisfies :math:`H_k > 0`.
 	

@@ -8,7 +8,7 @@ Gaussian Toy Data Demos
 
 .. raw:: html
 
-	<div class="row">
+	<div class="row" style="margin-bottom:8px">
 	<div class="media">
 	<div class="pull-left">
 		<a href="GaussianToyData-FiniteMixtureModel-EM-SingleRunDemo.html">
@@ -16,7 +16,7 @@ Gaussian Toy Data Demos
 			src="../_static/GaussianToyData_FiniteMixtureModel_EM_SingleRunDemo_100x100.png"
 			alt="...">
 		</a>
-	</div>
+	</div>	
 	<div class="media-body">
 		<a href="GaussianToyData-FiniteMixtureModel-EM-SingleRunDemo.html">
 		<h3 class="media-heading">
@@ -30,8 +30,7 @@ Gaussian Toy Data Demos
 	</div>
 	</div>
 
-
-	<div class="row">
+	<div class="row" style="margin-bottom:8px">
 	<div class="media">
 	<div class="pull-left">
 		<a href="GaussianToyData-FiniteMixtureModel-EM-CompareInitialization.html">
@@ -53,9 +52,7 @@ Gaussian Toy Data Demos
 	</div>
 	</div>
 
-
-
-	<div class="row">
+	<div class="row" style="margin-bottom:8px">
 	<div class="media">
 	<div class="pull-left">
 		<a href="GaussianToyData-DPMixtureModel-MemoizedWithBirthsAndMerges.html">
@@ -79,41 +76,76 @@ Gaussian Toy Data Demos
 
 
 
-
-
-
 Bag-of-words Toy Data Demos
 ===========================
 
-.. image:: DemoIndex_files/DemoIndex_10_0.png
+.. raw:: html
+
+	<div class="row" style="margin-bottom:8px">
+	<div class="media">
+	<div class="pull-left">
+		<a href="BarsToyData-DPMixtureModel-MemoizedWithBirthsAndMerges.html">
+			<img class="media-object" 
+			src="../_static/BarsToyData_DPMixtureModel_MemoizedWithBirthsAndMerges_100x100.png"
+			alt="...">
+		</a>
+	</div>	
+	<div class="media-body">
+		<a href="BarsToyData-DPMixtureModel-MemoizedWithBirthsAndMerges.html">
+		<h3 class="media-heading">
+		Dirichlet process mixtures on toy bars
+		</h3>
+		</a>
+		<p>
+		Use Bayesian nonparametric methods to cluster documents.
+		</p>
+	</div>
+	</div>
+	</div>
+
+	<div class="row" style="margin-bottom:8px">
+	<div class="media">
+	<div class="pull-left">
+		<a href="BarsToyData-FiniteTopicModel-Variational.html">
+			<img class="media-object" 
+			src="../_static/BarsToyData_FiniteTopicModel_Variational_100x100.png"
+			alt="...">
+		</a>
+	</div>	
+	<div class="media-body">
+		<a href="BarsToyData-FiniteTopicModel-Variational.html">
+		<h3 class="media-heading">
+		Simple topic models on toy bars
+		</h3>
+		</a>
+		<p>
+		We'll use a finite topic model (Latent Dirichlet Allocation) on this toy dataset.
+		</p>
+	</div>
+	</div>
+	</div>
+
+	<div class="row" style="margin-bottom:8px">
+	<div class="media">
+	<div class="pull-left">
+		<a href="BarsToyData-HDPTopicModel-VariationalWithMergeDelete.html">
+			<img class="media-object" 
+			src="../_static/BarsToyData_HDPTopicModel_VariationalWithMergeDelete_100x100.png"
+			alt="...">
+		</a>
+	</div>	
+	<div class="media-body">
+		<a href="BarsToyData-HDPTopicModel-VariationalWithMergeDelete.html">
+		<h3 class="media-heading">
+		Bayesian nonparametric topic models on toy bars
+		</h3>
+		</a>
+		<p>
+		We'll use a Hierarchical dirichlet process topic model on this toy dataset. This model (plus our improved inference algorithms) give much cleaner results than the parametric LDA model.
+		</p>
+	</div>
+	</div>
+	</div>
 
 
-
-`Birth and merge inference for DP mixtures of Multinomials <./BarsToyData-DPMixtureModel-MemoizedWithBirthsAndMerges.html>`__
-------------------------------------------------------------------------------------------------------------------------------
-
-Experiment showing how births and merges add and remove clusters to find
-the ideal set of bars.
-
-.. image:: DemoIndex_files/DemoIndex_12_0.png
-
-
-
-`Latent Dirichlet Allocation topic modeling with variational inference <./BarsToyData-FiniteTopicModel-Variational.html>`__
-----------------------------------------------------------------------------------------------------------------------------
-
-Experiment shows the basics for training a topic model, comparing
-different number of topics.
-
-.. image:: DemoIndex_files/DemoIndex_14_0.png
-
-
-
-`Merge and delete moves with HDP topic models <./BarsToyData-HDPTopicModel-VariationalWithMergeDelete.html>`__
----------------------------------------------------------------------------------------------------------------
-
-Use merge and delete moves for topic models to identify the 10 true bars
-topics from initializations with many more.
-
-
-.. image:: DemoIndex_files/DemoIndex_16_0.png
+More demos coming soon! Please make requests to the team!
