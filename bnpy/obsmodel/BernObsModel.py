@@ -664,7 +664,7 @@ class BernObsModel(AbstractObsModel):
         Mu /= (NX + self.Prior.lam1 + self.Prior.lam0)
         return Mu
 
-    def calcSmoothedBregDiv(self, X, Mu, W=None, smoothFrac=0.0):
+    def calcSmoothedBregDiv(self, X, Mu, W=None, smoothFrac=0.0, **kwargs):
         ''' Compute Bregman divergence between data X and clusters Mu.
 
         Smooth the data via update with prior parameters.
@@ -676,28 +676,30 @@ class BernObsModel(AbstractObsModel):
         '''
         if X.ndim < 2:
             X = X[np.newaxis,:]
-        if Mu.ndim < 2:
-            Mu = Mu[np.newaxis, :]
         assert X.ndim == 2
-        assert Mu.ndim == 2
         N = X.shape[0]
-        K = Mu.shape[0]
+        D = X.shape[1]
+
         if W is not None:
             assert W.ndim == 1
             assert W.size == N
+
+        if not isinstance(Mu, list):
+            Mu = (Mu,)
+        K = len(Mu)
+        assert Mu[0].size == D
 
         if smoothFrac == 0:
             MuX = np.minimum(X, 1 - 1e-14)
             MuX = np.maximum(MuX, 1e-14)
         else:
             MuX = X + smoothFrac * self.Prior.lam1
-            NX = 1.0 + \
-                smoothFrac * (self.Prior.lam1 + self.Prior.lam0)
+            NX = 1.0 + smoothFrac * (self.Prior.lam1 + self.Prior.lam0)
             MuX /= NX
 
         Div = np.zeros((N, K))
         for k in xrange(K):
-            Mu_k = Mu[k,:][np.newaxis,:]
+            Mu_k = Mu[k][np.newaxis,:]
             Div[:,k] = np.sum(MuX * np.log(MuX / Mu_k), axis=1) + \
                 np.sum((1-MuX) * np.log((1-MuX) / (1-Mu_k)), axis=1)
         if W is not None:
@@ -715,18 +717,17 @@ class BernObsModel(AbstractObsModel):
         Div : 1D array, size K
             Div[k] = distance between Mu[k] and priorMu
         '''
-        if Mu.ndim < 2:
-            Mu = Mu[np.newaxis, :]
-        assert Mu.ndim == 2
-        K = Mu.shape[0]
+        if not isinstance(Mu, list):
+            Mu = (Mu,) # cheaper than a list
+        K = len(Mu)
 
         priorMu = self.Prior.lam1 / (self.Prior.lam1 + self.Prior.lam0)
         priorN = (1-smoothFrac) * (self.Prior.lam1 + self.Prior.lam0)
 
         Div = np.zeros((K, self.D))
         for k in xrange(K):
-            Div[k, :] = priorMu * np.log(priorMu / Mu[k,:]) + \
-                (1-priorMu) * np.log((1-priorMu)/(1-Mu[k,:]))
+            Div[k, :] = priorMu * np.log(priorMu / Mu[k]) + \
+                (1-priorMu) * np.log((1-priorMu)/(1-Mu[k]))
         return np.dot(Div, priorN)
 
 

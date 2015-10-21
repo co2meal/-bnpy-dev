@@ -848,6 +848,165 @@ class DiagGaussObsModel(AbstractObsModel):
         calcSummaryStats : f handle
         """
         return calcLocalParams, calcSummaryStats
+
+
+
+    def calcSmoothedMu(self, X, W=None):
+        ''' Compute smoothed estimate of mean of statistic xxT.
+
+        Args
+        ----
+        X : 2D array, size N x D
+
+        Returns
+        -------
+        Mu_1 : 2D array, size D
+            Expected value of Var[ X[n,d] ]
+        Mu_2 : 1D array, size D
+            Expected value of Mean[ X[n] ]
+        '''
+        if X is None:
+            Mu1 = self.Prior.beta / self.Prior.nu
+            Mu2 = self.Prior.m
+            return Mu1, Mu2
+
+        if X.ndim == 1:
+            X = X[np.newaxis,:]
+        N, D = X.shape
+        # Compute suff stats
+        if W is None:
+            sum_wxx = np.sum(np.square(X), axis=0)
+            sum_wx = np.sum(X, axis=0)
+            sum_w = X.shape[0]
+        else:
+            W = as1D(W)
+            sum_wxx = np.dot(W, np.square(X))
+            sum_wx = np.dot(W, X)
+            sum_w = np.sum(W)
+
+        post_kappa = self.Prior.kappa + sum_w
+        post_m = (self.Prior.m * self.Prior.kappa + sum_wx) / post_kappa
+        Mu_2 = post_m
+
+        prior_kmm = self.Prior.kappa * (self.Prior.m * self.Prior.m)
+        post_kmm = post_kappa * (post_m * post_m)
+        post_beta = sum_wxx + self.Prior.beta + prior_kmm - post_kmm
+        Mu_1 = post_beta / (self.Prior.nu + sum_w)
+
+        assert Mu_1.ndim == 1
+        assert Mu_1.shape == (D,)
+        assert Mu_2.shape == (D,)
+        return Mu_1, Mu_2
+
+    def calcSmoothedBregDiv(self, X, Mu, 
+                            W=None, smoothFrac=0.0, eps=1e-10):
+        ''' Compute Bregman divergence between data X and clusters Mu.
+
+        Smooth the data via update with prior parameters.
+
+        Args
+        ----
+        X : 2D array, size N x D
+        Mu : list of size K, or tuple
+
+        Returns
+        -------
+        Div : 2D array, N x K
+            Div[n,k] = smoothed distance between X[n] and Mu[k]
+        '''
+        # Parse X
+        if X.ndim < 2:
+            X = X[np.newaxis,:]
+        assert X.ndim == 2
+        N = X.shape[0]
+        D = X.shape[1]
+        # Parse Mu
+        if isinstance(Mu, tuple):
+            Mu = [Mu]
+        assert isinstance(Mu, list)
+        K = len(Mu)
+
+        assert Mu[0][0].size == D
+        assert Mu[0][1].size == D
+        # Parse W
+        if W is not None:
+            assert W.ndim == 1
+            assert W.size == N
+
+        prior_x = self.Prior.m
+        prior_varx = self.Prior.beta / (self.Prior.nu)
+
+        XVar = eps * prior_varx
+        logdet_XVar = np.sum(np.log(XVar))
+
+        Div = np.zeros((N, K))
+        for k in xrange(K):
+            muVar_k = Mu[k][0]
+            muMean_k = Mu[k][1]
+            logdet_MuVar_k = np.sum(np.log(muVar_k))
+
+            squareDiff_X_Mu_k = np.square(X - muMean_k)
+            tr_k = np.sum((XVar + squareDiff_X_Mu_k) / muVar_k[np.newaxis,:], axis=1)
+
+            Div[:,k] = -0.5 \
+                - 0.5 * logdet_XVar \
+                + 0.5 * logdet_MuVar_k \
+                + 0.5 * tr_k
+
+        if W is not None:
+            Div *= W[:,np.newaxis]
+        if np.any(np.isnan(Div)):
+            from IPython import embed; embed()
+        try:
+            assert Div.min() > -1e-8
+        except AssertionError:
+            from IPython import embed; embed()
+        np.maximum(Div, 0, out=Div)
+        assert Div.min() >= 0
+        return Div
+
+    def calcBregDivFromPrior(self, Mu, smoothFrac=0.0):
+        ''' Compute Bregman divergence between Mu and prior mean.
+
+        Returns
+        -------
+        Div : 1D array, size K
+            Div[k] = distance between Mu[k] and priorMu
+        '''
+        assert isinstance(Mu, list)
+        K = len(Mu)
+        assert K >= 1
+        assert Mu[0][0].ndim == 1
+        assert Mu[0][1].ndim == 1
+        D = Mu[0][0].size
+        assert D == Mu[0][1].size
+
+        priorMuVar = self.Prior.beta / self.Prior.nu
+        priorMuMean = self.Prior.m
+
+        priorN_ZMG = (1-smoothFrac) * self.Prior.nu
+        priorN_FVG = (1-smoothFrac) * self.Prior.kappa
+
+        Div_ZMG = np.zeros(K) # zero-mean gaussian
+        Div_FVG = np.zeros(K) # fixed variance gaussian
+ 
+        logdet_priorMuVar = np.sum(np.log(priorMuVar))
+        for k in xrange(K):
+            MuVar_k = Mu[k][0]
+            MuMean_k = Mu[k][1]
+
+            logdet_MuVar_k = np.sum(np.log(MuVar_k))
+
+            Div_ZMG[k] = 0.5 * logdet_MuVar_k + \
+                - 0.5 * logdet_priorMuVar + \
+                + 0.5 * np.sum(priorMuVar / MuVar_k) + \
+                - 0.5
+            squareDiff = np.square(priorMuMean - MuMean_k)
+            Div_FVG[k] = 0.5 * np.sum(squareDiff / MuVar_k)
+
+        return priorN_ZMG * Div_ZMG + priorN_FVG * Div_FVG
+    # .... end class
+
     # .... end class
 
 

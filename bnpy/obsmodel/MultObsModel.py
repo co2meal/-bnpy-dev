@@ -614,7 +614,7 @@ class MultObsModel(AbstractObsModel):
         Mu /= Mu.sum()
         return Mu
 
-    def calcSmoothedBregDiv(self, X, Mu, W=None, smoothFrac=0.0):
+    def calcSmoothedBregDiv(self, X, Mu, W=None, smoothFrac=0.0, **kwargs):
         ''' Compute Bregman divergence between data X and clusters Mu.
 
         Smooth the data via update with prior parameters.
@@ -626,15 +626,15 @@ class MultObsModel(AbstractObsModel):
         '''
         if X.ndim < 2:
             X = X[np.newaxis,:]
-        if Mu.ndim < 2:
-            Mu = Mu[np.newaxis, :]
         assert X.ndim == 2
-        assert Mu.ndim == 2
         N = X.shape[0]
-        K = Mu.shape[0]
+        
         if W is not None:
             assert W.ndim == 1
             assert W.size == N
+        if not isinstance(Mu, list):
+            Mu = (Mu,)
+        K = len(Mu)
 
         if smoothFrac == 0:
             MuX = X + 1e-20
@@ -644,7 +644,7 @@ class MultObsModel(AbstractObsModel):
 
         Div = np.zeros((N, K))
         for k in xrange(K):
-            Mu_k = NX[:,np.newaxis] * Mu[k,:][np.newaxis,:]
+            Mu_k = NX[:,np.newaxis] * Mu[k][np.newaxis,:]
             Div[:,k] = np.sum(MuX * np.log(MuX / Mu_k), axis=1)
         if W is not None:
             Div *= W[:,np.newaxis]
@@ -661,17 +661,16 @@ class MultObsModel(AbstractObsModel):
         Div : 1D array, size K
             Div[k] = distance between Mu[k] and priorMu
         '''
-        if Mu.ndim < 2:
-            Mu = Mu[np.newaxis, :]
-        assert Mu.ndim == 2
-        K = Mu.shape[0]
+        if not isinstance(Mu, list):
+            Mu = (Mu,)
+        K = len(Mu)
 
         priorMu = self.Prior.lam / self.Prior.lam.sum()
         priorN = (1-smoothFrac) * (self.Prior.lam[0] / priorMu[0])
 
         Div = np.zeros(K)
         for k in xrange(K):
-            Div[k] = np.sum(priorMu * np.log(priorMu / Mu[k,:]))
+            Div[k] = np.sum(priorMu * np.log(priorMu / Mu[k]))
         return priorN * Div
 
 def c_Func(lam):

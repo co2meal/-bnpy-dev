@@ -19,7 +19,7 @@ def pprint(msg, prefix='', level=None, linewidth=80):
         prefixes = list()
         for ii, m_ii in enumerate(msg):
             prefix_ii = prefix[ii]
-            msgs_ii = split_across_lines(m_ii,
+            msgs_ii = split_str_into_fixed_width_lines(m_ii,
                 linewidth=linewidth-len(prefix_ii))
             msgs.extend(msgs_ii)
             prefixes.extend([prefix[ii] for i in range(len(msgs_ii))])
