@@ -121,11 +121,15 @@ def assignSplitStats_HDPTopicModel(
         start = Dslice.doc_range[d]
         stop = Dslice.doc_range[d+1]
 
-        wc_d = Dslice.word_count[start:stop]
         xLik_d = xLPslice['E_log_soft_ev'][start:stop, :Kfresh_active]
+        maxLik = xLik_d.max(axis=1)
+        xLik_d -= maxLik[:,np.newaxis] # should be more stable this way.
         np.exp(xLik_d, out=xLik_d)
        
-        targetsumResp_d = curLPslice['resp'][start:stop, ktarget] * wc_d
+        targetsumResp_d = curLPslice['resp'][start:stop, ktarget].copy()
+        if hasattr(Dslice, 'word_count'):
+            targetsumResp_d *= Dslice.word_count[start:stop]
+
         xsumResp_d = np.zeros_like(targetsumResp_d)
         
         xDocTopicCount_d = np.zeros(Kfresh_active)
@@ -139,10 +143,13 @@ def assignSplitStats_HDPTopicModel(
             
             # Update sumResp for all tokens in document
             np.dot(xLik_d, xDocTopicProb_d, out=xsumResp_d)
+            np.maximum(xsumResp_d, 1e-50, out=xsumResp_d)
 
             # Update DocTopicCount_d: 1D array, shape K
             #     sum(DocTopicCount_d) equals Nd[ktarget]
-            np.dot(targetsumResp_d / xsumResp_d, xLik_d, out=xDocTopicCount_d)
+            np.dot(targetsumResp_d / xsumResp_d,
+                   xLik_d,
+                   out=xDocTopicCount_d)
             xDocTopicCount_d *= xDocTopicProb_d
 
             if riter % 5 == 0:
@@ -169,6 +176,7 @@ def assignSplitStats_HDPTopicModel(
         xResp_d /= xsumResp_d[:, np.newaxis]
         xResp_d *= curLPslice['resp'][start:stop, ktarget][:, np.newaxis]
         np.maximum(xResp_d, 1e-100, out=xResp_d)
+        assert not np.any(np.isnan(xResp_d))
         # Fill in values in appropriate row of xDocTopicCount and xtheta
         xDocTopicCount[d, :Kfresh_active] = xDocTopicCount_d
         xtheta[d, :Kfresh_active] += xDocTopicCount_d
