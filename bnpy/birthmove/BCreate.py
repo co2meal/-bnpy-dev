@@ -221,7 +221,7 @@ def createSplitStats_bregmankmeans(
             xSSslice = cleanupMergeClusters(
                 xSSslice, curModel,
                 obsSS=xSSfake,
-                vocabList=Dslice.vocabList,
+                vocabList=vocabList,
                 pprintCountVec=pprintCountVec,
                 b_debugOutputDir=b_debugOutputDir, **kwargs)
         # Exit early if no promising new clusters are created

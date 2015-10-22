@@ -164,7 +164,7 @@ def runKMeans_BregmanDiv(X, K, obsModel, W=None,
         except AssertionError:
             print 'In the kmeans update loop of FromScratchBregman.py'
             print 'Lscores not monotonically decreasing...'
-            from IPython import embed; embed()
+            assert np.all(np.diff(Lscores) <= 0)
 
         N = np.zeros(K)
         for k in xrange(K):
@@ -360,9 +360,12 @@ def makeDataSubsetByThresholdResp(
                     errorMsg="Filtered dataset too small." + \
                         "Wanted %d items, found %d." % (K, Keff))
                 return DebugInfo, None, None, None, None
-            targetData = Data.select_subset_by_mask(chosenRespIDs)
+            targetData = Data.select_subset_by_mask(atomMask=chosenRespIDs)
             targetX = targetData.X
-            targetW = curLPslice['resp'][chosenRespIDs,ktarget]
+            if curLP is None:
+                targetW = None    
+            else:
+                targetW = curLP['resp'][chosenRespIDs,ktarget]
 
     DebugInfo = dict(
         targetAssemblyMsg=targetAssemblyMsg,
