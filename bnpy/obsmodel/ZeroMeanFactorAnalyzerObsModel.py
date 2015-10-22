@@ -6,6 +6,7 @@ from scipy.linalg import eigh
 from scipy.special import psi, gammaln
 from bnpy.util import dotATA
 from bnpy.util import LOGTWOPI, EPS
+from bnpy.data import XData
 from IPython import embed
 
 class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
@@ -179,6 +180,7 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         if self.calcXxT:
             WMean, hShape, hInvScale, PhiShape, PhiInvScale, aCov = self.initPostParams(SS)
         elif hasattr(self, 'Post'):
+        # if hasattr(self, 'Post'):
             WMean, hShape, hInvScale, PhiShape, PhiInvScale, aCov = \
                 (self.Post.WMean, self.Post.hShape, self.Post.hInvScale,
                  self.Post.PhiShape, self.Post.PhiInvScale, self.Post.aCov)
@@ -702,14 +704,23 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
 
 
 if __name__ == '__main__':
-    import bnpy, profile
+    import bnpy
     # import StarCovarK5
     # Data = StarCovarK5.get_data(nObsTotal=5000)
     import DeadLeavesD25
     Data = DeadLeavesD25.get_data()
-    hmodel, RInfo = bnpy.run('StarCovarK5', 'DPMixtureModel', 'ZeroMeanFactorAnalyzer', 'moVB',
-                             C=1, nLap=200, K=5, WCovType='diag', calcXxT=0)#,
-                             #moves='birth,merge,delete,shuffle')
+    hmodel, RInfo = bnpy.run('DeadLeavesD25', 'DPMixtureModel', 'ZeroMeanFactorAnalyzer', 'moVB',
+                             C=1, nLap=50, K=8, WCovType='diag',
+                             calcXxT=1, nTask=5, jobname='K1', nPostUpdate=2)#,
+                             # moves='birth,merge,delete,shuffle')
+    print hmodel.allocModel.get_active_comp_probs()
+
+    # import matplotlib.pylab as plt
+    # for k in xrange(hmodel.obsModel.K):
+    #     plt.figure(k)
+    #     sigma = hmodel.obsModel.getGaussCov4Comp(k)
+    #     plt.imshow(sigma, interpolation='nearest', cmap='hot', clim=[-.25, 1])
+    # plt.show()
 
     # import matplotlib.pylab as plt
     # hmodel, RInfo = bnpy.run('/Users/Geng/Documents/Brown/research/patch/HDP_patches/BerkSeg500/Patches_Size8x8_Stride4',
@@ -733,26 +744,26 @@ if __name__ == '__main__':
     # plotCovMatFromHModel(hmodel)
     # plt.show()
 
-    # from bnpy.viz.PlotTrace import plotJobsThatMatch
-    # plt.figure(1)
+    from bnpy.viz.PlotTrace import plotJobsThatMatch
     # plotJobsThatMatch('/Users/Geng/Documents/Brown/research/patch/FAPY/StarCovarK5/', yvar='K')
     # plt.show()
     # plt.figure(2)
-    # plotJobsThatMatch('/Users/Geng/Documents/Brown/research/patch/FAPY/StarCovarK5/')
-    # plt.show()
+    # plotJobsThatMatch('/Users/Geng/Documents/Brown/research/patch/FAPY/DeadLeavesD25/*xxT*')
+    # plotJobsThatMatch('/Users/Geng/Downloads/hehe/*', loc = 'lower right',
+    #                   savefilename = '/Users/Geng/Downloads/hehe/elbo.pdf')
 
     # hmodel = bnpy.load_model('/Users/Geng/Documents/Brown/research/patch/FAPY/StarCovarK5/defaultjob/1')
     # from bnpy.viz import PlotELBO
     # PlotELBO.plotJobsThatMatchKeywords('StarCovarK5/defaultjob');
 
-    from bnpy.viz.GaussViz import plotGauss2DContour, Colors
-    import matplotlib.pylab as plt
-    for k in xrange(hmodel.obsModel.K):
+    # from bnpy.viz.GaussViz import plotGauss2DContour, Colors
+    # import matplotlib.pylab as plt
+    # for k in xrange(hmodel.obsModel.K):
         # plt.figure(k)
-        sigma = hmodel.obsModel.getGaussCov4Comp(k)
+        # sigma = hmodel.obsModel.getGaussCov4Comp(k)
         # plt.imshow(sigma, interpolation='nearest', cmap='hot', clim=[-.25, 1])
-        plotGauss2DContour(np.zeros(hmodel.obsModel.D), sigma)
-    plt.show()
+        # plotGauss2DContour(np.zeros(hmodel.obsModel.D), sigma)
+    # plt.show()
 
     # LP = hmodel.calc_local_params(Data)
     # SS = hmodel.get_global_suff_stats(Data, LP, doPrecompEntropy=True,

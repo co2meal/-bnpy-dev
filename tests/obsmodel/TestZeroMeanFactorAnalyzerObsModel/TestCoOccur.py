@@ -9,9 +9,9 @@ from bnpy.data import XData
 nBatch = 50
 modelName = 'C50/10/'
 
-dataPath = '/Users/Geng/Documents/Brown/research/patch/HDP_patches/BerkSeg500/Patches_Size8x8_Stride4_noisy/'
+dataPath = '/Users/Geng/Documents/Brown/research/patch/HDP_patches/BerkSeg500/Patches_Size8x8_Stride4_recover/'
 modelPath = '/Users/Geng/Documents/Brown/research/patch/FAPY/Half/' + modelName
-savePath = '/Users/Geng/Documents/Brown/research/patch/coOccurTest/' + modelName + 'noisy/'
+savePath = '/Users/Geng/Documents/Brown/research/patch/coOccurTest/' + modelName + 'recover/'
 
 
 def build_img_from_lst(lst, H, W, patchH, patchW, pace):
