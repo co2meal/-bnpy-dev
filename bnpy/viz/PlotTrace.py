@@ -54,6 +54,7 @@ def plotJobsThatMatchKeywords(jpathPattern='/tmp/', **kwargs):
 
 def plotJobs(jpaths, legNames, styles=None, density=2,
              xvar='laps', yvar='evidence', loc='upper right',
+             xmin=None, xmax=None,
              taskids=None, savefilename=None, tickfontsize=None,
              bbox_to_anchor=None, **kwargs):
     ''' Create line plots for provided jobs.
@@ -73,13 +74,14 @@ def plotJobs(jpaths, legNames, styles=None, density=2,
         plot_all_tasks_for_job(jpaths[lineID], legNames[lineID],
                                xvar=xvar, yvar=yvar,
                                taskids=taskids, density=density, **curStyle)
-
+    
     # Y-axis limit determination
     # If we have "enough" data about the run beyond two full passes of dataset,
     # we zoom in on the region of data beyond lap 2
     if xvar == 'laps' and yvar == 'evidence':
         xmax = 0
         ymin = np.inf
+        ymin2 = np.inf
         ymax = -np.inf
         allRunsHaveXBeyond1 = True
         for line in pylab.gca().get_lines():
@@ -89,22 +91,31 @@ def plotJobs(jpaths, legNames, styles=None, density=2,
                 allRunsHaveXBeyond1 = False
                 continue
             posLap1 = np.searchsorted(xd, 1.0)
+            posLap2 = np.searchsorted(xd, 2.0)
             if posLap1 < xd.size:
                 ymin = np.minimum(ymin, yd[posLap1])
                 ymax = np.maximum(ymax, yd[posLap1:].max())
+            if posLap2 < xd.size:
+                ymin2 = np.minimum(ymin2, yd[posLap2])
             xmax = np.maximum(xmax, xd.max())
             if xd.max() <= 1:
                 allRunsHaveXBeyond1 = False
-
-        if xmax > 1.5 and allRunsHaveXBeyond1:
+        if allRunsHaveXBeyond1 and xmax > 1.5:
             # If all relevant curves extend beyond x=1, only show that part
-            xmin = 0.9
+            xmin = 1.0 - 1e-5
         else:
             xmin = 0
+        if allRunsHaveXBeyond1 and ymin2 < ymax:
+            range1 = ymax - ymin
+            range2 = ymax - ymin2
+            if 10 * range2 < range1:
+                # Y values jump from lap1 to lap2 is enormous,
+                # so let's just show y values from lap2 onward...
+                ymin = ymin2
         if (not np.allclose(ymax, ymin)) and allRunsHaveXBeyond1:
             pylab.ylim([ymin, ymax + 0.1 * (ymax - ymin)])
         pylab.xlim([xmin, xmax + .05 * (xmax - xmin)])
-
+    
     if loc is not None and len(jpaths) > 1:
         pylab.legend(loc=loc, bbox_to_anchor=bbox_to_anchor)
     if tickfontsize is not None:
@@ -144,23 +155,27 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
         color = Colors[colorID % len(Colors)]
     taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
 
-    if yvar == 'hamming-distance' or yvar == 'Keff':
+    if yvar == 'hamming-distance':
         if xvar == 'laps':
             xvar = 'laps-saved-params'
 
     for tt, taskid in enumerate(taskids):
         try:
-            xtxtfile = os.path.join(jobpath, taskid, xvar + '.txt')
-            if not os.path.isfile(xtxtfile):
-                xtxtfile = os.path.join(
-                    jobpath, taskid, xvar + '-saved-params.txt')
-            xs = np.loadtxt(xtxtfile)
-
+            var_ext = ''
             ytxtfile = os.path.join(jobpath, taskid, yvar + '.txt')
             if not os.path.isfile(ytxtfile):
+                var_ext = '-saved-params'
                 ytxtfile = os.path.join(
-                    jobpath, taskid, yvar + '-saved-params.txt')
+                    jobpath, taskid, yvar + var_ext + '.txt')
             ys = np.loadtxt(ytxtfile)
+
+            xtxtfile = os.path.join(jobpath, taskid, xvar + var_ext + '.txt')
+            if not os.path.isfile(xtxtfile):
+                var_ext = '-saved-params'
+                xtxtfile = os.path.join(
+                    jobpath, taskid, xvar + var_ext + '.txt')
+            xs = np.loadtxt(xtxtfile)
+
         except IOError as e:
             try:
                 xs, ys = loadXYFromTopicModelFiles(jobpath, taskid)
@@ -169,6 +184,7 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
                     xs, ys = loadXYFromTopicModelSummaryFiles(jobpath, taskid)
                 except ValueError:
                     raise e
+
         if yvar == 'hamming-distance' or yvar == 'Keff':
             if xvar == 'laps-saved-params':
                 # fix off-by-one error, if we save an extra dist on final lap

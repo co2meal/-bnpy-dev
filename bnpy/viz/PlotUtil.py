@@ -7,9 +7,9 @@ ExportInfo = dict(
     H_in=4,
 )
 
-
 def ConfigPylabDefaults(pylab):
     rcParams = pylab.rcParams
+    rcParams['pdf.fonttype'] = 42  # Make fonts export as text (not bitmap)
     rcParams['ps.fonttype'] = 42  # Make fonts export as text (not bitmap)
     rcParams['text.usetex'] = False
     rcParams['legend.fontsize'] = 16

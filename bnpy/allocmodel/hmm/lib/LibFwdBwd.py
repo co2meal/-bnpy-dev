@@ -4,6 +4,10 @@ import ctypes
 from numpy.ctypeslib import ndpointer
 from bnpy.util import as2D
 
+def cppReady():
+    ''' Returns true if compiled cpp library available, false o.w.
+    '''
+    return hasEigenLibReady
 
 def FwdAlg_cpp(initPi, transPi, SoftEv, order='C'):
     ''' Forward algorithm for a single HMM sequence. Implemented in C++/Eigen.
