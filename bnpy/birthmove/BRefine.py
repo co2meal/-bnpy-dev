@@ -115,75 +115,98 @@ def assignSplitStats_HDPTopicModel(
     # Initialize DocTopicCount and Theta
     xDocTopicCount = np.zeros((Dslice.nDoc, Kfresh))
     xtheta = np.tile(xalphaEbeta, (Dslice.nDoc, 1))
+    xLPslice['resp'] = xLPslice['E_log_soft_ev']
 
     # Visit each doc and compute token assignments
     for d in range(Dslice.nDoc):
         start = Dslice.doc_range[d]
         stop = Dslice.doc_range[d+1]
 
-        xLik_d = xLPslice['E_log_soft_ev'][start:stop, :Kfresh_active]
-        maxLik = xLik_d.max(axis=1)
-        xLik_d -= maxLik[:,np.newaxis] # should be more stable this way.
-        np.exp(xLik_d, out=xLik_d)
-       
-        targetsumResp_d = curLPslice['resp'][start:stop, ktarget].copy()
+        mask_d = np.flatnonzero(
+            curLPslice['resp'][start:stop, ktarget] > 0.01)
+        lumpmask_d = np.setdiff1d(np.arange(stop-start), mask_d)
         if hasattr(Dslice, 'word_count'):
-            targetsumResp_d *= Dslice.word_count[start:stop]
+            wc_d = Dslice.word_count[start + mask_d]
+            wc_lump_d = Dslice.word_count[start + lumpmask_d]
+        else:
+            wc_d = 1.0
+            wc_lump_d = 1.0
 
-        xsumResp_d = np.zeros_like(targetsumResp_d)
-        
+        xLik_d = xLPslice['E_log_soft_ev'][
+            start + mask_d, :Kfresh_active].copy()
+        np.exp(xLik_d, out=xLik_d)
+
+        lumpMass_d = np.sum(
+            curLPslice['resp'][start + lumpmask_d, ktarget] * \
+            wc_lump_d)
+        targetsumResp_d = curLPslice['resp'][start + mask_d, ktarget] * wc_d
+
+        # Allocate memory for this document
+        xsumResp_d = np.zeros_like(targetsumResp_d)        
         xDocTopicCount_d = np.zeros(Kfresh_active)
-        xDocTopicProb_d = np.zeros_like(xDocTopicCount_d)
-        prevxDocTopicCount_d = 500*np.ones(Kfresh_active)
-        for riter in range(LPkwargs['nCoordAscentItersLP']):
-            np.add(xDocTopicCount_d, xalphaEbeta_active, out=xDocTopicProb_d)
-            digamma(xDocTopicProb_d, out=xDocTopicProb_d)
-            xDocTopicProb_d -= xDocTopicProb_d.max()
-            np.exp(xDocTopicProb_d, out=xDocTopicProb_d)
-            
-            # Update sumResp for all tokens in document
-            np.dot(xLik_d, xDocTopicProb_d, out=xsumResp_d)
-            np.maximum(xsumResp_d, 1e-50, out=xsumResp_d)
 
-            # Update DocTopicCount_d: 1D array, shape K
-            #     sum(DocTopicCount_d) equals Nd[ktarget]
-            np.dot(targetsumResp_d / xsumResp_d,
-                   xLik_d,
-                   out=xDocTopicCount_d)
-            xDocTopicCount_d *= xDocTopicProb_d
+        # Begin loop
+        if mask_d.size > 0:
 
-            if riter % 5 == 0:
-                maxDiff_d = np.max(np.abs(
-                    prevxDocTopicCount_d - xDocTopicCount_d))
-                if maxDiff_d < LPkwargs['convThrLP']:
-                    break
-            prevxDocTopicCount_d[:] = xDocTopicCount_d
+            xDocTopicProb_d = np.zeros_like(xDocTopicCount_d)
+            prevxDocTopicCount_d = 500 * np.ones(Kfresh_active)
 
-        if verbose:
-            BLogger.pprint('---')
-            weightedtrueDocTopicCount_d = np.dot(
-                targetsumResp_d,
-                Dslice.TrueParams['resp'][start:stop])
-            BLogger.pprint(
-                ' '.join(
-                    ['%6.1f' % x for x in weightedtrueDocTopicCount_d])
-                )
-            BLogger.pprint(' ')
+            for riter in range(LPkwargs['nCoordAscentItersLP']):
+                np.add(xDocTopicCount_d, xalphaEbeta_active, 
+                       out=xDocTopicProb_d)
+                digamma(xDocTopicProb_d, out=xDocTopicProb_d)
+                xDocTopicProb_d -= xDocTopicProb_d.max()
+                np.exp(xDocTopicProb_d, out=xDocTopicProb_d)
+                
+                # Update sumResp for active tokens in document
+                np.dot(xLik_d, xDocTopicProb_d, out=xsumResp_d)
 
-        # Create proposal resp for relevant atoms in this doc only
-        xResp_d = xLik_d
-        xResp_d *= xDocTopicProb_d[np.newaxis, :]
-        xResp_d /= xsumResp_d[:, np.newaxis]
-        xResp_d *= curLPslice['resp'][start:stop, ktarget][:, np.newaxis]
-        np.maximum(xResp_d, 1e-100, out=xResp_d)
-        assert not np.any(np.isnan(xResp_d))
+                # Update DocTopicCount_d: 1D array, shape K
+                #     sum(DocTopicCount_d) equals Nd[ktarget]
+                np.dot(targetsumResp_d / xsumResp_d, xLik_d, 
+                       out=xDocTopicCount_d)
+                xDocTopicCount_d *= xDocTopicProb_d
+
+                if riter % 5 == 0:
+                    maxDiff_d = np.max(np.abs(
+                        prevxDocTopicCount_d - xDocTopicCount_d))
+                    if maxDiff_d < LPkwargs['convThrLP']:
+                        break
+                prevxDocTopicCount_d[:] = xDocTopicCount_d
+
+            # Create proposal resp for relevant atoms in this doc only
+            xResp_d = xLik_d
+            xResp_d *= xDocTopicProb_d[np.newaxis, :]
+            xResp_d /= xsumResp_d[:, np.newaxis]
+            xResp_d *= curLPslice['resp'][
+                start + mask_d, ktarget][:, np.newaxis]
+            np.maximum(xResp_d, 1e-100, out=xResp_d)
+
+            assert np.allclose(
+                xResp_d.sum(axis=1),
+                curLPslice['resp'][start+mask_d, ktarget])
+            xLPslice['resp'][start+mask_d, :Kfresh_active] = xResp_d
+
+        if lumpmask_d.size > 0:
+            kmax = xDocTopicCount_d.argmax()
+            xLPslice['resp'][start+lumpmask_d, :Kfresh_active] = 1e-100
+            xLPslice['resp'][start+lumpmask_d, kmax] = \
+                curLPslice['resp'][start + lumpmask_d, ktarget]
+            xDocTopicCount_d[kmax] += lumpMass_d
+
+            assert np.allclose(
+                xLPslice['resp'][
+                    start+lumpmask_d, :Kfresh_active].sum(axis=1),
+                curLPslice['resp'][start+lumpmask_d, ktarget])
+
         # Fill in values in appropriate row of xDocTopicCount and xtheta
         xDocTopicCount[d, :Kfresh_active] = xDocTopicCount_d
         xtheta[d, :Kfresh_active] += xDocTopicCount_d
 
-    # E_log_soft_ev field really contains resp at this point,
-    # so just rename this field as 'resp'
-    xLPslice['resp'] = xLPslice['E_log_soft_ev']
+        assert np.allclose(xDocTopicCount[d,:].sum(),
+                           curLPslice['DocTopicCount'][d, ktarget])
+
+    # Force all entries beyond the active K to very small.
     xLPslice['resp'][:, Kfresh_active:] = 1e-100
     # Insert DocTopicCount and theta into the LP dict we're building
     xLPslice['DocTopicCount'] = xDocTopicCount
