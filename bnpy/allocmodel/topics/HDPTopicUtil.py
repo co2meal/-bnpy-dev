@@ -272,9 +272,12 @@ def calcHrespForMergePairs(resp, Data, mPairIDs, returnVec=1):
         else:
             Hmat = calcRlogR_specificpairs(resp, mPairIDs)
     if returnVec:
-        Hvec = np.zeros(len(mPairIDs))
-        for ii, (kA, kB) in enumerate(mPairIDs):
-            Hvec[ii] = -1 * Hmat[kA, kB]
+        if Hmat.ndim == 2:
+            Hvec = np.zeros(len(mPairIDs))
+            for ii, (kA, kB) in enumerate(mPairIDs):
+                Hvec[ii] = -1 * Hmat[kA, kB]
+        else:
+            Hvec = Hmat
         return Hvec
     else:
         return -1 * Hmat
