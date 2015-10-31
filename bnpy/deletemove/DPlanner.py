@@ -30,9 +30,11 @@ def selectCandidateDeleteComps(
     eligibleUIDs = set(SS.uids)
 
     if len(eligibleUIDs) < 3:
-        failMsg = "Disabled. Delete requires at least 3 UIDs.\n" + \
-            "   Need 1 uid to target, and at least 2 to absorb.\n" + \
-            "   Only have %d total uids in the model." % (len(eligibleUIDs))
+        DLogger.pprint(
+            "Delete proposal requires at least 3 eligible UIDs.\n" + \
+            "   Need 1 uid to target, and at least 2 to absorb." + \
+            "   Only have %d total uids in the model." % (len(eligibleUIDs)))
+        failMsg = "Ineligible. Did not find >= 3 eligible UIDs to absorb."
         return dict(failMsg=failMsg)
 
     uidsBusyWithOtherMoves = set()
@@ -48,10 +50,11 @@ def selectCandidateDeleteComps(
             uidsBusyWithOtherMoves.add(uid)
 
     if len(eligibleUIDs) < 3:
-        failMsg = "Disabled. Delete requires at least 3 UIDs" + \
+        DLogger.pprint("Delete requires at least 3 UIDs" + \
             " not occupied by merge or birth.\n" + \
             "   Need 1 uid to target, and at least 2 to absorb.\n" + \
-            "   Only have %d total uids eligible." % (len(eligibleUIDs))
+            "   Only have %d total uids eligible." % (len(eligibleUIDs)))
+        failMsg = "Ineligible. Too many uids occupied by merge or shortlisted for birth."
         return dict(failMsg=failMsg)
 
     # Compute score for each eligible state
