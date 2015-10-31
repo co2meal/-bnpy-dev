@@ -868,7 +868,7 @@ class MemoVBMovesAlg(LearnAlg):
                 BLogger.pprint(
                     '   Rejected. Gain of % .3e. Remain at Lscore %.3e' % (
                         propLscore-Lscore, Lscore))
-                if gainLdata > 0.01:
+                if gainLdata > 0.01 and not self.isLastBatch(lapFrac):
                     BLogger.pprint(
                         '   Retained. Promising value of gainLdata % .2f' % (
                             gainLdata))
