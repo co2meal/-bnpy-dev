@@ -161,22 +161,20 @@ def selectCompsForBirthAtCurrentBatch(
         else:
             sizePercDiff = np.abs(size - oldsize) / \
                 (1e-100 + np.abs(oldsize))
-
             sizeChangedEnoughToReactivate = sizePercDiff > \
                 BArgs['b_minPercChangeInNumAtomsToReactivate']
             minBatchSizeToReactivate = oldbatchsize * \
-                (1.0 + BArg['b_minPercChangeInNumAtomsToReactivate'])
-
+                (1.0 + BArgs['b_minPercChangeInNumAtomsToReactivate'])
             if size > oldsize and sizeChangedEnoughToReactivate:
                 hasFailureRecord = False
                 msg = "uid %d reactivated by total size!" % (uid) + \
-                    "size %.1f  oldsize %.1f" % (
+                    " new_size %.1f  old_size %.1f" % (
                         size, oldsize)
                 BLogger.pprint(msg, 'debug')
             elif CountVec_b[ii] >= minBatchSizeToReactivate:
                 hasFailureRecord = False
                 msg = "uid %d reactivated by batch size!" % (uid) + \
-                    "batchsize %.1f  oldbatchsize %.1f" % (
+                    " new_batchsize %.1f  old_batchsize %.1f" % (
                         CountVec_b[ii], oldbatchsize)
                 BLogger.pprint(msg, 'debug')
             else:
@@ -186,9 +184,6 @@ def selectCompsForBirthAtCurrentBatch(
             continue
 
         eligible_mask[ii] = 1
-
-    # Track uids that fail to launch
-    MovePlans['b_curPlan_FailUIDs'] = list()
 
     nDQ_toobusy = len(uidsBusyWithOtherMoves)
     nDQ_toosmall = len(uidsTooSmall)
@@ -235,6 +230,10 @@ def selectCompsForBirthAtCurrentBatch(
     # EXIT if nothing eligible.
     if len(UIDs) == 0:
         return MovePlans
+
+    # Mark all uids that are eligible!
+    for uid in UIDs:
+        MoveRecordsByUID[uid]['b_latestEligibleLap'] = lapFrac
 
     lineUID = vec2str(UIDs)
     lineSize = vec2str(SizeVec_all[eligible_mask])

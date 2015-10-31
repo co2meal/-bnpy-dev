@@ -288,9 +288,18 @@ class MemoVBMovesAlg(LearnAlg):
             MovePlans = self.makeMovePlans_Birth_AtBatch(
                 curModel, curSSwhole,
                 SSbatch=SSbatch,
-                lapFrac=lapFrac, MovePlans=MovePlans, **kwargs)
+                lapFrac=lapFrac, 
+                MovePlans=MovePlans,
+                MoveRecordsByUID=MoveRecordsByUID,
+                **kwargs)
             ElapsedTimeLogger.stopEvent('birth', 'plan')
         
+        if 'b_nFailedProp' not in MovePlans:
+            MovePlans['b_nFailedProp'] = 0
+        if 'b_nTrial' not in MovePlans:
+            MovePlans['b_nTrial'] = 0
+        failedUIDs = list()
+
         # Try each planned birth
         SSbatch.propXSS = dict()
         if 'b_targetUIDs' in MovePlans:
@@ -341,33 +350,35 @@ class MemoVBMovesAlg(LearnAlg):
                             lapFrac=lapFrac,
                             **BArgs)
                     if propxSSbatch is not None:
+                        # Proposal creates >= 2 useful clusters.
                         # Move on to the evaluation stage!
                         SSbatch.propXSS[targetUID] = propxSSbatch
                     else:
-                        # Failure.
-                        MovePlans['b_curPlan_FailUIDs'].append(targetUID)
+                        # Failure. Expansion did not create good proposal.
+                        failedUIDs.append(targetUID)
+                        MovePlans['b_nFailedProp'] += 1
+                        MovePlans['b_nTrial'] += 1
+
                         if targetUID not in MoveRecordsByUID:
                             MoveRecordsByUID[targetUID] = defaultdict(int)
-                        MoveRecordsByUID[targetUID]['b_nTrial'] += 1
-                        MoveRecordsByUID[targetUID]['b_nFail'] += 1
-                        MoveRecordsByUID[targetUID]['b_nFailRecent'] += 1
-                        MoveRecordsByUID[targetUID]['b_nSuccessRecent'] = 0
-                        MoveRecordsByUID[targetUID]['b_latestLap'] = lapFrac
+                        Rec = MoveRecordsByUID[targetUID]
                         kk = curSSwhole.uid2k(targetUID)
-                        targetCount = curSSwhole.getCountVec()[kk]
-                        MoveRecordsByUID[targetUID]['b_latestCount'] = \
-                            targetCount
-                        MoveRecordsByUID[targetUID]['b_latestBatchCount'] = \
-                            SSbatch.getCountVec()[kk]
+
+                        Rec['b_nTrial'] += 1
+                        Rec['b_nFail'] += 1
+                        Rec['b_nFailRecent'] += 1
+                        Rec['b_nSuccessRecent'] = 0
+                        Rec['b_latestLap'] = lapFrac
+                        Rec['b_latestCount'] = curSSwhole.getCountVec()[kk]
+                        Rec['b_latestBatchCount'] = SSbatch.getCountVec()[kk]
                         if SSbatch.hasSelectionTerm('DocUsageCount'):
-                            MoveRecordsByUID[targetUID]['b_latestBatchNDoc'] = \
+                            Rec['b_latestBatchNDoc'] = \
                                 SSbatch.getSelectionTerm('DocUsageCount')[kk]
                 BLogger.stopUIDSpecificLog(targetUID)
             ElapsedTimeLogger.stopEvent('birth', 'localexpansion')
 
-        if 'b_curPlan_FailUIDs' in MovePlans:
-            for failUID in MovePlans['b_curPlan_FailUIDs']:
-                MovePlans['b_targetUIDs'].remove(failUID)
+        for failUID in failedUIDs:
+            MovePlans['b_targetUIDs'].remove(failUID)
 
         # Prepare deletes
         if 'd_targetUIDs' in MovePlans:
@@ -524,8 +535,10 @@ class MemoVBMovesAlg(LearnAlg):
         return hmodel
 
     def makeMovePlans(self, hmodel, SS,
-                      MovePlans=dict(), 
-                      lapFrac=-1, **kwargs):
+                      MovePlans=dict(),
+                      MoveRecordsByUID=dict(), 
+                      lapFrac=-1,
+                      **kwargs):
         ''' Plan which comps to target for each possible move.
 
         Returns
@@ -539,19 +552,28 @@ class MemoVBMovesAlg(LearnAlg):
            ElapsedTimeLogger.startEvent('birth', 'plan')
            MovePlans = self.makeMovePlans_Birth_AtLapStart(
                hmodel, SS, 
-               lapFrac=lapFrac, MovePlans=MovePlans, **kwargs)
+               lapFrac=lapFrac,
+               MovePlans=MovePlans,
+               MoveRecordsByUID=MoveRecordsByUID,
+               **kwargs)
            ElapsedTimeLogger.stopEvent('birth', 'plan')
         if isFirst and self.hasMove('merge'):
             ElapsedTimeLogger.startEvent('merge', 'plan')
             MovePlans = self.makeMovePlans_Merge(
                 hmodel, SS, 
-                lapFrac=lapFrac, MovePlans=MovePlans, **kwargs)
+                lapFrac=lapFrac,
+                MovePlans=MovePlans,
+                MoveRecordsByUID=MoveRecordsByUID,
+                **kwargs)
             ElapsedTimeLogger.stopEvent('merge', 'plan')
         if isFirst and self.hasMove('delete'):
             ElapsedTimeLogger.startEvent('delete', 'plan')
             MovePlans = self.makeMovePlans_Delete(
                 hmodel, SS, 
-                lapFrac=lapFrac, MovePlans=MovePlans, **kwargs)
+                lapFrac=lapFrac,
+                MovePlans=MovePlans,
+                MoveRecordsByUID=MoveRecordsByUID,
+                **kwargs)
             ElapsedTimeLogger.stopEvent('delete', 'plan')
         return MovePlans
 
@@ -860,12 +882,6 @@ class MemoVBMovesAlg(LearnAlg):
                     MoveRecordsByUID[targetUID]['b_nSuccessRecent'] = 0
             BLogger.stopUIDSpecificLog(targetUID)
 
-        if 'b_nFailedProp' not in MovePlans:
-            MovePlans['b_nFailedProp'] = 0
-        if 'b_curPlan_FailUIDs' in MovePlans:
-            MovePlans['b_nFailedProp'] += len(MovePlans['b_curPlan_FailUIDs'])
-            nTrial += len(MovePlans['b_curPlan_FailUIDs'])
-
         MovePlans['b_Knew'] = totalKnew
         MovePlans['b_nAccept'] = nAccept
         MovePlans['b_nTrial'] = nTrial
@@ -885,20 +901,30 @@ class MemoVBMovesAlg(LearnAlg):
                     MovePlans['b_nFailedProp'])
                 BLogger.pprint(msg, 'info')
 
-            # If any short-listed uids did not get tried in this lap,
-            # mark them as failures
+            # If any short-listed uids did not get tried in this lap
+            # there are two possible reasons:
+            # 1) No batch contains a sufficient size of that uid.
+            # 2) Other uids were prioritized due to budget constraints.
+            # We need to mark uids that failed for reason 1,
+            # so that we don't avoid deleting/merging them in the future.
             for uid in MovePlans['b_shortlistUIDs']:
                 if uid not in MoveRecordsByUID:
                     MoveRecordsByUID[uid] = defaultdict(int)
-                lastLap = MoveRecordsByUID[uid]['b_latestLap']
-                if np.ceil(lastLap) < lapFrac:
+                Rec = MoveRecordsByUID[uid]
+
+                lastEligibleLap = Rec['b_latestEligibleLap']
+                if np.ceil(lastEligibleLap) < np.ceil(lapFrac):
+                    msg = "Marked uid %d ineligible for future shortlists." + \
+                        "Never eligible this lap."
+                    BLogger.pprint(msg % (uid))
                     k = SS.uid2k(uid)
-                    MoveRecordsByUID[uid]['b_latestLap'] = lapFrac
-                    MoveRecordsByUID[uid]['b_nFail'] += 1
-                    MoveRecordsByUID[uid]['b_nFailRecent'] += 1
-                    MoveRecordsByUID[uid]['b_nSuccessRecent'] = 0
-                    MoveRecordsByUID[uid]['b_latestCount'] = SS.getCountVec()[k]
-                    MoveRecordsByUID[uid]['b_latestBatchCount'] = 0
+                    Rec['b_latestLap'] = lapFrac
+                    Rec['b_nFail'] += 1
+                    Rec['b_nFailRecent'] += 1
+                    Rec['b_nSuccessRecent'] = 0
+                    Rec['b_latestCount'] = SS.getCountVec()[k]
+                    Rec['b_latestBatchCount'] = \
+                        self.SSmemory[0].getCountVec()[k]
 
         ElapsedTimeLogger.stopEvent('birth', 'eval')
         return hmodel, SS, Lscore, MoveLog, MoveRecordsByUID
