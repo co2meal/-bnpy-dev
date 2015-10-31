@@ -10,7 +10,7 @@ RecentMessages = None
 taskoutpath = None
 DEFAULTLEVEL = logging.DEBUG
 
-def pprint(msg, prefix='', level=None, linewidth=80):
+def pprint(msg, level=None, prefix='', linewidth=80):
     global Log
     global DEFAULTLEVEL
     global RecentMessages

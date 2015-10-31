@@ -45,17 +45,24 @@ def selectShortListForBirthAtLapStart(
 
     CountVec = SS.getCountVec()
     eligible_mask = np.zeros(K, dtype=np.bool8)
+    nTooSmall = 0
+    nPastFail = 0
     for k, uid in enumerate(SS.uids):
         if uid not in MoveRecordsByUID:
             MoveRecordsByUID[uid] = defaultdict(int)
 
         tooSmall = CountVec[k] <= b_minNumAtomsForTargetComp
         hasFailRecord = MoveRecordsByUID[uid]['b_nFailRecent'] > 0
-
         if (not tooSmall) and (not hasFailRecord):
             eligible_mask[k] = 1
             MovePlans['b_shortlistUIDs'].append(uid)
+        elif tooSmall:
+            nTooSmall += 1
+        elif hasFailRecord:
+            nPastFail += 1
 
+    MovePlans['b_nDQ_toosmall'] = nTooSmall
+    MovePlans['b_nDQ_pastfail'] = nPastFail
     nShortList = len(MovePlans['b_shortlistUIDs'])
     BLogger.pprint(
         "%d/%d uids selected for short list." % (nShortList, K))

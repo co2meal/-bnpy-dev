@@ -894,12 +894,23 @@ class MemoVBMovesAlg(LearnAlg):
                     nAccept, nTrial,
                     MovePlans['b_nFailedProp'], nTrial)
                 BLogger.pprint(msg, 'info')
-            elif MovePlans['b_nFailedProp'] > 0:
-                msg = "BIRTH @ lap %.2f : %d failed proposals."
-                msg = msg % (
-                    lapFrac,
-                    MovePlans['b_nFailedProp'])
-                BLogger.pprint(msg, 'info')
+            else:
+                if len(MovePlans['b_shortlistUIDs']) > 0:
+                    msg = "BIRTH @ lap %.2f : No proposals attempted." + \
+                        " Shortlist had %d possible clusters," + \
+                        " but none met minimum requirements."
+                    msg = msg % (
+                        lapFrac, len(MovePlans['b_shortlistUIDs']))
+                    BLogger.pprint(msg, 'info')
+                else:
+                    msg = "BIRTH @ lap %.2f : No proposals and no shortlist." \
+                        + " %d clusters too small. %d had past rejections."
+                    msg = msg % (
+                        lapFrac,
+                        MovePlans['b_nDQ_toosmall'],
+                        MovePlans['b_nDQ_pastfail'])
+                    BLogger.pprint(msg, 'info')
+
 
             # If any short-listed uids did not get tried in this lap
             # there are two possible reasons:
