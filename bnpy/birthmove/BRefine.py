@@ -96,7 +96,12 @@ def assignSplitStats_HDPTopicModel(
     Korig = curModel.obsModel.K
     Kfresh = propXSS.K
     Nfresh_active = propXSS.getCountVec()
-    Kfresh_active = np.flatnonzero(Nfresh_active > 1e-50)[-1] + 1
+    # Determine how many clusters have non-zero mass
+    nnzVec = np.flatnonzero(Nfresh_active > 1e-50)
+    if nnzVec.size > 0:
+        Kfresh_active = nnzVec[-1] + 1
+    else:
+        Kfresh_active = 1
 
     thetaRem = curModel.allocModel.alpha_E_beta_rem()
     assert np.allclose(thetaRem, curLPslice['thetaRem'])
