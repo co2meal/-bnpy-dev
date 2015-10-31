@@ -9,7 +9,8 @@ import ElapsedTimeLogger
 from collections import defaultdict
 
 from bnpy.birthmove import createSplitStats, assignSplitStats, BLogger
-from bnpy.birthmove import selectTargetCompsForBirth
+from bnpy.birthmove import selectCompsForBirthAtCurrentBatch
+from bnpy.birthmove import selectShortListForBirthAtLapStart
 from bnpy.mergemove import MLogger
 from bnpy.mergemove import selectCandidateMergePairs, ELBO_GAP_ACCEPT_TOL
 from bnpy.deletemove import DLogger, selectCandidateDeleteComps
@@ -284,24 +285,23 @@ class MemoVBMovesAlg(LearnAlg):
         # using recently updated stats.
         if self.hasMove('birth'):
             ElapsedTimeLogger.startEvent('birth', 'plan')
-            MovePlans = self.makeMovePlans_Birth(
+            MovePlans = self.makeMovePlans_Birth_AtBatch(
                 curModel, curSSwhole,
-                curSSbatch=SSbatch,
+                SSbatch=SSbatch,
                 lapFrac=lapFrac, MovePlans=MovePlans, **kwargs)
             ElapsedTimeLogger.stopEvent('birth', 'plan')
         
         # Try each planned birth
         SSbatch.propXSS = dict()
-        if 'BirthTargetUIDs' in MovePlans:
+        if 'b_targetUIDs' in MovePlans:
             ElapsedTimeLogger.startEvent('birth', 'localexpansion')
 
             # Loop thru copy of the target comp UID list
             # So that we can remove elements from it within the loop
-            for ii, targetUID in enumerate(MovePlans['BirthTargetUIDs']):
+            for ii, targetUID in enumerate(MovePlans['b_targetUIDs']):
                 if ii == 0:
                     BLogger.pprint(
                         'CREATING birth proposals at lap %.2f' % (lapFrac))
-
                 BArgs = self.algParams['birth'].copy()
                 if BArgs['b_debugWriteHTML']:
                     BArgs['b_debugOutputDir'] = os.path.join(
@@ -345,7 +345,6 @@ class MemoVBMovesAlg(LearnAlg):
                         SSbatch.propXSS[targetUID] = propxSSbatch
                     else:
                         # Failure.
-                        # MovePlans['BirthTargetUIDs'].remove(targetUID)
                         MovePlans['b_curPlan_FailUIDs'].append(targetUID)
                         if targetUID not in MoveRecordsByUID:
                             MoveRecordsByUID[targetUID] = defaultdict(int)
@@ -354,16 +353,21 @@ class MemoVBMovesAlg(LearnAlg):
                         MoveRecordsByUID[targetUID]['b_nFailRecent'] += 1
                         MoveRecordsByUID[targetUID]['b_nSuccessRecent'] = 0
                         MoveRecordsByUID[targetUID]['b_latestLap'] = lapFrac
-                        targetCount = curSSwhole.getCountVec()[
-                            curSSwhole.uid2k(targetUID)]
+                        kk = curSSwhole.uid2k(targetUID)
+                        targetCount = curSSwhole.getCountVec()[kk]
                         MoveRecordsByUID[targetUID]['b_latestCount'] = \
                             targetCount
+                        MoveRecordsByUID[targetUID]['b_latestBatchCount'] = \
+                            SSbatch.getCountVec()[kk]
+                        if SSbatch.hasSelectionTerm('DocUsageCount'):
+                            MoveRecordsByUID[targetUID]['b_latestBatchNDoc'] = \
+                                SSbatch.getSelectionTerm('DocUsageCount')[kk]
                 BLogger.stopUIDSpecificLog(targetUID)
             ElapsedTimeLogger.stopEvent('birth', 'localexpansion')
 
         if 'b_curPlan_FailUIDs' in MovePlans:
             for failUID in MovePlans['b_curPlan_FailUIDs']:
-                MovePlans['BirthTargetUIDs'].remove(failUID)
+                MovePlans['b_targetUIDs'].remove(failUID)
 
         # Prepare deletes
         if 'd_targetUIDs' in MovePlans:
@@ -380,7 +384,6 @@ class MemoVBMovesAlg(LearnAlg):
             for uid in propRemSS.uids:
                 mUIDPairs.append((uid, uid+1000))
             propRemSS.setUIDs([u+1000 for u in propRemSS.uids])
-
             SSbatch.propXSS[targetUID] = assignSplitStats(
                 Dbatch, curModel, LPbatch, propRemSS,
                 curSSwhole=curSSwhole,
@@ -532,12 +535,12 @@ class MemoVBMovesAlg(LearnAlg):
         isFirst = self.isFirstBatch(lapFrac)
         if isFirst:
             MovePlans = dict()
-        # if self.hasMove('birth'):
-        #    ElapsedTimeLogger.startEvent('birth', 'plan')
-        #    MovePlans = self.makeMovePlans_Birth(
-        #        hmodel, SS, 
-        #        lapFrac=lapFrac, MovePlans=MovePlans, **kwargs)
-        #    ElapsedTimeLogger.stopEvent('birth', 'plan')
+        if isFirst and self.hasMove('birth'):
+           ElapsedTimeLogger.startEvent('birth', 'plan')
+           MovePlans = self.makeMovePlans_Birth_AtLapStart(
+               hmodel, SS, 
+               lapFrac=lapFrac, MovePlans=MovePlans, **kwargs)
+           ElapsedTimeLogger.stopEvent('birth', 'plan')
         if isFirst and self.hasMove('merge'):
             ElapsedTimeLogger.startEvent('merge', 'plan')
             MovePlans = self.makeMovePlans_Merge(
@@ -658,63 +661,88 @@ class MemoVBMovesAlg(LearnAlg):
             MovePlans.update(DPlan)
         return MovePlans
 
-    def makeMovePlans_Birth(
+    def makeMovePlans_Birth_AtLapStart(
             self, hmodel, SS,
-            curSSbatch=None,
             MovePlans=dict(),
             MoveRecordsByUID=dict(),
             lapFrac=-2,
+            batchID=-1,
             **kwargs):
-        ''' Select comps to target with birth in current batch (or lap).
+        ''' Select comps to target with birth at start of current lap.
 
         Returns
         -------
         MovePlans : dict
-            * BirthTargetUIDs : list of uids (ints) indicating comps to target
+            * b_shortlistUIDs : list of uids (ints) off limits to other moves.
+        '''
+        ceilLap = np.ceil(lapFrac)
+        startLap = self.algParams['birth']['b_startLap']
+        stopLap = self.algParams['birth']['b_stopLap']
+
+        assert self.isFirstBatch(lapFrac)
+
+        if ceilLap < startLap:
+            msg = "BIRTH @ lap %.2f: Disabled." + \
+                " Waiting for lap >= %d (--b_startLap)."
+            BLogger.pprint(msg % (ceilLap, startLap), 'info')
+            return MovePlans
+        if stopLap > 0 and ceilLap >= stopLap:
+            msg = "BIRTH @ lap %.2f: Disabled." + \
+                " Beyond lap %d (--b_stopLap)."
+            BLogger.pprint(msg % (ceilLap, stopLap), 'info')
+            return MovePlans
+
+        BArgs = self.algParams['birth']    
+        msg = "PLANNING birth shortlist at lap %.3f"
+        BLogger.pprint(msg % (lapFrac))
+        MovePlans = selectShortListForBirthAtLapStart(
+            hmodel, SS,
+            MoveRecordsByUID=MoveRecordsByUID,
+            MovePlans=MovePlans,
+            lapFrac=lapFrac,
+            **BArgs)
+        assert 'b_shortlistUIDs' in MovePlans
+        assert isinstance(MovePlans['b_shortlistUIDs'], list)
+        return MovePlans
+
+
+    def makeMovePlans_Birth_AtBatch(
+            self, hmodel, SS,
+            SSbatch=None,
+            MovePlans=dict(),
+            MoveRecordsByUID=dict(),
+            lapFrac=-2,
+            batchID=0,
+            **kwargs):
+        ''' Select comps to target with birth at current batch.
+
+        Returns
+        -------
+        MovePlans : dict
+            * b_targetUIDs : list of uids (ints) indicating comps to target
         '''
         ceilLap = np.ceil(lapFrac)
         startLap = self.algParams['birth']['b_startLap']
         stopLap = self.algParams['birth']['b_stopLap']
 
         if ceilLap < startLap:
-            msg = "BIRTH @ lap %.2f: Disabled." + \
-                " Waiting for lap >= %d (--b_startLap)."
-            if self.isLastBatch(lapFrac):
-                BLogger.pprint(msg % (ceilLap, startLap), 'info')
             return MovePlans
         if stopLap > 0 and ceilLap >= stopLap:
-            msg = "BIRTH @ lap %.2f: Disabled." + \
-                " Beyond lap %d (--b_stopLap)."
-            if self.isLastBatch(lapFrac):            
-                BLogger.pprint(msg % (ceilLap, stopLap), 'info')
             return MovePlans
 
         if self.hasMove('birth'):
             BArgs = self.algParams['birth']    
-            msg = "PLANNING birth at lap %.3f"
-            BLogger.pprint(msg % (lapFrac))
-            if SS is None:
-                K = hmodel.obsModel.K
-                BLogger.pprint("  Trying all %d clusters" % (K))
-                MovePlans['BirthTargetUIDs'] = np.arange(K).tolist()
-                MovePlans['b_curPlan_FailUIDs'] = list()
-                MovePlans['b_curPlan_nDQ_toosmall'] = 0
-                MovePlans['b_curPlan_nDQ_pastfail'] = 0
-            else:
-                MovePlans = selectTargetCompsForBirth(
-                    hmodel, SS,
-                    curSSbatch=curSSbatch,
-                    MoveRecordsByUID=MoveRecordsByUID,
-                    MovePlans=MovePlans,
-                    lapFrac=lapFrac,
-                    **BArgs)
-            if 'BirthTargetUIDs' in MovePlans:
-                assert isinstance(MovePlans['BirthTargetUIDs'], list)
-            elif self.isLastBatch(lapFrac):
-                msg = "BIRTH @ lap %.2f: Not happening." + \
-                    " No eligible candidates."
-                BLogger.pprint(msg % (ceilLap), 'info')
-
+            msg = "PLANNING birth at lap %.3f, batch %d"
+            BLogger.pprint(msg % (lapFrac, batchID))
+            MovePlans = selectCompsForBirthAtCurrentBatch(
+                hmodel, SS,
+                SSbatch=SSbatch,
+                MoveRecordsByUID=MoveRecordsByUID,
+                MovePlans=MovePlans,
+                lapFrac=lapFrac,
+                **BArgs)
+            if 'b_targetUIDs' in MovePlans:
+                assert isinstance(MovePlans['b_targetUIDs'], list)
         return MovePlans
 
     def runMoves_Birth(self, hmodel, SS, Lscore, MovePlans,
@@ -764,6 +792,8 @@ class MemoVBMovesAlg(LearnAlg):
             MoveRecordsByUID[targetUID]['b_nTrial'] += 1
             MoveRecordsByUID[targetUID]['b_latestLap'] = lapFrac
             MoveRecordsByUID[targetUID]['b_latestCount'] = targetCount
+            MoveRecordsByUID[targetUID]['b_latestBatchCount'] = \
+                SS.propXSS[targetUID].getCountVec().sum()
             # Construct proposal statistics
             BLogger.pprint(
                 'Evaluating targetUID %d at lap %.2f' % (
@@ -780,7 +810,8 @@ class MemoVBMovesAlg(LearnAlg):
             if propLscore > Lscore:
                 nAccept += 1
                 BLogger.pprint(
-                    '   Accepted. gain % .2e' % (propLscore-Lscore))
+                    '   Accepted. Gain of % .3e.  New Lscore % .3e ' % (
+                        propLscore-Lscore, propLscore))
                 BLogger.pprint(
                     "    Mass transfered to new comps: %.2f" % (
                         SS.getCountVec()[ktarget] - \
@@ -804,7 +835,7 @@ class MemoVBMovesAlg(LearnAlg):
                 hmodel = propModel
                 Lscore = propLscore
                 SS = propSS
-                MovePlans['BirthTargetUIDs'].remove(targetUID)
+                MovePlans['b_targetUIDs'].remove(targetUID)
                 del SS.propXSS[targetUID]
             else:
                 propLdata = propModel.obsModel.calc_evidence(
@@ -813,15 +844,16 @@ class MemoVBMovesAlg(LearnAlg):
                 nAtoms = hmodel.obsModel.getDatasetScale(SS)
                 gainLdata = (propLdata - curLdata) / nAtoms
                 BLogger.pprint(
-                    '   Rejected. gain % .2e' % (propLscore-Lscore))
+                    '   Rejected. Gain of % .3e. Remain at Lscore %.3e' % (
+                        propLscore-Lscore, Lscore))
                 if gainLdata > 0.01:
                     BLogger.pprint(
-                        '   Retained. gainLdata % .2f is promising' % (
+                        '   Retained. Promising value of gainLdata % .2f' % (
                             gainLdata))
                     # Track for next time!
                     assert targetUID in SS.propXSS
                 else:
-                    MovePlans['BirthTargetUIDs'].remove(targetUID)
+                    MovePlans['b_targetUIDs'].remove(targetUID)
                     del SS.propXSS[targetUID]
                     MoveRecordsByUID[targetUID]['b_nFail'] += 1
                     MoveRecordsByUID[targetUID]['b_nFailRecent'] += 1
@@ -852,6 +884,22 @@ class MemoVBMovesAlg(LearnAlg):
                     lapFrac,
                     MovePlans['b_nFailedProp'])
                 BLogger.pprint(msg, 'info')
+
+            # If any short-listed uids did not get tried in this lap,
+            # mark them as failures
+            for uid in MovePlans['b_shortlistUIDs']:
+                if uid not in MoveRecordsByUID:
+                    MoveRecordsByUID[uid] = defaultdict(int)
+                lastLap = MoveRecordsByUID[uid]['b_latestLap']
+                if np.ceil(lastLap) < lapFrac:
+                    k = SS.uid2k(uid)
+                    MoveRecordsByUID[uid]['b_latestLap'] = lapFrac
+                    MoveRecordsByUID[uid]['b_nFail'] += 1
+                    MoveRecordsByUID[uid]['b_nFailRecent'] += 1
+                    MoveRecordsByUID[uid]['b_nSuccessRecent'] = 0
+                    MoveRecordsByUID[uid]['b_latestCount'] = SS.getCountVec()[k]
+                    MoveRecordsByUID[uid]['b_latestBatchCount'] = 0
+
         ElapsedTimeLogger.stopEvent('birth', 'eval')
         return hmodel, SS, Lscore, MoveLog, MoveRecordsByUID
 
@@ -1051,7 +1099,7 @@ class MemoVBMovesAlg(LearnAlg):
             msg += "\n    curL % .3e" % (Lscore)
             msg += "\n   propL % .3e" % (propLscore)
             DLogger.pprint(msg)
-            
+
             # Make decision
             if propLscore > Lscore:
                 # Accept

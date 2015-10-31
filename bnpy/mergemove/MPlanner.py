@@ -25,6 +25,7 @@ def selectCandidateMergePairs(hmodel, SS,
     -------
     Info : dict, with fields
         * m_UIDPairs : list of tuples, each defining a pair of uids
+        * m_targetUIDSet : set of all uids involved in a proposed merge pair
     '''
     MLogger.pprint(
         "PLANNING merges at lap %.2f. K=%d" % (lapFrac, SS.K),
@@ -32,12 +33,12 @@ def selectCandidateMergePairs(hmodel, SS,
 
     # Mark any targetUIDs used in births as off-limits for merges
     uidUsageCount = defaultdict(int)
-    if 'BirthTargetUIDs' in MovePlans:
-        for uid in MovePlans['BirthTargetUIDs']:
+    if 'b_shortlistUIDs' in MovePlans:
+        for uid in MovePlans['b_shortlistUIDs']:
             uidUsageCount[uid] = 10 * m_maxNumPairsContainingComp
     nDisqualified = len(uidUsageCount.keys())
     MLogger.pprint(
-        "   %d/%d UIDs ineligible (due to birth). " % (
+        "   %d/%d UIDs ineligible because on shortlist for births. " % (
             nDisqualified, SS.K),
         'debug')
     if nDisqualified > 0:
@@ -67,12 +68,15 @@ def selectCandidateMergePairs(hmodel, SS,
             posLocs.size, triuIDs[0].size),
         'debug')
 
-    MLogger.pprint(
-        "   Filtering pairs so no UID is ineligible\n" + 
-        "       or appears in more than %d pairs" % (
-            m_maxNumPairsContainingComp) +
-        ", set by --m_maxNumPairsContainingComp",
-        'debug')
+
+    if len(posLocs) > 0:
+        MLogger.pprint(
+            "   Filtering pairs so no UID is ineligible\n" + 
+            "       or appears in more than %d pairs" % (
+                m_maxNumPairsContainingComp) +
+            ", set by --m_maxNumPairsContainingComp",
+            'debug')
+
     # Make final list of pairs to track
     mUIDPairs = list()
     mIDPairs = list()
@@ -95,11 +99,11 @@ def selectCandidateMergePairs(hmodel, SS,
         mIDPairs.append((kA, kB))
         mGainVals.append(GainMat[kA, kB])
         mSizeVals.append((SizeVec[kA], SizeVec[kB]))
+    # Final status update
     MLogger.pprint(
         "   %d pairs selected for merge tracking." % (
             len(mUIDPairs)),
         'debug')
-
     if len(mUIDPairs) > 0:
         MLogger.pprint("Chosen pairs:", 'debug')
         for ii, (uidA, uidB) in enumerate(mUIDPairs):
@@ -111,18 +115,19 @@ def selectCandidateMergePairs(hmodel, SS,
                     count2str(mSizeVals[ii][1])
                     ),
                 'debug')
-            
-
     Info = dict()
     Info['m_uidUsageCount'] = uidUsageCount
     Info['m_GainMat'] = GainMat
     Info['m_GainVals'] = mGainVals
     Info['m_UIDPairs'] = mUIDPairs
     Info['mPairIDs'] = mIDPairs
-
-    if 'BirthTargetUIDs' in MovePlans:
-        for uid in MovePlans['BirthTargetUIDs']:
-            for uidA, uidB in mUIDPairs:
+    targetUIDs = set()
+    for uidA, uidB in mUIDPairs:
+        targetUIDs.add(uidA)
+        targetUIDs.add(uidB)
+        if 'b_shortlistUIDs' in MovePlans:
+            for uid in MovePlans['b_shortlistUIDs']:
                 assert uid != uidA
                 assert uid != uidB
+    Info['m_targetUIDSet'] = targetUIDs
     return Info

@@ -134,6 +134,7 @@ def assignSplitStats_HDPTopicModel(
 
         xLik_d = xLPslice['E_log_soft_ev'][
             start + mask_d, :Kfresh_active].copy()
+        xLik_d -= np.max(xLik_d, axis=1)[:,np.newaxis]
         np.exp(xLik_d, out=xLik_d)
 
         lumpMass_d = np.sum(
@@ -174,14 +175,26 @@ def assignSplitStats_HDPTopicModel(
                         break
                 prevxDocTopicCount_d[:] = xDocTopicCount_d
 
-            # Create proposal resp for relevant atoms in this doc only
-            xResp_d = xLik_d
-            xResp_d *= xDocTopicProb_d[np.newaxis, :]
-            xResp_d /= xsumResp_d[:, np.newaxis]
+            # Make proposal resp for relevant atoms in current doc d
+            if np.any(np.isnan(xDocTopicCount_d)):
+                # Edge case! Common only when deleting... 
+                # Recover from numerical issues in coord ascent
+                # by falling back to likelihood only to make resp
+                xResp_d = xLik_d
+                xResp_d /= xResp_d.sum(axis=1)[:,np.newaxis]
+
+                np.dot(targetsumResp_d, xResp_d, out=xDocTopicCount_d)
+            else:
+                # Common case: Use valid result of coord ascent
+                xResp_d = xLik_d
+                xResp_d *= xDocTopicProb_d[np.newaxis, :]
+                xResp_d /= xsumResp_d[:, np.newaxis]
+
+            # Here, sum of each row of xResp_d is equal to 1.0
+            # Need to make sum of each row equal mass on target cluster
             xResp_d *= curLPslice['resp'][
                 start + mask_d, ktarget][:, np.newaxis]
             np.maximum(xResp_d, 1e-100, out=xResp_d)
-
             assert np.allclose(
                 xResp_d.sum(axis=1),
                 curLPslice['resp'][start+mask_d, ktarget])

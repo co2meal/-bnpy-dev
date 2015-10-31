@@ -6,4 +6,5 @@ import BLogger
 from BirthProposalError import BirthProposalError
 from BCreate import createSplitStats
 from BRefine import assignSplitStats
-from BPlanner import selectTargetCompsForBirth
+from BPlanner import selectShortListForBirthAtLapStart
+from BPlanner import selectCompsForBirthAtCurrentBatch
