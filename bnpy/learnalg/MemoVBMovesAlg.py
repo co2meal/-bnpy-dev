@@ -391,10 +391,13 @@ class MemoVBMovesAlg(LearnAlg):
             for uid in propRemSS.uids:
                 if uid not in MovePlans['d_absorbingUIDSet']:
                     propRemSS.removeComp(uid=uid)
+            # Give each absorbing UID a termporary new UID
+            oldUIDs = propRemSS.uids.copy()
+            newUIDs = self.makeNewUIDs(b_Kfresh=len(oldUIDs))
+            propRemSS.setUIDs(newUIDs)
             mUIDPairs = list()
-            for uid in propRemSS.uids:
-                mUIDPairs.append((uid, uid+1000))
-            propRemSS.setUIDs([u+1000 for u in propRemSS.uids])
+            for ii, oldUID in enumerate(oldUIDs):
+                mUIDPairs.append((oldUID, newUIDs[ii]))
             SSbatch.propXSS[targetUID] = assignSplitStats(
                 Dbatch, curModel, LPbatch, propRemSS,
                 curSSwhole=curSSwhole,
