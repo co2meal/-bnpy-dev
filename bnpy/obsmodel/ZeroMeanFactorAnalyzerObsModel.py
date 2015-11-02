@@ -238,7 +238,7 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             # generate a positive definite matrix randomly
             PRNG = np.random.RandomState(0)
             empCov = PRNG.normal(size=(D,C))
-            empCov = empCov * empCov.T
+            empCov = np.dot(empCov, empCov.T)
         else:
             empCov = SS.xxT / SS.N
         eigVal, eigVec = eigh(empCov, eigvals=(D-C,D-1))
@@ -315,7 +315,7 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         if self.WCovType == 'diag':
             diagIdx = np.arange(C*D) / C * C**2 + np.tile(np.ravel_multi_index(np.diag_indices(C), (C,C)), D)
             diagIdx = np.unravel_index(diagIdx, E_WT_W.shape)
-            E_WT_W[diagIdx] += WCov
+            E_WT_W[diagIdx] += WCov.flatten()
         elif self.WCovType == 'full':
             E_WT_W += WCov
         return E_WT_W
