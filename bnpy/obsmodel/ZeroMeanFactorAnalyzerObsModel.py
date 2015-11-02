@@ -202,6 +202,8 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
                 Prior = self.Prior
                 PRNG = np.random.RandomState(k)
                 h = PRNG.gamma(Prior.f, 1./Prior.g, C)
+                while np.allclose(h, 0):
+                    h = PRNG.gamma(Prior.f, 1./Prior.g, C)
                 hShape = Prior.f + .5 * D
                 hInvScale[k] = hShape / h
                 sigma = 1./np.sqrt(h)
