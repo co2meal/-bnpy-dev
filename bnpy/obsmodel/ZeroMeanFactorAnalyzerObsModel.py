@@ -469,20 +469,20 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             raise NotImplementedError('Merge move is not allowed for aaT and xaT!')
         C = self.C
         D = self.D
-        # elboA = self.elbo4Comp(SS.getComp(kA), self.Post.WMean[kA], self.Post.WCov[kA],
-        #                   self.Post.hShape, self.Post.hInvScale[kA],
-        #                   self.Post.PhiShape[kA], self.Post.PhiInvScale[kA], self.Post.aCov[kA])
-        # elboB = self.elbo4Comp(SS.getComp(kB), self.Post.WMean[kB], self.Post.WCov[kB],
-        #                   self.Post.hShape, self.Post.hInvScale[kB],
-        #                   self.Post.PhiShape[kB], self.Post.PhiInvScale[kB], self.Post.aCov[kB])
-        WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov = \
-            self.calcPostParams4Comp(SS, kA=kA)
-        elboA = self.elbo4Comp(SS.getComp(kA), WMean, WCov,
-                          hShape, hInvScale, PhiShape, PhiInvScale, aCov)
-        WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov = \
-            self.calcPostParams4Comp(SS, kA=kB)
-        elboB = self.elbo4Comp(SS.getComp(kB), WMean, WCov,
-                          hShape, hInvScale, PhiShape, PhiInvScale, aCov)
+        elboA = self.elbo4Comp(SS.getComp(kA), self.Post.WMean[kA], self.Post.WCov[kA],
+                          self.Post.hShape, self.Post.hInvScale[kA],
+                          self.Post.PhiShape[kA], self.Post.PhiInvScale[kA], self.Post.aCov[kA])
+        elboB = self.elbo4Comp(SS.getComp(kB), self.Post.WMean[kB], self.Post.WCov[kB],
+                          self.Post.hShape, self.Post.hInvScale[kB],
+                          self.Post.PhiShape[kB], self.Post.PhiInvScale[kB], self.Post.aCov[kB])
+        # WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov = \
+        #     self.calcPostParams4Comp(SS, kA=kA)
+        # elboA = self.elbo4Comp(SS.getComp(kA), WMean, WCov,
+        #                   hShape, hInvScale, PhiShape, PhiInvScale, aCov)
+        # WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov = \
+        #     self.calcPostParams4Comp(SS, kA=kB)
+        # elboB = self.elbo4Comp(SS.getComp(kB), WMean, WCov,
+        #                   hShape, hInvScale, PhiShape, PhiInvScale, aCov)
         SS_AB = SuffStatBag(K=1, D=D, C=C)
         SS_AB.setField('N', SS.N[kA] + SS.N[kB], dims='')
         SS_AB.setField('xxT', SS.xxT[kA] + SS.xxT[kB], dims=('D','D'))
@@ -503,16 +503,11 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             raise NotImplementedError('Merge move is not allowed for aaT and xaT!')
         e = np.zeros(SS.K)
         for k in xrange(SS.K):
-            # Post = self.Post
-            # WMean = Post.WMean[k]
-            # WCov = Post.WCov[k]
-            # hShape = Post.hShape
-            # hInvScale = Post.hInvScale[k]
-            # PhiShape = Post.PhiShape[k]
-            # PhiInvScale = Post.PhiInvScale[k]
-            # aCov = Post.aCov[k]
-            WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov \
-                = self.calcPostParams4Comp(SS, k)
+            Post = self.Post
+            WMean, WCov, hShape, hInvScale = Post.WMean[k], Post.WCov[k], Post.hShape, Post.hInvScale[k]
+            PhiShape, PhiInvScale, aCov = Post.PhiShape[k], Post.PhiInvScale[k], Post.aCov[k]
+            # WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov \
+            #     = self.calcPostParams4Comp(SS, k)
             e[k] = self.elbo4Comp(SS.getComp(k), WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov)
         Gap = np.zeros((SS.K, SS.K))
         for j in xrange(SS.K):
