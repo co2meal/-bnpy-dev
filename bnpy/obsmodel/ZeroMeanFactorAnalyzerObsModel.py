@@ -356,7 +356,9 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             PhiInvScale += 0.5 * SS.diagXxT
         PhiInvScale += .5 * (- 2 * np.einsum('ij,ij->i', xaT, WMean)
                              + np.einsum('ijk,...kj->i', E_WT_W, aaT))
-        assert np.all(PhiInvScale > 0)
+        assert np.all(np.logical_or(PhiInvScale > 0, np.isclose(PhiInvScale, 0)))
+        PhiInvScale[np.isclose(PhiInvScale,0)] = EPS
+
         return PhiShape, PhiInvScale
 
     def calcPostACov(self, E_WT_W, PhiShape, PhiInvScale):
