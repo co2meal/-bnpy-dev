@@ -314,7 +314,7 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         E_WT_W = np.einsum('ij,ik->ijk', WMean, WMean)
         if self.WCovType == 'diag':
             diagIdx = np.arange(C*D) / C * C**2 + np.tile(np.ravel_multi_index(np.diag_indices(C), (C,C)), D)
-            diagIdx = np.unravel_index(diagIdx, WCov.shape)
+            diagIdx = np.unravel_index(diagIdx, E_WT_W.shape)
             E_WT_W[diagIdx] += WCov
         elif self.WCovType == 'full':
             E_WT_W += WCov
@@ -607,7 +607,7 @@ if __name__ == '__main__':
     # import DeadLeavesD25
     # Data = DeadLeavesD25.get_data()
     hmodel, RInfo = bnpy.run('DeadLeavesD25', 'DPMixtureModel', 'ZeroMeanFactorAnalyzer', 'moVB',
-                             C=1, nLap=50, K=1, WCovType='diag',
+                             C=2, nLap=50, K=1, WCovType='diag',
                              calcXxT=1, nTask=5, jobname='K1', nPostUpdate=2,
                              moves='birth,merge,delete,shuffle')
     print hmodel.allocModel.get_active_comp_probs()
