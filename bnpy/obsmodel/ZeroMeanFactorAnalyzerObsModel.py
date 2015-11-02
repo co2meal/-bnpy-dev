@@ -177,33 +177,51 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         assert self.K == self.Post.K
 
     def calcPostParams(self, SS):
-        if self.calcXxT:
-            WMean, hShape, hInvScale, PhiShape, PhiInvScale, aCov = self.initPostParams(SS)
-        elif hasattr(self, 'Post'):
-        # if hasattr(self, 'Post'):
-            WMean, hShape, hInvScale, PhiShape, PhiInvScale, aCov = \
-                (self.Post.WMean, self.Post.hShape, self.Post.hInvScale,
-                 self.Post.PhiShape, self.Post.PhiInvScale, self.Post.aCov)
-        else:
-            Prior = self.Prior
-            PRNG = np.random.RandomState()
-            WMean = PRNG.randn(SS.K, SS.D, SS.C)
-            hShape = Prior.f + .5 * SS.D
-            hInvScale = Prior.g * np.ones((SS.K, SS.C))
-            PhiShape = Prior.s * np.ones(SS.K)
-            PhiInvScale = Prior.t * np.ones((SS.K, SS.D))
-            aCov = np.tile(np.eye(SS.C),(SS.K,1,1))
+        C, D, K = (SS.C, SS.D, SS.K)
+        WMean = np.zeros((K,D,C))
+        if self.WCovType == 'diag':
+            WCov = np.zeros((K,D,C))
+        elif self.WCovType == 'full':
+            WCov = np.zeros((K,D,C,C))
+        hShape = 0
+        hInvScale = np.zeros((K,C))
+        PhiShape = np.zeros(K)
+        PhiInvScale = np.zeros((K,D))
+        aCov = np.zeros((K,C,C))
 
-        for ii in xrange(self.nPostUpdate):
-            if self.calcXxT:
-                xaT, aaT = self.get_xaT_aaT(SS, WMean, PhiShape, PhiInvScale, aCov)
-            else:
-                xaT = SS.xaT
-                aaT = SS.aaT + SS.N[:,np.newaxis,np.newaxis] * aCov
-            WMean, WCov = self.calcPostW(SS, xaT, aaT, hShape, hInvScale, PhiShape, PhiInvScale)
-            hShape, hInvScale = self.calcPostH(WMean, WCov)
-            PhiShape, PhiInvScale = self.calcPostPhi(SS, xaT, aaT, WMean, WCov)
-            aCov = self.calcPostACov(WMean, WCov, PhiShape, PhiInvScale)
+        # initialization
+        for k in xrange(K):
+            if hasattr(self, 'Post'):
+                if self.calcXxT:  # PPCA
+                    WMean[k], hShape, hInvScale[k], PhiShape[k], PhiInvScale[k], aCov[k] = self.initPostParams(SS.getComp(k))
+                else: # Old values
+                    Post = self.Post
+                    WMean[k], hShape, hInvScale[k], PhiShape[k], PhiInvScale[k], aCov[k] = \
+                        (Post.WMean[k], Post.hShape, Post.hInvScale[k], Post.PhiShape[k], Post.PhiInvScale[k], Post.aCov[k])
+            else: # Sampling from prior
+                Prior = self.Prior
+                PRNG = np.random.RandomState(k)
+                h = PRNG.gamma(Prior.f, 1./Prior.g, C)
+                hShape = Prior.f + .5 * D
+                hInvScale[k] = hShape / h
+                sigma = 1./np.sqrt(h)
+                for c in xrange(C):
+                    WMean[k,:,c] = PRNG.normal(0., sigma[c], D)
+                Phi = PRNG.gamma(Prior.s, 1./Prior.t, D)
+                PhiShape[k] = Prior.s + .5 * SS.N[k]
+                PhiInvScale[k] = PhiShape / Phi
+                E_WT_Phi_W = np.sum(Phi[:, np.newaxis, np.newaxis] * np.einsum('ij,ik->ijk', WMean[k], WMean[k]), axis=0)
+                aCov[k] = inv(np.eye(C) + E_WT_Phi_W)
+
+        # global update
+        for i in xrange(self.nPostUpdate):
+            for k in xrange(K):
+                xaT, aaT = self.get_xaT_aaT(SS.getComp(k), WMean[k], PhiShape[k], PhiInvScale[k], aCov[k])
+                WMean[k], WCov[k] = self.calcPostW(xaT, aaT, hShape, hInvScale[k], PhiShape[k], PhiInvScale[k])
+                E_WT_W = self.calcE_WT_W(WMean[k], WCov[k])
+                hShape, hInvScale[k] = self.calcPostH(WMean[k], WCov[k])
+                PhiShape[k], PhiInvScale[k] = self.calcPostPhi(SS.getComp(k), xaT, aaT, WMean[k], E_WT_W)
+                aCov[k] = self.calcPostACov(E_WT_W, PhiShape[k], PhiInvScale[k])
         return WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov
 
     def initPostParams(self, SS):
@@ -214,38 +232,36 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         --------
         WMean, hShape, hInvScale, PhiShape, PhiInvScale, aCov
         '''
-        C = SS.C
-        D = SS.D
-        K = SS.K
-        WMean = np.zeros((K, D, C))
+        C, D = self.C, self.D
+        # eigen decomp on empirical cov
+        if np.allclose(SS.N, 0):
+            # generate a positive definite matrix randomly
+            PRNG = np.random.RandomState(0)
+            empCov = PRNG.normal(size=(D,C))
+            empCov = empCov * empCov.T
+        else:
+            empCov = SS.xxT / SS.N
+        eigVal, eigVec = eigh(empCov, eigvals=(D-C,D-1))
+        sigma2 = (np.trace(empCov) - np.sum(eigVal)) / (D-C)
+        if sigma2 <= EPS or not np.all(eigVal - sigma2 >= EPS):
+            assert np.allclose(sigma2, 0)
+            assert np.allclose(eigVal[eigVal<EPS], 0)
+            assert np.allclose((eigVal-sigma2)[eigVal-sigma2<EPS], 0)
+            sigma2 = EPS
+            eigVal[eigVal<EPS] = EPS
+        # WMean
+        WMean = np.dot(eigVec[:,:C], np.diag(np.sqrt(eigVal - sigma2)))
+        # h
         hShape = self.Prior.f + .5 * D
-        hInvScale = self.Prior.g * np.ones((K, C))
-        PhiShape = np.zeros(K)
-        PhiInvScale = np.zeros((K, D))
-        aCov = np.zeros((K, C, C))
-        for k in xrange(K):
-            if np.allclose(SS.N[k], 0):
-                for kk in range(K):
-                    if not np.allclose(SS.N[kk], 0):
-                        break
-                eigVal, eigVec = eigh(SS.xxT[kk] / SS.N[kk], eigvals=(D-C,D-1))
-                sigma2 = (np.trace(SS.xxT[kk]) / SS.N[kk] - np.sum(eigVal)) / (D-C)
-            else:
-                eigVal, eigVec = eigh(SS.xxT[k] / SS.N[k], eigvals=(D-C,D-1))
-                sigma2 = (np.trace(SS.xxT[k]) / SS.N[k] - np.sum(eigVal)) / (D-C)
-            if sigma2 <= EPS or not np.all(eigVal - sigma2 >= EPS):
-                assert np.allclose(sigma2, 0)
-                assert np.allclose(eigVal[eigVal<EPS], 0)
-                assert np.allclose((eigVal-sigma2)[eigVal-sigma2<EPS], 0)
-                sigma2 = EPS
-                eigVal[eigVal<EPS] = EPS
-            PhiShape[k] = self.Prior.s + .5 * SS.N[k]
-            PhiInvScale[k] = sigma2 * PhiShape[k]
-            assert np.all(PhiInvScale[k] > 0)
-            WMean[k] = np.dot(eigVec[:,:C], np.diag(np.sqrt(eigVal - sigma2)))
-            E_WT_Phi_W = np.sum((PhiShape[k] / PhiInvScale[k])[:, np.newaxis, np.newaxis]
-                                * np.einsum('ij,ik->ijk', WMean[k], WMean[k]), axis=0)
-            aCov[k] = inv(np.eye(C) + E_WT_Phi_W)
+        hInvScale = self.Prior.g * np.ones(C) + .5 * np.sum(WMean**2, axis=0)
+        # Phi
+        PhiShape = self.Prior.s + .5 * SS.N
+        PhiInvScale = sigma2 * PhiShape * np.ones(D)
+        assert np.all(PhiInvScale > 0)
+        # aCov
+        E_WT_Phi_W = np.sum((PhiShape / PhiInvScale)[:, np.newaxis, np.newaxis]
+                             * np.einsum('ij,ik->ijk', WMean, WMean), axis=0)
+        aCov = inv(np.eye(C) + E_WT_Phi_W)
         return WMean, hShape, hInvScale, PhiShape, PhiInvScale, aCov
 
     @staticmethod
@@ -258,18 +274,16 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         xaT : 3D array, size K x D x C
         aaT : 3D array, size K x C x C
         '''
-        K = SS.K
-        D = SS.D
-        C = SS.C
-        xaT = np.zeros((K,D,C))
-        aaT = np.zeros((K,C,C))
-        for k in xrange(K):
-            LU = np.dot(aCov[k], np.dot(WMean[k].T, np.diag(PhiShape[k] / PhiInvScale[k])))
-            xaT[k] = np.inner(SS.xxT[k], LU)
-            aaT[k] = SS.N[k] * aCov[k] + np.dot(LU, xaT[k])
+        if hasattr(SS,'xaT') and hasattr(SS, 'aaT'):
+            xaT = SS.xaT
+            aaT = SS.aaT + SS.N * aCov
+        else:
+            LU = np.inner(aCov, (WMean * PhiShape / PhiInvScale[:, np.newaxis]))
+            xaT = np.inner(SS.xxT, LU)
+            aaT = SS.N * aCov + np.dot(LU, xaT)
         return xaT, aaT
 
-    def calcPostW(self, SS, xaT, aaT, hShape, hInvScale, PhiShape, PhiInvScale):
+    def calcPostW(self, xaT, aaT, hShape, hInvScale, PhiShape, PhiInvScale):
         ''' Compute posterior mean and covariance for each W_{kd}
         See Eq. in the writeup
 
@@ -279,27 +293,32 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         WCov: if WCovType is 'diag', 3D array, size K x D x C (by default)
               if WCovTpye is 'full', 4D array, size K x D x C x C
         '''
-        K = SS.K
         C = self.C
         D = self.D
-        WMean = np.zeros((K, D, C))
-        scaled_xaT = PhiShape[:,np.newaxis,np.newaxis] / PhiInvScale[:,:,np.newaxis] * xaT
+        scaled_xaT = PhiShape / PhiInvScale[:,np.newaxis] * xaT
         if self.WCovType == 'diag':
-            WCov = np.zeros((K, D, C))
-            for k in xrange(K):
-                WCov[k] = 1. / (hShape / hInvScale[k]
-                                + (PhiShape[k] / PhiInvScale[k])[:,np.newaxis]
-                                   * np.tile(np.diag(aaT[k]),(D,1)))
-                WMean[k] = WCov[k] * scaled_xaT[k]
+            WCov = 1. / (hShape / hInvScale
+                         + (PhiShape / PhiInvScale)[:,np.newaxis]
+                         * np.tile(np.diag(aaT),(D,1)))
+            WMean = WCov * scaled_xaT
         elif self.WCovType == 'full':
-            WCov = np.zeros((K, D, C, C))
-            for k in xrange(K):
-                SigmaInvWW = np.diag(hShape / hInvScale[k]) \
-                             + (PhiShape[k] / PhiInvScale[k])[:,np.newaxis,np.newaxis] \
-                             * np.tile(aaT[k], (D,1,1))
-                WCov[k] = inv(SigmaInvWW)
-                WMean[k] = np.einsum('ijk,i...k->ij', WCov[k], scaled_xaT[k])
+            SigmaInvWW = np.diag(hShape / hInvScale) \
+                         + (PhiShape / PhiInvScale)[:,np.newaxis,np.newaxis] \
+                         * np.tile(aaT, (D,1,1))
+            WCov = inv(SigmaInvWW)
+            WMean = np.einsum('ijk,i...k->ij', WCov, scaled_xaT)
         return WMean, WCov
+
+    def calcE_WT_W(self, WMean, WCov):
+        C, D = self.C, self.D
+        E_WT_W = np.einsum('ij,ik->ijk', WMean, WMean)
+        if self.WCovType == 'diag':
+            diagIdx = np.arange(C*D) / C * C**2 + np.tile(np.ravel_multi_index(np.diag_indices(C), (C,C)), D)
+            diagIdx = np.unravel_index(diagIdx, WCov.shape)
+            E_WT_W[diagIdx] += WCov
+        elif self.WCovType == 'full':
+            E_WT_W += WCov
+        return E_WT_W
 
     def calcPostH(self, WMean, WCov):
         ''' Compute posterior shape and inverse-scale parameters for each h_c
@@ -310,18 +329,16 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         hShape : scalar
         hInvScale: 2D array, size K x C
         '''
-        K = WMean.shape[0]
         C = self.C
         hShape = self.Prior.f + .5 * self.D
-        hInvScale = self.Prior.g * np.ones((K, C))
-        for k in xrange(K):
-            if self.WCovType == 'diag':
-                hInvScale[k] += .5 * np.sum(WMean[k]**2 + WCov[k], axis=0)
-            elif self.WCovType == 'full':
-                hInvScale[k] += .5 * np.sum(WMean[k]**2 + np.diagonal(WCov[k],axis1=1,axis2=2), axis=0)
+        hInvScale = self.Prior.g * np.ones(C)
+        if self.WCovType == 'diag':
+            hInvScale += .5 * np.sum(WMean**2 + WCov, axis=0)
+        elif self.WCovType == 'full':
+            hInvScale += .5 * np.sum(WMean**2 + np.diagonal(WCov,axis1=1,axis2=2), axis=0)
         return hShape, hInvScale
 
-    def calcPostPhi(self, SS, xaT, aaT, WMean, WCov):
+    def calcPostPhi(self, SS, xaT, aaT, WMean, E_WT_W):
         ''' Compute posterior shape and inverse-scale parameters for each Phi_d
         See Eq. in the writeup
 
@@ -330,27 +347,19 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         PhiShape : 1D array, size K
         PhiInvScale: 2D array, size K x D
         '''
-        K = SS.K
         D = self.D
-        PhiShape = self.Prior.s * np.ones(K)
-        PhiInvScale = self.Prior.t * np.ones((K, D))
-        for k in xrange(K):
-            PhiShape[k] += .5 * SS.N[k]
-            E_WT_W = np.einsum('ij,ik->ijk', WMean[k], WMean[k])
-            if self.WCovType == 'diag':
-                E_WT_W +=  WCov[k][:,:,np.newaxis] * np.eye(self.C)
-            elif self.WCovType == 'full':
-                E_WT_W += WCov[k]
-            if self.calcXxT:
-                PhiInvScale[k] += 0.5 * np.diag(SS.xxT[k])
-            else:
-                PhiInvScale[k] += 0.5 * SS.diagXxT[k]
-            PhiInvScale[k] += .5 * (- 2 * np.einsum('ij,ij->i', xaT[k], WMean[k])
-                                    + np.einsum('ijk,...kj->i', E_WT_W, aaT[k]))
-            assert np.all(PhiInvScale[k] > 0)
+        PhiShape = self.Prior.s + .5 * SS.N
+        PhiInvScale = self.Prior.t * np.ones(D)
+        if self.calcXxT:
+            PhiInvScale += 0.5 * np.diag(SS.xxT)
+        else:
+            PhiInvScale += 0.5 * SS.diagXxT
+        PhiInvScale += .5 * (- 2 * np.einsum('ij,ij->i', xaT, WMean)
+                             + np.einsum('ijk,...kj->i', E_WT_W, aaT))
+        assert np.all(PhiInvScale > 0)
         return PhiShape, PhiInvScale
 
-    def calcPostACov(self, WMean, WCov, PhiShape, PhiInvScale):
+    def calcPostACov(self, E_WT_W, PhiShape, PhiInvScale):
         ''' Compute posterior covariance for each a_k
         See Eq. in the writeup
 
@@ -358,19 +367,9 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         --------
         aCov: 3D array, size K x C x C
         '''
-        K = WMean.shape[0]
-        C = self.C
-        D = self.D
-        aCov = np.zeros((K, C, C))
-        for k in xrange(K):
-            E_WT_W = np.einsum('ij,ik->ijk', WMean[k], WMean[k])
-            if self.WCovType == 'diag':
-                E_WT_W +=  WCov[k][:,:,np.newaxis] * np.eye(self.C)
-            elif self.WCovType == 'full':
-                E_WT_W += WCov[k]
-            E_WT_Phi_W = np.sum((PhiShape[k] / PhiInvScale[k])[:, np.newaxis, np.newaxis]
-                                * E_WT_W, axis=0)
-            aCov[k] = inv(np.eye(C) + E_WT_Phi_W)
+        C, D = self.C, self.D
+        E_WT_Phi_W = np.sum((PhiShape / PhiInvScale)[:, np.newaxis, np.newaxis] * E_WT_W, axis=0)
+        aCov = inv(np.eye(C) + E_WT_Phi_W)
         return aCov
 
     ########################################################### VB ELBO step
@@ -389,67 +388,61 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             obsELBO : scalar float, = E[ log p(Phi) + log p(h) + log p(W) + log p(a) + log p(x)
                                          - log q(Phi) - log q(h) - log q(W) - log q(a) ]
         '''
-        elbo = np.zeros(SS.K)
+        elbo = 0.0
         Post = self.Post
-        Prior = self.Prior
-        K = SS.K
-        C = SS.C
-        D = SS.D
-        for k in xrange(K):
-            # terms related with Phi
-            for d in xrange(D):
-                elbo[k] += - Post.PhiShape[k] * np.log(Post.PhiInvScale[k,d]) \
-                           + Prior.s * np.log(Prior.t) \
-                           + gammaln(Post.PhiShape[k]) - gammaln(Prior.s) \
-                           - (Post.PhiShape[k] - Prior.s) * \
-                             (psi(Post.PhiShape[k]) - np.log(Post.PhiInvScale[k,d])) \
-                           + Post.PhiShape[k] * (1 - Prior.t / Post.PhiInvScale[k,d])
+        for k in xrange(SS.K):
+            elbo += self.elbo4Comp(SS.getComp(k), Post.WMean[k], Post.WCov[k],
+                                   Post.hShape, Post.hInvScale[k],
+                                   Post.PhiShape[k], Post.PhiInvScale[k], Post.aCov[k])
+        return elbo
 
-            # terms related with h
-            for c in xrange(C):
-                elbo[k] += - Post.hShape * np.log(Post.hInvScale[k,c]) \
-                           + Prior.f * np.log(Prior.g) \
-                           + gammaln(Post.hShape) - gammaln(Prior.f) \
-                           - (Post.hShape - Prior.f) * (psi(Post.hShape) - np.log(Post.hInvScale[k,c])) \
-                           + Post.hShape * (1 - Prior.g / Post.hInvScale[k,c])
+    def elbo4Comp(self, SS, WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov):
+        elbo = 0.0
+        C, D, Prior = self.C, self.D, self.Prior
 
-            # terms related with W
-            E_WT_W = np.einsum('ij,ik->ijk', Post.WMean[k], Post.WMean[k])
-            if self.WCovType == 'diag':
-                E_WT_W +=  Post.WCov[k][:,:,np.newaxis] * np.eye(self.C)
-                sumLogDetWCov = np.sum(np.sum(np.log(Post.WCov[k]), axis=1))
-            elif self.WCovType == 'full':
-                E_WT_W += Post.WCov[k]
-                sumLogDetWCov = np.dot(slogdet(Post.WCov[k])[0], slogdet(Post.WCov[k])[1])
-            elbo[k] += .5 * sumLogDetWCov \
-                       + .5 * D * (C + np.sum(psi(Post.hShape) - np.log(Post.hInvScale[k]))) \
-                       - .5 * np.dot(np.sum(np.diagonal(E_WT_W, axis1=1, axis2=2), axis=0),
-                                     Post.hShape / Post.hInvScale[k])
-            # terms related with a
-            if self.calcXxT:
-                L = Post.aCov[k]
-                LU = np.dot(L, np.dot(Post.WMean[k].T, np.diag(Post.PhiShape[k] / Post.PhiInvScale[k])))
-                xaT = np.inner(SS.xxT[k], LU)
-                aaT = SS.N[k]*L + np.dot(LU, xaT)
-            else:
-                xaT = SS.xaT[k]
-                aaT = SS.aaT[k] + SS.N[k,np.newaxis,np.newaxis] * Post.aCov[k]
-            elbo[k] += .5 * (np.prod(slogdet(Post.aCov[k])) + C) * SS.N[k] \
-                       - .5 * np.trace(aaT)
+        # terms related with Phi
+        elbo += - PhiShape * np.sum(np.log(PhiInvScale)) \
+                + D * Prior.s * np.log(Prior.t) \
+                + D * (gammaln(PhiShape) - gammaln(Prior.s)) \
+                - (PhiShape - Prior.s) * \
+                  (D * psi(PhiShape) - np.sum(np.log(PhiInvScale))) \
+                + PhiShape * np.sum(1 - Prior.t / PhiInvScale)
 
-            # terms related with x
-            E_WT_Phi_W = np.sum((Post.PhiShape[k] / Post.PhiInvScale[k])[:, np.newaxis, np.newaxis]
-                                * E_WT_W, axis=0)
-            elbo[k] += - .5 * (D * LOGTWOPI -
-                               np.sum(psi(Post.PhiShape[k]) - np.log(Post.PhiInvScale[k]))) * SS.N[k] \
-                       + np.dot(Post.PhiShape[k] / Post.PhiInvScale[k],
-                                np.einsum('ij, ij->i', xaT, Post.WMean[k])) \
-                       - .5 * np.einsum('ij,ji', E_WT_Phi_W, aaT)
-            if self.calcXxT:
-                elbo[k] += - .5 * np.dot(Post.PhiShape[k] / Post.PhiInvScale[k], np.diag(SS.xxT[k]))
-            else:
-                elbo[k] += - .5 * np.dot(Post.PhiShape[k] / Post.PhiInvScale[k], SS.diagXxT[k])
-        return np.sum(elbo)
+        # terms related with h
+        elbo += - hShape * np.sum(np.log(hInvScale)) \
+                + C * Prior.f * np.log(Prior.g) \
+                + C * (gammaln(hShape) - gammaln(Prior.f)) \
+                - (hShape - Prior.f) * \
+                  (C * psi(hShape) - np.sum(np.log(hInvScale))) \
+                + hShape * np.sum(1 - Prior.g / hInvScale)
+
+        # terms related with W
+        E_WT_W = self.calcE_WT_W(WMean, WCov)
+        if self.WCovType == 'diag':
+            sumLogDetWCov = np.sum(np.sum(np.log(WCov), axis=1))
+        elif self.WCovType == 'full':
+            sumLogDetWCov = np.dot(slogdet(WCov)[0], slogdet(WCov)[1])
+        elbo += .5 * sumLogDetWCov + .5 * D * (C + np.sum(psi(hShape) - np.log(hInvScale))) \
+                - .5 * np.dot(np.sum(np.diagonal(E_WT_W, axis1=1, axis2=2), axis=0), hShape / hInvScale)
+
+        # terms related with a
+        if self.calcXxT:
+            xaT, aaT = self.get_xaT_aaT(SS, WMean, PhiShape, PhiInvScale, aCov)
+        else:
+            xaT = SS.xaT
+            aaT = SS.aaT + SS.N * aCov
+        elbo += .5 * (np.prod(slogdet(aCov)) + C) * SS.N - .5 * np.trace(aaT)
+
+        # terms related with x
+        E_WT_Phi_W = np.sum((PhiShape / PhiInvScale)[:, np.newaxis, np.newaxis] * E_WT_W, axis=0)
+        elbo += - .5 * (D * LOGTWOPI - np.sum(psi(PhiShape) - np.log(PhiInvScale))) * SS.N \
+                + np.dot(PhiShape / PhiInvScale, np.einsum('ij, ij->i', xaT, WMean)) \
+                - .5 * np.einsum('ij,ji', E_WT_Phi_W, aaT)
+        if self.calcXxT:
+            elbo += - .5 * np.dot(PhiShape / PhiInvScale, np.diag(SS.xxT))
+        else:
+            elbo += - .5 * np.dot(PhiShape / PhiInvScale, SS.diagXxT)
+        return elbo
 
     def getDatasetScale(self, SS):
         ''' Get scale factor for dataset, indicating number of observed scalars.
@@ -465,46 +458,6 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
 
     ########################################################### Merge
     ###########################################################
-    def elbo4comp(self, SS, WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale,  aCov):
-        if not self.calcXxT:
-            raise NotImplementedError('Merge move is not allowed for aaT and xaT!')
-        elbo = 0.0
-        C = self.C
-        D = self.D
-        Prior = self.Prior
-        for d in xrange(D):
-            elbo += - PhiShape * np.log(PhiInvScale[d]) \
-                    + Prior.s * np.log(Prior.t) \
-                    + gammaln(PhiShape) - gammaln(Prior.s) \
-                    - (PhiShape - Prior.s) * \
-                      (psi(PhiShape) - np.log(PhiInvScale[d])) \
-                    + PhiShape * (1 - Prior.t / PhiInvScale[d])
-        for c in xrange(C):
-            elbo += - hShape * np.log(hInvScale[c]) \
-                    + Prior.f * np.log(Prior.g) \
-                    + gammaln(hShape) - gammaln(Prior.f)
-
-        E_WT_W = np.einsum('ij,ik->ijk', WMean, WMean)
-        if self.WCovType == 'diag':
-            E_WT_W +=  WCov[:,:,np.newaxis] * np.eye(self.C)
-            sumLogDetWCov = np.sum(np.sum(np.log(WCov), axis=1))
-        elif self.WCovType == 'full':
-            E_WT_W += WCov
-            sumLogDetWCov = np.dot(slogdet(WCov)[0], slogdet(WCov)[1])
-        elbo += .5 * (sumLogDetWCov + D * C)
-        LU = np.dot(aCov, np.dot(WMean.T, np.diag(PhiShape / PhiInvScale)))
-        xaT = np.inner(SS.xxT, LU)
-        aaT = SS.N * aCov + np.dot(LU, xaT)
-        elbo += .5 * (np.prod(slogdet(aCov)) + C) * SS.N - .5 * np.trace(aaT)
-        E_WT_Phi_W = np.sum((PhiShape / PhiInvScale)[:, np.newaxis, np.newaxis]
-                            * E_WT_W, axis=0)
-        elbo += -.5 * D * SS.N * LOGTWOPI \
-                + .5 * (np.sum(psi(PhiShape) - np.log(PhiInvScale))) * SS.N \
-                - .5 * np.dot(PhiShape / PhiInvScale, np.diag(SS.xxT)) \
-                + np.dot(PhiShape / PhiInvScale, np.einsum('ij, ij->i', xaT, WMean)) \
-                - .5 * np.einsum('ij,ji', E_WT_Phi_W, aaT)
-        return elbo
-
     def calcHardMergeGap(self, SS, kA, kB):
         ''' Calculate change in ELBO after a hard merge applied to this model
 
@@ -516,26 +469,26 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             raise NotImplementedError('Merge move is not allowed for aaT and xaT!')
         C = self.C
         D = self.D
-        # elboA = self.elbo4comp(SS.getComp(kA), self.Post.WMean[kA], self.Post.WCov[kA],
+        # elboA = self.elbo4Comp(SS.getComp(kA), self.Post.WMean[kA], self.Post.WCov[kA],
         #                   self.Post.hShape, self.Post.hInvScale[kA],
         #                   self.Post.PhiShape[kA], self.Post.PhiInvScale[kA], self.Post.aCov[kA])
-        # elboB = self.elbo4comp(SS.getComp(kB), self.Post.WMean[kB], self.Post.WCov[kB],
+        # elboB = self.elbo4Comp(SS.getComp(kB), self.Post.WMean[kB], self.Post.WCov[kB],
         #                   self.Post.hShape, self.Post.hInvScale[kB],
         #                   self.Post.PhiShape[kB], self.Post.PhiInvScale[kB], self.Post.aCov[kB])
         WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov = \
-            self.calcPostParamsForComp(SS, kA=kA)
-        elboA = self.elbo4comp(SS.getComp(kA), WMean, WCov,
+            self.calcPostParams4Comp(SS, kA=kA)
+        elboA = self.elbo4Comp(SS.getComp(kA), WMean, WCov,
                           hShape, hInvScale, PhiShape, PhiInvScale, aCov)
         WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov = \
-            self.calcPostParamsForComp(SS, kA=kB)
-        elboB = self.elbo4comp(SS.getComp(kB), WMean, WCov,
+            self.calcPostParams4Comp(SS, kA=kB)
+        elboB = self.elbo4Comp(SS.getComp(kB), WMean, WCov,
                           hShape, hInvScale, PhiShape, PhiInvScale, aCov)
         SS_AB = SuffStatBag(K=1, D=D, C=C)
         SS_AB.setField('N', SS.N[kA] + SS.N[kB], dims='')
         SS_AB.setField('xxT', SS.xxT[kA] + SS.xxT[kB], dims=('D','D'))
         WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov = \
-             self.calcPostParamsForComp(SS, kA=kA, kB=kB)
-        elboAB = self.elbo4comp(SS_AB, WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov)
+             self.calcPostParams4Comp(SS, kA=kA, kB=kB)
+        elboAB = self.elbo4Comp(SS_AB, WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov)
         return - elboA - elboB + elboAB
 
     def calcHardMergeGap_AllPairs(self, SS):
@@ -559,14 +512,14 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             # PhiInvScale = Post.PhiInvScale[k]
             # aCov = Post.aCov[k]
             WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov \
-                = self.calcPostParamsForComp(SS, k)
-            e[k] = self.elbo4comp(SS.getComp(k), WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov)
+                = self.calcPostParams4Comp(SS, k)
+            e[k] = self.elbo4Comp(SS.getComp(k), WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov)
         Gap = np.zeros((SS.K, SS.K))
         for j in xrange(SS.K):
             for k in xrange(j + 1, SS.K):
                 WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov \
-                    = self.calcPostParamsForComp(SS, j, k)
-                ejk = self.elbo4comp(SS.getComp(j) + SS.getComp(k), WMean, WCov,
+                    = self.calcPostParams4Comp(SS, j, k)
+                ejk = self.elbo4Comp(SS.getComp(j) + SS.getComp(k), WMean, WCov,
                                      hShape, hInvScale, PhiShape, PhiInvScale, aCov)
                 Gap[j, k] = - e[j] - e[k] + ejk
         return Gap
@@ -586,77 +539,26 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
             Gaps[ii] = self.calcHardMergeGap(SS, kA, kB)
         return Gaps
 
-    def calcPostParamsForComp(self, SS, kA=None, kB=None):
+    def calcPostParams4Comp(self, SS, kA=None, kB=None):
         if not self.calcXxT:
             raise NotImplementedError('Merge move is not allowed for aaT and xaT!')
-        D = self.D
-        C = self.C
+
+        C, D = self.C, self.D
         if kB is None:
-            SN = SS.N[kA]
-            SxxT = SS.xxT[kA]
+            thisSS = SS.getComp(kA)
         else:
-            SN = SS.N[kA] + SS.N[kB]
-            SxxT = SS.xxT[kA] + SS.xxT[kB]
-        if np.allclose(SS.N, 0):
-            for kk in range(SS.K):
-                if not np.allclose(SS.N[kk], 0):
-                    break
-            eigVal, eigVec = eigh(SxxT[kk] / SN[kk], eigvals=(D-C,D-1))
-            sigma2 = (np.trace(SS.xxT[kk]) / SS.N[kk] - np.sum(eigVal)) / (D-C)
-        else:
-            eigVal, eigVec = eigh(SxxT / SN, eigvals=(D-C,D-1))
-            sigma2 = (np.trace(SxxT) / SN - np.sum(eigVal)) / (D-C)
-        if sigma2 < 0 or not np.all(eigVal >= 0) or not np.all(eigVal - sigma2 >= 0):
-            assert np.allclose(sigma2, 0)
-            assert np.allclose(eigVal[eigVal<0], 0)
-            assert np.allclose((eigVal-sigma2)[eigVal-sigma2<0], 0)
-            sigma2 = EPS
-            eigVal[eigVal<EPS] = EPS
-        PhiShape = self.Prior.s + .5 * SN
-        PhiInvScale = sigma2 * (PhiShape) * np.ones(D)
-        WMean = np.dot(eigVec[:,:C], np.diag(np.sqrt(eigVal[:C] - sigma2)))
-        hShape = self.Prior.f + .5 * D
-        hInvScale = self.Prior.g * np.ones(C)
-        E_WT_Phi_W = np.sum((PhiShape / PhiInvScale)[:, np.newaxis, np.newaxis]
-                            * np.einsum('ij,ik->ijk', WMean, WMean), axis=0)
-        aCov = inv(np.eye(C) + E_WT_Phi_W)
+            thisSS = SS.getComp(kA) + SS.getComp(kB)
+
+        WMean, hShape, hInvScale, PhiShape, PhiInvScale, aCov = self.initPostParams(thisSS)
+
         for i in xrange(self.nPostUpdate):
-            # get xaT, aaT
-            LU = np.dot(aCov, np.dot(WMean.T, np.diag(PhiShape / PhiInvScale)))
-            xaT = np.inner(SxxT, LU)
-            aaT = SN * aCov + np.dot(LU, xaT)
-            # calc W
-            scaled_xaT = PhiShape / PhiInvScale[:,np.newaxis] * xaT
-            if self.WCovType == 'diag':
-                WCov = 1. / (hShape / hInvScale
-                             + (PhiShape / PhiInvScale)[:,np.newaxis]
-                                * np.tile(np.diag(aaT),(D,1)))
-                WMean = WCov * scaled_xaT
-            elif self.WCovType == 'full':
-                SigmaInvWW = np.diag(hShape / hInvScale) \
-                             + (PhiShape / PhiInvScale)[:,np.newaxis,np.newaxis] \
-                             * np.tile(aaT, (D,1,1))
-                WCov = inv(SigmaInvWW)
-                WMean = np.einsum('ijk,i...k->ij', WCov, scaled_xaT)
-            # calc H
-            if self.WCovType == 'diag':
-                hInvScale = self.Prior.g + .5 * np.sum(WMean**2 + WCov, axis=0)
-            elif self.WCovType == 'full':
-                hInvScale += self.Prior.g \
-                             + .5 * np.sum(WMean**2 + np.diagonal(WCov,axis1=1,axis2=2), axis=0)
-            # calc Phi
-            PhiShape = self.Prior.s + .5 * SN
-            E_WT_W = np.einsum('ij,ik->ijk', WMean, WMean)
-            if self.WCovType == 'diag':
-                E_WT_W +=  WCov[:,:,np.newaxis] * np.eye(self.C)
-            elif self.WCovType == 'full':
-                E_WT_W += WCov
-            PhiInvScale = self.Prior.t + .5 * (np.diag(SxxT)
-                                               - 2 * np.einsum('ij,ij->i', xaT, WMean)
-                                               + np.einsum('ijk,...kj->i', E_WT_W, aaT))
-            # calc aCov
-            E_WT_Phi_W = np.sum((PhiShape / PhiInvScale)[:, np.newaxis, np.newaxis] * E_WT_W, axis=0)
-            aCov = inv(np.eye(C) + E_WT_Phi_W)
+            xaT, aaT = self.get_xaT_aaT(thisSS, WMean, PhiShape, PhiInvScale, aCov)
+            WMean, WCov = self.calcPostW(xaT, aaT, hShape, hInvScale, PhiShape, PhiInvScale)
+            E_WT_W = self.calcE_WT_W(WMean, WCov)
+            hShape, hInvScale = self.calcPostH(WMean, WCov)
+            PhiShape, PhiInvScale = self.calcPostPhi(thisSS, xaT, aaT, WMean, E_WT_W)
+            aCov = self.calcPostACov(E_WT_W, PhiShape, PhiInvScale)
+
         return WMean, WCov, hShape, hInvScale, PhiShape, PhiInvScale, aCov
 
 
@@ -705,14 +607,14 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
 
 if __name__ == '__main__':
     import bnpy
-    # import StarCovarK5
-    # Data = StarCovarK5.get_data(nObsTotal=5000)
-    import DeadLeavesD25
-    Data = DeadLeavesD25.get_data()
+    import StarCovarK5
+    Data = StarCovarK5.get_data(nObsTotal=5000)
+    # import DeadLeavesD25
+    # Data = DeadLeavesD25.get_data()
     hmodel, RInfo = bnpy.run('DeadLeavesD25', 'DPMixtureModel', 'ZeroMeanFactorAnalyzer', 'moVB',
-                             C=1, nLap=50, K=8, WCovType='diag',
-                             calcXxT=1, nTask=5, jobname='K1', nPostUpdate=2)#,
-                             # moves='birth,merge,delete,shuffle')
+                             C=1, nLap=50, K=1, WCovType='diag',
+                             calcXxT=1, nTask=5, jobname='K1', nPostUpdate=2,
+                             moves='birth,merge,delete,shuffle')
     print hmodel.allocModel.get_active_comp_probs()
 
     # import matplotlib.pylab as plt

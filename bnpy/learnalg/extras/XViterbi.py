@@ -96,6 +96,7 @@ def runViterbiAndSave(**kwargs):
                 path = os.path.expandvars(Dinfo['evalDataPath'])
                 Data = loadDataForSlice(path, **Dinfo)
             else:
+                return None
                 raise ValueError('DataIterator has no attribute Data')
     else:
         return None
