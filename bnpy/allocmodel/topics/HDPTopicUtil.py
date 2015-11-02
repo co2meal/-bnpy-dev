@@ -263,24 +263,25 @@ def calcHrespForMergePairs(resp, Data, mPairIDs, returnVec=1):
     '''
     if hasattr(Data, 'word_count'):
         if mPairIDs is None:
-            Hmat = calcRlogRdotv_allpairs(resp, Data.word_count)
+            Hmat = -1 * calcRlogRdotv_allpairs(resp, Data.word_count)
         else:
-            Hmat = calcRlogRdotv_specificpairs(resp, Data.word_count, mPairIDs)
+            Hmat = -1 * calcRlogRdotv_specificpairs(
+                resp, Data.word_count, mPairIDs)
     else:
         if mPairIDs is None:
-            Hmat = calcRlogR_allpairs(resp)
+            Hmat = -1 * calcRlogR_allpairs(resp)
         else:
-            Hmat = calcRlogR_specificpairs(resp, mPairIDs)
+            Hmat = -1 * calcRlogR_specificpairs(resp, mPairIDs)
     if returnVec:
         if Hmat.ndim == 2:
             Hvec = np.zeros(len(mPairIDs))
             for ii, (kA, kB) in enumerate(mPairIDs):
-                Hvec[ii] = -1 * Hmat[kA, kB]
+                Hvec[ii] = Hmat[kA, kB]
         else:
             Hvec = Hmat
         return Hvec
     else:
-        return -1 * Hmat
+        return Hmat
 
 
 def c_Beta(a1, a0):

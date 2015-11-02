@@ -741,10 +741,6 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
         for k in xrange(K):
             chol_Mu_k = np.linalg.cholesky(Mu[k])
             logdet_Mu_k = 2.0 * np.sum(np.log(np.diag(chol_Mu_k)))
-            # xxTInvMu_k = np.linalg.solve(chol_Mu_k, X.T)
-            # xxTInvMu_k *= xxTInvMu_k
-            # tr_xxTInvMu_k = np.sum(xxTInvMu_k, axis=0)
-            # assert tr_xxTInvMu_k.shape == (N,)
 
             Div[:,k] = -0.5 * D - 0.5 * logdet_xxT + \
                 0.5 * logdet_Mu_k + \
@@ -752,9 +748,9 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
 
         if W is not None:
             Div *= W[:,np.newaxis]
-        assert Div.min() > -1e-8
-        np.maximum(Div, 0, out=Div)
-        assert Div.min() >= 0
+        if smoothFrac > 0:
+            assert Div.min() > -1e-8
+            np.maximum(Div, 0, out=Div)
         return Div
 
     def calcBregDivFromPrior(self, Mu, smoothFrac=0.0):

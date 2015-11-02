@@ -230,7 +230,6 @@ def selectCompsForBirthAtCurrentBatch(
             prefix=['%7s' % 'uids',
                     '%7s' % 'nFail'],
             )
-        
     # Finalize list of eligible UIDs
     UIDs = SS.uids[eligible_mask]
     BLogger.pprint('%d/%d UIDs eligible' % (len(UIDs), K), 'debug')

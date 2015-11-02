@@ -62,7 +62,6 @@ def selectCandidateMergePairs(hmodel, SS,
     # Rank the positive pairs from largest to smallest gain in ELBO
     sortIDs = np.argsort(-1 * GainMat[triuIDs][posLocs])
     posLocs = posLocs[sortIDs]
-
     MLogger.pprint(
         "   %d/%d total pairs have positive gains." % (
             posLocs.size, triuIDs[0].size),
