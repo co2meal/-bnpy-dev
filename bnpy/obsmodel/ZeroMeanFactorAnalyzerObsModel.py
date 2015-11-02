@@ -202,16 +202,14 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
                 Prior = self.Prior
                 PRNG = np.random.RandomState(k)
                 h = PRNG.gamma(Prior.f, 1./Prior.g, C)
-                while np.any(np.isclose(h, 0)):
-                    h = PRNG.gamma(Prior.f, 1./Prior.g, C)
-                hShape = Prior.f + .5 * D
-                hInvScale[k] = hShape / h
+                hShape = Prior.f
+                hInvScale[k] = Prior.g
                 sigma = 1./np.sqrt(h)
                 for c in xrange(C):
                     WMean[k,:,c] = PRNG.normal(0., sigma[c], D)
                 Phi = PRNG.gamma(Prior.s, 1./Prior.t, D)
-                PhiShape[k] = Prior.s + .5 * SS.N[k]
-                PhiInvScale[k] = PhiShape / Phi
+                PhiShape[k] = Prior.s
+                PhiInvScale[k] = Prior.t
                 E_WT_Phi_W = np.sum(Phi[:, np.newaxis, np.newaxis] * np.einsum('ij,ik->ijk', WMean[k], WMean[k]), axis=0)
                 aCov[k] = inv(np.eye(C) + E_WT_Phi_W)
 
