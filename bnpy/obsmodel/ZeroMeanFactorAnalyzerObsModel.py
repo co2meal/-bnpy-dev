@@ -191,13 +191,12 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
 
         # initialization
         for k in xrange(K):
-            if hasattr(self, 'Post'):
-                if self.calcXxT:  # PPCA
-                    WMean[k], hShape, hInvScale[k], PhiShape[k], PhiInvScale[k], aCov[k] = self.initPostParams(SS.getComp(k))
-                else: # Old values
-                    Post = self.Post
-                    WMean[k], hShape, hInvScale[k], PhiShape[k], PhiInvScale[k], aCov[k] = \
-                        (Post.WMean[k], Post.hShape, Post.hInvScale[k], Post.PhiShape[k], Post.PhiInvScale[k], Post.aCov[k])
+            if self.calcXxT: # PPCA
+                WMean[k], hShape, hInvScale[k], PhiShape[k], PhiInvScale[k], aCov[k] = self.initPostParams(SS.getComp(k))
+            elif hasattr(self, 'Post'): # Old values
+                Post = self.Post
+                WMean[k], hShape, hInvScale[k], PhiShape[k], PhiInvScale[k], aCov[k] = \
+                    (Post.WMean[k], Post.hShape, Post.hInvScale[k], Post.PhiShape[k], Post.PhiInvScale[k], Post.aCov[k])
             else: # Sampling from prior
                 Prior = self.Prior
                 PRNG = np.random.RandomState(k)
