@@ -91,10 +91,11 @@ def runViterbiAndSave(**kwargs):
             Data = kwargs['DataIterator'].Data
         except AttributeError:
             from bnpy.data.DataIteratorFromDisk import loadDataForSlice
-            Dinfo = kwargs['DataIterator'].DataInfo
+            Dinfo = dict()
+            Dinfo.update(kwargs['DataIterator'].DataInfo)
             if 'evalDataPath' in Dinfo:
-                path = os.path.expandvars(Dinfo['evalDataPath'])
-                Data = loadDataForSlice(path, **Dinfo)
+                Dinfo['filepath'] = os.path.expandvars(Dinfo['evalDataPath'])
+                Data = loadDataForSlice(**Dinfo)
             else:
                 raise ValueError('DataIterator has no attribute Data')
     else:

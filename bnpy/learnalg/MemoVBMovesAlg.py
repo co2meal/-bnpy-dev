@@ -313,12 +313,13 @@ class MemoVBMovesAlg(LearnAlg):
                         'CREATING birth proposals at lap %.2f' % (lapFrac))
                 BArgs = self.algParams['birth'].copy()
                 if BArgs['b_debugWriteHTML']:
+                    batchPos = (lapFrac - np.floor(lapFrac)) / self.lapFracInc
                     BArgs['b_debugOutputDir'] = os.path.join(
                         self.savedir, 
                         'html-birth-logs',
                         'lap=%04d_batchPos%04dof%d_targetUID=%04d' % (
-                            np.ceil(lapFrac), 
-                            np.ceil(lapFrac/self.lapFracInc),
+                            np.ceil(lapFrac),
+                            np.round(batchPos),
                             self.nBatch,
                             targetUID))
                     if not os.path.exists(BArgs['b_debugOutputDir']):
@@ -818,6 +819,8 @@ class MemoVBMovesAlg(LearnAlg):
             totalKnew = MovePlans['b_Knew']
         else:
             totalKnew = 0
+
+        curLdict = hmodel.calc_evidence(SS=SS, todict=1)
         for targetUID in SS.propXSS.keys():
             # Skip delete proposals, which are handled differently
             if 'd_targetUIDs' in MovePlans:
@@ -846,13 +849,25 @@ class MemoVBMovesAlg(LearnAlg):
             propModel = hmodel.copy()
             propModel.update_global_params(propSS)
             # Compute score of proposal
-            propLscore = propModel.calc_evidence(SS=propSS)
+            propLdict = propModel.calc_evidence(SS=propSS, todict=1)
+            propLscore = propLdict['Ltotal']
+            msg = "   gainL % .3e" % (propLscore-Lscore)
+            msg += "\n    curL % .3e" % (Lscore)
+            msg += "\n   propL % .3e" % (propLscore)
+            for key in sorted(curLdict.keys()):
+                if key.count('_') or key.count('total'):
+                    continue
+                msg += "\n   gain_%8s % .3e" % (
+                    key, propLdict[key] - curLdict[key])
 
+            if targetUID == 8 and propLscore > Lscore:
+                from IPython import embed; embed()
+
+            BLogger.pprint(msg)
             if propLscore > Lscore:
                 nAccept += 1
                 BLogger.pprint(
-                    '   Accepted. Gain of % .3e.  New Lscore % .3e ' % (
-                        propLscore-Lscore, propLscore))
+                    '   Accepted. Jump up to Lscore % .3e ' % (propLscore))
                 BLogger.pprint(
                     "    Mass transfered to new comps: %.2f" % (
                         SS.getCountVec()[ktarget] - \
@@ -876,17 +891,14 @@ class MemoVBMovesAlg(LearnAlg):
                 hmodel = propModel
                 Lscore = propLscore
                 SS = propSS
+                curLdict = propLdict
                 MovePlans['b_targetUIDs'].remove(targetUID)
                 del SS.propXSS[targetUID]
             else:
-                propLdata = propModel.obsModel.calc_evidence(
-                    None, propSS, None)
-                curLdata = hmodel.obsModel.calc_evidence(None, SS, None)
-                nAtoms = hmodel.obsModel.getDatasetScale(SS)
-                gainLdata = (propLdata - curLdata) / nAtoms
                 BLogger.pprint(
-                    '   Rejected. Gain of % .3e. Remain at Lscore %.3e' % (
-                        propLscore-Lscore, Lscore))
+                    '   Rejected. Remain at Lscore %.3e' % (Lscore))
+
+                gainLdata = propLdict['Ldata'] - curLdict['Ldata']
                 if gainLdata > 0.01 and not self.isLastBatch(lapFrac):
                     BLogger.pprint(
                         '   Retained. Promising value of gainLdata % .2f' % (
