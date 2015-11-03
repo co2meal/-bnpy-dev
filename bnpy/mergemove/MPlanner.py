@@ -67,7 +67,6 @@ def selectCandidateMergePairs(hmodel, SS,
             posLocs.size, triuIDs[0].size),
         'debug')
 
-
     if len(posLocs) > 0:
         MLogger.pprint(
             "   Filtering pairs so no UID is ineligible\n" + 

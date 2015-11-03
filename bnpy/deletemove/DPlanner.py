@@ -131,7 +131,7 @@ def selectCandidateDeleteComps(
     MovePlans['d_absorbingUIDSet'] = eligibleUIDs
 
     DLogger.pprint('Selecting one single state to target.')
-    DLogger.pprint('targetUID: ' + count2str(targetUID))
+    DLogger.pprint('targetUID ' + str(targetUID))
     DLogger.pprint('absorbingUIDs: ' + vec2str(eligibleUIDs))
 
     return MovePlans
