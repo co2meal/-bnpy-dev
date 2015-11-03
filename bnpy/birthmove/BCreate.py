@@ -140,10 +140,12 @@ def createSplitStats_bregmankmeans(
     BLogger.pprint(DebugInfo['targetAssemblyMsg'])
     # EXIT: if proposal initialization fails, quit early
     if xSSfake is None:
-        BLogger.pprint('Proposal Init Failed. ' + DebugInfo['errorMsg'])
+        BLogger.pprint('Proposal FAILED initialization. ' + \
+                       DebugInfo['errorMsg'])
         return None, DebugInfo
+
     # Describe the initialization.
-    BLogger.pprint('  Initialized Bregman clustering with %d clusters %s.' % (
+    BLogger.pprint('  Bregman k-means init delivered %d clusters %s.' % (
         xSSfake.K, '(--b_Kfresh=%d)' % kwargs['b_Kfresh']))
     BLogger.pprint('  Running %d refinement iterations (--b_nRefineSteps)' % (
         b_nRefineSteps))
@@ -158,7 +160,6 @@ def createSplitStats_bregmankmeans(
             vocabList=vocabList)
         curLdict = curModel.calc_evidence(SS=curSSwhole, todict=1)
         propLdictList = list()
-
         docUsageByUID = dict()
         if curModel.getAllocModelName().count('HDP'):
             for k, uid in enumerate(xSSfake.uids):
@@ -167,6 +168,13 @@ def createSplitStats_bregmankmeans(
                 else:
                     initDocUsage_uid = 0.0
                 docUsageByUID[uid] = [initDocUsage_uid]
+
+        # Compute the objective Lscore for the initialization!
+        # Assume any junk token is assigned to most common new state in each doc
+        #init_xLPslice = curModel.allocModel.initLPFromResp(
+        #    Dslice, Z=DebugInfo['targetZ'])
+        #init_xSSslice = curModel.get_global_suff_stats(
+        #    Dslice, init_xLPslice, doPrecompEntropy=1)
 
     xSSslice = xSSfake
     # Make a function to help with logging
@@ -248,7 +256,7 @@ def createSplitStats_bregmankmeans(
             "Could not create at least two comps" + \
             " with mass >= %.1f (--%s)" % (
                 b_minNumAtomsForNewComp, 'b_minNumAtomsForNewComp')
-        BLogger.pprint('Refinement Failed. ' + DebugInfo['errorMsg'])
+        BLogger.pprint('Proposal FAILED refinement. ' + DebugInfo['errorMsg'])
         return None, DebugInfo
 
     # If here, we have a valid proposal. 
@@ -260,7 +268,7 @@ def createSplitStats_bregmankmeans(
         origMass = curLPslice['resp'][:,ktarget].sum()
     newMass = xSSslice.getCountVec().sum()
     assert np.allclose(newMass, origMass, atol=1e-6, rtol=0)
-    BLogger.pprint('Success. Created %d new comps.' % (
+    BLogger.pprint('Proposal SUCCESS. Created %d candidate clusters.' % (
         DebugInfo['Kfinal']))
 
     if returnPropSS:

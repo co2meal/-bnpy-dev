@@ -439,3 +439,33 @@ def _get_flatLowTriIDs_KxK(K):
     flatIDs = np.ravel_multi_index(np.tril_indices(K, -1), (K, K))
     flatlowTriIDsDict_KxK[K] = flatIDs
     return flatIDs
+
+
+def calc_fgrid(o_grid=None, o_pos=None, 
+               r_grid=None, r_pos=None,
+               omega=None, rho=None, **kwargs):
+    ''' Evaluate the objective across range of values for one entry
+    '''
+    K = omega.size
+    if o_grid is not None:
+        assert o_pos >= 0 and o_pos < K
+        f_grid = np.zeros_like(o_grid)
+        omega_n = omega.copy()
+        for n in xrange(o_grid.size):
+            omega_n[o_pos] = o_grid[n]
+            f_grid[n] = objFunc_constrained(
+                np.hstack([rho, omega_n]), 
+                **kwargs)
+    elif r_grid is not None:
+        assert r_pos >= 0 and r_pos < K
+        f_grid = np.zeros_like(r_grid)
+        rho_n = rho.copy()
+        for n in xrange(r_grid.size):
+            rho_n[o_pos] = r_grid[n]
+            f_grid[n] = objFunc_constrained(
+                np.hstack([rho_n, omega]), 
+                **kwargs)
+    else:
+        raise ValueError("Must specify either o_grid or r_grid")
+
+    return f_grid
