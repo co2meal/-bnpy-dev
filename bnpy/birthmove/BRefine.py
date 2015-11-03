@@ -13,12 +13,10 @@ def assignSplitStats(
     funcName = 'assignSplitStats_' + aName
     if funcName not in assignSplitStatsMap:
         raise NotImplementedError('Unrecognized function: ' + funcName)
-    
     assignSplitStatsFunc = assignSplitStatsMap[funcName]
     xSSslice = assignSplitStatsFunc(
         Dslice, curModel, curLPslice, propXSS,
         **kwargs)
-
     return xSSslice
 
 def assignSplitStats_DPMixtureModel(
@@ -74,6 +72,7 @@ def assignSplitStats_HDPTopicModel(
         doSortBigToSmall=False,
         mUIDPairs=list(),
         keepTargetCompAsEmpty=True,
+        absorbingIDs=None,
         **kwargs):
     ''' Reassign target comp. using an existing set of proposal states.
 
@@ -127,6 +126,12 @@ def assignSplitStats_HDPTopicModel(
         start = Dslice.doc_range[d]
         stop = Dslice.doc_range[d+1]
 
+        if absorbingIDs is None:
+            xalphaEbeta_active_d = xalphaEbeta_active
+        else:
+            xalphaEbeta_active_d = xalphaEbeta_active + \
+                curLPslice['DocTopicCount'][d, absorbingIDs[:Kfresh_active]]
+
         mask_d = np.flatnonzero(
             curLPslice['resp'][start:stop, ktarget] > 0.01)
         lumpmask_d = np.setdiff1d(np.arange(stop-start), mask_d)
@@ -158,12 +163,14 @@ def assignSplitStats_HDPTopicModel(
             prevxDocTopicCount_d = 500 * np.ones(Kfresh_active)
 
             for riter in range(LPkwargs['nCoordAscentItersLP']):
-                np.add(xDocTopicCount_d, xalphaEbeta_active, 
-                       out=xDocTopicProb_d)
+                # xalphaEbeta_active_d potentially includes counts
+                # for absorbing states from curLPslice_d
+                np.add(xDocTopicCount_d, xalphaEbeta_active_d, 
+                    out=xDocTopicProb_d)
                 digamma(xDocTopicProb_d, out=xDocTopicProb_d)
                 xDocTopicProb_d -= xDocTopicProb_d.max()
                 np.exp(xDocTopicProb_d, out=xDocTopicProb_d)
-                
+
                 # Update sumResp for active tokens in document
                 np.dot(xLik_d, xDocTopicProb_d, out=xsumResp_d)
 
@@ -206,7 +213,7 @@ def assignSplitStats_HDPTopicModel(
             xLPslice['resp'][start+mask_d, :Kfresh_active] = xResp_d
 
         if lumpmask_d.size > 0:
-            kmax = xDocTopicCount_d.argmax()
+            kmax = (xDocTopicCount_d + xalphaEbeta_active_d).argmax()
             xLPslice['resp'][start+lumpmask_d, :Kfresh_active] = 1e-100
             xLPslice['resp'][start+lumpmask_d, kmax] = \
                 curLPslice['resp'][start + lumpmask_d, ktarget]
@@ -223,6 +230,7 @@ def assignSplitStats_HDPTopicModel(
 
         assert np.allclose(xDocTopicCount[d,:].sum(),
                            curLPslice['DocTopicCount'][d, ktarget])
+
 
     # Force all entries beyond the active K to very small.
     xLPslice['resp'][:, Kfresh_active:] = 1e-100
@@ -279,7 +287,6 @@ def assignSplitStats_HDPTopicModel(
         xSSslice.setMergeUIDPairs(mUIDPairs)
         for key, arr in Mdict.items():
             xSSslice.setMergeTerm(key, arr, dims='M')
-
     if returnPropSS:
         return _verify_HDPTopicModel_and_return_xSSslice_and_propSSslice(
             Dslice, curModel, curLPslice, xLPslice, xSSslice, 
