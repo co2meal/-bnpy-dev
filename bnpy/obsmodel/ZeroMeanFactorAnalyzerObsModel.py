@@ -26,9 +26,13 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         self.K = 0
         self.inferType = inferType
         WCovType = str(WCovType).lower()
-        if WCovType == 'diag' or WCovType == 'full':
+        if WCovType == 'diag':
             self.WCovType = WCovType
-        elif WCovType == 'none': # early result, full WCov
+            C, D = self.C, self.D
+            diagIdx = np.arange(C*D) / C * C**2 + \
+                      np.tile(np.ravel_multi_index(np.diag_indices(C), (C,C)), D)
+            self.WCovDiagIdx = np.unravel_index(diagIdx, (D,C,C))
+        elif WCovType == 'full' or WCovType == 'none': # early result, full WCov
             self.WCovType = 'full'
         else:
             raise NameError('Unrecognized WCov type: %s.' % WCovType)
@@ -312,10 +316,7 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         C, D = self.C, self.D
         E_WT_W = np.einsum('ij,ik->ijk', WMean, WMean)
         if self.WCovType == 'diag':
-            # diagIdx = np.arange(C*D) / C * C**2 + np.tile(np.ravel_multi_index(np.diag_indices(C), (C,C)), D)
-            # diagIdx = np.unravel_index(diagIdx, E_WT_W.shape)
-            # E_WT_W[diagIdx] += WCov.flatten()
-            E_WT_W +=  WCov[:,:,np.newaxis] * np.eye(self.C)
+            E_WT_W[self.WCovDiagIdx] += WCov.flatten()
         elif self.WCovType == 'full':
             E_WT_W += WCov
         return E_WT_W
