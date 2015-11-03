@@ -398,6 +398,21 @@ class MemoVBMovesAlg(LearnAlg):
             mUIDPairs = list()
             for ii, oldUID in enumerate(oldUIDs):
                 mUIDPairs.append((oldUID, newUIDs[ii]))
+
+            # # For topic models, consider inflating some word counts
+            # # for the temporary suff stats used to do restricted steps
+            '''
+            absorbingIDs = np.sort([curSSwhole.uid2k(uid)
+                    for uid in MovePlans['d_absorbingUIDSet']])
+
+            if curModel.getAllocModelName().count('HDPTopic'):
+                if curModel.getObsModelName().count('Mult'):
+                    ktarget = curSSwhole.uid2k(targetUID)
+                    topTargetWords = np.flatnonzero(
+                        curSSwhole.WordCounts[ktarget,:] > 5)
+                    # TODO inflate with topTargetWords on other topics??
+            '''
+            # Run restricted local step
             SSbatch.propXSS[targetUID] = assignSplitStats(
                 Dbatch, curModel, LPbatch, propRemSS,
                 curSSwhole=curSSwhole,
@@ -405,6 +420,7 @@ class MemoVBMovesAlg(LearnAlg):
                 LPkwargs=LPkwargs,
                 keepTargetCompAsEmpty=0,
                 mUIDPairs=mUIDPairs,
+                absorbingIDs=None,
                 lapFrac=lapFrac)
             ElapsedTimeLogger.stopEvent('delete', 'localexpansion')
         return SSbatch
@@ -1113,6 +1129,7 @@ class MemoVBMovesAlg(LearnAlg):
         nAccept = 0
         nTrial = 0
         Ndiff = 0.0
+        curLdict = hmodel.calc_evidence(SS=SS, todict=1)
         for targetUID in MovePlans['d_targetUIDs']:
             nTrial += 1
             assert targetUID in SS.propXSS
@@ -1134,12 +1151,17 @@ class MemoVBMovesAlg(LearnAlg):
             propModel.update_global_params(propSS)
             propLdict = propModel.calc_evidence(SS=propSS, todict=1)
             propLscore = propLdict['Ltotal']
-
-            msg = '%d : gain % .3e' % (targetUID, propLscore-Lscore)
+            msg = 'targetUID %d' % (targetUID)
+            msg += '\n   gainL % .3e' % (propLscore-Lscore)
             msg += "\n    curL % .3e" % (Lscore)
             msg += "\n   propL % .3e" % (propLscore)
-            DLogger.pprint(msg)
+            for key in sorted(curLdict.keys()):
+                if key.count('_') or key.count('total'):
+                    continue
+                msg += "\n   gain_%8s % .3e" % (
+                    key, propLdict[key] - curLdict[key])
 
+            DLogger.pprint(msg)
             # Make decision
             if propLscore > Lscore:
                 # Accept
@@ -1156,6 +1178,8 @@ class MemoVBMovesAlg(LearnAlg):
                 hmodel = propModel
                 Lscore = propLscore
                 SS = propSS
+
+                curLdict = propLdict
                 del SS.propXSS[targetUID]
             else:
                 # Reject!
