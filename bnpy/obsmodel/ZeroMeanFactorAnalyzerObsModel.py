@@ -312,9 +312,10 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
         C, D = self.C, self.D
         E_WT_W = np.einsum('ij,ik->ijk', WMean, WMean)
         if self.WCovType == 'diag':
-            diagIdx = np.arange(C*D) / C * C**2 + np.tile(np.ravel_multi_index(np.diag_indices(C), (C,C)), D)
-            diagIdx = np.unravel_index(diagIdx, E_WT_W.shape)
-            E_WT_W[diagIdx] += WCov.flatten()
+            # diagIdx = np.arange(C*D) / C * C**2 + np.tile(np.ravel_multi_index(np.diag_indices(C), (C,C)), D)
+            # diagIdx = np.unravel_index(diagIdx, E_WT_W.shape)
+            # E_WT_W[diagIdx] += WCov.flatten()
+            E_WT_W +=  WCov[:,:,np.newaxis] * np.eye(self.C)
         elif self.WCovType == 'full':
             E_WT_W += WCov
         return E_WT_W
