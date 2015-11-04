@@ -65,6 +65,7 @@ def showTopWordsForTask(taskpath, vocabfile, lap=None, doHTML=1,
             return printTopWordsFromWordCounts(WordCounts, vocabList)
 
     else:
+        print 'HERE <<<'
         hmodel, lap = loadModelForLap(taskpath, lap)
         if doHTML:
             return htmlTopWordsFromHModel(hmodel, vocabList, **kwargs)
@@ -351,7 +352,11 @@ if __name__ == "__main__":
     parser.add_argument('vocabfilepath')
     parser.add_argument('--sortTopics', default=1)
     parser.add_argument('--maxKToDisplay', default=10000)
+    parser.add_argument('--doCounts', type=int, default=1)
+    parser.add_argument('--doHTML', type=int, default=1)
     args = parser.parse_args()
     print showTopWordsForTask(args.taskpath, args.vocabfilepath,
                               sortTopics=args.sortTopics,
+                              doCounts=args.doCounts,
+                              doHTML=args.doHTML,
                               maxKToDisplay=args.maxKToDisplay)

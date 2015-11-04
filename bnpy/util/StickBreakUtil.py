@@ -57,7 +57,7 @@ def forceRhoInBounds(rho, EPS=EPS):
     return rho
 
 
-def forceOmegaInBounds(omega, EPS=EPS):
+def forceOmegaInBounds(omega, EPS=EPS, maxOmegaVal=None, Log=None):
     ''' Verify every entry of omega is bigger than EPS
 
     Returns
@@ -65,7 +65,20 @@ def forceOmegaInBounds(omega, EPS=EPS):
     omega : 1D array, size K
         Each entry satisfies: EPS <= omega[k]
     '''
+    if Log is not None:
+        nUp = np.sum(omega < EPS)
+        if nUp > 0:
+            Log.error("Forcing %d omega entries above minOmegaVal=%.3e." % (
+                nUp, EPS))
+        if maxOmegaVal is not None:
+            nDown = np.sum(omega > maxOmegaVal)
+            if nDown > 0:
+                Log.error("Forcing %d omega entries below maxOmegaVal=%.3e" % (
+                    nDown, maxOmegaVal))
+
     np.maximum(omega, EPS, out=omega)
+    if maxOmegaVal is not None:
+        np.minimum(omega, maxOmegaVal, out=omega)
     return omega
 
 

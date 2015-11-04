@@ -2,7 +2,7 @@ import numpy as np
 import logging
 
 import LocalStepManyDocs
-import OptimizerRhoOmega
+import OptimizerRhoOmegaBetter
 
 from HDPTopicUtil import calcELBO
 from HDPTopicUtil import calcELBO_LinearTerms, calcELBO_NonlinearTerms
@@ -14,7 +14,7 @@ from bnpy.allocmodel.mix.DPMixtureModel import convertToN0
 from bnpy.suffstats import SuffStatBag
 from bnpy.util import digamma, gammaln
 from bnpy.util import as1D
-from bnpy.util.StickBreakUtil import rho2beta
+from bnpy.util.StickBreakUtil import rho2beta, rho2beta_active, beta2rho
 
 from bnpy.util.NumericUtil import calcRlogRdotv, calcRlogR
 from bnpy.util.NumericUtil import calcRlogRdotv_allpairs
@@ -417,10 +417,10 @@ class HDPTopicModel(AllocModel):
             # Special update case for merges:
             # Fast, heuristic update for rho and omega directly from existing
             # values
-            beta = OptimizerRhoOmega.rho2beta_active(self.rho)
+            beta = rho2beta_active(self.rho)
             beta[mergeCompA] += beta[mergeCompB]
             beta = np.delete(beta, mergeCompB, axis=0)
-            rho = OptimizerRhoOmega.beta2rho(beta, SS.K)
+            rho = beta2rho(beta, SS.K)
             omega = self.omega
             omega[mergeCompA] += omega[mergeCompB]
             omega = np.delete(omega, mergeCompB, axis=0)
@@ -449,21 +449,21 @@ class HDPTopicModel(AllocModel):
             initomega = None
         try:
             if hasattr(SS, 'sumLogPiRemVec'):
-                sumLogPiActiveVec = SS.sumLogPi
                 sumLogPiRemVec = SS.sumLogPiRemVec
-                sumLogPi = None
             else:
-                sumLogPiActiveVec = None
-                sumLogPiRemVec = None
-                sumLogPi = np.append(SS.sumLogPi, SS.sumLogPiRem)
-            rho, omega, f, Info = OptimizerRhoOmega.\
+                sumLogPiRemVec = np.zeros(SS.K)
+                sumLogPiRemVec[-1] = SS.sumLogPiRem
+            rho, omega, f, Info = OptimizerRhoOmegaBetter.\
                 find_optimum_multiple_tries(
-                    sumLogPi=sumLogPi,
-                    sumLogPiActiveVec=sumLogPiActiveVec,
+                    sumLogPiActiveVec=SS.sumLogPi,
                     sumLogPiRemVec=sumLogPiRemVec,
                     nDoc=SS.nDoc,
-                    gamma=self.gamma, alpha=self.alpha,
-                    initrho=initrho, initomega=initomega)
+                    gamma=self.gamma,
+                    alpha=self.alpha,
+                    initrho=initrho,
+                    initomega=initomega,
+                    do_grad_omega=0,
+                    Log=Log)
         except ValueError as error:
             if str(error).count('FAILURE') == 0:
                 raise error
@@ -475,8 +475,10 @@ class HDPTopicModel(AllocModel):
             else:
                 Log.error(
                     '***** Optim failed. Set to default init. ' + str(error))
-                omega = (1 + self.gamma) * np.ones(SS.K)
-                rho = OptimizerRhoOmega.create_initrho(SS.K)
+                omega = OptimizerRhoOmegaBetter.make_initomega(
+                    SS.K, SS.nDoc, self.gamma)
+                rho = OptimizerRhoOmegaBetter.make_initrho(
+                    SS.K, SS.nDoc, self.gamma)
         return rho, omega
 
     def update_global_params_soVB(self, SS, rho=None,
@@ -589,7 +591,7 @@ class HDPTopicModel(AllocModel):
                 betaRem = 1 - np.sum(beta)
             betaWithRem = np.hstack([beta, betaRem])
             betaWithRem /= betaWithRem.sum()
-            self.rho = OptimizerRhoOmega.beta2rho(betaWithRem, self.K)
+            self.rho = beta2rho(betaWithRem, self.K)
             self.omega = (10 + self.gamma) * np.ones(self.K)
             return
 
