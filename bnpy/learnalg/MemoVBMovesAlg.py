@@ -859,10 +859,6 @@ class MemoVBMovesAlg(LearnAlg):
                     continue
                 msg += "\n   gain_%8s % .3e" % (
                     key, propLdict[key] - curLdict[key])
-
-            if targetUID == 8 and propLscore > Lscore:
-                from IPython import embed; embed()
-
             BLogger.pprint(msg)
             if propLscore > Lscore:
                 nAccept += 1
