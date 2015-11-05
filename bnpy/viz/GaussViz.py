@@ -38,12 +38,15 @@ def plotGauss1DFromHModel(hmodel,
     else:
         compsToHighlight = list()
     if compListToPlot is None:
-        compListToPlot = np.arange(0, hmodel.allocModel.K)
+        compListToPlot = np.arange(0, hmodel.obsModel.K)
     if activeCompIDs is None:
-        activeCompIDs = np.arange(0, hmodel.allocModel.K)
+        activeCompIDs = np.arange(0, hmodel.obsModel.K)
 
     # Load appearance probabilities as single vector
-    w = hmodel.allocModel.get_active_comp_probs()
+    if hmodel.allocModel.K == hmodel.obsModel.K:
+        w = hmodel.allocModel.get_active_comp_probs()
+    else:
+        w = np.ones(hmodel.obsModel.K)
 
     if Data is not None:
         if hasattr(Data, 'X'):
@@ -129,12 +132,16 @@ def plotGauss2DFromHModel(hmodel, compListToPlot=None,
     else:
         compsToHighlight = list()
     if compListToPlot is None:
-        compListToPlot = np.arange(0, hmodel.allocModel.K)
+        compListToPlot = np.arange(0, hmodel.obsModel.K)
     if activeCompIDs is None:
-        activeCompIDs = np.arange(0, hmodel.allocModel.K)
+        activeCompIDs = np.arange(0, hmodel.obsModel.K)
 
     # Load appearance probabilities as single vector
-    w = hmodel.allocModel.get_active_comp_probs()
+    if hmodel.allocModel.K == hmodel.obsModel.K:
+        w = hmodel.allocModel.get_active_comp_probs()
+    else:
+        w = np.ones(hmodel.obsModel.K)
+
 
     if Data is not None:
         if hasattr(Data, 'X'):
@@ -243,9 +250,12 @@ def plotCovMatFromHModel(hmodel,
     else:
         compsToHighlight = list()
     if compListToPlot is None:
-        compListToPlot = np.arange(0, hmodel.allocModel.K)
+        compListToPlot = np.arange(0, hmodel.obsModel.K)
 
-    w = hmodel.allocModel.get_active_comp_probs()
+    if hmodel.allocModel.K == hmodel.obsModel.K:
+        w = hmodel.allocModel.get_active_comp_probs()
+    else:
+        w = np.ones(hmodel.obsModel.K)
 
     colorID = 0
     for plotID, kk in enumerate(compListToPlot):
