@@ -7,7 +7,7 @@ from bnpy.util import split_str_into_fixed_width_lines
 # Configure Logger
 Log = None
 RecentMessages = None
-taskoutpath = None
+taskoutpath = '/tmp/'
 DEFAULTLEVEL = logging.DEBUG
 
 def pprint(msg, level=None, prefix='', linewidth=80):
@@ -50,8 +50,11 @@ def startUIDSpecificLog(uid=0):
     Creates a log file specific to the given uid, 
     which will capture all subsequent log output.
     '''
+    global Log
     global RecentMessages
     global taskoutpath
+    if Log is None:
+        return
     fh = logging.FileHandler(
             os.path.join(
                 taskoutpath,
@@ -69,7 +72,10 @@ def stopUIDSpecificLog(uid=0):
     If the specified uid has an associated log open,
     then it will be closed.
     '''
+    global Log
     global RecentMessages
+    if Log is None:
+        return
     for i in range(len(Log.handlers)):
         fh = Log.handlers[i]
         if isinstance(fh, logging.FileHandler):
@@ -79,7 +85,17 @@ def stopUIDSpecificLog(uid=0):
                 break
     RecentMessages = None
 
-def configure(taskoutpathIN, doSaveToDisk=0, doWriteStdOut=0):
+def configure(taskoutpathIN, 
+        doSaveToDisk=0, doWriteStdOut=0,
+        verboseLevel=0,
+        summaryLevel=logging.DEBUG+1,        
+        stdoutLevel=logging.DEBUG+1):
+    ''' Configure this singleton Logger to write logs to disk or stdout.
+
+    Post condition
+    --------------
+    Log will have at least one handler, either a null, stdout, or file handler.
+    '''
     global Log
     global taskoutpath
 
@@ -96,7 +112,7 @@ def configure(taskoutpathIN, doSaveToDisk=0, doWriteStdOut=0):
             os.path.join(
                 taskoutpath,
                 "birth-transcript-verbose.txt"))
-        fh.setLevel(0)
+        fh.setLevel(verboseLevel)
         fh.setFormatter(formatter)
         Log.addHandler(fh)
 
@@ -105,14 +121,14 @@ def configure(taskoutpathIN, doSaveToDisk=0, doWriteStdOut=0):
             os.path.join(
                 taskoutpath,
                 "birth-transcript-summary.txt"))
-        fh.setLevel(logging.DEBUG + 1)
+        fh.setLevel(summaryLevel)
         fh.setFormatter(formatter)
         Log.addHandler(fh)
 
     # Config logger that can write to stdout
     if doWriteStdOut:
         ch = logging.StreamHandler(sys.stdout)
-        ch.setLevel(logging.DEBUG+1)
+        ch.setLevel(stdoutLevel)
         ch.setFormatter(formatter)
         Log.addHandler(ch)
     # Config null logger, avoids error messages about no handler existing

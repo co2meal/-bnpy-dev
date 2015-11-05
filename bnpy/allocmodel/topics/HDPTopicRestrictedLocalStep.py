@@ -1,5 +1,8 @@
+import numpy as np
+from scipy.special import digamma, gammaln
+import os
 
-def makeSummaryForRestrictedLocalStep_HDPTopicModel(
+def summarizeRestrictedLocalStep_HDPTopicModel(
         Dslice=None, 
         curModel=None,
         curLPslice=None,
@@ -10,7 +13,7 @@ def makeSummaryForRestrictedLocalStep_HDPTopicModel(
         xInitSS=None,
         emptyPiFrac=0.01,
         **kwargs):
-    ''' Perform restricted local step and summarize it.
+    ''' Perform one restricted local step and summarize it.
 
     Returns
     -------
@@ -27,24 +30,26 @@ def makeSummaryForRestrictedLocalStep_HDPTopicModel(
     if xObsModel is None:
         xObsModel = curModel.obsModel.copy()
     if xInitSS is not None:      
-        xObsModel.update_global_step(xInitSS)
+        xObsModel.update_global_params(xInitSS)
     assert xObsModel.K == Kfresh
 
     # Create temporary probabilities for each new cluster
-    target_alphaPi = curModel.allocModel.alpha_E_beta_active()[ktarget]
+    target_alphaPi = curModel.allocModel.alpha_E_beta()[ktarget]
     xalphaPi = (1-emptyPiFrac) / Kfresh * target_alphaPi * np.ones(Kfresh)
     emptyalphaPi = emptyPiFrac * target_alphaPi
     assert np.allclose(np.sum(xalphaPi) + emptyalphaPi, target_alphaPi)
 
     # Perform restricted inference!
+    # xLPslice contains local params for all Kfresh expansion clusters
     xLPslice = restrictedLocalStep_HDPTopicModel(
         Dslice=Dslice,
         curLPslice=curLPslice,
         ktarget=ktarget,
         xObsModel=xObsModel,
         xalphaPi=xalphaPi,
-        thetaEmptyComp=emptyalphaPi)
-
+        thetaEmptyComp=emptyalphaPi,
+        **kwargs)
+    
     # Summarize this expanded local parameter pack
     xSSslice = curModel.get_global_suff_stats(
         Dslice, xLPslice,
@@ -62,6 +67,13 @@ def makeSummaryForRestrictedLocalStep_HDPTopicModel(
         for key, arr in Mdict.items():
             xSSslice.setMergeTerm(key, arr, dims='M')
 
+    # Prepare dict of info for debugging/inspection
+    Info = dict()
+    Info['Kfresh'] = Kfresh
+    Info['target_alphaPi'] = target_alphaPi
+    Info['xalphaPi'] = xalphaPi
+    Info['xInitSS'] = xInitSS
+    Info['xLPslice'] = xLPslice
     return xSSslice, Info
 
 
@@ -72,7 +84,7 @@ def restrictedLocalStep_HDPTopicModel(
         xObsModel=None,
         xalphaPi=None,
         thetaEmptyComp=None,
-        ):
+        **kwargs):
     '''
 
     Returns
@@ -93,7 +105,7 @@ def restrictedLocalStep_HDPTopicModel(
         * ElogPiEmptyComp
     '''
     Kfresh = xObsModel.K
-    assert Kfresh == xPi.size
+    assert Kfresh == xalphaPi.size
 
     # Compute conditional likelihoods for every data atom
     xLPslice = xObsModel.calc_local_params(Dslice)
@@ -112,8 +124,8 @@ def restrictedLocalStep_HDPTopicModel(
             xLPslice=xLPslice,
             ktarget=ktarget,
             Kfresh=Kfresh,
-            xalphaPi_d=xalphaPi,
-            )
+            xalphaPi=xalphaPi,
+            **kwargs)
 
     # Compute other LP quantities related to log prob (topic | doc)
     # and fill these into the expanded LP dict
@@ -121,6 +133,7 @@ def restrictedLocalStep_HDPTopicModel(
     xLPslice['digammaSumTheta'] = digammaSumTheta
     xLPslice['ElogPi'] = \
         digamma(xLPslice['theta']) - digammaSumTheta[:, np.newaxis]
+    xLPslice['thetaRem'] = curLPslice['thetaRem'].copy()
     xLPslice['ElogPiRem'] = curLPslice['ElogPiRem'].copy()
 
     # Compute quantities related to leaving ktarget almost empty,
@@ -148,6 +161,7 @@ def restrictedLocalStepForSingleDoc_HDPTopicModel(
         Kfresh=None,
         xalphaPi=None,
         xLPslice=None,
+        LPkwargs=dict(),
         **kwargs):
     ''' Perform restricted local step on one document.
 
@@ -179,8 +193,8 @@ def restrictedLocalStepForSingleDoc_HDPTopicModel(
     # Compute the conditional likelihood matrix for the target atoms
     # xCLik_d will always have an entry equal to one.
     assert 'E_log_soft_ev' in xLPslice
-    xClik_d = xLPslice['E_log_soft_ev'][start + mask_d]
-    xClik_d -= np.max(xCLik_d, axis=1)[:,np.newaxis]
+    xCLik_d = xLPslice['E_log_soft_ev'][start + mask_d]
+    xCLik_d -= np.max(xCLik_d, axis=1)[:,np.newaxis]
     np.exp(xCLik_d, out=xCLik_d)
     # Allocate temporary memory for this document
     xsumResp_d = np.zeros_like(targetsumResp_d)        
@@ -204,7 +218,7 @@ def restrictedLocalStepForSingleDoc_HDPTopicModel(
 
             # Update DocTopicCount_d: 1D array, shape K
             #     sum(DocTopicCount_d) equals Nd[ktarget]
-            np.dot(targetsumResp_d / xsumResp_d, xLik_d, 
+            np.dot(targetsumResp_d / xsumResp_d, xCLik_d, 
                    out=xDocTopicCount_d)
             xDocTopicCount_d *= xDocTopicProb_d
 
@@ -226,7 +240,7 @@ def restrictedLocalStepForSingleDoc_HDPTopicModel(
             np.dot(targetsumResp_d, xResp_d, out=xDocTopicCount_d)
         else:
             # Common case: Use valid result of coord ascent
-            xResp_d = xLik_d
+            xResp_d = xCLik_d
             xResp_d *= xDocTopicProb_d[np.newaxis, :]
             xResp_d /= xsumResp_d[:, np.newaxis]
 
@@ -250,7 +264,7 @@ def restrictedLocalStepForSingleDoc_HDPTopicModel(
     # Fill in values in appropriate row of xDocTopicCount and xtheta
     xLPslice['DocTopicCount'][d, :] = xDocTopicCount_d
     xLPslice['theta'][d, :] = xalphaPi + xDocTopicCount_d
-    assert np.allclose(xDocTopicCount[d,:].sum(),
+    assert np.allclose(xDocTopicCount_d.sum(),
                        curLPslice['DocTopicCount'][d, ktarget])
     assert np.allclose(
             xLPslice['resp'][start:stop, :].sum(axis=1),
