@@ -29,20 +29,18 @@ def loadDataFromSavedTask(taskoutpath, **kwargs):
     True
     '''
     dataName = getDataNameFromTaskpath(taskoutpath)
-    dataKwargs = loadDataKwargsFromDisk(taskoutpath, dataName)
+    dataKwargs = loadDataKwargsFromDisk(taskoutpath)
     datamod = __import__(dataName, fromlist=[])
     Data = datamod.get_data(**dataKwargs)
     return Data
 
-def loadDataKwargsFromDisk(taskoutpath, dataName=None):
+def loadDataKwargsFromDisk(taskoutpath):
     ''' Load keyword options used to load specific dataset.
 
     Returns
     -------
     dataKwargs : dict with options for loading dataset 
     '''
-    if dataName is None:
-        dataName = getDataNameFromTaskpath(taskoutpath)
     txtfilepath = os.path.join(taskoutpath, 'args-DatasetPrefs.txt')
 
     dataKwargs = dict()
@@ -56,6 +54,36 @@ def loadDataKwargsFromDisk(taskoutpath, dataName=None):
                 val = str(fields[1])
             dataKwargs[fields[0]] = val
     return dataKwargs
+
+
+def loadLPKwargsFromDisk(taskoutpath):
+    ''' Load keyword options used to load specific dataset.
+
+    Returns
+    -------
+    dataKwargs : dict with options for loading dataset 
+    '''
+    from bnpy.ioutil.BNPYArgParser import algChoices
+    for algName in algChoices:
+        txtfilepath = os.path.join(taskoutpath, 'args-%s.txt' % (algName))
+        if os.path.exists(txtfilepath):
+            break
+
+    if not os.path.exists(txtfilepath):
+        raise ValueError("Cannot find alg preferences for task:\n %s" % (
+            taskoutpath))
+
+    LPkwargs = dict()
+    with open(txtfilepath, 'r') as f:
+        for line in f.readlines():
+            fields = line.strip().split(' ')
+            assert len(fields) == 2
+            try:
+                val = int(fields[1])
+            except Exception:
+                val = str(fields[1])
+            LPkwargs[fields[0]] = val
+    return LPkwargs
 
 def getDataNameFromTaskpath(taskoutpath):
     ''' Extract dataset name from bnpy output filepath.
@@ -80,5 +108,6 @@ def getDataNameFromTaskpath(taskoutpath):
         strippedpath = strippedpath[1:]
     # The very next segment must be the data name
     dataName = strippedpath[:strippedpath.index(os.path.sep)]
-
+    print '>>>', strippedpath
+    print '>>>', dataName
     return dataName
