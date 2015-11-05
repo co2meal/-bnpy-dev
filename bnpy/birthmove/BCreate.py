@@ -169,13 +169,6 @@ def createSplitStats_bregmankmeans(
                     initDocUsage_uid = 0.0
                 docUsageByUID[uid] = [initDocUsage_uid]
 
-        # Compute the objective Lscore for the initialization!
-        # Assume any junk token is assigned to most common new state in each doc
-        #init_xLPslice = curModel.allocModel.initLPFromResp(
-        #    Dslice, Z=DebugInfo['targetZ'])
-        #init_xSSslice = curModel.get_global_suff_stats(
-        #    Dslice, init_xLPslice, doPrecompEntropy=1)
-
     xSSslice = xSSfake
     # Make a function to help with logging
     pprintCountVec = BLogger.makeFunctionToPrettyPrintCounts(xSSfake)
