@@ -52,9 +52,7 @@ def tryBirthForTask(
     curSS = curModel.get_global_suff_stats(
         Data, curLP,
         trackDocUsage=1, doPrecompEntropy=1, trackTruncationGrowth=1)
-
     curLscore = curModel.calc_evidence(SS=curSS)
-    print curLscore
     
     xSS = makeSummaryForBirthProposal_HTMLWrapper(
         Data, curModel, curLP,

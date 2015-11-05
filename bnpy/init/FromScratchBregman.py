@@ -338,6 +338,7 @@ def makeDataSubsetByThresholdResp(
             chosenRespIDs = np.flatnonzero(
                 curLP['resp'][:,ktarget] > 
                 minRespForEachTargetAtom)
+            chosenDataIDs = chosenRespIDs
             Natoms_target = curLP['resp'][:,ktarget].sum()
             Natoms_targetAboveThr = chosenRespIDs.size
             targetAssemblyMsg = \
@@ -368,6 +369,9 @@ def makeDataSubsetByThresholdResp(
                 targetW = curLP['resp'][chosenRespIDs,ktarget]
 
     DebugInfo = dict(
+        targetW=targetW,
+        chosenDataIDs=chosenDataIDs,
+        chosenRespIDs=chosenRespIDs,
         targetAssemblyMsg=targetAssemblyMsg,
         atomType=atomType,
         Natoms_total=Natoms_total,

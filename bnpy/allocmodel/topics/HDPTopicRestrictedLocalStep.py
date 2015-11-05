@@ -11,7 +11,6 @@ def summarizeRestrictedLocalStep_HDPTopicModel(
         mUIDPairs=None,
         xObsModel=None,
         xInitSS=None,
-        emptyPiFrac=0.01,
         **kwargs):
     ''' Perform one restricted local step and summarize it.
 
@@ -33,11 +32,8 @@ def summarizeRestrictedLocalStep_HDPTopicModel(
         xObsModel.update_global_params(xInitSS)
     assert xObsModel.K == Kfresh
 
-    # Create temporary probabilities for each new cluster
-    target_alphaPi = curModel.allocModel.alpha_E_beta()[ktarget]
-    xalphaPi = (1-emptyPiFrac) / Kfresh * target_alphaPi * np.ones(Kfresh)
-    emptyalphaPi = emptyPiFrac * target_alphaPi
-    assert np.allclose(np.sum(xalphaPi) + emptyalphaPi, target_alphaPi)
+    xalphaPi, emptyalphaPi = make_xalphaPi_and_emptyalphaPi(
+        curModel=curModel, ktarget=ktarget, Kfresh=Kfresh, **kwargs)
 
     # Perform restricted inference!
     # xLPslice contains local params for all Kfresh expansion clusters
@@ -70,7 +66,7 @@ def summarizeRestrictedLocalStep_HDPTopicModel(
     # Prepare dict of info for debugging/inspection
     Info = dict()
     Info['Kfresh'] = Kfresh
-    Info['target_alphaPi'] = target_alphaPi
+    Info['emptyalphaPi'] = emptyalphaPi
     Info['xalphaPi'] = xalphaPi
     Info['xInitSS'] = xInitSS
     Info['xLPslice'] = xLPslice
@@ -160,7 +156,7 @@ def restrictedLocalStepForSingleDoc_HDPTopicModel(
         ktarget=0,
         Kfresh=None,
         xalphaPi=None,
-        xLPslice=None,
+        xLPslice=None,        
         LPkwargs=dict(),
         **kwargs):
     ''' Perform restricted local step on one document.
@@ -272,48 +268,154 @@ def restrictedLocalStepForSingleDoc_HDPTopicModel(
 
     return xLPslice
 
+def makeExpansionSSFromZ_HDPTopicModel(
+        Dslice=None, curModel=None, curLPslice=None,
+        **kwargs):
+    ''' Create expanded sufficient stats from hard assignments on target subset.
 
+    Returns
+    -------
+    xSSslice : accounts for all data atoms in Dslice assigned to ktarget
+    Info : dict
+    '''
+    xLPslice = makeExpansionLPFromZ_HDPTopicModel(
+        Dslice=Dslice, curModel=curModel, curLPslice=curLPslice, **kwargs)
+    xSSslice = curModel.get_global_suff_stats(
+        Dslice, xLPslice,
+        doPrecompEntropy=1, trackDocUsage=1, doTrackTruncationGrowth=1)
+    xSSslice.setUIDs(kwargs['xInitSS'].uids.copy())
 
+    Info = dict()
+    Info['xLPslice'] = xLPslice
+    return xSSslice, Info
 
-
-def makeExpansionLPForBirthProposal_HDPTopicModel_FromZ(
+def makeExpansionLPFromZ_HDPTopicModel(
         Dslice=None,
         curModel=None,
-        Z=None,
         curLPslice=None,
         ktarget=None,
-        remFrac=0.001,
-        ):
+        xInitSS=None,
+        targetZ=None,
+        atomType=None,
+        chosenDataIDs=None,
+        **kwargs):
     ''' Create expanded local parameters from hard assignments of target subset.
 
     Returns
     -------
     xLP : dict with fields
-        resp : N x Knew, each row sums to sumResp[n]
-        DocTopicCount : D x Knew, each row sums to targetsumDTC[d]
-        theta : D x Knew
-        ElogPi : D x Knew
+        resp : N x Kfresh
+        DocTopicCount : D x Kfresh
+        theta : D x Kfresh
+        ElogPi : D x Kfresh
     '''
-    thetaRem = curModel.allocModel.alpha_E_beta_rem()
-    assert np.allclose(thetaRem, curLPslice['thetaRem'])
+    Kfresh = targetZ.max() + 1
+    N = curLPslice['resp'].shape[0]
 
-    assert Z.ndim == 1
-    assert Z.size == target_sumResp.shape[0]
-    assert Z.min() >= 0
-    Knew = Z.max() + 1
+    # Compute prior probability of each proposed comp
+    xalphaPi, emptyalphaPi = make_xalphaPi_and_emptyalphaPi(
+        curModel=curModel, ktarget=ktarget, Kfresh=Kfresh, **kwargs)
 
-    # Initialize alphaEbeta for expanded clusters
-    target_alphaEbeta = curModel.allocModel.alpha_E_beta()[ktarget]
-    rem_alphaEbeta = remFrac * target_alphaEbeta
-    x_alphaEbeta = (1-remFrac) * target_alphaEbeta / Knew * np.ones(Knew)
+    # Compute likelihood under each proposed comp
+    xObsModel = curModel.obsModel.copy()
+    xObsModel.update_global_params(xInitSS)
+    xLPslice = xObsModel.calc_local_params(Dslice)
 
+    # Initialize xresp so each atom is normalized
+    # This is the "default", for non-target atoms.
+    xresp = xLPslice['E_log_soft_ev']
+    xresp -= xresp.argmax(axis=1)[:,np.newaxis]
+    xresp += np.log(xalphaPi) # log prior probability
+    np.exp(xresp, out=xresp)
+    xresp /= xresp.sum(axis=1)[:,np.newaxis]
 
+    # Now, replace all targeted atoms with an all-or-nothing assignment
+    if atomType == 'doc' and curModel.getAllocModelName().count('HDP'):
+        unchosenDataIDs = np.setdiff1d(range(Dslice.nDoc), chosenDataIDs)
+        for pos, d in enumerate(chosenDataIDs):
+            start = Dslice.doc_range[d]
+            stop = Dslice.doc_range[d+1]
+            xresp[start:stop, :] = 1e-100
+            xresp[start:stop, targetZ[pos]] = 1.0
+    else:        
+        unchosenDataIDs = np.setdiff1d(range(N), chosenDataIDs)
+        for pos, n in enumerate(chosenDataIDs):
+            xresp[n, :] = 1e-100
+            xresp[n, targetZ[pos]] = 1.0
+    assert np.allclose(1.0, xresp.sum(axis=1))
+
+    # Make resp consistent with ktarget comp
+    xresp *= curLPslice['resp'][:, ktarget][:,np.newaxis]
+    np.maximum(xresp, 1e-100, out=xresp)
+
+    # Create xDocTopicCount
+    xDocTopicCount = np.zeros((Dslice.nDoc, Kfresh))
     for d in xrange(Dslice.nDoc):
-        start_d = Dslice.doc_range[d]
-        stop_d = Dslice.doc_range[d+1]
+        start = Dslice.doc_range[d]
+        stop = Dslice.doc_range[d+1]
+        if hasattr(Dslice, 'word_id'):
+            xDocTopicCount[d] = np.dot(Dslice.word_count[start:stop],
+                                       xresp[start:stop])
+        else:
+            xDocTopicCount[d] = np.sum(xresp[start:stop], axis=0)
 
-        target_sumDTC_d = curLPslice['DocTopicCount'][d, ktarget]
-        target_sumResp_d = curLPslice['resp'][start_d:stop_d, ktarget]
-        target_digammaSumTheta_d = curLPslice['digammaSumTheta'][d]
+    # Create xtheta
+    xtheta = xDocTopicCount + xalphaPi[np.newaxis,:]
 
-        
+    # Package up into xLPslice
+    xLPslice['resp'] = xresp
+    xLPslice['DocTopicCount'] = xDocTopicCount
+    xLPslice['theta'] = xtheta
+
+    # Compute other LP quantities related to log prob (topic | doc)
+    # and fill these into the expanded LP dict
+    digammaSumTheta = curLPslice['digammaSumTheta'].copy()
+    xLPslice['digammaSumTheta'] = digammaSumTheta
+    xLPslice['ElogPi'] = \
+        digamma(xLPslice['theta']) - digammaSumTheta[:, np.newaxis]
+    xLPslice['thetaRem'] = curLPslice['thetaRem'].copy()
+    xLPslice['ElogPiRem'] = curLPslice['ElogPiRem'].copy()
+
+    # Compute quantities related to leaving ktarget almost empty,
+    # as we expand and transfer mass to other comps
+    if emptyalphaPi > 0:
+        thetaEmptyComp = emptyalphaPi
+        ElogPiEmptyComp = digamma(thetaEmptyComp) - digammaSumTheta
+        xLPslice['thetaEmptyComp'] = thetaEmptyComp
+        xLPslice['ElogPiEmptyComp'] = ElogPiEmptyComp
+
+    # Compute quantities related to OrigComp, the original target cluster.
+    # These need to be tracked and turned into relevant summaries
+    # so that they can be used to created a valid proposal state "propSS"
+    xLPslice['ElogPiOrigComp'] = curLPslice['ElogPi'][:, ktarget]
+    xLPslice['gammalnThetaOrigComp'] = \
+        np.sum(gammaln(curLPslice['theta'][:, ktarget]))
+    slack = curLPslice['DocTopicCount'][:, ktarget] - \
+        curLPslice['theta'][:, ktarget]
+    xLPslice['slackThetaOrigComp'] = np.sum(
+        slack * curLPslice['ElogPi'][:, ktarget])
+
+    return xLPslice
+
+def make_xalphaPi_and_emptyalphaPi(
+        curModel=None, ktarget=0, Kfresh=0,
+        emptyPiFrac=0.01, b_method_xPi='uniform', **kwargs):
+    '''
+    Returns
+    -------
+    xalphaPi : 1D array, size Kfresh
+    emptyalphaPi : scalar    
+    '''
+    # Create temporary probabilities for each new cluster
+    target_alphaPi = curModel.allocModel.alpha_E_beta()[ktarget]
+    emptyalphaPi = emptyPiFrac * target_alphaPi
+    if b_method_xPi == 'uniform':
+        xalphaPi = (1-emptyPiFrac) * target_alphaPi * np.ones(Kfresh) / Kfresh
+    elif b_method_xPi == 'normalized_counts':
+        pvec = xInitSS.getCountVec()
+        pvec = pvec / pvec.sum()
+        xalphaPi = (1-emptyPiFrac) * target_alphaPi * pvec
+    else:
+        raise ValueError("Unrecognized b_method_xPi: " + b_method_xPi)
+    assert np.allclose(np.sum(xalphaPi) + emptyalphaPi, target_alphaPi)
+    return xalphaPi, emptyalphaPi

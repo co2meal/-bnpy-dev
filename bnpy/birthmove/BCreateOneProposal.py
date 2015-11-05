@@ -167,17 +167,52 @@ def makeSummaryForBirthProposal(
         b_nRefineSteps))
     BLogger.pprint('   ' + vec2str(xInitSS.uids))
     if b_debugOutputDir:
+        from bnpy.allocmodel.topics.HDPTopicRestrictedLocalStep import *
         plotCompsFromSS(
             curModel, xInitSS, 
             os.path.join(b_debugOutputDir, 'NewComps_Init.png'),
             vocabList=vocabList)
         curLdict = curModel.calc_evidence(SS=curSSwhole, todict=1)
+
+        # Create valid whole-dataset clustering from hard init
+        tempSSslice, tempInfo = makeExpansionSSFromZ_HDPTopicModel(
+            Dslice=Dslice, curModel=curModel, curLPslice=curLPslice,
+            ktarget=ktarget, 
+            xInitSS=xInitSS,
+            **DebugInfo)        
+        # Compute corresponding proposal
+        propSS = curSSwhole.copy()
+        propSS.transferMassFromExistingToExpansion(
+            uid=targetUID, xSS=tempSSslice)
+        # Verify quality
+        assert np.allclose(propSS.getCountVec().sum(),
+                           curSSwhole.getCountVec().sum())
+        propModel = curModel.copy()
+        propModel.update_global_params(propSS)
+        propLdict = propModel.calc_evidence(SS=propSS, todict=1)
+        BLogger.pprint(
+            "init %d/%d  gainL % .3e  propL % .3e  curL % .3e" % (
+                0, b_nRefineSteps,
+                propLdict['Ltotal'] - curLdict['Ltotal'],
+                propLdict['Ltotal'],
+                curLdict['Ltotal']))
+        # Track proposal ELBOs as refinement improves things
         propLdictList = list()
+        propLdictList.append(propLdict)
+
         docUsageByUID = dict()
         if curModel.getAllocModelName().count('HDP'):
             for k, uid in enumerate(xInitSS.uids):
                 if 'targetZ' in DebugInfo:
-                    initDocUsage_uid = np.sum(DebugInfo['targetZ'] == k)
+                    if DebugInfo['atomType'].count('doc'):
+                        initDocUsage_uid = np.sum(DebugInfo['targetZ'] == k)
+                    else:
+                        initDocUsage_uid = 0.0
+                        for d in xrange(Dslice.nDoc):
+                            start = Dslice.doc_range[d]
+                            stop = Dslice.doc_range[d+1]
+                            initDocUsage_uid += np.any(
+                                DebugInfo['targetZ'][start:stop] == k)
                 else:
                     initDocUsage_uid = 0.0
                 docUsageByUID[uid] = [initDocUsage_uid]
@@ -217,6 +252,12 @@ def makeSummaryForBirthProposal(
             propModel = curModel.copy()
             propModel.update_global_params(propSS)
             propLdict = propModel.calc_evidence(SS=propSS, todict=1)
+            BLogger.pprint(
+                "step %d/%d  gainL % .3e  propL % .3e  curL % .3e" % (
+                    i+1, b_nRefineSteps,
+                    propLdict['Ltotal'] - curLdict['Ltotal'],
+                    propLdict['Ltotal'],
+                    curLdict['Ltotal']))
             propLdictList.append(propLdict)
             if curModel.getAllocModelName().count('HDP'):
                 docUsageVec = xSSslice.getSelectionTerm('DocUsageCount')
@@ -294,6 +335,7 @@ def createBirthProposalHTMLOutputDir(
     -------
     b_debugOutputDir : string filepath
     '''
+    from bnpy.Run import deleteAllFilesFromDir
     if taskoutpath is None:
         raise ValueError("Need taskoutpath to not be None")
     b_debugOutputDir = os.path.join(
@@ -306,6 +348,7 @@ def createBirthProposalHTMLOutputDir(
             targetUID))
     if not os.path.exists(b_debugOutputDir):
        os.makedirs(b_debugOutputDir)
+    deleteAllFilesFromDir(b_debugOutputDir)
     return b_debugOutputDir
 
 
