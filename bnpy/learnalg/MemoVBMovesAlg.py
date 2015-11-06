@@ -252,8 +252,10 @@ class MemoVBMovesAlg(LearnAlg):
             if self.algParams['birth']['b_debugWriteHTML']:
                 trackDocUsage = 1
         # Do the real work here: calc local params
+        # Pass lap and batch info so logging happens
         ElapsedTimeLogger.startEvent('local', 'update')
-        LPbatch = curModel.calc_local_params(Dbatch, **LPkwargs)
+        LPbatch = curModel.calc_local_params(Dbatch, 
+            lapFrac=lapFrac, batchID=batchID, **LPkwargs)
         ElapsedTimeLogger.stopEvent('local', 'update')
         # Summary time!
         ElapsedTimeLogger.startEvent('local', 'summary')
