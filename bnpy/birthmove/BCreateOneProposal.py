@@ -156,6 +156,7 @@ def makeSummaryForBirthProposal(
         lapFrac=lapFrac,
         seed=1000 * lapFrac,
         logFunc=BLogger.pprint,
+        NiterForBregmanKMeans=kwargs['b_NiterForBregmanKMeans'],
         **kwargs)
     BLogger.pprint(Info['targetAssemblyMsg'])
     # EXIT EARLY: if proposal initialization fails (not enough data).
@@ -196,7 +197,9 @@ def makeSummaryForBirthProposal(
             vocabList=vocabList)
 
         # Determine current model objective score
-        curLdict = curModel.calc_evidence(SS=curSSwhole, todict=1)
+        curModelFWD = curModel.copy()
+        curModelFWD.update_global_params(SS=curSSwhole)
+        curLdict = curModelFWD.calc_evidence(SS=curSSwhole, todict=1)
         # Track proposal ELBOs as refinement improves things
         propLdictList = list()
         # Create initial proposal
@@ -248,7 +251,7 @@ def makeSummaryForBirthProposal(
     # Run several refinement steps. 
     # Each step does a restricted local step to improve
     # the proposed cluster assignments.
-    for i in range(b_nRefineSteps):
+    for rstep in range(b_nRefineSteps):
         # Restricted local step!
         # * xInitSS : specifies obs-model stats used for initialization
         xSSslice, refineInfo = summarizeRestrictedLocalStep(
@@ -264,6 +267,9 @@ def makeSummaryForBirthProposal(
             **kwargs)
         Info.update(refineInfo)
 
+        logLPConvergenceDiagnostics(
+            refineInfo, rstep=rstep, b_nRefineSteps=b_nRefineSteps)
+
         # Get most recent xLPslice for initialization
         if b_method_initCoordAscent == 'fromprevious' and 'xLPslice' in Info:
             xInitLPslice = Info['xLPslice']
@@ -273,17 +279,20 @@ def makeSummaryForBirthProposal(
         if b_debugOutputDir:
             plotCompsFromSS(
                 curModel, xSSslice, 
-                os.path.join(b_debugOutputDir, 'NewComps_Step%d.png' % (i+1)),
+                os.path.join(b_debugOutputDir,
+                             'NewComps_Step%d.png' % (rstep+1)),
                 vocabList=vocabList)
             propSS = curSSwhole.copy()
             propSS.transferMassFromExistingToExpansion(
                 uid=targetUID, xSS=xSSslice)
+            # Reordering only lifts score by small amount. Not worth it.
+            # propSS.reorderComps(np.argsort(-1 * propSS.getCountVec()))
             propModel = curModel.copy()
             propModel.update_global_params(propSS)
             propLdict = propModel.calc_evidence(SS=propSS, todict=1)
             BLogger.pprint(
                 "step %d/%d  gainL % .3e  propL % .3e  curL % .3e" % (
-                    i+1, b_nRefineSteps,
+                    rstep+1, b_nRefineSteps,
                     propLdict['Ltotal'] - curLdict['Ltotal'],
                     propLdict['Ltotal'],
                     curLdict['Ltotal']))
@@ -292,9 +301,10 @@ def makeSummaryForBirthProposal(
                 docUsageVec = xSSslice.getSelectionTerm('DocUsageCount')
                 for k, uid in enumerate(xSSslice.uids):
                     docUsageByUID[uid].append(docUsageVec[k])
+
         # Cleanup by deleting small clusters 
-        if i < b_nRefineSteps - 1:
-            if i == b_nRefineSteps - 2:
+        if rstep < b_nRefineSteps - 1:
+            if rstep == b_nRefineSteps - 2:
                 # After all but last step, 
                 # delete small (but not empty) comps
                 minNumAtomsToStay = b_minNumAtomsForNewComp
@@ -306,8 +316,8 @@ def makeSummaryForBirthProposal(
                 xInitLPslice=xInitLPslice, 
                 pprintCountVec=pprintCountVec)
         # Cleanup by merging clusters
-        if i == b_nRefineSteps - 2:
-            Info['mergestep'] = i + 1
+        if rstep == b_nRefineSteps - 2:
+            Info['mergestep'] = rstep + 1
             xSSslice, xInitLPslice = cleanupMergeClusters(
                 xSSslice, curModel,
                 obsSSkeys=xInitSStarget._Fields._FieldDims.keys(),
@@ -316,9 +326,9 @@ def makeSummaryForBirthProposal(
                 xInitLPslice=xInitLPslice,
                 b_debugOutputDir=b_debugOutputDir, **kwargs)
         # Exit early if no promising new clusters are created
-        nnzCount = np.sum(xSSslice.getCountVec() >= 1)
-        if nnzCount < 2:
-            break
+        #nnzCount = np.sum(xSSslice.getCountVec() >= 1)
+        #if nnzCount < 2:
+        #    break
 
     Info['Kfinal'] = xSSslice.K
     if b_debugOutputDir:
@@ -359,29 +369,66 @@ def makeSummaryForBirthProposal(
 
 def createBirthProposalHTMLOutputDir(
         taskoutpath='/tmp/', 
-        lapFrac=0, batchPos=0, nBatch=0, targetUID=0, **kwargs):
+        lapFrac=0, batchPos=None, nBatch=None, targetUID=0,
+        dataName=None, **kwargs):
     ''' Create string that is absolute path to dir for saving birth HTML logs.
 
     Returns
     -------
     b_debugOutputDir : string filepath
     '''
-    from bnpy.Run import deleteAllFilesFromDir
     if taskoutpath is None:
         raise ValueError("Need taskoutpath to not be None")
-    b_debugOutputDir = os.path.join(
-        taskoutpath,
-        'html-birth-logs',
-        'lap=%04d_batchPos%04dof%d_targetUID=%04d' % (
+
+    if batchPos is None:
+        subdirname = 'lap=%04d_targetUID=%04d_Kfresh=%d_%s' % (
+            np.ceil(lapFrac),
+            targetUID,
+            kwargs['b_Kfresh'],
+            kwargs['b_method_initCoordAscent'])
+    else:
+        subdirname = 'lap=%04d_batchPos%04dof%d_targetUID=%04d' % (
             np.ceil(lapFrac),
             batchPos,
             nBatch,
-            targetUID))
+            targetUID)
+    if dataName:
+        b_debugOutputDir = os.path.join(
+            taskoutpath, 'html-birth-logs', dataName, subdirname)        
+    else:
+        b_debugOutputDir = os.path.join(
+            taskoutpath, 'html-birth-logs', subdirname)        
+    # Create this directory if it doesn't exist already
     if not os.path.exists(b_debugOutputDir):
        os.makedirs(b_debugOutputDir)
+    # Clear out any previous files from this directory
+    from bnpy.Run import deleteAllFilesFromDir
     deleteAllFilesFromDir(b_debugOutputDir)
     return b_debugOutputDir
 
+
+def logLPConvergenceDiagnostics(refineInfo, rstep=0, b_nRefineSteps=0):
+    if 'xLPslice' not in refineInfo:
+        return
+    xLPslice = refineInfo['xLPslice']
+    if '_maxDiff' not in xLPslice:
+        return
+
+    msg = "step %d/%d " % (rstep, b_nRefineSteps)
+    target_docs = np.flatnonzero(xLPslice['_maxDiff'] >= 0)
+    if target_docs.size == 0:
+        BLogger.pprint(msg + "No docs with active local step.")
+        return
+
+    msg += "nCAIters "
+    for p in [0, 10, 50, 90, 100]:
+        ip = np.percentile(xLPslice['_nIters'][target_docs], p)
+        msg += " %3d%% %2d" % (p, ip)
+    msg += " | Ndiff "
+    for p in [0, 10, 50, 90, 100]:
+        md = np.percentile(xLPslice['_maxDiff'][target_docs], p)
+        msg += " %3d%% %5.3f" % (p, md)
+    BLogger.pprint(msg)
 
 ## DEPRECATED. HISTORICALLY INTERESTING CODE.
 '''

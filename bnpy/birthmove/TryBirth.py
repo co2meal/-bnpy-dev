@@ -27,6 +27,7 @@ DefaultBirthArgs = dict(
     b_method_xPi='normalized_counts',
     b_method_initCoordAscent='fromprevious',
     b_method_doInitCompleteLP=1,
+    b_localStepSingleDoc='fast',
     )
 
 def tryBirthForTask(
@@ -63,6 +64,8 @@ def tryBirthForTask(
         targetUID=int(targetUID),
         newUIDs=range(curSS.K, curSS.K + int(BirthArgs['b_Kfresh'])),
         LPkwargs=LPkwargs,
+        lapFrac=lapFrac,
+        dataName=Data.name,
         **BirthArgs)
 
     '''

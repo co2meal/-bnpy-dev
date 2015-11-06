@@ -67,7 +67,7 @@ def plotELBOtermsForProposal(
             style = '--'
         ys = np.asarray([propLdictList[i][key] for i in range(L)])
         ys -= curLdict[key]
-        pylab.plot(xs, 100*ys, style,
+        pylab.plot(xs, ys, style,
                    color=_getLineColorFromELBOKey(key),
                    linewidth=linewidth,
                    alpha=alpha,

@@ -50,8 +50,11 @@ def loadDataKwargsFromDisk(taskoutpath):
             assert len(fields) == 2
             try:
                 val = int(fields[1])
-            except Exception:
-                val = str(fields[1])
+            except ValueError as e:
+                try:
+                    val = float(fields[1])
+                except ValueError as e:
+                    val = str(fields[1])
             dataKwargs[fields[0]] = val
     return dataKwargs
 
@@ -80,8 +83,11 @@ def loadLPKwargsFromDisk(taskoutpath):
             assert len(fields) == 2
             try:
                 val = int(fields[1])
-            except Exception:
-                val = str(fields[1])
+            except ValueError as e:
+                try:
+                    val = float(fields[1])
+                except ValueError as e:
+                    val = str(fields[1])
             LPkwargs[fields[0]] = val
     return LPkwargs
 
