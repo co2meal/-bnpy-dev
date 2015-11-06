@@ -6,7 +6,7 @@ from bnpy.viz.PlotComps import plotCompsFromSS
 from bnpy.viz.PrintTopics import count2str
 
 def cleanupDeleteSmallClusters(
-        xSSslice, minNumAtomsToStay, pprintCountVec=None):
+        xSSslice, minNumAtomsToStay, xInitLPslice=None, pprintCountVec=None):
     ''' Remove all clusters with size less than specified amount.
 
     Returns
@@ -22,15 +22,21 @@ def cleanupDeleteSmallClusters(
         if xSSslice.K == 1:
             break
         xSSslice.removeComp(k)
+        if xInitLPslice:
+            xInitLPslice['DocTopicCount'] = np.delete(
+                xInitLPslice['DocTopicCount'], k, axis=1)
     if pprintCountVec and badids.size > 0:
         pprintCountVec(xSSslice,
             cleanupMassRemoved=massRemoved,
             cleanupSizeThr=minNumAtomsToStay)
-    return xSSslice
+    if xInitLPslice:
+        assert xInitLPslice['DocTopicCount'].shape[1] == xSSslice.K
+    return xSSslice, xInitLPslice
 
 def cleanupMergeClusters(
         xSSslice, curModel,
-        obsSS=None,
+        xInitLPslice=None,
+        obsSSkeys=None,
         vocabList=None,
         b_cleanupMaxNumMergeIters=3,
         b_cleanupMaxNumAcceptPerIter=1,
@@ -49,7 +55,7 @@ def cleanupMergeClusters(
     xSSslice.removeSelectionTerms()
     # Discard all fields unrelated to observation model
     reqFields = set()
-    for key in obsSS._Fields._FieldDims.keys():
+    for key in obsSSkeys:
         reqFields.add(key)
     for key in xSSslice._Fields._FieldDims.keys():
         if key not in reqFields:
@@ -99,6 +105,12 @@ def cleanupMergeClusters(
             mergeID += 1
             kA, kB = origidsToAccept[posID]
             xSSslice.mergeComps(uidA=uidA, uidB=uidB)
+
+            if xInitLPslice:
+                xInitLPslice['DocTopicCount'][:, kA] += \
+                    xInitLPslice['DocTopicCount'][:, kB]
+                xInitLPslice['DocTopicCount'][:, kB] = -1
+
             if b_debugOutputDir:
                 savefilename = os.path.join(
                     b_debugOutputDir, 'MergeComps_%d.png' % (mergeID))
@@ -115,6 +127,12 @@ def cleanupMergeClusters(
         if len(uidpairsToAccept) > 0:
             pprintCountVec(xSSslice, uidpairsToAccept=uidpairsToAccept)
 
+        if xInitLPslice:
+            badIDs = np.flatnonzero(xInitLPslice['DocTopicCount'][0,:] < 0)
+            for kk in reversed(badIDs):
+                xInitLPslice['DocTopicCount'] = np.delete(
+                    xInitLPslice['DocTopicCount'], kk, axis=1)
+
     if mergeID > 0 and b_debugOutputDir:
         tmpModel.obsModel.update_global_params(xSSslice)
         outpath = os.path.join(b_debugOutputDir, 'NewComps_AfterMerge.png')
@@ -123,7 +141,10 @@ def cleanupMergeClusters(
             vocabList=vocabList,
             )
 
-    return xSSslice
+    if xInitLPslice:
+        assert xInitLPslice['DocTopicCount'].min() > -0.000001
+        assert xInitLPslice['DocTopicCount'].shape[1] == xSSslice.K
+    return xSSslice, xInitLPslice
 
 '''
     for loc in reversed(posLocs):

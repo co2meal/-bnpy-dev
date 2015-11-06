@@ -9,6 +9,7 @@ from bnpy.birthmove.BCreateOneProposal import \
 import bnpy.birthmove.BLogger as BLogger
 
 DefaultBirthArgs = dict(
+    Kmax=100,
     b_nStuckBeforeQuit=10,
     b_creationProposalName='bregmankmeans',
     b_Kfresh=10,
@@ -23,7 +24,9 @@ DefaultBirthArgs = dict(
     b_cleanupMaxNumAcceptPerIter=1,
     b_debugOutputDir='/tmp/',
     b_debugWriteHTML=1,
-    Kmax=100,
+    b_method_xPi='normalized_counts',
+    b_method_initCoordAscent='fromprevious',
+    b_method_doInitCompleteLP=1,
     )
 
 def tryBirthForTask(
@@ -74,6 +77,9 @@ if __name__ == '__main__':
     parser.add_argument('--lap', type=float, default=None)
     parser.add_argument('--lapFrac', type=float, default=None)
     parser.add_argument('--outputdir', type=str, default='/tmp/')
+    parser.add_argument('--targetUID', type=int, default=0)
+    for key, val in DefaultBirthArgs.items():
+        parser.add_argument('--' + key, type=type(val), default=val)
     args = parser.parse_args()
 
     BLogger.configure(args.outputdir,

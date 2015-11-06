@@ -37,6 +37,7 @@ def initSS_BregmanDiv(
         seed=0,
         includeAllocSummary=False,
         NiterForBregmanKMeans=1,
+        logFunc=None,
         **kwargs):
     ''' Create observation model statistics via Breg. distance sampling.
 
@@ -88,6 +89,7 @@ def initSS_BregmanDiv(
         targetX, K, curModel.obsModel,
         W=targetW,
         Niter=Niter,
+        logFunc=logFunc,
         seed=seed) 
     # Convert segmentation Z into proper local parameters dict LP
     xtargetLP = convertLPFromHardToSoft(
@@ -113,10 +115,20 @@ def initSS_BregmanDiv(
         xSS = curModel.obsModel.get_global_suff_stats(
             targetData, None, xtargetLP)
     # Reorder the components from big to small
+    origorder = np.arange(xSS.K)
     bigtosmall = np.argsort(-1 * xSS.getCountVec())
     xSS.reorderComps(bigtosmall)
+    # Be sure to account for the sorting that just happened.
+    # By fixing up the cluster means Mu and assignments Z
+    Mu = [Mu[k] for k in bigtosmall] 
+    old2newID=dict(zip(bigtosmall, origorder))
+    targetZnew = -1 * np.ones_like(targetZ)
+    for oldk in xrange(xSS.K):
+        old_mask = targetZ == oldk
+        targetZnew[old_mask] = old2newID[oldk]
+    # Package up algorithm final state and Lscore trace
     DebugInfo.update(dict(
-        targetZ=targetZ,
+        targetZ=targetZnew,
         targetData=targetData,
         Mu=Mu,
         Lscores=Lscores))

@@ -51,7 +51,7 @@ def plotELBOtermsForProposal(
     pylab.figure()
     L = len(propLdictList)
     if xs is None:
-        xs = np.arange(1, L+1)
+        xs = np.arange(0, L)
     legendKeys = []
     for key in curLdict:
         if key.count('_') == 0:
@@ -75,7 +75,7 @@ def plotELBOtermsForProposal(
     L = L + 1
     xlims = np.asarray([-0.75*L, L-0.5])
     pylab.xlim(xlims)
-    pylab.xticks(np.arange(1, L))
+    pylab.xticks(xs)
     pylab.plot(xlims, np.zeros_like(xlims), 'k:')
     pylab.xlabel('num proposal steps')
     pylab.ylabel('L gain (prop - current)')

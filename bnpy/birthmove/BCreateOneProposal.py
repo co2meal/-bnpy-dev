@@ -18,6 +18,9 @@ from bnpy.viz.ProposalViz import plotDocUsageForProposal
 from bnpy.viz.ProposalViz import makeSingleProposalHTMLStr
 from bnpy.viz.PrintTopics import vec2str
 
+from bnpy.allocmodel.topics.HDPTopicRestrictedLocalStep \
+    import makeExpansionSSFromZ_HDPTopicModel
+
 from bnpy.init.FromScratchBregman import initSS_BregmanDiv
 
 DefaultLPkwargs = dict(
@@ -90,9 +93,11 @@ def makeSummaryForBirthProposal(
         b_nRefineSteps=3,
         b_debugOutputDir=None,
         b_minNumAtomsForNewComp=None,
+        b_doInitCompleteLP=1,
+        b_method_initCoordAscent='fromprevious',
         vocabList=None,
         **kwargs):
-    ''' Create summary that reassigns mass from target comp to Kfresh new comps.
+    ''' Create summary that reassigns mass from target to Kfresh new comps.
 
     TODO support other options than bregman???
 
@@ -144,90 +149,109 @@ def makeSummaryForBirthProposal(
             return None, dict(errorMsg=errorMsg)
 
     # Create suff stats for some new states
-    xInitSS, DebugInfo = initSS_BregmanDiv(
+    xInitSStarget, Info = initSS_BregmanDiv(
         Dslice, curModel, curLPslice, 
         K=xK, 
         ktarget=ktarget,
         lapFrac=lapFrac,
         seed=1000 * lapFrac,
+        logFunc=BLogger.pprint,
         **kwargs)
-    BLogger.pprint(DebugInfo['targetAssemblyMsg'])
+    BLogger.pprint(Info['targetAssemblyMsg'])
     # EXIT EARLY: if proposal initialization fails (not enough data).
-    if xInitSS is None:
+    if xInitSStarget is None:
         BLogger.pprint('Proposal FAILED initialization. ' + \
-                       DebugInfo['errorMsg'])
-        return None, DebugInfo
+                       Info['errorMsg'])
+        return None, Info
 
     # If here, we have a valid set of initial stats.
-    xInitSS.setUIDs(newUIDs[:xInitSS.K])
+    xInitSStarget.setUIDs(newUIDs[:xInitSStarget.K])
     # Log messages to describe the initialization.
     BLogger.pprint('  Bregman k-means init delivered %d clusters %s.' % (
-        xInitSS.K, '(--b_Kfresh=%d)' % kwargs['b_Kfresh']))
+        xInitSStarget.K, '(--b_Kfresh=%d)' % kwargs['b_Kfresh']))
     BLogger.pprint('  Running %d refinement iterations (--b_nRefineSteps)' % (
         b_nRefineSteps))
-    BLogger.pprint('   ' + vec2str(xInitSS.uids))
+    BLogger.pprint('   ' + vec2str(xInitSStarget.uids))
+
+    if b_doInitCompleteLP:
+        # Create valid whole-dataset clustering from hard init
+        xInitSSslice, tempInfo = makeExpansionSSFromZ_HDPTopicModel(
+            Dslice=Dslice, curModel=curModel, curLPslice=curLPslice,
+            ktarget=ktarget,
+            xInitSS=xInitSStarget,
+            atomType=Info['atomType'],
+            targetZ=Info['targetZ'],
+            chosenDataIDs=Info['chosenDataIDs'],
+            **kwargs)
+        Info.update(tempInfo)
+
+        xSSslice = xInitSSslice
+    else:
+        xSSslice = xInitSStarget
+
     if b_debugOutputDir:
-        from bnpy.allocmodel.topics.HDPTopicRestrictedLocalStep import *
         plotCompsFromSS(
-            curModel, xInitSS, 
+            curModel, xSSslice, 
             os.path.join(b_debugOutputDir, 'NewComps_Init.png'),
             vocabList=vocabList)
-        curLdict = curModel.calc_evidence(SS=curSSwhole, todict=1)
 
-        # Create valid whole-dataset clustering from hard init
-        tempSSslice, tempInfo = makeExpansionSSFromZ_HDPTopicModel(
-            Dslice=Dslice, curModel=curModel, curLPslice=curLPslice,
-            ktarget=ktarget, 
-            xInitSS=xInitSS,
-            **DebugInfo)        
-        # Compute corresponding proposal
-        propSS = curSSwhole.copy()
-        propSS.transferMassFromExistingToExpansion(
-            uid=targetUID, xSS=tempSSslice)
-        # Verify quality
-        assert np.allclose(propSS.getCountVec().sum(),
-                           curSSwhole.getCountVec().sum())
-        propModel = curModel.copy()
-        propModel.update_global_params(propSS)
-        propLdict = propModel.calc_evidence(SS=propSS, todict=1)
-        BLogger.pprint(
-            "init %d/%d  gainL % .3e  propL % .3e  curL % .3e" % (
-                0, b_nRefineSteps,
-                propLdict['Ltotal'] - curLdict['Ltotal'],
-                propLdict['Ltotal'],
-                curLdict['Ltotal']))
+        # Determine current model objective score
+        curLdict = curModel.calc_evidence(SS=curSSwhole, todict=1)
         # Track proposal ELBOs as refinement improves things
         propLdictList = list()
-        propLdictList.append(propLdict)
+        # Create initial proposal
+        if b_doInitCompleteLP:
+            propSS = curSSwhole.copy()
+            propSS.transferMassFromExistingToExpansion(
+                uid=targetUID, xSS=xSSslice)
+            # Verify quality
+            assert np.allclose(propSS.getCountVec().sum(),
+                               curSSwhole.getCountVec().sum())
+            propModel = curModel.copy()
+            propModel.update_global_params(propSS)
+            propLdict = propModel.calc_evidence(SS=propSS, todict=1)
+            BLogger.pprint(
+                "init %d/%d  gainL % .3e  propL % .3e  curL % .3e" % (
+                    0, b_nRefineSteps,
+                    propLdict['Ltotal'] - curLdict['Ltotal'],
+                    propLdict['Ltotal'],
+                    curLdict['Ltotal']))
+            propLdictList.append(propLdict)
 
         docUsageByUID = dict()
         if curModel.getAllocModelName().count('HDP'):
-            for k, uid in enumerate(xInitSS.uids):
-                if 'targetZ' in DebugInfo:
-                    if DebugInfo['atomType'].count('doc'):
-                        initDocUsage_uid = np.sum(DebugInfo['targetZ'] == k)
+            for k, uid in enumerate(xInitSStarget.uids):
+                if 'targetZ' in Info:
+                    if Info['atomType'].count('doc'):
+                        initDocUsage_uid = np.sum(Info['targetZ'] == k)
                     else:
                         initDocUsage_uid = 0.0
                         for d in xrange(Dslice.nDoc):
                             start = Dslice.doc_range[d]
                             stop = Dslice.doc_range[d+1]
                             initDocUsage_uid += np.any(
-                                DebugInfo['targetZ'][start:stop] == k)
+                                Info['targetZ'][start:stop] == k)
                 else:
                     initDocUsage_uid = 0.0
                 docUsageByUID[uid] = [initDocUsage_uid]
     # Make a function to pretty-print counts as we refine the initialization
-    pprintCountVec = BLogger.makeFunctionToPrettyPrintCounts(xInitSS)
-    # Create the initial stats and the initial observation model
-    xSSslice = xInitSS
+    pprintCountVec = BLogger.makeFunctionToPrettyPrintCounts(xSSslice)
+
+    # Create initial observation model
     xObsModel = curModel.obsModel.copy()
+
+    if b_method_initCoordAscent == 'fromprevious' and 'xLPslice' in Info:
+        xInitLPslice = Info['xLPslice']
+    else:
+        xInitLPslice = None
+
     # Run several refinement steps. 
     # Each step does a restricted local step to improve
     # the proposed cluster assignments.
     for i in range(b_nRefineSteps):
         # Restricted local step!
         # * xInitSS : specifies obs-model stats used for initialization
-        xSSslice, Info = summarizeRestrictedLocalStep(
+        xSSslice, refineInfo = summarizeRestrictedLocalStep(
             Dslice=Dslice, 
             curModel=curModel,
             curLPslice=curLPslice,
@@ -235,9 +259,14 @@ def makeSummaryForBirthProposal(
             xUIDs=xSSslice.uids,
             xObsModel=xObsModel,
             xInitSS=xSSslice,
+            xInitLPslice=xInitLPslice,
             LPkwargs=LPkwargs,
-            emptyPiFrac=0.01)
-        DebugInfo.update(Info)
+            **kwargs)
+        Info.update(refineInfo)
+
+        # Get most recent xLPslice for initialization
+        if b_method_initCoordAscent == 'fromprevious' and 'xLPslice' in Info:
+            xInitLPslice = Info['xLPslice']
 
         # Show diagnostics for new states
         pprintCountVec(xSSslice)
@@ -263,7 +292,6 @@ def makeSummaryForBirthProposal(
                 docUsageVec = xSSslice.getSelectionTerm('DocUsageCount')
                 for k, uid in enumerate(xSSslice.uids):
                     docUsageByUID[uid].append(docUsageVec[k])
-
         # Cleanup by deleting small clusters 
         if i < b_nRefineSteps - 1:
             if i == b_nRefineSteps - 2:
@@ -273,23 +301,26 @@ def makeSummaryForBirthProposal(
             else:
                 # Always remove empty clusters. They waste our time.
                 minNumAtomsToStay = 1
-            xSSslice = cleanupDeleteSmallClusters(
-                xSSslice, minNumAtomsToStay, pprintCountVec=pprintCountVec)
+            xSSslice, xInitLPslice = cleanupDeleteSmallClusters(
+                xSSslice, minNumAtomsToStay,
+                xInitLPslice=xInitLPslice, 
+                pprintCountVec=pprintCountVec)
         # Cleanup by merging clusters
         if i == b_nRefineSteps - 2:
-            DebugInfo['mergestep'] = i + 1
-            xSSslice = cleanupMergeClusters(
+            Info['mergestep'] = i + 1
+            xSSslice, xInitLPslice = cleanupMergeClusters(
                 xSSslice, curModel,
-                obsSS=xInitSS,
+                obsSSkeys=xInitSStarget._Fields._FieldDims.keys(),
                 vocabList=vocabList,
                 pprintCountVec=pprintCountVec,
+                xInitLPslice=xInitLPslice,
                 b_debugOutputDir=b_debugOutputDir, **kwargs)
         # Exit early if no promising new clusters are created
         nnzCount = np.sum(xSSslice.getCountVec() >= 1)
         if nnzCount < 2:
             break
 
-    DebugInfo['Kfinal'] = xSSslice.K
+    Info['Kfinal'] = xSSslice.K
     if b_debugOutputDir:
         savefilename = os.path.join(
             b_debugOutputDir, 'ProposalTrace_ELBO.png')
@@ -304,12 +335,12 @@ def makeSummaryForBirthProposal(
     # EXIT EARLY: error if we didn't create enough "big-enough" states.
     nnzCount = np.sum(xSSslice.getCountVec() >= b_minNumAtomsForNewComp)
     if nnzCount < 2:
-        DebugInfo['errorMsg'] = \
+        Info['errorMsg'] = \
             "Could not create at least two comps" + \
             " with mass >= %.1f (--%s)" % (
                 b_minNumAtomsForNewComp, 'b_minNumAtomsForNewComp')
-        BLogger.pprint('Proposal FAILED refinement. ' + DebugInfo['errorMsg'])
-        return None, DebugInfo
+        BLogger.pprint('Proposal FAILED refinement. ' + Info['errorMsg'])
+        return None, Info
 
     # If here, we have a valid proposal. 
     # Need to verify mass conservation
@@ -321,9 +352,9 @@ def makeSummaryForBirthProposal(
     newMass = xSSslice.getCountVec().sum()
     assert np.allclose(newMass, origMass, atol=1e-6, rtol=0)
     BLogger.pprint('Proposal SUCCESS. Created %d candidate clusters.' % (
-        DebugInfo['Kfinal']))
+        Info['Kfinal']))
 
-    return xSSslice, DebugInfo
+    return xSSslice, Info
 
 
 def createBirthProposalHTMLOutputDir(
