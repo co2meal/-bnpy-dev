@@ -1012,12 +1012,8 @@ class GaussObsModel(AbstractObsModel):
 
         if W is not None:
             Div *= W[:,np.newaxis]
-        if np.any(np.isnan(Div)):
-            from IPython import embed; embed()
-        try:
-            assert Div.min() > -1e-8
-        except AssertionError:
-            from IPython import embed; embed()
+        assert np.all(np.isfinite(Div))
+        assert Div.min() > -1e-8
         np.maximum(Div, 0, out=Div)
         assert Div.min() >= 0
         return Div
