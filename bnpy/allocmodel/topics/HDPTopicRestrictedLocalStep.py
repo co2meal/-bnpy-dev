@@ -452,7 +452,10 @@ def makeExpansionLPFromZ_HDPTopicModel(
     # Initialize xresp so each atom is normalized
     # This is the "default", for non-target atoms.
     xresp = xLPslice['E_log_soft_ev']
-    xresp += np.log(xalphaPi) # log prior probability
+    try:
+        xresp += np.log(xalphaPi) # log prior probability
+    except Exception:
+        from IPython import embed; embed()
     xresp -= xresp.max(axis=1)[:,np.newaxis]
     assert np.allclose(xresp.max(axis=1), 0.0)
 

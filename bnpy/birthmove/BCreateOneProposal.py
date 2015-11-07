@@ -67,6 +67,10 @@ def makeSummaryForBirthProposal_HTMLWrapper(
     # Make an output directory for HTML
     if kwargs['b_debugWriteHTML']:
        kwargs['b_debugOutputDir'] = createBirthProposalHTMLOutputDir(**kwargs)
+    else:
+        if 'b_debugOutputDir' in kwargs:
+            if kwargs['b_debugOutputDir'].lower() == 'none':
+                kwargs['b_debugOutputDir'] = None
 
     xSSslice, DebugInfo = makeSummaryForBirthProposal(
         Dslice, curModel, curLPslice, **kwargs)

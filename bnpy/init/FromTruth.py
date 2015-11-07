@@ -119,7 +119,9 @@ def _initFromTrueLP(hmodel, Data, initname, PRNG, nRepeatTrue=2,
 
 def convertLPFromHardToSoft(LP, Data,
                             initGarbageState=1,
-                            startIDsAt0=False, Kmax=None):
+                            returnZ=False,
+                            startIDsAt0=False,
+                            Kmax=None):
     ''' Transform array of hard assignment labels in Data into local param dict
 
     Keyword Args
@@ -160,6 +162,14 @@ def convertLPFromHardToSoft(LP, Data,
         mask = Z == uniqueAssigned[k]
         resp[mask, k] = 1.0
     LP['resp'] = resp
+
+    if returnZ:
+        Znew = -1 * np.zeros_like(Z)
+        for k in range(Kmax):
+            mask = Z == uniqueAssigned[k]
+            Znew[mask] = k
+        assert np.all(Znew >= 0)
+        return LP, Znew
     return LP
 
 

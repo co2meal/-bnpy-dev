@@ -91,9 +91,11 @@ def initSS_BregmanDiv(
         Niter=Niter,
         logFunc=logFunc,
         seed=seed) 
-    # Convert segmentation Z into proper local parameters dict LP
-    xtargetLP = convertLPFromHardToSoft(
-        dict(Z=targetZ), targetData, initGarbageState=0)
+    # Convert labels in Z to compactly use all ints from 0, 1, ... Kused
+    # Then translate these into a proper 'resp' 2D array,
+    # where resp[n,k] = w[k] if z[n] = k, and 0 otherwise
+    xtargetLP, targetZ = convertLPFromHardToSoft(
+        dict(Z=targetZ), targetData, initGarbageState=0, returnZ=1)
     if isinstance(Dslice, bnpy.data.WordsData):
         if curModel.obsModel.DataAtomType.count('word'):
             xtargetLP = convertLPFromDocsToTokens(xtargetLP, targetData)
@@ -114,18 +116,23 @@ def initSS_BregmanDiv(
     else:
         xSS = curModel.obsModel.get_global_suff_stats(
             targetData, None, xtargetLP)
+
+    assert np.allclose(np.unique(targetZ), np.arange(xSS.K))
+
     # Reorder the components from big to small
-    origorder = np.arange(xSS.K)
-    bigtosmall = np.argsort(-1 * xSS.getCountVec())
-    xSS.reorderComps(bigtosmall)
+    oldids_bigtosmall = np.argsort(-1 * xSS.getCountVec())
+    xSS.reorderComps(oldids_bigtosmall)
     # Be sure to account for the sorting that just happened.
     # By fixing up the cluster means Mu and assignments Z
-    Mu = [Mu[k] for k in bigtosmall] 
-    old2newID=dict(zip(bigtosmall, origorder))
+    Mu = [Mu[k] for k in oldids_bigtosmall] 
+    neworder = np.arange(xSS.K)    
+    old2newID=dict(zip(oldids_bigtosmall, neworder))
     targetZnew = -1 * np.ones_like(targetZ)
     for oldk in xrange(xSS.K):
         old_mask = targetZ == oldk
         targetZnew[old_mask] = old2newID[oldk]
+    assert np.all(targetZnew >= 0)
+    assert np.allclose(len(Mu), xSS.K)
     # Package up algorithm final state and Lscore trace
     DebugInfo.update(dict(
         targetZ=targetZnew,
@@ -350,7 +357,6 @@ def makeDataSubsetByThresholdResp(
             chosenRespIDs = np.flatnonzero(
                 curLP['resp'][:,ktarget] > 
                 minRespForEachTargetAtom)
-            chosenDataIDs = chosenRespIDs
             Natoms_target = curLP['resp'][:,ktarget].sum()
             Natoms_targetAboveThr = chosenRespIDs.size
             targetAssemblyMsg = \
@@ -379,6 +385,8 @@ def makeDataSubsetByThresholdResp(
                 targetW = None    
             else:
                 targetW = curLP['resp'][chosenRespIDs,ktarget]
+
+        chosenDataIDs = chosenRespIDs
 
     DebugInfo = dict(
         targetW=targetW,

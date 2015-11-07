@@ -8,7 +8,10 @@ import ElapsedTimeLogger
 
 from collections import defaultdict
 
-from bnpy.birthmove import createSplitStats, assignSplitStats, BLogger
+from bnpy.birthmove.BCreateManyProposals \
+    import makeSummariesForManyBirthProposals
+
+from bnpy.birthmove import BLogger, assignSplitStats
 from bnpy.birthmove import selectCompsForBirthAtCurrentBatch
 from bnpy.birthmove import selectShortListForBirthAtLapStart
 from bnpy.mergemove import MLogger
@@ -31,9 +34,10 @@ class MemoVBMovesAlg(LearnAlg):
         self.SSmemory = dict()
         self.LastUpdateLap = dict()
 
-    def makeNewUIDs(self, b_Kfresh=0, **kwargs):
-        newUIDs = np.arange(self.maxUID + 1, self.maxUID + b_Kfresh + 1)
-        self.maxUID += b_Kfresh
+    def makeNewUIDs(self, nMoves=1, b_Kfresh=0, **kwargs):
+        newUIDs = np.arange(self.maxUID + 1,
+                            self.maxUID + nMoves * b_Kfresh + 1)
+        self.maxUID += newUIDs.size
         return newUIDs
 
     def fit(self, hmodel, DataIterator, **kwargs):
@@ -295,93 +299,41 @@ class MemoVBMovesAlg(LearnAlg):
                 MoveRecordsByUID=MoveRecordsByUID,
                 **kwargs)
             ElapsedTimeLogger.stopEvent('birth', 'plan')
-        
+
+        # Prepare some logging stats        
+        batchPos = np.round((lapFrac - np.floor(lapFrac)) / self.lapFracInc)
         if 'b_nFailedProp' not in MovePlans:
             MovePlans['b_nFailedProp'] = 0
         if 'b_nTrial' not in MovePlans:
             MovePlans['b_nTrial'] = 0
-        failedUIDs = list()
+
+        # Create a place to store each proposal, indexed by UID
+        SSbatch.propXSS = dict()
 
         # Try each planned birth
-        SSbatch.propXSS = dict()
         if 'b_targetUIDs' in MovePlans:
             ElapsedTimeLogger.startEvent('birth', 'localexpansion')
-
-            # Loop thru copy of the target comp UID list
-            # So that we can remove elements from it within the loop
-            for ii, targetUID in enumerate(MovePlans['b_targetUIDs']):
-                if ii == 0:
-                    BLogger.pprint(
-                        'CREATING birth proposals at lap %.2f' % (lapFrac))
-                BArgs = self.algParams['birth'].copy()
-                if BArgs['b_debugWriteHTML']:
-                    batchPos = (lapFrac - np.floor(lapFrac)) / self.lapFracInc
-                    BArgs['b_debugOutputDir'] = os.path.join(
-                        self.savedir, 
-                        'html-birth-logs',
-                        'lap=%04d_batchPos%04dof%d_targetUID=%04d' % (
-                            np.ceil(lapFrac),
-                            np.round(batchPos),
-                            self.nBatch,
-                            targetUID))
-                    if not os.path.exists(BArgs['b_debugOutputDir']):
-                        os.makedirs(BArgs['b_debugOutputDir'])
-                    BLogger.pprint(
-                        'HTML output directory:\n' +
-                        BArgs['b_debugOutputDir'])
-
-                BLogger.startUIDSpecificLog(targetUID)
-                if hasattr(SS, 'propXSS') and targetUID in SS.propXSS:
-                    SSbatch.propXSS[targetUID] = assignSplitStats(
-                        Dbatch, curModel, LPbatch,
-                        SS.propXSS[targetUID],
-                        curSSwhole=curSSwhole,
-                        targetUID=targetUID,
-                        LPkwargs=LPkwargs,
-                        lapFrac=lapFrac,
-                        **BArgs)
-                    BLogger.pprint('... expansion assignment done.')
-                else:
-                    newUIDs = self.makeNewUIDs(**self.algParams['birth'])
-                    propxSSbatch, Info = \
-                        createSplitStats(
-                            Dbatch, curModel, LPbatch,
-                            curSSwhole=curSSwhole,
-                            targetUID=targetUID,
-                            newUIDs=newUIDs,
-                            LPkwargs=LPkwargs,
-                            lapFrac=lapFrac,
-                            **BArgs)
-                    if propxSSbatch is not None:
-                        # Proposal creates >= 2 useful clusters.
-                        # Move on to the evaluation stage!
-                        SSbatch.propXSS[targetUID] = propxSSbatch
-                    else:
-                        # Failure. Expansion did not create good proposal.
-                        failedUIDs.append(targetUID)
-                        MovePlans['b_nFailedProp'] += 1
-                        MovePlans['b_nTrial'] += 1
-
-                        if targetUID not in MoveRecordsByUID:
-                            MoveRecordsByUID[targetUID] = defaultdict(int)
-                        Rec = MoveRecordsByUID[targetUID]
-                        kk = curSSwhole.uid2k(targetUID)
-
-                        Rec['b_nTrial'] += 1
-                        Rec['b_nFail'] += 1
-                        Rec['b_nFailRecent'] += 1
-                        Rec['b_nSuccessRecent'] = 0
-                        Rec['b_latestLap'] = lapFrac
-                        Rec['b_latestCount'] = curSSwhole.getCountVec()[kk]
-                        Rec['b_latestBatchCount'] = SSbatch.getCountVec()[kk]
-                        if SSbatch.hasSelectionTerm('DocUsageCount'):
-                            Rec['b_latestBatchNDoc'] = \
-                                SSbatch.getSelectionTerm('DocUsageCount')[kk]
-                BLogger.stopUIDSpecificLog(targetUID)
+            newUIDs = self.makeNewUIDs(
+                nMoves=len(MovePlans['b_targetUIDs']),
+                **self.algParams['birth'])
+            SSbatch.propXSS, MovePlans, MoveRecordsByUID = \
+                 makeSummariesForManyBirthProposals(
+                    Dslice=Dbatch,
+                    curModel=curModel,
+                    curLPslice=LPbatch,
+                    curSSwhole=curSSwhole,
+                    curSSslice=SSbatch,
+                    LPkwargs=LPkwargs,
+                    newUIDs=newUIDs,
+                    MovePlans=MovePlans,
+                    MoveRecordsByUID=MoveRecordsByUID,
+                    taskoutpath=self.savedir,
+                    lapFrac=lapFrac,
+                    nBatch=self.nBatch,
+                    batchPos=batchPos,
+                    **self.algParams['birth'])
             ElapsedTimeLogger.stopEvent('birth', 'localexpansion')
 
-        for failUID in failedUIDs:
-            MovePlans['b_targetUIDs'].remove(failUID)
 
         # Prepare deletes
         if 'd_targetUIDs' in MovePlans:
