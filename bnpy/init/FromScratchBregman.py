@@ -155,6 +155,11 @@ def runKMeans_BregmanDiv(X, K, obsModel, W=None,
     '''
     chosenZ, Mu, _ = initKMeans_BregmanDiv(
         X, K, obsModel, W=W, seed=seed, smoothFrac=smoothFracInit)
+    # Number of active clusters in Mu be less than specified K
+    # if X has duplicate rows, which will not be used more than once.
+    K = len(Mu)
+    assert K > 0
+
     if Niter == 0:
         Z = -1 * np.ones(X.shape[0])
         Z[chosenZ] = np.arange(K)
@@ -238,7 +243,19 @@ def initKMeans_BregmanDiv(
         X=X, Mu=Mu0, W=W, smoothFrac=smoothFrac)[:,0]
     minDiv[chosenZ[0]] = 0
     for k in range(1, K):
-        chosenZ[k] = PRNG.choice(N, p=minDiv/np.sum(minDiv))
+        sum_minDiv = np.sum(minDiv)        
+        if np.allclose(0.0, sum_minDiv):
+            # Duplicate rows corner case
+            # Some rows of X may be exact copies, 
+            # leading to all minDiv being zero if chosen covers all copies
+            chosenZ = chosenZ[:k]
+            for emptyk in range(k, K):
+                Mu.pop(emptyk)
+            break
+        elif sum_minDiv < 0 or not np.isfinite(sum_minDiv):
+            raise ValueError("sum_minDiv not valid: %f" % (sum_minDiv))
+
+        chosenZ[k] = PRNG.choice(N, p=minDiv/np.sum(sum_minDiv))
         Mu[k] = obsModel.calcSmoothedMu(X[chosenZ[k]], W=W[chosenZ[k]])
         curDiv = obsModel.calcSmoothedBregDiv(
             X=X, Mu=Mu[k], W=W, smoothFrac=smoothFrac)[:,0]
@@ -250,7 +267,7 @@ def makeDataSubsetByThresholdResp(
         Data, curModel, 
         curLP=None,
         ktarget=None,
-        minNumAtomsInEachTargetDoc=100,
+        minNumAtomsInEachTargetDoc=0,
         minRespForEachTargetAtom=0.1,
         K=0,
         **kwargs):
