@@ -14,7 +14,7 @@ from bnpy.birthmove.BCreateManyProposals \
 from bnpy.birthmove import BLogger, assignSplitStats
 from bnpy.birthmove import selectCompsForBirthAtCurrentBatch
 from bnpy.birthmove import selectShortListForBirthAtLapStart
-from bnpy.mergemove import MLogger
+from bnpy.mergemove import MLogger, SLogger
 from bnpy.mergemove import selectCandidateMergePairs, ELBO_GAP_ACCEPT_TOL
 from bnpy.deletemove import DLogger, selectCandidateDeleteComps
 from bnpy.util import sharedMemDictToNumpy, sharedMemToNumpyArray
@@ -1036,6 +1036,7 @@ class MemoVBMovesAlg(LearnAlg):
         MoveLog
         MoveRecordsByUID
         '''
+        prevLscore = Lscore
         emptyCompLocs = np.flatnonzero(SS.getCountVec() < 0.001)
         emptyCompUIDs = [SS.uids[k] for k in emptyCompLocs]
         if emptyCompLocs.size > 0 and self.algParams['shuffle']['s_doPrune']:
@@ -1050,7 +1051,10 @@ class MemoVBMovesAlg(LearnAlg):
                 afterUIDs)
             MoveLog.append(moveTuple)
 
-        bigtosmallorder = np.argsort(-1 * SS.getCountVec())
+        if hasattr(SS, 'sumLogPi'):
+            bigtosmallorder = np.argsort(-1 * SS.sumLogPi)
+        else:
+            bigtosmallorder = np.argsort(-1 * SS.getCountVec())
         sortedalready = np.arange(SS.K)
         if not np.allclose(bigtosmallorder, sortedalready):
             moveTuple = (
@@ -1061,6 +1065,12 @@ class MemoVBMovesAlg(LearnAlg):
             SS.reorderComps(bigtosmallorder)
             hmodel.update_global_params(SS)
             Lscore = hmodel.calc_evidence(SS=SS)
+            # TODO Prevent shuffle if ELBO does not improve??
+            SLogger.pprint(
+                "SHUFFLED at lap %.3f." % (lapFrac) + \
+                " Lgain % .4e   Lbefore % .4e   Lafter % .4e" % (
+                    Lscore - prevLscore, prevLscore, Lscore))
+
         elif emptyCompLocs.size > 0:
             hmodel.update_global_params(SS)
             Lscore = hmodel.calc_evidence(SS=SS)

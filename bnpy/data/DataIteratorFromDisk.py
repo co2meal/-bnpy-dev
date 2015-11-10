@@ -167,7 +167,7 @@ class DataIteratorFromDisk(object):
 
         self.dtype = decideDataTypeFromModel(aModelType, oModelType)
         self.DataInfo = self.loadWholeDatasetInfo()
-        if 'datasetName' in self.DataInfo:
+        if not hasattr(self, 'name') and 'datasetName' in self.DataInfo:
             self.name = self.DataInfo['datasetName']
         # Decide which order the batches will be traversed in the first lap
         self.batchOrderCurLap = self.getRandPermOfBatchIDsForCurLap()
