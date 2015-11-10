@@ -43,6 +43,7 @@ def getPrefixForLapQuery(taskpath, lapQuery):
             saveLaps.append(float(lapstr))
         saveLaps = np.sort(np.asarray(saveLaps))
 
+    saveLaps = as1D(saveLaps)
     if lapQuery is None:
         bestLap = saveLaps[-1]  # take final saved value
     else:
