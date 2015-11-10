@@ -140,6 +140,10 @@ def _run_task_internal(jobname, taskid, nTask,
                     Data.name = KwArgs['OnlineDataPrefs']['datasetName']
                 except KeyError:
                     Data.name = 'UnknownDatasetName'
+
+            if 'datasetName' in KwArgs['OnlineDataPrefs']:
+                Data.name = KwArgs['OnlineDataPrefs']['datasetName']
+
         else:
             DataArgs = getKwArgsForLoadData(ReqArgs, UnkArgs, KwArgs)
             Data, InitData = loadData(ReqArgs, KwArgs, DataArgs, dataorderseed)
@@ -183,6 +187,9 @@ def _run_task_internal(jobname, taskid, nTask,
     if learnAlg.hasMove('merge'):
         import bnpy.mergemove.MLogger as MergeLogger
         MergeLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
+    if learnAlg.hasMove('shuffle'):
+        import bnpy.mergemove.SLogger as SLogger
+        SLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
     if str(type(hmodel.allocModel)).count('TopicModel'):
         import bnpy.allocmodel.topics.LocalStepLogger as LocalStepLogger
         LocalStepLogger.configure(taskoutpath, doSaveToDisk, doWriteStdOut)
