@@ -21,10 +21,11 @@ def calcLocalParams(
 
     Returns
     -------
-    LP : dict of local params, with fields
-    * DocTopicCount : 2D array, nDoc x K
-    * resp : 2D array, N x K
-    * model-specific fields for doc-topic probabilities
+    LP : dict
+        Local parameter fields
+        resp : 2D array, N x K
+        DocTopicCount : 2D array, nDoc x K
+        model-specific fields for doc-topic probabilities
     '''
     assert isinstance(cslice, tuple)
     if len(cslice) != 2:
@@ -127,8 +128,25 @@ def updateLPGivenDocTopicCount(LP, DocTopicCount,
 
 
 def updateLPWithResp(LP, Data, Lik, Prior, sumRespTilde, cslice=(0, None)):
+    ''' Compute assignment responsibilities given output of local step.
+
+    Args
+    ----
+    LP : dict
+        Has other fields like 'E_log_soft_ev'
+    Data : DataObj
+    Lik : 2D array, size N x K
+        Will be overwritten and turned into resp.
+
+    Returns
+    -------
+    LP : dict
+        Add field 'resp' : N x K 2D array.
+    '''
+    # Create resp array directly from Lik array.
+    # Do not make any copies, to save memory.
+    LP['resp'] = Lik
     nDoc = calcNumDocFromSlice(Data, cslice)
-    LP['resp'] = Lik.copy()
     slice_start = Data.doc_range[cslice[0]]
     for d in xrange(nDoc):
         start = Data.doc_range[cslice[0] + d] - slice_start
@@ -136,7 +154,7 @@ def updateLPWithResp(LP, Data, Lik, Prior, sumRespTilde, cslice=(0, None)):
         LP['resp'][start:stop] *= Prior[d]
     LP['resp'] /= sumRespTilde[:, np.newaxis]
     np.maximum(LP['resp'], 1e-300, out=LP['resp'])
-    # assert np.allclose(LP['resp'].sum(axis=1), 1.0)
+    # Time consuming: assert np.allclose(LP['resp'].sum(axis=1), 1.0)
     return LP
 
 
