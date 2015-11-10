@@ -195,9 +195,12 @@ def find_optimum_multiple_tries(
             errmsg = str(err)
             Info['errmsg'] = errmsg
             if errmsg.count('overflow') > 0:
+                # Eat any overflow problems.
+                # Just discard this result and try again with diff factr val.
                 nOverflow += 1
             elif errmsg.count('ABNORMAL_TERMINATION_IN_LNSRCH') > 0:
-                # Eat any line search problems. Do not pass along.
+                # Eat any line search problems.
+                # Just discard this result and try again with diff factr val.
                 pass
             else:
                 raise err
@@ -328,16 +331,20 @@ def find_optimum(
             fminKwargs[key] = kwargs[key]
     # Run optimization, raising special error on any overflow or NaN issues
     with warnings.catch_warnings():
-        warnings.filterwarnings('error', category=RuntimeWarning,
-                                message='overflow')
+        warnings.filterwarnings('error')
         try:
             c_opt, f_opt, Info = scipy.optimize.fmin_l_bfgs_b(
                 objFunc, c_init, **fminKwargs)
-        except RuntimeWarning:
-            raise ValueError("FAILURE: overflow!")
-        except AssertionError:
+        except RuntimeWarning as e:
+            # Any warnings are probably related to overflow.
+            # Raise them as errors! We don't want a result with overflow.
+            raise ValueError("FAILURE: " + str(e))
+        except AssertionError as e:
+            # Any assertions that failed mean that
+            # rho/omega or some other derived quantity
+            # reached a very bad place numerically. Raise an error!
             raise ValueError("FAILURE: NaN/Inf detected!")
-    # Raise error on abnormal warnings (like bad line search)
+    # Raise error on abnormal optimization warnings (like bad line search)
     if Info['warnflag'] > 1:
         raise ValueError("FAILURE: " + Info['task'])
 
@@ -358,9 +365,12 @@ def find_optimum(
     rho_safe = forceRhoInBounds(rho_opt)
     omega_safe = forceOmegaInBounds(omega_opt, maxOmegaVal=maxOmegaVal, Log=Log)
     objFuncKwargs['approx_grad'] = 1.0
-    objFuncKwargs['rho'] = omega_safe
+    objFuncKwargs['rho'] = rho_safe
     objFuncKwargs['omega'] = omega_safe
-    f_safe = negL_rhoomega(**objFuncKwargs)
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings('error')
+        f_safe = negL_rhoomega(**objFuncKwargs)
     return rho_safe, omega_safe, f_safe, Info
 
 
