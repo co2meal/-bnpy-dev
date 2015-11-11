@@ -75,7 +75,22 @@ def inplaceExp_numexpr(R):
 
 
 def inplaceLog(R):
-    ''' Calculate log of each entry of input matrix, done in-place.
+    ''' Calculate log of each entry of input matrix, done in-place
+
+    Post Condition
+    --------------
+    Provided array R will have each entry equal to log of its input value.
+
+    Example
+    -------
+    >>> R = np.eye(2) + np.ones(2)
+    >>> print R
+    [[ 2.  1.]
+     [ 1.  2.]]
+    >>> inplaceLog(R) # Look Mom, no return value!
+    >>> print R
+    [[ 0.69314718  0.        ]
+     [ 0.          0.69314718]]
     '''
     if Config['inplaceExpAndNormalizeRows'] == "numexpr" and hasNumexpr:
         return inplaceLog_numexpr(R)
