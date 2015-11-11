@@ -6,7 +6,7 @@ from bnpy.suffstats import ParamBag, SuffStatBag
 from bnpy.util import dotATA, dotATB, dotABT
 from bnpy.util import as1D, as2D, as3D
 from bnpy.util import numpyToSharedMemArray, sharedMemToNumpyArray
-
+from bnpy.util import NumericUtil
 from AbstractObsModel import AbstractObsModel
 
 
@@ -614,10 +614,25 @@ class MultObsModel(AbstractObsModel):
         Mu /= Mu.sum()
         return Mu
 
-    def calcSmoothedBregDiv(self, X, Mu, W=None, smoothFrac=0.0, **kwargs):
+    def calcSmoothedBregDiv(
+            self, X, Mu, W=None,
+            smoothFrac=0.0,
+            includeOnlyFastTerms=False,
+            DivDataVec=None,
+            returnDivDataVec=False,
+            return1D=False,
+            **kwargs):
         ''' Compute Bregman divergence between data X and clusters Mu.
 
         Smooth the data via update with prior parameters.
+
+        Keyword Args
+        ------------
+        includeOnlyFastTerms : boolean
+            if False, includes all terms in divergence calculation.
+                Returns Div[n,:] guaranteed to be non-negative.
+            if True, includes only terms that vary with cluster index k
+                Returns Div[n,:] equal to divergence up to additive constant 
 
         Returns
         -------
@@ -628,29 +643,63 @@ class MultObsModel(AbstractObsModel):
             X = X[np.newaxis,:]
         assert X.ndim == 2
         N = X.shape[0]
-        
-        if W is not None:
-            assert W.ndim == 1
-            assert W.size == N
         if not isinstance(Mu, list):
             Mu = (Mu,)
         K = len(Mu)
 
         if smoothFrac == 0:
-            MuX = X + 1e-20
+            smoothVec = 1e-20
         else:
-            MuX = X + smoothFrac * self.Prior.lam
-        NX = MuX.sum(axis=1)
+            smoothVec = smoothFrac * self.Prior.lam
 
+        # Compute Div array up to a per-row additive constant indep. of k
         Div = np.zeros((N, K))
         for k in xrange(K):
-            Mu_k = NX[:,np.newaxis] * Mu[k][np.newaxis,:]
-            Div[:,k] = np.sum(MuX * np.log(MuX / Mu_k), axis=1)
+            Div[:,k] = -1 * np.dot(X, np.log(Mu[k])) \
+                - np.sum(smoothVec * np.log(Mu[k]))
+            # Equivalent to -1 * np.dot(MuX, np.log(Mu[k])),
+            # but without allocating a new matrix MuX
+
+        if not includeOnlyFastTerms:
+            if DivDataVec is None:
+                # Compute DivDataVec : 1D array of size N
+                # This is the per-row additive constant indep. of k. 
+                # We do lots of steps in-place, to save memory.
+                MuX = X + smoothVec
+                NX = MuX.sum(axis=1)
+                DivDataVec = np.log(NX)
+                DivDataVec *= -1 * NX
+
+                # This next block is equivalent to:
+                # >>> DivDataVec += np.sum(MuX * np.log(MuX), axis=1)
+                # but uses in-place operations with faster numexpr library.
+                NumericUtil.inplaceLog(MuX)
+                logMuX = MuX
+                DivDataVec += np.dot(logMuX, smoothVec)
+                logMuX *= X
+                XlogMuX = logMuX
+                DivDataVec += np.sum(XlogMuX, axis=1)             
+
+            Div += DivDataVec[:,np.newaxis]
+
+        # Apply per-atom weights to divergences.
         if W is not None:
+            assert W.ndim == 1
+            assert W.size == N
             Div *= W[:,np.newaxis]
-        assert Div.min() > -1e-8
-        np.maximum(Div, 0, out=Div)
-        assert Div.min() >= 0
+        # Verify divergences are strictly non-negative 
+        if not includeOnlyFastTerms:
+            minDiv = Div.min()
+            assert minDiv > -1e-8
+            if minDiv < 0:
+                np.maximum(Div, 0, out=Div)
+                minDiv = Div.min()
+            assert minDiv >= 0
+
+        if return1D:
+            Div = Div[:,0]
+        if returnDivDataVec:
+            return Div, DivDataVec
         return Div
 
     def calcBregDivFromPrior(self, Mu, smoothFrac=0.0):

@@ -24,7 +24,6 @@ def init_global_params(hmodel, Data, **kwargs):
         Data, hmodel, includeAllocSummary=True, **kwargs)
     hmodel.allocModel.update_global_params(SS)
     hmodel.obsModel.update_global_params(SS)
-
     Info['targetSS'] = SS
     return Info
 
@@ -155,26 +154,20 @@ def runKMeans_BregmanDiv(X, K, obsModel, W=None,
     '''
     chosenZ, Mu, _ = initKMeans_BregmanDiv(
         X, K, obsModel, W=W, seed=seed, smoothFrac=smoothFracInit)
-    # Number of active clusters in Mu be less than specified K
-    # if X has duplicate rows, which will not be used more than once.
+    # Make sure we update K to reflect the returned value.
+    # initKMeans_BregmanDiv will return fewer than K clusters
+    # in some edge cases, like when data matrix X has duplicate rows
+    # and specified K is larger than the number of unique rows.
     K = len(Mu)
     assert K > 0
+    assert Niter > 0
 
-    if Niter == 0:
-        Z = -1 * np.ones(X.shape[0])
-        Z[chosenZ] = np.arange(K)
-
-        Div = obsModel.calcSmoothedBregDiv(
-            X=X, Mu=Mu, W=W, smoothFrac=smoothFrac)
-        Ldata = Div.min(axis=1).sum()
-        Lprior = obsModel.calcBregDivFromPrior(
-            Mu=Mu, smoothFrac=smoothFrac).sum()
-        return Z, Mu, [Ldata+Lprior]
     Lscores = list()
     prevN = np.zeros(K)
     for riter in xrange(Niter):
         Div = obsModel.calcSmoothedBregDiv(
-            X=X, Mu=Mu, W=W, 
+            X=X, Mu=Mu, W=W,
+            includeOnlyFastTerms=True, 
             smoothFrac=smoothFrac, eps=eps)
         Z = np.argmin(Div, axis=1)
         Ldata = Div.min(axis=1).sum()
@@ -239,8 +232,11 @@ def initKMeans_BregmanDiv(
     Mu0 = obsModel.calcSmoothedMu(X[chosenZ[0]], W=W[chosenZ[0]])
     Mu = [None for k in range(K)]
     Mu[0] = Mu0
-    minDiv = obsModel.calcSmoothedBregDiv(
-        X=X, Mu=Mu0, W=W, smoothFrac=smoothFrac)[:,0]
+    minDiv, DivDataVec = obsModel.calcSmoothedBregDiv(
+        X=X, Mu=Mu0, W=W,
+        returnDivDataVec=True,
+        return1D=True,
+        smoothFrac=smoothFrac)
     minDiv[chosenZ[0]] = 0
     for k in range(1, K):
         sum_minDiv = np.sum(minDiv)        
@@ -258,7 +254,10 @@ def initKMeans_BregmanDiv(
         chosenZ[k] = PRNG.choice(N, p=minDiv/np.sum(sum_minDiv))
         Mu[k] = obsModel.calcSmoothedMu(X[chosenZ[k]], W=W[chosenZ[k]])
         curDiv = obsModel.calcSmoothedBregDiv(
-            X=X, Mu=Mu[k], W=W, smoothFrac=smoothFrac)[:,0]
+            X=X, Mu=Mu[k], W=W,
+            DivDataVec=DivDataVec,
+            return1D=True,
+            smoothFrac=smoothFrac)
         curDiv[chosenZ[k]] = 0
         minDiv = np.minimum(minDiv, curDiv)
     return chosenZ, Mu, minDiv
