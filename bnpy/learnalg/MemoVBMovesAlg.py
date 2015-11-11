@@ -67,6 +67,7 @@ class MemoVBMovesAlg(LearnAlg):
         # Begin loop over batches of data...
         SS = None
         isConverged = False
+        Lscore = -np.inf
         self.set_start_time_now()
         MoveLog = list()
         MoveRecordsByUID = dict()

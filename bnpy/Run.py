@@ -88,7 +88,7 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None,
                                           dataName, allocModelName,
                                           obsModelName, algName,
                                           doSaveToDisk, doWriteStdOut)
-        if (Info['evBound'] > bestEvBound):
+        if (taskid == starttaskid or Info['evBound'] > bestEvBound):
             bestModel = hmodel
             bestEvBound = Info['evBound']
             bestInfo = Info

@@ -59,15 +59,24 @@ bnpyRunPath = os.path.join(bnpyroot, 'Run.py')
 kwargsStr = ' '.join(sys.argv[1:])
 ProfileCMD = "%s line_profiler/kernprof.py -o %s.lprof --line-by-line %s %s" \
     % (pycmdstr, nowstr, bnpyRunPath, kwargsStr)
-subprocess.call(ProfileCMD, shell=True)
 
+# Safely perform the call to profiler inside try-except block
+# So we always move on to undecorating.
+try:
+    print "Launching subprocess to do profiled work ..."
+    subprocess.call(ProfileCMD, shell=True)
 
-print "Building HTML ...",
-# Convert output to HTML
-toHTMLCMD = "python line_profiler/line_profiler_html.py " + \
-    nowstr + ".lprof assets/templates/ " + outputhtmldir
-subprocess.call(toHTMLCMD, shell=True)
-print '[DONE]'
+    print "Building HTML report of results ...",
+    # Convert output to HTML
+    toHTMLCMD = "python line_profiler/line_profiler_html.py " + \
+        nowstr + ".lprof assets/templates/ " + outputhtmldir
+    subprocess.call(toHTMLCMD, shell=True)
+    print '[DONE]'
+
+except Exception as e:
+    print '[ERROR]'
+    print "Profiler subprocess raised Exception!"
+    print str(e)
 
 # Undecorate codebase
 print "Undecorating ...",
@@ -76,6 +85,7 @@ undecorate_for_profiling.main(thirdpartyroot)
 print '[DONE]'
 
 print "Wrote HTML to %s/index.html" % (outputhtmldir)
+print " "
 
 # Clean up extra files (Run.py.lprof)
 extrafilename = '%s.lprof' % (nowstr)
