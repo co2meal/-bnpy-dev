@@ -25,12 +25,18 @@
                 <li><a href="{{ pathto(*link[1:]) }}">{{ link[0] }}</a></li>
               {%- endfor %}
             {% endif %}
+
+            {% if navbar_globaltoc %}
             {% block navbartoc %}
               {% include "globaltoc.html" %}
               {% if theme_navbar_pagenav %}
                 {% include "navbartoc.html" %}
               {% endif %}
             {% endblock %}
+            {% endif %}
+
+            {% include "allocdropdown.html" %}
+
             {% if theme_navbar_sidebarrel %}
               {% block sidebarrel %}
                 {% include "relations.html" %}

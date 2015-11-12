@@ -12,6 +12,7 @@ results/
 profiler/
 reports/
 build/
+api/
 .ipynb_checkpoints/
 .idea/
 
