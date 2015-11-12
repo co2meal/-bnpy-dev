@@ -81,7 +81,7 @@ class WordsData(DataObj):
             word_ct.extend(word_ct_d)
         doc_range = np.hstack([0, np.cumsum(doc_sizes)])
         return cls(word_id=word_id, word_count=word_ct, nDocTotal=nDocTotal,
-                   doc_range=doc_range, vocab_size=vocab_size)
+                   doc_range=doc_range, vocab_size=vocab_size, **kwargs)
 
     @classmethod
     def LoadFromFile_ldac(
@@ -156,6 +156,9 @@ class WordsData(DataObj):
         Data : WordsData object
         """
         MatDict = scipy.io.loadmat(matfilepath, **kwargs)
+        if 'test' in MatDict or 'tokensByDoc' in MatDict:
+            return cls.LoadFromFile_tokenlist(
+                matfilepath, vocabfile=vocabfile, **kwargs)
         return cls(vocabfile=vocabfile, **MatDict)
 
     def __init__(self, word_id=None, word_count=None, doc_range=None,
@@ -214,6 +217,8 @@ class WordsData(DataObj):
                 self.vocabList = [x.strip() for x in f.readlines()]
         else:
             self.vocabList = None
+        if vocab_size == 0 and self.vocabList is not None:
+            self.vocab_size = len(self.vocabList)
         self._verify_attributes()
         self._set_corpus_size_attributes(nDocTotal)
 

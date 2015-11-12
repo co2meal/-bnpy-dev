@@ -417,11 +417,19 @@ class LearnAlg(object):
         cFuncArgs_string = self.outputParams['customFuncArgs']
         nLapTotal = self.algParams['nLap']
         if isinstance(cFuncPath, str):
+            cFuncPath = cFuncPath.replace(".py", "")
             pathParts = cFuncPath.split(os.path.sep)
-            cFuncDir = os.path.sep.join(pathParts[:-1])
-            cFuncModName = pathParts[-1].split('.py')[0]
-            sys.path.append(cFuncDir)
-            cFuncModule = __import__(cFuncModName, fromlist=[])
+            if len(pathParts) > 1:
+                # Absolute path provided
+                cFuncDir = os.path.expandvars(os.path.sep.join(pathParts[:-1]))
+                sys.path.append(cFuncDir)
+                cFuncModName = pathParts[-1]
+                cFuncModule = __import__(cFuncModName, fromlist=[])
+            else:
+                # Treat as relative path to file in bnpy.callbacks
+                cFuncModule = __import__(
+                    'bnpy.callbacks.', fromlist=[cFuncPath])
+                cFuncModule = getattr(cFuncModule, cFuncPath)
         else:
             cFuncModule = cFuncPath  # directly passed in as object
 
@@ -431,6 +439,12 @@ class LearnAlg(object):
         if isInitial:
             kwargs['lapFrac'] = 0
             kwargs['iterid'] = 0
+
+        hasCBFuncs = hasattr(cFuncModule, 'onBatchComplete') or \
+            hasattr(cFuncModule, 'onLapComplete') or \
+            hasattr(cFuncModule, 'onAlgorithmComplete')
+        if not hasCBFuncs:
+            raise ValueError("Specified customFuncPath has no callbacks!")
 
         if hasattr(cFuncModule, 'onBatchComplete') and not isFinal:
             cFuncModule.onBatchComplete(args=cFuncArgs_string, **kwargs)

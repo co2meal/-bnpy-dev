@@ -27,7 +27,7 @@ def getPrefixForLapQuery(taskpath, lapQuery):
         For lap 1, prefix = 'Lap0001.000'.
         For lap 5.5, prefix = 'Lap0005.500'.
     lap : int
-        lap checkpoint for saved params closed to lapQuery
+        lap checkpoint for saved params close to lapQuery
     '''
     try:
         saveLaps = np.loadtxt(os.path.join(taskpath, 'laps-saved-params.txt'))
@@ -268,10 +268,27 @@ def loadTopicModelFromMEDLDA(filepath,
     return hmodel
 
 
-def loadTopicModel(matfilepath, prefix=None,
-                   returnWordCounts=0, returnTPA=0):
+def loadTopicModel(
+        matfilepath, 
+        queryLap=None,
+        prefix=None,
+        returnWordCounts=0,
+        returnTPA=0, 
+        normalizeTopics=0,
+        normalizeProbs=0,
+        **kwargs):
     ''' Load saved topic model
+
+    Returns
+    -------
+    topics : 2D array, K x vocab_size (if returnTPA)
+    probs : 1D array, size K (if returnTPA)
+    alpha : scalar (if returnTPA)
+    hmodel : HModel
+    WordCounts : 2D array, size K x vocab_size (if returnWordCounts)
     '''
+    if prefix is None:
+        prefix, lapQuery = getPrefixForLapQuery(matfilepath, queryLap)
     # avoids circular import
     from bnpy.HModel import HModel
     if len(glob.glob(os.path.join(matfilepath, "*.log_prob_w"))) > 0:
@@ -297,16 +314,26 @@ def loadTopicModel(matfilepath, prefix=None,
                                                  shape=(K, vocab_size))
         Mdict['WordCounts'] = WordCounts.toarray()
     if returnTPA:
+        # Load topics : 2D array, K x vocab_size
         if 'WordCounts' in Mdict:
             topics = Mdict['WordCounts'] + Mdict['lam']
         else:
             topics = Mdict['topics']
+            topics = np.asarray(topics, dtype=np.float64)
         K = topics.shape[0]
+        if normalizeTopics:
+            topics /= topics.sum(axis=1)[:,np.newaxis]
 
+        # Load probs : 1D array, size K
         try:
             probs = Mdict['probs']
         except KeyError:
             probs = (1.0 / K) * np.ones(K)
+        probs = np.asarray(probs, dtype=np.float64)
+        if normalizeProbs:
+            probs = probs / np.sum(probs)
+
+        # Load alpha : scalar float > 0
         try:
             alpha = float(Mdict['alpha'])
         except KeyError:

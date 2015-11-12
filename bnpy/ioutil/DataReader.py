@@ -1,7 +1,7 @@
 import os
 import numpy as np
 
-def loadDataFromSavedTask(taskoutpath, **kwargs):
+def loadDataFromSavedTask(taskoutpath, dataSplitName='train', **kwargs):
     ''' Load data object used for training a specified saved run.
 
     Args
@@ -31,7 +31,13 @@ def loadDataFromSavedTask(taskoutpath, **kwargs):
     dataName = getDataNameFromTaskpath(taskoutpath)
     dataKwargs = loadDataKwargsFromDisk(taskoutpath)
     datamod = __import__(dataName, fromlist=[])
-    Data = datamod.get_data(**dataKwargs)
+
+    if dataSplitName.count('test'):
+        Data = datamod.get_test_data(**dataKwargs)
+    elif dataSplitName.count('valid'):
+        Data = datamod.get_validation_data(**dataKwargs)
+    else:
+        Data = datamod.get_data(**dataKwargs)
     return Data
 
 def loadDataKwargsFromDisk(taskoutpath):
@@ -81,15 +87,25 @@ def loadLPKwargsFromDisk(taskoutpath):
         for line in f.readlines():
             fields = line.strip().split(' ')
             assert len(fields) == 2
-            try:
-                val = int(fields[1])
-            except ValueError as e:
-                try:
-                    val = float(fields[1])
-                except ValueError as e:
-                    val = str(fields[1])
-            LPkwargs[fields[0]] = val
+            if fields[0].endswith('LP'):
+                LPkwargs[fields[0]] = str2numorstr(fields[1])
     return LPkwargs
+
+def str2numorstr(s):
+    ''' Convert string to numeric type if possible.
+
+    Returns
+    -------
+    val : int or float or str
+    '''
+    try:
+        val = int(s)
+    except ValueError as e:
+        try:
+            val = float(s)
+        except ValueError as e:
+            val = str(s)
+    return val
 
 def getDataNameFromTaskpath(taskoutpath):
     ''' Extract dataset name from bnpy output filepath.
