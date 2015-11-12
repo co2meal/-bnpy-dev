@@ -24,6 +24,8 @@ import birthmove
 import mergemove
 import deletemove
 
+import callbacks
+
 import Run
 
 run = Run.run
