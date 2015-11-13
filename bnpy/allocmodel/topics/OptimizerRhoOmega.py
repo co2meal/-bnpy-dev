@@ -32,8 +32,9 @@ from bnpy.util.StickBreakUtil import create_initrho, create_initomega
 Log = logging.getLogger('bnpy')
 
 
-def find_optimum_multiple_tries(sumLogPi=0,
-                                sumLogPiActiveVec=0, sumLogPiRemVec=0,
+def find_optimum_multiple_tries(sumLogPi=None,
+                                sumLogPiActiveVec=None,
+                                sumLogPiRemVec=None,
                                 nDoc=0,
                                 gamma=1.0, alpha=1.0, kappa=0.0,
                                 startAlphaLogPi=0.0,
