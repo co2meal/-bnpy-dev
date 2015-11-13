@@ -109,6 +109,7 @@ def negL_rhoomega(rhoomega=None, rho=None, omega=None,
         np.inner(OFFcoef, Elog1mu) + \
         L_local
     negL = -1.0 * L
+
     # When using approximate gradients, only the objective value is needed.
     if approx_grad:
         return negL
@@ -363,7 +364,8 @@ def find_optimum(
     Info['estrho'] = rho_opt
     Info['estomega'] = omega_opt
     rho_safe = forceRhoInBounds(rho_opt)
-    omega_safe = forceOmegaInBounds(omega_opt, maxOmegaVal=maxOmegaVal, Log=Log)
+    omega_safe = forceOmegaInBounds(
+        omega_opt, maxOmegaVal=maxOmegaVal, Log=Log)
     objFuncKwargs['approx_grad'] = 1.0
     objFuncKwargs['rho'] = rho_safe
     objFuncKwargs['omega'] = omega_safe
