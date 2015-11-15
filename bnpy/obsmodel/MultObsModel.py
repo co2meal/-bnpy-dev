@@ -690,8 +690,12 @@ class MultObsModel(AbstractObsModel):
         # Verify divergences are strictly non-negative 
         if not includeOnlyFastTerms:
             minDiv = Div.min()
-            assert minDiv > -1e-8
             if minDiv < 0:
+                if minDiv < -1e-6:
+                    raise AssertionError(
+                        "Expected Div.min() to be positive or" + \
+                        " indistinguishable from zero. Instead " + \
+                        " minDiv=% .3e" % (minDiv))
                 np.maximum(Div, 0, out=Div)
                 minDiv = Div.min()
             assert minDiv >= 0
