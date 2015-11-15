@@ -94,10 +94,6 @@ def run(dataName=None, allocModelName=None, obsModelName=None, algName=None,
             bestInfo = Info
     return bestModel, bestInfo
 
-# RUN SINGLE TASK
-###########################################################
-
-
 def _run_task_internal(jobname, taskid, nTask,
                        ReqArgs, KwArgs, UnkArgs,
                        dataName, allocModelName, obsModelName, algName,
@@ -168,7 +164,8 @@ def _run_task_internal(jobname, taskid, nTask,
         writeArgsToFile(ReqArgs, KwArgs, taskoutpath, UnkArgs)
     else:
         taskoutpath = None
-    configLoggingToConsoleAndFile(taskoutpath, doSaveToDisk, doWriteStdOut)
+    jobID = configLoggingToConsoleAndFile(
+        taskoutpath, taskid, doSaveToDisk, doWriteStdOut)
 
     # Create and initialize model parameters
     hmodel = createModel(InitData, ReqArgs, KwArgs)
@@ -198,26 +195,6 @@ def _run_task_internal(jobname, taskid, nTask,
     import bnpy.learnalg.ElapsedTimeLogger as ElapsedTimeLogger
     ElapsedTimeLogger.configure(
         taskoutpath, KwArgs['MoveNames'], doSaveToDisk, doWriteStdOut)
-
-
-    # Prepare special logs if we are running on the Brown CS grid
-    try:
-        jobID = int(os.getenv('JOB_ID'))
-    except TypeError:
-        jobID = 0
-    if jobID > 0:
-        Log.info('SGE Grid Job ID: %d' % (jobID))
-        # Create symlinks to captured stdout, stdout in bnpy output directory
-        os.symlink(os.getenv('SGE_STDOUT_PATH'),
-                   os.path.join(taskoutpath, 'stdout'))
-        os.symlink(os.getenv('SGE_STDERR_PATH'),
-                   os.path.join(taskoutpath, 'stderr'))
-
-        with open(os.path.join(taskoutpath, 'GridInfo.txt'), 'w') as f:
-            f.write(str(jobID) + "\n")
-            f.write(str(taskid) + "\n")
-            f.write('stdout: ' + os.getenv('SGE_STDOUT_PATH') + "\n")
-            f.write('stderr: ' + os.getenv('SGE_STDERR_PATH') + "\n")
 
     # Write descriptions to the log
     if taskid == 1 or jobID > 0:
@@ -536,8 +513,9 @@ def deleteAllFilesFromDir(savefolder, prefix=None):
             os.unlink(file_path)
 
 
-def configLoggingToConsoleAndFile(taskoutpath,
-                                  doSaveToDisk=True, doWriteStdOut=True):
+def configLoggingToConsoleAndFile(
+        taskoutpath,
+        taskid=0, doSaveToDisk=True, doWriteStdOut=True):
     RootLog = logging.getLogger()
     RootLog.handlers = []
 
@@ -559,6 +537,29 @@ def configLoggingToConsoleAndFile(taskoutpath,
     # Config null logger, avoids error messages about no handler existing
     if not doSaveToDisk and not doWriteStdOut:
         Log.addHandler(logging.NullHandler())
+
+    # Prepare special logs if we are running on the Brown CS grid
+    try:
+        jobID = int(os.getenv('JOB_ID'))
+    except TypeError:
+        jobID = 0
+    if jobID > 0:
+        Log.info('SGE Grid Job ID: %d' % (jobID))
+
+        if 'SGE_STDOUT_PATH' in os.environ:
+            # Create symlinks to captured stdout, stdout in output directory
+            os.symlink(os.getenv('SGE_STDOUT_PATH'),
+                       os.path.join(taskoutpath, 'stdout'))
+            os.symlink(os.getenv('SGE_STDERR_PATH'),
+                       os.path.join(taskoutpath, 'stderr'))
+
+            with open(os.path.join(taskoutpath, 'GridInfo.txt'), 'w') as f:
+                f.write(str(jobID) + "\n")
+                f.write(str(taskid) + "\n")
+                f.write('stdout: ' + os.getenv('SGE_STDOUT_PATH') + "\n")
+                f.write('stderr: ' + os.getenv('SGE_STDERR_PATH') + "\n")
+    return jobID
+
 
 if __name__ == '__main__':
     run()
