@@ -30,9 +30,9 @@ def create_initomega(K, nDoc, gamma):
 
 
 def forceRhoInBounds(rho, EPS=EPS):
-    ''' Verify every entry of rho (and beta) are within [EPS, 1-EPS]
+    ''' Verify every entry of rho lies within [EPS, 1-EPS]
 
-    Leads to numerical stability.
+    Guarantees numerical stability.
 
     Returns
     -------
@@ -40,20 +40,6 @@ def forceRhoInBounds(rho, EPS=EPS):
         Each entry satisfies: EPS <= rho[k] <= 1-EPS.
     '''
     rho = np.maximum(np.minimum(rho, 1.0 - EPS), EPS)
-    beta = rho2beta_active(rho)
-    didFix = 0
-    badMask = beta < EPS
-    if np.any(beta < EPS):
-        beta[badMask] = 1.01 * EPS
-        addedMass = np.sum(badMask) * 1.01 * EPS
-        beta[np.logical_not(badMask)] *= (1 - addedMass)
-        didFix = 1
-    if (1.0 - np.sum(beta)) < EPS:
-        kmax = beta.argmax()
-        beta[kmax] -= 1.01 * EPS
-        didFix = 1
-    if didFix:
-        rho = beta2rho(beta, rho.size)
     return rho
 
 

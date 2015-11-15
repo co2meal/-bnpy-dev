@@ -58,9 +58,11 @@ def calcELBO_LinearTerms(SS=None, LP=None,
 
 def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None, todict=0,
                             rho=None, Ebeta=None, alpha=None,
-                            resp=None, DocTopicCount=None, theta=None,
-                            ElogPi=None,
-                            nDoc=None, sumLogPi=None,
+                            resp=None,
+                            nDoc=None, DocTopicCount=None,
+                            theta=None, thetaRem=None,
+                            ElogPi=None, ElogPiRem=None,
+                            sumLogPi=None,
                             sumLogPiRem=None, sumLogPiRemVec=None,
                             Hresp=None, slackTheta=None, slackThetaRem=None,
                             gammalnTheta=None, gammalnSumTheta=None,
@@ -106,11 +108,9 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None, todict=0,
         digammasumtheta = digamma(theta.sum(axis=1) + thetaRem)
         ElogPi = digamma(theta) - digammasumtheta[:, np.newaxis]
         ElogPiRem = digamma(thetaRem) - digammasumtheta[:, np.newaxis]
-
     if sumLogPi is None and ElogPi is not None:
         sumLogPi = np.sum(ElogPi, axis=0)
         sumLogPiRem = np.sum(ElogPiRem)
-
     if Hresp is None:
         if SS is not None and SS.hasELBOTerm('Hresp'):
             Hresp = SS.getELBOTerm('Hresp')
@@ -340,20 +340,77 @@ def E_cDalphabeta_surrogate(alpha, rho, omega):
     return calpha + np.sum(ElogU) + np.inner(OFFcoef, Elog1mU)
 
 
-def calcELBO_FixedDocTopicCountIgnoreEntropy(
+def calcELBO_IgnoreTermsConstWRTrhoomegatheta(
         alpha=None, gamma=None,
         rho=None, omega=None,
-        DocTopicCount=None):
+        nDoc=None,
+        theta=None,
+        thetaRem=None,
+        DocTopicCount=None,
+        **kwargs):
+    ''' Compute ELBO objective for joint optimization of theta and rho/omega.
+
+    Returns
+    -------
+    Ltro : scalar
+    '''
     K = rho.size
     Hresp = np.zeros(K)
     Lnon = calcELBO_NonlinearTerms(
-        nDoc=DocTopicCount.shape[0],
-        DocTopicCount=DocTopicCount, alpha=alpha,
-        rho=rho, omega=omega, Hresp=Hresp)
+        nDoc=nDoc,
+        theta=theta,
+        thetaRem=thetaRem,
+        DocTopicCount=DocTopicCount,
+        alpha=alpha,
+        gamma=gamma,
+        rho=rho,
+        omega=omega,
+        Hresp=np.zeros(K))
     Llinear = calcELBO_LinearTerms(alpha=alpha, gamma=gamma,
                                    rho=rho, omega=omega,
-                                   nDoc=DocTopicCount.shape[0])
-    return Lnon + Llinear
+                                   nDoc=nDoc,
+                                   todict=1)
+    Lrhoomegatheta = Llinear['Lalloc_rhoomega'] + Lnon
+    return Lrhoomegatheta
+
+
+def calcELBO_FixedDocTopicCountIgnoreEntropy(
+        alpha=None, gamma=None,
+        rho=None, omega=None,
+        nDoc=None,
+        DocTopicCount=None,
+        sumLogPiActiveVec=None,
+        sumLogPiRemVec=None,
+        ignoreTermsConstWRTRhoOmega=False):
+    K = rho.size
+    Hresp = np.zeros(K)
+    Lnon = calcELBO_NonlinearTerms(
+        nDoc=nDoc,
+        DocTopicCount=DocTopicCount,
+        sumLogPi=sumLogPiActiveVec,
+        sumLogPiRemVec=sumLogPiRemVec,
+        alpha=alpha,
+        gamma=gamma,
+        rho=rho,
+        omega=omega,
+        Hresp=np.zeros(K),        
+        gammalnTheta=np.zeros(K),
+        gammalnSumTheta=0,
+        gammalnThetaRem=0,
+        slackTheta=np.zeros(K),
+        slackThetaRem=0,
+        todict=ignoreTermsConstWRTRhoOmega) 
+
+    Llinear = calcELBO_LinearTerms(alpha=alpha, gamma=gamma,
+                                   rho=rho, omega=omega,
+                                   nDoc=nDoc,
+                                   todict=ignoreTermsConstWRTRhoOmega)
+    if ignoreTermsConstWRTRhoOmega:
+        Lrhoomega = Llinear['Lalloc_rhoomega'] + \
+            Lnon['Lslack_alphaEbeta']
+        return Lrhoomega
+    else:
+        return Lnon + Llinear
 
 
 def calcMergeTermsFromSeparateLP(

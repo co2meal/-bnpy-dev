@@ -367,14 +367,31 @@ def find_optimum(
     omega_safe = forceOmegaInBounds(
         omega_opt, maxOmegaVal=maxOmegaVal, Log=Log)
     objFuncKwargs['approx_grad'] = 1.0
-    objFuncKwargs['rho'] = rho_safe
-    objFuncKwargs['omega'] = omega_safe
 
     with warnings.catch_warnings():
         warnings.filterwarnings('error')
-        f_safe = negL_rhoomega(**objFuncKwargs)
-    return rho_safe, omega_safe, f_safe, Info
+        objFuncKwargs['rho'] = initrho
+        objFuncKwargs['omega'] = initomega
+        f_init = negL_rhoomega(**objFuncKwargs)
 
+    with warnings.catch_warnings():
+        warnings.filterwarnings('error')
+        objFuncKwargs['rho'] = rho_safe
+        objFuncKwargs['omega'] = omega_safe
+        f_safe = negL_rhoomega(**objFuncKwargs)
+    if not np.allclose(rho_safe, rho_opt):
+        if Log:
+            Log.error('rho_opt_CHANGED_TO_LIE_IN_BOUNDS')
+        Info['rho_opt_CHANGED_TO_LIE_IN_BOUNDS'] = 1
+        from IPython import embed; embed()
+    if not np.allclose(omega_safe, omega_opt):
+        if Log:
+            Log.error('omega_opt_CHANGED_TO_LIE_IN_BOUNDS')
+        Info['omega_opt_CHANGED_TO_LIE_IN_BOUNDS'] = 1
+    if f_safe < f_init:
+        return rho_safe, omega_safe, f_safe, Info
+    else:
+        return initrho, initomega, f_init, Info
 
 def negL_c(c, do_grad_rho=1, do_grad_omega=1, approx_grad=0, **kwargs):
     if do_grad_rho and do_grad_omega:

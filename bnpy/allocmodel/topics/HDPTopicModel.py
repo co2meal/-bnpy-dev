@@ -228,8 +228,12 @@ class HDPTopicModel(AllocModel):
                 Expected value E[log pi[d,k]] under q(pi).
                 This is a function of theta and thetaRem.
         '''
-        alphaEbeta = self.alpha_E_beta().copy()
+        alphaEbeta = self.alpha_E_beta()
         alphaEbetaRem = self.alpha_E_beta_rem()
+        assert np.allclose(alphaEbeta[0], 
+            self.alpha * self.rho[0])
+        assert np.allclose(alphaEbeta[1], 
+            self.alpha * self.rho[1] * (1-self.rho[0]))
         LP = LocalStepManyDocs.calcLocalParams(
             Data, LP, alphaEbeta, alphaEbetaRem=alphaEbetaRem, **kwargs)
         assert 'resp' in LP
