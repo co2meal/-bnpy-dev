@@ -24,6 +24,36 @@ def argsort_bigtosmall_stable(x):
             "1D input array required. Instead found %d dims" % (x.ndim))
     return np.argsort(-1 * x, kind='mergesort')
 
+def is_sorted_bigtosmall(xvec):
+    ''' Returns True if provided 1D array is sorted largest to smallest.
+
+    Returns
+    -------
+    isSorted : boolean
+
+    Examples
+    --------
+    >>> is_sorted_bigtosmall([3, 3, 3])
+    True
+    >>> is_sorted_bigtosmall([3, 2, 1])
+    True
+    >>> is_sorted_bigtosmall([3, 3, 3, 2, 2])
+    True
+    >>> is_sorted_bigtosmall([1.0, 2.0, 3.0])
+    False
+    >>> is_sorted_bigtosmall([5, 4, 3, 2, 2, 1, 1, 0.5])
+    True
+    '''
+    uvals = np.unique(np.sign(np.diff(as1D(xvec))))
+    if uvals.size == 2:
+        # Look for -1 or 0. 0 means entries are equal.
+        return np.allclose(uvals, [-1.0, 0.0])
+    elif uvals.size == 1:
+        return uvals[0] == -1.0 or uvals[0] == 0.0
+    else:
+        # Failure case
+        return False
+
 def toCArray(X, dtype=np.float64):
     """ Convert input into numpy array of C-contiguous order.
 

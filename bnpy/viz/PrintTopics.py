@@ -269,7 +269,7 @@ def plotCompsFromWordCounts(
                           top=0.99, bottom=0.1)
     return figH
 
-def count2str(val, width=4):
+def count2str(val, width=4, smallStr='<.01', **kwargs):
     ''' Pretty print large positive count values in confined 4 char format.
 
     Examples
@@ -302,7 +302,7 @@ def count2str(val, width=4):
     if val.dtype == np.float:
         if val < 0.01:
             fmt = '%' + str(width) + 's'
-            return fmt % ('<.01')
+            return fmt % (smallStr)
         elif val < 1:
             fmt = '%' + str(width) + '.2f'
             return fmt % (val)
@@ -328,10 +328,10 @@ def count2str(val, width=4):
 def countvec2list(countvec):
     return [count2str(x) for x in countvec]
 
-def vec2str(vec, width=4):
+def vec2str(vec, **kwargs):
     if len(vec) == 0:
         return 'empty'
-    return ' '.join([count2str(x, width=width) for x in vec])
+    return ' '.join([count2str(x, **kwargs) for x in vec])
 
 def uidsAndCounts2strlist(SS):
     countvec = SS.getCountVec()

@@ -21,18 +21,13 @@ import unittest
 import joblib
 from matplotlib import pylab
 
-from bnpy.util import digamma
+from bnpy.util import digamma, as1D, argsort_bigtosmall_stable, is_sorted_bigtosmall
 from bnpy.allocmodel.topics import OptimizerRhoOmegaBetter
 from bnpy.util.StickBreakUtil import rho2beta
-
+from bnpy.viz.PrintTopics import vec2str
 from bnpy.allocmodel.topics.HDPTopicUtil import \
     calcELBO_IgnoreTermsConstWRTrhoomegatheta
 np.set_printoptions(precision=4, suppress=1, linewidth=140)
-
-def argsort_bigtosmall_stable(avec):
-    avec = np.asarray(avec)
-    assert avec.ndim == 1
-    return np.argsort(-1* avec, kind='mergesort')
 
 def reorder_rho(rho, bigtosmallIDs):
     betaK = rho2beta(rho, returnSize='K')
@@ -68,6 +63,7 @@ def learn_rhoomega_fromFixedCounts(DocTopicCount=None,
                                    canShuffleInit='byUsage',
                                    canShuffle=None,
                                    maxiter=5,
+                                   warmStart_rho=1,
                                    alpha=None, gamma=None,
                                    initrho=None, initomega=None, **kwargs):
     assert nDoc == DocTopicCount.shape[0]
@@ -93,29 +89,37 @@ def learn_rhoomega_fromFixedCounts(DocTopicCount=None,
         if not np.allclose(bigtosmall, np.arange(K)):
             DocTopicCount = DocTopicCount[:, bigtosmall]
             didShuffle = 1
-
-    # Find UIDs of comps to track
-    emptyUIDs = np.flatnonzero(DocTopicCount.sum(axis=0) < 0.0001)
-    firstEmptyUID = emptyUIDs.min()
-    lastEmptyUID = emptyUIDs.max()
-    middleEmptyUID = emptyUIDs[len(emptyUIDs)/2]
-    trackEmptyUIDs = [firstEmptyUID, middleEmptyUID, lastEmptyUID]
-    emptyLabels = ['first', 'middle', 'last']
-
     avgPi = calcAvgPiFromDocTopicCount(DocTopicCount)
     sortedids = argsort_bigtosmall_stable(avgPi)
     if canShuffleInit.lower().count('byusage'):
         assert np.allclose(sortedids, np.arange(K))
 
-    # p25piUID = sortedids[K/4]
-    # medianpiUID = sortedids[K/2]
-    # p75piUID = sortedids[3*K/4]
+    # Find UIDs of comps to track
+    emptyUIDs = np.flatnonzero(DocTopicCount.sum(axis=0) < 0.0001)
+    if emptyUIDs.size >= 3:
+        firstEmptyUID = emptyUIDs.min()
+        lastEmptyUID = emptyUIDs.max()
+        middleEmptyUID = emptyUIDs[len(emptyUIDs)/2]
+        trackEmptyUIDs = [firstEmptyUID, middleEmptyUID, lastEmptyUID]
+        emptyLabels = ['first', 'middle', 'last']
+    elif emptyUIDs.size == 2:
+        trackEmptyUIDs = [emptyUIDs.min(), emptyUIDs.max()]
+        emptyLabels = ['first', 'last']
+    elif emptyUIDs.size == 1:
+        firstEmptyUID = emptyUIDs.min()
+        trackEmptyUIDs = [firstEmptyUID]
+        emptyLabels = ['first']
+    else:
+        trackEmptyUIDs = []
+        emptyLabels = []
+
     trackActiveUIDs = list()
     activeLabels = list()
     # Track the top 5 active columns of DocTopicCount
-    for pos in range(0, 5):
-        trackActiveUIDs.append(sortedids[pos])
-        activeLabels.append('max+%d' % (pos))
+    for pos in range(0, np.minimum(5, K)):
+        if sortedids[pos] not in emptyUIDs:
+            trackActiveUIDs.append(sortedids[pos])
+            activeLabels.append('max+%d' % (pos))
     # Find the minnonemptyID
     for pos in range(K-1, 0, -1):
         curid = sortedids[pos]
@@ -123,18 +127,18 @@ def learn_rhoomega_fromFixedCounts(DocTopicCount=None,
             break
     minnonemptyPos = pos
     # Track the 5 smallest active columns of DocTopicCount
-    for i in range(-4, 1):
+    nBeyond5 = np.minimum(5, K - len(emptyUIDs) - 5)
+    for i in range(-1 * (nBeyond5-1), 1):
         trackActiveUIDs.append(sortedids[minnonemptyPos + i])
         activeLabels.append('min+%d' % (-1 * i))
 
     assert np.all(avgPi[trackActiveUIDs] > 0)
-    # Verify is sorted!
-    assert np.allclose([-1.0], 
-        np.unique(np.sign(np.diff(avgPi[trackActiveUIDs]))),
-        )
-    
-    assert np.allclose(0.0, avgPi[trackEmptyUIDs])
+    assert np.allclose(avgPi[trackEmptyUIDs], 0.0)
+    assert is_sorted_bigtosmall(avgPi[trackActiveUIDs])
 
+    nDocToDisplay = np.minimum(nDoc, 10)
+
+    # Initialize rho
     if initrho is None:
         rho = OptimizerRhoOmegaBetter.make_initrho(K, nDoc, gamma)
     else:
@@ -142,12 +146,12 @@ def learn_rhoomega_fromFixedCounts(DocTopicCount=None,
             rho, _ = reorder_rho(initrho, bigtosmall)
         else:
             rho = initrho
-
+    # Initialize omega
     if initomega is None:
         omega = OptimizerRhoOmegaBetter.make_initomega(K, nDoc, gamma)
     else:
         omega = initomega
-
+    # ELBO value of initial state
     Ltro = evalELBOandPrint(
         rho=rho, omega=omega,
         nDoc=nDoc,
@@ -155,13 +159,11 @@ def learn_rhoomega_fromFixedCounts(DocTopicCount=None,
         alpha=alpha, gamma=gamma,
         msg='init',
     )
-
     Snapshots = dict()
     Snapshots['DTCSum'] = list()
     Snapshots['DTCUsage'] = list()
     Snapshots['beta'] = list()
     Snapshots['Lscore'] = list()
-
     Snapshots['activeLabels'] = activeLabels
     Snapshots['emptyLabels'] = emptyLabels
     Snapshots['pos_trackActive'] = list()
@@ -276,6 +278,10 @@ def learn_rhoomega_fromFixedCounts(DocTopicCount=None,
 
         prevrho[:] = rho
         # Update rhoomega
+        if warmStart_rho:
+            initrho = rho
+        else:
+            initrho = None
         rho, omega, f, Info = OptimizerRhoOmegaBetter.\
             find_optimum_multiple_tries(
                 alpha=alpha,
@@ -283,7 +289,7 @@ def learn_rhoomega_fromFixedCounts(DocTopicCount=None,
                 sumLogPiActiveVec=sumLogPiActiveVec,
                 sumLogPiRemVec=sumLogPiRemVec,
                 nDoc=nDoc,
-                initrho=rho,
+                initrho=initrho,
                 initomega=omega,
                 approx_grad=1,
                 do_grad_omega=0,
@@ -308,14 +314,15 @@ def learn_rhoomega_fromFixedCounts(DocTopicCount=None,
 
         if didELBODrop:
             if LtroList[-1] >= LtroList[-3]:
-                print 'Phew. Combined update of sorting then optim beta OK'
+                print 'Phew. Combined update of sorting then optimizing rho OK'
             else:
-                print 'WHOA! Combined update of sorting then optim beta NOT MONOTONIC'
+                print 'WHOA! Combined update of sorting then' + \
+                    ' optimizing rho beta NOT MONOTONIC'
 
     Snapshots['Lscore'].append(Ltro)
     Snapshots['DTCSum'].append(DocTopicCount.sum(axis=0))
     Snapshots['DTCUsage'].append((DocTopicCount > 0.001).sum(axis=0))
-    Snapshots['beta'].append(DocTopicCount.sum(axis=0))
+    Snapshots['beta'].append(betaK)
     Snapshots['pos_trackActive'].append(trackActiveUIDs)
     Snapshots['pos_trackEmpty'].append(trackEmptyUIDs)
     Snapshots['beta_trackActive'].append(betaK[trackActiveUIDs])
@@ -326,6 +333,29 @@ def learn_rhoomega_fromFixedCounts(DocTopicCount=None,
     Snapshots['count_trackEmpty'].append(
         DocTopicCount.sum(axis=0)[trackEmptyUIDs])
 
+    print '\nEmpty cluster ids (%d of %d)' % (
+        len(trackEmptyUIDs), len(emptyUIDs))
+    print '-----------------'
+    print ' '.join(['% 10d' % (x) for x in trackEmptyUIDs])
+    
+
+    print '\nSelected active clusters to track'
+    print '---------------------------------'
+    print ' '.join(['% 10d' % (x) for x in trackActiveUIDs])
+    print ' '.join(['% .3e' % (x) for x in avgPi[trackActiveUIDs]])
+
+    print '\nDocTopicCount for %d of %d docs' % (nDocToDisplay, nDoc)
+    print '---------------------------------'
+    for n in range(nDocToDisplay):
+        print ' '.join([
+            '% 9.2f' % (x) for x in DocTopicCount[n, trackActiveUIDs]])
+
+    print '\nFinal sumLogPiActiveVec'
+    print '---------------------------------'
+    print ' '.join(['% .3e' % (x) for x in sumLogPiActiveVec[trackActiveUIDs]])
+
+    print 'is sumLogPiActiveVec sorted?', \
+        is_sorted_bigtosmall(sumLogPiActiveVec)
     return rho, omega, Snapshots
 
 
@@ -365,6 +395,7 @@ def evalELBOandPrint(nDoc=None,
         omega=omega)
     if f is None:
         f = Lrhoomega
+    assert np.allclose(f, Lrhoomega)
     print "%10s Ltro= % .8e   Lro= % .5e  fro= % .5e" % (
         msg, L, Lrhoomega, f)
     return L
@@ -424,7 +455,9 @@ def f_DocTopicCount(
         approx_grad=1)
     return f
 
-def makeDocTopicCount(nDoc=10, K=5, seed=0, minK_d=1, maxK_d=5, **kwargs):
+def makeDocTopicCount(
+        nDoc=10, K=5, Kempty=0,
+        seed=0, minK_d=1, maxK_d=5, **kwargs):
     '''
 
     Returns
@@ -435,10 +468,10 @@ def makeDocTopicCount(nDoc=10, K=5, seed=0, minK_d=1, maxK_d=5, **kwargs):
     DocTopicCount = np.zeros((nDoc, K))
     for d in xrange(nDoc):
         # Pick one to five random columns to be left in each doc
-        maxK_d = np.minimum(5, maxK_d)
+        maxK_d = np.minimum(K - Kempty, maxK_d)
         K_d = PRNG.choice(maxK_d, size=1)
         K_d = np.maximum(K_d, minK_d)
-        ks = PRNG.choice(K, size=K_d, replace=False)
+        ks = PRNG.choice(K - Kempty, size=K_d, replace=False)
         for k in ks:
             DocTopicCount[d,k] = 1
     DocTopicCount *= 100 * PRNG.rand(nDoc, K)
@@ -450,15 +483,19 @@ if __name__ == '__main__':
     parser.add_argument('--alpha', type=float, default=0.5)
     parser.add_argument('--gamma', type=float, default=10)
     parser.add_argument('--maxiter', type=int, default=5)
-    parser.add_argument('--canShuffle', type=str, default=None)
-    parser.add_argument('--canShuffleInit', type=str, default=None)
+    parser.add_argument('--canShuffle', type=str, default='None')
+    parser.add_argument('--canShuffleInit', type=str, default='None')
     parser.add_argument('--useSavedInit_rho', type=int, default=1)
     parser.add_argument('--useSavedInit_omega', type=int, default=0)
+    parser.add_argument('--warmStart_rho', type=int, default=1)
+
     parser.add_argument('--doInteractive', type=int, default=1)
     parser.add_argument('--savename', type=str, default=None)
 
-    parser.add_argument('--nDoc', type=int, default=100)
+    parser.add_argument('--nDoc', type=int, default=10)
     parser.add_argument('--K', type=int, default=5)
+    parser.add_argument('--Kempty', type=int, default=0)
+
     args = parser.parse_args()
     K = args.K
     savename = args.savename
@@ -469,7 +506,7 @@ if __name__ == '__main__':
         print '>>>>>>>>>>', savename
 
     # If provided, load DocTopicCount from saved file.
-    if os.path.exists(args.dumppath):
+    if args.dumppath and os.path.exists(args.dumppath):
         print "Loading DocTopicCount from file: ", args.dumppath
         LVars = joblib.load(args.dumppath)
         assert 'DocTopicCount' in LVars
@@ -485,6 +522,7 @@ if __name__ == '__main__':
         args.__dict__['K'] = LVars['DocTopicCount'].shape[1]
     else:
         args.__dict__['DocTopicCount'] = makeDocTopicCount(**args.__dict__)
+
     # Do the hard work
     _, _, Snapshots = learn_rhoomega_fromFixedCounts(**args.__dict__)
 
@@ -500,39 +538,51 @@ if __name__ == '__main__':
     pylab.subplots(figsize=(20, 9), nrows=nrows, ncols=ncols)
 
     PosMat = np.vstack(Snapshots['pos_trackActive']) + 1
-    ax = pylab.subplot(nrows, ncols, 1)
+    ax1 = pylab.subplot(nrows, ncols, 1)
     pylab.plot( PosMat[:, :5], '.-' )
-    pylab.ylim(0, 10)
-    #pylab.legend(Snapshots['activeLabels'][:5])
     pylab.ylabel('position', fontsize=FONTSIZE)
     pylab.title('largest active', fontsize=FONTSIZE)
-    ax.get_yaxis().set_major_locator(pylab.MaxNLocator(integer=True))
-
-    ax2 = pylab.subplot(nrows, ncols, 2, sharex=ax)
-    pylab.plot( PosMat[:, -5:], '.-' )
-    pylab.ylim(150, 200)
-    #pylab.legend(Snapshots['activeLabels'][-5:])
-    pylab.title('smallest active', fontsize=FONTSIZE)
-    ax2.get_yaxis().set_major_locator(pylab.MaxNLocator(integer=True))
-
-    PosMat = np.vstack(Snapshots['pos_trackEmpty'])
-    ax3 = pylab.subplot(nrows, ncols, 3, sharex=ax2, sharey=ax2)
-    pylab.plot( PosMat, '.-' )
-    pylab.title('empty', fontsize=FONTSIZE)
-
-    RMat = np.vstack(Snapshots['beta_trackActive'])
-    ax = pylab.subplot(nrows, ncols, 4, sharex=ax)
-    pylab.plot( RMat[:, :5], '.-' )
+    ax1.get_yaxis().set_major_locator(pylab.MaxNLocator(integer=True))
+    
+    BetaMat = np.vstack(Snapshots['beta_trackActive'])
+    ax4 = pylab.subplot(nrows, ncols, 4, sharex=ax1)
+    pylab.plot( BetaMat[:, :5], '.-' )
     pylab.ylabel('beta', fontsize=FONTSIZE)
 
-    ax5 = pylab.subplot(nrows, ncols, 5, sharex=ax)
-    pylab.plot( RMat[:, -5:], '.-' )
+    nActive = len(Snapshots['activeLabels'])
+    if nActive > 5:
+        nSmall = nActive - 5
+        ax2 = pylab.subplot(nrows, ncols, 2, sharex=ax1, sharey=ax1)
+        pylab.plot( PosMat[:, -nSmall:], '.-' )
+        pylab.title('smallest active', fontsize=FONTSIZE)
+        ax2.get_yaxis().set_major_locator(pylab.MaxNLocator(integer=True))
 
-    RMat = np.vstack(Snapshots['beta_trackEmpty'])
-    ax = pylab.subplot(nrows, ncols, 6, sharex=ax5, sharey=ax5)
-    pylab.plot(RMat, '.-' )
+        ax5 = pylab.subplot(nrows, ncols, 5, sharex=ax4)
+        pylab.plot( BetaMat[:, -nSmall:], '.-' )
+    else:
+        ax2 = pylab.subplot(nrows, ncols, 2, sharex=ax1)
+        pylab.title('smallest active', fontsize=FONTSIZE)
+        ax2.get_yaxis().set_major_locator(pylab.MaxNLocator(integer=True))
+
+        ax5 = pylab.subplot(nrows, ncols, 5, sharex=ax4)
+
+
+    if len(Snapshots['emptyLabels']) > 0:
+        ax3 = pylab.subplot(nrows, ncols, 3, sharex=ax2, sharey=ax2)
+        EmptyPosMat = np.vstack(Snapshots['pos_trackEmpty']) + 1
+        pylab.plot( EmptyPosMat, '.-' )
+        pylab.title('empty', fontsize=FONTSIZE)
+
+        ax6 = pylab.subplot(nrows, ncols, 6, sharex=ax4, sharey=ax5)
+        EmptyBetaMat = np.vstack(Snapshots['beta_trackEmpty'])
+        pylab.plot(EmptyBetaMat, '.-' )
+    else:
+        ax3 = pylab.subplot(nrows, ncols, 3, sharex=ax1, sharey=ax2)
+        pylab.title('empty', fontsize=FONTSIZE)
+
+    
+    ax6 = pylab.subplot(nrows, ncols, 6, sharex=ax4, sharey=ax5)
     pylab.plot(Snapshots['beta_trackRem'], 'k--' )
-
     pylab.show(block=False)
 
     if savename:
