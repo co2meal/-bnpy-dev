@@ -1,6 +1,29 @@
 import numpy as np
 
 
+def argsort_bigtosmall_stable(x):
+    ''' Sort indices of vector x so the values in x ranked big to small
+
+    Sort guaranteed to be stable, meaning any adjacent pairs of x 
+    that are already sorted will not be permuted.
+
+    Returns
+    -------
+    sortids : 1D array
+        x[sortids[i]] >= x[sortids[i+1]] for all i.
+    
+    Examples
+    --------
+    >>> xs = np.asarray([3, 4, 5, 2, 2, 2, 1])
+    >>> print argsort_bigtosmall_stable(xs)
+    [2 1 0 3 4 5 6]
+    '''
+    x = as1D(x)
+    if x.ndim != 1:
+        raise ValueError(
+            "1D input array required. Instead found %d dims" % (x.ndim))
+    return np.argsort(-1 * x, kind='mergesort')
+
 def toCArray(X, dtype=np.float64):
     """ Convert input into numpy array of C-contiguous order.
 
@@ -27,7 +50,6 @@ def toCArray(X, dtype=np.float64):
     assert X.flags.owndata
     assert X.flags.aligned
     return X
-
 
 def as1D(x):
     """ Convert input into to 1D numpy array.

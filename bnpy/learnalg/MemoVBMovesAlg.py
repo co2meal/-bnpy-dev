@@ -18,6 +18,7 @@ from bnpy.mergemove import MLogger, SLogger
 from bnpy.mergemove import selectCandidateMergePairs, ELBO_GAP_ACCEPT_TOL
 from bnpy.deletemove import DLogger, selectCandidateDeleteComps
 from bnpy.util import sharedMemDictToNumpy, sharedMemToNumpyArray
+from bnpy.util import argsort_bigtosmall_stable
 from LearnAlg import makeDictOfAllWorkspaceVars
 from LearnAlg import LearnAlg
 from SharedMemWorker import SharedMemWorker
@@ -1053,9 +1054,9 @@ class MemoVBMovesAlg(LearnAlg):
             MoveLog.append(moveTuple)
 
         if hasattr(SS, 'sumLogPi'):
-            bigtosmallorder = np.argsort(-1 * SS.sumLogPi)
+            bigtosmallorder = argsort_bigtosmall_stable(SS.sumLogPi)
         else:
-            bigtosmallorder = np.argsort(-1 * SS.getCountVec())
+            bigtosmallorder = argsort_bigtosmall_stable(SS.getCountVec())
         sortedalready = np.arange(SS.K)
         if not np.allclose(bigtosmallorder, sortedalready):
             moveTuple = (
@@ -1064,7 +1065,7 @@ class MemoVBMovesAlg(LearnAlg):
                 SS.uids, SS.uids[bigtosmallorder])
             MoveLog.append(moveTuple)
             SS.reorderComps(bigtosmallorder)
-            hmodel.update_global_params(SS)
+            hmodel.update_global_params(SS, sortorder=bigtosmallorder)
             Lscore = hmodel.calc_evidence(SS=SS)
             # TODO Prevent shuffle if ELBO does not improve??
             SLogger.pprint(

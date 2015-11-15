@@ -410,6 +410,7 @@ class HDPTopicModel(AllocModel):
 
     def update_global_params_VB(self, SS, rho=None,
                                 mergeCompA=None, mergeCompB=None,
+                                sortorder=None,
                                 **kwargs):
         ''' Update global parameters.
         '''
@@ -446,11 +447,20 @@ class HDPTopicModel(AllocModel):
             omega : 1D array, length K
         '''
         if hasattr(self, 'rho') and self.rho.size == SS.K:
-            initrho = self.rho
-            initomega = self.omega
+            if 'sortorder' in kwargs:
+                # Adjust initialization to account for new ordering.
+                beta = OptimizerRhoOmegaBetter.rho2beta_active(self.rho)
+                beta = beta[kwargs['sortorder']]
+                initrho = OptimizerRhoOmegaBetter.beta2rho(beta, SS.K)
+            else:
+                initrho = self.rho
         else:
             initrho = None   # default initialization
-            initomega = None
+
+        # Always use from-scratch init for omega
+        initomega = OptimizerRhoOmegaBetter.make_initomega(
+            SS.K, SS.nDoc, self.gamma)
+
         try:
             if hasattr(SS, 'sumLogPiRemVec'):
                 sumLogPiRemVec = SS.sumLogPiRemVec
@@ -475,14 +485,13 @@ class HDPTopicModel(AllocModel):
                 Log.error(
                     '***** Optim failed. Remain at cur val. ' + str(error))
                 rho = self.rho
-                omega = self.omega
+                omega = initomega
             else:
                 Log.error(
                     '***** Optim failed. Set to default init. ' + str(error))
-                omega = OptimizerRhoOmegaBetter.make_initomega(
-                    SS.K, SS.nDoc, self.gamma)
                 rho = OptimizerRhoOmegaBetter.make_initrho(
                     SS.K, SS.nDoc, self.gamma)
+                omega = initomega
         return rho, omega
 
     def update_global_params_soVB(self, SS, rho=None,
