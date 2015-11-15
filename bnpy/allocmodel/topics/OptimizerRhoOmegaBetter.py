@@ -383,7 +383,6 @@ def find_optimum(
         if Log:
             Log.error('rho_opt_CHANGED_TO_LIE_IN_BOUNDS')
         Info['rho_opt_CHANGED_TO_LIE_IN_BOUNDS'] = 1
-        from IPython import embed; embed()
     if not np.allclose(omega_safe, omega_opt):
         if Log:
             Log.error('omega_opt_CHANGED_TO_LIE_IN_BOUNDS')
