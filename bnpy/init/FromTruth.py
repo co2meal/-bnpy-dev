@@ -148,6 +148,23 @@ def convertLPFromHardToSoft(LP, Data,
     else:
         Kmax = len(uniqueAssigned)
 
+    if hasattr(Data, 'edges'):
+        if Z.ndim == 3:
+            # Unpack adjacency-matrix formatted Z
+            Zsrc = np.zeros(Data.nEdges, dtype=np.int32)
+            Zrcv = np.zeros(Data.nEdges, dtype=np.int32)
+            for eid, (s, t) in enumerate(Data.edges):
+                Zsrc[eid] = Z[s, t, 0]
+                Zrcv[eid] = Z[s, t, 1]
+        else:
+            Zsrc = Z[:,0]
+            Zrcv = Z[:,1]
+        resp = np.zeros((Zsrc.size, Kmax, Kmax))
+        for eid in xrange(Data.nEdges):
+            resp[eid, Zsrc[eid], Zrcv[eid]] = 1.0
+        LP['resp'] = resp
+        return LP
+
     garbageMask = Z < 0
     if np.sum(garbageMask) > 0 and initGarbageState:
         Kgarbage = np.unique(Z[garbageMask]).size

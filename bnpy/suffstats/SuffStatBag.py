@@ -81,7 +81,10 @@ class SuffStatBag(object):
         ''' Return vector of counts for each active topic/component
         '''
         if 'N' in self._Fields._FieldDims:
-            return self.N
+            if self._Fields._FieldDims['N'] == ('K','K'):
+                return self.N.sum(axis=0) # relational models
+            else:
+                return self.N
         elif 'SumWordCounts' in self._Fields._FieldDims:
             return self.SumWordCounts
         raise ValueError('Counts not available')

@@ -37,6 +37,7 @@ def init_global_params(obsModel, Data, K=0, seed=0,
     '''
     PRNG = np.random.RandomState(seed)
     X = Data.X
+
     if initname == 'randexamples':
         # Choose K items uniformly at random from the Data
         #    then component params by M-step given those single items

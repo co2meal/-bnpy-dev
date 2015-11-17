@@ -118,9 +118,11 @@ class HModel(object):
             Data, SS, LP, todict=todict, **kwargs)
         evObs = self.obsModel.calc_evidence(
             Data, SS, LP, todict=todict, **kwargs)
-
         if scaleFactor is None:
-            scaleFactor = self.obsModel.getDatasetScale(SS)
+            if hasattr(SS, 'scaleFactor'):
+                scaleFactor = SS.scaleFactor
+            else:
+                scaleFactor = self.obsModel.getDatasetScale(SS)
         if todict:
             evA.update(evObs)
             for key in evA:
@@ -149,6 +151,9 @@ class HModel(object):
             initname : string name of routine for initialization
         '''
         initname = initArgs['initname']
+        if 'initLP' not in initArgs:
+            initArgs['initLP'] = None
+
         if initname.count(os.path.sep) > 0:
             init.FromSaved.init_global_params(self, Data, **initArgs)
         elif initname.count('true') > 0:
@@ -168,6 +173,10 @@ class HModel(object):
             elif str(type(self.obsModel)).count('Mult') > 0:
                 init.FromScratchMult.init_global_params(self.obsModel,
                                                         Data, **initArgs)
+            elif str(type(Data)).count('Graph') > 0:
+                initLP = init.FromScratchRelational.init_global_params(
+                    self.obsModel, Data, **initArgs)
+                initArgs['initLP'] = initLP
             elif str(type(self.obsModel)).count('Bern') > 0:
                 init.FromScratchBern.init_global_params(self.obsModel,
                                                         Data, **initArgs)

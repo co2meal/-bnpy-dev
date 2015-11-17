@@ -9,6 +9,13 @@ from topics.HDPTopicModel import HDPTopicModel
 from hmm.FiniteHMM import FiniteHMM
 from hmm.HDPHMM import HDPHMM
 
+from relational.FiniteSMSB import FiniteSMSB
+from relational.FiniteMMSB import FiniteMMSB
+from relational.FiniteAssortativeMMSB import FiniteAssortativeMMSB
+from relational.HDPMMSB import HDPMMSB
+from relational.HDPAssortativeMMSB import HDPAssortativeMMSB
+
+
 AllocModelConstructorsByName = {
     'FiniteMixtureModel': FiniteMixtureModel,
     'DPMixtureModel': DPMixtureModel,
@@ -16,6 +23,11 @@ AllocModelConstructorsByName = {
     'HDPTopicModel': HDPTopicModel,
     'FiniteHMM': FiniteHMM,
     'HDPHMM': HDPHMM,
+    'FiniteSMSB': FiniteSMSB,
+    'FiniteMMSB': FiniteMMSB,
+    'FiniteAssortativeMMSB': FiniteAssortativeMMSB,
+    'HDPMMSB': HDPMMSB,
+    'HDPAssortativeMMSB': HDPAssortativeMMSB,
 }
 
 AllocModelNameSet = set(AllocModelConstructorsByName.keys())
