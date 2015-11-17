@@ -11,7 +11,6 @@ from bnpy.suffstats import SuffStatBag
 from bnpy.util import gammaln, digamma, EPS
 
 from FiniteMMSB import FiniteMMSB
-import MMSBUtil
 
 
 class FiniteAssortativeMMSB(FiniteMMSB):
@@ -178,7 +177,6 @@ class FiniteAssortativeMMSB(FiniteMMSB):
             NodeStateCount_bg = \
                 Data.getSparseSrcNodeMat() * srcresp_bg + \
                 Data.getSparseRcvNodeMat() * rcvresp_bg
-
         LP['resp'] = resp
 
         # NodeStateCount_fg : 2D array, size nNodes x K
@@ -205,7 +203,10 @@ class FiniteAssortativeMMSB(FiniteMMSB):
             LP = self.initLPFromResp(Data, LP)
 
         SS.setField('NodeStateCount', LP['NodeStateCount'], dims=('V', 'K'))
-        # assert np.allclose(SS.NodeStateCount.sum(), Data.nEdges*2)
+        if np.allclose(LP['resp'].sum(axis=1).min(), 1.0):
+            # If the LP fully represents all present edges,
+            # then the NodeStateCount should as well.
+            assert np.allclose(SS.NodeStateCount, Data.nEdges * 2)
 
         SS.setField('N', LP['N_fg'], dims=('K',))
         SS.setField('scaleFactor', Data.nEdges, dims=None)
@@ -214,12 +215,13 @@ class FiniteAssortativeMMSB(FiniteMMSB):
             SS.setELBOTerm('Ldata_bg', LP['Ldata_bg'], dims=None)
 
         if doPrecompEntropy:
-            Hresp = LP['Lentropy_prior'].sum() + \
-                LP['Lentropy_lik_fg'].sum() + \
-                LP['Lentropy_normConst'] + \
+            Hresp_bg = LP['Lentropy_normConst'] + \
                 LP['Lentropy_lik_bg']
+            Hresp_fg = LP['Lentropy_prior'] + \
+                LP['Lentropy_lik_fg']
             # easy lower bound: Hresp_lb = self.L_entropy(LP)
-            SS.setELBOTerm('Hresp', Hresp, dims=None)
+            SS.setELBOTerm('Hresp_fg', Hresp_fg, dims='K')
+            SS.setELBOTerm('Hresp_bg', Hresp_bg, dims=None)
         return SS
 
  
@@ -232,8 +234,10 @@ class FiniteAssortativeMMSB(FiniteMMSB):
         '''
         Lalloc = self.L_alloc_no_slack()
         Lslack = self.L_slack(SS)
-        if SS.hasELBOTerm('Hresp'):
-            Lentropy = SS.getELBOTerm('Hresp')
+        # Compute entropy term
+        if SS.hasELBOTerm('Hresp_fg'):
+            Lentropy = SS.getELBOTerm('Hresp_fg').sum() + \
+                SS.getELBOTerm('Hresp_bg')
         else:
             Lentropy = self.L_entropy(LP)
 
@@ -250,6 +254,8 @@ class FiniteAssortativeMMSB(FiniteMMSB):
     def _calc_local_params_Naive(self, Data, LP, **kwargs):
         ''' Compute local parameters for provided dataset.
 
+        Uses naive representation with N x K x K memory cost for resp
+
         Args
         -------
         Data : GraphData object
@@ -258,10 +264,8 @@ class FiniteAssortativeMMSB(FiniteMMSB):
         
         Returns
         -------
-        LP : dict of local params, with fields
-            * resp : nEdges x K
-                resp[e,k] = prob that edge e is explained by 
-                connection from state/block combination k,k
+        LP : dict
+            Local parameters
         '''
         K = self.K
         ElogPi = digamma(self.theta) - \

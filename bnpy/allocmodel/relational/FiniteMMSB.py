@@ -77,17 +77,21 @@ class FiniteMMSB(AllocModel):
         Args
         -------
         Data : GraphData object
-        LP : dict of local params, with fields
+        LP : dict
+            Local parameters, must contain fields
             * E_log_soft_ev : nEdges x K x K
         
         Returns
         -------
-        LP : dict of local params, with fields
+        LP : dict
+            Local parameters, will contain updated fields:
             * resp : nEdges x K x K
                 resp[e,j,k] = prob that edge e is explained by 
                 connection from state/block j to block k
         '''
         if self.inferType.count('EM') > 0:
+            raise NotImplementedError("TODO")
+        if Data.isSparse:  # Sparse binary data.
             raise NotImplementedError("TODO")
 
         K = self.K
@@ -97,10 +101,6 @@ class FiniteMMSB(AllocModel):
         #    resp[e(s,t),k,l] = ElogPi[s,k] + ElogPi[t,l] + likelihood
         resp = ElogPi[Data.edges[:,0], :, np.newaxis] + \
                ElogPi[Data.edges[:,1], np.newaxis, :]
-
-        if Data.isSparse:  # Sparse binary data.
-            raise NotImplementedError("TODO")
-
         logSoftEv = LP['E_log_soft_ev']  # E x K x K
         resp += logSoftEv
 
@@ -116,51 +116,38 @@ class FiniteMMSB(AllocModel):
 
         Returns
         -------
-        SS : SuffStatBag with K components and fields
-            * sumSource : nNodes x K
-            * sumReceiver : nNodes x K
+        SS : SuffStatBag
+            Updated fields
+            * NodeStateCount : 2D array, nNodes x K
+            * N : 2D array, size K x K
         '''
         K = LP['resp'].shape[-1]
 
         V = Data.nNodes
         SS = SuffStatBag(K=K, D=Data.dim, V=V)
 
-        # sumSource[i,l] = \sum_j E_q[s_{ijl}]
-        if 'sumSource' in LP:
-            sumSource = LP['sumSource']
-        else:
-            srcResp = LP['resp'].sum(axis=2)
-            # # Method A: forloop
-            # sumSource = np.zeros((Data.nNodes, K))
-            # for i in xrange(Data.nNodes):
-            #     mask_i = Data.edges[:,0] == i
-            #     sumSource[i,:] = srcResp[mask_i].sum(axis=0)
+        # NodeStateCount_src[i,k]
+        #   Num edges assigned to topic k associated with node i as source
+        srcResp = LP['resp'].sum(axis=2)
+        NodeStateCount_src = Data.getSparseSrcNodeMat() * srcResp
+        # Equivalent but slower: for loop
+        # NodeStateCount_src = np.zeros((Data.nNodes, K))
+        # for i in xrange(Data.nNodes):
+        #     mask_i = Data.edges[:,0] == i
+        #     NodeStateCount_src[i,:] = srcResp[mask_i].sum(axis=0)
 
-            # Method B: sparse matrix multiply
-            srcMat = Data.getSparseSrcNodeMat()
-            sumSource = srcMat * srcResp
+        # NodeStateCount_rcv[i,k]
+        #   Num edges assigned to topic k associated with node i as receiver
+        rcvResp = LP['resp'].sum(axis=1)
+        NodeStateCount_rcv = Data.getSparseRcvNodeMat() * rcvResp
 
-        # sumReceiver[i,l] = \sum_j E_q[r_{jil}]
-        if 'sumReceiver' in LP:
-            sumReceiver = LP['sumReceiver']
-        else:
-            rcvResp = LP['resp'].sum(axis=1)
-            
-            # Method B: sparse matrix multiply
-            rcvMat = Data.getSparseRcvNodeMat()
-            sumReceiver = rcvMat * rcvResp
-
-            # # Method A: forloop
-            # sumReceiver = np.zeros((Data.nNodes, K))
-            # for i in xrange(Data.nNodes):
-            #     mask_i = Data.edges[:,1] == i
-            #     sumReceiver[i,:] += rcvResp[mask_i].sum(axis=0)
-
-        SS.setField('NodeStateCount', sumSource + sumReceiver, dims=('V', 'K'))
-        
+        # Summing src counts and rcv counts gives the total
+        SS.setField(
+            'NodeStateCount', NodeStateCount_src + NodeStateCount_rcv,
+            dims=('V', 'K'))
+        # Compute total atoms assigned to each cluster pair
         Nresp = np.sum(LP['resp'], axis=0)
         SS.setField('N', Nresp, dims=('K','K'))
-
         if doPrecompEntropy:
             Hresp = self.L_entropy(LP)
             SS.setELBOTerm('Hresp', Hresp, dims=None)

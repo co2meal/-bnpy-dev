@@ -197,10 +197,12 @@ class HDPAssortativeMMSB(FiniteAssortativeMMSB):
         '''
         Lalloc = self.L_alloc_no_slack()
         Lslack = self.L_slack(SS)
-        if SS.hasELBOTerm('Hresp'):
-            Lentropy = SS.getELBOTerm('Hresp')
+        # Compute entropy term
+        if SS.hasELBOTerm('Hresp_fg'):
+            Lentropy = SS.getELBOTerm('Hresp_fg').sum() + \
+                SS.getELBOTerm('Hresp_bg')
         else:
-            Lentropy = self.L_entropy(LP) # inherited from FiniteA__MMSB
+            Lentropy = self.L_entropy(LP)
 
         if SS.hasELBOTerm('Ldata_bg'):
             Lbgdata = SS.getELBOTerm('Ldata_bg')
