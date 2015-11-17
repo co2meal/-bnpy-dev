@@ -74,12 +74,13 @@ def get_short_name():
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
-    from bnpy.viz import RelationalViz
+
 
     Data = get_data(nNodes=100)
     w = Data.TrueParams['w']
 
     # # Draw graph with nodes colored by their mixed community membership
+    # from bnpy.viz import RelationalViz
     # RelationalViz.plotTrueLabels(
     #  'ToyMMSBK6', Data,
     #  gtypes=['Actual'],
@@ -95,6 +96,9 @@ if __name__ == '__main__':
         Xdisp, cmap='Greys', interpolation='nearest',
         vmin=0, vmax=1)
     ax.set_title('Adjacency matrix')
+    ax.set_yticks(np.arange(0, Data.nNodes+1, 10))
+    ax.set_xticks(np.arange(0, Data.nNodes+1, 10))
+
 
     # Plot subset of pi
     Epi = Data.TrueParams['pi']
@@ -104,8 +108,10 @@ if __name__ == '__main__':
         cmap='Greys', interpolation='nearest',
         vmin=0, vmax=1.0)
     ax.set_ylabel('nodes')
+    ax.set_yticks(np.arange(0, 31, 5))
     ax.set_xlabel('states')
-    ax.set_title('Membership vectors pi')
+    ax.set_xticks(np.arange(K))
+    ax.set_title('Membership vectors pi (first 30 rows)')
 
     # Plot w
     fig, ax = plt.subplots(1)
@@ -113,7 +119,9 @@ if __name__ == '__main__':
         w, cmap='Greys', interpolation='nearest',
         vmin=0, vmax=1.0)
     ax.set_xlabel('states')
-    ax.set_xlabel('states')
+    ax.set_xticks(np.arange(K))
+    ax.set_ylabel('states')
+    ax.set_yticks(np.arange(K))
     ax.set_title('Edge probability matrix w')
 
     plt.show()

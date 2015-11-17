@@ -144,37 +144,14 @@ class HDPMMSB(FiniteMMSB):
             self.omega = omega
             self.theta = theta
             self.thetaRem = thetaRem
-            self.K = omega.size
         else:
-            self._set_global_params_from_scratch(**kwargs)
+            self.rho, self.omega = initRhoOmegaFromScratch(**kwargs)            
+            self.theta, self.thetaRem = initThetaFromScratch(rho=rho, **kwargs)
+        self.K = self.rho.size
+        assert self.K == self.omega.size
+        assert self.K == self.theta.shape[-1]
 
-    def _set_global_params_from_scratch(self, beta=None,
-                                        Data=None, nNodes=None, **kwargs):
-        ''' Set rho, omega to values that reproduce provided appearance probs
-
-        Args
-        --------
-        beta : 1D array, size K
-            beta[k] gives top-level probability for active comp k
-        '''
-        if nNodes is None:
-            nNodes = Data.nNodes
-        if nNodes is None:
-            raise ValueError('Bad parameters. nNodes not specified.')
-        if beta is None:
-            raise ValueError('Bad parameters. Vector beta not specified.')
-        beta = beta / beta.sum()
-        Ktmp = beta.size
-        rem = np.minimum(0.05, 1. / (Ktmp))
-        beta = np.hstack([np.squeeze(beta), rem])
-        beta = beta / np.sum(beta)
-        self.K = beta.size - 1
-        self.rho, self.omega = _beta2rhoomega(beta, nNodes)
-        assert self.rho.size == self.K
-        assert self.omega.size == self.K
-
-
-    def init_global_params(self, Data, K=0, **kwargs):
+    def init_global_params(self, Data, K=0, initLP=None, **kwargs):
         ''' Initialize global parameters "from scratch" to reasonable values.
 
         Post condition
@@ -188,8 +165,17 @@ class HDPMMSB(FiniteMMSB):
         self.rho, self.omega = _beta2rhoomega(
             beta=initbeta, K=K, 
             nDoc=Data.nNodes, gamma=self.gamma)
-        self.theta = self.alpha * np.tile(initbeta, (Data.nNodes, 1))
-        self.thetaRem = self.alpha * (1 - initbeta.sum())
+
+        if initLP is not None:
+            # Create optimal theta for provided initial local params
+            initSS = self.get_global_suff_stats(Data, initLP)
+            self.theta, self.thetaRem = updateThetaAndThetaRem(
+                K=K, NodeStateCount=initSS.NodeStateCount,
+                rho=self.rho, alpha=self.alpha, gamma=self.gamma)
+        else:
+            # Create theta from scratch
+            self.theta, self.thetaRem = initThetaFromScratch(
+                Data=Data, rho=rho, alpha=self.alpha, gamma=self.gamma)
 
     def calc_evidence(self, Data, SS, LP, todict=0, **kwargs):
         ''' Compute training objective function on provided input.
@@ -204,7 +190,7 @@ class HDPMMSB(FiniteMMSB):
             Lentropy = SS.getELBOTerm('Hresp')
         else:
             # L_entropy function inherited from FiniteMMSB
-            Lentropy = self.L_entropy(LP)
+            Lentropy = self.L_entropy_as_scalar(LP)
         if todict:
             return dict(Lentropy=Lentropy, Lalloc=Lalloc, Lslack=Lslack)
         return Lalloc + Lentropy + Lslack
@@ -239,14 +225,17 @@ class HDPMMSB(FiniteMMSB):
         return Lslack + LslackRem
 
     def to_dict(self):
-        return dict(theta=self.theta, rho=self.rho, omega=self.omega)
+        return dict(
+            theta=self.theta, thetaRem=self.thetaRem, 
+            rho=self.rho, omega=self.omega)
 
     def from_dict(self, myDict):
         self.inferType = myDict['inferType']
         self.K = myDict['K']
-        self.theta = myDict['theta']
         self.rho = myDict['rho']
         self.omega = myDict['omega']
+        self.theta = myDict['theta']
+        self.thetaRem = myDict['thetaRem']
 
     def get_prior_dict(self):
         return dict(alpha=self.alpha, gamma=self.gamma)
@@ -254,7 +243,9 @@ class HDPMMSB(FiniteMMSB):
 
 
 
-def updateThetaAndThetaRem(SS, rho=None, alpha=1.0, gamma=10.0):
+def updateThetaAndThetaRem(
+        SS=None, K=None, NodeStateCount=None, rho=None,
+        alpha=1.0, gamma=10.0):
     ''' Update parameters theta to maximize objective given suff stats.
 
     Returns
@@ -262,8 +253,11 @@ def updateThetaAndThetaRem(SS, rho=None, alpha=1.0, gamma=10.0):
     theta : 2D array, nNodes x K
     thetaRem : scalar
     '''
-    K = SS.K
-    nNodes = SS.NodeStateCount.shape[0]
+    if K is None:
+        K = SS.K
+    if NodeStateCount is None:
+        NodeStateCount = SS.NodeStateCount
+    nNodes = NodeStateCount.shape[0]
     if rho is None or rho.size != K:
         rho = OptimizerRhoOmegaBetter.make_initrho(K, nNodes, gamma)
 
@@ -272,7 +266,7 @@ def updateThetaAndThetaRem(SS, rho=None, alpha=1.0, gamma=10.0):
     alphaEbeta = alpha * Ebeta
     alphaEbetaRem = alpha * (1- Ebeta.sum())
 
-    theta = alphaEbeta + SS.NodeStateCount
+    theta = alphaEbeta + NodeStateCount
     thetaRem = alphaEbetaRem
     return theta, thetaRem
 
@@ -343,3 +337,65 @@ def updateRhoOmega(
     assert rho.size == K
     assert omega.size == K
     return rho, omega
+
+def initRhoOmegaFromScratch(
+        alpha=None, gamma=None, K=None,
+        beta=None, betaRem=None, 
+        Data=None, nNodes=None, **kwargs):
+    ''' Set rho, omega to values that reproduce provided appearance probs
+
+    Args
+    --------
+    beta : 1D array, size K
+        beta[k] gives top-level probability for active comp k
+    '''
+    if K is None:
+        raise ValueError('Bad parameters. K not specified.')
+    else:
+        K = int(K)
+    if nNodes is None:
+        nNodes = Data.nNodes
+    if nNodes is None:
+        raise ValueError('Bad parameters. nNodes not specified.')
+    if betaRem is None:
+        betaRem = np.maximum(np.minimum(0.001, 1.0/K**2), 0.1)
+    if beta is None:
+        # Default to uniform
+        beta = (1.0-betaRem) / K * np.ones(K)
+    else:
+        assert beta.size == K
+    if np.allclose(np.sum(beta), 1.0):
+        beta *= (1.0 - betaRem)
+    assert np.allclose(beta.sum() + betaRem, 1.0)
+    rho, omega = _beta2rhoomega(beta, nNodes)
+    assert rho.size == K
+    assert omega.size == K
+    return rho, omega
+
+def initThetaFromScratch(
+        alpha=None, gamma=None, K=None,
+        Data=None, nNodes=10, nEdgesPerNode=10, 
+        rho=None):
+    ''' Create initial theta values from scratch.
+
+    Returns
+    -------
+    theta : 2D array, nNodes x K
+    thetaRem : scalar
+    '''
+    if Data is not None:
+        nNodes = Data.nNodes
+        nEdgesPerNode = Data.getSparseSrcNodeMat().sum(axis=1) + \
+            Data.getSparseRcvNodeMat().sum(axis=1)
+    else:
+        nNodes = int(nNodes)
+        nEdgesPerNode = int(nEdgesPerNode)
+    PRNG = np.random.RandomState(K)
+    piMean = alpha / K * np.ones(K)
+    initNodeStateCount = nEdgesPerNode * \
+        PRNG.dirichlet(piMean, size=nNodes)
+    # Compute optimal theta and thetaRem
+    theta, thetaRem = updateThetaAndThetaRem(
+        K=K, NodeStateCount=initNodeStateCount,
+        rho=rho, alpha=alpha, gamma=gamma)
+    return theta, thetaRem

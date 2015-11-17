@@ -5,7 +5,7 @@ import numpy as np
 import imp
 import sys
 import argparse
-import networkx as nx
+# import networkx as nx
 
 import bnpy
 
@@ -14,6 +14,99 @@ from bnpy.ioutil import BNPYArgParser
 from bnpy.viz.TaskRanker import rankTasksForSingleJobOnDisk
 from bnpy.viz import TaskRanker
 
+def plotSingleJob(dataName, jobname, taskids='1', lap=None,
+                  showELBOInTitle=True, cmap='gray', title='', mixZs=False):
+    ''' Visualize results of single run
+    '''
+
+    # Parse the jobpath, and create example task paths
+    jobpath = os.path.join(os.path.expandvars('$BNPYOUTDIR'),
+                           dataName, jobname)
+    if isinstance(taskids, str):
+        taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
+    elif isinstance(taskids, int):
+        taskids = [str(taskids)]
+    taskpath = os.path.join(jobpath, taskids[0])    
+
+    # Load data, with same dataset size prefs as specified at inference time.
+    dataKwargs = bnpy.ioutil.DataReader.loadDataKwargsFromDisk(taskpath)
+    Data = bnpy.ioutil.DataReader.loadDataFromSavedTask(taskpath)
+    AdjMat = np.squeeze(Data.toAdjacencyMatrix())
+    if hasattr(Data, 'TrueParams'):
+        if 'nodeZ' in Data.TrueParams:
+            sortids = np.argsort(Data.TrueParams['nodeZ'])
+        elif 'pi' in Data.TrueParams:
+            sortids = np.argsort(Data.TrueParams['pi'].argmax(axis=1))
+        AdjMat = AdjMat[sortids, :]
+        AdjMat = AdjMat[:, sortids]
+    # Show the true adj mat and the estimated side-by-side
+    # First, the true adjacency matrix
+    ncols = len(taskids)+1
+    plt.subplots(nrows=1, ncols=ncols, figsize=(3*ncols, 3))
+    plt.subplot(1, ncols, 1)
+    plt.imshow(AdjMat, cmap='Greys', interpolation='nearest', vmin=0, vmax=1)
+    for tt, taskid in enumerate(taskids):
+        taskoutpath = os.path.join(jobpath, taskid) + os.path.sep
+        # Load the model for the current task at specified lap
+        hmodel, curLap = bnpy.ioutil.ModelReader.loadModelForLap(
+            taskoutpath, lap)
+        # Compute expected state-state edge prob matrix Ew
+        Ew = hmodel.obsModel.Post.lam1 / \
+            (hmodel.obsModel.Post.lam1 + hmodel.obsModel.Post.lam0)
+        isAssortative = str(type(hmodel.allocModel)).count('Assort')
+        if isAssortative:
+            K = hmodel.allocModel.K
+            Ew_tmp = hmodel.allocModel.epsilon * np.ones((K, K, Ew.shape[-1]))
+            for k in xrange(K):
+                Ew_tmp[k,k] = Ew[k]
+            Ew = Ew_tmp
+        taskAdjMat = np.zeros((Data.nNodes, Data.nNodes, Data.dim))
+        useLP = 0
+        if useLP:
+            LP = hmodel.calc_local_params(Data)
+            for eid, (s,t) in enumerate(Data.edges):
+                resp_st = LP['resp'][eid]
+                if isAssortative:
+                    taskAdjMat[s,t] = np.sum(
+                        resp_st[:,np.newaxis] * Ew, axis=0)
+                else:
+                    assert np.allclose(resp_st.sum(), 1.0)
+                    taskAdjMat[s,t] = np.sum(
+                        resp_st[:,:,np.newaxis] * Ew, axis=(0,1))
+
+        else:
+            Epi = np.exp(hmodel.allocModel.E_logPi())
+            for eid, (s,t) in enumerate(Data.edges):
+                for d in xrange(Data.dim):
+                    taskAdjMat[s,t,d] = np.inner(Epi[s,:], 
+                        np.dot(Ew[:,:,d], Epi[t,:]))
+        assert taskAdjMat.min() >= 0
+        assert taskAdjMat.max() <= 1.0
+        taskAdjMat = np.squeeze(taskAdjMat)
+        taskAdjMat = taskAdjMat[sortids,:]
+        taskAdjMat = taskAdjMat[:, sortids]
+        plt.subplot(1, ncols, 2+tt)
+        plt.imshow(taskAdjMat,
+                   cmap='Greys', interpolation='nearest', vmin=0, vmax=1)
+        
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('dataName')
+    parser.add_argument('jobname')
+    parser.add_argument('--lap', default=None)
+    parser.add_argument(
+        '--taskids', type=str, default='1',
+        help="int ids of tasks (trials/runs) to plot from given job." +
+        " Example: '4' or '1,2,3' or '2-6'.")
+    args = parser.parse_args()
+    plotSingleJob(dataName=args.dataName,
+                  jobname=args.jobname,
+                  taskids=args.taskids,
+                  lap=args.lap)
+    plt.show()
+
+"""
 
 def permuteTransMtx(A, Z):
     perms = np.array([])
@@ -180,155 +273,6 @@ def drawGraphEdgePr(Data, Epi, Ew, curAx, fig, colors=None, labels=None,
     xgap = cut * xmax - xmax
     plt.xlim(0 - xgap, xmax + xgap)
     plt.ylim(0 - ygap, ymax + ygap)
-
-
-def plotSingleJob(dataName, jobname, taskids='1', lap='final',
-                  showELBOInTitle=True, cmap='gray', title='', mixZs=False):
-    ''' Visualize results of single run
-    '''
-
-    # Load data, with same dataset size prefs as specified at inference time.
-    jobpath = os.path.join(os.path.expandvars('$BNPYOUTDIR'),
-                           dataName, jobname)
-    datasetPrefFile = os.path.join(
-        jobpath, taskids[0],
-        'args-DatasetPrefs.txt')
-    datasetPrefs = dict()
-    if os.path.exists(datasetPrefFile):
-        with open(datasetPrefFile, 'r') as f:
-            for line in f.readlines():
-                fields = line.strip().split(' ')
-                if len(fields) != 2:
-                    continue
-                datasetPrefs[fields[0]] = fields[1]
-    Datamod = imp.load_source(
-        dataName,
-        os.path.expandvars('$BNPYDATADIR/' + dataName + '.py'))
-    Data = Datamod.get_data(**datasetPrefs)
-
-    if isinstance(taskids, str):
-        taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
-    elif isinstance(taskids, int):
-        taskids = [str(taskids)]
-
-    #f_pair, axes_pair = plt.subplots(1, len(taskids))
-    #f_graph, axes_graph = plt.subplots(1, len(taskids))
-    #f_vardist, axes_vardist = plt.subplots(1, len(taskids), frameon=False)
-    #if len(taskids) == 1:
-    #    axes_pair = [axes_pair]
-
-    AdjMat = np.squeeze(Data.toAdjacencyMatrix())
-    if hasattr(Data, 'TrueParams'):
-        if 'nodeZ' in Data.TrueParams:
-            sortids = np.argsort(Data.TrueParams['nodeZ'])
-        elif 'pi' in Data.TrueParams:
-            sortids = np.argsort(Data.TrueParams['pi'].argmax(axis=1))
-        AdjMat = AdjMat[sortids, :]
-        AdjMat = AdjMat[:, sortids]
-
-
-    # Show the true adj mat and the estimated side-by-side
-    # First, the true adjacency matrix
-    ncols = len(taskids)+1
-    plt.subplots(nrows=1, ncols=ncols, figsize=(3*ncols, 3))
-    plt.subplot(1, ncols, 1)
-    plt.imshow(AdjMat, cmap='Greys', interpolation='nearest', vmin=0, vmax=1)
-
-    for tt, taskid in enumerate(taskids):
-        # curAx = axes_pair[tt]
-        taskoutpath = os.path.join(jobpath, taskid) + os.path.sep
-
-        # Figure out which lap to use
-        if lap == 'final':
-            lapsFile = open(taskoutpath + 'laps.txt')
-            curLap = lapsFile.readlines()
-            curLap = float(curLap[-1])
-            lapsFile.close()
-        else:
-            curLap = int(lap)
-
-        hmodel, curLap = bnpy.ioutil.ModelReader.loadModelForLap(
-            taskoutpath, curLap)
-        Ew = hmodel.obsModel.Post.lam1 / \
-            (hmodel.obsModel.Post.lam1 + hmodel.obsModel.Post.lam0)
-        isAssortative = str(type(hmodel.allocModel)).count('Assort')
-        if isAssortative:
-            K = hmodel.allocModel.K
-            Ew_tmp = hmodel.allocModel.epsilon * np.ones((K, K, Ew.shape[-1]))
-            for k in xrange(K):
-                Ew_tmp[k,k] = Ew[k]
-            Ew = Ew_tmp
-        taskAdjMat = np.zeros((Data.nNodes, Data.nNodes, Data.dim))
-        useLP = 0
-        if useLP:
-            LP = hmodel.calc_local_params(Data)
-            for eid, (s,t) in enumerate(Data.edges):
-                resp_st = LP['resp'][eid]
-                if isAssortative:
-                    taskAdjMat[s,t] = np.sum(
-                        resp_st[:,np.newaxis] * Ew, axis=0)
-                else:
-                    assert np.allclose(resp_st.sum(), 1.0)
-                    taskAdjMat[s,t] = np.sum(
-                        resp_st[:,:,np.newaxis] * Ew, axis=(0,1))
-
-        else:
-            Epi = np.exp(hmodel.allocModel.E_logPi())
-            for eid, (s,t) in enumerate(Data.edges):
-                for d in xrange(Data.dim):
-                    taskAdjMat[s,t,d] = np.inner(Epi[s,:], 
-                        np.dot(Ew[:,:,d], Epi[t,:]))
-
-        assert taskAdjMat.min() >= 0
-        assert taskAdjMat.max() <= 1.0
-        taskAdjMat = np.squeeze(taskAdjMat)
-        taskAdjMat = taskAdjMat[sortids,:]
-        taskAdjMat = taskAdjMat[:, sortids]
-
-        plt.subplot(1, ncols, 2+tt)
-        plt.imshow(taskAdjMat,
-                   cmap='Greys', interpolation='nearest', vmin=0, vmax=1)
-        
-        '''
-        if showELBOInTitle:
-            ELBOscores = np.loadtxt(os.path.join(path, 'evidence.txt'))
-            laps = np.loadtxt(os.path.join(path, 'laps.txt'))
-            savedLaps = np.loadtxt(os.path.join(path, 'laps-saved-params.txt'))
-
-            loc = np.argmin(np.abs(laps - curLap))
-            ELBO = ELBOscores[loc]
-            title = title + ' ELBO: %.3f' % ELBO
-
-        # Plot the Npair matrix
-        filename = 'Lap%08.3fSuffStats.mat' % (curLap)
-        Npair = scipy.io.loadmat(path + filename)
-        Npair = Npair['Npair']
-        plotNpair(Npair, curAx, f_pair, cmap=cmap, title=title)
-
-        # Draw network graph, colored by estimated communities
-        filename = 'Lap%08.3fAllocModel.mat' % (curLap)
-        amod = scipy.io.loadmat(path + filename)
-        estZ = amod['estZ']
-        if mixZs:  # used to
-            theta = amod['theta']
-            pi = theta / np.sum(theta, axis=1)[:, np.newaxis]
-            K = pi.shape[1]
-            N = pi.shape[0]
-            zs = np.asarray([float(z) for z in np.arange(K)])
-            estZ = np.tile(zs, (N, 1))
-            estZ *= pi
-            estZ = np.sum(estZ, axis=1)
-            estZ /= np.max(estZ)
-        drawGraph(Data, axes_graph, f_graph, estZ, title=title)
-        axes_graph.set_title(title)
-
-        # Plot graph with edges based on variational dist. of pi_i and pi_j
-        Epi = amod['theta']
-        Epi /= np.sum(Epi, axis=1)[:, np.newaxis]
-        drawGraphVariationalDist(Data, Epi, axes_vardist, f_vardist, Z=estZ,
-                                 title=title)
-        '''
-
 
 def plotTrueLabels(dataset, Data=None, gtypes=['Actual'], thresh=.5,
                    mixColors=False, colorEdges=False, title=''):
@@ -546,25 +490,6 @@ def plotEdgePrTransMtx(Data, pi, phi, perms, doPerm, title='', true=None):
     # ax.set_title(title)
     return prs
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('dataName')
-    parser.add_argument('jobname')
-    parser.add_argument(
-        '--taskids', type=str, default='1',
-        help="int ids of tasks (trials/runs) to plot from given job." +
-        " Example: '4' or '1,2,3' or '2-6'.")
-
-    parser.add_argument('--lap', default='final')
-    args = parser.parse_args()
-
-    plotSingleJob(dataName=args.dataName,
-                  jobname=args.jobname,
-                  taskids=args.taskids,
-                  lap=args.lap)
-    plt.show()
-
-
 def getEstZ(jobnames, dataset):
     zdict = dict()
     pidict = dict()
@@ -602,3 +527,4 @@ def getEstZ(jobnames, dataset):
         pidict[jobname] = Epi
 
     return zdict, pidict
+"""

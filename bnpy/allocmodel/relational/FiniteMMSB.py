@@ -8,6 +8,7 @@ from scipy.sparse import csc_matrix
 from bnpy.allocmodel import AllocModel
 from bnpy.suffstats import SuffStatBag
 from bnpy.util import gammaln, digamma, EPS
+from bnpy.util.NumericUtil import calcRlogR
 from bnpy.allocmodel.topics.HDPTopicUtil import c_Dir
 
 
@@ -23,6 +24,7 @@ class FiniteMMSB(AllocModel):
         number of components
     alpha : float
         scalar symmetric Dirichlet prior on mixture weights
+        pi_v ~ Dir( alpha/K, alpha/K, ... alpha/K)
 
     Attributes for VB
     ---------
@@ -108,6 +110,7 @@ class FiniteMMSB(AllocModel):
         resp -= np.max(resp, axis=(1,2))[:, np.newaxis, np.newaxis]
         np.exp(resp, out=resp)
         resp /= resp.sum(axis=(1,2))[:, np.newaxis, np.newaxis]
+        np.maximum(resp, 1e-100, out=resp)
         LP['resp'] = resp
         return LP
 
@@ -150,7 +153,9 @@ class FiniteMMSB(AllocModel):
         SS.setField('N', Nresp, dims=('K','K'))
 
         if doPrecompEntropy:
-            Hresp = self.L_entropy(LP)
+            # Remember, resp has shape nEdges x K x K
+            # So, need to sum so we track scalar entropy, not K x K
+            Hresp = calcLentropyAsScalar(LP)
             SS.setELBOTerm('Hresp', Hresp, dims=None)
         return SS
 
@@ -170,7 +175,7 @@ class FiniteMMSB(AllocModel):
         --------------
         Attribute theta set to optimal value given suff stats.
         '''
-        self.theta = self.alpha + SS.NodeStateCount
+        self.theta = self.alpha / SS.K + SS.NodeStateCount
 
     def set_global_params(self, hmodel=None, theta=None, **kwargs):
         ''' Set global parameters to specific values.
@@ -194,22 +199,28 @@ class FiniteMMSB(AllocModel):
                 self.theta = theta
                 self.K = theta.shape[-1]
 
-    def init_global_params(self, Data, K=0, **kwargs):
+    def init_global_params(self, Data, K=0, initLP=None, **kwargs):
         ''' Initialize global parameters "from scratch" to reasonable values.
 
         Post condition
         --------------
         Attributes theta, K set to reasonable values.
         '''
-        if 'initLP' in kwargs:
-            initSS = self.get_global_suff_stats(Data, kwargs['initLP'])
-            initNodeStateCount = initSS.NodeStateCount
-        else:
-            PRNG = np.random.RandomState(K)
-            initNodeStateCount = PRNG.rand(Data.nNodes, K)
         self.K = K
-        self.theta = self.alpha + initNodeStateCount
-
+        if initLP is not None:
+            # Compute NodeStateCount from provided initial local params
+            initSS = self.get_global_suff_stats(Data, initLP)
+            self.theta = self.alpha / K + initSS.NodeStateCount
+        else:
+            # Create random initNodeStateCount values
+            # by drawing from Dirichlet prior on pi_v, scaled by nEdgesPerNode
+            PRNG = np.random.RandomState(K)
+            piMean = self.alpha / K * np.ones(K)
+            nEdgesPerNode = Data.getSparseSrcNodeMat().sum(axis=1) + \
+                Data.getSparseRcvNodeMat().sum(axis=1)
+            initNodeStateCount = nEdgesPerNode * \
+                PRNG.dirichlet(piMean, size=Data.nNodes)
+            self.theta = self.alpha / K + initNodeStateCount
 
     def calc_evidence(self, Data, SS, LP, todict=0, **kwargs):
         ''' Compute training objective function on provided input.
@@ -223,7 +234,7 @@ class FiniteMMSB(AllocModel):
         if SS.hasELBOTerm('Hresp'):
             Lentropy = SS.getELBOTerm('Hresp')
         else:
-            Lentropy = self.L_entropy(LP)
+            Lentropy = calcLentropyAsScalar(LP)
         if todict:
             return dict(Lentropy=Lentropy, Lalloc=Lalloc, Lslack=Lslack)
         return Lalloc + Lentropy + Lslack
@@ -237,7 +248,7 @@ class FiniteMMSB(AllocModel):
         '''
         N = self.theta.shape[0]
         K = self.K
-        prior_cDir = N * (gammaln(K * self.alpha) - K * gammaln(self.alpha))
+        prior_cDir = N * (gammaln(self.alpha) - K * gammaln(self.alpha/K))
         post_cDir = np.sum(gammaln(np.sum(self.theta, axis=1))) - \
             np.sum(gammaln(self.theta))
         return prior_cDir - post_cDir
@@ -251,12 +262,18 @@ class FiniteMMSB(AllocModel):
         '''
         ElogPi = digamma(self.theta) - \
             digamma(np.sum(self.theta, axis=1))[:, np.newaxis]
-        Q = SS.NodeStateCount + self.alpha - self.theta
+        Q = SS.NodeStateCount + self.alpha / SS.K - self.theta
         Lslack = np.sum(Q * ElogPi)
         return Lslack
 
-    def L_entropy(self, LP):
-        return -1 * np.sum(LP['resp'] * np.log(LP['resp'] + EPS))
+    def L_entropy_as_scalar(self, LP):
+        ''' Compute entropy term of objective as a scalar.
+
+        Returns
+        -------
+        Hresp : scalar
+        '''
+        return calcLentropyAsScalar(LP)
 
     def to_dict(self):
         return dict(theta=self.theta)
@@ -280,6 +297,15 @@ class FiniteMMSB(AllocModel):
         '''
         return np.argmax(self.theta, axis=1)
 
+
+def calcLentropyAsScalar(LP):
+    ''' Compute entropy term of objective as a scalar.
+
+    Returns
+    -------
+    Hresp : scalar
+    '''
+    return -1.0 * np.sum(calcRlogR(LP['resp']))
 
     '''
     def initLPFromTruth(self, Data):

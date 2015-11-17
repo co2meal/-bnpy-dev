@@ -9,7 +9,7 @@ import itertools
 from bnpy.allocmodel import AllocModel
 from bnpy.suffstats import SuffStatBag
 from bnpy.util import gammaln, digamma, EPS
-
+from bnpy.util.NumericUtil import calcRlogR
 from FiniteMMSB import FiniteMMSB
 
 
@@ -113,7 +113,12 @@ class FiniteAssortativeMMSB(FiniteMMSB):
         respNormConst += (sumPi - sumPi_fg) * epsEvVec
         # Normalize the rows of resp
         resp /= respNormConst[:,np.newaxis]
+        np.maximum(resp, 1e-100, out=resp)
         LP['resp'] = resp
+
+        # Compute resp_bg : 1D array, size nEdges
+        resp_bg = 1.0 - resp.sum(axis=1)
+        LP['resp_bg'] = resp_bg
 
         # src/rcv resp_bg : 2D array, size nEdges x K
         #     srcresp_bg[n,k] = sum of resp mass 
@@ -142,15 +147,32 @@ class FiniteAssortativeMMSB(FiniteMMSB):
 
         # Ldata_bg : scalar
         #     cached value of ELBO term Ldata for background component
-        resp_bg = 1.0 - resp.sum(axis=1)
         LP['Ldata_bg'] = np.inner(resp_bg, logepsEvVec)
 
+        LP['Lentropy_fg'] = -1 * calcRlogR(LP['resp'])
+
+        Lentropy_fg = \
+            -1 * np.sum(NodeStateCount_fg * ElogPi, axis=0) + \
+            -1 * np.sum(LP['resp'] * LP['E_log_soft_ev'], axis=0) + \
+            np.dot(np.log(respNormConst), LP['resp'])
+        assert np.allclose(Lentropy_fg, LP['Lentropy_fg'])
+        """
         LP['Lentropy_normConst'] = np.sum(np.log(respNormConst))
         LP['Lentropy_lik_fg'] = -1 * np.sum(
             LP['resp']*LP['E_log_soft_ev'], axis=0)
         LP['Lentropy_prior'] = -1 * np.sum(
             LP['NodeStateCount'] * ElogPi, axis=0)
         LP['Lentropy_lik_bg'] = -1 * LP['Ldata_bg']
+        """
+        # Lentropy_bg : scalar
+        #     Cached value of entropy of all background resp values
+        #     Equal to \sum_n \sum_{j\neq k} r_{njk} \log r_{njk}
+        #     This is strictly lower-bounded (but NOT equal to)
+        #      -1 * calcRlogR(LP['resp_bg'])
+        LP['Lentropy_bg'] = \
+            -1 * np.sum(NodeStateCount_bg * ElogPi) + \
+            -1 * LP['Ldata_bg'] + \
+            np.inner(np.log(respNormConst), LP['resp_bg'])            
         return LP
 
 
@@ -198,16 +220,14 @@ class FiniteAssortativeMMSB(FiniteMMSB):
         V = Data.nNodes
         K = LP['resp'].shape[-1]
         SS = SuffStatBag(K=K, D=Data.dim, V=V)
-
         if 'NodeStateCount' not in LP:
+            assert 'resp' in LP
             LP = self.initLPFromResp(Data, LP)
-
         SS.setField('NodeStateCount', LP['NodeStateCount'], dims=('V', 'K'))
         if np.allclose(LP['resp'].sum(axis=1).min(), 1.0):
             # If the LP fully represents all present edges,
             # then the NodeStateCount should as well.
             assert np.allclose(SS.NodeStateCount, Data.nEdges * 2)
-
         SS.setField('N', LP['N_fg'], dims=('K',))
         SS.setField('scaleFactor', Data.nEdges, dims=None)
 
@@ -215,13 +235,13 @@ class FiniteAssortativeMMSB(FiniteMMSB):
             SS.setELBOTerm('Ldata_bg', LP['Ldata_bg'], dims=None)
 
         if doPrecompEntropy:
-            Hresp_bg = LP['Lentropy_normConst'] + \
-                LP['Lentropy_lik_bg']
-            Hresp_fg = LP['Lentropy_prior'] + \
-                LP['Lentropy_lik_fg']
-            # easy lower bound: Hresp_lb = self.L_entropy(LP)
-            SS.setELBOTerm('Hresp_fg', Hresp_fg, dims='K')
+            Hresp_fg = LP['Lentropy_fg'] # = -1 * calcRlogR(LP['resp'])
+            Hresp_bg = LP['Lentropy_bg']
+                        
+            SS.setELBOTerm('Hresp', Hresp_fg, dims='K')
             SS.setELBOTerm('Hresp_bg', Hresp_bg, dims=None)
+            
+            
         return SS
 
  
@@ -235,8 +255,8 @@ class FiniteAssortativeMMSB(FiniteMMSB):
         Lalloc = self.L_alloc_no_slack()
         Lslack = self.L_slack(SS)
         # Compute entropy term
-        if SS.hasELBOTerm('Hresp_fg'):
-            Lentropy = SS.getELBOTerm('Hresp_fg').sum() + \
+        if SS.hasELBOTerm('Hresp'):
+            Lentropy = SS.getELBOTerm('Hresp').sum() + \
                 SS.getELBOTerm('Hresp_bg')
         else:
             Lentropy = self.L_entropy(LP)
@@ -250,6 +270,17 @@ class FiniteAssortativeMMSB(FiniteMMSB):
                 Lalloc=Lalloc, Lslack=Lslack,
                 Lbgdata=Lbgdata)
         return Lalloc + Lentropy + Lslack + Lbgdata
+
+    def L_entropy(self, LP):
+        ''' Compute entropy term of objective as scalar
+
+        Returns
+        -------
+        Lentropy : scalar
+            = foreground + background entropy values
+        '''
+        assert 'Lentropy_bg' in LP
+        return LP['Lentropy_fg'].sum() + LP['Lentropy_bg']
 
     def _calc_local_params_Naive(self, Data, LP, **kwargs):
         ''' Compute local parameters for provided dataset.
@@ -328,3 +359,15 @@ class FiniteAssortativeMMSB(FiniteMMSB):
         LP['NodeStateCount_bg'] = NodeStateCount_bg
         LP['NodeStateCount_fg'] = NodeStateCount_fg
         return LP
+
+    def to_dict(self):
+        return dict(theta=self.theta)
+
+    def from_dict(self, myDict):
+        self.inferType = myDict['inferType']
+        self.K = myDict['K']
+        self.theta = myDict['theta']
+
+    def get_prior_dict(self):
+        return dict(alpha=self.alpha, epsilon=self.epsilon)
+

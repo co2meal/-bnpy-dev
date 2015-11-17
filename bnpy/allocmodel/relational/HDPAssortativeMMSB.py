@@ -16,6 +16,7 @@ from bnpy.allocmodel.topics.HDPTopicUtil import c_Beta, c_Dir, L_top
 
 from FiniteAssortativeMMSB import FiniteAssortativeMMSB
 from HDPMMSB import updateRhoOmega, updateThetaAndThetaRem, _beta2rhoomega
+from HDPMMSB import initRhoOmegaFromScratch, initThetaFromScratch
 
 class HDPAssortativeMMSB(FiniteAssortativeMMSB):
 
@@ -100,7 +101,6 @@ class HDPAssortativeMMSB(FiniteAssortativeMMSB):
                 alpha=self.alpha, gamma=self.gamma)
             self.theta, self.thetaRem = updateThetaAndThetaRem(
                 SS, rho=self.rho, alpha=self.alpha, gamma=self.gamma)
-
         
     def set_global_params(self, hmodel=None,
                           rho=None, omega=None, theta=None, thetaRem=None,
@@ -126,37 +126,14 @@ class HDPAssortativeMMSB(FiniteAssortativeMMSB):
             self.omega = omega
             self.theta = theta
             self.thetaRem = thetaRem
-            self.K = omega.size
         else:
-            self._set_global_params_from_scratch(**kwargs)
+            self.rho, self.omega = initRhoOmegaFromScratch(**kwargs)            
+            self.theta, self.thetaRem = initThetaFromScratch(rho=rho, **kwargs)
+        self.K = self.rho.size
+        assert self.K == self.omega.size
+        assert self.K == self.theta.shape[-1]
 
-    def _set_global_params_from_scratch(self, beta=None,
-                                        Data=None, nNodes=None, **kwargs):
-        ''' Set rho, omega to values that reproduce provided appearance probs
-
-        Args
-        --------
-        beta : 1D array, size K
-            beta[k] gives top-level probability for active comp k
-        '''
-        if nNodes is None:
-            nNodes = Data.nNodes
-        if nNodes is None:
-            raise ValueError('Bad parameters. nNodes not specified.')
-        if beta is None:
-            raise ValueError('Bad parameters. Vector beta not specified.')
-        beta = beta / beta.sum()
-        Ktmp = beta.size
-        rem = np.minimum(0.05, 1. / (Ktmp))
-        beta = np.hstack([np.squeeze(beta), rem])
-        beta = beta / np.sum(beta)
-        self.K = beta.size - 1
-        self.rho, self.omega = _beta2rhoomega(beta, nNodes)
-        assert self.rho.size == self.K
-        assert self.omega.size == self.K
-
-
-    def init_global_params(self, Data, K=0, **kwargs):
+    def init_global_params(self, Data, K=0, initLP=None, **kwargs):
         ''' Initialize global parameters "from scratch" to reasonable values.
 
         Post condition
@@ -170,10 +147,18 @@ class HDPAssortativeMMSB(FiniteAssortativeMMSB):
         self.rho, self.omega = _beta2rhoomega(
             beta=initbeta, K=K, 
             nDoc=Data.nNodes, gamma=self.gamma)
-        self.theta = self.alpha * np.tile(initbeta, (Data.nNodes, 1))
-        self.thetaRem = self.alpha * (1 - initbeta.sum())
 
-
+        if initLP is not None:
+            # Create optimal theta for provided initial local params
+            initSS = self.get_global_suff_stats(Data, initLP)
+            self.theta, self.thetaRem = updateThetaAndThetaRem(
+                K=K, NodeStateCount=initSS.NodeStateCount,
+                rho=self.rho, alpha=self.alpha, gamma=self.gamma)
+        else:
+            # Create theta from scratch
+            self.theta, self.thetaRem = initThetaFromScratch(
+                Data=Data, rho=rho, alpha=self.alpha, gamma=self.gamma)
+        
     def calc_evidence(self, Data, SS, LP, todict=0, **kwargs):
         ''' Compute training objective function on provided input.
 
@@ -184,8 +169,8 @@ class HDPAssortativeMMSB(FiniteAssortativeMMSB):
         Lalloc = self.L_alloc_no_slack()
         Lslack = self.L_slack(SS)
         # Compute entropy term
-        if SS.hasELBOTerm('Hresp_fg'):
-            Lentropy = SS.getELBOTerm('Hresp_fg').sum() + \
+        if SS.hasELBOTerm('Hresp'):
+            Lentropy = SS.getELBOTerm('Hresp').sum() + \
                 SS.getELBOTerm('Hresp_bg')
         else:
             Lentropy = self.L_entropy(LP)
@@ -231,17 +216,19 @@ class HDPAssortativeMMSB(FiniteAssortativeMMSB):
         return Lslack + LslackRem
 
     def to_dict(self):
-        return dict(theta=self.theta, rho=self.rho, omega=self.omega)
+        return dict(theta=self.theta, thetaRem=self.thetaRem,
+            rho=self.rho, omega=self.omega)
 
     def from_dict(self, myDict):
         self.inferType = myDict['inferType']
         self.K = myDict['K']
-        self.theta = myDict['theta']
         self.rho = myDict['rho']
         self.omega = myDict['omega']
+        self.theta = myDict['theta']
+        self.thetaRem = myDict['thetaRem']
 
     def get_prior_dict(self):
-        return dict(alpha=self.alpha, gamma=self.gamma)
+        return dict(alpha=self.alpha, gamma=self.gamma, epsilon=self.epsilon)
 
 
 
