@@ -148,6 +148,7 @@ class FiniteMMSB(AllocModel):
         # Compute total atoms assigned to each cluster pair
         Nresp = np.sum(LP['resp'], axis=0)
         SS.setField('N', Nresp, dims=('K','K'))
+
         if doPrecompEntropy:
             Hresp = self.L_entropy(LP)
             SS.setELBOTerm('Hresp', Hresp, dims=None)

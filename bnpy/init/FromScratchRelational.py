@@ -19,19 +19,22 @@ def init_global_params(obsModel, Data, K=0, seed=0,
 
     Parameters
     -------
-    obsModel : bnpy.obsModel subclass
+    obsModel : AbstractObsModel subclass
         Observation model object to initialize.
     Data   : bnpy.data.DataObj
         Dataset to use to drive initialization.
         obsModel dimensions must match this dataset.
     initname : str
         name of routine used to do initialization
-        Options: ['randexamples', 'randexamplesbydist', 'kmeans',
-                  'randcontigblocks', 'randsoftpartition',
-                 ]
+        Options: 'randexamples', 'randexamplesbydist', 'kmeans'
+
+    Returns
+    -------
+    initLP : dict
+        Local parameters used for initialization
 
     Post Condition
-    -------
+    --------------
     obsModel has valid global parameters.
     Either its EstParams or Post attribute will be contain K components.
     '''
@@ -47,21 +50,33 @@ def init_global_params(obsModel, Data, K=0, seed=0,
         CompDims = (K,)
 
     if initname == 'randexamples':
-        # Choose K rows of AdjMat uniformly at random from the Data
-        chosenNodes = PRNG.choice(AdjMat.shape[0], size=K, replace=False)
+        # Pick K nodes at random in provided graph,
+        # and set all edges belonging to that node to one cluster.
+
+        nNodes = AdjMat.shape[0]
+        chosenNodes = PRNG.choice(nNodes, size=K, replace=False)
 
         # Build resp from chosenNodes 
         resp = np.zeros((Data.nEdges,) + CompDims)
         for k in xrange(K):
-            srcnode_mask = np.flatnonzero(
+            src_mask = np.flatnonzero(
                 Data.edges[:,0] == chosenNodes[k])
-            on_mask = srcnode_mask[
-                np.sum(Data.X[srcnode_mask,:], axis=1) > 0]
+            rcv_mask = np.flatnonzero(
+                Data.edges[:,1] == chosenNodes[k])
+            src_on = np.sum(Data.X[src_mask,:], axis=1) > 0
+            src_off = 1 - src_on
+            rcv_on = np.sum(Data.X[rcv_mask,:], axis=1) > 0
+            rcv_off = 1 - rcv_on
             if len(CompDims) == 2:
-                resp[on_mask, :, :] = 0.05 / (K**2-1) * PRNG.rand(K,K)
-                resp[on_mask, k, k] = 0.95
+                resp[src_mask[src_on], k, k] = 1.0
+                resp[src_mask[src_off], k, :] = 1.0 / (K-1)
+                resp[src_mask[src_off], k, k] = 0.0                
+                resp[rcv_mask[rcv_on], k, k] = 1.0
+                resp[rcv_mask[rcv_off], :, k] = 1.0 / (K-1)
+                resp[rcv_mask[rcv_off], k, k] = 0.0                
             else:
-                resp[on_mask, k] = 0.95
+                resp[src_mask[src_on], k] = 1.0
+                resp[rcv_mask[rcv_on], k] = 1.0
     
     elif initname == 'randexamplesbydist':
         # Choose K items from the Data,

@@ -11,11 +11,11 @@ from bnpy.suffstats import SuffStatBag
 from bnpy.util import gammaln, digamma, EPS
 
 from bnpy.util import StickBreakUtil
-from bnpy.allocmodel.topics import OptimizerRhoOmega
+from bnpy.allocmodel.topics import OptimizerRhoOmegaBetter
 from bnpy.allocmodel.topics.HDPTopicUtil import c_Beta, c_Dir, L_top
 
 from FiniteAssortativeMMSB import FiniteAssortativeMMSB
-from HDPMMSB import updateRhoOmega, updateThetaAndThetaRem
+from HDPMMSB import updateRhoOmega, updateThetaAndThetaRem, _beta2rhoomega
 
 class HDPAssortativeMMSB(FiniteAssortativeMMSB):
 
@@ -74,7 +74,6 @@ class HDPAssortativeMMSB(FiniteAssortativeMMSB):
     # calc_local_params inherited from FiniteAssortativeMMSB
     # get_global_suff_stats inherited from FiniteAssortativeMMSB
  
-
     def update_global_params_VB(self, SS, **kwargs):
         ''' Update global parameter theta to optimize VB objective.
 
@@ -83,25 +82,24 @@ class HDPAssortativeMMSB(FiniteAssortativeMMSB):
         Attributes rho,omega,theta set to optimal value given suff stats.
         '''
         nGlobalIters = 2
+        nNode = SS.NodeStateCount.shape[0]
 
-        if not hasattr(self, 'rho'):
-            self.rho = OptimizerRhoOmega.create_initrho(SS.K)
-        if not hasattr(self, 'omega'):
-            nDoc = SS.NodeStateCount.shape[0]
-            self.omega = (nDoc + self.gamma) * np.ones(SS.K)
-
-        # Update theta with recently updated info from suff stats
+        if not hasattr(self, 'rho') or self.rho.size != SS.K:
+            self.rho = OptimizerRhoOmegaBetter.make_initrho(
+                SS.K, nNode, self.gamma)
+        self.omega = OptimizerRhoOmegaBetter.make_initomega(
+            SS.K, nNode, self.gamma)
+        # Update theta first, so it reflects most recent NodeStateCounts
         self.theta, self.thetaRem = updateThetaAndThetaRem(
-            SS, alpha=self.alpha, rho=self.rho)
-
+            SS, rho=self.rho, alpha=self.alpha, gamma=self.gamma)
+        # Now, alternatively update rho and theta...
         for giter in xrange(nGlobalIters):
             self.rho, self.omega = updateRhoOmega(
                 theta=self.theta, thetaRem=self.thetaRem,
-                initrho=self.rho, initomega=self.omega, 
+                initrho=self.rho, omega=self.omega, 
                 alpha=self.alpha, gamma=self.gamma)
-
             self.theta, self.thetaRem = updateThetaAndThetaRem(
-                SS, alpha=self.alpha, rho=self.rho)
+                SS, rho=self.rho, alpha=self.alpha, gamma=self.gamma)
 
         
     def set_global_params(self, hmodel=None,
@@ -153,40 +151,28 @@ class HDPAssortativeMMSB(FiniteAssortativeMMSB):
         beta = np.hstack([np.squeeze(beta), rem])
         beta = beta / np.sum(beta)
         self.K = beta.size - 1
-        self.rho, self.omega = self._beta2rhoomega(beta, nNodes)
+        self.rho, self.omega = _beta2rhoomega(beta, nNodes)
         assert self.rho.size == self.K
         assert self.omega.size == self.K
 
-    def _beta2rhoomega(self, beta, nDoc=10):
-        ''' Find vectors rho, omega that are probable given beta
-
-        Returns
-        --------
-        rho : 1D array, size K
-        omega : 1D array, size K
-        '''
-        assert abs(np.sum(beta) - 1.0) < 0.001
-        rho = OptimizerRhoOmega.beta2rho(beta, self.K)
-        omega = (nDoc + self.gamma) * np.ones(rho.size)
-        return rho, omega
 
     def init_global_params(self, Data, K=0, **kwargs):
         ''' Initialize global parameters "from scratch" to reasonable values.
 
         Post condition
         --------------
-        Attributes theta, K set to reasonable values.
+        Global parameters rho, omega, theta, thetaRem set to
+        valid values.
         '''
         self.K = K
-        PRNG = np.random.RandomState(K)
-        initNodeStateCount = PRNG.rand(Data.nNodes, K)
-        self.theta = self.alpha + initNodeStateCount
+        initbeta = (1.0 - 0.01)/K * np.ones(K)
+        assert np.sum(initbeta) < 1.0
+        self.rho, self.omega = _beta2rhoomega(
+            beta=initbeta, K=K, 
+            nDoc=Data.nNodes, gamma=self.gamma)
+        self.theta = self.alpha * np.tile(initbeta, (Data.nNodes, 1))
+        self.thetaRem = self.alpha * (1 - initbeta.sum())
 
-        self.rho = OptimizerRhoOmega.create_initrho(K)
-        self.omega = (1.0 + self.gamma) * np.ones(K)
-
-        Ebeta = StickBreakUtil.rho2beta(self.rho, returnSize='K')
-        self.thetaRem = self.alpha * (1 - Ebeta.sum())
 
     def calc_evidence(self, Data, SS, LP, todict=0, **kwargs):
         ''' Compute training objective function on provided input.

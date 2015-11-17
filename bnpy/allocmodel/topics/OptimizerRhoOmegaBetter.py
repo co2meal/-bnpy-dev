@@ -47,7 +47,9 @@ def negL_omega(omega=None, rho=None, initrho=None, **kwargs):
     return negL_rhoomega(rho=rho, omega=omega, **kwargs)
 
 def negL_rhoomega(rhoomega=None, rho=None, omega=None,
-            sumLogPiActiveVec=None, sumLogPiRemVec=None,
+            sumLogPiActiveVec=None, 
+            sumLogPiRemVec=None,
+            sumLogPiRem=None,
             nDoc=0, gamma=1.0, alpha=1.0,
             approx_grad=False,
             do_grad_omega=1,
@@ -76,7 +78,6 @@ def negL_rhoomega(rhoomega=None, rho=None, omega=None,
         assert np.all(np.isfinite(omega))       
         K = rho.size
         assert K == omega.size
-
     eta1 = rho * omega
     eta0 = (1 - rho) * omega
     digammaomega = digamma(omega)
@@ -84,6 +85,10 @@ def negL_rhoomega(rhoomega=None, rho=None, omega=None,
     Elogu = digamma(eta1) - digammaomega
     Elog1mu = digamma(eta0) - digammaomega
     if nDoc > 0:
+        if sumLogPiRem is not None:
+            sumLogPiRemVec = np.zeros(K)
+            sumLogPiRemVec[-1] = sumLogPiRem
+
         ONcoef = nDoc + 1.0 - eta1
         OFFcoef = nDoc * kvec(K) + gamma - eta0
 
@@ -92,11 +97,9 @@ def negL_rhoomega(rhoomega=None, rho=None, omega=None,
 
         Ebeta_gtm1 = np.hstack([1.0, np.cumprod(1 - rho[:-1])])
         Ebeta = rho * Ebeta_gtm1
-        Ebeta_gt = (1-rho) * Ebeta_gtm1
         assert Ebeta.size == Tvec.size
-        L_local = np.inner(Ebeta, Tvec) + \
-                  np.inner(Ebeta_gt, Uvec)
-        
+        Ebeta_gt = (1-rho) * Ebeta_gtm1
+        L_local = np.inner(Ebeta, Tvec) + np.inner(Ebeta_gt, Uvec)
     else:
         # This is special case for unit tests that make sure the optimizer
         # finds the parameters that set q(u) equal to its prior when nDoc=0
@@ -215,7 +218,8 @@ def find_optimum_multiple_tries(
 def find_optimum(
         initrho=None, initomega=None,
         do_grad_rho=1, do_grad_omega=1, approx_grad=0,
-        nDoc=None, sumLogPiActiveVec=None, sumLogPiRemVec=None,
+        nDoc=None, sumLogPiActiveVec=None,
+        sumLogPiRemVec=None, sumLogPiRem=None,
         alpha=1.0, gamma=1.0,
         factr=100.0,
         Log=None,
@@ -276,13 +280,17 @@ def find_optimum(
     True
     '''
     assert sumLogPiActiveVec.ndim == 1
-    assert sumLogPiActiveVec.shape == sumLogPiRemVec.shape
     K = sumLogPiActiveVec.size
+    if sumLogPiRem is not None:
+        sumLogPiRemVec = np.zeros(K)
+        sumLogPiRemVec[-1] = sumLogPiRem
+    assert sumLogPiActiveVec.shape == sumLogPiRemVec.shape
+
 
     if nDoc > 0:
-        maxOmegaVal = nDoc * K * 1000.0
+        maxOmegaVal = 1000.0 * (nDoc * (K+1) + gamma)
     else:
-        maxOmegaVal = K * 1000.0
+        maxOmegaVal = 1000.0 * (K + 1 + gamma)
 
     # Determine initial values for rho, omega
     if initrho is None:

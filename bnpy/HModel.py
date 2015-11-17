@@ -165,8 +165,8 @@ class HModel(object):
                 self, Data, **initArgs)
         else:
             # Set hmodel global parameters "from scratch", in two stages
-            # * init allocmodel to "uniform" prob over comps
-            # * init obsmodel in likelihood-specific, data-driven fashion
+            # First, init obsmodel in likelihood-specific, data-driven fashion
+            # Second, init allocmodel using fixed clustering from state one.
             if str(type(self.obsModel)).count('Gauss') > 0:
                 init.FromScratchGauss.init_global_params(self.obsModel,
                                                          Data, **initArgs)
@@ -174,9 +174,9 @@ class HModel(object):
                 init.FromScratchMult.init_global_params(self.obsModel,
                                                         Data, **initArgs)
             elif str(type(Data)).count('Graph') > 0:
-                initLP = init.FromScratchRelational.init_global_params(
-                    self.obsModel, Data, **initArgs)
-                initArgs['initLP'] = initLP
+                initArgs['initLP'] = \
+                    init.FromScratchRelational.init_global_params(
+                        self.obsModel, Data, **initArgs)
             elif str(type(self.obsModel)).count('Bern') > 0:
                 init.FromScratchBern.init_global_params(self.obsModel,
                                                         Data, **initArgs)
@@ -187,8 +187,7 @@ class HModel(object):
                 # Make sure K is exactly same for both alloc and obs models
                 # Needed because obsModel init can sometimes yield K < Kinput
                 initArgs['K'] = self.obsModel.K
-            initArgs['Data'] = Data
-            self.allocModel.init_global_params(**initArgs)
+            self.allocModel.init_global_params(Data=Data, **initArgs)
 
     def getAllocModelName(self):
         return self.allocModel.__class__.__name__
