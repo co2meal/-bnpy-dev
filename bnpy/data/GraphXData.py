@@ -128,7 +128,8 @@ class GraphXData(XData):
                 self.TrueParams['nodeZ'] = nodeZ
         else:
             self.TrueParams = TrueParams
-
+        if nodeNames is not None:
+            self.nodeNames = nodeNames
         # TODO Held out data
 
     def _verify_attributes(self):

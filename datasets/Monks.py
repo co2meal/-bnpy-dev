@@ -66,7 +66,7 @@ if not os.path.isfile(datfilepath):
     raise ValueError('Cannot find Monks dataset file:\n' + datfilepath)
 
 
-def get_data(relation='like', phase='3', **kwargs):
+def get_data(relationName='esteem', phase='3', **kwargs):
     DataLines = list()
     with open(datfilepath, 'r') as f:
         doRecord = 0
@@ -85,7 +85,7 @@ def get_data(relation='like', phase='3', **kwargs):
     # Crop out set of 18 contig rows
     # specified by the relation keyword 
     matchID = -1
-    matchrelLabel = relation + '_phase' + str(phase)
+    matchrelLabel = relationName + '_phase' + str(phase)
     for relID, relLabel in enumerate(relationLabels):
       if relLabel == matchrelLabel:
           matchID = relID
@@ -134,18 +134,31 @@ def get_short_name():
     return 'Monks'
 
 if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-    Data = get_data('dislike')
+    from matplotlib import pylab;
 
-    # Plot adj matrix
-    f, ax = plt.subplots(1)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--relationName', default='esteem', type=str)
+    parser.add_argument('--phase', default='3', type=str)
+    args = parser.parse_args()
+
+    print "Loading Sampson Monks dataset with relationName=%s  at phase=%s" % (
+        args.relationName, args.phase)
+    # Fetch data and plot the adjacency matrix
+    Data = get_data(relationName=args.relationName, phase=args.phase)
     Xdisp = np.squeeze(Data.toAdjacencyMatrix())
-    sortids = np.argsort(Data.nodeLabels)
+    sortids = np.argsort(Data.TrueParams['nodeZ'])
     Xdisp = Xdisp[sortids, :]
     Xdisp = Xdisp[:, sortids]
-    ax.imshow(
+    nodeNames = [Data.nodeNames[s] for s in sortids]
+
+    pylab.imshow(
         Xdisp, cmap='Greys', interpolation='nearest',
         vmin=0, vmax=1)
-    print Xdisp.sum()
-    plt.show()
-    ax.set_title('Adjacency matrix')
+    pylab.gca().set_yticks(np.arange(len(nodeNames)))
+    pylab.gca().set_yticklabels(nodeNames)
+    pylab.title('Adj. matrix: %s' % (Data.relationName))
+    pylab.ylabel('Monks (sorted by true label)')
+
+    pylab.show()
+

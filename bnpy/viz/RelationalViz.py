@@ -1,6 +1,5 @@
 import scipy.io
 import os
-import matplotlib.pyplot as plt
 import numpy as np
 import imp
 import sys
@@ -8,11 +7,13 @@ import argparse
 # import networkx as nx
 
 import bnpy
-
 from bnpy.util.StateSeqUtil import convertStateSeq_MAT2list
 from bnpy.ioutil import BNPYArgParser
 from bnpy.viz.TaskRanker import rankTasksForSingleJobOnDisk
 from bnpy.viz import TaskRanker
+from bnpy.viz import PlotUtil
+pylab = PlotUtil.pylab
+PlotUtil.ConfigPylabDefaults(pylab)
 
 def plotSingleJob(dataName, jobname, taskids='1', lap=None,
                   showELBOInTitle=True, cmap='gray', title='', mixZs=False):
@@ -35,16 +36,29 @@ def plotSingleJob(dataName, jobname, taskids='1', lap=None,
     if hasattr(Data, 'TrueParams'):
         if 'nodeZ' in Data.TrueParams:
             sortids = np.argsort(Data.TrueParams['nodeZ'])
+            print 'Sorting nodes by true labels...'
         elif 'pi' in Data.TrueParams:
             sortids = np.argsort(Data.TrueParams['pi'].argmax(axis=1))
-        AdjMat = AdjMat[sortids, :]
-        AdjMat = AdjMat[:, sortids]
+    else:
+        sortids = np.arange(AdjMaj.shape[0])    
+    # Rearrange the rows/cols of AdjMat
+    AdjMat = AdjMat[sortids, :]
+    AdjMat = AdjMat[:, sortids]
+    if hasattr(Data, 'nodeNames'):
+        nodeNames = [Data.nodeNames[s] for s in sortids]
+    else:
+        nodeNames = None
     # Show the true adj mat and the estimated side-by-side
     # First, the true adjacency matrix
     ncols = len(taskids)+1
-    plt.subplots(nrows=1, ncols=ncols, figsize=(3*ncols, 3))
-    plt.subplot(1, ncols, 1)
-    plt.imshow(AdjMat, cmap='Greys', interpolation='nearest', vmin=0, vmax=1)
+    pylab.subplots(nrows=1, ncols=ncols, figsize=(3*ncols, 3))
+    pylab.subplot(1, ncols, 1)
+    pylab.imshow(AdjMat, cmap='Greys', interpolation='nearest', vmin=0, vmax=1)
+    
+    if len(nodeNames) < 25:
+        pylab.gca().set_yticks(np.arange(len(nodeNames)))
+        pylab.gca().set_yticklabels(nodeNames)
+
     for tt, taskid in enumerate(taskids):
         taskoutpath = os.path.join(jobpath, taskid) + os.path.sep
         # Load the model for the current task at specified lap
@@ -85,8 +99,8 @@ def plotSingleJob(dataName, jobname, taskids='1', lap=None,
         taskAdjMat = np.squeeze(taskAdjMat)
         taskAdjMat = taskAdjMat[sortids,:]
         taskAdjMat = taskAdjMat[:, sortids]
-        plt.subplot(1, ncols, 2+tt)
-        plt.imshow(taskAdjMat,
+        pylab.subplot(1, ncols, 2+tt)
+        pylab.imshow(taskAdjMat,
                    cmap='Greys', interpolation='nearest', vmin=0, vmax=1)
         
 
@@ -94,7 +108,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('dataName')
     parser.add_argument('jobname')
-    parser.add_argument('--lap', default=None)
+    parser.add_argument('--lap', default=None, type=int)
     parser.add_argument(
         '--taskids', type=str, default='1',
         help="int ids of tasks (trials/runs) to plot from given job." +
@@ -104,7 +118,7 @@ if __name__ == "__main__":
                   jobname=args.jobname,
                   taskids=args.taskids,
                   lap=args.lap)
-    plt.show()
+    pylab.show()
 
 """
 

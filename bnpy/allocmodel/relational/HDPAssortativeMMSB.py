@@ -231,4 +231,7 @@ class HDPAssortativeMMSB(FiniteAssortativeMMSB):
         return dict(alpha=self.alpha, gamma=self.gamma, epsilon=self.epsilon)
 
 
-
+def calcSummaryStatsForMerge(Data, LP, mUIDPairs):
+    ''' Compute stats that represent a merge.
+    '''
+    pass
