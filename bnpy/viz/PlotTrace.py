@@ -18,6 +18,7 @@ import scipy.io
 
 from PlotUtil import pylab
 from bnpy.ioutil import BNPYArgParser
+from bnpy.ioutil.CountReader import loadKeffForTask
 from JobFilter import filterJobs
 
 taskidsHelpMsg = "ids of trials/runs to plot from given job." + \
@@ -70,9 +71,11 @@ def plotJobs(jpaths, legNames, styles=None, density=2,
         else:
             curStyle = styles[lineID]
 
+        task_kwargs = dict(**kwargs)
+        task_kwargs.update(curStyle)
         plot_all_tasks_for_job(jpaths[lineID], legNames[lineID],
                                xvar=xvar, yvar=yvar,
-                               taskids=taskids, density=density, **curStyle)
+                               taskids=taskids, density=density, **task_kwargs)
 
     # Y-axis limit determination
     # If we have "enough" data about the run beyond two full passes of dataset,
@@ -144,11 +147,14 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
         color = Colors[colorID % len(Colors)]
     taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
 
-    if yvar == 'hamming-distance' or yvar == 'Keff':
-        if xvar == 'laps':
+    if yvar == 'hamming-distance':
+        yspfile = os.path.join(jobpath, taskids[0], yvar + '-saved-params.txt')
+        if xvar == 'laps' and os.path.isfile(yspfile):
             xvar = 'laps-saved-params'
 
     for tt, taskid in enumerate(taskids):
+        xs = None
+        ys = None
         try:
             xtxtfile = os.path.join(jobpath, taskid, xvar + '.txt')
             if not os.path.isfile(xtxtfile):
@@ -162,13 +168,19 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
                     jobpath, taskid, yvar + '-saved-params.txt')
             ys = np.loadtxt(ytxtfile)
         except IOError as e:
+            # TODO: when is this code needed?
+            # xs, ys = loadXYFromTopicModelFiles(jobpath, taskid)
             try:
-                xs, ys = loadXYFromTopicModelFiles(jobpath, taskid)
+                if isinstance(xs, np.ndarray) and yvar.count('Keff'):
+                    ys = loadKeffForTask(
+                        os.path.join(jobpath, taskid), **kwargs)
+                    assert xs.size == ys.size
+                else:
+                    # Heldout metrics
+                    xs, ys = loadXYFromTopicModelSummaryFiles(
+                        jobpath, taskid, xvar=xvar, yvar=yvar)
             except ValueError:
-                try:
-                    xs, ys = loadXYFromTopicModelSummaryFiles(jobpath, taskid)
-                except ValueError:
-                    raise e
+                raise e
         if yvar == 'hamming-distance' or yvar == 'Keff':
             if xvar == 'laps-saved-params':
                 # fix off-by-one error, if we save an extra dist on final lap
@@ -229,14 +241,21 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
 
         plotargs = dict(markersize=markersize, linewidth=linewidth, label=None,
                         color=color, markeredgecolor=color)
-        plotargs.update(kwargs)
+        for key in kwargs:
+            if key in plotargs:
+                plotargs[key] = kwargs[key]
         if tt == 0:
             plotargs['label'] = label
 
         pylab.plot(xs, ys, lineType, **plotargs)
 
     pylab.xlabel(LabelMap[xvar])
-    pylab.ylabel(LabelMap[yvar])
+    if yvar in LabelMap:
+        yLabelStr = LabelMap[yvar]
+        if yvar == 'Keff' and 'effCountThr' in kwargs:
+            effCountThr = float(kwargs['effCountThr'])
+            yLabelStr = yLabelStr + ' > %s' % (str(effCountThr))
+        pylab.ylabel(yLabelStr)
 
 
 def loadXYFromTopicModelSummaryFiles(jobpath, taskid, xvar='laps', yvar='K'):
@@ -244,7 +263,7 @@ def loadXYFromTopicModelSummaryFiles(jobpath, taskid, xvar='laps', yvar='K'):
     '''
     ypath = os.path.join(jobpath, taskid, 'predlik-' + yvar + '.txt')
     if not os.path.exists(ypath):
-        raise ValueError('No TopicModel summary text files found')
+        raise ValueError('Summary text file not found: ' + ypath)
     lappath = os.path.join(jobpath, taskid, 'predlik-lapTrain.txt')
     xs = np.loadtxt(lappath)
     ys = np.loadtxt(ypath)
