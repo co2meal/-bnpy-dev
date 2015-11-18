@@ -29,10 +29,12 @@ def evalTopicModelOnTestDataFromTaskpath(
         if key in LPkwargs and kwargs[key] is not None:
             LPkwargs[key] = str2val(kwargs[key])
     # Load saved model
-    topics, probs, alpha = loadTopicModel(
-        taskpath, queryLap=queryLap,
-        returnTPA=1, normalizeTopics=1, normalizeProbs=1)
-
+    try:
+        topics, probs, alpha = loadTopicModel(
+            taskpath, queryLap=queryLap,
+            returnTPA=1, normalizeTopics=1, normalizeProbs=1)
+    except Exception:
+        from IPython import embed; embed()
     if printFunc:
         msg = "%s heldout data. %d documents. %d total words." % (
             Data.name, Data.nDoc, Data.word_count.sum())
@@ -45,6 +47,7 @@ def evalTopicModelOnTestDataFromTaskpath(
         printFunc(msg)
     logpTokensPerDoc = np.zeros(Data.nDoc)
     aucPerDoc = np.zeros(Data.nDoc)
+    RprecisionPerDoc = np.zeros(Data.nDoc)
     nTokensPerDoc = np.zeros(Data.nDoc, dtype=np.int32)
     stime = time.time()
     for d in range(Data.nDoc):
@@ -57,14 +60,18 @@ def evalTopicModelOnTestDataFromTaskpath(
         logpTokensPerDoc[d] = Info_d['sumlogProbTokens']
         nTokensPerDoc[d] = Info_d['nHeldoutToken']
         aucPerDoc[d] = Info_d['auc']
+        RprecisionPerDoc[d] = Info_d['R_precision']
         if d == 0 or (d+1) % 25 == 0 or d == Data.nDoc - 1:
             meanScore = np.sum(logpTokensPerDoc[:d+1]) / \
                 np.sum(nTokensPerDoc[:d+1])
             meanAUC = np.mean(aucPerDoc[:d+1])
+            meanRPrec = np.mean(RprecisionPerDoc[:d+1])
             if printFunc:
                 etime = time.time() - stime
-                msg = '%5d/%d after %8.1f sec | avglogpWord %.4f avgauc %.4f'
-                msg = msg % (d+1, Data.nDoc, etime, meanScore, meanAUC)
+                msg = "%5d/%d after %8.1f sec " + \
+                    "avglogpWord %.4f avgauc %.4f avgRprec %.4f"
+                msg = msg % (d+1, Data.nDoc, etime, 
+                    meanScore, meanAUC, meanRPrec)
                 printFunc(msg)
     meanlogpTokensPerDoc = np.sum(logpTokensPerDoc) / np.sum(nTokensPerDoc)
     # Prepare to save results.
@@ -80,6 +87,8 @@ def evalTopicModelOnTestDataFromTaskpath(
         K=probs.size,
         aucPerDoc=aucPerDoc,
         nTokensPerDoc=nTokensPerDoc,
+        avgAUCScore=np.mean(aucPerDoc),
+        avgRPrecision=np.mean(RprecisionPerDoc),
         **LPkwargs)
     scipy.io.savemat(outmatfile, SaveVars, oned_as='row')
     if printFunc:
@@ -126,23 +135,40 @@ def calcPredLikForDoc(docData, topics, probs, alpha,
     logProbPerToken_d = np.log(probPerToken_d)
     sumlogProbTokens_d = np.sum(logProbPerToken_d * ho_word_ct)
     nHeldoutToken_d = np.sum(ho_word_ct)
-    # Evaluate retrieval metric
+    # # Evaluate retrieval metrics
+
     # unseen_mask_d : 1D array, size vocab_size
     #   entry is 0 if word is seen in training half
     #   entry is 1 if word is unseen 
     unseen_mask_d = np.ones(docData.vocab_size, dtype=np.bool8)
     unseen_mask_d[tr_word_id] = 0
-    probUnseenToken_d = np.dot(topics[:, unseen_mask_d].T, Epi_d)
-
+    probOfUnseenTypes_d = np.dot(topics[:, unseen_mask_d].T, Epi_d)
     unseen_mask_d = np.asarray(unseen_mask_d, dtype=np.int32)
     unseen_mask_d[ho_word_id] = 2
-    trueLabelsUnseenToken_d = unseen_mask_d[unseen_mask_d > 0]        
-    trueLabelsUnseenToken_d -= 1 
-    assert np.sum(trueLabelsUnseenToken_d) == ho_word_id.size
+    trueLabelsOfUnseenTypes_d = unseen_mask_d[unseen_mask_d > 0]     
+    trueLabelsOfUnseenTypes_d -= 1
+    assert np.sum(trueLabelsOfUnseenTypes_d) == ho_word_id.size
     fpr, tpr, thr = sklearn.metrics.roc_curve(
-        trueLabelsUnseenToken_d, probUnseenToken_d)
+        trueLabelsOfUnseenTypes_d, probOfUnseenTypes_d)
     auc = sklearn.metrics.auc(fpr, tpr)
+    # top R precision, where R = total num positive instances
+    topR = ho_word_id.size
+    topRUnseenTypeIDs = np.argsort(-1 * probOfUnseenTypes_d)[:topR]
+    R_precision = sklearn.metrics.precision_score(
+        trueLabelsOfUnseenTypes_d[topRUnseenTypeIDs],
+        np.ones(topR))
+
+    if R_precision > 0.9:
+        print R_precision
+    # Useful debugging
+    # >>> unseenTypeIDs = np.flatnonzero(unseen_mask_d)
+    # >>> trainIm = np.zeros(900); trainIm[tr_word_id] = 1.0
+    # >>> testIm = np.zeros(900); testIm[ho_word_id] = 1.0
+    # >>> predictIm = np.zeros(900);
+    # >>> predictIm[unseenTypeIDs[topRUnseenTypeIDs]] = 1;
+    # >>> bnpy.viz.BarsViz.showTopicsAsSquareImages( np.vstack([trainIm, testIm, predictIm]) )
     Info['auc'] = auc
+    Info['R_precision'] = R_precision
     Info['ho_word_ct'] = ho_word_ct
     Info['tr_word_ct'] = tr_word_ct
     Info['DocTopicCount'] = DocTopicCount_d
