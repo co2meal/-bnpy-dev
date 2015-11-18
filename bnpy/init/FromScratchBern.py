@@ -6,7 +6,7 @@ from scratch.
 '''
 
 import numpy as np
-from bnpy.data import XData
+from bnpy.data import XData, WordsData
 from bnpy.suffstats import SuffStatBag
 from scipy.cluster.vq import kmeans2
 
@@ -36,13 +36,19 @@ def init_global_params(obsModel, Data, K=0, seed=0,
     Either its EstParams or Post attribute will be contain K components.
     '''
     PRNG = np.random.RandomState(seed)
-    X = Data.X
-
+    if hasattr(Data, 'X'):
+        X = Data.X
+        N = X.shape[0]
+        D = X.shape[1]
+    elif isinstance(Data, WordsData):
+        X = Data.getDocTypeBinaryMatrix()
+        N = X.shape[0]
+        D = X.shape[1]
     if initname == 'randexamples':
         # Choose K items uniformly at random from the Data
         #    then component params by M-step given those single items
-        resp = np.zeros((Data.nObs, K))
-        permIDs = PRNG.permutation(Data.nObs).tolist()
+        resp = np.zeros((N, K))
+        permIDs = PRNG.permutation(N).tolist()
         for k in xrange(K):
             resp[permIDs[k], k] = 1.0
 
@@ -51,12 +57,12 @@ def init_global_params(obsModel, Data, K=0, seed=0,
         #  selecting the first at random,
         # then subsequently proportional to euclidean distance to the closest
         # item
-        K = np.minimum(K, Data.nObs)
-        objID = PRNG.choice(Data.nObs)
+        K = np.minimum(K, N)
+        objID = PRNG.choice(N)
         chosenObjIDs = list([objID])
-        minDistVec = np.inf * np.ones(Data.nObs)
+        minDistVec = np.inf * np.ones(N)
         for k in range(1, K):
-            curDistVec = np.sum((Data.X - Data.X[objID])**2, axis=1)
+            curDistVec = np.sum((X - X[objID])**2, axis=1)
             minDistVec = np.minimum(minDistVec, curDistVec)
             sum_minDistVec = np.sum(minDistVec)
             if sum_minDistVec > 0:
@@ -64,9 +70,9 @@ def init_global_params(obsModel, Data, K=0, seed=0,
             else:
                 D = minDistVec.size
                 p = 1.0 / D * np.ones(D)
-            objID = PRNG.choice(Data.nObs, p=p)
+            objID = PRNG.choice(N, p=p)
             chosenObjIDs.append(objID)
-        resp = np.zeros((Data.nObs, K))
+        resp = np.zeros((N, K))
         for k in xrange(K):
             resp[chosenObjIDs[k], k] = 1.0
 
@@ -76,11 +82,11 @@ def init_global_params(obsModel, Data, K=0, seed=0,
         if hasattr(Data, 'doc_range'):
             doc_range = Data.doc_range.copy()
         else:
-            doc_range = [0, Data.X.shape[0]]
+            doc_range = [0, N]
         nDoc = doc_range.size - 1
         docIDs = np.arange(nDoc)
         PRNG.shuffle(docIDs)
-        resp = np.zeros((Data.nObs, K))
+        resp = np.zeros((N, K))
         for k in xrange(K):
             n = docIDs[k % nDoc]
             start = doc_range[n]
@@ -98,15 +104,15 @@ def init_global_params(obsModel, Data, K=0, seed=0,
         # Fill in resp matrix with hard-clustering from K-means
         # using an initialization with K randomly selected points from X
         np.random.seed(seed)
-        centroids, labels = kmeans2(data=Data.X, k=K, minit='points')
-        resp = np.zeros((Data.nObs, K))
-        for n in xrange(Data.nObs):
+        centroids, labels = kmeans2(data=X, k=K, minit='points')
+        resp = np.zeros((N, K))
+        for n in xrange(N):
             resp[n, labels[n]] = 1
 
     elif initname == 'randsoftpartition':
         # Randomly assign all data items some mass in each of K components
         #  then create component params by M-step given that soft partition
-        resp = PRNG.gamma(1.0 / (K * K), 1, size=(Data.nObs, K))
+        resp = PRNG.gamma(1.0 / (K * K), 1, size=(N, K))
         resp[resp < 1e-3] = 0
         rsum = np.sum(resp, axis=1)
         badIDs = rsum < 1e-8
@@ -124,6 +130,6 @@ def init_global_params(obsModel, Data, K=0, seed=0,
     # we summarize into sufficient statistics
     # then perform one global step (M step) to get initial global params
     tempLP = dict(resp=resp)
-    SS = SuffStatBag(K=K, D=Data.dim)
+    SS = SuffStatBag(K=K, D=D)
     SS = obsModel.get_global_suff_stats(Data, SS, tempLP)
     obsModel.update_global_params(SS)

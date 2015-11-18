@@ -16,6 +16,15 @@ class AllocModel(object):
         '''
         return list()
 
+    def getCompDims(self):
+        ''' Get the dimensions of the latent clusters for this object.
+
+        Returns
+        -------
+        dimTuple : tuple with dimensions of latent clusters.
+        '''
+        return ('K',)
+
     def calc_local_params(self, Data, LP):
         ''' Compute local parameters for each data item and component.
         '''

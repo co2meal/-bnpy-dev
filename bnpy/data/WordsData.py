@@ -499,6 +499,43 @@ class WordsData(DataObj):
             C = W * C
         return C
 
+
+    def getSparseDocTypeBinaryMatrix(self, weights=None, **kwargs):
+        ''' Make sparse matrix indicating binary vocab usage for each doc.
+
+        Returns
+        -------
+        C : sparse CSR matrix, shape nDoc x vocab_size
+            C[d,v] = 1 if vocab type v in document d, 0 otherwise.
+        '''
+        data = np.ones(self.word_id.size, dtype=np.float64)
+        if isinstance(weights, np.ndarray) and weights.size == data.size:
+            assert weights.ndim == 1
+            data *= weights
+
+        # Create CSR matrix representation
+        B = scipy.sparse.csr_matrix(
+            (data, self.word_id, self.doc_range),
+            shape=(self.nDoc, self.vocab_size),
+            dtype=np.float64)
+
+        if isinstance(weights, np.ndarray) and weights.size == self.nDoc:
+            assert weights.ndim == 1
+            W = scipy.sparse.csr_matrix(
+                    (weights, np.arange(self.nDoc), np.arange(self.nDoc+1)))
+            B = W * B
+        return B
+
+    def getDocTypeBinaryMatrix(self, **kwargs):
+        ''' Make dense array indicating binary vocab usage for each doc.
+
+        Returns
+        -------
+        B : 2D dense array, shape nDoc x vocab_size
+        '''
+        return self.getSparseDocTypeBinaryMatrix().toarray()
+
+
     def clearCache(self):
         for key in ['__TokenTypeCountMat', '__sparseTokenTypeCountMat',
                     '__DocTypeCountMat', '__sparseDocTypeCountMat']:
