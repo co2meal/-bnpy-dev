@@ -95,6 +95,14 @@ class BernObsModel(AbstractObsModel):
         '''
         self.CompDims = allocModel.getCompDims()
 
+        if not isinstance(allocModel, str):
+            allocModel = str(type(allocModel))
+        aModelName = allocModel.lower()
+        if aModelName.count('hdp') or aModelName.count('topic'):
+            self.DataAtomType = 'word'
+        else:
+            self.DataAtomType = 'doc'
+
     def setEstParams(self, obsModel=None, SS=None, LP=None, Data=None,
                      phi=None,
                      **kwargs):
@@ -183,7 +191,8 @@ class BernObsModel(AbstractObsModel):
         --------
         SS : SuffStatBag object, with K components.
         '''
-        return calcSummaryStats(Data, SS, LP, **kwargs)
+        return calcSummaryStats(Data, SS, LP,
+            DataAtomType=self.DataAtomType, **kwargs)
 
     def calcSummaryStatsForContigBlock(self, Data, a=0, b=0, **kwargs):
         ''' Calculate summary stats for a contiguous block of the data.
@@ -361,14 +370,29 @@ class BernObsModel(AbstractObsModel):
 
         Returns
         ------
-        L : 2D array, size N x K
+        C : 2D array, size N x K
         '''
+        # ElogphiT : vocab_size x K
         ElogphiT, Elog1mphiT = self.GetCached('E_logphiT_log1mphiT', 'all')
 
-        # Matrix-matrix product, result is N x K
-        L = np.tensordot(Data.X, ElogphiT, axes=1) + \
-            np.tensordot(1.0 - Data.X, Elog1mphiT, axes=1)
-        return L
+        if hasattr(Data, 'X'):
+            # Matrix-matrix product, result is N x K
+            C = np.tensordot(Data.X, ElogphiT, axes=1) + \
+                np.tensordot(1.0 - Data.X, Elog1mphiT, axes=1)
+        else:
+            if self.DataAtomType == 'doc':
+                X = Data.getSparseDocTypeBinaryMatrix()
+                C = X * ElogphiT
+                C_1mX = Elog1mphiT.sum(axis=0)[np.newaxis, :] - X * Elog1mphiT
+                C += C_1mX
+            else:
+                C = np.tile(Elog1mphiT, (Data.nDoc, 1))
+                for d in xrange(Data.nDoc):
+                    start_d = Data.vocab_size * d
+                    words_d = Data.word_id[
+                        Data.doc_range[d]:Data.doc_range[d+1]]
+                    C[start_d + words_d, :] = ElogphiT[words_d, :]
+        return C
 
     def calcELBO_Memoized(self, SS, returnVec=0, afterMStep=False):
         """ Calculate obsModel's objective using suff stats SS and Post.
@@ -391,7 +415,6 @@ class BernObsModel(AbstractObsModel):
             Elog1mphiT = self.GetCached('E_log1mphiT', 'all')
             # with relational/graph datasets, these have shape D x K x K
             # otherwise, these have shape D x K
-
         if self.CompDims == ('K'):
             # Typical case: K x D
             L_perComp = np.zeros(SS.K)
@@ -639,6 +662,7 @@ class BernObsModel(AbstractObsModel):
         Info : dict
         """
         return dict(inferType=self.inferType,
+                    DataAtomType=self.DataAtomType,
                     K=self.K)
 
     def fillSharedMemDictForLocalStep(self, ShMem=None):
@@ -840,29 +864,56 @@ def calcLogSoftEvMatrix_FromPost(Dslice,
     return L
 
 
-def calcSummaryStats(Dslice, SS, LP, **kwargs):
+def calcSummaryStats(Dslice, SS, LP, DataAtomType='doc', **kwargs):
     ''' Calculate summary statistics for given dataset and local parameters
 
     Returns
     --------
     SS : SuffStatBag object, with K components.
     '''
-    X = Dslice.X  # 2D array, N x D
     Resp = LP['resp']
     if Resp.ndim == 2:
         CompDims = ('K',)  # typical case
     elif Resp.ndim == 3:
         CompDims = ('K', 'K')  # relational data
+    N = Resp.shape[0]
+
+    if hasattr(Dslice, 'X'):
+        X = Dslice.X  # 2D array, N x D
+    elif DataAtomType == 'doc' or Dslice.nDoc == N:
+        X = Dslice.getSparseDocTypeBinaryMatrix()
+    elif DataAtomType == 'word':
+        X = None
+    else:
+        raise ValueError("Bad situation.")
 
     if SS is None:
         SS = SuffStatBag(K=LP['resp'].shape[1], D=Dslice.dim)
     if not hasattr(SS, 'N'):
         SS.setField('N', np.sum(LP['resp'], axis=0), dims=CompDims)
 
-    # Matrix-matrix product, result is K x D (or KxKxD if relational)
-    CountON = np.tensordot(Resp.T, X, axes=1)
-    CountOFF = np.tensordot(Resp.T, 1 - X, axes=1)
+    if isinstance(X, np.ndarray):
+        # Matrix-matrix product, result is K x D (or KxKxD if relational)
+        CountON = np.tensordot(Resp.T, X, axes=1)
+        CountOFF = np.tensordot(Resp.T, 1 - X, axes=1)
+    elif DataAtomType == 'doc' or Dslice.nDoc == N:
+        # Sparse matrix product
+        CountON = Resp.T * X
+        CountOFF = SS.N[:, np.newaxis] - CountON
+    else:
+        CountON = np.zeros((SS.K, Dslice.vocab_size))
+        CountOFF = np.zeros((SS.K, Dslice.vocab_size))
+        for d in xrange(Dslice.nDoc):
+            words_d = Dslice.word_id[
+                Dslice.doc_range[d]:Dslice.doc_range[d+1]]
 
+            rstart_d = d * Dslice.vocab_size
+            rstop_d = (d+1) * Dslice.vocab_size
+            Count_d = Resp[rstart_d:rstop_d, :].T
+
+            CountOFF += Count_d
+            CountON[:, words_d] += Count_d[:, words_d]
+            CountOFF[:, words_d] -= Count_d[:, words_d]
     SS.setField('Count1', CountON, dims=CompDims + ('D',))
     SS.setField('Count0', CountOFF, dims=CompDims + ('D',))
     return SS

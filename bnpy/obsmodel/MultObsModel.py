@@ -61,9 +61,10 @@ class MultObsModel(AbstractObsModel):
         self.Prior.setField('lam', lam, dims=('D'))
 
     def setupWithAllocModel(self, allocModel):
-        ''' Using the allocation model, determine the modeling scenario:
-              doc  : multinomial : each atom is D-vector of integer counts
-              word : categorical : each atom is a single one-of-D indicator
+        ''' Using the allocation model, determine the modeling scenario.
+              
+        doc  : multinomial : each atom is vector of empirical counts in doc
+        word : categorical : each atom is single word token (one of vocab_size)
         '''
         if not isinstance(allocModel, str):
             allocModel = str(type(allocModel))

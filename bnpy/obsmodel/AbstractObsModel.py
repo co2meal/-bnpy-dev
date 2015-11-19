@@ -23,6 +23,7 @@ class AbstractObsModel(object):
         """
         if LP is None:
             LP = dict()
+        LP['obsModelName'] = str(self.__class__.__name__)
         if self.inferType == 'EM':
             LP['E_log_soft_ev'] = self.calcLogSoftEvMatrix_FromEstParams(
                 Data, **kwargs)
