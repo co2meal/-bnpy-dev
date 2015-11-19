@@ -311,9 +311,8 @@ class MemoVBMovesAlg(LearnAlg):
 
         # Create a place to store each proposal, indexed by UID
         SSbatch.propXSS = dict()
-
         # Try each planned birth
-        if 'b_targetUIDs' in MovePlans:
+        if 'b_targetUIDs' in MovePlans and len(MovePlans['b_targetUIDs']) > 0:
             ElapsedTimeLogger.startEvent('birth', 'localexpansion')
             newUIDs = self.makeNewUIDs(
                 nMoves=len(MovePlans['b_targetUIDs']),
@@ -759,10 +758,14 @@ class MemoVBMovesAlg(LearnAlg):
         MoveRecordsByUID
         '''
         ElapsedTimeLogger.startEvent('birth', 'eval')
-        if len(SS.propXSS.keys()) > 0:
+        if 'b_targetUIDs' in MovePlans and len(MovePlans['b_targetUIDs']) > 0:
+            b_targetUIDs = [u for u in MovePlans['b_targetUIDs']]
             BLogger.pprint(
                 'EVALUATING birth proposals at lap %.2f' % (lapFrac))
-        acceptedUIDs = list()
+            MovePlans['b_retainedUIDs'] = list()
+        else:
+            b_targetUIDs = list()
+
         if 'b_nAccept' in MovePlans:
             nAccept = MovePlans['b_nAccept']
         else:
@@ -776,13 +779,15 @@ class MemoVBMovesAlg(LearnAlg):
         else:
             totalKnew = 0
 
+        acceptedUIDs = list()
         curLdict = hmodel.calc_evidence(SS=SS, todict=1)
-        for targetUID in SS.propXSS.keys():
+        for targetUID in b_targetUIDs:
             # Skip delete proposals, which are handled differently
             if 'd_targetUIDs' in MovePlans:
                 if targetUID in MovePlans['d_targetUIDs']:
-                    continue
+                    raise ValueError("WHOA! Cannot delete and birth same uid.")
             nTrial += 1
+
             BLogger.startUIDSpecificLog(targetUID)
             # Prepare record-keeping            
             if targetUID not in MoveRecordsByUID:
@@ -849,7 +854,6 @@ class MemoVBMovesAlg(LearnAlg):
             else:
                 BLogger.pprint(
                     '   Rejected. Remain at Lscore %.3e' % (Lscore))
-
                 gainLdata = propLdict['Ldata'] - curLdict['Ldata']
                 if gainLdata > 0.01 and not self.isLastBatch(lapFrac):
                     BLogger.pprint(
@@ -857,6 +861,7 @@ class MemoVBMovesAlg(LearnAlg):
                             gainLdata))
                     # Track for next time!
                     assert targetUID in SS.propXSS
+                    MovePlans['b_retainedUIDs'].append(targetUID)
                 else:
                     MovePlans['b_targetUIDs'].remove(targetUID)
                     del SS.propXSS[targetUID]
@@ -865,6 +870,11 @@ class MemoVBMovesAlg(LearnAlg):
                     MoveRecordsByUID[targetUID]['b_nSuccessRecent'] = 0
             BLogger.stopUIDSpecificLog(targetUID)
 
+        if 'b_retainedUIDs' in MovePlans:
+            assert np.allclose(MovePlans['b_retainedUIDs'],
+                MovePlans['b_targetUIDs'])
+            for uid in MovePlans['b_targetUIDs']:
+                assert uid in SS.propXSS
         MovePlans['b_Knew'] = totalKnew
         MovePlans['b_nAccept'] = nAccept
         MovePlans['b_nTrial'] = nTrial
@@ -877,7 +887,8 @@ class MemoVBMovesAlg(LearnAlg):
                     nAccept, nTrial,
                     MovePlans['b_nFailedProp'], nTrial)
                 BLogger.pprint(msg, 'info')
-            else:
+            elif 'b_shortlistUIDs' in MovePlans:
+                # Birth was eligible, but did not make it to eval stage.
                 if len(MovePlans['b_shortlistUIDs']) > 0:
                     msg = "BIRTH @ lap %.2f : No proposals attempted." + \
                         " Shortlist had %d possible clusters," + \
@@ -886,14 +897,17 @@ class MemoVBMovesAlg(LearnAlg):
                         lapFrac, len(MovePlans['b_shortlistUIDs']))
                     BLogger.pprint(msg, 'info')
                 else:
-                    msg = "BIRTH @ lap %.2f : No proposals and no shortlist." \
-                        + " %d clusters too small. %d had past rejections."
+                    msg = "BIRTH @ lap %.2f : No shortlist."
+                    msg +=  " Could have added %d clusters this lap."
+                    msg +=  " But %d too small. %d had past rejections."
                     msg = msg % (
                         lapFrac,
+                        MovePlans['b_roomToGrow'],
                         MovePlans['b_nDQ_toosmall'],
                         MovePlans['b_nDQ_pastfail'])
                     BLogger.pprint(msg, 'info')
-
+            else:
+                pass
 
             # If any short-listed uids did not get tried in this lap
             # there are two possible reasons:
@@ -901,24 +915,25 @@ class MemoVBMovesAlg(LearnAlg):
             # 2) Other uids were prioritized due to budget constraints.
             # We need to mark uids that failed for reason 1,
             # so that we don't avoid deleting/merging them in the future.
-            for uid in MovePlans['b_shortlistUIDs']:
-                if uid not in MoveRecordsByUID:
-                    MoveRecordsByUID[uid] = defaultdict(int)
-                Rec = MoveRecordsByUID[uid]
+            if 'b_shortlistUIDs' in MovePlans:
+                for uid in MovePlans['b_shortlistUIDs']:
+                    if uid not in MoveRecordsByUID:
+                        MoveRecordsByUID[uid] = defaultdict(int)
+                    Rec = MoveRecordsByUID[uid]
 
-                lastEligibleLap = Rec['b_latestEligibleLap']
-                if np.ceil(lastEligibleLap) < np.ceil(lapFrac):
-                    msg = "Marked uid %d ineligible for future shortlists." + \
-                        "Never eligible this lap."
-                    BLogger.pprint(msg % (uid))
-                    k = SS.uid2k(uid)
-                    Rec['b_latestLap'] = lapFrac
-                    Rec['b_nFail'] += 1
-                    Rec['b_nFailRecent'] += 1
-                    Rec['b_nSuccessRecent'] = 0
-                    Rec['b_latestCount'] = SS.getCountVec()[k]
-                    Rec['b_latestBatchCount'] = \
-                        self.SSmemory[0].getCountVec()[k]
+                    lastEligibleLap = Rec['b_latestEligibleLap']
+                    if np.ceil(lastEligibleLap) < np.ceil(lapFrac):
+                        msg = "Marked uid %d ineligible for future shortlists."
+                        msg += " It was never eligible this lap."
+                        BLogger.pprint(msg % (uid))
+                        k = SS.uid2k(uid)
+                        Rec['b_latestLap'] = lapFrac
+                        Rec['b_nFail'] += 1
+                        Rec['b_nFailRecent'] += 1
+                        Rec['b_nSuccessRecent'] = 0
+                        Rec['b_latestCount'] = SS.getCountVec()[k]
+                        Rec['b_latestBatchCount'] = \
+                            self.SSmemory[0].getCountVec()[k]
 
         ElapsedTimeLogger.stopEvent('birth', 'eval')
         return hmodel, SS, Lscore, MoveLog, MoveRecordsByUID
@@ -1152,13 +1167,13 @@ class MemoVBMovesAlg(LearnAlg):
                 hmodel = propModel
                 Lscore = propLscore
                 SS = propSS
-
                 curLdict = propLdict
-                del SS.propXSS[targetUID]
             else:
                 # Reject!
                 MoveRecordsByUID[targetUID]['d_nFail'] += 1
                 MoveRecordsByUID[targetUID]['d_nFailRecent'] += 1
+            # Always cleanup evidence of the proposal
+            del SS.propXSS[targetUID]
 
         if nTrial > 0:
             msg = 'DELETE @ lap %.2f: %d/%d accepted. Ndiff %.2f.' % (

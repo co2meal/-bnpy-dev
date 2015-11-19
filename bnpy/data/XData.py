@@ -168,7 +168,7 @@ class XData(DataObj):
         s += '  dimension: %d' % (self.get_dim())
         return s
 
-    def select_subset_by_mask(self, mask,
+    def select_subset_by_mask(self, atomMask=None,
                               doTrackFullSize=True,
                               doTrackTruth=False):
         ''' Get subset of this dataset identified by provided unit IDs.
@@ -186,17 +186,17 @@ class XData(DataObj):
         Dchunk : bnpy.data.XData instance
         '''
         if hasattr(self, 'Xprev'):
-            newXprev = self.Xprev[mask]
+            newXprev = self.Xprev[atomMask]
         else:
             newXprev = None
-        newX = self.X[mask]
+        newX = self.X[atomMask]
 
         if hasattr(self, 'alwaysTrackTruth'):
             doTrackTruth = doTrackTruth or self.alwaysTrackTruth
         hasTrueZ = hasattr(self, 'TrueParams') and 'Z' in self.TrueParams
         if doTrackTruth and hasTrueZ:
             TrueZ = self.TrueParams['Z']
-            newTrueZ = TrueZ[mask]
+            newTrueZ = TrueZ[atomMask]
         else:
             newTrueZ = None
 

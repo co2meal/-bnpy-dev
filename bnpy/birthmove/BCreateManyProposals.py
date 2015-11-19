@@ -43,7 +43,6 @@ def makeSummariesForManyBirthProposals(
             'CREATING birth proposals at lap %.2f' % (lapFrac))
     if xSSProposalsByUID is None:
         xSSProposalsByUID = dict()
-
     failedUIDs = list()
     # Loop thru copy of the target comp UID list
     # So that we can remove elements from it within the loop
