@@ -34,6 +34,14 @@ def calcLocalParams(
         cslice = (0, None)
     nDoc = calcNumDocFromSlice(Data, cslice)
 
+
+    if 'obsModelName' in LP:
+        obsModelName = LP['obsModelName']
+    elif hasattr(Data, 'word_count'):
+        obsModelName = 'Mult'
+    else:
+        obsModelName = 'Gauss'
+
     # Prepare the likelihood matrix
     # Make sure it is C-contiguous, so that matrix ops are very fast
     Lik = np.asarray(LP['E_log_soft_ev'], order='C')
@@ -64,13 +72,19 @@ def calcLocalParams(
         start = Data.doc_range[cslice[0] + d]
         stop = Data.doc_range[cslice[0] + d + 1]
 
-        lstart = start - slice_start
-        lstop = stop - slice_start
+        if hasattr(Data, 'word_count') and obsModelName.count('Bern'):
+            lstart = d * Data.vocab_size
+            lstop = (d+1) * Data.vocab_size
+        else:
+            lstart = start - slice_start
+            lstop = stop - slice_start
         Lik_d = Lik[lstart:lstop].copy()  # Local copy
-        if hasattr(Data, 'word_count'):
+        
+        if hasattr(Data, 'word_count') and not obsModelName.count('Bern'):
             wc_d = Data.word_count[start:stop].copy()
         else:
             wc_d = 1.0
+
         if initDocTopicCountLP == 'memo' and initDocTopicCount is not None:
             initDTC_d = initDocTopicCount[d]
         else:
@@ -86,7 +100,8 @@ def calcLocalParams(
     LP['DocTopicCount'] = DocTopicCount
     LP = updateLPGivenDocTopicCount(LP, DocTopicCount,
                                     alphaEbeta, alphaEbetaRem)
-    LP = updateLPWithResp(LP, Data, Lik, DocTopicProb, sumRespTilde, cslice)
+    LP = updateLPWithResp(
+        LP, Data, Lik, DocTopicProb, sumRespTilde, cslice)
     LP['Info'] = AggInfo
     writeLogMessageForManyDocs(Data, AggInfo, **kwargs)
     return LP
@@ -127,7 +142,8 @@ def updateLPGivenDocTopicCount(LP, DocTopicCount,
     return LP
 
 
-def updateLPWithResp(LP, Data, Lik, Prior, sumRespTilde, cslice=(0, None)):
+def updateLPWithResp(LP, Data, Lik, Prior, sumRespTilde, 
+        cslice=(0, None)):
     ''' Compute assignment responsibilities given output of local step.
 
     Args
@@ -148,13 +164,24 @@ def updateLPWithResp(LP, Data, Lik, Prior, sumRespTilde, cslice=(0, None)):
     LP['resp'] = Lik
     nDoc = calcNumDocFromSlice(Data, cslice)
     slice_start = Data.doc_range[cslice[0]]
-    for d in xrange(nDoc):
-        start = Data.doc_range[cslice[0] + d] - slice_start
-        stop = Data.doc_range[cslice[0] + d + 1] - slice_start
-        LP['resp'][start:stop] *= Prior[d]
+    N = LP['resp'].shape[0]
+    if N > Data.doc_range[-1]:
+        assert N == nDoc * Data.vocab_size
+        # Bernoulli naive case. Quite slow!
+        for d in xrange(nDoc):
+            rstart = d * Data.vocab_size
+            rstop = (d+1) * Data.vocab_size
+            LP['resp'][rstart:rstop] *= Prior[d]
+    else:
+        # Usual case. Quite fast!
+        for d in xrange(nDoc):
+            start = Data.doc_range[cslice[0] + d] - slice_start
+            stop = Data.doc_range[cslice[0] + d + 1] - slice_start
+            LP['resp'][start:stop] *= Prior[d]
     LP['resp'] /= sumRespTilde[:, np.newaxis]
     np.maximum(LP['resp'], 1e-300, out=LP['resp'])
-    # Time consuming: assert np.allclose(LP['resp'].sum(axis=1), 1.0)
+    # Time consuming: 
+    # >>> assert np.allclose(LP['resp'].sum(axis=1), 1.0)
     return LP
 
 

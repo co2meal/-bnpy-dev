@@ -316,10 +316,11 @@ def L_entropy(Data=None, LP=None, resp=None, returnVector=0):
     """
     if LP is not None:
         resp = LP['resp']
-    if hasattr(Data, 'word_count'):
+    if hasattr(Data, 'word_count') and resp.shape[0] == Data.nUniqueToken:
         Hvec = -1 * NumericUtil.calcRlogRdotv(resp, Data.word_count)
     else:
         Hvec = -1 * NumericUtil.calcRlogR(resp)
+    assert Hvec.min() >= -1e-6
     if returnVector:
         return Hvec
     return Hvec.sum()

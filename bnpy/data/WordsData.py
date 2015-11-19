@@ -447,6 +447,50 @@ class WordsData(DataObj):
         setattr(self, key, C)
         return C
 
+
+    def getTokenTypeBinaryMatrix(self):
+        ''' Get dense binary array for vocab usage across all words in dataset
+
+        Returns
+        --------
+        B : 2D array, size U x vocab_size
+            B[n,v] = { word_count[n] iff word_id[n] = v
+                     { 0 otherwise
+            Each distinct word token n is represented by one entire row
+            with only one non-zero entry: at column word_id[n]
+        '''
+        key = '__TokenTypeBinaryMat'
+        if hasattr(self, key):
+            return getattr(self, key)
+
+        B = self.getSparseTokenTypeCountMatrix()
+        X = B.toarray()
+        setattr(self, key, X)
+        return X
+
+    def getSparseTokenTypeBinaryMatrix(self):
+        ''' Get sparse matrix for vocab usage across all words in dataset
+
+        Returns
+        --------
+        B : sparse CSC matrix, size U x vocab_size
+            B[n,v] = { 1 iff word_id[n] = v
+                     { 0 otherwise
+            Each distinct word token n is represented by one entire row
+            with only one non-zero entry: at column word_id[n]
+        '''
+        key = '__sparseTokenTypeBinaryMat'
+        if hasattr(self, key):
+            return getattr(self, key)
+
+        # Create sparse matrix C from scratch
+        indptr = np.arange(self.nUniqueToken + 1)
+        data = np.ones(self.nUniqueToken, dtype=np.float64)
+        B = scipy.sparse.csc_matrix((data, self.word_id, indptr),
+                                    shape=(self.vocab_size, self.nUniqueToken))
+        setattr(self, key, B)
+        return B
+
     def getDocTypeCountMatrix(self, weights=None, **kwargs):
         ''' Get dense matrix counting vocab usage for each document.
 

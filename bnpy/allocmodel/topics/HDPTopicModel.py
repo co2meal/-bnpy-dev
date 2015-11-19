@@ -16,9 +16,6 @@ from bnpy.util import digamma, gammaln
 from bnpy.util import as1D
 from bnpy.util.StickBreakUtil import rho2beta, rho2beta_active, beta2rho
 
-from bnpy.util.NumericUtil import calcRlogRdotv, calcRlogR
-from bnpy.util.NumericUtil import calcRlogRdotv_allpairs
-from bnpy.util.NumericUtil import calcRlogRdotv_specificpairs
 from bnpy.util.NumericUtil import calcRlogR_allpairs, calcRlogR_specificpairs
 from bnpy.util import sharedMemToNumpyArray, numpyToSharedMemArray
 

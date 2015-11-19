@@ -115,7 +115,8 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None, todict=0,
         if SS is not None and SS.hasELBOTerm('Hresp'):
             Hresp = SS.getELBOTerm('Hresp')
         else:
-            if hasattr(Data, 'word_count'):
+            if hasattr(Data, 'word_count') and \
+                    resp.shape[0] == Data.word_count.size:
                 Hresp = -1 * NumericUtil.calcRlogRdotv(resp, Data.word_count)
             else:
                 Hresp = -1 * NumericUtil.calcRlogR(resp)
