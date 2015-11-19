@@ -265,7 +265,7 @@ def calcHrespForMergePairs(resp, Data, mPairIDs, returnVec=1):
     Hresp : 1D array, size M
         where each entry corresponds to one merge pair in mPairIDs
     '''
-    if hasattr(Data, 'word_count'):
+    if hasattr(Data, 'word_count') and resp.shape[0] == Data.word_count.size:
         if mPairIDs is None:
             Hmat = -1 * calcRlogRdotv_allpairs(resp, Data.word_count)
         else:

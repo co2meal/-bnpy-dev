@@ -96,6 +96,14 @@ def _initFromTrueLP(hmodel, Data, initname, PRNG, nRepeatTrue=2,
             LP = convertLPFromTokensToDocs(LP, Data)
         else:
             LP = convertLPFromDocsToTokens(LP, Data)
+    elif str(type(hmodel.obsModel)).count('Bern'):
+        if hmodel.obsModel.DataAtomType == 'doc':
+            LP = convertLPFromTokensToDocs(LP, Data)
+        elif hasattr(Data, 'word_count'):
+            LP = convertLPFromTokensToTypes(LP, Data)
+        else:
+            # Leave Gaussian stuff alone
+            pass
 
     # Adjust "true" labels as specified by initname
     if initname == 'repeattruelabels':
@@ -358,6 +366,35 @@ def expandLPWithContigBlocks(LP, Data, PRNG, nPerSeq=2,
 
     return convertLPFromHardToSoft(LP, Data)
 
+def convertLPFromTokensToTypes(LP, Data):
+    ''' Convert token-specific responsibilities into document-specific ones
+
+    Present words will be allocated to correct topics.
+    Absent words will be all assigned to top-ranked topic in that doc.
+
+    '''
+    resp = LP['resp']
+    N, K = resp.shape
+    if N == Data.vocab_size * Data.nDoc:
+        return LP
+    assert N == Data.nUniqueToken
+    typeResp = np.zeros((Data.nDoc * Data.vocab_size, K))
+    for d in xrange(Data.nDoc):
+        start_d = Data.doc_range[d]
+        stop_d = Data.doc_range[d+1]
+        words_d = Data.word_id[start_d:stop_d]
+        DTC_d = resp[words_d, :].sum(axis=0)
+        # Get range of type-based accounting
+        bstart_d = d * Data.vocab_size
+        bstop_d = (d+1) * Data.vocab_size
+        # Assign all background types to most common topic
+        kmax = np.argmax(DTC_d)
+        typeResp[bstart_d:bstop_d, kmax] = 1.0
+        # Assign foreground types according to true labels
+        typeResp[bstart_d + words_d, :] = resp[start_d:stop_d, :]
+    LP['resp'] = typeResp
+    assert np.allclose(np.sum(typeResp, axis=1), 1.0)
+    return LP
 
 def convertLPFromTokensToDocs(LP, Data):
     ''' Convert token-specific responsibilities into document-specific ones
