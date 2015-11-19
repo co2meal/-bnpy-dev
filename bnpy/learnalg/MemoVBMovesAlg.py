@@ -1230,9 +1230,13 @@ class MemoVBMovesAlg(LearnAlg):
             elif (lapFrac > startLap + nStuck):
                 # If tried for at least nStuck laps without accepting,
                 # we consider the method exhausted and exit early.
-                lapLastAccepted = np.max(
+                b_lapLastAcceptedVec = np.asarray(
                     [MoveRecordsByUID[u]['b_latestLapAccept']
                         for u in MoveRecordsByUID])
+                if b_lapLastAcceptedVec.size == 0:
+                    lapLastAccepted = 0
+                else:
+                    lapLastAccepted = np.max(b_lapLastAcceptedVec)
                 if (lapFrac - lapLastAccepted) > nStuck:
                     hasMovesLeft_Birth = False
                 else:
@@ -1253,9 +1257,13 @@ class MemoVBMovesAlg(LearnAlg):
             elif (lapFrac > startLap + nStuck):
                 # If tried for at least nStuck laps without accepting,
                 # we consider the method exhausted and exit early.
-                lapLastAccepted = np.max(
+                m_lapLastAcceptedVec = np.asarray(
                     [MoveRecordsByUID[u]['m_latestLapAccept']
                         for u in MoveRecordsByUID])
+                if m_lapLastAcceptedVec.size == 0:
+                    lapLastAccepted = 0
+                else:
+                    lapLastAccepted = np.max(m_lapLastAcceptedVec)
                 if (lapFrac - lapLastAccepted) > nStuck:
                     hasMovesLeft_Merge = False
                 else:
@@ -1276,10 +1284,13 @@ class MemoVBMovesAlg(LearnAlg):
             elif lapFrac > startLap + nStuck:
                 # If tried for at least nStuck laps without accepting,
                 # we consider the method exhausted and exit early.
-                lapLastAccepted = np.max(
+                d_lapLastAcceptedVec = np.asarray(
                     [MoveRecordsByUID[u]['d_latestLapAccept']
                         for u in MoveRecordsByUID])
-
+                if d_lapLastAcceptedVec.size == 0:
+                    lapLastAccepted = 0
+                else:
+                    lapLastAccepted = np.max(d_lapLastAcceptedVec)
                 if (lapFrac - lapLastAccepted) > nStuck:
                     hasMovesLeft_Delete = False
                 else:
