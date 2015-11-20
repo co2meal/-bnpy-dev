@@ -65,7 +65,7 @@ def test_ZeroMeanGauss(K=50, N=1000, D=1, W=None, eps=1e-10):
     hmodel = bnpy.HModel.CreateEntireModel(
         'VB', 'DPMixtureModel', 'ZeroMeanGauss',
         dict(gamma0=10),
-        dict(ECovMat='eye', sF=0.5, nu=0.001),
+        dict(ECovMat='eye', sF=0.5, nu=0.01),
         Data)
     if W:
         W = np.asarray(W)
@@ -73,7 +73,7 @@ def test_ZeroMeanGauss(K=50, N=1000, D=1, W=None, eps=1e-10):
             PRNG = np.random.RandomState(0)
             W = PRNG.rand(N)
     Z, Mu, Lscores = runBregKMeans(
-        Data.X, K, hmodel.obsModel, 
+        Data.X, K, hmodel.obsModel,
         W=W, smoothFrac=0, smoothFracInit=1.0,
         logFunc=print, eps=eps)
     assert np.all(np.diff(Lscores) <= 0)
@@ -119,9 +119,9 @@ def test_Mult(K=50, N=1000, W=None):
     assert np.all(np.diff(Lscores) <= 0)
 
 if __name__ == '__main__':
-    for N in [5]: #, 10, 33, 211, 345, 500, 1000]:
+    for N in [200]: #, 10, 33, 211, 345, 500, 1000]:
         print('')
-        for K in [3]: #, 5, 7, 10, 20, 50]:
+        for K in [15]: #, 5, 7, 10, 20, 50]:
             if K > N:
                 continue
             #test_Bern(K, N, W=1)
