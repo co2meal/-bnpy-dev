@@ -119,9 +119,9 @@ def test_Mult(K=50, N=1000, W=None):
     assert np.all(np.diff(Lscores) <= 0)
 
 if __name__ == '__main__':
-    for N in [5, 10, 33, 211, 345, 500, 1000]:
+    for N in [5]: #, 10, 33, 211, 345, 500, 1000]:
         print('')
-        for K in [1, 3, 5, 7, 10, 20, 50]:
+        for K in [3]: #, 5, 7, 10, 20, 50]:
             if K > N:
                 continue
             #test_Bern(K, N, W=1)
