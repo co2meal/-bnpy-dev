@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import numpy as np
+import argparse
 import bnpy
 runBregKMeans = bnpy.init.FromScratchBregman.runKMeans_BregmanDiv
 
@@ -119,16 +120,40 @@ def test_Mult(K=50, N=1000, W=None):
     assert np.all(np.diff(Lscores) <= 0)
 
 if __name__ == '__main__':
-    for N in [200]: #, 10, 33, 211, 345, 500, 1000]:
-        print('')
-        for K in [15]: #, 5, 7, 10, 20, 50]:
+    parser = argparse.ArgumentParser()
+    parser.add_argument('obsModelName', type=str, default='Bern')
+    parser.add_argument('--N', type=int, default=None)
+    parser.add_argument('--K', type=int, default=None)
+    parser.add_argument('--D', type=int, default=2)
+    parser.add_argument('--Nrange', type=str,
+        default='5,10,33,211,345,500,1000')
+    parser.add_argument('--Krange', type=str,
+        default='3,5,8,10')
+    args = parser.parse_args()
+    if args.N is not None:
+        Nrange = [args.N]
+    else:
+        Nrange = [int(n) for n in args.Nrange]
+    if args.K is not None:
+        Krange = [args.K]
+    else:
+        Krange = [int(n) for n in args.Krange]
+
+
+    for N in Nrange:
+        print('--------- N=' + str(N))
+        for K in Krange:
             if K > N:
                 continue
-            #test_Bern(K, N, W=1)
-            #test_Mult(K, N, W=1)
-            #test_DiagGauss(K, N, D=2, W=1, eps=1e-10)
-            test_ZeroMeanGauss(K, N, D=2, W=1, eps=1e-10)
-            
-            #test_Gauss(K, N, D=2, W=1, eps=1e-10)
+            if args.obsModelName.count("Bern"):
+                test_Bern(K, N, W=1)
+            elif args.obsModelName.count("Mult"):
+                test_Mult(K, N, W=1)
+            elif args.obsModelName.count("ZeroMean"):
+                test_ZeroMeanGauss(K, N, D=args.D, W=1, eps=1e-10)
+            elif args.obsModelName.count("Diag"):
+                test_DiagGauss(K, N, D=args.D, W=1, eps=1e-10)
+            else:
+                test_Gauss(K, N, D=args.D, W=1, eps=1e-10)
             #test_Gauss(K, N, D=2, W=1, eps=1e-10, 
             #    nu=3, kappa=2)
