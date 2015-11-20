@@ -124,10 +124,10 @@ if __name__ == '__main__':
         for K in [1, 3, 5, 7, 10, 20, 50]:
             if K > N:
                 continue
-            test_Bern(K, N, W=1)
+            #test_Bern(K, N, W=1)
             #test_Mult(K, N, W=1)
             #test_DiagGauss(K, N, D=2, W=1, eps=1e-10)
-            #test_ZeroMeanGauss(K, N, D=2, W=1, eps=1e-10)
+            test_ZeroMeanGauss(K, N, D=2, W=1, eps=1e-10)
             
             #test_Gauss(K, N, D=2, W=1, eps=1e-10)
             #test_Gauss(K, N, D=2, W=1, eps=1e-10, 
