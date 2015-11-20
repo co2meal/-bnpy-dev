@@ -152,7 +152,7 @@ def runKMeans_BregmanDiv(X, K, obsModel, W=None,
     Mu : 2D array, size K x D
     Lscores : 1D array, size Niter
     '''
-    chosenZ, Mu, _ = initKMeans_BregmanDiv(
+    chosenZ, Mu, initminDiv, sumDataVec = initKMeans_BregmanDiv(
         X, K, obsModel, W=W, seed=seed, smoothFrac=smoothFracInit)
     # Make sure we update K to reflect the returned value.
     # initKMeans_BregmanDiv will return fewer than K clusters
@@ -170,7 +170,7 @@ def runKMeans_BregmanDiv(X, K, obsModel, W=None,
             includeOnlyFastTerms=True, 
             smoothFrac=smoothFrac, eps=eps)
         Z = np.argmin(Div, axis=1)
-        Ldata = Div.min(axis=1).sum()
+        Ldata = Div.min(axis=1).sum() + sumDataVec
         Lprior = obsModel.calcBregDivFromPrior(
             Mu=Mu, smoothFrac=smoothFrac).sum()
         Lscore = Ldata + Lprior
@@ -260,7 +260,7 @@ def initKMeans_BregmanDiv(
             smoothFrac=smoothFrac)
         curDiv[chosenZ[k]] = 0
         minDiv = np.minimum(minDiv, curDiv)
-    return chosenZ, Mu, minDiv
+    return chosenZ, Mu, minDiv, K * np.sum(DivDataVec)
 
 def makeDataSubsetByThresholdResp(
         Data, curModel, 
