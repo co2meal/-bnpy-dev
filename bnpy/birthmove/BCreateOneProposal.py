@@ -62,6 +62,7 @@ def makeSummaryForBirthProposal_HTMLWrapper(
     Info : dict
         Contains info for detailed debugging of construction process.
     '''
+    targetUID = kwargs['targetUID']
     BLogger.startUIDSpecificLog(kwargs['targetUID'])
 
     # Make an output directory for HTML
@@ -72,8 +73,19 @@ def makeSummaryForBirthProposal_HTMLWrapper(
             if kwargs['b_debugOutputDir'].lower() == 'none':
                 kwargs['b_debugOutputDir'] = None
 
-    xSSslice, DebugInfo = makeSummaryForBirthProposal(
-        Dslice, curModel, curLPslice, **kwargs)
+    doExtendExistingProposal = False
+    if 'curSSwhole' in kwargs:
+        curSSwhole = kwargs['curSSwhole']
+        if hasattr(curSSwhole, 'propXSS'):
+            if targetUID in curSSwhole.propXSS:
+                doExtendExistingProposal = True
+
+    if doExtendExistingProposal:
+        xSSslice, DebugInfo = makeSummaryForExistingBirthProposal(
+            Dslice, curModel, curLPslice, **kwargs)
+    else:
+        xSSslice, DebugInfo = makeSummaryForBirthProposal(
+            Dslice, curModel, curLPslice, **kwargs)
 
     # Write output to HTML
     if 'b_debugOutputDir' in kwargs and kwargs['b_debugOutputDir']:
@@ -246,7 +258,6 @@ def makeSummaryForBirthProposal(
 
     # Create initial observation model
     xObsModel = curModel.obsModel.copy()
-
     if b_method_initCoordAscent == 'fromprevious' and 'xLPslice' in Info:
         xInitLPslice = Info['xLPslice']
     else:
@@ -367,7 +378,179 @@ def makeSummaryForBirthProposal(
     assert np.allclose(newMass, origMass, atol=1e-6, rtol=0)
     BLogger.pprint('Proposal SUCCESS. Created %d candidate clusters.' % (
         Info['Kfinal']))
+    return xSSslice, Info
 
+
+def makeSummaryForExistingBirthProposal(
+        Dslice, curModel, curLPslice,
+        curSSwhole=None,
+        targetUID=None,
+        ktarget=None,
+        LPkwargs=DefaultLPkwargs,
+        lapFrac=0,
+        b_nRefineSteps=3,
+        b_debugOutputDir=None,
+        b_method_initCoordAscent='fromprevious',
+        vocabList=None,
+        **kwargs):
+    ''' Create summary that reassigns mass from target given set of comps
+
+    Given set of comps is a fixed proposal from a previously-seen batch.
+
+    Returns
+    -------
+    xSSslice : SuffStatBag
+        Contains exact summaries for reassignment of target mass.
+        * Total mass is equal to mass assigned to ktarget in curLPslice
+        * Number of components is Kfresh
+    Info : dict
+        Contains info for detailed debugging of construction process.
+    '''
+    if targetUID is None:
+        targetUID = curSSwhole.k2uid(ktarget)
+    if ktarget is None:
+        ktarget = curSSwhole.uid2k(targetUID)
+    # START log for this birth proposal
+    BLogger.pprint('Extending previous proposal for targetUID %s at lap %.2f' % (
+        targetUID, lapFrac))
+    # Grab vocabList, if available.
+    if hasattr(Dslice, 'vocabList') and Dslice.vocabList is not None:
+        vocabList = Dslice.vocabList
+    # Parse input to decide where to save HTML output
+    if b_debugOutputDir == 'None':
+        b_debugOutputDir = None
+    if b_debugOutputDir:
+        BLogger.pprint(
+            'HTML output:' + b_debugOutputDir)
+        # Create snapshot of current model comps
+        plotCompsFromSS(
+            curModel, curSSwhole, 
+            os.path.join(b_debugOutputDir, 'OrigComps.png'),
+            vocabList=vocabList,
+            compsToHighlight=[ktarget])
+
+    assert targetUID in curSSwhole.propXSS
+    xinitSS = curSSwhole.propXSS[targetUID]
+    xK = xinitSS.K
+    if xK + curSSwhole.K > kwargs['Kmax']:
+        errorMsg = 'Cancelled.' + \
+            'Adding 2 or more states would exceed budget of %d comps.' % (
+                kwargs['Kmax'])
+        BLogger.pprint(errorMsg)
+        return None, dict(errorMsg=errorMsg)
+
+    # Log messages to describe the initialization.
+    # Make a function to pretty-print counts as we refine the initialization
+    pprintCountVec = BLogger.makeFunctionToPrettyPrintCounts(xinitSS)
+    BLogger.pprint('  Using previous proposal with %d clusters %s.' % (
+        xinitSS.K, '(--b_Kfresh=%d)' % kwargs['b_Kfresh']))
+    BLogger.pprint("  Initial uid/counts from previous proposal:")
+    BLogger.pprint('   ' + vec2str(xinitSS.uids))
+    pprintCountVec(xinitSS)
+    BLogger.pprint('  Running %d refinement iterations (--b_nRefineSteps)' % (
+        b_nRefineSteps))
+
+    xSSinitPlusSlice = xinitSS.copy()
+    if b_debugOutputDir:
+        plotCompsFromSS(
+            curModel, xinitSS, 
+            os.path.join(b_debugOutputDir, 'NewComps_Init.png'),
+            vocabList=vocabList)
+
+        # Determine current model objective score
+        curModelFWD = curModel.copy()
+        curModelFWD.update_global_params(SS=curSSwhole)
+        curLdict = curModelFWD.calc_evidence(SS=curSSwhole, todict=1)
+        # Track proposal ELBOs as refinement improves things
+        propLdictList = list()
+        docUsageByUID = dict()
+        if curModel.getAllocModelName().count('HDP'):
+            for k, uid in enumerate(xinitSS.uids):
+                initDocUsage_uid = 0.0
+                docUsageByUID[uid] = [initDocUsage_uid]
+
+    # Create initial observation model
+    xObsModel = curModel.obsModel.copy()
+    xInitLPslice = None
+    Info = dict()
+    # Run several refinement steps. 
+    # Each step does a restricted local step to improve
+    # the proposed cluster assignments.
+    for rstep in range(b_nRefineSteps):
+        # Restricted local step!
+        # * xInitSS : specifies obs-model stats used for initialization
+        xSSslice, refineInfo = summarizeRestrictedLocalStep(
+            Dslice=Dslice, 
+            curModel=curModel,
+            curLPslice=curLPslice,
+            ktarget=ktarget,
+            xUIDs=xSSinitPlusSlice.uids,
+            xObsModel=xObsModel,
+            xInitSS=xSSinitPlusSlice, # first time in loop <= xinitSS
+            xInitLPslice=xInitLPslice,
+            LPkwargs=LPkwargs,
+            **kwargs)
+
+        xSSinitPlusSlice += xSSslice
+        if rstep >= 1:
+            xSSinitPlusSlice -= prevSSslice
+        prevSSslice = xSSslice
+
+        Info.update(refineInfo)
+        # Show diagnostics for new states
+        pprintCountVec(xSSslice)
+        logLPConvergenceDiagnostics(
+            refineInfo, rstep=rstep, b_nRefineSteps=b_nRefineSteps)
+        # Get most recent xLPslice for initialization
+        if b_method_initCoordAscent == 'fromprevious' and 'xLPslice' in Info:
+            xInitLPslice = Info['xLPslice']
+        if b_debugOutputDir:
+            plotCompsFromSS(
+                curModel, xSSslice, 
+                os.path.join(b_debugOutputDir,
+                             'NewComps_Step%d.png' % (rstep+1)),
+                vocabList=vocabList)
+            propSS = curSSwhole.copy()
+            propSS.transferMassFromExistingToExpansion(
+                uid=targetUID, xSS=xSSslice)
+            propModel = curModel.copy()
+            propModel.update_global_params(propSS)
+            propLdict = propModel.calc_evidence(SS=propSS, todict=1)
+            BLogger.pprint(
+                "step %d/%d  gainL % .3e  propL % .3e  curL % .3e" % (
+                    rstep+1, b_nRefineSteps,
+                    propLdict['Ltotal'] - curLdict['Ltotal'],
+                    propLdict['Ltotal'],
+                    curLdict['Ltotal']))
+            propLdictList.append(propLdict)
+            if curModel.getAllocModelName().count('HDP'):
+                docUsageVec = xSSslice.getSelectionTerm('DocUsageCount')
+                for k, uid in enumerate(xSSslice.uids):
+                    docUsageByUID[uid].append(docUsageVec[k])
+
+    Info['Kfinal'] = xSSslice.K
+    if b_debugOutputDir:
+        savefilename = os.path.join(
+            b_debugOutputDir, 'ProposalTrace_ELBO.png')
+        plotELBOtermsForProposal(curLdict, propLdictList,
+                                 savefilename=savefilename)
+        if curModel.getAllocModelName().count('HDP'):
+            savefilename = os.path.join(
+                b_debugOutputDir, 'ProposalTrace_DocUsage.png')
+            plotDocUsageForProposal(docUsageByUID,
+                                    savefilename=savefilename)
+
+    # If here, we have a valid proposal. 
+    # Need to verify mass conservation
+    if hasattr(Dslice, 'word_count') and \
+            curModel.obsModel.DataAtomType.count('word'):
+        origMass = np.inner(Dslice.word_count, curLPslice['resp'][:,ktarget])
+    else:
+        origMass = curLPslice['resp'][:,ktarget].sum()
+    newMass = xSSslice.getCountVec().sum()
+    assert np.allclose(newMass, origMass, atol=1e-6, rtol=0)
+    BLogger.pprint('Proposal SUCCESS. Created %d candidate clusters.' % (
+        Info['Kfinal']))
     return xSSslice, Info
 
 
@@ -418,7 +601,7 @@ def logLPConvergenceDiagnostics(refineInfo, rstep=0, b_nRefineSteps=0):
     if '_maxDiff' not in xLPslice:
         return
 
-    msg = "step %d/%d " % (rstep, b_nRefineSteps)
+    msg = "step %d/%d " % (rstep + 1, b_nRefineSteps)
     target_docs = np.flatnonzero(xLPslice['_maxDiff'] >= 0)
     if target_docs.size == 0:
         BLogger.pprint(msg + "No docs with active local step.")
@@ -427,11 +610,11 @@ def logLPConvergenceDiagnostics(refineInfo, rstep=0, b_nRefineSteps=0):
     msg += "nCAIters "
     for p in [0, 10, 50, 90, 100]:
         ip = np.percentile(xLPslice['_nIters'][target_docs], p)
-        msg += " %3d%% %2d" % (p, ip)
-    msg += " | Ndiff "
+        msg += " %3d%% %7d" % (p, ip)
+    msg += "\n         Ndiff    "
     for p in [0, 10, 50, 90, 100]:
         md = np.percentile(xLPslice['_maxDiff'][target_docs], p)
-        msg += " %3d%% %5.3f" % (p, md)
+        msg += " %3d%% %7.3f" % (p, md)
     BLogger.pprint(msg)
 
 ## DEPRECATED. HISTORICALLY INTERESTING CODE.
