@@ -728,7 +728,14 @@ class BernObsModel(AbstractObsModel):
         Mu /= (NX + self.Prior.lam1 + self.Prior.lam0)
         return Mu
 
-    def calcSmoothedBregDiv(self, X, Mu, W=None, smoothFrac=0.0, **kwargs):
+    def calcSmoothedBregDiv(self, 
+            X, Mu, W=None,
+            smoothFrac=0.0,
+            includeOnlyFastTerms=False,
+            DivDataVec=None,
+            returnDivDataVec=False,
+            return1D=False,
+            **kwargs):
         ''' Compute Bregman divergence between data X and clusters Mu.
 
         Smooth the data via update with prior parameters.
@@ -753,6 +760,54 @@ class BernObsModel(AbstractObsModel):
         K = len(Mu)
         assert Mu[0].size == D
 
+        # Smooth-ify the data matrix X
+        if smoothFrac == 0:
+            MuX = np.minimum(X, 1 - 1e-14)
+            np.maximum(MuX, 1e-14, out=MuX)
+        else:
+            MuX = X + smoothFrac * self.Prior.lam1
+            NX = 1.0 + smoothFrac * (self.Prior.lam1 + self.Prior.lam0)
+            MuX /= NX
+
+        # Compute Div array up to a per-row additive constant indep. of k
+        Div = np.zeros((N, K))
+        for k in xrange(K):
+            Div[:,k] = -1 * np.sum(MuX * np.log(Mu[k]), axis=1) + \
+                -1 * np.sum((1-MuX) * np.log(1-Mu[k]), axis=1)
+
+        if not includeOnlyFastTerms:
+            if DivDataVec is None:
+                # Compute DivDataVec : 1D array of size N
+                # This is the per-row additive constant indep. of k. 
+                DivDataVec = np.sum(MuX * np.log(MuX), axis=1)
+                DivDataVec += np.sum((1-MuX) * np.log(1-MuX), axis=1)
+            Div += DivDataVec[:,np.newaxis]
+
+        # Apply per-atom weights to divergences.
+        if W is not None:
+            assert W.ndim == 1
+            assert W.size == N
+            Div *= W[:,np.newaxis]
+        # Verify divergences are strictly non-negative 
+        if not includeOnlyFastTerms:
+            minDiv = Div.min()
+            if minDiv < 0:
+                if minDiv < -1e-6:
+                    raise AssertionError(
+                        "Expected Div.min() to be positive or" + \
+                        " indistinguishable from zero. Instead " + \
+                        " minDiv=% .3e" % (minDiv))
+                np.maximum(Div, 0, out=Div)
+                minDiv = Div.min()
+            assert minDiv >= 0
+
+        if return1D:
+            Div = Div[:,0]
+        if returnDivDataVec:
+            return Div, DivDataVec
+        return Div
+
+        ''' OLD VERSION
         if smoothFrac == 0:
             MuX = np.minimum(X, 1 - 1e-14)
             MuX = np.maximum(MuX, 1e-14)
@@ -766,12 +821,7 @@ class BernObsModel(AbstractObsModel):
             Mu_k = Mu[k][np.newaxis,:]
             Div[:,k] = np.sum(MuX * np.log(MuX / Mu_k), axis=1) + \
                 np.sum((1-MuX) * np.log((1-MuX) / (1-Mu_k)), axis=1)
-        if W is not None:
-            Div *= W[:,np.newaxis]
-        assert Div.min() > -1e-8
-        np.maximum(Div, 0, out=Div)
-        assert Div.min() >= 0
-        return Div
+        '''
 
     def calcBregDivFromPrior(self, Mu, smoothFrac=0.0):
         ''' Compute Bregman divergence between Mu and prior mean.
