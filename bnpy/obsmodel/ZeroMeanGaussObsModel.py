@@ -693,8 +693,16 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
         assert Mu.shape == (D, D,)
         return Mu
 
-    def calcSmoothedBregDiv(self, X, Mu, 
-                            W=None, smoothFrac=0.0, eps=1e-10):
+    def calcSmoothedBregDiv(
+            self, X, Mu, 
+            W=None,
+            smoothFrac=0.0,
+            eps=1e-10,
+            includeOnlyFastTerms=False,
+            DivDataVec=None,
+            returnDivDataVec=False,
+            return1D=False,
+            **kwargs):
         ''' Compute Bregman divergence between data X and clusters Mu.
 
         Smooth the data via update with prior parameters.
@@ -715,13 +723,61 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
         assert Mu[0].ndim == 2
         assert Mu[0].shape[0] == D
         assert Mu[0].shape[1] == D
+
+        if smoothFrac == 0:
+            smoothMu = eps * self.Prior.B / self.Prior.nu
+            smoothNu = 1.0 # + eps ??
+        else:
+            smoothMu = self.Prior.B
+            smoothNu = 1 + self.Prior.nu
+        Div = np.zeros((N, K))
+        for k in xrange(K):
+            chol_Mu_k = np.linalg.cholesky(Mu[k])
+            logdet_Mu_k = 2.0 * np.sum(np.log(np.diag(chol_Mu_k)))
+            xxTInvMu_k = np.linalg.solve(chol_Mu_k, X.T)
+            xxTInvMu_k *= xxTInvMu_k
+            tr_xxTInvMu_k = np.sum(xxTInvMu_k, axis=0) / smoothNu
+            Div[:,k] = 0.5 * logdet_Mu_k + \
+                0.5 * tr_xxTInvMu_k
+            if smoothFrac > 0:
+                Div[:, k] += 0.5 * np.trace(
+                    np.linalg.solve(Mu[k], smoothMu))
+
+        if not includeOnlyFastTerms:
+            if DivDataVec is None:
+                # Compute DivDataVec : 1D array of size N
+                # This is the per-row additive constant indep. of k. 
+                # We do lots of steps in-place, to save memory.
+                DivDataVec = -0.5 * D * np.ones(N)
+                for n in xrange(N):
+                    s, logdet_xxT_n = np.linalg.slogdet(
+                        (np.outer(X[n], X[n]) + smoothMu) / smoothNu)
+                    DivDataVec[n] -= 0.5 * s * logdet_xxT_n
+            Div += DivDataVec[:,np.newaxis]
+
+        # Apply per-atom weights to divergences.
         if W is not None:
             assert W.ndim == 1
             assert W.size == N
-
-        if smoothFrac == 0:
-            priorMu = self.Prior.B / self.Prior.nu
-
+            Div *= W[:,np.newaxis]
+        # Verify divergences are strictly non-negative 
+        if not includeOnlyFastTerms:
+            minDiv = Div.min()
+            if minDiv < 0:
+                if minDiv < -1e-6:
+                    raise AssertionError(
+                        "Expected Div.min() to be positive or" + \
+                        " indistinguishable from zero. Instead " + \
+                        " minDiv=% .3e" % (minDiv))
+                np.maximum(Div, 0, out=Div)
+                minDiv = Div.min()
+            assert minDiv >= 0
+        if return1D:
+            Div = Div[:,0]
+        if returnDivDataVec:
+            return Div, DivDataVec
+        return Div
+        '''
         logdet_xxT = np.zeros(N)
         tr_xxTInvMu = np.zeros((N, K))
         for n in xrange(N):
@@ -745,13 +801,7 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
             Div[:,k] = -0.5 * D - 0.5 * logdet_xxT + \
                 0.5 * logdet_Mu_k + \
                 0.5 * tr_xxTInvMu[:, k]
-
-        if W is not None:
-            Div *= W[:,np.newaxis]
-        if smoothFrac > 0:
-            assert Div.min() > -1e-8
-            np.maximum(Div, 0, out=Div)
-        return Div
+        '''
 
     def calcBregDivFromPrior(self, Mu, smoothFrac=0.0):
         ''' Compute Bregman divergence between Mu and prior mean.
