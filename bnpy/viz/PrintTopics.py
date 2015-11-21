@@ -65,7 +65,6 @@ def showTopWordsForTask(taskpath, vocabfile, lap=None, doHTML=1,
             return printTopWordsFromWordCounts(WordCounts, vocabList)
 
     else:
-        print 'HERE <<<'
         hmodel, lap = loadModelForLap(taskpath, lap)
         if doHTML:
             return htmlTopWordsFromHModel(hmodel, vocabList, **kwargs)

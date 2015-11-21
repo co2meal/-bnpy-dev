@@ -19,7 +19,6 @@ def loadKeffForTask(
     effCountThr = np.maximum(effCountThr, MIN_PRESENT_COUNT)
     CountMat, Info = loadCountHistoriesForTask(taskpath, 
         MIN_PRESENT_COUNT=MIN_PRESENT_COUNT)
-    print effCountThr, "<<<"
     return np.sum(CountMat >= effCountThr, axis=1)
 
 def loadCountHistoriesForTask(

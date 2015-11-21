@@ -257,7 +257,6 @@ class LearnAlg(object):
         if s > 0:
             if (lap >= sE ** s):
                 self.outputParams['saveEvery'] = sE ** s
-                print self.outputParams['saveEvery'], '<<<'
         saveEvery = self.outputParams['saveEvery']
         if saveEvery <= 0 or self.savedir is None:
             return False
