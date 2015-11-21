@@ -983,40 +983,35 @@ class GaussObsModel(AbstractObsModel):
         assert Mu[0][0].shape[0] == D
         assert Mu[0][0].shape[1] == D
         assert Mu[0][1].size == D
-        # Parse W
-        if W is not None:
-            assert W.ndim == 1
-            assert W.size == N
 
         prior_x = self.Prior.m
         prior_covx = self.Prior.B / (self.Prior.nu)
-
-        logdet_MuCov = np.zeros(K)
-        tr_InvMu_CovX_ddT = np.zeros((N, K))
-
-        Cov_X = eps * prior_covx
-        s, logdet = np.linalg.slogdet(Cov_X)
-        logdet_XCov = s * logdet
+        CovX = eps * prior_covx
 
         Div = np.zeros((N, K))
         for k in xrange(K):
-            chol_muVar_k = np.linalg.cholesky(Mu[k][0])
-            s, logdet = np.linalg.slogdet(Mu[k][0])
-            logdet_MuCov[k] = s * logdet
-
+            chol_CovMu_k = np.linalg.cholesky(Mu[k][0])
+            logdet_CovMu_k = 2.0 * np.sum(np.log(np.diag(chol_CovMu_k)))
             tr_InvMu_CovX_k = np.trace(np.linalg.solve(
-                Mu[k][0], Cov_X))
-
+                Mu[k][0], CovX))
             XdiffMu_k = X - Mu[k][1]
-            tr_InvMu_XdXdT_k = np.linalg.solve(chol_muVar_k, XdiffMu_k.T)
+            tr_InvMu_XdXdT_k = np.linalg.solve(chol_CovMu_k, XdiffMu_k.T)
             tr_InvMu_XdXdT_k *= tr_InvMu_XdXdT_k
             tr_InvMu_XdXdT_k = tr_InvMu_XdXdT_k.sum(axis=0)
-
-            Div[:,k] = -0.5 \
-                - 0.5 * logdet_XCov \
-                + 0.5 * logdet_MuCov[k] \
+            Div[:,k] = \
+                + 0.5 * logdet_CovMu_k \
                 + 0.5 * (tr_InvMu_CovX_k + tr_InvMu_XdXdT_k)
-        DivDataVec = None
+
+        if not includeOnlyFastTerms:
+            if DivDataVec is None:
+                # Compute DivDataVec : 1D array of size N
+                # This is the per-row additive constant indep. of k. 
+                DivDataVec = -0.5 * D * np.ones(N)
+                s, logdet = np.linalg.slogdet(CovX)
+                logdet_CovX = s * logdet
+                DivDataVec -= 0.5 * logdet_CovX
+        
+            Div += DivDataVec[:,np.newaxis]
 
         # Apply per-atom weights to divergences.
         if W is not None:
@@ -1035,7 +1030,6 @@ class GaussObsModel(AbstractObsModel):
                 np.maximum(Div, 0, out=Div)
                 minDiv = Div.min()
             assert minDiv >= 0
-
         if return1D:
             Div = Div[:,0]
         if returnDivDataVec:
