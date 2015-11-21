@@ -29,12 +29,9 @@ def evalTopicModelOnTestDataFromTaskpath(
         if key in LPkwargs and kwargs[key] is not None:
             LPkwargs[key] = str2val(kwargs[key])
     # Load saved model
-    try:
-        topics, probs, alpha = loadTopicModel(
-            taskpath, queryLap=queryLap,
-            returnTPA=1, normalizeTopics=1, normalizeProbs=1)
-    except Exception:
-        from IPython import embed; embed()
+    topics, probs, alpha = loadTopicModel(
+        taskpath, queryLap=queryLap,
+        returnTPA=1, normalizeTopics=1, normalizeProbs=1)
     if printFunc:
         msg = "%s heldout data. %d documents. %d total words." % (
             Data.name, Data.nDoc, Data.word_count.sum())

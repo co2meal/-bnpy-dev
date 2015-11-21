@@ -15,7 +15,7 @@ import glob
 from ModelWriter import makePrefixForLap
 from bnpy.allocmodel import AllocModelConstructorsByName
 from bnpy.obsmodel import ObsModelConstructorsByName
-from bnpy.util import toCArray, as1D
+from bnpy.util import toCArray, as1D, as2D
 
 
 def getPrefixForLapQuery(taskpath, lapQuery):
@@ -322,7 +322,8 @@ def loadTopicModel(
             topics = Mdict['WordCounts'] + Mdict['lam']
         else:
             topics = Mdict['topics']
-            topics = np.asarray(topics, dtype=np.float64)
+        topics = as2D(toCArray(topics, dtype=np.float64))
+        assert topics.ndim == 2
         K = topics.shape[0]
         if normalizeTopics:
             topics /= topics.sum(axis=1)[:,np.newaxis]
@@ -332,7 +333,9 @@ def loadTopicModel(
             probs = Mdict['probs']
         except KeyError:
             probs = (1.0 / K) * np.ones(K)
-        probs = np.asarray(probs, dtype=np.float64)
+        probs = as1D(toCArray(probs, dtype=np.float64))
+        assert probs.ndim == 1
+        assert probs.size == K
         if normalizeProbs:
             probs = probs / np.sum(probs)
 

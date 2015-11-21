@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import bnpy.data
 
 def loadDataFromSavedTask(taskoutpath, dataSplitName='train', **kwargs):
     ''' Load data object used for training a specified saved run.
@@ -30,7 +31,30 @@ def loadDataFromSavedTask(taskoutpath, dataSplitName='train', **kwargs):
     '''
     dataName = getDataNameFromTaskpath(taskoutpath)
     dataKwargs = loadDataKwargsFromDisk(taskoutpath)
-    datamod = __import__(dataName, fromlist=[])
+    try:
+        datamod = __import__(dataName, fromlist=[])
+    except ImportError as e:
+        Data = None
+        for k, v in dataKwargs.items():
+            print k, v
+        if 'dataPath' not in dataKwargs:
+            raise e
+        try:
+            confpath = os.path.join(dataKwargs['dataPath'], 'Info.conf')
+            if os.path.exists(confpath):
+                with open(confpath, 'r') as f:
+                    for line in f.readlines():
+                        if line.count('heldoutDataPath'):
+                            matpath = line.split('=')[1]
+                            matpath = matpath.strip()
+            matpath = os.path.expandvars(matpath)
+            if os.path.exists(matpath) and matpath.endswith('.mat'):
+                Data = bnpy.data.WordsData.LoadFromFile_tokenlist(
+                    matpath, vocab_size=dataKwargs['vocab_size'])
+                Data.name = dataName
+        except Exception as e2:
+            raise e
+        return Data
 
     if dataSplitName.count('test'):
         Data = datamod.get_test_data(**dataKwargs)
