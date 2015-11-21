@@ -55,6 +55,7 @@ class BernObsModel(AbstractObsModel):
             self.CompDims = CompDims
         elif isinstance(CompDims, str):
             self.CompDims = tuple(CompDims)
+        assert isinstance(self.CompDims, tuple)
 
     def createPrior(self, Data, lam1=1.0, lam0=1.0, eps_phi=1e-14, **kwargs):
         ''' Initialize Prior ParamBag attribute.
@@ -92,13 +93,16 @@ class BernObsModel(AbstractObsModel):
 
     def setupWithAllocModel(self, allocModel):
         ''' Setup expected dimensions of components.
+
+        Args
+        ----
+        allocModel : instance of bnpy.allocmodel.AllocModel
         '''
         self.CompDims = allocModel.getCompDims()
+        assert isinstance(self.CompDims, tuple)
 
-        if not isinstance(allocModel, str):
-            allocModel = str(type(allocModel))
-        aModelName = allocModel.lower()
-        if aModelName.count('hdp') or aModelName.count('topic'):
+        allocModelName = str(type(allocModel)).lower()
+        if allocModelName.count('hdp') or allocModelName.count('topic'):
             self.DataAtomType = 'word'
         else:
             self.DataAtomType = 'doc'
@@ -415,8 +419,9 @@ class BernObsModel(AbstractObsModel):
             Elog1mphiT = self.GetCached('E_log1mphiT', 'all')
             # with relational/graph datasets, these have shape D x K x K
             # otherwise, these have shape D x K
-        if self.CompDims == ('K'):
+        if self.CompDims == ('K',):
             # Typical case: K x D
+            assert Post._FieldDims['lam1'] == ('K', 'D')
             L_perComp = np.zeros(SS.K)
             for k in xrange(SS.K):
                 L_perComp[k] = c_Diff(Prior.lam1, Prior.lam0,
@@ -431,8 +436,10 @@ class BernObsModel(AbstractObsModel):
             if returnVec:
                 return L_perComp
             return np.sum(L_perComp)
-        else:
+        elif self.CompDims == ('K','K',):
             # Relational case, K x K x D
+            assert Post._FieldDims['lam1'] == ('K', 'K', 'D')
+
             cPrior = c_Func(Prior.lam1, Prior.lam0)
             Ldata = SS.K * SS.K * cPrior - c_Func(Post.lam1, Post.lam0)
             if not afterMStep:
@@ -442,9 +449,10 @@ class BernObsModel(AbstractObsModel):
                 Ldata += np.sum(
                     (SS.Count0 + Prior.lam0[nx, nx, :] - Post.lam0) *
                     Elog1mphiT.T)
-
             return Ldata
-
+        else:
+            raise ValueError("Unrecognized compdims: " + str(self.CompDims))
+            
     def getDatasetScale(self, SS, extraSS=None):
         ''' Get number of observed scalars in dataset from suff stats.
 

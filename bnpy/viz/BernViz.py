@@ -12,14 +12,11 @@ imshowArgs = dict(interpolation='nearest',
                   vmax=1.0)
 
 
-def plotCompsFromHModel(hmodel, doShowNow=False,
-                        doSquare=0,
-                        xlabels=[],
-                        compsToHighlight=None, compListToPlot=None,
-                        activeCompIDs=None, Kmax=50,
-                        Data=None,
+def plotCompsFromHModel(hmodel,
+                        doShowNow=False,
                         block=0,  # unused
                         jobname='',  # unused
+                        vocabList=None, # catchall
                         **kwargs):
     if hasattr(hmodel.obsModel, 'Post'):
         hmodel.obsModel.setEstParamsFromPost()
@@ -27,9 +24,9 @@ def plotCompsFromHModel(hmodel, doShowNow=False,
 
     dim = phi.shape[1]
     if dim > 9 and isPerfectSquare(dim):
-        figH = plotCompsAsSquareImages(phi, compsToHighlight, **kwargs)
+        figH = plotCompsAsSquareImages(phi, **kwargs)
     else:
-        figH = plotCompsAsRowsInSingleImage(phi, compsToHighlight, **kwargs)
+        figH = plotCompsAsRowsInSingleImage(phi, **kwargs)
     if doShowNow:
         pylab.show()
     return figH
@@ -57,6 +54,7 @@ def plotCompsAsSquareImages(phi,
                             xlabels=[],
                             Kmax=50,
                             W=1, H=1, figH=None,
+                            vocabList=None, # catchall
                             **kwargs):
     curImshowArgs = dict(**imshowArgs)
     curImshowArgs.update(kwargs)
