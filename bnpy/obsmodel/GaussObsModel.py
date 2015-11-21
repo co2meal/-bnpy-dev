@@ -946,8 +946,15 @@ class GaussObsModel(AbstractObsModel):
         assert Mu_2.shape == (D,)
         return Mu_1, Mu_2
 
-    def calcSmoothedBregDiv(self, X, Mu, 
-                            W=None, smoothFrac=0.0, eps=1e-10):
+    def calcSmoothedBregDiv(
+            self, X, Mu, W=None,
+            eps=1e-10,
+            smoothFrac=0.0,
+            includeOnlyFastTerms=False,
+            DivDataVec=None,
+            returnDivDataVec=False,
+            return1D=False,
+            **kwargs):
         ''' Compute Bregman divergence between data X and clusters Mu.
 
         Smooth the data via update with prior parameters.
@@ -1009,13 +1016,30 @@ class GaussObsModel(AbstractObsModel):
                 - 0.5 * logdet_XCov \
                 + 0.5 * logdet_MuCov[k] \
                 + 0.5 * (tr_InvMu_CovX_k + tr_InvMu_XdXdT_k)
+        DivDataVec = None
 
+        # Apply per-atom weights to divergences.
         if W is not None:
+            assert W.ndim == 1
+            assert W.size == N
             Div *= W[:,np.newaxis]
-        assert np.all(np.isfinite(Div))
-        assert Div.min() > -1e-8
-        np.maximum(Div, 0, out=Div)
-        assert Div.min() >= 0
+        # Verify divergences are strictly non-negative 
+        if not includeOnlyFastTerms:
+            minDiv = Div.min()
+            if minDiv < 0:
+                if minDiv < -1e-6:
+                    raise AssertionError(
+                        "Expected Div.min() to be positive or" + \
+                        " indistinguishable from zero. Instead " + \
+                        " minDiv=% .3e" % (minDiv))
+                np.maximum(Div, 0, out=Div)
+                minDiv = Div.min()
+            assert minDiv >= 0
+
+        if return1D:
+            Div = Div[:,0]
+        if returnDivDataVec:
+            return Div, DivDataVec
         return Div
 
     def calcBregDivFromPrior(self, Mu, smoothFrac=0.0):
