@@ -330,6 +330,7 @@ class MemoVBMovesAlg(LearnAlg):
                     MoveRecordsByUID=MoveRecordsByUID,
                     taskoutpath=self.savedir,
                     lapFrac=lapFrac,
+                    seed=self.seed,
                     nBatch=self.nBatch,
                     batchPos=batchPos,
                     **self.algParams['birth'])

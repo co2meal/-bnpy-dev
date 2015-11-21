@@ -69,7 +69,6 @@ def initSS_BregmanDiv(
         NiterForBregmanKMeans = kwargs['NiterForBregmanKMeans']
 
     Niter = np.maximum(NiterForBregmanKMeans, 0)
-    PRNG = np.random.RandomState(int(seed))
     DebugInfo, targetData, targetX, targetW, chosenRespIDs = \
         makeDataSubsetByThresholdResp(
             Dslice,
@@ -81,7 +80,6 @@ def initSS_BregmanDiv(
     if targetData is None:
         assert 'errorMsg' in DebugInfo
         return None, DebugInfo
-
     K = np.minimum(K, targetX.shape[0])
     # Perform plusplus initialization + Kmeans clustering
     targetZ, Mu, Lscores = runKMeans_BregmanDiv(
@@ -179,8 +177,12 @@ def runKMeans_BregmanDiv(X, K, obsModel, W=None,
         try:
             assert np.all(np.diff(Lscores) <= 0)
         except AssertionError:
-            print 'In the kmeans update loop of FromScratchBregman.py'
-            print 'Lscores not monotonically decreasing...'
+            msg = 'In the kmeans update loop of FromScratchBregman.py'
+            msg += 'Lscores not monotonically decreasing...'
+            if logFunc:
+                logFunc(msg)
+            else:
+                print msg
             assert np.all(np.diff(Lscores) <= 0)
 
         N = np.zeros(K)

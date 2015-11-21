@@ -106,6 +106,7 @@ def makeSummaryForBirthProposal(
         newUIDs=None,
         LPkwargs=DefaultLPkwargs,
         lapFrac=0,
+        seed=0,
         b_nRefineSteps=3,
         b_debugOutputDir=None,
         b_minNumAtomsForNewComp=None,
@@ -163,14 +164,13 @@ def makeSummaryForBirthProposal(
                     kwargs['Kmax'])
             BLogger.pprint(errorMsg)
             return None, dict(errorMsg=errorMsg)
-
     # Create suff stats for some new states
     xInitSStarget, Info = initSS_BregmanDiv(
         Dslice, curModel, curLPslice, 
         K=xK, 
         ktarget=ktarget,
         lapFrac=lapFrac,
-        seed=1000 * lapFrac,
+        seed=seed + int(1000 * lapFrac),
         logFunc=BLogger.pprint,
         NiterForBregmanKMeans=kwargs['b_NiterForBregmanKMeans'],
         **kwargs)
