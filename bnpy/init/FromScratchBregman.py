@@ -245,12 +245,12 @@ def initKMeans_BregmanDiv(
     minDiv[chosenZ[0]] = 0
     for k in range(1, K):
         sum_minDiv = np.sum(minDiv)        
-        if np.allclose(0.0, sum_minDiv):
+        if sum_minDiv == 0.0:
             # Duplicate rows corner case
             # Some rows of X may be exact copies, 
             # leading to all minDiv being zero if chosen covers all copies
             chosenZ = chosenZ[:k]
-            for emptyk in range(k, K):
+            for emptyk in reversed(range(k, K)):
                 Mu.pop(emptyk)
             break
         elif sum_minDiv < 0 or not np.isfinite(sum_minDiv):
