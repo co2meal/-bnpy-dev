@@ -1,6 +1,8 @@
 import numpy as np
-from scipy.special import digamma, gammaln
 import os
+
+from scipy.special import digamma, gammaln
+from bnpy.allocmodel import make_xPiVec_and_emptyPi
 
 def summarizeRestrictedLocalStep_HDPTopicModel(
         Dslice=None, 
@@ -32,9 +34,11 @@ def summarizeRestrictedLocalStep_HDPTopicModel(
         xObsModel.update_global_params(xInitSS)
     assert xObsModel.K == Kfresh
 
-    xalphaPi, emptyalphaPi = make_xalphaPi_and_emptyalphaPi(
+    xPiVec, emptyPi = make_xPiVec_and_emptyPi(
         curModel=curModel, xInitSS=xInitSS,
         ktarget=ktarget, Kfresh=Kfresh, **kwargs)
+    xalphaPi = curModel.allocModel.alpha * xPiVec
+    thetaEmptyComp = curModel.allocModel.alpha * emptyPi
 
     # Perform restricted inference!
     # xLPslice contains local params for all Kfresh expansion clusters
@@ -44,7 +48,7 @@ def summarizeRestrictedLocalStep_HDPTopicModel(
         ktarget=ktarget,
         xObsModel=xObsModel,
         xalphaPi=xalphaPi,
-        thetaEmptyComp=emptyalphaPi,
+        thetaEmptyComp=thetaEmptyComp,
         **kwargs)
     
     # Summarize this expanded local parameter pack
@@ -67,10 +71,10 @@ def summarizeRestrictedLocalStep_HDPTopicModel(
     # Prepare dict of info for debugging/inspection
     Info = dict()
     Info['Kfresh'] = Kfresh
-    Info['emptyalphaPi'] = emptyalphaPi
-    Info['xalphaPi'] = xalphaPi
     Info['xInitSS'] = xInitSS
     Info['xLPslice'] = xLPslice
+    Info['xPiVec'] = xPiVec
+    Info['emptyPi'] = emptyPi
     return xSSslice, Info
 
 
@@ -80,8 +84,8 @@ def restrictedLocalStep_HDPTopicModel(
         ktarget=0,
         xObsModel=None,
         xalphaPi=None,
-        xInitLPslice=None,
         thetaEmptyComp=None,
+        xInitLPslice=None,
         b_localStepSingleDoc='fast',
         **kwargs):
     '''
@@ -411,7 +415,6 @@ def makeExpansionSSFromZ_HDPTopicModel(
         Dslice, xLPslice,
         doPrecompEntropy=1, trackDocUsage=1, doTrackTruncationGrowth=1)
     xSSslice.setUIDs(kwargs['xInitSS'].uids.copy())
-
     Info = dict()
     Info['xLPslice'] = xLPslice
     return xSSslice, Info
@@ -440,9 +443,11 @@ def makeExpansionLPFromZ_HDPTopicModel(
     N = curLPslice['resp'].shape[0]
 
     # Compute prior probability of each proposed comp
-    xalphaPi, emptyalphaPi = make_xalphaPi_and_emptyalphaPi(
+    xPiVec, emptyPi = make_xPiVec_and_emptyPi(
         curModel=curModel, ktarget=ktarget, Kfresh=Kfresh, 
         xInitSS=xInitSS, **kwargs)
+    xalphaPi = curModel.allocModel.alpha * xPiVec
+    emptyalphaPi = curModel.allocModel.alpha * emptyPi
 
     # Compute likelihood under each proposed comp
     xObsModel = curModel.obsModel.copy()
@@ -529,6 +534,7 @@ def makeExpansionLPFromZ_HDPTopicModel(
 
     return xLPslice
 
+"""
 def make_xalphaPi_and_emptyalphaPi(
         curModel=None, xInitSS=None,
         ktarget=0, Kfresh=0,
@@ -563,3 +569,4 @@ def make_xalphaPi_and_emptyalphaPi(
         raise ValueError("Unrecognized b_method_xPi: " + b_method_xPi)
     assert np.allclose(np.sum(xalphaPi) + emptyalphaPi, target_alphaPi)
     return xalphaPi, emptyalphaPi
+"""

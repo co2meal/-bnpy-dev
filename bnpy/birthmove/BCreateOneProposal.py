@@ -10,7 +10,6 @@ from bnpy.allocmodel.topics.HDPTopicRestrictedLocalStep \
     import summarizeRestrictedLocalStep_HDPTopicModel
 
 from BCleanup import cleanupMergeClusters, cleanupDeleteSmallClusters
-#from BRefine import assignSplitStats, _calc_expansion_alphaEbeta
 from BirthProposalError import BirthProposalError
 from bnpy.viz.PlotComps import plotCompsFromSS
 from bnpy.viz.ProposalViz import plotELBOtermsForProposal
@@ -18,8 +17,9 @@ from bnpy.viz.ProposalViz import plotDocUsageForProposal
 from bnpy.viz.ProposalViz import makeSingleProposalHTMLStr
 from bnpy.viz.PrintTopics import vec2str
 
-from bnpy.allocmodel.topics.HDPTopicRestrictedLocalStep \
-    import makeExpansionSSFromZ_HDPTopicModel
+from BRestrictedLocalStep import \
+    summarizeRestrictedLocalStep, \
+    makeExpansionSSFromZ
 
 from bnpy.init.FromScratchBregman import initSS_BregmanDiv
 
@@ -29,6 +29,7 @@ DefaultLPkwargs = dict(
     nCoordAscentItersLP=50,
     )
 
+"""
 def summarizeRestrictedLocalStep(**kwargs):
     ''' Wrapper that calls allocation-model specific restricted local function.
 
@@ -44,6 +45,7 @@ def summarizeRestrictedLocalStep(**kwargs):
         "summarizeRestrictedLocalStep_" + aModelName
     summarizeFunc = globals()[summarizeFuncName]
     return summarizeFunc(**kwargs)
+"""
 
 def makeSummaryForBirthProposal_HTMLWrapper(
         Dslice, curModel, curLPslice,        
@@ -192,7 +194,7 @@ def makeSummaryForBirthProposal(
 
     if b_doInitCompleteLP:
         # Create valid whole-dataset clustering from hard init
-        xInitSSslice, tempInfo = makeExpansionSSFromZ_HDPTopicModel(
+        xInitSSslice, tempInfo = makeExpansionSSFromZ(
             Dslice=Dslice, curModel=curModel, curLPslice=curLPslice,
             ktarget=ktarget,
             xInitSS=xInitSStarget,

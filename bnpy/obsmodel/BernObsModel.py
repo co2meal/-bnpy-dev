@@ -791,6 +791,7 @@ class BernObsModel(AbstractObsModel):
                 DivDataVec += np.sum((1-MuX) * np.log(1-MuX), axis=1)
             Div += DivDataVec[:,np.newaxis]
 
+        assert np.all(np.isfinite(Div))
         # Apply per-atom weights to divergences.
         if W is not None:
             assert W.ndim == 1

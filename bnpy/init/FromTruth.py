@@ -367,7 +367,7 @@ def expandLPWithContigBlocks(LP, Data, PRNG, nPerSeq=2,
     return convertLPFromHardToSoft(LP, Data)
 
 def convertLPFromTokensToTypes(LP, Data):
-    ''' Convert token-specific responsibilities into document-specific ones
+    ''' Convert token-specific responsibilities into type-specific ones
 
     Present words will be allocated to correct topics.
     Absent words will be all assigned to top-ranked topic in that doc.
@@ -383,7 +383,10 @@ def convertLPFromTokensToTypes(LP, Data):
         start_d = Data.doc_range[d]
         stop_d = Data.doc_range[d+1]
         words_d = Data.word_id[start_d:stop_d]
-        DTC_d = resp[words_d, :].sum(axis=0)
+        # Compute DocTopicCount_d for present words only
+        # Purposefully ignore word_count,
+        # since we want counts weighted equally by each present word
+        DTC_d = np.sum(resp[start_d:stop_d, :], axis=0)
         # Get range of type-based accounting
         bstart_d = d * Data.vocab_size
         bstop_d = (d+1) * Data.vocab_size
@@ -391,7 +394,11 @@ def convertLPFromTokensToTypes(LP, Data):
         kmax = np.argmax(DTC_d)
         typeResp[bstart_d:bstop_d, kmax] = 1.0
         # Assign foreground types according to true labels
+        typeResp[bstart_d + words_d, kmax] -= 1.0
         typeResp[bstart_d + words_d, :] = resp[start_d:stop_d, :]
+        assert np.allclose(Data.vocab_size,
+                           np.sum(typeResp[bstart_d:bstop_d]))
+        assert np.allclose(resp[start_d:stop_d], typeResp[bstart_d + words_d])
     LP['resp'] = typeResp
     assert np.allclose(np.sum(typeResp, axis=1), 1.0)
     return LP
@@ -425,4 +432,20 @@ def convertLPFromDocsToTokens(LP, Data):
         stop = Data.doc_range[d + 1]
         tokResp[start:stop, :] = curDocResp
     LP['resp'] = tokResp
+    return LP
+
+
+def convertLPFromDocsToTypes(LP, Data):
+    ''' Convert doc-specific responsibilities into type-specific ones
+    '''
+    docResp = LP['resp']
+    N, K = docResp.shape
+    if N == Data.vocab_size * Data.nDoc:
+        return LP
+    typeResp = np.zeros((Data.vocab_size * Data.nDoc, K))
+    for d in xrange(Data.nDoc):
+        bstart = d * Data.vocab_size
+        bstop = (d+1) * Data.vocab_size
+        typeResp[bstart:bstop, :] = docResp[d]
+    LP['resp'] = typeResp
     return LP

@@ -11,9 +11,11 @@ from collections import defaultdict
 from bnpy.birthmove.BCreateManyProposals \
     import makeSummariesForManyBirthProposals
 
-from bnpy.birthmove import BLogger, assignSplitStats
-from bnpy.birthmove import selectCompsForBirthAtCurrentBatch
-from bnpy.birthmove import selectShortListForBirthAtLapStart
+from bnpy.birthmove import \
+    BLogger, \
+    selectShortListForBirthAtLapStart, \
+    summarizeRestrictedLocalStep, \
+    selectCompsForBirthAtCurrentBatch
 from bnpy.mergemove import MLogger, SLogger
 from bnpy.mergemove import selectCandidateMergePairs, ELBO_GAP_ACCEPT_TOL
 from bnpy.deletemove import DLogger, selectCandidateDeleteComps
@@ -370,14 +372,14 @@ class MemoVBMovesAlg(LearnAlg):
                     # TODO inflate with topTargetWords on other topics??
             '''
             # Run restricted local step
-            SSbatch.propXSS[targetUID] = assignSplitStats(
-                Dbatch, curModel, LPbatch, propRemSS,
+            SSbatch.propXSS[targetUID] = summarizeRestrictedLocalStep(
+                Dbatch, curModel, LPbatch, 
+                xInitSS=propRemSS,
                 curSSwhole=curSSwhole,
                 targetUID=targetUID,
                 LPkwargs=LPkwargs,
                 keepTargetCompAsEmpty=0,
                 mUIDPairs=mUIDPairs,
-                absorbingIDs=None,
                 lapFrac=lapFrac)
             ElapsedTimeLogger.stopEvent('delete', 'localexpansion')
         return SSbatch

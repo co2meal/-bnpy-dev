@@ -239,7 +239,7 @@ class HDPTopicModel(AllocModel):
         return LP
 
     def initLPFromResp(
-            self, Data, LP, 
+            self, Data, LP,
             alphaEbeta=None, alphaEbetaRem=None):
         ''' Fill in remaining local parameters given token-topic resp.
 
@@ -256,14 +256,23 @@ class HDPTopicModel(AllocModel):
             * ElogPi
         '''
         resp = LP['resp']
+        N = resp.shape[0]
         K = resp.shape[1]
         DocTopicCount = np.zeros((Data.nDoc, K))
         for d in xrange(Data.nDoc):
             start = Data.doc_range[d]
             stop = Data.doc_range[d + 1]
             if hasattr(Data, 'word_count'):
-                DocTopicCount[d, :] = np.dot(Data.word_count[start:stop],
-                                             resp[start:stop, :])
+                if N == Data.nDoc * Data.vocab_size:
+                    # Obsmodel is Binary
+                    bstart = d * Data.vocab_size
+                    bstop = (d+1) * Data.vocab_size
+                    DocTopicCount[d, :] = np.sum(
+                        resp[bstart:bstop, :])
+                else:
+                    # Obsmodel is sparse Mult
+                    DocTopicCount[d, :] = np.dot(
+                        Data.word_count[start:stop], resp[start:stop, :])
             else:
                 DocTopicCount[d, :] = np.sum(resp[start:stop, :], axis=0)
 

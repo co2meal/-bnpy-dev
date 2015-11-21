@@ -2,6 +2,7 @@ from AllocModel import AllocModel
 
 from mix.FiniteMixtureModel import FiniteMixtureModel
 from mix.DPMixtureModel import DPMixtureModel
+from mix.DPMixtureRestrictedLocalStep import make_xPiVec_and_emptyPi
 
 from topics.FiniteTopicModel import FiniteTopicModel
 from topics.HDPTopicModel import HDPTopicModel

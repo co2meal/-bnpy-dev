@@ -11,7 +11,8 @@ from bnpy.util import split_str_into_fixed_width_lines
 from FromTruth import \
     convertLPFromHardToSoft, \
     convertLPFromTokensToDocs, \
-    convertLPFromDocsToTokens
+    convertLPFromDocsToTokens, \
+    convertLPFromDocsToTypes
 
 def init_global_params(hmodel, Data, **kwargs):
     ''' Initialize parameters of observation model.
@@ -95,7 +96,10 @@ def initSS_BregmanDiv(
         dict(Z=targetZ), targetData, initGarbageState=0, returnZ=1)
     if isinstance(Dslice, bnpy.data.WordsData):
         if curModel.obsModel.DataAtomType.count('word'):
-            xtargetLP = convertLPFromDocsToTokens(xtargetLP, targetData)
+            if curModel.getObsModelName().count('Bern'):
+                xtargetLP = convertLPFromDocsToTypes(xtargetLP, targetData)
+            else:
+                xtargetLP = convertLPFromDocsToTokens(xtargetLP, targetData)
     if curLPslice is not None:
         xtargetLP['resp'] *= \
             curLPslice['resp'][chosenRespIDs, ktarget][:,np.newaxis]    
@@ -113,7 +117,6 @@ def initSS_BregmanDiv(
     else:
         xSS = curModel.obsModel.get_global_suff_stats(
             targetData, None, xtargetLP)
-
     assert np.allclose(np.unique(targetZ), np.arange(xSS.K))
 
     # Reorder the components from big to small
@@ -305,10 +308,18 @@ def makeDataSubsetByThresholdResp(
             else:
                 Natoms_target = curLP['resp'][:,ktarget].sum()
 
-        # Make nDoc x vocab_size array 
-        X = Data.getSparseDocTypeCountMatrix(weights=weights)
+        # Make nDoc x vocab_size array
+        obsModelName = curModel.getObsModelName()
+        if obsModelName.count('Mult'):
+            X = Data.getSparseDocTypeCountMatrix(weights=weights)
+        elif obsModelName.count('Bern'):
+            X = Data.getSparseDocTypeBinaryMatrix(weights=weights)
+            minNumAtomsInEachTargetDoc = 0.0
+        else:
+            raise ValueError("Unrecognized obsModelName: " + obsModelName)
+        
         # Keep only rows with minimum count
-        if minNumAtomsInEachTargetDoc is None:
+        if minNumAtomsInEachTargetDoc == 0:
             rowsWithEnoughData = np.arange(X.shape[0])
         else:
             rowsWithEnoughData = np.flatnonzero(
@@ -340,7 +351,11 @@ def makeDataSubsetByThresholdResp(
             return DebugInfo, None, None, None, None
         # Assemble the target dataset
         targetData = Data.select_subset_by_mask(rowsWithEnoughData)
-        targetX = targetData.getDocTypeCountMatrix()
+        if obsModelName.count('Mult'):
+            targetX = targetData.getDocTypeCountMatrix()
+        else:
+            targetX = targetData.getDocTypeBinaryMatrix()
+
         chosenDataIDs = rowsWithEnoughData
         targetW = None
         if curModel.obsModel.DataAtomType.count('doc'):
@@ -350,12 +365,18 @@ def makeDataSubsetByThresholdResp(
                 targetW = weights[rowsWithEnoughData]
         elif curModel.obsModel.DataAtomType.count('word'):
             chosenRespIDs = list()
-            for d in rowsWithEnoughData:
-                start_d = Data.doc_range[d]
-                stop_d = Data.doc_range[d+1]
-                chosenRespIDs.extend(np.arange(start_d, stop_d))
-            chosenRespIDs = np.asarray(chosenRespIDs, dtype=np.int32)
-
+            if obsModelName.count('Mult'):
+                for d in rowsWithEnoughData:
+                    start_d = Data.doc_range[d]
+                    stop_d = Data.doc_range[d+1]
+                    chosenRespIDs.extend(np.arange(start_d, stop_d))
+                chosenRespIDs = np.asarray(chosenRespIDs, dtype=np.int32)
+            elif obsModelName.count('Bern'):
+                for d in rowsWithEnoughData:
+                    bstart_d = d * Data.vocab_size
+                    bstop_d = (d+1) * Data.vocab_size
+                    chosenRespIDs.extend(np.arange(bstart_d, bstop_d))
+                chosenRespIDs = np.asarray(chosenRespIDs, dtype=np.int32)
     elif isinstance(Data, bnpy.data.XData) or \
             isinstance(Data, bnpy.data.GroupXData):
         Natoms_total = Data.X.shape[0]
