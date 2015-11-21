@@ -22,6 +22,8 @@ def test_DiagGauss(K=50, N=1000, D=1, W=None, eps=1e-10, nu=0.001, kappa=0.001):
         if W.size != N: 
             PRNG = np.random.RandomState(0)
             W = PRNG.rand(N)
+    else:
+        W = None
     Z, Mu, Lscores = runBregKMeans(
         Data.X, K, hmodel.obsModel,
         W=W, smoothFrac=0, smoothFracInit=1.0,
@@ -48,6 +50,8 @@ def test_Gauss(K=50, N=1000, D=1, W=None, eps=1e-10, nu=0.001, kappa=0.001):
         if W.size != N: 
             PRNG = np.random.RandomState(0)
             W = PRNG.rand(N)
+    else:
+        W = None
     Z, Mu, Lscores = runBregKMeans(
         Data.X, K, hmodel.obsModel,
         W=W, smoothFrac=0, smoothFracInit=1.0,
@@ -73,6 +77,8 @@ def test_ZeroMeanGauss(K=50, N=1000, D=1, W=None, eps=1e-10):
         if W.size != N: 
             PRNG = np.random.RandomState(0)
             W = PRNG.rand(N)
+    else:
+        W = None
     Z, Mu, Lscores = runBregKMeans(
         Data.X, K, hmodel.obsModel,
         W=W, smoothFrac=0, smoothFracInit=1.0,
@@ -80,7 +86,7 @@ def test_ZeroMeanGauss(K=50, N=1000, D=1, W=None, eps=1e-10):
     assert np.all(np.diff(Lscores) <= 0)
     return Z, Mu, Lscores
 
-def test_Bern(K=50, N=1000, W=None):
+def test_Bern(K=50, N=1000, W=None, **kwargs):
     import SeqOfBinBars9x9
     Data = SeqOfBinBars9x9.get_data(nDocTotal=N, T=1)
     hmodel = bnpy.HModel.CreateEntireModel(
@@ -99,7 +105,7 @@ def test_Bern(K=50, N=1000, W=None):
         logFunc=print)
     assert np.all(np.diff(Lscores) <= 0)
 
-def test_Mult(K=50, N=1000, W=None):
+def test_Mult(K=50, N=1000, W=None, **kwargs):
     import BarsK10V900
     Data = BarsK10V900.get_data(nWordsPerDoc=33, nDocTotal=N)
     X = Data.getDocTypeCountMatrix()
@@ -125,6 +131,8 @@ if __name__ == '__main__':
     parser.add_argument('--N', type=int, default=None)
     parser.add_argument('--K', type=int, default=None)
     parser.add_argument('--D', type=int, default=2)
+    parser.add_argument('--W', type=int, default=0)
+    parser.add_argument('--eps', type=float, default=1e-10)
     parser.add_argument('--Nrange', type=str,
         default='5,10,33,211,345,500,1000')
     parser.add_argument('--Krange', type=str,
@@ -138,6 +146,9 @@ if __name__ == '__main__':
         Krange = [args.K]
     else:
         Krange = [int(n) for n in args.Krange]
+    D = args.D
+    W = args.W
+    eps = args.eps
 
 
     for N in Nrange:
@@ -146,14 +157,12 @@ if __name__ == '__main__':
             if K > N:
                 continue
             if args.obsModelName.count("Bern"):
-                test_Bern(K, N, W=1)
+                test_Bern(K, N, W=W)
             elif args.obsModelName.count("Mult"):
-                test_Mult(K, N, W=1)
+                test_Mult(K, N, W=W)
             elif args.obsModelName.count("ZeroMean"):
-                test_ZeroMeanGauss(K, N, D=args.D, W=1, eps=1e-10)
+                test_ZeroMeanGauss(K, N, D=D, W=W, eps=eps)
             elif args.obsModelName.count("Diag"):
-                test_DiagGauss(K, N, D=args.D, W=1, eps=1e-10)
+                test_DiagGauss(K, N, D=D, W=W, eps=eps)
             else:
-                test_Gauss(K, N, D=args.D, W=1, eps=1e-10)
-            #test_Gauss(K, N, D=2, W=1, eps=1e-10, 
-            #    nu=3, kappa=2)
+                test_Gauss(K, N, D=D, W=W, eps=eps)

@@ -898,8 +898,15 @@ class DiagGaussObsModel(AbstractObsModel):
         assert Mu_2.shape == (D,)
         return Mu_1, Mu_2
 
-    def calcSmoothedBregDiv(self, X, Mu, 
-                            W=None, smoothFrac=0.0, eps=1e-10):
+    def calcSmoothedBregDiv(
+            self, X, Mu, W=None,
+            eps=1e-10,
+            smoothFrac=0.0,
+            includeOnlyFastTerms=False,
+            DivDataVec=None,
+            returnDivDataVec=False,
+            return1D=False,
+            **kwargs):
         ''' Compute Bregman divergence between data X and clusters Mu.
 
         Smooth the data via update with prior parameters.
@@ -925,41 +932,58 @@ class DiagGaussObsModel(AbstractObsModel):
             Mu = [Mu]
         assert isinstance(Mu, list)
         K = len(Mu)
-
         assert Mu[0][0].size == D
         assert Mu[0][1].size == D
-        # Parse W
-        if W is not None:
-            assert W.ndim == 1
-            assert W.size == N
 
         prior_x = self.Prior.m
         prior_varx = self.Prior.beta / (self.Prior.nu)
-
-        XVar = eps * prior_varx
-        logdet_XVar = np.sum(np.log(XVar))
+        VarX = eps * prior_varx
 
         Div = np.zeros((N, K))
         for k in xrange(K):
             muVar_k = Mu[k][0]
             muMean_k = Mu[k][1]
             logdet_MuVar_k = np.sum(np.log(muVar_k))
-
             squareDiff_X_Mu_k = np.square(X - muMean_k)
-            tr_k = np.sum((XVar + squareDiff_X_Mu_k) / muVar_k[np.newaxis,:], axis=1)
-
-            Div[:,k] = -0.5 \
-                - 0.5 * logdet_XVar \
+            tr_k = np.sum((VarX + squareDiff_X_Mu_k) / \
+                muVar_k[np.newaxis,:], axis=1)
+            Div[:,k] = \
                 + 0.5 * logdet_MuVar_k \
                 + 0.5 * tr_k
-
+        # Only enter here if exactly computing Div,
+        # If just need it up to additive constant, skip this part.
+        if not includeOnlyFastTerms:
+            if DivDataVec is None:
+                # Compute DivDataVec : 1D array of size N
+                # This is the per-row additive constant indep. of k. 
+                DivDataVec = -0.5 * D * np.ones(N)
+                logdet_VarX = np.sum(np.log(VarX))
+                DivDataVec -= 0.5 * logdet_VarX
+        
+            Div += DivDataVec[:,np.newaxis]
+        # Apply per-atom weights to divergences.
         if W is not None:
+            assert W.ndim == 1
+            assert W.size == N
             Div *= W[:,np.newaxis]
-        assert np.all(np.isfinite(Div))
-        assert Div.min() > -1e-8
-        np.maximum(Div, 0, out=Div)
-        assert Div.min() >= 0
+        # Verify divergences are strictly non-negative 
+        if not includeOnlyFastTerms:
+            minDiv = Div.min()
+            if minDiv < 0:
+                if minDiv < -1e-6:
+                    raise AssertionError(
+                        "Expected Div.min() to be positive or" + \
+                        " indistinguishable from zero. Instead " + \
+                        " minDiv=% .3e" % (minDiv))
+                np.maximum(Div, 0, out=Div)
+                minDiv = Div.min()
+            assert minDiv >= 0
+        if return1D:
+            Div = Div[:,0]
+        if returnDivDataVec:
+            return Div, DivDataVec
         return Div
+
 
     def calcBregDivFromPrior(self, Mu, smoothFrac=0.0):
         ''' Compute Bregman divergence between Mu and prior mean.
