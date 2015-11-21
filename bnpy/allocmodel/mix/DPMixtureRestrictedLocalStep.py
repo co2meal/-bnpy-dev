@@ -2,13 +2,14 @@ import numpy as np
 import os
 
 from bnpy.util import NumericUtil
-from scipy.special import digamma, gammaln
 
 def summarizeRestrictedLocalStep_DPMixtureModel(
         Dslice=None, 
         curModel=None,
         curLPslice=None,
-        ktarget=0,
+        curSSwhole=None,
+        ktarget=None,
+        targetUID=None,
         xUIDs=None,
         mUIDPairs=None,
         xObsModel=None,
@@ -21,6 +22,15 @@ def summarizeRestrictedLocalStep_DPMixtureModel(
     xSSslice : SuffStatBag
     Info : dict with other information
     '''
+    # Determine which uid to target
+    if ktarget is None:
+        assert targetUID is not None
+        ktarget = curSSwhole.uid2k(targetUID)
+    elif targetUID is None:
+        assert ktarget is not None
+        targetUID = curSSwhole.uids[ktarget]
+    assert targetUID == curSSwhole.uids[ktarget]
+    # Determine how many new uids to make
     assert xUIDs is not None
     Kfresh = len(xUIDs)
     # Verify provided summary states used to initialize clusters, if any.
@@ -40,7 +50,7 @@ def summarizeRestrictedLocalStep_DPMixtureModel(
     xPiVec, emptyPi = make_xPiVec_and_emptyPi(
         curModel=curModel, xInitSS=xInitSS,
         ktarget=ktarget, Kfresh=Kfresh, **kwargs)
-
+    
     # Perform restricted inference!
     # xLPslice contains local params for all Kfresh expansion clusters
     xLPslice = restrictedLocalStep_DPMixtureModel(
@@ -59,6 +69,10 @@ def summarizeRestrictedLocalStep_DPMixtureModel(
 
     # If desired, add merge terms into the expanded summaries,
     if mUIDPairs is not None and len(mUIDPairs) > 0:
+        # Check just to be safe
+        for uidA, uidB in mUIDPairs:
+            assert uidA != targetUID
+            assert uidB != targetUID
         Mdict = curModel.allocModel.calcMergeTermsFromSeparateLP(
             Data=Dslice, 
             LPa=curLPslice, SSa=curSSwhole,
@@ -67,7 +81,6 @@ def summarizeRestrictedLocalStep_DPMixtureModel(
         xSSslice.setMergeUIDPairs(mUIDPairs)
         for key, arr in Mdict.items():
             xSSslice.setMergeTerm(key, arr, dims='M')
-
     # Prepare dict of info for debugging/inspection
     Info = dict()
     Info['Kfresh'] = Kfresh
@@ -200,7 +213,10 @@ def make_xPiVec_and_emptyPi(
         curModel=None, xInitSS=None,
         origPiVec=None,
         ktarget=0, Kfresh=0,
-        emptyPiFrac=0.01, b_method_xPi='uniform', **kwargs):
+        emptyPiFrac=0.01,
+        b_emptyPiFrac=None,
+        b_method_xPi='uniform',
+        **kwargs):
     ''' Create probabilities for newborn clusters and residual cluster.
 
     Args
@@ -228,6 +244,8 @@ def make_xPiVec_and_emptyPi(
     >>> print xPiVec
     [ 0.125  0.125  0.125]
     '''
+    if b_emptyPiFrac is not None:
+        emptyPiFrac = b_emptyPiFrac
     if origPiVec is None:
         # Create temporary probabilities for each new cluster
         origPiVec = curModel.allocModel.get_active_comp_probs()

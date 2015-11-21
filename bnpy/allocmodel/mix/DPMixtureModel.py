@@ -351,6 +351,7 @@ class DPMixtureModel(AllocModel):
             kB = SSb.uid2k(uidB)
             respAB = LPa['resp'][:, kA] + LPb['resp'][:, kB]
             m_Hresp[m] = -1 * NumericUtil.calcRlogR(respAB[:,np.newaxis])
+        assert m_Hresp.min() > -1e-9
         return dict(Hresp=m_Hresp)
 
     def get_global_suff_stats(self, Data, LP,

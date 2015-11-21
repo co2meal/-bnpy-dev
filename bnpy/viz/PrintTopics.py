@@ -269,21 +269,29 @@ def plotCompsFromWordCounts(
                           top=0.99, bottom=0.1)
     return figH
 
-def count2str(val, width=4, smallStr='<.01', **kwargs):
+def count2str(val, width=4, minVal=0.01, **kwargs):
     ''' Pretty print large positive count values in confined 4 char format.
 
     Examples
     --------
     >>> count2str(.02, width=4)
     '0.02'
+    >>> count2str(.0001, width=4)
+    '<.01'
+    >>> count2str(.02, width=5, minVal=0.001)
+    '0.020'
     >>> count2str(.99, width=4)
     '0.99'
     >>> count2str(1, width=4)
     '   1'
     >>> count2str(1.9, width=4)
-    '   2'
+    ' 1.9'
+    >>> count2str(1.85, width=5)
+    ' 1.85'
     >>> count2str(10, width=4)
     '  10'
+    >>> count2str(9997.875, width=4) # bug??
+    '9997'
     >>> count2str(9999, width=4)
     '9999'
     >>> count2str(10003, width=4)
@@ -300,15 +308,17 @@ def count2str(val, width=4, smallStr='<.01', **kwargs):
     val = np.asarray(val)
     assert width >= 4
     if val.dtype == np.float:
-        if val < 0.01:
+        nDecPlace = int(np.abs(np.log10(minVal)))
+        if val < minVal:
             fmt = '%' + str(width) + 's'
-            return fmt % (smallStr)
+            return fmt % ('<' + str(minVal)[1:])
         elif val < 1:
-            fmt = '%' + str(width) + '.2f'
+            fmt = '%' + str(width) + '.' + str(nDecPlace) + 'f'
             return fmt % (val)
-    else:
-            fmt = '%' + str(width) + 'd'
-            return fmt % (val)
+        elif val < 10**(width):
+            valstr = str(val)[:width]
+            fmtstr = '%' + str(width) + 's'
+            return fmtstr % (valstr)
     val = np.round(val)
     if val < 10**(width):
         fmt = '%' + str(width) + 'd'
@@ -324,6 +334,29 @@ def count2str(val, width=4, smallStr='<.01', **kwargs):
     else:
         fmt = '%' + str(width) + 's'
         return fmt % ('>1B')
+
+def num2fwstr(num, width=4):
+    ''' Convert scalar number to fixed-width string
+
+    TODO: Handle cases with num >> 10**(width-1)
+
+    Returns
+    -------
+    s : string with exact width
+    '''
+    minVal = 10.0**(-(width-2))
+    fwfmt = '%' + str(width) + 's'
+    if num < minVal:
+        s = '<' + str(minVal)[1:]
+    elif num < 1.0:
+        s = str(num)
+    else:
+        P = int(np.ceil(np.log10(num)))
+        tenP = (10.0**P)
+        rnum = round(num / tenP, width-1)
+        s = str(rnum * tenP)
+    fws = fwfmt % (s)
+    return fws[:width]
 
 def countvec2list(countvec):
     return [count2str(x) for x in countvec]

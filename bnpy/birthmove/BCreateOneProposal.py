@@ -29,24 +29,6 @@ DefaultLPkwargs = dict(
     nCoordAscentItersLP=50,
     )
 
-"""
-def summarizeRestrictedLocalStep(**kwargs):
-    ''' Wrapper that calls allocation-model specific restricted local function.
-
-    Looks up the right function by allocation model name, and calls it.
-
-    Returns
-    -------
-    xSSslice : SuffStatBag, with Kfresh new clusters
-    DebugInfo : dict
-    '''
-    aModelName = kwargs['curModel'].getAllocModelName()
-    summarizeFuncName = \
-        "summarizeRestrictedLocalStep_" + aModelName
-    summarizeFunc = globals()[summarizeFuncName]
-    return summarizeFunc(**kwargs)
-"""
-
 def makeSummaryForBirthProposal_HTMLWrapper(
         Dslice, curModel, curLPslice,        
         **kwargs):
@@ -275,6 +257,7 @@ def makeSummaryForBirthProposal(
             Dslice=Dslice, 
             curModel=curModel,
             curLPslice=curLPslice,
+            curSSwhole=curSSwhole,
             ktarget=ktarget,
             xUIDs=xSSslice.uids,
             xObsModel=xObsModel,
@@ -284,15 +267,23 @@ def makeSummaryForBirthProposal(
             **kwargs)
         Info.update(refineInfo)
 
-        logLPConvergenceDiagnostics(
-            refineInfo, rstep=rstep, b_nRefineSteps=b_nRefineSteps)
-
         # Get most recent xLPslice for initialization
         if b_method_initCoordAscent == 'fromprevious' and 'xLPslice' in Info:
             xInitLPslice = Info['xLPslice']
 
         # Show diagnostics for new states
+        if rstep == 0:
+            logLPConvergenceDiagnostics(
+                refineInfo, rstep=rstep, b_nRefineSteps=b_nRefineSteps)
+            targetPi = refineInfo['emptyPi'] + refineInfo['xPiVec'].sum()
+            msg = "TargetPi before %.4f  after %.4f.  New state probs:" % (
+                targetPi, refineInfo['emptyPi'])
+            BLogger.pprint(msg)
+            BLogger.pprint(vec2str(
+                refineInfo['xPiVec'],
+                width=6, minVal=0.0001))
         pprintCountVec(xSSslice)
+        # Write HTML debug info
         if b_debugOutputDir:
             plotCompsFromSS(
                 curModel, xSSslice, 

@@ -8,7 +8,9 @@ def summarizeRestrictedLocalStep_HDPTopicModel(
         Dslice=None, 
         curModel=None,
         curLPslice=None,
-        ktarget=0,
+        curSSwhole=None,
+        ktarget=None,
+        targetUID=None,
         xUIDs=None,
         mUIDPairs=None,
         xObsModel=None,
@@ -21,6 +23,15 @@ def summarizeRestrictedLocalStep_HDPTopicModel(
     xSSslice : SuffStatBag
     Info : dict with other information
     '''
+    # Determine which uid to target
+    if ktarget is None:
+        assert targetUID is not None
+        ktarget = curSSwhole.uid2k(targetUID)
+    elif targetUID is None:
+        assert ktarget is not None
+        targetUID = curSSwhole.uids[ktarget]
+    assert targetUID == curSSwhole.uids[ktarget]
+    # Determine how many new uids to make
     Kfresh = len(xUIDs)
     # Verify provided summary states used to initialize clusters, if any.
     if xInitSS is not None:
@@ -294,111 +305,6 @@ def restrictedLocalStepForSingleDoc_HDPTopicModel(
 
 
 
-def restrictedLocalStepForSingleDoc_HDPTopicModel_SlowerButStable(
-        d=0, Dslice=None, curLPslice=None,
-        ktarget=0,
-        Kfresh=None,
-        xalphaPi=None,
-        xLPslice=None, 
-        xInitLPslice=None,       
-        LPkwargs=dict(),
-        **kwargs):
-    ''' Perform restricted local step on one document.
-
-    Returns
-    -------
-    xLPslice : dict with updated entries related to document d
-        * resp
-        * DocTopicCount
-        * theta
-    '''
-    start = Dslice.doc_range[d]
-    stop = Dslice.doc_range[d+1]
-    mask_d = np.flatnonzero(
-        curLPslice['resp'][start:stop, ktarget] > 0.01)
-    lumpmask_d = np.setdiff1d(np.arange(stop-start), mask_d)
-    if hasattr(Dslice, 'word_count'):
-        wc_d = Dslice.word_count[start + mask_d]
-        wc_lump_d = Dslice.word_count[start + lumpmask_d]
-    else:
-        wc_d = 1.0
-        wc_lump_d = 1.0
-    # Determine total mass assigned to each target atom,
-    # We will learn how to redistribute this mass.
-    targetsumResp_d = curLPslice['resp'][start + mask_d, ktarget] * wc_d
-    # Compute total mass that will be dealt with as lump sum,
-    # because it belongs to atoms that are too small to worry about.
-    lumpMass_d = np.sum(
-        curLPslice['resp'][start + lumpmask_d, ktarget] * wc_lump_d)
-    # Compute the conditional likelihood matrix for the target atoms
-    # xCLik_d will always have an entry equal to one.
-    assert 'E_log_soft_ev' in xLPslice
-    xCLik_mask_d = xLPslice['E_log_soft_ev'][start + mask_d]
-    xCLik_mask_d -= np.max(xCLik_mask_d, axis=1)[:,np.newaxis]
-    # Allocate temporary memory for this document
-    xsumResp_d = np.zeros_like(targetsumResp_d)      
-    xDocTopicCount_d = np.zeros(Kfresh)
-
-
-    # Run coordinate ascent that alternatively updates
-    # doc-topic counts and resp for document d
-    if mask_d.size > 0:
-        if xInitLPslice:
-            xDocTopicCount_d[:] = xInitLPslice['DocTopicCount'][d, :]
-
-        xresp_mask_d = np.zeros_like(xCLik_mask_d)
- 
-        xDocTopicProb_d = np.zeros_like(xDocTopicCount_d)
-        prevxDocTopicCount_d = -1 * np.ones(Kfresh)
-        for riter in range(LPkwargs['nCoordAscentItersLP']):
-            # xalphaEbeta_active_d potentially includes counts
-            # for absorbing states from curLPslice_d
-            np.add(xDocTopicCount_d, xalphaPi, 
-                out=xDocTopicProb_d)
-            digamma(xDocTopicProb_d, out=xDocTopicProb_d)
-            xDocTopicProb_d -= xDocTopicProb_d.max()
-
-            xresp_mask_d = xCLik_mask_d + xDocTopicProb_d[np.newaxis,:]
-            xresp_mask_d -= xresp_mask_d.argmax(axis=1)[:,np.newaxis]
-            np.exp(xresp_mask_d, out=xresp_mask_d)
-            xresp_mask_d /= xresp_mask_d.sum(axis=1)[:,np.newaxis]
-            xresp_mask_d *= \
-                curLPslice['resp'][start + mask_d, ktarget][:,np.newaxis]
-
-            # Compute doc topic count
-            np.dot(wc_d, xresp_mask_d, out=xDocTopicCount_d)
-
-            if riter % 5 == 0:
-                maxDiff_d = np.max(np.abs(
-                    prevxDocTopicCount_d - xDocTopicCount_d))
-                if maxDiff_d < LPkwargs['convThrLP']:
-                    break
-            prevxDocTopicCount_d[:] = xDocTopicCount_d
-
-        np.maximum(xresp_mask_d, 1e-100, out=xresp_mask_d)
-        assert np.allclose(
-            xresp_mask_d.sum(axis=1),
-            curLPslice['resp'][start+mask_d, ktarget])
-        xLPslice['resp'][start+mask_d] = xresp_mask_d
-
-    if lumpmask_d.size > 0:
-        kmax = (xDocTopicCount_d + xalphaPi).argmax()
-        xLPslice['resp'][start+lumpmask_d, :] = 1e-100
-        xLPslice['resp'][start+lumpmask_d, kmax] = \
-            curLPslice['resp'][start + lumpmask_d, ktarget]
-        xDocTopicCount_d[kmax] += lumpMass_d
-
-    # Fill in values in appropriate row of xDocTopicCount and xtheta
-    xLPslice['DocTopicCount'][d, :] = xDocTopicCount_d
-    xLPslice['theta'][d, :] = xalphaPi + xDocTopicCount_d
-    assert np.allclose(xDocTopicCount_d.sum(),
-                       curLPslice['DocTopicCount'][d, ktarget])
-    assert np.allclose(
-            xLPslice['resp'][start:stop, :].sum(axis=1),
-            curLPslice['resp'][start:stop, ktarget])
-
-    return xLPslice
-
 def makeExpansionSSFromZ_HDPTopicModel(
         Dslice=None, curModel=None, curLPslice=None,
         **kwargs):
@@ -428,6 +334,7 @@ def makeExpansionLPFromZ_HDPTopicModel(
         targetZ=None,
         atomType=None,
         chosenDataIDs=None,
+        emptyPiFrac=None,
         **kwargs):
     ''' Create expanded local parameters from Z assignments on target subset.
 
@@ -532,6 +439,112 @@ def makeExpansionLPFromZ_HDPTopicModel(
     xLPslice['slackThetaOrigComp'] = np.sum(
         slack * curLPslice['ElogPi'][:, ktarget])
 
+    return xLPslice
+
+
+
+def restrictedLocalStepForSingleDoc_HDPTopicModel_SlowerButStable(
+        d=0, Dslice=None, curLPslice=None,
+        ktarget=0,
+        Kfresh=None,
+        xalphaPi=None,
+        xLPslice=None, 
+        xInitLPslice=None,       
+        LPkwargs=dict(),
+        **kwargs):
+    ''' Perform restricted local step on one document.
+
+    Returns
+    -------
+    xLPslice : dict with updated entries related to document d
+        * resp
+        * DocTopicCount
+        * theta
+    '''
+    start = Dslice.doc_range[d]
+    stop = Dslice.doc_range[d+1]
+    mask_d = np.flatnonzero(
+        curLPslice['resp'][start:stop, ktarget] > 0.01)
+    lumpmask_d = np.setdiff1d(np.arange(stop-start), mask_d)
+    if hasattr(Dslice, 'word_count'):
+        wc_d = Dslice.word_count[start + mask_d]
+        wc_lump_d = Dslice.word_count[start + lumpmask_d]
+    else:
+        wc_d = 1.0
+        wc_lump_d = 1.0
+    # Determine total mass assigned to each target atom,
+    # We will learn how to redistribute this mass.
+    targetsumResp_d = curLPslice['resp'][start + mask_d, ktarget] * wc_d
+    # Compute total mass that will be dealt with as lump sum,
+    # because it belongs to atoms that are too small to worry about.
+    lumpMass_d = np.sum(
+        curLPslice['resp'][start + lumpmask_d, ktarget] * wc_lump_d)
+    # Compute the conditional likelihood matrix for the target atoms
+    # xCLik_d will always have an entry equal to one.
+    assert 'E_log_soft_ev' in xLPslice
+    xCLik_mask_d = xLPslice['E_log_soft_ev'][start + mask_d]
+    xCLik_mask_d -= np.max(xCLik_mask_d, axis=1)[:,np.newaxis]
+    # Allocate temporary memory for this document
+    xsumResp_d = np.zeros_like(targetsumResp_d)      
+    xDocTopicCount_d = np.zeros(Kfresh)
+
+
+    # Run coordinate ascent that alternatively updates
+    # doc-topic counts and resp for document d
+    if mask_d.size > 0:
+        if xInitLPslice:
+            xDocTopicCount_d[:] = xInitLPslice['DocTopicCount'][d, :]
+
+        xresp_mask_d = np.zeros_like(xCLik_mask_d)
+ 
+        xDocTopicProb_d = np.zeros_like(xDocTopicCount_d)
+        prevxDocTopicCount_d = -1 * np.ones(Kfresh)
+        for riter in range(LPkwargs['nCoordAscentItersLP']):
+            # xalphaEbeta_active_d potentially includes counts
+            # for absorbing states from curLPslice_d
+            np.add(xDocTopicCount_d, xalphaPi, 
+                out=xDocTopicProb_d)
+            digamma(xDocTopicProb_d, out=xDocTopicProb_d)
+            xDocTopicProb_d -= xDocTopicProb_d.max()
+
+            xresp_mask_d = xCLik_mask_d + xDocTopicProb_d[np.newaxis,:]
+            xresp_mask_d -= xresp_mask_d.argmax(axis=1)[:,np.newaxis]
+            np.exp(xresp_mask_d, out=xresp_mask_d)
+            xresp_mask_d /= xresp_mask_d.sum(axis=1)[:,np.newaxis]
+            xresp_mask_d *= \
+                curLPslice['resp'][start + mask_d, ktarget][:,np.newaxis]
+
+            # Compute doc topic count
+            np.dot(wc_d, xresp_mask_d, out=xDocTopicCount_d)
+
+            if riter % 5 == 0:
+                maxDiff_d = np.max(np.abs(
+                    prevxDocTopicCount_d - xDocTopicCount_d))
+                if maxDiff_d < LPkwargs['convThrLP']:
+                    break
+            prevxDocTopicCount_d[:] = xDocTopicCount_d
+
+        np.maximum(xresp_mask_d, 1e-100, out=xresp_mask_d)
+        assert np.allclose(
+            xresp_mask_d.sum(axis=1),
+            curLPslice['resp'][start+mask_d, ktarget])
+        xLPslice['resp'][start+mask_d] = xresp_mask_d
+
+    if lumpmask_d.size > 0:
+        kmax = (xDocTopicCount_d + xalphaPi).argmax()
+        xLPslice['resp'][start+lumpmask_d, :] = 1e-100
+        xLPslice['resp'][start+lumpmask_d, kmax] = \
+            curLPslice['resp'][start + lumpmask_d, ktarget]
+        xDocTopicCount_d[kmax] += lumpMass_d
+
+    # Fill in values in appropriate row of xDocTopicCount and xtheta
+    xLPslice['DocTopicCount'][d, :] = xDocTopicCount_d
+    xLPslice['theta'][d, :] = xalphaPi + xDocTopicCount_d
+    assert np.allclose(xDocTopicCount_d.sum(),
+                       curLPslice['DocTopicCount'][d, ktarget])
+    assert np.allclose(
+            xLPslice['resp'][start:stop, :].sum(axis=1),
+            curLPslice['resp'][start:stop, ktarget])
     return xLPslice
 
 """

@@ -372,14 +372,15 @@ class MemoVBMovesAlg(LearnAlg):
                     # TODO inflate with topTargetWords on other topics??
             '''
             # Run restricted local step
-            SSbatch.propXSS[targetUID] = summarizeRestrictedLocalStep(
+            SSbatch.propXSS[targetUID], rInfo = summarizeRestrictedLocalStep(
                 Dbatch, curModel, LPbatch, 
-                xInitSS=propRemSS,
                 curSSwhole=curSSwhole,
+                xInitSS=propRemSS,
+                xUIDs=newUIDs,
                 targetUID=targetUID,
-                LPkwargs=LPkwargs,
-                keepTargetCompAsEmpty=0,
                 mUIDPairs=mUIDPairs,
+                LPkwargs=LPkwargs,
+                emptyPiFrac=0,
                 lapFrac=lapFrac)
             ElapsedTimeLogger.stopEvent('delete', 'localexpansion')
         return SSbatch
