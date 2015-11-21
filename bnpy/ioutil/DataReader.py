@@ -47,23 +47,32 @@ def loadDataKwargsFromDisk(taskoutpath):
     -------
     dataKwargs : dict with options for loading dataset 
     '''
-    txtfilepath = os.path.join(taskoutpath, 'args-DatasetPrefs.txt')
+    return loadKwargsFromDisk(taskoutpath, 'args-DatasetPrefs.txt')
 
-    dataKwargs = dict()
+def loadKwargsFromDisk(taskoutpath, 
+        txtfile='args-birth.txt',
+        suffix=None):
+    ''' Load keyword options from specified txtfile.
+
+    Returns
+    -------
+    kwargs : dict
+    '''
+    txtfilepath = os.path.join(taskoutpath, txtfile)
+    if not os.path.exists(txtfilepath):
+        raise ValueError("Cannot find options text file:\n %s" % (
+            txtfilepath))
+    kwargs = dict()
     with open(txtfilepath, 'r') as f:
         for line in f.readlines():
             fields = line.strip().split(' ')
             assert len(fields) == 2
-            try:
-                val = int(fields[1])
-            except ValueError as e:
-                try:
-                    val = float(fields[1])
-                except ValueError as e:
-                    val = str(fields[1])
-            dataKwargs[fields[0]] = val
-    return dataKwargs
-
+            if suffix:
+                if fields[0].endswith(suffix):
+                    kwargs[fields[0]] = str2numorstr(fields[1])
+            else:
+                kwargs[fields[0]] = str2numorstr(fields[1])
+    return kwargs
 
 def loadLPKwargsFromDisk(taskoutpath):
     ''' Load keyword options used to load specific dataset.
@@ -74,21 +83,11 @@ def loadLPKwargsFromDisk(taskoutpath):
     '''
     from bnpy.ioutil.BNPYArgParser import algChoices
     for algName in algChoices:
-        txtfilepath = os.path.join(taskoutpath, 'args-%s.txt' % (algName))
+        txtfile = 'args-%s.txt' % (algName)
+        txtfilepath = os.path.join(taskoutpath, txtfile)
         if os.path.exists(txtfilepath):
             break
-
-    if not os.path.exists(txtfilepath):
-        raise ValueError("Cannot find alg preferences for task:\n %s" % (
-            taskoutpath))
-
-    LPkwargs = dict()
-    with open(txtfilepath, 'r') as f:
-        for line in f.readlines():
-            fields = line.strip().split(' ')
-            assert len(fields) == 2
-            if fields[0].endswith('LP'):
-                LPkwargs[fields[0]] = str2numorstr(fields[1])
+    LPkwargs = loadKwargsFromDisk(taskoutpath, txtfile, suffix='LP')
     return LPkwargs
 
 def str2numorstr(s):

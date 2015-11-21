@@ -3,6 +3,7 @@ import numpy as np
 import os
 
 from bnpy.ioutil.DataReader import loadDataFromSavedTask, loadLPKwargsFromDisk
+from bnpy.ioutil.DataReader import loadKwargsFromDisk
 from bnpy.ioutil.ModelReader import loadModelForLap
 from bnpy.birthmove.BCreateOneProposal import \
     makeSummaryForBirthProposal_HTMLWrapper
@@ -42,15 +43,20 @@ def tryBirthForTask(
     * Logging messages are printed.
     * HTML report is saved.
     '''
-    BirthArgs = dict(**DefaultBirthArgs)
-    BirthArgs.update(kwargs)
-
     if lap is not None:
         lapFrac = lap
 
-    Data = loadDataFromSavedTask(taskoutpath)
     curModel, lapFrac = loadModelForLap(taskoutpath, lapFrac)
+    Data = loadDataFromSavedTask(taskoutpath)
     LPkwargs = loadLPKwargsFromDisk(taskoutpath)
+    SavedBirthKwargs = loadKwargsFromDisk(taskoutpath, 'args-birth.txt')
+
+    BirthArgs = dict(**DefaultBirthArgs)
+    BirthArgs.update(SavedBirthKwargs)
+    for key, val in kwargs.items():
+        if val is not None:
+            BirthArgs[key] = val
+            print '%s: %s' % (key, str(val))
 
     curLP = curModel.calc_local_params(Data, **LPkwargs)
     curSS = curModel.get_global_suff_stats(
@@ -82,7 +88,7 @@ if __name__ == '__main__':
     parser.add_argument('--outputdir', type=str, default='/tmp/')
     parser.add_argument('--targetUID', type=int, default=0)
     for key, val in DefaultBirthArgs.items():
-        parser.add_argument('--' + key, type=type(val), default=val)
+        parser.add_argument('--' + key, type=type(val), default=None)
     args = parser.parse_args()
 
     BLogger.configure(args.outputdir,

@@ -340,10 +340,6 @@ def makeSummaryForBirthProposal(
                 pprintCountVec=pprintCountVec,
                 xInitLPslice=xInitLPslice,
                 b_debugOutputDir=b_debugOutputDir, **kwargs)
-        # Exit early if no promising new clusters are created
-        #nnzCount = np.sum(xSSslice.getCountVec() >= 1)
-        #if nnzCount < 2:
-        #    break
 
     Info['Kfinal'] = xSSslice.K
     if b_debugOutputDir:
@@ -376,8 +372,8 @@ def makeSummaryForBirthProposal(
         origMass = curLPslice['resp'][:,ktarget].sum()
     newMass = xSSslice.getCountVec().sum()
     assert np.allclose(newMass, origMass, atol=1e-6, rtol=0)
-    BLogger.pprint('Proposal SUCCESS. Created %d candidate clusters.' % (
-        Info['Kfinal']))
+    BLogger.pprint('Proposal construction DONE.' + \
+        ' Created %d candidate clusters.' % (Info['Kfinal']))
     return xSSslice, Info
 
 
