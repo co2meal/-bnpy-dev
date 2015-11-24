@@ -259,7 +259,7 @@ def make_xPiVec_and_emptyPi(
     elif b_method_xPi == 'normalized_counts':
         pvec = xInitSS.getCountVec()
         pvec = pvec / pvec.sum()
-        xPi = (1-emptyPiFrac) * targetPi * pvec
+        xPiVec = (1-emptyPiFrac) * targetPi * pvec
     else:
         raise ValueError("Unrecognized b_method_xPi: " + b_method_xPi)
     assert np.allclose(np.sum(xPiVec) + emptyPi, targetPi)
