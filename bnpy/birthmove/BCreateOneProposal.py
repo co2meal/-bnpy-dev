@@ -158,22 +158,14 @@ def makeSummaryForBirthProposal(
         logFunc=BLogger.pprint,
         NiterForBregmanKMeans=kwargs['b_NiterForBregmanKMeans'],
         **kwargs)
-    BLogger.pprint(Info['targetAssemblyMsg'])
     # EXIT EARLY: if proposal initialization fails (not enough data).
     if xInitSStarget is None:
-        BLogger.pprint('Proposal FAILED initialization. ' + \
+        BLogger.pprint('Proposal initialization FAILED. ' + \
                        Info['errorMsg'])
         return None, Info
 
     # If here, we have a valid set of initial stats.
     xInitSStarget.setUIDs(newUIDs[:xInitSStarget.K])
-    # Log messages to describe the initialization.
-    BLogger.pprint('  Bregman k-means init delivered %d clusters %s.' % (
-        xInitSStarget.K, '(--b_Kfresh=%d)' % kwargs['b_Kfresh']))
-    BLogger.pprint('  Running %d refinement iterations (--b_nRefineSteps)' % (
-        b_nRefineSteps))
-    BLogger.pprint('   ' + vec2str(xInitSStarget.uids))
-
     if b_doInitCompleteLP:
         # Create valid whole-dataset clustering from hard init
         xInitSSslice, tempInfo = makeExpansionSSFromZ(
@@ -247,6 +239,10 @@ def makeSummaryForBirthProposal(
     else:
         xInitLPslice = None
 
+    # Log messages to describe the initialization.
+    BLogger.pprint(' Running %d refinement iterations (--b_nRefineSteps)' % (
+        b_nRefineSteps))
+
     # Run several refinement steps. 
     # Each step does a restricted local step to improve
     # the proposed cluster assignments.
@@ -273,15 +269,25 @@ def makeSummaryForBirthProposal(
 
         # Show diagnostics for new states
         if rstep == 0:
-            logLPConvergenceDiagnostics(
-                refineInfo, rstep=rstep, b_nRefineSteps=b_nRefineSteps)
             targetPi = refineInfo['emptyPi'] + refineInfo['xPiVec'].sum()
-            msg = "TargetPi before %.4f  after %.4f.  New state probs:" % (
+            BLogger.pprint(
+                " target prob redistributed by policy %s (--b_method_xPi)" % (
+                    kwargs['b_method_xPi']))
+            msg = " pi[ktarget] before %.4f  after %.4f." % (
                 targetPi, refineInfo['emptyPi'])
             BLogger.pprint(msg)
-            BLogger.pprint(vec2str(
-                refineInfo['xPiVec'],
-                width=6, minVal=0.0001))
+            BLogger.pprint(" pi[new comps]: "  + \
+                vec2str(
+                    refineInfo['xPiVec'],
+                    width=6, minVal=0.0001))
+
+            logLPConvergenceDiagnostics(
+                refineInfo, rstep=rstep, b_nRefineSteps=b_nRefineSteps)
+
+            BLogger.pprint("   " + vec2str(xInitSStarget.uids))
+
+
+
         pprintCountVec(xSSslice)
         # Write HTML debug info
         if b_debugOutputDir:
@@ -318,7 +324,7 @@ def makeSummaryForBirthProposal(
                 minNumAtomsToStay = b_minNumAtomsForNewComp
             else:
                 # Always remove empty clusters. They waste our time.
-                minNumAtomsToStay = 1
+                minNumAtomsToStay = np.minimum(1, b_minNumAtomsForNewComp)
             xSSslice, xInitLPslice = cleanupDeleteSmallClusters(
                 xSSslice, minNumAtomsToStay,
                 xInitLPslice=xInitLPslice, 
@@ -359,7 +365,8 @@ def makeSummaryForBirthProposal(
     # If here, we have a valid proposal. 
     # Need to verify mass conservation
     if hasattr(Dslice, 'word_count') and \
-            curModel.obsModel.DataAtomType.count('word'):
+            curModel.obsModel.DataAtomType.count('word') and \
+            curModel.getObsModelName().count('Mult'):
         origMass = np.inner(Dslice.word_count, curLPslice['resp'][:,ktarget])
     else:
         origMass = curLPslice['resp'][:,ktarget].sum()
@@ -400,7 +407,8 @@ def makeSummaryForExistingBirthProposal(
     if ktarget is None:
         ktarget = curSSwhole.uid2k(targetUID)
     # START log for this birth proposal
-    BLogger.pprint('Extending previous proposal for targetUID %s at lap %.2f' % (
+    BLogger.pprint(
+        'Extending previous proposal for targetUID %s at lap %.2f' % (
         targetUID, lapFrac))
     # Grab vocabList, if available.
     if hasattr(Dslice, 'vocabList') and Dslice.vocabList is not None:
@@ -532,7 +540,8 @@ def makeSummaryForExistingBirthProposal(
     # If here, we have a valid proposal. 
     # Need to verify mass conservation
     if hasattr(Dslice, 'word_count') and \
-            curModel.obsModel.DataAtomType.count('word'):
+            curModel.obsModel.DataAtomType.count('word') and \
+            curModel.getObsModelName().count('Mult'):
         origMass = np.inner(Dslice.word_count, curLPslice['resp'][:,ktarget])
     else:
         origMass = curLPslice['resp'][:,ktarget].sum()
@@ -598,10 +607,14 @@ def logLPConvergenceDiagnostics(refineInfo, rstep=0, b_nRefineSteps=0):
 
     msg += "nCAIters "
     for p in [0, 10, 50, 90, 100]:
+        if p > 0:
+            msg += "|"
         ip = np.percentile(xLPslice['_nIters'][target_docs], p)
         msg += " %3d%% %7d" % (p, ip)
     msg += "\n         Ndiff    "
     for p in [0, 10, 50, 90, 100]:
+        if p > 0:
+            msg += "|"
         md = np.percentile(xLPslice['_maxDiff'][target_docs], p)
         msg += " %3d%% %7.3f" % (p, md)
     BLogger.pprint(msg)

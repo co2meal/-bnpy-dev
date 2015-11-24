@@ -68,8 +68,10 @@ def initSS_BregmanDiv(
             del kwargs[key]
     if 'NiterForBregmanKMeans' in kwargs:
         NiterForBregmanKMeans = kwargs['NiterForBregmanKMeans']
-
     Niter = np.maximum(NiterForBregmanKMeans, 0)
+
+    if logFunc:
+        logFunc("Preparing target dataset for Bregman k-means analysis...")
     DebugInfo, targetData, targetX, targetW, chosenRespIDs = \
         makeDataSubsetByThresholdResp(
             Dslice,
@@ -78,17 +80,22 @@ def initSS_BregmanDiv(
             ktarget,
             K=K,
             **kwargs)
+    if logFunc:
+        logFunc(DebugInfo['targetAssemblyMsg'])
     if targetData is None:
         assert 'errorMsg' in DebugInfo
         return None, DebugInfo
     K = np.minimum(K, targetX.shape[0])
+    if logFunc:
+        logFunc("Running Bregman k-means with K=%d for %d iters" % (
+            K, Niter))
     # Perform plusplus initialization + Kmeans clustering
     targetZ, Mu, Lscores = runKMeans_BregmanDiv(
         targetX, K, curModel.obsModel,
         W=targetW,
         Niter=Niter,
         logFunc=logFunc,
-        seed=seed) 
+        seed=seed)
     # Convert labels in Z to compactly use all ints from 0, 1, ... Kused
     # Then translate these into a proper 'resp' 2D array,
     # where resp[n,k] = w[k] if z[n] = k, and 0 otherwise
@@ -133,6 +140,11 @@ def initSS_BregmanDiv(
         targetZnew[old_mask] = old2newID[oldk]
     assert np.all(targetZnew >= 0)
     assert np.allclose(len(Mu), xSS.K)
+
+    if logFunc:
+        logFunc('Bregman k-means DONE. Delivered %d non-empty clusters' % (
+            xSS.K))
+
     # Package up algorithm final state and Lscore trace
     DebugInfo.update(dict(
         targetZ=targetZnew,
@@ -267,7 +279,101 @@ def initKMeans_BregmanDiv(
         minDiv = np.minimum(minDiv, curDiv)
     return chosenZ, Mu, minDiv, np.sum(DivDataVec)
 
+
 def makeDataSubsetByThresholdResp(
+        Data, curModel, 
+        curLP=None,
+        ktarget=None,
+        K=None,
+        minRespForEachTargetAtom=None,
+        **kwargs):
+    ''' Make subset of provided dataset by thresholding assignments.
+
+    Args
+    ----
+    Data : bnpy dataset
+    curLP : dict of local parameters
+    ktarget : integer id of cluster to target, in {0, 1, ... K-1}
+
+    Returns
+    -------
+    DebugInfo : dict
+    targetData : bnpy data object, representing data subset
+    targetX : 2D array, size N x K, whose rows will be clustered
+    targetW : 1D array, size N
+        None indicates uniform weight on all data items
+    chosenRespIDs : 1D array, size curLP['resp'].shape[0]
+        None indicates no curLP provided.
+    '''
+    if isinstance(Data, bnpy.data.WordsData):
+        return makeDataSubsetByThresholdResp_WordsData(Data, curModel,
+            curLP=curLP,
+            ktarget=ktarget,
+            K=K,
+            minRespForEachTargetAtom=minRespForEachTargetAtom,
+            **kwargs)
+    assert isinstance(Data, bnpy.data.XData) or \
+        isinstance(Data, bnpy.data.GroupXData)
+    Natoms_total = Data.X.shape[0]
+    atomType = 'atoms'
+    if curLP is None:
+        targetData = Data
+        targetX = Data.X
+        targetW = None
+        chosenRespIDs = None
+        Natoms_target = targetX.shape[0]
+        Natoms_targetAboveThr = targetX.shape[0]
+        targetAssemblyMsg = \
+            "  Using all %d/%d atoms for initialization." % (
+                Natoms_target, Natoms_total)
+    else:
+        chosenRespIDs = np.flatnonzero(
+            curLP['resp'][:,ktarget] > 
+            minRespForEachTargetAtom)
+        Natoms_target = curLP['resp'][:,ktarget].sum()
+        Natoms_targetAboveThr = chosenRespIDs.size
+        targetAssemblyMsg = \
+            "  Targeted comp has %.2f %s assigned out of %d." % (
+                Natoms_target, atomType, Natoms_total) \
+            + "\n  Filtering to find atoms with resp > %.2f" % (
+                minRespForEachTargetAtom) \
+            + "\n  Found %d atoms meeting this requirement." % (
+                Natoms_targetAboveThr)
+
+        # Raise error if target dataset not big enough.
+        Keff = np.minimum(K, chosenRespIDs.size)
+        if Keff <= 1 and K > 1:
+            DebugInfo = dict(
+                errorMsg="Filtered dataset too small." + \
+                    "Wanted %d items, found %d." % (K, Keff),
+                targetAssemblyMsg=targetAssemblyMsg,
+                atomType=atomType,
+                Natoms_total=Natoms_total,
+                Natoms_target=Natoms_target,
+                Natoms_targetAboveThr=Natoms_targetAboveThr,
+                )
+            return DebugInfo, None, None, None, None
+        targetData = Data.select_subset_by_mask(atomMask=chosenRespIDs)
+        targetX = targetData.X
+        if curLP is None:
+            targetW = None    
+        else:
+            targetW = curLP['resp'][chosenRespIDs,ktarget]
+    chosenDataIDs = chosenRespIDs
+    DebugInfo = dict(
+        targetW=targetW,
+        chosenDataIDs=chosenDataIDs,
+        chosenRespIDs=chosenRespIDs,
+        targetAssemblyMsg=targetAssemblyMsg,
+        atomType=atomType,
+        Natoms_total=Natoms_total,
+        Natoms_target=Natoms_target,
+        Natoms_targetAboveThr=Natoms_targetAboveThr,
+        )
+    return DebugInfo, targetData, targetX, targetW, chosenRespIDs
+
+
+def makeDataSubsetByThresholdResp_WordsData(
         Data, curModel, 
         curLP=None,
         ktarget=None,
@@ -293,148 +399,206 @@ def makeDataSubsetByThresholdResp(
     chosenRespIDs : 1D array, size curLP['resp'].shape[0]
         None indicates no curLP provided.
     '''
-    if isinstance(Data, bnpy.data.WordsData):
-        Natoms_total = Data.nDoc
-        Natoms_whole = Data.nDocTotal
-        atomType = 'doc'
-        if curLP is None:
-            weights = None
-            Natoms_target = Natoms_total
-        else:
-            weights = curLP['resp'][:,ktarget]
-            if 'DocTopicCount' in curLP:
-                DocUsage = curLP['DocTopicCount'][:,ktarget]
-                Natoms_target = np.float32((DocUsage > 0.0001).sum())
-            else:
-                Natoms_target = curLP['resp'][:,ktarget].sum()
-
-        # Make nDoc x vocab_size array
-        obsModelName = curModel.getObsModelName()
-        if obsModelName.count('Mult'):
-            X = Data.getSparseDocTypeCountMatrix(weights=weights)
-        elif obsModelName.count('Bern'):
-            X = Data.getSparseDocTypeBinaryMatrix(weights=weights)
-            minNumAtomsInEachTargetDoc = 0.0
-        else:
-            raise ValueError("Unrecognized obsModelName: " + obsModelName)
-        
-        # Keep only rows with minimum count
-        if minNumAtomsInEachTargetDoc == 0:
-            rowsWithEnoughData = np.arange(X.shape[0])
-        else:
-            rowsWithEnoughData = np.flatnonzero(
-                np.asarray(X.sum(axis=1)) > minNumAtomsInEachTargetDoc)
-        Natoms_targetAboveThr = rowsWithEnoughData.size
-
+    obsModelName = curModel.getObsModelName()
+    if curLP is None:
+        # TODO Filter docs by required minimum size
         targetAssemblyMsg = \
-            "  Targeted comp has %.2f docs with mass >eps" % (
-                Natoms_target) \
-            + " out of %d docs in current data batch." % (
-                Natoms_total) \
-            + "\n  Entire dataset has %d docs." % (Natoms_whole) \
-            + "\n  Filtering to find docs with > %d words assigned." % (
-                minNumAtomsInEachTargetDoc) \
-            + "\n  Found %d docs meeting this requirement." % (
-                Natoms_targetAboveThr)
-
+            "  Using entire provided dataset of %.2f docs (WordsData fmt)." % (
+                Data.nDoc) \
+            + "\n  No LP provided for specialized targeting."
+        Natoms_targetAboveThr = Data.nDoc
+        DebugInfo = dict(
+            targetAssemblyMsg=targetAssemblyMsg,
+            atomType='doc',
+            nDoc=Data.nDoc,
+            dataType='WordsData',
+            obsModelName=obsModelName,
+            docIDs=range(Data.nDoc),
+            )
         # Raise error if target dataset not big enough.
-        Keff = np.minimum(K, rowsWithEnoughData.size)
+        Keff = np.minimum(K, Data.nDoc)
         if Keff <= 1 and K > 1:
-            DebugInfo = dict(
-                targetAssemblyMsg=targetAssemblyMsg,
-                atomType=atomType,
-                Natoms_total=Natoms_total,
-                Natoms_target=Natoms_target,
-                Natoms_targetAboveThr=Natoms_targetAboveThr,
-                errorMsg="Dataset too small to cluster." + \
-                    " Wanted 2 or more items, found %d." % (Keff))
+            DebugInfo['errorMsg']= \
+                "Filtered dataset too small." + \
+                "Wanted 2 or more docs, found %d." % (K, Keff)
             return DebugInfo, None, None, None, None
-        # Assemble the target dataset
-        targetData = Data.select_subset_by_mask(rowsWithEnoughData)
-        if obsModelName.count('Mult'):
-            targetX = targetData.getDocTypeCountMatrix()
+        if obsModelName.count('Bern'):
+            X = Data.getDocTypeBinaryMatrix()
+        elif obsModelName.count('Mult'):
+            X = Data.getDocTypeCountMatrix()
         else:
-            targetX = targetData.getDocTypeBinaryMatrix()
-
-        chosenDataIDs = rowsWithEnoughData
+            raise ValueError("Unrecognized obsmodel: " + obsModelName)
+        return DebugInfo, Data, X, None, None
+    # Compute weights for the targeted comp
+    # Need to handle special cases for clustering words and clustering docs
+    targetRespVec = curLP['resp'][:,ktarget]
+    if targetRespVec.size == Data.nUniqueToken:
+        # HDP case : clustering individual present words
+        assert 'DocTopicCount' in curLP
+        targetData, docIDs, chosenRespIDs = \
+            Data.makeSubsetByThresholdingWeights(
+                atomWeightVec=targetRespVec,
+                thr=minRespForEachTargetAtom)
         targetW = None
-        if curModel.obsModel.DataAtomType.count('doc'):
-            chosenRespIDs = np.asarray(
-                rowsWithEnoughData, dtype=np.int32)
-            if curLP is not None:
-                targetW = weights[rowsWithEnoughData]
-        elif curModel.obsModel.DataAtomType.count('word'):
-            chosenRespIDs = list()
-            if obsModelName.count('Mult'):
-                for d in rowsWithEnoughData:
-                    start_d = Data.doc_range[d]
-                    stop_d = Data.doc_range[d+1]
-                    chosenRespIDs.extend(np.arange(start_d, stop_d))
-                chosenRespIDs = np.asarray(chosenRespIDs, dtype=np.int32)
-            elif obsModelName.count('Bern'):
-                for d in rowsWithEnoughData:
-                    bstart_d = d * Data.vocab_size
-                    bstop_d = (d+1) * Data.vocab_size
-                    chosenRespIDs.extend(np.arange(bstart_d, bstop_d))
-                chosenRespIDs = np.asarray(chosenRespIDs, dtype=np.int32)
-    elif isinstance(Data, bnpy.data.XData) or \
-            isinstance(Data, bnpy.data.GroupXData):
-        Natoms_total = Data.X.shape[0]
-        atomType = 'atoms'
-        if curLP is None:
-            targetData = Data
-            targetX = Data.X
-            targetW = None
-            chosenRespIDs = None
-            Natoms_target = targetX.shape[0]
-            Natoms_targetAboveThr = targetX.shape[0]
-            targetAssemblyMsg = \
-                "  Using all %d/%d atoms for initialization." % (
-                    Natoms_target, Natoms_total)
-
-        else:
-            chosenRespIDs = np.flatnonzero(
-                curLP['resp'][:,ktarget] > 
-                minRespForEachTargetAtom)
-            Natoms_target = curLP['resp'][:,ktarget].sum()
-            Natoms_targetAboveThr = chosenRespIDs.size
-            targetAssemblyMsg = \
-                "  Targeted comp has %.2f %s assigned out of %d." % (
-                    Natoms_target, atomType, Natoms_total) \
-                + "\n  Filtering to find atoms with resp > %.2f" % (
-                    minRespForEachTargetAtom) \
-                + "\n  Found %d atoms meeting this requirement." % (
-                    Natoms_targetAboveThr)
-
-            # Raise error if target dataset not big enough.
-            Keff = np.minimum(K, chosenRespIDs.size)
-            if Keff <= 1 and K > 1:
-                DebugInfo = dict(
-                    targetAssemblyMsg=targetAssemblyMsg,
-                    atomType=atomType,
-                    Natoms_total=Natoms_total,
-                    Natoms_target=Natoms_target,
-                    Natoms_targetAboveThr=Natoms_targetAboveThr,
-                    errorMsg="Filtered dataset too small." + \
-                        "Wanted %d items, found %d." % (K, Keff))
-                return DebugInfo, None, None, None, None
-            targetData = Data.select_subset_by_mask(atomMask=chosenRespIDs)
-            targetX = targetData.X
-            if curLP is None:
-                targetW = None    
-            else:
-                targetW = curLP['resp'][chosenRespIDs,ktarget]
-
-        chosenDataIDs = chosenRespIDs
-
+    elif targetRespVec.size == Data.nDoc:
+        # DP case : clustering entire document-count vectors
+        docIDs = np.flatnonzero(targetRespVec >= minRespForEachTargetAtom)
+        chosenRespIDs = docIDs
+        targetData = Data.select_subset_by_mask(docMask=docIDs)
+        targetW = targetRespVec[docIDs]
+    elif targetRespVec.size == Data.nDoc * Data.vocab_size:
+        # HDP bernoulli case : clustering all word types in every doc
+        assert 'DocTopicCount' in curLP
+        weightVec = -1 * np.ones(Data.nUniqueToken)
+        posRespIDs = np.zeros(Data.nUniqueToken)
+        for d in range(Data.nDoc):
+            start = Data.doc_range[d]
+            stop = Data.doc_range[d+1]
+            pos_words = Data.word_id[start:stop]
+            weightVec[start:stop] = targetRespVec[
+                d * Data.vocab_size + pos_words]
+        assert weightVec.min() >= 0.0
+        targetData, docIDs, chosenPosIDs = \
+            Data.makeSubsetByThresholdingWeights(
+                atomWeightVec=weightVec,
+                thr=minRespForEachTargetAtom)
+        chosenRespIDs = list()
+        for d in docIDs:
+            chosenRespIDs.extend(
+                range(d * Data.vocab_size, (d+1) * Data.vocab_size))
+        targetW = None
+    else:
+        raise ValueError("Should never happen")
+    targetAssemblyMsg = \
+        " Provided dataset of %.2f docs in WordsData format." % (
+            Data.nDoc) + \
+        "\n Targeting cluster at idx %d in provided LP with K=%d clusters." % (
+            ktarget, curLP['resp'].shape[1]) + \
+        "\n Target cluster has %.2f docs assigned with mass >%.3f." % (
+            len(docIDs), minRespForEachTargetAtom)
+    targetAssemblyMsg += \
+        "\n " + makeSummaryStrForTargetResp(curLP['resp'][:,ktarget],
+            nDoc=Data.nDoc,
+            vocab_size=Data.vocab_size,
+            doc_range=Data.doc_range,
+            word_id=Data.word_id,
+            word_count=Data.word_count,
+            docIDs=docIDs,
+            minRespForEachTargetAtom=minRespForEachTargetAtom)
     DebugInfo = dict(
-        targetW=targetW,
-        chosenDataIDs=chosenDataIDs,
-        chosenRespIDs=chosenRespIDs,
         targetAssemblyMsg=targetAssemblyMsg,
-        atomType=atomType,
-        Natoms_total=Natoms_total,
-        Natoms_target=Natoms_target,
-        Natoms_targetAboveThr=Natoms_targetAboveThr,
+        atomType='doc',
+        dataType='WordsData',
+        obsModelName=obsModelName,
+        docIDs=docIDs,
         )
+    # Raise error if target dataset not big enough.
+    Keff = np.minimum(K, len(docIDs))
+    if Keff <= 1 and K > 1:
+        DebugInfo['errorMsg'] = "Dataset too small to cluster." + \
+            " Wanted 2 or more docs, found %d." % (Keff)
+        return DebugInfo, None, None, None, None
+    # Make nDoc x vocab_size array
+    if obsModelName.count('Mult'):
+        targetX = targetData.getDocTypeCountMatrix()
+    else:
+        targetX = targetData.getDocTypeBinaryMatrix()
+    emptyRows = np.flatnonzero(targetX.sum(axis=1) < 1.0)
+    if emptyRows.size > 0:
+        raise ValueError('WHOA! Found some empty rows in the targetX')
     return DebugInfo, targetData, targetX, targetW, chosenRespIDs
+
+def makeSummaryStrForTargetResp(respVec, 
+        nDoc=None,
+        vocab_size=None,
+        doc_range=None,
+        word_id=None,
+        word_count=None,
+        docIDs=None,
+        minRespForEachTargetAtom=None):
+    ''' Make human-readable description of targeted resp values.
+
+    Args
+    ----
+    respVec : 
+    doc_range : 1D array
+        Attrib of ORIGINAL dataset.
+    word_count : 1D array
+        Attrib of ORIGINAL dataset.
+
+    Returns
+    -------
+    s : str
+    '''
+    if word_count is not None and \
+            respVec.size == doc_range[-1] and respVec.size == word_count.size:
+        # WordsData with Mult likelihood and HDP clustering objective
+        msg = "Target docs contain subset of words in corrsp. original doc."
+        nAboveList = list()
+        massAboveList = list()
+        for d in docIDs:
+            start = doc_range[d]
+            stop = doc_range[d+1]
+            mass = np.sum(respVec[start:stop], axis=0)
+            aboveMask = respVec[start:stop] >= minRespForEachTargetAtom
+            massAbove = np.sum(
+                respVec[start:stop][aboveMask] * \
+                word_count[start:stop][aboveMask], axis=0)
+            nAboveList.append(np.sum(aboveMask))
+            massAboveList.append(massAbove)
+
+        msg += "\n"
+        msg += " Across target docs, distrib. of nDistinctTypes  :"
+        for p in [0, 10, 50, 90, 100]:
+            md = np.percentile(nAboveList, p)
+            msg += " %3d%% %5d  " % (p, md)
+        msg += "\n"
+        msg += "                              of mass (wc * resp):"
+        for p in [0, 10, 50, 90, 100]:
+            md = np.percentile(massAboveList, p)
+            msg += " %3d%% %7.1f" % (p, md)
+    elif word_count is not None and respVec.size == nDoc:
+        # WordsData with Mult likelihood and DP clustering objective
+        msg = "Target docs are strictly equal to corresp. original docs."
+        massList = list()
+        for d in docIDs:
+            massList.append(respVec[d])
+        msg += "\n Total resp mass on target docs: %.3f" % (np.sum(massList))
+        msg += "\n Across target docs, distrib of respMass  :"
+        for p in [0, 10, 50, 90, 100]:
+            md = np.percentile(massList, p)
+            msg += " %3d%% %4.3f" % (p, md)
+    elif word_count is not None and respVec.size == nDoc * vocab_size:
+        msg = "Target docs hold subset of BINARY words in corresp. orig. doc."
+        nAboveList = list()
+        massAboveList = list()
+        totalMassTtl = 0
+        onMassTtl = 0
+        for d in docIDs:
+            start = doc_range[d]
+            stop = doc_range[d+1]
+            words_d = word_id[start:stop]
+            rstart = d * vocab_size
+            rstop = (d+1) * vocab_size
+            totalMassTtl += np.sum(respVec[rstart:rstop], axis=0)
+            onMassTtl += np.sum(respVec[rstart + words_d], axis=0)
+            aboveMask = respVec[rstart + words_d] >= minRespForEachTargetAtom
+            massAbove = np.sum(
+                respVec[rstart:rstop][aboveMask], axis=0)
+            nAboveList.append(np.sum(aboveMask))
+            massAboveList.append(massAbove)
+
+        msg += "\n Total target respmass: %.2f, of which %.2f is ON (X=1)." % (
+            totalMassTtl, onMassTtl)
+        msg += "\n"
+        msg += " Across target docs, distrib. of nTypes with X=1:"
+        for p in [0, 10, 50, 90, 100]:
+            md = np.percentile(nAboveList, p)
+            msg += " %3d%% %5d  " % (p, md)
+        msg += "\n"
+        msg += "                              of respmass at X=1:"
+        for p in [0, 10, 50, 90, 100]:
+            md = np.percentile(massAboveList, p)
+            msg += " %3d%% %7.1f" % (p, md)
+
+    return msg
