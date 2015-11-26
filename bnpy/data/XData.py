@@ -8,6 +8,7 @@ XData
 
 import numpy as np
 import scipy.io
+import inspect
 from collections import namedtuple
 
 from DataObj import DataObj
@@ -70,7 +71,12 @@ class XData(DataObj):
     def read_from_mat(cls, matfilepath, nObsTotal=None, **kwargs):
         ''' Constructor for loading .mat file into XData instance.
         '''
-        InDict = scipy.io.loadmat(matfilepath, **kwargs)
+        names, varargs, varkw, defaults = inspect.getargspec(scipy.io.loadmat)
+        loadmatKwargs = dict()
+        for key in kwargs:
+            if key in names:
+                loadmatKwargs[key] = kwargs[key]
+        InDict = scipy.io.loadmat(matfilepath, **loadmatKwargs)
         if 'X' not in InDict:
             raise KeyError(
                 'Stored matfile needs to have data in field named X')
