@@ -202,12 +202,12 @@ def restrictedLocalStepForSingleDoc_HDPTopicModel(
     '''
     if hasattr(Dslice, 'word_count') and obsModelName.count('Bern'):
         start = d * Dslice.vocab_size
-        stop = start + Dslice.vocab_size
+        stop = (d+1) * Dslice.vocab_size
         words_d = Dslice.word_id[Dslice.doc_range[d]:Dslice.doc_range[d+1]]
-        mask_d = np.flatnonzero(
-            curLPslice['resp'][start + words_d, ktarget] > 0.01)
+        mask_d = words_d[np.flatnonzero(
+            curLPslice['resp'][start + words_d, ktarget] > 0.01)]
         # total of vocab_size atoms, subtract off present words
-        lumpmask_d = np.setdiff1d(np.arange(stop-start), mask_d)
+        lumpmask_d = np.setdiff1d(np.arange(Dslice.vocab_size), mask_d)
 
     else:
         start = Dslice.doc_range[d]
@@ -223,7 +223,7 @@ def restrictedLocalStepForSingleDoc_HDPTopicModel(
             wc_lump_d = Dslice.word_count[start + lumpmask_d]
         else:
             wc_d = 1.0
-            wc_lump_d = 1.0 #Dslice.vocab_size - words_d.size
+            wc_lump_d = 1.0
     else:
         wc_d = 1.0
         wc_lump_d = 1.0
@@ -287,6 +287,7 @@ def restrictedLocalStepForSingleDoc_HDPTopicModel(
         xLPslice['_maxDiff'][d] = maxDiff_d
         # Make proposal resp for relevant atoms in current doc d
         if np.any(np.isnan(xDocTopicCount_d)):
+            print 'WHOA! NaN ALERT'
             # Edge case! Common only when deleting... 
             # Recover from numerical issues in coord ascent
             # by falling back to likelihood only to make resp
@@ -397,11 +398,25 @@ def makeExpansionLPFromZ_HDPTopicModel(
 
     # Now, replace all targeted atoms with an all-or-nothing assignment
     if atomType == 'doc' and curModel.getAllocModelName().count('HDP'):
-        for pos, d in enumerate(chosenDataIDs):
-            start = Dslice.doc_range[d]
-            stop = Dslice.doc_range[d+1]
-            xresp[start:stop, :] = 1e-100
-            xresp[start:stop, targetZ[pos]] = 1.0
+        if curModel.getObsModelName().count('Mult'):
+            for pos, d in enumerate(chosenDataIDs):
+                start = Dslice.doc_range[d]
+                stop = Dslice.doc_range[d+1]
+                xresp[start:stop, :] = 1e-100
+                xresp[start:stop, targetZ[pos]] = 1.0
+        elif curModel.getObsModelName().count('Bern'):
+            # For all words in each targeted doc,
+            # Assign them to the corresponding cluster in targetZ
+            for pos, d in enumerate(chosenDataIDs):
+                bstart = Dslice.vocab_size * d
+                bstop = Dslice.vocab_size * (d+1)
+                xresp[bstart:bstop, :] = 1e-100
+                xresp[bstart:bstop, targetZ[pos]] = 1.0
+                #words_d = Dslice.word_id[
+                #    Dslice.doc_range[d]:Dslice.doc_range[d+1]]
+                #xresp[bstart + words_d, :] = 1e-100
+                #xresp[bstart + words_d, targetZ[pos]] = 1.0
+
     else:        
         for pos, n in enumerate(chosenDataIDs):
             xresp[n, :] = 1e-100
@@ -417,12 +432,18 @@ def makeExpansionLPFromZ_HDPTopicModel(
     for d in xrange(Dslice.nDoc):
         start = Dslice.doc_range[d]
         stop = Dslice.doc_range[d+1]
-        if hasattr(Dslice, 'word_id'):
-            xDocTopicCount[d] = np.dot(Dslice.word_count[start:stop],
-                                       xresp[start:stop])
+        if hasattr(Dslice, 'word_id') and \
+                curModel.getObsModelName().count('Mult'):
+            xDocTopicCount[d] = np.dot(
+                Dslice.word_count[start:stop],
+                xresp[start:stop])
+        elif hasattr(Dslice, 'word_id') and \
+                curModel.getObsModelName().count('Bern'):
+            bstart = d * Dslice.vocab_size
+            bstop = (d+1) * Dslice.vocab_size
+            xDocTopicCount[d] = np.sum(xresp[bstart:bstop], axis=0)            
         else:
             xDocTopicCount[d] = np.sum(xresp[start:stop], axis=0)
-
     # Create xtheta
     xtheta = xDocTopicCount + xalphaPi[np.newaxis,:]
 

@@ -229,8 +229,6 @@ def makeSummaryForBirthProposal(
                 else:
                     initDocUsage_uid = 0.0
                 docUsageByUID[uid] = [initDocUsage_uid]
-    # Make a function to pretty-print counts as we refine the initialization
-    pprintCountVec = BLogger.makeFunctionToPrettyPrintCounts(xSSslice)
 
     # Create initial observation model
     xObsModel = curModel.obsModel.copy()
@@ -243,10 +241,14 @@ def makeSummaryForBirthProposal(
     BLogger.pprint(' Running %d refinement iterations (--b_nRefineSteps)' % (
         b_nRefineSteps))
 
+    # Make a function to pretty-print counts as we refine the initialization
+    pprintCountVec = BLogger.makeFunctionToPrettyPrintCounts(xSSslice)
+
     # Run several refinement steps. 
     # Each step does a restricted local step to improve
     # the proposed cluster assignments.
     for rstep in range(b_nRefineSteps):
+
         # Restricted local step!
         # * xInitSS : specifies obs-model stats used for initialization
         xSSslice, refineInfo = summarizeRestrictedLocalStep(
@@ -262,7 +264,7 @@ def makeSummaryForBirthProposal(
             LPkwargs=LPkwargs,
             **kwargs)
         Info.update(refineInfo)
-
+        
         # Get most recent xLPslice for initialization
         if b_method_initCoordAscent == 'fromprevious' and 'xLPslice' in Info:
             xInitLPslice = Info['xLPslice']

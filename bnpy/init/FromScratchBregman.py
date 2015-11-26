@@ -490,7 +490,8 @@ def makeDataSubsetByThresholdResp_WordsData(
         atomType='doc',
         dataType='WordsData',
         obsModelName=obsModelName,
-        docIDs=docIDs,
+        chosenRespIDs=chosenRespIDs,
+        chosenDataIDs=docIDs,
         )
     # Raise error if target dataset not big enough.
     Keff = np.minimum(K, len(docIDs))
@@ -587,7 +588,6 @@ def makeSummaryStrForTargetResp(respVec,
                 respVec[rstart:rstop][aboveMask], axis=0)
             nAboveList.append(np.sum(aboveMask))
             massAboveList.append(massAbove)
-
         msg += "\n Total target respmass: %.2f, of which %.2f is ON (X=1)." % (
             totalMassTtl, onMassTtl)
         msg += "\n"
