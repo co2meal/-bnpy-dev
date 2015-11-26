@@ -255,8 +255,12 @@ class LearnAlg(object):
         s = self.outputParams['saveEveryLogScaleFactor']
         sE = self.outputParams['saveEvery']
         if s > 0:
-            if (lap >= sE ** s):
-                self.outputParams['saveEvery'] = sE ** s
+            new_sE = np.maximum(np.maximum(sE, sE ** s), sE * s)
+            if (lap >= new_sE):
+                self.outputParams['saveEvery'] = new_sE
+            if lap > 1.0:
+                self.outputParams['saveEvery'] = \
+                    np.ceil(self.outputParams['saveEvery'])
         saveEvery = self.outputParams['saveEvery']
         if saveEvery <= 0 or self.savedir is None:
             return False

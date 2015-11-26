@@ -73,6 +73,15 @@ class AbstractObsModel(object):
         ---------
         Exactly one of Post or EstParams will be updated in-place.
         '''
+        if 'hmodel' in kwargs:
+            hmodel = kwargs['hmodel']
+            if hasattr(hmodel.obsModel, "Post"):
+                self.setPostFactors(obsModel=hmodel.obsModel)
+                return
+            elif hasattr(hmodel.obsModel, "EstParams"):
+                self.setEstParams(obsModel=hmodel.obsModel)
+                return
+
         # First, try setEstParams, and fall back on setPost on any trouble
         didSetPost = 0
         try:
