@@ -89,7 +89,7 @@ def configure(taskoutpathIN,
         doSaveToDisk=0, doWriteStdOut=0,
         verboseLevel=0,
         summaryLevel=logging.DEBUG+1,        
-        stdoutLevel=logging.DEBUG+1):
+        stdoutLevel=0): #logging.DEBUG+1):
     ''' Configure this singleton Logger to write logs to disk or stdout.
 
     Post condition
@@ -158,7 +158,7 @@ def makeFunctionToPrettyPrintCounts(initSS):
                 if not didWriteThisUID:
                     s += emptyVal
         if cleanupSizeThr:
-            s += " (removed comps below minimum size of %d)" % (
+            s += " (removed comps below minimum size of %.2f)" % (
                 cleanupSizeThr)
         pprint('  ' + s)
     return pprintCountVec

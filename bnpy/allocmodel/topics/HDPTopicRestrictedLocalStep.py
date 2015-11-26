@@ -150,6 +150,7 @@ def restrictedLocalStep_HDPTopicModel(
             ktarget=ktarget,
             Kfresh=Kfresh,
             xalphaPi=xalphaPi,
+            obsModelName=xObsModel.__class__.__name__,
             **kwargs)
 
     # Compute other LP quantities related to log prob (topic | doc)
@@ -188,6 +189,7 @@ def restrictedLocalStepForSingleDoc_HDPTopicModel(
         xLPslice=None, 
         xInitLPslice=None,       
         LPkwargs=dict(),
+        obsModelName='Mult',
         **kwargs):
     ''' Perform restricted local step on one document.
 
@@ -198,14 +200,30 @@ def restrictedLocalStepForSingleDoc_HDPTopicModel(
         * DocTopicCount
         * theta
     '''
-    start = Dslice.doc_range[d]
-    stop = Dslice.doc_range[d+1]
-    mask_d = np.flatnonzero(
-        curLPslice['resp'][start:stop, ktarget] > 0.01)
-    lumpmask_d = np.setdiff1d(np.arange(stop-start), mask_d)
+    if hasattr(Dslice, 'word_count') and obsModelName.count('Bern'):
+        start = d * Dslice.vocab_size
+        stop = start + Dslice.vocab_size
+        words_d = Dslice.word_id[Dslice.doc_range[d]:Dslice.doc_range[d+1]]
+        mask_d = np.flatnonzero(
+            curLPslice['resp'][start + words_d, ktarget] > 0.01)
+        # total of vocab_size atoms, subtract off present words
+        lumpmask_d = np.setdiff1d(np.arange(stop-start), mask_d)
+
+    else:
+        start = Dslice.doc_range[d]
+        stop = Dslice.doc_range[d+1]
+        mask_d = np.flatnonzero(
+            curLPslice['resp'][start:stop, ktarget] > 0.01)
+        lumpmask_d = np.setdiff1d(np.arange(stop-start), mask_d)
+
+
     if hasattr(Dslice, 'word_count'):
-        wc_d = Dslice.word_count[start + mask_d]
-        wc_lump_d = Dslice.word_count[start + lumpmask_d]
+        if obsModelName.count('Mult'):
+            wc_d = Dslice.word_count[start + mask_d]
+            wc_lump_d = Dslice.word_count[start + lumpmask_d]
+        else:
+            wc_d = 1.0
+            wc_lump_d = 1.0 #Dslice.vocab_size - words_d.size
     else:
         wc_d = 1.0
         wc_lump_d = 1.0
@@ -216,12 +234,6 @@ def restrictedLocalStepForSingleDoc_HDPTopicModel(
     # because it belongs to atoms that are too small to worry about.
     lumpMass_d = np.sum(
         curLPslice['resp'][start + lumpmask_d, ktarget] * wc_lump_d)
-    # Compute the conditional likelihood matrix for the target atoms
-    # xCLik_d will always have an entry equal to one.
-    assert 'E_log_soft_ev' in xLPslice
-    xCLik_d = xLPslice['E_log_soft_ev'][start + mask_d]
-    xCLik_d -= np.max(xCLik_d, axis=1)[:,np.newaxis]
-    np.exp(xCLik_d, out=xCLik_d)
     # Allocate temporary memory for this document
     xsumResp_d = np.zeros_like(targetsumResp_d)      
     xDocTopicCount_d = np.zeros(Kfresh)
@@ -230,7 +242,16 @@ def restrictedLocalStepForSingleDoc_HDPTopicModel(
     if mask_d.size > 0:
         if xInitLPslice:
             xDocTopicCount_d[:] = xInitLPslice['DocTopicCount'][d, :]
+        # Compute the conditional likelihood matrix for the target atoms
+        # xCLik_d will always have an entry equal to one.
+        assert 'E_log_soft_ev' in xLPslice
+        xCLik_d = xLPslice['E_log_soft_ev'][start + mask_d]
+        xCLik_d -= np.max(xCLik_d, axis=1)[:,np.newaxis]
+        # Protect against underflow
+        np.maximum(xCLik_d, -300, out=xCLik_d)
+        np.exp(xCLik_d, out=xCLik_d)
 
+        # Prepare doc-specific count vectors
         xDocTopicProb_d = np.zeros_like(xDocTopicCount_d)
         prevxDocTopicCount_d = -1 * np.ones(Kfresh)
         maxDiff_d = -1
@@ -241,11 +262,14 @@ def restrictedLocalStepForSingleDoc_HDPTopicModel(
                 out=xDocTopicProb_d)
             digamma(xDocTopicProb_d, out=xDocTopicProb_d)
             xDocTopicProb_d -= xDocTopicProb_d.max()
+            # Protect against underflow
+            np.maximum(xDocTopicProb_d, -300, out=xDocTopicProb_d)
             np.exp(xDocTopicProb_d, out=xDocTopicProb_d)
+            assert np.min(xDocTopicProb_d) > 0.0
 
             # Update sumResp for active tokens in document
             np.dot(xCLik_d, xDocTopicProb_d, out=xsumResp_d)
-
+            
             # Update DocTopicCount_d: 1D array, shape K
             #     sum(DocTopicCount_d) equals Nd[ktarget]
             np.dot(targetsumResp_d / xsumResp_d, xCLik_d, 

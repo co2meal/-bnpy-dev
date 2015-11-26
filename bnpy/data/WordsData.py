@@ -773,6 +773,84 @@ class WordsData(DataObj):
                          TrueParams=newTrueParams,
                          vocabList=newVocabList)
 
+
+    def makeSubsetByThresholdingWeights(
+            self, atomWeightVec=None, thr=0):
+        ''' Returns WordsData object representing subset of this dataset.
+
+
+        Returns
+        -------
+        Dtarget : WordsData object
+        docIDs : 1D array, size Dtarget.nDoc
+        atomIDs : 1D array, size Dtarget.nUniqueToken
+
+        Example
+        -------
+        >>> word_id = np.asarray([0, 1, 2, 0, 1, 2,  5, 6, 7])
+        >>> word_ct = np.asarray([1, 7, 8, 1, 7, 8,  1, 1, 1])
+        >>> doc_range = np.asarray([0, 3, 6, 9])
+        >>> Data = WordsData(word_id, word_ct, doc_range, vocab_size=10)
+        >>> weights = np.asarray([0, 1, 1, 0, 1, 1, 0, 0, 0])
+        >>> Dtarget, d, a = Data.makeSubsetByThresholdingWeights(weights, 0.1)
+        >>> print a
+        [1 2 4 5]
+        >>> print d
+        [0, 1]
+        >>> print Dtarget.word_count
+        [ 7.  8.  7.  8.]
+        >>> X = Data.getDocTypeCountMatrix()
+        >>> Xtarget = Dtarget.getDocTypeCountMatrix()
+        >>> np.all(X[d] >= Xtarget)
+        True
+
+        Example with empty result
+        -------
+        >>> empty_weights = np.asarray([0, 0, 0, 0, 0, 0, 0, 0, 0])
+        >>> Dtarget, d, a = Data.makeSubsetByThresholdingWeights(
+        ...     empty_weights, 0.1)
+        >>> print d
+        []
+        >>> Dtarget == None
+        True
+        '''
+        N = atomWeightVec.size
+        assert N == self.nUniqueToken
+
+        docIDs = list()
+        atomIDs = list()
+        doc_range = [0]
+        for d in xrange(self.nDoc):
+            start = self.doc_range[d]
+            stop = self.doc_range[d+1]
+            atomIDs_d = np.flatnonzero(atomWeightVec[start:stop] >= thr)
+            if atomIDs_d.size > 0:
+                atomIDs.extend(atomIDs_d + start)
+                docIDs.append(d)
+                doc_range.append(doc_range[-1] + atomIDs_d.size)
+        atomIDs = np.asarray(atomIDs)
+
+        if len(atomIDs) < 1:
+            return None, docIDs, atomIDs
+
+        doc_range = np.asarray(doc_range)
+        new_word_id = self.word_id[atomIDs].copy()
+        new_word_ct = np.ceil(
+            self.word_count[atomIDs] * atomWeightVec[atomIDs])
+        if hasattr(self, 'vocabList'):
+            newVocabList = self.vocabList
+        else:
+            newVocabList = None            
+
+        Dtarget = WordsData(
+            word_id=new_word_id,
+            word_count=new_word_ct,
+            doc_range=doc_range,
+            vocab_size=self.vocab_size,
+            vocabList=newVocabList,
+            )
+        return Dtarget, docIDs, atomIDs
+
     @classmethod
     def CreateToyDataSimple(cls, nDoc=10, nUniqueTokensPerDoc=10,
                             vocab_size=25, **kwargs):
@@ -1128,11 +1206,11 @@ def processLine_ldac__fromstring(line):
     --------
     >>> a, b, c = processLine_ldac__fromstring('5 66:6 77:7 88:8')
     >>> print a
-    5.0
+    5
     >>> print b
-    [ 66.  77.  88.]
+    [66 77 88]
     >>> print c
-    [ 6.  7.  8.]
+    [6 7 8]
     """
     line = line.replace(':', ' ')
     data = np.fromstring(line, sep=' ', dtype=np.int32)

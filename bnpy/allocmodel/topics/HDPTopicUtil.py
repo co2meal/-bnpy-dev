@@ -437,7 +437,8 @@ def calcMergeTermsFromSeparateLP(
         kB = SSb.uid2k(uidB)
 
         m_resp = LPa['resp'][:, kA] + LPb['resp'][:, kB]
-        if hasattr(Data, 'word_count'):
+        if hasattr(Data, 'word_count') and \
+                Data.nUniqueToken == m_resp.shape[0]:
             m_Hresp[m] = -1 * calcRlogRdotv(
                 m_resp[:,np.newaxis], Data.word_count)
         else:
