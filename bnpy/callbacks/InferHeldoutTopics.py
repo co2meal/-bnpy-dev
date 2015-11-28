@@ -166,6 +166,16 @@ def evalTopicModelOnTestDataFromTaskpath(
     scipy.io.savemat(outmatfile, SaveVars, oned_as='row')
     if printFunc:
         printFunc("DONE. Results written to MAT file:\n" + outmatfile)
+
+    SVars['avgLikScore'] = SaveVars['avgPredLL']
+    SVars['lapTrain'] = queryLap
+    SVars['K'] = K
+    for key in SVars:
+        if key.endswith('perDoc'):
+            continue
+        outtxtfile = os.path.join(taskpath, 'predlik-%s.txt' % (key))
+        with open(outtxtfile, 'a') as f:
+            f.write("%.6e\n" % (SVars[key]))
     return SaveVars
 
 
