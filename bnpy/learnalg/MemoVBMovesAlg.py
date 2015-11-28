@@ -352,7 +352,11 @@ class MemoVBMovesAlg(LearnAlg):
                     propRemSS.removeComp(uid=uid)
             # Give each absorbing UID a termporary new UID
             oldUIDs = propRemSS.uids.copy()
-            newUIDs = self.makeNewUIDs(b_Kfresh=len(oldUIDs))
+            if self.isFirstBatch(lapFrac):
+                newUIDs = self.makeNewUIDs(b_Kfresh=len(oldUIDs))
+            else:
+                assert targetUID in SS.propXSS
+                newUIDs = SS.propXSS[targetUID].uids
             propRemSS.setUIDs(newUIDs)
             mUIDPairs = list()
             for ii, oldUID in enumerate(oldUIDs):

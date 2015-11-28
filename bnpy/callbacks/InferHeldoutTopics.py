@@ -4,17 +4,23 @@ import os
 import numpy as np
 import scipy.io
 import sklearn.metrics
+import bnpy
 
+from scipy.special import digamma
+from scipy.misc import logsumexp
 from bnpy.allocmodel.topics.LocalStepSingleDoc import calcLocalParams_SingleDoc
-from bnpy.ioutil.ModelReader import getPrefixForLapQuery, loadTopicModel
-from bnpy.ioutil.DataReader import loadDataFromSavedTask, loadLPKwargsFromDisk
+from bnpy.ioutil.ModelReader import \
+    getPrefixForLapQuery, loadTopicModel, loadModelForLap
+from bnpy.ioutil.DataReader import \
+    loadDataFromSavedTask, loadLPKwargsFromDisk, loadDataKwargsFromDisk
 from bnpy.ioutil.DataReader import str2numorstr
 
 VERSION = 0.1
 
 def evalTopicModelOnTestDataFromTaskpath(
         taskpath='', 
-        queryLap=0, seed=42,
+        queryLap=0,
+        seed=42,
         dataSplitName='test',
         fracHeldout=0.2,
         printFunc=None,
@@ -23,54 +29,126 @@ def evalTopicModelOnTestDataFromTaskpath(
     '''
     # Load test dataset
     Data = loadDataFromSavedTask(taskpath, dataSplitName=dataSplitName)
+    DataKwargs = loadDataKwargsFromDisk(taskpath)
     # Load saved kwargs for local step
     LPkwargs = loadLPKwargsFromDisk(taskpath)
     for key in kwargs:
         if key in LPkwargs and kwargs[key] is not None:
             LPkwargs[key] = str2val(kwargs[key])
     # Load saved model
-    topics, probs, alpha = loadTopicModel(
-        taskpath, queryLap=queryLap,
-        returnTPA=1, normalizeTopics=1, normalizeProbs=1)
+    if hasattr(Data, 'word_count'):
+        topics, probs, alpha = loadTopicModel(
+            taskpath, queryLap=queryLap,
+            returnTPA=1, normalizeTopics=1, normalizeProbs=1)
+        K = probs.size
+    else:
+        hmodel, foundLap = loadModelForLap(taskpath, queryLap)
+        assert np.allclose(foundLap, queryLap)
+        if hasattr(hmodel.allocModel, 'alpha'):
+            alpha = hmodel.allocModel.alpha
+        if 'alpha' in DataKwargs:
+            alpha = float(DataKwargs['alpha'])
+        K = hmodel.allocModel.K
+    # Prepare debugging statements
     if printFunc:
+        if hasattr(Data, 'word_count'):
+            nAtom = Data.word_count.sum()
+        else:
+            nAtom = Data.nObs
         msg = "%s heldout data. %d documents. %d total words." % (
-            Data.name, Data.nDoc, Data.word_count.sum())
+            Data.name, Data.nDoc, nAtom)
         printFunc(msg)
         printFunc("Using trained model from lap %7.3f with %d topics" % (
-            queryLap, probs.size))
-        msg = "Splitting word types in each doc" + \
+            queryLap, K))
+        printFunc("Using alpha=%.3f for heldout inference." % (alpha))
+        msg = "Splitting each doc" + \
             " into %3.0f%% train and %3.0f%% test, with seed %d" % (
             100*(1-fracHeldout), 100*fracHeldout, seed)
         printFunc(msg)
+    # Preallocate storage for metrics
     logpTokensPerDoc = np.zeros(Data.nDoc)
-    aucPerDoc = np.zeros(Data.nDoc)
-    RprecisionPerDoc = np.zeros(Data.nDoc)
     nTokensPerDoc = np.zeros(Data.nDoc, dtype=np.int32)
+    if hasattr(Data, 'word_count'):
+        aucPerDoc = np.zeros(Data.nDoc)
+        RprecisionPerDoc = np.zeros(Data.nDoc)
     stime = time.time()
     for d in range(Data.nDoc):
         Data_d = Data.select_subset_by_mask([d], doTrackFullSize=0)
-        Info_d = calcPredLikForDoc(
-            Data_d, topics, probs, alpha,
-            fracHeldout=fracHeldout,
-            seed=seed,
-            LPkwargs=LPkwargs)
-        logpTokensPerDoc[d] = Info_d['sumlogProbTokens']
-        nTokensPerDoc[d] = Info_d['nHeldoutToken']
-        aucPerDoc[d] = Info_d['auc']
-        RprecisionPerDoc[d] = Info_d['R_precision']
+        if hasattr(Data, 'word_count'):
+            Info_d = calcPredLikForDoc(
+                Data_d, topics, probs, alpha,
+                fracHeldout=fracHeldout,
+                seed=seed + d,
+                LPkwargs=LPkwargs)
+            logpTokensPerDoc[d] = Info_d['sumlogProbTokens']
+            nTokensPerDoc[d] = Info_d['nHeldoutToken']
+            aucPerDoc[d] = Info_d['auc']
+            RprecisionPerDoc[d] = Info_d['R_precision']
+            avgAUCscore = np.mean(aucPerDoc[:d+1])
+            avgRscore = np.mean(RprecisionPerDoc[:d+1])
+            scoreMsg = "avglogp %.4f avgauc %.4f avgRprec %.4f" % (
+                np.sum(logpTokensPerDoc[:d+1]) / np.sum(nTokensPerDoc[:d+1]),
+                avgAUCscore, avgRscore)
+            SVars = dict(
+                avgRscore=avgRscore,
+                avgAUCscore=avgAUCscore,
+                avgAUCscorePerDoc=aucPerDoc,
+                avgRscorePerDoc=RprecisionPerDoc)
+        else:
+            Info_d = calcPredLikForDocFromHModel(
+                Data_d, hmodel,
+                alpha=alpha,
+                fracHeldout=fracHeldout,
+                seed=seed + d,
+                LPkwargs=LPkwargs)
+            logpTokensPerDoc[d] = Info_d['sumlogProbTokens']
+            nTokensPerDoc[d] = Info_d['nHeldoutToken']
+            scoreMsg = "avglogp %.4f" % (
+                np.sum(logpTokensPerDoc[:d+1]) / np.sum(nTokensPerDoc[:d+1]),
+                )
+            SVars = dict()
+
         if d == 0 or (d+1) % 25 == 0 or d == Data.nDoc - 1:
-            meanScore = np.sum(logpTokensPerDoc[:d+1]) / \
-                np.sum(nTokensPerDoc[:d+1])
-            meanAUC = np.mean(aucPerDoc[:d+1])
-            meanRPrec = np.mean(RprecisionPerDoc[:d+1])
             if printFunc:
                 etime = time.time() - stime
-                msg = "%5d/%d after %8.1f sec " + \
-                    "avglogpWord %.4f avgauc %.4f avgRprec %.4f"
-                msg = msg % (d+1, Data.nDoc, etime, 
-                    meanScore, meanAUC, meanRPrec)
-                printFunc(msg)
+                msg = "%5d/%d after %8.1f sec " % (d+1, Data.nDoc, etime) 
+                printFunc(msg + scoreMsg)
+
+    # Aggregate results
     meanlogpTokensPerDoc = np.sum(logpTokensPerDoc) / np.sum(nTokensPerDoc)
+    # Compute heldout Lscore
+    if not hasattr(Data, 'word_count'):
+        if hasattr(hmodel.allocModel, 'gamma'):
+            gamma = hmodel.allocModel.gamma
+        else:
+            gamma = hmodel.allocModel.gamma0
+        aParams = dict(gamma=gamma, alpha=alpha)
+        oParams = hmodel.obsModel.get_prior_dict()
+        del oParams['inferType']
+
+        # Create DP mixture model from current hmodel
+        DPmodel = bnpy.HModel.CreateEntireModel('VB', 'DPMixtureModel',
+            hmodel.getObsModelName(),
+            aParams, oParams,
+            Data)
+        DPmodel.set_global_params(hmodel=hmodel)
+        LP = DPmodel.calc_local_params(Data, **LPkwargs)
+        SS = DPmodel.get_global_suff_stats(Data, LP, doPrecompEntropy=1)
+        dpLscore = DPmodel.calc_evidence(SS=SS)
+
+        # Create HDP topic model from current hmodel
+        HDPmodel = bnpy.HModel.CreateEntireModel('VB', 'HDPTopicModel',
+            hmodel.getObsModelName(),
+            aParams, oParams,
+            Data)
+        HDPmodel.set_global_params(hmodel=hmodel)
+        LP = HDPmodel.calc_local_params(Data, **LPkwargs)
+        SS = HDPmodel.get_global_suff_stats(Data, LP, doPrecompEntropy=1)
+        hdpLscore = HDPmodel.calc_evidence(SS=SS)
+
+        SVars['dpLscore'] = dpLscore
+        SVars['hdpLscore'] = hdpLscore
+        printFunc("~~~ dpL=%.6e\n~~~hdpL=%.6e" % (dpLscore, hdpLscore))
     # Prepare to save results.
     prefix, lap = getPrefixForLapQuery(taskpath, queryLap)
     outmatfile = os.path.join(taskpath, prefix + "PredLik.mat")
@@ -80,16 +158,24 @@ def evalTopicModelOnTestDataFromTaskpath(
         outmatfile=outmatfile,
         fracHeldout=fracHeldout,
         predLLPerDoc=logpTokensPerDoc,
-        avgPredLL=meanlogpTokensPerDoc,
-        K=probs.size,
-        aucPerDoc=aucPerDoc,
+        avgPredLL=np.sum(logpTokensPerDoc) / np.sum(nTokensPerDoc),
+        K=K,
         nTokensPerDoc=nTokensPerDoc,
-        avgAUCScore=np.mean(aucPerDoc),
-        avgRPrecision=np.mean(RprecisionPerDoc),
         **LPkwargs)
+    SaveVars.update(SVars)
     scipy.io.savemat(outmatfile, SaveVars, oned_as='row')
     if printFunc:
         printFunc("DONE. Results written to MAT file:\n" + outmatfile)
+
+    SVars['avgLikScore'] = SaveVars['avgPredLL']
+    SVars['lapTrain'] = queryLap
+    SVars['K'] = K
+    for key in SVars:
+        if key.endswith('perDoc'):
+            continue
+        outtxtfile = os.path.join(taskpath, 'predlik-%s.txt' % (key))
+        with open(outtxtfile, 'a') as f:
+            f.write("%.6e\n" % (SVars[key]))
     return SaveVars
 
 
@@ -109,7 +195,7 @@ def calcPredLikForDoc(docData, topics, probs, alpha,
     nUnique = docData.word_id.size
     nHeldout = int(np.ceil(fracHeldout * nUnique))
     nHeldout = np.maximum(MINSIZE, nHeldout)
-    PRNG = np.random.RandomState(seed)
+    PRNG = np.random.RandomState(int(seed))
     shuffleIDs = PRNG.permutation(nUnique)
     heldoutIDs = shuffleIDs[:nHeldout]
     trainIDs = shuffleIDs[nHeldout:]
@@ -154,9 +240,6 @@ def calcPredLikForDoc(docData, topics, probs, alpha,
     R_precision = sklearn.metrics.precision_score(
         trueLabelsOfUnseenTypes_d[topRUnseenTypeIDs],
         np.ones(topR))
-
-    if R_precision > 0.9:
-        print R_precision
     # Useful debugging
     # >>> unseenTypeIDs = np.flatnonzero(unseen_mask_d)
     # >>> trainIm = np.zeros(900); trainIm[tr_word_id] = 1.0
@@ -171,6 +254,62 @@ def calcPredLikForDoc(docData, topics, probs, alpha,
     Info['DocTopicCount'] = DocTopicCount_d
     Info['nHeldoutToken'] = nHeldoutToken_d
     Info['sumlogProbTokens'] = sumlogProbTokens_d
+    return Info
+
+
+
+def calcPredLikForDocFromHModel(
+        docData, hmodel,
+        fracHeldout=0.2,
+        seed=42,
+        MINSIZE=10,
+        LPkwargs=dict(),
+        alpha=None,
+        **kwargs):
+    ''' Calculate predictive likelihood for single doc under given model.
+
+    Returns
+    -------
+    '''
+    Info = dict()
+    assert docData.nDoc == 1
+
+    # Split document into training and heldout
+    # assigning each unique vocab type to one or the other
+    if hasattr(docData, 'word_id'):
+        N = docData.word_id.size
+    else:
+        N = docData.nObs
+    nHeldout = int(np.ceil(fracHeldout * N))
+    nHeldout = np.maximum(MINSIZE, nHeldout)
+    PRNG = np.random.RandomState(int(seed))
+    shuffleIDs = PRNG.permutation(N)
+    heldoutIDs = shuffleIDs[:nHeldout]
+    trainIDs = shuffleIDs[nHeldout:]
+    if len(heldoutIDs) < MINSIZE:
+        raise ValueError('Not enough unique IDs to make good test split')
+    if len(trainIDs) < MINSIZE:
+        raise ValueError('Not enough unique IDs to make good train split')
+
+    hoData = docData.select_subset_by_mask(atomMask=heldoutIDs)
+    trData = docData.select_subset_by_mask(atomMask=trainIDs)
+
+    # Run local step to get DocTopicCounts
+    DocTopicCount_d, Info = inferDocTopicCountForDocFromHModel(
+        trData, hmodel, **LPkwargs)
+    probs = hmodel.allocModel.get_active_comp_probs()
+    # Compute expected topic probs in this doc
+    theta_d = DocTopicCount_d + alpha * probs
+    E_log_pi_d = digamma(theta_d) - digamma(np.sum(theta_d))
+    # Evaluate log prob per token metric
+    LP = hmodel.obsModel.calc_local_params(hoData)
+    logProbArr_d = LP['E_log_soft_ev']
+    logProbArr_d += E_log_pi_d[np.newaxis, :]
+    logProbPerToken_d = logsumexp(logProbArr_d, axis=1)
+    # Pack up and ship
+    Info['DocTopicCount'] = DocTopicCount_d
+    Info['nHeldoutToken'] = len(heldoutIDs)
+    Info['sumlogProbTokens'] = np.sum(logProbPerToken_d)
     return Info
 
 def inferDocTopicCountForDoc(
@@ -188,12 +327,29 @@ def inferDocTopicCountForDoc(
     Lik_d = np.asarray(topics[word_id, :].copy(), dtype=np.float64)
     # alphaEbeta : 1D array, size K
     alphaEbeta = np.asarray(alpha * probs, dtype=np.float64)
-
     DocTopicCount_d, _, _, Info = calcLocalParams_SingleDoc(
         word_ct, Lik_d, alphaEbeta,
         alphaEbetaRem=None,
         **LPkwargs)
     assert np.allclose(DocTopicCount_d.sum(), word_ct.sum())
+    return DocTopicCount_d, Info
+
+def inferDocTopicCountForDocFromHModel(
+        docData, hmodel, alpha=0.5, **LPkwargs):
+    # Lik_d : 2D array, size N x K
+    # Each row is non-negative
+    LP = hmodel.obsModel.calc_local_params(docData)
+    Lik_d = LP['E_log_soft_ev']
+    Lik_d -= Lik_d.max(axis=1)[:,np.newaxis]
+    np.exp(Lik_d, out=Lik_d)
+
+    # alphaEbeta : 1D array, size K
+    alphaEbeta = alpha * hmodel.allocModel.get_active_comp_probs()
+    DocTopicCount_d, _, _, Info = calcLocalParams_SingleDoc(
+        1.0, Lik_d, alphaEbeta,
+        alphaEbetaRem=None,
+        **LPkwargs)
+    assert np.allclose(DocTopicCount_d.sum(), Lik_d.shape[0])
     return DocTopicCount_d, Info
 
 if __name__ == '__main__':

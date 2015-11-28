@@ -33,10 +33,16 @@ def loadDataFromSavedTask(taskoutpath, dataSplitName='train', **kwargs):
     dataKwargs = loadDataKwargsFromDisk(taskoutpath)
     try:
         datamod = __import__(dataName, fromlist=[])
+        if dataSplitName.count('test'):
+            Data = datamod.get_test_data(**dataKwargs)
+        elif dataSplitName.count('valid'):
+            Data = datamod.get_validation_data(**dataKwargs)
+        else:
+            Data = datamod.get_data(**dataKwargs)
+        return Data
+
     except ImportError as e:
         Data = None
-        for k, v in dataKwargs.items():
-            print k, v
         if 'dataPath' not in dataKwargs:
             raise e
         try:
@@ -55,14 +61,6 @@ def loadDataFromSavedTask(taskoutpath, dataSplitName='train', **kwargs):
         except Exception as e2:
             raise e
         return Data
-
-    if dataSplitName.count('test'):
-        Data = datamod.get_test_data(**dataKwargs)
-    elif dataSplitName.count('valid'):
-        Data = datamod.get_validation_data(**dataKwargs)
-    else:
-        Data = datamod.get_data(**dataKwargs)
-    return Data
 
 def loadDataKwargsFromDisk(taskoutpath):
     ''' Load keyword options used to load specific dataset.

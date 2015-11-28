@@ -405,7 +405,7 @@ def makeSummaryForExistingBirthProposal(
         Contains info for detailed debugging of construction process.
     '''
     if targetUID is None:
-        targetUID = curSSwhole.k2uid(ktarget)
+        targetUID = curSSwhole.uids(ktarget)
     if ktarget is None:
         ktarget = curSSwhole.uid2k(targetUID)
     # START log for this birth proposal
@@ -482,6 +482,7 @@ def makeSummaryForExistingBirthProposal(
             Dslice=Dslice, 
             curModel=curModel,
             curLPslice=curLPslice,
+            curSSwhole=curSSwhole,
             ktarget=ktarget,
             xUIDs=xSSinitPlusSlice.uids,
             xObsModel=xObsModel,

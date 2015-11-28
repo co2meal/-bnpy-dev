@@ -523,7 +523,8 @@ class DPMixtureModel(AllocModel):
             beta = 1.0 / K * np.ones(K)
         assert beta.ndim == 1
         assert beta.size == K
-        assert np.allclose(np.sum(beta), 1.0)
+        assert np.sum(beta) < 1.0
+        beta = beta / np.sum(beta)
         self.K = int(K)
 
         # Append in small remaining/leftover mass
@@ -548,8 +549,17 @@ class DPMixtureModel(AllocModel):
         w or theta will be set exactly equal to hmodel's allocModel.
         """
         self.K = hmodel.allocModel.K
-        self.eta1 = hmodel.allocModel.eta1.copy()
-        self.eta0 = hmodel.allocModel.eta0.copy()
+        if hasattr(hmodel.allocModel, 'eta1'):        
+            self.eta1 = hmodel.allocModel.eta1.copy()
+            self.eta0 = hmodel.allocModel.eta0.copy()
+        elif hasattr(hmodel.allocModel, 'rho'):
+            rho = hmodel.allocModel.rho
+            omega = hmodel.allocModel.omega
+            self.eta1 = omega * rho
+            self.eta0 = omega * (1-rho)
+        else:
+            beta = hmodel.allocModel.get_active_comp_probs()
+            self.setParamsFromBeta(K=beta.size, beta=beta)
         self.set_helper_params()
 
     def calc_evidence(self, Data, SS, LP=None, todict=0, **kwargs):

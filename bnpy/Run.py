@@ -435,6 +435,8 @@ def writeArgsToFile(ReqArgs, KwArgs, taskoutpath, UnkArgs):
         argfile = os.path.join(taskoutpath, 'args-' + key + '.txt')
         with open(argfile, 'w') as fout:
             for k, val in ArgDict[key].items():
+                if isinstance(val, dict):
+                    continue
                 fout.write('%s %s\n' % (k, val))
 
     unkfile = os.path.join(taskoutpath, 'args-DatasetPrefs.txt')
