@@ -591,7 +591,7 @@ class SuffStatBag(object):
                 if hasattr(xSS._ELBOTerms, key + 'EmptyComp'):
                     arr[k] += getattr(xSS._ELBOTerms, key + 'EmptyComp')
                 else:
-                    arr[k] = 0
+                    raise ValueError("All K-dim ELBO fields need emptycomp!")
         # Insert the expansion stats at indices K, K+1, ...
         self.insertComps(xSS)
 

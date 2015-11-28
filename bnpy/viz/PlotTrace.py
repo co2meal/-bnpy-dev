@@ -304,7 +304,7 @@ def parse_args(xvar='laps', yvar='evidence'):
                         help="name of x axis variable to plot.")
 
     parser.add_argument('--yvar', type=str, default=yvar,
-                        choices=LabelMap.keys(),
+                        #choices=LabelMap.keys(),
                         help="name of y axis variable to plot.")
 
     helpMsg = "ids of trials/runs to plot from given job." + \

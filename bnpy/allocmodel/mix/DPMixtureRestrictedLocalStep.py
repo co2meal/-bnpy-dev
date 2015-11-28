@@ -67,6 +67,10 @@ def summarizeRestrictedLocalStep_DPMixtureModel(
         doPrecompEntropy=1, doTrackTruncationGrowth=1)
     xSSslice.setUIDs(xUIDs)
 
+    # Handle bookkeeping for original entropy term
+    HrespOrigComp = -1 * NumericUtil.calcRlogR(curLPslice['resp'][:, ktarget])
+    xSSslice.setELBOTerm('HrespEmptyComp', -1 * HrespOrigComp, dims=None)
+
     # If desired, add merge terms into the expanded summaries,
     if mUIDPairs is not None and len(mUIDPairs) > 0:
         # Check just to be safe

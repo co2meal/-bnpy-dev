@@ -829,6 +829,10 @@ class MemoVBMovesAlg(LearnAlg):
                 msg += "\n   gain_%8s % .3e" % (
                     key, propLdict[key] - curLdict[key])
             BLogger.pprint(msg)
+
+            assert propLdict['Lentropy'] >= - 1e-6
+            assert curLdict['Lentropy'] >= - 1e-6
+            assert propLdict['Lentropy'] >= curLdict['Lentropy'] - 1e-6
             if propLscore > Lscore:
                 nAccept += 1
                 BLogger.pprint(
