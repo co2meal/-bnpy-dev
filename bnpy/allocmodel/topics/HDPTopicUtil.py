@@ -92,6 +92,7 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None, todict=0,
             ElogPiOrigComp = LP['ElogPiOrigComp']
             gammalnThetaOrigComp = LP['gammalnThetaOrigComp']
             slackThetaOrigComp = LP['slackThetaOrigComp']
+            HrespOrigComp = LP['HrespOrigComp']
     elif SS is not None:
         sumLogPi = SS.sumLogPi
         nDoc = SS.nDoc
@@ -148,6 +149,7 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None, todict=0,
         slackThetaEmptyComp = -np.sum(thetaEmptyComp * ElogPiEmptyComp) - \
             slackThetaOrigComp
 
+
     if returnMemoizedDict:
         Mdict = dict(Hresp=Hresp,
                     slackTheta=slackTheta,
@@ -156,6 +158,7 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None, todict=0,
                     gammalnThetaRem=gammalnThetaRem,
                     gammalnSumTheta=gammalnSumTheta)
         if thetaEmptyComp is not None:
+            Mdict['HrespEmptyComp'] = -1 * HrespOrigComp
             Mdict['gammalnThetaEmptyComp'] = gammalnThetaEmptyComp
             Mdict['slackThetaEmptyComp'] = slackThetaEmptyComp
         return Mdict

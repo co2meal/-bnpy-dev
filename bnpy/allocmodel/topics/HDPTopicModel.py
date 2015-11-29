@@ -813,6 +813,9 @@ def calcSummaryStats(Dslice, LP=None,
                            Mdict['slackThetaEmptyComp'])
             SS.setELBOTerm('gammalnThetaEmptyComp',
                            Mdict['gammalnThetaEmptyComp'])
+            SS.setELBOTerm('HrespEmptyComp',
+                           Mdict['HrespEmptyComp'])
+
         else:
             SS.setELBOTerm('gammalnSumTheta',
                            Mdict['gammalnSumTheta'], dims=None)

@@ -74,17 +74,20 @@ def selectShortListForBirthAtLapStart(
     for k, uid in enumerate(SS.uids):
         if uid not in MoveRecordsByUID:
             MoveRecordsByUID[uid] = defaultdict(int)
-
         tooSmall = CountVec[k] <= b_minNumAtomsForTargetComp
-        hasFailRecord = MoveRecordsByUID[uid]['b_nFailRecent'] > 0
-        if (not tooSmall) and (not hasFailRecord):
+        hasFailRecord = MoveRecordsByUID[uid]['b_nFailRecent'] > 0        
+        if MoveRecordsByUID[uid]['b_tryAgainFutureLap'] > 0:
+            eligible_mask[k] = 1
+            MovePlans['b_shortlistUIDs'].append(uid)
+        elif (not tooSmall) and (not hasFailRecord):
             eligible_mask[k] = 1
             MovePlans['b_shortlistUIDs'].append(uid)
         elif tooSmall:
             nTooSmall += 1
-        elif hasFailRecord:
+        else:
+            assert hasFailRecord
             nPastFail += 1
-
+    assert len(MovePlans['b_shortlistUIDs']) == np.sum(eligible_mask)
     # Rank the shortlist by size
     if maxLenShortlist < len(MovePlans['b_shortlistUIDs']):
         sortIDs = argsort_bigtosmall_stable(CountVec[eligible_mask])
@@ -136,15 +139,6 @@ def selectCompsForBirthAtCurrentBatch(
             del MovePlans['b_targetUIDs']
         return MovePlans
 
-    '''
-    if 'b_targetUIDs' in MovePlans:
-        if len(MovePlans['b_targetUIDs']) > 0:
-            uidStr = vec2str(MovePlans['b_targetUIDs'])
-            BLogger.pprint(
-                'AGAIN! Target b_targetUIDs from previous batch\n ' + uidStr)
-            return MovePlans
-    '''
-
     K = SS.K
     # Get per-comp sizes for aggregate dataset
     SizeVec_all = np.maximum(SS.getCountVec(), 1e-100)
@@ -178,6 +172,12 @@ def selectCompsForBirthAtCurrentBatch(
             if uid in MovePlans['b_targetUIDs']:
                 eligible_mask[ii] = 1
                 continue
+        if MoveRecordsByUID[uid]['b_tryAgainFutureLap'] > 0:
+            eligible_mask[ii] = 1
+            msg = "Try targeting uid %d again." % (uid)
+            BLogger.pprint(msg)
+            del MoveRecordsByUID[uid]['b_tryAgainFutureLap']
+            continue
 
         if 'd_targetUIDs' in MovePlans:
             if uid in MovePlans['d_targetUIDs']:

@@ -774,6 +774,10 @@ class MemoVBMovesAlg(LearnAlg):
         else:
             b_targetUIDs = list()
 
+        if 'b_nFailedEval' in MovePlans:
+            nFailedEval = MovePlans['b_nFailedEval']
+        else:
+            nFailedEval = 0
         if 'b_nAccept' in MovePlans:
             nAccept = MovePlans['b_nAccept']
         else:
@@ -786,7 +790,7 @@ class MemoVBMovesAlg(LearnAlg):
             totalKnew = MovePlans['b_Knew']
         else:
             totalKnew = 0
-
+        nRetainedForNextLap = 0
         acceptedUIDs = list()
         curLdict = hmodel.calc_evidence(SS=SS, todict=1)
         for targetUID in b_targetUIDs:
@@ -829,7 +833,6 @@ class MemoVBMovesAlg(LearnAlg):
                 msg += "\n   gain_%8s % .3e" % (
                     key, propLdict[key] - curLdict[key])
             BLogger.pprint(msg)
-
             assert propLdict['Lentropy'] >= - 1e-6
             assert curLdict['Lentropy'] >= - 1e-6
             assert propLdict['Lentropy'] >= curLdict['Lentropy'] - 1e-6
@@ -864,22 +867,70 @@ class MemoVBMovesAlg(LearnAlg):
                 MovePlans['b_targetUIDs'].remove(targetUID)
                 del SS.propXSS[targetUID]
             else:
+                nSubset = SS.propXSS[targetUID].getCountVec().sum()
+                nTotal = SS.getCountVec()[ktarget]
+                if nSubset + 1.0 < nTotal and self.nBatch > 1:
+                    couldUseMoreData = True
+                else:
+                    couldUseMoreData = False
+
                 BLogger.pprint(
                     '   Rejected. Remain at Lscore %.3e' % (Lscore))
                 gainLdata = propLdict['Ldata'] - curLdict['Ldata']
-                if gainLdata > 0.01 and not self.isLastBatch(lapFrac):
+
+                if couldUseMoreData:
+                    # Route to redemption #2:
+                    # If Ldata for subset of data reassigned so far looks good
+                    # we hold onto this proposal for next time! 
+                    propSSsubset = SS.propXSS[targetUID].copy(
+                        includeELBOTerms=False, includeMergeTerms=False)
+                    tmpModel = propModel
+                    tmpModel.obsModel.update_global_params(propSSsubset)
+                    propLdata_subset = tmpModel.obsModel.calcELBO_Memoized(
+                        propSSsubset)
+                    curSSsubset = propSSsubset
+                    while curSSsubset.K > 1:
+                        curSSsubset.mergeComps(0, 1)
+                    tmpModel.obsModel.update_global_params(curSSsubset)
+                    curLdata_subset = tmpModel.obsModel.calcELBO_Memoized(
+                        curSSsubset)
+                    gainLdata_subset = propLdata_subset - curLdata_subset
+                else:
+                    gainLdata_subset = -42.0
+
+                if gainLdata_subset > 1e-6 and not self.isLastBatch(lapFrac):
+                    nTrial -= 1
+                    BLogger.pprint(
+                        '   Retained. Promising gainLdata_subset % .2f' % (
+                            gainLdata_subset))
+                    assert targetUID in SS.propXSS
+                    MovePlans['b_retainedUIDs'].append(targetUID)
+
+                elif gainLdata > 1e-6 and not self.isLastBatch(lapFrac):
+                    nTrial -= 1
                     BLogger.pprint(
                         '   Retained. Promising value of gainLdata % .2f' % (
                             gainLdata))
-                    # Track for next time!
                     assert targetUID in SS.propXSS
                     MovePlans['b_retainedUIDs'].append(targetUID)
+                elif gainLdata_subset > 1e-6 and \
+                        self.isLastBatch(lapFrac) and couldUseMoreData:
+                    nRetainedForNextLap += 1
+                    BLogger.pprint(
+                        '   Retain uid %d next lap! gainLdata_subset %.3e' % (
+                            targetUID, gainLdata_subset))
+                    assert targetUID in SS.propXSS
+                    MoveRecordsByUID[targetUID]['b_tryAgainFutureLap'] = 1
+                    MovePlans['b_retainedUIDs'].append(targetUID)
                 else:
+                    nFailedEval += 1
                     MovePlans['b_targetUIDs'].remove(targetUID)
                     del SS.propXSS[targetUID]
                     MoveRecordsByUID[targetUID]['b_nFail'] += 1
                     MoveRecordsByUID[targetUID]['b_nFailRecent'] += 1
                     MoveRecordsByUID[targetUID]['b_nSuccessRecent'] = 0
+                    MoveRecordsByUID[targetUID]['b_tryAgainFutureLap'] = 0
+
             BLogger.stopUIDSpecificLog(targetUID)
 
         if 'b_retainedUIDs' in MovePlans:
@@ -890,14 +941,19 @@ class MemoVBMovesAlg(LearnAlg):
         MovePlans['b_Knew'] = totalKnew
         MovePlans['b_nAccept'] = nAccept
         MovePlans['b_nTrial'] = nTrial
+        MovePlans['b_nFailedEval'] = nFailedEval
         if self.isLastBatch(lapFrac):
             if nTrial > 0:
-                msg = "BIRTH @ lap %.2f : Added %d states in %d proposals." \
-                    + " %d/%d succeeded. %d/%d failed construction."
+                msg = "BIRTH @ lap %.2f : Added %d states." + \
+                    " %d/%d succeeded. %d/%d failed eval phase. " + \
+                    "%d/%d failed build phase."
                 msg = msg % (
-                    lapFrac, totalKnew, nTrial, 
+                    lapFrac, totalKnew, 
                     nAccept, nTrial,
+                    MovePlans['b_nFailedEval'], nTrial,
                     MovePlans['b_nFailedProp'], nTrial)
+                if nRetainedForNextLap > 0:
+                    msg += " %d retained!" % (nRetainedForNextLap)
                 BLogger.pprint(msg, 'info')
             elif 'b_shortlistUIDs' in MovePlans:
                 # Birth was eligible, but did not make it to eval stage.

@@ -3,6 +3,7 @@ import os
 
 from scipy.special import digamma, gammaln
 from bnpy.allocmodel import make_xPiVec_and_emptyPi
+from bnpy.util import NumericUtil
 
 def summarizeRestrictedLocalStep_HDPTopicModel(
         Dslice=None, 
@@ -61,12 +62,15 @@ def summarizeRestrictedLocalStep_HDPTopicModel(
         xalphaPi=xalphaPi,
         thetaEmptyComp=thetaEmptyComp,
         **kwargs)
-    
+    assert "HrespOrigComp" in xLPslice
+
     # Summarize this expanded local parameter pack
     xSSslice = curModel.get_global_suff_stats(
         Dslice, xLPslice,
         trackDocUsage=1, doPrecompEntropy=1, doTrackTruncationGrowth=1)
     xSSslice.setUIDs(xUIDs)
+    assert xSSslice.hasELBOTerm("Hresp")
+    assert xSSslice.hasELBOTerm("HrespEmptyComp")
 
     # If desired, add merge terms into the expanded summaries,
     if mUIDPairs is not None and len(mUIDPairs) > 0:
@@ -179,6 +183,14 @@ def restrictedLocalStep_HDPTopicModel(
         curLPslice['theta'][:, ktarget]
     xLPslice['slackThetaOrigComp'] = np.sum(
         slack * curLPslice['ElogPi'][:, ktarget])
+
+    if hasattr(Dslice, 'word_count') and \
+            xresp.shape[0] == Dslice.word_count.size:
+        xLPslice['HrespOrigComp'] = -1 * NumericUtil.calcRlogRdotv(
+            curLPslice['resp'][:, ktarget], Data.word_count)
+    else:
+        xLPslice['HrespOrigComp'] = -1 * NumericUtil.calcRlogR(
+            curLPslice['resp'][:, ktarget])
     return xLPslice
 
 def restrictedLocalStepForSingleDoc_HDPTopicModel(
