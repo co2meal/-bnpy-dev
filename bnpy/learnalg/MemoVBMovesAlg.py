@@ -298,7 +298,8 @@ class MemoVBMovesAlg(LearnAlg):
             MovePlans = self.makeMovePlans_Birth_AtBatch(
                 curModel, curSSwhole,
                 SSbatch=SSbatch,
-                lapFrac=lapFrac, 
+                lapFrac=lapFrac,
+                batchID=batchID,
                 MovePlans=MovePlans,
                 MoveRecordsByUID=MoveRecordsByUID,
                 **kwargs)
@@ -332,6 +333,7 @@ class MemoVBMovesAlg(LearnAlg):
                     MoveRecordsByUID=MoveRecordsByUID,
                     taskoutpath=self.savedir,
                     lapFrac=lapFrac,
+                    batchID=batchID,
                     seed=self.seed,
                     nBatch=self.nBatch,
                     batchPos=batchPos,
@@ -737,7 +739,7 @@ class MemoVBMovesAlg(LearnAlg):
 
         if self.hasMove('birth'):
             BArgs = self.algParams['birth']    
-            msg = "PLANNING birth at lap %.3f, batch %d"
+            msg = "PLANNING birth at lap %.3f batch %d"
             BLogger.pprint(msg % (lapFrac, batchID))
             MovePlans = selectCompsForBirthAtCurrentBatch(
                 hmodel, SS,
@@ -869,7 +871,7 @@ class MemoVBMovesAlg(LearnAlg):
             else:
                 nSubset = SS.propXSS[targetUID].getCountVec().sum()
                 nTotal = SS.getCountVec()[ktarget]
-                if nSubset + 1.0 < nTotal and self.nBatch > 1:
+                if nSubset < 0.75 * nTotal and self.nBatch > 1:
                     couldUseMoreData = True
                 else:
                     couldUseMoreData = False
@@ -888,6 +890,7 @@ class MemoVBMovesAlg(LearnAlg):
                     tmpModel.obsModel.update_global_params(propSSsubset)
                     propLdata_subset = tmpModel.obsModel.calcELBO_Memoized(
                         propSSsubset)
+                    # Create current representation
                     curSSsubset = propSSsubset
                     while curSSsubset.K > 1:
                         curSSsubset.mergeComps(0, 1)

@@ -75,6 +75,8 @@ def decideDataTypeFromModel(aModelType, oModelType):
             return Words_AllocToDataTypeMap[aModelType]
         except KeyError:
             return 'WordsData'
+    elif len(aModelType) == 0:
+        return 'XData'
     else:
         raise ValueError(
             'Unrecognized model combo: ' + aModelType + ' ' + oModelType)
@@ -110,7 +112,7 @@ class DataIteratorFromDisk(object):
         lapID is always incremented by one after each lap.
     """
 
-    def __init__(self, datapath, aModelType='', oModelType='',
+    def __init__(self, dataPath='', aModelType='', oModelType='',
                  nBatch=0, nLap=1, dataorderseed=42, startLap=0, **kwargs):
         ''' Create an iterator over batches saved to disk.
 
@@ -133,7 +135,7 @@ class DataIteratorFromDisk(object):
             random division of data into fixed set of batches
             and random order for visiting batches during each lap
         '''
-        self.datapath = datapath
+        self.datapath = dataPath
         self.nLap = nLap + int(startLap)
 
         # Config order in which batches are traversed
@@ -142,7 +144,7 @@ class DataIteratorFromDisk(object):
         self.dataorderseed = int(int(dataorderseed) % MAXSEED)
 
         for extPattern in ['*.ldac', '*.dat', '*.mat']:
-            datafileList = glob.glob(os.path.join(datapath, extPattern))
+            datafileList = glob.glob(os.path.join(dataPath, extPattern))
             if len(datafileList) > 0:
                 break
         if len(datafileList) == 0:

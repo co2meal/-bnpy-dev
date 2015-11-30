@@ -209,28 +209,42 @@ def selectCompsForBirthAtCurrentBatch(
         else:
             sizePercDiff = np.abs(size - oldsize) / \
                 (1e-100 + np.abs(oldsize))
-            sizeChangedEnoughToReactivate = sizePercDiff > \
-                BArgs['b_minPercChangeInNumAtomsToReactivate']
+            sizeChangedEnoughToReactivate = \
+                sizePercDiff > BArgs['b_minPercChangeInNumAtomsToReactivate']
+            sizeIncreasedEnough = sizeChangedEnoughToReactivate and \
+                (size > oldsize)
+
             minBatchSizeToReactivate = oldbatchsize * \
                 (1.0 + BArgs['b_minPercChangeInNumAtomsToReactivate'])
-            if size > oldsize and sizeChangedEnoughToReactivate:
-                hasFailureRecord = False
-                msg = "uid %d reactivated by total size!" % (uid) + \
-                    " new_size %.1f  old_size %.1f" % (
-                        size, oldsize)
-                BLogger.pprint(msg, 'debug')
-            elif CountVec_b[ii] >= minBatchSizeToReactivate:
+            if CountVec_b[ii] >= minBatchSizeToReactivate:
                 hasFailureRecord = False
                 msg = "uid %d reactivated by batch size!" % (uid) + \
                     " new_batchsize %.1f  old_batchsize %.1f" % (
                         CountVec_b[ii], oldbatchsize)
+                BLogger.pprint(msg, 'debug')
+            elif lapFrac <= 1.0 and sizeIncreasedEnough and nFailRecent < 3:
+                # Size changes a lot on the first lap
+                # We'll give a cluster 3 tries only on this lap,
+                # so we don't waste time trying it at every batch
+                hasFailureRecord = False
+                msg = "uid %d reactivated by totalsize on 1st lap!" % (uid) + \
+                    " new_size %.1f  old_size %.1f" % (size, oldsize) + \
+                    " new_batchsize %.1f  old_batchsize %.1f" % (
+                        CountVec_b[ii], oldbatchsize)                    
+                BLogger.pprint(msg, 'debug')
+            elif lapFrac > 1.0 and sizeChangedEnoughToReactivate:
+                hasFailureRecord = False
+                msg = "uid %d reactivated by totalsize!" % (uid) + \
+                    " new_size %.1f  old_size %.1f" % (size, oldsize) + \
+                    " new_batchsize %.1f  old_batchsize %.1f" % (
+                        CountVec_b[ii], oldbatchsize)                    
                 BLogger.pprint(msg, 'debug')
             else:
                 hasFailureRecord = True
         if hasFailureRecord:
             uidsWithFailRecord.append((uid, nFailRecent))
             continue
-
+        # If we've made it here, the uid is eligible.
         eligible_mask[ii] = 1
 
     # Verify that retained UIDs we are building on survived eligibility check

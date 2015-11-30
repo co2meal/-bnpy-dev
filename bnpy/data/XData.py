@@ -80,10 +80,12 @@ class XData(DataObj):
         if 'X' not in InDict:
             raise KeyError(
                 'Stored matfile needs to have data in field named X')
-        return cls(InDict['X'], nObsTotal)
+        if nObsTotal is not None:
+            InDict['nObsTotal'] = nObsTotal
+        return cls(**InDict)
 
-    def __init__(self, X, nObsTotal=None, TrueZ=None, Xprev=None,
-                 TrueParams=None, summary=None):
+    def __init__(self, X=None, nObsTotal=None, TrueZ=None, Xprev=None,
+                 TrueParams=None, summary=None, **kwargs):
         ''' Constructor for XData instance for provided array data X.
 
         Post Condition

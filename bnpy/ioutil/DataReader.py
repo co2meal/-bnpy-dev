@@ -45,21 +45,36 @@ def loadDataFromSavedTask(taskoutpath, dataSplitName='train', **kwargs):
         Data = None
         if 'dataPath' not in dataKwargs:
             raise e
-        try:
-            confpath = os.path.join(dataKwargs['dataPath'], 'Info.conf')
-            if os.path.exists(confpath):
-                with open(confpath, 'r') as f:
-                    for line in f.readlines():
-                        if line.count('heldoutDataPath'):
-                            matpath = line.split('=')[1]
-                            matpath = matpath.strip()
-            matpath = os.path.expandvars(matpath)
-            if os.path.exists(matpath) and matpath.endswith('.mat'):
-                Data = bnpy.data.WordsData.LoadFromFile_tokenlist(
-                    matpath, vocab_size=dataKwargs['vocab_size'])
-                Data.name = dataName
-        except Exception as e2:
-            raise e
+        if dataSplitName == 'train':
+            # Load from file
+            dataKwargs.update(loadKwargsFromDisk(
+                taskoutpath, 'args-OnlineDataPrefs.txt'))
+            DI = bnpy.data.DataIteratorFromDisk(**dataKwargs)
+            if kwargs['batchIDFromDisk'] is not None:
+                Data = DI.getBatch(kwargs['batchIDFromDisk'])
+            else:
+                Data = DI.getBatch(0)
+            Data.name = dataName
+        elif dataSplitName == 'test':
+            try:
+                confpath = os.path.join(dataKwargs['dataPath'], 'Info.conf')
+                if os.path.exists(confpath):
+                    with open(confpath, 'r') as f:
+                        for line in f.readlines():
+                            if line.count('heldoutDataPath'):
+                                matpath = line.split('=')[1]
+                                matpath = matpath.strip()
+                matpath = os.path.expandvars(matpath)
+                if os.path.exists(matpath) and matpath.endswith('.mat'):
+                    if 'vocab_size' in dataKwargs:
+                        Data = bnpy.data.WordsData.LoadFromFile_tokenlist(
+                            matpath, vocab_size=dataKwargs['vocab_size'])
+                        Data.name = dataName
+                    else:
+                        Data = bnpy.data.GroupXData.LoadFromFile(matpath)
+                        Data.name = dataName
+            except Exception as e2:
+                raise e
         return Data
 
 def loadDataKwargsFromDisk(taskoutpath):

@@ -35,6 +35,7 @@ def tryBirthForTask(
         taskoutpath=None,
         lap=None, lapFrac=0,
         targetUID=0,
+        batchIDFromDisk=None,
         **kwargs):
     '''
 
@@ -47,7 +48,7 @@ def tryBirthForTask(
         lapFrac = lap
 
     curModel, lapFrac = loadModelForLap(taskoutpath, lapFrac)
-    Data = loadDataFromSavedTask(taskoutpath)
+    Data = loadDataFromSavedTask(taskoutpath, batchIDFromDisk=batchIDFromDisk)
     LPkwargs = loadLPKwargsFromDisk(taskoutpath)
     SavedBirthKwargs = loadKwargsFromDisk(taskoutpath, 'args-birth.txt')
 
@@ -87,6 +88,7 @@ if __name__ == '__main__':
     parser.add_argument('--lapFrac', type=float, default=None)
     parser.add_argument('--outputdir', type=str, default='/tmp/')
     parser.add_argument('--targetUID', type=int, default=0)
+    parser.add_argument('--batchIDFromDisk', type=int, default=None)
     for key, val in DefaultBirthArgs.items():
         parser.add_argument('--' + key, type=type(val), default=None)
     args = parser.parse_args()

@@ -19,6 +19,7 @@ def makeSummariesForManyBirthProposals(
         MoveRecordsByUID=dict(),
         taskoutpath='/tmp/',
         lapFrac=0.0,
+        batchID=0,
         batchPos=0,
         nBatch=0,
         **BArgs):
@@ -40,7 +41,8 @@ def makeSummariesForManyBirthProposals(
         b_targetUIDs = MovePlans['b_targetUIDs']
     if len(b_targetUIDs) > 0:
         BLogger.pprint(
-            'CREATING birth proposals at lap %.2f' % (lapFrac))
+            'CREATING birth proposals at lap %.2f batch %d' % (
+                lapFrac, batchID))
     if xSSProposalsByUID is None:
         xSSProposalsByUID = dict()
     failedUIDs = list()
@@ -62,6 +64,7 @@ def makeSummariesForManyBirthProposals(
             newUIDs=newUIDs_ii,
             LPkwargs=LPkwargs,
             lapFrac=lapFrac,
+            batchID=batchID,
             **BArgs)
 
         if xSSslice is not None:

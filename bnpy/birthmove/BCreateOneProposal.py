@@ -90,6 +90,7 @@ def makeSummaryForBirthProposal(
         newUIDs=None,
         LPkwargs=DefaultLPkwargs,
         lapFrac=0,
+        batchID=0,
         seed=0,
         b_nRefineSteps=3,
         b_debugOutputDir=None,
@@ -119,8 +120,9 @@ def makeSummaryForBirthProposal(
     if ktarget is None:
         ktarget = curSSwhole.uid2k(targetUID)
     # START log for this birth proposal
-    BLogger.pprint('Creating proposal for targetUID %s at lap %.2f' % (
-        targetUID, lapFrac))
+    BLogger.pprint(
+        'Creating proposal for targetUID %s at lap %.2f batchID %d' % (
+        targetUID, lapFrac, batchID))
     # Grab vocabList, if available.
     if hasattr(Dslice, 'vocabList') and Dslice.vocabList is not None:
         vocabList = Dslice.vocabList
@@ -306,12 +308,28 @@ def makeSummaryForBirthProposal(
             propModel = curModel.copy()
             propModel.update_global_params(propSS)
             propLdict = propModel.calc_evidence(SS=propSS, todict=1)
-            BLogger.pprint(
+
+            propSSsubset = xSSslice
+            tmpModel = curModelFWD
+            tmpModel.obsModel.update_global_params(propSSsubset)
+            propLdata_subset = tmpModel.obsModel.calcELBO_Memoized(
+                propSSsubset)
+
+            curSSsubset = xSSslice.copy(includeELBOTerms=0)
+            while curSSsubset.K > 1:
+                curSSsubset.mergeComps(0,1)
+            tmpModel.obsModel.update_global_params(curSSsubset)
+            curLdata_subset = tmpModel.obsModel.calcELBO_Memoized(
+                curSSsubset)
+            gainLdata_subset = propLdata_subset - curLdata_subset
+            msg = \
                 "step %d/%d  gainL % .3e  propL % .3e  curL % .3e" % (
                     rstep+1, b_nRefineSteps,
                     propLdict['Ltotal'] - curLdict['Ltotal'],
                     propLdict['Ltotal'],
-                    curLdict['Ltotal']))
+                    curLdict['Ltotal'])
+            msg += "  gainLdata_subset % .3e" % (gainLdata_subset)
+            BLogger.pprint(msg)
             propLdictList.append(propLdict)
             if curModel.getAllocModelName().count('HDP'):
                 docUsageVec = xSSslice.getSelectionTerm('DocUsageCount')
@@ -386,6 +404,7 @@ def makeSummaryForExistingBirthProposal(
         ktarget=None,
         LPkwargs=DefaultLPkwargs,
         lapFrac=0,
+        batchID=0,
         b_nRefineSteps=3,
         b_debugOutputDir=None,
         b_method_initCoordAscent='fromprevious',
@@ -410,8 +429,8 @@ def makeSummaryForExistingBirthProposal(
         ktarget = curSSwhole.uid2k(targetUID)
     # START log for this birth proposal
     BLogger.pprint(
-        'Extending previous proposal for targetUID %s at lap %.2f' % (
-        targetUID, lapFrac))
+        'Extending previous birth for targetUID %s at lap %.2f batch %d' % (
+        targetUID, lapFrac, batchID))
     # Grab vocabList, if available.
     if hasattr(Dslice, 'vocabList') and Dslice.vocabList is not None:
         vocabList = Dslice.vocabList
