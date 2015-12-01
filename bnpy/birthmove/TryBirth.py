@@ -81,6 +81,40 @@ def tryBirthForTask(
         curModel=curModel, curSS=curSS, propModel=propModel, propSS=propSS)
     '''
 
+def findCompInModelWithLargestMisalignment(model, Data, Zref=None):
+    ''' Finds cluster in model that is best candidate for a birth move.
+
+    Post Condition
+    --------------
+    Prints useful info to stdout.
+    '''
+    if Zref is None:
+        Zref = Data.TrueParams['Z']
+    LP = model.calc_local_params(Data)
+    Z = LP['resp'].argmax(axis=1)
+    AZ, AlignInfo = StateSeqUtil.alignEstimatedStateSeqToTruth(
+        Z, Zref, returnInfo=1)
+    maxK = AZ.max()
+    dist = np.zeros(maxK)
+    for k in range(maxK):
+        mask = AZ == k
+        nDisagree = np.sum(Zref[mask] != k)
+        nTotal = mask.sum()
+        dist[k] = float(nDisagree) / (float(nTotal) + 1e-10)
+        print k, dist[k]
+    ktarget = np.argmax(dist)
+    print 'ktarget %d: %s' % (ktarget, chr(65+ktarget))
+    print '> origk %d' % ( AlignInfo['AlignedToOrigMap'][ktarget])
+    # Determine what is hiding inside of it that shouldnt be
+    mask = AZ == ktarget
+    nTarget = np.sum(mask)
+    print '%d total atoms assigned to ktarget...' % (nTarget)
+    trueLabels = np.asarray(np.unique(Zref[mask]), np.int32)
+    for ll in trueLabels:
+        nTrue = np.sum(Zref[mask] == ll)
+        print '%d/%d should have true label %d: %s' % (
+            nTrue, nTarget, ll, chr(65+ll))
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('taskoutpath', type=str)
