@@ -1139,8 +1139,11 @@ class MemoVBMovesAlg(LearnAlg):
                 afterUIDs)
             MoveLog.append(moveTuple)
 
-        if hasattr(SS, 'sumLogPi'):
-            bigtosmallorder = argsort_bigtosmall_stable(SS.sumLogPi)
+        if hasattr(SS, 'sumLogPiRemVec'):
+            limits = np.flatnonzero(SS.sumLogPiRemVec) + 1
+            assert limits.size > 0
+            bigtosmallorder = argsort_bigtosmall_stable(
+                SS.sumLogPi, limits=limits)
         else:
             bigtosmallorder = argsort_bigtosmall_stable(SS.getCountVec())
         sortedalready = np.arange(SS.K)
@@ -1159,7 +1162,7 @@ class MemoVBMovesAlg(LearnAlg):
                 " Lgain % .4e   Lbefore % .4e   Lafter % .4e" % (
                     Lscore - prevLscore, prevLscore, Lscore))
 
-        elif emptyCompLocs.size > 0:
+        elif emptyCompLocs.size > 0 and self.algParams['shuffle']['s_doPrune']:
             hmodel.update_global_params(SS)
             Lscore = hmodel.calc_evidence(SS=SS)
 

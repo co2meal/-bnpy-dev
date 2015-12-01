@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def argsort_bigtosmall_stable(x):
+def argsort_bigtosmall_stable(x, limits=list()):
     ''' Sort indices of vector x so the values in x ranked big to small
 
     Sort guaranteed to be stable, meaning any adjacent pairs of x 
@@ -17,12 +17,44 @@ def argsort_bigtosmall_stable(x):
     >>> xs = np.asarray([3, 4, 5, 2, 2, 2, 1])
     >>> print argsort_bigtosmall_stable(xs)
     [2 1 0 3 4 5 6]
+    >>> cntVec = np.asarray([5, 6, 7, 1])
+    >>> remVec = np.asarray([0, 0, 0, 1])
+    >>> limits = np.flatnonzero(remVec) + 1
+    >>> sortids = argsort_bigtosmall_stable(cntVec, limits=limits)
+    >>> print cntVec[sortids]
+    [7 6 5 1]
+    >>> # Try harder example
+    >>> cntVec = np.asarray([5, 6, 7, 2, 8, 3, 9, 3, 1, 8, 1])
+    >>> remVec = np.asarray([0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1])
+    >>> limits = np.flatnonzero(remVec) + 1
+    >>> print limits
+    [ 3  6  8 11]
+    >>> sortids = argsort_bigtosmall_stable(cntVec, limits=limits)
+    >>> print cntVec[sortids]
+    [7 6 5 8 3 2 9 3 8 1 1]
     '''
     x = as1D(x)
     if x.ndim != 1:
         raise ValueError(
             "1D input array required. Instead found %d dims" % (x.ndim))
-    return np.argsort(-1 * x, kind='mergesort')
+    if len(limits) > 0:
+        if isinstance(limits, np.ndarray):
+            limits = limits.tolist()
+        if limits[0] != 0:
+            limits.insert(0, 0)
+        if limits[-1] != x.size - 1:
+            limits.insert(-1, x.size - 1)
+        total_order = list()
+        for loc in range(len(limits) - 1):
+            cur_order = np.argsort(
+                -1 * x[limits[loc]:limits[loc+1]], kind='mergesort')
+            total_order.extend(limits[loc] + cur_order)
+        total_order = np.asarray(total_order, dtype=np.int32)
+        assert total_order.size == x.size
+        assert np.allclose(np.unique(total_order), np.arange(x.size))
+        return total_order
+    else:
+        return np.argsort(-1 * x, kind='mergesort')
 
 def is_sorted_bigtosmall(xvec):
     ''' Returns True if provided 1D array is sorted largest to smallest.
