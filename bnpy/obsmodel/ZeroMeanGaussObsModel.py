@@ -244,8 +244,9 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
         ----------
         dist : 1D array, size N
         '''
-        Q = np.linalg.solve(self.GetCached('cholSigma', k),
-                            X.T)  # zero mean assumed here!
+        cholSigma_k = self.GetCached('cholSigma', k)
+        Q = scipy.linalg.solve_triangular(
+            cholSigma_k, X.T, lower=True, check_finite=False)
         Q *= Q
         return np.sum(Q, axis=0)
 
@@ -421,8 +422,9 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
             distvec : 1D array, size nObs
                    distvec[n] gives E[ (x-\mu) \Lam (x-\mu) ] for comp k
         '''
-        Q = np.linalg.solve(self.GetCached('cholB', k),
-                            X.T)
+        cholB_k = self.GetCached('cholB', k)
+        Q = scipy.linalg.solve_triangular(
+            cholB_k, X.T, lower=True, check_finite=False)
         Q *= Q
         return self.Post.nu[k] * np.sum(Q, axis=0)
 
@@ -986,6 +988,7 @@ def _mahalDist_Post(X, k, cholB=None, nu=None, **kwargs):
         distvec : 1D array, size nObs
                distvec[n] gives E[ (x-\mu) \Lam (x-\mu) ] for comp k
     '''
-    Q = np.linalg.solve(cholB[k], X.T)
+    #Q = np.linalg.solve(cholB[k], X.T)
+    Q = scipy.linalg.solve_triangular(cholB[k], X.T, lower=True)
     Q *= Q
     return nu[k] * np.sum(Q, axis=0)
