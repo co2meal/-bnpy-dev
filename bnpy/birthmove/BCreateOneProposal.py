@@ -333,10 +333,9 @@ def makeSummaryForBirthProposal(
                 docUsageVec = xSSslice.getSelectionTerm('DocUsageCount')
                 for k, uid in enumerate(xSSslice.uids):
                     docUsageByUID[uid].append(docUsageVec[k])
-        print "%d/%d completed basic refinement" % (rstep+1, b_nRefineSteps)
+        # If converged early and did the final refinement step
         if didConvEarly and rstep > convstep:
             break
-
         # Cleanup by deleting small clusters 
         if rstep < b_nRefineSteps - 1:
             if rstep == b_nRefineSteps - 2 or didConvEarly:
@@ -350,15 +349,12 @@ def makeSummaryForBirthProposal(
                 xSSslice, minNumAtomsToStay,
                 xInitLPslice=xInitLPslice, 
                 pprintCountVec=pprintCountVec)
-
-            if rstep < b_nRefineSteps - 2 and prevCountVec.size == xSSslice.K:
-                if np.allclose(xSSslice.getCountVec(), prevCountVec, atol=0.5):
-                    # Converged. Jump to the merge phase!
-                    print "CONVERGEASAURUS!!!"
-                    didConvEarly = True
-                    convstep = rstep
-        print "%d/%d completed deletes" % (rstep+1, b_nRefineSteps)
-
+        # Decide if we have converged early
+        if rstep < b_nRefineSteps - 2 and prevCountVec.size == xSSslice.K:
+            if np.allclose(xSSslice.getCountVec(), prevCountVec, atol=0.5):
+                # Converged. Jump directly to the merge phase!
+                didConvEarly = True
+                convstep = rstep
         # Cleanup by merging clusters
         if rstep == b_nRefineSteps - 2 or didConvEarly:
             Info['mergestep'] = rstep + 1
