@@ -185,9 +185,9 @@ def restrictedLocalStep_HDPTopicModel(
         slack * curLPslice['ElogPi'][:, ktarget])
 
     if hasattr(Dslice, 'word_count') and \
-            xresp.shape[0] == Dslice.word_count.size:
+            xLPslice['resp'].shape[0] == Dslice.word_count.size:
         xLPslice['HrespOrigComp'] = -1 * NumericUtil.calcRlogRdotv(
-            curLPslice['resp'][:, ktarget], Data.word_count)
+            curLPslice['resp'][:, ktarget], Dslice.word_count)
     else:
         xLPslice['HrespOrigComp'] = -1 * NumericUtil.calcRlogR(
             curLPslice['resp'][:, ktarget])

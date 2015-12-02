@@ -30,6 +30,7 @@ def selectShortListForBirthAtLapStart(
     MovePlans['b_roomToGrow'] = 0
     MovePlans['b_maxLenShortlist'] = 0
     if not canBirthHappenAtLap(lapFrac, **BArgs):
+        BLogger.pprint('')
         return MovePlans
 
     K = hmodel.obsModel.K
@@ -47,6 +48,7 @@ def selectShortListForBirthAtLapStart(
             " Adding 2 more comps to K=%d exceeds limit of %d (--Kmax)." % (
                 K, BArgs['Kmax'])
             )
+        BLogger.pprint('')
         return MovePlans
     # Log reasons for shortlist length
     if maxLenShortlist < K:
@@ -64,6 +66,7 @@ def selectShortListForBirthAtLapStart(
         BLogger.pprint(
             "No SS provided. Shortlist contains %d possible comps" % (
                 len(shortlistUIDs)))
+        BLogger.pprint('')
         return MovePlans
     assert SS.K == K
 
@@ -111,6 +114,7 @@ def selectShortListForBirthAtLapStart(
             prefix=['%7s' % 'uids',
                     '%7s' % 'size'],
             )
+    BLogger.pprint('')
     return MovePlans
 
 
@@ -137,6 +141,7 @@ def selectCompsForBirthAtCurrentBatch(
             )
         if 'b_targetUIDs' in MovePlans:
             del MovePlans['b_targetUIDs']
+        BLogger.pprint('')
         return MovePlans
 
     K = SS.K
@@ -300,6 +305,7 @@ def selectCompsForBirthAtCurrentBatch(
     BLogger.pprint('%d/%d UIDs eligible' % (len(UIDs), K), 'debug')
     # EXIT if nothing eligible.
     if len(UIDs) == 0:
+        BLogger.pprint('')
         return MovePlans
 
     # Mark all uids that are eligible!
@@ -396,7 +402,7 @@ def selectCompsForBirthAtCurrentBatch(
                 '%7s' % 'score',
                 ],
             )
-
+    BLogger.pprint('')
     return MovePlans
 
 

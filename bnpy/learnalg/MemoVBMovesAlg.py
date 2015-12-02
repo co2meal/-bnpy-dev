@@ -869,19 +869,23 @@ class MemoVBMovesAlg(LearnAlg):
                 MovePlans['b_targetUIDs'].remove(targetUID)
                 del SS.propXSS[targetUID]
             else:
-                nSubset = SS.propXSS[targetUID].getCountVec().sum()
-                nTotal = SS.getCountVec()[ktarget]
-                if nSubset < 0.75 * nTotal and self.nBatch > 1:
-                    couldUseMoreData = True
-                else:
-                    couldUseMoreData = False
-
+                # Rejected.
                 BLogger.pprint(
                     '   Rejected. Remain at Lscore %.3e' % (Lscore))
                 gainLdata = propLdict['Ldata'] - curLdict['Ldata']
+                # Decide if worth pursuing in future batches, if necessary.
+                subsetCountVec = SS.propXSS[targetUID].getCountVec()
+                nSubset = subsetCountVec.sum()
+                nTotal = SS.getCountVec()[ktarget]
 
+                keepThr = self.algParams['birth']['b_minNumAtomsForRetainComp']
+                hasTwoLargeOnes = np.sum(subsetCountVec >= keepThr) >= 2
+                hasNotUsedMostData = nSubset < 0.75 * nTotal
+                if hasTwoLargeOnes and hasNotUsedMostData and self.nBatch > 1:
+                    couldUseMoreData = True
+                else:
+                    couldUseMoreData = False
                 if couldUseMoreData:
-                    # Route to redemption #2:
                     # If Ldata for subset of data reassigned so far looks good
                     # we hold onto this proposal for next time! 
                     propSSsubset = SS.propXSS[targetUID].copy(
@@ -934,6 +938,7 @@ class MemoVBMovesAlg(LearnAlg):
                     MoveRecordsByUID[targetUID]['b_nSuccessRecent'] = 0
                     MoveRecordsByUID[targetUID]['b_tryAgainFutureLap'] = 0
 
+            BLogger.pprint('')
             BLogger.stopUIDSpecificLog(targetUID)
 
         if 'b_retainedUIDs' in MovePlans:
