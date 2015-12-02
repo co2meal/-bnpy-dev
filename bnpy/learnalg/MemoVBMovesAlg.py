@@ -814,9 +814,6 @@ class MemoVBMovesAlg(LearnAlg):
             MoveRecordsByUID[targetUID]['b_latestBatchCount'] = \
                 SS.propXSS[targetUID].getCountVec().sum()
             # Construct proposal statistics
-            BLogger.pprint(
-                'Evaluating targetUID %d at lap %.2f' % (
-                    targetUID, lapFrac))
             propSS = SS.copy()
             propSS.transferMassFromExistingToExpansion(
                 uid=targetUID, xSS=SS.propXSS[targetUID])
@@ -826,6 +823,20 @@ class MemoVBMovesAlg(LearnAlg):
             # Compute score of proposal
             propLdict = propModel.calc_evidence(SS=propSS, todict=1)
             propLscore = propLdict['Ltotal']
+            # Decide accept or reject
+            gainL = propLscore - Lscore
+            if gainL > 0:
+                decision = 'ACCEPT'
+                Knew_str = ' Knew %4d' % (propSS.K - SS.K)
+            else:
+                decision = 'REJECT'
+                Knew_str = ''
+            tUIDstr = "%15s" % ("targetUID %d" % (targetUID))
+            decisionMsg = 'Eval %s at lap %.3f lapCeil %d | ' % (
+                tUIDstr, lapFrac, np.ceil(lapFrac))
+            decisionMsg += decision + " gainL % .3e" % (gainL) + Knew_str
+            BLogger.pprint(decisionMsg)
+            # Record some details about final score
             msg = "   gainL % .3e" % (propLscore-Lscore)
             msg += "\n    curL % .3e" % (Lscore)
             msg += "\n   propL % .3e" % (propLscore)
@@ -839,6 +850,7 @@ class MemoVBMovesAlg(LearnAlg):
             assert curLdict['Lentropy'] >= - 1e-6
             assert propLdict['Lentropy'] >= curLdict['Lentropy'] - 1e-6
             if propLscore > Lscore:
+                # Handle ACCEPTED case
                 nAccept += 1
                 BLogger.pprint(
                     '   Accepted. Jump up to Lscore % .3e ' % (propLscore))
