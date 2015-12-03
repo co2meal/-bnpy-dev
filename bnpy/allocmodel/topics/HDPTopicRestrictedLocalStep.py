@@ -45,7 +45,6 @@ def summarizeRestrictedLocalStep_HDPTopicModel(
     if xInitSS is not None:      
         xObsModel.update_global_params(xInitSS)
     assert xObsModel.K == Kfresh
-
     xPiVec, emptyPi = make_xPiVec_and_emptyPi(
         curModel=curModel, xInitSS=xInitSS,
         ktarget=ktarget, Kfresh=Kfresh, **kwargs)
@@ -185,9 +184,9 @@ def restrictedLocalStep_HDPTopicModel(
         slack * curLPslice['ElogPi'][:, ktarget])
 
     if hasattr(Dslice, 'word_count') and \
-            xresp.shape[0] == Dslice.word_count.size:
+            xLPslice['resp'].shape[0] == Dslice.word_count.size:
         xLPslice['HrespOrigComp'] = -1 * NumericUtil.calcRlogRdotv(
-            curLPslice['resp'][:, ktarget], Data.word_count)
+            curLPslice['resp'][:, ktarget], Dslice.word_count)
     else:
         xLPslice['HrespOrigComp'] = -1 * NumericUtil.calcRlogR(
             curLPslice['resp'][:, ktarget])
@@ -385,7 +384,6 @@ def makeExpansionLPFromZ_HDPTopicModel(
     '''
     Kfresh = targetZ.max() + 1
     N = curLPslice['resp'].shape[0]
-
     # Compute prior probability of each proposed comp
     xPiVec, emptyPi = make_xPiVec_and_emptyPi(
         curModel=curModel, ktarget=ktarget, Kfresh=Kfresh, 
@@ -496,6 +494,13 @@ def makeExpansionLPFromZ_HDPTopicModel(
     xLPslice['slackThetaOrigComp'] = np.sum(
         slack * curLPslice['ElogPi'][:, ktarget])
 
+    if hasattr(Dslice, 'word_count') and \
+            xLPslice['resp'].shape[0] == Dslice.word_count.size:
+        xLPslice['HrespOrigComp'] = -1 * NumericUtil.calcRlogRdotv(
+            curLPslice['resp'][:, ktarget], Dslice.word_count)
+    else:
+        xLPslice['HrespOrigComp'] = -1 * NumericUtil.calcRlogR(
+            curLPslice['resp'][:, ktarget])
     return xLPslice
 
 

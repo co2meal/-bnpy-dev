@@ -860,10 +860,12 @@ def calcSummaryStats(Dslice, LP=None,
                 'DocTopicSum', np.sum(Tmat, axis=0), dims='K')
 
     if trackDocUsage:
-        # Track number of times a topic appears with "signif. mass" in a
-        # doc
+        # Track num of times a topic appears nontrivially in a doc
         DocUsage = np.sum(LP['DocTopicCount'] > 0.01, axis=0)
         SS.setSelectionTerm('DocUsageCount', DocUsage, dims='K')
+        Pi = LP['theta'] / LP['theta'].sum(axis=1)[:,np.newaxis]
+        SumPi = np.sum(Pi, axis=0)
+        SS.setSelectionTerm('SumPi', SumPi, dims='K')
     return SS
 
 '''

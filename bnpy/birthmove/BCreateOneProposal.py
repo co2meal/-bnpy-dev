@@ -96,6 +96,7 @@ def makeSummaryForBirthProposal(
         b_debugOutputDir=None,
         b_minNumAtomsForNewComp=None,
         b_doInitCompleteLP=1,
+        b_cleanupWithMerge=1,
         b_method_initCoordAscent='fromprevious',
         vocabList=None,
         **kwargs):
@@ -239,13 +240,14 @@ def makeSummaryForBirthProposal(
     else:
         xInitLPslice = None
 
+    # Make a function to pretty-print counts as we refine the initialization
+    pprintCountVec = BLogger.makeFunctionToPrettyPrintCounts(xSSslice)
+    BLogger.pprint("   " + vec2str(xInitSStarget.uids))
+    pprintCountVec(xSSslice)
+
     # Log messages to describe the initialization.
     BLogger.pprint(' Running %d refinement iterations (--b_nRefineSteps)' % (
         b_nRefineSteps))
-
-    # Make a function to pretty-print counts as we refine the initialization
-    pprintCountVec = BLogger.makeFunctionToPrettyPrintCounts(xSSslice)
-
     # Run several refinement steps. 
     # Each step does a restricted local step to improve
     # the proposed cluster assignments.
@@ -350,7 +352,7 @@ def makeSummaryForBirthProposal(
                 xInitLPslice=xInitLPslice, 
                 pprintCountVec=pprintCountVec)
         # Cleanup by merging clusters
-        if rstep == b_nRefineSteps - 2:
+        if rstep == b_nRefineSteps - 2 and b_cleanupWithMerge:
             Info['mergestep'] = rstep + 1
             xSSslice, xInitLPslice = cleanupMergeClusters(
                 xSSslice, curModel,
@@ -621,7 +623,8 @@ def logLPConvergenceDiagnostics(refineInfo, rstep=0, b_nRefineSteps=0):
     if '_maxDiff' not in xLPslice:
         return
 
-    msg = "step %d/%d " % (rstep + 1, b_nRefineSteps)
+    msg = " LP info "
+    #msg = "step %d/%d " % (rstep + 1, b_nRefineSteps)
     target_docs = np.flatnonzero(xLPslice['_maxDiff'] >= 0)
     if target_docs.size == 0:
         BLogger.pprint(msg + "No docs with active local step.")

@@ -300,6 +300,7 @@ class MemoVBMovesAlg(LearnAlg):
                 SSbatch=SSbatch,
                 lapFrac=lapFrac,
                 batchID=batchID,
+                isFirstBatch=self.isFirstBatch(lapFrac),
                 MovePlans=MovePlans,
                 MoveRecordsByUID=MoveRecordsByUID,
                 **kwargs)
@@ -720,6 +721,7 @@ class MemoVBMovesAlg(LearnAlg):
             MoveRecordsByUID=dict(),
             lapFrac=-2,
             batchID=0,
+            isFirstBatch=False,
             **kwargs):
         ''' Select comps to target with birth at current batch.
 
@@ -747,6 +749,7 @@ class MemoVBMovesAlg(LearnAlg):
                 MoveRecordsByUID=MoveRecordsByUID,
                 MovePlans=MovePlans,
                 lapFrac=lapFrac,
+                isFirstBatch=isFirstBatch,
                 **BArgs)
             if 'b_targetUIDs' in MovePlans:
                 assert isinstance(MovePlans['b_targetUIDs'], list)
@@ -869,6 +872,14 @@ class MemoVBMovesAlg(LearnAlg):
                 MovePlans['b_targetUIDs'].remove(targetUID)
                 del SS.propXSS[targetUID]
             else:
+                BKwargs = self.algParams['birth']
+                doTryRetain = BKwargs['b_retainAcrossBatchesByLdata']
+                if lapFrac > 1.0 and not self.isLastBatch(lapFrac):
+                    doAlwaysRetain = \
+                        BKwargs['b_retainAcrossBatchesAfterFirstLap']
+                else:
+                    doAlwaysRetain = False
+
                 nSubset = SS.propXSS[targetUID].getCountVec().sum()
                 nTotal = SS.getCountVec()[ktarget]
                 if nSubset < 0.75 * nTotal and self.nBatch > 1:
@@ -880,7 +891,7 @@ class MemoVBMovesAlg(LearnAlg):
                     '   Rejected. Remain at Lscore %.3e' % (Lscore))
                 gainLdata = propLdict['Ldata'] - curLdict['Ldata']
 
-                if couldUseMoreData:
+                if couldUseMoreData and doTryRetain:
                     # Route to redemption #2:
                     # If Ldata for subset of data reassigned so far looks good
                     # we hold onto this proposal for next time! 
@@ -901,7 +912,14 @@ class MemoVBMovesAlg(LearnAlg):
                 else:
                     gainLdata_subset = -42.0
 
-                if gainLdata_subset > 1e-6 and not self.isLastBatch(lapFrac):
+                if doAlwaysRetain:
+                    nTrial -= 1
+                    BLogger.pprint(
+                        '   Retained. Trying proposal across whole dataset.')
+                    assert targetUID in SS.propXSS
+                    MovePlans['b_retainedUIDs'].append(targetUID)
+                elif doTryRetain and gainLdata_subset > 1e-6 and \
+                        not self.isLastBatch(lapFrac):
                     nTrial -= 1
                     BLogger.pprint(
                         '   Retained. Promising gainLdata_subset % .2f' % (
@@ -909,14 +927,15 @@ class MemoVBMovesAlg(LearnAlg):
                     assert targetUID in SS.propXSS
                     MovePlans['b_retainedUIDs'].append(targetUID)
 
-                elif gainLdata > 1e-6 and not self.isLastBatch(lapFrac):
+                elif doTryRetain and gainLdata > 1e-6 and \
+                        not self.isLastBatch(lapFrac):
                     nTrial -= 1
                     BLogger.pprint(
                         '   Retained. Promising value of gainLdata % .2f' % (
                             gainLdata))
                     assert targetUID in SS.propXSS
                     MovePlans['b_retainedUIDs'].append(targetUID)
-                elif gainLdata_subset > 1e-6 and \
+                elif doTryRetain and gainLdata_subset > 1e-6 and \
                         self.isLastBatch(lapFrac) and couldUseMoreData:
                     nRetainedForNextLap += 1
                     BLogger.pprint(

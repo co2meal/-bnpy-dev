@@ -260,11 +260,20 @@ def make_xPiVec_and_emptyPi(
     emptyPi = emptyPiFrac * targetPi
     if b_method_xPi == 'uniform':
         xPiVec = (1-emptyPiFrac) * targetPi * np.ones(Kfresh) / Kfresh
-    elif b_method_xPi == 'normalized_counts':
+    elif b_method_xPi == 'normalizedCounts':
         pvec = xInitSS.getCountVec()
         pvec = pvec / pvec.sum()
         xPiVec = (1-emptyPiFrac) * targetPi * pvec
+    elif b_method_xPi == 'avgPi':
+        if xInitSS.hasSelectionTerm('SumPi'):
+            pvec = xInitSS.getSelectionTerm('SumPi') / xInitSS.nDoc
+        else:
+            pvec = np.ones(Kfresh) #xInitSS.getCountVec()
+        pvec = pvec / pvec.sum()
+        xPiVec = (1-emptyPiFrac) * targetPi * pvec        
     else:
         raise ValueError("Unrecognized b_method_xPi: " + b_method_xPi)
+    print "MAKING xPi: ", b_method_xPi
+    print ' '.join(['%.3f' % x for x in xPiVec])
     assert np.allclose(np.sum(xPiVec) + emptyPi, targetPi)
     return xPiVec, emptyPi

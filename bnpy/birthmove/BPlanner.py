@@ -120,8 +120,14 @@ def selectCompsForBirthAtCurrentBatch(
         MoveRecordsByUID=dict(),
         MovePlans=dict(),
         lapFrac=0,
+        isFirstBatch=False,
         **BArgs):
     ''' Select specific comps to target with birth move at current batch.
+
+    Kwargs
+    ------
+    batchPos : integer id of current position in pass thru dataset
+        0 indicates the very first batch in this pass
 
     Returns
     -------
@@ -139,7 +145,19 @@ def selectCompsForBirthAtCurrentBatch(
             del MovePlans['b_targetUIDs']
         return MovePlans
 
+    # Extract num clusters in current model
     K = SS.K
+    # Short-circuit. Keep retained clusters.
+    if lapFrac > 1.0 and BArgs['b_retainAcrossBatchesAfterFirstLap']:
+        if not isFirstBatch:
+            from IPython import embed; embed()
+            if 'b_targetUIDs' in MovePlans:
+                msg = "%d/%d UIDs retained from previous birth by fiat." % (
+                    len(MovePlans['b_targetUIDs']), K)
+                BLogger.pprint(msg)
+                BLogger.pprint(vec2str(retainUIDs))
+            return MovePlans
+
     # Get per-comp sizes for aggregate dataset
     SizeVec_all = np.maximum(SS.getCountVec(), 1e-100)
     CountVec_b = np.maximum(SSbatch.getCountVec(), 1e-100)
@@ -168,10 +186,12 @@ def selectCompsForBirthAtCurrentBatch(
         if uid not in MoveRecordsByUID:
             MoveRecordsByUID[uid] = defaultdict(int)
 
+        # Keep existing targets
         if 'b_targetUIDs' in MovePlans:
             if uid in MovePlans['b_targetUIDs']:
                 eligible_mask[ii] = 1
                 continue
+        
         if MoveRecordsByUID[uid]['b_tryAgainFutureLap'] > 0:
             eligible_mask[ii] = 1
             msg = "Try targeting uid %d again." % (uid)
@@ -396,7 +416,6 @@ def selectCompsForBirthAtCurrentBatch(
                 '%7s' % 'score',
                 ],
             )
-
     return MovePlans
 
 
