@@ -244,8 +244,9 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
         ----------
         dist : 1D array, size N
         '''
-        Q = np.linalg.solve(self.GetCached('cholSigma', k),
-                            X.T)  # zero mean assumed here!
+        cholSigma_k = self.GetCached('cholSigma', k)
+        Q = scipy.linalg.solve_triangular(
+            cholSigma_k, X.T, lower=True, check_finite=False)
         Q *= Q
         return np.sum(Q, axis=0)
 
@@ -421,8 +422,9 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
             distvec : 1D array, size nObs
                    distvec[n] gives E[ (x-\mu) \Lam (x-\mu) ] for comp k
         '''
-        Q = np.linalg.solve(self.GetCached('cholB', k),
-                            X.T)
+        cholB_k = self.GetCached('cholB', k)
+        Q = scipy.linalg.solve_triangular(
+            cholB_k, X.T, lower=True, check_finite=False)
         Q *= Q
         return self.Post.nu[k] * np.sum(Q, axis=0)
 
@@ -734,7 +736,8 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
         for k in xrange(K):
             chol_Mu_k = np.linalg.cholesky(Mu[k])
             logdet_Mu_k = 2.0 * np.sum(np.log(np.diag(chol_Mu_k)))
-            xxTInvMu_k = np.linalg.solve(chol_Mu_k, X.T)
+            xxTInvMu_k = scipy.linalg.solve_triangular(
+                chol_Mu_k, X.T, lower=True, check_finite=False)
             xxTInvMu_k *= xxTInvMu_k
             tr_xxTInvMu_k = np.sum(xxTInvMu_k, axis=0) / smoothNu
             Div[:,k] = 0.5 * logdet_Mu_k + \
@@ -748,11 +751,25 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
                 # Compute DivDataVec : 1D array of size N
                 # This is the per-row additive constant indep. of k. 
                 # We do lots of steps in-place, to save memory.
-                DivDataVec = -0.5 * D * np.ones(N)
-                for n in xrange(N):
-                    s, logdet_xxT_n = np.linalg.slogdet(
-                        (np.outer(X[n], X[n]) + smoothMu) / smoothNu)
-                    DivDataVec[n] -= 0.5 * s * logdet_xxT_n
+
+                # FAST VERSION: Use the matrix determinant lemma
+                chol_SM = np.linalg.cholesky(smoothMu/smoothNu)
+                logdet_SM = 2.0 * np.sum(np.log(np.diag(chol_SM)))
+                xxTInvSM = scipy.linalg.solve_triangular(
+                    chol_SM, X.T, lower=True)
+                xxTInvSM *= xxTInvSM
+                tr_xxTSM = np.sum(xxTInvSM, axis=0) / smoothNu
+                assert tr_xxTSM.size == N
+                DivDataVec = np.log(1.0 + tr_xxTSM)
+                DivDataVec *= -0.5
+                DivDataVec += -0.5 * D - 0.5 * logdet_SM
+                # SLOW VERSION: use a naive for loop
+                # DivDataVecS = -0.5 * D * np.ones(N)
+                # for n in xrange(N):
+                #    s, logdet_xxT_n = np.linalg.slogdet(
+                #        (np.outer(X[n], X[n]) + smoothMu) / smoothNu)
+                #    DivDataVecS[n] -= 0.5 * s * logdet_xxT_n
+
             Div += DivDataVec[:,np.newaxis]
 
         # Apply per-atom weights to divergences.
@@ -986,6 +1003,7 @@ def _mahalDist_Post(X, k, cholB=None, nu=None, **kwargs):
         distvec : 1D array, size nObs
                distvec[n] gives E[ (x-\mu) \Lam (x-\mu) ] for comp k
     '''
-    Q = np.linalg.solve(cholB[k], X.T)
+    #Q = np.linalg.solve(cholB[k], X.T)
+    Q = scipy.linalg.solve_triangular(cholB[k], X.T, lower=True)
     Q *= Q
     return nu[k] * np.sum(Q, axis=0)

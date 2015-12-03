@@ -273,7 +273,5 @@ def make_xPiVec_and_emptyPi(
         xPiVec = (1-emptyPiFrac) * targetPi * pvec        
     else:
         raise ValueError("Unrecognized b_method_xPi: " + b_method_xPi)
-    print "MAKING xPi: ", b_method_xPi
-    print ' '.join(['%.3f' % x for x in xPiVec])
     assert np.allclose(np.sum(xPiVec) + emptyPi, targetPi)
     return xPiVec, emptyPi

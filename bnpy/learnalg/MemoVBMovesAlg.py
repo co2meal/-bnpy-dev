@@ -817,9 +817,6 @@ class MemoVBMovesAlg(LearnAlg):
             MoveRecordsByUID[targetUID]['b_latestBatchCount'] = \
                 SS.propXSS[targetUID].getCountVec().sum()
             # Construct proposal statistics
-            BLogger.pprint(
-                'Evaluating targetUID %d at lap %.2f' % (
-                    targetUID, lapFrac))
             propSS = SS.copy()
             propSS.transferMassFromExistingToExpansion(
                 uid=targetUID, xSS=SS.propXSS[targetUID])
@@ -829,6 +826,20 @@ class MemoVBMovesAlg(LearnAlg):
             # Compute score of proposal
             propLdict = propModel.calc_evidence(SS=propSS, todict=1)
             propLscore = propLdict['Ltotal']
+            # Decide accept or reject
+            gainL = propLscore - Lscore
+            if gainL > 0:
+                decision = 'ACCEPT'
+                Knew_str = ' Knew %4d' % (propSS.K - SS.K)
+            else:
+                decision = 'REJECT'
+                Knew_str = ''
+            tUIDstr = "%15s" % ("targetUID %d" % (targetUID))
+            decisionMsg = 'Eval %s at lap %.3f lapCeil %d | ' % (
+                tUIDstr, lapFrac, np.ceil(lapFrac))
+            decisionMsg += decision + " gainL % .3e" % (gainL) + Knew_str
+            BLogger.pprint(decisionMsg)
+            # Record some details about final score
             msg = "   gainL % .3e" % (propLscore-Lscore)
             msg += "\n    curL % .3e" % (Lscore)
             msg += "\n   propL % .3e" % (propLscore)
@@ -842,6 +853,7 @@ class MemoVBMovesAlg(LearnAlg):
             assert curLdict['Lentropy'] >= - 1e-6
             assert propLdict['Lentropy'] >= curLdict['Lentropy'] - 1e-6
             if propLscore > Lscore:
+                # Handle ACCEPTED case
                 nAccept += 1
                 BLogger.pprint(
                     '   Accepted. Jump up to Lscore % .3e ' % (propLscore))
@@ -872,6 +884,15 @@ class MemoVBMovesAlg(LearnAlg):
                 MovePlans['b_targetUIDs'].remove(targetUID)
                 del SS.propXSS[targetUID]
             else:
+                # Rejected.
+                BLogger.pprint(
+                    '   Rejected. Remain at Lscore %.3e' % (Lscore))
+                gainLdata = propLdict['Ldata'] - curLdict['Ldata']
+                # Decide if worth pursuing in future batches, if necessary.
+                subsetCountVec = SS.propXSS[targetUID].getCountVec()
+                nSubset = subsetCountVec.sum()
+                nTotal = SS.getCountVec()[ktarget]
+
                 BKwargs = self.algParams['birth']
                 doTryRetain = BKwargs['b_retainAcrossBatchesByLdata']
                 if lapFrac > 1.0 and not self.isLastBatch(lapFrac):
@@ -880,19 +901,15 @@ class MemoVBMovesAlg(LearnAlg):
                 else:
                     doAlwaysRetain = False
 
-                nSubset = SS.propXSS[targetUID].getCountVec().sum()
-                nTotal = SS.getCountVec()[ktarget]
-                if nSubset < 0.75 * nTotal and self.nBatch > 1:
+                keepThr = BKwargs['b_minNumAtomsForRetainComp']
+                hasTwoLargeOnes = np.sum(subsetCountVec >= keepThr) >= 2
+                hasNotUsedMostData = nSubset < 0.75 * nTotal
+                if hasTwoLargeOnes and hasNotUsedMostData and self.nBatch > 1:
                     couldUseMoreData = True
                 else:
                     couldUseMoreData = False
 
-                BLogger.pprint(
-                    '   Rejected. Remain at Lscore %.3e' % (Lscore))
-                gainLdata = propLdict['Ldata'] - curLdict['Ldata']
-
-                if couldUseMoreData and doTryRetain:
-                    # Route to redemption #2:
+                if doTryRetain and couldUseMoreData:
                     # If Ldata for subset of data reassigned so far looks good
                     # we hold onto this proposal for next time! 
                     propSSsubset = SS.propXSS[targetUID].copy(
@@ -953,6 +970,7 @@ class MemoVBMovesAlg(LearnAlg):
                     MoveRecordsByUID[targetUID]['b_nSuccessRecent'] = 0
                     MoveRecordsByUID[targetUID]['b_tryAgainFutureLap'] = 0
 
+            BLogger.pprint('')
             BLogger.stopUIDSpecificLog(targetUID)
 
         if 'b_retainedUIDs' in MovePlans:

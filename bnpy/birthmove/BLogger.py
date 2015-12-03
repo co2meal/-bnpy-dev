@@ -1,19 +1,19 @@
 import logging
 import os
 import sys
+import time
 from collections import defaultdict
 from bnpy.util import split_str_into_fixed_width_lines
 
 # Configure Logger
 Log = None
-RecentMessages = None
 taskoutpath = '/tmp/'
 DEFAULTLEVEL = logging.DEBUG
+RecentMessages = None
 
 def pprint(msg, level=None, prefix='', linewidth=80):
     global Log
     global DEFAULTLEVEL
-    global RecentMessages
     if isinstance(msg, list):
         msgs = list()
         prefixes = list()
@@ -38,6 +38,11 @@ def pprint(msg, level=None, prefix='', linewidth=80):
         elif level.count('debug'):
             level = logging.DEBUG
     Log.log(level, msg)
+    for h in Log.handlers:
+        h.flush()
+    # Small bit of code to track recent messages
+    # for debugging birth proposals. Used when dumping to HTML
+    global RecentMessages
     if isinstance(RecentMessages, list):
         RecentMessages.append(msg)
 
@@ -51,7 +56,6 @@ def startUIDSpecificLog(uid=0):
     which will capture all subsequent log output.
     '''
     global Log
-    global RecentMessages
     global taskoutpath
     if Log is None:
         return
@@ -62,6 +66,7 @@ def startUIDSpecificLog(uid=0):
     fh.setLevel(0)
     fh.setFormatter(logging.Formatter('%(message)s'))
     Log.addHandler(fh)
+    global RecentMessages
     RecentMessages = list()
 
 def stopUIDSpecificLog(uid=0):
@@ -73,23 +78,30 @@ def stopUIDSpecificLog(uid=0):
     then it will be closed.
     '''
     global Log
-    global RecentMessages
     if Log is None:
         return
+
+    target = None
     for i in range(len(Log.handlers)):
-        fh = Log.handlers[i]
-        if isinstance(fh, logging.FileHandler):
-            if fh.baseFilename.count('uid-%d' % (uid)):
-                fh.close()
-                Log.removeHandler(fh)
+        if isinstance(Log.handlers[i], logging.FileHandler):
+            if Log.handlers[i].baseFilename.count('uid-%d' % (uid)):
+                target = i
                 break
+    if target is not None:
+        fh = Log.handlers[target]
+        fh.flush()
+        fh.close()
+        time.sleep(0.01)
+        Log.removeHandler(fh)
+    assert len(Log.handlers) <= 3
+    global RecentMessages
     RecentMessages = None
 
 def configure(taskoutpathIN, 
         doSaveToDisk=0, doWriteStdOut=0,
         verboseLevel=0,
         summaryLevel=logging.DEBUG+1,        
-        stdoutLevel=0): #logging.DEBUG+1):
+        stdoutLevel=logging.DEBUG+1):
     ''' Configure this singleton Logger to write logs to disk or stdout.
 
     Post condition

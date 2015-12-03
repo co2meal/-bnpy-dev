@@ -150,6 +150,7 @@ def makeSummaryForBirthProposal(
                 'Adding 2 or more states would exceed budget of %d comps.' % (
                     kwargs['Kmax'])
             BLogger.pprint(errorMsg)
+            BLogger.pprint('')
             return None, dict(errorMsg=errorMsg)
     # Create suff stats for some new states
     xInitSStarget, Info = initSS_BregmanDiv(
@@ -165,6 +166,7 @@ def makeSummaryForBirthProposal(
     if xInitSStarget is None:
         BLogger.pprint('Proposal initialization FAILED. ' + \
                        Info['errorMsg'])
+        BLogger.pprint('')
         return None, Info
 
     # If here, we have a valid set of initial stats.
@@ -248,11 +250,13 @@ def makeSummaryForBirthProposal(
     # Log messages to describe the initialization.
     BLogger.pprint(' Running %d refinement iterations (--b_nRefineSteps)' % (
         b_nRefineSteps))
+    prevCountVec = xSSslice.getCountVec()
+    didConvEarly = False
+    convstep = 100 + b_nRefineSteps
     # Run several refinement steps. 
     # Each step does a restricted local step to improve
     # the proposed cluster assignments.
     for rstep in range(b_nRefineSteps):
-
         # Restricted local step!
         # * xInitSS : specifies obs-model stats used for initialization
         xSSslice, refineInfo = summarizeRestrictedLocalStep(
@@ -268,12 +272,10 @@ def makeSummaryForBirthProposal(
             LPkwargs=LPkwargs,
             **kwargs)
         Info.update(refineInfo)
-        
         # Get most recent xLPslice for initialization
         if b_method_initCoordAscent == 'fromprevious' and 'xLPslice' in Info:
             xInitLPslice = Info['xLPslice']
-
-        # Show diagnostics for new states
+        # On first step, show diagnostics for new states
         if rstep == 0:
             targetPi = refineInfo['emptyPi'] + refineInfo['xPiVec'].sum()
             BLogger.pprint(
@@ -286,14 +288,10 @@ def makeSummaryForBirthProposal(
                 vec2str(
                     refineInfo['xPiVec'],
                     width=6, minVal=0.0001))
-
             logLPConvergenceDiagnostics(
                 refineInfo, rstep=rstep, b_nRefineSteps=b_nRefineSteps)
-
             BLogger.pprint("   " + vec2str(xInitSStarget.uids))
-
-
-
+        # Show diagnostic counts in each fresh state
         pprintCountVec(xSSslice)
         # Write HTML debug info
         if b_debugOutputDir:
@@ -337,10 +335,12 @@ def makeSummaryForBirthProposal(
                 docUsageVec = xSSslice.getSelectionTerm('DocUsageCount')
                 for k, uid in enumerate(xSSslice.uids):
                     docUsageByUID[uid].append(docUsageVec[k])
-
+        # If converged early and did the final refinement step
+        if didConvEarly and rstep > convstep:
+            break
         # Cleanup by deleting small clusters 
         if rstep < b_nRefineSteps - 1:
-            if rstep == b_nRefineSteps - 2:
+            if rstep == b_nRefineSteps - 2 or didConvEarly:
                 # After all but last step, 
                 # delete small (but not empty) comps
                 minNumAtomsToStay = b_minNumAtomsForNewComp
@@ -351,8 +351,16 @@ def makeSummaryForBirthProposal(
                 xSSslice, minNumAtomsToStay,
                 xInitLPslice=xInitLPslice, 
                 pprintCountVec=pprintCountVec)
+        # Decide if we have converged early
+        if rstep < b_nRefineSteps - 2 and prevCountVec.size == xSSslice.K:
+            if np.allclose(xSSslice.getCountVec(), prevCountVec, atol=0.5):
+                # Converged. Jump directly to the merge phase!
+                didConvEarly = True
+                convstep = rstep
         # Cleanup by merging clusters
-        if rstep == b_nRefineSteps - 2 and b_cleanupWithMerge:
+        if b_cleanupWithMerge and \
+                (rstep == b_nRefineSteps - 2 or didConvEarly):
+            # Only cleanup on second-to-last pass, or if converged early
             Info['mergestep'] = rstep + 1
             xSSslice, xInitLPslice = cleanupMergeClusters(
                 xSSslice, curModel,
@@ -361,6 +369,8 @@ def makeSummaryForBirthProposal(
                 pprintCountVec=pprintCountVec,
                 xInitLPslice=xInitLPslice,
                 b_debugOutputDir=b_debugOutputDir, **kwargs)
+
+        prevCountVec = xSSslice.getCountVec().copy()
 
     Info['Kfinal'] = xSSslice.K
     if b_debugOutputDir:
@@ -381,7 +391,8 @@ def makeSummaryForBirthProposal(
             "Could not create at least two comps" + \
             " with mass >= %.1f (--%s)" % (
                 b_minNumAtomsForNewComp, 'b_minNumAtomsForNewComp')
-        BLogger.pprint('Proposal FAILED refinement. ' + Info['errorMsg'])
+        BLogger.pprint('Proposal build phase FAILED. ' + Info['errorMsg'])
+        BLogger.pprint('') # Blank line
         return None, Info
 
     # If here, we have a valid proposal. 
@@ -394,8 +405,9 @@ def makeSummaryForBirthProposal(
         origMass = curLPslice['resp'][:,ktarget].sum()
     newMass = xSSslice.getCountVec().sum()
     assert np.allclose(newMass, origMass, atol=1e-6, rtol=0)
-    BLogger.pprint('Proposal construction DONE.' + \
+    BLogger.pprint('Proposal build phase DONE.' + \
         ' Created %d candidate clusters.' % (Info['Kfinal']))
+    BLogger.pprint('') # Blank line
     return xSSslice, Info
 
 
@@ -457,6 +469,7 @@ def makeSummaryForExistingBirthProposal(
             'Adding 2 or more states would exceed budget of %d comps.' % (
                 kwargs['Kmax'])
         BLogger.pprint(errorMsg)
+        BLogger.pprint('')
         return None, dict(errorMsg=errorMsg)
 
     # Log messages to describe the initialization.
@@ -571,8 +584,9 @@ def makeSummaryForExistingBirthProposal(
         origMass = curLPslice['resp'][:,ktarget].sum()
     newMass = xSSslice.getCountVec().sum()
     assert np.allclose(newMass, origMass, atol=1e-6, rtol=0)
-    BLogger.pprint('Proposal SUCCESS. Created %d candidate clusters.' % (
+    BLogger.pprint('Proposal extension DONE. %d candidate clusters.' % (
         Info['Kfinal']))
+    BLogger.pprint('')
     return xSSslice, Info
 
 
