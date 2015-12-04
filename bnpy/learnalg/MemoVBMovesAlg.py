@@ -700,15 +700,18 @@ class MemoVBMovesAlg(LearnAlg):
             BLogger.pprint(msg % (ceilLap, stopLap), 'info')
             return MovePlans
 
-        BArgs = self.algParams['birth']    
-        msg = "PLANNING birth shortlist at lap %.3f"
-        BLogger.pprint(msg % (lapFrac))
-        MovePlans = selectShortListForBirthAtLapStart(
-            hmodel, SS,
-            MoveRecordsByUID=MoveRecordsByUID,
-            MovePlans=MovePlans,
-            lapFrac=lapFrac,
-            **BArgs)
+        BArgs = self.algParams['birth']
+        if BArgs['b_useShortList']:
+            msg = "PLANNING birth shortlist at lap %.3f"
+            BLogger.pprint(msg % (lapFrac))
+            MovePlans = selectShortListForBirthAtLapStart(
+                hmodel, SS,
+                MoveRecordsByUID=MoveRecordsByUID,
+                MovePlans=MovePlans,
+                lapFrac=lapFrac,
+                **BArgs)
+        else:
+            MovePlans['b_shortlistUIDs'] = list()
         assert 'b_shortlistUIDs' in MovePlans
         assert isinstance(MovePlans['b_shortlistUIDs'], list)
         return MovePlans
@@ -998,21 +1001,25 @@ class MemoVBMovesAlg(LearnAlg):
             elif 'b_shortlistUIDs' in MovePlans:
                 # Birth was eligible, but did not make it to eval stage.
                 if len(MovePlans['b_shortlistUIDs']) > 0:
-                    msg = "BIRTH @ lap %.2f : No proposals attempted." + \
+                    msg = "BIRTH @ lap %.3f : None attempted." + \
                         " Shortlist had %d possible clusters," + \
                         " but none met minimum requirements."
                     msg = msg % (
                         lapFrac, len(MovePlans['b_shortlistUIDs']))
                     BLogger.pprint(msg, 'info')
-                else:
-                    msg = "BIRTH @ lap %.2f : No shortlist."
-                    msg +=  " Could have added %d clusters this lap."
-                    msg +=  " But %d too small. %d had past rejections."
+                elif self.algParams['birth']['b_useShortList']:
+                    msg = "BIRTH @ lap %.3f : None attempted."
+                    msg +=  " Empty shortlist."
+                    msg +=  " %d too small. %d had past rejections."
                     msg = msg % (
                         lapFrac,
-                        MovePlans['b_roomToGrow'],
                         MovePlans['b_nDQ_toosmall'],
                         MovePlans['b_nDQ_pastfail'])
+                else:
+                    msg = "BIRTH @ lap %.3f : None attempted."
+                    msg += " No shortlist (--b_useShortList=%d)."
+                    msg = msg % (
+                        lapFrac, self.algParams['birth']['b_useShortList'])
                     BLogger.pprint(msg, 'info')
             else:
                 pass

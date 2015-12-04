@@ -2,6 +2,8 @@ import os
 import numpy as np
 import bnpy.data
 
+from bnpy.data.DataIterator import DataIterator
+
 def loadDataFromSavedTask(taskoutpath, dataSplitName='train', **kwargs):
     ''' Load data object used for training a specified saved run.
 
@@ -32,6 +34,13 @@ def loadDataFromSavedTask(taskoutpath, dataSplitName='train', **kwargs):
     dataName = getDataNameFromTaskpath(taskoutpath)
     dataKwargs = loadDataKwargsFromDisk(taskoutpath)
     try:
+        onlineKwargs = loadKwargsFromDisk(
+            taskoutpath, 'args-OnlineDataPrefs.txt')
+        dataKwargs.update(onlineKwargs)
+    except IOError:
+        pass
+
+    try:
         datamod = __import__(dataName, fromlist=[])
         if dataSplitName.count('test'):
             Data = datamod.get_test_data(**dataKwargs)
@@ -39,6 +48,15 @@ def loadDataFromSavedTask(taskoutpath, dataSplitName='train', **kwargs):
             Data = datamod.get_validation_data(**dataKwargs)
         else:
             Data = datamod.get_data(**dataKwargs)
+            if 'nBatch' in dataKwargs and dataKwargs['nBatch'] > 1:
+                DI = DataIterator(Data, alwaysTrackTruth=1, **dataKwargs)
+                if kwargs['batchID'] is not None:
+                    batchID = kwargs['batchID']
+                else:
+                    batchID = 0
+                Dbatch = DI.getBatch(batchID)
+                Dbatch.name = Data.name
+                return Dbatch
         return Data
 
     except ImportError as e:
@@ -47,11 +65,9 @@ def loadDataFromSavedTask(taskoutpath, dataSplitName='train', **kwargs):
             raise e
         if dataSplitName == 'train':
             # Load from file
-            dataKwargs.update(loadKwargsFromDisk(
-                taskoutpath, 'args-OnlineDataPrefs.txt'))
             DI = bnpy.data.DataIteratorFromDisk(**dataKwargs)
-            if kwargs['batchIDFromDisk'] is not None:
-                Data = DI.getBatch(kwargs['batchIDFromDisk'])
+            if kwargs['batchID'] is not None:
+                Data = DI.getBatch(kwargs['batchID'])
             else:
                 Data = DI.getBatch(0)
             Data.name = dataName
