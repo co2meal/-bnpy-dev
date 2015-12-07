@@ -291,6 +291,9 @@ class MemoVBMovesAlg(LearnAlg):
                     batchID, lapFrac, MoveLog, doCopy=1)
                 curSSwhole -= oldSSbatch
 
+        # Determine what integer position we are with respect to this lap
+        batchPos = np.round((lapFrac - np.floor(lapFrac)) / self.lapFracInc)
+
         # Prepare plans for which births to try,
         # using recently updated stats.
         if self.hasMove('birth'):
@@ -301,13 +304,14 @@ class MemoVBMovesAlg(LearnAlg):
                 lapFrac=lapFrac,
                 batchID=batchID,
                 isFirstBatch=self.isFirstBatch(lapFrac),
+                nBatch=self.nBatch,
+                batchPos=batchPos,
                 MovePlans=MovePlans,
                 MoveRecordsByUID=MoveRecordsByUID,
                 **kwargs)
             ElapsedTimeLogger.stopEvent('birth', 'plan')
 
         # Prepare some logging stats        
-        batchPos = np.round((lapFrac - np.floor(lapFrac)) / self.lapFracInc)
         if 'b_nFailedProp' not in MovePlans:
             MovePlans['b_nFailedProp'] = 0
         if 'b_nTrial' not in MovePlans:
@@ -721,6 +725,8 @@ class MemoVBMovesAlg(LearnAlg):
             MoveRecordsByUID=dict(),
             lapFrac=-2,
             batchID=0,
+            batchPos=0,
+            nBatch=0,
             isFirstBatch=False,
             **kwargs):
         ''' Select comps to target with birth at current batch.
@@ -749,6 +755,9 @@ class MemoVBMovesAlg(LearnAlg):
                 MoveRecordsByUID=MoveRecordsByUID,
                 MovePlans=MovePlans,
                 lapFrac=lapFrac,
+                batchID=batchID,
+                nBatch=nBatch,
+                batchPos=batchPos,
                 isFirstBatch=isFirstBatch,
                 **BArgs)
             if 'b_targetUIDs' in MovePlans:
@@ -813,9 +822,7 @@ class MemoVBMovesAlg(LearnAlg):
             targetCount = SS.getCountVec()[ktarget]
             MoveRecordsByUID[targetUID]['b_nTrial'] += 1
             MoveRecordsByUID[targetUID]['b_latestLap'] = lapFrac
-            MoveRecordsByUID[targetUID]['b_latestCount'] = targetCount
-            MoveRecordsByUID[targetUID]['b_latestBatchCount'] = \
-                SS.propXSS[targetUID].getCountVec().sum()
+
             # Construct proposal statistics
             propSS = SS.copy()
             propSS.transferMassFromExistingToExpansion(
@@ -964,11 +971,18 @@ class MemoVBMovesAlg(LearnAlg):
                 else:
                     nFailedEval += 1
                     MovePlans['b_targetUIDs'].remove(targetUID)
-                    del SS.propXSS[targetUID]
                     MoveRecordsByUID[targetUID]['b_nFail'] += 1
                     MoveRecordsByUID[targetUID]['b_nFailRecent'] += 1
                     MoveRecordsByUID[targetUID]['b_nSuccessRecent'] = 0
                     MoveRecordsByUID[targetUID]['b_tryAgainFutureLap'] = 0
+                    # Update batch-specific records for this uid
+                    uidRec = MoveRecordsByUID[targetUID]
+                    uidRec_b = uidRec['byBatch'][uidRec['b_proposalBatchID']]
+                    uidRec_b['nFail'] += 1            
+                    uidRec_b['nEval'] += 1
+                    uidRec_b['proposalTotalSize'] = \
+                        SS.propXSS[targetUID].getCountVec().sum()
+                    del SS.propXSS[targetUID]
 
             BLogger.pprint('')
             BLogger.stopUIDSpecificLog(targetUID)
@@ -1039,9 +1053,6 @@ class MemoVBMovesAlg(LearnAlg):
                         Rec['b_nFail'] += 1
                         Rec['b_nFailRecent'] += 1
                         Rec['b_nSuccessRecent'] = 0
-                        Rec['b_latestCount'] = SS.getCountVec()[k]
-                        Rec['b_latestBatchCount'] = \
-                            self.SSmemory[0].getCountVec()[k]
 
         ElapsedTimeLogger.stopEvent('birth', 'eval')
         return hmodel, SS, Lscore, MoveLog, MoveRecordsByUID

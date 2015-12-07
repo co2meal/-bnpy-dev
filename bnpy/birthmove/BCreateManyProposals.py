@@ -66,7 +66,6 @@ def makeSummariesForManyBirthProposals(
             lapFrac=lapFrac,
             batchID=batchID,
             **BArgs)
-
         if xSSslice is not None:
             # Proposal successful, with at least 2 non-empty clusters.
             # Move on to the evaluation stage!
@@ -76,22 +75,19 @@ def makeSummariesForManyBirthProposals(
             failedUIDs.append(targetUID)
             MovePlans['b_nTrial'] += 1
             MovePlans['b_nFailedProp'] += 1
-
             if targetUID not in MoveRecordsByUID:
                 MoveRecordsByUID[targetUID] = defaultdict(int)
-            Rec = MoveRecordsByUID[targetUID]
+            uidRec = MoveRecordsByUID[targetUID]
             ktarget = curSSwhole.uid2k(targetUID)
-            Rec['b_nTrial'] += 1
-            Rec['b_nFail'] += 1
-            Rec['b_nFailRecent'] += 1
-            Rec['b_nSuccessRecent'] = 0
-            Rec['b_latestLap'] = lapFrac
-            Rec['b_latestCount'] = curSSwhole.getCountVec()[ktarget]
-            if curSSslice:
-                Rec['b_latestBatchCount'] = curSSslice.getCountVec()[ktarget]
-                if curSSslice.hasSelectionTerm('DocUsageCount'):
-                    Rec['b_latestBatchNDoc'] = \
-                        curSSslice.getSelectionTerm('DocUsageCount')[ktarget]
+            uidRec['b_nTrial'] += 1
+            uidRec['b_nFail'] += 1
+            uidRec['b_nFailRecent'] += 1
+            uidRec['b_nSuccessRecent'] = 0
+            uidRec['b_latestLap'] = lapFrac
+            uidRec['b_latestCount'] = curSSwhole.getCountVec()[ktarget]
+            # Update batch-specific records for this uid
+            uidRec_b = uidRec['byBatch'][uidRec['b_proposalBatchID']]
+            uidRec_b['nFail'] += 1            
 
     for failUID in failedUIDs:
         b_targetUIDs.remove(failUID)

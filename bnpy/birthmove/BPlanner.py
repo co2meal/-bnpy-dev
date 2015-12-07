@@ -6,9 +6,9 @@ from bnpy.viz.PrintTopics import vec2str
 from bnpy.util import argsort_bigtosmall_stable, argsortBigToSmallByTiers
 
 def selectCompsForBirthAtCurrentBatch(
+        hmodel=None,
         SS=None,
         SSbatch=None,
-        hmodel=None,
         MoveRecordsByUID=dict(),
         MovePlans=dict(),
         lapFrac=0,
@@ -25,13 +25,20 @@ def selectCompsForBirthAtCurrentBatch(
     MovePlans : dict with updated fields
     * b_targetUIDs : list of ints,
         Each uid in b_targetUIDs will be tried immediately, at current batch.
+
+    MoveRecordsByUID : dict with updated fields
+    * [uid]['byBatch'][batchID] : dict with fields
+        proposalBatchSize
+        proposalTotalSize
     '''
     # Extract num clusters in current model
     K = SS.K
 
-    msg = 'PLAN at batchID %d: lap %.3f lapCeil %d batchPos %d/%d' % (
-        batchID, lapFrac, np.ceil(lapFrac), batchPos, nBatch)
-    BLogger.pprint(msg)
+    statusStr = ' lap %7.3f lapCeil %5d batchPos %3d/%d batchID %3d ' % (
+        lapFrac, np.ceil(lapFrac), batchPos, nBatch, batchID)
+
+    BLogger.pprint('PLAN at ' + statusStr)
+
 
     if BArgs['Kmax'] - SS.K <= 0:
         BLogger.pprint(
@@ -78,16 +85,23 @@ def selectCompsForBirthAtCurrentBatch(
     for ii, uid in enumerate(SS.uids):
         if uid not in MoveRecordsByUID:
             MoveRecordsByUID[uid] = defaultdict(int)
-        if 'b_batchIDsWhoseProposalFailed' not in MoveRecordsByUID[uid]:
-            MoveRecordsByUID[uid]['b_batchIDsWhoseProposalFailed'] = set()
-        assert isinstance(
-            MoveRecordsByUID[uid]['b_batchIDsWhoseProposalFailed'],
-            set)
-        
+        if not isinstance(MoveRecordsByUID[uid]['byBatch'], dict):
+            MoveRecordsByUID[uid]['byBatch'] = \
+                defaultdict(lambda: defaultdict(int))
+        uidRec = MoveRecordsByUID[uid]
+        uidRec_b = MoveRecordsByUID[uid]['byBatch'][batchID]
+
+        uidstatusStr = "STATUS uid %5d %s N_b %9.3f N_ttl %9.3f" % (
+            uid, statusStr,
+            SSbatch.getCountForUID(uid), SS.getCountForUID(uid))
         # Continue to track UIDs that are pre-existing targets
         if 'b_targetUIDs' in MovePlans:
             if uid in MovePlans['b_targetUIDs']:
+                BLogger.startUIDSpecificLog(uid)
+                BLogger.pprint(uidstatusStr + " CHOSENAGAIN")
+                BLogger.stopUIDSpecificLog(uid)
                 continue
+        # TODO REMOVE DEAD CODE
         if MoveRecordsByUID[uid]['b_tryAgainFutureLap'] > 0:
             msg = "Try targeting uid %d again." % (uid)
             BLogger.pprint(msg)
@@ -99,31 +113,85 @@ def selectCompsForBirthAtCurrentBatch(
         if 'd_targetUIDs' in MovePlans:
             if uid in MovePlans['d_targetUIDs']:
                 uidsBusyWithOtherMoves.append(uid)
+                BLogger.startUIDSpecificLog(uid)
+                BLogger.pprint(uidstatusStr + " BUSY DELETE PROPOSAL")
+                BLogger.stopUIDSpecificLog(uid)
                 continue
         if 'd_absorbingUIDSet' in MovePlans:
             if uid in MovePlans['d_absorbingUIDSet']:
                 uidsBusyWithOtherMoves.append(uid)
+                BLogger.startUIDSpecificLog(uid)
+                BLogger.pprint(uidstatusStr + " BUSY DELETE PROPOSAL")
+                BLogger.stopUIDSpecificLog(uid)
                 continue
 
         if 'm_targetUIDSet' in MovePlans:
             if uid in MovePlans['m_targetUIDSet']:
                 uidsBusyWithOtherMoves.append(uid)
+                BLogger.startUIDSpecificLog(uid)
+                BLogger.pprint(uidstatusStr + " BUSY MERGE PROPOSAL")
+                BLogger.stopUIDSpecificLog(uid)
                 continue
 
         # Filter out uids without large presence in current batch
         bigEnough = CountVec_b[ii] >= BArgs['b_minNumAtomsForTargetComp']
         if not bigEnough:
             uidsTooSmall.append((uid, CountVec_b[ii]))
+            BLogger.startUIDSpecificLog(uid)
+            BLogger.pprint(uidstatusStr + " TOO SMALL %.2f < %.2f" % (
+                CountVec_b[ii], BArgs['b_minNumAtomsForTargetComp']))
+            BLogger.stopUIDSpecificLog(uid)
             continue
 
+        eligibleSuffix = ''
         # Filter out uids we've failed on this particular batch before
-        nFail = MoveRecordsByUID[uid]['b_nFail']
-        if nFail > 0:
-            if batchID in MoveRecordsByUID[uid]['b_batchIDsWhoseProposalFailed']:
+        if uidRec_b['nFail'] > 0:
+            prevBatchSize = uidRec_b['proposalBatchSize']
+            prevTotalSize = uidRec_b['proposalTotalSize']
+
+            curBatchSize = SSbatch.getCountForUID(uid)
+            sizePercDiff = np.abs(curBatchSize - prevBatchSize) / (
+                curBatchSize + 1e-100)
+            sizeChangedEnoughToReactivate = sizePercDiff > \
+                BArgs['b_minPercChangeInNumAtomsToReactivate']
+
+            curTotalSize = SS.getCountForUID(uid)
+            totalPercDiff = np.abs(curTotalSize - prevTotalSize) / (
+                curTotalSize + 1e-100)
+            totalsizeChangedEnoughToReactivate = totalPercDiff > \
+                BArgs['b_minPercChangeInNumAtomsToReactivate']
+
+            if sizeChangedEnoughToReactivate:
+                eligibleSuffix = \
+                    "REACTIVATE BY BATCH SIZE." + \
+                    "\n Batch size percDiff %.2f > %.2f" % (
+                        sizePercDiff,
+                        BArgs['b_minPercChangeInNumAtomsToReactivate']) \
+                    + "\n prevBatchSize %9.2f \n curBatchSize %9.2f" % (
+                        prevBatchSize, curBatchSize)
+                uidRec_b['nFail'] = 0 # Reactivated
+            elif totalsizeChangedEnoughToReactivate:
+                eligibleSuffix = \
+                    "REACTIVATED BY TOTAL SIZE" + \
+                    "\n Total size percDiff %.2f > %.2f" % (
+                        totalPercDiff,
+                        BArgs['b_minPercChangeInNumAtomsToReactivate']) \
+                    + "\n prevTotalSize %9.1f \n curTotalSize %9.1f" % (
+                        prevTotalSize, curTotalSize)
+                uidRec_b['nFail'] = 0 # Reactivated
+            else:
                 uidsWithFailRecord.append(uid)
+                BLogger.startUIDSpecificLog(uid)
+                BLogger.pprint(
+                    uidstatusStr + " DISQUALIFIED FOR PAST FAILURE")
+                BLogger.stopUIDSpecificLog(uid)
                 continue
         # If we've made it here, the uid is eligible.
         eligible_mask[ii] = 1
+        BLogger.startUIDSpecificLog(uid)
+        BLogger.pprint(uidstatusStr + " ELIGIBLE " + eligibleSuffix)
+        BLogger.stopUIDSpecificLog(uid)
+
 
     # Notify about uids retained
     if 'b_targetUIDs' not in MovePlans:
@@ -173,7 +241,7 @@ def selectCompsForBirthAtCurrentBatch(
     # And make vector of how recently they have failed in other attempts
     FailVec = np.inf * np.ones(K)
     for uid in eligibleUIDs:
-        MoveRecordsByUID[uid]['b_latestEligibleLap'] = lapFrac
+        uidRec['b_latestEligibleLap'] = lapFrac
         k = SS.uid2k(uid)
         FailVec[k] = MoveRecordsByUID[uid]['b_nFailRecent']
 
@@ -235,9 +303,13 @@ def selectCompsForBirthAtCurrentBatch(
             )
 
     for uid in chosenUIDs:
-        MoveRecordsByUID[uid]['b_latestChosenLap'] = lapFrac
-        MoveRecordsByUID[uid]['b_proposalSize'] = \
-            SSbatch.getCountForUID(uid)
+        uidRec = MoveRecordsByUID[uid]
+        uidRec['b_proposalBatchID'] = batchID
+        
+        uidRec_b = MoveRecordsByUID[uid]['byBatch'][batchID]
+        uidRec_b['proposalBatchSize'] = SSbatch.getCountForUID(uid)
+        uidRec_b['proposalTotalSize'] = SSbatch.getCountForUID(uid)
+
     # Aggregate all uids
     MovePlans['b_newlyChosenTargetUIDs'] = chosenUIDs
     MovePlans['b_preExistingTargetUIDs'] = \
