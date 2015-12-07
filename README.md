@@ -6,8 +6,8 @@
 * [Demos](#markdown-header-demos)
 * [Quick Start](#markdown-header-quick-start)
 * [Academic References](#markdown-header-academic-references)
-** [NIPS 2015: HDP-HMM paper](#markdown-header-nips-2015-hdp-hmm-paper)
-** [AISTATS 2015: HDP topic models](#markdown-header-aistats-2015-hdp-topic-model-paper)
+* * [NIPS 2015: HDP-HMM paper](#markdown-header-nips-2015-hdp-hmm-paper)
+* * [AISTATS 2015: HDP topic models](#markdown-header-aistats-2015-hdp-topic-model-paper)
 
 # About
 This python module provides code for training popular clustering models on large datasets. We focus on Bayesian nonparametric models based on the Dirichlet process, but also provide parametric counterparts. 
