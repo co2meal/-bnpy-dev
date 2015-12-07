@@ -143,8 +143,9 @@ Website: [http://cs.brown.edu/people/sudderth/](http://cs.brown.edu/people/sudde
 > Our NIPS 2015 paper describes our algorithms for HDP-HMMs.
 
 * "Scalable adaptation of state complexity for Bayesian nonparametric sequence models." Michael C. Hughes, William Stephenson, and Erik B. Sudderth. NIPS 2015.
-[[paper]](http://cs.brown.edu/people/mhughes/papers/HughesStevensonSudderth_NIPS_2015.pdf)
-[[supplement]](http://michaelchughes.com/papers/HughesStevensonSudderth_NIPS_2015_supplement.pdf)
+[[paper]](http://michaelchughes.com/papers/HughesStephensonSudderth_NIPS_2015.pdf)
+[[supplement]](http://michaelchughes.com/papers/HughesStephensonSudderth_NIPS_2015_supplement.pdf)
+[[scripts to reproduce experiments]](http://bitbucket.org/michaelchughes/x-hdphmm-nips2015/)
 
 > Our AISTATS 2015 paper describes our algorithms for HDP topic models.
 
@@ -158,13 +159,13 @@ Website: [http://cs.brown.edu/people/sudderth/](http://cs.brown.edu/people/sudde
 [[supplement]](http://michaelchughes.com/papers/HughesSudderth_NIPS_2013_supplement.pdf)
 [[bibtex]](http://cs.brown.edu/people/mhughes/papers/HughesSudderth-NIPS2013-MemoizedDP-bibtex.txt)
 
-## Workshop paper
+## Workshop papers
 
-> This short workshop paper describes the vision for **bnpy** as a general purpose inference engine.
+> Our short paper from a workshop at NIPS 2014 describes the vision for **bnpy** as a general purpose inference engine.
 
 * "bnpy: Reliable and scalable variational inference for Bayesian nonparametric models."
 Michael C. Hughes and Erik B. Sudderth. Probabilistic Programming Workshop at NIPS 2014.
-[[paper]](http://michaelchughes.com/papers/HughesSudderth_NIPSWorkshop_2014.pdf)
+[[paper]](http://michaelchughes.com/papers/HughesSudderth_NIPSProbabilisticProgrammingWorkshop_2014.pdf)
 
 ## Background reading
 For background reading to understand the broader context of this field, see our [Resources wiki page](../wiki/Resources.md).
