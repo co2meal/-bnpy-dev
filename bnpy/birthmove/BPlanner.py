@@ -16,7 +16,7 @@ def selectCompsForBirthAtCurrentBatch(
         batchPos=0,
         nBatch=1,
         isFirstBatch=False,
-        doPrintLotsOfDetails=False,
+        doPrintLotsOfDetails=True,
         **BArgs):
     ''' Select specific comps to target with birth move at current batch.
 
@@ -33,7 +33,8 @@ def selectCompsForBirthAtCurrentBatch(
     '''
     # Extract num clusters in current model
     K = SS.K
-
+    if K > 25:
+        doPrintLotsOfDetails = False
     statusStr = ' lap %7.3f lapCeil %5d batchPos %3d/%d batchID %3d ' % (
         lapFrac, np.ceil(lapFrac), batchPos, nBatch, batchID)
 
@@ -64,12 +65,16 @@ def selectCompsForBirthAtCurrentBatch(
     if lapFrac > 1.0 and BArgs['b_retainAcrossBatchesAfterFirstLap']:
         if not isFirstBatch:
             if 'b_targetUIDs' in MovePlans:
-                msg = "%d/%d UIDs retained from previous proposals." % (
-                    len(MovePlans['b_targetUIDs']), K)
+                msg = "%d UIDs retained from proposals earlier this lap." + \
+                    " No new proposals at this batch."
+                msg = msg % (len(MovePlans['b_targetUIDs']))
                 BLogger.pprint(msg)
-                BLogger.pprint(vec2str(MovePlans['b_targetUIDs']))
+                if len(MovePlans['b_targetUIDs']) > 0:
+                    BLogger.pprint(vec2str(MovePlans['b_targetUIDs']))
             else:
-                BLogger.pprint('No targeted UIDs retained. No new proposals.')
+                BLogger.pprint(
+                    'No UIDs targeted earlier in lap.' + \
+                    ' No new proposals at this batch.')
             return MovePlans
 
     # Compute sizes for each cluster
@@ -230,7 +235,8 @@ def selectCompsForBirthAtCurrentBatch(
         BLogger.pprint(lineUID)
     # Finalize list of eligible UIDs
     eligibleUIDs = SS.uids[eligible_mask]
-    BLogger.pprint('%d/%d UIDs eligible for proposal' % (len(eligibleUIDs), K))
+    BLogger.pprint('%d/%d UIDs eligible for new proposal' % (
+        len(eligibleUIDs), K))
     # EXIT if nothing eligible.
     if len(eligibleUIDs) == 0:
         BLogger.pprint('')
@@ -253,14 +259,14 @@ def selectCompsForBirthAtCurrentBatch(
         BLogger.pprint([lineUID, lineSize, lineBatchSize, lineFail],
                 prefix=[
                     '%7s' % 'uids',
-                    '%7s' % 'size',
-                    '%7s' % labelstr,
+                    '%7s' % 'cnt_ttl',
+                    '%7s' % 'cnt_b',
                     '%7s' % 'nFail',
                     ],
                 )
 
     # Figure out how many new states we can target this round.
-    # Prioritize the top comps as ranked by the Ldata score
+    # Prioritize the top comps as ranked by the desired score
     # until we max out the budget of Kmax total comps.
     maxnewK = BArgs['Kmax'] - SS.K
     totalnewK_perEligibleComp = np.minimum(
@@ -286,7 +292,7 @@ def selectCompsForBirthAtCurrentBatch(
             '\n Total budget allows at most %d clusters (--Kmax).' % (
                 BArgs['Kmax']),
             )
-    BLogger.pprint('%d/%d UIDs chosen for new proposals (ranked by score)' % (
+    BLogger.pprint('%d/%d UIDs chosen for new proposals (rankby: cnt_b)' % (
         len(chosenUIDs), len(eligibleUIDs)))
     if doPrintLotsOfDetails:
         lineUID = vec2str(chosenUIDs)
