@@ -12,7 +12,7 @@ This python module provides code for training popular clustering models on large
 
 **bnpy** supports the latest online learning algorithms as well as standard offline methods. Our aim is to provide an inference platform that makes it easy for researchers and practitioners to compare models and algorithms.
 
-### Supported probabilistic models
+### Supported probabilistic models (aka allocation models)
 
 * Mixture models
     * `FiniteMixtureModel` : fixed number of clusters
@@ -24,14 +24,13 @@ This python module provides code for training popular clustering models on large
     
 * Hidden Markov models (HMMs)
     * `FiniteHMM` : Markov sequence model with a fixture number of states
+    *  `HDPHMM` : Markov sequence models with an infinite number of states
 
 * **COMING SOON**
-    *  `HDPHMM` : Markov sequence models with an infinite number of states
     * grammar models
     * relational models
 
-
-### Supported data-generating models (aka likelihoods)
+### Supported data observation models (aka likelihoods)
 
 * Multinomial for bag-of-words data
     * `Mult`
@@ -130,11 +129,11 @@ Website: [http://cs.brown.edu/people/sudderth/](http://cs.brown.edu/people/sudde
 
 * Soumya Ghosh
 * Dae Il Kim
+* Geng Ji
 * William Stephenson
 * Sonia Phene
 * Mert Terzihan
 * Mengrui Ni
-* Geng Ji
 * Jincheng Li
 
 # Academic References
