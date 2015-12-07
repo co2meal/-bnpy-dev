@@ -8,6 +8,7 @@
 * [Academic References](#markdown-header-academic-references)
 * * [NIPS 2015: HDP-HMM paper](#markdown-header-nips-2015-hdp-hmm-paper)
 * * [AISTATS 2015: HDP topic models](#markdown-header-aistats-2015-hdp-topic-model-paper)
+* * [NIPS 2013: DP mixture models](#markdown-header-nips-2013-dp-mixtures-paper)
 
 # About
 This python module provides code for training popular clustering models on large datasets. We focus on Bayesian nonparametric models based on the Dirichlet process, but also provide parametric counterparts. 
@@ -159,6 +160,10 @@ Website: [http://cs.brown.edu/people/sudderth/](http://cs.brown.edu/people/sudde
 [[paper]](http://michaelchughes.com/papers/HughesKimSudderth_AISTATS_2015.pdf)
 [[supplement]](http://michaelchughes.com/papers/HughesKimSudderth_AISTATS_2015_supplement.pdf)
 [[bibtex]](http://cs.brown.edu/people/mhughes/papers/HughesKimSudderth-AISTATS2015-MemoizedHDP-bibtex.txt)
+
+#### NIPS 2013 DP mixtures paper
+
+> Our NIPS 2013 paper introduced memoized variational inference algorithm, and applied it to Dirichlet process mixture models.
 
 * "Memoized online variational inference for Dirichlet process mixture models." Michael C. Hughes and Erik B. Sudderth. NIPS 2013.
 [[paper]](http://michaelchughes.com/papers/HughesSudderth_NIPS_2013.pdf)
