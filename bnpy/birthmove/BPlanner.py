@@ -3,7 +3,250 @@ from collections import defaultdict
 
 import BLogger
 from bnpy.viz.PrintTopics import vec2str
-from bnpy.util import argsort_bigtosmall_stable
+from bnpy.util import argsort_bigtosmall_stable, argsortBigToSmallByTiers
+
+def selectCompsForBirthAtCurrentBatch(
+        SS=None,
+        SSbatch=None,
+        hmodel=None,
+        MoveRecordsByUID=dict(),
+        MovePlans=dict(),
+        lapFrac=0,
+        batchID=0,
+        batchPos=0,
+        nBatch=1,
+        isFirstBatch=False,
+        doPrintLotsOfDetails=False,
+        **BArgs):
+    ''' Select specific comps to target with birth move at current batch.
+
+    Returns
+    -------
+    MovePlans : dict with updated fields
+    * b_targetUIDs : list of ints,
+        Each uid in b_targetUIDs will be tried immediately, at current batch.
+    '''
+    # Extract num clusters in current model
+    K = SS.K
+
+    msg = 'PLAN at batchID %d: lap %.3f lapCeil %d batchPos %d/%d' % (
+        batchID, lapFrac, np.ceil(lapFrac), batchPos, nBatch)
+    BLogger.pprint(msg)
+
+    if BArgs['Kmax'] - SS.K <= 0:
+        BLogger.pprint(
+            "Cannot plan any more births." + \
+            " Reached upper limit of %d existing comps (--Kmax)." % (
+                BArgs['Kmax'])
+            )
+        if 'b_targetUIDs' in MovePlans:
+            del MovePlans['b_targetUIDs']
+        BLogger.pprint('')
+        return MovePlans
+
+    if isFirstBatch:
+        assert 'b_targetUIDs' not in MovePlans
+
+    if isFirstBatch or 'b_firstbatchUIDs' not in MovePlans:
+        MovePlans['b_firstbatchUIDs'] = SSbatch.uids.copy()
+        MovePlans['b_CountVec_SeenThisLap'] = np.zeros(K)
+    for k, uid in enumerate(MovePlans['b_firstbatchUIDs']):
+        MovePlans['b_CountVec_SeenThisLap'][k] += SSbatch.getCountForUID(uid)
+
+    # Short-circuit. Keep retained clusters.
+    if lapFrac > 1.0 and BArgs['b_retainAcrossBatchesAfterFirstLap']:
+        if not isFirstBatch:
+            if 'b_targetUIDs' in MovePlans:
+                msg = "%d/%d UIDs retained from previous proposals." % (
+                    len(MovePlans['b_targetUIDs']), K)
+                BLogger.pprint(msg)
+                BLogger.pprint(vec2str(MovePlans['b_targetUIDs']))
+            else:
+                BLogger.pprint('No targeted UIDs retained. No new proposals.')
+            return MovePlans
+
+    # Compute sizes for each cluster
+    CountVec_b = np.maximum(SSbatch.getCountVec(), 1e-100)
+    CountVec_all = np.maximum(SS.getCountVec(), 1e-100)
+    atomstr = 'atoms'
+    labelstr = 'count_b'
+
+    uidsBusyWithOtherMoves = list()
+    uidsTooSmall = list()
+    uidsWithFailRecord = list()
+    eligible_mask = np.zeros(K, dtype=np.bool8)
+    for ii, uid in enumerate(SS.uids):
+        if uid not in MoveRecordsByUID:
+            MoveRecordsByUID[uid] = defaultdict(int)
+        if 'b_batchIDsWhoseProposalFailed' not in MoveRecordsByUID[uid]:
+            MoveRecordsByUID[uid]['b_batchIDsWhoseProposalFailed'] = set()
+        assert isinstance(
+            MoveRecordsByUID[uid]['b_batchIDsWhoseProposalFailed'],
+            set)
+        
+        # Continue to track UIDs that are pre-existing targets
+        if 'b_targetUIDs' in MovePlans:
+            if uid in MovePlans['b_targetUIDs']:
+                continue
+        if MoveRecordsByUID[uid]['b_tryAgainFutureLap'] > 0:
+            msg = "Try targeting uid %d again." % (uid)
+            BLogger.pprint(msg)
+            del MoveRecordsByUID[uid]['b_tryAgainFutureLap']
+            eligible_mask[ii] = 1
+            continue
+
+        # Discard uids which are active in another proposal.
+        if 'd_targetUIDs' in MovePlans:
+            if uid in MovePlans['d_targetUIDs']:
+                uidsBusyWithOtherMoves.append(uid)
+                continue
+        if 'd_absorbingUIDSet' in MovePlans:
+            if uid in MovePlans['d_absorbingUIDSet']:
+                uidsBusyWithOtherMoves.append(uid)
+                continue
+
+        if 'm_targetUIDSet' in MovePlans:
+            if uid in MovePlans['m_targetUIDSet']:
+                uidsBusyWithOtherMoves.append(uid)
+                continue
+
+        # Filter out uids without large presence in current batch
+        bigEnough = CountVec_b[ii] >= BArgs['b_minNumAtomsForTargetComp']
+        if not bigEnough:
+            uidsTooSmall.append((uid, CountVec_b[ii]))
+            continue
+
+        # Filter out uids we've failed on this particular batch before
+        nFail = MoveRecordsByUID[uid]['b_nFail']
+        if nFail > 0:
+            if batchID in MoveRecordsByUID[uid]['b_batchIDsWhoseProposalFailed']:
+                uidsWithFailRecord.append(uid)
+                continue
+        # If we've made it here, the uid is eligible.
+        eligible_mask[ii] = 1
+
+    # Notify about uids retained
+    if 'b_targetUIDs' not in MovePlans:
+        MovePlans['b_targetUIDs'] = list()
+    msg = "%d/%d UIDs retained from preexisting proposals." % (
+        len(MovePlans['b_targetUIDs']), K)
+    BLogger.pprint(msg)
+
+    # Log info about busy disqualifications
+    nDQ_toobusy = len(uidsBusyWithOtherMoves)
+    nDQ_pastfail = len(uidsWithFailRecord)
+    msg = "%d/%d UIDs too busy with other moves (merge/delete)." % (
+        nDQ_toobusy, K)
+    BLogger.pprint(msg)
+    # Log info about toosmall disqualification
+    nDQ_toosmall = len(uidsTooSmall)
+    msg = "%d/%d UIDs too small (too few %s in current batch)." + \
+        " Required size >= %d (--b_minNumAtomsForTargetComp)"
+    msg = msg % (nDQ_toosmall, K, atomstr,
+        BArgs['b_minNumAtomsForTargetComp'])
+    BLogger.pprint(msg, 'debug')
+    if nDQ_toosmall > 0 and doPrintLotsOfDetails:
+        lineUID = vec2str([u[0] for u in uidsTooSmall])
+        lineSize = vec2str([u[1] for u in uidsTooSmall])
+        BLogger.pprint([lineUID, lineSize], 
+            prefix=['%7s' % 'uids',
+                    '%7s' % labelstr],
+            )
+    # Notify about past failure disqualifications to the log
+    BLogger.pprint(
+        '%d/%d UIDs disqualified for past failures.' % (
+            nDQ_pastfail, K),
+        'debug')
+    if nDQ_pastfail > 0 and doPrintLotsOfDetails:
+        lineUID = vec2str(uidsWithFailRecord)
+        BLogger.pprint(lineUID)
+    # Finalize list of eligible UIDs
+    eligibleUIDs = SS.uids[eligible_mask]
+    BLogger.pprint('%d/%d UIDs eligible for proposal' % (len(eligibleUIDs), K))
+    # EXIT if nothing eligible.
+    if len(eligibleUIDs) == 0:
+        BLogger.pprint('')
+        assert 'b_targetUIDs' in MovePlans
+        return MovePlans
+
+    # Record all uids that are eligible!
+    # And make vector of how recently they have failed in other attempts
+    FailVec = np.inf * np.ones(K)
+    for uid in eligibleUIDs:
+        MoveRecordsByUID[uid]['b_latestEligibleLap'] = lapFrac
+        k = SS.uid2k(uid)
+        FailVec[k] = MoveRecordsByUID[uid]['b_nFailRecent']
+
+    if doPrintLotsOfDetails:
+        lineUID = vec2str(eligibleUIDs)
+        lineSize = vec2str(CountVec_all[eligible_mask])
+        lineBatchSize = vec2str(CountVec_b[eligible_mask])
+        lineFail = vec2str(FailVec[eligible_mask])
+        BLogger.pprint([lineUID, lineSize, lineBatchSize, lineFail],
+                prefix=[
+                    '%7s' % 'uids',
+                    '%7s' % 'size',
+                    '%7s' % labelstr,
+                    '%7s' % 'nFail',
+                    ],
+                )
+
+    # Figure out how many new states we can target this round.
+    # Prioritize the top comps as ranked by the Ldata score
+    # until we max out the budget of Kmax total comps.
+    maxnewK = BArgs['Kmax'] - SS.K
+    totalnewK_perEligibleComp = np.minimum(
+        np.ceil(CountVec_b[eligible_mask]),
+        np.minimum(BArgs['b_Kfresh'], maxnewK))
+    # TODO: Worry about retained ids with maxnewK
+    sortorder = argsortBigToSmallByTiers(
+        -1 * FailVec[eligible_mask], CountVec_b[eligible_mask])
+    sortedCumulNewK = np.cumsum(totalnewK_perEligibleComp[sortorder])
+    nToKeep = np.searchsorted(sortedCumulNewK, maxnewK + 0.0042)
+    if nToKeep == 0:
+        nToKeep = 1        
+    keepEligibleIDs = sortorder[:nToKeep]
+    newK = np.minimum(sortedCumulNewK[nToKeep-1], maxnewK)
+    chosenUIDs = [eligibleUIDs[s] for s in keepEligibleIDs]
+
+    if nToKeep < len(chosenUIDs):
+        BLogger.pprint(
+            'Selected %d/%d eligible UIDs to do proposals.' % (
+                nToKeep, len(chosenUIDs)) + \
+            '\n Could create up to %d new clusters, %d total clusters.' % (
+                newK, newK + SS.K) + \
+            '\n Total budget allows at most %d clusters (--Kmax).' % (
+                BArgs['Kmax']),
+            )
+    BLogger.pprint('%d/%d UIDs chosen for new proposals (ranked by score)' % (
+        len(chosenUIDs), len(eligibleUIDs)))
+    if doPrintLotsOfDetails:
+        lineUID = vec2str(chosenUIDs)
+        lineSize = vec2str(CountVec_all[eligible_mask][keepEligibleIDs])
+        lineBatchSize = vec2str(CountVec_b[eligible_mask][keepEligibleIDs])
+        lineFail = vec2str(FailVec[eligible_mask][keepEligibleIDs])
+        BLogger.pprint([lineUID, lineSize, lineBatchSize, lineFail],
+            prefix=[
+                '%7s' % 'uids',
+                '%7s' % 'cnt_ttl',
+                '%7s' % 'cnt_b',
+                '%7s' % 'fail',
+                ],
+            )
+
+    for uid in chosenUIDs:
+        MoveRecordsByUID[uid]['b_latestChosenLap'] = lapFrac
+        MoveRecordsByUID[uid]['b_proposalSize'] = \
+            SSbatch.getCountForUID(uid)
+    # Aggregate all uids
+    MovePlans['b_newlyChosenTargetUIDs'] = chosenUIDs
+    MovePlans['b_preExistingTargetUIDs'] = \
+        [u for u in MovePlans['b_targetUIDs']]
+    MovePlans['b_targetUIDs'].extend(chosenUIDs)
+
+    BLogger.pprint('')
+    return MovePlans
+
 
 def selectShortListForBirthAtLapStart(
         hmodel, SS,
@@ -116,317 +359,6 @@ def selectShortListForBirthAtLapStart(
             )
     BLogger.pprint('')
     return MovePlans
-
-
-def selectCompsForBirthAtCurrentBatch(
-        hmodel, SS,
-        SSbatch=None,
-        MoveRecordsByUID=dict(),
-        MovePlans=dict(),
-        lapFrac=0,
-        isFirstBatch=False,
-        **BArgs):
-    ''' Select specific comps to target with birth move at current batch.
-
-    Kwargs
-    ------
-    batchPos : integer id of current position in pass thru dataset
-        0 indicates the very first batch in this pass
-
-    Returns
-    -------
-    MovePlans : dict with updated fields
-    * b_targetUIDs : list of ints,
-        Each uid in b_targetUIDs will be tried immediately, at current batch.
-    '''
-    if BArgs['Kmax'] - SS.K <= 0:
-        BLogger.pprint(
-            "Cannot plan any more births." + \
-            " Reached upper limit of %d existing comps (--Kmax)." % (
-                BArgs['Kmax'])
-            )
-        if 'b_targetUIDs' in MovePlans:
-            del MovePlans['b_targetUIDs']
-        BLogger.pprint('')
-        return MovePlans
-
-    # Extract num clusters in current model
-    K = SS.K
-    # Short-circuit. Keep retained clusters.
-    if lapFrac > 1.0 and BArgs['b_retainAcrossBatchesAfterFirstLap']:
-        if not isFirstBatch:
-            if 'b_targetUIDs' in MovePlans:
-                msg = "%d/%d UIDs retained from previous birth by fiat." % (
-                    len(MovePlans['b_targetUIDs']), K)
-                BLogger.pprint(msg)
-                BLogger.pprint(vec2str(MovePlans['b_targetUIDs']))
-            else:
-                BLogger.pprint('No targeted UIDs retained, so no proposals.')
-            return MovePlans
-
-    # Get per-comp sizes for aggregate dataset
-    SizeVec_all = np.maximum(SS.getCountVec(), 1e-100)
-    CountVec_b = np.maximum(SSbatch.getCountVec(), 1e-100)
-    SizeVec_b = CountVec_b
-
-    atomstr = 'atoms'
-    labelstr = 'nAtom_b'
-    # Adjust the counts and units appropriately, if we modeling documents
-    if hasattr(SSbatch, 'WordCounts'):
-        if SSbatch.hasSelectionTerm('DocUsageCount'):
-            SizeVec_b = SSbatch.getSelectionTerm('DocUsageCount')
-            atomstr = 'docs'
-            labelstr = 'nDoc_b'
-
-    # Compute per-comp score metric
-    # ScoreVec[k] is large if k does a bad job modeling its assigned data
-    ScoreVec = -1.0 / SizeVec_all * \
-        hmodel.obsModel.calc_evidence(None, SS, None, returnVec=1)
-    ScoreVec[SizeVec_all < 1] = np.nan
-
-    uidsBusyWithOtherMoves = list()
-    uidsTooSmall = list()
-    uidsWithFailRecord = list()
-    eligible_mask = np.zeros(K, dtype=np.bool8)
-    for ii, uid in enumerate(SS.uids):
-        if uid not in MoveRecordsByUID:
-            MoveRecordsByUID[uid] = defaultdict(int)
-
-        # Keep existing targets
-        if 'b_targetUIDs' in MovePlans:
-            if uid in MovePlans['b_targetUIDs']:
-                eligible_mask[ii] = 1
-                continue
-        
-        if MoveRecordsByUID[uid]['b_tryAgainFutureLap'] > 0:
-            eligible_mask[ii] = 1
-            msg = "Try targeting uid %d again." % (uid)
-            BLogger.pprint(msg)
-            del MoveRecordsByUID[uid]['b_tryAgainFutureLap']
-            continue
-
-        if 'd_targetUIDs' in MovePlans:
-            if uid in MovePlans['d_targetUIDs']:
-                uidsBusyWithOtherMoves.append(uid)
-                continue
-        if 'd_absorbingUIDSet' in MovePlans:
-            if uid in MovePlans['d_absorbingUIDSet']:
-                uidsBusyWithOtherMoves.append(uid)
-                continue
-
-        if 'm_targetUIDSet' in MovePlans:
-            if uid in MovePlans['m_targetUIDSet']:
-                uidsBusyWithOtherMoves.append(uid)
-                continue
-
-        # Filter out uids without large presence in current batch
-        bigEnough = SizeVec_b[ii] >= BArgs['b_minNumAtomsForTargetComp']
-        if not bigEnough:
-            uidsTooSmall.append((uid, SizeVec_b[ii]))
-            continue
-
-        # Filter out uids we've failed with birth moves before
-        size = SizeVec_all[ii]
-        oldsize = MoveRecordsByUID[uid]['b_latestCount']
-        oldbatchsize = MoveRecordsByUID[uid]['b_latestBatchCount']
-        nFailRecent = MoveRecordsByUID[uid]['b_nFailRecent']
-        if nFailRecent == 0:
-            hasFailureRecord = False
-        else:
-            sizePercDiff = np.abs(size - oldsize) / \
-                (1e-100 + np.abs(oldsize))
-            sizeChangedEnoughToReactivate = \
-                sizePercDiff > BArgs['b_minPercChangeInNumAtomsToReactivate']
-            sizeIncreasedEnough = sizeChangedEnoughToReactivate and \
-                (size > oldsize)
-
-            minBatchSizeToReactivate = oldbatchsize * \
-                (1.0 + BArgs['b_minPercChangeInNumAtomsToReactivate'])
-            if CountVec_b[ii] >= minBatchSizeToReactivate:
-                hasFailureRecord = False
-                msg = "uid %d reactivated by batch size!" % (uid) + \
-                    " new_batchsize %.1f  old_batchsize %.1f" % (
-                        CountVec_b[ii], oldbatchsize)
-                BLogger.pprint(msg, 'debug')
-            elif lapFrac <= 1.0 and sizeIncreasedEnough and nFailRecent < 3:
-                # Size changes a lot on the first lap
-                # We'll give a cluster 3 tries only on this lap,
-                # so we don't waste time trying it at every batch
-                hasFailureRecord = False
-                msg = "uid %d reactivated by totalsize on 1st lap!" % (uid) + \
-                    " new_size %.1f  old_size %.1f" % (size, oldsize) + \
-                    " new_batchsize %.1f  old_batchsize %.1f" % (
-                        CountVec_b[ii], oldbatchsize)                    
-                BLogger.pprint(msg, 'debug')
-            elif lapFrac > 1.0 and sizeChangedEnoughToReactivate:
-                hasFailureRecord = False
-                msg = "uid %d reactivated by totalsize!" % (uid) + \
-                    " new_size %.1f  old_size %.1f" % (size, oldsize) + \
-                    " new_batchsize %.1f  old_batchsize %.1f" % (
-                        CountVec_b[ii], oldbatchsize)                    
-                BLogger.pprint(msg, 'debug')
-            else:
-                hasFailureRecord = True
-        if hasFailureRecord:
-            uidsWithFailRecord.append((uid, nFailRecent))
-            continue
-        # If we've made it here, the uid is eligible.
-        eligible_mask[ii] = 1
-
-    # Verify that retained UIDs we are building on survived eligibility check
-    retainPosIDs = list()
-    retainUIDs = list()
-    if 'b_targetUIDs' in MovePlans and len(MovePlans['b_targetUIDs']) > 0:
-        for uid in MovePlans['b_targetUIDs']:
-            retainUIDs.append(uid)
-            kk = SSbatch.uid2k(uid)
-            retainPosIDs.append(kk)
-            assert eligible_mask[kk]
-        msg = "%d/%d UIDs retained from previous promising births." % (
-            len(retainUIDs), K)
-        BLogger.pprint(msg)
-        BLogger.pprint(vec2str(retainUIDs))
-
-    # Aggregate information
-    nDQ_toobusy = len(uidsBusyWithOtherMoves)
-    nDQ_toosmall = len(uidsTooSmall)
-    nDQ_pastfail = len(uidsWithFailRecord)
-
-    msg = "%d/%d UIDs too busy with other moves (merge/delete)." % (
-        nDQ_toobusy, K)
-    BLogger.pprint(msg, 'debug')
-
-    msg = "%d/%d UIDs too small (too few %s in current batch)." + \
-        " Required size >= %d (--b_minNumAtomsForTargetComp)"
-    msg = msg % (nDQ_toosmall, K, atomstr,
-        BArgs['b_minNumAtomsForTargetComp'])
-    BLogger.pprint(msg, 'debug')
-    if nDQ_toosmall > 0:
-        lineUID = vec2str([u[0] for u in uidsTooSmall])
-        lineSize = vec2str([u[1] for u in uidsTooSmall])
-        BLogger.pprint([lineUID, lineSize], 
-            prefix=['%7s' % 'uids',
-                    '%7s' % labelstr],
-            )
-
-    # Notify about past failure disqualifications to the log
-    BLogger.pprint(
-        '%d/%d UIDs disqualified for past failures.' % (
-            nDQ_pastfail, K),
-        'debug')
-    if nDQ_pastfail > 0:
-        lineUID = vec2str([u[0] for u in uidsWithFailRecord])
-        lineFail = vec2str([u[1] for u in uidsWithFailRecord])
-        BLogger.pprint([lineUID, lineFail],
-            prefix=['%7s' % 'uids',
-                    '%7s' % 'nFail'],
-            )
-    # Finalize list of eligible UIDs
-    UIDs = SS.uids[eligible_mask]
-    BLogger.pprint('%d/%d UIDs eligible' % (len(UIDs), K), 'debug')
-    # EXIT if nothing eligible.
-    if len(UIDs) == 0:
-        BLogger.pprint('')
-        return MovePlans
-
-    # Mark all uids that are eligible!
-    for uid in UIDs:
-        MoveRecordsByUID[uid]['b_latestEligibleLap'] = lapFrac
-
-    lineUID = vec2str(UIDs)
-    lineSize = vec2str(SizeVec_all[eligible_mask])
-    lineBatchSize = vec2str(SizeVec_b[eligible_mask])
-    lineScore = vec2str(ScoreVec[eligible_mask])
-    BLogger.pprint([lineUID, lineSize, lineBatchSize, lineScore],
-            prefix=[
-                '%7s' % 'uids',
-                '%7s' % 'size',
-                '%7s' % labelstr,
-                '%7s' % 'score',
-                ],
-            )
-
-    # Figure out how many new states we can target this round.
-    # Prioritize the top comps as ranked by the Ldata score
-    # until we max out the budget of Kmax total comps.
-    maxnewK = BArgs['Kmax'] - SS.K
-    totalnewK_perEligibleComp = np.minimum(
-        np.ceil(SizeVec_b[eligible_mask]),
-        np.minimum(BArgs['b_Kfresh'], maxnewK))
-    if len(retainUIDs) > 0:
-        # Rank eligible ids into two tiers
-        # First, prioritize all retained UIDs
-        # Second, prioritize newly eligible UIDs, sorting by ScoreVec
-        fresh_eligible_mask = eligible_mask.copy()
-        fresh_eligible_mask[retainPosIDs] = 0
-        freshsortorder = argsort_bigtosmall_stable(
-            ScoreVec[fresh_eligible_mask])
-        retain_eligible_mask = eligible_mask.copy()
-        retain_eligible_mask -= fresh_eligible_mask
-        assert retain_eligible_mask.dtype == np.bool8
-
-        retainsortorder = argsort_bigtosmall_stable(
-            ScoreVec[retain_eligible_mask])
-        freshPos = list()
-        retainPos = list()
-        c = 0
-        for p in range(len(eligible_mask)):
-            if eligible_mask[p]:
-                if fresh_eligible_mask[p]:
-                    freshPos.append(c)
-                else:
-                    retainPos.append(c)
-                c += 1
-        retainPos = np.asarray(retainPos, dtype=np.int32)
-        freshPos = np.asarray(freshPos, dtype=np.int32)
-        sortorder = np.hstack([
-            retainPos[retainsortorder],
-            freshPos[freshsortorder]])
-    else:
-        sortorder = argsort_bigtosmall_stable(ScoreVec[eligible_mask])
-
-    sortedCumulNewK = np.cumsum(totalnewK_perEligibleComp[sortorder])
-    nToKeep = np.searchsorted(sortedCumulNewK, maxnewK + 0.0042)
-    if nToKeep > 0:
-        keepIDs = sortorder[:nToKeep]
-        newK = sortedCumulNewK[nToKeep-1]
-    else:
-        # Keep only first one, and limit it to maxnewK num clusters
-        keepIDs = sortorder[:1]    
-        newK = maxnewK
-        nToKeep = 1
-    MovePlans['b_targetUIDs'] = [UIDs[s] for s in keepIDs]
-
-    if nToKeep < len(UIDs):
-        BLogger.pprint(
-            'Selected %d/%d eligible UIDs to track.' % (nToKeep, len(UIDs)) + \
-            '\n Could create up to %d new clusters, %d total clusters.' % (
-                newK, newK + SS.K) + \
-            '\n Total budget allows at most %d clusters (--Kmax).' % (
-                BArgs['Kmax']),
-            )
-    BLogger.pprint('%d/%d UIDs chosen for proposals (ranked by score)' % (
-        len(keepIDs), len(UIDs)))
-    if len(retainPosIDs) > 0:
-        nRetain = len(np.intersect1d(UIDs, retainUIDs))
-        BLogger.pprint("Chose to keep %d/%d eligible retained clusters." % (
-            nRetain, len(retainPosIDs)))
-    lineUID = vec2str(MovePlans['b_targetUIDs'])
-    lineSize = vec2str(SizeVec_all[eligible_mask][keepIDs])
-    lineBatchSize = vec2str(SizeVec_b[eligible_mask][keepIDs])
-    lineScore = vec2str(ScoreVec[eligible_mask][keepIDs])
-    BLogger.pprint([lineUID, lineSize, lineBatchSize, lineScore],
-            prefix=[
-                '%7s' % 'uids',
-                '%7s' % 'size',
-                '%7s' % labelstr,
-                '%7s' % 'score',
-                ],
-            )
-    BLogger.pprint('')
-    return MovePlans
-
-
 
 def canBirthHappenAtLap(lapFrac, b_startLap=-1, b_stopLap=-1, **kwargs):
     ''' Make binary yes/no decision if birth move can happen at provided lap.
