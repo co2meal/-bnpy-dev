@@ -6,7 +6,7 @@
 * [Demos](#markdown-header-demos)
 * [Quick Start](#markdown-header-quick-start)
 * [Academic References](#markdown-header-academic-references)
-* * [NIPS 2015: Paper on HDP-HMMs](#markdown-header-NIPS-2015-paper-on-HDP-HMM)
+* * [NIPS 2015: HDP-HMM paper](#markdown-header-nips-2015-hdp-hmm-paper)
 
 # About
 This python module provides code for training popular clustering models on large datasets. We focus on Bayesian nonparametric models based on the Dirichlet process, but also provide parametric counterparts. 
@@ -141,7 +141,7 @@ Website: [http://cs.brown.edu/people/sudderth/](http://cs.brown.edu/people/sudde
 
 ## Conference publications based on BNPy
 
-#### NIPS 2015 paper on HDP-HMM
+#### NIPS 2015 HDP-HMM paper
 
 * "Scalable adaptation of state complexity for Bayesian nonparametric sequence models." Michael C. Hughes, William Stephenson, and Erik B. Sudderth. NIPS 2015.
 [[paper]](http://michaelchughes.com/papers/HughesStephensonSudderth_NIPS_2015.pdf)
