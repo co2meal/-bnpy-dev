@@ -14,6 +14,7 @@ from .SpecialFuncUtil import logsumexp
 from .VerificationUtil import isEvenlyDivisibleFloat, assert_allclose
 from .ShapeUtil import as1D, as2D, as3D, toCArray
 from .ShapeUtil import argsort_bigtosmall_stable, is_sorted_bigtosmall
+from .ShapeUtil import argsortBigToSmallByTiers
 from .ParallelUtil import numpyToSharedMemArray, sharedMemToNumpyArray
 from .ParallelUtil import sharedMemDictToNumpy, fillSharedMemArray
 
@@ -27,6 +28,7 @@ __all__ = ['RandUtil',
            'LOGTWO', 'LOGTWOPI', 'LOGPI', 'EPS',
            'as1D', 'as2D', 'as3D', 'toCArray',
            'argsort_bigtosmall_stable', 'is_sorted_bigtosmall',
+           'argsortBigToSmallByTiers',
            'numpyToSharedMemArray', 'sharedMemToNumpyArray',
            'sharedMemDictToNumpy', 'fillSharedMemArray',
            ]

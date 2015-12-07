@@ -42,8 +42,12 @@ def argsort_bigtosmall_stable(x, limits=list()):
             limits = limits.tolist()
         if limits[0] != 0:
             limits.insert(0, 0)
-        if limits[-1] != x.size - 1:
-            limits.insert(-1, x.size - 1)
+        if limits[-1] != x.size:
+            limits.append(x.size)
+        limarr = np.asarray(limits)
+        assert is_sorted_bigtosmall(-1 * limarr)
+        assert limarr.min() == 0
+        assert limarr.max() == x.size
         total_order = list()
         for loc in range(len(limits) - 1):
             cur_order = np.argsort(
@@ -85,6 +89,29 @@ def is_sorted_bigtosmall(xvec):
     else:
         # Failure case
         return False
+
+def argsortBigToSmallByTiers(tierAScores, tierBScores):
+    ''' Perform argsort, prioritizing first arr then second arr.
+
+    Example
+    -------
+    >>> AScores = [1, 1, 1, 0, 0]
+    >>> BScores = [6, 5, 4, 8, 7]
+    >>> print argsortBigToSmallByTiers(AScores, BScores)
+    [0 1 2 3 4]
+    >>> AScores = [1, 1, 1, 0, 0, -1, -1, -1]
+    >>> BScores = [6, 5, 4, 8, 7, 11, 1.5, -1.5]
+    >>> print argsortBigToSmallByTiers(AScores, BScores)
+    [0 1 2 3 4 5 6 7]
+    >>> print argsortBigToSmallByTiers(BScores, AScores)
+    [5 3 4 0 1 2 6 7]
+    '''
+    tierAScores = np.asarray(tierAScores, dtype=np.float64)
+    sortids = argsort_bigtosmall_stable(tierAScores)
+    limits = np.flatnonzero(np.diff(tierAScores[sortids]) != 0) + 1
+    sortids = sortids[
+        argsort_bigtosmall_stable(tierBScores, limits=limits)]
+    return sortids
 
 def toCArray(X, dtype=np.float64):
     """ Convert input into numpy array of C-contiguous order.
@@ -187,3 +214,4 @@ def as3D(x):
     while x.ndim < 3:
         x = x[np.newaxis, :]
     return x
+
