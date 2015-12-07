@@ -5,6 +5,7 @@ import os
 from bnpy.ioutil.DataReader import loadDataFromSavedTask, loadLPKwargsFromDisk
 from bnpy.ioutil.DataReader import loadKwargsFromDisk
 from bnpy.ioutil.ModelReader import loadModelForLap
+from bnpy.util import StateSeqUtil
 from bnpy.birthmove.BCreateOneProposal import \
     makeSummaryForBirthProposal_HTMLWrapper
 import bnpy.birthmove.BLogger as BLogger
@@ -35,7 +36,7 @@ def tryBirthForTask(
         taskoutpath=None,
         lap=None, lapFrac=0,
         targetUID=0,
-        batchIDFromDisk=None,
+        batchID=None,
         **kwargs):
     '''
 
@@ -48,9 +49,13 @@ def tryBirthForTask(
         lapFrac = lap
 
     curModel, lapFrac = loadModelForLap(taskoutpath, lapFrac)
-    Data = loadDataFromSavedTask(taskoutpath, batchIDFromDisk=batchIDFromDisk)
+    Data = loadDataFromSavedTask(taskoutpath, batchID=batchID)
+
     LPkwargs = loadLPKwargsFromDisk(taskoutpath)
     SavedBirthKwargs = loadKwargsFromDisk(taskoutpath, 'args-birth.txt')
+
+    if targetUID < 0:
+        targetUID = findCompInModelWithLargestMisalignment(curModel, Data)
 
     BirthArgs = dict(**DefaultBirthArgs)
     BirthArgs.update(SavedBirthKwargs)
@@ -65,6 +70,9 @@ def tryBirthForTask(
         trackDocUsage=1, doPrecompEntropy=1, trackTruncationGrowth=1)
     curLscore = curModel.calc_evidence(SS=curSS)
     
+    print "Target UID: %d" % (targetUID)
+    print "Current count: %.2f" % (curSS.getCountForUID(targetUID))
+
     xSS = makeSummaryForBirthProposal_HTMLWrapper(
         Data, curModel, curLP,
         curSSwhole=curSS,
@@ -103,8 +111,9 @@ def findCompInModelWithLargestMisalignment(model, Data, Zref=None):
         dist[k] = float(nDisagree) / (float(nTotal) + 1e-10)
         print k, dist[k]
     ktarget = np.argmax(dist)
+    korig = AlignInfo['AlignedToOrigMap'][ktarget]
     print 'ktarget %d: %s' % (ktarget, chr(65+ktarget))
-    print '> origk %d' % ( AlignInfo['AlignedToOrigMap'][ktarget])
+    print 'korig %d' % (korig)
     # Determine what is hiding inside of it that shouldnt be
     mask = AZ == ktarget
     nTarget = np.sum(mask)
@@ -114,6 +123,7 @@ def findCompInModelWithLargestMisalignment(model, Data, Zref=None):
         nTrue = np.sum(Zref[mask] == ll)
         print '%d/%d should have true label %d: %s' % (
             nTrue, nTarget, ll, chr(65+ll))
+    return korig
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -122,7 +132,7 @@ if __name__ == '__main__':
     parser.add_argument('--lapFrac', type=float, default=None)
     parser.add_argument('--outputdir', type=str, default='/tmp/')
     parser.add_argument('--targetUID', type=int, default=0)
-    parser.add_argument('--batchIDFromDisk', type=int, default=None)
+    parser.add_argument('--batchID', type=int, default=None)
     for key, val in DefaultBirthArgs.items():
         parser.add_argument('--' + key, type=type(val), default=None)
     args = parser.parse_args()
