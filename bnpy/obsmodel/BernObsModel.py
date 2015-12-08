@@ -66,7 +66,10 @@ class BernObsModel(AbstractObsModel):
         D = self.D
         self.eps_phi = eps_phi
         self.Prior = ParamBag(K=0, D=D)
-        if isinstance(priorMean, str) and priorMean.count("data"):
+        if priorMean is None or priorMean.lower().count('none'):
+            lam1 = np.asarray(lam1, dtype=np.float)
+            lam0 = np.asarray(lam0, dtype=np.float)
+        elif isinstance(priorMean, str) and priorMean.count("data"):
             assert priorScale is not None
             priorScale = float(priorScale)
             if hasattr(Data, 'word_id'):
@@ -79,8 +82,11 @@ class BernObsModel(AbstractObsModel):
             lam1 = priorScale * dataMean
             lam0 = priorScale * (1-dataMean)
         else:
-            lam1 = np.asarray(lam1, dtype=np.float)
-            lam0 = np.asarray(lam0, dtype=np.float)
+            assert priorScale is not None
+            priorScale = float(priorScale)
+            priorMean = np.asarray(priorMean, dtype=np.float64)
+            lam1 = priorScale * priorMean
+            lam0 = priorScale * (1-priorMean)
         if lam1.ndim == 0:
             lam1 = lam1 * np.ones(D)
         if lam0.ndim == 0:
