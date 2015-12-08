@@ -196,9 +196,17 @@ def printTopWordsFromTopics(topics, vocabList, ktarget=None, Ktop=10):
 def plotCompsFromHModel(hmodel, **kwargs):
     ''' Create subplots of top 10 words from each topic, from a trained model.
     '''
-    WordCounts = hmodel.obsModel.Post.lam
-    WordCounts -= hmodel.obsModel.Prior.lam[np.newaxis,:]
-    plotCompsFromWordCounts(WordCounts, **kwargs)
+    if hmodel.getObsModelName().count('Mult'):
+        WordCounts = hmodel.obsModel.Post.lam.copy()
+        WordCounts -= hmodel.obsModel.Prior.lam[np.newaxis,:]
+        plotCompsFromWordCounts(WordCounts, **kwargs)
+    elif hmodel.getObsModelName().count('Bern'):
+        Counts1 = hmodel.obsModel.Post.lam1 - \
+            hmodel.obsModel.Prior.lam1[np.newaxis,:]
+        Counts0 = hmodel.obsModel.Post.lam0 - \
+            hmodel.obsModel.Prior.lam0[np.newaxis,:]
+        plotCompsFromWordCounts(Counts1, **kwargs)
+
 
 def plotCompsFromWordCounts(
         WordCounts, vocabList=None,
@@ -207,7 +215,8 @@ def plotCompsFromWordCounts(
         xlabels=None,
         wordSizeLimit=10,
         Ktop=10, Kmax=32,
-        H=2.2, W=1.5, figH=None, ncols=8):
+        H=2.2, W=1.5, figH=None, ncols=8,
+        **kwargs):
     ''' Create subplots of top 10 words from each topic, from word count array.
 
     Post Condition
@@ -246,7 +255,7 @@ def plotCompsFromWordCounts(
             wctStr = count2str(WordCounts[compID, wID])
             topicMultilineStr += '%s %s\n' % (
                 wctStr, vocabList[wID][:wordSizeLimit])
-        pylab.text(0, 0, topicMultilineStr, fontsize=10, family='monospace')
+        pylab.text(0, 0, topicMultilineStr, fontsize=10, family=u'monospace')
         pylab.xlim([0, 1]);
         pylab.ylim([0, 1]);
         pylab.xticks([])

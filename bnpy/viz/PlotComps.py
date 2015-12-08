@@ -20,6 +20,7 @@ from bnpy.ioutil import ModelReader
 from bnpy.viz.TaskRanker import rankTasksForSingleJobOnDisk
 from bnpy.viz.PlotTrace import taskidsHelpMsg
 from bnpy.viz.PrintTopics import uidsAndCounts2strlist
+from bnpy.ioutil.DataReader import loadDataFromSavedTask
 
 def plotCompsFromHModel(hmodel, **kwargs):
     """ Show plot of learned clusters for provided model.
@@ -33,7 +34,10 @@ def plotCompsFromHModel(hmodel, **kwargs):
         elif hmodel.obsModel.D == 1:
             bnpy.viz.GaussViz.plotGauss1DFromHModel(hmodel, **kwargs)
     elif obsName.count('Bern'):
-        bnpy.viz.BernViz.plotCompsFromHModel(hmodel, **kwargs)
+        if 'vocabList' in kwargs and kwargs['vocabList'] is not None:
+            bnpy.viz.PrintTopics.plotCompsFromHModel(hmodel, **kwargs)
+        else:
+            bnpy.viz.BernViz.plotCompsFromHModel(hmodel, **kwargs)
     elif obsName.count('Mult'):
         if 'vocabList' in kwargs and kwargs['vocabList'] is not None:
             bnpy.viz.PrintTopics.plotCompsFromHModel(hmodel, **kwargs)
@@ -59,6 +63,12 @@ def plotCompsForTask(taskpath, lap=None,
         dataName = taskpath.replace(os.environ['BNPYOUTDIR'],
                                     '').split(os.path.sep)[0]
 
+    # Hack to load vocabulary
+    vocabList = None
+    Data = loadDataFromSavedTask(taskpath)
+    if hasattr(Data, 'vocabList'):
+        vocabList = Data.vocabList
+
     # Load hmodel stored at specified lap
     queryLap = lap
     hmodel, lap = ModelReader.loadModelForLap(taskpath, queryLap)
@@ -66,7 +76,7 @@ def plotCompsForTask(taskpath, lap=None,
         print 'Query lap %.2f unavailable. Using %.2f instead.' \
             % (queryLap, lap)
 
-    plotCompsFromHModel(hmodel, **kwargs)
+    plotCompsFromHModel(hmodel, vocabList=vocabList, **kwargs)
 
 
 def plotCompsForJob(jobpath='', taskids=[1], lap=None,
