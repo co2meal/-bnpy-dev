@@ -57,14 +57,30 @@ class BernObsModel(AbstractObsModel):
             self.CompDims = tuple(CompDims)
         assert isinstance(self.CompDims, tuple)
 
-    def createPrior(self, Data, lam1=1.0, lam0=1.0, eps_phi=1e-14, **kwargs):
+    def createPrior(
+            self, Data, lam1=1.0, lam0=1.0, 
+            priorMean=None, priorScale=None,
+            eps_phi=1e-8, **kwargs):
         ''' Initialize Prior ParamBag attribute.
         '''
         D = self.D
         self.eps_phi = eps_phi
         self.Prior = ParamBag(K=0, D=D)
-        lam1 = np.asarray(lam1, dtype=np.float)
-        lam0 = np.asarray(lam0, dtype=np.float)
+        if isinstance(priorMean, str) and priorMean.count("data"):
+            assert priorScale is not None
+            priorScale = float(priorScale)
+            if hasattr(Data, 'word_id'):
+                X = Data.getDocTypeBinaryMatrix()
+                dataMean = np.mean(X, axis=0)
+            else:
+                dataMean = np.mean(Data.X, axis=0)
+            dataMean = np.minimum(dataMean, 0.95) # Make prior more smooth
+            dataMean = np.maximum(dataMean, 0.05)
+            lam1 = priorScale * dataMean
+            lam0 = priorScale * (1-dataMean)
+        else:
+            lam1 = np.asarray(lam1, dtype=np.float)
+            lam0 = np.asarray(lam0, dtype=np.float)
         if lam1.ndim == 0:
             lam1 = lam1 * np.ones(D)
         if lam0.ndim == 0:
@@ -787,8 +803,21 @@ class BernObsModel(AbstractObsModel):
             if DivDataVec is None:
                 # Compute DivDataVec : 1D array of size N
                 # This is the per-row additive constant indep. of k. 
-                DivDataVec = np.sum(MuX * np.log(MuX), axis=1)
-                DivDataVec += np.sum((1-MuX) * np.log(1-MuX), axis=1)
+
+                # STEP 1: Compute MuX * log(MuX)
+                logMuX = np.log(MuX)
+                MuXlogMuX = logMuX
+                MuXlogMuX *= MuX
+                DivDataVec = np.sum(MuXlogMuX, axis=1)
+                
+                # STEP 2: Compute (1-MuX) * log(1-MuX)
+                OneMinusMuX = MuX
+                OneMinusMuX *= -1
+                OneMinusMuX += 1
+                logOneMinusMuX = logMuX
+                np.log(OneMinusMuX, out=logOneMinusMuX)
+                logOneMinusMuX *= OneMinusMuX
+                DivDataVec += np.sum(logOneMinusMuX, axis=1)
             Div += DivDataVec[:,np.newaxis]
 
         assert np.all(np.isfinite(Div))

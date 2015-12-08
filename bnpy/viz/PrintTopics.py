@@ -201,11 +201,10 @@ def plotCompsFromHModel(hmodel, **kwargs):
         WordCounts -= hmodel.obsModel.Prior.lam[np.newaxis,:]
         plotCompsFromWordCounts(WordCounts, **kwargs)
     elif hmodel.getObsModelName().count('Bern'):
-        Counts1 = hmodel.obsModel.Post.lam1 - \
-            hmodel.obsModel.Prior.lam1[np.newaxis,:]
-        Counts0 = hmodel.obsModel.Post.lam0 - \
-            hmodel.obsModel.Prior.lam0[np.newaxis,:]
-        plotCompsFromWordCounts(Counts1, **kwargs)
+        lam1 = hmodel.obsModel.Post.lam1
+        lam0 = hmodel.obsModel.Post.lam0
+        probs = lam1 / (lam1 + lam0)
+        plotCompsFromWordCounts(probs, **kwargs)
 
 
 def plotCompsFromWordCounts(
