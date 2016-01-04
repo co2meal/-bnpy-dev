@@ -188,9 +188,11 @@ def runKMeans_BregmanDiv(X, K, obsModel, W=None,
             Mu=Mu, smoothFrac=smoothFrac).sum()
         Lscore = Ldata + Lprior
         Lscores.append(Lscore)
-
+        # Verify objective is monotonically increasing
         try:
-            assert np.all(np.diff(Lscores) <= 0)
+            # Test allows small positive increases that are
+            # numerically indistinguishable from zero. Don't care about these.
+            assert np.all(np.diff(Lscores) <= 1e-5)
         except AssertionError:
             msg = 'In the kmeans update loop of FromScratchBregman.py'
             msg += 'Lscores not monotonically decreasing...'
@@ -198,7 +200,7 @@ def runKMeans_BregmanDiv(X, K, obsModel, W=None,
                 logFunc(msg)
             else:
                 print msg
-            assert np.all(np.diff(Lscores) <= 0)
+            assert np.all(np.diff(Lscores) <= 1e-5)
 
         N = np.zeros(K)
         for k in xrange(K):
