@@ -122,8 +122,9 @@ def illustrate(Colors=Colors):
 
     from matplotlib import pylab
     rcParams = pylab.rcParams
+    rcParams['pdf.fonttype'] = 42
     rcParams['ps.fonttype'] = 42
-    rcParams['ps.useafm'] = True
+    rcParams['text.usetex'] = False
     rcParams['xtick.labelsize'] = 20
     rcParams['ytick.labelsize'] = 20
     rcParams['legend.fontsize'] = 25
