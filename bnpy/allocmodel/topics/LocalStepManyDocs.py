@@ -128,7 +128,9 @@ def updateLPGivenDocTopicCount(LP, DocTopicCount,
 
 def updateLPWithResp(LP, Data, Lik, Prior, sumRespTilde, cslice=(0, None)):
     nDoc = calcNumDocFromSlice(Data, cslice)
-    LP['resp'] = Lik.copy()
+    # Create resp array directly from Lik array.
+    # Do not make any copies, to save memory.
+    LP['resp'] = Lik
     slice_start = Data.doc_range[cslice[0]]
     for d in xrange(nDoc):
         start = Data.doc_range[cslice[0] + d] - slice_start
