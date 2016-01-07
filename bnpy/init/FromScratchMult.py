@@ -273,10 +273,9 @@ def _initTopicWordEstParams(obsModel, Data, PRNG, K=0,
         topics, Z = KMeansRex.RunKMeans(X, K, seed=seed,
                                         Niter=25,
                                         initname='plusplus')
-
         # Add in some "smoothing" random noise
         # so that every word has positive probability under every topic.
-        topics += PRNG.rand(K, Data.vocab_size)
+        topics += 0.1 * PRNG.rand(K, Data.vocab_size)
 
     elif initname == 'randomfromarg':
         # Draw K topic-word probability vectors i.i.d. from a Dirichlet
