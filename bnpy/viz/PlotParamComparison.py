@@ -149,7 +149,8 @@ def plotMultipleLinesByLVar(jpathPattern,
     # Make sure all lval values are street legal (aka exist on disk)
     lvals = [ll for ll in lvals if ll == '.best' or ll in PPListMap[lvar]]
 
-    if lvals[0] == '.best':
+    # Do ranking in advance for each relevant job
+    '''if lvals[0] == '.best':
         xvar = kwargs['xvar']
         if 'xvals' in kwargs:
             xvals = kwargs['xvals']
@@ -162,7 +163,7 @@ def plotMultipleLinesByLVar(jpathPattern,
                 PPListMap,
                 prefixfilepath=prefixfilepath, **keyValDict)
             TaskRanker.markBestAmongJobPatternOnDisk(jpatternForXVal)
-
+    '''
     # Create list of jobs with corresponding pattern
     jpathList = makeListOfJPatternsWithSpecificVals(
         PPListMap,
@@ -240,6 +241,25 @@ def plotSingleLineAcrossJobsByXVar(jpathPattern,
         vals=xvals,
         **kwargs)
 
+    plotargs = copy.deepcopy(DefaultLinePlotKwArgs)
+    # Plot all tasks as faint points with no connections
+    for i, jobpath in enumerate(jpathList):
+        if not os.path.exists(jobpath):
+            raise ValueError("PATH NOT FOUND: %s" % (jobpath))
+        x = float(xvals[i])
+
+        for key in plotargs:
+            if key in kwargs:
+                plotargs[key] = kwargs[key]
+        plotargs['markeredgecolor'] = plotargs['color']
+
+        alltaskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
+        for tid in alltaskids:
+            y = loadYValFromDisk(jobpath, tid, yvar=yvar)
+            pylab.plot(x, y, '.', **plotargs)
+        
+
+    # Plot top-ranked tasks as solid points connected by line
     for i, jobpath in enumerate(jpathList):
         if not os.path.exists(jobpath):
             raise ValueError("PATH NOT FOUND: %s" % (jobpath))
@@ -293,8 +313,8 @@ def parse_args(**kwargs):
                         help="quantity that varies across lines")
     parser.add_argument('--pvar', type=str, default=None,
                         help="quantity that varies across subplots")
-    parser.add_argument('--taskid', type=str, default='1',
-                        help="specify which task to plot (.best, .worst, etc)")
+    parser.add_argument('--taskid', type=str, default='.best',
+                        help="specify which task to plot (all, .best, .worst, etc)")
     parser.add_argument(
         '--savefilename', type=str, default=None,
         help="location where to save figure (absolute path directory)")

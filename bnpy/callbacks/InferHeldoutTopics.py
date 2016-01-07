@@ -36,7 +36,7 @@ def evalTopicModelOnTestDataFromTaskpath(
         if key in LPkwargs and kwargs[key] is not None:
             LPkwargs[key] = str2val(kwargs[key])
     # Load saved model
-    if hasattr(Data, 'word_count'):
+    if hasattr(Data, 'word_count') and taskpath.count('Mult'):
         topics, probs, alpha = loadTopicModel(
             taskpath, queryLap=queryLap,
             returnTPA=1, normalizeTopics=1, normalizeProbs=1)
