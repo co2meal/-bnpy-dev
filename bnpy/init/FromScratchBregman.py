@@ -23,9 +23,12 @@ def init_global_params(hmodel, Data, **kwargs):
     '''
     SS, Info = initSS_BregmanDiv(
         Data, hmodel, includeAllocSummary=True, **kwargs)
-    hmodel.allocModel.update_global_params(SS)
     hmodel.obsModel.update_global_params(SS)
     Info['targetSS'] = SS
+    if kwargs['init_NiterForBregmanKMeans'] > 0:
+        hmodel.allocModel.update_global_params(SS)
+    else:
+        hmodel.allocModel.init_global_params(Data, **kwargs)    
     return Info
 
 def initSS_BregmanDiv(
@@ -68,6 +71,10 @@ def initSS_BregmanDiv(
             del kwargs[key]
     if 'NiterForBregmanKMeans' in kwargs:
         NiterForBregmanKMeans = kwargs['NiterForBregmanKMeans']
+    if kwargs['initname'].count('+'):
+        NiterForBregmanKMeans = int(kwargs['initname'].split('+')[1])
+        def logFunc(msg):
+            print msg
     Niter = np.maximum(NiterForBregmanKMeans, 0)
 
     if logFunc:
@@ -115,7 +122,7 @@ def initSS_BregmanDiv(
         assert np.all(xtargetLP['resp'].sum(axis=1) <= \
                       curLPslice['resp'][chosenRespIDs, ktarget] + 1e-5)
     # Summarize the local parameters
-    if includeAllocSummary:
+    if includeAllocSummary and Niter > 0:
         if hasattr(curModel.allocModel, 'initLPFromResp'):
             xtargetLP = curModel.allocModel.initLPFromResp(
                 targetData, xtargetLP)
@@ -173,8 +180,10 @@ def runKMeans_BregmanDiv(X, K, obsModel, W=None,
     # and specified K is larger than the number of unique rows.
     K = len(Mu)
     assert K > 0
-    assert Niter > 0
-
+    assert Niter >= 0
+    if Niter == 0:
+        Z = -1 * np.ones(X.shape[0])
+        Z[chosenZ] = np.arange(chosenZ.size)
     Lscores = list()
     prevN = np.zeros(K)
     for riter in xrange(Niter):
@@ -188,9 +197,11 @@ def runKMeans_BregmanDiv(X, K, obsModel, W=None,
             Mu=Mu, smoothFrac=smoothFrac).sum()
         Lscore = Ldata + Lprior
         Lscores.append(Lscore)
-
+        # Verify objective is monotonically increasing
         try:
-            assert np.all(np.diff(Lscores) <= 0)
+            # Test allows small positive increases that are
+            # numerically indistinguishable from zero. Don't care about these.
+            assert np.all(np.diff(Lscores) <= 1e-5)
         except AssertionError:
             msg = 'In the kmeans update loop of FromScratchBregman.py'
             msg += 'Lscores not monotonically decreasing...'
@@ -198,7 +209,7 @@ def runKMeans_BregmanDiv(X, K, obsModel, W=None,
                 logFunc(msg)
             else:
                 print msg
-            assert np.all(np.diff(Lscores) <= 0)
+            assert np.all(np.diff(Lscores) <= 1e-5)
 
         N = np.zeros(K)
         for k in xrange(K):

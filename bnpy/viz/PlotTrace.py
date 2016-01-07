@@ -134,7 +134,9 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
                            yvar='evidence',
                            markersize=10,
                            linewidth=2,
-                           xvar='laps', **kwargs):
+                           drawLineToXMax=None,
+                           xvar='laps',
+                           **kwargs):
     ''' Create line plot in current figure for each task/run of jobpath
     '''
     if not os.path.exists(jobpath):
@@ -248,6 +250,12 @@ def plot_all_tasks_for_job(jobpath, label, taskids=None,
             plotargs['label'] = label
 
         pylab.plot(xs, ys, lineType, **plotargs)
+        if drawLineToXMax:
+            xs_dashed = np.asarray([xs[-1], drawLineToXMax])
+            ys_dashed = np.asarray([ys[-1], ys[-1]])
+            plotargs['label'] = None
+            pylab.plot(xs_dashed, ys_dashed, '--', **plotargs)
+
 
     pylab.xlabel(LabelMap[xvar])
     if yvar in LabelMap:
