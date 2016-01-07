@@ -12,8 +12,11 @@ results/
 profiler/
 reports/
 build/
+api/
 .ipynb_checkpoints/
 .idea/
+*UtilX.c
+*UtilX.html
 
 # EXCLUDE FILE PATTERNS
 # ---------------------
