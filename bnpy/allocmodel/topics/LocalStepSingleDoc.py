@@ -1,5 +1,6 @@
 from scipy.special import digamma, gammaln
 import numpy as np
+import warnings
 
 
 def calcLocalParams_SingleDoc(
@@ -155,7 +156,7 @@ def removeJunkTopics_SingleDoc(
             pDocTopicCount_d *= pDocTopicProb_d
 
         if np.any(np.isnan(pDocTopicCount_d)):
-            raise Warning('Sparse restart failed because NaN occurred.' + \
+            warnings.warn('Sparse restart failed because NaN occurred.' + \
                 ' Will continue with original, unaffected model. No worries.')
             break
 
@@ -166,7 +167,7 @@ def removeJunkTopics_SingleDoc(
 
         Info['nTrial'] += 1
         if not np.isfinite(propELBO):
-            raise Warning('Sparse restart failed because NaN occurred.' + \
+            warnings.warn('Sparse restart failed because NaN occurred.' + \
                 ' Will continue with original, unaffected model. No worries.')
             break
 
