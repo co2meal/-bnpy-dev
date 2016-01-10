@@ -410,7 +410,7 @@ def parse_task_ids(jobpath, taskids=None, dtype=str):
     import glob
     import numpy as np
 
-    if taskids is None:
+    if taskids is None or taskids == 'all':
         fulltaskpaths = glob.glob(os.path.join(jobpath, '*'))
         taskids = [os.path.split(tpath)[-1] for tpath in fulltaskpaths]
     elif isinstance(taskids, str):

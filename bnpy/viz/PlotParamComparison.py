@@ -214,7 +214,7 @@ def plotSingleLineAcrossJobsByXVar(jpathPattern,
                                    xlabel=None,
                                    yvar='evidence',
                                    lineStyle='.-',
-                                   taskid='.best',
+                                   taskids='.best',
                                    lineID=0,
                                    lvar='',
                                    **kwargs):
@@ -261,14 +261,9 @@ def plotSingleLineAcrossJobsByXVar(jpathPattern,
 
     # Plot top-ranked tasks as solid points connected by line
     for i, jobpath in enumerate(jpathList):
-        if not os.path.exists(jobpath):
-            raise ValueError("PATH NOT FOUND: %s" % (jobpath))
-
-        if taskid.startswith('.'):
-            rankTasksForSingleJobOnDisk(os.path.join(jobpath))
-
+        rankTasksForSingleJobOnDisk(os.path.join(jobpath))
         x = float(xvals[i])
-        y = loadYValFromDisk(jobpath, taskid, yvar=yvar)
+        y = loadYValFromDisk(jobpath, '.best', yvar=yvar)
         assert isinstance(x, float)
         assert isinstance(y, float)
         xs[i] = x
@@ -313,7 +308,7 @@ def parse_args(**kwargs):
                         help="quantity that varies across lines")
     parser.add_argument('--pvar', type=str, default=None,
                         help="quantity that varies across subplots")
-    parser.add_argument('--taskid', type=str, default='.best',
+    parser.add_argument('--taskids', type=str, default='all',
                         help="specify which task to plot (all, .best, .worst, etc)")
     parser.add_argument(
         '--savefilename', type=str, default=None,
@@ -334,4 +329,4 @@ def parse_args(**kwargs):
 
 if __name__ == "__main__":
     argDict = parse_args()
-    plotManyPanelsByPVar(doShowNow=1, **argDict)
+    plotManyPanelsByPVar(doShowNow=1, loc='best',**argDict)
