@@ -154,6 +154,11 @@ def removeJunkTopics_SingleDoc(
             np.dot(wc_d / psumResp_d, Lik_d, out=pDocTopicCount_d)
             pDocTopicCount_d *= pDocTopicProb_d
 
+        if np.any(np.isnan(pDocTopicCount_d)):
+            raise Warning('Sparse restart failed because NaN occurred.' + \
+                ' Will continue with original, unaffected model. No worries.')
+            break
+
         # Evaluate proposal quality via ELBO
         propELBO = calcELBO_SingleDoc(
             pDocTopicCount_d, pDocTopicProb_d, psumResp_d,
@@ -161,8 +166,9 @@ def removeJunkTopics_SingleDoc(
 
         Info['nTrial'] += 1
         if not np.isfinite(propELBO):
-            print 'WARNING! propELBO not finite.'
-            continue
+            raise Warning('Sparse restart failed because NaN occurred.' + \
+                ' Will continue with original, unaffected model. No worries.')
+            break
 
         # Update if accepted!
         if propELBO > curELBO:
@@ -176,6 +182,8 @@ def removeJunkTopics_SingleDoc(
         if nUsed < 2:
             break
 
+    assert np.all(np.isfinite(DocTopicCount_d))
+    assert np.isfinite(curELBO)
     # Package up and return
     Info['finalELBO'] = curELBO
     return DocTopicCount_d, DocTopicProb_d, sumResp_d, Info
