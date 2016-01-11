@@ -18,6 +18,12 @@ libfwdbwd: hasEigenpath
 	g++ FwdBwdRowMajor.cpp -o libfwdbwd.so \
 		--shared -DNDEBUG -O3 -I$(EIGENPATH) -fPIC -w;
 
+libsparseresp: hasEigenpath
+	cd bnpy/util/lib/sparseResp/; \
+	g++ SparsifyRespCPPX.cpp -o libsparseresp.so \
+		--shared -DNDEBUG -O3 -I$(EIGENPATH) -fPIC -w -m32;
+
+
 # Rule: verify that EIGENPATH exists, or instruct user to download it.
 hasEigenpath:
 ifndef EIGENPATH

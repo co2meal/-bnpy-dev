@@ -6,6 +6,10 @@ ext_modules=[
 	Extension("EntropyUtilX",
         ["EntropyUtilX.pyx"],
         libraries=["m"],
+        extra_compile_args = ["-O3", "-ffast-math"]),
+  Extension("SparseRespUtilX",
+        ["SparseRespUtilX.pyx"],
+        libraries=["m"],
         extra_compile_args = ["-O3", "-ffast-math"])
 	]
 
