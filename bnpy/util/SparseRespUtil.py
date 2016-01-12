@@ -22,7 +22,6 @@ def sparsifyResp(resp, nnzPerRow=1):
     return spR_csr
 
 def sparsifyLogResp(logresp, nnzPerRow=1):
-    logresp -= logresp.max(axis=1)[:,np.newaxis]
     if hasCPP:
         spR_csr = sparsifyLogResp_cpp(logresp, nnzPerRow)
     else:
@@ -258,7 +257,6 @@ if __name__ == '__main__':
     parser.add_argument('--prefix', type=str, default='sparsifyResp_')
     parser.add_argument('--nRep', type=int, default=10)
     args = parser.parse_args()
-
     args.nnzList = [int(i) for i in args.nnzList.split(',')]
 
     if args.N * args.K < 1e4:

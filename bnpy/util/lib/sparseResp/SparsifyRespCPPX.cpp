@@ -141,6 +141,9 @@ void sparsifyResp(
     
 }
 
+/*
+Careful to avoid overflow in exp(logResp) by always subtracting maximum value.
+ */
 void sparsifyLogResp(
         double* logResp_IN,
         int nnzPerRow,
@@ -164,21 +167,32 @@ void sparsifyLogResp(
                         curRow.data() + K);
 
         // Walk through original data and find the top "nnzPerRow" positions
+        double maxlogResp_n = curRow(K - 1);
         double pivot = curRow(K - nnzPerRow);
-        double rowsum = 0.0;
         int nzk = 0;
+        int M = n * nnzPerRow;
         for (int k = 0; k < K; k++) {
             if (logResp(n,k) >= pivot) {
-                double resp_nk = exp(logResp(n,k));
-                spR_data(n * nnzPerRow + nzk) = resp_nk;
-                spR_colids(n * nnzPerRow + nzk) = k;
-                rowsum += resp_nk;
+                spR_data(M + nzk) = logResp(n,k);
+                spR_colids(M + nzk) = k;
                 nzk += 1;
+                if (logResp(n,k) > maxlogResp_n) {
+                    maxlogResp_n = logResp(n,k);
+                }
             }
+        }
+        //std::assert(nzk == nnzPerRow);
+
+        // Compute exp of each of the non-zero values in row n
+        double rowsum = 0.0;
+        for (int nzk = 0; nzk < nnzPerRow; nzk++) {
+            int m = M + nzk;
+            spR_data(m) = exp(spR_data(m) - maxlogResp_n);
+            rowsum += spR_data(m);
         }
         // Force all non-zero resp values for row n to sum to one.
         for (int nzk = 0; nzk < nnzPerRow; nzk++) {
-            spR_data(n * nnzPerRow + nzk) /= rowsum;
+            spR_data(M + nzk) /= rowsum;
         }
     }
     

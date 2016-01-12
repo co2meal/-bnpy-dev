@@ -17,12 +17,13 @@ util_entropy:
 libfwdbwd: hasEigenpath
 	cd bnpy/allocmodel/hmm/lib/; \
 	g++ FwdBwdRowMajor.cpp -o libfwdbwd.so \
-		--shared -DNDEBUG -O3 -I$(EIGENPATH) -fPIC -w;
+		--shared -DNDEBUG -O3 -I$(EIGENPATH) -fPIC -w $(PYARCH);
 
 libsparseresp: hasEigenpath
+	echo "$(PYVERSION)"; \
 	cd bnpy/util/lib/sparseResp/; \
 	g++ SparsifyRespCPPX.cpp -o libsparseresp.so \
-		--shared -DNDEBUG -O3 -I$(EIGENPATH) -fPIC -w;
+		--shared -DNDEBUG -O3 -I$(EIGENPATH) -fPIC -w $(PYARCH);
 
 
 # Rule: verify that EIGENPATH exists, or instruct user to download it.
@@ -32,3 +33,14 @@ ifndef EIGENPATH
 			First, install Eigen (v3+) from eigen.tuxfamily.org. \
 			Next, in terminal: export EIGENPATH=/path/to/eigen3/)
 endif
+
+#hasPyVersion:
+#ifndef PYVERSION
+#	$(export PYVERSION=`python -c "import ctypes; print 8 * ctypes.sizeof(ctypes.c_int)"`)
+#	$(export ARCH="-m32"`)
+#if [[ $(PYVERSION) -eq '32' ]]; then
+#	ARCH="-m32"
+#else
+#	ARCH=""
+#fi
+#endif
