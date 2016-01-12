@@ -941,6 +941,7 @@ def calcLocalParams(Data, LP, Elogbeta=None, nnzPerRowLP=None, **kwargs):
     if nnzPerRowLP and (nnzPerRowLP > 0 and nnzPerRowLP < K):
         # SPARSE Assignments
         LP['spR'] = sparsifyLogResp(lpr, nnzPerRow=nnzPerRowLP)
+        assert np.all(np.isfinite(LP['spR'].data))
         LP['nnzPerRow'] = nnzPerRowLP
     else:
         # DENSE Assignments

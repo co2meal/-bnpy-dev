@@ -22,6 +22,7 @@ def sparsifyResp(resp, nnzPerRow=1):
     return spR_csr
 
 def sparsifyLogResp(logresp, nnzPerRow=1):
+    logresp -= logresp.max(axis=1)[:,np.newaxis]
     if hasCPP:
         spR_csr = sparsifyLogResp_cpp(logresp, nnzPerRow)
     else:
