@@ -19,6 +19,43 @@ extern "C" {
         double* spR_data_OUT,
         int* spR_colids_OUT
         );
+
+    void calcRXXT_withSparseRespCSR(
+        double* X_IN,
+        double* spR_data_IN,
+        int* spR_colids_IN,
+        int* spR_rowptr_IN,
+        int D,
+        int K,
+        int N,
+        int nnzPerRow,
+        double* stat_RXX_OUT
+        );
+
+    void calcRXX_withSparseRespCSR(
+        double* X_IN,
+        double* spR_data_IN,
+        int* spR_colids_IN,
+        int* spR_rowptr_IN,
+        int D,
+        int K,
+        int N,
+        int nnzPerRow,
+        double* stat_RXX_OUT
+        );
+
+    void calcRXX_withSparseRespCSC(
+        double* X_IN,
+        double* spR_data_IN,
+        int* spR_rowids_IN,
+        int* spR_colptr_IN,
+        int D,
+        int K,
+        int L,
+        int N,
+        double* stat_RXX_OUT
+        );
+    
 }
 
 // ======================================================== Custom Type Defs
@@ -77,3 +114,83 @@ void sparsifyResp(
     }
     
 }
+
+
+
+void calcRXXT_withSparseRespCSR(
+        double* X_IN,
+        double* spR_data_IN,
+        int* spR_colids_IN,
+        int* spR_rowptr_IN,
+        int D,
+        int K,
+        int N,
+        int nnzPerRow,
+        double* stat_RXX_OUT)
+{
+    ExtArr2D_d X (X_IN, N, D);
+    ExtArr1D_d spR_data (spR_data_IN, N * nnzPerRow);
+    ExtArr1D_i spR_colids (spR_colids_IN, N * nnzPerRow);
+    ExtArr1D_i spR_rowptr (spR_rowptr_IN, K+1);
+    ExtArr2D_d stat_RXX (stat_RXX_OUT, K, D * D);
+    Array<double, Dynamic, Dynamic, RowMajor> xxT;
+    for (int n = 0; n < N; n++) {
+        xxT = X.row(n).matrix().transpose() * X.row(n).matrix();
+        for (int nzk = 0; nzk < nnzPerRow; nzk++) {
+            int l = n * nnzPerRow + nzk;
+            stat_RXX.row(spR_colids(l)) += \
+                spR_data(l) * xxT;
+        }
+    }
+}
+
+void calcRXX_withSparseRespCSR(
+        double* X_IN,
+        double* spR_data_IN,
+        int* spR_colids_IN,
+        int* spR_rowptr_IN,
+        int D,
+        int K,
+        int N,
+        int nnzPerRow,
+        double* stat_RXX_OUT)
+{
+    ExtArr2D_d X (X_IN, N, D);
+    ExtArr1D_d spR_data (spR_data_IN, N * nnzPerRow);
+    ExtArr1D_i spR_colids (spR_colids_IN, N * nnzPerRow);
+    ExtArr1D_i spR_rowptr (spR_rowptr_IN, K+1);
+    ExtArr2D_d stat_RXX (stat_RXX_OUT, K, D);
+    Arr1D_d xsq;
+    for (int n = 0; n < N; n++) {
+        xsq = X.row(n).square();
+        for (int nzk = 0; nzk < nnzPerRow; nzk++) {
+            int l = n * nnzPerRow + nzk;
+            stat_RXX.row(spR_colids(l)) += \
+                spR_data(l) * xsq;
+        }
+    }
+}
+
+void calcRXX_withSparseRespCSC(
+        double* X_IN,
+        double* spR_data_IN,
+        int* spR_rowids_IN,
+        int* spR_colptr_IN,
+        int D,
+        int K,
+        int L,
+        int N,
+        double* stat_RXX_OUT)
+{
+    ExtArr2D_d X (X_IN, N, D);
+    ExtArr1D_d spR_data (spR_data_IN, L);
+    ExtArr1D_i spR_rowids (spR_rowids_IN, L);
+    ExtArr1D_i spR_colptr (spR_colptr_IN, K+1);
+    ExtArr2D_d stat_RXX (stat_RXX_OUT, K, D);
+    for (int k = 0; k < K; k++) {
+        for (int n = spR_colptr[k]; n < spR_colptr[k+1]; n++) {
+            stat_RXX.row(k) += spR_data(n) * X.row(spR_rowids(n)).square();
+        }
+    }
+}
+

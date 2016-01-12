@@ -41,6 +41,71 @@ def sparsifyResp_cpp(Resp, nnzPerRow, order='C'):
     return spR
 
 
+def calcRXXT_withSparseRespCSR_cpp(
+        X=None, spR_csr=None, order='C', **kwargs):
+    if not hasEigenLibReady:
+        raise ValueError("Cannot find library %s. Please recompile."
+                         % (libfilename))
+    if order != 'C':
+        raise NotImplementedError("LibFwdBwd only supports row-major order.")
+    N, K = spR_csr.shape
+    N1, D = X.shape
+    assert N == N1
+    nnzPerRow = spR_csr.data.size // N
+    X = np.asarray(X, order=order)
+    stat_RXX = np.zeros((K, D, D), order=order)
+    lib.calcRXXT_withSparseRespCSR(
+        X, spR_csr.data, spR_csr.indices, spR_csr.indptr,
+        D, K, N, nnzPerRow,
+        stat_RXX)
+    return stat_RXX
+
+
+def calcRXX_withSparseRespCSC_cpp(
+        X=None, spR_csc=None, order='C', **kwargs):
+    if not hasEigenLibReady:
+        raise ValueError("Cannot find library %s. Please recompile."
+                         % (libfilename))
+    if order != 'C':
+        raise NotImplementedError("LibFwdBwd only supports row-major order.")
+    N, K = spR_csc.shape
+    N1, D = X.shape
+    assert N == N1
+    L = spR_csc.data.size
+
+    X = np.asarray(X, order=order)
+    
+    stat_RXX = np.zeros((K, D), order=order)
+
+    lib.calcRXX_withSparseRespCSC(
+        X, spR_csc.data, spR_csc.indices, spR_csc.indptr,
+        D, K, L, N,
+        stat_RXX)
+    return stat_RXX
+
+def calcRXX_withSparseRespCSR_cpp(
+        X=None, spR_csr=None, order='C', **kwargs):
+    if not hasEigenLibReady:
+        raise ValueError("Cannot find library %s. Please recompile."
+                         % (libfilename))
+    if order != 'C':
+        raise NotImplementedError("LibFwdBwd only supports row-major order.")
+    N, K = spR_csr.shape
+    N1, D = X.shape
+    assert N == N1
+    nnzPerRow = spR_csr.data.size // N
+
+    X = np.asarray(X, order=order)
+    stat_RXX = np.zeros((K, D), order=order)
+
+    lib.calcRXX_withSparseRespCSR(
+        X, spR_csr.data, spR_csr.indices, spR_csr.indptr,
+        D, K, N, nnzPerRow,
+        stat_RXX)
+    return stat_RXX
+
+
+
 ''' This block of code loads the shared library and defines wrapper functions
     that can take numpy array objects.
 '''
@@ -58,6 +123,45 @@ try:
          ctypes.c_int,
          ndpointer(ctypes.c_double),
          ndpointer(ctypes.c_int),
+         ]
+
+    lib.calcRXXT_withSparseRespCSR.restype = None
+    lib.calcRXXT_withSparseRespCSR.argtypes = \
+        [ndpointer(ctypes.c_double),
+         ndpointer(ctypes.c_double),
+         ndpointer(ctypes.c_int),
+         ndpointer(ctypes.c_int),
+         ctypes.c_int,
+         ctypes.c_int,
+         ctypes.c_int,
+         ctypes.c_int,
+         ndpointer(ctypes.c_double),
+         ]
+
+    lib.calcRXX_withSparseRespCSR.restype = None
+    lib.calcRXX_withSparseRespCSR.argtypes = \
+        [ndpointer(ctypes.c_double),
+         ndpointer(ctypes.c_double),
+         ndpointer(ctypes.c_int),
+         ndpointer(ctypes.c_int),
+         ctypes.c_int,
+         ctypes.c_int,
+         ctypes.c_int,
+         ctypes.c_int,
+         ndpointer(ctypes.c_double),
+         ]
+
+    lib.calcRXX_withSparseRespCSC.restype = None
+    lib.calcRXX_withSparseRespCSC.argtypes = \
+        [ndpointer(ctypes.c_double),
+         ndpointer(ctypes.c_double),
+         ndpointer(ctypes.c_int),
+         ndpointer(ctypes.c_int),
+         ctypes.c_int,
+         ctypes.c_int,
+         ctypes.c_int,
+         ctypes.c_int,
+         ndpointer(ctypes.c_double),
          ]
 except OSError:
     # No compiled C++ library exists

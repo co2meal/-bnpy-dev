@@ -10,7 +10,6 @@ from lib.sparseResp.LibSparseResp import sparsifyResp_cpp
 
 def sparsifyResp(resp, nnzPerRow=1, sparse_format='csc'):
 	spR_csr = sparsifyResp_cpp(resp, nnzPerRow)
-
 	if sparse_format == 'csc':
 		return spR_csr.tocsc()
 	return spR_csr
