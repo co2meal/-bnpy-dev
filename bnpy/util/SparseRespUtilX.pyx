@@ -9,7 +9,7 @@ http://nealhughes.net/cython1/
 
 import numpy as np
 
-def calcSpRData_cython(double[:,:] R, int[:,:] ColIDs, int nnzPerRow):
+def calcSpRData_cython(double[:,:] R, long[:,:] ColIDs, int nnzPerRow):
     """
     """
     cdef int N = R.shape[0]

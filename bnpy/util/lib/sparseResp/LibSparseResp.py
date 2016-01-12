@@ -8,7 +8,7 @@ import ctypes
 import scipy.sparse
 
 def sparsifyResp_cpp(Resp, nnzPerRow, order='C'):
-    ''' Forward algorithm for a single HMM sequence. Implemented in C++/Eigen.
+    '''
     '''
     if not hasEigenLibReady:
         raise ValueError("Cannot find library %s. Please recompile."
@@ -40,6 +40,69 @@ def sparsifyResp_cpp(Resp, nnzPerRow, order='C'):
         )
     return spR
 
+def sparsifyLogResp_cpp(logResp, nnzPerRow, order='C'):
+    '''
+    '''
+    if not hasEigenLibReady:
+        raise ValueError("Cannot find library %s. Please recompile."
+                         % (libfilename))
+    if order != 'C':
+        raise NotImplementedError("LibFwdBwd only supports row-major order.")
+    N, K = logResp.shape
+    if nnzPerRow == 1:
+        # Fast case. No need for C++ code.
+        spR_colids = np.argmax(logResp, axis=1)
+        spR_data = np.ones(N, dtype=np.float64)
+    else:
+        # Prep input to C++ routine. Verify correct byte-order (row-major).
+        logResp = np.asarray(logResp, order=order)
+        # Allocate output arrays, initialized to all zeros
+        spR_data = np.zeros(N * nnzPerRow, dtype=np.float64, order=order)
+        spR_colids = np.zeros(N * nnzPerRow, dtype=np.int32, order=order)
+        # Execute C++ code (fills in outputs in-place)
+        lib.sparsifyLogResp(logResp, nnzPerRow, N, K, spR_data, spR_colids)
+
+    # Here, both spR_data and spR_colids have been created
+    # Assemble these into a row-based sparse matrix (scipy object)
+    spR_indptr = np.arange(0, N * nnzPerRow + nnzPerRow, 
+                           step=nnzPerRow, dtype=spR_colids.dtype)
+    spR = scipy.sparse.csr_matrix(
+        (spR_data, spR_colids, spR_indptr),
+        shape=(N,K),
+        )
+    return spR
+
+
+def calcRlogR_withSparseRespCSR_cpp(
+        spR_csr=None, nnzPerRow=-1, order='C', **kwargs):
+    '''
+    '''
+    if not hasEigenLibReady:
+        raise ValueError("Cannot find library %s. Please recompile."
+                         % (libfilename))
+    if order != 'C':
+        raise NotImplementedError("LibFwdBwd only supports row-major order.")
+
+    assert spR_csr is not None
+    N, K = spR_csr.shape
+    if nnzPerRow == 1:
+        # Fast case. No need for C++ code.
+        return 0.0
+    elif nnzPerRow > 1 and nnzPerRow <= K:
+        # Preallocate memory
+        Hvec_OUT = np.zeros(K, dtype=np.float64)
+        # Execute C++ code (fills in output array Hvec_OUT in-place)
+        lib.calcRlogR_withSparseRespCSR(
+            spR_csr.data,
+            spR_csr.indices,
+            spR_csr.indptr,
+            K,
+            N,
+            nnzPerRow,
+            Hvec_OUT)
+        return Hvec_OUT
+    else:
+        raise ValueError("Bad nnzPerRow value %d. Need >= 1" % (nnzPerRow))
 
 def calcRXXT_withSparseRespCSR_cpp(
         X=None, spR_csr=None, order='C', **kwargs):
@@ -114,7 +177,10 @@ libfilename = 'libsparseresp.so'
 hasEigenLibReady = True
 
 try:
+    # Load the compiled C++ library from disk
     lib = ctypes.cdll.LoadLibrary(os.path.join(libpath, libfilename))
+
+    # Now specify each function's signature
     lib.sparsifyResp.restype = None
     lib.sparsifyResp.argtypes = \
         [ndpointer(ctypes.c_double),
@@ -123,6 +189,27 @@ try:
          ctypes.c_int,
          ndpointer(ctypes.c_double),
          ndpointer(ctypes.c_int),
+         ]
+
+    lib.sparsifyLogResp.restype = None
+    lib.sparsifyLogResp.argtypes = \
+        [ndpointer(ctypes.c_double),
+         ctypes.c_int,
+         ctypes.c_int,
+         ctypes.c_int,
+         ndpointer(ctypes.c_double),
+         ndpointer(ctypes.c_int),
+         ]
+
+    lib.calcRlogR_withSparseRespCSR.restype = None
+    lib.calcRlogR_withSparseRespCSR.argtypes = \
+        [ndpointer(ctypes.c_double),
+         ndpointer(ctypes.c_int),
+         ndpointer(ctypes.c_int),
+         ctypes.c_int,
+         ctypes.c_int,
+         ctypes.c_int,
+         ndpointer(ctypes.c_double),
          ]
 
     lib.calcRXXT_withSparseRespCSR.restype = None

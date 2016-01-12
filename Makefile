@@ -12,7 +12,8 @@ util_entropy:
 # -O3 : level 3 optimizations make this code blazing fast
 # --shared -fPIC : build shared library, which is callable from Python
 # -I$EIGENPATH : set the include path so Eigen library can be found
-# -w : disable all warnings (makes for cleaner output).
+# -w : disable all warnings (makes for cleaner output)
+# -DNDEBUG : disable all eigen assertions and other runtime checks
 libfwdbwd: hasEigenpath
 	cd bnpy/allocmodel/hmm/lib/; \
 	g++ FwdBwdRowMajor.cpp -o libfwdbwd.so \
@@ -21,7 +22,7 @@ libfwdbwd: hasEigenpath
 libsparseresp: hasEigenpath
 	cd bnpy/util/lib/sparseResp/; \
 	g++ SparsifyRespCPPX.cpp -o libsparseresp.so \
-		--shared -DNDEBUG -O3 -I$(EIGENPATH) -fPIC -w -m32;
+		--shared -DNDEBUG -O3 -I$(EIGENPATH) -fPIC -w;
 
 
 # Rule: verify that EIGENPATH exists, or instruct user to download it.

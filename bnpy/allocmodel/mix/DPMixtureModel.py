@@ -9,7 +9,9 @@ from bnpy.suffstats import SuffStatBag
 from bnpy.util import NumericUtil
 from bnpy.util import gammaln, digamma, EPS
 from bnpy.util.StickBreakUtil import beta2rho
-
+from bnpy.util.SparseRespUtil import sparsifyLogResp
+from bnpy.util.SparseRespStatsUtil import calcSparseRlogR
+from bnpy.util.ShapeUtil import toCArray, as1D
 ELBOTermDimMap = dict(
     Hresp='K',
 )
@@ -62,9 +64,18 @@ def calcELBO_NonlinearTerms(SS=None, LP=None,
         if SS is not None and SS.hasELBOTerm('Hresp'):
             Hresp = SS.getELBOTerm('Hresp')
         else:
-            if LP is not None:
-                resp = LP['resp']
-            Hresp = -1 * NumericUtil.calcRlogR(resp)
+            if LP is not None and 'spR' in LP:
+                nnzPerRow = LP['nnzPerRow']
+                if nnzPerRow > 1:
+                    # handles multiply by -1 already
+                    Hresp = calcSparseRlogR(**LP) 
+                    assert np.all(np.isfinite(Hresp))
+                else:
+                    Hresp = 0.0
+            else:
+                if LP is not None and 'resp' in LP:
+                    resp = LP['resp']
+                Hresp = -1 * NumericUtil.calcRlogR(resp)
     if returnMemoizedDict:
         return dict(Hresp=Hresp)
     Lentropy = Hresp.sum()
@@ -904,7 +915,7 @@ class DPMixtureModel(AllocModel):
     # .... end class DPMixtureModel
 
 
-def calcLocalParams(Data, LP, Elogbeta=None, **kwargs):
+def calcLocalParams(Data, LP, Elogbeta=None, nnzPerRowLP=None, **kwargs):
     ''' Compute local parameters for each data item.
 
     Parameters
@@ -926,10 +937,17 @@ def calcLocalParams(Data, LP, Elogbeta=None, **kwargs):
     '''
     lpr = LP['E_log_soft_ev']
     lpr += Elogbeta
-    # Calculate exp in numerically stable manner (first subtract the max)
-    #  perform this in-place so no new allocations occur
-    NumericUtil.inplaceExpAndNormalizeRows(lpr)
-    LP['resp'] = lpr
+    K = LP['E_log_soft_ev'].shape[1]
+    if nnzPerRowLP and (nnzPerRowLP > 0 and nnzPerRowLP < K):
+        # SPARSE Assignments
+        LP['spR'] = sparsifyLogResp(lpr, nnzPerRow=nnzPerRowLP)
+        LP['nnzPerRow'] = nnzPerRowLP
+    else:
+        # DENSE Assignments
+        # Calculate exp in numerically stable manner (first subtract the max)
+        #  perform this in-place so no new allocations occur
+        NumericUtil.inplaceExpAndNormalizeRows(lpr)
+        LP['resp'] = lpr
     return LP
 
 
@@ -974,18 +992,26 @@ def calcSummaryStats(Data, LP,
         M = len(mPairIDs)
     else:
         M = 0
-    Nvec = np.sum(LP['resp'], axis=0)
-    K = Nvec.size
+    if 'resp' in LP:
+        Nvec = np.sum(LP['resp'], axis=0)
+        K = Nvec.size
+    else:
+        # Sparse assignment case
+        Nvec = as1D(toCArray(LP['spR'].sum(axis=0)))
+        K = LP['spR'].shape[1]
+
     if hasattr(Data, 'dim'):
         SS = SuffStatBag(K=K, D=Data.dim, M=M)
     else:
         SS = SuffStatBag(K=K, D=Data.vocab_size, M=M)
-
     SS.setField('N', Nvec, dims=('K'))
 
     if doPrecompEntropy:
         Mdict = calcELBO_NonlinearTerms(LP=LP, returnMemoizedDict=1)
-        SS.setELBOTerm('Hresp', Mdict['Hresp'], dims=('K'))
+        if type(Mdict['Hresp']) == float:
+            SS.setELBOTerm('Hresp', Mdict['Hresp'], dims=None)
+        else:
+            SS.setELBOTerm('Hresp', Mdict['Hresp'], dims=('K',))
 
     if doPrecompMergeEntropy:
         resp = LP['resp']

@@ -7,7 +7,7 @@ from bnpy.util import LOGTWO, LOGPI, LOGTWOPI, EPS
 from bnpy.util import dotATA, dotATB, dotABT
 from bnpy.util import as1D, as2D, as3D
 from bnpy.util import numpyToSharedMemArray, fillSharedMemArray
-
+from bnpy.util.SparseRespStatsUtil import calcSpRXXT
 from AbstractObsModel import AbstractObsModel
 from GaussObsModel import createECovMatFromUserInput
 
@@ -952,24 +952,40 @@ def calcSummaryStats(Data, SS, LP, **kwargs):
     SS : SuffStatBag object, with K components.
     '''
     X = Data.X
-    resp = LP['resp']
-    K = resp.shape[1]
     D = Data.dim
+    if 'resp' in LP:
+        resp = LP['resp']
+        K = resp.shape[1]
+        # Compute expected outer-product statistic
+        S_xxT = np.zeros((K, Data.dim, Data.dim))
+        sqrtResp_k = np.sqrt(resp[:, 0])
+        sqrtRX_k = sqrtResp_k[:, np.newaxis] * Data.X
+        S_xxT[0] = dotATA(sqrtRX_k)
+        for k in xrange(1, K):
+            np.sqrt(resp[:, k], out=sqrtResp_k)
+            np.multiply(sqrtResp_k[:, np.newaxis], Data.X, out=sqrtRX_k)
+            S_xxT[k] = dotATA(sqrtRX_k)
+
+        sqrtResp = np.sqrt(resp)
+        xxT = np.zeros((K, D, D))
+        for k in xrange(K):
+            xxT[k] = dotATA(sqrtResp[:, k][:, np.newaxis] * Data.X)
+        assert np.allclose(xxT, S_xxT)
+    else:
+        spR = LP['spR']
+        K = spR.shape[1]
+        # Compute expected outer-product statistic
+        S_xxT = calcSpRXXT(X=X, spR_csr=spR)
 
     if SS is None:
         SS = SuffStatBag(K=K, D=D)
-
+    # Expected outer-product for each state k
+    SS.setField('xxT', S_xxT, dims=('K', 'D', 'D'))
     # Expected count for each k
     #  Usually computed by allocmodel. But just in case...
     if not hasattr(SS, 'N'):
         SS.setField('N', np.sum(resp, axis=0), dims='K')
 
-    # Expected outer-product for each k
-    sqrtResp = np.sqrt(resp)
-    xxT = np.zeros((K, D, D))
-    for k in xrange(K):
-        xxT[k] = dotATA(sqrtResp[:, k][:, np.newaxis] * Data.X)
-    SS.setField('xxT', xxT, dims=('K', 'D', 'D'))
     return SS
 
 

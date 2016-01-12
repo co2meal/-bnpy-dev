@@ -422,6 +422,9 @@ def parse_task_ids(jobpath, taskids=None, dtype=str):
                 raise ValueError("Bad taskids specification")
             fields = np.int32(np.asarray(fields))
             taskids = np.arange(fields[0], fields[1] + 1).tolist()
+        elif taskids.startswith('.'):
+            # Special case: '.worst' or '.best'
+            return [taskids]
     # Convert to list of ints
     try:
         if not isinstance(taskids, list):

@@ -92,7 +92,9 @@ def plotCompsForJob(jobpath='', taskids=[1], lap=None,
     if not os.path.isdir(jobpath):
         raise ValueError('Not valid path: ' + jobpath_originalarg)
 
+    print taskids
     taskids = BNPYArgParser.parse_task_ids(jobpath, taskids)
+    print taskids
     for tt, taskid in enumerate(taskids):
         if tt == 0 and isinstance(taskid, str):
             if taskid.startswith('.'):
