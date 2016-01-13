@@ -68,8 +68,8 @@ def init_global_params(obsModel, Data, K=0, seed=0,
             if sum_minDistVec > 0:
                 p = minDistVec / sum_minDistVec
             else:
-                D = minDistVec.size
-                p = 1.0 / D * np.ones(D)
+                DD = minDistVec.size
+                p = 1.0 / DD * np.ones(DD)
             objID = PRNG.choice(N, p=p)
             chosenObjIDs.append(objID)
         resp = np.zeros((N, K))
@@ -130,6 +130,6 @@ def init_global_params(obsModel, Data, K=0, seed=0,
     # we summarize into sufficient statistics
     # then perform one global step (M step) to get initial global params
     tempLP = dict(resp=resp)
-    SS = SuffStatBag(K=K, D=D)
+    SS = SuffStatBag(K=K, D=Data.dim)
     SS = obsModel.get_global_suff_stats(Data, SS, tempLP)
     obsModel.update_global_params(SS)

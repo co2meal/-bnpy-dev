@@ -400,25 +400,11 @@ class BernObsModel(AbstractObsModel):
         '''
         # ElogphiT : vocab_size x K
         ElogphiT, Elog1mphiT = self.GetCached('E_logphiT_log1mphiT', 'all')
-
-        if hasattr(Data, 'X'):
-            # Matrix-matrix product, result is N x K
-            C = np.tensordot(Data.X, ElogphiT, axes=1) + \
-                np.tensordot(1.0 - Data.X, Elog1mphiT, axes=1)
-        else:
-            if self.DataAtomType == 'doc':
-                X = Data.getSparseDocTypeBinaryMatrix()
-                C = X * ElogphiT
-                C_1mX = Elog1mphiT.sum(axis=0)[np.newaxis, :] - X * Elog1mphiT
-                C += C_1mX
-            else:
-                C = np.tile(Elog1mphiT, (Data.nDoc, 1))
-                for d in xrange(Data.nDoc):
-                    start_d = Data.vocab_size * d
-                    words_d = Data.word_id[
-                        Data.doc_range[d]:Data.doc_range[d+1]]
-                    C[start_d + words_d, :] = ElogphiT[words_d, :]
-        return C
+        return calcLogSoftEvMatrix_FromPost(
+            Data,
+            ElogphiT=ElogphiT,
+            Elog1mphiT=Elog1mphiT,
+            DataAtomType=self.DataAtomType, **kwargs)
 
     def calcELBO_Memoized(self, SS, returnVec=0, afterMStep=False):
         """ Calculate obsModel's objective using suff stats SS and Post.
@@ -926,10 +912,11 @@ def calcLocalParams(Dslice, **kwargs):
     return dict(E_log_soft_ev=E_log_soft_ev)
 
 
-def calcLogSoftEvMatrix_FromPost(Dslice,
+def calcLogSoftEvMatrix_FromPost(Data,
                                  ElogphiT=None,
                                  Elog1mphiT=None,
                                  K=None,
+                                 DataAtomType='doc',
                                  **kwargs):
     ''' Calculate expected log soft ev matrix.
 
@@ -939,7 +926,7 @@ def calcLogSoftEvMatrix_FromPost(Dslice,
 
     Data Args
     ---------
-    Dslice : data-like
+    Data : bnpy Data object
 
     Returns
     ------
@@ -947,16 +934,30 @@ def calcLogSoftEvMatrix_FromPost(Dslice,
     '''
     if K is None:
         K = ElogphiT.shape[1]
-    # Matrix-matrix product, result is N x K
-    if ElogphiT.ndim == 2:
-        L = np.dot(Dslice.X, ElogphiT[:, :K]) + \
-            np.dot(1.0 - Dslice.X, Elog1mphiT[:, :K])
+    if hasattr(Data, 'X'):
+        if ElogphiT.ndim == 2:
+            # Typical case
+            C = np.dot(Data.X, ElogphiT[:, :K]) + \
+                np.dot(1.0 - Data.X, Elog1mphiT[:, :K])
+        else:
+            # Relational case
+            C = np.tensordot(Data.X, ElogphiT[:, :K, :K], axes=1) + \
+                np.tensordot(1.0 - Data.X, Elog1mphiT[:, :K, :K], axes=1)
     else:
-        L = np.tensordot(Dslice.X, ElogphiT[:, :K, :K], axis=1) + \
-            np.tensordot(1.0 - Dslice.X, Elog1mphiT[:, :K, :K], axis=1)
-
-    return L
-
+        assert Elog1mphiT.ndim == 2
+        if DataAtomType == 'doc':
+            X = Data.getSparseDocTypeBinaryMatrix()
+            C = X * ElogphiT
+            C_1mX = Elog1mphiT.sum(axis=0)[np.newaxis, :] - X * Elog1mphiT
+            C += C_1mX
+        else:
+            C = np.tile(Elog1mphiT, (Data.nDoc, 1))
+            for d in xrange(Data.nDoc):
+                start_d = Data.vocab_size * d
+                words_d = Data.word_id[
+                    Data.doc_range[d]:Data.doc_range[d+1]]
+                C[start_d + words_d, :] = ElogphiT[words_d, :]
+    return C
 
 def calcSummaryStats(Dslice, SS, LP, DataAtomType='doc', **kwargs):
     ''' Calculate summary statistics for given dataset and local parameters
@@ -965,34 +966,43 @@ def calcSummaryStats(Dslice, SS, LP, DataAtomType='doc', **kwargs):
     --------
     SS : SuffStatBag object, with K components.
     '''
-    Resp = LP['resp']
-    if Resp.ndim == 2:
-        CompDims = ('K',)  # typical case
-    elif Resp.ndim == 3:
-        CompDims = ('K', 'K')  # relational data
-    N = Resp.shape[0]
-
-    if hasattr(Dslice, 'X'):
-        X = Dslice.X  # 2D array, N x D
-    elif DataAtomType == 'doc' or Dslice.nDoc == N:
-        X = Dslice.getSparseDocTypeBinaryMatrix()
-    elif DataAtomType == 'word':
-        X = None
+    if 'resp' in LP:
+        N = LP['resp'].shape[0]
+        K = LP['resp'].shape[1]
+        if LP['resp'].ndim == 2:
+            CompDims = ('K',)  # typical case
+        else:
+            assert LP['resp'].ndim == 3
+            CompDims = ('K', 'K')  # relational data
     else:
-        raise ValueError("Bad situation.")
+        assert 'spR' in LP
+        N, K = LP['spR'].shape
+        CompDims = ('K',)
 
     if SS is None:
-        SS = SuffStatBag(K=LP['resp'].shape[1], D=Dslice.dim)
+        SS = SuffStatBag(K=K, D=Dslice.dim)
     if not hasattr(SS, 'N'):
-        SS.setField('N', np.sum(LP['resp'], axis=0), dims=CompDims)
+        if 'resp' in LP:
+            SS.setField('N', np.sum(LP['resp'], axis=0), dims=CompDims)
+        else:
+            SS.setField('N', LP['spR'].sum(axis=0), dims=CompDims)
 
-    if isinstance(X, np.ndarray):
-        # Matrix-matrix product, result is K x D (or KxKxD if relational)
-        CountON = np.tensordot(Resp.T, X, axes=1)
-        CountOFF = np.tensordot(Resp.T, 1 - X, axes=1)
+    if hasattr(Dslice, 'X'):
+        X = Dslice.X
+        if 'resp' in LP:
+            # Matrix-matrix product, result is K x D (or KxKxD if relational)
+            CountON = np.tensordot(LP['resp'].T, X, axes=1)
+            CountOFF = np.tensordot(LP['resp'].T, 1 - X, axes=1)
+        else:
+            CountON = LP['spR'].T * X
+            CountOFF = LP['spR'].T * (1 - X)
     elif DataAtomType == 'doc' or Dslice.nDoc == N:
-        # Sparse matrix product
-        CountON = Resp.T * X
+        X = Dslice.getSparseDocTypeBinaryMatrix()
+        if 'resp' in LP:
+            # Sparse matrix product
+            CountON = LP['resp'].T * X
+        else:
+            CountON = (LP['spR'].T * X).toarray()
         CountOFF = SS.N[:, np.newaxis] - CountON
     else:
         CountON = np.zeros((SS.K, Dslice.vocab_size))
@@ -1000,11 +1010,12 @@ def calcSummaryStats(Dslice, SS, LP, DataAtomType='doc', **kwargs):
         for d in xrange(Dslice.nDoc):
             words_d = Dslice.word_id[
                 Dslice.doc_range[d]:Dslice.doc_range[d+1]]
-
             rstart_d = d * Dslice.vocab_size
             rstop_d = (d+1) * Dslice.vocab_size
-            Count_d = Resp[rstart_d:rstop_d, :].T
-
+            if 'resp' in LP:
+                Count_d = Resp[rstart_d:rstop_d, :].T
+            else:
+                raise NotImplementedError("TODO")
             CountOFF += Count_d
             CountON[:, words_d] += Count_d[:, words_d]
             CountOFF[:, words_d] -= Count_d[:, words_d]
