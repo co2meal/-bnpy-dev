@@ -7,7 +7,7 @@ from bnpy.util import LOGTWO, LOGPI, LOGTWOPI, EPS
 from bnpy.util import dotATA, dotATB, dotABT
 from bnpy.util import as1D, as2D
 from bnpy.util import numpyToSharedMemArray, fillSharedMemArray
-
+from bnpy.util.SparseRespStatsUtil import calcRXX_withDenseResp, calcSpRXX
 from AbstractObsModel import AbstractObsModel
 from GaussObsModel import createECovMatFromUserInput
 
@@ -1081,22 +1081,33 @@ def calcSummaryStats(Data, SS, LP, **kwargs):
     SS : SuffStatBag object, with K components.
     '''
     X = Data.X
-    resp = LP['resp']
-    K = resp.shape[1]
-
+    if 'resp' in LP:
+        resp = LP['resp']
+        K = resp.shape[1]
+        # 1/2: Compute mean statistic
+        S_x = dotATB(resp, X)
+        # 2/2: Compute expected outer-product statistic
+        S_xx = calcRXX_withDenseResp(resp, X)
+    else:
+        spR = LP['spR']
+        K = spR.shape[1]
+        # 1/2: Compute mean statistic
+        S_x = spR.T * X
+        # 2/2: Compute expected outer-product statistic
+        S_xx = calcSpRXX(X=X, spR_csr=spR)
     if SS is None:
         SS = SuffStatBag(K=K, D=Data.dim)
-
+    # Expected mean for each state k
+    SS.setField('x', S_x, dims=('K', 'D'))
+    # Expected sum-of-squares for each state k
+    SS.setField('xx', S_xx, dims=('K', 'D'))
     # Expected count for each k
     #  Usually computed by allocmodel. But just in case...
     if not hasattr(SS, 'N'):
-        SS.setField('N', np.sum(resp, axis=0), dims='K')
-
-    # Expected mean for each k
-    SS.setField('x', dotATB(resp, X), dims=('K', 'D'))
-
-    # Expected sum-of-squares for each k
-    SS.setField('xx', dotATB(resp, np.square(X)), dims=('K', 'D'))
+        if 'resp' in LP:
+            SS.setField('N', LP['resp'].sum(axis=0), dims='K')
+        else:
+            SS.setField('N', LP['spR'].sum(axis=0), dims='K')
     return SS
 
 

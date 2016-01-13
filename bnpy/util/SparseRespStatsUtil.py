@@ -32,6 +32,17 @@ def calcSparseRlogR(spR=None, nnzPerRow=-1, **kwargs):
     return calcRlogR_withSparseRespCSR_cpp(spR_csr=spR, nnzPerRow=nnzPerRow)
 
 
+def calcSpRXX(X=None, spR_csr=None, **kwargs):
+    ''' Compute expected sum-of-squares statistic for each state.
+
+    Returns
+    -------
+    S_xx : 3D array, K x D
+    '''
+    if not hasCPPLib:
+        raise ValueError("Required compiled C++ library not found.")
+    return calcRXX_withSparseRespCSR_cpp(X, spR_csr)
+
 def calcSpRXXT(X=None, spR_csr=None, **kwargs):
     ''' Compute expected outer-product statistic for each state.
 
@@ -42,7 +53,6 @@ def calcSpRXXT(X=None, spR_csr=None, **kwargs):
     if not hasCPPLib:
         raise ValueError("Required compiled C++ library not found.")
     return calcRXXT_withSparseRespCSR_cpp(X, spR_csr)
-
 
 def calcRlogR_withDenseResp(R=None, **kwargs):
     return -1 * calcRlogR(R)

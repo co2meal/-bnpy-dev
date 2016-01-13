@@ -1141,7 +1141,6 @@ def calcSummaryStats(Data, SS, LP, **kwargs):
     SS : SuffStatBag object, with K components.
     '''
     X = Data.X
-
     if 'resp' in LP:
         resp = LP['resp']
         K = resp.shape[1]
@@ -1173,7 +1172,10 @@ def calcSummaryStats(Data, SS, LP, **kwargs):
     # Expected count for each k
     #  Usually computed by allocmodel. But just in case...
     if not hasattr(SS, 'N'):
-        SS.setField('N', np.sum(resp, axis=0), dims='K')
+        if 'resp' in LP:
+            SS.setField('N', LP['resp'].sum(axis=0), dims='K')
+        else:
+            SS.setField('N', LP['spR'].sum(axis=0), dims='K')
     return SS
 
 
