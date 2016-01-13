@@ -355,7 +355,7 @@ class DataIteratorFromDisk(object):
         return self.loadDataForBatch(0).getDataSliceFunctionHandle()
 
     def calcSliceArgs(self, batchID, workerID, nWorkers, lapFrac=0):
-        SliceInfo = self.DataInfo
+        SliceInfo = dict(**self.DataInfo)
         SliceInfo['filepath'] = self.datafileList[batchID]
         SliceInfo['sliceID'] = workerID
         SliceInfo['nSlice'] = nWorkers

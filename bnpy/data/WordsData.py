@@ -1125,6 +1125,40 @@ def makeDataSliceFromSharedMem(dataShMemDict,
 
     Returns
     -------
+    Dslice : WordsData object
+    """
+    if batchID is not None and batchID in dataShMemDict:
+        dataShMemDict = dataShMemDict[batchID]
+
+    # Make local views (NOT copies) to shared mem arrays
+    doc_range = sharedMemToNumpyArray(dataShMemDict['doc_range'])
+    word_id = sharedMemToNumpyArray(dataShMemDict['word_id'])
+    word_count = sharedMemToNumpyArray(dataShMemDict['word_count'])
+    vocab_size = int(dataShMemDict['vocab_size'])
+
+    if cslice is None:
+        cslice = (0, doc_range.size - 1)
+    elif cslice[1] is None:
+        cslice = (0, doc_range.size - 1)
+
+    tstart = doc_range[cslice[0]]
+    tstop = doc_range[cslice[1]]
+    Dslice = WordsData(
+        vocab_size=vocab_size,
+        doc_range=doc_range[cslice[0]:cslice[1] + 1] - doc_range[cslice[0]],
+        word_id=word_id[tstart:tstop],
+        word_count=word_count[tstart:tstop],
+        nDoc=cslice[1] - cslice[0],
+        )
+    return Dslice
+
+def makeDataSliceFromSharedMem_NamedTuple(dataShMemDict,
+                               cslice=(0, None),
+                               batchID=None):
+    """ Create data slice from provided raw arrays and slice indicators.
+
+    Returns
+    -------
     Dslice : namedtuple with same fields as WordsData object
         * vocab_size
         * doc_range

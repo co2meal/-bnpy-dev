@@ -150,7 +150,11 @@ class ParallelMOVBAlg(MOVBAlg):
         self.eval_custom_func(
             isFinal=1, **makeDictOfAllWorkspaceVars(**vars()))
 
-        return self.buildRunInfo(evBound=evBound, SS=SS,
+        if hasattr(DataIterator, 'Data'):
+            Data = DataIterator.Data
+        else:
+            Data = DataIterator.getBatch(0)
+        return self.buildRunInfo(Data=Data, evBound=evBound, SS=SS,
                                  SSmemory=self.SSmemory)
 
     def memoizedSummaryStep(self, hmodel, SS, SSchunk, batchID):

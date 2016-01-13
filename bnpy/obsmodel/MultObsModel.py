@@ -195,34 +195,8 @@ class MultObsModel(AbstractObsModel):
         --------
         SS : SuffStatBag object, with K components.
         '''
-        if SS is None:
-            SS = SuffStatBag(K=LP['resp'].shape[1], D=Data.vocab_size)
-
-        if self.DataAtomType == 'doc':
-            # X : 2D sparse matrix, size nDoc x vocab_size
-            X = Data.getSparseDocTypeCountMatrix()
-
-            # WordCounts : 2D array, size K x vocab_size
-            # obtained by sparse matrix multiply
-            # here, '*' operator does this because X is sparse matrix type
-            WordCounts = LP['resp'].T * X
-            SS.setField('N', LP['resp'].sum(axis=0), dims=('K'))
-
-        else:
-            Resp = LP['resp']  # 2D array, size N x K
-            # 2D sparse matrix, size V x N
-            X = Data.getSparseTokenTypeCountMatrix()
-            if cslice[1] is None:
-                WordCounts = (X * Resp).T  # matrix-matrix product
-            else:
-                start = Data.doc_range[cslice[0]]
-                stop = Data.doc_range[cslice[1]]
-                X = X[:, start:stop]
-                WordCounts = (X * Resp).T  # matrix-matrix product
-
-        SS.setField('WordCounts', WordCounts, dims=('K', 'D'))
-        SS.setField('SumWordCounts', np.sum(WordCounts, axis=1), dims=('K'))
-        return SS
+        return calcSummaryStats(
+            Data, SS, LP, DataAtomType=self.DataAtomType, **kwargs)
 
     def forceSSInBounds(self, SS):
         ''' Force count vectors to remain positive
@@ -361,7 +335,7 @@ class MultObsModel(AbstractObsModel):
         # Dirichlet common equivalent to natural here.
         pass
 
-    def calcLogSoftEvMatrix_FromPost(self, Data, cslice=(0, None), **kwargs):
+    def calcLogSoftEvMatrix_FromPost(self, Data, **kwargs):
         ''' Calculate expected log soft ev matrix under Post.
 
         Returns
@@ -369,17 +343,8 @@ class MultObsModel(AbstractObsModel):
         L : 2D array, size N x K
         '''
         ElogphiT = self.GetCached('E_logphiT', 'all')  # V x K
-        if self.DataAtomType == 'doc':
-            X = Data.getSparseDocTypeCountMatrix()  # nDoc x V
-            return X * ElogphiT
-        else:
-            if cslice[1] == None:
-                return ElogphiT[Data.word_id, :]
-            else:
-                start = Data.doc_range[cslice[0]]
-                stop = Data.doc_range[cslice[1]]
-                wid = Data.word_id[start:stop]
-                return ElogphiT[wid, :]
+        return calcLogSoftEvMatrix_FromPost(
+            Data, DataAtomType=self.DataAtomType, ElogphiT=ElogphiT, **kwargs)
 
     def calcELBO_Memoized(self, SS, returnVec=0, afterMStep=False):
         """ Calculate obsModel's objective using suff stats SS and Post.
@@ -768,6 +733,8 @@ def calcLocalParams(Dslice, **kwargs):
 def calcLogSoftEvMatrix_FromPost(Dslice,
                                  ElogphiT=None,
                                  K=None,
+                                 DataAtomType='doc',
+                                 cslice=(0, None),
                                  **kwargs):
     ''' Calculate expected log soft ev matrix.
 
@@ -787,16 +754,61 @@ def calcLogSoftEvMatrix_FromPost(Dslice,
     '''
     if K is None:
         K = ElogphiT.shape[1]
-    return ElogphiT[Dslice.word_id, :K]
+    if DataAtomType == 'doc':
+        X = Dslice.getSparseDocTypeCountMatrix()  # nDoc x V
+        return X * ElogphiT[:, :K]
+    else:
+        if cslice[1] == None:
+            return ElogphiT[Dslice.word_id, :K]
+        else:
+            start = Dslice.doc_range[cslice[0]]
+            stop = Dslice.doc_range[cslice[1]]
+            wid = Dslice.word_id[start:stop]
+            return ElogphiT[wid, :K]
 
 
-def calcSummaryStats(Dslice, SS, LP, **kwargs):
+def calcSummaryStats(Data, SS, LP, DataAtomType='doc', **kwargs):
     ''' Calculate summary statistics for given dataset and local parameters
 
     Returns
     --------
     SS : SuffStatBag object, with K components.
     '''
+    if 'resp' in LP:
+        K = LP['resp'].shape[1]
+    else:
+        K = LP['spR'].shape[1]
+        nnzPerRow = LP['nnzPerRow']
+    if SS is None:
+        SS = SuffStatBag(K=K, D=Data.vocab_size)
+    if DataAtomType == 'doc':
+        # X : 2D sparse matrix, size nDoc x vocab_size
+        X = Data.getSparseDocTypeCountMatrix()
+        # WordCounts : 2D array, size K x vocab_size
+        # obtained by sparse matrix multiply
+        # here, '*' operator does this because X is sparse matrix type
+        Nvec = None
+        if 'resp' in LP:
+            WordCounts = LP['resp'].T * X
+            if not hasattr(SS, 'N'):
+                Nvec = LP['resp'].sum(axis=0)
+        else:
+            WordCounts = (LP['spR'].T * X).toarray()
+            if not hasattr(SS, 'N'):
+                Nvec = as1D(toCArray(LP['spR'].sum(axis=0)))
+        if Nvec is not None:
+            SS.setField('N', Nvec, dims=('K'))
+    else:
+        # 2D sparse matrix, size V x N
+        X = Data.getSparseTokenTypeCountMatrix()
+        if 'resp' in LP:
+            WordCounts = (X * LP['resp']).T  # matrix-matrix product
+        else:
+            WordCounts = (X * LP['spR']).T.toarray()
+    SS.setField('WordCounts', WordCounts, dims=('K', 'D'))
+    SS.setField('SumWordCounts', np.sum(WordCounts, axis=1), dims=('K'))
+    return SS
+    """
     Rslice = LP['resp']  # 2D array, size N x K
     Nslice, K = Rslice.shape
     Xslice = scipy.sparse.csc_matrix(
@@ -807,3 +819,4 @@ def calcSummaryStats(Dslice, SS, LP, **kwargs):
     SS.setField('WordCounts', WordCounts, dims=('K', 'D'))
     SS.setField('SumWordCounts', np.sum(WordCounts, axis=1), dims=('K'))
     return SS
+    """
