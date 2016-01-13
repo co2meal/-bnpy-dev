@@ -95,4 +95,4 @@ class EMAlg(LearnAlg):
         self.eval_custom_func(
             isFinal=1, **makeDictOfAllWorkspaceVars(**vars()))
 
-        return self.buildRunInfo(evBound=evBound, SS=SS, LP=LP)
+        return self.buildRunInfo(Data=Data, evBound=evBound, SS=SS, LP=LP)
