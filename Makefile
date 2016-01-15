@@ -17,14 +17,24 @@ util_entropy:
 libfwdbwd: hasEigenpath
 	cd bnpy/allocmodel/hmm/lib/; \
 	g++ FwdBwdRowMajor.cpp -o libfwdbwd.so \
-		--shared -DNDEBUG -O3 -I$(EIGENPATH) -fPIC -w $(PYARCH);
+		-I$(EIGENPATH) \
+		-DNDEBUG -O3 \
+		--shared -fPIC -w $(PYARCH);
 
 libsparseresp: hasEigenpath
 	echo "$(PYVERSION)"; \
 	cd bnpy/util/lib/sparseResp/; \
 	g++ SparsifyRespCPPX.cpp -o libsparseresp.so \
-		--shared -DNDEBUG -O3 -I$(EIGENPATH) -fPIC -w $(PYARCH);
+		-I$(EIGENPATH) \
+		-DNDEBUG -O3 \
+		--shared -fPIC -w $(PYARCH);
 
+libsparsetopics:
+	cd bnpy/util/lib/sparseResp/; \
+	g++ TopicModelLocalStepCPPX.cpp -o libsparsetopics.so \
+		-I$(BOOSTMATHPATH) -I$(EIGENPATH) \
+		-DNDEBUG -O3 \
+		--shared -fPIC -w $(PYARCH);
 
 # Rule: verify that EIGENPATH exists, or instruct user to download it.
 hasEigenpath:

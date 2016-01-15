@@ -1,13 +1,14 @@
 import numpy as np
 import copy
 from scipy.special import digamma, gammaln
+import scipy.sparse
 
-from bnpy.util import NumericUtil
 import LocalStepLogger
-
+from bnpy.util import NumericUtil
 from LocalStepSingleDoc import calcLocalParams_SingleDoc
 from LocalStepSingleDoc import calcLocalParams_SingleDoc_WithELBOTrace
-
+from bnpy.util.lib.sparseResp.LibSparseResp \
+    import calcSparseLocalParams_SingleDoc
 
 def calcLocalParams(
         Data, LP,
@@ -16,6 +17,7 @@ def calcLocalParams(
         alpha=None,
         initDocTopicCountLP='scratch',
         cslice=(0, None),
+        nnzPerRowLP=0,
         **kwargs):
     ''' Calculate all local parameters for provided dataset under a topic model
 
@@ -34,7 +36,6 @@ def calcLocalParams(
         cslice = (0, None)
     nDoc = calcNumDocFromSlice(Data, cslice)
 
-
     if 'obsModelName' in LP:
         obsModelName = LP['obsModelName']
     elif hasattr(Data, 'word_count'):
@@ -42,68 +43,97 @@ def calcLocalParams(
     else:
         obsModelName = 'Gauss'
 
-    # Prepare the likelihood matrix
-    # Make sure it is C-contiguous, so that matrix ops are very fast
-    Lik = np.asarray(LP['E_log_soft_ev'], order='C')
-    Lik -= Lik.max(axis=1)[:, np.newaxis]
-    NumericUtil.inplaceExp(Lik)
-
+    # Unpack the problem size
+    N, K = LP['E_log_soft_ev'].shape
     # Prepare the initial DocTopicCount matrix,
     # Useful for warm starts of the local step.
-    N, K = Lik.shape
     initDocTopicCount = None
     if 'DocTopicCount' in LP:
         if LP['DocTopicCount'].shape == (nDoc, K):
             initDocTopicCount = LP['DocTopicCount'].copy()
-
     sumRespTilde = np.zeros(N)
     DocTopicCount = np.zeros((nDoc, K))
     DocTopicProb = np.zeros((nDoc, K))
-
+    # Prepare the extra terms
     if alphaEbeta is None:
         assert alpha is not None
         alphaEbeta = alpha * np.ones(K)
     else:
         alphaEbeta = alphaEbeta[:K]
 
+    # Prepare the likelihood matrix
+    # Make sure it is C-contiguous, so that matrix ops are very fast
+    Lik = np.asarray(LP['E_log_soft_ev'], order='C')
+    if nnzPerRowLP <= 0 or nnzPerRowLP >= K:
+        DO_DENSE = True
+        # Dense Representation
+        Lik -= Lik.max(axis=1)[:, np.newaxis]
+        NumericUtil.inplaceExp(Lik)
+    else:
+        DO_DENSE = False
+        spR_data = np.zeros(N * nnzPerRowLP, dtype=np.float64)
+        spR_colids = np.zeros(N * nnzPerRowLP, dtype=np.int32)
+
     slice_start = Data.doc_range[cslice[0]]
     AggInfo = dict()
     for d in xrange(nDoc):
         start = Data.doc_range[cslice[0] + d]
         stop = Data.doc_range[cslice[0] + d + 1]
-
         if hasattr(Data, 'word_count') and obsModelName.count('Bern'):
             lstart = d * Data.vocab_size
             lstop = (d+1) * Data.vocab_size
         else:
             lstart = start - slice_start
-            lstop = stop - slice_start
-        Lik_d = Lik[lstart:lstop].copy()  # Local copy
-        
+            lstop = stop - slice_start        
         if hasattr(Data, 'word_count') and not obsModelName.count('Bern'):
             wc_d = Data.word_count[start:stop].copy()
         else:
             wc_d = 1.0
-
         if initDocTopicCountLP == 'memo' and initDocTopicCount is not None:
-            initDTC_d = initDocTopicCount[d]
+            if DO_DENSE:
+                initDTC_d = initDocTopicCount[d]
+            else:
+                DocTopicCount[d] = initDocTopicCount[d]
         else:
             initDTC_d = None
-
-        DocTopicCount[d], DocTopicProb[d], sumRespTilde[lstart:lstop], Info_d \
-            = calcLocalParams_SingleDoc(
-                wc_d, Lik_d, alphaEbeta, alphaEbetaRem,
-                DocTopicCount_d=initDTC_d,
+        if not DO_DENSE:
+            m_start = nnzPerRowLP * start
+            m_stop = nnzPerRowLP * stop
+            # SPARSE RESP
+            calcSparseLocalParams_SingleDoc(
+                wc_d,
+                Lik[lstart:lstop],
+                alphaEbeta,
+                topicCount_d_OUT=DocTopicCount[d],
+                spResp_data_OUT=spR_data[m_start:m_stop],
+                spResp_colids_OUT=spR_colids[m_start:m_stop],
+                nnzPerRowLP=nnzPerRowLP,
                 **kwargs)
-        AggInfo = updateConvergenceInfoForDoc_d(d, Info_d, AggInfo, Data)
+        else:
+            Lik_d = Lik[lstart:lstop].copy()  # Local copy
+            (DocTopicCount[d], DocTopicProb[d], 
+                sumRespTilde[lstart:lstop], Info_d) \
+                = calcLocalParams_SingleDoc(
+                    wc_d, Lik_d, alphaEbeta, alphaEbetaRem,
+                    DocTopicCount_d=initDTC_d,
+                    **kwargs)
+            AggInfo = updateConvergenceInfoForDoc_d(d, Info_d, AggInfo, Data)
 
     LP['DocTopicCount'] = DocTopicCount
     LP = updateLPGivenDocTopicCount(LP, DocTopicCount,
                                     alphaEbeta, alphaEbetaRem)
-    LP = updateLPWithResp(
-        LP, Data, Lik, DocTopicProb, sumRespTilde, cslice)
-    LP['Info'] = AggInfo
-    writeLogMessageForManyDocs(Data, AggInfo, **kwargs)
+    if DO_DENSE:
+        LP = updateLPWithResp(
+            LP, Data, Lik, DocTopicProb, sumRespTilde, cslice)
+        LP['Info'] = AggInfo
+        writeLogMessageForManyDocs(Data, AggInfo, **kwargs)
+    else:
+        indptr = np.arange(
+            0, (N+1) * nnzPerRowLP, nnzPerRowLP, dtype=np.int32)
+        LP['spR'] = scipy.sparse.csr_matrix(
+            (spR_data, spR_colids, indptr),
+            shape=(N, K))
+        LP['nnzPerRow'] = nnzPerRowLP
     return LP
 
 

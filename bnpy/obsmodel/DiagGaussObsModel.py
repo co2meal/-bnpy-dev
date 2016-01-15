@@ -1102,12 +1102,12 @@ def calcSummaryStats(Data, SS, LP, **kwargs):
     # Expected sum-of-squares for each state k
     SS.setField('xx', S_xx, dims=('K', 'D'))
     # Expected count for each k
-    #  Usually computed by allocmodel. But just in case...
+    #  Usually computed by allocmodel. But sometimes not (eg TopicModel)
     if not hasattr(SS, 'N'):
         if 'resp' in LP:
             SS.setField('N', LP['resp'].sum(axis=0), dims='K')
         else:
-            SS.setField('N', LP['spR'].sum(axis=0), dims='K')
+            SS.setField('N', as1D(toCArray(LP['spR'].sum(axis=0))), dims='K')
     return SS
 
 

@@ -168,12 +168,38 @@ def calcRXX_withSparseRespCSR_cpp(
     return stat_RXX
 
 
+def calcSparseLocalParams_SingleDoc(
+        wc_d, Lik_d, alphaEbeta, alphaEbetaRem=None,
+        topicCount_d_OUT=None, 
+        spResp_data_OUT=None,
+        spResp_colids_OUT=None,
+        nCoordAscentItersLP=10, convThrLP=0.001,
+        nnzPerRowLP=2,
+        restartLP=0,
+        **kwargs):
+    if wc_d != 1.0:
+        raise NotImplementedError("TODO")
+    N, K = Lik_d.shape
+    K1 = alphaEbeta.size
+    assert K == K1
+    assert topicCount_d_OUT.size == K
+    assert spResp_data_OUT.size == N * nnzPerRowLP
+    assert spResp_colids_OUT.size == N * nnzPerRowLP
+    libTopics.sparseLocalStepSingleDoc(
+        Lik_d, alphaEbeta,
+        nnzPerRowLP, N, K, nCoordAscentItersLP, convThrLP,
+        topicCount_d_OUT,
+        spResp_data_OUT,
+        spResp_colids_OUT,
+        )
+
 
 ''' This block of code loads the shared library and defines wrapper functions
     that can take numpy array objects.
 '''
 libpath = os.path.sep.join(os.path.abspath(__file__).split(os.path.sep)[:-1])
 libfilename = 'libsparseresp.so'
+libfilename2 = 'libsparsetopics.so'
 hasEigenLibReady = True
 
 try:
@@ -250,12 +276,60 @@ try:
          ctypes.c_int,
          ndpointer(ctypes.c_double),
          ]
+
+    libTopics = ctypes.cdll.LoadLibrary(os.path.join(libpath, libfilename2))
+    libTopics.sparseLocalStepSingleDoc.restype = None
+    libTopics.sparseLocalStepSingleDoc.argtypes = \
+        [ndpointer(ctypes.c_double),
+         ndpointer(ctypes.c_double),
+         ctypes.c_int,
+         ctypes.c_int,
+         ctypes.c_int,
+         ctypes.c_int,
+         ctypes.c_double,
+         ndpointer(ctypes.c_double),
+         ndpointer(ctypes.c_double),
+         ndpointer(ctypes.c_int),
+         ]
 except OSError:
     # No compiled C++ library exists
     hasEigenLibReady = False
 
 
 if __name__ == "__main__":
+    from scipy.special import digamma
+    N = 3
+    K = 7
+    nnzPerRow = 2
+    MAXITER = 50
+    convThr = 0.005
+    alphaEbeta = np.random.rand(K)
+    logLik_d = np.log(np.random.rand(N,K) **2)
+
+    D = 10
+    topicCount_d = np.zeros(K)
+    spResp_data = np.zeros(N * D * nnzPerRow)
+    spResp_colids = np.zeros(N * D * nnzPerRow, dtype=np.int32)
+    for d in [0, 1, 2, 3]:
+        print nnzPerRow
+        start = d * (N * nnzPerRow)
+        stop = (d+1) * (N * nnzPerRow)
+        libTopics.sparseLocalStepSingleDoc(
+            logLik_d,
+            alphaEbeta,
+            nnzPerRow,
+            N,
+            K,
+            MAXITER,
+            convThr,
+            topicCount_d,
+            spResp_data[start:stop],
+            spResp_colids[start:stop],
+            )
+        print ' '.join(['%5.1f' % (x) for x in topicCount_d])
+        print 'sum(topicCount_d)=', topicCount_d.sum()
+
+    '''
     from bnpy.util.SparseRespUtil import sparsifyResp_numpy_vectorized
 
     for nnzPerRow in [1, 2, 3]:
@@ -270,3 +344,4 @@ if __name__ == "__main__":
         print spR2
 
         assert np.allclose(spR, spR2)
+    '''

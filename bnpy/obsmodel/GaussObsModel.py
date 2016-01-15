@@ -5,7 +5,7 @@ from scipy.special import gammaln, digamma
 from bnpy.suffstats import ParamBag, SuffStatBag
 from bnpy.util import LOGTWO, LOGPI, LOGTWOPI, EPS
 from bnpy.util import dotATA, dotATB, dotABT
-from bnpy.util import as1D, as2D, as3D
+from bnpy.util import as1D, as2D, as3D, toCArray
 from bnpy.util import numpyToSharedMemArray, fillSharedMemArray
 from bnpy.util.SparseRespStatsUtil import calcSpRXXT
 from AbstractObsModel import AbstractObsModel
@@ -1175,7 +1175,7 @@ def calcSummaryStats(Data, SS, LP, **kwargs):
         if 'resp' in LP:
             SS.setField('N', LP['resp'].sum(axis=0), dims='K')
         else:
-            SS.setField('N', LP['spR'].sum(axis=0), dims='K')
+            SS.setField('N', as1D(toCArray(LP['spR'].sum(axis=0))), dims='K')
     return SS
 
 

@@ -8,7 +8,7 @@ from bnpy.util.NumericUtil import calcRlogRdotv_allpairs
 from bnpy.util.NumericUtil import calcRlogRdotv_specificpairs
 from bnpy.util.NumericUtil import calcRlogR_allpairs, calcRlogR_specificpairs
 from bnpy.util.NumericUtil import calcRlogR, calcRlogRdotv
-
+from bnpy.util.SparseRespStatsUtil import calcSparseRlogR
 ELBOTermDimMap = dict(
     slackTheta='K',
     slackThetaRem=None,
@@ -77,7 +77,6 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None, todict=0,
         Ebeta = rho2beta(rho, returnSize='K+1')
 
     if LP is not None:
-        resp = LP['resp']
         DocTopicCount = LP['DocTopicCount']
         nDoc = DocTopicCount.shape[0]
         theta = LP['theta']
@@ -120,7 +119,16 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None, todict=0,
                     resp.shape[0] == Data.word_count.size:
                 Hresp = -1 * NumericUtil.calcRlogRdotv(resp, Data.word_count)
             else:
-                Hresp = -1 * NumericUtil.calcRlogR(resp)
+                if resp is not None:
+                    Hresp = -1 * NumericUtil.calcRlogR(resp)
+                elif 'resp' in LP:
+                    Hresp = -1 * NumericUtil.calcRlogR(LP['resp'])
+                elif 'spR' in LP:
+                    assert 'nnzPerRow' in LP
+                    Hresp = calcSparseRlogR(**LP)
+                else:
+                    raise ValueError("Missing resp assignments!")
+
 
     if slackTheta is None:
         if SS is not None and SS.hasELBOTerm('slackTheta'):
@@ -164,7 +172,7 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None, todict=0,
         return Mdict
 
     # First, compute all local-only terms
-    Lentropy = Hresp.sum()
+    Lentropy = np.sum(Hresp)
     Lslack = slackTheta.sum() + slackThetaRem
     LcDtheta = -1 * (gammalnSumTheta - gammalnTheta.sum() - gammalnThetaRem)
 

@@ -39,6 +39,9 @@ def loadDataFromSavedTask(taskoutpath, dataSplitName='train', **kwargs):
         dataKwargs.update(onlineKwargs)
     except IOError:
         pass
+    except ValueError:
+        # Occurs if does not exist.
+        pass
 
     try:
         datamod = __import__(dataName, fromlist=[])
