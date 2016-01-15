@@ -5,7 +5,7 @@ from scipy.special import gammaln, digamma
 from bnpy.suffstats import ParamBag, SuffStatBag
 from bnpy.util import LOGTWO, LOGPI, LOGTWOPI, EPS
 from bnpy.util import dotATA, dotATB, dotABT
-from bnpy.util import as1D, as2D, as3D
+from bnpy.util import as1D, as2D, as3D, toCArray
 from bnpy.util import numpyToSharedMemArray, fillSharedMemArray
 from bnpy.util.SparseRespStatsUtil import calcSpRXXT
 from AbstractObsModel import AbstractObsModel
