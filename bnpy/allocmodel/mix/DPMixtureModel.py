@@ -1010,6 +1010,7 @@ def calcSummaryStats(Data, LP,
     if doPrecompEntropy:
         Mdict = calcELBO_NonlinearTerms(LP=LP, returnMemoizedDict=1)
         if type(Mdict['Hresp']) == float:
+            # SPARSE HARD ASSIGNMENTS
             SS.setELBOTerm('Hresp', Mdict['Hresp'], dims=None)
         else:
             SS.setELBOTerm('Hresp', Mdict['Hresp'], dims=('K',))

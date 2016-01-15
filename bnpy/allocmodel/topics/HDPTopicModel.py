@@ -234,7 +234,7 @@ class HDPTopicModel(AllocModel):
                 self.alpha * self.rho[1] * (1-self.rho[0]))
         LP = LocalStepManyDocs.calcLocalParams(
             Data, LP, alphaEbeta, alphaEbetaRem=alphaEbetaRem, **kwargs)
-        assert 'resp' in LP
+        assert 'resp' in LP or 'spR' in LP
         assert 'DocTopicCount' in LP
         return LP
 
@@ -774,10 +774,7 @@ def calcSummaryStats(Dslice, LP=None,
         M = 0
     else:
         M = len(mPairIDs)
-
-    resp = LP['resp']
-    _, K = resp.shape
-
+    K = LP['DocTopicCount'].shape[1]
     if 'digammaSumTheta' not in LP:
         digammaSumTheta = digamma(LP['theta'].sum(axis=1) + LP['thetaRem'])
         LP['digammaSumTheta'] = digammaSumTheta # Used for merges
@@ -804,7 +801,11 @@ def calcSummaryStats(Dslice, LP=None,
     if doPrecompEntropy:
         Mdict = calcELBO_NonlinearTerms(Data=Dslice,
                                         LP=LP, returnMemoizedDict=1)
-        SS.setELBOTerm('Hresp', Mdict['Hresp'], dims='K')
+        if type(Mdict['Hresp']) == float:
+            # SPARSE HARD ASSIGNMENTS
+            SS.setELBOTerm('Hresp', Mdict['Hresp'], dims=None)
+        else:
+            SS.setELBOTerm('Hresp', Mdict['Hresp'], dims=('K',))
         SS.setELBOTerm('slackTheta', Mdict['slackTheta'], dims='K')
         SS.setELBOTerm('gammalnTheta',
                        Mdict['gammalnTheta'], dims='K')
@@ -868,71 +869,3 @@ def calcSummaryStats(Dslice, LP=None,
         SS.setSelectionTerm('SumPi', SumPi, dims='K')
     return SS
 
-'''
-def calcSummaryStats_expansion(
-        Dslice, LP,
-        doPrecompEntropy=0,
-        doTrackTruncationGrowth=0,
-        uids=None,
-        **kwargs):
-    """ Calculate summaries for expanded proposal of local params.
-
-    Parameters
-    -------
-    Data : bnpy data object
-    LP : local param dict with fields
-        resp : Data.nObs x Kx array,
-            where resp[n,k] = posterior resp of comp k
-        DocTopicCount : Data.nDoc x Kx array
-        theta : Data.nDoc x Kx array
-        digammaSumTheta : 1D array, size Data.nDoc
-
-    doPrecompEntropy : boolean flag
-        indicates whether to precompute ELBO terms in advance
-        used for memoized learning algorithms (moVB)
-
-    Returns
-    -------
-    SS : SuffStatBag with K components
-        Relevant fields
-        * sumLogPi : 1D array, size Kx
-            Entry k equals \sum_{d in docs} E[ \log \pi_{dk} ]
-    """
-    resp = LP['resp']
-    _, Kx = resp.shape
-
-    assert 'digammaSumTheta' in LP
-    digammaSumTheta = LP['digammaSumTheta']
-    if 'ElogPi' not in LP:
-        LP['ElogPi'] = digamma(LP['theta']) - digammaSumTheta[:, np.newaxis]
-
-    if doTrackTruncationGrowth:
-        LP['ElogPiRem'] = digamma(LP['thetaRem']) - digammaSumTheta
-    else:
-        LP['ElogPiRem'] = 0
-
-    SS = SuffStatBag(K=Kx, D=Dslice.dim, uids=uids)
-    SS.setField('sumLogPi', np.sum(LP['ElogPi'], axis=0), dims='K')
-
-    print LP.keys, '<<<'
-    if 'ElogPiEmptyComp' in LP:
-        sumLogPiEmptyComp = np.sum(LP['ElogPiEmptyComp'])
-        SS.setField('sumLogPiEmptyComp', sumLogPiEmptyComp, dims=None)
-
-    if doTrackTruncationGrowth:
-        remvec = np.zeros(Kx)
-        remvec[Kx-1] = np.sum(LP['ElogPiRem'])
-        SS.setField('sumLogPiRemVec', remvec, dims='K')
-
-    if doPrecompEntropy:
-        Mdict = calcELBO_NonlinearTerms(
-            Data=Dslice, LP=LP, returnMemoizedDict=1)
-
-        SS.setELBOTerm('Hresp', Mdict['Hresp'], dims='K')
-        SS.setELBOTerm('slackTheta', Mdict['slackTheta'], dims='K')
-        SS.setELBOTerm('gammalnTheta', Mdict['gammalnTheta'], dims='K')
-        if 'ElogPiEmptyComp' in LP:
-            SS.setELBOTerm('slackThetaEmptyComp', Mdict['slackThetaEmptyComp'])
-            SS.setELBOTerm('gammalnThetaEmptyComp', Mdict['gammalnThetaEmptyComp'])
-    return SS
-'''

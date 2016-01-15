@@ -21,6 +21,13 @@ def init_global_params(hmodel, Data, **kwargs):
     --------------
     hmodel internal parameters updated to reflect sufficient statistics.
     '''
+    if kwargs['initname'].count('+'):
+        kwargs['init_NiterForBregmanKMeans'] = \
+            int(kwargs['initname'].split('+')[1])
+        if 'logFunc' not in kwargs:
+            def logFunc(msg):
+                print msg
+            kwargs['logFunc'] = logFunc
     SS, Info = initSS_BregmanDiv(
         Data, hmodel, includeAllocSummary=True, **kwargs)
     hmodel.obsModel.update_global_params(SS)
@@ -71,10 +78,6 @@ def initSS_BregmanDiv(
             del kwargs[key]
     if 'NiterForBregmanKMeans' in kwargs:
         NiterForBregmanKMeans = kwargs['NiterForBregmanKMeans']
-    if kwargs['initname'].count('+'):
-        NiterForBregmanKMeans = int(kwargs['initname'].split('+')[1])
-        def logFunc(msg):
-            print msg
     Niter = np.maximum(NiterForBregmanKMeans, 0)
 
     if logFunc:
