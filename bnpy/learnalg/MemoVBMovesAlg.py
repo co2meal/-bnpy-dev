@@ -277,26 +277,32 @@ class MemoVBMovesAlg(LearnAlg):
             SSbatch.setMergeUIDPairs(MovePlans['m_UIDPairs'])
         ElapsedTimeLogger.stopEvent('local', 'summary')
 
+        if SS is not None:
+            # Force newest stats to have same unique ids as whole stats
+            # If merges/shuffles/other moves have happened,
+            # we want to be sure the new local stats have the same labels
+            SSbatch.setUIDs(SS.uids)
+
         # Prepare current snapshot of whole-dataset stats
         # These must reflect the latest assignment to this batch,
         # AND all previous batches
-        if SS is None:
-            curSSwhole = SSbatch.copy()
-        else:
-            SSbatch.setUIDs(SS.uids)
-            curSSwhole = SS.copy(includeELBOTerms=1, includeMergeTerms=0)
-            curSSwhole += SSbatch
-            if lapFrac > 1.0:
-                oldSSbatch = self.loadBatchAndFastForward(
-                    batchID, lapFrac, MoveLog, doCopy=1)
-                curSSwhole -= oldSSbatch
-
-        # Determine what integer position we are with respect to this lap
-        batchPos = np.round((lapFrac - np.floor(lapFrac)) / self.lapFracInc)
-
+        if self.hasMove('birth') or self.hasMove('delete'):
+            if SS is None:
+                curSSwhole = SSbatch.copy()
+            else:
+                curSSwhole = SS.copy(includeELBOTerms=1, includeMergeTerms=0)
+                curSSwhole += SSbatch
+                if lapFrac > 1.0:
+                    oldSSbatch = self.loadBatchAndFastForward(
+                        batchID, lapFrac, MoveLog, doCopy=1)
+                    curSSwhole -= oldSSbatch
         # Prepare plans for which births to try,
         # using recently updated stats.
         if self.hasMove('birth'):
+            # Determine what integer position we are with respect to this lap
+            batchPos = np.round(
+                (lapFrac - np.floor(lapFrac)) / self.lapFracInc)
+
             ElapsedTimeLogger.startEvent('birth', 'plan')
             MovePlans = self.makeMovePlans_Birth_AtBatch(
                 curModel, curSSwhole,

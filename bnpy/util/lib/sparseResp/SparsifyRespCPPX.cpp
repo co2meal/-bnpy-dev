@@ -42,6 +42,17 @@ extern "C" {
         double* Hvec_OUT
         );
 
+    void calcRlogRdotv_withSparseRespCSR(
+        double* spR_data_IN,
+        int* spR_colids_IN,
+        int* spR_rowptr_IN,
+        double* v_IN,
+        int K,
+        int N,
+        int nnzPerRow,
+        double* Hvec_OUT
+        );
+
     void calcRXXT_withSparseRespCSR(
         double* X_IN,
         double* spR_data_IN,
@@ -216,6 +227,31 @@ void calcRlogR_withSparseRespCSR(
             int m = n * nnzPerRow + nzk;
             if (spR_data(m) > 1e-20) {
                 Hvec(spR_colids[m]) -= spR_data(m) * log(spR_data(m));
+            }
+        }
+    }
+}
+
+void calcRlogRdotv_withSparseRespCSR(
+        double* spR_data_IN,
+        int* spR_colids_IN,
+        int* spR_rowptr_IN,
+        double* v_IN,
+        int K,
+        int N,
+        int nnzPerRow,
+        double* Hvec_OUT)
+{
+    ExtArr1D_d spR_data (spR_data_IN, N * nnzPerRow);
+    ExtArr1D_i spR_colids (spR_colids_IN, N * nnzPerRow);
+    ExtArr1D_i spR_rowptr (spR_rowptr_IN, K+1);
+    ExtArr1D_d v (v_IN, N);
+    ExtMat1D_d Hvec (Hvec_OUT, K);
+    for (int n = 0; n < N; n++) {
+        for (int nzk = 0; nzk < nnzPerRow; nzk++) {
+            int m = n * nnzPerRow + nzk;
+            if (spR_data(m) > 1e-20) {
+                Hvec(spR_colids[m]) -= v(n) * spR_data(m) * log(spR_data(m));
             }
         }
     }
