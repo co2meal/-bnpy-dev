@@ -104,6 +104,38 @@ def calcRlogR_withSparseRespCSR_cpp(
     else:
         raise ValueError("Bad nnzPerRow value %d. Need >= 1" % (nnzPerRow))
 
+def calcRlogRdotv_withSparseRespCSR_cpp(
+        spR_csr=None, v=None, nnzPerRow=-1, order='C', **kwargs):
+    '''
+    '''
+    if not hasEigenLibReady:
+        raise ValueError("Cannot find library %s. Please recompile."
+                         % (libfilename))
+    if order != 'C':
+        raise NotImplementedError("LibFwdBwd only supports row-major order.")
+    v = np.asarray(v, order=order)
+    assert spR_csr is not None
+    N, K = spR_csr.shape
+    if nnzPerRow == 1:
+        # Fast case. No need for C++ code.
+        return 0.0
+    elif nnzPerRow > 1 and nnzPerRow <= K:
+        # Preallocate memory
+        Hvec_OUT = np.zeros(K, dtype=np.float64)
+        # Execute C++ code (fills in output array Hvec_OUT in-place)
+        lib.calcRlogRdotv_withSparseRespCSR(
+            spR_csr.data,
+            spR_csr.indices,
+            spR_csr.indptr,
+            v,
+            K,
+            N,
+            nnzPerRow,
+            Hvec_OUT)
+        return Hvec_OUT
+    else:
+        raise ValueError("Bad nnzPerRow value %d. Need >= 1" % (nnzPerRow))
+
 def calcRXXT_withSparseRespCSR_cpp(
         X=None, spR_csr=None, order='C', **kwargs):
     if not hasEigenLibReady:
@@ -177,21 +209,28 @@ def calcSparseLocalParams_SingleDoc(
         nnzPerRowLP=2,
         restartLP=0,
         **kwargs):
-    if wc_d != 1.0:
-        raise NotImplementedError("TODO")
     N, K = Lik_d.shape
     K1 = alphaEbeta.size
     assert K == K1
     assert topicCount_d_OUT.size == K
     assert spResp_data_OUT.size == N * nnzPerRowLP
     assert spResp_colids_OUT.size == N * nnzPerRowLP
-    libTopics.sparseLocalStepSingleDoc(
-        Lik_d, alphaEbeta,
-        nnzPerRowLP, N, K, nCoordAscentItersLP, convThrLP,
-        topicCount_d_OUT,
-        spResp_data_OUT,
-        spResp_colids_OUT,
-        )
+    if isinstance(wc_d, np.ndarray) and wc_d.size == N:
+        libTopics.sparseLocalStepSingleDocWithWordCounts(
+            wc_d, Lik_d, alphaEbeta,
+            nnzPerRowLP, N, K, nCoordAscentItersLP, convThrLP,
+            topicCount_d_OUT,
+            spResp_data_OUT,
+            spResp_colids_OUT,
+            )
+    else:
+        libTopics.sparseLocalStepSingleDoc(
+            Lik_d, alphaEbeta,
+            nnzPerRowLP, N, K, nCoordAscentItersLP, convThrLP,
+            topicCount_d_OUT,
+            spResp_data_OUT,
+            spResp_colids_OUT,
+            )
 
 
 ''' This block of code loads the shared library and defines wrapper functions
@@ -232,6 +271,18 @@ try:
         [ndpointer(ctypes.c_double),
          ndpointer(ctypes.c_int),
          ndpointer(ctypes.c_int),
+         ctypes.c_int,
+         ctypes.c_int,
+         ctypes.c_int,
+         ndpointer(ctypes.c_double),
+         ]
+
+    lib.calcRlogRdotv_withSparseRespCSR.restype = None
+    lib.calcRlogRdotv_withSparseRespCSR.argtypes = \
+        [ndpointer(ctypes.c_double),
+         ndpointer(ctypes.c_int),
+         ndpointer(ctypes.c_int),
+         ndpointer(ctypes.c_double),
          ctypes.c_int,
          ctypes.c_int,
          ctypes.c_int,
@@ -291,7 +342,23 @@ try:
          ndpointer(ctypes.c_double),
          ndpointer(ctypes.c_int),
          ]
-except OSError:
+
+    libTopics.sparseLocalStepSingleDocWithWordCounts.restype = None
+    libTopics.sparseLocalStepSingleDocWithWordCounts.argtypes = \
+        [ndpointer(ctypes.c_double),
+         ndpointer(ctypes.c_double),
+         ndpointer(ctypes.c_double),
+         ctypes.c_int,
+         ctypes.c_int,
+         ctypes.c_int,
+         ctypes.c_int,
+         ctypes.c_double,
+         ndpointer(ctypes.c_double),
+         ndpointer(ctypes.c_double),
+         ndpointer(ctypes.c_int),
+         ]
+except OSError as e:
+    print str(e)
     # No compiled C++ library exists
     hasEigenLibReady = False
 
@@ -305,7 +372,7 @@ if __name__ == "__main__":
     convThr = 0.005
     alphaEbeta = np.random.rand(K)
     logLik_d = np.log(np.random.rand(N,K) **2)
-
+    wc_d = np.float64(np.arange(1, N+1))
     D = 10
     topicCount_d = np.zeros(K)
     spResp_data = np.zeros(N * D * nnzPerRow)
@@ -314,8 +381,8 @@ if __name__ == "__main__":
         print nnzPerRow
         start = d * (N * nnzPerRow)
         stop = (d+1) * (N * nnzPerRow)
-        libTopics.sparseLocalStepSingleDoc(
-            logLik_d,
+        libTopics.sparseLocalStepSingleDocWithWordCounts(
+            wc_d, logLik_d,
             alphaEbeta,
             nnzPerRow,
             N,
@@ -326,9 +393,9 @@ if __name__ == "__main__":
             spResp_data[start:stop],
             spResp_colids[start:stop],
             )
-        print ' '.join(['%5.1f' % (x) for x in topicCount_d])
+        print ' '.join(['%5.2f' % (x) for x in topicCount_d])
         print 'sum(topicCount_d)=', topicCount_d.sum()
-
+        print 'sum(wc_d)=', np.sum(wc_d)
     '''
     from bnpy.util.SparseRespUtil import sparsifyResp_numpy_vectorized
 

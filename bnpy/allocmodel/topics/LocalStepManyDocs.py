@@ -118,7 +118,7 @@ def calcLocalParams(
                     DocTopicCount_d=initDTC_d,
                     **kwargs)
             AggInfo = updateConvergenceInfoForDoc_d(d, Info_d, AggInfo, Data)
-
+        assert np.allclose(np.sum(wc_d), np.sum(DocTopicCount[d]))
     LP['DocTopicCount'] = DocTopicCount
     LP = updateLPGivenDocTopicCount(LP, DocTopicCount,
                                     alphaEbeta, alphaEbetaRem)

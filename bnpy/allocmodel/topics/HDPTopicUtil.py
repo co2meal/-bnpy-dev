@@ -8,7 +8,7 @@ from bnpy.util.NumericUtil import calcRlogRdotv_allpairs
 from bnpy.util.NumericUtil import calcRlogRdotv_specificpairs
 from bnpy.util.NumericUtil import calcRlogR_allpairs, calcRlogR_specificpairs
 from bnpy.util.NumericUtil import calcRlogR, calcRlogRdotv
-from bnpy.util.SparseRespStatsUtil import calcSparseRlogR
+from bnpy.util.SparseRespStatsUtil import calcSparseRlogR, calcSparseRlogRdotv
 ELBOTermDimMap = dict(
     slackTheta='K',
     slackThetaRem=None,
@@ -73,6 +73,14 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None, todict=0,
                             returnMemoizedDict=0, **kwargs):
     """ Calculate ELBO objective terms non-linear in suff stats.
     """
+    if resp is not None:
+        N, K = resp.shape
+    elif LP is not None:
+        if 'resp' in LP:
+            N, K = LP['resp'].shape
+        else:
+            N, K = LP['spR'].shape
+
     if Ebeta is None:
         Ebeta = rho2beta(rho, returnSize='K+1')
 
@@ -115,9 +123,19 @@ def calcELBO_NonlinearTerms(Data=None, SS=None, LP=None, todict=0,
         if SS is not None and SS.hasELBOTerm('Hresp'):
             Hresp = SS.getELBOTerm('Hresp')
         else:
-            if hasattr(Data, 'word_count') and \
-                    resp.shape[0] == Data.word_count.size:
-                Hresp = -1 * NumericUtil.calcRlogRdotv(resp, Data.word_count)
+            if hasattr(Data, 'word_count') and N == Data.word_count.size:
+                if resp is not None:
+                    Hresp = -1 * NumericUtil.calcRlogRdotv(
+                        resp, Data.word_count)
+                elif 'resp' in LP:
+                    Hresp = -1 * NumericUtil.calcRlogRdotv(
+                        LP['resp'], Data.word_count)
+                elif 'spR' in LP:
+                    Hresp = calcSparseRlogRdotv(
+                        v=Data.word_count,
+                        **LP)
+                else:
+                    raise ValueError("Missing resp assignments!")
             else:
                 if resp is not None:
                     Hresp = -1 * NumericUtil.calcRlogR(resp)

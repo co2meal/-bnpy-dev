@@ -12,6 +12,8 @@ from bnpy.util.ShapeUtil import as1D, toCArray
 
 hasCPPLib = True
 try:
+    from lib.sparseResp.LibSparseResp \
+        import calcRlogRdotv_withSparseRespCSR_cpp
     from lib.sparseResp.LibSparseResp import calcRlogR_withSparseRespCSR_cpp
     from lib.sparseResp.LibSparseResp import calcRXXT_withSparseRespCSR_cpp
     from lib.sparseResp.LibSparseResp import calcRXX_withSparseRespCSR_cpp
@@ -30,6 +32,18 @@ def calcSparseRlogR(spR=None, nnzPerRow=-1, **kwargs):
     if not hasCPPLib:
         raise ValueError("Required compiled C++ library not found.")
     return calcRlogR_withSparseRespCSR_cpp(spR_csr=spR, nnzPerRow=nnzPerRow)
+
+def calcSparseRlogRdotv(spR=None, v=None, nnzPerRow=-1, **kwargs):
+    ''' Compute assignment entropy of each state.
+
+    Returns
+    -------
+    H : 1D array, size K
+    '''
+    if not hasCPPLib:
+        raise ValueError("Required compiled C++ library not found.")
+    return calcRlogRdotv_withSparseRespCSR_cpp(
+        spR_csr=spR, v=v, nnzPerRow=nnzPerRow)
 
 
 def calcSpRXX(X=None, spR_csr=None, **kwargs):
