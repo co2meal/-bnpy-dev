@@ -64,7 +64,7 @@ def calcLocalParams(
     # Prepare the likelihood matrix
     # Make sure it is C-contiguous, so that matrix ops are very fast
     Lik = np.asarray(LP['E_log_soft_ev'], order='C')
-    if nnzPerRowLP <= 0:
+    if nnzPerRowLP <= 0 or nnzPerRowLP >= K:
         DO_DENSE = True
         # Dense Representation
         Lik -= Lik.max(axis=1)[:, np.newaxis]
