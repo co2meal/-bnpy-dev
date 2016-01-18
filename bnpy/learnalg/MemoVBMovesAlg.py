@@ -179,7 +179,8 @@ class MemoVBMovesAlg(LearnAlg):
 
             # Debug
             if self.doDebug() and lapFrac >= 1.0:
-                self.verifyELBOTracking(hmodel, SS, Lscore, MoveLog)
+                self.verifyELBOTracking(hmodel, SS, Lscore, 
+                    MoveLog=MoveLog, lapFrac=lapFrac)
             self.saveDebugStateAtBatch(
                 'Mstep', batchID, SSchunk=SSbatch, SS=SS, hmodel=hmodel)
 
@@ -1451,3 +1452,41 @@ class MemoVBMovesAlg(LearnAlg):
             hasMovesLeft_Delete = False
         return hasMovesLeft_Birth or hasMovesLeft_Merge or hasMovesLeft_Delete
         # ... end function hasMoreReasonableMoves
+
+
+    def verifyELBOTracking(
+            self, hmodel, SS,
+            evBound=None, lapFrac=-1, MoveLog=None, **kwargs):
+        ''' Verify current global SS consistent with batch-specific SS.
+        '''
+        if self.doDebugVerbose():
+            self.print_msg(
+                '>>>>>>>> BEGIN double-check @ lap %.2f' % (self.lapFrac))
+
+        if evBound is None:
+            evBound = hmodel.calc_evidence(SS=SS)
+
+        for batchID in range(len(self.SSmemory.keys())):
+            SSchunk = self.loadBatchAndFastForward(
+                batchID, lapFrac=lapFrac, MoveLog=MoveLog, doCopy=1)
+            if batchID == 0:
+                SS2 = SSchunk.copy()
+            else:
+                SS2 += SSchunk
+        evCheck = hmodel.calc_evidence(SS=SS2)
+
+        if self.algParams['debug'].count('quiet') == 0:
+            print '% 14.8f evBound from agg SS' % (evBound)
+            print '% 14.8f evBound from sum over SSmemory' % (evCheck)
+        if self.algParams['debug'].count('interactive'):
+            isCorrect = np.allclose(SS.getCountVec(), SS2.getCountVec()) \
+                and np.allclose(evBound, evCheck)
+            if not isCorrect:
+                from IPython import embed
+                embed()
+        else:
+            assert np.allclose(SS.getCountVec(), SS2.getCountVec())
+            assert np.allclose(evBound, evCheck)
+        if self.doDebugVerbose():
+            self.print_msg(
+                '<<<<<<<< END   double-check @ lap %.2f' % (self.lapFrac))

@@ -53,6 +53,28 @@ extern "C" {
         double* Hvec_OUT
         );
 
+    double calcMergeRlogR_withSparseRespCSR(
+        double* spR_data_IN,
+        int* spR_colids_IN,
+        int* spR_rowptr_IN,
+        int K,
+        int N,
+        int nnzPerRow,
+        int kA, 
+        int kB
+        );
+
+    double calcMergeRlogRdotv_withSparseRespCSR(
+        double* spR_data_IN,
+        int* spR_colids_IN,
+        int* spR_rowptr_IN,
+        double* v_IN,
+        int K,
+        int N,
+        int nnzPerRow,
+        int kA, 
+        int kB);
+
     void calcRXXT_withSparseRespCSR(
         double* X_IN,
         double* spR_data_IN,
@@ -255,6 +277,67 @@ void calcRlogRdotv_withSparseRespCSR(
             }
         }
     }
+}
+
+double calcMergeRlogR_withSparseRespCSR(
+        double* spR_data_IN,
+        int* spR_colids_IN,
+        int* spR_rowptr_IN,
+        int K,
+        int N,
+        int nnzPerRow,
+        int kA, 
+        int kB)
+{
+    ExtArr1D_d spR_data (spR_data_IN, N * nnzPerRow);
+    ExtArr1D_i spR_colids (spR_colids_IN, N * nnzPerRow);
+    ExtArr1D_i spR_rowptr (spR_rowptr_IN, K+1);
+    double Hout = 0.0;
+    for (int n = 0; n < N; n++) {
+        double newResp_n = 0.0;
+        for (int nzk = 0; nzk < nnzPerRow; nzk++) {
+            int m = n * nnzPerRow + nzk;
+            if (spR_colids(m) == kA || spR_colids(m) == kB) {
+                newResp_n += spR_data(m);
+            }
+        }
+        if (newResp_n > 1e-20) {
+            Hout -= newResp_n * log(newResp_n);
+        }
+    }
+    return Hout;
+}
+
+
+double calcMergeRlogRdotv_withSparseRespCSR(
+        double* spR_data_IN,
+        int* spR_colids_IN,
+        int* spR_rowptr_IN,
+        double* v_IN,
+        int K,
+        int N,
+        int nnzPerRow,
+        int kA, 
+        int kB)
+{
+    ExtArr1D_d spR_data (spR_data_IN, N * nnzPerRow);
+    ExtArr1D_i spR_colids (spR_colids_IN, N * nnzPerRow);
+    ExtArr1D_i spR_rowptr (spR_rowptr_IN, K+1);
+    ExtArr1D_d v (v_IN, N);
+    double Hout = 0.0;
+    for (int n = 0; n < N; n++) {
+        double newResp_n = 0.0;
+        for (int nzk = 0; nzk < nnzPerRow; nzk++) {
+            int m = n * nnzPerRow + nzk;
+            if (spR_colids(m) == kA || spR_colids(m) == kB) {
+                newResp_n += spR_data(m);
+            }
+        }
+        if (newResp_n > 1e-20) {
+            Hout -= v(n) * newResp_n * log(newResp_n);
+        }
+    }
+    return Hout;
 }
 
 

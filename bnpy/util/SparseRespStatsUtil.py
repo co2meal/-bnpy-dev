@@ -18,6 +18,11 @@ try:
     from lib.sparseResp.LibSparseResp import calcRXXT_withSparseRespCSR_cpp
     from lib.sparseResp.LibSparseResp import calcRXX_withSparseRespCSR_cpp
     from lib.sparseResp.LibSparseResp import calcRXX_withSparseRespCSC_cpp
+
+    from lib.sparseResp.LibSparseResp \
+        import calcMergeRlogR_withSparseRespCSR_cpp as calcSparseMergeRlogR
+    from lib.sparseResp.LibSparseResp \
+        import calcMergeRlogRdotv_withSparseRespCSR_cpp as calcSparseMergeRlogRdotv
 except ImportError:
     hasCPPLib = False
 
@@ -44,7 +49,6 @@ def calcSparseRlogRdotv(spR=None, v=None, nnzPerRow=-1, **kwargs):
         raise ValueError("Required compiled C++ library not found.")
     return calcRlogRdotv_withSparseRespCSR_cpp(
         spR_csr=spR, v=v, nnzPerRow=nnzPerRow)
-
 
 def calcSpRXX(X=None, spR_csr=None, **kwargs):
     ''' Compute expected sum-of-squares statistic for each state.

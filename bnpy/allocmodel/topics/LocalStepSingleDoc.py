@@ -8,6 +8,7 @@ def calcLocalParams_SingleDoc(
         DocTopicCount_d=None, sumResp_d=None,
         nCoordAscentItersLP=10, convThrLP=0.001,
         restartLP=0,
+        initDocTopicCountLP='alphaEbeta',
         **kwargs):
     ''' Infer local parameters for a single document.
 
@@ -50,15 +51,20 @@ def calcLocalParams_SingleDoc(
         sumResp_d = np.zeros(Lik_d.shape[0])
 
     # Initialize prior from global topic probs
-    DocTopicProb_d = alphaEbeta.copy()
     if DocTopicCount_d is None:
+        DocTopicCount_d = np.zeros_like(alphaEbeta)
+    
+    if initDocTopicCountLP.count('setDocProbsToEGlobalProbs'):
+        # Here, we initialize pi_d to alphaEbeta
+        DocTopicProb_d = alphaEbeta.copy()
         # Update sumResp for all tokens in document
         np.dot(Lik_d, DocTopicProb_d, out=sumResp_d)
-
         # Update DocTopicCounts
-        DocTopicCount_d = np.zeros_like(DocTopicProb_d)
         np.dot(wc_d / sumResp_d, Lik_d, out=DocTopicCount_d)
         DocTopicCount_d *= DocTopicProb_d
+    else:
+        # Set E[pi_d] to exp E log[ alphaEbeta ] 
+        DocTopicProb_d = np.zeros_like(alphaEbeta)
 
     prevDocTopicCount_d = DocTopicCount_d.copy()
     for iter in xrange(nCoordAscentItersLP):

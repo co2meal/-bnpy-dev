@@ -427,11 +427,12 @@ class SuffStatBag(object):
             self.setMergeUIDPairs(mUIDPairs[keepRowIDs])
 
             # Remove any other pairs related to kA, kB
-            for key, dims in self._MergeTerms._FieldDims.items():
-                mArr = getattr(self._MergeTerms, key)
-                if dims[0] == 'M':
-                    mArr = mArr[keepRowIDs]
-                    self._MergeTerms.setField(key, mArr, dims=dims)
+            if self.hasMergeTerms():
+                for key, dims in self._MergeTerms._FieldDims.items():
+                    mArr = getattr(self._MergeTerms, key)
+                    if dims[0] == 'M':
+                        mArr = mArr[keepRowIDs]
+                        self._MergeTerms.setField(key, mArr, dims=dims)
 
     def _mergeFieldsAtIndexKA(self, kA, kB, rowID, fieldsToIgnore):
         ''' For each field, rewrite values for comp kA to merge kA, kB.

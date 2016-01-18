@@ -64,13 +64,14 @@ def calcLocalParams(
     # Prepare the likelihood matrix
     # Make sure it is C-contiguous, so that matrix ops are very fast
     Lik = np.asarray(LP['E_log_soft_ev'], order='C')
-    if nnzPerRowLP <= 0 or nnzPerRowLP >= K:
+    if nnzPerRowLP <= 0:
         DO_DENSE = True
         # Dense Representation
         Lik -= Lik.max(axis=1)[:, np.newaxis]
         NumericUtil.inplaceExp(Lik)
     else:
         DO_DENSE = False
+        nnzPerRowLP = np.minimum(nnzPerRowLP, K)
         spR_data = np.zeros(N * nnzPerRowLP, dtype=np.float64)
         spR_colids = np.zeros(N * nnzPerRowLP, dtype=np.int32)
 
@@ -89,13 +90,15 @@ def calcLocalParams(
             wc_d = Data.word_count[start:stop].copy()
         else:
             wc_d = 1.0
-        if initDocTopicCountLP == 'memo' and initDocTopicCount is not None:
-            if DO_DENSE:
-                initDTC_d = initDocTopicCount[d]
+        initDTC_d = None
+        if initDocTopicCountLP == 'memo':
+            if initDocTopicCount is not None:
+                if DO_DENSE:
+                    initDTC_d = initDocTopicCount[d]
+                else:
+                    DocTopicCount[d] = initDocTopicCount[d]
             else:
-                DocTopicCount[d] = initDocTopicCount[d]
-        else:
-            initDTC_d = None
+                initDocTopicCountLP = 'setDocProbsToEGlobalProbs'            
         if not DO_DENSE:
             m_start = nnzPerRowLP * start
             m_stop = nnzPerRowLP * stop
@@ -108,6 +111,7 @@ def calcLocalParams(
                 spResp_data_OUT=spR_data[m_start:m_stop],
                 spResp_colids_OUT=spR_colids[m_start:m_stop],
                 nnzPerRowLP=nnzPerRowLP,
+                initDocTopicCountLP=initDocTopicCountLP,
                 **kwargs)
         else:
             Lik_d = Lik[lstart:lstop].copy()  # Local copy
@@ -116,10 +120,15 @@ def calcLocalParams(
                 = calcLocalParams_SingleDoc(
                     wc_d, Lik_d, alphaEbeta, alphaEbetaRem,
                     DocTopicCount_d=initDTC_d,
+                    initDocTopicCountLP=initDocTopicCountLP,
                     **kwargs)
             AggInfo = updateConvergenceInfoForDoc_d(d, Info_d, AggInfo, Data)
-        assert np.allclose(np.sum(wc_d), np.sum(DocTopicCount[d]))
+        #if d == 0:
+        #    print ' '.join(['%6.1f' % (x) for x in DocTopicCount[d]])
     LP['DocTopicCount'] = DocTopicCount
+    if hasattr(Data, 'word_count'):
+        if cslice is None or (cslice[0] == 0 and cslice[1] is None):
+            assert np.allclose(np.sum(DocTopicCount), np.sum(Data.word_count))
     LP = updateLPGivenDocTopicCount(LP, DocTopicCount,
                                     alphaEbeta, alphaEbetaRem)
     if DO_DENSE:

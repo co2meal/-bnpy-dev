@@ -136,6 +136,67 @@ def calcRlogRdotv_withSparseRespCSR_cpp(
     else:
         raise ValueError("Bad nnzPerRow value %d. Need >= 1" % (nnzPerRow))
 
+def calcMergeRlogR_withSparseRespCSR_cpp(
+        spR_csr=None, nnzPerRow=-1, order='C', mPairIDs=None, **kwargs):
+    '''
+    '''
+    if not hasEigenLibReady:
+        raise ValueError("Cannot find library %s. Please recompile."
+                         % (libfilename))
+    assert spR_csr is not None
+    N, K = spR_csr.shape
+    if nnzPerRow == 1:
+        # Fast case. No need for C++ code.
+        return None
+    elif nnzPerRow > 1 and nnzPerRow <= K:
+        # Preallocate memory
+        m_Hvec_OUT = np.zeros(len(mPairIDs), dtype=np.float64)
+        for mID, (kA, kB) in enumerate(mPairIDs): 
+            # Execute C++ code (fills in output array Hvec_OUT in-place)
+            m_Hvec_OUT[mID] = lib.calcMergeRlogR_withSparseRespCSR(
+                spR_csr.data,
+                spR_csr.indices,
+                spR_csr.indptr,
+                K,
+                N,
+                nnzPerRow,
+                kA, kB)
+        return m_Hvec_OUT
+    else:
+        raise ValueError("Bad nnzPerRow value %d. Need >= 1" % (nnzPerRow))
+
+def calcMergeRlogRdotv_withSparseRespCSR_cpp(
+        spR_csr=None, nnzPerRow=-1, v=None, 
+        order='C', mPairIDs=None, **kwargs):
+    '''
+    '''
+    if not hasEigenLibReady:
+        raise ValueError("Cannot find library %s. Please recompile."
+                         % (libfilename))
+    assert spR_csr is not None
+    N, K = spR_csr.shape
+    if nnzPerRow == 1:
+        # Fast case. No need for C++ code.
+        return None
+    elif nnzPerRow > 1 and nnzPerRow <= K:
+        # Preallocate memory
+        m_Hvec_OUT = np.zeros(len(mPairIDs), dtype=np.float64)
+        for mID, (kA, kB) in enumerate(mPairIDs): 
+            # Execute C++ code (fills in output array Hvec_OUT in-place)
+            m_Hvec_OUT[mID] = lib.calcMergeRlogRdotv_withSparseRespCSR(
+                spR_csr.data,
+                spR_csr.indices,
+                spR_csr.indptr,
+                v,
+                K,
+                N,
+                nnzPerRow,
+                kA, kB)
+        return m_Hvec_OUT
+    else:
+        raise ValueError("Bad nnzPerRow value %d. Need >= 1" % (nnzPerRow))
+
+
 def calcRXXT_withSparseRespCSR_cpp(
         X=None, spR_csr=None, order='C', **kwargs):
     if not hasEigenLibReady:
@@ -208,6 +269,7 @@ def calcSparseLocalParams_SingleDoc(
         nCoordAscentItersLP=10, convThrLP=0.001,
         nnzPerRowLP=2,
         restartLP=0,
+        initDocTopicCountLP='setDocProbsToEGlobalProbs',
         **kwargs):
     N, K = Lik_d.shape
     K1 = alphaEbeta.size
@@ -215,10 +277,16 @@ def calcSparseLocalParams_SingleDoc(
     assert topicCount_d_OUT.size == K
     assert spResp_data_OUT.size == N * nnzPerRowLP
     assert spResp_colids_OUT.size == N * nnzPerRowLP
+    nnzPerRowLP = np.minimum(nnzPerRowLP, K)
+    if initDocTopicCountLP.count("setDocProbsToEGlobalProbs"):
+        initProbsToEbeta = 1
+    else:
+        initProbsToEbeta = 0
     if isinstance(wc_d, np.ndarray) and wc_d.size == N:
         libTopics.sparseLocalStepSingleDocWithWordCounts(
             wc_d, Lik_d, alphaEbeta,
             nnzPerRowLP, N, K, nCoordAscentItersLP, convThrLP,
+            initProbsToEbeta,
             topicCount_d_OUT,
             spResp_data_OUT,
             spResp_colids_OUT,
@@ -227,6 +295,7 @@ def calcSparseLocalParams_SingleDoc(
         libTopics.sparseLocalStepSingleDoc(
             Lik_d, alphaEbeta,
             nnzPerRowLP, N, K, nCoordAscentItersLP, convThrLP,
+            initProbsToEbeta,
             topicCount_d_OUT,
             spResp_data_OUT,
             spResp_colids_OUT,
@@ -289,6 +358,31 @@ try:
          ndpointer(ctypes.c_double),
          ]
 
+    lib.calcMergeRlogR_withSparseRespCSR.restype = ctypes.c_double
+    lib.calcMergeRlogR_withSparseRespCSR.argtypes = \
+        [ndpointer(ctypes.c_double),
+         ndpointer(ctypes.c_int),
+         ndpointer(ctypes.c_int),
+         ctypes.c_int,
+         ctypes.c_int,
+         ctypes.c_int,
+         ctypes.c_int,
+         ctypes.c_int,
+         ]
+
+    lib.calcMergeRlogRdotv_withSparseRespCSR.restype = ctypes.c_double
+    lib.calcMergeRlogRdotv_withSparseRespCSR.argtypes = \
+        [ndpointer(ctypes.c_double),
+         ndpointer(ctypes.c_int),
+         ndpointer(ctypes.c_int),
+         ndpointer(ctypes.c_double),
+         ctypes.c_int,
+         ctypes.c_int,
+         ctypes.c_int,
+         ctypes.c_int,
+         ctypes.c_int,
+         ]
+
     lib.calcRXXT_withSparseRespCSR.restype = None
     lib.calcRXXT_withSparseRespCSR.argtypes = \
         [ndpointer(ctypes.c_double),
@@ -338,6 +432,7 @@ try:
          ctypes.c_int,
          ctypes.c_int,
          ctypes.c_double,
+         ctypes.c_int,
          ndpointer(ctypes.c_double),
          ndpointer(ctypes.c_double),
          ndpointer(ctypes.c_int),
@@ -353,6 +448,7 @@ try:
          ctypes.c_int,
          ctypes.c_int,
          ctypes.c_double,
+         ctypes.c_int,
          ndpointer(ctypes.c_double),
          ndpointer(ctypes.c_double),
          ndpointer(ctypes.c_int),

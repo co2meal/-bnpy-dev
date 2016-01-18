@@ -10,7 +10,7 @@ from bnpy.util import NumericUtil
 from bnpy.util import gammaln, digamma, EPS
 from bnpy.util.StickBreakUtil import beta2rho
 from bnpy.util.SparseRespUtil import sparsifyLogResp
-from bnpy.util.SparseRespStatsUtil import calcSparseRlogR
+from bnpy.util.SparseRespStatsUtil import calcSparseRlogR, calcSparseMergeRlogR
 from bnpy.util.ShapeUtil import toCArray, as1D
 ELBOTermDimMap = dict(
     Hresp='K',
@@ -1016,9 +1016,21 @@ def calcSummaryStats(Data, LP,
             SS.setELBOTerm('Hresp', Mdict['Hresp'], dims=('K',))
 
     if doPrecompMergeEntropy:
-        resp = LP['resp']
-        Hresp_vec = -1 * NumericUtil.calcRlogR_specificpairs(resp, mPairIDs)
-        SS.setMergeTerm('Hresp', Hresp_vec, dims=('M'))
+        m_Hresp = None
+        if 'resp' in LP:
+            m_Hresp = -1 * NumericUtil.calcRlogR_specificpairs(
+                LP['resp'], mPairIDs)
+        elif 'spR' in LP:
+            if LP['nnzPerRow'] > 1:
+                m_Hresp = calcSparseMergeRlogR(
+                    spR_csr=LP['spR'],
+                    nnzPerRow=LP['nnzPerRow'], 
+                    mPairIDs=mPairIDs)
+        else:
+            raise ValueError("Need resp or spR in LP")
+        if m_Hresp is not None:
+            assert m_Hresp.size == len(mPairIDs)
+            SS.setMergeTerm('Hresp', m_Hresp, dims=('M'))
     if trackDocUsage:
         Usage = np.sum(LP['resp'] > 0.01, axis=0)
         SS.setSelectionTerm('DocUsageCount', Usage, dims='K')

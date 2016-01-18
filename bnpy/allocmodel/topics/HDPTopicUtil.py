@@ -9,6 +9,9 @@ from bnpy.util.NumericUtil import calcRlogRdotv_specificpairs
 from bnpy.util.NumericUtil import calcRlogR_allpairs, calcRlogR_specificpairs
 from bnpy.util.NumericUtil import calcRlogR, calcRlogRdotv
 from bnpy.util.SparseRespStatsUtil import calcSparseRlogR, calcSparseRlogRdotv
+from bnpy.util.SparseRespStatsUtil \
+    import calcSparseMergeRlogR, calcSparseMergeRlogRdotv
+
 ELBOTermDimMap = dict(
     slackTheta='K',
     slackThetaRem=None,
@@ -316,6 +319,39 @@ def calcHrespForMergePairs(resp, Data, mPairIDs, returnVec=1):
     else:
         return Hmat
 
+def calcHrespForSpecificMergePairs(LP, Data, mPairIDs):
+    ''' Calculate resp entropy terms for all candidate merge pairs
+
+    Returns
+    ---------
+    Hresp : 1D array, size M
+        where each entry corresponds to one merge pair in mPairIDs
+    '''
+    assert mPairIDs is not None
+    if 'resp' in LP:
+        N = LP['resp'].shape[0]
+        if hasattr(Data, 'word_count') and N == Data.word_count.size:
+            m_Hresp = -1 * calcRlogRdotv_specificpairs(
+                LP['resp'], Data.word_count, mPairIDs)
+        else:
+            m_Hresp = -1 * calcRlogR_specificpairs(LP['resp'], mPairIDs)
+    else:
+        if LP['nnzPerRow'] == 1:
+            return None
+        N = LP['spR'].shape[0]
+        if hasattr(Data, 'word_count') and N == Data.word_count.size:
+            m_Hresp = calcSparseMergeRlogRdotv(
+                spR_csr=LP['spR'],
+                nnzPerRow=LP['nnzPerRow'],
+                v=Data.word_count,
+                mPairIDs=mPairIDs)
+        else:
+            m_Hresp = calcSparseMergeRlogR(
+                spR_csr=LP['spR'],
+                nnzPerRow=LP['nnzPerRow'],
+                mPairIDs=mPairIDs)
+    assert m_Hresp.size == len(mPairIDs)
+    return m_Hresp
 
 def c_Beta(a1, a0):
     ''' Evaluate cumulant function of the Beta distribution
