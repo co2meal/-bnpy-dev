@@ -23,6 +23,7 @@ extern "C" {
         int K,
         int nCoordAscentIterLP,
         double convThrLP,
+        int initProbsToEbeta,
         double* topicCount_d_OUT,
         double* spResp_data_OUT,
         int* spResp_colids_OUT
@@ -37,6 +38,7 @@ extern "C" {
         int K,
         int nCoordAscentIterLP,
         double convThrLP,
+        int initProbsToEbeta,
         double* topicCount_d_OUT,
         double* spResp_data_OUT,
         int* spResp_colids_OUT
@@ -67,6 +69,7 @@ void sparseLocalStepSingleDoc(
         int K,
         int nCoordAscentIterLP,
         double convThrLP,
+        int initProbsToEbeta,
         double* topicCount_d_OUT,
         double* spResp_data_OUT,
         int* spResp_colids_OUT
@@ -88,11 +91,17 @@ void sparseLocalStepSingleDoc(
     //VectorXi colids_n (nnzPerRow);
     prevTopicCount_d.fill(-1);
 
-    for (int iter = 0; iter < nCoordAscentIterLP; iter++) {
+    for (int iter = 0; iter < nCoordAscentIterLP + initProbsToEbeta; iter++) {
 
-        for (int k = 0; k < K; k++) {
-            ElogProb_d(k) = boost::math::digamma(
-                topicCount_d(k) + alphaEbeta(k));
+        if (iter == 0 and initProbsToEbeta == 1) {
+            for (int k = 0; k < K; k++) {
+                ElogProb_d(k) = log(alphaEbeta(k));
+            }
+        } else {
+            for (int k = 0; k < K; k++) {
+                ElogProb_d(k) = boost::math::digamma(
+                    topicCount_d(k) + alphaEbeta(k));
+            }
         }
     
         topicCount_d.fill(0);
@@ -158,7 +167,6 @@ void sparseLocalStepSingleDoc(
                 }
                 prevTopicCount_d(k) = topicCount_d(k); // copy over
             }
-            //printf("iter %d  maxDiff %.3f\n", iter, maxDiff);
             if (maxDiff <= convThrLP) {
                 break;
             }
@@ -176,6 +184,7 @@ void sparseLocalStepSingleDocWithWordCounts(
         int K,
         int nCoordAscentIterLP,
         double convThrLP,
+        int initProbsToEbeta,
         double* topicCount_d_OUT,
         double* spResp_data_OUT,
         int* spResp_colids_OUT
@@ -196,11 +205,17 @@ void sparseLocalStepSingleDocWithWordCounts(
     VectorXd tempScores_n (K);
     prevTopicCount_d.fill(-1);
 
-    for (int iter = 0; iter < nCoordAscentIterLP; iter++) {
+    for (int iter = 0; iter < nCoordAscentIterLP + initProbsToEbeta; iter++) {
 
-        for (int k = 0; k < K; k++) {
-            ElogProb_d(k) = boost::math::digamma(
-                topicCount_d(k) + alphaEbeta(k));
+        if (iter == 0 and initProbsToEbeta == 1) {
+            for (int k = 0; k < K; k++) {
+                ElogProb_d(k) = log(alphaEbeta(k));
+            }
+        } else {
+            for (int k = 0; k < K; k++) {
+                ElogProb_d(k) = boost::math::digamma(
+                    topicCount_d(k) + alphaEbeta(k));
+            }
         }
     
         topicCount_d.fill(0);
@@ -266,7 +281,6 @@ void sparseLocalStepSingleDocWithWordCounts(
                 }
                 prevTopicCount_d(k) = topicCount_d(k); // copy over
             }
-            //printf("iter %d  maxDiff %.3f\n", iter, maxDiff);
             if (maxDiff <= convThrLP) {
                 break;
             }

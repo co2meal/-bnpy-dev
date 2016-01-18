@@ -6,7 +6,7 @@ import OptimizerRhoOmegaBetter
 
 from HDPTopicUtil import calcELBO
 from HDPTopicUtil import calcELBO_LinearTerms, calcELBO_NonlinearTerms
-from HDPTopicUtil import calcHrespForMergePairs
+from HDPTopicUtil import calcHrespForMergePairs, calcHrespForSpecificMergePairs
 from HDPTopicUtil import calcMergeTermsFromSeparateLP
 
 from bnpy.allocmodel.AllocModel import AllocModel
@@ -16,7 +16,6 @@ from bnpy.util import digamma, gammaln
 from bnpy.util import as1D
 from bnpy.util.StickBreakUtil import rho2beta, rho2beta_active, beta2rho
 
-from bnpy.util.NumericUtil import calcRlogR_allpairs, calcRlogR_specificpairs
 from bnpy.util import sharedMemToNumpyArray, numpyToSharedMemArray
 
 Log = logging.getLogger('bnpy')
@@ -827,8 +826,9 @@ def calcSummaryStats(Dslice, LP=None,
     if doPrecompMergeEntropy:
         if mPairIDs is None:
             raise NotImplementedError("TODO: all pairs for merges")
-        m_Hresp = calcHrespForMergePairs(LP['resp'], Dslice, mPairIDs)
-        SS.setMergeTerm('Hresp', m_Hresp, dims=('M'))
+        m_Hresp = calcHrespForSpecificMergePairs(LP, Dslice, mPairIDs)
+        if m_Hresp is not None:
+            SS.setMergeTerm('Hresp', m_Hresp, dims=('M'))
 
         m_sumLogPi = np.zeros(M)
         m_gammalnTheta = np.zeros(M)
