@@ -3,12 +3,13 @@ Fast implementation of sparsifyResp
 */
 #define EIGEN_RUNTIME_NO_MALLOC // Define this symbol to enable runtime tests for allocations
 
+#include <stdio.h>
 #include <math.h>
+#include <assert.h>
 #include "Eigen/Dense"
 
-using namespace Eigen;
 using namespace std;
-
+using namespace Eigen;
 
 // ======================================================== Declare funcs
 // ========================================================  visible externally
@@ -140,17 +141,14 @@ void sparsifyResp(
     ExtArr2D_d Resp (Resp_IN, N, K);
     ExtArr1D_d spR_data (spR_data_OUT, N * nnzPerRow);
     ExtArr1D_i spR_colids (spR_colids_OUT, N * nnzPerRow);
-
     VectorXd curRow (K);
-
-    
     for (int n = 0; n < N; n++) {
         // Copy current row over into a temp buffer
         std::copy(Resp.data() + (n * K),
                   Resp.data() + ((n+1) * K),
                   curRow.data());
         // Sort the data in the temp buffer (in place)
-        std:nth_element(curRow.data(),
+        std::nth_element(curRow.data(),
                         curRow.data() + K - nnzPerRow,
                         curRow.data() + K);
 
@@ -158,14 +156,41 @@ void sparsifyResp(
         double pivot = curRow(K - nnzPerRow);
         double rowsum = 0.0;
         int nzk = 0;
+        int pivotLoc = 0;
         for (int k = 0; k < K; k++) {
-            if (Resp(n,k) >= pivot) {
+            if (Resp(n,k) > pivot) {
                 spR_data(n * nnzPerRow + nzk) = Resp(n,k);
                 spR_colids(n * nnzPerRow + nzk) = k;
                 rowsum += Resp(n,k);
                 nzk += 1;
+            } else if (Resp(n,k) == pivot) {
+                pivotLoc = k;
             }
         }
+        assert(nzk < nnzPerRow);
+
+        // if nzk < nnzPerRow, then we know we have duplicates of the pivot val
+        if (nzk < nnzPerRow - 1) {
+            // DUPLICATE VALUES OF pivot
+            for (int k = 0; k < K; k++) {
+                if (Resp(n,k) == pivot) {
+                    spR_data(n * nnzPerRow + nzk) = pivot;
+                    spR_colids(n * nnzPerRow + nzk) = k;
+                    rowsum += pivot;
+                    nzk += 1;
+                }
+                if (nzk == nnzPerRow) {
+                    break;
+                }
+            }
+        } else {
+            // ONLY ONE INSTANCE OF PIVOT VALUE
+            spR_data(n * nnzPerRow + nzk) = pivot;
+            spR_colids(n * nnzPerRow + nzk) = pivotLoc;
+            rowsum += pivot;
+            nzk += 1;
+        }
+        assert(nzk == nnzPerRow);
 
         for (int nzk = 0; nzk < nnzPerRow; nzk++) {
             spR_data(n * nnzPerRow + nzk) /= rowsum;
@@ -189,13 +214,14 @@ void sparsifyLogResp(
     ExtArr1D_d spR_data (spR_data_OUT, N * nnzPerRow);
     ExtArr1D_i spR_colids (spR_colids_OUT, N * nnzPerRow);
     VectorXd curRow (K);
+
     for (int n = 0; n < N; n++) {
         // Copy current row over into a temp buffer
         std::copy(logResp.data() + (n * K),
                   logResp.data() + ((n+1) * K),
                   curRow.data());
         // Sort the data in the temp buffer (in place)
-        std:nth_element(curRow.data(),
+        std::nth_element(curRow.data(),
                         curRow.data() + K - nnzPerRow,
                         curRow.data() + K);
 
@@ -214,7 +240,6 @@ void sparsifyLogResp(
                 }
             }
         }
-        //std::assert(nzk == nnzPerRow);
 
         // Compute exp of each of the non-zero values in row n
         double rowsum = 0.0;

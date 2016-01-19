@@ -14,7 +14,7 @@ def sparsifyResp_cpp(Resp, nnzPerRow, order='C'):
         raise ValueError("Cannot find library %s. Please recompile."
                          % (libfilename))
     if order != 'C':
-        raise NotImplementedError("LibFwdBwd only supports row-major order.")
+        raise NotImplementedError("Provided array must have row-major order.")
     N, K = Resp.shape
 
     if nnzPerRow == 1:
@@ -27,8 +27,10 @@ def sparsifyResp_cpp(Resp, nnzPerRow, order='C'):
         # Allocate output arrays, initialized to all zeros
         spR_data = np.zeros(N * nnzPerRow, dtype=np.float64, order=order)
         spR_colids = np.zeros(N * nnzPerRow, dtype=np.int32, order=order)
+        #from IPython import embed; embed()
         # Execute C++ code (fills in outputs in-place)
         lib.sparsifyResp(Resp, nnzPerRow, N, K, spR_data, spR_colids)
+
 
     # Here, both spR_data and spR_colids have been created
     # Assemble these into a row-based sparse matrix (scipy object)

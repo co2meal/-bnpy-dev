@@ -26,7 +26,7 @@ libsparseresp: hasEigenpath
 	cd bnpy/util/lib/sparseResp/; \
 	g++ SparsifyRespCPPX.cpp -o libsparseresp.so \
 		-I$(EIGENPATH) \
-		-DNDEBUG -O3 \
+		-O3 \
 		--shared -fPIC -w $(PYARCH);
 
 libsparsetopics: hasEigenpath
