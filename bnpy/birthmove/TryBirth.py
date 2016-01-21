@@ -22,6 +22,7 @@ DefaultBirthArgs = dict(
     b_minNumAtomsForNewComp=1,
     b_minNumAtomsForTargetComp=2,
     b_minPercChangeInNumAtomsToReactivate=0.01,
+    b_cleanupWithMerge=0,
     b_cleanupMaxNumMergeIters=10,
     b_cleanupMaxNumAcceptPerIter=1,
     b_debugOutputDir='/tmp/',

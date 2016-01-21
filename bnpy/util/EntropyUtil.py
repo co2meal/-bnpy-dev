@@ -32,7 +32,10 @@ def calcRlogR(R, algVersion='cython'):
         H[k] = sum(R[:,k] * log(R[:,k]))
     '''
     if hasCython and algVersion.count('cython'):
-        return calcRlogR_cython(R)
+        if R.ndim == 1:
+            return calcRlogR_cython(R[:,np.newaxis])[0]
+        else:
+            return calcRlogR_cython(R)
     elif hasNumexpr and algVersion.count('numexpr'):
         return calcRlogR_numexpr(R)
     else:
@@ -47,7 +50,10 @@ def calcRlogRdotv(R, v, algVersion='cython'):
         H[k] = inner(v, R[:,k] * log(R[:,k]))
     '''
     if hasCython and algVersion.count('cython'):
-        return calcRlogRdotv_cython(R, v)
+        if R.ndim == 1:
+            return calcRlogRdotv_cython(R[:,np.newaxis], v)[0]
+        else:
+            return calcRlogRdotv_cython(R, v)
     elif hasNumexpr and algVersion.count('numexpr'):
         return calcRlogRdotv_numexpr(R, v)
     else:
