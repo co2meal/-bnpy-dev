@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.special import gammaln, digamma
 import scipy.sparse
+import warnings
 
 from bnpy.suffstats import ParamBag, SuffStatBag
 from bnpy.util import dotATA, dotATB, dotABT
@@ -179,7 +180,11 @@ class MultObsModel(AbstractObsModel):
             nTotalTokens = Data.word_count.sum()
         if isinstance(nTotalTokens, int) or nTotalTokens.ndim == 0:
             nTotalTokens = nTotalTokens / K * np.ones(K)
-        assert nTotalTokens.sum() > 0
+        if np.any(nTotalTokens == 0):
+            priorScale = self.Prior.lam.sum()
+            warnings.warn(
+                "Enforcing minimum scale of %.3f for lam" % (priorScale))
+            nTotalTokens = np.maximum(nTotalTokens, priorScale)
 
         WordCounts = EstParams.phi * nTotalTokens[:, np.newaxis]
         lam = WordCounts + self.Prior.lam
