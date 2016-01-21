@@ -6,13 +6,16 @@
 * [Demos](#markdown-header-demos)
 * [Quick Start](#markdown-header-quick-start)
 * [Academic References](#markdown-header-academic-references)
+* * [NIPS 2015: HDP-HMM paper](#markdown-header-nips-2015-hdp-hmm-paper)
+* * [AISTATS 2015: HDP topic models](#markdown-header-aistats-2015-hdp-topic-model-paper)
+* * [NIPS 2013: DP mixture models](#markdown-header-nips-2013-dp-mixtures-paper)
 
 # About
 This python module provides code for training popular clustering models on large datasets. We focus on Bayesian nonparametric models based on the Dirichlet process, but also provide parametric counterparts. 
 
 **bnpy** supports the latest online learning algorithms as well as standard offline methods. Our aim is to provide an inference platform that makes it easy for researchers and practitioners to compare models and algorithms.
 
-### Supported probabilistic models
+### Supported probabilistic models (aka allocation models)
 
 * Mixture models
     * `FiniteMixtureModel` : fixed number of clusters
@@ -24,14 +27,13 @@ This python module provides code for training popular clustering models on large
     
 * Hidden Markov models (HMMs)
     * `FiniteHMM` : Markov sequence model with a fixture number of states
+    *  `HDPHMM` : Markov sequence models with an infinite number of states
 
 * **COMING SOON**
-    *  `HDPHMM` : Markov sequence models with an infinite number of states
     * grammar models
     * relational models
 
-
-### Supported data-generating models (aka likelihoods)
+### Supported data observation models (aka likelihoods)
 
 * Multinomial for bag-of-words data
     * `Mult`
@@ -130,28 +132,53 @@ Website: [http://cs.brown.edu/people/sudderth/](http://cs.brown.edu/people/sudde
 
 * Soumya Ghosh
 * Dae Il Kim
+* Geng Ji
 * William Stephenson
 * Sonia Phene
 * Mert Terzihan
 * Mengrui Ni
-* Geng Ji
 * Jincheng Li
 
 # Academic References
 
-### [bnpy: Reliable and scalable variational inference for Bayesian nonparametric models.](HughesSudderth-NIPS2014Workshop-bnpy.pdf)
-Michael C. Hughes and Erik B. Sudderth.  
-Probabilistic Programming Workshop 2014.  
-Spotlight poster.
+## Conference publications based on BNPy
 
-> This short workshop paper describes the vision for **bnpy** as a general purpose inference engine.
+#### NIPS 2015 HDP-HMM paper
 
-### [Memoized online variational inference for Dirichlet process mixture models.](HughesSudderth-NIPS2013-MemoizedDP.pdf)
-Michael C. Hughes and Erik B. Sudderth.  
-In Advances in Neural Information Processing Systems (NIPS) 2013.  
+> Our NIPS 2015 paper describes inference algorithms that can add or remove clusters for the sticky HDP-HMM.
 
-> This conference paper introduces our new memoized variational algorithm, which is the cornerstone of allowing scalable inference that can also effectively explore model complexity.
+* "Scalable adaptation of state complexity for nonparametric hidden Markov models." Michael C. Hughes, William Stephenson, and Erik B. Sudderth. NIPS 2015.
+[[paper]](http://michaelchughes.com/papers/HughesStephensonSudderth_NIPS_2015.pdf)
+[[supplement]](http://michaelchughes.com/papers/HughesStephensonSudderth_NIPS_2015_supplement.pdf)
+[[scripts to reproduce experiments]](http://bitbucket.org/michaelchughes/x-hdphmm-nips2015/)
 
+#### AISTATS 2015 HDP topic model paper
+
+> Our AISTATS 2015 paper describes our algorithms for HDP topic models.
+
+* "Reliable and scalable variational inference for the hierarchical Dirichlet process." Michael C. Hughes, Dae Il Kim, and Erik B. Sudderth. AISTATS 2015.
+[[paper]](http://michaelchughes.com/papers/HughesKimSudderth_AISTATS_2015.pdf)
+[[supplement]](http://michaelchughes.com/papers/HughesKimSudderth_AISTATS_2015_supplement.pdf)
+[[bibtex]](http://cs.brown.edu/people/mhughes/papers/HughesKimSudderth-AISTATS2015-MemoizedHDP-bibtex.txt)
+
+#### NIPS 2013 DP mixtures paper
+
+> Our NIPS 2013 paper introduced memoized variational inference algorithm, and applied it to Dirichlet process mixture models.
+
+* "Memoized online variational inference for Dirichlet process mixture models." Michael C. Hughes and Erik B. Sudderth. NIPS 2013.
+[[paper]](http://michaelchughes.com/papers/HughesSudderth_NIPS_2013.pdf)
+[[supplement]](http://michaelchughes.com/papers/HughesSudderth_NIPS_2013_supplement.pdf)
+[[bibtex]](http://cs.brown.edu/people/mhughes/papers/HughesSudderth-NIPS2013-MemoizedDP-bibtex.txt)
+
+## Workshop papers
+
+> Our short paper from a workshop at NIPS 2014 describes the vision for **bnpy** as a general purpose inference engine.
+
+* "bnpy: Reliable and scalable variational inference for Bayesian nonparametric models."
+Michael C. Hughes and Erik B. Sudderth. Probabilistic Programming Workshop at NIPS 2014.
+[[paper]](http://michaelchughes.com/papers/HughesSudderth_NIPSProbabilisticProgrammingWorkshop_2014.pdf)
+
+## Background reading
 For background reading to understand the broader context of this field, see our [Resources wiki page](../wiki/Resources.md).
 
 # Target Audience

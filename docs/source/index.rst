@@ -6,8 +6,7 @@ Welcome to bnpy
 Our goal is to make it easy for Python programmers 
 to train state-of-the-art clustering models on large datasets.
 We focus on nonparametric models based on the Dirichlet process, especially extensions that handle hierarchical and sequential datasets.
-Traditional parametric counterparts (like finite mixture models) are also supported. 
-
+Traditional parametric counterparts (like finite mixture models) are also supported.
 
 Training a model with **bnpy** requires the user to specify the dataset, the model, and the algorithm to use. Flexible keyword options allow advanced users lots of control, but smart defaults make it simple for beginners. 
 **bnpy**'s modular implementation makes it possible to try many variants of models and algorithms, to find the best fit for the data at hand.
@@ -89,6 +88,8 @@ Supported algorithms
 
     demos/DemoIndex
     Installation
-    ConceptGuide
+    allocmodel/index
+    obsmodel/index
+    api/modules
     
 

@@ -91,10 +91,11 @@ def runViterbiAndSave(**kwargs):
             Data = kwargs['DataIterator'].Data
         except AttributeError:
             from bnpy.data.DataIteratorFromDisk import loadDataForSlice
-            Dinfo = kwargs['DataIterator'].DataInfo
+            Dinfo = dict()
+            Dinfo.update(kwargs['DataIterator'].DataInfo)
             if 'evalDataPath' in Dinfo:
-                path = os.path.expandvars(Dinfo['evalDataPath'])
-                Data = loadDataForSlice(path, **Dinfo)
+                Dinfo['filepath'] = os.path.expandvars(Dinfo['evalDataPath'])
+                Data = loadDataForSlice(**Dinfo)
             else:
                 return None
                 raise ValueError('DataIterator has no attribute Data')
@@ -200,10 +201,11 @@ def calcHammingDistanceAndSave(zHatFlatAligned,
         zTrue,
         zHatFlatAligned,
         **kwargs)
-    
+    normhdist = float(hdistance) / float(zHatFlatAligned.size)
+
     learnAlgObj = kwargs['learnAlg']
     lapFrac = kwargs['lapFrac']
     prefix = makePrefixForLap(lapFrac)
     outpath = os.path.join(learnAlgObj.savedir, 'hamming-distance.txt')
     with open(outpath, 'a') as f:
-        f.write('%.6f\n' % (hdistance))
+        f.write('%.6f\n' % (normhdist))

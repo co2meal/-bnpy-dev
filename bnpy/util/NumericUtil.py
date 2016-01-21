@@ -13,11 +13,11 @@ Library of efficient vectorized implementations of
 '''
 import os
 import ConfigParser
-import ctypes
 import numpy as np
 import scipy.sparse
 import timeit
 
+from EntropyUtil import calcRlogR, calcRlogRdotv
 
 def LoadConfig():
     global Config, cfgfilepath
@@ -167,61 +167,6 @@ def sumRtimesS_numexpr(R, S):
         return ne.evaluate("sum(R*S, axis=0)")
     else:
         return sumRtimesS_numpy(R, S)
-
-
-def calcRlogR(R):
-    ''' Compute R * log(R), then sum along columns of result.
-
-    Uses faster numexpr library if available, but safely falls back
-    to plain numpy otherwise.
-
-    Returns
-    --------
-    S : 1D array, size K
-        S[k] = \sum_{n=1}^N r[n,k] log r[n,k]
-    '''
-    if Config['calcRlogR'] == "numexpr" and hasNumexpr:
-        return calcRlogR_numexpr(R)
-    else:
-        return calcRlogR_numpy(R)
-
-
-def calcRlogR_numpy(R):
-    return np.sum(R * np.log(R), axis=0)
-
-
-def calcRlogR_numexpr(R):
-    if R.shape[0] > 1:
-        return ne.evaluate("sum(R*log(R), axis=0)")
-    else:
-        # Edge case: numexpr somehow fails if R has shape (1,K)
-        return calcRlogR_numpy(R)
-
-
-def calcRlogRdotv(R, v):
-    ''' Calculate dot product of matrix (R * log R) and vector v.
-
-    Uses faster numexpr library if available, but safely falls back
-    to plain numpy otherwise.
-
-    Returns
-    -------
-    S : 1D array, size K
-        S[k] = \sum_{n=1}^N v[n] r[n,k] log r[n,k]
-    '''
-    if Config['calcRlogRdotv'] == "numexpr" and hasNumexpr:
-        return calcRlogRdotv_numexpr(R, v)
-    else:
-        return calcRlogRdotv_numpy(R, v)
-
-
-def calcRlogRdotv_numpy(R, v):
-    return np.dot(v, R * np.log(R))
-
-
-def calcRlogRdotv_numexpr(R, v):
-    RlogR = ne.evaluate("R*log(R)")
-    return np.dot(v, RlogR)
 
 
 def calcRlogR_allpairs(R):

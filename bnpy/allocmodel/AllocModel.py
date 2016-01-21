@@ -16,25 +16,75 @@ class AllocModel(object):
         '''
         return list()
 
-    def calc_local_params(self, Data, LP):
-        ''' Compute local parameters for each data item and component.
+    def calc_local_params(self, Data, LP, **kwargs):
+        ''' Compute local params for provided dataset.
+
+        This is the E-step of EM algorithm.
+
+        Returned LP contains optimal values of local parameters
+        specific to the provided dataset. 
+        Updated values computed using current global parameter attributes.
+
+        Possible keyword arguments control model-specific computations.
+
+        Args
+        ----
+        Data : :class:`.DataObj`
+            Dataset to compute local parameters for.
+        LP : dict
+            Must contain cond. likelihoods in field 'E_log_soft_ev',
+            a 2D array that is N x K provided by the observation model.
+
+        Returns
+        -------
+        LP : dict
+            Contains updated fields for all K clusters in current model.
+            * 'resp' : N x K 2D array, soft assignments for each data atom.
         '''
         pass
 
-    def sample_local_params(self, obsModel, Data, SS, LP):
-        ''' Sample local assignments for each data item.
-        '''
-        pass
+    def get_global_suff_stats(self, Data, SS, LP, **kwargs):
+        ''' Compute low-dim summaries for provided local params.
 
-    def get_global_suff_stats(self, Data, SS, LP):
-        ''' Calculate sufficient statistics for each component.
+        Returned sufficient statistics are deterministic given Data, LP.
+
+        Possible keyword arguments control model-specific computations.
+
+        Args
+        ----
+        Data : :class:`.DataObj`
+            Dataset to be summarized.
+        SS : :class:`.SuffStatBag`
+            If present, all summaries will be added to this bag.
+            If None, new bag will be created and returned.
+        LP : dict
+            Holds valid local params for K' clusters and all atoms in Data.
+
+        Returns
+        -------
+        SS : :class:`.SuffStatBag`
+            Updated fields for each of K' clusters represented in LP
         '''
         pass
 
     def update_global_params(self, SS, rho=None, **kwargs):
-        ''' Update (in-place) global parameters for this model.
+        ''' Update global parameter attributes for this model.
 
-            This is the M-step of EM/VB algorithm
+        This is the M-step of EM algorithm.
+
+        Args
+        ----
+        SS : :class:`.SuffStatBag`
+            Sufficient statistics needed for update.
+
+        Returns
+        -------
+        None
+
+        Post Condition
+        --------------
+        Attribute K reset to the number of active clusters in SS.
+        Global parameter attributes updated in-place or reallocated.
         '''
         self.K = SS.K
         if self.inferType == 'EM':
@@ -52,30 +102,55 @@ class AllocModel(object):
             raise ValueError(
                 'Unrecognized Inference Type! %s' % (self.inferType))
 
-    def calc_evidence(self, Data, SS, LP):
+    def calc_evidence(self, Data, SS, LP, todict=0, **kwargs):
         """ Calculate ELBO objective function value for provided state.
+
+        Args
+        ----
+        Data : optional,
+            If not provided, relies exclusively on summaries in SS
+        SS : :class:`.SuffStatBag`
+            Contains valid summaries for desired dataset.
+        LP : optional, dict
+            If not provided, relies exclusively on summaries in SS
+            If provided, used in place of summaries in SS when possible.
+
+        Keyword Args
+        ------------
+        todict : boolean
+            If True, return a dict with different ELBO terms
+                under named keys like 'Ldata' and 'Lentropy'
+            If False [default], return scalar value equal to sum of terms.
 
         Returns
         -------
         L : float
-            represents sum of all terms in objective
+            Represents sum of all terms in optimization objective.
+            Will be a dict if todict option is True.
         """
         pass
 
     def calcELBOFromLP(self, Data, LP):
         """ Calculate ELBO value for provided data & local parameters
 
-            TODO implement this
+        TODO implement this
         """
         pass
 
     def calcELBOFromSS(self, SS):
         """ Calculate ELBO value for provided sufficient stats.
+
+        TODO implement this
         """
         pass
 
     def get_info_string(self):
         ''' Returns one-line human-readable terse description of this object
+        '''
+        pass
+
+    def sample_local_params(self, obsModel, Data, SS, LP):
+        ''' Sample local assignments for each data item.
         '''
         pass
 
@@ -102,8 +177,6 @@ class AllocModel(object):
         LP : dict
             Local parameters as key/value string/array pairs
             * resp : 2D array, size N x K
-
-        TODO
         '''
         LP['Z'] = np.argmax(LP['resp'], axis=1)
         K = LP['resp'].shape[1]
