@@ -606,6 +606,10 @@ if __name__ == '__main__':
     Data = StarCovarK5.get_data(nObsTotal=5000)
     # import DeadLeavesD25
     # Data = DeadLeavesD25.get_data()
+
+    hmodel, RInfo = bnpy.run('DeadLeavesD25', 'DPMixtureModel', 'ZeroMeanGauss', 'moVB',
+                             nLap=50, K=1, G=1, moves='birth,merge,delete,shuffle')
+
     hmodel, RInfo = bnpy.run('DeadLeavesD25', 'DPMixtureModel', 'ZeroMeanFactorAnalyzer', 'moVB',
                              C=1, nLap=50, K=1, WCovType='diag',
                              calcXxT=1, nTask=5, jobname='K1', nPostUpdate=2,
