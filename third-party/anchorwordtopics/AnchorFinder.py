@@ -36,9 +36,13 @@ def FindAnchorsForSizeKBasis(Q, K, lowerDim=None, seed=0, candidateRows=None):
 
     N, V = Q.shape
     dist = np.zeros(K)
+
+    if K == 1:
+        basisRow, _, _ = FindFarthestFromOrigin(Q)
+        return np.asarray([basisRow])
+
     B = np.zeros((K - 1, V), dtype=np.float64)
     basisRows = np.zeros(K, dtype=np.int32)
-
     # Temporarily store the vector in first row of B
     basisRows[0], dist[0], B[0, :] = FindFarthestFromOrigin(Q)
     Q -= B[0, :][np.newaxis, :]
