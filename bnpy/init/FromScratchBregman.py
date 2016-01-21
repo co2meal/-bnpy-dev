@@ -306,12 +306,16 @@ def initKMeans_BregmanDiv(
             # leading to all minDiv being zero if chosen covers all copies
             chosenZ = chosenZ[:k]
             for emptyk in reversed(range(k, K)):
+                # Remove remaining entries in the Mu list,
+                # so its total size is now k, not K
                 Mu.pop(emptyk)
+            assert len(Mu) == chosenZ.size
             break
         elif sum_minDiv < 0 or not np.isfinite(sum_minDiv):
             raise ValueError("sum_minDiv not valid: %f" % (sum_minDiv))
 
-        chosenZ[k] = PRNG.choice(N, p=minDiv/np.sum(sum_minDiv))
+        pvec = minDiv / np.sum(sum_minDiv)
+        chosenZ[k] = PRNG.choice(N, p=pvec)
         Mu[k] = obsModel.calcSmoothedMu(X[chosenZ[k]], W=W[chosenZ[k]])
         curDiv = obsModel.calcSmoothedBregDiv(
             X=X, Mu=Mu[k], W=W,
