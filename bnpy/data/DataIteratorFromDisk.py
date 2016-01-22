@@ -236,7 +236,16 @@ class DataIteratorFromDisk(object):
         '''
         curseed = int(self.dataorderseed + self.lapID)
         PRNG = np.random.RandomState(curseed)
-        return PRNG.permutation(self.nBatch)
+        if self.lapID == 0:
+            perm = PRNG.permutation(self.nBatch)
+            # Swap batch 0 to front
+            tmppos = np.argmin(perm) # position of 0, the smallest val in perm
+            tmpval = perm[0]
+            perm[0] = 0
+            perm[tmppos] = tmpval
+            return perm
+        else:
+            return PRNG.permutation(self.nBatch)
 
     def get_stats_summary(self):
         ''' Returns human-readable summary of this dataset's basic properties

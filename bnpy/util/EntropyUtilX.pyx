@@ -1,5 +1,4 @@
 """
-
 References
 ----------
 Neal Hughes

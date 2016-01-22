@@ -15,8 +15,8 @@ build/
 api/
 .ipynb_checkpoints/
 .idea/
-*UtilX.c
-*UtilX.html
+*X.c
+*X.html
 
 # EXCLUDE FILE PATTERNS
 # ---------------------

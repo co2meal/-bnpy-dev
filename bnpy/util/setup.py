@@ -3,15 +3,19 @@ from distutils.extension import Extension
 from Cython.Distutils import build_ext
 
 ext_modules=[
-	Extension("EntropyUtilX",
+    Extension("EntropyUtilX",
         ["EntropyUtilX.pyx"],
         libraries=["m"],
         extra_compile_args = ["-O3", "-ffast-math"]),
-  Extension("SparseRespUtilX",
+    Extension("SparseRespUtilX",
         ["SparseRespUtilX.pyx"],
         libraries=["m"],
-        extra_compile_args = ["-O3", "-ffast-math"])
-	]
+        extra_compile_args = ["-O3", "-ffast-math"]),
+    Extension("TextFileReaderX",
+        ["TextFileReaderX.pyx"],
+        libraries=["m"],
+        extra_compile_args = [])
+    ]
 
 # CYTHON DIRECTIVES
 # http://docs.cython.org/src/reference/compilation.html#compiler-directives
@@ -23,7 +27,6 @@ for e in ext_modules:
 		'wraparound':False}
 
 setup(
-  name = "EntropyUtilX",
   cmdclass = {"build_ext": build_ext},
   ext_modules = ext_modules)
 

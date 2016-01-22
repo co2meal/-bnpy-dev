@@ -240,6 +240,7 @@ void sparsifyLogResp(
                 }
             }
         }
+        assert(nzk == nnzPerRow);
 
         // Compute exp of each of the non-zero values in row n
         double rowsum = 0.0;

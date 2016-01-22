@@ -185,6 +185,4 @@ def getDataNameFromTaskpath(taskoutpath):
         strippedpath = strippedpath[1:]
     # The very next segment must be the data name
     dataName = strippedpath[:strippedpath.index(os.path.sep)]
-    print '>>>', strippedpath
-    print '>>>', dataName
     return dataName

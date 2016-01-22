@@ -9,12 +9,12 @@ WordsData
 import numpy as np
 import scipy.sparse
 import scipy.io
+import os
 from collections import namedtuple
 
 from bnpy.data.DataObj import DataObj
 from bnpy.util import as1D, toCArray
 from bnpy.util import numpyToSharedMemArray, sharedMemToNumpyArray
-
 
 class WordsData(DataObj):
 
@@ -83,6 +83,7 @@ class WordsData(DataObj):
         return cls(word_id=word_id, word_count=word_ct, nDocTotal=nDocTotal,
                    doc_range=doc_range, vocab_size=vocab_size, **kwargs)
 
+
     @classmethod
     def LoadFromFile_ldac(
             cls, filepath, vocab_size=0, nDocTotal=None,
@@ -94,53 +95,126 @@ class WordsData(DataObj):
         -------
         Data : WordsData object
         '''
-        doc_sizes = []
-        word_id = []
-        word_ct = []
-        Yvals = []
-        with open(filepath, 'r') as f:
-            if sliceID is None:
-                # Simple case: read the whole file
-                for line in f.readlines():
-                    nUnique, d_word_id, d_word_ct = \
-                        processLine_ldac__fromstring(line)
-                    doc_sizes.append(nUnique)
-                    word_id.extend(d_word_id)
-                    word_ct.extend(d_word_ct)
-            else:
-                # Parallel access case: read slice of the file
-                # slices will be roughly even in DISKSIZE, not in num lines
-                # Inspired by:
-                # https://xor0110.wordpress.com/2013/04/13/
-                # how-to-read-a-chunk-of-lines-from-a-file-in-python/
-                if filesize is None:
-                    f.seek(0, 2)
-                    filesize = f.tell()
-                start = filesize * sliceID / nSlice
-                stop = filesize * (sliceID + 1) / nSlice
-                if start == 0:
-                    f.seek(0)  # goto start of file
-                else:
-                    f.seek(start - 1)  # start at end of prev slice
-                    f.readline()  # then jump to next line brk to start reading
-                while f.tell() < stop:
-                    line = f.readline()
-                    nUnique, d_word_id, d_word_ct = \
-                        processLine_ldac__fromstring(line)
-                    doc_sizes.append(nUnique)
-                    word_id.extend(d_word_id)
-                    word_ct.extend(d_word_ct)
+        if sliceID is not None:
+            return cls.LoadFromSliceOfFile_ldac(filepath,
+                vocab_size=vocab_size,
+                nDocTotal=nDocTotal,
+                sliceID=sliceID,
+                nSlice=nSlice,
+                filesize=filesize,
+                **kwargs)
+        try:
+            from bnpy.util.TextFileReader \
+                import LoadWordsDataFromFile_ldac_cython
+            return LoadWordsDataFromFile_ldac_cython(filepath,
+                vocab_size=vocab_size,
+                nDocTotal=nDocTotal,
+                **kwargs)
+        except ImportError:
+            return cls.LoadFromFile_ldac_python(filepath,
+                vocab_size=vocab_size,
+                nDocTotal=nDocTotal,
+                filesize=filesize,
+                **kwargs)
 
+
+    @classmethod
+    def LoadFromFile_ldac_python(
+            cls, filepath, vocab_size=0, nDocTotal=None,
+            sliceID=None, nSlice=None, filesize=None,
+            **kwargs):
+        ''' Constructor for loading data from .ldac format files.
+
+        Returns
+        -------
+        Data : WordsData object
+        '''
+        if sliceID is not None:
+            cls.LoadFromSliceOfFile_ldac(filepath, vocab_size, nDocTotal,
+                sliceID=sliceID,
+                nSlice=nSlice,
+                filesize=filesize,
+                **kwargs)
+        
+        # Estimate num tokens in the file
+        fileSize_bytes = os.path.getsize(filepath)
+        nTokensPerByte = 1.0 / 5
+        estimate_nUniqueTokens = int(nTokensPerByte * fileSize_bytes)
+
+        # Preallocate space
+        word_id = np.zeros(estimate_nUniqueTokens)
+        word_ct = np.zeros(estimate_nUniqueTokens)
+        nSeen = 0
+        doc_sizes = []
+        with open(filepath, 'r') as f:
+            # Simple case: read the whole file
+            for line in f.readlines():
+                try:
+                    nUnique_d = processLine_ldac__fromstring_fillexisting(
+                        line, word_id, word_ct, nSeen)
+                except IndexError as e:
+                    # Double our preallocation, then try again
+                    extra_word_id = np.zeros(word_id.size, dtype=word_id.dtype)
+                    extra_word_ct = np.zeros(word_ct.size, dtype=word_ct.dtype)
+                    word_id = np.hstack([word_id, extra_word_id])
+                    word_ct = np.hstack([word_ct, extra_word_ct])
+                    nUnique_d = processLine_ldac__fromstring_fillexisting(
+                        line, word_id, word_ct, nSeen)
+                doc_sizes.append(nUnique_d)
+                nSeen += nUnique_d
+        word_id = word_id[:nSeen]
+        word_ct = word_ct[:nSeen]
         doc_range = np.hstack([0, np.cumsum(doc_sizes)])
         Data = cls(word_id=word_id, word_count=word_ct, nDocTotal=nDocTotal,
                    doc_range=doc_range, vocab_size=vocab_size, **kwargs)
-        if len(Yvals) > 0:
-            Yvals = toCArray(Yvals)
-            if np.allclose(Yvals.sum(),
-                           np.int32(Yvals).sum()):
-                Data.Yb = np.int32(Yvals)
+        return Data
+
+    @classmethod
+    def LoadFromSliceOfFile_ldac(
+            cls, filepath, vocab_size=0, nDocTotal=None,
+            sliceID=None, nSlice=None, filesize=None,
+            **kwargs):
+        ''' Constructor for loading data from .ldac format files.
+
+        Returns
+        -------
+        Data : WordsData object
+        '''
+        if filesize is None:
+            filesize = os.path.getsize(filepath)
+
+        # Estimate num tokens in the slice
+        nTokensPerByte = 1.0 / 5
+        estimate_nUniqueTokens = int(nTokensPerByte * filesize / nSlice)
+        # Preallocate space
+        word_id = np.zeros(estimate_nUniqueTokens)
+        word_ct = np.zeros(estimate_nUniqueTokens)
+        doc_sizes = []
+        nSeen = 0
+        with open(filepath, 'r') as f:
+            # Parallel access case: read slice of the file
+            # slices will be roughly even in DISKSIZE, not in num lines
+            # Inspired by:
+            # https://xor0110.wordpress.com/2013/04/13/
+            # how-to-read-a-chunk-of-lines-from-a-file-in-python/
+            start = filesize * sliceID / nSlice
+            stop = filesize * (sliceID + 1) / nSlice
+            if start == 0:
+                f.seek(0)  # goto start of file
             else:
-                Data.Yr = Yvals
+                f.seek(start - 1)  # start at end of prev slice
+                f.readline()  # then jump to next line brk to start reading
+            while f.tell() < stop:
+                line = f.readline()
+                nUnique_d = processLine_ldac__fromstring_fillexisting(
+                        line, word_id, word_ct, nSeen)
+                doc_sizes.append(nUnique_d)
+                nSeen += nUnique_d
+        word_id = word_id[:nSeen]
+        word_ct = word_ct[:nSeen]
+        doc_range = np.hstack([0, np.cumsum(doc_sizes)])
+        Data = cls(word_id=word_id, word_count=word_ct, nDocTotal=nDocTotal,
+                   doc_range=doc_range, vocab_size=vocab_size, **kwargs)
         return Data
 
     @classmethod
@@ -1249,3 +1323,40 @@ def processLine_ldac__fromstring(line):
     line = line.replace(':', ' ')
     data = np.fromstring(line, sep=' ', dtype=np.int32)
     return data[0], data[1::2], data[2::2]
+
+
+def processLine_ldac__fromstring_fillexisting(line, word_id, word_ct, start):
+    """
+    Examples
+    --------
+    >>> word_id = np.zeros(5, dtype=np.int32)
+    >>> word_ct = np.zeros(5, dtype=np.float64)
+    >>> a = processLine_ldac__fromstring_fillexisting(
+    ...    '5 66:6 77:7 88:8',
+    ...    word_id, word_ct, 0)
+    >>> print a
+    5
+    >>> print word_id
+    [66 77 88  0  0]
+    >>> print word_ct
+    [ 6.  7.  8.  0.  0.]
+    """
+    line = line.replace(':', ' ')
+    data = np.fromstring(line, sep=' ', dtype=np.int32)
+    stop = start + (len(data) - 1) // 2
+    if stop >= word_id.size:
+        raise IndexError("Provided array not large enough")    
+    word_id[start:stop] = data[1::2]
+    word_ct[start:stop] = data[2::2]
+    return data[0]
+
+'''
+DEPRECATED
+        if len(Yvals) > 0:
+            Yvals = toCArray(Yvals)
+            if np.allclose(Yvals.sum(),
+                           np.int32(Yvals).sum()):
+                Data.Yb = np.int32(Yvals)
+            else:
+                Data.Yr = Yvals
+'''
