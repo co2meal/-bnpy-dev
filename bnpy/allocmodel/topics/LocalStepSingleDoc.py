@@ -213,28 +213,24 @@ def calcELBO_SingleDoc(DocTopicCount_d, DocTopicProb_d, sumResp_d,
     if alphaEbetaRem is None:
         # LDA model, with K active topics
         sumTheta = theta_d.sum()
-        digammaSum = digamma(sumTheta)
-        ElogPi_d = digamma(theta_d) - digammaSum
-
         L_alloc = np.sum(gammaln(theta_d)) - gammaln(sumTheta)
         # SLACK terms are always equal to zero!
+        #digammaSum = digamma(sumTheta)
+        #ElogPi_d = digamma(theta_d) - digammaSum
     else:
         # HDP, with K active topics and one aggregate "leftover" topic
         sumTheta = theta_d.sum() + alphaEbetaRem
-        digammaSum = digamma(sumTheta)
-        ElogPi_d = digamma(theta_d) - digammaSum
-        ElogPiRem = digamma(alphaEbetaRem) - digammaSum
-
-        L_alloc = np.sum(gammaln(theta_d)) + gammaln(alphaEbetaRem) \
-            - gammaln(sumTheta)
+        L_alloc = np.sum(gammaln(theta_d)) - gammaln(sumTheta) + \
+            gammaln(alphaEbetaRem)
         # SLACK terms are always equal to zero!
-
+        #digammaSum = digamma(sumTheta)
+        #ElogPi_d = digamma(theta_d) - digammaSum
+        #ElogPiRem = digamma(alphaEbetaRem) - digammaSum
     if isinstance(wc_d, float):
         L_rest = np.sum(np.log(sumResp_d))
     else:
         L_rest = np.inner(wc_d, np.log(sumResp_d))
     L_rest -= np.inner(DocTopicCount_d, np.log(DocTopicProb_d + 1e-100))
-
     return L_alloc + L_rest
 
 
