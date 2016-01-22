@@ -1,6 +1,6 @@
 SHELL := /bin/bash 
 
-all: util_entropy libfwdbwd
+all: util_entropy libfwdbwd libsparsetopics libsparseresp
 
 # Rule: compile C extension via cython for fast calculation of entropy
 util_entropy:
@@ -26,10 +26,10 @@ libsparseresp: hasEigenpath
 	cd bnpy/util/lib/sparseResp/; \
 	g++ SparsifyRespCPPX.cpp -o libsparseresp.so \
 		-I$(EIGENPATH) \
-		-DNDEBUG -O3 \
+		-O3 \
 		--shared -fPIC -w $(PYARCH);
 
-libsparsetopics:
+libsparsetopics: hasEigenpath
 	cd bnpy/util/lib/sparseResp/; \
 	g++ TopicModelLocalStepCPPX.cpp -o libsparsetopics.so \
 		-I$(BOOSTMATHPATH) -I$(EIGENPATH) \

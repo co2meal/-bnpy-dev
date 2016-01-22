@@ -78,7 +78,7 @@ def calcELBO_NonlinearTerms(SS=None, LP=None,
                 Hresp = -1 * NumericUtil.calcRlogR(resp)
     if returnMemoizedDict:
         return dict(Hresp=Hresp)
-    Lentropy = Hresp.sum()
+    Lentropy = np.sum(Hresp)
     if SS is not None and SS.hasAmpFactor():
         Lentropy *= SS.ampF
     if todict:

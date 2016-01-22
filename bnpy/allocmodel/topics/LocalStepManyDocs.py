@@ -7,6 +7,9 @@ import LocalStepLogger
 from bnpy.util import NumericUtil
 from LocalStepSingleDoc import calcLocalParams_SingleDoc
 from LocalStepSingleDoc import calcLocalParams_SingleDoc_WithELBOTrace
+
+from bnpy.util.SparseRespUtil \
+    import fillInDocTopicCountFromSparseResp, sparsifyResp
 from bnpy.util.lib.sparseResp.LibSparseResp \
     import calcSparseLocalParams_SingleDoc
 
@@ -18,6 +21,7 @@ def calcLocalParams(
         initDocTopicCountLP='scratch',
         cslice=(0, None),
         nnzPerRowLP=0,
+        doSparseOnlyAtFinalLP=0,
         **kwargs):
     ''' Calculate all local parameters for provided dataset under a topic model
 
@@ -64,7 +68,7 @@ def calcLocalParams(
     # Prepare the likelihood matrix
     # Make sure it is C-contiguous, so that matrix ops are very fast
     Lik = np.asarray(LP['E_log_soft_ev'], order='C')
-    if nnzPerRowLP <= 0 or nnzPerRowLP >= K:
+    if (nnzPerRowLP <= 0 or nnzPerRowLP >= K) or doSparseOnlyAtFinalLP:
         DO_DENSE = True
         # Dense Representation
         Lik -= Lik.max(axis=1)[:, np.newaxis]
@@ -74,7 +78,6 @@ def calcLocalParams(
         nnzPerRowLP = np.minimum(nnzPerRowLP, K)
         spR_data = np.zeros(N * nnzPerRowLP, dtype=np.float64)
         spR_colids = np.zeros(N * nnzPerRowLP, dtype=np.int32)
-
     slice_start = Data.doc_range[cslice[0]]
     AggInfo = dict()
     for d in xrange(nDoc):
@@ -133,7 +136,9 @@ def calcLocalParams(
                                     alphaEbeta, alphaEbetaRem)
     if DO_DENSE:
         LP = updateLPWithResp(
-            LP, Data, Lik, DocTopicProb, sumRespTilde, cslice)
+            LP, Data, Lik, DocTopicProb, sumRespTilde, cslice,
+            nnzPerRowLP=nnzPerRowLP,
+            doSparseOnlyAtFinalLP=doSparseOnlyAtFinalLP)
         LP['Info'] = AggInfo
         writeLogMessageForManyDocs(Data, AggInfo, **kwargs)
     else:
@@ -182,7 +187,7 @@ def updateLPGivenDocTopicCount(LP, DocTopicCount,
 
 
 def updateLPWithResp(LP, Data, Lik, Prior, sumRespTilde, 
-        cslice=(0, None)):
+        cslice=(0, None), doSparseOnlyAtFinalLP=0, nnzPerRowLP=0):
     ''' Compute assignment responsibilities given output of local step.
 
     Args
@@ -204,6 +209,7 @@ def updateLPWithResp(LP, Data, Lik, Prior, sumRespTilde,
     nDoc = calcNumDocFromSlice(Data, cslice)
     slice_start = Data.doc_range[cslice[0]]
     N = LP['resp'].shape[0]
+    K = LP['resp'].shape[1]
     if N > Data.doc_range[-1]:
         assert N == nDoc * Data.vocab_size
         # Bernoulli naive case. Quite slow!
@@ -217,8 +223,16 @@ def updateLPWithResp(LP, Data, Lik, Prior, sumRespTilde,
             start = Data.doc_range[cslice[0] + d] - slice_start
             stop = Data.doc_range[cslice[0] + d + 1] - slice_start
             LP['resp'][start:stop] *= Prior[d]
-    LP['resp'] /= sumRespTilde[:, np.newaxis]
-    np.maximum(LP['resp'], 1e-300, out=LP['resp'])
+    if doSparseOnlyAtFinalLP and (nnzPerRowLP > 0 and nnzPerRowLP < K):
+        LP['spR'] = sparsifyResp(LP['resp'], nnzPerRow=nnzPerRowLP)
+        LP['nnzPerRow'] = nnzPerRowLP
+        assert np.allclose(LP['spR'].sum(axis=1), 1.0)
+        del LP['resp']
+        np.maximum(LP['spR'].data, 1e-300, out=LP['spR'].data)
+        fillInDocTopicCountFromSparseResp(Data, LP)
+    else:
+        LP['resp'] /= sumRespTilde[:, np.newaxis]
+        np.maximum(LP['resp'], 1e-300, out=LP['resp'])
     # Time consuming: 
     # >>> assert np.allclose(LP['resp'].sum(axis=1), 1.0)
     return LP

@@ -214,7 +214,7 @@ def plotSingleLineAcrossJobsByXVar(jpathPattern,
                                    xlabel=None,
                                    yvar='evidence',
                                    lineStyle='.-',
-                                   taskids='.best',
+                                   taskids='all',
                                    lineID=0,
                                    lvar='',
                                    **kwargs):
