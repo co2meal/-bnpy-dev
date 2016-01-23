@@ -20,6 +20,6 @@ AllocModelConstructorsByName = {
 
 AllocModelNameSet = set(AllocModelConstructorsByName.keys())
 
-__all__ = list()
+__all__ = ['AllocModel']
 for name in AllocModelConstructorsByName:
     __all__.append(name)

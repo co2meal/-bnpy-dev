@@ -18,7 +18,7 @@ import os
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-#sys.path.insert(0, os.path.abspath('.'))
+sys.path.append(os.path.expandvars("$BNPYROOT"));
 
 # -- General configuration ------------------------------------------------
 
@@ -32,9 +32,10 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.doctest',
     'sphinx.ext.todo',
-    'sphinx.ext.coverage',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
+    'sphinx.ext.napoleon',
+#    'sphinx.ext.coverage',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -127,7 +128,7 @@ html_theme_options = {
     'navbar_title': "bnpy",
 
     # Tab name for entire site. (Default: "Site")
-    'navbar_site_name': 'Site Index', #"Index",
+    'navbar_site_name': None, #"Index",
 
     'navbar_include_searchbox': False,
 
@@ -142,8 +143,8 @@ html_theme_options = {
         ("Demo Gallery", "demos/DemoIndex"),
         ("Installation", "Installation"),
         ("User Guide", "UserGuide"),
-        ("Alloc Model Guide", "allocmodel/index"),
-        ("Obs Model Guide", "obsmodel/index"),
+        ("Allocation Models", "allocmodel/index"),
+        ("Obsservation Models", "obsmodel/index"),
     ],
 
     # Render the next and previous page links in navbar. (Default: true)
@@ -151,6 +152,8 @@ html_theme_options = {
 
     # Render the current pages TOC in the navbar. (Default: true)
     'navbar_pagenav': False,
+
+    'navbar_globaltoc': False,
 
     # Tab name for the current pages TOC. (Default: "Page")
     'navbar_pagenav_name': "Page",
@@ -218,7 +221,7 @@ html_static_path = ['_static']
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format.
-html_last_updated_fmt = '%b %d, %Y'
+html_last_updated_fmt = '%Y %B %d'
 
 # If true, SmartyPants will be used to convert quotes and dashes to
 # typographically correct entities.
@@ -229,7 +232,7 @@ html_use_smartypants = True
 html_sidebars = {'**': [
     'searchbox.html',
     'localtoc.html', 
-    'sidebar.html',
+    #'sidebar.html',
     ]}
 
 
@@ -360,3 +363,16 @@ texinfo_documents = [
 
 # If true, do not generate a @detailmenu in the "Top" node's menu.
 #texinfo_no_detailmenu = False
+
+
+# -- Napoleon Settings -------------------------------------------
+napoleon_google_docstring = True
+napoleon_numpy_docstring = True
+napoleon_include_private_with_doc = False
+napoleon_include_special_with_doc = True
+napoleon_use_admonition_for_examples = False
+napoleon_use_admonition_for_notes = False
+napoleon_use_admonition_for_references = False
+napoleon_use_ivar = False
+napoleon_use_param = True
+napoleon_use_rtype = False

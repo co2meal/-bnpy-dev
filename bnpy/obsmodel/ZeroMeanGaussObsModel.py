@@ -35,7 +35,7 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
     '''
 
     def __init__(self, inferType='EM', D=0, min_covar=None,
-                 Data=None,
+                 Data=None, G=None,
                  **PriorArgs):
         ''' Initialize bare obsmodel with valid prior hyperparameters.
 
@@ -49,6 +49,7 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
         self.K = 0
         self.inferType = inferType
         self.min_covar = min_covar
+        self.G = G
         self.createPrior(Data, **PriorArgs)
         self.Cache = dict()
 
@@ -186,7 +187,7 @@ class ZeroMeanGaussObsModel(AbstractObsModel):
         --------
         SS : SuffStatBag object, with K components.
         '''
-        return calcSummaryStats(Data, SS, LP, **kwargs)
+        return calcSummaryStats(Data, SS, LP, G=self.G, **kwargs)
 
     def calcSummaryStatsForContigBlock(self, Data, SS=None,
                                        a=None, b=None, **kwargs):
@@ -755,7 +756,7 @@ def c_Diff(nu1, logdetB1, D, nu2, logdetB2):
         + 0.5 * (nu1 * logdetB1 - nu2 * logdetB2)
 
 
-def calcSummaryStats(Data, SS, LP, **kwargs):
+def calcSummaryStats(Data, SS, LP, G=None, **kwargs):
     ''' Calculate summary statistics for given dataset and local parameters
 
     Returns
@@ -781,6 +782,13 @@ def calcSummaryStats(Data, SS, LP, **kwargs):
     for k in xrange(K):
         xxT[k] = dotATA(sqrtResp[:, k][:, np.newaxis] * Data.X)
     SS.setField('xxT', xxT, dims=('K', 'D', 'D'))
+
+    # scale all the SS by 1/G
+    if G is not None:
+        SS.setField("N", SS.N / G, dims='K')
+        SS.setField("xxT", SS.xxT / G, dims=('K', 'D', 'D'))
+        if hasattr(SS,'_ELBOTerms'):
+            SS.setELBOTerm("Hresp", SS.getELBOTerm("Hresp") / G, dims="K")
     return SS
 
 

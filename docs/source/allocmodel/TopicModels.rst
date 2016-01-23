@@ -54,5 +54,5 @@ TOC
    :maxdepth: 3
    :titlesonly:
 
-   FiniteTopicModel-ObjectSpec.rst
-   HDPTopicModel-ObjectSpec.rst
+   FiniteTopicModel.rst
+   HDPTopicModel.rst

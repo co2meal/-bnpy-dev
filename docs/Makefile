@@ -50,6 +50,14 @@ help:
 clean:
 	rm -rf $(BUILDDIR)/*
 
+apidoc:
+	sphinx-apidoc -f -o source/api/ $(BNPYROOT)/bnpy/
+
+localhost:
+	cd $(BUILDDIR)/html/ && python -m SimpleHTTPServer
+	@echo "Local server running. Point browser to localhost:8000"
+
+
 html:
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
 	@echo

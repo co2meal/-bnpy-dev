@@ -204,7 +204,7 @@ class DPMixtureModel(AllocModel):
     """ Nonparametric mixture model with K active components.
 
     Attributes
-    -------
+    ----------
     * inferType : string {'VB', 'moVB', 'soVB'}
         indicates which updates to perform for local/global steps
     * K : int
@@ -216,8 +216,8 @@ class DPMixtureModel(AllocModel):
         scalar pseudo-count of OFF values
         used in Beta prior on stick-breaking lengths.
 
-    Attributes for VB
-    ---------
+    Attributes : Variational learning
+    ---------------------------------
     * eta1 : 1D array, size K
         Posterior ON parameters for Beta posterior factor q(u).
         eta1[k] > 0 for all k
@@ -226,7 +226,7 @@ class DPMixtureModel(AllocModel):
         eta0[k] > 0 for all k
 
     Secondary Attributes for VB
-    ---------
+    ---------------------------
     * ElogU : 1D array, size K
         Expected value E[log u[k]] under current q(u[k])
     * Elog1mU : 1D array, size K
@@ -282,12 +282,11 @@ class DPMixtureModel(AllocModel):
         return list()
 
     def calc_local_params(self, Data, LP, **kwargs):
-        ''' Compute local parameters for each data item.
+        ''' Compute local parameters for provided data.
 
-        Parameters
-        -------
-        Data : bnpy.data.DataObj subclass
-
+        Args
+        ----
+        Data : :class:`bnpy.data.DataObj`
         LP : dict
             Local parameters as key-value string/array pairs
             * E_log_soft_ev : 2D array, N x K

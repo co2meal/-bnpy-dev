@@ -1,4 +1,11 @@
-all: libfwdbwd
+SHELL := /bin/bash 
+
+all: util_entropy libfwdbwd
+
+# Rule: compile C extension via cython for fast calculation of entropy
+util_entropy:
+	cd bnpy/util/; \
+	python setup.py build_ext --inplace
 
 # Rule: compile libfwdbwd from Eigen
 # Explanation of flags:
@@ -18,5 +25,3 @@ ifndef EIGENPATH
 			First, install Eigen (v3+) from eigen.tuxfamily.org. \
 			Next, in terminal: export EIGENPATH=/path/to/eigen3/)
 endif
-
-
