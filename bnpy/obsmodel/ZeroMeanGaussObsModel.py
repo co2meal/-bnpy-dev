@@ -785,11 +785,10 @@ def calcSummaryStats(Data, SS, LP, G=None, **kwargs):
 
     # scale all the SS by 1/G
     if G is not None:
-        SS.N *= 1.0 / G
-        SS.xxT *= 1.0 / G
+        SS.setField("N", SS.N / G, dims='K')
+        SS.setField("xxT", SS.xxT / G, dims=('K', 'D', 'D'))
         if hasattr(SS,'_ELBOTerms'):
-            SS._ELBOTerms.Hresp *= 1.0 / G
-            # SS.getELBOTerm('Hresp') *= 1.0/G
+            SS.setELBOTerm("Hresp", SS.getELBOTerm("Hresp") / G, dims="K")
     return SS
 
 

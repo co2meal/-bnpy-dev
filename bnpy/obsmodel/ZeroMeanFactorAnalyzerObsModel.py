@@ -602,19 +602,18 @@ class ZeroMeanFactorAnalyzerObsModel(AbstractObsModel):
 
 if __name__ == '__main__':
     import bnpy
-    import StarCovarK5
-    Data = StarCovarK5.get_data(nObsTotal=5000)
+    # import StarCovarK5
+    # Data = StarCovarK5.get_data(nObsTotal=5000)
     # import DeadLeavesD25
     # Data = DeadLeavesD25.get_data()
 
     hmodel, RInfo = bnpy.run('DeadLeavesD25', 'DPMixtureModel', 'ZeroMeanGauss', 'moVB',
-                             nLap=50, K=1, G=1, moves='birth,merge,delete,shuffle')
-
-    hmodel, RInfo = bnpy.run('DeadLeavesD25', 'DPMixtureModel', 'ZeroMeanFactorAnalyzer', 'moVB',
-                             C=1, nLap=50, K=1, WCovType='diag',
-                             calcXxT=1, nTask=5, jobname='K1', nPostUpdate=2,
-                             moves='birth,merge,delete,shuffle')
-    print hmodel.allocModel.get_active_comp_probs()
+                             nLap=50, K=1, sF=1e-3, moves='merge,birth,shuffle,delete')
+    # hmodel, RInfo = bnpy.run('DeadLeavesD25', 'DPMixtureModel', 'ZeroMeanFactorAnalyzer', 'moVB',
+    #                          C=1, nLap=50, K=1, WCovType='diag',
+    #                          calcXxT=1, nTask=5, jobname='K1', nPostUpdate=2,
+    #                          moves='birth,merge,delete,shuffle')
+    # print hmodel.allocModel.get_active_comp_probs()
 
     # import matplotlib.pylab as plt
     # for k in xrange(hmodel.obsModel.K):
