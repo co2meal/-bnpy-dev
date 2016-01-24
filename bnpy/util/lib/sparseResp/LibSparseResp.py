@@ -6,6 +6,7 @@ import numpy as np
 from numpy.ctypeslib import ndpointer
 import ctypes
 import scipy.sparse
+from scipy.special import digamma
 
 def sparsifyResp_cpp(Resp, nnzPerRow, order='C'):
     '''
@@ -271,8 +272,21 @@ def calcSparseLocalParams_SingleDoc(
         nCoordAscentItersLP=10, convThrLP=0.001,
         nnzPerRowLP=2,
         restartLP=0,
+        activeonlyLP=0,
         initDocTopicCountLP='setDocProbsToEGlobalProbs',
+        maxDiffVec=None,
+        numIterVec=None,
+        d=0,
         **kwargs):
+
+    # Parse params for tracking convergence progress
+    if maxDiffVec is None:
+        maxDiffVec = np.zeros(1, dtype=np.float64)
+        numIterVec = np.zeros(1, dtype=np.int32)
+    assert maxDiffVec.dtype == np.float64
+    assert numIterVec.dtype == np.int32
+    D = maxDiffVec.size
+
     N, K = Lik_d.shape
     K1 = alphaEbeta.size
     assert K == K1
@@ -293,6 +307,22 @@ def calcSparseLocalParams_SingleDoc(
             spResp_data_OUT,
             spResp_colids_OUT,
             )
+    elif activeonlyLP:
+        doTrack = 0
+        elboVec = np.zeros(nCoordAscentItersLP + 1)
+        libTopics.sparseLocalStepSingleDoc_ActiveOnly(
+            Lik_d, alphaEbeta, #digamma(alphaEbeta),
+            nnzPerRowLP, N, K, nCoordAscentItersLP, convThrLP,
+            initProbsToEbeta,
+            topicCount_d_OUT,
+            spResp_data_OUT,
+            spResp_colids_OUT,
+            d, D, numIterVec, maxDiffVec,
+            doTrack, elboVec,
+            )
+        if np.max(np.diff(elboVec)) < 0:
+            print "NOT MONOTONIC!!!"
+            from IPython import embed; embed()
     else:
         libTopics.sparseLocalStepSingleDoc(
             Lik_d, alphaEbeta,
@@ -301,6 +331,7 @@ def calcSparseLocalParams_SingleDoc(
             topicCount_d_OUT,
             spResp_data_OUT,
             spResp_colids_OUT,
+            d, D, numIterVec, maxDiffVec,
             )
 
 
@@ -438,6 +469,32 @@ try:
          ndpointer(ctypes.c_double),
          ndpointer(ctypes.c_double),
          ndpointer(ctypes.c_int),
+         ctypes.c_int,
+         ctypes.c_int,
+         ndpointer(ctypes.c_int),
+         ndpointer(ctypes.c_double),
+         ]
+
+    libTopics.sparseLocalStepSingleDoc_ActiveOnly.restype = None
+    libTopics.sparseLocalStepSingleDoc_ActiveOnly.argtypes = \
+        [ndpointer(ctypes.c_double),
+         ndpointer(ctypes.c_double),
+         #ndpointer(ctypes.c_double),
+         ctypes.c_int,
+         ctypes.c_int,
+         ctypes.c_int,
+         ctypes.c_int,
+         ctypes.c_double,
+         ctypes.c_int,
+         ndpointer(ctypes.c_double),
+         ndpointer(ctypes.c_double),
+         ndpointer(ctypes.c_int),
+         ctypes.c_int,
+         ctypes.c_int,
+         ndpointer(ctypes.c_int),
+         ndpointer(ctypes.c_double),
+         ctypes.c_int,
+         ndpointer(ctypes.c_double),
          ]
 
     libTopics.sparseLocalStepSingleDocWithWordCounts.restype = None

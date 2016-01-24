@@ -64,7 +64,6 @@ def calcLocalParams(
         alphaEbeta = alpha * np.ones(K)
     else:
         alphaEbeta = alphaEbeta[:K]
-
     # Prepare the likelihood matrix
     # Make sure it is C-contiguous, so that matrix ops are very fast
     Lik = np.asarray(LP['E_log_soft_ev'], order='C')
@@ -79,7 +78,11 @@ def calcLocalParams(
         spR_data = np.zeros(N * nnzPerRowLP, dtype=np.float64)
         spR_colids = np.zeros(N * nnzPerRowLP, dtype=np.int32)
     slice_start = Data.doc_range[cslice[0]]
+
     AggInfo = dict()
+    AggInfo['maxDiff'] = np.zeros(Data.nDoc)
+    AggInfo['iter'] = np.zeros(Data.nDoc, dtype=np.int32)
+
     for d in xrange(nDoc):
         start = Data.doc_range[cslice[0] + d]
         stop = Data.doc_range[cslice[0] + d + 1]
@@ -115,6 +118,9 @@ def calcLocalParams(
                 spResp_colids_OUT=spR_colids[m_start:m_stop],
                 nnzPerRowLP=nnzPerRowLP,
                 initDocTopicCountLP=initDocTopicCountLP,
+                d=d,
+                maxDiffVec=AggInfo['maxDiff'],
+                numIterVec=AggInfo['iter'],
                 **kwargs)
         else:
             Lik_d = Lik[lstart:lstop].copy()  # Local copy
@@ -126,8 +132,6 @@ def calcLocalParams(
                     initDocTopicCountLP=initDocTopicCountLP,
                     **kwargs)
             AggInfo = updateConvergenceInfoForDoc_d(d, Info_d, AggInfo, Data)
-        #if d == 0:
-        #    print ' '.join(['%6.1f' % (x) for x in DocTopicCount[d]])
     LP['DocTopicCount'] = DocTopicCount
     if hasattr(Data, 'word_count'):
         if cslice is None or (cslice[0] == 0 and cslice[1] is None):
@@ -139,8 +143,6 @@ def calcLocalParams(
             LP, Data, Lik, DocTopicProb, sumRespTilde, cslice,
             nnzPerRowLP=nnzPerRowLP,
             doSparseOnlyAtFinalLP=doSparseOnlyAtFinalLP)
-        LP['Info'] = AggInfo
-        writeLogMessageForManyDocs(Data, AggInfo, **kwargs)
     else:
         indptr = np.arange(
             0, (N+1) * nnzPerRowLP, nnzPerRowLP, dtype=np.int32)
@@ -148,6 +150,9 @@ def calcLocalParams(
             (spR_data, spR_colids, indptr),
             shape=(N, K))
         LP['nnzPerRow'] = nnzPerRowLP
+
+    LP['Info'] = AggInfo
+    writeLogMessageForManyDocs(Data, AggInfo, **kwargs)
     return LP
 
 
