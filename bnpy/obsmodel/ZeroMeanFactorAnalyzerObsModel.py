@@ -611,7 +611,7 @@ if __name__ == '__main__':
     # Data = DeadLeavesD25.get_data()
 
     hmodel, RInfo = bnpy.run('DeadLeavesD25', 'DPMixtureModel', 'ZeroMeanGauss', 'moVB',
-                             nLap=50, K=1, sF=1e-3, moves='merge,birth,shuffle,delete')
+                             nLap=50, K=20, G=4, sF=1e-3, moves='merge,birth,shuffle,delete')
     # hmodel, RInfo = bnpy.run('DeadLeavesD25', 'DPMixtureModel', 'ZeroMeanFactorAnalyzer', 'moVB',
     #                          C=1, nLap=50, K=1, WCovType='diag',
     #                          calcXxT=1, nTask=5, jobname='K1', nPostUpdate=2,

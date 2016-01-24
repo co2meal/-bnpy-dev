@@ -789,6 +789,8 @@ def calcSummaryStats(Data, SS, LP, G=None, **kwargs):
         SS.setField("xxT", SS.xxT / G, dims=('K', 'D', 'D'))
         if hasattr(SS,'_ELBOTerms'):
             SS.setELBOTerm("Hresp", SS.getELBOTerm("Hresp") / G, dims="K")
+        if hasattr(SS,'_MergeTerms'):
+            SS.setMergeTerm("Hresp", SS.getMergeTerm("Hresp") / G, dims=("K","K"))
     return SS
 
 
